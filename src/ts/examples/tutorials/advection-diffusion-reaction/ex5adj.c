@@ -156,6 +156,7 @@ int main(int argc,char **argv)
     ierr = TSAdjointSolve(ts);CHKERRQ(ierr);
     ierr = VecDestroy(&lambda[0]);CHKERRQ(ierr);
   }
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.  All PETSc objects should be destroyed when they
      are no longer needed.
