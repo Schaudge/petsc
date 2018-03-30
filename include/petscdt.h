@@ -129,6 +129,7 @@ PETSC_STATIC_INLINE void PetscDTEnumSubset(PetscInt n, PetscInt k, PetscInt Nk, 
   PetscInt i, l;
 
   PetscFunctionBeginHot;
+  if (k > n - k) j = Nk - 1 - j;
   for (i = 0, l = 0; i < n && l < k; i++) {
     PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
     PetscInt Nminusk = Nk - Nminuskminus;
@@ -152,6 +153,7 @@ PETSC_STATIC_INLINE void PetscDTEnumSplitWithSign(PetscInt n, PetscInt k, PetscI
   PetscFunctionBeginHot;
   odd = PETSC_FALSE;
   subcomp = &subset[k];
+  if (k > n - k) j = Nk - 1 - j;
   for (i = 0, l = 0, m = 0; i < n && l < k; i++) {
     PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
     PetscInt Nminusk = Nk - Nminuskminus;
@@ -177,6 +179,7 @@ PETSC_STATIC_INLINE void PetscDTSubsetIndex(PetscInt n, PetscInt k, PetscInt Nk,
 {
   PetscInt  j = 0;
   PetscInt  i, l;
+  PetscInt  origNk = Nk;
 
   PetscFunctionBeginHot;
   for (i = 0, l = 0; i < n && l < k; i++) {
@@ -191,6 +194,7 @@ PETSC_STATIC_INLINE void PetscDTSubsetIndex(PetscInt n, PetscInt k, PetscInt Nk,
       Nk = Nminusk;
     }
   }
+  if (k > n - k) j = origNk - 1 - j;
   *index = j;
   PetscFunctionReturnVoid();
 }
