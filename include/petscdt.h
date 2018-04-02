@@ -60,25 +60,14 @@ PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementAdvectionDestroy(Pet
 PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt, PetscReal *, PetscReal *, PetscReal ***);
 PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementMassDestroy(PetscInt, PetscReal *, PetscReal *, PetscReal ***);
 
-/*S
-  PetscDTAltV - Alternating algebraic k-form calculations
-
-  Level: developer
-S*/
-typedef struct _n_PetscDTAltV *PetscDTAltV;
-
-PETSC_EXTERN PetscErrorCode PetscDTAltVCreate(PetscInt, PetscDTAltV *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVDestroy(PetscDTAltV *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVGetN(PetscDTAltV, PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVGetSize(PetscDTAltV, PetscInt, PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVApply(PetscDTAltV, PetscInt, const PetscReal *, const PetscReal *, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVWedge(PetscDTAltV, PetscInt, PetscInt, const PetscReal *, const PetscReal *, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVWedgeMatrix(PetscDTAltV, PetscInt, PetscInt, const PetscReal *, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVPullback(PetscDTAltV, PetscDTAltV, const PetscReal *, PetscInt, const PetscReal *, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVPullbackMatrix(PetscDTAltV, PetscDTAltV, const PetscReal *, PetscInt, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVInterior(PetscDTAltV, PetscInt, const PetscReal *, const PetscReal *, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVInteriorMatrix(PetscDTAltV, PetscInt, const PetscReal *, PetscReal *);
-PETSC_EXTERN PetscErrorCode PetscDTAltVStar(PetscDTAltV, PetscInt, PetscInt, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVApply(PetscInt, PetscInt, const PetscReal *, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVWedge(PetscInt, PetscInt, PetscInt, const PetscReal *, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVWedgeMatrix(PetscInt, PetscInt, PetscInt, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVPullback(PetscInt, PetscInt, const PetscReal *, PetscInt, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVPullbackMatrix(PetscInt, PetscInt, const PetscReal *, PetscInt, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVInterior(PetscInt, PetscInt, const PetscReal *, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVInteriorMatrix(PetscInt, PetscInt, const PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscDTAltVStar(PetscInt, PetscInt, PetscInt, const PetscReal *, PetscReal *);
 
 PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomial(PetscInt n, PetscInt k, PetscInt *binomial)
 {
