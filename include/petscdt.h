@@ -93,9 +93,9 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomial(PetscInt n, PetscInt k, Petsc
   PetscFunctionReturn(0);
 }
 
-PETSC_STATIC_INLINE void PetscDTEnumPerm(PetscInt n, PetscInt k, PetscInt *work, PetscInt *perm, PetscBool *isOdd)
+PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumPerm(PetscInt n, PetscInt k, PetscInt *work, PetscInt *perm, PetscBool *isOdd)
 {
-  PetscBool odd = PETSC_FALSE;
+  PetscInt  odd = 0;
   PetscInt  i;
   PetscInt *w = &work[n - 2];
 
@@ -113,17 +113,17 @@ PETSC_STATIC_INLINE void PetscDTEnumPerm(PetscInt n, PetscInt k, PetscInt *work,
     perm[i + s] = swap;
     odd ^= (!!s);
   }
-  if (isOdd) *isOdd = odd;
-  PetscFunctionReturnVoid();
+  if (isOdd) *isOdd = odd ? PETSC_TRUE : PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
-PETSC_STATIC_INLINE void PetscDTEnumSubset(PetscInt n, PetscInt k, PetscInt Nk, PetscInt j, PetscInt *subset, PetscBool *isOdd)
+PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumSubset(PetscInt n, PetscInt k, PetscInt j, PetscInt *subset)
 {
-  PetscInt  i, l;
-  PetscBool odd = PETSC_FALSE;
+  PetscInt       Nk, i, l;
+  PetscErrorCode ierr;
 
   PetscFunctionBeginHot;
-  if (k > n - k) j = Nk - 1 - j;
+  ierr = PetscDTBinomial(n, k, &Nk);CHKERRQ(ierr);
   for (i = 0, l = 0; i < n && l < k; i++) {
     PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
     PetscInt Nminusk = Nk - Nminuskminus;
@@ -134,22 +134,45 @@ PETSC_STATIC_INLINE void PetscDTEnumSubset(PetscInt n, PetscInt k, PetscInt Nk, 
     } else {
       j -= Nminuskminus;
       Nk = Nminusk;
-      odd ^= ((k - l) & 1);
     }
   }
-  if (isOdd) *isOdd = odd;
-  PetscFunctionReturnVoid();
+  PetscFunctionReturn(0);
 }
 
-PETSC_STATIC_INLINE void PetscDTEnumSplit(PetscInt n, PetscInt k, PetscInt Nk, PetscInt j, PetscInt *subset, PetscBool *isOdd)
+PETSC_STATIC_INLINE PetscErrorCode PetscDTSubsetIndex(PetscInt n, PetscInt k, const PetscInt *subset, PetscInt *index)
 {
-  PetscInt i, l, m, *subcomp;
-  PetscBool odd;
+  PetscInt       i, j = 0, l, Nk;
+  PetscErrorCode ierr;
 
   PetscFunctionBeginHot;
-  odd = PETSC_FALSE;
+  ierr = PetscDTBinomial(n, k, &Nk);CHKERRQ(ierr);
+  for (i = 0, l = 0; i < n && l < k; i++) {
+    PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
+    PetscInt Nminusk = Nk - Nminuskminus;
+
+    if (subset[l] == i) {
+      l++;
+      Nk = Nminuskminus;
+    } else {
+      j += Nminuskminus;
+      Nk = Nminusk;
+    }
+  }
+  *index = j;
+  PetscFunctionReturn(0);
+}
+
+
+PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumSplit(PetscInt n, PetscInt k, PetscInt j, PetscInt *subset, PetscBool *isOdd)
+{
+  PetscInt       i, l, m, *subcomp, Nk;
+  PetscInt       odd;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginHot;
+  ierr = PetscDTBinomial(n, k, &Nk);CHKERRQ(ierr);
+  odd = 0;
   subcomp = &subset[k];
-  if (k > n - k) j = Nk - 1 - j;
   for (i = 0, l = 0, m = 0; i < n && l < k; i++) {
     PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
     PetscInt Nminusk = Nk - Nminuskminus;
@@ -167,35 +190,8 @@ PETSC_STATIC_INLINE void PetscDTEnumSplit(PetscInt n, PetscInt k, PetscInt Nk, P
   for (; i < n; i++) {
     subcomp[m++] = i;
   }
-  if (isOdd) *isOdd = odd;
-  PetscFunctionReturnVoid();
-}
-
-PETSC_STATIC_INLINE void PetscDTSubsetIndex(PetscInt n, PetscInt k, PetscInt Nk, const PetscInt *subset, PetscInt *index, PetscBool *isOdd)
-{
-  PetscInt  j = 0;
-  PetscInt  i, l;
-  PetscInt  origNk = Nk;
-  PetscBool odd = PETSC_FALSE;
-
-  PetscFunctionBeginHot;
-  for (i = 0, l = 0; i < n && l < k; i++) {
-    PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
-    PetscInt Nminusk = Nk - Nminuskminus;
-
-    if (subset[l] == i) {
-      l++;
-      Nk = Nminuskminus;
-    } else {
-      j += Nminuskminus;
-      Nk = Nminusk;
-      odd ^= ((k - l) & 1);
-    }
-  }
-  if (k > n - k) j = origNk - 1 - j;
-  *index = j;
-  if (isOdd) *isOdd = odd;
-  PetscFunctionReturnVoid();
+  if (isOdd) *isOdd = odd ? PETSC_TRUE : PETSC_FALSE;
+  PetscFunctionReturn(0);
 }
 
 #endif
