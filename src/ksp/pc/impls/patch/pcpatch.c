@@ -1927,6 +1927,9 @@ static PetscErrorCode PCReset_PATCH(PC pc)
   if (patch->ksp) {
     for (i = 0; i < patch->npatch; ++i) {ierr = KSPReset(patch->ksp[i]);CHKERRQ(ierr);}
   }
+  if (patch->snes) {
+    for (i = 0; i < patch->npatch; ++i) {ierr = SNESReset(patch->snes[i]);CHKERRQ(ierr);}
+  }
 
   if (patch->subspaces_to_exclude) {
     PetscHSetIDestroy(&patch->subspaces_to_exclude);
@@ -1989,6 +1992,10 @@ static PetscErrorCode PCDestroy_PATCH(PC pc)
   if (patch->ksp) {
     for (i = 0; i < patch->npatch; ++i) {ierr = KSPDestroy(&patch->ksp[i]);CHKERRQ(ierr);}
     ierr = PetscFree(patch->ksp);CHKERRQ(ierr);
+  }
+  if (patch->snes) {
+    for (i = 0; i < patch->npatch; ++i) {ierr = SNESDestroy(&patch->snes[i]);CHKERRQ(ierr);}
+    ierr = PetscFree(patch->snes);CHKERRQ(ierr);
   }
   ierr = PetscFree(pc->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -2147,6 +2154,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_Patch(PC pc)
 
   PetscFunctionBegin;
   ierr = PetscNewLog(pc, &patch);CHKERRQ(ierr);
+  patch->linear_mode = PETSC_TRUE;
 
   if (patch->subspaces_to_exclude) {
     PetscHSetIDestroy(&patch->subspaces_to_exclude);

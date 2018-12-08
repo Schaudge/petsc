@@ -7,6 +7,7 @@
 #include <petsc/private/hashseti.h>
 #include <petsc/private/hashmapi.h>
 #include <petscksp.h>
+#include <petscsnes.h>
 
 typedef struct {
   /* Topology */
@@ -58,6 +59,8 @@ typedef struct {
   PetscBool            multiplicative;     /* Gauss-Seidel instead of Jacobi?  */
   PCCompositeType      local_composition_type; /* locally additive or multiplicative? */
   /* Patch solves */
+  PetscBool            linear_mode;        /* Are we using PATCH as a PC or as a SNES? */
+  SNES                *snes;               /* Solvers for each patch */
   KSP                 *ksp;                /* Solvers for each patch TODO Do we need a new KSP for each patch? */
   Mat                 *mat;                /* System matrix for each patch */
   Mat                 *matWithArtificial;   /* System matrix including dofs with artificial bcs for each patch */
