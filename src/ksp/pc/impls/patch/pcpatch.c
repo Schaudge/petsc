@@ -1294,9 +1294,8 @@ static PetscErrorCode PCPatchZeroFillMatrix_Private(Mat mat, const PetscInt ncel
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCPatchCreateMatrix_Private(PC pc, PetscInt point, Mat *mat, PetscBool withArtificial)
+static PetscErrorCode PCPatchCreateMatrix_Private(PC_PATCH* patch, PetscObject obj, PetscInt point, Mat *mat, PetscBool withArtificial)
 {
-  PC_PATCH      *patch = (PC_PATCH *) pc->data;
   Vec            x, y;
   PetscBool      flg;
   PetscInt       csize, rsize;
@@ -1316,7 +1315,7 @@ static PetscErrorCode PCPatchCreateMatrix_Private(PC pc, PetscInt point, Mat *ma
   ierr = VecGetSize(x, &csize);CHKERRQ(ierr);
   ierr = VecGetSize(y, &rsize);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_SELF, mat);CHKERRQ(ierr);
-  ierr = PCGetOptionsPrefix(pc, &prefix);CHKERRQ(ierr);
+  ierr = PetscObjectGetOptionsPrefix(obj, &prefix);CHKERRQ(ierr);
   ierr = MatSetOptionsPrefix(*mat, prefix);CHKERRQ(ierr);
   ierr = MatAppendOptionsPrefix(*mat, "pc_patch_sub_");CHKERRQ(ierr);
   if (patch->sub_mat_type)       {ierr = MatSetType(*mat, patch->sub_mat_type);CHKERRQ(ierr);}
@@ -1342,7 +1341,7 @@ static PetscErrorCode PCPatchCreateMatrix_Private(PC pc, PetscInt point, Mat *ma
     ierr = PetscSectionGetDof(patch->cellCounts, point, &ncell);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(patch->cellCounts, point, &offset);CHKERRQ(ierr);
     ierr = PetscCalloc1(rsize, &dnnz);CHKERRQ(ierr);
-    ierr = PetscLogEventBegin(PC_Patch_Prealloc, pc, 0, 0, 0);CHKERRQ(ierr);
+    ierr = PetscLogEventBegin(PC_Patch_Prealloc, obj, 0, 0, 0);CHKERRQ(ierr);
     /* XXX: This uses N^2 bits to store the sparsity pattern on a
      * patch.  This is probably OK if the patches are not too big,
      * but could use quite a bit of memory for planes in 3D.
@@ -1366,7 +1365,7 @@ static PetscErrorCode PCPatchCreateMatrix_Private(PC pc, PetscInt point, Mat *ma
     ierr = MatXAIJSetPreallocation(*mat, 1, dnnz, NULL, NULL, NULL);CHKERRQ(ierr);
     ierr = PetscFree(dnnz);CHKERRQ(ierr);
     ierr = PCPatchZeroFillMatrix_Private(*mat, ncell, patch->totalDofsPerCell, &dofsArray[offset*patch->totalDofsPerCell]);CHKERRQ(ierr);
-    ierr = PetscLogEventEnd(PC_Patch_Prealloc, pc, 0, 0, 0);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(PC_Patch_Prealloc, obj, 0, 0, 0);CHKERRQ(ierr);
     if(withArtificial) {
       ierr = ISRestoreIndices(patch->dofsWithArtificial, &dofsArray);CHKERRQ(ierr);
     } else {
@@ -1413,16 +1412,15 @@ static PetscErrorCode PCPatchComputeOperator_DMPlex_Private(PC pc, PetscInt patc
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCPatchComputeOperator_Private(PC pc, Mat mat, PetscInt point, PetscBool withArtificial)
+static PetscErrorCode PCPatchComputeOperator_Private(PC_PATCH* patch, PetscObject obj, Mat mat, PetscInt point, PetscBool withArtificial)
 {
-  PC_PATCH       *patch = (PC_PATCH *) pc->data;
   const PetscInt *dofsArray;
   const PetscInt *cellsArray;
   PetscInt        ncell, offset, pStart, pEnd;
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  ierr = PetscLogEventBegin(PC_Patch_ComputeOp, pc, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(PC_Patch_ComputeOp, obj, 0, 0, 0);CHKERRQ(ierr);
   if (!patch->usercomputeop) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Must call PCPatchSetComputeOperator() to set user callback\n");
   if(withArtificial) {
     ierr = ISGetIndices(patch->dofsWithArtificial, &dofsArray);CHKERRQ(ierr);
@@ -1438,13 +1436,14 @@ static PetscErrorCode PCPatchComputeOperator_Private(PC pc, Mat mat, PetscInt po
   ierr = PetscSectionGetDof(patch->cellCounts, point, &ncell);CHKERRQ(ierr);
   ierr = PetscSectionGetOffset(patch->cellCounts, point, &offset);CHKERRQ(ierr);
   if (ncell <= 0) {
-    ierr = PetscLogEventEnd(PC_Patch_ComputeOp, pc, 0, 0, 0);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(PC_Patch_ComputeOp, obj, 0, 0, 0);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
   PetscStackPush("PCPatch user callback");
   /* Cannot reuse the same IS because the geometry info is being cached in it */
   ierr = ISCreateGeneral(PETSC_COMM_SELF, ncell, cellsArray + offset, PETSC_USE_POINTER, &patch->cellIS);CHKERRQ(ierr);
-  ierr = patch->usercomputeop(pc, point, mat, patch->cellIS, ncell*patch->totalDofsPerCell, dofsArray + offset*patch->totalDofsPerCell, patch->usercomputectx);CHKERRQ(ierr);
+  /* XXX make usercomputeop take a PetscObject */
+  ierr = patch->usercomputeop((PC)obj, point, mat, patch->cellIS, ncell*patch->totalDofsPerCell, dofsArray + offset*patch->totalDofsPerCell, patch->usercomputectx);CHKERRQ(ierr);
   PetscStackPop;
   ierr = ISDestroy(&patch->cellIS);CHKERRQ(ierr);
   if(withArtificial)
@@ -1461,13 +1460,12 @@ static PetscErrorCode PCPatchComputeOperator_Private(PC pc, Mat mat, PetscInt po
     ierr = PetscObjectSetName((PetscObject) mat, name);CHKERRQ(ierr);
     ierr = ObjectView((PetscObject) mat, patch->viewerMatrix, patch->formatMatrix);CHKERRQ(ierr);
   }
-  ierr = PetscLogEventEnd(PC_Patch_ComputeOp, pc, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PC_Patch_ComputeOp, obj, 0, 0, 0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCPatch_ScatterLocal_Private(PC pc, PetscInt p, Vec x, Vec y, InsertMode mode, ScatterMode scat, PetscBool withArtificial)
+static PetscErrorCode PCPatch_ScatterLocal_Private(PC_PATCH* patch, PetscObject obj, PetscInt p, Vec x, Vec y, InsertMode mode, ScatterMode scat, PetscBool withArtificial)
 {
-  PC_PATCH          *patch     = (PC_PATCH *) pc->data;
   const PetscScalar *xArray    = NULL;
   PetscScalar       *yArray    = NULL;
   const PetscInt    *gtolArray = NULL;
@@ -1475,7 +1473,7 @@ static PetscErrorCode PCPatch_ScatterLocal_Private(PC pc, PetscInt p, Vec x, Vec
   PetscErrorCode     ierr;
 
   PetscFunctionBeginHot;
-  ierr = PetscLogEventBegin(PC_Patch_Scatter, pc, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(PC_Patch_Scatter, obj, 0, 0, 0);CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &xArray);CHKERRQ(ierr);
   ierr = VecGetArray(y, &yArray);CHKERRQ(ierr);
   if(withArtificial) {
@@ -1502,7 +1500,7 @@ static PetscErrorCode PCPatch_ScatterLocal_Private(PC pc, PetscInt p, Vec x, Vec
   }
   ierr = VecRestoreArrayRead(x, &xArray);CHKERRQ(ierr);
   ierr = VecRestoreArray(y, &yArray);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(PC_Patch_Scatter, pc, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PC_Patch_Scatter, obj, 0, 0, 0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1665,7 +1663,7 @@ static PetscErrorCode PCSetUp_PATCH(PC pc)
     if (patch->save_operators) {
       ierr = PetscMalloc1(patch->npatch, &patch->mat);CHKERRQ(ierr);
       for (i = 0; i < patch->npatch; ++i) {
-        ierr = PCPatchCreateMatrix_Private(pc, i, &patch->mat[i], PETSC_FALSE);CHKERRQ(ierr);
+        ierr = PCPatchCreateMatrix_Private(patch, (PetscObject)pc, i, &patch->mat[i], PETSC_FALSE);CHKERRQ(ierr);
       }
     }
     ierr = PetscLogEventEnd(PC_Patch_CreatePatches, pc, 0, 0, 0);CHKERRQ(ierr);
@@ -1684,7 +1682,7 @@ static PetscErrorCode PCSetUp_PATCH(PC pc)
           ierr = PetscSectionGetDof(patch->gtolCounts, i+pStart, &dof);CHKERRQ(ierr);
           if (dof <= 0) continue;
           ierr = VecSet(patch->patchX[i], 1.0);CHKERRQ(ierr);
-          ierr = PCPatch_ScatterLocal_Private(pc, i+pStart, patch->patchX[i], patch->dof_weights, ADD_VALUES, SCATTER_REVERSE, PETSC_FALSE);CHKERRQ(ierr);
+          ierr = PCPatch_ScatterLocal_Private(patch, (PetscObject)pc, i+pStart, patch->patchX[i], patch->dof_weights, ADD_VALUES, SCATTER_REVERSE, PETSC_FALSE);CHKERRQ(ierr);
         }
       } else {
         /* multiplicative is actually only locally multiplicative and globally additive. need the pou where the mesh decomposition overlaps */
@@ -1718,7 +1716,7 @@ static PetscErrorCode PCSetUp_PATCH(PC pc)
   if (patch->save_operators) {
     for (i = 0; i < patch->npatch; ++i) {
       ierr = MatZeroEntries(patch->mat[i]);CHKERRQ(ierr);
-      ierr = PCPatchComputeOperator_Private(pc, patch->mat[i], i, PETSC_FALSE);CHKERRQ(ierr);
+      ierr = PCPatchComputeOperator_Private(patch, (PetscObject)pc, patch->mat[i], i, PETSC_FALSE);CHKERRQ(ierr);
       ierr = KSPSetOperators(patch->ksp[i], patch->mat[i], patch->mat[i]);CHKERRQ(ierr);
     }
     if(patch->local_composition_type == PC_COMPOSITE_MULTIPLICATIVE) {
@@ -1738,9 +1736,9 @@ static PetscErrorCode PCSetUp_PATCH(PC pc)
           continue;
         }
 
-        ierr = PCPatchCreateMatrix_Private(pc, i, &matSquare, PETSC_TRUE);CHKERRQ(ierr);
+        ierr = PCPatchCreateMatrix_Private(patch, (PetscObject)pc, i, &matSquare, PETSC_TRUE);CHKERRQ(ierr);
         ierr = MatZeroEntries(matSquare);CHKERRQ(ierr);
-        ierr = PCPatchComputeOperator_Private(pc, matSquare, i, PETSC_TRUE);CHKERRQ(ierr);
+        ierr = PCPatchComputeOperator_Private(patch, (PetscObject)pc, matSquare, i, PETSC_TRUE);CHKERRQ(ierr);
 
         ierr = MatGetSize(matSquare, &dof, NULL);CHKERRQ(ierr);
         ierr = ISCreateStride(PETSC_COMM_SELF, dof, 0, 1, &rowis); CHKERRQ(ierr);
@@ -1757,9 +1755,8 @@ static PetscErrorCode PCSetUp_PATCH(PC pc)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
+static PetscErrorCode PATCH_Apply(PC_PATCH* patch, PetscObject obj, Vec x, Vec y)
 {
-  PC_PATCH          *patch    = (PC_PATCH *) pc->data;
   const PetscScalar *globalX  = NULL;
   PetscScalar       *localX   = NULL;
   PetscScalar       *globalY  = NULL;
@@ -1774,7 +1771,7 @@ static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
-  ierr = PetscLogEventBegin(PC_Patch_Apply, pc, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(PC_Patch_Apply, obj, 0, 0, 0);CHKERRQ(ierr);
   ierr = PetscOptionsPushGetViewerOff(PETSC_TRUE);CHKERRQ(ierr);
   end[0]   = patch->npatch;
   start[1] = patch->npatch-1;
@@ -1803,23 +1800,23 @@ static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
       /* TODO: Squash out these guys in the setup as well. */
       if (len <= 0) continue;
       /* TODO: Do we need different scatters for X and Y? */
-      ierr = PCPatch_ScatterLocal_Private(pc, i+pStart, patch->localX, patch->patchX[i], INSERT_VALUES, SCATTER_FORWARD, PETSC_FALSE);CHKERRQ(ierr);
+      ierr = PCPatch_ScatterLocal_Private(patch, obj, i+pStart, patch->localX, patch->patchX[i], INSERT_VALUES, SCATTER_FORWARD, PETSC_FALSE);CHKERRQ(ierr);
       if (!patch->save_operators) {
         Mat mat;
 
-        ierr = PCPatchCreateMatrix_Private(pc, i, &mat, PETSC_FALSE);CHKERRQ(ierr);
+        ierr = PCPatchCreateMatrix_Private(patch, obj, i, &mat, PETSC_FALSE);CHKERRQ(ierr);
         /* Populate operator here. */
-        ierr = PCPatchComputeOperator_Private(pc, mat, i, PETSC_FALSE);CHKERRQ(ierr);
+        ierr = PCPatchComputeOperator_Private(patch, obj, mat, i, PETSC_FALSE);CHKERRQ(ierr);
         ierr = KSPSetOperators(patch->ksp[i], mat, mat);CHKERRQ(ierr);
         /* Drop reference so the KSPSetOperators below will blow it away. */
         ierr = MatDestroy(&mat);CHKERRQ(ierr);
       }
-      ierr = PetscLogEventBegin(PC_Patch_Solve, pc, 0, 0, 0);CHKERRQ(ierr);
+      ierr = PetscLogEventBegin(PC_Patch_Solve, obj, 0, 0, 0);CHKERRQ(ierr);
       if (!patch->ksp[i]->setfromoptionscalled) {
         ierr = KSPSetFromOptions(patch->ksp[i]);CHKERRQ(ierr);
       }
       ierr = KSPSolve(patch->ksp[i], patch->patchX[i], patch->patchY[i]);CHKERRQ(ierr);
-      ierr = PetscLogEventEnd(PC_Patch_Solve, pc, 0, 0, 0);CHKERRQ(ierr);
+      ierr = PetscLogEventEnd(PC_Patch_Solve, obj, 0, 0, 0);CHKERRQ(ierr);
 
       if (!patch->save_operators) {
         PC pc;
@@ -1829,7 +1826,7 @@ static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
         ierr = PCReset(pc);CHKERRQ(ierr);
       }
 
-      ierr = PCPatch_ScatterLocal_Private(pc, i+pStart, patch->patchY[i], patch->localY, ADD_VALUES, SCATTER_REVERSE, PETSC_FALSE);CHKERRQ(ierr);
+      ierr = PCPatch_ScatterLocal_Private(patch, obj, i+pStart, patch->patchY[i], patch->localY, ADD_VALUES, SCATTER_REVERSE, PETSC_FALSE);CHKERRQ(ierr);
       if(patch->local_composition_type == PC_COMPOSITE_MULTIPLICATIVE) {
         Mat multMat;
         if (patch->save_operators) {
@@ -1839,9 +1836,9 @@ static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
           Mat matSquare;
           PetscInt dof;
           IS rowis;
-          ierr = PCPatchCreateMatrix_Private(pc, i, &matSquare, PETSC_TRUE);CHKERRQ(ierr);
+          ierr = PCPatchCreateMatrix_Private(patch, obj, i, &matSquare, PETSC_TRUE);CHKERRQ(ierr);
           ierr = MatZeroEntries(matSquare);CHKERRQ(ierr);
-          ierr = PCPatchComputeOperator_Private(pc, matSquare, i, PETSC_TRUE);CHKERRQ(ierr);
+          ierr = PCPatchComputeOperator_Private(patch, obj, matSquare, i, PETSC_TRUE);CHKERRQ(ierr);
           ierr = MatGetSize(matSquare, &dof, NULL);CHKERRQ(ierr);
           ierr = ISCreateStride(PETSC_COMM_SELF, dof, 0, 1, &rowis); CHKERRQ(ierr);
           ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_INITIAL_MATRIX, &multMat); CHKERRQ(ierr);
@@ -1850,7 +1847,7 @@ static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
         }
         ierr = MatMult(multMat, patch->patchY[i], patch->patchXWithArtificial[i]); CHKERRQ(ierr);
         ierr = VecScale(patch->patchXWithArtificial[i], -1.0); CHKERRQ(ierr);
-        ierr = PCPatch_ScatterLocal_Private(pc, i + pStart, patch->patchXWithArtificial[i], patch->localX, ADD_VALUES, SCATTER_REVERSE, PETSC_TRUE); CHKERRQ(ierr);
+        ierr = PCPatch_ScatterLocal_Private(patch, obj, i + pStart, patch->patchXWithArtificial[i], patch->localX, ADD_VALUES, SCATTER_REVERSE, PETSC_TRUE); CHKERRQ(ierr);
         if (!patch->save_operators) {
           ierr = MatDestroy(&multMat); CHKERRQ(ierr);
         }
@@ -1885,7 +1882,16 @@ static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
   ierr = VecRestoreArray(y, &globalY);CHKERRQ(ierr);
 
   ierr = PetscOptionsPopGetViewerOff();CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(PC_Patch_Apply, pc, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PC_Patch_Apply, obj, 0, 0, 0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PCApply_PATCH(PC pc, Vec x, Vec y)
+{
+  PC_PATCH          *patch    = (PC_PATCH *) pc->data;
+  PetscErrorCode     ierr;
+
+  ierr = PATCH_Apply(patch, (PetscObject)pc, x, y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
