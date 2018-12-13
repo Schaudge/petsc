@@ -3,7 +3,7 @@ import config.package
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.gitcommit         = '643c242b8c1cdc2f99b528b16053d276b96cf249'
+    self.gitcommit         = '4cb2e9aa2a2ef7f06db699ea40f99274559a6747'
     self.download          = ['git://https://bitbucket.org/petsc/pkg-med.git','https://bitbucket.org/petsc/pkg-med/get/'+self.gitcommit+'.tar.gz', 'http://files.salome-platform.org/Salome/other/med-3.3.1.tar.gz']
     self.functions         = ['MEDfileOpen']
     self.includes          = ['med.h']
