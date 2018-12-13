@@ -1,8 +1,13 @@
 static char help[] = "Tests mesh adaptation with DMPlex and pragmatic.\n";
 
+#include <petscksp.h>
 #include <petsc/private/dmpleximpl.h>
 
-#include <petscksp.h>
+/*
+  Making boundary layers along interfaces:
+  ./ex19 -msh /PETSc3/cig/pylith-git/examples/2d/subduction/mesh_tri3.exo -met 4 -rgLabel "Cell Sets" -hmax 50000. -hmin 5000. -hscale 0.0375,50000. -dist_exp 1.2,0.0
+    -init_dm_view vtk:$PWD/mesh.vtk -adapt_dm_view  vtk:$PWD/adapted.vtk -dist_view vtk:$PWD/mesh.vtk -met_view vtk:$PWD/mesh2.vtk
+*/
 
 typedef struct {
   DM        dm;
@@ -15,11 +20,14 @@ typedef struct {
   char      rgLabel[PETSC_MAX_PATH_LEN]; /* Name of the label marking mesh cells */
   PetscInt  metOpt;                      /* Different choices of metric */
   PetscReal hmax, hmin;                  /* Max and min sizes prescribed by the metric */
+  PetscReal hscale[3];                   /* Scaling for principal directions */
+  PetscReal dexp[3];                     /* Exponent for distance dependence */
   PetscBool doL2;                        /* Test L2 projection */
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
+  PetscInt       n;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -32,6 +40,12 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->metOpt      = 1;
   options->hmin        = 0.05;
   options->hmax        = 0.5;
+  options->hscale[0]   = 1.4/20.0;
+  options->hscale[1]   = 1.4/20.0;
+  options->hscale[2]   = 1.4/20.0;
+  options->dexp[0]     = 1.0;
+  options->dexp[1]     = 1.0;
+  options->dexp[2]     = 1.0;
   options->doL2        = PETSC_FALSE;
 
   ierr = PetscOptionsBegin(comm, "", "Meshing Adaptation Options", "DMPLEX");CHKERRQ(ierr);
@@ -44,6 +58,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsInt("-met", "Different choices of metric", "ex19.c", options->metOpt, &options->metOpt, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hmax", "Max size prescribed by the metric", "ex19.c", options->hmax, &options->hmax, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hmin", "Min size prescribed by the metric", "ex19.c", options->hmin, &options->hmin, NULL);CHKERRQ(ierr);
+  n    = 3;
+  ierr = PetscOptionsRealArray("-hscale", "Scaling for the principal directions", "ex19.c", options->hscale, &n, NULL);CHKERRQ(ierr);
+  n    = 3;
+  ierr = PetscOptionsRealArray("-dist_exp", "Exponent for distance dependence", "ex19.c", options->dexp, &n, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-do_L2", "Test L2 projection", "ex19.c", options->doL2, &options->doL2, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();
 
@@ -122,15 +140,84 @@ static PetscErrorCode SplitDomain(DM dm, DMLabel * rgLabel, AppCtx *user){
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode ComputeMetric(DM dm, AppCtx *user, Vec *metric)
+
+static PetscErrorCode ComputeDistanceToInterface(DM dm, DMLabel interfaceLabel, IS interfaceIS, PetscInt point, PetscScalar pcoords[], PetscReal diff[], PetscReal *dist)
 {
-  DM                 cdm, mdm;
-  PetscSection       csec, msec;
+  DM                 cdm;
   Vec                coordinates;
   const PetscScalar *coords;
-  PetscScalar       *met;
-  PetscReal          h, *lambda, lbd, lmax;
-  PetscInt           pStart, pEnd, p, d;
+  const PetscInt    *faces;
+  PetscScalar        centroid[3], normal[3];
+  PetscReal          norm;
+  PetscInt           dim, d, Nf, f, fmin = -1, val;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  if (!interfaceIS) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "THe input IS cannot be NULL");
+  *dist = PETSC_MAX_REAL;
+  ierr = DMGetCoordinateDim(dm, &dim);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  ierr = ISGetLocalSize(interfaceIS, &Nf);CHKERRQ(ierr);
+  ierr = ISGetIndices(interfaceIS, &faces);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
+  /* Check for interface point */
+  ierr = DMLabelGetValue(interfaceLabel, point, &val);CHKERRQ(ierr);
+  if (val >= 1) {
+    const PetscInt *support;
+    PetscInt        supportSize, s;
+
+    *dist = 0.0;
+    ierr = DMPlexGetSupportSize(dm, point, &supportSize);CHKERRQ(ierr);
+    ierr = DMPlexGetSupport(dm, point, &support);CHKERRQ(ierr);
+    for (s = 0; s < supportSize; ++s) {
+      ierr = DMLabelGetValue(interfaceLabel, support[s], &val);CHKERRQ(ierr);
+      if (val == dim) {
+        ierr = DMPlexComputeCellGeometryFVM(dm, support[s], NULL, centroid, diff);CHKERRQ(ierr);
+        break;
+      }
+    }
+    goto end;
+  }
+  for (f = 0; f < Nf; ++f) {
+    PetscReal fdist = 0.0;
+
+    ierr = DMPlexComputeCellGeometryFVM(dm, faces[f], NULL, centroid, normal);CHKERRQ(ierr);
+    for (d = 0; d < dim; ++d) fdist += PetscSqr(pcoords[d] - centroid[d]);
+    fdist = PetscSqrtReal(fdist);
+    if (diff && *dist > fdist) {
+      fmin  = faces[f];
+      *dist = fdist;
+      if (*dist > PETSC_SMALL) {
+        for (d = 0; d < dim; ++d) diff[d] = (pcoords[d] - centroid[d])/(*dist);
+      } else {
+        for (d = 0; d < dim; ++d) diff[d] = normal[d];
+      }
+    }
+    // Should check that the normal is not too different from the diff[]
+    //ierr = DMPlexPointLocalRead(cdm, vertices[v], coords, &vcoords);CHKERRQ(ierr);
+  }
+  end:
+  ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(interfaceIS, &faces);CHKERRQ(ierr);
+  norm = DMPlex_NormD_Internal(dim, diff);
+  if (PetscAbsReal(norm - 1.0) > PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Normal vector with norm %g", norm);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode ComputeMetric(DM dm, AppCtx *user, Vec *metric)
+{
+  DM                 cdm, mdm, ddm = NULL;
+  DMLabel            depthLabel;
+  PetscSection       csec, msec;
+  Vec                coordinates, distVec = NULL, metVec = NULL;
+  const PetscScalar *coords;
+  PetscScalar       *met, *distArray, *metArray;
+  PetscReal          diff[3];
+  PetscReal          h[3], *lambda, lbd, lmax, dist;
+  DMLabel            interfaceLabel = NULL;
+  IS                 interfaceIS    = NULL;
+  PetscInt           pStart, pEnd, p, d, val;
   const PetscInt     dim = user->dim, Nd = dim*dim;
   PetscErrorCode     ierr;
 
@@ -139,6 +226,46 @@ static PetscErrorCode ComputeMetric(DM dm, AppCtx *user, Vec *metric)
   ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
   ierr = DMClone(cdm, &mdm);CHKERRQ(ierr);
   ierr = DMGetSection(cdm, &csec);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(dm, &depthLabel);CHKERRQ(ierr);
+  if (user->rgLabel && (user->metOpt == 3)) {
+    DMLabel  label;
+    PetscInt fStart, fEnd, f;
+
+    /* Find and label interface between regions */
+    ierr = DMLabelCreate("Interface", &interfaceLabel);CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, user->rgLabel, &label);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);CHKERRQ(ierr);
+    for (f = fStart; f < fEnd; ++f) {
+      const PetscInt *support;
+      PetscInt       *closure = NULL;
+      PetscInt        supportSize, clSize, cl, valA, valB;
+
+      ierr = DMPlexGetSupportSize(dm, f, &supportSize);CHKERRQ(ierr);
+      ierr = DMPlexGetSupport(dm, f, &support);CHKERRQ(ierr);
+      if (supportSize < 2) continue;
+      ierr = DMLabelGetValue(label, support[0], &valA);CHKERRQ(ierr);
+      ierr = DMLabelGetValue(label, support[1], &valB);CHKERRQ(ierr);
+      if (valA == valB) continue;
+      ierr = DMPlexGetTransitiveClosure(dm, f, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
+      for (cl = 0; cl < clSize*2; cl += 2) {
+        const PetscInt point = closure[cl];
+        PetscInt       depth;
+
+        ierr = DMLabelGetValue(depthLabel, point, &depth);CHKERRQ(ierr);
+        ierr = DMLabelSetValue(interfaceLabel, point, depth+1);CHKERRQ(ierr);
+      }
+      ierr = DMPlexRestoreTransitiveClosure(dm, f, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
+    }
+    ierr = DMLabelGetStratumIS(interfaceLabel, dim, &interfaceIS);CHKERRQ(ierr);
+    ierr = DMClone(dm, &ddm);CHKERRQ(ierr);
+    ierr = DMSetSection(ddm, csec);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(ddm, &distVec);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(ddm, &metVec);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) distVec, "DistanceToInterface");CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) metVec,  "LocalFeatureSize");CHKERRQ(ierr);
+    ierr = VecGetArray(distVec, &distArray);CHKERRQ(ierr);
+    ierr = VecGetArray(metVec,  &metArray);CHKERRQ(ierr);
+  }
 
   ierr = PetscSectionCreate(PetscObjectComm((PetscObject) dm), &msec);CHKERRQ(ierr);
   ierr = PetscSectionSetNumFields(msec, 1);CHKERRQ(ierr);
@@ -159,7 +286,7 @@ static PetscErrorCode ComputeMetric(DM dm, AppCtx *user, Vec *metric)
   ierr = VecGetArray(*metric, &met);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; ++p) {
     PetscScalar       *pcoords;
-    PetscScalar       *pmet;
+    PetscScalar       *pmet, *pdist, *pmetv;
 
     ierr = DMPlexPointLocalRead(cdm, p, coords, &pcoords);CHKERRQ(ierr);
     switch (user->metOpt) {
@@ -168,28 +295,81 @@ static PetscErrorCode ComputeMetric(DM dm, AppCtx *user, Vec *metric)
       lambda[0] = lambda[1] = lambda[2] = lbd;
       break;
     case 1:
-      h = user->hmax - (user->hmax-user->hmin)*PetscRealPart(pcoords[0]);
-      h = h*h;
+      h[0] = user->hmax - (user->hmax-user->hmin)*PetscRealPart(pcoords[0]);
       lmax = 1/(user->hmax*user->hmax);
-      lambda[0] = 1/h;
+      lambda[0] = 1/PetscSqr(h[0]);
       lambda[1] = lmax;
       lambda[2] = lmax;
       break;
     case 2:
-      h = user->hmax*PetscAbsReal(((PetscReal) 1.0)-PetscExpReal(-PetscAbsScalar(pcoords[0]-(PetscReal)0.5))) + user->hmin;
-      lbd = 1/(h*h);
+      h[0] = user->hmax*PetscAbsReal(((PetscReal) 1.0)-PetscExpReal(-PetscAbsScalar(pcoords[0]-(PetscReal)0.5))) + user->hmin;
+      lbd  = 1/PetscSqr(h[0]);
       lmax = 1/(user->hmax*user->hmax);
       lambda[0] = lbd;
       lambda[1] = lmax;
       lambda[2] = lmax;
       break;
+    case 3:
+      ierr = ComputeDistanceToInterface(dm, interfaceLabel, interfaceIS, p, pcoords, diff, &dist);CHKERRQ(ierr);
+      ierr = DMPlexPointLocalRef(cdm, p, distArray, &pdist);CHKERRQ(ierr);
+      ierr = DMPlexPointLocalRef(cdm, p, metArray,  &pmetv);CHKERRQ(ierr);
+      for (d = 0; d < dim; ++d) {
+        pdist[d] = dist*diff[d];
+        h[d] = PetscMin(user->hmin + user->hscale[d]*PetscPowReal(dist, user->dexp[d]), user->hmax);
+        lambda[d] = 1./PetscSqr(h[d]); /* normal/tangential to interface */
+      }
+      break;
     default:
-      SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "metOpt = 0, 1 or 2, cannot be %d", user->metOpt);
+      SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "Metric type %D is not in [0, 3]", user->metOpt);
     }
     /* Only set the diagonal */
     ierr = DMPlexPointLocalRef(mdm, p, met, &pmet);CHKERRQ(ierr);
     for (d = 0; d < dim; ++d) pmet[d*(dim+1)] = lambda[d];
+    if (user->metOpt == 4) {
+      PetscScalar X[9];
+      PetscInt    e, f;
+
+      /* Interface normal */
+      for (d = 0; d < dim; ++d) X[d*dim+0] = diff[d];
+      /* Interface tangent 1 */
+      if (dim > 2) {
+        X[0*dim+1] = 0.0;
+        X[1*dim+1] = 0.0;
+        X[1*dim+2] = 1.0;
+      } else {
+        X[0*dim+1] = -diff[1];
+        X[1*dim+1] =  diff[0];
+      }
+      /* Interface tangent 2 */
+      if (dim > 2) {
+        X[0*dim+2] = X[1*dim+0]*X[2*dim+1] - X[2*dim+0]*X[1*dim+1];
+        X[1*dim+2] = X[2*dim+0]*X[0*dim+1] - X[0*dim+0]*X[2*dim+1];
+        X[2*dim+2] = X[0*dim+0]*X[1*dim+1] - X[1*dim+0]*X[0*dim+1];
+      }
+      /* M = X \Lambda X^{-1} = X \Lambda X^T */
+      for (d = 0; d < dim; ++d) {
+        pmetv[d] = 0.0;
+        for (e = 0; e < dim; ++e) {
+          pmetv[d] += X[d*dim+e]*h[e];
+          pmet[d*dim+e] = 0.0;
+          for (f = 0; f < dim; ++f) {
+            pmet[d*dim+e] += X[d*dim+f] * lambda[f] * X[e*dim+f];
+          }
+        }
+      }
+    }
   }
+  if (user->rgLabel && (user->metOpt == 3)) {
+    ierr = VecViewFromOptions(distVec, NULL, "-dist_view");CHKERRQ(ierr);
+    ierr = VecViewFromOptions(metVec,  NULL, "-met_view");CHKERRQ(ierr);
+    ierr = VecRestoreArray(distVec, &distArray);CHKERRQ(ierr);
+    ierr = VecRestoreArray(metVec,  &metArray);CHKERRQ(ierr);
+    ierr = VecDestroy(&distVec);CHKERRQ(ierr);
+    ierr = VecDestroy(&metVec);CHKERRQ(ierr);
+  }
+  ierr = ISDestroy(&interfaceIS);CHKERRQ(ierr);
+  ierr = DMLabelDestroy(&interfaceLabel);CHKERRQ(ierr);
+  ierr = DMDestroy(&ddm);CHKERRQ(ierr);
   ierr = VecRestoreArray(*metric, &met);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
   ierr = DMDestroy(&mdm);CHKERRQ(ierr);
