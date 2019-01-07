@@ -9,6 +9,7 @@ typedef struct _UserCtx
   PetscInt n;      /* The column dimension of F */
   Mat F;           /* matrix in least squares component $(1/2) * || F x - d ||_2^2$ */
   Vec d;           /* RHS in least squares component $(1/2) * || F x - d ||_2^2$ */
+  Vec y;           /* Workspace for result F*x */
   PetscReal alpha; /* regularization constant applied to || x ||_p */
   PetscInt matops;
   NormType p;
@@ -25,6 +26,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ctx->n = 10;
   ctx->alpha = 1.;
   ctx->matops = 0;
+  ctx->p = NORM_2;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "Configure separable objection example", "ex4.c");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
@@ -48,15 +50,53 @@ PetscErrorCode DestroyContext(UserCtx *ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
+{
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatMult(ctx->F, x, ctx->y);CHKERRQ(ierr);
+  ierr = VecAXPY(ctx->y, -1., ctx->d);CHKERRQ(ierr);
+  ierr = VecNorm(ctx->y, NORM_2, J);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
+{
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscReal norm;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecNorm (x, ctx->p, &norm);CHKERRQ(ierr);
+  *J = ctx->alpha * norm;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
+{
+  PetscReal Jm, Jr;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = ObjectiveMisfit(tao, x, &Jm, ctx);CHKERRQ(ierr);
+  ierr = ObjectiveRegularization(tao, x, &Jr, ctx);CHKERRQ(ierr);
+  *J = Jm + Jr;
+  PetscFunctionReturn(0);
+}
+
 int main (int argc, char** argv)
 {
   UserCtx        ctx;
-  PetscErrorCode ierr;
-  PetscInt       Istart,Iend,i,j,Ii,J;
-  PetscScalar    v;
+  PetscInt       Istart,Iend,i,j,Ii;
 #if defined(PETSC_USE_LOG)
   PetscLogStage stage;
 #endif
+  Tao            tao;
+  Vec            x;
+  PetscErrorCode ierr;
+
 
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
   ierr = PetscNew(&ctx);CHKERRQ(ierr);
@@ -84,7 +124,8 @@ int main (int argc, char** argv)
     if (gridN * gridN != ctx->m) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Number of rows must be square");
     for (Ii=Istart; Ii<Iend; Ii++) {
       PetscInt I_n, I_s, I_e, I_w;
-      v = -1.0; i = Ii / gridN; j = Ii % gridN;
+
+      i = Ii / gridN; j = Ii % gridN;
 
       I_n = i * gridN + j + 1;
       if (j + 1 >= gridN) I_n = -1;
@@ -116,26 +157,38 @@ int main (int argc, char** argv)
   }
 
   /* build the rhs d in ctx */
-  /* Define two functions that could pass as objectives to TaoSetObjectiveRoutine(): one
-   * for the misfit component, and one for the regularization component */
-
   ierr = VecCreate(PETSC_COMM_WORLD,&(ctx->d)); CHKERRQ(ierr);
   ierr = VecSetSizes(ctx->d,PETSC_DECIDE,ctx->m); CHKERRQ(ierr);
   ierr=  VecSetFromOptions(ctx->d); CHKERRQ(ierr);
   ierr = VecSetRandom(ctx->d,ctx->rctx); CHKERRQ(ierr);
 
+  /* Define two functions that could pass as objectives to TaoSetObjectiveRoutine(): one
+   * for the misfit component, and one for the regularization component */
+  /* ObjectiveMisfit() and ObjectiveRegularization() */
+
   /* Define a single function that calls both components adds them together: the complete objective,
    * in the absence of a Tao implementation that handles separability */
+  /* ObjectiveComplete() */
 
   /* Construct the Tao object */
+  ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
+  ierr = TaoSetObjectiveRoutine(tao, ObjectiveComplete, (void *) ctx);CHKERRQ(ierr);
+  ierr = MatCreateVecs(ctx->F, &ctx->y, &x);CHKERRQ(ierr);
+  ierr = VecSet(x, 0.);CHKERRQ(ierr);
+  ierr = TaoSetInitialVector(tao, x);CHKERRQ(ierr);
+  ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
 
   /* solve */
+  ierr = TaoSolve(tao);CHKERRQ(ierr);
 
   /* examine solution */
-  ierr = MatDestroy(&(ctx->F)); CHKERRQ(ierr);
-  ierr = VecDestroy(&(ctx->d)); CHKERRQ(ierr);
 
   /* cleanup */
+  ierr = TaoDestroy(&tao);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = MatDestroy(&(ctx->F)); CHKERRQ(ierr);
+  ierr = VecDestroy(&(ctx->d)); CHKERRQ(ierr);
+  ierr = VecDestroy(&(ctx->y)); CHKERRQ(ierr);
   ierr = DestroyContext(&ctx);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
