@@ -32,16 +32,58 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
 
 int main (int argc, char** argv)
 {
-  UserCtx ctx;
+  UserCtx        ctx;
   PetscErrorCode ierr;
+  PetscRandom    rctx;
+  PetscInt       Istart,Iend,i,j,Ii,J;
+  PetscScalar    v;
+#if defined(PETSC_USE_LOG)
+  PetscLogStage stage;
+#endif
 
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
   ierr = PetscNew(&ctx);CHKERRQ(ierr);
   ierr = ConfigureContext(ctx);CHKERRQ(ierr);
   /* build the matrix F in ctx */
+  ierr = MatCreate(PETSC_COMM_WORLD, ctx->F); CHKERRQ(ierr);
+  ierr = MatSetSizes(ctx->F,PETSC_DECIDE, PETSC_DEDICE, ctx->m, ctx->n);CHKERRQ(ierr);
+  ierr = MatSetType(ctx->F,MATDUMMY); CHKERRQ(ierr); /* TODO: Decide specific SetType other than dummy*/
+  ierr = MatMPIAIJSetPreallocation(ctx->F, 5, NULL, 5, NULL); CHKERRQ(ierr); /*TODO: some number other than 5?*/
+  ierr = MatSeqAIJSetPreallocation(ctx->F, 5, NULL); CHKERRQ(ierr);
+  ierr = MatGerOwnershipRange(ctx->F,&Istart,&Iend); CHKERRQ(ierr);  
+
+
+  ierr = PetscLogStageRegister("Assembly", &stage); CHKERRQ(ierr);
+  ierr= PetscLogStagePush(stage); CHKERRQ(ierr);
+
+  /* Set matrix elements in  2-D five-point stencil format. See ksp ex02 */
+
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    v = -1.0; i = Ii/ctx->n; j = Ii - i*ctx->n;
+    if (i>0)   {J = Ii - ctx->n; MatSetValues(ctx->F,1,&Ii,1,&J,&v,ADD_VALUES);}
+    if (i<ctx->m-1) {J = Ii + ctx->n; MatSetValues(ctx->F,1,&Ii,1,&J,&v,ADD_VALUES);}
+    if (j>0)   {J = Ii - 1; MatSetValues(ctx->F,1,&Ii,1,&J,&v,ADD_VALUES);}
+    if (j<ctx->n-1) {J = Ii + 1; MatSetValues(ctx->F,1,&Ii,1,&J,&v,ADD_VALUES);}
+    v = 4.0; MatSetValues(ctx->F,1,&Ii,1,&Ii,&v,ADD_VALUES);
+  }
+
+  ierr = MatAssemblyBegin(ctx->F, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(ctx->F, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = PetscLogStagePop(); CHKERRQ(ierr);
+
+  ierr = MatSetOption(ctx->F,MAT_SYMMETRIC,PETSC_TRUE); CHKERRQ(ierr);
   /* build the rhs d in ctx */
   /* Define two functions that could pass as objectives to TaoSetObjectiveRoutine(): one
    * for the misfit component, and one for the regularization component */
+
+  ierr = VecCreate(PETSC_COMM_WORLD,ctx->d); CHKERRQ(ierr);
+  ierr = VecSetSizes(ctx->d,PETSC_DECIDE,m); CHKERRQ(ierr);
+  ierr=  VecSetFromOptions(ctx->d); CHKERRQ(ierr);
+  
+  ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx); CHKERRQ(ierr);
+  ierr = PetscRandomSetFromOptions(rctx);
+  ierr = VecSetRandom(ctx->d,rctx); CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&rctx); CHKERRQ(ierr);
 
   /* Define a single function that calls both components adds them together: the complete objective,
    * in the absence of a Tao implementation that handles separability */
