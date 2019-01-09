@@ -110,15 +110,24 @@ struct _p_PetscSection {
   PetscInt                      clSize;       /* The size of a dof closure of a cell, when it is uniform */
   PetscInt                     *clPerm;       /* A permutation of the cell dof closure, of size clSize */
   PetscInt                     *clInvPerm;    /* The inverse of clPerm */
+  PetscInt                     *clCode;       /* The code for applying the permutation by swaps */
   PetscSectionSym               sym;          /* Symmetries of the data */
 };
 
 PETSC_EXTERN PetscErrorCode PetscSectionSetClosurePermutation_Internal(PetscSection, PetscObject, PetscInt, PetscCopyMode, PetscInt *);
 PETSC_EXTERN PetscErrorCode PetscSectionGetClosurePermutation_Internal(PetscSection, PetscObject, PetscInt *, const PetscInt *[]);
 PETSC_EXTERN PetscErrorCode PetscSectionGetClosureInversePermutation_Internal(PetscSection, PetscObject, PetscInt *, const PetscInt *[]);
+PETSC_EXTERN PetscErrorCode PetscSectionGetClosurePermutationCode_Internal(PetscSection, PetscObject, PetscInt *, const PetscInt *[]);
+
+PETSC_EXTERN PetscErrorCode PetscSectionGetBySym(PetscSection, PetscInt, const PetscInt (*)[2], PetscDataType, const void *, void *, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscSectionSetBySym(PetscSection, PetscInt, const PetscInt (*)[2], PetscDataType, void *, const void *, InsertMode);
+PETSC_EXTERN PetscErrorCode PetscSectionGetBySym_Internal(PetscSection, PetscInt, const PetscInt (*)[2], PetscDataType, const void *, void *, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscSectionSetBySym_Internal(PetscSection, PetscInt, const PetscInt (*)[2], PetscDataType, void *, const void *, InsertMode, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscSectionSymMatSTAS(PetscSection, PetscInt, const PetscInt (*)[2], PetscDataType, const void *, PetscInt, void *, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionSymMatAS(PetscSection, PetscInt, const PetscInt (*)[2], PetscDataType, PetscInt, const void *, PetscInt, void *, PetscInt);
 
 struct _PetscSectionSymOps {
-  PetscErrorCode (*getpoints)(PetscSectionSym,PetscSection,PetscInt,const PetscInt *,const PetscInt **,const PetscScalar **);
+  PetscErrorCode (*getpoints)(PetscSectionSym,PetscSection,PetscInt,const PetscInt *,PetscInt *, const PetscInt (**)[2],const PetscScalar **);
   PetscErrorCode (*destroy)(PetscSectionSym);
   PetscErrorCode (*view)(PetscSectionSym,PetscViewer);
 };
@@ -127,10 +136,11 @@ typedef struct _n_SymWorkLink *SymWorkLink;
 
 struct _n_SymWorkLink
 {
-  SymWorkLink         next;
-  const PetscInt    **perms;
-  const PetscScalar **rots;
-  PetscInt           numPoints;
+  SymWorkLink          next;
+  PetscInt            *nnzs;
+  const PetscInt    (**ijs)[2];
+  const PetscScalar  **vals;
+  PetscInt             numPoints;
 };
 
 struct _p_PetscSectionSym {

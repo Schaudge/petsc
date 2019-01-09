@@ -22,7 +22,6 @@ static PetscErrorCode DMPlexCreateSectionFields(DM dm, const PetscInt numComp[],
     if (id == PETSCFE_CLASSID)      {isFE[f] = PETSC_TRUE;}
     else if (id == PETSCFV_CLASSID) {isFE[f] = PETSC_FALSE;}
   }
-
   ierr = PetscSectionCreate(PetscObjectComm((PetscObject)dm), section);CHKERRQ(ierr);
   if (Nf > 0) {
     ierr = PetscSectionSetNumFields(*section, Nf);CHKERRQ(ierr);
@@ -32,37 +31,41 @@ static PetscErrorCode DMPlexCreateSectionFields(DM dm, const PetscInt numComp[],
         if (isFE[f]) {
           PetscFE           fe;
           PetscDualSpace    dspace;
-          const PetscInt    ***perms;
-          const PetscScalar ***flips;
+          const PetscInt    **nnzs;
+          const PetscInt    (***ijs)[2];
+          const PetscScalar ***vals;
           const PetscInt    *numDof;
 
           ierr = DMGetField(dm,f,(PetscObject *) &fe);CHKERRQ(ierr);
           ierr = PetscFEGetDualSpace(fe,&dspace);CHKERRQ(ierr);
-          ierr = PetscDualSpaceGetSymmetries(dspace,&perms,&flips);CHKERRQ(ierr);
+          ierr = PetscDualSpaceGetSymmetries(dspace,&nnzs,NULL,NULL);CHKERRQ(ierr);
           ierr = PetscDualSpaceGetNumDof(dspace,&numDof);CHKERRQ(ierr);
-          if (perms || flips) {
-            DM              K;
-            PetscInt        h;
-            PetscSectionSym sym;
+          if (nnzs) {
+            DM               K;
+            PetscInt         h;
+            PetscSectionSym  sym;
 
             ierr = PetscDualSpaceGetDM(dspace,&K);CHKERRQ(ierr);
+            ierr = DMPlexGetDepth(dm,&depth);CHKERRQ(ierr);
             ierr = PetscSectionSymCreateLabel(PetscObjectComm((PetscObject)*section),depthLabel,&sym);CHKERRQ(ierr);
             for (h = 0; h <= depth; h++) {
               PetscDualSpace    hspace;
               PetscInt          kStart, kEnd;
               PetscInt          kConeSize;
-              const PetscInt    **perms0 = NULL;
-              const PetscScalar **flips0 = NULL;
+              const PetscInt    *nnzs0 = NULL;
+              const PetscInt    (**ijs0)[2] = NULL;
+              const PetscScalar **vals0 = NULL;
 
               ierr = PetscDualSpaceGetHeightSubspace(dspace,h,&hspace);CHKERRQ(ierr);
               ierr = DMPlexGetHeightStratum(K,h,&kStart,&kEnd);CHKERRQ(ierr);
               if (!hspace) continue;
-              ierr = PetscDualSpaceGetSymmetries(hspace,&perms,&flips);CHKERRQ(ierr);
-              if (perms) perms0 = perms[0];
-              if (flips) flips0 = flips[0];
-              if (!(perms0 || flips0)) continue;
+              ierr = PetscDualSpaceGetSymmetries(hspace,&nnzs,&ijs,&vals);CHKERRQ(ierr);
+              if (nnzs)  nnzs0 = nnzs[0];
+              if (ijs)   ijs0  = ijs[0];
+              if (vals)  vals0 = vals[0];
+              if (!(nnzs || ijs || vals)) continue;
               ierr = DMPlexGetConeSize(K,kStart,&kConeSize);CHKERRQ(ierr);
-              ierr = PetscSectionSymLabelSetStratum(sym,depth - h,numDof[depth - h],-kConeSize,kConeSize,PETSC_USE_POINTER,perms0 ? &perms0[-kConeSize] : NULL,flips0 ? &flips0[-kConeSize] : NULL);CHKERRQ(ierr);
+              ierr = PetscSectionSymLabelSetStratum(sym,depth - h,numDof[depth - h],-kConeSize,kConeSize,PETSC_USE_POINTER,nnzs0 ? &nnzs0[-kConeSize] : NULL, ijs0 ? &ijs0[-kConeSize] : NULL, vals0 ? &vals0[-kConeSize] : NULL);CHKERRQ(ierr);
             }
             ierr = PetscSectionSetFieldSym(*section,f,sym);CHKERRQ(ierr);
             ierr = PetscSectionSymDestroy(&sym);CHKERRQ(ierr);
