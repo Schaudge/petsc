@@ -62,6 +62,25 @@ PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
+{
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscErrorCode ierr;
+  Mat		     AA;
+  Vec		     Ab,AAx;
+
+  PetscFunctionBegin;
+  ierr = MatTransposeMatMult(ctx->F,ctx->F, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &AA); CHKERRQ(ierr);
+  ierr = MatMult(AA,x,AAx); CHKERRQ(ierr);
+  ierr = MatMultTranspose(ctx->F, ctx->d, Ab);CHKERRQ(ierr);
+  ierr = VecWAXPY(V, -1., Ab, AAx);CHKERRQ(ierr);
+  ierr = VecScale(V,-2.); CHKERRQ(ierr);
+  ierr = VecDestroy(&Ab);CHKERRQ(ierr);
+  ierr = VecDestroy(&AAx);CHKERRQ(ierr);
+  ierr = MatDestroy(&AA); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
@@ -74,6 +93,16 @@ PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
+{
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecScale(x,-2.*(ctx->alpha)); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
 {
   PetscReal Jm, Jr;
@@ -83,6 +112,22 @@ PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
   ierr = ObjectiveMisfit(tao, x, &Jm, ctx);CHKERRQ(ierr);
   ierr = ObjectiveRegularization(tao, x, &Jr, ctx);CHKERRQ(ierr);
   *J = Jm + Jr;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
+{
+  PetscErrorCode ierr;
+  Vec            V1,V2;
+
+  PetscFunctionBegin;
+  ierr = VecCreate(PETSC_COMM_WORLD,&V1); CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&V2); CHKERRQ(ierr);
+  ierr = GradientMisfit(tao, x, V1, ctx);CHKERRQ(ierr);
+  ierr = GradientRegularization(tao, x, V2, ctx);CHKERRQ(ierr);
+  ierr = VecWAXPY(V,1,V1,V2); CHKERRQ(ierr);
+  ierr = VecDestroy(&V1); CHKERRQ(ierr);
+  ierr = VecDestroy(&V2); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -115,7 +160,7 @@ int main (int argc, char** argv)
   ierr = PetscLogStageRegister("Assembly", &stage); CHKERRQ(ierr);
   ierr= PetscLogStagePush(stage); CHKERRQ(ierr);
 
-  /* Set matrix elements in  2-D five-point stencil format. See ksp ex02 */
+  /* Set matrix elements in  2-D five-point stencil format. */
   if (!(ctx->matops)){
     PetscInt gridN;
     if (ctx->m != ctx->n) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Stencil matrix must be square");
@@ -172,7 +217,9 @@ int main (int argc, char** argv)
 
   /* Construct the Tao object */
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
+  ierr = TaoSetType(tao,TAONM); CHKERRQ(ierr);
   ierr = TaoSetObjectiveRoutine(tao, ObjectiveComplete, (void *) ctx);CHKERRQ(ierr);
+  ierr = TaoSetGradientRoutine(tao, GradientComplete, (void *) ctx);CHKERRQ(ierr);
   ierr = MatCreateVecs(ctx->F, &ctx->y, &x);CHKERRQ(ierr);
   ierr = VecSet(x, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao, x);CHKERRQ(ierr);
