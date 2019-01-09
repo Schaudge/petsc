@@ -289,12 +289,11 @@ static PetscErrorCode PetscDualSpaceGetSymmetries_Lagrange(PetscDualSpace sp, co
 . sp - the PetscDualSpace object
 
   Output Parameters:
-+ perms - Permutations of the local degrees of freedom, parameterized by the point orientation
-- flips - Sign reversal of the local degrees of freedom, parameterized by the point orientation
++ nnzs - nnz[point][orientation] The number of nonzeros in the symmetry matrix for a given point with a given orientation.  0 means identity
+. ijs -  ijs[point][orientation] the (i,j) locations nonzeros of the symmetry matrix
+- vals -  vals[point][orientation] the value at the corresponding location
 
-  Note: The permutation and flip arrays are organized in the following way
-$ perms[p][ornt][dof # on point] = new local dof #
-$ flips[p][ornt][dof # on point] = reversal or not
+  Note: The symmeties take a global orientation to a local one
 
   Level: developer
 

@@ -2553,7 +2553,7 @@ PetscErrorCode DMPlexComputeInterpolatorTree(DM coarse, DM fine, PetscSF coarseT
           }
         }
         else {
-          ierr = DMPlexGetIndicesPoint_Internal(cSec,p,cOff,offsetsCopy,PETSC_TRUE,NULL,rowIndices);CHKERRQ(ierr);
+          ierr = DMPlexGetIndicesPoint_Internal(cSec,p,cOff,offsetsCopy,PETSC_TRUE,rowIndices);CHKERRQ(ierr);
           for (a = 0; a < aDof; a++) {
             PetscInt anchor = anchors[a + aOff], lOff;
             ierr = PetscSectionGetOffset(localCoarse,anchor,&lOff);CHKERRQ(ierr);
@@ -3218,15 +3218,17 @@ PetscErrorCode DMPlexComputeInjectorReferenceTree(DM refTree, Mat *inj)
       if (classId == PETSCFE_CLASSID) {
         PetscFE        fe = (PetscFE) disc;
         PetscInt       fSize;
-        const PetscInt ***perms;
-        const PetscScalar ***flips;
-        const PetscInt *pperms;
-
+        const PetscInt      **nnzs    = NULL;
+        const PetscInt    (***ijs)[2] = NULL;
+        const PetscScalar  ***vals    = NULL;
+        PetscInt pnnzs;
+        const PetscInt (*pijs)[2] = NULL;
 
         ierr = PetscFEGetDualSpace(fe,&dsp);CHKERRQ(ierr);
         ierr = PetscDualSpaceGetDimension(dsp,&fSize);CHKERRQ(ierr);
-        ierr = PetscDualSpaceGetSymmetries(dsp, &perms, &flips);CHKERRQ(ierr);
-        pperms = perms ? perms[pI] ? perms[pI][pO] : NULL : NULL;
+        ierr = PetscDualSpaceGetSymmetries(dsp, &nnzs, &ijs, &vals);CHKERRQ(ierr);
+        pnnzs = nnzs ? nnzs[pI] ? nnzs[pI][pO] : 0 : 0;
+        pijs = (const PetscInt (*)[2]) (pnnzs ? ijs[pI][pO] : NULL);
         for (i = 0; i < numSelfDof; i++) { /* for every shape function */
           PetscQuadrature q;
           PetscInt        dim, thisNc, numPoints, j, k;
@@ -3234,7 +3236,7 @@ PetscErrorCode DMPlexComputeInjectorReferenceTree(DM refTree, Mat *inj)
           const PetscReal *weights;
           PetscInt        *closure = NULL;
           PetscInt        numClosure;
-          PetscInt        iCell = pperms ? pperms[i] : i;
+          PetscInt        iCell = pnnzs ? pijs[i][0] : i;
           PetscInt        parentCellShapeDof = cellShapeOff + iCell;
           PetscReal       *Bparent;
 
@@ -3290,7 +3292,8 @@ PetscErrorCode DMPlexComputeInjectorReferenceTree(DM refTree, Mat *inj)
             for (k = 0, pointMatOff = 0; k < numChildren; k++) { /* point is located in cell => child dofs support at point are in closure of cell */
               PetscInt child = children[k], childDepth, childDof, childO = PETSC_MIN_INT;
               PetscInt l;
-              const PetscInt *cperms;
+              PetscInt cnnzs;
+              const PetscInt (*cijs)[2] = NULL;
 
               ierr = DMLabelGetValue(depth,child,&childDepth);CHKERRQ(ierr);
               childDof = depthNumDof[childDepth];
@@ -3310,9 +3313,10 @@ PetscErrorCode DMPlexComputeInjectorReferenceTree(DM refTree, Mat *inj)
                 pointMatOff += childDof;
                 continue; /* child is not in the closure of the cell: has nothing to contribute to this point */
               }
-              cperms = perms ? perms[cI] ? perms[cI][childO] : NULL : NULL;
+              cnnzs = nnzs ? nnzs[cI] ? nnzs[cI][childO] : 0 : 0;
+              cijs = (const PetscInt (*)[2]) (cnnzs ? ijs[cI][childO] : NULL);
               for (l = 0; l < childDof; l++) {
-                PetscInt    lCell = cperms ? cperms[l] : l;
+                PetscInt    lCell = cnnzs ? cijs[l][0] : l;
                 PetscInt    childCellDof = childCellShapeOff + lCell;
                 PetscReal   *childValAtPoint;
                 PetscReal   val = 0.;
