@@ -2932,53 +2932,59 @@ PetscErrorCode PetscSectionGetFieldSym(PetscSection section, PetscInt field, Pet
     context, see DMPlexGetConeOrientation()).
 
   Output Parameter:
-+ perms - The permutations for the given orientations (or NULL if there is no symmetry or the permutation is the identity).
-- rots - The field rotations symmetries for the given orientations (or NULL if there is no symmetry or the rotations are all
-    identity).
++ nnzs - The number of nonzeros in the symmetry matrix for each point with the given orientation.  0 means identity
+. ijs - ijs[point][k][0] and ijs[point][k][1] are the i and j indices of nonzero k of the symmetric matrix for that point
+- vals - vals[point][k] is the value of nonzero k of the symmetry matrix for that point.
 
   Example of usage, gathering dofs into a local array (lArray) from a section array (sArray):
 .vb
-     const PetscInt    **perms;
-     const PetscScalar **rots;
+     const PetscInt     *nnzs;
+     const PetscInt   (**ijs)[2];
+     const PetscScalar **vals;
      PetscInt            lOffset;
 
-     PetscSectionGetPointSyms(section,numPoints,points,&perms,&rots);
+     PetscSectionGetPointSyms(section,numPoints,points,&nnzs,&ijs,&vals);
      for (i = 0, lOffset = 0; i < numPoints; i++) {
        PetscInt           point = points[2*i], dof, sOffset;
-       const PetscInt    *perm  = perms ? perms[i] : NULL;
-       const PetscScalar *rot   = rots  ? rots[i]  : NULL;
+       PetssInt           nnz   = nnzs[i];
+       const PetscInt    *ij    = nnz ? ijs[i] : NULL;
+       const PetscScalar *val   = nnz ? val[i] : NULL;
 
        PetscSectionGetDof(section,point,&dof);
        PetscSectionGetOffset(section,point,&sOffset);
 
-       if (perm) {for (j = 0; j < dof; j++) {lArray[lOffset + perm[j]]  = sArray[sOffset + j];}}
+       if (nnz) {
+         for (j = 0; j < dof; j++) {lArray[lOffset + j] = 0.;}
+         for (j = 0; j < nnz; j++) {lArray[lOffset + ij[j][0]] += val[j] * sArray[sOffset + ij[j][1]];}
+       }
        else      {for (j = 0; j < dof; j++) {lArray[lOffset +      j ]  = sArray[sOffset + j];}}
-       if (rot)  {for (j = 0; j < dof; j++) {lArray[lOffset +      j ] *= rot[j];             }}
        lOffset += dof;
      }
-     PetscSectionRestorePointSyms(section,numPoints,points,&perms,&rots);
+     PetscSectionRestorePointSyms(section,numPoints,points,&nnzs,&ijs,&vals);
 .ve
 
   Example of usage, adding dofs into a section array (sArray) from a local array (lArray):
 .vb
-     const PetscInt    **perms;
-     const PetscScalar **rots;
+     const PetscInt     *nnzs;
+     const PetscInt   (**ijs)[2];
+     const PetscScalar **vals;
      PetscInt            lOffset;
 
      PetscSectionGetPointSyms(section,numPoints,points,&perms,&rots);
      for (i = 0, lOffset = 0; i < numPoints; i++) {
        PetscInt           point = points[2*i], dof, sOffset;
-       const PetscInt    *perm  = perms ? perms[i] : NULL;
-       const PetscScalar *rot   = rots  ? rots[i]  : NULL;
+       PetssInt           nnz   = nnzs[i];
+       const PetscInt    *ij    = nnz ? ijs[i] : NULL;
+       const PetscScalar *val   = nnz ? val[i] : NULL;
 
        PetscSectionGetDof(section,point,&dof);
        PetscSectionGetOffset(section,point,&sOff);
 
-       if (perm) {for (j = 0; j < dof; j++) {sArray[sOffset + j] += lArray[lOffset + perm[j]] * (rot ? PetscConj(rot[perm[j]]) : 1.);}}
-       else      {for (j = 0; j < dof; j++) {sArray[sOffset + j] += lArray[lOffset +      j ] * (rot ? PetscConj(rot[     j ]) : 1.);}}
+       if (nnz) {for (j = 0; j < nnz; j++) {sArray[sOffset + ij[j][1]] += val[j] * lArray[lOffset + ij[j][0]];}}
+       else     {for (j = 0; j < dof; j++) {sArray[sOffset + j] += lArray[lOffset +      j ] * (rot ? PetscConj(rot[     j ]) : 1.);}}
        offset += dof;
      }
-     PetscSectionRestorePointSyms(section,numPoints,points,&perms,&rots);
+     PetscSectionRestorePointSyms(section,numPoints,points,&nnzs,&ijs,&vals);
 .ve
 
   Level: developer
@@ -3054,8 +3060,9 @@ PetscErrorCode PetscSectionGetPointSyms(PetscSection section, PetscInt numPoints
     context, see DMPlexGetConeOrientation()).
 
   Output Parameter:
-+ perms - The permutations for the given orientations: set to NULL at conclusion
-- rots - The field rotations symmetries for the given orientations: set to NULL at conclusion
++ nnzs - Set to NULL at conclusion
+. ijs - Set to NULL at conclusion
+- vals - Set to NULL at conclusion
 
   Level: developer
 

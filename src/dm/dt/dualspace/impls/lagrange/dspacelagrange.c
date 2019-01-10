@@ -290,7 +290,7 @@ static PetscErrorCode PetscDualSpaceGetSymmetries_Lagrange(PetscDualSpace sp, co
 
   Output Parameters:
 + nnzs - nnz[point][orientation] The number of nonzeros in the symmetry matrix for a given point with a given orientation.  0 means identity
-. ijs -  ijs[point][orientation] the (i,j) locations nonzeros of the symmetry matrix
+. ijs -  ijs[point][orientation] the (i,j) indices of nonzeros of the symmetry matrix
 - vals -  vals[point][orientation] the value at the corresponding location
 
   Note: The symmeties take a global orientation to a local one
