@@ -8,8 +8,11 @@ typedef struct _UserCtx
   PetscInt m;      /* The row dimension of F */
   PetscInt n;      /* The column dimension of F */
   Mat F;           /* matrix in least squares component $(1/2) * || F x - d ||_2^2$ */
+  Mat W;           /* Workspace matrix */
   Vec d;           /* RHS in least squares component $(1/2) * || F x - d ||_2^2$ */
   Vec y;           /* Workspace for result F*x */
+  Vec work1;       /* Workspace for temporary vec */
+  Vec work2;       /* Workspace for temporary vec */
   PetscReal alpha; /* regularization constant applied to || x ||_p */
   PetscInt matops;
   NormType p;
@@ -58,7 +61,7 @@ PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
   PetscFunctionBegin;
   ierr = MatMult(ctx->F, x, ctx->y);CHKERRQ(ierr);
   ierr = VecAXPY(ctx->y, -1., ctx->d);CHKERRQ(ierr);
-  ierr = VecNorm(ctx->y, NORM_2, J);CHKERRQ(ierr);
+  ierr = VecDot(ctx->y, ctx->y, J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -66,18 +69,15 @@ PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
-  Mat		     AA;
-  Vec		     Ab,AAx;
+
+  /* work1 is A^T Ax, work2 is Ab, W is A^T A*/
 
   PetscFunctionBegin;
-  ierr = MatTransposeMatMult(ctx->F,ctx->F, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &AA); CHKERRQ(ierr);
-  ierr = MatMult(AA,x,AAx); CHKERRQ(ierr);
-  ierr = MatMultTranspose(ctx->F, ctx->d, Ab);CHKERRQ(ierr);
-  ierr = VecWAXPY(V, -1., Ab, AAx);CHKERRQ(ierr);
+  ierr = MatTransposeMatMult(ctx->F,ctx->F, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->W)); CHKERRQ(ierr);
+  ierr = MatMult(ctx->W,x,ctx->work1); CHKERRQ(ierr);
+  ierr = MatMultTranspose(ctx->F, ctx->d, ctx->work2);CHKERRQ(ierr);
+  ierr = VecWAXPY(V, -1., ctx->work2, ctx->work1);CHKERRQ(ierr);
   ierr = VecScale(V,-2.); CHKERRQ(ierr);
-  ierr = VecDestroy(&Ab);CHKERRQ(ierr);
-  ierr = VecDestroy(&AAx);CHKERRQ(ierr);
-  ierr = MatDestroy(&AA); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -118,16 +118,12 @@ PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
 PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
 {
   PetscErrorCode ierr;
-  Vec            V1,V2;
+  UserCtx cntx = (UserCtx) ctx;
 
   PetscFunctionBegin;
-  ierr = VecCreate(PETSC_COMM_WORLD,&V1); CHKERRQ(ierr);
-  ierr = VecCreate(PETSC_COMM_WORLD,&V2); CHKERRQ(ierr);
-  ierr = GradientMisfit(tao, x, V1, ctx);CHKERRQ(ierr);
-  ierr = GradientRegularization(tao, x, V2, ctx);CHKERRQ(ierr);
-  ierr = VecWAXPY(V,1,V1,V2); CHKERRQ(ierr);
-  ierr = VecDestroy(&V1); CHKERRQ(ierr);
-  ierr = VecDestroy(&V2); CHKERRQ(ierr);
+  ierr = GradientMisfit(tao, x, cntx->work1, ctx);CHKERRQ(ierr);
+  ierr = GradientRegularization(tao, x, cntx->work2, ctx);CHKERRQ(ierr);
+  ierr = VecWAXPY(V,1,cntx->work1,cntx->work2); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -156,6 +152,15 @@ int main (int argc, char** argv)
   ierr = MatSetUp(ctx->F); CHKERRQ(ierr);
   ierr = MatGetOwnershipRange(ctx->F,&Istart,&Iend); CHKERRQ(ierr);  
 
+
+  /* build the matrix W in ctx */
+  ierr = MatCreate(PETSC_COMM_WORLD, &(ctx->W)); CHKERRQ(ierr);
+  ierr = MatSetSizes(ctx->W,PETSC_DECIDE, PETSC_DECIDE, ctx->m, ctx->n);CHKERRQ(ierr);
+  ierr = MatSetType(ctx->W,MATAIJ); CHKERRQ(ierr); /* TODO: Decide specific SetType other than dummy*/
+  ierr = MatMPIAIJSetPreallocation(ctx->W, 5, NULL, 5, NULL); CHKERRQ(ierr); /*TODO: some number other than 5?*/
+  ierr = MatSeqAIJSetPreallocation(ctx->W, 5, NULL); CHKERRQ(ierr);
+  ierr = MatSetUp(ctx->W); CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(ctx->W,&Istart,&Iend); CHKERRQ(ierr);  
 
   ierr = PetscLogStageRegister("Assembly", &stage); CHKERRQ(ierr);
   ierr= PetscLogStagePush(stage); CHKERRQ(ierr);
@@ -207,6 +212,14 @@ int main (int argc, char** argv)
   ierr=  VecSetFromOptions(ctx->d); CHKERRQ(ierr);
   ierr = VecSetRandom(ctx->d,ctx->rctx); CHKERRQ(ierr);
 
+  /* build the workspace in ctx */
+  ierr = VecCreate(PETSC_COMM_WORLD,&(ctx->work1)); CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&(ctx->work2)); CHKERRQ(ierr);
+  ierr = VecSetSizes(ctx->work1,PETSC_DECIDE,ctx->m); CHKERRQ(ierr);
+  ierr = VecSetSizes(ctx->work2,PETSC_DECIDE,ctx->m); CHKERRQ(ierr);
+  ierr=  VecSetFromOptions(ctx->work1); CHKERRQ(ierr);
+  ierr=  VecSetFromOptions(ctx->work2); CHKERRQ(ierr);
+
   /* Define two functions that could pass as objectives to TaoSetObjectiveRoutine(): one
    * for the misfit component, and one for the regularization component */
   /* ObjectiveMisfit() and ObjectiveRegularization() */
@@ -234,8 +247,11 @@ int main (int argc, char** argv)
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = MatDestroy(&(ctx->F)); CHKERRQ(ierr);
+  ierr = MatDestroy(&(ctx->W)); CHKERRQ(ierr);
   ierr = VecDestroy(&(ctx->d)); CHKERRQ(ierr);
   ierr = VecDestroy(&(ctx->y)); CHKERRQ(ierr);
+  ierr = VecDestroy(&(ctx->work1)); CHKERRQ(ierr);
+  ierr = VecDestroy(&(ctx->work2)); CHKERRQ(ierr);
   ierr = DestroyContext(&ctx);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
