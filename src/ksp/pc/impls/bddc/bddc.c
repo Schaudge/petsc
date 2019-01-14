@@ -1921,7 +1921,9 @@ PetscErrorCode PCApply_BDDC(PC pc,Vec r,Vec z)
   if (pcbddc->benign_have_null) { /* get p0 from r */
     ierr = PCBDDCBenignGetOrSetP0(pc,r,PETSC_TRUE);CHKERRQ(ierr);
   }
-  if (!pcbddc->exact_dirichlet_trick_app && !pcbddc->benign_apply_coarse_only) {
+  PetscBool testM1 = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(NULL,NULL,"-test_M1",&testM1,NULL);CHKERRQ(ierr);
+  if (!pcbddc->exact_dirichlet_trick_app && !pcbddc->benign_apply_coarse_only && !testM1) {
     ierr = VecCopy(r,z);CHKERRQ(ierr);
     /* First Dirichlet solve */
     ierr = VecScatterBegin(pcis->global_to_D,r,pcis->vec1_D,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
@@ -1966,6 +1968,11 @@ PetscErrorCode PCApply_BDDC(PC pc,Vec r,Vec z)
       ierr = PCBDDCScalingRestriction(pc,r,pcis->vec1_B);CHKERRQ(ierr);
     }
   }
+  if (testM1) {
+    if (!pcbddc->switch_static) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"You forgot to pass -pc_bddc_switch_static");
+    ierr = VecScatterBegin(pcis->global_to_D,r,pcis->vec1_D,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+    ierr = VecScatterEnd(pcis->global_to_D,r,pcis->vec1_D,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  }
 
   /* Apply interface preconditioner
      input/output vecs: pcis->vec1_B and pcis->vec1_D */
@@ -1973,7 +1980,11 @@ PetscErrorCode PCApply_BDDC(PC pc,Vec r,Vec z)
 
   /* Apply transpose of partition of unity operator */
   ierr = PCBDDCScalingExtension(pc,pcis->vec1_B,z);CHKERRQ(ierr);
-
+  if (testM1) {
+    ierr = VecScatterBegin(pcis->global_to_D,pcis->vec1_D,z,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
+    ierr = VecScatterEnd(pcis->global_to_D,pcis->vec1_D,z,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
   /* Second Dirichlet solve and assembling of output */
   ierr = VecScatterBegin(pcis->global_to_B,z,pcis->vec1_B,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterEnd(pcis->global_to_B,z,pcis->vec1_B,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
