@@ -821,13 +821,33 @@ static PetscErrorCode ComputeKSPBDDC(DomainData dd,Mat A,KSP *ksp)
   IS             primals,dirichletIS=0,neumannIS=0,*bddc_dofs_splitting;
   PetscInt       vidx[8],localsize,*xadj=NULL,*adjncy=NULL;
   MatNullSpace   near_null_space;
+  PetscBool      use_composite_pc;
 
   PetscFunctionBeginUser;
   ierr = KSPCreate(dd.gcomm,&temp_ksp);CHKERRQ(ierr);
   ierr = KSPSetOperators(temp_ksp,A,A);CHKERRQ(ierr);
   ierr = KSPSetType(temp_ksp,KSPCG);CHKERRQ(ierr);
   ierr = KSPGetPC(temp_ksp,&pc);CHKERRQ(ierr);
-  ierr = PCSetType(pc,PCBDDC);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-use_composite_pc",&use_composite_pc,NULL);CHKERRQ(ierr);
+  if (use_composite_pc) {
+    PC pcksp,pcjacobi;
+    KSP ksprich;
+    ierr = PCSetType(pc,PCCOMPOSITE);CHKERRQ(ierr);
+    ierr = PCCompositeSetType(pc,PC_COMPOSITE_MULTIPLICATIVE);CHKERRQ(ierr);
+    ierr = PCCompositeAddPC(pc,PCBDDC);CHKERRQ(ierr);
+    ierr = PCCompositeAddPC(pc,PCKSP);CHKERRQ(ierr);
+    ierr = PCCompositeGetPC(pc,1,&pcksp);CHKERRQ(ierr);
+    ierr = PCKSPGetKSP(pcksp,&ksprich);CHKERRQ(ierr);
+    ierr = KSPSetType(ksprich,KSPRICHARDSON);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksprich,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,1);CHKERRQ(ierr);
+    ierr = KSPSetNormType(ksprich,KSP_NORM_NONE);CHKERRQ(ierr);
+    ierr = KSPSetConvergenceTest(ksprich,KSPConvergedSkip,NULL,NULL);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksprich,&pcjacobi);CHKERRQ(ierr);
+    ierr = PCSetType(pcjacobi,PCJACOBI);CHKERRQ(ierr);
+    ierr = PCCompositeGetPC(pc,0,&pc);CHKERRQ(ierr); /* subsequent code configures the BDDC part */
+  } else {
+    ierr = PCSetType(pc,PCBDDC);CHKERRQ(ierr);
+  }
 
   localsize = dd.xm_l*dd.ym_l*dd.zm_l;
 
