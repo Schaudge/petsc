@@ -175,50 +175,6 @@ PetscErrorCode DestroyContext(UserCtx *ctx)
   PetscFunctionReturn(0);
 }
 
-/* Second order Taylor remainder convergence test */
-PetscErrorCode TaylorTest(UserCtx ctx, Vec x, PetscReal *C)
-{
-  PetscReal h,J,Jp,Jm,dJdm,O,temp;
-  PetscInt i = 0,j;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  for (h= ctx->hStart; h >= ctx->hMin; h *= ctx->hFactor){
-    /* f_p - f_x - e*dFdx */
-    ierr = VecSet(ctx->workLeft[0],h);CHKERRQ(ierr);
-    ierr = VecAXPY(ctx->workLeft[0],1,x);CHKERRQ(ierr);
-    ierr = MatMult(ctx->F, ctx->workLeft[0], ctx->workRight[4]);CHKERRQ(ierr);
-    ierr = VecAXPY(ctx->workRight[4], -1., ctx->d);CHKERRQ(ierr);
-    ierr = VecDot(ctx->workRight[4], ctx->workRight[4], &Jp);CHKERRQ(ierr);
-    Jp *= 0.5;
-
-    ierr = MatMult(ctx->F, x, ctx->workRight[4]);CHKERRQ(ierr);
-    ierr = VecAXPY(ctx->workRight[4], -1., ctx->d);CHKERRQ(ierr);
-    ierr = VecDot(ctx->workRight[4], ctx->workRight[4], &Jm);CHKERRQ(ierr);
-    Jm *= 0.5;
-
-    ierr = MatMult(ctx->W,ctx->workLeft[0],ctx->workRight[0]); CHKERRQ(ierr);
-    ierr = MatMultTranspose(ctx->F, ctx->d, ctx->workRight[1]);CHKERRQ(ierr);
-    ierr = VecWAXPY(ctx->workRight[2], -1., ctx->workRight[1], ctx->workRight[0]);CHKERRQ(ierr);
-    ierr = VecDot(ctx->workRight[2],ctx->workRight[2],&dJdm); CHKERRQ(ierr);
-    /* Vector to dJdm scalar? Dot?*/
-    J = PetscAbsReal(Jp - Jm - h*dJdm );CHKERRQ(ierr);
-
-    ierr = VecSetValue(ctx->workRight[3], i, J, INSERT_VALUES); CHKERRQ(ierr);
-    ierr = VecSetValue(ctx->workLeft[1], i++, h, INSERT_VALUES); CHKERRQ(ierr); 
-  }
-
-  for (j=1; j<i; j++){
-    temp = PetscLogReal(ctx->workRight[3][j]/ctx->workRight[3][j-1]) / 
-           PetscLogReal(ctx->workLeft[1][j]/ctx->workLeft[1][j-1]);
-    ierr = VecSetValue(ctx->workLeft[2],j-1,temp, INSERT_VALUES); CHKERRQ(ierr);
-  }
-  ierr = VecMin(ctx->workLeft[2],NULL, &O); CHKERRQ(ierr);
-
-  /* If O is not ~2, then the test is wrong */  
-
-  PetscFunctionReturn(0);
-}
 /* compute (1/2) * ||F x - d||^2 */
 PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
@@ -306,6 +262,74 @@ PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
   PetscFunctionReturn(0);
 }
 
+/* Second order Taylor remainder convergence test */
+PetscErrorCode TaylorTest(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
+{
+  PetscReal h,J,Jp,Jm,dJdm,O,temp;
+  PetscInt i, j;
+  PetscInt numValues;
+  PetscReal Jx;
+  PetscReal *Js, *hs;
+  PetscReal minrate = PETSC_MAX_REAL;
+  PetscReal gdotdx;
+  MPI_Comm       comm = PetscObjectComm((PetscObject)x);
+  Vec       g, dx, xhat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
+  ierr = VecDuplicate(x, &xhat);CHKERRQ(ierr);
+
+  /* choose a perturbation direction */
+  ierr = VecDuplicate(x, &dx);CHKERRQ(ierr);
+  ierr = VecSetRandom(dx,ctx->rctx); CHKERRQ(ierr);
+  /* evaluate objective at x: J(x) */
+  ierr = TaoComputeObjective(tao, x, &Jx);CHKERRQ(ierr);
+  /* evaluate gradient at x, save in vector g */
+  ierr = TaoComputeGradient(tao, x, g);CHKERRQ(ierr);
+
+  ierr = VecDot(g, dx, &gdotdx);CHKERRQ(ierr);
+
+  for (numValues = 0, h = ctx->hStart; h >= ctx->hMin; h *= ctx->hFactor) numValues++;
+  ierr = PetscCalloc2(numValues, &Js, numValues, &hs);CHKERRQ(ierr);
+
+  for (i = 0, h = ctx->hStart; h >= ctx->hMin; h *= ctx->hFactor, i++) {
+    PetscReal Jxhat_comp, Jxhat_pred;
+
+    ierr = VecWAXPY(xhat, h, dx, x);CHKERRQ(ierr);
+
+    ierr = TaoComputeObjective(tao, xhat, &Jxhat_comp);CHKERRQ(ierr);
+
+    /* J(\hat(x)) \approx J(x) + g^T (xhat - x) = J(x) + h * g^T dx */
+    Jxhat_pred = Jx + h * gdotdx;
+
+    /* Vector to dJdm scalar? Dot?*/
+    J = PetscAbsReal(Jxhat_comp - Jxhat_pred);
+
+    ierr = PetscPrintf (comm, "J(xhat): %g, predicted: %g, diff %g\n", (double) Jxhat_comp,
+                        (double) Jxhat_pred, (double) J);CHKERRQ(ierr);
+    Js[i] = J;
+    hs[i] = h;
+  }
+
+  for (j=1; j<numValues; j++){
+    temp = PetscLogReal(Js[j] / Js[j - 1]) / PetscLogReal (hs[j] / hs[j - 1]);
+    ierr = PetscPrintf (comm, "Convergence rate step %D: %g\n", j - 1, (double) temp);CHKERRQ(ierr);
+    minrate = PetscMin(minrate, temp);
+  }
+  //ierr = VecMin(ctx->workLeft[2],NULL, &O); CHKERRQ(ierr);
+
+  /* If O is not ~2, then the test is wrong */  
+
+  ierr = PetscFree2(Js, hs);CHKERRQ(ierr);
+  *C = minrate;
+  ierr = VecDestroy(&dx);CHKERRQ(ierr);
+  ierr = VecDestroy(&xhat);CHKERRQ(ierr);
+  ierr = VecDestroy(&g);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 int main (int argc, char** argv)
 {
   UserCtx        ctx;
@@ -335,6 +359,12 @@ int main (int argc, char** argv)
   ierr = VecSet(x, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao, x);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
+
+  if (ctx->taylor) {
+    PetscReal rate;
+
+    ierr = TaylorTest(ctx, tao, x, &rate);CHKERRQ(ierr);
+  }
 
   /* solve */
   ierr = TaoSolve(tao);CHKERRQ(ierr);
