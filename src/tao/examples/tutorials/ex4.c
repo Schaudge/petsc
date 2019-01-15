@@ -3,13 +3,16 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 #include <petsc.h>
 #include <petsctao.h>
 
-#define NWORKLEFT 1
-#define NWORKRIGHT 4
+#define NWORKLEFT 3
+#define NWORKRIGHT 5
 
 typedef struct _UserCtx
 {
   PetscInt m;      /* The row dimension of F */
   PetscInt n;      /* The column dimension of F */
+  PetscReal hStart; /* Starting point for Taylor test */
+  PetscReal hFactor;/* Taylor test step factor */
+  PetscReal hMin;   /* Taylor test end goal */
   Mat F;           /* matrix in least squares component $(1/2) * || F x - d ||_2^2$ */
   Mat W;           /* Workspace matrix */
   Vec d;           /* RHS in least squares component $(1/2) * || F x - d ||_2^2$ */
@@ -19,6 +22,7 @@ typedef struct _UserCtx
   PetscInt matops;
   NormType p;
   PetscRandom    rctx;
+  PetscBool taylor; /*Flag to determine whether to run Taylor test or not */
 } * UserCtx;
 
 PetscErrorCode CreateRHS(UserCtx ctx)
@@ -127,11 +131,19 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ctx->alpha = 1.;
   ctx->matops = 0;
   ctx->p = NORM_2;
+  ctx->hStart = 1.;
+  ctx->hMin = 1.e-3;
+  ctx->hFactor = 0.5;
+  ctx->taylor = PETSC_TRUE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "Configure separable objection example", "ex4.c");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-matrix_format","Decide format of F matrix. 0 for stencil, 1 for dense random", "ex4.c", ctx->matops, &(ctx->matops), NULL); CHKERRQ(ierr);
-  ierr = PetscOptionsReal("-alpha", "The regularization multiplier", "ex4.c", ctx->alpha, &(ctx->alpha), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-alpha", "The regularization multiplier. 1 default", "ex4.c", ctx->alpha, &(ctx->alpha), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-hStart", "Taylor test starting point. 1 default.", "ex4.c", ctx->hStart, &(ctx->hStart), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-hFactor", "Taylor test multiplier factor. 0.5 default", "ex4.c", ctx->hFactor, &(ctx->hFactor), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-hMin", "Taylor test ending condition. 1.e-3 default", "ex4.c", ctx->hMin, &(ctx->hMin), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-taylor","Flag for Taylor test. Default is true.", "ex4.c", ctx->taylor, &(ctx->taylor), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   /* Creating random ctx */
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&(ctx->rctx));CHKERRQ(ierr);
@@ -163,6 +175,50 @@ PetscErrorCode DestroyContext(UserCtx *ctx)
   PetscFunctionReturn(0);
 }
 
+/* Second order Taylor remainder convergence test */
+PetscErrorCode TaylorTest(UserCtx ctx, Vec x, PetscReal *C)
+{
+  PetscReal h,J,Jp,Jm,dJdm,O,temp;
+  PetscInt i = 0,j;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  for (h= ctx->hStart; h >= ctx->hMin; h *= ctx->hFactor){
+/* f_p - f_x - e*dFdx */
+	ierr = VecSet(ctx->workLeft[0],h);CHKERRQ(ierr);
+	ierr = VecAXPY(ctx->workLeft[0],1,x);CHKERRQ(ierr);
+    ierr = MatMult(ctx->F, ctx->workLeft[0], ctx->workRight[4]);CHKERRQ(ierr);
+    ierr = VecAXPY(ctx->workRight[4], -1., ctx->d);CHKERRQ(ierr);
+    ierr = VecDot(ctx->workRight[4], ctx->workRight[4], &Jp);CHKERRQ(ierr);
+    Jp *= 0.5;
+
+    ierr = MatMult(ctx->F, x, ctx->workRight[4]);CHKERRQ(ierr);
+    ierr = VecAXPY(ctx->workRight[4], -1., ctx->d);CHKERRQ(ierr);
+    ierr = VecDot(ctx->workRight[4], ctx->workRight[4], &Jm);CHKERRQ(ierr);
+    Jm *= 0.5;
+
+    ierr = MatMult(ctx->W,ctx->workLeft[0],ctx->workRight[0]); CHKERRQ(ierr);
+    ierr = MatMultTranspose(ctx->F, ctx->d, ctx->workRight[1]);CHKERRQ(ierr);
+    ierr = VecWAXPY(ctx->workRight[2], -1., ctx->workRight[1], ctx->workRight[0]);CHKERRQ(ierr);
+	ierr = VecDot(ctx->workRight[2],ctx->workRight[2],&dJdm); CHKERRQ(ierr);
+    /* Vector to dJdm scalar? Dot?*/
+	J = PetscAbsReal(Jp - Jm - h*dJdm );CHKERRQ(ierr);
+
+	ierr = VecSetValue(ctx->workRight[3], i, J, INSERT_VALUES); CHKERRQ(ierr);
+	ierr = VecSetValue(ctx->workLeft[1], i++, h, INSERT_VALUES); CHKERRQ(ierr); 
+  }
+
+  for (j=1; j<i; j++){
+    temp = PetscLogReal(ctx->workRight[3][j]/ctx->workRight[3][j-1]) / 
+		   PetscLogReal(ctx->workLeft[1][j]/ctx->workLeft[1][j-1]);
+	ierr = VecSetValue(ctx->workLeft[2],j-1,temp, INSERT_VALUES); CHKERRQ(ierr);
+  }
+  ierr = VecMin(ctx->workLeft[2],NULL, &O); CHKERRQ(ierr);
+
+/* If O is not ~2, then the test is wrong */  
+
+  PetscFunctionReturn(0);
+}
 /* compute (1/2) * ||F x - d||^2 */
 PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
@@ -189,7 +245,7 @@ PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
   ierr = MatMult(ctx->W,x,ctx->workRight[0]); CHKERRQ(ierr);
   ierr = MatMultTranspose(ctx->F, ctx->d, ctx->workRight[1]);CHKERRQ(ierr);
   ierr = VecWAXPY(V, -1., ctx->workRight[1], ctx->workRight[0]);CHKERRQ(ierr);
-  ierr = VecScale(V,-2.); CHKERRQ(ierr);
+//  ierr = VecScale(V,-2.); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
