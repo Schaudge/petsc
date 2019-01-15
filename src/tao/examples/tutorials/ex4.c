@@ -184,9 +184,9 @@ PetscErrorCode TaylorTest(UserCtx ctx, Vec x, PetscReal *C)
 
   PetscFunctionBegin;
   for (h= ctx->hStart; h >= ctx->hMin; h *= ctx->hFactor){
-/* f_p - f_x - e*dFdx */
-	ierr = VecSet(ctx->workLeft[0],h);CHKERRQ(ierr);
-	ierr = VecAXPY(ctx->workLeft[0],1,x);CHKERRQ(ierr);
+    /* f_p - f_x - e*dFdx */
+    ierr = VecSet(ctx->workLeft[0],h);CHKERRQ(ierr);
+    ierr = VecAXPY(ctx->workLeft[0],1,x);CHKERRQ(ierr);
     ierr = MatMult(ctx->F, ctx->workLeft[0], ctx->workRight[4]);CHKERRQ(ierr);
     ierr = VecAXPY(ctx->workRight[4], -1., ctx->d);CHKERRQ(ierr);
     ierr = VecDot(ctx->workRight[4], ctx->workRight[4], &Jp);CHKERRQ(ierr);
@@ -200,22 +200,22 @@ PetscErrorCode TaylorTest(UserCtx ctx, Vec x, PetscReal *C)
     ierr = MatMult(ctx->W,ctx->workLeft[0],ctx->workRight[0]); CHKERRQ(ierr);
     ierr = MatMultTranspose(ctx->F, ctx->d, ctx->workRight[1]);CHKERRQ(ierr);
     ierr = VecWAXPY(ctx->workRight[2], -1., ctx->workRight[1], ctx->workRight[0]);CHKERRQ(ierr);
-	ierr = VecDot(ctx->workRight[2],ctx->workRight[2],&dJdm); CHKERRQ(ierr);
+    ierr = VecDot(ctx->workRight[2],ctx->workRight[2],&dJdm); CHKERRQ(ierr);
     /* Vector to dJdm scalar? Dot?*/
-	J = PetscAbsReal(Jp - Jm - h*dJdm );CHKERRQ(ierr);
+    J = PetscAbsReal(Jp - Jm - h*dJdm );CHKERRQ(ierr);
 
-	ierr = VecSetValue(ctx->workRight[3], i, J, INSERT_VALUES); CHKERRQ(ierr);
-	ierr = VecSetValue(ctx->workLeft[1], i++, h, INSERT_VALUES); CHKERRQ(ierr); 
+    ierr = VecSetValue(ctx->workRight[3], i, J, INSERT_VALUES); CHKERRQ(ierr);
+    ierr = VecSetValue(ctx->workLeft[1], i++, h, INSERT_VALUES); CHKERRQ(ierr); 
   }
 
   for (j=1; j<i; j++){
     temp = PetscLogReal(ctx->workRight[3][j]/ctx->workRight[3][j-1]) / 
-		   PetscLogReal(ctx->workLeft[1][j]/ctx->workLeft[1][j-1]);
-	ierr = VecSetValue(ctx->workLeft[2],j-1,temp, INSERT_VALUES); CHKERRQ(ierr);
+           PetscLogReal(ctx->workLeft[1][j]/ctx->workLeft[1][j-1]);
+    ierr = VecSetValue(ctx->workLeft[2],j-1,temp, INSERT_VALUES); CHKERRQ(ierr);
   }
   ierr = VecMin(ctx->workLeft[2],NULL, &O); CHKERRQ(ierr);
 
-/* If O is not ~2, then the test is wrong */  
+  /* If O is not ~2, then the test is wrong */  
 
   PetscFunctionReturn(0);
 }
