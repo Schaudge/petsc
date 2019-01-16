@@ -192,14 +192,35 @@ static PetscErrorCode ComputeSpecialBoundaryIndices(DomainData dd,IS *dirichlet,
   for (i=0; i<localsize; i++) touched[i] = PETSC_FALSE;
 
   if (dirichlet) {
-    i = 0;
-    /* west boundary */
-    if (dd.ipx == 0) {
-      for (k=0;k<dd.zm_l;k++) {
-        for (j=0;j<dd.ym_l;j++) {
-          indices[i]=k*dd.ym_l*dd.xm_l+j*dd.xm_l;
-          touched[indices[i]]=PETSC_TRUE;
-          i++;
+    if (1) {
+      PetscInt count = 0;
+      for (k=0; k<dd.zm_l; k++) {
+        for (j=0; j<dd.ym_l; j++) {
+          for (i=0; i<dd.xm_l; i++) {
+            if ((dd.ipx == 0 && i == 0)
+                || (dd.ipy == 0 && j == 0)
+                || (dd.ipz == 0 && k == 0)
+                || (dd.ipx == dd.npx-1 && i == dd.xm_l-1)
+                || (dd.ipy == dd.npy-1 && j == dd.ym_l-1)
+                || (dd.ipz == dd.npz-1 && k == dd.zm_l-1)) {
+              indices[count] = (k*dd.ym_l + j)*dd.xm_l + i;
+              touched[indices[count]] = PETSC_TRUE;
+              count++;
+            }
+          }
+        }
+      }
+      i = count;
+    } else {
+      i = 0;
+      /* west boundary */
+      if (dd.ipx == 0) {
+        for (k=0;k<dd.zm_l;k++) {
+          for (j=0;j<dd.ym_l;j++) {
+            indices[i]=k*dd.ym_l*dd.xm_l+j*dd.xm_l;
+            touched[indices[i]]=PETSC_TRUE;
+            i++;
+          }
         }
       }
     }
@@ -848,6 +869,7 @@ static PetscErrorCode ComputeKSPBDDC(DomainData dd,Mat A,KSP *ksp)
   } else {
     ierr = PCSetType(pc,PCBDDC);CHKERRQ(ierr);
   }
+  ierr = PCBDDCSetUseExactDirichlet(pc,PETSC_FALSE);CHKERRQ(ierr);
 
   localsize = dd.xm_l*dd.ym_l*dd.zm_l;
 
