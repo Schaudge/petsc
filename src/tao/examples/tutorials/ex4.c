@@ -20,6 +20,7 @@ typedef struct _UserCtx
   Vec workLeft[NWORKLEFT];       /* Workspace for temporary vec */
   Vec workRight[NWORKRIGHT];       /* Workspace for temporary vec */
   PetscReal alpha; /* regularization constant applied to || x ||_p */
+  PetscReal eps; /* small constant for approximating gradient of || x ||_1 */
   PetscInt matops;
   NormType p;
   PetscRandom    rctx;
@@ -130,6 +131,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ctx->m = 16;
   ctx->n = 16;
   ctx->alpha = 1.;
+  ctx->eps = 1.e-3;
   ctx->matops = 0;
   ctx->p = NORM_2;
   ctx->hStart = 1.;
@@ -141,11 +143,12 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-matrix_format","Decide format of F matrix. 0 for stencil, 1 for dense random", "ex4.c", ctx->matops, &(ctx->matops), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsReal("-alpha", "The regularization multiplier. 1 default", "ex4.c", ctx->alpha, &(ctx->alpha), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-epsilon", "The small constant added to |x_i| in the denominator to approximate the gradient of ||x||_1", "ex4.c", ctx->eps, &(ctx->eps), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hStart", "Taylor test starting point. 1 default.", "ex4.c", ctx->hStart, &(ctx->hStart), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hFactor", "Taylor test multiplier factor. 0.5 default", "ex4.c", ctx->hFactor, &(ctx->hFactor), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hMin", "Taylor test ending condition. 1.e-3 default", "ex4.c", ctx->hMin, &(ctx->hMin), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-taylor","Flag for Taylor test. Default is true.", "ex4.c", ctx->taylor, &(ctx->taylor), NULL); CHKERRQ(ierr);
-//  ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormType,  ctx->p, &(ctx->p), NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormTypes,  ctx->p, &(ctx->p), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   /* Creating random ctx */
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&(ctx->rctx));CHKERRQ(ierr);
@@ -233,16 +236,12 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
     ierr = VecCopy(x, V);CHKERRQ(ierr);
   }
   else if (ctx->p == NORM_1) {
-	PetscReal eps = 1.E-5;
+    PetscReal eps = ctx->eps;
 
-	ierr = VecSet(ctx->workLeft[1], eps); CHKERRQ(ierr);
-    ierr = VecWAXPY(ctx->workLeft[2], 1, x ,ctx->workLeft[1]); CHKERRQ(ierr);
-    ierr = VecCopy(ctx->workLeft[2], ctx->workLeft[3]);CHKERRQ(ierr);
-	ierr = VecAbs(ctx->workLeft[3]); CHKERRQ(ierr);
-	ierr = VecPointwiseDivide(ctx->workLeft[1], ctx->workLeft[2], ctx->workLeft[3]); CHKERRQ(ierr);
-	ierr = VecNorm(ctx->workLeft[1], NORM_1, &S); CHKERRQ(ierr);
-	ierr = VecSet(ctx->workLeft[1], S); CHKERRQ(ierr);
-	ierr = VecPointwiseMult(V, ctx->workLeft[1], x); CHKERRQ(ierr);
+    ierr = VecCopy(x, ctx->workRight[1]);CHKERRQ(ierr);
+    ierr = VecAbs(ctx->workRight[1]); CHKERRQ(ierr);
+    ierr = VecShift(ctx->workRight[1], eps);CHKERRQ(ierr);
+    ierr = VecPointwiseDivide(V, x, ctx->workRight[1]); CHKERRQ(ierr);
   }
   else {
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_OUTOFRANGE, "Example only works for NORM_1 and NORM_2");
