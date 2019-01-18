@@ -2,8 +2,9 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 
 #include <petsc.h>
 #include <petsctao.h>
+#include <petscvec.h>
 
-#define NWORKLEFT 3
+#define NWORKLEFT 4
 #define NWORKRIGHT 5
 
 typedef struct _UserCtx
@@ -59,7 +60,7 @@ PetscErrorCode CreateMatrix(UserCtx ctx)
   ierr = PetscLogStageRegister("Assembly", &stage); CHKERRQ(ierr);
   ierr= PetscLogStagePush(stage); CHKERRQ(ierr);
 
-  /* Set matrix elements in  2-D five-point stencil format. */
+  /* Set matrix elements in  2-D fiveopoint stencil format. */
   if (!(ctx->matops)){
     PetscInt gridN;
     if (ctx->m != ctx->n) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Stencil matrix must be square");
@@ -144,6 +145,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsReal("-hFactor", "Taylor test multiplier factor. 0.5 default", "ex4.c", ctx->hFactor, &(ctx->hFactor), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hMin", "Taylor test ending condition. 1.e-3 default", "ex4.c", ctx->hMin, &(ctx->hMin), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-taylor","Flag for Taylor test. Default is true.", "ex4.c", ctx->taylor, &(ctx->taylor), NULL); CHKERRQ(ierr);
+//  ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormType,  ctx->p, &(ctx->p), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   /* Creating random ctx */
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&(ctx->rctx));CHKERRQ(ierr);
@@ -224,13 +226,23 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
+  PetscReal      S;
 
   PetscFunctionBegin;
   if (ctx->p == NORM_2) {
     ierr = VecCopy(x, V);CHKERRQ(ierr);
   }
   else if (ctx->p == NORM_1) {
-    /* TODO: What do we do here? */
+	PetscReal eps = 1.E-5;
+
+	ierr = VecSet(ctx->workLeft[1], eps); CHKERRQ(ierr);
+    ierr = VecWAXPY(ctx->workLeft[2], 1, x ,ctx->workLeft[1]); CHKERRQ(ierr);
+    ierr = VecCopy(ctx->workLeft[2], ctx->workLeft[3]);CHKERRQ(ierr);
+	ierr = VecAbs(ctx->workLeft[3]); CHKERRQ(ierr);
+	ierr = VecPointwiseDivide(ctx->workLeft[1], ctx->workLeft[2], ctx->workLeft[3]); CHKERRQ(ierr);
+	ierr = VecNorm(ctx->workLeft[1], NORM_1, &S); CHKERRQ(ierr);
+	ierr = VecSet(ctx->workLeft[1], S); CHKERRQ(ierr);
+	ierr = VecPointwiseMult(V, ctx->workLeft[1], x); CHKERRQ(ierr);
   }
   else {
     SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_OUTOFRANGE, "Example only works for NORM_1 and NORM_2");
