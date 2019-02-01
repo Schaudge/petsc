@@ -376,6 +376,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEInterpolateGradient_Static(PetscFE fe,
   PetscFunctionReturn(0);
 }
 
+
+
 PETSC_STATIC_INLINE PetscErrorCode PetscFEInterpolateFieldAndGradient_Static(PetscFE fe, const PetscScalar x[], PetscInt dim, const PetscReal invJ[], PetscInt q, PetscScalar interpolant[], PetscScalar interpolantGrad[])
 {
   PetscReal     *basis, *basisDer;
