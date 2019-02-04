@@ -3,9 +3,10 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 #include <petsc.h>
 #include <petsctao.h>
 #include <petscvec.h>
+#include <petscmath.h>
 
 #define NWORKLEFT 4
-#define NWORKRIGHT 12
+#define NWORKRIGHT 14
 
 typedef struct _UserCtx
 {
@@ -250,6 +251,48 @@ PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
+{
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscReal norm;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecCopy(x,ctx->workRight[14]); CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,-1.,1.,ctx->workRight[12],ctx->workRight[13]); CHKERRQ(ierr);
+  ierr = VecNorm (ctx->workRight[14], ctx->p, &norm);CHKERRQ(ierr);
+  if (ctx->p == NORM_2) {
+    norm = 0.5 * norm * norm;
+  }
+  *J = ctx->alpha * norm;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode GradientRegularizationADMM(Tao tao, Vec x, Vec V, void *_ctx)
+{
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscErrorCode ierr;
+  PetscReal      S;
+
+  PetscFunctionBegin;
+  if (ctx->p == NORM_2) {
+    ierr = VecCopy(x, V);CHKERRQ(ierr);
+    ierr = VecAXPBYPCZ(V,-1.,-1.,1.,ctx->workRight[12],ctx->workRight[13]); CHKERRQ(ierr);
+  }
+  else if (ctx->p == NORM_1) {
+    PetscReal eps = ctx->eps;
+
+    ierr = VecCopy(x, ctx->workRight[1]);CHKERRQ(ierr);
+    ierr = VecAbs(ctx->workRight[1]); CHKERRQ(ierr);
+    ierr = VecShift(ctx->workRight[1], eps);CHKERRQ(ierr);
+    ierr = VecPointwiseDivide(V, x, ctx->workRight[1]); CHKERRQ(ierr);
+  }
+  else {
+    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_OUTOFRANGE, "Example only works for NORM_1 and NORM_2");
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
@@ -289,6 +332,30 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode ObjectiveCompleteADMM(Tao tao, Vec x, PetscReal *J, void *ctx)
+{
+  PetscReal Jm, Jr;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = ObjectiveMisfit(tao, x, &Jm, ctx);CHKERRQ(ierr);
+  ierr = ObjectiveRegularizationADMM(tao, x, &Jr, ctx);CHKERRQ(ierr);
+  *J = Jm + Jr;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode GradientCompleteADMM(Tao tao, Vec x, Vec V, void *ctx)
+{
+  PetscErrorCode ierr;
+  UserCtx cntx = (UserCtx) ctx;
+
+  PetscFunctionBegin;
+  ierr = GradientMisfit(tao, x, cntx->workRight[2], ctx);CHKERRQ(ierr);
+  ierr = GradientRegularizationADMM(tao, x, cntx->workRight[3], ctx);CHKERRQ(ierr);
+  ierr = VecWAXPY(V,1,cntx->workRight[2],cntx->workRight[3]); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
 {
   PetscReal Jm, Jr;
@@ -313,42 +380,84 @@ PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode taoSolve_ADMM(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
+PetscReal SoftThreshold(PetscReal z, PetscReal rho)
 {
   PetscErrorCode ierr;
   PetscInt i;
+  PetscReal out;
 
   PetscFunctionBegin;
 
-  for (i=0; i<ctx->iter; i++){
-  
-  }
+  out = PetscMax(0,z- rho) - PetscMax(0, -z-rho);
+  PetscFunctionReturn(out);
+}
 
+PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
+{
+  PetscErrorCode ierr;
+  PetscInt i;
+  Tao tao1,tao2;
+  Vec xk,z,u;
+
+
+  PetscFunctionBegin;
+ 
+  xk = ctx->workRight[11]; 
+  z = ctx->workRight[12]; 
+  u = ctx->workRight[13];
+  ierr = VecSet(u, 0.);CHKERRQ(ierr);
+
+  ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
+  ierr = TaoSetType(tao1,TAONM); CHKERRQ(ierr);
+  ierr = TaoSetObjectiveRoutine(tao1, ObjectiveCompleteADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = TaoSetGradientRoutine(tao1, GradientCompleteADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = MatCreateVecs(ctx->F, NULL, &xk);CHKERRQ(ierr);
+  ierr = VecSet(xk, 0.);CHKERRQ(ierr);
+  ierr = TaoSetInitialVector(tao1, xk);CHKERRQ(ierr);
+  ierr = TaoSetFromOptions(tao1);CHKERRQ(ierr);
+
+  ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
+  ierr = TaoSetType(tao2,TAONM); CHKERRQ(ierr);
+  ierr = TaoSetObjectiveRoutine(tao2, ObjectiveCompleteADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = TaoSetGradientRoutine(tao2, GradientCompleteADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = MatCreateVecs(ctx->F, NULL, &z);CHKERRQ(ierr);
+  ierr = VecSet(z, 0.);CHKERRQ(ierr);
+  ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
+  ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
+
+  for (i=0; i<ctx->iter; i++){
+    TaoSolve(tao1); 
+	TaoSolve(tao2);
+    ierr = VecAXPBYPCZ(u,-1.,-1.,1.,xk,z); CHKERRQ(ierr);
+	/*TODO iter stop check */
+  }
+ 
+  ierr = VecCopy(xk, x); CHKERRQ(ierr);
+  ierr = VecView(x, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 
 PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 {
   PetscErrorCode ierr;
-  PetscInt i;
-  PetscReal J,Jn;
+  PetscInt i, nlocal;
+  PetscReal J,Jn, *z_array;
   IS perm, iscol;
   MatFactorInfo factinfo;
   MPI_Comm       comm = PetscObjectComm((PetscObject)x);
   Vec z_k, u_k, x_k, max_k;
+  KSP ksp;
 
   PetscFunctionBegin;
   z_k = ctx->workRight[3];
   u_k = ctx->workRight[4];
-  x_k = ctx->workRight[11];
   x_k = ctx->workRight[11];
   max_k = ctx->workRight[9];
   ierr = VecSet(z_k,0); CHKERRQ(ierr); /* z_k */
   ierr = VecSet(u_k,0); CHKERRQ(ierr); /* u_k */
   ierr = VecSet(x_k,0); CHKERRQ(ierr); /* x_k */
   ierr = VecSet(max_k,0); CHKERRQ(ierr); // compare zero vector for VecPointWiseMax
-
-//  ierr = MatFactorInfoInitialize(&factinfo); CHKERRQ(ierr); 
 
   ierr  = MatGetOrdering(ctx->W1,MATORDERINGNATURAL,&perm,&iscol);CHKERRQ(ierr);
   ierr  = ISDestroy(&iscol);CHKERRQ(ierr);
@@ -359,7 +468,12 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
   ierr = MatCholeskyFactorSymbolic(ctx->temp,ctx->W1,perm,&factinfo);CHKERRQ(ierr);
   ierr = MatCholeskyFactorNumeric(ctx->temp,ctx->W1,&factinfo);CHKERRQ(ierr);
 
-//  ierr = MatCholeskyFactor(ctx->W1,NULL,NULL); CHKERRQ(ierr); //Cholesky of AAT
+/*  ierr = KSPCreate(PESTC_COMM_WORLD, &ksp); CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp, &(ctx->W1), &(ctx->W1)); CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
+  ierr = KSPSolve(ksp, ); CHKERRQ(ierr);
+**/
+
   ierr = MatMatSolve(ctx->temp,ctx->Id, ctx->Fp); CHKERRQ(ierr); // Solve LLT FFTinv = I for FFTinv
   ierr = MatTransposeMatMult(ctx->F, ctx->Fp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->Fpinv)); CHKERRQ(ierr); 
   ierr = MatMatMult(ctx->Fpinv, ctx->F, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->P)); CHKERRQ(ierr);
@@ -368,9 +482,6 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 
   ierr = MatMult(ctx->Fpinv, ctx->d, ctx->workRight[5]); /* q = FT*((FFT)^-1 * b) */
 
-//  ierr = TaoComputeObjective(tao, x, &J);CHKERRQ(ierr);
-
-//  ierr = PetscPrintf (comm, "ADMMBP: Compute Objective:  %g\n", (double) J); CHKERRQ(ierr);
   for (i=0; i<ctx->iter; i++){
 
     ierr = VecView(x_k, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
@@ -380,14 +491,13 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
     ierr = VecAXPBYPCZ(ctx->workRight[7], ctx->alpha, 1.0 - ctx->alpha, 0.0, x_k, z_k); CHKERRQ(ierr); // x_hat = ax + (1-a)z
 
     /* soft thresholding for z */
-    /*
-     VecGetArray(z_k, &z_array) // local array of values
-
-     for (i = 0; i < n; i++) { // local size of z_k
-       z_array[i] = shrinkage (z_array[i]);
-     }
-
-     VecRestoreArray(z_k);
+	/*
+    ierr = VecGetArray(z_k, &z_array); CHKERRQ(ierr);
+    ierr = VecGetLocalSize(z_k, &nlocal); CHKERRQ(ierr);
+    for (i=0; i < n ; i++){
+      z_array[i] = SoftThreshold(z_array[i], 1./ctx->rho);
+    }
+    ierr = VecRestoreArray(z_k, &z_array);
     */
     ierr = VecWAXPY(z_k, 1., ctx->workRight[7], u_k); CHKERRQ(ierr); // xhat + u for shrinkage. 
     ierr = VecCopy(z_k, ctx->workRight[8]);CHKERRQ(ierr);
@@ -403,7 +513,6 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
     ierr = VecAXPY(u_k, 1., ctx->workRight[10]); CHKERRQ(ierr); // u = u + x_hat - z
 
     ierr = VecNorm(x_k,NORM_1,C); CHKERRQ(ierr);
-    //	 ierr = PetscPrintf (comm, "step: %D, NORM1 of x: %g \n", i, (double) *C); CHKERRQ(ierr);
     Jn = PetscAbsReal(J - *C);
     ierr = PetscPrintf (comm, "step: %D, J(x): %g, predicted: %g, diff %g\n", i, (double) J,
                         (double) *C, (double) Jn);CHKERRQ(ierr);
@@ -516,7 +625,8 @@ int main (int argc, char** argv)
   PetscReal temp;
   ierr = ADMMBasicPursuit(ctx, tao, x, &temp); CHKERRQ(ierr);
   /* solve */
-  ierr = TaoSolve(tao);CHKERRQ(ierr);
+  ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
+//  ierr = TaoSolve(tao);CHKERRQ(ierr);
 
   /* examine solution */
   VecViewFromOptions(x, NULL, "-view_sol");CHKERRQ(ierr);
