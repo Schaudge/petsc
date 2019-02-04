@@ -335,13 +335,18 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
   IS perm, iscol;
   MatFactorInfo factinfo;
   MPI_Comm       comm = PetscObjectComm((PetscObject)x);
+  Vec z_k, u_k, x_k, max_k;
 
   PetscFunctionBegin;
-  ierr = VecView(ctx->d, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-  ierr = VecSet(ctx->workRight[3],0); CHKERRQ(ierr); /* z_k */
-  ierr = VecSet(ctx->workRight[4],0); CHKERRQ(ierr); /* u_k */
-  ierr = VecSet(ctx->workRight[11],0); CHKERRQ(ierr); /* x_k */
-  ierr = VecSet(ctx->workRight[9],0); CHKERRQ(ierr); // compare zero vector for VecPointWiseMax
+  z_k = ctx->workRight[3];
+  u_k = ctx->workRight[4];
+  x_k = ctx->workRight[11];
+  x_k = ctx->workRight[11];
+  max_k = ctx->workRight[9];
+  ierr = VecSet(z_k,0); CHKERRQ(ierr); /* z_k */
+  ierr = VecSet(u_k,0); CHKERRQ(ierr); /* u_k */
+  ierr = VecSet(x_k,0); CHKERRQ(ierr); /* x_k */
+  ierr = VecSet(max_k,0); CHKERRQ(ierr); // compare zero vector for VecPointWiseMax
 
 //  ierr = MatFactorInfoInitialize(&factinfo); CHKERRQ(ierr); 
 
@@ -368,32 +373,41 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 //  ierr = PetscPrintf (comm, "ADMMBP: Compute Objective:  %g\n", (double) J); CHKERRQ(ierr);
   for (i=0; i<ctx->iter; i++){
 
- //    ierr = VecView(ctx->workRight[11], PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-	 // x update 
-     ierr = VecWAXPY(ctx->workRight[6], -1.0, ctx->workRight[4], ctx->workRight[3]); CHKERRQ(ierr); // work[6] = z-u
-	 ierr = MatMultAdd(ctx->P, ctx->workRight[6], ctx->workRight[5], ctx->workRight[11]); CHKERRQ(ierr); // x = P(z-u) + q
-	 ierr = VecAXPBYPCZ(ctx->workRight[7], ctx->alpha, 1.0 - ctx->alpha, 0.0, ctx->workRight[11], ctx->workRight[3]); CHKERRQ(ierr); // x_hat = ax + (1-a)z
+    ierr = VecView(x_k, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+    // x update 
+    ierr = VecWAXPY(ctx->workRight[6], -1.0, u_k, z_k); CHKERRQ(ierr); // work[6] = z-u
+    ierr = MatMultAdd(ctx->P, ctx->workRight[6], ctx->workRight[5], x_k); CHKERRQ(ierr); // x = P(z-u) + q
+    ierr = VecAXPBYPCZ(ctx->workRight[7], ctx->alpha, 1.0 - ctx->alpha, 0.0, x_k, z_k); CHKERRQ(ierr); // x_hat = ax + (1-a)z
 
-	 /* soft thresholding for z */
-     ierr = VecWAXPY(ctx->workRight[3], 1., ctx->workRight[7], ctx->workRight[4]); CHKERRQ(ierr); // xhat + u for shrinkage. 
-     ierr = VecCopy(ctx->workRight[3], ctx->workRight[8]);CHKERRQ(ierr);
-	 ierr = VecScale(ctx->workRight[8], -1.); CHKERRQ(ierr);
-	 ierr = VecShift(ctx->workRight[3], - 1./(ctx->rho)); CHKERRQ(ierr);
-	 ierr = VecShift(ctx->workRight[8], - 1./(ctx->rho)); CHKERRQ(ierr);
-	 ierr = VecPointwiseMax(ctx->workRight[3], ctx->workRight[9], ctx->workRight[3]); CHKERRQ(ierr);
-	 ierr = VecPointwiseMax(ctx->workRight[8], ctx->workRight[9], ctx->workRight[8]); CHKERRQ(ierr);
-	 ierr = VecAXPY(ctx->workRight[3], -1., ctx->workRight[8]); CHKERRQ(ierr);
-    
-	 // u update 
-     ierr = VecWAXPY(ctx->workRight[10], -1., ctx->workRight[3], ctx->workRight[7]); CHKERRQ(ierr); // work[10] = x_hat - z
-	 ierr = VecAXPY(ctx->workRight[4], 1., ctx->workRight[10]); CHKERRQ(ierr); // u = u + x_hat - z
+    /* soft thresholding for z */
+    /*
+     VecGetArray(z_k, &z_array) // local array of values
 
-     ierr = VecNorm(ctx->workRight[11],NORM_1,C); CHKERRQ(ierr);
-	 ierr = PetscPrintf (comm, "step: %D, NORM1 of x: %g \n", i, (double) *C); CHKERRQ(ierr);
-//     Jn = PetscAbsReal(J - *C);
-//     ierr = PetscPrintf (comm, "step: %D, J(x): %g, predicted: %g, diff %g\n", i, (double) J,
-//                        (double) *C, (double) Jn);CHKERRQ(ierr);
-//     ierr = PetscPrintf (comm, "ADMMBP: step %D, objective:  %g\n", i, (double) &C); CHKERRQ(ierr);
+     for (i = 0; i < n; i++) { // local size of z_k
+       z_array[i] = shrinkage (z_array[i]);
+     }
+
+     VecRestoreArray(z_k);
+    */
+    ierr = VecWAXPY(z_k, 1., ctx->workRight[7], u_k); CHKERRQ(ierr); // xhat + u for shrinkage. 
+    ierr = VecCopy(z_k, ctx->workRight[8]);CHKERRQ(ierr);
+    ierr = VecScale(ctx->workRight[8], -1.); CHKERRQ(ierr);
+    ierr = VecShift(z_k, - 1./(ctx->rho)); CHKERRQ(ierr);
+    ierr = VecShift(ctx->workRight[8], - 1./(ctx->rho)); CHKERRQ(ierr);
+    ierr = VecPointwiseMax(z_k, max_k, z_k); CHKERRQ(ierr);
+    ierr = VecPointwiseMax(ctx->workRight[8], max_k, ctx->workRight[8]); CHKERRQ(ierr);
+    ierr = VecAXPY(z_k, -1., ctx->workRight[8]); CHKERRQ(ierr);
+
+    // u update 
+    ierr = VecWAXPY(ctx->workRight[10], -1., z_k, ctx->workRight[7]); CHKERRQ(ierr); // work[10] = x_hat - z
+    ierr = VecAXPY(u_k, 1., ctx->workRight[10]); CHKERRQ(ierr); // u = u + x_hat - z
+
+    ierr = VecNorm(x_k,NORM_1,C); CHKERRQ(ierr);
+    //	 ierr = PetscPrintf (comm, "step: %D, NORM1 of x: %g \n", i, (double) *C); CHKERRQ(ierr);
+    Jn = PetscAbsReal(J - *C);
+    ierr = PetscPrintf (comm, "step: %D, J(x): %g, predicted: %g, diff %g\n", i, (double) J,
+                        (double) *C, (double) Jn);CHKERRQ(ierr);
+    //     ierr = PetscPrintf (comm, "ADMMBP: step %D, objective:  %g\n", i, (double) &C); CHKERRQ(ierr);
   }
 
 
