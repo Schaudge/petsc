@@ -30,6 +30,7 @@ typedef struct _UserCtx
   PetscReal relax; /* Overrelaxation parameter  */
   PetscReal rho; /*  Augmented Lagrangian Parameter */
   PetscReal eps; /* small constant for approximating gradient of || x ||_1 */
+  PetscReal mu;  /* the augmented Lagrangian term in ADMM */
   PetscInt matops;
   PetscInt iter;
   NormType p;
@@ -169,6 +170,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ctx->hStart = 1.;
   ctx->hMin = 1.e-3;
   ctx->hFactor = 0.5;
+  ctx->mu = 1.0;
   ctx->taylor = PETSC_TRUE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "Configure separable objection example", "ex4.c");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
@@ -179,11 +181,12 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsReal("-relax", "Overrelaxation parameter.", "ex4.c", ctx->relax, &(ctx->relax), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-rho", "Augmented Lagrangian Parameter", "ex4.c", ctx->rho, &(ctx->rho), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-epsilon", "The small constant added to |x_i| in the denominator to approximate the gradient of ||x||_1", "ex4.c", ctx->eps, &(ctx->eps), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-mu", "The augmented lagrangian multiplier in ADMM", "ex4.c", ctx->mu, &(ctx->mu), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hStart", "Taylor test starting point. 1 default.", "ex4.c", ctx->hStart, &(ctx->hStart), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hFactor", "Taylor test multiplier factor. 0.5 default", "ex4.c", ctx->hFactor, &(ctx->hFactor), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hMin", "Taylor test ending condition. 1.e-3 default", "ex4.c", ctx->hMin, &(ctx->hMin), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-taylor","Flag for Taylor test. Default is true.", "ex4.c", ctx->taylor, &(ctx->taylor), NULL); CHKERRQ(ierr);
-  ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormTypes,  ctx->p, &(ctx->p), NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormTypes,  ctx->p, (PetscEnum *) &(ctx->p), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   /* Creating random ctx */
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&(ctx->rctx));CHKERRQ(ierr);
@@ -251,45 +254,40 @@ PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
+PetscErrorCode ObjectiveMisfitADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
-  PetscReal norm;
+  PetscReal mu, workNorm, misfit;
+  Vec z, u;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  mu = ctx->mu;
+  z = ctx->workRight[12];
+  u = ctx->workRight[13];
+  ierr = ObjectiveMisfit(tao, x, &misfit, _ctx);CHKERRQ(ierr);
   ierr = VecCopy(x,ctx->workRight[14]); CHKERRQ(ierr);
-  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,-1.,1.,ctx->workRight[12],ctx->workRight[13]); CHKERRQ(ierr);
-  ierr = VecNorm (ctx->workRight[14], ctx->p, &norm);CHKERRQ(ierr);
-  if (ctx->p == NORM_2) {
-    norm = 0.5 * norm * norm;
-  }
-  *J = ctx->alpha * norm;
+  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,-1.,1.,z,u);CHKERRQ(ierr);
+  ierr = VecDot(ctx->workRight[14], ctx->workRight[14], &workNorm);CHKERRQ(ierr);
+  *J = misfit + 0.5 * mu * workNorm;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientRegularizationADMM(Tao tao, Vec x, Vec V, void *_ctx)
+PetscErrorCode GradientMisfitADMM(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
+  PetscReal      mu;
+  Vec            z, u;
   PetscErrorCode ierr;
-  PetscReal      S;
 
   PetscFunctionBegin;
-  if (ctx->p == NORM_2) {
-    ierr = VecCopy(x, V);CHKERRQ(ierr);
-    ierr = VecAXPBYPCZ(V,-1.,-1.,1.,ctx->workRight[12],ctx->workRight[13]); CHKERRQ(ierr);
-  }
-  else if (ctx->p == NORM_1) {
-    PetscReal eps = ctx->eps;
-
-    ierr = VecCopy(x, ctx->workRight[1]);CHKERRQ(ierr);
-    ierr = VecAbs(ctx->workRight[1]); CHKERRQ(ierr);
-    ierr = VecShift(ctx->workRight[1], eps);CHKERRQ(ierr);
-    ierr = VecPointwiseDivide(V, x, ctx->workRight[1]); CHKERRQ(ierr);
-  }
-  else {
-    SETERRQ(PetscObjectComm((PetscObject)tao), PETSC_ERR_ARG_OUTOFRANGE, "Example only works for NORM_1 and NORM_2");
-  }
+  mu = ctx->mu;
+  z = ctx->workRight[12];
+  u = ctx->workRight[13];
+  ierr = GradientMisfit(tao, x, V, _ctx);CHKERRQ(ierr);
+  ierr = VecCopy(x, ctx->workRight[14]);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,-1.,1.,z,u);CHKERRQ(ierr);
+  ierr = VecAXPY(V, mu, ctx->workRight[14]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -312,7 +310,6 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
-  PetscReal      S;
 
   PetscFunctionBegin;
   if (ctx->p == NORM_2) {
@@ -332,27 +329,40 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ObjectiveCompleteADMM(Tao tao, Vec x, PetscReal *J, void *ctx)
+PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *_ctx)
 {
-  PetscReal Jm, Jr;
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscReal mu, workNorm, reg;
+  Vec x, u;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = ObjectiveMisfit(tao, x, &Jm, ctx);CHKERRQ(ierr);
-  ierr = ObjectiveRegularizationADMM(tao, x, &Jr, ctx);CHKERRQ(ierr);
-  *J = Jm + Jr;
+  mu = ctx->mu;
+  x = ctx->workRight[11];
+  u = ctx->workRight[13];
+  ierr = ObjectiveRegularization(tao, z, &reg, _ctx);CHKERRQ(ierr);
+  ierr = VecCopy(z,ctx->workRight[14]); CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(ctx->workRight[14],1.,-1.,-1.,x,u);CHKERRQ(ierr);
+  ierr = VecDot(ctx->workRight[14], ctx->workRight[14], &workNorm);CHKERRQ(ierr);
+  *J = reg + 0.5 * mu * workNorm;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientCompleteADMM(Tao tao, Vec x, Vec V, void *ctx)
+PetscErrorCode GradientRegularizationADMM(Tao tao, Vec z, Vec V, void *_ctx)
 {
+  UserCtx ctx = (UserCtx) _ctx;
+  PetscReal      mu;
+  Vec x, u;
   PetscErrorCode ierr;
-  UserCtx cntx = (UserCtx) ctx;
 
   PetscFunctionBegin;
-  ierr = GradientMisfit(tao, x, cntx->workRight[2], ctx);CHKERRQ(ierr);
-  ierr = GradientRegularizationADMM(tao, x, cntx->workRight[3], ctx);CHKERRQ(ierr);
-  ierr = VecWAXPY(V,1,cntx->workRight[2],cntx->workRight[3]); CHKERRQ(ierr);
+  mu = ctx->mu;
+  x = ctx->workRight[11];
+  u = ctx->workRight[13];
+  ierr = GradientRegularization(tao, z, V, _ctx);CHKERRQ(ierr);
+  ierr = VecCopy(z, ctx->workRight[14]);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(ctx->workRight[14],1.,-1.,-1.,x,u);CHKERRQ(ierr);
+  ierr = VecAXPY(V, -mu, ctx->workRight[14]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -370,8 +380,8 @@ PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
 
 PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
 {
-  PetscErrorCode ierr;
   UserCtx cntx = (UserCtx) ctx;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = GradientMisfit(tao, x, cntx->workRight[2], ctx);CHKERRQ(ierr);
@@ -382,14 +392,7 @@ PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
 
 PetscReal SoftThreshold(PetscReal z, PetscReal rho)
 {
-  PetscErrorCode ierr;
-  PetscInt i;
-  PetscReal out;
-
-  PetscFunctionBegin;
-
-  out = PetscMax(0,z- rho) - PetscMax(0, -z-rho);
-  PetscFunctionReturn(out);
+  return PetscMax(0,z- rho) - PetscMax(0, -z-rho);
 }
 
 PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
@@ -409,27 +412,32 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
   ierr = TaoSetType(tao1,TAONM); CHKERRQ(ierr);
-  ierr = TaoSetObjectiveRoutine(tao1, ObjectiveCompleteADMM, (void *) ctx);CHKERRQ(ierr);
-  ierr = TaoSetGradientRoutine(tao1, GradientCompleteADMM, (void *) ctx);CHKERRQ(ierr);
-  ierr = MatCreateVecs(ctx->F, NULL, &xk);CHKERRQ(ierr);
+  ierr = TaoSetObjectiveRoutine(tao1, ObjectiveMisfitADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = TaoSetGradientRoutine(tao1, GradientMisfitADMM, (void *) ctx);CHKERRQ(ierr);
+  //ierr = MatCreateVecs(ctx->F, NULL, &xk);CHKERRQ(ierr);
   ierr = VecSet(xk, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao1, xk);CHKERRQ(ierr);
+  ierr = TaoSetOptionsPrefix(tao1, "misfit_");CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao1);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
   ierr = TaoSetType(tao2,TAONM); CHKERRQ(ierr);
-  ierr = TaoSetObjectiveRoutine(tao2, ObjectiveCompleteADMM, (void *) ctx);CHKERRQ(ierr);
-  ierr = TaoSetGradientRoutine(tao2, GradientCompleteADMM, (void *) ctx);CHKERRQ(ierr);
-  ierr = MatCreateVecs(ctx->F, NULL, &z);CHKERRQ(ierr);
+  ierr = TaoSetObjectiveRoutine(tao2, ObjectiveRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = TaoSetGradientRoutine(tao2, GradientRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
+  //ierr = MatCreateVecs(ctx->F, NULL, &z);CHKERRQ(ierr);
   ierr = VecSet(z, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
+  ierr = TaoSetOptionsPrefix(tao2, "reg_");CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
 
   for (i=0; i<ctx->iter; i++){
-    TaoSolve(tao1); 
-	TaoSolve(tao2);
-    ierr = VecAXPBYPCZ(u,-1.,-1.,1.,xk,z); CHKERRQ(ierr);
-	/*TODO iter stop check */
+    PetscReal unorm;
+    TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
+    TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
+    ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
+    /*TODO iter stop check */
+    ierr = VecNorm(u,NORM_2,&unorm);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"ADMM %D: ||u|| = %g\n", i, (double) unorm);CHKERRQ(ierr);
   }
  
   ierr = VecCopy(xk, x); CHKERRQ(ierr);
@@ -623,7 +631,9 @@ int main (int argc, char** argv)
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
 
   PetscReal temp;
+#if 0
   ierr = ADMMBasicPursuit(ctx, tao, x, &temp); CHKERRQ(ierr);
+#endif
   /* solve */
   ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
 //  ierr = TaoSolve(tao);CHKERRQ(ierr);
