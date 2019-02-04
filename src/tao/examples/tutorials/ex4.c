@@ -313,6 +313,20 @@ PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode taoSolve_ADMM(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
+{
+  PetscErrorCode ierr;
+  PetscInt i;
+
+  PetscFunctionBegin;
+
+  for (i=0; i<ctx->iter; i++){
+  
+  }
+
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 {
   PetscErrorCode ierr;
@@ -323,6 +337,7 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
   MPI_Comm       comm = PetscObjectComm((PetscObject)x);
 
   PetscFunctionBegin;
+  ierr = VecView(ctx->d, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
   ierr = VecSet(ctx->workRight[3],0); CHKERRQ(ierr); /* z_k */
   ierr = VecSet(ctx->workRight[4],0); CHKERRQ(ierr); /* u_k */
   ierr = VecSet(ctx->workRight[11],0); CHKERRQ(ierr); /* x_k */
@@ -348,12 +363,12 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 
   ierr = MatMult(ctx->Fpinv, ctx->d, ctx->workRight[5]); /* q = FT*((FFT)^-1 * b) */
 
-  ierr = TaoComputeObjective(tao, x, &J);CHKERRQ(ierr);
+//  ierr = TaoComputeObjective(tao, x, &J);CHKERRQ(ierr);
 
-  ierr = PetscPrintf (comm, "ADMMBP: Compute Objective:  %g\n", (double) J); CHKERRQ(ierr);
+//  ierr = PetscPrintf (comm, "ADMMBP: Compute Objective:  %g\n", (double) J); CHKERRQ(ierr);
   for (i=0; i<ctx->iter; i++){
 
-     ierr = VecView(ctx->workRight[11], PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+ //    ierr = VecView(ctx->workRight[11], PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	 // x update 
      ierr = VecWAXPY(ctx->workRight[6], -1.0, ctx->workRight[4], ctx->workRight[3]); CHKERRQ(ierr); // work[6] = z-u
 	 ierr = MatMultAdd(ctx->P, ctx->workRight[6], ctx->workRight[5], ctx->workRight[11]); CHKERRQ(ierr); // x = P(z-u) + q
@@ -374,10 +389,10 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 	 ierr = VecAXPY(ctx->workRight[4], 1., ctx->workRight[10]); CHKERRQ(ierr); // u = u + x_hat - z
 
      ierr = VecNorm(ctx->workRight[11],NORM_1,C); CHKERRQ(ierr);
-//	 ierr = PetscPrintf (comm, "step: %D, NORM1 of x: %g \n", i, (double) *C); CHKERRQ(ierr);
-     Jn = PetscAbsReal(J - *C);
-     ierr = PetscPrintf (comm, "step: %D, J(x): %g, predicted: %g, diff %g\n", i, (double) J,
-                        (double) *C, (double) Jn);CHKERRQ(ierr);
+	 ierr = PetscPrintf (comm, "step: %D, NORM1 of x: %g \n", i, (double) *C); CHKERRQ(ierr);
+//     Jn = PetscAbsReal(J - *C);
+//     ierr = PetscPrintf (comm, "step: %D, J(x): %g, predicted: %g, diff %g\n", i, (double) J,
+//                        (double) *C, (double) Jn);CHKERRQ(ierr);
 //     ierr = PetscPrintf (comm, "ADMMBP: step %D, objective:  %g\n", i, (double) &C); CHKERRQ(ierr);
   }
 
