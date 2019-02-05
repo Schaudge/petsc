@@ -6,7 +6,7 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 #include <petscmath.h>
 
 #define NWORKLEFT 4
-#define NWORKRIGHT 14
+#define NWORKRIGHT 15
 
 typedef struct _UserCtx
 {
