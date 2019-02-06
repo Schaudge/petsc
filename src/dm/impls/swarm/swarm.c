@@ -21,6 +21,8 @@ const char DMSwarmField_rank[] = "DMSwarm_rank";
 const char DMSwarmPICField_coor[] = "DMSwarmPIC_coor";
 const char DMSwarmPICField_cellid[] = "DMSwarm_cellid";
 
+static PetscErrorCode DMInitialize_Swarm(DM dm);
+
 /*@C
    DMSwarmVectorDefineField - Sets the field from which to define a Vec object
                              when DMCreateLocalVector(), or DMCreateGlobalVector() is called
@@ -1207,6 +1209,7 @@ PetscErrorCode DMDestroy_Swarm(DM dm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  if (--swarm->refct > 0) PetscFunctionReturn(0);
   ierr = DMSwarmDataBucketDestroy(&swarm->db);CHKERRQ(ierr);
   if (swarm->sort_context) {
     ierr = DMSwarmSortDestroy(&swarm->sort_context);CHKERRQ(ierr);
@@ -1271,6 +1274,19 @@ PetscErrorCode DMView_Swarm(DM dm, PetscViewer viewer)
   else if (isdraw) {
     ierr = DMSwarmView_Draw(dm, viewer);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+PETSC_INTERN PetscErrorCode DMClone_Swarm(DM dm, DM *newdm)
+{
+  DM_Swarm       *swarm = (DM_Swarm *) dm->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  swarm->refct++;
+  (*newdm)->data = swarm;
+  ierr = PetscObjectChangeTypeName((PetscObject) *newdm, DMSWARM);CHKERRQ(ierr);
+  ierr = DMInitialize_Swarm(*newdm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1348,12 +1364,13 @@ PETSC_EXTERN PetscErrorCode DMCreate_Swarm(DM dm)
   swarm->dmcell = NULL;
   swarm->collect_view_active = PETSC_FALSE;
   swarm->collect_view_reset_nlocal = -1;
+  swarm->refct = 1;
 
   dm->dim  = 0;
   dm->ops->view                            = DMView_Swarm;
   dm->ops->load                            = NULL;
   dm->ops->setfromoptions                  = NULL;
-  dm->ops->clone                           = NULL;
+  dm->ops->clone                           = DMClone_Swarm;
   dm->ops->setup                           = DMSetup_Swarm;
   dm->ops->createdefaultsection            = NULL;
   dm->ops->createdefaultconstraints        = NULL;
@@ -1382,3 +1399,43 @@ PETSC_EXTERN PetscErrorCode DMCreate_Swarm(DM dm)
   dm->ops->locatepoints                    = NULL;
   PetscFunctionReturn(0);
 }
+
+static PetscErrorCode DMInitialize_Swarm(DM dm)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  dm->ops->view                            = DMView_Swarm;
+  dm->ops->load                            = NULL;
+  dm->ops->setfromoptions                  = NULL;
+  dm->ops->clone                           = DMClone_Swarm;
+  dm->ops->setup                           = DMSetup_Swarm;
+  dm->ops->createdefaultsection            = NULL;
+  dm->ops->createdefaultconstraints        = NULL;
+  dm->ops->createglobalvector              = DMCreateGlobalVector_Swarm;
+  dm->ops->createlocalvector               = DMCreateLocalVector_Swarm;
+  dm->ops->getlocaltoglobalmapping         = NULL;
+  dm->ops->createfieldis                   = NULL;
+  dm->ops->createcoordinatedm              = NULL;
+  dm->ops->getcoloring                     = NULL;
+  dm->ops->creatematrix                    = NULL;
+  dm->ops->createinterpolation             = NULL;
+  dm->ops->getaggregates                   = NULL;
+  dm->ops->getinjection                    = NULL;
+  dm->ops->createmassmatrix                = DMCreateMassMatrix_Swarm;
+  dm->ops->refine                          = NULL;
+  dm->ops->coarsen                         = NULL;
+  dm->ops->refinehierarchy                 = NULL;
+  dm->ops->coarsenhierarchy                = NULL;
+  dm->ops->globaltolocalbegin              = NULL;
+  dm->ops->globaltolocalend                = NULL;
+  dm->ops->localtoglobalbegin              = NULL;
+  dm->ops->localtoglobalend                = NULL;
+  dm->ops->destroy                         = DMDestroy_Swarm;
+  dm->ops->createsubdm                     = NULL;
+  dm->ops->getdimpoints                    = NULL;
+  dm->ops->locatepoints                    = NULL; 
+
+  PetscFunctionReturn(0);
+}
+

@@ -460,6 +460,8 @@ int main(int argc,char **argv)
   
   ierr = VecRestoreArrayRead(f, &endVals);CHKERRQ(ierr);
   ierr = DMSwarmDestroyGlobalVectorFromField(sw, "kinematics", &f);CHKERRQ(ierr);
+  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  ierr = DMDestroy(&sw);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = ISDestroy(&is1);CHKERRQ(ierr);
   ierr = ISDestroy(&is2);CHKERRQ(ierr);
@@ -474,12 +476,12 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -ts_monitor_sp_swarm
+     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 
    test:
      suffix: bsi2
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -ts_monitor_sp_swarm
+     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 
    test:
      suffix: euler 
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler -ts_monitor_sp_swarm
+     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler 
 
 TEST*/

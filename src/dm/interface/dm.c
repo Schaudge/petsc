@@ -112,6 +112,7 @@ PetscErrorCode  DMCreate(MPI_Comm comm,DM *dm)
 @*/
 PetscErrorCode DMClone(DM dm, DM *newdm)
 {
+  DMType         type;
   PetscSF        sf;
   Vec            coords;
   void          *ctx;
@@ -121,6 +122,7 @@ PetscErrorCode DMClone(DM dm, DM *newdm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidPointer(newdm,2);
+  ierr = DMGetType(dm, &type);CHKERRQ(ierr);
   ierr = DMCreate(PetscObjectComm((PetscObject) dm), newdm);CHKERRQ(ierr);
   ierr = PetscFree((*newdm)->labels);CHKERRQ(ierr);
   dm->labels->refct++;
@@ -128,6 +130,7 @@ PetscErrorCode DMClone(DM dm, DM *newdm)
   (*newdm)->depthLabel = dm->depthLabel;
   (*newdm)->leveldown  = dm->leveldown;
   (*newdm)->levelup    = dm->levelup;
+
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   ierr = DMSetDimension(*newdm, dim);CHKERRQ(ierr);
   if (dm->ops->clone) {
@@ -1198,7 +1201,12 @@ PetscErrorCode DMCreateMassMatrix(DM dm1, DM dm2, Mat *mat)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm1, DM_CLASSID, 1);
   PetscValidHeaderSpecific(dm2, DM_CLASSID, 2);
-  ierr = (*dm1->ops->createmassmatrix)(dm1, dm2, mat);CHKERRQ(ierr);
+  if(*dm1->ops->createmassmatrix){
+    ierr = (*dm1->ops->createmassmatrix)(dm1, dm2, mat);CHKERRQ(ierr);
+  }else{
+    SETERRQ(PETSC_COMM_SELF, ierr, "No DMCreateMassMatrix set for configuration.\n");CHKERRQ(ierr);
+  }
+  
   PetscFunctionReturn(0);
 }
 

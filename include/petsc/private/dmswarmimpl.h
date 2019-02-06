@@ -23,6 +23,7 @@ typedef struct _p_DMSwarmDataBucket* DMSwarmDataBucket;
 typedef struct _p_DMSwarmSort* DMSwarmSort;
 
 typedef struct {
+  PetscInt          refct;
   DMSwarmDataBucket db;
 
   PetscBool field_registration_initialized;

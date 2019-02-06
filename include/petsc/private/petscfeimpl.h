@@ -342,6 +342,38 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEInterpolate_Static(PetscFE fe, const P
   PetscFunctionReturn(0);
 }
 
+PETSC_STATIC_INLINE PetscErrorCode PetscFEFreeInterpolateGradient_Static(PetscFE fe, const PetscReal basisDer[], const PetscScalar x[], PetscInt dim, const PetscReal invJ[], const PetscReal n[], PetscInt q, PetscScalar interpolant[])
+{
+ PetscReal      realSpaceDer[3];
+ PetscScalar    compGradient[3];
+ PetscInt       Nb, Nc, fc, f, d, g;
+ PetscErrorCode ierr;
+
+ PetscFunctionBeginHot;
+ ierr = PetscFEGetDimension(fe, &Nb);CHKERRQ(ierr);
+ ierr = PetscFEGetNumComponents(fe, &Nc);CHKERRQ(ierr);
+ for (fc = 0; fc < Nc; ++fc) {
+   interpolant[fc] = 0.0;
+   for (d = 0; d < dim; ++d) compGradient[d] = 0.0;
+   for (f = 0; f < Nb; ++f) {
+
+     for (d = 0; d < dim; ++d) {
+       realSpaceDer[d] = 0.0;
+       for (g = 0; g < dim; ++g) {
+         realSpaceDer[d] += invJ[dim*dim*q + g*dim+d]*basisDer[((q*Nb + f)*Nc + fc)*dim + g];
+       }
+       compGradient[d] += x[f]*realSpaceDer[d];
+     }
+   }
+   if (n) {
+     for (d = 0; d < dim; ++d) interpolant[fc] += compGradient[d]*n[d];
+   } else {
+     for (d = 0; d < dim; ++d) interpolant[fc*dim+d] = compGradient[d];
+   }
+ }
+ PetscFunctionReturn(0);
+}
+
 PETSC_STATIC_INLINE PetscErrorCode PetscFEInterpolateGradient_Static(PetscFE fe, const PetscScalar x[], PetscInt dim, const PetscReal invJ[], const PetscReal n[], PetscInt q, PetscScalar interpolant[])
 {
   PetscReal     *basisDer;
