@@ -36,6 +36,7 @@ typedef struct _UserCtx
   NormType p;
   PetscRandom    rctx;
   PetscBool taylor; /*Flag to determine whether to run Taylor test or not */
+  PetscBool use_admm; /*Flag to determine whether to run Taylor test or not */
 } * UserCtx;
 
 PetscErrorCode CreateRHS(UserCtx ctx)
@@ -45,7 +46,7 @@ PetscErrorCode CreateRHS(UserCtx ctx)
   /* build the rhs d in ctx */
   ierr = VecCreate(PETSC_COMM_WORLD,&(ctx->d)); CHKERRQ(ierr);
   ierr = VecSetSizes(ctx->d,PETSC_DECIDE,ctx->m); CHKERRQ(ierr);
-  ierr=  VecSetFromOptions(ctx->d); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(ctx->d); CHKERRQ(ierr);
   ierr = VecSetRandom(ctx->d,ctx->rctx); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -169,6 +170,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ctx->hFactor = 0.5;
   ctx->mu = 1.0;
   ctx->taylor = PETSC_TRUE;
+  ctx->use_admm = PETSC_FALSE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "Configure separable objection example", "ex4.c");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
@@ -183,6 +185,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsReal("-hFactor", "Taylor test multiplier factor. 0.5 default", "ex4.c", ctx->hFactor, &(ctx->hFactor), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hMin", "Taylor test ending condition. 1.e-3 default", "ex4.c", ctx->hMin, &(ctx->hMin), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-taylor","Flag for Taylor test. Default is true.", "ex4.c", ctx->taylor, &(ctx->taylor), NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-use_admm","Use the ADMM solver in this example.", "ex4.c", ctx->use_admm, &(ctx->use_admm), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormTypes,  ctx->p, (PetscEnum *) &(ctx->p), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   /* Creating random ctx */
@@ -253,6 +256,8 @@ PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
   ierr = VecWAXPY(V, -1., FTd, FTFx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/* TODO: HessianMisfit (return W for H and H pre) */
 
 PetscErrorCode ObjectiveMisfitADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
@@ -328,6 +333,8 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
   }
   PetscFunctionReturn(0);
 }
+
+/* TODO: HessianRegularization */
 
 PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *_ctx)
 {
@@ -433,7 +440,6 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 
   for (i=0; i<ctx->iter; i++){
     PetscReal t1,t2,norm;
-    Vec y = ctx->workLeft[0];
 
     TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
     TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
@@ -442,18 +448,6 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     /* Convergence Check */
     ierr = ObjectiveMisfit(tao1, xk, &t1, (void *) ctx);CHKERRQ(ierr);
     ierr = ObjectiveRegularization(tao2, z, &t2, (void *) ctx);CHKERRQ(ierr);
-#if 0
-    ierr = MatMult(ctx->F, xk, y);CHKERRQ(ierr);
-    ierr = VecAXPY(y, -1., ctx->d);CHKERRQ(ierr);
-    ierr = VecDot(y, y, &t1);CHKERRQ(ierr);
-    t1 *= 0.5;
-    
-    ierr = VecNorm (xk, ctx->p, &norm);CHKERRQ(ierr);
-    if (ctx->p == NORM_2) {
-      norm = 0.5 * norm * norm;
-    }
-    t2 = ctx->alpha * norm;
-#endif
     ierr = VecWAXPY(diff,-1.,xk,z);CHKERRQ(ierr);
     ierr = VecNorm(diff,NORM_2,&norm);CHKERRQ(ierr);
 #if 0
@@ -614,7 +608,7 @@ int main (int argc, char** argv)
 {
   UserCtx        ctx;
   Tao            tao;
-  Vec            x,xadmm;
+  Vec            x;
   PetscErrorCode ierr;
 
 
@@ -638,8 +632,6 @@ int main (int argc, char** argv)
   ierr = MatCreateVecs(ctx->F, NULL, &x);CHKERRQ(ierr);
   ierr = VecSet(x, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao, x);CHKERRQ(ierr);
-  ierr = MatCreateVecs(ctx->F, NULL, &xadmm);CHKERRQ(ierr);
-  ierr = VecSet(xadmm, 0.);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
 
 //  PetscReal temp;
@@ -649,11 +641,14 @@ int main (int argc, char** argv)
 #endif
 
   /* solve */
-  ierr = TaoSolveADMM(ctx,xadmm); CHKERRQ(ierr);
-  ierr = TaoSolve(tao);CHKERRQ(ierr);
+  if (ctx->use_admm) {
+    ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
+  }
+  else {
+    ierr = TaoSolve(tao);CHKERRQ(ierr);
+  }
 
   /* examine solution */
-  VecViewFromOptions(xadmm, NULL, "-view_sol_admm");CHKERRQ(ierr);
   VecViewFromOptions(x, NULL, "-view_sol");CHKERRQ(ierr);
 
   if (ctx->taylor) {
@@ -664,7 +659,6 @@ int main (int argc, char** argv)
 
   /* cleanup */
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
-  ierr = VecDestroy(&xadmm);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = DestroyContext(&ctx);CHKERRQ(ierr);
   ierr = PetscFinalize();
