@@ -664,6 +664,7 @@ int main (int argc, char** argv)
 
   /* cleanup */
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
+  ierr = VecDestroy(&xadmm);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = DestroyContext(&ctx);CHKERRQ(ierr);
   ierr = PetscFinalize();
