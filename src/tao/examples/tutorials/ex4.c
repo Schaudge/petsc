@@ -6,7 +6,7 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 #include <petscmath.h>
 
 #define NWORKLEFT 4
-#define NWORKRIGHT 15
+#define NWORKRIGHT 16
 
 typedef struct _UserCtx
 {
@@ -400,14 +400,15 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   PetscErrorCode ierr;
   PetscInt i;
   Tao tao1,tao2;
-  Vec xk,z,u;
+  Vec xk,z,u,diff;
 
 
   PetscFunctionBegin;
- 
-  xk = ctx->workRight[11]; 
-  z = ctx->workRight[12]; 
+
+  xk = ctx->workRight[11];
+  z = ctx->workRight[12];
   u = ctx->workRight[13];
+  diff = ctx->workRight[15];
   ierr = VecSet(u, 0.);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
@@ -438,7 +439,10 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
     ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
     /*TODO iter stop check */
-	/* Convergence Check */
+    /* Convergence Check */
+    ierr = ObjectiveMisfit(tao1, xk, &t1, (void *) ctx);CHKERRQ(ierr);
+    ierr = ObjectiveRegularization(tao2, z, &t2, (void *) ctx);CHKERRQ(ierr);
+#if 0
     ierr = MatMult(ctx->F, xk, y);CHKERRQ(ierr);
     ierr = VecAXPY(y, -1., ctx->d);CHKERRQ(ierr);
     ierr = VecDot(y, y, &t1);CHKERRQ(ierr);
@@ -449,7 +453,13 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
       norm = 0.5 * norm * norm;
     }
     t2 = ctx->alpha * norm;
+#endif
+    ierr = VecWAXPY(diff,-1.,xk,z);CHKERRQ(ierr);
+    ierr = VecNorm(diff,NORM_2,&norm);CHKERRQ(ierr);
+#if 0
     ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"ADMM %D: f(x)+g(z) = %g\n", i, (double) t1+t2);CHKERRQ(ierr);
+#endif
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"ADMM %D: ||x - z|| = %g\n", i, (double) norm);CHKERRQ(ierr);
   }
  
   ierr = VecCopy(xk, x); CHKERRQ(ierr);
