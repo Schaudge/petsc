@@ -40,6 +40,8 @@ struct _TaoOps {
     PetscErrorCode (*destroy)(Tao);
 };
 
+typedef struct _n_TaoSep * TaoSep;
+
 #define MAXTAOMONITORS 10
 
 struct _p_Tao {
@@ -179,6 +181,16 @@ struct _p_Tao {
     PetscInt      hist_len;
     PetscBool     hist_reset;
     PetscBool     hist_malloc;
+
+    TaoSep sep; /* separable objectives */
+};
+
+struct _n_TaoSep
+{
+  PetscInt numObjs;
+  Tao *subtaos;
+  PetscCopyMode copyMode;
+  MPI_Op reduce;
 };
 
 PETSC_EXTERN PetscLogEvent TAO_Solve;
