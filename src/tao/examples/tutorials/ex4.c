@@ -754,6 +754,7 @@ int main (int argc, char** argv)
   }
 
   /* cleanup */
+  ierr = MatDestroy(&H);CHKERRQ(ierr);
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = DestroyContext(&ctx);CHKERRQ(ierr);
@@ -770,5 +771,9 @@ int main (int argc, char** argv)
   test:
     suffix: l1_1
     args: -p 1 -tao_type lmvm -alpha 1. -epsilon 1.e-7 -m 64 -n 64 -view_sol -mat_format 1
+
+  test:
+    suffix: hessian_2
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nls -tao_nls_ksp_monitor
 
 TEST*/
