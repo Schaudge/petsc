@@ -805,15 +805,19 @@ int main (int argc, char** argv)
     args: -p 1 -tao_type lmvm -alpha 1. -epsilon 1.e-7 -m 64 -n 64 -view_sol -mat_format 1
 
   test:
+    suffix: hessian_1
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type nls -tao_nls_ksp_monitor
+
+  test:
     suffix: hessian_2
     args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nls -tao_nls_ksp_monitor
 
   test:
     suffix: hessian_admm_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nls -misfit_tao_type nls -tao_nls_ksp_monitor
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nls -misfit_tao_type nls -misfit_tao_nls_ksp_monitor -reg_tao_nls_ksp_monitor
 
   test:
     suffix: hessian_admm_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nls -misfit_tao_type nls -tao_nls_ksp_monitor
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nls -misfit_tao_type nls -misfit_tao_nls_ksp_monitor -reg_tao_nls_ksp_monitor
 
 TEST*/
