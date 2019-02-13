@@ -90,17 +90,6 @@ typedef struct {
   PetscInt dummy;
 } PetscPartitioner_Gather;
 
-/* Utility struct to store the contents of a Gmsh file in memory */
-typedef struct {
-  PetscInt dim;      /* Entity dimension */
-  PetscInt id;       /* Element number */
-  PetscInt numNodes; /* Size of node array */
-  int nodes[8];      /* Node array */
-  PetscInt numTags;  /* Size of tag array */
-  int tags[4];       /* Tag array */
-  PetscInt cellType; /* Cell type */
-} GmshElement;
-
 /* Utility struct to store the contents of a Fluent file in memory */
 typedef struct {
   int          index;    /* Type of section */
@@ -449,6 +438,7 @@ PETSC_INTERN PetscErrorCode DMPlexGetIndicesPointFields_Internal(PetscSection,Pe
 
 PETSC_EXTERN PetscErrorCode DMSNESGetFEGeom(DMField, IS, PetscQuadrature, PetscBool, PetscFEGeom **);
 PETSC_EXTERN PetscErrorCode DMSNESRestoreFEGeom(DMField, IS, PetscQuadrature, PetscBool, PetscFEGeom **);
+PETSC_EXTERN PetscErrorCode DMPlexComputeResidual_Patch_Internal(DM, PetscSection, IS, PetscReal, Vec, Vec, Vec, void *);
 PETSC_EXTERN PetscErrorCode DMPlexComputeJacobian_Patch_Internal(DM, PetscSection, PetscSection, IS, PetscReal, PetscReal, Vec, Vec, Mat, Mat, void *);
 PETSC_INTERN PetscErrorCode DMCreateSubDomainDM_Plex(DM,DMLabel,PetscInt,IS*,DM*);
 

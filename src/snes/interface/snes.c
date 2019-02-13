@@ -138,6 +138,79 @@ PetscErrorCode  SNESSetFunctionDomainError(SNES snes)
 }
 
 /*@
+   SNESSetJacobianDomainError - tells SNES that computeJacobian does not make sense any more. For example there is a negative element transformation.
+
+   Logically Collective on SNES
+
+   Input Parameters:
+.  snes - the SNES context
+
+   Level: advanced
+
+.keywords: SNES, view
+
+.seealso: SNESCreate(), SNESSetFunction(), SNESFunction(), SNESSetFunctionDomainError()
+@*/
+PetscErrorCode SNESSetJacobianDomainError(SNES snes)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  if (snes->errorifnotconverged) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"User code indicates computeJacobian does not make sense");
+  snes->jacobiandomainerror = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   SNESSetCheckJacobianDomainError - if or not to check jacobian domain error after each Jacobian evaluation. By default, we check Jacobian domain error
+   in the debug mode, and do not check it in the optimized mode.
+
+   Logically Collective on SNES
+
+   Input Parameters:
+.  snes - the SNES context
+.  flg  - indicates if or not to check jacobian domain error after each Jacobian evaluation
+
+   Level: advanced
+
+.keywords: SNES, view
+
+.seealso: SNESCreate(), SNESSetFunction(), SNESFunction(), SNESSetFunctionDomainError(), SNESGetCheckJacobianDomainError()
+@*/
+PetscErrorCode SNESSetCheckJacobianDomainError(SNES snes, PetscBool flg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  snes->checkjacdomainerror = flg;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   SNESGetCheckJacobianDomainError - Get an indicator whether or not we are checking Jacobian domain errors after each Jacobian evaluation.
+
+   Logically Collective on SNES
+
+   Input Parameters:
+.  snes - the SNES context
+
+   Output Parameters:
+.  flg  - PETSC_FALSE indicates that we don't check jacobian domain errors after each Jacobian evaluation
+
+   Level: advanced
+
+.keywords: SNES, view
+
+.seealso: SNESCreate(), SNESSetFunction(), SNESFunction(), SNESSetFunctionDomainError(), SNESSetCheckJacobianDomainError()
+@*/
+PetscErrorCode SNESGetCheckJacobianDomainError(SNES snes, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  PetscValidPointer(flg, 2);
+  *flg = snes->checkjacdomainerror;
+  PetscFunctionReturn(0);
+}
+
+/*@
    SNESGetFunctionDomainError - Gets the status of the domain error after a call to SNESComputeFunction;
 
    Logically Collective on SNES
@@ -160,6 +233,32 @@ PetscErrorCode  SNESGetFunctionDomainError(SNES snes, PetscBool *domainerror)
   PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
   PetscValidPointer(domainerror, 2);
   *domainerror = snes->domainerror;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   SNESGetJacobianDomainError - Gets the status of the Jacobian domain error after a call to SNESComputeJacobian;
+
+   Logically Collective on SNES
+
+   Input Parameters:
+.  snes - the SNES context
+
+   Output Parameters:
+.  domainerror - Set to PETSC_TRUE if there's a jacobian domain error; PETSC_FALSE otherwise.
+
+   Level: advanced
+
+.keywords: SNES, view
+
+.seealso: SNESSetFunctionDomainError(), SNESComputeFunction(),SNESGetFunctionDomainError()
+@*/
+PetscErrorCode SNESGetJacobianDomainError(SNES snes, PetscBool *domainerror)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  PetscValidPointer(domainerror, 2);
+  *domainerror = snes->jacobiandomainerror;
   PetscFunctionReturn(0);
 }
 
@@ -559,7 +658,6 @@ static PetscErrorCode KSPComputeOperators_SNES(KSP ksp,Mat A,Mat B,void *ctx)
 {
   SNES           snes = (SNES)ctx;
   PetscErrorCode ierr;
-  Mat            Asave = A,Bsave = B;
   Vec            X,Xnamed = NULL;
   DM             dmsave;
   void           *ctxsave;
@@ -578,17 +676,23 @@ static PetscErrorCode KSPComputeOperators_SNES(KSP ksp,Mat A,Mat B,void *ctx)
       ierr = SNESSetJacobian(snes,NULL,NULL,SNESComputeJacobianDefaultColor,0);CHKERRQ(ierr);
     }
   }
-  /* put the previous context back */
+  /* Make sure KSP DM has the Jacobian computation routine */
+  {
+    DMSNES sdm;
 
+    ierr = DMGetDMSNES(snes->dm, &sdm);CHKERRQ(ierr);
+    if (!sdm->ops->computejacobian) {
+      ierr = DMCopyDMSNES(dmsave, snes->dm);CHKERRQ(ierr);
+    }
+  }
+  /* Compute the operators */
   ierr = SNESComputeJacobian(snes,X,A,B);CHKERRQ(ierr);
+  /* Put the previous context back */
   if (snes->dm != dmsave && jac == SNESComputeJacobianDefaultColor) {
     ierr = SNESSetJacobian(snes,NULL,NULL,jac,ctxsave);CHKERRQ(ierr);
   }
 
-  if (A != Asave || B != Bsave) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_SUP,"No support for changing matrices at this time");
-  if (Xnamed) {
-    ierr = DMRestoreNamedGlobalVector(snes->dm,"SNESVecSol",&Xnamed);CHKERRQ(ierr);
-  }
+  if (Xnamed) {ierr = DMRestoreNamedGlobalVector(snes->dm,"SNESVecSol",&Xnamed);CHKERRQ(ierr);}
   snes->dm = dmsave;
   PetscFunctionReturn(0);
 }
@@ -802,6 +906,7 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
   ierr = PetscOptionsInt("-snes_max_linear_solve_fail","Maximum failures in linear solves allowed","SNESSetMaxLinearSolveFailures",snes->maxLinearSolveFailures,&snes->maxLinearSolveFailures,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_error_if_not_converged","Generate error if solver does not converge","SNESSetErrorIfNotConverged",snes->errorifnotconverged,&snes->errorifnotconverged,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_force_iteration","Force SNESSolve() to take at least one iteration","SNESSetForceIteration",snes->forceiteration,&snes->forceiteration,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-snes_check_jacobian_domain_error","Check Jacobian domain error after Jacobian evaluation","SNESCheckJacobianDomainError",snes->checkjacdomainerror,&snes->checkjacdomainerror,NULL);CHKERRQ(ierr);
 
   ierr = PetscOptionsInt("-snes_lag_preconditioner","How often to rebuild preconditioner","SNESSetLagPreconditioner",snes->lagpreconditioner,&lag,&flg);CHKERRQ(ierr);
   if (flg) {
@@ -1605,6 +1710,8 @@ PetscErrorCode  SNESCreate(MPI_Comm comm,SNES *outsnes)
   snes->max_its           = 50;
   snes->max_funcs         = 10000;
   snes->norm              = 0.0;
+  snes->xnorm             = 0.0;
+  snes->ynorm             = 0.0;
   snes->normschedule      = SNES_NORM_ALWAYS;
   snes->functype          = SNES_FUNCTION_DEFAULT;
 #if defined(PETSC_USE_REAL_SINGLE)
@@ -1667,6 +1774,11 @@ PetscErrorCode  SNESCreate(MPI_Comm comm,SNES *outsnes)
   snes->maxLinearSolveFailures = 1;
 
   snes->vizerotolerance = 1.e-8;
+#if defined(PETSC_USE_DEBUG)
+  snes->checkjacdomainerror = PETSC_TRUE;
+#else
+  snes->checkjacdomainerror = PETSC_FALSE;
+#endif
 
   /* Set this to true if the implementation of SNESSolve_XXX does compute the residual at the final solution. */
   snes->alwayscomputesfinalresidual = PETSC_FALSE;
@@ -1908,6 +2020,56 @@ PetscErrorCode SNESGetFunctionNorm(SNES snes, PetscReal *norm)
   PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
   PetscValidPointer(norm, 2);
   *norm = snes->norm;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  SNESGetUpdateNorm - Gets the last computed norm of the Newton update
+
+  Not Collective
+
+  Input Parameter:
+. snes - the SNES context
+
+  Output Parameter:
+. ynorm - the last computed update norm
+
+  Level: developer
+
+.keywords: SNES, nonlinear, set, function, norm, type
+.seealso: SNESSetNormSchedule(), SNESComputeFunction(), SNESGetFunctionNorm()
+@*/
+PetscErrorCode SNESGetUpdateNorm(SNES snes, PetscReal *ynorm)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  PetscValidPointer(ynorm, 2);
+  *ynorm = snes->ynorm;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  SNESGetSolutionNorm - Gets the last computed norm of the solution
+
+  Not Collective
+
+  Input Parameter:
+. snes - the SNES context
+
+  Output Parameter:
+. xnorm - the last computed solution norm
+
+  Level: developer
+
+.keywords: SNES, nonlinear, set, function, norm, type
+.seealso: SNESSetNormSchedule(), SNESComputeFunction(), SNESGetFunctionNorm(), SNESGetUpdateNorm()
+@*/
+PetscErrorCode SNESGetSolutionNorm(SNES snes, PetscReal *xnorm)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  PetscValidPointer(xnorm, 2);
+  *xnorm = snes->xnorm;
   PetscFunctionReturn(0);
 }
 
@@ -4375,6 +4537,7 @@ PetscErrorCode  SNESSolve(SNES snes,Vec b,Vec x)
     ierr          = VecDestroy(&snes->vec_rhs);CHKERRQ(ierr);
     snes->vec_rhs = b;
 
+    if (snes->vec_rhs && (snes->vec_func == snes->vec_rhs)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"Right hand side vector cannot be function vector");
     if (snes->vec_func == snes->vec_sol) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"Solution vector cannot be function vector");
     if (snes->vec_rhs  == snes->vec_sol) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"Solution vector cannot be right hand side vector");
     if (!snes->vec_sol_update /* && snes->vec_sol */) {
