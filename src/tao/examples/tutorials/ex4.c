@@ -813,11 +813,43 @@ int main (int argc, char** argv)
     args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nls -tao_nls_ksp_monitor
 
   test:
+    suffix: nm_1 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type nm
+
+  test:
+    suffix: nm_2
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nm 
+
+  test:
+    suffix: lmvm_1 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type lmvm 
+
+  test:
+    suffix: lmvm_2
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type lmvm 
+
+  test:
     suffix: hessian_admm_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nls -misfit_tao_type nls -misfit_tao_nls_ksp_monitor -reg_tao_nls_ksp_monitor
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nls -misfit_tao_type nls 
 
   test:
     suffix: hessian_admm_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nls -misfit_tao_type nls -misfit_tao_nls_ksp_monitor -reg_tao_nls_ksp_monitor
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nls -misfit_tao_type nls 
+
+  test:
+    suffix: nm_admm_1
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nm -misfit_tao_type nm 
+
+  test:
+    suffix: nm_admm_2
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nm -misfit_tao_type nm
+
+  test:
+    suffix: lmvm_admm_1
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type lmvm -misfit_tao_type lmvm 
+
+  test:
+    suffix: lmvm_admm_2
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type lmvm -misfit_tao_type lmvm
 
 TEST*/
