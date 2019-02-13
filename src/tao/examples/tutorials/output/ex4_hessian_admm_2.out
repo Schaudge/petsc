@@ -27,7 +27,3 @@ Convergence rate step 5: 2.
 Convergence rate step 6: 2.
 Convergence rate step 7: 2.
 Convergence rate step 8: 2.
-WARNING! There are options you set that were not used!
-WARNING! could be spelling mistake, etc!
-Option left: name:-misfit_tao_nls_ksp_monitor (no value)
-Option left: name:-reg_tao_nls_ksp_monitor (no value)
