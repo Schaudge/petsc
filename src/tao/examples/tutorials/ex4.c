@@ -530,6 +530,12 @@ PetscErrorCode HessianComplete(Tao tao, Vec x, Mat H, Mat Hpre, void *ctx)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
 PetscReal SoftThreshold(PetscReal z, PetscReal mu)
 {
   return PetscMax(0,z- mu) - PetscMax(0, -z-mu);
@@ -562,10 +568,11 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoSetFromOptions(tao1);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
-  ierr = TaoSetType(tao2,TAONLS); CHKERRQ(ierr);
+  ierr = TaoSetType(tao2,TAOSHELL); CHKERRQ(ierr);
   ierr = TaoSetObjectiveRoutine(tao2, ObjectiveRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetGradientRoutine(tao2, GradientRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetHessianRoutine(tao2, ctx->Hr, ctx->Hr, HessianRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
+  ierr = TaoShellSetSolve(tao2, TaoShellSolve_SoftThreshold, (void *) ctx);CHKERRQ(ierr);
   //ierr = MatCreateVecs(ctx->F, NULL, &z);CHKERRQ(ierr);
   ierr = VecSet(z, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
