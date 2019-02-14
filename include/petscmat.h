@@ -1346,6 +1346,7 @@ typedef const char* MatPartitioningType;
 #define MATPARTITIONINGPARTY    "party"
 #define MATPARTITIONINGPTSCOTCH "ptscotch"
 #define MATPARTITIONINGHIERARCH  "hierarch"
+#define MATPARTITIONINGKAHIP     "kahip"
 
 
 PETSC_EXTERN PetscErrorCode MatPartitioningCreate(MPI_Comm,MatPartitioning*);
