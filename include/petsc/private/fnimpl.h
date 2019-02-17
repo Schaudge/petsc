@@ -29,8 +29,8 @@ struct _FnOps {
   PetscErrorCode (*scalarhessianmult)(PetscFn,Vec,Vec,Vec);
   PetscErrorCode (*scalarhessiancreate)(PetscFn,Vec,Mat,Mat);
   PetscErrorCode (*createsubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
-  PetscErrorCode (*destroysubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
-  PetscErrorCode (*createsubfn)(PetscFn,Vec,PetscInt,IS,IS,PetscFn *[]);
+  PetscErrorCode (*destroysubfns)(PetscInt,PetscFn *[]);
+  PetscErrorCode (*createsubfn)(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,PetscFn);
   PetscErrorCode (*setup)(PetscFn);
   PetscErrorCode (*destroy)(PetscFn);

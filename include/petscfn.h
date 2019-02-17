@@ -38,7 +38,7 @@ PETSC_EXTERN PetscErrorCode PetscFnCreate(MPI_Comm,PetscFn*);
 
 PETSC_EXTERN PetscErrorCode PetscFnSetSizes(PetscFn,PetscInt,PetscInt,PetscInt,PetscInt);
 PETSC_EXTERN PetscErrorCode PetscFnGetSize(PetscFn,PetscInt*,PetscInt*);
-PETSC_EXTERN PetscErrorCode PetscFnLocalSize(PetscFn,PetscInt*,PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscFnGetLocalSize(PetscFn,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscFnGetLayouts(PetscFn,PetscLayout*,PetscLayout*);
 
 PETSC_EXTERN PetscErrorCode PetscFnSetType(PetscFn,PetscFnType);
@@ -89,9 +89,10 @@ PETSC_EXTERN PetscErrorCode PetscFnScalarHessianCreate(PetscFn,Vec,Mat,Mat);
 /* field split ideas */
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFns(PetscFn,Vec,PetscInt,const IS[],const IS[],PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnDestroySubFns(PetscInt,PetscFn *[]);
+PETSC_EXTERN PetscErrorCode PetscFnDestroyFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFn(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
 
-typedef enum { PETSCFNOP_CREATE_VECS=0,
+typedef enum { PETSCFNOP_CREATE_VECS,
                PETSCFNOP_CREATE_MATS,
                PETSCFNOP_APPLY,
                PETSCFNOP_JACOBIANMULT,
@@ -107,6 +108,7 @@ typedef enum { PETSCFNOP_CREATE_VECS=0,
                PETSCFNOP_CREATESUBFNS,
                PETSCFNOP_DESTROYSUBFNS,
                PETSCFNOP_CREATESUBFN,
+               PETSCFNOP_DESTROY,
              } PetscFnOperation;
 
 PETSC_EXTERN PetscErrorCode PetscFnShellSetContext(PetscFn,void*);
