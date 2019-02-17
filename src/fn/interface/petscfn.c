@@ -375,3 +375,67 @@ PetscErrorCode PetscFnGetHessianMatTypes(PetscFn fn, MatType *hesType, MatType *
   }
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  if (fn->ops->createvecs) {
+    ierr = (*(fn->ops->createvecs)) (fn, rangeVec, domainVec);CHKERRQ(ierr);
+#if defined(PETSC_USE_DEBUG)
+    if (rangeVec) {
+      VecType   type = fn->rangeType;
+      VecType   rettype;
+      PetscBool same,standard;
+      PetscLayout retLayout;
+
+      ierr = VecGetType(*rangeVec, &rettype);CHKERRQ(ierr);
+      ierr = PetscStrcmp(type,VECSTANDARD,&standard);CHKERRQ(ierr);
+      if (standard) {
+        PetscInt size;
+
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)fn), &size);CHKERRQ(ierr);
+        type = size > 1 ? VECMPI : VECSEQ;
+      }
+      ierr = PetscStrcmp(rettype,type,&same);CHKERRQ(ierr);
+      if (!same) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEVECS returned type %s, not %s set with PetscFnSetVecTypes()", rettype, type);
+      ierr = VecGetLayout(*rangeVec, &retLayout);CHKERRQ(ierr);
+      ierr = PetscLayoutCompare(retLayout, fn->rmap, &same);CHKERRQ(ierr);
+      if (!same) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEVECS returned vec of wrong shape");
+    }
+    if (domainVec) {
+      VecType   type = fn->domainType;
+      VecType   rettype;
+      PetscBool same,standard;
+      PetscLayout retLayout;
+
+      ierr = VecGetType(*domainVec, &rettype);CHKERRQ(ierr);
+      ierr = PetscStrcmp(type,VECSTANDARD,&standard);CHKERRQ(ierr);
+      if (standard) {
+        PetscInt size;
+
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)fn), &size);CHKERRQ(ierr);
+        type = size > 1 ? VECMPI : VECSEQ;
+      }
+      ierr = PetscStrcmp(rettype,type,&same);CHKERRQ(ierr);
+      if (!same) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEVECS returned type %s, not %s set with PetscFnSetVecTypes()", rettype, type);
+      ierr = VecGetLayout(*domainVec, &retLayout);CHKERRQ(ierr);
+      ierr = PetscLayoutCompare(retLayout, fn->rmap, &same);CHKERRQ(ierr);
+      if (!same) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEVECS returned vec of wrong shape");
+    }
+#endif
+  } else {
+    if (rangeVec) {
+      ierr = VecCreate(PetscObjectComm((PetscObject)fn),rangeVec);CHKERRQ(ierr);
+      ierr = VecSetSizes(*rangeVec,fn->rmap->n,fn->rmap->N);CHKERRQ(ierr);
+    }
+    if (domainVec) {
+      ierr = VecCreate(PetscObjectComm((PetscObject)fn),domainVec);CHKERRQ(ierr);
+      ierr = VecSetSizes(*domainVec,fn->rmap->n,fn->rmap->N);CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+

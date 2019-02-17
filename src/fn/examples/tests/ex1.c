@@ -2,7 +2,7 @@
 
 const char help[] = "Create and view a PetscFn\n";
 
-static PetscErrorCode PetscFnShellDestroy_Vec(PetscFn fn)
+static PetscErrorCode PetscFnDestroy_Vec(PetscFn fn)
 {
   Vec            v;
   PetscErrorCode ierr;
@@ -10,6 +10,27 @@ static PetscErrorCode PetscFnShellDestroy_Vec(PetscFn fn)
   PetscFunctionBegin;
   ierr = PetscFnShellGetContext(fn, (void *) &v);CHKERRQ(ierr);
   ierr = VecDestroy(&v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnCreateVecs_Vec(PetscFn fn, Vec *rangeVec, Vec *domainVec)
+{
+  PetscInt       m, M, n, N;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSize(fn, &N, &M);CHKERRQ(ierr);
+  ierr = PetscFnGetLocalSize(fn, &n, &m);CHKERRQ(ierr);
+  if (rangeVec) {
+    ierr = VecCreate(PetscObjectComm((PetscObject) fn), rangeVec);CHKERRQ(ierr);
+    ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecSetSizes(*rangeVec, n, N);CHKERRQ(ierr);
+  }
+  if (domainVec) {
+    ierr = VecCreate(PetscObjectComm((PetscObject) fn), domainVec);CHKERRQ(ierr);
+    ierr = VecSetType(*domainVec, VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecSetSizes(*domainVec, m, M);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -29,6 +50,7 @@ int main(int argc, char **argv)
   if (isShell) {
     PetscInt n, N;
     Vec v;
+    Vec d, r;
     void *ctx;
     MPI_Comm comm;
 
@@ -41,7 +63,11 @@ int main(int argc, char **argv)
     if ((void *) v != ctx) SETERRQ(comm,PETSC_ERR_PLIB, "Shell context mismatch");
     ierr = PetscObjectReference((PetscObject)v);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_DESTROY,PetscFnShellDestroy_Vec);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_DESTROY,(void (*)(void))PetscFnDestroy_Vec);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEVECS,(void (*)(void))PetscFnCreateVecs_Vec);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn,&d,&r);CHKERRQ(ierr);
+    ierr = VecDestroy(&d);CHKERRQ(ierr);
+    ierr = VecDestroy(&r);CHKERRQ(ierr);
   }
   ierr = PetscFnDestroy(&fn);CHKERRQ(ierr);
   ierr = PetscFinalize();

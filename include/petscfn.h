@@ -92,8 +92,8 @@ PETSC_EXTERN PetscErrorCode PetscFnDestroySubFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnDestroyFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFn(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
 
-typedef enum { PETSCFNOP_CREATE_VECS,
-               PETSCFNOP_CREATE_MATS,
+typedef enum { PETSCFNOP_CREATEVECS,
+               PETSCFNOP_CREATEMATS,
                PETSCFNOP_APPLY,
                PETSCFNOP_JACOBIANMULT,
                PETSCFNOP_JACOBIANMULTADJOINT,

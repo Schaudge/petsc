@@ -50,10 +50,10 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
   shell = (PetscFn_Shell *) fn->data;
 
   switch (op) {
-  case PETSCFNOP_CREATE_VECS:
+  case PETSCFNOP_CREATEVECS:
     fn->ops->createvecs = (PetscErrorCode (*) (PetscFn,Vec*,Vec*)) f;
     break;
-  case PETSCFNOP_CREATE_MATS:
+  case PETSCFNOP_CREATEMATS:
     fn->ops->createmats = (PetscErrorCode (*) (PetscFn,Mat*,Mat*,Mat*,Mat*,Mat*,Mat*)) f;
     break;
   case PETSCFNOP_APPLY:
@@ -114,10 +114,10 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
   shell = (PetscFn_Shell *) fn->data;
 
   switch (op) {
-  case PETSCFNOP_CREATE_VECS:
+  case PETSCFNOP_CREATEVECS:
     *f = (void (*)(void)) fn->ops->createvecs;
     break;
-  case PETSCFNOP_CREATE_MATS:
+  case PETSCFNOP_CREATEMATS:
     *f = (void (*)(void)) fn->ops->createmats;
     break;
   case PETSCFNOP_APPLY:
