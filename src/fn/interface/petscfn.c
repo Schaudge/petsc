@@ -429,11 +429,11 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
   } else {
     if (rangeVec) {
       ierr = VecCreate(PetscObjectComm((PetscObject)fn),rangeVec);CHKERRQ(ierr);
-      ierr = VecSetSizes(*rangeVec,fn->rmap->n,fn->rmap->N);CHKERRQ(ierr);
+      ierr = VecSetLayout(*rangeVec,fn->rmap);CHKERRQ(ierr);
     }
     if (domainVec) {
       ierr = VecCreate(PetscObjectComm((PetscObject)fn),domainVec);CHKERRQ(ierr);
-      ierr = VecSetSizes(*domainVec,fn->dmap->n,fn->dmap->N);CHKERRQ(ierr);
+      ierr = VecSetLayout(*domainVec,fn->dmap);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);

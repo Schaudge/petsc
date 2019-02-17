@@ -81,6 +81,7 @@ PETSC_EXTERN PetscErrorCode PetscFnHessianCreate(PetscFn,Vec,Vec,Mat,Mat);
  * scalar, the vector routines will wrap scalar quantities in vectors of
  * length 1 and vectors in matrices */
 PETSC_EXTERN PetscErrorCode PetscFnIsScalar(PetscFn, PetscBool *);
+
 PETSC_EXTERN PetscErrorCode PetscFnScalarApply(PetscFn,Vec,PetscScalar *);
 PETSC_EXTERN PetscErrorCode PetscFnScalarGradient(PetscFn,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnScalarHessianMult(PetscFn,Vec,Vec,Vec);
