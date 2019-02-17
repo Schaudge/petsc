@@ -6,7 +6,7 @@ FFLAGS    =
 SOURCEC   =
 SOURCEF   =
 SOURCEH   = petsc.h  petscsys.h petsclog.h petscvec.h petscsnes.h petscdm.h petscdmda.h \
-            petscdraw.h petscmat.h petscksp.h petscpc.h petscviewer.h petscis.h petscao.h \
+            petscdraw.h petscmat.h petscfn.h petscksp.h petscpc.h petscviewer.h petscis.h petscao.h \
 	    petscts.h petsctao.h
 LIBBASE   = libpetscvec
 DIRS      =

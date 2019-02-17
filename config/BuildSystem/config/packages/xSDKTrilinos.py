@@ -80,7 +80,7 @@ class Configure(config.package.CMakePackage):
     if self.framework.argDB['with-single-library']:
       plibs = self.libraries.toStringNoDupes(['-L'+idir,' -lpetsc']+plibs)
     else:
-      plibs = self.libraries.toStringNoDupes(['-L'+idir,'-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetscsys']+plibs)
+      plibs = self.libraries.toStringNoDupes(['-L'+idir,'-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscfn -lpetscmat -lpetscvec -lpetscsys']+plibs)
 
     args.append('-DTPL_PETSC_LIBRARIES="'+plibs+'"')
     args.append('-DTPL_PETSC_INCLUDE_DIRS='+os.path.join(self.petscdir.dir,'include'))

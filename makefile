@@ -251,6 +251,7 @@ newall:
 	-@cd src/sys;  @${PYTHON} ${PETSC_DIR}/config/builder.py
 	-@cd src/vec;  @${PYTHON} ${PETSC_DIR}/config/builder.py
 	-@cd src/mat;  @${PYTHON} ${PETSC_DIR}/config/builder.py
+	-@cd src/fn;   @${PYTHON} ${PETSC_DIR}/config/builder.py
 	-@cd src/dm;   @${PYTHON} ${PETSC_DIR}/config/builder.py
 	-@cd src/ksp;  @${PYTHON} ${PETSC_DIR}/config/builder.py
 	-@cd src/snes; @${PYTHON} ${PETSC_DIR}/config/builder.py
@@ -546,6 +547,7 @@ petscis : petsc petscis.f90.h
 petscksp : petscpc  petscksp.f90.h
 petsclog : petsc petsclog.f90.h
 petscmat : petscvec petscmat.f90.h
+petscfn : petscmat petscfn.f90.h
 petscmg : petscksp petscmg.f90.h
 petscpc : petscmat petscpc.f90.h
 petscsnes : petscksp petscsnes.f90.h
@@ -555,4 +557,4 @@ petsc : petsc.f90.h
 petscvec : petscis petscvec.f90.h
 petscviewer : petsc petscviewer.f90.h
 petscmesh : petsc petscmesh.f90.h
-modules : petscao petscdm petscdraw petscis petscksp petsclog petscmat petscmg petscpc petscsnes petscsys petscts petsc petscvec petscviewer petscmesh
+modules : petscao petscdm petscdraw petscis petscksp petsclog petscmat petscfn petscmg petscpc petscsnes petscsys petscts petsc petscvec petscviewer petscmesh

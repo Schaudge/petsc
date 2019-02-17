@@ -1,0 +1,70 @@
+
+
+
+      interface PetscFnGetSize
+      subroutine PetscFnGetSize00(a,b,c,z)
+      use petscfndef
+       PetscFn a
+       PetscInt b
+       PetscInt c
+       integer z
+       end subroutine
+      subroutine PetscFnGetSize10(a,b,c,z)
+      use petscfndef
+       PetscFn a
+       PetscInt b(*)
+       PetscInt c
+       integer z
+       end subroutine
+      subroutine PetscFnGetSize01(a,b,c,z)
+      use petscfndef
+       PetscFn a
+       PetscInt b
+       PetscInt c(*)
+       integer z
+       end subroutine
+      end interface
+
+      interface PetscFnGetLocalSize
+      subroutine PetscFnGetLocalSize00(a,b,c,z)
+      use petscfndef
+       PetscFn a
+       PetscInt b
+       PetscInt c
+       integer z
+       end subroutine
+      subroutine PetscFnGetLocalSize10(a,b,c,z)
+      use petscfndef
+       PetscFn a
+       PetscInt b(*)
+       PetscInt c
+       integer z
+       end subroutine
+      subroutine PetscFnGetLocalSize01(a,b,c,z)
+      use petscfndef
+       PetscFn a
+       PetscInt b
+       PetscInt c(*)
+       integer z
+       end subroutine
+       end interface
+
+      Interface
+      subroutine PetscFnSetType(a,b,z)
+      use petscfndef
+       PetscFn a
+       character(*) b
+       integer z
+       end subroutine
+      end Interface
+
+      Interface
+      subroutine PetscFnView(a,b,z)
+      use petscfndef
+       PetscFn a
+       PetscViewer b
+       integer z
+       end subroutine
+      end Interface
+
+

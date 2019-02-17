@@ -1,7 +1,8 @@
 
-DIRS     = sys vec mat fn dm ksp snes ts tao contrib benchmarks docs
-LOCDIR   = src
-MANSEC   = Sys
+ALL: lib
+
+DIRS     = shell
+LOCDIR   = src/fn/impls/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

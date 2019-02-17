@@ -48,7 +48,7 @@ def FixFile(filename):
   data = re.subn('\(TaoConvergedReason\* \)PetscToPointer','',data)[0]
   data = re.subn('\(TaoLineSearch\* \)PetscToPointer','',data)[0]
   data = re.subn('\(TaoLineSearchConvergedReason\* \)PetscToPointer','',data)[0]
-  match = re.compile(r"""\b(PETSC|TAO)(_DLL|VEC_DLL|MAT_DLL|DM_DLL|KSP_DLL|SNES_DLL|TS_DLL|FORTRAN_DLL)(EXPORT)""")
+  match = re.compile(r"""\b(PETSC|TAO)(_DLL|VEC_DLL|MAT_DLL|FN_DLL|DM_DLL|KSP_DLL|SNES_DLL|TS_DLL|FORTRAN_DLL)(EXPORT)""")
   data = match.sub(r'',data)
 
   ff = open(filename, 'w')
@@ -196,7 +196,7 @@ def processDir(petscdir, bfort, verbose, dirpath, dirnames, filenames):
 
 def processf90interfaces(petscdir,verbose):
   ''' Takes all the individually generated fortran interface files and merges them into one for each mansec'''
-  for mansec in ['sys','vec','mat','dm','ksp','snes','ts','tao']:
+  for mansec in ['sys','vec','mat','fn','dm','ksp','snes','ts','tao']:
     for submansec in os.listdir(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces')):
       if verbose: print('Processing F90 interface for '+submansec)
       if os.path.isdir(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces',submansec)):
