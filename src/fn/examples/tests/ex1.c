@@ -49,7 +49,7 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, Mat *jac, Mat *jacPre, M
     Mat J;
     ierr = MatCreate(comm, &J);CHKERRQ(ierr);
     ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
-    ierr = MatSetSizes(J, n, N, m, M);CHKERRQ(ierr);
+    ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
 
     if (jac) {
       ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
@@ -65,7 +65,7 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, Mat *jac, Mat *jacPre, M
     Mat A;
     ierr = MatCreate(comm, &A);CHKERRQ(ierr);
     ierr = MatSetType(A, MATAIJ);CHKERRQ(ierr);
-    ierr = MatSetSizes(A, n, N, m, M);CHKERRQ(ierr);
+    ierr = MatSetSizes(A, m, n, M, N);CHKERRQ(ierr);
 
     if (adj) {
       ierr = PetscObjectReference((PetscObject) A);CHKERRQ(ierr);
@@ -81,7 +81,7 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, Mat *jac, Mat *jacPre, M
     Mat H;
     ierr = MatCreate(comm, &H);CHKERRQ(ierr);
     ierr = MatSetType(H, MATAIJ);CHKERRQ(ierr);
-    ierr = MatSetSizes(H, n, N, m, M);CHKERRQ(ierr);
+    ierr = MatSetSizes(H, m, m, M, M);CHKERRQ(ierr);
 
     if (hes) {
       ierr = PetscObjectReference((PetscObject) H);CHKERRQ(ierr);
