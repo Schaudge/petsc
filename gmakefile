@@ -7,7 +7,7 @@ include ./lib/petsc/conf/variables
 OBJDIR := $(PETSC_ARCH)/obj
 LIBDIR := $(PETSC_ARCH)/lib
 
-pkgs := sys vec mat dm ksp snes ts tao
+pkgs := sys vec mat fn dm ksp snes ts tao
 
 # $(call SONAME_FUNCTION,libfoo,abiversion)
 SONAME_FUNCTION ?= $(1).$(SL_LINKER_SUFFIX).$(2)
@@ -118,6 +118,7 @@ endef
 $(foreach pkg,$(pkgs),$(eval $(call pkg_template,$(pkg))))
 $(call libname_function,$(LIBDIR)/libpetscvec)  : libdep := $(call libpkg,sys)
 $(call libname_function,$(LIBDIR)/libpetscmat)  : libdep := $(call libpkg,vec sys)
+$(call libname_function,$(LIBDIR)/libpetscfn)   : libdep := $(call libpkg,mat vec sys)
 $(call libname_function,$(LIBDIR)/libpetscdm)   : libdep := $(call libpkg,mat vec sys)
 $(call libname_function,$(LIBDIR)/libpetscksp)  : libdep := $(call libpkg,dm mat vec sys)
 $(call libname_function,$(LIBDIR)/libpetscsnes) : libdep := $(call libpkg,ksp dm mat vec sys)
@@ -184,6 +185,7 @@ endif
 $(OBJDIR)/sys/f90-mod/petscsysmod.o   : $(if $(MPIUNI_MOD),$(OBJDIR)/sys/mpiuni/f90-mod/mpiunimod.o)
 $(OBJDIR)/vec/f90-mod/petscvecmod.o   : $(OBJDIR)/sys/f90-mod/petscsysmod.o
 $(OBJDIR)/mat/f90-mod/petscmatmod.o   : $(OBJDIR)/vec/f90-mod/petscvecmod.o
+$(OBJDIR)/mat/f90-mod/petscfnmod.o    : $(OBJDIR)/vec/f90-mod/petscmatmod.o
 $(OBJDIR)/dm/f90-mod/petscdmmod.o     : $(OBJDIR)/mat/f90-mod/petscmatmod.o
 $(OBJDIR)/dm/f90-mod/petscdmdamod.o   : $(OBJDIR)/dm/f90-mod/petscdmmod.o
 $(OBJDIR)/dm/f90-mod/petscdmplexmod.o : $(OBJDIR)/dm/f90-mod/petscdmmod.o

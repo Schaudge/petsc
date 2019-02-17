@@ -217,6 +217,7 @@ def main(petscdir, log=StdoutLogger(), verbose=False):
     pkglist = [('sys'            , ''),
                ('vec'            , 'sys'),
                ('mat'            , 'vec sys'),
+               ('fn'             , 'mat vec sys'),
                ('dm'             , 'mat vec sys'),
                ('ksp'            , 'dm mat vec sys'),
                ('snes'           , 'ksp dm mat vec sys'),

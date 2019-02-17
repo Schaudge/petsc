@@ -1,7 +1,11 @@
 
-DIRS     = sys vec mat fn dm ksp snes ts tao contrib benchmarks docs
-LOCDIR   = src
-MANSEC   = Sys
+CFLAGS		 =
+FFLAGS		 =
+CPPFLAGS   =
+FPPFLAGS   =
+LOCDIR		 = src/fn/examples/tests/
+MANSEC     = Fn
+EXAMPLESC	 = ex1.c
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

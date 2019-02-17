@@ -1,0 +1,128 @@
+PetscFnTestDerivativeFn: Derivative order 0, range index 0, tested instantiated function against matrix-free action: norm 0.206632, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.03238e-10, 2.58089e-11): measured rate 2.00003
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.201377, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.201377, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (5.44733e-11, 1.3618e-11): measured rate 2.00003
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.201377, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.201377, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (1.03238e-10, 2.58089e-11): measured rate 2.00003
+PetscFnTestDerivativeVec: Derivative order 2, range index 2, tested at offsets (2e-05, 1e-05); tangents differ by (2.8268e-10, 7.06696e-11): measured rate 2.00001
+PetscFnTestDerivativeMat: Derivative order 2, range index 2, tested matrix against matrix-free action: norm 0.274474, error 0.
+PetscFnTestDerivativeMat: Derivative order 2, range index 2, tested matrix against matrix-free action: norm 0.274474, error 0.
+PetscFnTestDerivativeVec: Derivative order 2, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (2.74591e-10, 6.86482e-11): measured rate 1.99999
+PetscFnTestDerivativeMat: Derivative order 2, range index 1, tested matrix against matrix-free action: norm 0.274474, error 0.
+PetscFnTestDerivativeMat: Derivative order 2, range index 1, tested matrix against matrix-free action: norm 0.274474, error 0.
+PetscFnTestDerivativeVec: Derivative order 2, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (2.74591e-10, 6.86482e-11): measured rate 1.99999
+PetscFnTestDerivativeMat: Derivative order 2, range index 0, tested matrix against matrix-free action: norm 0.196104, error 0.
+PetscFnTestDerivativeMat: Derivative order 2, range index 0, tested matrix against matrix-free action: norm 0.196104, error 0.
+PetscFnTestDerivativeVec: Derivative order 2, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (5.20405e-10, 1.30102e-10): measured rate 1.99999
+PetscFnTestDerivativeMat: Derivative order 2, scalar function, tested matrix against matrix-free action: norm 0.371656, error 5.55112e-17
+PetscFnTestDerivativeMat: Derivative order 2, scalar function, tested matrix against matrix-free action: norm 0.371656, error 5.55112e-17
+PetscFnTestDerivativeFn: Derivative order 1, range index 1, tested instantiated function against matrix-free action: norm 0.0210379, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (8.7334e-13, 2.18318e-13): measured rate 2.00011
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.105064, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.105064, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (8.63778e-13, 2.15928e-13): measured rate 2.00011
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.105064, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.105064, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (8.7334e-13, 2.18318e-13): measured rate 2.00011
+PetscFnTestDerivativeFn: Derivative order 1, range index 1, tested instantiated function against matrix-free action: norm 0.0230488, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (2.62473e-11, 6.56175e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.00831342, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.00831342, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (2.5881e-11, 6.47018e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.00831342, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.00831342, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (2.62473e-11, 6.56175e-12): measured rate 2.00002
+PetscFnTestDerivativeFn: Derivative order 1, range index 0, tested instantiated function against matrix-free action: norm 0.305849, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (6.21459e-10, 1.55364e-10): measured rate 2.00001
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.21804, error 2.77556e-17
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.21804, error 2.77556e-17
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (5.69155e-10, 1.4229e-10): measured rate 1.99999
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.21804, error 2.77556e-17
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.21804, error 2.77556e-17
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (6.21441e-10, 1.55361e-10): measured rate 1.99999
+PetscFnTestDerivativeFn: Derivative order 1, range index 0, tested instantiated function against matrix-free action: norm 0.0038123, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (8.26058e-14, 2.06501e-14): measured rate 2.00009
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0263687, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0263687, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (3.2361e-14, 8.08967e-15): measured rate 2.00011
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.0263687, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.0263687, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (8.26058e-14, 2.06501e-14): measured rate 2.00009
+PetscFnTestDerivativeFn: Derivative order 2, range index 2, tested instantiated function against matrix-free action: norm 0.0125184, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, range index 2, tested instantiated function against matrix-free action: norm 0.00127625, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, range index 0, tested instantiated function against matrix-free action: norm 0.0365648, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, range index 0, tested instantiated function against matrix-free action: norm 0.00346051, error 0.
+PetscFnTestDerivativeFn: Derivative order 1, scalar function, tested instantiated function against matrix-free action: norm 1.16936, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (9.79167e-10, 2.44788e-10): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.865346, error 2.22045e-16
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.865346, error 2.22045e-16
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (5.32383e-10, 1.33094e-10): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.865346, error 2.22045e-16
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.865346, error 2.22045e-16
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (9.79167e-10, 2.44788e-10): measured rate 2.00002
+PetscFnTestDerivativeFn: Derivative order 1, scalar function, tested instantiated function against matrix-free action: norm 0.0927695, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.1286e-10, 2.82146e-11): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0247841, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0247841, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (1.45011e-11, 3.62524e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.0247841, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.0247841, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (1.1286e-10, 2.82146e-11): measured rate 2.00002
+PetscFnTestDerivativeFn: Derivative order 2, scalar function, tested instantiated function against matrix-free action: norm 0.122136, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, scalar function, tested instantiated function against matrix-free action: norm 0.00317372, error 0.
+PetscFnTestDerivativeFn: Derivative order 0, range index 0, tested instantiated function against matrix-free action: norm 0.16787, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (4.31749e-12, 1.07939e-12): measured rate 1.99998
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.281714, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.281714, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (2.06876e-12, 5.17156e-13): measured rate 2.0001
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.380973, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.380973, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (7.61766e-12, 1.90428e-12): measured rate 2.0001
+PetscFnTestDerivativeVec: Derivative order 2, range index 2, tested at offsets (2e-05, 1e-05); tangents differ by (1.07936e-12, 2.69729e-13): measured rate 2.00059
+PetscFnTestDerivativeMat: Derivative order 2, range index 2, tested matrix against matrix-free action: norm 0.00352067, error 0.
+PetscFnTestDerivativeMat: Derivative order 2, range index 2, tested matrix against matrix-free action: norm 0.00352067, error 0.
+PetscFnTestDerivativeVec: Derivative order 2, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (3.92171e-12, 9.8041e-13): measured rate 2.00003
+PetscFnTestDerivativeMat: Derivative order 2, range index 1, tested matrix against matrix-free action: norm 0.0627597, error 0.
+PetscFnTestDerivativeMat: Derivative order 2, range index 1, tested matrix against matrix-free action: norm 0.0627597, error 0.
+PetscFnTestDerivativeVec: Derivative order 2, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (3.92171e-12, 9.8041e-13): measured rate 2.00003
+PetscFnTestDerivativeMat: Derivative order 2, range index 0, tested matrix against matrix-free action: norm 0.0143493, error 5.48996e-18
+PetscFnTestDerivativeMat: Derivative order 2, range index 0, tested matrix against matrix-free action: norm 0.0143493, error 5.48996e-18
+PetscFnTestDerivativeVec: Derivative order 2, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (1.44406e-11, 3.61011e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 2, scalar function, tested matrix against matrix-free action: norm 0.0528375, error 2.50336e-17
+PetscFnTestDerivativeMat: Derivative order 2, scalar function, tested matrix against matrix-free action: norm 0.0528375, error 2.50336e-17
+PetscFnTestDerivativeFn: Derivative order 1, range index 1, tested instantiated function against matrix-free action: norm 1.40917, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.46804e-13, 3.66543e-14): measured rate 2.00183
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0223941, error 7.20498e-17
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0223941, error 7.20498e-17
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (6.668e-13, 1.66755e-13): measured rate 1.99952
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.00634439, error 1.63086e-16
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.00634439, error 1.63086e-16
+PetscFnTestDerivativeFn: Derivative order 1, range index 1, tested instantiated function against matrix-free action: norm 0.730108, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.20348e-13, 3.01981e-14): measured rate 1.99469
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0071735, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.0071735, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (3.99319e-13, 9.98507e-14): measured rate 1.9997
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.035249, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.035249, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (3.96405e-12, 9.91207e-13): measured rate 1.99972
+PetscFnTestDerivativeFn: Derivative order 1, range index 0, tested instantiated function against matrix-free action: norm 0.501546, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.71239e-12, 4.28075e-13): measured rate 2.00008
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.049206, error 2.09607e-17
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.049206, error 2.09607e-17
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (4.26431e-12, 1.06609e-12): measured rate 1.99998
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.049206, error 2.09607e-17
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.049206, error 2.09607e-17
+PetscFnTestDerivativeFn: Derivative order 1, range index 0, tested instantiated function against matrix-free action: norm 0.748417, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.9984e-15, 7.77156e-16): measured rate 1.36257
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.00657352, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.00657352, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (7.8211e-13, 1.95552e-13): measured rate 1.99982
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.0273353, error 0.
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.0273353, error 0.
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (5.22105e-12, 1.3054e-12): measured rate 1.99985
+PetscFnTestDerivativeFn: Derivative order 2, range index 2, tested instantiated function against matrix-free action: norm 0.0279858, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, range index 2, tested instantiated function against matrix-free action: norm 0.00820442, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, range index 0, tested instantiated function against matrix-free action: norm 0.0492037, error 0.
+PetscFnTestDerivativeFn: Derivative order 2, range index 0, tested instantiated function against matrix-free action: norm 0.0062948, error 0.

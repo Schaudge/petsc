@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from cmakegen import Mistakes, stripsplit, AUTODIRS, SKIPDIRS
 from collections import defaultdict
 
-PetscPKGS = 'sys vec mat dm ksp snes ts tao'.split()
+PetscPKGS = 'sys vec mat fn dm ksp snes ts tao'.split()
 LANGS = dict(c='C', cxx='CXX', cpp='CPP', cu='CU', F='F', F90='F90')
 
 class debuglogger(object):

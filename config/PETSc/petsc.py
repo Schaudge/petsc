@@ -225,6 +225,7 @@ class Configure(config.base.Configure):
        - PetscInitialize from libpetsc
        - VecCreate from libpetscvec
        - MatCreate from libpetscmat
+       - PetscFnCreate from libpetsfn
        - DMDestroy from libpetscdm
        - KSPCreate from libpetscksp
        - SNESCreate from libpetscsnes
@@ -236,6 +237,7 @@ class Configure(config.base.Configure):
     found   = (self.libraries.check(libraries, 'PetscInitializeNoArguments', otherLibs = self.otherLibs, prototype = 'int PetscInitializeNoArguments(void);') and
                self.libraries.check(libraries, 'VecDestroy', otherLibs = self.otherLibs, prototype = 'typedef struct _p_Vec *Vec;int VecDestroy(Vec*);', call = 'VecDestroy((Vec*) 0)') and
                self.libraries.check(libraries, 'MatDestroy', otherLibs = self.otherLibs, prototype = 'typedef struct _p_Mat *Mat;int MatDestroy(Mat*);', call = 'MatDestroy((Mat*) 0)') and
+               self.libraries.check(libraries, 'PetscFnDestroy', otherLibs = self.otherLibs, prototype = 'typedef struct _p_PetscFn *PetscFn;int PetscFnDestroy(PetscFn*);', call = 'PetscFnDestroy((PetscFn*) 0)') and
                self.libraries.check(libraries, 'DMDestroy', otherLibs = self.otherLibs, prototype = 'typedef struct _p_DM *DA;int DMDestroy(DA*);', call = 'DMDestroy((DA*) 0)') and
                self.libraries.check(libraries, 'KSPDestroy', otherLibs = self.otherLibs, prototype = 'typedef struct _p_KSP *KSP;int KSPDestroy(KSP*);', call = 'KSPDestroy((KSP*) 0)') and
                self.libraries.check(libraries, 'SNESDestroy', otherLibs = self.otherLibs, prototype = 'typedef struct _p_SNES *SNES;int SNESDestroy(SNES*);', call = 'SNESDestroy((SNES*) 0)') and
@@ -360,7 +362,7 @@ class Configure(config.base.Configure):
 
   def libraryGuesses(self, root = None):
     '''Return standard library name guesses for a given installation root'''
-    libs = ['ts', 'snes', 'ksp', 'dm', 'mat', 'vec', '']
+    libs = ['ts', 'snes', 'ksp', 'dm', 'fn', 'mat', 'vec', '']
     if root:
       d = os.path.join(root, 'lib', self.arch)
       if not os.path.isdir(d):

@@ -390,7 +390,7 @@ prepend-path PATH "%s"
     if self.framework.argDB['with-single-library']:
       self.petsclib = '-lpetsc'
     else:
-      self.petsclib = '-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetscsys'
+      self.petsclib = '-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscfn -lpetscmat -lpetscvec -lpetscsys'
     self.complibs = self.compilers.flibs+self.compilers.cxxlibs+self.compilers.LIBS.split()
     self.PETSC_WITH_EXTERNAL_LIB = self.libraries.toStringNoDupes(['-L${PETSC_DIR}/${PETSC_ARCH}/lib', self.petsclib]+self.packagelibs+self.complibs)
     self.PETSC_EXTERNAL_LIB_BASIC = self.libraries.toStringNoDupes(self.packagelibs+self.complibs)
@@ -424,6 +424,7 @@ prepend-path PATH "%s"
         self.addMakeMacro('PETSC_SYS_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_VEC_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_MAT_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
+        self.addMakeMacro('PETSC_FN_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_DM_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_KSP_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_SNES_LIB','${C_SH_LIB_PATH} ${PETSC_WITH_EXTERNAL_LIB}')
@@ -436,6 +437,7 @@ prepend-path PATH "%s"
         self.addMakeMacro('PETSC_SYS_LIB','${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_VEC_LIB','${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_MAT_LIB','${PETSC_WITH_EXTERNAL_LIB}')
+        self.addMakeMacro('PETSC_FN_LIB','${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_DM_LIB','${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_KSP_LIB','${PETSC_WITH_EXTERNAL_LIB}')
         self.addMakeMacro('PETSC_SNES_LIB','${PETSC_WITH_EXTERNAL_LIB}')

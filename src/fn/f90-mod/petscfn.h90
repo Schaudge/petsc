@@ -1,0 +1,24 @@
+
+
+
+
+
+      Interface
+      subroutine PetscFnSetType(a,b,z)
+      use petscfndef
+       PetscFn a
+       character(*) b
+       integer z
+       end subroutine
+      end Interface
+
+      Interface
+      subroutine PetscFnView(a,b,z)
+      use petscfndef
+       PetscFn a
+       PetscViewer b
+       integer z
+       end subroutine
+      end Interface
+
+

@@ -190,7 +190,7 @@ def regression(args):
   if len(args.dirs):
     regdirs = args.dirs
   else:
-    regdirs = map(lambda d: os.path.join('src', d), ['inline', 'sys', 'vec', 'mat', 'dm', 'ksp', 'snes', 'ts', 'docs', 'tops'])
+    regdirs = map(lambda d: os.path.join('src', d), ['inline', 'sys', 'vec', 'mat', 'fn', 'dm', 'ksp', 'snes', 'ts', 'docs', 'tops'])
   walker  = builder.DirectoryTreeWalker(maker.argDB, maker.log, maker.configInfo, allowExamples = True)
   dirs    = map(lambda d: os.path.join(maker.petscDir, d), regdirs)
   for d in dirs:

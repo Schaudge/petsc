@@ -1,0 +1,35 @@
+PetscFnTestDerivativeScalar: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (2.05246e-11, 5.13133e-12): measured rate 1.99995
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.41902e-10, 3.54766e-11): measured rate 1.99996
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.900634, error 0.
+PetscFnTestDerivativeScalar: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (2.05246e-11, 5.13133e-12): measured rate 1.99995
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (2.05246e-11, 5.13133e-12): measured rate 1.99995
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.900634, error 0.
+PetscFnTestDerivativeScalar: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (1.41902e-10, 3.54766e-11): measured rate 1.99996
+PetscFnTestDerivativeVec: Derivative order 1, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (1.41902e-10, 3.54766e-11): measured rate 1.99996
+PetscFnTestDerivativeScalar: Derivative order 2, range index 2, tested at offsets (2e-05, 1e-05); tangents differ by (1.99343e-12, 4.98352e-13): measured rate 2.00002
+PetscFnTestDerivativeVec: Derivative order 2, range index 2, tested at offsets (2e-05, 1e-05); tangents differ by (1.37821e-11, 3.44548e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 2, range index 2, tested matrix against matrix-free action: norm 0.0315707, error 0.
+PetscFnTestDerivativeScalar: Derivative order 2, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.99343e-12, 4.98352e-13): measured rate 2.00002
+PetscFnTestDerivativeVec: Derivative order 2, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.22908e-11, 3.07265e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 2, range index 1, tested matrix against matrix-free action: norm 0.0315707, error 0.
+PetscFnTestDerivativeScalar: Derivative order 2, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (1.22908e-11, 3.07265e-12): measured rate 2.00002
+PetscFnTestDerivativeVec: Derivative order 2, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (1.22908e-11, 3.07265e-12): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 2, range index 0, tested matrix against matrix-free action: norm 0.0738967, error 0.
+PetscFnTestDerivativeScalar: Derivative order 2, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (1.37821e-11, 3.44548e-12): measured rate 2.00002
+PetscFnTestDerivativeVec: Derivative order 2, scalar function, tested at offsets (2e-05, 1e-05); tangents differ by (8.49752e-11, 2.12436e-11): measured rate 2.00002
+PetscFnTestDerivativeMat: Derivative order 2, scalar function, tested matrix against matrix-free action: norm 0.510903, error 0.
+PetscFnTestDerivativeScalar: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (2.52598e-12, 6.31717e-13): measured rate 1.99949
+PetscFnTestDerivativeVec: Derivative order 1, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (4.4983e-12, 1.12477e-12): measured rate 1.99975
+PetscFnTestDerivativeMat: Derivative order 1, range index 1, tested matrix against matrix-free action: norm 0.946343, error 0.
+PetscFnTestDerivativeScalar: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (2.52598e-12, 6.31717e-13): measured rate 1.99949
+PetscFnTestDerivativeVec: Derivative order 1, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (1.14382e-11, 2.85949e-12): measured rate 2.00003
+PetscFnTestDerivativeMat: Derivative order 1, range index 0, tested matrix against matrix-free action: norm 0.765078, error 3.87896e-18
+PetscFnTestDerivativeScalar: Derivative order 2, range index 2, tested at offsets (2e-05, 1e-05); tangents differ by (1.29563e-13, 3.23075e-14): measured rate 2.00371
+PetscFnTestDerivativeVec: Derivative order 2, range index 2, tested at offsets (2e-05, 1e-05); tangents differ by (1.14589e-12, 2.8647e-13): measured rate 2.00001
+PetscFnTestDerivativeMat: Derivative order 2, range index 2, tested matrix against matrix-free action: norm 0.0345627, error 5.66514e-17
+PetscFnTestDerivativeScalar: Derivative order 2, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (1.29452e-13, 3.23075e-14): measured rate 2.00248
+PetscFnTestDerivativeVec: Derivative order 2, range index 1, tested at offsets (2e-05, 1e-05); tangents differ by (9.18154e-12, 2.29539e-12): measured rate 2.
+PetscFnTestDerivativeMat: Derivative order 2, range index 1, tested matrix against matrix-free action: norm 0.00844817, error 5.34678e-18
+PetscFnTestDerivativeScalar: Derivative order 2, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (1.11988e-12, 2.79776e-13): measured rate 2.001
+PetscFnTestDerivativeVec: Derivative order 2, range index 0, tested at offsets (2e-05, 1e-05); tangents differ by (9.18143e-12, 2.29528e-12): measured rate 2.00005
+PetscFnTestDerivativeMat: Derivative order 2, range index 0, tested matrix against matrix-free action: norm 0.0781082, error 1.01151e-17
