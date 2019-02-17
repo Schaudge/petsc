@@ -439,3 +439,77 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscFnCreateMats(PetscFn fn, Mat *jac, Mat *jacPre, Mat *adj, Mat *adjPre, Mat *hes, Mat *hesPre)
+{
+  PetscInt       i;
+  MatType        types[6];
+  PetscLayout    layouts[3][2];
+  Mat*           mats[6];
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  types[0] = fn->jacType;
+  types[1] = fn->jacPreType;
+  types[2] = fn->adjType;
+  types[3] = fn->adjPreType;
+  types[4] = fn->hesType;
+  types[5] = fn->hesPreType;
+  layouts[0][0] = fn->rmap;
+  layouts[0][1] = fn->dmap;
+  layouts[1][0] = fn->dmap;
+  layouts[1][1] = fn->rmap;
+  layouts[2][0] = fn->dmap;
+  layouts[2][1] = fn->dmap;
+  if (fn->ops->createmats) {
+    ierr = (*(fn->ops->createmats)) (fn, jac, jacPre, adj, adjPre, hes, hesPre);CHKERRQ(ierr);
+#if defined(PETSC_USE_DEBUG)
+    mats[0] = jac;
+    mats[1] = jacPre;
+    mats[2] = adj;
+    mats[3] = adjPre;
+    mats[4] = hes;
+    mats[5] = hesPre;
+    for (i = 0; i < 6; i++) {
+      PetscBool same;
+      MatType   rettype;
+      Mat       dummy;
+      PetscLayout rowmap, colmap;
+
+      if (!mats[i]) continue;
+      ierr = MatCreate(PetscObjectComm((PetscObject)fn), &dummy);CHKERRQ(ierr);
+      ierr = MatSetType(dummy, types[i]);CHKERRQ(ierr);
+      ierr = MatGetType(dummy, &types[i]);CHKERRQ(ierr);
+      ierr = MatGetType(*(mats[i]), &rettype);CHKERRQ(ierr);
+      ierr = PetscObjectTypeCompare((PetscObject) *(mats[i]), types[i], &same);CHKERRQ(ierr);
+      if (!same) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned type %s, not %s", rettype, types[i]);
+      ierr = MatGetLayouts(*(mats[i]), &rowmap, &colmap);CHKERRQ(ierr);
+      same = (layouts[i/2][0]->n == rowmap->n && layouts[i/2][0]->N == rowmap->N) ? PETSC_TRUE : PETSC_FALSE;
+      if (!same) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned mat of wrong row shape");
+      same = (layouts[i/2][1]->n == colmap->n && layouts[i/2][1]->N == colmap->N) ? PETSC_TRUE : PETSC_FALSE;
+      if (!same) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned mat of wrong column shape");
+      ierr = MatDestroy(&dummy);CHKERRQ(ierr);
+    }
+#endif
+  }
+  else {
+    mats[0] = jac;
+    mats[1] = jacPre;
+    mats[2] = adj;
+    mats[3] = adjPre;
+    mats[4] = hes;
+    mats[5] = hesPre;
+    for (i = 0; i < 6; i++) {
+      PetscInt m, M, n, N;
+      if (!mats[i]) continue;
+      ierr = MatCreate(PetscObjectComm((PetscObject)fn),mats[i]);CHKERRQ(ierr);
+      ierr = MatSetType(*(mats[i]),types[i]);CHKERRQ(ierr);
+      ierr = PetscLayoutGetSize(layouts[i/2][0],&N);CHKERRQ(ierr);
+      ierr = PetscLayoutGetLocalSize(layouts[i/2][0],&n);CHKERRQ(ierr);
+      ierr = PetscLayoutGetSize(layouts[i/2][1],&M);CHKERRQ(ierr);
+      ierr = PetscLayoutGetLocalSize(layouts[i/2][1],&m);CHKERRQ(ierr);
+      ierr = MatSetSizes(*(mats[i]),n,m,N,M);CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}

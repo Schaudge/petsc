@@ -34,6 +34,68 @@ static PetscErrorCode PetscFnCreateVecs_Vec(PetscFn fn, Vec *rangeVec, Vec *doma
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, Mat *jac, Mat *jacPre, Mat *adj, Mat *adjPre,
+                                            Mat *hes, Mat *hesPre)
+{
+  PetscInt       m, M, n, N;
+  MPI_Comm       comm;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSize(fn, &N, &M);CHKERRQ(ierr);
+  ierr = PetscFnGetLocalSize(fn, &n, &m);CHKERRQ(ierr);
+  comm = PetscObjectComm((PetscObject)fn);
+  if (jac || jacPre) {
+    Mat J;
+    ierr = MatCreate(comm, &J);CHKERRQ(ierr);
+    ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
+    ierr = MatSetSizes(J, n, N, m, M);CHKERRQ(ierr);
+
+    if (jac) {
+      ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
+      *jac = J;
+    }
+    if (jacPre) {
+      ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
+      *jacPre = J;
+    }
+    ierr = MatDestroy(&J);CHKERRQ(ierr);
+  }
+  if (adj || adjPre) {
+    Mat A;
+    ierr = MatCreate(comm, &A);CHKERRQ(ierr);
+    ierr = MatSetType(A, MATAIJ);CHKERRQ(ierr);
+    ierr = MatSetSizes(A, n, N, m, M);CHKERRQ(ierr);
+
+    if (adj) {
+      ierr = PetscObjectReference((PetscObject) A);CHKERRQ(ierr);
+      *adj = A;
+    }
+    if (adjPre) {
+      ierr = PetscObjectReference((PetscObject) A);CHKERRQ(ierr);
+      *adjPre = A;
+    }
+    ierr = MatDestroy(&A);CHKERRQ(ierr);
+  }
+  if (hes || hesPre) {
+    Mat H;
+    ierr = MatCreate(comm, &H);CHKERRQ(ierr);
+    ierr = MatSetType(H, MATAIJ);CHKERRQ(ierr);
+    ierr = MatSetSizes(H, n, N, m, M);CHKERRQ(ierr);
+
+    if (hes) {
+      ierr = PetscObjectReference((PetscObject) H);CHKERRQ(ierr);
+      *hes = H;
+    }
+    if (hesPre) {
+      ierr = PetscObjectReference((PetscObject) H);CHKERRQ(ierr);
+      *hesPre = H;
+    }
+    ierr = MatDestroy(&H);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   PetscFn        fn;
@@ -50,7 +112,6 @@ int main(int argc, char **argv)
   if (isShell) {
     PetscInt n, N;
     Vec v;
-    Vec d, r;
     void *ctx;
     MPI_Comm comm;
 
@@ -64,10 +125,23 @@ int main(int argc, char **argv)
     ierr = PetscObjectReference((PetscObject)v);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
     ierr = PetscFnShellSetOperation(fn,PETSCFNOP_DESTROY,(void (*)(void))PetscFnDestroy_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEVECS,(void (*)(void))PetscFnCreateVecs_Vec);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn,&d,&r);CHKERRQ(ierr);
-    ierr = VecDestroy(&d);CHKERRQ(ierr);
-    ierr = VecDestroy(&r);CHKERRQ(ierr);
+
+    {
+      Vec d, r;
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEVECS,(void (*)(void))PetscFnCreateVecs_Vec);CHKERRQ(ierr);
+      ierr = PetscFnCreateVecs(fn,&d,&r);CHKERRQ(ierr);
+      ierr = VecDestroy(&d);CHKERRQ(ierr);
+      ierr = VecDestroy(&r);CHKERRQ(ierr);
+    }
+    {
+      Mat jac, adj, hes;
+
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEMATS,(void (*)(void))PetscFnCreateMats_Vec);CHKERRQ(ierr);
+      ierr = PetscFnCreateMats(fn, &jac, NULL, &adj, NULL, &hes, NULL);CHKERRQ(ierr);
+      ierr = MatDestroy(&hes);CHKERRQ(ierr);
+      ierr = MatDestroy(&adj);CHKERRQ(ierr);
+      ierr = MatDestroy(&jac);CHKERRQ(ierr);
+    }
   }
   ierr = PetscFnDestroy(&fn);CHKERRQ(ierr);
   ierr = PetscFinalize();
