@@ -830,3 +830,154 @@ PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec v, Mat H, Mat Hpre)
   ierr = VecLockPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
+
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  if (!fn->ops->scalarapply) {
+    ierr = (*fn->ops->scalarapply)(fn,x,z);CHKERRQ(ierr);
+  } else if (fn->ops->apply) {
+    Vec y;
+
+    ierr = PetscFnCreateVecs(fn, &y, NULL);CHKERRQ(ierr);
+    ierr = (*fn->ops->apply)(fn,x,y);CHKERRQ(ierr);
+    ierr = PetscFnVecScalarBcast(y,z);CHKERRQ(ierr);
+    ierr = VecDestroy(&y);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
+  if (fn->dmap->N != g->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec g: global dim %D %D",fn->dmap->N,g->map->N);
+  if (fn->dmap->n != g->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec g: local dim %D %D",fn->dmap->n,g->map->n);
+
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  if (!fn->ops->scalargradient) {
+    ierr = (*fn->ops->scalargradient)(fn,x,g);CHKERRQ(ierr);
+  } else if (fn->ops->jacobiancreateadjoint) {
+    Mat JT;
+    PetscInt i, iStart, iEnd, *ia;
+    PetscInt zero = 0;
+    PetscScalar *ga;
+
+    ierr = PetscFnCreateMats(fn, NULL, NULL, &JT, NULL, NULL, NULL);CHKERRQ(ierr);
+    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,JT,NULL);CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(x,&iStart,&iEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(iEnd - iStart,&ia);CHKERRQ(ierr);
+    for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
+    ierr = VecGetArray(g, &ga);CHKERRQ(ierr);
+    ierr = MatGetValues(JT,iEnd - iStart, ia, 1, &zero, ga);CHKERRQ(ierr);
+    ierr = VecRestoreArray(g, &ga);CHKERRQ(ierr);
+    ierr = PetscFree(ia);CHKERRQ(ierr);
+    ierr = MatDestroy(&JT);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
+  if (fn->dmap->N != xhat->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec xhat: global dim %D %D",fn->dmap->N,xhat->map->N);
+  if (fn->dmap->N != Hxhat->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Hxhat: global dim %D %D",fn->dmap->N,Hxhat->map->N);
+  if (fn->dmap->n != Hxhat->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Hxhat: local dim %D %D",fn->dmap->n,Hxhat->map->n);
+
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockPush(xhat);CHKERRQ(ierr);
+  if (!fn->ops->scalarhessianmult) {
+    ierr = (*fn->ops->scalarhessianmult)(fn,x,xhat,Hxhat);CHKERRQ(ierr);
+  } else if (fn->ops->hessianmult) {
+    Vec v;
+
+    ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
+    ierr = VecSet(v, 1.);CHKERRQ(ierr);
+    ierr = (*fn->ops->hessianmult)(fn,x,v,xhat,Hxhat);CHKERRQ(ierr);
+    ierr = VecDestroy(&v);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(xhat);CHKERRQ(ierr);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
+  if (H) {
+    PetscValidHeaderSpecific(H,MAT_CLASSID,4);
+    if (fn->dmap->N != H->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: global domain/column dim %D %D",fn->dmap->N,H->cmap->N);
+    if (fn->dmap->n != H->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local domain/column dim %D %D",fn->dmap->n,H->cmap->n);
+    if (fn->dmap->N != H->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: global domain/row dim %D %D",fn->dmap->N,H->rmap->N);
+    if (fn->dmap->n != H->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local domain/row dim %D %D",fn->dmap->n,H->rmap->n);
+  }
+  if (Hpre) {
+    PetscValidHeaderSpecific(Hpre,VEC_CLASSID,5);
+    if (fn->dmap->N != Hpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/column dim %D %D",fn->dmap->N,Hpre->cmap->N);
+    if (fn->dmap->n != Hpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/column dim %D %D",fn->dmap->n,Hpre->cmap->n);
+    if (fn->dmap->N != Hpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/row dim %D %D",fn->dmap->N,Hpre->rmap->N);
+    if (fn->dmap->n != Hpre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/row dim %D %D",fn->dmap->n,Hpre->rmap->n);
+  }
+  if (!H && !Hpre) PetscFunctionReturn(0);
+
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  if (!fn->ops->scalarhessiancreate) {
+    ierr = (*fn->ops->scalarhessiancreate)(fn,x,H,Hpre);CHKERRQ(ierr);
+  } else if (fn->ops->hessiancreate) {
+    Vec v;
+
+    ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
+    ierr = VecSet(v, 1.);CHKERRQ(ierr);
+    ierr = (*fn->ops->hessiancreate)(fn,x,v,H,Hpre);CHKERRQ(ierr);
+    ierr = VecDestroy(&v);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnIsScalar(PetscFn fn, PetscBool *isScalar)
+{
+  PetscFunctionBegin;
+  if (fn->setupcalled) {
+    *isScalar = fn->isScalar;
+    PetscFunctionReturn(0);
+  } else {
+    *isScalar = (fn->rmap->N == 1) ? PETSC_TRUE : PETSC_FALSE;
+  }
+  PetscFunctionReturn(0);
+}
