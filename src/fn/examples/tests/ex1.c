@@ -102,7 +102,7 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, Mat *jac, Mat *jacPre, M
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarApply_Vec(PetscFn fn, Vec x, PetscReal *z)
+static PetscErrorCode PetscFnScalarApply_Vec_Internal(PetscFn fn, Vec x, PetscReal *z)
 {
   Vec y, diff;
   PetscErrorCode ierr;
@@ -113,6 +113,16 @@ static PetscErrorCode PetscFnScalarApply_Vec(PetscFn fn, Vec x, PetscReal *z)
   ierr = VecWAXPY(diff, -1., y, x);CHKERRQ(ierr);
   ierr = VecDot(diff, diff, z);CHKERRQ(ierr);
   ierr = VecDestroy(&diff);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarApply_Vec(PetscFn fn, Vec x, PetscReal *z)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnScalarApply_Vec_Internal(fn, x, z);CHKERRQ(ierr);
+  *z   = PetscSinScalar(*z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -127,15 +137,27 @@ static PetscErrorCode PetscFnApply_Vec(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarGradient_Vec(PetscFn fn, Vec x, Vec g)
+static PetscErrorCode PetscFnScalarGradient_Vec_Internal(PetscFn fn, Vec x, Vec g)
 {
-  Vec y;
+  Vec            y;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = PetscFnShellGetContext(fn, (void *) &y);CHKERRQ(ierr);
   ierr = VecWAXPY(g, -1., y, x);CHKERRQ(ierr);
   ierr = VecScale(g, 2.);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarGradient_Vec(PetscFn fn, Vec x, Vec g)
+{
+  PetscScalar    z;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
+  ierr = VecScale(g, PetscCosScalar(z));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -239,11 +261,19 @@ static PetscErrorCode PetscFnJacobianCreateAdjoint_Vec(PetscFn fn, Vec x, Mat J,
 
 static PetscErrorCode PetscFnScalarHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
 {
+  Vec            g;
+  PetscScalar    z, dot;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
   ierr = VecCopy(xhat, Hxhat);CHKERRQ(ierr);
-  ierr = VecScale(Hxhat, 2.);CHKERRQ(ierr);
+  ierr = VecDot(xhat, g, &dot);CHKERRQ(ierr);
+  ierr = VecScale(Hxhat, 2. * PetscCosScalar(z));CHKERRQ(ierr);
+  ierr = VecAXPY(Hxhat, - dot * PetscSinScalar(z), g);CHKERRQ(ierr);
+  ierr = VecDestroy(&g);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -271,9 +301,9 @@ static PetscErrorCode PetscFnHessianMult_Vec(PetscFn fn, Vec x, Vec v, Vec xhat,
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCopy(xhat, vHxhat);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, vHxhat);CHKERRQ(ierr);
   ierr = VecSingletonBcast(v, &z);CHKERRQ(ierr);
-  ierr = VecScale(vHxhat, 2. * z);CHKERRQ(ierr);
+  ierr = VecScale(vHxhat, z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -295,7 +325,7 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
   PetscRandom    rand;
   PetscReal      e;
   PetscReal      eStart = 1.;
-  PetscReal      eStop = PETSC_SMALL;
+  PetscReal      eStop = PetscSqrtReal(PETSC_SMALL);
   PetscReal      eMult = 0.5;
   PetscReal      diffOld;
   Mat            J, JT, H;
@@ -367,6 +397,7 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
       logratio = PetscLog10Real (diff / diffOld) / PetscLog10Real(eMult);
       ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||v.f'(x+e*xhat) - v.f''(x).xhat - v.f'(x)|| %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
     }
+    diffOld = diff;
   }
   ierr = MatDestroy(&J);CHKERRQ(ierr);
   ierr = MatDestroy(&JT);CHKERRQ(ierr);

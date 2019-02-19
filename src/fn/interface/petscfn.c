@@ -226,7 +226,7 @@ PetscErrorCode PetscFnSetUp(PetscFn fn)
   ierr = PetscLayoutSetUp(fn->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(fn->dmap);CHKERRQ(ierr);
   fn->isScalar = PETSC_FALSE;
-  if (fn->dmap->N == 1) fn->isScalar = PETSC_TRUE;
+  if (fn->rmap->N == 1) fn->isScalar = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -533,7 +533,7 @@ PetscErrorCode PetscFnApply(PetscFn fn, Vec x, Vec y)
   VecLocked(y,3);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (!fn->ops->apply) {
+  if (fn->ops->apply) {
     ierr = (*fn->ops->apply)(fn,x,y);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarapply) {
     PetscScalar z;
