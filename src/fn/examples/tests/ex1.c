@@ -86,8 +86,8 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, Mat *jac, Mat *jacPre, M
     ierr = MatCreate(comm, &H);CHKERRQ(ierr);
     ierr = MatSetType(H, MATAIJ);CHKERRQ(ierr);
     ierr = MatSetSizes(H, m, m, M, M);CHKERRQ(ierr);
-    ierr = MatSeqAIJSetPreallocation(H, 1, NULL);CHKERRQ(ierr);
-    ierr = MatMPIAIJSetPreallocation(H, 1, NULL, 0, NULL);CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(H, m, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(H, m, NULL, M - m, NULL);CHKERRQ(ierr);
 
     if (hes) {
       ierr = PetscObjectReference((PetscObject) H);CHKERRQ(ierr);
@@ -225,13 +225,29 @@ static PetscErrorCode PetscFnJacobianCreate_Vec(PetscFn fn, Vec x, Mat J, Mat Jp
   ierr = PetscFnScalarGradient_Vec(fn, x, g);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(g, &iStart, &iEnd);CHKERRQ(ierr);
   ierr = VecGetArrayRead(g,&garray);CHKERRQ(ierr);
-  for (i = iStart; i < iEnd; i++) {ierr = MatSetValue(jac, 0, i, garray[i], INSERT_VALUES);CHKERRQ(ierr);}
+  for (i = iStart; i < iEnd; i++) {ierr = MatSetValue(jac, 0, i, garray[i-iStart], INSERT_VALUES);CHKERRQ(ierr);}
   ierr = VecRestoreArrayRead(g,&garray);CHKERRQ(ierr);
-  ierr = VecDestroy(&g);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = VecDestroy(&g);CHKERRQ(ierr);
   if (J && J != jac) {ierr = MatCopy(jac, J, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
   if (Jpre && Jpre != jac) {ierr = MatCopy(jac, Jpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode ColVecToMat_Internal(Vec g, Mat jac)
+{
+  PetscInt           i, iStart, iEnd;
+  const PetscScalar *garray;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  ierr = VecGetOwnershipRange(g, &iStart, &iEnd);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(g,&garray);CHKERRQ(ierr);
+  for (i = iStart; i < iEnd; i++) {ierr = MatSetValue(jac, i, 0, garray[i-iStart], INSERT_VALUES);CHKERRQ(ierr);}
+  ierr = VecRestoreArrayRead(g,&garray);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -239,21 +255,14 @@ static PetscErrorCode PetscFnJacobianCreateAdjoint_Vec(PetscFn fn, Vec x, Mat J,
 {
   Vec            g;
   Mat            jac = J ? J : Jpre;
-  PetscInt       i, iStart, iEnd;
-  const PetscScalar *garray;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (!jac) PetscFunctionReturn(0);
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
   ierr = PetscFnScalarGradient_Vec(fn, x, g);CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(g, &iStart, &iEnd);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(g,&garray);CHKERRQ(ierr);
-  for (i = iStart; i < iEnd; i++) {ierr = MatSetValue(jac, i, 0, garray[i], INSERT_VALUES);CHKERRQ(ierr);}
-  ierr = VecRestoreArrayRead(g,&garray);CHKERRQ(ierr);
+  ierr = ColVecToMat_Internal(g, jac);CHKERRQ(ierr);
   ierr = VecDestroy(&g);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   if (J && J != jac) {ierr = MatCopy(jac, J, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
   if (Jpre && Jpre != jac) {ierr = MatCopy(jac, Jpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
@@ -279,19 +288,30 @@ static PetscErrorCode PetscFnScalarHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, 
 
 static PetscErrorCode PetscFnScalarHessianCreate_Vec(PetscFn fn, Vec x, Mat H, Mat Hpre)
 {
+  Vec            g;
+  PetscScalar    z;
+  Mat            hes = H ? H : Hpre;
+  Mat            JT, J, JTJ;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (H) {
-    ierr = MatAssemblyBegin(H,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatAssemblyEnd(H,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatShift(H, 2.);CHKERRQ(ierr);
-  }
-  if (Hpre && Hpre != H) {
-    ierr = MatAssemblyBegin(Hpre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatAssemblyEnd(Hpre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatShift(Hpre, 2.);CHKERRQ(ierr);
-  }
+  if (!hes) PetscFunctionReturn(0);
+  ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnCreateMats(fn, NULL, NULL, &JT, NULL, NULL, NULL);CHKERRQ(ierr);
+  ierr = ColVecToMat_Internal(g, JT);CHKERRQ(ierr);
+  ierr = MatTranspose(JT, MAT_INITIAL_MATRIX, &J);CHKERRQ(ierr);
+  ierr = MatMatMult(JT,J,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&JTJ);CHKERRQ(ierr);
+  ierr = MatCopy(JTJ, hes, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatScale(hes, -PetscSinScalar(z));CHKERRQ(ierr);
+  ierr = MatShift(hes, 2. * PetscCosScalar(z));CHKERRQ(ierr);
+  ierr = MatDestroy(&JTJ);CHKERRQ(ierr);
+  ierr = MatDestroy(&J);CHKERRQ(ierr);
+  ierr = MatDestroy(&JT);CHKERRQ(ierr);
+  ierr = VecDestroy(&g);CHKERRQ(ierr);
+  if (H && H != hes) {ierr = MatCopy(hes, H, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+  if (Hpre && Hpre != hes) {ierr = MatCopy(hes, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
@@ -328,10 +348,12 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
   PetscReal      eStop = PetscSqrtReal(PETSC_SMALL);
   PetscReal      eMult = 0.5;
   PetscReal      diffOld;
+  PetscReal      trueNorm, diffNorm;
   Mat            J, JT, H;
   Vec            x, xhat, v, xtilde;
   Vec            fx, fxtilde, fxtildePred, fxtildeDiff, Jxhat;
   Vec            JTv, JTvtilde, JTvtildePred, JTvtildeDiff, vHxhat;
+  Vec            Jxhatmat, JTvmat, vHxhatmat;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -364,6 +386,31 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
   ierr = PetscFnJacobianCreate(fn, x, J, NULL);CHKERRQ(ierr);
   ierr = PetscFnJacobianCreateAdjoint(fn, x, JT, NULL);CHKERRQ(ierr);
   ierr = PetscFnHessianCreate(fn, x, v, H, NULL);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(Jxhat, &Jxhatmat);CHKERRQ(ierr);
+  ierr = MatMult(J, xhat, Jxhatmat);CHKERRQ(ierr);
+  ierr = VecAXPY(Jxhatmat, -1., Jxhat);CHKERRQ(ierr);
+  ierr = VecNorm(Jxhat, NORM_2, &trueNorm);CHKERRQ(ierr);
+  ierr = VecNorm(Jxhatmat, NORM_2, &diffNorm);CHKERRQ(ierr);
+  ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "||J.xhat - J_mat.xhat|| = %e, ||J.xhat|| = %e\n", (double) diffNorm, (double) trueNorm);CHKERRQ(ierr);
+  ierr = VecDestroy(&Jxhatmat);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(JTv, &JTvmat);CHKERRQ(ierr);
+  ierr = MatMult(JT, v, JTvmat);CHKERRQ(ierr);
+  ierr = VecAXPY(JTvmat, -1., JTv);CHKERRQ(ierr);
+  ierr = VecNorm(JTv, NORM_2, &trueNorm);CHKERRQ(ierr);
+  ierr = VecNorm(JTvmat, NORM_2, &diffNorm);CHKERRQ(ierr);
+  ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "||J*.v - J*_mat.v|| = %e, ||J*.v|| = %e\n", (double) diffNorm, (double) trueNorm);CHKERRQ(ierr);
+  ierr = VecDestroy(&JTvmat);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(vHxhat, &vHxhatmat);CHKERRQ(ierr);
+  ierr = MatMult(H, xhat, vHxhatmat);CHKERRQ(ierr);
+  ierr = VecAXPY(vHxhatmat, -1., vHxhat);CHKERRQ(ierr);
+  ierr = VecNorm(vHxhat, NORM_2, &trueNorm);CHKERRQ(ierr);
+  ierr = VecNorm(vHxhatmat, NORM_2, &diffNorm);CHKERRQ(ierr);
+  ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "||v*H.xhat - v*H_mat.xhat|| = %e, ||v*H.xhat|| = %e\n", (double) diffNorm, (double) trueNorm);CHKERRQ(ierr);
+  ierr = VecDestroy(&vHxhatmat);CHKERRQ(ierr);
+
   for (e = eStart, diffOld = 0; e >= eStop; e *= eMult) {
     PetscReal diff, logratio;
 
@@ -375,10 +422,10 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
     ierr = VecNorm(fxtildeDiff, NORM_2, &diff);CHKERRQ(ierr);
 
     if (e == eStart) {
-      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| %e\n", (double) e, (double) diff);CHKERRQ(ierr);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| = %e\n", (double) e, (double) diff);CHKERRQ(ierr);
     } else {
       logratio = PetscLog10Real (diff / diffOld) / PetscLog10Real(eMult);
-      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| = %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
     }
     diffOld = diff;
   }
