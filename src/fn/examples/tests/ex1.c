@@ -342,8 +342,8 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
   ierr = PetscRandomCreate(PetscObjectComm((PetscObject)fn),&rand);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rand);CHKERRQ(ierr);
   ierr = VecSetRandom(x, rand);CHKERRQ(ierr);
-  ierr = VecSetRandom(v, rand);CHKERRQ(ierr);
   ierr = VecSetRandom(xhat, rand);CHKERRQ(ierr);
+  ierr = VecSetRandom(v, rand);CHKERRQ(ierr);
 
   ierr = VecDuplicate(x, &xtilde);CHKERRQ(ierr);
 
@@ -423,6 +423,94 @@ static PetscErrorCode TaylorTestVector(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode TaylorTestScalar(PetscFn fn)
+{
+  PetscRandom    rand;
+  PetscReal      e;
+  PetscReal      eStart = 1.;
+  PetscReal      eStop = PetscSqrtReal(PETSC_SMALL);
+  PetscReal      eMult = 0.5;
+  PetscReal      diffOld;
+  Mat            H;
+  Vec            x, xhat, xtilde;
+  PetscScalar    fx, fxtilde, fxtildePred, fxtildeDiff, gxhat;
+  Vec            g, gtilde, gtildePred, gtildeDiff, Hxhat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnCreateVecs(fn, NULL, &x);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, &xhat);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, &g);CHKERRQ(ierr);
+  ierr = PetscFnCreateMats(fn, NULL, NULL, NULL, NULL, &H, NULL);CHKERRQ(ierr);
+  ierr = PetscRandomCreate(PetscObjectComm((PetscObject)fn),&rand);CHKERRQ(ierr);
+  ierr = PetscRandomSetFromOptions(rand);CHKERRQ(ierr);
+  ierr = VecSetRandom(x, rand);CHKERRQ(ierr);
+  ierr = VecSetRandom(xhat, rand);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(x, &xtilde);CHKERRQ(ierr);
+
+
+  ierr = VecDuplicate(g, &gtilde);CHKERRQ(ierr);
+  ierr = VecDuplicate(g, &gtildePred);CHKERRQ(ierr);
+  ierr = VecDuplicate(g, &gtildeDiff);CHKERRQ(ierr);
+  ierr = VecDuplicate(g, &Hxhat);CHKERRQ(ierr);
+
+  ierr = PetscFnScalarApply(fn, x, &fx);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient(fn, x, g);CHKERRQ(ierr);
+  ierr = VecDot(g, xhat, &gxhat);CHKERRQ(ierr);
+
+  ierr = PetscFnScalarHessianMult(fn, x, xhat, Hxhat);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianCreate(fn, x, H, NULL);CHKERRQ(ierr);
+  for (e = eStart, diffOld = 0; e >= eStop; e *= eMult) {
+    PetscReal diff, logratio;
+
+    ierr = VecWAXPY(xtilde, e, xhat, x);CHKERRQ(ierr);
+
+    ierr = PetscFnScalarApply(fn, xtilde, &fxtilde);CHKERRQ(ierr);
+    fxtildePred = e * gxhat + fx;
+    fxtildeDiff = fxtildePred  - fxtilde;
+    diff = PetscAbsScalar(fxtildeDiff);
+
+    if (e == eStart) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| %e\n", (double) e, (double) diff);CHKERRQ(ierr);
+    } else {
+      logratio = PetscLog10Real (diff / diffOld) / PetscLog10Real(eMult);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
+    }
+    diffOld = diff;
+  }
+  for (e = eStart; e >= eStop; e *= eMult) {
+    PetscReal diff, logratio;
+
+    ierr = VecWAXPY(xtilde, e, xhat, x);CHKERRQ(ierr);
+
+    ierr = PetscFnScalarGradient(fn, xtilde, gtilde);CHKERRQ(ierr);
+    ierr = VecWAXPY(gtildePred, e, Hxhat, g);CHKERRQ(ierr);
+    ierr = VecWAXPY(gtildeDiff, -1., gtilde, gtildePred);CHKERRQ(ierr);
+    ierr = VecNorm(gtildeDiff, NORM_2, &diff);CHKERRQ(ierr);
+    if (e == eStart) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||v.f'(x+e*xhat) - v.f''(x).xhat - v.f'(x)|| %e\n", (double) e, (double) diff);CHKERRQ(ierr);
+    } else {
+      logratio = PetscLog10Real (diff / diffOld) / PetscLog10Real(eMult);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||v.f'(x+e*xhat) - v.f''(x).xhat - v.f'(x)|| %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
+    }
+    diffOld = diff;
+  }
+  ierr = MatDestroy(&H);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&Hxhat);CHKERRQ(ierr);
+  ierr = VecDestroy(&gtildeDiff);CHKERRQ(ierr);
+  ierr = VecDestroy(&gtildePred);CHKERRQ(ierr);
+  ierr = VecDestroy(&gtilde);CHKERRQ(ierr);
+  ierr = VecDestroy(&g);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xtilde);CHKERRQ(ierr);
+  ierr = VecDestroy(&xhat);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&rand);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   PetscFn        fn;
@@ -494,6 +582,7 @@ int main(int argc, char **argv)
     ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
 
     ierr = TaylorTestVector(fn);CHKERRQ(ierr);
+    ierr = TaylorTestScalar(fn);CHKERRQ(ierr);
 
     ierr = MatDestroy(&hes);CHKERRQ(ierr);
     ierr = MatDestroy(&adj);CHKERRQ(ierr);

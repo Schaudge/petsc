@@ -844,7 +844,7 @@ PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
   if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (!fn->ops->scalarapply) {
+  if (fn->ops->scalarapply) {
     ierr = (*fn->ops->scalarapply)(fn,x,z);CHKERRQ(ierr);
   } else if (fn->ops->apply) {
     Vec y;
@@ -873,7 +873,7 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
   if (fn->dmap->n != g->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec g: local dim %D %D",fn->dmap->n,g->map->n);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (!fn->ops->scalargradient) {
+  if (fn->ops->scalargradient) {
     ierr = (*fn->ops->scalargradient)(fn,x,g);CHKERRQ(ierr);
   } else if (fn->ops->jacobiancreateadjoint) {
     Mat JT;
@@ -913,7 +913,7 @@ PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(xhat);CHKERRQ(ierr);
-  if (!fn->ops->scalarhessianmult) {
+  if (fn->ops->scalarhessianmult) {
     ierr = (*fn->ops->scalarhessianmult)(fn,x,xhat,Hxhat);CHKERRQ(ierr);
   } else if (fn->ops->hessianmult) {
     Vec v;
@@ -956,7 +956,7 @@ PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
   if (!H && !Hpre) PetscFunctionReturn(0);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (!fn->ops->scalarhessiancreate) {
+  if (fn->ops->scalarhessiancreate) {
     ierr = (*fn->ops->scalarhessiancreate)(fn,x,H,Hpre);CHKERRQ(ierr);
   } else if (fn->ops->hessiancreate) {
     Vec v;
