@@ -252,8 +252,16 @@ static PetscErrorCode PetscFnScalarHessianCreate_Vec(PetscFn fn, Vec x, Mat H, M
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (H) {ierr = MatShift(H, 2.);CHKERRQ(ierr);}
-  if (Hpre && Hpre != H) {ierr = MatShift(Hpre, 2.);CHKERRQ(ierr);}
+  if (H) {
+    ierr = MatAssemblyBegin(H,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(H,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatShift(H, 2.);CHKERRQ(ierr);
+  }
+  if (Hpre && Hpre != H) {
+    ierr = MatAssemblyBegin(Hpre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(Hpre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatShift(Hpre, 2.);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -282,13 +290,122 @@ static PetscErrorCode PetscFnHessianCreate_Vec(PetscFn fn, Vec x, Vec v, Mat vH,
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode TaylorTestVector(PetscFn fn)
+{
+  PetscRandom    rand;
+  PetscReal      e;
+  PetscReal      eStart = 1.;
+  PetscReal      eStop = PETSC_SMALL;
+  PetscReal      eMult = 0.5;
+  PetscReal      diffOld;
+  Mat            J, JT, H;
+  Vec            x, xhat, v, xtilde;
+  Vec            fx, fxtilde, fxtildePred, fxtildeDiff, Jxhat;
+  Vec            JTv, JTvtilde, JTvtildePred, JTvtildeDiff, vHxhat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnCreateVecs(fn, &v, &x);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, &fx, &xhat);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, &Jxhat, &JTv);CHKERRQ(ierr);
+  ierr = PetscFnCreateMats(fn, &J, NULL, &JT, NULL, &H, NULL);CHKERRQ(ierr);
+  ierr = PetscRandomCreate(PetscObjectComm((PetscObject)fn),&rand);CHKERRQ(ierr);
+  ierr = PetscRandomSetFromOptions(rand);CHKERRQ(ierr);
+  ierr = VecSetRandom(x, rand);CHKERRQ(ierr);
+  ierr = VecSetRandom(v, rand);CHKERRQ(ierr);
+  ierr = VecSetRandom(xhat, rand);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(x, &xtilde);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(fx, &fxtilde);CHKERRQ(ierr);
+  ierr = VecDuplicate(fx, &fxtildePred);CHKERRQ(ierr);
+  ierr = VecDuplicate(fx, &fxtildeDiff);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(JTv, &JTvtilde);CHKERRQ(ierr);
+  ierr = VecDuplicate(JTv, &JTvtildePred);CHKERRQ(ierr);
+  ierr = VecDuplicate(JTv, &JTvtildeDiff);CHKERRQ(ierr);
+  ierr = VecDuplicate(JTv, &vHxhat);CHKERRQ(ierr);
+
+  ierr = PetscFnApply(fn, x, fx);CHKERRQ(ierr);
+  ierr = PetscFnJacobianMult(fn, x, xhat, Jxhat);CHKERRQ(ierr);
+
+  ierr = PetscFnJacobianMultAdjoint(fn, x, v, JTv);CHKERRQ(ierr);
+  ierr = PetscFnHessianMult(fn, x, v, xhat, vHxhat);CHKERRQ(ierr);
+  ierr = PetscFnJacobianCreate(fn, x, J, NULL);CHKERRQ(ierr);
+  ierr = PetscFnJacobianCreateAdjoint(fn, x, JT, NULL);CHKERRQ(ierr);
+  ierr = PetscFnHessianCreate(fn, x, v, H, NULL);CHKERRQ(ierr);
+  for (e = eStart, diffOld = 0; e >= eStop; e *= eMult) {
+    PetscReal diff, logratio;
+
+    ierr = VecWAXPY(xtilde, e, xhat, x);CHKERRQ(ierr);
+
+    ierr = PetscFnApply(fn, xtilde, fxtilde);CHKERRQ(ierr);
+    ierr = VecWAXPY(fxtildePred, e, Jxhat, fx);CHKERRQ(ierr);
+    ierr = VecWAXPY(fxtildeDiff, -1., fxtilde, fxtildePred);CHKERRQ(ierr);
+    ierr = VecNorm(fxtildeDiff, NORM_2, &diff);CHKERRQ(ierr);
+
+    if (e == eStart) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| %e\n", (double) e, (double) diff);CHKERRQ(ierr);
+    } else {
+      logratio = PetscLog10Real (diff / diffOld) / PetscLog10Real(eMult);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||f(x+e*xhat) - f'(x).xhat - f(x)|| %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
+    }
+    diffOld = diff;
+  }
+  for (e = eStart; e >= eStop; e *= eMult) {
+    PetscReal diff, logratio;
+
+    ierr = VecWAXPY(xtilde, e, xhat, x);CHKERRQ(ierr);
+
+    ierr = PetscFnJacobianMultAdjoint(fn, xtilde, v, JTvtilde);CHKERRQ(ierr);
+    ierr = VecWAXPY(JTvtildePred, e, vHxhat, JTv);CHKERRQ(ierr);
+    ierr = VecWAXPY(JTvtildeDiff, -1., JTvtilde, JTvtildePred);CHKERRQ(ierr);
+    ierr = VecNorm(JTvtildeDiff, NORM_2, &diff);CHKERRQ(ierr);
+    if (e == eStart) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||v.f'(x+e*xhat) - v.f''(x).xhat - v.f'(x)|| %e\n", (double) e, (double) diff);CHKERRQ(ierr);
+    } else {
+      logratio = PetscLog10Real (diff / diffOld) / PetscLog10Real(eMult);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fn), "e %e, ||v.f'(x+e*xhat) - v.f''(x).xhat - v.f'(x)|| %e, rate %g\n", (double) e, (double) diff, (double) logratio);CHKERRQ(ierr);
+    }
+  }
+  ierr = MatDestroy(&J);CHKERRQ(ierr);
+  ierr = MatDestroy(&JT);CHKERRQ(ierr);
+  ierr = MatDestroy(&H);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&vHxhat);CHKERRQ(ierr);
+  ierr = VecDestroy(&JTvtildeDiff);CHKERRQ(ierr);
+  ierr = VecDestroy(&JTvtildePred);CHKERRQ(ierr);
+  ierr = VecDestroy(&JTvtilde);CHKERRQ(ierr);
+  ierr = VecDestroy(&JTv);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&Jxhat);CHKERRQ(ierr);
+  ierr = VecDestroy(&fxtildeDiff);CHKERRQ(ierr);
+  ierr = VecDestroy(&fxtildePred);CHKERRQ(ierr);
+  ierr = VecDestroy(&fxtilde);CHKERRQ(ierr);
+  ierr = VecDestroy(&fx);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xtilde);CHKERRQ(ierr);
+  ierr = VecDestroy(&xhat);CHKERRQ(ierr);
+  ierr = VecDestroy(&v);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&rand);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   PetscFn        fn;
   PetscBool      isShell;
+  PetscBool      set_vector, set_scalar;
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
+  set_vector = PETSC_TRUE;
+  set_scalar = PETSC_TRUE;
+  ierr = PetscOptionsBegin(PETSC_COMM_WORLD, "", "PetscFn Test Options", "PetscFn");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-set_vector", "Set vector callbacks for PetscFnShell", "ex1.c", set_vector, &set_vector, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-set_scalar", "Set scalar callbacks for PetscFnShell", "ex1.c", set_scalar, &set_scalar, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   ierr = PetscFnCreate(PETSC_COMM_WORLD, &fn);CHKERRQ(ierr);
   ierr = PetscFnSetSizes(fn, PETSC_DECIDE, 1, 1, PETSC_DETERMINE);CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(fn);CHKERRQ(ierr);
@@ -320,24 +437,32 @@ int main(int argc, char **argv)
     ierr = PetscObjectReference((PetscObject)v);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
     ierr = PetscFnShellSetOperation(fn,PETSCFNOP_DESTROY,(void (*)(void))PetscFnDestroy_Vec);CHKERRQ(ierr);
-
     ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEVECS,(void (*)(void))PetscFnCreateVecs_Vec);CHKERRQ(ierr);
     ierr = PetscFnCreateVecs(fn,&d,&r);CHKERRQ(ierr);
     ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEMATS,(void (*)(void))PetscFnCreateMats_Vec);CHKERRQ(ierr);
     ierr = PetscFnCreateMats(fn, &jac, NULL, &adj, NULL, &hes, NULL);CHKERRQ(ierr);
 
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_APPLY,(void (*)(void))PetscFnApply_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULT,(void (*)(void))PetscFnJacobianMult_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULTADJOINT,(void (*)(void))PetscFnJacobianMultAdjoint_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANCREATE,(void (*)(void))PetscFnJacobianCreate_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANCREATEADJOINT,(void (*)(void))PetscFnJacobianCreateAdjoint_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULT,(void (*)(void))PetscFnHessianMult_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANCREATE,(void (*)(void))PetscFnHessianCreate_Vec);CHKERRQ(ierr);
+    if (set_vector) {
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_APPLY,(void (*)(void))PetscFnApply_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULT,(void (*)(void))PetscFnJacobianMult_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULTADJOINT,(void (*)(void))PetscFnJacobianMultAdjoint_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANCREATE,(void (*)(void))PetscFnJacobianCreate_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANCREATEADJOINT,(void (*)(void))PetscFnJacobianCreateAdjoint_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULT,(void (*)(void))PetscFnHessianMult_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANCREATE,(void (*)(void))PetscFnHessianCreate_Vec);CHKERRQ(ierr);
+    }
 
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARAPPLY,(void (*)(void))PetscFnScalarApply_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARGRADIENT,(void (*)(void))PetscFnScalarGradient_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANMULT,(void (*)(void))PetscFnScalarHessianMult_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANCREATE,(void (*)(void))PetscFnScalarHessianCreate_Vec);CHKERRQ(ierr);
+    if (set_scalar) {
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARAPPLY,(void (*)(void))PetscFnScalarApply_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARGRADIENT,(void (*)(void))PetscFnScalarGradient_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANMULT,(void (*)(void))PetscFnScalarHessianMult_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANCREATE,(void (*)(void))PetscFnScalarHessianCreate_Vec);CHKERRQ(ierr);
+    }
+
+    ierr = PetscFnSetFromOptions(fn);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+
+    ierr = TaylorTestVector(fn);CHKERRQ(ierr);
 
     ierr = MatDestroy(&hes);CHKERRQ(ierr);
     ierr = MatDestroy(&adj);CHKERRQ(ierr);
