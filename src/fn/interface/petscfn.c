@@ -46,14 +46,6 @@ PetscErrorCode PetscFnCreate(MPI_Comm comm,PetscFn *fn)
   ierr = PetscHeaderCreate(B,PETSCFN_CLASSID,"PetscFn","Function","PetscFn",comm,PetscFnDestroy,PetscFnView);CHKERRQ(ierr);
   ierr = PetscLayoutCreate(comm,&B->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutCreate(comm,&B->dmap);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(VECSTANDARD,(char**)&B->rangeType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(VECSTANDARD,(char**)&B->domainType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(MATAIJ,(char**)&B->jacType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(MATAIJ,(char**)&B->jacPreType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(MATAIJ,(char**)&B->adjType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(MATAIJ,(char**)&B->adjPreType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(MATAIJ,(char**)&B->hesType);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(MATAIJ,(char**)&B->hesPreType);CHKERRQ(ierr);
 
   B->isScalar    = PETSC_FALSE;
   B->setupcalled = PETSC_FALSE;
@@ -89,10 +81,12 @@ PetscErrorCode PetscFnDestroy(PetscFn *fn)
   ierr = PetscFree((*fn)->domainType);CHKERRQ(ierr);
   ierr = PetscFree((*fn)->jacType);CHKERRQ(ierr);
   ierr = PetscFree((*fn)->jacPreType);CHKERRQ(ierr);
-  ierr = PetscFree((*fn)->adjType);CHKERRQ(ierr);
-  ierr = PetscFree((*fn)->adjPreType);CHKERRQ(ierr);
+  ierr = PetscFree((*fn)->jacadjType);CHKERRQ(ierr);
+  ierr = PetscFree((*fn)->jacadjPreType);CHKERRQ(ierr);
   ierr = PetscFree((*fn)->hesType);CHKERRQ(ierr);
   ierr = PetscFree((*fn)->hesPreType);CHKERRQ(ierr);
+  ierr = PetscFree((*fn)->hesadjType);CHKERRQ(ierr);
+  ierr = PetscFree((*fn)->hesadjPreType);CHKERRQ(ierr);
 
   ierr = PetscLayoutDestroy(&(*fn)->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutDestroy(&(*fn)->dmap);CHKERRQ(ierr);
@@ -208,8 +202,43 @@ PetscErrorCode PetscFnSetFromOptions(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnSetUp_MatType(MPI_Comm comm, MatType typein, char *typeout[])
+{
+  Mat            A;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  typein = typein ? typein : MATAIJ;
+  ierr = MatCreate(comm, &A);CHKERRQ(ierr);
+  ierr = MatSetSizes(A, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = MatSetType(A, typein);CHKERRQ(ierr);
+  ierr = MatGetType(A, &typein);CHKERRQ(ierr);
+  ierr = PetscFree(*typeout);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(typein, typeout);CHKERRQ(ierr);
+  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnSetUp_VecType(MPI_Comm comm, VecType typein, char *typeout[])
+{
+  Vec            A;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  typein = typein ? typein : VECSTANDARD;
+  ierr = VecCreate(comm, &A);CHKERRQ(ierr);
+  ierr = VecSetSizes(A, 0, 0);CHKERRQ(ierr);
+  ierr = VecSetType(A, typein);CHKERRQ(ierr);
+  ierr = VecGetType(A, &typein);CHKERRQ(ierr);
+  ierr = PetscFree(*typeout);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(typein, typeout);CHKERRQ(ierr);
+  ierr = VecDestroy(&A);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode PetscFnSetUp(PetscFn fn)
 {
+  MPI_Comm       comm;
   const char     *deft = PETSCFNSHELL;
   PetscErrorCode ierr;
 
@@ -227,6 +256,13 @@ PetscErrorCode PetscFnSetUp(PetscFn fn)
   ierr = PetscLayoutSetUp(fn->dmap);CHKERRQ(ierr);
   fn->isScalar = PETSC_FALSE;
   if (fn->rmap->N == 1) fn->isScalar = PETSC_TRUE;
+  comm = PetscObjectComm((PetscObject)fn);
+  ierr = PetscFnSetUp_VecType(comm, fn->rangeType,  (char **) &(fn->rangeType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_VecType(comm, fn->domainType, (char **) &(fn->domainType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->jacType,    (char **) &(fn->jacType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->jacadjType, (char **) &(fn->jacadjType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesType,    (char **) &(fn->hesType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesadjType, (char **) &(fn->hesadjType));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -304,7 +340,7 @@ PetscErrorCode PetscFnGetVecTypes(PetscFn fn, VecType *rangeType, VecType *domai
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnSetJacobianMatTypes(PetscFn fn, MatType jacType, MatType jacPreType, MatType adjType, MatType adjPreType)
+PetscErrorCode PetscFnSetJacobianMatTypes(PetscFn fn, MatType jacType, MatType jacPreType, MatType jacadjType, MatType jacadjPreType)
 {
   PetscErrorCode ierr;
 
@@ -318,18 +354,18 @@ PetscErrorCode PetscFnSetJacobianMatTypes(PetscFn fn, MatType jacType, MatType j
     ierr = PetscFree(fn->jacPreType);CHKERRQ(ierr);
     ierr = PetscStrallocpy(jacPreType,(char**)&fn->jacPreType);CHKERRQ(ierr);
   }
-  if (adjType) {
-    ierr = PetscFree(fn->adjType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(adjType,(char**)&fn->adjType);CHKERRQ(ierr);
+  if (jacadjType) {
+    ierr = PetscFree(fn->jacadjType);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(jacadjType,(char**)&fn->jacadjType);CHKERRQ(ierr);
   }
-  if (adjPreType) {
-    ierr = PetscFree(fn->adjPreType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(adjPreType,(char**)&fn->adjPreType);CHKERRQ(ierr);
+  if (jacadjPreType) {
+    ierr = PetscFree(fn->jacadjPreType);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(jacadjPreType,(char**)&fn->jacadjPreType);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnGetJacobianMatTypes(PetscFn fn, MatType *jacType, MatType *jacPreType, MatType *adjType, MatType *adjPreType)
+PetscErrorCode PetscFnGetJacobianMatTypes(PetscFn fn, MatType *jacType, MatType *jacPreType, MatType *jacadjType, MatType *jacadjPreType)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
@@ -339,16 +375,16 @@ PetscErrorCode PetscFnGetJacobianMatTypes(PetscFn fn, MatType *jacType, MatType 
   if (jacPreType) {
     *jacPreType = fn->jacPreType;
   }
-  if (adjType) {
-    *adjType = fn->adjType;
+  if (jacadjType) {
+    *jacadjType = fn->jacadjType;
   }
-  if (adjPreType) {
-    *adjPreType = fn->adjPreType;
+  if (jacadjPreType) {
+    *jacadjPreType = fn->jacadjPreType;
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnSetHessianMatTypes(PetscFn fn, MatType hesType, MatType hesPreType)
+PetscErrorCode PetscFnSetHessianMatTypes(PetscFn fn, MatType hesType, MatType hesPreType, MatType hesadjType, MatType hesadjPreType)
 {
   PetscErrorCode ierr;
 
@@ -362,10 +398,19 @@ PetscErrorCode PetscFnSetHessianMatTypes(PetscFn fn, MatType hesType, MatType he
     ierr = PetscFree(fn->hesPreType);CHKERRQ(ierr);
     ierr = PetscStrallocpy(hesPreType,(char**)&fn->hesPreType);CHKERRQ(ierr);
   }
+  if (hesadjType) {
+    ierr = PetscFree(fn->hesadjType);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(hesadjType,(char**)&fn->hesadjType);CHKERRQ(ierr);
+  }
+  if (hesadjPreType) {
+    ierr = PetscFree(fn->hesadjPreType);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(hesadjPreType,(char**)&fn->hesadjPreType);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnGetHessianMatTypes(PetscFn fn, MatType *hesType, MatType *hesPreType)
+
+PetscErrorCode PetscFnGetHessianMatTypes(PetscFn fn, MatType *hesType, MatType *hesPreType, MatType *hesadjType, MatType *hesadjPreType)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
@@ -374,6 +419,12 @@ PetscErrorCode PetscFnGetHessianMatTypes(PetscFn fn, MatType *hesType, MatType *
   }
   if (hesPreType) {
     *hesPreType = fn->hesPreType;
+  }
+  if (hesadjType) {
+    *hesadjType = fn->hesadjType;
+  }
+  if (hesadjPreType) {
+    *hesadjPreType = fn->hesadjPreType;
   }
   PetscFunctionReturn(0);
 }
@@ -441,38 +492,16 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnCreateMats(PetscFn fn, Mat *jac, Mat *jacPre, Mat *adj, Mat *adjPre, Mat *hes, Mat *hesPre)
+static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], PetscLayout layouts[3][2], MatType types[4], PetscErrorCode (*op) (PetscFn,Mat*,Mat*,Mat*,Mat*))
 {
   PetscInt       i;
-  MatType        types[6];
-  PetscLayout    layouts[3][2];
-  Mat*           mats[6];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  types[0] = fn->jacType;
-  types[1] = fn->jacPreType;
-  types[2] = fn->adjType;
-  types[3] = fn->adjPreType;
-  types[4] = fn->hesType;
-  types[5] = fn->hesPreType;
-  layouts[0][0] = fn->rmap;
-  layouts[0][1] = fn->dmap;
-  layouts[1][0] = fn->dmap;
-  layouts[1][1] = fn->rmap;
-  layouts[2][0] = fn->dmap;
-  layouts[2][1] = fn->dmap;
-  if (fn->ops->createmats) {
-    ierr = (*(fn->ops->createmats)) (fn, jac, jacPre, adj, adjPre, hes, hesPre);CHKERRQ(ierr);
+  if (op) {
+    ierr = (*op)(fn, mats[0], mats[1], mats[2], mats[3]);CHKERRQ(ierr);
 #if defined(PETSC_USE_DEBUG)
-    mats[0] = jac;
-    mats[1] = jacPre;
-    mats[2] = adj;
-    mats[3] = adjPre;
-    mats[4] = hes;
-    mats[5] = hesPre;
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < 4; i++) {
       PetscBool same;
       MatType   rettype;
       Mat       dummy;
@@ -493,15 +522,8 @@ PetscErrorCode PetscFnCreateMats(PetscFn fn, Mat *jac, Mat *jacPre, Mat *adj, Ma
       ierr = MatDestroy(&dummy);CHKERRQ(ierr);
     }
 #endif
-  }
-  else {
-    mats[0] = jac;
-    mats[1] = jacPre;
-    mats[2] = adj;
-    mats[3] = adjPre;
-    mats[4] = hes;
-    mats[5] = hesPre;
-    for (i = 0; i < 6; i++) {
+  } else {
+    for (i = 0; i < 4; i++) {
       PetscInt m, M, n, N;
       if (!mats[i]) continue;
       ierr = MatCreate(PetscObjectComm((PetscObject)fn),mats[i]);CHKERRQ(ierr);
@@ -513,6 +535,56 @@ PetscErrorCode PetscFnCreateMats(PetscFn fn, Mat *jac, Mat *jacPre, Mat *adj, Ma
       ierr = MatSetSizes(*(mats[i]),n,m,N,M);CHKERRQ(ierr);
     }
   }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnCreateJacobianMats(PetscFn fn, Mat *jac, Mat *jacPre, Mat *jacadj, Mat *jacadjPre)
+{
+  MatType        types[4];
+  PetscLayout    layouts[3][2];
+  Mat*           mats[4];
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  types[0] = fn->jacType;
+  types[1] = fn->jacPreType;
+  types[2] = fn->jacadjType;
+  types[3] = fn->jacadjPreType;
+  layouts[0][0] = fn->rmap;
+  layouts[0][1] = fn->dmap;
+  layouts[1][0] = fn->dmap;
+  layouts[1][1] = fn->rmap;
+  mats[0] = jac;
+  mats[1] = jacPre;
+  mats[2] = jacadj;
+  mats[3] = jacadjPre;
+  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, fn->ops->createjacobianmats);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnCreateHessianMats(PetscFn fn, Mat *hes, Mat *hesPre, Mat *hesadj, Mat *hesadjPre)
+{
+  MatType        types[4];
+  PetscLayout    layouts[3][2];
+  Mat*           mats[4];
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  types[0] = fn->hesType;
+  types[1] = fn->hesPreType;
+  types[2] = fn->hesadjType;
+  types[3] = fn->hesadjPreType;
+  layouts[0][0] = fn->rmap;
+  layouts[0][1] = fn->dmap;
+  layouts[1][0] = fn->dmap;
+  layouts[1][1] = fn->dmap;
+  mats[0] = hes;
+  mats[1] = hesPre;
+  mats[2] = hesadj;
+  mats[3] = hesadjPre;
+  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, fn->ops->createhessianmats);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -607,7 +679,7 @@ static PetscErrorCode PetscFnVecScalarBcast(Vec v, PetscScalar *zp)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec JTv)
+PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec Jadjv)
 {
   PetscErrorCode ierr;
 
@@ -616,27 +688,27 @@ PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec JTv)
   PetscValidType(fn,1);
   PetscValidHeaderSpecific(x,VEC_CLASSID,2);
   PetscValidHeaderSpecific(v,VEC_CLASSID,3);
-  PetscValidHeaderSpecific(JTv,VEC_CLASSID,4);
+  PetscValidHeaderSpecific(Jadjv,VEC_CLASSID,4);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
   if (x == v) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"x and v must be different vectors");
-  if (x == JTv) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"x and JTv must be different vectors");
-  if (v == JTv) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"v and JTv must be different vectors");
+  if (x == Jadjv) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"x and Jadjv must be different vectors");
+  if (v == Jadjv) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"v and Jadjv must be different vectors");
   if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
   if (fn->rmap->N != v->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec v: global dim %D %D",fn->rmap->N,v->map->N);
-  if (fn->dmap->N != JTv->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec JTv: global dim %D %D",fn->dmap->N,JTv->map->N);
-  if (fn->dmap->n != JTv->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec JTv: local dim %D %D",fn->dmap->n,JTv->map->n);
-  VecLocked(JTv,4);
+  if (fn->dmap->N != Jadjv->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Jadjv: global dim %D %D",fn->dmap->N,Jadjv->map->N);
+  if (fn->dmap->n != Jadjv->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Jadjv: local dim %D %D",fn->dmap->n,Jadjv->map->n);
+  VecLocked(Jadjv,4);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(v);CHKERRQ(ierr);
   if (fn->ops->jacobianmultadjoint) {
-    ierr = (*fn->ops->jacobianmultadjoint)(fn,x,v,JTv);CHKERRQ(ierr);
+    ierr = (*fn->ops->jacobianmultadjoint)(fn,x,v,Jadjv);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalargradient) {
     PetscScalar z;
 
-    ierr = (*fn->ops->scalargradient) (fn, x, JTv); CHKERRQ(ierr);
+    ierr = (*fn->ops->scalargradient) (fn, x, Jadjv); CHKERRQ(ierr);
     ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
-    ierr = VecScale(JTv, z);CHKERRQ(ierr);
+    ierr = VecScale(Jadjv, z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(v);CHKERRQ(ierr);
   ierr = VecLockPop(x);CHKERRQ(ierr);
@@ -696,7 +768,7 @@ PetscErrorCode PetscFnJacobianCreate(PetscFn fn, Vec x, Mat J, Mat Jpre)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat A, Mat Apre)
+PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
 {
   PetscErrorCode ierr;
 
@@ -705,26 +777,26 @@ PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat A, Mat Apre)
   PetscValidType(fn,1);
   PetscValidHeaderSpecific(x,VEC_CLASSID,2);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
-  if (A) {
-    PetscValidHeaderSpecific(A,MAT_CLASSID,3);
-    if (fn->dmap->N != A->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat A: global domain/row dim %D %D",fn->dmap->N,A->rmap->N);
-    if (fn->dmap->n != A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat A: local domain/row dim %D %D",fn->dmap->n,A->rmap->n);
-    if (fn->rmap->N != A->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat A: global range/column dim %D %D",fn->rmap->N,A->cmap->N);
-    if (fn->rmap->n != A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat A: local range/column dim %D %D",fn->rmap->n,A->cmap->n);
+  if (Jadj) {
+    PetscValidHeaderSpecific(Jadj,MAT_CLASSID,3);
+    if (fn->dmap->N != Jadj->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadj: global domain/row dim %D %D",fn->dmap->N,Jadj->rmap->N);
+    if (fn->dmap->n != Jadj->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadj: local domain/row dim %D %D",fn->dmap->n,Jadj->rmap->n);
+    if (fn->rmap->N != Jadj->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadj: global range/column dim %D %D",fn->rmap->N,Jadj->cmap->N);
+    if (fn->rmap->n != Jadj->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadj: local range/column dim %D %D",fn->rmap->n,Jadj->cmap->n);
   }
-  if (Apre) {
-    PetscValidHeaderSpecific(Apre,VEC_CLASSID,4);
-    if (fn->dmap->N != Apre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Apre: global domain/row dim %D %D",fn->dmap->N,Apre->rmap->N);
-    if (fn->dmap->n != Apre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Apre: local domain/row dim %D %D",fn->dmap->n,Apre->rmap->n);
-    if (fn->rmap->N != Apre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Apre: global range/column dim %D %D",fn->rmap->N,Apre->cmap->N);
-    if (fn->rmap->n != Apre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Apre: local range/column dim %D %D",fn->rmap->n,Apre->cmap->n);
+  if (Jadjpre) {
+    PetscValidHeaderSpecific(Jadjpre,VEC_CLASSID,4);
+    if (fn->dmap->N != Jadjpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: global domain/row dim %D %D",fn->dmap->N,Jadjpre->rmap->N);
+    if (fn->dmap->n != Jadjpre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: local domain/row dim %D %D",fn->dmap->n,Jadjpre->rmap->n);
+    if (fn->rmap->N != Jadjpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: global range/column dim %D %D",fn->rmap->N,Jadjpre->cmap->N);
+    if (fn->rmap->n != Jadjpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: local range/column dim %D %D",fn->rmap->n,Jadjpre->cmap->n);
   }
-  if (!A && !Apre) PetscFunctionReturn(0);
+  if (!Jadj && !Jadjpre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
   if (fn->ops->jacobiancreateadjoint) {
-    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,A,Apre);CHKERRQ(ierr);
+    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,Jadj,Jadjpre);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalargradient) {
-    Mat                adj = A ? A : Apre;
+    Mat                jacadj = Jadj ? Jadj : Jadjpre;
     const PetscScalar *ga;
     Vec                g;
     PetscInt           zero = 0;
@@ -736,20 +808,63 @@ PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat A, Mat Apre)
     ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
     ierr = VecGetArrayRead(g, &ga);CHKERRQ(ierr);
-    ierr = MatSetValues(adj, iEnd - iStart, ia, 1, &zero, ga, INSERT_VALUES);CHKERRQ(ierr);
+    ierr = MatSetValues(jacadj, iEnd - iStart, ia, 1, &zero, ga, INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(g, &ga);CHKERRQ(ierr);
     ierr = PetscFree(ia);CHKERRQ(ierr);
     ierr = VecDestroy(&g);CHKERRQ(ierr);
-    ierr = MatAssemblyBegin(adj,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatAssemblyEnd(adj,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    if (A && A != adj) {ierr = MatCopy(adj, A, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-    if (Apre && Apre != adj) {ierr = MatCopy(adj, Apre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    ierr = MatAssemblyBegin(jacadj,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(jacadj,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    if (Jadj && Jadj != jacadj) {ierr = MatCopy(jacadj, Jadj, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (Jadjpre && Jadjpre != jacadj) {ierr = MatCopy(jacadj, Jadjpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec v, Vec xhat, Vec vHxhat)
+PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec Hxhatxdot)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(xhat,VEC_CLASSID,3);
+  PetscValidHeaderSpecific(xdot,VEC_CLASSID,4);
+  PetscValidHeaderSpecific(Hxhatxdot,VEC_CLASSID,5);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (x == Hxhatxdot) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"x and Hxhatxdot must be different vectors");
+  if (x == Hxhatxdot) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"v and Hxhatxdot must be different vectors");
+  if (xhat == Hxhatxdot) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"xhat and Hxhatxdot must be different vectors");
+  if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
+  if (fn->dmap->N != xhat->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec xhat: global dim %D %D",fn->dmap->N,xhat->map->N);
+  if (fn->dmap->N != xdot->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec xdot: global dim %D %D",fn->dmap->N,xdot->map->N);
+  if (fn->rmap->N != Hxhatxdot->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Hxhatxdot: global dim %D %D",fn->rmap->N,Hxhatxdot->map->N);
+  if (fn->rmap->n != Hxhatxdot->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Hxhatxdot: local dim %D %D",fn->rmap->n,Hxhatxdot->map->n);
+  VecLocked(Hxhatxdot,5);
+
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockPush(xhat);CHKERRQ(ierr);
+  ierr = VecLockPush(xdot);CHKERRQ(ierr);
+  if (fn->ops->hessianmult) {
+    ierr = (*fn->ops->hessianmult)(fn,x,xhat,xdot,Hxhatxdot);CHKERRQ(ierr);
+  } else if (fn->isScalar && fn->ops->scalarhessianmult) {
+    PetscScalar z;
+    Vec         Hxhat;
+
+    ierr = VecDuplicate(xhat, &Hxhat);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarhessianmult) (fn, x, xhat, Hxhat); CHKERRQ(ierr);
+    ierr = VecDot(Hxhat, xdot, &z);CHKERRQ(ierr);
+    ierr = VecSet(Hxhatxdot, z);CHKERRQ(ierr);
+    ierr = VecDestroy(&Hxhat);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(xdot);CHKERRQ(ierr);
+  ierr = VecLockPop(xhat);CHKERRQ(ierr);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnHessianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec xhat, Vec Hadjvxhat)
 {
   PetscErrorCode ierr;
 
@@ -759,29 +874,29 @@ PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec v, Vec xhat, Vec vHxhat
   PetscValidHeaderSpecific(x,VEC_CLASSID,2);
   PetscValidHeaderSpecific(v,VEC_CLASSID,3);
   PetscValidHeaderSpecific(xhat,VEC_CLASSID,4);
-  PetscValidHeaderSpecific(vHxhat,VEC_CLASSID,4);
+  PetscValidHeaderSpecific(Hadjvxhat,VEC_CLASSID,4);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
-  if (x == vHxhat) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"x and vHxhat must be different vectors");
-  if (v == vHxhat) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"v and vHxhat must be different vectors");
-  if (xhat == vHxhat) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"xhat and vHxhat must be different vectors");
+  if (x == Hadjvxhat) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"x and Hadjvxhat must be different vectors");
+  if (v == Hadjvxhat) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"v and Hadjvxhat must be different vectors");
+  if (xhat == Hadjvxhat) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_WRONGSTATE,"xhat and Hadjvxhat must be different vectors");
   if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
   if (fn->rmap->N != v->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec v: global dim %D %D",fn->rmap->N,v->map->N);
   if (fn->dmap->N != xhat->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec xhat: global dim %D %D",fn->dmap->N,xhat->map->N);
-  if (fn->dmap->N != vHxhat->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec vHxhat: global dim %D %D",fn->dmap->N,vHxhat->map->N);
-  if (fn->dmap->n != vHxhat->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec vHxhat: local dim %D %D",fn->dmap->n,vHxhat->map->n);
-  VecLocked(vHxhat,5);
+  if (fn->dmap->N != Hadjvxhat->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Hadjvxhat: global dim %D %D",fn->dmap->N,Hadjvxhat->map->N);
+  if (fn->dmap->n != Hadjvxhat->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec Hadjvxhat: local dim %D %D",fn->dmap->n,Hadjvxhat->map->n);
+  VecLocked(Hadjvxhat,5);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(v);CHKERRQ(ierr);
   ierr = VecLockPush(xhat);CHKERRQ(ierr);
-  if (fn->ops->hessianmult) {
-    ierr = (*fn->ops->hessianmult)(fn,x,v,xhat,vHxhat);CHKERRQ(ierr);
+  if (fn->ops->hessianmultadjoint) {
+    ierr = (*fn->ops->hessianmultadjoint)(fn,x,v,xhat,Hadjvxhat);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarhessianmult) {
     PetscScalar z;
 
-    ierr = (*fn->ops->scalarhessianmult) (fn, x, xhat, vHxhat); CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarhessianmult) (fn, x, xhat, Hadjvxhat); CHKERRQ(ierr);
     ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
-    ierr = VecScale(vHxhat, z);CHKERRQ(ierr);
+    ierr = VecScale(Hadjvxhat, z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(xhat);CHKERRQ(ierr);
   ierr = VecLockPop(v);CHKERRQ(ierr);
@@ -789,7 +904,62 @@ PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec v, Vec xhat, Vec vHxhat
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec v, Mat H, Mat Hpre)
+PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(xhat,VEC_CLASSID,3);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (H) {
+    PetscValidHeaderSpecific(H,MAT_CLASSID,4);
+    if (fn->dmap->N != H->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: global domain/column dim %D %D",fn->dmap->N,H->cmap->N);
+    if (fn->dmap->n != H->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local domain/column dim %D %D",fn->dmap->n,H->cmap->n);
+    if (fn->rmap->N != H->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: global range/row dim %D %D",fn->rmap->N,H->rmap->N);
+    if (fn->rmap->n != H->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local range/row dim %D %D",fn->rmap->n,H->rmap->n);
+  }
+  if (Hpre) {
+    PetscValidHeaderSpecific(Hpre,VEC_CLASSID,5);
+    if (fn->dmap->N != Hpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/column dim %D %D",fn->dmap->N,Hpre->cmap->N);
+    if (fn->dmap->n != Hpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/column dim %D %D",fn->dmap->n,Hpre->cmap->n);
+    if (fn->rmap->N != Hpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global range/row dim %D %D",fn->rmap->N,Hpre->rmap->N);
+    if (fn->rmap->n != Hpre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local range/row dim %D %D",fn->rmap->n,Hpre->rmap->n);
+  }
+  if (!H && !Hpre) PetscFunctionReturn(0);
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockPush(xhat);CHKERRQ(ierr);
+  if (fn->ops->hessiancreate) {
+    ierr = (*fn->ops->hessiancreate)(fn,x,xhat,H,Hpre);CHKERRQ(ierr);
+  } else if (fn->isScalar && fn->ops->scalarhessianmult) {
+    Mat                hes = H ? H : Hpre;
+    Vec                Hxhat;
+    PetscInt           i, iStart, iEnd, *ia, zero = 0;
+    const PetscScalar *ga;
+
+    ierr = VecDuplicate(xhat, &Hxhat);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarhessianmult) (fn, x, xhat, Hxhat);CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(Hxhat, &iStart, &iEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
+    for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
+    ierr = VecGetArrayRead(Hxhat, &ga);CHKERRQ(ierr);
+    ierr = MatSetValues(hes, iEnd - iStart, ia, 1, &zero, ga, INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(Hxhat, &ga);CHKERRQ(ierr);
+    ierr = PetscFree(ia);CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    if (H && H != hes) {ierr = MatCopy(hes, H, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (Hpre && Hpre != hes) {ierr = MatCopy(hes, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    ierr = VecDestroy(&Hxhat);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(xhat);CHKERRQ(ierr);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, Mat Hadjpre)
 {
   PetscErrorCode ierr;
 
@@ -799,32 +969,32 @@ PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec v, Mat H, Mat Hpre)
   PetscValidHeaderSpecific(x,VEC_CLASSID,2);
   PetscValidHeaderSpecific(v,VEC_CLASSID,3);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
-  if (H) {
-    PetscValidHeaderSpecific(H,MAT_CLASSID,4);
-    if (fn->dmap->N != H->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: global domain/column dim %D %D",fn->dmap->N,H->cmap->N);
-    if (fn->dmap->n != H->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local domain/column dim %D %D",fn->dmap->n,H->cmap->n);
-    if (fn->dmap->N != H->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: global domain/row dim %D %D",fn->dmap->N,H->rmap->N);
-    if (fn->dmap->n != H->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local domain/row dim %D %D",fn->dmap->n,H->rmap->n);
+  if (Hadj) {
+    PetscValidHeaderSpecific(Hadj,MAT_CLASSID,4);
+    if (fn->dmap->N != Hadj->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadj: global domain/column dim %D %D",fn->dmap->N,Hadj->cmap->N);
+    if (fn->dmap->n != Hadj->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadj: local domain/column dim %D %D",fn->dmap->n,Hadj->cmap->n);
+    if (fn->dmap->N != Hadj->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadj: global domain/row dim %D %D",fn->dmap->N,Hadj->rmap->N);
+    if (fn->dmap->n != Hadj->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadj: local domain/row dim %D %D",fn->dmap->n,Hadj->rmap->n);
   }
-  if (Hpre) {
-    PetscValidHeaderSpecific(Hpre,VEC_CLASSID,5);
-    if (fn->dmap->N != Hpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/column dim %D %D",fn->dmap->N,Hpre->cmap->N);
-    if (fn->dmap->n != Hpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/column dim %D %D",fn->dmap->n,Hpre->cmap->n);
-    if (fn->dmap->N != Hpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/row dim %D %D",fn->dmap->N,Hpre->rmap->N);
-    if (fn->dmap->n != Hpre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/row dim %D %D",fn->dmap->n,Hpre->rmap->n);
+  if (Hadjpre) {
+    PetscValidHeaderSpecific(Hadjpre,VEC_CLASSID,5);
+    if (fn->dmap->N != Hadjpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: global domain/column dim %D %D",fn->dmap->N,Hadjpre->cmap->N);
+    if (fn->dmap->n != Hadjpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: local domain/column dim %D %D",fn->dmap->n,Hadjpre->cmap->n);
+    if (fn->dmap->N != Hadjpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: global domain/row dim %D %D",fn->dmap->N,Hadjpre->rmap->N);
+    if (fn->dmap->n != Hadjpre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: local domain/row dim %D %D",fn->dmap->n,Hadjpre->rmap->n);
   }
-  if (!H && !Hpre) PetscFunctionReturn(0);
+  if (!Hadj && !Hadjpre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(v);CHKERRQ(ierr);
-  if (fn->ops->hessiancreate) {
-    ierr = (*fn->ops->hessiancreate)(fn,x,v,H,Hpre);CHKERRQ(ierr);
+  if (fn->ops->hessiancreateadjoint) {
+    ierr = (*fn->ops->hessiancreateadjoint)(fn,x,v,Hadj,Hadjpre);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarhessiancreate) {
     PetscScalar z;
 
-    ierr = (*fn->ops->scalarhessiancreate) (fn, x, H, Hpre);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarhessiancreate) (fn, x, Hadj, Hadjpre);CHKERRQ(ierr);
     ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
-    if (H) {ierr = MatScale(H,z);CHKERRQ(ierr);}
-    if (Hpre && Hpre != H) {ierr = MatScale(Hpre,z);CHKERRQ(ierr);}
+    if (Hadj) {ierr = MatScale(Hadj,z);CHKERRQ(ierr);}
+    if (Hadjpre && Hadjpre != Hadj) {ierr = MatScale(Hadjpre,z);CHKERRQ(ierr);}
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(v);CHKERRQ(ierr);
   ierr = VecLockPop(x);CHKERRQ(ierr);
@@ -876,21 +1046,21 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
   if (fn->ops->scalargradient) {
     ierr = (*fn->ops->scalargradient)(fn,x,g);CHKERRQ(ierr);
   } else if (fn->ops->jacobiancreateadjoint) {
-    Mat JT;
+    Mat Jadj;
     PetscInt i, iStart, iEnd, *ia;
     PetscInt zero = 0;
     PetscScalar *ga;
 
-    ierr = PetscFnCreateMats(fn, NULL, NULL, &JT, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,JT,NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateJacobianMats(fn, NULL, NULL, &Jadj, NULL);CHKERRQ(ierr);
+    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,Jadj,NULL);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(x,&iStart,&iEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(iEnd - iStart,&ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
     ierr = VecGetArray(g, &ga);CHKERRQ(ierr);
-    ierr = MatGetValues(JT,iEnd - iStart, ia, 1, &zero, ga);CHKERRQ(ierr);
+    ierr = MatGetValues(Jadj,iEnd - iStart, ia, 1, &zero, ga);CHKERRQ(ierr);
     ierr = VecRestoreArray(g, &ga);CHKERRQ(ierr);
     ierr = PetscFree(ia);CHKERRQ(ierr);
-    ierr = MatDestroy(&JT);CHKERRQ(ierr);
+    ierr = MatDestroy(&Jadj);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -915,12 +1085,12 @@ PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
   ierr = VecLockPush(xhat);CHKERRQ(ierr);
   if (fn->ops->scalarhessianmult) {
     ierr = (*fn->ops->scalarhessianmult)(fn,x,xhat,Hxhat);CHKERRQ(ierr);
-  } else if (fn->ops->hessianmult) {
+  } else if (fn->ops->hessianmultadjoint) {
     Vec v;
 
     ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
     ierr = VecSet(v, 1.);CHKERRQ(ierr);
-    ierr = (*fn->ops->hessianmult)(fn,x,v,xhat,Hxhat);CHKERRQ(ierr);
+    ierr = (*fn->ops->hessianmultadjoint)(fn,x,v,xhat,Hxhat);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(xhat);CHKERRQ(ierr);
@@ -958,12 +1128,12 @@ PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
   ierr = VecLockPush(x);CHKERRQ(ierr);
   if (fn->ops->scalarhessiancreate) {
     ierr = (*fn->ops->scalarhessiancreate)(fn,x,H,Hpre);CHKERRQ(ierr);
-  } else if (fn->ops->hessiancreate) {
+  } else if (fn->ops->hessiancreateadjoint) {
     Vec v;
 
     ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
     ierr = VecSet(v, 1.);CHKERRQ(ierr);
-    ierr = (*fn->ops->hessiancreate)(fn,x,v,H,Hpre);CHKERRQ(ierr);
+    ierr = (*fn->ops->hessiancreateadjoint)(fn,x,v,H,Hpre);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);

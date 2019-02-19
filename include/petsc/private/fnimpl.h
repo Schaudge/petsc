@@ -16,14 +16,17 @@ PETSC_EXTERN PetscErrorCode PetscFnRegisterAll(void);
 typedef struct _FnOps *FnOps;
 struct _FnOps {
   PetscErrorCode (*createvecs)(PetscFn,Vec*,Vec*);
-  PetscErrorCode (*createmats)(PetscFn,Mat*,Mat*,Mat*,Mat*,Mat*,Mat*);
+  PetscErrorCode (*createjacobianmats)(PetscFn,Mat*,Mat*,Mat*,Mat*);
+  PetscErrorCode (*createhessianmats)(PetscFn,Mat*,Mat*,Mat*,Mat*);
   PetscErrorCode (*apply)(PetscFn,Vec,Vec);
   PetscErrorCode (*jacobianmult)(PetscFn,Vec,Vec,Vec);
   PetscErrorCode (*jacobianmultadjoint)(PetscFn,Vec,Vec,Vec);
   PetscErrorCode (*jacobiancreate)(PetscFn,Vec,Mat,Mat);
   PetscErrorCode (*jacobiancreateadjoint)(PetscFn,Vec,Mat,Mat);
   PetscErrorCode (*hessianmult)(PetscFn,Vec,Vec,Vec,Vec);
+  PetscErrorCode (*hessianmultadjoint)(PetscFn,Vec,Vec,Vec,Vec);
   PetscErrorCode (*hessiancreate)(PetscFn,Vec,Vec,Mat,Mat);
+  PetscErrorCode (*hessiancreateadjoint)(PetscFn,Vec,Vec,Mat,Mat);
   PetscErrorCode (*scalarapply)(PetscFn,Vec,PetscScalar *);
   PetscErrorCode (*scalargradient)(PetscFn,Vec,Vec);
   PetscErrorCode (*scalarhessianmult)(PetscFn,Vec,Vec,Vec);
@@ -48,8 +51,9 @@ struct _p_PetscFn {
   PetscBool   isScalar;
   VecType     rangeType, domainType;
   MatType     jacType, jacPreType;
-  MatType     adjType, adjPreType;
+  MatType     jacadjType, jacadjPreType;
   MatType     hesType, hesPreType;
+  MatType     hesadjType, hesadjPreType;
 };
 
 #endif
