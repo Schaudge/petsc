@@ -118,6 +118,14 @@ typedef enum { PETSCFNOP_CREATEVECS,
                PETSCFNOP_DESTROY,
              } PetscFnOperation;
 
+PETSC_EXTERN const char *PetscFnOperations[];
+
+/* derivatives are functions too */
+PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscFnOperation,PetscInt,Vec [],PetscFn *);
+
+/* Taylor tests */
+PETSC_EXTERN PetscErrorCode PetscFnTestDerivative(PetscFn,PetscFnOperation,Vec,Vec,Vec,PetscRandom,PetscReal,PetscReal,PetscReal*);
+
 PETSC_EXTERN PetscErrorCode PetscFnShellSetContext(PetscFn,void*);
 PETSC_EXTERN PetscErrorCode PetscFnShellGetContext(PetscFn,void *);
 PETSC_EXTERN PetscErrorCode PetscFnShellSetOperation(PetscFn,PetscFnOperation,void(*)(void));
@@ -132,4 +140,3 @@ PETSC_EXTERN PetscErrorCode PetscFnDAGCreateClosure(PetscFn,PetscInt,PetscFn *);
 PETSC_EXTERN PetscErrorCode PetscFnDAGSplit(PetscFn,PetscInt,PetscInt,const PetscInt [],PetscBool,PetscFn *);
 
 #endif
-

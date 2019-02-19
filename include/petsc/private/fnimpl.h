@@ -48,12 +48,19 @@ struct _p_PetscFn {
   PetscLayout rmap,dmap;        /* range map, domain map */
   void        *data;            /* implementation-specific data */
   PetscBool   setupcalled;      /* has PetscFnSetUp() been called? */
+  PetscBool   setfromoptions;
   PetscBool   isScalar;
   VecType     rangeType, domainType;
   MatType     jacType, jacPreType;
   MatType     jacadjType, jacadjPreType;
   MatType     hesType, hesPreType;
   MatType     hesadjType, hesadjPreType;
+  PetscBool   test_jacmult;
+  PetscBool   test_jacmultadj;
+  PetscBool   test_hesmult;
+  PetscBool   test_hesmultadj;
+  PetscBool   test_scalgrad;
+  PetscBool   test_scalhesmult;
 };
 
 #endif
