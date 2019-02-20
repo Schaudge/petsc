@@ -1520,3 +1520,5 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
   }
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode PetscFnCreateDerivativeFn(void);

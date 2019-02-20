@@ -34,6 +34,7 @@ struct _FnOps {
   PetscErrorCode (*createsubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
   PetscErrorCode (*destroysubfns)(PetscInt,PetscFn *[]);
   PetscErrorCode (*createsubfn)(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
+  PetscErrorCode (*createderivativefn)(PetscFn,PetscFnOperation,PetscInt,const Vec [],PetscCopyMode,PetscFn *);
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,PetscFn);
   PetscErrorCode (*setup)(PetscFn);
   PetscErrorCode (*destroy)(PetscFn);
