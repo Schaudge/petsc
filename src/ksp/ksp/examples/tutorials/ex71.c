@@ -84,6 +84,7 @@ typedef struct {
   PetscBool    test;
   PetscScalar *elemMat;
   PetscBool    use_composite_pc;
+  PetscBool    random_initial_guess;
 } AppCtx;
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -106,6 +107,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->per[1]    = PETSC_FALSE;
   options->per[2]    = PETSC_FALSE;
   options->use_composite_pc = PETSC_FALSE;
+  options->random_initial_guess = PETSC_FALSE;
 
   ierr = PetscOptionsBegin(comm,NULL,"Problem Options",NULL);CHKERRQ(ierr);
   pde  = options->pde;
@@ -118,6 +120,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBool("-dirichlet","Use dirichlet BC",__FILE__,options->dirbc,&options->dirbc,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-test_assembly","Test MATIS assembly",__FILE__,options->test,&options->test,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-use_composite_pc","Multiplicative composite with BDDC + Richardson/Jacobi",__FILE__,options->use_composite_pc,&options->use_composite_pc,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-random_initial_guess","Solve A x = 0 with random initial guess, instead of A x = b with random b",__FILE__,options->random_initial_guess,&options->random_initial_guess,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();
 
   for (n=options->dim;n<3;n++) options->cells[n] = 0;
@@ -402,11 +405,32 @@ int main(int argc,char **args)
 
   ierr = DMGetGlobalVector(da,&x);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(da,&b);CHKERRQ(ierr);
-  ierr = VecSetRandom(b,NULL);CHKERRQ(ierr);
-  if (nullsp) {
-    ierr = MatNullSpaceRemove(nullsp,b);CHKERRQ(ierr);
+  if (user.random_initial_guess) {
+    /* Solving A x = 0 with random initial guess allows Arnoldi to run for more iterations, thereby yielding a more
+     * complete Hessenberg matrix and more accurate eigenvalues. */
+    ierr = VecZeroEntries(b);CHKERRQ(ierr);
+    ierr = VecSetRandom(x,NULL);CHKERRQ(ierr);
+    if (nullsp) {
+      ierr = MatNullSpaceRemove(nullsp,x);CHKERRQ(ierr);
+    }
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetComputeEigenvalues(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    // ierr = KSPSetTolerances(ksp,1e-100,1e-100,PETSC_DEFAULT,50);CHKERRQ(ierr);
+    ierr = KSPGMRESSetRestart(ksp,100);CHKERRQ(ierr);
+  } else {
+    ierr = VecSetRandom(b,NULL);CHKERRQ(ierr);
+    if (nullsp) {
+      ierr = MatNullSpaceRemove(nullsp,b);CHKERRQ(ierr);
+    }
   }
   ierr = KSPSolve(ksp,b,x);CHKERRQ(ierr);
+  if (user.random_initial_guess) {
+    PetscInt i,neig;
+    PetscReal real[100],imag[100],maxeig = PETSC_MIN_REAL,mineig = PETSC_MAX_REAL;
+    /* Report extreme eigenvalues */
+    ierr = KSPComputeEigenvalues(ksp,100,real,imag,&neig);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Eigenvalue estimates: %20e %20e ... %20e\n",real[0],real[1],real[neig-1]);CHKERRQ(ierr);
+  }
   ierr = DMRestoreGlobalVector(da,&x);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(da,&b);CHKERRQ(ierr);
 
