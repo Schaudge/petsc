@@ -201,12 +201,12 @@ PetscErrorCode PetscFnSetFromOptions(PetscFn fn)
   ierr = PetscOptionsBool("-fn_test_hessianmultadjoint","On first use, test the order of convergence of PetscFnHessianMultAdjoint","PetscFnTestDerivative",fn->test_hesmultadj,&(fn->test_hesmultadj),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-fn_test_scalargradient","On first use, test the order of convergence of PetscFnScalarGradient","PetscFnTestDerivative",fn->test_scalgrad,&(fn->test_scalgrad),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-fn_test_scalarhessianmult","On first use, test the order of convergence of PetscFnScalarHessianMult","PetscFnTestDerivative",fn->test_scalhesmult,&(fn->test_scalhesmult),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_jacobiancreate","On first use, test PetscFnJacobianCreate against matrix-free","PetscFnTestDerivative",fn->test_jaccreate,&(fn->test_jaccreate),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_jacobiancreateadjoint","On first use, test PetscFnJacobianCreateAdjoint against matrix-free","PetscFnTestDerivative",fn->test_jacadjcreate,&(fn->test_jacadjcreate),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessiancreate","On first use, test PetscFnHessianCreate against matrix-free","PetscFnTestDerivative",fn->test_hescreate,&(fn->test_hescreate),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessiancreateadjoint","On first use, test PetscFnHessianCreateAdjoint against matrix-free","PetscFnTestDerivative",fn->test_hesadjcreate,&(fn->test_hesadjcreate),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessiancreateswap","On first use, test PetscFnHessianCreateSwap against matrix-free","PetscFnTestDerivative",fn->test_hesswpcreate,&(fn->test_hesswpcreate),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_scalarhessiancreate","On first use, test PetscFnScalarHessianCreate against matrix-free","PetscFnTestDerivative",fn->test_scalhescreate,&(fn->test_scalhescreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_jacobianbuild","On first use, test PetscFnJacobianBuild against matrix-free","PetscFnTestDerivative",fn->test_jaccreate,&(fn->test_jaccreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_jacobianbuildadjoint","On first use, test PetscFnJacobianBuildAdjoint against matrix-free","PetscFnTestDerivative",fn->test_jacadjcreate,&(fn->test_jacadjcreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianbuild","On first use, test PetscFnHessianBuild against matrix-free","PetscFnTestDerivative",fn->test_hescreate,&(fn->test_hescreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianbuildadjoint","On first use, test PetscFnHessianBuildAdjoint against matrix-free","PetscFnTestDerivative",fn->test_hesadjcreate,&(fn->test_hesadjcreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianbuildswap","On first use, test PetscFnHessianBuildSwap against matrix-free","PetscFnTestDerivative",fn->test_hesswpcreate,&(fn->test_hesswpcreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_scalarhessianbuild","On first use, test PetscFnScalarHessianBuild against matrix-free","PetscFnTestDerivative",fn->test_scalhescreate,&(fn->test_scalhescreate),NULL);CHKERRQ(ierr);
 
   if (fn->ops->setfromoptions) {
     ierr = (*fn->ops->setfromoptions)(PetscOptionsObject,fn);CHKERRQ(ierr);
@@ -382,24 +382,24 @@ PetscErrorCode PetscFnSetMatTypes(PetscFn fn, PetscFnOperation op, MatType a, Ma
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
   switch (op) {
-  case PETSCFNOP_JACOBIANCREATE:
+  case PETSCFNOP_JACOBIANBUILD:
     dest    = &(fn->jacType);
     destPre = &(fn->jacPreType);
     break;
-  case PETSCFNOP_JACOBIANCREATEADJOINT:
+  case PETSCFNOP_JACOBIANBUILDADJOINT:
     dest    = &(fn->jacadjType);
     destPre = &(fn->jacadjPreType);
     break;
-  case PETSCFNOP_HESSIANCREATE:
+  case PETSCFNOP_HESSIANBUILD:
     dest    = &(fn->hesType);
     destPre = &(fn->hesPreType);
     break;
-  case PETSCFNOP_SCALARHESSIANCREATE:
-  case PETSCFNOP_HESSIANCREATEADJOINT:
+  case PETSCFNOP_SCALARHESSIANBUILD:
+  case PETSCFNOP_HESSIANBUILDADJOINT:
     dest    = &(fn->hesadjType);
     destPre = &(fn->hesadjPreType);
     break;
-  case PETSCFNOP_HESSIANCREATESWAP:
+  case PETSCFNOP_HESSIANBUILDSWAP:
     dest    = &(fn->hesswpType);
     destPre = &(fn->hesswpPreType);
     break;
@@ -416,24 +416,24 @@ PetscErrorCode PetscFnGetMatTypes(PetscFn fn, PetscFnOperation op, MatType *a, M
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
   switch (op) {
-  case PETSCFNOP_JACOBIANCREATE:
+  case PETSCFNOP_JACOBIANBUILD:
     *a    = fn->jacType;
     *aPre = fn->jacPreType;
     break;
-  case PETSCFNOP_JACOBIANCREATEADJOINT:
+  case PETSCFNOP_JACOBIANBUILDADJOINT:
     *a    = fn->jacadjType;
     *aPre = fn->jacadjPreType;
     break;
-  case PETSCFNOP_HESSIANCREATE:
+  case PETSCFNOP_HESSIANBUILD:
     *a    = fn->hesType;
     *aPre = fn->hesPreType;
     break;
-  case PETSCFNOP_SCALARHESSIANCREATE:
-  case PETSCFNOP_HESSIANCREATEADJOINT:
+  case PETSCFNOP_SCALARHESSIANBUILD:
+  case PETSCFNOP_HESSIANBUILDADJOINT:
     *a    = fn->hesadjType;
     *aPre = fn->hesadjPreType;
     break;
-  case PETSCFNOP_HESSIANCREATESWAP:
+  case PETSCFNOP_HESSIANBUILDSWAP:
     *a    = fn->hesswpType;
     *aPre = fn->hesswpPreType;
     break;
@@ -566,18 +566,18 @@ PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *A
   mats[1] = Apre;
   ierr = PetscFnGetMatTypes(fn, op, &types[0], &types[1]);CHKERRQ(ierr);
   switch (op) {
-  case PETSCFNOP_JACOBIANCREATE:
-  case PETSCFNOP_HESSIANCREATE:
+  case PETSCFNOP_JACOBIANBUILD:
+  case PETSCFNOP_HESSIANBUILD:
     layouts[0] = fn->rmap;
     layouts[1] = fn->dmap;
     break;
-  case PETSCFNOP_JACOBIANCREATEADJOINT:
-  case PETSCFNOP_HESSIANCREATESWAP:
+  case PETSCFNOP_JACOBIANBUILDADJOINT:
+  case PETSCFNOP_HESSIANBUILDSWAP:
     layouts[0] = fn->dmap;
     layouts[1] = fn->rmap;
     break;
-  case PETSCFNOP_SCALARHESSIANCREATE:
-  case PETSCFNOP_HESSIANCREATEADJOINT:
+  case PETSCFNOP_SCALARHESSIANBUILD:
+  case PETSCFNOP_HESSIANBUILDADJOINT:
     layouts[0] = fn->dmap;
     layouts[1] = fn->dmap;
     break;
@@ -727,7 +727,7 @@ PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec Jadjv)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnJacobianCreate(PetscFn fn, Vec x, Mat J, Mat Jpre)
+PetscErrorCode PetscFnJacobianBuild(PetscFn fn, Vec x, Mat J, Mat Jpre)
 {
   PetscErrorCode ierr;
 
@@ -752,8 +752,8 @@ PetscErrorCode PetscFnJacobianCreate(PetscFn fn, Vec x, Mat J, Mat Jpre)
   }
   if (!J && !Jpre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (fn->ops->jacobiancreate) {
-    ierr = (*fn->ops->jacobiancreate)(fn,x,J,Jpre);CHKERRQ(ierr);
+  if (fn->ops->jacobianbuild) {
+    ierr = (*fn->ops->jacobianbuild)(fn,x,J,Jpre);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalargradient) {
     Mat                jac = J ? J : Jpre;
     const PetscScalar *ga;
@@ -781,13 +781,13 @@ PetscErrorCode PetscFnJacobianCreate(PetscFn fn, Vec x, Mat J, Mat Jpre)
     PetscReal norm, err;
 
     fn->test_jaccreate = PETSC_FALSE;
-    if (J) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANCREATE,J,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
-    if (Jpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANCREATE,Jpre,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (J) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANBUILD,J,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Jpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANBUILD,Jpre,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
+PetscErrorCode PetscFnJacobianBuildAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
 {
   PetscErrorCode ierr;
 
@@ -812,8 +812,8 @@ PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jad
   }
   if (!Jadj && !Jadjpre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (fn->ops->jacobiancreateadjoint) {
-    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,Jadj,Jadjpre);CHKERRQ(ierr);
+  if (fn->ops->jacobianbuildadjoint) {
+    ierr = (*fn->ops->jacobianbuildadjoint)(fn,x,Jadj,Jadjpre);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalargradient) {
     Mat                jacadj = Jadj ? Jadj : Jadjpre;
     const PetscScalar *ga;
@@ -841,8 +841,8 @@ PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jad
     PetscReal norm, err;
 
     fn->test_jacadjcreate = PETSC_FALSE;
-    if (Jadj) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANCREATEADJOINT,Jadj,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
-    if (Jadjpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANCREATEADJOINT,Jadjpre,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Jadj) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANBUILDADJOINT,Jadj,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Jadjpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_JACOBIANBUILDADJOINT,Jadjpre,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }
@@ -942,7 +942,7 @@ PetscErrorCode PetscFnHessianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec xhat, Vec
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre)
+PetscErrorCode PetscFnHessianBuild(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre)
 {
   PetscErrorCode ierr;
 
@@ -969,8 +969,8 @@ PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre
   if (!H && !Hpre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(xhat);CHKERRQ(ierr);
-  if (fn->ops->hessiancreate) {
-    ierr = (*fn->ops->hessiancreate)(fn,x,xhat,H,Hpre);CHKERRQ(ierr);
+  if (fn->ops->hessianbuild) {
+    ierr = (*fn->ops->hessianbuild)(fn,x,xhat,H,Hpre);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarhessianmult) {
     Mat                hes = H ? H : Hpre;
     Vec                Hxhat;
@@ -998,13 +998,13 @@ PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre
     PetscReal norm, err;
 
     fn->test_hescreate = PETSC_FALSE;
-    if (H) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATE,H,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
-    if (Hpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATE,Hpre,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (H) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANBUILD,H,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANBUILD,Hpre,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnHessianCreateSwap(PetscFn fn, Vec x, Vec xhat, Mat Hswp, Mat Hswppre)
+PetscErrorCode PetscFnHessianBuildSwap(PetscFn fn, Vec x, Vec xhat, Mat Hswp, Mat Hswppre)
 {
   PetscErrorCode ierr;
 
@@ -1031,8 +1031,8 @@ PetscErrorCode PetscFnHessianCreateSwap(PetscFn fn, Vec x, Vec xhat, Mat Hswp, M
   if (!Hswp && !Hswppre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(xhat);CHKERRQ(ierr);
-  if (fn->ops->hessiancreateswap) {
-    ierr = (*fn->ops->hessiancreateswap)(fn,x,xhat,Hswp,Hswppre);CHKERRQ(ierr);
+  if (fn->ops->hessianbuildswap) {
+    ierr = (*fn->ops->hessianbuildswap)(fn,x,xhat,Hswp,Hswppre);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarhessianmult) {
     Mat                hes = Hswp ? Hswp : Hswppre;
     Vec                Hxhat;
@@ -1060,13 +1060,13 @@ PetscErrorCode PetscFnHessianCreateSwap(PetscFn fn, Vec x, Vec xhat, Mat Hswp, M
     PetscReal norm, err;
 
     fn->test_hescreate = PETSC_FALSE;
-    if (Hswp) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATESWAP,Hswp,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
-    if (Hswppre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATESWAP,Hswppre,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hswp) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANBUILDSWAP,Hswp,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hswppre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANBUILDSWAP,Hswppre,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, Mat Hadjpre)
+PetscErrorCode PetscFnHessianBuildAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, Mat Hadjpre)
 {
   PetscErrorCode ierr;
 
@@ -1093,12 +1093,12 @@ PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, M
   if (!Hadj && !Hadjpre) PetscFunctionReturn(0);
   ierr = VecLockPush(x);CHKERRQ(ierr);
   ierr = VecLockPush(v);CHKERRQ(ierr);
-  if (fn->ops->hessiancreateadjoint) {
-    ierr = (*fn->ops->hessiancreateadjoint)(fn,x,v,Hadj,Hadjpre);CHKERRQ(ierr);
-  } else if (fn->isScalar && fn->ops->scalarhessiancreate) {
+  if (fn->ops->hessianbuildadjoint) {
+    ierr = (*fn->ops->hessianbuildadjoint)(fn,x,v,Hadj,Hadjpre);CHKERRQ(ierr);
+  } else if (fn->isScalar && fn->ops->scalarhessianbuild) {
     PetscScalar z;
 
-    ierr = (*fn->ops->scalarhessiancreate) (fn, x, Hadj, Hadjpre);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarhessianbuild) (fn, x, Hadj, Hadjpre);CHKERRQ(ierr);
     ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
     if (Hadj) {ierr = MatScale(Hadj,z);CHKERRQ(ierr);}
     if (Hadjpre && Hadjpre != Hadj) {ierr = MatScale(Hadjpre,z);CHKERRQ(ierr);}
@@ -1109,8 +1109,8 @@ PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, M
     PetscReal norm, err;
 
     fn->test_hesadjcreate = PETSC_FALSE;
-    if (Hadj) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATEADJOINT,Hadj,x,v,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
-    if (Hadjpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATEADJOINT,Hadjpre,x,v,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hadj) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANBUILDADJOINT,Hadj,x,v,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hadjpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANBUILDADJOINT,Hadjpre,x,v,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }
@@ -1159,14 +1159,14 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
   ierr = VecLockPush(x);CHKERRQ(ierr);
   if (fn->ops->scalargradient) {
     ierr = (*fn->ops->scalargradient)(fn,x,g);CHKERRQ(ierr);
-  } else if (fn->ops->jacobiancreateadjoint) {
+  } else if (fn->ops->jacobianbuildadjoint) {
     Mat Jadj;
     PetscInt i, iStart, iEnd, *ia;
     PetscInt zero = 0;
     PetscScalar *ga;
 
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATEADJOINT, NULL, &Jadj);CHKERRQ(ierr);
-    ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,Jadj,NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, NULL, &Jadj);CHKERRQ(ierr);
+    ierr = (*fn->ops->jacobianbuildadjoint)(fn,x,Jadj,NULL);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(x,&iStart,&iEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(iEnd - iStart,&ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
@@ -1224,7 +1224,7 @@ PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
+PetscErrorCode PetscFnScalarHessianBuild(PetscFn fn, Vec x, Mat H, Mat Hpre)
 {
   PetscErrorCode ierr;
 
@@ -1252,14 +1252,14 @@ PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
   if (!H && !Hpre) PetscFunctionReturn(0);
 
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  if (fn->ops->scalarhessiancreate) {
-    ierr = (*fn->ops->scalarhessiancreate)(fn,x,H,Hpre);CHKERRQ(ierr);
-  } else if (fn->ops->hessiancreateadjoint) {
+  if (fn->ops->scalarhessianbuild) {
+    ierr = (*fn->ops->scalarhessianbuild)(fn,x,H,Hpre);CHKERRQ(ierr);
+  } else if (fn->ops->hessianbuildadjoint) {
     Vec v;
 
     ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
     ierr = VecSet(v, 1.);CHKERRQ(ierr);
-    ierr = (*fn->ops->hessiancreateadjoint)(fn,x,v,H,Hpre);CHKERRQ(ierr);
+    ierr = (*fn->ops->hessianbuildadjoint)(fn,x,v,H,Hpre);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
@@ -1267,8 +1267,8 @@ PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
     PetscReal norm, err;
 
     fn->test_scalhescreate = PETSC_FALSE;
-    if (H) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_SCALARHESSIANCREATE,H,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
-    if (Hpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_SCALARHESSIANCREATE,Hpre,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (H) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_SCALARHESSIANBUILD,H,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hpre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_SCALARHESSIANBUILD,Hpre,x,NULL,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }
@@ -1291,17 +1291,17 @@ const char *PetscFnOperations[] = {
                                   "apply",
                                   "jacobianmult",
                                   "jacobianmultadjoint",
-                                  "jacobiancreate",
-                                  "jacobiancreateadjoint",
+                                  "jacobianbuild",
+                                  "jacobianbuildadjoint",
                                   "hessianmult",
                                   "hessianmultadjoint",
-                                  "hessiancreate",
-                                  "hessiancreateadjoint",
-                                  "hessiancreateswap",
+                                  "hessianbuild",
+                                  "hessianbuildadjoint",
+                                  "hessianbuildswap",
                                   "scalarapply",
                                   "scalargradient",
                                   "scalarhessianmult",
-                                  "scalarhessiancreate",
+                                  "scalarhessianbuild",
                                   "createsubfns",
                                   "destroysubfns",
                                   "createsubfn",
@@ -1500,9 +1500,9 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
 
   PetscFunctionBegin;
   if (!x) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_NULL, "Need x at value where matrix was constructed");
-  if (op == PETSCFNOP_HESSIANCREATE || op == PETSCFNOP_HESSIANCREATEADJOINT) {
+  if (op == PETSCFNOP_HESSIANBUILD || op == PETSCFNOP_HESSIANBUILDADJOINT) {
     if (!dot) {
-      if (op == PETSCFNOP_HESSIANCREATE) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_NULL, "Need dot to be primal direction where matrix was constructed");
+      if (op == PETSCFNOP_HESSIANBUILD) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_NULL, "Need dot to be primal direction where matrix was constructed");
       else SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_NULL, "Need dot to be adjoint where matrix was constructed");
     }
   }
@@ -1515,7 +1515,7 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
     }
   }
   if (!var) {
-    if (op == PETSCFNOP_JACOBIANCREATEADJOINT || op == PETSCFNOP_HESSIANCREATESWAP) {
+    if (op == PETSCFNOP_JACOBIANBUILDADJOINT || op == PETSCFNOP_HESSIANBUILDSWAP) {
       ierr = PetscFnCreateVecs(fn, &var, NULL);CHKERRQ(ierr);
     }
     else {
@@ -1523,7 +1523,7 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
     }
     ierr = VecSetRandom(var, rand);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_JACOBIANCREATE || op == PETSCFNOP_HESSIANCREATE) {
+  if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_HESSIANBUILD) {
     ierr = PetscFnCreateVecs(fn, &b, NULL);CHKERRQ(ierr);
     ierr = PetscFnCreateVecs(fn, &c, NULL);CHKERRQ(ierr);
   } else {
@@ -1532,22 +1532,22 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
   }
   ierr = MatMult(M, var, b);CHKERRQ(ierr);
   switch (op) {
-  case PETSCFNOP_JACOBIANCREATE:
+  case PETSCFNOP_JACOBIANBUILD:
     ierr = PetscFnJacobianMult(fn,x,var,c);CHKERRQ(ierr);
     break;
-  case PETSCFNOP_JACOBIANCREATEADJOINT:
+  case PETSCFNOP_JACOBIANBUILDADJOINT:
     ierr = PetscFnJacobianMultAdjoint(fn,x,var,c);CHKERRQ(ierr);
     break;
-  case PETSCFNOP_HESSIANCREATE:
+  case PETSCFNOP_HESSIANBUILD:
     ierr = PetscFnHessianMult(fn,x,dot,var,c);CHKERRQ(ierr);
     break;
-  case PETSCFNOP_HESSIANCREATEADJOINT:
+  case PETSCFNOP_HESSIANBUILDADJOINT:
     ierr = PetscFnHessianMultAdjoint(fn,x,dot,var,c);CHKERRQ(ierr);
     break;
-  case PETSCFNOP_HESSIANCREATESWAP:
+  case PETSCFNOP_HESSIANBUILDSWAP:
     ierr = PetscFnHessianMultAdjoint(fn,x,var,dot,c);CHKERRQ(ierr);
     break;
-  case PETSCFNOP_SCALARHESSIANCREATE:
+  case PETSCFNOP_SCALARHESSIANBUILD:
     ierr = PetscFnScalarHessianMult(fn,x,var,c);CHKERRQ(ierr);
     break;
   default:
@@ -1889,7 +1889,7 @@ static PetscErrorCode PetscFnShellScalarHessianMult_DerShell(PetscFn fn, Vec x, 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnShellJacobianCreate_DerShell(PetscFn fn, Vec x, Mat J, Mat Jpre)
+static PetscErrorCode PetscFnShellJacobianBuild_DerShell(PetscFn fn, Vec x, Mat J, Mat Jpre)
 {
   PetscFnDerShell *derShell;
   PetscFn          origFn;
@@ -1898,18 +1898,18 @@ static PetscErrorCode PetscFnShellJacobianCreate_DerShell(PetscFn fn, Vec x, Mat
   PetscFunctionBegin;
   ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
   origFn = derShell->origFn;
-  /* we assume that if numDots == maxDots, then a PETSCFNOP_JACOBIANCREATE method is not passed */
+  /* we assume that if numDots == maxDots, then a PETSCFNOP_JACOBIANBUILD method is not passed */
   switch (derShell->op) {
   case PETSCFNOP_JACOBIANMULT:
     /* The shape of the matrix will be the same, so it must be Hessian */
-    ierr = PetscFnHessianCreate(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    ierr = PetscFnHessianBuild(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
     break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
     /* The shape of the matrix will be the square, so it must be HessianAdjoint */
-    ierr = PetscFnHessianCreateAdjoint(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    ierr = PetscFnHessianBuildAdjoint(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
     break;
   case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnScalarHessianCreate(origFn, x, J, Jpre);CHKERRQ(ierr);
+    ierr = PetscFnScalarHessianBuild(origFn, x, J, Jpre);CHKERRQ(ierr);
     break;
   default:
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
@@ -1917,7 +1917,7 @@ static PetscErrorCode PetscFnShellJacobianCreate_DerShell(PetscFn fn, Vec x, Mat
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnShellJacobianCreateAdjoint_DerShell(PetscFn fn, Vec x, Mat J, Mat Jpre)
+static PetscErrorCode PetscFnShellJacobianBuildAdjoint_DerShell(PetscFn fn, Vec x, Mat J, Mat Jpre)
 {
   PetscFnDerShell *derShell;
   PetscFn          origFn;
@@ -1926,16 +1926,16 @@ static PetscErrorCode PetscFnShellJacobianCreateAdjoint_DerShell(PetscFn fn, Vec
   PetscFunctionBegin;
   ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
   origFn = derShell->origFn;
-  /* we assume that if numDots == maxDots, then a PETSCFNOP_JACOBIANCREATEADJOINT method is not passed */
+  /* we assume that if numDots == maxDots, then a PETSCFNOP_JACOBIANBUILDADJOINT method is not passed */
   switch (derShell->op) {
   case PETSCFNOP_JACOBIANMULT:
-    ierr = PetscFnHessianCreateSwap(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    ierr = PetscFnHessianBuildSwap(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
     break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
-    ierr = PetscFnHessianCreateAdjoint(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    ierr = PetscFnHessianBuildAdjoint(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
     break;
   case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnScalarHessianCreate(origFn, x, J, Jpre);CHKERRQ(ierr);
+    ierr = PetscFnScalarHessianBuild(origFn, x, J, Jpre);CHKERRQ(ierr);
     break;
   default:
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
@@ -2063,8 +2063,8 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnShellScalarApply_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARGRADIENT, (void (*)(void)) PetscFnShellScalarGradient_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARHESSIANMULT, (void (*)(void)) PetscFnShellScalarHessianMult_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANCREATE, (void (*)(void)) PetscFnShellJacobianCreate_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANCREATEADJOINT, (void (*)(void)) PetscFnShellJacobianCreateAdjoint_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANBUILD, (void (*)(void)) PetscFnShellJacobianBuild_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnShellJacobianBuildAdjoint_DerShell);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

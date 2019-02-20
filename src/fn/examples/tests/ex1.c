@@ -48,27 +48,27 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, PetscFnOperation op,Mat 
   if (!A && !Apre) PetscFunctionReturn(0);
   ierr = MatCreate(comm, &J);CHKERRQ(ierr);
   ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
-  if (op == PETSCFNOP_JACOBIANCREATE) {
+  if (op == PETSCFNOP_JACOBIANBUILD) {
     ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, m, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, m, NULL, M - m, NULL);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_JACOBIANCREATEADJOINT) {
+  if (op == PETSCFNOP_JACOBIANBUILDADJOINT) {
     ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_HESSIANCREATE) {
+  if (op == PETSCFNOP_HESSIANBUILD) {
     ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, m, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, m, NULL, M - m, NULL);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_HESSIANCREATESWAP) {
+  if (op == PETSCFNOP_HESSIANBUILDSWAP) {
     ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_HESSIANCREATEADJOINT || op == PETSCFNOP_SCALARHESSIANCREATE) {
+  if (op == PETSCFNOP_HESSIANBUILDADJOINT || op == PETSCFNOP_SCALARHESSIANBUILD) {
     ierr = MatSetSizes(J, m, m, M, M);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, m, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, m, NULL, M - m, NULL);CHKERRQ(ierr);
@@ -214,7 +214,7 @@ static PetscErrorCode VecToMat_Internal(Vec g, Mat jac, PetscBool col)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianCreate_Vec(PetscFn fn, Vec x, Mat J, Mat Jpre)
+static PetscErrorCode PetscFnJacobianBuild_Vec(PetscFn fn, Vec x, Mat J, Mat Jpre)
 {
   Vec            g;
   Mat            jac = J ? J : Jpre;
@@ -231,7 +231,7 @@ static PetscErrorCode PetscFnJacobianCreate_Vec(PetscFn fn, Vec x, Mat J, Mat Jp
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianCreateAdjoint_Vec(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
+static PetscErrorCode PetscFnJacobianBuildAdjoint_Vec(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
 {
   Vec            g;
   Mat            jacadj = Jadj ? Jadj : Jadjpre;
@@ -266,7 +266,7 @@ static PetscErrorCode PetscFnScalarHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarHessianCreate_Vec(PetscFn fn, Vec x, Mat H, Mat Hpre)
+static PetscErrorCode PetscFnScalarHessianBuild_Vec(PetscFn fn, Vec x, Mat H, Mat Hpre)
 {
   Vec            g;
   PetscScalar    z;
@@ -279,7 +279,7 @@ static PetscErrorCode PetscFnScalarHessianCreate_Vec(PetscFn fn, Vec x, Mat H, M
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
   ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
   ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
-  ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATEADJOINT, &Jadj, NULL);CHKERRQ(ierr);
+  ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, &Jadj, NULL);CHKERRQ(ierr);
   ierr = VecToMat_Internal(g, Jadj, PETSC_TRUE);CHKERRQ(ierr);
   ierr = MatTranspose(Jadj, MAT_INITIAL_MATRIX, &J);CHKERRQ(ierr);
   ierr = MatMatMult(Jadj,J,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&JadjJ);CHKERRQ(ierr);
@@ -322,7 +322,7 @@ static PetscErrorCode PetscFnHessianMultAdjoint_Vec(PetscFn fn, Vec x, Vec v, Ve
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianCreate_Vec(PetscFn fn, Vec x, Vec xhat, Mat Hxhat, Mat Hxhatpre)
+static PetscErrorCode PetscFnHessianBuild_Vec(PetscFn fn, Vec x, Vec xhat, Mat Hxhat, Mat Hxhatpre)
 {
   Mat            hes = Hxhat ? Hxhat : Hxhatpre;
   Vec            hxhat;
@@ -338,20 +338,20 @@ static PetscErrorCode PetscFnHessianCreate_Vec(PetscFn fn, Vec x, Vec xhat, Mat 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianCreateAdjoint_Vec(PetscFn fn, Vec x, Vec v, Mat Hadjv, Mat Hadjvpre)
+static PetscErrorCode PetscFnHessianBuildAdjoint_Vec(PetscFn fn, Vec x, Vec v, Mat Hadjv, Mat Hadjvpre)
 {
   PetscScalar    z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarHessianCreate_Vec(fn, x, Hadjv, Hadjvpre);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianBuild_Vec(fn, x, Hadjv, Hadjvpre);CHKERRQ(ierr);
   ierr = VecSingletonBcast(v, &z);CHKERRQ(ierr);
   if (Hadjv) {ierr = MatScale(Hadjv, z);CHKERRQ(ierr);}
   if (Hadjvpre && Hadjvpre != Hadjv) {ierr = MatScale(Hadjvpre, z);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianCreateSwap_Vec(PetscFn fn, Vec x, Vec xhat, Mat Hswpxhat, Mat Hswpxhatpre)
+static PetscErrorCode PetscFnHessianBuildSwap_Vec(PetscFn fn, Vec x, Vec xhat, Mat Hswpxhat, Mat Hswpxhatpre)
 {
   Mat            hes = Hswpxhat ? Hswpxhat : Hswpxhatpre;
   Vec            hxhat;
@@ -425,20 +425,20 @@ int main(int argc, char **argv)
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_APPLY,(void (*)(void))PetscFnApply_Vec);CHKERRQ(ierr);
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULT,(void (*)(void))PetscFnJacobianMult_Vec);CHKERRQ(ierr);
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULTADJOINT,(void (*)(void))PetscFnJacobianMultAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANCREATE,(void (*)(void))PetscFnJacobianCreate_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANCREATEADJOINT,(void (*)(void))PetscFnJacobianCreateAdjoint_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANBUILD,(void (*)(void))PetscFnJacobianBuild_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANBUILDADJOINT,(void (*)(void))PetscFnJacobianBuildAdjoint_Vec);CHKERRQ(ierr);
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULT,(void (*)(void))PetscFnHessianMult_Vec);CHKERRQ(ierr);
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULTADJOINT,(void (*)(void))PetscFnHessianMultAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANCREATE,(void (*)(void))PetscFnHessianCreate_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANCREATEADJOINT,(void (*)(void))PetscFnHessianCreateAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANCREATESWAP,(void (*)(void))PetscFnHessianCreateSwap_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILD,(void (*)(void))PetscFnHessianBuild_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILDADJOINT,(void (*)(void))PetscFnHessianBuildAdjoint_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILDSWAP,(void (*)(void))PetscFnHessianBuildSwap_Vec);CHKERRQ(ierr);
     }
 
     if (set_scalar) {
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARAPPLY,(void (*)(void))PetscFnScalarApply_Vec);CHKERRQ(ierr);
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARGRADIENT,(void (*)(void))PetscFnScalarGradient_Vec);CHKERRQ(ierr);
       ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANMULT,(void (*)(void))PetscFnScalarHessianMult_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANCREATE,(void (*)(void))PetscFnScalarHessianCreate_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANBUILD,(void (*)(void))PetscFnScalarHessianBuild_Vec);CHKERRQ(ierr);
     }
   }
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
@@ -472,34 +472,34 @@ int main(int argc, char **argv)
   jac    = jacadj    = hes    = hesadj    = hesswp    = scalhes    = NULL;
   jacPre = jacadjPre = hesPre = hesadjPre = hesswpPre = scalhesPre = NULL;
   if (build_mat && !build_pre) {
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATE,        &jac,     NULL);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATEADJOINT, &jacadj,  NULL);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATE,         &hes,     NULL);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATEADJOINT,  &hesadj,  NULL);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATESWAP,     &hesswp,  NULL);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_SCALARHESSIANCREATE,   &scalhes, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILD,        &jac,     NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, &jacadj,  NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILD,         &hes,     NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILDADJOINT,  &hesadj,  NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILDSWAP,     &hesswp,  NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_SCALARHESSIANBUILD,   &scalhes, NULL);CHKERRQ(ierr);
   } else if (!build_mat && build_pre) {
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATE,        NULL,     &jacPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATEADJOINT, NULL,     &jacadjPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATE,         NULL,     &hesPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATEADJOINT,  NULL,     &hesadjPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATESWAP,     NULL,     &hesswpPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_SCALARHESSIANCREATE,   NULL,     &scalhesPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILD,        NULL,     &jacPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, NULL,     &jacadjPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILD,         NULL,     &hesPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILDADJOINT,  NULL,     &hesadjPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILDSWAP,     NULL,     &hesswpPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_SCALARHESSIANBUILD,   NULL,     &scalhesPre);CHKERRQ(ierr);
   } else if (build_mat && build_pre) {
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATE,        &jac,     &jacPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATEADJOINT, &jacadj,  &jacadjPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATE,         &hes,     &hesPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATEADJOINT,  &hesadj,  &hesadjPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANCREATESWAP,     &hesswp,  &hesswpPre);CHKERRQ(ierr);
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_SCALARHESSIANCREATE,   &scalhes, &scalhesPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILD,        &jac,     &jacPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, &jacadj,  &jacadjPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILD,         &hes,     &hesPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILDADJOINT,  &hesadj,  &hesadjPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_HESSIANBUILDSWAP,     &hesswp,  &hesswpPre);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_SCALARHESSIANBUILD,   &scalhes, &scalhesPre);CHKERRQ(ierr);
   }
 
-  ierr = PetscFnJacobianCreate(fn, x, jac, jacPre);CHKERRQ(ierr);
-  ierr = PetscFnJacobianCreateAdjoint(fn, x, jacadj, jacadjPre);CHKERRQ(ierr);
-  ierr = PetscFnHessianCreate(fn, x, xhat, hes, hesPre);CHKERRQ(ierr);
-  ierr = PetscFnHessianCreateAdjoint(fn, x, v, hesadj, hesadjPre);CHKERRQ(ierr);
-  ierr = PetscFnHessianCreateSwap(fn, x, xhat, hesswp, hesswpPre);CHKERRQ(ierr);
-  ierr = PetscFnScalarHessianCreate(fn, x, scalhes, scalhesPre);CHKERRQ(ierr);
+  ierr = PetscFnJacobianBuild(fn, x, jac, jacPre);CHKERRQ(ierr);
+  ierr = PetscFnJacobianBuildAdjoint(fn, x, jacadj, jacadjPre);CHKERRQ(ierr);
+  ierr = PetscFnHessianBuild(fn, x, xhat, hes, hesPre);CHKERRQ(ierr);
+  ierr = PetscFnHessianBuildAdjoint(fn, x, v, hesadj, hesadjPre);CHKERRQ(ierr);
+  ierr = PetscFnHessianBuildSwap(fn, x, xhat, hesswp, hesswpPre);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianBuild(fn, x, scalhes, scalhesPre);CHKERRQ(ierr);
 
   ierr = MatDestroy(&scalhesPre);CHKERRQ(ierr);
   ierr = MatDestroy(&hesswpPre);CHKERRQ(ierr);
@@ -535,105 +535,105 @@ int main(int argc, char **argv)
    test:
       suffix: 1
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view
 
    test:
       suffix: 2
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 3
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 4
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view
 
    test:
       suffix: 5
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
       output_file: output/ex1_4.out
 
    test:
       suffix: 6
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
       output_file: output/ex1_4.out
 
    test:
       suffix: 7
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 8
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 9
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 10
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
       output_file: output/ex1_4.out
 
    test:
       suffix: 11
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
       output_file: output/ex1_4.out
 
    test:
       suffix: 12
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
       output_file: output/ex1_4.out
 
    test:
       suffix: 13
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat
 
    test:
       suffix: 14
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
       output_file: output/ex1_13.out
 
    test:
       suffix: 15
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
       output_file: output/ex1_13.out
 
    test:
       suffix: 16
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat
 
    test:
       suffix: 17
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
       output_file: output/ex1_16.out
 
    test:
       suffix: 18
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobiancreate -fn_test_jacobiancreateadjoint -fn_test_hessiancreate -fn_test_hessiancreateswap -fn_test_hessiancreateadjoint -fn_test_scalarhessiancreate -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
+      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
       output_file: output/ex1_16.out
 
 TEST*/
