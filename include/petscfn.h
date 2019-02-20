@@ -58,16 +58,36 @@ PETSC_EXTERN PetscErrorCode PetscFnDestroy(PetscFn*);
 
 PETSC_EXTERN PetscFunctionList PetscFnList;
 
+typedef enum { PETSCFNOP_CREATEVECS,
+               PETSCFNOP_CREATEMATS,
+               PETSCFNOP_APPLY,
+               PETSCFNOP_JACOBIANMULT,
+               PETSCFNOP_JACOBIANMULTADJOINT,
+               PETSCFNOP_JACOBIANCREATE,
+               PETSCFNOP_JACOBIANCREATEADJOINT,
+               PETSCFNOP_HESSIANMULT,
+               PETSCFNOP_HESSIANMULTADJOINT,
+               PETSCFNOP_HESSIANCREATE,
+               PETSCFNOP_HESSIANCREATEADJOINT,
+               PETSCFNOP_HESSIANCREATESWAP,
+               PETSCFNOP_SCALARAPPLY,
+               PETSCFNOP_SCALARGRADIENT,
+               PETSCFNOP_SCALARHESSIANMULT,
+               PETSCFNOP_SCALARHESSIANCREATE,
+               PETSCFNOP_CREATESUBFNS,
+               PETSCFNOP_DESTROYSUBFNS,
+               PETSCFNOP_CREATESUBFN,
+               PETSCFNOP_CREATEDERIVATIVEFN,
+               PETSCFNOP_DESTROY,
+             } PetscFnOperation;
+
 PETSC_EXTERN PetscErrorCode PetscFnSetVecTypes(PetscFn,VecType,VecType);
 PETSC_EXTERN PetscErrorCode PetscFnGetVecTypes(PetscFn,VecType *,VecType *);
-PETSC_EXTERN PetscErrorCode PetscFnSetJacobianMatTypes(PetscFn,MatType,MatType,MatType,MatType);
-PETSC_EXTERN PetscErrorCode PetscFnGetJacobianMatTypes(PetscFn,MatType*,MatType*,MatType*,MatType*);
-PETSC_EXTERN PetscErrorCode PetscFnSetHessianMatTypes(PetscFn,MatType,MatType,MatType,MatType);
-PETSC_EXTERN PetscErrorCode PetscFnGetHessianMatTypes(PetscFn,MatType*,MatType*,MatType*,MatType*);
+PETSC_EXTERN PetscErrorCode PetscFnSetMatTypes(PetscFn,PetscFnOperation,MatType,MatType);
+PETSC_EXTERN PetscErrorCode PetscFnGetMatTypes(PetscFn,PetscFnOperation,MatType*,MatType*);
 
 PETSC_EXTERN PetscErrorCode PetscFnCreateVecs(PetscFn,Vec*,Vec*);
-PETSC_EXTERN PetscErrorCode PetscFnCreateJacobianMats(PetscFn,Mat*,Mat*,Mat*,Mat*);
-PETSC_EXTERN PetscErrorCode PetscFnCreateHessianMats(PetscFn,Mat*,Mat*,Mat*,Mat*);
+PETSC_EXTERN PetscErrorCode PetscFnCreateMats(PetscFn,PetscFnOperation,Mat*,Mat*);
 
 /* core */
 PETSC_EXTERN PetscErrorCode PetscFnApply(PetscFn,Vec,Vec);
@@ -79,6 +99,7 @@ PETSC_EXTERN PetscErrorCode PetscFnHessianMult(PetscFn,Vec,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnHessianCreate(PetscFn,Vec,Vec,Mat,Mat);
 PETSC_EXTERN PetscErrorCode PetscFnHessianMultAdjoint(PetscFn,Vec,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn,Vec,Vec,Mat,Mat);
+PETSC_EXTERN PetscErrorCode PetscFnHessianCreateSwap(PetscFn,Vec,Vec,Mat,Mat);
 
 /* core, allows an objective function to be a PetscFn.  If a PetscFn is
  * scalar, the vector routines will wrap scalar quantities in vectors of
@@ -95,29 +116,6 @@ PETSC_EXTERN PetscErrorCode PetscFnCreateSubFns(PetscFn,Vec,PetscInt,const IS[],
 PETSC_EXTERN PetscErrorCode PetscFnDestroySubFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnDestroyFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFn(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
-
-typedef enum { PETSCFNOP_CREATEVECS,
-               PETSCFNOP_CREATEJACOBIANMATS,
-               PETSCFNOP_CREATEHESSIANMATS,
-               PETSCFNOP_APPLY,
-               PETSCFNOP_JACOBIANMULT,
-               PETSCFNOP_JACOBIANMULTADJOINT,
-               PETSCFNOP_JACOBIANCREATE,
-               PETSCFNOP_JACOBIANCREATEADJOINT,
-               PETSCFNOP_HESSIANMULT,
-               PETSCFNOP_HESSIANMULTADJOINT,
-               PETSCFNOP_HESSIANCREATE,
-               PETSCFNOP_HESSIANCREATEADJOINT,
-               PETSCFNOP_SCALARAPPLY,
-               PETSCFNOP_SCALARGRADIENT,
-               PETSCFNOP_SCALARHESSIANMULT,
-               PETSCFNOP_SCALARHESSIANCREATE,
-               PETSCFNOP_CREATESUBFNS,
-               PETSCFNOP_DESTROYSUBFNS,
-               PETSCFNOP_CREATESUBFN,
-               PETSCFNOP_CREATEDERIVATIVEFN,
-               PETSCFNOP_DESTROY,
-             } PetscFnOperation;
 
 PETSC_EXTERN const char *PetscFnOperations[];
 

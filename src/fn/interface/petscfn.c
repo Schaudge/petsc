@@ -87,6 +87,8 @@ PetscErrorCode PetscFnDestroy(PetscFn *fn)
   ierr = PetscFree((*fn)->hesPreType);CHKERRQ(ierr);
   ierr = PetscFree((*fn)->hesadjType);CHKERRQ(ierr);
   ierr = PetscFree((*fn)->hesadjPreType);CHKERRQ(ierr);
+  ierr = PetscFree((*fn)->hesswpType);CHKERRQ(ierr);
+  ierr = PetscFree((*fn)->hesswpPreType);CHKERRQ(ierr);
 
   ierr = PetscLayoutDestroy(&(*fn)->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutDestroy(&(*fn)->dmap);CHKERRQ(ierr);
@@ -203,6 +205,7 @@ PetscErrorCode PetscFnSetFromOptions(PetscFn fn)
   ierr = PetscOptionsBool("-fn_test_jacobiancreateadjoint","On first use, test PetscFnJacobianCreateAdjoint against matrix-free","PetscFnTestDerivative",fn->test_jacadjcreate,&(fn->test_jacadjcreate),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-fn_test_hessiancreate","On first use, test PetscFnHessianCreate against matrix-free","PetscFnTestDerivative",fn->test_hescreate,&(fn->test_hescreate),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-fn_test_hessiancreateadjoint","On first use, test PetscFnHessianCreateAdjoint against matrix-free","PetscFnTestDerivative",fn->test_hesadjcreate,&(fn->test_hesadjcreate),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessiancreateswap","On first use, test PetscFnHessianCreateSwap against matrix-free","PetscFnTestDerivative",fn->test_hesswpcreate,&(fn->test_hesswpcreate),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-fn_test_scalarhessiancreate","On first use, test PetscFnScalarHessianCreate against matrix-free","PetscFnTestDerivative",fn->test_scalhescreate,&(fn->test_scalhescreate),NULL);CHKERRQ(ierr);
 
   if (fn->ops->setfromoptions) {
@@ -270,12 +273,18 @@ PetscErrorCode PetscFnSetUp(PetscFn fn)
   fn->isScalar = PETSC_FALSE;
   if (fn->rmap->N == 1) fn->isScalar = PETSC_TRUE;
   comm = PetscObjectComm((PetscObject)fn);
-  ierr = PetscFnSetUp_VecType(comm, fn->rangeType,  (char **) &(fn->rangeType));CHKERRQ(ierr);
-  ierr = PetscFnSetUp_VecType(comm, fn->domainType, (char **) &(fn->domainType));CHKERRQ(ierr);
-  ierr = PetscFnSetUp_MatType(comm, fn->jacType,    (char **) &(fn->jacType));CHKERRQ(ierr);
-  ierr = PetscFnSetUp_MatType(comm, fn->jacadjType, (char **) &(fn->jacadjType));CHKERRQ(ierr);
-  ierr = PetscFnSetUp_MatType(comm, fn->hesType,    (char **) &(fn->hesType));CHKERRQ(ierr);
-  ierr = PetscFnSetUp_MatType(comm, fn->hesadjType, (char **) &(fn->hesadjType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_VecType(comm, fn->rangeType,     (char **) &(fn->rangeType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_VecType(comm, fn->domainType,    (char **) &(fn->domainType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->jacType,       (char **) &(fn->jacType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->jacPreType,    (char **) &(fn->jacPreType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->jacadjType,    (char **) &(fn->jacadjType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->jacadjPreType, (char **) &(fn->jacadjPreType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesType,       (char **) &(fn->hesType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesPreType,    (char **) &(fn->hesPreType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesadjType,    (char **) &(fn->hesadjType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesadjPreType, (char **) &(fn->hesadjPreType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesswpType,    (char **) &(fn->hesswpType));CHKERRQ(ierr);
+  ierr = PetscFnSetUp_MatType(comm, fn->hesswpPreType, (char **) &(fn->hesswpPreType));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -353,91 +362,83 @@ PetscErrorCode PetscFnGetVecTypes(PetscFn fn, VecType *rangeType, VecType *domai
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnSetJacobianMatTypes(PetscFn fn, MatType jacType, MatType jacPreType, MatType jacadjType, MatType jacadjPreType)
+static PetscErrorCode PetscFnSetMatType(MatType in, MatType *dest)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  if (jacType) {
-    ierr = PetscFree(fn->jacType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(jacType,(char**)&fn->jacType);CHKERRQ(ierr);
-  }
-  if (jacPreType) {
-    ierr = PetscFree(fn->jacPreType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(jacPreType,(char**)&fn->jacPreType);CHKERRQ(ierr);
-  }
-  if (jacadjType) {
-    ierr = PetscFree(fn->jacadjType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(jacadjType,(char**)&fn->jacadjType);CHKERRQ(ierr);
-  }
-  if (jacadjPreType) {
-    ierr = PetscFree(fn->jacadjPreType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(jacadjPreType,(char**)&fn->jacadjPreType);CHKERRQ(ierr);
+  if (in) {
+    ierr = PetscFree(*dest);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(in,(char**)dest);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnGetJacobianMatTypes(PetscFn fn, MatType *jacType, MatType *jacPreType, MatType *jacadjType, MatType *jacadjPreType)
+PetscErrorCode PetscFnSetMatTypes(PetscFn fn, PetscFnOperation op, MatType a, MatType aPre)
 {
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  if (jacType) {
-    *jacType = fn->jacType;
-  }
-  if (jacPreType) {
-    *jacPreType = fn->jacPreType;
-  }
-  if (jacadjType) {
-    *jacadjType = fn->jacadjType;
-  }
-  if (jacadjPreType) {
-    *jacadjPreType = fn->jacadjPreType;
-  }
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode PetscFnSetHessianMatTypes(PetscFn fn, MatType hesType, MatType hesPreType, MatType hesadjType, MatType hesadjPreType)
-{
+  MatType        *dest, *destPre;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  if (hesType) {
-    ierr = PetscFree(fn->hesType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(hesType,(char**)&fn->hesType);CHKERRQ(ierr);
+  switch (op) {
+  case PETSCFNOP_JACOBIANCREATE:
+    dest    = &(fn->jacType);
+    destPre = &(fn->jacPreType);
+    break;
+  case PETSCFNOP_JACOBIANCREATEADJOINT:
+    dest    = &(fn->jacadjType);
+    destPre = &(fn->jacadjPreType);
+    break;
+  case PETSCFNOP_HESSIANCREATE:
+    dest    = &(fn->hesType);
+    destPre = &(fn->hesPreType);
+    break;
+  case PETSCFNOP_SCALARHESSIANCREATE:
+  case PETSCFNOP_HESSIANCREATEADJOINT:
+    dest    = &(fn->hesadjType);
+    destPre = &(fn->hesadjPreType);
+    break;
+  case PETSCFNOP_HESSIANCREATESWAP:
+    dest    = &(fn->hesswpType);
+    destPre = &(fn->hesswpPreType);
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
   }
-  if (hesPreType) {
-    ierr = PetscFree(fn->hesPreType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(hesPreType,(char**)&fn->hesPreType);CHKERRQ(ierr);
-  }
-  if (hesadjType) {
-    ierr = PetscFree(fn->hesadjType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(hesadjType,(char**)&fn->hesadjType);CHKERRQ(ierr);
-  }
-  if (hesadjPreType) {
-    ierr = PetscFree(fn->hesadjPreType);CHKERRQ(ierr);
-    ierr = PetscStrallocpy(hesadjPreType,(char**)&fn->hesadjPreType);CHKERRQ(ierr);
-  }
+  ierr = PetscFnSetMatType(a,dest);CHKERRQ(ierr);
+  ierr = PetscFnSetMatType(aPre,destPre);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-
-PetscErrorCode PetscFnGetHessianMatTypes(PetscFn fn, MatType *hesType, MatType *hesPreType, MatType *hesadjType, MatType *hesadjPreType)
+PetscErrorCode PetscFnGetMatTypes(PetscFn fn, PetscFnOperation op, MatType *a, MatType *aPre)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  if (hesType) {
-    *hesType = fn->hesType;
-  }
-  if (hesPreType) {
-    *hesPreType = fn->hesPreType;
-  }
-  if (hesadjType) {
-    *hesadjType = fn->hesadjType;
-  }
-  if (hesadjPreType) {
-    *hesadjPreType = fn->hesadjPreType;
+  switch (op) {
+  case PETSCFNOP_JACOBIANCREATE:
+    *a    = fn->jacType;
+    *aPre = fn->jacPreType;
+    break;
+  case PETSCFNOP_JACOBIANCREATEADJOINT:
+    *a    = fn->jacadjType;
+    *aPre = fn->jacadjPreType;
+    break;
+  case PETSCFNOP_HESSIANCREATE:
+    *a    = fn->hesType;
+    *aPre = fn->hesPreType;
+    break;
+  case PETSCFNOP_SCALARHESSIANCREATE:
+  case PETSCFNOP_HESSIANCREATEADJOINT:
+    *a    = fn->hesadjType;
+    *aPre = fn->hesadjPreType;
+    break;
+  case PETSCFNOP_HESSIANCREATESWAP:
+    *a    = fn->hesswpType;
+    *aPre = fn->hesswpPreType;
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
   }
   PetscFunctionReturn(0);
 }
@@ -506,16 +507,16 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], PetscLayout layouts[3][2], MatType types[4], PetscErrorCode (*op) (PetscFn,Mat*,Mat*,Mat*,Mat*))
+static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], PetscLayout layouts[2], MatType types[4], PetscFnOperation op)
 {
   PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (op) {
-    ierr = (*op)(fn, mats[0], mats[1], mats[2], mats[3]);CHKERRQ(ierr);
+  if (fn->ops->createmats) {
+    ierr = (*fn->ops->createmats)(fn, op, mats[0], mats[1]);CHKERRQ(ierr);
 #if defined(PETSC_USE_DEBUG)
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 2; i++) {
       PetscBool same;
       MatType   rettype;
       Mat       dummy;
@@ -527,78 +528,63 @@ static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], Petsc
       ierr = MatGetType(dummy, &types[i]);CHKERRQ(ierr);
       ierr = MatGetType(*(mats[i]), &rettype);CHKERRQ(ierr);
       ierr = PetscObjectTypeCompare((PetscObject) *(mats[i]), types[i], &same);CHKERRQ(ierr);
-      if (!same) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned type %s, not %s", rettype, types[i]);
+      if (!same) SETERRQ3(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned type %s for %s, not %s", rettype, PetscFnOperations[op], types[i]);
       ierr = MatGetLayouts(*(mats[i]), &rowmap, &colmap);CHKERRQ(ierr);
-      same = (layouts[i/2][0]->n == rowmap->n && layouts[i/2][0]->N == rowmap->N) ? PETSC_TRUE : PETSC_FALSE;
+      same = (layouts[0]->n == rowmap->n && layouts[0]->N == rowmap->N) ? PETSC_TRUE : PETSC_FALSE;
       if (!same) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned mat of wrong row shape");
-      same = (layouts[i/2][1]->n == colmap->n && layouts[i/2][1]->N == colmap->N) ? PETSC_TRUE : PETSC_FALSE;
+      same = (layouts[1]->n == colmap->n && layouts[1]->N == colmap->N) ? PETSC_TRUE : PETSC_FALSE;
       if (!same) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEMATS returned mat of wrong column shape");
       ierr = MatDestroy(&dummy);CHKERRQ(ierr);
     }
 #endif
   } else {
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 2; i++) {
       PetscInt m, M, n, N;
       if (!mats[i]) continue;
       ierr = MatCreate(PetscObjectComm((PetscObject)fn),mats[i]);CHKERRQ(ierr);
       ierr = MatSetType(*(mats[i]),types[i]);CHKERRQ(ierr);
-      ierr = PetscLayoutGetSize(layouts[i/2][0],&N);CHKERRQ(ierr);
-      ierr = PetscLayoutGetLocalSize(layouts[i/2][0],&n);CHKERRQ(ierr);
-      ierr = PetscLayoutGetSize(layouts[i/2][1],&M);CHKERRQ(ierr);
-      ierr = PetscLayoutGetLocalSize(layouts[i/2][1],&m);CHKERRQ(ierr);
+      ierr = PetscLayoutGetSize(layouts[0],&N);CHKERRQ(ierr);
+      ierr = PetscLayoutGetLocalSize(layouts[0],&n);CHKERRQ(ierr);
+      ierr = PetscLayoutGetSize(layouts[1],&M);CHKERRQ(ierr);
+      ierr = PetscLayoutGetLocalSize(layouts[1],&m);CHKERRQ(ierr);
       ierr = MatSetSizes(*(mats[i]),n,m,N,M);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnCreateJacobianMats(PetscFn fn, Mat *jac, Mat *jacPre, Mat *jacadj, Mat *jacadjPre)
+PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
 {
-  MatType        types[4];
-  PetscLayout    layouts[3][2];
+  MatType        types[2];
+  PetscLayout    layouts[2];
   Mat*           mats[4];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  types[0] = fn->jacType;
-  types[1] = fn->jacPreType;
-  types[2] = fn->jacadjType;
-  types[3] = fn->jacadjPreType;
-  layouts[0][0] = fn->rmap;
-  layouts[0][1] = fn->dmap;
-  layouts[1][0] = fn->dmap;
-  layouts[1][1] = fn->rmap;
-  mats[0] = jac;
-  mats[1] = jacPre;
-  mats[2] = jacadj;
-  mats[3] = jacadjPre;
-  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, fn->ops->createjacobianmats);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode PetscFnCreateHessianMats(PetscFn fn, Mat *hes, Mat *hesPre, Mat *hesadj, Mat *hesadjPre)
-{
-  MatType        types[4];
-  PetscLayout    layouts[3][2];
-  Mat*           mats[4];
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  types[0] = fn->hesType;
-  types[1] = fn->hesPreType;
-  types[2] = fn->hesadjType;
-  types[3] = fn->hesadjPreType;
-  layouts[0][0] = fn->rmap;
-  layouts[0][1] = fn->dmap;
-  layouts[1][0] = fn->dmap;
-  layouts[1][1] = fn->dmap;
-  mats[0] = hes;
-  mats[1] = hesPre;
-  mats[2] = hesadj;
-  mats[3] = hesadjPre;
-  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, fn->ops->createhessianmats);CHKERRQ(ierr);
+  mats[0] = A;
+  mats[1] = Apre;
+  ierr = PetscFnGetMatTypes(fn, op, &types[0], &types[1]);CHKERRQ(ierr);
+  switch (op) {
+  case PETSCFNOP_JACOBIANCREATE:
+  case PETSCFNOP_HESSIANCREATE:
+    layouts[0] = fn->rmap;
+    layouts[1] = fn->dmap;
+    break;
+  case PETSCFNOP_JACOBIANCREATEADJOINT:
+  case PETSCFNOP_HESSIANCREATESWAP:
+    layouts[0] = fn->dmap;
+    layouts[1] = fn->rmap;
+    break;
+  case PETSCFNOP_SCALARHESSIANCREATE:
+  case PETSCFNOP_HESSIANCREATEADJOINT:
+    layouts[0] = fn->dmap;
+    layouts[1] = fn->dmap;
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  }
+  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, op);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -758,7 +744,7 @@ PetscErrorCode PetscFnJacobianCreate(PetscFn fn, Vec x, Mat J, Mat Jpre)
     if (fn->rmap->n != J->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat J: local range/row dim %D %D",fn->rmap->n,J->rmap->n);
   }
   if (Jpre) {
-    PetscValidHeaderSpecific(Jpre,VEC_CLASSID,4);
+    PetscValidHeaderSpecific(Jpre,MAT_CLASSID,4);
     if (fn->dmap->N != Jpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jpre: global domain/column dim %D %D",fn->dmap->N,Jpre->cmap->N);
     if (fn->dmap->n != Jpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jpre: local domain/column dim %D %D",fn->dmap->n,Jpre->cmap->n);
     if (fn->rmap->N != Jpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jpre: global range/row dim %D %D",fn->rmap->N,Jpre->rmap->N);
@@ -818,7 +804,7 @@ PetscErrorCode PetscFnJacobianCreateAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jad
     if (fn->rmap->n != Jadj->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadj: local range/column dim %D %D",fn->rmap->n,Jadj->cmap->n);
   }
   if (Jadjpre) {
-    PetscValidHeaderSpecific(Jadjpre,VEC_CLASSID,4);
+    PetscValidHeaderSpecific(Jadjpre,MAT_CLASSID,4);
     if (fn->dmap->N != Jadjpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: global domain/row dim %D %D",fn->dmap->N,Jadjpre->rmap->N);
     if (fn->dmap->n != Jadjpre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: local domain/row dim %D %D",fn->dmap->n,Jadjpre->rmap->n);
     if (fn->rmap->N != Jadjpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Jadjpre: global range/column dim %D %D",fn->rmap->N,Jadjpre->cmap->N);
@@ -974,7 +960,7 @@ PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre
     if (fn->rmap->n != H->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local range/row dim %D %D",fn->rmap->n,H->rmap->n);
   }
   if (Hpre) {
-    PetscValidHeaderSpecific(Hpre,VEC_CLASSID,5);
+    PetscValidHeaderSpecific(Hpre,MAT_CLASSID,5);
     if (fn->dmap->N != Hpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/column dim %D %D",fn->dmap->N,Hpre->cmap->N);
     if (fn->dmap->n != Hpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/column dim %D %D",fn->dmap->n,Hpre->cmap->n);
     if (fn->rmap->N != Hpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global range/row dim %D %D",fn->rmap->N,Hpre->rmap->N);
@@ -1018,6 +1004,68 @@ PetscErrorCode PetscFnHessianCreate(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscFnHessianCreateSwap(PetscFn fn, Vec x, Vec xhat, Mat Hswp, Mat Hswppre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(xhat,VEC_CLASSID,3);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (Hswp) {
+    PetscValidHeaderSpecific(Hswp,MAT_CLASSID,4);
+    if (fn->dmap->N != Hswp->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswp: global domain/row dim %D %D",fn->dmap->N,Hswp->rmap->N);
+    if (fn->dmap->n != Hswp->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswp: local domain/row dim %D %D",fn->dmap->n,Hswp->rmap->n);
+    if (fn->rmap->N != Hswp->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswp: global range/column dim %D %D",fn->rmap->N,Hswp->cmap->N);
+    if (fn->rmap->n != Hswp->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswp: local range/column dim %D %D",fn->rmap->n,Hswp->cmap->n);
+  }
+  if (Hswppre) {
+    PetscValidHeaderSpecific(Hswppre,MAT_CLASSID,5);
+    if (fn->dmap->N != Hswppre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswppre: global domain/row dim %D %D",fn->dmap->N,Hswppre->rmap->N);
+    if (fn->dmap->n != Hswppre->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswppre: local domain/row dim %D %D",fn->dmap->n,Hswppre->rmap->n);
+    if (fn->rmap->N != Hswppre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswppre: global range/column dim %D %D",fn->rmap->N,Hswppre->cmap->N);
+    if (fn->rmap->n != Hswppre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hswppre: local range/column dim %D %D",fn->rmap->n,Hswppre->cmap->n);
+  }
+  if (!Hswp && !Hswppre) PetscFunctionReturn(0);
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockPush(xhat);CHKERRQ(ierr);
+  if (fn->ops->hessiancreateswap) {
+    ierr = (*fn->ops->hessiancreateswap)(fn,x,xhat,Hswp,Hswppre);CHKERRQ(ierr);
+  } else if (fn->isScalar && fn->ops->scalarhessianmult) {
+    Mat                hes = Hswp ? Hswp : Hswppre;
+    Vec                Hxhat;
+    PetscInt           i, iStart, iEnd, *ia, zero = 0;
+    const PetscScalar *ga;
+
+    ierr = VecDuplicate(xhat, &Hxhat);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarhessianmult) (fn, x, xhat, Hxhat);CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(Hxhat, &iStart, &iEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
+    for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
+    ierr = VecGetArrayRead(Hxhat, &ga);CHKERRQ(ierr);
+    ierr = MatSetValues(hes, iEnd - iStart, ia, 1, &zero, ga, INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(Hxhat, &ga);CHKERRQ(ierr);
+    ierr = PetscFree(ia);CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    if (Hswp && Hswp != hes) {ierr = MatCopy(hes, Hswp, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (Hswppre && Hswppre != hes) {ierr = MatCopy(hes, Hswppre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    ierr = VecDestroy(&Hxhat);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  ierr = VecLockPop(xhat);CHKERRQ(ierr);
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  if (fn->test_hesswpcreate) {
+    PetscReal norm, err;
+
+    fn->test_hescreate = PETSC_FALSE;
+    if (Hswp) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATESWAP,Hswp,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+    if (Hswppre) {ierr = PetscFnTestDerivativeMat(fn,PETSCFNOP_HESSIANCREATESWAP,Hswppre,x,xhat,NULL,NULL,&norm,&err);CHKERRQ(ierr);}
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, Mat Hadjpre)
 {
   PetscErrorCode ierr;
@@ -1036,7 +1084,7 @@ PetscErrorCode PetscFnHessianCreateAdjoint(PetscFn fn, Vec x, Vec v, Mat Hadj, M
     if (fn->dmap->n != Hadj->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadj: local domain/row dim %D %D",fn->dmap->n,Hadj->rmap->n);
   }
   if (Hadjpre) {
-    PetscValidHeaderSpecific(Hadjpre,VEC_CLASSID,5);
+    PetscValidHeaderSpecific(Hadjpre,MAT_CLASSID,5);
     if (fn->dmap->N != Hadjpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: global domain/column dim %D %D",fn->dmap->N,Hadjpre->cmap->N);
     if (fn->dmap->n != Hadjpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: local domain/column dim %D %D",fn->dmap->n,Hadjpre->cmap->n);
     if (fn->dmap->N != Hadjpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hadjpre: global domain/row dim %D %D",fn->dmap->N,Hadjpre->rmap->N);
@@ -1117,7 +1165,7 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
     PetscInt zero = 0;
     PetscScalar *ga;
 
-    ierr = PetscFnCreateJacobianMats(fn, NULL, NULL, &Jadj, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANCREATEADJOINT, NULL, &Jadj);CHKERRQ(ierr);
     ierr = (*fn->ops->jacobiancreateadjoint)(fn,x,Jadj,NULL);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(x,&iStart,&iEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(iEnd - iStart,&ia);CHKERRQ(ierr);
@@ -1195,7 +1243,7 @@ PetscErrorCode PetscFnScalarHessianCreate(PetscFn fn, Vec x, Mat H, Mat Hpre)
     if (fn->dmap->n != H->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat H: local domain/row dim %D %D",fn->dmap->n,H->rmap->n);
   }
   if (Hpre) {
-    PetscValidHeaderSpecific(Hpre,VEC_CLASSID,5);
+    PetscValidHeaderSpecific(Hpre,MAT_CLASSID,5);
     if (fn->dmap->N != Hpre->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/column dim %D %D",fn->dmap->N,Hpre->cmap->N);
     if (fn->dmap->n != Hpre->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: local domain/column dim %D %D",fn->dmap->n,Hpre->cmap->n);
     if (fn->dmap->N != Hpre->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Mat Hpre: global domain/row dim %D %D",fn->dmap->N,Hpre->rmap->N);
@@ -1239,8 +1287,7 @@ PetscErrorCode PetscFnIsScalar(PetscFn fn, PetscBool *isScalar)
 
 const char *PetscFnOperations[] = {
                                   "createvecs",
-                                  "createjacobianmats",
-                                  "createhessianmats",
+                                  "createmats",
                                   "apply",
                                   "jacobianmult",
                                   "jacobianmultadjoint",
@@ -1250,6 +1297,7 @@ const char *PetscFnOperations[] = {
                                   "hessianmultadjoint",
                                   "hessiancreate",
                                   "hessiancreateadjoint",
+                                  "hessiancreateswap",
                                   "scalarapply",
                                   "scalargradient",
                                   "scalarhessianmult",
@@ -1257,6 +1305,7 @@ const char *PetscFnOperations[] = {
                                   "createsubfns",
                                   "destroysubfns",
                                   "createsubfn",
+                                  "createderivativefn",
                                   "destroy",
                                   };
 
@@ -1466,7 +1515,7 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
     }
   }
   if (!var) {
-    if (op == PETSCFNOP_JACOBIANCREATEADJOINT) {
+    if (op == PETSCFNOP_JACOBIANCREATEADJOINT || op == PETSCFNOP_HESSIANCREATESWAP) {
       ierr = PetscFnCreateVecs(fn, &var, NULL);CHKERRQ(ierr);
     }
     else {
@@ -1494,6 +1543,9 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, PetscFnOperation op, Mat M, 
     break;
   case PETSCFNOP_HESSIANCREATEADJOINT:
     ierr = PetscFnHessianMultAdjoint(fn,x,dot,var,c);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_HESSIANCREATESWAP:
+    ierr = PetscFnHessianMultAdjoint(fn,x,var,dot,c);CHKERRQ(ierr);
     break;
   case PETSCFNOP_SCALARHESSIANCREATE:
     ierr = PetscFnScalarHessianMult(fn,x,var,c);CHKERRQ(ierr);
@@ -1575,6 +1627,46 @@ static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, Vec *rangeVec,
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnShellScalarApply_DerShell(PetscFn fn, Vec x, PetscScalar *z)
+{
+  PetscFnDerShell *derShell;
+  PetscFn          origFn;
+  PetscInt         numDots;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
+  origFn = derShell->origFn;
+  numDots = derShell->numDots;
+  switch (derShell->op) {
+  case PETSCFNOP_APPLY:
+    ierr = PetscFnApply(origFn, x, derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_JACOBIANMULT:
+    ierr = PetscFnJacobianMult(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_JACOBIANMULTADJOINT:
+    ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_HESSIANMULT:
+    ierr = PetscFnHessianMult(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_HESSIANMULTADJOINT:
+    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_SCALARGRADIENT:
+    ierr = PetscFnScalarGradient(origFn, x, derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_SCALARHESSIANMULT:
+    ierr = PetscFnScalarHessianMult(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  }
+  ierr = VecDot(derShell->dotVecs[numDots - 1], derShell->workVecs[0], z);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFnShellApply_DerShell(PetscFn fn, Vec x, Vec y)
 {
   PetscFnDerShell *derShell;
@@ -1588,54 +1680,29 @@ static PetscErrorCode PetscFnShellApply_DerShell(PetscFn fn, Vec x, Vec y)
   origFn = derShell->origFn;
   numDots = derShell->numDots;
   maxDots = derShell->maxDots;
+  if (numDots == maxDots) {
+    ierr = PetscFnShellScalarApply_DerShell(fn, x, &z);CHKERRQ(ierr);
+    ierr = VecSet(y,z);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
   switch (derShell->op) {
-  case PETSCFNOP_APPLY:
-    ierr = PetscFnApply(origFn, x, derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
   case PETSCFNOP_JACOBIANMULT:
-    if (numDots == 1) {
-      ierr = PetscFnJacobianMult(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
-    } else {
-      ierr = PetscFnJacobianMult(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
-    }
+    ierr = PetscFnJacobianMult(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
     break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
-    if (numDots == 1) {
-      ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
-    } else {
-      ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
-    }
+    ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
     break;
   case PETSCFNOP_HESSIANMULT:
-    if (numDots == 2) {
-      ierr = PetscFnHessianMult(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
-    } else {
-      ierr = PetscFnHessianMult(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], derShell->workVecs[0]);CHKERRQ(ierr);
-    }
+    ierr = PetscFnHessianMult(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
     break;
   case PETSCFNOP_HESSIANMULTADJOINT:
-    if (numDots == 2) {
-      ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
-    } else {
-      ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], derShell->workVecs[0]);CHKERRQ(ierr);
-    }
-    break;
-  case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnScalarGradient(origFn, x, derShell->workVecs[0]);CHKERRQ(ierr);
+    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
     break;
   case PETSCFNOP_SCALARHESSIANMULT:
-    if (numDots == 1) {
-      ierr = PetscFnScalarHessianMult(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
-    } else {
-      ierr = PetscFnScalarHessianMult(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
-    }
+    ierr = PetscFnScalarHessianMult(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
     break;
   default:
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
-  }
-  if (numDots == maxDots) {
-    ierr = VecDot(derShell->dotVecs[numDots - 1], derShell->workVecs[0], &z);CHKERRQ(ierr);
-    ierr = VecSet(y,z);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1684,6 +1751,34 @@ static PetscErrorCode PetscFnShellJacobianMult_DerShell(PetscFn fn, Vec x, Vec x
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnShellScalarGradient_DerShell(PetscFn fn, Vec x, Vec y)
+{
+  PetscFnDerShell *derShell;
+  PetscFn          origFn;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
+  origFn = derShell->origFn;
+  switch (derShell->op) {
+  case PETSCFNOP_APPLY:
+    ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_JACOBIANMULT:
+    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[1], derShell->dotVecs[0], y);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_JACOBIANMULTADJOINT:
+    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_SCALARGRADIENT:
+    ierr = PetscFnScalarGradient(origFn, x, y);CHKERRQ(ierr);
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFnShellJacobianMultAdjoint_DerShell(PetscFn fn, Vec x, Vec v, Vec y)
 {
   PetscFnDerShell *derShell;
@@ -1697,38 +1792,23 @@ static PetscErrorCode PetscFnShellJacobianMultAdjoint_DerShell(PetscFn fn, Vec x
   origFn = derShell->origFn;
   numDots = derShell->numDots;
   maxDots = derShell->maxDots;
+  if (numDots == maxDots) {
+    ierr = PetscFnShellScalarGradient_DerShell(fn, x, y);CHKERRQ(ierr);
+    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
+    ierr = VecScale(y,z);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
   switch (derShell->op) {
-  case PETSCFNOP_APPLY:
-    /* dot0 is range vector */
-    ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
-    break;
   case PETSCFNOP_JACOBIANMULT:
-    if (numDots == 1) {
-      /* dot0 is domain vector */
-      ierr = PetscFnHessianMultAdjoint(origFn, x, v, derShell->dotVecs[0], y);CHKERRQ(ierr);
-    } else {
-      /* dot0 is domain vector, dot1 is range vector */
-      ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[1], derShell->dotVecs[0], y);CHKERRQ(ierr);
-    }
+    /* dot0 is domain vector */
+    ierr = PetscFnHessianMultAdjoint(origFn, x, v, derShell->dotVecs[0], y);CHKERRQ(ierr);
     break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
-    if (numDots == 1) {
-      /* dot0 is range vector, v is a domain vector */
-      ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], v, y);CHKERRQ(ierr);
-    } else {
-      /* dot0 is range vector, dot1 is a domain vector */
-      ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
-    }
-    break;
-  case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnScalarGradient(origFn, x, y);CHKERRQ(ierr);
+    /* dot0 is range vector, v is a domain vector */
+    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], v, y);CHKERRQ(ierr);
     break;
   default:
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
-  }
-  if (numDots == maxDots) {
-    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
-    ierr = VecScale(y,z);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1789,74 +1869,6 @@ static PetscErrorCode PetscFnShellHessianMultAdjoint_DerShell(PetscFn fn, Vec x,
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnShellScalarApply_DerShell(PetscFn fn, Vec x, PetscScalar z)
-{
-  PetscFnDerShell *derShell;
-  PetscFn          origFn;
-  PetscInt         numDots;
-  PetscErrorCode   ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
-  origFn = derShell->origFn;
-  numDots = derShell->numDots;
-  switch (derShell->op) {
-  case PETSCFNOP_APPLY:
-    ierr = PetscFnApply(origFn, x, derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_JACOBIANMULT:
-    ierr = PetscFnJacobianMult(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_JACOBIANMULTADJOINT:
-    ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_HESSIANMULT:
-    ierr = PetscFnHessianMult(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_HESSIANMULTADJOINT:
-    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnScalarGradient(origFn, x, derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_SCALARHESSIANMULT:
-    ierr = PetscFnScalarHessianMult(origFn, x, derShell->dotVecs[0], derShell->workVecs[0]);CHKERRQ(ierr);
-    break;
-  default:
-    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
-  }
-  ierr = VecDot(derShell->dotVecs[numDots - 1], derShell->workVecs[0], &z);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnShellScalarGradient_DerShell(PetscFn fn, Vec x, Vec y)
-{
-  PetscFnDerShell *derShell;
-  PetscFn          origFn;
-  PetscErrorCode   ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
-  origFn = derShell->origFn;
-  switch (derShell->op) {
-  case PETSCFNOP_APPLY:
-    ierr = PetscFnJacobianMultAdjoint(origFn, x, derShell->dotVecs[0], y);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_JACOBIANMULT:
-    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[1], derShell->dotVecs[0], y);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_JACOBIANMULTADJOINT:
-    ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], derShell->dotVecs[1], y);CHKERRQ(ierr);
-    break;
-  case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnScalarGradient(origFn, x, y);CHKERRQ(ierr);
-    break;
-  default:
-    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
-  }
-  PetscFunctionReturn(0);
-}
-
 static PetscErrorCode PetscFnShellScalarHessianMult_DerShell(PetscFn fn, Vec x, Vec xhat, Vec y)
 {
   PetscFnDerShell *derShell;
@@ -1870,6 +1882,60 @@ static PetscErrorCode PetscFnShellScalarHessianMult_DerShell(PetscFn fn, Vec x, 
   case PETSCFNOP_APPLY:
     /* dot0 is range vector */
     ierr = PetscFnHessianMultAdjoint(origFn, x, derShell->dotVecs[0], xhat, y);CHKERRQ(ierr);
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnShellJacobianCreate_DerShell(PetscFn fn, Vec x, Mat J, Mat Jpre)
+{
+  PetscFnDerShell *derShell;
+  PetscFn          origFn;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
+  origFn = derShell->origFn;
+  /* we assume that if numDots == maxDots, then a PETSCFNOP_JACOBIANCREATE method is not passed */
+  switch (derShell->op) {
+  case PETSCFNOP_JACOBIANMULT:
+    /* The shape of the matrix will be the same, so it must be Hessian */
+    ierr = PetscFnHessianCreate(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_JACOBIANMULTADJOINT:
+    /* The shape of the matrix will be the square, so it must be HessianAdjoint */
+    ierr = PetscFnHessianCreateAdjoint(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_SCALARGRADIENT:
+    ierr = PetscFnScalarHessianCreate(origFn, x, J, Jpre);CHKERRQ(ierr);
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnShellJacobianCreateAdjoint_DerShell(PetscFn fn, Vec x, Mat J, Mat Jpre)
+{
+  PetscFnDerShell *derShell;
+  PetscFn          origFn;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
+  origFn = derShell->origFn;
+  /* we assume that if numDots == maxDots, then a PETSCFNOP_JACOBIANCREATEADJOINT method is not passed */
+  switch (derShell->op) {
+  case PETSCFNOP_JACOBIANMULT:
+    ierr = PetscFnHessianCreateSwap(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_JACOBIANMULTADJOINT:
+    ierr = PetscFnHessianCreateAdjoint(origFn, x, derShell->dotVecs[0], J, Jpre);CHKERRQ(ierr);
+    break;
+  case PETSCFNOP_SCALARGRADIENT:
+    ierr = PetscFnScalarHessianCreate(origFn, x, J, Jpre);CHKERRQ(ierr);
     break;
   default:
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
@@ -1997,6 +2063,8 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnShellScalarApply_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARGRADIENT, (void (*)(void)) PetscFnShellScalarGradient_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARHESSIANMULT, (void (*)(void)) PetscFnShellScalarHessianMult_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANCREATE, (void (*)(void)) PetscFnShellJacobianCreate_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANCREATEADJOINT, (void (*)(void)) PetscFnShellJacobianCreateAdjoint_DerShell);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

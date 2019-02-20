@@ -16,8 +16,7 @@ PETSC_EXTERN PetscErrorCode PetscFnRegisterAll(void);
 typedef struct _FnOps *FnOps;
 struct _FnOps {
   PetscErrorCode (*createvecs)(PetscFn,Vec*,Vec*);
-  PetscErrorCode (*createjacobianmats)(PetscFn,Mat*,Mat*,Mat*,Mat*);
-  PetscErrorCode (*createhessianmats)(PetscFn,Mat*,Mat*,Mat*,Mat*);
+  PetscErrorCode (*createmats)(PetscFn,PetscFnOperation,Mat*,Mat*);
   PetscErrorCode (*apply)(PetscFn,Vec,Vec);
   PetscErrorCode (*jacobianmult)(PetscFn,Vec,Vec,Vec);
   PetscErrorCode (*jacobianmultadjoint)(PetscFn,Vec,Vec,Vec);
@@ -27,6 +26,7 @@ struct _FnOps {
   PetscErrorCode (*hessianmultadjoint)(PetscFn,Vec,Vec,Vec,Vec);
   PetscErrorCode (*hessiancreate)(PetscFn,Vec,Vec,Mat,Mat);
   PetscErrorCode (*hessiancreateadjoint)(PetscFn,Vec,Vec,Mat,Mat);
+  PetscErrorCode (*hessiancreateswap)(PetscFn,Vec,Vec,Mat,Mat);
   PetscErrorCode (*scalarapply)(PetscFn,Vec,PetscScalar *);
   PetscErrorCode (*scalargradient)(PetscFn,Vec,Vec);
   PetscErrorCode (*scalarhessianmult)(PetscFn,Vec,Vec,Vec);
@@ -56,6 +56,7 @@ struct _p_PetscFn {
   MatType     jacadjType, jacadjPreType;
   MatType     hesType, hesPreType;
   MatType     hesadjType, hesadjPreType;
+  MatType     hesswpType, hesswpPreType;
   PetscBool   test_jacmult;
   PetscBool   test_jacmultadj;
   PetscBool   test_hesmult;
@@ -66,6 +67,7 @@ struct _p_PetscFn {
   PetscBool   test_jacadjcreate;
   PetscBool   test_hescreate;
   PetscBool   test_hesadjcreate;
+  PetscBool   test_hesswpcreate;
   PetscBool   test_scalhescreate;
 };
 
