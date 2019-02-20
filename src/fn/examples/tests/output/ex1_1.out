@@ -1,0 +1,11 @@
+PetscFnTestDerivative: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (5.419e-13, 1.35558e-13): measured rate 1.99911
+PetscFnTestDerivative: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (1.06411e-11, 2.66033e-12): measured rate 1.99997
+PetscFnTestDerivative: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (5.26263e-14, 1.31579e-14): measured rate 1.99986
+PetscFnTestDerivative: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (7.59476e-13, 1.89904e-13): measured rate 1.99974
+PetscFnTestDerivative: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (7.35699e-11, 1.83929e-11): measured rate 1.99997
+PetscFnTestDerivative: Tested convergence of scalarhessianmult at offsets (2e-05, 1e-05); tangents differ by (5.25091e-12, 1.31295e-12): measured rate 1.99976
+PetscFnTestDerivativeMat: Tested jacobiancreate matrix against matrix-free action: action result norm 0.900634, error 0.
+PetscFnTestDerivativeMat: Tested jacobiancreateadjoint matrix against matrix-free action: action result norm 0.900634, error 0.
+PetscFnTestDerivativeMat: Tested hessiancreate matrix against matrix-free action: action result norm 0.0315707, error 0.
+PetscFnTestDerivativeMat: Tested hessiancreateadjoint matrix against matrix-free action: action result norm 0.0738967, error 0.
+PetscFnTestDerivativeMat: Tested scalarhessiancreate matrix against matrix-free action: action result norm 0.510903, error 0.
