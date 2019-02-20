@@ -122,7 +122,7 @@ typedef enum { PETSCFNOP_CREATEVECS,
 PETSC_EXTERN const char *PetscFnOperations[];
 
 /* derivatives are functions too */
-PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscFnOperation,PetscInt,Vec [],PetscCopyMode, PetscFn *);
+PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscFnOperation,PetscInt,const Vec [],PetscFn *);
 
 /* Taylor tests */
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivative(PetscFn,PetscFnOperation,Vec,Vec,Vec,PetscRandom,PetscReal,PetscReal,PetscReal*);

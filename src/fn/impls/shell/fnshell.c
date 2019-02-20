@@ -107,6 +107,9 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
   case PETSCFNOP_CREATESUBFN:
     fn->ops->createsubfn = (PetscErrorCode (*) (PetscFn,Vec,IS,IS,MatReuse,PetscFn *)) f;
     break;
+  case PETSCFNOP_CREATEDERIVATIVEFN:
+    fn->ops->createderivativefn = (PetscErrorCode (*) (PetscFn,PetscFnOperation,PetscInt,const Vec[],PetscFn *)) f;
+    break;
   case PETSCFNOP_DESTROY:
     shell->destroy = (PetscErrorCode (*) (PetscFn)) f;
     break;
@@ -179,6 +182,9 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
     break;
   case PETSCFNOP_CREATESUBFN:
     *f = (void (*)(void)) fn->ops->createsubfn;
+    break;
+  case PETSCFNOP_CREATEDERIVATIVEFN:
+    *f = (void (*)(void)) fn->ops->createderivativefn;
     break;
   case PETSCFNOP_DESTROY:
     *f = (void (*)(void)) shell->destroy;
