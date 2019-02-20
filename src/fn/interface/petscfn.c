@@ -1579,8 +1579,8 @@ typedef struct
   PetscFnOperation op;
   PetscInt numDots;
   PetscInt maxDots;
-  Vec dotVecs[2];
-  Vec workVecs[2];
+  Vec dotVecs[3];
+  Vec workVecs[1];
 } PetscFnDerShell;
 
 static PetscErrorCode PetscFnShellDestroy_DerShell(PetscFn fn)
@@ -1595,8 +1595,8 @@ static PetscErrorCode PetscFnShellDestroy_DerShell(PetscFn fn)
   origFn = derShell->origFn;
   for (i = 0; i < derShell->numDots; i++) {
     ierr = VecDestroy(&(derShell->dotVecs[i]));CHKERRQ(ierr);
-    ierr = VecDestroy(&(derShell->workVecs[i]));CHKERRQ(ierr);
   }
+  ierr = VecDestroy(&(derShell->workVecs[0]));CHKERRQ(ierr);
   ierr = PetscFree(derShell);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&origFn);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1943,6 +1943,21 @@ static PetscErrorCode PetscFnShellJacobianBuildAdjoint_DerShell(PetscFn fn, Vec 
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnShellScalarHessianBuild_DerShell(PetscFn fn, Vec x, Mat H, Mat Hpre)
+{
+  PetscFnDerShell *derShell;
+  PetscFn          origFn;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
+  origFn = derShell->origFn;
+  if (derShell->op != PETSCFNOP_APPLY) SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  ierr = PetscFnHessianBuildAdjoint(origFn, x, derShell->dotVecs[0], H, Hpre);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOperation op, PetscInt numDots, const Vec dotVecs[], PetscFn *derFn)
 {
   PetscInt         maxDots;
@@ -2010,10 +2025,11 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
   }
   ierr = PetscFnCreate(comm, &df);CHKERRQ(ierr);
   ierr = PetscFnSetSizes(df, m, M, fn->dmap->n, fn->dmap->N);CHKERRQ(ierr);
-  df->domainType = fn->domainType;
+  ierr = PetscLayoutReference(fn->dmap,&(df->dmap));CHKERRQ(ierr);
+  ierr = PetscFnSetVecTypes(df, NULL, fn->domainType);CHKERRQ(ierr);
   if (!derIsScalar) {
     ierr = PetscLayoutReference(rangeLayout,&(df->rmap));CHKERRQ(ierr);
-    df->rangeType = (rangeLayout == fn->rmap) ? fn->rangeType : fn->domainType;
+    ierr = PetscFnSetVecTypes(df, (rangeLayout == fn->rmap) ? fn->rangeType : fn->domainType, NULL);CHKERRQ(ierr);
   }
   ierr = PetscFnSetType(df, PETSCFNSHELL);CHKERRQ(ierr);
   ierr = PetscNewLog(df, &derShell);CHKERRQ(ierr);
@@ -2025,46 +2041,46 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
     ierr = PetscObjectReference((PetscObject)dotVecs[i]);CHKERRQ(ierr);
     derShell->dotVecs[i] = dotVecs[i];
   }
+  derShell->workVecs[0] = NULL;
+  if (numDots) {ierr = VecDuplicate(dotVecs[numDots - 1], &(derShell->workVecs[0]));CHKERRQ(ierr);}
   if (derIsScalar) {
     /* Jacobian and Jacobian adjoint are vector matrices, no need to set the type */
     /* Hessian (rank-3 tensor contracted with domain vector) is a vector matrix, no need to set the type */
     /* Hessian adjoint (rank-3 tensor contracted with a range vector) has the shape of two domain vectors, same as before*/
-    df->hesadjType    = fn->hesadjType;
-    df->hesadjPreType = fn->hesadjPreType;
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILDADJOINT, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
   } else if (rangeLayout == fn->rmap) {
     /* range is the same as before, domain is the same as before, just copy the matrix types */
-    df->jacType       = fn->jacType;
-    df->jacPreType    = fn->jacPreType;
-    df->jacadjType    = fn->jacadjType;
-    df->jacadjPreType = fn->jacadjPreType;
-    df->hesType       = fn->hesType;
-    df->hesPreType    = fn->hesPreType;
-    df->hesadjType    = fn->hesadjType;
-    df->hesadjPreType = fn->hesadjPreType;
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_JACOBIANBUILD, df->jacType, df->jacPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_JACOBIANBUILDADJOINT, df->jacadjType, df->jacadjPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILD, df->hesType, df->hesPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILDADJOINT, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILDSWAP, df->hesswpType, df->hesswpPreType);CHKERRQ(ierr);
   } else {
     /* adjoint system, range and domain are the same for all matrices */
-    df->jacType       = fn->hesadjType;
-    df->jacPreType    = fn->hesadjPreType;
-    df->jacadjType    = fn->hesadjType;
-    df->jacadjPreType = fn->hesadjPreType;
-    df->hesType       = fn->hesadjType;
-    df->hesPreType    = fn->hesadjPreType;
-    df->hesadjType    = fn->hesadjType;
-    df->hesadjPreType = fn->hesadjPreType;
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_JACOBIANBUILD, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_JACOBIANBUILDADJOINT, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILD, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILDADJOINT, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
+    ierr = PetscFnSetMatTypes(df, PETSCFNOP_HESSIANBUILDSWAP, df->hesadjType, df->hesadjPreType);CHKERRQ(ierr);
   }
   ierr = PetscFnShellSetContext(df, (void *) derShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_DESTROY, (void (*)(void)) PetscFnShellDestroy_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_CREATEVECS, (void (*)(void)) PetscFnShellCreateVecs_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_APPLY, (void (*)(void)) PetscFnShellApply_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnShellJacobianMult_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnShellJacobianMultAdjoint_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_HESSIANMULT, (void (*)(void)) PetscFnShellHessianMult_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_HESSIANMULTADJOINT, (void (*)(void)) PetscFnShellHessianMultAdjoint_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnShellScalarApply_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARGRADIENT, (void (*)(void)) PetscFnShellScalarGradient_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARHESSIANMULT, (void (*)(void)) PetscFnShellScalarHessianMult_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANBUILD, (void (*)(void)) PetscFnShellJacobianBuild_DerShell);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnShellJacobianBuildAdjoint_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_DESTROY,                (void (*)(void)) PetscFnShellDestroy_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_CREATEVECS,             (void (*)(void)) PetscFnShellCreateVecs_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_APPLY,                  (void (*)(void)) PetscFnShellApply_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANMULT,           (void (*)(void)) PetscFnShellJacobianMult_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANMULTADJOINT,    (void (*)(void)) PetscFnShellJacobianMultAdjoint_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_HESSIANMULT,            (void (*)(void)) PetscFnShellHessianMult_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_HESSIANMULTADJOINT,     (void (*)(void)) PetscFnShellHessianMultAdjoint_DerShell);CHKERRQ(ierr);
+  if (derIsScalar) {
+    ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARAPPLY,          (void (*)(void)) PetscFnShellScalarApply_DerShell);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARGRADIENT,       (void (*)(void)) PetscFnShellScalarGradient_DerShell);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARHESSIANMULT,    (void (*)(void)) PetscFnShellScalarHessianMult_DerShell);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(df, PETSCFNOP_SCALARHESSIANBUILD,   (void (*)(void)) PetscFnShellScalarHessianBuild_DerShell);CHKERRQ(ierr);
+  } else {
+    ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANBUILD,        (void (*)(void)) PetscFnShellJacobianBuild_DerShell);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnShellJacobianBuildAdjoint_DerShell);CHKERRQ(ierr);
+  }
+  *derFn = df;
   PetscFunctionReturn(0);
 }
 
