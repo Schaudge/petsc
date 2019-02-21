@@ -125,7 +125,9 @@ PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscFnOperation,P
 /* Taylor tests */
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeMult(PetscFn,PetscFnOperation,Vec,Vec,Vec,PetscRandom,PetscReal,PetscReal,PetscReal*);
 /* Matrix free comparisons */
-PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeMat(PetscFn,PetscFnOperation,Mat,Vec,Vec,Vec,PetscRandom,PetscReal*,PetscReal*);
+PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeBuild(PetscFn,PetscFnOperation,Mat,Vec,Vec,Vec,PetscRandom,PetscReal*,PetscReal*);
+/* Instantiated function comparison */
+PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeFn(PetscFn,PetscFn,PetscFnOperation,PetscInt,const Vec [],Vec,PetscReal*,PetscReal*);
 
 PETSC_EXTERN PetscErrorCode PetscFnShellSetContext(PetscFn,void*);
 PETSC_EXTERN PetscErrorCode PetscFnShellGetContext(PetscFn,void *);
