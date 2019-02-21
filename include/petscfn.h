@@ -123,7 +123,7 @@ PETSC_EXTERN const char *PetscFnOperations[];
 PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscFnOperation,PetscInt,const Vec [],PetscFn *);
 
 /* Taylor tests */
-PETSC_EXTERN PetscErrorCode PetscFnTestDerivative(PetscFn,PetscFnOperation,Vec,Vec,Vec,PetscRandom,PetscReal,PetscReal,PetscReal*);
+PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeMult(PetscFn,PetscFnOperation,Vec,Vec,Vec,PetscRandom,PetscReal,PetscReal,PetscReal*);
 /* Matrix free comparisons */
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeMat(PetscFn,PetscFnOperation,Mat,Vec,Vec,Vec,PetscRandom,PetscReal*,PetscReal*);
 

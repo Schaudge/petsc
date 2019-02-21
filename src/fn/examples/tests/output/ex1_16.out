@@ -1,13 +1,13 @@
-PetscFnTestDerivative: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (6.38374e-11, 1.59593e-11): measured rate 2.
-PetscFnTestDerivative: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.93829e-11, 7.34576e-12): measured rate 1.99999
-PetscFnTestDerivative: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (2.03146e-10, 5.07868e-11): measured rate 1.99999
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (6.38374e-11, 1.59593e-11): measured rate 2.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.93829e-11, 7.34576e-12): measured rate 1.99999
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (2.03146e-10, 5.07868e-11): measured rate 1.99999
 PetscFnTestDerivativeMat: Tested jacobianbuild matrix against matrix-free action: action result norm 0.402963, error 0.
 PetscFnTestDerivativeMat: Tested jacobianbuild matrix against matrix-free action: action result norm 0.402963, error 0.
 PetscFnTestDerivativeMat: Tested jacobianbuildadjoint matrix against matrix-free action: action result norm 0.917048, error 0.
 PetscFnTestDerivativeMat: Tested jacobianbuildadjoint matrix against matrix-free action: action result norm 0.917048, error 0.
-PetscFnTestDerivative: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (1.71179e-10, 4.27952e-11): measured rate 1.99999
-PetscFnTestDerivative: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (3.48882e-11, 8.7221e-12): measured rate 1.99999
-PetscFnTestDerivative: Tested convergence of scalarhessianmult at offsets (2e-05, 1e-05); tangents differ by (2.41208e-10, 6.03025e-11): measured rate 1.99999
+PetscFnTestDerivativeMult: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (1.71179e-10, 4.27952e-11): measured rate 1.99999
+PetscFnTestDerivativeMult: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (3.48882e-11, 8.7221e-12): measured rate 1.99999
+PetscFnTestDerivativeMult: Tested convergence of scalarhessianmult at offsets (2e-05, 1e-05); tangents differ by (2.41208e-10, 6.03025e-11): measured rate 1.99999
 PetscFnTestDerivativeMat: Tested hessianbuild matrix against matrix-free action: action result norm 0.636874, error 0.
 PetscFnTestDerivativeMat: Tested hessianbuild matrix against matrix-free action: action result norm 0.636874, error 0.
 PetscFnTestDerivativeMat: Tested hessianbuildadjoint matrix against matrix-free action: action result norm 0.183116, error 2.77556e-17

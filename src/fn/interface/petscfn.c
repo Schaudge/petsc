@@ -197,7 +197,7 @@ PetscErrorCode PetscFnSetFromOptions(PetscFn fn)
   }
 
   test_all = PETSC_FALSE;
-  ierr = PetscOptionsBool("-fn_test_allmult","On first use, test the order of convergence of all derivative multiplications","PetscFnTestDerivative",test_all,&test_all,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_allmult","On first use, test the order of convergence of all derivative multiplications","PetscFnTestDerivativeMult",test_all,&test_all,NULL);CHKERRQ(ierr);
   if (test_all) {
     fn->test_jacmult     = PETSC_TRUE;
     fn->test_jacmultadj  = PETSC_TRUE;
@@ -206,12 +206,12 @@ PetscErrorCode PetscFnSetFromOptions(PetscFn fn)
     fn->test_scalgrad    = PETSC_TRUE;
     fn->test_scalhesmult = PETSC_TRUE;
   }
-  ierr = PetscOptionsBool("-fn_test_jacobianmult","On first use, test the order of convergence of PetscFnJacobianMult","PetscFnTestDerivative",fn->test_jacmult,&(fn->test_jacmult),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_jacobianmultadjoint","On first use, test the order of convergence of PetscFnJacobianMultAdjoint","PetscFnTestDerivative",fn->test_jacmultadj,&(fn->test_jacmultadj),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessianmult","On first use, test the order of convergence of PetscFnHessianMult","PetscFnTestDerivative",fn->test_hesmult,&(fn->test_hesmult),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessianmultadjoint","On first use, test the order of convergence of PetscFnHessianMultAdjoint","PetscFnTestDerivative",fn->test_hesmultadj,&(fn->test_hesmultadj),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_scalargradient","On first use, test the order of convergence of PetscFnScalarGradient","PetscFnTestDerivative",fn->test_scalgrad,&(fn->test_scalgrad),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_scalarhessianmult","On first use, test the order of convergence of PetscFnScalarHessianMult","PetscFnTestDerivative",fn->test_scalhesmult,&(fn->test_scalhesmult),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_jacobianmult","On first use, test the order of convergence of PetscFnJacobianMult","PetscFnTestDerivativeMult",fn->test_jacmult,&(fn->test_jacmult),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_jacobianmultadjoint","On first use, test the order of convergence of PetscFnJacobianMultAdjoint","PetscFnTestDerivativeMult",fn->test_jacmultadj,&(fn->test_jacmultadj),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianmult","On first use, test the order of convergence of PetscFnHessianMult","PetscFnTestDerivativeMult",fn->test_hesmult,&(fn->test_hesmult),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianmultadjoint","On first use, test the order of convergence of PetscFnHessianMultAdjoint","PetscFnTestDerivativeMult",fn->test_hesmultadj,&(fn->test_hesmultadj),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_scalargradient","On first use, test the order of convergence of PetscFnScalarGradient","PetscFnTestDerivativeMult",fn->test_scalgrad,&(fn->test_scalgrad),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_scalarhessianmult","On first use, test the order of convergence of PetscFnScalarHessianMult","PetscFnTestDerivativeMult",fn->test_scalhesmult,&(fn->test_scalhesmult),NULL);CHKERRQ(ierr);
   test_all = PETSC_FALSE;
   ierr = PetscOptionsBool("-fn_test_allbuild","Test all built derivative matrices against matrix-free","PetscFnTestDerivativeMat",test_all,&test_all,NULL);CHKERRQ(ierr);
   if (test_all) {
@@ -223,12 +223,12 @@ PetscErrorCode PetscFnSetFromOptions(PetscFn fn)
     fn->test_scalgrad    = PETSC_TRUE;
     fn->test_scalhesbuild = PETSC_TRUE;
   }
-  ierr = PetscOptionsBool("-fn_test_jacobianbuild","On first use, test PetscFnJacobianBuild against matrix-free","PetscFnTestDerivative",fn->test_jacbuild,&(fn->test_jacbuild),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_jacobianbuildadjoint","On first use, test PetscFnJacobianBuildAdjoint against matrix-free","PetscFnTestDerivative",fn->test_jacbuildadj,&(fn->test_jacbuildadj),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessianbuild","On first use, test PetscFnHessianBuild against matrix-free","PetscFnTestDerivative",fn->test_hesbuild,&(fn->test_hesbuild),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessianbuildadjoint","On first use, test PetscFnHessianBuildAdjoint against matrix-free","PetscFnTestDerivative",fn->test_hesbuildadj,&(fn->test_hesbuildadj),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_hessianbuildswap","On first use, test PetscFnHessianBuildSwap against matrix-free","PetscFnTestDerivative",fn->test_hesbuildswp,&(fn->test_hesbuildswp),NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fn_test_scalarhessianbuild","On first use, test PetscFnScalarHessianBuild against matrix-free","PetscFnTestDerivative",fn->test_scalhesbuild,&(fn->test_scalhesbuild),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_jacobianbuild","On first use, test PetscFnJacobianBuild against matrix-free","PetscFnTestDerivativeMult",fn->test_jacbuild,&(fn->test_jacbuild),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_jacobianbuildadjoint","On first use, test PetscFnJacobianBuildAdjoint against matrix-free","PetscFnTestDerivativeMult",fn->test_jacbuildadj,&(fn->test_jacbuildadj),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianbuild","On first use, test PetscFnHessianBuild against matrix-free","PetscFnTestDerivativeMult",fn->test_hesbuild,&(fn->test_hesbuild),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianbuildadjoint","On first use, test PetscFnHessianBuildAdjoint against matrix-free","PetscFnTestDerivativeMult",fn->test_hesbuildadj,&(fn->test_hesbuildadj),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_hessianbuildswap","On first use, test PetscFnHessianBuildSwap against matrix-free","PetscFnTestDerivativeMult",fn->test_hesbuildswp,&(fn->test_hesbuildswp),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-fn_test_scalarhessianbuild","On first use, test PetscFnScalarHessianBuild against matrix-free","PetscFnTestDerivativeMult",fn->test_scalhesbuild,&(fn->test_scalhesbuild),NULL);CHKERRQ(ierr);
 
   if (fn->ops->setfromoptions) {
     ierr = (*fn->ops->setfromoptions)(PetscOptionsObject,fn);CHKERRQ(ierr);
@@ -679,7 +679,7 @@ PetscErrorCode PetscFnJacobianMult(PetscFn fn, Vec x, Vec xhat, Vec Jxhat)
     PetscReal rate;
 
     fn->test_jacmult = PETSC_FALSE;
-    ierr = PetscFnTestDerivative(fn,PETSCFNOP_JACOBIANMULT,x,xhat,NULL,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
+    ierr = PetscFnTestDerivativeMult(fn,PETSCFNOP_JACOBIANMULT,x,xhat,NULL,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -744,7 +744,7 @@ PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec Jadjv)
     PetscReal rate;
 
     fn->test_jacmultadj = PETSC_FALSE;
-    ierr = PetscFnTestDerivative(fn,PETSCFNOP_JACOBIANMULTADJOINT,x,NULL,v,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
+    ierr = PetscFnTestDerivativeMult(fn,PETSCFNOP_JACOBIANMULTADJOINT,x,NULL,v,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -927,7 +927,7 @@ PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec Hxh
     PetscReal rate;
 
     fn->test_hesmult = PETSC_FALSE;
-    ierr = PetscFnTestDerivative(fn,PETSCFNOP_HESSIANMULT,x,xhat,xdot,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
+    ierr = PetscFnTestDerivativeMult(fn,PETSCFNOP_HESSIANMULT,x,xhat,xdot,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -973,7 +973,7 @@ PetscErrorCode PetscFnHessianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec xhat, Vec
     PetscReal rate;
 
     fn->test_hesmultadj = PETSC_FALSE;
-    ierr = PetscFnTestDerivative(fn,PETSCFNOP_HESSIANMULTADJOINT,x,xhat,v,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
+    ierr = PetscFnTestDerivativeMult(fn,PETSCFNOP_HESSIANMULTADJOINT,x,xhat,v,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1231,7 +1231,7 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
     PetscReal rate;
 
     fn->test_scalgrad = PETSC_FALSE;
-    ierr = PetscFnTestDerivative(fn,PETSCFNOP_SCALARGRADIENT,x,NULL,NULL,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
+    ierr = PetscFnTestDerivativeMult(fn,PETSCFNOP_SCALARGRADIENT,x,NULL,NULL,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1269,7 +1269,7 @@ PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
     PetscReal rate;
 
     fn->test_scalhesmult = PETSC_FALSE;
-    ierr = PetscFnTestDerivative(fn,PETSCFNOP_SCALARHESSIANMULT,x,xhat,NULL,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
+    ierr = PetscFnTestDerivativeMult(fn,PETSCFNOP_SCALARHESSIANMULT,x,xhat,NULL,NULL,PETSC_DEFAULT,PETSC_DEFAULT,&rate);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1359,7 +1359,7 @@ const char *PetscFnOperations[] = {
                                   "destroy",
                                   };
 
-PetscErrorCode PetscFnTestDerivative(PetscFn fn, PetscFnOperation op, Vec x, Vec xhat, Vec dot, PetscRandom rand, PetscReal e1, PetscReal e2, PetscReal * rate)
+PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x, Vec xhat, Vec dot, PetscRandom rand, PetscReal e1, PetscReal e2, PetscReal * rate)
 {
   PetscRandom    rorig = rand;
   Vec            xorig = x;
