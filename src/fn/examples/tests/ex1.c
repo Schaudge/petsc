@@ -203,6 +203,7 @@ static PetscErrorCode VecToMat_Internal(Vec g, Mat jac, PetscBool col)
   PetscFunctionBegin;
   ierr = VecGetOwnershipRange(g, &iStart, &iEnd);CHKERRQ(ierr);
   ierr = VecGetArrayRead(g,&garray);CHKERRQ(ierr);
+  ierr = MatSetUp(jac);CHKERRQ(ierr);
   if (col) {
     for (i = iStart; i < iEnd; i++) {ierr = MatSetValue(jac, i, 0, garray[i-iStart], INSERT_VALUES);CHKERRQ(ierr);}
   } else {
@@ -283,6 +284,7 @@ static PetscErrorCode PetscFnScalarHessianBuild_Vec(PetscFn fn, Vec x, Mat H, Ma
   ierr = VecToMat_Internal(g, Jadj, PETSC_TRUE);CHKERRQ(ierr);
   ierr = MatTranspose(Jadj, MAT_INITIAL_MATRIX, &J);CHKERRQ(ierr);
   ierr = MatMatMult(Jadj,J,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&JadjJ);CHKERRQ(ierr);
+  ierr = MatSetUp(hes);CHKERRQ(ierr);
   ierr = MatCopy(JadjJ, hes, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatScale(hes, -PetscSinScalar(z));CHKERRQ(ierr);
   ierr = MatShift(hes, 2. * PetscCosScalar(z));CHKERRQ(ierr);
@@ -290,8 +292,14 @@ static PetscErrorCode PetscFnScalarHessianBuild_Vec(PetscFn fn, Vec x, Mat H, Ma
   ierr = MatDestroy(&J);CHKERRQ(ierr);
   ierr = MatDestroy(&Jadj);CHKERRQ(ierr);
   ierr = VecDestroy(&g);CHKERRQ(ierr);
-  if (H && H != hes) {ierr = MatCopy(hes, H, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-  if (Hpre && Hpre != hes) {ierr = MatCopy(hes, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+  if (H && H != hes) {
+    ierr = MatSetUp(H);CHKERRQ(ierr);
+    ierr = MatCopy(hes, H, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  if (Hpre && Hpre != hes) {
+    ierr = MatSetUp(Hpre);CHKERRQ(ierr);
+    ierr = MatCopy(hes, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -332,8 +340,14 @@ static PetscErrorCode PetscFnHessianBuild_Vec(PetscFn fn, Vec x, Vec xhat, Mat H
   ierr = VecDuplicate(xhat, &hxhat);CHKERRQ(ierr);
   ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, hxhat);CHKERRQ(ierr);
   ierr = VecToMat_Internal(hxhat, hes, PETSC_FALSE);CHKERRQ(ierr);
-  if (Hxhat && Hxhat != hes) {ierr = MatCopy(hes, Hxhat, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-  if (Hxhatpre && Hxhatpre != hes) {ierr = MatCopy(hes, Hxhatpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+  if (Hxhat && Hxhat != hes) {
+    ierr = MatSetUp(Hxhat);CHKERRQ(ierr);
+    ierr = MatCopy(hes, Hxhat, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  if (Hxhatpre && Hxhatpre != hes) {
+    ierr = MatSetUp(Hxhatpre);CHKERRQ(ierr);
+    ierr = MatCopy(hes, Hxhatpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
   ierr = VecDestroy(&hxhat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -361,8 +375,14 @@ static PetscErrorCode PetscFnHessianBuildSwap_Vec(PetscFn fn, Vec x, Vec xhat, M
   ierr = VecDuplicate(xhat, &hxhat);CHKERRQ(ierr);
   ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, hxhat);CHKERRQ(ierr);
   ierr = VecToMat_Internal(hxhat, hes, PETSC_TRUE);CHKERRQ(ierr);
-  if (Hswpxhat && Hswpxhat != hes) {ierr = MatCopy(hes, Hswpxhat, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-  if (Hswpxhatpre && Hswpxhatpre != hes) {ierr = MatCopy(hes, Hswpxhatpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+  if (Hswpxhat && Hswpxhat != hes) {
+    ierr = MatSetUp(Hswpxhat);CHKERRQ(ierr);
+    ierr = MatCopy(hes, Hswpxhat, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  if (Hswpxhatpre && Hswpxhatpre != hes) {
+    ierr = MatSetUp(Hswpxhatpre);CHKERRQ(ierr);
+    ierr = MatCopy(hes, Hswpxhatpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
   ierr = VecDestroy(&hxhat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -499,60 +519,112 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
   ierr = VecSetRandom(v, rand);CHKERRQ(ierr);
 
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_APPLY, 1, &v, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 2, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULT, 1, &xhat, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   dotVecs[0] = xhat;
   dotVecs[1] = v;
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULTADJOINT, 1, &v, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   dotVecs[0] = v;
   dotVecs[1] = xhat;
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULTADJOINT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   dotVecs[0] = xhat;
   dotVecs[1] = xdot;
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 0, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   dotVecs[0] = xhat;
   dotVecs[1] = xdot;
   dotVecs[2] = v;
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULT, 3, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 0, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   dotVecs[0] = v;
   dotVecs[1] = xhat;
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULTADJOINT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 0, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   dotVecs[0] = v;
   dotVecs[1] = xhat;
   dotVecs[2] = xdot;
   ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULTADJOINT, 3, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+  ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+  ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+  ierr = TestBasicOps(df, 0, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
   ierr = PetscFnIsScalar(fn, &isScalar);CHKERRQ(ierr);
   if (isScalar) {
     ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARGRADIENT, 0, NULL, &df);CHKERRQ(ierr);
+    ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+    ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+    ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
     ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARGRADIENT, 1, &xhat, &df);CHKERRQ(ierr);
+    ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+    ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+    ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
     ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARHESSIANMULT, 1, &xhat, &df);CHKERRQ(ierr);
+    ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+    ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+    ierr = TestBasicOps(df, 0, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
     dotVecs[0] = xhat;
     dotVecs[1] = xdot;
     ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARHESSIANMULT, 2, dotVecs, &df);CHKERRQ(ierr);
+    ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
+    ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(df);CHKERRQ(ierr);
+    ierr = TestBasicOps(df, 0, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
   }
 
@@ -760,7 +832,12 @@ int main(int argc, char **argv)
       suffix: 19
       nsize: 1
       args: -test_ders
-      TODO: broken
+      output_file: output/ex1_19.out
+
+   test:
+      suffix: 20
+      nsize: 4
+      args: -test_ders
       output_file: output/ex1_19.out
 
 TEST*/

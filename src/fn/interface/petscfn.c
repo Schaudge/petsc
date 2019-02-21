@@ -542,12 +542,12 @@ static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], Petsc
       PetscInt m, M, n, N;
       if (!mats[i]) continue;
       ierr = MatCreate(PetscObjectComm((PetscObject)fn),mats[i]);CHKERRQ(ierr);
-      ierr = MatSetType(*(mats[i]),types[i]);CHKERRQ(ierr);
       ierr = PetscLayoutGetSize(layouts[0],&N);CHKERRQ(ierr);
       ierr = PetscLayoutGetLocalSize(layouts[0],&n);CHKERRQ(ierr);
       ierr = PetscLayoutGetSize(layouts[1],&M);CHKERRQ(ierr);
       ierr = PetscLayoutGetLocalSize(layouts[1],&m);CHKERRQ(ierr);
       ierr = MatSetSizes(*(mats[i]),n,m,N,M);CHKERRQ(ierr);
+      ierr = MatSetType(*(mats[i]),types[i]);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -767,14 +767,21 @@ PetscErrorCode PetscFnJacobianBuild(PetscFn fn, Vec x, Mat J, Mat Jpre)
     ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
     ierr = VecGetArrayRead(g, &ga);CHKERRQ(ierr);
+    ierr = MatSetUp(jac);CHKERRQ(ierr);
     ierr = MatSetValues(jac, 1, &zero, iEnd - iStart, ia, ga, INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(g, &ga);CHKERRQ(ierr);
     ierr = PetscFree(ia);CHKERRQ(ierr);
     ierr = VecDestroy(&g);CHKERRQ(ierr);
     ierr = MatAssemblyBegin(jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    if (J && J != jac) {ierr = MatCopy(jac, J, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-    if (Jpre && Jpre != jac) {ierr = MatCopy(jac, Jpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (J && J != jac) {
+      ierr = MatSetUp(J);CHKERRQ(ierr);
+      ierr = MatCopy(jac, J, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
+    if (Jpre && Jpre != jac) {
+      ierr = MatSetUp(Jpre);CHKERRQ(ierr);
+      ierr = MatCopy(jac, Jpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
   if (fn->test_jaccreate) {
@@ -827,14 +834,21 @@ PetscErrorCode PetscFnJacobianBuildAdjoint(PetscFn fn, Vec x, Mat Jadj, Mat Jadj
     ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
     ierr = VecGetArrayRead(g, &ga);CHKERRQ(ierr);
+    ierr = MatSetUp(jacadj);CHKERRQ(ierr);
     ierr = MatSetValues(jacadj, iEnd - iStart, ia, 1, &zero, ga, INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(g, &ga);CHKERRQ(ierr);
     ierr = PetscFree(ia);CHKERRQ(ierr);
     ierr = VecDestroy(&g);CHKERRQ(ierr);
     ierr = MatAssemblyBegin(jacadj,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(jacadj,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    if (Jadj && Jadj != jacadj) {ierr = MatCopy(jacadj, Jadj, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-    if (Jadjpre && Jadjpre != jacadj) {ierr = MatCopy(jacadj, Jadjpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (Jadj && Jadj != jacadj) {
+      ierr = MatSetUp(Jadj);CHKERRQ(ierr);
+      ierr = MatCopy(jacadj, Jadj, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
+    if (Jadjpre && Jadjpre != jacadj) {
+      ierr = MatSetUp(Jadjpre);CHKERRQ(ierr);
+      ierr = MatCopy(jacadj, Jadjpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
   if (fn->test_jacadjcreate) {
@@ -983,13 +997,20 @@ PetscErrorCode PetscFnHessianBuild(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre)
     ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
     ierr = VecGetArrayRead(Hxhat, &ga);CHKERRQ(ierr);
+    ierr = MatSetUp(hes);CHKERRQ(ierr);
     ierr = MatSetValues(hes, 1, &zero, iEnd - iStart, ia, ga, INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(Hxhat, &ga);CHKERRQ(ierr);
     ierr = PetscFree(ia);CHKERRQ(ierr);
     ierr = MatAssemblyBegin(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    if (H && H != hes) {ierr = MatCopy(hes, H, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-    if (Hpre && Hpre != hes) {ierr = MatCopy(hes, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (H && H != hes) {
+      ierr = MatSetUp(H);CHKERRQ(ierr);
+      ierr = MatCopy(hes, H, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
+    if (Hpre && Hpre != hes) {
+      ierr = MatSetUp(Hpre);CHKERRQ(ierr);
+      ierr = MatCopy(hes, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
     ierr = VecDestroy(&Hxhat);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(xhat);CHKERRQ(ierr);
@@ -1045,13 +1066,20 @@ PetscErrorCode PetscFnHessianBuildSwap(PetscFn fn, Vec x, Vec xhat, Mat Hswp, Ma
     ierr = PetscMalloc1(iEnd - iStart, &ia);CHKERRQ(ierr);
     for (i = 0; i < iEnd - iStart; i++) ia[i] = i + iStart;
     ierr = VecGetArrayRead(Hxhat, &ga);CHKERRQ(ierr);
+    ierr = MatSetUp(hes);CHKERRQ(ierr);
     ierr = MatSetValues(hes, iEnd - iStart, ia, 1, &zero, ga, INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(Hxhat, &ga);CHKERRQ(ierr);
     ierr = PetscFree(ia);CHKERRQ(ierr);
     ierr = MatAssemblyBegin(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(hes,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    if (Hswp && Hswp != hes) {ierr = MatCopy(hes, Hswp, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
-    if (Hswppre && Hswppre != hes) {ierr = MatCopy(hes, Hswppre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);}
+    if (Hswp && Hswp != hes) {
+      ierr = MatSetUp(Hswp);CHKERRQ(ierr);
+      ierr = MatCopy(hes, Hswp, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
+    if (Hswppre && Hswppre != hes) {
+      ierr = MatSetUp(Hswppre);CHKERRQ(ierr);
+      ierr = MatCopy(hes, Hswppre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    }
     ierr = VecDestroy(&Hxhat);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(xhat);CHKERRQ(ierr);
@@ -2035,6 +2063,7 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
   ierr = PetscNewLog(df, &derShell);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject)fn);CHKERRQ(ierr);
   derShell->origFn = fn;
+  derShell->op = op;
   derShell->numDots = numDots;
   derShell->maxDots = maxDots;
   for (i = 0; i < numDots; i++) {
