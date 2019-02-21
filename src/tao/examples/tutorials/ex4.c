@@ -6,7 +6,7 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 #include <petscmath.h>
 
 #define NWORKLEFT 4
-#define NWORKRIGHT 19
+#define NWORKRIGHT 20
 #define ABSTOL 1.E-4
 #define RELTOL 1.E-2
 
@@ -547,9 +547,9 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 {
   PetscErrorCode ierr;
   PetscInt i,n;
-  PetscReal u_norm, r_norm, s_norm, primal, dual, x_norm, zneg_norm;
+  PetscReal muu_norm, r_norm, s_norm, primal, dual, x_norm, zneg_norm;
   Tao tao1,tao2;
-  Vec xk,z,u,diff,zold,zdiff,zneg;
+  Vec xk,z,u,diff,zold,zdiff,zneg,muu;
 
   PetscFunctionBegin;
 
@@ -560,6 +560,7 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   zold = ctx->workRight[16];
   zdiff = ctx->workRight[17];
   zneg = ctx->workRight[18];
+  muu = ctx->workRight[19];
   ierr = VecSet(u, 0.);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
@@ -593,39 +594,40 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 
     TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
     TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
+
+	/* u = u + xk -z */
     ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
-    /*TODO iter stop check */
     /* Convergence Check */
     ierr = ObjectiveMisfit(tao1, xk, &t1, (void *) ctx);CHKERRQ(ierr);
     ierr = ObjectiveRegularization(tao2, z, &t2, (void *) ctx);CHKERRQ(ierr);
 
-	/* r_norm */
-    ierr = VecWAXPY(diff,-1.,xk,z);CHKERRQ(ierr);
+	/* r_norm : norm(x-z) */
+    ierr = VecWAXPY(diff,-1.,z,xk);CHKERRQ(ierr);
     ierr = VecNorm(diff,NORM_2,&r_norm);CHKERRQ(ierr);
 
-	/* s_norm */
+	/* s_norm : norm(-mu(z-zold)) */
 	ierr = VecWAXPY(zdiff, -1.,zold,z);CHKERRQ(ierr);
-	ierr = VecScale(zdiff, ctx->mu);CHKERRQ(ierr);
+	ierr = VecScale(zdiff, -1.*(ctx->mu));CHKERRQ(ierr);
     ierr = VecNorm(zdiff,NORM_2,&s_norm);CHKERRQ(ierr);
 //    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"ADMM %D: ||x - z|| = %g\n", i, (double) r_norm);CHKERRQ(ierr);
 
-
-	/* primal */
+	/* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
     ierr = VecNorm(xk,NORM_2,&x_norm);CHKERRQ(ierr);
+	ierr = VecCopy(z,zneg);
 	ierr = VecScale(zneg, -1.);CHKERRQ(ierr);
     ierr = VecNorm(zneg,NORM_2,&zneg_norm);CHKERRQ(ierr);
     primal = PetscSqrtReal(n)*ABSTOL + RELTOL*PetscMax(x_norm,zneg_norm);
 
-	/* Duality */
-    ierr = VecNorm(u,NORM_2,&u_norm);CHKERRQ(ierr);
-    dual = PetscSqrtReal(n)*ABSTOL + RELTOL*(ctx->mu)*u_norm;
+	/* Duality : sqrt(n)*ABSTOL + RELTOL*norm(mu*u)*/
+	ierr = VecCopy(u,muu);
+	ierr = VecScale(muu, ctx->mu);CHKERRQ(ierr);
+    ierr = VecNorm(muu,NORM_2,&muu_norm);CHKERRQ(ierr);
+    dual = PetscSqrtReal(n)*ABSTOL + RELTOL*muu_norm;
 
     ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm - primal  %g\n", i, (double) r_norm - primal);CHKERRQ(ierr);
     ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : s_norm - dual  %g\n", i, (double) s_norm - dual);CHKERRQ(ierr);
 	if (r_norm < primal && s_norm < dual){
-
 	    break;}
-	
   }
  
   ierr = VecCopy(xk, x); CHKERRQ(ierr);
