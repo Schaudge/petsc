@@ -63,12 +63,12 @@ struct _p_PetscFn {
   PetscBool   test_hesmultadj;
   PetscBool   test_scalgrad;
   PetscBool   test_scalhesmult;
-  PetscBool   test_jaccreate;
-  PetscBool   test_jacadjcreate;
-  PetscBool   test_hescreate;
-  PetscBool   test_hesadjcreate;
-  PetscBool   test_hesswpcreate;
-  PetscBool   test_scalhescreate;
+  PetscBool   test_jacbuild;
+  PetscBool   test_jacbuildadj;
+  PetscBool   test_hesbuild;
+  PetscBool   test_hesbuildadj;
+  PetscBool   test_hesbuildswp;
+  PetscBool   test_scalhesbuild;
 };
 
 #endif
