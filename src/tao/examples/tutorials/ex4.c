@@ -71,7 +71,6 @@ PetscErrorCode CreateMatrix(UserCtx ctx)
   ierr = MatSeqAIJSetPreallocation(ctx->F, 5, NULL); CHKERRQ(ierr);
   ierr = MatSetUp(ctx->F); CHKERRQ(ierr);
   ierr = MatGetOwnershipRange(ctx->F,&Istart,&Iend); CHKERRQ(ierr);  
-
   ierr = PetscLogStageRegister("Assembly", &stage); CHKERRQ(ierr);
   ierr= PetscLogStagePush(stage); CHKERRQ(ierr);
 
@@ -269,8 +268,8 @@ PetscErrorCode HessianMisfit(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (H != ctx->W) {ierr = MatCopy(ctx->W, H, SAME_NONZERO_PATTERN); CHKERRQ(ierr);}
-  if (Hpre != ctx->W) {ierr = MatCopy(ctx->W, Hpre, SAME_NONZERO_PATTERN); CHKERRQ(ierr);}
+  if (H != ctx->W) {ierr = MatCopy(ctx->W, H, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);}
+  if (Hpre != ctx->W) {ierr = MatCopy(ctx->W, Hpre, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
@@ -317,11 +316,11 @@ PetscErrorCode HessianMisfitADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MatCopy(ctx->W, H, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
+  ierr = MatCopy(ctx->W, H, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   ierr = MatShift(H, ctx->mu); CHKERRQ(ierr);
   
   if (Hpre != H) {
-    ierr = MatCopy(H, Hpre, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
+    ierr = MatCopy(H, Hpre, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -524,9 +523,9 @@ PetscErrorCode HessianComplete(Tao tao, Vec x, Mat H, Mat Hpre, void *ctx)
   ierr = MatDuplicate(H, MAT_SHARE_NONZERO_PATTERN, &tempH);CHKERRQ(ierr);
   ierr = HessianMisfit(tao, x, H, H, ctx);CHKERRQ(ierr);
   ierr = HessianRegularization(tao, x, tempH, tempH, ctx);CHKERRQ(ierr);
-  ierr = MatAXPY(H, 1., tempH, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(H, 1., tempH, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   if (Hpre != H) {
-    ierr = MatCopy(H, Hpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatCopy(H, Hpre, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   }
   ierr = MatDestroy(&tempH);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -591,7 +590,7 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     PetscReal t1,t2;
 
 	ierr = VecCopy(z,zold);
-
+  
     TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
     TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
 
@@ -624,10 +623,8 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     ierr = VecNorm(muu,NORM_2,&muu_norm);CHKERRQ(ierr);
     dual = PetscSqrtReal(n)*ABSTOL + RELTOL*muu_norm;
 
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm - primal  %g\n", i, (double) r_norm - primal);CHKERRQ(ierr);
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : s_norm - dual  %g\n", i, (double) s_norm - dual);CHKERRQ(ierr);
-	if (r_norm < primal && s_norm < dual){
-	    break;}
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm - primal : %g, s_norm- - dual : %g\n", i, (double) r_norm - primal, (double) s_norm - dual);CHKERRQ(ierr);
+	if (r_norm < primal && s_norm < dual) break;
   }
  
   ierr = VecCopy(xk, x); CHKERRQ(ierr);
