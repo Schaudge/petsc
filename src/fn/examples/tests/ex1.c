@@ -831,13 +831,13 @@ int main(int argc, char **argv)
    test:
       suffix: 19
       nsize: 1
-      args: -test_ders
+      args: -test_ders -fn_test_derfn -fn_test_derivativefn_view
       output_file: output/ex1_19.out
 
    test:
       suffix: 20
       nsize: 4
-      args: -test_ders
+      args: -test_ders -fn_test_derfn -fn_test_derivativefn_view
       output_file: output/ex1_19.out
 
 TEST*/

@@ -1,0 +1,9 @@
+PetscFnTestDerivativeFn: Tested apply instantiated function against matrix-free action: norm 0.011647, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmult instantiated function against matrix-free action: norm 5.3903, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmult instantiated function against matrix-free action: norm 0.636422, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmultadjoint instantiated function against matrix-free action: norm 1.30922, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmultadjoint instantiated function against matrix-free action: norm 0.500942, error 0.
+PetscFnTestDerivativeFn: Tested hessianmult instantiated function against matrix-free action: norm 27.9749, error 0.
+PetscFnTestDerivativeFn: Tested hessianmult instantiated function against matrix-free action: norm 6.15104, error 0.
+PetscFnTestDerivativeFn: Tested hessianmultadjoint instantiated function against matrix-free action: norm 8.03161, error 0.
+PetscFnTestDerivativeFn: Tested hessianmultadjoint instantiated function against matrix-free action: norm 6.27583, error 0.

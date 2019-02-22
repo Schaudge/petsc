@@ -69,6 +69,8 @@ struct _p_PetscFn {
   PetscBool   test_hesbuildadj;
   PetscBool   test_hesbuildswp;
   PetscBool   test_scalhesbuild;
+  PetscBool   test_derfn;
+  PetscBool   test_self_as_derfn;
 };
 
 #endif
