@@ -2,7 +2,7 @@
 
 const char help[] = "Create and view a PetscFn\n";
 
-static PetscErrorCode PetscFnDestroy_Vec(PetscFn fn)
+static PetscErrorCode PetscFnDestroy_Scalar(PetscFn fn)
 {
   Vec            v;
   PetscErrorCode ierr;
@@ -13,7 +13,7 @@ static PetscErrorCode PetscFnDestroy_Vec(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnCreateVecs_Vec(PetscFn fn, Vec *rangeVec, Vec *domainVec)
+static PetscErrorCode PetscFnCreateVecs_Scalar(PetscFn fn, Vec *rangeVec, Vec *domainVec)
 {
   PetscInt       m, M, n, N;
   PetscErrorCode ierr;
@@ -34,7 +34,7 @@ static PetscErrorCode PetscFnCreateVecs_Vec(PetscFn fn, Vec *rangeVec, Vec *doma
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, PetscFnOperation op,Mat *A, Mat *Apre)
+static PetscErrorCode PetscFnCreateMats_Scalar(PetscFn fn, PetscFnOperation op,Mat *A, Mat *Apre)
 {
   PetscInt       m, M, n, N;
   MPI_Comm       comm;
@@ -85,7 +85,7 @@ static PetscErrorCode PetscFnCreateMats_Vec(PetscFn fn, PetscFnOperation op,Mat 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarApply_Vec_Internal(PetscFn fn, Vec x, PetscReal *z)
+static PetscErrorCode PetscFnScalarApply_Scalar_Internal(PetscFn fn, Vec x, PetscReal *z)
 {
   Vec y, diff;
   PetscErrorCode ierr;
@@ -99,28 +99,28 @@ static PetscErrorCode PetscFnScalarApply_Vec_Internal(PetscFn fn, Vec x, PetscRe
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarApply_Vec(PetscFn fn, Vec x, PetscReal *z)
+static PetscErrorCode PetscFnScalarApply_Scalar(PetscFn fn, Vec x, PetscReal *z)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarApply_Vec_Internal(fn, x, z);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Scalar_Internal(fn, x, z);CHKERRQ(ierr);
   *z   = PetscSinScalar(*z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnApply_Vec(PetscFn fn, Vec x, Vec y)
+static PetscErrorCode PetscFnApply_Scalar(PetscFn fn, Vec x, Vec y)
 {
   PetscReal z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarApply_Vec(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Scalar(fn, x, &z);CHKERRQ(ierr);
   ierr = VecSet(y, z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarGradient_Vec_Internal(PetscFn fn, Vec x, Vec g)
+static PetscErrorCode PetscFnScalarGradient_Scalar_Internal(PetscFn fn, Vec x, Vec g)
 {
   Vec            y;
   PetscErrorCode ierr;
@@ -132,19 +132,19 @@ static PetscErrorCode PetscFnScalarGradient_Vec_Internal(PetscFn fn, Vec x, Vec 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarGradient_Vec(PetscFn fn, Vec x, Vec g)
+static PetscErrorCode PetscFnScalarGradient_Scalar(PetscFn fn, Vec x, Vec g)
 {
   PetscScalar    z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
-  ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Scalar_Internal(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar_Internal(fn, x, g);CHKERRQ(ierr);
   ierr = VecScale(g, PetscCosScalar(z));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianMult_Vec(PetscFn fn, Vec x, Vec xhat, Vec Jxhat)
+static PetscErrorCode PetscFnJacobianMult_Scalar(PetscFn fn, Vec x, Vec xhat, Vec Jxhat)
 {
   Vec            g;
   PetscScalar    z;
@@ -152,7 +152,7 @@ static PetscErrorCode PetscFnJacobianMult_Vec(PetscFn fn, Vec x, Vec xhat, Vec J
 
   PetscFunctionBegin;
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
-  ierr = PetscFnScalarGradient_Vec(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar(fn, x, g);CHKERRQ(ierr);
   ierr = VecDot(g, xhat, &z);CHKERRQ(ierr);
   ierr = VecSet(Jxhat, z);CHKERRQ(ierr);
   ierr = VecDestroy(&g);CHKERRQ(ierr);
@@ -182,13 +182,13 @@ static PetscErrorCode VecSingletonBcast(Vec v, PetscScalar *zp)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianMultAdjoint_Vec(PetscFn fn, Vec x, Vec v, Vec Jadjv)
+static PetscErrorCode PetscFnJacobianMultAdjoint_Scalar(PetscFn fn, Vec x, Vec v, Vec Jadjv)
 {
   PetscScalar    z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarGradient_Vec(fn, x, Jadjv);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar(fn, x, Jadjv);CHKERRQ(ierr);
   ierr = VecSingletonBcast(v, &z);CHKERRQ(ierr);
   ierr = VecScale(Jadjv, z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -215,7 +215,7 @@ static PetscErrorCode VecToMat_Internal(Vec g, Mat jac, PetscBool col)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianBuild_Vec(PetscFn fn, Vec x, Mat J, Mat Jpre)
+static PetscErrorCode PetscFnJacobianBuild_Scalar(PetscFn fn, Vec x, Mat J, Mat Jpre)
 {
   Vec            g;
   Mat            jac = J ? J : Jpre;
@@ -224,7 +224,7 @@ static PetscErrorCode PetscFnJacobianBuild_Vec(PetscFn fn, Vec x, Mat J, Mat Jpr
   PetscFunctionBegin;
   if (!jac) PetscFunctionReturn(0);
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
-  ierr = PetscFnScalarGradient_Vec(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar(fn, x, g);CHKERRQ(ierr);
   ierr = VecToMat_Internal(g, jac, PETSC_FALSE);CHKERRQ(ierr);
   if (J && J != jac) {ierr = MatCopy(jac, J, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
   if (Jpre && Jpre != jac) {ierr = MatCopy(jac, Jpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
@@ -232,7 +232,7 @@ static PetscErrorCode PetscFnJacobianBuild_Vec(PetscFn fn, Vec x, Mat J, Mat Jpr
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianBuildAdjoint_Vec(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
+static PetscErrorCode PetscFnJacobianBuildAdjoint_Scalar(PetscFn fn, Vec x, Mat Jadj, Mat Jadjpre)
 {
   Vec            g;
   Mat            jacadj = Jadj ? Jadj : Jadjpre;
@@ -241,7 +241,7 @@ static PetscErrorCode PetscFnJacobianBuildAdjoint_Vec(PetscFn fn, Vec x, Mat Jad
   PetscFunctionBegin;
   if (!jacadj) PetscFunctionReturn(0);
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
-  ierr = PetscFnScalarGradient_Vec(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar(fn, x, g);CHKERRQ(ierr);
   ierr = VecToMat_Internal(g, jacadj, PETSC_TRUE);CHKERRQ(ierr);
   ierr = VecDestroy(&g);CHKERRQ(ierr);
   if (Jadj && Jadj != jacadj) {ierr = MatCopy(jacadj, Jadj, SAME_NONZERO_PATTERN);CHKERRQ(ierr);}
@@ -249,7 +249,7 @@ static PetscErrorCode PetscFnJacobianBuildAdjoint_Vec(PetscFn fn, Vec x, Mat Jad
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
+static PetscErrorCode PetscFnScalarHessianMult_Scalar(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
 {
   Vec            g;
   PetscScalar    z, dot;
@@ -257,8 +257,8 @@ static PetscErrorCode PetscFnScalarHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, 
 
   PetscFunctionBegin;
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
-  ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
-  ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Scalar_Internal(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar_Internal(fn, x, g);CHKERRQ(ierr);
   ierr = VecCopy(xhat, Hxhat);CHKERRQ(ierr);
   ierr = VecDot(xhat, g, &dot);CHKERRQ(ierr);
   ierr = VecScale(Hxhat, 2. * PetscCosScalar(z));CHKERRQ(ierr);
@@ -267,7 +267,7 @@ static PetscErrorCode PetscFnScalarHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarHessianBuild_Vec(PetscFn fn, Vec x, Mat H, Mat Hpre)
+static PetscErrorCode PetscFnScalarHessianBuild_Scalar(PetscFn fn, Vec x, Mat H, Mat Hpre)
 {
   Vec            g;
   PetscScalar    z;
@@ -278,8 +278,8 @@ static PetscErrorCode PetscFnScalarHessianBuild_Vec(PetscFn fn, Vec x, Mat H, Ma
   PetscFunctionBegin;
   if (!hes) PetscFunctionReturn(0);
   ierr = VecDuplicate(x, &g);CHKERRQ(ierr);
-  ierr = PetscFnScalarApply_Vec_Internal(fn, x, &z);CHKERRQ(ierr);
-  ierr = PetscFnScalarGradient_Vec_Internal(fn, x, g);CHKERRQ(ierr);
+  ierr = PetscFnScalarApply_Scalar_Internal(fn, x, &z);CHKERRQ(ierr);
+  ierr = PetscFnScalarGradient_Scalar_Internal(fn, x, g);CHKERRQ(ierr);
   ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, &Jadj, NULL);CHKERRQ(ierr);
   ierr = VecToMat_Internal(g, Jadj, PETSC_TRUE);CHKERRQ(ierr);
   ierr = MatTranspose(Jadj, MAT_INITIAL_MATRIX, &J);CHKERRQ(ierr);
@@ -303,7 +303,7 @@ static PetscErrorCode PetscFnScalarHessianBuild_Vec(PetscFn fn, Vec x, Mat H, Ma
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec Hxhatxdot)
+static PetscErrorCode PetscFnHessianMult_Scalar(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec Hxhatxdot)
 {
   PetscScalar    z;
   Vec            Hxhat;
@@ -311,26 +311,26 @@ static PetscErrorCode PetscFnHessianMult_Vec(PetscFn fn, Vec x, Vec xhat, Vec xd
 
   PetscFunctionBegin;
   ierr = VecDuplicate(xhat, &Hxhat);CHKERRQ(ierr);
-  ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, Hxhat);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianMult_Scalar(fn, x, xhat, Hxhat);CHKERRQ(ierr);
   ierr = VecDot(Hxhat, xdot, &z);CHKERRQ(ierr);
   ierr = VecSet(Hxhatxdot, z);CHKERRQ(ierr);
   ierr = VecDestroy(&Hxhat);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianMultAdjoint_Vec(PetscFn fn, Vec x, Vec v, Vec xhat, Vec Hadjvxhat)
+static PetscErrorCode PetscFnHessianMultAdjoint_Scalar(PetscFn fn, Vec x, Vec v, Vec xhat, Vec Hadjvxhat)
 {
   PetscScalar    z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, Hadjvxhat);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianMult_Scalar(fn, x, xhat, Hadjvxhat);CHKERRQ(ierr);
   ierr = VecSingletonBcast(v, &z);CHKERRQ(ierr);
   ierr = VecScale(Hadjvxhat, z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianBuild_Vec(PetscFn fn, Vec x, Vec xhat, Mat Hxhat, Mat Hxhatpre)
+static PetscErrorCode PetscFnHessianBuild_Scalar(PetscFn fn, Vec x, Vec xhat, Mat Hxhat, Mat Hxhatpre)
 {
   Mat            hes = Hxhat ? Hxhat : Hxhatpre;
   Vec            hxhat;
@@ -338,7 +338,7 @@ static PetscErrorCode PetscFnHessianBuild_Vec(PetscFn fn, Vec x, Vec xhat, Mat H
 
   PetscFunctionBegin;
   ierr = VecDuplicate(xhat, &hxhat);CHKERRQ(ierr);
-  ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, hxhat);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianMult_Scalar(fn, x, xhat, hxhat);CHKERRQ(ierr);
   ierr = VecToMat_Internal(hxhat, hes, PETSC_FALSE);CHKERRQ(ierr);
   if (Hxhat && Hxhat != hes) {
     ierr = MatSetUp(Hxhat);CHKERRQ(ierr);
@@ -352,20 +352,20 @@ static PetscErrorCode PetscFnHessianBuild_Vec(PetscFn fn, Vec x, Vec xhat, Mat H
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianBuildAdjoint_Vec(PetscFn fn, Vec x, Vec v, Mat Hadjv, Mat Hadjvpre)
+static PetscErrorCode PetscFnHessianBuildAdjoint_Scalar(PetscFn fn, Vec x, Vec v, Mat Hadjv, Mat Hadjvpre)
 {
   PetscScalar    z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnScalarHessianBuild_Vec(fn, x, Hadjv, Hadjvpre);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianBuild_Scalar(fn, x, Hadjv, Hadjvpre);CHKERRQ(ierr);
   ierr = VecSingletonBcast(v, &z);CHKERRQ(ierr);
   if (Hadjv) {ierr = MatScale(Hadjv, z);CHKERRQ(ierr);}
   if (Hadjvpre && Hadjvpre != Hadjv) {ierr = MatScale(Hadjvpre, z);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnHessianBuildSwap_Vec(PetscFn fn, Vec x, Vec xhat, Mat Hswpxhat, Mat Hswpxhatpre)
+static PetscErrorCode PetscFnHessianBuildSwap_Scalar(PetscFn fn, Vec x, Vec xhat, Mat Hswpxhat, Mat Hswpxhatpre)
 {
   Mat            hes = Hswpxhat ? Hswpxhat : Hswpxhatpre;
   Vec            hxhat;
@@ -373,7 +373,7 @@ static PetscErrorCode PetscFnHessianBuildSwap_Vec(PetscFn fn, Vec x, Vec xhat, M
 
   PetscFunctionBegin;
   ierr = VecDuplicate(xhat, &hxhat);CHKERRQ(ierr);
-  ierr = PetscFnScalarHessianMult_Vec(fn, x, xhat, hxhat);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianMult_Scalar(fn, x, xhat, hxhat);CHKERRQ(ierr);
   ierr = VecToMat_Internal(hxhat, hes, PETSC_TRUE);CHKERRQ(ierr);
   if (Hswpxhat && Hswpxhat != hes) {
     ierr = MatSetUp(Hswpxhat);CHKERRQ(ierr);
@@ -635,29 +635,15 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
   PetscFunctionReturn(0);
 }
 
-int main(int argc, char **argv)
+static PetscErrorCode TestScalar(PetscBool set_vector, PetscBool set_scalar, PetscBool build_mat, PetscBool build_pre, PetscBool test_ders)
 {
   PetscFn        fn;
   PetscBool      isShell;
-  PetscBool      set_vector, set_scalar, build_mat, build_pre;
-  PetscBool      test_ders;
   PetscRandom    rand;
   MPI_Comm       comm;
   PetscErrorCode ierr;
 
-  ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
-  set_vector = PETSC_TRUE;
-  set_scalar = PETSC_TRUE;
-  build_mat  = PETSC_TRUE;
-  build_pre  = PETSC_FALSE;
-  test_ders  = PETSC_FALSE;
-  ierr = PetscOptionsBegin(PETSC_COMM_WORLD, "", "PetscFn Test Options", "PetscFn");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-set_vector", "Set vector callbacks for PetscFnShell",          "ex1.c", set_vector, &set_vector, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-set_scalar", "Set scalar callbacks for PetscFnShell",          "ex1.c", set_scalar, &set_scalar, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-build_mat",  "Build the derivative matrices",                  "ex1.c", build_mat,  &build_mat, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-build_pre",  "Build the derivative preconditioning matrices",  "ex1.c", build_pre,  &build_pre, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-test_ders",  "Test the construnction of derivative functions", "ex1.c", test_ders,  &test_ders, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  PetscFunctionBegin;
   ierr = PetscFnCreate(PETSC_COMM_WORLD, &fn);CHKERRQ(ierr);
   ierr = PetscFnSetSizes(fn, PETSC_DECIDE, 1, 1, PETSC_DETERMINE);CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(fn);CHKERRQ(ierr);
@@ -683,28 +669,28 @@ int main(int argc, char **argv)
     if ((void *) v != ctx) SETERRQ(comm,PETSC_ERR_PLIB, "Shell context mismatch");
     ierr = PetscObjectReference((PetscObject)v);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_DESTROY,(void (*)(void))PetscFnDestroy_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEVECS,(void (*)(void))PetscFnCreateVecs_Vec);CHKERRQ(ierr);
-    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEMATS,(void (*)(void))PetscFnCreateMats_Vec);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_DESTROY,(void (*)(void))PetscFnDestroy_Scalar);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEVECS,(void (*)(void))PetscFnCreateVecs_Scalar);CHKERRQ(ierr);
+    ierr = PetscFnShellSetOperation(fn,PETSCFNOP_CREATEMATS,(void (*)(void))PetscFnCreateMats_Scalar);CHKERRQ(ierr);
 
     if (set_vector) {
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_APPLY,(void (*)(void))PetscFnApply_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULT,(void (*)(void))PetscFnJacobianMult_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULTADJOINT,(void (*)(void))PetscFnJacobianMultAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANBUILD,(void (*)(void))PetscFnJacobianBuild_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANBUILDADJOINT,(void (*)(void))PetscFnJacobianBuildAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULT,(void (*)(void))PetscFnHessianMult_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULTADJOINT,(void (*)(void))PetscFnHessianMultAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILD,(void (*)(void))PetscFnHessianBuild_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILDADJOINT,(void (*)(void))PetscFnHessianBuildAdjoint_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILDSWAP,(void (*)(void))PetscFnHessianBuildSwap_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_APPLY,(void (*)(void))PetscFnApply_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULT,(void (*)(void))PetscFnJacobianMult_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANMULTADJOINT,(void (*)(void))PetscFnJacobianMultAdjoint_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANBUILD,(void (*)(void))PetscFnJacobianBuild_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_JACOBIANBUILDADJOINT,(void (*)(void))PetscFnJacobianBuildAdjoint_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULT,(void (*)(void))PetscFnHessianMult_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANMULTADJOINT,(void (*)(void))PetscFnHessianMultAdjoint_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILD,(void (*)(void))PetscFnHessianBuild_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILDADJOINT,(void (*)(void))PetscFnHessianBuildAdjoint_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_HESSIANBUILDSWAP,(void (*)(void))PetscFnHessianBuildSwap_Scalar);CHKERRQ(ierr);
     }
 
     if (set_scalar) {
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARAPPLY,(void (*)(void))PetscFnScalarApply_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARGRADIENT,(void (*)(void))PetscFnScalarGradient_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANMULT,(void (*)(void))PetscFnScalarHessianMult_Vec);CHKERRQ(ierr);
-      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANBUILD,(void (*)(void))PetscFnScalarHessianBuild_Vec);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARAPPLY,(void (*)(void))PetscFnScalarApply_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARGRADIENT,(void (*)(void))PetscFnScalarGradient_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANMULT,(void (*)(void))PetscFnScalarHessianMult_Scalar);CHKERRQ(ierr);
+      ierr = PetscFnShellSetOperation(fn,PETSCFNOP_SCALARHESSIANBUILD,(void (*)(void))PetscFnScalarHessianBuild_Scalar);CHKERRQ(ierr);
     }
   }
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
@@ -718,6 +704,33 @@ int main(int argc, char **argv)
 
   ierr = PetscRandomDestroy(&rand);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&fn);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+int main(int argc, char **argv)
+{
+  PetscFn        fn;
+  PetscBool      isShell;
+  PetscBool      set_vector, set_scalar, build_mat, build_pre;
+  PetscBool      test_ders;
+  PetscRandom    rand;
+  MPI_Comm       comm;
+  PetscErrorCode ierr;
+
+  ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
+  set_vector = PETSC_TRUE;
+  set_scalar = PETSC_TRUE;
+  build_mat  = PETSC_TRUE;
+  build_pre  = PETSC_FALSE;
+  test_ders  = PETSC_FALSE;
+  ierr = PetscOptionsBegin(PETSC_COMM_WORLD, "", "PetscFn Test Options", "PetscFn");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-set_vector", "Set vector callbacks for PetscFnShell",          "ex1.c", set_vector, &set_vector, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-set_scalar", "Set scalar callbacks for PetscFnShell",          "ex1.c", set_scalar, &set_scalar, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-build_mat",  "Build the derivative matrices",                  "ex1.c", build_mat,  &build_mat, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-build_pre",  "Build the derivative preconditioning matrices",  "ex1.c", build_pre,  &build_pre, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-test_ders",  "Test the construnction of derivative functions", "ex1.c", test_ders,  &test_ders, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  ierr = TestScalar(set_vector, set_scalar, build_mat, build_pre, test_ders);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
