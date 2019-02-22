@@ -521,10 +521,16 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
     if (rangeVec) {
       ierr = VecCreate(PetscObjectComm((PetscObject)fn),rangeVec);CHKERRQ(ierr);
       ierr = VecSetLayout(*rangeVec,fn->rmap);CHKERRQ(ierr);
+      if (fn->rangeType) {
+        ierr = VecSetType(*rangeVec, fn->rangeType);CHKERRQ(ierr);
+      }
     }
     if (domainVec) {
       ierr = VecCreate(PetscObjectComm((PetscObject)fn),domainVec);CHKERRQ(ierr);
       ierr = VecSetLayout(*domainVec,fn->dmap);CHKERRQ(ierr);
+      if (fn->domainType) {
+        ierr = VecSetType(*domainVec, fn->domainType);CHKERRQ(ierr);
+      }
     }
   }
   PetscFunctionReturn(0);
