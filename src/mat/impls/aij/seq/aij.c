@@ -3233,16 +3233,19 @@ static PetscErrorCode  MatSetRandom_SeqAIJ(Mat x,PetscRandom rctx)
 {
   PetscErrorCode ierr;
   Mat_SeqAIJ     *aij = (Mat_SeqAIJ*)x->data;
-  PetscScalar    a;
+  PetscScalar    a, b;
   PetscInt       m,n,i,j,col;
+  PetscScalar    low, high;
 
   PetscFunctionBegin;
+  ierr = PetscRandomGetInterval(rctx, &low, &high);CHKERRQ(ierr);
   if (!x->assembled) {
     ierr = MatGetSize(x,&m,&n);CHKERRQ(ierr);
     for (i=0; i<m; i++) {
       for (j=0; j<aij->imax[i]; j++) {
         ierr = PetscRandomGetValue(rctx,&a);CHKERRQ(ierr);
-        col  = (PetscInt)(n*PetscRealPart(a));
+        ierr = PetscRandomGetValue(rctx,&b);CHKERRQ(ierr);
+        col  = (PetscInt)(n*PetscRealPart((b - low)/(high - low)));
         ierr = MatSetValues(x,1,&i,1,&col,&a,ADD_VALUES);CHKERRQ(ierr);
       }
     }
