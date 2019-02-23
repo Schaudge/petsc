@@ -2463,10 +2463,36 @@ static PetscErrorCode  MatSetRandom_MPIAIJ(Mat x,PetscRandom rctx)
 {
   PetscErrorCode ierr;
   Mat_MPIAIJ     *aij = (Mat_MPIAIJ*)x->data;
+  Mat_SeqAIJ     *a = (Mat_SeqAIJ*) aij->A->data;
+  Mat_SeqAIJ     *b = (Mat_SeqAIJ*) aij->B->data;
+  PetscInt       *imaxA = a->imax;
+  PetscInt       *imaxB = b->imax;
+  PetscInt        i, j, k, m, n, N, mfirst, nfirst;
+  PetscScalar     low, high, w;
+  PetscReal       v;
 
   PetscFunctionBegin;
-  ierr = MatSetRandom(aij->A,rctx);CHKERRQ(ierr);
-  ierr = MatSetRandom(aij->B,rctx);CHKERRQ(ierr);
+  ierr = PetscRandomGetInterval(rctx, &low, &high);CHKERRQ(ierr);
+  ierr = MatGetLocalSize(x, &m, &n);CHKERRQ(ierr);
+  ierr = MatGetSize(x, NULL, &N);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(x, &mfirst, NULL);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRangeColumn(x, &nfirst, NULL);CHKERRQ(ierr);
+  for (i = 0; i < m; i++) {
+    for (j = 0; j < imaxA[i]; j++) {
+      ierr = PetscRandomGetValueReal(rctx, &v);CHKERRQ(ierr);
+      ierr = PetscRandomGetValue(rctx, &w);CHKERRQ(ierr);
+      k = (PetscInt) (n * ((v - low)/(high - low)));
+      ierr = MatSetValue(x, mfirst + i, nfirst + k, w, INSERT_VALUES);CHKERRQ(ierr);
+    }
+    for (j = 0; j < imaxB[i]; j++) {
+      ierr = PetscRandomGetValueReal(rctx, &v);CHKERRQ(ierr);
+      ierr = PetscRandomGetValue(rctx, &w);CHKERRQ(ierr);
+      /* avoid putting local entries in the B matrix */
+      k = (PetscInt) ((N-n) * ((v - low)/(high - low)));
+      k += n * (k >= nfirst);
+      ierr = MatSetValue(x, mfirst + i, k, w, INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
   ierr = MatAssemblyBegin(x,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(x,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
