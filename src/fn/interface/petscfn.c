@@ -536,13 +536,13 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], PetscLayout layouts[2], MatType types[4], PetscFnOperation op)
+static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[2], PetscLayout layouts[2], MatType types[2], PetscFnOperation op, PetscBool checkPointer)
 {
   PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (fn->ops->createmats) {
+  if (fn->ops->createmats && checkPointer) {
     ierr = (*fn->ops->createmats)(fn, op, mats[0], mats[1]);CHKERRQ(ierr);
 #if defined(PETSC_USE_DEBUG)
     for (i = 0; i < 2; i++) {
@@ -582,7 +582,7 @@ static PetscErrorCode PetscFnCreateMats_Internal(PetscFn fn, Mat *mats[4], Petsc
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
+static PetscErrorCode PetscFnCreateMats_Default(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre, PetscBool checkPointer)
 {
   MatType        types[2];
   PetscLayout    layouts[2];
@@ -590,7 +590,6 @@ PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *A
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
   mats[0] = A;
   mats[1] = Apre;
   ierr = PetscFnGetMatTypes(fn, op, &types[0], &types[1]);CHKERRQ(ierr);
@@ -613,7 +612,17 @@ PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *A
   default:
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
   }
-  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, op);CHKERRQ(ierr);
+  ierr = PetscFnCreateMats_Internal(fn, mats, layouts, types, op, checkPointer);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  ierr = PetscFnCreateMats_Default(fn, op, A, Apre, PETSC_TRUE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1222,7 +1231,7 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
     PetscInt zero = 0;
     PetscScalar *ga;
 
-    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT, NULL, &Jadj);CHKERRQ(ierr);
+    ierr = PetscFnCreateMats(fn, PETSCFNOP_JACOBIANBUILDADJOINT,&Jadj,NULL);CHKERRQ(ierr);
     ierr = (*fn->ops->jacobianbuildadjoint)(fn,x,Jadj,NULL);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(x,&iStart,&iEnd);CHKERRQ(ierr);
     ierr = PetscMalloc1(iEnd - iStart,&ia);CHKERRQ(ierr);
@@ -1788,6 +1797,69 @@ static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, Vec *rangeVec,
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnShellCreateMats_DerShell(PetscFn fn, PetscFnOperation op, Mat *J, Mat *Jpre)
+{
+  PetscFnDerShell *derShell;
+  PetscFn          origFn;
+  PetscInt         maxDots, numDots;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
+  origFn = derShell->origFn;
+  maxDots = derShell->maxDots;
+  numDots = derShell->numDots;
+  switch (derShell->op) {
+  case PETSCFNOP_APPLY:
+    /* assert maxDots == numDots, all matrices except scalar Hessian are vector matrices, either row or column */
+    if (op == PETSCFNOP_SCALARHESSIANBUILD || op == PETSCFNOP_HESSIANBUILDADJOINT) {
+      ierr = PetscFnCreateMats(origFn, PETSCFNOP_HESSIANBUILDADJOINT, J, Jpre);CHKERRQ(ierr);
+    } else {
+      ierr = PetscFnCreateMats_Default(fn, op, J, Jpre, PETSC_FALSE);CHKERRQ(ierr);
+    }
+    break;
+  case PETSCFNOP_JACOBIANMULT:
+    if (numDots < maxDots) {
+      if (op == PETSCFNOP_JACOBIANBUILD) {
+        ierr = PetscFnCreateMats(origFn, PETSCFNOP_HESSIANBUILD, J, Jpre);CHKERRQ(ierr);
+      } else if (op == PETSCFNOP_JACOBIANBUILDADJOINT) {
+        ierr = PetscFnCreateMats(origFn, PETSCFNOP_HESSIANBUILDSWAP, J, Jpre);CHKERRQ(ierr);
+      }
+    } else {
+      if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_JACOBIANBUILDADJOINT) {
+        ierr = PetscFnCreateMats_Default(fn, op, J, Jpre, PETSC_FALSE);CHKERRQ(ierr);
+      }
+    }
+    break;
+  case PETSCFNOP_JACOBIANMULTADJOINT:
+    if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_JACOBIANBUILDADJOINT) {
+      if (numDots < maxDots) {
+        ierr = PetscFnCreateMats(origFn, PETSCFNOP_HESSIANBUILDADJOINT, J, Jpre);CHKERRQ(ierr);
+      } else {
+        ierr = PetscFnCreateMats_Default(fn, op, J, Jpre, PETSC_FALSE);CHKERRQ(ierr);
+      }
+    }
+    break;
+  case PETSCFNOP_SCALARGRADIENT:
+    if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_JACOBIANBUILDADJOINT) {
+      if (numDots < maxDots) {
+        ierr = PetscFnCreateMats(origFn, PETSCFNOP_SCALARHESSIANBUILD, J, Jpre);CHKERRQ(ierr);
+      } else {
+        ierr = PetscFnCreateMats_Default(fn, op, J, Jpre, PETSC_FALSE);CHKERRQ(ierr);
+      }
+    }
+    break;
+  case PETSCFNOP_HESSIANMULT:
+  case PETSCFNOP_HESSIANMULTADJOINT:
+  case PETSCFNOP_SCALARHESSIANMULT:
+    /* No matrices can be calculated */
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFnShellScalarApply_DerShell(PetscFn fn, Vec x, PetscScalar *z)
 {
   PetscFnDerShell *derShell;
@@ -2240,6 +2312,7 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
   ierr = PetscFnShellSetContext(df, (void *) derShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_DESTROY,                (void (*)(void)) PetscFnShellDestroy_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_CREATEVECS,             (void (*)(void)) PetscFnShellCreateVecs_DerShell);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(df, PETSCFNOP_CREATEMATS,             (void (*)(void)) PetscFnShellCreateMats_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_APPLY,                  (void (*)(void)) PetscFnShellApply_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANMULT,           (void (*)(void)) PetscFnShellJacobianMult_DerShell);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(df, PETSCFNOP_JACOBIANMULTADJOINT,    (void (*)(void)) PetscFnShellJacobianMultAdjoint_DerShell);CHKERRQ(ierr);

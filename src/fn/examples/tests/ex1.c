@@ -424,11 +424,8 @@ static PetscErrorCode PetscFnCreateMats_Vector(PetscFn fn, PetscFnOperation op,M
     if (op == PETSCFNOP_JACOBIANBUILDADJOINT || op == PETSCFNOP_HESSIANBUILDSWAP) {
       ierr = MatDuplicate(At, MAT_SHARE_NONZERO_PATTERN, &J);CHKERRQ(ierr);
     } else {
-      Mat AtA;
-
-      ierr = MatMatMult(At, Aint, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &AtA);CHKERRQ(ierr);
-      ierr = MatDuplicate(AtA, MAT_SHARE_NONZERO_PATTERN, &J);CHKERRQ(ierr);
-      ierr = MatDestroy(&AtA);CHKERRQ(ierr);
+      ierr = MatMatMult(At, Aint, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &J);CHKERRQ(ierr);
+      ierr = MatSetOption(J, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);CHKERRQ(ierr);
     }
     ierr = MatDestroy(&At);CHKERRQ(ierr);
   }
@@ -704,7 +701,6 @@ static PetscErrorCode PetscFnHessianBuildAdjoint_Vector(PetscFn fn, Vec x, Vec v
 {
   Mat            J, JT;
   Mat            hes = Hadjv ? Hadjv : Hadjvpre;
-  Mat            hescopy;
   Mat            A;
   Vec            gx, vgx, Avgx, expx;
   PetscErrorCode ierr;

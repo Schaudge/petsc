@@ -16,3 +16,17 @@ PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free a
 PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.0315707, error 0.
 PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 0.510903, error 0.
 PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 0.510903, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (1.30976e-11, 3.27457e-12): measured rate 1.99992
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (7.31148e-12, 1.82776e-12): measured rate 2.00009
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.946343, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.946343, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.765078, error 3.87896e-18
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.765078, error 3.87896e-18
+PetscFnTestDerivativeMult: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (3.3362e-12, 8.34162e-13): measured rate 1.99981
+PetscFnTestDerivativeMult: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (4.79525e-12, 1.1988e-12): measured rate 2.00001
+PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.0345627, error 5.66514e-17
+PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.0345627, error 5.66514e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.0781082, error 1.01151e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.0781082, error 1.01151e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.00844817, error 5.34678e-18
+PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.00844817, error 5.34678e-18
