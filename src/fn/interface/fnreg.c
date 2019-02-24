@@ -127,6 +127,7 @@ PetscErrorCode  PetscFnRegister(const char sname[],PetscErrorCode (*function)(Pe
 }
 
 PETSC_EXTERN PetscErrorCode PetscFnCreate_Shell(PetscFn);
+PETSC_EXTERN PetscErrorCode PetscFnCreate_DAG(PetscFn);
 
 PetscErrorCode PetscFnRegisterAll(void)
 {
@@ -134,5 +135,6 @@ PetscErrorCode PetscFnRegisterAll(void)
 
   PetscFunctionBegin;
   ierr = PetscFnRegister(PETSCFNSHELL, PetscFnCreate_Shell);CHKERRQ(ierr);
+  ierr = PetscFnRegister(PETSCFNDAG, PetscFnCreate_DAG);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
