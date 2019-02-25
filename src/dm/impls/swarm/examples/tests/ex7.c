@@ -174,6 +174,7 @@ static PetscErrorCode PerturbVertices(DM dm, AppCtx *user)
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *user)
 {
+  const PetscReal domain = 2*PETSC_PI;
   PetscBool      flg;
   PetscErrorCode ierr;
 
@@ -183,7 +184,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *user)
     PetscInt faces[3];
 
     faces[0] = user->faces; faces[1] = 1; faces[2] = 1;
-    ierr = DMPlexCreateBoxMesh(comm, user->dim, user->simplex, faces, user->domain_lo, 2*PETSC_PI, user->boundary, PETSC_TRUE, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateBoxMesh(comm, user->dim, user->simplex, faces, user->domain_lo, &domain, user->boundary, PETSC_TRUE, dm);CHKERRQ(ierr);
   } else {
     ierr = DMPlexCreateFromFile(comm, user->meshFilename, PETSC_TRUE, dm);CHKERRQ(ierr);
     ierr = DMGetDimension(*dm, &user->dim);CHKERRQ(ierr);
@@ -316,8 +317,8 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
       user->func(dim, 0.0, &coords[n*dim], 1, &vals[c], user);
       /* configuration for velocity components, drift velocity assigned along the axis that runs through the centroids of each cell in x */
       for (d = 0; d < dim; ++d) {
-        if (Ncell < 16) initialconditions[n*dim+d] = d == 0 ? 1 : 0;
-        else initialconditions[n*dim+d] = d == 0 ? -1 : 0;
+        if (Ncell < 16) initialConditions[n*dim+d] = d == 0 ? 1 : 0;
+        else initialConditions[n*dim+d] = d == 0 ? -1 : 0;
       }
     }
   }
@@ -374,6 +375,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   Vec                phi, locPhi, rho, f;
   const PetscScalar *x;
   const PetscReal    G = 1; /* Actually: 6.67408e-11 */
+  PetscReal    v[3], J[9], invJ[9], detJ;
   PetscScalar       *vres;
   PetscReal         *coords;
   PetscScalar        rsqr, r;
@@ -493,19 +495,21 @@ static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *c
 
 int main(int argc,char **argv)
 {
+  PetscInt          i;
+  MatNullSpace      nullSpace;
   TSConvergedReason reason;
-  const PetscScalar *endVals;
-  PetscReal         ftime   = 1., vx, vy, *coorArr, *kinArr, *probArr, *probVecArr;
+  const PetscScalar *coorArr, *kinArr, *endVals;
+  PetscReal         ftime   = 1., vx, vy, *probArr, *probVecArr;
   PetscInt          locSize, p, d, dim, Np, steps, *idx1, *idx2;
   Vec               coorVec, kinVec, probVec;
   TS                ts;            
   IS                is1,is2;
   DM                dm, sw;
+  Mat               J;
   AppCtx            user;
   MPI_Comm          comm;
   PetscErrorCode    ierr;  
 
-  
   ierr = PetscInitialize(&argc,&argv,NULL,help);CHKERRQ(ierr);
   comm = PETSC_COMM_WORLD;
 
@@ -555,7 +559,7 @@ int main(int argc,char **argv)
     }
   }
   
-  
+
   ierr = ISCreateGeneral(comm, locSize, idx1, PETSC_OWN_POINTER, &is1);CHKERRQ(ierr);
   ierr = ISCreateGeneral(comm, locSize, idx2, PETSC_OWN_POINTER, &is2);CHKERRQ(ierr);
   
@@ -581,15 +585,21 @@ int main(int argc,char **argv)
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
   /* Compose vector from array for TS solve with all kinematic variables */
-   VecCreate(comm,&probVec);
-   VecSetBlockSize(probVec,1);
-   VecSetSizes(probVec,PETSC_DECIDE,2*locSize);
-   VecSetUp(probVec);
-   VecGetArray(vec,&probVecArr);
-   for (i=0; i<probArr.size; ++i) {
+   ierr = VecCreate(comm,&probVec);CHKERRQ(ierr);
+   ierr = VecSetBlockSize(probVec,1);CHKERRQ(ierr);
+   ierr = VecSetSizes(probVec,PETSC_DECIDE,2*locSize);CHKERRQ(ierr);
+   ierr = VecSetUp(probVec);CHKERRQ(ierr);
+
+   ierr = VecGetArray(probVec,&probVecArr);
+   for (i=0; i < 2*locSize; ++i) {
+     
      probVecArr[i] = probArr[i];
+
    }
-   VecRestoreArray(vec,&array);
+  ierr = VecRestoreArray(probVec,&probVecArr);CHKERRQ(ierr);
+  
+  ierr = DMSwarmDestroyGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
+  ierr = DMSwarmDestroyGlobalVectorFromField(sw, DMSwarmPICField_coor, &coorVec);CHKERRQ(ierr);
 
   ierr = TSSolve(ts,probVec);CHKERRQ(ierr);
   ierr = TSGetSolveTime(ts,&ftime);CHKERRQ(ierr);
@@ -605,7 +615,8 @@ int main(int argc,char **argv)
   } 
   
   ierr = VecRestoreArrayRead(probVec, &endVals);CHKERRQ(ierr);
-  ierr = DMSwarmDestroyGlobalVectorFromField(sw, "kinematics", &f);CHKERRQ(ierr);
+  //ierr = DMSwarmDestroyGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
+  //ierr = DMSwarmDestroyGlobalVectorFromField(sw, DMSwarmPICField_coor, &coorVec);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = DMDestroy(&sw);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
@@ -622,12 +633,12 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 
    test:
      suffix: bsi2
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 
    test:
      suffix: euler 
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler 
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler 
 
 TEST*/
