@@ -322,8 +322,6 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
       }
     }
   }
-  
-  /* Set initial conditions for multiple particles in an orbiting system  in format xp, yp, vxp, vyp */
 
   ierr = DMSwarmRestoreField(*sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coords);CHKERRQ(ierr);
   ierr = DMSwarmRestoreField(*sw, DMSwarmPICField_cellid, NULL, NULL, (void **) &cellid);CHKERRQ(ierr);
@@ -336,7 +334,6 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
   PetscFunctionReturn(0);
 }
 
-/* Create particle RHS Functions for gravity with G = 1 for simplification */
 static PetscErrorCode RHSFunction1(TS ts,PetscReal t,Vec V,Vec Posres,void *ctx)
 {
   const PetscScalar *v;
@@ -374,10 +371,8 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   Mat                M_p;
   Vec                phi, locPhi, rho, f;
   const PetscScalar *x;
-  const PetscReal    G = 1; /* Actually: 6.67408e-11 */
   PetscScalar       *vres;
   PetscReal         *coords;
-  PetscScalar        rsqr, r;
   PetscInt           dim, d, cStart, cEnd, cell, cdim;
   PetscErrorCode     ierr;
 
@@ -443,7 +438,6 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
 
       ierr = PetscFEFreeInterpolateGradient_Static(fe, D, ph, cdim, invJ, NULL, cp, gradPhi);CHKERRQ(ierr);
       // Compute particle residual
-      for (d = 0; d < cdim; ++d) rsqr += PetscSqr(x[p*cdim+d]);
       for (d = 0; d < cdim; ++d) {
         // TODO put in electrostatic force using gradPhi[p*cdim]
         vres[p*dim+d] = gradPhi[p*cdim];
@@ -637,12 +631,12 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type lu
    test:
      suffix: bsi2
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type lu
    test:
      suffix: euler 
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler -snes_monitor
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler -snes_monitor -pc_type lu
 
 TEST*/
