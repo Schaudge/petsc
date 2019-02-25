@@ -375,7 +375,6 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   Vec                phi, locPhi, rho, f;
   const PetscScalar *x;
   const PetscReal    G = 1; /* Actually: 6.67408e-11 */
-  PetscReal    v[3], J[9], invJ[9], detJ;
   PetscScalar       *vres;
   PetscReal         *coords;
   PetscScalar        rsqr, r;
@@ -412,10 +411,11 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   ierr = DMPlexGetHeightStratum(plex, 0, &cStart, &cEnd);CHKERRQ(ierr);
   for (cell = cStart; cell < cEnd; ++cell) {
     PetscReal    v[3], J[9], invJ[9], detJ;
-    PetscScalar *ph     = PETSC_NULL;
-    PetscReal   *D      = PETSC_NULL;
-    PetscReal   *pcoord = PETSC_NULL;
-    PetscInt    *points = PETSC_NULL, Ncp, cp;
+    PetscScalar *ph       = PETSC_NULL;
+    PetscReal   *D        = PETSC_NULL;
+    PetscReal   *pcoord   = PETSC_NULL;
+    PetscReal   *refcoord = PETSC_NULL;
+    PetscInt    *points   = PETSC_NULL, Ncp, cp;
     PetscScalar  gradPhi[3];
 
     // Get geometry of cell
@@ -425,13 +425,16 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
     ierr = DMSwarmSortGetPointsPerCell(dm, cell, &Ncp, &points);CHKERRQ(ierr);
     // Get particle coordinates
     ierr = DMGetWorkArray(dm, Ncp*cdim, MPIU_REAL, &pcoord);CHKERRQ(ierr);
+    ierr = DMGetWorkArray(dm, Ncp*cdim, MPIU_REAL, &refcoord);CHKERRQ(ierr);
     for (cp = 0; cp < Ncp; ++cp) {
       for (d = 0; d < cdim; ++d) {
         pcoord[cp*cdim+d] = coords[points[cp]*cdim+d];
       }
     }
     // Tabulate basis at particle coordinates
-    ierr = PetscFEGetTabulation(fe, Ncp, pcoord, NULL, &D, NULL);CHKERRQ(ierr);
+    // Need to tabulate basis for particle coordinates in the reference cell
+    ierr = DMPlexCoordinatesToReference(plex, cell, Ncp, pcoord, refcoord);CHKERRQ(ierr);
+    ierr = PetscFEGetTabulation(fe, Ncp, refcoord, NULL, &D, NULL);CHKERRQ(ierr);
     // Get coefficients from phi for closure of cell
     ierr = DMPlexVecGetClosure(plex, NULL, locPhi, cell, NULL, &ph);CHKERRQ(ierr);
     // Interpolate gradient
@@ -450,6 +453,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
     ierr = DMPlexVecRestoreClosure(plex, NULL, locPhi, cell, NULL, &ph);CHKERRQ(ierr);
     ierr = PetscFERestoreTabulation(fe, Ncp, pcoord, NULL, &D, NULL);CHKERRQ(ierr);
     ierr = DMRestoreWorkArray(dm, Ncp*cdim, MPIU_REAL, &pcoord);CHKERRQ(ierr);
+    ierr = DMRestoreWorkArray(dm, Ncp*cdim, MPIU_REAL, &refcoord);CHKERRQ(ierr);
   }
   ierr = DMSwarmRestoreField(dm, DMSwarmPICField_coor, NULL, NULL, (void **) &coords);CHKERRQ(ierr);
   ierr = DMSwarmSortRestoreAccess(dm);CHKERRQ(ierr);
@@ -633,12 +637,12 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor
    test:
      suffix: bsi2
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor
    test:
      suffix: euler 
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler 
+     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler -snes_monitor
 
 TEST*/
