@@ -26,7 +26,7 @@ J*/
 typedef const char* PetscFnType;
 #define PETSCFNDAG             "dag"    /* generalizes composite */
 #define PETSCFNSHELL           "shell"
-/* PETSCFNDM / PETSCFNDMPLEX / etc. would be defined lin libpetscdm */
+/* PETSCFNDM / PETSCFNDMPLEX / etc. would be defined lib libpetscdm */
 
 /* Logging support */
 PETSC_EXTERN PetscClassId PETSCFN_CLASSID;
