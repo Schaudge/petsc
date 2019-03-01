@@ -145,6 +145,16 @@ PetscErrorCode PetscFnGetLayouts(PetscFn fn,PetscLayout *rmap,PetscLayout *dmap)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscFnLayoutsSetUp(PetscFn fn)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscLayoutSetUp(fn->rmap);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(fn->dmap);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode PetscFnSetOptionsPrefix(PetscFn fn, const char prefix[])
 {
   PetscErrorCode ierr;
@@ -291,8 +301,7 @@ PetscErrorCode PetscFnSetUp(PetscFn fn)
   if (fn->ops->setup) {
     ierr = (*fn->ops->setup)(fn);CHKERRQ(ierr);
   }
-  ierr = PetscLayoutSetUp(fn->rmap);CHKERRQ(ierr);
-  ierr = PetscLayoutSetUp(fn->dmap);CHKERRQ(ierr);
+  ierr = PetscFnLayoutsSetUp(fn);CHKERRQ(ierr);
   fn->isScalar = PETSC_FALSE;
   if (fn->rmap->N == 1) fn->isScalar = PETSC_TRUE;
   comm = PetscObjectComm((PetscObject)fn);
@@ -472,7 +481,7 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  ierr = PetscFnLayoutsSetUp(fn);CHKERRQ(ierr);
   if (fn->ops->createvecs) {
     ierr = (*(fn->ops->createvecs)) (fn, rangeVec, domainVec);CHKERRQ(ierr);
 #if defined(PETSC_USE_DEBUG)
@@ -622,6 +631,7 @@ PetscErrorCode PetscFnCreateMats(PetscFn fn, PetscFnOperation op, Mat *A, Mat *A
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  ierr = PetscFnLayoutsSetUp(fn);CHKERRQ(ierr);
   ierr = PetscFnCreateMats_Default(fn, op, A, Apre, PETSC_TRUE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
