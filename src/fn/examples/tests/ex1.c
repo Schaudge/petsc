@@ -87,7 +87,7 @@ static PetscErrorCode PetscFnCreateMats_Scalar(PetscFn fn, PetscFnOperation op,M
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarApply_Scalar_Internal(PetscFn fn, Vec x, PetscReal *z)
+static PetscErrorCode PetscFnScalarApply_Scalar_Internal(PetscFn fn, Vec x, PetscScalar *z)
 {
   Vec y, diff;
   PetscErrorCode ierr;
@@ -101,7 +101,7 @@ static PetscErrorCode PetscFnScalarApply_Scalar_Internal(PetscFn fn, Vec x, Pets
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarApply_Scalar(PetscFn fn, Vec x, PetscReal *z)
+static PetscErrorCode PetscFnScalarApply_Scalar(PetscFn fn, Vec x, PetscScalar *z)
 {
   PetscErrorCode ierr;
 
@@ -113,7 +113,7 @@ static PetscErrorCode PetscFnScalarApply_Scalar(PetscFn fn, Vec x, PetscReal *z)
 
 static PetscErrorCode PetscFnApply_Scalar(PetscFn fn, Vec x, Vec y)
 {
-  PetscReal z;
+  PetscScalar z;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -769,7 +769,7 @@ static PetscErrorCode TestBasicOps(PetscFn fn, PetscInt order, PetscRandom rand,
   Vec            g, Hxhat;
   Mat            jac, jacadj, hes, hesadj, hesswp, scalhes;
   Mat            jacPre, jacadjPre, hesPre, hesadjPre, hesswpPre, scalhesPre;
-  PetscReal      z;
+  PetscScalar    z;
   PetscBool      isScalar;
   PetscErrorCode ierr;
 
