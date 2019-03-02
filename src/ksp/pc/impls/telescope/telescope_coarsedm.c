@@ -147,7 +147,16 @@ PetscErrorCode PCTelescopeSetUp_CoarseDM(PC pc,PC_Telescope sred)
   if (!has_perm && has_kspcomputeoperators && sred->ignore_kspcomputeoperators) SETERRQ(comm,PETSC_ERR_SUP,"No method to permute an operator was found on the parent DM. A method for KSPSetComputeOperators() was provided but it was requested to be ignored. Telescope setup cannot proceed");
 
   ierr = DMGetDMSNES(ctx->dm_fine,&dms);CHKERRQ(ierr);
-  if (dms) { has_dmsnes = PETSC_TRUE; has_dmksp = PETSC_TRUE; ctx->has_dmsnes = PETSC_TRUE; }
+  if (dms) {
+    PetscErrorCode (*fp_residual)(SNES,Vec,Vec,void*) = NULL;
+
+    ierr = DMSNESGetFunction(ctx->dm_fine,&fp_residual,NULL);CHKERRQ(ierr);
+    if (fp_residual) {
+      has_dmsnes = PETSC_TRUE;
+      has_dmksp = PETSC_TRUE;
+      ctx->has_dmsnes = PETSC_TRUE;
+    }
+  }
   if (!has_dmsnes) {
     ierr = DMGetDMKSP(ctx->dm_fine,&dmk);CHKERRQ(ierr);
     if (dmk) { has_dmksp = PETSC_TRUE; }
@@ -205,7 +214,7 @@ PetscErrorCode PCTelescopeSetUp_CoarseDM(PC pc,PC_Telescope sred)
   }
 
   /* look for user provided method to fetch the context */
-  {
+  if (isActiveRank(sred)) {
     PetscErrorCode (*fp_get_coarsedm_context)(DM,void**) = NULL;
     void *dmcoarse_context_user = NULL;
     char dmcoarse_method[PETSC_MAX_PATH_LEN];
