@@ -1,7 +1,7 @@
 
 #include <petscfn.h>
 
-static PetscErrorCode PetscFnCreateMats_Sin(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
+static PetscErrorCode PetscFnCreateMats_Componentwise(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
 {
   PetscInt       m, M, n, N;
   MPI_Comm       comm;
@@ -9,14 +9,14 @@ static PetscErrorCode PetscFnCreateMats_Sin(PetscFn fn, PetscFnOperation op, Mat
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSize(fn, &N, &M);CHKERRQ(ierr);
-  ierr = PetscFnGetLocalSize(fn, &n, &m);CHKERRQ(ierr);
+  ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
+  ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
   if (m != n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "input and output layouts must be the same");
   comm = PetscObjectComm((PetscObject)fn);
   if (!A && !Apre) PetscFunctionReturn(0);
   ierr = MatCreate(comm, &J);CHKERRQ(ierr);
   ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
-  ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
+  ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(J, 1, NULL);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(J, 1, NULL, 0, NULL);CHKERRQ(ierr);
   if (A) {
@@ -160,7 +160,7 @@ PetscErrorCode PetscFnShellCreate_Sin(PetscFn fn)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Sin);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Componentwise);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Sin);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Sin);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMult_Sin);CHKERRQ(ierr);
@@ -172,5 +172,104 @@ PetscErrorCode PetscFnShellCreate_Sin(PetscFn fn)
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDADJOINT, (void (*)(void)) PetscFnHessianBuild_Sin);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDSWAP, (void (*)(void)) PetscFnHessianBuild_Sin);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "sin()");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnCreateMats_Normsquared(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
+{
+  PetscInt       m, M, n, N;
+  MPI_Comm       comm;
+  Mat            J;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
+  ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
+  if (M != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "output must be scalar");
+  comm = PetscObjectComm((PetscObject)fn);
+  if (!A && !Apre) PetscFunctionReturn(0);
+  ierr = MatCreate(comm, &J);CHKERRQ(ierr);
+  ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
+  if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_HESSIANBUILD) {
+    ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
+  }
+  else if (op == PETSCFNOP_JACOBIANBUILDADJOINT || op == PETSCFNOP_HESSIANBUILDSWAP) {
+    ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(J, 1, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(J, 1, NULL, 0, NULL);CHKERRQ(ierr);
+  }
+  else if (op == PETSCFNOP_SCALARHESSIANBUILD || op == PETSCFNOP_HESSIANBUILDADJOINT)  {
+    ierr = MatSetSizes(J, n, n, N, N);CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(J, 1, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(J, 1, NULL, 0, NULL);CHKERRQ(ierr);
+  }
+  if (A) {
+    ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
+    *A = J;
+  }
+  if (Apre) {
+    ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
+    *Apre = J;
+  }
+  ierr = MatDestroy(&J);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarApply_Normsquared(PetscFn fn, Vec x, PetscScalar *z)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecDot(x, x, z);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarGradient_Normsquared(PetscFn fn, Vec x, Vec g)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecCopy(x, g);CHKERRQ(ierr);
+  ierr = VecScale(g, 2.);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarHessianMult_Normsquared(PetscFn fn, Vec x, Vec xhat, Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecCopy(xhat, y);CHKERRQ(ierr);
+  ierr = VecScale(y, 2.);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarHessianBuild_Normsquared(PetscFn fn, Vec x, Mat H, Mat Hpre)
+{
+  Mat            hes = H ? H : Hpre;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!hes) PetscFunctionReturn(0);
+  ierr = MatShift(hes, 2.);CHKERRQ(ierr);
+  if (Hpre && Hpre != H) {
+    ierr = MatShift(Hpre, 2.);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn fn)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnScalarApply_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARGRADIENT, (void (*)(void)) PetscFnScalarGradient_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARHESSIANMULT, (void (*)(void)) PetscFnScalarHessianMult_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARHESSIANBUILD, (void (*)(void)) PetscFnScalarHessianBuild_Normsquared);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)fn, "norm()^2");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -26,20 +26,23 @@ static PetscErrorCode TestScalar(PetscRandom rand)
   comm = PetscObjectComm((PetscObject)fn);
   if (isDag) {
     PetscInt m, M, n, N;
-    PetscFn  fnSin;
+    PetscFn  fnSin, fnNormSq;
 
-#if 0
-    ierr = PetscFnCreateVecs(fn, NULL, &input);CHKERRQ(ierr);
     ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
-    ierr = PetscFnGetLocalSize(Size(fn, &n, &m);CHKERRQ(ierr);
-    ierr = VecDestroy(&input);CHKERRQ(ierr);
-#endif
+    ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
     ierr = PetscFnShellCreate(comm, PETSCSIN, PETSC_DECIDE, 1, PETSC_DECIDE, 1, NULL, &fnSin);CHKERRQ(ierr);
     ierr = PetscFnSetOptionsPrefix(fnSin, "sin_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(fnSin);CHKERRQ(ierr);
     ierr = PetscFnSetUp(fnSin);CHKERRQ(ierr);
     ierr = PetscFnViewFromOptions(fnSin, NULL, "-fn_view");CHKERRQ(ierr);
 
+    ierr = PetscFnShellCreate(comm, PETSCNORMSQUARED, m, M, n, N, NULL, &fnNormSq);CHKERRQ(ierr);
+    ierr = PetscFnSetOptionsPrefix(fnNormSq, "normsq_");CHKERRQ(ierr);
+    ierr = PetscFnSetFromOptions(fnNormSq);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(fnNormSq);CHKERRQ(ierr);
+    ierr = PetscFnViewFromOptions(fnNormSq, NULL, "-fn_view");CHKERRQ(ierr);
+
+    ierr = PetscFnDestroy(&fnNormSq);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&fnSin);CHKERRQ(ierr);
   }
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);

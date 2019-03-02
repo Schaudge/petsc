@@ -140,6 +140,7 @@ PETSC_EXTERN PetscErrorCode PetscFnShellGetOperation(PetscFn,PetscFnOperation,vo
 typedef const char* PetscFnShellType;
 PETSC_EXTERN PetscFunctionList PetscFnShellList;
 #define PETSCSIN "sin"
+#define PETSCNORMSQUARED "normsquared"
 
 PETSC_EXTERN PetscErrorCode PetscFnShellRegister(const char[],PetscErrorCode(*)(PetscFn));
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate(MPI_Comm,PetscFnShellType,PetscInt,PetscInt,PetscInt,PetscInt,void *,PetscFn *);

@@ -31,13 +31,15 @@ PetscErrorCode PetscFnShellRegister(const char name[],PetscErrorCode (*shell)(Pe
 }
 
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate_Sin(PetscFn);
+PETSC_EXTERN PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn);
 
 static PetscErrorCode PetscFnShellRegisterAll(void)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnShellRegister(PETSCSIN, PetscFnShellCreate_Sin);CHKERRQ(ierr);
+  ierr = PetscFnShellRegister(PETSCSIN,         PetscFnShellCreate_Sin);CHKERRQ(ierr);
+  ierr = PetscFnShellRegister(PETSCNORMSQUARED, PetscFnShellCreate_Normsquared);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
