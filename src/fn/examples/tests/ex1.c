@@ -1,6 +1,6 @@
 #include <petscfn.h>
 
-const char help[] = "Create and view a PetscFn\n";
+const char help[] = "Create, view, and test the derivative methods of a shell PetscFn\n";
 
 /* Scalar example f(x) = sin( || x - y || ^2 ) */
 

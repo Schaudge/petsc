@@ -2,6 +2,82 @@
 #include <petsc/private/fnimpl.h> /*I "petscfn.h" I*/
 #include <petscfn.h>
 
+PetscBool PetscFnShellRegisterAllCalled = PETSC_FALSE;
+PetscBool PetscFnShellPackageInitialized = PETSC_FALSE;
+
+PetscFunctionList PetscFnShellList = 0;
+
+static PetscErrorCode PetscFnShellFinalizePackage(void)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFunctionListDestroy(&PetscFnShellList);CHKERRQ(ierr);
+  PetscFnShellPackageInitialized = PETSC_FALSE;
+  PetscFnShellRegisterAllCalled = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnShellInitializePackage(void);
+
+PetscErrorCode PetscFnShellRegister(const char name[],PetscErrorCode (*shell)(PetscFn))
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellInitializePackage();CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(&PetscFnShellList,name,shell);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode PetscFnShellCreate_Sin(PetscFn);
+
+static PetscErrorCode PetscFnShellRegisterAll(void)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellRegister(PETSCSIN, PetscFnShellCreate_Sin);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnShellInitializePackage(void)
+{
+  char           logList[256];
+  PetscBool      opt,pkg;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (PetscFnShellPackageInitialized) PetscFunctionReturn(0);
+  PetscFnShellPackageInitialized = PETSC_TRUE;
+  /* Register Constructors */
+  ierr = PetscFnShellRegisterAll();CHKERRQ(ierr);
+
+  /* Register package finalizer */
+  ierr = PetscRegisterFinalize(PetscFnShellFinalizePackage);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnShellCreate(MPI_Comm comm, PetscFnShellType shelltype,PetscInt m, PetscInt M, PetscInt n, PetscInt N, void *ctx, PetscFn *fn_p)
+{
+  PetscFn        fn;
+  PetscErrorCode (*r) (PetscFn);
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnCreate(comm, &fn);CHKERRQ(ierr);
+  ierr = PetscFnSetSizes(fn, m, M, n, N);CHKERRQ(ierr);
+  ierr = PetscFnSetType(fn, PETSCFNSHELL);CHKERRQ(ierr);
+  ierr = PetscFnShellSetContext(fn, ctx);CHKERRQ(ierr);
+  if (shelltype) {
+    ierr =  PetscFunctionListFind(PetscFnShellList,shelltype,&r);CHKERRQ(ierr);
+    if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unknown PetscFnShellType given: %s",shelltype);
+    ierr = (*r)(fn);CHKERRQ(ierr);
+  }
+  *fn_p = fn;
+  PetscFunctionReturn(0);
+}
+
 typedef struct {
   PetscErrorCode (*destroy)(PetscFn);
   void *ctx;
@@ -199,6 +275,7 @@ PetscErrorCode PetscFnCreate_Shell(PetscFn fn)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscFnShellInitializePackage();CHKERRQ(ierr);
   ierr = PetscNewLog(fn, &shell);CHKERRQ(ierr);
   fn->data = shell;
   fn->ops->destroy = PetscFnDestroy_Shell;

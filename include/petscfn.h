@@ -135,8 +135,19 @@ PETSC_EXTERN PetscErrorCode PetscFnShellGetContext(PetscFn,void *);
 PETSC_EXTERN PetscErrorCode PetscFnShellSetOperation(PetscFn,PetscFnOperation,void(*)(void));
 PETSC_EXTERN PetscErrorCode PetscFnShellGetOperation(PetscFn,PetscFnOperation,void(**)(void));
 
+/* Allow a library of common functions so that the user does not have to
+ * repeat the boiler plate for them */
+typedef const char* PetscFnShellType;
+PETSC_EXTERN PetscFunctionList PetscFnShellList;
+#define PETSCSIN "sin"
+
+PETSC_EXTERN PetscErrorCode PetscFnShellRegister(const char[],PetscErrorCode(*)(PetscFn));
+PETSC_EXTERN PetscErrorCode PetscFnShellCreate(MPI_Comm,PetscFnShellType,PetscInt,PetscInt,PetscInt,PetscInt,void *,PetscFn *);
+
 PETSC_EXTERN PetscErrorCode PetscFnCreateDAG(MPI_Comm,PetscInt,const IS[],PetscInt,const IS[],const PetscFn[],PetscFn*);
-PETSC_EXTERN PetscErrorCode PetscFnDAGAddNode(PetscFn,PetscFn,PetscBool,const char [],PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscFnDAGAddNoOp(PetscFn,Vec,const char [],PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscFnDAGAddMat(PetscFn,PetscFn,PetscBool,const char [],PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscFnDAGAddFn(PetscFn,PetscFn,PetscBool,const char [],PetscInt *);
 PETSC_EXTERN PetscErrorCode PetscFnDAGGetNode(PetscFn,PetscInt,PetscFn *,const char *[]);
 PETSC_EXTERN PetscErrorCode PetscFnDAGSetEdge(PetscFn,PetscInt,PetscInt,VecScatter,VecScatter,Vec,Vec,Mat,PetscScalar);
 PETSC_EXTERN PetscErrorCode PetscFnDAGGetEdge(PetscFn,PetscInt,PetscInt,VecScatter*,VecScatter*,Vec*,Vec*,Mat*,PetscScalar*);

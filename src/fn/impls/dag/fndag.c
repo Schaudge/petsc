@@ -159,14 +159,31 @@ static PetscErrorCode PetscFnApply_DAG(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnDestroy_DAG(PetscFn fn)
+static PetscErrorCode PetscFnDestroy_DAG(PetscFn fn)
 {
+  PetscFn_DAG    *dag;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  dag  = (PetscFn_DAG *) fn->data;
+  ierr = PetscFnDAGTapeDestroy(&(dag->tape));CHKERRQ(ierr);
   ierr = PetscFree(fn->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+static PetscErrorCode PetscFnView_DAG(PetscFn fn, PetscViewer viewer)
+{
+  PetscBool         isAscii;
+  PetscViewerFormat format;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscViewerGetFormat(viewer, &format);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isAscii);CHKERRQ(ierr);
+  if (!isAscii) PetscFunctionReturn(0);
+  PetscFunctionReturn(0);
+}
+
 
 PetscErrorCode PetscFnCreate_DAG(PetscFn fn)
 {
@@ -178,5 +195,7 @@ PetscErrorCode PetscFnCreate_DAG(PetscFn fn)
   fn->data = (void *) dag;
   fn->ops->destroy = PetscFnDestroy_DAG;
   fn->ops->apply   = PetscFnApply_DAG;
+  ierr = PetscObjectChangeTypeName((PetscObject)fn, PETSCFNDAG);CHKERRQ(ierr);
+  ierr = PetscFnDAGTapeCreate(PetscObjectComm((PetscObject)fn), &(dag->tape));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
