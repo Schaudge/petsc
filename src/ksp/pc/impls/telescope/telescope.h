@@ -55,6 +55,7 @@ PetscErrorCode PCApply_Telescope_CoarseDM(PC,Vec,Vec);
 PetscErrorCode PCTelescopeMatNullSpaceCreate_CoarseDM(PC,PC_Telescope,Mat);
 PetscErrorCode PCReset_Telescope_CoarseDM(PC);
 PetscErrorCode PCApplyRichardson_Telescope_CoarseDM(PC,Vec,Vec,Vec,PetscReal,PetscReal,PetscReal,PetscInt,PetscBool,PetscInt*,PCRichardsonConvergedReason*);
+PetscErrorCode PCTelescopeMatCreate_CoarseDM(PC pc,PC_Telescope sred,MatReuse reuse,Mat *A);
 PetscErrorCode DMView_DA_Short(DM,PetscViewer);
 
 #endif

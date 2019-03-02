@@ -517,7 +517,7 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
       pc->ops->apply                            = PCApply_Telescope_CoarseDM;
       pc->ops->applyrichardson                  = PCApplyRichardson_Telescope_CoarseDM;
       sred->pctelescope_setup_type              = PCTelescopeSetUp_CoarseDM;
-      sred->pctelescope_matcreate_type          = NULL;
+      sred->pctelescope_matcreate_type          = PCTelescopeMatCreate_CoarseDM;
       sred->pctelescope_matnullspacecreate_type = NULL;/*PCTelescopeMatNullSpaceCreate_CoarseDM;*/
       sred->pctelescope_reset_type              = PCReset_Telescope_CoarseDM;
       break;
@@ -557,7 +557,7 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
       cs[0] = csize_fine;
       cs[1] = csize_coarse_partition;
       ierr = MPI_Allreduce(cs,csg,2,MPI_INT,MPI_MAX,comm_fine);CHKERRQ(ierr);
-      if (csg[0] == csg[1]) SETERRQ(comm_fine,PETSC_ERR_SUP,"Coarse DM uses the same size communicator as the parent DM attached to the PC");
+      if (csg[1] > csg[0]) SETERRQ(comm_fine,PETSC_ERR_SUP,"Coarse DM has a communicator larger than the parent DM attached to the PC");
 
       ierr = PCTelescopeTestValidSubcomm(comm_fine,comm_coarse_partition,&isvalidsubcomm);CHKERRQ(ierr);
       if (!isvalidsubcomm) SETERRQ(comm_fine,PETSC_ERR_SUP,"Coarse DM communicator is not a sub-communicator of parentDM->comm");
@@ -579,13 +579,15 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
       ierr = PCGetOptionsPrefix(pc,&prefix);CHKERRQ(ierr);
       ierr = KSPSetOptionsPrefix(sred->ksp,prefix);CHKERRQ(ierr);
       ierr = KSPAppendOptionsPrefix(sred->ksp,"telescope_");CHKERRQ(ierr);
+      ierr = KSPSetFromOptions(sred->ksp);CHKERRQ(ierr);
     }
   }
 
   /* setup */
-  if (sred->pctelescope_setup_type) {
+  if (!pc->setupcalled && sred->pctelescope_setup_type) {
     ierr = sred->pctelescope_setup_type(pc,sred);CHKERRQ(ierr);
   }
+
   /* update */
   if (!pc->setupcalled) {
     if (sred->pctelescope_matcreate_type) {
@@ -596,6 +598,7 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
     }
   } else {
     if (sred->pctelescope_matcreate_type) {
+      ierr = KSPGetOperators(sred->ksp,NULL,&sred->Bred);CHKERRQ(ierr);
       ierr = sred->pctelescope_matcreate_type(pc,sred,MAT_REUSE_MATRIX,&sred->Bred);CHKERRQ(ierr);
     }
   }
@@ -603,9 +606,7 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
   /* common - no construction */
   if (isActiveRank(sred)) {
     ierr = KSPSetOperators(sred->ksp,sred->Bred,sred->Bred);CHKERRQ(ierr);
-    if (pc->setfromoptionscalled && !pc->setupcalled){
-      ierr = KSPSetFromOptions(sred->ksp);CHKERRQ(ierr);
-    }
+    ierr = KSPSetUp(sred->ksp);CHKERRQ(ierr);
   }
 
 #if 0
@@ -743,7 +744,9 @@ static PetscErrorCode PCReset_Telescope(PC pc)
   ierr = VecDestroy(&sred->xred);CHKERRQ(ierr);
   ierr = VecDestroy(&sred->yred);CHKERRQ(ierr);
   ierr = VecDestroy(&sred->xtmp);CHKERRQ(ierr);
-  ierr = MatDestroy(&sred->Bred);CHKERRQ(ierr);
+  if (!sred->use_coarse_dm) { /* When using the coarse DM, Telescope does not call DMCreateMatrix */
+    ierr = MatDestroy(&sred->Bred);CHKERRQ(ierr);
+  }
   ierr = KSPReset(sred->ksp);CHKERRQ(ierr);
   if (sred->pctelescope_reset_type) {
     ierr = sred->pctelescope_reset_type(pc);CHKERRQ(ierr);
@@ -1044,15 +1047,13 @@ PetscErrorCode PCTelescopeGetUseCoarseDM(PC pc,PetscBool *v)
 .  pc - the preconditioner context
 
  Output Parameter:
-.  v - Use PETSC_TRUE to ignore any DM
+.  v - Use PETSC_FALSE to ignore any coarse DM
 
  Notes:
  When you have specified to use a coarse DM, the communicator used to create the sub-KSP within PCTelescope
  will be that of the coarse DM. Hence the flags -pc_telescope_reduction_factor and
  -pc_telescope_subcomm_type will no longer have any meaning.
- It is required that the communicator associated with the parent (fine) and the coarse DM are of different sizes.
- An error will occur of the size of the communicator associated with the coarse DM
- is the same as that of the parent DM.
+ The size of the communicator associated with the coarse DM cannot be larger that associated with the parent (fine) DM.
  Furthermore, it is required that the communicator on the coarse DM is a sub-communicator of the parent.
  This will be checked at the time the preconditioner is setup and an error will occur if
  the coarse DM does not define a sub-communicator of that used by the parent DM.
