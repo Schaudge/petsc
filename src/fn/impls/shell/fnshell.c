@@ -68,7 +68,7 @@ PetscErrorCode PetscFnShellCreate(MPI_Comm comm, PetscFnShellType shelltype,Pets
 
   PetscFunctionBegin;
   ierr = PetscFnCreate(comm, &fn);CHKERRQ(ierr);
-  ierr = PetscFnSetSizes(fn, m, M, n, N);CHKERRQ(ierr);
+  ierr = PetscFnSetSizes(fn, m, n, M, N);CHKERRQ(ierr);
   ierr = PetscFnSetType(fn, PETSCFNSHELL);CHKERRQ(ierr);
   ierr = PetscFnShellSetContext(fn, ctx);CHKERRQ(ierr);
   if (shelltype) {

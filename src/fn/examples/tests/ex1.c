@@ -21,17 +21,16 @@ static PetscErrorCode PetscFnCreateVecs_Scalar(PetscFn fn, Vec *rangeVec, Vec *d
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSize(fn, &N, &M);CHKERRQ(ierr);
-  ierr = PetscFnGetLocalSize(fn, &n, &m);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
   if (rangeVec) {
     ierr = VecCreate(PetscObjectComm((PetscObject) fn), rangeVec);CHKERRQ(ierr);
     ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
-    ierr = VecSetSizes(*rangeVec, n, N);CHKERRQ(ierr);
+    ierr = VecSetSizes(*rangeVec, m, M);CHKERRQ(ierr);
   }
   if (domainVec) {
     ierr = VecCreate(PetscObjectComm((PetscObject) fn), domainVec);CHKERRQ(ierr);
     ierr = VecSetType(*domainVec, VECSTANDARD);CHKERRQ(ierr);
-    ierr = VecSetSizes(*domainVec, m, M);CHKERRQ(ierr);
+    ierr = VecSetSizes(*domainVec, n, N);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -44,36 +43,35 @@ static PetscErrorCode PetscFnCreateMats_Scalar(PetscFn fn, PetscFnOperation op,M
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSize(fn, &N, &M);CHKERRQ(ierr);
-  ierr = PetscFnGetLocalSize(fn, &n, &m);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
   comm = PetscObjectComm((PetscObject)fn);
   if (!A && !Apre) PetscFunctionReturn(0);
   ierr = MatCreate(comm, &J);CHKERRQ(ierr);
   ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
   if (op == PETSCFNOP_JACOBIANBUILD) {
-    ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
-    ierr = MatSeqAIJSetPreallocation(J, m, NULL);CHKERRQ(ierr);
-    ierr = MatMPIAIJSetPreallocation(J, m, NULL, M - m, NULL);CHKERRQ(ierr);
+    ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
   }
   if (op == PETSCFNOP_JACOBIANBUILDADJOINT) {
-    ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
-    ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
-    ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
-  }
-  if (op == PETSCFNOP_HESSIANBUILD) {
     ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, m, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, m, NULL, M - m, NULL);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_HESSIANBUILDSWAP) {
+  if (op == PETSCFNOP_HESSIANBUILD) {
     ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
   }
-  if (op == PETSCFNOP_HESSIANBUILDADJOINT || op == PETSCFNOP_SCALARHESSIANBUILD) {
-    ierr = MatSetSizes(J, m, m, M, M);CHKERRQ(ierr);
+  if (op == PETSCFNOP_HESSIANBUILDSWAP) {
+    ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
     ierr = MatSeqAIJSetPreallocation(J, m, NULL);CHKERRQ(ierr);
     ierr = MatMPIAIJSetPreallocation(J, m, NULL, M - m, NULL);CHKERRQ(ierr);
+  }
+  if (op == PETSCFNOP_HESSIANBUILDADJOINT || op == PETSCFNOP_SCALARHESSIANBUILD) {
+    ierr = MatSetSizes(J, n, n, N, N);CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(J, n, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(J, n, NULL, N - n, NULL);CHKERRQ(ierr);
   }
   if (A) {
     ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
@@ -404,14 +402,11 @@ static PetscErrorCode PetscFnDestroy_Vector(PetscFn fn)
 
 static PetscErrorCode PetscFnCreateMats_Vector(PetscFn fn, PetscFnOperation op,Mat *A, Mat *Apre)
 {
-  PetscInt       m, M, n, N;
   Mat            Aint;
   Mat            J;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSize(fn, &N, &M);CHKERRQ(ierr);
-  ierr = PetscFnGetLocalSize(fn, &n, &m);CHKERRQ(ierr);
   if (!A && !Apre) PetscFunctionReturn(0);
   ierr = PetscFnShellGetContext(fn, (void *) &Aint);CHKERRQ(ierr);
   if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_HESSIANBUILD) {
@@ -1030,8 +1025,7 @@ static PetscErrorCode TestScalar(PetscBool set_vector, PetscBool set_scalar, Pet
     void *ctx;
     PetscScalar *a;
 
-    ierr = PetscFnGetSize(fn, NULL, &N);CHKERRQ(ierr);
-    ierr = PetscFnGetLocalSize(fn, NULL, &n);CHKERRQ(ierr);
+    ierr = PetscFnGetSizes(fn, NULL, &n, NULL, &N);CHKERRQ(ierr);
     ierr = VecCreateMPI(comm,n,N,&v);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(v, &l, NULL);CHKERRQ(ierr);
     ierr = VecGetArray(v, &a);CHKERRQ(ierr);
@@ -1091,7 +1085,7 @@ static PetscErrorCode TestVector(PetscBool build_mat, PetscBool build_pre, Petsc
   PetscFunctionBegin;
   ierr = PetscFnCreate(PETSC_COMM_WORLD, &fn);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
-  ierr = PetscFnSetSizes(fn, rank + 3, PETSC_DETERMINE, rank + 7, PETSC_DETERMINE);CHKERRQ(ierr);
+  ierr = PetscFnSetSizes(fn, rank + 3, rank + 7, PETSC_DETERMINE, PETSC_DETERMINE);CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(fn);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)fn, PETSCFNSHELL, &isShell);CHKERRQ(ierr);
   comm = PetscObjectComm((PetscObject)fn);
@@ -1100,8 +1094,7 @@ static PetscErrorCode TestVector(PetscBool build_mat, PetscBool build_pre, Petsc
     Mat  A;
     void *ctx;
 
-    ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
-    ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
+    ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
     ierr = MatCreateAIJ(comm, m, n, M, N, 2, NULL, 2, NULL, &A);CHKERRQ(ierr);
     ierr = PetscRandomCreate(PetscObjectComm((PetscObject)fn), &rand_plus);CHKERRQ(ierr);
     ierr = PetscRandomSetInterval(rand_plus, 0., 0.5);CHKERRQ(ierr);

@@ -37,8 +37,7 @@ PETSC_EXTERN PetscErrorCode PetscFnRegister(const char[],PetscErrorCode(*)(Petsc
 PETSC_EXTERN PetscErrorCode PetscFnCreate(MPI_Comm,PetscFn*);
 
 PETSC_EXTERN PetscErrorCode PetscFnSetSizes(PetscFn,PetscInt,PetscInt,PetscInt,PetscInt);
-PETSC_EXTERN PetscErrorCode PetscFnGetSize(PetscFn,PetscInt*,PetscInt*);
-PETSC_EXTERN PetscErrorCode PetscFnGetLocalSize(PetscFn,PetscInt*,PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscFnGetSizes(PetscFn,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscFnLayoutsSetUp(PetscFn);
 PETSC_EXTERN PetscErrorCode PetscFnGetLayouts(PetscFn,PetscLayout*,PetscLayout*);
 

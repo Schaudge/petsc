@@ -9,8 +9,7 @@ static PetscErrorCode PetscFnCreateMats_Componentwise(PetscFn fn, PetscFnOperati
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
-  ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
   if (m != n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "input and output layouts must be the same");
   comm = PetscObjectComm((PetscObject)fn);
   if (!A && !Apre) PetscFunctionReturn(0);
@@ -39,7 +38,7 @@ static PetscErrorCode PetscFnApply_Sin(PetscFn fn, Vec x, Vec y)
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetLocalSize(fn, &n, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
   ierr = VecCopy(x, y);CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
   ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
@@ -58,7 +57,7 @@ static PetscErrorCode PetscFnJacobianMult_Sin(PetscFn fn, Vec x, Vec xhat, Vec y
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetLocalSize(fn, &n, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
   ierr = VecGetArrayRead(xhat, &xhs);CHKERRQ(ierr);
   ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
@@ -80,7 +79,7 @@ static PetscErrorCode PetscFnJacobianBuild_Sin(PetscFn fn, Vec x, Mat J, Mat Jpr
 
   PetscFunctionBegin;
   if (!jac) PetscFunctionReturn(0);
-  ierr = PetscFnGetLocalSize(fn, &n, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &diag);CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
   ierr = VecGetArray(diag, &ys);CHKERRQ(ierr);
@@ -109,7 +108,7 @@ static PetscErrorCode PetscFnHessianMult_Sin(PetscFn fn, Vec x, Vec xhat, Vec xd
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetLocalSize(fn, &n, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
   ierr = VecGetArrayRead(xhat, &xhs);CHKERRQ(ierr);
   ierr = VecGetArrayRead(xdot, &xds);CHKERRQ(ierr);
@@ -134,7 +133,7 @@ static PetscErrorCode PetscFnHessianBuild_Sin(PetscFn fn, Vec x, Vec xhat, Mat H
 
   PetscFunctionBegin;
   if (!hes) PetscFunctionReturn(0);
-  ierr = PetscFnGetLocalSize(fn, &n, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &diag);CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
   ierr = VecGetArrayRead(xhat, &xhs);CHKERRQ(ierr);
@@ -183,8 +182,7 @@ static PetscErrorCode PetscFnCreateMats_Normsquared(PetscFn fn, PetscFnOperation
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
-  ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
   if (M != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ, "output must be scalar");
   comm = PetscObjectComm((PetscObject)fn);
   if (!A && !Apre) PetscFunctionReturn(0);

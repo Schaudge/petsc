@@ -96,7 +96,7 @@ PetscErrorCode PetscFnDestroy(PetscFn *fn)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnSetSizes(PetscFn fn, PetscInt m, PetscInt M, PetscInt n, PetscInt N)
+PetscErrorCode PetscFnSetSizes(PetscFn fn, PetscInt m, PetscInt n, PetscInt M, PetscInt N)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
@@ -113,23 +113,14 @@ PetscErrorCode PetscFnSetSizes(PetscFn fn, PetscInt m, PetscInt M, PetscInt n, P
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnGetSize(PetscFn fn, PetscInt *m, PetscInt *n)
+PetscErrorCode PetscFnGetSizes(PetscFn fn, PetscInt *m, PetscInt *n, PetscInt *M, PetscInt *N)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  if (m) *m = fn->rmap->N;
-  if (n) *n = fn->dmap->N;
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode PetscFnGetLocalSize(PetscFn fn, PetscInt *m, PetscInt *n)
-{
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
-  if (m) PetscValidIntPointer(m,2);
-  if (n) PetscValidIntPointer(n,3);
   if (m) *m = fn->rmap->n;
   if (n) *n = fn->dmap->n;
+  if (M) *M = fn->rmap->N;
+  if (N) *N = fn->dmap->N;
   PetscFunctionReturn(0);
 }
 
@@ -343,12 +334,9 @@ PetscErrorCode PetscFnView(PetscFn fn,PetscViewer viewer)
 
   if (iascii) {
     ierr = PetscObjectPrintClassNamePrefixType((PetscObject)fn,viewer);CHKERRQ(ierr);
-    if (format == PETSC_VIEWER_ASCII_INFO || format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
-
-      ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
-      ierr = PetscFnGetSize(fn,&rows,&cols);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"range size=%D, domain size=%D\n",rows,cols);CHKERRQ(ierr);
-    }
+    ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
+    ierr = PetscFnGetSizes(fn,NULL,NULL,&rows,&cols);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"range size=%D, domain size=%D\n",rows,cols);CHKERRQ(ierr);
   }
   if (fn->ops->view) {
     ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
@@ -356,10 +344,7 @@ PetscErrorCode PetscFnView(PetscFn fn,PetscViewer viewer)
     ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
   }
   if (iascii) {
-    ierr = PetscViewerGetFormat(viewer,&format);CHKERRQ(ierr);
-    if (format == PETSC_VIEWER_ASCII_INFO || format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
-      ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
-    }
+    ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -2279,7 +2264,7 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscFnOper
     M = rangeLayout->N;
   }
   ierr = PetscFnCreate(comm, &df);CHKERRQ(ierr);
-  ierr = PetscFnSetSizes(df, m, M, fn->dmap->n, fn->dmap->N);CHKERRQ(ierr);
+  ierr = PetscFnSetSizes(df, m, fn->dmap->n, M, fn->dmap->N);CHKERRQ(ierr);
   ierr = PetscLayoutReference(fn->dmap,&(df->dmap));CHKERRQ(ierr);
   ierr = PetscFnSetVecTypes(df, NULL, fn->domainType);CHKERRQ(ierr);
   if (!derIsScalar) {

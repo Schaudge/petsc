@@ -19,7 +19,7 @@ static PetscErrorCode TestScalar(PetscRandom rand)
 
   PetscFunctionBegin;
   ierr = PetscFnCreate(PETSC_COMM_WORLD, &fn);CHKERRQ(ierr);
-  ierr = PetscFnSetSizes(fn, PETSC_DECIDE, 1, 10, PETSC_DETERMINE);CHKERRQ(ierr);
+  ierr = PetscFnSetSizes(fn, PETSC_DECIDE, 10, 1, PETSC_DETERMINE);CHKERRQ(ierr);
   ierr = PetscFnSetType(fn, PETSCFNDAG);CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(fn);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)fn, PETSCFNDAG, &isDag);CHKERRQ(ierr);
@@ -28,8 +28,7 @@ static PetscErrorCode TestScalar(PetscRandom rand)
     PetscInt m, M, n, N;
     PetscFn  fnSin, fnNormSq;
 
-    ierr = PetscFnGetSize(fn, &M, &N);CHKERRQ(ierr);
-    ierr = PetscFnGetLocalSize(fn, &m, &n);CHKERRQ(ierr);
+    ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
     ierr = PetscFnShellCreate(comm, PETSCSIN, PETSC_DECIDE, 1, PETSC_DECIDE, 1, NULL, &fnSin);CHKERRQ(ierr);
     ierr = PetscFnSetOptionsPrefix(fnSin, "sin_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(fnSin);CHKERRQ(ierr);
