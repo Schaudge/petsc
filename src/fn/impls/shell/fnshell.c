@@ -32,14 +32,16 @@ PetscErrorCode PetscFnShellRegister(const char name[],PetscErrorCode (*shell)(Pe
 
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate_Sin(PetscFn);
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn);
+PETSC_EXTERN PetscErrorCode PetscFnShellCreate_Mat(PetscFn);
 
 static PetscErrorCode PetscFnShellRegisterAll(void)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnShellRegister(PETSCSIN,         PetscFnShellCreate_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellRegister(PETSCNORMSQUARED, PetscFnShellCreate_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellRegister(PETSCFNSIN,         PetscFnShellCreate_Sin);CHKERRQ(ierr);
+  ierr = PetscFnShellRegister(PETSCFNNORMSQUARED, PetscFnShellCreate_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellRegister(PETSCFNMAT,         PetscFnShellCreate_Mat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -60,7 +62,7 @@ static PetscErrorCode PetscFnShellInitializePackage(void)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnShellCreate(MPI_Comm comm, PetscFnShellType shelltype,PetscInt m, PetscInt M, PetscInt n, PetscInt N, void *ctx, PetscFn *fn_p)
+PetscErrorCode PetscFnShellCreate(MPI_Comm comm, PetscFnShellType shelltype, PetscInt m, PetscInt n, PetscInt M, PetscInt N, void *ctx, PetscFn *fn_p)
 {
   PetscFn        fn;
   PetscErrorCode (*r) (PetscFn);
@@ -191,6 +193,9 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
   case PETSCFNOP_DESTROY:
     shell->destroy = (PetscErrorCode (*) (PetscFn)) f;
     break;
+  case PETSCFNOP_VIEW:
+    fn->ops->view = (PetscErrorCode (*) (PetscFn, PetscViewer)) f;
+    break;
   }
   PetscFunctionReturn(0);
 }
@@ -266,6 +271,9 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
     break;
   case PETSCFNOP_DESTROY:
     *f = (void (*)(void)) shell->destroy;
+    break;
+  case PETSCFNOP_VIEW:
+    *f = (void (*)(void)) fn->ops->view;
     break;
   }
   PetscFunctionReturn(0);

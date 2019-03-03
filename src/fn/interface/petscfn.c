@@ -1368,6 +1368,7 @@ const char *PetscFnOperations[] = {
                                   "createsubfn",
                                   "createderivativefn",
                                   "destroy",
+                                  "view",
                                   };
 
 PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x, Vec xhat, Vec dot, PetscRandom rand, PetscReal e1, PetscReal e2, PetscReal * rate)

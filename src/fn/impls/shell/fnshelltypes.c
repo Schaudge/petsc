@@ -271,3 +271,214 @@ PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn fn)
   ierr = PetscObjectSetName((PetscObject)fn, "norm()^2");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+static PetscErrorCode PetscFnCreateMats_Mat(PetscFn fn, PetscFnOperation op, Mat *A, Mat *Apre)
+{
+  PetscInt       m, M, n, N;
+  Mat            mat, J;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
+  if (op == PETSCFNOP_JACOBIANBUILD) {
+    ierr = MatDuplicate(mat, MAT_SHARE_NONZERO_PATTERN, &J);CHKERRQ(ierr);
+  } else if (op == PETSCFNOP_JACOBIANBUILDADJOINT) {
+    ierr = MatTranspose(mat, MAT_INITIAL_MATRIX, &J);CHKERRQ(ierr);
+  } else {
+    ierr = MatCreate(PetscObjectComm((PetscObject)fn), &J);CHKERRQ(ierr);
+    ierr = MatSetType(J, MATAIJ);CHKERRQ(ierr);
+    if (op == PETSCFNOP_HESSIANBUILD) {
+      ierr = MatSetSizes(J, m, n, M, N);CHKERRQ(ierr);
+    } else if (op == PETSCFNOP_HESSIANBUILDSWAP) {
+      ierr = MatSetSizes(J, n, m, N, M);CHKERRQ(ierr);
+    } else {
+      ierr = MatSetSizes(J, n, n, N, N);CHKERRQ(ierr);
+    }
+    ierr = MatSeqAIJSetPreallocation(J, 0, NULL);CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(J, 0, NULL, 0, NULL);CHKERRQ(ierr);
+  }
+  if (A) {
+    ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
+    *A = J;
+  }
+  if (Apre) {
+    ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);
+    *Apre = J;
+  }
+  ierr = MatDestroy(&J);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnApply_Mat(PetscFn fn, Vec x, Vec y)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = MatMult(mat, x, y);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnJacobianMult_Mat(PetscFn fn, Vec x, Vec xhat, Vec y)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = MatMult(mat, xhat, y);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnJacobianMultAdjoint_Mat(PetscFn fn, Vec x, Vec v, Vec y)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = MatMultTranspose(mat, v, y);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnJacobianBuild_Mat(PetscFn fn, Vec x, Mat J, Mat Jpre)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  if (J) {
+    ierr = MatCopy(mat, J, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  if (Jpre && Jpre != J) {
+    ierr = MatCopy(mat, Jpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnJacobianBuildAdjoint_Mat(PetscFn fn, Vec x, Mat J, Mat Jpre)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  if (J) {
+    ierr = MatTranspose(mat, MAT_REUSE_MATRIX, &J);CHKERRQ(ierr);
+  }
+  if (Jpre && Jpre != J) {
+    ierr = MatTranspose(mat, MAT_REUSE_MATRIX, &Jpre);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnHessianMult_Mat(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecSet(y, 0.);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnHessianMultAdjoint_Mat(PetscFn fn, Vec x, Vec v, Vec xhat, Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecSet(y, 0.);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnHessianBuild_Mat(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (H) {
+    ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  }
+  if (Hpre && Hpre != H) {
+    ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnHessianBuildSwap_Mat(PetscFn fn, Vec x, Vec xhat, Mat H, Mat Hpre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (H) {
+    ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  }
+  if (Hpre && Hpre != H) {
+    ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnHessianBuildAdjoint_Mat(PetscFn fn, Vec x, Vec v, Mat H, Mat Hpre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (H) {
+    ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  }
+  if (Hpre && Hpre != H) {
+    ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnView_Mat(PetscFn fn, PetscViewer viewer)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = MatView(mat, viewer);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDestroy_Mat(PetscFn fn)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = MatDestroy(&mat);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode PetscFnShellCreate_Mat(PetscFn fn)
+{
+  Mat            mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMultAdjoint_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILD, (void (*)(void)) PetscFnJacobianBuild_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnJacobianBuildAdjoint_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULT, (void (*)(void)) PetscFnHessianMult_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULTADJOINT, (void (*)(void)) PetscFnHessianMultAdjoint_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILD, (void (*)(void)) PetscFnHessianBuild_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDADJOINT, (void (*)(void)) PetscFnHessianBuildAdjoint_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDSWAP, (void (*)(void)) PetscFnHessianBuildSwap_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_VIEW, (void (*)(void)) PetscFnView_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DESTROY, (void (*)(void)) PetscFnDestroy_Mat);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)fn, "mat");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}

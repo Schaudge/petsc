@@ -25,22 +25,34 @@ static PetscErrorCode TestScalar(PetscRandom rand)
   ierr = PetscObjectTypeCompare((PetscObject)fn, PETSCFNDAG, &isDag);CHKERRQ(ierr);
   comm = PetscObjectComm((PetscObject)fn);
   if (isDag) {
-    PetscInt m, M, n, N;
-    PetscFn  fnSin, fnNormSq;
+    PetscInt m, M, n, N, rank;
+    PetscFn  fnSin, fnNormSq, fnMat;
+    Mat      A;
 
     ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-    ierr = PetscFnShellCreate(comm, PETSCSIN, PETSC_DECIDE, 1, PETSC_DECIDE, 1, NULL, &fnSin);CHKERRQ(ierr);
+    ierr = PetscFnShellCreate(comm, PETSCFNSIN, PETSC_DECIDE, PETSC_DECIDE, 1, 1, NULL, &fnSin);CHKERRQ(ierr);
     ierr = PetscFnSetOptionsPrefix(fnSin, "sin_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(fnSin);CHKERRQ(ierr);
     ierr = PetscFnSetUp(fnSin);CHKERRQ(ierr);
     ierr = PetscFnViewFromOptions(fnSin, NULL, "-fn_view");CHKERRQ(ierr);
 
-    ierr = PetscFnShellCreate(comm, PETSCNORMSQUARED, m, M, n, N, NULL, &fnNormSq);CHKERRQ(ierr);
+    ierr = PetscFnShellCreate(comm, PETSCFNNORMSQUARED, m, n, M, N, NULL, &fnNormSq);CHKERRQ(ierr);
     ierr = PetscFnSetOptionsPrefix(fnNormSq, "normsq_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(fnNormSq);CHKERRQ(ierr);
     ierr = PetscFnSetUp(fnNormSq);CHKERRQ(ierr);
     ierr = PetscFnViewFromOptions(fnNormSq, NULL, "-fn_view");CHKERRQ(ierr);
 
+    ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+    ierr = MatCreateAIJ(comm, rank + 7, rank + 11, PETSC_DETERMINE, PETSC_DETERMINE, 2, NULL, 2, NULL, &A);CHKERRQ(ierr);
+    ierr = MatSetRandom(A, rand);CHKERRQ(ierr);
+    ierr = PetscFnShellCreate(comm, PETSCFNMAT, rank + 7, rank + 11, PETSC_DETERMINE, PETSC_DETERMINE, (void *) A, &fnMat);CHKERRQ(ierr);
+    ierr = MatDestroy(&A);CHKERRQ(ierr);
+    ierr = PetscFnSetOptionsPrefix(fnMat, "mat_");CHKERRQ(ierr);
+    ierr = PetscFnSetFromOptions(fnMat);CHKERRQ(ierr);
+    ierr = PetscFnSetUp(fnMat);CHKERRQ(ierr);
+    ierr = PetscFnViewFromOptions(fnMat, NULL, "-fn_view");CHKERRQ(ierr);
+
+    ierr = PetscFnDestroy(&fnMat);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&fnNormSq);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&fnSin);CHKERRQ(ierr);
   }

@@ -79,6 +79,7 @@ typedef enum { PETSCFNOP_CREATEVECS,
                PETSCFNOP_CREATESUBFN,
                PETSCFNOP_CREATEDERIVATIVEFN,
                PETSCFNOP_DESTROY,
+               PETSCFNOP_VIEW
              } PetscFnOperation;
 
 PETSC_EXTERN PetscErrorCode PetscFnSetVecTypes(PetscFn,VecType,VecType);
@@ -138,8 +139,9 @@ PETSC_EXTERN PetscErrorCode PetscFnShellGetOperation(PetscFn,PetscFnOperation,vo
  * repeat the boiler plate for them */
 typedef const char* PetscFnShellType;
 PETSC_EXTERN PetscFunctionList PetscFnShellList;
-#define PETSCSIN "sin"
-#define PETSCNORMSQUARED "normsquared"
+#define PETSCFNSIN         "sin"
+#define PETSCFNNORMSQUARED "normsquared"
+#define PETSCFNMAT         "mat"
 
 PETSC_EXTERN PetscErrorCode PetscFnShellRegister(const char[],PetscErrorCode(*)(PetscFn));
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate(MPI_Comm,PetscFnShellType,PetscInt,PetscInt,PetscInt,PetscInt,void *,PetscFn *);
