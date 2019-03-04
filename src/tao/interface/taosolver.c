@@ -348,6 +348,7 @@ PetscErrorCode TaoDestroy(Tao *tao)
     ierr = PetscFree((*tao)->res_weights_cols);CHKERRQ(ierr);
     ierr = PetscFree((*tao)->res_weights_w);CHKERRQ(ierr);
   }
+  ierr = TaoSetSeparableObjectives(*tao, 0, NULL, PETSC_COPY_VALUES, MPIU_SUM);CHKERRQ(ierr);
   ierr = PetscHeaderDestroy(tao);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -2863,3 +2864,76 @@ PetscErrorCode  TaoMonitorDrawCtxDestroy(TaoMonitorDrawCtx *ictx)
   ierr = PetscFree(*ictx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+static PetscErrorCode TaoSepReset(TaoSep taosep)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidPointer(taosep, 1);
+  if (taosep->copyMode == PETSC_COPY_VALUES || taosep->copyMode == PETSC_OWN_POINTER) {
+    PetscInt i;
+
+    for (i = 0; i < taosep->numObjs; i++) {ierr = TaoDestroy(&(taosep->subtaos[i]));CHKERRQ(ierr);}
+    ierr = PetscFree(taosep->subtaos);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode TaoSetSeparableObjectives(Tao tao, PetscInt numObjs, Tao *subtaos, PetscCopyMode copyMode, MPI_Op reduce)
+{
+  MPI_Comm comm;
+  TaoSep sep;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  comm = PetscObjectComm((PetscObject) tao);
+  if (numObjs < 0) SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Number of objective routines (%D) not non-negative", numObjs);
+  if (tao->sep) {
+    ierr = TaoSepReset(tao->sep);CHKERRQ(ierr);
+    ierr = PetscFree(tao->sep);CHKERRQ(ierr);
+  }
+  if (numObjs == 0) PetscFunctionReturn(0);
+  ierr = PetscNewLog(tao, &(tao->sep));CHKERRQ(ierr);
+  sep = tao->sep;
+  sep->numObjs = numObjs;
+  sep->copyMode = copyMode;
+  sep->reduce = reduce;
+  if (copyMode == PETSC_COPY_VALUES) {
+    PetscInt i;
+
+    ierr = PetscMalloc1(numObjs, &(sep->subtaos));CHKERRQ(ierr);
+    for (i = 0; i < numObjs; i++) {
+      sep->subtaos[i] = subtaos[i];
+      ierr = PetscObjectReference((PetscObject) (sep->subtaos[i]));CHKERRQ(ierr);
+    }
+  }
+  else {
+    sep->subtaos = subtaos;
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode TaoGetSeparableObjectives(Tao tao, PetscInt *numObjs_p, Tao **subtaos_p, PetscCopyMode *copyMode_p, MPI_Op *reduce_p)
+{
+  PetscInt       numObjs = 0;
+  Tao            *subtaos = NULL;
+  PetscCopyMode  copyMode = PETSC_OWN_POINTER;
+  MPI_Op         reduce = MPIU_SUM;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(tao, TAO_CLASSID, 1);
+  if (tao->sep) {
+    numObjs = tao->sep->numObjs;
+    subtaos = tao->sep->subtaos;
+    copyMode = tao->sep->copyMode;
+    reduce = tao->sep->reduce;
+  }
+  if (numObjs_p) *numObjs_p = numObjs;
+  if (subtaos_p) *subtaos_p = subtaos;
+  if (copyMode_p) *copyMode_p = copyMode;
+  if (reduce_p) *reduce_p = reduce;
+  PetscFunctionReturn(0);
+}
+

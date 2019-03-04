@@ -169,6 +169,9 @@ PETSC_DEPRECATED("Use TaoSetResidualRoutine()") PETSC_STATIC_INLINE PetscErrorCo
 PETSC_DEPRECATED("Use TaoSetResidualWeights()") PETSC_STATIC_INLINE PetscErrorCode TaoSetSeparableObjectiveWeights(Tao tao, Vec sigma_v, PetscInt n, PetscInt *rows, PetscInt *cols, PetscReal *vals)
 { return TaoSetResidualWeights(tao, sigma_v, n, rows, cols, vals); }
 
+PETSC_EXTERN PetscErrorCode TaoSetSeparableObjectives(Tao, PetscInt, Tao *, PetscCopyMode, MPI_Op);
+PETSC_EXTERN PetscErrorCode TaoGetSeparableObjectives(Tao, PetscInt *, Tao **, PetscCopyMode *, MPI_Op *);
+
 PETSC_EXTERN PetscErrorCode TaoSetStateDesignIS(Tao, IS, IS);
 
 PETSC_EXTERN PetscErrorCode TaoComputeObjective(Tao, Vec, PetscReal*);
