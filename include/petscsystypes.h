@@ -629,4 +629,27 @@ typedef struct _n_PetscSegBuffer *PetscSegBuffer;
 
 typedef struct _n_PetscOptionsHelpPrinted *PetscOptionsHelpPrinted;
 
+/*E
+  PetscHeaderType - PETSc inferred type of PETSCHEADER associated with a C pointer.
+
+  Level: advanced
+
+$  PETSC_HEADER_NULL_PTR - indicates a null pointer
+$  PETSC_HEADER_INVALID_PTR - indicates an invalid pointer (as determined by PetscCheckPointer())
+$  PETSC_HEADER_FREED - the pointer references an object containing PETSCHEADER,
+$      however the object has been freed
+$  PETSC_HEADER_INVALID - the pointer references a PetscObject,
+$       however the classid, class_name and or communicator have not been set
+$  PETSC_HEADER_VALID - the pointer references a PetscObject created with PetscHeaderCreate()
+
+.seealso: PetscCheckPointer() PetscPointerGetPetscHeaderType()
+E*/
+typedef enum {
+  PETSC_HEADER_NULL_PTR = 0,
+  PETSC_HEADER_INVALID_PTR,
+  PETSC_HEADER_FREED,
+  PETSC_HEADER_INVALID,
+  PETSC_HEADER_VALID,
+} PetscHeaderType;
+
 #endif
