@@ -2497,7 +2497,7 @@ PETSC_EXTERN PetscErrorCode MPIU_Win_shared_query(MPI_Win,PetscMPIInt,MPI_Aint*,
 PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CLASS;
 PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CODE;
 
-/*@C
+/*MC
    PetscPointerGetPetscHeaderType - The type of PETSCHEADER associated with a pointer
 
    Not collective
@@ -2511,8 +2511,8 @@ PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CODE;
    Concepts: PetscObject query
 
 .seealso: PetscPointerTestPetscObject()
-@*/
-#define PetscPointerGetPetscHeaderType(ptr,type) PetscPointerGetPetscHeaderType_Private((const void*)(ptr),(size_t)sizeof(*(ptr)),type)
+M*/
+#define PetscPointerGetPetscHeaderType(ptr,type) PetscPointerGetPetscHeaderType_Private((const void*)(ptr),(size_t)sizeof(*(ptr)),(type))
 
 
 #endif
