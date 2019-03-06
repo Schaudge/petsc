@@ -3,9 +3,9 @@ CFLAGS   =
 FFLAGS   =
 SOURCEC  =
 SOURCEF  =
-SOURCEH = bagimpl.h characteristicimpl.h dmdaimpl.h dmforestimpl.h      \
- dmimpl.h dmlabelimpl.h dmmbimpl.h dmnetworkimpl.h dmpatchimpl.h        \
- dmpleximpl.h dmswarmimpl.h drawimpl.h dtimpl.h f90impl.h               \
+SOURCEH = bagimpl.h characteristicimpl.h containerimpl.h dmdaimpl.h     \
+ dmforestimpl.h dmimpl.h dmlabelimpl.h dmmbimpl.h dmnetworkimpl.h       \
+ dmpatchimpl.h dmpleximpl.h dmswarmimpl.h drawimpl.h dtimpl.h f90impl.h \
  fortranimpl.h isimpl.h kspimpl.h linesearchimpl.h logimpl.h            \
  matimpl.h matorderimpl.h pcgamgimpl.h pcimpl.h pcmgimpl.h              \
  petscdsimpl.h petscfeimpl.h petscfptimpl.h petscfvimpl.h petscimpl.h   \
