@@ -1,0 +1,11 @@
+context  "char*", type = invalid pointer: members are not accessible, implies corrupt data, or object not inherited from PetscObject
+context  "char", type = invalid pointer: members are not accessible, implies corrupt data, or object not inherited from PetscObject
+context  "short", type = invalid pointer: members are not accessible, implies corrupt data, or object not inherited from PetscObject
+context  "PetscInt", type = invalid pointer: members are not accessible, implies corrupt data, or object not inherited from PetscObject
+context  "NULL PetscInt*", type = null pointer
+context  "PetscClassId", type = invalid pointer: members are not accessible, implies corrupt data, or object not inherited from PetscObject
+context  "NULL PetscContainer", type = null pointer
+context  "PetscContainer", type = PetscHeader valid
+context  "SNES", type = PetscHeader valid
+context  "user-PetscObject", type = PetscHeader valid
+context  "UserContext_2", type = PetscHeader invalid: likely PetscHeaderCreate() has not been called
