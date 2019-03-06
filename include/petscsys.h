@@ -1364,6 +1364,8 @@ PETSC_EXTERN PetscErrorCode PetscObjectSetUp(PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectSetPrintedOptions(PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectInheritPrintedOptions(PetscObject,PetscObject);
 PETSC_EXTERN PetscErrorCode PetscCommGetNewTag(MPI_Comm,PetscMPIInt *);
+PETSC_EXTERN PetscErrorCode PetscPointerGetPetscHeaderType_Private(const void*,size_t,PetscHeaderType*);
+PETSC_EXTERN PetscErrorCode PetscPointerTestPetscObject(const void*,PetscBool*);
 
 #include <petscviewertypes.h>
 #include <petscoptions.h>
@@ -2494,5 +2496,23 @@ PETSC_EXTERN PetscErrorCode MPIU_Win_shared_query(MPI_Win,PetscMPIInt,MPI_Aint*,
 */
 PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CLASS;
 PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CODE;
+
+/*@C
+   PetscPointerGetPetscHeaderType - The type of PETSCHEADER associated with a pointer
+
+   Not collective
+
+   Input Parameter:
+.  ptr - A C pointer
+
+   Output Parameter:
+.  type - Type of pointer
+
+   Concepts: PetscObject query
+
+.seealso: PetscPointerTestPetscObject()
+@*/
+#define PetscPointerGetPetscHeaderType(ptr,type) PetscPointerGetPetscHeaderType_Private((const void*)(ptr),(size_t)sizeof(*(ptr)),type)
+
 
 #endif
