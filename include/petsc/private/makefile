@@ -9,8 +9,8 @@ SOURCEH = bagimpl.h characteristicimpl.h containerimpl.h dmdaimpl.h     \
  fortranimpl.h isimpl.h kspimpl.h linesearchimpl.h logimpl.h            \
  matimpl.h matorderimpl.h pcgamgimpl.h pcimpl.h pcmgimpl.h              \
  petscdsimpl.h petscfeimpl.h petscfptimpl.h petscfvimpl.h petscimpl.h   \
- sfimpl.h snesimpl.h taoimpl.h taolinesearchimpl.h tsimpl.h vecimpl.h   \
- tshistoryimpl.h                                                        \
+ petscsystypes.h sfimpl.h snesimpl.h taoimpl.h taolinesearchimpl.h      \
+ tsimpl.h vecimpl.h tshistoryimpl.h                                     \
  hashtable.h hashmap.h hashset.h                                        \
  viewerimpl.h
 LIBBASE  = libpetscvec
