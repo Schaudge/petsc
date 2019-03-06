@@ -41,8 +41,8 @@ PetscErrorCode CharacteristicSetUp_DA(Characteristic c)
   ierr = DMDAGetInfo(c->velocityDA, &dim, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0);CHKERRQ(ierr);
   if (c->structured) c->numIds = dim;
   else c->numIds = 3;
-  if (c->numFieldComp > MAX_COMPONENTS) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "The maximum number of fields allowed is %d, you have %d. You can recompile after increasing MAX_COMPONENTS.", MAX_COMPONENTS, c->numFieldComp);
-  numValues = 4 + MAX_COMPONENTS;
+  if (c->numFieldComp > CHARACTERISTIC_MAX_COMPONENTS) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE, "The maximum number of fields allowed is %d, you have %d. You can recompile after increasing CHARACTERISTIC_MAX_COMPONENTS.", CHARACTERISTIC_MAX_COMPONENTS, c->numFieldComp);
+  numValues = 4 + CHARACTERISTIC_MAX_COMPONENTS;
 
   /* Create new MPI datatype for communication of characteristic point structs */
   blockLen[0] = 1+c->numIds; indices[0] = 0;                              oldtypes[0] = MPIU_INT;

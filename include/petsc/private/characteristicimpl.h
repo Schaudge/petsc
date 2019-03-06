@@ -20,14 +20,14 @@ PETSC_EXTERN PetscLogEvent CHARACTERISTIC_FullTimeLocal;
 PETSC_EXTERN PetscLogEvent CHARACTERISTIC_FullTimeRemote;
 PETSC_EXTERN PetscLogEvent CHARACTERISTIC_FullTimeExchange;
 
-#define MAX_COMPONENTS 10
+#define CHARACTERISTIC_MAX_COMPONENTS 10
 
 typedef struct _p_Item {
   int           proc; /* Relative processor from which data is required (mapped to absolute by neighbors) */
   int           i, j; /* The vertex for which we need field values */
   PetscScalar   x, y; /* Coordinates of a point on the characteristic */
   PetscScalar   u, v; /* Velocity of a point on the characteristic */
-  PetscScalar   field[MAX_COMPONENTS]; /* Field being advected */
+  PetscScalar   field[CHARACTERISTIC_MAX_COMPONENTS]; /* Field being advected */
 } CharacteristicPointDA2D;
 
 typedef CharacteristicPointDA2D *Queue;
