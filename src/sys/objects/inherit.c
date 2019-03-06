@@ -4,6 +4,7 @@
 */
 #include <petsc/private/petscimpl.h>  /*I   "petscsys.h"    I*/
 #include <petscviewer.h>
+#include <petsc/private/containerimpl.h>
 
 #if defined(PETSC_USE_LOG)
 PETSC_INTERN PetscObject *PetscObjects;
@@ -857,12 +858,6 @@ PETSC_EXTERN PetscErrorCode PetscObjectQueryFunction_Private(PetscObject obj,con
   ierr = (*obj->bops->queryfunction)(obj,name,ptr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-struct _p_PetscContainer {
-  PETSCHEADER(int);
-  void           *ptr;
-  PetscErrorCode (*userdestroy)(void*);
-};
 
 /*@C
    PetscContainerUserDestroyDefault - Default destroy routine for user-provided data that simply calls PetscFree().
