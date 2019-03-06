@@ -531,15 +531,29 @@ PetscErrorCode HessianComplete(Tao tao, Vec x, Mat H, Mat Hpre, void *ctx)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
-{
-  PetscFunctionBegin;
-  PetscFunctionReturn(0);
-}
-
 PetscReal SoftThreshold(PetscReal z, PetscReal mu)
 {
   return PetscMax(0,z- mu) - PetscMax(0, -z-mu);
+}
+
+static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
+{ 
+  PetscErrorCode ierr;
+  PetscInt nlocal,i;
+  PetscReal *array;
+  Vec vec;
+
+  PetscFunctionBegin;
+  vec = ((UserCtx)ctx)->workRight[12]; //z from ADMM below.
+  /* soft thresholding */
+  ierr = VecGetArray(vec, &array); CHKERRQ(ierr);
+  ierr = VecGetLocalSize(vec, &nlocal); CHKERRQ(ierr);
+  for (i=0; i < nlocal; i++){
+    array[i] = SoftThreshold(array[i], 1./((UserCtx)ctx)->mu);
+  }
+  ierr = VecRestoreArray(vec, &array);
+
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
@@ -562,6 +576,14 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   muu = ctx->workRight[19];
   ierr = VecSet(u, 0.);CHKERRQ(ierr);
 
+#if 0
+
+  ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
+  ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
+  ierr = TaoSetSeparableObjectives(tao1, 2, &tao2, PETSC_COPY_VALUES, 1); CHKERRQ(ierr); 
+
+#endif
+
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
   ierr = TaoSetType(tao1,TAONLS); CHKERRQ(ierr);
   ierr = TaoSetObjectiveRoutine(tao1, ObjectiveMisfitADMM, (void *) ctx);CHKERRQ(ierr);
@@ -575,6 +597,7 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
   ierr = TaoSetType(tao2,TAOSHELL); CHKERRQ(ierr);
+//ierr = TaoCreate_Shell(tao2); CHKERRQ(ierr);  
   ierr = TaoSetObjectiveRoutine(tao2, ObjectiveRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetGradientRoutine(tao2, GradientRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetHessianRoutine(tao2, ctx->Hr, ctx->Hr, HessianRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
