@@ -598,7 +598,9 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
     }
   } else {
     if (sred->pctelescope_matcreate_type) {
-      ierr = KSPGetOperators(sred->ksp,NULL,&sred->Bred);CHKERRQ(ierr);
+      if (isActiveRank(sred)) {
+        ierr = KSPGetOperators(sred->ksp,NULL,&sred->Bred);CHKERRQ(ierr);
+      }
       ierr = sred->pctelescope_matcreate_type(pc,sred,MAT_REUSE_MATRIX,&sred->Bred);CHKERRQ(ierr);
     }
   }
