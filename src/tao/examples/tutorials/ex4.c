@@ -576,14 +576,6 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   muu = ctx->workRight[19];
   ierr = VecSet(u, 0.);CHKERRQ(ierr);
 
-#if 0
-
-  ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
-  ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
-  ierr = TaoSetSeparableObjectives(tao1, 2, &tao2, PETSC_COPY_VALUES, 1); CHKERRQ(ierr); 
-
-#endif
-
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
   ierr = TaoSetType(tao1,TAONLS); CHKERRQ(ierr);
   ierr = TaoSetObjectiveRoutine(tao1, ObjectiveMisfitADMM, (void *) ctx);CHKERRQ(ierr);
@@ -608,6 +600,10 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
   ierr = TaoSetOptionsPrefix(tao2, "reg_");CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
+
+#if 0
+  ierr = TaoSetSeparableObjectives(tao1, 1, &tao2, PETSC_COPY_VALUES, 1); CHKERRQ(ierr); 
+#endif
 
   for (i=0; i<ctx->iter; i++){
     PetscReal t1,t2;
