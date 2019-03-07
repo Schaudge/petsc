@@ -76,7 +76,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->domain_hi[0]     = 1.0;
   options->domain_hi[1]     = 1.0;
   options->domain_hi[2]     = 1.0;
-  options->boundary[0]      = DM_BOUNDARY_PERIODIC; /* PERIODIC (plotting does not work in parallel, moments not conserved) */
+  options->boundary[0]      = DM_BOUNDARY_NONE; /* PERIODIC (plotting does not work in parallel, moments not conserved) */
   options->boundary[1]      = DM_BOUNDARY_NONE;
   options->boundary[2]      = DM_BOUNDARY_NONE;
   options->particlesPerCell = 1;
@@ -174,7 +174,8 @@ static PetscErrorCode PerturbVertices(DM dm, AppCtx *user)
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *user)
 {
-  const PetscReal domain = 2*PETSC_PI;
+  /* this should be petsc pi * 2 */
+  const PetscReal domain = 1;
   PetscBool      flg;
   PetscErrorCode ierr;
 
@@ -291,6 +292,7 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
   ierr = PetscMalloc5(dim, &centroid, dim, &xi0, dim, &v0, dim*dim, &J, dim*dim, &invJ);CHKERRQ(ierr);
   /* simplices would need different handling, but two stream would not work without tensor cells */
   for (c = 0; c < Ncell; ++c) {
+    /* handle this differently in the future */
     if (Np == 1) {
       ierr = DMPlexComputeCellGeometryFVM(dm, c, NULL, centroid, NULL);CHKERRQ(ierr);
       cellid[c] = c;
@@ -298,15 +300,15 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
       then have them moved evenly across the x axis using the cell width */
       for (d = 0; d < dim; ++d) coords[c*dim+d] = centroid[d];
     } else {
-      ierr = DMPlexComputeCellGeometryFEM(dm, c, NULL, v0, J, invJ, &detJ);CHKERRQ(ierr); /* affine */
+      ierr = DMPlexComputeCellGeometryFEM(dm, c, NULL, v0, J, invJ, &detJ);CHKERRQ(ierr); /* affine */        
       for (p = 0; p < Np; ++p) {
         const PetscInt n   = c*Np + p;
-        PetscReal particleSpacing = 2.*PETSC_PI / (Np*Ncell);
-        
+        PetscReal      sum = 0.0, refcoords[3];
+
         cellid[n] = c;
-        ierr = DMPlexComputeCellGeometryFVM(dm, c, NULL, centroid, NULL);CHKERRQ(ierr);
-        if(p < 2) for (d=0; d<dim; ++d) coords[c*dim+d] = d == 0 ? centroid[d] - particleSpacing : centroid[d];
-        else for (d=0; d<dim; ++d) coords[c*dim+d] = d == 0 ? centroid[d] + particleSpacing : centroid[d];
+        for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rnd, &value);CHKERRQ(ierr); refcoords[d] = PetscRealPart(value); sum += refcoords[d];}
+        if (user->simplex && sum > 0.0) for (d = 0; d < dim; ++d) refcoords[d] -= PetscSqrtReal(dim)*sum;
+        CoordinatesRefToReal(dim, dim, xi0, v0, J, refcoords, &coords[n*dim]);
       }
     }
   }
@@ -314,15 +316,12 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
   for (c = 0; c < Ncell; ++c) {
     for (p = 0; p < Np; ++p) {
       const PetscInt n = c*Np + p;
+
+      for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rndp, &value);CHKERRQ(ierr); coords[n*dim+d] += PetscRealPart(value);}
       user->func(dim, 0.0, &coords[n*dim], 1, &vals[c], user);
-      /* configuration for velocity components, drift velocity assigned along the axis that runs through the centroids of each cell in x */
-      for (d = 0; d < dim; ++d) {
-        if (Ncell < 16) initialConditions[n*dim+d] = d == 0 ? 1 : 0;
-        else initialConditions[n*dim+d] = d == 0 ? -1 : 0;
-      }
+      PetscPrintf(PETSC_COMM_WORLD, "vals %u\n", vals[c]);
     }
   }
-
   ierr = DMSwarmRestoreField(*sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coords);CHKERRQ(ierr);
   ierr = DMSwarmRestoreField(*sw, DMSwarmPICField_cellid, NULL, NULL, (void **) &cellid);CHKERRQ(ierr);
   ierr = DMSwarmRestoreField(*sw, "w_q", NULL, NULL, (void **) &vals);CHKERRQ(ierr);
@@ -386,15 +385,19 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   ierr = DMGetCoordinateDim(plex, &cdim);CHKERRQ(ierr);
   ierr = DMGetDS(plex, &prob);CHKERRQ(ierr);
   ierr = PetscDSGetDiscretization(prob, 0, (PetscObject *) &fe);CHKERRQ(ierr);
+  ierr = VecViewFromOptions(prob, NULL, "-rhs_poisson_view");
   ierr = DMGetGlobalVector(plex, &phi);CHKERRQ(ierr);
   ierr = DMGetLocalVector(plex, &locPhi);CHKERRQ(ierr);
   /* Get charge vector */
   ierr = DMCreateMassMatrix(dm, plex, &M_p);CHKERRQ(ierr);
+  ierr = MatViewFromOptions(M_p, NULL, "-mp_view"); 
   ierr = DMGetGlobalVector(plex, &rho);CHKERRQ(ierr);
   ierr = DMSwarmCreateGlobalVectorFromField(dm, "w_q", &f);CHKERRQ(ierr);
+  ierr = VecViewFromOptions(f, NULL, "-weights_view");
   ierr = MatMultTranspose(M_p, f, rho);CHKERRQ(ierr);
   ierr = DMSwarmDestroyGlobalVectorFromField(dm, "w_q", &f);CHKERRQ(ierr);
   /* Solve Poisson */
+  ierr = VecViewFromOptions(rho, NULL, "-poisson_rho_view");
   ierr = SNESSolve(user->snes, rho, phi);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(plex, &rho);CHKERRQ(ierr);
   ierr = MatDestroy(&M_p);CHKERRQ(ierr);
@@ -577,7 +580,7 @@ int main(int argc,char **argv)
 
   ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,0.0001);CHKERRQ(ierr);
-  ierr = TSSetMaxSteps(ts,10000);CHKERRQ(ierr);
+  ierr = TSSetMaxSteps(ts,10);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
   ierr = TSSetTime(ts,0.0);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
@@ -624,19 +627,19 @@ int main(int argc,char **argv)
   return ierr;
 }
 
-
+/* move back to space degree 2 */
 /*TEST
 
    build:
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type lu
+     args: -dim 2 -faces 1 -simplex 0 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type lu
    test:
      suffix: bsi2
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type lu
+     args: -dim 2 -faces 1 -simplex 0 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type lu
    test:
      suffix: euler 
-     args: -dim 3 -faces 32 -simplex 0 -particlesPerCell 4 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler -snes_monitor -pc_type lu
+     args: -dim 2 -faces 1 -simplex 0 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler -snes_monitor -pc_type lu
 
 TEST*/
