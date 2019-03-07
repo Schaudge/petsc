@@ -556,12 +556,12 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
+PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x, Tao tao)
 {
   PetscErrorCode ierr;
   PetscInt i,n;
   PetscReal muu_norm, r_norm, s_norm, primal, dual, x_norm, zneg_norm;
-  Tao tao1,tao2;
+  Tao tao1,tao2,*taolist[2];
   Vec xk,z,u,diff,zold,zdiff,zneg,muu;
 
   PetscFunctionBegin;
@@ -601,23 +601,26 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoSetOptionsPrefix(tao2, "reg_");CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
 
-#if 0
-  ierr = TaoSetSeparableObjectives(tao1, 1, &tao2, PETSC_COPY_VALUES, 1); CHKERRQ(ierr); 
-#endif
+  taolist[0] = &tao1;
+  taolist[1] = &tao2;
+
+  ierr = TaoSetSeparableObjectives(tao, 2, *taolist, PETSC_COPY_VALUES, 1); CHKERRQ(ierr); 
 
   for (i=0; i<ctx->iter; i++){
     PetscReal t1,t2;
-
+    PetscInt nObj = 2;
+	MPI_Op red = MPI_OP_NULL;
 	ierr = VecCopy(z,zold);
-  
-    TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
-    TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
+
+    ierr = TaoGetSeparableObjectives(tao, &nObj, taolist, PETSC_COPY_VALUES,&red); CHKERRQ(ierr);	
+    ierr = TaoSolve(*taolist[0]);CHKERRQ(ierr); /* Updates xk */
+    ierr = TaoSolve(*taolist[1]);CHKERRQ(ierr); /* Update zk */
 
 	/* u = u + xk -z */
     ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
     /* Convergence Check */
-    ierr = ObjectiveMisfit(tao1, xk, &t1, (void *) ctx);CHKERRQ(ierr);
-    ierr = ObjectiveRegularization(tao2, z, &t2, (void *) ctx);CHKERRQ(ierr);
+    ierr = ObjectiveMisfit(*taolist[0], xk, &t1, (void *) ctx);CHKERRQ(ierr);
+    ierr = ObjectiveRegularization(*taolist[1], z, &t2, (void *) ctx);CHKERRQ(ierr);
 
 	/* r_norm : norm(x-z) */
     ierr = VecWAXPY(diff,-1.,z,xk);CHKERRQ(ierr);
@@ -627,7 +630,6 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 	ierr = VecWAXPY(zdiff, -1.,zold,z);CHKERRQ(ierr);
 	ierr = VecScale(zdiff, -1.*(ctx->mu));CHKERRQ(ierr);
     ierr = VecNorm(zdiff,NORM_2,&s_norm);CHKERRQ(ierr);
-//    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"ADMM %D: ||x - z|| = %g\n", i, (double) r_norm);CHKERRQ(ierr);
 
 	/* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
     ierr = VecNorm(xk,NORM_2,&x_norm);CHKERRQ(ierr);
@@ -642,7 +644,7 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     ierr = VecNorm(muu,NORM_2,&muu_norm);CHKERRQ(ierr);
     dual = PetscSqrtReal(n)*ABSTOL + RELTOL*muu_norm;
 
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm - primal : %g, s_norm- - dual : %g\n", i, (double) r_norm - primal, (double) s_norm - dual);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)*taolist[0]),"Iter %D : r_norm - primal : %g, s_norm- - dual : %g\n", i, (double) r_norm - primal, (double) s_norm - dual);CHKERRQ(ierr);
 	if (r_norm < primal && s_norm < dual) break;
   }
  
@@ -829,7 +831,7 @@ int main (int argc, char** argv)
 
   /* solve */
   if (ctx->use_admm) {
-    ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
+    ierr = TaoSolveADMM(ctx,x,tao); CHKERRQ(ierr);
   }
   else {
     ierr = TaoSolve(tao);CHKERRQ(ierr);
