@@ -1566,6 +1566,43 @@ PetscErrorCode  MatCreateDense(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,Pe
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode MatCreateDenseVecs(MPI_Comm comm, PetscInt numVecs, const Vec vecs[], PetscBool colVecs, Mat *A_p)
+{
+  PetscInt       m, M, i, mStart, mEnd;
+  Mat            A, AT;
+  PetscInt       *is;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (numVecs <= 0) SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "Need positive number of vectors");
+  PetscValidHeaderSpecific(vecs[0], VEC_CLASSID, 3);
+  ierr = VecGetSize(vecs[0], &M);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(vecs[0], &m);CHKERRQ(ierr);
+  ierr = MatCreateDense(comm, m, PETSC_DECIDE, M, numVecs, NULL, &A);CHKERRQ(ierr);
+  ierr = MatSetOption(A, MAT_ROW_ORIENTED, PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscMalloc(m, &is);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(vecs[0], &mStart, &mEnd);CHKERRQ(ierr);
+  for (i = 0; i < m; i++) is[i] = mStart + i;
+  for (i = 0; i < numVecs; i++) {
+    const PetscScalar *va;
+
+    ierr = VecGetArrayRead(vecs[i], &va);CHKERRQ(ierr);
+    ierr = PetscMemcpy(&aa[i * m], va, m * sizeof(PetscScalar));CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(vecs[i], &va);CHKERRQ(ierr);
+  }
+  ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = PetscFree(is);CHKERRQ(ierr);
+  if (colVecs) {
+    *A_p = A;
+  } else {
+    ierr = MatCreateTranspose(A, &AT);CHKERRQ(ierr);
+    ierr = MatDestroy(&A);CHKERRQ(ierr);
+    *A_p = AT;
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode MatDuplicate_MPIDense(Mat A,MatDuplicateOption cpvalues,Mat *newmat)
 {
   Mat            mat;
