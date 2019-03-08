@@ -7,8 +7,6 @@ static char help[] = "Simple example to test separable objective optimizers.\n";
 
 #define NWORKLEFT 4
 #define NWORKRIGHT 20
-#define ABSTOL 1.E-4
-#define RELTOL 1.E-2
 
 typedef struct _UserCtx
 {
@@ -40,6 +38,8 @@ typedef struct _UserCtx
   PetscRandom    rctx;
   PetscBool taylor; /*Flag to determine whether to run Taylor test or not */
   PetscBool use_admm; /*Flag to determine whether to run Taylor test or not */
+  PetscReal abstol;
+  PetscReal reltol;
 } * UserCtx;
 
 static PetscErrorCode CreateRHS(UserCtx ctx)
@@ -175,6 +175,8 @@ static PetscErrorCode ConfigureContext(UserCtx ctx)
   ctx->mu = 1.0;
   ctx->taylor = PETSC_TRUE;
   ctx->use_admm = PETSC_FALSE;
+  ctx->abstol = 1.e-4;
+  ctx->reltol = 1.e-2;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "Configure separable objection example", "ex4.c");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
@@ -187,6 +189,8 @@ static PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsReal("-hStart", "Taylor test starting point. 1 default.", "ex4.c", ctx->hStart, &(ctx->hStart), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hFactor", "Taylor test multiplier factor. 0.5 default", "ex4.c", ctx->hFactor, &(ctx->hFactor), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-hMin", "Taylor test ending condition. 1.e-3 default", "ex4.c", ctx->hMin, &(ctx->hMin), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-abstol", "Absolute stopping criterion for ADMM", "ex4.c", ctx->abstol, &(ctx->abstol), NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-reltol", "Relative stopping criterion for ADMM", "ex4.c", ctx->reltol, &(ctx->reltol), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-taylor","Flag for Taylor test. Default is true.", "ex4.c", ctx->taylor, &(ctx->taylor), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsBool("-use_admm","Use the ADMM solver in this example.", "ex4.c", ctx->use_admm, &(ctx->use_admm), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-p","Norm type.", "ex4.c", NormTypes,  ctx->p, (PetscEnum *) &(ctx->p), NULL); CHKERRQ(ierr);
@@ -560,9 +564,10 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 {
   PetscErrorCode ierr;
   PetscInt i,n;
-  PetscReal muu_norm, r_norm, s_norm, primal, dual, x_norm, zneg_norm;
-  Tao tao1,tao2,*taolist[2];
+  PetscReal u_norm, r_norm, s_norm, primal, dual, x_norm, z_norm;
+  Tao tao1,tao2;
   Vec xk,z,u,diff,zold,zdiff,zneg,muu;
+  PetscReal mu;
 
   PetscFunctionBegin;
 
@@ -574,6 +579,7 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   zdiff = ctx->workRight[17];
   zneg = ctx->workRight[18];
   muu = ctx->workRight[19];
+  mu = ctx->mu;
   ierr = VecSet(u, 0.);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao1);CHKERRQ(ierr);
@@ -587,11 +593,15 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoSetFromOptions(tao1);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
-  ierr = TaoSetType(tao2,TAOSHELL); CHKERRQ(ierr);
+  if (ctx->p == NORM_1) {
+    ierr = TaoSetType(tao2,TAOSHELL); CHKERRQ(ierr);
+    ierr = TaoShellSetSolve(tao2, TaoShellSolve_SoftThreshold, (void *) ctx);CHKERRQ(ierr);
+  } else {
+    ierr = TaoSetType(tao2,TAONLS); CHKERRQ(ierr);
+  }
   ierr = TaoSetObjectiveRoutine(tao2, ObjectiveRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetGradientRoutine(tao2, GradientRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetHessianRoutine(tao2, ctx->Hr, ctx->Hr, HessianRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
-  ierr = TaoShellSetSolve(tao2, TaoShellSolve_SoftThreshold, (void *) ctx);CHKERRQ(ierr);
   ierr = VecSet(z, 0.);CHKERRQ(ierr);
   ierr = VecGetSize(z,&n); CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
@@ -599,7 +609,6 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
 
   for (i=0; i<ctx->iter; i++) {
-    PetscReal t1,t2;
 
     ierr = VecCopy(z,zold);
 
@@ -608,9 +617,6 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 
     /* u = u + xk -z */
     ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
-    /* Convergence Check */
-    ierr = ObjectiveMisfit(*taolist[0], xk, &t1, (void *) ctx);CHKERRQ(ierr);
-    ierr = ObjectiveRegularization(*taolist[1], z, &t2, (void *) ctx);CHKERRQ(ierr);
 
     /* r_norm : norm(x-z) */
     ierr = VecWAXPY(diff,-1.,z,xk);CHKERRQ(ierr);
@@ -618,23 +624,19 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 
     /* s_norm : norm(-mu(z-zold)) */
     ierr = VecWAXPY(zdiff, -1.,zold,z);CHKERRQ(ierr);
-    ierr = VecScale(zdiff, -1.*(ctx->mu));CHKERRQ(ierr);
     ierr = VecNorm(zdiff,NORM_2,&s_norm);CHKERRQ(ierr);
+    s_norm = s_norm * mu;
 
     /* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
     ierr = VecNorm(xk,NORM_2,&x_norm);CHKERRQ(ierr);
-    ierr = VecCopy(z,zneg);
-    ierr = VecScale(zneg, -1.);CHKERRQ(ierr);
-    ierr = VecNorm(zneg,NORM_2,&zneg_norm);CHKERRQ(ierr);
-    primal = PetscSqrtReal(n)*ABSTOL + RELTOL*PetscMax(x_norm,zneg_norm);
+    ierr = VecNorm(z,NORM_2,&z_norm);CHKERRQ(ierr);
+    primal = PetscSqrtReal(n)*ctx->abstol + ctx->reltol*PetscMax(x_norm,z_norm);
 
     /* Duality : sqrt(n)*ABSTOL + RELTOL*norm(mu*u)*/
-    ierr = VecCopy(u,muu);
-    ierr = VecScale(muu, ctx->mu);CHKERRQ(ierr);
-    ierr = VecNorm(muu,NORM_2,&muu_norm);CHKERRQ(ierr);
-    dual = PetscSqrtReal(n)*ABSTOL + RELTOL*muu_norm;
+    ierr = VecNorm(u,NORM_2,&u_norm);CHKERRQ(ierr);
+    dual = PetscSqrtReal(n)*ctx->abstol + ctx->reltol*u_norm*mu;
 
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm - primal : %g, s_norm- - dual : %g\n", i, (double) r_norm - primal, (double) s_norm - dual);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm: %g, s_norm: %g\n", i, (double) r_norm, (double) s_norm);CHKERRQ(ierr);
     if (r_norm < primal && s_norm < dual) break;
   }
 
