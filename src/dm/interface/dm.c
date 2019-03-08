@@ -887,6 +887,7 @@ PetscErrorCode  DMView(DM dm,PetscViewer v)
   if (!v) {
     ierr = PetscViewerASCIIGetStdout(PetscObjectComm((PetscObject)dm),&v);CHKERRQ(ierr);
   }
+  ierr = PetscViewerCheckWritable(v);CHKERRQ(ierr);
   ierr = PetscViewerGetFormat(v,&format);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)dm),&size);CHKERRQ(ierr);
   if (size == 1 && format == PETSC_VIEWER_LOAD_BALANCE) PetscFunctionReturn(0);
@@ -3583,6 +3584,7 @@ PetscErrorCode  DMLoad(DM newdm, PetscViewer viewer)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(newdm,DM_CLASSID,1);
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,2);
+  ierr = PetscViewerCheckReadable(viewer);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5,&ishdf5);CHKERRQ(ierr);
   if (isbinary) {
@@ -4634,7 +4636,7 @@ PetscErrorCode DMSetRegionDS(DM dm, DMLabel label, PetscDS ds)
       PetscFunctionReturn(0);
     }
   }
-  ierr = DMDSEnlarge_Static(dm, Nds+1);
+  ierr = DMDSEnlarge_Static(dm, Nds+1);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject) label);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject) ds);CHKERRQ(ierr);
   if (!label) {
