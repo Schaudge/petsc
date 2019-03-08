@@ -312,6 +312,7 @@ PETSC_EXTERN PetscErrorCode MatSetValuesBlocked(Mat,PetscInt,const PetscInt[],Pe
 PETSC_EXTERN PetscErrorCode MatSetValuesRow(Mat,PetscInt,const PetscScalar[]);
 PETSC_EXTERN PetscErrorCode MatSetValuesRowLocal(Mat,PetscInt,const PetscScalar[]);
 PETSC_EXTERN PetscErrorCode MatSetValuesBatch(Mat,PetscInt,PetscInt,PetscInt[],const PetscScalar[]);
+PETSC_EXTERN PetscErrorCode MatSetValuesVec(Mat,Vec,PetscInt,PetscBool,InsertMode);
 PETSC_EXTERN PetscErrorCode MatSetRandom(Mat,PetscRandom);
 
 /*S

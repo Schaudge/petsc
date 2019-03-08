@@ -1069,6 +1069,42 @@ static PetscErrorCode MatGetValues_SeqDense(Mat A,PetscInt m,const PetscInt inde
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode MatSetValuesVec_Dense(Mat mat, Vec vec, PetscInt idx, PetscBool colVec, InsertMode mode)
+{
+  PetscBool          rowOriented;
+  PetscInt           i, m, mStart, mEnd;
+  const PetscScalar *va;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  ierr = MatGetOption(mat, MAT_ROW_ORIENTED, &rowOriented);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(vec, &m);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(vec, &mStart, &mEnd);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(vec, &va);CHKERRQ(ierr);
+  if (colVec && !rowOriented) {
+    PetscScalar *aa;
+    ierr = MatDenseGetColumn(mat, idx, &aa);CHKERRQ(ierr);
+    if (mode == INSERT_VALUES) {
+      ierr = PetscMemcpy(aa, va, m * sizeof(PetscScalar));CHKERRQ(ierr);
+    } else {
+      for (i = 0; i < m; i++) aa[i] += va[i];
+    }
+    ierr = MatDenseRestoreColumn(mat, &aa);CHKERRQ(ierr);
+  } else {
+    if (colVec) {
+      for (i = 0; i < m; i++) {
+        ierr = MatSetValue(mat, mStart + i, idx, va[i], mode);CHKERRQ(ierr);
+      }
+    } else {
+      for (i = 0; i < m; i++) {
+        ierr = MatSetValue(mat, idx, mStart + i, va[i], mode);CHKERRQ(ierr);
+      }
+    }
+  }
+  ierr = VecRestoreArrayRead(vec, &va);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /* -----------------------------------------------------------------*/
 
 static PetscErrorCode MatLoad_SeqDense(Mat newmat,PetscViewer viewer)
@@ -1471,6 +1507,7 @@ static PetscErrorCode MatDestroy_SeqDense(Mat mat)
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatTransposeMatMultNumeric_seqaij_seqdense_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatDenseGetColumn_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatDenseRestoreColumn_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)mat,"MatSetValuesVec_C",NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2757,6 +2794,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqDense(Mat B)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatTransposeMatMultNumeric_seqaijmkl_seqdense_C",MatTransposeMatMultNumeric_SeqAIJ_SeqDense);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatDenseGetColumn_C",MatDenseGetColumn_SeqDense);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatDenseRestoreColumn_C",MatDenseRestoreColumn_SeqDense);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatSetValuesVec_C",MatSetValuesVec_Dense);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQDENSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

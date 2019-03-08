@@ -593,6 +593,7 @@ PetscErrorCode MatDestroy_MPIDense(Mat mat)
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatTransposeMatMultNumeric_mpiaij_mpidense_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatDenseGetColumn_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatDenseRestoreColumn_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)mat,"MatSetValuesVec_C",NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1360,6 +1361,8 @@ PetscErrorCode MatCreateMPIMatConcatenateSeqMat_MPIDense(MPI_Comm comm,Mat inmat
   PetscFunctionReturn(0);
 }
 
+PETSC_EXTERN PetscErrorCode MatSetValuesVec_Dense(Mat,Vec,PetscInt,PetscBool,InsertMode);
+
 PETSC_EXTERN PetscErrorCode MatCreate_MPIDense(Mat mat)
 {
   Mat_MPIDense   *a;
@@ -1403,6 +1406,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIDense(Mat mat)
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatTransposeMatMultNumeric_mpiaij_mpidense_C",MatTransposeMatMultNumeric_MPIAIJ_MPIDense);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatDenseGetColumn_C",MatDenseGetColumn_MPIDense);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatDenseRestoreColumn_C",MatDenseRestoreColumn_MPIDense);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)mat,"MatSetValuesVec_C",MatSetValuesVec_Dense);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)mat,MATMPIDENSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1572,6 +1576,7 @@ PetscErrorCode MatCreateDenseVecs(MPI_Comm comm, PetscInt numVecs, const Vec vec
   Mat            A, AT;
   PetscInt       *is;
   PetscErrorCode ierr;
+  PetscScalar    *aa;
 
   PetscFunctionBegin;
   if (numVecs <= 0) SETERRQ(comm, PETSC_ERR_ARG_OUTOFRANGE, "Need positive number of vectors");
@@ -1582,7 +1587,7 @@ PetscErrorCode MatCreateDenseVecs(MPI_Comm comm, PetscInt numVecs, const Vec vec
   ierr = MatSetOption(A, MAT_ROW_ORIENTED, PETSC_FALSE);CHKERRQ(ierr);
   ierr = PetscMalloc(m, &is);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(vecs[0], &mStart, &mEnd);CHKERRQ(ierr);
-  for (i = 0; i < m; i++) is[i] = mStart + i;
+  ierr = MatDenseGetArray(A, &aa);CHKERRQ(ierr);
   for (i = 0; i < numVecs; i++) {
     const PetscScalar *va;
 
@@ -1590,6 +1595,7 @@ PetscErrorCode MatCreateDenseVecs(MPI_Comm comm, PetscInt numVecs, const Vec vec
     ierr = PetscMemcpy(&aa[i * m], va, m * sizeof(PetscScalar));CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(vecs[i], &va);CHKERRQ(ierr);
   }
+  ierr = MatDenseRestoreArray(A, &aa);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = PetscFree(is);CHKERRQ(ierr);

@@ -1922,6 +1922,45 @@ PetscErrorCode MatSetValuesBlocked(Mat mat,PetscInt m,const PetscInt idxm[],Pets
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode MatSetValuesVec(Mat mat, Vec vec, PetscInt idx, PetscBool colVec, InsertMode mode)
+{
+  PetscErrorCode (*valuessetvec) (Mat,Vec,PetscInt,PetscBool,InsertMode);
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat, MAT_CLASSID, 1);
+  PetscValidHeaderSpecific(vec, VEC_CLASSID, 1);
+  ierr = PetscObjectQueryFunction((PetscObject)mat,"MatSetValuesVec_C",&valuessetvec);CHKERRQ(ierr);
+  if (valuessetvec) {
+    ierr = (*valuessetvec)(mat, vec, idx, colVec, mode);CHKERRQ(ierr);
+  } else {
+    const PetscScalar *va;
+    PetscInt m, M, Mmat, i, mStart, mEnd;
+
+    ierr = VecGetLocalSize(vec, &m);CHKERRQ(ierr);
+    ierr = VecGetSize(vec, &M);CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(vec, &mStart, &mEnd);CHKERRQ(ierr);
+    if (colVec) {
+      ierr = MatGetSize(mat, &Mmat, NULL);CHKERRQ(ierr);
+    } else {
+      ierr = MatGetSize(mat, NULL, &Mmat);CHKERRQ(ierr);
+    }
+    if (M != Mmat) SETERRQ(PetscObjectComm((PetscObject)vec),PETSC_ERR_ARG_SIZ, "Vec is not the same size as matrix");
+    ierr = VecGetArrayRead(vec, &va);CHKERRQ(ierr);
+    if (colVec) {
+      for (i = 0; i < m; i++) {
+        ierr = MatSetValue(mat, idx, mStart + i, va[i], mode);CHKERRQ(ierr);
+      }
+    } else {
+      for (i = 0; i < m; i++) {
+        ierr = MatSetValue(mat, mStart + i, idx, va[i], mode);CHKERRQ(ierr);
+      }
+    }
+    ierr = VecRestoreArrayRead(vec, &va);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 /*@
    MatGetValues - Gets a block of values from a matrix.
 
