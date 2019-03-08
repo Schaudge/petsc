@@ -180,7 +180,7 @@ static PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, NULL, "Configure separable objection example", "ex4.c");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-matrix_format","Decide format of F matrix. 0 for stencil, 1 for dense random", "ex4.c", ctx->matops, &(ctx->matops), NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-matrix_format","Decide format of F matrix. 0 for stencil, 1 for random", "ex4.c", ctx->matops, &(ctx->matops), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsInt("-iter","Iteration number for ADMM Basic Pursuit", "ex4.c", ctx->iter, &(ctx->iter), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsReal("-alpha", "The regularization multiplier. 1 default", "ex4.c", ctx->alpha, &(ctx->alpha), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-relax", "Overrelaxation parameter.", "ex4.c", ctx->relax, &(ctx->relax), NULL);CHKERRQ(ierr);
@@ -544,18 +544,26 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
 {
   PetscErrorCode ierr;
   PetscInt nlocal,i;
-  PetscReal *array;
-  Vec vec;
+  PetscReal *zarray, *xarray, *uarray, alpha, mu;
+  Vec xk,z,u;
 
   PetscFunctionBegin;
-  vec = ((UserCtx)ctx)->workRight[12]; //z from ADMM below.
+  alpha = ((UserCtx)ctx)->alpha;
+  mu = ((UserCtx)ctx)->mu;
+  xk = ((UserCtx)ctx)->workRight[11];
+  z =  ((UserCtx)ctx)->workRight[12];
+  u =  ((UserCtx)ctx)->workRight[13];
   /* soft thresholding */
-  ierr = VecGetArray(vec, &array); CHKERRQ(ierr);
-  ierr = VecGetLocalSize(vec, &nlocal); CHKERRQ(ierr);
+  ierr = VecGetArray(z, &zarray); CHKERRQ(ierr);
+  ierr = VecGetArray(xk, &xarray); CHKERRQ(ierr);
+  ierr = VecGetArray(u, &uarray); CHKERRQ(ierr);
+  ierr = VecGetLocalSize(z, &nlocal); CHKERRQ(ierr);
   for (i=0; i < nlocal; i++){
-    array[i] = SoftThreshold(array[i], 1./((UserCtx)ctx)->mu);
+    zarray[i] = SoftThreshold(xarray[i] + uarray[i]/mu, alpha/mu);
   }
-  ierr = VecRestoreArray(vec, &array);
+  ierr = VecRestoreArray(z, &zarray);
+  ierr = VecRestoreArray(xk, &xarray);
+  ierr = VecRestoreArray(u, &uarray);
 
   PetscFunctionReturn(0);
 }
@@ -566,7 +574,7 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   PetscInt i,n;
   PetscReal u_norm, r_norm, s_norm, primal, dual, x_norm, z_norm;
   Tao tao1,tao2;
-  Vec xk,z,u,diff,zold,zdiff,zneg,muu;
+  Vec xk,z,u,diff,zold,zdiff;
   PetscReal mu;
 
   PetscFunctionBegin;
@@ -577,8 +585,6 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   diff = ctx->workRight[15];
   zold = ctx->workRight[16];
   zdiff = ctx->workRight[17];
-  zneg = ctx->workRight[18];
-  muu = ctx->workRight[19];
   mu = ctx->mu;
   ierr = VecSet(u, 0.);CHKERRQ(ierr);
 
@@ -603,7 +609,7 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoSetGradientRoutine(tao2, GradientRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetHessianRoutine(tao2, ctx->Hr, ctx->Hr, HessianRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = VecSet(z, 0.);CHKERRQ(ierr);
-  ierr = VecGetSize(z,&n); CHKERRQ(ierr);
+//  ierr = VecGetSize(z,&n); CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
   ierr = TaoSetOptionsPrefix(tao2, "reg_");CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
@@ -616,7 +622,7 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
 
     /* u = u + xk -z */
-    ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
+    ierr = VecAXPBYPCZ(u,1.,-1.,1.,xk,z); CHKERRQ(ierr);
 
     /* r_norm : norm(x-z) */
     ierr = VecWAXPY(diff,-1.,z,xk);CHKERRQ(ierr);
@@ -630,11 +636,11 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     /* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
     ierr = VecNorm(xk,NORM_2,&x_norm);CHKERRQ(ierr);
     ierr = VecNorm(z,NORM_2,&z_norm);CHKERRQ(ierr);
-    primal = PetscSqrtReal(n)*ctx->abstol + ctx->reltol*PetscMax(x_norm,z_norm);
+    primal = PetscSqrtReal(ctx->n)*ctx->abstol + ctx->reltol*PetscMax(x_norm,z_norm);
 
     /* Duality : sqrt(n)*ABSTOL + RELTOL*norm(mu*u)*/
     ierr = VecNorm(u,NORM_2,&u_norm);CHKERRQ(ierr);
-    dual = PetscSqrtReal(n)*ctx->abstol + ctx->reltol*u_norm*mu;
+    dual = PetscSqrtReal(ctx->n)*ctx->abstol + ctx->reltol*u_norm*mu;
 
     ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm: %g, s_norm: %g\n", i, (double) r_norm, (double) s_norm);CHKERRQ(ierr);
     if (r_norm < primal && s_norm < dual) break;
@@ -822,7 +828,7 @@ int main (int argc, char** argv)
 
   /* solve */
   if (ctx->use_admm) {
-    ierr = TaoSolveADMM(ctx,x,tao); CHKERRQ(ierr);
+    ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
   }
   else {
     ierr = TaoSolve(tao);CHKERRQ(ierr);
