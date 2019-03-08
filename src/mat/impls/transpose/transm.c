@@ -53,6 +53,7 @@ PetscErrorCode MatDestroy_Transpose(Mat N)
   PetscFunctionBegin;
   ierr = MatDestroy(&Na->A);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)N,"MatTransposeGetMat_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)N,"MatSetValuesVec_C",NULL);CHKERRQ(ierr);
   ierr = PetscFree(N->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -79,6 +80,16 @@ PetscErrorCode MatCreateVecs_Transpose(Mat A,Vec *r, Vec *l)
 
   PetscFunctionBegin;
   ierr = MatCreateVecs(Aa->A,l,r);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode MatSetValuesVec_Transpose(Mat mat, Vec vec, PetscInt idx, PetscBool colVec, InsertMode mode)
+{
+  Mat_Transpose  *Aa = (Mat_Transpose*)mat->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatSetValuesVec(Aa->A, vec, idx, colVec ? PETSC_FALSE : PETSC_TRUE, mode);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -169,6 +180,7 @@ PetscErrorCode  MatCreateTranspose(Mat A,Mat *N)
   (*N)->assembled             = PETSC_TRUE;
 
   ierr = PetscObjectComposeFunction((PetscObject)(*N),"MatTransposeGetMat_C",MatTransposeGetMat_Transpose);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)(*N),"MatSetValuesVec_C",MatSetValuesVec_Transpose);CHKERRQ(ierr);
   ierr = MatSetBlockSizes(*N,PetscAbs(A->cmap->bs),PetscAbs(A->rmap->bs));CHKERRQ(ierr);
   ierr = MatSetUp(*N);CHKERRQ(ierr);
   PetscFunctionReturn(0);
