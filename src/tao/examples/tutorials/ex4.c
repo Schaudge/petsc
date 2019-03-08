@@ -42,7 +42,7 @@ typedef struct _UserCtx
   PetscBool use_admm; /*Flag to determine whether to run Taylor test or not */
 } * UserCtx;
 
-PetscErrorCode CreateRHS(UserCtx ctx)
+static PetscErrorCode CreateRHS(UserCtx ctx)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -54,7 +54,7 @@ PetscErrorCode CreateRHS(UserCtx ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode CreateMatrix(UserCtx ctx)
+static PetscErrorCode CreateMatrix(UserCtx ctx)
 {
   PetscInt       Istart,Iend,i,j,Ii;
 #if defined(PETSC_USE_LOG)
@@ -70,7 +70,7 @@ PetscErrorCode CreateMatrix(UserCtx ctx)
   ierr = MatMPIAIJSetPreallocation(ctx->F, 5, NULL, 5, NULL); CHKERRQ(ierr); /*TODO: some number other than 5?*/
   ierr = MatSeqAIJSetPreallocation(ctx->F, 5, NULL); CHKERRQ(ierr);
   ierr = MatSetUp(ctx->F); CHKERRQ(ierr);
-  ierr = MatGetOwnershipRange(ctx->F,&Istart,&Iend); CHKERRQ(ierr);  
+  ierr = MatGetOwnershipRange(ctx->F,&Istart,&Iend); CHKERRQ(ierr);
   ierr = PetscLogStageRegister("Assembly", &stage); CHKERRQ(ierr);
   ierr= PetscLogStagePush(stage); CHKERRQ(ierr);
 
@@ -139,7 +139,7 @@ PetscErrorCode CreateMatrix(UserCtx ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SetupWorkspace(UserCtx ctx)
+static PetscErrorCode SetupWorkspace(UserCtx ctx)
 {
   PetscInt i;
   PetscErrorCode ierr;
@@ -155,7 +155,7 @@ PetscErrorCode SetupWorkspace(UserCtx ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ConfigureContext(UserCtx ctx)
+static PetscErrorCode ConfigureContext(UserCtx ctx)
 {
   PetscErrorCode ierr;
 
@@ -200,7 +200,7 @@ PetscErrorCode ConfigureContext(UserCtx ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DestroyContext(UserCtx *ctx)
+static PetscErrorCode DestroyContext(UserCtx *ctx)
 {
   PetscInt i;
   PetscErrorCode ierr;
@@ -230,7 +230,7 @@ PetscErrorCode DestroyContext(UserCtx *ctx)
 }
 
 /* compute (1/2) * ||F x - d||^2 */
-PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
+static PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   Vec y = ctx->workLeft[0];
@@ -244,7 +244,7 @@ PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
+static PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
@@ -262,7 +262,7 @@ PetscErrorCode GradientMisfit(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode HessianMisfit(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
+static PetscErrorCode HessianMisfit(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
@@ -273,7 +273,7 @@ PetscErrorCode HessianMisfit(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ObjectiveMisfitADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
+static PetscErrorCode ObjectiveMisfitADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscReal mu, workNorm, misfit;
@@ -292,7 +292,7 @@ PetscErrorCode ObjectiveMisfitADMM(Tao tao, Vec x, PetscReal *J, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientMisfitADMM(Tao tao, Vec x, Vec V, void *_ctx)
+static PetscErrorCode GradientMisfitADMM(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscReal      mu;
@@ -310,7 +310,7 @@ PetscErrorCode GradientMisfitADMM(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode HessianMisfitADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
+static PetscErrorCode HessianMisfitADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
@@ -318,14 +318,14 @@ PetscErrorCode HessianMisfitADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
   PetscFunctionBegin;
   ierr = MatCopy(ctx->W, H, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   ierr = MatShift(H, ctx->mu); CHKERRQ(ierr);
-  
+
   if (Hpre != H) {
     ierr = MatCopy(H, Hpre, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
+static PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscReal norm;
@@ -340,7 +340,7 @@ PetscErrorCode ObjectiveRegularization(Tao tao, Vec x, PetscReal *J, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
+static PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
@@ -363,7 +363,7 @@ PetscErrorCode GradientRegularization(Tao tao, Vec x, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode HessianRegularization(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
+static PetscErrorCode HessianRegularization(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
@@ -372,7 +372,7 @@ PetscErrorCode HessianRegularization(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx
   if (ctx->p == NORM_2) {
     /* Identity matrix scaled by mu */
     ierr = MatZeroEntries(H); CHKERRQ(ierr);
-    ierr = MatShift(H,ctx->mu); CHKERRQ(ierr);	
+    ierr = MatShift(H,ctx->mu); CHKERRQ(ierr);
     if (Hpre != H) {
       ierr = MatZeroEntries(Hpre); CHKERRQ(ierr);
       ierr = MatShift(Hpre,ctx->mu); CHKERRQ(ierr);
@@ -425,7 +425,7 @@ PetscErrorCode HessianRegularization(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *_ctx)
+static PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscReal mu, workNorm, reg;
@@ -445,7 +445,7 @@ PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *_
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientRegularizationADMM(Tao tao, Vec z, Vec V, void *_ctx)
+static PetscErrorCode GradientRegularizationADMM(Tao tao, Vec z, Vec V, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscReal      mu;
@@ -464,7 +464,7 @@ PetscErrorCode GradientRegularizationADMM(Tao tao, Vec z, Vec V, void *_ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode HessianRegularizationADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
+static PetscErrorCode HessianRegularizationADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
   PetscErrorCode ierr;
@@ -473,15 +473,15 @@ PetscErrorCode HessianRegularizationADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *
   if (ctx->p == NORM_2) {
     /* Identity matrix scaled by mu */
     ierr = MatZeroEntries(H); CHKERRQ(ierr);
-    ierr = MatShift(H,ctx->mu); CHKERRQ(ierr);	
+    ierr = MatShift(H,ctx->mu); CHKERRQ(ierr);
     if (Hpre != H) {
       ierr = MatZeroEntries(Hpre); CHKERRQ(ierr);
       ierr = MatShift(Hpre,ctx->mu); CHKERRQ(ierr);
     }
   }
   else if (ctx->p == NORM_1) {
-	ierr = HessianMisfit(tao, x, H, Hpre, (void *) ctx); CHKERRQ(ierr);
-	ierr = MatShift(H, ctx->mu); CHKERRQ(ierr);
+    ierr = HessianMisfit(tao, x, H, Hpre, (void *) ctx); CHKERRQ(ierr);
+    ierr = MatShift(H, ctx->mu); CHKERRQ(ierr);
     if (Hpre != H) { ierr = MatShift(Hpre, ctx->mu); CHKERRQ(ierr);}
   }
   else {
@@ -490,7 +490,7 @@ PetscErrorCode HessianRegularizationADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
+static PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
 {
   PetscReal Jm, Jr;
   PetscErrorCode ierr;
@@ -502,7 +502,7 @@ PetscErrorCode ObjectiveComplete(Tao tao, Vec x, PetscReal *J, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
+static PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
 {
   UserCtx cntx = (UserCtx) ctx;
   PetscErrorCode ierr;
@@ -514,7 +514,7 @@ PetscErrorCode GradientComplete(Tao tao, Vec x, Vec V, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode HessianComplete(Tao tao, Vec x, Mat H, Mat Hpre, void *ctx)
+static PetscErrorCode HessianComplete(Tao tao, Vec x, Mat H, Mat Hpre, void *ctx)
 {
   Mat tempH;
   PetscErrorCode ierr;
@@ -531,13 +531,13 @@ PetscErrorCode HessianComplete(Tao tao, Vec x, Mat H, Mat Hpre, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscReal SoftThreshold(PetscReal z, PetscReal mu)
+static PetscReal SoftThreshold(PetscReal z, PetscReal mu)
 {
   return PetscMax(0,z- mu) - PetscMax(0, -z-mu);
 }
 
 static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
-{ 
+{
   PetscErrorCode ierr;
   PetscInt nlocal,i;
   PetscReal *array;
@@ -556,7 +556,7 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x, Tao tao)
+static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 {
   PetscErrorCode ierr;
   PetscInt i,n;
@@ -581,7 +581,6 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x, Tao tao)
   ierr = TaoSetObjectiveRoutine(tao1, ObjectiveMisfitADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetGradientRoutine(tao1, GradientMisfitADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetHessianRoutine(tao1, ctx->Hm, ctx->Hm, HessianMisfitADMM, (void *) ctx);CHKERRQ(ierr);
-  //ierr = MatCreateVecs(ctx->F, NULL, &xk);CHKERRQ(ierr);
   ierr = VecSet(xk, 0.);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao1, xk);CHKERRQ(ierr);
   ierr = TaoSetOptionsPrefix(tao1, "misfit_");CHKERRQ(ierr);
@@ -589,73 +588,63 @@ PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x, Tao tao)
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
   ierr = TaoSetType(tao2,TAOSHELL); CHKERRQ(ierr);
-//ierr = TaoCreate_Shell(tao2); CHKERRQ(ierr);  
   ierr = TaoSetObjectiveRoutine(tao2, ObjectiveRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetGradientRoutine(tao2, GradientRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoSetHessianRoutine(tao2, ctx->Hr, ctx->Hr, HessianRegularizationADMM, (void *) ctx);CHKERRQ(ierr);
   ierr = TaoShellSetSolve(tao2, TaoShellSolve_SoftThreshold, (void *) ctx);CHKERRQ(ierr);
-  //ierr = MatCreateVecs(ctx->F, NULL, &z);CHKERRQ(ierr);
   ierr = VecSet(z, 0.);CHKERRQ(ierr);
   ierr = VecGetSize(z,&n); CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao2, z);CHKERRQ(ierr);
   ierr = TaoSetOptionsPrefix(tao2, "reg_");CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao2);CHKERRQ(ierr);
 
-  taolist[0] = &tao1;
-  taolist[1] = &tao2;
-
-  ierr = TaoSetSeparableObjectives(tao, 2, *taolist, PETSC_COPY_VALUES, 1); CHKERRQ(ierr); 
-
-  for (i=0; i<ctx->iter; i++){
+  for (i=0; i<ctx->iter; i++) {
     PetscReal t1,t2;
-    PetscInt nObj = 2;
-	MPI_Op red = MPI_OP_NULL;
-	ierr = VecCopy(z,zold);
 
-    ierr = TaoGetSeparableObjectives(tao, &nObj, taolist, PETSC_COPY_VALUES,&red); CHKERRQ(ierr);	
-    ierr = TaoSolve(*taolist[0]);CHKERRQ(ierr); /* Updates xk */
-    ierr = TaoSolve(*taolist[1]);CHKERRQ(ierr); /* Update zk */
+    ierr = VecCopy(z,zold);
 
-	/* u = u + xk -z */
+    TaoSolve(tao1);CHKERRQ(ierr); /* Updates xk */
+    TaoSolve(tao2);CHKERRQ(ierr); /* Update zk */
+
+    /* u = u + xk -z */
     ierr = VecAXPBYPCZ(u,-1.,+1.,1.,xk,z); CHKERRQ(ierr);
     /* Convergence Check */
     ierr = ObjectiveMisfit(*taolist[0], xk, &t1, (void *) ctx);CHKERRQ(ierr);
     ierr = ObjectiveRegularization(*taolist[1], z, &t2, (void *) ctx);CHKERRQ(ierr);
 
-	/* r_norm : norm(x-z) */
+    /* r_norm : norm(x-z) */
     ierr = VecWAXPY(diff,-1.,z,xk);CHKERRQ(ierr);
     ierr = VecNorm(diff,NORM_2,&r_norm);CHKERRQ(ierr);
 
-	/* s_norm : norm(-mu(z-zold)) */
-	ierr = VecWAXPY(zdiff, -1.,zold,z);CHKERRQ(ierr);
-	ierr = VecScale(zdiff, -1.*(ctx->mu));CHKERRQ(ierr);
+    /* s_norm : norm(-mu(z-zold)) */
+    ierr = VecWAXPY(zdiff, -1.,zold,z);CHKERRQ(ierr);
+    ierr = VecScale(zdiff, -1.*(ctx->mu));CHKERRQ(ierr);
     ierr = VecNorm(zdiff,NORM_2,&s_norm);CHKERRQ(ierr);
 
-	/* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
+    /* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
     ierr = VecNorm(xk,NORM_2,&x_norm);CHKERRQ(ierr);
-	ierr = VecCopy(z,zneg);
-	ierr = VecScale(zneg, -1.);CHKERRQ(ierr);
+    ierr = VecCopy(z,zneg);
+    ierr = VecScale(zneg, -1.);CHKERRQ(ierr);
     ierr = VecNorm(zneg,NORM_2,&zneg_norm);CHKERRQ(ierr);
     primal = PetscSqrtReal(n)*ABSTOL + RELTOL*PetscMax(x_norm,zneg_norm);
 
-	/* Duality : sqrt(n)*ABSTOL + RELTOL*norm(mu*u)*/
-	ierr = VecCopy(u,muu);
-	ierr = VecScale(muu, ctx->mu);CHKERRQ(ierr);
+    /* Duality : sqrt(n)*ABSTOL + RELTOL*norm(mu*u)*/
+    ierr = VecCopy(u,muu);
+    ierr = VecScale(muu, ctx->mu);CHKERRQ(ierr);
     ierr = VecNorm(muu,NORM_2,&muu_norm);CHKERRQ(ierr);
     dual = PetscSqrtReal(n)*ABSTOL + RELTOL*muu_norm;
 
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)*taolist[0]),"Iter %D : r_norm - primal : %g, s_norm- - dual : %g\n", i, (double) r_norm - primal, (double) s_norm - dual);CHKERRQ(ierr);
-	if (r_norm < primal && s_norm < dual) break;
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm - primal : %g, s_norm- - dual : %g\n", i, (double) r_norm - primal, (double) s_norm - dual);CHKERRQ(ierr);
+    if (r_norm < primal && s_norm < dual) break;
   }
- 
+
   ierr = VecCopy(xk, x); CHKERRQ(ierr);
   ierr = TaoDestroy(&tao1);CHKERRQ(ierr);
   ierr = TaoDestroy(&tao2);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-
-PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
+static PetscErrorCode ADMMBasisPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 {
   PetscErrorCode ierr;
   PetscInt i, nlocal;
@@ -678,13 +667,13 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
   ierr  = ISDestroy(&iscol);CHKERRQ(ierr);
 
   ierr = PetscMemzero(&factinfo,sizeof(MatFactorInfo));CHKERRQ(ierr);
-  ierr = MatFactorInfoInitialize(&factinfo); CHKERRQ(ierr); 
+  ierr = MatFactorInfoInitialize(&factinfo); CHKERRQ(ierr);
   ierr = MatGetFactor(ctx->W1,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&(ctx->temp));CHKERRQ(ierr);
   ierr = MatCholeskyFactorSymbolic(ctx->temp,ctx->W1,perm,&factinfo);CHKERRQ(ierr);
   ierr = MatCholeskyFactorNumeric(ctx->temp,ctx->W1,&factinfo);CHKERRQ(ierr);
 
   ierr = MatMatSolve(ctx->temp,ctx->Id, ctx->Fp); CHKERRQ(ierr); // Solve LLT FFTinv = I for FFTinv
-  ierr = MatTransposeMatMult(ctx->F, ctx->Fp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->Fpinv)); CHKERRQ(ierr); 
+  ierr = MatTransposeMatMult(ctx->F, ctx->Fp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->Fpinv)); CHKERRQ(ierr);
   ierr = MatMatMult(ctx->Fpinv, ctx->F, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->P)); CHKERRQ(ierr);
   ierr = MatScale(ctx->P, -1.0); CHKERRQ(ierr);
   ierr = MatShift(ctx->P, 1.0); CHKERRQ(ierr); /* P = I - FT*(FFT^-1)*F */
@@ -692,7 +681,7 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
   ierr = MatMult(ctx->Fpinv, ctx->d, ctx->workRight[5]); /* q = FT*((FFT)^-1 * b) */
 
   for (i=0; i<ctx->iter; i++){
-    // x update 
+    // x update
     ierr = VecWAXPY(ctx->workRight[6], -1.0, u_k, z_k); CHKERRQ(ierr); // work[6] = z-u
     ierr = MatMultAdd(ctx->P, ctx->workRight[6], ctx->workRight[5], x_k); CHKERRQ(ierr); // x = P(z-u) + q
     ierr = VecAXPBYPCZ(ctx->workRight[7], ctx->alpha, 1.0 - ctx->alpha, 0.0, x_k, z_k); CHKERRQ(ierr); // x_hat = ax + (1-a)z
@@ -704,9 +693,9 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
       z_array[i] = SoftThreshold(z_array[i], 1./ctx->mu);
     }
     ierr = VecRestoreArray(z_k, &z_array);
-    
+
     /* SoftThreshold
-    ierr = VecWAXPY(z_k, 1., ctx->workRight[7], u_k); CHKERRQ(ierr); // xhat + u for shrinkage. 
+    ierr = VecWAXPY(z_k, 1., ctx->workRight[7], u_k); CHKERRQ(ierr); // xhat + u for shrinkage.
     ierr = VecCopy(z_k, ctx->workRight[8]);CHKERRQ(ierr);
     ierr = VecScale(ctx->workRight[8], -1.); CHKERRQ(ierr);
     ierr = VecShift(z_k, - 1./(ctx->mu)); CHKERRQ(ierr);
@@ -716,7 +705,7 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
     ierr = VecAXPY(z_k, -1., ctx->workRight[8]); CHKERRQ(ierr);
     */
 
-    // u update 
+    // u update
     ierr = VecWAXPY(ctx->workRight[10], -1., z_k, ctx->workRight[7]); CHKERRQ(ierr); // work[10] = x_hat - z
     ierr = VecAXPY(u_k, 1., ctx->workRight[10]); CHKERRQ(ierr); // u = u + x_hat - z
   }
@@ -728,7 +717,7 @@ PetscErrorCode ADMMBasicPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 }
 
 /* Second order Taylor remainder convergence test */
-PetscErrorCode TaylorTest(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
+static PetscErrorCode TaylorTest(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
 {
   PetscReal h,J,temp;
   PetscInt i, j;
@@ -782,7 +771,7 @@ PetscErrorCode TaylorTest(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
   }
   //ierr = VecMin(ctx->workLeft[2],NULL, &O); CHKERRQ(ierr);
 
-  /* If O is not ~2, then the test is wrong */  
+  /* If O is not ~2, then the test is wrong */
 
   ierr = PetscFree2(Js, hs);CHKERRQ(ierr);
   *C = minrate;
@@ -874,32 +863,32 @@ int main (int argc, char** argv)
     args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nls -tao_nls_ksp_monitor
 
   test:
-    suffix: nm_1 
+    suffix: nm_1
     args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type nm
 
   test:
     suffix: nm_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nm 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type nm
 
   test:
-    suffix: lmvm_1 
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type lmvm 
+    suffix: lmvm_1
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -tao_type lmvm
 
   test:
     suffix: lmvm_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type lmvm 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type lmvm
 
   test:
     suffix: hessian_admm_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nls -misfit_tao_type nls 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nls -misfit_tao_type nls
 
   test:
     suffix: hessian_admm_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nls -misfit_tao_type nls 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -use_admm -reg_tao_type nls -misfit_tao_type nls
 
   test:
     suffix: nm_admm_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nm -misfit_tao_type nm 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type nm -misfit_tao_type nm
 
   test:
     suffix: nm_admm_2
@@ -907,7 +896,7 @@ int main (int argc, char** argv)
 
   test:
     suffix: lmvm_admm_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type lmvm -misfit_tao_type lmvm 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm -reg_tao_type lmvm -misfit_tao_type lmvm
 
   test:
     suffix: lmvm_admm_2
