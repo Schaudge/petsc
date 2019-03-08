@@ -1562,7 +1562,7 @@ PetscErrorCode  MatCreateDense(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,Pe
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatCreateDenseVectors(MPI_Comm comm, PetscInt numVecs, const Vec vecs[], PetscBool colVecs, Mat *A_p)
+PetscErrorCode MatCreateDenseVecs(MPI_Comm comm, PetscInt numVecs, const Vec vecs[], PetscBool colVecs, Mat *A_p)
 {
   PetscInt       m, M, i, mStart, mEnd;
   Mat            A, AT;
@@ -1575,6 +1575,7 @@ PetscErrorCode MatCreateDenseVectors(MPI_Comm comm, PetscInt numVecs, const Vec 
   ierr = VecGetSize(vecs[0], &M);CHKERRQ(ierr);
   ierr = VecGetLocalSize(vecs[0], &m);CHKERRQ(ierr);
   ierr = MatCreateDense(comm, m, PETSC_DECIDE, M, numVecs, NULL, &A);CHKERRQ(ierr);
+  ierr = MatSetOption(A, MAT_ROW_ORIENTED, PETSC_FALSE);CHKERRQ(ierr);
   ierr = PetscMalloc(m, &is);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(vecs[0], &mStart, &mEnd);CHKERRQ(ierr);
   for (i = 0; i < m; i++) is[i] = mStart + i;
