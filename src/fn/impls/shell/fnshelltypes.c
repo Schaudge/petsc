@@ -159,7 +159,6 @@ PetscErrorCode PetscFnShellCreate_Sin(PetscFn fn)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Componentwise);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Sin);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Sin);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMult_Sin);CHKERRQ(ierr);
@@ -263,7 +262,6 @@ PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn fn)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Normsquared);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnScalarApply_Normsquared);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARGRADIENT, (void (*)(void)) PetscFnScalarGradient_Normsquared);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARHESSIANMULT, (void (*)(void)) PetscFnScalarHessianMult_Normsquared);CHKERRQ(ierr);
@@ -466,7 +464,6 @@ PetscErrorCode PetscFnShellCreate_Mat(PetscFn fn)
   PetscFunctionBegin;
   ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject)mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_CREATEMATS, (void (*)(void)) PetscFnCreateMats_Mat);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Mat);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Mat);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMultAdjoint_Mat);CHKERRQ(ierr);
