@@ -319,10 +319,12 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
     if (rangeVec) {
       ierr = VecCreate(PetscObjectComm((PetscObject)fn),rangeVec);CHKERRQ(ierr);
       ierr = VecSetLayout(*rangeVec,fn->rmap);CHKERRQ(ierr);
+      ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
     }
     if (domainVec) {
       ierr = VecCreate(PetscObjectComm((PetscObject)fn),domainVec);CHKERRQ(ierr);
       ierr = VecSetLayout(*domainVec,fn->dmap);CHKERRQ(ierr);
+      ierr = VecSetType(*domainVec, VECSTANDARD);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -474,21 +476,21 @@ static PetscErrorCode PetscFnVecToMat(Vec g, PetscBool colVec, MatReuse reuse, M
   PetscFunctionBegin;
   if (reuse == MAT_REUSE_MATRIX) {
     if (A) {
-      ierr = MatSetValuesVec(*A, g, colVec, INSERT_VALUES);CHKERRQ(ierr);
+      ierr = MatSetValuesVec(*A, g, 0, colVec, INSERT_VALUES);CHKERRQ(ierr);
       ierr = MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     }
     if (Apre && Apre != A) {
-      ierr = MatSetValuesVec(*A, g, colVec, INSERT_VALUES);CHKERRQ(ierr);
+      ierr = MatSetValuesVec(*A, g, 0, colVec, INSERT_VALUES);CHKERRQ(ierr);
       ierr = MatAssemblyBegin(*Apre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyEnd(*Apre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     }
   } else {
     if (A) {
-      ierr = MatCreateDenseVecs(PetscObjectComm((PetscObject)g),1,&g, colVec, A);CHKERRQ(ierr);
+      ierr = MatCreateDenseVecs(PetscObjectComm((PetscObject)g), 1, &g, colVec, A);CHKERRQ(ierr);
     }
     if (Apre) {
-      ierr = MatCreateDenseVecs(PetscObjectComm((PetscObject)g),1,&g, colVec, Apre);CHKERRQ(ierr);
+      ierr = MatCreateDenseVecs(PetscObjectComm((PetscObject)g), 1, &g, colVec, Apre);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
