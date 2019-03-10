@@ -1588,7 +1588,7 @@ PetscErrorCode MatCreateDenseVecs(MPI_Comm comm, PetscInt numVecs, const Vec vec
     const PetscScalar *va;
 
     ierr = VecGetArrayRead(vecs[i], &va);CHKERRQ(ierr);
-    ierr = PetscMemcpy(&aa[i * m], va, m * sizeof(PETSC_SCALAR));CHKERRQ(ierr);
+    ierr = PetscMemcpy(&aa[i * m], va, m * sizeof(PetscScalar));CHKERRQ(ierr);
     ierr = VecRestoreArrayRead(vecs[i], &va);CHKERRQ(ierr);
   }
   ierr = MatDenseRestoreArray(A, &aa);CHKERRQ(ierr);
