@@ -32,7 +32,6 @@ typedef struct { /* used by MatPtAP_MPIAIJ_MPIAIJ() and MatMatMult_MPIAIJ_MPIAIJ
   Mat_Merge_SeqsToMPI *merge;
   PetscErrorCode (*destroy)(Mat);
   PetscErrorCode (*duplicate)(Mat,MatDuplicateOption,Mat*);
-  PetscErrorCode (*view)(Mat,PetscViewer);
 } Mat_APMPI;
 
 typedef struct {

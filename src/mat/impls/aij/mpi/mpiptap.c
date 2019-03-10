@@ -12,30 +12,6 @@
 
 /* #define PTAP_PROFILE */
 
-PetscErrorCode MatView_MPIAIJ_PtAP(Mat A,PetscViewer viewer)
-{
-  PetscErrorCode    ierr;
-  Mat_MPIAIJ        *a=(Mat_MPIAIJ*)A->data;
-  Mat_APMPI         *ptap=a->ap;
-  PetscBool         iascii;
-  PetscViewerFormat format;
-
-  PetscFunctionBegin;
-  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  if (iascii) {
-    ierr = PetscViewerGetFormat(viewer,&format);CHKERRQ(ierr);
-    if (format == PETSC_VIEWER_ASCII_INFO || format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
-      if (ptap->algType == 0) {
-        ierr = PetscViewerASCIIPrintf(viewer,"using scalable MatPtAP() implementation\n");CHKERRQ(ierr);
-      } else if (ptap->algType == 1) {
-        ierr = PetscViewerASCIIPrintf(viewer,"using nonscalable MatPtAP() implementation\n");CHKERRQ(ierr);
-      }
-    }
-  }
-  ierr = (ptap->view)(A,viewer);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode MatFreeIntermediateDataStructures_MPIAIJ_AP(Mat A)
 {
   PetscErrorCode      ierr;
@@ -344,7 +320,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(Mat A,Mat P,PetscReal fill
   /* create struct Mat_APMPI and attached it to C later */
   ierr        = PetscNew(&ptap);CHKERRQ(ierr);
   ptap->reuse = MAT_INITIAL_MATRIX;
-  ptap->algType = 0;
+  ptap->algType = 1; /* 0 reserved for no PtAP (i.e., see MatMatMult_MPIAIJ_) */
 
   /* get P_oth by taking rows of P (= non-zero cols of local A) from other processors */
   ierr = MatGetBrowsOfAoCols_MPIAIJ(A,P,MAT_INITIAL_MATRIX,&ptap->startsj_s,&ptap->startsj_r,&ptap->bufa,&P_oth);CHKERRQ(ierr);
@@ -628,13 +604,11 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(Mat A,Mat P,PetscReal fill
   c->ap           = ptap;
   ptap->duplicate = Cmpi->ops->duplicate;
   ptap->destroy   = Cmpi->ops->destroy;
-  ptap->view      = Cmpi->ops->view;
 
   /* Cmpi is not ready for use - assembly will be done by MatPtAPNumeric() */
   Cmpi->assembled        = PETSC_FALSE;
   Cmpi->ops->ptapnumeric = MatPtAPNumeric_MPIAIJ_MPIAIJ_scalable;
   Cmpi->ops->destroy     = MatDestroy_MPIAIJ_PtAP;
-  Cmpi->ops->view        = MatView_MPIAIJ_PtAP;
   Cmpi->ops->freeintermediatedatastructures = MatFreeIntermediateDataStructures_MPIAIJ_AP;
   *C                     = Cmpi;
   PetscFunctionReturn(0);
@@ -688,7 +662,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat A,Mat P,PetscReal fill,Mat *C)
   /* create struct Mat_APMPI and attached it to C later */
   ierr        = PetscNew(&ptap);CHKERRQ(ierr);
   ptap->reuse = MAT_INITIAL_MATRIX;
-  ptap->algType = 1;
+  ptap->algType = 2; /* 0 reserved for no PtAP (i.e., see MatMatMult_MPIAIJ_) */
 
   /* get P_oth by taking rows of P (= non-zero cols of local A) from other processors */
   ierr = MatGetBrowsOfAoCols_MPIAIJ(A,P,MAT_INITIAL_MATRIX,&ptap->startsj_s,&ptap->startsj_r,&ptap->bufa,&ptap->P_oth);CHKERRQ(ierr);
@@ -971,13 +945,11 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat A,Mat P,PetscReal fill,Mat *C)
   c->ap           = ptap;
   ptap->duplicate = Cmpi->ops->duplicate;
   ptap->destroy   = Cmpi->ops->destroy;
-  ptap->view      = Cmpi->ops->view;
   ierr = PetscCalloc1(pN,&ptap->apa);CHKERRQ(ierr);
 
   /* Cmpi is not ready for use - assembly will be done by MatPtAPNumeric() */
   Cmpi->assembled        = PETSC_FALSE;
   Cmpi->ops->destroy     = MatDestroy_MPIAIJ_PtAP;
-  Cmpi->ops->view        = MatView_MPIAIJ_PtAP;
   Cmpi->ops->freeintermediatedatastructures = MatFreeIntermediateDataStructures_MPIAIJ_AP;
   *C                     = Cmpi;
   PetscFunctionReturn(0);
