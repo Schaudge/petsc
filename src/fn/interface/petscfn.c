@@ -1355,7 +1355,8 @@ static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, Vec *rangeVec,
     ierr = PetscFnCreateVecs(origFn, NULL, rangeVec);CHKERRQ(ierr);
   } else {
     ierr = VecCreate(PetscObjectComm((PetscObject)fn), rangeVec);CHKERRQ(ierr);
-    ierr = VecSetSizes(*rangeVec, fn->rmap->n, fn->rmap->N);CHKERRQ(ierr);
+    ierr = VecSetLayout(*rangeVec, fn->rmap);CHKERRQ(ierr);
+    ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

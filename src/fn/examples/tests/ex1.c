@@ -233,7 +233,7 @@ static PetscErrorCode PetscFnScalarHessianBuild_Scalar(PetscFn fn, Vec x, MatReu
   Vec            g;
   PetscScalar    z;
   Mat            *hes = H ? H : Hpre;
-  Mat            Jadj, J;
+  Mat            Jadj;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -242,11 +242,9 @@ static PetscErrorCode PetscFnScalarHessianBuild_Scalar(PetscFn fn, Vec x, MatReu
   ierr = PetscFnScalarApply_Scalar_Internal(fn, x, &z);CHKERRQ(ierr);
   ierr = PetscFnScalarGradient_Scalar_Internal(fn, x, g);CHKERRQ(ierr);
   ierr = VecToMat_Internal(g, PETSC_TRUE, MAT_INITIAL_MATRIX, &Jadj);CHKERRQ(ierr);
-  ierr = MatTranspose(Jadj, MAT_INITIAL_MATRIX, &J);CHKERRQ(ierr);
-  ierr = MatMatMult(Jadj,J,reuse,PETSC_DEFAULT,hes);CHKERRQ(ierr);
+  ierr = MatMatTransposeMult(Jadj,Jadj,reuse,PETSC_DEFAULT,hes);CHKERRQ(ierr);
   ierr = MatScale(*hes, -PetscSinScalar(z));CHKERRQ(ierr);
   ierr = MatShift(*hes, 2. * PetscCosScalar(z));CHKERRQ(ierr);
-  ierr = MatDestroy(&J);CHKERRQ(ierr);
   ierr = MatDestroy(&Jadj);CHKERRQ(ierr);
   ierr = VecDestroy(&g);CHKERRQ(ierr);
   if (Hpre && Hpre != hes) {
@@ -322,10 +320,10 @@ static PetscErrorCode PetscFnHessianBuildSwap_Scalar(PetscFn fn, Vec x, Vec xhat
   ierr = VecDuplicate(xhat, &hxhat);CHKERRQ(ierr);
   ierr = PetscFnScalarHessianMult_Scalar(fn, x, xhat, hxhat);CHKERRQ(ierr);
   if (Hswpxhat) {
-    ierr = VecToMat_Internal(hxhat, PETSC_FALSE, reuse, Hswpxhat);CHKERRQ(ierr);
+    ierr = VecToMat_Internal(hxhat, PETSC_TRUE, reuse, Hswpxhat);CHKERRQ(ierr);
   }
   if (Hswpxhatpre && Hswpxhatpre != Hswpxhat) {
-    ierr = VecToMat_Internal(hxhat, PETSC_FALSE, reuse, Hswpxhatpre);CHKERRQ(ierr);
+    ierr = VecToMat_Internal(hxhat, PETSC_TRUE, reuse, Hswpxhatpre);CHKERRQ(ierr);
   }
   ierr = VecDestroy(&hxhat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -621,6 +619,7 @@ static PetscErrorCode PetscFnHessianBuildAdjoint_Vector(PetscFn fn, Vec x, Vec v
   ierr = VecPointwiseMult(Avgx, Avgx, expx);CHKERRQ(ierr);
   ierr = MatMatMult(JT, J, reuse, PETSC_DEFAULT, hes);CHKERRQ(ierr);
   ierr = MatScale(*hes, -1.);CHKERRQ(ierr);
+  ierr = MatSetOption(*hes, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);CHKERRQ(ierr);
   ierr = MatDiagonalSet(*hes, Avgx, ADD_VALUES);CHKERRQ(ierr);
   ierr = VecDestroy(&gx);CHKERRQ(ierr);
   ierr = VecDestroy(&vgx);CHKERRQ(ierr);
