@@ -2,63 +2,106 @@
 
 const char help[] = "Create, view and test a DAG implementation of PetscFn\n";
 
-/* Scalar example f(x) = sin( || x - y || ^2 ) */
-
-static PetscErrorCode TestVector(PetscRandom rand)
+static PetscErrorCode PetscFnCreateVecs_Ax(PetscFn fn, Vec *rangeVec, Vec *domainVec)
 {
-  PetscFunctionBegin;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode TestScalar(PetscRandom rand)
-{
-  PetscFn        fn;
-  PetscBool      isDag;
-  MPI_Comm       comm;
+  Mat            A;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnCreate(PETSC_COMM_WORLD, &fn);CHKERRQ(ierr);
-  ierr = PetscFnSetSizes(fn, PETSC_DECIDE, 10, 1, PETSC_DETERMINE);CHKERRQ(ierr);
-  ierr = PetscFnSetType(fn, PETSCFNDAG);CHKERRQ(ierr);
-  ierr = PetscFnSetFromOptions(fn);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)fn, PETSCFNDAG, &isDag);CHKERRQ(ierr);
-  comm = PetscObjectComm((PetscObject)fn);
-  if (isDag) {
-    PetscInt m, M, n, N, rank;
-    PetscFn  fnSin, fnNormSq, fnMat;
-    Mat      A;
-
-    ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-    ierr = PetscFnShellCreate(comm, PETSCFNSIN, PETSC_DECIDE, PETSC_DECIDE, 1, 1, NULL, &fnSin);CHKERRQ(ierr);
-    ierr = PetscFnSetOptionsPrefix(fnSin, "sin_");CHKERRQ(ierr);
-    ierr = PetscFnSetFromOptions(fnSin);CHKERRQ(ierr);
-    ierr = PetscFnSetUp(fnSin);CHKERRQ(ierr);
-    ierr = PetscFnViewFromOptions(fnSin, NULL, "-fn_view");CHKERRQ(ierr);
-
-    ierr = PetscFnShellCreate(comm, PETSCFNNORMSQUARED, m, n, M, N, NULL, &fnNormSq);CHKERRQ(ierr);
-    ierr = PetscFnSetOptionsPrefix(fnNormSq, "normsq_");CHKERRQ(ierr);
-    ierr = PetscFnSetFromOptions(fnNormSq);CHKERRQ(ierr);
-    ierr = PetscFnSetUp(fnNormSq);CHKERRQ(ierr);
-    ierr = PetscFnViewFromOptions(fnNormSq, NULL, "-fn_view");CHKERRQ(ierr);
-
-    ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
-    ierr = MatCreateAIJ(comm, rank + 7, rank + 11, PETSC_DETERMINE, PETSC_DETERMINE, 2, NULL, 2, NULL, &A);CHKERRQ(ierr);
-    ierr = MatSetRandom(A, rand);CHKERRQ(ierr);
-    ierr = PetscFnShellCreate(comm, PETSCFNMAT, rank + 7, rank + 11, PETSC_DETERMINE, PETSC_DETERMINE, (void *) A, &fnMat);CHKERRQ(ierr);
-    ierr = MatDestroy(&A);CHKERRQ(ierr);
-    ierr = PetscFnSetOptionsPrefix(fnMat, "mat_");CHKERRQ(ierr);
-    ierr = PetscFnSetFromOptions(fnMat);CHKERRQ(ierr);
-    ierr = PetscFnSetUp(fnMat);CHKERRQ(ierr);
-    ierr = PetscFnViewFromOptions(fnMat, NULL, "-fn_view");CHKERRQ(ierr);
-
-    ierr = PetscFnDestroy(&fnMat);CHKERRQ(ierr);
-    ierr = PetscFnDestroy(&fnNormSq);CHKERRQ(ierr);
-    ierr = PetscFnDestroy(&fnSin);CHKERRQ(ierr);
+  ierr = PetscFnShellGetContext(fn, (void *) &A);CHKERRQ(ierr);
+  if (rangeVec) {
+    ierr = MatCreateVecs(A, NULL, rangeVec);CHKERRQ(ierr);
   }
-  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
-  ierr = PetscFnViewFromOptions(fn, NULL, "-fn_view");CHKERRQ(ierr);
-  ierr = PetscFnDestroy(&fn);CHKERRQ(ierr);
+  if (domainVec) {
+    Vec x, Avar;
+    Vec vecs[2];
+    PetscInt m, M, n, N;
+
+    ierr = MatCreateVecs(A, &x, NULL);CHKERRQ(ierr);
+    ierr = MatGetSize(A, &M, &N);CHKERRQ(ierr);
+    ierr = MatGetLocalSize(A, &m, &n);CHKERRQ(ierr);
+    ierr = VecCreateMPI(PetscObjectComm((PetscObject)fn), m*N, M*N, &Avar);CHKERRQ(ierr);
+    vecs[0] = x;
+    vecs[1] = Avar;
+    ierr = VecCreateNest(PetscObjectComm((PetscObject)fn), 2, NULL, vecs, domainVec);CHKERRQ(ierr);
+    ierr = VecDestroy(&x);CHKERRQ(ierr);
+    ierr = VecDestroy(&Avar);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnApply_Ax(PetscFn fn, Vec ax, Vec y)
+{
+  Vec *vecs;
+  Vec Avar, x;
+  PetscInt nvecs = 2;
+  const PetscScalar *a;
+  Mat A;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecNestGetSubVecs(ax, &nvecs, &vecs);CHKERRQ(ierr);
+  x = vecs[0];
+  Avar = vecs[1];
+  ierr = VecGetArrayRead(Avar, &a);CHKERRQ(ierr);
+  ierr = PetscFnShellGetContext(fn, (void *) &A);CHKERRQ(ierr);
+  ierr = MatDensePlaceArray(A, a);CHKERRQ(ierr);
+  ierr = MatMult(A, x, y);CHKERRQ(ierr);
+  ierr = MatDenseResetArray(A);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(Avar, &a);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode TestDAG(PetscRandom rand)
+{
+  PetscFn        dag, Ax, soft, misfit, reg;
+  PetscBool      isDag;
+  MPI_Comm       comm;
+  Vec            x, Axvec, Avec, b, y, *vecs;
+  PetscInt       Nx, nx, Mb, mb, Nc, Mc, nvecs;
+  Mat            A, C;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  comm = PetscObjectComm((PetscObject)rand);
+
+  /* create an input vector x */
+  Nx = 37;
+  ierr = VecCreateMPI(comm, PETSC_DECIDE, Nx, &x);CHKERRQ(ierr);
+  ierr = VecSetRandom(x, rand);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(x, &nx);CHKERRQ(ierr);
+
+  /* create an output vector b */
+  Mb = 23;
+  ierr = VecCreateMPI(comm, PETSC_DECIDE, Mb, &b);CHKERRQ(ierr);
+  ierr = VecSetRandom(b, rand);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(b, &mb);CHKERRQ(ierr);
+
+  /* create a dense matrix A */
+  ierr = MatCreateDense(comm, mb, nx, Mb, Nx, NULL, &A);CHKERRQ(ierr);
+
+  /* create a fn that multiplies A*x, but takes A and x as inputs, and so
+   * uses a VecNest as an input type */
+  ierr = PetscFnCreate(comm, &Ax);CHKERRQ(ierr);
+  ierr = PetscFnSetSizes(Ax, mb, nx + Nx * mb, Mb, Nx * (1 + Mb));CHKERRQ(ierr);
+  ierr = PetscFnSetType(Ax, PETSCFNSHELL);CHKERRQ(ierr);
+  ierr = PetscFnShellSetContext(Ax, (void *) A);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(Ax, PETSCFNOP_CREATEVECS, (void (*)(void)) PetscFnCreateVecs_Ax);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(Ax, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Ax);CHKERRQ(ierr);
+
+  ierr = PetscFnCreateVecs(Ax, &y, &Axvec);CHKERRQ(ierr);
+  ierr = VecNestGetSubVecs(Axvec, &nvecs, &vecs);CHKERRQ(ierr);
+  ierr = VecCopy(x, vecs[0]);CHKERRQ(ierr);
+  ierr = VecSetRandom(vecs[1], rand);CHKERRQ(ierr);
+
+  ierr = PetscFnApply(Ax, Axvec, y);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&y);CHKERRQ(ierr);
+  ierr = VecDestroy(&Axvec);CHKERRQ(ierr);
+  ierr = PetscFnDestroy(&Ax);CHKERRQ(ierr);
+  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  ierr = VecDestroy(&b);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -72,8 +115,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   ierr = PetscRandomCreate(PETSC_COMM_WORLD, &rand);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rand);CHKERRQ(ierr);
-  ierr = TestScalar(rand);CHKERRQ(ierr);
-  ierr = TestVector(rand);CHKERRQ(ierr);
+  ierr = TestDAG(rand);CHKERRQ(ierr);
   ierr = PetscRandomDestroy(&rand);CHKERRQ(ierr); ierr = PetscFinalize();
   return ierr;
 }
