@@ -181,7 +181,7 @@ static PetscErrorCode ConfigureContext(UserCtx ctx)
   ierr = PetscOptionsInt("-m", "The row dimension of matrix F", "ex4.c", ctx->m, &(ctx->m), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-n", "The column dimension of matrix F", "ex4.c", ctx->n, &(ctx->n), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-matrix_format","Decide format of F matrix. 0 for stencil, 1 for random", "ex4.c", ctx->matops, &(ctx->matops), NULL); CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-iter","Iteration number for ADMM Basic Pursuit", "ex4.c", ctx->iter, &(ctx->iter), NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-iter","Iteration number ADMM", "ex4.c", ctx->iter, &(ctx->iter), NULL); CHKERRQ(ierr);
   ierr = PetscOptionsReal("-alpha", "The regularization multiplier. 1 default", "ex4.c", ctx->alpha, &(ctx->alpha), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-relax", "Overrelaxation parameter.", "ex4.c", ctx->relax, &(ctx->relax), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-epsilon", "The small constant added to |x_i| in the denominator to approximate the gradient of ||x||_1", "ex4.c", ctx->eps, &(ctx->eps), NULL);CHKERRQ(ierr);
@@ -237,10 +237,11 @@ static PetscErrorCode DestroyContext(UserCtx *ctx)
 static PetscErrorCode ObjectiveMisfit(Tao tao, Vec x, PetscReal *J, void *_ctx)
 {
   UserCtx ctx = (UserCtx) _ctx;
-  Vec y = ctx->workLeft[0];
   PetscErrorCode ierr;
+  Vec y;
 
   PetscFunctionBegin;
+  y = ctx->workLeft[0];
   ierr = MatMult(ctx->F, x, y);CHKERRQ(ierr);
   ierr = VecAXPY(y, -1., ctx->d);CHKERRQ(ierr);
   ierr = VecDot(y, y, J);CHKERRQ(ierr);
@@ -579,7 +580,7 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao)
 static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
 {
   PetscErrorCode ierr;
-  PetscInt i,n;
+  PetscInt i;
   PetscReal u_norm, r_norm, s_norm, primal, dual, x_norm, z_norm;
   Tao tao1,tao2;
   Vec xk,z,u,diff,zold,zdiff;
@@ -651,85 +652,13 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
     ierr = VecNorm(u,NORM_2,&u_norm);CHKERRQ(ierr);
     dual = PetscSqrtReal(ctx->n)*ctx->abstol + ctx->reltol*u_norm*mu;
 
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : r_norm: %g, s_norm: %g\n", i, (double) r_norm, (double) s_norm);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : ||x-z||: %g, mu*||z-zold||: %g\n", i, (double) r_norm, (double) s_norm);CHKERRQ(ierr);
     if (r_norm < primal && s_norm < dual) break;
   }
 
   ierr = VecCopy(xk, x); CHKERRQ(ierr);
   ierr = TaoDestroy(&tao1);CHKERRQ(ierr);
   ierr = TaoDestroy(&tao2);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode ADMMBasisPursuit(UserCtx ctx, Tao tao, Vec x, PetscReal *C)
-{
-  PetscErrorCode ierr;
-  PetscInt i, nlocal;
-  PetscReal *z_array;
-  IS perm, iscol;
-  MatFactorInfo factinfo;
-  Vec z_k, u_k, x_k, max_k;
-
-  PetscFunctionBegin;
-  z_k = ctx->workRight[3];
-  u_k = ctx->workRight[4];
-  x_k = ctx->workRight[11];
-  max_k = ctx->workRight[9];
-  ierr = VecSet(z_k,0); CHKERRQ(ierr); /* z_k */
-  ierr = VecSet(u_k,0); CHKERRQ(ierr); /* u_k */
-  ierr = VecSet(x_k,0); CHKERRQ(ierr); /* x_k */
-  ierr = VecSet(max_k,0); CHKERRQ(ierr); // compare zero vector for VecPointWiseMax
-
-  ierr  = MatGetOrdering(ctx->W1,MATORDERINGNATURAL,&perm,&iscol);CHKERRQ(ierr);
-  ierr  = ISDestroy(&iscol);CHKERRQ(ierr);
-
-  ierr = PetscMemzero(&factinfo,sizeof(MatFactorInfo));CHKERRQ(ierr);
-  ierr = MatFactorInfoInitialize(&factinfo); CHKERRQ(ierr);
-  ierr = MatGetFactor(ctx->W1,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&(ctx->temp));CHKERRQ(ierr);
-  ierr = MatCholeskyFactorSymbolic(ctx->temp,ctx->W1,perm,&factinfo);CHKERRQ(ierr);
-  ierr = MatCholeskyFactorNumeric(ctx->temp,ctx->W1,&factinfo);CHKERRQ(ierr);
-
-  ierr = MatMatSolve(ctx->temp,ctx->Id, ctx->Fp); CHKERRQ(ierr); // Solve LLT FFTinv = I for FFTinv
-  ierr = MatTransposeMatMult(ctx->F, ctx->Fp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->Fpinv)); CHKERRQ(ierr);
-  ierr = MatMatMult(ctx->Fpinv, ctx->F, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(ctx->P)); CHKERRQ(ierr);
-  ierr = MatScale(ctx->P, -1.0); CHKERRQ(ierr);
-  ierr = MatShift(ctx->P, 1.0); CHKERRQ(ierr); /* P = I - FT*(FFT^-1)*F */
-
-  ierr = MatMult(ctx->Fpinv, ctx->d, ctx->workRight[5]); /* q = FT*((FFT)^-1 * b) */
-
-  for (i=0; i<ctx->iter; i++){
-    // x update
-    ierr = VecWAXPY(ctx->workRight[6], -1.0, u_k, z_k); CHKERRQ(ierr); // work[6] = z-u
-    ierr = MatMultAdd(ctx->P, ctx->workRight[6], ctx->workRight[5], x_k); CHKERRQ(ierr); // x = P(z-u) + q
-    ierr = VecAXPBYPCZ(ctx->workRight[7], ctx->alpha, 1.0 - ctx->alpha, 0.0, x_k, z_k); CHKERRQ(ierr); // x_hat = ax + (1-a)z
-
-    /* soft thresholding for z */
-    ierr = VecGetArray(z_k, &z_array); CHKERRQ(ierr);
-    ierr = VecGetLocalSize(z_k, &nlocal); CHKERRQ(ierr);
-    for (i=0; i < nlocal; i++){
-      z_array[i] = SoftThreshold(z_array[i], 1./ctx->mu);
-    }
-    ierr = VecRestoreArray(z_k, &z_array);
-
-    /* SoftThreshold
-    ierr = VecWAXPY(z_k, 1., ctx->workRight[7], u_k); CHKERRQ(ierr); // xhat + u for shrinkage.
-    ierr = VecCopy(z_k, ctx->workRight[8]);CHKERRQ(ierr);
-    ierr = VecScale(ctx->workRight[8], -1.); CHKERRQ(ierr);
-    ierr = VecShift(z_k, - 1./(ctx->mu)); CHKERRQ(ierr);
-    ierr = VecShift(ctx->workRight[8], - 1./(ctx->mu)); CHKERRQ(ierr);
-    ierr = VecPointwiseMax(z_k, max_k, z_k); CHKERRQ(ierr);
-    ierr = VecPointwiseMax(ctx->workRight[8], max_k, ctx->workRight[8]); CHKERRQ(ierr);
-    ierr = VecAXPY(z_k, -1., ctx->workRight[8]); CHKERRQ(ierr);
-    */
-
-    // u update
-    ierr = VecWAXPY(ctx->workRight[10], -1., z_k, ctx->workRight[7]); CHKERRQ(ierr); // work[10] = x_hat - z
-    ierr = VecAXPY(u_k, 1., ctx->workRight[10]); CHKERRQ(ierr); // u = u + x_hat - z
-  }
-
-//  ierr = VecView(x_k, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-  ierr = VecNorm(x_k,NORM_1,C); CHKERRQ(ierr);
-  ierr = ISDestroy(&perm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -831,10 +760,6 @@ int main (int argc, char** argv)
   ierr = TaoSetInitialVector(tao, x);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
 
-#if 0
-  ierr = ADMMBasicPursuit(ctx, tao, x, &temp); CHKERRQ(ierr);
-#endif
-
   /* solve */
   if (ctx->use_admm) {
     ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
@@ -844,7 +769,7 @@ int main (int argc, char** argv)
   }
 
   /* examine solution */
-  VecViewFromOptions(x, NULL, "-view_sol");CHKERRQ(ierr);
+  ierr = VecViewFromOptions(x, NULL, "-view_sol");CHKERRQ(ierr);
 
   if (ctx->taylor) {
     PetscReal rate;
@@ -894,6 +819,10 @@ int main (int argc, char** argv)
   test:
     suffix: lmvm_2
     args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type lmvm
+
+  test:
+    suffix: soft_threshold_admm_1
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm 
 
   test:
     suffix: hessian_admm_1
