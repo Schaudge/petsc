@@ -26,10 +26,14 @@ struct _FnOps {
   PetscErrorCode (*hessianbuild)(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
   PetscErrorCode (*hessianbuildadjoint)(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
   PetscErrorCode (*hessianbuildswap)(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
+  PetscErrorCode (*action)(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[]);
+  PetscErrorCode (*actionbuild)(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[], MatReuse, Mat*, Mat*);
   PetscErrorCode (*scalarapply)(PetscFn,Vec,PetscScalar *);
   PetscErrorCode (*scalargradient)(PetscFn,Vec,Vec);
   PetscErrorCode (*scalarhessianmult)(PetscFn,Vec,Vec,Vec);
   PetscErrorCode (*scalarhessianbuild)(PetscFn,Vec,MatReuse,Mat*,Mat*);
+  PetscErrorCode (*scalaraction)(PetscFn,Vec,PetscInt,const IS[],const Vec[]);
+  PetscErrorCode (*scalaractionbuild)(PetscFn,Vec,PetscInt,const IS[],const Vec[], MatReuse, Mat*, Mat*);
   PetscErrorCode (*createsubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
   PetscErrorCode (*destroysubfns)(PetscInt,PetscFn *[]);
   PetscErrorCode (*createsubfn)(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
