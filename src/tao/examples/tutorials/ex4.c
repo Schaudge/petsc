@@ -544,14 +544,16 @@ static PetscReal SoftThreshold(PetscReal z, PetscReal mu)
   return PetscMax(0,z- mu) - PetscMax(0, -z-mu);
 }
 
-static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
+static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao)
 {
   PetscErrorCode ierr;
   PetscInt nlocal,i;
   PetscReal *zarray, *xarray, *uarray, alpha, mu;
+  UserCtx ctx;
   Vec xk,z,u;
 
   PetscFunctionBegin;
+  ierr = TaoShellGetContext(tao, (void *) &ctx);CHKERRQ(ierr);
   alpha = ((UserCtx)ctx)->alpha;
   mu = ((UserCtx)ctx)->mu;
   xk = ((UserCtx)ctx)->workRight[11];
@@ -607,7 +609,8 @@ static PetscErrorCode TaoSolveADMM(UserCtx ctx,  Vec x)
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao2);CHKERRQ(ierr);
   if (ctx->p == NORM_1) {
     ierr = TaoSetType(tao2,TAOSHELL); CHKERRQ(ierr);
-    ierr = TaoShellSetSolve(tao2, TaoShellSolve_SoftThreshold, (void *) ctx);CHKERRQ(ierr);
+    ierr = TaoShellSetContext(tao2, (void *) ctx);CHKERRQ(ierr);
+    ierr = TaoShellSetSolve(tao2, TaoShellSolve_SoftThreshold);CHKERRQ(ierr);
   } else {
     ierr = TaoSetType(tao2,TAONLS); CHKERRQ(ierr);
   }
