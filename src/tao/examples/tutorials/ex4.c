@@ -559,7 +559,8 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
   ierr = VecGetArray(u, &uarray); CHKERRQ(ierr);
   ierr = VecGetLocalSize(z, &nlocal); CHKERRQ(ierr);
   for (i=0; i < nlocal; i++){
-    zarray[i] = SoftThreshold(xarray[i] + uarray[i]/mu, alpha/mu);
+    zarray[i] = SoftThreshold(alpha*xarray[i] + (1.-alpha)*zarray[i] + uarray[i], alpha/mu);
+//    zarray[i] = SoftThreshold(xarray[i] + uarray[i]/mu, alpha/mu);
   }
   ierr = VecRestoreArray(z, &zarray);
   ierr = VecRestoreArray(xk, &xarray);
