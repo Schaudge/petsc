@@ -288,10 +288,14 @@ static PetscErrorCode ObjectiveMisfitADMM(Tao tao, Vec x, PetscReal *J, void *_c
   mu = ctx->mu;
   z = ctx->workRight[12];
   u = ctx->workRight[13];
+  /* misfit = f(x) */
   ierr = ObjectiveMisfit(tao, x, &misfit, _ctx);CHKERRQ(ierr);
   ierr = VecCopy(x,ctx->workRight[14]); CHKERRQ(ierr);
-  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,-1.,1.,z,u);CHKERRQ(ierr);
+  /* work14 = x - z - u */
+  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,1.,1.,z,u);CHKERRQ(ierr);
+  /* workNorm = ||x - z + u||^2 */
   ierr = VecDot(ctx->workRight[14], ctx->workRight[14], &workNorm);CHKERRQ(ierr);
+  /* augment Lagrangian objective (with scaled dual): f(x) + 0.5 * mu ||x -z + u||^2 */
   *J = misfit + 0.5 * mu * workNorm;
   PetscFunctionReturn(0);
 }
@@ -309,7 +313,7 @@ static PetscErrorCode GradientMisfitADMM(Tao tao, Vec x, Vec V, void *_ctx)
   u = ctx->workRight[13];
   ierr = GradientMisfit(tao, x, V, _ctx);CHKERRQ(ierr);
   ierr = VecCopy(x, ctx->workRight[14]);CHKERRQ(ierr);
-  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,-1.,1.,z,u);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(ctx->workRight[14],-1.,1.,1.,z,u);CHKERRQ(ierr);
   ierr = VecAXPY(V, mu, ctx->workRight[14]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -443,7 +447,7 @@ static PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, 
   temp = ctx->workRight[14];
   ierr = ObjectiveRegularization(tao, z, &reg, _ctx);CHKERRQ(ierr);
   ierr = VecCopy(z,temp); CHKERRQ(ierr);
-  ierr = VecAXPBYPCZ(temp,1.,-1.,-1.,x,u);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(temp,1.,1.,-1.,x,u);CHKERRQ(ierr);
   ierr = VecDot(temp, temp, &workNorm);CHKERRQ(ierr);
   *J = reg + 0.5 * mu * workNorm;
   PetscFunctionReturn(0);
@@ -463,7 +467,7 @@ static PetscErrorCode GradientRegularizationADMM(Tao tao, Vec z, Vec V, void *_c
   temp = ctx->workRight[14];
   ierr = GradientRegularization(tao, z, V, _ctx);CHKERRQ(ierr);
   ierr = VecCopy(z, temp);CHKERRQ(ierr);
-  ierr = VecAXPBYPCZ(temp,1.,-1.,-1.,x,u);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(temp,1.,1.,-1.,x,u);CHKERRQ(ierr);
   ierr = VecAXPY(V, -mu, temp);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -551,7 +555,8 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
   alpha = ((UserCtx)ctx)->alpha;
   mu = ((UserCtx)ctx)->mu;
   xk = ((UserCtx)ctx)->workRight[11];
-  z =  ((UserCtx)ctx)->workRight[12];
+  ierr = TaoGetSolutionVector(tao, &z);CHKERRQ(ierr);
+  /* assert z == workRight[12] */
   u =  ((UserCtx)ctx)->workRight[13];
   /* soft thresholding */
   ierr = VecGetArray(z, &zarray); CHKERRQ(ierr);
@@ -559,7 +564,7 @@ static PetscErrorCode TaoShellSolve_SoftThreshold(Tao tao, void *ctx)
   ierr = VecGetArray(u, &uarray); CHKERRQ(ierr);
   ierr = VecGetLocalSize(z, &nlocal); CHKERRQ(ierr);
   for (i=0; i < nlocal; i++){
-    zarray[i] = SoftThreshold(alpha*xarray[i] + (1.-alpha)*zarray[i] + uarray[i], alpha/mu);
+    zarray[i] = SoftThreshold(xarray[i] + uarray[i], alpha/mu);
 //    zarray[i] = SoftThreshold(xarray[i] + uarray[i]/mu, alpha/mu);
   }
   ierr = VecRestoreArray(z, &zarray);
