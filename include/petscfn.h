@@ -99,6 +99,9 @@ PETSC_EXTERN PetscErrorCode PetscFnHessianMultAdjoint(PetscFn,Vec,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnHessianBuildAdjoint(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
 PETSC_EXTERN PetscErrorCode PetscFnHessianBuildSwap(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
 /* generic interface allowing for index sets on the variations */
+PETSC_EXTERN PetscErrorCode PetscFnDerivativeScalar(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], PetscScalar *);
+PETSC_EXTERN PetscErrorCode PetscFnDerivativeVec(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], Vec);
+PETSC_EXTERN PetscErrorCode PetscFnDerivativeMat(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
 PETSC_EXTERN PetscErrorCode PetscFnDerivativeMult(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[]);
 PETSC_EXTERN PetscErrorCode PetscFnDerivativeBuild(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
 
@@ -113,7 +116,9 @@ PETSC_EXTERN PetscErrorCode PetscFnScalarGradient(PetscFn,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnScalarHessianMult(PetscFn,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnScalarHessianBuild(PetscFn,Vec,MatReuse,Mat*,Mat*);
 /* generic interface allowing for index sets on the variations */
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn,Vec,PetscInt,const IS[], const Vec[], PetscScalar *);
 PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeMult(PetscFn,Vec,PetscInt,const IS[], const Vec[]);
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeVec(PetscFn,Vec,PetscInt,const IS[], const Vec[]);
 PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeBuild(PetscFn,Vec,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
 
 /* field split ideas */
