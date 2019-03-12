@@ -3,6 +3,7 @@
 */
 #include <petsc/private/tsimpl.h>                /*I   "petscts.h"   I*/
 #include <petscdm.h>
+#include <petscdmswarm.h>
 
 static TSBasicSymplecticType TSBasicSymplecticDefault = TSBASICSYMPLECTICSIEULER;
 static PetscBool TSBasicSymplecticRegisterAllCalled;
@@ -245,6 +246,48 @@ static PetscErrorCode TSStep_BasicSymplectic(TS ts)
     ierr = TSFunctionDomainError(ts,ts->ptime+ts->time_step,update,&stageok);CHKERRQ(ierr);
     if(!stageok) {ts->reason = TS_DIVERGED_STEP_REJECTED; PetscFunctionReturn(0);}
   }
+  /* 
+     For the purposes of Poisson solvers with a DM swarm neccessitating symplectic time steppers,
+     check for a DM of type swarm owned by the TS, if so, migrate the particles based upon their
+     updated positions for any field solvers.
+  */
+  if(ts->dm){
+    DMType type;
+    ierr = DMGetType(ts->dm, &type);CHKERRQ(ierr);
+    if(type == DMSWARM){
+        PetscInt dim, Np, d, p;
+        Vec      coor, kin;
+        PetscReal *coorArr, *kinArr;
+        const PetscScalar *solArr;
+
+        ierr = DMGetDimension(ts->dm, &dim);CHKERRQ(ierr);
+        ierr = VecGetLocalSize(solution, &Np);CHKERRQ(ierr);
+        Np /= 2*dim;
+        
+        ierr = DMSwarmGetField(ts->dm, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
+        ierr = DMSwarmGetField(ts->dm, "kinematics", NULL, NULL, (void **) &kin);CHKERRQ(ierr);
+        
+        ierr = VecGetArray(coor, &coorArr);CHKERRQ(ierr);
+        ierr = VecGetArray(kin, &kinArr);CHKERRQ(ierr);
+        ierr = VecGetArrayRead(solution, &solArr);CHKERRQ(ierr);
+        for(p = 0; p < Np; ++p){
+          
+          for(d=0; d<dim; ++d){
+            coorArr[p*dim+d] = solArr[p*2*dim+d];
+            kinArr[p*dim+d] = solArr[(p*2*dim+dim)+d];
+          }
+        
+        }
+        ierr = VecRestoreArray(coor, &coorArr);CHKERRQ(ierr);
+        ierr = VecRestoreArray(kin, &kinArr);CHKERRQ(ierr);
+        ierr = VecRestoreArrayRead(solution, &solArr);CHKERRQ(ierr);
+
+        ierr = DMSwarmRestoreField(ts->dm, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
+        ierr = DMSwarmRestoreField(ts->dm, "kinematics", NULL, NULL, (void **) &kin);CHKERRQ(ierr);
+        ierr = DMSwarmMigrate(ts->dm, PETSC_TRUE);CHKERRQ(ierr);
+    }
+  }
+
 
   ts->time_step = next_time_step;
   ierr = VecRestoreSubVector(solution,is_q,&q);CHKERRQ(ierr);
