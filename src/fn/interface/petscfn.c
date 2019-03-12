@@ -6,6 +6,7 @@
 #include <petsc/private/vecimpl.h>       /*I "petscvec.h" I*/
 #include <petsc/private/matimpl.h>       /*I "petscmat.h" I*/
 #include <petsc/private/fnimpl.h>        /*I "petscfn.h" I*/
+#include <../src/fn/utils/fnutils.h>
 
 /* Logging support */
 PetscClassId PETSCFN_CLASSID;
@@ -359,29 +360,6 @@ PetscErrorCode PetscFnApply(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnVecScalarBcast(Vec v, PetscScalar *zp)
-{
-  MPI_Comm       comm;
-  PetscLayout    map;
-  PetscMPIInt    rank;
-  PetscInt       broot;
-  PetscScalar    z;
-  const PetscScalar *zv;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  comm = PetscObjectComm((PetscObject)v);
-  ierr = VecGetLayout(v, &map);CHKERRQ(ierr);
-  ierr = PetscLayoutFindOwner(map, 0, &broot);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(v, &zv);CHKERRQ(ierr);
-  z    = ((PetscInt) broot == rank) ? zv[0] : 0.;
-  ierr = VecRestoreArrayRead(v, &zv);CHKERRQ(ierr);
-  ierr = MPI_Bcast(&z, 1, MPIU_REAL, broot, comm);CHKERRQ(ierr);
-  *zp  = z;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], PetscScalar *z)
 {
   PetscInt       i;
@@ -437,7 +415,7 @@ PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt
       }
     }
     ierr = (*fn->ops->scalarderivativescalar) (fn,x,der,scalarsubsets,scalarvecs,z);CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(subvecs[rangeIdx], &s);CHKERRQ(ierr);
+    ierr = VecScalarBcast(subvecs[rangeIdx], &s);CHKERRQ(ierr);
     *z *= s;
     if (rangeIdx > 0 && rangeIdx < der) {
       ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
@@ -524,7 +502,7 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
       }
     }
     ierr = (*fn->ops->scalarderivativevec)(fn,x,der,scalarsubsets,scalarvecs,y);CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
     ierr = VecScale(subvecs[der], z);CHKERRQ(ierr);
     if (rangeIdx != 0) {
       ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
@@ -534,19 +512,6 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
     ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
   }
   ierr = VecLockPop(x);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode MatDupOrCopy(Mat orig, MatReuse reuse, Mat *dup)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatDuplicate(orig, MAT_COPY_VALUES, dup);CHKERRQ(ierr);
-  } else {
-    ierr = MatCopy(orig, *dup, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
   PetscFunctionReturn(0);
 }
 
@@ -615,7 +580,7 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
       ierr = MatSetValuesVec(*mat, grad, 0, colVec, INSERT_VALUES);CHKERRQ(ierr);
     }
     if (Mpre && Mpre != mat) {
-      ierr = MatDupOrCopy(*mat, reuse, Mpre);CHKERRQ(ierr);
+      ierr = MatDuplicateOrCopy(*mat, reuse, Mpre);CHKERRQ(ierr);
     }
     if (rangeIdx != der) {
       ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
@@ -636,7 +601,7 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
       }
     }
     ierr = (*fn->ops->scalarderivativemat)(fn,x,der,scalarsubsets,scalarvecs,reuse,M,Mpre);CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
     if (M) {
       ierr = MatScale(*M, z);CHKERRQ(ierr);
     }
@@ -727,7 +692,7 @@ PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec Jadjv)
     PetscScalar z;
 
     ierr = (*fn->ops->scalargradient) (fn, x, Jadjv); CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(v, &z);CHKERRQ(ierr);
     ierr = VecScale(Jadjv, z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(v);CHKERRQ(ierr);
@@ -912,7 +877,7 @@ PetscErrorCode PetscFnHessianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec xhat, Vec
     PetscScalar z;
 
     ierr = (*fn->ops->scalarhessianmult) (fn, x, xhat, Hadjvxhat); CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(v, &z);CHKERRQ(ierr);
     ierr = VecScale(Hadjvxhat, z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(xhat);CHKERRQ(ierr);
@@ -1016,7 +981,7 @@ PetscErrorCode PetscFnHessianBuildAdjoint(PetscFn fn, Vec x, Vec v, MatReuse reu
     PetscScalar z;
 
     ierr = (*fn->ops->scalarhessianbuild) (fn, x, reuse, Hadj, Hadjpre);CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(v, &z);CHKERRQ(ierr);
     if (Hadj) {ierr = MatScale(*Hadj,z);CHKERRQ(ierr);}
     if (Hadjpre && Hadjpre != Hadj) {ierr = MatScale(*Hadjpre,z);CHKERRQ(ierr);}
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
@@ -1052,7 +1017,7 @@ PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
 
     ierr = PetscFnCreateVecs(fn, &y, NULL);CHKERRQ(ierr);
     ierr = (*fn->ops->apply)(fn,x,y);CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(y,z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(y,z);CHKERRQ(ierr);
     ierr = VecDestroy(&y);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
@@ -1812,7 +1777,7 @@ static PetscErrorCode PetscFnShellJacobianMultAdjoint_DerShell(PetscFn fn, Vec x
   maxDots = derShell->maxDots;
   if (numDots == maxDots) {
     ierr = PetscFnShellScalarGradient_DerShell(fn, x, y);CHKERRQ(ierr);
-    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(v, &z);CHKERRQ(ierr);
     ierr = VecScale(y,z);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
@@ -1881,7 +1846,7 @@ static PetscErrorCode PetscFnShellHessianMultAdjoint_DerShell(PetscFn fn, Vec x,
     SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
   }
   if (numDots == maxDots) {
-    ierr = PetscFnVecScalarBcast(v, &z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(v, &z);CHKERRQ(ierr);
     ierr = VecScale(y,z);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
