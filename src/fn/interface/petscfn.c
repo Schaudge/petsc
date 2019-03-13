@@ -289,45 +289,84 @@ PetscErrorCode PetscFnView(PetscFn fn,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnCreateVecs(PetscFn fn, Vec *rangeVec, Vec *domainVec)
+static PetscErrorCode PetscFnVecCheckCompatible(Vec vec, IS is, PetscLayout layout)
+{
+  PetscInt       nV, nI;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  nV = vec->map->n;
+  if (is) {
+    ierr = ISGetLocalSize(is, &nI);CHKERRQ(ierr);
+    if (nV != nI) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Vector is incompatible with index set");
+  } else {
+    nI = layout->n;
+    if (nV != nI) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Vector is incompatible with layout");
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnMatCheckCompatible(Mat mat, IS rightIS, IS leftIS, PetscLayout rightLayout, PetscLayout leftLayout)
+{
+  PetscInt       nMat, mMat, nI, mI;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  nMat = mat->cmap->n;
+  mMat = mat->rmap->n;
+  if (leftIS) {
+    ierr = ISGetLocalSize(leftIS, &nI);CHKERRQ(ierr);
+    if (nI != nMat) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Matrix is incompatible with left index set");
+  } else {
+    nI = leftLayout->n;
+    if (nI != nMat) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Matrix is incompatible with left layout");
+  }
+  if (rightIS) {
+    ierr = ISGetLocalSize(rightIS, &mI);CHKERRQ(ierr);
+    if (mI != mMat) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Matrix is incompatible with right index set");
+  } else {
+    mI = rightLayout->n;
+    if (mI != mMat) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Matrix is incompatible with right layout");
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnCreateVec_Default(PetscFn fn, IS is, PetscLayout layout, Vec *vec)
+{
+  PetscInt       n;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecCreate(PetscObjectComm((PetscObject)fn),vec);CHKERRQ(ierr);
+  if (is) {
+    ierr = ISGetLocalSize(is, &n);CHKERRQ(ierr);
+    ierr = VecSetSizes(*vec, n, PETSC_DETERMINE);CHKERRQ(ierr);
+  } else {
+    ierr = VecSetLayout(*vec,layout);CHKERRQ(ierr);
+  }
+  ierr = VecSetType(*vec, VECSTANDARD);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnCreateVecs(PetscFn fn, IS domainIS, Vec *domainVec, IS rangeIS, Vec *rangeVec)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  if (domainIS) PetscValidHeaderSpecific(domainIS,IS_CLASSID,2);
+  if (rangeIS) PetscValidHeaderSpecific(rangeIS,IS_CLASSID,3);
   ierr = PetscFnLayoutsSetUp(fn);CHKERRQ(ierr);
   if (fn->ops->createvecs) {
-    ierr = (*(fn->ops->createvecs)) (fn, rangeVec, domainVec);CHKERRQ(ierr);
-#if defined(PETSC_USE_DEBUG)
-    if (rangeVec) {
-      PetscBool same;
-      PetscLayout retLayout;
-
-      ierr = VecGetLayout(*rangeVec, &retLayout);CHKERRQ(ierr);
-      ierr = PetscLayoutCompare(retLayout, fn->rmap, &same);CHKERRQ(ierr);
-      if (!same) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEVECS returned vec of wrong shape");
-    }
-    if (domainVec) {
-      PetscBool same;
-      PetscLayout retLayout;
-
-      ierr = VecGetLayout(*domainVec, &retLayout);CHKERRQ(ierr);
-      ierr = PetscLayoutCompare(retLayout, fn->dmap, &same);CHKERRQ(ierr);
-      if (!same) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_USER,"User supplied PETSCFNOP_CREATEVECS returned vec of wrong shape");
-    }
-#endif
+    ierr = (*(fn->ops->createvecs)) (fn, domainIS, rangeVec, rangeIS, domainVec);CHKERRQ(ierr);
   } else {
-    if (rangeVec) {
-      ierr = VecCreate(PetscObjectComm((PetscObject)fn),rangeVec);CHKERRQ(ierr);
-      ierr = VecSetLayout(*rangeVec,fn->rmap);CHKERRQ(ierr);
-      ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
-    }
-    if (domainVec) {
-      ierr = VecCreate(PetscObjectComm((PetscObject)fn),domainVec);CHKERRQ(ierr);
-      ierr = VecSetLayout(*domainVec,fn->dmap);CHKERRQ(ierr);
-      ierr = VecSetType(*domainVec, VECSTANDARD);CHKERRQ(ierr);
-    }
+    if (domainVec) {ierr = PetscFnCreateVec_Default(fn, domainIS, fn->dmap, domainVec);CHKERRQ(ierr);}
+    if (rangeVec) {ierr = PetscFnCreateVec_Default(fn, rangeIS, fn->rmap, rangeVec);CHKERRQ(ierr);}
   }
+#if defined(PETSC_USE_DEBUG)
+  if (domainVec) {ierr = PetscFnVecCheckCompatible(*domainVec, domainIS, fn->dmap);CHKERRQ(ierr);}
+  if (rangeVec) {ierr = PetscFnVecCheckCompatible(*rangeVec, rangeIS, fn->rmap);CHKERRQ(ierr);}
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -350,13 +389,135 @@ PetscErrorCode PetscFnApply(PetscFn fn, Vec x, Vec y)
   ierr = VecLockPush(x);CHKERRQ(ierr);
   if (fn->ops->apply) {
     ierr = (*fn->ops->apply)(fn,x,y);CHKERRQ(ierr);
+  } else if (fn->ops->derivativevec) {
+    ierr = (*fn->ops->derivativevec)(fn,x,0,0,NULL,NULL,y);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarapply) {
     PetscScalar z;
 
     ierr = (*fn->ops->scalarapply)(fn,x,&z);CHKERRQ(ierr);
     ierr = VecSet(y,z);CHKERRQ(ierr);
+  } else if (fn->isScalar && fn->ops->scalarderivativescalar) {
+    PetscScalar z;
+
+    ierr = (*fn->ops->scalarderivativescalar)(fn,x,0,NULL,NULL,&z);CHKERRQ(ierr);
+    ierr = VecSet(y,z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnGetISVecsWithoutRange(PetscInt rangeIdx, PetscInt numISs, const IS *subsets, PetscInt numVecs, const Vec *subvecs, IS **newsubsets, Vec **newsubvecs)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (rangeIdx == 0) {
+    *newsubsets = (IS *) (subsets ? &subsets[1] : NULL);
+    *newsubvecs = (Vec *) subvecs[1];
+    PetscFunctionReturn(0);
+  }
+  if (rangeIdx >= numISs - 1) {
+    *newsubsets = (IS *) subsets;
+  } else {
+    IS *sis = NULL;
+
+    if (subsets) {
+      ierr = PetscMalloc1(numISs - 1, &sis);CHKERRQ(ierr);
+      for (i = 0; i < numISs - 1; i++) sis[i] = subsets[i + (i >= rangeIdx)];
+    }
+    *newsubsets = sis;
+  }
+  if (rangeIdx >= numVecs - 1) {
+    *newsubvecs = (Vec *) subvecs;
+  } else {
+    Vec *svecs;
+
+    ierr = PetscMalloc1(numVecs - 1, &svecs);CHKERRQ(ierr);
+    for (i = 0; i < numVecs; i++) svecs[i] = subvecs[i + (i >= rangeIdx)];
+    *newsubvecs = svecs;
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnRestoreISVecsWithoutRange(PetscInt rangeIdx, PetscInt numISs, const IS *subsets, PetscInt numVecs, const Vec *subvecs, IS **newsubsets, Vec **newsubvecs)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (rangeIdx == 0) PetscFunctionReturn(0);
+  if (rangeIdx < numISs - 1) {
+    ierr = PetscFree(*newsubsets);CHKERRQ(ierr);
+  }
+  if (rangeIdx < numVecs - 1) {
+    ierr = PetscFree(*newsubvecs);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnVecsPushVec(PetscInt numVecs, const Vec *vecs, Vec newvec, Vec **newvecs)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscMalloc1(numVecs + 1, newvecs);CHKERRQ(ierr);
+  for (i = 0; i < numVecs; i++) (*newvecs)[i] = vecs[i];
+  (*newvecs)[numVecs] = newvec;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnISsPushIS(PetscInt numISs, const IS *subsets, IS newis, IS **newiss)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (subsets == NULL && newis == NULL) {
+    *newiss = NULL;
+  } else {
+    ierr = PetscMalloc1(numISs+1, newiss);CHKERRQ(ierr);
+    for (i = 0; i < numISs; i++) (*newiss)[i] = subsets[i];
+    (*newiss)[numISs] = newis;
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnISVecsPushISVec(PetscInt numISs, const IS *subsets, PetscInt numVecs, const Vec *vecs, IS newis, Vec newvec, IS **newiss, Vec **newvecs)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (subsets == NULL && newis == NULL) {
+    *newiss = NULL;
+  } else {
+    ierr = PetscMalloc1(numISs+1, newiss);CHKERRQ(ierr);
+    for (i = 0; i < numISs; i++) (*newiss)[i] = subsets[i];
+    (*newiss)[numISs] = newis;
+  }
+  ierr = PetscMalloc1(numVecs+1, newvecs);CHKERRQ(ierr);
+  for (i = 0; i < numVecs; i++) (*newvecs)[i] = vecs[i];
+  (*newvecs)[numVecs] = newvec;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnISVecsPushFrontISVec(PetscInt numISs, const IS *subsets, PetscInt numVecs, const Vec *vecs, IS newis, Vec newvec, IS **newiss, Vec **newvecs)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (subsets == NULL && newis == NULL) {
+    *newiss = NULL;
+  } else {
+    ierr = PetscMalloc1(numISs+1, newiss);CHKERRQ(ierr);
+    for (i = 0; i < numISs; i++) (*newiss)[i+1] = subsets[i];
+    (*newiss)[0] = newis;
+  }
+  ierr = PetscMalloc1(numVecs+1, newvecs);CHKERRQ(ierr);
+  for (i = 0; i < numVecs; i++) (*newvecs)[i+1] = vecs[i];
+  (*newvecs)[0] = newvec;
   PetscFunctionReturn(0);
 }
 
@@ -373,62 +534,52 @@ PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt
   PetscValidLogicalCollectiveInt(fn,rangeIdx,4);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
   if (der < 0) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"derivative must be non-negative");
-  if (rangeIdx <= 0 || rangeIdx > der) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"range vector index %D not in range [0,%D]",rangeIdx,der);
+  if (rangeIdx < 0 || rangeIdx > der) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"range vector index %D not in range [0,%D]",rangeIdx,der);
+  /* there are der+1 subsets and der+1 subvecs */
 #if defined(PETSC_USE_DEBUG)
-  {
-    for (i = 0; i <= der + 1; i++) {
-      IS       is = subsets ? subsets[i] : NULL;
-      Vec      vec = subvecs[i];
-      PetscInt nIS, nVec;
-
-      ierr = VecGetLocalSize(vec, &nVec);CHKERRQ(ierr);
-      if (is) {
-        ierr = ISGetLocalSize(is, &nIS);CHKERRQ(ierr);
-      } else {
-        nIS = (i == rangeIdx) ? fn->rmap->n : fn->dmap->n;
-      }
-      if (nVec != nIS) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Vec %D is not sized to match its subset", i);
-    }
-  }
+  for (i = 0; i < der + 1; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, (i == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);}
 #endif
   ierr = VecLockPush(x);CHKERRQ(ierr);
-  for (i = 0; i <= der; i++) {
+  for (i = 0; i < der+1; i++) {
     ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->derivativescalar) {
     ierr = (*fn->ops->derivativescalar)(fn,x,der,rangeIdx,subsets,subvecs,z);CHKERRQ(ierr);
   } else if (fn->isScalar && fn->ops->scalarderivativescalar) {
+    /* for a functional derivative to produce a scalar, it must contract against der vectors */
     PetscScalar  s;
-    IS          *scalarsubsets;
+    IS          *scalarsubsets = NULL;
     Vec         *scalarvecs;
-    if (rangeIdx == 0) {
-      scalarsubsets = (IS *) &subsets[1];
-      scalarvecs = (Vec *) &subvecs[1];
-    } else if (rangeIdx == der) {
-      scalarsubsets = (IS *) subsets;
-      scalarvecs = (Vec *) subvecs;
-    } else {
-      ierr = PetscMalloc2(der-1, &scalarsubsets, der-1, &scalarvecs);CHKERRQ(ierr);
-      for (i = 0; i < der; i++) {
-        scalarsubsets[i] = subsets[i + (i >= rangeIdx)];
-        scalarvecs[i] = subvecs[i + (i >= rangeIdx)];
-      }
-    }
+
+    ierr = PetscFnGetISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
     ierr = (*fn->ops->scalarderivativescalar) (fn,x,der,scalarsubsets,scalarvecs,z);CHKERRQ(ierr);
     ierr = VecScalarBcast(subvecs[rangeIdx], &s);CHKERRQ(ierr);
     *z *= s;
-    if (rangeIdx > 0 && rangeIdx < der) {
-      ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
-    }
+    ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
   } else if (fn->ops->derivativevec) {
-    Vec dotVec;
+    /* compute by getting a vector output and dotting with one of the input vectors.
+     * always choose a domainvec for the output vector if possible */
+    Vec          outVec;
 
-    ierr = VecDuplicate(subvecs[der],&dotVec);CHKERRQ(ierr);
-    ierr = (*fn->ops->derivativevec) (fn,x,der,rangeIdx,subsets,subvecs,dotVec);CHKERRQ(ierr);
-    ierr = VecDot(dotVec, subvecs[der], z);CHKERRQ(ierr);
-    ierr = VecDestroy(&dotVec);CHKERRQ(ierr);
+    ierr = VecDuplicate(subvecs[der], &outVec);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativevec)(fn, x, der, rangeIdx, subsets, subvecs, outVec);CHKERRQ(ierr);
+    ierr = VecDot(subvecs[der], outVec, z);CHKERRQ(ierr);
+    ierr = VecDestroy(&outVec);CHKERRQ(ierr);
+  } else if (fn->isScalar && der > 0 && fn->ops->scalarderivativevec) {
+    Vec *vecsubvecs;
+    IS  *vecsubsets = NULL;
+    PetscScalar s;
+    Vec  outVec;
+
+    ierr = PetscFnGetISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &vecsubsets, &vecsubvecs);CHKERRQ(ierr);
+    ierr = VecDuplicate(vecsubvecs[der-1],&outVec);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarderivativevec)(fn,x,der,vecsubsets,vecsubvecs,outVec);CHKERRQ(ierr);
+    ierr = VecDot(vecsubvecs[der-1],outVec,z);CHKERRQ(ierr);
+    ierr = VecScalarBcast(subvecs[rangeIdx], &s);CHKERRQ(ierr);
+    *z *= s;
+    ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &vecsubsets, &vecsubvecs);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
-  for (i = 0; i <= der; i++) {
+  for (i = 0; i < der+1; i++) {
     ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
   }
   ierr = VecLockPop(x);CHKERRQ(ierr);
@@ -449,31 +600,12 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
   PetscValidLogicalCollectiveInt(fn,rangeIdx,4);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
   if (der < 0) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"derivative must be non-negative");
-  if (rangeIdx <= 0 || rangeIdx > der) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"range vector index %D not in range [0,%D]",rangeIdx,der);
+  if (rangeIdx < 0 || rangeIdx > der) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"range vector index %D not in range [0,%D]",rangeIdx,der);
   yIS = subsets ? subsets[der] : NULL;
+  /* there are der+1 subsets, der input vecs and 1 output vec */
 #if defined(PETSC_USE_DEBUG)
-  {
-    PetscInt nIS, nVec;
-    for (i = 0; i < der; i++) {
-      IS       is = subsets ? subsets[i] : NULL;
-      Vec      vec = subvecs[i];
-
-      ierr = VecGetLocalSize(vec, &nVec);CHKERRQ(ierr);
-      if (is) {
-        ierr = ISGetLocalSize(is, &nIS);CHKERRQ(ierr);
-      } else {
-        nIS = (i == rangeIdx) ? fn->rmap->n : fn->dmap->n;
-      }
-      if (nVec != nIS) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "subvecs[%D] is not sized to match its subset", i);
-    }
-    ierr = VecGetLocalSize(y, &nVec);CHKERRQ(ierr);
-    if (yIS) {
-      ierr = ISGetLocalSize(yIS, &nIS);CHKERRQ(ierr);
-    } else {
-      nIS = (der == rangeIdx) ? fn->rmap->n : fn->dmap->n;
-    }
-    if (nVec != nIS) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "y is not sized to match its subset", i);
-  }
+  for (i = 0; i < der; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, (i == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);}
+  ierr = PetscFnVecCheckCompatible(y, yIS, (der == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);
 #endif
   ierr = VecLockPush(x);CHKERRQ(ierr);
   for (i = 0; i < der; i++) {
@@ -481,33 +613,35 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
   }
   if (fn->ops->derivativevec) {
     ierr = (*fn->ops->derivativevec)(fn,x,der,rangeIdx,subsets,subvecs,y);CHKERRQ(ierr);
+  } else if (fn->isScalar && rangeIdx < der && fn->ops->scalarderivativevec) {
+    /* for a scalar functional derivative to produce a vector, it must contract against der-1 vectors */
+    IS          *scalarsubsets = NULL;
+    Vec         *scalarvecs = NULL;
+    PetscScalar z;
+
+    ierr = PetscFnGetISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarderivativevec)(fn,x,der,scalarsubsets,scalarvecs,y);CHKERRQ(ierr);
+    ierr = VecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
+    ierr = VecScale(y, z);CHKERRQ(ierr);
+    ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
+  } else if (fn->isScalar && rangeIdx == der && fn->ops->derivativescalar) {
+    Vec         onevec;
+    Vec         *newvecs;
+    PetscScalar z;
+
+    ierr = VecDuplicate(y, &onevec);CHKERRQ(ierr);
+    ierr = VecSet(onevec, 1.);CHKERRQ(ierr);
+    ierr = PetscFnVecsPushVec(der, subvecs, onevec, &newvecs);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativescalar)(fn, x, der, rangeIdx, subsets, newvecs, &z);CHKERRQ(ierr);
+    ierr = PetscFree(newvecs);CHKERRQ(ierr);
+    ierr = VecDestroy(&onevec);CHKERRQ(ierr);
+    ierr = VecSet(y,z);CHKERRQ(ierr);
   } else if (fn->isScalar && rangeIdx == der && fn->ops->scalarderivativescalar) {
     PetscScalar z;
 
-    ierr = (*fn->ops->scalarderivativescalar)(fn,x,der,subsets,subvecs,&z);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarderivativescalar)(fn, x, der, subsets, subvecs, &z);CHKERRQ(ierr);
     ierr = VecSet(y,z);CHKERRQ(ierr);
-  } else if (fn->isScalar && rangeIdx < der && fn->ops->scalarderivativevec) {
-    IS          *scalarsubsets;
-    Vec         *scalarvecs;
-    PetscScalar z;
-
-    if (rangeIdx == 0) {
-      scalarsubsets = (IS *) &subsets[1];
-      scalarvecs = (Vec *) &subvecs[1];
-    } else {
-      ierr = PetscMalloc2(der, &scalarsubsets, der, &scalarvecs);CHKERRQ(ierr);
-      for (i = 0; i < der - 1; i++) {
-        scalarsubsets[i] = subsets[i + (i >= rangeIdx)];
-        scalarvecs[i] = subvecs[i + (i >= rangeIdx)];
-      }
-    }
-    ierr = (*fn->ops->scalarderivativevec)(fn,x,der,scalarsubsets,scalarvecs,y);CHKERRQ(ierr);
-    ierr = VecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
-    ierr = VecScale(subvecs[der], z);CHKERRQ(ierr);
-    if (rangeIdx != 0) {
-      ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
-    }
-  }
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der; i++) {
     ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
   }
@@ -518,6 +652,7 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
 PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
 {
   PetscInt       i;
+  IS             rightIS, leftIS, rangeIS;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -527,23 +662,20 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
   PetscValidLogicalCollectiveInt(fn,der,3);
   PetscValidLogicalCollectiveInt(fn,rangeIdx,4);
   ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
-  if (der <= 0) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"derivative must be positive");
-  if (rangeIdx <= 0 || rangeIdx > der) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"range vector index %D not in range [0,%D]",rangeIdx,der);
+  if (der < 1) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"derivative must be positive");
+  if (rangeIdx < 0 || rangeIdx > der) SETERRQ2(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"range vector index %D not in range [0,%D]",rangeIdx,der);
+  rightIS = subsets ? subsets[der-1]    : NULL;
+  leftIS  = subsets ? subsets[der]      : NULL;
+  rangeIS = subsets ? subsets[rangeIdx] : NULL;
+  /* there are der+1 subsets, der-1 input vecs and 1 output mat */
 #if defined(PETSC_USE_DEBUG)
-  {
-    PetscInt nIS, nVec;
-    for (i = 0; i < der - 1; i++) {
-      IS       is = subsets ? subsets[i] : NULL;
-      Vec      vec = subvecs[i];
+  for (i = 0; i < der; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, (i == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);}
+  if (reuse == MAT_REUSE_MATRIX) {
+    PetscLayout    rightLayout = (der-1 == rangeIdx) ? fn->rmap : fn->dmap;
+    PetscLayout    leftLayout = (der == rangeIdx) ? fn->rmap : fn->dmap;
 
-      ierr = VecGetLocalSize(vec, &nVec);CHKERRQ(ierr);
-      if (is) {
-        ierr = ISGetLocalSize(is, &nIS);CHKERRQ(ierr);
-      } else {
-        nIS = (i == rangeIdx) ? fn->rmap->n : fn->dmap->n;
-      }
-      if (nVec != nIS) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "subvecs[%D] is not sized to match its subset", i);
-    }
+    if (M) {ierr = PetscFnMatCheckCompatible(*M, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+    if (Mpre) {ierr = PetscFnMatCheckCompatible(*Mpre, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
   }
 #endif
   if (!M && !Mpre) PetscFunctionReturn(0);
@@ -553,26 +685,39 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
   }
   if (fn->ops->derivativemat) {
     ierr = (*fn->ops->derivativemat)(fn,x,der,rangeIdx,subsets,subvecs,reuse,M,Mpre);CHKERRQ(ierr);
-  } else if (fn->isScalar && rangeIdx >= der - 1 && fn->ops->scalarderivativevec) {
-    IS          *scalarsubsets;
-    Vec         *scalarvecs;
+  } else if (fn->isScalar && rangeIdx >= der - 1 && fn->ops->derivativevec) {
+    IS          *subsets = NULL;
+    Vec         *newvecs = NULL;
+    Vec         onevec;
     Vec         grad;
     Mat         *mat = M ? M : Mpre;
     PetscBool   colVec = (der == rangeIdx) ? PETSC_FALSE: PETSC_TRUE;
 
-    if (rangeIdx == der) {
-      scalarsubsets = (IS *) subsets;
-      scalarvecs = (Vec *) subvecs;
-      ierr = PetscFnCreateVecs(fn, &grad, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, (der == rangeIdx) ? rightIS : leftIS, &grad, rangeIS, &onevec);CHKERRQ(ierr);
+    ierr = VecSet(onevec, 1.);CHKERRQ(ierr);
+    ierr = PetscFnVecsPushVec(der-1, subvecs, onevec, &newvecs);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativevec)(fn,x,der,rangeIdx,subsets,newvecs,grad);CHKERRQ(ierr);
+    if (reuse == MAT_INITIAL_MATRIX) {
+      ierr = MatCreateDenseVecs(PetscObjectComm((PetscObject)grad),1,&grad,colVec,mat);CHKERRQ(ierr);
     } else {
-      ierr = PetscMalloc2(der, &scalarsubsets, der, &scalarvecs);CHKERRQ(ierr);
-      for (i = 0; i < der - 1; i++) {
-        scalarsubsets[i] = subsets[i + (i >= rangeIdx)];
-        scalarvecs[i] = subvecs[i + (i >= rangeIdx)];
-      }
-      ierr = PetscFnCreateVecs(fn, &grad, NULL);CHKERRQ(ierr);
+      ierr = MatSetValuesVec(*mat, grad, 0, colVec, INSERT_VALUES);CHKERRQ(ierr);
     }
+    if (Mpre && Mpre != mat) {
+      ierr = MatDuplicateOrCopy(*mat, reuse, Mpre);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(newvecs);CHKERRQ(ierr);
+    ierr = VecDestroy(&onevec);CHKERRQ(ierr);
+    ierr = VecDestroy(&grad);CHKERRQ(ierr);
+  } else if (fn->isScalar && rangeIdx >= der - 1 && fn->ops->scalarderivativevec) {
+    /* for a scalar functional derivative to produce a vector, it must contract against der-1 vectors */
+    IS          *scalarsubsets = NULL;
+    Vec         *scalarvecs = NULL;
+    Vec         grad;
+    Mat         *mat = M ? M : Mpre;
+    PetscBool   colVec = (der == rangeIdx) ? PETSC_FALSE: PETSC_TRUE;
 
+    ierr = PetscFnGetISVecsWithoutRange(rangeIdx, der+1, subsets, der-1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, (der == rangeIdx) ? rightIS : leftIS, &grad, NULL, NULL);CHKERRQ(ierr);
     ierr = (*fn->ops->scalarderivativevec)(fn,x,der,scalarsubsets,scalarvecs,grad);CHKERRQ(ierr);
     if (reuse == MAT_INITIAL_MATRIX) {
       ierr = MatCreateDenseVecs(PetscObjectComm((PetscObject)grad),1,&grad,colVec,mat);CHKERRQ(ierr);
@@ -582,24 +727,15 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
     if (Mpre && Mpre != mat) {
       ierr = MatDuplicateOrCopy(*mat, reuse, Mpre);CHKERRQ(ierr);
     }
-    if (rangeIdx != der) {
-      ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
-    }
+    ierr = VecDestroy(&grad);CHKERRQ(ierr);
+    ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der-1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
   } else if (fn->isScalar && rangeIdx < der - 1 && fn->ops->scalarderivativemat) {
-    IS          *scalarsubsets;
-    Vec         *scalarvecs;
+    /* for a scalar functional derivative to produce a matrix, it must contract against der-2 vectors */
+    IS          *scalarsubsets = NULL;
+    Vec         *scalarvecs = NULL;
     PetscScalar z;
 
-    if (rangeIdx == 0) {
-      scalarsubsets = (IS *) &subsets[1];
-      scalarvecs = (Vec *) &subvecs[1];
-    } else {
-      ierr = PetscMalloc2(der, &scalarsubsets, der, &scalarvecs);CHKERRQ(ierr);
-      for (i = 0; i < der - 1; i++) {
-        scalarsubsets[i] = subsets[i + (i >= rangeIdx)];
-        scalarvecs[i] = subvecs[i + (i >= rangeIdx)];
-      }
-    }
+    ierr = PetscFnGetISVecsWithoutRange(rangeIdx, der+1, subsets, der-1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
     ierr = (*fn->ops->scalarderivativemat)(fn,x,der,scalarsubsets,scalarvecs,reuse,M,Mpre);CHKERRQ(ierr);
     ierr = VecScalarBcast(subvecs[rangeIdx], &z);CHKERRQ(ierr);
     if (M) {
@@ -608,14 +744,186 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
     if (Mpre && Mpre != M) {
       ierr = MatScale(*Mpre, z);CHKERRQ(ierr);
     }
-    if (rangeIdx != 0) {
-      ierr = PetscFree2(scalarsubsets, scalarvecs);CHKERRQ(ierr);
-    }
+    ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der-1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  for (i = 0; i < der-1; i++) {
+    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
   }
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+#if defined(PETSC_USE_DEBUG)
+  if (reuse == MAT_INITIAL_MATRIX) {
+    PetscLayout    rightLayout = (der-1 == rangeIdx) ? fn->rmap : fn->dmap;
+    PetscLayout    leftLayout = (der == rangeIdx) ? fn->rmap : fn->dmap;
+
+    if (M) {ierr = PetscFnMatCheckCompatible(*M, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+    if (Mpre) {ierr = PetscFnMatCheckCompatible(*Mpre, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+  }
+#endif
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], PetscScalar *z)
+{
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidLogicalCollectiveInt(fn,der,3);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  if (der < 0) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"derivative must be non-negative");
+  /* there are der subsets and der subvecs */
+#if defined(PETSC_USE_DEBUG)
+  for (i = 0; i < der; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, fn->dmap);CHKERRQ(ierr);}
+#endif
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  for (i = 0; i < der; i++) {
+    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+  }
+  if (fn->ops->scalarderivativescalar) {
+    ierr = (*fn->ops->scalarderivativescalar)(fn,x,der,subsets,subvecs,z);CHKERRQ(ierr);
+  } else if (fn->ops->derivativescalar) {
+    IS          *vecsubsets = NULL;
+    Vec         *vecsubvecs = NULL;
+    Vec         onevec;
+
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &onevec);CHKERRQ(ierr);
+    ierr = VecSet(onevec, 1.);CHKERRQ(ierr);
+    ierr = PetscFnISVecsPushISVec(der, subsets, der, subvecs, NULL, onevec, &vecsubsets, &vecsubvecs);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativescalar)(fn,x,der,der,vecsubsets,vecsubvecs,z);CHKERRQ(ierr);
+    ierr = PetscFree(vecsubvecs);CHKERRQ(ierr);
+    ierr = PetscFree(vecsubsets);CHKERRQ(ierr);
+    ierr = VecDestroy(&onevec);CHKERRQ(ierr);
+  } else if (der > 0 && fn->ops->scalarderivativevec) {
+    Vec         grad;
+
+    ierr = VecDuplicate(subvecs[der], &grad);CHKERRQ(ierr);
+    ierr = (*fn->ops->scalarderivativevec)(fn,x,der,subsets,subvecs,grad);CHKERRQ(ierr);
+    ierr = VecDot(subvecs[der], grad, z);CHKERRQ(ierr);
+    ierr = VecDestroy(&grad);CHKERRQ(ierr);
+  } else if (fn->ops->derivativevec) {
+    IS          *vecsubsets = NULL;
+    Vec         grad;
+
+    ierr = PetscFnCreateVecs(fn, NULL, &grad, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscFnISsPushIS(der, subsets, NULL, &vecsubsets);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativevec)(fn,x,der,der,vecsubsets,subvecs,grad);CHKERRQ(ierr);
+    ierr = VecScalarBcast(grad, z);CHKERRQ(ierr);
+    ierr = PetscFree(vecsubsets);CHKERRQ(ierr);
+    ierr = VecDestroy(&grad);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der; i++) {
     ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
   }
   ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], Vec y)
+{
+  PetscInt       i;
+  IS             yIS;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidLogicalCollectiveInt(fn,der,3);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  if (der < 1) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE,"derivative must be non-negative");
+  yIS = subsets ? subsets[der-1] : NULL;
+  /* there are der subsets, der-1 input vecs and 1 output vec */
+#if defined(PETSC_USE_DEBUG)
+  for (i = 0; i < der-1; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, fn->dmap);CHKERRQ(ierr);}
+  ierr = PetscFnVecCheckCompatible(y, yIS, fn->dmap);CHKERRQ(ierr);
+#endif
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  for (i = 0; i < der-1; i++) {
+    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+  }
+  if (fn->ops->scalarderivativevec) {
+    ierr = (*fn->ops->scalarderivativevec)(fn,x,der,subsets,subvecs,y);CHKERRQ(ierr);
+  } else if (fn->ops->derivativevec) {
+    IS          *vecsubsets = NULL;
+    Vec         *vecsubvecs = NULL;
+    Vec         onevec;
+
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &onevec);CHKERRQ(ierr);
+    ierr = VecSet(onevec, 1.);CHKERRQ(ierr);
+    ierr = PetscFnISVecsPushFrontISVec(der, subsets, der-1, subvecs, NULL, onevec, &vecsubsets, &vecsubvecs);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativevec)(fn,x,der,0,vecsubsets,vecsubvecs,y);CHKERRQ(ierr);
+    ierr = PetscFree(vecsubvecs);CHKERRQ(ierr);
+    ierr = PetscFree(vecsubsets);CHKERRQ(ierr);
+    ierr = VecDestroy(&onevec);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  for (i = 0; i < der; i++) {
+    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+  }
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
+{
+  PetscInt       i;
+  IS             rightIS, leftIS;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(fn,PETSCFN_CLASSID,1);
+  PetscValidType(fn,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidLogicalCollectiveInt(fn,der,3);
+  ierr = PetscFnSetUp(fn);CHKERRQ(ierr);
+  if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
+  rightIS = subsets ? subsets[der-2] : NULL;
+  leftIS  = subsets ? subsets[der-1] : NULL;
+  /* there are der subsets, der-2 input vecs and 1 output mat */
+#if defined(PETSC_USE_DEBUG)
+  for (i = 0; i < der-2; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, fn->dmap);CHKERRQ(ierr);}
+  if (reuse == MAT_REUSE_MATRIX) {
+    PetscLayout    rightLayout = fn->dmap;
+    PetscLayout    leftLayout = fn->dmap;
+
+    if (M) {ierr = PetscFnMatCheckCompatible(*M, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+    if (Mpre) {ierr = PetscFnMatCheckCompatible(*Mpre, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+  }
+#endif
+  if (!M && !Mpre) PetscFunctionReturn(0);
+  ierr = VecLockPush(x);CHKERRQ(ierr);
+  for (i = 0; i < der - 2; i++) {
+    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+  }
+  if (fn->ops->scalarderivativemat) {
+    ierr = (*fn->ops->scalarderivativemat)(fn,x,der,subsets,subvecs,reuse,M,Mpre);CHKERRQ(ierr);
+  } else if (fn->ops->derivativemat) {
+    IS          *vecsubsets = NULL;
+    Vec         *vecsubvecs = NULL;
+    Vec         onevec;
+
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &onevec);CHKERRQ(ierr);
+    ierr = VecSet(onevec, 1.);CHKERRQ(ierr);
+    ierr = PetscFnISVecsPushFrontISVec(der, subsets, der-2, subvecs, NULL, onevec, &vecsubsets, &vecsubvecs);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativemat)(fn,x,der,0,vecsubsets,vecsubvecs,reuse,M,Mpre);CHKERRQ(ierr);
+  } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
+  for (i = 0; i < der-1; i++) {
+    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+  }
+  ierr = VecLockPop(x);CHKERRQ(ierr);
+#if defined(PETSC_USE_DEBUG)
+  if (reuse == MAT_INITIAL_MATRIX) {
+    PetscLayout    rightLayout = fn->dmap;
+    PetscLayout    leftLayout = fn->dmap;
+
+    if (M) {ierr = PetscFnMatCheckCompatible(*M, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+    if (Mpre) {ierr = PetscFnMatCheckCompatible(*Mpre, rightIS, leftIS, rightLayout, leftLayout);CHKERRQ(ierr);}
+  }
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -1012,11 +1320,27 @@ PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
   ierr = VecLockPush(x);CHKERRQ(ierr);
   if (fn->ops->scalarapply) {
     ierr = (*fn->ops->scalarapply)(fn,x,z);CHKERRQ(ierr);
+  } else if (fn->ops->scalarderivativescalar) {
+    ierr = (*fn->ops->scalarderivativescalar)(fn,x,0,NULL,NULL,z);CHKERRQ(ierr);
   } else if (fn->ops->apply) {
     Vec y;
 
-    ierr = PetscFnCreateVecs(fn, &y, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &y);CHKERRQ(ierr);
     ierr = (*fn->ops->apply)(fn,x,y);CHKERRQ(ierr);
+    ierr = VecScalarBcast(y,z);CHKERRQ(ierr);
+    ierr = VecDestroy(&y);CHKERRQ(ierr);
+  } else if (fn->ops->derivativescalar) {
+    Vec y;
+
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &y);CHKERRQ(ierr);
+    ierr = VecSet(y, 1.);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativescalar)(fn,x,0,0,NULL,&y,z);CHKERRQ(ierr);
+    ierr = VecDestroy(&y);CHKERRQ(ierr);
+  } else if (fn->ops->derivativevec) {
+    Vec y;
+
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &y);CHKERRQ(ierr);
+    ierr = (*fn->ops->derivativevec)(fn,x,0,0,NULL,NULL,y);CHKERRQ(ierr);
     ierr = VecScalarBcast(y,z);CHKERRQ(ierr);
     ierr = VecDestroy(&y);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
@@ -1089,7 +1413,7 @@ PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
   } else if (fn->ops->hessianmultadjoint) {
     Vec v;
 
-    ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &v);CHKERRQ(ierr);
     ierr = VecSet(v, 1.);CHKERRQ(ierr);
     ierr = (*fn->ops->hessianmultadjoint)(fn,x,v,xhat,Hxhat);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
@@ -1124,7 +1448,7 @@ PetscErrorCode PetscFnScalarHessianBuild(PetscFn fn, Vec x, MatReuse reuse, Mat 
   } else if (fn->ops->hessianbuildadjoint) {
     Vec v;
 
-    ierr = PetscFnCreateVecs(fn, &v, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &v);CHKERRQ(ierr);
     ierr = VecSet(v, 1.);CHKERRQ(ierr);
     ierr = (*fn->ops->hessianbuildadjoint)(fn,x,v,reuse,H,Hpre);CHKERRQ(ierr);
     ierr = VecDestroy(&v);CHKERRQ(ierr);
@@ -1214,18 +1538,18 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
     }
   }
   if (!x) {
-    ierr = PetscFnCreateVecs(fn, NULL, &x);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &x, NULL, NULL);CHKERRQ(ierr);
     ierr = VecSetRandom(x, rand);CHKERRQ(ierr);
   }
   if (!xhat) {
-    ierr = PetscFnCreateVecs(fn, NULL, &xhat);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &xhat, NULL, NULL);CHKERRQ(ierr);
     ierr = VecSetRandom(xhat, rand);CHKERRQ(ierr);
   }
   if (!dot) {
     if (op == PETSCFNOP_JACOBIANMULTADJOINT || op == PETSCFNOP_HESSIANMULTADJOINT) {
-      ierr = PetscFnCreateVecs(fn, &dot, NULL);CHKERRQ(ierr);
+      ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &dot);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnCreateVecs(fn, NULL, &dot);CHKERRQ(ierr);
+      ierr = PetscFnCreateVecs(fn, NULL, &dot, NULL, NULL);CHKERRQ(ierr);
     }
     ierr = VecSetRandom(dot, rand);CHKERRQ(ierr);
   }
@@ -1235,7 +1559,7 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
   }
   switch (op) {
   case PETSCFNOP_JACOBIANMULT:
-    ierr = PetscFnCreateVecs(fn, &f0, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &f0);CHKERRQ(ierr);
     ierr = PetscFnApply(fn, x, f0);CHKERRQ(ierr);
     ierr = VecDuplicate(f0, &der);CHKERRQ(ierr);
     ierr = PetscFnJacobianMult(fn, x, xhat, der);CHKERRQ(ierr);
@@ -1253,7 +1577,7 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
     ierr = VecDestroy(&f0);CHKERRQ(ierr);
     break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
-    ierr = PetscFnCreateVecs(fn, &f0, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &f0);CHKERRQ(ierr);
     ierr = PetscFnApply(fn, x, f0);CHKERRQ(ierr);
     ierr = VecDuplicate(x, &der);CHKERRQ(ierr);
     ierr = VecDot(dot, f0, &r0);CHKERRQ(ierr);
@@ -1271,7 +1595,7 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
     ierr = VecDestroy(&f0);CHKERRQ(ierr);
     break;
   case PETSCFNOP_HESSIANMULT:
-    ierr = PetscFnCreateVecs(fn, &f0, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &f0);CHKERRQ(ierr);
     ierr = PetscFnJacobianMult(fn, x, dot, f0);CHKERRQ(ierr);
     ierr = VecDuplicate(f0, &der);CHKERRQ(ierr);
     ierr = PetscFnHessianMult(fn, x, dot, xhat, der);CHKERRQ(ierr);
@@ -1289,7 +1613,7 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
     ierr = VecDestroy(&f0);CHKERRQ(ierr);
     break;
   case PETSCFNOP_HESSIANMULTADJOINT:
-    ierr = PetscFnCreateVecs(fn, NULL, &f0);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &f0, NULL, NULL);CHKERRQ(ierr);
     ierr = PetscFnJacobianMultAdjoint(fn, x, dot, f0);CHKERRQ(ierr);
     ierr = VecDuplicate(f0, &der);CHKERRQ(ierr);
     ierr = PetscFnHessianMultAdjoint(fn, x, dot, xhat, der);CHKERRQ(ierr);
@@ -1307,7 +1631,7 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
     ierr = VecDestroy(&f0);CHKERRQ(ierr);
     break;
   case PETSCFNOP_SCALARGRADIENT:
-    ierr = PetscFnCreateVecs(fn, NULL, &der);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &der, NULL, NULL);CHKERRQ(ierr);
     ierr = PetscFnScalarGradient(fn,x,der);CHKERRQ(ierr);
     ierr = PetscFnScalarApply(fn,x,&r0);CHKERRQ(ierr);
     ierr = VecDot(der,xhat,&rder);CHKERRQ(ierr);
@@ -1319,7 +1643,7 @@ PetscErrorCode PetscFnTestDerivativeMult(PetscFn fn, PetscFnOperation op, Vec x,
     ierr = VecDestroy(&der);CHKERRQ(ierr);
     break;
   case PETSCFNOP_SCALARHESSIANMULT:
-    ierr = PetscFnCreateVecs(fn, NULL, &f0);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &f0, NULL, NULL);CHKERRQ(ierr);
     ierr = PetscFnScalarGradient(fn,x,f0);CHKERRQ(ierr);
     ierr = VecDuplicate(f0, &der);CHKERRQ(ierr);
     ierr = PetscFnScalarHessianMult(fn,x,xhat,der);CHKERRQ(ierr);
@@ -1386,19 +1710,19 @@ PetscErrorCode PetscFnTestDerivativeBuild(PetscFn fn, PetscFnOperation op, Mat M
   }
   if (!var) {
     if (op == PETSCFNOP_JACOBIANBUILDADJOINT || op == PETSCFNOP_HESSIANBUILDSWAP) {
-      ierr = PetscFnCreateVecs(fn, &var, NULL);CHKERRQ(ierr);
+      ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &var);CHKERRQ(ierr);
     }
     else {
-      ierr = PetscFnCreateVecs(fn, NULL, &var);CHKERRQ(ierr);
+      ierr = PetscFnCreateVecs(fn, NULL, &var, NULL, NULL);CHKERRQ(ierr);
     }
     ierr = VecSetRandom(var, rand);CHKERRQ(ierr);
   }
   if (op == PETSCFNOP_JACOBIANBUILD || op == PETSCFNOP_HESSIANBUILD) {
-    ierr = PetscFnCreateVecs(fn, &b, NULL);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn, &c, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &b);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &c);CHKERRQ(ierr);
   } else {
-    ierr = PetscFnCreateVecs(fn, NULL, &b);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn, NULL, &c);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &b, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &c, NULL, NULL);CHKERRQ(ierr);
   }
   ierr = MatMult(M, var, b);CHKERRQ(ierr);
   switch (op) {
@@ -1476,8 +1800,8 @@ PetscErrorCode PetscFnTestDerivativeFn(PetscFn fn, PetscFn df, PetscFnOperation 
     SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "%s cannot be called on this PetscFnOperation", PETSC_FUNCTION_NAME);
   }
   if (numDots < maxDots - 1 || numDots > maxDots) SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "This operation contracts with at most %D vectors: %D given", maxDots, numDots);
-  ierr = PetscFnCreateVecs(fn, &fnOutRange, &fnOutDomain);CHKERRQ(ierr);
-  ierr = PetscFnCreateVecs(df, &dfOut, NULL);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, &fnOutDomain, NULL, &fnOutRange);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(df, NULL, NULL, NULL, &dfOut);CHKERRQ(ierr);
   if (numDots == maxDots) {
     ierr = PetscFnScalarApply(df, x, &dfz);CHKERRQ(ierr);
   } else {
@@ -1583,13 +1907,13 @@ static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, Vec *rangeVec,
   ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
   origFn = derShell->origFn;
   if (domainVec) {
-    ierr = PetscFnCreateVecs(origFn, NULL, domainVec);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(origFn, NULL, domainVec, NULL, NULL);CHKERRQ(ierr);
   }
   if (!rangeVec) PetscFunctionReturn(0);
   if (fn->rmap == origFn->rmap) {
-    ierr = PetscFnCreateVecs(origFn, rangeVec, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(origFn, NULL, NULL, NULL, rangeVec);CHKERRQ(ierr);
   } else if (fn->rmap == origFn->dmap) {
-    ierr = PetscFnCreateVecs(origFn, NULL, rangeVec);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(origFn, NULL, rangeVec, NULL, NULL);CHKERRQ(ierr);
   } else {
     ierr = VecCreate(PetscObjectComm((PetscObject)fn), rangeVec);CHKERRQ(ierr);
     ierr = VecSetLayout(*rangeVec, fn->rmap);CHKERRQ(ierr);

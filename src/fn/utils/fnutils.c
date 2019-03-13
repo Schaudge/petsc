@@ -1,6 +1,7 @@
 
 #include <petsc/private/vecimpl.h>       /*I "petscvec.h" I*/
 #include <petsc/private/matimpl.h>       /*I "petscmat.h" I*/
+#include <petsc/private/fnimpl.h>        /*I "petscfn.h" I*/
 
 PetscErrorCode MatDuplicateOrCopy(Mat orig, MatReuse reuse, Mat *dup)
 {
@@ -35,5 +36,48 @@ PetscErrorCode VecScalarBcast(Vec v, PetscScalar *zp)
   ierr = VecRestoreArrayRead(v, &zv);CHKERRQ(ierr);
   ierr = MPI_Bcast(&z, 1, MPIU_REAL, broot, comm);CHKERRQ(ierr);
   *zp  = z;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnVecsGetSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt rangeIdx, const IS subsets[], const Vec subvecs [], Vec outsubvec, const Vec *supervecs[], Vec *outsupervec)
+{
+  PetscInt       i;
+  Vec            *newvecs;
+  PetscBool      anySubset;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeader(fn,PETSCFN_CLASSID,1);
+  anySubset = PETSC_TRUE;
+  if (!subsets) {
+    anySubset = PETSC_FALSE;
+  } else {
+    for (i = 0; i < numVecs; i++) {
+      if (subsets[i]) break;
+    }
+    if (i < numVecs) {
+      anySubset = PETSC_FALSE;
+    } else {
+      if (outsubvec && subsets[numVecs]) {
+        anySubset = PETSC_TRUE;
+      }
+    }
+  }
+  if (!anySubset) {
+    *supervecs = subvecs;
+    PetscFunctionReturn(0);
+  }
+  ierr = PetscMalloc1(numVecs, &newvecs);CHKERRQ(ierr);
+  for (i = 0; i < numVecs; i++) {
+    if (subsets[i]) {
+      Vec newvec;
+
+      if (i == rangeIdx) {
+        ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &newvec);CHKERRQ(ierr);
+      } else {
+        ierr = PetscFnCreateVecs(fn, NULL, &newvec, NULL, NULL);CHKERRQ(ierr);
+      }
+    }
+  }
   PetscFunctionReturn(0);
 }

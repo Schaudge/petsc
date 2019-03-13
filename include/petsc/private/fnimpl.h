@@ -15,7 +15,7 @@ PETSC_EXTERN PetscErrorCode PetscFnRegisterAll(void);
 
 typedef struct _FnOps *FnOps;
 struct _FnOps {
-  PetscErrorCode (*createvecs)(PetscFn,Vec*,Vec*);
+  PetscErrorCode (*createvecs)(PetscFn,IS,Vec*,IS,Vec*);
   PetscErrorCode (*apply)(PetscFn,Vec,Vec);
   PetscErrorCode (*jacobianmult)(PetscFn,Vec,Vec,Vec);
   PetscErrorCode (*jacobianmultadjoint)(PetscFn,Vec,Vec,Vec);

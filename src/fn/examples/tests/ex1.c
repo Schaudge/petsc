@@ -15,7 +15,7 @@ static PetscErrorCode PetscFnDestroy_Scalar(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnCreateVecs_Scalar(PetscFn fn, Vec *rangeVec, Vec *domainVec)
+static PetscErrorCode PetscFnCreateVecs_Scalar(PetscFn fn, IS domainIS, Vec *domainVec, IS rangeIS, Vec *rangeIS)
 {
   PetscInt       m, M, n, N;
   PetscErrorCode ierr;
@@ -25,11 +25,19 @@ static PetscErrorCode PetscFnCreateVecs_Scalar(PetscFn fn, Vec *rangeVec, Vec *d
   if (rangeVec) {
     ierr = VecCreate(PetscObjectComm((PetscObject) fn), rangeVec);CHKERRQ(ierr);
     ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
+    if (rangeIS) {
+      ierr = ISGetLocalSize(rangeIS, &m);CHKERRQ(ierr);
+      ierr = ISGetSize(rangeIS, &M);CHKERRQ(ierr);
+    }
     ierr = VecSetSizes(*rangeVec, m, M);CHKERRQ(ierr);
   }
   if (domainVec) {
     ierr = VecCreate(PetscObjectComm((PetscObject) fn), domainVec);CHKERRQ(ierr);
     ierr = VecSetType(*domainVec, VECSTANDARD);CHKERRQ(ierr);
+    if (domainIS) {
+      ierr = ISGetLocalSize(domainIS, &n);CHKERRQ(ierr);
+      ierr = ISGetSize(domainIS, &N);CHKERRQ(ierr);
+    }
     ierr = VecSetSizes(*domainVec, n, N);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -447,7 +455,7 @@ static PetscErrorCode PetscFnJacobianBuild_Vector(PetscFn fn, Vec x, MatReuse re
   PetscFunctionBegin;
   if (!jac) PetscFunctionReturn(0);
   ierr = PetscFnShellGetContext(fn, (void *) &A);CHKERRQ(ierr);
-  ierr = PetscFnCreateVecs(fn, &gx, NULL);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &gx);CHKERRQ(ierr);
   ierr = PetscFnApply_Vector_Internal(fn, x, gx);CHKERRQ(ierr);
   ierr = VecReciprocal(gx);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &expx);CHKERRQ(ierr);
@@ -578,7 +586,7 @@ static PetscErrorCode PetscFnHessianBuild_Vector(PetscFn fn, Vec x, Vec xhat, Ma
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnCreateVecs(fn, &Jxhat, NULL);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &Jxhat);CHKERRQ(ierr);
   ierr = PetscFnJacobianBuild(fn, x, reuse, hes, NULL);CHKERRQ(ierr);
   ierr = MatDuplicate(*hes, MAT_COPY_VALUES, &hescopy);CHKERRQ(ierr);
   ierr = PetscFnJacobianMult(fn, x, xhat, Jxhat);CHKERRQ(ierr);
@@ -663,17 +671,17 @@ static PetscErrorCode TestBasicOps(PetscFn fn, PetscInt order, PetscRandom rand,
 
   ierr = PetscFnIsScalar(fn, &isScalar);CHKERRQ(ierr);
 
-  ierr = PetscFnCreateVecs(fn,&f,&x);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, &x, NULL, &f);CHKERRQ(ierr);
   ierr = VecSetRandom(x, rand);CHKERRQ(ierr);
 
   ierr = PetscFnApply(fn, x, f);CHKERRQ(ierr);
   if (isScalar) {ierr = PetscFnScalarApply(fn, x, &z);CHKERRQ(ierr);}
 
   if (order > 0) {
-    ierr = PetscFnCreateVecs(fn,&Jxhat,&xhat);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn,&v,&Jadjv);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn,NULL,&xdot);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn,NULL,&g);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &xhat, NULL, &Jxhat);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &Jadjv,NULL, &v);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &xdot, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn, NULL, &g, NULL, NULL);CHKERRQ(ierr);
 
     ierr = VecSetRandom(xhat, rand);CHKERRQ(ierr);
     ierr = VecSetRandom(xdot, rand);CHKERRQ(ierr);
@@ -698,8 +706,8 @@ static PetscErrorCode TestBasicOps(PetscFn fn, PetscInt order, PetscRandom rand,
     ierr = VecDestroy(&Jxhat);CHKERRQ(ierr);
   }
   if (order > 1) {
-    ierr = PetscFnCreateVecs(fn,&Hxhatxdot,&Hadjvxhat);CHKERRQ(ierr);
-    ierr = PetscFnCreateVecs(fn,NULL,&Hxhat);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn,NULL,&Hadjvxhat,NULL,&Hxhatxdot);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(fn,NULL,&Hxhat,NULL,NULL);CHKERRQ(ierr);
 
     ierr = PetscFnHessianMult(fn, x, xhat, xdot, Hxhatxdot);CHKERRQ(ierr);
     ierr = PetscFnHessianMultAdjoint(fn, x, v, xhat, Hadjvxhat);CHKERRQ(ierr);
@@ -743,7 +751,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnCreateVecs(fn, &v, &x);CHKERRQ(ierr);
+  ierr = PetscFnCreateVecs(fn, NULL, &x, NULL, &v);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &xhat);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &xdot);CHKERRQ(ierr);
 

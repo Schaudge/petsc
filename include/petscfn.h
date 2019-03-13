@@ -79,13 +79,15 @@ typedef enum { PETSCFNOP_CREATEVECS,
                PETSCFNOP_CREATEDERIVATIVEFN,
                PETSCFNOP_DESTROY,
                PETSCFNOP_VIEW,
-               PETSCFNOP_DERIVATIVEMULT,
-               PETSCFNOP_DERIVATIVEBUILD,
-               PETSCFNOP_SCALARDERIVATIVEMULT,
-               PETSCFNOP_SCALARDERIVATIVEBUILD,
+               PETSCFNOP_DERIVATIVESCALAR,
+               PETSCFNOP_DERIVATIVEVEC,
+               PETSCFNOP_DERIVATIVEMAT,
+               PETSCFNOP_SCALARDERIVATIVESCALAR,
+               PETSCFNOP_SCALARDERIVATIVEVEC,
+               PETSCFNOP_SCALARDERIVATIVEMAT,
              } PetscFnOperation;
 
-PETSC_EXTERN PetscErrorCode PetscFnCreateVecs(PetscFn,Vec*,Vec*);
+PETSC_EXTERN PetscErrorCode PetscFnCreateVecs(PetscFn,IS,Vec*,IS,Vec*);
 
 /* core, user friendly interface */
 PETSC_EXTERN PetscErrorCode PetscFnApply(PetscFn,Vec,Vec);
@@ -102,8 +104,6 @@ PETSC_EXTERN PetscErrorCode PetscFnHessianBuildSwap(PetscFn,Vec,Vec,MatReuse,Mat
 PETSC_EXTERN PetscErrorCode PetscFnDerivativeScalar(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], PetscScalar *);
 PETSC_EXTERN PetscErrorCode PetscFnDerivativeVec(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], Vec);
 PETSC_EXTERN PetscErrorCode PetscFnDerivativeMat(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
-PETSC_EXTERN PetscErrorCode PetscFnDerivativeMult(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[]);
-PETSC_EXTERN PetscErrorCode PetscFnDerivativeBuild(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
 
 /* core, allows an objective function to be a PetscFn.  If a PetscFn is
  * scalar, the vector routines will wrap scalar quantities in vectors of
@@ -117,9 +117,8 @@ PETSC_EXTERN PetscErrorCode PetscFnScalarHessianMult(PetscFn,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnScalarHessianBuild(PetscFn,Vec,MatReuse,Mat*,Mat*);
 /* generic interface allowing for index sets on the variations */
 PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn,Vec,PetscInt,const IS[], const Vec[], PetscScalar *);
-PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeMult(PetscFn,Vec,PetscInt,const IS[], const Vec[]);
-PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeVec(PetscFn,Vec,PetscInt,const IS[], const Vec[]);
-PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeBuild(PetscFn,Vec,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeVec(PetscFn,Vec,PetscInt,const IS[], const Vec[], Vec);
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeMat(PetscFn,Vec,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
 
 /* field split ideas */
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFns(PetscFn,Vec,PetscInt,const IS[],const IS[],PetscFn *[]);

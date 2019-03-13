@@ -47,8 +47,6 @@ static PetscErrorCode PetscFnShellRegisterAll(void)
 
 static PetscErrorCode PetscFnShellInitializePackage(void)
 {
-  char           logList[256];
-  PetscBool      opt,pkg;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -131,7 +129,7 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
 
   switch (op) {
   case PETSCFNOP_CREATEVECS:
-    fn->ops->createvecs = (PetscErrorCode (*) (PetscFn,Vec*,Vec*)) f;
+    fn->ops->createvecs = (PetscErrorCode (*) (PetscFn,IS,Vec*,IS,Vec*)) f;
     break;
   case PETSCFNOP_APPLY:
     fn->ops->apply = (PetscErrorCode (*) (PetscFn,Vec,Vec)) f;
@@ -192,6 +190,24 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
     break;
   case PETSCFNOP_VIEW:
     fn->ops->view = (PetscErrorCode (*) (PetscFn, PetscViewer)) f;
+    break;
+  case PETSCFNOP_DERIVATIVESCALAR:
+    fn->ops->derivativescalar = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],PetscScalar *)) f;
+    break;
+  case PETSCFNOP_DERIVATIVEVEC:
+    fn->ops->derivativevec = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],Vec)) f;
+    break;
+  case PETSCFNOP_DERIVATIVEMAT:
+    fn->ops->derivativemat = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],MatReuse,Mat*,Mat*)) f;
+    break;
+  case PETSCFNOP_SCALARDERIVATIVESCALAR:
+    fn->ops->scalarderivativescalar = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,const IS[],const Vec[],PetscScalar *)) f;
+    break;
+  case PETSCFNOP_SCALARDERIVATIVEVEC:
+    fn->ops->scalarderivativevec = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,const IS[],const Vec[],Vec)) f;
+    break;
+  case PETSCFNOP_SCALARDERIVATIVEMAT:
+    fn->ops->scalarderivativemat = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,const IS[],const Vec[],MatReuse,Mat*,Mat*)) f;
     break;
   }
   PetscFunctionReturn(0);
@@ -268,6 +284,24 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
     break;
   case PETSCFNOP_VIEW:
     *f = (void (*)(void)) fn->ops->view;
+    break;
+  case PETSCFNOP_DERIVATIVESCALAR:
+    *f = (void (*)(void)) fn->ops->derivativescalar;
+    break;
+  case PETSCFNOP_DERIVATIVEVEC:
+    *f = (void (*)(void)) fn->ops->derivativevec;
+    break;
+  case PETSCFNOP_DERIVATIVEMAT:
+    *f = (void (*)(void)) fn->ops->derivativemat;
+    break;
+  case PETSCFNOP_SCALARDERIVATIVESCALAR:
+    *f = (void (*)(void)) fn->ops->scalarderivativescalar;
+    break;
+  case PETSCFNOP_SCALARDERIVATIVEVEC:
+    *f = (void (*)(void)) fn->ops->scalarderivativevec;
+    break;
+  case PETSCFNOP_SCALARDERIVATIVEMAT:
+    *f = (void (*)(void)) fn->ops->scalarderivativemat;
     break;
   }
   PetscFunctionReturn(0);
