@@ -337,6 +337,83 @@ static PetscErrorCode PetscFnHessianBuildSwap_Scalar(PetscFn fn, Vec x, Vec xhat
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnScalarDerivativeScalar_Scalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], PetscScalar *z)
+{
+  const Vec      *supervecs;
+  Vec            outvec;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  switch (der) {
+  case 0:
+    ierr = PetscFnScalarApply_Scalar(fn, x, z);CHKERRQ(ierr);
+    break;
+  case 1:
+    ierr = VecDuplicate(supervecs[0], &outvec);CHKERRQ(ierr);
+    ierr = PetscFnScalarGradient_Scalar(fn, x, outvec);CHKERRQ(ierr);
+    ierr = VecDot(outvec, supervecs[0], z);CHKERRQ(ierr);
+    ierr = VecDestroy(&outvec);CHKERRQ(ierr);
+    break;
+  case 2:
+    ierr = VecDuplicate(supervecs[1], &outvec);CHKERRQ(ierr);
+    ierr = PetscFnScalarHessianMult_Scalar(fn, x, supervecs[0], outvec);CHKERRQ(ierr);
+    ierr = VecDot(outvec, supervecs[0], z);CHKERRQ(ierr);
+    ierr = VecDestroy(&outvec);CHKERRQ(ierr);
+    break;
+  default:
+    ierr = PetscFnRestoreSuperVectors(fn, der, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+    SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE, "Higher derivatives not supported");
+  }
+  ierr = PetscFnRestoreSuperVectors(fn, der, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarDerivativeVec_Scalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], Vec y)
+{
+  const Vec      *supervecs;
+  Vec            supery;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der-1, PETSC_DEFAULT, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  switch (der) {
+  case 1:
+    ierr = PetscFnScalarGradient_Scalar(fn, x, supery);CHKERRQ(ierr);
+    break;
+  case 2:
+    ierr = PetscFnScalarHessianMult_Scalar(fn, x, supervecs[0], supery);CHKERRQ(ierr);
+    break;
+  default:
+    ierr = PetscFnRestoreSuperVectors(fn, der-1, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+    SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE, "Higher derivatives not supported");
+  }
+  ierr = PetscFnRestoreSuperVectors(fn, der-1, PETSC_DEFAULT, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnScalarDerivativeMat_Scalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
+{
+  const Vec      *supervecs;
+  Mat            *superM, *superMpre;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, der, subsets, reuse, M, Mpre, superM, superMpre);CHKERRQ(ierr);
+  switch (der) {
+  case 2:
+    ierr = PetscFnScalarHessianBuild_Scalar(fn, x, supervecs[0], supery);CHKERRQ(ierr);
+    break;
+  default:
+    ierr = PetscFnRestoreSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+    SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE, "Higher derivatives not supported");
+  }
+  ierr = PetscFnRestoreSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, M, Mpre, superM, superMpre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /* Vector example f(x) = log. ( A* exp.(x)) */
 
 static PetscErrorCode PetscFnDestroy_Vector(PetscFn fn)

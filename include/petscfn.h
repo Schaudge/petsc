@@ -126,6 +126,9 @@ PETSC_EXTERN PetscErrorCode PetscFnDestroySubFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnDestroyFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFn(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
 
+PETSC_EXTERN PetscErrorCode PetscFnVecsGetSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
+PETSC_EXTERN PetscErrorCode PetscFnVecsRestoreSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
+
 PETSC_EXTERN const char *PetscFnOperations[];
 
 /* derivatives are functions too */
