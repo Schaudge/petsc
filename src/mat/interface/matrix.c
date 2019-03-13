@@ -8026,6 +8026,7 @@ M*/
     the input matrix.
 
     If iscol is NULL then all columns are obtained (not supported in Fortran).
+    If isrow is NULL then all local rows are obtained (not supported in Fortran).
 
    Example usage:
    Consider the following 8x8 matrix with 34 non-zero values, that is
@@ -8068,11 +8069,11 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
   PetscErrorCode ierr;
   PetscMPIInt    size;
   Mat            *local;
-  IS             iscoltmp;
+  IS             iscoltmp, isrowtmp;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
-  PetscValidHeaderSpecific(isrow,IS_CLASSID,2);
+  if (isrow) PetscValidHeaderSpecific(isrow,IS_CLASSID,2);
   if (iscol) PetscValidHeaderSpecific(iscol,IS_CLASSID,3);
   PetscValidPointer(newmat,5);
   if (cll == MAT_REUSE_MATRIX) PetscValidHeaderSpecific(*newmat,MAT_CLASSID,5);
@@ -8086,16 +8087,20 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
   if (!iscol || isrow == iscol) {
     PetscBool   stride;
     PetscMPIInt grabentirematrix = 0,grab;
-    ierr = PetscObjectTypeCompare((PetscObject)isrow,ISSTRIDE,&stride);CHKERRQ(ierr);
-    if (stride) {
-      PetscInt first,step,n,rstart,rend;
-      ierr = ISStrideGetInfo(isrow,&first,&step);CHKERRQ(ierr);
-      if (step == 1) {
-        ierr = MatGetOwnershipRange(mat,&rstart,&rend);CHKERRQ(ierr);
-        if (rstart == first) {
-          ierr = ISGetLocalSize(isrow,&n);CHKERRQ(ierr);
-          if (n == rend-rstart) {
-            grabentirematrix = 1;
+    if (!isrow) {
+      grabentirematrix = 1;
+    } else {
+      ierr = PetscObjectTypeCompare((PetscObject)isrow,ISSTRIDE,&stride);CHKERRQ(ierr);
+      if (stride) {
+        PetscInt first,step,n,rstart,rend;
+        ierr = ISStrideGetInfo(isrow,&first,&step);CHKERRQ(ierr);
+        if (step == 1) {
+          ierr = MatGetOwnershipRange(mat,&rstart,&rend);CHKERRQ(ierr);
+          if (rstart == first) {
+            ierr = ISGetLocalSize(isrow,&n);CHKERRQ(ierr);
+            if (n == rend-rstart) {
+              grabentirematrix = 1;
+            }
           }
         }
       }
@@ -8116,13 +8121,17 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
   } else {
     iscoltmp = iscol;
   }
+  if (!isrow) {
+    ierr = ISCreateStride(PetscObjectComm((PetscObject)mat),mat->rmap->n,mat->rmap->rstart,1,&isrowtmp);CHKERRQ(ierr);
+  } else {
+    isrowtmp = isrow;
+  }
 
   /* if original matrix is on just one processor then use submatrix generated */
   if (mat->ops->createsubmatrices && !mat->ops->createsubmatrix && size == 1 && cll == MAT_REUSE_MATRIX) {
-    ierr = MatCreateSubMatrices(mat,1,&isrow,&iscoltmp,MAT_REUSE_MATRIX,&newmat);CHKERRQ(ierr);
-    goto setproperties;
+    ierr = MatCreateSubMatrices(mat,1,&isrowtmp,&iscoltmp,MAT_REUSE_MATRIX,&newmat);CHKERRQ(ierr);
   } else if (mat->ops->createsubmatrices && !mat->ops->createsubmatrix && size == 1) {
-    ierr    = MatCreateSubMatrices(mat,1,&isrow,&iscoltmp,MAT_INITIAL_MATRIX,&local);CHKERRQ(ierr);
+    ierr    = MatCreateSubMatrices(mat,1,&isrowtmp,&iscoltmp,MAT_INITIAL_MATRIX,&local);CHKERRQ(ierr);
     *newmat = *local;
     ierr    = PetscFree(local);CHKERRQ(ierr);
     goto setproperties;
@@ -8131,10 +8140,10 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
     ierr = PetscLogEventBegin(MAT_CreateSubMat,mat,0,0,0);CHKERRQ(ierr);
     switch (cll) {
     case MAT_INITIAL_MATRIX:
-      ierr = MatCreateSubMatrixVirtual(mat,isrow,iscoltmp,newmat);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrixVirtual(mat,isrowtmp,iscoltmp,newmat);CHKERRQ(ierr);
       break;
     case MAT_REUSE_MATRIX:
-      ierr = MatSubMatrixVirtualUpdate(*newmat,mat,isrow,iscoltmp);CHKERRQ(ierr);
+      ierr = MatSubMatrixVirtualUpdate(*newmat,mat,isrowtmp,iscoltmp);CHKERRQ(ierr);
       break;
     default: SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_OUTOFRANGE,"Invalid MatReuse, must be either MAT_INITIAL_MATRIX or MAT_REUSE_MATRIX");
     }
@@ -8144,12 +8153,12 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
 
   if (!mat->ops->createsubmatrix) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Mat type %s",((PetscObject)mat)->type_name);
   ierr = PetscLogEventBegin(MAT_CreateSubMat,mat,0,0,0);CHKERRQ(ierr);
-  ierr = (*mat->ops->createsubmatrix)(mat,isrow,iscoltmp,cll,newmat);CHKERRQ(ierr);
+  ierr = (*mat->ops->createsubmatrix)(mat,isrowtmp,iscoltmp,cll,newmat);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(MAT_CreateSubMat,mat,0,0,0);CHKERRQ(ierr);
 
   /* Propagate symmetry information for diagonal blocks */
 setproperties:
-  if (isrow == iscoltmp) {
+  if (isrowtmp == iscoltmp) {
     if (mat->symmetric_set && mat->symmetric) {
       ierr = MatSetOption(*newmat,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
     }
@@ -8165,6 +8174,7 @@ setproperties:
   }
 
   if (!iscol) {ierr = ISDestroy(&iscoltmp);CHKERRQ(ierr);}
+  if (!isrow) {ierr = ISDestroy(&isrowtmp);CHKERRQ(ierr);}
   if (*newmat && cll == MAT_INITIAL_MATRIX) {ierr = PetscObjectStateIncrease((PetscObject)*newmat);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
