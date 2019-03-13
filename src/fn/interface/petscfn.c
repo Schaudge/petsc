@@ -333,14 +333,15 @@ static PetscErrorCode PetscFnMatCheckCompatible(Mat mat, IS rightIS, IS leftIS, 
 
 static PetscErrorCode PetscFnCreateVec_Default(PetscFn fn, IS is, PetscLayout layout, Vec *vec)
 {
-  PetscInt       n;
+  PetscInt       n, N;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = VecCreate(PetscObjectComm((PetscObject)fn),vec);CHKERRQ(ierr);
   if (is) {
     ierr = ISGetLocalSize(is, &n);CHKERRQ(ierr);
-    ierr = VecSetSizes(*vec, n, PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = ISGetSize(is, &N);CHKERRQ(ierr);
+    ierr = VecSetSizes(*vec, n, N);CHKERRQ(ierr);
   } else {
     ierr = VecSetLayout(*vec,layout);CHKERRQ(ierr);
   }
@@ -358,7 +359,7 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, IS domainIS, Vec *domainVec, IS ran
   if (rangeIS) PetscValidHeaderSpecific(rangeIS,IS_CLASSID,3);
   ierr = PetscFnLayoutsSetUp(fn);CHKERRQ(ierr);
   if (fn->ops->createvecs) {
-    ierr = (*(fn->ops->createvecs)) (fn, domainIS, rangeVec, rangeIS, domainVec);CHKERRQ(ierr);
+    ierr = (*(fn->ops->createvecs)) (fn, domainIS, domainVec, rangeIS, rangeVec);CHKERRQ(ierr);
   } else {
     if (domainVec) {ierr = PetscFnCreateVec_Default(fn, domainIS, fn->dmap, domainVec);CHKERRQ(ierr);}
     if (rangeVec) {ierr = PetscFnCreateVec_Default(fn, rangeIS, fn->rmap, rangeVec);CHKERRQ(ierr);}
@@ -1897,7 +1898,7 @@ static PetscErrorCode PetscFnShellDestroy_DerShell(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, Vec *rangeVec, Vec *domainVec)
+static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, IS domainIS, Vec *domainVec, IS rangeIS, Vec *rangeVec)
 {
   PetscFnDerShell *derShell;
   PetscFn          origFn;
@@ -1907,17 +1908,15 @@ static PetscErrorCode PetscFnShellCreateVecs_DerShell(PetscFn fn, Vec *rangeVec,
   ierr = PetscFnShellGetContext(fn, (void **) &derShell);CHKERRQ(ierr);
   origFn = derShell->origFn;
   if (domainVec) {
-    ierr = PetscFnCreateVecs(origFn, NULL, domainVec, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(origFn, domainIS, domainVec, NULL, NULL);CHKERRQ(ierr);
   }
   if (!rangeVec) PetscFunctionReturn(0);
   if (fn->rmap == origFn->rmap) {
-    ierr = PetscFnCreateVecs(origFn, NULL, NULL, NULL, rangeVec);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(origFn, NULL, NULL, rangeIS, rangeVec);CHKERRQ(ierr);
   } else if (fn->rmap == origFn->dmap) {
-    ierr = PetscFnCreateVecs(origFn, NULL, rangeVec, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscFnCreateVecs(origFn, rangeIS, rangeVec, NULL, NULL);CHKERRQ(ierr);
   } else {
-    ierr = VecCreate(PetscObjectComm((PetscObject)fn), rangeVec);CHKERRQ(ierr);
-    ierr = VecSetLayout(*rangeVec, fn->rmap);CHKERRQ(ierr);
-    ierr = VecSetType(*rangeVec, VECSTANDARD);CHKERRQ(ierr);
+    ierr = PetscFnCreateVec_Default(fn, rangeIS, fn->rmap, rangeVec);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

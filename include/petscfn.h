@@ -126,8 +126,6 @@ PETSC_EXTERN PetscErrorCode PetscFnDestroySubFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnDestroyFns(PetscInt,PetscFn *[]);
 PETSC_EXTERN PetscErrorCode PetscFnCreateSubFn(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
 
-PETSC_EXTERN PetscErrorCode PetscFnVecsGetSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
-PETSC_EXTERN PetscErrorCode PetscFnVecsRestoreSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
 
 PETSC_EXTERN const char *PetscFnOperations[];
 
@@ -145,6 +143,12 @@ PETSC_EXTERN PetscErrorCode PetscFnShellSetContext(PetscFn,void*);
 PETSC_EXTERN PetscErrorCode PetscFnShellGetContext(PetscFn,void *);
 PETSC_EXTERN PetscErrorCode PetscFnShellSetOperation(PetscFn,PetscFnOperation,void(*)(void));
 PETSC_EXTERN PetscErrorCode PetscFnShellGetOperation(PetscFn,PetscFnOperation,void(**)(void));
+
+/* utils */
+PETSC_EXTERN PetscErrorCode PetscFnGetSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
+PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
+PETSC_EXTERN PetscErrorCode PetscFnGetSuperMats(PetscFn,PetscInt,PetscInt,const IS[],MatReuse,Mat*,Mat*,Mat*,Mat*);
+PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperMats(PetscFn,PetscInt,PetscInt,const IS[],MatReuse,Mat*,Mat*,Mat*,Mat*);
 
 /* Allow a library of common functions so that the user does not have to
  * repeat the boiler plate for them */
