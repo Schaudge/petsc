@@ -11,6 +11,7 @@ PetscClassId  DMLABEL_CLASSID;
 PetscLogEvent DM_Convert, DM_GlobalToLocal, DM_LocalToGlobal, DM_LocalToLocal, DM_LocatePoints, DM_Coarsen, DM_Refine, DM_CreateInterpolation, DM_CreateRestriction;
 
 const char *const DMBoundaryTypes[] = {"NONE","GHOSTED","MIRROR","PERIODIC","TWIST","DMBoundaryType","DM_BOUNDARY_",0};
+const char *const DMBoundaryConditionTypes[] = {"INVALID","ESSENTIAL","NATURAL","INVALID","INVALID","ESSENTIAL_FIELD","NATURAL_FIELD","INVALID","INVALID","INVALID","NATURAL_RIEMANN","DMBoundaryConditionType","DM_BC_",0};
 
 static PetscErrorCode DMHasCreateInjection_Default(DM dm, PetscBool *flg)
 {
@@ -148,6 +149,7 @@ PetscErrorCode DMClone(DM dm, DM *newdm)
     ierr = MPI_Allreduce(&pEnd,&pEndMax,1,MPIU_INT,MPI_MAX,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
     if (pEndMax >= 0) {
       ierr = DMClone(dm->coordinateDM, &ncdm);CHKERRQ(ierr);
+      ierr = DMCopyDisc(dm->coordinateDM, ncdm);CHKERRQ(ierr);
       ierr = DMSetSection(ncdm, cs);CHKERRQ(ierr);
       ierr = DMSetCoordinateDM(*newdm, ncdm);CHKERRQ(ierr);
       ierr = DMDestroy(&ncdm);CHKERRQ(ierr);
@@ -887,6 +889,7 @@ PetscErrorCode  DMView(DM dm,PetscViewer v)
   if (!v) {
     ierr = PetscViewerASCIIGetStdout(PetscObjectComm((PetscObject)dm),&v);CHKERRQ(ierr);
   }
+  ierr = PetscViewerCheckWritable(v);CHKERRQ(ierr);
   ierr = PetscViewerGetFormat(v,&format);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)dm),&size);CHKERRQ(ierr);
   if (size == 1 && format == PETSC_VIEWER_LOAD_BALANCE) PetscFunctionReturn(0);
@@ -3583,6 +3586,7 @@ PetscErrorCode  DMLoad(DM newdm, PetscViewer viewer)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(newdm,DM_CLASSID,1);
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,2);
+  ierr = PetscViewerCheckReadable(viewer);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5,&ishdf5);CHKERRQ(ierr);
   if (isbinary) {
@@ -4253,20 +4257,17 @@ PetscErrorCode DMGetNumFields(DM dm, PetscInt *numFields)
 @*/
 PetscErrorCode DMSetNumFields(DM dm, PetscInt numFields)
 {
-  PetscDS        ds;
   PetscInt       Nf, f;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
   ierr = DMGetNumFields(dm, &Nf);CHKERRQ(ierr);
   for (f = Nf; f < numFields; ++f) {
     PetscContainer obj;
 
     ierr = PetscContainerCreate(PetscObjectComm((PetscObject) dm), &obj);CHKERRQ(ierr);
     ierr = DMAddField(dm, NULL, (PetscObject) obj);CHKERRQ(ierr);
-    ierr = PetscDSSetDiscretization(ds, f, (PetscObject) obj);CHKERRQ(ierr);
     ierr = PetscContainerDestroy(&obj);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -4331,6 +4332,7 @@ PetscErrorCode DMSetField(DM dm, PetscInt f, DMLabel label, PetscObject field)
   dm->fields[f].disc  = field;
   ierr = PetscObjectReference((PetscObject) label);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject) field);CHKERRQ(ierr);
+  ierr = DMClearDS(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -4362,6 +4364,7 @@ PetscErrorCode DMAddField(DM dm, DMLabel label, PetscObject field)
   dm->fields[Nf].disc  = field;
   ierr = PetscObjectReference((PetscObject) label);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject) field);CHKERRQ(ierr);
+  ierr = DMClearDS(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -4486,11 +4489,19 @@ PetscErrorCode DMClearDS(DM dm)
 @*/
 PetscErrorCode DMGetDS(DM dm, PetscDS *prob)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBeginHot;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidPointer(prob, 2);
-  if (dm->Nds) *prob = dm->probs[0].ds;
-  else         *prob = NULL;
+  if (dm->Nds <= 0) {
+    PetscDS ds;
+
+    ierr = PetscDSCreate(PetscObjectComm((PetscObject) dm), &ds);CHKERRQ(ierr);
+    ierr = DMSetRegionDS(dm, NULL, ds);CHKERRQ(ierr);
+    ierr = PetscDSDestroy(&ds);CHKERRQ(ierr);
+  }
+  *prob = dm->probs[0].ds;
   PetscFunctionReturn(0);
 }
 
@@ -4508,7 +4519,7 @@ PetscErrorCode DMGetDS(DM dm, PetscDS *prob)
 
   Level: developer
 
-.seealso: DMGetDS(), DMSetDS()
+.seealso: DMGetDS(), DMSetRegionDS()
 @*/
 PetscErrorCode DMGetCellDS(DM dm, PetscInt point, PetscDS *prob)
 {
@@ -4563,7 +4574,7 @@ PetscErrorCode DMGetRegionDS(DM dm, DMLabel label, PetscDS *ds)
   for (s = 0; s < Nds; ++s) {
     if (dm->probs[s].label == label) {*ds = dm->probs[s].ds; PetscFunctionReturn(0);}
   }
-  SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "Label not found in DM");
+  PetscFunctionReturn(0);
 }
 
 /*@
@@ -4634,7 +4645,7 @@ PetscErrorCode DMSetRegionDS(DM dm, DMLabel label, PetscDS ds)
       PetscFunctionReturn(0);
     }
   }
-  ierr = DMDSEnlarge_Static(dm, Nds+1);
+  ierr = DMDSEnlarge_Static(dm, Nds+1);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject) label);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject) ds);CHKERRQ(ierr);
   if (!label) {
@@ -4680,6 +4691,12 @@ PetscErrorCode DMCreateDS(DM dm)
   ierr = DMGetCoordinateDim(dm, &dimEmbed);CHKERRQ(ierr);
   /* Create default DS */
   ierr = DMGetRegionDS(dm, NULL, &prob);CHKERRQ(ierr);
+  if (!prob) {
+    ierr = PetscDSCreate(comm, &prob);CHKERRQ(ierr);
+    ierr = DMSetRegionDS(dm, NULL, prob);CHKERRQ(ierr);
+    ierr = PetscDSDestroy(&prob);CHKERRQ(ierr);
+    ierr = DMGetRegionDS(dm, NULL, &prob);CHKERRQ(ierr);
+  }
   ierr = PetscDSSetCoordinateDimension(prob, dimEmbed);CHKERRQ(ierr);
   /* Optionally create hybrid DS */
   for (f = 0; f < dm->Nf; ++f) {

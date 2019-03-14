@@ -1709,20 +1709,22 @@ static PetscErrorCode DMPlexComputeCellGeometryFEM_FE(DM dm, PetscFE fe, PetscIn
 @*/
 PetscErrorCode DMPlexComputeCellGeometryFEM(DM dm, PetscInt cell, PetscQuadrature quad, PetscReal *v, PetscReal *J, PetscReal *invJ, PetscReal *detJ)
 {
+  DM             cdm;
   PetscFE        fe = NULL;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidPointer(detJ, 7);
-  if (dm->coordinateDM) {
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  if (cdm) {
     PetscClassId id;
     PetscInt     numFields;
     PetscDS      prob;
     PetscObject  disc;
 
-    ierr = DMGetDS(dm->coordinateDM, &prob);CHKERRQ(ierr);
-    ierr = PetscDSGetNumFields(prob, &numFields);CHKERRQ(ierr);
+    ierr = DMGetNumFields(cdm, &numFields);CHKERRQ(ierr);
     if (numFields) {
+      ierr = DMGetDS(cdm, &prob);CHKERRQ(ierr);
       ierr = PetscDSGetDiscretization(prob,0,&disc);CHKERRQ(ierr);
       ierr = PetscObjectGetClassId(disc,&id);CHKERRQ(ierr);
       if (id == PETSCFE_CLASSID) {
@@ -2895,6 +2897,8 @@ static PetscErrorCode DMPlexReferenceToCoordinates_FE(DM dm, PetscFE fe, PetscIn
 . refCoords  - (numPoints x dimension) array of reference coordinates (see DMGetDimension())
 
   Level: intermediate
+
+.seealso: DMPlexReferenceToCoordinates()
 @*/
 PetscErrorCode DMPlexCoordinatesToReference(DM dm, PetscInt cell, PetscInt numPoints, const PetscReal realCoords[], PetscReal refCoords[])
 {
@@ -2977,6 +2981,8 @@ PetscErrorCode DMPlexCoordinatesToReference(DM dm, PetscInt cell, PetscInt numPo
 . realCoords - (numPoints x coordinate dimension) array of coordinates (see DMGetCoordinateDim())
 
    Level: intermediate
+   
+.seealso: DMPlexCoordinatesToReference()
 @*/
 PetscErrorCode DMPlexReferenceToCoordinates(DM dm, PetscInt cell, PetscInt numPoints, const PetscReal refCoords[], PetscReal realCoords[])
 {

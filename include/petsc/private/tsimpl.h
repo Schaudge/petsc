@@ -372,7 +372,7 @@ struct _n_TSEvent {
   PetscScalar    *fvalue_right;    /* value of event function at the right end-point of the event interval */
   PetscInt       *side;            /* Used for detecting repetition of end-point, -1 => left, +1 => right */
   PetscReal       timestep_prev;   /* previous time step */
-  PetscReal       timestep_orig;   /* initial time step */
+  PetscReal       timestep_posteventinterval;  /* time step immediately after the event interval */
   PetscBool      *zerocrossing;    /* Flag to signal zero crossing detection */
   PetscErrorCode  (*eventhandler)(TS,PetscReal,Vec,PetscScalar*,void*); /* User event handler function */
   PetscErrorCode  (*postevent)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void*); /* User post event function */
@@ -428,6 +428,12 @@ struct _n_TSMonitorLGCtx {
   PetscErrorCode (*transform)(void*,Vec,Vec*);
   PetscErrorCode (*transformdestroy)(void*);
   void           *transformctx;
+};
+
+struct _n_TSMonitorSPCtx{
+  PetscDrawSP    sp;
+  PetscInt       howoften; /* when > 0 uses step % howoften, when negative only final solution plotted */
+  PetscInt       ksp_its, snes_its;
 };
 
 struct _n_TSMonitorEnvelopeCtx {

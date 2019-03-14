@@ -90,8 +90,9 @@ PetscErrorCode MatSetRandom(Mat x,PetscRandom rctx)
   ierr = (*x->ops->setrandom)(x,rctx);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(MAT_SetRandom,x,rctx,0,0);CHKERRQ(ierr);
 
-  x->assembled = PETSC_TRUE;
-  ierr         = PetscRandomDestroy(&randObj);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(x, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(x, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&randObj);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -932,7 +933,7 @@ PetscErrorCode MatSetUp(Mat A)
          format (which is in many cases the same as the default)
 .    PETSC_VIEWER_ASCII_INFO - prints basic information about the matrix
          size and structure (not the matrix entries)
-.    PETSC_VIEWER_ASCII_INFO_DETAIL - prints more detailed information about
+-    PETSC_VIEWER_ASCII_INFO_DETAIL - prints more detailed information about
          the matrix structure
 
    Options Database Keys:
@@ -951,17 +952,17 @@ PetscErrorCode MatSetUp(Mat A)
    Level: beginner
 
    Notes:
-    see the manual page for MatLoad() for the exact format of the binary file when the binary
+    See the manual page for MatLoad() for the exact format of the binary file when the binary
       viewer is used.
 
       See share/petsc/matlab/PetscBinaryRead.m for a Matlab code that can read in the binary file when the binary
       viewer is used.
 
-      One can use '-mat_view draw -draw_pause -1' to pause the graphical display of matrix nonzero structure.
-      And then use the following mouse functions:
-          left mouse: zoom in
-          middle mouse: zoom out
-          right mouse: continue with the simulation
+      One can use '-mat_view draw -draw_pause -1' to pause the graphical display of matrix nonzero structure,
+      and then use the following mouse functions.
++ left mouse: zoom in
+. middle mouse: zoom out
+- right mouse: continue with the simulation
 
    Concepts: matrices^viewing
    Concepts: matrices^plotting
@@ -1063,7 +1064,6 @@ PetscErrorCode MatView(Mat mat,PetscViewer viewer)
     ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
   }
   if (iascii) {
-    if (!mat->assembled) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ORDER,"Must call MatAssemblyBegin/End() before viewing matrix");
     ierr = PetscViewerGetFormat(viewer,&format);CHKERRQ(ierr);
     if (format == PETSC_VIEWER_ASCII_INFO || format == PETSC_VIEWER_ASCII_INFO_DETAIL) {
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
@@ -4160,6 +4160,7 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
     PetscInt       i;
     /*
        Order of precedence:
+       0) See if newtype is a superclass of the current matrix.
        1) See if a specialized converter is known to the current matrix.
        2) See if a specialized converter is known to the desired matrix class.
        3) See if a good general converter is registered for the desired class
@@ -4168,6 +4169,24 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
        5) Use a really basic converter.
     */
 
+    /* 0) See if newtype is a superclass of the current matrix.
+          i.e mat is mpiaij and newtype is aij */
+    for (i=0; i<2; i++) {
+      ierr = PetscStrncpy(convname,prefix[i],sizeof(convname));CHKERRQ(ierr);
+      ierr = PetscStrlcat(convname,newtype,sizeof(convname));CHKERRQ(ierr);
+      ierr = PetscStrcmp(convname,((PetscObject)mat)->type_name,&flg);CHKERRQ(ierr);
+      if (flg) {
+        if (reuse == MAT_INPLACE_MATRIX) {
+          PetscFunctionReturn(0);
+        } else if (reuse == MAT_INITIAL_MATRIX && mat->ops->duplicate) {
+          ierr = (*mat->ops->duplicate)(mat,MAT_COPY_VALUES,M);CHKERRQ(ierr);
+          PetscFunctionReturn(0);
+        } else if (reuse == MAT_REUSE_MATRIX && mat->ops->copy) {
+          ierr = MatCopy(mat,*M,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+          PetscFunctionReturn(0);
+        }
+      }
+    }
     /* 1) See if a specialized converter is known to the current matrix and the desired class */
     for (i=0; i<3; i++) {
       ierr = PetscStrncpy(convname,"MatConvert_",sizeof(convname));CHKERRQ(ierr);
@@ -5205,30 +5224,6 @@ PetscErrorCode MatScale(Mat mat,PetscScalar a)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatNorm_Basic(Mat A,NormType type,PetscReal *nrm)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (type == NORM_1 || type == NORM_INFINITY) {
-    Vec l,r;
-
-    ierr = MatCreateVecs(A,&r,&l);CHKERRQ(ierr);
-    if (type == NORM_INFINITY) {
-      ierr = VecSet(r,1.);CHKERRQ(ierr);
-      ierr = MatMult(A,r,l);CHKERRQ(ierr);
-      ierr = VecNorm(l,NORM_INFINITY,nrm);CHKERRQ(ierr);
-    } else {
-      ierr = VecSet(l,1.);CHKERRQ(ierr);
-      ierr = MatMultTranspose(A,l,r);CHKERRQ(ierr);
-      ierr = VecNorm(r,NORM_INFINITY,nrm);CHKERRQ(ierr);
-    }
-    ierr = VecDestroy(&l);CHKERRQ(ierr);
-    ierr = VecDestroy(&r);CHKERRQ(ierr);
-  } else SETERRQ2(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Matrix class %s, norm type %d",((PetscObject)A)->type_name,type);
-  PetscFunctionReturn(0);
-}
-
 /*@
    MatNorm - Calculates various norms of a matrix.
 
@@ -5253,18 +5248,14 @@ PetscErrorCode MatNorm(Mat mat,NormType type,PetscReal *nrm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
   PetscValidType(mat,1);
-  PetscValidLogicalCollectiveEnum(mat,type,2);
   PetscValidScalarPointer(nrm,3);
 
   if (!mat->assembled) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"Not for unassembled matrix");
   if (mat->factortype) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix");
+  if (!mat->ops->norm) SETERRQ1(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"Mat type %s",((PetscObject)mat)->type_name);
   MatCheckPreallocated(mat,1);
 
-  if (!mat->ops->norm) {
-    ierr = MatNorm_Basic(mat,type,nrm);CHKERRQ(ierr);
-  } else {
-    ierr = (*mat->ops->norm)(mat,type,nrm);CHKERRQ(ierr);
-  }
+  ierr = (*mat->ops->norm)(mat,type,nrm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -8068,14 +8059,12 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
   /* if original matrix is on just one processor then use submatrix generated */
   if (mat->ops->createsubmatrices && !mat->ops->createsubmatrix && size == 1 && cll == MAT_REUSE_MATRIX) {
     ierr = MatCreateSubMatrices(mat,1,&isrow,&iscoltmp,MAT_REUSE_MATRIX,&newmat);CHKERRQ(ierr);
-    if (!iscol) {ierr = ISDestroy(&iscoltmp);CHKERRQ(ierr);}
-    PetscFunctionReturn(0);
+    goto setproperties;
   } else if (mat->ops->createsubmatrices && !mat->ops->createsubmatrix && size == 1) {
     ierr    = MatCreateSubMatrices(mat,1,&isrow,&iscoltmp,MAT_INITIAL_MATRIX,&local);CHKERRQ(ierr);
     *newmat = *local;
     ierr    = PetscFree(local);CHKERRQ(ierr);
-    if (!iscol) {ierr = ISDestroy(&iscoltmp);CHKERRQ(ierr);}
-    PetscFunctionReturn(0);
+    goto setproperties;
   } else if (!mat->ops->createsubmatrix) {
     /* Create a new matrix type that implements the operation using the full matrix */
     ierr = PetscLogEventBegin(MAT_CreateSubMat,mat,0,0,0);CHKERRQ(ierr);
@@ -8089,8 +8078,7 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
     default: SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_OUTOFRANGE,"Invalid MatReuse, must be either MAT_INITIAL_MATRIX or MAT_REUSE_MATRIX");
     }
     ierr = PetscLogEventEnd(MAT_CreateSubMat,mat,0,0,0);CHKERRQ(ierr);
-    if (!iscol) {ierr = ISDestroy(&iscoltmp);CHKERRQ(ierr);}
-    PetscFunctionReturn(0);
+    goto setproperties;
   }
 
   if (!mat->ops->createsubmatrix) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Mat type %s",((PetscObject)mat)->type_name);
@@ -8099,6 +8087,7 @@ PetscErrorCode MatCreateSubMatrix(Mat mat,IS isrow,IS iscol,MatReuse cll,Mat *ne
   ierr = PetscLogEventEnd(MAT_CreateSubMat,mat,0,0,0);CHKERRQ(ierr);
 
   /* Propagate symmetry information for diagonal blocks */
+setproperties:
   if (isrow == iscoltmp) {
     if (mat->symmetric_set && mat->symmetric) {
       ierr = MatSetOption(*newmat,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
@@ -9937,7 +9926,13 @@ PetscErrorCode MatMatMultNumeric(Mat A,Mat B,Mat C)
   To determine the correct fill value, run with -info and search for the string "Fill ratio" to see the value
    actually needed.
 
-   This routine is currently only implemented for pairs of SeqAIJ matrices and for the SeqDense class.
+   This routine is currently only implemented for pairs of SeqAIJ matrices, for the SeqDense class,
+   and for pairs of MPIDense matrices.
+
+   Options Database Keys:
++  -matmattransmult_mpidense_mpidense_via {allgatherv,cyclic} - Choose between algorthims for MPIDense matrices: the
+                                                                first redundantly copies the transposed B matrix on each process and requiers O(log P) communication complexity;
+                                                                the second never stores more than one portion of the B matrix at a time by requires O(P) communication complexity.
 
    Level: intermediate
 

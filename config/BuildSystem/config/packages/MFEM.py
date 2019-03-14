@@ -57,6 +57,7 @@ class Configure(config.package.Package):
         g.write('STATIC = YES\n')
       g.write('AR = '+self.setCompilers.AR+'\n')
       g.write('ARFLAGS = '+self.setCompilers.AR_FLAGS+'\n')
+      g.write('LDFLAGS = '+self.setCompilers.LDFLAGS+'\n')
       g.write('MFEM_USE_MPI = YES\n')
       g.write('MFEM_MPIEXEC = '+self.mpi.mpiexec+'\n')
       g.write('MFEM_USE_METIS_5 = YES\n')
@@ -109,7 +110,7 @@ class Configure(config.package.Package):
       self.addMakeRule('mfem-build','mfembuild mfeminstall')
       self.addMakeRule('mfem-install','')
 
-    exampleDir = os.path.join(configDir,'examples')
+    exampleDir = os.path.join(self.packageDir,'examples')
     self.logClearRemoveDirectory()
     self.logPrintBox('MFEM examples are available at '+exampleDir)
     self.logResetRemoveDirectory()
