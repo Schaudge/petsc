@@ -65,6 +65,9 @@ PetscErrorCode PetscFnGetSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt ran
   }
   if (!anySubset) {
     *supervecs = subvecs;
+    if (outsubvec) {
+      *outsupervec = outsubvec;
+    }
     PetscFunctionReturn(0);
   }
   ierr = PetscMalloc1(numVecs, &newvecs);CHKERRQ(ierr);
