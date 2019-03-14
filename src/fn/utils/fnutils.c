@@ -152,7 +152,7 @@ PetscErrorCode PetscFnRestoreSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, Mat *superM, Mat *superJpre)
+PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
 {
   IS rightIS = subsets ? subsets[numSubsets-2] : NULL;
   IS leftIS  = subsets ? subsets[numSubsets-1] : NULL;
@@ -160,100 +160,89 @@ PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt ran
 
   PetscFunctionBegin;
   if (!rightIS && !leftIS) {
-    *superM = *J;
-    *superJpre = *Jpre;
+    *superReuse = reuse;
+    *superJ = J;
+    *superJpre = Jpre;
     PetscFunctionReturn(0);
   }
-  if (reuse == MAT_INITIAL_MATRIX) {
-    *superM = NULL;
-    *superJpre = NULL;
-  } else {
-    PetscInt m, M, n, N;
-    PetscInt matm, matM, matn, matN;
-    Mat mat = NULL, matPre = NULL;
-    MatType type;
+  *superReuse = MAT_INITIAL_MATRIX;
+  if (J) {
+    Mat *mat;
 
-    ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-    if (rangeIdx == numSubsets-2) {
-      matn = m;
-      matN = M;
+    ierr = PetscMalloc1(1,&mat);CHKERRQ(ierr);
+    *mat = NULL;
+    *superJ = mat;
+  } else {
+    *superJ = NULL;
+  }
+  if (Jpre) {
+    if (reuse == MAT_INITIAL_MATRIX || !J || *J != *Jpre) {
+      Mat *matPre;
+
+      ierr = PetscMalloc1(1,&matPre);CHKERRQ(ierr);
+      *matPre = NULL;
+      *superJpre = matPre;
     } else {
-      matn = n;
-      matN = N;
+      *superJpre = NULL;
     }
-    if (rangeIdx == numSubsets-1) {
-      matm = m;
-      matM = M;
-    } else {
-      matm = n;
-      matM = N;
-    }
-    if (J) {
-      ierr = MatCreate(PetscObjectComm((PetscObject)fn),&mat);CHKERRQ(ierr);
-      ierr = MatSetSizes(mat, matm, matn, matM, matN);CHKERRQ(ierr);
-      ierr = MatGetType(*J, &type);CHKERRQ(ierr);
-      ierr = MatSetType(mat, type);CHKERRQ(ierr);
-      *superM = mat;
-    }
-    if (Jpre) {
-      if (J && *Jpre == *J) {
-        *superJpre = *superM;
-      }
-      else {
-        ierr = MatCreate(PetscObjectComm((PetscObject)fn),&matPre);CHKERRQ(ierr);
-        ierr = MatSetSizes(matPre, matm, matn, matM, matN);CHKERRQ(ierr);
-        ierr = MatGetType(*Jpre, &type);CHKERRQ(ierr);
-        ierr = MatSetType(matPre, type);CHKERRQ(ierr);
-        *superJpre = matPre;
-      }
-    }
+  } else {
+    *superJpre = NULL;
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnRestoreSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, Mat *superM, Mat *superJpre)
+PetscErrorCode PetscFnRestoreSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
 {
   IS rightIS = subsets ? subsets[numSubsets-2] : NULL;
   IS leftIS  = subsets ? subsets[numSubsets-1] : NULL;
   PetscErrorCode ierr;
+  Mat supermat = NULL;
+  Mat supermatpre = NULL;
+  Mat submat = NULL;
+  Mat submatpre = NULL;
 
   PetscFunctionBegin;
   if (!rightIS && !leftIS) {
-    *J = *superM;
-    *Jpre = *superJpre;
+    PetscFunctionReturn(0);
   }
-  if (reuse == MAT_INITIAL_MATRIX) {
-    if (superM) {
-      ierr = MatCreateSubMatrix(*superM, leftIS, rightIS, MAT_INITIAL_MATRIX, J);CHKERRQ(ierr);
-      ierr = MatDestroy(superM);CHKERRQ(ierr);
+  if (*superJ) {
+    supermat = **superJ;
+  }
+  if (*superJpre) {
+    supermatpre = **superJpre;
+  }
+  if (supermat) {
+    ierr = MatCreateSubMatrix(supermat, leftIS, rightIS, MAT_INITIAL_MATRIX, &submat);CHKERRQ(ierr);
+  }
+  if (supermatpre) {
+    if (!supermat || supermat != supermatpre) {
+      ierr = MatCreateSubMatrix(supermat, leftIS, rightIS, MAT_INITIAL_MATRIX, &submatpre);CHKERRQ(ierr);
+    } else {
+      submatpre = submat;
+      ierr = PetscObjectReference((PetscObject)submat);CHKERRQ(ierr);
     }
-    if (superJpre) {
-      if (superM && *superM == *superJpre) {
-        *Jpre = *J;
-      } else {
-        ierr = MatCreateSubMatrix(*superJpre, leftIS, rightIS, MAT_INITIAL_MATRIX, Jpre);CHKERRQ(ierr);
-        ierr = MatDestroy(superJpre);CHKERRQ(ierr);
-      }
+  }
+  if (J) {
+    if (reuse == MAT_INITIAL_MATRIX) {
+      *J = submat;
+    } else {
+      ierr = MatCopy(submat, *J, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatDestroy(&submat);CHKERRQ(ierr);
     }
-  } else {
-    Mat mat;
-
-    if (superM) {
-      ierr = MatCreateSubMatrix(*superM, leftIS, rightIS, MAT_INITIAL_MATRIX, &mat);CHKERRQ(ierr);
-      ierr = MatCopy(mat, *J, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatDestroy(&mat);CHKERRQ(ierr);
-      ierr = MatDestroy(superM);CHKERRQ(ierr);
+  }
+  if (Jpre) {
+    if (reuse == MAT_INITIAL_MATRIX) {
+      *Jpre = submatpre;
+    } else {
+      ierr = MatCopy(submatpre, *Jpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatDestroy(&submatpre);CHKERRQ(ierr);
     }
-    if (superJpre) {
-      if (superM && *superM == *superJpre) {
-        *Jpre = *J;
-      } else {
-        ierr = MatCreateSubMatrix(*superJpre, leftIS, rightIS, MAT_INITIAL_MATRIX, &mat);CHKERRQ(ierr);
-        ierr = MatCopy(mat, *Jpre, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-        ierr = MatDestroy(&mat);CHKERRQ(ierr);
-        ierr = MatDestroy(superJpre);CHKERRQ(ierr);
-      }
-    }
+  }
+  if (*superJ) {
+    ierr = PetscFree(*superJ);CHKERRQ(ierr);
+  }
+  if (*superJpre) {
+    ierr = PetscFree(*superJpre);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

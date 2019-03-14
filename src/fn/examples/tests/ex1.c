@@ -395,15 +395,16 @@ static PetscErrorCode PetscFnScalarDerivativeVec_Scalar(PetscFn fn, Vec x, Petsc
 static PetscErrorCode PetscFnScalarDerivativeMat_Scalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
 {
   const Vec      *supervecs;
-  Mat            superM, superMpre;
+  MatReuse       superreuse;
+  Mat            *superM, *superMpre;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (der != 2) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE, "Higher derivatives not supported");
   ierr = PetscFnGetSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, M, Mpre, &superM, &superMpre);CHKERRQ(ierr);
-  ierr = PetscFnScalarHessianBuild_Scalar(fn, x, reuse, &superM, &superMpre);CHKERRQ(ierr);
-  ierr = PetscFnRestoreSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, M, Mpre, &superM, &superMpre);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, M, Mpre, &superreuse, &superM, &superMpre);CHKERRQ(ierr);
+  ierr = PetscFnScalarHessianBuild_Scalar(fn, x, superreuse, superM, superMpre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, M, Mpre, &superreuse, &superM, &superMpre);CHKERRQ(ierr);
   ierr = PetscFnRestoreSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -491,34 +492,35 @@ static PetscErrorCode PetscFnDerivativeVec_Scalar(PetscFn fn, Vec x, PetscInt de
 static PetscErrorCode PetscFnDerivativeMat_Scalar(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
 {
   const Vec      *supervecs;
-  Mat            superM, superMpre;
+  MatReuse       superreuse;
+  Mat            *superM, *superMpre;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (der < 1 || der > 2) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE, "Higher derivatives not supported");
   ierr = PetscFnGetSuperVectors(fn, der-2, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superM, &superMpre);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superreuse, &superM, &superMpre);CHKERRQ(ierr);
   switch (der) {
   case 1:
     if (rangeIdx == 0) {
-      ierr = PetscFnJacobianBuildAdjoint_Scalar(fn, x, reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnJacobianBuildAdjoint_Scalar(fn, x, superreuse, superM, superMpre);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnJacobianBuild_Scalar(fn, x, reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnJacobianBuild_Scalar(fn, x, superreuse, superM, superMpre);CHKERRQ(ierr);
     }
     break;
   case 2:
     if (rangeIdx == 0) {
-      ierr = PetscFnHessianBuildAdjoint_Scalar(fn, x, supervecs[0], reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnHessianBuildAdjoint_Scalar(fn, x, supervecs[0], superreuse, superM, superMpre);CHKERRQ(ierr);
     } else if (rangeIdx == 1) {
-      ierr = PetscFnHessianBuildSwap_Scalar(fn, x, supervecs[0], reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnHessianBuildSwap_Scalar(fn, x, supervecs[0], superreuse, superM, superMpre);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnHessianBuild_Scalar(fn, x, supervecs[0], reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnHessianBuild_Scalar(fn, x, supervecs[0], superreuse, superM, superMpre);CHKERRQ(ierr);
     }
     break;
   default:
     break;
   }
-  ierr = PetscFnRestoreSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superM, &superMpre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superreuse, &superM, &superMpre);CHKERRQ(ierr);
   ierr = PetscFnRestoreSuperVectors(fn, der-2, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -926,34 +928,35 @@ static PetscErrorCode PetscFnDerivativeVec_Vector(PetscFn fn, Vec x, PetscInt de
 static PetscErrorCode PetscFnDerivativeMat_Vector(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
 {
   const Vec      *supervecs;
-  Mat            superM, superMpre;
+  MatReuse        superreuse;
+  Mat            *superM, *superMpre;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (der < 1 || der > 2) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_OUTOFRANGE, "Higher derivatives not supported");
   ierr = PetscFnGetSuperVectors(fn, der-2, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superM, &superMpre);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superreuse, &superM, &superMpre);CHKERRQ(ierr);
   switch (der) {
   case 1:
     if (rangeIdx == 0) {
-      ierr = PetscFnJacobianBuildAdjoint_Vector(fn, x, reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnJacobianBuildAdjoint_Vector(fn, x, superreuse, superM, superMpre);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnJacobianBuild_Vector(fn, x, reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnJacobianBuild_Vector(fn, x, superreuse, superM, superMpre);CHKERRQ(ierr);
     }
     break;
   case 2:
     if (rangeIdx == 0) {
-      ierr = PetscFnHessianBuildAdjoint_Vector(fn, x, supervecs[0], reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnHessianBuildAdjoint_Vector(fn, x, supervecs[0], superreuse, superM, superMpre);CHKERRQ(ierr);
     } else if (rangeIdx == 1) {
-      ierr = PetscFnHessianBuildSwap_Vector(fn, x, supervecs[0], reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnHessianBuildSwap_Vector(fn, x, supervecs[0], superreuse, superM, superMpre);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnHessianBuild_Vector(fn, x, supervecs[0], reuse, &superM, &superMpre);CHKERRQ(ierr);
+      ierr = PetscFnHessianBuild_Vector(fn, x, supervecs[0], superreuse, superM, superMpre);CHKERRQ(ierr);
     }
     break;
   default:
     break;
   }
-  ierr = PetscFnRestoreSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superM, &superMpre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperMats(fn, der, rangeIdx, subsets, reuse, M, Mpre, &superreuse, &superM, &superMpre);CHKERRQ(ierr);
   ierr = PetscFnRestoreSuperVectors(fn, der-2, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
