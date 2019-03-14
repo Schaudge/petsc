@@ -135,43 +135,20 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
     fn->ops->apply = (PetscErrorCode (*) (PetscFn,Vec,Vec)) f;
     break;
   case PETSCFNOP_JACOBIANMULT:
-    fn->ops->jacobianmult = (PetscErrorCode (*) (PetscFn,Vec,Vec,Vec)) f;
-    break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
-    fn->ops->jacobianmultadjoint = (PetscErrorCode (*) (PetscFn,Vec,Vec,Vec)) f;
-    break;
   case PETSCFNOP_JACOBIANBUILD:
-    fn->ops->jacobianbuild = (PetscErrorCode (*) (PetscFn,Vec,MatReuse,Mat*,Mat*)) f;
-    break;
   case PETSCFNOP_JACOBIANBUILDADJOINT:
-    fn->ops->jacobianbuildadjoint = (PetscErrorCode (*) (PetscFn,Vec,MatReuse,Mat*,Mat*)) f;
-    break;
   case PETSCFNOP_HESSIANMULT:
-    fn->ops->hessianmult = (PetscErrorCode (*) (PetscFn,Vec,Vec,Vec,Vec)) f;
-    break;
   case PETSCFNOP_HESSIANMULTADJOINT:
-    fn->ops->hessianmultadjoint = (PetscErrorCode (*) (PetscFn,Vec,Vec,Vec,Vec)) f;
-    break;
   case PETSCFNOP_HESSIANBUILD:
-    fn->ops->hessianbuild = (PetscErrorCode (*) (PetscFn,Vec,Vec,MatReuse,Mat*,Mat*)) f;
-    break;
   case PETSCFNOP_HESSIANBUILDADJOINT:
-    fn->ops->hessianbuildadjoint = (PetscErrorCode (*) (PetscFn,Vec,Vec,MatReuse,Mat*,Mat*)) f;
-    break;
   case PETSCFNOP_HESSIANBUILDSWAP:
-    fn->ops->hessianbuildswap = (PetscErrorCode (*) (PetscFn,Vec,Vec,MatReuse,Mat*,Mat*)) f;
+  case PETSCFNOP_SCALARGRADIENT:
+  case PETSCFNOP_SCALARHESSIANMULT:
+  case PETSCFNOP_SCALARHESSIANBUILD:
     break;
   case PETSCFNOP_SCALARAPPLY:
     fn->ops->scalarapply = (PetscErrorCode (*) (PetscFn,Vec,PetscReal *)) f;
-    break;
-  case PETSCFNOP_SCALARGRADIENT:
-    fn->ops->scalargradient = (PetscErrorCode (*) (PetscFn,Vec,Vec)) f;
-    break;
-  case PETSCFNOP_SCALARHESSIANMULT:
-    fn->ops->scalarhessianmult = (PetscErrorCode (*) (PetscFn,Vec,Vec,Vec)) f;
-    break;
-  case PETSCFNOP_SCALARHESSIANBUILD:
-    fn->ops->scalarhessianbuild = (PetscErrorCode (*) (PetscFn,Vec,MatReuse,Mat*,Mat*)) f;
     break;
   case PETSCFNOP_CREATESUBFNS:
     fn->ops->createsubfns = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,const IS[],const IS[],PetscFn *[])) f;
@@ -229,43 +206,21 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
     *f = (void (*)(void)) fn->ops->apply;
     break;
   case PETSCFNOP_JACOBIANMULT:
-    *f = (void (*)(void)) fn->ops->jacobianmult;
-    break;
   case PETSCFNOP_JACOBIANMULTADJOINT:
-    *f = (void (*)(void)) fn->ops->jacobianmultadjoint;
-    break;
   case PETSCFNOP_JACOBIANBUILD:
-    *f = (void (*)(void)) fn->ops->jacobianbuild;
-    break;
   case PETSCFNOP_JACOBIANBUILDADJOINT:
-    *f = (void (*)(void)) fn->ops->jacobianbuildadjoint;
-    break;
   case PETSCFNOP_HESSIANMULT:
-    *f = (void (*)(void)) fn->ops->hessianmult;
-    break;
   case PETSCFNOP_HESSIANMULTADJOINT:
-    *f = (void (*)(void)) fn->ops->hessianmultadjoint;
-    break;
   case PETSCFNOP_HESSIANBUILD:
-    *f = (void (*)(void)) fn->ops->hessianbuild;
-    break;
   case PETSCFNOP_HESSIANBUILDADJOINT:
-    *f = (void (*)(void)) fn->ops->hessianbuildadjoint;
-    break;
   case PETSCFNOP_HESSIANBUILDSWAP:
-    *f = (void (*)(void)) fn->ops->hessianbuildswap;
+  case PETSCFNOP_SCALARGRADIENT:
+  case PETSCFNOP_SCALARHESSIANMULT:
+  case PETSCFNOP_SCALARHESSIANBUILD:
+    *f = NULL;
     break;
   case PETSCFNOP_SCALARAPPLY:
     *f = (void (*)(void)) fn->ops->scalarapply;
-    break;
-  case PETSCFNOP_SCALARGRADIENT:
-    *f = (void (*)(void)) fn->ops->scalargradient;
-    break;
-  case PETSCFNOP_SCALARHESSIANMULT:
-    *f = (void (*)(void)) fn->ops->scalarhessianmult;
-    break;
-  case PETSCFNOP_SCALARHESSIANBUILD:
-    *f = (void (*)(void)) fn->ops->scalarhessianbuild;
     break;
   case PETSCFNOP_CREATESUBFNS:
     *f = (void (*)(void)) fn->ops->createsubfns;
