@@ -146,15 +146,6 @@ PetscErrorCode PetscFnShellCreate_Sin(PetscFn fn)
 
   PetscFunctionBegin;
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMult_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILD, (void (*)(void)) PetscFnJacobianBuild_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnJacobianBuild_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULT, (void (*)(void)) PetscFnHessianMult_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULTADJOINT, (void (*)(void)) PetscFnHessianMult_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILD, (void (*)(void)) PetscFnHessianBuild_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDADJOINT, (void (*)(void)) PetscFnHessianBuild_Sin);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDSWAP, (void (*)(void)) PetscFnHessianBuild_Sin);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "sin");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -307,15 +298,6 @@ PetscErrorCode PetscFnShellCreate_Logistic(PetscFn fn)
 
   PetscFunctionBegin;
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMult_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILD, (void (*)(void)) PetscFnJacobianBuild_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnJacobianBuild_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULT, (void (*)(void)) PetscFnHessianMult_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULTADJOINT, (void (*)(void)) PetscFnHessianMult_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILD, (void (*)(void)) PetscFnHessianBuild_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDADJOINT, (void (*)(void)) PetscFnHessianBuild_Logistic);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDSWAP, (void (*)(void)) PetscFnHessianBuild_Logistic);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "logistic");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -374,9 +356,6 @@ PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn fn)
 
   PetscFunctionBegin;
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnScalarApply_Normsquared);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARGRADIENT, (void (*)(void)) PetscFnScalarGradient_Normsquared);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARHESSIANMULT, (void (*)(void)) PetscFnScalarHessianMult_Normsquared);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARHESSIANBUILD, (void (*)(void)) PetscFnScalarHessianBuild_Normsquared);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "normsq");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
