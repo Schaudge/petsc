@@ -818,11 +818,11 @@ int main (int argc, char** argv)
 
   test:
     suffix: lmvm_2
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type lmvm
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 2 -tao_type lmvm -tao_max_it 20
 
   test:
     suffix: soft_threshold_admm_1
-    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm 
+    args: -matrix_format 1 -m 100 -n 100 -tao_monitor -p 1 -use_admm
 
   test:
     suffix: hessian_admm_1
