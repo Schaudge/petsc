@@ -423,6 +423,7 @@ static PetscErrorCode PetscFnDerivativeScalar_Scalar(PetscFn fn, Vec x, PetscInt
     ierr = VecDuplicate(supervecs[0], &outvec);CHKERRQ(ierr);
     ierr = PetscFnApply_Scalar(fn, x, outvec);CHKERRQ(ierr);
     ierr = VecDot(outvec, supervecs[0], z);CHKERRQ(ierr);
+    ierr = VecDestroy(&outvec);CHKERRQ(ierr);
     break;
   case 1:
     ierr = VecDuplicate(supervecs[1], &outvec);CHKERRQ(ierr);
@@ -859,6 +860,7 @@ static PetscErrorCode PetscFnDerivativeScalar_Vector(PetscFn fn, Vec x, PetscInt
     ierr = VecDuplicate(supervecs[0], &outvec);CHKERRQ(ierr);
     ierr = PetscFnApply_Vector(fn, x, outvec);CHKERRQ(ierr);
     ierr = VecDot(outvec, supervecs[0], z);CHKERRQ(ierr);
+    ierr = VecDestroy(&outvec);CHKERRQ(ierr);
     break;
   case 1:
     ierr = VecDuplicate(supervecs[1], &outvec);CHKERRQ(ierr);
@@ -982,6 +984,7 @@ static PetscErrorCode TestBasicOps(PetscFn fn, PetscInt order, PetscRandom rand,
   if (isScalar) {ierr = PetscFnScalarApply(fn, x, &z);CHKERRQ(ierr);}
 
   if (order > 0) {
+    Vec subvecs[2];
     ierr = PetscFnCreateVecs(fn, NULL, &xhat, NULL, &Jxhat);CHKERRQ(ierr);
     ierr = PetscFnCreateVecs(fn, NULL, &Jadjv,NULL, &v);CHKERRQ(ierr);
     ierr = PetscFnCreateVecs(fn, NULL, &xdot, NULL, NULL);CHKERRQ(ierr);
@@ -991,12 +994,34 @@ static PetscErrorCode TestBasicOps(PetscFn fn, PetscInt order, PetscRandom rand,
     ierr = VecSetRandom(xdot, rand);CHKERRQ(ierr);
     ierr = VecSetRandom(v, rand);CHKERRQ(ierr);
 
+    jac = jacadj = jacPre = jacadjPre = NULL;
+
+    subvecs[0] = xhat;
+    subvecs[1] = v;
+    ierr = PetscFnDerivativeScalar(fn, x, 1, 1, NULL, subvecs, &z);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeVec(fn, x, 1, 1, NULL, &xhat, Jxhat);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeMat(fn, x, 1, 1, NULL, NULL, MAT_INITIAL_MATRIX, build_mat ? &jac : NULL, build_pre ? &jacPre : NULL);CHKERRQ(ierr);
+
+    subvecs[0] = v;
+    subvecs[1] = xhat;
+    ierr = PetscFnDerivativeScalar(fn, x, 1, 0, NULL, subvecs, &z);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeVec(fn, x, 1, 0, NULL, &v, Jadjv);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeMat(fn, x, 1, 0, NULL, NULL, MAT_INITIAL_MATRIX, build_mat ? &jacadj : NULL, build_pre ? &jacadjPre : NULL);CHKERRQ(ierr);
+
+    ierr = MatDestroy(&jacadj);CHKERRQ(ierr);
+    ierr = MatDestroy(&jac);CHKERRQ(ierr);
+    ierr = MatDestroy(&jacadjPre);CHKERRQ(ierr);
+    ierr = MatDestroy(&jacPre);CHKERRQ(ierr);
+
+    if (isScalar) {
+      ierr = PetscFnScalarDerivativeScalar(fn, x, 1, NULL, &xhat, &z);CHKERRQ(ierr);
+      ierr = PetscFnScalarDerivativeVec(fn, x, 1, NULL, NULL, g);CHKERRQ(ierr);
+    }
+
     ierr = PetscFnJacobianMult(fn, x, xhat, Jxhat);CHKERRQ(ierr);
     ierr = PetscFnJacobianMultAdjoint(fn, x, v, Jadjv);CHKERRQ(ierr);
 
     if (isScalar) {ierr = PetscFnScalarGradient(fn, x, g);CHKERRQ(ierr);}
-
-    jac = jacadj = jacPre = jacadjPre = NULL;
 
     ierr = PetscFnJacobianBuild(fn, x, MAT_INITIAL_MATRIX, build_mat ? &jac : NULL, build_pre ? &jacPre : NULL);CHKERRQ(ierr);
     ierr = PetscFnJacobianBuildAdjoint(fn, x, MAT_INITIAL_MATRIX, build_mat ? &jacadj : NULL, build_pre ? &jacadjPre: NULL);CHKERRQ(ierr);
@@ -1010,15 +1035,55 @@ static PetscErrorCode TestBasicOps(PetscFn fn, PetscInt order, PetscRandom rand,
     ierr = VecDestroy(&Jxhat);CHKERRQ(ierr);
   }
   if (order > 1) {
+    Vec subvecs[3];
+
     ierr = PetscFnCreateVecs(fn,NULL,&Hadjvxhat,NULL,&Hxhatxdot);CHKERRQ(ierr);
     ierr = PetscFnCreateVecs(fn,NULL,&Hxhat,NULL,NULL);CHKERRQ(ierr);
+
+    hes    = hesadj    = hesswp    = scalhes    = NULL;
+    hesPre = hesadjPre = hesswpPre = scalhesPre = NULL;
+
+    subvecs[0] = xhat;
+    subvecs[1] = xdot;
+    subvecs[2] = v;
+    ierr = PetscFnDerivativeScalar(fn, x, 2, 2, NULL, subvecs, &z);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeVec(fn, x, 2, 2, NULL, subvecs, Hxhatxdot);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeMat(fn, x, 2, 2, NULL, &xhat, MAT_INITIAL_MATRIX, build_mat ? &hes : NULL, build_pre ? &hesPre : NULL);CHKERRQ(ierr);
+
+    subvecs[0] = xhat;
+    subvecs[1] = v;
+    subvecs[2] = xdot;
+    ierr = PetscFnDerivativeScalar(fn, x, 2, 1, NULL, subvecs, &z);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeVec(fn, x, 2, 1, NULL, subvecs, Hadjvxhat);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeMat(fn, x, 2, 1, NULL, &xhat, MAT_INITIAL_MATRIX, build_mat ? &hesswp : NULL, build_pre ? &hesswpPre : NULL);CHKERRQ(ierr);
+
+    subvecs[0] = v;
+    subvecs[1] = xhat;
+    subvecs[2] = xdot;
+    ierr = PetscFnDerivativeScalar(fn, x, 2, 0, NULL, subvecs, &z);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeVec(fn, x, 2, 0, NULL, subvecs, Hadjvxhat);CHKERRQ(ierr);
+    ierr = PetscFnDerivativeMat(fn, x, 2, 0, NULL, &v, MAT_INITIAL_MATRIX, build_mat ? &hesadj : NULL, build_pre ? &hesadjPre : NULL);CHKERRQ(ierr);
+
+    if (isScalar) {
+      subvecs[0] = xhat;
+      subvecs[1] = xdot;
+
+      ierr = PetscFnScalarDerivativeScalar(fn, x, 2, NULL, subvecs, &z);CHKERRQ(ierr);
+      ierr = PetscFnScalarDerivativeVec(fn, x, 2, NULL, &xhat, Hxhat);CHKERRQ(ierr);
+    }
+
+    ierr = MatDestroy(&scalhesPre);CHKERRQ(ierr);
+    ierr = MatDestroy(&hesswpPre);CHKERRQ(ierr);
+    ierr = MatDestroy(&hesadjPre);CHKERRQ(ierr);
+    ierr = MatDestroy(&hesPre);CHKERRQ(ierr);
+    ierr = MatDestroy(&scalhes);CHKERRQ(ierr);
+    ierr = MatDestroy(&hesswp);CHKERRQ(ierr);
+    ierr = MatDestroy(&hesadj);CHKERRQ(ierr);
+    ierr = MatDestroy(&hes);CHKERRQ(ierr);
 
     ierr = PetscFnHessianMult(fn, x, xhat, xdot, Hxhatxdot);CHKERRQ(ierr);
     ierr = PetscFnHessianMultAdjoint(fn, x, v, xhat, Hadjvxhat);CHKERRQ(ierr);
     if (isScalar) {ierr = PetscFnScalarHessianMult(fn, x, xhat, Hxhat);CHKERRQ(ierr);}
-
-    hes    = hesadj    = hesswp    = scalhes    = NULL;
-    hesPre = hesadjPre = hesswpPre = scalhesPre = NULL;
 
     ierr = PetscFnHessianBuild(fn, x, xhat, MAT_INITIAL_MATRIX, build_mat ? &hes : NULL, build_pre ? &hesPre : NULL);CHKERRQ(ierr);
     ierr = PetscFnHessianBuildAdjoint(fn, x, v, MAT_INITIAL_MATRIX, build_mat ? &hesadj : NULL, build_pre ? &hesadjPre : NULL);CHKERRQ(ierr);
@@ -1064,14 +1129,14 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
   ierr = VecSetRandom(xdot, rand);CHKERRQ(ierr);
   ierr = VecSetRandom(v, rand);CHKERRQ(ierr);
 
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_APPLY, 1, &v, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 0, 0, 1, NULL, &v, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
   ierr = TestBasicOps(df, 2, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULT, 1, &xhat, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 1, 1, 1, NULL, &xhat, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1080,14 +1145,14 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
 
   dotVecs[0] = xhat;
   dotVecs[1] = v;
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 1, 1, 2, NULL, dotVecs, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
   ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULTADJOINT, 1, &v, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 1, 0, 1, NULL, &v, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1096,7 +1161,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
 
   dotVecs[0] = v;
   dotVecs[1] = xhat;
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_JACOBIANMULTADJOINT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 1, 0, 2, NULL, dotVecs, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1105,7 +1170,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
 
   dotVecs[0] = xhat;
   dotVecs[1] = xdot;
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 2, 2, 2, NULL, dotVecs, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1115,7 +1180,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
   dotVecs[0] = xhat;
   dotVecs[1] = xdot;
   dotVecs[2] = v;
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULT, 3, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 2, 2, 3, NULL, dotVecs, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1124,7 +1189,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
 
   dotVecs[0] = v;
   dotVecs[1] = xhat;
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULTADJOINT, 2, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 2, 0, 2, NULL, dotVecs, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1134,7 +1199,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
   dotVecs[0] = v;
   dotVecs[1] = xhat;
   dotVecs[2] = xdot;
-  ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_HESSIANMULTADJOINT, 3, dotVecs, &df);CHKERRQ(ierr);
+  ierr = PetscFnCreateDerivativeFn(fn, 2, 0, 3, NULL, dotVecs, &df);CHKERRQ(ierr);
   ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
   ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
   ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1143,21 +1208,21 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
 
   ierr = PetscFnIsScalar(fn, &isScalar);CHKERRQ(ierr);
   if (isScalar) {
-    ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARGRADIENT, 0, NULL, &df);CHKERRQ(ierr);
+    ierr = PetscFnCreateDerivativeFn(fn, 1, PETSC_DEFAULT, 0, NULL, NULL, &df);CHKERRQ(ierr);
     ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
     ierr = PetscFnSetUp(df);CHKERRQ(ierr);
     ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
-    ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARGRADIENT, 1, &xhat, &df);CHKERRQ(ierr);
+    ierr = PetscFnCreateDerivativeFn(fn, 1, PETSC_DEFAULT, 1, NULL, &xhat, &df);CHKERRQ(ierr);
     ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
     ierr = PetscFnSetUp(df);CHKERRQ(ierr);
     ierr = TestBasicOps(df, 1, rand, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscFnDestroy(&df);CHKERRQ(ierr);
 
-    ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARHESSIANMULT, 1, &xhat, &df);CHKERRQ(ierr);
+    ierr = PetscFnCreateDerivativeFn(fn, 2, PETSC_DEFAULT, 1, NULL, &xhat, &df);CHKERRQ(ierr);
     ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
     ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1166,7 +1231,7 @@ static PetscErrorCode TestDerivativeFns(PetscFn fn, PetscRandom rand)
 
     dotVecs[0] = xhat;
     dotVecs[1] = xdot;
-    ierr = PetscFnCreateDerivativeFn(fn, PETSCFNOP_SCALARHESSIANMULT, 2, dotVecs, &df);CHKERRQ(ierr);
+    ierr = PetscFnCreateDerivativeFn(fn, 2, PETSC_DEFAULT, 2, NULL, dotVecs, &df);CHKERRQ(ierr);
     ierr = PetscFnAppendOptionsPrefix(df, "der_");CHKERRQ(ierr);
     ierr = PetscFnSetFromOptions(df);CHKERRQ(ierr);
     ierr = PetscFnSetUp(df);CHKERRQ(ierr);
@@ -1335,115 +1400,92 @@ int main(int argc, char **argv)
    test:
       suffix: 1
       nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view
+      args: -fn_test_scalar -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
 
    test:
       suffix: 2
       nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 3
-      nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
-      output_file: output/ex1_1.out
+      nsize: 2
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
 
    test:
       suffix: 4
       nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
+      output_file: output/ex1_3.out
 
    test:
       suffix: 5
-      nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0
-      output_file: output/ex1_4.out
+      nsize: 1
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
+      output_file: output/ex1_1.out
 
    test:
       suffix: 6
-      nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0
-      output_file: output/ex1_4.out
+      nsize: 1
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
+      output_file: output/ex1_1.out
 
    test:
       suffix: 7
       nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
       output_file: output/ex1_1.out
 
    test:
       suffix: 8
-      nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
-      output_file: output/ex1_1.out
+      nsize: 2
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
+      output_file: output/ex1_3.out
 
    test:
       suffix: 9
-      nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
-      output_file: output/ex1_1.out
+      nsize: 2
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
+      output_file: output/ex1_3.out
 
    test:
       suffix: 10
       nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat 0
-      output_file: output/ex1_4.out
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
+      output_file: output/ex1_3.out
 
    test:
       suffix: 11
-      nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat 0
-      output_file: output/ex1_4.out
+      nsize: 1
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
 
    test:
       suffix: 12
-      nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat 0
-      output_file: output/ex1_4.out
+      nsize: 1
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
+      output_file: output/ex1_11.out
 
    test:
       suffix: 13
-      nsize: 1
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat
+      nsize: 2
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
+      output_file: output/ex1_11.out
 
    test:
       suffix: 14
-      nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
-      output_file: output/ex1_13.out
+      nsize: 2
+      args: -fn_test_scalar -fn_test_vec -fn_test_mat -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
+      output_file: output/ex1_11.out
 
    test:
       suffix: 15
       nsize: 1
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
-      output_file: output/ex1_13.out
+      args: -test_ders -fn_test_fn -fn_test_derivativefn_view -der_fn_test_vec -der_fn_test_mat -der_fn_test_derivative_view -der_fn_test_derivativemat_view
 
    test:
       suffix: 16
-      nsize: 2
-      args: -fn_test_jacobianmult -fn_test_jacobianmultadjoint -fn_test_hessianmult -fn_test_hessianmultadjoint -fn_test_scalargradient -fn_test_scalarhessianmult -fn_test_jacobianbuild -fn_test_jacobianbuildadjoint -fn_test_hessianbuild -fn_test_hessianbuildswap -fn_test_hessianbuildadjoint -fn_test_scalarhessianbuild -fn_test_derivative_view -fn_test_derivativemat_view -build_pre -build_mat
-
-   test:
-      suffix: 17
-      nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_vector 0 -build_pre -build_mat
-      output_file: output/ex1_16.out
-
-   test:
-      suffix: 18
-      nsize: 2
-      args: -fn_test_allmult -fn_test_allbuild -fn_test_derivative_view -fn_test_derivativemat_view -set_scalar 0 -build_pre -build_mat
-      output_file: output/ex1_16.out
-
-   test:
-      suffix: 19
-      nsize: 1
-      args: -test_ders -fn_test_derfn -fn_test_derivativefn_view -der_fn_test_allmult -der_fn_test_allbuild -der_fn_test_derivative_view -der_fn_test_derivativemat_view
-
-   test:
-      suffix: 20
       nsize: 4
-      args: -test_ders -fn_test_derfn -fn_test_derivativefn_view -der_fn_test_allmult -der_fn_test_allbuild -der_fn_test_derivative_view -der_fn_test_derivativemat_view
+      args: -test_ders -fn_test_fn -fn_test_derivativefn_view -der_fn_test_vec -der_fn_test_mat -der_fn_test_derivative_view -der_fn_test_derivativemat_view
 
 TEST*/

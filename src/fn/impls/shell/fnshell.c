@@ -160,7 +160,7 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
     fn->ops->createsubfn = (PetscErrorCode (*) (PetscFn,Vec,IS,IS,MatReuse,PetscFn *)) f;
     break;
   case PETSCFNOP_CREATEDERIVATIVEFN:
-    fn->ops->createderivativefn = (PetscErrorCode (*) (PetscFn,PetscFnOperation,PetscInt,const Vec[],PetscFn *)) f;
+    fn->ops->createderivativefn = (PetscErrorCode (*) (PetscFn,PetscInt,PetscInt,PetscInt,const IS[],const Vec[],PetscFn *)) f;
     break;
   case PETSCFNOP_DESTROY:
     shell->destroy = (PetscErrorCode (*) (PetscFn)) f;

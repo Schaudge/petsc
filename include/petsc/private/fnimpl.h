@@ -4,6 +4,7 @@
 
 #include <petscfn.h>
 #include <petsc/private/petscimpl.h>
+#include <petsc/private/hashmapij.h>
 
 PETSC_EXTERN PetscBool PetscFnRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode PetscFnRegisterAll(void);
@@ -27,7 +28,7 @@ struct _FnOps {
   PetscErrorCode (*createsubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
   PetscErrorCode (*destroysubfns)(PetscInt,PetscFn *[]);
   PetscErrorCode (*createsubfn)(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
-  PetscErrorCode (*createderivativefn)(PetscFn,PetscFnOperation,PetscInt,const Vec [],PetscFn *);
+  PetscErrorCode (*createderivativefn)(PetscFn,PetscInt,PetscInt,PetscInt,const IS[],const Vec [],PetscFn *);
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,PetscFn);
   PetscErrorCode (*setup)(PetscFn);
   PetscErrorCode (*destroy)(PetscFn);
@@ -58,6 +59,12 @@ struct _p_PetscFn {
   PetscBool   test_scalhesbuild;
   PetscBool   test_derfn;
   PetscBool   test_self_as_derfn;
+  PetscBool   test_scalar;
+  PetscBool   test_vec;
+  PetscBool   test_mat;
+  PetscHMapIJ testedscalar;
+  PetscHMapIJ testedvec;
+  PetscHMapIJ testedmat;
 };
 
 #endif

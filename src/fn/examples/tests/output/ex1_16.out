@@ -1,32 +1,114 @@
-PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (6.38374e-11, 1.59593e-11): measured rate 2.
-PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.93829e-11, 7.34576e-12): measured rate 1.99999
-PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (2.03146e-10, 5.07868e-11): measured rate 1.99999
-PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.402963, error 0.
-PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.402963, error 0.
-PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.917048, error 0.
-PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.917048, error 0.
-PetscFnTestDerivativeMult: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (1.71179e-10, 4.27952e-11): measured rate 1.99999
-PetscFnTestDerivativeMult: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (3.48882e-11, 8.7221e-12): measured rate 1.99999
-PetscFnTestDerivativeMult: Tested convergence of scalarhessianmult at offsets (2e-05, 1e-05); tangents differ by (2.41208e-10, 6.03025e-11): measured rate 1.99999
-PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.636874, error 0.
-PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.636874, error 0.
-PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.183116, error 2.77556e-17
-PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.183116, error 2.77556e-17
-PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.520952, error 0.
-PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.520952, error 0.
-PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 1.26602, error 2.48253e-16
-PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 1.26602, error 2.48253e-16
-PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (2.80382e-11, 7.00961e-12): measured rate 1.99999
-PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.35132e-11, 5.87819e-12): measured rate 2.00003
-PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 1.14755, error 7.85046e-17
-PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 1.14755, error 7.85046e-17
-PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.18097, error 1.95285e-16
-PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.18097, error 1.95285e-16
-PetscFnTestDerivativeMult: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (3.52835e-12, 8.82185e-13): measured rate 1.99984
-PetscFnTestDerivativeMult: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (4.03255e-12, 1.00814e-12): measured rate 2.
-PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.0779397, error 7.54754e-17
-PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.0779397, error 7.54754e-17
-PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.135707, error 7.97827e-17
-PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.135707, error 7.97827e-17
-PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.137849, error 1.25516e-16
-PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.137849, error 1.25516e-16
+PetscFnTestDerivativeFn: Tested apply instantiated function against matrix-free action: norm 0.011647, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (2.05592e-10, 5.13956e-11): measured rate 2.00006
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (5.56693e-11, 1.39172e-11): measured rate 2.00001
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (1.05504e-10, 2.63759e-11): measured rate 2.00001
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.45514, error 1.66533e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.45514, error 1.66533e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.27646, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.27646, error 0.
+PetscFnTestDerivativeMult: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (4.44753e-10, 1.11191e-10): measured rate 1.99996
+PetscFnTestDerivativeMult: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.75506e-09, 6.88772e-10): measured rate 1.99998
+PetscFnTestDerivativeMult: Tested convergence of scalarhessianmult at offsets (2e-05, 1e-05); tangents differ by (5.22139e-09, 1.30536e-09): measured rate 1.99998
+PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.683259, error 1.11022e-16
+PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.683259, error 1.11022e-16
+PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.291871, error 4.16334e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.291871, error 4.16334e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.603994, error 0.
+PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.603994, error 0.
+PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 0.553154, error 6.20634e-17
+PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 0.553154, error 6.20634e-17
+PetscFnTestDerivativeFn: Tested jacobianmult instantiated function against matrix-free action: norm 5.3903, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (1.97797e-09, 4.945e-10): measured rate 1.99998
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (5.9707e-09, 1.49269e-09): measured rate 1.99998
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (6.03678e-09, 1.50921e-09): measured rate 1.99998
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.455836, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.455836, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.72084, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.72084, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmult instantiated function against matrix-free action: norm 0.636422, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (5.34019e-09, 1.33503e-09): measured rate 2.00001
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (4.37814e-10, 1.09455e-10): measured rate 1.99999
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (4.4401e-10, 1.11003e-10): measured rate 1.99999
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.405931, error 1.66533e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.405931, error 1.66533e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 3.18623, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 3.18623, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmultadjoint instantiated function against matrix-free action: norm 1.30922, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (2.34463e-09, 5.86165e-10): measured rate 1.99998
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (1.00959e-10, 2.52423e-11): measured rate 1.99985
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 2.27669, error 7.94799e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 2.27669, error 7.94799e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 2.27669, error 7.94799e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 2.27669, error 7.94799e-16
+PetscFnTestDerivativeFn: Tested jacobianmultadjoint instantiated function against matrix-free action: norm 0.500942, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (2.82589e-09, 7.06586e-10): measured rate 1.99977
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (9.59629e-11, 2.39901e-11): measured rate 2.00004
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (2.44957e-10, 6.12377e-11): measured rate 2.00004
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 2.34067, error 8.88178e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 2.34067, error 8.88178e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 4.85608, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 4.85608, error 0.
+PetscFnTestDerivativeFn: Tested hessianmult instantiated function against matrix-free action: norm 27.9749, error 0.
+PetscFnTestDerivativeFn: Tested hessianmult instantiated function against matrix-free action: norm 6.15104, error 0.
+PetscFnTestDerivativeFn: Tested hessianmultadjoint instantiated function against matrix-free action: norm 8.03161, error 0.
+PetscFnTestDerivativeFn: Tested hessianmultadjoint instantiated function against matrix-free action: norm 6.27583, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (2.46487e-09, 6.16242e-10): measured rate 1.99994
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (9.06705e-11, 2.26674e-11): measured rate 2.00002
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (1.66763e-10, 4.16902e-11): measured rate 2.00002
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.963191, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.963191, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 3.75696, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 3.75696, error 0.
+PetscFnTestDerivativeFn: Tested apply instantiated function against matrix-free action: norm 4.36395, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (1.09307e-10, 2.73257e-11): measured rate 2.00006
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.61975e-11, 6.54921e-12): measured rate 2.00004
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (9.64651e-11, 2.41158e-11): measured rate 2.00003
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 3.71049, error 8.88178e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 3.71049, error 8.88178e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.38181, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 1.38181, error 0.
+PetscFnTestDerivativeMult: Tested convergence of hessianmult at offsets (2e-05, 1e-05); tangents differ by (1.9309e-12, 4.82725e-13): measured rate 2.
+PetscFnTestDerivativeMult: Tested convergence of hessianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.228e-12, 5.57028e-13): measured rate 1.99993
+PetscFnTestDerivativeMult: Tested convergence of scalarhessianmult at offsets (2e-05, 1e-05); tangents differ by (8.20401e-12, 2.05108e-12): measured rate 1.99995
+PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.0781418, error 1.94289e-16
+PetscFnTestDerivativeBuild: Tested hessianbuild matrix against matrix-free action: norm 0.0781418, error 1.94289e-16
+PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.107036, error 4.56099e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildadjoint matrix against matrix-free action: norm 0.107036, error 4.56099e-17
+PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.311247, error 0.
+PetscFnTestDerivativeBuild: Tested hessianbuildswap matrix against matrix-free action: norm 0.311247, error 0.
+PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 0.394132, error 1.84567e-16
+PetscFnTestDerivativeBuild: Tested scalarhessianbuild matrix against matrix-free action: norm 0.394132, error 1.84567e-16
+PetscFnTestDerivativeFn: Tested jacobianmult instantiated function against matrix-free action: norm 2.57059, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (8.1886e-12, 2.04698e-12): measured rate 2.00012
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (2.20224e-12, 5.50671e-13): measured rate 1.99971
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.188936, error 1.37279e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.188936, error 1.37279e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.435712, error 2.38657e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.435712, error 2.38657e-16
+PetscFnTestDerivativeFn: Tested jacobianmult instantiated function against matrix-free action: norm 4.88583, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (8.32845e-12, 2.08189e-12): measured rate 2.00015
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (1.73361e-13, 4.34097e-14): measured rate 1.99769
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (1.72129e-12, 4.30767e-13): measured rate 1.99851
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.0428605, error 6.93889e-17
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.0428605, error 6.93889e-17
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.286071, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.286071, error 0.
+PetscFnTestDerivativeFn: Tested jacobianmultadjoint instantiated function against matrix-free action: norm 1.91031, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (1.83931e-11, 4.59813e-12): measured rate 2.00004
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (1.99396e-13, 4.9738e-14): measured rate 2.00322
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.394962, error 1.61562e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.394962, error 1.61562e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.394962, error 1.61562e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.394962, error 1.61562e-16
+PetscFnTestDerivativeFn: Tested jacobianmultadjoint instantiated function against matrix-free action: norm 5.25529, error 0.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmult at offsets (2e-05, 1e-05); tangents differ by (9.80549e-13, 2.45137e-13): measured rate 2.
+PetscFnTestDerivativeMult: Tested convergence of jacobianmultadjoint at offsets (2e-05, 1e-05); tangents differ by (5.59552e-13, 1.39888e-13): measured rate 2.
+PetscFnTestDerivativeMult: Tested convergence of scalargradient at offsets (2e-05, 1e-05); tangents differ by (3.73568e-12, 9.33476e-13): measured rate 2.00069
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.0532457, error 1.11022e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuild matrix against matrix-free action: norm 0.0532457, error 1.11022e-16
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.271653, error 0.
+PetscFnTestDerivativeBuild: Tested jacobianbuildadjoint matrix against matrix-free action: norm 0.271653, error 0.
+PetscFnTestDerivativeFn: Tested hessianmult instantiated function against matrix-free action: norm 0.117565, error 0.
+PetscFnTestDerivativeFn: Tested hessianmult instantiated function against matrix-free action: norm 0.0102182, error 0.
+PetscFnTestDerivativeFn: Tested hessianmultadjoint instantiated function against matrix-free action: norm 0.393037, error 0.
+PetscFnTestDerivativeFn: Tested hessianmultadjoint instantiated function against matrix-free action: norm 0.0305766, error 0.
