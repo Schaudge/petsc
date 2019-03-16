@@ -16,7 +16,7 @@ int main(int argc,char **args)
   KSP            ksp;
   char           file[PETSC_MAX_PATH_LEN];
   char           file2[PETSC_MAX_PATH_LEN];
-  char           matname[PETSC_MAX_PATH_LEN],str1[PETSC_MAX_PATH_LEN],str2[PETSC_MAX_PATH_LEN];
+  char           groupname[PETSC_MAX_PATH_LEN],matname[PETSC_MAX_PATH_LEN],str1[PETSC_MAX_PATH_LEN],str2[PETSC_MAX_PATH_LEN];
   PetscViewer    fd;
   PetscBool      flg;
   PetscLogDouble vstart,vend;
@@ -27,10 +27,11 @@ int main(int argc,char **args)
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
 
   /* Read matrix and RHS */
+  ierr = PetscOptionsGetString(NULL,NULL,"-groupname",groupname,PETSC_MAX_PATH_LEN,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetString(NULL,NULL,"-matname",matname,PETSC_MAX_PATH_LEN,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetString(NULL,NULL,"-str1",str1,PETSC_MAX_PATH_LEN,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetString(NULL,NULL,"-str2",str2,PETSC_MAX_PATH_LEN,NULL);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(file2,sizeof(file2),"%s_%s_%s.txt",matname,str1,str2);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(file2,sizeof(file2),"%s %s_%s_%s.txt",groupname,matname,str1,str2);CHKERRQ(ierr);
   ierr = PetscOptionsGetString(NULL,NULL,"-A",file,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
   if (!flg) SETERRQ(PETSC_COMM_WORLD,1,"Must indicate binary file with the -A option");
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file,FILE_MODE_READ,&fd);CHKERRQ(ierr);
@@ -96,7 +97,7 @@ int main(int argc,char **args)
 
   ierr = KSPGetConvergedReason(ksp,&reason);CHKERRQ(ierr);
   if (!rank) {
-      ierr = PetscFPrintf(PETSC_COMM_SELF,f,"%s %s %s ",matname,str1,str2);CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,f,"%s %s %s %s ",groupname,matname,str1,str2);CHKERRQ(ierr);
     if (reason < 0) {
       ierr = PetscFPrintf(PETSC_COMM_SELF,f,"%d 0 0",reason);CHKERRQ(ierr);
     } else {
