@@ -346,29 +346,30 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEFreeInterpolateGradient_Static(PetscFE
 {
  PetscReal      realSpaceDer[3];
  PetscScalar    compGradient[3];
- PetscInt       Nb, Nc, fc, f, d, g;
+ PetscInt       Nb, Nc, fc, f=0, d, g;
  PetscErrorCode ierr;
 
  PetscFunctionBeginHot;
  ierr = PetscFEGetDimension(fe, &Nb);CHKERRQ(ierr);
  ierr = PetscFEGetNumComponents(fe, &Nc);CHKERRQ(ierr);
+ //PetscPrintf(PETSC_COMM_WORLD, "FEGetNumComp: %i\n", Nc);
  for (fc = 0; fc < Nc; ++fc) {
    interpolant[fc] = 0.0;
    for (d = 0; d < dim; ++d) compGradient[d] = 0.0;
-   for (f = 0; f < Nb; ++f) {
-
-     for (d = 0; d < dim; ++d) {
-       realSpaceDer[d] = 0.0;
-       for (g = 0; g < dim; ++g) {
-         realSpaceDer[d] += invJ[dim*dim*q + g*dim+d]*basisDer[((q*Nb + f)*Nc + fc)*dim + g];
-       }
-       compGradient[d] += x[f]*realSpaceDer[d];
-     }
+   for (d = 0; d < dim; ++d) {
+     realSpaceDer[d] = 0.0;
+     
+     realSpaceDer[d] += invJ[d]*basisDer[(q*dim)+d];
+       //PetscPrintf(PETSC_COMM_WORLD, "Basis der: %f\n", basisDer[d]);
+       PetscPrintf(PETSC_COMM_WORLD, "invJ[%i]: %f\n", d, invJ[d]);
+     
+     compGradient[d] += x[d]*realSpaceDer[d];
    }
+   
    if (n) {
      for (d = 0; d < dim; ++d) interpolant[fc] += compGradient[d]*n[d];
    } else {
-     for (d = 0; d < dim; ++d) interpolant[fc*dim+d] = compGradient[d];
+     for (d = 0; d < dim; ++d) interpolant[d] = compGradient[d];
    }
  }
  PetscFunctionReturn(0);

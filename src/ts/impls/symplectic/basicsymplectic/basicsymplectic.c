@@ -4,6 +4,7 @@
 #include <petsc/private/tsimpl.h>                /*I   "petscts.h"   I*/
 #include <petscdm.h>
 #include <petscdmswarm.h>
+#include <petscdmplex.h>
 
 static TSBasicSymplecticType TSBasicSymplecticDefault = TSBASICSYMPLECTICSIEULER;
 static PetscBool TSBasicSymplecticRegisterAllCalled;
@@ -249,46 +250,77 @@ static PetscErrorCode TSStep_BasicSymplectic(TS ts)
   /* 
      For the purposes of Poisson solvers with a DM swarm neccessitating symplectic time steppers,
      check for a DM of type swarm owned by the TS, if so, migrate the particles based upon their
-     updated positions for any field solvers.
+     updated positions for any field solvers relying on updated swarm weights from altered position.
   */
+#if 1
   if(ts->dm){
     DMType type;
     ierr = DMGetType(ts->dm, &type);CHKERRQ(ierr);
     if(type == DMSWARM){
-        PetscInt dim, Np, d, p;
-        Vec      coor, kin;
-        PetscReal *coorArr, *kinArr;
-        const PetscScalar *solArr;
+        PetscInt dim, Np, d, par, cStart, cEnd, cell;
+        Vec      coor, kin, weights;
+        PetscReal *coorArr, *kinArr, *weightsArr;
+        const PetscScalar *position, *momentum;
 
         ierr = DMGetDimension(ts->dm, &dim);CHKERRQ(ierr);
         ierr = VecGetLocalSize(solution, &Np);CHKERRQ(ierr);
         Np /= 2*dim;
         
+        /* Move particles in the DM based on the solution, get the reference cell coordinates, and reweight
+        particles in the reference cell. For now, a linear weighting scheme is applied to the particles, only. 
+        Migrate the swarm. */
         ierr = DMSwarmGetField(ts->dm, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
         ierr = DMSwarmGetField(ts->dm, "kinematics", NULL, NULL, (void **) &kin);CHKERRQ(ierr);
-        
+        ierr = DMSwarmGetField(ts->dm, "w_q", NULL, NULL, (void **) &weights);
+
         ierr = VecGetArray(coor, &coorArr);CHKERRQ(ierr);
         ierr = VecGetArray(kin, &kinArr);CHKERRQ(ierr);
-        ierr = VecGetArrayRead(solution, &solArr);CHKERRQ(ierr);
-        for(p = 0; p < Np; ++p){
-          
+        ierr = VecGetArrayRead(q, &position);CHKERRQ(ierr);
+        ierr = VecGetArrayRead(p, &momentum);CHKERRQ(ierr);
+        for(par = 0; par < Np; ++par){
           for(d=0; d<dim; ++d){
-            coorArr[p*dim+d] = solArr[p*2*dim+d];
-            kinArr[p*dim+d] = solArr[(p*2*dim+dim)+d];
+            coorArr[par*dim+d] = position[par*dim+d];
+            kinArr[par*dim+d] = momentum[par*dim+d];
           }
-        
         }
-        ierr = VecRestoreArray(coor, &coorArr);CHKERRQ(ierr);
         ierr = VecRestoreArray(kin, &kinArr);CHKERRQ(ierr);
-        ierr = VecRestoreArrayRead(solution, &solArr);CHKERRQ(ierr);
+        ierr = VecRestoreArrayRead(q, &position);CHKERRQ(ierr);
+        ierr = VecRestoreArrayRead(p, &momentum);CHKERRQ(ierr);
 
+        ierr = VecGetArray(weights, &weightsArr);CHKERRQ(ierr);
+        ierr = DMPlexGetHeightStratum(ts->dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
+        for (cell = cStart; cell < cEnd; ++cell) {
+          PetscReal   *refcoord = PETSC_NULL;
+          PetscReal   *pcoord   = PETSC_NULL;
+          PetscInt    *points   = PETSC_NULL, Ncp, cp;
+          
+          ierr = DMSwarmSortGetPointsPerCell(ts->dm, cell, &Ncp, &points);CHKERRQ(ierr);
+          // Get geometry of cell
+          //ierr = DMPlexComputeCellGeometryFEM(plex, cell, NULL, v, J, invJ, &detJ);CHKERRQ(ierr);
+          ierr = DMGetWorkArray(ts->dm, Ncp*dim, MPIU_REAL, &pcoord);CHKERRQ(ierr);
+          ierr = DMGetWorkArray(ts->dm, Ncp*dim, MPIU_REAL, &refcoord);CHKERRQ(ierr);
+          for (cp = 0; cp < Ncp; ++cp) {
+            for (d = 0; d < dim; ++d) {
+              pcoord[cp*dim+d] = coorArr[points[cp]*dim+d];
+              weightsArr[cell*Ncp + cp] = 0.;
+            }
+          }
+          ierr = DMPlexCoordinatesToReference(ts->dm, cell, Ncp, pcoord, refcoord);CHKERRQ(ierr);
+          for (cp = 0; cp < Ncp; ++cp) {
+            for (d = 0; d < dim; ++d) {
+              weightsArr[cell*Ncp+cp] += refcoord[cp*dim+d]/2.;
+            }
+          }
+        }
+        VecRestoreArray(weights, &weightsArr);
+        ierr = VecRestoreArray(coor, &coorArr);CHKERRQ(ierr);
         ierr = DMSwarmRestoreField(ts->dm, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
         ierr = DMSwarmRestoreField(ts->dm, "kinematics", NULL, NULL, (void **) &kin);CHKERRQ(ierr);
+        ierr = DMSwarmRestoreField(ts->dm, "w_q", NULL, NULL, (void **) &weights);CHKERRQ(ierr);
         ierr = DMSwarmMigrate(ts->dm, PETSC_TRUE);CHKERRQ(ierr);
     }
   }
-
-
+#endif
   ts->time_step = next_time_step;
   ierr = VecRestoreSubVector(solution,is_q,&q);CHKERRQ(ierr);
   ierr = VecRestoreSubVector(solution,is_p,&p);CHKERRQ(ierr);

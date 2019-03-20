@@ -102,6 +102,7 @@ static PetscErrorCode TSAdaptSetDefaultType(TSAdapt adapt,TSAdaptType default_ty
 .  -ts_monitor_lg_snes_iterations - Monitor number nonlinear iterations for each timestep graphically
 .  -ts_monitor_lg_ksp_iterations - Monitor number nonlinear iterations for each timestep graphically
 .  -ts_monitor_sp_eig - Monitor eigenvalues of linearized operator graphically
+.  -ts_monitor_sp_swarm_phase - Graph the phase plot for particles in a DMSwarm if they have position and momentum fields
 .  -ts_monitor_draw_solution - Monitor solution graphically
 .  -ts_monitor_draw_solution_phase  <xleft,yleft,xright,yright> - Monitor solution graphically with phase diagram, requires problem with exactly 2 degrees of freedom
 .  -ts_monitor_draw_error - Monitor error graphically, requires use to have provided TSSetSolutionFunction()
@@ -256,6 +257,14 @@ PetscErrorCode  TSSetFromOptions(TS ts)
     ierr = PetscOptionsInt("-ts_monitor_sp_swarm","Display particles phase from the DMSwarm","TSMonitorSPSwarm",howoften,&howoften,NULL);CHKERRQ(ierr);
     ierr = TSMonitorSPCtxCreate(PETSC_COMM_SELF, NULL, NULL, PETSC_DECIDE, PETSC_DECIDE, 300, 300, howoften, &ctx);CHKERRQ(ierr);
     ierr = TSMonitorSet(ts, TSMonitorSPSwarmSolution, ctx, (PetscErrorCode (*)(void**))TSMonitorSPCtxDestroy);CHKERRQ(ierr);
+  }
+ierr = PetscOptionsName("-ts_monitor_sp_swarm_phase","Display particle phase from the DMSwarm","TSMonitorSPSwarm",&opt);CHKERRQ(ierr);
+  if (opt) {
+    TSMonitorSPCtx  ctx;
+    PetscInt        howoften = 1;
+    ierr = PetscOptionsInt("-ts_monitor_sp_swarm_phase","Display particles phase from the DMSwarm","TSMonitorSPSwarm",howoften,&howoften,NULL);CHKERRQ(ierr);
+    ierr = TSMonitorSPCtxCreate(PETSC_COMM_SELF, NULL, NULL, PETSC_DECIDE, PETSC_DECIDE, 300, 300, howoften, &ctx);CHKERRQ(ierr);
+    ierr = TSMonitorSet(ts, TSMonitorSPSwarmPhase, ctx, (PetscErrorCode (*)(void**))TSMonitorSPCtxDestroy);CHKERRQ(ierr);
   }
   opt  = PETSC_FALSE;
   ierr = PetscOptionsName("-ts_monitor_draw_solution","Monitor solution graphically","TSMonitorDrawSolution",&opt);CHKERRQ(ierr);
@@ -7028,6 +7037,53 @@ PetscErrorCode TSMonitorSPSwarmSolution(TS ts,PetscInt step,PetscReal ptime,Vec 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode TSMonitorSPSwarmPhase(TS ts,PetscInt step,PetscReal ptime,Vec u,void *dctx)
+{
+  PetscErrorCode    ierr;
+  TSMonitorSPCtx    ctx = (TSMonitorSPCtx)dctx;
+  const PetscScalar *yy;
+  PetscScalar       *y,*x;
+  PetscInt          Np, p, dim=2;
+  DM                dm;
+
+  PetscFunctionBegin;
+  
+  if (step < 0) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
+  if (!step) {
+    PetscDrawAxis axis;
+    ierr = PetscDrawSPGetAxis(ctx->sp,&axis);CHKERRQ(ierr);
+    ierr = PetscDrawAxisSetLabels(axis,"Particle Phase","T","V");CHKERRQ(ierr);
+    ierr = PetscDrawAxisSetLimits(axis, 0, 10, -1.5, 1.5);CHKERRQ(ierr);
+    ierr = PetscDrawAxisSetHoldLimits(axis, PETSC_TRUE);CHKERRQ(ierr);
+    ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
+    ierr = DMGetDimension(dm, &dim);
+    if(dim!=2) SETERRQ(PETSC_COMM_SELF, ierr, "Dimensions improper for monitor arguments! Current support: two dimensions.");CHKERRQ(ierr);
+    ierr = VecGetLocalSize(u, &Np);CHKERRQ(ierr);
+    Np /= 2*dim;
+    ierr = PetscDrawSPSetDimension(ctx->sp, Np);CHKERRQ(ierr);
+    ierr = PetscDrawSPReset(ctx->sp);CHKERRQ(ierr);
+  }
+  
+  ierr = VecGetLocalSize(u, &Np);CHKERRQ(ierr);
+  Np /= 2*dim;
+  ierr = VecGetArrayRead(u,&yy);CHKERRQ(ierr);
+  ierr = PetscMalloc2(Np, &x, Np, &y);CHKERRQ(ierr);
+  /* get points from solution vector */
+  for (p=0; p<Np; ++p){
+    x[p] = ptime;
+    y[p] = yy[(2*dim*p)+dim];
+    PetscPrintf(PETSC_COMM_WORLD, "plotter index for particle %i: %i\n", p, (2*dim*p)+dim);
+  }
+  ierr = VecRestoreArrayRead(u,&yy);CHKERRQ(ierr);
+
+  if (((ctx->howoften > 0) && (!(step % ctx->howoften))) || ((ctx->howoften == -1) && ts->reason)) {
+    ierr = PetscDrawSPAddPoint(ctx->sp,x,y);CHKERRQ(ierr);
+    ierr = PetscDrawSPDraw(ctx->sp,PETSC_FALSE);CHKERRQ(ierr);
+    ierr = PetscDrawSPSave(ctx->sp);CHKERRQ(ierr);
+  }
+
+  PetscFunctionReturn(0);
+}
 
 
 /*@C
