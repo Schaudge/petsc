@@ -46,6 +46,7 @@ typedef const char* SNESType;
 #define SNESANDERSON         "anderson"
 #define SNESASPIN            "aspin"
 #define SNESCOMPOSITE        "composite"
+#define SNESPATCH            "patch"
 
 /* Logging support */
 PETSC_EXTERN PetscClassId SNES_CLASSID;
@@ -176,6 +177,10 @@ PETSC_EXTERN PetscErrorCode SNESPythonSetType(SNES,const char[]);
 
 PETSC_EXTERN PetscErrorCode SNESSetFunctionDomainError(SNES);
 PETSC_EXTERN PetscErrorCode SNESGetFunctionDomainError(SNES, PetscBool *);
+PETSC_EXTERN PetscErrorCode SNESGetJacobianDomainError(SNES,PetscBool*);
+PETSC_EXTERN PetscErrorCode SNESSetJacobianDomainError(SNES);
+PETSC_EXTERN PetscErrorCode SNESSetCheckJacobianDomainError(SNES,PetscBool);
+PETSC_EXTERN PetscErrorCode SNESGetCheckJacobianDomainError(SNES,PetscBool*);
 
 /*E
     SNESConvergedReason - reason a SNES method was said to
@@ -243,6 +248,7 @@ typedef enum {/* converged */
               SNES_DIVERGED_INNER               = -7, /* inner solve failed */
               SNES_DIVERGED_LOCAL_MIN           = -8, /* || J^T b || is small, implies converged to local minimum of F() */
               SNES_DIVERGED_DTOL                = -9, /* || F || > divtol*||F_initial|| */
+              SNES_DIVERGED_JACOBIAN_DOMAIN     = -10, /* Jacobian calculation does not make sense */
 
               SNES_CONVERGED_ITERATING          =  0} SNESConvergedReason;
 PETSC_EXTERN const char *const*SNESConvergedReasons;
@@ -814,6 +820,12 @@ PETSC_EXTERN PetscErrorCode SNESCompositeAddSNES(SNES,SNESType);
 PETSC_EXTERN PetscErrorCode SNESCompositeGetSNES(SNES,PetscInt,SNES *);
 PETSC_EXTERN PetscErrorCode SNESCompositeGetNumber(SNES,PetscInt*);
 PETSC_EXTERN PetscErrorCode SNESCompositeSetDamping(SNES,PetscInt,PetscReal);
+
+PETSC_EXTERN PetscErrorCode SNESPatchSetDiscretisationInfo(SNES,PetscInt,DM*,PetscInt*,PetscInt*,const PetscInt**,const PetscInt*,PetscInt,const PetscInt*,PetscInt,const PetscInt*);
+PETSC_EXTERN PetscErrorCode SNESPatchSetComputeOperator(SNES, PetscErrorCode (*func)(PC, PetscInt, Vec, Mat, IS, PetscInt, const PetscInt *, const PetscInt *, void *), void*);
+PETSC_EXTERN PetscErrorCode SNESPatchSetComputeFunction(SNES, PetscErrorCode (*func)(PC, PetscInt, Vec, Vec, IS, PetscInt, const PetscInt *, const PetscInt *, void *), void*);
+PETSC_EXTERN PetscErrorCode SNESPatchSetConstructType(SNES,PCPatchConstructType, PetscErrorCode (*func)(PC, PetscInt *, IS **, IS *, void *), void*);
+PETSC_EXTERN PetscErrorCode SNESPatchSetCellNumbering(SNES,PetscSection);
 
 /*E
     SNESFASType - Determines the type of nonlinear multigrid method that is run.

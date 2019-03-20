@@ -1416,7 +1416,7 @@ int main(int argc, char **argv)
   char              filename[PETSC_MAX_PATH_LEN] = "sevenside.exo";
   PetscErrorCode    ierr;
 
-  ierr = PetscInitialize(&argc, &argv, (char*) 0, help);CHKERRQ(ierr);
+  ierr = PetscInitialize(&argc, &argv, (char*) 0, help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
   ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
 
@@ -1476,8 +1476,7 @@ int main(int argc, char **argv)
   {
     DM dmDist;
 
-    ierr = DMPlexSetAdjacencyUseCone(dm, PETSC_TRUE);CHKERRQ(ierr);
-    ierr = DMPlexSetAdjacencyUseClosure(dm, PETSC_FALSE);CHKERRQ(ierr);
+    ierr = DMSetBasicAdjacency(dm, PETSC_TRUE, PETSC_FALSE);CHKERRQ(ierr);
     ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
     if (dmDist) {
       ierr = DMDestroy(&dm);CHKERRQ(ierr);

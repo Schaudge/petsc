@@ -35,7 +35,7 @@ PetscErrorCode PCReset_GAMG(PC pc)
   PC_GAMG        *pc_gamg = (PC_GAMG*)mg->innerctx;
 
   PetscFunctionBegin;
-  if (pc_gamg->data) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_PLIB,"This should not happen, cleaned up in SetUp\n");
+  ierr = PetscFree(pc_gamg->data);CHKERRQ(ierr);
   pc_gamg->data_sz = 0;
   ierr = PetscFree(pc_gamg->orig_data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -532,14 +532,14 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
           ierr = pc_gamg->ops->optprolongator(pc, Aarr[level], &Prol11);CHKERRQ(ierr);
         }
 
+        if (pc_gamg->use_aggs_in_asm) {
+          PetscInt bs;
+          ierr = MatGetBlockSizes(Prol11, &bs, NULL);CHKERRQ(ierr);
+          ierr = PetscCDGetASMBlocks(agg_lists, bs, Gmat, &nASMBlocksArr[level], &ASMLocalIDsArr[level]);CHKERRQ(ierr);
+        }
+
         Parr[level1] = Prol11;
       } else Parr[level1] = NULL; /* failed to coarsen */
-
-      if (pc_gamg->use_aggs_in_asm) {
-        PetscInt bs;
-        ierr = MatGetBlockSizes(Prol11, &bs, NULL);CHKERRQ(ierr);
-        ierr = PetscCDGetASMBlocks(agg_lists, bs, Gmat, &nASMBlocksArr[level], &ASMLocalIDsArr[level]);CHKERRQ(ierr);
-      }
 
       ierr = MatDestroy(&Gmat);CHKERRQ(ierr);
       ierr = PetscCDDestroy(agg_lists);CHKERRQ(ierr);

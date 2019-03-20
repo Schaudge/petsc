@@ -120,9 +120,9 @@ struct _p_KSP {
   void       *data;                      /* holder for misc stuff associated
                                    with a particular iterative solver */
 
-  PetscBool         view,   viewPre,   viewReason,   viewMat,   viewPMat,   viewRhs,   viewSol,   viewMatExp,   viewEV,   viewSV,   viewEVExp,   viewFinalRes,   viewPOpExp;
-  PetscViewer       viewer, viewerPre, viewerReason, viewerMat, viewerPMat, viewerRhs, viewerSol, viewerMatExp, viewerEV, viewerSV, viewerEVExp, viewerFinalRes, viewerPOpExp;
-  PetscViewerFormat format, formatPre, formatReason, formatMat, formatPMat, formatRhs, formatSol, formatMatExp, formatEV, formatSV, formatEVExp, formatFinalRes, formatPOpExp;
+  PetscBool         view,   viewPre,   viewReason,   viewMat,   viewPMat,   viewRhs,   viewSol,   viewMatExp,   viewEV,   viewSV,   viewEVExp,   viewFinalRes,   viewPOpExp,   viewDScale;
+  PetscViewer       viewer, viewerPre, viewerReason, viewerMat, viewerPMat, viewerRhs, viewerSol, viewerMatExp, viewerEV, viewerSV, viewerEVExp, viewerFinalRes, viewerPOpExp, viewerDScale;
+  PetscViewerFormat format, formatPre, formatReason, formatMat, formatPMat, formatRhs, formatSol, formatMatExp, formatEV, formatSV, formatEVExp, formatFinalRes, formatPOpExp, formatDScale;
 
   /* ----------------Default work-area management -------------------- */
   PetscInt       nwork;
@@ -349,17 +349,20 @@ PETSC_INTERN PetscErrorCode PCPreSolveChangeRHS(PC,PetscBool*);
    Collective on KSP
 
    Input Parameter:
-+  ksp - the linear solver (KSP) context.
--  beta - the result of the inner product
+.  ksp - the linear solver (KSP) context.
+
+   Output Parameter:
+.  beta - the result of the inner product
 
    Level: developer
 
-   Developer Note: this is used to manage returning from KSP solvers whose preconditioners have failed in some way
+   Developer Note:
+   this is used to manage returning from KSP solvers whose preconditioners have failed in some way
 
 .keywords: KSP, PC, divergence, convergence
 
 .seealso: KSPCreate(), KSPSetType(), KSP, KSPCheckNorm(), KSPCheckSolve()
-@*/
+M*/
 #define KSPCheckDot(ksp,beta)           \
   if (PetscIsInfOrNanScalar(beta)) { \
     if (ksp->errorifnotconverged) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_NOT_CONVERGED,"KSPSolve has not converged due to Nan or Inf inner product");\
@@ -387,17 +390,20 @@ PETSC_INTERN PetscErrorCode PCPreSolveChangeRHS(PC,PetscBool*);
    Collective on KSP
 
    Input Parameter:
-+  ksp - the linear solver (KSP) context.
--  beta - the result of the norm
+.  ksp - the linear solver (KSP) context.
+
+   Output Parameter:
+.  beta - the result of the norm
 
    Level: developer
 
-   Developer Note: this is used to manage returning from KSP solvers whose preconditioners have failed in some way
+   Developer Note:
+   this is used to manage returning from KSP solvers whose preconditioners have failed in some way
 
 .keywords: KSP, PC, divergence, convergence
 
 .seealso: KSPCreate(), KSPSetType(), KSP, KSPCheckDot(), KSPCheckSolve()
-@*/
+M*/
 #define KSPCheckNorm(ksp,beta)           \
   if (PetscIsInfOrNanReal(beta)) { \
     if (ksp->errorifnotconverged) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_NOT_CONVERGED,"KSPSolve has not converged due to Nan or Inf norm");\

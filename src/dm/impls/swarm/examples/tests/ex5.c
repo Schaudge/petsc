@@ -383,7 +383,7 @@ int main(int argc,char **argv)
 {
   TSConvergedReason reason;
   const PetscScalar *endVals;
-  PetscReal         ftime   = 1., vx, vy;
+  PetscReal         ftime   = .1, vx, vy;
   PetscInt          locSize, p, d, dim, Np, steps, *idx1, *idx2;
   Vec               f;             
   TS                ts;            
@@ -394,7 +394,7 @@ int main(int argc,char **argv)
   PetscErrorCode    ierr;  
 
   
-  ierr = PetscInitialize(&argc,&argv,NULL,help);CHKERRQ(ierr);
+  ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
 
   ierr = ProcessOptions(comm, &user);CHKERRQ(ierr);
@@ -440,7 +440,7 @@ int main(int argc,char **argv)
 
   ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,0.0001);CHKERRQ(ierr);
-  ierr = TSSetMaxSteps(ts,10000);CHKERRQ(ierr);
+  ierr = TSSetMaxSteps(ts,10);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
   ierr = TSSetTime(ts,0.0);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
@@ -465,6 +465,8 @@ int main(int argc,char **argv)
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = ISDestroy(&is1);CHKERRQ(ierr);
   ierr = ISDestroy(&is2);CHKERRQ(ierr);
+  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  ierr = DMDestroy(&sw);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
@@ -476,12 +478,12 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 
+     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -ts_basicsymplectic_type 1 -ts_monitor_sp_swarm
    test:
      suffix: bsi2
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 
+     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -ts_basicsymplectic_type 2 -ts_monitor_sp_swarm
    test:
      suffix: euler 
-     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_type euler 
+     args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -ts_type euler -ts_monitor_sp_swarm
 
 TEST*/

@@ -3255,6 +3255,8 @@ PetscErrorCode DMPlexCreateCellVertexFromFile(MPI_Comm comm, const char filename
 PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscBool interpolate, DM *dm)
 {
   const char    *extGmsh    = ".msh";
+  const char    *extGmsh2   = ".msh2";
+  const char    *extGmsh4   = ".msh4";
   const char    *extCGNS    = ".cgns";
   const char    *extExodus  = ".exo";
   const char    *extGenesis = ".gen";
@@ -3264,7 +3266,7 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscB
   const char    *extPLY     = ".ply";
   const char    *extCV      = ".dat";
   size_t         len;
-  PetscBool      isGmsh, isCGNS, isExodus, isGenesis, isFluent, isHDF5, isMed, isPLY, isCV;
+  PetscBool      isGmsh, isGmsh2, isGmsh4, isCGNS, isExodus, isGenesis, isFluent, isHDF5, isMed, isPLY, isCV;
   PetscMPIInt    rank;
   PetscErrorCode ierr;
 
@@ -3275,6 +3277,8 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscB
   ierr = PetscStrlen(filename, &len);CHKERRQ(ierr);
   if (!len) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "Filename must be a valid path");
   ierr = PetscStrncmp(&filename[PetscMax(0,len-4)], extGmsh,    4, &isGmsh);CHKERRQ(ierr);
+  ierr = PetscStrncmp(&filename[PetscMax(0,len-5)], extGmsh2,   5, &isGmsh2);CHKERRQ(ierr);
+  ierr = PetscStrncmp(&filename[PetscMax(0,len-5)], extGmsh4,   5, &isGmsh4);CHKERRQ(ierr);
   ierr = PetscStrncmp(&filename[PetscMax(0,len-5)], extCGNS,    5, &isCGNS);CHKERRQ(ierr);
   ierr = PetscStrncmp(&filename[PetscMax(0,len-4)], extExodus,  4, &isExodus);CHKERRQ(ierr);
   ierr = PetscStrncmp(&filename[PetscMax(0,len-4)], extGenesis, 4, &isGenesis);CHKERRQ(ierr);
@@ -3283,7 +3287,7 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscB
   ierr = PetscStrncmp(&filename[PetscMax(0,len-4)], extMed,     4, &isMed);CHKERRQ(ierr);
   ierr = PetscStrncmp(&filename[PetscMax(0,len-4)], extPLY,     4, &isPLY);CHKERRQ(ierr);
   ierr = PetscStrncmp(&filename[PetscMax(0,len-4)], extCV,      4, &isCV);CHKERRQ(ierr);
-  if (isGmsh) {
+  if (isGmsh || isGmsh2 || isGmsh4) {
     ierr = DMPlexCreateGmshFromFile(comm, filename, interpolate, dm);CHKERRQ(ierr);
   } else if (isCGNS) {
     ierr = DMPlexCreateCGNSFromFile(comm, filename, interpolate, dm);CHKERRQ(ierr);
@@ -3295,6 +3299,8 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscB
     PetscBool      load_hdf5_xdmf = PETSC_FALSE;
     PetscViewer viewer;
 
+    /* PETSC_VIEWER_HDF5_XDMF is used if the filename ends with .xdmf.h5, or if -dm_plex_create_from_hdf5_xdmf option is present */
+    ierr = PetscStrncmp(&filename[PetscMax(0,len-8)], ".xdmf",  5, &load_hdf5_xdmf);CHKERRQ(ierr);
     ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_create_from_hdf5_xdmf", &load_hdf5_xdmf, NULL);CHKERRQ(ierr);
     ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
     ierr = PetscViewerSetType(viewer, PETSCVIEWERHDF5);CHKERRQ(ierr);
@@ -3427,6 +3433,7 @@ PetscErrorCode DMPlexCreateReferenceCell(MPI_Comm comm, PetscInt dim, PetscBool 
     if (cs) {ierr = PetscSectionGetChart(cs, NULL, &pEnd);CHKERRQ(ierr);}
     if (pEnd >= 0) {
       ierr = DMClone(rdm->coordinateDM, &ncdm);CHKERRQ(ierr);
+      ierr = DMCopyDisc(rdm->coordinateDM, ncdm);CHKERRQ(ierr);
       ierr = DMSetSection(ncdm, cs);CHKERRQ(ierr);
       ierr = DMSetCoordinateDM(*refdm, ncdm);CHKERRQ(ierr);
       ierr = DMDestroy(&ncdm);CHKERRQ(ierr);

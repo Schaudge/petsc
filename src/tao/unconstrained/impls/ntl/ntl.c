@@ -55,7 +55,7 @@ static PetscErrorCode TaoSolve_NTL(Tao tao)
 
   PetscFunctionBegin;
   if (tao->XL || tao->XU || tao->ops->computebounds) {
-    ierr = PetscPrintf(((PetscObject)tao)->comm,"WARNING: Variable bounds have been set but will be ignored by ntl algorithm\n");CHKERRQ(ierr);
+    ierr = PetscInfo(tao,"WARNING: Variable bounds have been set but will be ignored by ntl algorithm\n");CHKERRQ(ierr);
   }
 
   ierr = KSPGetType(tao->ksp,&ksp_type);CHKERRQ(ierr);
@@ -232,7 +232,7 @@ static PetscErrorCode TaoSolve_NTL(Tao tao)
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     /* Call general purpose update function */
     if (tao->ops->update) {
-      ierr = (*tao->ops->update)(tao, tao->niter);CHKERRQ(ierr);
+      ierr = (*tao->ops->update)(tao, tao->niter, tao->user_update);CHKERRQ(ierr);
     }
     ++tao->niter;
     tao->ksp_its=0;
@@ -718,8 +718,7 @@ static PetscErrorCode TaoView_NTL(Tao tao, PetscViewer viewer)
 
 /* ---------------------------------------------------------- */
 /*MC
-  TAONTR - Newton's method with trust region and linesearch
-  for unconstrained minimization.
+  TAONTL - Newton's method with trust region globalization and line search fallback.
   At each iteration, the Newton trust region method solves the system for d
   and performs a line search in the d direction:
 
@@ -757,7 +756,6 @@ static PetscErrorCode TaoView_NTL(Tao tao, PetscViewer viewer)
 
   Level: beginner
 M*/
-
 PETSC_EXTERN PetscErrorCode TaoCreate_NTL(Tao tao)
 {
   TAO_NTL        *tl;

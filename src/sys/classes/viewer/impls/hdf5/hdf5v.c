@@ -24,6 +24,7 @@ typedef struct {
   char          *mataij_jname;
   char          *mataij_aname;
   char          *mataij_cname;
+  PetscBool     mataij_names_set;
 } PetscViewer_HDF5;
 
 struct _n_HDF5ReadCtx {
@@ -88,7 +89,7 @@ static PetscErrorCode PetscViewerFileClose_HDF5(PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscViewerDestroy_HDF5(PetscViewer viewer)
+static PetscErrorCode PetscViewerDestroy_HDF5(PetscViewer viewer)
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
   PetscErrorCode   ierr;
@@ -117,17 +118,25 @@ PetscErrorCode PetscViewerDestroy_HDF5(PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  PetscViewerFileSetMode_HDF5(PetscViewer viewer, PetscFileMode type)
+static PetscErrorCode  PetscViewerFileSetMode_HDF5(PetscViewer viewer, PetscFileMode type)
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(viewer, PETSC_VIEWER_CLASSID, 1);
   hdf5->btype = type;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  PetscViewerHDF5SetBaseDimension2_HDF5(PetscViewer viewer, PetscBool flg)
+static PetscErrorCode  PetscViewerFileGetMode_HDF5(PetscViewer viewer, PetscFileMode *type)
+{
+  PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
+
+  PetscFunctionBegin;
+  *type = hdf5->btype;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode  PetscViewerHDF5SetBaseDimension2_HDF5(PetscViewer viewer, PetscBool flg)
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
 
@@ -200,7 +209,7 @@ PetscErrorCode PetscViewerHDF5GetBaseDimension2(PetscViewer viewer,PetscBool *fl
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  PetscViewerHDF5SetSPOutput_HDF5(PetscViewer viewer, PetscBool flg)
+static PetscErrorCode  PetscViewerHDF5SetSPOutput_HDF5(PetscViewer viewer, PetscBool flg)
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
 
@@ -275,7 +284,7 @@ PetscErrorCode PetscViewerHDF5GetSPOutput(PetscViewer viewer,PetscBool *flg)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  PetscViewerFileSetName_HDF5(PetscViewer viewer, const char name[])
+static PetscErrorCode  PetscViewerFileSetName_HDF5(PetscViewer viewer, const char name[])
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
 #if defined(PETSC_HAVE_H5PSET_FAPL_MPIO)
@@ -321,7 +330,7 @@ static PetscErrorCode PetscViewerFileGetName_HDF5(PetscViewer viewer,const char 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  PetscViewerHDF5SetAIJNames_HDF5(PetscViewer viewer, const char iname[], const char jname[], const char aname[], const char cname[])
+static PetscErrorCode  PetscViewerHDF5SetAIJNames_HDF5(PetscViewer viewer, const char iname[], const char jname[], const char aname[], const char cname[])
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
   PetscErrorCode ierr;
@@ -335,6 +344,7 @@ PetscErrorCode  PetscViewerHDF5SetAIJNames_HDF5(PetscViewer viewer, const char i
   ierr = PetscStrallocpy(jname,&hdf5->mataij_jname);CHKERRQ(ierr);
   ierr = PetscStrallocpy(aname,&hdf5->mataij_aname);CHKERRQ(ierr);
   ierr = PetscStrallocpy(cname,&hdf5->mataij_cname);CHKERRQ(ierr);
+  hdf5->mataij_names_set = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -353,7 +363,8 @@ PetscErrorCode  PetscViewerHDF5SetAIJNames_HDF5(PetscViewer viewer, const char i
   Level: advanced
 
   Notes:
-  Current defaults are (iname, jname, aname, cname) = ("jc", "ir", "data", "MATLAB_sparse") so that MAT files can be readily loaded. 
+  Current defaults are (iname, jname, aname, cname) = ("i", "j", "a", "ncols").
+  For PetscViewerFormat PETSC_VIEWER_HDF5_MAT they are ("jc", "ir", "data", "MATLAB_sparse") so that MAT files can be loaded.
 
 .seealso: MatLoad(), PetscViewerCreate(), PetscViewerSetType(), PETSCVIEWERHDF5, PetscViewerHDF5GetAIJNames()
 @*/
@@ -371,7 +382,7 @@ PetscErrorCode  PetscViewerHDF5SetAIJNames(PetscViewer viewer, const char iname[
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode  PetscViewerHDF5GetAIJNames_HDF5(PetscViewer viewer, const char *iname[], const char *jname[], const char *aname[], const char *cname[])
+static PetscErrorCode  PetscViewerHDF5GetAIJNames_HDF5(PetscViewer viewer, const char *iname[], const char *jname[], const char *aname[], const char *cname[])
 {
   PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
 
@@ -400,7 +411,8 @@ PetscErrorCode  PetscViewerHDF5GetAIJNames_HDF5(PetscViewer viewer, const char *
   Level: advanced
 
   Notes:
-  Current defaults are (iname, jname, aname, cname) = ("jc", "ir", "data", "MATLAB_sparse") so that MAT files can be readily loaded. 
+  Current defaults are (iname, jname, aname, cname) = ("i", "j", "a", "ncols").
+  For PetscViewerFormat PETSC_VIEWER_HDF5_MAT they are ("jc", "ir", "data", "MATLAB_sparse") so that MAT files can be loaded.
 
 .seealso: MatLoad(), PetscViewerCreate(), PetscViewerSetType(), PETSCVIEWERHDF5, PetscViewerHDF5SetAIJNames()
 @*/
@@ -415,6 +427,22 @@ PetscErrorCode  PetscViewerHDF5GetAIJNames(PetscViewer viewer, const char *iname
   PetscValidPointer(aname,4);
   PetscValidPointer(cname,5);
   ierr = PetscUseMethod(viewer,"PetscViewerHDF5GetAIJNames_C",(PetscViewer,const char*[],const char*[],const char*[],const char*[]),(viewer,iname,jname,aname,cname));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscViewerSetUp_HDF5(PetscViewer viewer)
+{
+  PetscViewer_HDF5 *hdf5 = (PetscViewer_HDF5*) viewer->data;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  if (!hdf5->mataij_names_set) {
+    if (viewer->format == PETSC_VIEWER_HDF5_MAT) {
+      ierr = PetscViewerHDF5SetAIJNames_HDF5(viewer,"jc","ir","data","MATLAB_sparse");CHKERRQ(ierr);
+    } else {
+      ierr = PetscViewerHDF5SetAIJNames_HDF5(viewer,"i","j","a","ncols");CHKERRQ(ierr);
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -441,21 +469,23 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_HDF5(PetscViewer v)
   v->data                = (void*) hdf5;
   v->ops->destroy        = PetscViewerDestroy_HDF5;
   v->ops->setfromoptions = PetscViewerSetFromOptions_HDF5;
+  v->ops->setup          = PetscViewerSetUp_HDF5;
   v->ops->flush          = 0;
   hdf5->btype            = (PetscFileMode) -1;
   hdf5->filename         = 0;
   hdf5->timestep         = -1;
   hdf5->groups           = NULL;
 
-  /* ir and jc are deliberately swapped as MATLAB uses column-major format */
-  ierr = PetscStrallocpy("jc",  &hdf5->mataij_iname);CHKERRQ(ierr);
-  ierr = PetscStrallocpy("ir",  &hdf5->mataij_jname);CHKERRQ(ierr);
-  ierr = PetscStrallocpy("data",&hdf5->mataij_aname);CHKERRQ(ierr);
-  ierr = PetscStrallocpy("MATLAB_sparse", &hdf5->mataij_cname);CHKERRQ(ierr);
+  hdf5->mataij_iname     = NULL;
+  hdf5->mataij_jname     = NULL;
+  hdf5->mataij_aname     = NULL;
+  hdf5->mataij_cname     = NULL;
+  hdf5->mataij_names_set = PETSC_FALSE;
 
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerFileSetName_C",PetscViewerFileSetName_HDF5);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerFileGetName_C",PetscViewerFileGetName_HDF5);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerFileSetMode_C",PetscViewerFileSetMode_HDF5);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerFileGetMode_C",PetscViewerFileGetMode_HDF5);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerHDF5SetBaseDimension2_C",PetscViewerHDF5SetBaseDimension2_HDF5);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerHDF5SetSPOutput_C",PetscViewerHDF5SetSPOutput_HDF5);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)v,"PetscViewerHDF5SetAIJNames_C",PetscViewerHDF5SetAIJNames_HDF5);CHKERRQ(ierr);
@@ -632,6 +662,9 @@ PetscErrorCode  PetscViewerHDF5GetGroup(PetscViewer viewer, const char **name)
 + fileId - The HDF5 file ID
 - groupId - The HDF5 group ID
 
+  Notes:
+  If the viewer is writable, the group is created if it doesn't exist yet.
+
   Level: intermediate
 
 .seealso: PetscViewerHDF5Open(),PetscViewerHDF5PushGroup(),PetscViewerHDF5PopGroup(),PetscViewerHDF5GetGroup()
@@ -641,12 +674,14 @@ PetscErrorCode PetscViewerHDF5OpenGroup(PetscViewer viewer, hid_t *fileId, hid_t
   hid_t          file_id;
   H5O_type_t     type;
   const char     *groupName = NULL;
+  PetscBool      create;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscViewerWritable(viewer, &create);CHKERRQ(ierr);
   ierr = PetscViewerHDF5GetFileId(viewer, &file_id);CHKERRQ(ierr);
   ierr = PetscViewerHDF5GetGroup(viewer, &groupName);CHKERRQ(ierr);
-  ierr = PetscViewerHDF5Traverse_Internal(viewer, groupName, PETSC_TRUE, NULL, &type);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Traverse_Internal(viewer, groupName, create, NULL, &type);CHKERRQ(ierr);
   if (type != H5O_TYPE_GROUP) SETERRQ1(PetscObjectComm((PetscObject)viewer), PETSC_ERR_FILE_UNEXPECTED, "Path %s resolves to something which is not a group", groupName);
   PetscStackCallHDF5Return(*groupId,H5Gopen2,(file_id, groupName ? groupName : "/", H5P_DEFAULT));
   *fileId  = file_id;
@@ -920,7 +955,7 @@ PetscErrorCode PetscViewerHDF5ReadAttribute(PetscViewer viewer, const char datas
   if (datatype == PETSC_STRING) {
     size_t len;
     PetscStackCallHDF5Return(atype,H5Aget_type,(attribute));
-    PetscStackCallHDF5Return(len,H5Tget_size,(atype));
+    PetscStackCall("H5Tget_size",len = H5Tget_size(atype));
     PetscStackCallHDF5(H5Tclose,(atype));
     ierr = PetscMalloc((len+1) * sizeof(char *), &value);CHKERRQ(ierr);
   }
@@ -988,7 +1023,8 @@ static PetscErrorCode PetscViewerHDF5Traverse_Internal(PetscViewer viewer, const
   const char     rootGroupName[] = "/";
   hid_t          h5;
   PetscBool      exists=PETSC_FALSE;
-  PetscInt       i,n;
+  PetscInt       i;
+  int            n;
   char           **hierarchy;
   char           buf[PETSC_MAX_PATH_LEN]="";
   PetscErrorCode ierr;

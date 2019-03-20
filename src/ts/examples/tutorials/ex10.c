@@ -903,7 +903,7 @@ static PetscErrorCode RDCreate(MPI_Comm comm,RD *inrd)
 {
   PetscErrorCode ierr;
   RD             rd;
-  PetscReal      meter,kilogram,second,Kelvin,Joule,Watt;
+  PetscReal      meter=0,kilogram=0,second=0,Kelvin=0,Joule=0,Watt=0;
 
   PetscFunctionBeginUser;
   *inrd = 0;
@@ -1040,7 +1040,7 @@ int main(int argc, char *argv[])
   PetscInt       steps;
   PetscReal      ftime;
 
-  ierr = PetscInitialize(&argc,&argv,0,help);CHKERRQ(ierr);
+  ierr = PetscInitialize(&argc,&argv,0,help);if (ierr) return ierr;
   ierr = RDCreate(PETSC_COMM_WORLD,&rd);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(rd->da,&X);CHKERRQ(ierr);
   ierr = DMSetMatType(rd->da,MATAIJ);CHKERRQ(ierr);

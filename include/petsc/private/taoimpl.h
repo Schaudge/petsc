@@ -27,7 +27,7 @@ struct _TaoOps {
     PetscErrorCode (*computejacobianinequality)(Tao, Vec, Mat, Mat,  void*);
     PetscErrorCode (*computejacobianequality)(Tao, Vec, Mat, Mat,  void*);
     PetscErrorCode (*computebounds)(Tao, Vec, Vec, void*);
-    PetscErrorCode (*update)(Tao, PetscInt);
+    PetscErrorCode (*update)(Tao,PetscInt,void*);
     PetscErrorCode (*convergencetest)(Tao,void*);
     PetscErrorCode (*convergencedestroy)(void*);
 
@@ -169,6 +169,7 @@ struct _p_Tao {
     PetscBool viewhessian;
     PetscBool viewjacobian;
     PetscBool bounded;
+    PetscBool header_printed;
 
     TaoSubsetType subset_type;
     PetscInt      hist_max;/* Number of iteration histories to keep */

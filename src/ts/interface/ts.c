@@ -3278,8 +3278,6 @@ PetscErrorCode  TSSetPostEvaluate(TS ts, PetscErrorCode (*func)(TS))
 @*/
 PetscErrorCode  TSPreStage(TS ts, PetscReal stagetime)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
   if (ts->prestage) {
@@ -3311,8 +3309,6 @@ PetscErrorCode  TSPreStage(TS ts, PetscReal stagetime)
 @*/
 PetscErrorCode  TSPostStage(TS ts, PetscReal stagetime, PetscInt stageindex, Vec *Y)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
   if (ts->poststage) {
@@ -3941,11 +3937,11 @@ PetscErrorCode TSMonitor(TS ts,PetscInt step,PetscReal ptime,Vec u)
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
   ierr = DMSetOutputSequenceNumber(dm,step,ptime);CHKERRQ(ierr);
 
-  ierr = VecLockPush(u);CHKERRQ(ierr);
+  ierr = VecLockReadPush(u);CHKERRQ(ierr);
   for (i=0; i<n; i++) {
     ierr = (*ts->monitor[i])(ts,step,ptime,u,ts->monitorcontext[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(u);CHKERRQ(ierr);
+  ierr = VecLockReadPop(u);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -6984,7 +6980,7 @@ PetscErrorCode  TSMonitorLGError(TS ts,PetscInt step,PetscReal ptime,Vec u,void 
 -  dctx - the TSMonitorSPCtx object that contains all the options for the monitoring, this is created with TSMonitorSPCtxCreate()
 
    Options Database:
-.   -ts_monitor_sp_solution
+.   -ts_monitor_sp_swarm
 
    Level: intermediate
 
@@ -6995,7 +6991,7 @@ PetscErrorCode TSMonitorSPSwarmSolution(TS ts,PetscInt step,PetscReal ptime,Vec 
   PetscErrorCode    ierr;
   TSMonitorSPCtx    ctx = (TSMonitorSPCtx)dctx;
   const PetscScalar *yy;
-  PetscScalar       *y,*x;
+  PetscReal       *y,*x;
   PetscInt          Np, p, dim=2;
   DM                dm;
 
@@ -7023,16 +7019,18 @@ PetscErrorCode TSMonitorSPSwarmSolution(TS ts,PetscInt step,PetscReal ptime,Vec 
   ierr = PetscMalloc2(Np, &x, Np, &y);CHKERRQ(ierr);
   /* get points from solution vector */
   for (p=0; p<Np; ++p){
-    x[p] = yy[2*dim*p];
-    y[p] = yy[2*dim*p+1]; 
+    x[p] = PetscRealPart(yy[2*dim*p]);
+    y[p] = PetscRealPart(yy[2*dim*p+1]); 
   }
   ierr = VecRestoreArrayRead(u,&yy);CHKERRQ(ierr);
-
+  
   if (((ctx->howoften > 0) && (!(step % ctx->howoften))) || ((ctx->howoften == -1) && ts->reason)) {
     ierr = PetscDrawSPAddPoint(ctx->sp,x,y);CHKERRQ(ierr);
     ierr = PetscDrawSPDraw(ctx->sp,PETSC_FALSE);CHKERRQ(ierr);
     ierr = PetscDrawSPSave(ctx->sp);CHKERRQ(ierr);
   }
+
+  ierr = PetscFree2(x, y);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -7570,10 +7568,7 @@ PetscErrorCode TSSetFunctionDomainError(TS ts, PetscErrorCode (*func)(TS,PetscRe
 @*/
 PetscErrorCode TSFunctionDomainError(TS ts,PetscReal stagetime,Vec Y,PetscBool* accept)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
   *accept = PETSC_TRUE;
   if (ts->functiondomainerror) {
