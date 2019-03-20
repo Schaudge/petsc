@@ -386,8 +386,8 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   Vec                phi, locPhi, rho, f;
   const PetscScalar *x;
   PetscScalar       *vres;
-  PetscReal         *coords;
-  PetscInt           dim, d, cStart, cEnd, cell, cdim;
+  PetscReal         *coords, *rhoArr, rhoSum, rhoAvg;
+  PetscInt           dim, d, cStart, cEnd, cell, cdim, rhoSize;
   PetscErrorCode     ierr;
 
   PetscFunctionBeginUser;
@@ -416,6 +416,23 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   /* Solve Poisson */
   PetscObjectSetName((PetscObject) rho, "rho");
   ierr = VecViewFromOptions(rho, NULL, "-poisson_rho_view");
+  
+  VecGetLocalSize(rho, &rhoSize);
+  VecGetArray(rho, &rhoArr);
+  
+  rhoSum = 0;
+  for(int i = 0; i < rhoSize; ++i){
+    rhoSum += rhoArr[i];
+  }
+
+  rhoAvg = rhoSum/rhoSize;
+
+  for(int i = 0; i < rhoSize; ++i){
+    rhoArr[i] = rhoArr[i] - rhoAvg;
+  }
+
+  VecRestoreArray(rho, &rhoArr);
+
   ierr = VecSet(phi, 0.0);CHKERRQ(ierr);
   ierr = SNESSolve(user->snes, rho, phi);CHKERRQ(ierr);
   VecViewFromOptions(phi, NULL, "-phi_view");

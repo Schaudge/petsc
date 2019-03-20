@@ -342,6 +342,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEInterpolate_Static(PetscFE fe, const P
   PetscFunctionReturn(0);
 }
 
+/* DOES NOT SUPPORT non-affine J */
 PETSC_STATIC_INLINE PetscErrorCode PetscFEFreeInterpolateGradient_Static(PetscFE fe, const PetscReal basisDer[], const PetscScalar x[], PetscInt dim, const PetscReal invJ[], const PetscReal n[], PetscInt q, PetscScalar interpolant[])
 {
  PetscReal      realSpaceDer[3];
@@ -357,13 +358,14 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEFreeInterpolateGradient_Static(PetscFE
    interpolant[fc] = 0.0;
    for (d = 0; d < dim; ++d) compGradient[d] = 0.0;
    for (d = 0; d < dim; ++d) {
-     realSpaceDer[d] = 0.0;
-     
-     realSpaceDer[d] += invJ[d]*basisDer[(q*dim)+d];
-       //PetscPrintf(PETSC_COMM_WORLD, "Basis der: %f\n", basisDer[d]);
-       PetscPrintf(PETSC_COMM_WORLD, "invJ[%i]: %f\n", d, invJ[d]);
-     
-     compGradient[d] += x[d]*realSpaceDer[d];
+    
+      for (d = 0; d < dim; ++d) {
+        realSpaceDer[d] = 0.0;
+        for (g = 0; g < dim; ++g) {
+          realSpaceDer[d] += invJ[g*dim+d]*basisDer[((q*Nb + f)*Nc + fc)*dim + g];
+        }
+        compGradient[d] += x[f]*realSpaceDer[d];
+      } 
    }
    
    if (n) {
