@@ -122,6 +122,72 @@ PetscErrorCode PetscFnShellCreate_Sin(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_ERF)
+static PetscErrorCode PetscFnApply_Erf(PetscFn fn, Vec x, Vec y)
+{
+  const PetscScalar *xs;
+  PetscScalar       *ys;
+  PetscInt          i, n;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
+  ierr = VecCopy(x, y);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
+  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
+  for (i = 0; i < n; i++) ys[i] = erf(xs[i]);CHKERRQ(ierr);
+  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDerivativeVec_Erf(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
+{
+  const Vec *supervecs;
+  const PetscScalar *xs;
+  PetscScalar       *ys;
+  Vec supery;
+  PetscInt    i, j, n;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  ierr = VecSet(y,1.);CHKERRQ(ierr);
+  for (i = 0; i < der; i++) {
+    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
+  }
+  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
+  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
+  if (!der) {
+    for (i = 0; i < n; i++) {
+      ys[i] *= erf(xs[i]);
+    }
+  }
+  else {
+    PetscReal sign = (der & 1) ? 1. : -1;
+    for (i = 0; i < n; i++) {
+      PetscScalar xx = xs[i];
+      PetscScalar Hold = 0.;
+      PetscScalar H = 2. * PetscExpScalar(-xx*xx) / PetscSqrtScalar(PETSC_PI);
+
+      for (j = 0; j < der - 1; j++) {
+        PetscScalar Hnew;
+
+        Hnew = 2. * xx * H - 2 * j * Hold;
+        Hold = H;
+        H = Hnew;
+      }
+      ys[i] *= sign * H;
+    }
+  }
+  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+#endif
+
 static PetscErrorCode PetscFnApply_Logistic(PetscFn fn, Vec x, Vec y)
 {
   const PetscScalar *xs;
