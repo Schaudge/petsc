@@ -6,14 +6,14 @@ CPPFLAGS         =
 FPPFLAGS         =
 LOCDIR		 = src/tao/leastsquares/examples/tutorials/
 MANSEC		 =
-EXAMPLESC        = chwirut1.c chwirut2.c cs1.c tomography.c
+EXAMPLESC        = chwirut1.c chwirut2.c cs1.c tomography.c jointsparsity1.c
 EXAMPLESCH       =
 EXAMPLESF        = chwirut1f.F90 chwirut2f.F90
 EXAMPLESFH       = chwirut2f.h
-TUTORIALS        = chwirut1.c chwirut2.c chwirut1f.F90 chwirut2f.F90 cs1.c tomography.c
+TUTORIALS        = chwirut1.c chwirut2.c chwirut1f.F90 chwirut2f.F90 cs1.c tomography.c jointsparsity1.c
 DOCS		 = 
 DIRS		 = 
-CLEANFILES       = chwirut1 chwirut2 chwirut1f chwirut2f cs1 tomography
+CLEANFILES       = chwirut1 chwirut2 chwirut1f chwirut2f cs1 tomography jointsparsity1
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
@@ -34,6 +34,9 @@ tomography: tomography.o chkopts
 	-${CLINKER} -o tomography tomography.o ${PETSC_TAO_LIB}
 	${RM} tomography.o
 
+jointsparsity1: jointsparsity1.o chkopts
+	-${CLINKER} -o jointsparsity1 jointsparsity1.o ${PETSC_TAO_LIB}
+	${RM} jointsparsity1.o
 
 chwirut1f: chwirut1f.o chkopts
 	-${FLINKER} -o chwirut1f chwirut1f.o ${PETSC_TAO_LIB}
