@@ -1,4 +1,8 @@
 /* XH: todo add jointsparsity1.F90 and asjust makefile */
+/* [petsc-users] Reshaping a vector into a matrix   https://lists.mcs.anl.gov/pipermail/petsc-users/2011-January/thread.html#7650
+   You most definitely want to use the MAIJ.  MAIJ does not "repeat" X, it uses the original matrix passed in but does efficient multiple matrix-vector products at the same time.
+   https://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/Mat/MatCreateMAIJ.html
+*/
 /*
    Include "petsctao.h" so that we can use TAO solvers.  Note that this
    file automatically includes libraries such as:
@@ -12,9 +16,8 @@
 #include <petsctao.h>
 
 /*
-Description:   Joint-Sparsity test example 1.
-
-Reference:     None
+Description:   BRGN Joint-Sparsity reconstruction example 1.
+Reference:     cs1.c, tomography.c
 */
 
 static char help[] = "Finds the least-squares solution to the under constraint linear model Ax = b, with L1-norm regularizer and multiple observations of same sparsity (joint-sparsity). \n\
@@ -35,55 +38,37 @@ static char help[] = "Finds the least-squares solution to the under constraint l
    Processors: 1
 T*/
 
-#define M 3
-#define N 5
-#define K 4
-
 /* User-defined application context */
 typedef struct {
-  /* Working space. linear least square:  f(x) = A*x - b */
-  PetscReal A[M][N];    /* array of coefficients */
-  PetscReal b[M];       /* array of observations */
-  PetscReal xGT[M];     /* array of ground truth object, which can be used to compare the reconstruction result */
-  PetscReal D[K][N];    /* array of coefficients for 0.5*||Ax-b||^2 + lambda*||D*x||_1 */
-  PetscReal J[M][N];    /* dense jacobian matrix array. For linear least square, J = A. For nonlinear least square, it is different from A */
-  PetscInt  idm[M];     /* Matrix row, column indices for jacobian and dictionary */
-  PetscInt  idn[N];
-  PetscInt  idk[K];
+  /* Working space. linear least square:  res(x) = A*x - b */
+  PetscInt  M,N,K;            /* Problem dimension: A is M*N Matrix, D is K*N Matrix */
+  Mat       A,D;              /* Coefficients, Dictionary Transform of size M*N and K*N respectively. For linear least square, Jacobian Matrix J = A. For nonlinear least square, it is different from A */
+  Vec       b,xGT,xlb,xub;    /* observation b, ground truth xGT, the lower bound and upper bound of x*/
 } AppCtx;
 
 /* User provided Routines */
 PetscErrorCode InitializeUserData(AppCtx *);
-PetscErrorCode FormStartingPoint(Vec);
-PetscErrorCode FormDictionaryMatrix(Mat,AppCtx *);
-PetscErrorCode EvaluateFunction(Tao,Vec,Vec,void *);
+PetscErrorCode FormStartingPoint(Vec,AppCtx *);
+PetscErrorCode EvaluateResidual(Tao,Vec,Vec,void *);
 PetscErrorCode EvaluateJacobian(Tao,Vec,Mat,Mat,void *);
+PetscErrorCode EvaluateRegularizerObjectiveAndGradient(Tao,Vec,PetscReal *,Vec,void*);
+PetscErrorCode EvaluateRegularizerHessian(Tao,Vec,Mat,void*);
+PetscErrorCode EvaluateRegularizerHessianProd(Mat,Vec,Vec);
 
 /*--------------------------------------------------------------------*/
 int main(int argc,char **argv)
 {
   PetscErrorCode ierr;               /* used to check for functions returning nonzeros */
-  Vec            x,f;               /* solution, function f(x) = A*x-b */
-  Mat            J,D;               /* Jacobian matrix, Transform matrix */
+  Vec            x,res;              /* solution, function res(x) = A*x-b */
+  Mat            Hreg;               /* regularizer Hessian matrix for user specified regularizer*/
   Tao            tao;                /* Tao solver context */
-  PetscInt       i;                  /* iteration information */
-  PetscReal      hist[100],resid[100];
+  PetscReal      hist[100],resid[100],v1,v2;
   PetscInt       lits[100];
   AppCtx         user;               /* user-defined work context */
+  PetscViewer    fd;   /* used to save result to file */
+  char           resultFile[] = "tomographyResult_x";  /* Debug: change from "tomographyResult_x" to "cs1Result_x" */
 
   ierr = PetscInitialize(&argc,&argv,(char *)0,help);if (ierr) return ierr;
-
-  /* Allocate solution and vector function vectors */
-  ierr = VecCreateSeq(PETSC_COMM_SELF,N,&x);CHKERRQ(ierr);
-  ierr = VecCreateSeq(PETSC_COMM_SELF,M,&f);CHKERRQ(ierr);
-
-  /* Allocate Jacobian and Dictionary matrix. */
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF,M,N,NULL,&J);CHKERRQ(ierr);
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF,K,N,NULL,&D);CHKERRQ(ierr); /* XH: TODO: dense -> sparse/dense/shell etc, do it on fly  */
-
-  for (i=0;i<M;i++) user.idm[i] = i;
-  for (i=0;i<N;i++) user.idn[i] = i;
-  for (i=0;i<K;i++) user.idk[i] = i;
 
   /* Create TAO solver and set desired solution method */
   ierr = TaoCreate(PETSC_COMM_SELF,&tao);CHKERRQ(ierr);
@@ -92,20 +77,35 @@ int main(int argc,char **argv)
   /* User set application context: A, D matrice, and b vector. */
   ierr = InitializeUserData(&user);CHKERRQ(ierr);
 
-  /* Set initial guess */
-  ierr = FormStartingPoint(x);CHKERRQ(ierr);
+  /* Allocate solution vector x,  and function vectors Ax-b, */
+  ierr = VecCreateSeq(PETSC_COMM_SELF,user.N,&x);CHKERRQ(ierr);
+  ierr = VecCreateSeq(PETSC_COMM_SELF,user.M,&res);CHKERRQ(ierr);
 
-  /* Fill the content of matrix D from user application Context */
-  ierr = FormDictionaryMatrix(D,&user);CHKERRQ(ierr);
+  /* Set initial guess */
+  ierr = FormStartingPoint(x,&user);CHKERRQ(ierr);
 
   /* Bind x to tao->solution. */
   ierr = TaoSetInitialVector(tao,x);CHKERRQ(ierr);
-  /* Bind D to tao->data->D */
-  ierr = TaoBRGNSetDictionaryMatrix(tao,D);CHKERRQ(ierr);
+  /* Sets the upper and lower bounds of x */
+  ierr = TaoSetVariableBounds(tao,user.xlb,user.xub);CHKERRQ(ierr);
 
-  /* Set the function and Jacobian routines. */
-  ierr = TaoSetResidualRoutine(tao,f,EvaluateFunction,(void*)&user);CHKERRQ(ierr);
-  ierr = TaoSetJacobianResidualRoutine(tao,J,J,EvaluateJacobian,(void*)&user);CHKERRQ(ierr);
+  /* Bind user.D to tao->data->D */
+  ierr = TaoBRGNSetDictionaryMatrix(tao,user.D);CHKERRQ(ierr);
+
+  /* Set the residual function and Jacobian routines for least squares. */
+  ierr = TaoSetResidualRoutine(tao,res,EvaluateResidual,(void*)&user);CHKERRQ(ierr);
+  /* Jacobian matrix fixed as user.A for Linear least sqaure problem. */
+  ierr = TaoSetJacobianResidualRoutine(tao,user.A,user.A,EvaluateJacobian,(void*)&user);CHKERRQ(ierr);
+
+  /* User set the regularizer objective, gradient, and hessian. Set it the same as using l2prox choice, for testing purpose.  */
+  ierr = TaoBRGNSetRegularizerObjectiveAndGradientRoutine(tao,EvaluateRegularizerObjectiveAndGradient,(void*)&user);CHKERRQ(ierr);
+  /* User defined regularizer Hessian setup, here is identiy shell matrix */
+  ierr = MatCreate(PETSC_COMM_SELF,&Hreg);CHKERRQ(ierr);
+  ierr = MatSetSizes(Hreg,PETSC_DECIDE,PETSC_DECIDE,user.N,user.N);CHKERRQ(ierr);
+  ierr = MatSetType(Hreg,MATSHELL);CHKERRQ(ierr);
+  ierr = MatSetUp(Hreg);CHKERRQ(ierr);
+  ierr = MatShellSetOperation(Hreg,MATOP_MULT,(void (*)(void))EvaluateRegularizerHessianProd);CHKERRQ(ierr);
+  ierr = TaoBRGNSetRegularizerHessianRoutine(tao,Hreg,EvaluateRegularizerHessian,(void*)&user);CHKERRQ(ierr);
 
   /* Check for any TAO command line arguments */
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
@@ -115,97 +115,90 @@ int main(int argc,char **argv)
   /* Perform the Solve */
   ierr = TaoSolve(tao);CHKERRQ(ierr);
 
-  /* XH: Debug: View the result, function and Jacobian.  */
-  ierr = PetscPrintf(PETSC_COMM_SELF, "-------- result x, residual f=A*x-b, and Jacobian=A. -------- \n");CHKERRQ(ierr);
-  ierr = VecView(x,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
-  ierr = VecView(f,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
-  ierr = MatView(J,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
-  ierr = MatView(D,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
+  /* Save x (reconstruction of object) vector to a binary file, which maybe read from Matlab and convert to a 2D image for comparison. */
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_SELF,resultFile,FILE_MODE_WRITE,&fd);CHKERRQ(ierr);
+  ierr = VecView(x,fd);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
+
+  /* compute the error */
+  ierr = VecAXPY(x,-1,user.xGT);CHKERRQ(ierr);
+  ierr = VecNorm(x,NORM_2,&v1);CHKERRQ(ierr);
+  ierr = VecNorm(user.xGT,NORM_2,&v2);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_SELF, "relative reconstruction error: ||x-xGT||/||xGT|| = %6.4e.\n", (double)(v1/v2));CHKERRQ(ierr);
 
   /* Free TAO data structures */
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroy(&x);CHKERRQ(ierr);
-  ierr = VecDestroy(&f);CHKERRQ(ierr);
-  ierr = MatDestroy(&J);CHKERRQ(ierr);
-  ierr = MatDestroy(&D);CHKERRQ(ierr);
-
+  ierr = VecDestroy(&res);CHKERRQ(ierr);
+  ierr = MatDestroy(&Hreg);CHKERRQ(ierr);
+  /* Free user data structures */
+  ierr = MatDestroy(&user.A);CHKERRQ(ierr);
+  ierr = MatDestroy(&user.D);CHKERRQ(ierr);
+  ierr = VecDestroy(&user.b);CHKERRQ(ierr);
+  ierr = VecDestroy(&user.xGT);CHKERRQ(ierr);
+  ierr = VecDestroy(&user.xlb);CHKERRQ(ierr);
+  ierr = VecDestroy(&user.xub);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
 
 /*--------------------------------------------------------------------*/
-PetscErrorCode EvaluateFunction(Tao tao, Vec X, Vec F, void *ptr)
+/* Evaluate residual function A(x)-b in least square problem ||A(x)-b||^2 */
+PetscErrorCode EvaluateResidual(Tao tao,Vec X,Vec F,void *ptr)
 {
   AppCtx         *user = (AppCtx *)ptr;
-  PetscInt       m,n;
-  const PetscReal *x;
-  PetscReal      *b=user->b,*f;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
-  ierr = VecGetArray(F,&f);CHKERRQ(ierr);
-
-  /* Even for linear least square, we do not direct use matrix operation f = A*x - b now, just for future modification and compatability for nonlinear least square */
-  for (m=0;m<M;m++) {
-    f[m] = -b[m];
-    for (n=0;n<N;n++) {
-      f[m] += user->A[m][n]*x[n];
-    }
-  }
-  ierr = VecRestoreArrayRead(X,&x);CHKERRQ(ierr);
-  ierr = VecRestoreArray(F,&f);CHKERRQ(ierr);
-  PetscLogFlops(M*N*2);
+  /* Compute Ax - b */
+  ierr = MatMult(user->A,X,F);CHKERRQ(ierr);
+  ierr = VecAXPY(F,-1,user->b);CHKERRQ(ierr);
+  PetscLogFlops(user->M*user->N*2);
   PetscFunctionReturn(0);
 }
 
 /*------------------------------------------------------------*/
-/* J[m][n] = df[m]/dx[n] */
-PetscErrorCode EvaluateJacobian(Tao tao, Vec X, Mat J, Mat Jpre, void *ptr)
+PetscErrorCode EvaluateJacobian(Tao tao,Vec X,Mat J,Mat Jpre,void *ptr)
 {
-  AppCtx         *user = (AppCtx *)ptr;
-  PetscInt       m,n;
-  const PetscReal *x;
-  PetscErrorCode ierr;
-
+  /* Jacobian is not changing here, so use a empty dummy function here.  J[m][n] = df[m]/dx[n] = A[m][n] for linear least square */
   PetscFunctionBegin;
-  ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr); /* not used for linear least square, but keep for future nonlinear least square) */
-  /* XH: TODO:  For linear least square, we can just set J=A fixed once, instead of keep update it! Maybe just create a function getFixedJacobian?
-    For nonlinear least square, we require x to compute J, keep codes here for future nonlinear least square*/
-  for (m=0; m<M; ++m) {
-    for (n=0; n<N; ++n) {
-      user->J[m][n] = user->A[m][n];
-    }
-  }
-
-  ierr = MatSetValues(J,M,user->idm,N,user->idn,(PetscReal *)user->J,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  ierr = VecRestoreArrayRead(X,&x);CHKERRQ(ierr);/* not used for linear least square, but keep for future nonlinear least square) */
-  PetscLogFlops(0);  /* 0 for linear least square, >0 for nonlinear least square */
   PetscFunctionReturn(0);
 }
 
 /* ------------------------------------------------------------ */
-/* Currently fixed matrix, in future may be dynamic for D(x)? */
-PetscErrorCode FormDictionaryMatrix(Mat D,AppCtx *user)
+PetscErrorCode EvaluateRegularizerObjectiveAndGradient(Tao tao,Vec X,PetscReal *f_reg,Vec G_reg,void *ptr)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MatSetValues(D,K,user->idk,N,user->idn,(PetscReal *)user->D,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  /* compute regularizer objective = 0.5*x'*x */
+  ierr = VecDot(X,X,f_reg);CHKERRQ(ierr);
+  *f_reg *= 0.5;
+  /* compute regularizer gradient = x */
+  ierr = VecCopy(X,G_reg);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
-  PetscLogFlops(0); /* 0 for fixed dictionary matrix, >0 for varying dictionary matrix */
+PetscErrorCode EvaluateRegularizerHessianProd(Mat Hreg,Vec in,Vec out)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = VecCopy(in,out);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 /* ------------------------------------------------------------ */
-PetscErrorCode FormStartingPoint(Vec X)
+PetscErrorCode EvaluateRegularizerHessian(Tao tao,Vec X,Mat Hreg,void *ptr)
+{
+  /* Hessian for regularizer objective = 0.5*x'*x is identity matrix, and is not changing*/
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
+/* ------------------------------------------------------------ */
+PetscErrorCode FormStartingPoint(Vec X,AppCtx *user)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -216,38 +209,79 @@ PetscErrorCode FormStartingPoint(Vec X)
 /* ---------------------------------------------------------------------- */
 PetscErrorCode InitializeUserData(AppCtx *user)
 {
-  PetscReal *b=user->b; /* **A=user->A, but we don't kown the dimension of A in this way, how to fix? */
-  PetscInt  m,n,k; /* loop index for M,N,K dimension. */
+  PetscInt       k,n; /* indices for row and columns of D. */
+  char           dataFile[] = "tomographyData_A_b_xGT";   /* Matrix A and vectors b, xGT(ground truth) binary files generated by Matlab. Debug: change from "tomographyData_A_b_xGT" to "cs1Data_A_b_xGT". */
+  PetscInt       dictChoice = 0; /* choose from 0:identity, 1:gradient1D, 2:gradient2D, 3:DCT etc */
+  /* make jointsparsity1; ./jointsparsity1 -tao_monitor -tao_max_it 10 -tao_brgn_regularization_type l1dict -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
+     relative reconstruction error: ||x-xGT||/||xGT|| = 4.1366e-01/2.3728e-01 for dictChoice 0/1. */
+  PetscViewer    fd;   /* used to load data from file */
+  PetscErrorCode ierr;
+  PetscReal      v;
 
   PetscFunctionBegin;
-  /* b = A*x while x = [0;0;1;0;0] here*/
-  m = 0;
-  b[m++] = 0.28;
-  b[m++] = 0.55;
-  b[m++] = 0.96;
 
-  /* matlab generated random matrix, uniformly distributed in [0,1] with 2 digits accuracy. rng(0); A = rand(M, N); A = round(A*100)/100;
-  A = [0.81  0.91  0.28  0.96  0.96
-       0.91  0.63  0.55  0.16  0.49
-       0.13  0.10  0.96  0.97  0.80]
-  */
-  m=0; n=0; user->A[m][n++] = 0.81; user->A[m][n++] = 0.91; user->A[m][n++] = 0.28; user->A[m][n++] = 0.96; user->A[m][n++] = 0.96;
-  ++m; n=0; user->A[m][n++] = 0.91; user->A[m][n++] = 0.63; user->A[m][n++] = 0.55; user->A[m][n++] = 0.16; user->A[m][n++] = 0.49;
-  ++m; n=0; user->A[m][n++] = 0.13; user->A[m][n++] = 0.10; user->A[m][n++] = 0.96; user->A[m][n++] = 0.97; user->A[m][n++] = 0.80;
+  /*
+  Matrix Vector read and write refer to:
+  https://www.mcs.anl.gov/petsc/petsc-current/src/mat/examples/tutorials/ex10.c
+  https://www.mcs.anl.gov/petsc/petsc-current/src/mat/examples/tutorials/ex12.c
+ */
+  /* Load the A matrix, b vector, and xGT vector from a binary file. */
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dataFile,FILE_MODE_READ,&fd);CHKERRQ(ierr);
+  ierr = MatCreate(PETSC_COMM_WORLD,&user->A);CHKERRQ(ierr);
+  ierr = MatSetType(user->A,MATSEQAIJ);CHKERRQ(ierr);
+  ierr = MatLoad(user->A,fd);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&user->b);CHKERRQ(ierr);
+  ierr = VecLoad(user->b,fd);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&user->xGT);CHKERRQ(ierr);
+  ierr = VecLoad(user->xGT,fd);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
+  ierr = VecDuplicate(user->xGT,&(user->xlb));CHKERRQ(ierr);
+  ierr = VecSet(user->xlb,0.0);CHKERRQ(ierr);
+  ierr = VecDuplicate(user->xGT,&(user->xub));CHKERRQ(ierr);
+  ierr = VecSet(user->xub,PETSC_INFINITY);CHKERRQ(ierr);
 
-  /* initialize to 0 */
-  for (k=0; k<K; k++) {
-    for (n=0; n<N; n++) {
-      user->D[k][n] = 0.0;
-    }
+  /* Specify the size */
+  ierr = MatGetSize(user->A,&user->M,&user->N);CHKERRQ(ierr);
+
+  /* Speficy D */
+  /* (1) Specify D Size */
+  switch (dictChoice) {
+    case 0: /* 0:identity */
+      user->K = user->N;
+      break;
+    case 1: /* 1:gradient1D */
+      user->K = user->N-1;
+      break;
   }
-  /* Choice I: set D to identity matrix of size N*N for testing */
-  /* for (k=0; k<K; k++) user->D[k][k] = 1.0; */
-  /* Choice II: set D to Backward difference matrix of size (N-1)*N, with zero extended boundary assumption */
-  for (k=0;k<K;k++) {
-      user->D[k][k]   = -1.0;
-      user->D[k][k+1] = 1.0;
+
+  ierr = MatCreate(PETSC_COMM_SELF,&user->D);CHKERRQ(ierr);
+  ierr = MatSetSizes(user->D,PETSC_DECIDE,PETSC_DECIDE,user->K,user->N);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(user->D);CHKERRQ(ierr);
+  ierr = MatSetUp(user->D);CHKERRQ(ierr);
+
+  /* (2) Specify D Content */
+  switch (dictChoice) {
+    case 0: /* 0:identity */
+      /* shortcut, when dictChoice == 0, D is identity matrix, we may just specify it as NULL, and brgn will treat D*x as x without actually computing D*x */
+      user->D = NULL;
+      PetscFunctionReturn(0); 
+      for (k=0; k<user->K; k++) {
+        v = 1.0;
+        ierr = MatSetValues(user->D,1,&k,1,&k,&v,INSERT_VALUES);CHKERRQ(ierr);
+      }
+      break;
+    case 1: /* 1:gradient1D.  [-1, 1, 0,...; 0, -1, 1, 0, ...] */
+      for (k=0; k<user->K; k++) {
+        v = 1.0;
+        n = k+1;
+        ierr = MatSetValues(user->D,1,&k,1,&n,&v,INSERT_VALUES);CHKERRQ(ierr);
+        v = -1.0;
+        ierr = MatSetValues(user->D,1,&k,1,&k,&v,INSERT_VALUES);CHKERRQ(ierr);
+      }
+      break;
   }
+  ierr = MatAssemblyBegin(user->D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(user->D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -255,20 +289,20 @@ PetscErrorCode InitializeUserData(AppCtx *user)
 /*TEST
 
    build:
-      requires: !complex !single !quad !define(PETSC_USE_64BIT_INDICES)
+      requires: !complex !single !__float128 !define(PETSC_USE_64BIT_INDICES)
 
    test:
-      localrunfiles: cs1Data_A_b_xGT
-      args: -tao_smonitor -tao_max_it 100 -tao_type pounders -tao_gatol 1.e-6
+      localrunfiles: tomographyData_A_b_xGT
+      args: -tao_max_it 1000 -tao_brgn_regularization_type l1dict -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
 
    test:
       suffix: 2
-      localrunfiles: cs1Data_A_b_xGT
-      args: -tao_monitor -tao_max_it 100 -tao_type brgn -tao_brgn_regularization_type l2prox -tao_brgn_regularizer_weight 1e-8 -tao_gatol 1.e-6
+      localrunfiles: tomographyData_A_b_xGT
+      args: -tao_monitor -tao_max_it 1000 -tao_brgn_regularization_type l2prox -tao_brgn_regularizer_weight 1e-8 -tao_gatol 1.e-6
 
    test:
       suffix: 3
-      localrunfiles: cs1Data_A_b_xGT
-      args: -tao_monitor -tao_max_it 100 -tao_type brgn -tao_brgn_regularization_type l1dict -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-6
+      localrunfiles: tomographyData_A_b_xGT
+      args: -tao_monitor -tao_max_it 1000 -tao_brgn_regularization_type user -tao_brgn_regularizer_weight 1e-8 -tao_gatol 1.e-6
 
 TEST*/
