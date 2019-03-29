@@ -62,18 +62,42 @@ figure(99); clf; multAxes(@imagesc, WAll); multAxes(@axis, 'image'); linkAxesXYZ
 multAxes(@title, titleAll);
 
     
-%% test PetscBinaryWrite() and PetscBinaryRead()
-testPetscBinaryWriteAndRead = 0;
-if testPetscBinaryWriteAndRead
-    A = [0.81  0.91  0.28  0.96  0.96
-        0.91  0.63  0.55  0.16  0.49
-        0.13  0.10  0.96  0.97  0.80];
+%% Generate data for cs1
+testPetscBinaryWriteAndRead_cs1 = 1;
+if testPetscBinaryWriteAndRead_cs1
+    M=3; N=5;  rng(0); A = rand(M, N); A = round(A*100)/100; % generate A below
+%     A = [0.81  0.91  0.28  0.96  0.96
+%         0.91  0.63  0.55  0.16  0.49
+%         0.13  0.10  0.96  0.97  0.80];
     xGT = [0;0;1;0;0];
-    b = [0.28; 0.55; 0.96];
-    D = [-1 1 0 0 0;
-        0 -1 1 0 0;
-        0 0 -1 1 0;
-        0 0 0 -1 1];
-    PetscBinaryWrite('cs1SparseMatrixA', A, 'precision', 'float64'); % do NOT need to convert A to sparse, always write as sparse matrix
-    [A2, b2, xGT2] = PetscBinaryRead('cs1Data_A_b_xGT');
+    b = A*xGT; % [0.28; 0.55; 0.96];
+    PetscBinaryWrite('cs1Data_A_b_xGT', A, b, xGT, 'precision', 'float64'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    [A2, b2, xGT2] = PetscBinaryRead('cs1Data_A_b_xGT'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    % dictionary matrix, not used here
+%     D = [-1 1 0 0 0;
+%         0 -1 1 0 0;
+%         0 0 -1 1 0;
+%         0 0 0 -1 1];
 end
+% xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT)/norm(xGT) 
+
+%% Generate data for jointsparsity1
+testPetscBinaryWriteAndRead_jointsparsity1 = 1;
+if testPetscBinaryWriteAndRead_jointsparsity1
+    M=3; N=5;  rng(0); A = rand(M, N); A = round(A*100)/100; % generate A below
+%     A = [0.81  0.91  0.28  0.96  0.96
+%         0.91  0.63  0.55  0.16  0.49
+%         0.13  0.10  0.96  0.97  0.80];
+    xGT =  [0;0;1;0;0];
+    %xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
+    L = size(xGT,2);
+    b = A*xGT; % [0.28; 0.55; 0.96];
+    PetscBinaryWrite('jointsparsity1Data_A_b_xGT_L', A, b, xGT, L, 'precision', 'float64'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    [A2, b2, xGT2, L2] = PetscBinaryRead('jointsparsity1Data_A_b_xGT_L'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    % dictionary matrix, not used here
+%     D = [-1 1 0 0 0;
+%         0 -1 1 0 0;
+%         0 0 -1 1 0;
+%         0 0 0 -1 1];
+end
+% xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT)/norm(xGT) 
