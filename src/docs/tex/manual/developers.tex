@@ -2230,6 +2230,85 @@ To see the full timing information for the five most expensive tests use
 \begin{bashlisting}
 config/report_tests.py -t 5
 \end{bashlisting}
+
+\chapter{PETSc Release System}\label{petsc-release-system}
+
+The old stuff is at \lstinline[language=bash,basicstyle=\scriptsize\ttfamily,columns=fullflexible]{~/petsc/lib/petsc/bin/maint/builddist}.
+
+\section{Release Checklist}
+
+For doc string changes, look at changes from last time, e.g. look at commit \bashinline{v3.10} and create
+branch \bashinline{balay/release-3.11}. Also keep a branch \bashinline{balay/release-3.11-revert-to-dev} that
+switches \bashinline{PETSC_VERSION_RELEASE} from 1 to 0 for \bashinline{master}.
+
+Next do a few things in order:
+\begin{enumerate}
+  \item Create a release for current outstanding patches in maint, e.g. 3.10.5, a few hours or a day before the new
+  release.
+
+  \item Create the new release, 3.11.0,
+  \begin{itemize}
+    \item Create a local clone with all changes
+    \item Create \bashinline{maint-3.10} branch from current \bashinline{maint}
+    \item Sync \bashinline{maint} with \bashinline{master}
+    \item Fast-forward merge (-ff) to \bashinline{balay/release-3.11}
+    \item Tag release
+    \item Spin tarball from local \bashinline{maint} and update website using \bashinline{petsc/lib/petsc/bin/maint/rebuildtar}
+    \item Sync \bashinline{master} with \bashinline{maint}
+    \item Revert \bashinline{master} back to \textit{development} mode by merging \bashinline{balay/release-3.11-revert-to-dev}
+  \end{itemize}
+
+  \item Push all local \bashinline{maint/master/tags} to server
+
+  \item How do we get the list of contributors?
+
+  \item How do we get the list of reporters?
+\end{enumerate}
+Note that \bashinline{balay/release-3.11} and \bashinline{balay/release-3.11-revert-to-dev} are basically 2 commits in
+sequence. I keep them in a single branch, \bashinline{balay/release-3.11-revert-to-dev}, for ease of rebasing it as
+needed until the release time.
+
+
+\section{Release Announcement}
+
+{\small
+\begin{verbatim}
+We are pleased to announce the release of PETSc version 3.11 at http://www.mcs.anl.gov/petsc
+
+The major changes and updates can be found at
+
+  http://www.mcs.anl.gov/petsc/documentation/changes/311.html
+
+We recommend upgrading to PETSc 3.11 soon. As always, please report problems to
+
+  petsc-maint@mcs.anl.gov
+
+and ask questions at
+
+  petsc-users@mcs.anl.gov
+
+This release includes contributions from
+
+  <list of contributors>
+
+and bug reports/patches/proposed improvements received from
+
+  <list of reporters>
+
+As always, thanks for your support,
+
+ Barry
+\end{verbatim}
+}
+
+\section{After Release}
+
+\begin{itemize}
+  \item Prune merged branches
+  \item Reset next
+  \item Set a \bashinline{PETSC_VERSION_RELEASE} in next such that one can't accidentally merge it to \bashinline{master} or merge old \bashinline{next} to new one.
+\end{itemize}
+
 \bibliographystyle{plain}
 \bibliography{../petsc,../petscapp}
 

@@ -71,6 +71,16 @@
 {\lstset{escapechar=,language=make,basicstyle=\ttfamily}}
 {}
 
+% bash style for highlighting
+\newcommand\bashstyle{\lstset{
+    language=bash,
+    basicstyle=\scriptsize\ttfamily,
+    columns=fullflexible
+}}
+
+% bash for inline
+\newcommand\bashinline[1]{{{\bashstyle\lstinline[]!#1!}}}
+
 % Set all nested itemize labels to be the same
 \renewcommand{\labelitemi}{$\bullet$}
 \renewcommand{\labelitemii}{$\bullet$}
