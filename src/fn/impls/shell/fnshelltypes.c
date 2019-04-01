@@ -2,6 +2,74 @@
 #include <petscfn.h>
 #include <../src/fn/utils/fnutils.h>
 
+static PetscErrorCode PetscFnDerivativeVec_Diagonal(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y, PetscErrorCode (*diag)(PetscInt, PetscInt, const PetscScalar *,PetscScalar *))
+{
+  const Vec *supervecs;
+  const PetscScalar *xs;
+  PetscScalar       *ys;
+  Vec supery;
+  PetscInt    i, n;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  ierr = VecSet(y,1.);CHKERRQ(ierr);
+  for (i = 0; i < der; i++) {
+    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
+  }
+  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
+  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
+  ierr = (*diag) (der, n, xs, ys);CHKERRQ(ierr);
+  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDerivativeMat_Diagonal(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *A, Mat *Apre, PetscErrorCode (*diag)(PetscInt,PetscInt,const PetscScalar*,PetscScalar*))
+{
+  const Vec *supervecs;
+  const PetscScalar *xs;
+  PetscScalar       *ys;
+  Vec                y;
+  PetscInt    i, n, m, N, M;
+  MatReuse       superreuse;
+  Mat            *superA, *superApre;
+  Mat            *mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = VecDuplicate(x, &y);CHKERRQ(ierr);
+  ierr = VecSet(y,1.);CHKERRQ(ierr);
+  for (i = 0; i < der-1; i++) {
+    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
+  }
+  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
+  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
+  ierr = (*diag) (der, n, xs, ys);CHKERRQ(ierr);
+  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
+  mat = superA ? superA : superApre;
+  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
+  if (reuse == MAT_INITIAL_MATRIX) {
+    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,1,NULL,0,NULL,mat);CHKERRQ(ierr);
+  }
+  ierr = MatDiagonalSet(*mat, y, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = VecDestroy(&y);CHKERRQ(ierr);
+  if (superApre && superApre != superA) {
+    ierr = MatDuplicateOrCopy(*mat, reuse, superApre);CHKERRQ(ierr);
+  }
+  ierr = PetscFnRestoreSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFnApply_Sin(PetscFn fn, Vec x, Vec y)
 {
   const PetscScalar *xs;
@@ -20,93 +88,41 @@ static PetscErrorCode PetscFnApply_Sin(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnDerivativeVec_Sin(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
+static PetscErrorCode PetscFnDerivative_Sin(PetscInt der, PetscInt n, const PetscScalar *xs, PetscScalar *ys)
 {
-  const Vec *supervecs;
-  const PetscScalar *xs;
-  PetscScalar       *ys;
-  Vec supery;
-  PetscScalar sign = (der & 2) ? -1. : 1.;
-  PetscBool   cosine = (der & 1) ? PETSC_TRUE : PETSC_FALSE;
-  PetscInt    i, n;
-  PetscErrorCode ierr;
+  PetscScalar    sign = (der & 2) ? -1. : 1.;
+  PetscBool      cosine = (der & 1) ? PETSC_TRUE : PETSC_FALSE;
+  PetscInt       i;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
-  ierr = VecSet(y,1.);CHKERRQ(ierr);
-  for (i = 0; i < der; i++) {
-    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
-  }
-  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
   if (cosine) {
     for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscCosScalar(xs[i]);CHKERRQ(ierr);
+      ys[i] *= sign * PetscCosScalar(xs[i]);
     }
   }
   else {
     for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscSinScalar(xs[i]);CHKERRQ(ierr);
+      ys[i] *= sign * PetscSinScalar(xs[i]);
     }
   }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = PetscFnRestoreSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDerivativeVec_Sin(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnDerivativeVec_Diagonal(fn, x, der, rangeIdx, subsets, subvecs, y, PetscFnDerivative_Sin);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode PetscFnDerivativeMat_Sin(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *A, Mat *Apre)
 {
-  const Vec *supervecs;
-  const PetscScalar *xs;
-  PetscScalar       *ys;
-  Vec                y;
-  PetscScalar sign = (der & 2) ? -1. : 1.;
-  PetscBool   cosine = (der & 1) ? PETSC_TRUE : PETSC_FALSE;
-  PetscInt    i, n, m, N, M;
-  MatReuse       superreuse;
-  Mat            *superA, *superApre;
-  Mat            *mat;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
-  ierr = VecDuplicate(x, &y);CHKERRQ(ierr);
-  ierr = VecSet(y,1.);CHKERRQ(ierr);
-  for (i = 0; i < der-1; i++) {
-    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
-  }
-  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
-  if (cosine) {
-    for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscCosScalar(xs[i]);CHKERRQ(ierr);
-    }
-  }
-  else {
-    for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscSinScalar(xs[i]);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  mat = superA ? superA : superApre;
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,1,NULL,0,NULL,mat);CHKERRQ(ierr);
-  }
-  ierr = MatDiagonalSet(*mat, y, INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = VecDestroy(&y);CHKERRQ(ierr);
-  if (superApre && superApre != superA) {
-    ierr = MatDuplicateOrCopy(*mat, reuse, superApre);CHKERRQ(ierr);
-  }
-  ierr = PetscFnRestoreSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
-  ierr = PetscFnRestoreSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  ierr = PetscFnDerivativeMat_Diagonal(fn, x, der, rangeIdx, subsets, subvecs, reuse, A, Apre, PetscFnDerivative_Sin);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -141,24 +157,11 @@ static PetscErrorCode PetscFnApply_Erf(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnDerivativeVec_Erf(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
+static PetscErrorCode PetscFnDerivative_Erf(PetscInt der, PetscInt n, const PetscScalar *xs, PetscScalar *ys)
 {
-  const Vec *supervecs;
-  const PetscScalar *xs;
-  PetscScalar       *ys;
-  Vec supery;
-  PetscInt    i, j, n;
-  PetscErrorCode ierr;
+  PetscInt i;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
-  ierr = VecSet(y,1.);CHKERRQ(ierr);
-  for (i = 0; i < der; i++) {
-    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
-  }
-  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
   if (!der) {
     for (i = 0; i < n; i++) {
       ys[i] *= erf(xs[i]);
@@ -166,6 +169,8 @@ static PetscErrorCode PetscFnDerivativeVec_Erf(PetscFn fn, Vec x, PetscInt der, 
   }
   else {
     PetscReal sign = (der & 1) ? 1. : -1;
+    PetscInt  j;
+
     for (i = 0; i < n; i++) {
       PetscScalar xx = xs[i];
       PetscScalar Hold = 0.;
@@ -181,9 +186,36 @@ static PetscErrorCode PetscFnDerivativeVec_Erf(PetscFn fn, Vec x, PetscInt der, 
       ys[i] *= sign * H;
     }
   }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = PetscFnRestoreSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDerivativeVec_Erf(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnDerivativeVec_Diagonal(fn, x, der, rangeIdx, subsets, subvecs, y, PetscFnDerivative_Erf);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDerivativeMat_Erf(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *A, Mat *Apre)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnDerivativeMat_Diagonal(fn, x, der, rangeIdx, subsets, subvecs, reuse, A, Apre, PetscFnDerivative_Erf);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnShellCreate_Erf(PetscFn fn)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Erf);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DERIVATIVEVEC, (void (*)(void)) PetscFnDerivativeVec_Erf);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DERIVATIVEMAT, (void (*)(void)) PetscFnDerivativeMat_Erf);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)fn, "erf");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 #endif
@@ -206,217 +238,52 @@ static PetscErrorCode PetscFnApply_Logistic(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFnDerivative_Logistic(PetscInt der, PetscInt n, const PetscScalar *xs, PetscScalar *ys)
+{
+  PetscInt       i;
+
+  PetscFunctionBegin;
+  switch (der) {
+  case 0:
+    for (i = 0; i < n; i++) {
+      ys[i] *= 1. / (1. + PetscExpScalar(-xs[i]));
+    }
+    break;
+  case 1:
+    for (i = 0; i < n; i++) {
+      PetscScalar l = 1. / (1. + PetscExpScalar(-xs[i]));
+      ys[i] *= l * (1. - l);
+    }
+    break;
+  case 2:
+    for (i = 0; i < n; i++) {
+      PetscScalar l = 1. / (1. + PetscExpScalar(-xs[i]));
+      ys[i] *= l * (1. - l) * (1. - 2. * l);
+    }
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP, "Higher derivatives of logistic function not supported");
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscFnDerivativeVec_Logistic(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
 {
-  const Vec *supervecs;
-  const PetscScalar *xs;
-  PetscScalar       *ys;
-  Vec supery;
-  PetscScalar sign = (der & 2) ? -1. : 1.;
-  PetscBool   cosine = (der & 1) ? PETSC_TRUE : PETSC_FALSE;
-  PetscInt    i, n;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
-  ierr = VecSet(y,1.);CHKERRQ(ierr);
-  for (i = 0; i < der; i++) {
-    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
-  }
-  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
-  if (cosine) {
-    for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscCosScalar(xs[i]);CHKERRQ(ierr);
-    }
-  }
-  else {
-    for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscSinScalar(xs[i]);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = PetscFnRestoreSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  if (der > 2) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_SUP, "Higher derivatives of logistic function not supported");
+  ierr = PetscFnDerivativeVec_Diagonal(fn,x,der,rangeIdx,subsets,subvecs,y,PetscFnDerivative_Logistic);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode PetscFnDerivativeMat_Logistic(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *A, Mat *Apre)
 {
-  const Vec *supervecs;
-  const PetscScalar *xs;
-  PetscScalar       *ys;
-  Vec                y;
-  PetscScalar sign = (der & 2) ? -1. : 1.;
-  PetscBool   cosine = (der & 1) ? PETSC_TRUE : PETSC_FALSE;
-  PetscInt    i, n, m, N, M;
-  MatReuse       superreuse;
-  Mat            *superA, *superApre;
-  Mat            *mat;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnGetSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
-  ierr = VecDuplicate(x, &y);CHKERRQ(ierr);
-  ierr = VecSet(y,1.);CHKERRQ(ierr);
-  for (i = 0; i < der-1; i++) {
-    ierr = VecPointwiseMult(y,y,supervecs[i]);CHKERRQ(ierr);
-  }
-  ierr = VecGetLocalSize(x, &n);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
-  if (cosine) {
-    for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscCosScalar(xs[i]);CHKERRQ(ierr);
-    }
-  }
-  else {
-    for (i = 0; i < n; i++) {
-      ys[i] *= sign * PetscSinScalar(xs[i]);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  mat = superA ? superA : superApre;
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,1,NULL,0,NULL,mat);CHKERRQ(ierr);
-  }
-  ierr = MatDiagonalSet(*mat, y, INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = VecDestroy(&y);CHKERRQ(ierr);
-  if (superApre && superApre != superA) {
-    ierr = MatDuplicateOrCopy(*mat, reuse, superApre);CHKERRQ(ierr);
-  }
-  ierr = PetscFnRestoreSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
-  ierr = PetscFnRestoreSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnJacobianMult_Logistic(PetscFn fn, Vec x, Vec xhat, Vec y)
-{
-  const PetscScalar *xs;
-  const PetscScalar *xhs;
-  PetscScalar       *ys;
-  PetscInt          i, n;
-  PetscErrorCode    ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(xhat, &xhs);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
-  for (i = 0; i < n; i++) {
-    PetscScalar z = PetscExpScalar(xs[i]);
-
-    ys[i] = xhs[i] * (z / ((1.+z)*(1.+z)));
-  }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(xhat, &xhs);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnJacobianBuild_Logistic(PetscFn fn, Vec x, MatReuse reuse, Mat *J, Mat *Jpre)
-{
-  const PetscScalar *xs;
-  PetscScalar       *ys;
-  Vec                diag;
-  PetscInt           i, n, m, N, M;
-  Mat                *jac = J ? J : Jpre;
-  PetscErrorCode     ierr;
-
-  PetscFunctionBegin;
-  if (!jac) PetscFunctionReturn(0);
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-  ierr = VecDuplicate(x, &diag);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArray(diag, &ys);CHKERRQ(ierr);
-  for (i = 0; i < m; i++) {
-    PetscScalar z = PetscExpScalar(xs[i]);
-
-    ys[i] = (z / ((1.+z)*(1.+z)));
-  }
-  ierr = VecRestoreArray(diag, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,1,NULL,0,NULL,jac);CHKERRQ(ierr);
-  }
-  ierr = MatDiagonalSet(*jac, diag, INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(*jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(*jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  if (Jpre && Jpre != jac) {
-    ierr = MatDuplicateOrCopy(*jac, reuse, Jpre);CHKERRQ(ierr);
-  }
-  ierr = VecDestroy(&diag);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianMult_Logistic(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec y)
-{
-  const PetscScalar *xs;
-  const PetscScalar *xhs;
-  const PetscScalar *xds;
-  PetscScalar       *ys;
-  PetscInt          i, n;
-  PetscErrorCode    ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFnGetSizes(fn, &n, NULL, NULL, NULL);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(xhat, &xhs);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(xdot, &xds);CHKERRQ(ierr);
-  ierr = VecGetArray(y, &ys);CHKERRQ(ierr);
-  for (i = 0; i < n; i++) {
-    PetscScalar z = PetscExpScalar(xs[i]);
-
-    ys[i] = xhs[i] * xds[i] * z*(1.-z)/((1.+z)*(1.+z)*(1.+z));
-  }
-  ierr = VecRestoreArray(y, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(xdot, &xds);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(xhat, &xhs);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianBuild_Logistic(PetscFn fn, Vec x, Vec xhat, MatReuse reuse, Mat *H, Mat *Hpre)
-{
-  const PetscScalar *xs;
-  const PetscScalar *xhs;
-  PetscScalar       *ys;
-  Vec                diag;
-  PetscInt           i, m, n, M, N;
-  Mat                *hes = H ? H : Hpre;
-  PetscErrorCode     ierr;
-
-  PetscFunctionBegin;
-  if (!hes) PetscFunctionReturn(0);
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-  ierr = VecDuplicate(x, &diag);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &xs);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(xhat, &xhs);CHKERRQ(ierr);
-  ierr = VecGetArray(diag, &ys);CHKERRQ(ierr);
-  for (i = 0; i < m; i++) {
-    PetscScalar z = PetscExpScalar(xs[i]);
-
-    ys[i] = xhs[i] * z*(1.-z)/((1.+z)*(1.+z)*(1.+z));
-  }
-  ierr = VecRestoreArray(diag, &ys);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(xhat, &xhs);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(x, &xs);CHKERRQ(ierr);
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,1,NULL,0,NULL,hes);CHKERRQ(ierr);
-  }
-  ierr = MatDiagonalSet(*hes, diag, INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(*hes, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(*hes, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  if (Hpre && Hpre != hes) {
-    ierr = MatDuplicateOrCopy(*hes, reuse, Hpre);CHKERRQ(ierr);
-  }
-  ierr = VecDestroy(&diag);CHKERRQ(ierr);
+  if (der > 2) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_SUP, "Higher derivatives of logistic function not supported");
+  ierr = PetscFnDerivativeMat_Diagonal(fn, x, der, rangeIdx, subsets, subvecs, reuse, A, Apre, PetscFnDerivative_Logistic);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -426,6 +293,8 @@ PetscErrorCode PetscFnShellCreate_Logistic(PetscFn fn)
 
   PetscFunctionBegin;
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Logistic);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DERIVATIVEVEC, (void (*)(void)) PetscFnDerivativeVec_Logistic);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DERIVATIVEMAT, (void (*)(void)) PetscFnDerivativeMat_Logistic);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "logistic");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -439,42 +308,55 @@ static PetscErrorCode PetscFnScalarApply_Normsquared(PetscFn fn, Vec x, PetscSca
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarGradient_Normsquared(PetscFn fn, Vec x, Vec g)
+static PetscErrorCode PetscFnScalarDerivativeVec_Normsquared(PetscFn fn, Vec x, PetscInt der, const IS subsets[], Vec subvecs[], Vec y)
 {
+  const Vec *supervecs;
+  Vec supery;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCopy(x, g);CHKERRQ(ierr);
-  ierr = VecScale(g, 2.);CHKERRQ(ierr);
+  if (der > 2) {
+    ierr = VecSet(y, 0.);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+  ierr = PetscFnGetSuperVectors(fn, der-1, PETSC_DEFAULT, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  if (der == 1) {
+    ierr = VecCopy(x, supery);CHKERRQ(ierr);
+  } else {
+    ierr = VecCopy(supervecs[0], supery);CHKERRQ(ierr);
+  }
+  ierr = VecScale(y,2.);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der-1, PETSC_DEFAULT, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnScalarHessianMult_Normsquared(PetscFn fn, Vec x, Vec xhat, Vec y)
+static PetscErrorCode PetscFnScalarDerivativeMat_Normsquared(PetscFn fn, Vec x, PetscInt der, const IS subsets[], Vec subvecs[], MatReuse reuse, Mat *A, Mat *Apre)
 {
+  const Vec *supervecs;
+  PetscInt    n, N;
+  MatReuse       superreuse;
+  Mat            *superA, *superApre;
+  Mat            *mat;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCopy(xhat, y);CHKERRQ(ierr);
-  ierr = VecScale(y, 2.);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnScalarHessianBuild_Normsquared(PetscFn fn, Vec x, MatReuse reuse, Mat *H, Mat *Hpre)
-{
-  Mat            *hes = H ? H : Hpre;
-  PetscInt       m, n, M, N;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (!hes) PetscFunctionReturn(0);
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  mat = superA ? superA : superApre;
+  ierr = PetscFnGetSizes(fn, NULL, &n, NULL, &N);CHKERRQ(ierr);
   if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn), m, n, M, N, 1, NULL, 0, NULL, hes);CHKERRQ(ierr);
+    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),n,n,N,N,1,NULL,0,NULL,mat);CHKERRQ(ierr);
   }
-  ierr = MatShift(*hes, 2.);CHKERRQ(ierr);
-  if (Hpre && Hpre != hes) {
-    ierr = MatDuplicateOrCopy(*hes, reuse, Hpre);CHKERRQ(ierr);
+  if (der == 2) {
+    ierr = MatShift(*mat, 2.);CHKERRQ(ierr);
   }
+  ierr = MatAssemblyBegin(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  if (superApre && superApre != superA) {
+    ierr = MatDuplicateOrCopy(*mat, reuse, superApre);CHKERRQ(ierr);
+  }
+  ierr = PetscFnRestoreSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -484,6 +366,8 @@ PetscErrorCode PetscFnShellCreate_Normsquared(PetscFn fn)
 
   PetscFunctionBegin;
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARAPPLY, (void (*)(void)) PetscFnScalarApply_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARDERIVATIVEVEC, (void (*)(void)) PetscFnScalarDerivativeVec_Normsquared);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_SCALARDERIVATIVEMAT, (void (*)(void)) PetscFnScalarDerivativeMat_Normsquared);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "normsq");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -499,131 +383,83 @@ static PetscErrorCode PetscFnApply_Mat(PetscFn fn, Vec x, Vec y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFnJacobianMult_Mat(PetscFn fn, Vec x, Vec xhat, Vec y)
+static PetscErrorCode PetscFnDerivativeVec_Mat(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
 {
+  const Vec *supervecs;
+  Vec supery;
   Mat            mat;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
-  ierr = MatMult(mat, xhat, y);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnJacobianMultAdjoint_Mat(PetscFn fn, Vec x, Vec v, Vec y)
-{
-  Mat            mat;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
-  ierr = MatMultTranspose(mat, v, y);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnJacobianBuild_Mat(PetscFn fn, Vec x, MatReuse reuse, Mat *J, Mat *Jpre)
-{
-  Mat            mat;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
-  if (J) {
-    ierr = MatDuplicateOrCopy(mat, reuse, J);CHKERRQ(ierr);
+  if (der > 1) {
+    ierr = VecSet(y, 0.);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
   }
-  if (Jpre && Jpre != J) {
-    ierr = MatDuplicateOrCopy(mat, reuse, Jpre);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnJacobianBuildAdjoint_Mat(PetscFn fn, Vec x, MatReuse reuse, Mat *J, Mat *Jpre)
-{
-  Mat            mat;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
+  ierr = PetscFnGetSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
   ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
-  if (J) {
-    ierr = MatTranspose(mat, reuse, J);CHKERRQ(ierr);
+  if (der == 0) {
+    ierr = MatMult(mat, x, supery);CHKERRQ(ierr);
+  } else {
+    if (rangeIdx == 0) {
+      ierr = MatMultTranspose(mat, supervecs[0], supery);CHKERRQ(ierr);
+    } else {
+      ierr = MatMult(mat, supervecs[0], supery);CHKERRQ(ierr);
+    }
   }
-  if (Jpre && Jpre != J) {
-    ierr = MatTranspose(mat, reuse, Jpre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperVectors(fn, der, rangeIdx, subsets, subvecs, y, &supervecs, &supery);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscFnDerivativeMat_Mat(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *A, Mat *Apre)
+{
+  PetscInt        n, m, N, M;
+  Mat            *mat, origmat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFnShellGetContext(fn, (void *) &origmat);CHKERRQ(ierr);
+  mat = A ? A : Apre;
+  if (der == 1) {
+    PetscInt notRangeIdx = 1 - rangeIdx;
+    if (subsets) {
+      ierr = MatCreateSubMatrix(origmat, subsets[rangeIdx], subsets[notRangeIdx], reuse, mat);CHKERRQ(ierr);
+    } else {
+      ierr = MatDuplicateOrCopy(origmat, reuse, mat);CHKERRQ(ierr);
+    }
+    if (rangeIdx == 0) {
+      ierr = MatTranspose(*mat, MAT_INPLACE_MATRIX,mat);CHKERRQ(ierr);
+    }
+    if (Apre && Apre != mat) {
+      ierr = MatDuplicateOrCopy(*mat, reuse, Apre);CHKERRQ(ierr);
+    }
+    PetscFunctionReturn(0);
   }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianMult_Mat(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec y)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecSet(y, 0.);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianMultAdjoint_Mat(PetscFn fn, Vec x, Vec v, Vec xhat, Vec y)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecSet(y, 0.);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianBuild_Mat(PetscFn fn, Vec x, Vec xhat, MatReuse reuse, Mat *H, Mat *Hpre)
-{
-  PetscInt       m, n, M, N;
-  Mat            *hes = H ? H : Hpre;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (!hes) PetscFunctionReturn(0);
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
+  if (rangeIdx == der) {
+    ierr = PetscFnGetSizes(fn, &m, NULL, &M, NULL);CHKERRQ(ierr);
+  } else {
+    ierr = PetscFnGetSizes(fn, NULL, &m, NULL, &M);CHKERRQ(ierr);
+  }
+  if (rangeIdx == der - 1) {
+    ierr = PetscFnGetSizes(fn, &n, NULL, &N, NULL);CHKERRQ(ierr);
+  } else {
+    ierr = PetscFnGetSizes(fn, NULL, &n, NULL, &N);CHKERRQ(ierr);
+  }
+  if (subsets && subsets[0]) {
+    ierr = ISGetLocalSize(subsets[0], &n);CHKERRQ(ierr);
+    ierr = ISGetSize(subsets[0], &N);CHKERRQ(ierr);
+  }
+  if (subsets && subsets[1]) {
+    ierr = ISGetLocalSize(subsets[1], &m);CHKERRQ(ierr);
+    ierr = ISGetSize(subsets[1], &N);CHKERRQ(ierr);
+  }
+  /* create empty matrix */
   if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,0,NULL,0,NULL,hes);CHKERRQ(ierr);
+    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),m,n,M,N,0,NULL,0,NULL,mat);CHKERRQ(ierr);
   }
-  ierr = MatZeroEntries(*hes);CHKERRQ(ierr);
-  if (Hpre && Hpre != hes) {
-    ierr = MatDuplicateOrCopy(*hes, reuse, Hpre);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianBuildSwap_Mat(PetscFn fn, Vec x, Vec xhat, MatReuse reuse, Mat *H, Mat *Hpre)
-{
-  PetscInt       m, n, M, N;
-  Mat            *hes = H ? H : Hpre;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (!hes) PetscFunctionReturn(0);
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),n,m,N,M,0,NULL,0,NULL,hes);CHKERRQ(ierr);
-  }
-  ierr = MatZeroEntries(*hes);CHKERRQ(ierr);
-  if (Hpre && Hpre != hes) {
-    ierr = MatDuplicateOrCopy(*hes, reuse, Hpre);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscFnHessianBuildAdjoint_Mat(PetscFn fn, Vec x, Vec v, MatReuse reuse, Mat *H, Mat *Hpre)
-{
-  PetscInt       m, n, M, N;
-  Mat            *hes = H ? H : Hpre;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (!hes) PetscFunctionReturn(0);
-  ierr = PetscFnGetSizes(fn, &m, &n, &M, &N);CHKERRQ(ierr);
-  if (reuse == MAT_INITIAL_MATRIX) {
-    ierr = MatCreateAIJ(PetscObjectComm((PetscObject)fn),n,n,N,N,0,NULL,0,NULL,hes);CHKERRQ(ierr);
-  }
-  ierr = MatZeroEntries(*hes);CHKERRQ(ierr);
-  if (Hpre && Hpre != hes) {
-    ierr = MatDuplicateOrCopy(*hes, reuse, Hpre);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(*mat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  if (Apre && Apre != mat) {
+    ierr = MatDuplicateOrCopy(*mat, reuse, Apre);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -660,15 +496,8 @@ PetscErrorCode PetscFnShellCreate_Mat(PetscFn fn)
   ierr = PetscFnShellGetContext(fn, (void *) &mat);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject)mat);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_APPLY, (void (*)(void)) PetscFnApply_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULT, (void (*)(void)) PetscFnJacobianMult_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANMULTADJOINT, (void (*)(void)) PetscFnJacobianMultAdjoint_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILD, (void (*)(void)) PetscFnJacobianBuild_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_JACOBIANBUILDADJOINT, (void (*)(void)) PetscFnJacobianBuildAdjoint_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULT, (void (*)(void)) PetscFnHessianMult_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANMULTADJOINT, (void (*)(void)) PetscFnHessianMultAdjoint_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILD, (void (*)(void)) PetscFnHessianBuild_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDADJOINT, (void (*)(void)) PetscFnHessianBuildAdjoint_Mat);CHKERRQ(ierr);
-  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_HESSIANBUILDSWAP, (void (*)(void)) PetscFnHessianBuildSwap_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DERIVATIVEVEC, (void (*)(void)) PetscFnDerivativeVec_Mat);CHKERRQ(ierr);
+  ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DERIVATIVEMAT, (void (*)(void)) PetscFnDerivativeMat_Mat);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_VIEW, (void (*)(void)) PetscFnView_Mat);CHKERRQ(ierr);
   ierr = PetscFnShellSetOperation(fn, PETSCFNOP_DESTROY, (void (*)(void)) PetscFnDestroy_Mat);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fn, "mat");CHKERRQ(ierr);
