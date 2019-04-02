@@ -11,9 +11,14 @@ int main(int argc, char *argv[])
   PetscScalar    *x;
   PetscViewer    viewer;
   IS             is0,is1,is2;
+  PetscBool      test_create, test_nest;
   PetscErrorCode ierr;
 
   ierr   = PetscInitialize(&argc,&argv,0,help);if (ierr) return ierr;
+  test_create = PETSC_FALSE;
+  ierr   = PetscOptionsGetBool(NULL,NULL,"-test_create",&test_create,NULL);CHKERRQ(ierr);
+  test_nest = PETSC_FALSE;
+  ierr   = PetscOptionsGetBool(NULL,NULL,"-test_nest",&test_nest,NULL);CHKERRQ(ierr);
   comm   = PETSC_COMM_WORLD;
   viewer = PETSC_VIEWER_STDOUT_WORLD;
   ierr   = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
@@ -40,15 +45,44 @@ int main(int argc, char *argv[])
   ierr = ISView(is1,viewer);CHKERRQ(ierr);
   ierr = ISView(is2,viewer);CHKERRQ(ierr);
 
-  ierr = VecGetSubVector(X,is0,&Y);CHKERRQ(ierr);
-  ierr = VecGetSubVector(X,is1,&Z);CHKERRQ(ierr);
-  ierr = VecGetSubVector(X,is2,&W);CHKERRQ(ierr);
+  if (test_nest) {
+    Vec subvecs[2];
+    IS  subsets[2];
+    Vec Xnest;
+
+    ierr = VecCreateSubVector(X,is0,&subvecs[0]);CHKERRQ(ierr);
+    ierr = VecCreateSubVector(X,is1,&subvecs[1]);CHKERRQ(ierr);
+    subsets[0] = is0;
+    subsets[1] = is1;
+    ierr = VecCreateNest(comm, 2, subsets, subvecs, &Xnest);CHKERRQ(ierr);
+    ierr = VecDestroy(&subvecs[0]);CHKERRQ(ierr);
+    ierr = VecDestroy(&subvecs[1]);CHKERRQ(ierr);
+    ierr = VecDestroy(&X);CHKERRQ(ierr);
+    X = Xnest;
+  }
+
+  if (!test_create) {
+    ierr = VecGetSubVector(X,is0,&Y);CHKERRQ(ierr);
+    ierr = VecGetSubVector(X,is1,&Z);CHKERRQ(ierr);
+    ierr = VecGetSubVector(X,is2,&W);CHKERRQ(ierr);
+  } else {
+    ierr = VecCreateSubVector(X,is0,&Y);CHKERRQ(ierr);
+    ierr = VecCreateSubVector(X,is1,&Z);CHKERRQ(ierr);
+    ierr = VecCreateSubVector(X,is2,&W);CHKERRQ(ierr);
+  }
   ierr = VecView(Y,viewer);CHKERRQ(ierr);
   ierr = VecView(Z,viewer);CHKERRQ(ierr);
   ierr = VecView(W,viewer);CHKERRQ(ierr);
-  ierr = VecRestoreSubVector(X,is0,&Y);CHKERRQ(ierr);
-  ierr = VecRestoreSubVector(X,is1,&Z);CHKERRQ(ierr);
-  ierr = VecRestoreSubVector(X,is2,&W);CHKERRQ(ierr);
+  if (!test_create) {
+    ierr = VecRestoreSubVector(X,is0,&Y);CHKERRQ(ierr);
+    ierr = VecRestoreSubVector(X,is1,&Z);CHKERRQ(ierr);
+    ierr = VecRestoreSubVector(X,is2,&W);CHKERRQ(ierr);
+  } else {
+    ierr = VecDestroy(&Y);CHKERRQ(ierr);
+    ierr = VecDestroy(&Z);CHKERRQ(ierr);
+    ierr = VecDestroy(&W);CHKERRQ(ierr);
+  }
+
 
   ierr = ISDestroy(&is0);CHKERRQ(ierr);
   ierr = ISDestroy(&is1);CHKERRQ(ierr);
@@ -76,5 +110,14 @@ int main(int argc, char *argv[])
         requires: viennacl
         suffix:  viennacl
         args: -vec_type viennacl
+      test:
+        suffix: create
+        args: -vec_type standard -test_create
+      test:
+        suffix: nest
+        args: -vec_type standard -test_nest
+      test:
+        suffix: nest_create
+        args: -vec_type standard -test_nest -test_create
 
 TEST*/

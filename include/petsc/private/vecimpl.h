@@ -93,6 +93,7 @@ struct _VecOps {
   PetscErrorCode (*restorelocalvector)(Vec,Vec);
   PetscErrorCode (*getlocalvectorread)(Vec,Vec);
   PetscErrorCode (*restorelocalvectorread)(Vec,Vec);
+  PetscErrorCode (*createsubvector)(Vec,IS,Vec*);
 };
 
 /*

@@ -168,6 +168,7 @@ PETSC_EXTERN PetscErrorCode VecMDot(Vec,PetscInt,const Vec[],PetscScalar[]);
 PETSC_EXTERN PetscErrorCode VecMTDot(Vec,PetscInt,const Vec[],PetscScalar[]);
 PETSC_EXTERN PetscErrorCode VecGetSubVector(Vec,IS,Vec*);
 PETSC_EXTERN PetscErrorCode VecRestoreSubVector(Vec,IS,Vec*);
+PETSC_EXTERN PetscErrorCode VecCreateSubVector(Vec,IS,Vec*);
 
 /*E
     NormType - determines what type of norm to compute

@@ -1240,6 +1240,64 @@ PetscErrorCode  VecMAXPY(Vec y,PetscInt nv,const PetscScalar alpha[],Vec x[])
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecGetSubVector_Default(Vec X,IS is,Vec *Y,VecType type_name)
+{
+  Vec       Z;
+  PetscInt  gstart,gend,start;
+  PetscBool contiguous,gcontiguous;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecGetOwnershipRange(X,&gstart,&gend);CHKERRQ(ierr);
+  ierr = ISContiguousLocal(is,gstart,gend,&start,&contiguous);CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&contiguous,&gcontiguous,1,MPIU_BOOL,MPI_LAND,PetscObjectComm((PetscObject)is));CHKERRQ(ierr);
+  if (gcontiguous) { /* We can do a no-copy implementation */
+    PetscInt n,N,bs;
+    PetscInt state;
+
+    ierr = ISGetSize(is,&N);CHKERRQ(ierr);
+    ierr = ISGetLocalSize(is,&n);CHKERRQ(ierr);
+    ierr = VecGetBlockSize(X,&bs);CHKERRQ(ierr);
+    if (n%bs || bs == 1 || !n) bs = -1; /* Do not decide block size if we do not have to */
+    ierr = VecLockGet(X,&state);CHKERRQ(ierr);
+    if (state) {
+      const PetscScalar *x;
+      ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
+      ierr = VecCreate(PetscObjectComm((PetscObject)X),&Z);CHKERRQ(ierr);
+      ierr = VecSetType(Z,type_name);CHKERRQ(ierr);
+      ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
+      ierr = VecSetBlockSize(Z,bs);CHKERRQ(ierr);
+      ierr = VecPlaceArray(Z,(PetscScalar*)x+start);CHKERRQ(ierr);
+      ierr = VecLockReadPush(Z);CHKERRQ(ierr);
+      ierr = VecRestoreArrayRead(X,&x);CHKERRQ(ierr);
+    } else {
+      PetscScalar *x;
+      ierr = VecGetArray(X,&x);CHKERRQ(ierr);
+      ierr = VecCreate(PetscObjectComm((PetscObject)X),&Z);CHKERRQ(ierr);
+      ierr = VecSetType(Z,type_name);CHKERRQ(ierr);
+      ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
+      ierr = VecSetBlockSize(Z,bs);CHKERRQ(ierr);
+      ierr = VecPlaceArray(Z,(PetscScalar*)x+start);CHKERRQ(ierr);
+      ierr = VecRestoreArray(X,&x);CHKERRQ(ierr);
+    }
+  } else { /* Have to create a scatter and do a copy */
+    VecScatter scatter;
+    PetscInt   n,N;
+    ierr = ISGetLocalSize(is,&n);CHKERRQ(ierr);
+    ierr = ISGetSize(is,&N);CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject)is),&Z);CHKERRQ(ierr);
+    ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
+    ierr = VecSetType(Z,type_name);CHKERRQ(ierr);
+    ierr = VecScatterCreate(X,is,Z,NULL,&scatter);CHKERRQ(ierr);
+    ierr = VecScatterBegin(scatter,X,Z,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+    ierr = VecScatterEnd(scatter,X,Z,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+    ierr = PetscObjectCompose((PetscObject)Z,"VecGetSubVector_Scatter",(PetscObject)scatter);CHKERRQ(ierr);
+    ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
+  }
+  *Y = Z;
+  PetscFunctionReturn(0);
+}
+
 /*@
    VecGetSubVector - Gets a vector representing part of another vector
 
@@ -1274,59 +1332,118 @@ PetscErrorCode  VecGetSubVector(Vec X,IS is,Vec *Y)
   if (X->ops->getsubvector) {
     ierr = (*X->ops->getsubvector)(X,is,&Z);CHKERRQ(ierr);
   } else { /* Default implementation currently does no caching */
-    PetscInt  gstart,gend,start;
-    PetscBool contiguous,gcontiguous;
-    ierr = VecGetOwnershipRange(X,&gstart,&gend);CHKERRQ(ierr);
-    ierr = ISContiguousLocal(is,gstart,gend,&start,&contiguous);CHKERRQ(ierr);
-    ierr = MPIU_Allreduce(&contiguous,&gcontiguous,1,MPIU_BOOL,MPI_LAND,PetscObjectComm((PetscObject)is));CHKERRQ(ierr);
-    if (gcontiguous) { /* We can do a no-copy implementation */
-      PetscInt n,N,bs;
-      PetscInt state;
-
-      ierr = ISGetSize(is,&N);CHKERRQ(ierr);
-      ierr = ISGetLocalSize(is,&n);CHKERRQ(ierr);
-      ierr = VecGetBlockSize(X,&bs);CHKERRQ(ierr);
-      if (n%bs || bs == 1 || !n) bs = -1; /* Do not decide block size if we do not have to */
-      ierr = VecLockGet(X,&state);CHKERRQ(ierr);
-      if (state) {
-        const PetscScalar *x;
-        ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
-        ierr = VecCreate(PetscObjectComm((PetscObject)X),&Z);CHKERRQ(ierr);
-        ierr = VecSetType(Z,((PetscObject)X)->type_name);CHKERRQ(ierr);
-        ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
-        ierr = VecSetBlockSize(Z,bs);CHKERRQ(ierr);
-        ierr = VecPlaceArray(Z,(PetscScalar*)x+start);CHKERRQ(ierr);
-        ierr = VecLockReadPush(Z);CHKERRQ(ierr);
-        ierr = VecRestoreArrayRead(X,&x);CHKERRQ(ierr);
-      } else {
-        PetscScalar *x;
-        ierr = VecGetArray(X,&x);CHKERRQ(ierr);
-        ierr = VecCreate(PetscObjectComm((PetscObject)X),&Z);CHKERRQ(ierr);
-        ierr = VecSetType(Z,((PetscObject)X)->type_name);CHKERRQ(ierr);
-        ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
-        ierr = VecSetBlockSize(Z,bs);CHKERRQ(ierr);
-        ierr = VecPlaceArray(Z,(PetscScalar*)x+start);CHKERRQ(ierr);
-        ierr = VecRestoreArray(X,&x);CHKERRQ(ierr);
-      }
-    } else { /* Have to create a scatter and do a copy */
-      VecScatter scatter;
-      PetscInt   n,N;
-      ierr = ISGetLocalSize(is,&n);CHKERRQ(ierr);
-      ierr = ISGetSize(is,&N);CHKERRQ(ierr);
-      ierr = VecCreate(PetscObjectComm((PetscObject)is),&Z);CHKERRQ(ierr);
-      ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
-      ierr = VecSetType(Z,((PetscObject)X)->type_name);CHKERRQ(ierr);
-      ierr = VecScatterCreate(X,is,Z,NULL,&scatter);CHKERRQ(ierr);
-      ierr = VecScatterBegin(scatter,X,Z,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-      ierr = VecScatterEnd(scatter,X,Z,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-      ierr = PetscObjectCompose((PetscObject)Z,"VecGetSubVector_Scatter",(PetscObject)scatter);CHKERRQ(ierr);
-      ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
-    }
+    ierr = VecGetSubVector_Default(X,is,&Z,((PetscObject)X)->type_name);CHKERRQ(ierr);
   }
   /* Record the state when the subvector was gotten so we know whether its values need to be put back */
   if (VecGetSubVectorSavedStateId < 0) {ierr = PetscObjectComposedDataRegister(&VecGetSubVectorSavedStateId);CHKERRQ(ierr);}
   ierr = PetscObjectComposedDataSetInt((PetscObject)Z,VecGetSubVectorSavedStateId,1);CHKERRQ(ierr);
   *Y   = Z;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecCreateSubVector_Default(Vec X,IS is,Vec *Y,VecType type_name)
+{
+  PetscInt       gstart,gend,start;
+  PetscBool      contiguous,gcontiguous;
+  Vec            Z;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecGetOwnershipRange(X,&gstart,&gend);CHKERRQ(ierr);
+  ierr = ISContiguousLocal(is,gstart,gend,&start,&contiguous);CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&contiguous,&gcontiguous,1,MPIU_BOOL,MPI_LAND,PetscObjectComm((PetscObject)is));CHKERRQ(ierr);
+  if (gcontiguous) { /* We can do a no-copy implementation */
+    PetscInt n,N,bs;
+    const PetscScalar *x;
+    PetscScalar *y;
+
+    ierr = ISGetSize(is,&N);CHKERRQ(ierr);
+    ierr = ISGetLocalSize(is,&n);CHKERRQ(ierr);
+    ierr = VecGetBlockSize(X,&bs);CHKERRQ(ierr);
+    if (n%bs || bs == 1 || !n) bs = -1; /* Do not decide block size if we do not have to */
+    ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject)X),&Z);CHKERRQ(ierr);
+    ierr = VecSetType(Z,type_name);CHKERRQ(ierr);
+    ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(Z,bs);CHKERRQ(ierr);
+    ierr = VecGetArray(Z,&y);CHKERRQ(ierr);
+    ierr = PetscMemcpy(y, x, n * sizeof(PetscScalar));CHKERRQ(ierr);
+    ierr = VecRestoreArray(Z,&y);CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(X,&x);CHKERRQ(ierr);
+  } else { /* Have to create a scatter and do a copy */
+    VecScatter scatter;
+    PetscInt   n,N;
+
+    ierr = ISGetLocalSize(is,&n);CHKERRQ(ierr);
+    ierr = ISGetSize(is,&N);CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject)is),&Z);CHKERRQ(ierr);
+    ierr = VecSetSizes(Z,n,N);CHKERRQ(ierr);
+    ierr = VecSetType(Z,type_name);CHKERRQ(ierr);
+    ierr = VecScatterCreate(X,is,Z,NULL,&scatter);CHKERRQ(ierr);
+    ierr = VecScatterBegin(scatter,X,Z,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+    ierr = VecScatterEnd(scatter,X,Z,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+    ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
+  }
+  *Y = Z;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   VecCreateSubVector - Creates a vector representing part of another vector
+
+   Collective on IS (and Vec if nonlocal entries are needed)
+
+   Input Arguments:
++ X - vector from which to extract a subvector
+- is - index set representing portion of X to extract
+
+   Output Arguments:
+. Y - subvector corresponding to is
+
+   Level: advanced
+
+   Notes:
+   The subvector Y should be returned with VecRestoreSubVector().
+
+   This method copies values, therefore it is safe to use/destroy the original vector,
+   and result should be destroyed with VecDestroy().
+
+.seealso: MatCreateSubMatrix(), VecGetSubVector(), VecRestoreSubVector()
+@*/
+PetscErrorCode  VecCreateSubVector(Vec X,IS is,Vec *Y)
+{
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(X,VEC_CLASSID,1);
+  PetscValidHeaderSpecific(is,IS_CLASSID,2);
+  PetscValidPointer(Y,3);
+  if (X->ops->createsubvector) {
+    ierr = (*X->ops->createsubvector)(X,is,Y);CHKERRQ(ierr);
+  } else { /* Default implementation currently does no caching */
+    ierr = VecCreateSubVector_Default(X,is,Y,((PetscObject)X)->type_name);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecRestoreSubVector_Default(Vec X,IS is,Vec *Y)
+{
+  PETSC_UNUSED PetscObjectState dummystate = 0;
+  PetscBool valid;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectComposedDataGetInt((PetscObject)*Y,VecGetSubVectorSavedStateId,dummystate,valid);CHKERRQ(ierr);
+  if (!valid) {
+    VecScatter scatter;
+
+    ierr = PetscObjectQuery((PetscObject)*Y,"VecGetSubVector_Scatter",(PetscObject*)&scatter);CHKERRQ(ierr);
+    if (scatter) {
+      ierr = VecScatterBegin(scatter,*Y,X,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
+      ierr = VecScatterEnd(scatter,*Y,X,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecDestroy(Y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1356,19 +1473,7 @@ PetscErrorCode  VecRestoreSubVector(Vec X,IS is,Vec *Y)
   if (X->ops->restoresubvector) {
     ierr = (*X->ops->restoresubvector)(X,is,Y);CHKERRQ(ierr);
   } else {
-    PETSC_UNUSED PetscObjectState dummystate = 0;
-    PetscBool valid;
-    ierr = PetscObjectComposedDataGetInt((PetscObject)*Y,VecGetSubVectorSavedStateId,dummystate,valid);CHKERRQ(ierr);
-    if (!valid) {
-      VecScatter scatter;
-
-      ierr = PetscObjectQuery((PetscObject)*Y,"VecGetSubVector_Scatter",(PetscObject*)&scatter);CHKERRQ(ierr);
-      if (scatter) {
-        ierr = VecScatterBegin(scatter,*Y,X,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
-        ierr = VecScatterEnd(scatter,*Y,X,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
-      }
-    }
-    ierr = VecDestroy(Y);CHKERRQ(ierr);
+    ierr = VecRestoreSubVector_Default(X,is,Y);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
