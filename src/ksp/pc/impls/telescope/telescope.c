@@ -190,7 +190,7 @@ PetscErrorCode PCTelescopeSetUp_default(PC pc,PC_Telescope sred)
   }
   ierr = ISSetBlockSize(isin,bs);CHKERRQ(ierr);
 
-  ierr = VecScatterCreateWithData(x,isin,xtmp,NULL,&scatter);CHKERRQ(ierr);
+  ierr = VecScatterCreate(x,isin,xtmp,NULL,&scatter);CHKERRQ(ierr);
 
   sred->isin    = isin;
   sred->scatter = scatter;
@@ -507,7 +507,7 @@ static PetscErrorCode PCSetUp_Telescope(PC pc)
     pc->ops->applyrichardson                  = PCApplyRichardson_Telescope_CoarseDM;
     sred->pctelescope_setup_type              = PCTelescopeSetUp_CoarseDM;
     sred->pctelescope_matcreate_type          = NULL;
-    sred->pctelescope_matnullspacecreate_type = NULL;/*PCTelescopeMatNullSpaceCreate_CoarseDM;*/
+    sred->pctelescope_matnullspacecreate_type = NULL; /* PCTelescopeMatNullSpaceCreate_CoarseDM; */
     sred->pctelescope_reset_type              = PCReset_Telescope_CoarseDM;
     break;
   default: SETERRQ(comm,PETSC_ERR_SUP,"Support only provided for: repartitioning an operator; repartitioning a DMDA; or using a coarse DM");

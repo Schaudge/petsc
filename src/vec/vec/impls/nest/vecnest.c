@@ -605,7 +605,11 @@ static PetscErrorCode VecMaxPointwiseDivide_Nest(Vec x,Vec y,PetscReal *max)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode  VecGetSubVector_Nest(Vec X,IS is,Vec *x)
+PETSC_EXTERN PetscErrorCode VecCreateSubVector_Default(Vec,IS,Vec*,VecType);
+PETSC_EXTERN PetscErrorCode VecGetSubVector_Default(Vec,IS,Vec*,VecType);
+PETSC_EXTERN PetscErrorCode VecRestoreSubVector_Default(Vec,IS,Vec*);
+
+static PetscErrorCode VecGetSubVector_Nest(Vec X,IS is,Vec *x)
 {
   Vec_Nest       *bx = (Vec_Nest*)X->data;
   PetscInt       i;
@@ -622,16 +626,52 @@ static PetscErrorCode  VecGetSubVector_Nest(Vec X,IS is,Vec *x)
       break;
     }
   }
-  if (!*x) SETERRQ(PetscObjectComm((PetscObject)is),PETSC_ERR_ARG_OUTOFRANGE,"Index set not found in nested Vec");
+  if (!*x) {
+    ierr = VecGetSubVector_Default(X,is,x,VECSTANDARD);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode  VecRestoreSubVector_Nest(Vec X,IS is,Vec *x)
+static PetscErrorCode VecCreateSubVector_Nest(Vec X,IS is,Vec *x)
 {
+  Vec_Nest       *bx = (Vec_Nest*)X->data;
+  PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecDestroy(x);CHKERRQ(ierr);
+  *x = NULL;
+  for (i=0; i<bx->nb; i++) {
+    PetscBool issame = PETSC_FALSE;
+    ierr = ISEqual(is,bx->is[i],&issame);CHKERRQ(ierr);
+    if (issame) {
+      ierr = VecDuplicate(bx->v[i], x);CHKERRQ(ierr);
+      ierr = VecCopy(bx->v[i], *x);CHKERRQ(ierr);
+      break;
+    }
+  }
+  if (!*x) {
+    ierr = VecCreateSubVector_Default(X,is,x,VECSTANDARD);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode VecRestoreSubVector_Nest(Vec X,IS is,Vec *x)
+{
+  Vec_Nest       *bx = (Vec_Nest*)X->data;
+  PetscInt       i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  for (i=0; i<bx->nb; i++) {
+    PetscBool issame = PETSC_FALSE;
+    ierr = ISEqual(is,bx->is[i],&issame);CHKERRQ(ierr);
+    if (issame) {
+      ierr = VecDestroy(x);CHKERRQ(ierr);
+      PetscFunctionReturn(0);
+    }
+  }
+  /* created by default copy, must copy values back */
+  ierr = VecRestoreSubVector_Default(X,is,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -771,6 +811,7 @@ static PetscErrorCode VecNestSetOps_Private(struct _VecOps *ops)
   ops->stridescatter           = 0;
   ops->dotnorm2                = VecDotNorm2_Nest;
   ops->getsubvector            = VecGetSubVector_Nest;
+  ops->createsubvector         = VecCreateSubVector_Nest;
   ops->restoresubvector        = VecRestoreSubVector_Nest;
   ops->axpbypcz                = VecAXPBYPCZ_Nest;
   PetscFunctionReturn(0);

@@ -697,12 +697,14 @@ PetscErrorCode KSPSolve(KSP ksp,Vec b,Vec x)
   }
   if (ksp->viewPre) {ierr = ObjectView((PetscObject) ksp, ksp->viewerPre, ksp->formatPre);CHKERRQ(ierr);}
 
+  ksp->transpose_solve = PETSC_FALSE;
+
   if (ksp->presolve) {ierr = (*ksp->presolve)(ksp,ksp->vec_rhs,ksp->vec_sol,ksp->prectx);CHKERRQ(ierr);}
-  ierr = PetscLogEventBegin(KSP_Solve,ksp,ksp->vec_rhs,ksp->vec_sol,0);CHKERRQ(ierr);
 
   /* reset the residual history list if requested */
   if (ksp->res_hist_reset) ksp->res_hist_len = 0;
-  ksp->transpose_solve = PETSC_FALSE;
+
+  ierr = PetscLogEventBegin(KSP_Solve,ksp,ksp->vec_rhs,ksp->vec_sol,0);CHKERRQ(ierr);
 
   if (ksp->guess) {
     PetscObjectState ostate,state;
@@ -723,7 +725,7 @@ PetscErrorCode KSPSolve(KSP ksp,Vec b,Vec x)
   ierr = KSPSetUp(ksp);CHKERRQ(ierr);
   ierr = KSPSetUpOnBlocks(ksp);CHKERRQ(ierr);
 
-  VecLocked(ksp->vec_sol,3);
+  ierr = VecSetErrorIfLocked(ksp->vec_sol,3);CHKERRQ(ierr);
 
   ierr = PCGetOperators(ksp->pc,&mat,&pmat);CHKERRQ(ierr);
   /* diagonal scale RHS if called for */
@@ -773,13 +775,13 @@ PetscErrorCode KSPSolve(KSP ksp,Vec b,Vec x)
     vec_rhs      = ksp->vec_rhs;
     ksp->vec_rhs = btmp;
   }
-  ierr = VecLockPush(ksp->vec_rhs);CHKERRQ(ierr);
+  ierr = VecLockReadPush(ksp->vec_rhs);CHKERRQ(ierr);
   if (ksp->reason == KSP_DIVERGED_PC_FAILED) {
     ierr = VecSetInf(ksp->vec_sol);CHKERRQ(ierr);
   }
   ierr = (*ksp->ops->solve)(ksp);CHKERRQ(ierr);
 
-  ierr = VecLockPop(ksp->vec_rhs);CHKERRQ(ierr);
+  ierr = VecLockReadPop(ksp->vec_rhs);CHKERRQ(ierr);
   if (nullsp) {
     ksp->vec_rhs = vec_rhs;
     ierr = VecDestroy(&btmp);CHKERRQ(ierr);
@@ -810,11 +812,11 @@ PetscErrorCode KSPSolve(KSP ksp,Vec b,Vec x)
     }
   }
   ierr = PetscLogEventEnd(KSP_Solve,ksp,ksp->vec_rhs,ksp->vec_sol,0);CHKERRQ(ierr);
-  if (ksp->postsolve) {
-    ierr = (*ksp->postsolve)(ksp,ksp->vec_rhs,ksp->vec_sol,ksp->postctx);CHKERRQ(ierr);
-  }
   if (ksp->guess) {
     ierr = KSPGuessUpdate(ksp->guess,ksp->vec_rhs,ksp->vec_sol);CHKERRQ(ierr);
+  }
+  if (ksp->postsolve) {
+    ierr = (*ksp->postsolve)(ksp,ksp->vec_rhs,ksp->vec_sol,ksp->postctx);CHKERRQ(ierr);
   }
 
   ierr = PCGetOperators(ksp->pc,&mat,&pmat);CHKERRQ(ierr);
@@ -904,6 +906,8 @@ PetscErrorCode  KSPSolveTranspose(KSP ksp,Vec b,Vec x)
   ksp->vec_sol         = x;
   ksp->transpose_solve = PETSC_TRUE;
 
+  if (ksp->presolve) {ierr = (*ksp->presolve)(ksp,ksp->vec_rhs,ksp->vec_sol,ksp->prectx);CHKERRQ(ierr);}
+
   if (ksp->guess) {
     PetscObjectState ostate,state;
 
@@ -943,6 +947,9 @@ PetscErrorCode  KSPSolveTranspose(KSP ksp,Vec b,Vec x)
   if (ksp->viewReason) {ierr = KSPReasonView_Internal(ksp, ksp->viewerReason, ksp->formatReason);CHKERRQ(ierr);}
   if (ksp->guess) {
     ierr = KSPGuessUpdate(ksp->guess,ksp->vec_rhs,ksp->vec_sol);CHKERRQ(ierr);
+  }
+  if (ksp->postsolve) {
+    ierr = (*ksp->postsolve)(ksp,ksp->vec_rhs,ksp->vec_sol,ksp->postctx);CHKERRQ(ierr);
   }
 
   if (ksp->viewMat)      {ierr = ObjectView((PetscObject) mat,          ksp->viewerMat,  ksp->formatMat);CHKERRQ(ierr);}

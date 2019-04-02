@@ -173,6 +173,8 @@ PETSC_EXTERN PetscErrorCode DMComputeVariableBounds(DM,Vec,Vec);
 
 PETSC_EXTERN PetscErrorCode DMCreateSubDM(DM, PetscInt, const PetscInt[], IS *, DM *);
 PETSC_EXTERN PetscErrorCode DMCreateSuperDM(DM[], PetscInt, IS **, DM *);
+PETSC_EXTERN PetscErrorCode DMCreateSectionSubDM(DM,PetscInt,const PetscInt[],IS*,DM*);
+PETSC_EXTERN PetscErrorCode DMCreateSectionSuperDM(DM[],PetscInt,IS**,DM*);
 PETSC_EXTERN PetscErrorCode DMCreateFieldDecomposition(DM,PetscInt*,char***,IS**,DM**);
 PETSC_EXTERN PetscErrorCode DMCreateDomainDecomposition(DM,PetscInt*,char***,IS**,IS**,DM**);
 PETSC_EXTERN PetscErrorCode DMCreateDomainDecompositionScatters(DM,PetscInt,DM*,VecScatter**,VecScatter**,VecScatter**);
@@ -233,6 +235,10 @@ PETSC_EXTERN PetscErrorCode DMSetField(DM, PetscInt, DMLabel, PetscObject);
 PETSC_EXTERN PetscErrorCode DMAddField(DM, DMLabel, PetscObject);
 PETSC_EXTERN PetscErrorCode DMClearFields(DM);
 PETSC_EXTERN PetscErrorCode DMCopyFields(DM, DM);
+PETSC_EXTERN PetscErrorCode DMGetAdjacency(DM, PetscInt, PetscBool *, PetscBool *);
+PETSC_EXTERN PetscErrorCode DMSetAdjacency(DM, PetscInt, PetscBool, PetscBool);
+PETSC_EXTERN PetscErrorCode DMGetBasicAdjacency(DM, PetscBool *, PetscBool *);
+PETSC_EXTERN PetscErrorCode DMSetBasicAdjacency(DM, PetscBool, PetscBool);
 
 PETSC_EXTERN PetscErrorCode DMGetNumDS(DM, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMGetDS(DM, PetscDS *);
