@@ -20,7 +20,8 @@ class Configure(config.package.Package):
 
   def __str__(self):
     output  = config.package.Package.__str__(self)
-    output += '  Arch:     '+self.cudaArch+'\n'
+    if self.found:
+      output += '  Arch:     '+self.cudaArch+'\n'
     return output
 
   def setupHelp(self, help):
