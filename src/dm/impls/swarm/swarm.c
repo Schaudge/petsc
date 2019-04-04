@@ -1402,8 +1402,6 @@ PETSC_EXTERN PetscErrorCode DMCreate_Swarm(DM dm)
 
 static PetscErrorCode DMInitialize_Swarm(DM dm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   dm->ops->view                            = DMView_Swarm;
   dm->ops->load                            = NULL;
@@ -1434,8 +1432,7 @@ static PetscErrorCode DMInitialize_Swarm(DM dm)
   dm->ops->destroy                         = DMDestroy_Swarm;
   dm->ops->createsubdm                     = NULL;
   dm->ops->getdimpoints                    = NULL;
-  dm->ops->locatepoints                    = NULL; 
-
+  dm->ops->locatepoints                    = NULL;
   PetscFunctionReturn(0);
 }
 
