@@ -516,13 +516,23 @@ class Configure(config.base.Configure):
       else:
         self.logWrite(self.setCompilers.restoreLog())
         oldLibs = self.setCompilers.LIBS
-        self.setCompilers.LIBS = '-lstdc++ '+self.setCompilers.LIBS
+        ext = 'so'
+        if self.setCompilers.isDarwin(self.log): ext = 'dylib'
+        self.setCompilers.pushLanguage('C++')
+        (dir, err, ret) = Configure.executeShellCommand(self.setCompilers.getCompiler()+' -print-file-name=libstdc++.'+ext, log = self.log)
+        # simply ignore any error conditions that arise procceed with link test since link test below will simply fail if garbage is provided
+        self.setCompilers.popLanguage()
+        self.setCompilers.LIBS = dir+' '+self.setCompilers.LIBS
         if self.checkCrossLink(body,"int main(int argc,char **args)\n{return 0;}\n",language1='C++',language2='C'):
-          self.logPrint('C++ requires -lstdc++ to link with C compiler', 3, 'compilers')
+          self.logPrint('C++ requires '+dir+' to link with C compiler', 3, 'compilers')
         else:
           self.setCompilers.LIBS = oldLibs
-          self.logPrint('C++ code cannot directly be linked with C linker, therefor will determine needed C++ libraries')
-          skipcxxlibraries = 0
+          self.setCompilers.LIBS = '-lstdc++ '+self.setCompilers.LIBS
+          if self.checkCrossLink(body,"int main(int argc,char **args)\n{return 0;}\n",language1='C++',language2='C'):
+            self.logPrint('C++ requires -lstdc++ to link with C compiler', 3, 'compilers')
+          else:
+            self.logPrint('C++ code cannot directly be linked with C linker, therefor will determine needed C++ libraries')
+            skipcxxlibraries = 0
     except RuntimeError as e:
       self.logWrite(self.setCompilers.restoreLog())
       self.logPrint('Error message from compiling {'+str(e)+'}', 4, 'compilers')
@@ -537,13 +547,23 @@ class Configure(config.base.Configure):
         else:
           self.logWrite(self.setCompilers.restoreLog())
           oldLibs = self.setCompilers.LIBS
-          self.setCompilers.LIBS = '-lstdc++ '+self.setCompilers.LIBS
+          ext = 'so'
+          if self.setCompilers.isDarwin(self.log): ext = 'dylib'
+          self.setCompilers.pushLanguage('C++')
+          (dir, err, ret) = Configure.executeShellCommand(self.setCompilers.getCompiler()+' -print-file-name=libstdc++.'+ext, log = self.log)
+          # simply ignore any error conditions that arise procceed with link test since link test below will simply fail if garbage is provided
+          self.setCompilers.popLanguage()
+          self.setCompilers.LIBS = dir+' '+self.setCompilers.LIBS
           if self.checkCrossLink(body,"     program main\n      print*,'testing'\n      stop\n      end\n",language1='C++',language2='FC'):
-            self.logPrint('C++ requires -lstdc++ to link with FC compiler', 3, 'compilers')
+            self.logPrint('C++ requires '+dir+' to link with FC compiler', 3, 'compilers')
           else:
             self.setCompilers.LIBS = oldLibs
-            self.logPrint('C++ code cannot directly be linked with FC linker, therefor will determine needed C++ libraries')
-            skipcxxlibraries = 0
+            self.setCompilers.LIBS = '-lstdc++ '+self.setCompilers.LIBS
+            if self.checkCrossLink(body,"     program main\n      print*,'testing'\n      stop\n      end\n",language1='C++',language2='FC'):
+              self.logPrint('C++ requires -lstdc++ to link with FC compiler', 3, 'compilers')
+            else:
+              self.logPrint('C++ code cannot directly be linked with FC linker, therefor will determine needed C++ libraries')
+              skipcxxlibraries = 0
       except RuntimeError as e:
         self.logWrite(self.setCompilers.restoreLog())
         self.logPrint('Error message from compiling {'+str(e)+'}', 4, 'compilers')
