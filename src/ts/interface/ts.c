@@ -7051,7 +7051,7 @@ PetscErrorCode TSMonitorSPSwarmPhase(TS ts,PetscInt step,PetscReal ptime,Vec u,v
     PetscDrawAxis axis;
     ierr = PetscDrawSPGetAxis(ctx->sp,&axis);CHKERRQ(ierr);
     ierr = PetscDrawAxisSetLabels(axis,"Particle Phase","T","V");CHKERRQ(ierr);
-    ierr = PetscDrawAxisSetLimits(axis, 0, 10, -1.5, 1.5);CHKERRQ(ierr);
+    ierr = PetscDrawAxisSetLimits(axis, 0, 7, -3., 3.);CHKERRQ(ierr);
     ierr = PetscDrawAxisSetHoldLimits(axis, PETSC_TRUE);CHKERRQ(ierr);
     ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
     ierr = DMGetDimension(dm, &dim);
@@ -7068,18 +7068,22 @@ PetscErrorCode TSMonitorSPSwarmPhase(TS ts,PetscInt step,PetscReal ptime,Vec u,v
   ierr = PetscMalloc2(Np, &x, Np, &y);CHKERRQ(ierr);
   /* get points from solution vector */
   for (p=0; p<Np; ++p){
-    x[p] = ptime;
+    x[p] = yy[2*dim*p];
     y[p] = yy[(2*dim*p)+dim];
-    PetscPrintf(PETSC_COMM_WORLD, "plotter index for particle %i: %i\n", p, (2*dim*p)+dim);
+    //PetscPrintf(PETSC_COMM_WORLD, "plotter index for particle %i: %i\n", p, (2*dim*p)+dim);
   }
   ierr = VecRestoreArrayRead(u,&yy);CHKERRQ(ierr);
-
+  
   if (((ctx->howoften > 0) && (!(step % ctx->howoften))) || ((ctx->howoften == -1) && ts->reason)) {
+    #if 1
+    ierr = PetscDrawSPReset(ctx->sp);CHKERRQ(ierr);
+    #endif
     ierr = PetscDrawSPAddPoint(ctx->sp,x,y);CHKERRQ(ierr);
     ierr = PetscDrawSPDraw(ctx->sp,PETSC_FALSE);CHKERRQ(ierr);
     ierr = PetscDrawSPSave(ctx->sp);CHKERRQ(ierr);
+    
+  
   }
-
   PetscFunctionReturn(0);
 }
 

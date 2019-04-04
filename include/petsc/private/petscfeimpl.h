@@ -363,6 +363,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEFreeInterpolateGradient_Static(PetscFE
         realSpaceDer[d] = 0.0;
         for (g = 0; g < dim; ++g) {
           realSpaceDer[d] += invJ[g*dim+d]*basisDer[((q*Nb + f)*Nc + fc)*dim + g];
+          PetscPrintf(PETSC_COMM_WORLD, "Tabulation: %f\n",basisDer[((q*Nb + f)*Nc + fc)*dim + g]);
+          PetscPrintf(PETSC_COMM_WORLD, "Tabulation index: %i\n",((q*Nb + f)*Nc + fc)*dim + g);
         }
         compGradient[d] += x[f]*realSpaceDer[d];
       } 
