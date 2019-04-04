@@ -2712,6 +2712,7 @@ PetscErrorCode  TSReset(TS ts)
     ierr = PetscFree(ilink);CHKERRQ(ierr);
     ilink = next;
   }
+  ts->tsrhssplit = NULL;
   ts->num_rhs_splits = 0;
   ts->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
