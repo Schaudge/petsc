@@ -1212,12 +1212,8 @@ PetscErrorCode DMCreateMassMatrix(DM dm1, DM dm2, Mat *mat)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm1, DM_CLASSID, 1);
   PetscValidHeaderSpecific(dm2, DM_CLASSID, 2);
-  if(*dm1->ops->createmassmatrix){
-    ierr = (*dm1->ops->createmassmatrix)(dm1, dm2, mat);CHKERRQ(ierr);
-  }else{
-    SETERRQ(PETSC_COMM_SELF, ierr, "No DMCreateMassMatrix set for configuration.\n");CHKERRQ(ierr);
-  }
-  
+  if (*dm1->ops->createmassmatrix) {ierr = (*dm1->ops->createmassmatrix)(dm1, dm2, mat);CHKERRQ(ierr);}
+  else                             {SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "No DMCreateMassMatrix set for object.\n");CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
