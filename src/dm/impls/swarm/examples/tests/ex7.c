@@ -694,6 +694,11 @@ int main(int argc,char **argv)
   
   /* Place TSSolve in a loop to handle resetting the TS at every manual call of TSStep() */
   ierr = TSCreate(comm, &ts);CHKERRQ(ierr);
+  ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts,0.01);CHKERRQ(ierr);
+  ierr = TSSetMaxSteps(ts,100000);CHKERRQ(ierr);
+  ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+
   for(step = 0; step < 100 ; ++step){
   
     ierr = DMSwarmCreateGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
@@ -729,10 +734,10 @@ int main(int argc,char **argv)
     ierr = ISCreateGeneral(comm, locSize, idx2, PETSC_OWN_POINTER, &is2);CHKERRQ(ierr);
 
     /* DM needs to be set before splits so it propogates to sub TSs */
-    if(step ==0){ 
-      ierr = TSSetDM(ts, sw);CHKERRQ(ierr);
-      ierr = TSSetType(ts,TSBASICSYMPLECTIC);CHKERRQ(ierr);
-    }
+    
+    ierr = TSSetDM(ts, sw);CHKERRQ(ierr);
+    ierr = TSSetType(ts,TSBASICSYMPLECTIC);CHKERRQ(ierr);
+    
     ierr = TSRHSSplitSetIS(ts,"position",is1);CHKERRQ(ierr);
     ierr = TSRHSSplitSetIS(ts,"momentum",is2);CHKERRQ(ierr);
 
@@ -741,10 +746,6 @@ int main(int argc,char **argv)
 
     ierr = TSSetRHSFunction(ts,NULL,RHSFunctionParticles,&user);CHKERRQ(ierr);
 
-    ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
-    ierr = TSSetTimeStep(ts,0.01);CHKERRQ(ierr);
-    ierr = TSSetMaxSteps(ts,100000);CHKERRQ(ierr);
-    ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
     ierr = TSSetTime(ts, step*.01);CHKERRQ(ierr);
     if (step == 0){
       ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
@@ -792,7 +793,16 @@ int main(int argc,char **argv)
 
       for(par = 0; par < Np; ++par){
         for(d=0; d<dim; ++d){
-          coor[par*dim+d] = pos[par*dim+d];
+          if( pos[par*dim+d] < 0.){
+            coor[par*dim+d] = pos[par*dim+d] + 2.*PETSC_PI;
+          }
+          else if(pos[par*dim+d] > 2.*PETSC_PI){
+            coor[par*dim+d] = pos[par*dim+d] - 2.*PETSC_PI;
+          }
+          else{
+            coor[par*dim+d] = pos[par*dim+d];
+          }
+          
           kin[par*dim+d] = mom[par*dim+d];
         }
       }

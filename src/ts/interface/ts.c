@@ -7076,7 +7076,7 @@ PetscErrorCode TSMonitorSPSwarmPhase(TS ts,PetscInt step,PetscReal ptime,Vec u,v
   ierr = VecRestoreArrayRead(u,&yy);CHKERRQ(ierr);
   
   if (((ctx->howoften > 0) && (!(step % ctx->howoften))) || ((ctx->howoften == -1) && ts->reason)) {
-    #if 1
+    #if 0
     ierr = PetscDrawSPReset(ctx->sp);CHKERRQ(ierr);
     #endif
     ierr = PetscDrawSPAddPoint(ctx->sp,x,y);CHKERRQ(ierr);
@@ -7085,6 +7085,7 @@ PetscErrorCode TSMonitorSPSwarmPhase(TS ts,PetscInt step,PetscReal ptime,Vec u,v
     
   
   }
+  ierr = PetscFree2(x, y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
