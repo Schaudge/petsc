@@ -516,10 +516,8 @@ class Configure(config.base.Configure):
       else:
         self.logWrite(self.setCompilers.restoreLog())
         oldLibs = self.setCompilers.LIBS
-        ext = 'so'
-        if self.setCompilers.isDarwin(self.log): ext = 'dylib'
         self.setCompilers.pushLanguage('C++')
-        (dir, err, ret) = Configure.executeShellCommand(self.setCompilers.getCompiler()+' -print-file-name=libstdc++.'+ext, log = self.log)
+        (dir, err, ret) = config.base.Configure.executeShellCommand([self.setCompilers.getCompiler(),'-print-file-name=libstdc++.'+self.setCompilers.sharedLibraryExt], log = self.log)
         # simply ignore any error conditions that arise procceed with link test since link test below will simply fail if garbage is provided
         self.setCompilers.popLanguage()
         self.setCompilers.LIBS = dir+' '+self.setCompilers.LIBS
@@ -547,10 +545,8 @@ class Configure(config.base.Configure):
         else:
           self.logWrite(self.setCompilers.restoreLog())
           oldLibs = self.setCompilers.LIBS
-          ext = 'so'
-          if self.setCompilers.isDarwin(self.log): ext = 'dylib'
           self.setCompilers.pushLanguage('C++')
-          (dir, err, ret) = Configure.executeShellCommand(self.setCompilers.getCompiler()+' -print-file-name=libstdc++.'+ext, log = self.log)
+          (dir, err, ret) = config.base.Configure.executeShellCommand([self.setCompilers.getCompiler(),'-print-file-name=libstdc++.'+self.setCompilers.sharedLibraryExt], log = self.log)
           # simply ignore any error conditions that arise procceed with link test since link test below will simply fail if garbage is provided
           self.setCompilers.popLanguage()
           self.setCompilers.LIBS = dir+' '+self.setCompilers.LIBS
