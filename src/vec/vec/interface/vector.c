@@ -319,7 +319,9 @@ PetscErrorCode  VecPointwiseMaxAbs(Vec w,Vec x,Vec y)
    Level: advanced
 
    Notes:
-    any subset of the x, y, and w may be the same vector.
+    Any subset of the x, y, and w may be the same vector.
+
+    If any component of y is zero the division is still performed, this will result in not a number (Nan) or infinity in the resulting entries of w
 
    Concepts: vector^pointwise divide
 

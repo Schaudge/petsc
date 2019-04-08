@@ -110,6 +110,11 @@
       <h4>PetscDraw:</h4>
       <h4>PF:</h4>
       <h4>Vec:</h4>
+        <ul>
+          <li>VecPointwiseDivide() now performs the division by zero for any entries of the denominator that are zero thus
+            introducing not a number (Nan) or infinity into the corresponding entries of the result. Previously division by zero
+            was avoided and those entries of the result were set to zero.</li>
+        </ul>
       <h4>VecScatter:</h4>
       <h4>PetscSection:</h4>
       <h4>Mat:</h4>
