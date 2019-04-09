@@ -21,14 +21,15 @@ struct _FnOps {
   PetscErrorCode (*derivativescalar)(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],PetscScalar*);
   PetscErrorCode (*derivativevec)(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],Vec);
   PetscErrorCode (*derivativemat)(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],MatReuse,Mat*,Mat*);
+  PetscErrorCode (*derivativefn)(PetscFn,PetscInt,PetscInt,PetscInt,const IS[],const Vec [],PetscFn *);
   PetscErrorCode (*scalarapply)(PetscFn,Vec,PetscScalar *);
   PetscErrorCode (*scalarderivativescalar)(PetscFn,Vec,PetscInt,const IS[],const Vec[],PetscScalar*);
   PetscErrorCode (*scalarderivativevec)(PetscFn,Vec,PetscInt,const IS[],const Vec[],Vec);
   PetscErrorCode (*scalarderivativemat)(PetscFn,Vec,PetscInt,const IS[],const Vec[],MatReuse,Mat*,Mat*);
+  PetscErrorCode (*scalarderivativefn)(PetscFn,PetscInt,PetscInt,const IS[],const Vec [],PetscFn *);
   PetscErrorCode (*createsubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
   PetscErrorCode (*destroysubfns)(PetscInt,PetscFn *[]);
   PetscErrorCode (*createsubfn)(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
-  PetscErrorCode (*createderivativefn)(PetscFn,PetscInt,PetscInt,PetscInt,const IS[],const Vec [],PetscFn *);
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,PetscFn);
   PetscErrorCode (*setup)(PetscFn);
   PetscErrorCode (*destroy)(PetscFn);
@@ -45,18 +46,6 @@ struct _p_PetscFn {
   PetscBool   setupcalled;      /* has PetscFnSetUp() been called? */
   PetscBool   setfromoptions;
   PetscBool   isScalar;
-  PetscBool   test_jacmult;
-  PetscBool   test_jacmultadj;
-  PetscBool   test_hesmult;
-  PetscBool   test_hesmultadj;
-  PetscBool   test_scalgrad;
-  PetscBool   test_scalhesmult;
-  PetscBool   test_jacbuild;
-  PetscBool   test_jacbuildadj;
-  PetscBool   test_hesbuild;
-  PetscBool   test_hesbuildadj;
-  PetscBool   test_hesbuildswp;
-  PetscBool   test_scalhesbuild;
   PetscBool   test_derfn;
   PetscBool   test_self_as_derfn;
   PetscBool   test_scalar;

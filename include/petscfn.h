@@ -60,31 +60,20 @@ PETSC_EXTERN PetscFunctionList PetscFnList;
 
 typedef enum { PETSCFNOP_CREATEVECS,
                PETSCFNOP_APPLY,
-               PETSCFNOP_JACOBIANMULT,
-               PETSCFNOP_JACOBIANMULTADJOINT,
-               PETSCFNOP_JACOBIANBUILD,
-               PETSCFNOP_JACOBIANBUILDADJOINT,
-               PETSCFNOP_HESSIANMULT,
-               PETSCFNOP_HESSIANMULTADJOINT,
-               PETSCFNOP_HESSIANBUILD,
-               PETSCFNOP_HESSIANBUILDADJOINT,
-               PETSCFNOP_HESSIANBUILDSWAP,
-               PETSCFNOP_SCALARAPPLY,
-               PETSCFNOP_SCALARGRADIENT,
-               PETSCFNOP_SCALARHESSIANMULT,
-               PETSCFNOP_SCALARHESSIANBUILD,
-               PETSCFNOP_CREATESUBFNS,
-               PETSCFNOP_DESTROYSUBFNS,
-               PETSCFNOP_CREATESUBFN,
-               PETSCFNOP_CREATEDERIVATIVEFN,
-               PETSCFNOP_DESTROY,
-               PETSCFNOP_VIEW,
                PETSCFNOP_DERIVATIVESCALAR,
                PETSCFNOP_DERIVATIVEVEC,
                PETSCFNOP_DERIVATIVEMAT,
+               PETSCFNOP_DERIVATIVEFN,
+               PETSCFNOP_SCALARAPPLY,
                PETSCFNOP_SCALARDERIVATIVESCALAR,
                PETSCFNOP_SCALARDERIVATIVEVEC,
                PETSCFNOP_SCALARDERIVATIVEMAT,
+               PETSCFNOP_SCALARDERIVATIVEFN,
+               PETSCFNOP_CREATESUBFNS,
+               PETSCFNOP_DESTROYSUBFNS,
+               PETSCFNOP_CREATESUBFN,
+               PETSCFNOP_DESTROY,
+               PETSCFNOP_VIEW,
              } PetscFnOperation;
 
 PETSC_EXTERN PetscErrorCode PetscFnCreateVecs(PetscFn,IS,Vec*,IS,Vec*);
@@ -132,21 +121,19 @@ PETSC_EXTERN const char *PetscFnOperations[];
 
 /* derivatives are functions too */
 PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscInt,PetscInt,PetscInt,const IS[], const Vec[],PetscFn *);
+PETSC_EXTERN PetscErrorCode PetscFnCreateScalarDerivativeFn(PetscFn,PetscInt,PetscInt,const IS[], const Vec[],PetscFn *);
 
 /* Taylor tests */
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeVec(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],Vec,PetscReal,PetscReal,PetscReal *);
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeScalar(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],PetscScalar,PetscReal,PetscReal,PetscReal *);
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeMat(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],Mat,PetscRandom,PetscReal *,PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeFn(PetscFn,PetscFn,PetscInt,PetscInt,PetscInt,const IS[], const Vec[],Vec,PetscReal*,PetscReal*);
 PETSC_EXTERN PetscErrorCode PetscFnTestScalarDerivativeVec(PetscFn,Vec,PetscInt,const IS[],const Vec[],Vec,PetscReal,PetscReal,PetscReal *);
 PETSC_EXTERN PetscErrorCode PetscFnTestScalarDerivativeScalar(PetscFn,Vec,PetscInt,const IS[],const Vec[],PetscScalar,PetscReal,PetscReal,PetscReal *);
 PETSC_EXTERN PetscErrorCode PetscFnTestScalarDerivativeMat(PetscFn,Vec,PetscInt,const IS[],const Vec[],Mat,PetscRandom,PetscReal *,PetscReal *);
+PETSC_EXTERN PetscErrorCode PetscFnTestScalarDerivativeFn(PetscFn,PetscFn,PetscInt,PetscInt,const IS[], const Vec[],Vec,PetscReal*,PetscReal*);
 
-PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeMult(PetscFn,PetscFnOperation,Vec,Vec,Vec,PetscRandom,PetscReal,PetscReal,PetscReal*);
-/* Matrix free comparisons */
-PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeBuild(PetscFn,PetscFnOperation,Mat,Vec,Vec,Vec,PetscRandom,PetscReal*,PetscReal*);
-/* Instantiated function comparison */
-PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeFn(PetscFn,PetscFn,PetscInt,PetscInt,PetscInt,const IS[], const Vec[],Vec,PetscReal*,PetscReal*);
-
+/* shell */
 PETSC_EXTERN PetscErrorCode PetscFnShellSetContext(PetscFn,void*);
 PETSC_EXTERN PetscErrorCode PetscFnShellGetContext(PetscFn,void *);
 PETSC_EXTERN PetscErrorCode PetscFnShellSetOperation(PetscFn,PetscFnOperation,void(*)(void));
