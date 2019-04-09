@@ -27,9 +27,6 @@ struct _FnOps {
   PetscErrorCode (*scalarderivativevec)(PetscFn,Vec,PetscInt,const IS[],const Vec[],Vec);
   PetscErrorCode (*scalarderivativemat)(PetscFn,Vec,PetscInt,const IS[],const Vec[],MatReuse,Mat*,Mat*);
   PetscErrorCode (*scalarderivativefn)(PetscFn,PetscInt,PetscInt,const IS[],const Vec [],PetscFn *);
-  PetscErrorCode (*createsubfns)(PetscFn,Vec,PetscInt,const IS[],const IS[], PetscFn *[]);
-  PetscErrorCode (*destroysubfns)(PetscInt,PetscFn *[]);
-  PetscErrorCode (*createsubfn)(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,PetscFn);
   PetscErrorCode (*setup)(PetscFn);
   PetscErrorCode (*destroy)(PetscFn);

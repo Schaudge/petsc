@@ -24,7 +24,6 @@ typedef struct _p_PetscFn*           PetscFn;
 .seealso: PetscFnSetType(), PetscFn, PetscFnRegister()
 J*/
 typedef const char* PetscFnType;
-#define PETSCFNDAG             "dag"    /* generalizes composite */
 #define PETSCFNSHELL           "shell"
 /* PETSCFNDM / PETSCFNDMPLEX / etc. would be defined lib libpetscdm */
 
@@ -69,9 +68,6 @@ typedef enum { PETSCFNOP_CREATEVECS,
                PETSCFNOP_SCALARDERIVATIVEVEC,
                PETSCFNOP_SCALARDERIVATIVEMAT,
                PETSCFNOP_SCALARDERIVATIVEFN,
-               PETSCFNOP_CREATESUBFNS,
-               PETSCFNOP_DESTROYSUBFNS,
-               PETSCFNOP_CREATESUBFN,
                PETSCFNOP_DESTROY,
                PETSCFNOP_VIEW,
              } PetscFnOperation;
@@ -81,6 +77,26 @@ PETSC_EXTERN PetscErrorCode PetscFncreateDefaultScalarVec(MPI_Comm,Vec*);
 
 /* core, user friendly interface */
 PETSC_EXTERN PetscErrorCode PetscFnApply(PetscFn,Vec,Vec);
+/* generic interface allowing for index sets on the variations */
+PETSC_EXTERN PetscErrorCode PetscFnDerivativeScalar(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], PetscScalar *);
+PETSC_EXTERN PetscErrorCode PetscFnDerivativeVec(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], Vec);
+PETSC_EXTERN PetscErrorCode PetscFnDerivativeMat(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
+PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscInt,PetscInt,PetscInt,const IS[], const Vec[],PetscFn *);
+
+/* core, allows an objective function to be a PetscFn.  If a PetscFn is
+ * scalar, the vector routines will wrap scalar quantities in vectors of
+ * length 1 and vectors in matrices */
+PETSC_EXTERN PetscErrorCode PetscFnIsScalar(PetscFn, PetscBool *);
+
+/* core, user friendly interface */
+PETSC_EXTERN PetscErrorCode PetscFnScalarApply(PetscFn,Vec,PetscScalar *);
+/* generic interface allowing for index sets on the variations */
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn,Vec,PetscInt,const IS[], const Vec[], PetscScalar *);
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeVec(PetscFn,Vec,PetscInt,const IS[], const Vec[], Vec);
+PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeMat(PetscFn,Vec,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
+PETSC_EXTERN PetscErrorCode PetscFnCreateScalarDerivativeFn(PetscFn,PetscInt,PetscInt,const IS[], const Vec[],PetscFn *);
+
+/* convenience functions that correspond to common names */
 PETSC_EXTERN PetscErrorCode PetscFnJacobianMult(PetscFn,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnJacobianBuild(PetscFn,Vec,MatReuse,Mat*,Mat*);
@@ -90,38 +106,11 @@ PETSC_EXTERN PetscErrorCode PetscFnHessianBuild(PetscFn,Vec,Vec,MatReuse,Mat*,Ma
 PETSC_EXTERN PetscErrorCode PetscFnHessianMultAdjoint(PetscFn,Vec,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnHessianBuildAdjoint(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
 PETSC_EXTERN PetscErrorCode PetscFnHessianBuildSwap(PetscFn,Vec,Vec,MatReuse,Mat*,Mat*);
-/* generic interface allowing for index sets on the variations */
-PETSC_EXTERN PetscErrorCode PetscFnDerivativeScalar(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], PetscScalar *);
-PETSC_EXTERN PetscErrorCode PetscFnDerivativeVec(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], Vec);
-PETSC_EXTERN PetscErrorCode PetscFnDerivativeMat(PetscFn,Vec,PetscInt,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
-
-/* core, allows an objective function to be a PetscFn.  If a PetscFn is
- * scalar, the vector routines will wrap scalar quantities in vectors of
- * length 1 and vectors in matrices */
-PETSC_EXTERN PetscErrorCode PetscFnIsScalar(PetscFn, PetscBool *);
-
-/* core, user friendly interface */
-PETSC_EXTERN PetscErrorCode PetscFnScalarApply(PetscFn,Vec,PetscScalar *);
 PETSC_EXTERN PetscErrorCode PetscFnScalarGradient(PetscFn,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnScalarHessianMult(PetscFn,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PetscFnScalarHessianBuild(PetscFn,Vec,MatReuse,Mat*,Mat*);
-/* generic interface allowing for index sets on the variations */
-PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn,Vec,PetscInt,const IS[], const Vec[], PetscScalar *);
-PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeVec(PetscFn,Vec,PetscInt,const IS[], const Vec[], Vec);
-PETSC_EXTERN PetscErrorCode PetscFnScalarDerivativeMat(PetscFn,Vec,PetscInt,const IS[], const Vec[], MatReuse, Mat*, Mat*);
-
-/* field split ideas */
-PETSC_EXTERN PetscErrorCode PetscFnCreateSubFns(PetscFn,Vec,PetscInt,const IS[],const IS[],PetscFn *[]);
-PETSC_EXTERN PetscErrorCode PetscFnDestroySubFns(PetscInt,PetscFn *[]);
-PETSC_EXTERN PetscErrorCode PetscFnDestroyFns(PetscInt,PetscFn *[]);
-PETSC_EXTERN PetscErrorCode PetscFnCreateSubFn(PetscFn,Vec,IS,IS,MatReuse,PetscFn *);
-
 
 PETSC_EXTERN const char *PetscFnOperations[];
-
-/* derivatives are functions too */
-PETSC_EXTERN PetscErrorCode PetscFnCreateDerivativeFn(PetscFn,PetscInt,PetscInt,PetscInt,const IS[], const Vec[],PetscFn *);
-PETSC_EXTERN PetscErrorCode PetscFnCreateScalarDerivativeFn(PetscFn,PetscInt,PetscInt,const IS[], const Vec[],PetscFn *);
 
 /* Taylor tests */
 PETSC_EXTERN PetscErrorCode PetscFnTestDerivativeVec(PetscFn,Vec,PetscInt,PetscInt,const IS[],const Vec[],Vec,PetscReal,PetscReal,PetscReal *);
@@ -158,12 +147,5 @@ PETSC_EXTERN PetscFunctionList PetscFnShellList;
 
 PETSC_EXTERN PetscErrorCode PetscFnShellRegister(const char[],PetscErrorCode(*)(PetscFn));
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate(MPI_Comm,PetscFnShellType,PetscInt,PetscInt,PetscInt,PetscInt,void *,PetscFn *);
-
-PETSC_EXTERN PetscErrorCode PetscFnCreateDAG(MPI_Comm,PetscInt,const IS[],PetscInt,const IS[],const PetscFn[],PetscFn*);
-PETSC_EXTERN PetscErrorCode PetscFnDAGAddNode(PetscFn,PetscFn,Vec,const char [],PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscFnDAGAddEdge(PetscFn,PetscInt,PetscInt,IS,IS,PetscScalar,PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscFnDAGSetInputNode(PetscFn,PetscInt);
-PETSC_EXTERN PetscErrorCode PetscFnDAGSetOutputNode(PetscFn,PetscInt);
-PETSC_EXTERN PetscErrorCode PetscFnDAGCreateSubDAG(PetscFn,PetscInt,PetscInt,PetscBool,PetscFn*);
 
 #endif

@@ -161,15 +161,6 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
   case PETSCFNOP_SCALARDERIVATIVEFN:
     fn->ops->scalarderivativefn = (PetscErrorCode (*) (PetscFn,PetscInt,PetscInt,const IS[],const Vec[],PetscFn *)) f;
     break;
-  case PETSCFNOP_CREATESUBFNS:
-    fn->ops->createsubfns = (PetscErrorCode (*) (PetscFn,Vec,PetscInt,const IS[],const IS[],PetscFn *[])) f;
-    break;
-  case PETSCFNOP_DESTROYSUBFNS:
-    fn->ops->destroysubfns = (PetscErrorCode (*) (PetscInt,PetscFn *[])) f;
-    break;
-  case PETSCFNOP_CREATESUBFN:
-    fn->ops->createsubfn = (PetscErrorCode (*) (PetscFn,Vec,IS,IS,MatReuse,PetscFn *)) f;
-    break;
   case PETSCFNOP_DESTROY:
     shell->destroy = (PetscErrorCode (*) (PetscFn)) f;
     break;
@@ -221,15 +212,6 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
     break;
   case PETSCFNOP_SCALARDERIVATIVEFN:
     *f = (void (*)(void)) fn->ops->scalarderivativefn;
-    break;
-  case PETSCFNOP_CREATESUBFNS:
-    *f = (void (*)(void)) fn->ops->createsubfns;
-    break;
-  case PETSCFNOP_DESTROYSUBFNS:
-    *f = (void (*)(void)) fn->ops->destroysubfns;
-    break;
-  case PETSCFNOP_CREATESUBFN:
-    *f = (void (*)(void)) fn->ops->createsubfn;
     break;
   case PETSCFNOP_DESTROY:
     *f = (void (*)(void)) shell->destroy;

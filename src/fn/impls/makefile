@@ -1,7 +1,7 @@
 
 ALL: lib
 
-DIRS     = shell dag
+DIRS     = shell
 LOCDIR   = src/fn/impls/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
