@@ -169,6 +169,7 @@ PETSC_EXTERN PetscErrorCode VecMTDot(Vec,PetscInt,const Vec[],PetscScalar[]);
 PETSC_EXTERN PetscErrorCode VecGetSubVector(Vec,IS,Vec*);
 PETSC_EXTERN PetscErrorCode VecRestoreSubVector(Vec,IS,Vec*);
 PETSC_EXTERN PetscErrorCode VecCreateSubVector(Vec,IS,Vec*);
+PETSC_EXTERN PetscErrorCode VecCreateRedundantVector(Vec,PetscInt,MPI_Comm,Vec*);
 
 /*E
     NormType - determines what type of norm to compute
@@ -646,6 +647,8 @@ PETSC_EXTERN PetscErrorCode VecNestSetSubVecs(Vec,PetscInt,PetscInt*,Vec*);
 PETSC_EXTERN PetscErrorCode VecNestSetSubVec(Vec,PetscInt,Vec);
 PETSC_EXTERN PetscErrorCode VecCreateNest(MPI_Comm,PetscInt,IS*,Vec*,Vec*);
 PETSC_EXTERN PetscErrorCode VecNestGetSize(Vec,PetscInt*);
+PETSC_EXTERN PetscErrorCode VecNestGetISs(Vec,IS[]);
+
 
 PETSC_EXTERN PetscErrorCode PetscOptionsGetVec(PetscOptions,const char[],const char[],Vec,PetscBool*);
 PETSC_EXTERN PetscErrorCode VecChop(Vec,PetscReal);

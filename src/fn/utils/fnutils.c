@@ -39,6 +39,66 @@ PetscErrorCode VecScalarBcast(Vec v, PetscScalar *zp)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscFnGetSuperVector(PetscFn fn, PetscBool isRange, IS subset, Vec subvec, Vec *supervec, PetscBool read)
+{
+  Vec            newvec;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!subset) {
+    *supervec = subvec;
+  } else {
+    PetscInt n;
+    const PetscInt *idx;
+    const PetscScalar *va;
+
+    if (isRange) {
+      ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &newvec);CHKERRQ(ierr);
+    } else {
+      ierr = PetscFnCreateVecs(fn, NULL, &newvec, NULL, NULL);CHKERRQ(ierr);
+    }
+    if (read) {
+      ierr = ISGetLocalSize(subset, &n);CHKERRQ(ierr);
+      ierr = ISGetIndices(subset, &idx);CHKERRQ(ierr);
+      ierr = VecGetArrayRead(subvec, &va);CHKERRQ(ierr);
+      ierr = VecSetValues(newvec, n, idx, va, INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecRestoreArrayRead(subvec, &va);CHKERRQ(ierr);
+      ierr = ISRestoreIndices(subset, &idx);CHKERRQ(ierr);
+      ierr = VecAssemblyBegin(newvec);CHKERRQ(ierr);
+      ierr = VecAssemblyEnd(newvec);CHKERRQ(ierr);
+    }
+    *supervec = newvec;
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnRestoreSuperVector(PetscFn fn, PetscBool isRange, IS subset, Vec subvec, Vec *supervec, PetscBool write)
+{
+  Vec            newvec;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!subset) {
+    *supervec = NULL;
+  } else {
+    PetscInt n;
+    const PetscInt *idx;
+    PetscScalar *va;
+
+    newvec = *supervec;
+    if (write) {
+      ierr = ISGetLocalSize(subset, &n);CHKERRQ(ierr);
+      ierr = ISGetIndices(subset, &idx);CHKERRQ(ierr);
+      ierr = VecGetArray(subvec, &va);CHKERRQ(ierr);
+      ierr = VecGetValues(newvec, n, idx, va);CHKERRQ(ierr);
+      ierr = VecRestoreArray(subvec, &va);CHKERRQ(ierr);
+      ierr = ISRestoreIndices(subset, &idx);CHKERRQ(ierr);
+    }
+    ierr = VecDestroy(supervec);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode PetscFnGetSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt rangeIdx, const IS subsets[], const Vec subvecs [], Vec outsubvec, const Vec *supervecs[], Vec *outsupervec)
 {
   PetscInt       i;
@@ -72,33 +132,10 @@ PetscErrorCode PetscFnGetSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt ran
   }
   ierr = PetscMalloc1(numVecs, &newvecs);CHKERRQ(ierr);
   for (i = 0; i < numVecs; i++) {
-    if (subsets[i]) {
-      Vec newvec;
-      PetscInt n;
-      const PetscInt *idx;
-      const PetscScalar *va;
-
-      if (i == rangeIdx) {
-        ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, &newvec);CHKERRQ(ierr);
-      } else {
-        ierr = PetscFnCreateVecs(fn, NULL, &newvec, NULL, NULL);CHKERRQ(ierr);
-      }
-      ierr = ISGetLocalSize(subsets[i], &n);CHKERRQ(ierr);
-      ierr = ISGetIndices(subsets[i], &idx);CHKERRQ(ierr);
-      ierr = VecGetArrayRead(subvecs[i], &va);CHKERRQ(ierr);
-      ierr = VecSetValues(newvec, n, idx, va, INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecRestoreArrayRead(subvecs[i], &va);CHKERRQ(ierr);
-      ierr = ISRestoreIndices(subsets[i], &idx);CHKERRQ(ierr);
-      ierr = VecAssemblyBegin(newvec);CHKERRQ(ierr);
-      ierr = VecAssemblyEnd(newvec);CHKERRQ(ierr);
-    }
+    ierr = PetscFnGetSuperVector(fn, (i == rangeIdx) ? PETSC_TRUE : PETSC_FALSE, subsets[i], subvecs[i], &newvecs[i], PETSC_TRUE);CHKERRQ(ierr);
   }
-  if (outsubvec && subsets[numVecs]) {
-    if (numVecs == rangeIdx) {
-      ierr = PetscFnCreateVecs(fn, NULL, NULL, NULL, outsupervec);CHKERRQ(ierr);
-    } else {
-      ierr = PetscFnCreateVecs(fn, NULL, outsupervec, NULL, NULL);CHKERRQ(ierr);
-    }
+  if (outsubvec) {
+    ierr = PetscFnGetSuperVector(fn, (numVecs == rangeIdx) ? PETSC_TRUE : PETSC_FALSE, subsets[numVecs], outsubvec, outsupervec, PETSC_FALSE);CHKERRQ(ierr);
   }
   *supervecs = newvecs;
   PetscFunctionReturn(0);
@@ -130,23 +167,11 @@ PetscErrorCode PetscFnRestoreSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt
   }
   if (!anySubset) PetscFunctionReturn(0);
   newvecs = (Vec *) *supervecs;
-  if (outsubvec && subsets[numVecs]) {
-    PetscInt n;
-    const PetscInt *idx;
-    PetscScalar *va;
-
-    ierr = ISGetLocalSize(subsets[numVecs], &n);CHKERRQ(ierr);
-    ierr = ISGetIndices(subsets[numVecs], &idx);CHKERRQ(ierr);
-    ierr = VecGetArray(outsubvec, &va);CHKERRQ(ierr);
-    ierr = VecGetValues(*outsupervec, n, idx, va);CHKERRQ(ierr);
-    ierr = VecRestoreArray(outsubvec, &va);CHKERRQ(ierr);
-    ierr = ISRestoreIndices(subsets[numVecs], &idx);CHKERRQ(ierr);
-    ierr = VecDestroy(outsupervec);CHKERRQ(ierr);
+  if (outsubvec) {
+    ierr = PetscFnGetSuperVector(fn, (numVecs == rangeIdx) ? PETSC_TRUE : PETSC_FALSE, subsets[numVecs], outsubvec, outsupervec, PETSC_TRUE);CHKERRQ(ierr);
   }
   for (i = 0; i < numVecs; i++) {
-    if (subsets[i]) {
-      ierr = VecDestroy(&newvecs[i]);CHKERRQ(ierr);
-    }
+    ierr = PetscFnRestoreSuperVector(fn, (i == rangeIdx) ? PETSC_TRUE : PETSC_FALSE, subsets[i], subvecs[i], &newvecs[i], PETSC_FALSE);CHKERRQ(ierr);
   }
   ierr = PetscFree(*newvecs);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -244,5 +269,14 @@ PetscErrorCode PetscFnRestoreSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt
   if (*superJpre) {
     ierr = PetscFree(*superJpre);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscFnCreateDefaultScalarVec(MPI_Comm comm, Vec *vz)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecCreateMPI(comm, PETSC_DETERMINE, 1, vz);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

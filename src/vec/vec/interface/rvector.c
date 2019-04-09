@@ -1636,6 +1636,54 @@ PetscErrorCode VecRestoreLocalVector(Vec v,Vec w)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecCreateRedundantVector(Vec vec,PetscInt nsubcomm,MPI_Comm subcomm,Vec *vecredundant)
+{
+  PetscErrorCode ierr;
+  MPI_Comm       comm;
+  PetscMPIInt    size;
+  PetscInt       nloc_sub,rstart,rend,N=vec->map->N,bs=vec->map->bs;
+  PetscSubcomm   psubcomm=NULL;
+  MPI_Comm       subcomm_in=subcomm;
+  IS             isrow;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(vec,VEC_CLASSID,1);
+
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)vec),&size);CHKERRQ(ierr);
+  if (size == 1 || nsubcomm == 1) {
+    ierr = VecDuplicate(vec,vecredundant);CHKERRQ(ierr);
+    ierr = VecCopy(vec,*vecredundant);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+
+  if (subcomm_in == MPI_COMM_NULL) { /* get subcomm if user does not provide subcomm */
+    /* create psubcomm, then get subcomm */
+    ierr = PetscObjectGetComm((PetscObject)vec,&comm);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+    if (nsubcomm < 1 || nsubcomm > size) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"nsubcomm must between 1 and %D",size);
+
+    ierr = PetscSubcommCreate(comm,&psubcomm);CHKERRQ(ierr);
+    ierr = PetscSubcommSetNumber(psubcomm,nsubcomm);CHKERRQ(ierr);
+    ierr = PetscSubcommSetType(psubcomm,PETSC_SUBCOMM_CONTIGUOUS);CHKERRQ(ierr);
+    ierr = PetscSubcommSetFromOptions(psubcomm);CHKERRQ(ierr);
+    ierr = PetscCommDuplicate(PetscSubcommChild(psubcomm),&subcomm,NULL);CHKERRQ(ierr);
+    ierr = PetscSubcommDestroy(&psubcomm);CHKERRQ(ierr);
+  }
+
+  nloc_sub = PETSC_DECIDE;
+  if (bs < 1) {
+    ierr = PetscSplitOwnership(subcomm,&nloc_sub,&N);CHKERRQ(ierr);
+  } else {
+    ierr = PetscSplitOwnershipBlock(subcomm,bs,&nloc_sub,&N);CHKERRQ(ierr);
+  }
+  ierr = MPI_Scan(&nloc_sub,&rend,1,MPIU_INT,MPI_SUM,subcomm);CHKERRQ(ierr);
+  rstart = rend - nloc_sub;
+  ierr = ISCreateStride(subcomm,nloc_sub,rstart,1,&isrow);CHKERRQ(ierr);
+  ierr = VecCreateSubVector(vec,isrow,vecredundant);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 /*@C
    VecGetArray - Returns a pointer to a contiguous array that contains this
    processor's portion of the vector data. For the standard PETSc

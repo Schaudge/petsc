@@ -363,7 +363,7 @@ PetscErrorCode PetscFnApply(PetscFn fn, Vec x, Vec y)
   if (fn->rmap->n != y->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec y: local dim %D %D",fn->rmap->n,y->map->n);
   VecLocked(y,3);
 
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   if (fn->ops->apply) {
     ierr = (*fn->ops->apply)(fn,x,y);CHKERRQ(ierr);
   } else if (fn->ops->derivativevec) {
@@ -379,7 +379,7 @@ PetscErrorCode PetscFnApply(PetscFn fn, Vec x, Vec y)
     ierr = (*fn->ops->scalarderivativescalar)(fn,x,0,NULL,NULL,&z);CHKERRQ(ierr);
     ierr = VecSet(y,z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -609,9 +609,9 @@ PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt
 #if defined(PETSC_USE_DEBUG)
   for (i = 0; i < der + 1; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, (i == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);}
 #endif
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   for (i = 0; i < der+1; i++) {
-    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->derivativescalar) {
     ierr = (*fn->ops->derivativescalar)(fn,x,der,rangeIdx,subsets,subvecs,z);CHKERRQ(ierr);
@@ -650,9 +650,9 @@ PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt
     ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der+1, subvecs, &vecsubsets, &vecsubvecs);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der+1; i++) {
-    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPop(subvecs[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   if (der > 0 && fn->test_scalar) {
     PetscHashIJKey key;
     PetscBool      missing;
@@ -690,9 +690,9 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
   for (i = 0; i < der; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, (i == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);}
   ierr = PetscFnVecCheckCompatible(y, yIS, (der == rangeIdx) ? fn->rmap : fn->dmap);CHKERRQ(ierr);
 #endif
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   for (i = 0; i < der; i++) {
-    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->derivativevec) {
     ierr = (*fn->ops->derivativevec)(fn,x,der,rangeIdx,subsets,subvecs,y);CHKERRQ(ierr);
@@ -726,9 +726,9 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
     ierr = VecSet(y,z);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der; i++) {
-    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPop(subvecs[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   if (der > 0 && fn->test_vec) {
     PetscHashIJKey key;
     PetscBool      missing;
@@ -775,9 +775,9 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
   }
 #endif
   if (!M && !Mpre) PetscFunctionReturn(0);
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   for (i = 0; i < der - 1; i++) {
-    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->derivativemat) {
     ierr = (*fn->ops->derivativemat)(fn,x,der,rangeIdx,subsets,subvecs,reuse,M,Mpre);CHKERRQ(ierr);
@@ -827,9 +827,9 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
     ierr = PetscFnRestoreISVecsWithoutRange(rangeIdx, der+1, subsets, der-1, subvecs, &scalarsubsets, &scalarvecs);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der-1; i++) {
-    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPop(subvecs[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
 #if defined(PETSC_USE_DEBUG)
   if (reuse == MAT_INITIAL_MATRIX) {
     PetscLayout    rightLayout = (der-1 == rangeIdx) ? fn->rmap : fn->dmap;
@@ -873,9 +873,9 @@ PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, co
 #if defined(PETSC_USE_DEBUG)
   for (i = 0; i < der; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, fn->dmap);CHKERRQ(ierr);}
 #endif
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   for (i = 0; i < der; i++) {
-    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->scalarderivativescalar) {
     ierr = (*fn->ops->scalarderivativescalar)(fn,x,der,subsets,subvecs,z);CHKERRQ(ierr);
@@ -910,9 +910,9 @@ PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, co
     ierr = VecDestroy(&grad);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der; i++) {
-    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPop(subvecs[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   if (der > 0 && fn->test_scalar) {
     PetscHashIJKey key;
     PetscBool      missing;
@@ -949,9 +949,9 @@ PetscErrorCode PetscFnScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const
   for (i = 0; i < der-1; i++) {ierr = PetscFnVecCheckCompatible(subvecs[i], subsets ? subsets[i] : NULL, fn->dmap);CHKERRQ(ierr);}
   ierr = PetscFnVecCheckCompatible(y, yIS, fn->dmap);CHKERRQ(ierr);
 #endif
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   for (i = 0; i < der-1; i++) {
-    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->scalarderivativevec) {
     ierr = (*fn->ops->scalarderivativevec)(fn,x,der,subsets,subvecs,y);CHKERRQ(ierr);
@@ -969,9 +969,9 @@ PetscErrorCode PetscFnScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const
     ierr = VecDestroy(&onevec);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der-1; i++) {
-    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPop(subvecs[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   if (der > 0 && fn->test_vec) {
     PetscHashIJKey key;
     PetscBool      missing;
@@ -1015,9 +1015,9 @@ PetscErrorCode PetscFnScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, const
   }
 #endif
   if (!M && !Mpre) PetscFunctionReturn(0);
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   for (i = 0; i < der - 2; i++) {
-    ierr = VecLockPush(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPush(subvecs[i]);CHKERRQ(ierr);
   }
   if (fn->ops->scalarderivativemat) {
     ierr = (*fn->ops->scalarderivativemat)(fn,x,der,subsets,subvecs,reuse,M,Mpre);CHKERRQ(ierr);
@@ -1035,9 +1035,9 @@ PetscErrorCode PetscFnScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, const
     ierr = VecDestroy(&onevec);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
   for (i = 0; i < der-2; i++) {
-    ierr = VecLockPop(subvecs[i]);CHKERRQ(ierr);
+    ierr = VecLockReadPop(subvecs[i]);CHKERRQ(ierr);
   }
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
 #if defined(PETSC_USE_DEBUG)
   if (reuse == MAT_INITIAL_MATRIX) {
     PetscLayout    rightLayout = fn->dmap;
@@ -1222,7 +1222,7 @@ PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
   if (!(fn->isScalar)) SETERRQ(PetscObjectComm((PetscObject)fn),PETSC_ERR_ARG_SIZ, "PetscFn is not a scalar function");
   if (fn->dmap->N != x->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"PetscFn fn,Vec x: global dim %D %D",fn->dmap->N,x->map->N);
 
-  ierr = VecLockPush(x);CHKERRQ(ierr);
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
   if (fn->ops->scalarapply) {
     ierr = (*fn->ops->scalarapply)(fn,x,z);CHKERRQ(ierr);
   } else if (fn->ops->scalarderivativescalar) {
@@ -1249,7 +1249,7 @@ PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
     ierr = VecScalarBcast(y,z);CHKERRQ(ierr);
     ierr = VecDestroy(&y);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)fn), PETSC_ERR_SUP, "This PetscFn does not implement %s()", PETSC_FUNCTION_NAME);
-  ierr = VecLockPop(x);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

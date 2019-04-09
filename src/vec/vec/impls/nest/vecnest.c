@@ -1063,6 +1063,26 @@ PetscErrorCode  VecNestGetSize_Nest(Vec X,PetscInt *N)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecNestGetISs(Vec X,IS iss[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(X,VEC_CLASSID,1);
+  ierr = PetscUseMethod(X,"VecNestGetISs_C",(Vec,IS[]),(X,iss));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode VecNestGetISs_Nest(Vec X,IS iss[])
+{
+  Vec_Nest *vs = (Vec_Nest*)X->data;
+  PetscInt i;
+
+  PetscFunctionBegin;
+  for (i = 0; i < vs->nb; i++) iss[i] = vs->is[i];
+  PetscFunctionReturn(0);
+}
+
 /*@
  VecNestGetSize - Returns the size of the nest vector.
 
@@ -1218,6 +1238,7 @@ PetscErrorCode  VecCreateNest(MPI_Comm comm,PetscInt nb,IS is[],Vec x[],Vec *Y)
   ierr = PetscObjectComposeFunction((PetscObject)V,"VecNestSetSubVec_C",VecNestSetSubVec_Nest);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)V,"VecNestSetSubVecs_C",VecNestSetSubVecs_Nest);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)V,"VecNestGetSize_C",VecNestGetSize_Nest);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)V,"VecNestGetISs_C",VecNestGetISs_Nest);CHKERRQ(ierr);
 
   *Y = V;
   PetscFunctionReturn(0);

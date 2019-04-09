@@ -88,6 +88,7 @@ typedef enum { PETSCFNOP_CREATEVECS,
              } PetscFnOperation;
 
 PETSC_EXTERN PetscErrorCode PetscFnCreateVecs(PetscFn,IS,Vec*,IS,Vec*);
+PETSC_EXTERN PetscErrorCode PetscFncreateDefaultScalarVec(MPI_Comm,Vec*);
 
 /* core, user friendly interface */
 PETSC_EXTERN PetscErrorCode PetscFnApply(PetscFn,Vec,Vec);
@@ -152,6 +153,8 @@ PETSC_EXTERN PetscErrorCode PetscFnShellSetOperation(PetscFn,PetscFnOperation,vo
 PETSC_EXTERN PetscErrorCode PetscFnShellGetOperation(PetscFn,PetscFnOperation,void(**)(void));
 
 /* utils */
+PETSC_EXTERN PetscErrorCode PetscFnGetSuperVector(PetscFn,PetscBool,IS,Vec,Vec *,PetscBool);
+PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperVector(PetscFn,PetscBool,IS,Vec,Vec *,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscFnGetSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
 PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
 PETSC_EXTERN PetscErrorCode PetscFnGetSuperMats(PetscFn,PetscInt,PetscInt,const IS[],MatReuse,Mat*,Mat*,MatReuse*,Mat**,Mat**);
@@ -164,18 +167,16 @@ PETSC_EXTERN PetscFunctionList PetscFnShellList;
 #define PETSCFNSIN         "sin"
 #define PETSCFNNORMSQUARED "normsquared"
 #define PETSCFNMAT         "mat"
+#define PETSCFNLOGISTIC    "logistic"
 
 PETSC_EXTERN PetscErrorCode PetscFnShellRegister(const char[],PetscErrorCode(*)(PetscFn));
 PETSC_EXTERN PetscErrorCode PetscFnShellCreate(MPI_Comm,PetscFnShellType,PetscInt,PetscInt,PetscInt,PetscInt,void *,PetscFn *);
 
 PETSC_EXTERN PetscErrorCode PetscFnCreateDAG(MPI_Comm,PetscInt,const IS[],PetscInt,const IS[],const PetscFn[],PetscFn*);
-PETSC_EXTERN PetscErrorCode PetscFnDAGAddNoOp(PetscFn,Vec,const char [],PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscFnDAGAddMat(PetscFn,PetscFn,PetscBool,const char [],PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscFnDAGAddFn(PetscFn,PetscFn,PetscBool,const char [],PetscInt *);
-PETSC_EXTERN PetscErrorCode PetscFnDAGGetNode(PetscFn,PetscInt,PetscFn *,const char *[]);
-PETSC_EXTERN PetscErrorCode PetscFnDAGSetEdge(PetscFn,PetscInt,PetscInt,VecScatter,VecScatter,Vec,Vec,Mat,PetscScalar);
-PETSC_EXTERN PetscErrorCode PetscFnDAGGetEdge(PetscFn,PetscInt,PetscInt,VecScatter*,VecScatter*,Vec*,Vec*,Mat*,PetscScalar*);
-PETSC_EXTERN PetscErrorCode PetscFnDAGCreateClosure(PetscFn,PetscInt,PetscFn *);
-PETSC_EXTERN PetscErrorCode PetscFnDAGSplit(PetscFn,PetscInt,PetscInt,const PetscInt [],PetscBool,PetscFn *);
+PETSC_EXTERN PetscErrorCode PetscFnDAGAddNode(PetscFn,PetscFn,Vec,const char [],PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscFnDAGAddEdge(PetscFn,PetscInt,PetscInt,IS,IS,PetscScalar,PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscFnDAGSetInputNode(PetscFn,PetscInt);
+PETSC_EXTERN PetscErrorCode PetscFnDAGSetOutputNode(PetscFn,PetscInt);
+PETSC_EXTERN PetscErrorCode PetscFnDAGCreateSubDAG(PetscFn,PetscInt,PetscInt,PetscBool,PetscFn*);
 
 #endif
