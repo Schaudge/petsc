@@ -619,6 +619,8 @@ PetscErrorCode PetscFnCreateVecs(PetscFn fn, IS domainIS, Vec *domainVec, IS ran
    created with PetscFnCreateVecs().
 
    Level: beginner
+
+.seealso: PetscFnScalarApply(), PetscFnIsScalar(), PetscFnCreateVecs()
 @*/
 PetscErrorCode PetscFnApply(PetscFn fn, Vec x, Vec y)
 {
@@ -867,19 +869,19 @@ static PetscErrorCode PetscFnVecToMat(Vec g, PetscBool colVec, MatReuse reuse, M
 /*@
    PetscFnDerivativeScalar - Computes a partial derivative of a PetscFn action, fully contracted with variations.
 
-   If $X$ is the domain space of a function $f$, and $W$ is its range, $D^{(k)}f(x)$ can be viewed as a $k+1$-order
-   tensor, $D^{(k)}f(x):X\times\dots\times X\times W' \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar). 
+   If $X$ is the domain space of a function $f$, and $V$ is its range, $D^{k}f(x)$ can be viewed as a $k+1$-order
+   tensor, $D^{k}f(x):X\times\dots\times X\times V' \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar).
 
-   If the tensor is contracted against the $k+1$ variations that are provided, one if which is a variation from $W'$,
-   the result is a scalar. 
+   If the tensor is contracted against the $k+1$ variations that are provided, one if which is a variation from $V'$,
+   the result is a scalar.
 
-   Partial derivatives of $f$ can be computed by using variations over subsets of $X$ or $W'$.
+   Partial derivatives of $f$ can be computed by using variations over subsets of $X$ or $V'$.
 
    Collective on PetscFn and Vec
 
    Input Parameters:
 +  fn - the PetscFn function
-.  x  - the domain vector where $D^{(k)} f$ is evaluated
+.  x  - the domain vector where $D^{k} f$ is evaluated
 .  der - the order $k >= 0$ of the derivative.
 .  rangeIdx - indicates which of the variations in the subvecs is the range-space variation
 .  subsets - (optional) if a partial derivative is desired, a list of (der + 1) subsets can be given that indicates
@@ -892,6 +894,9 @@ variation.  If subsets is NULL, it indicates that the full derivative is desired
 .  z - the result
 
    Level: advanced
+
+.seealso: PetscFnDerivativeVec(),
+          PetscFnDerivativeMat()
 @*/
 PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], PetscScalar *z)
 {
@@ -975,24 +980,24 @@ PetscErrorCode PetscFnDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt
    PetscFnDerivativeVec - Computes a partial derivative of a PetscFn action, partially contracted with variations,
    resulting in a vector y.
 
-   If $X$ is the domain space of a function $f$, and $W$ is its range, $D^{(k)}f(x)$ can be viewed as a $k+1$-order
-   tensor, $D^{(k)}f(x):X\times\dots\times X\times W' \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar). 
+   If $X$ is the domain space of a function $f$, and $V$ is its range, $D^{k}f(x)$ can be viewed as a $k+1$-order
+   tensor, $D^{k}f(x):X\times\dots\times X\times V' \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar).
 
    If the tensor is contracted against the $k$ variations that are provided, the result is a vector $y$.
    The dot product of $y$ with another vector $z$ will give the same scalar value as if $z$ had been
    included in the $k+1$ variations given to PetscFnDerivativeScalar().
 
-   If the $k$ variations do not contain a range-space vector from $W'$, $y$ will be a vector in the range space $W$.
+   If the $k$ variations do not contain a range-space vector from $V'$, $y$ will be a vector in the range space $V$.
 
-   If the $k$ variations do contain a range-space vector from $W'$, $y$ will be a functional on the domain space $X$.
+   If the $k$ variations do contain a range-space vector from $V'$, $y$ will be a functional on the domain space $X$.
 
-   Partial derivatives of $f$ can be computed by using variations over subsets of $X$ or $W'$.
+   Partial derivatives of $f$ can be computed by using variations over subsets of $X$ or $V'$.
 
    Collective on PetscFn and Vec
 
    Input Parameters:
 +  fn - the PetscFn function
-.  x  - the domain vector where $D^{(k)} f$ is evaluated
+.  x  - the domain vector where $D^{k} f$ is evaluated
 .  der - the order $k >= 0$ of the derivative.
 .  rangeIdx - indicates which of the variations in the subvecs is the range-space variation. If rangeIdx is der,
    it indicates that the output vector y is in the range space.
@@ -1015,6 +1020,14 @@ variation.  If subsets is NULL, it indicates that the full derivative is desired
    If der == 2 && rangeIdx == 0, this is the bilinear action of the adjoint Hessian of f on one range-space variation and one domain-space variation
 
    Level: advanced
+
+.seealso: PetscFnDerivativeScalar(),
+          PetscFnDerivativeMat(),
+          PetscFnApply(),
+          PetscFnJacobianMult(),
+          PetscFnJacobianMultAdjoint(),
+          PetscFnHessianMult(),
+          PetscFnHessianMultAdjoint()
 @*/
 PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y)
 {
@@ -1096,25 +1109,25 @@ PetscErrorCode PetscFnDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt ra
    PetscFnDerivativeMat - Computes a partial derivative of a PetscFn action, partially contracted with variations,
    resulting in a matrix and an approximation of that matrix for use in preconditioning.
 
-   If $X$ is the domain space of a function $f$, and $W$ is its range, $D^{(k)}f(x)$ can be viewed as a $k+1$-order
-   tensor, $D^{(k)}f(x):X\times\dots\times X\times W' \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar). 
+   If $X$ is the domain space of a function $f$, and $V$ is its range, $D^{k}f(x)$ can be viewed as a $k+1$-order
+   tensor, $D^{k}f(x):X\times\dots\times X\times V' \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar).
 
    If the tensor is contracted against the $k-1$ variations that are provided, the result is a matrix $M$.
    The matrix vector product of $M$ with another vector $z$ will give the same vector value as if $z$
    had been included in the $k$ variations given to PetscFnDerivativeVec().
 
-   If the $k-1$ variations do not contain a range-space vector from $W'$, $M$ will be a rectangular matrix.
+   If the $k-1$ variations do not contain a range-space vector from $V'$, $M$ will be a rectangular matrix.
 
-   If the $k-1$ variations do contain a range-space vector from $W'$, $M$ will be a symmetric matrix acting
+   If the $k-1$ variations do contain a range-space vector from $V'$, $M$ will be a symmetric matrix acting
    on domain-space vectors.
 
-   A matrix of partial derivatives of $f$ can be computed by using variations over subsets of $X$ or $W'$.
+   A matrix of partial derivatives of $f$ can be computed by using variations over subsets of $X$ or $V'$.
 
    Collective on PetscFn and Vec
 
    Input Parameters:
 +  fn - the PetscFn function
-.  x  - the domain vector where $D^{(k)} f$ is evaluated
+.  x  - the domain vector where $D^{k} f$ is evaluated
 .  der - the order $k >= 1$ of the derivative.
 .  rangeIdx - indicates which of the variations in the subvecs is the range-space variation. If rangeIdx is der-1 or der,
    it indicates that the output matrix M will have a column or row space equivalent to the range space, respectively.
@@ -1134,12 +1147,20 @@ variation.  If subsets is NULL, it indicates that the full derivative is desired
    Notes:
 
    If der == 1 && rangeIdx == 1, this is the Jacobian of f
-   If der == 1 && rangeIdx == 0, this is the adjoint of the Jacobian of f (the [Hermitian, if complex valued] transpose)
+   If der == 1 && rangeIdx == 0, this is the adjoint of the Jacobian of f (the [conjugate, if complex valued] transpose)
    If der == 2 && rangeIdx == 2, this is the action Hessian of f on one domain-space variation
-   If der == 2 && rangeIdx == 1, is the [Hermitian] transpose of the above
+   If der == 2 && rangeIdx == 1, is the [conjugate] transpose of the above
    If der == 2 && rangeIdx == 0, this is the action of the adjoint Hessian of f on one range-space variation
 
    Level: advanced
+
+.seealso: PetscFnDerivativeScalar(),
+          PetscFnDerivativeVec(),
+          PetscFnJacobianBuild(),
+          PetscFnJacobianBuildAdjoint(),
+          PetscFnHessianBuild(),
+          PetscFnHessianBuildSwap(),
+          PetscFnHessianBuildAdjoint()
 @*/
 PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
 {
@@ -1255,10 +1276,10 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
 /*@
    PetscFnScalarDerivativeScalar - Computes a partial derivative of a PetscFn scalar function, fully contracted with variations.
 
-   If $X$ is the domain space of a scalar function $f$, $D^{(k)}f(x)$ can be viewed as a $k$-order
-   tensor, $D^{(k)}f(x):X\times\dots\times X \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar). 
+   If $X$ is the domain space of a scalar function $f$, $D^{k}f(x)$ can be viewed as a $k$-order
+   tensor, $D^{k}f(x):X\times\dots\times X \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar).
 
-   If the tensor is contracted against the $k$ variations that are provided, the result is a scalar. 
+   If the tensor is contracted against the $k$ variations that are provided, the result is a scalar.
 
    Partial derivatives of $f$ can be computed by using variations over subsets of $X$.
 
@@ -1266,7 +1287,7 @@ PetscErrorCode PetscFnDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt ra
 
    Input Parameters:
 +  fn - the PetscFn function
-.  x  - the domain vector where $D^{(k)} f$ is evaluated
+.  x  - the domain vector where $D^{k} f$ is evaluated
 .  der - the order $k >= 0$ of the derivative.
 .  subsets - (optional) if a partial derivative is desired, a list of (der) subsets can be given that indicates
 which partial derivative is desired.  If subsets[i] is NULL, it indicates that the full derivative is desired for that
@@ -1283,6 +1304,8 @@ variation.  If subsets is NULL, it indicates that the full derivative is desired
    If der == 2, this is the bilinear action of the Hessian of $f$ on two variations
 
    Level: advanced
+
+.seealso: PetscFnScalarDerivativeVec(), PetscFnScalarDerivativeMat(), PetscFnScalarApply()
 @*/
 PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], PetscScalar *z)
 {
@@ -1361,10 +1384,10 @@ PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, co
    PetscFnScalarDerivativeVec - Computes a partial derivative of a PetscFn scalar function, partially contracted with variations
    resulting in a vector y.
 
-   If $X$ is the domain space of a scalar function $f$, $D^{(k)}f(x)$ can be viewed as a $k$-order
-   tensor, $D^{(k)}f(x):X\times\dots\times X \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar). 
+   If $X$ is the domain space of a scalar function $f$, $D^{k}f(x)$ can be viewed as a $k$-order
+   tensor, $D^{k}f(x):X\times\dots\times X \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar).
 
-   If the tensor is contracted against the $k-1$ variations that are provided, the result is a vector $y$. 
+   If the tensor is contracted against the $k-1$ variations that are provided, the result is a vector $y$.
    The dot product of $y$ with another vector $z$ will give the same scalar value as if $z$ had been
    included in the $k$ variations given to PetscFnScalarDerivativeScalar().
 
@@ -1374,7 +1397,7 @@ PetscErrorCode PetscFnScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, co
 
    Input Parameters:
 +  fn - the PetscFn function
-.  x  - the domain vector where $D^{(k)} f$ is evaluated
+.  x  - the domain vector where $D^{k} f$ is evaluated
 .  der - the order $k >= 1$ of the derivative.
 .  subsets - (optional) if a partial derivative is desired, a list of (der) subsets can be given that indicates
 which partial derivative is desired.  If subsets[i] is NULL, it indicates that the full derivative is desired for that
@@ -1389,6 +1412,8 @@ variation.  If subsets is NULL, it indicates that the full derivative is desired
    If der == 2, this is action of the Hessian of $f$ on a varation
 
    Level: advanced
+
+.seealso: PetscFnScalarDerivativeScalar(), PetscFnScalarDerivativeMat(), PetscFnScalarDerivativeFn(), PetscFnScalarGradient(), PetscFnScalarHessianMult()
 @*/
 PetscErrorCode PetscFnScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], Vec y)
 {
@@ -1453,8 +1478,8 @@ PetscErrorCode PetscFnScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const
    PetscFnScalarDerivativeMat - Computes a partial derivative of a PetscFn scalar function, partially contracted with variations
    resulting in a matrix and an approximation of that matrix for use in preconditioning.
 
-   If $X$ is the domain space of a scalar function $f$, $D^{(k)}f(x)$ can be viewed as a $k$-order
-   tensor, $D^{(k)}f(x):X\times\dots\times X \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar). 
+   If $X$ is the domain space of a scalar function $f$, $D^{k}f(x)$ can be viewed as a $k$-order
+   tensor, $D^{k}f(x):X\times\dots\times X \to \mathbb{Z}$ ($\mathbb{Z}$ is the field of PetscScalar).
 
    If the tensor is contracted against the $k-2$ variations that are provided, the result is a matrix $M$.
    The matrix vector product of $M$ with another vector $z$ will give the same vector value as if $z$
@@ -1466,7 +1491,7 @@ PetscErrorCode PetscFnScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const
 
    Input Parameters:
 +  fn - the PetscFn function
-.  x  - the domain vector where $D^{(k)} f$ is evaluated
+.  x  - the domain vector where $D^{k} f$ is evaluated
 .  der - the order $k >= 2$ of the derivative.
 .  subsets - (optional) if a partial derivative is desired, a list of (der) subsets can be given that indicates
 which partial derivative is desired.  If subsets[i] is NULL, it indicates that the full derivative is desired for that
@@ -1481,6 +1506,8 @@ variation.  If subsets is NULL, it indicates that the full derivative is desired
    If der == 2, this is the Hessian of $f$
 
    Level: advanced
+
+.seealso: PetscFnScalarDerivativeScalar(), PetscFnScalarDerivativeVec(), PetscFnScalarDerivativeFn(), PetscFnScalarHessianBuild()
 @*/
 PetscErrorCode PetscFnScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], MatReuse reuse, Mat *M, Mat *Mpre)
 {
@@ -1558,6 +1585,28 @@ PetscErrorCode PetscFnScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, const
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnJacobianMult - Compute the action of the Jacobian of a function on a variation.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Jacobian is evaluated
+-  xhat - the variation in domain space
+
+   Output Parameters:
+.  Jxhat - the Jacobian action $Df(x)[\hat{x}]$
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeVec().  If you would like
+   to compute the action of a partial Jacobian, you must use that function.
+
+.seealso: PetscFnJacobianBuildAdjoint(), PetscFnDerivativeVec()
+@*/
 PetscErrorCode PetscFnJacobianMult(PetscFn fn, Vec x, Vec xhat, Vec Jxhat)
 {
   PetscErrorCode ierr;
@@ -1567,6 +1616,28 @@ PetscErrorCode PetscFnJacobianMult(PetscFn fn, Vec x, Vec xhat, Vec Jxhat)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnJacobianMultAdjoint - Compute the action of the adjoint Jacobian of a function on a variation.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the adjoint Jacobian is evaluated
+-  v - the variation in range spacec
+
+   Output Parameters:
+.  Jadjv - the adjoint Jacobian action $Df(x)^*[v]$
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeVec().  If you would like
+   to compute the action of a partial Jacobian, you must use that function.
+
+.seealso: PetscFnJacobianBuildAdjoint(), PetscFnDerivativeVec()
+@*/
 PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec Jadjv)
 {
   PetscErrorCode ierr;
@@ -1576,6 +1647,29 @@ PetscErrorCode PetscFnJacobianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec Jadjv)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnJacobianBuild - Compute the Jacobian matrix of a function.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Jacobian is evaluated
+-  reuse - reuse strategy for the matrices, either initial (MAT_INITIAL_MATRIX) or reuse (MAT_REUSE_MATRIX)
+
+   Output Parameters:
++  J - the Jacobian matrix
+.  Jpre - (optional) a preconditioner for the Jacobian matrix
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeMat().  If you would like
+   to compute a subset of the Jacobian, you must use that function.
+
+.seealso: PetscFnJacobianMult(), PetscFnDerivativeMat()
+@*/
 PetscErrorCode PetscFnJacobianBuild(PetscFn fn, Vec x, MatReuse reuse, Mat *J, Mat *Jpre)
 {
   PetscErrorCode ierr;
@@ -1585,6 +1679,29 @@ PetscErrorCode PetscFnJacobianBuild(PetscFn fn, Vec x, MatReuse reuse, Mat *J, M
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnJacobianBuildAdjoint - Compute the adjoint Jacobian matrix of a function.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the adjoint Jacobian is evaluated
+-  reuse - reuse strategy for the matrices, either initial (MAT_INITIAL_MATRIX) or reuse (MAT_REUSE_MATRIX)
+
+   Output Parameters:
++  Jadj - the adjoint Jacobian matrix
+-  Jadjpre - (optional) a preconditioner for the adjoint Jacobian matrix
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeMat().  If you would like
+   to compute a subset of the adjoint Jacobian, you must use that function.
+
+.seealso: PetscFnJacobianMultAdjoint(), PetscFnDerivativeMat()
+@*/
 PetscErrorCode PetscFnJacobianBuildAdjoint(PetscFn fn, Vec x, MatReuse reuse, Mat *Jadj, Mat *Jadjpre)
 {
   PetscErrorCode ierr;
@@ -1594,6 +1711,29 @@ PetscErrorCode PetscFnJacobianBuildAdjoint(PetscFn fn, Vec x, MatReuse reuse, Ma
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnHessianMult - Compute the action of the Hessian on two domain-space variations.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Hessian is evaluated
+.  xhat - a variation in domain space
+-  xdot - a variation in domain space
+
+   Output Parameters:
+.  Hxhatxdot - the Hessian action $D^2 f(x) [\hat{x},\dot{x}]$
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeVec().  If you would like
+   to compute the action of a partial Hessian, you must use that function.
+
+.seealso: PetscFnHessianBuild(), PetscFnDerivativeVec()
+@*/
 PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec Hxhatxdot)
 {
   Vec            subvecs[2];
@@ -1606,6 +1746,29 @@ PetscErrorCode PetscFnHessianMult(PetscFn fn, Vec x, Vec xhat, Vec xdot, Vec Hxh
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnHessianMultAdjoint - Compute the action of the adjoint Hessian on a range-space variation and a domain-space variation.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the adjoint Hessian is evaluated
+.  v  - the variation in range space
+-  xhat - a variation in domain space
+
+   Output Parameters:
+.  Hadjvxhat - the adjoint Hessian action $(v^* D^2 f(x)) [\hat{x}]$
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeVec().  If you would like
+   to compute the action of a partial adjoint Hessian, you must use that function.
+
+.seealso: PetscFnHessianBuildAdjoint(), PetscFnDerivativeVec()
+@*/
 PetscErrorCode PetscFnHessianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec xhat, Vec Hadjvxhat)
 {
   Vec            subvecs[2];
@@ -1618,6 +1781,30 @@ PetscErrorCode PetscFnHessianMultAdjoint(PetscFn fn, Vec x, Vec v, Vec xhat, Vec
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnHessianBuild - Compute the Hessian matrix of a function.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Jacobian is evaluated
+.  xhat  - the domain space variation
+-  reuse - reuse strategy for the matrices, either initial (MAT_INITIAL_MATRIX) or reuse (MAT_REUSE_MATRIX)
+
+   Output Parameters:
++  H - the Hessian matrix $D^2 f(x) [\hat{x}]$
+.  Hpre - (optional) a preconditioner for the Hessian matrix
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeMat().  If you would like
+   to compute a subset of the Hessian, you must use that function.
+
+.seealso: PetscFnHessianMult(), PetscFnDerivativeMat()
+@*/
 PetscErrorCode PetscFnHessianBuild(PetscFn fn, Vec x, Vec xhat, MatReuse reuse, Mat *H, Mat *Hpre)
 {
   PetscErrorCode ierr;
@@ -1627,6 +1814,31 @@ PetscErrorCode PetscFnHessianBuild(PetscFn fn, Vec x, Vec xhat, MatReuse reuse, 
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnHessianBuildSwap - Compute the "swapped" Hessian matrix: the [conjugate] transpose of the Hessian matrix (as
+   distinguished from the adjoint Hessian matrix in PetscFnHessianBuildAdjoint()).
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Jacobian is evaluated
+.  xhat  - the domain space variation
+-  reuse - reuse strategy for the matrices, either initial (MAT_INITIAL_MATRIX) or reuse (MAT_REUSE_MATRIX)
+
+   Output Parameters:
++  Hswp - the "swapped" ([conjugate] transpose) Hessian matrix $(D^2 f(x) [\hat{x}])^*$
+.  Hswppre - (optional) a preconditioner for the Hessian matrix
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeMat().  If you would like
+   to compute a subset of the swapped Hessian, you must use that function.
+
+.seealso: PetscFnHessianMult(), PetscFnDerivateMat()
+@*/
 PetscErrorCode PetscFnHessianBuildSwap(PetscFn fn, Vec x, Vec xhat, MatReuse reuse, Mat *Hswp, Mat *Hswppre)
 {
   PetscErrorCode ierr;
@@ -1636,6 +1848,31 @@ PetscErrorCode PetscFnHessianBuildSwap(PetscFn fn, Vec x, Vec xhat, MatReuse reu
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnHessianBuildAdjoint - Compute the adjoint Hessian matrix (as
+   distinguished from the "swapped" [conjugate] transpose Hessian matrix in PetscFnHessianBuildSwap()).
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Jacobian is evaluated
+.  v  - the range space variation
+-  reuse - reuse strategy for the matrices, either initial (MAT_INITIAL_MATRIX) or reuse (MAT_REUSE_MATRIX)
+
+   Output Parameters:
++  Hadj - the adjoint Hessian matrix $(v^* D^2 f(x))$
+.  Hadjpre - (optional) a preconditioner for the adjoint Hessian matrix
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnDerivativeMat().  If you would like
+   to compute a subset of the adjoint Hessian, you must use that function.
+
+.seealso: PetscFnHessianMultAdjoint(), PetscFnDerivativeMat()
+@*/
 PetscErrorCode PetscFnHessianBuildAdjoint(PetscFn fn, Vec x, Vec v, MatReuse reuse, Mat *Hadj, Mat *Hadjpre)
 {
   PetscErrorCode ierr;
@@ -1658,6 +1895,15 @@ PetscErrorCode PetscFnHessianBuildAdjoint(PetscFn fn, Vec x, Vec v, MatReuse reu
 .  z - the result
 
    Level: beginner
+
+   Note:
+
+   The function must be scalar valued, which can be tested with
+   PetscFnIsScalar().
+
+   PetscFnApply() will give the same result, but the scalar z will be contained in the output vector y.
+
+.seealso: PetscFnIsScalar(), PetscFnApply()
 @*/
 PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
 {
@@ -1702,6 +1948,27 @@ PetscErrorCode PetscFnScalarApply(PetscFn fn, Vec x, PetscScalar *z)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnScalarGradient - Compute the gradient of a scalar function
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+-  x  - the domain vector where the gradient is evaluated
+
+   Output Parameters:
+.  g - the Gradient $Df(x)$
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnScalarDerivativeVec().  If you would like
+   to compute a partial gradient, you must use that function.
+
+.seealso: PetscFnScalarHessianBuild(), PetscFnScalarDerivativeVec()
+@*/
 PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
 {
   PetscErrorCode ierr;
@@ -1711,6 +1978,28 @@ PetscErrorCode PetscFnScalarGradient(PetscFn fn, Vec x, Vec g)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnScalarHessianMult - Compute the action of the Hessian of a scalar function on a variation.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the vector where the Hessian is evaluated
+-  xhat - the variation
+
+   Output Parameters:
+.  Hxhat - the Hessian action $D^2f(x)[\hat{x}]$
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnScalarDerivativeVec().  If you would like
+   to compute the action of a partial Hessian, you must use that function.
+
+.seealso: PetscFnScalarHessianBuild(), PetscFnScalarDerivativeVec()
+@*/
 PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
 {
   PetscErrorCode ierr;
@@ -1720,6 +2009,29 @@ PetscErrorCode PetscFnScalarHessianMult(PetscFn fn, Vec x, Vec xhat, Vec Hxhat)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnScalarHessianBuild - Compute the Hessian matrix of a scalar function.
+
+   Collective on PetscFn and Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the Jacobian is evaluated
+-  reuse - reuse strategy for the matrices, either initial (MAT_INITIAL_MATRIX) or reuse (MAT_REUSE_MATRIX)
+
+   Output Parameters:
++  H - the Hessian matrix $D^2 f(x)$
+.  Hpre - (optional) a preconditioner for the Hessian matrix
+
+   Level: intermediate
+
+   Note:
+
+   This is implemented as a call to PetscFnScalarDerivativeMat().  If you would like
+   to build only a subset of the Hessian matrix, you must use that function.
+
+.seealso: PetscFnScalarHessianMult(), PetscFnScalarDerivativeMat()
+@*/
 PetscErrorCode PetscFnScalarHessianBuild(PetscFn fn, Vec x, MatReuse reuse, Mat *H, Mat *Hpre)
 {
   PetscErrorCode ierr;
@@ -1729,6 +2041,21 @@ PetscErrorCode PetscFnScalarHessianBuild(PetscFn fn, Vec x, MatReuse reuse, Mat 
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnIsScalar - Check if the output of a function is scalar valued
+
+   Not Collective
+
+   Input Parameters:
+.  fn - the PetscFn function
+
+   Output Parameters:
+.  isScalar - PETSC_TRUE if the function is scalar valued, PETSC_FALSE otherwise
+
+   Level: intermediate
+
+.seealso: PetscFnScalarApply()
+@*/
 PetscErrorCode PetscFnIsScalar(PetscFn fn, PetscBool *isScalar)
 {
   PetscFunctionBegin;
@@ -1744,15 +2071,55 @@ PetscErrorCode PetscFnIsScalar(PetscFn fn, PetscBool *isScalar)
 const char *PetscFnOperations[] = {
                                   "createvecs",
                                   "apply",
+                                  "derivativescalar",
+                                  "derivativevec",
+                                  "derivativemat",
+                                  "derivativefn",
                                   "scalarapply",
-                                  "createsubfns",
-                                  "destroysubfns",
-                                  "createsubfn",
-                                  "createderivativefn",
+                                  "scalarderivativescalar",
+                                  "scalarderivativevec",
+                                  "scalarderivativemat",
+                                  "scalarderivativefn",
                                   "destroy",
                                   "view",
                                   };
 
+/*@
+   PetscFnTestDerivativeVec - Compute a finite difference test of the output of PetscFnDerivativeVec().
+   This should be called with all of the same arguments used to call PetscFnDerivativeVec().
+
+   The $k$ derivative tensor of $f$ $D^{k}f(x)$ can be though of as the first derivative of the $k-1$ derivative tensor
+   $D^{k-1}f(x)$.  A domain space variations $\hat{x}$ that contracts against $D^{k}f(x)$ can be used to make affine
+   predictions of the value of $D^{k-1}f(x + \epsilon \hat{x})\approx D^{k-1}f(x) + \epsilon D^{k} f(x)[\hat{x}]$.
+
+   If the derivative is correctly computed, the difference $\|D^{k-1}f(x + \epsilon \hat{x}) - D^{k-1}f(x) - \epsilon D^{k} f(x)\|$
+   Should converge like $O(\epsilon^2)$.  By computing this difference for two values of $\epsilon$, we
+   can estimate the exponent of convergence $O(\epsilon^r)$.  If $f$ is significantly less than two, the
+   derivative is not correctly computed.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the derivative of the function is evaluated
+.  der - the order of derivative (see PetscFnDerivativeVec())
+.  rangeIdx - the location of the range vector in the variations (see PetscFnDerivativeVec())
+.  subsets - the subsets indicating the partial derivatives to calculate (see PetscFnDerivativeVec())
+.  subvecs - the variations that are contracted against the derivative tensor (see PetscFnDerivativeVec())
+.  y - the result (previously computed by PetscFnDerivativeVec())
+.  e1 - the first offset used in the finite difference calculation (can be PETSC_DEFAULT)
++  e2 - the second offset used in the finite difference calculation (can be PETSC_DEFAULT)
+
+   Output Parameters:
+.  rate - The estimated rate of convergence
+
+   Options Database Keys:
+.    -fn_test_derivative_offsets <e1,e2> - replaces the arguments e1 and e2 (uses the options prefix of fn)
+
+   Level: advanced
+
+.seealso: PetscFnDerivativeVec(), PetscFnTestScalarDerivativeVec()
+@*/
 PetscErrorCode PetscFnTestDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Vec y, PetscReal e1, PetscReal e2, PetscReal * rate)
 {
   PetscInt       i;
@@ -1884,6 +2251,41 @@ PetscErrorCode PetscFnTestDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscIn
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnTestScalarDerivativeScalar - Compute a finite difference test of the output of PetscFnScalarDerivativeScalar().
+   This should be called with all of the same arguments used to call PetscFnScalarDerivativeScalar().
+
+   The $k$ derivative tensor of $f$ $D^{k}f(x)$ can be though of as the first derivative of the $k-1$ derivative tensor
+   $D^{k-1}f(x)$.  A domain space variations $\hat{x}$ that contracts against $D^{k}f(x)$ can be used to make affine
+   predictions of the value of $D^{k-1}f(x + \epsilon \hat{x})\approx D^{k-1}f(x) + \epsilon D^{k} f(x)[\hat{x}]$.
+
+   If the derivative is correctly computed, the difference $\|D^{k-1}f(x + \epsilon \hat{x}) - D^{k-1}f(x) - \epsilon D^{k} f(x)\|$
+   Should converge like $O(\epsilon^2)$.  By computing this difference for two values of $\epsilon$, we
+   can estimate the exponent of convergence $O(\epsilon^r)$.  If $f$ is significantly less than two, the
+   derivative is not correctly computed.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the derivative of the function is evaluated
+.  der - the order of derivative (see PetscFnScalarDerivativeScalar())
+.  subsets - the subsets indicating the partial derivatives to calculate (see PetscFnScalarDerivativeScalar())
+.  subvecs - the variations that are contracted against the derivative tensor (see PetscFnScalarDerivativeScalar())
+.  z - the result (previously computed by PetscFnScalarDerivativeScalar())
+.  e1 - the first offset used in the finite difference calculation (can be PETSC_DEFAULT)
++  e2 - the second offset used in the finite difference calculation (can be PETSC_DEFAULT)
+
+   Output Parameters:
+.  rate - The estimated rate of convergence
+
+   Options Database Keys:
+.    -fn_test_derivative_offsets <e1,e2> - replaces the arguments e1 and e2 (uses the options prefix of fn)
+
+   Level: advanced
+
+.seealso: PetscFnScalarDerivativeScalar(), PetscFnTestDerivativeScalar()
+@*/
 PetscErrorCode PetscFnTestScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], PetscScalar z, PetscReal e1, PetscReal e2, PetscReal *rate)
 {
   PetscErrorCode ierr;
@@ -1893,6 +2295,42 @@ PetscErrorCode PetscFnTestScalarDerivativeScalar(PetscFn fn, Vec x, PetscInt der
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnTestDerivativeScalar - Compute a finite difference test of the output of PetscFnDerivativeScalar().
+   This should be called with all of the same arguments used to call PetscFnDerivativeScalar().
+
+   The $k$ derivative tensor of $f$ $D^{k}f(x)$ can be though of as the first derivative of the $k-1$ derivative tensor
+   $D^{k-1}f(x)$.  A domain space variations $\hat{x}$ that contracts against $D^{k}f(x)$ can be used to make affine
+   predictions of the value of $D^{k-1}f(x + \epsilon \hat{x})\approx D^{k-1}f(x) + \epsilon D^{k} f(x)[\hat{x}]$.
+
+   If the derivative is correctly computed, the difference $\|D^{k-1}f(x + \epsilon \hat{x}) - D^{k-1}f(x) - \epsilon D^{k} f(x)\|$
+   Should converge like $O(\epsilon^2)$.  By computing this difference for two values of $\epsilon$, we
+   can estimate the exponent of convergence $O(\epsilon^r)$.  If $f$ is significantly less than two, the
+   derivative is not correctly computed.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the derivative of the function is evaluated
+.  der - the order of derivative (see PetscFnDerivativeScalar())
+.  rangeIdx - the location of the range vector in the variations (see PetscFnDerivativeVec())
+.  subsets - the subsets indicating the partial derivatives to calculate (see PetscFnDerivativeScalar())
+.  subvecs - the variations that are contracted against the derivative tensor (see PetscFnDerivativeScalar())
+.  z - the result (previously computed by PetscFnDerivativeScalar())
+.  e1 - the first offset used in the finite difference calculation (can be PETSC_DEFAULT)
++  e2 - the second offset used in the finite difference calculation (can be PETSC_DEFAULT)
+
+   Output Parameters:
+.  rate - The estimated rate of convergence
+
+   Options Database Keys:
+.    -fn_test_derivative_offsets <e1,e2> - replaces the arguments e1 and e2 (uses the options prefix of fn)
+
+   Level: advanced
+
+.seealso: PetscFnDerivativeScalar(), PetscFnTestScalarDerivativeScalar()
+@*/
 PetscErrorCode PetscFnTestDerivativeScalar(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], PetscScalar z, PetscReal e1, PetscReal e2, PetscReal * rate)
 {
   PetscInt       i;
@@ -1998,6 +2436,41 @@ PetscErrorCode PetscFnTestDerivativeScalar(PetscFn fn, Vec x, PetscInt der, Pets
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnTestScalarDerivativeVec - Compute a finite difference test of the output of PetscFnScalarDerivativeVec().
+   This should be called with all of the same arguments used to call PetscFnScalarDerivativeVec().
+
+   The $k$ derivative tensor of $f$ $D^{k}f(x)$ can be though of as the first derivative of the $k-1$ derivative tensor
+   $D^{k-1}f(x)$.  A domain space variations $\hat{x}$ that contracts against $D^{k}f(x)$ can be used to make affine
+   predictions of the value of $D^{k-1}f(x + \epsilon \hat{x})\approx D^{k-1}f(x) + \epsilon D^{k} f(x)[\hat{x}]$.
+
+   If the derivative is correctly computed, the difference $\|D^{k-1}f(x + \epsilon \hat{x}) - D^{k-1}f(x) - \epsilon D^{k} f(x)\|$
+   Should converge like $O(\epsilon^2)$.  By computing this difference for two values of $\epsilon$, we
+   can estimate the exponent of convergence $O(\epsilon^r)$.  If $f$ is significantly less than two, the
+   derivative is not correctly computed.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the derivative of the function is evaluated
+.  der - the order of derivative (see PetscFnScalarDerivativeVec())
+.  subsets - the subsets indicating the partial derivatives to calculate (see PetscFnScalarDerivativeVec())
+.  subvecs - the variations that are contracted against the derivative tensor (see PetscFnScalarDerivativeVec())
+.  y - the result (previously computed by PetscFnScalarDerivativeScalar())
+.  e1 - the first offset used in the finite difference calculation (can be PETSC_DEFAULT)
++  e2 - the second offset used in the finite difference calculation (can be PETSC_DEFAULT)
+
+   Output Parameters:
+.  rate - The estimated rate of convergence
+
+   Options Database Keys:
+.    -fn_test_derivative_offsets <e1,e2> - replaces the arguments e1 and e2 (uses the options prefix of fn)
+
+   Level: advanced
+
+.seealso: PetscFnScalarDerivativeVec(), PetscFnTestDerivativeVec()
+@*/
 PetscErrorCode PetscFnTestScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], Vec y, PetscReal e1, PetscReal e2, PetscReal *rate)
 {
   PetscErrorCode ierr;
@@ -2007,6 +2480,33 @@ PetscErrorCode PetscFnTestScalarDerivativeVec(PetscFn fn, Vec x, PetscInt der, c
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnTestDerivativeMat - Test a matrix computed with PetscFnDerivativeMat()
+   by computing a dot product with a random vector and comparing the result
+   against appending that same random vector to the contracting variations
+   and computing the results with PetscFnDerivativeVec().
+
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the derivative of the function is evaluated
+.  der - the order of derivative (see PetscFnDerivativeMat())
+.  rangeIdx - the location of the range vector in the variations (see PetscFnDerivativeMat())
+.  subsets - the subsets indicating the partial derivatives to calculate (see PetscFnDerivativeMat())
+.  subvecs - the variations that are contracted against the derivative tensor (see PetscFnDerivativeMat())
+.  M - the matrix (previously computed by PetscFnDerivativeMat())
+-  rand - (optional) PetscRandom context used to compute the random vector
+
+   Output Parameters:
++  norm - The norm of the matrix vector product
+-  err  - The error in the matrix vector product
+
+   Level: advanced
+
+.seealso: PetscFnDerivativeMat(), PetscFnTestScalarDerivativeMat()
+@*/
 PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscInt rangeIdx, const IS subsets[], const Vec subvecs[], Mat M, PetscRandom rand, PetscReal *norm, PetscReal *err)
 {
   PetscRandom    rorig = rand;
@@ -2061,6 +2561,29 @@ PetscErrorCode PetscFnTestDerivativeMat(PetscFn fn, Vec x, PetscInt der, PetscIn
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnTestScalarDerivativeMat - Test a matrix computed with PetscFnScalarDerivativeMat()
+   by computing a dot product with a random vector and comparing the result
+   against appending that same random vector to the contracting variations
+   and computing the results with PetscFnScalarDerivativeVec().
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  x  - the domain vector where the derivative of the function is evaluated
+.  der - the order of derivative (see PetscFnDerivativeMat())
+.  subsets - the subsets indicating the partial derivatives to calculate (see PetscFnDerivativeMat())
+.  subvecs - the variations that are contracted against the derivative tensor (see PetscFnDerivativeMat())
+.  M - the matrix (previously computed by PetscFnDerivativeMat())
+-  rand - (optional) PetscRandom context used to compute the random vector
+
+   Output Parameters:
++  norm - The norm of the matrix vector product
+-  err  - The error in the matrix vector product
+
+   Level: advanced
+@*/
 PetscErrorCode PetscFnTestScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, const IS subsets[], const Vec subvecs[], Mat M, PetscRandom rand, PetscReal *norm, PetscReal *err)
 {
   PetscErrorCode ierr;
@@ -2070,7 +2593,33 @@ PetscErrorCode PetscFnTestScalarDerivativeMat(PetscFn fn, Vec x, PetscInt der, c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnTestDerivativeFn(PetscFn fn, PetscFn df, PetscInt der, PetscInt rangeIdx, PetscInt numDots, const IS dotISs[], const Vec dotVecs[], Vec x, PetscReal *norm, PetscReal *err)
+/*@
+   PetscFnTestDerivativeFn - Test whether a given PetscFn df implements
+   a derivative of another PetscFn fn.  This will compare
+   PetscFnApply() on df to the appropriate
+   derivative routine applied to the fn.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+-  df - the PetscFn function that may be a derivative of fn
+.  der - the order of derivative used to create df in PetscFnCreateDerivativeFn()
+.  rangeIdx - the range index used to create df in PetscFnCreateDerivativeFn()
+.  numVecs - the number of contracting vectors used to create df in PetscFnCreateDerivativeFn()
+.  subsets - the partial derivative subsets of the contracting vectors used to create df in PetscFnCreateDerivativeFn()
+.  subvecs - the contracting vectors used to create df in PetscFnCreateDerivativeFn()
+-  x - the domain vector to test PetscFnApp to test the derivative
+
+   Output Parameters:
++  norm - The norm of the output of PetscFnApply()
+-  err  - The error in the output of PetscFnApply() for df compared to the result computed by a derivative of fn
+
+   Level: advanced
+
+.seealso: PetscFnCreateDerivativeFn()
+@*/
+PetscErrorCode PetscFnTestDerivativeFn(PetscFn fn, PetscFn df, PetscInt der, PetscInt rangeIdx, PetscInt numVecs, const IS subsets[], const Vec subvecs[], Vec x, PetscReal *norm, PetscReal *err)
 {
   PetscInt       maxDots;
   MPI_Comm       comm;
@@ -2082,15 +2631,15 @@ PetscErrorCode PetscFnTestDerivativeFn(PetscFn fn, PetscFn df, PetscInt der, Pet
   comm = PetscObjectComm((PetscObject)fn);
   if (rangeIdx < 0) maxDots = der;
   else              maxDots = der + 1;
-  if (numDots < maxDots - 1 || numDots > maxDots) SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "This operation contracts with at most %D vectors: %D given", maxDots, numDots);
-  if (numDots == maxDots) {
+  if (numVecs < maxDots - 1 || numVecs > maxDots) SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "This operation contracts with at most %D vectors: %D given", maxDots, numVecs);
+  if (numVecs == maxDots) {
     PetscReal      dfz, fnz;
 
     ierr = PetscFnScalarApply(df, x, &dfz);CHKERRQ(ierr);
     if (rangeIdx < 0) {
-      ierr = PetscFnScalarDerivativeScalar(fn, x, der, dotISs, dotVecs, &fnz);CHKERRQ(ierr);
+      ierr = PetscFnScalarDerivativeScalar(fn, x, der, subsets, subvecs, &fnz);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnDerivativeScalar(fn, x, der, rangeIdx, dotISs, dotVecs, &fnz);CHKERRQ(ierr);
+      ierr = PetscFnDerivativeScalar(fn, x, der, rangeIdx, subsets, subvecs, &fnz);CHKERRQ(ierr);
     }
     *norm = PetscAbsScalar(fnz);
     *err = PetscAbsScalar(fnz - dfz);
@@ -2105,11 +2654,11 @@ PetscErrorCode PetscFnTestDerivativeFn(PetscFn fn, PetscFn df, PetscInt der, Pet
     }
     ierr = PetscFnCreateVecs(df, NULL, NULL, NULL, &dfOut);CHKERRQ(ierr);
     ierr = PetscFnApply(df, x, dfOut);CHKERRQ(ierr);
-    ierr = PetscFnISsPushIS(numDots, dotISs, NULL, &newISs);CHKERRQ(ierr);
+    ierr = PetscFnISsPushIS(numVecs, subsets, NULL, &newISs);CHKERRQ(ierr);
     if (rangeIdx < 0) {
-      ierr = PetscFnScalarDerivativeVec(fn, x, der, newISs, dotVecs, fnOut);CHKERRQ(ierr);
+      ierr = PetscFnScalarDerivativeVec(fn, x, der, newISs, subvecs, fnOut);CHKERRQ(ierr);
     } else {
-      ierr = PetscFnDerivativeVec(fn, x, der, rangeIdx, newISs, dotVecs, fnOut);CHKERRQ(ierr);
+      ierr = PetscFnDerivativeVec(fn, x, der, rangeIdx, newISs, subvecs, fnOut);CHKERRQ(ierr);
     }
     ierr = PetscFree(newISs);CHKERRQ(ierr);
     ierr = VecAXPY(dfOut, -1., fnOut);CHKERRQ(ierr);
@@ -2134,6 +2683,31 @@ PetscErrorCode PetscFnTestDerivativeFn(PetscFn fn, PetscFn df, PetscInt der, Pet
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnTestScalarDerivativeFn - Test whether a given PetscFn df implements
+   a derivative of another scalar-valued PetscFn fn.  This will compare
+   PetscFnApply() on df to the appropriate
+   derivative routine applied to the fn.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+-  df - the PetscFn function that may be a derivative of fn
+.  der - the order of derivative used to create df in PetscFnScalarCreateDerivativeFn()
+.  numVecs - the number of contracting vectors used to create df in PetscFnScalarCreateDerivativeFn()
+.  subsets - the partial derivative subsets of the contracting vectors used to create df in PetscFnScalarCreateDerivativeFn()
+.  subvecs - the contracting vectors used to create df in PetscFnScalarCreateDerivativeFn()
+-  x - the domain vector to test PetscFnApp to test the derivative
+
+   Output Parameters:
++  norm - The norm of the output of PetscFnApply()
+-  err  - The error in the output of PetscFnApply() for df compared to the result computed by a derivative of fn
+
+   Level: advanced
+
+.seealso: PetscFnScalarCreateDerivativeFn()
+@*/
 PetscErrorCode PetscFnTestScalarDerivativeFn(PetscFn fn, PetscFn df, PetscInt der, PetscInt numDots, const IS dotISs[], const Vec dotVecs[], Vec x, PetscReal *norm, PetscReal *err)
 {
   PetscErrorCode ierr;
@@ -2463,6 +3037,28 @@ static PetscErrorCode PetscFnCreateDerivativeFn_DerShell(PetscFn fn, PetscInt de
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnDerivativeFn - Create a new PetscFn function that
+   computes the derivative of an original PetscFn function, contracted with some variations.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  der - the order of derivative
+.  rangeIdx - the index of the contracting vector that is a range-space vector.  If all of the contracting vectors are domain-space vectors, this should be numVecs
+.  numVecs - the number of contracting vectors
+.  subsets - the partial derivative subsets of the contracting vectors
+-  subvecs - the contracting vectors
+
+   Output Parameters:
+.  df - if numVecs == der + 1, then df is a scalar-valued function, and PetscFnScalarApply(df,x,z) will be the same as PetscFnDerivativeScalar(fn,x,der,rangeIdx,subsets,subvecs,z);
+        if numVecs == der, then def is a vector-valued function, and PetscFnApply(df,x,y) will be the same as PetscFnDerivativeVec(fn,x,der,rangeIdx,subsets,subvecs,y).
+
+   Level: advanced
+
+.seealso: PetscFnDerivativeScalar(), PetscFnDerivativeVec(), PetscFnTestDerivativeFn(), PetscFnScalarCreateDerivativeFn()
+@*/
 PetscErrorCode PetscFnCreateDerivativeFn(PetscFn fn, PetscInt der, PetscInt rangeIdx, PetscInt numVecs, const IS subsets[], const Vec subvecs[], PetscFn *derFn)
 {
   PetscErrorCode ierr;
@@ -2481,6 +3077,27 @@ PetscErrorCode PetscFnCreateDerivativeFn(PetscFn fn, PetscInt der, PetscInt rang
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnDerivativeFn - Create a new PetscFn function that
+   computes the derivative of an original scalar-valued PetscFn function, contracted with some variations.
+
+   Collective on PetscFn, Vec
+
+   Input Parameters:
++  fn - the PetscFn function
+.  der - the order of derivative
+.  numVecs - the number of contracting vectors
+.  subsets - the partial derivative subsets of the contracting vectors
+-  subvecs - the contracting vectors
+
+   Output Parameters:
+.  df - if numVecs == der, then df is a scalar-valued function, and PetscFnScalarApply(df,x,z) will be the same as PetscFnScalarDerivativeScalar(fn,x,der,subsets,subvecs,z);
+        if numVecs == der-1, then def is a vector-valued function, and PetscFnApply(df,x,y) will be the same as PetscFnScalarDerivativeVec(fn,x,der,subsets,subvecs,y).
+
+   Level: advanced
+
+.seealso: PetscFnScalarDerivativeScalar(), PetscFnScalarDerivativeVec(), PetscFnTestScalarDerivativeFn(), PetscFnCreateDerivativeFn()
+@*/
 PetscErrorCode PetscFnCreateScalarDerivativeFn(PetscFn fn, PetscInt der, PetscInt numVecs, const IS subsets[], const Vec subvecs[], PetscFn *derFn)
 {
   PetscErrorCode ierr;
