@@ -133,8 +133,8 @@ PETSC_EXTERN PetscErrorCode PetscFnGetSuperVector(PetscFn,PetscBool,IS,Vec,Vec *
 PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperVector(PetscFn,PetscBool,IS,Vec,Vec *,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscFnGetSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
 PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperVectors(PetscFn,PetscInt,PetscInt,const IS[],const Vec[],Vec,const Vec *[],Vec *);
-PETSC_EXTERN PetscErrorCode PetscFnGetSuperMats(PetscFn,PetscInt,PetscInt,const IS[],MatReuse,Mat*,Mat*,MatReuse*,Mat**,Mat**);
-PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperMats(PetscFn,PetscInt,PetscInt,const IS[],MatReuse,Mat*,Mat*,MatReuse*,Mat**,Mat**);
+PETSC_EXTERN PetscErrorCode PetscFnGetSuperMats(PetscFn,PetscInt,const IS[],MatReuse,Mat*,Mat*,MatReuse*,Mat**,Mat**);
+PETSC_EXTERN PetscErrorCode PetscFnRestoreSuperMats(PetscFn,PetscInt,const IS[],MatReuse,Mat*,Mat*,MatReuse*,Mat**,Mat**);
 
 /* Allow a library of common functions so that the user does not have to
  * repeat the boiler plate for them */

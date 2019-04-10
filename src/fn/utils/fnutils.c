@@ -177,10 +177,10 @@ PetscErrorCode PetscFnRestoreSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
+PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
 {
-  IS rightIS = subsets ? subsets[numSubsets-2] : NULL;
-  IS leftIS  = subsets ? subsets[numSubsets-1] : NULL;
+  IS rightIS = subsets ? subsets[0] : NULL;
+  IS leftIS  = subsets ? subsets[1] : NULL;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -216,10 +216,10 @@ PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt ran
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscFnRestoreSuperMats(PetscFn fn, PetscInt numSubsets, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
+PetscErrorCode PetscFnRestoreSuperMats(PetscFn fn, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
 {
-  IS rightIS = subsets ? subsets[numSubsets-2] : NULL;
-  IS leftIS  = subsets ? subsets[numSubsets-1] : NULL;
+  IS rightIS = subsets ? subsets[0] : NULL;
+  IS leftIS  = subsets ? subsets[1] : NULL;
   PetscErrorCode ierr;
   Mat supermat = NULL;
   Mat supermatpre = NULL;

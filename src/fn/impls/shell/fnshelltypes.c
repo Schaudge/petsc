@@ -41,7 +41,7 @@ static PetscErrorCode PetscFnDerivativeMat_Diagonal(PetscFn fn, Vec x, PetscInt 
 
   PetscFunctionBegin;
   ierr = PetscFnGetSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, rangeIdx-(der-1), subsets ? &subsets[der-1] : NULL, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &y);CHKERRQ(ierr);
   ierr = VecSet(y,1.);CHKERRQ(ierr);
   for (i = 0; i < der-1; i++) {
@@ -65,7 +65,7 @@ static PetscErrorCode PetscFnDerivativeMat_Diagonal(PetscFn fn, Vec x, PetscInt 
   if (superApre && superApre != superA) {
     ierr = MatDuplicateOrCopy(*mat, reuse, superApre);CHKERRQ(ierr);
   }
-  ierr = PetscFnRestoreSuperMats(fn, der+1, rangeIdx, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperMats(fn, rangeIdx-(der-1), subsets ? &subsets[der-1] : NULL, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
   ierr = PetscFnRestoreSuperVectors(fn, der-1, rangeIdx, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -341,7 +341,7 @@ static PetscErrorCode PetscFnScalarDerivativeMat_Normsquared(PetscFn fn, Vec x, 
 
   PetscFunctionBegin;
   ierr = PetscFnGetSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
-  ierr = PetscFnGetSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = PetscFnGetSuperMats(fn, PETSC_DEFAULT, subsets ? &subsets[der-2] : NULL, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
   mat = superA ? superA : superApre;
   ierr = PetscFnGetSizes(fn, NULL, &n, NULL, &N);CHKERRQ(ierr);
   if (reuse == MAT_INITIAL_MATRIX) {
@@ -355,7 +355,7 @@ static PetscErrorCode PetscFnScalarDerivativeMat_Normsquared(PetscFn fn, Vec x, 
   if (superApre && superApre != superA) {
     ierr = MatDuplicateOrCopy(*mat, reuse, superApre);CHKERRQ(ierr);
   }
-  ierr = PetscFnRestoreSuperMats(fn, der, PETSC_DEFAULT, subsets, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
+  ierr = PetscFnRestoreSuperMats(fn, PETSC_DEFAULT, subsets ? &subsets[der-2] : NULL, reuse, A, Apre, &superreuse, &superA, &superApre);CHKERRQ(ierr);
   ierr = PetscFnRestoreSuperVectors(fn, der-2, PETSC_DEFAULT, subsets, subvecs, NULL, &supervecs, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
