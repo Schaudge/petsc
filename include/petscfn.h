@@ -73,7 +73,7 @@ typedef enum { PETSCFNOP_CREATEVECS,
              } PetscFnOperation;
 
 PETSC_EXTERN PetscErrorCode PetscFnCreateVecs(PetscFn,IS,Vec*,IS,Vec*);
-PETSC_EXTERN PetscErrorCode PetscFncreateDefaultScalarVec(MPI_Comm,Vec*);
+PETSC_EXTERN PetscErrorCode PetscFnCreateDefaultScalarVec(MPI_Comm,Vec*);
 
 /* core, user friendly interface */
 PETSC_EXTERN PetscErrorCode PetscFnApply(PetscFn,Vec,Vec);

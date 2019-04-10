@@ -85,6 +85,23 @@ typedef struct {
   void *ctx;
 } PetscFn_Shell;
 
+/*@
+    PetscFnShellSetContext - sets the context for a shell function
+
+   Logically Collective on PetscFn
+
+    Input Parameters:
++   fn - the shell matrix
+-   ctx - the context
+
+   Level: advanced
+
+   Fortran Notes:
+    To use this from Fortran you must write a Fortran interface definition for this
+    function that tells Fortran the Fortran derived data type that you are passing in as the ctx argument.
+
+.seealso: PETSCFNSHELL, PetscFnShellGetContext(), PetscFnShellSetOperation()
+@*/
 PetscErrorCode PetscFnShellSetContext(PetscFn fn,void *ctx)
 {
   PetscFn_Shell  *shell;
@@ -96,6 +113,25 @@ PetscErrorCode PetscFnShellSetContext(PetscFn fn,void *ctx)
   PetscFunctionReturn(0);
 }
 
+/*@
+    PetscFnShellGetContext - Returns the user-provided context associated with a shell function.
+
+    Not Collective
+
+    Input Parameter:
+.   fn - the function
+
+    Output Parameter:
+.   ctx - the user provided context
+
+    Level: advanced
+
+   Fortran Notes:
+    To use this from Fortran you must write a Fortran interface definition for this
+    function that tells Fortran the Fortran derived data type that you are passing in as the ctx argument.
+
+.seealso: PETSCFNSHELL, PetscFnShellSetOperation(), PetscFnShellSetContext()
+@*/
 PetscErrorCode PetscFnShellGetContext(PetscFn fn,void *ctx)
 {
   PetscFn_Shell  *shell;
@@ -119,6 +155,48 @@ static PetscErrorCode PetscFnDestroy_Shell(PetscFn fn)
   PetscFunctionReturn(0);
 }
 
+/*@C
+    PetscFnShellSetOperation - Allows user to set a PetscFn operation for a shell function.
+
+   Logically Collective on PetscFn
+
+    Input Parameters:
++   fn - the shell function
+.   op - the name of the operation
+-   f - the function that provides the operation.
+
+   Level: advanced
+
+    Usage:
+$      extern PetscErrorCode userapply(PetscFn,Vec,Vec);
+$      ierr = PetscFnCreate(comm,&fn);
+$      ierr = PetscFnSetSizes(fn,m,n,M,N);
+$      ierr = PetscFnShellSetContext(fn,ctx);
+$      ierr = PetscFnShellSetOperation(A,PETSCFNOP_APPLY,(void(*)(void))userapply);
+
+    Notes:
+    See the file include/petscfn.h for a complete list of function
+    operations, which all have the form PETSCFNOP_<OPERATION>, where
+    <OPERATION> is the name (in all capital letters) of the
+    user interface routine (e.g., PetscFnApply() -> PETSCFNOP_APPLY).
+
+    All user-provided functions (except for PETSCFNOP_DESTROY) should have the same calling
+    sequence as the usual function interface routines, since they
+    are intended to be accessed via the usual PetscFn interface
+    routines, e.g.,
+$       PetscFnApply(Mat,Vec,Vec) -> userapply(Mat,Vec,Vec)
+
+    In particular each function MUST return an error code of 0 on success and
+    nonzero on failure.
+
+    Within each user-defined routine, the user should call
+    PetscFnShellGetContext() to obtain the user-defined context that was
+    set by PetscFnShellSetContext().
+
+.keywords: PetscFn, shell, set, operation
+
+.seealso: PETSCFNSHELL, PetscFnShellGetContext(), PetscFnShellGetOperation(), PetscFnShellSetContext(),
+@*/
 PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*f)(void))
 {
   PetscFn_Shell  *shell;
@@ -171,6 +249,43 @@ PetscErrorCode PetscFnShellSetOperation(PetscFn fn, PetscFnOperation op, void (*
   PetscFunctionReturn(0);
 }
 
+/*@C
+    PetscFnShellGetOperation - Gets a PetscFn operation for a shell function.
+
+    Not Collective
+
+    Input Parameters:
++   fn - the shell function
+-   op - the name of the operation
+
+    Output Parameter:
+.   f - the function that provides the operation.
+
+    Level: advanced
+
+    Notes:
+    See the file include/petscfn.h for a complete list of matrix
+    operations, which all have the form PETSCFNOP_<OPERATION>, where
+    <OPERATION> is the name (in all capital letters) of the
+    user interface routine (e.g., PetscFnApply() -> PETSCFNOP_APPLY).
+
+    All user-provided functions (except for PETSCFNOP_DESTROY) should have the same calling
+    sequence as the usual function interface routines, since they
+    are intended to be accessed via the usual PetscFn interface
+    routines, e.g.,
+$       PetscFnApply(Mat,Vec,Vec) -> userapply(Mat,Vec,Vec)
+
+    In particular each function MUST return an error code of 0 on success and
+    nonzero on failure.
+
+    Within each user-defined routine, the user should call
+    PetscFnShellGetContext() to obtain the user-defined context that was
+    set by PetscFnShellSetContext().
+
+.keywords: matrix, shell, set, operation
+
+.seealso: PetscFnShellGetContext(), PetscFnShellSetOperation(), PetscFnShellSetContext()
+@*/
 PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (**f)(void))
 {
   PetscFn_Shell  *shell;
@@ -223,6 +338,20 @@ PetscErrorCode PetscFnShellGetOperation(PetscFn fn, PetscFnOperation op, void (*
   PetscFunctionReturn(0);
 }
 
+/*MC
+  SNESSHELL - a user provided function
+
+   Level: advanced
+
+.seealso: PetscFnCreate(),
+          PetscFn,
+          PetscFnSetType(),
+          PetscFnType (for list of available types),
+          PetscFnShellSetContext(),
+          PetscFnShellGetContext(),
+          PetscFnShellSetOperation()
+          PetscFnShellGetOperation()
+M*/
 PetscErrorCode PetscFnCreate_Shell(PetscFn fn)
 {
   PetscFn_Shell  *shell;
