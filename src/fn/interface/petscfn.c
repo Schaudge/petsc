@@ -1826,8 +1826,9 @@ PetscErrorCode PetscFnTestDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscIn
     PetscScalar z0, ze, zpred;
     PetscScalar xhatdot;
     Vec xe;
+    PetscInt last = rangeIdx < 0 ? der - 1 : der;
 
-    if (!subsets || subsets[der] == NULL) {
+    if (!subsets || subsets[last] == NULL) {
       ierr = VecDuplicate(y, &xhat);CHKERRQ(ierr);
       ierr = VecCopy(y, xhat);CHKERRQ(ierr);
     } else {
@@ -1837,10 +1838,10 @@ PetscErrorCode PetscFnTestDerivativeVec(PetscFn fn, Vec x, PetscInt der, PetscIn
 
       ierr = VecDuplicate(x, &xhat);CHKERRQ(ierr);
       ierr = VecGetArrayRead(y, &va);CHKERRQ(ierr);
-      ierr = ISGetLocalSize(subsets[der], &n);CHKERRQ(ierr);
-      ierr = ISGetIndices(subsets[der], &idx);CHKERRQ(ierr);
+      ierr = ISGetLocalSize(subsets[last], &n);CHKERRQ(ierr);
+      ierr = ISGetIndices(subsets[last], &idx);CHKERRQ(ierr);
       ierr = VecSetValues(xhat, n, idx, va, INSERT_VALUES);CHKERRQ(ierr);
-      ierr = ISRestoreIndices(subsets[der], &idx);CHKERRQ(ierr);
+      ierr = ISRestoreIndices(subsets[last], &idx);CHKERRQ(ierr);
       ierr = VecRestoreArrayRead(y, &va);CHKERRQ(ierr);
       ierr = VecAssemblyBegin(xhat);CHKERRQ(ierr);
       ierr = VecAssemblyEnd(xhat);CHKERRQ(ierr);
