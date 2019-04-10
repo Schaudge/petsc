@@ -32,6 +32,7 @@ PetscClassId PETSCFN_CLASSID;
 
 .keywords: function, create
 
+.seealso: PETSCFN, PetscFnDestroy(), PetscFnSetUp(), PetscFnApply()
 @*/
 PetscErrorCode PetscFnCreate(MPI_Comm comm,PetscFn *fn)
 {

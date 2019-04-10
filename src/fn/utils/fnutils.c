@@ -39,6 +39,29 @@ PetscErrorCode VecScalarBcast(Vec v, PetscScalar *zp)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnGetSuperVector - Get a full vector from a subvector described by its subset.
+
+   Collective on PetscFn, Vec
+
+   Input Parameter:
++  fn - a PetscFn function
+.  isRange - PETSC_TRUE if the subvector is taken from a range-space vector, PETSC_FALSE if it is taken from a full-space vector
+.  subset - the subset describing the subvector
+.  subvec - the subvector
+-  read - PETSC_TRUE if we need to read values from subvec, PETSC_FALSE if we just need a supervector of the appropriate shape
+
+   Output Parameter:
+.  supervec - the supervector
+
+   Note:
+
+   Should be restored with PetscFnRestoreSuperVector()
+
+   Level: advanced
+
+.seealso: PetscFnRestoreSuperVector(), PetscFnGetSuperVectors(), PetscFnRestoreSuperVectors()
+@*/
 PetscErrorCode PetscFnGetSuperVector(PetscFn fn, PetscBool isRange, IS subset, Vec subvec, Vec *supervec, PetscBool read)
 {
   Vec            newvec;
@@ -72,6 +95,28 @@ PetscErrorCode PetscFnGetSuperVector(PetscFn fn, PetscBool isRange, IS subset, V
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnRestoreSuperVector - Restore a full vector for a subvector described by its subset that was got from
+                               PetscFnGetSuperVector().
+
+   Collective on PetscFn, Vec
+
+   Input Parameter:
++  fn - a PetscFn function
+.  isRange - PETSC_TRUE if the subvector is taken from a range-space vector, PETSC_FALSE if it is taken from a full-space vector
+.  subset - the subset describing the subvector
+.  supervec - the supervector
+-  write - PETSC_TRUE if we need to write values back to the subvec, PETSC_FALSE otherwise
+
+   Output Parameter:
+.  subvec - the subvector
+
+   Note:
+
+   Level: advanced
+
+.seealso: PetscFnGetSuperVector(), PetscFnGetSuperVectors(), PetscFnRestoreSuperVectors()
+@*/
 PetscErrorCode PetscFnRestoreSuperVector(PetscFn fn, PetscBool isRange, IS subset, Vec subvec, Vec *supervec, PetscBool write)
 {
   Vec            newvec;
@@ -99,6 +144,34 @@ PetscErrorCode PetscFnRestoreSuperVector(PetscFn fn, PetscBool isRange, IS subse
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnGetSuperVectors - Get full vectors from subvectors described by their subsets: can be used
+   on the arguments of various derivative functions (PetscFnDerivativeScalar(), PetscFnDerivativeVec(), PetscFnDerivativeMat(),
+   PetscFnScalarDerivativeScalar(), PetscFnScalarDerivativeVec(), PetscFnScalarDerivativeMat()) if the implementation
+   does not handle partial derivatives directly.  The supervectors will be padded with zeros outside the subsets.
+
+   Collective on PetscFn, Vec
+
+   Input Parameter:
++  fn - a PetscFn function
+.  numVecs - the number of vectors in subvecs
+.  rangeIdx - the index of the vector in subvecs that is a range-space vector.  Use rangeIdx = numVecs if outsubvec is a range-space vector.  Use rangeIdx = PETSC_DEFAULT if fn is scalar-valued
+.  subsets - the subsets describing the subvector.  Should be of length numVecs if outsubvec is not present, or numVecs + 1 if it is.
+.  subvecs - the subvectors whose values must be read (like the variations use in , e.g. PetscFnDerivativeVec())
+-  outsubvec - (optional) the subvector whose values must be written (like the output y of, e.g. PetscFnDerivativeVec())
+
+   Output Parameter:
++  supervecs - the supervectors of the vectors in subvecs: values outside the subsets are padded with zeros
+-  outsupervec - (optional) the supervectors of the outsubvec: only values written in the subset will be restored to outsubvec in PetscFnRestoreSuperVectors()
+
+   Note:
+
+   Should be restored with PetscFnRestoreSuperVectors()
+
+   Level: advanced
+
+.seealso: PetscFnRestoreSuperVectors(), PetscFnGetSuperVector(), PetscFnRestoreSuperVector()
+@*/
 PetscErrorCode PetscFnGetSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt rangeIdx, const IS subsets[], const Vec subvecs [], Vec outsubvec, const Vec *supervecs[], Vec *outsupervec)
 {
   PetscInt       i;
@@ -141,6 +214,31 @@ PetscErrorCode PetscFnGetSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt ran
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnRestoreSuperVectors - Restore full vectors that were got with PetscFnGetSuperVectors()
+
+   Collective on PetscFn, Vec
+
+   Input Parameter:
++  fn - a PetscFn function
+.  numVecs - the number of vectors in subvecs
+.  rangeIdx - the index of the vector in subvecs that is a range-space vector.  Use rangeIdx = numVecs if outsubvec is a range-space vector.  Use rangeIdx = PETSC_DEFAULT if fn is scalar-valued
+.  subsets - the subsets describing the subvector.  Should be of length numVecs if outsubvec is not present, or numVecs + 1 if it is.
+.  subvecs - the subvectors whose values must be read (like the variations use in , e.g. PetscFnDerivativeVec())
+-  outsupervec - (optional) the supervectors of the outsubvec: only values written in the subset will be restored to outsubvec in PetscFnRestoreSuperVectors()
+
+   Output Parameter:
+-  supervecs - the supervectors of the vectors in subvecs: no longer accessible after this call
+-  outsubvec - (optional) the subvector whose values must be written (like the output y of, e.g. PetscFnDerivativeVec())
+
+   Note:
+
+   Should be restored with PetscFnRestoreSuperVectors()
+
+   Level: advanced
+
+.seealso: PetscFnRestoreSuperVectors(), PetscFnGetSuperVector(), PetscFnRestoreSuperVector()
+@*/
 PetscErrorCode PetscFnRestoreSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt rangeIdx, const IS subsets[], const Vec subvecs [], Vec outsubvec, const Vec *supervecs[], Vec *outsupervec)
 {
   PetscInt       i;
@@ -177,6 +275,34 @@ PetscErrorCode PetscFnRestoreSuperVectors(PetscFn fn, PetscInt numVecs, PetscInt
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnGetSuperMats - Get full matrices: can be used
+   on the arguments of PetscFnDerivativeMat() and PetscFnScalarDerivativeMat() if the implementation does not handle
+   partial derivatives directly.
+
+   Collective on PetscFn
+
+   Input Parameter:
++  fn - a PetscFn function
+.  rangeIdx - 0 if the column space of the matrix is the fn range space; 1 if the row space of the matrix is the fn range space; ignored otherwise
+.  subsets - (optional) the subsets describing the subvector of the column space and row space, respectively.
+.  reuse - the desired reuse behavior of the original submatrices J and Jpre
+.  J - the submatrix: will be filled on the matching call to PetscFnRestoreSuperMats()
+-  Jpre - (optional) the preconditioner submatrix: will be filled on the matching call to PetscFnRestoreSuperMats()
+
+   Output Parameter:
++  superreuse - the matrix reuse behavior that should be used for the super matrices
+.  superJ - the supermatrix for J: values outside the submatrix destribed by the subsets will be ignored
+-  superJpre - (optional) the supermatrix for Jpre: values outside the submatrix destribed by the subsets will be ignored
+
+   Note:
+
+   Should be restored with PetscFnRestoreSuperMats()
+
+   Level: advanced
+
+.seealso: PetscFnRestoreSuperMats()
+@*/
 PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
 {
   IS rightIS = subsets ? subsets[0] : NULL;
@@ -216,6 +342,29 @@ PetscErrorCode PetscFnGetSuperMats(PetscFn fn, PetscInt rangeIdx, const IS subse
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscFnRestoreSuperMats - Restore full matrices that were got with PetscFnGetSuperMats(): can be used
+   on the arguments of PetscFnDerivativeMat() and PetscFnScalarDerivativeMat() if the implementation does not handle
+   partial derivatives directly.
+
+   Collective on PetscFn
+
+   Input Parameter:
++  fn - a PetscFn function
+.  rangeIdx - 0 if the column space of the matrix is the fn range space; 1 if the row space of the matrix is the fn range space; ignored otherwise
+.  subsets - (optional) the subsets describing the subvector of the column space and row space, respectively.
+.  reuse - the desired reuse behavior of the original submatrices J and Jpre
+
+   Output Parameter:
++  J - the submatrix: will be filled with the values of superJ within the subsets
+-  Jpre - (optional) the preconditioner submatrix: will be filled with the values of superJpre within the subsets
+
+   Note:
+
+   Level: advanced
+
+.seealso: PetscFnGetSuperMats()
+@*/
 PetscErrorCode PetscFnRestoreSuperMats(PetscFn fn, PetscInt rangeIdx, const IS subsets[], MatReuse reuse, Mat *J, Mat *Jpre, MatReuse *superReuse, Mat **superJ, Mat **superJpre)
 {
   IS rightIS = subsets ? subsets[0] : NULL;
