@@ -447,9 +447,9 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
       }
       ierr = TaoSetUp(gn->subsolver);CHKERRQ(ierr);
       ierr = TaoSetUp(gn->admm_subsolver);CHKERRQ(ierr);
+      gn->xk = gn->subsolver->solution;
+	  gn->z_old = gn->admm_subsolver->solution;
 	}
-	gn->xk = gn->subsolver->solution;
-	gn->z_old = gn->admm_subsolver->solution;
   }
   PetscFunctionReturn(0);
 }
