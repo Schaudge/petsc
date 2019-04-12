@@ -134,6 +134,70 @@ static PetscErrorCode GNComputeHessian(Tao tao,Vec X,Mat H,Mat Hpre,void *ptr)
   PetscFunctionReturn(0);
 }
 
+/* NORM_2 Case: 0.5 || x ||_2 + 0.5 * mu * ||x + u - z||^2 */
+static PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *ptr)
+{
+  TAO_BRGN       *gn = (TAO_BRGN *)ptr;
+  PetscReal      mu, workNorm, reg;
+  Vec            x, u, temp;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  mu   = gn->aug_lag;
+  x    = gn->xk;
+  u    = gn->u;
+  temp = gn->x_work; /* TODO maybe another work vector? */
+
+  ierr = VecNorm(z, NORM_2, &reg);CHKERRQ(ierr);
+  reg  = 0.5 * reg * reg;
+
+  ierr = VecCopy(z,temp);CHKERRQ(ierr);
+  /* temp = x + u -z */
+  ierr = VecAXPBYPCZ(temp,1.,1.,-1.,x,u);CHKERRQ(ierr);
+  /* workNorm = ||x + u - z ||^2 */
+  ierr = VecDot(temp, temp, &workNorm);CHKERRQ(ierr);
+  *J   = reg + 0.5 * mu * workNorm;
+  PetscFunctionReturn(0);
+}
+
+/* NORM_2 Case: x - mu*(x + u - z) */
+static PetscErrorCode GradientRegularizationADMM(Tao tao, Vec z, Vec V, void *ptr)
+{
+  TAO_BRGN       *gn = (TAO_BRGN *)ptr;
+  PetscReal      mu;
+  Vec            x, u, temp;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  mu   = gn->aug_lag;
+  x    = gn->xk;
+  u    = gn->u;
+  temp = gn->x_work; /* TODO maybe another work vector? */
+  ierr = VecCopy(x, V);CHKERRQ(ierr);
+  ierr = VecCopy(z, temp);CHKERRQ(ierr);
+  /* temp = x + u -z */
+  ierr = VecAXPBYPCZ(temp,1.,1.,-1.,x,u);CHKERRQ(ierr);
+  ierr = VecAXPY(V, -mu, temp);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* NORM_2 Case: returns diag(mu) */
+static PetscErrorCode HessianRegularizationADMM(Tao tao, Vec x, Mat H, Mat Hpre, void *ptr)
+{
+  TAO_BRGN       *gn = (TAO_BRGN *)ptr;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  /* Identity matrix scaled by mu */
+  ierr = MatZeroEntries(H);CHKERRQ(ierr);
+  ierr = MatShift(H,gn->aug_lag);CHKERRQ(ierr);
+  if (Hpre != H) {
+    ierr = MatZeroEntries(Hpre);CHKERRQ(ierr);
+    ierr = MatShift(Hpre,gn->aug_lag);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode GNHookFunction(Tao tao,PetscInt iter, void *ctx)
 {
   TAO_BRGN              *gn = (TAO_BRGN *)ctx;
@@ -169,9 +233,45 @@ static PetscErrorCode TaoSolve_BRGN(Tao tao)
 {
   TAO_BRGN              *gn = (TAO_BRGN *)tao->data;
   PetscErrorCode        ierr;
+  PetscInt              i;
+//  PetscReal             u_norm, r_norm, s_norm, primal, dual;
+  Vec                   u,xk,z,zold;
 
   PetscFunctionBegin;
-  ierr = TaoSolve(gn->subsolver);CHKERRQ(ierr);
+  if (gn->use_admm){
+	u    = gn->u;
+	xk   = gn->subsolver->solution;
+	z    = gn->admm_subsolver->solution;
+	zold = gn->z_old;
+	for (i=0; i<gn->admm_iter; i++){
+      ierr = VecCopy(z,zold);CHKERRQ(ierr);
+      ierr = TaoSolve(gn->subsolver);CHKERRQ(ierr); /* xk */
+      ierr = TaoSolve(gn->admm_subsolver);CHKERRQ(ierr); /* z */
+      /* u = u + xk -z */
+      ierr   = VecAXPBYPCZ(u,1.,-1.,1.,xk,z);CHKERRQ(ierr);
+#if 0	  
+      /* r_norm : norm(x-z) */
+      ierr   = VecWAXPY(diff,-1.,z,xk);CHKERRQ(ierr);
+      ierr   = VecNorm(diff,NORM_2,&r_norm);CHKERRQ(ierr);
+      /* s_norm : norm(-mu(z-zold)) */
+      ierr   = VecWAXPY(zdiff, -1.,zold,z);CHKERRQ(ierr);
+      ierr   = VecNorm(zdiff,NORM_2,&s_norm);CHKERRQ(ierr);
+      s_norm = s_norm * mu;
+      /* primal : sqrt(n)*ABSTOL + RELTOL*max(norm(x), norm(-z))*/
+      ierr   = VecNorm(xk,NORM_2,&x_norm);CHKERRQ(ierr);
+      ierr   = VecNorm(z,NORM_2,&z_norm);CHKERRQ(ierr);
+      primal = PetscSqrtReal(ctx->n)*ctx->abstol + ctx->reltol*PetscMax(x_norm,z_norm);
+      /* Duality : sqrt(n)*ABSTOL + RELTOL*norm(mu*u)*/
+      ierr   = VecNorm(u,NORM_2,&u_norm);CHKERRQ(ierr);
+      dual   = PetscSqrtReal(ctx->n)*ctx->abstol + ctx->reltol*u_norm*mu;
+      ierr   = PetscPrintf(PetscObjectComm((PetscObject)tao1),"Iter %D : ||x-z||: %g, mu*||z-zold||: %g\n", i, (double) r_norm, (double) s_norm);CHKERRQ(ierr);
+      if (r_norm < primal && s_norm < dual) break;
+#endif
+	}
+  }
+  else {
+    ierr = TaoSolve(gn->subsolver);CHKERRQ(ierr);
+  }
   /* Update basic tao information from the subsolver */
   tao->nfuncs = gn->subsolver->nfuncs;
   tao->ngrads = gn->subsolver->ngrads;
@@ -196,7 +296,10 @@ static PetscErrorCode TaoSetFromOptions_BRGN(PetscOptionItems *PetscOptionsObjec
   ierr = PetscOptionsHead(PetscOptionsObject,"least-squares problems with regularizer: ||f(x)||^2 + lambda*g(x), g(x) = ||xk-xkm1||^2 or ||Dx||_1 or user defined function.");CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_brgn_regularizer_weight","regularizer weight (default 1e-4)","",gn->lambda,&gn->lambda,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_brgn_l1_smooth_epsilon","L1-norm smooth approximation parameter: ||x||_1 = sum(sqrt(x.^2+epsilon^2)-epsilon) (default 1e-6)","",gn->epsilon,&gn->epsilon,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-tao_brgn_aug_lag","Augmented Lagrangian Multiplier in ADMM","",gn->aug_lag,&gn->aug_lag,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-tao_brgn_solve_admm","Trigger to use ADMM for BRGN","",gn->use_admm,&gn->use_admm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEList("-tao_brgn_regularization_type","regularization type", "",BRGN_REGULARIZATION_TABLE,BRGN_REGULARIZATION_TYPES,BRGN_REGULARIZATION_TABLE[gn->reg_type],&gn->reg_type,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-admm_iter", "ADMM iteration limit", "", gn->admm_iter, &(gn->admm_iter), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   ierr = TaoSetFromOptions(gn->subsolver);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -240,7 +343,19 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
     ierr = VecDuplicate(tao->solution,&gn->x_old);CHKERRQ(ierr);
     ierr = VecSet(gn->x_old,0.0);CHKERRQ(ierr);
   }
-    
+  if (!gn->u) {
+    ierr = VecDuplicate(tao->solution,&gn->u);CHKERRQ(ierr);
+    ierr = VecSet(gn->u,0.0);CHKERRQ(ierr);
+  }
+  if (!gn->z_old) {
+    ierr = VecDuplicate(tao->solution,&gn->z_old);CHKERRQ(ierr);
+    ierr = VecSet(gn->z_old,0.0);CHKERRQ(ierr);
+  }
+  if (!gn->xk) {
+    ierr = VecDuplicate(tao->solution,&gn->xk);CHKERRQ(ierr);
+    ierr = VecSet(gn->xk,0.0);CHKERRQ(ierr);
+  }
+
   if (BRGN_REGULARIZATION_L1DICT == gn->reg_type) {
     if (gn->D) {
       ierr = MatGetSize(gn->D,&K,&N);CHKERRQ(ierr); /* Shell matrices still must have sizes defined. K = N for identity matrix, K=N-1 or N for gradient matrix */
@@ -272,25 +387,69 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
     ierr = MatSetUp(gn->H);CHKERRQ(ierr);
     ierr = MatShellSetOperation(gn->H,MATOP_MULT,(void (*)(void))GNHessianProd);CHKERRQ(ierr);
     ierr = MatShellSetContext(gn->H,(void*)gn);CHKERRQ(ierr);
-    /* Subsolver setup,include initial vector and dicttionary D */
-    ierr = TaoSetUpdate(gn->subsolver,GNHookFunction,(void*)gn);CHKERRQ(ierr);
-    ierr = TaoSetInitialVector(gn->subsolver,tao->solution);CHKERRQ(ierr);
-    if (tao->bounded) {
-      ierr = TaoSetVariableBounds(gn->subsolver,tao->XL,tao->XU);CHKERRQ(ierr);
-    }
-    ierr = TaoSetResidualRoutine(gn->subsolver,tao->ls_res,tao->ops->computeresidual,tao->user_lsresP);CHKERRQ(ierr);
-    ierr = TaoSetJacobianResidualRoutine(gn->subsolver,tao->ls_jac,tao->ls_jac,tao->ops->computeresidualjacobian,tao->user_lsjacP);CHKERRQ(ierr);
-    ierr = TaoSetObjectiveAndGradientRoutine(gn->subsolver,GNObjectiveGradientEval,(void*)gn);CHKERRQ(ierr);
-    ierr = TaoSetHessianRoutine(gn->subsolver,gn->H,gn->H,GNComputeHessian,(void*)gn);CHKERRQ(ierr);
-    /* Propagate some options down */
-    ierr = TaoSetTolerances(gn->subsolver,tao->gatol,tao->grtol,tao->gttol);CHKERRQ(ierr);
-    ierr = TaoSetMaximumIterations(gn->subsolver,tao->max_it);CHKERRQ(ierr);
-    ierr = TaoSetMaximumFunctionEvaluations(gn->subsolver,tao->max_funcs);CHKERRQ(ierr);
-    for (i=0; i<tao->numbermonitors; ++i) {
-      ierr = TaoSetMonitor(gn->subsolver,tao->monitor[i],tao->monitorcontext[i],tao->monitordestroy[i]);CHKERRQ(ierr);
-      ierr = PetscObjectReference((PetscObject)(tao->monitorcontext[i]));CHKERRQ(ierr);
-    }
-    ierr = TaoSetUp(gn->subsolver);CHKERRQ(ierr);
+	if (!(gn->use_admm)) {
+      /* Subsolver setup,include initial vector and dicttionary D */
+      ierr = TaoSetUpdate(gn->subsolver,GNHookFunction,(void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetInitialVector(gn->subsolver,tao->solution);CHKERRQ(ierr);
+      if (tao->bounded) {
+        ierr = TaoSetVariableBounds(gn->subsolver,tao->XL,tao->XU);CHKERRQ(ierr);
+      }
+      ierr = TaoSetResidualRoutine(gn->subsolver,tao->ls_res,tao->ops->computeresidual,tao->user_lsresP);CHKERRQ(ierr);
+      ierr = TaoSetJacobianResidualRoutine(gn->subsolver,tao->ls_jac,tao->ls_jac,tao->ops->computeresidualjacobian,tao->user_lsjacP);CHKERRQ(ierr);
+      ierr = TaoSetObjectiveAndGradientRoutine(gn->subsolver,GNObjectiveGradientEval,(void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetHessianRoutine(gn->subsolver,gn->H,gn->H,GNComputeHessian,(void*)gn);CHKERRQ(ierr);
+      /* Propagate some options down */
+      ierr = TaoSetTolerances(gn->subsolver,tao->gatol,tao->grtol,tao->gttol);CHKERRQ(ierr);
+      ierr = TaoSetMaximumIterations(gn->subsolver,tao->max_it);CHKERRQ(ierr);
+      ierr = TaoSetMaximumFunctionEvaluations(gn->subsolver,tao->max_funcs);CHKERRQ(ierr);
+      for (i=0; i<tao->numbermonitors; ++i) {
+        ierr = TaoSetMonitor(gn->subsolver,tao->monitor[i],tao->monitorcontext[i],tao->monitordestroy[i]);CHKERRQ(ierr);
+        ierr = PetscObjectReference((PetscObject)(tao->monitorcontext[i]));CHKERRQ(ierr);
+      }
+      ierr = TaoSetUp(gn->subsolver);CHKERRQ(ierr);
+	} else {
+      ierr = MatSetSizes(gn->Hr,n,n,N,N);CHKERRQ(ierr);
+      ierr = MatSetType(gn->Hr,MATAIJ);CHKERRQ(ierr);
+      ierr = MatMPIAIJSetPreallocation(gn->Hr, 5, NULL, 5, NULL);CHKERRQ(ierr); /*TODO: some number other than 5?*/
+      ierr = MatSeqAIJSetPreallocation(gn->Hr, 5, NULL);CHKERRQ(ierr);
+      ierr = MatSetUp(gn->Hr);CHKERRQ(ierr);
+      ierr = MatAssemblyBegin(gn->Hr, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatAssemblyEnd(gn->Hr, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      /* Subsolver setup,include initial vector and dicttionary D */
+      ierr = TaoSetUpdate(gn->subsolver,GNHookFunction,(void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetUpdate(gn->admm_subsolver,GNHookFunction,(void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetInitialVector(gn->subsolver,gn->xk);CHKERRQ(ierr);
+      ierr = TaoSetInitialVector(gn->admm_subsolver,gn->z_old);CHKERRQ(ierr);
+      if (tao->bounded) {
+        ierr = TaoSetVariableBounds(gn->subsolver,tao->XL,tao->XU);CHKERRQ(ierr);
+        ierr = TaoSetVariableBounds(gn->admm_subsolver,tao->XL,tao->XU);CHKERRQ(ierr);
+      }
+      ierr = TaoSetResidualRoutine(gn->subsolver,tao->ls_res,tao->ops->computeresidual,tao->user_lsresP);CHKERRQ(ierr);
+      ierr = TaoSetResidualRoutine(gn->admm_subsolver,tao->ls_res,tao->ops->computeresidual,tao->user_lsresP);CHKERRQ(ierr);
+      ierr = TaoSetJacobianResidualRoutine(gn->subsolver,tao->ls_jac,tao->ls_jac,tao->ops->computeresidualjacobian,tao->user_lsjacP);CHKERRQ(ierr);
+      ierr = TaoSetJacobianResidualRoutine(gn->admm_subsolver,tao->ls_jac,tao->ls_jac,tao->ops->computeresidualjacobian,tao->user_lsjacP);CHKERRQ(ierr);
+      ierr = TaoSetObjectiveAndGradientRoutine(gn->subsolver,GNObjectiveGradientEval,(void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetObjectiveRoutine(gn->admm_subsolver, ObjectiveRegularizationADMM, (void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetGradientRoutine(gn->admm_subsolver, GradientRegularizationADMM, (void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetHessianRoutine(gn->admm_subsolver, gn->Hr, gn->Hr, HessianRegularizationADMM, (void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetHessianRoutine(gn->subsolver,gn->H,gn->H,GNComputeHessian,(void*)gn);CHKERRQ(ierr);
+      /* Propagate some options down */
+      ierr = TaoSetTolerances(gn->subsolver,tao->gatol,tao->grtol,tao->gttol);CHKERRQ(ierr);
+      ierr = TaoSetTolerances(gn->admm_subsolver,tao->gatol,tao->grtol,tao->gttol);CHKERRQ(ierr);
+      ierr = TaoSetMaximumIterations(gn->subsolver,tao->max_it);CHKERRQ(ierr);
+      ierr = TaoSetMaximumIterations(gn->admm_subsolver,tao->max_it);CHKERRQ(ierr);
+      ierr = TaoSetMaximumFunctionEvaluations(gn->subsolver,tao->max_funcs);CHKERRQ(ierr);
+      ierr = TaoSetMaximumFunctionEvaluations(gn->admm_subsolver,tao->max_funcs);CHKERRQ(ierr);
+      for (i=0; i<tao->numbermonitors; ++i) {
+        ierr = TaoSetMonitor(gn->subsolver,tao->monitor[i],tao->monitorcontext[i],tao->monitordestroy[i]);CHKERRQ(ierr);
+        ierr = TaoSetMonitor(gn->admm_subsolver,tao->monitor[i],tao->monitorcontext[i],tao->monitordestroy[i]);CHKERRQ(ierr);
+        ierr = PetscObjectReference((PetscObject)(tao->monitorcontext[i]));CHKERRQ(ierr);
+      }
+      ierr = TaoSetUp(gn->subsolver);CHKERRQ(ierr);
+      ierr = TaoSetUp(gn->admm_subsolver);CHKERRQ(ierr);
+	}
+	gn->xk = gn->subsolver->solution;
+	gn->z_old = gn->admm_subsolver->solution;
   }
   PetscFunctionReturn(0);
 }
@@ -309,11 +468,16 @@ static PetscErrorCode TaoDestroy_BRGN(Tao tao)
     ierr = VecDestroy(&gn->diag);CHKERRQ(ierr);
     ierr = VecDestroy(&gn->y);CHKERRQ(ierr);
     ierr = VecDestroy(&gn->y_work);CHKERRQ(ierr);
+    ierr = VecDestroy(&gn->z_old);CHKERRQ(ierr);
+    ierr = VecDestroy(&gn->u);CHKERRQ(ierr);
+    ierr = VecDestroy(&gn->xk);CHKERRQ(ierr);
   }
   ierr = MatDestroy(&gn->H);CHKERRQ(ierr);
+  ierr = MatDestroy(&gn->Hr);CHKERRQ(ierr);
   ierr = MatDestroy(&gn->D);CHKERRQ(ierr);
   ierr = MatDestroy(&gn->Hreg);CHKERRQ(ierr);
   ierr = TaoDestroy(&gn->subsolver);CHKERRQ(ierr);
+  ierr = TaoDestroy(&gn->admm_subsolver);CHKERRQ(ierr);
   gn->parent = NULL;
   ierr = PetscFree(tao->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -352,14 +516,22 @@ PETSC_EXTERN PetscErrorCode TaoCreate_BRGN(Tao tao)
   tao->data = (void*)gn;
   gn->lambda = 1e-4;
   gn->epsilon = 1e-6;
+  gn->aug_lag = 1.0;
   gn->parent = tao;
+  gn->use_admm = PETSC_FALSE;
+  gn->admm_iter = 50;
   
   ierr = MatCreate(PetscObjectComm((PetscObject)tao),&gn->H);CHKERRQ(ierr);
   ierr = MatSetOptionsPrefix(gn->H,"tao_brgn_hessian_");CHKERRQ(ierr);
   
+  ierr = MatCreate(PetscObjectComm((PetscObject)tao),&gn->Hr);CHKERRQ(ierr);
+  ierr = MatSetOptionsPrefix(gn->Hr,"tao_brgn_admm_hessian_");CHKERRQ(ierr);
   ierr = TaoCreate(PetscObjectComm((PetscObject)tao),&gn->subsolver);CHKERRQ(ierr);
+  ierr = TaoCreate(PetscObjectComm((PetscObject)tao),&gn->admm_subsolver);CHKERRQ(ierr);
   ierr = TaoSetType(gn->subsolver,TAOBNLS);CHKERRQ(ierr);
+  ierr = TaoSetType(gn->admm_subsolver,TAOBNLS);CHKERRQ(ierr);
   ierr = TaoSetOptionsPrefix(gn->subsolver,"tao_brgn_subsolver_");CHKERRQ(ierr);
+  ierr = TaoSetOptionsPrefix(gn->admm_subsolver,"tao_brgn_admm_subsolver_");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -383,6 +555,15 @@ PetscErrorCode TaoBRGNGetSubsolver(Tao tao,Tao *subsolver)
   PetscFunctionReturn(0);
 }
 
+
+PetscErrorCode TaoBRGNGetADMMSubsolver(Tao tao,Tao *subsolver)
+{
+  TAO_BRGN       *gn = (TAO_BRGN *)tao->data;
+  
+  PetscFunctionBegin;
+  *subsolver = gn->admm_subsolver;
+  PetscFunctionReturn(0);
+}
 /*@
   TaoBRGNSetRegularizerWeight - Set the regularizer weight for the Gauss-Newton least-squares algorithm
 
