@@ -14,6 +14,7 @@ typedef struct {
   PetscInt       nts;                              /* print the energy at each nts time steps */
   PetscBool      simplex;                          /* Flag for simplices or tensor cells */
   PetscBool      monitor;                          /* Flag for use of the TS monitor */
+  PetscBool      uniform;
   char           meshFilename[PETSC_MAX_PATH_LEN]; /* Name of the mesh filename if any */
   PetscInt       faces;                            /* Number of faces per edge if unit square/cube generated */
   PetscReal      domain_lo[3], domain_hi[3];       /* Lower left and upper right mesh corners */
@@ -87,6 +88,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->momentTol        = 100.*PETSC_MACHINE_EPSILON;
   options->omega            = 64.;
   options->nts              = 100;
+  options->uniform          = PETSC_FALSE;
   
   ierr = PetscOptionsBegin(comm, "", "L2 Projection Options", "DMPLEX");CHKERRQ(ierr);
   
@@ -97,6 +99,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   
   ierr = PetscOptionsBool("-monitor", "To use the TS monitor or not", "ex5.c", options->monitor, &options->monitor, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "The flag for simplices or tensor cells", "ex5.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-uniform", "Uniform particle spacing", "ex5.c", options->uniform, &options->uniform, NULL);CHKERRQ(ierr);
   
   ierr = PetscOptionsString("-mesh", "Name of the mesh filename if any", "ex5.c", options->meshFilename, options->meshFilename, PETSC_MAX_PATH_LEN, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-faces", "Number of faces per edge if unit square/cube generated", "ex5.c", options->faces, &options->faces, NULL);CHKERRQ(ierr);
@@ -304,14 +307,21 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
       ierr = DMPlexComputeCellGeometryFEM(dm, c, NULL, v0, J, invJ, &detJ);CHKERRQ(ierr); /* affine */
       for (p = 0; p < Np; ++p) {
         const PetscInt n   = c*Np + p;
-        PetscReal      sum = 0.0, refcoords[3];
-
+        PetscReal      sum = 0.0, refcoords[3], spacing;
+        
         cellid[n] = c;
-        for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rnd, &value);CHKERRQ(ierr); refcoords[d] = d==0 ? PetscRealPart(value) : 0 ;}
+        
+        if(user->uniform){
+          spacing = 2./Np;
+          for(d=0; d<dim; ++d) refcoords[d] = d == 0 ? -1. + spacing/2. + p*spacing : 0.;
+        }
+        else{
+          for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rnd, &value);CHKERRQ(ierr); refcoords[d] = d==0 ? PetscRealPart(value) : 0. ;}
+        }
         vals[n] = 0.0;
         //for (d = 0; d < dim; ++d) vals[n] = refcoords[d]/(2.);
         CoordinatesRefToReal(dim, dim, xi0, v0, J, refcoords, &coords[n*dim]);
-        for (d = 0; d < dim; ++d) vals[n] += coords[n*dim+d]/(user->domain_hi[d] - user->domain_lo[d]);
+        for (d = 0; d < dim; ++d) vals[n] = 1.e-7*1.- 1.e-7*(Ncell*Np/(2.*PETSC_PI));/*coords[n*dim+d]/(user->domain_hi[d] - user->domain_lo[d]);*/
       }
     }
   }
@@ -408,7 +418,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   
   ierr = VecGetLocalSize(rho, &rhoSize);CHKERRQ(ierr);
   ierr = VecGetArray(rho, &rhoArr);CHKERRQ(ierr);
-  
+  /*
   rhoSum = 0;
   for(int i = 0; i < rhoSize; ++i){
     rhoSum += rhoArr[i];
@@ -419,7 +429,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   for(int i = 0; i < rhoSize; ++i){
     rhoArr[i] = rhoArr[i] - rhoAvg;
   }
-
+*/
   ierr = VecRestoreArray(rho, &rhoArr);CHKERRQ(ierr);
 
   ierr = VecSet(phi, 0.0);CHKERRQ(ierr);
@@ -695,11 +705,11 @@ int main(int argc,char **argv)
   /* Place TSSolve in a loop to handle resetting the TS at every manual call of TSStep() */
   ierr = TSCreate(comm, &ts);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
-  ierr = TSSetTimeStep(ts,0.01);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts,0.1);CHKERRQ(ierr);
   ierr = TSSetMaxSteps(ts,100000);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
 
-  for(step = 0; step < 100 ; ++step){
+  for(step = 0; step < 1 ; ++step){
   
     ierr = DMSwarmCreateGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
     ierr = DMSwarmCreateGlobalVectorFromField(sw, DMSwarmPICField_coor, &coorVec);CHKERRQ(ierr);
@@ -746,7 +756,7 @@ int main(int argc,char **argv)
 
     ierr = TSSetRHSFunction(ts,NULL,RHSFunctionParticles,&user);CHKERRQ(ierr);
 
-    ierr = TSSetTime(ts, step*.01);CHKERRQ(ierr);
+    ierr = TSSetTime(ts, step*.1);CHKERRQ(ierr);
     if (step == 0){
       ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
     }
@@ -856,9 +866,15 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 2 -faces 36 -simplex 0 -particlesPerCell 230 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
+     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
    test:
      suffix: bsi2
-     args: -dim 2 -faces 36 -simplex 0 -particlesPerCell 230 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
+     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
+   test:
+     suffix: bsi1q1
+     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
+   test:
+     suffix: bsi2q2
+     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
 
 TEST*/
