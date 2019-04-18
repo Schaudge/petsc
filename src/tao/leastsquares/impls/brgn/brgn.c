@@ -43,9 +43,9 @@ static PetscErrorCode GNHessianProd(Mat H,Vec in,Vec out)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G,void *ptr)
+static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G,void *ctx)
 {
-  TAO_BRGN              *gn = (TAO_BRGN *)ptr;
+  TAO_BRGN              *gn = (TAO_BRGN *)ctx;
   PetscInt              K;                    /* dimension of D*X */
   PetscScalar           yESum;
   PetscErrorCode        ierr;
@@ -101,9 +101,9 @@ static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode GNComputeHessian(Tao tao,Vec X,Mat H,Mat Hpre,void *ptr)
+static PetscErrorCode GNComputeHessian(Tao tao,Vec X,Mat H,Mat Hpre,void *ctx)
 { 
-  TAO_BRGN              *gn = (TAO_BRGN *)ptr;
+  TAO_BRGN              *gn = (TAO_BRGN *)ctx;
   PetscErrorCode ierr;
   
   PetscFunctionBegin;

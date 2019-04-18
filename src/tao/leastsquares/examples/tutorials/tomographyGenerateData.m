@@ -1,3 +1,4 @@
+% PetscBinaryWrite, Default: Big Endian, 'indices','int32'
 % (1) Generate Object
 % sampleName: the type and name to specify a sample object, not case-sensitive
 % Ny*Nx:    Sample object size
@@ -18,7 +19,7 @@ S = reshape(L*WGT(:), NTheta, NTau);
 
 %% Save data in petsc binary format, b = A*x
 % save to one file
-PetscBinaryWrite('tomographyData_A_b_xGT', L, S(:), WGT(:), 'precision', 'float64');
+PetscBinaryWrite('tomographyData_A_b_xGT', L, S(:), WGT(:),'precision', 'float64');
 [A2, b2, xGT2] = PetscBinaryRead('tomographyData_A_b_xGT');
 difference(full(A2), full(L));
 difference(b2, S(:));
@@ -71,13 +72,13 @@ if testPetscBinaryWriteAndRead_cs1
 %         0.13  0.10  0.96  0.97  0.80];
     xGT = [0;0;1;0;0];
     b = A*xGT; % [0.28; 0.55; 0.96];
-    PetscBinaryWrite('cs1Data_A_b_xGT', A, b, xGT, 'precision', 'float64'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    PetscBinaryWrite('cs1Data_A_b_xGT', A, b, xGT, 'precision', 'float64'); %   
     [A2, b2, xGT2] = PetscBinaryRead('cs1Data_A_b_xGT'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
     % dictionary matrix, not used here
 %     D = [-1 1 0 0 0;
 %         0 -1 1 0 0;
 %         0 0 -1 1 0;
-%         0 0 0 -1 1];
+%         0 0 0 -1 1];a
 end
 % xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT)/norm(xGT) 
 
@@ -92,8 +93,10 @@ if testPetscBinaryWriteAndRead_jointsparsity1
     %xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
     L = size(xGT,2);
     b = A*xGT; % [0.28; 0.55; 0.96];
-    PetscBinaryWrite('jointsparsity1Data_A_b_xGT_L', A, b, xGT, L, 'precision', 'float64'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
-    [A2, b2, xGT2, L2] = PetscBinaryRead('jointsparsity1Data_A_b_xGT_L'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    % in PetscBinaryWrite, the code "for l=1:nargin-1" will write 'precision' and 'float64' as two double vectors
+    PetscBinaryWrite('jointsparsity1Data_A_b_xGT_L', A, b, xGT, L, 'precision', 'float64'); %   
+    [A2, b2, xGT2, L2, dummy] = PetscBinaryRead('jointsparsity1Data_A_b_xGT_L'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    
     % dictionary matrix, not used here
 %     D = [-1 1 0 0 0;
 %         0 -1 1 0 0;
