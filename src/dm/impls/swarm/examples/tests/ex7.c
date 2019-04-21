@@ -28,6 +28,7 @@ typedef struct {
   PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal [], PetscInt, PetscScalar *, void *);
   /* Poisson solve */
   SNES           snes;
+  PetscInt       steps;                            /* steps to take in ts */
 } AppCtx;
 
 static PetscErrorCode linear(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *a_ctx)
@@ -84,19 +85,21 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->particlesPerCell = 1;
   options->k                = 1;
   options->particleRelDx    = 1.e-20;
-  options->meshRelDx        = 1.e-20;
+  options->meshRelDx        = 0.0;
   options->momentTol        = 100.*PETSC_MACHINE_EPSILON;
   options->omega            = 64.;
   options->nts              = 100;
   options->uniform          = PETSC_FALSE;
-  
+  options->steps            = 1;
+
   ierr = PetscOptionsBegin(comm, "", "L2 Projection Options", "DMPLEX");CHKERRQ(ierr);
   
   ierr = PetscStrcpy(options->meshFilename, "");CHKERRQ(ierr);
 
   ierr = PetscOptionsInt("-next_output","time steps for next output point","<100>",options->nts,&options->nts,PETSC_NULL);CHKERRQ(ierr); 
   ierr = PetscOptionsInt("-dim", "The topological mesh dimension", "ex5.c", options->dim, &options->dim, NULL);CHKERRQ(ierr);
-  
+  ierr = PetscOptionsInt("-steps", "TS steps to take", "ex7.c", options->steps, &options->steps, NULL);CHKERRQ(ierr);
+
   ierr = PetscOptionsBool("-monitor", "To use the TS monitor or not", "ex5.c", options->monitor, &options->monitor, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "The flag for simplices or tensor cells", "ex5.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-uniform", "Uniform particle spacing", "ex5.c", options->uniform, &options->uniform, NULL);CHKERRQ(ierr);
@@ -203,7 +206,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *user)
   }
   ierr = DMLocalizeCoordinates(*dm);CHKERRQ(ierr); /* needed for periodic */
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = PerturbVertices(*dm, user);CHKERRQ(ierr);
+  //ierr = PerturbVertices(*dm, user);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -244,7 +247,7 @@ static PetscErrorCode CreateFEM(DM dm, AppCtx *user)
 
   PetscFunctionBeginUser;
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, user->simplex, NULL, -1, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, user->simplex, NULL, 2, &fe);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe, "potential");CHKERRQ(ierr);
   ierr = DMSetField(dm, 0, NULL, (PetscObject) fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
@@ -314,21 +317,22 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
         if(user->uniform){
           spacing = 2./Np;
           for(d=0; d<dim; ++d) refcoords[d] = d == 0 ? -1. + spacing/2. + p*spacing : 0.;
+
         }
         else{
-          for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rnd, &value);CHKERRQ(ierr); refcoords[d] = d==0 ? PetscRealPart(value) : 0. ;}
+          for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rnd, &value);CHKERRQ(ierr); refcoords[d] = d == 0 ? PetscRealPart(value) : 0. ;}
         }
         vals[n] = 0.0;
         //for (d = 0; d < dim; ++d) vals[n] = refcoords[d]/(2.);
         CoordinatesRefToReal(dim, dim, xi0, v0, J, refcoords, &coords[n*dim]);
-        for (d = 0; d < dim; ++d) vals[n] = 1.e-7*1.- 1.e-7*(Ncell*Np/(2.*PETSC_PI));/*coords[n*dim+d]/(user->domain_hi[d] - user->domain_lo[d]);*/
+        for (d = 0; d < dim; ++d) vals[n] = 1.; /*- 1.e-1*(Ncell*Np/(2.*PETSC_PI));/*coords[n*dim+d]/(user->domain_hi[d] - user->domain_lo[d]);*/
       }
     }
   }
   ierr = PetscFree5(centroid, xi0, v0, J, invJ);CHKERRQ(ierr);
   for (c = 0; c < Ncell; ++c) {
     for (p = 0; p < Np; ++p) {
-      if(c < Ncell/2.){
+      if(c < Ncell/2){
         for (d = 0; d < dim; ++d) initialConditions[(c*Np + p)*dim + d] = d == 0 ? 1. : 0.;
       } 
       else {
@@ -429,9 +433,9 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   for(int i = 0; i < rhoSize; ++i){
     rhoArr[i] = rhoArr[i] - rhoAvg;
   }
-*/
+  
   ierr = VecRestoreArray(rho, &rhoArr);CHKERRQ(ierr);
-
+  */
   ierr = VecSet(phi, 0.0);CHKERRQ(ierr);
   ierr = SNESSolve(user->snes, rho, phi);CHKERRQ(ierr);
   ierr = VecViewFromOptions(phi, NULL, "-phi_view");CHKERRQ(ierr);
@@ -538,94 +542,7 @@ static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *c
   ierr = VecRestoreArray(R,&r);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-#if 0
-static PetscErrorCode ConfigureTS(TS *ts, DM sw, PetscBool reconfigure, AppCtx user, PetscInt step){
-  PetscInt          i;
-  Vec               coorVec, kinVec, probVec;
-  const PetscScalar *coorArr, *kinArr;
-  PetscReal         ftime   = 10., *probArr, *probVecArr;
-  IS                is1,is2;
-  MPI_Comm          comm;
-  PetscInt          locSize, p, d, dim, Np, steps, *idx1, *idx2;
-  PetscErrorCode    ierr;
-  comm = MPI_COMM_WORLD;
 
-  PetscFunctionBeginUser;
-  
-  if(reconfigure){ ierr = TSReset(ts);CHKERRQ(ierr); }
-  //else{ierr = TSCreate(comm,&ts);CHKERRQ(ierr);}
-  
-  ierr = DMSwarmCreateGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
-  ierr = DMSwarmCreateGlobalVectorFromField(sw, DMSwarmPICField_coor, &coorVec);CHKERRQ(ierr);
-  ierr = VecViewFromOptions(kinVec, NULL, "-ic_vec_view");
-  ierr = DMGetDimension(sw, &dim);CHKERRQ(ierr);
-  ierr = VecGetLocalSize(kinVec, &locSize);CHKERRQ(ierr);
-  ierr = PetscMalloc1(locSize, &idx1);CHKERRQ(ierr);
-  ierr = PetscMalloc1(locSize, &idx2);CHKERRQ(ierr);
-  ierr = PetscMalloc1(2*locSize, &probArr);CHKERRQ(ierr);
-  Np = locSize/dim;
-
-  ierr = VecGetArrayRead(kinVec, &kinArr);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(coorVec, &coorArr);CHKERRQ(ierr);
-  for (p=0; p<Np; ++p){
-      for(d=0; d<dim;++d){
-          probArr[p*2*dim + d] = coorArr[p*dim+d];
-          probArr[(p*2+1)*dim + d] = kinArr[p*dim+d];
-      }
-  }
-  ierr = VecRestoreArrayRead(kinVec, &kinArr);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(coorVec, &coorArr);CHKERRQ(ierr);
-
-  /* Allocate for IS Strides that will contain x, y and vx, vy */
-  for (p = 0; p < Np; ++p) {
-    for (d = 0; d < dim; ++d) {
-      idx1[p*dim+d] = (p*2+0)*dim + d;
-      idx2[p*dim+d] = (p*2+1)*dim + d;
-    }
-  }
-
-  ierr = ISCreateGeneral(comm, locSize, idx1, PETSC_OWN_POINTER, &is1);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(comm, locSize, idx2, PETSC_OWN_POINTER, &is2);CHKERRQ(ierr);
-
-  /* DM needs to be set before splits so it propogates to sub TSs */
-  ierr = TSSetDM(ts, sw);CHKERRQ(ierr);
-  ierr = TSSetType(ts,TSBASICSYMPLECTIC);CHKERRQ(ierr);
-
-  ierr = TSRHSSplitSetIS(ts,"position",is1);CHKERRQ(ierr);
-  ierr = TSRHSSplitSetIS(ts,"momentum",is2);CHKERRQ(ierr);
-
-  ierr = TSRHSSplitSetRHSFunction(ts,"position",NULL,RHSFunction1,&user);CHKERRQ(ierr);
-  ierr = TSRHSSplitSetRHSFunction(ts,"momentum",NULL,RHSFunction2,&user);CHKERRQ(ierr);
-
-  ierr = TSSetRHSFunction(ts,NULL,RHSFunctionParticles,&user);CHKERRQ(ierr);
-
-  ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
-  ierr = TSSetTimeStep(ts,0.01);CHKERRQ(ierr);
-  ierr = TSSetMaxSteps(ts,100000);CHKERRQ(ierr);
-  ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
-  ierr = TSSetTime(ts, step*.01);CHKERRQ(ierr);
-  ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-
-  /* Compose vector from array for TS solve with all kinematic variables */
-   ierr = VecCreate(comm,&probVec);CHKERRQ(ierr);
-   ierr = VecSetBlockSize(probVec,1);CHKERRQ(ierr);
-   ierr = VecSetSizes(probVec,PETSC_DECIDE,2*locSize);CHKERRQ(ierr);
-   ierr = VecSetUp(probVec);CHKERRQ(ierr);
-
-   ierr = VecGetArray(probVec,&probVecArr);
-   for (i=0; i < 2*locSize; ++i) {
-
-     probVecArr[i] = probArr[i];
-
-   }
-  ierr = VecRestoreArray(probVec,&probVecArr);CHKERRQ(ierr);
-  ierr = TSSetSolution(ts, probVec);CHKERRQ(ierr);
-  ierr = PetscFree(probArr);CHKERRQ(ierr);
-  ierr = VecViewFromOptions(kinVec, NULL, "-ic_view");
-  ierr = DMSwarmDestroyGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
-  ierr = DMSwarmDestroyGlobalVectorFromField(sw, DMSwarmPICField_coor, &coorVec);CHKERRQ(ierr);
-}
-#endif
 #if 1
 static PetscErrorCode Reweight(DM sw, DM plex){
   PetscInt     cStart, cEnd, cell, dim, d;
@@ -709,7 +626,7 @@ int main(int argc,char **argv)
   ierr = TSSetMaxSteps(ts,100000);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
 
-  for(step = 0; step < 1 ; ++step){
+  for(step = 0; step < user.steps ; ++step){
   
     ierr = DMSwarmCreateGlobalVectorFromField(sw, "kinematics", &kinVec);CHKERRQ(ierr);
     ierr = DMSwarmCreateGlobalVectorFromField(sw, DMSwarmPICField_coor, &coorVec);CHKERRQ(ierr);
@@ -866,15 +783,15 @@ int main(int argc,char **argv)
      requires: triangle !single !complex
    test:
      suffix: bsi1
-     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
+     args: -dim 2 -faces 4 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
    test:
      suffix: bsi2
-     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
+     args: -dim 2 -faces 4 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
    test:
-     suffix: bsi1q1
-     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
+     suffix: bsi1q2
+     args: -dim 2 -faces 32 -simplex 0 -particlesPerCell 200 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
    test:
      suffix: bsi2q2
-     args: -dim 2 -faces 3 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
+     args: -dim 2 -faces 4 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
 
 TEST*/
