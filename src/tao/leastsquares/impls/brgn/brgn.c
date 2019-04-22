@@ -265,8 +265,8 @@ static PetscErrorCode TaoSolve_BRGN(Tao tao)
   if (gn->use_admm){
 	u    = gn->u;
 	xk   = gn->subsolver->solution;
+	zold = gn->ztemp;
 	z    = gn->admm_subsolver->solution;
-	zold = gn->z_old;
 	diff = gn->xzdiff;
 	zdiff = gn->zdiff;
     ierr = VecGetSize(u,&N);CHKERRQ(ierr);
@@ -394,6 +394,10 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
     ierr = VecDuplicate(tao->solution,&gn->zdiff);CHKERRQ(ierr);
     ierr = VecSet(gn->zdiff,0.0);CHKERRQ(ierr);
   }
+  if (!gn->ztemp) {
+    ierr = VecDuplicate(tao->solution,&gn->ztemp);CHKERRQ(ierr);
+    ierr = VecSet(gn->ztemp,0.0);CHKERRQ(ierr);
+  }
 
   if (BRGN_REGULARIZATION_L1DICT == gn->reg_type) {
     if (gn->D) {
@@ -513,6 +517,7 @@ static PetscErrorCode TaoDestroy_BRGN(Tao tao)
     ierr = VecDestroy(&gn->xk);CHKERRQ(ierr);
     ierr = VecDestroy(&gn->xzdiff);CHKERRQ(ierr);
     ierr = VecDestroy(&gn->zdiff);CHKERRQ(ierr);
+    ierr = VecDestroy(&gn->ztemp);CHKERRQ(ierr);
   }
   ierr = MatDestroy(&gn->H);CHKERRQ(ierr);
   ierr = MatDestroy(&gn->Hr);CHKERRQ(ierr);
