@@ -247,7 +247,7 @@ static PetscErrorCode CreateFEM(DM dm, AppCtx *user)
 
   PetscFunctionBeginUser;
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, user->simplex, NULL, 2, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, user->simplex, NULL, -1, &fe);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe, "potential");CHKERRQ(ierr);
   ierr = DMSetField(dm, 0, NULL, (PetscObject) fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
@@ -316,6 +316,7 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
         
         if(user->uniform){
           spacing = 2./Np;
+          
           for(d=0; d<dim; ++d) refcoords[d] = d == 0 ? -1. + spacing/2. + p*spacing : 0.;
 
         }
@@ -323,9 +324,9 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
           for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rnd, &value);CHKERRQ(ierr); refcoords[d] = d == 0 ? PetscRealPart(value) : 0. ;}
         }
         vals[n] = 0.0;
-        //for (d = 0; d < dim; ++d) vals[n] = refcoords[d]/(2.);
         CoordinatesRefToReal(dim, dim, xi0, v0, J, refcoords, &coords[n*dim]);
-        for (d = 0; d < dim; ++d) vals[n] = 1.; /*- 1.e-1*(Ncell*Np/(2.*PETSC_PI));/*coords[n*dim+d]/(user->domain_hi[d] - user->domain_lo[d]);*/
+        /* constant particle weights */
+        for (d = 0; d < dim; ++d) vals[n] = 1.;
       }
     }
   }
@@ -422,7 +423,8 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   
   ierr = VecGetLocalSize(rho, &rhoSize);CHKERRQ(ierr);
   ierr = VecGetArray(rho, &rhoArr);CHKERRQ(ierr);
-  /*
+  
+  /* subtract average for SVD */
   rhoSum = 0;
   for(int i = 0; i < rhoSize; ++i){
     rhoSum += rhoArr[i];
@@ -435,7 +437,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   }
   
   ierr = VecRestoreArray(rho, &rhoArr);CHKERRQ(ierr);
-  */
+  
   ierr = VecSet(phi, 0.0);CHKERRQ(ierr);
   ierr = SNESSolve(user->snes, rho, phi);CHKERRQ(ierr);
   ierr = VecViewFromOptions(phi, NULL, "-phi_view");CHKERRQ(ierr);
@@ -478,8 +480,6 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
     // Interpolate gradient
     for (cp = 0; cp < Ncp; ++cp) {
       const PetscInt p = points[cp];
-      //PetscPrintf(MPI_COMM_WORLD, "Ncp: %i\n", Ncp);
-      //PetscPrintf(MPI_COMM_WORLD, "cp from dmswarmsortgetpoints: %i\n", p);
       gradPhi[0] = 0.0;
       gradPhi[1] = 0.0;
       gradPhi[2] = 0.0;
@@ -543,46 +543,6 @@ static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *c
   PetscFunctionReturn(0);
 }
 
-#if 1
-static PetscErrorCode Reweight(DM sw, DM plex){
-  PetscInt     cStart, cEnd, cell, dim, d;
-  PetscScalar *weights;
-  PetscReal   *coor;
-  PetscErrorCode ierr;
-  
-  ierr = DMSwarmSortGetAccess(sw);CHKERRQ(ierr);
-
-  ierr = DMSwarmGetField(sw, "w_q", NULL, NULL, (void **) &weights);CHKERRQ(ierr);
-  ierr = DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
-
-  ierr = DMPlexGetHeightStratum(plex, 0, &cStart, &cEnd);CHKERRQ(ierr);
-  for (cell = cStart; cell < cEnd; ++cell) {
-    PetscReal   *refcoord = PETSC_NULL;
-    PetscReal   *pcoord   = PETSC_NULL;
-    PetscInt    *points   = PETSC_NULL, Ncp, cp;
-          
-    ierr = DMGetCoordinateDim(plex, &dim);CHKERRQ(ierr);
-    ierr = DMSwarmSortGetPointsPerCell(sw, cell, &Ncp, &points);CHKERRQ(ierr);
-    
-    ierr = DMGetWorkArray(plex, Ncp*dim, MPIU_REAL, &pcoord);CHKERRQ(ierr);
-    for (cp = 0; cp < Ncp; ++cp) {
-      for (d = 0; d < dim; ++d) {
-        weights[cell*Ncp + cp] = 0.;
-      }
-    }
-    for (cp = 0; cp < Ncp; ++cp) {
-      for (d = 0; d < dim; ++d) {
-        weights[cell*Ncp+cp] += pcoord[cp*dim+d]/(2. * PETSC_PI);
-      }
-    }
-    ierr = DMRestoreWorkArray(plex, Ncp*dim, MPIU_REAL, &pcoord);CHKERRQ(ierr);
-  }
-  ierr = DMSwarmRestoreField(sw, "w_q", NULL, NULL, (void **) &weights);CHKERRQ(ierr);
-  ierr = DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
-  return(0);
-}
-#endif
-
 int main(int argc,char **argv)
 {
   PetscInt          i, par;
@@ -592,7 +552,6 @@ int main(int argc,char **argv)
   PetscInt          locSize, p, d, dim, Np, steps, step, *idx1, *idx2;
   TS                ts;
   DM                dm, sw;
-  Mat               J;
   AppCtx            user;
   MPI_Comm          comm;
   PetscErrorCode    ierr;
@@ -706,10 +665,9 @@ int main(int argc,char **argv)
     }
     if (!ts->steprollback) {
       TSPostStep(ts);
-#if 1      
+
       ierr = DMSwarmGetField(sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
       ierr = DMSwarmGetField(sw, "kinematics", NULL, NULL, (void **) &kin);CHKERRQ(ierr);
-      //ierr = DMSwarmGetField(sw, "w_q", NULL, NULL, (void **) &weights);
       ierr = TSGetSolution(ts, &solution);CHKERRQ(ierr);
       
       ierr = VecGetSubVector(solution,is1,&position);CHKERRQ(ierr);
@@ -742,33 +700,18 @@ int main(int argc,char **argv)
       
       ierr = DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coor);CHKERRQ(ierr);
       ierr = DMSwarmRestoreField(sw, "kinematics", NULL, NULL, (void **) &kin);CHKERRQ(ierr);
-#endif
+
     }
     ierr = DMSwarmMigrate(sw, PETSC_TRUE);CHKERRQ(ierr);
     ierr = TSReset(ts);CHKERRQ(ierr);
     ierr = PetscFree(idx1);CHKERRQ(ierr);
     ierr = PetscFree(idx2);CHKERRQ(ierr);
     ierr = PetscFree(probArr);CHKERRQ(ierr);
-    //ierr = Reweight(sw, dm);CHKERRQ(ierr);
-    //ISDestroy(&is1);
-    //ISDestroy(&is2);
-    //VecDestroy(&probVec);
   }
   ierr = TSGetConvergedReason(ts, &reason);CHKERRQ(ierr);
   ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
-#if 0
-  ierr = VecGetArrayRead(probVec, &endVals);CHKERRQ(ierr);
-  for(p = 0; p < Np; ++p){
-    vx = endVals[p*2*dim+2];
-    vy = endVals[p*2*dim+3];
-    ierr = PetscPrintf(comm, "Particle %D initial Energy: %g  Final Energy: %g\n", p,(double) (0.5*(1000./(p+1))),(double ) (0.5*(PetscSqr(vx) + PetscSqr(vy))));CHKERRQ(ierr);
-  }
-#endif
-  //ierr = VecRestoreArrayRead(probVec, &endVals);CHKERRQ(ierr);
+
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
-  //ierr = ISDestroy(&is1);CHKERRQ(ierr);
-  //ierr = ISDestroy(&is2);CHKERRQ(ierr);
-  ierr = MatDestroy(&J);CHKERRQ(ierr);
   ierr = SNESDestroy(&user.snes);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = DMDestroy(&sw);CHKERRQ(ierr);
@@ -789,7 +732,7 @@ int main(int argc,char **argv)
      args: -dim 2 -faces 4 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 1 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
    test:
      suffix: bsi1q2
-     args: -dim 2 -faces 32 -simplex 0 -particlesPerCell 200 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
+     args: -dim 2 -faces 32 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 1 -snes_monitor -pc_type svd
    test:
      suffix: bsi2q2
      args: -dim 2 -faces 4 -simplex 0 -particlesPerCell 6 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ts_basicsymplectic_type 2 -snes_monitor -pc_type svd
