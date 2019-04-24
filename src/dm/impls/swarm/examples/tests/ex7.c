@@ -686,7 +686,18 @@ int main(int argc,char **argv)
   ierr = SNESSetDM(user.snes, dm);CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(dm,&user,&user,&user);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(user.snes);CHKERRQ(ierr);
-  
+  {
+    Mat          J;
+    MatNullSpace nullSpace;
+
+    ierr = DMCreateMatrix(dm, &J);CHKERRQ(ierr);
+    ierr = MatNullSpaceCreate(PetscObjectComm((PetscObject) dm), PETSC_TRUE, 0, NULL, &nullSpace);CHKERRQ(ierr);
+    ierr = MatSetNullSpace(J, nullSpace);CHKERRQ(ierr);
+    ierr = MatNullSpaceDestroy(&nullSpace);CHKERRQ(ierr);
+    ierr = SNESSetJacobian(user.snes, J, J, NULL, NULL);CHKERRQ(ierr);
+    ierr = MatDestroy(&J);CHKERRQ(ierr);
+  }
+
   /* Place TSSolve in a loop to handle resetting the TS at every manual call of TSStep() */
   ierr = TSCreate(comm, &ts);CHKERRQ(ierr);
   for(step = 0; step < 100 ; ++step){
