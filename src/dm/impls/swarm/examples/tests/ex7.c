@@ -402,26 +402,21 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   ierr = VecViewFromOptions(f, NULL, "-weights_view");
   ierr = MatMultTranspose(M_p, f, rho);CHKERRQ(ierr);
   ierr = DMSwarmDestroyGlobalVectorFromField(dm, "w_q", &f);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) rho, "rho");CHKERRQ(ierr);
+  ierr = VecViewFromOptions(rho, NULL, "-poisson_rho_view");CHKERRQ(ierr);
+  /* Take nullspace out of rhs */
+  {
+    PetscScalar sum;
+    PetscInt    n;
+
+    ierr = VecGetSize(rho, &n);CHKERRQ(ierr);
+    ierr = VecSum(rho, &sum);CHKERRQ(ierr);
+    ierr = VecShift(rho, -sum/n);CHKERRQ(ierr);
+
+    ierr = VecSum(rho, &sum);CHKERRQ(ierr);
+    if (PetscAbsScalar(sum) > 1.0e-10) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Charge should have no DC component %g", sum);
+  }
   /* Solve Poisson */
-  PetscObjectSetName((PetscObject) rho, "rho");
-  ierr = VecViewFromOptions(rho, NULL, "-poisson_rho_view");
-  
-  ierr = VecGetLocalSize(rho, &rhoSize);CHKERRQ(ierr);
-  ierr = VecGetArray(rho, &rhoArr);CHKERRQ(ierr);
-  
-  rhoSum = 0;
-  for(int i = 0; i < rhoSize; ++i){
-    rhoSum += rhoArr[i];
-  }
-
-  rhoAvg = rhoSum/rhoSize;
-
-  for(int i = 0; i < rhoSize; ++i){
-    rhoArr[i] = rhoArr[i] - rhoAvg;
-  }
-
-  ierr = VecRestoreArray(rho, &rhoArr);CHKERRQ(ierr);
-
   ierr = VecSet(phi, 0.0);CHKERRQ(ierr);
   ierr = SNESSolve(user->snes, rho, phi);CHKERRQ(ierr);
   ierr = VecViewFromOptions(phi, NULL, "-phi_view");CHKERRQ(ierr);
