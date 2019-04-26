@@ -32,7 +32,7 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
     E    = glee->E;
     ierr = TSGetTimeError(ts,0,&E);CHKERRQ(ierr);
 
-    if (adapt->glee_use_local) { VecAXPY(E,-1.0,glee->Y);} /* local error = current error - previous step error */
+    if (adapt->glee_use_local) {ierr = VecAXPY(E,-1.0,glee->Y);CHKERRQ(ierr);} /* local error = current error - previous step error */
 
     /* this should be called with the solution at the beginning of the step too*/
     ierr = TSErrorWeightedENorm(ts,E,X,X,adapt->wnormtype,&enorm,&enorma,&enormr);CHKERRQ(ierr);
@@ -109,7 +109,6 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   *wlte   = enorm;
   *wltea  = enorma;
   *wlter  = enormr;
-
   PetscFunctionReturn(0);
 }
 
