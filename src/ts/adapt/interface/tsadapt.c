@@ -519,8 +519,8 @@ PetscErrorCode TSAdaptGetMaxIgnore(TSAdapt adapt,PetscReal *max_ignore)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(adapt,TSADAPT_CLASSID,1);
-  if (max_ignore) PetscValidRealPointer(max_ignore,2);
-  if (max_ignore) *max_ignore        = adapt->ignore_max;
+  PetscValidRealPointer(max_ignore,2);
+  *max_ignore = adapt->ignore_max;
   PetscFunctionReturn(0);
 }
 
