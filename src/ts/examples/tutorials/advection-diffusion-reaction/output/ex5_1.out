@@ -1,4 +1,4 @@
-0 TS dt 0.0001 time 0.
+output/ex5_1.out0 TS dt 0.0001 time 0.
 1 TS dt 0.001 time 0.0001
 2 TS dt 0.01 time 0.0011
 3 TS dt 0.1 time 0.0111
@@ -44,6 +44,7 @@ TS Object: 1 MPI processes
     clip fastest decrease 0.1
     maximum allowed timestep 1e+20
     minimum allowed timestep 1e-20
+    maximum solution absolute value to be ignored -1.
   SNES Object: 1 MPI processes
     type: newtonls
     maximum iterations=50, maximum function evaluations=10000
