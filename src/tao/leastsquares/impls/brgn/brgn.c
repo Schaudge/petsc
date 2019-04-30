@@ -89,11 +89,11 @@ static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G
     ierr = VecGetSize(gn->y,&K);CHKERRQ(ierr);
     *fcn += gn->lambda*(yESum - K*gn->epsilon);
     /* compute G = G + lambda*D'*(y./sqrt(y.^2+epsilon^2)),where y = D*x */  
-    ierr = VecPointwiseDivide(gn->y_work,gn->y,gn->y_work);CHKERRQ(ierr); /* reuse y_work = y./sqrt(y.^2+epsilon^2) */
+    ierr = VecPointwiseDivide(gn->y,gn->y,gn->y_work);CHKERRQ(ierr); /* reuse  already computed y = D*x, y_work = sqrt(y.^2+epsilon^2) */
     if (gn->D) {
-      ierr = MatMultTranspose(gn->D,gn->y_work,gn->x_work);CHKERRQ(ierr);
+      ierr = MatMultTranspose(gn->D,gn->y,gn->x_work);CHKERRQ(ierr);
     } else {
-      ierr = VecCopy(gn->y_work,gn->x_work);CHKERRQ(ierr);
+      ierr = VecCopy(gn->y,gn->x_work);CHKERRQ(ierr);
     }
     ierr = VecAXPY(G,gn->lambda,gn->x_work);CHKERRQ(ierr);
     break;

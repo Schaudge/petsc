@@ -89,8 +89,8 @@ if testPetscBinaryWriteAndRead_jointsparsity1
 %     A = [0.81  0.91  0.28  0.96  0.96
 %         0.91  0.63  0.55  0.16  0.49
 %         0.13  0.10  0.96  0.97  0.80];
-    xGT =  [0;0;1;0;0]; xGT = [xGT xGT]; %xGT = [xGT [0;0;0;1;0]];
-    %xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
+    %xGT =  [0;0;1;0;0]; %xGT = [xGT xGT]; %xGT = [xGT [0;0;0;1;0]];
+    xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
     L = size(xGT,2);
     b = A*xGT; % [0.28; 0.55; 0.96];
     % in PetscBinaryWrite, the code "for l=1:nargin-1" will write 'precision' and 'float64' as two double vectors
