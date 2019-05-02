@@ -84,7 +84,8 @@ PETSC_EXTERN PetscErrorCode PCSetOptionsPrefix(PC,const char[]);
 PETSC_EXTERN PetscErrorCode PCAppendOptionsPrefix(PC,const char[]);
 PETSC_EXTERN PetscErrorCode PCGetOptionsPrefix(PC,const char*[]);
 
-PETSC_EXTERN PetscErrorCode PCComputeExplicitOperator(PC,Mat*);
+PETSC_EXTERN PetscErrorCode PCComputeOperator(PC,MatType,Mat*);
+PETSC_DEPRECATED("Use PCComputeOperator()") PETSC_STATIC_INLINE PetscErrorCode PCComputeExplicitOperator(PC A,Mat* B) { return PCComputeOperator(A,NULL,B); }
 
 /*
       These are used to provide extra scaling of preconditioned
@@ -243,6 +244,7 @@ PETSC_EXTERN PetscErrorCode PCFieldSplitGetType(PC,PCCompositeType*);
 PETSC_EXTERN PetscErrorCode PCFieldSplitSetBlockSize(PC,PetscInt);
 PETSC_EXTERN PetscErrorCode PCFieldSplitSetIS(PC,const char[],IS);
 PETSC_EXTERN PetscErrorCode PCFieldSplitGetIS(PC,const char[],IS*);
+PETSC_EXTERN PetscErrorCode PCFieldSplitGetISByIndex(PC,PetscInt,IS*);
 PETSC_EXTERN PetscErrorCode PCFieldSplitRestrictIS(PC,IS);
 PETSC_EXTERN PetscErrorCode PCFieldSplitSetDMSplits(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCFieldSplitGetDMSplits(PC,PetscBool*);

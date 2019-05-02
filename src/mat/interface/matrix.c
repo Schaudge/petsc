@@ -679,7 +679,7 @@ PetscErrorCode MatRestoreRow(Mat mat,PetscInt row,PetscInt *ncols,const PetscInt
 
    Concepts: matrices^row access
 
-.seealso: MatRestoreRowRowUpperTriangular()
+.seealso: MatRestoreRowUpperTriangular()
 @*/
 PetscErrorCode MatGetRowUpperTriangular(Mat mat)
 {
@@ -690,8 +690,8 @@ PetscErrorCode MatGetRowUpperTriangular(Mat mat)
   PetscValidType(mat,1);
   if (!mat->assembled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for unassembled matrix");
   if (mat->factortype) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix");
-  if (!mat->ops->getrowuppertriangular) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Mat type %s",((PetscObject)mat)->type_name);
   MatCheckPreallocated(mat,1);
+  if (!mat->ops->getrowuppertriangular) PetscFunctionReturn(0);
   ierr = (*mat->ops->getrowuppertriangular)(mat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -718,7 +718,10 @@ PetscErrorCode MatRestoreRowUpperTriangular(Mat mat)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
+  PetscValidType(mat,1);
   if (!mat->assembled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for unassembled matrix");
+  if (mat->factortype) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix");
+  MatCheckPreallocated(mat,1);
   if (!mat->ops->restorerowuppertriangular) PetscFunctionReturn(0);
   ierr = (*mat->ops->restorerowuppertriangular)(mat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -952,6 +955,9 @@ PetscErrorCode MatSetUp(Mat A)
    Level: beginner
 
    Notes:
+    The ASCII viewers are only recommended for small matrices on at most a moderate number of processes,
+    the program will seemingly hang and take hours for larger matrices, for larger matrices one should use the binary format.
+
     See the manual page for MatLoad() for the exact format of the binary file when the binary
       viewer is used.
 
@@ -2278,6 +2284,21 @@ PetscErrorCode MatSetValuesBlockedLocal(Mat mat,PetscInt nrow,const PetscInt iro
     mat->was_assembled = PETSC_TRUE;
     mat->assembled     = PETSC_FALSE;
   }
+#if defined(PETSC_USE_DEBUG)
+  /* Condition on the mapping existing, because MatSetValuesBlockedLocal_IS does not require it to be set. */
+  if (mat->rmap->mapping) {
+    PetscInt irbs, rbs;
+    ierr = MatGetBlockSizes(mat, &rbs, NULL);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetBlockSize(mat->rmap->mapping,&irbs);CHKERRQ(ierr);
+    if (rbs != irbs) SETERRQ2(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"Different row block sizes! mat %D, row l2g map %D",rbs,irbs);
+  }
+  if (mat->cmap->mapping) {
+    PetscInt icbs, cbs;
+    ierr = MatGetBlockSizes(mat,NULL,&cbs);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetBlockSize(mat->cmap->mapping,&icbs);CHKERRQ(ierr);
+    if (cbs != icbs) SETERRQ2(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"Different col block sizes! mat %D, col l2g map %D",cbs,icbs);
+  }
+#endif
   ierr = PetscLogEventBegin(MAT_SetValues,mat,0,0,0);CHKERRQ(ierr);
   if (mat->ops->setvaluesblockedlocal) {
     ierr = (*mat->ops->setvaluesblockedlocal)(mat,nrow,irow,ncol,icol,y,addv);CHKERRQ(ierr);
@@ -4027,11 +4048,15 @@ PetscErrorCode MatCopy_Basic(Mat A,Mat B,MatStructure str)
   if (B->assembled) {
     ierr = MatZeroEntries(B);CHKERRQ(ierr);
   }
-  ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
-  for (i=rstart; i<rend; i++) {
-    ierr = MatGetRow(A,i,&nz,&cwork,&vwork);CHKERRQ(ierr);
-    ierr = MatSetValues(B,1,&i,nz,cwork,vwork,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = MatRestoreRow(A,i,&nz,&cwork,&vwork);CHKERRQ(ierr);
+  if (str == SAME_NONZERO_PATTERN) {
+    ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
+    for (i=rstart; i<rend; i++) {
+      ierr = MatGetRow(A,i,&nz,&cwork,&vwork);CHKERRQ(ierr);
+      ierr = MatSetValues(B,1,&i,nz,cwork,vwork,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = MatRestoreRow(A,i,&nz,&cwork,&vwork);CHKERRQ(ierr);
+    }
+  } else {
+    ierr = MatAYPX(B,0.0,A,str);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -4039,7 +4064,7 @@ PetscErrorCode MatCopy_Basic(Mat A,Mat B,MatStructure str)
 }
 
 /*@
-   MatCopy - Copys a matrix to another matrix.
+   MatCopy - Copies a matrix to another matrix.
 
    Collective on Mat
 
@@ -4183,6 +4208,7 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
       ierr = PetscStrncpy(convname,prefix[i],sizeof(convname));CHKERRQ(ierr);
       ierr = PetscStrlcat(convname,newtype,sizeof(convname));CHKERRQ(ierr);
       ierr = PetscStrcmp(convname,((PetscObject)mat)->type_name,&flg);CHKERRQ(ierr);
+      ierr = PetscInfo3(mat,"Check superclass %s %s -> %d\n",convname,((PetscObject)mat)->type_name,flg);CHKERRQ(ierr);
       if (flg) {
         if (reuse == MAT_INPLACE_MATRIX) {
           PetscFunctionReturn(0);
@@ -4204,6 +4230,7 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
       ierr = PetscStrlcat(convname,issame ? ((PetscObject)mat)->type_name : newtype,sizeof(convname));CHKERRQ(ierr);
       ierr = PetscStrlcat(convname,"_C",sizeof(convname));CHKERRQ(ierr);
       ierr = PetscObjectQueryFunction((PetscObject)mat,convname,&conv);CHKERRQ(ierr);
+      ierr = PetscInfo3(mat,"Check specialized (1) %s (%s) -> %d\n",convname,((PetscObject)mat)->type_name,!!conv);CHKERRQ(ierr);
       if (conv) goto foundconv;
     }
 
@@ -4219,6 +4246,7 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
       ierr = PetscStrlcat(convname,newtype,sizeof(convname));CHKERRQ(ierr);
       ierr = PetscStrlcat(convname,"_C",sizeof(convname));CHKERRQ(ierr);
       ierr = PetscObjectQueryFunction((PetscObject)B,convname,&conv);CHKERRQ(ierr);
+      ierr = PetscInfo3(mat,"Check specialized (2) %s (%s) -> %d\n",convname,((PetscObject)B)->type_name,!!conv);CHKERRQ(ierr);
       if (conv) {
         ierr = MatDestroy(&B);CHKERRQ(ierr);
         goto foundconv;
@@ -4227,6 +4255,7 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
 
     /* 3) See if a good general converter is registered for the desired class */
     conv = B->ops->convertfrom;
+    ierr = PetscInfo2(mat,"Check convertfrom (%s) -> %d\n",((PetscObject)B)->type_name,!!conv);CHKERRQ(ierr);
     ierr = MatDestroy(&B);CHKERRQ(ierr);
     if (conv) goto foundconv;
 
@@ -4234,9 +4263,11 @@ PetscErrorCode MatConvert(Mat mat, MatType newtype,MatReuse reuse,Mat *M)
     if (mat->ops->convert) {
       conv = mat->ops->convert;
     }
+    ierr = PetscInfo2(mat,"Check general convert (%s) -> %d\n",((PetscObject)mat)->type_name,!!conv);CHKERRQ(ierr);
     if (conv) goto foundconv;
 
     /* 5) Use a really basic converter. */
+    ierr = PetscInfo(mat,"Using MatConvert_Basic\n");CHKERRQ(ierr);
     conv = MatConvert_Basic;
 
 foundconv:
@@ -9814,8 +9845,6 @@ PetscErrorCode MatMatMult(Mat A,Mat B,MatReuse scall,PetscReal fill,Mat *C)
 .  C - the product matrix
 
    Notes:
-   Unless scall is MAT_REUSE_MATRIX C will be created.
-
    To determine the correct fill value, run with -info and search for the string "Fill ratio" to see the value
    actually needed.
 

@@ -427,6 +427,7 @@ PETSC_EXTERN PetscErrorCode KSPSetLagNorm(KSP,PetscBool);
 
 .seealso: KSPSolve(), KSPGetConvergedReason(), KSPSetTolerances()
 E*/
+#define KSP_DIVERGED_PCSETUP_FAILED_DEPRECATED KSP_DIVERGED_PCSETUP_FAILED PETSC_DEPRECATED_ENUM("Use KSP_DIVERGED_PC_FAILED (since v3.11)")
 typedef enum {/* converged */
               KSP_CONVERGED_RTOL_NORMAL        =  1,
               KSP_CONVERGED_ATOL_NORMAL        =  9,
@@ -448,6 +449,7 @@ typedef enum {/* converged */
               KSP_DIVERGED_NANORINF            = -9,
               KSP_DIVERGED_INDEFINITE_MAT      = -10,
               KSP_DIVERGED_PC_FAILED           = -11,
+              KSP_DIVERGED_PCSETUP_FAILED_DEPRECATED  = -11,
 
               KSP_CONVERGED_ITERATING          =  0} KSPConvergedReason;
 PETSC_EXTERN const char *const*KSPConvergedReasons;
@@ -590,6 +592,8 @@ M*/
 M*/
 
 PETSC_EXTERN PetscErrorCode KSPSetConvergenceTest(KSP,PetscErrorCode (*)(KSP,PetscInt,PetscReal,KSPConvergedReason*,void*),void*,PetscErrorCode (*)(void*));
+PETSC_EXTERN PetscErrorCode KSPGetConvergenceTest(KSP,PetscErrorCode (**)(KSP,PetscInt,PetscReal,KSPConvergedReason*,void*),void**,PetscErrorCode (**)(void*));
+PETSC_EXTERN PetscErrorCode KSPGetAndClearConvergenceTest(KSP,PetscErrorCode (**)(KSP,PetscInt,PetscReal,KSPConvergedReason*,void*),void**,PetscErrorCode (**)(void*));
 PETSC_EXTERN PetscErrorCode KSPGetConvergenceContext(KSP,void**);
 PETSC_EXTERN PetscErrorCode KSPConvergedDefault(KSP,PetscInt,PetscReal,KSPConvergedReason*,void*);
 PETSC_EXTERN PetscErrorCode KSPLSQRConvergedDefault(KSP,PetscInt,PetscReal,KSPConvergedReason*,void*);
@@ -613,7 +617,8 @@ PETSC_DEPRECATED("Use KSPConvergedDefaultSetUMIRNorm()") PETSC_STATIC_INLINE voi
 PETSC_DEPRECATED("Use KSPConvergedSkip()") PETSC_STATIC_INLINE void KSPSkipConverged(void) { /* never called */ }
 #define KSPSkipConverged (KSPSkipConverged, KSPConvergedSkip)
 
-PETSC_EXTERN PetscErrorCode KSPComputeExplicitOperator(KSP,Mat*);
+PETSC_EXTERN PetscErrorCode KSPComputeOperator(KSP,MatType,Mat*);
+PETSC_DEPRECATED("Use KSPComputeOperator()") PETSC_STATIC_INLINE PetscErrorCode KSPComputeExplicitOperator(KSP A,Mat* B) { return KSPComputeOperator(A,NULL,B); }
 
 /*E
     KSPCGType - Determines what type of CG to use

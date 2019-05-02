@@ -109,7 +109,7 @@ PetscErrorCode TaoTestHessian(Tao tao)
       A    = hessian;
       ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr);
     } else {
-      ierr = MatComputeExplicitOperator(hessian,&A);CHKERRQ(ierr);
+      ierr = MatComputeOperator(hessian,MATAIJ,&A);CHKERRQ(ierr);
     }
 
     ierr = MatCreate(PetscObjectComm((PetscObject)A),&B);CHKERRQ(ierr);
@@ -292,7 +292,7 @@ PetscErrorCode TaoComputeJacobian(Tao tao, Vec X, Mat J, Mat Jpre)
 
 /*@C
    TaoComputeResidualJacobian - Computes the least-squares residual Jacobian matrix that has been
-   set with TaoSetResidualJacobianRoutine().
+   set with TaoSetJacobianResidual().
 
    Collective on Tao
 
@@ -314,7 +314,7 @@ PetscErrorCode TaoComputeJacobian(Tao tao, Vec X, Mat J, Mat Jpre)
 
    Level: developer
 
-.seealso: TaoComputeResidual(), TaoSetResidualJacobianRoutine()
+.seealso: TaoComputeResidual(), TaoSetJacobianResidual()
 @*/
 PetscErrorCode TaoComputeResidualJacobian(Tao tao, Vec X, Mat J, Mat Jpre)
 {

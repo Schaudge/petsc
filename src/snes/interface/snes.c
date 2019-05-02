@@ -1083,9 +1083,11 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
   }
   ierr = SNESLineSearchSetFromOptions(snes->linesearch);CHKERRQ(ierr);
 
-  if (!snes->ksp) {ierr = SNESGetKSP(snes,&snes->ksp);CHKERRQ(ierr);}
-  ierr = KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
-  ierr = KSPSetFromOptions(snes->ksp);CHKERRQ(ierr);
+  if (snes->usesksp) {
+    if (!snes->ksp) {ierr = SNESGetKSP(snes,&snes->ksp);CHKERRQ(ierr);}
+    ierr = KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
+    ierr = KSPSetFromOptions(snes->ksp);CHKERRQ(ierr);
+  }
 
   /* if someone has set the SNES NPC type, create it. */
   ierr = SNESGetOptionsPrefix(snes, &optionsprefix);CHKERRQ(ierr);
@@ -2537,7 +2539,7 @@ PetscErrorCode SNESTestJacobian(SNES snes)
       A    = jacobian;
       ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr);
     } else {
-      ierr = MatComputeExplicitOperator(jacobian,&A);CHKERRQ(ierr);
+      ierr = MatComputeOperator(jacobian,MATAIJ,&A);CHKERRQ(ierr);
     }
 
     ierr = MatCreate(PetscObjectComm((PetscObject)A),&B);CHKERRQ(ierr);
@@ -2582,7 +2584,7 @@ PetscErrorCode SNESTestJacobian(SNES snes)
 
       for (row = Istart; row < Iend; row++) {
         ierr = MatGetRow(B,row,&bncols,&bcols,&bvals);CHKERRQ(ierr);
-        ierr = PetscMalloc2(bncols,&ccols,bncols,&cvals);CHKERRQ(ierr); 
+        ierr = PetscMalloc2(bncols,&ccols,bncols,&cvals);CHKERRQ(ierr);
         for (j = 0, cncols = 0; j < bncols; j++) {
           if (PetscAbsScalar(bvals[j]) > threshold) {
             ccols[cncols] = bcols[j];
@@ -2594,7 +2596,7 @@ PetscErrorCode SNESTestJacobian(SNES snes)
           ierr = MatSetValues(C,1,&row,cncols,ccols,cvals,INSERT_VALUES);CHKERRQ(ierr);
         }
         ierr = MatRestoreRow(B,row,&bncols,&bcols,&bvals);CHKERRQ(ierr);
-        ierr = PetscFree2(ccols,cvals);CHKERRQ(ierr); 
+        ierr = PetscFree2(ccols,cvals);CHKERRQ(ierr);
       }
       ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -2656,7 +2658,7 @@ PetscErrorCode SNESTestJacobian(SNES snes)
    is used internally within the nonlinear solvers.
 
    Developer Notes:
-    This has duplicative ways of checking the accuracy of the user provided Jacobian (see the options above). This is for historical reasons, the routine SNESTestJacobian() use to used 
+    This has duplicative ways of checking the accuracy of the user provided Jacobian (see the options above). This is for historical reasons, the routine SNESTestJacobian() use to used
       for with the SNESType of test that has been removed.
 
    Level: developer
@@ -2752,7 +2754,7 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
       PetscViewer  vdraw,vstdout;
       PetscBool    flg;
       if (flag_operator) {
-        ierr = MatComputeExplicitOperator(A,&Bexp_mine);CHKERRQ(ierr);
+        ierr = MatComputeOperator(A,MATAIJ,&Bexp_mine);CHKERRQ(ierr);
         Bexp = Bexp_mine;
       } else {
         /* See if the preconditioning matrix can be viewed and added directly */
@@ -2760,7 +2762,7 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
         if (flg) Bexp = B;
         else {
           /* If the "preconditioning" matrix is itself MATSHELL or some other type without direct support */
-          ierr = MatComputeExplicitOperator(B,&Bexp_mine);CHKERRQ(ierr);
+          ierr = MatComputeOperator(B,MATAIJ,&Bexp_mine);CHKERRQ(ierr);
           Bexp = Bexp_mine;
         }
       }
@@ -4345,17 +4347,18 @@ PetscErrorCode  SNESReasonView(SNES snes,PetscViewer viewer)
       Vec               u;
       PetscDS           prob;
       PetscInt          Nf, f;
-      PetscErrorCode (**exactFuncs)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar[], void *);
+      PetscErrorCode (**exactSol)(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar[], void *);
+      void            **exactCtx;
       PetscReal         error;
 
       ierr = SNESGetDM(snes, &dm);CHKERRQ(ierr);
       ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
       ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
       ierr = PetscDSGetNumFields(prob, &Nf);CHKERRQ(ierr);
-      ierr = PetscMalloc1(Nf, &exactFuncs);CHKERRQ(ierr);
-      for (f = 0; f < Nf; ++f) {ierr = PetscDSGetExactSolution(prob, f, &exactFuncs[f]);CHKERRQ(ierr);}
-      ierr = DMComputeL2Diff(dm, 0.0, exactFuncs, NULL, u, &error);CHKERRQ(ierr);
-      ierr = PetscFree(exactFuncs);CHKERRQ(ierr);
+      ierr = PetscMalloc2(Nf, &exactSol, Nf, &exactCtx);CHKERRQ(ierr);
+      for (f = 0; f < Nf; ++f) {ierr = PetscDSGetExactSolution(prob, f, &exactSol[f], &exactCtx[f]);CHKERRQ(ierr);}
+      ierr = DMComputeL2Diff(dm, 0.0, exactSol, exactCtx, u, &error);CHKERRQ(ierr);
+      ierr = PetscFree2(exactSol, exactCtx);CHKERRQ(ierr);
       if (error < 1.0e-11) {ierr = PetscViewerASCIIPrintf(viewer, "L_2 Error: < 1.0e-11\n");CHKERRQ(ierr);}
       else                 {ierr = PetscViewerASCIIPrintf(viewer, "L_2 Error: %g\n", error);CHKERRQ(ierr);}
     }
@@ -5487,7 +5490,7 @@ PetscErrorCode SNESSetNPC(SNES snes, SNES pc)
 /*@
   SNESGetNPC - Creates a nonlinear preconditioning solver (SNES) to be used to precondition the nonlinear solver.
 
-  Not Collective
+  Not Collective; but any changes to the obtained SNES object must be applied collectively
 
   Input Parameter:
 . snes - iterative context obtained from SNESCreate()
@@ -5498,10 +5501,13 @@ PetscErrorCode SNESSetNPC(SNES snes, SNES pc)
   Notes:
     If a SNES was previously set with SNESSetNPC() then that SNES is returned.
 
+    The (preconditioner) SNES returned automatically inherits the same nonlinear function and Jacobian supplied to the original
+    SNES during SNESSetUp()
+
   Level: developer
 
 .keywords: SNES, get, preconditioner
-.seealso: SNESSetNPC(), SNESHasNPC()
+.seealso: SNESSetNPC(), SNESHasNPC(), SNES, SNESCreate()
 @*/
 PetscErrorCode SNESGetNPC(SNES snes, SNES *pc)
 {

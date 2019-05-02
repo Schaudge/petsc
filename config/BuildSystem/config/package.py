@@ -28,7 +28,13 @@ class Package(config.base.Configure):
     self.lib              = []
     self.dlib             = []   # all libraries in this package and all those it depends on
     self.directory        = None # path of the package installation point; for example /usr/local or /home/bsmith/mpich-2.0.1
-    self.version          = ''
+
+    self.version          = ''   # the version of the package that PETSc will build with the --download-package option
+    self.versionname      = ''   # string name that appears in package include file, for example HYPRE_RELEASE_VERSION
+    self.versioninclude   = ''   # include file that contains package version information; if not provided uses includes[0]
+    self.minversion       = ''   # minimum version of the package that is supported
+    self.maxversion       = ''   # maximum version of the package that is supported
+    self.foundversion     = ''   # version of the package actually found
 
     # These are specified for the package
     self.required               = 0    # 1 means the package is required
@@ -83,6 +89,8 @@ class Package(config.base.Configure):
     self.installedpetsc         = 0
     self.installwithbatch       = 0  # install the package even though configure is running in the initial batch mode; f2blaslapack and fblaslapack for example
     self.builtafterpetsc        = 0  # package is compiled/installed after PETSc is compiled
+
+    self.downloaded             = 0  # 1 indicates that this package is being downloaded during this run (internal use only)
     return
 
   def __str__(self):
@@ -90,7 +98,10 @@ class Package(config.base.Configure):
     output = ''
     if self.found:
       output = self.name+':\n'
-      if self.version: output += '  Version:  '+self.version+'\n'
+      if self.foundversion:
+        output += '  Version:  '+self.foundversion+'\n'
+      else:
+        if self.version: output += '  Version:  '+self.version+'\n'
       if self.include: output += '  Includes: '+self.headers.toStringNoDupes(self.include)+'\n'
       if self.lib:     output += '  Library:  '+self.libraries.toStringNoDupes(self.lib)+'\n'
     return output
@@ -212,6 +223,13 @@ class Package(config.base.Configure):
     for flag in ['-m32', '-m64', '-xarch=v9','-q64','-mmic']:
       if cflags.find(flag) >=0: return flag
     return ''
+
+  def getDebugFlags(self,cflags):
+    outflags = []
+    for flag in cflags.split():
+      if flag in ['-g','-g3','-Z7']:
+        outflags.append(flag)
+    return ' '.join(outflags)
 
   def getWindowsNonOptFlags(self,cflags):
     outflags = []
@@ -356,7 +374,7 @@ class Package(config.base.Configure):
   def generateGuesses(self):
     d = self.checkDownload()
     if d:
-      if not self.liblist or self.builtafterpetsc :
+      if not self.liblist or not self.liblist[0] or self.builtafterpetsc :
         yield('Download '+self.PACKAGE, d, [], self.getIncludeDirs(d, self.includedir))
       for libdir in [self.libdir, self.altlibdir]:
         libdirpath = os.path.join(d, libdir)
@@ -394,6 +412,9 @@ class Package(config.base.Configure):
                            fakeExternalPackagesDir+' is reserved for --download-package scratch space. \n'+
                            'Do not install software in this location nor use software in this directory.')
 
+      if not self.liblist or not self.liblist[0]:
+          yield('User specified root directory '+self.PACKAGE, d, [], self.getIncludeDirs(d, self.includedir))
+
       for libdir in [self.libdir, self.altlibdir]:
         libdirpath = os.path.join(d, libdir)
         if not os.path.isdir(libdirpath):
@@ -409,7 +430,7 @@ class Package(config.base.Configure):
       raise RuntimeError('--with-'+self.package+'-dir='+self.argDB['with-'+self.package+'-dir']+' did not work')
 
     if 'with-'+self.package+'-include' in self.argDB and not 'with-'+self.package+'-lib' in self.argDB:
-      if self.liblist[0]:
+      if self.liblist and self.liblist[0]:
         raise RuntimeError('If you provide --with-'+self.package+'-include you must also supply with-'+self.package+'-lib\n')
     if 'with-'+self.package+'-lib' in self.argDB and not 'with-'+self.package+'-include' in self.argDB:
       if self.includes:
@@ -418,7 +439,7 @@ class Package(config.base.Configure):
         raise RuntimeError('Use --with-'+self.package+'-include; not --with-'+self.package+'-include-dir')
 
     if 'with-'+self.package+'-include' in self.argDB or 'with-'+self.package+'-lib' in self.argDB:
-      if self.liblist[0]:
+      if self.liblist and self.liblist[0]:
         libs  = self.argDB['with-'+self.package+'-lib']
         slibs = str(self.argDB['with-'+self.package+'-lib'])
       else:
@@ -496,6 +517,9 @@ class Package(config.base.Configure):
     makefileSaved  = os.path.join(self.confDir, 'lib','petsc','conf','pkg.conf.'+self.package)
     gcommfile      = os.path.join(self.packageDir, 'pkg.gitcommit')
     gcommfileSaved = os.path.join(self.confDir,'lib','petsc','conf', 'pkg.gitcommit.'+self.package)
+    if self.downloaded:
+      self.log.write(self.PACKAGE+' was just downloaded, forcing a rebuild because cannot determine if package has changed\n')
+      return 1
     if not os.path.isfile(makefileSaved) or not (self.getChecksum(makefileSaved) == self.getChecksum(makefile)):
       self.log.write('Have to rebuild '+self.PACKAGE+', '+makefile+' != '+makefileSaved+'\n')
       return 1
@@ -595,25 +619,26 @@ class Package(config.base.Configure):
     if not os.path.isdir(packages):
       os.makedirs(packages)
       self.framework.actions.addArgument('Framework', 'Directory creation', 'Created the external packages directory: '+packages)
-    Dir = None
+    Dir = []
     pkgdirs = os.listdir(packages)
     gitpkg  = 'git.'+self.package
     hgpkg  = 'hg.'+self.package
     self.logPrint('Looking for '+self.PACKAGE+' at '+gitpkg+ ', '+hgpkg+' or a directory starting with '+str(self.downloaddirnames))
     if hasattr(self.sourceControl, 'git') and gitpkg in pkgdirs:
-      Dir = gitpkg
-    elif hasattr(self.sourceControl, 'hg') and hgpkg in pkgdirs:
-      Dir = hgpkg
-    else:
-      for d in pkgdirs:
-        for j in self.downloaddirnames:
-          if d.startswith(j) and os.path.isdir(os.path.join(packages, d)) and not self.matchExcludeDir(d):
-            Dir = d
-            break
-        if Dir: break
+      Dir.append(gitpkg)
+    if hasattr(self.sourceControl, 'hg') and hgpkg in pkgdirs:
+      Dir.append(hgpkg)
+    for d in pkgdirs:
+      for j in self.downloaddirnames:
+        if d.startswith(j) and os.path.isdir(os.path.join(packages, d)) and not self.matchExcludeDir(d):
+          Dir.append(d)
+
+    if len(Dir) > 1:
+      raise RuntimeError('Located multiple directories with package '+self.package+' '+str(Dir)+'\nDelete directory '+self.arch+' and rerun ./configure')
+
     if Dir:
-      self.logPrint('Found a copy of '+self.PACKAGE+' in '+str(Dir))
-      return os.path.join(packages, Dir)
+      self.logPrint('Found a copy of '+self.PACKAGE+' in '+str(Dir[0]))
+      return os.path.join(packages, Dir[0])
     else:
       self.logPrint('Could not locate an existing copy of '+self.PACKAGE+':')
       self.logPrint('  '+str(pkgdirs))
@@ -670,6 +695,7 @@ class Package(config.base.Configure):
           raise RuntimeError('Could not locate downloaded package ' +self.PACKAGE +' in '+self.externalPackagesDir)
         self.framework.actions.addArgument(self.PACKAGE, 'Download', 'Downloaded '+self.PACKAGE+' into '+pkgdir)
         retriever.restoreLog()
+        self.downloaded = 1
         return pkgdir
       except RuntimeError as e:
         self.logPrint('ERROR: '+str(e))
@@ -858,6 +884,95 @@ class Package(config.base.Configure):
       raise RuntimeError('External package '+self.name+' does not support --download-'+self.downloadname.lower())
     return
 
+  def versionToStandardForm(self,version):
+    '''Returns original string'''
+    '''This can be overloaded by packages that have their own unique representation of versions; for example CUDA'''
+    return version
+
+  def versionToTuple(self,version):
+    '''Converts string of the form x.y to (x,y)'''
+    if not version: return ()
+    return tuple(map(int,version.split('.')))
+
+  def checkVersion(self):
+    '''Uses self.version, self.minversion, self.maxversion, self.versionname, and self.versioninclude to determine if package has required version'''
+    def dropPatch(str):
+      '''Drops the patch version number in a version if it exists'''
+      if str.find('.') == str.rfind('.'): return str
+      return str[0:str.rfind('.')]
+    def zeroPatch(str):
+      '''Replaces the patch version number in a version if it exists with 0'''
+      if str.find('.') == str.rfind('.'): return str
+      return str[0:str.rfind('.')]+'.0'
+    def infinitePatch(str):
+      '''Replaces the patch version number in a version if it exists with a very large number'''
+      if str.find('.') == str.rfind('.'): return str
+      return str[0:str.rfind('.')]+'.100000'
+
+    if not self.version and not self.minversion and not self.maxversion: return
+    if not self.versionname: return
+    if not self.versioninclude:
+      self.versioninclude = self.includes[0]
+    oldFlags = self.compilers.CPPFLAGS
+    self.compilers.CPPFLAGS += ' '+self.headers.toString(self.include)
+    if self.cxx:
+      self.pushLanguage('C++')
+    else:
+      self.pushLanguage(self.defaultLanguage)
+    output,err,ret  = self.preprocess('#include "'+self.versioninclude+'"\nversion='+self.versionname+'\n')
+    self.popLanguage()
+    self.compilers.CPPFLAGS = oldFlags
+    loutput = output.split('\n')
+    version = ''
+    for i in loutput:
+      if i.startswith('version='):
+        version = i[8:]
+        break
+    if not version:
+      self.log.write('For '+self.package+' unable to find version information: output below\n')
+      self.log.write(output)
+      return
+    version = version.strip().strip('\"')
+    self.foundversion = self.versionToStandardForm(version)
+
+    # check for consistency of version numbering
+    cnt = -1
+    if self.version:
+      cnt = self.version.count('.')
+    if self.minversion:
+      mcnt = self.minversion.count('.')
+      if cnt > -1 and not mcnt == cnt:
+        raise RuntimeError(self.package+' self.version '+self.version+' has different number of periods then self.minversion '+self.minversion+'\n')
+      cnt = max(mcnt,cnt)
+    if self.maxversion:
+      mcnt = self.maxversion.count('.')
+      if cnt > -1 and not mcnt == cnt:
+        raise RuntimeError(self.package+' self.version '+self.maxversion+' has different number of periods then self.minversion '+self.minversion+' or self.version '+self.version+'\n')
+      cnt = max(mcnt,cnt)
+    if cnt > -1:
+      mcnt = self.foundversion.count('.')
+      if mcnt == cnt-1: self.foundversion = self.foundversion+'.0'
+      elif not mcnt == cnt:
+        self.log.write(self.package+' version found '+self.foundversion+'does not have same number of periods as in package file\n')
+        return
+
+    self.log.write('For '+self.package+' need '+self.minversion+' <= '+self.foundversion+' <= '+self.maxversion+'\n')
+    suggest = ''
+    if self.download: suggest = '\nSuggest using --download-'+self.package+' for a compatible '+self.name
+    if self.minversion:
+      if self.versionToTuple(self.minversion) > self.versionToTuple(self.foundversion):
+        raise RuntimeError(self.package+' version is '+self.foundversion+' this version of PETSc needs at least '+self.minversion+suggest+'\n')
+    elif self.version:
+      if self.versionToTuple(zeroPatch(self.version)) > self.versionToTuple(self.foundversion):
+        self.logPrintBox('Warning: Using version '+self.foundversion+' of package '+self.package+' PETSc is tested with '+dropPatch(self.version)+suggest)
+    if self.maxversion:
+      if self.versionToTuple(self.maxversion) < self.versionToTuple(self.foundversion):
+        raise RuntimeError(self.package+' version is '+self.foundversion+' this version of PETSc needs at most '+self.maxversion+suggest+'\n')
+    elif self.version:
+      if self.versionToTuple(infinitePatch(self.version)) < self.versionToTuple(self.foundversion):
+        self.logPrintBox('Warning: Using version '+self.foundversion+' of package '+self.package+' PETSc is tested with '+dropPatch(self.version)+suggest)
+    return
+
   def configure(self):
     if self.download and self.argDB['download-'+self.downloadname.lower()] and (not self.framework.batchBodies or self.installwithbatch):
       self.argDB['with-'+self.package] = 1
@@ -879,6 +994,7 @@ class Package(config.base.Configure):
       self.libraries.pushLanguage(self.defaultLanguage)
       self.executeTest(self.checkDependencies)
       self.executeTest(self.configureLibrary)
+      self.executeTest(self.checkVersion)
       self.executeTest(self.checkSharedLibrary)
       self.libraries.popLanguage()
     else:

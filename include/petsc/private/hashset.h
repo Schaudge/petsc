@@ -114,6 +114,28 @@ M*/
 M*/
 
 /*MC
+  PetscHSetTUpdate - Add entries from a hash table to another
+
+  Synopsis:
+  #include <petsc/private/hashset.h>
+  PetscErrorCode PetscHSetTUpdate(PetscHSetT ht,PetscHSetT hda)
+
+  Input Parameter:
+. ht - The hash table to which elements are added
+. hta - The hash table from which the elements are retrieved
+
+  Output Parameter:
+. ht - The hash table filled with the elements from the other hash table
+
+  Level: developer
+
+  Concepts: hash table, set
+
+.keywords: hash table, set, duplicate
+.seealso: PetscHSetTCreate(), PetscHSetTDuplicate()
+M*/
+
+/*MC
   PetscHSetTClear - Clear a hash table
 
   Synopsis:
@@ -168,6 +190,27 @@ M*/
 
 .keywords: hash table, set, resize
 .seealso: PetscHSetTResize()
+M*/
+
+/*MC
+  PetscHSetTGetCapacity - Get the current size of the array in the hash table
+
+  Synopsis:
+  #include <petsc/private/hashset.h>
+  PetscErrorCode PetscHSetTGetCapacity(PetscHSetT ht,PetscInt *n)
+
+  Input Parameter:
+. ht - The hash table
+
+  Output Parameter:
+. n - The capacity
+
+  Level: developer
+
+  Concepts: hash table, set
+
+.keywords: hash table, set, resize
+.seealso: PetscHSetTResize(), PetscHSetTGetSize()
 M*/
 
 /*MC
@@ -350,6 +393,20 @@ PetscErrorCode Petsc##HashT##Duplicate(Petsc##HashT ht,Petsc##HashT *hd)        
 }                                                                                                    \
                                                                                                      \
 PETSC_STATIC_INLINE PETSC_UNUSED                                                                     \
+PetscErrorCode Petsc##HashT##Update(Petsc##HashT ht,Petsc##HashT hta)                                \
+{                                                                                                    \
+  int     ret;                                                                                       \
+  KeyType key;                                                                                       \
+  PetscFunctionBegin;                                                                                \
+  PetscValidPointer(ht,1);                                                                           \
+  PetscValidPointer(hta,2);                                                                          \
+  kh_foreach_key(hta,key,{                                                                           \
+      kh_put(HashT,ht,key,&ret);                                                                     \
+      PetscHashAssert(ret>=0);})                                                                     \
+  PetscFunctionReturn(0);                                                                            \
+}                                                                                                    \
+                                                                                                     \
+PETSC_STATIC_INLINE PETSC_UNUSED                                                                     \
 PetscErrorCode Petsc##HashT##Clear(Petsc##HashT ht)                                                  \
 {                                                                                                    \
   PetscFunctionBegin;                                                                                \
@@ -376,6 +433,16 @@ PetscErrorCode Petsc##HashT##GetSize(Petsc##HashT ht,PetscInt *n)               
   PetscValidPointer(ht,1);                                                                           \
   PetscValidIntPointer(n,2);                                                                         \
   *n = (PetscInt)kh_size(ht);                                                                        \
+  PetscFunctionReturn(0);                                                                            \
+}                                                                                                    \
+                                                                                                     \
+PETSC_STATIC_INLINE PETSC_UNUSED                                                                     \
+PetscErrorCode Petsc##HashT##GetCapacity(Petsc##HashT ht,PetscInt *n)                                \
+{                                                                                                    \
+  PetscFunctionBegin;                                                                                \
+  PetscValidPointer(ht,1);                                                                           \
+  PetscValidIntPointer(n,2);                                                                         \
+  *n = (PetscInt)kh_n_buckets(ht);                                                                   \
   PetscFunctionReturn(0);                                                                            \
 }                                                                                                    \
                                                                                                      \

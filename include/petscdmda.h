@@ -75,8 +75,7 @@ PETSC_EXTERN PetscErrorCode DMDAGetNeighbors(DM,const PetscMPIInt**);
 PETSC_EXTERN PetscErrorCode DMDASetAOType(DM,AOType);
 PETSC_EXTERN PetscErrorCode DMDAGetAO(DM,AO*);
 PETSC_EXTERN PetscErrorCode DMDASetUniformCoordinates(DM,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal);
-#include <petscgll.h>
-PETSC_EXTERN PetscErrorCode DMDASetGLLCoordinates(DM,PetscGLL*);
+PETSC_EXTERN PetscErrorCode DMDASetGLLCoordinates(DM,PetscInt,PetscReal*);
 PETSC_EXTERN PetscErrorCode DMDAGetCoordinateArray(DM,void*);
 PETSC_EXTERN PetscErrorCode DMDARestoreCoordinateArray(DM,void*);
 PETSC_EXTERN PetscErrorCode DMDAGetBoundingBox(DM,PetscReal[],PetscReal[]);
@@ -207,7 +206,6 @@ PETSC_EXTERN PetscErrorCode DMDAGetNumVertices(DM, PetscInt *, PetscInt *, Petsc
 PETSC_EXTERN PetscErrorCode DMDAGetNumFaces(DM, PetscInt *, PetscInt *, PetscInt *, PetscInt *, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMDAGetHeightStratum(DM, PetscInt, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMDAGetDepthStratum(DM, PetscInt, PetscInt *, PetscInt *);
-PETSC_EXTERN PetscErrorCode DMDACreateSection(DM, const PetscInt[], const PetscInt[], const PetscInt[], PetscSection *);
 PETSC_EXTERN PetscErrorCode DMDAComputeCellGeometryFEM(DM, PetscInt, PetscQuadrature, PetscReal [], PetscReal [], PetscReal [], PetscReal []);
 PETSC_EXTERN PetscErrorCode DMDAGetTransitiveClosure(DM, PetscInt, PetscBool, PetscInt *, PetscInt **);
 PETSC_EXTERN PetscErrorCode DMDARestoreTransitiveClosure(DM, PetscInt, PetscBool, PetscInt *, PetscInt **);

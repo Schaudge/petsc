@@ -8,7 +8,7 @@
 #include <petscdmfield.h>
 
 /* Logging support */
-PetscLogEvent DMPLEX_Interpolate, DMPLEX_Partition, DMPLEX_Distribute, DMPLEX_DistributeCones, DMPLEX_DistributeLabels, DMPLEX_DistributeSF, DMPLEX_DistributeOverlap, DMPLEX_DistributeField, DMPLEX_DistributeData, DMPLEX_Migrate, DMPLEX_InterpolateSF, DMPLEX_GlobalToNaturalBegin, DMPLEX_GlobalToNaturalEnd, DMPLEX_NaturalToGlobalBegin, DMPLEX_NaturalToGlobalEnd, DMPLEX_Stratify, DMPLEX_Preallocate, DMPLEX_ResidualFEM, DMPLEX_JacobianFEM, DMPLEX_InterpolatorFEM, DMPLEX_InjectorFEM, DMPLEX_IntegralFEM, DMPLEX_CreateGmsh;
+PetscLogEvent DMPLEX_Interpolate, DMPLEX_Partition, DMPLEX_Distribute, DMPLEX_DistributeCones, DMPLEX_DistributeLabels, DMPLEX_DistributeSF, DMPLEX_DistributeOverlap, DMPLEX_DistributeField, DMPLEX_DistributeData, DMPLEX_Migrate, DMPLEX_InterpolateSF, DMPLEX_GlobalToNaturalBegin, DMPLEX_GlobalToNaturalEnd, DMPLEX_NaturalToGlobalBegin, DMPLEX_NaturalToGlobalEnd, DMPLEX_Stratify, DMPLEX_Preallocate, DMPLEX_ResidualFEM, DMPLEX_JacobianFEM, DMPLEX_InterpolatorFEM, DMPLEX_InjectorFEM, DMPLEX_IntegralFEM, DMPLEX_CreateGmsh, DMPLEX_RebalanceSharedPoints;
 
 PETSC_EXTERN PetscErrorCode VecView_MPI(Vec, PetscViewer);
 
@@ -414,24 +414,26 @@ PetscErrorCode VecView_Plex_Native(Vec originalv, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5, &ishdf5);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERVTK,  &isvtk);CHKERRQ(ierr);
   if (format == PETSC_VIEWER_NATIVE) {
-    const char *vecname;
-    PetscInt    n, nroots;
+    /* Natural ordering is the common case for DMDA, NATIVE means plain vector, for PLEX is the opposite */
+    /* this need a better fix */
+    if (dm->useNatural) {
+      if (dm->sfNatural) {
+        const char *vecname;
+        PetscInt    n, nroots;
 
-    if (dm->sfNatural) {
-      ierr = VecGetLocalSize(originalv, &n);CHKERRQ(ierr);
-      ierr = PetscSFGetGraph(dm->sfNatural, &nroots, NULL, NULL, NULL);CHKERRQ(ierr);
-      if (n == nroots) {
-        ierr = DMGetGlobalVector(dm, &v);CHKERRQ(ierr);
-        ierr = DMPlexGlobalToNaturalBegin(dm, originalv, v);CHKERRQ(ierr);
-        ierr = DMPlexGlobalToNaturalEnd(dm, originalv, v);CHKERRQ(ierr);
-        ierr = PetscObjectGetName((PetscObject) originalv, &vecname);CHKERRQ(ierr);
-        ierr = PetscObjectSetName((PetscObject) v, vecname);CHKERRQ(ierr);
-      } else SETERRQ(comm, PETSC_ERR_ARG_WRONG, "DM global to natural SF only handles global vectors");
-    } else SETERRQ(comm, PETSC_ERR_ARG_WRONGSTATE, "DM global to natural SF was not created");
-  } else {
-    /* we are viewing a natural DMPlex vec. */
-    v = originalv;
-  }
+        ierr = VecGetLocalSize(originalv, &n);CHKERRQ(ierr);
+        ierr = PetscSFGetGraph(dm->sfNatural, &nroots, NULL, NULL, NULL);CHKERRQ(ierr);
+        if (n == nroots) {
+          ierr = DMGetGlobalVector(dm, &v);CHKERRQ(ierr);
+          ierr = DMPlexGlobalToNaturalBegin(dm, originalv, v);CHKERRQ(ierr);
+          ierr = DMPlexGlobalToNaturalEnd(dm, originalv, v);CHKERRQ(ierr);
+          ierr = PetscObjectGetName((PetscObject) originalv, &vecname);CHKERRQ(ierr);
+          ierr = PetscObjectSetName((PetscObject) v, vecname);CHKERRQ(ierr);
+        } else SETERRQ(comm, PETSC_ERR_ARG_WRONG, "DM global to natural SF only handles global vectors");
+      } else SETERRQ(comm, PETSC_ERR_ARG_WRONGSTATE, "DM global to natural SF was not created");
+    } else v = originalv;
+  } else v = originalv;
+
   if (ishdf5) {
 #if defined(PETSC_HAVE_HDF5)
     ierr = VecView_Plex_HDF5_Native_Internal(v, viewer);CHKERRQ(ierr);
@@ -447,7 +449,7 @@ PetscErrorCode VecView_Plex_Native(Vec originalv, PetscViewer viewer)
     if (isseq) {ierr = VecView_Seq(v, viewer);CHKERRQ(ierr);}
     else       {ierr = VecView_MPI(v, viewer);CHKERRQ(ierr);}
   }
-  if (format == PETSC_VIEWER_NATIVE) {ierr = DMRestoreGlobalVector(dm, &v);CHKERRQ(ierr);}
+  if (v != originalv) {ierr = DMRestoreGlobalVector(dm, &v);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
@@ -515,23 +517,27 @@ PetscErrorCode VecLoad_Plex_Native(Vec originalv, PetscViewer viewer)
   ierr = PetscViewerGetFormat(viewer, &format);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5, &ishdf5);CHKERRQ(ierr);
   if (format == PETSC_VIEWER_NATIVE) {
-    if (dm->sfNatural) {
-      if (ishdf5) {
+    if (dm->useNatural) {
+      if (dm->sfNatural) {
+        if (ishdf5) {
 #if defined(PETSC_HAVE_HDF5)
-        Vec         v;
-        const char *vecname;
+          Vec         v;
+          const char *vecname;
 
-        ierr = DMGetGlobalVector(dm, &v);CHKERRQ(ierr);
-        ierr = PetscObjectGetName((PetscObject) originalv, &vecname);CHKERRQ(ierr);
-        ierr = PetscObjectSetName((PetscObject) v, vecname);CHKERRQ(ierr);
-        ierr = VecLoad_Plex_HDF5_Native_Internal(v, viewer);CHKERRQ(ierr);
-        ierr = DMPlexNaturalToGlobalBegin(dm, v, originalv);CHKERRQ(ierr);
-        ierr = DMPlexNaturalToGlobalEnd(dm, v, originalv);CHKERRQ(ierr);
-        ierr = DMRestoreGlobalVector(dm, &v);CHKERRQ(ierr);
+          ierr = DMGetGlobalVector(dm, &v);CHKERRQ(ierr);
+          ierr = PetscObjectGetName((PetscObject) originalv, &vecname);CHKERRQ(ierr);
+          ierr = PetscObjectSetName((PetscObject) v, vecname);CHKERRQ(ierr);
+          ierr = VecLoad_Plex_HDF5_Native_Internal(v, viewer);CHKERRQ(ierr);
+          ierr = DMPlexNaturalToGlobalBegin(dm, v, originalv);CHKERRQ(ierr);
+          ierr = DMPlexNaturalToGlobalEnd(dm, v, originalv);CHKERRQ(ierr);
+          ierr = DMRestoreGlobalVector(dm, &v);CHKERRQ(ierr);
 #else
-        SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "HDF5 not supported in this build.\nPlease reconfigure using --download-hdf5");
+          SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "HDF5 not supported in this build.\nPlease reconfigure using --download-hdf5");
 #endif
-      } else SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Reading in natural order is not supported for anything but HDF5.");
+        } else SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Reading in natural order is not supported for anything but HDF5.");
+      }
+    } else {
+      ierr = VecLoad_Default(originalv, viewer);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -2700,9 +2706,9 @@ PetscErrorCode DMPlexGetJoin(DM dm, PetscInt numPoints, const PetscInt points[],
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidPointer(points, 2);
-  PetscValidPointer(numCoveredPoints, 3);
-  PetscValidPointer(coveredPoints, 4);
+  PetscValidIntPointer(points, 3);
+  PetscValidIntPointer(numCoveredPoints, 4);
+  PetscValidPointer(coveredPoints, 5);
   ierr = DMGetWorkArray(dm, mesh->maxSupportSize, MPIU_INT, &join[0]);CHKERRQ(ierr);
   ierr = DMGetWorkArray(dm, mesh->maxSupportSize, MPIU_INT, &join[1]);CHKERRQ(ierr);
   /* Copy in support of first point */
@@ -2811,9 +2817,9 @@ PetscErrorCode DMPlexGetFullJoin(DM dm, PetscInt numPoints, const PetscInt point
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidPointer(points, 2);
-  PetscValidPointer(numCoveredPoints, 3);
-  PetscValidPointer(coveredPoints, 4);
+  PetscValidIntPointer(points, 3);
+  PetscValidIntPointer(numCoveredPoints, 4);
+  PetscValidPointer(coveredPoints, 5);
 
   ierr    = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
   ierr    = PetscCalloc1(numPoints, &closures);CHKERRQ(ierr);
@@ -3327,6 +3333,11 @@ PetscErrorCode DMPlexGetDepth(DM dm, PetscInt *depth)
 + start - The first point at this depth
 - end   - One beyond the last point at this depth
 
+  Notes:
+  Depth indexing is related to topological dimension.  Depth stratum 0 contains the lowest topological dimension points,
+  often "vertices".  If the mesh is "interpolated" (see DMPlexInterpolate()), then depth stratum 1 contains the next
+  higher dimension, e.g., "edges".
+
   Level: developer
 
 .keywords: mesh, points
@@ -3367,6 +3378,11 @@ PetscErrorCode DMPlexGetDepthStratum(DM dm, PetscInt stratumValue, PetscInt *sta
   Output Parameters:
 + start - The first point at this height
 - end   - One beyond the last point at this height
+
+  Notes:
+  Height indexing is related to topological codimension.  Height stratum 0 contains the highest topological dimension
+  points, often called "cells" or "elements".  If the mesh is "interpolated" (see DMPlexInterpolate()), then height
+  stratum 1 contains the boundary of these "cells", often called "faces" or "facets".
 
   Level: developer
 
@@ -3540,7 +3556,64 @@ PetscErrorCode DMPlexGetConeOrientations(DM dm, PetscInt *coneOrientations[])
 
 /******************************** FEM Support **********************************/
 
-PetscErrorCode DMPlexCreateSpectralClosurePermutation(DM dm, PetscInt point, PetscSection section)
+/*@
+
+  DMPlexSetClosurePermutationTensor - Create a permutation from the default (BFS) point ordering in the closure, to a
+  lexicographic ordering over the tensor product cell (i.e., line, quad, hex, etc.), and set this permutation in the
+  section provided (or default section of the DM).
+
+  Input Parameters:
++ dm      - The DM
+. point   - Either a cell (highest dim point) or an edge (dim 1 point), or PETSC_DETERMINE
+- section - The PetscSection to reorder, or NULL for the default section
+
+  Note: The point is used to determine the number of dofs/field on an edge. For SEM, this is related to the polynomial
+  degree of the basis.
+
+  Example:
+  A typical interpolated single-quad mesh might order points as
+.vb
+  [c0, v1, v2, v3, v4, e5, e6, e7, e8]
+
+  v4 -- e6 -- v3
+  |           |
+  e7    c0    e8
+  |           |
+  v1 -- e5 -- v2
+.ve
+
+  (There is no significance to the ordering described here.)  The default section for a Q3 quad might typically assign
+  dofs in the order of points, e.g.,
+.vb
+    c0 -> [0,1,2,3]
+    v1 -> [4]
+    ...
+    e5 -> [8, 9]
+.ve
+
+  which corresponds to the dofs
+.vb
+    6   10  11  7
+    13  2   3   15
+    12  0   1   14
+    4   8   9   5
+.ve
+
+  The closure in BFS ordering works through height strata (cells, edges, vertices) to produce the ordering
+.vb
+  0 1 2 3 8 9 14 15 11 10 13 12 4 5 7 6
+.ve
+
+  After calling DMPlexSetClosurePermutationTensor(), the closure will be ordered lexicographically,
+.vb
+   4 8 9 5 12 0 1 14 13 2 3 15 6 10 11 7
+.ve
+
+  Level: developer
+
+.seealso: DMGetSection(), PetscSectionSetClosurePermutation()
+@*/
+PetscErrorCode DMPlexSetClosurePermutationTensor(DM dm, PetscInt point, PetscSection section)
 {
   DMLabel        label;
   PetscInt      *perm;
@@ -3566,7 +3639,7 @@ PetscErrorCode DMPlexCreateSpectralClosurePermutation(DM dm, PetscInt point, Pet
   } else SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Point %D of depth %D cannot be used to bootstrap spectral ordering for dim %D", point, depth, dim);
   if (!section) {ierr = DMGetSection(dm, &section);CHKERRQ(ierr);}
   ierr = PetscSectionGetNumFields(section, &Nf);CHKERRQ(ierr);
-  if (dim <= 1) PetscFunctionReturn(0);
+  if (dim < 1) PetscFunctionReturn(0);
   for (f = 0; f < Nf; ++f) {
     /* An order k SEM disc has k-1 dofs on an edge */
     ierr = PetscSectionGetFieldDof(section, eStart, f, &k);CHKERRQ(ierr);
@@ -3577,6 +3650,19 @@ PetscErrorCode DMPlexCreateSpectralClosurePermutation(DM dm, PetscInt point, Pet
   ierr = PetscMalloc1(size, &perm);CHKERRQ(ierr);
   for (f = 0; f < Nf; ++f) {
     switch (dim) {
+    case 1:
+      ierr = PetscSectionGetFieldDof(section, eStart, f, &k);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldComponents(section, f, &Nc);CHKERRQ(ierr);
+      k = k/Nc + 1;
+      /*
+        Original ordering is [ edge of length k-1; vtx0; vtx1 ]
+        We want              [ vtx0; edge of length k-1; vtx1 ]
+      */
+      for (c=0; c<Nc; c++,offset++) perm[offset] = (k-1)*Nc + c + foffset;
+      for (i=0; i<k-1; i++) for (c=0; c<Nc; c++,offset++) perm[offset] = i*Nc + c + foffset;
+      for (c=0; c<Nc; c++,offset++) perm[offset] = k*Nc + c + foffset;
+      foffset = offset;
+      break;
     case 2:
       /* The original quad closure is oriented clockwise, {f, e_b, e_r, e_t, e_l, v_lb, v_rb, v_tr, v_tl} */
       ierr = PetscSectionGetFieldDof(section, eStart, f, &k);CHKERRQ(ierr);
@@ -4738,11 +4824,29 @@ static PetscErrorCode DMPlexPrintMatSetValues(PetscViewer viewer, Mat A, PetscIn
   PetscFunctionReturn(0);
 }
 
-/* . off - The global offset of this point */
-PetscErrorCode DMPlexGetIndicesPoint_Internal(PetscSection section, PetscInt point, PetscInt off, PetscInt *loff, PetscBool setBC, const PetscInt perm[], PetscInt indices[])
+/*
+  DMPlexGetIndicesPoint_Internal - Add the indices for dofs on a point to an index array
+
+  Input Parameters:
++ section - The section for this data layout
+. point   - The point contributing dofs with these indices
+. off     - The global offset of this point
+. loff    - The local offset of each field
+. setBC   - The flag determining whether to include indices of bounsary values
+. perm    - A permutation of the dofs on this point, or NULL
+- indperm - A permutation of the entire indices array, or NULL
+
+  Output Parameter:
+. indices - Indices for dofs on this point
+
+  Level: developer
+
+  Note: The indices could be local or global, depending on the value of 'off'.
+*/
+PetscErrorCode DMPlexGetIndicesPoint_Internal(PetscSection section, PetscInt point, PetscInt off, PetscInt *loff, PetscBool setBC, const PetscInt perm[], const PetscInt indperm[], PetscInt indices[])
 {
-  PetscInt        dof;    /* The number of unknowns on this point */
-  PetscInt        cdof;   /* The number of constraints on this point */
+  PetscInt        dof;   /* The number of unknowns on this point */
+  PetscInt        cdof;  /* The number of constraints on this point */
   const PetscInt *cdofs; /* The indices of the constrained dofs on this point */
   PetscInt        cind = 0, k;
   PetscErrorCode  ierr;
@@ -4751,32 +4855,24 @@ PetscErrorCode DMPlexGetIndicesPoint_Internal(PetscSection section, PetscInt poi
   ierr = PetscSectionGetDof(section, point, &dof);CHKERRQ(ierr);
   ierr = PetscSectionGetConstraintDof(section, point, &cdof);CHKERRQ(ierr);
   if (!cdof || setBC) {
-    if (perm) {
-      for (k = 0; k < dof; k++) indices[*loff+perm[k]] = off + k;
-    } else {
-      for (k = 0; k < dof; k++) indices[*loff+k] = off + k;
+    for (k = 0; k < dof; ++k) {
+      const PetscInt preind = perm ? *loff+perm[k] : *loff+k;
+      const PetscInt ind    = indperm ? indperm[preind] : preind;
+
+      indices[ind] = off + k;
     }
   } else {
     ierr = PetscSectionGetConstraintIndices(section, point, &cdofs);CHKERRQ(ierr);
-    if (perm) {
-      for (k = 0; k < dof; ++k) {
-        if ((cind < cdof) && (k == cdofs[cind])) {
-          /* Insert check for returning constrained indices */
-          indices[*loff+perm[k]] = -(off+k+1);
-          ++cind;
-        } else {
-          indices[*loff+perm[k]] = off+k-cind;
-        }
-      }
-    } else {
-      for (k = 0; k < dof; ++k) {
-        if ((cind < cdof) && (k == cdofs[cind])) {
-          /* Insert check for returning constrained indices */
-          indices[*loff+k] = -(off+k+1);
-          ++cind;
-        } else {
-          indices[*loff+k] = off+k-cind;
-        }
+    for (k = 0; k < dof; ++k) {
+      const PetscInt preind = perm ? *loff+perm[k] : *loff+k;
+      const PetscInt ind    = indperm ? indperm[preind] : preind;
+
+      if ((cind < cdof) && (k == cdofs[cind])) {
+        /* Insert check for returning constrained indices */
+        indices[ind] = -(off+k+1);
+        ++cind;
+      } else {
+        indices[ind] = off+k-cind;
       }
     }
   }
@@ -4789,7 +4885,7 @@ PetscErrorCode DMPlexGetIndicesPoint_Internal(PetscSection section, PetscInt poi
 
  . off - The global offset of this point
 */
-PetscErrorCode DMPlexGetIndicesPointFields_Internal(PetscSection section, PetscInt point, PetscInt off, PetscInt foffs[], PetscBool setBC, const PetscInt ***perms, PetscInt permsoff, PetscInt indices[])
+PetscErrorCode DMPlexGetIndicesPointFields_Internal(PetscSection section, PetscInt point, PetscInt off, PetscInt foffs[], PetscBool setBC, const PetscInt ***perms, PetscInt permsoff, const PetscInt indperm[], PetscInt indices[])
 {
   PetscInt       numFields, foff, f;
   PetscErrorCode ierr;
@@ -4805,27 +4901,23 @@ PetscErrorCode DMPlexGetIndicesPointFields_Internal(PetscSection section, PetscI
     ierr = PetscSectionGetFieldDof(section, point, f, &fdof);CHKERRQ(ierr);
     ierr = PetscSectionGetFieldConstraintDof(section, point, f, &cfdof);CHKERRQ(ierr);
     if (!cfdof || setBC) {
-      if (perm) {for (b = 0; b < fdof; b++) {indices[foffs[f]+perm[b]] = off+foff+b;}}
-      else      {for (b = 0; b < fdof; b++) {indices[foffs[f]+     b ] = off+foff+b;}}
+      for (b = 0; b < fdof; ++b) {
+        const PetscInt preind = perm ? foffs[f]+perm[b] : foffs[f]+b;
+        const PetscInt ind    = indperm ? indperm[preind] : preind;
+
+        indices[ind] = off+foff+b;
+      }
     } else {
       ierr = PetscSectionGetFieldConstraintIndices(section, point, f, &fcdofs);CHKERRQ(ierr);
-      if (perm) {
-        for (b = 0; b < fdof; b++) {
-          if ((cind < cfdof) && (b == fcdofs[cind])) {
-            indices[foffs[f]+perm[b]] = -(off+foff+b+1);
-            ++cind;
-          } else {
-            indices[foffs[f]+perm[b]] = off+foff+b-cind;
-          }
-        }
-      } else {
-        for (b = 0; b < fdof; b++) {
-          if ((cind < cfdof) && (b == fcdofs[cind])) {
-            indices[foffs[f]+b] = -(off+foff+b+1);
-            ++cind;
-          } else {
-            indices[foffs[f]+b] = off+foff+b-cind;
-          }
+      for (b = 0; b < fdof; ++b) {
+        const PetscInt preind = perm ? foffs[f]+perm[b] : foffs[f]+b;
+        const PetscInt ind    = indperm ? indperm[preind] : preind;
+
+        if ((cind < cfdof) && (b == fcdofs[cind])) {
+          indices[ind] = -(off+foff+b+1);
+          ++cind;
+        } else {
+          indices[ind] = off+foff+b-cind;
         }
       }
     }
@@ -4840,7 +4932,7 @@ PetscErrorCode DMPlexGetIndicesPointFields_Internal(PetscSection section, PetscI
 
  . foffs - The offset into 'indices' for each field, since it is segregated by field
 */
-PetscErrorCode DMPlexGetIndicesPointFieldsSplit_Internal(PetscSection section, PetscSection globalSection, PetscInt point, PetscInt foffs[], PetscBool setBC, const PetscInt ***perms, PetscInt permsoff, PetscInt indices[])
+PetscErrorCode DMPlexGetIndicesPointFieldsSplit_Internal(PetscSection section, PetscSection globalSection, PetscInt point, PetscInt foffs[], PetscBool setBC, const PetscInt ***perms, PetscInt permsoff, const PetscInt indperm[], PetscInt indices[])
 {
   PetscInt       numFields, foff, f;
   PetscErrorCode ierr;
@@ -4857,27 +4949,23 @@ PetscErrorCode DMPlexGetIndicesPointFieldsSplit_Internal(PetscSection section, P
     ierr = PetscSectionGetFieldConstraintDof(section, point, f, &cfdof);CHKERRQ(ierr);
     ierr = PetscSectionGetFieldOffset(globalSection, point, f, &foff);CHKERRQ(ierr);
     if (!cfdof || setBC) {
-      if (perm) {for (b = 0; b < fdof; b++) {indices[foffs[f]+perm[b]] = foff+b;}}
-      else      {for (b = 0; b < fdof; b++) {indices[foffs[f]+     b ] = foff+b;}}
+      for (b = 0; b < fdof; ++b) {
+        const PetscInt preind = perm ? foffs[f]+perm[b] : foffs[f]+b;
+        const PetscInt ind    = indperm ? indperm[preind] : preind;
+
+        indices[ind] = foff+b;
+      }
     } else {
       ierr = PetscSectionGetFieldConstraintIndices(section, point, f, &fcdofs);CHKERRQ(ierr);
-      if (perm) {
-        for (b = 0; b < fdof; b++) {
-          if ((cind < cfdof) && (b == fcdofs[cind])) {
-            indices[foffs[f]+perm[b]] = -(foff+b+1);
-            ++cind;
-          } else {
-            indices[foffs[f]+perm[b]] = foff+b-cind;
-          }
-        }
-      } else {
-        for (b = 0; b < fdof; b++) {
-          if ((cind < cfdof) && (b == fcdofs[cind])) {
-            indices[foffs[f]+b] = -(foff+b+1);
-            ++cind;
-          } else {
-            indices[foffs[f]+b] = foff+b-cind;
-          }
+      for (b = 0; b < fdof; ++b) {
+        const PetscInt preind = perm ? foffs[f]+perm[b] : foffs[f]+b;
+        const PetscInt ind    = indperm ? indperm[preind] : preind;
+
+        if ((cind < cfdof) && (b == fcdofs[cind])) {
+          indices[ind] = -(foff+b+1);
+          ++cind;
+        } else {
+          indices[ind] = foff+b-cind;
         }
       }
     }
@@ -5138,7 +5226,7 @@ PetscErrorCode DMPlexAnchorsModifyMat(DM dm, PetscSection section, PetscInt numP
           fEnd[f+1]   = fStart[f+1];
         }
         ierr = PetscSectionGetOffset(cSec, b, &bOff);CHKERRQ(ierr);
-        ierr = DMPlexGetIndicesPointFields_Internal(cSec, b, bOff, fEnd, PETSC_TRUE, perms, p, indices);CHKERRQ(ierr);
+        ierr = DMPlexGetIndicesPointFields_Internal(cSec, b, bOff, fEnd, PETSC_TRUE, perms, p, NULL, indices);CHKERRQ(ierr);
 
         fAnchorStart[0] = 0;
         fAnchorEnd[0]   = 0;
@@ -5156,7 +5244,7 @@ PetscErrorCode DMPlexAnchorsModifyMat(DM dm, PetscSection section, PetscInt numP
           newPoints[2*(newP + q)]     = a;
           newPoints[2*(newP + q) + 1] = 0;
           ierr = PetscSectionGetOffset(section, a, &aOff);CHKERRQ(ierr);
-          ierr = DMPlexGetIndicesPointFields_Internal(section, a, aOff, fAnchorEnd, PETSC_TRUE, NULL, -1, newIndices);CHKERRQ(ierr);
+          ierr = DMPlexGetIndicesPointFields_Internal(section, a, aOff, fAnchorEnd, PETSC_TRUE, NULL, -1, NULL, newIndices);CHKERRQ(ierr);
         }
         newP += bDof;
 
@@ -5190,7 +5278,7 @@ PetscErrorCode DMPlexAnchorsModifyMat(DM dm, PetscSection section, PetscInt numP
         PetscInt bEnd = 0, bAnchorEnd = 0, bOff;
 
         ierr = PetscSectionGetOffset(cSec, b, &bOff);CHKERRQ(ierr);
-        ierr = DMPlexGetIndicesPoint_Internal(cSec, b, bOff, &bEnd, PETSC_TRUE, (perms && perms[0]) ? perms[0][p] : NULL, indices);CHKERRQ(ierr);
+        ierr = DMPlexGetIndicesPoint_Internal(cSec, b, bOff, &bEnd, PETSC_TRUE, (perms && perms[0]) ? perms[0][p] : NULL, NULL, indices);CHKERRQ(ierr);
 
         ierr = PetscSectionGetOffset (aSec, b, &bOff);CHKERRQ(ierr);
         for (q = 0; q < bDof; q++) {
@@ -5201,7 +5289,7 @@ PetscErrorCode DMPlexAnchorsModifyMat(DM dm, PetscSection section, PetscInt numP
           newPoints[2*(newP + q)]     = a;
           newPoints[2*(newP + q) + 1] = 0;
           ierr = PetscSectionGetOffset(section, a, &aOff);CHKERRQ(ierr);
-          ierr = DMPlexGetIndicesPoint_Internal(section, a, aOff, &bAnchorEnd, PETSC_TRUE, NULL, newIndices);CHKERRQ(ierr);
+          ierr = DMPlexGetIndicesPoint_Internal(section, a, aOff, &bAnchorEnd, PETSC_TRUE, NULL, NULL, newIndices);CHKERRQ(ierr);
         }
         newP += bDof;
 
@@ -5436,7 +5524,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
 {
   PetscSection    clSection;
   IS              clPoints;
-  const PetscInt *clp;
+  const PetscInt *clp, *clperm;
   const PetscInt  **perms[32] = {NULL};
   PetscInt       *points = NULL, *pointsNew;
   PetscInt        numPoints, numPointsNew;
@@ -5455,6 +5543,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
   ierr = PetscMemzero(offsets, 32 * sizeof(PetscInt));CHKERRQ(ierr);
   /* Get points in closure */
   ierr = DMPlexGetCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp);CHKERRQ(ierr);
+  ierr = PetscSectionGetClosureInversePermutation_Internal(section, (PetscObject) dm, NULL, &clperm);CHKERRQ(ierr);
   /* Get number of indices and indices per field */
   for (p = 0, Nind = 0; p < numPoints*2; p += 2) {
     PetscInt dof, fdof;
@@ -5504,14 +5593,14 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
     }
     for (p = 0; p < numPoints; p++) {
       ierr = PetscSectionGetOffset(globalSection, points[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPointFields_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, offsets, PETSC_FALSE, perms, p, *indices);
+      DMPlexGetIndicesPointFields_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, offsets, PETSC_FALSE, perms, p, clperm, *indices);
     }
   } else {
     for (p = 0, off = 0; p < numPoints; p++) {
       const PetscInt *perm = perms[0] ? perms[0][p] : NULL;
 
       ierr = PetscSectionGetOffset(globalSection, points[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPoint_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, *indices);
+      DMPlexGetIndicesPoint_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, clperm, *indices);
     }
   }
   /* Cleanup points */
@@ -5584,7 +5673,7 @@ PetscErrorCode DMPlexMatSetClosure(DM dm, PetscSection section, PetscSection glo
   PetscSection        clSection;
   IS                  clPoints;
   PetscInt           *points = NULL, *newPoints;
-  const PetscInt     *clp;
+  const PetscInt     *clp, *clperm;
   PetscInt           *indices;
   PetscInt            offsets[32];
   const PetscInt    **perms[32] = {NULL};
@@ -5604,6 +5693,7 @@ PetscErrorCode DMPlexMatSetClosure(DM dm, PetscSection section, PetscSection glo
   ierr = PetscSectionGetNumFields(section, &numFields);CHKERRQ(ierr);
   if (numFields > 31) SETERRQ1(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_OUTOFRANGE, "Number of fields %D limited to 31", numFields);
   ierr = PetscMemzero(offsets, 32 * sizeof(PetscInt));CHKERRQ(ierr);
+  ierr = PetscSectionGetClosureInversePermutation_Internal(section, (PetscObject) dm, NULL, &clperm);CHKERRQ(ierr);
   ierr = DMPlexGetCompressedClosure(dm,section,point,&numPoints,&points,&clSection,&clPoints,&clp);CHKERRQ(ierr);
   for (p = 0, numIndices = 0; p < numPoints*2; p += 2) {
     PetscInt fdof;
@@ -5681,19 +5771,19 @@ PetscErrorCode DMPlexMatSetClosure(DM dm, PetscSection section, PetscSection glo
     ierr = PetscSectionGetUseFieldOffsets(globalSection, &useFieldOffsets);CHKERRQ(ierr);
     if (useFieldOffsets) {
       for (p = 0; p < numPoints; p++) {
-        DMPlexGetIndicesPointFieldsSplit_Internal(section, globalSection, points[2*p], offsets, PETSC_FALSE, perms, p, indices);
+        DMPlexGetIndicesPointFieldsSplit_Internal(section, globalSection, points[2*p], offsets, PETSC_FALSE, perms, p, clperm, indices);
       }
     } else {
       for (p = 0; p < numPoints; p++) {
         ierr = PetscSectionGetOffset(globalSection, points[2*p], &globalOff);CHKERRQ(ierr);
-        DMPlexGetIndicesPointFields_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, offsets, PETSC_FALSE, perms, p, indices);
+        DMPlexGetIndicesPointFields_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, offsets, PETSC_FALSE, perms, p, clperm, indices);
       }
     }
   } else {
     for (p = 0, off = 0; p < numPoints; p++) {
       const PetscInt *perm = perms[0] ? perms[0][p] : NULL;
       ierr = PetscSectionGetOffset(globalSection, points[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPoint_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, indices);
+      DMPlexGetIndicesPoint_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, clperm, indices);
     }
   }
   if (mesh->printSetValues) {ierr = DMPlexPrintMatSetValues(PETSC_VIEWER_STDOUT_SELF, A, point, numIndices, indices, 0, NULL, values);CHKERRQ(ierr);}
@@ -5738,6 +5828,7 @@ PetscErrorCode DMPlexMatSetClosureRefined(DM dmf, PetscSection fsection, PetscSe
   PetscInt       *fpoints = NULL, *ftotpoints = NULL;
   PetscInt       *cpoints = NULL;
   PetscInt       *findices, *cindices;
+  const PetscInt *fclperm, *cclperm;
   PetscInt        foffsets[32], coffsets[32];
   CellRefiner     cellRefiner;
   PetscInt        numFields, numSubcells, maxFPoints, numFPoints, numCPoints, numFIndices, numCIndices, dof, off, globalOff, pStart, pEnd, p, q, r, s, f;
@@ -5759,6 +5850,8 @@ PetscErrorCode DMPlexMatSetClosureRefined(DM dmf, PetscSection fsection, PetscSe
   if (numFields > 31) SETERRQ1(PetscObjectComm((PetscObject)dmf), PETSC_ERR_ARG_OUTOFRANGE, "Number of fields %D limited to 31", numFields);
   ierr = PetscMemzero(foffsets, 32 * sizeof(PetscInt));CHKERRQ(ierr);
   ierr = PetscMemzero(coffsets, 32 * sizeof(PetscInt));CHKERRQ(ierr);
+  ierr = PetscSectionGetClosureInversePermutation_Internal(fsection, (PetscObject) dmf, NULL, &fclperm);CHKERRQ(ierr);
+  ierr = PetscSectionGetClosureInversePermutation_Internal(csection, (PetscObject) dmc, NULL, &cclperm);CHKERRQ(ierr);
   /* Column indices */
   ierr = DMPlexGetTransitiveClosure(dmc, point, PETSC_TRUE, &numCPoints, &cpoints);CHKERRQ(ierr);
   maxFPoints = numCPoints;
@@ -5835,11 +5928,11 @@ PetscErrorCode DMPlexMatSetClosureRefined(DM dmf, PetscSection fsection, PetscSe
     }
     for (p = 0; p < numFPoints; p++) {
       ierr = PetscSectionGetOffset(globalFSection, ftotpoints[2*p], &globalOff);CHKERRQ(ierr);
-      ierr = DMPlexGetIndicesPointFields_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, foffsets, PETSC_FALSE, permsF, p, findices);CHKERRQ(ierr);
+      ierr = DMPlexGetIndicesPointFields_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, foffsets, PETSC_FALSE, permsF, p, fclperm, findices);CHKERRQ(ierr);
     }
     for (p = 0; p < numCPoints; p++) {
       ierr = PetscSectionGetOffset(globalCSection, cpoints[2*p], &globalOff);CHKERRQ(ierr);
-      ierr = DMPlexGetIndicesPointFields_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, coffsets, PETSC_FALSE, permsC, p, cindices);CHKERRQ(ierr);
+      ierr = DMPlexGetIndicesPointFields_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, coffsets, PETSC_FALSE, permsC, p, cclperm, cindices);CHKERRQ(ierr);
     }
     for (f = 0; f < numFields; f++) {
       ierr = PetscSectionRestoreFieldPointSyms(fsection,f,numFPoints,ftotpoints,&permsF[f],NULL);CHKERRQ(ierr);
@@ -5855,13 +5948,13 @@ PetscErrorCode DMPlexMatSetClosureRefined(DM dmf, PetscSection fsection, PetscSe
       const PetscInt *perm = permsF ? permsF[p] : NULL;
 
       ierr = PetscSectionGetOffset(globalFSection, ftotpoints[2*p], &globalOff);CHKERRQ(ierr);
-      ierr = DMPlexGetIndicesPoint_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, findices);CHKERRQ(ierr);
+      ierr = DMPlexGetIndicesPoint_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, fclperm, findices);CHKERRQ(ierr);
     }
     for (p = 0, off = 0; p < numCPoints; p++) {
       const PetscInt *perm = permsC ? permsC[p] : NULL;
 
       ierr = PetscSectionGetOffset(globalCSection, cpoints[2*p], &globalOff);CHKERRQ(ierr);
-      ierr = DMPlexGetIndicesPoint_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, cindices);CHKERRQ(ierr);
+      ierr = DMPlexGetIndicesPoint_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, cclperm, cindices);CHKERRQ(ierr);
     }
     ierr = PetscSectionRestorePointSyms(fsection,numFPoints,ftotpoints,&permsF,NULL);CHKERRQ(ierr);
     ierr = PetscSectionRestorePointSyms(csection,numCPoints,cpoints,&permsC,NULL);CHKERRQ(ierr);
@@ -5892,6 +5985,7 @@ PetscErrorCode DMPlexMatGetClosureIndicesRefined(DM dmf, PetscSection fsection, 
   PetscInt      *fpoints = NULL, *ftotpoints = NULL;
   PetscInt      *cpoints = NULL;
   PetscInt       foffsets[32], coffsets[32];
+  const PetscInt *fclperm, *cclperm;
   CellRefiner    cellRefiner;
   PetscInt       numFields, numSubcells, maxFPoints, numFPoints, numCPoints, numFIndices, numCIndices, dof, off, globalOff, pStart, pEnd, p, q, r, s, f;
   PetscErrorCode ierr;
@@ -5911,6 +6005,8 @@ PetscErrorCode DMPlexMatGetClosureIndicesRefined(DM dmf, PetscSection fsection, 
   if (numFields > 31) SETERRQ1(PetscObjectComm((PetscObject)dmf), PETSC_ERR_ARG_OUTOFRANGE, "Number of fields %D limited to 31", numFields);
   ierr = PetscMemzero(foffsets, 32 * sizeof(PetscInt));CHKERRQ(ierr);
   ierr = PetscMemzero(coffsets, 32 * sizeof(PetscInt));CHKERRQ(ierr);
+  ierr = PetscSectionGetClosureInversePermutation_Internal(fsection, (PetscObject) dmf, NULL, &fclperm);CHKERRQ(ierr);
+  ierr = PetscSectionGetClosureInversePermutation_Internal(csection, (PetscObject) dmc, NULL, &cclperm);CHKERRQ(ierr);
   /* Column indices */
   ierr = DMPlexGetTransitiveClosure(dmc, point, PETSC_TRUE, &numCPoints, &cpoints);CHKERRQ(ierr);
   maxFPoints = numCPoints;
@@ -5985,11 +6081,11 @@ PetscErrorCode DMPlexMatGetClosureIndicesRefined(DM dmf, PetscSection fsection, 
     }
     for (p = 0; p < numFPoints; p++) {
       ierr = PetscSectionGetOffset(globalFSection, ftotpoints[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPointFields_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, foffsets, PETSC_FALSE, permsF, p, findices);
+      DMPlexGetIndicesPointFields_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, foffsets, PETSC_FALSE, permsF, p, fclperm, findices);
     }
     for (p = 0; p < numCPoints; p++) {
       ierr = PetscSectionGetOffset(globalCSection, cpoints[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPointFields_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, coffsets, PETSC_FALSE, permsC, p, cindices);
+      DMPlexGetIndicesPointFields_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, coffsets, PETSC_FALSE, permsC, p, cclperm, cindices);
     }
     for (f = 0; f < numFields; f++) {
       ierr = PetscSectionRestoreFieldPointSyms(fsection,f,numFPoints,ftotpoints,&permsF[f],NULL);CHKERRQ(ierr);
@@ -6005,13 +6101,13 @@ PetscErrorCode DMPlexMatGetClosureIndicesRefined(DM dmf, PetscSection fsection, 
       const PetscInt *perm = permsF ? permsF[p] : NULL;
 
       ierr = PetscSectionGetOffset(globalFSection, ftotpoints[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPoint_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, findices);
+      DMPlexGetIndicesPoint_Internal(fsection, ftotpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, fclperm, findices);
     }
     for (p = 0, off = 0; p < numCPoints; p++) {
       const PetscInt *perm = permsC ? permsC[p] : NULL;
 
       ierr = PetscSectionGetOffset(globalCSection, cpoints[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPoint_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, cindices);
+      DMPlexGetIndicesPoint_Internal(csection, cpoints[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, cclperm, cindices);
     }
     ierr = PetscSectionRestorePointSyms(fsection,numFPoints,ftotpoints,&permsF,NULL);CHKERRQ(ierr);
     ierr = PetscSectionRestorePointSyms(csection,numCPoints,cpoints,&permsC,NULL);CHKERRQ(ierr);
@@ -6512,23 +6608,29 @@ PetscErrorCode DMPlexCheckSymmetry(DM dm)
 
   Input Parameters:
 + dm - The DMPlex object
-. isSimplex - Are the cells simplices or tensor products
 - cellHeight - Normally 0
 
   Note: This is a useful diagnostic when creating meshes programmatically.
+  Currently applicable only to homogeneous simplex or tensor meshes.
 
   Level: developer
 
 .seealso: DMCreate(), DMPlexCheckSymmetry(), DMPlexCheckFaces()
 @*/
-PetscErrorCode DMPlexCheckSkeleton(DM dm, PetscBool isSimplex, PetscInt cellHeight)
+PetscErrorCode DMPlexCheckSkeleton(DM dm, PetscInt cellHeight)
 {
   PetscInt       dim, numCorners, numHybridCorners, vStart, vEnd, cStart, cEnd, cMax, c;
+  PetscBool      isSimplex = PETSC_FALSE;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(dm, cellHeight, &cStart, &cEnd);CHKERRQ(ierr);
+  if (cStart < cEnd) {
+    ierr = DMPlexGetConeSize(dm, cStart, &c);CHKERRQ(ierr);
+    isSimplex = c == dim+1 ? PETSC_TRUE : PETSC_FALSE;
+  }
   switch (dim) {
   case 1: numCorners = isSimplex ? 2 : 2; numHybridCorners = isSimplex ? 2 : 2; break;
   case 2: numCorners = isSimplex ? 3 : 4; numHybridCorners = isSimplex ? 4 : 4; break;
@@ -6537,7 +6639,6 @@ PetscErrorCode DMPlexCheckSkeleton(DM dm, PetscBool isSimplex, PetscInt cellHeig
     SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Cannot handle meshes of dimension %D", dim);
   }
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, cellHeight, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = DMPlexGetHybridBounds(dm, &cMax, NULL, NULL, NULL);CHKERRQ(ierr);
   cMax = cMax >= 0 ? cMax : cEnd;
   for (c = cStart; c < cMax; ++c) {
@@ -6570,7 +6671,6 @@ PetscErrorCode DMPlexCheckSkeleton(DM dm, PetscBool isSimplex, PetscInt cellHeig
 
   Input Parameters:
 + dm - The DMPlex object
-. isSimplex - Are the cells simplices or tensor products
 - cellHeight - Normally 0
 
   Note: This is a useful diagnostic when creating meshes programmatically.
@@ -6579,7 +6679,7 @@ PetscErrorCode DMPlexCheckSkeleton(DM dm, PetscBool isSimplex, PetscInt cellHeig
 
 .seealso: DMCreate(), DMPlexCheckSymmetry(), DMPlexCheckSkeleton()
 @*/
-PetscErrorCode DMPlexCheckFaces(DM dm, PetscBool isSimplex, PetscInt cellHeight)
+PetscErrorCode DMPlexCheckFaces(DM dm, PetscInt cellHeight)
 {
   PetscInt       pMax[4];
   PetscInt       dim, depth, vStart, vEnd, cStart, cEnd, c, h;

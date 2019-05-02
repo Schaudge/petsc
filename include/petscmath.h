@@ -637,8 +637,9 @@ M*/
 /*
      Basic constants
 */
-#define PETSC_PI   PetscRealConstant(3.1415926535897932384626433832795029)
-#define PETSC_PHI  PetscRealConstant(1.6180339887498948482045868343656381)
+#define PETSC_PI    PetscRealConstant(3.1415926535897932384626433832795029)
+#define PETSC_PHI   PetscRealConstant(1.6180339887498948482045868343656381)
+#define PETSC_SQRT2 PetscRealConstant(1.4142135623730950488016887242096981)
 
 #if !defined(PETSC_USE_64BIT_INDICES)
 #define PETSC_MAX_INT            2147483647
@@ -701,10 +702,6 @@ typedef PetscReal MatReal;
 struct petsc_mpiu_2scalar {PetscScalar a,b;};
 PETSC_EXTERN MPI_Datatype MPIU_2SCALAR PetscAttrMPITypeTagLayoutCompatible(struct petsc_mpiu_2scalar);
 
-#if !defined(MPI_2INT)
-struct petsc_mpiu_2mpiint {PetscMPIInt a,b;};
-PETSC_EXTERN MPI_Datatype MPI_2INT PetscAttrMPITypeTagLayoutCompatible(struct petsc_mpiu_2mpiint);
-#endif
 #if defined(PETSC_USE_64BIT_INDICES)
 struct petsc_mpiu_2int {PetscInt a,b;};
 PETSC_EXTERN MPI_Datatype MPIU_2INT PetscAttrMPITypeTagLayoutCompatible(struct petsc_mpiu_2int);
@@ -765,4 +762,6 @@ PETSC_STATIC_INLINE PetscReal PetscLog2Real(PetscReal n)
   return PetscLogReal(n)/PetscLogReal(2.0);
 }
 #endif
+
+PETSC_EXTERN PetscErrorCode PetscLinearRegression(PetscInt,const PetscReal[],const PetscReal[],PetscReal*,PetscReal*);
 #endif
