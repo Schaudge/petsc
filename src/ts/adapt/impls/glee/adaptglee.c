@@ -116,7 +116,11 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   *wlte   = enorm;
   *wltea  = enorma;
   *wlter  = enormr;
-  VecCreateSeq(MPI_COMM_WORLD,10,&output);
+
+  VecCreate(PETSC_COMM_WORLD,&output);
+  VecSetSizes(output,PETSC_DECIDE,10);
+  VecSetFromOptions(output);
+
   idx=0; v=(PetscReal)*accept; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=1; v=(PetscReal)*wlte; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=2; v=(PetscReal)*wltea; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
