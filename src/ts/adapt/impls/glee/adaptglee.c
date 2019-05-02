@@ -10,8 +10,9 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   TSType         time_scheme;      /* Type of time-integration scheme        */
   PetscErrorCode ierr;
   Vec            X,Y,E;
-  PetscReal      enorm,enorma,enormr,hfac_lte,hfac_ltea,hfac_lter,h_lte,safety;
-  PetscInt       order;
+  Vec            output;
+  PetscReal      enorm,enorma,enormr,hfac_lte,hfac_ltea,hfac_lter,h_lte,safety,v;
+  PetscInt       order,idx;
   PetscBool      bGTEMethod=PETSC_FALSE;
 
   PetscFunctionBegin;
@@ -42,6 +43,12 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
     if (!glee->Y) {ierr = VecDuplicate(X,&glee->Y);CHKERRQ(ierr);}
     Y     = glee->Y;
     ierr  = TSEvaluateStep(ts,order-1,Y,NULL);CHKERRQ(ierr);
+    /*PetscObjectSetName((PetscObject)X,"vecs_X");
+     VecSetUp(X);*/
+    ierr  = VecView(X,PETSC_VIEWER_BINARY_WORLD);CHKERRQ(ierr);
+    /*PetscObjectSetName((PetscObject)Y,"vecs_Y");
+     VecSetUp(Y);*/
+    ierr  = VecView(Y,PETSC_VIEWER_BINARY_WORLD);CHKERRQ(ierr);
     ierr  = TSErrorWeightedNorm(ts,X,Y,adapt->wnormtype,&enorm,&enorma,&enormr);CHKERRQ(ierr);
   }
 
@@ -109,6 +116,18 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   *wlte   = enorm;
   *wltea  = enorma;
   *wlter  = enormr;
+  VecCreateSeq(MPI_COMM_WORLD,10,&output);
+  idx=0; v=(PetscReal)*accept; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=1; v=(PetscReal)*wlte; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=2; v=(PetscReal)*wltea; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=3; v=(PetscReal)*wlter; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=4; v=(PetscReal)ts->atol; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=5; v=(PetscReal)ts->rtol; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=6; v=(PetscReal)h; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=7; v=(PetscReal)*next_h; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=8; v=(PetscReal)order; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  VecView(output,PETSC_VIEWER_BINARY_WORLD);CHKERRQ(ierr);
+  VecDestroy(&output);
   PetscFunctionReturn(0);
 }
 
