@@ -12,7 +12,7 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   Vec            X,Y,E;
   Vec            output;
   PetscReal      enorm,enorma,enormr,hfac_lte,hfac_ltea,hfac_lter,h_lte,safety,v;
-  PetscInt       order,idx;
+  PetscInt       order,idx,rank;
   PetscBool      bGTEMethod=PETSC_FALSE;
 
   PetscFunctionBegin;
@@ -120,7 +120,8 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   VecCreate(PETSC_COMM_WORLD,&output);
   VecSetSizes(output,PETSC_DECIDE,10);
   VecSetFromOptions(output);
-
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+  if(!rank){
   idx=0; v=(PetscReal)*accept; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=1; v=(PetscReal)*wlte; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=2; v=(PetscReal)*wltea; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
@@ -130,6 +131,11 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   idx=6; v=(PetscReal)h; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=7; v=(PetscReal)*next_h; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=8; v=(PetscReal)order; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=9; v=(PetscReal)ts->ptime; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  }
+  VecAssemblyBegin(output);
+  VecAssemblyEnd(output);
+
   VecView(output,PETSC_VIEWER_BINARY_WORLD);CHKERRQ(ierr);
   VecDestroy(&output);
   PetscFunctionReturn(0);
