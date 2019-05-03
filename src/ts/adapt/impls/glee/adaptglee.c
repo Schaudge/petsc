@@ -118,7 +118,7 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   *wlter  = enormr;
 
   VecCreate(PETSC_COMM_WORLD,&output);
-  VecSetSizes(output,PETSC_DECIDE,9);
+  VecSetSizes(output,PETSC_DECIDE,10);
   VecSetFromOptions(output);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   if(!rank){
@@ -131,6 +131,7 @@ static PetscErrorCode TSAdaptChoose_GLEE(TSAdapt adapt,TS ts,PetscReal h,PetscIn
   idx=6; v=(PetscReal)h; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=7; v=(PetscReal)*next_h; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   idx=8; v=(PetscReal)order; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
+  idx=9; v=(PetscReal)ts->ptime; VecSetValues(output,1,&idx,&v,INSERT_VALUES);
   }
   VecAssemblyBegin(output);
   VecAssemblyEnd(output);
