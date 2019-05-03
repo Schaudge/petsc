@@ -43,6 +43,56 @@ static PetscErrorCode GNHessianProd(Mat H,Vec in,Vec out)
   PetscFunctionReturn(0);
 }
 
+/* Note: this internal routine **adds** the regularization to the objective value and gradient */
+static PetscErrorCode GNObjectiveGradientEval_Reg(Tao tao,Vec X,PetscReal *fcn,Vec G,void *ptr)
+{
+  TAO_BRGN              *gn = (TAO_BRGN *)ptr;
+  PetscReal             f_reg;
+  PetscScalar           yESum;
+  PetscInt              K;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  switch (gn->reg_type) {
+  case BRGN_REGULARIZATION_USER:
+    ierr = (*gn->regularizerobjandgrad)(tao,X,&f_reg,gn->x_work,gn->reg_obj_ctx);CHKERRQ(ierr);
+    *fcn += gn->lambda*f_reg;
+    ierr = VecAXPY(G,gn->lambda,gn->x_work);CHKERRQ(ierr);
+    break;
+  case BRGN_REGULARIZATION_L2PROX:
+    /* compute f = f + lambda*0.5*(xk - xkm1)'*(xk - xkm1) */
+    ierr = VecAXPBYPCZ(gn->x_work,1.0,-1.0,0.0,X,gn->x_old);CHKERRQ(ierr); 
+    ierr = VecDot(gn->x_work,gn->x_work,&f_reg);CHKERRQ(ierr);
+    *fcn += gn->lambda*0.5*f_reg;
+    /* compute G = G + lambda*(xk - xkm1) */
+    ierr = VecAXPBYPCZ(G,gn->lambda,-gn->lambda,1.0,X,gn->x_old);CHKERRQ(ierr);
+    break;
+  case BRGN_REGULARIZATION_L1DICT:
+    /* compute f = f + lambda*sum(sqrt(y.^2+epsilon^2) - epsilon), where y = D*x*/
+    if (gn->D) {
+      ierr = MatMult(gn->D,X,gn->y);CHKERRQ(ierr);/* y = D*x */
+    } else {
+      ierr = VecCopy(X,gn->y);CHKERRQ(ierr);
+    }
+    ierr = VecPointwiseMult(gn->y_work,gn->y,gn->y);CHKERRQ(ierr);
+    ierr = VecShift(gn->y_work,gn->epsilon*gn->epsilon);CHKERRQ(ierr);
+    ierr = VecSqrtAbs(gn->y_work);CHKERRQ(ierr);  /* gn->y_work = sqrt(y.^2+epsilon^2) */ 
+    ierr = VecSum(gn->y_work,&yESum);CHKERRQ(ierr);CHKERRQ(ierr);
+    ierr = VecGetSize(gn->y,&K);CHKERRQ(ierr);
+    *fcn += gn->lambda*(yESum - K*gn->epsilon);
+    /* compute G = G + lambda*D'*(y./sqrt(y.^2+epsilon^2)),where y = D*x */  
+    ierr = VecPointwiseDivide(gn->y_work,gn->y,gn->y_work);CHKERRQ(ierr); /* reuse y_work = y./sqrt(y.^2+epsilon^2) */
+    if (gn->D) {
+      ierr = MatMultTranspose(gn->D,gn->y_work,gn->x_work);CHKERRQ(ierr);
+    } else {
+      ierr = VecCopy(gn->y_work,gn->x_work);CHKERRQ(ierr);
+    }
+    ierr = VecAXPY(G,gn->lambda,gn->x_work);CHKERRQ(ierr);
+    break;
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G,void *ptr)
 {
   TAO_BRGN              *gn = (TAO_BRGN *)ptr;
@@ -51,7 +101,7 @@ static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G
   PetscErrorCode        ierr;
   PetscReal             f_reg,workNorm;
   Vec                   z,u,temp;
-  
+
   PetscFunctionBegin;
   /* compute objective *fcn*/
   /* compute first term 0.5*||ls_res||_2^2 */
@@ -63,43 +113,7 @@ static PetscErrorCode GNObjectiveGradientEval(Tao tao,Vec X,PetscReal *fcn,Vec G
   ierr = MatMultTranspose(tao->ls_jac,tao->ls_res,G);CHKERRQ(ierr);
   /* add the regularization contribution */
   if (!gn->use_admm) {
-    switch (gn->reg_type) {
-    case BRGN_REGULARIZATION_USER:
-      ierr = (*gn->regularizerobjandgrad)(tao,X,&f_reg,gn->x_work,gn->reg_obj_ctx);CHKERRQ(ierr);
-      *fcn += gn->lambda*f_reg;
-      ierr = VecAXPY(G,gn->lambda,gn->x_work);CHKERRQ(ierr);
-      break;
-    case BRGN_REGULARIZATION_L2PROX:
-      /* compute f = f + lambda*0.5*(xk - xkm1)'*(xk - xkm1) */
-      ierr = VecAXPBYPCZ(gn->x_work,1.0,-1.0,0.0,X,gn->x_old);CHKERRQ(ierr); 
-      ierr = VecDot(gn->x_work,gn->x_work,&f_reg);CHKERRQ(ierr);
-      *fcn += gn->lambda*0.5*f_reg;
-      /* compute G = G + lambda*(xk - xkm1) */
-      ierr = VecAXPBYPCZ(G,gn->lambda,-gn->lambda,1.0,X,gn->x_old);CHKERRQ(ierr);
-      break;
-    case BRGN_REGULARIZATION_L1DICT:
-      /* compute f = f + lambda*sum(sqrt(y.^2+epsilon^2) - epsilon), where y = D*x*/
-      if (gn->D) {
-        ierr = MatMult(gn->D,X,gn->y);CHKERRQ(ierr);/* y = D*x */
-      } else {
-        ierr = VecCopy(X,gn->y);CHKERRQ(ierr);
-      }
-      ierr = VecPointwiseMult(gn->y_work,gn->y,gn->y);CHKERRQ(ierr);
-      ierr = VecShift(gn->y_work,gn->epsilon*gn->epsilon);CHKERRQ(ierr);
-      ierr = VecSqrtAbs(gn->y_work);CHKERRQ(ierr);  /* gn->y_work = sqrt(y.^2+epsilon^2) */ 
-      ierr = VecSum(gn->y_work,&yESum);CHKERRQ(ierr);CHKERRQ(ierr);
-      ierr = VecGetSize(gn->y,&K);CHKERRQ(ierr);
-      *fcn += gn->lambda*(yESum - K*gn->epsilon);
-      /* compute G = G + lambda*D'*(y./sqrt(y.^2+epsilon^2)),where y = D*x */  
-      ierr = VecPointwiseDivide(gn->y_work,gn->y,gn->y_work);CHKERRQ(ierr); /* reuse y_work = y./sqrt(y.^2+epsilon^2) */
-      if (gn->D) {
-        ierr = MatMultTranspose(gn->D,gn->y_work,gn->x_work);CHKERRQ(ierr);
-      } else {
-        ierr = VecCopy(gn->y_work,gn->x_work);CHKERRQ(ierr);
-      }
-      ierr = VecAXPY(G,gn->lambda,gn->x_work);CHKERRQ(ierr);
-      break;
-    }
+    ierr = GNObjectiveGradientEval_Reg(tao, X, fcn, G, ptr);CHKERRQ(ierr);
   } else {
 	/* Regularization Misfit Aug Lag Term */
 	z    = gn->z_old;
@@ -159,7 +173,7 @@ static PetscErrorCode GNComputeHessian(Tao tao,Vec X,Mat H,Mat Hpre,void *ptr)
 
 
 /* NORM_2 Case: 0.5 || x ||_2 + 0.5 * mu * ||x + u - z||^2 */
-static PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, void *ptr)
+static PetscErrorCode ObjectiveGradientRegularizationADMM(Tao tao, Vec z, PetscReal *J, Vec G, void *ptr)
 {
   TAO_BRGN       *gn = (TAO_BRGN *)ptr;
   PetscReal      mu, workNorm, reg;
@@ -181,6 +195,8 @@ static PetscErrorCode ObjectiveRegularizationADMM(Tao tao, Vec z, PetscReal *J, 
   /* workNorm = ||x + u - z ||^2 */
   ierr = VecDot(temp, temp, &workNorm);CHKERRQ(ierr);
   *J   = reg + 0.5 * mu * workNorm;
+  /* TODO: initialize G to the augmented Lagrangian portion of the gradient */
+  ierr = GNObjectiveGradientEval_Reg(tao,X,fcn,G,ptr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -475,9 +491,7 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
       ierr = TaoSetResidualRoutine(gn->admm_subsolver,tao->ls_res,tao->ops->computeresidual,tao->user_lsresP);CHKERRQ(ierr);
       ierr = TaoSetJacobianResidualRoutine(gn->subsolver,tao->ls_jac,tao->ls_jac,tao->ops->computeresidualjacobian,tao->user_lsjacP);CHKERRQ(ierr);
       ierr = TaoSetJacobianResidualRoutine(gn->admm_subsolver,tao->ls_jac,tao->ls_jac,tao->ops->computeresidualjacobian,tao->user_lsjacP);CHKERRQ(ierr);
-      ierr = TaoSetObjectiveAndGradientRoutine(gn->subsolver,GNObjectiveGradientEval,(void*)gn);CHKERRQ(ierr);
-      ierr = TaoSetObjectiveRoutine(gn->admm_subsolver, ObjectiveRegularizationADMM, (void*)gn);CHKERRQ(ierr);
-      ierr = TaoSetGradientRoutine(gn->admm_subsolver, GradientRegularizationADMM, (void*)gn);CHKERRQ(ierr);
+      ierr = TaoSetObjectiveAndGradientRoutine(gn->subsolver,ObjectiveGradientRegularizationADMM,(void*)gn);CHKERRQ(ierr);
       ierr = TaoSetHessianRoutine(gn->admm_subsolver, gn->Hr, gn->Hr, HessianRegularizationADMM, (void*)gn);CHKERRQ(ierr);
       ierr = TaoSetHessianRoutine(gn->subsolver,gn->H,gn->H,GNComputeHessian,(void*)gn);CHKERRQ(ierr);
       /* Propagate some options down */
