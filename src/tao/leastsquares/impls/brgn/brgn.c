@@ -258,7 +258,7 @@ static PetscErrorCode TaoSolve_BRGN(Tao tao)
   TAO_BRGN              *gn = (TAO_BRGN *)tao->data;
   PetscErrorCode        ierr;
   PetscInt              i,N;
-  PetscReal             u_norm, r_norm, s_norm, x_norm, z_norm, primal, dual;
+  PetscReal             u_norm, r_norm, s_norm, x_norm, z_norm, primal, dual, temp, temp2;
   Vec                   u,xk,z,zold,diff,zdiff;
 
   PetscFunctionBegin;
@@ -273,7 +273,9 @@ static PetscErrorCode TaoSolve_BRGN(Tao tao)
 	for (i=0; i<gn->admm_iter; i++){
       ierr = VecCopy(z,zold);CHKERRQ(ierr);
       ierr = TaoSolve(gn->subsolver);CHKERRQ(ierr); /* xk */
+      ierr = VecNorm(xk,NORM_2,&temp);CHKERRQ(ierr);
       ierr = TaoSolve(gn->admm_subsolver);CHKERRQ(ierr); /* z */
+      ierr = VecNorm(z,NORM_2,&temp2);CHKERRQ(ierr);
       /* u = u + xk -z */
       ierr   = VecAXPBYPCZ(u,1.,-1.,1.,xk,z);CHKERRQ(ierr);
       /* r_norm : norm(x-z) */
@@ -296,6 +298,7 @@ static PetscErrorCode TaoSolve_BRGN(Tao tao)
   }
   else {
     ierr = TaoSolve(gn->subsolver);CHKERRQ(ierr);
+      ierr = VecNorm(gn->subsolver->solution,NORM_2,&temp);CHKERRQ(ierr);
   }
   /* Update basic tao information from the subsolver */
   tao->nfuncs = gn->subsolver->nfuncs;
@@ -451,6 +454,7 @@ static PetscErrorCode TaoSetUp_BRGN(Tao tao)
       }
       ierr = TaoSetUp(gn->subsolver);CHKERRQ(ierr);
 	} else {
+      ierr = TaoSetUpdate(gn->subsolver,GNHookFunction,(void*)gn);CHKERRQ(ierr);
       ierr = MatSetSizes(gn->Hr,n,n,N,N);CHKERRQ(ierr);
       ierr = MatSetType(gn->Hr,MATAIJ);CHKERRQ(ierr);
       ierr = MatMPIAIJSetPreallocation(gn->Hr, 5, NULL, 5, NULL);CHKERRQ(ierr); /*TODO: some number other than 5?*/
