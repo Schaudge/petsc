@@ -1225,7 +1225,7 @@ static PetscErrorCode PetscViewerFileSetUp_Binary(PetscViewer viewer)
     }
 
 #if defined(PETSC_HAVE_O_BINARY)
-    if (type == FILE_MODE_WRITE || (type == FILE_MODE_APPEND && !found) ) {
+    if (type == FILE_MODE_WRITE || (type == FILE_MODE_APPEND && !found)) {
       if ((vbinary->fdes = open(fname,O_WRONLY|O_CREAT|O_TRUNC|O_BINARY,0666)) == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot create file %s for writing",fname);
     } else if (type == FILE_MODE_READ && fname) {
       if ((vbinary->fdes = open(fname,O_RDONLY|O_BINARY,0)) == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s for reading",fname);
@@ -1233,7 +1233,7 @@ static PetscErrorCode PetscViewerFileSetUp_Binary(PetscViewer viewer)
       if ((vbinary->fdes = open(fname,O_WRONLY|O_APPEND|O_BINARY,0)) == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s for writing",fname);
     } else if (fname) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Unknown file type");
 #else
-    if (type == FILE_MODE_WRITE || (type == FILE_MODE_APPEND && !found) ) {
+    if (type == FILE_MODE_WRITE || (type == FILE_MODE_APPEND && !found)) {
       if ((vbinary->fdes = creat(fname,0666)) == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot create file %s for writing",fname);
     } else if (type == FILE_MODE_READ && fname) {
       if ((vbinary->fdes = open(fname,O_RDONLY,0)) == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file %s for reading",fname);

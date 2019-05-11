@@ -19,7 +19,7 @@ static PetscErrorCode ProjDirect_OWLQN(Vec d, Vec g)
   ierr = VecGetArrayRead(g,&gptr);CHKERRQ(ierr);
   ierr = VecGetArray(d,&dptr);CHKERRQ(ierr);
   for (i = 0; i < high-low; i++) {
-    if (dptr[i] * gptr[i] <= 0.0 ) {
+    if (dptr[i] * gptr[i] <= 0.0) {
       dptr[i] = 0.0;
     }
   }

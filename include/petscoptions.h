@@ -45,7 +45,7 @@ PETSC_EXTERN PetscErrorCode PetscOptionsView(PetscOptions,PetscViewer);
 
 PETSC_EXTERN PetscErrorCode PetscOptionsReject(PetscOptions,const char[],const char[],const char[]);
 PETSC_EXTERN PetscErrorCode PetscOptionsInsert(PetscOptions,int*,char***,const char[]);
-PETSC_EXTERN PetscErrorCode PetscOptionsInsertFile(MPI_Comm,PetscOptions,const char[],PetscBool );
+PETSC_EXTERN PetscErrorCode PetscOptionsInsertFile(MPI_Comm,PetscOptions,const char[],PetscBool);
 #if defined(PETSC_HAVE_YAML)
 PETSC_EXTERN PetscErrorCode PetscOptionsInsertFileYAML(MPI_Comm,const char[],PetscBool);
 #endif

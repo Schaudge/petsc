@@ -25,7 +25,7 @@ PetscErrorCode DMStagGetBoundaryTypes(DM dm,DMBoundaryType *boundaryTypeX,DMBoun
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMSTAG);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
-  if (boundaryTypeX           ) *boundaryTypeX = stag->boundaryType[0];
+  if (boundaryTypeX) *boundaryTypeX = stag->boundaryType[0];
   if (boundaryTypeY && dim > 1) *boundaryTypeY = stag->boundaryType[1];
   if (boundaryTypeZ && dim > 2) *boundaryTypeZ = stag->boundaryType[2];
   PetscFunctionReturn(0);
@@ -825,7 +825,7 @@ PetscErrorCode DMStagSetBoundaryTypes(DM dm,DMBoundaryType boundaryType0,DMBound
   PetscValidLogicalCollectiveEnum(dm,boundaryType2,4);
   if (dm->setupcalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
-  if (boundaryType0           ) stag->boundaryType[0] = boundaryType0;
+  if (boundaryType0) stag->boundaryType[0] = boundaryType0;
   if (boundaryType1 && dim > 1) stag->boundaryType[1] = boundaryType1;
   if (boundaryType2 && dim > 2) stag->boundaryType[2] = boundaryType2;
   PetscFunctionReturn(0);

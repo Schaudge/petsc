@@ -2276,8 +2276,8 @@ PETSC_EXTERN PetscErrorCode PetscRMTree(const char[]);
 
 PETSC_EXTERN PetscErrorCode PetscBinaryRead(int,void*,PetscInt,PetscDataType);
 PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm,int,void*,PetscInt,PetscDataType);
-PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedWrite(MPI_Comm,int,void*,PetscInt,PetscDataType,PetscBool );
-PETSC_EXTERN PetscErrorCode PetscBinaryWrite(int,void*,PetscInt,PetscDataType,PetscBool );
+PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedWrite(MPI_Comm,int,void*,PetscInt,PetscDataType,PetscBool);
+PETSC_EXTERN PetscErrorCode PetscBinaryWrite(int,void*,PetscInt,PetscDataType,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscBinaryOpen(const char[],PetscFileMode,int *);
 PETSC_EXTERN PetscErrorCode PetscBinaryClose(int);
 PETSC_EXTERN PetscErrorCode PetscSharedTmp(MPI_Comm,PetscBool  *);
@@ -2294,7 +2294,7 @@ PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedSeek(MPI_Comm,int,off_t,Petsc
 PETSC_EXTERN PetscErrorCode PetscByteSwap(void *,PetscDataType,PetscInt);
 
 PETSC_EXTERN PetscErrorCode PetscSetDebugTerminal(const char[]);
-PETSC_EXTERN PetscErrorCode PetscSetDebugger(const char[],PetscBool );
+PETSC_EXTERN PetscErrorCode PetscSetDebugger(const char[],PetscBool);
 PETSC_EXTERN PetscErrorCode PetscSetDefaultDebugger(void);
 PETSC_EXTERN PetscErrorCode PetscSetDebuggerFromString(const char*);
 PETSC_EXTERN PetscErrorCode PetscAttachDebugger(void);

@@ -619,7 +619,7 @@ static PetscErrorCode IPMComputeKKT(Tao tao)
   /* phi = ||rd; rpe; rpi; com|| */
   ierr = VecDot(ipmP->rd,ipmP->rd,&norm);CHKERRQ(ierr);
   ipmP->phi = norm;
-  if (ipmP->me > 0 ) {
+  if (ipmP->me > 0) {
     ierr = VecDot(ipmP->rpe,ipmP->rpe,&norm);CHKERRQ(ierr);
     ipmP->phi += norm;
   }

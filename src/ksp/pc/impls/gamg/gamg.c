@@ -576,7 +576,7 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
     ierr = PetscLogStagePop();CHKERRQ(ierr);
 #endif
     /* stop if one node or one proc -- could pull back for singular problems */
-    if ( (pc_gamg->data_cell_cols && M/pc_gamg->data_cell_cols < 2) || (!pc_gamg->data_cell_cols && M/bs < 2) ) {
+    if ( (pc_gamg->data_cell_cols && M/pc_gamg->data_cell_cols < 2) || (!pc_gamg->data_cell_cols && M/bs < 2)) {
       ierr =  PetscInfo2(pc,"HARD stop of coarsening on level %D.  Grid too small: %D block nodes\n",level,M/bs);CHKERRQ(ierr);
       level++;
       break;

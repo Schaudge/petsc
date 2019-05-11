@@ -94,17 +94,17 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_3d(DM dm,PetscRe
     ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK_DOWN_LEFT,0,&ibackdownleft);CHKERRQ(ierr);
   }
   if (stagCoord->dof[1]) {
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK_DOWN     ,0,&ibackdown    );CHKERRQ(ierr);
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK_LEFT     ,0,&ibackleft    );CHKERRQ(ierr);
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN_LEFT     ,0,&idownleft    );CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK_DOWN     ,0,&ibackdown);CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK_LEFT     ,0,&ibackleft);CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN_LEFT     ,0,&idownleft);CHKERRQ(ierr);
   }
   if (stagCoord->dof[2]) {
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK          ,0,&iback        );CHKERRQ(ierr);
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN          ,0,&idown        );CHKERRQ(ierr);
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_LEFT          ,0,&ileft        );CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_BACK          ,0,&iback);CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN          ,0,&idown);CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_LEFT          ,0,&ileft);CHKERRQ(ierr);
   }
   if (stagCoord->dof[3]) {
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_ELEMENT       ,0,&ielement     );CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_ELEMENT       ,0,&ielement);CHKERRQ(ierr);
     ierr = DMStagGetCorners(dmCoord,&start[0],&start[1],&start[2],&n[0],&n[1],&n[2],&nExtra[0],&nExtra[1],&nExtra[2]);CHKERRQ(ierr);
   }
   min[0] = xmin; min[1]= ymin; min[2] = zmin;
@@ -916,8 +916,8 @@ static PetscErrorCode DMStagSetUpBuildScatter_3d(DM dm,const PetscInt *globalOff
           nNonDummyGhost[0] * stag->n[1]        * stag->n[2]
         + stag->n[0]        * nNonDummyGhost[1] * stag->n[2]
         + stag->n[0]        * stag->n[1]        * nNonDummyGhost[2]
-        - 2 * (stag->n[0] * stag->n[1] * stag->n[2])
-        ) * stag->entriesPerElement
+        - 2 * (stag->n[0] * stag->n[1] * stag->n[2]))
+        * stag->entriesPerElement
         + (dummyEnd[0]                               ? (nNonDummyGhost[1] * stag->n[2] + stag->n[1] * nNonDummyGhost[2] - stag->n[1] * stag->n[2]) * entriesPerFace   : 0)
         + (dummyEnd[1]                               ? (nNonDummyGhost[0] * stag->n[2] + stag->n[0] * nNonDummyGhost[2] - stag->n[0] * stag->n[2]) * entriesPerFace   : 0)
         + (dummyEnd[2]                               ? (nNonDummyGhost[0] * stag->n[1] + stag->n[0] * nNonDummyGhost[1] - stag->n[0] * stag->n[1]) * entriesPerFace   : 0)

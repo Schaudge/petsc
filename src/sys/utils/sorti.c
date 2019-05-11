@@ -37,7 +37,7 @@ static void PetscSortInt_Private(PetscInt *v,PetscInt right)
   i = MEDIAN(v,right);          /* Choose a pivot */
   SWAP(v[0],v[i],tmp);          /* Move it out of the way */
   pivot = v[0];
-  for (i=0,j=right+1;; ) {
+  for (i=0,j=right+1;;) {
     while (++i < j && v[i] <= pivot) ; /* Scan from the left */
     while (v[--j] > pivot) ;           /* Scan from the right */
     if (i >= j) break;
@@ -377,7 +377,7 @@ static void PetscSortMPIInt_Private(PetscMPIInt *v,PetscInt right)
   i = MEDIAN(v,right);          /* Choose a pivot */
   SWAP(v[0],v[i],tmp);          /* Move it out of the way */
   pivot = v[0];
-  for (i=0,j=right+1;; ) {
+  for (i=0,j=right+1;;) {
     while (++i < j && v[i] <= pivot) ; /* Scan from the left */
     while (v[--j] > pivot) ;           /* Scan from the right */
     if (i >= j) break;
@@ -910,7 +910,7 @@ PetscErrorCode PetscMergeMPIIntArray(PetscInt an,const PetscMPIInt aI[],PetscInt
 
   PetscFunctionBegin;
   if (!*L) {ierr = PetscMalloc1((an+bn),L);CHKERRQ(ierr);}
-  for (ai=0,bi=0,k=0; ai<an || bi<bn; ) {
+  for (ai=0,bi=0,k=0; ai<an || bi<bn;) {
     PetscInt t = -1;
     for ( ; ai<an && (!bn || aI[ai] <= bI[bi]); ai++) (*L)[k++] = t = aI[ai];
     for ( ; bi<bn && bI[bi] == t; bi++);

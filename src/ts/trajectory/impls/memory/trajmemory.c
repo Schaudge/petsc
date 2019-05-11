@@ -1520,7 +1520,7 @@ static PetscErrorCode GetTrajRMS(TSTrajectory tj,TS ts,TJScheduler *tjsch,PetscI
     ierr = TurnForward(ts);CHKERRQ(ierr);
     ierr = ReCompute(ts,tjsch,restart,stepnum);CHKERRQ(ierr);
   }
-  if (!ondisk && ( (stack->solution_only && e->stepnum+1 == stepnum) || (!stack->solution_only && e->stepnum == stepnum) )) {
+  if (!ondisk && ( (stack->solution_only && e->stepnum+1 == stepnum) || (!stack->solution_only && e->stepnum == stepnum))) {
     ierr = StackPop(stack,&e);CHKERRQ(ierr);
     ierr = ElementDestroy(stack,e);CHKERRQ(ierr);
   }

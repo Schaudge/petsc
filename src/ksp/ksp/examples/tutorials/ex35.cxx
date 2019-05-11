@@ -268,7 +268,7 @@ PetscScalar ComputeForcingFunction(PetscReal coords[3], UserContext* user)
   case 3:
     return user->nu * sin(PETSC_PI * coords[0] / user->bounds[1]) * sin(PETSC_PI * coords[1] / user->bounds[3]);
   case 2:
-    return PetscExpScalar(- ( (coords[0] - user->xref) * (coords[0] - user->xref) + (coords[1] - user->yref) * (coords[1] - user->yref) ) / user->nu);
+    return PetscExpScalar(- ( (coords[0] - user->xref) * (coords[0] - user->xref) + (coords[1] - user->yref) * (coords[1] - user->yref)) / user->nu);
   case 1:
   default:
     return PETSC_PI * PETSC_PI * ComputeDiffusionCoefficient(coords, user) * 
@@ -284,9 +284,9 @@ PetscScalar EvaluateStrongDirichletCondition(PetscReal coords[3], UserContext* u
 {
   switch (user->problem) {
   case 3:
-    if ( BCHECK(coords[0], user->bounds[0]) || BCHECK(coords[0], user->bounds[1]) || BCHECK(coords[1], user->bounds[2]) || BCHECK(coords[1], user->bounds[3]) )
+    if ( BCHECK(coords[0], user->bounds[0]) || BCHECK(coords[0], user->bounds[1]) || BCHECK(coords[1], user->bounds[2]) || BCHECK(coords[1], user->bounds[3]))
       return 0.0;
-    else // ( coords[0]*coords[0] + coords[1]*coords[1] < 0.04 + BCHECKEPS )
+    else // ( coords[0]*coords[0] + coords[1]*coords[1] < 0.04 + BCHECKEPS)
       return 1.0;
   case 2:
     return ComputeForcingFunction(coords, user);
@@ -430,7 +430,7 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J, Mat jac, void *ctx)
   ierr = DMMoabGetHierarchyLevel(dm, &hlevel);CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD, "ComputeMatrix: Level = %d, N(elements) = %d, N(vertices) = %d \n", hlevel, nglobale, nglobalv);
 
-  ierr = DMMoabFEMCreateQuadratureDefault ( 2, user->VPERE, &quadratureObj );CHKERRQ(ierr);
+  ierr = DMMoabFEMCreateQuadratureDefault ( 2, user->VPERE, &quadratureObj);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(quadratureObj, NULL, &nc, &npoints, NULL, NULL);CHKERRQ(ierr);
   ierr = PetscMalloc5(user->VPERE * npoints, &phi, user->VPERE * npoints, &dphi[0], user->VPERE * npoints, &dphi[1], npoints * 3, &phypts, npoints, &jxw);CHKERRQ(ierr);
 
@@ -468,7 +468,7 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J, Mat jac, void *ctx)
       for (i = 0; i < nconn; ++i) {
         for (j = 0; j < nconn; ++j) {
           array[i * nconn + j] += jxw[q] * rho * ( dphi[0][q * nconn + i] * dphi[0][q * nconn + j] +
-                                                   dphi[1][q * nconn + i] * dphi[1][q * nconn + j] );
+                                                   dphi[1][q * nconn + i] * dphi[1][q * nconn + j]);
         }
       }
     }

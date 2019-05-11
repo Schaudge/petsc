@@ -295,8 +295,8 @@ PETSC_EXTERN PetscErrorCode PetscDrawHGGetDraw(PetscDrawHG,PetscDraw*);
 PETSC_EXTERN PetscErrorCode PetscDrawHGSetLimits(PetscDrawHG,PetscReal,PetscReal,int,int);
 PETSC_EXTERN PetscErrorCode PetscDrawHGSetNumberBins(PetscDrawHG,int);
 PETSC_EXTERN PetscErrorCode PetscDrawHGSetColor(PetscDrawHG,int);
-PETSC_EXTERN PetscErrorCode PetscDrawHGCalcStats(PetscDrawHG, PetscBool );
-PETSC_EXTERN PetscErrorCode PetscDrawHGIntegerBins(PetscDrawHG, PetscBool );
+PETSC_EXTERN PetscErrorCode PetscDrawHGCalcStats(PetscDrawHG, PetscBool);
+PETSC_EXTERN PetscErrorCode PetscDrawHGIntegerBins(PetscDrawHG, PetscBool);
 
 PETSC_EXTERN PetscClassId PETSC_DRAWBAR_CLASSID;
 

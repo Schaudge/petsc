@@ -123,7 +123,7 @@ static PetscErrorCode DMStagStencilToIndexLocal(DM dm,PetscInt n,const DMStagSte
       if (dof < 1) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Location %s has no dof attached",DMStagStencilLocations[pos[i].loc]);
       if (pos[i].c < 0) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Negative component number (%d) supplied in loc[%D]",pos[i].c,i);
       if (pos[i].c > dof-1) SETERRQ3(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Supplied component number (%D) for location %s is too big (maximum %D)",pos[i].c,DMStagStencilLocations[pos[i].loc],dof-1);
-      if (            pos[i].i >= endGhost[0] || pos[i].i < startGhost[0] ) SETERRQ3(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Supplied x element index %D out of range. Should be in [%D,%D]",pos[i].i,startGhost[0],endGhost[0]-1);
+      if (            pos[i].i >= endGhost[0] || pos[i].i < startGhost[0]) SETERRQ3(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Supplied x element index %D out of range. Should be in [%D,%D]",pos[i].i,startGhost[0],endGhost[0]-1);
       if (dim > 1 && (pos[i].j >= endGhost[1] || pos[i].j < startGhost[1])) SETERRQ3(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Supplied y element index %D out of range. Should be in [%D,%D]",pos[i].j,startGhost[1],endGhost[1]-1);
       if (dim > 2 && (pos[i].k >= endGhost[2] || pos[i].k < startGhost[2])) SETERRQ3(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Supplied z element index %D out of range. Should be in [%D,%D]",pos[i].k,startGhost[2],endGhost[2]-1);
     }

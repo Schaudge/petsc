@@ -347,7 +347,7 @@ typedef int (MPI_Delete_function)(MPI_Comm,int,void *,void *);
 
 MPIUni_PETSC_EXTERN int    MPIUni_Abort(MPI_Comm,int);
 MPIUni_PETSC_EXTERN int    MPI_Abort(MPI_Comm,int);
-MPIUni_PETSC_EXTERN int    MPI_Attr_get(MPI_Comm comm,int keyval,void *attribute_val,int *flag);
+MPIUni_PETSC_EXTERN int    MPI_Attr_get(MPI_Comm,int,void*,int*);
 MPIUni_PETSC_EXTERN int    MPI_Keyval_free(int*);
 MPIUni_PETSC_EXTERN int    MPI_Attr_put(MPI_Comm,int,void *);
 MPIUni_PETSC_EXTERN int    MPI_Attr_delete(MPI_Comm,int);

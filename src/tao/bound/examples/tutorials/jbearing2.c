@@ -62,7 +62,7 @@ static PetscErrorCode ComputeB(AppCtx*);
 static PetscErrorCode Monitor(Tao, void*);
 static PetscErrorCode ConvergenceTest(Tao, void*);
 
-int main( int argc, char **argv )
+int main( int argc, char **argv)
 {
   PetscErrorCode     ierr;            /* used to check for functions returning nonzeros */
   PetscInt           Nx, Ny;          /* number of processors in x- and y- directions */
@@ -77,7 +77,7 @@ int main( int argc, char **argv )
   PetscReal          zero = 0.0;      /* lower bound on all variables */
 
   /* Initialize PETSC and TAO */
-  ierr = PetscInitialize( &argc, &argv,(char *)0,help );if (ierr) return ierr;
+  ierr = PetscInitialize( &argc, &argv,(char *)0,help);if (ierr) return ierr;
 
   /* Set the default values for the problem parameters */
   user.nx = 50; user.ny = 50; user.ecc = 0.1; user.b = 10.0;
@@ -271,10 +271,10 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *fcn,Vec G,void *p
 
   for (i=xs; i< xs+xm; i++){
     xi=(i+1)*hx;
-    trule1=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi,ecc) ) / six; /* L(i,j) */
-    trule2=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi,ecc) ) / six; /* U(i,j) */
-    trule3=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi+hx,ecc) ) / six; /* U(i+1,j) */
-    trule4=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi-hx,ecc) ) / six; /* L(i-1,j) */
+    trule1=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi,ecc)) / six; /* L(i,j) */
+    trule2=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi,ecc)) / six; /* U(i,j) */
+    trule3=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi+hx,ecc)) / six; /* U(i+1,j) */
+    trule4=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi-hx,ecc)) / six; /* L(i-1,j) */
     trule5=trule1; /* L(i,j-1) */
     trule6=trule2; /* U(i,j+1) */
 
@@ -371,10 +371,10 @@ PetscErrorCode FormHessian(Tao tao,Vec X,Mat hes, Mat Hpre, void *ptr)
 
   for (i=xs; i< xs+xm; i++){
     xi=(i+1)*hx;
-    trule1=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi,ecc) ) / six; /* L(i,j) */
-    trule2=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi,ecc) ) / six; /* U(i,j) */
-    trule3=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi+hx,ecc) ) / six; /* U(i+1,j) */
-    trule4=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi-hx,ecc) ) / six; /* L(i-1,j) */
+    trule1=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi,ecc)) / six; /* L(i,j) */
+    trule2=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi,ecc)) / six; /* U(i,j) */
+    trule3=hxhy*( p(xi,ecc) + p(xi+hx,ecc) + p(xi+hx,ecc)) / six; /* U(i+1,j) */
+    trule4=hxhy*( p(xi,ecc) + p(xi-hx,ecc) + p(xi-hx,ecc)) / six; /* L(i-1,j) */
     trule5=trule1; /* L(i,j-1) */
     trule6=trule2; /* U(i,j+1) */
 

@@ -1772,7 +1772,7 @@ static PetscErrorCode DMPlexComputeGeometryFVM_1D_Internal(DM dm, PetscInt dim, 
   PetscFunctionReturn(0);
 }
 
-/* Centroid_i = (\sum_n A_n Cn_i ) / A */
+/* Centroid_i = (\sum_n A_n Cn_i) / A */
 static PetscErrorCode DMPlexComputeGeometryFVM_2D_Internal(DM dm, PetscInt dim, PetscInt cell, PetscReal *vol, PetscReal centroid[], PetscReal normal[])
 {
   DMLabel        depth;
@@ -1856,7 +1856,7 @@ static PetscErrorCode DMPlexComputeGeometryFVM_2D_Internal(DM dm, PetscInt dim, 
   PetscFunctionReturn(0);
 }
 
-/* Centroid_i = (\sum_n V_n Cn_i ) / V */
+/* Centroid_i = (\sum_n V_n Cn_i) / V */
 static PetscErrorCode DMPlexComputeGeometryFVM_3D_Internal(DM dm, PetscInt dim, PetscInt cell, PetscReal *vol, PetscReal centroid[], PetscReal normal[])
 {
   DMLabel         depth;

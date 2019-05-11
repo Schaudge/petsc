@@ -99,7 +99,7 @@ PETSC_EXTERN PetscErrorCode DMMoabGetBoundaryMarkers(DM dm, const moab::Range **
 
 /* TODO: Replace nverts/coords with just moab::EntityHandle -- can also eliminate dim */
 /* TODO: Replace quad/npts with PetscDT */
-PETSC_EXTERN PetscErrorCode DMMoabFEMCreateQuadratureDefault ( const PetscInt dim, const PetscInt nverts, PetscQuadrature *quadrature );
+PETSC_EXTERN PetscErrorCode DMMoabFEMCreateQuadratureDefault ( const PetscInt dim, const PetscInt nverts, PetscQuadrature *quadrature);
 PETSC_EXTERN PetscErrorCode DMMoabFEMComputeBasis ( const PetscInt dim, const PetscInt nverts, const PetscReal *coordinates, const PetscQuadrature quadrature, PetscReal *phypts, PetscReal *jxw, PetscReal *phi, PetscReal **dphi);
 PETSC_EXTERN PetscErrorCode DMMoabPToRMapping ( const PetscInt dim, const PetscInt nverts, const PetscReal *coordinates, const PetscReal* xphy, PetscReal* natparam, PetscReal* phi);
 

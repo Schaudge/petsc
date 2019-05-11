@@ -56,7 +56,7 @@ PetscErrorCode FormGradient(Tao,Vec,Vec,void*);
 PetscErrorCode FormHessian(Tao,Vec,Mat,Mat,void*);
 PetscErrorCode My_Monitor(Tao, void *);
 
-int main( int argc, char **argv )
+int main( int argc, char **argv)
 {
   PetscErrorCode     ierr;                /* used to check for functions returning nonzeros */
   PetscInt           Nx, Ny;              /* number of processors in x- and y- directions */
@@ -69,7 +69,7 @@ int main( int argc, char **argv )
   MatFDColoring      matfdcoloring;
 
   /* Initialize TAO */
-  ierr = PetscInitialize( &argc, &argv,(char *)0,help );if (ierr) return ierr;
+  ierr = PetscInitialize( &argc, &argv,(char *)0,help);if (ierr) return ierr;
 
   /* Specify dimension of the problem */
   user.mx = 10; user.my = 10;
@@ -278,9 +278,9 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *fcn,Vec G,void *u
       d8 = (xt-xlt);
 
       df1dxc = d1*hydhx;
-      df2dxc = ( d1*hydhx + d4*hxdhy );
+      df2dxc = ( d1*hydhx + d4*hxdhy);
       df3dxc = d3*hxdhy;
-      df4dxc = ( d2*hydhx + d3*hxdhy );
+      df4dxc = ( d2*hydhx + d3*hxdhy);
       df5dxc = d2*hydhx;
       df6dxc = d4*hxdhy;
 
@@ -309,7 +309,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *fcn,Vec G,void *u
       df5dxc /= f5;
       df6dxc /= f6;
 
-      g[j][i] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc ) * 0.5;
+      g[j][i] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc) * 0.5;
 
     }
   }
@@ -548,19 +548,19 @@ PetscErrorCode QuadraticH(AppCtx *user, Vec X, Mat Hessian)
       col[k].j = j; col[k].i = i;
       k++;
 
-      if (i < mx-1 ){
+      if (i < mx-1){
         v[k]= hr;
         col[k].j = j; col[k].i = i+1;
         k++;
       }
 
-      if (i>0 && j < my-1 ){
+      if (i>0 && j < my-1){
         v[k]= htl;
         col[k].j = j+1; col[k].i = i-1;
         k++;
       }
 
-      if (j < my-1 ){
+      if (j < my-1){
         v[k]= ht;
         col[k].j = j+1; col[k].i = i;
         k++;

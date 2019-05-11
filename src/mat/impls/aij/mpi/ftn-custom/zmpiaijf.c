@@ -15,7 +15,7 @@
 #define matcreatempiaijwithsplitarrays_  matcreatempiaijwithsplitarrays
 #endif
 
-PETSC_EXTERN void PETSC_STDCALL  matcreatempiaijwithsplitarrays_(MPI_Comm *comm,PetscInt *m,PetscInt *n,PetscInt *M,PetscInt *N,PetscInt i[],PetscInt j[],PetscScalar a[],PetscInt oi[],PetscInt oj[],PetscScalar oa[],Mat *mat, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  matcreatempiaijwithsplitarrays_(MPI_Comm *comm,PetscInt *m,PetscInt *n,PetscInt *M,PetscInt *N,PetscInt i[],PetscInt j[],PetscScalar a[],PetscInt oi[],PetscInt oj[],PetscScalar oa[],Mat *mat, int *ierr)
 {
   *ierr = MatCreateMPIAIJWithSplitArrays(MPI_Comm_f2c(*(MPI_Fint*)&*comm),*m,*n,*M,*N,i,j,a,oi,oj,oa,mat);
 }
@@ -42,7 +42,7 @@ PETSC_EXTERN void PETSC_STDCALL matmpiaijsetpreallocation_(Mat *mat,PetscInt *d_
   *ierr = MatMPIAIJSetPreallocation(*mat,*d_nz,d_nnz,*o_nz,o_nnz);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  matxaijsetpreallocation_(Mat *A,PetscInt *bs,PetscInt dnnz[],PetscInt onnz[],PetscInt dnnzu[],PetscInt onnzu[],PetscErrorCode *ierr )
+PETSC_EXTERN void PETSC_STDCALL  matxaijsetpreallocation_(Mat *A,PetscInt *bs,PetscInt dnnz[],PetscInt onnz[],PetscInt dnnzu[],PetscInt onnzu[],PetscErrorCode *ierr)
 {
   CHKFORTRANNULLINTEGER(dnnz);
   CHKFORTRANNULLINTEGER(onnz);

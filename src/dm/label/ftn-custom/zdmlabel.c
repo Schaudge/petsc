@@ -19,6 +19,6 @@ PETSC_EXTERN void PETSC_STDCALL dmlabelview_(DMLabel *label, PetscViewer *vin, P
   *ierr = DMLabelView(*label, v);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  petscsectionsymlabelsetstratum_(PetscSectionSym *sym,PetscInt *stratum,PetscInt *size,PetscInt *minOrient,PetscInt *maxOrient,PetscCopyMode *mode, PetscInt **perms, PetscScalar **rots, int *__ierr ){
+PETSC_EXTERN void PETSC_STDCALL  petscsectionsymlabelsetstratum_(PetscSectionSym *sym,PetscInt *stratum,PetscInt *size,PetscInt *minOrient,PetscInt *maxOrient,PetscCopyMode *mode, PetscInt **perms, PetscScalar **rots, int *__ierr){
 *__ierr = PetscSectionSymLabelSetStratum(*sym,*stratum,*size,*minOrient,*maxOrient,*mode,(const PetscInt **)perms,(const PetscScalar **)rots);
 }

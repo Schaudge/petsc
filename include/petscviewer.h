@@ -186,7 +186,7 @@ PETSC_EXTERN PetscErrorCode PetscViewerASCIIPushSynchronized(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerASCIIPopSynchronized(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerASCIIPushTab(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerASCIIPopTab(PetscViewer);
-PETSC_EXTERN PetscErrorCode PetscViewerASCIIUseTabs(PetscViewer,PetscBool );
+PETSC_EXTERN PetscErrorCode PetscViewerASCIIUseTabs(PetscViewer,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscViewerASCIISetTab(PetscViewer,PetscInt);
 PETSC_EXTERN PetscErrorCode PetscViewerASCIIGetTab(PetscViewer,PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscViewerASCIIAddTab(PetscViewer,PetscInt);

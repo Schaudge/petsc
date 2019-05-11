@@ -177,7 +177,7 @@ static PetscErrorCode MatADAComputeDiagonal(Mat mat)
   ierr = MatGetOwnershipRange(mat, &low, &high);CHKERRQ(ierr);
   ierr = MatGetSize(mat,&m,&n);CHKERRQ(ierr);
 
-  ierr = PetscMalloc1(n,&dtemp );CHKERRQ(ierr);
+  ierr = PetscMalloc1(n,&dtemp);CHKERRQ(ierr);
   for (i=0; i<n; i++){
     ierr = MatGetColumnVector(ctx->A, ctx->W, i);CHKERRQ(ierr);
     ierr = VecPointwiseMult(ctx->W,ctx->W,ctx->W);CHKERRQ(ierr);
@@ -269,9 +269,9 @@ static PetscErrorCode MatCreateSubMatrices_ADA(Mat A,PetscInt n, IS *irow,IS *ic
 
   PetscFunctionBegin;
   if (scall == MAT_INITIAL_MATRIX) {
-    ierr = PetscCalloc1(n+1,B );CHKERRQ(ierr);
+    ierr = PetscCalloc1(n+1,B);CHKERRQ(ierr);
   }
-  for ( i=0; i<n; i++ ) {
+  for ( i=0; i<n; i++) {
     ierr = MatCreateSubMatrix_ADA(A,irow[i],icol[i],scall,&(*B)[i]);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);

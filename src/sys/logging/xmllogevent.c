@@ -468,10 +468,10 @@ static PetscErrorCode PetscPrintExeSpecs(PetscViewer viewer)
   ierr = PetscGetVersion(version,sizeof(version));CHKERRQ(ierr);
 
   ierr = PetscViewerXMLStartSection(viewer, "runspecification", "Run Specification");CHKERRQ(ierr);
-  ierr = PetscViewerXMLPutString(   viewer, "executable"  , "Executable"   , pname );CHKERRQ(ierr);
-  ierr = PetscViewerXMLPutString(   viewer, "architecture", "Architecture" , arch );CHKERRQ(ierr);
+  ierr = PetscViewerXMLPutString(   viewer, "executable"  , "Executable"   , pname);CHKERRQ(ierr);
+  ierr = PetscViewerXMLPutString(   viewer, "architecture", "Architecture" , arch);CHKERRQ(ierr);
   ierr = PetscViewerXMLPutString(   viewer, "hostname"    , "Host"         , hostname);CHKERRQ(ierr);
-  ierr = PetscViewerXMLPutInt(      viewer, "nprocesses"  , "Number of processes", size );CHKERRQ(ierr);
+  ierr = PetscViewerXMLPutInt(      viewer, "nprocesses"  , "Number of processes", size);CHKERRQ(ierr);
   ierr = PetscViewerXMLPutString(   viewer, "user"        , "Run by user"  , username);CHKERRQ(ierr);
   ierr = PetscViewerXMLPutString(   viewer, "date"        , "Started at"   , date);CHKERRQ(ierr);
   ierr = PetscViewerXMLPutString(   viewer, "petscrelease", "Petsc Release", version);CHKERRQ(ierr);
@@ -530,7 +530,7 @@ static PetscErrorCode PetscPrintXMLGlobalPerformanceElement(PetscViewer viewer, 
 
   ierr = PetscViewerXMLStartSection(viewer, name, desc);CHKERRQ(ierr);
   ierr = PetscViewerXMLPutDouble(viewer, "max", NULL, max[0], "%e");CHKERRQ(ierr);
-  ierr = PetscViewerXMLPutInt(   viewer, "maxrank"  , "rank at which max was found" , (PetscMPIInt) max[1] );CHKERRQ(ierr);
+  ierr = PetscViewerXMLPutInt(   viewer, "maxrank"  , "rank at which max was found" , (PetscMPIInt) max[1]);CHKERRQ(ierr);
   ierr = PetscViewerXMLPutDouble(viewer, "ratio", NULL, ratio, "%f");CHKERRQ(ierr);
   if (print_average) {
     ierr = PetscViewerXMLPutDouble(viewer, "average", NULL, avg, "%e");CHKERRQ(ierr);

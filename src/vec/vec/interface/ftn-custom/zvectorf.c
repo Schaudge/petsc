@@ -71,62 +71,62 @@
 #define vecsetoptionsprefix_      vecsetoptionsprefix
 #endif
 
-PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   *ierr = VecSetValuesLocal(*x,*ni,ix,y,*iora);
 }
 
-PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvalueslocal_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvalueslocal_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvalueslocal_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvalues_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvalues_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   *ierr = VecSetValues(*x,*ni,ix,y,*iora);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvalues0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvalues0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvalues_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvalues1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvalues1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvalues_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvalues11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvalues11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvalues_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   *ierr = VecSetValuesBlocked(*x,*ni,ix,y,*iora);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvaluesblocked_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvaluesblocked_(x,ni,ix,y,iora,ierr);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  vecsetvaluesblocked11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr)
 {
   vecsetvaluesblocked_(x,ni,ix,y,iora,ierr);
 }

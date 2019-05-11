@@ -729,7 +729,7 @@ static PetscErrorCode MatStashSortCompress_Private(MatStash *stash,InsertMode in
     if (i == n || row[i] != row[rowstart]) {         /* Sort the last row. */
       PetscInt colstart;
       ierr = PetscSortIntWithArray(i-rowstart,&col[rowstart],&perm[rowstart]);CHKERRQ(ierr);
-      for (colstart=rowstart; colstart<i; ) { /* Compress multiple insertions to the same location */
+      for (colstart=rowstart; colstart<i;) { /* Compress multiple insertions to the same location */
         PetscInt j,l;
         MatStashBlock *block;
         ierr = PetscSegBufferGet(stash->segsendblocks,1,&block);CHKERRQ(ierr);
@@ -868,7 +868,7 @@ static PetscErrorCode MatStashScatterBegin_BTS(Mat mat,MatStash *stash,PetscInt 
 
     /* Count number of send ranks and allocate for sends */
     stash->nsendranks = 0;
-    for (rowstart=0; rowstart<nblocks; ) {
+    for (rowstart=0; rowstart<nblocks;) {
       PetscInt owner;
       MatStashBlock *sendblock_rowstart = (MatStashBlock*)&sendblocks[rowstart*stash->blocktype_size];
       ierr = PetscFindInt(sendblock_rowstart->row,stash->size+1,owners,&owner);CHKERRQ(ierr);
@@ -884,7 +884,7 @@ static PetscErrorCode MatStashScatterBegin_BTS(Mat mat,MatStash *stash,PetscInt 
 
     /* Set up sendhdrs and sendframes */
     sendno = 0;
-    for (rowstart=0; rowstart<nblocks; ) {
+    for (rowstart=0; rowstart<nblocks;) {
       PetscInt owner;
       MatStashBlock *sendblock_rowstart = (MatStashBlock*)&sendblocks[rowstart*stash->blocktype_size];
       ierr = PetscFindInt(sendblock_rowstart->row,stash->size+1,owners,&owner);CHKERRQ(ierr);

@@ -60,17 +60,17 @@ PetscInt GetSize(const char *p)
          ||(!strcmp(p,"hull1972a2"))
          ||(!strcmp(p,"hull1972a3"))
          ||(!strcmp(p,"hull1972a4"))
-         ||(!strcmp(p,"hull1972a5")) )  PetscFunctionReturn(1);
-  else if  (!strcmp(p,"hull1972b1")  )  PetscFunctionReturn(2);
+         ||(!strcmp(p,"hull1972a5")))  PetscFunctionReturn(1);
+  else if  (!strcmp(p,"hull1972b1"))  PetscFunctionReturn(2);
   else if ((!strcmp(p,"hull1972b2"))
          ||(!strcmp(p,"hull1972b3"))
          ||(!strcmp(p,"hull1972b4"))
-         ||(!strcmp(p,"hull1972b5")) )  PetscFunctionReturn(3);
-  else if ((!strcmp(p,"kulik2013i")) )  PetscFunctionReturn(4);
+         ||(!strcmp(p,"hull1972b5")))  PetscFunctionReturn(3);
+  else if ((!strcmp(p,"kulik2013i")))  PetscFunctionReturn(4);
   else if ((!strcmp(p,"hull1972c1"))
          ||(!strcmp(p,"hull1972c2"))
-         ||(!strcmp(p,"hull1972c3")) )  PetscFunctionReturn(10);
-  else if  (!strcmp(p,"hull1972c4")  )  PetscFunctionReturn(51);
+         ||(!strcmp(p,"hull1972c3")))  PetscFunctionReturn(10);
+  else if  (!strcmp(p,"hull1972c4"))  PetscFunctionReturn(51);
   else                                  PetscFunctionReturn(-1);
 }
 

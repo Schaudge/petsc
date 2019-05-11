@@ -1066,7 +1066,7 @@ static PetscErrorCode PCPatchCreateCellPatches(PC pc)
 
 
   /* Now that we know how much space we need, run through again and actually remember the cells. */
-  for (v = vStart; v < vEnd; v++ ) {
+  for (v = vStart; v < vEnd; v++) {
     PetscHashIter hi;
     PetscInt       dof, off, cdof, coff, efdof, efoff, ifdof, ifoff, pdof, n = 0, cn = 0, ifn = 0, efn = 0;
 
@@ -1413,7 +1413,7 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
                 localDof = localIndex++;
                 ierr = PetscHMapISet(ht, globalDof + l, localDof);CHKERRQ(ierr);
               }
-              if ( globalIndex >= numDofs ) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Found more dofs %D than expected %D", globalIndex+1, numDofs);
+              if ( globalIndex >= numDofs) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Found more dofs %D than expected %D", globalIndex+1, numDofs);
               /* And store. */
               dofsArray[globalIndex] = localDof;
             }
@@ -1427,7 +1427,7 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
                   localDof = localIndexWithArtificial++;
                   ierr = PetscHMapISet(htWithArtificial, globalDof + l, localDof);CHKERRQ(ierr);
                 }
-                if ( globalIndex >= numDofs ) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Found more dofs %D than expected %D", globalIndex+1, numDofs);
+                if ( globalIndex >= numDofs) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Found more dofs %D than expected %D", globalIndex+1, numDofs);
                 /* And store.*/
                 dofsArrayWithArtificial[globalIndex] = localDof;
               }
@@ -1441,7 +1441,7 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
                 localDof = localIndexWithAll++;
                 ierr = PetscHMapISet(htWithAll, globalDof + l, localDof);CHKERRQ(ierr);
               }
-              if ( globalIndex >= numDofs ) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Found more dofs %D than expected %D", globalIndex+1, numDofs);
+              if ( globalIndex >= numDofs) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Found more dofs %D than expected %D", globalIndex+1, numDofs);
               /* And store.*/
               dofsArrayWithAll[globalIndex] = localDof;
             }

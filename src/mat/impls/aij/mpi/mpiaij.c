@@ -797,7 +797,7 @@ PetscErrorCode MatAssemblyEnd_MPIAIJ(Mat mat,MatAssemblyType mode)
       ierr = MatStashScatterGetMesg_Private(&mat->stash,&n,&row,&col,&val,&flg);CHKERRQ(ierr);
       if (!flg) break;
 
-      for (i=0; i<n; ) {
+      for (i=0; i<n;) {
         /* Now identify the consecutive vals belonging to the same row */
         for (j=i,rstart=row[j]; j<n; j++) {
           if (row[j] != rstart) break;
@@ -5542,10 +5542,8 @@ PETSC_INTERN PetscErrorCode MatPtAP_IS_XAIJ(Mat,Mat,MatReuse,PetscReal,Mat*);
 /*
     Computes (B'*A')' since computing B*A directly is untenable
 
-               n                       p                          p
-        (              )       (              )         (                  )
-      m (      A       )  *  n (       B      )   =   m (         C        )
-        (              )       (              )         (                  )
+         n         p           p
+      m (A)  *  n (B)   =   m (C)
 
 */
 PetscErrorCode MatMatMultNumeric_MPIDense_MPIAIJ(Mat A,Mat B,Mat C)

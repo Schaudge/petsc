@@ -707,7 +707,7 @@ M*/
 M*/
 #if defined(PETSC_USE_COMPLEX)
 #define PetscObjectComposedDataGetScalar(obj,id,data,flag)                              \
-  ((((obj)->scalarcomposedstate && ((obj)->scalarcomposedstate[id] == (obj)->state) ) ? \
+  ((((obj)->scalarcomposedstate && ((obj)->scalarcomposedstate[id] == (obj)->state)) ? \
    (data = (obj)->scalarcomposeddata[id],flag = PETSC_TRUE) : (flag = PETSC_FALSE)),0)
 #else
 #define PetscObjectComposedDataGetScalar(obj,id,data,flag)                             \

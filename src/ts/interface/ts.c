@@ -2922,7 +2922,7 @@ PetscErrorCode TSSetMaxSteps(TS ts,PetscInt maxsteps)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
   PetscValidLogicalCollectiveInt(ts,maxsteps,2);
-  if (maxsteps < 0 ) SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_ARG_OUTOFRANGE,"Maximum number of steps must be non-negative");
+  if (maxsteps < 0) SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_ARG_OUTOFRANGE,"Maximum number of steps must be non-negative");
   ts->max_steps = maxsteps;
   PetscFunctionReturn(0);
 }
@@ -5645,7 +5645,7 @@ PetscErrorCode TSErrorWeightedNorm2(TS ts,Vec U,Vec Y,PetscReal *norm,PetscReal 
   nr_glb = err_glb[5];
 
   *norm  = 0.;
-  if(n_glb>0. ){*norm  = PetscSqrtReal(gsum  / n_glb );}
+  if(n_glb>0.){*norm  = PetscSqrtReal(gsum  / n_glb);}
   *norma = 0.;
   if(na_glb>0.){*norma = PetscSqrtReal(gsuma / na_glb);}
   *normr = 0.;
@@ -6013,7 +6013,7 @@ PetscErrorCode TSErrorWeightedENorm2(TS ts,Vec E,Vec U,Vec Y,PetscReal *norm,Pet
   nr_glb = err_glb[5];
 
   *norm  = 0.;
-  if(n_glb>0. ){*norm  = PetscSqrtReal(gsum  / n_glb );}
+  if(n_glb>0.){*norm  = PetscSqrtReal(gsum  / n_glb);}
   *norma = 0.;
   if(na_glb>0.){*norma = PetscSqrtReal(gsuma / na_glb);}
   *normr = 0.;

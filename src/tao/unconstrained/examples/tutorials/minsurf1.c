@@ -46,7 +46,7 @@ static PetscErrorCode QuadraticH(AppCtx*,Vec,Mat);
 PetscErrorCode FormFunctionGradient(Tao,Vec,PetscReal*,Vec,void*);
 PetscErrorCode FormHessian(Tao,Vec,Mat,Mat,void*);
 
-int main( int argc, char **argv )
+int main( int argc, char **argv)
 {
   PetscErrorCode     ierr;              /* used to check for functions returning nonzeros */
   PetscInt           N;                 /* Size of vector */
@@ -58,7 +58,7 @@ int main( int argc, char **argv )
   AppCtx             user;              /* user-defined work context */
 
   /* Initialize TAO,PETSc */
-  ierr = PetscInitialize( &argc, &argv,(char *)0,help );if (ierr) return ierr;
+  ierr = PetscInitialize( &argc, &argv,(char *)0,help);if (ierr) return ierr;
 
   ierr = MPI_Comm_size(MPI_COMM_WORLD,&size);CHKERRQ(ierr);
   if (size >1) SETERRQ(PETSC_COMM_SELF,1,"Incorrect number of processors");
@@ -207,9 +207,9 @@ PetscErrorCode FormFunctionGradient(Tao tao,Vec X,PetscReal *fcn,Vec G,void *use
       d8 = (xt-xlt);
 
       df1dxc = d1*hydhx;
-      df2dxc = ( d1*hydhx + d4*hxdhy );
+      df2dxc = ( d1*hydhx + d4*hxdhy);
       df3dxc = d3*hxdhy;
-      df4dxc = ( d2*hydhx + d3*hxdhy );
+      df4dxc = ( d2*hydhx + d3*hxdhy);
       df5dxc = d2*hydhx;
       df6dxc = d4*hxdhy;
 
@@ -238,7 +238,7 @@ PetscErrorCode FormFunctionGradient(Tao tao,Vec X,PetscReal *fcn,Vec G,void *use
       df5dxc /= f5;
       df6dxc /= f6;
 
-      g[row] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc )/2.0;
+      g[row] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc)/2.0;
     }
   }
 
@@ -435,15 +435,15 @@ PetscErrorCode QuadraticH(AppCtx *user, Vec X, Mat Hessian)
 
       v[k]= hc; col[k]=row; k++;
 
-      if (i < mx-1 ){
+      if (i < mx-1){
         v[k]= hr; col[k]=row+1; k++;
       }
 
-      if (i>0 && j < my-1 ){
+      if (i>0 && j < my-1){
         v[k]= htl; col[k] = row+mx-1; k++;
       }
 
-      if (j < my-1 ){
+      if (j < my-1){
         v[k]= ht; col[k] = row+mx; k++;
       }
 

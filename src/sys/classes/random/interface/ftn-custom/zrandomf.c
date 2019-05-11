@@ -13,11 +13,11 @@
 #define petscrandomgetseed_                petscrandomgetseed
 #endif
 
-PETSC_EXTERN void PETSC_STDCALL  petscrandomgetseed_(PetscRandom *r,unsigned long *seed, PetscErrorCode *ierr )
+PETSC_EXTERN void PETSC_STDCALL  petscrandomgetseed_(PetscRandom *r,unsigned long *seed, PetscErrorCode *ierr)
 {
   *ierr = PetscRandomGetSeed(*r,seed);
 }
-PETSC_EXTERN void PETSC_STDCALL  petscrandomsetseed_(PetscRandom *r,unsigned long *seed, PetscErrorCode *ierr )
+PETSC_EXTERN void PETSC_STDCALL  petscrandomsetseed_(PetscRandom *r,unsigned long *seed, PetscErrorCode *ierr)
 {
   *ierr = PetscRandomSetSeed(*r,*seed);
 }

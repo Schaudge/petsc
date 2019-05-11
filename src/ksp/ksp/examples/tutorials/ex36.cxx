@@ -276,7 +276,7 @@ double ForcingFunction(PetscReal coords[3], UserContext* user)
 {
   const PetscReal exact = ExactSolution(coords, user);
   if (user->problem == 2) {
-    const PetscReal duxyz = ( (coords[0] - user->xyzref[0]) + (coords[1] - user->xyzref[1]) + (coords[2] - user->xyzref[2]) );
+    const PetscReal duxyz = ( (coords[0] - user->xyzref[0]) + (coords[1] - user->xyzref[1]) + (coords[2] - user->xyzref[2]));
     return (4.0 / user->nu * duxyz * duxyz - 6.0) * exact / user->nu;
   }
   else {
@@ -413,7 +413,7 @@ PetscErrorCode ComputeMatrix_MOAB(KSP ksp, Mat J, Mat jac, void *ctx)
   ierr = DMMoabGetHierarchyLevel(dm, &hlevel);CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD, "ComputeMatrix: Level = %d, N(elements) = %d, N(vertices) = %d \n", hlevel, nglobale, nglobalv);
 
-  ierr = DMMoabFEMCreateQuadratureDefault ( user->dim, user->VPERE, &quadratureObj );CHKERRQ(ierr);
+  ierr = DMMoabFEMCreateQuadratureDefault ( user->dim, user->VPERE, &quadratureObj);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(quadratureObj, NULL, &nc, &npoints, NULL, NULL);CHKERRQ(ierr);
   ierr = PetscMalloc6(user->VPERE * npoints, &phi, user->VPERE * npoints, &dphi[0], user->VPERE * npoints, &dphi[1], user->VPERE * npoints, &dphi[2], npoints * 3, &phypts, npoints, &jxw);CHKERRQ(ierr);
 
@@ -451,9 +451,8 @@ PetscErrorCode ComputeMatrix_MOAB(KSP ksp, Mat J, Mat jac, void *ctx)
         for (j = 0; j < nconn; ++j) {
           array[i * nconn + j] += jxw[q] * ( rho * ( dphi[0][offset + i] * dphi[0][offset + j] +
                                                      dphi[1][offset + i] * dphi[1][offset + j] +
-                                                     dphi[2][offset + i] * dphi[2][offset + j] )
-                                             + alpha * ( phi[offset + i] * phi[offset + j] )
-                                            );
+                                                     dphi[2][offset + i] * dphi[2][offset + j])
+                                             + alpha * ( phi[offset + i] * phi[offset + j]));
         }
       }
     }

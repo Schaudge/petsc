@@ -29,7 +29,7 @@ PETSC_EXTERN void PETSC_STDCALL matcreatenest_(MPI_Fint *comm,PetscInt *nr,IS is
   *ierr = PetscFree(m);
 }
 
-PETSC_EXTERN void PETSC_STDCALL  matnestgetiss_(Mat *A,IS rows[],IS cols[], int *ierr )
+PETSC_EXTERN void PETSC_STDCALL  matnestgetiss_(Mat *A,IS rows[],IS cols[], int *ierr)
 {
   CHKFORTRANNULLOBJECT(rows);
   CHKFORTRANNULLOBJECT(cols);

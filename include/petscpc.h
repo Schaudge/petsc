@@ -161,8 +161,8 @@ PETSC_EXTERN PetscErrorCode PCFactorSetColumnPivot(PC,PetscReal);
 PETSC_EXTERN PetscErrorCode PCFactorReorderForNonzeroDiagonal(PC,PetscReal);
 
 PETSC_EXTERN PetscErrorCode PCFactorSetMatOrderingType(PC,MatOrderingType);
-PETSC_EXTERN PetscErrorCode PCFactorSetReuseOrdering(PC,PetscBool );
-PETSC_EXTERN PetscErrorCode PCFactorSetReuseFill(PC,PetscBool );
+PETSC_EXTERN PetscErrorCode PCFactorSetReuseOrdering(PC,PetscBool);
+PETSC_EXTERN PetscErrorCode PCFactorSetReuseFill(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCFactorSetUseInPlace(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCFactorGetUseInPlace(PC,PetscBool*);
 PETSC_EXTERN PetscErrorCode PCFactorSetAllowDiagonalFill(PC,PetscBool);
@@ -200,7 +200,7 @@ PETSC_EXTERN PetscErrorCode PCGASMSetSubdomains(PC,PetscInt,IS[],IS[]);
 PETSC_EXTERN PetscErrorCode PCGASMSetOverlap(PC,PetscInt);
 PETSC_EXTERN PetscErrorCode PCGASMSetUseDMSubdomains(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCGASMGetUseDMSubdomains(PC,PetscBool*);
-PETSC_EXTERN PetscErrorCode PCGASMSetSortIndices(PC,PetscBool );
+PETSC_EXTERN PetscErrorCode PCGASMSetSortIndices(PC,PetscBool);
 
 PETSC_EXTERN PetscErrorCode PCGASMSetType(PC,PCGASMType);
 PETSC_EXTERN PetscErrorCode PCGASMCreateSubdomains(Mat,PetscInt,PetscInt*,IS*[]);

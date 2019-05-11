@@ -979,7 +979,7 @@ PETSC_EXTERN PetscErrorCode TSSundialsGetIterations(TS,PetscInt *,PetscInt *);
 PETSC_EXTERN PetscErrorCode TSSundialsSetGramSchmidtType(TS,TSSundialsGramSchmidtType);
 PETSC_EXTERN PetscErrorCode TSSundialsSetGMRESRestart(TS,PetscInt);
 PETSC_EXTERN PetscErrorCode TSSundialsSetLinearTolerance(TS,PetscReal);
-PETSC_EXTERN PetscErrorCode TSSundialsMonitorInternalSteps(TS,PetscBool );
+PETSC_EXTERN PetscErrorCode TSSundialsMonitorInternalSteps(TS,PetscBool);
 PETSC_EXTERN PetscErrorCode TSSundialsGetParameters(TS,PetscInt *,long*[],double*[]);
 PETSC_EXTERN PetscErrorCode TSSundialsSetMaxl(TS,PetscInt);
 #endif

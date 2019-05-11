@@ -174,7 +174,7 @@ static PetscErrorCode pounders_update_res(Tao tao)
     }
 
     /* compute Hres = sum_ij [wij * (*ci*Hj + cj*Hi + gi gj' + gj gi') ] */
-    /* vector(diagonal weights) Hres = sum_i(wii*(ci*Hi + gi * gi' )*/
+    /* vector(diagonal weights) Hres = sum_i(wii*(ci*Hi + gi * gi')*/
     for (i=0;i<mfqP->m;i++) {
       ierr = VecGetValues(tao->res_weights_v,1,&i,&wii);CHKERRQ(ierr);
       if (tao->niter>1) {

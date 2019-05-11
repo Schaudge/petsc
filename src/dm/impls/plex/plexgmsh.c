@@ -1165,7 +1165,7 @@ PetscErrorCode DMPlexCreateGmsh(MPI_Comm comm, PetscViewer viewer, PetscBool int
     for (trueNumCells = 0, c = 0; c < numCells; ++c) {
       int on = -1;
       if (gmsh_elem[c].dim > dim) {dim = gmsh_elem[c].dim; trueNumCells = 0;}
-      if (gmsh_elem[c].dim == dim) {hybrid = (trueNumCells ? (on != gmsh_elem[c].cellType ? on = gmsh_elem[c].cellType,PETSC_TRUE : hybrid) : (on = gmsh_elem[c].cellType, PETSC_FALSE) ); trueNumCells++;}
+      if (gmsh_elem[c].dim == dim) {hybrid = (trueNumCells ? (on != gmsh_elem[c].cellType ? on = gmsh_elem[c].cellType,PETSC_TRUE : hybrid) : (on = gmsh_elem[c].cellType, PETSC_FALSE)); trueNumCells++;}
       /* wedges always indicate an hybrid mesh in PLEX */
       if (on == 6 || on == 13) hybrid = PETSC_TRUE;
     }

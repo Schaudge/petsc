@@ -350,7 +350,7 @@ static PetscErrorCode HessianRegularization(Tao tao, Vec x, Mat H, Mat Hpre, voi
       ierr = MatShift(Hpre,ctx->mu);CHKERRQ(ierr);
     }
   } else if (ctx->p == NORM_1) {
-    /* 1/sqrt(x_i^2 + eps) * ( 1 - x_i^2/ABS(x_i^2+eps) ) */
+    /* 1/sqrt(x_i^2 + eps) * ( 1 - x_i^2/ABS(x_i^2+eps)) */
     copy1 = ctx->workRight[1];
     copy2 = ctx->workRight[2];
     copy3 = ctx->workRight[3];

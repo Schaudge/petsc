@@ -228,7 +228,7 @@
 !  Set fake B and C
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       one    = 1.0
-      if( N2 .gt. 0 ) then
+      if( N2 .gt. 0) then
          bval(1) = -one/(solver%mx-2)
 !     cval = -one/(solver%my*solver%mx)
          cval(1) = -one
@@ -237,7 +237,7 @@
             i = mod(irow,solver%mx)
             row(1) = irow
             col(1) = j
-            if (i .eq. 0 .or. j .eq. 0 .or. i .eq. solver%mx-1 .or. j .eq. solver%my-1 ) then
+            if (i .eq. 0 .or. j .eq. 0 .or. i .eq. solver%mx-1 .or. j .eq. solver%my-1) then
                !     no op
             else
                call MatSetValues(Bmat,ione,row,ione,col,bval,INSERT_VALUES,ierr);CHKERRA(ierr)
@@ -464,7 +464,7 @@
          j = row/solver%mx
          i = mod(row,solver%mx)
          temp = min(j,solver%my-j+1)*hy
-         if (i .eq. 0 .or. j .eq. 0  .or. i .eq. solver%mx-1 .or. j .eq. solver%my-1 ) then
+         if (i .eq. 0 .or. j .eq. 0  .or. i .eq. solver%mx-1 .or. j .eq. solver%my-1) then
             v = 0.0
          else
             v = temp1 * sqrt(min(min(i,solver%mx-i+1)*hx,temp))
@@ -660,7 +660,7 @@
       call DMCompositeGetAccessArray(solver%da,X,itwo,PETSC_NULL_INTEGER,Xsub,ierr);CHKERRQ(ierr)
       call DMCompositeGetAccessArray(solver%da,F,itwo,PETSC_NULL_INTEGER,Fsub,ierr);CHKERRQ(ierr)
 
-      call FormFunctionNLTerm( Xsub(1), Fsub(1), solver, ierr );CHKERRQ(ierr)
+      call FormFunctionNLTerm( Xsub(1), Fsub(1), solver, ierr);CHKERRQ(ierr)
       call MatMultAdd( solver%AmatLin, Xsub(1), Fsub(1), Fsub(1), ierr);CHKERRQ(ierr)
 
 !     do rest of operator (linear)
@@ -718,7 +718,7 @@
          i = mod(irow,solver%mx)
          ii = ii + 1            ! one based local index
          row(1) = irow
-         if (i .eq. 0 .or. j .eq. 0 .or. i .eq. solver%mx-1 .or. j .eq. solver%my-1 ) then
+         if (i .eq. 0 .or. j .eq. 0 .or. i .eq. solver%mx-1 .or. j .eq. solver%my-1) then
             v(1) = 0.0
          else
             u = lx_v(ii)

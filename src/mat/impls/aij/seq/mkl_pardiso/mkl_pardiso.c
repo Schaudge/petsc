@@ -733,10 +733,10 @@ PetscErrorCode MatFactorMKL_PARDISOInitialize_Private(Mat A, MatFactorType ftype
   PetscInt       i;
 
   PetscFunctionBegin;
-  for ( i = 0; i < IPARM_SIZE; i++ ){
+  for ( i = 0; i < IPARM_SIZE; i++){
     mat_mkl_pardiso->iparm[i] = 0;
   }
-  for ( i = 0; i < IPARM_SIZE; i++ ){
+  for ( i = 0; i < IPARM_SIZE; i++){
     mat_mkl_pardiso->pt[i] = 0;
   }
   /* Default options for both sym and unsym */

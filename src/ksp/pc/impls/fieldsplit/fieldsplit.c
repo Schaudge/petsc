@@ -2466,7 +2466,7 @@ static PetscErrorCode  PCFieldSplitGetSchurPre_FieldSplit(PC pc,PCFieldSplitSchu
     The FULL factorization is
 
 $   (A   B)  = (1       0) (A   0) (1  Ainv*B)  = L D U
-$   (C   E)    (C*Ainv  1) (0   S) (0     1  )
+$   (C   E)    (C*Ainv  1) (0   S) (0     1)
 
     where S = E - C*Ainv*B. In practice, the full factorization is applied via block triangular solves with the grouping L*(D*U). UPPER uses D*U, LOWER uses L*D,
     and DIAG is the diagonal part with the sign of S flipped (because this makes the preconditioner positive definite for many formulations, thus allowing the use of KSPMINRES). Sign flipping of S can be turned off with PCFieldSplitSetSchurScale().
@@ -3025,11 +3025,11 @@ PetscErrorCode PCFieldSplitSetDetectSaddlePoint(PC pc,PetscBool flg)
       if this is not called the block size defaults to the blocksize of the second matrix passed
       to KSPSetOperators()/PCSetOperators().
 
-$     For the Schur complement preconditioner if J = ( A00 A01 )
-$                                                    ( A10 A11 )
+$     For the Schur complement preconditioner if J = ( A00 A01)
+$                                                    ( A10 A11)
 $     the preconditioner using full factorization is
-$              ( I   -ksp(A00) A01 ) ( inv(A00)     0  ) (     I          0  )
-$              ( 0         I       ) (   0      ksp(S) ) ( -A10 ksp(A00)  I  )
+$              ( I   -ksp(A00) A01) ( inv(A00)     0) (     I          0)
+$              ( 0               I) (   0      ksp(S)) ( -A10 ksp(A00)  I)
      where the action of inv(A00) is applied using the KSP solver with prefix -fieldsplit_0_.  S is the Schur complement
 $              S = A11 - A10 ksp(A00) A01
      which is usually dense and not stored explicitly.  The action of ksp(S) is computed using the KSP solver with prefix -fieldsplit_splitname_ (where splitname was given
@@ -3039,15 +3039,15 @@ $              S = A11 - A10 ksp(A00) A01
 
      The factorization type is set using -pc_fieldsplit_schur_fact_type <diag, lower, upper, full>. The full is shown above,
      diag gives
-$              ( inv(A00)     0   )
-$              (   0      -ksp(S) )
+$              ( inv(A00)     0)
+$              (   0      -ksp(S))
      note that slightly counter intuitively there is a negative in front of the ksp(S) so that the preconditioner is positive definite. For SPD matrices J, the sign flip
      can be turned off with PCFieldSplitSetSchurScale() or by command line -pc_fieldsplit_schur_scale 1.0. The lower factorization is the inverse of
-$              (  A00   0 )
-$              (  A10   S )
+$              (  A00   0)
+$              (  A10   S)
      where the inverses of A00 and S are applied using KSPs. The upper factorization is the inverse of
-$              ( A00 A01 )
-$              (  0   S  )
+$              ( A00 A01)
+$              (  0   S)
      where again the inverses of A00 and S are applied using KSPs.
 
      If only one set of indices (one IS) is provided with PCFieldSplitSetIS() then the complement of that IS
@@ -3072,8 +3072,8 @@ $              (  0   S  )
    residual on all variables (PCCompositeSetType(pc,PC_COMPOSITE_MULTIPLICATIVE)), and then applies a simple ILU like preconditioner on all the variables.
 
    The generalized Golub-Kahan bidiagonalization preconditioner (gkb) can be applied to symmetric 2x2 block matrices of the shape
-$        ( A00  A01 )
-$        ( A01' 0   )
+$        ( A00  A01)
+$        ( A01' 0)
    with A00 positive semi-definite. The implementation follows [Ar13]. Therein, we choose N := 1/nu * I and the (1,1)-block of the matrix is modified to H = A00 + nu*A01*A01'.
    A linear system Hx = b has to be solved in each iteration of the GKB algorithm. This solver is chosen with the option prefix -fieldsplit_0_.
 

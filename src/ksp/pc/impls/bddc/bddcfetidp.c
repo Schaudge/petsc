@@ -121,7 +121,7 @@ PetscErrorCode PCBDDCDestroyFETIDPPC(PC pc)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
+PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx)
 {
   PetscErrorCode ierr;
   PC_IS          *pcis=(PC_IS*)fetidpmat_ctx->pc->data;
@@ -406,10 +406,10 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
         vals_B_delta   [partial_sum+s]=0.0;
       }
       /* B_delta */
-      if ( n_neg_values > 0 ) { /* there's a rank next to me to the left */
+      if ( n_neg_values > 0) { /* there's a rank next to me to the left */
         vals_B_delta   [partial_sum+n_neg_values-1]=-1.0;
       }
-      if ( n_neg_values < j ) { /* there's a rank next to me to the right */
+      if ( n_neg_values < j) { /* there's a rank next to me to the right */
         vals_B_delta   [partial_sum+n_neg_values]=1.0;
       }
       /* scaling as in Klawonn-Widlund 1999 */

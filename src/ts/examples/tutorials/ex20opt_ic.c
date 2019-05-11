@@ -108,7 +108,7 @@ static PetscErrorCode RHSHessianProductUU(TS ts,PetscReal t,Vec U,Vec *Vl,Vec Vr
   for (j=0;j<2;j++) {
     vhv[j] = 0;
     for (k=0;k<2;k++)
-      for (i=0;i<2;i++ )
+      for (i=0;i<2;i++)
         vhv[j] += vl[i]*dJdU[i][j][k]*vr[k];
   }
   ierr = VecRestoreArrayRead(U,&u);CHKERRQ(ierr);
@@ -209,7 +209,7 @@ static PetscErrorCode IHessianProductUU(TS ts,PetscReal t,Vec U,Vec *Vl,Vec Vr,V
   for (j=0;j<2;j++) {
     vhv[j] = 0;
     for (k=0;k<2;k++)
-      for (i=0;i<2;i++ )
+      for (i=0;i<2;i++)
         vhv[j] += vl[i]*dJdU[i][j][k]*vr[k];
   }
   ierr          = VecRestoreArrayRead(U,&u);CHKERRQ(ierr);

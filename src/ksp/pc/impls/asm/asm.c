@@ -341,7 +341,7 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
     /* Create the local work vectors (from the local matrices) and scatter contexts */
     ierr = MatCreateVecs(pc->pmat,&vec,0);CHKERRQ(ierr);
 
-    if (osm->is_local && (osm->type == PC_ASM_INTERPOLATE || osm->type == PC_ASM_NONE )) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"Cannot use interpolate or none PCASMType if is_local was provided to PCASMSetLocalSubdomains()");
+    if (osm->is_local && (osm->type == PC_ASM_INTERPOLATE || osm->type == PC_ASM_NONE)) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"Cannot use interpolate or none PCASMType if is_local was provided to PCASMSetLocalSubdomains()");
     if (osm->is_local && osm->type == PC_ASM_RESTRICT && osm->loctype == PC_COMPOSITE_ADDITIVE) {
       ierr = PetscMalloc1(osm->n_local_true,&osm->lprolongation);CHKERRQ(ierr);
     }

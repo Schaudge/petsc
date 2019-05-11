@@ -105,7 +105,7 @@
         do 20,i=xs,xs+xm-1
           row(MatStencil_i) = i
           row(MatStencil_j) = j
-          if (i.eq.0 .or. j.eq.0 .or. i.eq.mx-1 .or. j.eq.my-1 ) then
+          if (i.eq.0 .or. j.eq.0 .or. i.eq.mx-1 .or. j.eq.my-1) then
             v(1) = 2.0*(HxdHy + HydHx)
             call MatSetValuesStencil(B,i1,row,i1,row,v,INSERT_VALUES,ierr)
           else

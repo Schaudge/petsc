@@ -512,7 +512,7 @@ static PetscErrorCode VecScatterSetUp_SF(VecScatter vscat)
     ierr = VecDestroy(&yy);CHKERRQ(ierr);
   }
   if (!vscat->from_is) {ierr = ISDestroy(&ix);CHKERRQ(ierr);}
-  if (!vscat->to_is  ) {ierr = ISDestroy(&iy);CHKERRQ(ierr);}
+  if (!vscat->to_is) {ierr = ISDestroy(&iy);CHKERRQ(ierr);}
 
   /* Create lsf, the local scatter. Could use PetscSFCreateEmbeddedLeafSF, but since we know the comm is PETSC_COMM_SELF, we can make it fast */
   ierr = PetscObjectGetComm((PetscObject)data->sf,&comm);CHKERRQ(ierr);

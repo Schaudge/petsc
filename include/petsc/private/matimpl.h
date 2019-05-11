@@ -57,7 +57,7 @@ struct _MatOps {
   /*20*/
   PetscErrorCode (*assemblybegin)(Mat,MatAssemblyType);
   PetscErrorCode (*assemblyend)(Mat,MatAssemblyType);
-  PetscErrorCode (*setoption)(Mat,MatOption,PetscBool );
+  PetscErrorCode (*setoption)(Mat,MatOption,PetscBool);
   PetscErrorCode (*zeroentries)(Mat);
   /*24*/
   PetscErrorCode (*zerorows)(Mat,PetscInt,const PetscInt[],PetscScalar,Vec,Vec);
@@ -342,8 +342,8 @@ PETSC_INTERN PetscErrorCode MatStashDestroy_Private(MatStash*);
 PETSC_INTERN PetscErrorCode MatStashScatterEnd_Private(MatStash*);
 PETSC_INTERN PetscErrorCode MatStashSetInitialSize_Private(MatStash*,PetscInt);
 PETSC_INTERN PetscErrorCode MatStashGetInfo_Private(MatStash*,PetscInt*,PetscInt*);
-PETSC_INTERN PetscErrorCode MatStashValuesRow_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscBool );
-PETSC_INTERN PetscErrorCode MatStashValuesCol_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscBool );
+PETSC_INTERN PetscErrorCode MatStashValuesRow_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscBool);
+PETSC_INTERN PetscErrorCode MatStashValuesCol_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscBool);
 PETSC_INTERN PetscErrorCode MatStashValuesRowBlocked_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscInt,PetscInt);
 PETSC_INTERN PetscErrorCode MatStashValuesColBlocked_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscInt,PetscInt);
 PETSC_INTERN PetscErrorCode MatStashScatterBegin_Private(Mat,MatStash*,PetscInt*);

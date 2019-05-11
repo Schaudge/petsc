@@ -1707,7 +1707,7 @@ PETSC_EXTERN PetscErrorCode MatMFFDSetType(Mat,MatMFFDType);
 PETSC_EXTERN PetscErrorCode MatMFFDRegister(const char[],PetscErrorCode (*)(MatMFFD));
 
 PETSC_EXTERN PetscErrorCode MatMFFDDSSetUmin(Mat,PetscReal);
-PETSC_EXTERN PetscErrorCode MatMFFDWPSetComputeNormU(Mat,PetscBool );
+PETSC_EXTERN PetscErrorCode MatMFFDWPSetComputeNormU(Mat,PetscBool);
 
 PETSC_EXTERN PetscErrorCode MatFDColoringSetType(MatFDColoring,MatMFFDType);
 

@@ -1959,7 +1959,7 @@ PetscErrorCode TaoDefaultConvergenceTest(Tao tao,void *dummy)
   } else if (nfuncs > max_funcs){
     ierr = PetscInfo2(tao,"Exceeded maximum number of function evaluations: %D > %D\n", nfuncs,max_funcs);CHKERRQ(ierr);
     reason = TAO_DIVERGED_MAXFCN;
-  } else if ( tao->lsflag != 0 ){
+  } else if ( tao->lsflag != 0){
     ierr = PetscInfo(tao,"Tao Line Search failure.\n");CHKERRQ(ierr);
     reason = TAO_DIVERGED_LS_FAILURE;
   } else if (trradius < steptol && niter > 0){

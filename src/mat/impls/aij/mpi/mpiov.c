@@ -214,7 +214,7 @@ static PetscErrorCode MatIncreaseOverlap_MPIAIJ_Receive_Scalable(Mat mat,PetscIn
     ierr = ISDestroy(&is[i]);CHKERRQ(ierr);
   }
   /* retrieve information to get row id and its overlap */
-  for (i=0; i<nrecvs; ){
+  for (i=0; i<nrecvs;){
     is_id     = recvdata[i++];
     data_size = recvdata[i++];
     indices_i = indices_temp+(max_lsize+nrecvs)*is_id;

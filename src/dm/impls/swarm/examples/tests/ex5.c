@@ -455,7 +455,7 @@ int main(int argc,char **argv)
   for(p = 0; p < Np; ++p){
     vx = endVals[p*2*dim+2];
     vy = endVals[p*2*dim+3];
-    ierr = PetscPrintf(comm, "Particle %D initial Energy: %g  Final Energy: %g\n", p,(double) (0.5*(1000./(p+1))),(double ) (0.5*(PetscSqr(vx) + PetscSqr(vy))));CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "Particle %D initial Energy: %g  Final Energy: %g\n", p,(double) (0.5*(1000./(p+1))),(double) (0.5*(PetscSqr(vx) + PetscSqr(vy))));CHKERRQ(ierr);
   } 
   
   ierr = VecRestoreArrayRead(f, &endVals);CHKERRQ(ierr);

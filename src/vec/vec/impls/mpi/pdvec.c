@@ -760,7 +760,7 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer)
   chunkDims[dim] = dims[dim];
   chunksize      *= chunkDims[dim];
   /* hdf5 chunks must be less than the max of 32 bit int */
-  if (chunksize > PETSC_HDF5_INT_MAX/64 ) {
+  if (chunksize > PETSC_HDF5_INT_MAX/64) {
     if (bs > 1 || dim2) {
       if (chunkDims[dim-2] > (PetscInt)PetscSqrtReal((PetscReal)(PETSC_HDF5_INT_MAX/128))) {
         chunkDims[dim-2] = (PetscInt)PetscSqrtReal((PetscReal)(PETSC_HDF5_INT_MAX/128));

@@ -578,7 +578,7 @@ static PetscErrorCode PhysicsSolution_Euler(Model mod, PetscReal time, const Pet
   }
   else if (eu->type==EULER_SHOCK_TUBE) {
     /* For (x<x0) set (rho,u,p)=(8,0,10) and for (x>x0) set (rho,u,p)=(1,0,1). Choose x0 to the midpoint of the domain in the x-direction. */
-    if (x[0] < 0.0 ) {
+    if (x[0] < 0.0) {
       uu->r = 8.;
       uu->E = 10./(gamma-1.);
     }
@@ -767,7 +767,7 @@ static PetscErrorCode PhysicsCreate_Euler(Model mod,Physics phys,PetscOptionItem
     alpha = 60.;
     ierr = PetscOptionsReal("-eu_alpha","Angle of discontinuity","",alpha,&alpha,NULL);CHKERRQ(ierr);
     if (alpha<=0. || alpha>90.) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Alpha bust be > 0 and <= 90 (%g)",alpha);
-    eu->pars[EULER_PAR_ITANA] = 1./PetscTanReal( alpha * PETSC_PI / 180.0 );
+    eu->pars[EULER_PAR_ITANA] = 1./PetscTanReal( alpha * PETSC_PI / 180.0);
     ierr = PetscOptionsString("-eu_type","Type of Euler test","",type,type,sizeof(type),NULL);CHKERRQ(ierr);
     ierr = PetscStrcmp(type,"linear_wave", &is);CHKERRQ(ierr);
     if (is) {

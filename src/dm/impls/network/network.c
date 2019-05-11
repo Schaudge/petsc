@@ -1147,13 +1147,13 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
     newDMnetwork->subnet[j].Nedge = oldDMnetwork->subnet[j].Nedge;
   }
 
-  for (e = newDMnetwork->eStart; e < newDMnetwork->eEnd; e++ ) {
+  for (e = newDMnetwork->eStart; e < newDMnetwork->eEnd; e++) {
     ierr = PetscSectionGetOffset(newDMnetwork->DataSection,e,&offset);CHKERRQ(ierr);
     header = (DMNetworkComponentHeader)(newDMnetwork->componentdataarray+offset);CHKERRQ(ierr);
     newDMnetwork->subnet[header->subnetid].nedge++;
   }
 
-  for (v = newDMnetwork->vStart; v < newDMnetwork->vEnd; v++ ) {
+  for (v = newDMnetwork->vStart; v < newDMnetwork->vEnd; v++) {
     ierr = PetscSectionGetOffset(newDMnetwork->DataSection,v,&offset);CHKERRQ(ierr);
     header = (DMNetworkComponentHeader)(newDMnetwork->componentdataarray+offset);CHKERRQ(ierr);
     newDMnetwork->subnet[header->subnetid].nvtx++;
@@ -1174,13 +1174,13 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
   }
 
   /* Set the vertices and edges in each subnetwork */
-  for (e = newDMnetwork->eStart; e < newDMnetwork->eEnd; e++ ) {
+  for (e = newDMnetwork->eStart; e < newDMnetwork->eEnd; e++) {
     ierr = PetscSectionGetOffset(newDMnetwork->DataSection,e,&offset);CHKERRQ(ierr);
     header = (DMNetworkComponentHeader)(newDMnetwork->componentdataarray+offset);CHKERRQ(ierr);
     newDMnetwork->subnet[header->subnetid].edges[newDMnetwork->subnet[header->subnetid].nedge++] = e;
   }
 
-  for (v = newDMnetwork->vStart; v < newDMnetwork->vEnd; v++ ) {
+  for (v = newDMnetwork->vStart; v < newDMnetwork->vEnd; v++) {
     ierr = PetscSectionGetOffset(newDMnetwork->DataSection,v,&offset);CHKERRQ(ierr);
     header = (DMNetworkComponentHeader)(newDMnetwork->componentdataarray+offset);CHKERRQ(ierr);
     newDMnetwork->subnet[header->subnetid].vertices[newDMnetwork->subnet[header->subnetid].nvtx++] = v;

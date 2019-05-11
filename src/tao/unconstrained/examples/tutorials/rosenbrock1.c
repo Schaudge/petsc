@@ -6,7 +6,7 @@
 static  char help[] = "This example demonstrates use of the TAO package to \n\
 solve an unconstrained minimization problem on a single processor.  We \n\
 minimize the extended Rosenbrock function: \n\
-   sum_{i=0}^{n/2-1} ( alpha*(x_{2i+1}-x_{2i}^2)^2 + (1-x_{2i})^2 ) \n\
+   sum_{i=0}^{n/2-1} ( alpha*(x_{2i+1}-x_{2i}^2)^2 + (1-x_{2i})^2) \n\
 or the chained Rosenbrock function:\n\
    sum_{i=0}^{n-1} alpha*(x_{i+1} - x_i^2)^2 + (1 - x_i)^2\n";
 

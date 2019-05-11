@@ -3968,10 +3968,8 @@ PetscErrorCode  MatSeqAIJSetPreallocationCSR_SeqAIJ(Mat B,const PetscInt Ii[],co
 /*
     Computes (B'*A')' since computing B*A directly is untenable
 
-               n                       p                          p
-        (              )       (              )         (                  )
-      m (      A       )  *  n (       B      )   =   m (         C        )
-        (              )       (              )         (                  )
+         n         p           p
+      m (A)  *  n (B)   =   m (C)
 
 */
 PetscErrorCode MatMatMultNumeric_SeqDense_SeqAIJ(Mat A,Mat B,Mat C)

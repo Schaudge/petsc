@@ -431,7 +431,7 @@ static PetscErrorCode DMMoab_UMR_Private(DM dm, MPI_Comm comm, PetscBool refine,
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   PetscValidPointer(dmref, 4);
 
-  if ( (dmb->hlevel == dmb->nhlevels && refine) || (dmb->hlevel == 0 && !refine) ) {
+  if ( (dmb->hlevel == dmb->nhlevels && refine) || (dmb->hlevel == 0 && !refine)) {
     if (dmb->hlevel + 1 > dmb->nhlevels && refine) PetscInfo2(NULL, "Invalid multigrid refinement hierarchy level specified (%D). MOAB UMR max levels = %D. Creating a NULL object.\n", dmb->hlevel + 1, dmb->nhlevels);
     if (dmb->hlevel - 1 < 0 && !refine) PetscInfo1(NULL, "Invalid multigrid coarsen hierarchy level specified (%D). Creating a NULL object.\n", dmb->hlevel - 1);
     *dmref = PETSC_NULL;

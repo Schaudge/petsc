@@ -748,7 +748,7 @@ PetscErrorCode PCSetUp_MG(PC pc)
       if (!doA && dAeqdB) {
         if (reuse == MAT_INITIAL_MATRIX) {ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr);}
         A = B;
-      } else if (!doA && reuse == MAT_INITIAL_MATRIX ) {
+      } else if (!doA && reuse == MAT_INITIAL_MATRIX) {
         ierr = KSPGetOperators(mglevels[i]->smoothd,&A,NULL);CHKERRQ(ierr);
         ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr);
       }

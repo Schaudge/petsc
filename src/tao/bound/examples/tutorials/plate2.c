@@ -63,7 +63,7 @@ PetscErrorCode FormHessian(Tao,Vec,Mat,Mat,void*);
 PetscErrorCode MatrixFreeHessian(Tao,Vec,Mat, Mat,void*);
 PetscErrorCode MyMatMult(Mat,Vec,Vec);
 
-int main( int argc, char **argv )
+int main( int argc, char **argv)
 {
   PetscErrorCode         ierr;                 /* used to check for functions returning nonzeros */
   PetscInt               Nx, Ny;               /* number of processors in x- and y- directions */
@@ -76,7 +76,7 @@ int main( int argc, char **argv )
   AppCtx                 user;                 /* user-defined work context */
 
   /* Initialize PETSc, TAO */
-  ierr = PetscInitialize( &argc, &argv,(char *)0,help );if (ierr) return ierr;
+  ierr = PetscInitialize( &argc, &argv,(char *)0,help);if (ierr) return ierr;
 
   /* Specify default dimension of the problem */
   user.mx = 10; user.my = 10; user.bheight=0.1;
@@ -297,9 +297,9 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *fcn, Vec G,void *
       d8 = (xt-xlt);
 
       df1dxc = d1*hydhx;
-      df2dxc = ( d1*hydhx + d4*hxdhy );
+      df2dxc = ( d1*hydhx + d4*hxdhy);
       df3dxc = d3*hxdhy;
-      df4dxc = ( d2*hydhx + d3*hxdhy );
+      df4dxc = ( d2*hydhx + d3*hxdhy);
       df5dxc = d2*hydhx;
       df6dxc = d4*hxdhy;
 
@@ -328,7 +328,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec X, PetscReal *fcn, Vec G,void *
       df5dxc /= f5;
       df6dxc /= f6;
 
-      g[row] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc ) * 0.5;
+      g[row] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc) * 0.5;
 
     }
   }
@@ -573,15 +573,15 @@ PetscErrorCode FormHessian(Tao tao,Vec X,Mat Hptr, Mat Hessian, void *ptr)
 
       v[k]= hc; col[k]=row; k++;
 
-      if (i < mx-1 ){
+      if (i < mx-1){
         v[k]= hr; col[k]=row+1; k++;
       }
 
-      if (i>0 && j < my-1 ){
+      if (i>0 && j < my-1){
         v[k]= htl; col[k] = row+gxm-1; k++;
       }
 
-      if (j < my-1 ){
+      if (j < my-1){
         v[k]= ht; col[k] = row+gxm; k++;
       }
 
@@ -779,7 +779,7 @@ static PetscErrorCode MSA_Plate(Vec XL,Vec XU,void *ctx){
         t1=(2.0*i-mx)*bmy;
         t2=(2.0*j-my)*bmx;
         t3=bmx*bmx*bmy*bmy;
-        if ( t1*t1 + t2*t2 <= t3 ){
+        if ( t1*t1 + t2*t2 <= t3){
           xl[row] = user->bheight;
         }
       }
@@ -790,7 +790,7 @@ static PetscErrorCode MSA_Plate(Vec XL,Vec XU,void *ctx){
       for (j=ys; j<ys+ym; j++){
         row=(j-ys)*xm + (i-xs);
         if (i>=(mx-bmx)/2 && i<mx-(mx-bmx)/2 &&
-            j>=(my-bmy)/2 && j<my-(my-bmy)/2 ){
+            j>=(my-bmy)/2 && j<my-(my-bmy)/2){
           xl[row] = user->bheight;
         }
       }

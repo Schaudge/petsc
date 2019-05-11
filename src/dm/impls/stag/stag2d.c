@@ -90,11 +90,11 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_2d(DM dm,PetscRe
     ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN_LEFT,0,&idownleft);CHKERRQ(ierr);
   }
   if (stagCoord->dof[1]) {
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN     ,0,&idown    );CHKERRQ(ierr);
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_LEFT     ,0,&ileft    );CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_DOWN,0,&idown);CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_LEFT,0,&ileft);CHKERRQ(ierr);
   }
   if (stagCoord->dof[2]) {
-    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_ELEMENT  ,0,&ielement );CHKERRQ(ierr);
+    ierr = DMStagGetLocationSlot(dmCoord,DMSTAG_ELEMENT,0,&ielement);CHKERRQ(ierr);
   }
   ierr = DMStagGetCorners(dmCoord,&start[0],&start[1],NULL,&n[0],&n[1],NULL,&nExtra[0],&nExtra[1],NULL);CHKERRQ(ierr);
 
@@ -234,7 +234,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
   entriesPerEdge          = stag->dof[0] + stag->dof[1];
   entriesPerCorner        = stag->dof[0];
   entriesPerElementRow    = stag->n[0]*stag->entriesPerElement + (dummyEnd[0] ? entriesPerEdge : 0);
-  stag->entries           = stag->n[1]*entriesPerElementRow +  (dummyEnd[1] ? stag->n[0]*entriesPerEdge : 0 ) + (dummyEnd[0] && dummyEnd[1] ? entriesPerCorner: 0);
+  stag->entries           = stag->n[1]*entriesPerElementRow +  (dummyEnd[1] ? stag->n[0]*entriesPerEdge : 0) + (dummyEnd[0] && dummyEnd[1] ? entriesPerCorner: 0);
 
   /* Compute offsets for each rank into global vectors
      This again requires O(P) storage, which could be replaced with some global

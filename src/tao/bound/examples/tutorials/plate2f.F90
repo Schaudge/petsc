@@ -347,7 +347,7 @@
                xt = x_v(row + gxm + x_i)
             endif
 
-            if ((i .gt. gxs ) .and. (j + 1 .lt. gys + gym)) then
+            if ((i .gt. gxs) .and. (j + 1 .lt. gys + gym)) then
                xlt = x_v(row - 1 + gxm + x_i)
             endif
 
@@ -591,7 +591,7 @@
                xl = left_v(left_i + j - ys + 1)
                xlt = left_v(left_i + j - ys + 2)
             else
-               xl = x_v(x_i + row -1 )
+               xl = x_v(x_i + row -1)
             endif
 
             if (j .eq. gys) then ! bottom side
@@ -841,7 +841,7 @@
             u2=-yt
             k = 0
             exitloop = .false.
-            do while (k .lt. maxits .and. (.not. exitloop) )
+            do while (k .lt. maxits .and. (.not. exitloop))
 
                nf1=u1 + u1*u2*u2 - u1*u1*u1/three-xt
                nf2=-u2 - u1*u1*u2 + u2*u2*u2/three-yt

@@ -277,7 +277,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_1d(DM dm)
       }
       /* Ghost points on the right
          Special case for last (partial dummy) element on the last rank */
-      if (stag->lastRank[0] ) {
+      if (stag->lastRank[0]) {
         i      = stag->N[0];
         iLocal = (stag->nGhost[0]-ghostOffsetEnd);
         /* Only vertex (0-cell) dofs in global representation */

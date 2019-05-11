@@ -1773,7 +1773,7 @@ PETSC_EXTERN PetscErrorCode MatISSetMPIXAIJPreallocation_Private(Mat A, Mat B, P
       PetscInt owner = row_ownership[global_indices_r[i]];
       for (j=0;j<local_cols;j++) {
         PetscInt index_col = global_indices_c[j];
-        if (index_col > mat_ranges[owner]-1 && index_col < mat_ranges[owner+1] ) { /* diag block */
+        if (index_col > mat_ranges[owner]-1 && index_col < mat_ranges[owner+1]) { /* diag block */
           my_dnz[i] += 1;
         } else { /* offdiag block */
           my_onz[i] += 1;
@@ -1791,7 +1791,7 @@ PETSC_EXTERN PetscErrorCode MatISSetMPIXAIJPreallocation_Private(Mat A, Mat B, P
       for (j=0;j<ii[i+1]-ii[i];j++,jptr++) {
         PetscInt owner = row_ownership[index_row];
         PetscInt index_col = global_indices_c[*jptr];
-        if (index_col > mat_ranges[owner]-1 && index_col < mat_ranges[owner+1] ) { /* diag block */
+        if (index_col > mat_ranges[owner]-1 && index_col < mat_ranges[owner+1]) { /* diag block */
           my_dnz[i] += 1;
         } else { /* offdiag block */
           my_onz[i] += 1;
@@ -1799,7 +1799,7 @@ PETSC_EXTERN PetscErrorCode MatISSetMPIXAIJPreallocation_Private(Mat A, Mat B, P
         /* same as before, interchanging rows and cols */
         if (issbaij && index_col != index_row) {
           owner = row_ownership[index_col];
-          if (index_row > mat_ranges[owner]-1 && index_row < mat_ranges[owner+1] ) {
+          if (index_row > mat_ranges[owner]-1 && index_row < mat_ranges[owner+1]) {
             my_dnz[*jptr] += 1;
           } else {
             my_onz[*jptr] += 1;
@@ -1817,7 +1817,7 @@ PETSC_EXTERN PetscErrorCode MatISSetMPIXAIJPreallocation_Private(Mat A, Mat B, P
       for (j=0;j<ncols;j++) {
         PetscInt owner = row_ownership[index_row];
         PetscInt index_col = global_indices_c[cols[j]];
-        if (index_col > mat_ranges[owner]-1 && index_col < mat_ranges[owner+1] ) { /* diag block */
+        if (index_col > mat_ranges[owner]-1 && index_col < mat_ranges[owner+1]) { /* diag block */
           my_dnz[i] += 1;
         } else { /* offdiag block */
           my_onz[i] += 1;
@@ -1825,7 +1825,7 @@ PETSC_EXTERN PetscErrorCode MatISSetMPIXAIJPreallocation_Private(Mat A, Mat B, P
         /* same as before, interchanging rows and cols */
         if (issbaij && index_col != index_row) {
           owner = row_ownership[index_col];
-          if (index_row > mat_ranges[owner]-1 && index_row < mat_ranges[owner+1] ) {
+          if (index_row > mat_ranges[owner]-1 && index_row < mat_ranges[owner+1]) {
             my_dnz[cols[j]] += 1;
           } else {
             my_onz[cols[j]] += 1;
