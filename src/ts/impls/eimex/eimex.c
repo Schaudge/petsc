@@ -89,7 +89,7 @@ static PetscErrorCode TSStep_EIMEX(TS ts)
   PetscFunctionBegin;
 
   ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
-  ierr = SNESSetType(snes,"ksponly"); CHKERRQ(ierr);
+  ierr = SNESSetType(snes,"ksponly");CHKERRQ(ierr);
   ext->status = TS_STEP_INCOMPLETE;
 
   ierr = VecCopy(ts->vec_sol,ext->VecSolPrev);CHKERRQ(ierr);
@@ -97,7 +97,7 @@ static PetscErrorCode TSStep_EIMEX(TS ts)
   /* Apply n_j steps of the base method to obtain solutions of T(j,1),1<=j<=s */
   for(j=0; j<ns; j++){
         ierr = TSStage_EIMEX(ts,j);CHKERRQ(ierr);
-        ierr = VecCopy(Y,T[j]); CHKERRQ(ierr);
+        ierr = VecCopy(Y,T[j]);CHKERRQ(ierr);
   }
 
   for(i=1;i<ns;i++){
@@ -130,7 +130,7 @@ static PetscErrorCode TSStep_EIMEX(TS ts)
 	    ierr = VecDestroyVecs(ext->nstages*(ext->nstages-1)/2,&T);CHKERRQ(ierr);
 	    T = ext->T; /*reset the pointer*/
 	    /*recycling finished, store the new solution*/
-	    ierr = VecCopy(Y,T[ext->nstages-1]); CHKERRQ(ierr);
+	    ierr = VecCopy(Y,T[ext->nstages-1]);CHKERRQ(ierr);
 	    /*extrapolation for the newly added stage*/
 	    for(i=1;i<ext->nstages;i++){
 	      alpha = -(PetscReal)ext->N[ext->nstages-1]/ext->N[ext->nstages-1-i];

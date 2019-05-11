@@ -35,7 +35,7 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
   if (!lmP->recycle) {
     lmP->bfgs = 0;
     lmP->grad = 0;
-    ierr = MatLMVMReset(lmP->M, PETSC_FALSE); CHKERRQ(ierr);
+    ierr = MatLMVMReset(lmP->M, PETSC_FALSE);CHKERRQ(ierr);
   }
 
   /*  Have not converged; continue with Newton method */
@@ -52,7 +52,7 @@ static PetscErrorCode TaoSolve_LMVM(Tao tao)
     } 
     ierr = MatLMVMUpdate(lmP->M,tao->solution,tao->gradient);CHKERRQ(ierr);
     ierr = MatSolve(lmP->M, tao->gradient, lmP->D);CHKERRQ(ierr);
-    ierr = MatLMVMGetUpdateCount(lmP->M, &nupdates); CHKERRQ(ierr);
+    ierr = MatLMVMGetUpdateCount(lmP->M, &nupdates);CHKERRQ(ierr);
     if (nupdates > 0) stepType = LMVM_STEP_BFGS;
 
     /*  Check for success (descent direction) */

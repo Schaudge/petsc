@@ -211,7 +211,7 @@ int main(int argc, char **argv)
 
     ierr = DMPlexCreateFromFile(comm,filename,PETSC_TRUE,&base);CHKERRQ(ierr);
     ierr = DMGetDimension(base,&dim);CHKERRQ(ierr);
-    ierr = DMPlexRefineSimplexToTensor(base,&tdm); CHKERRQ(ierr);
+    ierr = DMPlexRefineSimplexToTensor(base,&tdm);CHKERRQ(ierr);
     if (tdm) {
       ierr = DMDestroy(&base);CHKERRQ(ierr);
       base = tdm;

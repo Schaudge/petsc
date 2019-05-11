@@ -385,7 +385,7 @@ PetscErrorCode TSComputeDRDUFunction(TS ts,PetscReal t,Vec U,Vec *DRDU)
   PetscValidHeaderSpecific(U,VEC_CLASSID,3);
 
   PetscStackPush("TS user DRDU function for sensitivity analysis");
-  ierr = (*ts->drdufunction)(ts,t,U,DRDU,ts->costintegrandctx); CHKERRQ(ierr);
+  ierr = (*ts->drdufunction)(ts,t,U,DRDU,ts->costintegrandctx);CHKERRQ(ierr);
   PetscStackPop;
   PetscFunctionReturn(0);
 }
@@ -406,7 +406,7 @@ PetscErrorCode TSComputeDRDPFunction(TS ts,PetscReal t,Vec U,Vec *DRDP)
   PetscValidHeaderSpecific(U,VEC_CLASSID,3);
 
   PetscStackPush("TS user DRDP function for sensitivity analysis");
-  ierr = (*ts->drdpfunction)(ts,t,U,DRDP,ts->costintegrandctx); CHKERRQ(ierr);
+  ierr = (*ts->drdpfunction)(ts,t,U,DRDP,ts->costintegrandctx);CHKERRQ(ierr);
   PetscStackPop;
   PetscFunctionReturn(0);
 }
@@ -1213,7 +1213,7 @@ PetscErrorCode TSAdjointComputeRHSJacobian(TS ts,PetscReal t,Vec U,Mat Amat)
   PetscValidPointer(Amat,4);
 
   PetscStackPush("TS user JacobianP function for sensitivity analysis");
-  ierr = (*ts->rhsjacobianp)(ts,t,U,Amat,ts->rhsjacobianpctx); CHKERRQ(ierr);
+  ierr = (*ts->rhsjacobianp)(ts,t,U,Amat,ts->rhsjacobianpctx);CHKERRQ(ierr);
   PetscStackPop;
   PetscFunctionReturn(0);
 }
@@ -1233,7 +1233,7 @@ PetscErrorCode TSAdjointComputeDRDYFunction(TS ts,PetscReal t,Vec U,Vec *DRDU)
   PetscValidHeaderSpecific(U,VEC_CLASSID,3);
 
   PetscStackPush("TS user DRDY function for sensitivity analysis");
-  ierr = (*ts->drdufunction)(ts,t,U,DRDU,ts->costintegrandctx); CHKERRQ(ierr);
+  ierr = (*ts->drdufunction)(ts,t,U,DRDU,ts->costintegrandctx);CHKERRQ(ierr);
   PetscStackPop;
   PetscFunctionReturn(0);
 }
@@ -1253,7 +1253,7 @@ PetscErrorCode TSAdjointComputeDRDPFunction(TS ts,PetscReal t,Vec U,Vec *DRDP)
   PetscValidHeaderSpecific(U,VEC_CLASSID,3);
 
   PetscStackPush("TS user DRDP function for sensitivity analysis");
-  ierr = (*ts->drdpfunction)(ts,t,U,DRDP,ts->costintegrandctx); CHKERRQ(ierr);
+  ierr = (*ts->drdpfunction)(ts,t,U,DRDP,ts->costintegrandctx);CHKERRQ(ierr);
   PetscStackPop;
   PetscFunctionReturn(0);
 }

@@ -102,7 +102,7 @@ PetscErrorCode  PetscObjectView(PetscObject obj,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#define CHKERRQI(incall,ierr) if (ierr) {incall = PETSC_FALSE; CHKERRQ(ierr);}
+#define CHKERRQI(incall,ierr) if (ierr) {incall = PETSC_FALSE;CHKERRQ(ierr);}
 
 /*@C
   PetscObjectViewFromOptions - Processes command line options to determine if/how a PetscObject is to be viewed.

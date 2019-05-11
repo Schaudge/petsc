@@ -257,7 +257,7 @@ int main(int argc,char **argv)
   ierr = TaoSetTolerances(tao,1e-10,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
 
   /* SOLVE THE APPLICATION */
-  ierr = TaoSolve(tao); CHKERRQ(ierr);
+  ierr = TaoSolve(tao);CHKERRQ(ierr);
 
   /* Free TAO data structures */
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);

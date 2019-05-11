@@ -849,7 +849,7 @@ static PetscErrorCode TSStep_ARKIMEX(TS ts)
           ierr = VecZeroEntries(YdotRHS[i]);CHKERRQ(ierr);
         }
       }
-      ierr = TSPostStage(ts,ark->stage_time,i,Y); CHKERRQ(ierr);
+      ierr = TSPostStage(ts,ark->stage_time,i,Y);CHKERRQ(ierr);
     }
 
     ark->status = TS_STEP_INCOMPLETE;

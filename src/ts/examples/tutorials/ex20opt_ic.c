@@ -557,7 +557,7 @@ int main(int argc,char **argv)
       /* Set initial solution guess */
       ierr = TaoSetInitialVector(tao,x);CHKERRQ(ierr);
       ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
-      ierr = TaoSolve(tao); CHKERRQ(ierr);
+      ierr = TaoSolve(tao);CHKERRQ(ierr);
       ierr = TaoDestroy(&tao);CHKERRQ(ierr);
       ierr = MatDestroy(&user.H);CHKERRQ(ierr);
       break;

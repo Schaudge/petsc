@@ -2415,7 +2415,7 @@ PetscErrorCode  TSGetAuxSolution(TS ts,Vec *v)
   if (ts->ops->getauxsolution) {
     ierr = (*ts->ops->getauxsolution)(ts,v);CHKERRQ(ierr);
   } else {
-    ierr = VecZeroEntries(*v); CHKERRQ(ierr);
+    ierr = VecZeroEntries(*v);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

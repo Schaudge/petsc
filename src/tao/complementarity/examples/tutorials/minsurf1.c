@@ -110,7 +110,7 @@ int main(int argc, char **argv)
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
 
   /* Solve the application */
-  ierr = TaoSolve(tao); CHKERRQ(ierr);
+  ierr = TaoSolve(tao);CHKERRQ(ierr);
 
   /* Free Tao data structures */
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
@@ -287,7 +287,7 @@ PetscErrorCode FormJacobian(Tao tao, Vec X, Mat H, Mat tHPre, void *ptr)
   /* Set various matrix options */
   ierr = MatSetOption(H,MAT_IGNORE_OFF_PROC_ENTRIES,PETSC_TRUE);CHKERRQ(ierr);
   ierr = MatAssembled(H,&assembled);CHKERRQ(ierr);
-  if (assembled){ierr = MatZeroEntries(H); CHKERRQ(ierr);}
+  if (assembled){ierr = MatZeroEntries(H);CHKERRQ(ierr);}
 
   /* Get pointers to vector data */
   ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);

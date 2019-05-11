@@ -689,7 +689,7 @@ int main(int argc, char ** argv)
   ierr = TaoSetInitialVector(tao, x);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   if (ctx->use_admm) {
-    ierr = TaoSolveADMM(ctx,x); CHKERRQ(ierr);
+    ierr = TaoSolveADMM(ctx,x);CHKERRQ(ierr);
   } else {ierr = TaoSolve(tao);CHKERRQ(ierr);}
   /* examine solution */
   ierr = VecViewFromOptions(x, NULL, "-view_sol");CHKERRQ(ierr);

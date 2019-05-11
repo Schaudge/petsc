@@ -8437,7 +8437,7 @@ static PetscErrorCode CellRefinerSetCoordinates(CellRefiner refiner, DM dm, Pets
       PetscInt *cone = NULL;
       PetscInt  closureSize, coneSize = 0, p, pdof;
 
-      ierr = PetscSectionGetDof(coordSection, parentId[c], &pdof); CHKERRQ(ierr);
+      ierr = PetscSectionGetDof(coordSection, parentId[c], &pdof);CHKERRQ(ierr);
       if (pdof) { /* localize on all cells that are refinement of a localized parent cell */
         ierr = DMPlexGetTransitiveClosure(rdm, c, PETSC_TRUE, &closureSize, &cone);CHKERRQ(ierr);
         for (p = 0; p < closureSize*2; p += 2) {

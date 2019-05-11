@@ -26,7 +26,7 @@ static PetscErrorCode MatMult_DiagBrdn(Mat B, Vec X, Vec Z)
   PetscFunctionBegin;
   VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
-  ierr = VecPointwiseDivide(Z, X, ldb->invD); CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(Z, X, ldb->invD);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -118,7 +118,7 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
           ierr = VecAXPBYPCZ(ldb->invDnew, 1.0-ldb->theta, (ldb->theta)/ldb->yts[lmvm->k], 1.0, ldb->BFGS, ldb->DFP);CHKERRQ(ierr);
         }
 
-        ierr = VecAXPY(ldb->invDnew, 1.0/ldb->yts[lmvm->k], ldb->V); CHKERRQ(ierr);
+        ierr = VecAXPY(ldb->invDnew, 1.0/ldb->yts[lmvm->k], ldb->V);CHKERRQ(ierr);
         /*  Obtain inverse and ensure positive definite */
         ierr = VecReciprocal(ldb->invDnew);CHKERRQ(ierr);
         ierr = VecAbs(ldb->invDnew);CHKERRQ(ierr);
@@ -164,7 +164,7 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
           /*  Broyden update U=(1-theta)*P + theta*Q */
           ierr = VecAXPBYPCZ(ldb->invDnew, (1.0-ldb->theta)/ldb->yts[lmvm->k], ldb->theta, 1.0, ldb->BFGS, ldb->DFP);CHKERRQ(ierr);
         }
-        ierr = VecAXPY(ldb->invDnew, 1.0/ldb->yts[lmvm->k], ldb->V); CHKERRQ(ierr);
+        ierr = VecAXPY(ldb->invDnew, 1.0/ldb->yts[lmvm->k], ldb->V);CHKERRQ(ierr);
         /*  Ensure positive definite */
         ierr = VecAbs(ldb->invDnew);CHKERRQ(ierr);
       }
@@ -325,7 +325,7 @@ static PetscErrorCode MatUpdate_DiagBrdn(Mat B, Vec X, Vec F)
         ierr = VecAXPBY(ldb->invD, 1.0-ldb->rho, ldb->rho, ldb->invDnew);CHKERRQ(ierr);
       }
     } else {
-      ierr = MatLMVMReset(B, PETSC_FALSE); CHKERRQ(ierr);
+      ierr = MatLMVMReset(B, PETSC_FALSE);CHKERRQ(ierr);
     }
     /* End DiagBrdn update */
 
@@ -424,7 +424,7 @@ static PetscErrorCode MatReset_DiagBrdn(Mat B, PetscBool destructive)
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
-  ierr = VecSet(ldb->invD, ldb->delta); CHKERRQ(ierr);
+  ierr = VecSet(ldb->invD, ldb->delta);CHKERRQ(ierr);
   if (destructive && ldb->allocated) {
     ierr = PetscFree3(ldb->yty, ldb->yts, ldb->sts);CHKERRQ(ierr);
     ierr = VecDestroy(&ldb->invDnew);CHKERRQ(ierr);

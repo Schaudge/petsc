@@ -339,7 +339,7 @@ PetscErrorCode QuadraticH(AppCtx *user, Vec X, Mat Hessian)
   ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
 
   /* Initialize matrix entries to zero */
-  ierr = MatZeroEntries(Hessian); CHKERRQ(ierr);
+  ierr = MatZeroEntries(Hessian);CHKERRQ(ierr);
 
   /* Set various matrix options */
   ierr = MatSetOption(Hessian,MAT_IGNORE_OFF_PROC_ENTRIES,PETSC_TRUE);CHKERRQ(ierr);

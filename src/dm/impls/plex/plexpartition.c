@@ -2514,7 +2514,7 @@ static PetscErrorCode DMPlexRewriteSF(DM dm, PetscInt n, PetscInt *pointsToRewri
   ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
 
   ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
-  ierr = PetscSFGetGraph(sf, &nroots, &nleafs, &ilocal, &iremote); CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, &nroots, &nleafs, &ilocal, &iremote);CHKERRQ(ierr);
   ierr = PetscMalloc1(pEnd-pStart, &isLeaf);CHKERRQ(ierr);
   for (i=0; i<pEnd-pStart; i++) {
     isLeaf[i] = PETSC_FALSE;
@@ -2739,7 +2739,7 @@ PetscErrorCode DMPlexRebalanceSharedPoints(DM dm, PetscInt entityDepth, PetscBoo
    * leaf: a point that is seen by this process but owned by a different process
    */
   ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
-  ierr = PetscSFGetGraph(sf, &nroots, &nleafs, &ilocal, &iremote); CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, &nroots, &nleafs, &ilocal, &iremote);CHKERRQ(ierr);
   ierr = PetscMalloc1(pEnd-pStart, &isLeaf);CHKERRQ(ierr);
   ierr = PetscMalloc1(pEnd-pStart, &isNonExclusivelyOwned);CHKERRQ(ierr);
   ierr = PetscMalloc1(pEnd-pStart, &isExclusivelyOwned);CHKERRQ(ierr);

@@ -490,7 +490,7 @@ PetscErrorCode VecView_MPI_HDF5_DA(Vec xin,PetscViewer viewer)
   ++dim;
 #endif
 
-  ierr = VecGetHDF5ChunkSize(da, xin, dimension, timestep, chunkDims); CHKERRQ(ierr);
+  ierr = VecGetHDF5ChunkSize(da, xin, dimension, timestep, chunkDims);CHKERRQ(ierr);
 
   PetscStackCallHDF5Return(filespace,H5Screate_simple,(dim, dims, maxDims));
 

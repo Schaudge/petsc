@@ -1238,7 +1238,7 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
 
   PetscFunctionBegin;
 
-  ierr = PCGetDM(pc, &dm); CHKERRQ(ierr);
+  ierr = PCGetDM(pc, &dm);CHKERRQ(ierr);
   /* dofcounts section is cellcounts section * dofPerCell */
   ierr = PetscSectionGetStorageSize(cellCounts, &numCells);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(patch->pointCounts, &numPoints);CHKERRQ(ierr);
@@ -1279,13 +1279,13 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
   /* Outside the patch loop, get the dofs that are globally-enforced Dirichlet
    conditions */
   ierr = PetscHSetICreate(&globalBcs);CHKERRQ(ierr);
-  ierr = ISGetIndices(patch->ghostBcNodes, &bcNodes); CHKERRQ(ierr);
-  ierr = ISGetSize(patch->ghostBcNodes, &numBcs); CHKERRQ(ierr);
+  ierr = ISGetIndices(patch->ghostBcNodes, &bcNodes);CHKERRQ(ierr);
+  ierr = ISGetSize(patch->ghostBcNodes, &numBcs);CHKERRQ(ierr);
   for (i = 0; i < numBcs; ++i) {
     ierr = PetscHSetIAdd(globalBcs, bcNodes[i]);CHKERRQ(ierr); /* these are already in concatenated numbering */
   }
-  ierr = ISRestoreIndices(patch->ghostBcNodes, &bcNodes); CHKERRQ(ierr);
-  ierr = ISDestroy(&patch->ghostBcNodes); CHKERRQ(ierr); /* memory optimisation */
+  ierr = ISRestoreIndices(patch->ghostBcNodes, &bcNodes);CHKERRQ(ierr);
+  ierr = ISDestroy(&patch->ghostBcNodes);CHKERRQ(ierr); /* memory optimisation */
 
   /* Hash tables for artificial BC construction */
   ierr = PetscHSetICreate(&ownedpts);CHKERRQ(ierr);
@@ -1313,28 +1313,28 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
     if (dof <= 0) continue;
 
     /* Calculate the global numbers of the artificial BC dofs here first */
-    ierr = patch->patchconstructop((void*)patch, dm, v, ownedpts); CHKERRQ(ierr);
-    ierr = PCPatchCompleteCellPatch(pc, ownedpts, seenpts); CHKERRQ(ierr);
-    ierr = PCPatchGetPointDofs(pc, ownedpts, owneddofs, v, &patch->subspaces_to_exclude); CHKERRQ(ierr);
-    ierr = PCPatchGetPointDofs(pc, seenpts, seendofs, v, NULL); CHKERRQ(ierr);
-    ierr = PCPatchComputeSetDifference_Private(owneddofs, seendofs, artificialbcs); CHKERRQ(ierr);
+    ierr = patch->patchconstructop((void*)patch, dm, v, ownedpts);CHKERRQ(ierr);
+    ierr = PCPatchCompleteCellPatch(pc, ownedpts, seenpts);CHKERRQ(ierr);
+    ierr = PCPatchGetPointDofs(pc, ownedpts, owneddofs, v, &patch->subspaces_to_exclude);CHKERRQ(ierr);
+    ierr = PCPatchGetPointDofs(pc, seenpts, seendofs, v, NULL);CHKERRQ(ierr);
+    ierr = PCPatchComputeSetDifference_Private(owneddofs, seendofs, artificialbcs);CHKERRQ(ierr);
     if (patch->viewPatches) {
       PetscHSetI globalbcdofs;
       PetscHashIter hi;
       MPI_Comm comm = PetscObjectComm((PetscObject)pc);
 
       ierr = PetscHSetICreate(&globalbcdofs);CHKERRQ(ierr);
-      ierr = PetscSynchronizedPrintf(comm, "Patch %d: owned dofs:\n", v); CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "Patch %d: owned dofs:\n", v);CHKERRQ(ierr);
       PetscHashIterBegin(owneddofs, hi);
       while (!PetscHashIterAtEnd(owneddofs, hi)) {
         PetscInt globalDof;
 
         PetscHashIterGetKey(owneddofs, hi, globalDof);
         PetscHashIterNext(owneddofs, hi);
-        ierr = PetscSynchronizedPrintf(comm, "%d ", globalDof); CHKERRQ(ierr);
+        ierr = PetscSynchronizedPrintf(comm, "%d ", globalDof);CHKERRQ(ierr);
       }
-      ierr = PetscSynchronizedPrintf(comm, "\n"); CHKERRQ(ierr);
-      ierr = PetscSynchronizedPrintf(comm, "Patch %d: seen dofs:\n", v); CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "\n");CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "Patch %d: seen dofs:\n", v);CHKERRQ(ierr);
       PetscHashIterBegin(seendofs, hi);
       while (!PetscHashIterAtEnd(seendofs, hi)) {
         PetscInt globalDof;
@@ -1342,13 +1342,13 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
 
         PetscHashIterGetKey(seendofs, hi, globalDof);
         PetscHashIterNext(seendofs, hi);
-        ierr = PetscSynchronizedPrintf(comm, "%d ", globalDof); CHKERRQ(ierr);
+        ierr = PetscSynchronizedPrintf(comm, "%d ", globalDof);CHKERRQ(ierr);
 
         ierr = PetscHSetIHas(globalBcs, globalDof, &flg);CHKERRQ(ierr);
         if (flg) {ierr = PetscHSetIAdd(globalbcdofs, globalDof);CHKERRQ(ierr);}
       }
-      ierr = PetscSynchronizedPrintf(comm, "\n"); CHKERRQ(ierr);
-      ierr = PetscSynchronizedPrintf(comm, "Patch %d: global BCs:\n", v); CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "\n");CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "Patch %d: global BCs:\n", v);CHKERRQ(ierr);
       ierr = PetscHSetIGetSize(globalbcdofs, &numBcs);CHKERRQ(ierr);
       if (numBcs > 0) {
         PetscHashIterBegin(globalbcdofs, hi);
@@ -1368,10 +1368,10 @@ static PetscErrorCode PCPatchCreateCellPatchDiscretisationInfo(PC pc)
           PetscInt globalDof;
           PetscHashIterGetKey(artificialbcs, hi, globalDof);
           PetscHashIterNext(artificialbcs, hi);
-          ierr = PetscSynchronizedPrintf(comm, "%d ", globalDof); CHKERRQ(ierr);
+          ierr = PetscSynchronizedPrintf(comm, "%d ", globalDof);CHKERRQ(ierr);
         }
       }
-      ierr = PetscSynchronizedPrintf(comm, "\n\n"); CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "\n\n");CHKERRQ(ierr);
       ierr = PetscHSetIDestroy(&globalbcdofs);CHKERRQ(ierr);
     }
    for (k = 0; k < patch->nsubspaces; ++k) {
@@ -2477,13 +2477,13 @@ static PetscErrorCode PCSetUp_PATCH_Linear(PC pc)
       ierr = PCPatchComputeOperator_Internal(pc, NULL, matSquare, i, PETSC_TRUE);CHKERRQ(ierr);
 
       ierr = MatGetSize(matSquare, &dof, NULL);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF, dof, 0, 1, &rowis); CHKERRQ(ierr);
+      ierr = ISCreateStride(PETSC_COMM_SELF, dof, 0, 1, &rowis);CHKERRQ(ierr);
       if(pc->setupcalled) {
-        ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_REUSE_MATRIX, &patch->matWithArtificial[i]); CHKERRQ(ierr);
+        ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_REUSE_MATRIX, &patch->matWithArtificial[i]);CHKERRQ(ierr);
       } else {
-        ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_INITIAL_MATRIX, &patch->matWithArtificial[i]); CHKERRQ(ierr);
+        ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_INITIAL_MATRIX, &patch->matWithArtificial[i]);CHKERRQ(ierr);
       }
-      ierr = ISDestroy(&rowis); CHKERRQ(ierr);
+      ierr = ISDestroy(&rowis);CHKERRQ(ierr);
       ierr = MatDestroy(&matSquare);CHKERRQ(ierr);
     }
   }
@@ -2783,16 +2783,16 @@ static PetscErrorCode PCUpdateMultiplicative_PATCH_Linear(PC pc, PetscInt i, Pet
     ierr = PCPatchCreateMatrix_Private(pc, i, &matSquare, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PCPatchComputeOperator_Internal(pc, NULL, matSquare, i, PETSC_TRUE);CHKERRQ(ierr);
     ierr = MatGetSize(matSquare, &dof, NULL);CHKERRQ(ierr);
-    ierr = ISCreateStride(PETSC_COMM_SELF, dof, 0, 1, &rowis); CHKERRQ(ierr);
-    ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_INITIAL_MATRIX, &multMat); CHKERRQ(ierr);
+    ierr = ISCreateStride(PETSC_COMM_SELF, dof, 0, 1, &rowis);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(matSquare, rowis, patch->dofMappingWithoutToWithArtificial[i], MAT_INITIAL_MATRIX, &multMat);CHKERRQ(ierr);
     ierr = MatDestroy(&matSquare);CHKERRQ(ierr);
-    ierr = ISDestroy(&rowis); CHKERRQ(ierr);
+    ierr = ISDestroy(&rowis);CHKERRQ(ierr);
   }
-  ierr = MatMult(multMat, patch->patchUpdate[i], patch->patchRHSWithArtificial[i]); CHKERRQ(ierr);
-  ierr = VecScale(patch->patchRHSWithArtificial[i], -1.0); CHKERRQ(ierr);
-  ierr = PCPatch_ScatterLocal_Private(pc, i + pStart, patch->patchRHSWithArtificial[i], patch->localRHS, ADD_VALUES, SCATTER_REVERSE, SCATTER_WITHARTIFICIAL); CHKERRQ(ierr);
+  ierr = MatMult(multMat, patch->patchUpdate[i], patch->patchRHSWithArtificial[i]);CHKERRQ(ierr);
+  ierr = VecScale(patch->patchRHSWithArtificial[i], -1.0);CHKERRQ(ierr);
+  ierr = PCPatch_ScatterLocal_Private(pc, i + pStart, patch->patchRHSWithArtificial[i], patch->localRHS, ADD_VALUES, SCATTER_REVERSE, SCATTER_WITHARTIFICIAL);CHKERRQ(ierr);
   if (!patch->save_operators) {
-    ierr = MatDestroy(&multMat); CHKERRQ(ierr);
+    ierr = MatDestroy(&multMat);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
