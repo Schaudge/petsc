@@ -596,20 +596,20 @@ PetscErrorCode DMSwarmDataBucketView_stdout(MPI_Comm comm,DMSwarmDataBucket db)
   PetscInt       f;
   double         memory_usage_total,memory_usage_total_local = 0.0;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   ierr = PetscPrintf(comm,"DMSwarmDataBucketView: \n");CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"  L                  = %D \n", db->L);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"  buffer             = %D \n", db->buffer);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"  allocated          = %D \n", db->allocated);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"  nfields registered = %D \n", db->nfields);CHKERRQ(ierr);
-  
+
   for (f = 0; f < db->nfields; ++f) {
     double memory_usage_f = (double)(db->field[f]->atomic_size * db->allocated) * 1.0e-6;
     memory_usage_total_local += memory_usage_f;
   }
   ierr = MPI_Allreduce(&memory_usage_total_local,&memory_usage_total,1,MPI_DOUBLE,MPI_SUM,comm);CHKERRQ(ierr);
-  
+
   for (f = 0; f < db->nfields; ++f) {
     double memory_usage_f = (double)(db->field[f]->atomic_size * db->allocated) * 1.0e-6;
     ierr = PetscPrintf(comm,"    [%3D] %15s : Mem. usage       = %1.2e (MB) [rank0]\n", f, db->field[f]->name, memory_usage_f);CHKERRQ(ierr);

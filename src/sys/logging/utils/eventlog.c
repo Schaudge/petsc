@@ -284,7 +284,7 @@ PetscErrorCode PetscLogEventEndMPE(PetscLogEvent event,int t,PetscObject o1,Pets
   Level: developer
 
 .keywords: log, event, register
-.seealso: PetscLogEventBegin(), PetscLogEventEnd(), PetscLogFlops(), 
+.seealso: PetscLogEventBegin(), PetscLogEventEnd(), PetscLogFlops(),
           PetscEventLogActivate(), PetscEventLogDeactivate()
 @*/
 PetscErrorCode PetscEventRegLogRegister(PetscEventRegLog eventLog,const char ename[],PetscClassId classid,PetscLogEvent *event)

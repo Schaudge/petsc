@@ -241,7 +241,7 @@
       subroutine FormFunctionGradient(tao,X,fcn,G,dummy,ierr)
       use mymodule
       implicit none
-      
+
 ! Input/output variables
 
       Tao        tao
@@ -1091,7 +1091,7 @@
 !
 !   build:
 !      requires: !complex
-! 
+!
 !   test:
 !      args: -tao_smonitor -mx 8 -my 6 -bmx 3 -bmy 3 -bheight 0.2 -tao_type bqnls -tao_gatol 1.e-4
 !      filter: sort -b

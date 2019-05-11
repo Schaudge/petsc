@@ -389,7 +389,7 @@ PetscErrorCode FormElements()
 {
   PetscInt i,j,k,ii,jj,kk;
   PetscReal bx,by,bz,dbx,dby,dbz;
-  
+
   PetscFunctionBegin;
   /* construct the basis function values and derivatives */
   for (k = 0; k < NB; k++) {
@@ -475,7 +475,7 @@ void FormElementJacobian(Field *ex,CoordField *ec,Field *ef,PetscScalar *ej,AppC
   PetscScalar F[9],S[9],dF[9],dS[9],dFS[9],FdS[9],FS[9];
   PetscReal   scl;
   PetscInt    i,j,k,l,ii,jj,kk,ll,qi,qj,qk,m;
-  
+
   if (ej) for (i = 0; i < NPB*NPB; i++) ej[i] = 0.;
   if (ef) for (i = 0; i < NEB; i++) {ef[i][0] = 0.;ef[i][1] = 0.;ef[i][2] = 0.;}
   /* loop over quadrature */
@@ -556,7 +556,7 @@ void FormPBJacobian(PetscInt i,PetscInt j,PetscInt k,Field *ex,CoordField *ec,Fi
   PetscInt    l,ll,qi,qj,qk,m;
   PetscInt idx = i + j*NB + k*NB*NB;
   PetscScalar lgrad[3];
-  
+
   if (ej) for (l = 0; l < 9; l++) ej[l] = 0.;
   if (ef) for (l = 0; l < 1; l++) {ef[l][0] = 0.;ef[l][1] = 0.;ef[l][2] = 0.;}
   /* loop over quadrature */
@@ -650,7 +650,7 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,Field ***x,Mat jacpre,Mat j
   PetscInt       nrows;
   MatStencil     col[NPB],row[NPB];
   PetscScalar    v[9];
-  
+
   PetscFunctionBegin;
   ierr = DMGetCoordinateDM(info->da,&cda);CHKERRQ(ierr);
   ierr = DMGetCoordinatesLocal(info->da,&C);CHKERRQ(ierr);
@@ -1070,7 +1070,7 @@ PetscErrorCode DisplayLine(SNES snes,Vec X)
 
    test:
       suffix: 3
-      args: -da_refine 1 -da_overlap 3 -da_local_subdomains 4 -snes_type aspin -rad 10.0 -young 10. -ploading 0.0 -loading -0.5 -snes_monitor_short -ksp_monitor_short -npc_sub_snes_rtol 1e-2 -ksp_rtol 1e-2 -ksp_max_it 14 -snes_converged_reason -snes_max_linear_solve_fail 100 -snes_max_it 4 
+      args: -da_refine 1 -da_overlap 3 -da_local_subdomains 4 -snes_type aspin -rad 10.0 -young 10. -ploading 0.0 -loading -0.5 -snes_monitor_short -ksp_monitor_short -npc_sub_snes_rtol 1e-2 -ksp_rtol 1e-2 -ksp_max_it 14 -snes_converged_reason -snes_max_linear_solve_fail 100 -snes_max_it 4
       requires: !single
 
 TEST*/

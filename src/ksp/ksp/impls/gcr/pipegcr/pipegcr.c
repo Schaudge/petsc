@@ -366,7 +366,7 @@ static PetscErrorCode KSPView_PIPEGCR(KSP ksp, PetscViewer viewer)
   } else if (pipegcr->truncstrat == KSP_FCD_TRUNC_TYPE_NOTAY){
     truncstr = "Using Notay's truncation strategy";
   } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Undefined FCD truncation strategy");
-  
+
 
   if (isascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"  max previous directions = %D\n",pipegcr->mmax);CHKERRQ(ierr);
@@ -374,7 +374,7 @@ static PetscErrorCode KSPView_PIPEGCR(KSP ksp, PetscViewer viewer)
     ierr = PetscViewerASCIIPrintf(viewer,"  %s\n",truncstr);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  w unrolling = %D \n", pipegcr->unroll_w);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  restarts performed = %D \n", pipegcr->n_restarts);CHKERRQ(ierr);
-  } else if (isstring) { 
+  } else if (isstring) {
     ierr = PetscViewerStringSPrintf(viewer, "max previous directions = %D, preallocated %D directions, %s truncation strategy", pipegcr->mmax,pipegcr->nprealloc,truncstr);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -405,7 +405,7 @@ static PetscErrorCode KSPSetUp_PIPEGCR(KSP ksp)
     ierr = PetscMalloc3(pipegcr->mmax+1,&(pipegcr->tvecs),pipegcr->mmax+1,&(pipegcr->ptvecs),pipegcr->mmax+2,&(pipegcr->told));CHKERRQ(ierr);
   }
   ierr = PetscMalloc4(pipegcr->mmax+2,&(pipegcr->pold),pipegcr->mmax+2,&(pipegcr->sold),pipegcr->mmax+2,&(pipegcr->qold),pipegcr->mmax+2,&(pipegcr->chunksizes));CHKERRQ(ierr);
-  ierr = PetscMalloc3(pipegcr->mmax+2,&(pipegcr->dots),pipegcr->mmax+1,&(pipegcr->etas),pipegcr->mmax+2,&(pipegcr->redux));CHKERRQ(ierr); 
+  ierr = PetscMalloc3(pipegcr->mmax+2,&(pipegcr->dots),pipegcr->mmax+1,&(pipegcr->etas),pipegcr->mmax+2,&(pipegcr->redux));CHKERRQ(ierr);
   /* If the requested number of preallocated vectors is greater than mmax reduce nprealloc */
   if (pipegcr->nprealloc > pipegcr->mmax+1){
     ierr = PetscInfo2(NULL,"Requested nprealloc=%d is greater than m_max+1=%d. Resetting nprealloc = m_max+1.\n",pipegcr->nprealloc, pipegcr->mmax+1);CHKERRQ(ierr);

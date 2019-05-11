@@ -20,7 +20,7 @@
 #include <thrust/sequence.h>
 
 #if defined(PETSC_USE_COMPLEX)
-#if defined(PETSC_USE_REAL_SINGLE)  
+#if defined(PETSC_USE_REAL_SINGLE)
 #define cusparse_solve(a,b,c,d,e,f,g,h,i,j,k)        cusparseCcsrsv_solve((a),(b),(c),(cuComplex*)(d),(e),(cuComplex*)(f),(g),(h),(i),(cuComplex*)(j),(cuComplex*)(k))
 #define cusparse_analysis(a,b,c,d,e,f,g,h,i)         cusparseCcsrsv_analysis((a),(b),(c),(d),(e),(cuComplex*)(f),(g),(h),(i))
 #define cusparse_csr_spmv(a,b,c,d,e,f,g,h,i,j,k,l,m) cusparseCcsrmv((a),(b),(c),(d),(e),(cuComplex*)(f),(g),(cuComplex*)(h),(i),(j),(cuComplex*)(k),(cuComplex*)(l),(cuComplex*)(m))
@@ -44,7 +44,7 @@ cuDoubleComplex PETSC_CUSPARSE_ZERO = {0.0, 0.0};
 #else
 PetscScalar PETSC_CUSPARSE_ONE  = 1.0;
 PetscScalar PETSC_CUSPARSE_ZERO = 0.0;
-#if defined(PETSC_USE_REAL_SINGLE)  
+#if defined(PETSC_USE_REAL_SINGLE)
 #define cusparse_solve    cusparseScsrsv_solve
 #define cusparse_analysis cusparseScsrsv_analysis
 #define cusparse_csr_spmv cusparseScsrmv
@@ -85,7 +85,7 @@ struct Mat_SeqAIJCUSPARSETriFactorStruct {
   cusparseMatDescr_t          descr;
   cusparseSolveAnalysisInfo_t solveInfo;
   cusparseOperation_t         solveOp;
-  CsrMatrix                   *csrMat; 
+  CsrMatrix                   *csrMat;
 };
 
 /* This is struct holding the relevant data needed to a MatMult */

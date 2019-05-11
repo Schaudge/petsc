@@ -1291,4 +1291,3 @@ PetscErrorCode KSPCheckSolve(KSP ksp,PC pc,Vec vec)
   }
   PetscFunctionReturn(0);
 }
- 

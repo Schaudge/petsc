@@ -366,7 +366,7 @@
       call DMDestroy(dalam,ierr);CHKERRA(ierr)
 
       call PetscFinalize(ierr)
-      end 
+      end
 
 ! ---------------------------------------------------------------------
 !
@@ -533,7 +533,7 @@
 
       return
       end subroutine FormJacobian
-      
+
 ! ---------------------------------------------------------------------
 !
 !  FormJacobianLocal - Computes Jacobian preconditioner matrix,
@@ -599,7 +599,7 @@
             if (j-1==0) v(1) = 0.0
             v(2) = -hx2inv
             if (i-1==0) v(2) = 0.0
-            v(3) = two*(hx2inv + hy2inv) 
+            v(3) = two*(hx2inv + hy2inv)
             if (add_nl_term) v(3) = v(3) - sc*exp(lx_v(ii))
             v(4) = -hx2inv
             if (i+1==solver%mx-1) v(4) = 0.0
@@ -653,7 +653,7 @@
 !     DMGlobalToLocalBegin(), DMGlobalToLocalEnd().
 !  By placing code between these two statements, computations can
 !  be done while messages are in transition.
- 
+
       izero = 0
       ione = 1
       itwo = 2

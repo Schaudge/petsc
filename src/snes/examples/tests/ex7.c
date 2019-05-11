@@ -99,7 +99,7 @@ int main(int argc,char **argv)
 PetscErrorCode  FormFunction(SNES snes,Vec x,Vec f,void *dummy)
 {
   const PetscScalar *xx;
-  PetscScalar       *ff,*FF,d;  
+  PetscScalar       *ff,*FF,d;
   PetscInt          i,n;
   PetscErrorCode    ierr;
 

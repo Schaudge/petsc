@@ -82,7 +82,7 @@ int main(int argc,char **argv)
 }
 
 /*
-   Defines the RHS function that is passed to the time-integrator. 
+   Defines the RHS function that is passed to the time-integrator.
 
    Solves F(U,V) for V and then computes f(U,V)
 
@@ -113,5 +113,3 @@ PetscErrorCode SNESFunction(SNES snes,Vec V,Vec F,void *actx)
   ierr = (*ctx->F)(ctx->t,ctx->U,V,F);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-

@@ -271,7 +271,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_BLMVM(Tao tao)
   ierr = TaoLineSearchSetType(tao->linesearch, morethuente_type);CHKERRQ(ierr);
   ierr = TaoLineSearchUseTaoRoutines(tao->linesearch,tao);CHKERRQ(ierr);
   ierr = TaoLineSearchSetOptionsPrefix(tao->linesearch,tao->hdr.prefix);CHKERRQ(ierr);
-  
+
   ierr = KSPInitializePackage();CHKERRQ(ierr);
   ierr = MatCreate(((PetscObject)tao)->comm, &blmP->M);CHKERRQ(ierr);
   ierr = MatSetType(blmP->M, MATLMVMBFGS);CHKERRQ(ierr);
@@ -287,12 +287,12 @@ PetscErrorCode TaoLMVMRecycle(Tao tao, PetscBool flg)
   TaoType        type;
   PetscBool      is_lmvm, is_blmvm;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   ierr = TaoGetType(tao, &type);CHKERRQ(ierr);
   ierr = PetscStrcmp(type, TAOLMVM,  &is_lmvm);CHKERRQ(ierr);
   ierr = PetscStrcmp(type, TAOBLMVM, &is_blmvm);CHKERRQ(ierr);
-  
+
   if (is_lmvm) {
     lmP = (TAO_LMVM *)tao->data;
     lmP->recycle = flg;
@@ -310,7 +310,7 @@ PetscErrorCode TaoLMVMSetH0(Tao tao, Mat H0)
   TaoType        type;
   PetscBool      is_lmvm, is_blmvm;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   ierr = TaoGetType(tao, &type);CHKERRQ(ierr);
   ierr = PetscStrcmp(type, TAOLMVM,  &is_lmvm);CHKERRQ(ierr);
@@ -337,7 +337,7 @@ PetscErrorCode TaoLMVMGetH0(Tao tao, Mat *H0)
   Mat            M;
 
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   ierr = TaoGetType(tao, &type);CHKERRQ(ierr);
   ierr = PetscStrcmp(type, TAOLMVM,  &is_lmvm);CHKERRQ(ierr);

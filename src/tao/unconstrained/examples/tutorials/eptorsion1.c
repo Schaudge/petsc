@@ -87,7 +87,7 @@ PetscErrorCode main(int argc,char **argv)
   AppCtx             user;                /* application context */
   PetscMPIInt        size;                /* number of processes */
   PetscReal          one=1.0;
-  
+
   PetscBool          test_lmvm = PETSC_FALSE;
   KSP                ksp;
   PC                 pc;
@@ -153,7 +153,7 @@ PetscErrorCode main(int argc,char **argv)
 
   /* SOLVE THE APPLICATION */
   ierr = TaoSolve(tao);CHKERRQ(ierr);
-  
+
   /* Test the LMVM matrix */
   if (test_lmvm) {
     ierr = TaoGetKSP(tao, &ksp);CHKERRQ(ierr);
@@ -632,15 +632,15 @@ PetscErrorCode HessianProduct(void *ptr,Vec svec,Vec y)
    test:
       suffix: 3
       args: -tao_smonitor -tao_type bntr -tao_gatol 1.e-4 -my_tao_mf -tao_test_hessian
-      
+
    test:
      suffix: 4
      args: -tao_smonitor -tao_gatol 1e-3 -tao_type bqnls
-     
+
    test:
      suffix: 5
      args: -tao_smonitor -tao_gatol 1e-3 -tao_type blmvm
-     
+
    test:
      suffix: 6
      args: -tao_smonitor -tao_gatol 1e-3 -tao_type bqnktr -tao_bqnk_mat_type lmvmsr1

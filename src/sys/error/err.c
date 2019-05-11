@@ -262,7 +262,7 @@ static const char *PetscErrorStrings[] = {
 
    Concepts: error handler^messages
 
-.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(), PetscError(), SETERRQ(), CHKERRQ() 
+.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(), PetscError(), SETERRQ(), CHKERRQ()
           PetscAbortErrorHandler(), PetscTraceBackErrorHandler()
  @*/
 PetscErrorCode  PetscErrorMessage(int errnum,const char *text[],char **specific)
@@ -657,7 +657,3 @@ PetscErrorCode  PetscScalarView(PetscInt N,const PetscScalar idx[],PetscViewer v
   }
   PetscFunctionReturn(0);
 }
-
-
-
-

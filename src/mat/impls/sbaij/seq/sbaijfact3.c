@@ -21,8 +21,8 @@ PetscErrorCode MatCholeskyFactorNumeric_SeqSBAIJ_3(Mat C,Mat A,const MatFactorIn
   ierr = PetscCalloc1(9*mbs,&rtmp);CHKERRQ(ierr);
   ierr = PetscMalloc2(mbs,&il,mbs,&jl);CHKERRQ(ierr);
   il[0] = 0;
-  for (i=0; i<mbs; i++) jl[i] = mbs; 
-  
+  for (i=0; i<mbs; i++) jl[i] = mbs;
+
   ierr = PetscMalloc2(9,&dk,9,&uik);CHKERRQ(ierr);
   ierr = ISGetIndices(perm,&perm_ptr);CHKERRQ(ierr);
 

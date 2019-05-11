@@ -2239,7 +2239,7 @@ PetscErrorCode DMPlexComputeJacobian_Internal(DM dm, IS cellIS, PetscReal t, Pet
 
   Input Parameters:
 + dm - The mesh
-. cellIS - 
+. cellIS -
 . t  - The time
 . X_tShift - The multiplier for the Jacobian with repsect to X_t
 . X  - Local solution vector

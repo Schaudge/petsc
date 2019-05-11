@@ -55,7 +55,7 @@ static PetscErrorCode KSPSetUp_PIPELCG(KSP ksp)
   ierr = VecDuplicateVecs(plcg->p,3*(l-1)+1,&plcg->Q);CHKERRQ(ierr);
   ierr = PetscCalloc1(2,&plcg->alpha);CHKERRQ(ierr);
   ierr = PetscCalloc1(l,&plcg->sigma);CHKERRQ(ierr);
-  
+
   PetscFunctionReturn(0);
 }
 
@@ -336,15 +336,15 @@ static PetscErrorCode KSPSolve_InnerLoop_PIPELCG(KSP ksp)
     /* Compute and communicate the dot products */
     /* ---------------------------------------- */
     if (it < l) {
-      for (j = 0; j < it+2; ++j) { 
+      for (j = 0; j < it+2; ++j) {
         ierr = (*U[0]->ops->dot_local)(U[0],Z[l-j],&G(j,it+1));CHKERRQ(ierr); /* dot-products (U[0],Z[j]) */
       }
       ierr = MPIPetsc_Iallreduce(MPI_IN_PLACE,&G(0,it+1),it+2,MPIU_SCALAR,MPIU_SUM,comm,&req(it+1));CHKERRQ(ierr);
     } else if ((it >= l) && (it < max_it)) {
       middle = it-l+2;
-      end = it+2;   
+      end = it+2;
       ierr = (*U[0]->ops->dot_local)(U[0],V[0],&G(it-l+1,it+1));CHKERRQ(ierr); /* dot-product (U[0],V[0]) */
-      for (j = middle; j < end; ++j) { 
+      for (j = middle; j < end; ++j) {
         ierr = (*U[0]->ops->dot_local)(U[0],plcg->Z[it+1-j],&G(j,it+1));CHKERRQ(ierr); /* dot-products (U[0],Z[j]) */
       }
       ierr = MPIPetsc_Iallreduce(MPI_IN_PLACE,&G(it-l+1,it+1),l+1,MPIU_SCALAR,MPIU_SUM,comm,&req(it+1));CHKERRQ(ierr);
@@ -531,15 +531,15 @@ static PetscErrorCode KSPSolve_PIPELCG(KSP ksp)
 
     Example usage:
     [*] KSP ex2, no preconditioner, pipel = 2, lmin = 0.0, lmax = 8.0 :
-        $mpirun -ppn 14 ./ex2 -m 1000 -n 1000 -ksp_type pipelcg -pc_type none -ksp_norm_type UNPRECONDITIONED 
+        $mpirun -ppn 14 ./ex2 -m 1000 -n 1000 -ksp_type pipelcg -pc_type none -ksp_norm_type UNPRECONDITIONED
         -ksp_rtol 1e-10 -ksp_max_it 1000 -ksp_pipelcg_pipel 2 -ksp_pipelcg_lmin 0.0 -ksp_pipelcg_lmax 8.0 -log_summary
     [*] SNES ex48, bjacobi preconditioner, pipel = 3, lmin = 0.0, lmax = 2.0, show restart information :
-        $mpirun -ppn 14 ./ex48 -M 150 -P 100 -ksp_type pipelcg -pc_type bjacobi -ksp_rtol 1e-10 -ksp_pipelcg_pipel 3 
+        $mpirun -ppn 14 ./ex48 -M 150 -P 100 -ksp_type pipelcg -pc_type bjacobi -ksp_rtol 1e-10 -ksp_pipelcg_pipel 3
         -ksp_pipelcg_lmin 0.0 -ksp_pipelcg_lmax 2.0 -ksp_pipelcg_monitor -log_summary
 
     References:
     [*] J. Cornelis, S. Cools and W. Vanroose,
-        "The Communication-Hiding Conjugate Gradient Method with Deep Pipelines" 
+        "The Communication-Hiding Conjugate Gradient Method with Deep Pipelines"
         Submitted to SIAM Journal on Scientific Computing (SISC), 2018.
     [*] S. Cools, J. Cornelis and W. Vanroose,
         "Numerically Stable Recurrence Relations for the Communication Hiding Pipelined Conjugate Gradient Method"

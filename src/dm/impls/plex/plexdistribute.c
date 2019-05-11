@@ -1467,7 +1467,7 @@ PetscErrorCode DMPlexCreatePointSF(DM dm, PetscSF migrationSF, PetscBool ownersh
 
 /*@C
   DMPlexMigrate  - Migrates internal DM data over the supplied star forest
-  
+
   Collective on DM and PetscSF
 
   Input Parameter:
@@ -1801,7 +1801,7 @@ PetscErrorCode DMPlexDistributeOverlap(DM dm, PetscInt overlap, PetscSF *sf, DM 
 /*@C
   DMPlexGetGatherDM - Get a copy of the DMPlex that gathers all points on the
   root process of the original's communicator.
-  
+
   Collective on DM
 
   Input Parameters:
@@ -1846,7 +1846,7 @@ PetscErrorCode DMPlexGetGatherDM(DM dm, PetscSF *sf, DM *gatherMesh)
 
 /*@C
   DMPlexGetRedundantDM - Get a copy of the DMPlex that is completely copied on each process.
-  
+
   Collective on DM
 
   Input Parameters:

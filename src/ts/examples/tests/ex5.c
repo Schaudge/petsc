@@ -513,15 +513,15 @@ void readinput(struct in *put)
   put->wnd = tmp;
 
   for (i=0; i<43; i++) {if (fscanf(ifp, "%c", &x) != 1) abort();}
-  if (fscanf(ifp, "%lf", &tmp) != 1) abort();  
+  if (fscanf(ifp, "%lf", &tmp) != 1) abort();
   put->pwt = tmp;
 
   for (i=0; i<43; i++) {if (fscanf(ifp, "%c", &x) != 1) abort();}
-  if (fscanf(ifp, "%lf", &tmp) != 1) abort();  
+  if (fscanf(ifp, "%lf", &tmp) != 1) abort();
   put->wndDir = tmp;
 
   for (i=0; i<43; i++) {if (fscanf(ifp, "%c", &x) != 1) abort();}
-  if (fscanf(ifp, "%lf", &tmp) != 1) abort();  
+  if (fscanf(ifp, "%lf", &tmp) != 1) abort();
   put->time = tmp;
 
   for (i=0; i<63; i++) {if (fscanf(ifp, "%c", &x) != 1) abort();}

@@ -50,7 +50,7 @@ static PetscErrorCode TaoLineSearchApply_GPCG(TaoLineSearch ls, Vec x, PetscReal
   /* ls->nfeval   - number of function evaluations */
   /* ls->nfeval   - number of function/gradient evaluations */
   /* ls->max_funcs  - maximum number of function evaluations */
-  
+
   ierr = TaoLineSearchMonitor(ls, 0, *f, 0.0);CHKERRQ(ierr);
 
   ls->reason = TAOLINESEARCH_CONTINUE_ITERATING;
@@ -122,7 +122,7 @@ static PetscErrorCode TaoLineSearchApply_GPCG(TaoLineSearch ls, Vec x, PetscReal
       ierr = TaoLineSearchComputeObjectiveAndGradient(ls,neP->W2,f,g);CHKERRQ(ierr);
       g_computed=PETSC_TRUE;
     }
-    
+
     ierr = TaoLineSearchMonitor(ls, i+1, *f, ls->step);CHKERRQ(ierr);
 
     if (0 == i) {
@@ -221,4 +221,3 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_GPCG(TaoLineSearch ls)
   ls->ops->setfromoptions=0;
   PetscFunctionReturn(0);
 }
-

@@ -3,7 +3,7 @@ static char FILENAME[] = "ex31.c";
 
 #include <petscdmplex.h>
 #include <petscviewerhdf5.h>
-#include "petscsf.h" 
+#include "petscsf.h"
 
 
 typedef struct {
@@ -172,4 +172,3 @@ int main(int argc, char **argv)
     args: -faces 2,3,4 -interpolate -entity_depth 0 -parallel FALSE -use_initial_guess FALSE
 
 TEST*/
-

@@ -2993,7 +2993,7 @@ static PetscErrorCode PCReset_PATCH(PC pc)
   }
   ierr = PetscFree(patch->precomputedTensorLocations);CHKERRQ(ierr);
   ierr = PetscFree(patch->precomputedIntFacetTensorLocations);CHKERRQ(ierr);
-  
+
   patch->bs          = 0;
   patch->cellNodeMap = NULL;
   patch->nsubspaces  = 0;

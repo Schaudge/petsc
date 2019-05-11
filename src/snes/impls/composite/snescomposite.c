@@ -868,7 +868,7 @@ static PetscErrorCode SNESSolve_Composite(SNES snes)
            SNESCompositeGetSNES()
 
    References:
-.  1. - Peter R. Brune, Matthew G. Knepley, Barry F. Smith, and Xuemin Tu, "Composing Scalable Nonlinear Algebraic Solvers", 
+.  1. - Peter R. Brune, Matthew G. Knepley, Barry F. Smith, and Xuemin Tu, "Composing Scalable Nonlinear Algebraic Solvers",
    SIAM Review, 57(4), 2015
 
 M*/

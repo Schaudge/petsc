@@ -772,7 +772,7 @@ PetscErrorCode VecView_MPI_HDF5(Vec xin, PetscViewer viewer)
     }
   }
   ++dim;
-#else 
+#else
   /* hdf5 chunks must be less than the max of 32 bit int */
   if (chunksize > PETSC_HDF5_INT_MAX/64) {
     if (bs > 1 || dim2) {
@@ -1183,4 +1183,3 @@ PetscErrorCode VecAssemblyEnd_MPI(Vec vec)
   vec->stash.insertmode = NOT_SET_VALUES;
   PetscFunctionReturn(0);
 }
-

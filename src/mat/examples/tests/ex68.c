@@ -107,7 +107,7 @@ int main(int argc,char **argv)
   ierr = ISView(iscol,viewer);CHKERRQ(ierr);
 
   /* Test MatLUFactor(); set diagonal as zeros as requested by PETSc matrix factorization */
-  for (i=0; i<4; i++) { 
+  for (i=0; i<4; i++) {
     v = 0.0;
     ierr = MatSetValues(mat,1,&i,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
   }

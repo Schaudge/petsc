@@ -22,7 +22,7 @@
 
    Input Parameters:
 +   comm - MPI communicator
-.   refresh token - obtained with PetscGoogleDriveAuthorize(), if NULL PETSc will first look for one in the options data 
+.   refresh token - obtained with PetscGoogleDriveAuthorize(), if NULL PETSc will first look for one in the options data
                     if not found it will call PetscGoogleDriveAuthorize()
 -   tokensize - size of the output string access_token
 
@@ -300,4 +300,3 @@ PetscErrorCode PetscURLShorten(const char url[],char shorturl[],size_t lenshortu
   if (!found) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Google drive did not return short URL");
   PetscFunctionReturn(0);
 }
-

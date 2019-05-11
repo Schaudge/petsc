@@ -217,7 +217,7 @@ PetscErrorCode FormIJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat J,
   /* compute local element sizes - structured grid */
   hx = 1.0/user->n;
 
-  /* Compute function over the locally owned part of the grid 
+  /* Compute function over the locally owned part of the grid
      Assemble the operator by looping over edges and computing
      contribution for each vertex dof                         */
   for (moab::Range::iterator iter = vlocal->begin(); iter != vlocal->end(); iter++) {
@@ -369,7 +369,7 @@ PetscErrorCode FormInitialSolution(TS ts,Vec X,void *ctx)
 
   PetscFunctionBegin;
   ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
-  
+
   /* get the essential MOAB mesh related quantities needed for FEM assembly */
   ierr = DMMoabGetLocalVertices(dm, &vowned, NULL);CHKERRQ(ierr);
 

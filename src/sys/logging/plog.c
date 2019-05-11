@@ -32,7 +32,7 @@ PetscErrorCode PetscLogObjectParent(PetscObject p,PetscObject c)
    Level: developer
 
    Developer Notes:
-    Currently we do not always do a good job of associating all memory allocations with an object. 
+    Currently we do not always do a good job of associating all memory allocations with an object.
 
 .seealso: PetscFinalize(), PetscInitializeFortran(), PetscGetArgs(), PetscInitializeNoArguments()
 
@@ -1795,12 +1795,12 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
 
   If PETSc is configured with --with-logging=0 then this functionality is not available
 
-  To view the nested XML format filename.xml first copy  ${PETSC_DIR}/share/petsc/xml/performance_xml2html.xsl to the current 
+  To view the nested XML format filename.xml first copy  ${PETSC_DIR}/share/petsc/xml/performance_xml2html.xsl to the current
   directory then open filename.xml with your browser. Specific notes for certain browsers
 $    Firefox and Internet explorer - simply open the file
 $    Google Chrome - you must start up Chrome with the option --allow-file-access-from-files
 $    Safari - see http://ccm.net/faq/36342-safari-how-to-enable-local-file-access
-  or one can use the package http://xmlsoft.org/XSLT/xsltproc2.html to translate the xml file to html and then open it with 
+  or one can use the package http://xmlsoft.org/XSLT/xsltproc2.html to translate the xml file to html and then open it with
   your browser.
   Alternatively, use the script ${PETSC_DIR}/lib/petsc/bin/petsc-performance-view to automatically open a new browser
   window and render the XML log file contents.

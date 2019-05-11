@@ -161,7 +161,7 @@ PetscErrorCode TestBinary(void)
   Vec            x,y;
   PetscBool      skipheader = PETSC_TRUE;
   PetscBool      usempiio = PETSC_FALSE;
-    
+
   PetscFunctionBeginUser;
   ierr = VecCreate(PETSC_COMM_WORLD,&x);CHKERRQ(ierr);
   ierr = VecSetSizes(x,PETSC_DECIDE,VEC_LEN);CHKERRQ(ierr);

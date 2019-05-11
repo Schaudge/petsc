@@ -4,24 +4,24 @@
 /*------------------------------------------------------------*/
 
 /*
-  The solution method below is the matrix-free implementation of 
-  Equation 8.6a in Dennis and More "Quasi-Newton Methods, Motivation 
+  The solution method below is the matrix-free implementation of
+  Equation 8.6a in Dennis and More "Quasi-Newton Methods, Motivation
   and Theory" (https://epubs.siam.org/doi/abs/10.1137/1019005).
-  
-  Q[i] = (B_i)^{-1}*S[i] terms are computed ahead of time whenever 
-  the matrix is updated with a new (S[i], Y[i]) pair. This allows 
+
+  Q[i] = (B_i)^{-1}*S[i] terms are computed ahead of time whenever
+  the matrix is updated with a new (S[i], Y[i]) pair. This allows
   repeated calls of MatSolve without incurring redundant computation.
-  
+
   dX <- J0^{-1} * F
-  
+
   for i=0,1,2,...,k
     # Q[i] = (B_i)^T{-1} Y[i]
-    
+
     rho = 1.0 / (Y[i]^T S[i])
     alpha = rho * (S[i]^T F)
     zeta = 1.0 / (Y[i]^T Q[i])
     gamma = zeta * (Y[i]^T dX)
-    
+
     dX <- dX - (gamma * Q[i]) + (alpha * Y[i])
     W <- (rho * S[i]) - (zeta * Q[i])
     dX <- dX + (psi[i] * (Y[i]^T Q[i]) * (W^T F) * W)
@@ -34,8 +34,8 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
   PetscErrorCode    ierr;
   PetscInt          i, j;
   PetscReal         numer;
-  PetscScalar       sjtpi, yjtsi, wtsi, yjtqi, sjtyi, wtyi, ytx, stf, wtf, stp, ytq; 
-  
+  PetscScalar       sjtpi, yjtsi, wtsi, yjtqi, sjtyi, wtyi, ytx, stf, wtf, stp, ytq;
+
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
   if (lsb->phi == 0.0) {
@@ -46,10 +46,10 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
     ierr = MatSolve_LMVMDFP(B, F, dX);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
-  
+
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
-  
+
   if (lsb->needP) {
     /* Start the loop for (P[k] = (B_k) * S[k]) */
     for (i = 0; i <= lmvm->k; ++i) {
@@ -106,7 +106,7 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
     }
     lsb->needQ = PETSC_FALSE;
   }
-  
+
   /* Start the outer iterations for ((B^{-1}) * dX) */
   ierr = MatSymBrdnApplyJ0Inv(B, F, dX);CHKERRQ(ierr);
   for (i = 0; i <= lmvm->k; ++i) {
@@ -129,25 +129,25 @@ static PetscErrorCode MatSolve_LMVMSymBrdn(Mat B, Vec F, Vec dX)
 /*------------------------------------------------------------*/
 
 /*
-  The forward-product below is the matrix-free implementation of 
-  Equation 16 in Dennis and Wolkowicz "Sizing and Least Change Secant 
+  The forward-product below is the matrix-free implementation of
+  Equation 16 in Dennis and Wolkowicz "Sizing and Least Change Secant
   Methods" (http://www.caam.rice.edu/caam/trs/90/TR90-05.pdf).
-  
-  P[i] = (B_i)*S[i] terms are computed ahead of time whenever 
-  the matrix is updated with a new (S[i], Y[i]) pair. This allows 
-  repeated calls of MatMult inside KSP solvers without unnecessarily 
+
+  P[i] = (B_i)*S[i] terms are computed ahead of time whenever
+  the matrix is updated with a new (S[i], Y[i]) pair. This allows
+  repeated calls of MatMult inside KSP solvers without unnecessarily
   recomputing P[i] terms in expensive nested-loops.
-  
+
   Z <- J0 * X
-  
+
   for i=0,1,2,...,k
     # P[i] = (B_k) * S[i]
-    
+
     rho = 1.0 / (Y[i]^T S[i])
     alpha = rho * (Y[i]^T F)
     zeta = 1.0 / (S[i]^T P[i])
     gamma = zeta * (S[i]^T dX)
-    
+
     dX <- dX - (gamma * P[i]) + (alpha * S[i])
     W <- (rho * Y[i]) - (zeta * P[i])
     dX <- dX + (phi * (S[i]^T P[i]) * (W^T F) * W)
@@ -160,22 +160,22 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
   PetscErrorCode    ierr;
   PetscInt          i, j;
   PetscScalar         sjtpi, yjtsi, wtsi, stz, ytx, wtx, stp;
-  
-  
+
+
   PetscFunctionBegin;
   /* Efficient shortcuts for pure BFGS and pure DFP configurations */
   if (lsb->phi == 0.0) {
     ierr = MatMult_LMVMBFGS(B, X, Z);CHKERRQ(ierr);
     PetscFunctionReturn(0);
-  } 
+  }
   if (lsb->phi == 1.0) {
     ierr = MatMult_LMVMDFP(B, X, Z);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
-  
+
   VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
-  
+
   if (lsb->needP) {
     /* Start the loop for (P[k] = (B_k) * S[k]) */
     for (i = 0; i <= lmvm->k; ++i) {
@@ -200,7 +200,7 @@ static PetscErrorCode MatMult_LMVMSymBrdn(Mat B, Vec X, Vec Z)
     }
     lsb->needP = PETSC_FALSE;
   }
-  
+
   /* Start the outer iterations for (B * X) */
   ierr = MatSymBrdnApplyJ0Fwd(B, X, Z);CHKERRQ(ierr);
   for (i = 0; i <= lmvm->k; ++i) {
@@ -293,12 +293,12 @@ static PetscErrorCode MatUpdate_LMVMSymBrdn(Mat B, Vec X, Vec F)
       break;
     }
   }
-  
+
   /* Update the scaling */
   if (lsb->scale_type == SYMBRDN_SCALE_DIAG) {
     ierr = MatLMVMUpdate(lsb->D, X, F);CHKERRQ(ierr);
   }
-  
+
   if (lsb->watchdog > lsb->max_seq_rejects) {
     ierr = MatLMVMReset(B, PETSC_FALSE);CHKERRQ(ierr);
     if (lsb->scale_type == SYMBRDN_SCALE_DIAG) {
@@ -369,7 +369,7 @@ static PetscErrorCode MatReset_LMVMSymBrdn(Mat B, PetscBool destructive)
   Mat_LMVM          *dbase;
   Mat_DiagBrdn      *dctx;
   PetscErrorCode    ierr;
-  
+
   PetscFunctionBegin;
   lsb->watchdog = 0;
   lsb->needP = lsb->needQ = PETSC_TRUE;
@@ -418,7 +418,7 @@ static PetscErrorCode MatAllocate_LMVMSymBrdn(Mat B, Vec X, Vec F)
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
   PetscErrorCode    ierr;
-  
+
   PetscFunctionBegin;
   ierr = MatAllocate_LMVM(B, X, F);CHKERRQ(ierr);
   if (!lsb->allocated) {
@@ -471,7 +471,7 @@ static PetscErrorCode MatSetUp_LMVMSymBrdn(Mat B)
   Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
   PetscErrorCode    ierr;
   PetscInt          n, N;
-  
+
   PetscFunctionBegin;
   ierr = MatSetUp_LMVM(B);CHKERRQ(ierr);
   if (!lsb->allocated) {
@@ -580,7 +580,7 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
   B->ops->setup = MatSetUp_LMVMSymBrdn;
   B->ops->destroy = MatDestroy_LMVMSymBrdn;
   B->ops->solve = MatSolve_LMVMSymBrdn;
-  
+
   lmvm = (Mat_LMVM*)B->data;
   lmvm->square = PETSC_TRUE;
   lmvm->ops->allocate = MatAllocate_LMVMSymBrdn;
@@ -588,7 +588,7 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
   lmvm->ops->update = MatUpdate_LMVMSymBrdn;
   lmvm->ops->mult = MatMult_LMVMSymBrdn;
   lmvm->ops->copy = MatCopy_LMVMSymBrdn;
-  
+
   ierr = PetscNewLog(B, &lsb);CHKERRQ(ierr);
   lmvm->ctx = (void*)lsb;
   lsb->allocated       = PETSC_FALSE;
@@ -606,7 +606,7 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
   lsb->scale_type      = SYMBRDN_SCALE_DIAG;
   lsb->watchdog        = 0;
   lsb->max_seq_rejects = lmvm->m/2;
-  
+
   ierr = MatCreate(PetscObjectComm((PetscObject)B), &lsb->D);CHKERRQ(ierr);
   ierr = MatSetType(lsb->D, MATLMVMDIAGBRDN);CHKERRQ(ierr);
   ierr = MatSetOptionsPrefix(lsb->D, "J0_");CHKERRQ(ierr);
@@ -616,9 +616,9 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
 /*------------------------------------------------------------*/
 
 /*@
-   MatSymBrdnSetDelta - Sets the starting value for the diagonal scaling vector computed 
+   MatSymBrdnSetDelta - Sets the starting value for the diagonal scaling vector computed
    in the SymBrdn approximations (also works for BFGS and DFP).
-   
+
    Input Parameters:
 +  B - LMVM matrix
 -  delta - initial value for diagonal scaling
@@ -632,7 +632,7 @@ PetscErrorCode MatSymBrdnSetDelta(Mat B, PetscScalar delta)
   Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
   PetscErrorCode    ierr;
   PetscBool         is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn;
-  
+
   PetscFunctionBegin;
   ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMBFGS, &is_bfgs);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMDFP, &is_dfp);CHKERRQ(ierr);
@@ -648,18 +648,18 @@ PetscErrorCode MatSymBrdnSetDelta(Mat B, PetscScalar delta)
 /*------------------------------------------------------------*/
 
 /*@
-   MatCreateLMVMSymBrdn - Creates a limited-memory Symmetric Broyden-type matrix used 
-   for approximating Jacobians. L-SymBrdn is a convex combination of L-DFP and 
-   L-BFGS such that SymBrdn = (1 - phi)*BFGS + phi*DFP. The combination factor 
-   phi is restricted to the range [0, 1], where the L-SymBrdn matrix is guaranteed 
+   MatCreateLMVMSymBrdn - Creates a limited-memory Symmetric Broyden-type matrix used
+   for approximating Jacobians. L-SymBrdn is a convex combination of L-DFP and
+   L-BFGS such that SymBrdn = (1 - phi)*BFGS + phi*DFP. The combination factor
+   phi is restricted to the range [0, 1], where the L-SymBrdn matrix is guaranteed
    to be symmetric positive-definite.
-   
-   The provided local and global sizes must match the solution and function vectors 
-   used with MatLMVMUpdate() and MatSolve(). The resulting L-SymBrdn matrix will have 
-   storage vectors allocated with VecCreateSeq() in serial and VecCreateMPI() in 
-   parallel. To use the L-SymBrdn matrix with other vector types, the matrix must be 
-   created using MatCreate() and MatSetType(), followed by MatLMVMAllocate(). 
-   This ensures that the internal storage and work vectors are duplicated from the 
+
+   The provided local and global sizes must match the solution and function vectors
+   used with MatLMVMUpdate() and MatSolve(). The resulting L-SymBrdn matrix will have
+   storage vectors allocated with VecCreateSeq() in serial and VecCreateMPI() in
+   parallel. To use the L-SymBrdn matrix with other vector types, the matrix must be
+   created using MatCreate() and MatSetType(), followed by MatLMVMAllocate().
+   This ensures that the internal storage and work vectors are duplicated from the
    correct type of vector.
 
    Collective on MPI_Comm
@@ -687,13 +687,13 @@ PetscErrorCode MatSymBrdnSetDelta(Mat B, PetscScalar delta)
 
    Level: intermediate
 
-.seealso: MatCreate(), MATLMVM, MATLMVMSYMBRDN, MatCreateLMVMDFP(), MatCreateLMVMSR1(), 
+.seealso: MatCreate(), MATLMVM, MATLMVMSYMBRDN, MatCreateLMVMDFP(), MatCreateLMVMSR1(),
           MatCreateLMVMBFGS(), MatCreateLMVMBrdn(), MatCreateLMVMBadBrdn()
 @*/
 PetscErrorCode MatCreateLMVMSymBrdn(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
 {
   PetscErrorCode    ierr;
-  
+
   PetscFunctionBegin;
   ierr = MatCreate(comm, B);CHKERRQ(ierr);
   ierr = MatSetSizes(*B, n, n, N, N);CHKERRQ(ierr);
@@ -709,10 +709,10 @@ PetscErrorCode MatSymBrdnApplyJ0Fwd(Mat B, Vec X, Vec Z)
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
   PetscErrorCode    ierr;
-  
+
   PetscFunctionBegin;
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
-    ierr = MatLMVMApplyJ0Fwd(B, X, Z);CHKERRQ(ierr); 
+    ierr = MatLMVMApplyJ0Fwd(B, X, Z);CHKERRQ(ierr);
   } else {
     switch (lsb->scale_type) {
     case SYMBRDN_SCALE_SCALAR:
@@ -738,7 +738,7 @@ PetscErrorCode MatSymBrdnApplyJ0Inv(Mat B, Vec F, Vec dX)
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
   PetscErrorCode    ierr;
-  
+
   PetscFunctionBegin;
   if (lmvm->J0 || lmvm->user_pc || lmvm->user_ksp || lmvm->user_scale) {
     ierr = MatLMVMApplyJ0Inv(B, F, dX);CHKERRQ(ierr);
@@ -768,7 +768,7 @@ PetscErrorCode MatSymBrdnComputeJ0Scalar(Mat B)
   Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
   PetscInt          i, start;
   PetscReal         a, b, c, sig1, sig2, signew;
-  
+
   PetscFunctionBegin;
   if (lsb->sigma_hist == 0) {
     signew = 1.0;
@@ -790,7 +790,7 @@ PetscErrorCode MatSymBrdnComputeJ0Scalar(Mat B)
       }
     } else {
       /* compute coefficients of the quadratic */
-      a = b = c = 0.0; 
+      a = b = c = 0.0;
       for (i = start; i <= lmvm->k; ++i) {
         a += lsb->yty[i];
         b += lsb->yts[i];

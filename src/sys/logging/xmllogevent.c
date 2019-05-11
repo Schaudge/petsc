@@ -174,11 +174,11 @@ PetscErrorCode PetscLogNestedEnd(void)
 
     dftIndex - index to be found
     dftArray - sorted array of PetscLogEvent-ids
-    narray - dimension of dftArray 
+    narray - dimension of dftArray
     entry - entry in the array where dftIndex may be found;
 
      if dftArray[entry] != dftIndex, then dftIndex is not part of dftArray
-     In that case, the dftIndex can be inserted at this entry. 
+     In that case, the dftIndex can be inserted at this entry.
 */
 static PetscErrorCode PetscLogEventFindDefaultTimer(PetscLogEvent dftIndex,const PetscLogEvent *dftArray,int narray,int *entry)
 {
@@ -549,10 +549,10 @@ static PetscErrorCode PetscPrintGlobalPerformance(PetscViewer viewer, PetscLogDo
 {
   PetscErrorCode  ierr;
   PetscLogDouble  flops, mem, red, mess;
-  const PetscBool print_total_yes   = PETSC_TRUE, 
-                  print_total_no    = PETSC_FALSE, 
-                  print_average_no  = PETSC_FALSE, 
-                  print_average_yes = PETSC_TRUE; 
+  const PetscBool print_total_yes   = PETSC_TRUE,
+                  print_total_no    = PETSC_FALSE,
+                  print_average_no  = PETSC_FALSE,
+                  print_average_yes = PETSC_TRUE;
 
   PetscFunctionBegin;
   /* Must preserve reduction count before we go on */
@@ -578,7 +578,7 @@ static PetscErrorCode PetscPrintGlobalPerformance(PetscViewer viewer, PetscLogDo
   /*   Memory */
   ierr = PetscMallocGetMaximumUsage(&mem);CHKERRQ(ierr);
   if (mem > 0.0) {
-    ierr = PetscPrintXMLGlobalPerformanceElement(viewer, "memory", "Memory (MiB)", mem/1024.0/1024.0, print_average_yes, print_total_yes);CHKERRQ(ierr); 
+    ierr = PetscPrintXMLGlobalPerformanceElement(viewer, "memory", "Memory (MiB)", mem/1024.0/1024.0, print_average_yes, print_total_yes);CHKERRQ(ierr);
   }
   /*   Messages */
   mess = 0.5*(petsc_irecv_ct + petsc_isend_ct + petsc_recv_ct + petsc_send_ct);

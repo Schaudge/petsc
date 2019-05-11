@@ -20,7 +20,7 @@ static PetscErrorCode  KSPSolve_PREONLY(KSP ksp)
                you probably want a KSP type of Richardson");
   ksp->its = 0;
   ierr     = KSP_PCApply(ksp,ksp->vec_rhs,ksp->vec_sol);CHKERRQ(ierr);
-  ierr     = PCGetFailedReason(ksp->pc,&pcreason);CHKERRQ(ierr); 
+  ierr     = PCGetFailedReason(ksp->pc,&pcreason);CHKERRQ(ierr);
   if (pcreason) {
     ksp->reason = KSP_DIVERGED_PC_FAILED;
   } else {

@@ -1,5 +1,5 @@
 /*
-   Creates a DMShell and uses it with a KSP 
+   Creates a DMShell and uses it with a KSP
    This tests that the KSP object can still create vectors using the Mat object
 
    Contributed by Lawrence Mitchell as part of pull request 221

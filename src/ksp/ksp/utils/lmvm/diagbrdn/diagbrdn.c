@@ -447,7 +447,7 @@ static PetscErrorCode MatAllocate_DiagBrdn(Mat B, Vec X, Vec F)
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
   Mat_DiagBrdn      *ldb = (Mat_DiagBrdn*)lmvm->ctx;
   PetscErrorCode    ierr;
-  
+
   PetscFunctionBegin;
   ierr = MatAllocate_LMVM(B, X, F);CHKERRQ(ierr);
   if (!ldb->allocated) {
@@ -559,22 +559,22 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
 /*------------------------------------------------------------*/
 
 /*@
-   MatCreateLMVMDiagBrdn - DiagBrdn creates a symmetric Broyden-type diagonal matrix used 
-   for approximating Hessians. It consists of a convex combination of DFP and BFGS 
-   diagonal approximation schemes, such that DiagBrdn = (1-theta)*BFGS + theta*DFP. 
-   To preserve symmetric positive-definiteness, we restrict theta to be in [0, 1]. 
+   MatCreateLMVMDiagBrdn - DiagBrdn creates a symmetric Broyden-type diagonal matrix used
+   for approximating Hessians. It consists of a convex combination of DFP and BFGS
+   diagonal approximation schemes, such that DiagBrdn = (1-theta)*BFGS + theta*DFP.
+   To preserve symmetric positive-definiteness, we restrict theta to be in [0, 1].
    We also ensure positive definiteness by taking the VecAbs() of the final vector.
 
-   There are two ways of approximating the diagonal: using the forward (B) update 
-   schemes for BFGS and DFP and then taking the inverse, or directly working with 
-   the inverse (H) update schemes for the BFGS and DFP updates, derived using the 
-   Sherman-Morrison-Woodbury formula. We have implemented both, controlled by a 
+   There are two ways of approximating the diagonal: using the forward (B) update
+   schemes for BFGS and DFP and then taking the inverse, or directly working with
+   the inverse (H) update schemes for the BFGS and DFP updates, derived using the
+   Sherman-Morrison-Woodbury formula. We have implemented both, controlled by a
    parameter below.
 
-   In order to use the DiagBrdn matrix with other vector types, i.e. doing MatMults 
-   and MatSolves, the matrix must first be created using MatCreate() and MatSetType(), 
-   followed by MatLMVMAllocate(). Then it will be available for updating 
-   (via MatLMVMUpdate) in one's favored solver implementation. 
+   In order to use the DiagBrdn matrix with other vector types, i.e. doing MatMults
+   and MatSolves, the matrix must first be created using MatCreate() and MatSetType(),
+   followed by MatLMVMAllocate(). Then it will be available for updating
+   (via MatLMVMUpdate) in one's favored solver implementation.
    This allows for MPI compatibility.
 
    Collective on MPI_Comm

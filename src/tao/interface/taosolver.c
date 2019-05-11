@@ -153,7 +153,7 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   tao->viewgradient=PETSC_FALSE;
   tao->viewjacobian=PETSC_FALSE;
   tao->viewconstraints = PETSC_FALSE;
-  
+
   tao->bounded = PETSC_FALSE;
 
   tao->header_printed = PETSC_FALSE;
@@ -1341,7 +1341,7 @@ PetscErrorCode TaoResetStatistics(Tao tao)
 /*@C
   TaoSetUpdate - Sets the general-purpose update function called
   at the beginning of every iteration of the nonlinear solve. Specifically
-  it is called at the top of every iteration, after the new solution and the gradient 
+  it is called at the top of every iteration, after the new solution and the gradient
   is determined, but before the Hessian is computed (if applicable).
 
   Logically Collective on Tao
@@ -1551,13 +1551,13 @@ PetscErrorCode TaoMonitorDefault(Tao tao, void *ctx)
   ierr = PetscViewerASCIISetTab(viewer, tabs);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
- 
+
 /*@
    TaoDefaultGMonitor - Default routine for monitoring progress of the
-   Tao solvers (default) with extra detail on the globalization method.  
-   This monitor prints the function value and gradient norm at each 
-   iteration, as well as the step size and trust radius. Note that the 
-   step size and trust radius may be the same for some algorithms. 
+   Tao solvers (default) with extra detail on the globalization method.
+   This monitor prints the function value and gradient norm at each
+   iteration, as well as the step size and trust radius. Note that the
+   step size and trust radius may be the same for some algorithms.
    It can be turned on from the command line using the
    -tao_gmonitor option
 

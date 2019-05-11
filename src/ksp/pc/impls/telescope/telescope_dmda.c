@@ -1086,7 +1086,7 @@ PetscErrorCode DMView_DA_Short_2d(DM dm,PetscViewer v)
   ierr = DMGetOptionsPrefix(dm,&prefix);CHKERRQ(ierr);
   ierr = DMDAGetInfo(dm,NULL,&M,&N,NULL,&m,&n,NULL,&ndof,&nsw,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   if (prefix) {PetscViewerASCIIPrintf(v,"DMDA Object:    (%s)    %d MPI processes\n",prefix,size);CHKERRQ(ierr);}
-  else {ierr = PetscViewerASCIIPrintf(v,"DMDA Object:    %d MPI processes\n",size);CHKERRQ(ierr);} 
+  else {ierr = PetscViewerASCIIPrintf(v,"DMDA Object:    %d MPI processes\n",size);CHKERRQ(ierr);}
   ierr = PetscViewerASCIIPrintf(v,"  M %D N %D m %D n %D dof %D overlap %D\n",M,N,m,n,ndof,nsw);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1106,4 +1106,3 @@ PetscErrorCode DMView_DA_Short(DM dm,PetscViewer v)
   }
   PetscFunctionReturn(0);
 }
-

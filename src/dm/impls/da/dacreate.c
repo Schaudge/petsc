@@ -323,7 +323,7 @@ static PetscErrorCode DMGetNeighbors_DA(DM dm, PetscInt *nranks, const PetscMPII
   PetscErrorCode ierr;
   PetscInt dim;
   DMDAStencilType st;
-  
+
   PetscFunctionBegin;
   ierr = DMDAGetNeighbors(dm,ranks);CHKERRQ(ierr);
   ierr = DMDAGetInfo(dm,&dim,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&st);CHKERRQ(ierr);
@@ -494,5 +494,3 @@ PetscErrorCode  DMDACreate(MPI_Comm comm, DM *da)
   ierr = DMSetType(*da,DMDA);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-

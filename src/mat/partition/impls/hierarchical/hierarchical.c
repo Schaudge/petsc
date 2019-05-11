@@ -126,7 +126,7 @@ static PetscErrorCode MatPartitioningApply_Hierarchical(MatPartitioning part,IS 
     ierr = MatPartitioningSetType(hpart->coarseMatPart,MATPARTITIONINGPTSCOTCH);CHKERRQ(ierr);
     ierr = PetscStrallocpy(MATPARTITIONINGPTSCOTCH,&hpart->coarseparttype);CHKERRQ(ierr);
 #else
-    SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"Requires PETSc be installed with ParMetis or run with -mat_partitioning_hierarchical_coarseparttype partitiontype"); 
+    SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"Requires PETSc be installed with ParMetis or run with -mat_partitioning_hierarchical_coarseparttype partitiontype");
 #endif
   } else {
     ierr = MatPartitioningSetType(hpart->coarseMatPart,hpart->coarseparttype);CHKERRQ(ierr);

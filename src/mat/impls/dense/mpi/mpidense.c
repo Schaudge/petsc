@@ -1306,7 +1306,7 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIDense_Elemental(Mat A, MatType newtype
   PetscErrorCode ierr;
   PetscScalar    *v;
   PetscInt       m=A->rmap->n,N=A->cmap->N,rstart=A->rmap->rstart,i,*rows,*cols;
-  
+
   PetscFunctionBegin;
   if (reuse == MAT_REUSE_MATRIX) {
     mat_elemental = *newmat;
@@ -1322,7 +1322,7 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIDense_Elemental(Mat A, MatType newtype
   ierr = PetscMalloc2(m,&rows,N,&cols);CHKERRQ(ierr);
   for (i=0; i<N; i++) cols[i] = i;
   for (i=0; i<m; i++) rows[i] = rstart + i;
-  
+
   /* PETSc-Elemental interaface uses axpy for setting off-processor entries, only ADD_VALUES is allowed */
   ierr = MatDenseGetArray(A,&v);CHKERRQ(ierr);
   ierr = MatSetValues(mat_elemental,m,rows,N,cols,v,ADD_VALUES);CHKERRQ(ierr);
@@ -1996,9 +1996,9 @@ PetscErrorCode MatTransposeMatMultSymbolic_MPIDense_MPIDense(Mat A,Mat B,PetscRe
   /* create data structure for reuse Cdense */
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   ierr = PetscNew(&atb);CHKERRQ(ierr);
-  cM = Cdense->rmap->N; 
+  cM = Cdense->rmap->N;
   ierr = PetscMalloc3(cM*cN,&atb->sendbuf,cM*cN,&atb->atbarray,size,&atb->recvcounts);CHKERRQ(ierr);
-  
+
   c                    = (Mat_MPIDense*)Cdense->data;
   c->atbdense          = atb;
   atb->destroy         = Cdense->ops->destroy;
@@ -2011,9 +2011,9 @@ PetscErrorCode MatTransposeMatMult_MPIDense_MPIDense(Mat A,Mat B,MatReuse scall,
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (scall == MAT_INITIAL_MATRIX) { 
+  if (scall == MAT_INITIAL_MATRIX) {
     ierr = MatTransposeMatMultSymbolic_MPIDense_MPIDense(A,B,fill,C);CHKERRQ(ierr);
-  } 
+  }
   ierr = MatTransposeMatMultNumeric_MPIDense_MPIDense(A,B,*C);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -2265,7 +2265,7 @@ PetscErrorCode MatMatMultSymbolic_MPIDense_MPIDense(Mat A,Mat B,PetscReal fill,M
   /* Ce = Ae*Be */
   ierr = MatMatMultSymbolic(Ae,Be,fill,&Ce);CHKERRQ(ierr);
   ierr = MatMatMultNumeric(Ae,Be,Ce);CHKERRQ(ierr);
- 
+
   /* convert Ce to C */
   ierr = MatConvert(Ce,MATMPIDENSE,MAT_INITIAL_MATRIX,C);CHKERRQ(ierr);
 
@@ -2300,4 +2300,3 @@ PETSC_INTERN PetscErrorCode MatMatMult_MPIDense_MPIDense(Mat A,Mat B,MatReuse sc
   PetscFunctionReturn(0);
 }
 #endif
-

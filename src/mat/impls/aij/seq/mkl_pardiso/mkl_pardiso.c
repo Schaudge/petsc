@@ -40,7 +40,7 @@ PETSC_EXTERN void PetscSetMKL_PARDISOThreads(int);
   #define MKL_PARDISO pardiso
   #define MKL_PARDISO_INIT pardisoinit
  #else
-  /* this is the case where the MKL BLAS/LAPACK are 32 bit integers but the 64 bit integer version of 
+  /* this is the case where the MKL BLAS/LAPACK are 32 bit integers but the 64 bit integer version of
      of Pardiso code is used; hence the need for the 64 below*/
   #define INT_TYPE long long int
   #define MKL_PARDISO pardiso_64
@@ -48,7 +48,7 @@ PETSC_EXTERN void PetscSetMKL_PARDISOThreads(int);
 void pardiso_64init(void *pt, INT_TYPE *mtype, INT_TYPE iparm [])
 {
   int iparm_copy[IPARM_SIZE], mtype_copy, i;
-  
+
   mtype_copy = *mtype;
   pardisoinit(pt, &mtype_copy, iparm_copy);
   for (i = 0; i < IPARM_SIZE; i++){
@@ -650,7 +650,7 @@ PetscErrorCode PetscSetMKL_PARDISOFromOptions(Mat F, Mat A)
 
   ierr = PetscOptionsInt("-mat_mkl_pardiso_67","Indicates the actual matrix for the solution phase","None",mat_mkl_pardiso->mnum,&icntl,&flg);CHKERRQ(ierr);
   if (flg) mat_mkl_pardiso->mnum = icntl;
- 
+
   ierr = PetscOptionsInt("-mat_mkl_pardiso_68","Message level information","None",mat_mkl_pardiso->msglvl,&icntl,&flg);CHKERRQ(ierr);
   if (flg) mat_mkl_pardiso->msglvl = icntl;
 
@@ -751,19 +751,19 @@ PetscErrorCode MatFactorMKL_PARDISOInitialize_Private(Mat A, MatFactorType ftype
 #endif
   mat_mkl_pardiso->iparm[34] =  1; /* Cluster Sparse Solver use C-style indexing for ia and ja arrays */
   mat_mkl_pardiso->iparm[39] =  0; /* Input: matrix/rhs/solution stored on master */
-  
+
   mat_mkl_pardiso->CleanUp   = PETSC_FALSE;
   mat_mkl_pardiso->maxfct    = 1; /* Maximum number of numerical factorizations. */
   mat_mkl_pardiso->mnum      = 1; /* Which factorization to use. */
   mat_mkl_pardiso->msglvl    = 0; /* 0: do not print 1: Print statistical information in file */
   mat_mkl_pardiso->phase     = -1;
   mat_mkl_pardiso->err       = 0;
-  
+
   mat_mkl_pardiso->n         = A->rmap->N;
   mat_mkl_pardiso->nrhs      = 1;
   mat_mkl_pardiso->err       = 0;
   mat_mkl_pardiso->phase     = -1;
-  
+
   if (ftype == MAT_FACTOR_LU){
     mat_mkl_pardiso->iparm[ 9] = 13; /* Perturb the pivot elements with 1E-13 */
     mat_mkl_pardiso->iparm[10] =  1; /* Use nonsymmetric permutation and scaling MPS */
@@ -1099,4 +1099,3 @@ PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_MKL_Pardiso(void)
   ierr = MatSolverTypeRegister(MATSOLVERMKL_PARDISO,MATSEQSBAIJ,MAT_FACTOR_CHOLESKY,MatGetFactor_aij_mkl_pardiso);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-

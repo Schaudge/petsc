@@ -642,7 +642,7 @@ static PetscErrorCode PCSetData_AGG(PC pc, Mat a_A)
  formProl0
 
    Input Parameter:
-   . agg_llists - list of arrays with aggregates -- list from selected vertices of aggregate unselected vertices 
+   . agg_llists - list of arrays with aggregates -- list from selected vertices of aggregate unselected vertices
    . bs - row block size
    . nSAvec - column bs of new P
    . my0crs - global index of start of locals

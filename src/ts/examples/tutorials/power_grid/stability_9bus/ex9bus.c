@@ -250,7 +250,7 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
 
         if (VRatmax[i]) {
           fvalue = (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
-          if (fvalue < 0) { 
+          if (fvalue < 0) {
             VRatmax[i] = 0;
             ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went negative on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
           }
@@ -1169,7 +1169,7 @@ int main(int argc,char **argv)
 
   if (user.semiexplicit) {
     /* Use a semi-explicit approach with the time-stepping done by an explicit method and the
-       algrebraic part solved via PostStage and PostEvaluate callbacks 
+       algrebraic part solved via PostStage and PostEvaluate callbacks
     */
     ierr = TSSetType(ts,TSRK);CHKERRQ(ierr);
     ierr = TSSetPostStage(ts,PostStage);CHKERRQ(ierr);
@@ -1197,12 +1197,12 @@ int main(int argc,char **argv)
   ierr = VecDuplicate(X,&F_alg);CHKERRQ(ierr);
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes_alg);CHKERRQ(ierr);
   ierr = SNESSetFunction(snes_alg,F_alg,AlgFunction,&user);CHKERRQ(ierr);
-  ierr = SNESSetJacobian(snes_alg,J,J,AlgJacobian,&user);CHKERRQ(ierr); 
+  ierr = SNESSetJacobian(snes_alg,J,J,AlgJacobian,&user);CHKERRQ(ierr);
 
   ierr = SNESSetFromOptions(snes_alg);CHKERRQ(ierr);
 
   user.snes_alg=snes_alg;
-  
+
   /* Solve */
   ierr = TSSolve(ts,X);CHKERRQ(ierr);
 

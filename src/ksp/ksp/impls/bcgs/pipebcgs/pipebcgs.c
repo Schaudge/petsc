@@ -44,7 +44,7 @@ static PetscErrorCode  KSPSolve_PIPEBCGS(KSP ksp)
   Z2 = ksp->work[12];
   T  = ksp->work[13];
   V  = ksp->work[14];
-  
+
   /* Only supports right preconditioning */
   if (ksp->pc_side != PC_RIGHT) SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"KSP pipebcgs does not support %s",PCSides[ksp->pc_side]);
   if (!ksp->guess_zero) {
@@ -82,32 +82,32 @@ static PetscErrorCode  KSPSolve_PIPEBCGS(KSP ksp)
 
   /* Initialize */
   ierr = VecCopy(R,RP);CHKERRQ(ierr); /* rp <- r */
-  
+
   ierr = VecDotBegin(R,RP,&rho);CHKERRQ(ierr); /* rho <- (r,rp) */
-  ierr = PetscCommSplitReductionBegin(PetscObjectComm((PetscObject)R));CHKERRQ(ierr); 
+  ierr = PetscCommSplitReductionBegin(PetscObjectComm((PetscObject)R));CHKERRQ(ierr);
   ierr = KSP_PCApply(ksp,R,R2);CHKERRQ(ierr); /* r2 <- K r */
   ierr = KSP_MatMult(ksp,pc->mat,R2,W);CHKERRQ(ierr); /* w <- A r2 */
   ierr = VecDotEnd(R,RP,&rho);CHKERRQ(ierr);
-  
+
   ierr = VecDotBegin(W,RP,&d2);CHKERRQ(ierr); /* d2 <- (w,rp) */
-  ierr = PetscCommSplitReductionBegin(PetscObjectComm((PetscObject)W));CHKERRQ(ierr); 
+  ierr = PetscCommSplitReductionBegin(PetscObjectComm((PetscObject)W));CHKERRQ(ierr);
   ierr = KSP_PCApply(ksp,W,W2);CHKERRQ(ierr); /* w2 <- K w */
   ierr = KSP_MatMult(ksp,pc->mat,W2,T);CHKERRQ(ierr); /* t <- A w2 */
   ierr = VecDotEnd(W,RP,&d2);CHKERRQ(ierr);
 
   alpha = rho/d2;
   beta = 0.0;
-  
+
   /* Main loop */
   i=0;
   do {
     if (i == 0) {
-      ierr  = VecCopy(R2,P2);CHKERRQ(ierr); /* p2 <- r2 */ 
+      ierr  = VecCopy(R2,P2);CHKERRQ(ierr); /* p2 <- r2 */
       ierr  = VecCopy(W,S);CHKERRQ(ierr);   /* s  <- w  */
       ierr  = VecCopy(W2,S2);CHKERRQ(ierr); /* s2 <- w2 */
       ierr  = VecCopy(T,Z);CHKERRQ(ierr);   /* z  <- t  */
     } else {
-      ierr  = VecAXPBYPCZ(P2,1.0,-beta*omega,beta,R2,S2);CHKERRQ(ierr); /* p2 <- beta * p2 + r2 - beta * omega * s2 */ 
+      ierr  = VecAXPBYPCZ(P2,1.0,-beta*omega,beta,R2,S2);CHKERRQ(ierr); /* p2 <- beta * p2 + r2 - beta * omega * s2 */
       ierr  = VecAXPBYPCZ(S,1.0,-beta*omega,beta,W,Z);CHKERRQ(ierr);    /* s  <- beta * s  + w  - beta * omega * z  */
       ierr  = VecAXPBYPCZ(S2,1.0,-beta*omega,beta,W2,Z2);CHKERRQ(ierr); /* s2 <- beta * s2 + w2 - beta * omega * z2 */
       ierr  = VecAXPBYPCZ(Z,1.0,-beta*omega,beta,T,V);CHKERRQ(ierr);    /* z  <- beta * z  + t  - beta * omega * v  */
@@ -115,17 +115,17 @@ static PetscErrorCode  KSPSolve_PIPEBCGS(KSP ksp)
     ierr  = VecWAXPY(Q,-alpha,S,R);CHKERRQ(ierr);    /* q  <- r  - alpha s  */
     ierr  = VecWAXPY(Q2,-alpha,S2,R2);CHKERRQ(ierr); /* q2 <- r2 - alpha s2 */
     ierr  = VecWAXPY(Y,-alpha,Z,W);CHKERRQ(ierr);    /* y  <- w  - alpha z  */
-    
-    ierr = VecDotBegin(Q,Y,&d1);CHKERRQ(ierr); /* d1 <- (q,y) */ 
+
+    ierr = VecDotBegin(Q,Y,&d1);CHKERRQ(ierr); /* d1 <- (q,y) */
     ierr = VecDotBegin(Y,Y,&d2);CHKERRQ(ierr); /* d2 <- (y,y) */
-    
+
     ierr = PetscCommSplitReductionBegin(PetscObjectComm((PetscObject)Q));CHKERRQ(ierr);
     ierr = KSP_PCApply(ksp,Z,Z2);CHKERRQ(ierr); /* z2 <- K z */
     ierr = KSP_MatMult(ksp,pc->mat,Z2,V);CHKERRQ(ierr); /* v <- A z2 */
-    
-    ierr = VecDotEnd(Q,Y,&d1);CHKERRQ(ierr); 
-    ierr = VecDotEnd(Y,Y,&d2);CHKERRQ(ierr); 
-    
+
+    ierr = VecDotEnd(Q,Y,&d1);CHKERRQ(ierr);
+    ierr = VecDotEnd(Y,Y,&d2);CHKERRQ(ierr);
+
     if (d2 == 0.0) {
       /* y is 0. if q is 0, then alpha s == r, and hence alpha p may be our solution. Give it a try? */
       ierr = VecDot(Q,Q,&d1);CHKERRQ(ierr);

@@ -120,7 +120,7 @@ int main(int argc,char **argv)
   ierr = VecDestroy(&gx);CHKERRQ(ierr);
   if (flg) {ierr = PetscFree(tarray);CHKERRQ(ierr);}
   ierr = PetscFinalize();
-  return ierr; 
+  return ierr;
 }
 
 /*TEST
@@ -139,5 +139,3 @@ int main(int argc,char **argv)
        args: -vecmpisetghost
 
 TEST*/
-
-

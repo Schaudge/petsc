@@ -382,7 +382,7 @@ PetscErrorCode  PetscStrcpy(char s[],const char t[])
      Null string returns a string starting with zero
 
      If the string that is being copied is of length n or larger then the entire string is not
-     copied and the final location of s is set to NULL. This is different then the behavior of 
+     copied and the final location of s is set to NULL. This is different then the behavior of
      strncpy() which leaves s non-terminated if there is not room for the entire string.
 
   Concepts: string copy
@@ -927,7 +927,7 @@ struct _p_PetscToken {char token;char *array;char *current;};
      This version also treats all characters etc. inside a double quote "
    as a single token.
 
-     For example if the separator character is + and the string is xxxx+y then the first fine will return a pointer to a null terminated xxxx and the 
+     For example if the separator character is + and the string is xxxx+y then the first fine will return a pointer to a null terminated xxxx and the
    second will return a null terminated y
 
      If the separator character is + and the string is xxxx then the first and only token found will be a pointer to a null terminated xxxx

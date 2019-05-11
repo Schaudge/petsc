@@ -2,7 +2,7 @@
 /*
   Defines matrix-matrix product routines for pairs of MPIAIJ matrices
           C = A^T * B
-  The routines are slightly modified from MatTransposeMatMultxxx_SeqAIJ_SeqDense(). 
+  The routines are slightly modified from MatTransposeMatMultxxx_SeqAIJ_SeqDense().
 */
 #include <../src/mat/impls/aij/seq/aij.h> /*I "petscmat.h" I*/
 #include <../src/mat/impls/aij/mpi/mpiaij.h>
@@ -32,7 +32,7 @@ PetscErrorCode MatTransposeMatMult_MPIAIJ_MPIDense(Mat A,Mat B,MatReuse scall,Pe
     ierr = PetscLogEventBegin(MAT_TransposeMatMultSymbolic,A,B,0,0);CHKERRQ(ierr);
     ierr = MatTransposeMatMultSymbolic_MPIAIJ_MPIDense(A,B,fill,C);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(MAT_TransposeMatMultSymbolic,A,B,0,0);CHKERRQ(ierr);
-  } 
+  }
   ierr = PetscLogEventBegin(MAT_TransposeMatMultNumeric,A,B,0,0);CHKERRQ(ierr);
   ierr = MatTransposeMatMultNumeric_MPIAIJ_MPIDense(A,B,*C);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(MAT_TransposeMatMultNumeric,A,B,0,0);CHKERRQ(ierr);
@@ -47,7 +47,7 @@ PetscErrorCode MatTransposeMatMultSymbolic_MPIAIJ_MPIDense(Mat A,Mat B,PetscReal
   Mat                 Cdense;
   Vec                 bt,ct;
   Mat_MPIDense        *c;
-  
+
   PetscFunctionBegin;
   ierr = PetscNew(&atb);CHKERRQ(ierr);
 

@@ -860,7 +860,7 @@ PetscErrorCode  TSSundialsMonitorInternalSteps(TS ts,PetscBool ft)
 .    -ts_sundials_gramschmidt_type <modified, classical> - type of orthogonalization inside GMRES
 .    -ts_sundials_atol <tol> - Absolute tolerance for convergence
 .    -ts_sundials_rtol <tol> - Relative tolerance for convergence
-.    -ts_sundials_linear_tolerance <tol> - 
+.    -ts_sundials_linear_tolerance <tol> -
 .    -ts_sundials_maxl <maxl> - Max dimension of the Krylov subspace
 -    -ts_sundials_monitor_steps - Monitor SUNDIALS internal steps
 

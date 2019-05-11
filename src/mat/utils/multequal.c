@@ -214,7 +214,7 @@ PetscErrorCode  MatMultTransposeAddEqual(Mat A,Mat B,PetscInt n,PetscBool  *flg)
   PetscErrorCode ierr;
   Vec            x,y,s1,s2;
   PetscRandom    rctx;
-  PetscReal      r1,r2,tol = PETSC_SQRT_MACHINE_EPSILON; 
+  PetscReal      r1,r2,tol = PETSC_SQRT_MACHINE_EPSILON;
   PetscInt       am,an,bm,bn,k;
   PetscScalar    none = -1.0;
 
@@ -258,7 +258,7 @@ PetscErrorCode  MatMultTransposeAddEqual(Mat A,Mat B,PetscInt n,PetscBool  *flg)
 }
 
 /*@
-   MatMatMultEqual - Test A*B*x = C*x for n random vector x 
+   MatMatMultEqual - Test A*B*x = C*x for n random vector x
 
    Collective on Mat
 
@@ -326,7 +326,7 @@ PetscErrorCode MatMatMultEqual(Mat A,Mat B,Mat C,PetscInt n,PetscBool *flg)
 }
 
 /*@
-   MatTransposeMatMultEqual - Test A^T*B*x = C*x for n random vector x 
+   MatTransposeMatMultEqual - Test A^T*B*x = C*x for n random vector x
 
    Collective on Mat
 

@@ -24,7 +24,7 @@ For a vector quantity a, we likewise have
 
   SOR is completely unreliable as a smoother, use Jacobi
   r1: 8 MG
-  r2: 
+  r2:
 */
 
 #include <petscdmplex.h>

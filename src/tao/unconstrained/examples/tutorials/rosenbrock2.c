@@ -97,7 +97,7 @@ int main(int argc,char **argv)
     recycled_its += its;
     ierr = PetscPrintf(PETSC_COMM_SELF, "-----------------------\n");CHKERRQ(ierr);
   }
-  
+
   /* Disable recycling and solve again! */
   ierr = TaoSetMaximumIterations(tao, 100);CHKERRQ(ierr);
   ierr = TaoLMVMRecycle(tao, PETSC_FALSE);CHKERRQ(ierr);
@@ -109,7 +109,7 @@ int main(int argc,char **argv)
   ierr = PetscPrintf(PETSC_COMM_SELF, "-----------------------\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_SELF, "recycled its: %D | oneshot its: %D\n", recycled_its, oneshot_its);CHKERRQ(ierr);
   if (recycled_its != oneshot_its) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "LMVM recycling does not work!");
-  
+
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = MatDestroy(&H);CHKERRQ(ierr);

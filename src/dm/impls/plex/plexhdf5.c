@@ -774,7 +774,7 @@ PetscErrorCode DMPlexView_HDF5_Internal(DM dm, PetscViewer viewer)
     case PETSC_VIEWER_HDF5_XDMF:
       xdmf_topo   = PETSC_TRUE;
       break;
-    case PETSC_VIEWER_HDF5_PETSC: 
+    case PETSC_VIEWER_HDF5_PETSC:
       petsc_topo  = PETSC_TRUE;
       break;
     case PETSC_VIEWER_DEFAULT:

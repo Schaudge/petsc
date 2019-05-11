@@ -118,7 +118,7 @@ static PetscErrorCode DMPlexLabelComplete_Internal(DM dm, DMLabel label, PetscBo
     ierr = ISGetIndices(valueIS, &values);CHKERRQ(ierr);
     for (v = 0; v < numValues; ++v) {
       const PetscInt value = values[v];
-      
+
       ierr = DMLabelGetStratumIS(lblLeaves, value, &pointIS);CHKERRQ(ierr);
       ierr = DMLabelInsertIS(label, pointIS, value);CHKERRQ(ierr);
       ierr = ISDestroy(&pointIS);CHKERRQ(ierr);
@@ -133,7 +133,7 @@ static PetscErrorCode DMPlexLabelComplete_Internal(DM dm, DMLabel label, PetscBo
     ierr = ISGetIndices(valueIS, &values);CHKERRQ(ierr);
     for (v = 0; v < numValues; ++v) {
       const PetscInt value = values[v];
-      
+
       ierr = DMLabelGetStratumIS(lblRoots, value, &pointIS);CHKERRQ(ierr);
       ierr = DMLabelInsertIS(label, pointIS, value);CHKERRQ(ierr);
       ierr = ISDestroy(&pointIS);CHKERRQ(ierr);

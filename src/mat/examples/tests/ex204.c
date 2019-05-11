@@ -153,7 +153,7 @@ int main(int argc,char **args)
     Vec               v,r,v_vcl,r_vcl,d_vcl;
     PetscInt          N=17,M=31,nz=5,i,cnt,j,rlow,rhigh;
     const PetscScalar val = 1.0;
-    PetscReal         dnorm; 
+    PetscReal         dnorm;
     const PetscReal   tol=1e-5;
 
     ierr = MatCreateAIJ(PETSC_COMM_WORLD,PETSC_DETERMINE,PETSC_DETERMINE,M,N,nz,NULL,nz,NULL,&A);CHKERRQ(ierr);

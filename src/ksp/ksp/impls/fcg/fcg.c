@@ -506,11 +506,11 @@ static PetscErrorCode KSPSetFromOptions_FCG(PetscOptionItems *PetscOptionsObject
   ierr = PetscOptionsHead(PetscOptionsObject,"KSP FCG Options");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-ksp_fcg_mmax","Maximum number of search directions to store","KSPFCGSetMmax",fcg->mmax,&mmax,&flg);CHKERRQ(ierr);
   if (flg) {
-    ierr = KSPFCGSetMmax(ksp,mmax);CHKERRQ(ierr); 
+    ierr = KSPFCGSetMmax(ksp,mmax);CHKERRQ(ierr);
   }
   ierr = PetscOptionsInt("-ksp_fcg_nprealloc","Number of directions to preallocate","KSPFCGSetNprealloc",fcg->nprealloc,&nprealloc,&flg);CHKERRQ(ierr);
-  if (flg) { 
-    ierr = KSPFCGSetNprealloc(ksp,nprealloc);CHKERRQ(ierr); 
+  if (flg) {
+    ierr = KSPFCGSetNprealloc(ksp,nprealloc);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnum("-ksp_fcg_truncation_type","Truncation approach for directions","KSPFCGSetTruncationType",KSPFCDTruncationTypes,(PetscEnum)fcg->truncstrat,(PetscEnum*)&fcg->truncstrat,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsTail();CHKERRQ(ierr);
@@ -575,4 +575,3 @@ PETSC_EXTERN PetscErrorCode KSPCreate_FCG(KSP ksp)
   ksp->ops->buildresidual  = KSPBuildResidualDefault;
   PetscFunctionReturn(0);
 }
-

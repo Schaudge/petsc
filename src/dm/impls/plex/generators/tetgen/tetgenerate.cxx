@@ -200,7 +200,7 @@ PETSC_EXTERN PetscErrorCode DMPlexRefine_Tetgen(DM dm, double *maxVolumes, DM *d
       for (d = 0; d < dim; ++d) in.pointlist[idx*dim + d] = PetscRealPart(array[off+d]);
       if (label) {
         PetscInt val;
-        
+
         ierr = DMLabelGetValue(label, v, &val);CHKERRQ(ierr);
         in.pointmarkerlist[idx] = (int) val;
       }

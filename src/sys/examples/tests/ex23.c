@@ -22,7 +22,7 @@ int main(int argc,char **argv)
 
 
 /*TEST
-   
+
    test:
       requires: yaml
       args: -options_file_yaml ex23options

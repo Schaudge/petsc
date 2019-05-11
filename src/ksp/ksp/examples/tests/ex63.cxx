@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
     Amesos2::Status solver_status = solver->getStatus();
     *fos << "L+U nnz = " << solver_status.getNnzLU() << std::endl;
   }
-  
+
   solver->solve();
 
   if ( printSolution){
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
     Xhat->describe(*fos,Teuchos::VERB_EXTREME);
     X->describe(*fos,Teuchos::VERB_EXTREME);
   }
-  
+
   if ( printTiming){
     // Print some timing statistics
     solver->printTiming(*fos);

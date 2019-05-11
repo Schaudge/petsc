@@ -150,7 +150,7 @@ PetscErrorCode RHSFunction_Hull1972A2(TS ts, PetscReal t, Vec Y, Vec F, void *s)
 {
   PetscErrorCode    ierr;
   const PetscScalar *y;
-  PetscScalar       *f;  
+  PetscScalar       *f;
 
   PetscFunctionBegin;
   ierr = VecGetArrayRead(Y,&y);CHKERRQ(ierr);
@@ -995,7 +995,7 @@ PetscErrorCode IJacobian_Hull1972C34(TS ts, PetscReal t, Vec Y, Vec Ydot, PetscR
 {
   PetscErrorCode    ierr;
   const PetscScalar *y;
-  PetscScalar       value[3];  
+  PetscScalar       value[3];
   PetscInt          N,i,col[3];
 
   PetscFunctionBegin;
@@ -1191,7 +1191,7 @@ PetscErrorCode SolveODE(char* ptype, PetscReal dt, PetscReal tfinal, PetscInt ma
   Vec             Yerr;             /* Auxiliary solution vector              */
   PetscReal       err_norm;         /* Estimated error norm                   */
   PetscReal       final_time;       /* Actual final time from the integrator  */
-  
+
   PetscFunctionBegin;
   N = GetSize((const char *)&ptype[0]);
   if (N < 0) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Illegal problem specification.\n");
@@ -1217,7 +1217,7 @@ PetscErrorCode SolveODE(char* ptype, PetscReal dt, PetscReal tfinal, PetscInt ma
   ierr = TSSetSolution(ts,Y);CHKERRQ(ierr);
   /* Specify left/right-hand side functions                               */
   ierr = TSGetType(ts,&time_scheme);CHKERRQ(ierr);
-  
+
   if ((!strcmp(time_scheme,TSEULER)) || (!strcmp(time_scheme,TSRK)) || (!strcmp(time_scheme,TSSSP) || (!strcmp(time_scheme,TSGLEE)))) {
     /* Explicit time-integration -> specify right-hand side function ydot = f(y) */
     ierr = TSSetRHSFunction(ts,NULL,RHSFunction,&ptype[0]);CHKERRQ(ierr);

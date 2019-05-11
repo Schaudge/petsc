@@ -165,7 +165,7 @@ PetscErrorCode PetscBoxAuthorize(MPI_Comm comm,char access_token[],char refresh_
 
    Input Parameters:
 +   comm - MPI communicator
-.   refresh token - obtained with PetscBoxAuthorize(), if NULL PETSc will first look for one in the options data 
+.   refresh token - obtained with PetscBoxAuthorize(), if NULL PETSc will first look for one in the options data
                     if not found it will call PetscBoxAuthorize()
 -   tokensize - size of the output string access_token
 
@@ -328,5 +328,3 @@ PetscErrorCode PetscBoxUpload(MPI_Comm comm,const char access_token[],const char
   }
   PetscFunctionReturn(0);
 }
-
-

@@ -3011,7 +3011,7 @@ PetscErrorCode DMPlexCoordinatesToReference(DM dm, PetscInt cell, PetscInt numPo
 . realCoords - (numPoints x coordinate dimension) array of coordinates (see DMGetCoordinateDim())
 
    Level: intermediate
-   
+
 .seealso: DMPlexCoordinatesToReference()
 @*/
 PetscErrorCode DMPlexReferenceToCoordinates(DM dm, PetscInt cell, PetscInt numPoints, const PetscReal refCoords[], PetscReal realCoords[])

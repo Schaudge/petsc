@@ -570,7 +570,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(Mat A,Mat P,PetscReal fill
   for (k=0; k<nrecv; k++) {/* k-th received message */
     Jptr = buf_rj[k];
     for (j=0; j<len_r[k]; j++) {
-      ierr = PetscTableAdd(ta,*(Jptr+j)+1,1,INSERT_VALUES);CHKERRQ(ierr); 
+      ierr = PetscTableAdd(ta,*(Jptr+j)+1,1,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = PetscTableGetCount(ta,&Crmax);CHKERRQ(ierr);
@@ -1833,7 +1833,7 @@ PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat A,Mat P,PetscReal fill,Mat *C)
   for (k=0; k<nrecv; k++) {/* k-th received message */
     Jptr = buf_rj[k];
     for (j=0; j<len_r[k]; j++) {
-      ierr = PetscTableAdd(ta,*(Jptr+j)+1,1,INSERT_VALUES);CHKERRQ(ierr); 
+      ierr = PetscTableAdd(ta,*(Jptr+j)+1,1,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = PetscTableGetCount(ta,&Crmax);CHKERRQ(ierr);

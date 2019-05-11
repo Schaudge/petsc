@@ -1,5 +1,5 @@
 /*
-   This provides a thin wrapper around LMVM matrices in order to use their MatLMVMSolve 
+   This provides a thin wrapper around LMVM matrices in order to use their MatLMVMSolve
    methods as preconditioner applications in KSP solves.
 */
 
@@ -13,13 +13,13 @@ typedef struct {
 } PC_LMVM;
 
 /*@
-   PCLMVMSetMatLMVM - Replaces the LMVM matrix inside the preconditioner with 
+   PCLMVMSetMatLMVM - Replaces the LMVM matrix inside the preconditioner with
    the one provided by the user.
-   
+
    Input Parameters:
 +  pc - An LMVM preconditioner
 -  B  - An LMVM-type matrix (MATLDFP, MATLBFGS, MATLSR1, MATLBRDN, MATLMBRDN, MATLSBRDN)
-  
+
    Level: intermediate
 @*/
 PetscErrorCode PCLMVMSetMatLMVM(PC pc, Mat B)
@@ -27,7 +27,7 @@ PetscErrorCode PCLMVMSetMatLMVM(PC pc, Mat B)
   PC_LMVM          *ctx = (PC_LMVM*)pc->data;
   PetscErrorCode   ierr;
   PetscBool        same;
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
   PetscValidHeaderSpecific(B, MAT_CLASSID, 2);
@@ -43,13 +43,13 @@ PetscErrorCode PCLMVMSetMatLMVM(PC pc, Mat B)
 
 /*@
    PCLMVMGetMatLMVM - Returns a pointer to the underlying LMVM matrix.
-   
+
    Input Parameters:
 .  pc - An LMVM preconditioner
 
    Output Parameters:
 .  B - LMVM matrix inside the preconditioner
-  
+
    Level: intermediate
 @*/
 PetscErrorCode PCLMVMGetMatLMVM(PC pc, Mat *B)
@@ -57,7 +57,7 @@ PetscErrorCode PCLMVMGetMatLMVM(PC pc, Mat *B)
   PC_LMVM          *ctx = (PC_LMVM*)pc->data;
   PetscErrorCode   ierr;
   PetscBool        same;
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
   ierr = PetscObjectTypeCompare((PetscObject)pc, PCLMVM, &same);CHKERRQ(ierr);
@@ -68,11 +68,11 @@ PetscErrorCode PCLMVMGetMatLMVM(PC pc, Mat *B)
 
 /*@
    PCLMVMSetIS - Sets the index sets that reduce the PC application.
-   
+
    Input Parameters:
 +  pc - An LMVM preconditioner
 -  inactive - Index set defining the variables removed from the problem
-  
+
    Level: intermediate
 
 .seealso:  MatLMVMUpdate()
@@ -82,7 +82,7 @@ PetscErrorCode PCLMVMSetIS(PC pc, IS inactive)
   PC_LMVM          *ctx = (PC_LMVM*)pc->data;
   PetscErrorCode   ierr;
   PetscBool        same;
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
   PetscValidHeaderSpecific(inactive, IS_CLASSID, 2);
@@ -96,10 +96,10 @@ PetscErrorCode PCLMVMSetIS(PC pc, IS inactive)
 
 /*@
    PCLMVMClearIS - Removes the inactive variable index set.
-   
+
    Input Parameters:
 .  pc - An LMVM preconditioner
-  
+
    Level: intermediate
 
 .seealso:  MatLMVMUpdate()
@@ -109,7 +109,7 @@ PetscErrorCode PCLMVMClearIS(PC pc)
   PC_LMVM          *ctx = (PC_LMVM*)pc->data;
   PetscErrorCode   ierr;
   PetscBool        same;
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc, PC_CLASSID, 1);
   ierr = PetscObjectTypeCompare((PetscObject)pc, PCLMVM, &same);CHKERRQ(ierr);
@@ -150,7 +150,7 @@ static PetscErrorCode PCReset_LMVM(PC pc)
 {
   PC_LMVM        *ctx = (PC_LMVM*)pc->data;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   if (ctx->xwork) {
     ierr = VecDestroy(&ctx->xwork);CHKERRQ(ierr);
@@ -202,7 +202,7 @@ static PetscErrorCode PCSetFromOptions_LMVM(PetscOptionItems* PetscOptionsObject
 {
   PC_LMVM        *ctx = (PC_LMVM*)pc->data;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   ierr = MatSetFromOptions(ctx->B);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -227,12 +227,12 @@ static PetscErrorCode PCDestroy_LMVM(PC pc)
 }
 
 /*MC
-   PCLMVM - Creates a preconditioner around an LMVM matrix. Options for the 
+   PCLMVM - Creates a preconditioner around an LMVM matrix. Options for the
             underlying LMVM matrix can be access with the "-pc_lmvm_" prefix.
 
    Level: intermediate
 
-.seealso:  PCCreate(), PCSetType(), PCType (for list of available types), 
+.seealso:  PCCreate(), PCSetType(), PCType (for list of available types),
            PC, MATLMVM, PCLMVMUpdate(), PCLMVMSetMatLMVM(), PCLMVMGetMatLMVM()
 M*/
 PETSC_EXTERN PetscErrorCode PCCreate_LMVM(PC pc)
@@ -243,7 +243,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_LMVM(PC pc)
   PetscFunctionBegin;
   ierr     = PetscNewLog(pc,&ctx);CHKERRQ(ierr);
   pc->data = (void*)ctx;
-  
+
   pc->ops->reset           = PCReset_LMVM;
   pc->ops->setup           = PCSetUp_LMVM;
   pc->ops->destroy         = PCDestroy_LMVM;
@@ -256,18 +256,12 @@ PETSC_EXTERN PetscErrorCode PCCreate_LMVM(PC pc)
   pc->ops->applyrichardson = 0;
   pc->ops->presolve        = 0;
   pc->ops->postsolve       = 0;
-  
+
   ierr = PCSetReusePreconditioner(pc, PETSC_TRUE);CHKERRQ(ierr);
-  
+
   ierr = MatCreate(PetscObjectComm((PetscObject)pc), &ctx->B);CHKERRQ(ierr);
   ierr = MatSetType(ctx->B, MATLMVMBFGS);CHKERRQ(ierr);
   ierr = PetscObjectIncrementTabLevel((PetscObject)ctx->B, (PetscObject)pc, 1);CHKERRQ(ierr);
   ierr = MatSetOptionsPrefix(ctx->B, "pc_lmvm_");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-
-
-
-
-

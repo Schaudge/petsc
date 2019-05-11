@@ -129,7 +129,7 @@ PetscErrorCode  PetscViewerDestroy(PetscViewer *viewer)
 
    Input Parameters:
 +  viewer - the viewer
--  format - the format 
+-  format - the format
 
    Output Parameter:
 .   vf - viewer and format object

@@ -98,7 +98,7 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_2(Mat B,Mat A,const MatFactorInfo *inf
     pv   = b->a + bs2*bdiag[i];
     pj   = b->j + bdiag[i];
     ierr = PetscMemcpy(pv,rtmp+bs2*pj[0],bs2*sizeof(MatScalar));CHKERRQ(ierr);
-   
+
     ierr = PetscKernel_A_gets_inverse_A_2(pv,shift,allowzeropivot,&zeropivotdetected);CHKERRQ(ierr);
     if (zeropivotdetected) B->factorerrortype = MAT_FACTOR_NUMERIC_ZEROPIVOT;
 
@@ -212,7 +212,7 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_2_NaturalOrdering(Mat B,Mat A,const Ma
     pv   = b->a + bs2*bdiag[i];
     pj   = b->j + bdiag[i];
     ierr = PetscMemcpy(pv,rtmp+bs2*pj[0],bs2*sizeof(MatScalar));CHKERRQ(ierr);
-   
+
     ierr = PetscKernel_A_gets_inverse_A_2(pv,shift,allowzeropivot,&zeropivotdetected);CHKERRQ(ierr);
     if (zeropivotdetected) B->factorerrortype = MAT_FACTOR_NUMERIC_ZEROPIVOT;
 
@@ -1655,7 +1655,7 @@ PetscErrorCode MatILUDTFactor_SeqBAIJ(Mat A,IS isrow,IS iscol,const MatFactorInf
     }
 
     ierr = MatBlockAbs_private(nzi,bs2,vtmp,vtmp_abs);CHKERRQ(ierr);
-    
+
     bjtmp = bj + bi[i];
     batmp = ba + bs2*bi[i];
     /* apply level dropping rule to L part */
@@ -1691,7 +1691,7 @@ PetscErrorCode MatILUDTFactor_SeqBAIJ(Mat A,IS isrow,IS iscol,const MatFactorInf
     batmp  = ba + bs2*bdiag[i];
     ierr   = PetscMemcpy(batmp,rtmp+bs2*i,bs2*sizeof(MatScalar));CHKERRQ(ierr);
     *bjtmp = i;
-    
+
     bjtmp = bj + bdiag[i+1]+1;
     batmp = ba + (bdiag[i+1]+1)*bs2;
 

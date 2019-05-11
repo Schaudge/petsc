@@ -1,4 +1,4 @@
-#include "petsctao.h" 
+#include "petsctao.h"
 
 typedef struct {
   PetscInt  n;       /* dimension */

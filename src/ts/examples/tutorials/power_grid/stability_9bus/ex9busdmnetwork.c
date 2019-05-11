@@ -695,7 +695,7 @@ PetscErrorCode FormIFunction(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,Userctx *use
 
           Vr  = xarr[offset]; /* Real part of generator terminal voltage */
           Vi  = xarr[offset+1]; /* Imaginary part of the generator terminal voltage */
-          Vm  = PetscSqrtScalar(Vr*Vr + Vi*Vi); 
+          Vm  = PetscSqrtScalar(Vr*Vr + Vi*Vi);
           Vm2 = Vm*Vm;
           Vm0 = PetscSqrtScalar(Vr0*Vr0 + Vi0*Vi0);
           PD  = QD = 0.0;
@@ -1073,7 +1073,7 @@ int main(int argc,char ** argv)
   ierr = TSSetTimeStep(ts,0.01);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
-  /*user.alg_flg = PETSC_TRUE is the period when fault exists. We add fault admittance to Ybus matrix. 
+  /*user.alg_flg = PETSC_TRUE is the period when fault exists. We add fault admittance to Ybus matrix.
     eg, fault bus is 8. Y88(new)=Y88(old)+Yfault. */
   user.alg_flg = PETSC_FALSE;
 

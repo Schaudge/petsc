@@ -36,7 +36,7 @@ static PetscErrorCode TaoLineSearchMonitor_MT(TaoLineSearch ls)
 {
   TaoLineSearch_MT *mt = (TaoLineSearch_MT*)ls->data;
   PetscErrorCode   ierr;
-  
+
   PetscFunctionBegin;
   ierr = PetscViewerASCIIPrintf(ls->viewer, "stx: %g, fx: %g, dgx: %g\n", (double)mt->stx, (double)mt->fx, (double)mt->dgx);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(ls->viewer, "sty: %g, fy: %g, dgy: %g\n", (double)mt->sty, (double)mt->fy, (double)mt->dgy);CHKERRQ(ierr);
@@ -76,7 +76,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscValidScalarPointer(f,3);
   PetscValidHeaderSpecific(g,VEC_CLASSID,4);
   PetscValidHeaderSpecific(s,VEC_CLASSID,5);
-  
+
   ierr = TaoLineSearchMonitor(ls, 0, *f, 0.0);CHKERRQ(ierr);
 
   /* comm,type,size checks are done in interface TaoLineSearchApply */
@@ -187,7 +187,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
         ierr = VecDot(g,s,&dg);CHKERRQ(ierr);
       }
     }
-    
+
     /* update bracketing parameters in the MT context for printouts in monitor */
     mt->stx = stx;
     mt->fx = fx;

@@ -4,7 +4,7 @@ program main
 
 #include <petsc/finclude/petscsys.h>
       use petscsys
-      
+
       implicit none
       PetscErrorCode      :: ierr
       character(len=256)  :: filename
@@ -15,7 +15,7 @@ program main
         write(6,*)'Unable to initialize PETSc'
         stop
       endif
-      
+
       call PetscOptionsGetString(PETSC_NULL_OPTIONS,PETSC_NULL_CHARACTER,"-f",filename,flg,ierr)
       if (flg) then
         call PetscOptionsInsertFileYAML(PETSC_COMM_WORLD,filename,PETSC_TRUE,ierr)
@@ -23,7 +23,7 @@ program main
 
       call  PetscOptionsView(PETSC_NULL_OPTIONS,PETSC_VIEWER_STDOUT_WORLD,ierr)
       call  PetscFinalize(ierr)
-      
+
 !/*TEST
 !
 !   build:
@@ -44,5 +44,5 @@ program main
 !      localrunfiles: petsc.yml
 !      output_file: output/ex47_2.out
 !
-!TEST*/      
-end program main 
+!TEST*/
+end program main

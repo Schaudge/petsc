@@ -827,11 +827,11 @@ PetscErrorCode  PetscMergeIntArray(PetscInt an,const PetscInt aI[], PetscInt bn,
 
    Output Parameters:
 +  n   - number of values in the merged array (== an + bn)
-.  L   - merged sorted array 
+.  L   - merged sorted array
 -  J   - merged additional array
 
    Notes:
-    if L or J point to non-null arrays then this routine will assume they are of the approproate size and use them, otherwise this routine will allocate space for them 
+    if L or J point to non-null arrays then this routine will assume they are of the approproate size and use them, otherwise this routine will allocate space for them
    Level: intermediate
 
    Concepts: merging^arrays

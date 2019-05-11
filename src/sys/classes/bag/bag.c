@@ -256,7 +256,7 @@ PetscErrorCode PetscBagRegisterInt64(PetscBag bag,void *addr,PetscInt64 mdefault
   PetscBool      printhelp;
   PetscInt       odefault = (PetscInt)mdefault;
   PetscBool      flg;
-  
+
   PetscFunctionBegin;
   nname[0] = '-';
   nname[1] = 0;

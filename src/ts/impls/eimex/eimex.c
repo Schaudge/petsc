@@ -535,8 +535,8 @@ static PetscErrorCode TSEIMEXSetOrdAdapt_EIMEX(TS ts,PetscBool flg)
 /*MC
       TSEIMEX - Time stepping with Extrapolated IMEX methods.
 
-   These methods are intended for problems with well-separated time scales, especially when a slow scale is strongly nonlinear such that it 
-   is expensive to solve with a fully implicit method. The user should provide the stiff part of the equation using TSSetIFunction() and the 
+   These methods are intended for problems with well-separated time scales, especially when a slow scale is strongly nonlinear such that it
+   is expensive to solve with a fully implicit method. The user should provide the stiff part of the equation using TSSetIFunction() and the
    non-stiff part with TSSetRHSFunction().
 
    Notes:

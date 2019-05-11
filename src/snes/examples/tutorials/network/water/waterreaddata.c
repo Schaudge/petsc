@@ -104,7 +104,7 @@ int CheckDataSegmentEnd(const char *line)
   return 0;
 }
 
-/* Gets the file pointer positiion for the start of the data segment and the 
+/* Gets the file pointer positiion for the start of the data segment and the
    number of data segments (lines) read
 */
 PetscErrorCode GetDataSegment(FILE *fp,char *line,fpos_t *data_segment_start_pos,PetscInt *ndatalines)
@@ -228,7 +228,7 @@ PetscErrorCode WaterReadData(WATERDATA *water,char *filename)
     reservoir = &vert[nv].res;
     ndata = sscanf(line,"%d %lf %d",&id,&v1,&pattern);if (ndata < 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_READ,"Unable to read reservoir data");
     vert[nv].id            = id;
-    reservoir->headpattern = pattern; 
+    reservoir->headpattern = pattern;
     reservoir->head = (PetscScalar)v1;
     reservoir->id   = vert[nv].id;
     nv++;

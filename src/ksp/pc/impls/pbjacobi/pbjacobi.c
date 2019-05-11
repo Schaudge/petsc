@@ -229,12 +229,12 @@ static PetscErrorCode PCSetUp_PBJacobi(PC pc)
   Mat            A = pc->pmat;
   MatFactorError err;
   PetscInt       nlocal;
-  
+
   PetscFunctionBegin;
   ierr = MatInvertBlockDiagonal(A,&jac->diag);CHKERRQ(ierr);
   ierr = MatFactorGetError(A,&err);CHKERRQ(ierr);
   if (err) pc->failedreason = (PCFailedReason)err;
- 
+
   ierr = MatGetBlockSize(A,&jac->bs);CHKERRQ(ierr);
   ierr = MatGetLocalSize(A,&nlocal,NULL);CHKERRQ(ierr);
   jac->mbs = nlocal/jac->bs;
@@ -361,5 +361,3 @@ PETSC_EXTERN PetscErrorCode PCCreate_PBJacobi(PC pc)
   pc->ops->applysymmetricright = 0;
   PetscFunctionReturn(0);
 }
-
-

@@ -398,7 +398,7 @@ static PetscErrorCode TestL2ProjectionParticlesToField(DM dm, DM sw, AppCtx *use
 
   /* make particle weight vector */
   ierr = DMSwarmCreateGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
-  
+
   /* create matrix RHS vector */
   ierr = MatMultTranspose(M_p, f, rhs);CHKERRQ(ierr);
   ierr = DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
@@ -413,7 +413,7 @@ static PetscErrorCode TestL2ProjectionParticlesToField(DM dm, DM sw, AppCtx *use
   ierr = KSPSolve(ksp, rhs, fhat);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fhat,"fhat");CHKERRQ(ierr);
   ierr = VecViewFromOptions(fhat, NULL, "-fhat_view");CHKERRQ(ierr);
-  
+
   /* Check moments of field */
   ierr = computeParticleMoments(sw, pmoments, user);CHKERRQ(ierr);
   ierr = computeFEMMoments(dm, fhat, fmoments, user);CHKERRQ(ierr);
@@ -447,7 +447,7 @@ static PetscErrorCode TestL2ProjectionFieldToParticles(DM dm, DM sw, AppCtx *use
 
   PetscFunctionBeginUser;
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-  
+
   ierr = KSPCreate(comm, &ksp);CHKERRQ(ierr);
   ierr = KSPSetOptionsPrefix(ksp, "ftop_");CHKERRQ(ierr);
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
@@ -457,10 +457,10 @@ static PetscErrorCode TestL2ProjectionFieldToParticles(DM dm, DM sw, AppCtx *use
 
   ierr = DMCreateMassMatrix(sw, dm, &M_p);CHKERRQ(ierr);
   ierr = MatViewFromOptions(M_p, NULL, "-M_p_view");CHKERRQ(ierr);
-  
+
   /* make particle weight vector */
   ierr = DMSwarmCreateGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
-  
+
   /* create matrix RHS vector, in this case the FEM field fhat with the coefficients vector #alpha */
   ierr = PetscObjectSetName((PetscObject) rhs,"rhs");CHKERRQ(ierr);
   ierr = VecViewFromOptions(rhs, NULL, "-rhs_view");CHKERRQ(ierr);
@@ -475,7 +475,7 @@ static PetscErrorCode TestL2ProjectionFieldToParticles(DM dm, DM sw, AppCtx *use
   ierr = VecViewFromOptions(fhat, NULL, "-fhat_view");CHKERRQ(ierr);
 
   ierr = DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
-  
+
   /* Check moments */
   ierr = computeParticleMoments(sw, pmoments, user);CHKERRQ(ierr);
   ierr = computeFEMMoments(dm, fhat, fmoments, user);CHKERRQ(ierr);
@@ -633,7 +633,7 @@ static PetscErrorCode TestFieldGradientProjection(DM dm, DM sw, AppCtx *user)
 
   /* make particle weight vector */
   ierr = DMSwarmCreateGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
-  
+
   /* create matrix RHS vector */
   ierr = MatMultTranspose(M_p, f, rhs);CHKERRQ(ierr);
   ierr = DMSwarmDestroyGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
@@ -651,7 +651,7 @@ static PetscErrorCode TestFieldGradientProjection(DM dm, DM sw, AppCtx *user)
   ierr = KSPSolve(ksp, rhs, grad);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fhat,"fhat");CHKERRQ(ierr);
   ierr = VecViewFromOptions(fhat, NULL, "-fhat_view");CHKERRQ(ierr);
-  
+
   /* Check moments of field */
   ierr = computeParticleMoments(sw, pmoments, user);CHKERRQ(ierr);
   ierr = computeFEMMoments(dm, grad, fmoments, user);CHKERRQ(ierr);
@@ -691,7 +691,7 @@ int main (int argc, char * argv[]) {
   return ierr;
 }
 
- 
+
 /*TEST
 
   test:
@@ -771,7 +771,7 @@ int main (int argc, char * argv[]) {
     requires: ctetgen !complex
     args: -dim 3 -faces 1 -particlesPerCell 5 -mesh_perturbation 1.0e-1 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order {{2 3}} -ptof_pc_type lu  -ftop_ksp_rtol 1e-15 -ftop_ksp_type lsqr -ftop_pc_type none
     filter: grep -v marker | grep -v atomic | grep -v usage
-  
+
   test:
     suffix: proj_tri_3d_mdx_2_faces
     requires: ctetgen !complex

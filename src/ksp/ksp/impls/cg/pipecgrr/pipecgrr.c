@@ -106,7 +106,7 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
   ierr = VecGetSize(B,&nsize);CHKERRQ(ierr);
   nsi = (PetscReal) nsize;
   sqn = PetscSqrtReal(nsi);
-  
+
   do {
     if (i > 1) {
       pnp = dpp;
@@ -132,7 +132,7 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
       ierr = VecDotBegin(R,U,&gamma);CHKERRQ(ierr);
     }
     ierr = VecDotBegin(W,U,&delta);CHKERRQ(ierr);
-    
+
     if (i > 0) {
       ierr = VecNormBegin(S,NORM_2,&ds);CHKERRQ(ierr);
       ierr = VecNormBegin(Z,NORM_2,&dz);CHKERRQ(ierr);
@@ -157,7 +157,7 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
       ierr = VecDotEnd(R,U,&gamma);CHKERRQ(ierr);
     }
     ierr = VecDotEnd(W,U,&delta);CHKERRQ(ierr);
-    
+
     if (i > 0) {
       ierr = VecNormEnd(S,NORM_2,&ds);CHKERRQ(ierr);
       ierr = VecNormEnd(Z,NORM_2,&dz);CHKERRQ(ierr);
@@ -203,8 +203,8 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
     if (i > 0) {
       errncr = PetscSqrtReal(Anorm*xnp+2.0*Anorm*PetscAbsScalar(alphap)*dpp+rnp+2.0*PetscAbsScalar(alphap)*ds)*eps;
       errncw = PetscSqrtReal(Anorm*unp+2.0*Anorm*PetscAbsScalar(alphap)*dq+wnp+2.0*PetscAbsScalar(alphap)*dz)*eps;
-    } 
-    if (i > 1) { 
+    }
+    if (i > 1) {
       errncs = PetscSqrtReal(Anorm*unp+2.0*Anorm*PetscAbsScalar(betap)*pnp+wnp+2.0*PetscAbsScalar(betap)*snp)*eps;
       errncz = PetscSqrtReal((mnz*sqn+2)*Anorm*dm+2.0*Anorm*PetscAbsScalar(betap)*qnp+2.0*PetscAbsScalar(betap)*znp)*eps;
     }
@@ -229,9 +229,9 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
         errw = errw+PetscAbsScalar(alphap)*PetscAbsScalar(betap)*errz+errncw+PetscAbsScalar(alphap)*errncz;
         errz = PetscAbsScalar(betap)*errz+errncz;
       }
-      if (i > 1 && errrprev <= (tol * rnp) && errr > (tol * dp)) { 
+      if (i > 1 && errrprev <= (tol * rnp) && errr > (tol * dp)) {
         ierr = KSP_MatMult(ksp,Amat,X,R);CHKERRQ(ierr);        /*  r <- Ax - b  */
-        ierr = VecAYPX(R,-1.0,B);CHKERRQ(ierr); 
+        ierr = VecAYPX(R,-1.0,B);CHKERRQ(ierr);
         ierr = KSP_PCApply(ksp,R,U);CHKERRQ(ierr);             /*  u <- Br  */
         ierr = KSP_MatMult(ksp,Amat,U,W);CHKERRQ(ierr);        /*  w <- Au  */
         ierr = KSP_MatMult(ksp,Amat,P,S);CHKERRQ(ierr);        /*  s <- Ap  */
@@ -239,7 +239,7 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
         ierr = KSP_MatMult(ksp,Amat,Q,Z);CHKERRQ(ierr);        /*  z <- Aq  */
         replace = 1;
         totreplaces++;
-      } 
+      }
     }
 
     i++;
@@ -257,8 +257,8 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
    This method has only a single non-blocking reduction per iteration, compared to 2 blocking for standard CG.  The
    non-blocking reduction is overlapped by the matrix-vector product and preconditioner application.
 
-   KSPPIPECGRR improves the robustness of KSPPIPECG by adding an automated residual replacement strategy. 
-   True residual and other auxiliary variables are computed explicitly in a number of dynamically determined 
+   KSPPIPECGRR improves the robustness of KSPPIPECG by adding an automated residual replacement strategy.
+   True residual and other auxiliary variables are computed explicitly in a number of dynamically determined
    iterations to counteract the accumulation of rounding errors and thus attain a higher maximal final accuracy.
 
    See also KSPPIPECG, which is identical to KSPPIPECGRR without residual replacements.
@@ -267,7 +267,7 @@ static PetscErrorCode  KSPSolve_PIPECGRR(KSP ksp)
    Level: intermediate
 
    Notes:
-   MPI configuration may be necessary for reductions to make asynchronous progress, which is important for 
+   MPI configuration may be necessary for reductions to make asynchronous progress, which is important for
    performance of pipelined methods. See the FAQ on the PETSc website for details.
 
    Contributed by:

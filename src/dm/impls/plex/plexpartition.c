@@ -1823,7 +1823,7 @@ static PetscErrorCode PTScotch_PartGraph_MPI(SCOTCH_Num strategy, double imbalan
   ierr = SCOTCH_archInit(&archdat);CHKERRPTSCOTCH(ierr);
   ierr = SCOTCH_archCmplt(&archdat, nparts);CHKERRPTSCOTCH(ierr);
   ierr = SCOTCH_dgraphMapInit(&grafdat, &mappdat, &archdat, part);CHKERRPTSCOTCH(ierr);
-  
+
   ierr = SCOTCH_dgraphMapCompute(&grafdat, &mappdat, &stradat);CHKERRPTSCOTCH(ierr);
   SCOTCH_dgraphMapExit(&grafdat, &mappdat);
   SCOTCH_archExit(&archdat);
@@ -2480,7 +2480,7 @@ PetscErrorCode DMPlexPartitionLabelCreateSF(DM dm, DMLabel label, PetscSF *sf)
 /* The two functions below are used by DMPlexRebalanceSharedPoints which errors
  * when PETSc is built without ParMETIS. To avoid -Wunused-function, we take
  * them out in that case. */
-#if defined(PETSC_HAVE_PARMETIS) 
+#if defined(PETSC_HAVE_PARMETIS)
 /*@C
 
   DMPlexRewriteSF - Rewrites the ownership of the SF of a DM (in place).
@@ -2929,7 +2929,7 @@ PetscErrorCode DMPlexRebalanceSharedPoints(DM dm, PetscInt entityDepth, PetscBoo
     if (!rank) {
       PetscInt *adjncy_g, *xadj_g, *vtxwgt_g;
       lenadjncy = 0;
-  
+
       for (i=0; i<numRows; i++) {
         PetscInt temp=0;
         ierr = MatGetRow(As, i, &temp, NULL, NULL);CHKERRQ(ierr);

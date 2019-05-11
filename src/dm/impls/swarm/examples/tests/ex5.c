@@ -84,17 +84,17 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->momentTol        = 100.*PETSC_MACHINE_EPSILON;
   options->omega            = 64.;
   options->nts              = 100;
-  
+
   ierr = PetscOptionsBegin(comm, "", "L2 Projection Options", "DMPLEX");CHKERRQ(ierr);
-  
+
   ierr = PetscStrcpy(options->meshFilename, "");CHKERRQ(ierr);
 
-  ierr = PetscOptionsInt("-next_output","time steps for next output point","<100>",options->nts,&options->nts,PETSC_NULL);CHKERRQ(ierr); 
+  ierr = PetscOptionsInt("-next_output","time steps for next output point","<100>",options->nts,&options->nts,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dim", "The topological mesh dimension", "ex5.c", options->dim, &options->dim, NULL);CHKERRQ(ierr);
-  
+
   ierr = PetscOptionsBool("-monitor", "To use the TS monitor or not", "ex5.c", options->monitor, &options->monitor, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "The flag for simplices or tensor cells", "ex5.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
-  
+
   ierr = PetscOptionsString("-mesh", "Name of the mesh filename if any", "ex5.c", options->meshFilename, options->meshFilename, PETSC_MAX_PATH_LEN, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-faces", "Number of faces per edge if unit square/cube generated", "ex5.c", options->faces, &options->faces, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-k", "Mode number of test", "ex5.c", options->k, &options->k, NULL);CHKERRQ(ierr);
@@ -217,7 +217,7 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   ierr = DMCreate(PetscObjectComm((PetscObject) dm), sw);CHKERRQ(ierr);
   ierr = DMSetType(*sw, DMSWARM);CHKERRQ(ierr);
-  
+
   ierr = DMSetDimension(*sw, dim);CHKERRQ(ierr);
   ierr = PetscRandomCreate(PetscObjectComm((PetscObject) dm), &rnd);CHKERRQ(ierr);
   ierr = PetscRandomSetInterval(rnd, -1.0, 1.0);CHKERRQ(ierr);
@@ -263,12 +263,12 @@ static PetscErrorCode CreateParticles(DM dm, DM *sw, AppCtx *user)
   for (c = 0; c < Ncell; ++c) {
     for (p = 0; p < Np; ++p) {
       const PetscInt n = c*Np + p;
-      
+
       for (d = 0; d < dim; ++d) {ierr = PetscRandomGetValue(rndp, &value);CHKERRQ(ierr); coords[n*dim+d] += PetscRealPart(value);}
       user->func(dim, 0.0, &coords[n*dim], 1, &vals[c], user);
     }
   }
-  
+
   /* Set initial conditions for multiple particles in an orbiting system  in format xp, yp, vxp, vyp */
   for (p = 0; p < Np*Ncell; ++p) {
     initialConditions[p*2*dim+0*dim+0] = p+1;
@@ -334,7 +334,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   Np/=dim;
-  
+
   for (p = 0; p < Np; ++p){
     rsqr = 0;
     for (d = 0; d < dim; ++d) rsqr += PetscSqr(x[p*dim+d]);
@@ -351,7 +351,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
 static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *ctx)
 {
   const PetscScalar *u;
-  PetscScalar       *r, rsqr; 
+  PetscScalar       *r, rsqr;
   PetscInt          Np, p, dim, d;
   DM                dm;
   PetscErrorCode    ierr;
@@ -364,7 +364,7 @@ static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *c
   ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   Np /= 2*dim;
-  
+
   for ( p = 0; p < Np; ++p){
     rsqr = 0;
     for (d=0; d < dim; ++d) rsqr += PetscSqr(u[p*2*dim+d]);
@@ -385,27 +385,27 @@ int main(int argc,char **argv)
   const PetscScalar *endVals;
   PetscReal         ftime   = .1, vx, vy;
   PetscInt          locSize, p, d, dim, Np, steps, *idx1, *idx2;
-  Vec               f;             
-  TS                ts;            
+  Vec               f;
+  TS                ts;
   IS                is1,is2;
   DM                dm, sw;
   AppCtx            user;
   MPI_Comm          comm;
-  PetscErrorCode    ierr;  
+  PetscErrorCode    ierr;
 
-  
+
   ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
 
   ierr = ProcessOptions(comm, &user);CHKERRQ(ierr);
-  
+
   /* Create dm and particles */
   ierr = CreateMesh(comm, &dm, &user);CHKERRQ(ierr);
   ierr = CreateParticles(dm, &sw, &user);CHKERRQ(ierr);
 
   /* Get vector containing initial conditions from swarm */
   ierr = DMSwarmCreateGlobalVectorFromField(sw, "kinematics", &f);CHKERRQ(ierr);
-  
+
   /* Allocate for IS Strides that will contain x, y and vx, vy */
   ierr = DMGetDimension(sw, &dim);CHKERRQ(ierr);
   ierr = VecGetLocalSize(f, &locSize);CHKERRQ(ierr);
@@ -419,13 +419,13 @@ int main(int argc,char **argv)
       idx2[p*dim+d] = (p*2+1)*dim + d;
     }
   }
-  
-  
+
+
   ierr = ISCreateGeneral(comm, locSize/2, idx1, PETSC_OWN_POINTER, &is1);CHKERRQ(ierr);
   ierr = ISCreateGeneral(comm, locSize/2, idx2, PETSC_OWN_POINTER, &is2);CHKERRQ(ierr);
-  
+
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
-  
+
   /* DM needs to be set before splits so it propogates to sub TSs */
   ierr = TSSetDM(ts, sw);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSBASICSYMPLECTIC);CHKERRQ(ierr);
@@ -450,14 +450,14 @@ int main(int argc,char **argv)
   ierr = TSGetConvergedReason(ts, &reason);CHKERRQ(ierr);
   ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"%s at time %g after %D steps\n",TSConvergedReasons[reason],(double)ftime,steps);CHKERRQ(ierr);
-  
+
   ierr = VecGetArrayRead(f, &endVals);CHKERRQ(ierr);
   for (p = 0; p < Np; ++p){
     vx = endVals[p*2*dim+2];
     vy = endVals[p*2*dim+3];
     ierr = PetscPrintf(comm, "Particle %D initial Energy: %g  Final Energy: %g\n", p,(double) (0.5*(1000./(p+1))),(double) (0.5*(PetscSqr(vx) + PetscSqr(vy))));CHKERRQ(ierr);
-  } 
-  
+  }
+
   ierr = VecRestoreArrayRead(f, &endVals);CHKERRQ(ierr);
   ierr = DMSwarmDestroyGlobalVectorFromField(sw, "kinematics", &f);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
@@ -481,7 +481,7 @@ int main(int argc,char **argv)
      suffix: bsi2
      args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -ts_basicsymplectic_type 2 -ts_monitor_sp_swarm
    test:
-     suffix: euler 
+     suffix: euler
      args: -dim 2 -faces 1 -particlesPerCell 1 -dm_view -sw_view -ts_type euler -ts_monitor_sp_swarm
 
 TEST*/

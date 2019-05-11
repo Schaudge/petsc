@@ -218,7 +218,7 @@ PetscErrorCode PetscSectionSetFromOptions(PetscSection s)
 - s2 - the second PetscSection
 
   Output Parameter:
-. congruent - PETSC_TRUE if the two sections are congruent, PETSC_FALSE otherwise 
+. congruent - PETSC_TRUE if the two sections are congruent, PETSC_FALSE otherwise
 
   Level: developer
 

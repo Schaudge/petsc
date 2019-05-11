@@ -19,7 +19,7 @@ static PetscErrorCode KSPSetUp_CGLS(KSP ksp)
   if (cgls->vwork_m) {
     ierr = VecDestroyVecs(cgls->nwork_m,&cgls->vwork_m);CHKERRQ(ierr);
   }
-  
+
   cgls->nwork_n = 2;
   if (cgls->vwork_n) {
     ierr = VecDestroyVecs(cgls->nwork_n,&cgls->vwork_n);CHKERRQ(ierr);
@@ -37,20 +37,20 @@ static PetscErrorCode KSPSolve_CGLS(KSP ksp)
   PetscScalar    beta;
   PetscReal      alpha,gamma,oldgamma;
   PetscInt       maxiter_ls = 15;
-  
+
   PetscFunctionBegin;
   ierr = KSPGetOperators(ksp,&A,NULL);CHKERRQ(ierr); /* Matrix of the system */
-  
+
   /* vectors of length n, where system size is mxn */
   x  = ksp->vec_sol; /* Solution vector */
   p  = cgls->vwork_n[0];
   ss  = cgls->vwork_n[1];
-  
+
   /* vectors of length m, where system size is mxn */
   b  = ksp->vec_rhs; /* Right-hand side vector */
   r  = cgls->vwork_m[0];
   q  = cgls->vwork_m[1];
-  
+
   /* Minimization with the CGLS method */
   ksp->its = 0;
   ierr = MatMult(A,x,r);CHKERRQ(ierr);
@@ -83,7 +83,7 @@ static PetscErrorCode KSPSolve_CGLS(KSP ksp)
     beta = gamma/oldgamma;                         /* beta = gamma / oldgamma */
     ierr = VecAYPX(p,beta,ss);CHKERRQ(ierr);       /* p = s + beta * p        */
   } while (ksp->its<ksp->max_it && !ksp->reason);
-  
+
   if (ksp->its>=maxiter_ls && !ksp->reason) ksp->reason = KSP_DIVERGED_ITS;
   PetscFunctionReturn(0);
 }
@@ -123,7 +123,7 @@ PETSC_EXTERN PetscErrorCode KSPCreate_CGLS(KSP ksp)
 {
   PetscErrorCode ierr;
   KSP_CGLS       *cgls;
-  
+
   PetscFunctionBegin;
   ierr                     = PetscNewLog(ksp,&cgls);CHKERRQ(ierr);
   ksp->data                = (void*)cgls;

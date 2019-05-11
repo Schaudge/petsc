@@ -70,7 +70,7 @@ PetscErrorCode DMMoabGenerateHierarchy(DM dm, PetscInt nlevels, PetscInt *ldegre
     merr = dmmoab->pcomm->assign_global_ids(hsets[ilevel], dmmoab->dim, 0, false, true, false);MBERRNM(merr);
 #endif
 
-    /* Update material and other geometric tags from parent to child sets */ 
+    /* Update material and other geometric tags from parent to child sets */
     merr = dmmoab->hierarchy->update_special_tags(ilevel, hsets[ilevel]);MBERRNM(merr);
   }
 

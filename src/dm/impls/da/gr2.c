@@ -808,7 +808,7 @@ PetscErrorCode VecLoad_HDF5_DA(Vec xin, PetscViewer viewer)
 
   ierr = PetscViewerHDF5OpenGroup(viewer, &file_id, &group);CHKERRQ(ierr);
   ierr = PetscViewerHDF5GetTimestep(viewer, &timestep);CHKERRQ(ierr);
-  ierr = PetscObjectGetName((PetscObject)xin,&vecname);CHKERRQ(ierr);  
+  ierr = PetscObjectGetName((PetscObject)xin,&vecname);CHKERRQ(ierr);
   ierr = VecGetDM(xin,&da);CHKERRQ(ierr);
   dd   = (DM_DA*)da->data;
   ierr = DMGetDimension(da, &dimension);CHKERRQ(ierr);

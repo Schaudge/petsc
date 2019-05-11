@@ -100,13 +100,13 @@ static PetscErrorCode TaoSolve_BMRM(Tao tao)
   ierr = TaoLogConvergenceHistory(tao,f,1.0,0.0,tao->ksp_its);CHKERRQ(ierr);
   ierr = TaoMonitor(tao,tao->niter,f,1.0,0.0,tao->step);CHKERRQ(ierr);
   ierr = (*tao->ops->convergencetest)(tao,tao->cnvP);CHKERRQ(ierr);
-  
+
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     /* Call general purpose update function */
     if (tao->ops->update) {
       ierr = (*tao->ops->update)(tao, tao->niter, tao->user_update);CHKERRQ(ierr);
     }
-    
+
     /* compute bt = Remp(Wt-1) - <Wt-1, At> */
     ierr = VecDot(W, G, &bt);CHKERRQ(ierr);
     bt = f - bt;
@@ -866,5 +866,3 @@ PetscErrorCode solve(TAO_DF *df)
   }
   return 0;
 }
-
-

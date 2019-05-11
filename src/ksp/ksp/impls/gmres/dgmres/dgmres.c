@@ -1176,7 +1176,7 @@ static PetscErrorCode  KSPDGMRESImproveEig_DGMRES(KSP ksp, PetscInt neig)
 
  References:
 +  1. - J. Erhel, K. Burrage and B. Pohl,  Restarted GMRES preconditioned by deflation,J. Computational and Applied Mathematics, 69(1996).
--  2. - D. NUENTSA WAKAM and F. PACULL, Memory Efficient Hybrid Algebraic Solvers for Linear Systems Arising from Compressible Flows, Computers and Fluids, 
+-  2. - D. NUENTSA WAKAM and F. PACULL, Memory Efficient Hybrid Algebraic Solvers for Linear Systems Arising from Compressible Flows, Computers and Fluids,
    In Press, http://dx.doi.org/10.1016/j.compfluid.2012.03.023
 
  Contributed by: Desire NUENTSA WAKAM,INRIA
@@ -1249,4 +1249,3 @@ PETSC_EXTERN PetscErrorCode KSPCreate_DGMRES(KSP ksp)
   dgmres->HasSchur    = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
-

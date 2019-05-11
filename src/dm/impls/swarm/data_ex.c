@@ -3,7 +3,7 @@ Build a few basic tools to help with partitioned domains.
 
 1)
 On each processor, have a DomainExchangerTopology.
-This is a doubly-connected edge list which enumerates the 
+This is a doubly-connected edge list which enumerates the
 communication paths between connected processors. By numbering
 these paths we can always uniquely assign message identifers.
 
@@ -33,7 +33,7 @@ data to 0    data to 2       data to 3
 |--------|-----------------|--|
 
 
-User has to unpack message themselves. I can get you the pointer for each i 
+User has to unpack message themselves. I can get you the pointer for each i
 entry, but you'll have to cast it to the appropriate data type.
 
 
@@ -442,10 +442,10 @@ PetscErrorCode DMSwarmDataExAddToSendCount(DMSwarmDataEx de,const PetscMPIInt pr
   PetscFunctionBegin;
   if (de->message_lengths_status == DEOBJECT_FINALIZED) SETERRQ( de->comm, PETSC_ERR_ORDER, "Message lengths have been defined. To modify these call DMSwarmDataExInitializeSendCount() first");
   else if (de->message_lengths_status != DEOBJECT_INITIALIZED) SETERRQ( de->comm, PETSC_ERR_ORDER, "Message lengths must be defined. Call DMSwarmDataExInitializeSendCount() first");
-  
+
   ierr = _DMSwarmDataExConvertProcIdToLocalIndex( de, proc_id, &local_val);CHKERRQ(ierr);
   if (local_val == -1) SETERRQ1( PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG,"Proc %d is not a valid neighbour rank", (int)proc_id);
-  
+
   de->messages_to_be_sent[local_val] = de->messages_to_be_sent[local_val] + count;
   PetscFunctionReturn(0);
 }
@@ -453,10 +453,10 @@ PetscErrorCode DMSwarmDataExAddToSendCount(DMSwarmDataEx de,const PetscMPIInt pr
 PetscErrorCode DMSwarmDataExFinalizeSendCount(DMSwarmDataEx de)
 {
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   if (de->message_lengths_status != DEOBJECT_INITIALIZED) SETERRQ( de->comm, PETSC_ERR_ORDER, "Message lengths must be defined. Call DMSwarmDataExInitializeSendCount() first");
-  
+
   de->message_lengths_status = DEOBJECT_FINALIZED;
   ierr = PetscLogEventEnd(DMSWARM_DataExchangerSendCount,0,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -552,7 +552,7 @@ PetscErrorCode DMSwarmDataExPackData(DMSwarmDataEx de,PetscMPIInt proc_id,PetscI
   PetscFunctionBegin;
   if (de->packer_status == DEOBJECT_FINALIZED) SETERRQ( de->comm, PETSC_ERR_ORDER, "Packed data have been defined. To modify these call DMSwarmDataExInitializeSendCount(), DMSwarmDataExAddToSendCount(), DMSwarmDataExPackInitialize() first");
   else if (de->packer_status != DEOBJECT_INITIALIZED) SETERRQ( de->comm, PETSC_ERR_ORDER, "Packed data must be defined. Call DMSwarmDataExInitializeSendCount(), DMSwarmDataExAddToSendCount(), DMSwarmDataExPackInitialize() first");
-  
+
   if (!de->send_message) SETERRQ( de->comm, PETSC_ERR_ORDER, "send_message is not initialized. Call DMSwarmDataExPackInitialize() first");
   ierr = _DMSwarmDataExConvertProcIdToLocalIndex( de, proc_id, &local);CHKERRQ(ierr);
   if (local == -1) SETERRQ1( PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "proc_id %d is not registered neighbour", (int)proc_id);
@@ -698,4 +698,3 @@ PetscErrorCode DMSwarmDataExTopologyGetNeighbours(DMSwarmDataEx de,PetscMPIInt *
   if (neigh) {*neigh = de->neighbour_procs;}
   PetscFunctionReturn(0);
 }
-

@@ -934,7 +934,7 @@ PetscErrorCode TSAdaptSetTimeStepIncreaseDelay(TSAdapt adapt,PetscInt cnt)
   PetscFunctionReturn(0);
 }
 
-  
+
 /*@
    TSAdaptCheckStage - checks whether to accept a stage, (e.g. reject and change time step size if nonlinear solve fails)
 

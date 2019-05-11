@@ -297,17 +297,17 @@ int main(int argc,char **args)
 
    test:
       suffix: mkl_pardiso
-      requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES) 
+      requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES)
       args: -solver 1
 
    test:
       suffix: mkl_pardiso_1
-      requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES) 
+      requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES)
       args: -symmetric_solve -solver 1
 
    test:
       suffix: mkl_pardiso_3
-      requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES) 
+      requires: mkl_pardiso double !complex !define(PETSC_USE_64BIT_INDICES)
       args: -symmetric_solve -hermitian_solve -solver 1
 
    test:

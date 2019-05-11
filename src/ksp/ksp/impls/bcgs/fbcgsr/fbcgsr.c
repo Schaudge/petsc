@@ -32,7 +32,7 @@ static PetscErrorCode  KSPSolve_FBCGSR(KSP ksp)
   KSP_BCGS          *bcgs = (KSP_BCGS*)ksp->data;
   PC                pc;
   Mat               mat;
-  
+
   PetscFunctionBegin;
   if (!ksp->vec_rhs->petscnative) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"Only coded for PETSc vectors");
   ierr = VecGetLocalSize(ksp->vec_sol,&N);CHKERRQ(ierr);

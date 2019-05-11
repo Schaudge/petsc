@@ -177,7 +177,6 @@ int main(int argc,char **args)
 
     test:
       suffix: chebyest
-      args: -ksp_est_view -ksp_type chebyshev -ksp_chebyshev_esteig 
+      args: -ksp_est_view -ksp_type chebyshev -ksp_chebyshev_esteig
 
 TEST*/
-

@@ -292,10 +292,10 @@ PETSC_EXTERN PetscErrorCode PetscSectionRestoreField_Internal(PetscSection, Pets
 #define VecCheckSameSize(x,ar1,y,ar2)                                      \
   if ((x)->map->N != (y)->map->N) SETERRQ4(PetscObjectComm((PetscObject)x),PETSC_ERR_ARG_INCOMP,"Incompatible vector global lengths parameter # %d global size %D != paramter # %d global size %D", ar1,(x)->map->N, ar2,(y)->map->N);\
   VecCheckSameLocalSize(x,ar1,y,ar2);
-  
+
 #define VecCheckLocalSize(x,ar1,n)                                         \
   if ((x)->map->n != n) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incorrect vector local size: parameter # %d local size %D != %D",ar1,(x)->map->n,n);
-  
+
 #define VecCheckSize(x,ar1,n,N)                                            \
   if ((x)->map->N != N) SETERRQ(PetscObjectComm((PetscObject)x),PETSC_ERR_ARG_INCOMP,"Incorrect vector global size: parameter # %d global size %D != %D",ar1,(x)->map->N, N);\
   VecCheckLocalSize(x,ar1,n);

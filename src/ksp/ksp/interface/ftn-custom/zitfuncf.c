@@ -132,7 +132,7 @@ static PetscErrorCode ourtestdestroy(void *ctx)
 }
 
 /*
-   For the built in monitors we ignore the monitordestroy that is passed in and use PetscViewerAndFormatDestroy() 
+   For the built in monitors we ignore the monitordestroy that is passed in and use PetscViewerAndFormatDestroy()
 */
 PETSC_EXTERN void PETSC_STDCALL kspmonitorset_(KSP *ksp,void (PETSC_STDCALL *monitor)(KSP*,PetscInt*,PetscReal*,void*,PetscErrorCode*),
                                   void *mctx,void (PETSC_STDCALL *monitordestroy)(void*,PetscErrorCode*),PetscErrorCode *ierr)
@@ -212,4 +212,3 @@ PETSC_EXTERN void PETSC_STDCALL kspsetcomputeoperators_(KSP *ksp,void (PETSC_STD
   *ierr = KSPGetDM(*ksp,&dm);
   if (!*ierr) dmkspsetcomputeoperators_(&dm,func,ctx,ierr);
 }
-

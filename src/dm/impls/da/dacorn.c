@@ -224,7 +224,7 @@ PetscErrorCode DMDASetCoordinateName(DM dm,PetscInt nf,const char name[])
 
   Notes:
     It must be called after having called DMSetUp().
-    
+
 
   Level: intermediate
 

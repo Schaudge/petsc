@@ -86,7 +86,7 @@ PetscErrorCode TestReuseMatrix(void)
 
   PetscFunctionBegin;
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);CHKERRQ(ierr);
-  ierr = PetscRandomSetInterval(rctx,zero,one);CHKERRQ(ierr);  
+  ierr = PetscRandomSetInterval(rctx,zero,one);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rctx);CHKERRQ(ierr);
   for (i=0; i<(n * n); i++) {
     ierr = MatCreateSeqDense(PETSC_COMM_WORLD,n,n,NULL,&subs[i]);CHKERRQ(ierr);

@@ -143,7 +143,7 @@ static PetscErrorCode MatSolve_KLU(Mat A,Vec b,Vec x)
   status = klu_K_tsolve(lu->Symbolic,lu->Numeric,A->rmap->n,1,(PetscReal*)xa,conj_solve,&lu->Common); /* conjugate solve */
 #else
   status = klu_K_tsolve(lu->Symbolic,lu->Numeric,A->rmap->n,1,xa,&lu->Common);
-#endif  
+#endif
   if (status != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"KLU Solve failed");
   ierr = VecRestoreArray(x,&xa);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -278,7 +278,7 @@ PetscErrorCode MatFactorGetSolverType_seqaij_klu(Mat A,MatSolverType *type)
 + -mat_klu_pivot_tol <0.001>                  - Partial pivoting tolerance
 . -mat_klu_use_btf <1>                        - Use BTF preordering
 . -mat_klu_ordering <AMD>                     - KLU reordering scheme to reduce fill-in (choose one of) AMD COLAMD PETSC
-- -mat_klu_row_scale <NONE>                   - Matrix row scaling (choose one of) NONE SUM MAX 
+- -mat_klu_row_scale <NONE>                   - Matrix row scaling (choose one of) NONE SUM MAX
 
    Note: KLU is part of SuiteSparse http://faculty.cse.tamu.edu/davis/suitesparse.html
 

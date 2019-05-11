@@ -3584,7 +3584,7 @@ PetscErrorCode TSMonitorExtreme(TS ts,PetscInt step,PetscReal ptime,Vec v,PetscV
   PetscBool      iascii;
   PetscReal      max,min;
 
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,4);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
@@ -4078,7 +4078,7 @@ PetscErrorCode  TSMonitorLGCtxDestroy(TSMonitorLGCtx *ctx)
 }
 
 /*
-  
+
   Creates a TS Monitor SPCtx for use with DM Swarm particle visualizations
 
 */
@@ -4098,18 +4098,18 @@ PetscErrorCode TSMonitorSPCtxCreate(MPI_Comm comm,const char host[],const char l
 
 }
 
-/* 
-  Destroys a TSMonitorSPCtx that was created with TSMonitorSPCtxCreate 
+/*
+  Destroys a TSMonitorSPCtx that was created with TSMonitorSPCtxCreate
 */
 PetscErrorCode TSMonitorSPCtxDestroy(TSMonitorSPCtx *ctx)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  
+
   ierr = PetscDrawSPDestroy(&(*ctx)->sp);CHKERRQ(ierr);
   ierr = PetscFree(*ctx);CHKERRQ(ierr);
-  
+
   PetscFunctionReturn(0);
 
 }
@@ -7023,7 +7023,7 @@ PetscErrorCode TSMonitorSPSwarmSolution(TS ts,PetscInt step,PetscReal ptime,Vec 
   DM                dm;
 
   PetscFunctionBegin;
-  
+
   if (step < 0) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
   if (!step) {
     PetscDrawAxis axis;
@@ -7039,7 +7039,7 @@ PetscErrorCode TSMonitorSPSwarmSolution(TS ts,PetscInt step,PetscReal ptime,Vec 
     ierr = PetscDrawSPSetDimension(ctx->sp, Np);CHKERRQ(ierr);
     ierr = PetscDrawSPReset(ctx->sp);CHKERRQ(ierr);
   }
-  
+
   ierr = VecGetLocalSize(u, &Np);CHKERRQ(ierr);
   Np /= 2*dim;
   ierr = VecGetArrayRead(u,&yy);CHKERRQ(ierr);
@@ -7047,10 +7047,10 @@ PetscErrorCode TSMonitorSPSwarmSolution(TS ts,PetscInt step,PetscReal ptime,Vec 
   /* get points from solution vector */
   for (p=0; p<Np; ++p){
     x[p] = PetscRealPart(yy[2*dim*p]);
-    y[p] = PetscRealPart(yy[2*dim*p+1]); 
+    y[p] = PetscRealPart(yy[2*dim*p+1]);
   }
   ierr = VecRestoreArrayRead(u,&yy);CHKERRQ(ierr);
-  
+
   if (((ctx->howoften > 0) && (!(step % ctx->howoften))) || ((ctx->howoften == -1) && ts->reason)) {
     ierr = PetscDrawSPAddPoint(ctx->sp,x,y);CHKERRQ(ierr);
     ierr = PetscDrawSPDraw(ctx->sp,PETSC_FALSE);CHKERRQ(ierr);

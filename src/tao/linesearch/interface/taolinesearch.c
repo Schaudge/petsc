@@ -462,7 +462,7 @@ PetscErrorCode TaoLineSearchSetType(TaoLineSearch ls, TaoLineSearchType type)
 
 /*@C
   TaoLineSearchMonitor - Monitor the line search steps. This routine will otuput the
-  iteration number, step length, and function value before calling the implementation 
+  iteration number, step length, and function value before calling the implementation
   specific monitor.
 
    Input Parameters:

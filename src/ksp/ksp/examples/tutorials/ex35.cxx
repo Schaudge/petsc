@@ -55,7 +55,7 @@ Usage:
     mpiexec -n $NP ./ex35 -problem 2 -n 80 -nu 0.01 -rho 0.005 -io -ksp_monitor -pc_type hypre
     mpiexec -n $NP ./ex35 -problem 2 -n 160 -bc neumann -nu 0.005 -rho 0.01 -io
     mpiexec -n $NP ./ex35 -problem 2 -n 320 -bc neumann -nu 0.001 -rho 1 -io
-  
+
   Or with an external mesh file representing [0, 1]^2,
 
     mpiexec -n $NP ./ex35 -problem 2 -file ./external_mesh.h5m -levels 1 -pc_type gamg
@@ -271,7 +271,7 @@ PetscScalar ComputeForcingFunction(PetscReal coords[3], UserContext* user)
     return PetscExpScalar(- ( (coords[0] - user->xref) * (coords[0] - user->xref) + (coords[1] - user->yref) * (coords[1] - user->yref)) / user->nu);
   case 1:
   default:
-    return PETSC_PI * PETSC_PI * ComputeDiffusionCoefficient(coords, user) * 
+    return PETSC_PI * PETSC_PI * ComputeDiffusionCoefficient(coords, user) *
             (1.0 / user->bounds[1] / user->bounds[1] + 1.0 / user->bounds[3] / user->bounds[3]) * sin(PETSC_PI * coords[0] / user->bounds[1]) * sin(PETSC_PI * coords[1] / user->bounds[3]);
   }
 }
@@ -461,7 +461,7 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J, Mat jac, void *ctx)
     /* Compute function over the locally owned part of the grid */
     for (q = 0; q < npoints; ++q) {
       /* compute the inhomogeneous (piece-wise constant) diffusion coefficient at the quadrature point
-        -- for large spatial variations (within an element), embed this property evaluation inside the quadrature loop 
+        -- for large spatial variations (within an element), embed this property evaluation inside the quadrature loop
       */
       rho = ComputeDiffusionCoefficient(&phypts[q * 3], user);
 

@@ -177,7 +177,7 @@ $                        is called synchronously in parallel. This requires gene
 $   IS_COLORING_LOCAL - includes colors for ghost points, this is used when the function can be called
 $                         separately on individual processes with the ghost points already filled in. Does not
 $                         require a "parallel coloring", rather each process colors its local + ghost part.
-$                         Using this can result in much less parallel communication. Currently only works 
+$                         Using this can result in much less parallel communication. Currently only works
 $                         with DMDA and if you call MatFDColoringSetFunction() with the local function.
 
 .seealso: DMCreateColoring()

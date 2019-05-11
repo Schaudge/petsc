@@ -218,4 +218,3 @@
       data   PETSC_COMM_WORLD /0/
       data   PETSC_COMM_SELF /0/
       end
-      

@@ -725,7 +725,7 @@ PetscErrorCode PCDestroy_GAMG(PC pc)
 .  -pc_gamg_process_eq_limit <limit>
 
    Notes:
-    GAMG will reduce the number of MPI processes used directly on the coarse grids so that there are around <limit> equations on each process 
+    GAMG will reduce the number of MPI processes used directly on the coarse grids so that there are around <limit> equations on each process
           that has degrees of freedom
 
    Level: intermediate
@@ -766,7 +766,7 @@ static PetscErrorCode PCGAMGSetProcEqLim_GAMG(PC pc, PetscInt n)
    Options Database Key:
 .  -pc_gamg_coarse_eq_limit <limit>
 
-   Notes: For example -pc_gamg_coarse_eq_limit 1000 will stop coarsening once the coarse grid 
+   Notes: For example -pc_gamg_coarse_eq_limit 1000 will stop coarsening once the coarse grid
      has less than 1000 unknowns.
 
    Level: intermediate
@@ -1484,4 +1484,3 @@ PetscErrorCode PCGAMGRegister(PCGAMGType type, PetscErrorCode (*create)(PC))
   ierr = PetscFunctionListAdd(&GAMGList,type,create);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-

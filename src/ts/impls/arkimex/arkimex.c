@@ -142,7 +142,7 @@ M*/
 
      Options Database:
 .      -ts_arkimex_type 2e
- 
+
     Level: advanced
 
 .seealso: TSARKIMEX, TSARKIMEXType, TSARKIMEXSetType()

@@ -147,7 +147,7 @@ static PetscErrorCode TaoLineSearchApply_OWArmijo(TaoLineSearch ls, Vec x, Petsc
     armP->x = x;
     ierr = PetscObjectReference((PetscObject)armP->x);CHKERRQ(ierr);
   }
-  
+
   ierr = TaoLineSearchMonitor(ls, 0, *f, 0.0);CHKERRQ(ierr);
 
   /* Check linesearch parameters */
@@ -250,7 +250,7 @@ static PetscErrorCode TaoLineSearchApply_OWArmijo(TaoLineSearch ls, Vec x, Petsc
     /* Calculate function at new iterate */
     ierr = TaoLineSearchComputeObjectiveAndGradient(ls,armP->work,f,g);CHKERRQ(ierr);
     g_computed=PETSC_TRUE;
-    
+
     ierr = TaoLineSearchMonitor(ls, its, *f, ls->step);CHKERRQ(ierr);
 
     if (ls->step == ls->initstep) {
@@ -331,4 +331,3 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_OWArmijo(TaoLineSearch ls)
   ls->ops->setfromoptions = TaoLineSearchSetFromOptions_OWArmijo;
   PetscFunctionReturn(0);
 }
-

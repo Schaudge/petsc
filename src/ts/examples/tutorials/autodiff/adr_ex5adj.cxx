@@ -584,7 +584,7 @@ PetscErrorCode RHSFunctionPassive(TS ts,PetscReal ftime,Vec U,Vec F,void *ptr)
      Gather global vector, using the 2-step process
         DMLocalToGlobalBegin(),DMLocalToGlobalEnd().
 
-     NOTE (2): We need to use ADD_VALUES if boundaries are not of type DM_BOUNDARY_NONE or 
+     NOTE (2): We need to use ADD_VALUES if boundaries are not of type DM_BOUNDARY_NONE or
                DM_BOUNDARY_GHOSTED, meaning we should also zero F before addition (see (1) above).
   */
   ierr = DMLocalToGlobalBegin(da,localF,ADD_VALUES,F);CHKERRQ(ierr);
@@ -719,7 +719,7 @@ PetscErrorCode RHSFunctionActive(TS ts,PetscReal ftime,Vec U,Vec F,void *ptr)
      Gather global vector, using the 2-step process
         DMLocalToGlobalBegin(),DMLocalToGlobalEnd().
 
-     NOTE (2): We need to use ADD_VALUES if boundaries are not of type DM_BOUNDARY_NONE or 
+     NOTE (2): We need to use ADD_VALUES if boundaries are not of type DM_BOUNDARY_NONE or
                DM_BOUNDARY_GHOSTED, meaning we should also zero F before addition (see (1) above).
   */
   ierr = DMLocalToGlobalBegin(da,localF,ADD_VALUES,F);CHKERRQ(ierr);

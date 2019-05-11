@@ -153,9 +153,9 @@ PetscErrorCode PFReadMatPowerData(PFDATA *pf,char *filename)
       tapr = tap*PetscCosScalar(shift);
       tapi = tap*PetscSinScalar(shift);
 
-      Branch[bri].yff[0] = G/tap2; 
+      Branch[bri].yff[0] = G/tap2;
       Branch[bri].yff[1] = (B+Bc/2.0)/tap2;
-      
+
       Branch[bri].yft[0] = -(G*tapr - B*tapi)/tap2;
       Branch[bri].yft[1] = -(B*tapr + G*tapi)/tap2;
 
@@ -169,7 +169,7 @@ PetscErrorCode PFReadMatPowerData(PFDATA *pf,char *filename)
     }
   }
   fclose(fp);
-  
+
   /* Reorder the generator data structure according to bus numbers */
   genj=0; loadj=0;
   ierr = PetscMalloc1(pf->ngen,&newgen);CHKERRQ(ierr);

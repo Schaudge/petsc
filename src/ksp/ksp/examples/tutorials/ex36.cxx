@@ -61,7 +61,7 @@ Usage:
     mpiexec -n $NP ./ex36 -problem 2 -n 80 -nu 0.01 -rho 0.005 -io -ksp_monitor -pc_type gamg
     mpiexec -n $NP ./ex36 -problem 2 -n 160 -bc neumann -nu 0.005 -rho 0.01 -io
     mpiexec -n $NP ./ex36 -problem 2 -n 320 -bc neumann -nu 0.001 -rho 1 -io
-  
+
   Or with an external mesh file representing [0, 1]^3,
 
     mpiexec -n $NP ./ex36 -problem 2 -file ./external_mesh.h5m -levels 1 -pc_type gamg

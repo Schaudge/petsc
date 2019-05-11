@@ -496,8 +496,8 @@ PetscErrorCode TSGLEERegister(TSGLEEType name,PetscInt order,PetscInt s, PetscIn
   ierr     = PetscMemcpy(t->V,V,r*r*sizeof(V[0]));CHKERRQ(ierr);
   ierr     = PetscMemcpy(t->S,S,r  *sizeof(S[0]));CHKERRQ(ierr);
   ierr     = PetscMemcpy(t->F,F,r  *sizeof(F[0]));CHKERRQ(ierr);
-  if (c) { 
-    ierr   = PetscMemcpy(t->c,c,s*sizeof(c[0]));CHKERRQ(ierr); 
+  if (c) {
+    ierr   = PetscMemcpy(t->c,c,s*sizeof(c[0]));CHKERRQ(ierr);
   } else {
     for (i=0; i<s; i++) for (j=0,t->c[i]=0; j<s; j++) t->c[i] += A[i*s+j];
   }
@@ -590,7 +590,7 @@ static PetscErrorCode TSStep_GLEE(TS ts)
                   *F = tab->F,
                   *c = tab->c;
   Vec             *Y = glee->Y, *X = glee->X,
-                  *YStage = glee->YStage, 
+                  *YStage = glee->YStage,
                   *YdotStage = glee->YdotStage,
                   W = glee->W;
   SNES            snes;
@@ -881,8 +881,8 @@ PetscErrorCode TSStartingMethod_GLEE(TS ts)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  for (i=0; i<r; i++) { 
-    ierr = VecZeroEntries(glee->Y[i]);CHKERRQ(ierr); 
+  for (i=0; i<r; i++) {
+    ierr = VecZeroEntries(glee->Y[i]);CHKERRQ(ierr);
     ierr = VecAXPY(glee->Y[i],S[i],ts->vec_sol);CHKERRQ(ierr);
   }
 
@@ -1059,7 +1059,7 @@ PetscErrorCode TSGetSolutionComponents_GLEE(TS ts,PetscInt *n,Vec *Y)
   PetscFunctionBegin;
   if (!Y) *n = tab->r;
   else {
-    if ((*n >= 0) && (*n < tab->r)) { 
+    if ((*n >= 0) && (*n < tab->r)) {
       ierr = VecCopy(glee->Y[*n],*Y);CHKERRQ(ierr);
     } else SETERRQ3(PetscObjectComm((PetscObject)ts),PETSC_ERR_ARG_OUTOFRANGE,"Second argument (%d) out of range[%d,%d].",*n,0,tab->r-1);
   }
@@ -1145,7 +1145,7 @@ static PetscErrorCode TSDestroy_GLEE(TS ts)
 /*MC
       TSGLEE - ODE and DAE solver using General Linear with Error Estimation schemes
 
-  The user should provide the right hand side of the equation 
+  The user should provide the right hand side of the equation
   using TSSetRHSFunction().
 
   Notes:
@@ -1154,7 +1154,7 @@ static PetscErrorCode TSDestroy_GLEE(TS ts)
   Level: beginner
 
 .seealso:  TSCreate(), TS, TSSetType(), TSGLEESetType(), TSGLEEGetType(),
-           TSGLEE23, TTSGLEE24, TSGLEE35, TSGLEE25I, TSGLEEEXRK2A, 
+           TSGLEE23, TTSGLEE24, TSGLEE35, TSGLEE25I, TSGLEEEXRK2A,
            TSGLEERK32G1, TSGLEERK285EX, TSGLEEType, TSGLEERegister()
 
 M*/

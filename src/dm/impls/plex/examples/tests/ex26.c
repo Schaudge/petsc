@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
   ierr = PetscMalloc1(2,&dmList);CHKERRQ(ierr);
   dmList[0] = dmU;
   dmList[1] = dmA;
-  /* We temporarily disable dmU->useNatural to test that we can reconstruct the 
+  /* We temporarily disable dmU->useNatural to test that we can reconstruct the
      NaturaltoGlobal SF from any of the dm in dms
   */
   dmU->useNatural = PETSC_FALSE;
@@ -476,7 +476,7 @@ int main(int argc, char **argv) {
   # 2D seq
   test:
     suffix: 0
-    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1 
+    args: -i ${wPETSC_DIR}/share/petsc/datafiles/meshes/FourSquareT-large.exo -o FourSquareT-large_out.exo -dm_view -dm_section_view -petscpartitioner_type simple -order 1
     #TODO: bug in call to NetCDF failed to complete invalid type definition in file id 65536 NetCDF: One or more variable sizes violate format constraints
   test:
     suffix: 1

@@ -1362,7 +1362,7 @@ static PetscErrorCode PetscViewerSetUp_Binary(PetscViewer v)
 
   PetscFunctionBegin;
   if (!binary->setfromoptionscalled) { ierr = PetscViewerSetFromOptions(v);CHKERRQ(ierr); }
-    
+
 #if defined(PETSC_HAVE_MPIIO)
   if (binary->usempiio) {
     ierr = PetscViewerFileSetUp_BinaryMPIIO(v);CHKERRQ(ierr);
@@ -1393,7 +1393,7 @@ static PetscErrorCode PetscViewerSetFromOptions_Binary(PetscOptionItems *PetscOp
 #if defined(PETSC_HAVE_MPIIO)
   ierr = PetscOptionsBool("-viewer_binary_mpiio","Use MPI-IO functionality to write/read binary file","PetscViewerBinarySetUseMPIIO",PETSC_FALSE,&binary->usempiio,NULL);CHKERRQ(ierr);
 #elif defined(PETSC_HAVE_MPIUNI)
-  ierr = PetscOptionsBool("-viewer_binary_mpiio","Use MPI-IO functionality to write/read binary file","PetscViewerBinarySetUseMPIIO",PETSC_FALSE,NULL,NULL);CHKERRQ(ierr);  
+  ierr = PetscOptionsBool("-viewer_binary_mpiio","Use MPI-IO functionality to write/read binary file","PetscViewerBinarySetUseMPIIO",PETSC_FALSE,NULL,NULL);CHKERRQ(ierr);
 #endif
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   binary->setfromoptionscalled = PETSC_TRUE;

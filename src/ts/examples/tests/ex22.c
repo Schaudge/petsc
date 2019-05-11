@@ -181,7 +181,7 @@ static PetscErrorCode IJacobian(TS ts,PetscReal t,Vec U,Vec Udot,PetscReal a,Mat
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-  
+
 int main(int argc,char **argv)
 {
   TS             ts;            /* ODE integrator */
@@ -261,16 +261,15 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.  All PETSc objects should be destroyed when they are no longer needed.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-   
+
   ierr = MatDestroy(&J);CHKERRQ(ierr);
   ierr = VecDestroy(&U);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = PetscFree(direction);CHKERRQ(ierr);
   ierr = PetscFree(terminate);CHKERRQ(ierr);
-  
+
   ierr = PetscFree(app.sw);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
-

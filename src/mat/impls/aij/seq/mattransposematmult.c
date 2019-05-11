@@ -1,6 +1,6 @@
 
 /*
-  Defines matrix-matrix product routines 
+  Defines matrix-matrix product routines
           C = A^T * B
 */
 
@@ -25,13 +25,13 @@ PetscErrorCode MatDestroy_SeqDense_MatTransMatMult(Mat A)
 PetscErrorCode MatTransposeMatMult_SeqAIJ_SeqDense(Mat A,Mat B,MatReuse scall,PetscReal fill,Mat *C)
 {
   PetscErrorCode ierr;
- 
+
   PetscFunctionBegin;
   if (scall == MAT_INITIAL_MATRIX) {
     ierr = PetscLogEventBegin(MAT_TransposeMatMultSymbolic,A,B,0,0);CHKERRQ(ierr);
     ierr = MatTransposeMatMultSymbolic_SeqAIJ_SeqDense(A,B,fill,C);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(MAT_TransposeMatMultSymbolic,A,B,0,0);CHKERRQ(ierr);
-  } 
+  }
   ierr = PetscLogEventBegin(MAT_TransposeMatMultNumeric,A,B,0,0);CHKERRQ(ierr);
   ierr = MatTransposeMatMultNumeric_SeqAIJ_SeqDense(A,B,*C);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(MAT_TransposeMatMultNumeric,A,B,0,0);CHKERRQ(ierr);
@@ -95,11 +95,11 @@ PetscErrorCode MatTransposeMatMultNumeric_SeqAIJ_SeqDense(Mat A,Mat B,Mat C)
 
   k=0;
   for (j=0; j<BN; j++) {
-    for (i=0; i<m; i++) btarray[i*BN + j] = Barray[k++]; 
+    for (i=0; i<m; i++) btarray[i*BN + j] = Barray[k++];
   }
   ierr = VecRestoreArray(bt,&btarray);CHKERRQ(ierr);
   ierr = MatDenseRestoreArrayRead(B,&Barray);CHKERRQ(ierr);
-  
+
   /* compute ct = mA^T * cb */
   ierr = MatMultTranspose(atb->mA,bt,ct);CHKERRQ(ierr);
 

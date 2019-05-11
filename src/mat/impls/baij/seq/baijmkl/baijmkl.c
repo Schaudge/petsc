@@ -1,7 +1,7 @@
 /*
   Defines basic operations for the MATSEQBAIJMKL matrix class.
-  Uses sparse BLAS operations from the Intel Math Kernel Library (MKL) 
-  wherever possible. If used MKL verion is older than 11.3 PETSc default 
+  Uses sparse BLAS operations from the Intel Math Kernel Library (MKL)
+  wherever possible. If used MKL verion is older than 11.3 PETSc default
   code for sparse matrix operations is used.
 */
 
@@ -48,7 +48,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqBAIJMKL_SeqBAIJ(Mat A,MatType type,Mat
   B->ops->scale            = MatScale_SeqBAIJ;
   B->ops->diagonalscale    = MatDiagonalScale_SeqBAIJ;
   B->ops->axpy             = MatAXPY_SeqBAIJ;
-  
+
   switch (A->rmap->bs) {
     case 1:
       B->ops->mult    = MatMult_SeqBAIJ_1;
@@ -93,8 +93,8 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqBAIJMKL_SeqBAIJ(Mat A,MatType type,Mat
   }
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqbaijmkl_seqbaij_C",NULL);CHKERRQ(ierr);
 
-  /* Free everything in the Mat_SeqBAIJMKL data structure. Currently, this 
-   * simply involves destroying the MKL sparse matrix handle and then freeing 
+  /* Free everything in the Mat_SeqBAIJMKL data structure. Currently, this
+   * simply involves destroying the MKL sparse matrix handle and then freeing
    * the spptr pointer. */
   if (reuse == MAT_INITIAL_MATRIX) baijmkl = (Mat_SeqBAIJMKL*)B->spptr;
 
@@ -106,7 +106,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqBAIJMKL_SeqBAIJ(Mat A,MatType type,Mat
 #if !defined(PETSC_MKL_SUPPORTS_BAIJ_ZERO_BASED)
    ierr = PetscFree(baijmkl->ai1);CHKERRQ(ierr);
    ierr = PetscFree(baijmkl->aj1);CHKERRQ(ierr);
-#endif  
+#endif
   ierr = PetscFree(B->spptr);CHKERRQ(ierr);
 
   /* Change the type of B to MATSEQBAIJ. */
@@ -120,7 +120,7 @@ PetscErrorCode MatDestroy_SeqBAIJMKL(Mat A)
 {
   PetscErrorCode ierr;
   Mat_SeqBAIJMKL *baijmkl = (Mat_SeqBAIJMKL*) A->spptr;
-  
+
   PetscFunctionBegin;
   if (baijmkl) {
     /* Clean up everything in the Mat_SeqBAIJMKL data structure, then free A->spptr. */
@@ -132,7 +132,7 @@ PetscErrorCode MatDestroy_SeqBAIJMKL(Mat A)
 #if !defined(PETSC_MKL_SUPPORTS_BAIJ_ZERO_BASED)
    ierr = PetscFree(baijmkl->ai1);CHKERRQ(ierr);
    ierr = PetscFree(baijmkl->aj1);CHKERRQ(ierr);
-#endif    
+#endif
     ierr = PetscFree(A->spptr);CHKERRQ(ierr);
   }
 
@@ -163,7 +163,7 @@ PETSC_INTERN PetscErrorCode MatSeqBAIJMKL_create_mkl_handle(Mat A)
 #if !defined(PETSC_MKL_SUPPORTS_BAIJ_ZERO_BASED)
     ierr = PetscFree(baijmkl->ai1);CHKERRQ(ierr);
     ierr = PetscFree(baijmkl->aj1);CHKERRQ(ierr);
-#endif     
+#endif
     stat = mkl_sparse_destroy(baijmkl->bsrA);CHKERRMKL(stat);
   }
   baijmkl->sparse_optimized = PETSC_FALSE;
@@ -176,23 +176,23 @@ PETSC_INTERN PetscErrorCode MatSeqBAIJMKL_create_mkl_handle(Mat A)
   nbs = a->nbs;
   nz  = a->nz;
   bs  = A->rmap->bs;
-  aa  = a->a;  
-  
+  aa  = a->a;
+
   if ((nz!=0) & !(A->structure_only)) {
     /* Create a new, optimized sparse matrix handle only if the matrix has nonzero entries.
      * The MKL sparse-inspector executor routines don't like being passed an empty matrix. */
 #if defined(PETSC_MKL_SUPPORTS_BAIJ_ZERO_BASED)
-    aj   = a->j;  
-    ai   = a->i;  
+    aj   = a->j;
+    ai   = a->i;
     stat = mkl_sparse_x_create_bsr(&(baijmkl->bsrA),SPARSE_INDEX_BASE_ZERO,SPARSE_LAYOUT_COLUMN_MAJOR,mbs,nbs,bs,ai,ai+1,aj,aa);CHKERRMKL(stat);
 #else
     ierr = PetscMalloc1(mbs+1,&ai);CHKERRQ(ierr);
-    ierr = PetscMalloc1(nz,&aj);CHKERRQ(ierr);    
+    ierr = PetscMalloc1(nz,&aj);CHKERRQ(ierr);
     for (i=0;i<mbs+1;i++)
       ai[i] = a->i[i]+1;
     for (i=0;i<nz;i++)
       aj[i] = a->j[i]+1;
-    aa   = a->a;  
+    aa   = a->a;
     stat = mkl_sparse_x_create_bsr(&baijmkl->bsrA,SPARSE_INDEX_BASE_ONE,SPARSE_LAYOUT_COLUMN_MAJOR,mbs,nbs,bs,ai,ai+1,aj,aa);CHKERRMKL(stat);
     baijmkl->ai1 = ai;
     baijmkl->aj1 = aj;
@@ -231,7 +231,7 @@ PetscErrorCode MatMult_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
   PetscErrorCode     ierr;
   sparse_status_t    stat = SPARSE_STATUS_SUCCESS;
 
-  PetscFunctionBegin; 
+  PetscFunctionBegin;
   /* If there are no nonzero entries, zero yy and return immediately. */
   if (!a->nz) {
     PetscInt i;
@@ -247,8 +247,8 @@ PetscErrorCode MatMult_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
   ierr = VecGetArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArray(yy,&y);CHKERRQ(ierr);
 
-  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call 
-   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably 
+  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call
+   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably
    * take a "lazy" approach to creation/updating of the MKL matrix handle and plan to always do it here (when needed). */
   if (!baijmkl->sparse_optimized) {
     ierr = MatSeqBAIJMKL_create_mkl_handle(A);CHKERRQ(ierr);
@@ -256,7 +256,7 @@ PetscErrorCode MatMult_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
 
   /* Call MKL SpMV2 executor routine to do the MatMult. */
   stat = mkl_sparse_x_mv(SPARSE_OPERATION_NON_TRANSPOSE,1.0,baijmkl->bsrA,baijmkl->descr,x,0.0,y);CHKERRMKL(stat);
-  
+
   ierr = PetscLogFlops(2.0*a->nz - a->nonzerorowcnt);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecRestoreArray(yy,&y);CHKERRQ(ierr);
@@ -288,8 +288,8 @@ PetscErrorCode MatMultTranspose_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
   ierr = VecGetArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArray(yy,&y);CHKERRQ(ierr);
 
-  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call 
-   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably 
+  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call
+   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably
    * take a "lazy" approach to creation/updating of the MKL matrix handle and plan to always do it here (when needed). */
   if (!baijmkl->sparse_optimized) {
     ierr = MatSeqBAIJMKL_create_mkl_handle(A);CHKERRQ(ierr);
@@ -297,7 +297,7 @@ PetscErrorCode MatMultTranspose_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
 
   /* Call MKL SpMV2 executor routine to do the MatMultTranspose. */
   stat = mkl_sparse_x_mv(SPARSE_OPERATION_TRANSPOSE,1.0,baijmkl->bsrA,baijmkl->descr,x,0.0,y);CHKERRMKL(stat);
-  
+
   ierr = PetscLogFlops(2.0*a->nz - a->nonzerorowcnt);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecRestoreArray(yy,&y);CHKERRQ(ierr);
@@ -331,8 +331,8 @@ PetscErrorCode MatMultAdd_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy,Vec zz)
   ierr = VecGetArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArrayPair(yy,zz,&y,&z);CHKERRQ(ierr);
 
-  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call 
-   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably 
+  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call
+   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably
    * take a "lazy" approach to creation/updating of the MKL matrix handle and plan to always do it here (when needed). */
   if (!baijmkl->sparse_optimized) {
     ierr = MatSeqBAIJMKL_create_mkl_handle(A);CHKERRQ(ierr);
@@ -340,11 +340,11 @@ PetscErrorCode MatMultAdd_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy,Vec zz)
 
   /* Call MKL sparse BLAS routine to do the MatMult. */
   if (zz == yy) {
-    /* If zz and yy are the same vector, we can use mkl_sparse_x_mv, which calculates y = alpha*A*x + beta*y, 
+    /* If zz and yy are the same vector, we can use mkl_sparse_x_mv, which calculates y = alpha*A*x + beta*y,
      * with alpha and beta both set to 1.0. */
     stat = mkl_sparse_x_mv(SPARSE_OPERATION_NON_TRANSPOSE,1.0,baijmkl->bsrA,baijmkl->descr,x,1.0,z);CHKERRMKL(stat);
   } else {
-    /* zz and yy are different vectors, so we call mkl_sparse_x_mv with alpha=1.0 and beta=0.0, and then 
+    /* zz and yy are different vectors, so we call mkl_sparse_x_mv with alpha=1.0 and beta=0.0, and then
      * we add the contents of vector yy to the result; MKL sparse BLAS does not have a MatMultAdd equivalent. */
     stat = mkl_sparse_x_mv(SPARSE_OPERATION_NON_TRANSPOSE,1.0,baijmkl->bsrA,baijmkl->descr,x,0.0,z);CHKERRMKL(stat);
     for (i=0; i<m; i++) {
@@ -385,8 +385,8 @@ PetscErrorCode MatMultTransposeAdd_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy,Vec zz)
   ierr = VecGetArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArrayPair(yy,zz,&y,&z);CHKERRQ(ierr);
 
-  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call 
-   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably 
+  /* In some cases, we get to this point without mkl_sparse_optimize() having been called, so we check and then call
+   * it if needed. Eventually, when everything in PETSc is properly updating the matrix state, we should probably
    * take a "lazy" approach to creation/updating of the MKL matrix handle and plan to always do it here (when needed). */
   if (!baijmkl->sparse_optimized) {
     ierr = MatSeqBAIJMKL_create_mkl_handle(A);CHKERRQ(ierr);
@@ -394,11 +394,11 @@ PetscErrorCode MatMultTransposeAdd_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy,Vec zz)
 
   /* Call MKL sparse BLAS routine to do the MatMult. */
   if (zz == yy) {
-    /* If zz and yy are the same vector, we can use mkl_sparse_x_mv, which calculates y = alpha*A*x + beta*y, 
+    /* If zz and yy are the same vector, we can use mkl_sparse_x_mv, which calculates y = alpha*A*x + beta*y,
      * with alpha and beta both set to 1.0. */
     stat = mkl_sparse_x_mv(SPARSE_OPERATION_TRANSPOSE,1.0,baijmkl->bsrA,baijmkl->descr,x,1.0,z);CHKERRMKL(stat);
   } else {
-    /* zz and yy are different vectors, so we call mkl_sparse_x_mv with alpha=1.0 and beta=0.0, and then 
+    /* zz and yy are different vectors, so we call mkl_sparse_x_mv with alpha=1.0 and beta=0.0, and then
      * we add the contents of vector yy to the result; MKL sparse BLAS does not have a MatMultAdd equivalent. */
     stat = mkl_sparse_x_mv(SPARSE_OPERATION_TRANSPOSE,1.0,baijmkl->bsrA,baijmkl->descr,x,0.0,z);CHKERRMKL(stat);
     for (i=0; i<n; i++) {
@@ -466,10 +466,10 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqBAIJ_SeqBAIJMKL(Mat A,MatType type,Mat
   ierr     = PetscNewLog(B,&baijmkl);CHKERRQ(ierr);
   B->spptr = (void*)baijmkl;
 
-  /* Set function pointers for methods that we inherit from BAIJ but override. 
+  /* Set function pointers for methods that we inherit from BAIJ but override.
    * We also parse some command line options below, since those determine some of the methods we point to. */
   B->ops->assemblyend      = MatAssemblyEnd_SeqBAIJMKL;
-  
+
   baijmkl->sparse_optimized = PETSC_FALSE;
 
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatScale_SeqBAIJMKL_C",MatScale_SeqBAIJMKL);CHKERRQ(ierr);
@@ -496,20 +496,20 @@ PetscErrorCode MatAssemblyEnd_SeqBAIJMKL(Mat A, MatAssemblyType mode)
   A->ops->scale            = MatScale_SeqBAIJMKL;
   A->ops->diagonalscale    = MatDiagonalScale_SeqBAIJMKL;
   A->ops->axpy             = MatAXPY_SeqBAIJMKL;
-  A->ops->duplicate        = MatDuplicate_SeqBAIJMKL;   
+  A->ops->duplicate        = MatDuplicate_SeqBAIJMKL;
   PetscFunctionReturn(0);
 }
 #endif /* PETSC_HAVE_MKL_SPARSE_OPTIMIZE */
 
 /*@C
    MatCreateSeqBAIJMKL - Creates a sparse matrix of type SEQBAIJMKL.
-   This type inherits from BAIJ and is largely identical, but uses sparse BLAS 
+   This type inherits from BAIJ and is largely identical, but uses sparse BLAS
    routines from Intel MKL whenever possible.
-   MatMult, MatMultAdd, MatMultTranspose, and MatMultTransposeAdd 
+   MatMult, MatMultAdd, MatMultTranspose, and MatMultTransposeAdd
    operations are currently supported.
-   If the installed version of MKL supports the "SpMV2" sparse 
-   inspector-executor routines, then those are used by default. 
-   Default PETSc kernels are used otherwise. 
+   If the installed version of MKL supports the "SpMV2" sparse
+   inspector-executor routines, then those are used by default.
+   Default PETSc kernels are used otherwise.
 
    Input Parameters:
 +  comm - MPI communicator, set to PETSC_COMM_SELF
@@ -566,7 +566,7 @@ PetscErrorCode  MatCreateSeqBAIJMKL(MPI_Comm comm,PetscInt bs,PetscInt m,PetscIn
   ierr = MatSetType(*A,MATSEQBAIJMKL);CHKERRQ(ierr);
   ierr = MatSeqBAIJSetPreallocation_SeqBAIJ(*A,bs,nz,(PetscInt*)nnz);CHKERRQ(ierr);
 #else
-  ierr = PetscInfo(A,"MKL baij routines are not supported for used version of MKL. Using PETSc default routines. \n Please use version of MKL 11.3 and higher. \n");  
+  ierr = PetscInfo(A,"MKL baij routines are not supported for used version of MKL. Using PETSc default routines. \n Please use version of MKL 11.3 and higher. \n");
   ierr = MatSetType(*A,MATSEQBAIJ);CHKERRQ(ierr);
   ierr = MatSeqBAIJSetPreallocation(*A,bs,nz,(PetscInt*)nnz);CHKERRQ(ierr);
 #endif

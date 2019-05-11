@@ -411,7 +411,7 @@ PetscErrorCode DMPlexView_ExodusII_Internal(DM dm, int exoid, PetscInt degree)
     PetscInt        numPoints, *points;
     PetscInt        elem_list_size = 0;
     PetscInt       *elem_list, *elem_ind, *side_list;
-    
+
     ierr = DMGetLabel(dm, "Face Sets", &fsLabel);CHKERRQ(ierr);
     /* Compute size of Node List and Element List */
     ierr = DMLabelGetValueIS(fsLabel, &fsIS);CHKERRQ(ierr);
@@ -436,14 +436,14 @@ PetscErrorCode DMPlexView_ExodusII_Internal(DM dm, int exoid, PetscInt degree)
       if (fs<num_fs-1) {
         elem_ind[fs+1] = elem_ind[fs] + fsSize;
       }
-      
+
       for (i=0; i<fsSize; ++i) {
         /* Element List */
         points = NULL;
         ierr = DMPlexGetTransitiveClosure(dm, faces[i], PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
         elem_list[elem_ind[fs] + i] = points[2] +1;
         ierr = DMPlexRestoreTransitiveClosure(dm, faces[i], PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
-        
+
         /* Side List */
         points = NULL;
         ierr = DMPlexGetTransitiveClosure(dm, elem_list[elem_ind[fs] + i]-1, PETSC_TRUE, &numPoints, &points);CHKERRQ(ierr);
@@ -466,14 +466,14 @@ PetscErrorCode DMPlexView_ExodusII_Internal(DM dm, int exoid, PetscInt degree)
         }
         side_list[elem_ind[fs] + i] = j;
         ierr = DMPlexRestoreTransitiveClosure(dm, elem_list[elem_ind[fs] + i]-1, PETSC_TRUE, &numPoints, &points);CHKERRQ(ierr);
-        
+
       }
       ierr = ISRestoreIndices(stratumIS, &faces);CHKERRQ(ierr);
       ierr = ISDestroy(&stratumIS);CHKERRQ(ierr);
     }
     ierr = ISRestoreIndices(fsIS, &fsIdx);CHKERRQ(ierr);
     ierr = ISDestroy(&fsIS);CHKERRQ(ierr);
-    
+
     /* Put side sets */
     for (fs=0; fs<num_fs; ++fs) {
       PetscStackCallStandard(ex_put_set,(exoid, EX_SIDE_SET, fsIdx[fs], &elem_list[elem_ind[fs]], &side_list[elem_ind[fs]]));

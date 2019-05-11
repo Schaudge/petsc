@@ -49,7 +49,7 @@ static PetscErrorCode IFunctionImplicit(TS ts,PetscReal t,Vec Y,Vec Ydot,Vec F,v
   f[2]=-1.e-6 +  PetscExpReal((500*(y[1] - y[2]))/13.)/1.e6 - y[2]/9000. - ydot[2]/500000.;
   f[3]=0.0006676566666666666 - (99* PetscExpReal((500*(y[1] - y[2]))/13.))/1.e8 - y[3]/9000. - (3*ydot[3])/1.e6 + (3*ydot[4])/1.e6;
   f[4]=-y[4]/9000. + (3*ydot[3])/1.e6 - (3*ydot[4])/1.e6;
- 
+
   ierr = VecRestoreArrayRead(Y,&y);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(Ydot,&ydot);CHKERRQ(ierr);
   ierr = VecRestoreArray(F,&f);CHKERRQ(ierr);
@@ -88,7 +88,7 @@ static PetscErrorCode IJacobianImplicit(TS ts,PetscReal t,Vec Y,Vec Ydot,PetscRe
 
 
   ierr    = MatSetValues(B,5,rowcol,5,rowcol,&J[0][0],INSERT_VALUES);CHKERRQ(ierr);
-  
+
   ierr    = VecRestoreArrayRead(Y,&y);CHKERRQ(ierr);
   ierr    = VecRestoreArrayRead(Ydot,&ydot);CHKERRQ(ierr);
 
@@ -110,7 +110,7 @@ int main(int argc,char **argv)
   PetscMPIInt    size;
   PetscInt       n = 5;
   PetscScalar    *y;
- 
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -135,7 +135,7 @@ int main(int argc,char **argv)
   y[3] = 6.0;
   y[4] = 0.0;
   ierr = VecRestoreArray(Y,&y);CHKERRQ(ierr);
-  
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create timestepping solver context
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -165,7 +165,7 @@ int main(int argc,char **argv)
      Do time stepping
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = TSSolve(ts,Y);CHKERRQ(ierr);
-  
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.  All PETSc objects should be destroyed when they are no longer needed.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

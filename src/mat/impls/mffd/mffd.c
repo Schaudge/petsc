@@ -359,7 +359,7 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
 #if defined(PETSC_USE_COMPLEX)
   if (ctx->usecomplex) h = PETSC_i*h;
 #endif
-  
+
   /* w = u + ha */
   if (ctx->drscale) {
     ierr = VecPointwiseMult(ctx->drscale,a,U);CHKERRQ(ierr);
@@ -374,7 +374,7 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
   }
   ierr = (*ctx->func)(ctx->funcctx,w,y);CHKERRQ(ierr);
 
-#if defined(PETSC_USE_COMPLEX)  
+#if defined(PETSC_USE_COMPLEX)
   if (ctx->usecomplex) {
     ierr = VecImaginaryPart(y);CHKERRQ(ierr);
     h    = PetscImaginaryPart(h);
@@ -663,7 +663,7 @@ static PetscErrorCode MatMissingDiagonal_MFFD(Mat A,PetscBool  *missing,PetscInt
 
   Level: advanced
 
-.seealso: MatCreateMFFD(), MatCreateSNESMF(), MatMFFDSetFunction(), MatMFFDSetType(),  
+.seealso: MatCreateMFFD(), MatCreateSNESMF(), MatMFFDSetFunction(), MatMFFDSetType(),
           MatMFFDSetFunctionError(), MatMFFDDSSetUmin(), MatMFFDSetFunction()
           MatMFFDSetHHistory(), MatMFFDResetHHistory(), MatCreateSNESMF(),
           MatMFFDGetH(),

@@ -2436,7 +2436,7 @@ PetscErrorCode PetscDSGetFieldOffset(PetscDS prob, PetscInt f, PetscInt *off)
 }
 
 /*@
-  PetscDSGetDimensions - Returns the size of the approximation space for each field on an evaluation point 
+  PetscDSGetDimensions - Returns the size of the approximation space for each field on an evaluation point
 
   Not collective
 

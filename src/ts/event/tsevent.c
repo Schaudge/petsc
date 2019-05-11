@@ -64,14 +64,14 @@ PetscErrorCode TSEventDestroy(TSEvent *event)
 . -ts_event_post_eventinterval_step <dt> time-step after event interval
 
   Notes:
-  TSSetPostEventIntervalStep allows to set a time-step immediately following an event interval. 
-  
+  TSSetPostEventIntervalStep allows to set a time-step immediately following an event interval.
+
   This function should be called from the postevent function set with TSSetEventHandler().
 
-  The post event interval time-step should be selected based on the dynamics following the event. 
-  If the dynamics are stiff, a conservative (small) step should be used. 
+  The post event interval time-step should be selected based on the dynamics following the event.
+  If the dynamics are stiff, a conservative (small) step should be used.
   If not, then a larger time-step can be used.
-  
+
   Level: Advanced
   .seealso: TS, TSEvent, TSSetEventHandler()
 @*/

@@ -1369,7 +1369,7 @@ static PetscErrorCode TestMonitor(DM dm, const char *filename, Vec X, PetscReal 
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"IO test OK for PetscReal\n");CHKERRQ(ierr);
   }
-   
+
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   ierr = VecDestroy(&odesolution);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1390,7 +1390,7 @@ static PetscErrorCode MonitorBIN(TS ts,PetscInt stepnum,PetscReal time,Vec X,voi
   ierr = VecView(X,viewer);CHKERRQ(ierr);
   ierr = PetscRealView(1,&time,viewer);CHKERRQ(ierr);
   /* ierr = PetscViewerBinaryWrite(viewer,&time,1,PETSC_REAL,PETSC_FALSE);CHKERRQ(ierr);*/
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr); 
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   ierr = TestMonitor(dm,filename,X,time);
   PetscFunctionReturn(0);
 }

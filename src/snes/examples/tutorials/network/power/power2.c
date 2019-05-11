@@ -234,7 +234,7 @@ PetscErrorCode FormJacobian_Subnet(DM networkdm,Vec localX, Mat J, Mat Jpre, Pet
           e = connedges[i];
           ierr = DMNetworkGetComponent(networkdm,e,0,&key,(void**)&branch);CHKERRQ(ierr);
           if (!branch->status) continue;
-          
+
           Gff = branch->yff[0];
           Bff = branch->yff[1];
           Gft = branch->yft[0];
@@ -394,7 +394,7 @@ PetscErrorCode SetInitialValues_Subnet(DM networkdm,Vec localX,PetscInt nv,Petsc
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SetInitialValues(DM networkdm, Vec X,void* appctx) 
+PetscErrorCode SetInitialValues(DM networkdm, Vec X,void* appctx)
 {
   PetscErrorCode ierr;
   PetscInt       nv,ne;

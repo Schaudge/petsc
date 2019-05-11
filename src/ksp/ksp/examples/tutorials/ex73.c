@@ -6,7 +6,7 @@ T*/
 
 /*
 This example was derived from src/ksp/ksp/examples/tutorials ex29.c
- 
+
 Inhomogeneous Laplacian in 2D. Modeled by the partial differential equation
 
    -div \rho grad u = f,  0 < x,y < 1,
@@ -1145,7 +1145,7 @@ PetscErrorCode ComputeMatrix_ShellDA(KSP ksp,Mat J,Mat jac,void *ctx)
 }
 
 /*TEST
- 
+
   test:
     suffix: basic_dirichlet
     nsize: 4

@@ -59,7 +59,7 @@ static PetscErrorCode PCSetUp_SAVIENNACL(PC pc)
 #else
     ierr      = MatViennaCLCopyToGPU(pc->pmat);CHKERRQ(ierr);
     gpustruct = (Mat_SeqAIJViennaCL*)(pc->pmat->spptr);
-    
+
     viennacl::linalg::amg_tag amg_tag_sa_pmis;
     amg_tag_sa_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
     amg_tag_sa_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION);
@@ -210,4 +210,3 @@ PETSC_EXTERN PetscErrorCode PCCreate_SAVIENNACL(PC pc)
   pc->ops->applysymmetricright = 0;
   PetscFunctionReturn(0);
 }
-

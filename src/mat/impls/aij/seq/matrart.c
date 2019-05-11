@@ -102,7 +102,7 @@ PetscErrorCode MatRARtSymbolic_SeqAIJ_SeqAIJ_colorrart(Mat A,Mat R,PetscReal fil
 #if defined(PETSC_USE_INFO)
   {
     PetscReal density= (PetscReal)(c->nz)/(RARt_dense->rmap->n*RARt_dense->cmap->n);
-    ierr = PetscInfo(*C,"C=R*(A*Rt) via coloring C - use sparse-dense inner products\n");CHKERRQ(ierr); 
+    ierr = PetscInfo(*C,"C=R*(A*Rt) via coloring C - use sparse-dense inner products\n");CHKERRQ(ierr);
     ierr = PetscInfo6(*C,"RARt_den %D %D; Rt %D %D (RARt->nz %D)/(m*ncolors)=%g\n",RARt_dense->rmap->n,RARt_dense->cmap->n,R->cmap->n,R->rmap->n,c->nz,density);CHKERRQ(ierr);
   }
 #endif
@@ -132,7 +132,7 @@ PetscErrorCode MatMatMatMultNumeric_SeqAIJ_SeqAIJ_SeqDense(Mat R,Mat A,Mat B,Mat
   if (R->rmap->n != RAB->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number rows in RAB %D not equal rows in R %D\n",RAB->rmap->n,R->rmap->n);
   if (B->cmap->n != RAB->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Number columns in RAB %D not equal columns in B %D\n",RAB->cmap->n,B->cmap->n);
 
-  { /* 
+  { /*
      This approach is not as good as original ones (will be removed later), but it reveals that
      AB_den=A*B takes almost all execution time in R*A*B for src/ksp/ksp/examples/tutorials/ex56.c
      */
@@ -270,7 +270,7 @@ PetscErrorCode MatRARtSymbolic_SeqAIJ_SeqAIJ_matmattransposemult(Mat A,Mat R,Pet
   rart->destroy      = RARt->ops->destroy;
   RARt->ops->destroy = MatDestroy_SeqAIJ_RARt;
 #if defined(PETSC_USE_INFO)
-  ierr = PetscInfo(*C,"Use ARt=A*R^T, C=R*ARt via MatMatTransposeMult(). Coloring can be applied to A*R^T.\n");CHKERRQ(ierr); 
+  ierr = PetscInfo(*C,"Use ARt=A*R^T, C=R*ARt via MatMatTransposeMult(). Coloring can be applied to A*R^T.\n");CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
 }
@@ -281,10 +281,10 @@ PetscErrorCode MatRARtNumeric_SeqAIJ_SeqAIJ_matmattransposemult(Mat A,Mat R,Mat 
   Mat_SeqAIJ      *c=(Mat_SeqAIJ*)C->data;
   Mat_RARt        *rart=c->rart;
   Mat             ARt=rart->ARt;
-  
+
   PetscFunctionBegin;
   ierr = MatMatTransposeMultNumeric_SeqAIJ_SeqAIJ(A,R,ARt);CHKERRQ(ierr); /* dominate! */
-  ierr = MatMatMultNumeric_SeqAIJ_SeqAIJ(R,ARt,C);CHKERRQ(ierr); 
+  ierr = MatMatMultNumeric_SeqAIJ_SeqAIJ(R,ARt,C);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -307,7 +307,7 @@ PetscErrorCode MatRARtSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat R,PetscReal fill,Mat *C)
   (*C)->ops->destroy     = MatDestroy_SeqAIJ_RARt;
   (*C)->ops->rartnumeric = MatRARtNumeric_SeqAIJ_SeqAIJ;
 #if defined(PETSC_USE_INFO)
-  ierr = PetscInfo(*C,"Use Rt=R^T and C=R*A*Rt via MatMatMatMult() to avoid sparse inner products\n");CHKERRQ(ierr); 
+  ierr = PetscInfo(*C,"Use Rt=R^T and C=R*A*Rt via MatMatMatMult() to avoid sparse inner products\n");CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
 }

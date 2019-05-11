@@ -242,10 +242,10 @@ static PetscErrorCode KSPSolve_CG(KSP ksp)
   PetscFunctionReturn(0);
 }
 
-/*    
+/*
        KSPSolve_CG_SingleReduction
 
-       This variant of CG is identical in exact arithmetic to the standard algorithm, 
+       This variant of CG is identical in exact arithmetic to the standard algorithm,
        but is rearranged to use only a single reduction stage per iteration, using additional
        intermediate vectors.
 
@@ -387,7 +387,7 @@ static PetscErrorCode KSPSolve_CG_SingleReduction(KSP ksp)
     } else if (ksp->normtype == KSP_NORM_NATURAL) {
       ierr = KSP_PCApply(ksp,R,Z);CHKERRQ(ierr);               /*    z <- Br                           */
       tmpvecs[0] = S; tmpvecs[1] = R;
-      ierr  = KSP_MatMult(ksp,Amat,Z,S);CHKERRQ(ierr);       
+      ierr  = KSP_MatMult(ksp,Amat,Z,S);CHKERRQ(ierr);
       ierr  = VecMDot(Z,2,tmpvecs,tmp);CHKERRQ(ierr);          /*    delta <- z'*A*z = r'*B*A*B*r      */
       delta = tmp[0]; beta = tmp[1];                           /*    beta <- z'*r                      */
       KSPCheckDot(ksp,beta);
@@ -443,7 +443,7 @@ PetscErrorCode KSPDestroy_CG(KSP ksp)
 
 /*
      KSPView_CG - Prints information about the current Krylov method being used.
-                  If your Krylov method has special options or flags that information 
+                  If your Krylov method has special options or flags that information
                   should be printed here.
 */
 PetscErrorCode KSPView_CG(KSP ksp,PetscViewer viewer)
@@ -537,9 +537,9 @@ static PetscErrorCode  KSPCGUseSingleReduction_CG(KSP ksp,PetscBool flg)
    Level: beginner
 
    Notes:
-    The PCG method requires both the matrix and preconditioner to be symmetric positive (or negative) (semi) definite.  
-   
-   Only left preconditioning is supported; there are several ways to motivate preconditioned CG, but they all produce the same algorithm. 
+    The PCG method requires both the matrix and preconditioner to be symmetric positive (or negative) (semi) definite.
+
+   Only left preconditioning is supported; there are several ways to motivate preconditioned CG, but they all produce the same algorithm.
    One can interpret preconditioning A with B to mean any of the following\:
 .n  (1) Solve a left-preconditioned system BAx = Bb, using inv(B) to define an inner product in the algorithm.
 .n  (2) Solve a right-preconditioned system ABy = b, x = By, using B to define an inner product in the algorithm.
@@ -557,7 +557,7 @@ static PetscErrorCode  KSPCGUseSingleReduction_CG(KSP ksp,PetscBool flg)
    References:
 .   1. - Magnus R. Hestenes and Eduard Stiefel, Methods of Conjugate Gradients for Solving Linear Systems,
    Journal of Research of the National Bureau of Standards Vol. 49, No. 6, December 1952 Research Paper 2379
-.   2. - Josef Malek and Zdenek Strakos, Preconditioning and the Conjugate Gradient Method in the Context of Solving PDEs, 
+.   2. - Josef Malek and Zdenek Strakos, Preconditioning and the Conjugate Gradient Method in the Context of Solving PDEs,
     SIAM, 2014.
 
 .seealso:  KSPCreate(), KSPSetType(), KSPType (for list of available types), KSP,

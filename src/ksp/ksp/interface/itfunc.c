@@ -150,20 +150,20 @@ PetscErrorCode  KSPComputeEigenvalues(KSP ksp,PetscInt n,PetscReal r[],PetscReal
 .  nrit  - number of (harmonic) Ritz pairs to compute
 
    Output Parameters:
-+  nrit  - actual number of computed (harmonic) Ritz pairs 
++  nrit  - actual number of computed (harmonic) Ritz pairs
 .  S     - multidimensional vector with Ritz vectors
-.  tetar - real part of the Ritz values        
+.  tetar - real part of the Ritz values
 .  tetai - imaginary part of the Ritz values
 
    Notes:
-   -For GMRES, the (harmonic) Ritz pairs are computed from the Hessenberg matrix obtained during 
-   the last complete cycle, or obtained at the end of the solution if the method is stopped before 
+   -For GMRES, the (harmonic) Ritz pairs are computed from the Hessenberg matrix obtained during
+   the last complete cycle, or obtained at the end of the solution if the method is stopped before
    a restart. Then, the number of actual (harmonic) Ritz pairs computed is less or equal to the restart
-   parameter for GMRES if a complete cycle has been performed or less or equal to the number of GMRES 
+   parameter for GMRES if a complete cycle has been performed or less or equal to the number of GMRES
    iterations.
    -Moreover, for real matrices, the (harmonic) Ritz pairs are possibly complex-valued. In such a case,
-   the routine selects the complex (harmonic) Ritz value and its conjugate, and two successive columns of S 
-   are equal to the real and the imaginary parts of the associated vectors. 
+   the routine selects the complex (harmonic) Ritz value and its conjugate, and two successive columns of S
+   are equal to the real and the imaginary parts of the associated vectors.
    -the (harmonic) Ritz pairs are given in order of increasing (harmonic) Ritz values in modulus
    -this is currently not implemented when PETSc is built with complex numbers
 
@@ -300,7 +300,7 @@ PetscErrorCode KSPSetUp(KSP ksp)
   Mat            mat,pmat;
   MatNullSpace   nullsp;
   PCFailedReason pcreason;
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ksp,KSP_CLASSID,1);
 
@@ -389,7 +389,7 @@ PetscErrorCode KSPSetUp(KSP ksp)
   ierr = PetscLogEventEnd(KSP_SetUp,ksp,ksp->vec_rhs,ksp->vec_sol,0);CHKERRQ(ierr);
   ierr = PCSetErrorIfFailure(ksp->pc,ksp->errorifnotconverged);CHKERRQ(ierr);
   ierr = PCSetUp(ksp->pc);CHKERRQ(ierr);
-  ierr = PCGetFailedReason(ksp->pc,&pcreason);CHKERRQ(ierr); 
+  ierr = PCGetFailedReason(ksp->pc,&pcreason);CHKERRQ(ierr);
   if (pcreason) {
     ksp->reason = KSP_DIVERGED_PC_FAILED;
   }
