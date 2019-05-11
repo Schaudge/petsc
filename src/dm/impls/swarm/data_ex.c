@@ -250,25 +250,25 @@ r1: rank of receiver
 
 procs = { 0, 1, 2, 3 }
 
-0 ==> 0		e=0
-0 ==> 1		e=1
-0 ==> 2		e=2
-0 ==> 3		e=3
+0 ==> 0         e=0
+0 ==> 1         e=1
+0 ==> 2         e=2
+0 ==> 3         e=3
 
-1 ==> 0		e=4
-1 ==> 1		e=5
-1 ==> 2		e=6
-1 ==> 3		e=7
+1 ==> 0         e=4
+1 ==> 1         e=5
+1 ==> 2         e=6
+1 ==> 3         e=7
 
-2 ==> 0		e=8
-2 ==> 1		e=9
-2 ==> 2		e=10
-2 ==> 3		e=11
+2 ==> 0         e=8
+2 ==> 1         e=9
+2 ==> 2         e=10
+2 ==> 3         e=11
 
-3 ==> 0		e=12
-3 ==> 1		e=13
-3 ==> 2		e=14
-3 ==> 3		e=15
+3 ==> 0         e=12
+3 ==> 1         e=13
+3 ==> 2         e=14
+3 ==> 3         e=15
 
 If we require that proc A sends to proc B, then the SEND tag index will be given by
   N * rank(A) + rank(B) + offset
@@ -483,7 +483,7 @@ PetscErrorCode _DMSwarmDataExInitializeTmpStorage(DMSwarmDataEx de)
   */
   np = de->n_neighbour_procs;
   for (i = 0; i < np; ++i) {
-    /*	de->messages_to_be_sent[i] = -1; */
+    /* de->messages_to_be_sent[i] = -1; */
     de->messages_to_be_recvieved[i] = -1;
   }
   ierr = PetscFree(de->send_message);CHKERRQ(ierr);

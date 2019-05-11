@@ -197,7 +197,7 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
   PetscScalar fvalue;
   PetscScalar Efd, RF, VR;
   PetscScalar Vr,Vi,Vm;
-  
+
   PetscFunctionBegin;
 
   ierr = DMCompositeGetLocalVectors(user->dmpgrid,&Xgen,&Xnet);CHKERRQ(ierr);
@@ -210,17 +210,17 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
     if (event_list[i] == 0) {
       /* Apply disturbance - resistive fault at user->faultbus */
       /* This is done by adding shunt conductance to the diagonal location
-	 in the Ybus matrix */
+         in the Ybus matrix */
       row_loc = 2*user->faultbus; col_loc = 2*user->faultbus+1; /* Location for G */
       val     = 1/user->Rfault;
       ierr    = MatSetValues(user->Ybus,1,&row_loc,1,&col_loc,&val,ADD_VALUES);CHKERRQ(ierr);
       row_loc = 2*user->faultbus+1; col_loc = 2*user->faultbus; /* Location for G */
       val     = 1/user->Rfault;
       ierr    = MatSetValues(user->Ybus,1,&row_loc,1,&col_loc,&val,ADD_VALUES);CHKERRQ(ierr);
-      
+
       ierr = MatAssemblyBegin(user->Ybus,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyEnd(user->Ybus,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-      
+
       /* Solve the algebraic equations */
       ierr = SNESSolve(user->snes_alg,NULL,X);CHKERRQ(ierr);
     } else if(event_list[i] == 1) {
@@ -231,61 +231,59 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
       row_loc = 2*user->faultbus+1; col_loc = 2*user->faultbus;
       val     = -1/user->Rfault;
       ierr    = MatSetValues(user->Ybus,1,&row_loc,1,&col_loc,&val,ADD_VALUES);CHKERRQ(ierr);
-      
+
       ierr = MatAssemblyBegin(user->Ybus,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyEnd(user->Ybus,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-      
+
       /* Solve the algebraic equations */
       ierr = SNESSolve(user->snes_alg,NULL,X);CHKERRQ(ierr);
 
       /* Check the VR derivatives and reset flags if needed */
       for (i=0; i < ngen; i++) {
-	Efd   = xgen[idx+6];
-	RF    = xgen[idx+7];
-	VR    = xgen[idx+8];
+        Efd   = xgen[idx+6];
+        RF    = xgen[idx+7];
+        VR    = xgen[idx+8];
 
-	Vr = xnet[2*gbus[i]]; /* Real part of generator terminal voltage */
-	Vi = xnet[2*gbus[i]+1]; /* Imaginary part of the generator terminal voltage */
-	Vm = PetscSqrtScalar(Vr*Vr + Vi*Vi);
+        Vr = xnet[2*gbus[i]]; /* Real part of generator terminal voltage */
+        Vi = xnet[2*gbus[i]+1]; /* Imaginary part of the generator terminal voltage */
+        Vm = PetscSqrtScalar(Vr*Vr + Vi*Vi);
 
-	if (VRatmax[i]) {
-	  fvalue = (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
-	  if (fvalue < 0) { 
-	    VRatmax[i] = 0;
-	    ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went negative on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
-	  }
-	}
-	if (VRatmin[i]) {
-	  fvalue =  (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
+        if (VRatmax[i]) {
+          fvalue = (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
+          if (fvalue < 0) { 
+            VRatmax[i] = 0;
+            ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went negative on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
+          }
+        }
+        if (VRatmin[i]) {
+          fvalue =  (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
 
-	  if(fvalue > 0) {
-	    VRatmin[i] = 0;
-	    ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went positive on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
-	  }
-	}
-	idx = idx+9;
+          if(fvalue > 0) {
+            VRatmin[i] = 0;
+            ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went positive on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
+          }
+        }
+        idx = idx+9;
       }
     } else {
       idx = (event_list[i]-2)/2;
       event_num = (event_list[i]-2)%2;
       if (event_num == 0) { /* Max VR */
-	if (!VRatmax[idx]) {
-	  VRatmax[idx] = 1;
-	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: hit upper limit at time %g\n",idx,t);CHKERRQ(ierr);
-	}
-	else {
-	  VRatmax[idx] = 0;
-	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: freeing variable as dVR_dt is negative at time %g\n",idx,t);CHKERRQ(ierr);
-	}
+        if (!VRatmax[idx]) {
+          VRatmax[idx] = 1;
+          ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: hit upper limit at time %g\n",idx,t);CHKERRQ(ierr);
+        } else {
+          VRatmax[idx] = 0;
+          ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: freeing variable as dVR_dt is negative at time %g\n",idx,t);CHKERRQ(ierr);
+        }
       } else {
-	if (!VRatmin[idx]) {
-	  VRatmin[idx] = 1;
-	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: hit lower limit at time %g\n",idx,t);CHKERRQ(ierr);
-	}
-	else {
-	  VRatmin[idx] = 0;
-	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: freeing variable as dVR_dt is positive at time %g\n",idx,t);CHKERRQ(ierr);
-	}
+        if (!VRatmin[idx]) {
+          VRatmin[idx] = 1;
+          ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: hit lower limit at time %g\n",idx,t);CHKERRQ(ierr);
+        } else {
+          VRatmin[idx] = 0;
+          ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: freeing variable as dVR_dt is positive at time %g\n",idx,t);CHKERRQ(ierr);
+        }
       }
     }
   }

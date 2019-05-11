@@ -138,8 +138,8 @@ PetscErrorCode DMSwarmDataBucketRegisterField(
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-	/* check we haven't finalised the registration of fields */
-	/*
+        /* check we haven't finalised the registration of fields */
+        /*
    if(db->finalised==PETSC_TRUE) {
    printf("ERROR: DMSwarmDataBucketFinalize() has been called. Cannot register more fields\n");
    ERROR();

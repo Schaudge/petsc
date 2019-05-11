@@ -581,7 +581,7 @@ PetscErrorCode FormIFunction(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,Userctx *use
           /* From bus and to bus real and imaginary voltages */
           Vfr     = xarr[offsetfrom];
           Vfi     = xarr[offsetfrom+1];
-          Vtr	    = xarr[offsetto];
+          Vtr     = xarr[offsetto];
           Vti     = xarr[offsetto+1];
 
           if (vfrom == v) {

@@ -1619,15 +1619,15 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
             for (i=0;i<size_active_schur;i++) {
               ierr = PetscMemcpy(data+i*(size_schur+1),schur_factor+cum,(size_active_schur-i)*sizeof(PetscScalar));CHKERRQ(ierr);
               cum += size_active_schur-i;
-	    }
+            }
           } else {
             ierr = PetscMemcpy(data,schur_factor,size_schur*size_schur*sizeof(PetscScalar));CHKERRQ(ierr);
           }
           if (sub_schurs->is_dir) {
             ierr = ISGetLocalSize(sub_schurs->is_dir,&nd);CHKERRQ(ierr);
-	    for (i=0;i<nd;i++) {
-	      data[(i+size_active_schur)*(size_schur+1)] = schur_factor[cum+i];
-	    }
+            for (i=0;i<nd;i++) {
+              data[(i+size_active_schur)*(size_schur+1)] = schur_factor[cum+i];
+            }
           }
           /* workaround: since I cannot modify the matrices used inside the solvers for the forward and backward substitutions,
              set the diagonal entry of the Schur factor to a very large value */

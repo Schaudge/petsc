@@ -1979,7 +1979,7 @@ PetscErrorCode MatZeroRows_SeqAIJ(Mat A,PetscInt N,const PetscInt rows[],PetscSc
       for (i=0; i<N; i++) {
         if (rows[i] < 0 || rows[i] > m) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"row %D out of range", rows[i]);
         if (a->ilen[rows[i]] > 0) {
-	  if (rows[i] >= A->cmap->n) {
+          if (rows[i] >= A->cmap->n) {
             a->ilen[rows[i]] = 0;
           } else {
             a->ilen[rows[i]]    = 1;
@@ -3462,7 +3462,7 @@ PetscErrorCode  MatSeqAIJCompactOutExtraColumns_SeqAIJ(Mat mat, ISLocalToGlobalM
   }
   /* compact out the extra columns in B */
   for (i=0; i<mat->rmap->n; i++) {
-	ncols = aij->i[i+1] - aij->i[i];
+    ncols = aij->i[i+1] - aij->i[i];
     for (j=0; j<ncols; j++) {
       PetscInt gid1 = aij->j[aij->i[i] + j] + 1;
       ierr = PetscTableFind(gid1_lid1,gid1,&lid);CHKERRQ(ierr);

@@ -124,8 +124,8 @@ int main(int argc, char *argv[]) {
   // Before we do anything, check that the solver is enabled
   if( !Amesos2::query(solver_name)){
     std::cerr << solver_name << " not enabled.  Exiting..." << std::endl;
-    return EXIT_SUCCESS;	// Otherwise CTest will pick it up as
-				// failure, which it isn't really
+    return EXIT_SUCCESS;    // Otherwise CTest will pick it up as
+                            // failure, which it isn't really
   }
 
   const size_t numVectors = 1;
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
   }
 
   // get the maps
-  RCP<const Tpetra::Map<LO,GO,Node> > dmnmap = A->getDomainMap();      	
+  RCP<const Tpetra::Map<LO,GO,Node> > dmnmap = A->getDomainMap();
   RCP<const Tpetra::Map<LO,GO,Node> > rngmap = A->getRangeMap();
 
   // Create random X

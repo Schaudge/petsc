@@ -757,8 +757,8 @@ PetscErrorCode ISEmbed(IS a, IS b, PetscBool drop, IS *c)
 
   Note: Indices in f are unchanged. f[h[i]] is the i-th smallest f index.
         If always == PETSC_FALSE, an extra check is peformed to see whether
-	the f indices are nondecreasing. h is built on PETSC_COMM_SELF, since
-	the permutation has a local meaning only.
+        the f indices are nondecreasing. h is built on PETSC_COMM_SELF, since
+        the permutation has a local meaning only.
 
   Level: advanced
 
@@ -781,8 +781,8 @@ PetscErrorCode ISSortPermutation(IS f,PetscBool always,IS *h)
     isincreasing = PETSC_TRUE;
     for (i = 1; i < fsize; ++i) {
       if (findices[i] <= findices[i-1]) {
-	isincreasing = PETSC_FALSE;
-	break;
+       isincreasing = PETSC_FALSE;
+       break;
       }
     }
     if (isincreasing) {

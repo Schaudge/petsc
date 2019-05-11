@@ -373,7 +373,7 @@ PetscErrorCode DMPlexVTKWriteAll_VTU(DM dm,PetscViewer viewer)
                   }
                 } else {
                   for (i=0; i<dof; i ++) {
-		    y[cnt*3+i] = x[off + i];
+                    y[cnt*3+i] = x[off + i];
                   }
                   cnt += dof/dimEmbed;
                 }

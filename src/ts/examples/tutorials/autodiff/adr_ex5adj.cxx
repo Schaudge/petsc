@@ -75,8 +75,8 @@ extern PetscErrorCode RHSJacobianAdolc(TS ts,PetscReal t,Vec U,Mat A,Mat B,void 
 
 int main(int argc,char **argv)
 {
-  TS             ts;                  		/* ODE integrator */
-  Vec            x,r,xdot;             		/* solution, residual, derivative */
+  TS             ts;                  /* ODE integrator */
+  Vec            x,r,xdot;            /* solution, residual, derivative */
   PetscErrorCode ierr;
   DM             da;
   AppCtx         appctx;

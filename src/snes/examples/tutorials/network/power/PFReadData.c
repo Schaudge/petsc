@@ -87,15 +87,15 @@ PetscErrorCode PFReadMatPowerData(PFDATA *pf,char *filename)
       busext2intmap[Bus[busi].bus_i] = busi;
 
       if (!((Pd == 0.0) && (Qd == 0.0))) {
-	Load[loadi].bus_i = Bus[busi].bus_i;
-	Load[loadi].status = 1;
-	Load[loadi].pl = Pd;
-	Load[loadi].ql = Qd;
-	Load[loadi].area = Bus[busi].area;
-	Load[loadi].internal_i = busi;
-	Bus[busi].lidx[Bus[busi].nload++] = loadi;
-	if (Bus[busi].nload > NLOAD_AT_BUS_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exceeded maximum number of loads allowed at bus");
-	loadi++;
+        Load[loadi].bus_i = Bus[busi].bus_i;
+        Load[loadi].status = 1;
+        Load[loadi].pl = Pd;
+        Load[loadi].ql = Qd;
+        Load[loadi].area = Bus[busi].area;
+        Load[loadi].internal_i = busi;
+        Bus[busi].lidx[Bus[busi].nload++] = loadi;
+        if (Bus[busi].nload > NLOAD_AT_BUS_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exceeded maximum number of loads allowed at bus");
+        loadi++;
       }
       busi++;
     }

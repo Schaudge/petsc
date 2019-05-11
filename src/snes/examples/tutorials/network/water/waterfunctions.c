@@ -186,15 +186,15 @@ PetscErrorCode GetListofEdges_Water(WATERDATA *water,PetscInt *edgelist)
 
     for (j=0; j < water->nvertex; j++) {
       if (water->vertex[j].id == node1) {
-	edgelist[2*i] = j;
-	break;
+        edgelist[2*i] = j;
+        break;
       }
     }
 
     for (j=0; j < water->nvertex; j++) {
       if (water->vertex[j].id == node2) {
-	edgelist[2*i+1] = j;
-	break;
+        edgelist[2*i+1] = j;
+        break;
       }
     }
   }

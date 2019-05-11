@@ -1732,7 +1732,7 @@ int main(int argc, char **argv)
                 coord[j] = .57735026918963; /* hack to get 60 deg skewed mesh */
               }
               else if (cells[0]==3) {
-                if(i==2 || i==10) coord[j] = mod->bounds[1]/4.;
+                if (i==2 || i==10) coord[j] = mod->bounds[1]/4.;
                 else if (i==4) coord[j] = mod->bounds[1]/2.;
                 else if (i==12) coord[j] = 1.57735026918963*mod->bounds[1]/2.;
               }
@@ -2006,7 +2006,7 @@ PetscScalar cvmgp_(PetscScalar *a, PetscScalar *b, PetscScalar *test)
     PetscScalar ret_val;
 
     if (PetscRealPart(*test) > 0.) {
-	goto L10;
+      goto L10;
     }
     ret_val = *b;
     return ret_val;
@@ -2017,17 +2017,17 @@ L10:
 
 PetscScalar cvmgm_(PetscScalar *a, PetscScalar *b, PetscScalar *test)
 {
-    /* System generated locals */
-    PetscScalar ret_val;
+  /* System generated locals */
+  PetscScalar ret_val;
 
-    if (PetscRealPart(*test) < 0.) {
-	goto L10;
-    }
-    ret_val = *b;
-    return ret_val;
+  if (PetscRealPart(*test) < 0.) {
+    goto L10;
+  }
+  ret_val = *b;
+  return ret_val;
 L10:
-    ret_val = *a;
-    return ret_val;
+  ret_val = *a;
+  return ret_val;
 } /* cvmgm_ */
 
 int riem1mdt( PetscScalar *gaml, PetscScalar *gamr, PetscScalar *rl, PetscScalar *pl,
@@ -2035,33 +2035,31 @@ int riem1mdt( PetscScalar *gaml, PetscScalar *gamr, PetscScalar *rl, PetscScalar
               PetscScalar *uxr, PetscScalar *rstarl, PetscScalar *rstarr, PetscScalar *
               pstar, PetscScalar *ustar)
 {
-    /* Initialized data */
+  /* Initialized data */
 
-    static PetscScalar smallp = 1e-8;
+  static PetscScalar smallp = 1e-8;
 
-    /* System generated locals */
-    int i__1;
-    PetscScalar d__1, d__2;
+  /* System generated locals */
+  int i__1;
+  PetscScalar d__1, d__2;
 
-    /* Local variables */
-    static int i0;
-    static PetscScalar cl, cr, wl, zl, wr, zr, pst, durl, skpr1, skpr2;
-    static int iwave;
-    static PetscScalar gascl4, gascr4, cstarl, dpstar, cstarr;
-    /* static PetscScalar csqrl, csqrr, gascl1, gascl2, gascl3, gascr1, gascr2, gascr3; */
-    static int iterno;
-    static PetscScalar ustarl, ustarr, rarepr1, rarepr2;
+  /* Local variables */
+  static int i0;
+  static PetscScalar cl, cr, wl, zl, wr, zr, pst, durl, skpr1, skpr2;
+  static int iwave;
+  static PetscScalar gascl4, gascr4, cstarl, dpstar, cstarr;
+  /* static PetscScalar csqrl, csqrr, gascl1, gascl2, gascl3, gascr1, gascr2, gascr3; */
+  static int iterno;
+  static PetscScalar ustarl, ustarr, rarepr1, rarepr2;
 
+  /* gascl1 = *gaml - 1.; */
+  /* gascl2 = (*gaml + 1.) * .5; */
+  /* gascl3 = gascl2 / *gaml; */
+  gascl4 = 1. / (*gaml - 1.);
 
-
-    /* gascl1 = *gaml - 1.; */
-    /* gascl2 = (*gaml + 1.) * .5; */
-    /* gascl3 = gascl2 / *gaml; */
-    gascl4 = 1. / (*gaml - 1.);
-
-    /* gascr1 = *gamr - 1.; */
-    /* gascr2 = (*gamr + 1.) * .5; */
-    /* gascr3 = gascr2 / *gamr; */
+  /* gascr1 = *gamr - 1.; */
+  /* gascr2 = (*gamr + 1.) * .5; */
+  /* gascr3 = gascr2 / *gamr; */
     gascr4 = 1. / (*gamr - 1.);
     iterno = 10;
 /*        find pstar: */
@@ -2083,135 +2081,135 @@ int riem1mdt( PetscScalar *gaml, PetscScalar *gamr, PetscScalar *rl, PetscScalar
     rarepr1 = gascl4 * 2. * cl * (1. - PetscPowScalar(pst, d__1));
     durl = *uxr - *uxl;
     if (PetscRealPart(*pr) < PetscRealPart(*pl)) {
-	if (PetscRealPart(durl) >= PetscRealPart(rarepr1)) {
-	    iwave = 100;
-	} else if (PetscRealPart(durl) <= PetscRealPart(-skpr1)) {
-	    iwave = 300;
-	} else {
-	    iwave = 400;
-	}
+      if (PetscRealPart(durl) >= PetscRealPart(rarepr1)) {
+        iwave = 100;
+      } else if (PetscRealPart(durl) <= PetscRealPart(-skpr1)) {
+        iwave = 300;
+      } else {
+        iwave = 400;
+      }
     } else {
-	if (PetscRealPart(durl) >= PetscRealPart(rarepr2)) {
-	    iwave = 100;
-	} else if (PetscRealPart(durl) <= PetscRealPart(-skpr2)) {
-	    iwave = 300;
-	} else {
-	    iwave = 200;
-	}
+      if (PetscRealPart(durl) >= PetscRealPart(rarepr2)) {
+        iwave = 100;
+      } else if (PetscRealPart(durl) <= PetscRealPart(-skpr2)) {
+        iwave = 300;
+      } else {
+        iwave = 200;
+      }
     }
     if (iwave == 100) {
-/*     1-wave: rarefaction wave, 3-wave: rarefaction wave */
-/*     case (100) */
-	i__1 = iterno;
-	for (i0 = 1; i0 <= i__1; ++i0) {
-	    d__1 = *pstar / *pl;
-	    d__2 = 1. / *gaml;
-	    *rstarl = *rl * PetscPowScalar(d__1, d__2);
-	    cstarl = PetscSqrtScalar(*gaml * *pstar / *rstarl);
-	    ustarl = *uxl - gascl4 * 2. * (cstarl - cl);
-	    zl = *rstarl * cstarl;
-	    d__1 = *pstar / *pr;
-	    d__2 = 1. / *gamr;
-	    *rstarr = *rr * PetscPowScalar(d__1, d__2);
-	    cstarr = PetscSqrtScalar(*gamr * *pstar / *rstarr);
-	    ustarr = *uxr + gascr4 * 2. * (cstarr - cr);
-	    zr = *rstarr * cstarr;
-	    dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
-	    *pstar -= dpstar;
-	    *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
-	    if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
+/*    1-wave: rarefaction wave, 3-wave: rarefaction wave */
+/*    case (100) */
+      i__1 = iterno;
+      for (i0 = 1; i0 <= i__1; ++i0) {
+        d__1 = *pstar / *pl;
+        d__2 = 1. / *gaml;
+        *rstarl = *rl * PetscPowScalar(d__1, d__2);
+        cstarl = PetscSqrtScalar(*gaml * *pstar / *rstarl);
+        ustarl = *uxl - gascl4 * 2. * (cstarl - cl);
+        zl = *rstarl * cstarl;
+        d__1 = *pstar / *pr;
+        d__2 = 1. / *gamr;
+        *rstarr = *rr * PetscPowScalar(d__1, d__2);
+        cstarr = PetscSqrtScalar(*gamr * *pstar / *rstarr);
+        ustarr = *uxr + gascr4 * 2. * (cstarr - cr);
+        zr = *rstarr * cstarr;
+        dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
+        *pstar -= dpstar;
+        *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
+        if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
 #if 0
         break;
 #endif
-	    }
-	}
+    }
+  }
 /*     1-wave: shock wave, 3-wave: rarefaction wave */
     } else if (iwave == 200) {
 /*     case (200) */
-	i__1 = iterno;
-	for (i0 = 1; i0 <= i__1; ++i0) {
-	    pst = *pstar / *pl;
-	    ustarl = *uxl - (pst - 1.) * cl * PetscSqrtScalar(2. / (*gaml * (*gaml - 1. + (*gaml + 1.) * pst)));
-	    zl = *pl / cl * PetscSqrtScalar(*gaml * 2. * (*gaml - 1. + (*gaml + 1.) * pst)) * (*gaml - 1. + (*gaml + 1.) * pst) / (*gaml * 3. - 1. + (*gaml + 1.) * pst);
-	    d__1 = *pstar / *pr;
-	    d__2 = 1. / *gamr;
-	    *rstarr = *rr * PetscPowScalar(d__1, d__2);
-	    cstarr = PetscSqrtScalar(*gamr * *pstar / *rstarr);
-	    zr = *rstarr * cstarr;
-	    ustarr = *uxr + gascr4 * 2. * (cstarr - cr);
-	    dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
-	    *pstar -= dpstar;
-	    *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
-	    if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
+        i__1 = iterno;
+        for (i0 = 1; i0 <= i__1; ++i0) {
+            pst = *pstar / *pl;
+            ustarl = *uxl - (pst - 1.) * cl * PetscSqrtScalar(2. / (*gaml * (*gaml - 1. + (*gaml + 1.) * pst)));
+            zl = *pl / cl * PetscSqrtScalar(*gaml * 2. * (*gaml - 1. + (*gaml + 1.) * pst)) * (*gaml - 1. + (*gaml + 1.) * pst) / (*gaml * 3. - 1. + (*gaml + 1.) * pst);
+            d__1 = *pstar / *pr;
+            d__2 = 1. / *gamr;
+            *rstarr = *rr * PetscPowScalar(d__1, d__2);
+            cstarr = PetscSqrtScalar(*gamr * *pstar / *rstarr);
+            zr = *rstarr * cstarr;
+            ustarr = *uxr + gascr4 * 2. * (cstarr - cr);
+            dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
+            *pstar -= dpstar;
+            *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
+            if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
 #if 0
         break;
 #endif
-	    }
-	}
+            }
+        }
 /*     1-wave: shock wave, 3-wave: shock */
     } else if (iwave == 300) {
 /*     case (300) */
-	i__1 = iterno;
-	for (i0 = 1; i0 <= i__1; ++i0) {
-	    pst = *pstar / *pl;
-	    ustarl = *uxl - (pst - 1.) * cl * PetscSqrtScalar(2. / (*gaml * (*gaml - 1. + (*gaml + 1.) * pst)));
-	    zl = *pl / cl * PetscSqrtScalar(*gaml * 2. * (*gaml - 1. + (*gaml + 1.) * pst)) * (*gaml - 1. + (*gaml + 1.) * pst) / (*gaml * 3. - 1. + (*gaml + 1.) * pst);
-	    pst = *pstar / *pr;
-	    ustarr = *uxr + (pst - 1.) * cr * PetscSqrtScalar(2. / (*gamr * (*gamr - 1. + (*gamr + 1.) * pst)));
-	    zr = *pr / cr * PetscSqrtScalar(*gamr * 2. * (*gamr - 1. + (*gamr + 1.) * pst)) * (*gamr - 1. + (*gamr + 1.) * pst) / (*gamr * 3. - 1. + (*gamr + 1.) * pst);
-	    dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
-	    *pstar -= dpstar;
-	    *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
-	    if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
+        i__1 = iterno;
+        for (i0 = 1; i0 <= i__1; ++i0) {
+            pst = *pstar / *pl;
+            ustarl = *uxl - (pst - 1.) * cl * PetscSqrtScalar(2. / (*gaml * (*gaml - 1. + (*gaml + 1.) * pst)));
+            zl = *pl / cl * PetscSqrtScalar(*gaml * 2. * (*gaml - 1. + (*gaml + 1.) * pst)) * (*gaml - 1. + (*gaml + 1.) * pst) / (*gaml * 3. - 1. + (*gaml + 1.) * pst);
+            pst = *pstar / *pr;
+            ustarr = *uxr + (pst - 1.) * cr * PetscSqrtScalar(2. / (*gamr * (*gamr - 1. + (*gamr + 1.) * pst)));
+            zr = *pr / cr * PetscSqrtScalar(*gamr * 2. * (*gamr - 1. + (*gamr + 1.) * pst)) * (*gamr - 1. + (*gamr + 1.) * pst) / (*gamr * 3. - 1. + (*gamr + 1.) * pst);
+            dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
+            *pstar -= dpstar;
+            *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
+            if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
 #if 0
         break;
 #endif
-	    }
-	}
+            }
+        }
 /*     1-wave: rarefaction wave, 3-wave: shock */
     } else if (iwave == 400) {
 /*     case (400) */
-	i__1 = iterno;
-	for (i0 = 1; i0 <= i__1; ++i0) {
-	    d__1 = *pstar / *pl;
-	    d__2 = 1. / *gaml;
-	    *rstarl = *rl * PetscPowScalar(d__1, d__2);
-	    cstarl = PetscSqrtScalar(*gaml * *pstar / *rstarl);
-	    ustarl = *uxl - gascl4 * 2. * (cstarl - cl);
-	    zl = *rstarl * cstarl;
-	    pst = *pstar / *pr;
-	    ustarr = *uxr + (pst - 1.) * cr * PetscSqrtScalar(2. / (*gamr * (*gamr - 1. + (*gamr + 1.) * pst)));
-	    zr = *pr / cr * PetscSqrtScalar(*gamr * 2. * (*gamr - 1. + (*gamr + 1.) * pst)) * (*gamr - 1. + (*gamr + 1.) * pst) / (*gamr * 3. - 1. + (*gamr + 1.) * pst);
-	    dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
-	    *pstar -= dpstar;
-	    *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
-	    if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
+        i__1 = iterno;
+        for (i0 = 1; i0 <= i__1; ++i0) {
+            d__1 = *pstar / *pl;
+            d__2 = 1. / *gaml;
+            *rstarl = *rl * PetscPowScalar(d__1, d__2);
+            cstarl = PetscSqrtScalar(*gaml * *pstar / *rstarl);
+            ustarl = *uxl - gascl4 * 2. * (cstarl - cl);
+            zl = *rstarl * cstarl;
+            pst = *pstar / *pr;
+            ustarr = *uxr + (pst - 1.) * cr * PetscSqrtScalar(2. / (*gamr * (*gamr - 1. + (*gamr + 1.) * pst)));
+            zr = *pr / cr * PetscSqrtScalar(*gamr * 2. * (*gamr - 1. + (*gamr + 1.) * pst)) * (*gamr - 1. + (*gamr + 1.) * pst) / (*gamr * 3. - 1. + (*gamr + 1.) * pst);
+            dpstar = zl * zr * (ustarr - ustarl) / (zl + zr);
+            *pstar -= dpstar;
+            *pstar = PetscMax(PetscRealPart(*pstar),PetscRealPart(smallp));
+            if (PetscAbsScalar(dpstar) / PetscRealPart(*pstar) <= 1e-8) {
 #if 0
-	      break;
+              break;
 #endif
-	    }
-	}
+            }
+        }
     }
 
     *ustar = (zl * ustarr + zr * ustarl) / (zl + zr);
     if (PetscRealPart(*pstar) > PetscRealPart(*pl)) {
-	pst = *pstar / *pl;
-	*rstarl = ((*gaml + 1.) * pst + *gaml - 1.) / ((*gaml - 1.) * pst + *
-		gaml + 1.) * *rl;
+        pst = *pstar / *pl;
+        *rstarl = ((*gaml + 1.) * pst + *gaml - 1.) / ((*gaml - 1.) * pst + *
+                gaml + 1.) * *rl;
     }
     if (PetscRealPart(*pstar) > PetscRealPart(*pr)) {
-	pst = *pstar / *pr;
-	*rstarr = ((*gamr + 1.) * pst + *gamr - 1.) / ((*gamr - 1.) * pst + *
-		gamr + 1.) * *rr;
+        pst = *pstar / *pr;
+        *rstarr = ((*gamr + 1.) * pst + *gamr - 1.) / ((*gamr - 1.) * pst + *
+                gamr + 1.) * *rr;
     }
     return iwave;
 }
 
 PetscScalar sign(PetscScalar x)
 {
-    if(PetscRealPart(x) > 0) return 1.0;
-    if(PetscRealPart(x) < 0) return -1.0;
-    return 0.0;
+  if (PetscRealPart(x) > 0) return 1.0;
+  if (PetscRealPart(x) < 0) return -1.0;
+  return 0.0;
 }
 /*        Riemann Solver */
 /* -------------------------------------------------------------------- */
@@ -2223,95 +2221,95 @@ int riemannsolver(PetscScalar *xcen, PetscScalar *xp,
                    PetscScalar *uxm, PetscScalar *px, PetscScalar *utx, PetscScalar *ubx,
                    PetscScalar *gam, PetscScalar *rho1)
 {
-    /* System generated locals */
-    PetscScalar d__1, d__2;
+  /* System generated locals */
+  PetscScalar d__1, d__2;
 
-    /* Local variables */
-    static PetscScalar s, c0, p0, r0, u0, w0, x0, x2, ri, cx, sgn0, wsp0, gasc1, gasc2, gasc3, gasc4;
-    static PetscScalar cstar, pstar, rstar, ustar, xstar, wspst, ushock, streng, rstarl, rstarr, rstars;
-    int iwave;
+  /* Local variables */
+  static PetscScalar s, c0, p0, r0, u0, w0, x0, x2, ri, cx, sgn0, wsp0, gasc1, gasc2, gasc3, gasc4;
+  static PetscScalar cstar, pstar, rstar, ustar, xstar, wspst, ushock, streng, rstarl, rstarr, rstars;
+  int iwave;
 
-    if (*rl == *rr && *pr == *pl && *uxl == *uxr && *gaml == *gamr) {
-	*rx = *rl;
-	*px = *pl;
-	*uxm = *uxl;
-	*gam = *gaml;
-	x2 = *xcen + *uxm * *dtt;
+  if (*rl == *rr && *pr == *pl && *uxl == *uxr && *gaml == *gamr) {
+    *rx = *rl;
+    *px = *pl;
+    *uxm = *uxl;
+    *gam = *gaml;
+    x2 = *xcen + *uxm * *dtt;
 
-	if (PetscRealPart(*xp) >= PetscRealPart(x2)) {
-	    *utx = *utr;
-	    *ubx = *ubr;
-	    *rho1 = *rho1r;
-	} else {
-	    *utx = *utl;
-	    *ubx = *ubl;
-	    *rho1 = *rho1l;
-	}
-	return 0;
+    if (PetscRealPart(*xp) >= PetscRealPart(x2)) {
+      *utx = *utr;
+      *ubx = *ubr;
+      *rho1 = *rho1r;
+    } else {
+      *utx = *utl;
+      *ubx = *ubl;
+      *rho1 = *rho1l;
     }
-    iwave = riem1mdt(gaml, gamr, rl, pl, uxl, rr, pr, uxr, &rstarl, &rstarr, &pstar, &ustar);
+    return 0;
+  }
+  iwave = riem1mdt(gaml, gamr, rl, pl, uxl, rr, pr, uxr, &rstarl, &rstarr, &pstar, &ustar);
 
-    x2 = *xcen + ustar * *dtt;
-    d__1 = *xp - x2;
-    sgn0 = sign(d__1);
+  x2 = *xcen + ustar * *dtt;
+  d__1 = *xp - x2;
+  sgn0 = sign(d__1);
 /*            x is in 3-wave if sgn0 = 1 */
 /*            x is in 1-wave if sgn0 = -1 */
-    r0 = cvmgm_(rl, rr, &sgn0);
-    p0 = cvmgm_(pl, pr, &sgn0);
-    u0 = cvmgm_(uxl, uxr, &sgn0);
-    *gam = cvmgm_(gaml, gamr, &sgn0);
-    gasc1 = *gam - 1.;
-    gasc2 = (*gam + 1.) * .5;
-    gasc3 = gasc2 / *gam;
-    gasc4 = 1. / (*gam - 1.);
-    c0 = PetscSqrtScalar(*gam * p0 / r0);
-    streng = pstar - p0;
-    w0 = *gam * r0 * p0 * (gasc3 * streng / p0 + 1.);
-    rstars = r0 / (1. - r0 * streng / w0);
-    d__1 = p0 / pstar;
-    d__2 = -1. / *gam;
-    rstarr = r0 * PetscPowScalar(d__1, d__2);
-    rstar = cvmgm_(&rstarr, &rstars, &streng);
-    w0 = PetscSqrtScalar(w0);
-    cstar = PetscSqrtScalar(*gam * pstar / rstar);
-    wsp0 = u0 + sgn0 * c0;
-    wspst = ustar + sgn0 * cstar;
-    ushock = ustar + sgn0 * w0 / rstar;
-    wspst = cvmgp_(&ushock, &wspst, &streng);
-    wsp0 = cvmgp_(&ushock, &wsp0, &streng);
-    x0 = *xcen + wsp0 * *dtt;
-    xstar = *xcen + wspst * *dtt;
+  r0 = cvmgm_(rl, rr, &sgn0);
+  p0 = cvmgm_(pl, pr, &sgn0);
+  u0 = cvmgm_(uxl, uxr, &sgn0);
+  *gam = cvmgm_(gaml, gamr, &sgn0);
+  gasc1 = *gam - 1.;
+  gasc2 = (*gam + 1.) * .5;
+  gasc3 = gasc2 / *gam;
+  gasc4 = 1. / (*gam - 1.);
+  c0 = PetscSqrtScalar(*gam * p0 / r0);
+  streng = pstar - p0;
+  w0 = *gam * r0 * p0 * (gasc3 * streng / p0 + 1.);
+  rstars = r0 / (1. - r0 * streng / w0);
+  d__1 = p0 / pstar;
+  d__2 = -1. / *gam;
+  rstarr = r0 * PetscPowScalar(d__1, d__2);
+  rstar = cvmgm_(&rstarr, &rstars, &streng);
+  w0 = PetscSqrtScalar(w0);
+  cstar = PetscSqrtScalar(*gam * pstar / rstar);
+  wsp0 = u0 + sgn0 * c0;
+  wspst = ustar + sgn0 * cstar;
+  ushock = ustar + sgn0 * w0 / rstar;
+  wspst = cvmgp_(&ushock, &wspst, &streng);
+  wsp0 = cvmgp_(&ushock, &wsp0, &streng);
+  x0 = *xcen + wsp0 * *dtt;
+  xstar = *xcen + wspst * *dtt;
 /*           using gas formula to evaluate rarefaction wave */
 /*            ri : reiman invariant */
-    ri = u0 - sgn0 * 2. * gasc4 * c0;
-    cx = sgn0 * .5 * gasc1 / gasc2 * ((*xp - *xcen) / *dtt - ri);
-    *uxm = ri + sgn0 * 2. * gasc4 * cx;
-    s = p0 / PetscPowScalar(r0, *gam);
-    d__1 = cx * cx / (*gam * s);
-    *rx = PetscPowScalar(d__1, gasc4);
-    *px = cx * cx * *rx / *gam;
-    d__1 = sgn0 * (x0 - *xp);
-    *rx = cvmgp_(rx, &r0, &d__1);
-    d__1 = sgn0 * (x0 - *xp);
-    *px = cvmgp_(px, &p0, &d__1);
-    d__1 = sgn0 * (x0 - *xp);
-    *uxm = cvmgp_(uxm, &u0, &d__1);
-    d__1 = sgn0 * (xstar - *xp);
-    *rx = cvmgm_(rx, &rstar, &d__1);
-    d__1 = sgn0 * (xstar - *xp);
-    *px = cvmgm_(px, &pstar, &d__1);
-    d__1 = sgn0 * (xstar - *xp);
-    *uxm = cvmgm_(uxm, &ustar, &d__1);
-    if (PetscRealPart(*xp) >= PetscRealPart(x2)) {
-	*utx = *utr;
-	*ubx = *ubr;
-	*rho1 = *rho1r;
-    } else {
-	*utx = *utl;
-	*ubx = *ubl;
-	*rho1 = *rho1l;
-    }
-    return iwave;
+  ri = u0 - sgn0 * 2. * gasc4 * c0;
+  cx = sgn0 * .5 * gasc1 / gasc2 * ((*xp - *xcen) / *dtt - ri);
+  *uxm = ri + sgn0 * 2. * gasc4 * cx;
+  s = p0 / PetscPowScalar(r0, *gam);
+  d__1 = cx * cx / (*gam * s);
+  *rx = PetscPowScalar(d__1, gasc4);
+  *px = cx * cx * *rx / *gam;
+  d__1 = sgn0 * (x0 - *xp);
+  *rx = cvmgp_(rx, &r0, &d__1);
+  d__1 = sgn0 * (x0 - *xp);
+  *px = cvmgp_(px, &p0, &d__1);
+  d__1 = sgn0 * (x0 - *xp);
+  *uxm = cvmgp_(uxm, &u0, &d__1);
+  d__1 = sgn0 * (xstar - *xp);
+  *rx = cvmgm_(rx, &rstar, &d__1);
+  d__1 = sgn0 * (xstar - *xp);
+  *px = cvmgm_(px, &pstar, &d__1);
+  d__1 = sgn0 * (xstar - *xp);
+  *uxm = cvmgm_(uxm, &ustar, &d__1);
+  if (PetscRealPart(*xp) >= PetscRealPart(x2)) {
+    *utx = *utr;
+    *ubx = *ubr;
+    *rho1 = *rho1r;
+  } else {
+    *utx = *utl;
+    *ubx = *ubl;
+    *rho1 = *rho1l;
+  }
+  return iwave;
 }
 int godunovflux( const PetscScalar *ul, const PetscScalar *ur,
                  PetscScalar *flux, const PetscReal *nn, const int *ndim,
@@ -2319,121 +2317,121 @@ int godunovflux( const PetscScalar *ul, const PetscScalar *ur,
 {
     /* System generated locals */
   int i__1,iwave;
-    PetscScalar d__1, d__2, d__3;
+  PetscScalar d__1, d__2, d__3;
 
-    /* Local variables */
-    static int k;
-    static PetscScalar bn[3], fn, ft, tg[3], pl, rl, pm, pr, rr, xp, ubl, ubm,
-	    ubr, dtt, unm, tmp, utl, utm, uxl, utr, uxr, gaml, gamm, gamr,
-	    xcen, rhom, rho1l, rho1m, rho1r;
-    /* Parameter adjustments */
-    --nn;
-    --flux;
-    --ur;
-    --ul;
+  /* Local variables */
+  static int k;
+  static PetscScalar bn[3], fn, ft, tg[3], pl, rl, pm, pr, rr, xp, ubl, ubm,
+    ubr, dtt, unm, tmp, utl, utm, uxl, utr, uxr, gaml, gamm, gamr,
+    xcen, rhom, rho1l, rho1m, rho1r;
+  /* Parameter adjustments */
+  --nn;
+  --flux;
+  --ur;
+  --ul;
 
-    /* Function Body */
-    xcen = 0.;
-    xp = 0.;
-    i__1 = *ndim;
-    for (k = 1; k <= i__1; ++k) {
-	tg[k - 1] = 0.;
-	bn[k - 1] = 0.;
+  /* Function Body */
+  xcen = 0.;
+  xp = 0.;
+  i__1 = *ndim;
+  for (k = 1; k <= i__1; ++k) {
+    tg[k - 1] = 0.;
+    bn[k - 1] = 0.;
+  }
+  dtt = 1.;
+  if (*ndim == 3) {
+    if (nn[1] == 0. && nn[2] == 0.) {
+      tg[0] = 1.;
+    } else {
+      tg[0] = -nn[2];
+      tg[1] = nn[1];
     }
-    dtt = 1.;
-    if (*ndim == 3) {
-	if (nn[1] == 0. && nn[2] == 0.) {
-	    tg[0] = 1.;
-	} else {
-	    tg[0] = -nn[2];
-	    tg[1] = nn[1];
-	}
 /*           tmp=dsqrt(tg(1)**2+tg(2)**2) */
 /*           tg=tg/tmp */
-	bn[0] = -nn[3] * tg[1];
-	bn[1] = nn[3] * tg[0];
-	bn[2] = nn[1] * tg[1] - nn[2] * tg[0];
+    bn[0] = -nn[3] * tg[1];
+    bn[1] = nn[3] * tg[0];
+    bn[2] = nn[1] * tg[1] - nn[2] * tg[0];
 /* Computing 2nd power */
-	d__1 = bn[0];
+    d__1 = bn[0];
 /* Computing 2nd power */
-	d__2 = bn[1];
+    d__2 = bn[1];
 /* Computing 2nd power */
-	d__3 = bn[2];
-	tmp = PetscSqrtScalar(d__1 * d__1 + d__2 * d__2 + d__3 * d__3);
-	i__1 = *ndim;
-	for (k = 1; k <= i__1; ++k) {
-	    bn[k - 1] /= tmp;
-	}
-    } else if (*ndim == 2) {
-	tg[0] = -nn[2];
-	tg[1] = nn[1];
-/*           tmp=dsqrt(tg(1)**2+tg(2)**2) */
-/*           tg=tg/tmp */
-	bn[0] = 0.;
-	bn[1] = 0.;
-	bn[2] = 1.;
-    }
-    rl = ul[1];
-    rr = ur[1];
-    uxl = 0.;
-    uxr = 0.;
-    utl = 0.;
-    utr = 0.;
-    ubl = 0.;
-    ubr = 0.;
+    d__3 = bn[2];
+    tmp = PetscSqrtScalar(d__1 * d__1 + d__2 * d__2 + d__3 * d__3);
     i__1 = *ndim;
     for (k = 1; k <= i__1; ++k) {
-	uxl += ul[k + 1] * nn[k];
-	uxr += ur[k + 1] * nn[k];
-	utl += ul[k + 1] * tg[k - 1];
-	utr += ur[k + 1] * tg[k - 1];
-	ubl += ul[k + 1] * bn[k - 1];
-	ubr += ur[k + 1] * bn[k - 1];
+      bn[k - 1] /= tmp;
     }
-    uxl /= rl;
-    uxr /= rr;
-    utl /= rl;
-    utr /= rr;
-    ubl /= rl;
-    ubr /= rr;
+  } else if (*ndim == 2) {
+    tg[0] = -nn[2];
+    tg[1] = nn[1];
+/*           tmp=dsqrt(tg(1)**2+tg(2)**2) */
+/*           tg=tg/tmp */
+    bn[0] = 0.;
+    bn[1] = 0.;
+    bn[2] = 1.;
+  }
+  rl = ul[1];
+  rr = ur[1];
+  uxl = 0.;
+  uxr = 0.;
+  utl = 0.;
+  utr = 0.;
+  ubl = 0.;
+  ubr = 0.;
+  i__1 = *ndim;
+  for (k = 1; k <= i__1; ++k) {
+    uxl += ul[k + 1] * nn[k];
+    uxr += ur[k + 1] * nn[k];
+    utl += ul[k + 1] * tg[k - 1];
+    utr += ur[k + 1] * tg[k - 1];
+    ubl += ul[k + 1] * bn[k - 1];
+    ubr += ur[k + 1] * bn[k - 1];
+  }
+  uxl /= rl;
+  uxr /= rr;
+  utl /= rl;
+  utr /= rr;
+  ubl /= rl;
+  ubr /= rr;
 
-    gaml = *gamma;
-    gamr = *gamma;
+  gaml = *gamma;
+  gamr = *gamma;
 /* Computing 2nd power */
-    d__1 = uxl;
+  d__1 = uxl;
 /* Computing 2nd power */
-    d__2 = utl;
+  d__2 = utl;
 /* Computing 2nd power */
-    d__3 = ubl;
-    pl = (*gamma - 1.) * (ul[*ndim + 2] - rl * .5 * (d__1 * d__1 + d__2 * d__2 + d__3 * d__3));
+  d__3 = ubl;
+  pl = (*gamma - 1.) * (ul[*ndim + 2] - rl * .5 * (d__1 * d__1 + d__2 * d__2 + d__3 * d__3));
 /* Computing 2nd power */
-    d__1 = uxr;
+  d__1 = uxr;
 /* Computing 2nd power */
-    d__2 = utr;
+  d__2 = utr;
 /* Computing 2nd power */
-    d__3 = ubr;
-    pr = (*gamma - 1.) * (ur[*ndim + 2] - rr * .5 * (d__1 * d__1 + d__2 * d__2 + d__3 * d__3));
-    rho1l = rl;
-    rho1r = rr;
+  d__3 = ubr;
+  pr = (*gamma - 1.) * (ur[*ndim + 2] - rr * .5 * (d__1 * d__1 + d__2 * d__2 + d__3 * d__3));
+  rho1l = rl;
+  rho1r = rr;
 
-    iwave = riemannsolver(&xcen, &xp, &dtt, &rl, &uxl, &pl, &utl, &ubl, &gaml, &
-                          rho1l, &rr, &uxr, &pr, &utr, &ubr, &gamr, &rho1r, &rhom, &unm, &
-                          pm, &utm, &ubm, &gamm, &rho1m);
+  iwave = riemannsolver(&xcen, &xp, &dtt, &rl, &uxl, &pl, &utl, &ubl, &gaml, &
+                        rho1l, &rr, &uxr, &pr, &utr, &ubr, &gamr, &rho1r, &rhom, &unm, &
+                        pm, &utm, &ubm, &gamm, &rho1m);
 
-    flux[1] = rhom * unm;
-    fn = rhom * unm * unm + pm;
-    ft = rhom * unm * utm;
+  flux[1] = rhom * unm;
+  fn = rhom * unm * unm + pm;
+  ft = rhom * unm * utm;
 /*           flux(2)=fn*nn(1)+ft*nn(2) */
 /*           flux(3)=fn*tg(1)+ft*tg(2) */
-    flux[2] = fn * nn[1] + ft * tg[0];
-    flux[3] = fn * nn[2] + ft * tg[1];
+  flux[2] = fn * nn[1] + ft * tg[0];
+  flux[3] = fn * nn[2] + ft * tg[1];
 /*           flux(2)=rhom*unm*(unm)+pm */
 /*           flux(3)=rhom*(unm)*utm */
-    if (*ndim == 3) {
-	flux[4] = rhom * unm * ubm;
-    }
-    flux[*ndim + 2] = (rhom * .5 * (unm * unm + utm * utm + ubm * ubm) + gamm / (gamm - 1.) * pm) * unm;
-    return iwave;
+  if (*ndim == 3) {
+    flux[4] = rhom * unm * ubm;
+  }
+  flux[*ndim + 2] = (rhom * .5 * (unm * unm + utm * utm + ubm * ubm) + gamm / (gamm - 1.) * pm) * unm;
+  return iwave;
 } /* godunovflux_ */
 
 /* Subroutine to set up the initial conditions for the */

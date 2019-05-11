@@ -39,7 +39,7 @@ PetscErrorCode SetPumpHeadCurveParams(Pump *pump)
   PetscFunctionBegin;
   head = pump->headcurve.head;
   flow = pump->headcurve.flow;
-  if(pump->headcurve.npt == 1) {
+  if (pump->headcurve.npt == 1) {
     /* Single point head curve, set the other two data points */
     flow[1] = 0;
     head[1] = 1.33*head[0]; /* 133% of design head -- From EPANET manual */
@@ -66,9 +66,7 @@ PetscErrorCode SetPumpHeadCurveParams(Pump *pump)
   ierr = SNESSolve(snes,NULL,X);CHKERRQ(ierr);
 
   ierr = SNESGetConvergedReason(snes,&reason);CHKERRQ(ierr);
-  if(reason < 0) {
-    SETERRQ(PETSC_COMM_SELF,0,"Pump head curve did not converge\n");
-  }
+  if (reason < 0) SETERRQ(PETSC_COMM_SELF,0,"Pump head curve did not converge\n");
 
   ierr = VecGetArray(X,&x);CHKERRQ(ierr);
   pump->h0 = x[0];
@@ -84,13 +82,13 @@ PetscErrorCode SetPumpHeadCurveParams(Pump *pump)
 
 int LineStartsWith(const char *a, const char *b)
 {
-  if(strncmp(a, b, strlen(b)) == 0) return 1;
+  if (strncmp(a, b, strlen(b)) == 0) return 1;
   return 0;
 }
 
 int CheckDataSegmentEnd(const char *line)
 {
-  if(LineStartsWith(line,"[JUNCTIONS]") || \
+  if (LineStartsWith(line,"[JUNCTIONS]") || \
      LineStartsWith(line,"[RESERVOIRS]") || \
      LineStartsWith(line,"[TANKS]") || \
      LineStartsWith(line,"[PIPES]") || \
@@ -310,15 +308,13 @@ PetscErrorCode WaterReadData(WATERDATA *water,char *filename)
     curve_y  = (PetscScalar)v2;
     /* Check for pump with the curve_id */
     for (j=water->npipe;j < water->npipe+water->npump;j++) {
-      if(water->edge[j].pump.paramid == curve_id) {
-	if(pump->headcurve.npt == 3) {
-	  SETERRQ3(PETSC_COMM_SELF,0,"Pump %d [%d --> %d]: No support for more than 3-pt head-flow curve",pump->id,pump->node1,pump->node2);
-	}
-	pump = &water->edge[j].pump;
-	pump->headcurve.flow[pump->headcurve.npt] = curve_x*GPM_CFS;
-	pump->headcurve.head[pump->headcurve.npt] = curve_y;
-	pump->headcurve.npt++;
-	break;
+      if (water->edge[j].pump.paramid == curve_id) {
+        if (pump->headcurve.npt == 3) SETERRQ3(PETSC_COMM_SELF,0,"Pump %d [%d --> %d]: No support for more than 3-pt head-flow curve",pump->id,pump->node1,pump->node2);
+        pump = &water->edge[j].pump;
+        pump->headcurve.flow[pump->headcurve.npt] = curve_x*GPM_CFS;
+        pump->headcurve.head[pump->headcurve.npt] = curve_y;
+        pump->headcurve.npt++;
+        break;
       }
     }
   }
