@@ -60,7 +60,7 @@ PetscErrorCode PFReadMatPowerData(PFDATA *pf,char *filename)
   ierr = PetscCalloc1(pf->nbranch,&pf->branch);CHKERRQ(ierr);
   Bus = pf->bus; Gen = pf->gen; Load = pf->load; Branch = pf->branch;
 
-  for(i=0; i < pf->nbus; i++) {
+  for (i=0; i < pf->nbus; i++) {
     pf->bus[i].ngen = pf->bus[i].nload = 0;
   }
 
@@ -129,7 +129,7 @@ PetscErrorCode PFReadMatPowerData(PFDATA *pf,char *filename)
       Branch[bri].rateA = rateA; Branch[bri].rateB = rateB; Branch[bri].rateC = rateC;
       Branch[bri].tapratio = tapratio; Branch[bri].phaseshift = phaseshift;
 
-      if(Branch[bri].tapratio == 0.0) Branch[bri].tapratio = 1.0;
+      if (Branch[bri].tapratio == 0.0) Branch[bri].tapratio = 1.0;
       Branch[bri].phaseshift *= PETSC_PI/180.0;
 
       intbusnum = busext2intmap[Branch[bri].fbus];

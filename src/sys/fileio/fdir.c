@@ -39,7 +39,7 @@ PetscErrorCode PetscMkdir(const char dir[])
 #else
   err = mkdir(dir,S_IRWXU|S_IRGRP|S_IXGRP);
 #endif
-  if(err) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Could not create dir: %s",dir);
+  if (err) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Could not create dir: %s",dir);
   PetscFunctionReturn(0);
 }
 
@@ -96,7 +96,7 @@ PetscErrorCode PetscRMTree(const char dir[])
 
   PetscFunctionBegin;
   dirp = opendir(dir);
-  if(!dirp) {
+  if (!dirp) {
     PetscBool flg;
     ierr = PetscTestDirectory(dir,'r',&flg);CHKERRQ(ierr);
     if (flg) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Cannot access directory to delete: %s",dir);

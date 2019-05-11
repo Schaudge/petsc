@@ -101,7 +101,7 @@ static PetscErrorCode TSStep_EIMEX(TS ts)
   }
 
   for (i=1;i<ns;i++){
-    for(j=i;j<ns;j++){
+    for (j=i;j<ns;j++){
       alpha = -(PetscReal)ext->N[j]/ext->N[j-i];
       ierr  = VecAXPBYPCZ(T[Map(j,i,ns)],alpha,1.0,0,T[Map(j,i-1,ns)],T[Map(j-1,i-1,ns)]);/* T[j][i]=alpha*T[j][i-1]+T[j-1][i-1] */CHKERRQ(ierr);
       alpha = 1.0/(1.0 + alpha);
@@ -122,8 +122,8 @@ static PetscErrorCode TSStep_EIMEX(TS ts)
         ext->nstages++; ext->row_ind++; ext->col_ind++;
         /*T table need to be recycled*/
         ierr = VecDuplicateVecs(ts->vec_sol,(1+ext->nstages)*ext->nstages/2,&ext->T);CHKERRQ(ierr);
-        for(i=0; i<ext->nstages-1; i++){
-          for(j=0; j<=i; j++){
+        for (i=0; i<ext->nstages-1; i++){
+          for (j=0; j<=i; j++){
             ierr = VecCopy(T[Map(i,j,ext->nstages-1)],ext->T[Map(i,j,ext->nstages)]);CHKERRQ(ierr);
           }
         }
@@ -132,7 +132,7 @@ static PetscErrorCode TSStep_EIMEX(TS ts)
         /*recycling finished, store the new solution*/
         ierr = VecCopy(Y,T[ext->nstages-1]);CHKERRQ(ierr);
         /*extrapolation for the newly added stage*/
-        for(i=1;i<ext->nstages;i++){
+        for (i=1;i<ext->nstages;i++){
           alpha = -(PetscReal)ext->N[ext->nstages-1]/ext->N[ext->nstages-1-i];
           ierr  = VecAXPBYPCZ(T[Map(ext->nstages-1,i,ext->nstages)],alpha,1.0,0,T[Map(ext->nstages-1,i-1,ext->nstages)],T[Map(ext->nstages-1-1,i-1,ext->nstages)]);/*T[ext->nstages-1][i]=alpha*T[ext->nstages-1][i-1]+T[ext->nstages-1-1][i-1]*/CHKERRQ(ierr);
           alpha = 1.0/(1.0 + alpha);
@@ -506,7 +506,7 @@ static PetscErrorCode TSEIMEXSetMaxRows_EIMEX(TS ts,PetscInt nrows)
   ierr = PetscFree(ext->N);CHKERRQ(ierr);
   ext->max_rows = nrows;
   ierr = PetscMalloc1(nrows,&ext->N);CHKERRQ(ierr);
-  for(i=0;i<nrows;i++) ext->N[i]=i+1;
+  for (i=0;i<nrows;i++) ext->N[i]=i+1;
   PetscFunctionReturn(0);
 }
 

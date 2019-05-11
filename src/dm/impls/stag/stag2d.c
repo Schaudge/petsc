@@ -102,8 +102,8 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_2d(DM dm,PetscRe
   h[0] = (xmax-xmin)/stagCoord->N[0];
   h[1] = (ymax-ymin)/stagCoord->N[1];
 
-  for(ind[1]=start[1]; ind[1]<start[1] + n[1] + nExtra[1]; ++ind[1]) {
-    for(ind[0]=start[0]; ind[0]<start[0] + n[0] + nExtra[0]; ++ind[0]) {
+  for (ind[1]=start[1]; ind[1]<start[1] + n[1] + nExtra[1]; ++ind[1]) {
+    for (ind[0]=start[0]; ind[0]<start[0] + n[0] + nExtra[0]; ++ind[0]) {
       if (stagCoord->dof[0]) {
         const PetscReal offs[2] = {0.0,0.0};
         for (c=0; c<2; ++c) {
@@ -170,7 +170,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
      Order is x-fast, as usual */
     stag->rank[0] = rank % stag->nRanks[0];
     stag->rank[1] = rank / stag->nRanks[0];
-    for(i=0; i<dim; ++i) {
+    for (i=0; i<dim; ++i) {
       stag->firstRank[i] = PetscNot(stag->rank[i]);
       stag->lastRank[i]  = (PetscBool)(stag->rank[i] == stag->nRanks[i]-1);
     }
@@ -205,7 +205,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
   /* Compute starting elements */
   for (i=0; i<dim; ++i) {
     stag->start[i] = 0;
-    for(j=0;j<stag->rank[i];++j){
+    for (j=0;j<stag->rank[i];++j){
       stag->start[i] += stag->l[i][j];
     }
   }

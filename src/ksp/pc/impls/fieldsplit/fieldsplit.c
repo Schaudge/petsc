@@ -1792,7 +1792,7 @@ static PetscErrorCode  PCFieldSplitRestrictIS_FieldSplit(PC pc, IS isy)
     ierr          = ISDestroy(&isr);CHKERRQ(ierr);
     ierr          = KSPGetPC(ilink->ksp, &subpc);CHKERRQ(ierr);
     ierr          = PetscObjectTypeCompare((PetscObject)subpc,PCFIELDSPLIT,&flg);CHKERRQ(ierr);
-    if(flg) {
+    if (flg) {
       IS iszl,isz;
       MPI_Comm comm;
       ierr   = ISGetLocalSize(ilink->is,&localsize);CHKERRQ(ierr);
@@ -2924,7 +2924,7 @@ PetscErrorCode  PCFieldSplitGetDMSplits(PC pc,PetscBool* flg)
   PetscValidPointer(flg,2);
   ierr = PetscObjectTypeCompare((PetscObject)pc,PCFIELDSPLIT,&isfs);CHKERRQ(ierr);
   if (isfs) {
-    if(flg) *flg = jac->dm_splits;
+    if (flg) *flg = jac->dm_splits;
   }
   PetscFunctionReturn(0);
 }

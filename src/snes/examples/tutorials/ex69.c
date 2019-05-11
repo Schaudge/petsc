@@ -2791,7 +2791,7 @@ static PetscErrorCode SolCxSolution(const PetscReal pos[], PetscReal m, PetscInt
   /****************************************************************************************/
   /****************************************************************************************/
 
-  if(x>xc) {
+  if (x>xc) {
     _PC1=_PC1B; _PC2=_PC2B; _PC3=_PC3B; _PC4=_PC4B; Z=ZB;
   }
   else {

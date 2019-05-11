@@ -344,7 +344,7 @@ PetscErrorCode MatPartitioningSetFromOptions_Parmetis(PetscOptionItems *PetscOpt
     ierr = MatPartitioningParmetisSetCoarseSequential(part);CHKERRQ(ierr);
   }
   ierr = PetscOptionsBool("-mat_partitioning_parmetis_repartition","","MatPartitioningParmetisSetRepartition",flag,&flag,NULL);CHKERRQ(ierr);
-  if(flag){
+  if (flag){
     ierr =  MatPartitioningParmetisSetRepartition(part);CHKERRQ(ierr);
   }
   ierr = PetscOptionsTail();CHKERRQ(ierr);

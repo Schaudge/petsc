@@ -358,7 +358,7 @@ static PetscErrorCode DMView_Stag(DM dm,PetscViewer viewer)
       ierr = PetscViewerASCIIPrintf(viewer," %D:%D",i,stag->dof[i]);CHKERRQ(ierr);
     }
     ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-    if(dm->coordinateDM) {
+    if (dm->coordinateDM) {
       ierr = PetscViewerASCIIPrintf(viewer,"Has coordinate DM\n");CHKERRQ(ierr);
     }
     maxRanksToView = 16;

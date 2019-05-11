@@ -337,7 +337,7 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
     }
   }
 
-  if(!pc->setupcalled){
+  if (!pc->setupcalled){
     /* Create the local work vectors (from the local matrices) and scatter contexts */
     ierr = MatCreateVecs(pc->pmat,&vec,0);CHKERRQ(ierr);
 
@@ -477,7 +477,7 @@ static PetscErrorCode PCApply_ASM(PC pc,Vec x,Vec y)
     reverse = SCATTER_REVERSE_LOCAL;
   }
 
-  if(osm->loctype == PC_COMPOSITE_MULTIPLICATIVE || osm->loctype == PC_COMPOSITE_ADDITIVE){
+  if (osm->loctype == PC_COMPOSITE_MULTIPLICATIVE || osm->loctype == PC_COMPOSITE_ADDITIVE){
     /* zero the global and the local solutions */
     ierr = VecZeroEntries(y);CHKERRQ(ierr);
     ierr = VecSet(osm->ly, 0.0);CHKERRQ(ierr);
@@ -700,7 +700,7 @@ static PetscErrorCode PCSetFromOptions_ASM(PetscOptionItems *PetscOptionsObject,
   ierr = PetscOptionsEnum("-pc_asm_local_type","Type of local solver composition","PCASMSetLocalType",PCCompositeTypes,(PetscEnum)osm->loctype,(PetscEnum*)&loctype,&flg);CHKERRQ(ierr);
   if (flg) {ierr = PCASMSetLocalType(pc,loctype);CHKERRQ(ierr); }
   ierr = PetscOptionsFList("-pc_asm_sub_mat_type","Subsolve Matrix Type","PCASMSetSubMatType",MatList,NULL,sub_mat_type,256,&flg);CHKERRQ(ierr);
-  if(flg){
+  if (flg){
     ierr = PCASMSetSubMatType(pc,sub_mat_type);CHKERRQ(ierr);
   }
   ierr = PetscOptionsTail();CHKERRQ(ierr);

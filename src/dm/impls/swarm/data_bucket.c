@@ -140,7 +140,7 @@ PetscErrorCode DMSwarmDataBucketRegisterField(
   PetscFunctionBegin;
         /* check we haven't finalised the registration of fields */
         /*
-   if(db->finalised==PETSC_TRUE) {
+   if (db->finalised==PETSC_TRUE) {
    printf("ERROR: DMSwarmDataBucketFinalize() has been called. Cannot register more fields\n");
    ERROR();
    }
@@ -374,7 +374,7 @@ PetscErrorCode DMSwarmDataFieldAccessPointOffset(const DMSwarmDataField gfield,c
 #if defined(DMSWARM_DATAFIELD_POINT_ACCESS_GUARD)
   /* debug mode */
   /* check point is valid */
-  /* if( offset < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"offset must be >= 0");*/
+  /* if ( offset < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"offset must be >= 0");*/
   /* Note compiler realizes this can never happen with an unsigned PetscInt */
   if (offset >= gfield->atomic_size) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"offset must be < %zu",gfield->atomic_size);
   /* check point is valid */
@@ -532,7 +532,7 @@ PetscErrorCode DMSwarmDataFieldCopyPoint(const PetscInt pid_x,const DMSwarmDataF
   if (pid_x >= field_x->L) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"(IN) index must be < %D",field_x->L);
   if (pid_y < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be >= 0");
   if (pid_y >= field_y->L) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"(OUT) index must be < %D",field_y->L);
-  if( field_y->atomic_size != field_x->atomic_size) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"atomic size must match");
+  if ( field_y->atomic_size != field_x->atomic_size) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"atomic size must match");
 #endif
   ierr = PetscMemcpy(DMSWARM_DATAFIELD_point_access(field_y->data,pid_y,field_y->atomic_size),DMSWARM_DATAFIELD_point_access(field_x->data,pid_x,field_x->atomic_size),field_y->atomic_size);CHKERRQ(ierr);
   PetscFunctionReturn(0);

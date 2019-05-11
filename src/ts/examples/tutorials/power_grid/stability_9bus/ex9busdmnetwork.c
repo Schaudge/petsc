@@ -398,7 +398,7 @@ PetscErrorCode SetInitialGuess(DM networkdm, Vec X)
 
         Vr = bus->vr;
         Vi = bus->vi;
-      } else if(key == 2) {
+      } else if (key == 2) {
         gen = (Gen*)(component);
 
         Vm  = PetscSqrtScalar(Vr*Vr + Vi*Vi);

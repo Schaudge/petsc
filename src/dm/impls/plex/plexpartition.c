@@ -2979,10 +2979,10 @@ PetscErrorCode DMPlexRebalanceSharedPoints(DM dm, PetscInt entityDepth, PetscBoo
       PetscMPIInt *counts, *mpiCumSumVertices;
       ierr = PetscMalloc1(size, &counts);CHKERRQ(ierr);
       ierr = PetscMalloc1(size+1, &mpiCumSumVertices);CHKERRQ(ierr);
-      for(i=0; i<size; i++) {
+      for (i=0; i<size; i++) {
         ierr = PetscMPIIntCast(cumSumVertices[i+1] - cumSumVertices[i], &(counts[i]));CHKERRQ(ierr);
       }
-      for(i=0; i<=size; i++) {
+      for (i=0; i<=size; i++) {
         ierr = PetscMPIIntCast(cumSumVertices[i], &(mpiCumSumVertices[i]));CHKERRQ(ierr);
       }
       ierr = MPI_Scatterv(partGlobal, counts, mpiCumSumVertices, MPIU_INT, part, counts[rank], MPIU_INT, 0, comm);CHKERRQ(ierr);
@@ -3070,7 +3070,7 @@ PetscErrorCode DMPlexRebalanceSharedPoints(DM dm, PetscInt entityDepth, PetscBoo
     PetscInt *pointsToRewrite;
     ierr = PetscMalloc1(numNonExclusivelyOwned, &pointsToRewrite);CHKERRQ(ierr);
     counter = 0;
-    for(i=0; i<pEnd-pStart; i++) {
+    for (i=0; i<pEnd-pStart; i++) {
       if (toBalance[i]) {
         if (isNonExclusivelyOwned[i]) {
           pointsToRewrite[counter] = i + pStart;

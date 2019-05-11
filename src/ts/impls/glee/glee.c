@@ -1097,10 +1097,10 @@ PetscErrorCode TSGetTimeError_GLEE(TS ts,PetscInt n,Vec *X)
 
   PetscFunctionBegin;
   ierr = VecZeroEntries(*X);CHKERRQ(ierr);
-  if(n==0){
+  if (n==0){
     for (i=0; i<r; i++) wr[i] = F[i];
     ierr = VecMAXPY((*X),r,wr,Y);CHKERRQ(ierr);
-  } else if(n==-1) {
+  } else if (n==-1) {
     *X=glee->yGErr;
   }
   PetscFunctionReturn(0);

@@ -1797,7 +1797,7 @@ static PetscErrorCode TSTrajectorySetUp_Memory(TSTrajectory tj,TS ts)
       if (fixedtimestep) stack->stacksize = stack->solution_only ? tjsch->total_steps : tjsch->total_steps-1;
       else { /* adaptive time step */
         /* if max_cps_ram is not specified, use maximal allowed number of steps for stack size */
-        if(tjsch->max_cps_ram == -1) stack->stacksize = ts->max_steps < PETSC_MAX_INT ? ts->max_steps : 10000;
+        if (tjsch->max_cps_ram == -1) stack->stacksize = ts->max_steps < PETSC_MAX_INT ? ts->max_steps : 10000;
         tjsch->total_steps = stack->solution_only ? stack->stacksize : stack->stacksize+1; /* will be updated as time integration advances */
       }
     }

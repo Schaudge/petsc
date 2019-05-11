@@ -58,7 +58,7 @@ static PetscErrorCode    KSPSetUp_FCG(KSP ksp)
   ierr = PetscLogObjectMemory((PetscObject)ksp,2*(fcg->mmax+1)*sizeof(Vec*) + 2*(fcg->mmax + 1)*sizeof(Vec**) + (fcg->mmax + 2)*sizeof(PetscInt));CHKERRQ(ierr);
 
   /* If the requested number of preallocated vectors is greater than mmax reduce nprealloc */
-  if(fcg->nprealloc > fcg->mmax+1){
+  if (fcg->nprealloc > fcg->mmax+1){
     ierr = PetscInfo2(NULL,"Requested nprealloc=%d is greater than m_max+1=%d. Resetting nprealloc = m_max+1.\n",fcg->nprealloc, fcg->mmax+1);CHKERRQ(ierr);
   }
 
@@ -146,7 +146,7 @@ static PetscErrorCode KSPSolve_FCG(KSP ksp)
   if (ksp->reason) PetscFunctionReturn(0);
 
   /* Apply PC if not already done for convergence check */
-  if(ksp->normtype == KSP_NORM_UNPRECONDITIONED || ksp->normtype == KSP_NORM_NONE){
+  if (ksp->normtype == KSP_NORM_UNPRECONDITIONED || ksp->normtype == KSP_NORM_NONE){
     ierr = KSP_PCApply(ksp,R,Z);CHKERRQ(ierr);               /*   z <- Br         */
   }
 
@@ -188,13 +188,13 @@ static PetscErrorCode KSPSolve_FCG(KSP ksp)
         PetscScalar *dots;
 
         ierr = PetscMalloc3(ndots,&dots,ndots,&Cold,ndots,&Pold);CHKERRQ(ierr);
-        for(k=l,j=0;j<ndots;++k,++j){
+        for (k=l,j=0;j<ndots;++k,++j){
           idx = k % (fcg->mmax+1);
           Cold[j] = fcg->Cvecs[idx];
           Pold[j] = fcg->Pvecs[idx];
         }
         ierr = VecXMDot(Z,ndots,Cold,dots);CHKERRQ(ierr);
-        for(k=0;k<ndots;++k){
+        for (k=0;k<ndots;++k){
           dots[k] = -dots[k];
         }
         ierr = VecMAXPY(Pcurr,ndots,dots,Pold);CHKERRQ(ierr);
@@ -244,7 +244,7 @@ static PetscErrorCode KSPSolve_FCG(KSP ksp)
     if (ksp->reason) break;
 
     /* Apply PC if not already done for convergence check */
-    if(ksp->normtype == KSP_NORM_UNPRECONDITIONED || ksp->normtype == KSP_NORM_NONE){
+    if (ksp->normtype == KSP_NORM_UNPRECONDITIONED || ksp->normtype == KSP_NORM_NONE){
       ierr = KSP_PCApply(ksp,R,Z);CHKERRQ(ierr);               /*   z <- Br         */
     }
 
@@ -406,7 +406,7 @@ PetscErrorCode KSPFCGSetNprealloc(KSP ksp,PetscInt nprealloc)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ksp,KSP_CLASSID,1);
   PetscValidLogicalCollectiveEnum(ksp,nprealloc,2);
-  if(nprealloc > fcg->mmax+1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Cannot preallocate more than m_max+1 vectors");
+  if (nprealloc > fcg->mmax+1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Cannot preallocate more than m_max+1 vectors");
   fcg->nprealloc = nprealloc;
   PetscFunctionReturn(0);
 }

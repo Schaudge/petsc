@@ -306,7 +306,7 @@ static PetscErrorCode RHSFunction1(TS ts,PetscReal t,Vec V,Vec Posres,void *ctx)
   Np  /= dim;
 
   for (p = 0; p < Np; ++p) {
-     for(d = 0; d < dim; ++d){
+     for (d = 0; d < dim; ++d){
        posres[p*dim+d] = v[p*dim+d];
      }
   }
@@ -335,10 +335,10 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   Np/=dim;
   
-  for(p = 0; p < Np; ++p){
+  for (p = 0; p < Np; ++p){
     rsqr = 0;
-    for(d = 0; d < dim; ++d) rsqr += PetscSqr(x[p*dim+d]);
-    for(d=0; d< dim; ++d){
+    for (d = 0; d < dim; ++d) rsqr += PetscSqr(x[p*dim+d]);
+    for (d=0; d< dim; ++d){
        vres[p*dim+d] = (1000./(p+1.))*(-x[p*dim+d])/rsqr;
     }
   }
@@ -365,10 +365,10 @@ static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *c
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   Np /= 2*dim;
   
-  for( p = 0; p < Np; ++p){
+  for ( p = 0; p < Np; ++p){
     rsqr = 0;
-    for(d=0; d < dim; ++d) rsqr += PetscSqr(u[p*2*dim+d]);
-    for(d=0; d < dim; ++d){
+    for (d=0; d < dim; ++d) rsqr += PetscSqr(u[p*2*dim+d]);
+    for (d=0; d < dim; ++d){
         r[p*2*dim+d] = u[p*2*dim+d+2];
         r[p*2*dim+d+2] = (-1.*1000./(1.+p))*u[p*2*dim+d]/rsqr;
     }
@@ -452,7 +452,7 @@ int main(int argc,char **argv)
   ierr = PetscPrintf(comm,"%s at time %g after %D steps\n",TSConvergedReasons[reason],(double)ftime,steps);CHKERRQ(ierr);
   
   ierr = VecGetArrayRead(f, &endVals);CHKERRQ(ierr);
-  for(p = 0; p < Np; ++p){
+  for (p = 0; p < Np; ++p){
     vx = endVals[p*2*dim+2];
     vy = endVals[p*2*dim+3];
     ierr = PetscPrintf(comm, "Particle %D initial Energy: %g  Final Energy: %g\n", p,(double) (0.5*(1000./(p+1))),(double) (0.5*(PetscSqr(vx) + PetscSqr(vy))));CHKERRQ(ierr);

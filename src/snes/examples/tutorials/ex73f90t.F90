@@ -228,7 +228,7 @@
 !  Set fake B and C
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       one    = 1.0
-      if( N2 .gt. 0) then
+      if ( N2 .gt. 0) then
          bval(1) = -one/(solver%mx-2)
 !     cval = -one/(solver%my*solver%mx)
          cval(1) = -one
@@ -596,15 +596,15 @@
 !     interior grid points
          else
             v(1) = -hy2inv
-            if(j-1==0) v(1) = 0.0
+            if (j-1==0) v(1) = 0.0
             v(2) = -hx2inv
-            if(i-1==0) v(2) = 0.0
+            if (i-1==0) v(2) = 0.0
             v(3) = two*(hx2inv + hy2inv) 
-            if(add_nl_term) v(3) = v(3) - sc*exp(lx_v(ii))
+            if (add_nl_term) v(3) = v(3) - sc*exp(lx_v(ii))
             v(4) = -hx2inv
-            if(i+1==solver%mx-1) v(4) = 0.0
+            if (i+1==solver%mx-1) v(4) = 0.0
             v(5) = -hy2inv
-            if(j+1==solver%my-1) v(5) = 0.0
+            if (j+1==solver%my-1) v(5) = 0.0
             col(1) = irow - solver%mx
             col(2) = irow - 1
             col(3) = irow

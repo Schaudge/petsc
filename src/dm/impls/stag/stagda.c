@@ -148,7 +148,7 @@ static PetscErrorCode DMStagDMDAGetExtraPoints(DM dm,DMStagStencilLocation locCa
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMSTAG);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = DMStagGetCorners(dm,NULL,NULL,NULL,NULL,NULL,NULL,&nExtra[0],&nExtra[1],&nExtra[2]);CHKERRQ(ierr);
-  for(d=0; d<dim; ++d) extraPoint[d] = 0;
+  for (d=0; d<dim; ++d) extraPoint[d] = 0;
   switch (locCanonical) {
     case DMSTAG_ELEMENT:
       break; /* no extra points */

@@ -19,8 +19,8 @@ PETSC_EXTERN void PETSC_STDCALL matcreatenest_(MPI_Fint *comm,PetscInt *nr,IS is
   CHKFORTRANNULLOBJECT(is_row);
   CHKFORTRANNULLOBJECT(is_col);
 
-  *ierr = PetscMalloc1((*nr)*(*nc), &m); if(*ierr) return;
-  for(i=0; i<(*nr)*(*nc); i++) {
+  *ierr = PetscMalloc1((*nr)*(*nc), &m); if (*ierr) return;
+  for (i=0; i<(*nr)*(*nc); i++) {
     tmp = &(a[i]);
     CHKFORTRANNULLOBJECT(tmp);
     m[i] = (tmp == NULL ? NULL : a[i]);

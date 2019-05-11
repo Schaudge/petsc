@@ -319,7 +319,7 @@ static PetscErrorCode RHSFunction2(TS ts,PetscReal t,Vec X,Vec Vres,void *ctx)
   ierr = VecGetArray(Vres,&vres);CHKERRQ(ierr);
   ierr = VecGetLocalSize(Vres, &Np);CHKERRQ(ierr);
 
-  for(p = 0; p < Np; ++p){
+  for (p = 0; p < Np; ++p){
     vres[p] = -user->omega*user->omega*x[p];
   }
 
@@ -344,7 +344,7 @@ static PetscErrorCode RHSFunctionParticles(TS ts,PetscReal t,Vec U,Vec R,void *c
   ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
   Np  /= 2;
 
-  for(p = 0; p < Np; ++p){
+  for (p = 0; p < Np; ++p){
     r[p*2+0] = u[p*2+1];
     r[p*2+1] = -user->omega*user->omega*u[p*2+0];
   }
@@ -369,7 +369,7 @@ static PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal t,Vec U,void *ctx)
     ierr = VecGetLocalSize(U, &Np);CHKERRQ(ierr);
     Np /= 2;
 
-    for(p = 0; p < Np; ++p){
+    for (p = 0; p < Np; ++p){
       ierr = PetscPrintf(PETSC_COMM_WORLD,"Energy: %g\n",(double) (u[p*2+1]*u[p*2+1]+user->omega*user->omega*u[p*2]*u[p*2])/2.);CHKERRQ(ierr);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"Modified energy: %g\n", (double) (u[p*2+1]*u[p*2+1]+user->omega*user->omega*u[p*2]*u[p*2]-user->omega*user->omega*dt*u[p*2]*u[p*2+1])/2.);CHKERRQ(ierr);
     }

@@ -449,7 +449,7 @@ static PetscErrorCode PCSetUp_GASM(PC pc)
     }
     ierr = ISCreateGeneral(((PetscObject)(pc))->comm,on,oidx,PETSC_OWN_POINTER,&gois);CHKERRQ(ierr);
     nTotalInnerIndices = 0;
-    for(i=0; i<osm->n; i++){
+    for (i=0; i<osm->n; i++){
       ierr = ISGetLocalSize(osm->iis[i],&nInnerIndices);CHKERRQ(ierr);
       nTotalInnerIndices += nInnerIndices;
     }

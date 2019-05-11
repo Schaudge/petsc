@@ -978,12 +978,12 @@ PetscErrorCode TSAdaptCheckStage(TSAdapt adapt,TS ts,PetscReal t,Vec Y,PetscBool
   } else {
     *accept = PETSC_TRUE;
     ierr = TSFunctionDomainError(ts,t,Y,accept);CHKERRQ(ierr);
-    if(*accept && adapt->checkstage) {
+    if (*accept && adapt->checkstage) {
       ierr = (*adapt->checkstage)(adapt,ts,t,Y,accept);CHKERRQ(ierr);
     }
   }
 
-  if(!(*accept) && !ts->reason) {
+  if (!(*accept) && !ts->reason) {
     PetscReal dt,new_dt;
     ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
     new_dt = dt * adapt->scale_solve_failed;

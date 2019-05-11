@@ -62,7 +62,7 @@ int main(int argc,char **argv)
   ierr = DMStagGetBoundaryTypes(dm,&boundaryTypex,&boundaryTypey,NULL);CHKERRQ(ierr);
   if (boundaryTypex == DM_BOUNDARY_PERIODIC && boundaryTypey == DM_BOUNDARY_PERIODIC) {
     ierr = VecGetArray(vec,&a);CHKERRQ(ierr);
-    expected = 1.0; for(d=0;d<2;++d) expected *= (2*stencilWidth+1);
+    expected = 1.0; for (d=0;d<2;++d) expected *= (2*stencilWidth+1);
     for (i=0; i<ny*nx*dofTotal; ++i) {
       if (a[i] != expected) {
         ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] Unexpected value %g (expecting %g)\n",rank,a[i],expected);CHKERRQ(ierr);

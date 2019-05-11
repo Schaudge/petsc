@@ -41,7 +41,7 @@ PetscErrorCode TSSetRHSJacobianP(TS ts,Mat Amat,PetscErrorCode (*func)(TS,PetscR
 
   ts->rhsjacobianp    = func;
   ts->rhsjacobianpctx = ctx;
-  if(Amat) {
+  if (Amat) {
     ierr = PetscObjectReference((PetscObject)Amat);CHKERRQ(ierr);
     ierr = MatDestroy(&ts->Jacprhs);CHKERRQ(ierr);
     ts->Jacprhs = Amat;
@@ -152,7 +152,7 @@ PetscErrorCode TSSetIJacobianP(TS ts,Mat Amat,PetscErrorCode (*func)(TS,PetscRea
 
   ts->ijacobianp    = func;
   ts->ijacobianpctx = ctx;
-  if(Amat) {
+  if (Amat) {
     ierr = PetscObjectReference((PetscObject)Amat);CHKERRQ(ierr);
     ierr = MatDestroy(&ts->Jacp);CHKERRQ(ierr);
     ts->Jacp = Amat;
@@ -1189,7 +1189,7 @@ PetscErrorCode TSAdjointSetRHSJacobian(TS ts,Mat Amat,PetscErrorCode (*func)(TS,
 
   ts->rhsjacobianp    = func;
   ts->rhsjacobianpctx = ctx;
-  if(Amat) {
+  if (Amat) {
     ierr = PetscObjectReference((PetscObject)Amat);CHKERRQ(ierr);
     ierr = MatDestroy(&ts->Jacp);CHKERRQ(ierr);
     ts->Jacp = Amat;

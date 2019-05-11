@@ -3646,9 +3646,9 @@ PetscErrorCode DMPlexCreateSubpointIS(DM dm, IS *subpointIS)
     ierr = DMGetWorkArray(dm, depth+1, MPIU_INT, &depths);CHKERRQ(ierr);
     depths[0] = depth;
     depths[1] = 0;
-    for(d = 2; d <= depth; ++d) {depths[d] = depth+1 - d;}
+    for (d = 2; d <= depth; ++d) {depths[d] = depth+1 - d;}
     ierr = PetscMalloc1(pEnd, &points);CHKERRQ(ierr);
-    for(d = 0, off = 0; d <= depth; ++d) {
+    for (d = 0, off = 0; d <= depth; ++d) {
       const PetscInt dep = depths[d];
 
       ierr = DMPlexGetDepthStratum(dm, dep, &depStart, &depEnd);CHKERRQ(ierr);
@@ -3659,17 +3659,17 @@ PetscErrorCode DMPlexCreateSubpointIS(DM dm, IS *subpointIS)
         if (!n) {
           if (d == 0) {
             /* Missing cells */
-            for(p = 0; p < depEnd-depStart; ++p, ++off) points[off] = -1;
+            for (p = 0; p < depEnd-depStart; ++p, ++off) points[off] = -1;
           } else {
             /* Missing faces */
-            for(p = 0; p < depEnd-depStart; ++p, ++off) points[off] = PETSC_MAX_INT;
+            for (p = 0; p < depEnd-depStart; ++p, ++off) points[off] = PETSC_MAX_INT;
           }
         }
       }
       if (n) {
         ierr = DMLabelGetStratumIS(subpointMap, dep, &is);CHKERRQ(ierr);
         ierr = ISGetIndices(is, &opoints);CHKERRQ(ierr);
-        for(p = 0; p < n; ++p, ++off) points[off] = opoints[p];
+        for (p = 0; p < n; ++p, ++off) points[off] = opoints[p];
         ierr = ISRestoreIndices(is, &opoints);CHKERRQ(ierr);
         ierr = ISDestroy(&is);CHKERRQ(ierr);
       }

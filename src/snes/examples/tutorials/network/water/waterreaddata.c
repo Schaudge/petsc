@@ -16,7 +16,7 @@ PetscErrorCode PumpHeadCurveResidual(SNES snes,Vec X, Vec F,void *ctx)
   ierr = VecGetArray(F,&f);CHKERRQ(ierr);
 
   f[0] = f[1] = f[2] = 0;
-  for(i=0; i < pump->headcurve.npt;i++) {
+  for (i=0; i < pump->headcurve.npt;i++) {
     f[0] +=   x[0] - x[1]*PetscPowScalar(flow[i],x[2]) - head[i]; /* Partial w.r.t x[0] */
     f[1] +=  (x[0] - x[1]*PetscPowScalar(flow[i],x[2]) - head[i])*-1*PetscPowScalar(flow[i],x[2]); /*Partial w.r.t x[1] */
     f[2] +=  (x[0] - x[1]*PetscPowScalar(flow[i],x[2]) - head[i])*-1*x[1]*x[2]*PetscPowScalar(flow[i],x[2]-1); /*Partial w.r.t x[2] */
@@ -322,7 +322,7 @@ PetscErrorCode WaterReadData(WATERDATA *water,char *filename)
   fclose(fp);
 
   /* Get pump curve parameters */
-  for(j=water->npipe;j < water->npipe+water->npump;j++) {
+  for (j=water->npipe;j < water->npipe+water->npump;j++) {
     pump = &water->edge[j].pump;
     if (strcmp(pump->param,"HEAD") == 0) {
       /* Head-flow curve */

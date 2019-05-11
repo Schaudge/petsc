@@ -575,7 +575,7 @@ static PetscErrorCode PetscDualSpaceGetSymmetries_Lagrange(PetscDualSpace sp, co
         for (q = 0; q < closureSize; q++) {
           PetscInt point = closure[2*q], r;
 
-          if(!seen[point]) {
+          if (!seen[point]) {
             for (r = 0; r < KclosureSize; r++) {
               if (Kclosure[2 * r] == point) break;
             }

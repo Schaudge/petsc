@@ -223,7 +223,7 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
 
       /* Solve the algebraic equations */
       ierr = SNESSolve(user->snes_alg,NULL,X);CHKERRQ(ierr);
-    } else if(event_list[i] == 1) {
+    } else if (event_list[i] == 1) {
       /* Remove the fault */
       row_loc = 2*user->faultbus; col_loc = 2*user->faultbus+1;
       val     = -1/user->Rfault;
@@ -258,7 +258,7 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
         if (VRatmin[i]) {
           fvalue =  (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
 
-          if(fvalue > 0) {
+          if (fvalue > 0) {
             VRatmin[i] = 0;
             ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went positive on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
           }
@@ -511,8 +511,8 @@ PetscErrorCode ResidualFunction(Vec X, Vec F, Userctx *user)
     /* Exciter differential equations */
     fgen[idx+6] = (-KE[i]*Efd - SE + VR)/TE[i];
     fgen[idx+7] = (-RF + KF[i]*Efd/TF[i])/TF[i];
-    if(VRatmax[i]) fgen[idx+8] = VR - VRMAX[i];
-    else if(VRatmin[i]) fgen[idx+8] = VRMIN[i] - VR;
+    if (VRatmax[i]) fgen[idx+8] = VR - VRMAX[i];
+    else if (VRatmin[i]) fgen[idx+8] = VRMIN[i] - VR;
     else fgen[idx+8] = (-VR + KA[i]*RF - KA[i]*KF[i]*Efd/TF[i] + KA[i]*(Vref[i] - Vm))/TA[i];
 
     idx = idx + 9;
@@ -836,10 +836,10 @@ PetscErrorCode ResidualJacobian(Vec X,Mat J,Mat B,void *ctx)
     /* Vm = (Vd^2 + Vq^2)^0.5; */
 
     row[0] = idx + 8;
-    if(VRatmax[i]) {
+    if (VRatmax[i]) {
       col[0] = idx + 8; val[0] = 1.0;
       ierr = MatSetValues(J,1,row,1,col,val,INSERT_VALUES);CHKERRQ(ierr);
-    } else if(VRatmin[i]) {
+    } else if (VRatmin[i]) {
       col[0] = idx + 8; val[0] = -1.0;
       ierr = MatSetValues(J,1,row,1,col,val,INSERT_VALUES);CHKERRQ(ierr);
     } else {
@@ -1113,7 +1113,7 @@ int main(int argc,char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
   ierr = TSSetProblemType(ts,TS_NONLINEAR);CHKERRQ(ierr);
-  if(user.semiexplicit) {
+  if (user.semiexplicit) {
     ierr = TSSetType(ts,TSRK);CHKERRQ(ierr);
     ierr = TSSetRHSFunction(ts,NULL,RHSFunction,&user);CHKERRQ(ierr);
     ierr = TSSetRHSJacobian(ts,J,J,RHSJacobian,&user);CHKERRQ(ierr);
@@ -1167,7 +1167,7 @@ int main(int argc,char **argv)
 
   ierr = TSSetEventHandler(ts,2*ngen+2,direction,terminate,EventFunction,PostEventFunction,(void*)&user);CHKERRQ(ierr);
 
-  if(user.semiexplicit) {
+  if (user.semiexplicit) {
     /* Use a semi-explicit approach with the time-stepping done by an explicit method and the
        algrebraic part solved via PostStage and PostEvaluate callbacks 
     */
@@ -1177,13 +1177,13 @@ int main(int argc,char **argv)
   }
 
 
-  if(user.setisdiff) {
+  if (user.setisdiff) {
     /* Create vector of absolute tolerances and set the algebraic part to infinity */
     ierr = VecDuplicate(X,&vatol);CHKERRQ(ierr);
     ierr = VecSet(vatol,100000.0);CHKERRQ(ierr);
     ierr = VecGetArray(vatol,&vatoli);CHKERRQ(ierr);
     ierr = ISGetIndices(user.is_diff,&idx3);CHKERRQ(ierr);
-    for(k=0; k < 7*ngen; k++) vatoli[idx3[k]] = 1e-2;
+    for (k=0; k < 7*ngen; k++) vatoli[idx3[k]] = 1e-2;
     ierr = VecRestoreArray(vatol,&vatoli);CHKERRQ(ierr);
   }
 
@@ -1235,7 +1235,7 @@ int main(int argc,char **argv)
   ierr = ISDestroy(&user.is_diff);CHKERRQ(ierr);
   ierr = ISDestroy(&user.is_alg);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
-  if(user.setisdiff) {
+  if (user.setisdiff) {
     ierr = VecDestroy(&vatol);CHKERRQ(ierr);
   }
   ierr = PetscFinalize();

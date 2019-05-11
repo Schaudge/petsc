@@ -92,7 +92,7 @@ PETSC_INTERN PetscErrorCode DMStagSetUniformCoordinatesExplicit_1d(DM dm,PetscRe
   min = xmin;
   h = (xmax-xmin)/stagCoord->N[0];
 
-  for(ind=start; ind<start + n + nExtra; ++ind) {
+  for (ind=start; ind<start + n + nExtra; ++ind) {
     if (stagCoord->dof[0]) {
       const PetscReal off = 0.0;
         arr[ind][ileft] = min + ((PetscReal)ind + off) * h;
@@ -162,7 +162,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_1d(DM dm)
 
   /* Starting element */
   stag->start[0] = 0;
-  for(j=0; j<stag->rank[0]; ++j) stag->start[0] += stag->l[0][j];
+  for (j=0; j<stag->rank[0]; ++j) stag->start[0] += stag->l[0][j];
 
   /* Local/ghosted size and starting element */
   switch (stag->boundaryType[0]) {
@@ -326,7 +326,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_1d(DM dm)
       PetscInt count = 0,countAll = 0;
       /* Dummy elements on the left, on the first rank */
       if (stag->firstRank[0]) {
-        for(iLocal=0; iLocal<ghostOffsetStart; ++iLocal) {
+        for (iLocal=0; iLocal<ghostOffsetStart; ++iLocal) {
           /* Complete elements full of dummy entries */
           for (d=0; d<stag->entriesPerElement; ++d,++countAll) {
             idxGlobalAll[countAll] = -1;

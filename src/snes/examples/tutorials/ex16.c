@@ -262,10 +262,10 @@ void InvertTensor(PetscScalar *t, PetscScalar *ti,PetscReal *dett)
 void TensorTensor(PetscScalar *a,PetscScalar *b,PetscScalar *c)
 {
   PetscInt i,j,m;
-  for(i=0;i<3;i++) {
-    for(j=0;j<3;j++) {
+  for (i=0;i<3;i++) {
+    for (j=0;j<3;j++) {
       c[i+3*j] = 0;
-      for(m=0;m<3;m++)
+      for (m=0;m<3;m++)
         c[i+3*j] += a[m+3*j]*b[i+3*m];
     }
   }
@@ -274,10 +274,10 @@ void TensorTensor(PetscScalar *a,PetscScalar *b,PetscScalar *c)
 void TensorTransposeTensor(PetscScalar *a,PetscScalar *b,PetscScalar *c)
 {
   PetscInt i,j,m;
-  for(i=0;i<3;i++) {
-    for(j=0;j<3;j++) {
+  for (i=0;i<3;i++) {
+    for (j=0;j<3;j++) {
       c[i+3*j] = 0;
-      for(m=0;m<3;m++)
+      for (m=0;m<3;m++)
         c[i+3*j] += a[3*m+j]*b[i+3*m];
     }
   }
@@ -332,14 +332,14 @@ void DeformationGradientJacobian(PetscInt qi,PetscInt qj,PetscInt qk,PetscInt ii
 void LagrangeGreenStrain(PetscScalar *F,PetscScalar *E)
 {
   PetscInt i,j,m;
-  for(i=0;i<3;i++) {
-    for(j=0;j<3;j++) {
+  for (i=0;i<3;i++) {
+    for (j=0;j<3;j++) {
       E[i+3*j] = 0;
-      for(m=0;m<3;m++)
+      for (m=0;m<3;m++)
         E[i+3*j] += 0.5*F[3*m+j]*F[i+3*m];
     }
   }
-  for(i=0;i<3;i++) {
+  for (i=0;i<3;i++) {
     E[i+3*i] -= 0.5;
   }
 }
@@ -604,7 +604,7 @@ void ApplyBCsElement(PetscInt mx,PetscInt my, PetscInt mz, PetscInt i, PetscInt 
   for (kk=0;kk<NB;kk++){
     for (jj=0;jj<NB;jj++) {
       for (ii=0;ii<NB;ii++) {
-        for(ll = 0;ll<3;ll++) {
+        for (ll = 0;ll<3;ll++) {
           PetscInt tridx = ll + 3*(ii + jj*NB + kk*NB*NB);
           for (ek=0;ek<NB;ek++){
             for (ej=0;ej<NB;ej++) {

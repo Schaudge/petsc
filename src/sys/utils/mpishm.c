@@ -246,7 +246,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl)
     ierr    = PetscGetTmp(PETSC_COMM_SELF,pathname,PETSC_MAX_PATH_LEN);CHKERRQ(ierr);
     ierr    = PetscStrlcat(pathname,"/petsc-shm-XXXXXX",PETSC_MAX_PATH_LEN);CHKERRQ(ierr);
     /* mkstemp replaces XXXXXX with a unique file name and opens the file for us */
-    fd      = mkstemp(pathname); if(fd == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Could not create tmp file %s with mkstemp\n", pathname);
+    fd      = mkstemp(pathname); if (fd == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Could not create tmp file %s with mkstemp\n", pathname);
     ierr    = ftruncate(fd,size);CHKERRQ(ierr);
     baseptr = mmap(NULL,size,PROT_READ | PROT_WRITE, MAP_SHARED,fd,0); if (baseptr == MAP_FAILED) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"mmap() failed\n");
     ierr    = close(fd);CHKERRQ(ierr);
@@ -256,7 +256,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscOmpCtrlCreateBarrier(PetscOmpCtrl ctrl)
     ierr    = unlink(pathname);CHKERRQ(ierr);
   } else {
     ierr    = MPI_Bcast(pathname,PETSC_MAX_PATH_LEN,MPI_CHAR,0,ctrl->omp_comm);CHKERRQ(ierr);
-    fd      = open(pathname,O_RDWR); if(fd == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Could not open tmp file %s\n", pathname);
+    fd      = open(pathname,O_RDWR); if (fd == -1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Could not open tmp file %s\n", pathname);
     baseptr = mmap(NULL,size,PROT_READ | PROT_WRITE, MAP_SHARED,fd,0); if (baseptr == MAP_FAILED) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"mmap() failed\n");
     ierr    = close(fd);CHKERRQ(ierr);
     ierr    = MPI_Barrier(ctrl->omp_comm);CHKERRQ(ierr);

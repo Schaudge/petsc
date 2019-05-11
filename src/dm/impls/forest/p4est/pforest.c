@@ -2085,7 +2085,7 @@ static PetscErrorCode DMCreateReferenceTree_pforest(MPI_Comm comm, DM *dm)
   { /* [-1,1]^d geometry */
     PetscInt i, j;
 
-    for(i = 0; i < P4EST_CHILDREN; i++) {
+    for (i = 0; i < P4EST_CHILDREN; i++) {
       for (j = 0; j < 3; j++) {
         refcube->vertices[3 * i + j] *= 2.;
         refcube->vertices[3 * i + j] -= 1.;

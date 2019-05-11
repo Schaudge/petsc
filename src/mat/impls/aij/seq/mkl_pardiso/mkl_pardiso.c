@@ -51,7 +51,7 @@ void pardiso_64init(void *pt, INT_TYPE *mtype, INT_TYPE iparm [])
   
   mtype_copy = *mtype;
   pardisoinit(pt, &mtype_copy, iparm_copy);
-  for(i = 0; i < IPARM_SIZE; i++){
+  for (i = 0; i < IPARM_SIZE; i++){
     iparm[i] = iparm_copy[i];
   }
 }
@@ -655,7 +655,7 @@ PetscErrorCode PetscSetMKL_PARDISOFromOptions(Mat F, Mat A)
   if (flg) mat_mkl_pardiso->msglvl = icntl;
 
   ierr = PetscOptionsInt("-mat_mkl_pardiso_69","Defines the matrix type","None",mat_mkl_pardiso->mtype,&icntl,&flg);CHKERRQ(ierr);
-  if(flg){
+  if (flg){
     void *pt[IPARM_SIZE];
     mat_mkl_pardiso->mtype = icntl;
     MKL_PARDISO_INIT(pt, &mat_mkl_pardiso->mtype, mat_mkl_pardiso->iparm);
@@ -764,7 +764,7 @@ PetscErrorCode MatFactorMKL_PARDISOInitialize_Private(Mat A, MatFactorType ftype
   mat_mkl_pardiso->err       = 0;
   mat_mkl_pardiso->phase     = -1;
   
-  if(ftype == MAT_FACTOR_LU){
+  if (ftype == MAT_FACTOR_LU){
     mat_mkl_pardiso->iparm[ 9] = 13; /* Perturb the pivot elements with 1E-13 */
     mat_mkl_pardiso->iparm[10] =  1; /* Use nonsymmetric permutation and scaling MPS */
     mat_mkl_pardiso->iparm[12] =  1; /* Switch on Maximum Weighted Matching algorithm (default for non-symmetric) */
@@ -779,7 +779,7 @@ PetscErrorCode MatFactorMKL_PARDISOInitialize_Private(Mat A, MatFactorType ftype
 #endif
   }
   ierr = PetscMalloc1(A->rmap->N*sizeof(INT_TYPE), &mat_mkl_pardiso->perm);CHKERRQ(ierr);
-  for(i = 0; i < A->rmap->N; i++){
+  for (i = 0; i < A->rmap->N; i++){
     mat_mkl_pardiso->perm[i] = 0;
   }
   mat_mkl_pardiso->schur_size = 0;
@@ -887,7 +887,7 @@ PetscErrorCode MatView_MKL_PARDISO(Mat A, PetscViewer viewer)
     if (format == PETSC_VIEWER_ASCII_INFO) {
       ierr = PetscViewerASCIIPrintf(viewer,"MKL_PARDISO run parameters:\n");CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"MKL_PARDISO phase:             %d \n",mat_mkl_pardiso->phase);CHKERRQ(ierr);
-      for(i = 1; i <= 64; i++){
+      for (i = 1; i <= 64; i++){
         ierr = PetscViewerASCIIPrintf(viewer,"MKL_PARDISO iparm[%d]:     %d \n",i, mat_mkl_pardiso->iparm[i - 1]);CHKERRQ(ierr);
       }
       ierr = PetscViewerASCIIPrintf(viewer,"MKL_PARDISO maxfct:     %d \n", mat_mkl_pardiso->maxfct);CHKERRQ(ierr);
@@ -925,14 +925,14 @@ PetscErrorCode MatMkl_PardisoSetCntl_MKL_PARDISO(Mat F,PetscInt icntl,PetscInt i
   Mat_MKL_PARDISO *mat_mkl_pardiso =(Mat_MKL_PARDISO*)F->data;
 
   PetscFunctionBegin;
-  if(icntl <= 64){
+  if (icntl <= 64){
     mat_mkl_pardiso->iparm[icntl - 1] = ival;
   } else {
-    if(icntl == 65) PetscSetMKL_PARDISOThreads(ival);
-    else if(icntl == 66) mat_mkl_pardiso->maxfct = ival;
-    else if(icntl == 67) mat_mkl_pardiso->mnum = ival;
-    else if(icntl == 68) mat_mkl_pardiso->msglvl = ival;
-    else if(icntl == 69){
+    if (icntl == 65) PetscSetMKL_PARDISOThreads(ival);
+    else if (icntl == 66) mat_mkl_pardiso->maxfct = ival;
+    else if (icntl == 67) mat_mkl_pardiso->mnum = ival;
+    else if (icntl == 68) mat_mkl_pardiso->msglvl = ival;
+    else if (icntl == 69){
       void *pt[IPARM_SIZE];
       mat_mkl_pardiso->mtype = ival;
       MKL_PARDISO_INIT(pt, &mat_mkl_pardiso->mtype, mat_mkl_pardiso->iparm);
@@ -942,7 +942,7 @@ PetscErrorCode MatMkl_PardisoSetCntl_MKL_PARDISO(Mat F,PetscInt icntl,PetscInt i
       mat_mkl_pardiso->iparm[27] = 0;
 #endif
       mat_mkl_pardiso->iparm[34] = 1;
-    } else if(icntl==70) mat_mkl_pardiso->solve_interior = (PetscBool)!!ival;
+    } else if (icntl==70) mat_mkl_pardiso->solve_interior = (PetscBool)!!ival;
   }
   PetscFunctionReturn(0);
 }

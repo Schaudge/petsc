@@ -319,7 +319,7 @@ PetscErrorCode MatMatSolve_MKL_CPARDISO(Mat A,Mat B,Mat X)
   PetscFunctionBegin;
   ierr = MatGetSize(B,NULL,(PetscInt*)&mat_mkl_cpardiso->nrhs);CHKERRQ(ierr);
 
-  if(mat_mkl_cpardiso->nrhs > 0){
+  if (mat_mkl_cpardiso->nrhs > 0){
     ierr = MatDenseGetArrayRead(B,&barray);
     ierr = MatDenseGetArray(X,&xarray);
 
@@ -415,7 +415,7 @@ PetscErrorCode PetscSetMKL_CPARDISOFromOptions(Mat F, Mat A)
   if (flg) mat_mkl_cpardiso->msglvl = icntl;
 
   ierr = PetscOptionsInt("-mat_mkl_cpardiso_69","Defines the matrix type","None",mat_mkl_cpardiso->mtype,&icntl,&flg);CHKERRQ(ierr);
-  if(flg){
+  if (flg){
     mat_mkl_cpardiso->mtype = icntl;
 #if defined(PETSC_USE_REAL_SINGLE)
     mat_mkl_cpardiso->iparm[27] = 1;
@@ -426,7 +426,7 @@ PetscErrorCode PetscSetMKL_CPARDISOFromOptions(Mat F, Mat A)
   }
   ierr = PetscOptionsInt("-mat_mkl_cpardiso_1","Use default values","None",mat_mkl_cpardiso->iparm[0],&icntl,&flg);CHKERRQ(ierr);
 
-  if(flg && icntl != 0){
+  if (flg && icntl != 0){
     ierr = PetscOptionsInt("-mat_mkl_cpardiso_2","Fill-in reducing ordering for the input matrix","None",mat_mkl_cpardiso->iparm[1],&icntl,&flg);CHKERRQ(ierr);
     if (flg) mat_mkl_cpardiso->iparm[1] = icntl;
 
@@ -609,7 +609,7 @@ PetscErrorCode MatView_MKL_CPARDISO(Mat A, PetscViewer viewer)
     if (format == PETSC_VIEWER_ASCII_INFO) {
       ierr = PetscViewerASCIIPrintf(viewer,"MKL_CPARDISO run parameters:\n");CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"MKL_CPARDISO phase:             %d \n",mat_mkl_cpardiso->phase);CHKERRQ(ierr);
-      for(i = 1; i <= 64; i++){
+      for (i = 1; i <= 64; i++){
         ierr = PetscViewerASCIIPrintf(viewer,"MKL_CPARDISO iparm[%d]:     %d \n",i, mat_mkl_cpardiso->iparm[i - 1]);CHKERRQ(ierr);
       }
       ierr = PetscViewerASCIIPrintf(viewer,"MKL_CPARDISO maxfct:     %d \n", mat_mkl_cpardiso->maxfct);CHKERRQ(ierr);
@@ -645,14 +645,14 @@ PetscErrorCode MatMkl_CPardisoSetCntl_MKL_CPARDISO(Mat F,PetscInt icntl,PetscInt
   Mat_MKL_CPARDISO *mat_mkl_cpardiso =(Mat_MKL_CPARDISO*)F->data;
 
   PetscFunctionBegin;
-  if(icntl <= 64){
+  if (icntl <= 64){
     mat_mkl_cpardiso->iparm[icntl - 1] = ival;
   } else {
-    if(icntl == 65) mkl_set_num_threads((int)ival);
-    else if(icntl == 66) mat_mkl_cpardiso->maxfct = ival;
-    else if(icntl == 67) mat_mkl_cpardiso->mnum = ival;
-    else if(icntl == 68) mat_mkl_cpardiso->msglvl = ival;
-    else if(icntl == 69){
+    if (icntl == 65) mkl_set_num_threads((int)ival);
+    else if (icntl == 66) mat_mkl_cpardiso->maxfct = ival;
+    else if (icntl == 67) mat_mkl_cpardiso->mnum = ival;
+    else if (icntl == 68) mat_mkl_cpardiso->msglvl = ival;
+    else if (icntl == 69){
       mat_mkl_cpardiso->mtype = ival;
 #if defined(PETSC_USE_REAL_SINGLE)
       mat_mkl_cpardiso->iparm[27] = 1;

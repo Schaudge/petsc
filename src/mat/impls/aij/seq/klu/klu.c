@@ -164,7 +164,7 @@ static PetscErrorCode MatLUFactorNumeric_KLU(Mat F,Mat A,const MatFactorInfo *in
     klu_K_free_numeric(&lu->Numeric,&lu->Common);
   }
   lu->Numeric = klu_K_factor(ai,aj,(PetscReal*)av,lu->Symbolic,&lu->Common);
-  if(!lu->Numeric) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"KLU Numeric factorization failed");
+  if (!lu->Numeric) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"KLU Numeric factorization failed");
 
   lu->flg                = SAME_NONZERO_PATTERN;
   lu->CleanUpKLU         = PETSC_TRUE;
@@ -323,7 +323,7 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_klu(Mat A,MatFactorType ftype,Ma
   /* ------------------------------------------------*/
   /* get the default control parameters */
   status = klu_K_defaults(&lu->Common);
-  if(status <= 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"KLU Initialization failed");
+  if (status <= 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"KLU Initialization failed");
 
   lu->Common.scale = 0; /* No row scaling */
 

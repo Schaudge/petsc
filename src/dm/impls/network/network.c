@@ -146,7 +146,7 @@ PetscErrorCode DMNetworkSetEdgeList(DM dm,PetscInt *edgelist[],PetscInt *edgelis
 
   PetscFunctionBegin;
   nsubnet = network->nsubnet - ncsubnet;
-  for(i=0; i < nsubnet; i++) {
+  for (i=0; i < nsubnet; i++) {
     network->subnet[i].edgelist = edgelist[i];
   }
   if (edgelistCouple) {
@@ -224,7 +224,7 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   /*
   if (rank == 0) {
     ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] edgelist:\n",rank);
-    for(i=0; i < network->nEdges; i++) {
+    for (i=0; i < network->nEdges; i++) {
       ierr = PetscPrintf(PETSC_COMM_SELF,"[%D %D]",edges[2*i],edges[2*i+1]);CHKERRQ(ierr);
       printf("\n");
     }
@@ -452,7 +452,7 @@ PetscErrorCode DMNetworkRegisterComponent(DM dm,const char *name,size_t size,Pet
       PetscFunctionReturn(0);
     }
   }
-  if(network->ncomponent == MAX_COMPONENTS) {
+  if (network->ncomponent == MAX_COMPONENTS) {
     SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Number of components registered exceeds the max %D",MAX_COMPONENTS);
   }
 
@@ -1142,7 +1142,7 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
   /* Copy over the global number of vertices and edges in each subnetwork. Note that these are already
      calculated in DMNetworkLayoutSetUp()
   */
-  for(j=0; j < newDMnetwork->nsubnet; j++) {
+  for (j=0; j < newDMnetwork->nsubnet; j++) {
     newDMnetwork->subnet[j].Nvtx  = oldDMnetwork->subnet[j].Nvtx;
     newDMnetwork->subnet[j].Nedge = oldDMnetwork->subnet[j].Nedge;
   }
@@ -1987,7 +1987,7 @@ PetscErrorCode DMDestroy_Network(DM dm)
   ierr = PetscSectionDestroy(&network->DataSection);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&network->DofSection);CHKERRQ(ierr);
 
-  for(j=0; j<network->nsubnet; j++) {
+  for (j=0; j<network->nsubnet; j++) {
     ierr = PetscFree(network->subnet[j].edges);CHKERRQ(ierr);
   }
   ierr = PetscFree(network->subnetvtx);CHKERRQ(ierr);

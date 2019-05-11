@@ -250,7 +250,7 @@ int main(int argc,char **argv)
   PetscErrorCode     ierr;
 
   /* Initialize program */
-  ierr = PetscInitialize(&argc,&argv,NULL,NULL);if(ierr) return ierr;
+  ierr = PetscInitialize(&argc,&argv,NULL,NULL);if (ierr) return ierr;
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_SELF,1,"This is a uniprocessor example only!");
 

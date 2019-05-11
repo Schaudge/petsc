@@ -59,7 +59,7 @@ PetscErrorCode FormFunction_Subnet(DM networkdm,Vec localX, Vec localF,PetscInt 
 
           /* Shunt injections */
           farr[offset] += Vm*Vm*bus->gl/Sbase;
-          if(bus->ide != PV_BUS) farr[offset+1] += -Vm*Vm*bus->bl/Sbase;
+          if (bus->ide != PV_BUS) farr[offset+1] += -Vm*Vm*bus->bl/Sbase;
         }
 
         ierr = DMNetworkGetSupportingEdges(networkdm,vtx[v],&nconnedges,&connedges);CHKERRQ(ierr);
@@ -382,7 +382,7 @@ PetscErrorCode SetInitialValues_Subnet(DM networkdm,Vec localX,PetscInt nv,Petsc
         bus = (VERTEX_Power)(component);
         xarr[offset] = bus->va*PETSC_PI/180.0;
         xarr[offset+1] = bus->vm;
-      } else if(key == 2) {
+      } else if (key == 2) {
         gen = (GEN)(component);
         if (!gen->status) continue;
         xarr[offset+1] = gen->vs;

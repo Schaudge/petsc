@@ -438,7 +438,7 @@ static void petscinitialize_internal(char* filename, PetscInt len, PetscBool rea
      below.
   */
   PetscInitializeFortran();
-  if(readarguments == PETSC_TRUE) {
+  if (readarguments == PETSC_TRUE) {
     PETScParseFortranArgs_Private(&PetscGlobalArgc,&PetscGlobalArgs);
     FIXCHAR(filename,len,t1);
     *ierr = PetscOptionsInsert(NULL,&PetscGlobalArgc,&PetscGlobalArgs,t1);

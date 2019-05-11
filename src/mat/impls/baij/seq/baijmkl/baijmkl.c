@@ -233,7 +233,7 @@ PetscErrorCode MatMult_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
 
   PetscFunctionBegin; 
   /* If there are no nonzero entries, zero yy and return immediately. */
-  if(!a->nz) {
+  if (!a->nz) {
     PetscInt i;
     PetscInt m=a->mbs*A->rmap->bs;
     ierr = VecGetArray(yy,&y);CHKERRQ(ierr);
@@ -274,7 +274,7 @@ PetscErrorCode MatMultTranspose_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy)
 
   PetscFunctionBegin;
   /* If there are no nonzero entries, zero yy and return immediately. */
-  if(!a->nz) {
+  if (!a->nz) {
     PetscInt i;
     PetscInt n=a->nbs;
     ierr = VecGetArray(yy,&y);CHKERRQ(ierr);
@@ -318,7 +318,7 @@ PetscErrorCode MatMultAdd_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy,Vec zz)
 
   PetscFunctionBegin;
   /* If there are no nonzero entries, set zz = yy and return immediately. */
-  if(!a->nz) {
+  if (!a->nz) {
     PetscInt i;
     ierr = VecGetArrayPair(yy,zz,&y,&z);CHKERRQ(ierr);
     for (i=0; i<m; i++) {
@@ -372,7 +372,7 @@ PetscErrorCode MatMultTransposeAdd_SeqBAIJMKL_SpMV2(Mat A,Vec xx,Vec yy,Vec zz)
 
   PetscFunctionBegin;
   /* If there are no nonzero entries, set zz = yy and return immediately. */
-  if(!a->nz) {
+  if (!a->nz) {
     PetscInt i;
     ierr = VecGetArrayPair(yy,zz,&y,&z);CHKERRQ(ierr);
     for (i=0; i<n; i++) {

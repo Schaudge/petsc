@@ -114,7 +114,7 @@ int main(int argc,char **argv)
     ierr = VecNorm(out2, NORM_2, &mult_solve_dist);CHKERRQ(ierr);
     if (mult_solve_dist < 1.e-11) {
       ierr = PetscPrintf(PetscObjectComm((PetscObject)tao), "error between LMVM MatMult and MatSolve: < 1.e-11\n");CHKERRQ(ierr);
-    } else if(mult_solve_dist < 1.e-6) {
+    } else if (mult_solve_dist < 1.e-6) {
       ierr = PetscPrintf(PetscObjectComm((PetscObject)tao), "error between LMVM MatMult and MatSolve: < 1.e-6\n");CHKERRQ(ierr);
     } else {
       ierr = PetscPrintf(PetscObjectComm((PetscObject)tao), "error between LMVM MatMult and MatSolve: %e\n", (double)mult_solve_dist);CHKERRQ(ierr);

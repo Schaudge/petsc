@@ -534,7 +534,7 @@ static PetscErrorCode TSForwardStep_RK(TS ts)
     zero = PETSC_FALSE;
     if (b[i] == 0 && i == s-1) zero = PETSC_TRUE;
     /* TLM Stage values */
-    if(!i) {
+    if (!i) {
       ierr = MatCopy(ts->mat_sensip,rk->MatsFwdStageSensip[i],SAME_NONZERO_PATTERN);CHKERRQ(ierr);
     } else if (!zero) {
       ierr = MatZeroEntries(rk->MatsFwdStageSensip[i]);CHKERRQ(ierr);
@@ -594,7 +594,7 @@ static PetscErrorCode TSForwardSetUp_RK(TS ts)
 
   ierr = PetscMalloc1(tab->s,&rk->MatsFwdStageSensip);CHKERRQ(ierr);
   ierr = PetscMalloc1(tab->s,&rk->MatsFwdSensipTemp);CHKERRQ(ierr);
-  for(i=0; i<tab->s; i++) {
+  for (i=0; i<tab->s; i++) {
     ierr = MatDuplicate(ts->mat_sensip,MAT_DO_NOT_COPY_VALUES,&rk->MatsFwdStageSensip[i]);CHKERRQ(ierr);
     ierr = MatDuplicate(ts->mat_sensip,MAT_DO_NOT_COPY_VALUES,&rk->MatsFwdSensipTemp[i]);CHKERRQ(ierr);
   }
@@ -709,7 +709,7 @@ static PetscErrorCode TSAdjointSetUp_RK(TS ts)
   if (ts->adjointsetupcalled++) PetscFunctionReturn(0);
   ierr = VecDuplicateVecs(ts->vecs_sensi[0],s*ts->numcost,&rk->VecsDeltaLam);CHKERRQ(ierr);
   ierr = VecDuplicateVecs(ts->vecs_sensi[0],ts->numcost,&rk->VecsSensiTemp);CHKERRQ(ierr);
-  if(ts->vecs_sensip) {
+  if (ts->vecs_sensip) {
     ierr = VecDuplicate(ts->vecs_sensip[0],&rk->VecDeltaMu);CHKERRQ(ierr);
   }
   if (ts->vecs_sensi2) {
