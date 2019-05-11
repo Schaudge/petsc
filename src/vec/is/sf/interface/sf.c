@@ -1332,7 +1332,7 @@ PetscErrorCode PetscSFComputeDegreeEnd(PetscSF sf,const PetscInt **degree)
 -  multiRootsOrigNumbering - original indices of multi-roots; length of this array is nMultiRoots
 
    Level: developer
-   
+
    Notes:
    The returned array multiRootsOrigNumbering is newly allocated and should be destroyed with PetscFree() when no longer needed.
 
