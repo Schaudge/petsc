@@ -779,13 +779,13 @@ checkbadSource:
 	-@git --no-pager grep -l -P  '\t'  -- '*.[chF]' '*.F90' '*.cxx' >> checkbadSource.out
 	-@echo "White space at end of line ---------------------------" >> checkbadSource.out
 	-@git --no-pager grep -l -P ' $$' -- '*.[chF]' '*.F90' '*.cxx' >> checkbadSource.out
-	-@echo "Space after ( ----------------------------------------" >> checkbadSource.out
-	-@git --no-pager grep -l -P '\( ' -- '*.[chF]' '*.F90' '*.cxx' >> checkbadSource.out
+#	-@echo "Space after ( ----------------------------------------" >> checkbadSource.out
+#	-@git --no-pager grep -l -P '\( ' -- '*.[chF]' '*.F90' '*.cxx' >> checkbadSource.out
 	-@echo "Space before ) ---------------------------------------" >> checkbadSource.out
 	-@git --no-pager grep -l -P ' \)' -- '*.[chF]' '*.F90' '*.cxx' >> checkbadSource.out
 	-@echo "Space before CHKERRQ ---------------------------------" >> checkbadSource.out
 	-@git --no-pager grep -l -P '; CHKERRQ' -- '*.[chF]' '*.F90' '*.cxx' >> checkbadSource.out
-	-@a=`cat checkbadSource.out | wc -l`; let "l=$$a-5" ;\
+	-@a=`cat checkbadSource.out | wc -l`; let "l=$$a-4" ;\
          if [ $$l -gt 0 ] ; then \
            echo $$l " files with errors detected in source code formatting" ;\
            cat checkbadSource.out ;\
