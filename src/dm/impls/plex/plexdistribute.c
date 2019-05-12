@@ -1547,8 +1547,6 @@ PetscErrorCode DMPlexMigrate(DM dm, PetscSF sf, DM targetDM)
   PetscFunctionReturn(0);
 }
 
-PETSC_INTERN PetscErrorCode DMPlexPartitionLabelClosure_Private(DM,DMLabel,PetscInt,PetscInt,const PetscInt[],IS*);
-
 /*@C
   DMPlexDistribute - Distributes the mesh and any associated sections.
 
@@ -1633,7 +1631,7 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
       ierr = PetscSectionGetDof(cellPartSection, proc, &npoints);CHKERRQ(ierr);
       if (!npoints) continue;
       ierr = PetscSectionGetOffset(cellPartSection, proc, &poff);CHKERRQ(ierr);
-      ierr = DMPlexPartitionLabelClosure_Private(dm, lblPartition, proc, npoints, points+poff, &is);CHKERRQ(ierr);
+      ierr = DMPlexTransitiveClosurePoints_Private(dm, npoints, points+poff, &is);CHKERRQ(ierr);
       ierr = DMLabelSetStratumIS(lblPartition, proc, is);CHKERRQ(ierr);
       ierr = ISDestroy(&is);CHKERRQ(ierr);
     }
