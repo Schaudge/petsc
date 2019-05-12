@@ -25,3 +25,17 @@ class Configure(config.package.GNUPackage):
     args.append('--disable-python')
     args.append('--with-hdf5=%s' % self.hdf5.directory)
     return args
+
+  def Install(self):
+    '''bootstrap, then standard GNU configure; make; make install'''
+    import os
+    if not self.programs.libtoolize:
+      raise RuntimeError('Could not bootstrap med using autotools: libtoolize not found')
+    if not self.programs.autoreconf:
+      raise RuntimeError('Could not bootstrap med using autotools: autoreconf not found')
+    self.logPrintBox('Trying to bootstrap med using autotools; this may take several minutes')
+    try:
+      self.executeShellCommand('./bootstrap',cwd=self.packageDir,log=self.log)
+    except RuntimeError as e:
+      raise RuntimeError('Could not bootstrap med using autotools: maybe autotools (or recent enough autotools) could not be found?\nError: '+str(e))
+    return config.package.GNUPackage.Install(self)
