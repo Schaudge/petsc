@@ -723,7 +723,9 @@ PetscErrorCode PetscSectionAddDof(PetscSection s, PetscInt point, PetscInt numDo
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
+#if defined(PETSC_USE_DEBUG)
   if ((point < s->pStart) || (point >= s->pEnd)) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Section point %D should be in [%D, %D)", point, s->pStart, s->pEnd);
+#endif
   s->atlasDof[point - s->pStart] += numDof;
   PetscFunctionReturn(0);
 }
@@ -2203,6 +2205,9 @@ PetscErrorCode PetscSectionPermute(PetscSection section, IS permutation, PetscSe
   PetscFunctionReturn(0);
 }
 
+/* TODO: the next three functions should be moved to sf/utils */
+#include <petsc/private/sfimpl.h>
+
 /*@C
   PetscSFDistributeSection - Create a new PetscSection reorganized, moving from the root to the leaves of the SF
 
@@ -2229,6 +2234,7 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(PETSCSF_DistSect,sf,0,0,0);CHKERRQ(ierr);
   ierr = PetscSectionGetNumFields(rootSection, &numFields);CHKERRQ(ierr);
   if (numFields) {ierr = PetscSectionSetNumFields(leafSection, numFields);CHKERRQ(ierr);}
   for (f = 0; f < numFields; ++f) {
@@ -2271,6 +2277,7 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
   }
   ierr = PetscSFDestroy(&embedSF);CHKERRQ(ierr);
   ierr = PetscSectionSetUp(leafSection);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PETSCSF_DistSect,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2286,6 +2293,7 @@ PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, 
   *remoteOffsets = NULL;
   ierr = PetscSFGetGraph(sf, &numRoots, NULL, NULL, NULL);CHKERRQ(ierr);
   if (numRoots < 0) PetscFunctionReturn(0);
+  ierr = PetscLogEventBegin(PETSCSF_RemoteOff,sf,0,0,0);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(rootSection, &rpStart, &rpEnd);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(leafSection, &lpStart, &lpEnd);CHKERRQ(ierr);
   ierr = ISCreateStride(PETSC_COMM_SELF, rpEnd - rpStart, rpStart, 1, &selected);CHKERRQ(ierr);
@@ -2297,6 +2305,7 @@ PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, 
   ierr = PetscSFBcastBegin(embedSF, MPIU_INT, &rootSection->atlasOff[-rpStart], &(*remoteOffsets)[-lpStart]);CHKERRQ(ierr);
   ierr = PetscSFBcastEnd(embedSF, MPIU_INT, &rootSection->atlasOff[-rpStart], &(*remoteOffsets)[-lpStart]);CHKERRQ(ierr);
   ierr = PetscSFDestroy(&embedSF);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PETSCSF_RemoteOff,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2342,6 +2351,7 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
   ierr = PetscSectionGetStorageSize(rootSection, &numSectionRoots);CHKERRQ(ierr);
   ierr = PetscSFGetGraph(sf, &numRoots, &numPoints, &localPoints, &remotePoints);CHKERRQ(ierr);
   if (numRoots < 0) PetscFunctionReturn(0);
+  ierr = PetscLogEventBegin(PETSCSF_SectSF,sf,0,0,0);CHKERRQ(ierr);
   for (i = 0; i < numPoints; ++i) {
     PetscInt localPoint = localPoints ? localPoints[i] : i;
     PetscInt dof;
@@ -2373,6 +2383,8 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
   }
   if (numIndices != ind) SETERRQ2(comm, PETSC_ERR_PLIB, "Inconsistency in indices, %D should be %D", ind, numIndices);
   ierr = PetscSFSetGraph(*sectionSF, numSectionRoots, numIndices, localIndices, PETSC_OWN_POINTER, remoteIndices, PETSC_OWN_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(*sectionSF);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PETSCSF_SectSF,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

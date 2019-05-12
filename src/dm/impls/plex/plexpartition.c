@@ -2237,14 +2237,15 @@ PetscErrorCode DMPlexSetPartitioner(DM dm, PetscPartitioner part)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexAddClosure_Tree(DM dm, PetscHSetI ht, PetscInt point, PetscBool up, PetscBool down)
+static PetscErrorCode DMPlexAddClosure_Tree(DM dm, PetscBT needed, PetscInt point, PetscBool up, PetscBool down)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (up) {
-    PetscInt parent;
+    PetscInt parent, pStart;
 
+    ierr = DMPlexGetChart(dm,&pStart,NULL);CHKERRQ(ierr);
     ierr = DMPlexGetTreeParent(dm,point,&parent,NULL);CHKERRQ(ierr);
     if (parent != point) {
       PetscInt closureSize, *closure = NULL, i;
@@ -2253,58 +2254,78 @@ static PetscErrorCode DMPlexAddClosure_Tree(DM dm, PetscHSetI ht, PetscInt point
       for (i = 0; i < closureSize; i++) {
         PetscInt cpoint = closure[2*i];
 
-        ierr = PetscHSetIAdd(ht, cpoint);CHKERRQ(ierr);
-        ierr = DMPlexAddClosure_Tree(dm,ht,cpoint,PETSC_TRUE,PETSC_FALSE);CHKERRQ(ierr);
+        ierr = PetscBTSet(needed,cpoint-pStart);CHKERRQ(ierr);
+        ierr = DMPlexAddClosure_Tree(dm,needed,cpoint,PETSC_TRUE,PETSC_FALSE);CHKERRQ(ierr);
       }
       ierr = DMPlexRestoreTransitiveClosure(dm,parent,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
     }
   }
   if (down) {
-    PetscInt numChildren;
     const PetscInt *children;
+    PetscInt       i, numChildren, pStart;
 
+    ierr = DMPlexGetChart(dm,&pStart,NULL);CHKERRQ(ierr);
     ierr = DMPlexGetTreeChildren(dm,point,&numChildren,&children);CHKERRQ(ierr);
-    if (numChildren) {
-      PetscInt i;
+    for (i = 0; i < numChildren; i++) {
+      PetscInt cpoint = children[i];
 
-      for (i = 0; i < numChildren; i++) {
-        PetscInt cpoint = children[i];
-
-        ierr = PetscHSetIAdd(ht, cpoint);CHKERRQ(ierr);
-        ierr = DMPlexAddClosure_Tree(dm,ht,cpoint,PETSC_FALSE,PETSC_TRUE);CHKERRQ(ierr);
-      }
+      ierr = PetscBTSet(needed,cpoint-pStart);CHKERRQ(ierr);
+      ierr = DMPlexAddClosure_Tree(dm,needed,cpoint,PETSC_FALSE,PETSC_TRUE);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
 }
 
-PETSC_INTERN PetscErrorCode DMPlexPartitionLabelClosure_Private(DM,DMLabel,PetscInt,PetscInt,const PetscInt[],IS*);
-
-PetscErrorCode DMPlexPartitionLabelClosure_Private(DM dm, DMLabel label, PetscInt rank, PetscInt numPoints, const PetscInt points[], IS *closureIS)
+PetscErrorCode DMPlexTransitiveClosurePoints_Private(DM dm, PetscInt numPoints, const PetscInt points[], IS *closureIS)
 {
-  DM_Plex        *mesh = (DM_Plex *)dm->data;
-  PetscBool      hasTree = (mesh->parentSection || mesh->childSection) ? PETSC_TRUE : PETSC_FALSE;
-  PetscInt       *closure = NULL, closureSize, nelems, *elems, off = 0, p, c;
-  PetscHSetI     ht;
-  PetscErrorCode ierr;
+  DM_Plex         *mesh = (DM_Plex *)dm->data;
+  const PetscBool hasTree = (mesh->parentSection || mesh->childSection) ? PETSC_TRUE : PETSC_FALSE;
+  PetscBT         needed;
+  PetscInt        *queue, *quin, *quou;
+  PetscInt        pStart, pEnd, q, npts, nqin, nqou;
+  PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  ierr = PetscHSetICreate(&ht);CHKERRQ(ierr);
-  ierr = PetscHSetIResize(ht, numPoints*16);CHKERRQ(ierr);
-  for (p = 0; p < numPoints; ++p) {
-    ierr = DMPlexGetTransitiveClosure(dm, points[p], PETSC_TRUE, &closureSize, &closure);CHKERRQ(ierr);
-    for (c = 0; c < closureSize*2; c += 2) {
-      ierr = PetscHSetIAdd(ht, closure[c]);CHKERRQ(ierr);
-      if (hasTree) {ierr = DMPlexAddClosure_Tree(dm, ht, closure[c], PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);}
+  ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
+  npts = pEnd - pStart;
+  ierr = PetscBTCreate(npts, &needed);CHKERRQ(ierr);
+  ierr = PetscMalloc1(2*npts, &queue);CHKERRQ(ierr);
+  /* initialize queues */
+  quin = queue;
+  quou = queue + npts;
+  nqin = numPoints;
+  ierr = PetscMemcpy(quin, points, nqin*sizeof(*points));CHKERRQ(ierr);
+  for (q = 0; q < nqin; q++) { ierr = PetscBTSet(needed, quin[q]-pStart);CHKERRQ(ierr); }
+  /* recursively add cones */
+  while (nqin) {
+    PetscInt *qtmp;
+
+    for (q = 0, nqou = 0; q < nqin; q++) {
+      const PetscInt *cone;
+      const PetscInt p = quin[q];
+      PetscInt       coneSize, c;
+
+      ierr = DMPlexGetCone(dm, p, &cone);CHKERRQ(ierr);
+      ierr = DMPlexGetConeSize(dm, p, &coneSize);CHKERRQ(ierr);
+      for (c = 0; c < coneSize; c++) {
+        const PetscInt cp = cone[c];
+
+        if (!PetscBTLookupSet(needed, cp-pStart)) quou[nqou++] = cp;
+      }
+      if (PetscUnlikely(hasTree)) {
+        ierr = DMPlexAddClosure_Tree(dm, needed, p, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
+      }
     }
+    /* swap queues */
+    nqin = nqou;
+    qtmp = quin;
+    quin = quou;
+    quou = qtmp;
   }
-  if (closure) {ierr = DMPlexRestoreTransitiveClosure(dm, 0, PETSC_TRUE, NULL, &closure);CHKERRQ(ierr);}
-  ierr = PetscHSetIGetSize(ht, &nelems);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nelems, &elems);CHKERRQ(ierr);
-  ierr = PetscHSetIGetElems(ht, &off, elems);CHKERRQ(ierr);
-  ierr = PetscHSetIDestroy(&ht);CHKERRQ(ierr);
-  ierr = PetscSortInt(nelems, elems);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_SELF, nelems, elems, PETSC_OWN_POINTER, closureIS);CHKERRQ(ierr);
+  for (q = 0, nqin = 0; q < npts; q++) if (PetscBTLookup(needed, q)) queue[nqin++] = q + pStart;
+  ierr = ISCreateGeneral(PETSC_COMM_SELF, nqin, queue, PETSC_COPY_VALUES, closureIS);CHKERRQ(ierr);
+  ierr = PetscFree(queue);CHKERRQ(ierr);
+  ierr = PetscBTDestroy(&needed);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2317,7 +2338,7 @@ PetscErrorCode DMPlexPartitionLabelClosure_Private(DM dm, DMLabel label, PetscIn
 
   Level: developer
 
-.seealso: DMPlexPartitionLabelCreateSF, DMPlexDistribute(), DMPlexCreateOverlap
+.seealso: DMPlexPartitionLabelCreateSF(), DMPlexDistribute(), DMPlexCreateOverlap()
 @*/
 PetscErrorCode DMPlexPartitionLabelClosure(DM dm, DMLabel label)
 {
@@ -2335,7 +2356,7 @@ PetscErrorCode DMPlexPartitionLabelClosure(DM dm, DMLabel label)
     ierr = DMLabelGetStratumIS(label, rank, &pointIS);CHKERRQ(ierr);
     ierr = ISGetLocalSize(pointIS, &numPoints);CHKERRQ(ierr);
     ierr = ISGetIndices(pointIS, &points);CHKERRQ(ierr);
-    ierr = DMPlexPartitionLabelClosure_Private(dm, label, rank, numPoints, points, &closureIS);CHKERRQ(ierr);
+    ierr = DMPlexTransitiveClosurePoints_Private(dm, numPoints, points, &closureIS);CHKERRQ(ierr);
     ierr = ISRestoreIndices(pointIS, &points);CHKERRQ(ierr);
     ierr = ISDestroy(&pointIS);CHKERRQ(ierr);
     ierr = DMLabelSetStratumIS(label, rank, closureIS);CHKERRQ(ierr);
@@ -2484,6 +2505,7 @@ PetscErrorCode DMPlexPartitionLabelInvert(DM dm, DMLabel rootLabel, PetscSF proc
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(DMPLEX_PartLabelInvert,dm,0,0,0);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
@@ -2582,6 +2604,7 @@ PetscErrorCode DMPlexPartitionLabelInvert(DM dm, DMLabel rootLabel, PetscSF proc
   ierr = PetscSectionDestroy(&rootSection);CHKERRQ(ierr);
   ierr = PetscFree(rootPoints);CHKERRQ(ierr);
   ierr = PetscFree(leafPoints);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(DMPLEX_PartLabelInvert,dm,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2599,7 +2622,7 @@ PetscErrorCode DMPlexPartitionLabelInvert(DM dm, DMLabel rootLabel, PetscSF proc
 
   Level: developer
 
-.seealso: DMPlexDistribute(), DMPlexCreateOverlap
+.seealso: DMPlexDistribute(), DMPlexCreateOverlap()
 @*/
 PetscErrorCode DMPlexPartitionLabelCreateSF(DM dm, DMLabel label, PetscSF *sf)
 {
@@ -2611,6 +2634,7 @@ PetscErrorCode DMPlexPartitionLabelCreateSF(DM dm, DMLabel label, PetscSF *sf)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(DMPLEX_PartLabelCreateSF,dm,0,0,0);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
 
@@ -2649,6 +2673,8 @@ PetscErrorCode DMPlexPartitionLabelCreateSF(DM dm, DMLabel label, PetscSF *sf)
   ierr = PetscSFCreate(PetscObjectComm((PetscObject) dm), sf);CHKERRQ(ierr);
   ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
   ierr = PetscSFSetGraph(*sf, pEnd-pStart, numRemote, NULL, PETSC_OWN_POINTER, remotePoints, PETSC_OWN_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(*sf);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(DMPLEX_PartLabelCreateSF,dm,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
