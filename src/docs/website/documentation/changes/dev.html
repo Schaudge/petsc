@@ -112,6 +112,10 @@
       <h4>Vec:</h4>
       <h4>VecScatter:</h4>
       <h4>PetscSection:</h4>
+      <h4>PetscSF:</h4>
+      <ul>
+        <li>PetscSFComputeMultiRootOriginalNumbering: add output argument with the number of multiroots for convenience</li>
+      </ul>
       <h4>Mat:</h4>
       <ul>
           <li>MatShift(Mat,0); will no longer silently insure there are no missing diagonal entries. (Previously it would put 0 into any diagonal entry that was missing</li>
@@ -124,10 +128,19 @@
       <h4>KSP:</h4>
         <ul>
           <li>Renamed KSPComputeExplicitOperator() into KSPComputeOperator(). Added extra argument to select the desired matrix type</li>
+          <li> KSPCGGLTRGetMinEig(KSP,PetscReal*) -> KSPGLTRGetMinEig(KSP,PetscReal*)</li>
+          <li> KSPCGGLTRGetLambda(KSP,PetscReal*) ->  KSPGLTRGetLambda(KSP,PetscReal*)</li>
+          <li> KSPCGNASH, KSPCGSTCG, KSPCGGLTR -> KSPNASH, KSPSTCG, KSPGLTR</li>
         </ul>
       <h4>SNES:</h4>
       <h4>SNESLineSearch:</h4>
       <h4>TS:</h4>
+        <ul>
+          <li>Added tangent linear models for Runge-Kutta methods</li>
+          <li>Added second-order adjoint solvers based on Runge-Kutta methods and Theta methods</li>
+          <li>Improved the usage of first-order adjoint solvers in an optimization context. (The TS object can be reused in the optimization loop)</li>
+          <li>Changed the APIs for integrand evaluations and corresponding derivative evaluations. TSSetCostIntegrand() is deprecated. (Instead a quadrature TS is used to handle the callbacks)</li>
+        </ul>
       <h4>DM/DA:</h4>
       <h4>DMPlex:</h4>
         <ul>
@@ -138,6 +151,9 @@
           <li>Changed prototypes for DMNetworkSetSizes()</li>
         </ul>
       <h4>PetscViewer:</h4>
+        <ul>
+          <li>Removed PetscViewerHDF5{Get,Set}AIJNames() which are likely not really needed</li>
+        </ul>
       <h4>SYS:</h4>
       <h4>AO:</h4>
       <h4>Sieve:</h4>

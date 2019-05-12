@@ -9,7 +9,6 @@
 #include <hdf5.h>
 PETSC_EXTERN PetscErrorCode PetscViewerHDF5GetFileId(PetscViewer,hid_t*);
 PETSC_EXTERN PetscErrorCode PetscViewerHDF5OpenGroup(PetscViewer, hid_t *, hid_t *);
-PETSC_EXTERN PetscErrorCode PetscViewerHDF5ReadSizes(PetscViewer, const char[], PetscInt *, PetscInt *);
 
 /* On 32 bit systems HDF5 is limited by size of integer, because hsize_t is defined as size_t */
 #define PETSC_HDF5_INT_MAX  2147483647
@@ -61,7 +60,4 @@ PETSC_EXTERN PetscErrorCode PetscViewerHDF5GetBaseDimension2(PetscViewer,PetscBo
 
 PETSC_EXTERN PetscErrorCode PetscViewerHDF5SetSPOutput(PetscViewer,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscViewerHDF5GetSPOutput(PetscViewer,PetscBool*);
-
-PETSC_EXTERN PetscErrorCode PetscViewerHDF5SetAIJNames(PetscViewer,const char[],const char[],const char[],const char[]);
-PETSC_EXTERN PetscErrorCode PetscViewerHDF5GetAIJNames(PetscViewer,const char*[],const char*[],const char*[],const char*[]);
 #endif
