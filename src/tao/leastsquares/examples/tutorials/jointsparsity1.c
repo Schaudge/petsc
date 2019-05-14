@@ -61,7 +61,7 @@ typedef struct {
   /* Working index sets, useful for joint sparsity to extract corresponding rows/cols of a matrix from the vectorized version of the matrix */  
   IS       *idxRowsX,*idxColsX,*idxColsB,*idxRowsY,*idxColsY; /* array of IS to extract rows and cols of X/B/Y from its column vectorized x/b/y, the array has size N,L,L,L; Note for b we only need idxCols*/
   /* Working vector only for joint sparsity */
-  Vec       z;  /*K*1 working vector*/
+  Vec       z,v1,v2,v3;  /* working vectors, z is K dimension vector for obj/gradient/hessian. v1, v2, v3 are KL dimention vectors precomputed for Hessian product. */
 } AppCtx;
 
 /* User provided Routines */
@@ -80,7 +80,7 @@ int main(int argc,char **argv)
   PetscErrorCode ierr;               /* used to check for functions returning nonzeros */
   Vec            x,res;              /* solution, function res(x) = A*x-b */
   Tao            tao;                /* Tao solver context */
-  PetscReal      hist[100],resid[100],v1,v2;
+  PetscReal      hist[100],resid[100],s1,s2;
   PetscInt       lits[100];
   AppCtx         user;               /* user-defined work context */
   PetscViewer    fd;   /* used to save result to file */
@@ -139,14 +139,16 @@ int main(int argc,char **argv)
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
     /* XH: Debug: View the result, function and Jacobian.  */
+/*    
   ierr = PetscPrintf(PETSC_COMM_SELF, "-------- result x, residual res =A*x-b. -------- \n");CHKERRQ(ierr);
   ierr = VecView(x,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
   ierr = VecView(res,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
+  */
     /* compute the error */
   ierr = VecAXPY(x,-1,user.xGT);CHKERRQ(ierr);
-  ierr = VecNorm(x,NORM_2,&v1);CHKERRQ(ierr);
-  ierr = VecNorm(user.xGT,NORM_2,&v2);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_SELF, "relative reconstruction error: ||x-xGT||/||xGT|| = %6.4e.\n", (double)(v1/v2));CHKERRQ(ierr);
+  ierr = VecNorm(x,NORM_2,&s1);CHKERRQ(ierr);
+  ierr = VecNorm(user.xGT,NORM_2,&s2);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_SELF, "relative reconstruction error: ||x-xGT||/||xGT|| = %6.4e.\n", (double)(s1/s2));CHKERRQ(ierr);
 
 
   /* Free TAO data structures */
@@ -164,9 +166,13 @@ int main(int argc,char **argv)
 /* ---------------------------------------------------------------------- */
 PetscErrorCode BlockMatrixOperation(Mat Asub,Vec in,Vec out,IS *idxColsIN,IS *idxColsOUT,PetscInt L,PetscErrorCode (*fun_ptr)())
 {
-  /* fun_ptr = MatMult/MatMultTranspose, L is size of blocks, we handles both:
-     out = diag(Asub,...,Asub)*in  = A*in, which is ASub*IN (here IN is the original matrix version of in vector) then vectorized, idxColsIN extract all columns of IN from in
-     out = diag(Asub,...,Asub)'*in = A'*in */  
+  /* Block matrix computation, includes two cases specified by *fun_ptr() = MatMult()/MatMultTranspose()
+     out = diag(Asub,...,Asub)*in  = A*in,   If we use Matlab, out = rehape(Asub*IN, [], 1), where IN = reshape(in, [], L)
+     out = diag(Asub,...,Asub)'*in = A'*in.      
+     L is size of blocks, 
+     idxColsIN[l] represent the lth subvector of in, which is lth column of matrix IN.
+     idxColsOUT[l] represent the lth subvector of out.            
+  */  
   PetscErrorCode ierr;
   Vec            inSub,outSub;
   PetscInt       l;
@@ -179,7 +185,7 @@ PetscErrorCode BlockMatrixOperation(Mat Asub,Vec in,Vec out,IS *idxColsIN,IS *id
       ierr = VecGetSubVector(out,idxColsOUT[l],&outSub);CHKERRQ(ierr);
       ierr = (*fun_ptr)(Asub,inSub,outSub);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(in,idxColsIN[l],&inSub);CHKERRQ(ierr);
-      ierr = VecRestoreSubVector(out,idxColsOUT[l],&outSub);CHKERRQ(ierr);    
+      ierr = VecRestoreSubVector(out,idxColsOUT[l],&outSub);CHKERRQ(ierr);
     }
   } else {
     /* We treat NULL matrix as identity matrix here as shortcut to specify identity matrix multiplication */
@@ -192,7 +198,7 @@ PetscErrorCode BlockMatrixOperation(Mat Asub,Vec in,Vec out,IS *idxColsIN,IS *id
 /* ---------------------------------------------------------------------- */
 PetscErrorCode BlockMatrixMultiplyA(Mat A,Vec in,Vec out)
 {
-  /* b = A*in = diag(Asub,...,Asub)*x = reshape(Asub*X,M*L,1) */
+  /* b = A*in = diag(Asub,...,Asub)*x = reshape(Asub*reshape(x,[],L),M*L,1) */
   AppCtx         *user;
   PetscErrorCode ierr;
 
@@ -205,7 +211,7 @@ PetscErrorCode BlockMatrixMultiplyA(Mat A,Vec in,Vec out)
 /* ---------------------------------------------------------------------- */
 PetscErrorCode BlockMatrixMultiplyTransposeA(Mat A,Vec in,Vec out)
 {
-  /* x = A'*in = diag(Asub',...,Asub')*b = reshape(Asub'*B,N*L,1) */
+  /* x = A'*in = diag(Asub',...,Asub')*b = reshape(Asub'*reshape(b,[],L),N*L,1) */
   AppCtx         *user;
   PetscErrorCode ierr;
 
@@ -218,7 +224,7 @@ PetscErrorCode BlockMatrixMultiplyTransposeA(Mat A,Vec in,Vec out)
 /* ---------------------------------------------------------------------- */
 PetscErrorCode BlockMatrixMultiplyD(Mat D,Vec in,Vec out)
 {
-  /* y = D*in = diag(Dsub,...,Dsub)*x = reshape(Dsub*X,K*L,1) */
+  /* y = D*in = diag(Dsub,...,Dsub)*x = reshape(Dsub*reshape(x,[],L),K*L,1) */
   AppCtx         *user;
   PetscErrorCode ierr;
   
@@ -231,7 +237,7 @@ PetscErrorCode BlockMatrixMultiplyD(Mat D,Vec in,Vec out)
 /* ---------------------------------------------------------------------- */
 PetscErrorCode BlockMatrixMultiplyTransposeD(Mat D,Vec in,Vec out)
 {
-  /* x = D'*in = diag(Dsub',...,Dsub')*y = reshape(Dsub'*Y,N*L,1) */
+  /* x = D'*in = diag(Dsub',...,Dsub')*y = reshape(Dsub'*reshape(y,[],L),N*L,1) */
   AppCtx         *user;
   PetscErrorCode ierr;
 
@@ -350,6 +356,9 @@ PetscErrorCode InitializeUserData(AppCtx *user)
   ierr = VecSetFromOptions(user->y);CHKERRQ(ierr);
   ierr = VecDuplicate(user->y,&user->y_work);CHKERRQ(ierr);
   ierr = VecDuplicate(user->y,&user->diag);CHKERRQ(ierr);
+  ierr = VecDuplicate(user->y,&user->v1);CHKERRQ(ierr);
+  ierr = VecDuplicate(user->y,&user->v2);CHKERRQ(ierr);
+  ierr = VecDuplicate(user->y,&user->v3);CHKERRQ(ierr);
 
   /* Vectors of size K */
   ierr = VecCreate(PETSC_COMM_SELF,&user->z);CHKERRQ(ierr);
@@ -398,7 +407,7 @@ PetscErrorCode InitializeUserData(AppCtx *user)
   ierr = ISStrideGetInfo(user->idxColsX[user->L-1],&first,&step);CHKERRQ(ierr);
   ierr = ISGetSize(user->idxColsX[user->L-1],&len);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"user->idxColsX[L-1]: first: %d, step:%d, len:%d\n", first, step, len);CHKERRQ(ierr);
-#endif  
+#endif
 
   PetscFunctionReturn(0);
 }
@@ -427,6 +436,10 @@ PetscErrorCode DestroyUserData(AppCtx *user)
   ierr = VecDestroy(&user->diag);CHKERRQ(ierr);
   ierr = VecDestroy(&user->y);CHKERRQ(ierr);
   ierr = VecDestroy(&user->y_work);CHKERRQ(ierr);
+  ierr = VecDestroy(&user->v1);CHKERRQ(ierr);
+  ierr = VecDestroy(&user->v2);CHKERRQ(ierr);
+  ierr = VecDestroy(&user->v3);CHKERRQ(ierr);
+
   ierr = VecDestroy(&user->z);CHKERRQ(ierr);
 
   /* Destroy array of index sets */
@@ -468,8 +481,8 @@ PetscErrorCode EvaluateResidual(Tao tao,Vec X,Vec F,void *ctx)
 
   PetscFunctionBegin;
   /* Compute Ax - b */
-  ierr = MatMult(user->A,X,F);CHKERRQ(ierr);
-  ierr = VecAXPY(F,-1,user->b);CHKERRQ(ierr);
+  ierr = MatMult(user->A,X,F);CHKERRQ(ierr);   /* F = Ax */
+  ierr = VecAXPY(F,-1,user->b);CHKERRQ(ierr);  /* F = -b + F = -b + Ax */
   PetscLogFlops(user->M*user->N*user->L*2);
   PetscFunctionReturn(0);
 }
@@ -485,10 +498,13 @@ PetscErrorCode EvaluateJacobian(Tao tao,Vec X,Mat J,Mat Jpre,void *ctx)
 /* ------------------------------------------------------------ */
 PetscErrorCode EvaluateRegularizerObjectiveAndGradient(Tao tao,Vec X,PetscReal *f_reg,Vec G_reg,void *ctx)
 {
+  /* Compute the regularizer objective function value as *f_reg, and its gradient as G_reg */
   AppCtx         *user = (AppCtx *)ctx;
-  PetscInt       sz,k,l;    /* sz = dimension of D*X, k,l loop indices for rows and cols of Y matrix*/
+  PetscInt       sz,k,l;    /* sz = dimension of D*X, k,l loop indices for rows and cols of Y matrix */
   PetscScalar    vecSum;
   PetscErrorCode ierr;  
+  PetscReal      *zArray; /* only used for joint sparsity */
+  Vec            subVec; /* only used for joint sparsity */
 
   PetscFunctionBegin;
 
@@ -526,16 +542,15 @@ PetscErrorCode EvaluateRegularizerObjectiveAndGradient(Tao tao,Vec X,PetscReal *
   case BRGN_REGULARIZATION_L1JOINT:
     /************ Regularizer: joint-L1-sparsity with Dict ******************/
     /* compute regularizer objective *f_reg = sum(sqrt(z.^2+epsilon^2) - epsilon), where z = ||Y||_{2,1},  Y = Dsub*X matrix or y=D*x vector */
+    /* Compute y = D*x */
     if (user->D) {
       ierr = MatMult(user->D,X,user->y);CHKERRQ(ierr);/* y = D*x */
     } else {    
       ierr = VecCopy(X,user->y);CHKERRQ(ierr);
     }
-    ierr = VecPointwiseMult(user->y_work,user->y,user->y);CHKERRQ(ierr); /* y_work = y.^2 = (D*x).^2 */
 
-    /*** 'reshape' y_work to matrix Y, then compute the row sum as z, using user->idxRowsY. New variables zArray, subVec ***/
-    PetscReal *zArray;
-    Vec        subVec;
+    /* Compute z = sum(reshape(y_work, [K,L]), 2) = sum(reshape((D*x).^2, [K,L]), 2) which is the row sum */
+    ierr = VecPointwiseMult(user->y_work,user->y,user->y);CHKERRQ(ierr); /* y_work = y.^2 = (D*x).^2 */
     ierr = VecGetArray(user->z,&zArray);CHKERRQ(ierr);
     for (k=0;k<user->K;++k) {        
       ierr = VecGetSubVector(user->y_work,user->idxRowsY[k],&subVec);CHKERRQ(ierr);
@@ -543,16 +558,19 @@ PetscErrorCode EvaluateRegularizerObjectiveAndGradient(Tao tao,Vec X,PetscReal *
       ierr = VecRestoreSubVector(user->y_work,user->idxRowsY[k],&subVec);CHKERRQ(ierr);    
     }
     ierr = VecRestoreArray(user->z,&zArray);CHKERRQ(ierr);    
+    /* Compute z = sqrt(z + epsilon^2) = sqrt(||Dx||_{2,1}^2 + epsilon^2) */
     ierr = VecShift(user->z,user->epsilon*user->epsilon);CHKERRQ(ierr);
     ierr = VecSqrtAbs(user->z);CHKERRQ(ierr);  /* z = sqrt(||Dx||_{2,1}^2 + epsilon^2) */ 
+
     ierr = VecSum(user->z,&vecSum);CHKERRQ(ierr);CHKERRQ(ierr);
     ierr = VecGetSize(user->z,&sz);CHKERRQ(ierr); /* sz = user->K, or just use user->K */
     *f_reg = (vecSum - sz*user->epsilon);
     
-    /* compute regularizer gradient G_reg = D'*(y./zExtend)),where y = D*x (already computed as user->y), zExtend = repmat(z,L,1), z = sqrt(||Dx||_{2,1}^2 + epsilon^2)*/
+    /* compute regularizer gradient G_reg = D'*(y./zExtend)),where y = D*x (already computed as user->y), zExtend = repmat(z, [L,1]), z = sqrt(||Dx||_{2,1}^2 + epsilon^2)*/
+    /* Compute y = y./repmat(z, [L,1]) */
     for (l=0;l<user->L;++l) {        
       ierr = VecGetSubVector(user->y,user->idxColsY[l],&subVec);CHKERRQ(ierr);
-      ierr = VecPointwiseDivide(subVec,subVec,user->z);CHKERRQ(ierr); /* reuse y = D*x already computed */
+      ierr = VecPointwiseDivide(subVec,subVec,user->z);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(user->y,user->idxColsY[l],&subVec);CHKERRQ(ierr);
     }        
     if (user->D) {
@@ -570,6 +588,9 @@ PetscErrorCode EvaluateRegularizerHessianProd(Mat Hreg,Vec in,Vec out)
 {
   AppCtx         *user;
   PetscErrorCode ierr;
+  PetscReal      *zArray; /* only used for joint sparsity */
+  Vec            subVec;  /* only used for joint sparsity */
+  PetscInt       k,l;    /* k,l loop indices for rows and cols of Y matrix */
 
   PetscFunctionBegin;
   switch (BRGN_REGULARIZATION_USER) {
@@ -594,17 +615,44 @@ PetscErrorCode EvaluateRegularizerHessianProd(Mat Hreg,Vec in,Vec out)
     }  
     break;
   case BRGN_REGULARIZATION_L1JOINT:
-    /************ Regularizer: joint-L1-sparsity with Dict ******************/
-    /* out = D'*(diag.*(D*in)) */
+    /************ Regularizer: joint-L1-sparsity with Dict ******************/    
+    /* out = D'*(Hy*(D*in)), Let y = D*in
+       Hy*y = 1./zHat0.*y - y0./zHat0^2 .* repmat(sum(reshape((y0./zHat0).*y, K,L), 2), [L, 1])
+            = v1.*y - v2.*repmat(sum(reshape(v3.*y, K,L), 2), [L, 1])
+     */
+    /* 1. Computer y = D*in */
     ierr = MatShellGetContext(Hreg,&user);CHKERRQ(ierr);
     if (user->D) {
       ierr = MatMult(user->D,in,user->y);CHKERRQ(ierr); /* y = D*in */
     } else {
       ierr = VecCopy(in,user->y);CHKERRQ(ierr); /* y = in */
     }
-    ierr = VecPointwiseMult(user->y_work,user->diag,user->y);CHKERRQ(ierr);   /* y_work = diag.*(D*in), where diag = epsilon^2 ./ sqrt(x.^2+epsilon^2).^3 */
+
+    /* 2. Compute Hy*y = Hy*(D*in) */
+    /* Compute y_work = v3.*y */
+    ierr = VecPointwiseMult(user->y_work,user->v3,user->y);CHKERRQ(ierr); 
+    /* Compute z = sum(reshape(y_work, [K,L]), 2) = sum(reshape(v3.*y, [K,L]), 2)which is the row sum, using user->idxRowsY */
+    ierr = VecGetArray(user->z,&zArray);CHKERRQ(ierr);
+    for (k=0;k<user->K;++k) {        
+      ierr = VecGetSubVector(user->y_work,user->idxRowsY[k],&subVec);CHKERRQ(ierr);
+      ierr = VecSum(subVec,&zArray[k]);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(user->y_work,user->idxRowsY[k],&subVec);CHKERRQ(ierr);    
+    }
+    ierr = VecRestoreArray(user->z,&zArray);CHKERRQ(ierr);      
+    /* Compute y_work = v2.*repmat(z, [L,1]) =  v2.*repmat(sum(reshape(v3.*y, K,L), 2), [L, 1]) */
+    ierr = VecCopy(user->v2,user->y_work);CHKERRQ(ierr);
+    for (l=0;l<user->L;++l) {        
+      ierr = VecGetSubVector(user->y_work,user->idxColsY[l],&subVec);CHKERRQ(ierr);
+      ierr = VecPointwiseMult(subVec,subVec,user->z);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(user->y_work,user->idxColsY[l],&subVec);CHKERRQ(ierr);
+    } 
+    /* Compute y_work = v1.*y - y_work = v1.*y - v2.*repmat(sum(reshape(v3.*y, K,L), 2), [L, 1]) */
+    ierr = VecPointwiseMult(user->y,user->v1,user->y);CHKERRQ(ierr); /* y = v1.*y. We don't need y any more */
+    ierr = VecAYPX(user->y_work,-1,user->y);CHKERRQ(ierr);           /* y_work = y + (-1)*y_work = v1.*y - y_work */
+
+    /* 3. Compute D'*y_work = D'*(Hy*(D*in)) */
     if (user->D) {
-      ierr = MatMultTranspose(user->D,user->y_work,out);CHKERRQ(ierr); /* out = D'*(diag.*(D*in)) */
+      ierr = MatMultTranspose(user->D,user->y_work,out);CHKERRQ(ierr); /* out = D'*(Hy.*(D*in)) */
     } else {
       ierr = VecCopy(user->y_work,out);CHKERRQ(ierr); /* out = diag.*in */
     }      
@@ -619,6 +667,10 @@ PetscErrorCode EvaluateRegularizerHessian(Tao tao,Vec X,Mat Hreg,void *ctx)
 {
   AppCtx         *user = (AppCtx *)ctx;
   PetscErrorCode ierr;
+  PetscInt       k,l;    /* k,l loop indices for rows and cols of Y matrix */
+  PetscReal      *zArray; /* only used for joint sparsity */
+  Vec            subVec; /* only used for joint sparsity */
+
 
   PetscFunctionBegin;
   switch (BRGN_REGULARIZATION_USER) {
@@ -635,30 +687,59 @@ PetscErrorCode EvaluateRegularizerHessian(Tao tao,Vec X,Mat Hreg,void *ctx)
     }
     ierr = VecPointwiseMult(user->y_work,user->y,user->y);CHKERRQ(ierr);
     ierr = VecShift(user->y_work,user->epsilon*user->epsilon);CHKERRQ(ierr);
-    ierr = VecCopy(user->y_work,user->diag);CHKERRQ(ierr);                  /* user->diag = y.^2+epsilon^2 */
-    ierr = VecSqrtAbs(user->y_work);CHKERRQ(ierr);                        /* user->y_work = sqrt(y.^2+epsilon^2) */ 
+    ierr = VecCopy(user->y_work,user->diag);CHKERRQ(ierr);                    /* user->diag = y.^2+epsilon^2 */
+    ierr = VecSqrtAbs(user->y_work);CHKERRQ(ierr);                            /* user->y_work = sqrt(y.^2+epsilon^2) */ 
     ierr = VecPointwiseMult(user->diag,user->y_work,user->diag);CHKERRQ(ierr);/* user->diag = sqrt(y.^2+epsilon^2).^3 */
     ierr = VecReciprocal(user->diag);CHKERRQ(ierr);
     ierr = VecScale(user->diag,user->epsilon*user->epsilon);CHKERRQ(ierr);
     break;
   case BRGN_REGULARIZATION_L1JOINT:
     /************ Regularizer: joint-L1-sparsity with Dict ******************/
-    /* calculate and store diagonal matrix as a vector: diag = epsilon^2 ./ sqrt(x.^2+epsilon^2).^3* --> diag = epsilon^2 ./ sqrt(y.^2+epsilon^2).^3,where y = D*x */  
+    /* Pre-compute v1, v2, v3 for computing the Heassian
+       Hy*y = 1./zHat0.*y - y0./zHat0^2 .* repmat(sum(reshape((y0./zHat0).*y, K,L), 2), [L, 1])
+            = v1.*y - v2.*repmat(sum(reshape(v3.*y, K,L), 2), [L, 1])
+       v1 = 1./zHat0
+       v2 = y0./zHat0^2 = y0.*v1.*v1 = v3.*v1
+       v3 = y0./zHat0 = y0.*v1
+    */          
+    /***************************Copied from EvaluateRegularizerObjectiveAndGradient()*************************************/
+    /* Compute y = D*x */
     if (user->D) {
       ierr = MatMult(user->D,X,user->y);CHKERRQ(ierr);/* y = D*x */
-    } else {
+    } else {    
       ierr = VecCopy(X,user->y);CHKERRQ(ierr);
     }
-    ierr = VecPointwiseMult(user->y_work,user->y,user->y);CHKERRQ(ierr);
-    ierr = VecShift(user->y_work,user->epsilon*user->epsilon);CHKERRQ(ierr);
-    ierr = VecCopy(user->y_work,user->diag);CHKERRQ(ierr);                  /* user->diag = y.^2+epsilon^2 */
-    ierr = VecSqrtAbs(user->y_work);CHKERRQ(ierr);                        /* user->y_work = sqrt(y.^2+epsilon^2) */ 
-    ierr = VecPointwiseMult(user->diag,user->y_work,user->diag);CHKERRQ(ierr);/* user->diag = sqrt(y.^2+epsilon^2).^3 */
-    ierr = VecReciprocal(user->diag);CHKERRQ(ierr);
-    ierr = VecScale(user->diag,user->epsilon*user->epsilon);CHKERRQ(ierr);    
+
+    /* Compute z = sum(reshape(y_work, [K,L]), 2) = sum(reshape((D*x).^2, [K,L]), 2) which is the row sum */
+    ierr = VecPointwiseMult(user->y_work,user->y,user->y);CHKERRQ(ierr); /* y_work = y.^2 = (D*x).^2 */
+    ierr = VecGetArray(user->z,&zArray);CHKERRQ(ierr);
+    for (k=0;k<user->K;++k) {        
+      ierr = VecGetSubVector(user->y_work,user->idxRowsY[k],&subVec);CHKERRQ(ierr);
+      ierr = VecSum(subVec,&zArray[k]);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(user->y_work,user->idxRowsY[k],&subVec);CHKERRQ(ierr);    
+    }
+    ierr = VecRestoreArray(user->z,&zArray);CHKERRQ(ierr);    
+    /* Compute z = sqrt(z + epsilon^2) = sqrt(||Dx||_{2,1}^2 + epsilon^2) */
+    ierr = VecShift(user->z,user->epsilon*user->epsilon);CHKERRQ(ierr);
+    ierr = VecSqrtAbs(user->z);CHKERRQ(ierr);  /* z = sqrt(||Dx||_{2,1}^2 + epsilon^2) */ 
+    /***************************End of Copied from EvaluateRegularizerObjectiveAndGradient(). *************************************/    
+
+    /* Compute v1 = 1./zHat0 = 1./repmat(z, [L,1]). Modified from EvaluateRegularizerObjectiveAndGradient() code of Compute y = y./repmat(z, [L,1])*/
+    ierr = VecSet(user->v1,1.0);CHKERRQ(ierr);
+    for (l=0;l<user->L;++l) {        
+      ierr = VecGetSubVector(user->v1,user->idxColsY[l],&subVec);CHKERRQ(ierr);
+      ierr = VecPointwiseDivide(subVec,subVec,user->z);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(user->v1,user->idxColsY[l],&subVec);CHKERRQ(ierr);
+    }  
+
+    /* Compute v3 = y0.*v1 = y0./zHat0 = (D*x)./repmat(z, [L,1]), which actually is the gradient */
+    ierr = VecPointwiseMult(user->v3,user->y,user->v1);CHKERRQ(ierr);  /* Compare with Compute y = y./repmat(z, [L,1]) in EvaluateRegularizerObjectiveAndGradient(), which way is faster?*/
+    
+    /* v2 = v3.*v1 = y0./zHat0^2 */
+    ierr = VecPointwiseMult(user->v2,user->v3,user->v1);CHKERRQ(ierr);  
+
     break;
   }
-
   PetscFunctionReturn(0);
 }
 

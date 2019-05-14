@@ -82,15 +82,15 @@ if testPetscBinaryWriteAndRead_cs1
 end
 % xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT)/norm(xGT) 
 
-%% Generate data for jointsparsity1
+%% Generate data for jointsparsity1:  very small example
 testPetscBinaryWriteAndRead_jointsparsity1 = 1;
 if testPetscBinaryWriteAndRead_jointsparsity1
     M=3; N=5;  rng(0); A = rand(M, N); A = round(A*100)/100; % generate A below
 %     A = [0.81  0.91  0.28  0.96  0.96
 %         0.91  0.63  0.55  0.16  0.49
 %         0.13  0.10  0.96  0.97  0.80];
-    %xGT =  [0;0;1;0;0]; %xGT = [xGT xGT]; %xGT = [xGT [0;0;0;1;0]];
-    xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
+    xGT =  [0;0;1;0;0]; %xGT = [xGT xGT]; %xGT = [xGT [0;0;0;1;0]];
+    %xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
     L = size(xGT,2);
     b = A*xGT; % [0.28; 0.55; 0.96];
     % in PetscBinaryWrite, the code "for l=1:nargin-1" will write 'precision' and 'float64' as two double vectors
@@ -104,3 +104,34 @@ if testPetscBinaryWriteAndRead_jointsparsity1
 %         0 0 0 -1 1];
 end
 % xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT)/norm(xGT) 
+
+%% Generate data for jointsparsity1:  mideum size example
+testPetscBinaryWriteAndRead_jointsparsity1 = 1;
+if testPetscBinaryWriteAndRead_jointsparsity1
+    M=50; N=100; L=4; rng(0); A = rand(M, N); A = round(A*100)/100; % generate A below
+    rng(0); xGT =  rand(N,1); xGT(xGT<0.9)=0; 
+    rng(0); xGT= bsxfun(@times, xGT, rand(1,L)); %ones(1,L);
+    %xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
+    L = size(xGT,2);
+    b = A*xGT; % [0.28; 0.55; 0.96];
+    bNoisy = b + normrnd(0, 0.05*std(b(:)), size(b)); b = bNoisy;% add noise
+    % in PetscBinaryWrite, the code "for l=1:nargin-1" will write 'precision' and 'float64' as two double vectors
+    PetscBinaryWrite('jointsparsity1Data_A_b_xGT_L', A, b(:), xGT(:), L, 'precision', 'float64'); %   
+    [A2, b2, xGT2, L2, dummy] = PetscBinaryRead('jointsparsity1Data_A_b_xGT_L'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
+    
+    % dictionary matrix, not used here
+%     D = [-1 1 0 0 0;
+%         0 -1 1 0 0;
+%         0 0 -1 1 0;
+%         0 0 0 -1 1];
+end
+%%
+xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT(:))/norm(xGT(:));
+figure, plot(xGT(:), 'r'); hold on; plot(xRecBRGN, 'b');
+
+% make ./jointsparsity1; ./jointsparsity1 -tao_monitor -tao_max_it 100 -tao_brgn_regularization_type user -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
+% relative reconstruction error: ||x-xGT||/||xGT|| = 1.5208e-02. L=1
+
+%make ./jointsparsity1; ./jointsparsity1 -tao_monitor -tao_max_it 100 -tao_brgn_regularization_type l1dict -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
+% relative reconstruction error: ||x-xGT||/||xGT|| = 6.9864e-01.  L=1
+% relative reconstruction error: ||x-xGT||/||xGT|| = 7.0638e-01.  L=3
