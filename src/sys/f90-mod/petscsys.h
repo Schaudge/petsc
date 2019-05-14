@@ -15,15 +15,6 @@
        Integer,Parameter   :: PETSC_REAL_KIND                                 &
      &  = Selected_Real_Kind(Precision(PetscReal_Private))
 
-
-#if !defined(PETSC_AVOID_MPIF_H)
-#if defined(PETSC_HAVE_MPIUNI)
-#include "petsc/mpiuni/mpif.h"
-#else
-#include "mpif.h"
-#endif
-#endif
-
       type tPetscOptions
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tPetscOptions
