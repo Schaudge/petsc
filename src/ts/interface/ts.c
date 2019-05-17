@@ -960,16 +960,14 @@ PetscErrorCode TSComputeIJacobian(TS ts,PetscReal t,Vec U,Vec Udot,PetscReal shi
       } else {
         PetscBool flg;
 
-        if (ts->rhsjacobian.reuse) { /* Undo the damage */
-          /* MatScale has a short path for this case.
-             However, this code path is taken the first time TSComputeRHSJacobian is called
-             and the matrices have not been assembled yet */
-          if (ts->rhsjacobian.shift) {
-            ierr = MatShift(A,-ts->rhsjacobian.shift);CHKERRQ(ierr);
-          }
-          if (ts->rhsjacobian.scale == -1.) {
-            ierr = MatScale(A,-1);CHKERRQ(ierr);
-          }
+        /* MatScale has a short path for this case.
+           However, this code path is taken the first time TSComputeRHSJacobian is called
+           and the matrices have not been assembled yet */
+        if (ts->rhsjacobian.shift) {
+          ierr = MatShift(A,-ts->rhsjacobian.shift);CHKERRQ(ierr);
+        }
+        if (ts->rhsjacobian.scale == -1.) {
+          ierr = MatScale(A,-1);CHKERRQ(ierr);
         }
         if (B && B == ts->Brhs && A != B) {
           if (ts->rhsjacobian.shift) {
@@ -1420,7 +1418,7 @@ PetscErrorCode  TSSetIJacobian(TS ts,Mat Amat,Mat Pmat,TSIJacobian f,void *ctx)
 +  ts - TS context obtained from TSCreate()
 -  reuse - PETSC_TRUE if the RHS Jacobian
 
-   Level: intermediate
+   Level: deprecated
 
 .seealso: TSSetRHSJacobian(), TSComputeRHSJacobianConstant()
 @*/
