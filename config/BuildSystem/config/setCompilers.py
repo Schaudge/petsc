@@ -158,6 +158,7 @@ class Configure(config.base.Configure):
                                          ]])
               and not any([s in output for s in ['Intel(R)',
                                                  'Unrecognised option --help passed to ld', # NAG f95 compiler
+                                                 ' clang ',
                                                  ]]))
     except RuntimeError:
       pass
@@ -559,11 +560,12 @@ class Configure(config.base.Configure):
         self.usedMPICompilers = 0
       vendor = self.vendor
       if (not vendor) and self.argDB['with-gnu-compilers']:
-        yield 'gcc'
+        if Configure.isGNU('gcc', self.log):
+          yield 'gcc'
         if Configure.isGNU('cc', self.log):
           yield 'cc'
       if not self.vendor is None:
-        if not vendor and not Configure.isGNU('cc', self.log):
+        if not vendor and not Configure.isGNU('cc', self.log) and not self.argDB['with-gnu-compilers']:
           yield 'cc'
         if vendor == 'borland' or not vendor:
           yield 'win32fe bcc32'
@@ -580,11 +582,12 @@ class Configure(config.base.Configure):
         if vendor == 'portland' or not vendor:
           yield 'pgcc'
         if vendor == 'solaris' or not vendor:
-          if not Configure.isGNU('cc', self.log):
+          if not Configure.isGNU('cc', self.log) and not self.argDB['with-gnu-compilers']:
             yield 'cc'
       # duplicate code
       if self.argDB['with-gnu-compilers']:
-        yield 'gcc'
+        if Configure.isGNU('gcc', self.log):
+          yield 'gcc'
         if Configure.isGNU('cc', self.log):
           yield 'cc'
     return
@@ -782,14 +785,15 @@ class Configure(config.base.Configure):
         yield 'icpc'
       vendor = self.vendor
       if (not vendor) and self.argDB['with-gnu-compilers']:
-        yield 'g++'
+        if Configure.isGNU('g++', self.log):
+          yield 'g++'
         if Configure.isGNU('c++', self.log):
           yield 'c++'
       if not self.vendor is None:
         if not vendor:
-          if not Configure.isGNU('c++', self.log):
+          if not Configure.isGNU('c++', self.log) and not self.argDB['with-gnu-compilers']:
             yield 'c++'
-          if not Configure.isGNU('CC', self.log):
+          if not Configure.isGNU('CC', self.log) and not self.argDB['with-gnu-compilers']:
             yield 'CC'
           yield 'cxx'
           yield 'cc++'
@@ -811,7 +815,8 @@ class Configure(config.base.Configure):
           yield 'CC'
       #duplicate code
       if self.argDB['with-gnu-compilers']:
-        yield 'g++'
+        if Configure.isGNU('g++', self.log):
+          yield 'g++'
         if Configure.isGNU('c++', self.log):
           yield 'c++'
     return
@@ -1196,7 +1201,7 @@ class Configure(config.base.Configure):
     if defaultAr:
       yield (defaultAr,self.getArchiverFlags(defaultAr),'ranlib')
       yield (defaultAr,self.getArchiverFlags(defaultAr),'true')
-      raise RuntimeError('You set a value for --with-ar='+defaultAr+'", but '+defaultAr+' cannot be used\n')
+      raise RuntimeError('You set a value for --with-ar="'+defaultAr+'", but '+defaultAr+' cannot be used\n')
     if envAr:
       yield (envAr,self.getArchiverFlags(envAr),'ranlib')
       yield (envAr,self.getArchiverFlags(envAr),'true')
