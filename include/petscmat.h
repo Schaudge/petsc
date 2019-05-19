@@ -100,6 +100,7 @@ typedef const char* MatType;
 #define MATLMVMSYMBRDN     "lmvmsymbrdn"
 #define MATLMVMSYMBADBRDN  "lmvmsymbadbrdn"
 #define MATLMVMDIAGBRDN    "lmvmdiagbrdn"
+#define MATSEQFAIJ         "seqfaij"
 
 /*J
     MatSolverType - String with the name of a PETSc matrix solver type.
@@ -263,6 +264,9 @@ PETSC_EXTERN PetscErrorCode MatLRCGetMats(Mat,Mat*,Mat*,Vec*,Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateIS(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,ISLocalToGlobalMapping,ISLocalToGlobalMapping,Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateSeqAIJCRL(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateMPIAIJCRL(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+
+PETSC_EXTERN PetscErrorCode MatSeqFAIJSetPreallocation(Mat,PetscInt,PetscInt,const PetscInt[]);
+PETSC_EXTERN PetscErrorCode MatCreateSeqFAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
 
 PETSC_EXTERN PetscErrorCode MatCreateScatter(MPI_Comm,VecScatter,Mat*);
 PETSC_EXTERN PetscErrorCode MatScatterSetVecScatter(Mat,VecScatter);
