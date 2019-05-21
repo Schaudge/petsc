@@ -22,7 +22,7 @@ int main(int argc,char **argv)
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscOptionsGetInt(NULL,NULL,"-dof",&dof,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-view",&view,NULL);CHKERRQ(ierr);
-  ierr = DMDACreate1d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,M,dof,1,NULL,&da);CHKERRQ(ierr);
+  ierr = DMDACreate1d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,M,dof,2,NULL,&da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(da);CHKERRQ(ierr);
   ierr = DMSetMatType(da,MATSEQFAIJ);CHKERRQ(ierr);
   ierr = DMSetUp(da);CHKERRQ(ierr);
@@ -64,8 +64,8 @@ int main(int argc,char **argv)
   ierr = DMCreateGlobalVector(da,&y);CHKERRQ(ierr);
 
   ierr = VecSet(x,1.0);CHKERRQ(ierr);
-  ierr = PetscLogStageRegister("Small matrix with efficient indexing",&stagesmall);CHKERRQ(ierr);
-  ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
+  ierr = PetscLogStageRegister("Small matrix with in-efficient indexing",&stagesmall);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(stagesmall);CHKERRQ(ierr);
   for (i=0; i<10*dof; i++) {
     ierr = MatMult(A,x,y);CHKERRQ(ierr);
   }

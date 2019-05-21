@@ -6,7 +6,6 @@
 
 /* This header is shared by the SeqSFAIJ matrix */
 #define SEQFAIJHEADER \
-  PetscInt    bs2;                      /*  square of block size */                                  \
   PetscInt    mbs,nbs;               /* rows/bs, columns/bs */                                       \
   PetscScalar *mult_work;            /* work array for matrix vector product*/                       \
   PetscScalar *sor_workt;            /* work array for SOR */                                        \
