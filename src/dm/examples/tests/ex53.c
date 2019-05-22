@@ -27,9 +27,9 @@ int main(int argc,char **argv)
   ierr = PetscOptionsGetInt(NULL,NULL,"-M",&M,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-sw",&sw,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-view",&view,NULL);CHKERRQ(ierr);
-
   ierr = PetscClassIdRegister("Setup",&classid);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("Setup",classid,&setup);CHKERRQ(ierr);
+
   ierr = PetscLogStageRegister("Large block diagonal with efficient indexing. Setup",&stagesetup);CHKERRQ(ierr);
   ierr = PetscLogStagePush(stagesetup);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(setup,0,0,0,0);CHKERRQ(ierr);
@@ -84,7 +84,7 @@ int main(int argc,char **argv)
   ierr = PetscLogStagePop();CHKERRQ(ierr);
   ierr = PetscLogStageRegister("Many small matrices",&stagesmall);CHKERRQ(ierr);
   ierr = PetscLogStagePush(stagesmall);CHKERRQ(ierr);
-  for (i=0; i<10*dof; i++) {
+  for (i=0; i<10; i++) {
     ierr = MatMult(A,x,y);CHKERRQ(ierr);
   }
   ierr = PetscLogStagePop();CHKERRQ(ierr);
