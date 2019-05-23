@@ -157,9 +157,9 @@ PetscErrorCode VecOutterProduct(Vec vx,Vec vy,Vec vxy)
   ierr = VecGetLocalSize(vx,&m);CHKERRQ(ierr);
   ierr = VecGetLocalSize(vy,&n);CHKERRQ(ierr);
   ierr = VecGetArray2d(vxy,m,n,0,0,&xy);CHKERRQ(ierr);
-  for (i=0; i<m; i++) {
-    for (j=0; j<n; j++) {
-      xy[i][j] = x[i]*y[j];
+  for (j=0; j<n; j++) {
+    for (i=0; i<m; i++) {
+      xy[j][i] = x[i]*y[j];
     }
   }
   ierr = VecRestoreArray2d(vxy,m,n,0,0,&xy);CHKERRQ(ierr);
@@ -315,6 +315,48 @@ static PetscErrorCode laplac(WaveSimulation *ws, Vec vu,Vec vL)
 }
 
 /*
+     Sets the exact solution onto the boundary values of the domain
+     This is the same as u_exact() using a tensor product except it only updates boundary values
+*/
+static PetscErrorCode WaveSimulationPatchBoundary(WaveSimulation *ws, PetscReal t, PetscReal w, Vec vu)
+{
+  PetscErrorCode  ierr;
+  PetscInt        i,j,xs,ys,xm,ym,nx,ny;
+  PetscReal       **u;
+  const PetscReal *fx,*fy;
+  Vec             vfx,vfy;
+
+  PetscFunctionBeginUser;
+  ierr = VecDuplicate(ws->x,&vfx);CHKERRQ(ierr);
+  ierr = VecDuplicate(ws->y,&vfy);CHKERRQ(ierr);
+  ierr = u_exact_x(ws,t,w,vfx);CHKERRQ(ierr);
+  ierr = u_exact_y(ws,t,w,vfy);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(vfx,&fx);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(vfy,&fy);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(ws->da,vu,&u);CHKERRQ(ierr);
+  ierr = DMDAGetInfo(ws->da,NULL,&nx,&ny,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(ws->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+  if (xs == 0) {
+    for (j=ys; j<ys+ym; j++) u[j][0] = fx[0]*fy[j-ys];       /* Note that u[][] uses the parallel numbering while fx[] and fy[] use the local */
+  }
+  if (xs+xm == nx) {
+    for (j=ys; j<ys+ym; j++) u[j][nx-1] = fx[xm-1]*fy[j-ys];
+  }
+  if (ys == 0) {
+    for (i=xs; i<xs+xm; i++) u[0][i] = fx[i-xs]*fy[0];
+  }
+  if (ys+ym == ny) {
+    for (i=xs; i<xs+xm; i++) u[ny-1][i] = fx[i-xs]*fy[ym-1];
+  }
+  ierr = DMDAVecRestoreArray(ws->da,vu,&u);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(vfx,&fx);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(vfy,&fy);CHKERRQ(ierr);
+  ierr = VecDestroy(&vfx);CHKERRQ(ierr);
+  ierr = VecDestroy(&vfy);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*
    Solves a single wave equation on a fixed grid
 
    Input Parameters:
@@ -342,17 +384,16 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
   ierr = u_exact(ws,0,w,u0);CHKERRQ(ierr);
 
   /* compute solution at first time step */
-  ierr = f2_fun(ws,w,f2);CHKERRQ(ierr); VecView(f2,0);
-  ierr = laplac(ws,u0,L);CHKERRQ(ierr); VecView(L,0);
-  ierr = forcing(ws,0,w,f);CHKERRQ(ierr); VecView(f,0);
+  ierr = f2_fun(ws,w,f2);CHKERRQ(ierr);
+  ierr = laplac(ws,u0,L);CHKERRQ(ierr);
+  ierr = forcing(ws,0,w,f);CHKERRQ(ierr);
   /* u1 = u0 + dt*f2 + 0.5*(dt^2)*(L + f); */
-  printf("%g\n",ws->dt);
   ierr = VecAXPY(L,1.0,f);CHKERRQ(ierr);                  /*  L = L + f */
   ierr = VecAYPX(L,.5*ws->dt*ws->dt,u0);CHKERRQ(ierr);    /*  L = u0 + 0.5*(dt^2)L */
   ierr = VecWAXPY(u1,ws->dt,f2,L);CHKERRQ(ierr);          /*  u1 = dt*f2 + L */
 
-            VecView(u1,0);
-            
+  ierr = WaveSimulationPatchBoundary(ws,ws->dt,w,u1);CHKERRQ(ierr);
+
   ierr = VecDestroy(&u0);CHKERRQ(ierr);
   ierr = VecDestroy(&u1);CHKERRQ(ierr);
   ierr = VecDestroy(&u2);CHKERRQ(ierr);
