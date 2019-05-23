@@ -39,9 +39,11 @@ typedef struct {
 typedef struct {
   DM        da;
   PetscReal hx,hy,dt,T;
+  PetscInt  nx,ny;
   PetscInt  nt;
   PetscInt  kx,ky;
   Vec       x,y;      /* coordinates of local part of tensor product mesh */
+  PetscReal xQ;       /* location of QoI  */
 } WaveSimulation;
 
 PetscErrorCode wave_solver(WaveSimulation*,PetscReal,PetscReal*);
@@ -94,6 +96,8 @@ static PetscErrorCode WaveSimulationSetup(WaveSimulation *ws,PetscReal T,PetscIn
   ws->ky = ky;
   ws->hx = 2.0/(nx-1);
   ws->hy = 2.0/(ny-1);
+  ws->nx = nx;
+  ws->ny = ny;
   ws->dt = 0.5*ws->hx;
   ws->T  = T;
   ws->nt = 1 + (PetscInt) PetscFloorReal(ws->T/ws->dt);
@@ -107,6 +111,7 @@ static PetscErrorCode WaveSimulationSetup(WaveSimulation *ws,PetscReal T,PetscIn
   ierr = VecGetArray(ws->y,&y);CHKERRQ(ierr);
   for (i=0; i<yn; i++) y[i] = -1.0 + ws->hy*(i+ys);
   ierr = VecRestoreArray(ws->y,&y);CHKERRQ(ierr);
+  ws->xQ = .5;
   PetscFunctionReturn(0);
 }
 
@@ -371,11 +376,12 @@ static PetscErrorCode WaveSimulationPatchBoundary(WaveSimulation *ws, PetscReal 
 */
 PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
 {
-  PetscErrorCode ierr;
-  DM             da = ws->da;
-  Vec            u0,u1,u2,f2,L,f,u0temp;
-  PetscInt       k;
-  PetscReal      t;
+  PetscErrorCode  ierr;
+  DM              da = ws->da;
+  Vec             u0,u1,u2,f2,L,f,u0temp;
+  PetscInt        k,mQ;
+  PetscReal       t;
+  const PetscReal **u1_array;
 
   PetscFunctionBeginUser;
   ierr = DMCreateGlobalVector(da,&u0);CHKERRQ(ierr);
@@ -396,23 +402,35 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
   ierr = VecAXPY(L,1.0,f);CHKERRQ(ierr);                  /*  L = L + f */
   ierr = VecAYPX(L,.5*ws->dt*ws->dt,u0);CHKERRQ(ierr);    /*  L = u0 + 0.5*(dt^2)L */
   ierr = VecWAXPY(u1,ws->dt,f2,L);CHKERRQ(ierr);          /*  u1 = dt*f2 + L */
-
   ierr = WaveSimulationPatchBoundary(ws,ws->dt,w,u1);CHKERRQ(ierr);
 
-  for (k=0; k<ws->nt-2; k++) {
+  for (k=0; k<ws->nt-1; k++) {
     t = (k+1)*ws->dt;
     /* f=forcing(t,x,y,w,kx,ky); */
     ierr = forcing(ws,t,w,f);CHKERRQ(ierr);
     /* L=laplac(u1,hx,hy,nx,ny); */
-    ierr = laplac(ws,u1,L);CHKERRQ(ierr);   VecView(L,0); exit(0);
+    ierr = laplac(ws,u1,L);CHKERRQ(ierr);
     /* u2=2*u1-u0+(dt^2)*(L+f); */
-    ierr = WaveSimulationPatchBoundary(ws,t,w,u1);CHKERRQ(ierr);
+    ierr = VecAXPY(L,1.0,f);CHKERRQ(ierr);                   /*  L = L + f */
+    ierr = VecAXPBY(L,-1.0,ws->dt*ws->dt,u0);CHKERRQ(ierr);  /*  L = -u0 + (dt^2)L */
+    ierr = VecWAXPY(u2,2.0,u1,L);CHKERRQ(ierr);              /*  u2 = 2.0*u1 + L */
+    ierr = WaveSimulationPatchBoundary(ws,t+ws->dt,w,u2);CHKERRQ(ierr);
+
     /*  switch solution at different time levels */
     u0temp = u0;
     u0     = u1;
     u1     = u2;
     u2     = u0temp;
   }
+
+  /* compute quantity of interest; currently only works sequentially */
+  /* Note that u1 contains the current solution, unlike the Matlab code where it is in u2 */
+  mQ   = (PetscInt)PetscRoundReal(0.5*(ws->nx-1)*(1.0+ws->xQ));
+  ierr = DMDAVecGetArray(ws->da,u1,&u1_array);CHKERRQ(ierr);
+  *QoI =u1_array[mQ][mQ];
+  ierr = DMDAVecRestoreArray(ws->da,u1,&u1_array);CHKERRQ(ierr);
+
+  printf("%g \n",*QoI);
 
   ierr = VecDestroy(&u0);CHKERRQ(ierr);
   ierr = VecDestroy(&u1);CHKERRQ(ierr);
