@@ -85,7 +85,7 @@ int main(int argc,char **args)
 static PetscErrorCode WaveSimulationSetup(WaveSimulation *ws,PetscReal T,PetscInt kx,PetscInt ky)
 {
   PetscErrorCode ierr;
-  PetscInt       nx,ny,nt,xs,ys,xn,yn,i;
+  PetscInt       nx,ny,xs,ys,xn,yn,i;
   PetscReal      *x,*y;
 
   PetscFunctionBeginUser;
@@ -95,8 +95,9 @@ static PetscErrorCode WaveSimulationSetup(WaveSimulation *ws,PetscReal T,PetscIn
   ws->hx = 2.0/(nx-1);
   ws->hy = 2.0/(ny-1);
   ws->dt = 0.5*ws->hx;
-  nt     = 1 + (PetscInt) PetscFloorReal(T/ws->dt);
-  ws->dt = T/nt;
+  ws->T  = T;
+  ws->nt = 1 + (PetscInt) PetscFloorReal(ws->T/ws->dt);
+  ws->dt = ws->T/ws->nt;
   ierr = DMDAGetCorners(ws->da,&xs,&ys,NULL,&xn,&yn,NULL);CHKERRQ(ierr);
   ierr = VecCreateSeq(PETSC_COMM_SELF,xn,&ws->x);CHKERRQ(ierr);
   ierr = VecCreateSeq(PETSC_COMM_SELF,yn,&ws->y);CHKERRQ(ierr);
@@ -308,6 +309,8 @@ static PetscErrorCode laplac(WaveSimulation *ws, Vec vu,Vec vL)
       L[j][i] = ihx2*u[j][i+1] + ihx2*u[j][i-1] + ihy2*u[j+1][i] + ihy2*u[j-1][i] - 2.0*(ihx2 + ihy2)*u[j][i];
     }
   }
+  for (j=ys; j<ys+ym; j++) L[j][xs] = L[j][xs+xm-1] = 0.0;
+  for (i=xs; i<xs+xm; i++) L[ys][i] = L[ys+ym-1][i] = 0.0;
   ierr = DMDAVecRestoreArray(ws->da,ulocal,&u);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(ws->da,vL,&L);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(ws->da,&ulocal);CHKERRQ(ierr);
@@ -370,7 +373,9 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
 {
   PetscErrorCode ierr;
   DM             da = ws->da;
-  Vec            u0,u1,u2,f2,L,f;
+  Vec            u0,u1,u2,f2,L,f,u0temp;
+  PetscInt       k;
+  PetscReal      t;
 
   PetscFunctionBeginUser;
   ierr = DMCreateGlobalVector(da,&u0);CHKERRQ(ierr);
@@ -393,6 +398,21 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
   ierr = VecWAXPY(u1,ws->dt,f2,L);CHKERRQ(ierr);          /*  u1 = dt*f2 + L */
 
   ierr = WaveSimulationPatchBoundary(ws,ws->dt,w,u1);CHKERRQ(ierr);
+
+  for (k=0; k<ws->nt-2; k++) {
+    t = (k+1)*ws->dt;
+    /* f=forcing(t,x,y,w,kx,ky); */
+    ierr = forcing(ws,t,w,f);CHKERRQ(ierr);
+    /* L=laplac(u1,hx,hy,nx,ny); */
+    ierr = laplac(ws,u1,L);CHKERRQ(ierr);   VecView(L,0); exit(0);
+    /* u2=2*u1-u0+(dt^2)*(L+f); */
+    ierr = WaveSimulationPatchBoundary(ws,t,w,u1);CHKERRQ(ierr);
+    /*  switch solution at different time levels */
+    u0temp = u0;
+    u0     = u1;
+    u1     = u2;
+    u2     = u0temp;
+  }
 
   ierr = VecDestroy(&u0);CHKERRQ(ierr);
   ierr = VecDestroy(&u1);CHKERRQ(ierr);
