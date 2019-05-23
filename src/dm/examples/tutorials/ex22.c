@@ -47,6 +47,7 @@ typedef struct {
 } WaveSimulation;
 
 PetscErrorCode wave_solver(WaveSimulation*,PetscReal,PetscReal*);
+PetscErrorCode mlmc_wave(WaveSimulation **,PetscInt,PetscInt,PetscReal[]);
 PetscErrorCode WaveSimulationCreate(MPI_Comm,PetscReal,PetscInt,PetscInt,PetscInt,PetscInt,WaveSimulation**);
 PetscErrorCode WaveSimulationRefine(WaveSimulation*,WaveSimulation**);
 PetscErrorCode WaveSimulationDestroy(WaveSimulation**);
@@ -56,8 +57,10 @@ int main(int argc,char **args)
   PetscErrorCode  ierr;
   PetscReal       h0 = .1;  /* initial step size */
   PetscInt        nx,ny;
-  WaveSimulation  *ws;
+  WaveSimulation  *ws[10];
   MLMC            mlmc;
+
+  PetscReal sum[2];
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
 
@@ -70,16 +73,22 @@ int main(int argc,char **args)
   mlmc.C_alpha = 4;
 
   nx = ny = 1 + (PetscInt)PetscRoundReal(2.0/h0);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&nx,NULL);
-  ny = nx;
-  ierr = WaveSimulationCreate(PETSC_COMM_WORLD,.5,nx,ny,6,4,&ws);CHKERRQ(ierr);
-
-  PetscReal w = 1;
+  /*ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&nx,NULL);
+   ny = nx;*/
+  ierr = WaveSimulationCreate(PETSC_COMM_WORLD,.5,nx,ny,6,4,&ws[0]);CHKERRQ(ierr);
+  ierr = WaveSimulationRefine(ws[0],&ws[1]);CHKERRQ(ierr);
+  
+  /*  PetscReal w = 1;
   ierr = PetscOptionsGetReal(NULL,NULL,"-w",&w,NULL);
   PetscReal QoI;
-  wave_solver(ws,w,&QoI);
+   wave_solver(ws[0],w,&QoI);*/
 
-  ierr = WaveSimulationDestroy(&ws);CHKERRQ(ierr);
+  ierr = mlmc_wave(ws,1,5,sum);CHKERRQ(ierr);
+
+  printf("%g %g \n",sum[0],sum[1]);
+
+  ierr = WaveSimulationDestroy(&ws[1]);CHKERRQ(ierr);
+  ierr = WaveSimulationDestroy(&ws[0]);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
@@ -144,7 +153,7 @@ PetscErrorCode WaveSimulationRefine(WaveSimulation *ws,WaveSimulation **wsf)
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = PetscNew(&wsf);CHKERRQ(ierr);
+  ierr = PetscNew(wsf);CHKERRQ(ierr);
   ierr = DMRefine(ws->da,PetscObjectComm((PetscObject)ws->da),&(*wsf)->da);CHKERRQ(ierr);
   ierr = WaveSimulationSetup(*wsf,ws->T,ws->kx,ws->ky);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -441,7 +450,30 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
   PetscFunctionReturn(0);
 }
 
+/*
+    Evaluates the sum of the differences of the QoI for two adjacent levels
+*/
+PetscErrorCode mlmc_wave(WaveSimulation **ws,PetscInt l,PetscInt M,PetscReal sum1[])
+{
+  PetscErrorCode ierr;
+  PetscInt       N1;
+  PetscReal      Qf,Qc,w = 1.0;
 
+  PetscFunctionBeginUser;
+  sum1[0] = sum1[1] = 0;
+  for (N1=0; N1<M; N1++) {
+    w++;
+    ierr = wave_solver(ws[l],w,&Qf);CHKERRQ(ierr);
+    if (l == 0) {
+      Qc = 0;
+    } else {
+      ierr = wave_solver(ws[l-1],w,&Qc);CHKERRQ(ierr);
+    }
+    sum1[0] += (Qf-Qc);
+    sum1[1] += (Qf-Qc)*(Qf-Qc);
+  }
+  PetscFunctionReturn(0);
+}
 
 /*TEST
 
