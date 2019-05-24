@@ -71,7 +71,7 @@ PetscErrorCode  PetscMatlabEngineCreate(MPI_Comm comm,const char machine[],Petsc
 }
 
 /*@
-   PetscMatlabEngineDestroy - Destroys a vector.
+   PetscMatlabEngineDestroy - Destroys a Matlab engine
 
    Collective on PetscMatlabEngine
 
@@ -92,7 +92,10 @@ PetscErrorCode  PetscMatlabEngineDestroy(PetscMatlabEngine *v)
   if (!*v) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(*v,MATLABENGINE_CLASSID,1);
   if (--((PetscObject)(*v))->refct > 0) PetscFunctionReturn(0);
-  ierr = engClose((*v)->ep);CHKERRQ(ierr);
+  ierr = engClose((*v)->ep);
+  if (ierr) {
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error closing Matlab engine");
+  }
   ierr = PetscHeaderDestroy(v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

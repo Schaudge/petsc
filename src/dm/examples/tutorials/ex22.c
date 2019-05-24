@@ -3,7 +3,7 @@ static char help[] = "Uses MLMC on a simple wave equation problem\n\n";
 
 /*
 
-    This code is a copy of the MATLAB code developed by XXXX and presented at
+    This code is a copy of the MATLAB code developed by Mohammad Motamed and presented at
     an Argonne National Laboratory tutorial on uncertainty quantification
     May 20 through May 24th, organized by Oana Marin who suggested this
     example.
@@ -34,7 +34,8 @@ typedef struct {
   PetscReal theta;           /* splitting parameter */
   PetscReal C_alpha;         /* constant in statistical error, given a failure probability */
   PetscInt  M0;              /* initial number of grid realizations for the first three levels */
-  PetscInt  Nl[MLMC_MAX_LEVELS];
+  PetscInt  Nl[MLMC_MAX_LEVELS]; /* number of realizations run on each level */
+  PetscInt  L;                   /* total number of levels */
 } MLMC;
 
 /*
@@ -61,9 +62,10 @@ int main(int argc,char **args)
 {
   PetscErrorCode  ierr;
   PetscReal       EQ,h0 = .1;  /* initial step size */
-  PetscInt        nx,ny;
+  PetscInt        nx,ny,i;
   WaveSimulation  *ws[10];
   MLMC            mlmc;
+  PetscReal       eps = .1;
 
   /* PetscReal sum[2]; */
 
@@ -94,12 +96,13 @@ int main(int argc,char **args)
    printf("%g %g \n",sum[0],sum[1]); */
 
   ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
-  ierr = fmlmc(&mlmc,ws,.1,&EQ);CHKERRQ(ierr);
-  printf("%g \n",EQ);
+  ierr = PetscOptionsGetReal(NULL,NULL,"-eps",&eps,NULL);CHKERRQ(ierr);
+  ierr = fmlmc(&mlmc,ws,eps,&EQ);CHKERRQ(ierr);
+  /* printf("%g \n",EQ);*/
 
-  ierr = WaveSimulationDestroy(&ws[2]);CHKERRQ(ierr);
-  ierr = WaveSimulationDestroy(&ws[1]);CHKERRQ(ierr);
-  ierr = WaveSimulationDestroy(&ws[0]);CHKERRQ(ierr);
+  for (i=0; i<mlmc.L; i++) {
+    ierr = WaveSimulationDestroy(&ws[i]);CHKERRQ(ierr);
+  }
   ierr = PetscFinalize();
   return ierr;
 }
@@ -503,8 +506,11 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
   dNl[0] = dNl[1] = dNl[2] = mlmc->M0;
 
   for (i=0; i<L; i++) sumdNl += dNl[i];
-  while (sumdNl > 0) {
-
+  while (sumdNl) {
+    ierr = PetscInfo1(NULL,"Starting the MLMC loop: total dNl %D individual dNl follow\n",sumdNl);CHKERRQ(ierr);
+    for (i=0; i<L; i++) {
+      ierr = PetscInfo4(NULL,"MLMC Level dNl[%D] %D  Vl[%D] %g\n",i,dNl[i],i,(double)Vl[i]);CHKERRQ(ierr);
+    }
     /* update sample sums */
     for (l=0; l<L; l++) {
       if (dNl[l] > 0) {
@@ -516,7 +522,6 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
         suml[l][1]  += sums[1];
       }
     }
-    sumdNl = 0;
 
     /*  compute variances for levels l=0:L (fromula (6) in lecture notes)
         mul = abs(suml(1,:)./Nl);
@@ -555,16 +560,34 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
     */
     sumdNl = 0.0; for (i=0; i<L; i++) sumdNl += (dNl[i] > .01*mlmc->Nl[i]);
     if (!sumdNl) {
-      ;
+      PetscReal rem = 0.0;
+      for (i=-2; i<1; i++) {
+        rem = PetscMax(rem,mul[L-1+i]*PetscPowReal(mlmc->beta,mlmc->q1*i)/(PetscPowReal(mlmc->beta,mlmc->q1) - 1.0));
+      }
+      /* printf("%g\n",rem);*/
+      if (rem > (1.0 - mlmc->theta)*eps) {
+        PetscInt i;
+        ierr = PetscInfo(NULL,"Adding another MCML level to the hiearchy\n");CHKERRQ(ierr); printf("adding level\n");
+        L = L + 1;
+        ierr = WaveSimulationRefine(ws[L-2],&ws[L-1]);CHKERRQ(ierr);
+        Vl[L-1] = Vl[L-2]/PetscPowReal(mlmc->beta,mlmc->q2);
+        for (i=0; i<L; i++) Wl[i] = PetscPowReal(mlmc->beta,mlmc->gamma*i);
+        sumVlWl = 0.0; for (i=0; i<L; i++) sumVlWl += PetscSqrtReal(Vl[i]*Wl[i]);
+        for (i=0; i<L; i++) {Ns[i]  = (PetscInt)PetscCeilReal(PetscSqrtReal(Vl[i]/Wl[i])*sumVlWl/(mlmc->theta*eps*eps/mlmc->C_alpha));printf("NS %d %d\n",i,Ns[i]);}
+        for (i=0; i<L; i++) {dNl[i] = PetscMax(0,Ns[i]-mlmc->Nl[i]); printf("dN %d %d\n",i,dNl[i]);}
+      }
     }
-
-    sumdNl = 0.0; for (i=0; i<L; i++) sumdNl += dNl[i];
+    sumdNl = 0.0; for (i=0; i<L; i++) sumdNl += dNl[i]; printf("sumdNl %d\n",sumdNl);
   }
 
+
+  
   /* finally, evaluate multilevel estimator
      EQ = sum(suml(1,:)./Nl);
   */
   *EQ = 0; for (i=0; i<L; i++) *EQ += suml[i][0]/mlmc->Nl[i];
+  mlmc->L = L;
+  ierr = PetscInfo2(NULL,"Completed MLMC algorith QoI %g Number of levels %D\n",*EQ,L);CHKERRQ(ierr);
 
 
   PetscFunctionReturn(0);
