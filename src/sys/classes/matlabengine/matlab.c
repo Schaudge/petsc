@@ -92,6 +92,7 @@ PetscErrorCode  PetscMatlabEngineDestroy(PetscMatlabEngine *v)
   if (!*v) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(*v,MATLABENGINE_CLASSID,1);
   if (--((PetscObject)(*v))->refct > 0) PetscFunctionReturn(0);
+  ierr = engClose((*v)->ep);CHKERRQ(ierr);
   ierr = PetscHeaderDestroy(v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
