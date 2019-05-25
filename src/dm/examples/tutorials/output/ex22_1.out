@@ -1,0 +1,183 @@
+$ ex22 -eps .0014,.0012,.0010,.0008,.0006,.0004,.0002,.0001 -info | egrep "(MLMC|QoI)" 
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 6.94393e-310
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 6.94393e-310
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 6.95312e-310
+[0] fmlmc(): Starting the MLMC loop: total dNl 29659 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 29659  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678762
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 1  Vl[3] 3.18671e-10
+[0] fmlmc(): Completed MLMC algorith QoI 0.700779 Number of levels 4
+QoI for complete solve 0.700779 with 0.0014 EPS tolerance with error 0.000626291
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 0.
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 40405 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 40405  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677254
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 1  Vl[3] 3.18671e-10
+[0] fmlmc(): Completed MLMC algorith QoI 0.700544 Number of levels 4
+QoI for complete solve 0.700544 with 0.0012 EPS tolerance with error 0.000390779
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.00677254
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 58227 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 58227  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678472
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 1  Vl[3] 3.18671e-10
+[0] fmlmc(): Completed MLMC algorith QoI 0.700774 Number of levels 4
+QoI for complete solve 0.700774 with 0.001 EPS tolerance with error 0.000620531
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.00678472
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 91036 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 91036  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678102
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 1  Vl[3] 3.18671e-10
+[0] fmlmc(): Completed MLMC algorith QoI 0.700586 Number of levels 4
+QoI for complete solve 0.700586 with 0.0008 EPS tolerance with error 0.000432486
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.00678102
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 161961 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 161919  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 42  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 4 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678097
+[0] fmlmc(): MLMC Level dNl[1] 4  Vl[1] 4.92025e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 2 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678097
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.86296e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 2  Vl[3] 3.18671e-10
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678097
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.86296e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 1  Vl[3] 5.88717e-10
+[0] fmlmc(): Completed MLMC algorith QoI 0.700483 Number of levels 4
+QoI for complete solve 0.700483 with 0.0006 EPS tolerance with error 0.00032987
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.00678097
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 4.86296e-08
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 364662 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 364442  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 220  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 9 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677727
+[0] fmlmc(): MLMC Level dNl[1] 9  Vl[1] 4.9637e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 6 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677727
+[0] fmlmc(): MLMC Level dNl[1] 2  Vl[1] 4.97527e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 4  Vl[3] 3.18671e-10
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677727
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.97157e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.09874e-09
+[0] fmlmc(): MLMC Level dNl[3] 0  Vl[3] 5.87081e-11
+[0] fmlmc(): MLMC Level dNl[4] 1  Vl[4] 3.66926e-12
+[0] fmlmc(): Completed MLMC algorith QoI 0.70026 Number of levels 5
+QoI for complete solve 0.70026 with 0.0004 EPS tolerance with error 0.000106885
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.00677727
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 4.97157e-08
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 1459300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 1458068  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 1178  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 54  Vl[2] 5.09874e-09
+
+
+
+[0] fmlmc(): Starting the MLMC loop: total dNl 37 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677959
+[0] fmlmc(): MLMC Level dNl[1] 37  Vl[1] 4.95254e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 4.69871e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 20 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677959
+[0] fmlmc(): MLMC Level dNl[1] 7  Vl[1] 4.96041e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 4.69871e-09
+[0] fmlmc(): MLMC Level dNl[3] 13  Vl[3] 2.9367e-10
+[0] fmlmc(): Starting the MLMC loop: total dNl 1 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00677959
+[0] fmlmc(): MLMC Level dNl[1] 0  Vl[1] 4.95364e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 4.69871e-09
+[0] fmlmc(): MLMC Level dNl[3] 0  Vl[3] 9.62468e-11
+[0] fmlmc(): MLMC Level dNl[4] 1  Vl[4] 6.01542e-12
+[0] fmlmc(): Completed MLMC algorith QoI 0.700177 Number of levels 5
+QoI for complete solve 0.700177 with 0.0002 EPS tolerance with error 2.41592e-05
+[0] fmlmc(): Starting the MLMC loop: total dNl 300 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 100  Vl[0] 0.00677959
+[0] fmlmc(): MLMC Level dNl[1] 100  Vl[1] 4.95364e-08
+[0] fmlmc(): MLMC Level dNl[2] 100  Vl[2] 2.24043e-314
+[0] fmlmc(): Starting the MLMC loop: total dNl 5838096 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 5832572  Vl[0] 0.00719199
+[0] fmlmc(): MLMC Level dNl[1] 5010  Vl[1] 4.41579e-08
+[0] fmlmc(): MLMC Level dNl[2] 514  Vl[2] 5.09874e-09
+
+
+[0] fmlmc(): Starting the MLMC loop: total dNl 206 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678168
+[0] fmlmc(): MLMC Level dNl[1] 206  Vl[1] 5.0599e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.02302e-09
+[0] fmlmc(): Starting the MLMC loop: total dNl 78 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678168
+[0] fmlmc(): MLMC Level dNl[1] 25  Vl[1] 5.05736e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.02302e-09
+[0] fmlmc(): MLMC Level dNl[3] 53  Vl[3] 3.13939e-10
+[0] fmlmc(): Starting the MLMC loop: total dNl 9 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678168
+[0] fmlmc(): MLMC Level dNl[1] 8  Vl[1] 5.07209e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.02302e-09
+[0] fmlmc(): MLMC Level dNl[3] 1  Vl[3] 3.25556e-10
+[0] fmlmc(): Starting the MLMC loop: total dNl 22 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678168
+[0] fmlmc(): MLMC Level dNl[1] 17  Vl[1] 5.06878e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.02302e-09
+[0] fmlmc(): MLMC Level dNl[3] 0  Vl[3] 3.26412e-10
+[0] fmlmc(): MLMC Level dNl[4] 5  Vl[4] 2.04008e-11
+[0] fmlmc(): Starting the MLMC loop: total dNl 7 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678168
+[0] fmlmc(): MLMC Level dNl[1] 6  Vl[1] 5.07831e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.02302e-09
+[0] fmlmc(): MLMC Level dNl[3] 0  Vl[3] 3.26412e-10
+[0] fmlmc(): MLMC Level dNl[4] 1  Vl[4] 2.44456e-11
+[0] fmlmc(): Starting the MLMC loop: total dNl 16 individual dNl follow
+[0] fmlmc(): MLMC Level dNl[0] 0  Vl[0] 0.00678168
+[0] fmlmc(): MLMC Level dNl[1] 15  Vl[1] 5.08411e-08
+[0] fmlmc(): MLMC Level dNl[2] 0  Vl[2] 5.02302e-09
+[0] fmlmc(): MLMC Level dNl[3] 0  Vl[3] 3.26412e-10
+[0] fmlmc(): MLMC Level dNl[4] 0  Vl[4] 2.08865e-11
+[0] fmlmc(): MLMC Level dNl[5] 1  Vl[5] 1.3054e-12
+[0] fmlmc(): Completed MLMC algorith QoI 0.700179 Number of levels 6
+QoI for complete solve 0.700179 with 0.0001 EPS tolerance with error 2.56781e-05

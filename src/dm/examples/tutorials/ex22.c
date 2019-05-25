@@ -5,7 +5,7 @@ static char help[] = "Uses MLMC on a simple wave equation problem\n\n";
 
     This code is a copy of the MATLAB code developed by Mohammad Motamed and presented at
     an Argonne National Laboratory tutorial on uncertainty quantification
-    May 20 through May 24th, organized by Oana Marin who suggested this
+    May 20 through May 24th, organized by Oana Marin who suggested coding this
     example.
 */
 
@@ -26,30 +26,33 @@ static char help[] = "Uses MLMC on a simple wave equation problem\n\n";
 */
 #define MLMC_MAX_LEVELS 10
 typedef struct {
-  PetscInt  q;               /* order of accuracy of deterministic solver */
-  PetscInt  q1;              /* convergence rate of weak error */
-  PetscInt  q2;              /* convergence rate of strong error */
-  PetscInt  beta;            /* mesh refinement parameter */
-  PetscReal gamma;           /* it appears in the work formula Wm = h^(-gamma) */
-  PetscReal theta;           /* splitting parameter */
-  PetscReal C_alpha;         /* constant in statistical error, given a failure probability */
-  PetscInt  M0;              /* initial number of grid realizations for the first three levels */
+  PetscInt  q;                   /* order of accuracy of deterministic solver */
+  PetscInt  q1;                  /* convergence rate of weak error */
+  PetscInt  q2;                  /* convergence rate of strong error */
+  PetscInt  beta;                /* mesh refinement parameter */
+  PetscReal gamma;               /* it appears in the work formula Wm = h^(-gamma) */
+  PetscReal theta;               /* splitting parameter */
+  PetscReal C_alpha;             /* constant in statistical error, given a failure probability */
+  PetscInt  M0;                  /* initial number of grid realizations for the first three levels */
   PetscInt  Nl[MLMC_MAX_LEVELS]; /* number of realizations run on each level */
   PetscInt  L;                   /* total number of levels */
 } MLMC;
 
 /*
-    Data structure for the solution of a single wave equation problem on a given grid
+    Data structure for the solution of a single wave equation problem on a given grid with give parameters
 */
 typedef struct {
-  DM        da;
-  PetscReal hx,hy,dt,T;
-  PetscInt  nx,ny;
-  PetscInt  nt;
-  PetscInt  kx,ky;
-  Vec       x,y;      /* coordinates of local part of tensor product mesh */
-  PetscReal xQ;       /* location of QoI  */
+  DM          da;
+  PetscReal   hx,hy,dt,T;
+  PetscInt    nx,ny;
+  PetscInt    nt;
+  PetscInt    kx,ky;
+  Vec         x,y;      /* coordinates of local part of tensor product mesh */
+  PetscReal   xQ;       /* location of QoI  */
+  PetscRandom rand;
 } WaveSimulation;
+
+PetscBool useMatlabRand = PETSC_TRUE;
 
 PetscErrorCode wave_solver(WaveSimulation*,PetscReal,PetscReal*);
 PetscErrorCode mlmc_wave(WaveSimulation **,PetscInt,PetscInt,PetscReal[]);
@@ -58,18 +61,36 @@ PetscErrorCode WaveSimulationCreate(MPI_Comm,PetscReal,PetscInt,PetscInt,PetscIn
 PetscErrorCode WaveSimulationRefine(WaveSimulation*,WaveSimulation**);
 PetscErrorCode WaveSimulationDestroy(WaveSimulation**);
 
+/*
+     Options:
+
+            -eps <tol> - error tolerance to use for MLMC
+            -h0 <h0> - mesh discretization parameter on coarsest level
+            -nx nx - number of grid points on the coarsest level  (use just one of this option and the option above)
+
+            -w <w> - don't run MLMC, just compute the QoI for a given value of w on the coarsest level
+            -Nw <Nw> -lw <lw> - don't run MLMC instead sample for QoI on a given level lw Nw times
+            -use_matlab_rand - use the Matlab engine to create random numbers
+
+            The -w, -use_matlab_rand and -Nw and -lw are mostly for testing against the Matlab version
+*/
+
 int main(int argc,char **args)
 {
   PetscErrorCode  ierr;
-  PetscReal       EQ,h0 = .1;  /* initial step size */
-  PetscInt        nx,ny,i;
-  WaveSimulation  *ws[10];
+  PetscReal       QoI,h0 = .1;  /* initial step size */
+  PetscInt        nx,ny,i,Nw = 10,lw = 0;
+  WaveSimulation  *ws[MLMC_MAX_LEVELS];
   MLMC            mlmc;
-  PetscReal       eps = .1;
-
-  /* PetscReal sum[2]; */
+  PetscBool       flgw,flgNw,flglw;
+  PetscReal       w;
+  const PetscReal EQ_ex = 7.001531609613719e-01; /*EQ_ex=integral(@(w)sin(w*T-kx*xQ)*sin(ky*xQ),10,11,'RelTol',1e-14); */
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
+  ierr = PetscOptionsGetBool(NULL,NULL,"-use_matlab_rand",&useMatlabRand,NULL);CHKERRQ(ierr);
+  if (useMatlabRand) {
+    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
+  }
 
   mlmc.q       = 2;
   mlmc.q1      = mlmc.q;
@@ -79,30 +100,57 @@ int main(int argc,char **args)
   mlmc.theta   = 0.5;
   mlmc.C_alpha = 4;
   mlmc.M0      = 100;
+  mlmc.L       = 3;
 
+  ierr = PetscOptionsGetReal(NULL,NULL,"-h0",&h0,NULL);CHKERRQ(ierr);
   nx = ny = 1 + (PetscInt)PetscRoundReal(2.0/h0);
-  /*ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&nx,NULL);
-   ny = nx;*/
+  ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&nx,NULL);
+  ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&ny,NULL);
+
+  ierr = PetscMemzero(ws,sizeof(ws));CHKERRQ(ierr);
   ierr = WaveSimulationCreate(PETSC_COMM_WORLD,.5,nx,ny,6,4,&ws[0]);CHKERRQ(ierr);
-  ierr = WaveSimulationRefine(ws[0],&ws[1]);CHKERRQ(ierr);
-  ierr = WaveSimulationRefine(ws[1],&ws[2]);CHKERRQ(ierr);
 
-  /*  PetscReal w = 1;
-  ierr = PetscOptionsGetReal(NULL,NULL,"-w",&w,NULL);
-  PetscReal QoI;
-   wave_solver(ws[0],w,&QoI);*/
+  ierr = PetscOptionsGetReal(NULL,NULL,"-w",&w,&flgw);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,NULL,"-Nw",&Nw,&flgNw);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,NULL,"-lw",&lw,&flglw);CHKERRQ(ierr);
+  if (flgw) {
+    PetscReal QoI;
+    ierr = wave_solver(ws[0],w,&QoI);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI for single wave solve %g using w %g\n",(double)QoI,(double)w);CHKERRQ(ierr);
+  } else if (flgNw || flglw) {
+    PetscReal sum[2];
+    for (i=1; i<lw; i++) {
+      ierr = WaveSimulationRefine(ws[i-1],&ws[i]);CHKERRQ(ierr);
+    }
+    ierr = mlmc_wave(ws,lw,Nw,sum);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI %g for Nw random wave solves %D on level %D\n",(double)sum[0],Nw,lw);CHKERRQ(ierr);
+    for (i=1; i<lw; i++) {
+      ierr = WaveSimulationDestroy(&ws[i]);CHKERRQ(ierr);
+    }
+  } else {
+#define MAX_EPS 10
+    PetscReal eps[MAX_EPS];
+    PetscInt  meps = MAX_EPS;
 
-  /*  ierr = mlmc_wave(ws,1,5,sum);CHKERRQ(ierr);
-   printf("%g %g \n",sum[0],sum[1]); */
+    eps[0] = .1;
+    ierr = PetscOptionsGetRealArray(NULL,NULL,"-eps",eps,&meps,NULL);CHKERRQ(ierr);
+    ierr = WaveSimulationRefine(ws[0],&ws[1]);CHKERRQ(ierr);
+    ierr = WaveSimulationRefine(ws[1],&ws[2]);CHKERRQ(ierr);
+    for (i=0; i<meps; i++) {
+      ierr = fmlmc(&mlmc,ws,eps[i],&QoI);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI for complete solve %g with %g EPS tolerance with error %g\n",(double)QoI,(double)eps[i],(double)PetscAbsReal(QoI-EQ_ex));CHKERRQ(ierr);
 
-  ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
-  ierr = PetscOptionsGetReal(NULL,NULL,"-eps",&eps,NULL);CHKERRQ(ierr);
-  ierr = fmlmc(&mlmc,ws,eps,&EQ);CHKERRQ(ierr);
-  /* printf("%g \n",EQ);*/
-
-  for (i=0; i<mlmc.L; i++) {
-    ierr = WaveSimulationDestroy(&ws[i]);CHKERRQ(ierr);
+      ierr = PetscMemzero(mlmc.Nl,sizeof(mlmc.Nl));CHKERRQ(ierr);   /* Reset counters for MLMC */
+      mlmc.L = 3;
+      if (useMatlabRand) {
+       ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
+      }
+    }
+    for (i=1; i<MLMC_MAX_LEVELS; i++) {
+      ierr = WaveSimulationDestroy(&ws[i]);CHKERRQ(ierr);
+    }
   }
+  ierr = WaveSimulationDestroy(&ws[0]);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }
@@ -143,9 +191,11 @@ PetscErrorCode WaveSimulationDestroy(WaveSimulation **ws)
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
+  if (!*ws) PetscFunctionReturn(0);
   ierr = DMDestroy(&(*ws)->da);CHKERRQ(ierr);
   ierr = VecDestroy(&(*ws)->x);CHKERRQ(ierr);
   ierr = VecDestroy(&(*ws)->y);CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&(*ws)->rand);CHKERRQ(ierr);
   ierr = PetscFree(*ws);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -158,6 +208,9 @@ PetscErrorCode WaveSimulationCreate(MPI_Comm comm,PetscReal T,PetscInt nx,PetscI
   ierr = PetscNew(ws);CHKERRQ(ierr);
   ierr = DMDACreate2d(comm,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,nx,ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&(*ws)->da);CHKERRQ(ierr);
   ierr = DMSetUp((*ws)->da);CHKERRQ(ierr);
+  if (!useMatlabRand) {
+    ierr = PetscRandomCreate(comm,&(*ws)->rand);CHKERRQ(ierr);
+  }
   WaveSimulationSetup(*ws,T,kx,ky);
   PetscFunctionReturn(0);
 }
@@ -453,8 +506,6 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
   *QoI =u1_array[mQ][mQ];
   ierr = DMDAVecRestoreArray(ws->da,u1,&u1_array);CHKERRQ(ierr);
 
-  /* printf("%g \n",*QoI); */
-
   ierr = VecDestroy(&u0);CHKERRQ(ierr);
   ierr = VecDestroy(&u1);CHKERRQ(ierr);
   ierr = VecDestroy(&u2);CHKERRQ(ierr);
@@ -469,15 +520,19 @@ PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
 */
 PetscErrorCode mlmc_wave(WaveSimulation **ws,PetscInt l,PetscInt M,PetscReal sum1[])
 {
-  PetscErrorCode ierr;
-  PetscInt       N1;
-  PetscReal      Qf,Qc,w;
+  PetscErrorCode     ierr;
+  PetscInt           N1;
+  PetscReal          Qf,Qc,w;
 
   PetscFunctionBeginUser;
   sum1[0] = sum1[1] = 0;
   for (N1=0; N1<M; N1++) {
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"x = rand(1,1);");CHKERRQ(ierr);
-    ierr = PetscMatlabEngineGetArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),1,1,&w,"x");CHKERRQ(ierr);
+    if (useMatlabRand) {
+      ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"x = rand(1,1);");CHKERRQ(ierr);
+      ierr = PetscMatlabEngineGetArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),1,1,&w,"x");CHKERRQ(ierr);
+    } else {
+      ierr = PetscRandomGetValue(ws[0]->rand,&w);CHKERRQ(ierr);
+    }
     w += 10;
     ierr = wave_solver(ws[l],w,&Qf);CHKERRQ(ierr);
     if (l == 0) {
@@ -497,6 +552,7 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
   PetscInt       L,dNl[MLMC_MAX_LEVELS];
   PetscReal      suml[MLMC_MAX_LEVELS][2],mul[MLMC_MAX_LEVELS],Vl[MLMC_MAX_LEVELS],Wl[MLMC_MAX_LEVELS],sumVlWl;
   PetscInt       sumdNl = 0,i,l,Ns[MLMC_MAX_LEVELS];
+  PetscBool      firstiteration = PETSC_TRUE;
 
   PetscFunctionBeginUser;
   L    = 3;
@@ -509,7 +565,12 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
   while (sumdNl) {
     ierr = PetscInfo1(NULL,"Starting the MLMC loop: total dNl %D individual dNl follow\n",sumdNl);CHKERRQ(ierr);
     for (i=0; i<L; i++) {
-      ierr = PetscInfo4(NULL,"MLMC Level dNl[%D] %D  Vl[%D] %g\n",i,dNl[i],i,(double)Vl[i]);CHKERRQ(ierr);
+      if (firstiteration) {
+        ierr = PetscInfo4(NULL,"MLMC Level dNl[%D] %D\n",i,dNl[i],i);CHKERRQ(ierr);
+        firstiteration = PETSC_FALSE;
+      } else {
+        ierr = PetscInfo4(NULL,"MLMC Level dNl[%D] %D  Vl[%D] %g\n",i,dNl[i],i,(double)Vl[i]);CHKERRQ(ierr);
+      }
     }
     /* update sample sums */
     for (l=0; l<L; l++) {
@@ -564,32 +625,27 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
       for (i=-2; i<1; i++) {
         rem = PetscMax(rem,mul[L-1+i]*PetscPowReal(mlmc->beta,mlmc->q1*i)/(PetscPowReal(mlmc->beta,mlmc->q1) - 1.0));
       }
-      /* printf("%g\n",rem);*/
       if (rem > (1.0 - mlmc->theta)*eps) {
         PetscInt i;
-        ierr = PetscInfo(NULL,"Adding another MCML level to the hiearchy\n");CHKERRQ(ierr); printf("adding level\n");
+        ierr = PetscInfo(NULL,"Adding another MCML level to the hiearchy\n");CHKERRQ(ierr);
         L = L + 1;
         ierr = WaveSimulationRefine(ws[L-2],&ws[L-1]);CHKERRQ(ierr);
         Vl[L-1] = Vl[L-2]/PetscPowReal(mlmc->beta,mlmc->q2);
         for (i=0; i<L; i++) Wl[i] = PetscPowReal(mlmc->beta,mlmc->gamma*i);
         sumVlWl = 0.0; for (i=0; i<L; i++) sumVlWl += PetscSqrtReal(Vl[i]*Wl[i]);
-        for (i=0; i<L; i++) {Ns[i]  = (PetscInt)PetscCeilReal(PetscSqrtReal(Vl[i]/Wl[i])*sumVlWl/(mlmc->theta*eps*eps/mlmc->C_alpha));printf("NS %d %d\n",i,Ns[i]);}
-        for (i=0; i<L; i++) {dNl[i] = PetscMax(0,Ns[i]-mlmc->Nl[i]); printf("dN %d %d\n",i,dNl[i]);}
+        for (i=0; i<L; i++) Ns[i]  = (PetscInt)PetscCeilReal(PetscSqrtReal(Vl[i]/Wl[i])*sumVlWl/(mlmc->theta*eps*eps/mlmc->C_alpha));
+        for (i=0; i<L; i++) dNl[i] = PetscMax(0,Ns[i]-mlmc->Nl[i]);
       }
     }
-    sumdNl = 0.0; for (i=0; i<L; i++) sumdNl += dNl[i]; printf("sumdNl %d\n",sumdNl);
+    sumdNl = 0.0; for (i=0; i<L; i++) sumdNl += dNl[i];
   }
 
-
-  
   /* finally, evaluate multilevel estimator
      EQ = sum(suml(1,:)./Nl);
   */
   *EQ = 0; for (i=0; i<L; i++) *EQ += suml[i][0]/mlmc->Nl[i];
   mlmc->L = L;
   ierr = PetscInfo2(NULL,"Completed MLMC algorith QoI %g Number of levels %D\n",*EQ,L);CHKERRQ(ierr);
-
-
   PetscFunctionReturn(0);
 }
 
@@ -597,5 +653,12 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
 
   build:
     requires: !complex
+
+  # When run with the Matlab random generator these results are identical
+  # to those from the Matlab code if you add a call to rng('default') in
+  # mlmc_wave_conv.m before each new call to mlmc()
+  test:
+    args: -eps .0014,.0012,.0010,.0008,.0006,.0004,.0002,.0001 -info
+    filter: egrep "(MLMC|QoI)"
 
 TEST*/
