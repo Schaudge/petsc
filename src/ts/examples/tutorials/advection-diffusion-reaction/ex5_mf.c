@@ -64,9 +64,10 @@ extern PetscErrorCode RHSFunction(TS,PetscReal,Vec,Vec,void*),InitialConditions(
 extern PetscErrorCode RHSJacobian(TS,PetscReal,Vec,Mat,Mat,void*);
 static PetscErrorCode IFunction(TS,PetscReal,Vec,Vec,Vec,void*);
 static PetscErrorCode IJacobian(TS,PetscReal,Vec,Vec,PetscReal,Mat,Mat,void*);
-static PetscErrorCode MyMult(Mat,Vec,Vec);
-static PetscErrorCode IFunctionLocal(DMDALocalInfo*,PetscReal,Field**,Field**,Field**,void*);
-static PetscErrorCode IJacobianLocal(DMDALocalInfo*,PetscReal,Field**,Field**,PetscReal,Mat,Mat,void*);
+static PetscErrorCode IJacobian_shell(TS,PetscReal,Vec,Vec,PetscReal,Mat,Mat,void*);
+static PetscErrorCode IJacobian_mult(Mat,Vec,Vec);
+static PetscErrorCode RHSJacobian_shell(TS,PetscReal,Vec,Mat,Mat,void*);
+static PetscErrorCode RHSJacobian_mult(Mat,Vec,Vec);
 
 int main(int argc,char **argv)
 {
@@ -78,6 +79,7 @@ int main(int argc,char **argv)
   MatCtx         matctx;
   Mat            A;                   /* Jacobian matrix */
   PetscInt       dof;
+  PetscBool      mf = PETSC_FALSE,implicitform = PETSC_FALSE;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program
@@ -88,6 +90,9 @@ int main(int argc,char **argv)
   appctx.D2    = 4.0e-5;
   appctx.gamma = .024;
   appctx.kappa = .06;
+
+  ierr = PetscOptionsGetBool(NULL,NULL,"-mf",&mf,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-implicitform",&implicitform,NULL);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
@@ -108,28 +113,46 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     Create matrix free context
     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMCreateMatrix(da,&A);CHKERRQ(ierr);
-//  ierr = DMSetMatType(da,MATSHELL);CHKERRQ(ierr);
-//  ierr = MatShellSetContext(A,&matctx);CHKERRQ(ierr);
-//  ierr = MatShellSetOperation(A,MATOP_MULT,(void (*)(void))MyMult);CHKERRQ(ierr);
+  if (mf) {
+    ierr = DMSetMatType(da,MATSHELL);CHKERRQ(ierr);
+    ierr = DMCreateMatrix(da,&A);CHKERRQ(ierr);
+    ierr = MatShellSetContext(A,&matctx);CHKERRQ(ierr);
+    if (implicitform) {
+      ierr = MatShellSetOperation(A,MATOP_MULT,(void (*)(void))IJacobian_mult);CHKERRQ(ierr);
+    } else {
+      ierr = MatShellSetOperation(A,MATOP_MULT,(void (*)(void))RHSJacobian_mult);CHKERRQ(ierr);
+    }
+  }
   ierr = VecDuplicate(x,&matctx.X);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&matctx.Xdot);CHKERRQ(ierr);
 
-//  ierr = DMSetMatType(da,MATAIJ);CHKERRQ(ierr);
-//  ierr = DMCreateMatrix(da,&appctx.Jac);CHKERRQ(ierr);
+  ierr = DMSetMatType(da,MATAIJ);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(da,&appctx.Jac);CHKERRQ(ierr);
+  ierr = MatSetUp(appctx.Jac);CHKERRQ(ierr);
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create timestepping solver context
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSCN);CHKERRQ(ierr);
   ierr = TSSetDM(ts,da);CHKERRQ(ierr);
-//  ierr = TSSetProblemType(ts,TS_NONLINEAR);CHKERRQ(ierr);
-  ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
-  ierr = DMDATSSetIFunctionLocal(da,INSERT_VALUES,(DMDATSIFunctionLocal)IFunctionLocal,&appctx);CHKERRQ(ierr);
-  ierr = DMDATSSetIJacobianLocal(da,(DMDATSIJacobianLocal)IJacobianLocal,&appctx);CHKERRQ(ierr);
-//  ierr = TSSetIFunction(ts,NULL,IFunction,&appctx);CHKERRQ(ierr);
-//  ierr = TSSetIJacobian(ts,A,A,IJacobian,&appctx);CHKERRQ(ierr);
-
+  ierr = TSSetProblemType(ts,TS_NONLINEAR);CHKERRQ(ierr);
+  ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+  if (implicitform) {
+    ierr = TSSetIFunction(ts,NULL,IFunction,&appctx);CHKERRQ(ierr);
+    if (mf) {
+      ierr = TSSetIJacobian(ts,A,A,IJacobian_shell,&appctx);CHKERRQ(ierr);
+    } else {
+      ierr = TSSetIJacobian(ts,appctx.Jac,appctx.Jac,IJacobian,&appctx);CHKERRQ(ierr);
+    }
+  } else {
+    ierr = TSSetRHSFunction(ts,NULL,RHSFunction,&appctx);CHKERRQ(ierr);
+    if (mf) {
+      ierr = TSSetRHSJacobian(ts,A,A,RHSJacobian_shell,&appctx);CHKERRQ(ierr);
+    } else {
+      ierr = TSSetRHSJacobian(ts,appctx.Jac,appctx.Jac,RHSJacobian,&appctx);CHKERRQ(ierr);
+    }
+  }
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -139,8 +162,8 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set solver options
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = TSSetDuration(ts,10,2000.0);CHKERRQ(ierr);
-  ierr = TSSetInitialTimeStep(ts,0.0,10);CHKERRQ(ierr);
+  ierr = TSSetMaxTime(ts,5.0);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts,1.0);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -154,8 +177,10 @@ int main(int argc,char **argv)
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecDestroy(&matctx.X);CHKERRQ(ierr);
   ierr = VecDestroy(&matctx.Xdot);CHKERRQ(ierr);
-//  ierr = MatDestroy(&appctx.Jac);CHKERRQ(ierr);
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  ierr = MatDestroy(&appctx.Jac);CHKERRQ(ierr);
+  if (mf) {
+    ierr = MatDestroy(&A);CHKERRQ(ierr);
+  }
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
@@ -400,13 +425,25 @@ static PetscErrorCode IFunction(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,void *ctx
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode IJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat A_shell,Mat B,void *ctx)
+static PetscErrorCode IJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat A,Mat B,void *ctx)
+{
+  PetscErrorCode ierr;
+  AppCtx         *appctx = (AppCtx*)ctx;;
+
+  PetscFunctionBeginUser;
+  ierr = RHSJacobian(ts,t,X,A,B,appctx);CHKERRQ(ierr);
+  ierr = MatScale(A,-1);CHKERRQ(ierr);
+  ierr = MatShift(A,a);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode IJacobian_shell(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat A_shell,Mat B,void *ctx)
 {
   PetscErrorCode    ierr;
   MatCtx            *mctx;
 
   PetscFunctionBeginUser;
-  ierr = MatShellGetContext(A_shell,(void **)&mctx);CHKERRQ(ierr);
+  ierr = MatShellGetContext(A_shell,(void *)&mctx);CHKERRQ(ierr);
 
   mctx->time  = t;
   mctx->shift = a;
@@ -417,13 +454,40 @@ static PetscErrorCode IJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MyMult(Mat A_shell,Vec X,Vec Y)
+static PetscErrorCode RHSJacobian_shell(TS ts,PetscReal t,Vec X,Mat A_shell,Mat B,void *ctx)
+{
+  PetscErrorCode    ierr;
+  MatCtx            *mctx;
+
+  PetscFunctionBeginUser;
+  ierr = MatShellGetContext(A_shell,(void *)&mctx);CHKERRQ(ierr);
+
+  mctx->time  = t;
+  if (mctx->ts != ts) mctx->ts = ts;
+  if (mctx->actx != ctx) mctx->actx  = ctx;
+  ierr = VecCopy(X,mctx->X);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode RHSJacobian_mult(Mat A_shell,Vec X,Vec Y)
 {
   MatCtx         *mctx;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = MatShellGetContext(A_shell,(void**)&mctx);CHKERRQ(ierr);
+  ierr = MatShellGetContext(A_shell,(void*)&mctx);CHKERRQ(ierr);
+  ierr = RHSJacobian(mctx->ts,mctx->time,mctx->X,mctx->actx->Jac,mctx->actx->Jac,mctx->actx);CHKERRQ(ierr);
+  ierr = MatMult(mctx->actx->Jac,X,Y);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode IJacobian_mult(Mat A_shell,Vec X,Vec Y)
+{
+  MatCtx         *mctx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = MatShellGetContext(A_shell,(void*)&mctx);CHKERRQ(ierr);
   ierr = RHSJacobian(mctx->ts,mctx->time,mctx->X,mctx->actx->Jac,mctx->actx->Jac,mctx->actx);CHKERRQ(ierr);
   ierr = MatScale(mctx->actx->Jac,-1);CHKERRQ(ierr);
   ierr = MatShift(mctx->actx->Jac,mctx->shift);CHKERRQ(ierr);
@@ -431,115 +495,3 @@ static PetscErrorCode MyMult(Mat A_shell,Vec X,Vec Y)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode IFunctionLocal(DMDALocalInfo *info,PetscReal t,Field**u,Field**udot,Field**f,void *ptr)
-{
-  AppCtx         *appctx = (AppCtx*)ptr;
-  PetscInt       i,j,xs,ys,xm,ym;
-  PetscReal      hx,hy,sx,sy;
-  PetscScalar    uc,uxx,uyy,vc,vxx,vyy;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  hx = 2.50/(PetscReal)(info->mx); sx = 1.0/(hx*hx);
-  hy = 2.50/(PetscReal)(info->my); sy = 1.0/(hy*hy);
-
-  /*
-     Get local grid boundaries
-  */
-  xs = info->xs; xm = info->xm;
-  ys = info->ys; ym = info->ym;
-  /*
-     Compute function over the locally owned part of the grid
-  */
-  for (j=ys; j<ys+ym; j++) {
-    for (i=xs; i<xs+xm; i++) {
-      uc        = u[j][i].u;
-      uxx       = (-2.0*uc + u[j][i-1].u + u[j][i+1].u)*sx;
-      uyy       = (-2.0*uc + u[j-1][i].u + u[j+1][i].u)*sy;
-      vc        = u[j][i].v;
-      vxx       = (-2.0*vc + u[j][i-1].v + u[j][i+1].v)*sx;
-      vyy       = (-2.0*vc + u[j-1][i].v + u[j+1][i].v)*sy;
-      f[j][i].u = udot[j][i].u - appctx->D1*(uxx + uyy) + uc*vc*vc - appctx->gamma*(1.0 - uc);
-      f[j][i].v = udot[j][i].v - appctx->D2*(vxx + vyy) - uc*vc*vc + (appctx->gamma + appctx->kappa)*vc;
-    }
-  }
-  ierr = PetscLogFlops(16*xm*ym);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode IJacobianLocal(DMDALocalInfo *info,PetscReal t,Field**u,Field**udot,PetscReal a,Mat A,Mat B,void *ptr)
-{
-  AppCtx         *appctx = (AppCtx*)ptr;     /* user-defined application context */
-  PetscErrorCode ierr;
-  PetscInt       i,j,xs,ys,xm,ym;
-  PetscReal      hx,hy,sx,sy;
-  PetscScalar    uc,vc;
-  MatStencil     stencil[6],rowstencil;
-  PetscScalar    entries[6];
-
-  PetscFunctionBegin;
-  hx = 2.50/(PetscReal)(info->mx); sx = 1.0/(hx*hx);
-  hy = 2.50/(PetscReal)(info->my); sy = 1.0/(hy*hy);
-  xs = info->xs; xm = info->xm;
-  ys = info->ys; ym = info->ym;
-
-  stencil[0].k = 0;
-  stencil[1].k = 0;
-  stencil[2].k = 0;
-  stencil[3].k = 0;
-  stencil[4].k = 0;
-  stencil[5].k = 0;
-  rowstencil.k = 0;
-  /*
-     Compute function over the locally owned part of the grid
-  */
-  for (j=ys; j<ys+ym; j++) {
-
-    stencil[0].j = j-1;
-    stencil[1].j = j+1;
-    stencil[2].j = j;
-    stencil[3].j = j;
-    stencil[4].j = j;
-    stencil[5].j = j;
-    rowstencil.k = 0; rowstencil.j = j;
-    for (i=xs; i<xs+xm; i++) {
-      uc = u[j][i].u;
-      vc = u[j][i].v;
-
-      /*      uxx       = (-2.0*uc + u[j][i-1].u + u[j][i+1].u)*sx;
-      uyy       = (-2.0*uc + u[j-1][i].u + u[j+1][i].u)*sy;
-
-      vxx       = (-2.0*vc + u[j][i-1].v + u[j][i+1].v)*sx;
-      vyy       = (-2.0*vc + u[j-1][i].v + u[j+1][i].v)*sy;
-       f[j][i].u = appctx->D1*(uxx + uyy) - uc*vc*vc + appctx->gamma*(1.0 - uc);*/
-
-      stencil[0].i = i; stencil[0].c = 0; entries[0] = -appctx->D1*sy;
-      stencil[1].i = i; stencil[1].c = 0; entries[1] = -appctx->D1*sy;
-      stencil[2].i = i-1; stencil[2].c = 0; entries[2] = -appctx->D1*sx;
-      stencil[3].i = i+1; stencil[3].c = 0; entries[3] = -appctx->D1*sx;
-      stencil[4].i = i; stencil[4].c = 0; entries[4] = 2.0*appctx->D1*(sx + sy) + vc*vc + appctx->gamma + a;
-      stencil[5].i = i; stencil[5].c = 1; entries[5] = 2.0*uc*vc;
-      rowstencil.i = i; rowstencil.c = 0;
-
-      ierr = MatSetValuesStencil(A,1,&rowstencil,6,stencil,entries,INSERT_VALUES);CHKERRQ(ierr);
-
-      stencil[0].c = 1; entries[0] = -appctx->D2*sy;
-      stencil[1].c = 1; entries[1] = -appctx->D2*sy;
-      stencil[2].c = 1; entries[2] = -appctx->D2*sx;
-      stencil[3].c = 1; entries[3] = -appctx->D2*sx;
-      stencil[4].c = 1; entries[4] = 2.0*appctx->D2*(sx + sy) - 2.0*uc*vc + appctx->gamma + appctx->kappa + a;
-      stencil[5].c = 0; entries[5] = -vc*vc;
-      rowstencil.c = 1;
-
-      ierr = MatSetValuesStencil(A,1,&rowstencil,6,stencil,entries,INSERT_VALUES);CHKERRQ(ierr);
-      /* f[j][i].v = appctx->D2*(vxx + vyy) + uc*vc*vc - (appctx->gamma + appctx->kappa)*vc; */
-    }
-  }
-
-  ierr = PetscLogFlops(19*xm*ym);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatSetOption(A,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_TRUE);CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
