@@ -3702,6 +3702,7 @@ PetscErrorCode DMGetEnclosureRelation(DM dmA, DM dmB, DMEnclosureType *rel)
   if (!dmA || !dmB) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(dmA, DM_CLASSID, 1);
   PetscValidHeaderSpecific(dmB, DM_CLASSID, 1);
+  if (dmA == dmB) {*rel = DM_ENC_EQUALITY; PetscFunctionReturn(0);}
   ierr = DMConvert(dmA, DMPLEX, &plexA);CHKERRQ(ierr);
   ierr = DMConvert(dmB, DMPLEX, &plexB);CHKERRQ(ierr);
   ierr = DMPlexGetChart(dmA, &pStartA, &pEndA);CHKERRQ(ierr);
