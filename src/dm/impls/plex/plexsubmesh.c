@@ -3733,7 +3733,7 @@ PetscErrorCode DMGetEnclosureRelation(DM dmA, DM dmB, DMEnclosureType *rel)
 }
 
 /*@
-  DMGetEnclosureRelation - Get the relationship between dmA and dmB
+  DMGetEnclosurePoint - Get the point pA in dmA which corresponds to the point pB in dmB
 
   Input Parameters:
 + dmA   - The first DM
