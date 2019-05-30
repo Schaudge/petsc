@@ -118,7 +118,7 @@ static PetscErrorCode DMPlexLabelComplete_Internal(DM dm, DMLabel label, PetscBo
     ierr = ISGetIndices(valueIS, &values);CHKERRQ(ierr);
     for (v = 0; v < numValues; ++v) {
       const PetscInt value = values[v];
-      
+
       ierr = DMLabelGetStratumIS(lblLeaves, value, &pointIS);CHKERRQ(ierr);
       ierr = DMLabelInsertIS(label, pointIS, value);CHKERRQ(ierr);
       ierr = ISDestroy(&pointIS);CHKERRQ(ierr);
@@ -133,7 +133,7 @@ static PetscErrorCode DMPlexLabelComplete_Internal(DM dm, DMLabel label, PetscBo
     ierr = ISGetIndices(valueIS, &values);CHKERRQ(ierr);
     for (v = 0; v < numValues; ++v) {
       const PetscInt value = values[v];
-      
+
       ierr = DMLabelGetStratumIS(lblRoots, value, &pointIS);CHKERRQ(ierr);
       ierr = DMLabelInsertIS(label, pointIS, value);CHKERRQ(ierr);
       ierr = ISDestroy(&pointIS);CHKERRQ(ierr);
@@ -3676,83 +3676,128 @@ PetscErrorCode DMPlexCreateSubpointIS(DM dm, IS *subpointIS)
 }
 
 /*@
-  DMPlexGetSubpoint - Return the subpoint corresponding to a point in the original mesh. If the DM
-                      is not a submesh, just return the input point.
-
-  Note collective
+  DMGetEnclosureRelation - Get the relationship between dmA and dmB
 
   Input Parameters:
-+ dm - The submesh DM
-- p  - The point in the original, from which the submesh was created
++ dmA - The first DM
+- dmB - The second DM
 
   Output Parameter:
-. subp - The point in the submesh
+. rel - The relation of dmA to dmB
 
-  Level: developer
+  Level: intermediate
 
-.seealso: DMPlexCreateSubmesh(), DMPlexGetSubpointMap(), DMPlexCreateSubpointIS()
+.seealso: DMPlexGetEnclosurePoint()
 @*/
-PetscErrorCode DMPlexGetSubpoint(DM dm, PetscInt p, PetscInt *subp)
+PetscErrorCode DMGetEnclosureRelation(DM dmA, DM dmB, DMEnclosureType *rel)
 {
+  DM             plexA, plexB, odm, sdm;
   DMLabel        spmap;
+  PetscInt       pStartA, pEndA, pStartB, pEndB, NpA, NpB;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  *subp = p;
-  ierr = DMPlexGetSubpointMap(dm, &spmap);CHKERRQ(ierr);
-  if (spmap) {
-    IS              subpointIS;
-    const PetscInt *subpoints;
-    PetscInt        numSubpoints;
-
-    /* TODO Cache the IS, making it look like an index */
-    ierr = DMPlexCreateSubpointIS(dm, &subpointIS);CHKERRQ(ierr);
-    ierr = ISGetLocalSize(subpointIS, &numSubpoints);CHKERRQ(ierr);
-    ierr = ISGetIndices(subpointIS, &subpoints);CHKERRQ(ierr);
-    ierr = PetscFindInt(p, numSubpoints, subpoints, subp);CHKERRQ(ierr);
-    if (*subp < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %d not found in submesh", p);
-    ierr = ISRestoreIndices(subpointIS, &subpoints);CHKERRQ(ierr);
-    ierr = ISDestroy(&subpointIS);CHKERRQ(ierr);
+  PetscValidPointer(rel, 3);
+  *rel = DM_ENC_NONE;
+  if (!dmA || !dmB) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(dmA, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(dmB, DM_CLASSID, 1);
+  ierr = DMConvert(dmA, DMPLEX, &plexA);CHKERRQ(ierr);
+  ierr = DMConvert(dmB, DMPLEX, &plexB);CHKERRQ(ierr);
+  ierr = DMPlexGetChart(dmA, &pStartA, &pEndA);CHKERRQ(ierr);
+  ierr = DMPlexGetChart(dmB, &pStartB, &pEndB);CHKERRQ(ierr);
+  /* Assumption 1: subDMs have smaller charts than the DMs that they originate from
+    - The degenerate case of a subdomain which includes all of the domain on some process can be treated as equality */
+  if ((pStartA == pStartB) && (pEndA == pEndB)) {
+    *rel = DM_ENC_EQUALITY;
+    goto end;
   }
+  NpA = pEndA - pStartA;
+  NpB = pEndB - pStartB;
+  if (NpA == NpB) goto end;
+  odm = NpA > NpB ? plexA : plexB;
+  sdm = NpA > NpB ? plexB : plexA;
+  ierr = DMPlexGetSubpointMap(sdm, &spmap);CHKERRQ(ierr);
+  if (!spmap) goto end;
+  /* TODO Check the space mapped to by subpointMap is same size as dm */
+  if (NpA > NpB) {
+    *rel = DM_ENC_SUPERMESH;
+  } else {
+    *rel = DM_ENC_SUBMESH;
+  }
+  end:
+  ierr = DMDestroy(&plexA);CHKERRQ(ierr);
+  ierr = DMDestroy(&plexB);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 /*@
-  DMPlexGetAuxiliaryPoint - For a given point in the DM, return the matching point in the auxiliary DM.
-
-  Note collective
+  DMGetEnclosureRelation - Get the relationship between dmA and dmB
 
   Input Parameters:
-+ dm    - The DM
-. dmAux - The related auxiliary DM
-- p     - The point in the original DM
++ dmA   - The first DM
+. dmB   - The second DM
+. etype - The type of enclosure relation that dmA has to dmB
+- pB    - A point of dmB
 
   Output Parameter:
-. subp - The point in the auxiliary DM
+. pA    - The corresponding point of dmA
 
-  Notes: If the DM is a submesh, we assume the dmAux is as well and just return the point. If only dmAux is a submesh,
-  then we map the point back to the original space.
+  Level: intermediate
 
-  Level: developer
-
-.seealso: DMPlexCreateSubmesh(), DMPlexGetSubpointMap(), DMPlexCreateSubpointIS()
+.seealso: DMGetEnclosureRelation()
 @*/
-PetscErrorCode DMPlexGetAuxiliaryPoint(DM dm, DM dmAux, PetscInt p, PetscInt *subp)
+PetscErrorCode DMGetEnclosurePoint(DM dmA, DM dmB, DMEnclosureType etype, PetscInt pB, PetscInt *pA)
 {
-  DMLabel        spmap;
-  PetscErrorCode ierr;
+  DM              sdm;
+  DMLabel         spmap;
+  IS              subpointIS;
+  const PetscInt *subpoints;
+  PetscInt        numSubpoints, h;
+  PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  *subp = p;
-  /* If dm is a submesh, do not get subpoint */
-  ierr = DMPlexGetSubpointMap(dm, &spmap);CHKERRQ(ierr);
-  if (dmAux && !spmap) {
-    PetscInt h;
+  /* TODO Cache the IS, making it look like an index */
+  switch (etype) {
+    case DM_ENC_SUPERMESH:
+    sdm  = dmB;
+    ierr = DMPlexGetSubpointMap(sdm, &spmap);CHKERRQ(ierr);
+    ierr = DMPlexCreateSubpointIS(sdm, &subpointIS);CHKERRQ(ierr);
+    ierr = ISGetIndices(subpointIS, &subpoints);CHKERRQ(ierr);
+    *pA  = subpoints[pB];
+    ierr = ISRestoreIndices(subpointIS, &subpoints);CHKERRQ(ierr);
+    ierr = ISDestroy(&subpointIS);CHKERRQ(ierr);
+    break;
+    case DM_ENC_SUBMESH:
+    sdm  = dmA;
+    ierr = DMPlexGetVTKCellHeight(sdm, &h);CHKERRQ(ierr);
+    ierr = DMPlexGetSubpointMap(sdm, &spmap);CHKERRQ(ierr);
+    if (spmap && !h) {
+      /* If we do not have "false" cells hanging off the mesh, we can use DMLabelGetValue(spmap, p, subp) directly. */
+      ierr = DMLabelGetValue(spmap, pB, pA);CHKERRQ(ierr);
+    } else {
+      /* Otherwise, we have to go through CreateSubpointIS() */
+      ierr = DMPlexCreateSubpointIS(sdm, &subpointIS);CHKERRQ(ierr);
+      ierr = ISGetLocalSize(subpointIS, &numSubpoints);CHKERRQ(ierr);
+      ierr = ISGetIndices(subpointIS, &subpoints);CHKERRQ(ierr);
+      ierr = PetscFindInt(pB, numSubpoints, subpoints, pA);CHKERRQ(ierr);
+      if (*pA < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %d not found in submesh", pB);
+      ierr = ISRestoreIndices(subpointIS, &subpoints);CHKERRQ(ierr);
+      ierr = ISDestroy(&subpointIS);CHKERRQ(ierr);
+    }
+    break;
+    case DM_ENC_EQUALITY:
+    case DM_ENC_NONE:
+    *pA = pB;break;
+    case DM_ENC_UNKNOWN:
+    {
+      DMEnclosureType enc;
 
-    ierr = DMPlexGetVTKCellHeight(dmAux, &h);CHKERRQ(ierr);
-    ierr = DMPlexGetSubpointMap(dmAux, &spmap);CHKERRQ(ierr);
-    if (spmap && !h) {ierr = DMLabelGetValue(spmap, p, subp);CHKERRQ(ierr);}
-    else             {ierr = DMPlexGetSubpoint(dmAux, p, subp);CHKERRQ(ierr);}
+      ierr = DMGetEnclosureRelation(dmA, dmB, &enc);CHKERRQ(ierr);
+      ierr = DMGetEnclosurePoint(dmA, dmB, enc, pB, pA);CHKERRQ(ierr);
+    }
+    break;
+    default: SETERRQ1(PetscObjectComm((PetscObject) dmA), PETSC_ERR_ARG_OUTOFRANGE, "Invalid enclosure type %d", (int) etype);
   }
   PetscFunctionReturn(0);
 }
