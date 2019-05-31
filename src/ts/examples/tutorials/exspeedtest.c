@@ -242,12 +242,10 @@ int main(int argc, char **argv)
 	}
 
 	/*	LOOP OVER ALL VERTICES ON LOCAL MESH	*/
-	if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);
-                ierr = PetscPrintf(comm, "Before Op | After Op\n");CHKERRQ(ierr);
-        }
+	if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);}
         for(j = 0; j < nVertex; ++j) {
-		if (arrayDisp) {ierr = PetscPrintf(comm, "%.3f", array[j]);CHKERRQ(ierr);}
-                ierr = VecDot(funcVecCos, funcVecSin, &dot);CHKERRQ(ierr);
+		if (arrayDisp) {PetscPrintf(comm,"%f Before Op\n",array[j]);}
+		ierr = VecDot(funcVecCos, funcVecSin, &dot);CHKERRQ(ierr);
 		array[j] = dot;
                 if (arrayDisp) {ierr = PetscPrintf(comm, "\t  |%.3f\n", array[j]);CHKERRQ(ierr);}
         }
