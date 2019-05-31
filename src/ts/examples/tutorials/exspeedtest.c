@@ -3,15 +3,15 @@ static char help[] = "Test Unstructured Mesh Handling\n";
 # include <petscdmplex.h>
 # include <petscviewer.h>
 
-# define PETSCVIEWERVTK          "vtk"
-# define PETSCVIEWERASCII        "ascii"
-# define VECSTANDARD    	 "standard"
+#define PETSCVIEWERVTK          "vtk"
+#define PETSCVIEWERASCII        "ascii"
+#define VECSTANDARD    		"standard"
 
 /*	ADDITIONAL FUNCTIONS	*/
 PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
 {
-        MPI_Comm	DMcomm;
-        PetscSF        	sfPoint;
+	MPI_Comm	DMcomm;
+	PetscSF        	sfPoint;
 	PetscSection   	coordSection;
 	Vec            	coordinates;
 	PetscSection   	sectionLocal;
@@ -71,6 +71,7 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
 
 	ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
 	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
+
         /*	query the number and name of labels	*/
         ierr = DMGetNumLabels(dm, &numLabels);CHKERRQ(ierr);
        	ierr = PetscPrintf(comm, "Number of labels: %d\n", numLabels);CHKERRQ(ierr);
@@ -85,6 +86,7 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
                 ierr = ISDestroy(&labelIS);CHKERRQ(ierr);
                 ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
         }
+
         /*	Making sure that string literals work	*/
         ierr = PetscPrintf(comm,"\n\nCell Set label IS\n");CHKERRQ(ierr);
         ierr = DMGetLabel(dm, "Cell Sets", &label);CHKERRQ(ierr);
