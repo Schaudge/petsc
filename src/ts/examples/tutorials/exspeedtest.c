@@ -71,7 +71,7 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
 
 	ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
 	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
-        // query the number and name of labels
+        /*	query the number and name of labels	*/
         ierr = DMGetNumLabels(dm, &numLabels);CHKERRQ(ierr);
        	ierr = PetscPrintf(comm, "Number of labels: %d\n", numLabels);CHKERRQ(ierr);
         for (l = 0; l < numLabels; ++l)
@@ -85,9 +85,10 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
                 ierr = ISDestroy(&labelIS);CHKERRQ(ierr);
                 ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
         }
-        // Making sure that string literals work
+        /*	Making sure that string literals work	*/
         ierr = PetscPrintf(comm,"\n\nCell Set label IS\n");CHKERRQ(ierr);
         ierr = DMGetLabel(dm, "Cell Sets", &label);CHKERRQ(ierr);
+	/*	Specifically look for Cell Sets as these seem to be vertices	*/
         if (label)
         {
         	ierr = DMLabelGetValueIS(label, &labelIS);CHKERRQ(ierr);
@@ -104,17 +105,21 @@ int main(int argc, char **argv)
 {
 	MPI_Comm		comm;
 	DM			dm, dmDist, dmInterp = NULL;
-	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
-	PetscErrorCode		ierr;
-	PetscBool		dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 3, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nElems;
-	PetscInt		numComp[3], numDOF[3], bcField[1];
-	const PetscInt		*IdIS;
 	IS			bcPointsIS, IntIdIS;
 	PetscSection		section;
+	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
+	PetscErrorCode		ierr;
+
+	PetscBool		dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscInt		dim = 3, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
+	PetscInt		numComp[3], numDOF[3], bcField[1];
+	const PetscInt		*IdIS;
 	PetscScalar 		dot, *coords, *array;
 	PetscViewer		viewer;
 	char			bar[18] = "------------------";
+
+	PetscLogStage 		stage;
+	PetscLogEvent 		event;
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -135,8 +140,8 @@ int main(int argc, char **argv)
 	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
 
 	PetscPrintf(comm,"%s Dm Alteration Info %s \n", bar, bar);
-	ierr = DMPlexCreateBoxMesh(comm, 2, PETSC_TRUE, NULL, NULL, NULL, NULL, PETSC_TRUE, &dm);CHKERRQ(ierr);
-//	ierr = DMPlexCreateFromFile(comm, "sevenside.exo", dmInterped, &dm);CHKERRQ(ierr);
+//	ierr = DMPlexCreateBoxMesh(comm, 2, PETSC_TRUE, NULL, NULL, NULL, NULL, PETSC_TRUE, &dm);CHKERRQ(ierr);
+	ierr = DMPlexCreateFromFile(comm, "2Dtri3Hole.exo", dmInterped, &dm);CHKERRQ(ierr);
 
 	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
@@ -151,7 +156,7 @@ int main(int argc, char **argv)
 		}
 	}
 	if (!dmInterped) {
-//		ierr = DMPlexInterpolate(dm, &dmInterp);CHKERRQ(ierr);
+		ierr = DMPlexInterpolate(dm, &dmInterp);CHKERRQ(ierr);
 		if (dmInterp) {
 			DMDestroy(&dm);
 			PetscPrintf(comm,"Interped dm again [UNUSUAL]\n");
@@ -163,7 +168,7 @@ int main(int argc, char **argv)
 		PetscPrintf(comm,"Interped dm\n");
 	}
 	PetscPrintf(comm,"%s End Dm Alteration %s\n", bar, bar);
-if(false){
+
 	/*	Set number of active fields	*/
 	numFields = 1;
 	/* 	Number of Field Components	*/
@@ -195,10 +200,10 @@ if(false){
 		ierr = DMView(dm, 0);CHKERRQ(ierr);
 		PetscPrintf(comm,"%s End DM View %s\n", bar, bar);
 	}
-}
+
 	/*	Perform Function on LOCAL array	*/
 	ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
-	ierr = VecGetLocalSize(solVecLocal, &nElems);CHKERRQ(ierr);
+	ierr = VecGetLocalSize(solVecLocal, &nVertex);CHKERRQ(ierr);
 	ierr = VecGetArray(solVecLocal, &array);CHKERRQ(ierr);
 
 	/*	Create Vector for per process function evaluation	*/
@@ -213,13 +218,13 @@ if(false){
   	ierr = VecAssemblyEnd(funcVecSin);CHKERRQ(ierr);
 	ierr = VecAssemblyBegin(funcVecCos);CHKERRQ(ierr);
   	ierr = VecAssemblyEnd(funcVecCos);CHKERRQ(ierr);
-if (false){
+
 	if (sectionDisp) {
 		PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);
 		PetscSectionView(section, 0);
 		PetscPrintf(comm,"%s End Petsc Section View %s\n",bar, bar);
 	}
-}
+
 	if (VTKdisp) {
 		PetscViewer	vtkviewerpart;
 		Vec 		partition;
@@ -235,8 +240,9 @@ if (false){
 		ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 	}
 
+	/*	LOOP OVER ALL VERTICES ON LOCAL MESH	*/
 	if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);}
-        for(j = 0; j < nElems; ++j) {
+        for(j = 0; j < nVertex; ++j) {
 		if (arrayDisp) {PetscPrintf(comm,"%f Before Op\n",array[j]);}
 		ierr = VecDot(funcVecCos, funcVecSin, &dot);CHKERRQ(ierr);
 		array[j] = dot;
@@ -244,7 +250,7 @@ if (false){
         }
 
 	if (arrayDisp) {
-		PetscPrintf(comm,"%d Number of LOCAL elements\n", nElems);
+		PetscPrintf(comm,"%d Number of LOCAL elements\n", nVertex);
         	PetscPrintf(comm,"%s Array End %s\n", bar, bar);
 	}
 
@@ -253,14 +259,27 @@ if (false){
 	ierr = VecDestroy(&funcVecSin);CHKERRQ(ierr);
 	ierr = VecDestroy(&funcVecCos);CHKERRQ(ierr);
 	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+
+	/*	Push LocalToGlobal time to log	*/
+	ierr = PetscLogStageRegister("Commun", &stage);CHKERRQ(ierr);
+	ierr = PetscLogEventRegister("CommuE", 0, &event);CHKERRQ(ierr);
+	ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
+	ierr = PetscLogEventBegin(event, 0, 0, 0, 0);CHKERRQ(ierr);
 	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
 	ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+        ierr = PetscLogEventEnd(event, 0, 0, 0, 0);CHKERRQ(ierr);
+        ierr = PetscLogStagePop();CHKERRQ(ierr);
 
 	/*	Get LOCAL coordinates for debug	*/
 	ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
 	ierr = VecGetLocalSize(coordinates, &nCoords);CHKERRQ(ierr);
 	ierr = VecGetArray(coordinates,&coords);CHKERRQ(ierr);
 
+	/*	LOOP OVER ALL COORDINATES PAIRS ON LOCAL MESH
+		NOTE: This is not the same as looping over values of a matrix A
+		representing the "vertices" but instead gives you the (x,y)
+		coordinates corresponding to an entry Aij. Rule of thumb for checking
+		is that there should be twice as many local coords as local vertices!	*/
 	if (coordDisp) {
 		PetscPrintf(comm,"%s Coords %s\n", bar, bar);
 		for(i=0; i < nCoords; i++) {
@@ -270,6 +289,7 @@ if (false){
 		PetscPrintf(comm,"%s Coords End %s\n", bar, bar);
 	}
 
+	/*	Output vtk of global solution vector	*/
 	if (VTKdisp) {
 		PetscViewer	vtkviewersoln;
 
