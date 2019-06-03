@@ -109,14 +109,14 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
 	PetscErrorCode		ierr;
-
-	PetscBool		dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscBool		fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 3, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
 	PetscInt		numComp[3], numDOF[3], bcField[1];
-	const PetscInt		*IdIS;
+        size_t                  namelen;
+        const PetscInt		*IdIS;
 	PetscScalar 		dot, *coords, *array;
 	PetscViewer		viewer;
-	char			bar[18] = "------------------";
+	char			bar[18] = "------------------", filename[PETSC_MAX_PATH_LEN];
 
 	PetscLogStage 		stage;
 	PetscLogEvent 		event;
@@ -132,6 +132,7 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsBool("-secview","Turn on SectionView", "", sectionDisp, &sectionDisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-arrview", "Turn on array display", "", arrayDisp, &arrayDisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-coordview","Turn on coordinate display", "", coordDisp, &coordDisp, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, sizeof(filename), &fileflg); CHKERRQ(ierr);
 	}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
@@ -139,10 +140,14 @@ int main(int argc, char **argv)
 	ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
 	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
 
-	PetscPrintf(comm,"%s Dm Alteration Info %s \n", bar, bar);
-//	ierr = DMPlexCreateBoxMesh(comm, 2, PETSC_TRUE, NULL, NULL, NULL, NULL, PETSC_TRUE, &dm);CHKERRQ(ierr);
-	ierr = DMPlexCreateFromFile(comm, "2Dtri3Hole.exo", dmInterped, &dm);CHKERRQ(ierr);
+        ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
+        if (!namelen){
+          	ierr = DMPlexCreateBoxMesh(comm, 2, PETSC_TRUE, NULL, NULL, NULL, NULL, PETSC_TRUE, &dm);CHKERRQ(ierr);
+        } else {
+          	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
+        }
 
+	PetscPrintf(comm,"%s Dm Alteration Info %s \n", bar, bar);
 	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
 		DMDestroy(&dm);
@@ -174,7 +179,7 @@ int main(int argc, char **argv)
 	/* 	Number of Field Components	*/
 	numComp[0] = 1;
 	/*	Init numDOF[field componentID] = Not Used	*/
-	for(k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
+	for (k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
 	/*	numDOF[field componentID] = Used	*/
 	numDOF[0] = 1;
 	/*	numComp[componentID] = Used	*/
