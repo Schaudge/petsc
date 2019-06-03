@@ -34,7 +34,7 @@ int main(int argc,char **argv)
   Mat            J;                    /* Jacobian matrix */
   PetscInt       steps;                /* iterations for convergence */
   PetscErrorCode ierr;
-  DM             da;
+    DM             da;
   PetscReal      ftime,dt;
   AppCtx         user;              /* user-defined work context */
 
