@@ -10,8 +10,8 @@ static char help[] = "Test Unstructured Mesh Handling\n";
 /*	ADDITIONAL FUNCTIONS	*/
 PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
 {
-	MPI_Comm	DMcomm;
-	PetscSF        	sfPoint;
+        MPI_Comm	DMcomm;
+        PetscSF        	sfPoint;
 	PetscSection   	coordSection;
 	Vec            	coordinates;
 	PetscSection   	sectionLocal;
