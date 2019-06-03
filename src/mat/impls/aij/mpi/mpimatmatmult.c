@@ -132,7 +132,7 @@ PetscErrorCode MatMatMultNumeric_MPIAIJ_MPIAIJ_nonscalable(Mat A,Mat P,Mat C)
   ierr = PetscObjectGetComm((PetscObject)A,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
 
-  if (!ptap) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"AP cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
+  if (!ptap->P_oth && size>1) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"AP cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
 
   /* 1) get P_oth = ptap->P_oth  and P_loc = ptap->P_loc */
   /*-----------------------------------------------------*/
@@ -468,7 +468,8 @@ PetscErrorCode MatMPIDenseScatter(Mat A,Mat B,Mat C,Mat *outworkB)
 {
   Mat_MPIAIJ             *aij = (Mat_MPIAIJ*)A->data;
   PetscErrorCode         ierr;
-  PetscScalar            *b,*w,*svalues,*rvalues;
+  const PetscScalar      *b;
+  PetscScalar            *w,*svalues,*rvalues;
   VecScatter             ctx   = aij->Mvctx;
   PetscInt               i,j,k;
   const PetscInt         *sindices,*sstarts,*rindices,*rstarts;
@@ -499,7 +500,7 @@ PetscErrorCode MatMPIDenseScatter(Mat A,Mat B,Mat C,Mat *outworkB)
   swaits  = contents->swaits;
   rwaits  = contents->rwaits;
 
-  ierr = MatDenseGetArray(B,&b);CHKERRQ(ierr);
+  ierr = MatDenseGetArrayRead(B,&b);CHKERRQ(ierr);
   ierr = MatDenseGetArray(workB,&w);CHKERRQ(ierr);
 
   for (i=0; i<nrecvs; i++) {
@@ -531,7 +532,7 @@ PetscErrorCode MatMPIDenseScatter(Mat A,Mat B,Mat C,Mat *outworkB)
 
   ierr = VecScatterRestoreRemote_Private(ctx,PETSC_TRUE/*send*/,&nsends,&sstarts,&sindices,&sprocs,NULL/*bs*/);CHKERRQ(ierr);
   ierr = VecScatterRestoreRemoteOrdered_Private(ctx,PETSC_FALSE/*recv*/,&nrecvs,&rstarts,&rindices,&rprocs,NULL/*bs*/);CHKERRQ(ierr);
-  ierr = MatDenseRestoreArray(B,&b);CHKERRQ(ierr);
+  ierr = MatDenseRestoreArrayRead(B,&b);CHKERRQ(ierr);
   ierr = MatDenseRestoreArray(workB,&w);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(workB,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(workB,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -586,7 +587,7 @@ PetscErrorCode MatMatMultNumeric_MPIAIJ_MPIAIJ(Mat A,Mat P,Mat C)
   ierr = PetscObjectGetComm((PetscObject)C,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
 
-  if (!ptap) {
+  if (!ptap->P_oth && size>1) {
     SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"AP cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
   }
   apa_sparse = ptap->apa;
@@ -1239,7 +1240,7 @@ PetscErrorCode MatTransposeMatMultNumeric_MPIAIJ_MPIAIJ_matmatmult(Mat P,Mat A,M
   Mat            Pt;
 
   PetscFunctionBegin;
-  if (!ptap) {
+  if (!ptap->Pt) {
     MPI_Comm comm;
     ierr = PetscObjectGetComm((PetscObject)C,&comm);CHKERRQ(ierr);
     SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"PtA cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
@@ -1520,7 +1521,7 @@ PetscErrorCode MatTransposeMatMultNumeric_MPIAIJ_MPIAIJ_nonscalable(Mat P,Mat A,
   const PetscScalar *vals;
 
   PetscFunctionBegin;
-  if (!ptap) {
+  if (!ptap->A_loc) {
     MPI_Comm comm;
     ierr = PetscObjectGetComm((PetscObject)C,&comm);CHKERRQ(ierr);
     SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"PtA cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
@@ -1614,7 +1615,7 @@ PetscErrorCode MatTransposeMatMultNumeric_MPIAIJ_MPIAIJ(Mat P,Mat A,Mat C)
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
 
   ptap  = c->ap;
-  if (!ptap) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"PtA cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
+  if (!ptap->A_loc) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"PtA cannot be reused. Do not call MatFreeIntermediateDataStructures() or use '-mat_freeintermediatedatastructures'");
   merge = ptap->merge;
 
   /* 2) compute numeric C_seq = P_loc^T*A_loc */

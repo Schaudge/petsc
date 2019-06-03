@@ -255,7 +255,7 @@ PetscErrorCode VecReplaceArray_SeqCUDA(Vec vin,const PetscScalar *a)
 /*@
  VecCreateSeqCUDA - Creates a standard, sequential array-style vector.
 
- Collective on MPI_Comm
+ Collective
 
  Input Parameter:
  +  comm - the communicator, should be PETSC_COMM_SELF
@@ -269,8 +269,6 @@ PetscErrorCode VecReplaceArray_SeqCUDA(Vec vin,const PetscScalar *a)
  same type as an existing vector.
 
  Level: intermediate
-
- Concepts: vectors^creating sequential
 
  .seealso: VecCreateMPI(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost()
  @*/
@@ -316,7 +314,7 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
    where the user provides the array space to store the vector values. The array
    provided must be a GPU array.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameter:
 +  comm - the communicator, should be PETSC_COMM_SELF
@@ -338,8 +336,6 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
    The user should not free the array until the vector is destroyed.
 
    Level: intermediate
-
-   Concepts: vectors^creating with array
 
 .seealso: VecCreateMPICUDAWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(),
           VecCreateGhost(), VecCreateSeq(), VecCUDAPlaceArray(), VecCreateSeqWithArray(),

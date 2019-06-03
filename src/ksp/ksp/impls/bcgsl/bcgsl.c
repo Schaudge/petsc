@@ -319,7 +319,7 @@ static PetscErrorCode  KSPSolve_BCGSL(KSP ksp)
    KSPBCGSLSetXRes - Sets the parameter governing when
    exact residuals will be used instead of computed residuals.
 
-   Logically Collective on KSP
+   Logically Collective on ksp
 
    Input Parameters:
 +  ksp - iterative context obtained from KSPCreate
@@ -330,8 +330,6 @@ static PetscErrorCode  KSPSolve_BCGSL(KSP ksp)
 .  -ksp_bcgsl_xres delta
 
    Level: intermediate
-
-.keywords: BiCGStab(L), set, exact residuals
 
 .seealso: KSPBCGSLSetEll(), KSPBCGSLSetPol(), KSP
 @*/
@@ -357,7 +355,7 @@ PetscErrorCode  KSPBCGSLSetXRes(KSP ksp, PetscReal delta)
 /*@
    KSPBCGSLSetUsePseudoinverse - Use pseudoinverse (via SVD) to solve polynomial part of update
 
-   Logically Collective on KSP
+   Logically Collective on ksp
 
    Input Parameters:
 +  ksp - iterative context obtained from KSPCreate
@@ -368,8 +366,6 @@ PetscErrorCode  KSPBCGSLSetXRes(KSP ksp, PetscReal delta)
 +  -ksp_bcgsl_pinv - use pseudoinverse
 
    Level: intermediate
-
-.keywords: BiCGStab(L), set, polynomial
 
 .seealso: KSPBCGSLSetEll(), KSP
 @*/
@@ -386,7 +382,7 @@ PetscErrorCode KSPBCGSLSetUsePseudoinverse(KSP ksp,PetscBool use_pinv)
    KSPBCGSLSetPol - Sets the type of polynomial part will
    be used in the BiCGSTab(L) solver.
 
-   Logically Collective on KSP
+   Logically Collective on ksp
 
    Input Parameters:
 +  ksp - iterative context obtained from KSPCreate
@@ -398,8 +394,6 @@ PetscErrorCode KSPBCGSLSetUsePseudoinverse(KSP ksp,PetscBool use_pinv)
 .  -ksp_bcgsl_mrpoly - use standard polynomial
 
    Level: intermediate
-
-.keywords: BiCGStab(L), set, polynomial
 
 .seealso: KSP, KSPBCGSL, KSPCreate(), KSPSetType()
 @*/
@@ -429,7 +423,7 @@ PetscErrorCode  KSPBCGSLSetPol(KSP ksp, PetscBool uMROR)
 /*@
    KSPBCGSLSetEll - Sets the number of search directions in BiCGStab(L).
 
-   Logically Collective on KSP
+   Logically Collective on ksp
 
    Input Parameters:
 +  ksp - iterative context obtained from KSPCreate
@@ -445,8 +439,6 @@ PetscErrorCode  KSPBCGSLSetPol(KSP ksp, PetscBool uMROR)
    For large ell it is common for the polynomial update problem to become singular (due to happy breakdown for smallish
    test problems, but also for larger problems). Consequently, by default, the system is solved by pseudoinverse, which
    allows the iteration to complete successfully. See KSPBCGSLSetUsePseudoinverse() to switch to a conventional solve.
-
-.keywords: BiCGStab(L), set, exact residuals,
 
 .seealso: KSPBCGSLSetUsePseudoinverse(), KSP, KSPBCGSL
 @*/

@@ -1052,7 +1052,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJMKL(Mat A,MatType type,MatRe
    symmetric A) operations are currently supported.
    Note that MKL version 18, update 2 or later is required for MatPtAP/MatPtAPNumeric and MatMatMultNumeric.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator, set to PETSC_COMM_SELF
@@ -1073,8 +1073,6 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJMKL(Mat A,MatType type,MatRe
    If nnz is given then nz is ignored
 
    Level: intermediate
-
-.keywords: matrix, MKL, sparse, parallel
 
 .seealso: MatCreate(), MatCreateMPIAIJMKL(), MatSetValues()
 @*/

@@ -22,6 +22,7 @@ PetscErrorCode MatFDColoringApply_BAIJ(Mat J,MatFDColoring coloring,Vec x1,void 
   PetscInt          bs=J->rmap->bs;
 
   PetscFunctionBegin;
+  ierr = VecPinToCPU(x1,PETSC_TRUE);CHKERRQ(ierr);
   /* (1) Set w1 = F(x1) */
   if (!coloring->fset) {
     ierr = PetscLogEventBegin(MAT_FDColoringFunction,coloring,0,0,0);CHKERRQ(ierr);
@@ -60,6 +61,8 @@ PetscErrorCode MatFDColoringApply_BAIJ(Mat J,MatFDColoring coloring,Vec x1,void 
   /* (3) Loop over each color */
   if (!coloring->w3) {
     ierr = VecDuplicate(x1,&coloring->w3);CHKERRQ(ierr);
+    /* Vec is used instensively in particular piece of scalar CPU code; won't benifit from bouncing back and forth to the GPU */
+    ierr = VecPinToCPU(coloring->w3,PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscLogObjectParent((PetscObject)coloring,(PetscObject)coloring->w3);CHKERRQ(ierr);
   }
   w3 = coloring->w3;
@@ -152,6 +155,7 @@ PetscErrorCode MatFDColoringApply_BAIJ(Mat J,MatFDColoring coloring,Vec x1,void 
   }
 
   coloring->currentcolor = -1;
+  ierr = VecPinToCPU(x1,PETSC_FALSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -174,6 +178,7 @@ PetscErrorCode  MatFDColoringApply_AIJ(Mat J,MatFDColoring coloring,Vec x1,void 
   const PetscInt    ncolors=coloring->ncolors,*ncolumns=coloring->ncolumns,*nrows=coloring->nrows;
 
   PetscFunctionBegin;
+  ierr = VecPinToCPU(x1,PETSC_TRUE);CHKERRQ(ierr);
   if ((ctype == IS_COLORING_LOCAL) && (J->ops->fdcoloringapply == MatFDColoringApply_AIJ)) SETERRQ(PetscObjectComm((PetscObject)J),PETSC_ERR_SUP,"Must call MatColoringUseDM() with IS_COLORING_LOCAL");
   /* (1) Set w1 = F(x1) */
   if (!coloring->fset) {
@@ -276,7 +281,6 @@ PetscErrorCode  MatFDColoringApply_AIJ(Mat J,MatFDColoring coloring,Vec x1,void 
        (3-3) Loop over block rows of vector, putting results into Jacobian matrix
        */
       nrows_k = nrows[nbcols++];
-      ierr = VecGetArray(w2,&y);CHKERRQ(ierr);
 
       if (coloring->htype[0] == 'w') {
         for (l=0; l<nrows_k; l++) {
@@ -290,7 +294,6 @@ PetscErrorCode  MatFDColoringApply_AIJ(Mat J,MatFDColoring coloring,Vec x1,void 
           nz++;
         }
       }
-      ierr = VecRestoreArray(w2,&y);CHKERRQ(ierr);
     }
   } else { /* bcols == 1 */
     for (k=0; k<ncolors; k++) {
@@ -355,6 +358,7 @@ PetscErrorCode  MatFDColoringApply_AIJ(Mat J,MatFDColoring coloring,Vec x1,void 
     ierr = VecRestoreArray(vscale,&vscale_array);CHKERRQ(ierr);
   }
   coloring->currentcolor = -1;
+  ierr = VecPinToCPU(x1,PETSC_FALSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -411,6 +415,7 @@ PetscErrorCode MatFDColoringSetUp_MPIXAIJ(Mat mat,ISColoring iscoloring,MatFDCol
         }
       }
       ierr = VecCreateGhost(PetscObjectComm((PetscObject)mat),mat->cmap->n,PETSC_DETERMINE,B->cmap->n,garray,&c->vscale);CHKERRQ(ierr);
+      ierr = VecPinToCPU(c->vscale,PETSC_TRUE);CHKERRQ(ierr);
       ierr = PetscFree(garray);CHKERRQ(ierr);
     }
   } else if (isSELL) {
@@ -432,6 +437,7 @@ PetscErrorCode MatFDColoringSetUp_MPIXAIJ(Mat mat,ISColoring iscoloring,MatFDCol
 
     if (ctype == IS_COLORING_GLOBAL && c->htype[0] == 'd') { /* create vscale for storing dx */
       ierr = VecCreateGhost(PetscObjectComm((PetscObject)mat),mat->cmap->n,PETSC_DETERMINE,B->cmap->n,sell->garray,&c->vscale);CHKERRQ(ierr);
+      ierr = VecPinToCPU(c->vscale,PETSC_TRUE);CHKERRQ(ierr);
     }
   } else {
     Mat_MPIAIJ *aij=(Mat_MPIAIJ*)mat->data;
@@ -452,6 +458,7 @@ PetscErrorCode MatFDColoringSetUp_MPIXAIJ(Mat mat,ISColoring iscoloring,MatFDCol
 
     if (ctype == IS_COLORING_GLOBAL && c->htype[0] == 'd') { /* create vscale for storing dx */
       ierr = VecCreateGhost(PetscObjectComm((PetscObject)mat),mat->cmap->n,PETSC_DETERMINE,B->cmap->n,aij->garray,&c->vscale);CHKERRQ(ierr);
+      ierr = VecPinToCPU(c->vscale,PETSC_TRUE);CHKERRQ(ierr);
     }
   }
 

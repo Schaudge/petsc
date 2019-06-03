@@ -26,8 +26,8 @@ static const char citation[] =
 "pages = {667-696},\n"
 "year = {2014},\n"
 "doi = {10.1142/S0218202513500632},\n"
-"URL = {http://www.worldscientific.com/doi/abs/10.1142/S0218202513500632},\n"
-"eprint = {http://www.worldscientific.com/doi/pdf/10.1142/S0218202513500632}\n"
+"URL = {https://www.worldscientific.com/doi/abs/10.1142/S0218202513500632},\n"
+"eprint = {https://www.worldscientific.com/doi/pdf/10.1142/S0218202513500632}\n"
 "}\n";
 static const char citation2[] =
 "@article{li2013nonoverlapping,\n"
@@ -78,7 +78,7 @@ static PetscErrorCode KSPFETIDPSetPressureOperator_FETIDP(KSP ksp, Mat P)
 /*@
  KSPFETIDPSetPressureOperator - Sets the operator used to setup the pressure preconditioner for saddle point FETI-DP.
 
-   Collective on KSP
+   Collective on ksp
 
    Input Parameters:
 +  ksp - the FETI-DP Krylov solver
@@ -189,7 +189,7 @@ static PetscErrorCode KSPFETIDPSetInnerBDDC_FETIDP(KSP ksp, PC pc)
 /*@
  KSPFETIDPSetInnerBDDC - Sets the BDDC preconditioner used to setup the FETI-DP matrix for the Lagrange multipliers
 
-   Collective on KSP
+   Collective on ksp
 
    Input Parameters:
 +  ksp - the FETI-DP Krylov solver

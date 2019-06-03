@@ -30,6 +30,7 @@ typedef struct {
   PetscReal     extrude_thickness;               /* Thickness of extrusion */
   PetscInt      extrude_layers;                  /* Layers to be extruded */
   PetscBool     testp4est[2];
+  PetscBool     redistribute;
 } AppCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -67,6 +68,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->extrude_thickness = 0.1;
   options->testp4est[0]      = PETSC_FALSE;
   options->testp4est[1]      = PETSC_FALSE;
+  options->redistribute      = PETSC_FALSE;
 
   ierr = PetscOptionsBegin(comm, "", "Meshing Problem Options", "DMPLEX");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-debug", "The debugging level", "ex1.c", options->debug, &options->debug, NULL);CHKERRQ(ierr);
@@ -105,6 +107,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBool("-test_shape", "Report cell shape qualities (Jacobian condition numbers)", "ex1.c", options->testShape, &options->testShape, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-test_p4est_seq", "Test p4est with sequential base DM", "ex1.c", options->testp4est[0], &options->testp4est[0], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-test_p4est_par", "Test p4est with parallel base DM", "ex1.c", options->testp4est[1], &options->testp4est[1], NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-test_redistribute", "Test redistribution", "ex1.c", options->redistribute, &options->redistribute, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();
 
   ierr = PetscLogEventRegister("CreateMesh", DM_CLASSID, &options->createMeshEvent);CHKERRQ(ierr);
@@ -211,18 +214,24 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 
     ierr = DMConvert(*dm,dim == 2 ? DMP4EST : DMP8EST,&dmConv);CHKERRQ(ierr);
     if (dmConv) {
+      ierr = PetscObjectSetOptionsPrefix((PetscObject) dmConv, "conv_seq_1_");CHKERRQ(ierr);
       ierr = DMSetFromOptions(dmConv);CHKERRQ(ierr);
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm  = dmConv;
     }
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, "conv_seq_1_");CHKERRQ(ierr);
     ierr = DMSetUp(*dm);CHKERRQ(ierr);
-    ierr = DMViewFromOptions(*dm, NULL, "-conv_seq_1_dm_view");CHKERRQ(ierr);
+    ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
     ierr = DMConvert(*dm,DMPLEX,&dmConv);CHKERRQ(ierr);
     if (dmConv) {
+      ierr = PetscObjectSetOptionsPrefix((PetscObject) dmConv, "conv_seq_2_");CHKERRQ(ierr);
+      ierr = DMSetFromOptions(dmConv);CHKERRQ(ierr);
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm  = dmConv;
     }
-    ierr = DMViewFromOptions(*dm, NULL, "-conv_seq_2_dm_view");CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, "conv_seq_2_");CHKERRQ(ierr);
+    ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, NULL);CHKERRQ(ierr);
 #else
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Recompile with --download-p4est");
 #endif
@@ -269,6 +278,7 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     }
     /* Distribute mesh over processes */
     ierr = PetscLogStagePush(user->stages[STAGE_DISTRIBUTE]);CHKERRQ(ierr);
+    ierr = DMViewFromOptions(*dm, NULL, "-dm_pre_dist_view");CHKERRQ(ierr);
     ierr = DMPlexDistribute(*dm, 0, NULL, &distributedMesh);CHKERRQ(ierr);
     if (distributedMesh) {
       ierr = DMDestroy(dm);CHKERRQ(ierr);
@@ -304,25 +314,42 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     user->cellSimplex = PETSC_FALSE;
 
     ierr = DMConvert(*dm,dim == 2 ? DMP4EST : DMP8EST,&dmConv);CHKERRQ(ierr);
-    ierr = PetscObjectSetOptionsPrefix((PetscObject) dmConv, "conv_par_1_");CHKERRQ(ierr);
     if (dmConv) {
+      ierr = PetscObjectSetOptionsPrefix((PetscObject) dmConv, "conv_par_1_");CHKERRQ(ierr);
       ierr = DMSetFromOptions(dmConv);CHKERRQ(ierr);
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm  = dmConv;
     }
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, "conv_par_1_");CHKERRQ(ierr);
     ierr = DMSetUp(*dm);CHKERRQ(ierr);
     ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-    ierr = DMConvert(*dm,DMPLEX,&dmConv);CHKERRQ(ierr);
-    ierr = PetscObjectSetOptionsPrefix((PetscObject) dmConv, "conv_par_2_");CHKERRQ(ierr);
+    ierr = DMConvert(*dm, DMPLEX, &dmConv);CHKERRQ(ierr);
     if (dmConv) {
+      ierr = PetscObjectSetOptionsPrefix((PetscObject) dmConv, "conv_par_2_");CHKERRQ(ierr);
       ierr = DMSetFromOptions(dmConv);CHKERRQ(ierr);
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm  = dmConv;
     }
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, "conv_par_2_");CHKERRQ(ierr);
     ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *dm, NULL);CHKERRQ(ierr);
 #else
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Recompile with --download-p4est");
 #endif
+  }
+
+  /* test redistribution of an already distributed mesh */
+  if (user->redistribute) {
+    DM distributedMesh;
+
+
+    ierr = DMViewFromOptions(*dm, NULL, "-dm_pre_redist_view");CHKERRQ(ierr);
+    ierr = DMPlexDistribute(*dm, 0, NULL, &distributedMesh);CHKERRQ(ierr);
+    if (distributedMesh) {
+      ierr = DMDestroy(dm);CHKERRQ(ierr);
+      *dm  = distributedMesh;
+    }
+    ierr = DMViewFromOptions(*dm, NULL, "-dm_post_redist_view");CHKERRQ(ierr);
   }
 
   if (user->overlap) {
@@ -456,17 +483,17 @@ int main(int argc, char **argv)
     nsize: 8
     args: -dim 2 -cell_simplex 1 -dm_refine 1 -interpolate 1 -petscpartitioner_type simple -partition_view -dm_view ascii::ascii_info_detail
 
+  # Parallel partitioner tests
   test:
     suffix: part_parmetis_0
     requires: parmetis
     nsize: 2
-    args: -dim 2 -cell_simplex 0 -dm_refine 1 -interpolate 1 -petscpartitioner_type parmetis -dm_view -petscpartitioner_view
-  # Parallel ptscotch partitioner tests
+    args: -dim 2 -cell_simplex 0 -dm_refine 1 -interpolate 1 -petscpartitioner_type parmetis -dm_view -petscpartitioner_view -test_redistribute -dm_plex_csr_via_mat {{0 1}} -dm_pre_redist_view ::load_balance -dm_post_redist_view ::load_balance -petscpartitioner_view_graph
   test:
     suffix: part_ptscotch_0
     requires: ptscotch
     nsize: 2
-    args: -dim 2 -cell_simplex 0 -dm_refine 0 -interpolate 0 -petscpartitioner_type ptscotch -petscpartitioner_view -petscpartitioner_ptscotch_strategy quality
+    args: -dim 2 -cell_simplex 0 -dm_refine 0 -interpolate 1 -petscpartitioner_type ptscotch -petscpartitioner_view -petscpartitioner_ptscotch_strategy quality -test_redistribute -dm_plex_csr_via_mat {{0 1}} -dm_pre_redist_view ::load_balance -dm_post_redist_view ::load_balance -petscpartitioner_view_graph
   test:
     suffix: part_ptscotch_1
     requires: ptscotch
@@ -512,19 +539,31 @@ int main(int argc, char **argv)
     args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_bin_physnames.msh -interpolate 1 -dm_view
   test:
     suffix: gmsh_7
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -test_shape
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_view ::ascii_info_detail -interpolate -test_shape
   test:
     suffix: gmsh_8
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -test_shape
-  test:
-    suffix: gmsh_9
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic_bin.msh -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -test_shape
-  test:
-    suffix: gmsh_10
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -test_shape
-  test:
-    suffix: gmsh_11
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -test_shape -dm_refine 1
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh -dm_view ::ascii_info_detail -interpolate -test_shape
+  testset:
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic_bin.msh -dm_view ::ascii_info_detail -interpolate -test_shape
+    test:
+      suffix: gmsh_9
+    test:
+      suffix: gmsh_9_periodic_0
+      args: -dm_plex_gmsh_periodic 0
+  testset:
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_view ::ascii_info_detail -interpolate -test_shape
+    test:
+      suffix: gmsh_10
+    test:
+      suffix: gmsh_10_periodic_0
+      args: -dm_plex_gmsh_periodic 0
+  testset:
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_view ::ascii_info_detail -interpolate -test_shape -dm_refine 1
+    test:
+      suffix: gmsh_11
+    test:
+      suffix: gmsh_11_periodic_0
+      args: -dm_plex_gmsh_periodic 0
   test:
     suffix: gmsh_12
     nsize: 4
@@ -533,45 +572,45 @@ int main(int argc, char **argv)
   test:
     suffix: gmsh_13_hybs2t
     nsize: 4
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh -petscpartitioner_type simple -interpolate 1 -dm_view -test_shape -simplex2tensor -dm_plex_gmsh_hybrid -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown -dm_plex_check_symmetry
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh -petscpartitioner_type simple -interpolate 1 -dm_view -test_shape -simplex2tensor -dm_plex_check_faces -dm_plex_check_skeleton -dm_plex_check_symmetry
   test:
     suffix: gmsh_14_ext
     requires: !single
-    args: -ext_layers 2 -ext_thickness 1.5 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_bin.msh -dm_view -dm_plex_check_symmetry -dm_plex_check_skeleton unknown
+    args: -ext_layers 2 -ext_thickness 1.5 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_bin.msh -dm_view -dm_plex_check_symmetry -dm_plex_check_skeleton
   test:
     suffix: gmsh_14_ext_s2t
     requires: !single
-    args: -ext_layers 2 -ext_thickness 1.5 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_bin.msh -dm_view -interpolate -dm_plex_check_faces unknown -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -simplex2tensor -test_shape
+    args: -ext_layers 2 -ext_thickness 1.5 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_bin.msh -dm_view -interpolate -dm_plex_check_faces -dm_plex_check_symmetry -dm_plex_check_skeleton -simplex2tensor -test_shape
   test:
     suffix: gmsh_15_hyb3d
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_view -interpolate -dm_plex_check_faces unknown -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -dm_plex_gmsh_hybrid
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_view -interpolate -dm_plex_check_faces -dm_plex_check_symmetry -dm_plex_check_skeleton
   test:
     suffix: gmsh_15_hyb3d_vtk
     args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_view vtk:
   test:
     suffix: gmsh_15_hyb3d_s2t
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_view -interpolate -dm_plex_check_faces unknown -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -dm_plex_gmsh_hybrid -simplex2tensor -test_shape
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_view -interpolate -dm_plex_check_faces -dm_plex_check_symmetry -dm_plex_check_skeleton -simplex2tensor -test_shape
   test:
     suffix: gmsh_16_spheresurface
     nsize : 4
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -dm_plex_check_symmetry -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown -dm_view -interpolate -test_shape -petscpartitioner_type simple
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton -dm_view -interpolate -test_shape -petscpartitioner_type simple
   test:
     suffix: gmsh_16_spheresurface_s2t
     nsize : 4
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -simplex2tensor -dm_plex_check_symmetry -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown -dm_view -interpolate -test_shape -petscpartitioner_type simple
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -simplex2tensor -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton -dm_view -interpolate -test_shape -petscpartitioner_type simple
   test:
     suffix: gmsh_16_spheresurface_extruded
     nsize : 4
-    args: -ext_layers 3 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_hybrid -dm_plex_gmsh_spacedim 3 -dm_plex_check_symmetry -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown -dm_view -interpolate -petscpartitioner_type simple
+    args: -ext_layers 3 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton -dm_view -interpolate -petscpartitioner_type simple
   test:
     suffix: gmsh_16_spheresurface_extruded_s2t
     nsize : 4
-    args: -ext_layers 3 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -simplex2tensor -dm_plex_check_symmetry -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown -dm_view -interpolate -test_shape -petscpartitioner_type simple
+    args: -ext_layers 3 -ext_filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -simplex2tensor -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton -dm_view -interpolate -test_shape -petscpartitioner_type simple
 
   # Legacy Gmsh v22/v40 ascii/binary reader tests
   testset:
     output_file: output/ex1_gmsh_3d_legacy.out
-    args: -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces unknown -test_shape
+    args: -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces -test_shape
     test:
       suffix: gmsh_3d_ascii_v22
       args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/gmsh-3d-ascii.msh2
@@ -588,7 +627,7 @@ int main(int argc, char **argv)
 
   # Gmsh v41 ascii/binary reader tests
   testset: # 32bit mesh, sequential
-    args: -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces unknown -test_shape
+    args: -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces -test_shape
     output_file: output/ex1_gmsh_3d_32.out
     test:
       suffix: gmsh_3d_ascii_v41_32
@@ -601,7 +640,7 @@ int main(int argc, char **argv)
       requires: define(PETSC_HAVE_MPIIO) !define(PETSC_HAVE_LIBMSMPI)
       args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/gmsh-3d-binary-32.msh -viewer_binary_mpiio
   testset:  # 32bit mesh, parallel
-    args:  -petscpartitioner_type simple -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces unknown -test_shape
+    args:  -petscpartitioner_type simple -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces -test_shape
     nsize: 2
     output_file: output/ex1_gmsh_3d_32_np2.out
     test:
@@ -615,7 +654,7 @@ int main(int argc, char **argv)
       requires: define(PETSC_HAVE_MPIIO) !define(PETSC_HAVE_LIBMSMPI)
       args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/gmsh-3d-binary-32.msh -viewer_binary_mpiio
   testset: # 64bit mesh, sequential
-    args: -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces unknown -test_shape
+    args: -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces -test_shape
     output_file: output/ex1_gmsh_3d_64.out
     test:
       suffix: gmsh_3d_ascii_v41_64
@@ -628,7 +667,7 @@ int main(int argc, char **argv)
       requires: define(PETSC_HAVE_MPIIO) !define(PETSC_HAVE_LIBMSMPI)
       args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/gmsh-3d-binary-64.msh -viewer_binary_mpiio
   testset:  # 64bit mesh, parallel
-    args:  -petscpartitioner_type simple -dm_plex_gmsh_periodic -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces unknown -test_shape
+    args:  -petscpartitioner_type simple -dm_view ::ascii_info_detail -interpolate -dm_plex_check_symmetry -dm_plex_check_faces -test_shape
     nsize: 2
     output_file: output/ex1_gmsh_3d_64_np2.out
     test:
@@ -710,12 +749,12 @@ int main(int argc, char **argv)
 
   test:
     suffix: cylinder_wedge
-    args: -dim 3 -cell_simplex 0 -interpolate 0 -cell_wedge -domain_shape cylinder -dm_view vtk: -dm_plex_check_symmetry -dm_plex_check_faces tensor -dm_plex_check_skeleton tensor
+    args: -dim 3 -cell_simplex 0 -interpolate 0 -cell_wedge -domain_shape cylinder -dm_view vtk: -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton
 
   test:
     suffix: cylinder_wedge_int
     output_file: output/ex1_cylinder_wedge.out
-    args: -dim 3 -cell_simplex 0 -interpolate -cell_wedge -domain_shape cylinder -dm_view vtk: -dm_plex_check_symmetry -dm_plex_check_faces tensor -dm_plex_check_skeleton tensor
+    args: -dim 3 -cell_simplex 0 -interpolate -cell_wedge -domain_shape cylinder -dm_view vtk: -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton
 
   test:
     suffix: box_2d
@@ -736,11 +775,11 @@ int main(int argc, char **argv)
   test:
     requires: triangle
     suffix: box_wedge
-    args: -dim 3 -cell_simplex 0 -interpolate -cell_wedge -domain_shape box -dm_view vtk: -dm_plex_check_symmetry -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown
+    args: -dim 3 -cell_simplex 0 -interpolate -cell_wedge -domain_shape box -dm_view vtk: -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton
 
   testset:
     requires: triangle
-    args: -dim 3 -cell_simplex 0 -interpolate -cell_wedge -domain_shape box -domain_box_sizes 2,3,1 -dm_view -dm_plex_check_symmetry -dm_plex_check_faces unknown -dm_plex_check_skeleton unknown -simplex2tensor -test_shape
+    args: -dim 3 -cell_simplex 0 -interpolate -cell_wedge -domain_shape box -domain_box_sizes 2,3,1 -dm_view -dm_plex_check_symmetry -dm_plex_check_faces -dm_plex_check_skeleton -simplex2tensor -test_shape
     test:
       suffix: box_wedge_s2t
     test:
@@ -751,15 +790,15 @@ int main(int argc, char **argv)
   # Test GLVis output
   test:
     suffix: glvis_2d_tet
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_view glvis:
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic 0 -dm_view glvis:
 
   test:
     suffix: glvis_2d_tet_per
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary 0
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary 0
 
   test:
     suffix: glvis_2d_tet_per_mfem
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic -viewer_glvis_dm_plex_enable_boundary -viewer_glvis_dm_plex_enable_mfem -dm_view glvis: -interpolate
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -viewer_glvis_dm_plex_enable_boundary -viewer_glvis_dm_plex_enable_mfem -dm_view glvis: -interpolate
 
   test:
     suffix: glvis_2d_quad
@@ -775,16 +814,16 @@ int main(int argc, char **argv)
 
   test:
     suffix: glvis_3d_tet
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_view glvis:
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_plex_gmsh_periodic 0 -dm_view glvis:
 
   test:
     suffix: glvis_3d_tet_per
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_plex_gmsh_periodic -dm_view glvis: -interpolate -viewer_glvis_dm_plex_enable_boundary
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_view glvis: -interpolate -viewer_glvis_dm_plex_enable_boundary
 
   test:
     suffix: glvis_3d_tet_per_mfem
     TODO: broken
-    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -dm_plex_gmsh_periodic -viewer_glvis_dm_plex_enable_mfem -dm_view glvis: -interpolate
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere_bin.msh -viewer_glvis_dm_plex_enable_mfem -dm_view glvis: -interpolate
 
   test:
     suffix: glvis_3d_hex
@@ -801,48 +840,56 @@ int main(int argc, char **argv)
   # Test P4EST
   testset:
     requires: p4est
-    args: -interpolate -dm_view -test_p4est_seq -test_shape -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -dm_plex_check_faces unknown -dm_forest_minimum_refinement 1
+    args: -interpolate -dm_view -test_p4est_seq -test_shape -conv_seq_2_dm_plex_check_symmetry -conv_seq_2_dm_plex_check_skeleton -conv_seq_2_dm_plex_check_faces -conv_seq_1_dm_forest_minimum_refinement 1
     test:
       suffix: p4est_periodic
-      args: -dim 2 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -domain_box_sizes 3,5 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 2 -dm_p4est_refine_pattern hash
+      args: -dim 2 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -domain_box_sizes 3,5 -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 2 -conv_seq_1_dm_p4est_refine_pattern hash
     test:
       suffix: p4est_periodic_3d
-      args: -dim 3 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -z_periodicity -domain_box_sizes 3,5,4 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 2 -dm_p4est_refine_pattern hash
+      args: -dim 3 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -z_periodicity -domain_box_sizes 3,5,4 -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 2 -conv_seq_1_dm_p4est_refine_pattern hash
     test:
       suffix: p4est_gmsh_periodic
-      args: -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 1 -dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh
     test:
       suffix: p4est_gmsh_surface
-      args: -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 1 -dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3
+    test:
+      suffix: p4est_gmsh_surface_parallel
+      nsize: 2
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3 -petscpartitioner_type simple -dm_view ::load_balance
     test:
       suffix: p4est_hyb_2d
-      args: -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 1 -dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh -dm_plex_gmsh_hybrid
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh
     test:
       suffix: p4est_hyb_3d
-      args: -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 1 -dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_plex_gmsh_hybrid
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh
     test:
       requires: ctetgen
       suffix: p4est_s2t_bugfaces_3d
-      args: -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 0 -dim 3 -domain_box_sizes 1,1 -cell_simplex
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 0 -dim 3 -domain_box_sizes 1,1 -cell_simplex
     test:
       suffix: p4est_bug_overlapsf
       nsize: 3
-      args: -dim 3 -cell_simplex 0 -domain_box_sizes 2,2,1 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 1 -dm_p4est_refine_pattern hash  -petscpartitioner_type simple
+      args: -dim 3 -cell_simplex 0 -domain_box_sizes 2,2,1 -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash  -petscpartitioner_type simple
+    test:
+      suffix: p4est_redistribute
+      nsize: 3
+      args: -dim 3 -cell_simplex 0 -domain_box_sizes 2,2,1 -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash  -petscpartitioner_type simple -test_redistribute -dm_plex_csr_via_mat {{0 1}} -dm_view ::load_balance
     test:
       suffix: p4est_gmsh_s2t_3d
-      args: -dm_forest_initial_refinement 1 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/doublet-tet.msh
+      args: -conv_seq_1_dm_forest_initial_refinement 1 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/doublet-tet.msh
     test:
       suffix: p4est_gmsh_s2t_3d_hash
-      args: -dm_forest_initial_refinement 1 -dm_forest_maximum_refinement 2 -dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/doublet-tet.msh
+      args: -conv_seq_1_dm_forest_initial_refinement 1 -conv_seq_1_dm_forest_maximum_refinement 2 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/doublet-tet.msh
     test:
       requires: long_runtime
       suffix: p4est_gmsh_periodic_3d
-      args: -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 1 -dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh -dm_plex_gmsh_periodic
+      args: -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 1 -conv_seq_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh
 
   testset:
     requires: p4est
     nsize: 6
-    args: -interpolate -test_p4est_par -test_shape -conv_par_2_dm_plex_check_symmetry -conv_par_2_dm_plex_check_skeleton tensor -conv_par_2_dm_plex_check_faces tensor -conv_par_1_dm_forest_minimum_refinement 1 -conv_par_1_dm_forest_partition_overlap 0
+    args: -interpolate -test_p4est_par -test_shape -conv_par_2_dm_plex_check_symmetry -conv_par_2_dm_plex_check_skeleton -conv_par_2_dm_plex_check_faces -conv_par_1_dm_forest_minimum_refinement 1 -conv_par_1_dm_forest_partition_overlap 0
     test:
       suffix: p4est_par_periodic
       args: -dim 2 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -domain_box_sizes 3,5 -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 2 -conv_par_1_dm_p4est_refine_pattern hash
@@ -851,7 +898,7 @@ int main(int argc, char **argv)
       args: -dim 3 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -z_periodicity -domain_box_sizes 3,5,4 -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 2 -conv_par_1_dm_p4est_refine_pattern hash
     test:
       suffix: p4est_par_gmsh_periodic
-      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic
+      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh
     test:
       suffix: p4est_par_gmsh_surface
       args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3
@@ -864,12 +911,12 @@ int main(int argc, char **argv)
     test:
       requires: long_runtime
       suffix: p4est_par_gmsh_periodic_3d
-      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh -dm_plex_gmsh_periodic
+      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh
 
   testset:
     requires: p4est
     nsize: 6
-    args: -interpolate -test_p4est_par -test_shape -conv_par_2_dm_plex_check_symmetry -conv_par_2_dm_plex_check_skeleton tensor -conv_par_2_dm_plex_check_faces tensor -conv_par_1_dm_forest_minimum_refinement 1 -conv_par_1_dm_forest_partition_overlap 1 -petscpartitioner_type simple
+    args: -interpolate -test_p4est_par -test_shape -conv_par_2_dm_plex_check_symmetry -conv_par_2_dm_plex_check_skeleton -conv_par_2_dm_plex_check_faces -conv_par_1_dm_forest_minimum_refinement 1 -conv_par_1_dm_forest_partition_overlap 1 -petscpartitioner_type simple
     test:
       suffix: p4est_par_ovl_periodic
       args: -dim 2 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -domain_box_sizes 3,5 -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 2 -conv_par_1_dm_p4est_refine_pattern hash
@@ -878,7 +925,7 @@ int main(int argc, char **argv)
       args: -dim 3 -domain_shape box -cell_simplex 0 -x_periodicity periodic -y_periodicity periodic -z_periodicity -domain_box_sizes 3,5,4 -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 2 -conv_par_1_dm_p4est_refine_pattern hash
     test:
       suffix: p4est_par_ovl_gmsh_periodic
-      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh -dm_plex_gmsh_periodic
+      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/square_periodic.msh
     test:
       suffix: p4est_par_ovl_gmsh_surface
       args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/surfacesphere_bin.msh -dm_plex_gmsh_spacedim 3
@@ -891,41 +938,33 @@ int main(int argc, char **argv)
     test:
       requires: long_runtime
       suffix: p4est_par_ovl_gmsh_periodic_3d
-      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh -dm_plex_gmsh_periodic
+      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/mesh-3d-box-innersphere.msh
     test:
       suffix: p4est_par_ovl_hyb_2d
-      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh -dm_plex_gmsh_hybrid
+      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh
     test:
       suffix: p4est_par_ovl_hyb_3d
-      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_plex_gmsh_hybrid
+      args: -conv_par_1_dm_forest_initial_refinement 0 -conv_par_1_dm_forest_maximum_refinement 1 -conv_par_1_dm_p4est_refine_pattern hash -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh
 
   test:
     TODO: broken
     requires: p4est
     nsize: 2
     suffix: p4est_bug_labels_noovl
-    args: -interpolate -test_p4est_seq -test_shape -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -dm_plex_check_faces unknown -dm_forest_minimum_refinement 0 -dm_forest_partition_overlap 1 -dim 2 -domain_shape box -cell_simplex 0 -domain_box_sizes 3,3 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 2 -dm_p4est_refine_pattern hash -petscpartitioner_type simple -dm_forest_print_label_error
+    args: -interpolate -test_p4est_seq -test_shape -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_faces -dm_forest_minimum_refinement 0 -dm_forest_partition_overlap 1 -dim 2 -domain_shape box -cell_simplex 0 -domain_box_sizes 3,3 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 2 -dm_p4est_refine_pattern hash -petscpartitioner_type simple -dm_forest_print_label_error
 
   test:
-    TODO: broken #probably this can be drop once we fix this problem
-    requires: p4est
-    nsize: 21
-    suffix: p4est_bug_labels
-    args: -dim 2 -interpolate -test_p4est_seq -test_shape -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -dm_plex_check_faces unknown -cell_simplex 0 -domain_box_sizes 5,4,5 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 4 -dm_p4est_refine_pattern hash  -petscpartitioner_type simple -dm_forest_print_label_error
-
-  test:
-    TODO: broken
     requires: p4est
     nsize: 2
     suffix: p4est_bug_distribute_overlap
-    args: -interpolate -test_p4est_seq -test_shape -dm_plex_check_symmetry -dm_plex_check_skeleton unknown -dm_plex_check_faces unknown -dm_forest_minimum_refinement 0 -dm_forest_partition_overlap 0 -dim 2 -domain_shape box -cell_simplex 0 -domain_box_sizes 3,3 -dm_forest_initial_refinement 0 -dm_forest_maximum_refinement 2 -dm_p4est_refine_pattern hash -petscpartitioner_type simple -overlap 1
+    args: -interpolate -test_p4est_seq -test_shape -conv_seq_2_dm_plex_check_symmetry -conv_seq_2_dm_plex_check_skeleton -conv_seq_2_dm_plex_check_faces -conv_seq_1_dm_forest_minimum_refinement 0 -conv_seq_1_dm_forest_partition_overlap 0 -dim 2 -domain_shape box -cell_simplex 0 -domain_box_sizes 3,3 -conv_seq_1_dm_forest_initial_refinement 0 -conv_seq_1_dm_forest_maximum_refinement 2 -conv_seq_1_dm_p4est_refine_pattern hash -petscpartitioner_type simple -overlap 1 -dm_view ::load_balance
 
   test:
     suffix: glvis_2d_hyb
-    args: -dim 2 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh -dm_plex_gmsh_hybrid -interpolate -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary -petscpartitioner_type simple
+    args: -dim 2 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_triquad.msh -interpolate -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary -petscpartitioner_type simple
 
   test:
     suffix: glvis_3d_hyb
-    args: -dim 3 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -dm_plex_gmsh_hybrid -interpolate -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary -petscpartitioner_type simple
+    args: -dim 3 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_tetwedge.msh -interpolate -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary -petscpartitioner_type simple
 
 TEST*/

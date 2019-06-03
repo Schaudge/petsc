@@ -18,7 +18,6 @@ static PetscBool PetscViewerMathematicaPackageInitialized = PETSC_FALSE;
 
   Level: developer
 
-.keywords: Petsc, destroy, package, mathematica
 .seealso: PetscFinalize()
 @*/
 PetscErrorCode  PetscViewerMathematicaFinalizePackage(void)
@@ -35,7 +34,6 @@ PetscErrorCode  PetscViewerMathematicaFinalizePackage(void)
 
   Level: developer
 
-.keywords: Petsc, initialize, package
 .seealso: PetscSysInitializePackage(), PetscInitialize()
 @*/
 PetscErrorCode  PetscViewerMathematicaInitializePackage(void)
@@ -324,7 +322,7 @@ PetscErrorCode  PetscViewerMathematicaSetLinkMode(PetscViewer v, LinkMode mode)
 /*@C
   PetscViewerMathematicaOpen - Communicates with Mathemtica using MathLink.
 
-  Collective on comm
+  Collective
 
   Input Parameters:
 + comm    - The MPI communicator
@@ -356,8 +354,6 @@ $    VecView(Vec vector, PetscViewer viewer)
 .    -viewer_math_mode <mode>        - The mode, e.g. Launch, Connect
 .    -viewer_math_type <type>        - The plot type, e.g. Triangulation, Vector
 -    -viewer_math_graphics <output>  - The output type, e.g. Motif, PS, PSFile
-
-.keywords: PetscViewer, Mathematica, open
 
 .seealso: MatView(), VecView()
 @*/

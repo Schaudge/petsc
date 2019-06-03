@@ -109,7 +109,7 @@ void assert_never_put_petsc_headers_inside_an_extern_c(int); void assert_never_p
 #endif
 
 #include <petscversion.h>
-#define PETSC_AUTHOR_INFO  "       The PETSc Team\n    petsc-maint@mcs.anl.gov\n http://www.mcs.anl.gov/petsc/\n"
+#define PETSC_AUTHOR_INFO  "       The PETSc Team\n    petsc-maint@mcs.anl.gov\n https://www.mcs.anl.gov/petsc/\n"
 
 /* ========================================================================== */
 
@@ -228,11 +228,7 @@ M*/
 #  error "cannot determine PetscInt64 type"
 #endif
 
-#if PETSC_SIZEOF_VOID_P == 4
-#  define MPIU_FORTRANADDR MPI_INT
-#else
-#  define MPIU_FORTRANADDR MPIU_INT64
-#endif
+PETSC_EXTERN MPI_Datatype MPIU_FORTRANADDR;
 
 #if defined(PETSC_USE_64BIT_INDICES)
 #  define MPIU_INT MPIU_INT64
@@ -245,15 +241,7 @@ M*/
 /*
     For the rare cases when one needs to send a size_t object with MPI
 */
-#if (PETSC_SIZEOF_SIZE_T) == (PETSC_SIZEOF_INT)
-#  define MPIU_SIZE_T MPI_UNSIGNED
-#elif  (PETSC_SIZEOF_SIZE_T) == (PETSC_SIZEOF_LONG)
-#  define MPIU_SIZE_T MPI_UNSIGNED_LONG
-#elif  (PETSC_SIZEOF_SIZE_T) == (PETSC_SIZEOF_LONG_LONG)
-#  define MPIU_SIZE_T MPI_UNSIGNED_LONG_LONG
-#else
-#  error "Unknown size for size_t! Send us a bugreport at petsc-maint@mcs.anl.gov"
-#endif
+PETSC_EXTERN MPI_Datatype MPIU_SIZE_T;
 
 /*
       You can use PETSC_STDOUT as a replacement of stdout. You can also change
@@ -457,8 +445,6 @@ PETSC_EXTERN PetscErrorCode PetscCommDestroy(MPI_Comm*);
 
 .seealso: PetscFree(), PetscNew()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscMalloc(a,b)  ((*PetscTrMalloc)((a),__LINE__,PETSC_FUNCTION_NAME,__FILE__,(void**)(b)))
 
@@ -485,8 +471,6 @@ M*/
 
 .seealso: PetscMalloc(), PetscFree(), PetscNew()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscRealloc(a,b)  ((*PetscTrRealloc)((a),__LINE__,PETSC_FUNCTION_NAME,__FILE__,(void**)(b)))
 
@@ -506,7 +490,6 @@ M*/
 
 .seealso: PetscMallocAlign()
 
-  Concepts: memory allocation
 M*/
 #define PetscAddrAlign(a) (void*)((((PETSC_UINTPTR_T)(a))+(PETSC_MEMALIGN-1)) & ~(PETSC_MEMALIGN-1))
 
@@ -540,8 +523,6 @@ $  PetscMalloc1(10*sizeof(PetscInt),&id);
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscCalloc1(), PetscMalloc2()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscMalloc1(m1,r1) PetscMallocA(1,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1))
 
@@ -567,8 +548,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc1(), PetscCalloc2()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscCalloc1(m1,r1) PetscMallocA(1,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1))
 
@@ -592,8 +571,6 @@ M*/
    Level: developer
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc1(), PetscCalloc2()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscMalloc2(m1,r1,m2,r2) PetscMallocA(2,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2))
@@ -619,7 +596,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscCalloc1(), PetscMalloc2()
 
-  Concepts: memory allocation
 M*/
 #define PetscCalloc2(m1,r1,m2,r2) PetscMallocA(2,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2))
 
@@ -645,8 +621,6 @@ M*/
    Level: developer
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscCalloc3(), PetscFree3()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscMalloc3(m1,r1,m2,r2,m3,r3) PetscMallocA(3,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3))
@@ -674,7 +648,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscCalloc2(), PetscMalloc3(), PetscFree3()
 
-  Concepts: memory allocation
 M*/
 #define PetscCalloc3(m1,r1,m2,r2,m3,r3) PetscMallocA(3,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3))
 
@@ -703,8 +676,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscCalloc4(), PetscFree4()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscMalloc4(m1,r1,m2,r2,m3,r3,m4,r4) PetscMallocA(4,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4))
 
@@ -732,8 +703,6 @@ M*/
    Level: developer
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscCalloc4(), PetscFree4()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscCalloc4(m1,r1,m2,r2,m3,r3,m4,r4) PetscMallocA(4,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4))
@@ -765,8 +734,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscCalloc5(), PetscFree5()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscMalloc5(m1,r1,m2,r2,m3,r3,m4,r4,m5,r5) PetscMallocA(5,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4),(size_t)(m5)*sizeof(**(r5)),(r5))
 
@@ -796,8 +763,6 @@ M*/
    Level: developer
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc5(), PetscFree5()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscCalloc5(m1,r1,m2,r2,m3,r3,m4,r4,m5,r5) PetscMallocA(5,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4),(size_t)(m5)*sizeof(**(r5)),(r5))
@@ -831,8 +796,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscCalloc6(), PetscFree3(), PetscFree4(), PetscFree5(), PetscFree6()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscMalloc6(m1,r1,m2,r2,m3,r3,m4,r4,m5,r5,m6,r6) PetscMallocA(6,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4),(size_t)(m5)*sizeof(**(r5)),(r5),(size_t)(m6)*sizeof(**(r6)),(r6))
 
@@ -865,7 +828,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscMalloc6(), PetscFree6()
 
-  Concepts: memory allocation
 M*/
 #define PetscCalloc6(m1,r1,m2,r2,m3,r3,m4,r4,m5,r5,m6,r6) PetscMallocA(6,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4),(size_t)(m5)*sizeof(**(r5)),(r5),(size_t)(m6)*sizeof(**(r6)),(r6))
 
@@ -899,8 +861,6 @@ M*/
    Level: developer
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscCalloc7(), PetscFree7()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscMalloc7(m1,r1,m2,r2,m3,r3,m4,r4,m5,r5,m6,r6,m7,r7) PetscMallocA(7,PETSC_FALSE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4),(size_t)(m5)*sizeof(**(r5)),(r5),(size_t)(m6)*sizeof(**(r6)),(r6),(size_t)(m7)*sizeof(**(r7)),(r7))
@@ -936,7 +896,6 @@ M*/
 
 .seealso: PetscFree(), PetscNew(), PetscMalloc(), PetscMalloc2(), PetscMalloc7(), PetscFree7()
 
-  Concepts: memory allocation
 M*/
 #define PetscCalloc7(m1,r1,m2,r2,m3,r3,m4,r4,m5,r5,m6,r6,m7,r7) PetscMallocA(7,PETSC_TRUE,__LINE__,PETSC_FUNCTION_NAME,__FILE__,(size_t)(m1)*sizeof(**(r1)),(r1),(size_t)(m2)*sizeof(**(r2)),(r2),(size_t)(m3)*sizeof(**(r3)),(r3),(size_t)(m4)*sizeof(**(r4)),(r4),(size_t)(m5)*sizeof(**(r5)),(r5),(size_t)(m6)*sizeof(**(r6)),(r6),(size_t)(m7)*sizeof(**(r7)),(r7))
 
@@ -955,8 +914,6 @@ M*/
    Level: beginner
 
 .seealso: PetscFree(), PetscMalloc(), PetscNewLog(), PetscCalloc1(), PetscMalloc1()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscNew(b)      PetscCalloc1(1,(b))
@@ -980,8 +937,6 @@ M*/
    Level: developer
 
 .seealso: PetscFree(), PetscMalloc(), PetscNew(), PetscLogObjectMemory(), PetscCalloc1(), PetscMalloc1()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscNewLog(o,b) (PetscNew((b)) || PetscLogObjectMemory((PetscObject)o,sizeof(**(b))))
@@ -1007,8 +962,6 @@ M*/
 
 .seealso: PetscNew(), PetscMalloc(), PetscNewLog(), PetscMalloc1(), PetscCalloc1()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscFree(a)   ((*PetscTrFree)((void*)(a),__LINE__,PETSC_FUNCTION_NAME,__FILE__) || ((a) = 0,0))
 
@@ -1031,8 +984,6 @@ M*/
     Memory must have been obtained with PetscMalloc2()
 
 .seealso: PetscNew(), PetscMalloc(), PetscMalloc2(), PetscFree()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscFree2(m1,m2)   PetscFreeA(2,__LINE__,PETSC_FUNCTION_NAME,__FILE__,&(m1),&(m2))
@@ -1057,8 +1008,6 @@ M*/
     Memory must have been obtained with PetscMalloc3()
 
 .seealso: PetscNew(), PetscMalloc(), PetscMalloc2(), PetscFree(), PetscMalloc3()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscFree3(m1,m2,m3)   PetscFreeA(3,__LINE__,PETSC_FUNCTION_NAME,__FILE__,&(m1),&(m2),&(m3))
@@ -1085,8 +1034,6 @@ M*/
 
 .seealso: PetscNew(), PetscMalloc(), PetscMalloc2(), PetscFree(), PetscMalloc3(), PetscMalloc4()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscFree4(m1,m2,m3,m4)   PetscFreeA(4,__LINE__,PETSC_FUNCTION_NAME,__FILE__,&(m1),&(m2),&(m3),&(m4))
 
@@ -1112,8 +1059,6 @@ M*/
     Memory must have been obtained with PetscMalloc5()
 
 .seealso: PetscNew(), PetscMalloc(), PetscMalloc2(), PetscFree(), PetscMalloc3(), PetscMalloc4(), PetscMalloc5()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscFree5(m1,m2,m3,m4,m5)   PetscFreeA(5,__LINE__,PETSC_FUNCTION_NAME,__FILE__,&(m1),&(m2),&(m3),&(m4),&(m5))
@@ -1142,8 +1087,6 @@ M*/
     Memory must have been obtained with PetscMalloc6()
 
 .seealso: PetscNew(), PetscMalloc(), PetscMalloc2(), PetscFree(), PetscMalloc3(), PetscMalloc4(), PetscMalloc5(), PetscMalloc6()
-
-  Concepts: memory allocation
 
 M*/
 #define PetscFree6(m1,m2,m3,m4,m5,m6)   PetscFreeA(6,__LINE__,PETSC_FUNCTION_NAME,__FILE__,&(m1),&(m2),&(m3),&(m4),&(m5),&(m6))
@@ -1175,8 +1118,6 @@ M*/
 .seealso: PetscNew(), PetscMalloc(), PetscMalloc2(), PetscFree(), PetscMalloc3(), PetscMalloc4(), PetscMalloc5(), PetscMalloc6(),
           PetscMalloc7()
 
-  Concepts: memory allocation
-
 M*/
 #define PetscFree7(m1,m2,m3,m4,m5,m6,m7)   PetscFreeA(7,__LINE__,PETSC_FUNCTION_NAME,__FILE__,&(m1),&(m2),&(m3),&(m4),&(m5),&(m6),&(m7))
 
@@ -1205,6 +1146,8 @@ PETSC_EXTERN PetscErrorCode PetscMallocDump(FILE *);
 PETSC_EXTERN PetscErrorCode PetscMallocDumpLog(FILE *);
 PETSC_EXTERN PetscErrorCode PetscMallocGetCurrentUsage(PetscLogDouble *);
 PETSC_EXTERN PetscErrorCode PetscMallocGetMaximumUsage(PetscLogDouble *);
+PETSC_EXTERN PetscErrorCode PetscMallocPushMaximumUsage(int);
+PETSC_EXTERN PetscErrorCode PetscMallocPopMaximumUsage(int,PetscLogDouble*);
 PETSC_EXTERN PetscErrorCode PetscMallocDebug(PetscBool);
 PETSC_EXTERN PetscErrorCode PetscMallocGetDebug(PetscBool*);
 PETSC_EXTERN PetscErrorCode PetscMallocValidate(int,const char[],const char[]);
@@ -1502,8 +1445,6 @@ M*/
     Fortran Note:
     This routine is not supported in Fortran.
 
-    Concepts: help messages^printing
-    Concepts: printing^help messages
 
 .seealso: PetscFPrintf(), PetscSynchronizedPrintf(), PetscErrorPrintf()
 M*/
@@ -1605,8 +1546,6 @@ PETSC_EXTERN PetscErrorCode PetscScalarView(PetscInt,const PetscScalar[],PetscVi
 
    Developer Note: this is inlined for fastest performance
 
-  Concepts: memory^copying
-  Concepts: copying^memory
 
 .seealso: PetscMemmove(), PetscStrallocpy()
 
@@ -1672,8 +1611,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscMemcpy(void *a,const void *b,size_t n)
 
    Developer Note: this is inlined for fastest performance
 
-   Concepts: memory^zeroing
-   Concepts: zeroing^memory
 
 .seealso: PetscMemcpy()
 @*/
@@ -1737,7 +1674,6 @@ PETSC_STATIC_INLINE PetscErrorCode  PetscMemzero(void *a,size_t n)
    This function does nothing on architectures that do not support prefetch and never errors (even if passed an invalid
    address).
 
-   Concepts: memory
 M*/
 #define PetscPrefetchBlock(a,n,rw,t) do {                               \
     const char *_p = (const char*)(a),*_end = (const char*)((a)+(n));   \
@@ -1840,13 +1776,8 @@ M*/
 M*/
 
 #if defined(PETSC_HAVE_MPIIO)
-#if !defined(PETSC_WORDS_BIGENDIAN)
 PETSC_EXTERN PetscErrorCode MPIU_File_write_all(MPI_File,void*,PetscMPIInt,MPI_Datatype,MPI_Status*);
 PETSC_EXTERN PetscErrorCode MPIU_File_read_all(MPI_File,void*,PetscMPIInt,MPI_Datatype,MPI_Status*);
-#else
-#define MPIU_File_write_all(a,b,c,d,e) MPI_File_write_all(a,b,c,d,e)
-#define MPIU_File_read_all(a,b,c,d,e) MPI_File_read_all(a,b,c,d,e)
-#endif
 #endif
 
 /* the following petsc_static_inline require petscerror.h */
@@ -2102,11 +2033,14 @@ PETSC_STATIC_INLINE PetscErrorCode PetscIntSumError(PetscInt a,PetscInt b,PetscI
 #  undef hz
 #endif
 
+#include <limits.h>
+
+/* The number of bits in a byte */
+
+#define PETSC_BITS_PER_BYTE CHAR_BIT
+
 /*  For arrays that contain filenames or paths */
 
-#if defined(PETSC_HAVE_LIMITS_H)
-#  include <limits.h>
-#endif
 #if defined(PETSC_HAVE_SYS_PARAM_H)
 #  include <sys/param.h>
 #endif
@@ -2272,12 +2206,15 @@ PETSC_EXTERN PetscErrorCode PetscGetHomeDirectory(char[],size_t);
 PETSC_EXTERN PetscErrorCode PetscTestFile(const char[],char,PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscTestDirectory(const char[],char,PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscMkdir(const char[]);
+PETSC_EXTERN PetscErrorCode PetscMkdtemp(char[]);
 PETSC_EXTERN PetscErrorCode PetscRMTree(const char[]);
 
-PETSC_EXTERN PetscErrorCode PetscBinaryRead(int,void*,PetscInt,PetscDataType);
-PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm,int,void*,PetscInt,PetscDataType);
-PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedWrite(MPI_Comm,int,void*,PetscInt,PetscDataType,PetscBool );
-PETSC_EXTERN PetscErrorCode PetscBinaryWrite(int,void*,PetscInt,PetscDataType,PetscBool );
+PETSC_STATIC_INLINE PetscBool PetscBinaryBigEndian(void) {long _petsc_v = 1; return ((char*)&_petsc_v)[0] ? PETSC_FALSE : PETSC_TRUE;}
+
+PETSC_EXTERN PetscErrorCode PetscBinaryRead(int,void*,PetscInt,PetscInt*,PetscDataType);
+PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedRead(MPI_Comm,int,void*,PetscInt,PetscInt*,PetscDataType);
+PETSC_EXTERN PetscErrorCode PetscBinaryWrite(int,void*,PetscInt,PetscDataType,PetscBool);
+PETSC_EXTERN PetscErrorCode PetscBinarySynchronizedWrite(MPI_Comm,int,void*,PetscInt,PetscDataType,PetscBool);
 PETSC_EXTERN PetscErrorCode PetscBinaryOpen(const char[],PetscFileMode,int *);
 PETSC_EXTERN PetscErrorCode PetscBinaryClose(int);
 PETSC_EXTERN PetscErrorCode PetscSharedTmp(MPI_Comm,PetscBool  *);
@@ -2458,7 +2395,7 @@ PETSC_EXTERN PetscErrorCode PetscAllreduceBarrierCheck(MPI_Comm,PetscMPIInt,int,
                     same place in the PETSc code. This helps to detect bugs where different MPI processes follow different code paths
                     resulting in inconsistent and incorrect calls to MPI_Allreduce().
 
-   Collective on MPI_Comm
+   Collective
 
    Synopsis:
      #include <petscsys.h>

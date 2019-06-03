@@ -2789,7 +2789,7 @@ PetscErrorCode MatMPIBAIJSetPreallocationCSR_MPIBAIJ(Mat B,PetscInt bs,const Pet
    MatMPIBAIJSetPreallocationCSR - Allocates memory for a sparse parallel matrix in BAIJ format
    (the default parallel PETSc format).
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - the matrix
@@ -2806,8 +2806,6 @@ PetscErrorCode MatMPIBAIJSetPreallocationCSR_MPIBAIJ(Mat B,PetscInt bs,const Pet
    over rows within a block and the last index is over columns within a block row.  Fortran programs will likely set
    MAT_ROW_ORIENTED=PETSC_FALSE and use a Fortran array v(bs,bs,nnz) in which the first index is over rows within a
    block column and the second index is over columns within a block.
-
-.keywords: matrix, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIBAIJSetPreallocation(), MatCreateAIJ(), MPIAIJ, MatCreateMPIBAIJWithArrays(), MPIBAIJ
 @*/
@@ -3178,8 +3176,6 @@ M*/
 
    Level: intermediate
 
-.keywords: matrix, block, aij, compressed row, sparse, parallel
-
 .seealso: MatCreate(), MatCreateSeqBAIJ(), MatSetValues(), MatCreateBAIJ(), MatMPIBAIJSetPreallocationCSR(), PetscSplitOwnership()
 @*/
 PetscErrorCode  MatMPIBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt d_nz,const PetscInt d_nnz[],PetscInt o_nz,const PetscInt o_nnz[])
@@ -3201,7 +3197,7 @@ PetscErrorCode  MatMPIBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt d_nz,const
    d_nz (or d_nnz) and o_nz (or o_nnz).  By setting these parameters accurately,
    performance can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -3286,8 +3282,6 @@ PetscErrorCode  MatMPIBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt d_nz,const
    matrices.
 
    Level: intermediate
-
-.keywords: matrix, block, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqBAIJ(), MatSetValues(), MatCreateBAIJ(), MatMPIBAIJSetPreallocation(), MatMPIBAIJSetPreallocationCSR()
 @*/
@@ -3426,7 +3420,7 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
   if (!rank) {
-    ierr = PetscBinaryRead(fd,(char*)header,4,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,(char*)header,4,NULL,PETSC_INT);CHKERRQ(ierr);
     if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not matrix object");
     if (header[3] < 0) SETERRQ(PetscObjectComm((PetscObject)newmat),PETSC_ERR_FILE_UNEXPECTED,"Matrix stored in special format on disk, cannot load as MPIAIJ");
   }
@@ -3482,7 +3476,7 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
   if (!rank) {
     mend = m;
     if (size == 1) mend = mend - extra_rows;
-    ierr = PetscBinaryRead(fd,locrowlens,mend,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,locrowlens,mend,NULL,PETSC_INT);CHKERRQ(ierr);
     for (j=mend; j<m; j++) locrowlens[j] = 1;
     ierr = PetscMalloc1(mmax,&rowlengths);CHKERRQ(ierr);
     ierr = PetscCalloc1(size,&procsnz);CHKERRQ(ierr);
@@ -3492,7 +3486,7 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
     for (i=1; i<size; i++) {
       mend = browners[i+1] - browners[i];
       if (i == size-1) mend = mend - extra_rows;
-      ierr = PetscBinaryRead(fd,rowlengths,mend,PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,rowlengths,mend,NULL,PETSC_INT);CHKERRQ(ierr);
       for (j=mend; j<browners[i+1] - browners[i]; j++) rowlengths[j] = 1;
       /* calculate the number of nonzeros on each processor */
       for (j=0; j<browners[i+1]-browners[i]; j++) {
@@ -3518,7 +3512,7 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
     ierr   = PetscMalloc1(nz+1,&ibuf);CHKERRQ(ierr);
     mycols = ibuf;
     if (size == 1) nz -= extra_rows;
-    ierr = PetscBinaryRead(fd,mycols,nz,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,mycols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
     if (size == 1) {
       for (i=0; i< extra_rows; i++) mycols[nz+i] = M+i;
     }
@@ -3526,13 +3520,13 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
     /* read in every ones (except the last) and ship off */
     for (i=1; i<size-1; i++) {
       nz   = procsnz[i];
-      ierr = PetscBinaryRead(fd,cols,nz,PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,cols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
       ierr = MPI_Send(cols,nz,MPIU_INT,i,tag,comm);CHKERRQ(ierr);
     }
     /* read in the stuff for the last proc */
     if (size != 1) {
       nz   = procsnz[size-1] - extra_rows;  /* the extra rows are not on the disk */
-      ierr = PetscBinaryRead(fd,cols,nz,PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,cols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
       for (i=0; i<extra_rows; i++) cols[nz+i] = M+i;
       ierr = MPI_Send(cols,nz+extra_rows,MPIU_INT,size-1,tag,comm);CHKERRQ(ierr);
     }
@@ -3589,7 +3583,7 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
     vals   = buf;
     mycols = ibuf;
     if (size == 1) nz -= extra_rows;
-    ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
     if (size == 1) {
       for (i=0; i< extra_rows; i++) vals[nz+i] = 1.0;
     }
@@ -3606,14 +3600,14 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
     for (i=1; i<size-1; i++) {
       nz   = procsnz[i];
       vals = buf;
-      ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
       ierr = MPIULong_Send(vals,nz,MPIU_SCALAR,i,((PetscObject)newmat)->tag,comm);CHKERRQ(ierr);
     }
     /* the last proc */
     if (size != 1) {
       nz   = procsnz[i] - extra_rows;
       vals = buf;
-      ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
       for (i=0; i<extra_rows; i++) vals[nz+i] = 1.0;
       ierr = MPIULong_Send(vals,nz+extra_rows,MPIU_SCALAR,size-1,((PetscObject)newmat)->tag,comm);CHKERRQ(ierr);
     }
@@ -3660,8 +3654,6 @@ PetscErrorCode MatLoad_MPIBAIJ(Mat newmat,PetscViewer viewer)
 
   Notes:
    This can also be set by the command line option: -mat_use_hash_table <fact>
-
-.keywords: matrix, hashtable, factor, HT
 
 .seealso: MatSetOption()
 @*/
@@ -3851,7 +3843,7 @@ PetscErrorCode matmpibaijsetvaluesblocked_(Mat *matin,PetscInt *min,const PetscI
      MatCreateMPIBAIJWithArrays - creates a MPI BAIJ matrix using arrays that contain in standard block
          CSR format the local rows.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -3882,8 +3874,6 @@ PetscErrorCode matmpibaijsetvaluesblocked_(Mat *matin,PetscInt *min,const PetscI
      with column-major ordering within blocks.
 
        The i and j indices are 0 based, and i indices are indices corresponding to the local j array.
-
-.keywords: matrix, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIAIJSetPreallocation(), MatMPIAIJSetPreallocationCSR(),
           MPIAIJ, MatCreateAIJ(), MatCreateMPIAIJWithSplitArrays()

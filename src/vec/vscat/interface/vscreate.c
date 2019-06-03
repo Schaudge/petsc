@@ -30,7 +30,6 @@ PetscBool         VecScatterRegisterAllCalled = PETSC_FALSE;
 
   Level: intermediate
 
-.keywords: vector scatter, set, type
 .seealso: VecScatterGetType(), VecScatterCreate()
 @*/
 PetscErrorCode VecScatterSetType(VecScatter vscat, VecScatterType type)
@@ -69,7 +68,6 @@ PetscErrorCode VecScatterSetType(VecScatter vscat, VecScatterType type)
 
   Level: intermediate
 
-.keywords: vector scatter, get, type, name
 .seealso: VecScatterSetType(), VecScatterCreate()
 @*/
 PetscErrorCode VecScatterGetType(VecScatter vscat, VecScatterType *type)
@@ -98,10 +96,7 @@ PetscErrorCode VecScatterGetType(VecScatter vscat, VecScatterType *type)
 
   Level: beginner
 
-  Concepts: vectorscatter^setting options
-  Concepts: vectorscatter^setting type
 
-.keywords: VecScatter, set, options, database
 .seealso: VecScatterCreate(), VecScatterDestroy(), VecScatterSetUp()
 @*/
 PetscErrorCode VecScatterSetFromOptions(VecScatter vscat)
@@ -173,8 +168,6 @@ PetscErrorCode VecScatterSetFromOptions(VecScatter vscat)
 
   Level: advanced
 
-.keywords: VecScatter, Register
-
 .seealso: VecScatterRegisterAll(), VecScatterRegisterDestroy()
 @*/
 PetscErrorCode VecScatterRegister(const char sname[], PetscErrorCode (*function)(VecScatter))
@@ -232,8 +225,6 @@ PetscErrorCode VecScatterRegister(const char sname[], PetscErrorCode (*function)
 
    Both ix and iy cannot be NULL at the same time.
 
-   Concepts: scatter^between vectors
-   Concepts: gather^between vectors
 
 .seealso: VecScatterDestroy(), VecScatterCreateToAll(), VecScatterCreateToZero()
 @*/

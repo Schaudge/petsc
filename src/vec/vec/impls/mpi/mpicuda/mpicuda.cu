@@ -198,7 +198,7 @@ PetscErrorCode VecCreate_CUDA(Vec v)
    VecCreateMPICUDAWithArray - Creates a parallel, array-style vector,
    where the user provides the GPU array space to store the vector values.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm  - the MPI communicator to use
@@ -221,8 +221,6 @@ PetscErrorCode VecCreate_CUDA(Vec v)
    The user should not free the array until the vector is destroyed.
 
    Level: intermediate
-
-   Concepts: vectors^creating with array
 
 .seealso: VecCreateSeqCUDAWithArray(), VecCreateMPIWithArray(), VecCreateSeqWithArray(),
           VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),

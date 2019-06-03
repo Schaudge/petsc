@@ -11,7 +11,7 @@ PETSC_EXTERN PetscClassId PETSCSF_CLASSID;
 /*J
     PetscSFType - String with the name of a PetscSF method or the creation function
        with an optional dynamic library name, for example
-       http://www.mcs.anl.gov/petsc/lib.so:mysfcreate()
+       https://www.mcs.anl.gov/petsc/lib.so:mysfcreate()
 
    Level: beginner
 
@@ -109,7 +109,7 @@ PETSC_EXTERN PetscErrorCode PetscSFFetchAndOpEnd(PetscSF,MPI_Datatype,void*,cons
 /* Compute the degree of every root vertex (number of leaves in its star) */
 PETSC_EXTERN PetscErrorCode PetscSFComputeDegreeBegin(PetscSF,const PetscInt**);
 PETSC_EXTERN PetscErrorCode PetscSFComputeDegreeEnd(PetscSF,const PetscInt**);
-PETSC_EXTERN PetscErrorCode PetscSFComputeMultiRootOriginalNumbering(PetscSF,const PetscInt[],PetscInt*[]);
+PETSC_EXTERN PetscErrorCode PetscSFComputeMultiRootOriginalNumbering(PetscSF,const PetscInt[],PetscInt*,PetscInt*[]);
 /* Concatenate data from all leaves into roots */
 PETSC_EXTERN PetscErrorCode PetscSFGatherBegin(PetscSF,MPI_Datatype,const void*,void*)
   PetscAttrMPIPointerWithType(3,2) PetscAttrMPIPointerWithType(4,2);

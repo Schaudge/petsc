@@ -74,17 +74,17 @@ program main
   call VecGetArrayF90(vec,avec,ierr);CHKERRA(ierr)
 
   ! Read data into vector
-  call PetscBinaryRead(fd,t,1,PETSC_INT,ierr);CHKERRA(ierr)
+  call PetscBinaryRead(fd,t,1,PETSC_NULL_INTEGER,PETSC_INT,ierr);CHKERRA(ierr)
   sz=t(1)
   
   if (sz <= 0) then
    SETERRA(PETSC_COMM_SELF,1,"Error: Must have array length > 0")
   endif
   
-  write(outstring,*) "reading data in binary from input.dat, sz = ", sz, "\n"
+  write(outstring,'(a,i2.2,a)') "reading data in binary from input.dat, sz =", sz, " ...\n"
   call PetscPrintf(PETSC_COMM_SELF,trim(outstring),ierr);CHKERRA(ierr)
   
-  call PetscBinaryRead(fd,avec,sz,PETSC_SCALAR,ierr);CHKERRA(ierr)
+  call PetscBinaryRead(fd,avec,sz,PETSC_NULL_INTEGER,PETSC_SCALAR,ierr);CHKERRA(ierr)
 
   ! View vector 
   call VecRestoreArrayF90(vec,avec,ierr);CHKERRA(ierr)
@@ -97,3 +97,9 @@ program main
   
   end program
 
+!/*TEST
+!
+!     test:
+!        output_file: output/ex6_1.out
+!
+!TEST*/

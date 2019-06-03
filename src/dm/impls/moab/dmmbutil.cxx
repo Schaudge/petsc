@@ -490,7 +490,7 @@ PetscErrorCode DMMBUtil_InitializeOptions(DMMoabMeshGeneratorCtx& genCtx, PetscI
 /*@
   DMMoabCreateBoxMesh - Creates a mesh on the tensor product (box) of intervals with genCtx specified bounds.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm - The communicator for the DM object
@@ -504,7 +504,6 @@ PetscErrorCode DMMBUtil_InitializeOptions(DMMoabMeshGeneratorCtx& genCtx, PetscI
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMSetType(), DMCreate(), DMMoabLoadFromFile()
 @*/
 PetscErrorCode DMMoabCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool useSimplex, const PetscReal* bounds, PetscInt nele, PetscInt nghost, DM *dm)
@@ -800,21 +799,19 @@ PetscErrorCode DMMoab_GetReadOptions_Private(PetscBool by_rank, PetscInt numproc
 /*@
   DMMoabLoadFromFile - Creates a DM object by loading the mesh from a user specified file.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm - The communicator for the DM object
 . dim - The spatial dimension
 . filename - The name of the mesh file to be loaded
 . usrreadopts - The options string to read a MOAB mesh.
-  Reference (Parallel Mesh Initialization: http://www.mcs.anl.gov/~fathom/moab-docs/html/contents.html#fivetwo)
+  Reference (Parallel Mesh Initialization: https://www.mcs.anl.gov/~fathom/moab-docs/html/contents.html#fivetwo)
 
   Output Parameter:
 . dm  - The DM object
 
   Level: beginner
-
-.keywords: DM, create
 
 .seealso: DMSetType(), DMCreate(), DMMoabCreateBoxMesh()
 @*/
@@ -896,14 +893,12 @@ PetscErrorCode DMMoabLoadFromFile(MPI_Comm comm, PetscInt dim, PetscInt nghost, 
   DMMoabRenumberMeshEntities - Order and number all entities (vertices->elements) to be contiguously ordered
   in parallel
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + dm  - The DM object
 
   Level: advanced
-
-.keywords: DM, reorder
 
 .seealso: DMSetUp(), DMCreate()
 @*/

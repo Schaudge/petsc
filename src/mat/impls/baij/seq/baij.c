@@ -1340,46 +1340,59 @@ PetscErrorCode MatRestoreRow_SeqBAIJ(Mat A,PetscInt row,PetscInt *nz,PetscInt **
 
 PetscErrorCode MatTranspose_SeqBAIJ(Mat A,MatReuse reuse,Mat *B)
 {
-  Mat_SeqBAIJ    *a=(Mat_SeqBAIJ*)A->data;
+  Mat_SeqBAIJ    *a=(Mat_SeqBAIJ*)A->data,*at;
   Mat            C;
   PetscErrorCode ierr;
-  PetscInt       i,j,k,*aj=a->j,*ai=a->i,bs=A->rmap->bs,mbs=a->mbs,nbs=a->nbs,len,*col;
-  PetscInt       *rows,*cols,bs2=a->bs2;
-  MatScalar      *array;
+  PetscInt       i,j,k,*aj=a->j,*ai=a->i,bs=A->rmap->bs,mbs=a->mbs,nbs=a->nbs,*atfill;
+  PetscInt       bs2=a->bs2,*ati,*atj,anzj,kr;
+  MatScalar      *ata,*aa=a->a;
 
   PetscFunctionBegin;
+  ierr = PetscCalloc1(1+nbs,&atfill);CHKERRQ(ierr);
   if (reuse == MAT_INITIAL_MATRIX || reuse == MAT_INPLACE_MATRIX) {
-    ierr = PetscCalloc1(1+nbs,&col);CHKERRQ(ierr);
+    for (i=0; i<ai[mbs]; i++) atfill[aj[i]] += 1; /* count num of non-zeros in row aj[i] */
 
-    for (i=0; i<ai[mbs]; i++) col[aj[i]] += 1;
     ierr = MatCreate(PetscObjectComm((PetscObject)A),&C);CHKERRQ(ierr);
     ierr = MatSetSizes(C,A->cmap->n,A->rmap->N,A->cmap->n,A->rmap->N);CHKERRQ(ierr);
     ierr = MatSetType(C,((PetscObject)A)->type_name);CHKERRQ(ierr);
-    ierr = MatSeqBAIJSetPreallocation(C,bs,0,col);CHKERRQ(ierr);
-    ierr = PetscFree(col);CHKERRQ(ierr);
+    ierr = MatSeqBAIJSetPreallocation(C,bs,0,atfill);CHKERRQ(ierr);
+
+    at  = (Mat_SeqBAIJ*)C->data;
+    ati = at->i;
+    for (i=0; i<nbs; i++) at->ilen[i] = at->imax[i] = ati[i+1] - ati[i];
   } else {
     C = *B;
+    at = (Mat_SeqBAIJ*)C->data;
+    ati = at->i;
   }
 
-  array = a->a;
-  ierr  = PetscMalloc2(bs,&rows,bs,&cols);CHKERRQ(ierr);
+  atj = at->j;
+  ata = at->a;
+
+  /* Copy ati into atfill so we have locations of the next free space in atj */
+  ierr = PetscMemcpy(atfill,ati,nbs*sizeof(PetscInt));CHKERRQ(ierr);
+
+  /* Walk through A row-wise and mark nonzero entries of A^T. */
   for (i=0; i<mbs; i++) {
-    cols[0] = i*bs;
-    for (k=1; k<bs; k++) cols[k] = cols[k-1] + 1;
-    len = ai[i+1] - ai[i];
-    for (j=0; j<len; j++) {
-      rows[0] = (*aj++)*bs;
-      for (k=1; k<bs; k++) rows[k] = rows[k-1] + 1;
-      ierr   = MatSetValues_SeqBAIJ(C,bs,rows,bs,cols,array,INSERT_VALUES);CHKERRQ(ierr);
-      array += bs2;
+    anzj = ai[i+1] - ai[i];
+    for (j=0; j<anzj; j++) {
+      atj[atfill[*aj]] = i;
+      for (kr=0; kr<bs; kr++) {
+        for (k=0; k<bs; k++) {
+          ata[bs2*atfill[*aj]+k*bs+kr] = *aa++;
+        }
+      }
+      atfill[*aj++] += 1;
     }
   }
-  ierr = PetscFree2(rows,cols);CHKERRQ(ierr);
-
   ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
+  /* Clean up temporary space and complete requests. */
+  ierr = PetscFree(atfill);CHKERRQ(ierr);
+
   if (reuse == MAT_INITIAL_MATRIX || reuse == MAT_REUSE_MATRIX) {
+    ierr = MatSetBlockSizes(C,PetscAbs(A->cmap->bs),PetscAbs(A->rmap->bs));CHKERRQ(ierr);
     *B = C;
   } else {
     ierr = MatHeaderMerge(A,&C);CHKERRQ(ierr);
@@ -3208,7 +3221,7 @@ PetscErrorCode MatLoad_SeqBAIJ(Mat newmat,PetscViewer viewer)
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"view must have one processor");
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,header,4,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,header,4,NULL,PETSC_INT);CHKERRQ(ierr);
   if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not Mat object");
   M = header[1]; N = header[2]; nz = header[3];
 
@@ -3240,12 +3253,12 @@ PetscErrorCode MatLoad_SeqBAIJ(Mat newmat,PetscViewer viewer)
 
   /* read in row lengths */
   ierr = PetscMalloc1(M+extra_rows,&rowlengths);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,rowlengths,M,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,rowlengths,M,NULL,PETSC_INT);CHKERRQ(ierr);
   for (i=0; i<extra_rows; i++) rowlengths[M+i] = 1;
 
   /* read in column indices */
   ierr = PetscMalloc1(nz+extra_rows,&jj);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,jj,nz,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,jj,nz,NULL,PETSC_INT);CHKERRQ(ierr);
   for (i=0; i<extra_rows; i++) jj[nz+i] = M+i;
 
   /* loop over row lengths determining block row lengths */
@@ -3284,7 +3297,7 @@ PetscErrorCode MatLoad_SeqBAIJ(Mat newmat,PetscViewer viewer)
 
   /* read in nonzero values */
   ierr = PetscMalloc1(nz+extra_rows,&aa);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,aa,nz,PETSC_SCALAR);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,aa,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
   for (i=0; i<extra_rows; i++) aa[nz+i] = 1.0;
 
   /* set "a" and "j" values into matrix */
@@ -3343,7 +3356,7 @@ PetscErrorCode MatLoad_SeqBAIJ(Mat newmat,PetscViewer viewer)
    (or the array nnz).  By setting these parameters accurately, performance
    during matrix assembly can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator, set to PETSC_COMM_SELF
@@ -3406,7 +3419,7 @@ PetscErrorCode  MatCreateSeqBAIJ(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n
    (or the array nnz).  By setting these parameters accurately, performance
    during matrix assembly can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - the matrix
@@ -3457,7 +3470,7 @@ PetscErrorCode  MatSeqBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt nz,const P
    MatSeqBAIJSetPreallocationCSR - Allocates memory for a sparse sequential matrix in AIJ format
    (the default sequential PETSc format).
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - the matrix
@@ -3473,8 +3486,6 @@ PetscErrorCode  MatSeqBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt nz,const P
    over rows within a block and the last index is over columns within a block row.  Fortran programs will likely set
    MAT_ROW_ORIENTED=PETSC_FALSE and use a Fortran array v(bs,bs,nnz) in which the first index is over rows within a
    block column and the second index is over columns within a block.
-
-.keywords: matrix, aij, compressed row, sparse
 
 .seealso: MatCreate(), MatCreateSeqBAIJ(), MatSetValues(), MatSeqBAIJSetPreallocation(), MATSEQBAIJ
 @*/
@@ -3494,7 +3505,7 @@ PetscErrorCode  MatSeqBAIJSetPreallocationCSR(Mat B,PetscInt bs,const PetscInt i
 /*@
      MatCreateSeqBAIJWithArrays - Creates an sequential BAIJ matrix using matrix elements provided by the user.
 
-     Collective on MPI_Comm
+     Collective
 
    Input Parameters:
 +  comm - must be an MPI communicator of size 1

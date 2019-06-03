@@ -2902,8 +2902,8 @@ PetscErrorCode PCBDDCCreateFETIDPOperators(PC pc, PetscBool fully_redundant, con
 
 .vb
    [1] C. R. Dohrmann. "An approximate BDDC preconditioner", Numerical Linear Algebra with Applications Volume 14, Issue 2, pages 149-168, March 2007
-   [2] A. Klawonn and O. B. Widlund. "Dual-Primal FETI Methods for Linear Elasticity", http://cs.nyu.edu/csweb/Research/TechReports/TR2004-855/TR2004-855.pdf
-   [3] J. Mandel, B. Sousedik, C. R. Dohrmann. "Multispace and Multilevel BDDC", http://arxiv.org/abs/0712.3977
+   [2] A. Klawonn and O. B. Widlund. "Dual-Primal FETI Methods for Linear Elasticity", https://cs.nyu.edu/dynamic/reports/?year=all
+   [3] J. Mandel, B. Sousedik, C. R. Dohrmann. "Multispace and Multilevel BDDC", https://arxiv.org/abs/0712.3977
    [4] C. Pechstein and C. R. Dohrmann. "Modern domain decomposition methods BDDC, deluxe scaling, and an algebraic approach", Seminar talk, Linz, December 2013, http://people.ricam.oeaw.ac.at/c.pechstein/pechstein-bddc2013.pdf
 .ve
 
@@ -3064,7 +3064,6 @@ PETSC_EXTERN PetscErrorCode PCCreate_BDDC(PC pc)
 
  Level: developer
 
- .keywords: PC, PCBDDC, initialize, package
  .seealso: PetscInitialize()
 @*/
 PetscErrorCode PCBDDCInitializePackage(void)
@@ -3118,7 +3117,6 @@ PetscErrorCode PCBDDCInitializePackage(void)
 
  Level: developer
 
- .keywords: Petsc, destroy, package
  .seealso: PetscFinalize()
 @*/
 PetscErrorCode PCBDDCFinalizePackage(void)

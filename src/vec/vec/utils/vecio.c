@@ -7,6 +7,7 @@
 
 #include <petscsys.h>
 #include <petscvec.h>         /*I  "petscvec.h"  I*/
+#include <petsc/private/isimpl.h> /* for PetscViewerHDF5Load */
 #include <petsc/private/vecimpl.h>
 #include <petsc/private/viewerimpl.h>
 #include <petscviewerhdf5.h>
@@ -116,7 +117,7 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
   ierr = PetscObjectGetNewTag((PetscObject)viewer,&tag);CHKERRQ(ierr);
   ierr = VecGetArray(vec,&avec);CHKERRQ(ierr);
   if (!rank) {
-    ierr = PetscBinaryRead(fd,avec,n,PETSC_SCALAR);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,avec,n,NULL,PETSC_SCALAR);CHKERRQ(ierr);
 
     if (size > 1) {
       /* read in other chuncks and send to other processors */
@@ -128,7 +129,7 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
       ierr = PetscMalloc1(n,&avecwork);CHKERRQ(ierr);
       for (i=1; i<size; i++) {
         n    = range[i+1] - range[i];
-        ierr = PetscBinaryRead(fd,avecwork,n,PETSC_SCALAR);CHKERRQ(ierr);
+        ierr = PetscBinaryRead(fd,avecwork,n,NULL,PETSC_SCALAR);CHKERRQ(ierr);
         ierr = MPI_Isend(avecwork,n,MPIU_SCALAR,i,tag,comm,&request);CHKERRQ(ierr);
         ierr = MPI_Wait(&request,&status);CHKERRQ(ierr);
       }

@@ -830,7 +830,6 @@ PetscErrorCode SNESMultiblockSetIS(SNES snes, const char name[], IS is)
 
   Level: Developer
 
-.keywords: SNES, set, type, composite preconditioner, additive, multiplicative
 .seealso: PCCompositeSetType()
 @*/
 PetscErrorCode SNESMultiblockSetType(SNES snes, PCCompositeType type)
@@ -922,6 +921,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_Multiblock(SNES snes)
   snes->ops->reset          = SNESReset_Multiblock;
 
   snes->usesksp = PETSC_FALSE;
+  snes->usesnpc = PETSC_FALSE;
 
   snes->alwayscomputesfinalresidual = PETSC_TRUE;
 

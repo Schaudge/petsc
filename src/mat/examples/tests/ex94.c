@@ -37,17 +37,22 @@ int main(int argc,char **args)
   PetscBool      flg,preload = PETSC_TRUE;
   PetscScalar    *a,rval,alpha,none = -1.0;
   PetscBool      Test_MatMatMult=PETSC_TRUE,Test_MatMatTr=PETSC_TRUE,Test_MatPtAP=PETSC_TRUE,Test_MatRARt=PETSC_TRUE,Test_MatMatMatMult=PETSC_TRUE;
-  PetscBool      Test_MatAXPY=PETSC_FALSE;
+  PetscBool      Test_MatAXPY=PETSC_FALSE,view=PETSC_FALSE;
   PetscInt       pm,pn,pM,pN;
   MatInfo        info;
   PetscBool      seqaij;
   MatType        mattype;
+  Mat            Cdensetest,Pdense,Cdense,Adense;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
 
   ierr = PetscOptionsGetReal(NULL,NULL,"-fill",&fill,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-matops_view",&view,NULL);CHKERRQ(ierr);
+  if (view) {
+    ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO);CHKERRQ(ierr);
+  }
 
   /*  Load the matrices A_save and B */
   ierr = PetscOptionsGetString(NULL,NULL,"-f0",file[0],sizeof(file[0]),&flg);CHKERRQ(ierr);
@@ -183,7 +188,15 @@ int main(int argc,char **args)
 
     /* Test MAT_REUSE_MATRIX - reuse symbolic C */
     ierr = MatTransposeMatMult(P,B,MAT_REUSE_MATRIX,fill,&C);CHKERRQ(ierr);
+    if (view) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"C = P^T * B:\n");CHKERRQ(ierr);
+      ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    }
     ierr = MatFreeIntermediateDataStructures(C);CHKERRQ(ierr);
+    if (view) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"\nC = P^T * B after MatFreeIntermediateDataStructures():\n");CHKERRQ(ierr);
+      ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    }
 
     /* Compare P^T*B and R*B */
     ierr = MatMatMult(R,B,MAT_INITIAL_MATRIX,fill,&C1);CHKERRQ(ierr);
@@ -222,9 +235,7 @@ int main(int argc,char **args)
   if (Test_MatPtAP) {
     PetscInt  PN;
     Mat       Cdup;
-    PetscBool view=PETSC_FALSE;
 
-    ierr = PetscOptionsGetBool(NULL,NULL,"-matptap_view",&view,NULL);CHKERRQ(ierr);
     ierr = MatDuplicate(A_save,MAT_COPY_VALUES,&A);CHKERRQ(ierr);
     ierr = MatGetSize(A,&M,&N);CHKERRQ(ierr);
     ierr = MatGetLocalSize(A,&m,&n);CHKERRQ(ierr);
@@ -263,30 +274,30 @@ int main(int argc,char **args)
       ierr   = MatPtAP(A,P,MAT_REUSE_MATRIX,fill,&C);CHKERRQ(ierr);
     }
 
-    /* Test PtAP ops with P SeqDense and A either SeqAIJ or SeqDense (it assumes MatPtAP_SeqAIJ_SeqAIJ is fine) */
-    if (size == 1) {
-      Mat       Cdensetest,Pdense,Cdense,Adense;
-      PetscReal norm;
-
+    /* Test PtAP ops with P Dense and A either AIJ or SeqDense (it assumes MatPtAP_XAIJ_XAIJ is fine) */
+    ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQAIJ,&seqaij);CHKERRQ(ierr);
+    if (seqaij) {
       ierr = MatConvert(C,MATSEQDENSE,MAT_INITIAL_MATRIX,&Cdensetest);CHKERRQ(ierr);
       ierr = MatConvert(P,MATSEQDENSE,MAT_INITIAL_MATRIX,&Pdense);CHKERRQ(ierr);
+    } else {
+      ierr = MatConvert(C,MATMPIDENSE,MAT_INITIAL_MATRIX,&Cdensetest);CHKERRQ(ierr);
+      ierr = MatConvert(P,MATMPIDENSE,MAT_INITIAL_MATRIX,&Pdense);CHKERRQ(ierr);
+    }
 
-      /* test with A SeqAIJ */
-      ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQAIJ,&seqaij);CHKERRQ(ierr);
-      if (seqaij) {
-        ierr = MatPtAP(A,Pdense,MAT_INITIAL_MATRIX,fill,&Cdense);CHKERRQ(ierr);
-        ierr = MatAXPY(Cdense,-1.0,Cdensetest,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-        ierr = MatNorm(Cdense,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
-        if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error in MatPtAP with A SeqAIJ and P SeqDense: %g\n",(double)norm);
-        ierr = MatScale(Cdense,-1.);CHKERRQ(ierr);
-        ierr = MatPtAP(A,Pdense,MAT_REUSE_MATRIX,fill,&Cdense);CHKERRQ(ierr);
-        ierr = MatAXPY(Cdense,-1.0,Cdensetest,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-        ierr = MatNorm(Cdense,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
-        if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error in MatPtAP with A SeqAIJ and P SeqDense and MAT_REUSE_MATRIX: %g\n",(double)norm);
-        ierr = MatDestroy(&Cdense);CHKERRQ(ierr);
-      }
+    /* test with A AIJ */
+    ierr = MatPtAP(A,Pdense,MAT_INITIAL_MATRIX,fill,&Cdense);CHKERRQ(ierr);
+    ierr = MatAXPY(Cdense,-1.0,Cdensetest,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatNorm(Cdense,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
+    if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error in MatPtAP with A SeqAIJ and P SeqDense: %g\n",(double)norm);
+    ierr = MatScale(Cdense,-1.);CHKERRQ(ierr);
+    ierr = MatPtAP(A,Pdense,MAT_REUSE_MATRIX,fill,&Cdense);CHKERRQ(ierr);
+    ierr = MatAXPY(Cdense,-1.0,Cdensetest,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatNorm(Cdense,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
+    if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error in MatPtAP with A SeqAIJ and P SeqDense and MAT_REUSE_MATRIX: %g\n",(double)norm);
+    ierr = MatDestroy(&Cdense);CHKERRQ(ierr);
 
-      /* test with A SeqDense */
+    /* test with A SeqDense */
+    if (seqaij) {
       ierr = MatConvert(A,MATSEQDENSE,MAT_INITIAL_MATRIX,&Adense);CHKERRQ(ierr);
       ierr = MatPtAP(Adense,Pdense,MAT_INITIAL_MATRIX,fill,&Cdense);CHKERRQ(ierr);
       ierr = MatAXPY(Cdense,-1.0,Cdensetest,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -298,14 +309,22 @@ int main(int argc,char **args)
       ierr = MatNorm(Cdense,NORM_FROBENIUS,&norm);CHKERRQ(ierr);
       if (norm > PETSC_SMALL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Error in MatPtAP with A SeqDense and P SeqDense and MAT_REUSE_MATRIX: %g\n",(double)norm);
       ierr = MatDestroy(&Cdense);CHKERRQ(ierr);
-      ierr = MatDestroy(&Cdensetest);CHKERRQ(ierr);
-      ierr = MatDestroy(&Pdense);CHKERRQ(ierr);
       ierr = MatDestroy(&Adense);CHKERRQ(ierr);
     }
+    ierr = MatDestroy(&Cdensetest);CHKERRQ(ierr);
+    ierr = MatDestroy(&Pdense);CHKERRQ(ierr);
 
     /* Test MatDuplicate() of C=PtAP and MatView(Cdup,...) */
     ierr = MatDuplicate(C,MAT_COPY_VALUES,&Cdup);CHKERRQ(ierr);
     if (view) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"\nC = P^T * A * P:\n");CHKERRQ(ierr);
+      ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+      ierr = MatFreeIntermediateDataStructures(C);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"\nC = P^T * A * P after MatFreeIntermediateDataStructures():\n");CHKERRQ(ierr);
+      ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"\nCdup:\n");CHKERRQ(ierr);
       ierr = MatView(Cdup,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     }
     ierr = MatDestroy(&Cdup);CHKERRQ(ierr);
@@ -470,7 +489,7 @@ int main(int argc,char **args)
       suffix: view
       nsize: 2
       requires: datafilespath !complex double !define(PETSC_USE_64BIT_INDICES)
-      args: -f0 ${DATAFILESPATH}/matrices/tiny -f1 ${DATAFILESPATH}/matrices/tiny -viewer_binary_skip_info -matptap_view
+      args: -f0 ${DATAFILESPATH}/matrices/tiny -f1 ${DATAFILESPATH}/matrices/tiny -viewer_binary_skip_info -matops_view
       output_file: output/ex94_2.out
 
 TEST*/

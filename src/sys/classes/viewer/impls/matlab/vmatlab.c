@@ -187,7 +187,7 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_Matlab(PetscViewer viewer)
 /*@C
    PetscViewerMatlabOpen - Opens a Matlab .mat file for output
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -209,8 +209,6 @@ $    FILE_MODE_WRITE - open existing file for MATLAB output
      This only saves Vecs it cannot be used to save Mats. We recommend using the PETSCVIEWERBINARY to save objects to be loaded into MATLAB
      instead of this routine.
 
-   Concepts: MATLAB .mat files
-   Concepts: PetscViewerMatlab^creating
 
 .seealso: PetscViewerASCIIOpen(), PetscViewerPushFormat(), PetscViewerDestroy(), PETSCVIEWERBINARY, PetscViewerBinaryOpen()
           VecView(), MatView(), VecLoad(), MatLoad()
@@ -233,7 +231,7 @@ static PetscMPIInt Petsc_Viewer_Matlab_keyval = MPI_KEYVAL_INVALID;
      PETSC_VIEWER_MATLAB_ - Creates a Matlab PetscViewer shared by all processors
                      in a communicator.
 
-     Collective on MPI_Comm
+     Collective
 
      Input Parameter:
 .    comm - the MPI communicator to share the Matlab PetscViewer

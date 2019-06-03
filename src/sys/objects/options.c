@@ -307,7 +307,7 @@ static char *Petscgetline(FILE * f)
 /*@C
      PetscOptionsInsertFile - Inserts options into the database from a file.
 
-     Collective on MPI_Comm
+     Collective
 
   Input Parameter:
 +   comm - the processes that will share the options (usually PETSC_COMM_WORLD)
@@ -557,8 +557,6 @@ static PetscErrorCode PetscOptionsInsertArgs(PetscOptions options,int argc,char 
 
    Level: advanced
 
-   Concepts: options database^adding
-
 .seealso: PetscOptionsDestroy(), PetscOptionsView(), PetscOptionsInsertString(), PetscOptionsInsertFile(),
           PetscInitialize()
 @*/
@@ -644,8 +642,6 @@ PetscErrorCode PetscOptionsInsert(PetscOptions options,int *argc,char ***args,co
 .  -options_view - Activates PetscOptionsView() within PetscFinalize()
 
    Level: advanced
-
-   Concepts: options database^printing
 
 .seealso: PetscOptionsAllUsed()
 @*/
@@ -881,8 +877,6 @@ PetscErrorCode PetscOptionsSetAlias(PetscOptions options,const char newname[],co
 
    Developers Note: Uses malloc() directly because PETSc may not be initialized yet.
 
-   Concepts: options database^adding option
-
 .seealso: PetscOptionsInsert(), PetscOptionsClearValue()
 @*/
 PetscErrorCode PetscOptionsSetValue(PetscOptions options,const char name[],const char value[])
@@ -983,7 +977,6 @@ setvalue:
 
    Level: intermediate
 
-   Concepts: options database^removing option
 .seealso: PetscOptionsInsert()
 @*/
 PetscErrorCode PetscOptionsClearValue(PetscOptions options,const char name[])
@@ -1049,8 +1042,6 @@ PetscErrorCode PetscOptionsClearValue(PetscOptions options,const char name[])
 -  set - whether the option is set (optional)
 
    Level: developer
-
-  Concepts: options database^getting option
 
 .seealso: PetscOptionsSetValue(), PetscOptionsClearValue()
 @*/
@@ -1263,8 +1254,6 @@ PETSC_EXTERN PetscErrorCode PetscOptionsFindPairPrefix_Private(PetscOptions opti
 
    Level: advanced
 
-   Concepts: options database^rejecting option
-
 .seealso: PetscOptionsGetInt(), PetscOptionsGetReal(),OptionsHasName(),
           PetscOptionsGetString(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
@@ -1299,8 +1288,6 @@ PetscErrorCode PetscOptionsReject(PetscOptions options,const char pre[],const ch
 
    Level: advanced
 
-   Concepts: options database^help
-
 .seealso: PetscOptionsHasName()
 @*/
 PetscErrorCode PetscOptionsHasHelp(PetscOptions options,PetscBool *set)
@@ -1327,8 +1314,6 @@ PetscErrorCode PetscOptionsHasHelp(PetscOptions options,PetscBool *set)
 .  set - PETSC_TRUE if found else PETSC_FALSE.
 
    Level: beginner
-
-   Concepts: options database^has option name
 
    Notes:
    Name cannot be simply "-h".
@@ -1369,8 +1354,6 @@ PetscErrorCode PetscOptionsHasName(PetscOptions options,const char pre[],const c
     the array and each entry in the array should be freed with PetscFree()
 
    Level: advanced
-
-   Concepts: options database^listing
 
 .seealso: PetscOptionsAllUsed(), PetscOptionsView()
 @*/
@@ -1609,7 +1592,6 @@ PetscErrorCode PetscOptionsLeftRestore(PetscOptions options,PetscInt *N,char **n
 
    Level: intermediate
 
-.keywords: set, options, database
 @*/
 PetscErrorCode PetscOptionsSetFromOptions(PetscOptions options)
 {
@@ -1647,8 +1629,6 @@ PetscErrorCode PetscOptionsSetFromOptions(PetscOptions options)
 -  ctx - an ASCII viewer
 
    Level: intermediate
-
-.keywords: PetscOptions, default, monitor
 
 .seealso: PetscOptionsMonitorSet()
 @*/
@@ -1707,8 +1687,6 @@ $     monitor (const char name[], const char value[], void *mctx)
 
    Level: beginner
 
-.keywords: PetscOptions, set, monitor
-
 .seealso: PetscOptionsMonitorDefault(), PetscOptionsMonitorCancel()
 @*/
 PetscErrorCode PetscOptionsMonitorSet(PetscErrorCode (*monitor)(const char name[], const char value[], void*),void *mctx,PetscErrorCode (*monitordestroy)(void**))
@@ -1734,8 +1712,6 @@ PetscErrorCode PetscOptionsMonitorSet(PetscErrorCode (*monitor)(const char name[
     but does not cancel those set via the options database.
 
    Level: intermediate
-
-.keywords: PetscOptions, set, monitor
 
 .seealso: PetscOptionsMonitorDefault(), PetscOptionsMonitorSet()
 @*/
@@ -1970,8 +1946,6 @@ PetscErrorCode PetscOptionsStringToScalar(const char name[],PetscScalar *a)
        If the user does not supply the option at all ivalue is NOT changed. Thus
      you should ALWAYS initialize the ivalue if you access it without first checking if the set flag is true.
 
-   Concepts: options database^has logical
-
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(),
           PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsGetInt(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
@@ -2027,8 +2001,6 @@ PetscErrorCode PetscOptionsGetBool(PetscOptions options,const char pre[],const c
 
    See PetscOptionsFList() for when the choices are given in a PetscFunctionList()
 
-   Concepts: options database^list
-
 .seealso: PetscOptionsGetInt(), PetscOptionsGetReal(),
           PetscOptionsHasName(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
@@ -2079,8 +2051,6 @@ PetscErrorCode PetscOptionsGetEList(PetscOptions options,const char pre[],const 
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
    Level: beginner
-
-   Concepts: options database
 
    Notes:
     If the user does not supply the option value is NOT changed. Thus
@@ -2136,8 +2106,6 @@ PetscErrorCode PetscOptionsGetEnum(PetscOptions options,const char pre[],const c
    If the user does not supply the option ivalue is NOT changed. Thus
    you should ALWAYS initialize the ivalue if you access it without first checking if the set flag is true.
 
-   Concepts: options database^has int
-
 .seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(),
           PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
@@ -2189,8 +2157,6 @@ PetscErrorCode PetscOptionsGetInt(PetscOptions options,const char pre[],const ch
      you should ALWAYS initialize the ivalue if you access it without first checking if the set flag is true.
 
    Level: beginner
-
-   Concepts: options database^has double
 
 .seealso: PetscOptionsGetInt(), PetscOptionsHasName(),
           PetscOptionsGetString(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(),PetscOptionsBool(),
@@ -2245,8 +2211,6 @@ PetscErrorCode PetscOptionsGetReal(PetscOptions options,const char pre[],const c
    Notes:
     If the user does not supply the option dvalue is NOT changed. Thus
      you should ALWAYS initialize the ivalue if you access it without first checking if the set flag is true.
-
-   Concepts: options database^has scalar
 
 .seealso: PetscOptionsGetInt(), PetscOptionsHasName(),
           PetscOptionsGetString(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),
@@ -2316,8 +2280,6 @@ PetscErrorCode PetscOptionsGetScalar(PetscOptions options,const char pre[],const
            If the user does not use the option then the string is not changed. Thus
            you should ALWAYS initialize the string if you access it without first checking if the set flag is true.
 
-   Concepts: options database^string
-
     Note:
       Even if the user provided no string (for example -optionname -someotheroption) the flag is set to PETSC_TRUE (and the string is fulled with nulls).
 
@@ -2383,8 +2345,6 @@ char *PetscOptionsGetStringMatlab(PetscOptions options,const char pre[],const ch
 
    Level: beginner
 
-   Concepts: options database^array of ints
-
    Notes:
        TRUE, true, YES, yes, nostring, and 1 all translate to PETSC_TRUE
        FALSE, false, NO, no, and 0 all translate to PETSC_FALSE
@@ -2444,8 +2404,6 @@ PetscErrorCode PetscOptionsGetBoolArray(PetscOptions options,const char pre[],co
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
    Level: beginner
-
-   Concepts: options database
 
    Notes:
    The array must be passed as a comma separated list.
@@ -2520,8 +2478,6 @@ PetscErrorCode PetscOptionsGetEnumArray(PetscOptions options,const char pre[],co
    a combination of values and ranges separated by commas: 0,1-8,8-15:2
 
    There must be no intervening spaces between the values.
-
-   Concepts: options database^array of ints
 
 .seealso: PetscOptionsGetInt(), PetscOptionsHasName(),
           PetscOptionsGetString(), PetscOptionsGetRealArray(), PetscOptionsBool(),
@@ -2616,8 +2572,6 @@ PetscErrorCode PetscOptionsGetIntArray(PetscOptions options,const char pre[],con
 
    Level: beginner
 
-   Concepts: options database^array of doubles
-
 .seealso: PetscOptionsGetInt(), PetscOptionsHasName(),
           PetscOptionsGetString(), PetscOptionsGetIntArray(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
@@ -2673,8 +2627,6 @@ PetscErrorCode PetscOptionsGetRealArray(PetscOptions options,const char pre[],co
 -  set - PETSC_TRUE if found, else PETSC_FALSE
 
    Level: beginner
-
-   Concepts: options database^array of doubles
 
 .seealso: PetscOptionsGetInt(), PetscOptionsHasName(),
           PetscOptionsGetString(), PetscOptionsGetIntArray(), PetscOptionsBool(),
@@ -2739,8 +2691,6 @@ PetscErrorCode PetscOptionsGetScalarArray(PetscOptions options,const char pre[],
    returned. The Fortran interface for this routine is not supported.
 
    Contributed by Matthew Knepley.
-
-   Concepts: options database^array of strings
 
 .seealso: PetscOptionsGetInt(), PetscOptionsGetReal(),
           PetscOptionsHasName(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),

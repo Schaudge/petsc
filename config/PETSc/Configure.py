@@ -42,7 +42,6 @@ class Configure(config.base.Configure):
     help.addArgument('PETSc','-with-fortran-bindings=<bool>',     nargs.ArgBool(None, 1,'Build PETSc fortran bindings in the library and corresponding module files'))
     help.addArgument('PETSc', '-with-ios=<bool>',              nargs.ArgBool(None, 0, 'Build an iPhone/iPad version of PETSc library'))
     help.addArgument('PETSc', '-with-xsdk-defaults', nargs.ArgBool(None, 0, 'Set the following as defaults for the xSDK standard: --enable-debug=1, --enable-shared=1, --with-precision=double, --with-index-size=32, locate blas/lapack automatically'))
-    help.addArgument('PETSc', '-known-has-attribute-aligned=<bool>',nargs.ArgBool(None, None, 'Indicates __attribute((aligned(16)) directive works (the usual test will be skipped)'))
     help.addArgument('PETSc', '-with-display=<x11display>',       nargs.Arg(None, '', 'Specifiy DISPLAY env variable for use with matlab test)'))
     help.addArgument('PETSc', '-with-package-scripts=<pyscripts>',nargs.ArgFileList(None,None,'Specify configure package scripts for user provided packages'))
     return
@@ -212,7 +211,7 @@ class Configure(config.base.Configure):
 
 proc ModulesHelp { } {
     puts stderr "This module sets the path and environment variables for petsc-%s"
-    puts stderr "     see http://www.mcs.anl.gov/petsc/ for more information      "
+    puts stderr "     see https://www.mcs.anl.gov/petsc/ for more information      "
     puts stderr ""
 }
 module-whatis "PETSc - Portable, Extensible Toolkit for Scientific Computation"
@@ -676,7 +675,7 @@ prepend-path PATH "%s"
       # sel.  These are both reasonable changes, but negatively impact
       # portability.
       #
-      # [1] http://software.intel.com/file/6373
+      # [1] https://software.intel.com/file/6373
       self.addDefine('HAVE_XMMINTRIN_H', 1)
       self.addDefine('Prefetch(a,b,c)', '_mm_prefetch((const char*)(a),(c))')
       self.addDefine('PREFETCH_HINT_NTA', '_MM_HINT_NTA')
@@ -752,62 +751,40 @@ prepend-path PATH "%s"
     ## why we can't have nice things.
     #
     # if self.checkCompile("""__attribute((deprecated("Why you shouldn't use myfunc"))) static int myfunc(void) { return 1;}""", ''):
-    #   self.addDefine('DEPRECATED(why)', '__attribute((deprecated(why)))')
+    #   self.addDefine('DEPRECATED_FUNCTION(why)', '__attribute((deprecated(why)))')
+    #   self.addDefine('DEPRECATED_TYPEDEF(why)', '__attribute((deprecated(why)))')
     if self.checkCompile("""__attribute((deprecated)) static int myfunc(void) { return 1;}""", ''):
-      self.addDefine('DEPRECATED(why)', '__attribute((deprecated))')
+      self.addDefine('DEPRECATED_FUNCTION(why)', '__attribute((deprecated))')
+      self.addDefine('DEPRECATED_TYPEDEF(why)', '__attribute((deprecated))')
     else:
-      self.addDefine('DEPRECATED(why)', ' ')
+      self.addDefine('DEPRECATED_FUNCTION(why)', ' ')
+      self.addDefine('DEPRECATED_TYPEDEF(why)', ' ')
     if self.checkCompile("""enum E {oldval __attribute((deprecated)), newval };""", ''):
       self.addDefine('DEPRECATED_ENUM(why)', '__attribute((deprecated))')
     else:
       self.addDefine('DEPRECATED_ENUM(why)', ' ')
+    # I was unable to make a CPP macro that takes the old and new values as seperate arguments and builds the message needed by _Pragma
+    # hence the deprecation message is handled as it is
+    if self.checkCompile('#define TEST _Pragma("GCC warning \"Testing _Pragma\"") value'):
+      self.addDefine('DEPRECATED_MACRO(why)', '_Pragma(why)')
+    else:
+      self.addDefine('DEPRECATED_MACRO(why)', ' ')
     self.popLanguage()
 
   def configureAlign(self):
-    '''Check if __attribute(align) is supported'''
-    filename = 'conftestalign'
-    includes = '''
-#include <sys/types.h>
-#if STDC_HEADERS
-#include <stdlib.h>
-#include <stdio.h>
-#include <stddef.h>
-#endif\n'''
-    body     = '''
+    '''Check if __attribute(aligned) is supported'''
+    code = '''\
 struct mystruct {int myint;} __attribute((aligned(16)));
-FILE *f = fopen("'''+filename+'''", "w");
-if (!f) exit(1);
-fprintf(f, "%lu\\n", (unsigned long)sizeof(struct mystruct));
+char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
 '''
-    if 'known-has-attribute-aligned' in self.argDB:
-      if self.argDB['known-has-attribute-aligned']:
-        size = 16
-      else:
-        size = -3
-    elif not self.argDB['with-batch']:
-      self.pushLanguage(self.languages.clanguage)
-      try:
-        if self.checkRun(includes, body) and os.path.exists(filename):
-          f    = open(filename)
-          size = int(f.read())
-          f.close()
-          os.remove(filename)
-        else:
-          size = -4
-      except:
-        size = -1
-        self.framework.logPrint('Error checking attribute(aligned)')
-      self.popLanguage()
-    else:
-      self.framework.addBatchInclude(['#include <stdlib.h>', '#include <stdio.h>', '#include <sys/types.h>','struct mystruct {int myint;} __attribute((aligned(16)));'])
-      self.framework.addBatchBody('fprintf(output, "  \'--known-has-attribute-aligned=%d\',\\n", sizeof(struct mystruct)==16);')
-      size = -2
-    if size == 16:
-      self.addDefine('ATTRIBUTEALIGNED(size)', '__attribute((aligned (size)))')
+    self.pushLanguage(self.languages.clanguage)
+    if self.checkCompile(code):
+      self.addDefine('ATTRIBUTEALIGNED(size)', '__attribute((aligned(size)))')
       self.addDefine('HAVE_ATTRIBUTEALIGNED', 1)
     else:
-      self.framework.logPrint('incorrect alignment. Found alignment:'+ str(size))
+      self.framework.logPrint('Incorrect attribute(aligned)')
       self.addDefine('ATTRIBUTEALIGNED(size)', ' ')
+    self.popLanguage()
     return
 
   def configureExpect(self):
@@ -1072,6 +1049,7 @@ fprintf(f, "%lu\\n", (unsigned long)sizeof(struct mystruct));
       raise RuntimeError('Incorrect option --prefix='+self.framework.argDB['prefix']+' specified. It cannot be same as PETSC_DIR/PETSC_ARCH!')
     self.framework.header          = os.path.join(self.arch.arch,'include','petscconf.h')
     self.framework.cHeader         = os.path.join(self.arch.arch,'include','petscfix.h')
+    self.framework.pkgheader       = os.path.join(self.arch.arch,'include','petscpkg_version.h')
     self.framework.makeMacroHeader = os.path.join(self.arch.arch,'lib','petsc','conf','petscvariables')
     self.framework.makeRuleHeader  = os.path.join(self.arch.arch,'lib','petsc','conf','petscrules')
     if self.libraries.math is None:

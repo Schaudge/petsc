@@ -292,7 +292,7 @@ PetscErrorCode DMShellSetContext(DM dm,void *ctx)
 }
 
 /*@
-   DMShellGetContext - set some data to be usable by this DM
+   DMShellGetContext - Returns the user-provided context associated to the DM
 
    Collective
 
@@ -315,7 +315,7 @@ PetscErrorCode DMShellGetContext(DM dm,void **ctx)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
-  if (!isshell) PetscFunctionReturn(0);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
   *ctx = shell->ctx;
   PetscFunctionReturn(0);
 }
@@ -353,7 +353,7 @@ PetscErrorCode DMShellSetMatrix(DM dm,Mat J)
 /*@C
    DMShellSetCreateMatrix - sets the routine to create a matrix associated with the shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments:
 +  dm - the shell DM
@@ -375,7 +375,7 @@ PetscErrorCode DMShellSetCreateMatrix(DM dm,PetscErrorCode (*func)(DM,Mat*))
 /*@
    DMShellSetGlobalVector - sets a template global vector associated with the DMShell
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments:
 +  dm - shell DM
@@ -440,7 +440,7 @@ PetscErrorCode DMShellSetCreateGlobalVector(DM dm,PetscErrorCode (*func)(DM,Vec*
 /*@
    DMShellSetLocalVector - sets a template local vector associated with the DMShell
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments:
 +  dm - shell DM
@@ -505,7 +505,7 @@ PetscErrorCode DMShellSetCreateLocalVector(DM dm,PetscErrorCode (*func)(DM,Vec*)
 /*@C
    DMShellSetGlobalToLocal - Sets the routines used to perform a global to local scatter
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -530,7 +530,7 @@ PetscErrorCode DMShellSetGlobalToLocal(DM dm,PetscErrorCode (*begin)(DM,Vec,Inse
 /*@C
    DMShellSetLocalToGlobal - Sets the routines used to perform a local to global scatter
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -555,7 +555,7 @@ PetscErrorCode DMShellSetLocalToGlobal(DM dm,PetscErrorCode (*begin)(DM,Vec,Inse
 /*@C
    DMShellSetLocalToLocal - Sets the routines used to perform a local to local scatter
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -580,7 +580,7 @@ PetscErrorCode DMShellSetLocalToLocal(DM dm,PetscErrorCode (*begin)(DM,Vec,Inser
 /*@
    DMShellSetGlobalToLocalVecScatter - Sets a VecScatter context for global to local communication
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -606,7 +606,7 @@ PetscErrorCode DMShellSetGlobalToLocalVecScatter(DM dm, VecScatter gtol)
 /*@
    DMShellSetLocalToGlobalVecScatter - Sets a VecScatter context for local to global communication
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -632,7 +632,7 @@ PetscErrorCode DMShellSetLocalToGlobalVecScatter(DM dm, VecScatter ltog)
 /*@
    DMShellSetLocalToLocalVecScatter - Sets a VecScatter context for local to local communication
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -658,7 +658,7 @@ PetscErrorCode DMShellSetLocalToLocalVecScatter(DM dm, VecScatter ltol)
 /*@C
    DMShellSetCoarsen - Set the routine used to coarsen the shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -666,7 +666,7 @@ PetscErrorCode DMShellSetLocalToLocalVecScatter(DM dm, VecScatter ltol)
 
    Level: advanced
 
-.seealso: DMShellSetRefine(), DMCoarsen(), DMShellSetContext(), DMShellGetContext()
+.seealso: DMShellSetRefine(), DMCoarsen(), DMShellGetCoarsen(), DMShellSetContext(), DMShellGetContext()
 @*/
 PetscErrorCode DMShellSetCoarsen(DM dm, PetscErrorCode (*coarsen)(DM,MPI_Comm,DM*))
 {
@@ -682,9 +682,37 @@ PetscErrorCode DMShellSetCoarsen(DM dm, PetscErrorCode (*coarsen)(DM,MPI_Comm,DM
 }
 
 /*@C
+   DMShellGetCoarsen - Get the routine used to coarsen the shell DM
+
+   Logically Collective on dm
+
+   Input Argument:
+.  dm - the shell DM
+
+   Output Argument:
+.  coarsen - the routine that coarsens the DM
+
+   Level: advanced
+
+.seealso: DMShellSetCoarsen(), DMCoarsen(), DMShellSetRefine(), DMRefine()
+@*/
+PetscErrorCode DMShellGetCoarsen(DM dm, PetscErrorCode (**coarsen)(DM,MPI_Comm,DM*))
+{
+  PetscErrorCode ierr;
+  PetscBool      isshell;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
+  *coarsen = dm->ops->coarsen;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMShellSetRefine - Set the routine used to refine the shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -692,7 +720,7 @@ PetscErrorCode DMShellSetCoarsen(DM dm, PetscErrorCode (*coarsen)(DM,MPI_Comm,DM
 
    Level: advanced
 
-.seealso: DMShellSetCoarsen(), DMRefine(), DMShellSetContext(), DMShellGetContext()
+.seealso: DMShellSetCoarsen(), DMRefine(), DMShellGetRefine(), DMShellSetContext(), DMShellGetContext()
 @*/
 PetscErrorCode DMShellSetRefine(DM dm, PetscErrorCode (*refine)(DM,MPI_Comm,DM*))
 {
@@ -708,9 +736,37 @@ PetscErrorCode DMShellSetRefine(DM dm, PetscErrorCode (*refine)(DM,MPI_Comm,DM*)
 }
 
 /*@C
+   DMShellGetRefine - Get the routine used to refine the shell DM
+
+   Logically Collective on dm
+
+   Input Argument:
+.  dm - the shell DM
+
+   Output Argument:
+.  refine - the routine that refines the DM
+
+   Level: advanced
+
+.seealso: DMShellSetCoarsen(), DMCoarsen(), DMShellSetRefine(), DMRefine()
+@*/
+PetscErrorCode DMShellGetRefine(DM dm, PetscErrorCode (**refine)(DM,MPI_Comm,DM*))
+{
+  PetscErrorCode ierr;
+  PetscBool      isshell;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
+  *refine = dm->ops->refine;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMShellSetCreateInterpolation - Set the routine used to create the interpolation operator
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -718,7 +774,7 @@ PetscErrorCode DMShellSetRefine(DM dm, PetscErrorCode (*refine)(DM,MPI_Comm,DM*)
 
    Level: advanced
 
-.seealso: DMShellSetCreateInjection(), DMCreateInterpolation(), DMShellSetCreateRestriction(), DMShellSetContext(), DMShellGetContext()
+.seealso: DMShellSetCreateInjection(), DMCreateInterpolation(), DMShellGetCreateInterpolation(), DMShellSetCreateRestriction(), DMShellSetContext(), DMShellGetContext()
 @*/
 PetscErrorCode DMShellSetCreateInterpolation(DM dm, PetscErrorCode (*interp)(DM,DM,Mat*,Vec*))
 {
@@ -734,9 +790,37 @@ PetscErrorCode DMShellSetCreateInterpolation(DM dm, PetscErrorCode (*interp)(DM,
 }
 
 /*@C
+   DMShellGetCreateInterpolation - Get the routine used to create the interpolation operator
+
+   Logically Collective on dm
+
+   Input Argument:
++  dm - the shell DM
+
+   Output Argument:
+-  interp - the routine to create the interpolation
+
+   Level: advanced
+
+.seealso: DMShellGetCreateInjection(), DMCreateInterpolation(), DMShellGetCreateRestriction(), DMShellSetContext(), DMShellGetContext()
+@*/
+PetscErrorCode DMShellGetCreateInterpolation(DM dm, PetscErrorCode (**interp)(DM,DM,Mat*,Vec*))
+{
+  PetscErrorCode ierr;
+  PetscBool      isshell;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
+  *interp = dm->ops->createinterpolation;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMShellSetCreateRestriction - Set the routine used to create the restriction operator
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -744,7 +828,7 @@ PetscErrorCode DMShellSetCreateInterpolation(DM dm, PetscErrorCode (*interp)(DM,
 
    Level: advanced
 
-.seealso: DMShellSetCreateInjection(), DMCreateInterpolation(), DMShellSetContext(), DMShellGetContext()
+.seealso: DMShellSetCreateInjection(), DMCreateInterpolation(), DMShellGetCreateRestriction(), DMShellSetContext(), DMShellGetContext()
 @*/
 PetscErrorCode DMShellSetCreateRestriction(DM dm, PetscErrorCode (*restriction)(DM,DM,Mat*))
 {
@@ -760,9 +844,37 @@ PetscErrorCode DMShellSetCreateRestriction(DM dm, PetscErrorCode (*restriction)(
 }
 
 /*@C
+   DMShellGetCreateRestriction - Get the routine used to create the restriction operator
+
+   Logically Collective on dm
+
+   Input Argument:
++  dm - the shell DM
+
+   Output Argument:
+-  restriction - the routine to create the restriction
+
+   Level: advanced
+
+.seealso: DMShellSetCreateInjection(), DMCreateInterpolation(), DMShellSetContext(), DMShellGetContext()
+@*/
+PetscErrorCode DMShellGetCreateRestriction(DM dm, PetscErrorCode (**restriction)(DM,DM,Mat*))
+{
+  PetscErrorCode ierr;
+  PetscBool      isshell;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
+  *restriction = dm->ops->createrestriction;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMShellSetCreateInjection - Set the routine used to create the injection operator
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -770,7 +882,7 @@ PetscErrorCode DMShellSetCreateRestriction(DM dm, PetscErrorCode (*restriction)(
 
    Level: advanced
 
-.seealso: DMShellSetCreateInterpolation(), DMCreateInjection(), DMShellSetContext(), DMShellGetContext()
+.seealso: DMShellSetCreateInterpolation(), DMCreateInjection(), DMShellGetCreateInjection(), DMShellSetContext(), DMShellGetContext()
 @*/
 PetscErrorCode DMShellSetCreateInjection(DM dm, PetscErrorCode (*inject)(DM,DM,Mat*))
 {
@@ -782,6 +894,34 @@ PetscErrorCode DMShellSetCreateInjection(DM dm, PetscErrorCode (*inject)(DM,DM,M
   ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
   if (!isshell) PetscFunctionReturn(0);
   dm->ops->getinjection = inject;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   DMShellGetCreateInjection - Get the routine used to create the injection operator
+
+   Logically Collective on dm
+
+   Input Argument:
++  dm - the shell DM
+
+   Output Argument:
+-  inject - the routine to create the injection
+
+   Level: advanced
+
+.seealso: DMShellGetCreateInterpolation(), DMCreateInjection(), DMShellSetContext(), DMShellGetContext()
+@*/
+PetscErrorCode DMShellGetCreateInjection(DM dm, PetscErrorCode (**inject)(DM,DM,Mat*))
+{
+  PetscErrorCode ierr;
+  PetscBool      isshell;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
+  *inject = dm->ops->getinjection;
   PetscFunctionReturn(0);
 }
 
@@ -804,7 +944,7 @@ static PetscErrorCode DMHasCreateInjection_Shell(DM dm, PetscBool *flg)
 /*@C
    DMShellSetCreateFieldDecomposition - Set the routine used to create a decomposition of fields for the shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -830,7 +970,7 @@ PetscErrorCode DMShellSetCreateFieldDecomposition(DM dm, PetscErrorCode (*decomp
 /*@C
    DMShellSetCreateDomainDecomposition - Set the routine used to create a domain decomposition for the shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -856,7 +996,7 @@ PetscErrorCode DMShellSetCreateDomainDecomposition(DM dm, PetscErrorCode (*decom
 /*@C
    DMShellSetCreateDomainDecompositionScatters - Set the routine used to create the scatter contexts for domain decomposition with a shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -882,7 +1022,7 @@ PetscErrorCode DMShellSetCreateDomainDecompositionScatters(DM dm, PetscErrorCode
 /*@C
    DMShellSetCreateSubDM - Set the routine used to create a sub DM from the shell DM
 
-   Logically Collective on DM
+   Logically Collective on dm
 
    Input Arguments
 +  dm - the shell DM
@@ -890,7 +1030,7 @@ PetscErrorCode DMShellSetCreateDomainDecompositionScatters(DM dm, PetscErrorCode
 
    Level: advanced
 
-.seealso: DMCreateSubDM(), DMShellSetContext(), DMShellGetContext()
+.seealso: DMCreateSubDM(), DMShellGetCreateSubDM(), DMShellSetContext(), DMShellGetContext()
 @*/
 PetscErrorCode DMShellSetCreateSubDM(DM dm, PetscErrorCode (*subdm)(DM,PetscInt,const PetscInt[],IS*,DM*))
 {
@@ -902,6 +1042,34 @@ PetscErrorCode DMShellSetCreateSubDM(DM dm, PetscErrorCode (*subdm)(DM,PetscInt,
   ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
   if (!isshell) PetscFunctionReturn(0);
   dm->ops->createsubdm = subdm;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   DMShellGetCreateSubDM - Get the routine used to create a sub DM from the shell DM
+
+   Logically Collective on dm
+
+   Input Argument:
++  dm - the shell DM
+
+   Output Argument:
+-  subdm - the routine to create the decomposition
+
+   Level: advanced
+
+.seealso: DMCreateSubDM(), DMShellSetCreateSubDM(), DMShellSetContext(), DMShellGetContext()
+@*/
+PetscErrorCode DMShellGetCreateSubDM(DM dm, PetscErrorCode (**subdm)(DM,PetscInt,const PetscInt[],IS*,DM*))
+{
+  PetscErrorCode ierr;
+  PetscBool      isshell;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  if (!isshell) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Can only use with DMSHELL type DMs");
+  *subdm = dm->ops->createsubdm;
   PetscFunctionReturn(0);
 }
 
@@ -984,7 +1152,7 @@ PETSC_EXTERN PetscErrorCode DMCreate_Shell(DM dm)
 /*@
     DMShellCreate - Creates a shell DM object, used to manage user-defined problem data
 
-    Collective on MPI_Comm
+    Collective
 
     Input Parameter:
 .   comm - the processors that will share the global vector
@@ -1007,4 +1175,3 @@ PetscErrorCode  DMShellCreate(MPI_Comm comm,DM *dm)
   ierr = DMSetUp(*dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-

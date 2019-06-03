@@ -944,7 +944,7 @@ PetscErrorCode MatSetValues_SeqSBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscI
     for (l=0; l<n; l++) { /* loop over added columns */
       if (in[l] < 0) continue;
 #if defined(PETSC_USE_DEBUG)
-      if (in[l] >= A->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",in[l],A->rmap->N-1);
+      if (in[l] >= A->cmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",in[l],A->cmap->N-1);
 #endif
       col  = in[l];
       bcol = col/bs;              /* block col number */
@@ -2051,8 +2051,6 @@ PetscErrorCode  MatSeqSBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt nz,const 
    MAT_ROW_ORIENTED=PETSC_FALSE and use a Fortran array v(bs,bs,nnz) in which the first index is over rows within a
    block column and the second index is over columns within a block.
 
-.keywords: matrix, block, aij, compressed row, sparse
-
 .seealso: MatCreate(), MatCreateSeqSBAIJ(), MatSetValuesBlocked(), MatSeqSBAIJSetPreallocation(), MATSEQSBAIJ
 @*/
 PetscErrorCode MatSeqSBAIJSetPreallocationCSR(Mat B,PetscInt bs,const PetscInt i[],const PetscInt j[], const PetscScalar v[])
@@ -2074,7 +2072,7 @@ PetscErrorCode MatSeqSBAIJSetPreallocationCSR(Mat B,PetscInt bs,const PetscInt i
    (or the array nnz).  By setting these parameters accurately, performance
    during matrix assembly can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator, set to PETSC_COMM_SELF
@@ -2261,7 +2259,7 @@ PetscErrorCode MatLoad_SeqSBAIJ(Mat newmat,PetscViewer viewer)
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"view must have one processor");
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,header,4,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,header,4,NULL,PETSC_INT);CHKERRQ(ierr);
   if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not Mat object");
   M = header[1]; N = header[2]; nz = header[3];
 
@@ -2291,12 +2289,12 @@ PetscErrorCode MatLoad_SeqSBAIJ(Mat newmat,PetscViewer viewer)
 
   /* read in row lengths */
   ierr = PetscMalloc1(M+extra_rows,&rowlengths);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,rowlengths,M,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,rowlengths,M,NULL,PETSC_INT);CHKERRQ(ierr);
   for (i=0; i<extra_rows; i++) rowlengths[M+i] = 1;
 
   /* read in column indices */
   ierr = PetscMalloc1(nz+extra_rows,&jj);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,jj,nz,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,jj,nz,NULL,PETSC_INT);CHKERRQ(ierr);
   for (i=0; i<extra_rows; i++) jj[nz+i] = M+i;
 
   /* loop over row lengths determining block row lengths */
@@ -2335,7 +2333,7 @@ PetscErrorCode MatLoad_SeqSBAIJ(Mat newmat,PetscViewer viewer)
 
   /* read in nonzero values */
   ierr = PetscMalloc1(nz+extra_rows,&aa);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,aa,nz,PETSC_SCALAR);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,aa,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
   for (i=0; i<extra_rows; i++) aa[nz+i] = 1.0;
 
   /* set "a" and "j" values into matrix */
@@ -2395,7 +2393,7 @@ PetscErrorCode MatLoad_SeqSBAIJ(Mat newmat,PetscViewer viewer)
      MatCreateSeqSBAIJWithArrays - Creates an sequential SBAIJ matrix using matrix elements
               (upper triangular entries in CSR format) provided by the user.
 
-     Collective on MPI_Comm
+     Collective
 
    Input Parameters:
 +  comm - must be an MPI communicator of size 1

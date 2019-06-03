@@ -578,7 +578,7 @@ static PetscErrorCode KSPCGSetFromOptions_NASH(PetscOptionItems *PetscOptionsObj
 }
 
 /*MC
-     KSPCGNASH -   Code to run conjugate gradient method subject to a constraint
+     KSPNASH -   Code to run conjugate gradient method subject to a constraint
          on the solution norm. This is used in Trust Region methods for
          nonlinear equations, SNESNEWTONTR
 
@@ -614,10 +614,13 @@ $  other KSP converged/diverged reasons
   Notes:
   The preconditioner supplied should be symmetric and positive definite.
 
+  Reference:
+   Nash, Stephen G. Newton-type minimization via the Lanczos method. SIAM Journal on Numerical Analysis 21, no. 4 (1984): 770-788.
+
 .seealso:  KSPCreate(), KSPSetType(), KSPType (for list of available types), KSP, KSPCGSetRadius(), KSPCGGetNormD(), KSPCGGetObjFcn()
 M*/
 
-PETSC_EXTERN PetscErrorCode KSPCreate_CGNASH(KSP ksp)
+PETSC_EXTERN PetscErrorCode KSPCreate_NASH(KSP ksp)
 {
   PetscErrorCode ierr;
   KSPCG_NASH     *cg;

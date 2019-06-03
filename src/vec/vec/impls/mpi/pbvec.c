@@ -546,7 +546,7 @@ PetscErrorCode VecCreate_MPI_Private(Vec v,PetscBool alloc,PetscInt nghost,const
 
   Level: beginner
 
-.seealso: VecCreate(), VecSetType(), VecSetFromOptions(), VecCreateMpiWithArray(), VECMPI, VecType, VecCreateMPI(), VecCreateMpi()
+.seealso: VecCreate(), VecSetType(), VecSetFromOptions(), VecCreateMPIWithArray(), VECMPI, VecType, VecCreateMPI(), VecCreateMPI()
 M*/
 
 PETSC_EXTERN PetscErrorCode VecCreate_MPI(Vec vv)
@@ -588,7 +588,7 @@ PETSC_EXTERN PetscErrorCode VecCreate_Standard(Vec v)
    VecCreateMPIWithArray - Creates a parallel, array-style vector,
    where the user provides the array space to store the vector values.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm  - the MPI communicator to use
@@ -612,8 +612,6 @@ PETSC_EXTERN PetscErrorCode VecCreate_Standard(Vec v)
 
    Level: intermediate
 
-   Concepts: vectors^creating with array
-
 .seealso: VecCreateSeqWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
           VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray()
 
@@ -636,7 +634,7 @@ PetscErrorCode  VecCreateMPIWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,Petsc
    VecCreateGhostWithArray - Creates a parallel vector with ghost padding on each processor;
    the caller allocates the array space.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - the MPI communicator to use
@@ -657,8 +655,6 @@ PetscErrorCode  VecCreateMPIWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,Petsc
 
    Level: advanced
 
-   Concepts: vectors^creating with array
-   Concepts: vectors^ghosted
 
 .seealso: VecCreate(), VecGhostGetLocalForm(), VecGhostRestoreLocalForm(),
           VecCreateGhost(), VecCreateSeqWithArray(), VecCreateMPIWithArray(),
@@ -720,7 +716,7 @@ PetscErrorCode  VecCreateGhostWithArray(MPI_Comm comm,PetscInt n,PetscInt N,Pets
 /*@
    VecCreateGhost - Creates a parallel vector with ghost padding on each processor.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - the MPI communicator to use
@@ -739,8 +735,6 @@ PetscErrorCode  VecCreateGhostWithArray(MPI_Comm comm,PetscInt n,PetscInt N,Pets
    This also automatically sets the ISLocalToGlobalMapping() for this vector.
 
    Level: advanced
-
-   Concepts: vectors^ghosted
 
 .seealso: VecCreateSeq(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateMPI(),
           VecGhostGetLocalForm(), VecGhostRestoreLocalForm(), VecGhostUpdateBegin(),
@@ -777,8 +771,6 @@ PetscErrorCode  VecCreateGhost(MPI_Comm comm,PetscInt n,PetscInt N,PetscInt ngho
    You must call this AFTER you have set the type of the vector (with VecSetType()) and the size (with VecSetSizes()).
 
    Level: advanced
-
-   Concepts: vectors^ghosted
 
 .seealso: VecCreateSeq(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateMPI(),
           VecGhostGetLocalForm(), VecGhostRestoreLocalForm(), VecGhostUpdateBegin(),
@@ -847,7 +839,7 @@ PetscErrorCode  VecMPISetGhost(Vec vv,PetscInt nghost,const PetscInt ghosts[])
    VecCreateGhostBlockWithArray - Creates a parallel vector with ghost padding on each processor;
    the caller allocates the array space. Indices in the ghost region are based on blocks.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - the MPI communicator to use
@@ -871,8 +863,6 @@ PetscErrorCode  VecMPISetGhost(Vec vv,PetscInt nghost,const PetscInt ghosts[])
 
    Level: advanced
 
-   Concepts: vectors^creating ghosted
-   Concepts: vectors^creating with array
 
 .seealso: VecCreate(), VecGhostGetLocalForm(), VecGhostRestoreLocalForm(),
           VecCreateGhost(), VecCreateSeqWithArray(), VecCreateMPIWithArray(),
@@ -937,7 +927,7 @@ PetscErrorCode  VecCreateGhostBlockWithArray(MPI_Comm comm,PetscInt bs,PetscInt 
    VecCreateGhostBlock - Creates a parallel vector with ghost padding on each processor.
         The indicing of the ghost points is done with blocks.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - the MPI communicator to use
@@ -959,8 +949,6 @@ PetscErrorCode  VecCreateGhostBlockWithArray(MPI_Comm comm,PetscInt bs,PetscInt 
    portion is bs*nghost
 
    Level: advanced
-
-   Concepts: vectors^ghosted
 
 .seealso: VecCreateSeq(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateMPI(),
           VecGhostGetLocalForm(), VecGhostRestoreLocalForm(),

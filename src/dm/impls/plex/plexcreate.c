@@ -6,7 +6,7 @@
 /*@
   DMPlexCreateDoublet - Creates a mesh of two cells of the specified type, optionally with later refinement.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm - The communicator for the DM object
@@ -21,7 +21,6 @@
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simplex, PetscBool interpolate, PetscBool refinementUniform, PetscReal refinementLimit, DM *newdm)
@@ -146,7 +145,7 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
 /*@
   DMPlexCreateSquareBoundary - Creates a 1D mesh the is the boundary of a square lattice.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm  - The communicator for the DM object
@@ -170,7 +169,6 @@ $ 12--0-13--1--14
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateBoxMesh(), DMPlexCreateCubeBoundary(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateSquareBoundary(DM dm, const PetscReal lower[], const PetscReal upper[], const PetscInt edges[])
@@ -293,7 +291,7 @@ PetscErrorCode DMPlexCreateSquareBoundary(DM dm, const PetscReal lower[], const 
 /*@
   DMPlexCreateCubeBoundary - Creates a 2D mesh that is the boundary of a cubic lattice.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm  - The communicator for the DM object
@@ -306,7 +304,6 @@ PetscErrorCode DMPlexCreateSquareBoundary(DM dm, const PetscReal lower[], const 
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateBoxMesh(), DMPlexCreateSquareBoundary(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateCubeBoundary(DM dm, const PetscReal lower[], const PetscReal upper[], const PetscInt faces[])
@@ -987,7 +984,7 @@ static PetscErrorCode DMPlexCreateBoxMesh_Tensor_Internal(MPI_Comm comm, PetscIn
 /*@C
   DMPlexCreateBoxMesh - Creates a mesh on the tensor product of unit intervals (box) using simplices or tensor cells (hexahedra).
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm        - The communicator for the DM object
@@ -1039,7 +1036,6 @@ $  8----4----9----5----10
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateFromFile(), DMPlexCreateHexCylinderMesh(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool simplex, const PetscInt faces[], const PetscReal lower[], const PetscReal upper[], const DMBoundaryType periodicity[], PetscBool interpolate, DM *dm)
@@ -1053,7 +1049,9 @@ PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool simple
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  for (i = 0; i < dim; ++i) fac[i] = faces ? faces[i] : (dim == 1 ? 1 : 4-dim);
+  n    = 3;
+  ierr = PetscOptionsGetIntArray(NULL, NULL, "-dm_plex_box_faces", fac, &n, &flg);CHKERRQ(ierr);
+  for (i = 0; i < dim; ++i) fac[i] = faces ? faces[i] : (flg && i < n ? fac[i] : (dim == 1 ? 1 : 4-dim));
   if (lower) for (i = 0; i < dim; ++i) low[i] = lower[i];
   if (upper) for (i = 0; i < dim; ++i) upp[i] = upper[i];
   if (periodicity) for (i = 0; i < dim; ++i) bdt[i] = periodicity[i];
@@ -1074,7 +1072,7 @@ PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool simple
 /*@
   DMPlexCreateWedgeBoxMesh - Creates a 3-D mesh tesselating the (x,y) plane and extruding in the third direction using wedge cells.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm        - The communicator for the DM object
@@ -1090,7 +1088,6 @@ PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm comm, PetscInt dim, PetscBool simple
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateHexCylinderMesh(), DMPlexCreateWedgeCylinderMesh(), DMPlexExtrude(), DMPlexCreateBoxMesh(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateWedgeBoxMesh(MPI_Comm comm, const PetscInt faces[], const PetscReal lower[], const PetscReal upper[], const DMBoundaryType periodicity[], PetscBool ordExt, PetscBool interpolate, DM *dm)
@@ -1155,7 +1152,6 @@ PetscErrorCode DMPlexCreateWedgeBoxMesh(MPI_Comm comm, const PetscInt faces[], c
 
   Level: advanced
 
-.keywords: DM, create
 .seealso: DMPlexCreateWedgeCylinderMesh(), DMPlexCreateWedgeBoxMesh(), DMPlexSetHybridBounds(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexExtrude(DM idm, PetscInt layers, PetscReal height, PetscBool ordExt, PetscBool interpolate, DM* dm)
@@ -1313,7 +1309,7 @@ PetscErrorCode DMPlexExtrude(DM idm, PetscInt layers, PetscReal height, PetscBoo
 /*@C
   DMPlexSetOptionsPrefix - Sets the prefix used for searching for all DM options in the database.
 
-  Logically Collective on DM
+  Logically Collective on dm
 
   Input Parameters:
 + dm - the DM context
@@ -1342,7 +1338,7 @@ PetscErrorCode DMPlexSetOptionsPrefix(DM dm, const char prefix[])
 /*@
   DMPlexCreateHexCylinderMesh - Creates a mesh on the tensor product of the unit interval with the circle (cylinder) using hexahedra.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm      - The communicator for the DM object
@@ -1385,7 +1381,6 @@ $       20-----15
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateBoxMesh(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateHexCylinderMesh(MPI_Comm comm, PetscInt numRefine, DMBoundaryType periodicZ, DM *dm)
@@ -1641,7 +1636,7 @@ PetscErrorCode DMPlexCreateHexCylinderMesh(MPI_Comm comm, PetscInt numRefine, DM
 /*@
   DMPlexCreateWedgeCylinderMesh - Creates a mesh on the tensor product of the unit interval with the circle (cylinder) using wedges.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm - The communicator for the DM object
@@ -1653,7 +1648,6 @@ PetscErrorCode DMPlexCreateHexCylinderMesh(MPI_Comm comm, PetscInt numRefine, DM
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateHexCylinderMesh(), DMPlexCreateBoxMesh(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateWedgeCylinderMesh(MPI_Comm comm, PetscInt n, PetscBool interpolate, DM *dm)
@@ -1753,7 +1747,7 @@ PETSC_STATIC_INLINE PetscReal DotReal(PetscInt dim, const PetscReal x[], const P
 /*@
   DMPlexCreateSphereMesh - Creates a mesh on the d-dimensional sphere, S^d.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 . comm  - The communicator for the DM object
@@ -1765,7 +1759,6 @@ PETSC_STATIC_INLINE PetscReal DotReal(PetscInt dim, const PetscReal x[], const P
 
   Level: beginner
 
-.keywords: DM, create
 .seealso: DMPlexCreateBoxMesh(), DMSetType(), DMCreate()
 @*/
 PetscErrorCode DMPlexCreateSphereMesh(MPI_Comm comm, PetscInt dim, PetscBool simplex, DM *dm)
@@ -2252,19 +2245,6 @@ static PetscErrorCode DMPlexSwap_Static(DM dmA, DM dmB)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexIsSimplex_Static(DM dm, PetscBool *isSimplex)
-{
-  PetscInt       dim, cStart, coneSize;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL);CHKERRQ(ierr);
-  ierr = DMPlexGetConeSize(dm, cStart, &coneSize);CHKERRQ(ierr);
-  *isSimplex = coneSize == dim+1 ? PETSC_TRUE : PETSC_FALSE;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode DMSetFromOptions_NonRefinement_Plex(PetscOptionItems *PetscOptionsObject,DM dm)
 {
   DM_Plex       *mesh = (DM_Plex*) dm->data;
@@ -2287,26 +2267,14 @@ PetscErrorCode DMSetFromOptions_NonRefinement_Plex(PetscOptionItems *PetscOption
   ierr = PetscOptionsBool("-dm_plex_regular_refinement", "Use special nested projection algorithm for regular refinement", "DMPlexSetRegularRefinement", mesh->regularRefinement, &mesh->regularRefinement, NULL);CHKERRQ(ierr);
   /* Checking structure */
   {
-    const char *cellTypes[] = {"simplex", "tensor", "unknown", "DMPlexCellType", "DM_PLEX_CELLTYPE_", NULL};
-    PetscEnum   ct;
     PetscBool   flg = PETSC_FALSE, flg2 = PETSC_FALSE;
 
     ierr = PetscOptionsBool("-dm_plex_check_symmetry", "Check that the adjacency information in the mesh is symmetric", "DMPlexCheckSymmetry", PETSC_FALSE, &flg, &flg2);CHKERRQ(ierr);
     if (flg && flg2) {ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr);}
-    ierr = PetscOptionsEnum("-dm_plex_check_skeleton", "Check that each cell has the correct number of vertices", "DMPlexCheckSkeleton", cellTypes, (PetscEnum) 0, &ct, &flg);CHKERRQ(ierr);
-    if (flg) {
-      PetscBool isSimplex = ct ? PETSC_FALSE : PETSC_TRUE;
-
-      if (ct == (PetscEnum) DM_PLEX_CELLTYPE_UNKNOWN) {ierr = DMPlexIsSimplex_Static(dm, &isSimplex);CHKERRQ(ierr);}
-      ierr = DMPlexCheckSkeleton(dm, isSimplex, 0);CHKERRQ(ierr);
-    }
-    ierr = PetscOptionsEnum("-dm_plex_check_faces", "Check that the faces of each cell give a vertex order this is consistent with what we expect from the cell type", "DMPlexCheckFaces", cellTypes, (PetscEnum) 0, &ct, &flg);CHKERRQ(ierr);
-    if (flg) {
-      PetscBool isSimplex = ct ? PETSC_FALSE : PETSC_TRUE;
-
-      if (ct == (PetscEnum) DM_PLEX_CELLTYPE_UNKNOWN) {ierr = DMPlexIsSimplex_Static(dm, &isSimplex);CHKERRQ(ierr);}
-      ierr = DMPlexCheckFaces(dm, isSimplex, 0);CHKERRQ(ierr);
-    }
+    ierr = PetscOptionsBool("-dm_plex_check_skeleton", "Check that each cell has the correct number of vertices (only for homogeneous simplex or tensor meshes)", "DMPlexCheckSkeleton", PETSC_FALSE, &flg, &flg2);CHKERRQ(ierr);
+    if (flg && flg2) {ierr = DMPlexCheckSkeleton(dm, 0);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_faces", "Check that the faces of each cell give a vertex order this is consistent with what we expect from the cell type", "DMPlexCheckFaces", PETSC_FALSE, &flg, &flg2);CHKERRQ(ierr);
+    if (flg && flg2) {ierr = DMPlexCheckFaces(dm, 0);CHKERRQ(ierr);}
     ierr = PetscOptionsBool("-dm_plex_check_geometry", "Check that cells have positive volume", "DMPlexCheckGeometry", PETSC_FALSE, &flg, &flg2);CHKERRQ(ierr);
     if (flg && flg2) {ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);}
   }
@@ -2619,7 +2587,7 @@ PETSC_EXTERN PetscErrorCode DMCreate_Plex(DM dm)
 /*@
   DMPlexCreate - Creates a DMPlex object, which encapsulates an unstructured mesh, or CW complex, which can be expressed using a Hasse Diagram.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameter:
 . comm - The communicator for the DMPlex object
@@ -2629,7 +2597,6 @@ PETSC_EXTERN PetscErrorCode DMCreate_Plex(DM dm)
 
   Level: beginner
 
-.keywords: DMPlex, create
 @*/
 PetscErrorCode DMPlexCreate(MPI_Comm comm, DM *mesh)
 {
@@ -2803,7 +2770,7 @@ PetscErrorCode DMPlexBuildCoordinates_Parallel_Internal(DM dm, PetscInt spaceDim
   PetscFunctionReturn(0);
 }
 
-/*@C
+/*@
   DMPlexCreateFromCellListParallel - This takes as input common mesh generator output, a list of the vertices for each cell, and produces a DM
 
   Input Parameters:
@@ -2945,7 +2912,7 @@ PetscErrorCode DMPlexBuildCoordinates_Internal(DM dm, PetscInt spaceDim, PetscIn
   PetscFunctionReturn(0);
 }
 
-/*@C
+/*@
   DMPlexCreateFromCellList - This takes as input common mesh generator output, a list of the vertices for each cell, and produces a DM
 
   Input Parameters:
@@ -3246,7 +3213,7 @@ PetscErrorCode DMPlexCreateCellVertexFromFile(MPI_Comm comm, const char filename
 . dm - The DM
 
   Options Database Keys:
-. -dm_plex_create_from_hdf5_xdmf - use the PETSC_VIEWER_HDF5_XDMF format for reading HDF5 
+. -dm_plex_create_from_hdf5_xdmf - use the PETSC_VIEWER_HDF5_XDMF format for reading HDF5
 
   Level: beginner
 
@@ -3333,7 +3300,7 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscB
 /*@
   DMPlexCreateReferenceCell - Create a DMPLEX with the appropriate FEM reference cell
 
-  Collective on comm
+  Collective
 
   Input Parameters:
 + comm    - The communicator
@@ -3345,7 +3312,6 @@ PetscErrorCode DMPlexCreateFromFile(MPI_Comm comm, const char filename[], PetscB
 
   Level: intermediate
 
-.keywords: reference cell
 .seealso:
 @*/
 PetscErrorCode DMPlexCreateReferenceCell(MPI_Comm comm, PetscInt dim, PetscBool simplex, DM *refdm)
@@ -3432,7 +3398,7 @@ PetscErrorCode DMPlexCreateReferenceCell(MPI_Comm comm, PetscInt dim, PetscBool 
     ierr = DMGetSection(rdm->coordinateDM, &cs);CHKERRQ(ierr);
     if (cs) {ierr = PetscSectionGetChart(cs, NULL, &pEnd);CHKERRQ(ierr);}
     if (pEnd >= 0) {
-      ierr = DMClone(rdm->coordinateDM, &ncdm);CHKERRQ(ierr);
+      ierr = DMClone(*refdm, &ncdm);CHKERRQ(ierr);
       ierr = DMCopyDisc(rdm->coordinateDM, ncdm);CHKERRQ(ierr);
       ierr = DMSetSection(ncdm, cs);CHKERRQ(ierr);
       ierr = DMSetCoordinateDM(*refdm, ncdm);CHKERRQ(ierr);

@@ -148,7 +148,7 @@ struct _MatOps {
   PetscErrorCode (*mattransposemult)(Mat,Mat,MatReuse,PetscReal,Mat*);
   PetscErrorCode (*mattransposemultsymbolic)(Mat,Mat,PetscReal,Mat*);
   PetscErrorCode (*mattransposemultnumeric)(Mat,Mat,Mat);
-  PetscErrorCode (*placeholder_98)(Mat);
+  PetscErrorCode (*pintocpu)(Mat,PetscBool);
   /*99*/
   PetscErrorCode (*placeholder_99)(Mat);
   PetscErrorCode (*placeholder_100)(Mat);
@@ -230,7 +230,8 @@ PETSC_EXTERN MatRootName MatRootNameList;
 */
 PETSC_INTERN PetscErrorCode MatFindNonzeroRowsOrCols_Basic(Mat,PetscBool,PetscReal,IS*);
 PETSC_INTERN PetscErrorCode MatConvert_Basic(Mat,MatType,MatReuse,Mat*);
-PETSC_INTERN PetscErrorCode MatConvert_Shell(Mat, MatType,MatReuse,Mat*);
+PETSC_INTERN PetscErrorCode MatConvert_Shell(Mat,MatType,MatReuse,Mat*);
+PETSC_INTERN PetscErrorCode MatConvertFrom_Shell(Mat,MatType,MatReuse,Mat*);
 PETSC_INTERN PetscErrorCode MatCopy_Basic(Mat,Mat,MatStructure);
 PETSC_INTERN PetscErrorCode MatDiagonalSet_Default(Mat,Vec,InsertMode);
 
@@ -402,6 +403,7 @@ struct _p_Mat {
   PetscBool              structure_only;
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
   PetscOffloadFlag       valid_GPU_matrix; /* flag pointing to the matrix on the gpu*/
+  PetscBool              pinnedtocpu;
 #endif
   void                   *spptr;          /* pointer for special library like SuperLU */
   char                   *solvertype;
@@ -1244,7 +1246,7 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck(Mat fact,Mat mat,const MatFacto
     bt      - PetscBT (bitarray) with all bits set to false
 */
 #define PetscIncompleteLLClean(idx_start,lnk_max,nlnk,lnk,lnklvl,indices,indiceslvl,bt) 0;\
-{\
+do {\
   PetscInt _j,_idx=idx_start;\
   for (_j=0; _j<nlnk; _j++){\
     _idx = lnk[_idx];\
@@ -1254,23 +1256,23 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck(Mat fact,Mat mat,const MatFacto
     ierr = PetscBTClear(bt,_idx);CHKERRQ(ierr);\
   }\
   lnk[idx_start] = lnk_max;\
-}
+} while (0)
 /*
   Free memories used by the list
 */
 #define PetscIncompleteLLDestroy(lnk,bt) (PetscFree(lnk) || PetscBTDestroy(&(bt)))
 
-#define MatCheckSameLocalSize(A,ar1,B,ar2) \
+#define MatCheckSameLocalSize(A,ar1,B,ar2) do { \
   PetscCheckSameComm(A,ar1,B,ar2); \
-  if ((A->rmap->n != B->rmap->n) || (A->cmap->n != B->cmap->n)) SETERRQ6(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incompatible matrix local sizes: parameter # %d (%D x %D) != parameter # %d (%D x %D)",ar1,A->rmap->n,A->cmap->n,ar2,B->rmap->n,B->cmap->n);
-  
-#define MatCheckSameSize(A,ar1,B,ar2) \
+  if ((A->rmap->n != B->rmap->n) || (A->cmap->n != B->cmap->n)) SETERRQ6(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incompatible matrix local sizes: parameter # %d (%D x %D) != parameter # %d (%D x %D)",ar1,A->rmap->n,A->cmap->n,ar2,B->rmap->n,B->cmap->n);} while (0)
+
+#define MatCheckSameSize(A,ar1,B,ar2) do { \
   if ((A->rmap->N != B->rmap->N) || (A->cmap->N != B->cmap->N)) SETERRQ6(PetscObjectComm((PetscObject)A),PETSC_ERR_ARG_INCOMP,"Incompatible matrix global sizes: parameter # %d (%D x %D) != parameter # %d (%D x %D)",ar1,A->rmap->N,A->cmap->N,ar2,B->rmap->N,B->cmap->N);\
-  MatCheckSameLocalSize(A,ar1,B,ar2);
-  
-#define VecCheckMatCompatible(M,x,ar1,b,ar2)                               \
-  if (M->cmap->N != x->map->N) SETERRQ3(PetscObjectComm((PetscObject)M),PETSC_ERR_ARG_SIZ,"Vector global length incompatible with matrix: parameter # %d global size %D != matrix column global size %D",ar1,x->map->N,M->cmap->N);\
-  if (M->rmap->N != b->map->N) SETERRQ3(PetscObjectComm((PetscObject)M),PETSC_ERR_ARG_SIZ,"Vector global length incompatible with matrix: parameter # %d global size %D != matrix row global size %D",ar2,b->map->N,M->rmap->N);
+  MatCheckSameLocalSize(A,ar1,B,ar2);} while (0)
+
+#define VecCheckMatCompatible(M,x,ar1,b,ar2) do { \
+  if (M->cmap->N != x->map->N) SETERRQ3(PetscObjectComm((PetscObject)M),PETSC_ERR_ARG_SIZ,"Vector global length incompatible with matrix: parameter # %d global size %D != matrix column global size %D",ar1,x->map->N,M->cmap->N); \
+  if (M->rmap->N != b->map->N) SETERRQ3(PetscObjectComm((PetscObject)M),PETSC_ERR_ARG_SIZ,"Vector global length incompatible with matrix: parameter # %d global size %D != matrix row global size %D",ar2,b->map->N,M->rmap->N);} while (0)
 
 /* -------------------------------------------------------------------------------------------------------*/
 #include <petscbt.h>
@@ -1706,7 +1708,6 @@ PETSC_EXTERN PetscLogEvent MAT_Applypapt;
 PETSC_EXTERN PetscLogEvent MAT_Applypapt_symbolic;
 PETSC_EXTERN PetscLogEvent MAT_Applypapt_numeric;
 PETSC_EXTERN PetscLogEvent MAT_Getsymtranspose;
-PETSC_EXTERN PetscLogEvent MAT_Transpose_SeqAIJ;
 PETSC_EXTERN PetscLogEvent MAT_Getsymtransreduced;
 PETSC_EXTERN PetscLogEvent MAT_GetSequentialNonzeroStructure;
 PETSC_EXTERN PetscLogEvent MATMFFD_Mult;

@@ -440,7 +440,11 @@ PetscErrorCode MatCreateColmap_MPIAIJ_Private(Mat mat)
       for (_i=low1; _i<high1; _i++) { \
         if (rp1[_i] > col) break; \
         if (rp1[_i] == col) { \
-          if (addv == ADD_VALUES) ap1[_i] += value;   \
+          if (addv == ADD_VALUES) { \
+            ap1[_i] += value;   \
+            /* Not sure LogFlops will slow dow the code or not */ \
+            (void)PetscLogFlops(1.0);   \
+           } \
           else                    ap1[_i] = value; \
           goto a_noinsert; \
         } \
@@ -475,7 +479,10 @@ PetscErrorCode MatCreateColmap_MPIAIJ_Private(Mat mat)
     for (_i=low2; _i<high2; _i++) {                       \
       if (rp2[_i] > col) break;                           \
       if (rp2[_i] == col) {                               \
-        if (addv == ADD_VALUES) ap2[_i] += value;         \
+        if (addv == ADD_VALUES) {                         \
+          ap2[_i] += value;                               \
+          (void)PetscLogFlops(1.0);                       \
+        }                                                 \
         else                    ap2[_i] = value;          \
         goto b_noinsert;                                  \
       }                                                   \
@@ -2937,7 +2944,7 @@ PetscErrorCode MatLoad_MPIAIJ_Binary(Mat newMat, PetscViewer viewer)
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
   if (!rank) {
-    ierr = PetscBinaryRead(fd,(char*)header,4,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,(char*)header,4,NULL,PETSC_INT);CHKERRQ(ierr);
     if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not matrix object");
     if (header[3] < 0) SETERRQ(PetscObjectComm((PetscObject)newMat),PETSC_ERR_FILE_UNEXPECTED,"Matrix stored in special format on disk,cannot load as MATMPIAIJ");
   }
@@ -2980,14 +2987,14 @@ PetscErrorCode MatLoad_MPIAIJ_Binary(Mat newMat, PetscViewer viewer)
   /* distribute row lengths to all processors */
   ierr = PetscMalloc2(m,&ourlens,m,&offlens);CHKERRQ(ierr);
   if (!rank) {
-    ierr = PetscBinaryRead(fd,ourlens,m,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,ourlens,m,NULL,PETSC_INT);CHKERRQ(ierr);
     ierr = PetscMalloc1(mmax,&rowlengths);CHKERRQ(ierr);
     ierr = PetscCalloc1(size,&procsnz);CHKERRQ(ierr);
     for (j=0; j<m; j++) {
       procsnz[0] += ourlens[j];
     }
     for (i=1; i<size; i++) {
-      ierr = PetscBinaryRead(fd,rowlengths,rowners[i+1]-rowners[i],PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,rowlengths,rowners[i+1]-rowners[i],NULL,PETSC_INT);CHKERRQ(ierr);
       /* calculate the number of nonzeros on each processor */
       for (j=0; j<rowners[i+1]-rowners[i]; j++) {
         procsnz[i] += rowlengths[j];
@@ -3010,12 +3017,12 @@ PetscErrorCode MatLoad_MPIAIJ_Binary(Mat newMat, PetscViewer viewer)
     /* read in my part of the matrix column indices  */
     nz   = procsnz[0];
     ierr = PetscMalloc1(nz,&mycols);CHKERRQ(ierr);
-    ierr = PetscBinaryRead(fd,mycols,nz,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,mycols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
 
     /* read in every one elses and ship off */
     for (i=1; i<size; i++) {
       nz   = procsnz[i];
-      ierr = PetscBinaryRead(fd,cols,nz,PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,cols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
       ierr = MPIULong_Send(cols,nz,MPIU_INT,i,tag,comm);CHKERRQ(ierr);
     }
     ierr = PetscFree(cols);CHKERRQ(ierr);
@@ -3071,7 +3078,7 @@ PetscErrorCode MatLoad_MPIAIJ_Binary(Mat newMat, PetscViewer viewer)
 
     /* read in my part of the matrix numerical values  */
     nz   = procsnz[0];
-    ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
 
     /* insert into matrix */
     jj      = rstart;
@@ -3087,7 +3094,7 @@ PetscErrorCode MatLoad_MPIAIJ_Binary(Mat newMat, PetscViewer viewer)
     /* read in other processors and ship out */
     for (i=1; i<size; i++) {
       nz   = procsnz[i];
-      ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
       ierr = MPIULong_Send(vals,nz,MPIU_SCALAR,i,((PetscObject)newMat)->tag,comm);CHKERRQ(ierr);
     }
     ierr = PetscFree(procsnz);CHKERRQ(ierr);
@@ -3474,7 +3481,7 @@ PetscErrorCode MatCreateSubMatrix_MPIAIJ(Mat mat,IS isrow,IS iscol,MatReuse call
      MatCreateMPIAIJWithSeqAIJ - creates a MPIAIJ matrix using SeqAIJ matrices that contain the "diagonal"
          and "off-diagonal" part of the matrix in CSR format.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -3970,7 +3977,7 @@ PetscErrorCode MatMPIAIJSetPreallocationCSR_MPIAIJ(Mat B,const PetscInt Ii[],con
    MatMPIAIJSetPreallocationCSR - Allocates memory for a sparse parallel matrix in AIJ format
    (the default parallel PETSc format).
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - the matrix
@@ -4006,8 +4013,6 @@ $        i =  {0,3}    [size = nrow+1  = 1+1]
 $        j =  {0,1,2}  [size = 3]
 $        v =  {4,5,6}  [size = 3]
 
-.keywords: matrix, aij, compressed row, sparse, parallel
-
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIAIJSetPreallocation(), MatCreateAIJ(), MATMPIAIJ,
           MatCreateSeqAIJWithArrays(), MatCreateMPIAIJWithSplitArrays()
 @*/
@@ -4027,7 +4032,7 @@ PetscErrorCode  MatMPIAIJSetPreallocationCSR(Mat B,const PetscInt i[],const Pets
    d_nz (or d_nnz) and o_nz (or o_nnz).  By setting these parameters accurately,
    performance can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - the matrix
@@ -4146,8 +4151,6 @@ PetscErrorCode  MatMPIAIJSetPreallocationCSR(Mat B,const PetscInt i[],const Pets
 
    Level: intermediate
 
-.keywords: matrix, aij, compressed row, sparse, parallel
-
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatCreateAIJ(), MatMPIAIJSetPreallocationCSR(),
           MATMPIAIJ, MatGetInfo(), PetscSplitOwnership()
 @*/
@@ -4166,7 +4169,7 @@ PetscErrorCode MatMPIAIJSetPreallocation(Mat B,PetscInt d_nz,const PetscInt d_nn
      MatCreateMPIAIJWithArrays - creates a MPI AIJ matrix using arrays that contain in standard
          CSR format the local rows.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -4211,8 +4214,6 @@ $        i =  {0,3}    [size = nrow+1  = 1+1]
 $        j =  {0,1,2}  [size = 3]
 $        v =  {4,5,6}  [size = 3]
 
-.keywords: matrix, aij, compressed row, sparse, parallel
-
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIAIJSetPreallocation(), MatMPIAIJSetPreallocationCSR(),
           MATMPIAIJ, MatCreateAIJ(), MatCreateMPIAIJWithSplitArrays()
 @*/
@@ -4238,7 +4239,7 @@ PetscErrorCode MatCreateMPIAIJWithArrays(MPI_Comm comm,PetscInt m,PetscInt n,Pet
    d_nz (or d_nnz) and o_nz (or o_nnz).  By setting these parameters accurately,
    performance can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -4402,8 +4403,6 @@ $     MatMPIAIJSetPreallocation(A,...);
    hence pre-allocation is perfect.
 
    Level: intermediate
-
-.keywords: matrix, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIAIJSetPreallocation(), MatMPIAIJSetPreallocationCSR(),
           MATMPIAIJ, MatCreateMPIAIJWithArrays()
@@ -4941,7 +4940,7 @@ PetscErrorCode  MatCreateMPIAIJSumSeqAIJSymbolic(MPI_Comm comm,Mat seqmat,PetscI
       MatCreateMPIAIJSumSeqAIJ - Creates a MATMPIAIJ matrix by adding sequential
                  matrices from each processor
 
-    Collective on MPI_Comm
+    Collective
 
    Input Parameters:
 +    comm - the communicators the parallel matrix will live on
@@ -5690,7 +5689,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJ(Mat B)
      MatCreateMPIAIJWithSplitArrays - creates a MPI AIJ matrix using arrays that contain the "diagonal"
          and "off-diagonal" part of the matrix in CSR format.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -5728,8 +5727,6 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJ(Mat B)
        the resulting assembly is easier to implement, will work with any matrix format, and the user does not have to
        keep track of the underlying array. Use MatSetOption(A,MAT_NO_OFF_PROC_ENTRIES,PETSC_TRUE) to disable all
        communication if it is known that only local entries will be set.
-
-.keywords: matrix, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIAIJSetPreallocation(), MatMPIAIJSetPreallocationCSR(),
           MATMPIAIJ, MatCreateAIJ(), MatCreateMPIAIJWithArrays()

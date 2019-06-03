@@ -465,7 +465,10 @@ PetscErrorCode MatSetValues_SeqAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt
         if (rp[i] > col) break;
         if (rp[i] == col) {
           if (!A->structure_only) {
-            if (is == ADD_VALUES) ap[i] += value;
+            if (is == ADD_VALUES) {
+              ap[i] += value;
+              (void)PetscLogFlops(1.0);
+            }
             else ap[i] = value;
           }
           low = i + 1;
@@ -2175,46 +2178,6 @@ PetscErrorCode MatTransposeSymbolic_SeqAIJ(Mat A,Mat *B)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatTranspose_SeqAIJ(Mat A,MatReuse reuse,Mat *B)
-{
-  Mat_SeqAIJ     *a = (Mat_SeqAIJ*)A->data;
-  Mat            C;
-  PetscErrorCode ierr;
-  PetscInt       i,*aj = a->j,*ai = a->i,m = A->rmap->n,len,*col;
-  MatScalar      *array = a->a;
-
-  PetscFunctionBegin;
-  if (reuse == MAT_INITIAL_MATRIX || reuse == MAT_INPLACE_MATRIX) {
-    ierr = PetscCalloc1(1+A->cmap->n,&col);CHKERRQ(ierr);
-
-    for (i=0; i<ai[m]; i++) col[aj[i]] += 1;
-    ierr = MatCreate(PetscObjectComm((PetscObject)A),&C);CHKERRQ(ierr);
-    ierr = MatSetSizes(C,A->cmap->n,m,A->cmap->n,m);CHKERRQ(ierr);
-    ierr = MatSetBlockSizes(C,PetscAbs(A->cmap->bs),PetscAbs(A->rmap->bs));CHKERRQ(ierr);
-    ierr = MatSetType(C,((PetscObject)A)->type_name);CHKERRQ(ierr);
-    ierr = MatSeqAIJSetPreallocation_SeqAIJ(C,0,col);CHKERRQ(ierr);
-    ierr = PetscFree(col);CHKERRQ(ierr);
-  } else {
-    C = *B;
-  }
-
-  for (i=0; i<m; i++) {
-    len    = ai[i+1]-ai[i];
-    ierr   = MatSetValues_SeqAIJ(C,len,aj,1,&i,array,INSERT_VALUES);CHKERRQ(ierr);
-    array += len;
-    aj    += len;
-  }
-  ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  if (reuse == MAT_INITIAL_MATRIX || reuse == MAT_REUSE_MATRIX) {
-    *B = C;
-  } else {
-    ierr = MatHeaderMerge(A,&C);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode  MatIsTranspose_SeqAIJ(Mat A,Mat B,PetscReal tol,PetscBool  *f)
 {
   Mat_SeqAIJ     *aij = (Mat_SeqAIJ*) A->data,*bij = (Mat_SeqAIJ*) B->data;
@@ -3304,7 +3267,7 @@ static struct _MatOps MatOps_Values = { MatSetValues_SeqAIJ,
                                         MatLUFactor_SeqAIJ,
                                         0,
                                         MatSOR_SeqAIJ,
-                                        MatTranspose_SeqAIJ_FAST,
+                                        MatTranspose_SeqAIJ,
                                 /*1 5*/ MatGetInfo_SeqAIJ,
                                         MatEqual_SeqAIJ,
                                         MatGetDiagonal_SeqAIJ,
@@ -3685,7 +3648,7 @@ PetscErrorCode  MatRetrieveValues(Mat mat)
    (or the array nnz).  By setting these parameters accurately, performance
    during matrix assembly can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator, set to PETSC_COMM_SELF
@@ -3747,7 +3710,7 @@ PetscErrorCode  MatCreateSeqAIJ(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt nz,
    (or the array nnz).  By setting these parameters accurately, performance
    during matrix assembly can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - The matrix
@@ -3939,8 +3902,6 @@ PetscErrorCode MatResetPreallocation_SeqAIJ(Mat A)
    Level: developer
 
    The i,j,v values are COPIED with this routine; to avoid the copy use MatCreateSeqAIJWithArrays()
-
-.keywords: matrix, aij, compressed row, sparse, sequential
 
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatSeqAIJSetPreallocation(), MatCreateSeqAIJ(), MATSEQAIJ
 @*/
@@ -4465,7 +4426,7 @@ PetscErrorCode MatLoad_SeqAIJ_Binary(Mat newMat, PetscViewer viewer)
   ierr = MatSetBlockSize(newMat,bs);CHKERRQ(ierr);
 
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,header,4,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,header,4,NULL,PETSC_INT);CHKERRQ(ierr);
   if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not matrix object in file");
   M = header[1]; N = header[2]; nz = header[3];
 
@@ -4473,7 +4434,7 @@ PetscErrorCode MatLoad_SeqAIJ_Binary(Mat newMat, PetscViewer viewer)
 
   /* read in row lengths */
   ierr = PetscMalloc1(M,&rowlengths);CHKERRQ(ierr);
-  ierr = PetscBinaryRead(fd,rowlengths,M,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,rowlengths,M,NULL,PETSC_INT);CHKERRQ(ierr);
 
   /* check if sum of rowlengths is same as nz */
   for (i=0,sum=0; i< M; i++) sum +=rowlengths[i];
@@ -4493,10 +4454,10 @@ PetscErrorCode MatLoad_SeqAIJ_Binary(Mat newMat, PetscViewer viewer)
   ierr = MatSeqAIJSetPreallocation_SeqAIJ(newMat,0,rowlengths);CHKERRQ(ierr);
   a    = (Mat_SeqAIJ*)newMat->data;
 
-  ierr = PetscBinaryRead(fd,a->j,nz,PETSC_INT);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,a->j,nz,NULL,PETSC_INT);CHKERRQ(ierr);
 
   /* read in nonzero values */
-  ierr = PetscBinaryRead(fd,a->a,nz,PETSC_SCALAR);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,a->a,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
 
   /* set matrix "i" values */
   a->i[0] = 0;
@@ -4552,7 +4513,7 @@ PetscErrorCode MatEqual_SeqAIJ(Mat A,Mat B,PetscBool * flg)
      MatCreateSeqAIJWithArrays - Creates an sequential AIJ matrix using matrix elements (in CSR format)
               provided by the user.
 
-      Collective on MPI_Comm
+      Collective
 
    Input Parameters:
 +   comm - must be an MPI communicator of size 1
@@ -4643,7 +4604,7 @@ PetscErrorCode  MatCreateSeqAIJWithArrays(MPI_Comm comm,PetscInt m,PetscInt n,Pe
      MatCreateSeqAIJFromTriple - Creates an sequential AIJ matrix using matrix elements (in COO format)
               provided by the user.
 
-      Collective on MPI_Comm
+      Collective
 
    Input Parameters:
 +   comm - must be an MPI communicator of size 1
@@ -4835,8 +4796,6 @@ PetscFunctionList MatSeqAIJList = NULL;
 
   Level: intermediate
 
-.keywords: Mat, MatType, set, method
-
 .seealso: PCSetType(), VecSetType(), MatCreate(), MatType, Mat
 @*/
 PetscErrorCode  MatSeqAIJSetType(Mat mat, MatType matype)
@@ -4874,8 +4833,6 @@ $     -mat_seqaij_type my_mat
 
    Level: advanced
 
-.keywords: Mat, register
-
 .seealso: MatSeqAIJRegisterAll()
 
 
@@ -4901,8 +4858,6 @@ PetscBool MatSeqAIJRegisterAllCalled = PETSC_FALSE;
   Level: advanced
 
   Developers Note: CUSP and CUSPARSE do not yet support the  MatConvert_SeqAIJ..() paradigm and thus cannot be registered here
-
-.keywords: KSP, register, all
 
 .seealso:  MatRegisterAll(), MatSeqAIJRegister()
 @*/

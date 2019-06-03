@@ -10,6 +10,8 @@ from stat import *
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
+    self.minversion         = '2.0'
+    self.versionname        = 'MPI_VERSION'
     self.functions          = ['MPI_Init', 'MPI_Comm_create']
     self.includes           = ['mpi.h']
     liblist_mpich         = [['fmpich2.lib','fmpich2g.lib','fmpich2s.lib','mpi.lib'],
@@ -48,6 +50,7 @@ class Configure(config.package.Package):
     self.alternativedownload = 'mpich'
     # support MPI-3 process shared memory
     self.support_mpi3_shm = 0
+    self.mpi_pkg_version  = ''
     return
 
   def setupHelp(self, help):
@@ -63,6 +66,10 @@ class Configure(config.package.Package):
     self.mpich   = framework.require('config.packages.MPICH', self)
     self.openmpi = framework.require('config.packages.OpenMPI', self)
     return
+
+  def __str__(self):
+    output  = config.package.Package.__str__(self)
+    return output+self.mpi_pkg_version
 
   def generateLibList(self, directory):
     if self.setCompilers.usedMPICompilers:
@@ -133,6 +140,22 @@ class Configure(config.package.Package):
     '''Sets flag indicating if MPI libraries are shared or not and
     determines if MPI libraries CANNOT be used by shared libraries'''
     self.executeTest(self.configureMPIEXEC)
+    if self.argDB['with-batch']:
+      if self.argDB['with-shared-libraries']:
+        if not 'known-mpi-shared-libraries' in self.argDB:
+          self.logPrintBox('***** WARNING: Cannot verify that MPI is a shared library - in\n\
+batch-mode! If MPI is a static library but linked into multiple shared\n\
+libraries that the application uses, sometimes compiles go through -\n\
+but one might get run-time errors. If you know that the MPI library is\n\
+shared - run with --known-mpi-shared-libraries=1 option to remove this\n\
+warning message *****')
+        elif not self.argDB['known-mpi-shared-libraries']:
+          raise RuntimeError('Provided MPI library is flagged as static library! If its linked\n\
+into multipe shared libraries that an application uses, sometimes\n\
+compiles go through - but one might get run-time errors.  Either\n\
+rebuild PETSc with --with-shared-libraries=0 or provide MPI with\n\
+shared libraries and flag it with --known-mpi-shared-libraries=1')
+      return
     try:
       self.shared = self.libraries.checkShared('#include <mpi.h>\n','MPI_Init','MPI_Initialized','MPI_Finalize',checkLink = self.checkPackageLink,libraries = self.lib, defaultArg = 'known-mpi-shared-libraries', executor = self.mpiexec)
     except RuntimeError as e:
@@ -274,9 +297,9 @@ class Configure(config.package.Package):
     self.compilers.CPPFLAGS += ' '+self.headers.toString(self.include)
     self.framework.batchIncludeDirs.extend([self.headers.getIncludeArgument(inc) for inc in self.include])
     self.framework.addBatchLib(self.lib)
-    self.types.checkSizeof('MPI_Comm', 'mpi.h')
+    self.types.checkSizeof('MPI_Comm',(4,8),'mpi.h')
     if 'HAVE_MPI_FINT' in self.defines:
-      self.types.checkSizeof('MPI_Fint', 'mpi.h')
+      self.types.checkSizeof('MPI_Fint',(4,8),'mpi.h')
     self.compilers.CPPFLAGS = oldFlags
     return
 
@@ -472,6 +495,7 @@ class Configure(config.package.Package):
         try:
           mpich_numversion = re.compile('\nint mpich_ver ='+HASHLINESPACE+'([0-9]+)'+HASHLINESPACE+';').search(buf).group(1)
           self.addDefine('HAVE_'+MPICHPKG+'_NUMVERSION',mpich_numversion)
+          self.mpi_pkg_version  = '  '+MPICHPKG+'_NUMVERSION: '+mpich_numversion+'\n'
           if mpichpkg == 'mpich': self.mpich_numversion = mpich_numversion
         except:
           self.logPrint('Unable to parse '+MPICHPKG+' version from header. Probably a buggy preprocessor')
@@ -489,6 +513,7 @@ class Configure(config.package.Package):
         self.addDefine('HAVE_OMPI_MINOR_VERSION',ompi_minor_version)
         self.addDefine('HAVE_OMPI_RELEASE_VERSION',ompi_release_version)
         self.ompi_major_version = ompi_major_version
+        self.mpi_pkg_version = '  OMPI_VERSION: '+ompi_major_version+'.'+ompi_minor_version+'.'+ompi_release_version+'\n'
       except:
         self.logPrint('Unable to parse OpenMPI version from header. Probably a buggy preprocessor')
     self.compilers.CPPFLAGS = oldFlags

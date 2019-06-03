@@ -512,7 +512,7 @@ PetscErrorCode PetscSynchronizedFPrintf(MPI_Comm comm,FILE *fp,const char format
     PetscSynchronizedFlush - Flushes to the screen output from all processors
     involved in previous PetscSynchronizedPrintf()/PetscSynchronizedFPrintf() calls.
 
-    Collective on MPI_Comm
+    Collective
 
     Input Parameters:
 +   comm - the communicator
@@ -596,8 +596,6 @@ PetscErrorCode PetscSynchronizedFlush(MPI_Comm comm,FILE *fd)
     Fortran Note:
     This routine is not supported in Fortran.
 
-   Concepts: printing^in parallel
-   Concepts: printf^in parallel
 
 .seealso: PetscPrintf(), PetscSynchronizedPrintf(), PetscViewerASCIIPrintf(),
           PetscViewerASCIISynchronizedPrintf(), PetscSynchronizedFlush()
@@ -639,8 +637,6 @@ PetscErrorCode PetscFPrintf(MPI_Comm comm,FILE* fd,const char format[],...)
     The call sequence is PetscPrintf(MPI_Comm, character(*), PetscErrorCode ierr) from Fortran.
     That is, you can only pass a single character string from Fortran.
 
-   Concepts: printing^in parallel
-   Concepts: printf^in parallel
 
 .seealso: PetscFPrintf(), PetscSynchronizedPrintf()
 @*/
@@ -711,7 +707,7 @@ PetscErrorCode PetscHelpPrintfDefault(MPI_Comm comm,const char format[],...)
 /*@C
     PetscSynchronizedFGets - Several processors all get the same line from a file.
 
-    Collective on MPI_Comm
+    Collective
 
     Input Parameters:
 +   comm - the communicator

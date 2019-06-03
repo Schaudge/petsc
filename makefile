@@ -95,17 +95,24 @@ info:
 	-@echo "Using configuration flags:"
 	-@grep "\#define " ${PETSCCONF_H}
 	-@echo "-----------------------------------------"
-	-@echo "Using C/C++ compile: ${PETSC_COMPILE}"
-	-@if [ "${PETSC_LANGUAGE}" = "CONLY" -a "${MPICC_SHOW}" != "" ]; then \
-             printf  "mpicc -show: %b\n" "${MPICC_SHOW}"; \
-	  elif [ "${PETSC_LANGUAGE}" = "CXXONLY" -a "${MPICXX_SHOW}" != "" ]; then \
-             printf "mpicxx -show: %b\n" "${MPICXX_SHOW}"; \
-          fi;
+	-@echo "Using C compile: ${PETSC_COMPILE}"
+	-@if [  "${MPICC_SHOW}" != "" ]; then \
+             printf  "mpicc -show: %b\n" "${MPICC_SHOW}";\
+          fi; \
+          printf  "C compiler version: %b\n" "${C_VERSION}"; \
+	  if [ "${CXX}" != "" ]; then \
+	   echo "Using C++ compile: ${PETSC_CXXCOMPILE}";\
+	    if [ "${MPICXX_SHOW}" != "" ]; then \
+               printf "mpicxx -show: %b\n" "${MPICXX_SHOW}"; \
+            fi;\
+            printf  "C++ compiler version: %b\n" "${Cxx_VERSION}"; \
+          fi
 	-@if [ "${FC}" != "" ]; then \
 	   echo "Using Fortran compile: ${PETSC_FCOMPILE}";\
            if [ "${MPIFC_SHOW}" != "" ]; then \
              printf "mpif90 -show: %b\n" "${MPIFC_SHOW}"; \
            fi; \
+             printf  "Fortran compiler version: %b\n" "${FC_VERSION}"; \
          fi
 	-@if [ "${CUDAC}" != "" ]; then \
 	   echo "Using CUDA compile: ${PETSC_CUCOMPILE}";\
@@ -172,7 +179,7 @@ test_build:
 	-@echo "Using PETSC_DIR=${PETSC_DIR} and PETSC_ARCH=${PETSC_ARCH}"
 	+@cd src/snes/examples/tutorials >/dev/null; ${OMAKE} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} clean
 	+@cd src/snes/examples/tutorials >/dev/null; ${OMAKE} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} testex19
-	+@if [ "${HYPRE_LIB}" != "" ] && [ "${PETSC_WITH_BATCH}" = "" ]; then \
+	+@if [ "${HYPRE_LIB}" != "" ] && [ "${PETSC_WITH_BATCH}" = "" ] &&  [ "${PETSC_SCALAR}" = "real" ]; then \
           cd src/snes/examples/tutorials >/dev/null; ${OMAKE} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} DIFF=${PETSC_DIR}/lib/petsc/bin/petscdiff runex19_hypre; \
          fi;
 	+@if [ "${MUMPS_LIB}" != "" ] && [ "${PETSC_WITH_BATCH}" = "" ]; then \
@@ -204,6 +211,62 @@ testx_build:
 	@cd src/snes/examples/tutorials; ${OMAKE} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} testxex19
 	@cd src/snes/examples/tutorials; ${OMAKE} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} clean
 	-@echo "Completed graphics test example"
+test_usermakefile:
+	-@echo "Testing compile with user makefile"
+	-@echo "Using PETSC_DIR=${PETSC_DIR} and PETSC_ARCH=${PETSC_ARCH}"
+	@cd src/snes/examples/tutorials; ${OMAKE} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} -f ${PETSC_DIR}/share/petsc/Makefile.user ex19
+	@egrep "^#define PETSC_HAVE_FORTRAN 1" ${PETSCCONF_H} | tee .ftn.log > /dev/null; \
+         if test -s .ftn.log; then \
+          cd src/snes/examples/tutorials; ${OMAKE} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} -f ${PETSC_DIR}/share/petsc/Makefile.user ex5f; \
+         fi; ${RM} .ftn.log;
+	@cd src/snes/examples/tutorials; ${OMAKE} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} clean
+	-@echo "Completed compile with user makefile"
+
+# Compare ABI/API of two versions of PETSc library with the old one defined by PETSC_{DIR,ARCH}_ABI_OLD
+abitest:
+	@if [ "${PETSC_DIR_ABI_OLD}" == "" ] || [ "${PETSC_ARCH_ABI_OLD}" == "" ]; \
+		then printf "You must set environment variables PETSC_DIR_ABI_OLD and PETSC_ARCH_ABI_OLD to run abitest\n"; \
+		exit 1; \
+	fi;
+	-@echo "Comparing ABI/API of the following two PETSc versions (you must have already configured and built them using GCC and with -g):"
+	-@echo "========================================================================================="
+	-@echo "    Old: PETSC_DIR_ABI_OLD  = ${PETSC_DIR_ABI_OLD}"
+	-@echo "         PETSC_ARCH_ABI_OLD = ${PETSC_ARCH_ABI_OLD}"
+	-@pushd ${PETSC_DIR_ABI_OLD} >> /dev/null ; echo "         Branch             = "`git rev-parse --abbrev-ref HEAD`
+	-@echo "    New: PETSC_DIR          = ${PETSC_DIR}"
+	-@echo "         PETSC_ARCH         = ${PETSC_ARCH}"
+	-@echo "         Branch             = "`git rev-parse --abbrev-ref HEAD`
+	-@echo "========================================================================================="
+	-@$(PYTHON)	${PETSC_DIR}/lib/petsc/bin/maint/abicheck.py -old_dir ${PETSC_DIR_ABI_OLD} -old_arch ${PETSC_ARCH_ABI_OLD} -new_dir ${PETSC_DIR} -new_arch ${PETSC_ARCH} -report_format html
+
+# Compare ABI/API of current PETSC_ARCH/PETSC_DIR with a previous branch
+abitestcomplete:
+	-@if [[ -f "${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/conf/configure.log" ]]; then \
+          OPTIONS=`grep -h -m 1 "Configure Options: " ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/conf/configure.log  | sed "s!Configure Options: --configModules=PETSc.Configure --optionsModule=config.compilerOptions!!g"` ;\
+echo $${OPTIONS} ;\
+        fi ; \
+        if [[ "${PETSC_DIR_ABI_OLD}" != "" ]]; then \
+          PETSC_DIR_OLD=${PETSC_DIR_ABI_OLD}; \
+        else \
+          PETSC_DIR_OLD=${PETSC_DIR}/../petsc-abi; \
+        fi ; \
+        echo "=================================================================================================" ;\
+        echo "Doing ABI/API comparison between" ${branch} " and " `git rev-parse --abbrev-ref HEAD` "using " $${OPTIONS} ;\
+        echo "=================================================================================================" ;\
+        if [[ ! -d $${PETSC_DIR_OLD} ]]; then \
+          git clone ${PETSC_DIR} $${PETSC_DIR_OLD} ; \
+        else \
+          cd $${PETSC_DIR_OLD} ; \
+          git pull ; \
+        fi ; \
+        cd $${PETSC_DIR_OLD} ; \
+        git checkout ${branch} ; \
+        PETSC_DIR=`pwd` PETSC_ARCH=arch-branch-`git rev-parse ${branch}` ./configure $${OPTIONS} ; \
+        PETSC_DIR=`pwd` PETSC_ARCH=arch-branch-`git rev-parse ${branch}` make all test ; \
+        cd ${PETSC_DIR} ; \
+        ./configure $${OPTIONS}; \
+        make all test ; \
+        PETSC_DIR_ABI_OLD=$${PETSC_DIR_OLD} PETSC_ARCH_ABI_OLD=arch-branch-`git rev-parse ${branch}` make abitest
 
 # Ranlib on the libraries
 ranlib:
@@ -333,7 +396,6 @@ allmanexamples: chk_loc allmanpages
 alldoc1: chk_loc chk_concepts_dir allcite allmanpages allmanexamples
 	-${OMAKE} manimplementations LOC=${LOC}
 	-${PYTHON} lib/petsc/bin/maint/wwwindex.py ${PETSC_DIR} ${LOC}
-	-${OMAKE} manconcepts LOC=${LOC}
 	-${OMAKE} ACTION=getexlist tree_basic LOC=${LOC}
 	-${OMAKE} ACTION=exampleconcepts tree_basic LOC=${LOC}
 	-${PYTHON} lib/petsc/bin/maint/helpindex.py ${PETSC_DIR} ${LOC}
@@ -386,7 +448,6 @@ deletemanualpages: chk_loc
 	-@if [ -d ${LOC} -a -d ${LOC}/docs/manualpages ]; then \
           find ${LOC}/docs/manualpages -type f -name "*.html" -exec ${RM} {} \; ;\
           ${RM} ${LOC}/docs/exampleconcepts ;\
-          ${RM} ${LOC}/docs/manconcepts ;\
           ${RM} ${LOC}/docs/manualpages/manualpages.cit ;\
           ${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${LOC} clean;\
         fi

@@ -144,8 +144,8 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateConeSection(DM, PetscSection *);
 PETSC_EXTERN PetscErrorCode DMPlexInvertCell(PetscInt, PetscInt, int []);
 
 PETSC_EXTERN PetscErrorCode DMPlexCheckSymmetry(DM);
-PETSC_EXTERN PetscErrorCode DMPlexCheckSkeleton(DM, PetscBool, PetscInt);
-PETSC_EXTERN PetscErrorCode DMPlexCheckFaces(DM, PetscBool, PetscInt);
+PETSC_EXTERN PetscErrorCode DMPlexCheckSkeleton(DM, PetscInt);
+PETSC_EXTERN PetscErrorCode DMPlexCheckFaces(DM, PetscInt);
 PETSC_EXTERN PetscErrorCode DMPlexCheckGeometry(DM);
 PETSC_EXTERN PetscErrorCode DMPlexCheckPointSF(DM);
 PETSC_EXTERN PetscErrorCode DMPlexCheckConesConformOnInterfaces(DM);
@@ -185,6 +185,7 @@ PETSC_EXTERN PetscErrorCode DMPlexDistributeOverlap(DM, PetscInt, PetscSF *, DM 
 PETSC_EXTERN PetscErrorCode DMPlexDistributeField(DM,PetscSF,PetscSection,Vec,PetscSection,Vec);
 PETSC_EXTERN PetscErrorCode DMPlexDistributeFieldIS(DM, PetscSF, PetscSection, IS, PetscSection, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexDistributeData(DM,PetscSF,PetscSection,MPI_Datatype,void*,PetscSection,void**);
+PETSC_EXTERN PetscErrorCode DMPlexRebalanceSharedPoints(DM, PetscInt, PetscBool, PetscBool, PetscBool*);
 PETSC_EXTERN PetscErrorCode DMPlexMigrate(DM, PetscSF, DM);
 PETSC_EXTERN PetscErrorCode DMPlexGetGatherDM(DM, PetscSF*, DM*);
 PETSC_EXTERN PetscErrorCode DMPlexGetRedundantDM(DM, PetscSF*, DM*);
@@ -293,7 +294,7 @@ PETSC_EXTERN PetscErrorCode DMPlexRestoreClosureIndices(DM, PetscSection, PetscS
 PETSC_EXTERN PetscErrorCode DMPlexMatSetClosureRefined(DM, PetscSection, PetscSection, DM, PetscSection, PetscSection, Mat, PetscInt, const PetscScalar[], InsertMode);
 PETSC_EXTERN PetscErrorCode DMPlexMatGetClosureIndicesRefined(DM, PetscSection, PetscSection, DM, PetscSection, PetscSection, PetscInt, PetscInt[], PetscInt[]);
 PETSC_EXTERN PetscErrorCode DMPlexCreateClosureIndex(DM, PetscSection);
-PETSC_EXTERN PetscErrorCode DMPlexCreateSpectralClosurePermutation(DM, PetscInt, PetscSection);
+PETSC_EXTERN PetscErrorCode DMPlexSetClosurePermutationTensor(DM, PetscInt, PetscSection);
 
 PETSC_EXTERN PetscErrorCode DMPlexConstructGhostCells(DM, const char [], PetscInt *, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexConstructCohesiveCells(DM, DMLabel, DMLabel, DM *);
@@ -393,4 +394,8 @@ PETSC_EXTERN PetscErrorCode DMPlexNaturalToGlobalEnd(DM, Vec, Vec);
 
 /* mesh adaptation */
 PETSC_EXTERN PetscErrorCode DMPlexAdapt(DM, Vec, const char [], DM *);
+
+PETSC_EXTERN PetscErrorCode DMPlexGlobalToLocalBasis(DM, Vec);
+PETSC_EXTERN PetscErrorCode DMPlexLocalToGlobalBasis(DM, Vec);
+PETSC_EXTERN PetscErrorCode DMPlexCreateBasisRotation(DM, PetscReal, PetscReal, PetscReal);
 #endif

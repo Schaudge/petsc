@@ -3,7 +3,7 @@
 /*@
   DMDASetSizes - Sets the number of grid points in the three dimensional directions
 
-  Logically Collective on DMDA
+  Logically Collective on da
 
   Input Parameters:
 + da - the DMDA
@@ -41,7 +41,7 @@ PetscErrorCode  DMDASetSizes(DM da, PetscInt M, PetscInt N, PetscInt P)
 /*@
   DMDASetNumProcs - Sets the number of processes in each dimension
 
-  Logically Collective on DMDA
+  Logically Collective on da
 
   Input Parameters:
 + da - the DMDA
@@ -93,7 +93,6 @@ PetscErrorCode  DMDASetNumProcs(DM da, PetscInt m, PetscInt n, PetscInt p)
 
   Level: intermediate
 
-.keywords:  distributed array, periodicity
 .seealso: DMDACreate(), DMDestroy(), DMDA, DMBoundaryType
 @*/
 PetscErrorCode  DMDASetBoundaryType(DM da,DMBoundaryType bx,DMBoundaryType by,DMBoundaryType bz)
@@ -123,7 +122,6 @@ PetscErrorCode  DMDASetBoundaryType(DM da,DMBoundaryType bx,DMBoundaryType by,DM
 
   Level: intermediate
 
-.keywords:  distributed array, degrees of freedom
 .seealso: DMDAGetDof(), DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode  DMDASetDof(DM da, PetscInt dof)
@@ -152,7 +150,6 @@ PetscErrorCode  DMDASetDof(DM da, PetscInt dof)
 
   Level: intermediate
 
-.keywords:  distributed array, degrees of freedom
 .seealso: DMDASetDof(), DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode DMDAGetDof(DM da, PetscInt *dof)
@@ -181,7 +178,6 @@ PetscErrorCode DMDAGetDof(DM da, PetscInt *dof)
 
   Level: intermediate
 
-.keywords:  distributed array, overlap, domain decomposition
 .seealso: DMDACreateDomainDecomposition(), DMDASetOverlap(), DMDA
 @*/
 PetscErrorCode  DMDAGetOverlap(DM da,PetscInt *x,PetscInt *y,PetscInt *z)
@@ -209,7 +205,6 @@ PetscErrorCode  DMDAGetOverlap(DM da,PetscInt *x,PetscInt *y,PetscInt *z)
 
   Level: intermediate
 
-.keywords:  distributed array, overlap, domain decomposition
 .seealso: DMDACreateDomainDecomposition(), DMDAGetOverlap(), DMDA
 @*/
 PetscErrorCode  DMDASetOverlap(DM da,PetscInt x,PetscInt y,PetscInt z)
@@ -241,7 +236,6 @@ PetscErrorCode  DMDASetOverlap(DM da,PetscInt x,PetscInt y,PetscInt z)
 
   Level: intermediate
 
-.keywords:  distributed array, domain decomposition
 .seealso: DMDACreateDomainDecomposition(), DMDASetNumLocalSubDomains(), DMDA
 @*/
 PetscErrorCode  DMDAGetNumLocalSubDomains(DM da,PetscInt *Nsub)
@@ -265,7 +259,6 @@ PetscErrorCode  DMDAGetNumLocalSubDomains(DM da,PetscInt *Nsub)
 
   Level: intermediate
 
-.keywords:  distributed array, domain decomposition
 .seealso: DMDACreateDomainDecomposition(), DMDAGetNumLocalSubDomains(), DMDA
 @*/
 PetscErrorCode  DMDASetNumLocalSubDomains(DM da,PetscInt Nsub)
@@ -296,7 +289,6 @@ PetscErrorCode  DMDASetNumLocalSubDomains(DM da,PetscInt Nsub)
     This is used primarily to overlap a computation on a local DA with that on a global DA without
   changing boundary conditions or subdomain features that depend upon the global offsets.
 
-.keywords:  distributed array, degrees of freedom
 .seealso: DMDAGetOffset(), DMDAVecGetArray()
 @*/
 PetscErrorCode  DMDASetOffset(DM da, PetscInt xo, PetscInt yo, PetscInt zo, PetscInt Mo, PetscInt No, PetscInt Po)
@@ -343,7 +335,6 @@ PetscErrorCode  DMDASetOffset(DM da, PetscInt xo, PetscInt yo, PetscInt zo, Pets
 
   Level: intermediate
 
-.keywords:  distributed array, degrees of freedom
 .seealso: DMDASetOffset(), DMDAVecGetArray()
 @*/
 PetscErrorCode  DMDAGetOffset(DM da,PetscInt *xo,PetscInt *yo,PetscInt *zo,PetscInt *Mo,PetscInt *No,PetscInt *Po)
@@ -379,7 +370,6 @@ PetscErrorCode  DMDAGetOffset(DM da,PetscInt *xo,PetscInt *yo,PetscInt *zo,Petsc
 
   Level: intermediate
 
-.keywords:  distributed array, degrees of freedom
 .seealso: DMDAGetOffset(), DMDAVecGetArray()
 @*/
 PetscErrorCode  DMDAGetNonOverlappingRegion(DM da, PetscInt *xs, PetscInt *ys, PetscInt *zs, PetscInt *xm, PetscInt *ym, PetscInt *zm)
@@ -414,7 +404,6 @@ PetscErrorCode  DMDAGetNonOverlappingRegion(DM da, PetscInt *xs, PetscInt *ys, P
 
   Level: intermediate
 
-.keywords:  distributed array, degrees of freedom
 .seealso: DMDAGetOffset(), DMDAVecGetArray()
 @*/
 PetscErrorCode  DMDASetNonOverlappingRegion(DM da, PetscInt xs, PetscInt ys, PetscInt zs, PetscInt xm, PetscInt ym, PetscInt zm)
@@ -442,7 +431,7 @@ PetscErrorCode  DMDASetNonOverlappingRegion(DM da, PetscInt xs, PetscInt ys, Pet
 /*@
   DMDASetStencilType - Sets the type of the communication stencil
 
-  Logically Collective on DMDA
+  Logically Collective on da
 
   Input Parameter:
 + da    - The DMDA
@@ -450,7 +439,6 @@ PetscErrorCode  DMDASetNonOverlappingRegion(DM da, PetscInt xs, PetscInt ys, Pet
 
   Level: intermediate
 
-.keywords:  distributed array, stencil
 .seealso: DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode  DMDASetStencilType(DM da, DMDAStencilType stype)
@@ -478,7 +466,6 @@ PetscErrorCode  DMDASetStencilType(DM da, DMDAStencilType stype)
 
   Level: intermediate
 
-.keywords:  distributed array, stencil
 .seealso: DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode DMDAGetStencilType(DM da, DMDAStencilType *stype)
@@ -495,7 +482,7 @@ PetscErrorCode DMDAGetStencilType(DM da, DMDAStencilType *stype)
 /*@
   DMDASetStencilWidth - Sets the width of the communication stencil
 
-  Logically Collective on DMDA
+  Logically Collective on da
 
   Input Parameter:
 + da    - The DMDA
@@ -503,7 +490,6 @@ PetscErrorCode DMDAGetStencilType(DM da, DMDAStencilType *stype)
 
   Level: intermediate
 
-.keywords:  distributed array, stencil
 .seealso: DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode  DMDASetStencilWidth(DM da, PetscInt width)
@@ -531,7 +517,6 @@ PetscErrorCode  DMDASetStencilWidth(DM da, PetscInt width)
 
   Level: intermediate
 
-.keywords:  distributed array, stencil
 .seealso: DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode DMDAGetStencilWidth(DM da, PetscInt *width)
@@ -559,7 +544,7 @@ static PetscErrorCode DMDACheckOwnershipRanges_Private(DM da,PetscInt M,PetscInt
 /*@
   DMDASetOwnershipRanges - Sets the number of nodes in each direction on each process
 
-  Logically Collective on DMDA
+  Logically Collective on da
 
   Input Parameter:
 + da - The DMDA
@@ -571,7 +556,6 @@ static PetscErrorCode DMDACheckOwnershipRanges_Private(DM da,PetscInt M,PetscInt
 
   Note: these numbers are NOT multiplied by the number of dof per node.
 
-.keywords:  distributed array
 .seealso: DMDACreate(), DMDestroy(), DMDA
 @*/
 PetscErrorCode  DMDASetOwnershipRanges(DM da, const PetscInt lx[], const PetscInt ly[], const PetscInt lz[])
@@ -613,7 +597,7 @@ PetscErrorCode  DMDASetOwnershipRanges(DM da, const PetscInt lx[], const PetscIn
        DMDASetInterpolationType - Sets the type of interpolation that will be
           returned by DMCreateInterpolation()
 
-   Logically Collective on DMDA
+   Logically Collective on da
 
    Input Parameter:
 +  da - initial distributed array
@@ -623,8 +607,6 @@ PetscErrorCode  DMDASetOwnershipRanges(DM da, const PetscInt lx[], const PetscIn
 
    Notes:
     you should call this on the coarser of the two DMDAs you pass to DMCreateInterpolation()
-
-.keywords:  distributed array, interpolation
 
 .seealso: DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMDestroy(), DMDA, DMDAInterpolationType
 @*/
@@ -652,8 +634,6 @@ PetscErrorCode  DMDASetInterpolationType(DM da,DMDAInterpolationType ctype)
 .  ctype - interpolation type (DMDA_Q1 and DMDA_Q0 are currently the only supported forms)
 
    Level: intermediate
-
-.keywords:  distributed array, interpolation
 
 .seealso: DMDA, DMDAInterpolationType, DMDASetInterpolationType(), DMCreateInterpolation()
 @*/
@@ -744,7 +724,7 @@ PetscErrorCode  DMDAGetOwnershipRanges(DM da,const PetscInt *lx[],const PetscInt
 /*@
      DMDASetRefinementFactor - Set the ratios that the DMDA grid is refined
 
-    Logically Collective on DMDA
+    Logically Collective on da
 
   Input Parameters:
 +    da - the DMDA object
@@ -815,7 +795,7 @@ PetscErrorCode  DMDAGetRefinementFactor(DM da, PetscInt *refine_x, PetscInt *ref
 /*@C
      DMDASetGetMatrix - Sets the routine used by the DMDA to allocate a matrix.
 
-    Logically Collective on DMDA
+    Logically Collective on da
 
   Input Parameters:
 +    da - the DMDA object
@@ -1298,12 +1278,10 @@ PetscErrorCode  DMCoarsenHierarchy_DA(DM da,PetscInt nlevels,DM dac[])
   PetscFunctionReturn(0);
 }
 
-#include <petscgll.h>
-
-PetscErrorCode DMDASetGLLCoordinates_1d(DM dm,PetscGLL *gll)
+PetscErrorCode DMDASetGLLCoordinates_1d(DM dm,PetscInt n,PetscReal *nodes)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,n = gll->n,xs,xn,q;
+  PetscInt       i,j,xs,xn,q;
   PetscScalar    *xx;
   PetscReal      h;
   Vec            x;
@@ -1327,7 +1305,7 @@ PetscErrorCode DMDASetGLLCoordinates_1d(DM dm,PetscGLL *gll)
        Except for the first process, each process starts on the second GLL point of the first element on that process
        */
       for (i= (j == xs && xs > 0)? 1 : 0; i<n; i++) {
-        xx[j*(n-1) + i] = -1.0 + h*j + h*(gll->nodes[i]+1.0)/2.;
+        xx[j*(n-1) + i] = -1.0 + h*j + h*(nodes[i]+1.0)/2.;
       }
     }
     ierr = DMDAVecRestoreArray(dm,x,&xx);CHKERRQ(ierr);
@@ -1339,11 +1317,12 @@ PetscErrorCode DMDASetGLLCoordinates_1d(DM dm,PetscGLL *gll)
 
      DMDASetGLLCoordinates - Sets the global coordinates from -1 to 1 to the GLL points of as many GLL elements that fit the number of grid points
 
-   Collective on DM
+   Collective on da
 
    Input Parameters:
 +   da - the DMDA object
--   gll - the GLL object
+-   n - the number of GLL nodes
+-   nodes - the GLL nodes
 
    Notes:
     the parallel decomposition of grid points must correspond to the degree of the GLL. That is, the number of grid points
@@ -1352,15 +1331,15 @@ PetscErrorCode DMDASetGLLCoordinates_1d(DM dm,PetscGLL *gll)
 
    Level: advanced
 
-.seealso:   DMDACreate(), PetscGLLCreate(), DMGetCoordinates()
+.seealso:   DMDACreate(), PetscDTGaussLobattoLegendreQuadrature(), DMGetCoordinates()
 @*/
-PetscErrorCode DMDASetGLLCoordinates(DM da,PetscGLL *gll)
+PetscErrorCode DMDASetGLLCoordinates(DM da,PetscInt n,PetscReal *nodes)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (da->dim == 1) {
-    ierr = DMDASetGLLCoordinates_1d(da,gll);CHKERRQ(ierr);
+    ierr = DMDASetGLLCoordinates_1d(da,n,nodes);CHKERRQ(ierr);
   } else SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_SUP,"Not yet implemented for 2 or 3d");
   PetscFunctionReturn(0);
 }

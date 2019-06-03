@@ -14,8 +14,6 @@
 
    Level: beginner
 
-  Concepts: field variables, unknowns, arrays
-
 .seealso:  VecCreate(), VecType, VecSetType()
 S*/
 typedef struct _p_Vec*         Vec;
@@ -25,8 +23,6 @@ typedef struct _p_Vec*         Vec;
        between vectors in parallel. Manages both scatters and gathers
 
    Level: beginner
-
-  Concepts: scatter
 
 .seealso:  VecScatterCreate(), VecScatterBegin(), VecScatterEnd()
 S*/
@@ -434,6 +430,7 @@ PETSC_EXTERN PetscErrorCode VecMTDotBegin(Vec,PetscInt,const Vec[],PetscScalar[]
 PETSC_EXTERN PetscErrorCode VecMTDotEnd(Vec,PetscInt,const Vec[],PetscScalar[]);
 PETSC_EXTERN PetscErrorCode PetscCommSplitReductionBegin(MPI_Comm);
 
+PETSC_EXTERN PetscErrorCode VecPinToCPU(Vec,PetscBool);
 
 typedef enum {VEC_IGNORE_OFF_PROC_ENTRIES,VEC_IGNORE_NEGATIVE_INDICES,VEC_SUBSET_OFF_PROC_ENTRIES} VecOption;
 PETSC_EXTERN PetscErrorCode VecSetOption(Vec,VecOption,PetscBool );
@@ -450,7 +447,7 @@ PETSC_EXTERN PetscErrorCode VecRestoreLocalVectorRead(Vec,Vec);
 /*@C
    VecGetArrayPair - Accesses a pair of pointers for two vectors that may be common. When not common the first is read only
 
-   Logically Collective on Vec
+   Logically Collective on x
 
    Input Parameters:
 +  x - the vector
@@ -484,7 +481,7 @@ PETSC_STATIC_INLINE PetscErrorCode VecGetArrayPair(Vec x,Vec y,PetscScalar **xv,
 /*@C
    VecRestoreArrayPair - Returns a pair of pointers for two vectors that may be common. When not common the first is read only
 
-   Logically Collective on Vec
+   Logically Collective on x
 
    Input Parameters:
 +  x - the vector
@@ -529,8 +526,8 @@ PETSC_STATIC_INLINE PetscErrorCode VecSetErrorIfLocked(Vec x,PetscInt arg)
   PetscFunctionReturn(0);
 }
 /* The three are deprecated */
-PETSC_DEPRECATED("Use VecLockReadPush (since v3.11)") PetscErrorCode VecLockPush(Vec);
-PETSC_DEPRECATED("Use VecLockReadPop (since v3.11)")  PetscErrorCode VecLockPop(Vec);
+PETSC_DEPRECATED_FUNCTION("Use VecLockReadPush() (since version 3.11)") PetscErrorCode VecLockPush(Vec);
+PETSC_DEPRECATED_FUNCTION("Use VecLockReadPop() (since version 3.11)")  PetscErrorCode VecLockPop(Vec);
 #define VecLocked(x,arg) VecSetErrorIfLocked(x,arg)
 #else
 #define VecLockReadPush(x)           0
@@ -605,8 +602,6 @@ PETSC_EXTERN PetscErrorCode PetscViewerMathematicaPutVector(PetscViewer, Vec);
 
     This is faked by storing a single vector that has enough array space for
     n vectors
-
-  Concepts: parallel decomposition
 
 S*/
         struct _n_Vecs  {PetscInt n; Vec v;};

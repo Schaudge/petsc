@@ -5,11 +5,12 @@
 
 #include <petscis.h> /*I "petscis.h" I*/
 #include <petscsf.h>
+#include <petsc/private/isimpl.h>
 
 /*@
   PetscLayoutCreate - Allocates PetscLayout space and sets the map contents to the default.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 + comm - the MPI communicator
@@ -60,7 +61,7 @@ PetscErrorCode PetscLayoutCreate(MPI_Comm comm,PetscLayout *map)
 /*@
   PetscLayoutDestroy - Frees a map object and frees its range if that exists.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 . map - the PetscLayout
@@ -123,7 +124,7 @@ static PetscErrorCode PetscLayoutSetUp_SizesFromRanges_Private(PetscLayout map)
   PetscLayoutSetUp - given a map where you have set either the global or local
                      size sets up the map so that it may be used.
 
-  Collective on MPI_Comm
+  Collective
 
   Input Parameters:
 . map - pointer to the map
@@ -278,7 +279,7 @@ PetscErrorCode PetscLayoutSetISLocalToGlobalMapping(PetscLayout in,ISLocalToGlob
 
   PetscFunctionBegin;
   ierr = ISLocalToGlobalMappingGetBlockSize(ltog,&bs);CHKERRQ(ierr);
-  if (in->bs > 0 && in->bs != bs) SETERRQ2(in->comm,PETSC_ERR_PLIB,"Blocksize of layout %D must match that of mapping %D",in->bs,bs);
+  if (in->bs > 0 && (bs != 1) && in->bs != bs) SETERRQ2(in->comm,PETSC_ERR_PLIB,"Blocksize of layout %D must match that of mapping %D (or the latter must be 1)",in->bs,bs);
   ierr = PetscObjectReference((PetscObject)ltog);CHKERRQ(ierr);
   ierr = ISLocalToGlobalMappingDestroy(&in->mapping);CHKERRQ(ierr);
   in->mapping = ltog;
@@ -581,5 +582,64 @@ PetscErrorCode PetscLayoutCompare(PetscLayout mapa,PetscLayout mapb,PetscBool *c
   if (mapa->N == mapb->N && mapa->range && mapb->range && sizea == sizeb) {
     ierr = PetscMemcmp(mapa->range,mapb->range,(sizea+1)*sizeof(PetscInt),congruent);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+/* TODO: handle nooffprocentries like MatZeroRowsMapLocal_Private, since this code is the same */
+PetscErrorCode PetscLayoutMapLocal(PetscLayout map,PetscInt N,const PetscInt idxs[], PetscInt *on,PetscInt **oidxs,PetscInt **ogidxs)
+{
+  PetscInt      *owners = map->range;
+  PetscInt       n      = map->n;
+  PetscSF        sf;
+  PetscInt      *lidxs,*work = NULL;
+  PetscSFNode   *ridxs;
+  PetscMPIInt    rank;
+  PetscInt       r, p = 0, len = 0;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (on) *on = 0;              /* squelch -Wmaybe-uninitialized */
+  /* Create SF where leaves are input idxs and roots are owned idxs */
+  ierr = MPI_Comm_rank(map->comm,&rank);CHKERRQ(ierr);
+  ierr = PetscMalloc1(n,&lidxs);CHKERRQ(ierr);
+  for (r = 0; r < n; ++r) lidxs[r] = -1;
+  ierr = PetscMalloc1(N,&ridxs);CHKERRQ(ierr);
+  for (r = 0; r < N; ++r) {
+    const PetscInt idx = idxs[r];
+    if (idx < 0 || map->N <= idx) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Index %D out of range [0,%D)",idx,map->N);
+    if (idx < owners[p] || owners[p+1] <= idx) { /* short-circuit the search if the last p owns this idx too */
+      ierr = PetscLayoutFindOwner(map,idx,&p);CHKERRQ(ierr);
+    }
+    ridxs[r].rank = p;
+    ridxs[r].index = idxs[r] - owners[p];
+  }
+  ierr = PetscSFCreate(map->comm,&sf);CHKERRQ(ierr);
+  ierr = PetscSFSetGraph(sf,n,N,NULL,PETSC_OWN_POINTER,ridxs,PETSC_OWN_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFReduceBegin(sf,MPIU_INT,(PetscInt*)idxs,lidxs,MPI_LOR);CHKERRQ(ierr);
+  ierr = PetscSFReduceEnd(sf,MPIU_INT,(PetscInt*)idxs,lidxs,MPI_LOR);CHKERRQ(ierr);
+  if (ogidxs) { /* communicate global idxs */
+    PetscInt cum = 0,start,*work2;
+
+    ierr = PetscMalloc1(n,&work);CHKERRQ(ierr);
+    ierr = PetscCalloc1(N,&work2);CHKERRQ(ierr);
+    for (r = 0; r < N; ++r) if (idxs[r] >=0) cum++;
+    ierr = MPI_Scan(&cum,&start,1,MPIU_INT,MPI_SUM,map->comm);CHKERRQ(ierr);
+    start -= cum;
+    cum = 0;
+    for (r = 0; r < N; ++r) if (idxs[r] >=0) work2[r] = start+cum++;
+    ierr = PetscSFReduceBegin(sf,MPIU_INT,work2,work,MPIU_REPLACE);CHKERRQ(ierr);
+    ierr = PetscSFReduceEnd(sf,MPIU_INT,work2,work,MPIU_REPLACE);CHKERRQ(ierr);
+    ierr = PetscFree(work2);CHKERRQ(ierr);
+  }
+  ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
+  /* Compress and put in indices */
+  for (r = 0; r < n; ++r)
+    if (lidxs[r] >= 0) {
+      if (work) work[len] = work[r];
+      lidxs[len++] = r;
+    }
+  if (on) *on = len;
+  if (oidxs) *oidxs = lidxs;
+  if (ogidxs) *ogidxs = work;
   PetscFunctionReturn(0);
 }

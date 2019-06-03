@@ -243,9 +243,9 @@ PETSC_EXTERN PetscErrorCode DMSetBasicAdjacency(DM, PetscBool, PetscBool);
 PETSC_EXTERN PetscErrorCode DMGetNumDS(DM, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMGetDS(DM, PetscDS *);
 PETSC_EXTERN PetscErrorCode DMGetCellDS(DM, PetscInt, PetscDS *);
-PETSC_EXTERN PetscErrorCode DMGetRegionDS(DM, DMLabel, PetscDS *);
-PETSC_EXTERN PetscErrorCode DMSetRegionDS(DM, DMLabel, PetscDS);
-PETSC_EXTERN PetscErrorCode DMGetRegionNumDS(DM, PetscInt, DMLabel *, PetscDS *);
+PETSC_EXTERN PetscErrorCode DMGetRegionDS(DM, DMLabel, IS *, PetscDS *);
+PETSC_EXTERN PetscErrorCode DMSetRegionDS(DM, DMLabel, IS, PetscDS);
+PETSC_EXTERN PetscErrorCode DMGetRegionNumDS(DM, PetscInt, DMLabel *, IS *, PetscDS *);
 PETSC_EXTERN PetscErrorCode DMCreateDS(DM);
 PETSC_EXTERN PetscErrorCode DMClearDS(DM);
 PETSC_EXTERN PetscErrorCode DMCopyDS(DM, DM);
@@ -330,6 +330,8 @@ PETSC_EXTERN PetscErrorCode DMProjectFieldLabelLocal(DM,PetscReal,DMLabel,PetscI
 PETSC_EXTERN PetscErrorCode DMComputeL2Diff(DM,PetscReal,PetscErrorCode(**)(PetscInt,PetscReal,const PetscReal[],PetscInt,PetscScalar *,void *),void **,Vec,PetscReal *);
 PETSC_EXTERN PetscErrorCode DMComputeL2GradientDiff(DM, PetscReal, PetscErrorCode (**)(PetscInt, PetscReal, const PetscReal [], const PetscReal [], PetscInt, PetscScalar *, void *), void **, Vec, const PetscReal [], PetscReal *);
 PETSC_EXTERN PetscErrorCode DMComputeL2FieldDiff(DM,PetscReal,PetscErrorCode(**)(PetscInt,PetscReal,const PetscReal[],PetscInt,PetscScalar *,void *),void **,Vec,PetscReal *);
+PETSC_EXTERN PetscErrorCode DMHasBasisTransform(DM,PetscBool*);
+PETSC_EXTERN PetscErrorCode DMCopyTransform(DM, DM);
 
 PETSC_EXTERN PetscErrorCode DMGetNullSpaceConstructor(DM, PetscInt, PetscErrorCode (**)(DM, PetscInt, MatNullSpace *));
 PETSC_EXTERN PetscErrorCode DMSetNullSpaceConstructor(DM, PetscInt, PetscErrorCode (*)(DM, PetscInt, MatNullSpace *));

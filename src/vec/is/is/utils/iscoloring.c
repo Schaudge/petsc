@@ -233,7 +233,7 @@ PetscErrorCode  ISColoringRestoreIS(ISColoring iscoloring,IS *is[])
     ISColoringCreate - Generates an ISColoring context from lists (provided
     by each processor) of colors for each node.
 
-    Collective on MPI_Comm
+    Collective
 
     Input Parameters:
 +   comm - communicator for the processors creating the coloring
@@ -613,10 +613,6 @@ PetscErrorCode  ISPartitioningCount(IS part,PetscInt len,PetscInt count[])
 
     Level: intermediate
 
-    Concepts: gather^index sets
-    Concepts: index sets^gathering to all processors
-    Concepts: IS^gathering to all processors
-
 .seealso: ISCreateGeneral(), ISCreateStride(), ISCreateBlock()
 @*/
 PetscErrorCode  ISAllGather(IS is,IS *isout)
@@ -666,7 +662,7 @@ PetscErrorCode  ISAllGather(IS is,IS *isout)
     ISAllGatherColors - Given a a set of colors on each processor, generates a large
     set (same on each processor) by concatenating together each processors colors
 
-    Collective on MPI_Comm
+    Collective
 
     Input Parameter:
 +   comm - communicator to share the indices
@@ -682,10 +678,6 @@ PetscErrorCode  ISAllGather(IS is,IS *isout)
 
 
     Level: intermediate
-
-    Concepts: gather^index sets
-    Concepts: index sets^gathering to all processors
-    Concepts: IS^gathering to all processors
 
 .seealso: ISCreateGeneral(), ISCreateStride(), ISCreateBlock(), ISAllGather()
 @*/
@@ -737,10 +729,6 @@ PetscErrorCode  ISAllGatherColors(MPI_Comm comm,PetscInt n,ISColoringValue *lind
     call this routine.
 
     Level: intermediate
-
-    Concepts: gather^index sets
-    Concepts: index sets^gathering to all processors
-    Concepts: IS^gathering to all processors
 
 .seealso: ISCreateGeneral(), ISCreateStride(), ISCreateBlock(), ISAllGather()
 @*/

@@ -3,7 +3,6 @@
      Provides the functions for index sets (IS) defined by a list of integers.
 */
 #include <../src/vec/is/is/impls/general/general.h> /*I  "petscis.h"  I*/
-#include <petscvec.h>
 #include <petscviewer.h>
 #include <petscviewerhdf5.h>
 
@@ -238,6 +237,7 @@ static PetscErrorCode ISView_General_HDF5(IS is, PetscViewer viewer)
 
   PetscFunctionBegin;
   ierr = ISGetBlockSize(is,&bs);CHKERRQ(ierr);
+  bs   = PetscMax(bs, 1); /* If N = 0, bs  = 0 as well */
   ierr = PetscViewerHDF5OpenGroup(viewer, &file_id, &group);CHKERRQ(ierr);
   ierr = PetscViewerHDF5GetTimestep(viewer, &timestep);CHKERRQ(ierr);
 
@@ -622,7 +622,7 @@ PetscErrorCode ISSetUp_General(IS is)
    ISCreateGeneral - Creates a data structure for an index set
    containing a list of integers.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - the MPI communicator
@@ -642,8 +642,6 @@ PetscErrorCode ISSetUp_General(IS is)
 
    Level: beginner
 
-  Concepts: index sets^creating
-  Concepts: IS^creating
 
 .seealso: ISCreateStride(), ISCreateBlock(), ISAllGather(), PETSC_COPY_VALUES, PETSC_OWN_POINTER, PETSC_USE_POINTER, PetscCopyMode
 @*/
@@ -671,8 +669,6 @@ PetscErrorCode  ISCreateGeneral(MPI_Comm comm,PetscInt n,const PetscInt idx[],Pe
 
    Level: beginner
 
-  Concepts: index sets^creating
-  Concepts: IS^creating
 
 .seealso: ISCreateGeneral(), ISCreateStride(), ISCreateBlock(), ISAllGather()
 @*/
@@ -729,9 +725,3 @@ PETSC_EXTERN PetscErrorCode ISCreate_General(IS is)
   ierr = PetscObjectComposeFunction((PetscObject)is,"ISGeneralSetIndices_C",ISGeneralSetIndices_General);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-
-
-
-
-

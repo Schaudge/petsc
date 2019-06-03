@@ -39,7 +39,7 @@ PetscErrorCode  PetscViewersDestroy(PetscViewers *v)
 /*@C
    PetscViewersCreate - Creates a container to hold a set of PetscViewers.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameter:
 .   comm - the MPI communicator
@@ -48,8 +48,6 @@ PetscErrorCode  PetscViewersDestroy(PetscViewers *v)
 .  v - the collection of PetscViewers
 
    Level: intermediate
-
-   Concepts: PetscViewer^array of
 
 .seealso: PetscViewerCreate(), PetscViewersDestroy()
 
@@ -80,8 +78,6 @@ PetscErrorCode  PetscViewersCreate(MPI_Comm comm,PetscViewers *v)
 .  viewer - the PetscViewer
 
    Level: intermediate
-
-   Concepts: PetscViewer^array of
 
 .seealso: PetscViewersCreate(), PetscViewersDestroy()
 

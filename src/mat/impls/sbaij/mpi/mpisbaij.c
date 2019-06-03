@@ -2475,8 +2475,6 @@ M*/
 
    Level: intermediate
 
-.keywords: matrix, block, aij, compressed row, sparse, parallel
-
 .seealso: MatCreate(), MatCreateSeqSBAIJ(), MatSetValues(), MatCreateBAIJ(), PetscSplitOwnership()
 @*/
 PetscErrorCode  MatMPISBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt d_nz,const PetscInt d_nnz[],PetscInt o_nz,const PetscInt o_nnz[])
@@ -2498,7 +2496,7 @@ PetscErrorCode  MatMPISBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt d_nz,cons
    d_nz (or d_nnz) and o_nz (or o_nnz).  By setting these parameters accurately,
    performance can be increased by more than a factor of 50.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -2589,8 +2587,6 @@ PetscErrorCode  MatMPISBAIJSetPreallocation(Mat B,PetscInt bs,PetscInt d_nz,cons
    matrices.
 
    Level: intermediate
-
-.keywords: matrix, block, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqSBAIJ(), MatSetValues(), MatCreateBAIJ()
 @*/
@@ -2754,7 +2750,7 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
   if (!rank) {
-    ierr = PetscBinaryRead(fd,(char*)header,4,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,(char*)header,4,NULL,PETSC_INT);CHKERRQ(ierr);
     if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not matrix object");
     if (header[3] < 0) SETERRQ(PetscObjectComm((PetscObject)newmat),PETSC_ERR_FILE_UNEXPECTED,"Matrix stored in special format, cannot load as MPISBAIJ");
   }
@@ -2802,7 +2798,7 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
   ierr = PetscMalloc1((rend-rstart)*bs,&locrowlens);CHKERRQ(ierr);
   if (!rank) {
     ierr = PetscMalloc1(M+extra_rows,&rowlengths);CHKERRQ(ierr);
-    ierr = PetscBinaryRead(fd,rowlengths,M,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,rowlengths,M,NULL,PETSC_INT);CHKERRQ(ierr);
     for (i=0; i<extra_rows; i++) rowlengths[M+i] = 1;
     ierr = PetscMalloc1(size,&sndcounts);CHKERRQ(ierr);
     for (i=0; i<size; i++) sndcounts[i] = browners[i+1] - browners[i];
@@ -2835,7 +2831,7 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
     ierr   = PetscMalloc1(nz,&ibuf);CHKERRQ(ierr);
     mycols = ibuf;
     if (size == 1) nz -= extra_rows;
-    ierr = PetscBinaryRead(fd,mycols,nz,PETSC_INT);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,mycols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
     if (size == 1) {
       for (i=0; i< extra_rows; i++) mycols[nz+i] = M+i;
     }
@@ -2843,13 +2839,13 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
     /* read in every ones (except the last) and ship off */
     for (i=1; i<size-1; i++) {
       nz   = procsnz[i];
-      ierr = PetscBinaryRead(fd,cols,nz,PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,cols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
       ierr = MPI_Send(cols,nz,MPIU_INT,i,tag,comm);CHKERRQ(ierr);
     }
     /* read in the stuff for the last proc */
     if (size != 1) {
       nz   = procsnz[size-1] - extra_rows;  /* the extra rows are not on the disk */
-      ierr = PetscBinaryRead(fd,cols,nz,PETSC_INT);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,cols,nz,NULL,PETSC_INT);CHKERRQ(ierr);
       for (i=0; i<extra_rows; i++) cols[nz+i] = M+i;
       ierr = MPI_Send(cols,nz+extra_rows,MPIU_INT,size-1,tag,comm);CHKERRQ(ierr);
     }
@@ -2908,7 +2904,7 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
     vals   = buf;
     mycols = ibuf;
     if (size == 1) nz -= extra_rows;
-    ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+    ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
     if (size == 1) {
       for (i=0; i< extra_rows; i++) vals[nz+i] = 1.0;
     }
@@ -2926,14 +2922,14 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
     for (i=1; i<size-1; i++) {
       nz   = procsnz[i];
       vals = buf;
-      ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
       ierr = MPI_Send(vals,nz,MPIU_SCALAR,i,((PetscObject)newmat)->tag,comm);CHKERRQ(ierr);
     }
     /* the last proc */
     if (size != 1) {
       nz   = procsnz[i] - extra_rows;
       vals = buf;
-      ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
+      ierr = PetscBinaryRead(fd,vals,nz,NULL,PETSC_SCALAR);CHKERRQ(ierr);
       for (i=0; i<extra_rows; i++) vals[nz+i] = 1.0;
       ierr = MPI_Send(vals,nz+extra_rows,MPIU_SCALAR,size-1,((PetscObject)newmat)->tag,comm);CHKERRQ(ierr);
     }
@@ -2984,8 +2980,6 @@ PetscErrorCode MatLoad_MPISBAIJ(Mat newmat,PetscViewer viewer)
 
   Notes:
    This can also be set by the command line option: -mat_use_hash_table fact
-
-.keywords: matrix, hashtable, factor, HT
 
 .seealso: MatSetOption()
 @XXXXX*/
@@ -3254,7 +3248,7 @@ PetscErrorCode MatSOR_MPISBAIJ_2comm(Mat matin,Vec bb,PetscReal omega,MatSORType
      MatCreateMPISBAIJWithArrays - creates a MPI SBAIJ matrix using arrays that contain in standard
          CSR format the local rows.
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  comm - MPI communicator
@@ -3281,8 +3275,6 @@ PetscErrorCode MatSOR_MPISBAIJ_2comm(Mat matin,Vec bb,PetscReal omega,MatSORType
 
        The i and j indices are 0 based, and i indices are indices corresponding to the local j array.
 
-.keywords: matrix, aij, compressed row, sparse, parallel
-
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIAIJSetPreallocation(), MatMPIAIJSetPreallocationCSR(),
           MPIAIJ, MatCreateAIJ(), MatCreateMPIAIJWithSplitArrays()
 @*/
@@ -3306,7 +3298,7 @@ PetscErrorCode  MatCreateMPISBAIJWithArrays(MPI_Comm comm,PetscInt bs,PetscInt m
    MatMPISBAIJSetPreallocationCSR - Allocates memory for a sparse parallel matrix in BAIJ format
    (the default parallel PETSc format).
 
-   Collective on MPI_Comm
+   Collective
 
    Input Parameters:
 +  B - the matrix
@@ -3316,8 +3308,6 @@ PetscErrorCode  MatCreateMPISBAIJWithArrays(MPI_Comm comm,PetscInt bs,PetscInt m
 -  v - optional values in the matrix
 
    Level: developer
-
-.keywords: matrix, aij, compressed row, sparse, parallel
 
 .seealso: MatCreate(), MatCreateSeqAIJ(), MatSetValues(), MatMPIBAIJSetPreallocation(), MatCreateAIJ(), MPIAIJ
 @*/

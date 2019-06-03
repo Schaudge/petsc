@@ -135,14 +135,8 @@
 extern "C" {
 #endif
 
-/* MPI_Aint has to be an signed integral type large enough to hold a pointer */
-#if PETSC_SIZEOF_INT == PETSC_SIZEOF_VOID_P
-typedef int MPI_Aint;
-#elif PETSC_SIZEOF_LONG == PETSC_SIZEOF_VOID_P
-typedef long MPI_Aint;
-#else
+/* MPI_Aint has to be a signed integral type large enough to hold a pointer */
 typedef ptrdiff_t MPI_Aint;
-#endif
 
 /* old 32bit MS compiler does not support long long */
 #if defined(PETSC_SIZEOF_LONG_LONG)
@@ -844,14 +838,9 @@ typedef int MPI_Fint;
       MPIUNI_ARG(comm),\
       MPI_SUCCESS)
 #define MPI_Reduce_scatter(sendbuf,recvbuf,recvcounts,datatype,op,comm) \
-     (MPIUNI_ARG(sendbuf),\
-      MPIUNI_ARG(recvbuf),\
-      MPIUNI_ARG(recvcounts),\
-      MPIUNI_ARG(datatype),\
-      MPIUNI_ARG(op),\
+     (MPIUNI_ARG(op),\
       MPIUNI_ARG(comm),\
-      MPIUni_Abort(MPI_COMM_WORLD,0))
-
+      MPIUNI_Memcpy(recvbuf,sendbuf,(*recvcounts)*MPI_sizeof(datatype)))
 #define MPI_Op_create(function,commute,op) \
      (MPIUNI_ARG(function),\
       MPIUNI_ARG(commute),\

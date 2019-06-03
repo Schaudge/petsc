@@ -6,8 +6,6 @@
 
    Level: intermediate
 
-  Concepts: grids, grid refinement
-
    Notes:
     The DMDACreate() based object and the DMCompositeCreate() based object are examples of DMs
 
@@ -37,7 +35,7 @@ typedef struct _p_DM* DM;
   as the 0th grid point where the physical boundary serves as the mirror?
 
   References: 
-  http://scicomp.stackexchange.com/questions/5355/writing-the-poisson-equation-finite-difference-matrix-with-neumann-boundary-cond
+  https://scicomp.stackexchange.com/questions/5355/writing-the-poisson-equation-finite-difference-matrix-with-neumann-boundary-cond
 
 .seealso: DMDASetBoundaryType(), DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMDACreate()
 E*/
@@ -48,8 +46,9 @@ typedef enum {DM_BOUNDARY_NONE, DM_BOUNDARY_GHOSTED, DM_BOUNDARY_MIRROR, DM_BOUN
   Note: This flag indicates the type of function which will define the condition:
 $ DM_BC_ESSENTIAL       - A Dirichlet condition using a function of the coordinates
 $ DM_BC_ESSENTIAL_FIELD - A Dirichlet condition using a function of the coordinates and auxiliary field data
+$ DM_BC_ESSENTIAL_BD_FIELD - A Dirichlet condition using a function of the coordinates, facet normal, and auxiliary field data
 $ DM_BC_NATURAL         - A Neumann condition using a function of the coordinates
-$ DM_BC_NATURAL_FIELD   - A Dirichlet condition using a function of the coordinates and auxiliary field data
+$ DM_BC_NATURAL_FIELD   - A Neumann condition using a function of the coordinates and auxiliary field data
 $ DM_BC_NATURAL_RIEMANN - A flux condition which determines the state in ghost cells
 The user can check whether a boundary condition is essential using (type & DM_BC_ESSENTIAL), and similarly for
 natural conditions (type & DM_BC_NATURAL)
@@ -58,7 +57,7 @@ natural conditions (type & DM_BC_NATURAL)
 
 .seealso: DMAddBoundary(), DMGetBoundary()
 E*/
-typedef enum {DM_BC_ESSENTIAL = 1, DM_BC_ESSENTIAL_FIELD = 5, DM_BC_NATURAL = 2, DM_BC_NATURAL_FIELD = 6, DM_BC_NATURAL_RIEMANN = 10} DMBoundaryConditionType;
+typedef enum {DM_BC_ESSENTIAL = 1, DM_BC_ESSENTIAL_FIELD = 5, DM_BC_NATURAL = 2, DM_BC_NATURAL_FIELD = 6, DM_BC_ESSENTIAL_BD_FIELD = 9, DM_BC_NATURAL_RIEMANN = 10} DMBoundaryConditionType;
 
 /*E
   DMPointLocationType - Describes the method to handle point location failure
@@ -114,8 +113,6 @@ typedef enum {DM_ADAPT_DETERMINE = PETSC_DETERMINE, DM_ADAPT_KEEP = 0, DM_ADAPT_
   PetscPartitioner - PETSc object that manages a graph partitioner
 
   Level: intermediate
-
-  Concepts: partition, mesh
 
 .seealso: PetscPartitionerCreate(), PetscPartitionerSetType(), PetscPartitionerType
 S*/

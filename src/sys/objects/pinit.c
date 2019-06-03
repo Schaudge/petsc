@@ -369,11 +369,9 @@ PETSC_EXTERN PetscMPIInt MPIAPI Petsc_DelComm_Inner(MPI_Comm comm,PetscMPIInt ke
 PETSC_EXTERN PetscMPIInt MPIAPI Petsc_DelComm_Shm(MPI_Comm,PetscMPIInt,void *,void *);
 
 #if defined(PETSC_USE_PETSC_MPI_EXTERNAL32)
-#if !defined(PETSC_WORDS_BIGENDIAN)
 PETSC_EXTERN PetscMPIInt PetscDataRep_extent_fn(MPI_Datatype,MPI_Aint*,void*);
 PETSC_EXTERN PetscMPIInt PetscDataRep_read_conv_fn(void*, MPI_Datatype,PetscMPIInt,void*,MPI_Offset,void*);
 PETSC_EXTERN PetscMPIInt PetscDataRep_write_conv_fn(void*, MPI_Datatype,PetscMPIInt,void*,MPI_Offset,void*);
-#endif
 #endif
 
 PetscMPIInt PETSC_MPI_ERROR_CLASS,PETSC_MPI_ERROR_CODE;
@@ -451,8 +449,6 @@ PetscErrorCode  PetscGetProgramName(char name[],size_t len)
 
       The first argument contains the program name as is normal for C arguments.
 
-   Concepts: command line arguments
-
 .seealso: PetscFinalize(), PetscInitializeFortran(), PetscGetArguments()
 
 @*/
@@ -478,8 +474,6 @@ PetscErrorCode  PetscGetArgs(int *argc,char ***args)
 
    Notes:
       This does NOT start with the program name and IS null terminated (final arg is void)
-
-   Concepts: command line arguments
 
 .seealso: PetscFinalize(), PetscInitializeFortran(), PetscGetArgs(), PetscFreeArguments()
 
@@ -509,8 +503,6 @@ PetscErrorCode  PetscGetArguments(char ***args)
 .  args - the command line arguments
 
    Level: intermediate
-
-   Concepts: command line arguments
 
 .seealso: PetscFinalize(), PetscInitializeFortran(), PetscGetArgs(), PetscGetArguments()
 
@@ -610,7 +602,7 @@ PETSC_INTERN PetscErrorCode PetscInitializeSAWs(const char help[])
     ierr = PetscFree(options);CHKERRQ(ierr);
     ierr = PetscGetVersion(version,sizeof(version));CHKERRQ(ierr);
     ierr = PetscSNPrintf(intro,introlen,"<body>\n"
-                                    "<center><h2> <a href=\"http://www.mcs.anl.gov/petsc\">PETSc</a> Application Web server powered by <a href=\"https://bitbucket.org/saws/saws\">SAWs</a> </h2></center>\n"
+                                    "<center><h2> <a href=\"https://www.mcs.anl.gov/petsc\">PETSc</a> Application Web server powered by <a href=\"https://bitbucket.org/saws/saws\">SAWs</a> </h2></center>\n"
                                     "<center>This is the default PETSc application dashboard, from it you can access any published PETSc objects or logging data</center><br><center>%s configured with %s</center><br>\n"
                                     "%s",version,petscconfigureoptions,appline);CHKERRQ(ierr);
     PetscStackCallSAWs(SAWs_Push_Body,("index.html",0,intro));
@@ -652,6 +644,10 @@ int64_t Petsc_adios_group;
 #endif
 #if defined(PETSC_HAVE_ADIOS2)
 #include <adios2_c.h>
+#endif
+#if defined(PETSC_HAVE_OPENMP)
+#include <omp.h>
+PetscInt PetscNumOMPThreads;
 #endif
 
 /*@C
@@ -759,8 +755,6 @@ $       call PetscInitialize(file,ierr)
 
    If your main program is C but you call Fortran code that also uses PETSc you need to call PetscInitializeFortran() soon after
    calling PetscInitialize().
-
-   Concepts: initializing PETSc
 
 .seealso: PetscFinalize(), PetscInitializeFortran(), PetscGetArgs(), PetscInitializeNoArguments()
 
@@ -901,6 +895,13 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
   MPIU_BOOL = MPI_INT;
   MPIU_ENUM = MPI_INT;
+  MPIU_FORTRANADDR = (sizeof(void*) == sizeof(int)) ? MPI_INT : MPIU_INT64;
+  if (sizeof(size_t) == sizeof(unsigned)) MPIU_SIZE_T = MPI_UNSIGNED;
+  else if (sizeof(size_t) == sizeof(unsigned long)) MPIU_SIZE_T = MPI_UNSIGNED_LONG;
+#if defined(PETSC_SIZEOF_LONG_LONG)
+  else if (sizeof(size_t) == sizeof(unsigned long long)) MPIU_SIZE_T = MPI_UNSIGNED_LONG_LONG;
+#endif
+  else {(*PetscErrorPrintf)("PetscInitialize: Could not find MPI type for size_t\n"); return PETSC_ERR_SUP_SYS;}
 
   /*
      Initialized the global complex variable; this is because with
@@ -1006,7 +1007,40 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
   ierr = PetscInfo1(0,"PETSc successfully started: number of processors = %d\n",size);CHKERRQ(ierr);
   ierr = PetscGetHostName(hostname,256);CHKERRQ(ierr);
   ierr = PetscInfo1(0,"Running on machine: %s\n",hostname);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_OPENMP)
+  {
+    PetscBool omp_view_flag;
+    char      *threads = getenv("OMP_NUM_THREADS");
 
+   if (threads) {
+     ierr = PetscInfo1(0,"Number of OpenMP threads %s (given by OMP_NUM_THREADS)\n",threads);CHKERRQ(ierr);
+     (void) sscanf(threads, "%" PetscInt_FMT,&PetscNumOMPThreads);
+   } else {
+#define NMAX  10000
+     int          i;
+      PetscScalar *x;
+      ierr = PetscMalloc1(NMAX,&x);CHKERRQ(ierr);
+#pragma omp parallel for
+      for (i=0; i<NMAX; i++) {
+        x[i] = 0.0;
+        PetscNumOMPThreads  = (PetscInt) omp_get_num_threads();
+      }
+      ierr = PetscFree(x);CHKERRQ(ierr);
+      ierr = PetscInfo1(0,"Number of OpenMP threads %D (number not set with OMP_NUM_THREADS, chosen by system)\n",PetscNumOMPThreads);CHKERRQ(ierr);
+    }
+    ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"OpenMP options","Sys");CHKERRQ(ierr);
+    ierr = PetscOptionsInt("-omp_num_threads","Number of OpenMP threads to use (can also use environmental variable OMP_NUM_THREADS","None",PetscNumOMPThreads,&PetscNumOMPThreads,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsName("-omp_view","Display OpenMP number of threads",NULL,&omp_view_flag);CHKERRQ(ierr);
+    ierr = PetscOptionsEnd();CHKERRQ(ierr);
+    if (flg) {
+      ierr = PetscInfo1(0,"Number of OpenMP theads %D (given by -omp_num_threads)\n",PetscNumOMPThreads);CHKERRQ(ierr);
+      omp_set_num_threads((int)PetscNumOMPThreads);
+    }
+    if (omp_view_flag) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"OpenMP: number of threads %D\n",PetscNumOMPThreads);CHKERRQ(ierr);
+    }
+  }
+#endif
   ierr = PetscOptionsCheckInitial_Components();CHKERRQ(ierr);
   /* Check the options database for options related to the options database itself */
   ierr = PetscOptionsSetFromOptions(NULL);CHKERRQ(ierr);
@@ -1017,9 +1051,9 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
       Currently not used because it is not supported by MPICH.
   */
-#if !defined(PETSC_WORDS_BIGENDIAN)
-  ierr = MPI_Register_datarep((char*)"petsc",PetscDataRep_read_conv_fn,PetscDataRep_write_conv_fn,PetscDataRep_extent_fn,NULL);CHKERRQ(ierr);
-#endif
+  if (!PetscBinaryBigEndian()) {
+    ierr = MPI_Register_datarep((char*)"petsc",PetscDataRep_read_conv_fn,PetscDataRep_write_conv_fn,PetscDataRep_extent_fn,NULL);CHKERRQ(ierr);
+  }
 #endif
 
   /*

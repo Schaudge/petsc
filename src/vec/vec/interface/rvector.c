@@ -100,8 +100,6 @@ $     val = (x,y) = y^T x,
 
    Level: intermediate
 
-   Concepts: inner product
-   Concepts: vector^inner product
 
 .seealso: VecMDot(), VecTDot(), VecNorm(), VecDotBegin(), VecDotEnd(), VecDotRealPart()
 @*/
@@ -152,8 +150,6 @@ $    work load inbalance that causes certain processes to arrive much earlier th
 
    Level: intermediate
 
-   Concepts: inner product
-   Concepts: vector^inner product
 
 .seealso: VecMDot(), VecTDot(), VecNorm(), VecDotBegin(), VecDotEnd(), VecDot(), VecDotNorm2()
 @*/
@@ -199,8 +195,6 @@ $    per-processor memory bandwidth
 $    interprocessor latency
 $    work load inbalance that causes certain processes to arrive much earlier than others
 
-   Concepts: norm
-   Concepts: vector^norm
 
 .seealso: VecDot(), VecTDot(), VecNorm(), VecDotBegin(), VecDotEnd(), VecNormAvailable(),
           VecNormBegin(), VecNormEnd()
@@ -265,8 +259,6 @@ $    work load inbalance that causes certain processes to arrive much earlier th
  than the BLAS. This should probably only be used when one is using the FORTRAN BLAS routines
  (as opposed to vendor provided) because the FORTRAN BLAS NRM2() routine is very slow.
 
-   Concepts: norm
-   Concepts: vector^norm
 
 .seealso: VecDot(), VecTDot(), VecNorm(), VecDotBegin(), VecDotEnd(), VecNorm()
           VecNormBegin(), VecNormEnd()
@@ -302,8 +294,6 @@ PetscErrorCode  VecNormAvailable(Vec x,NormType type,PetscBool  *available,Petsc
 
    Level: intermediate
 
-   Concepts: vector^normalizing
-   Concepts: normalizing^vector
 
 @*/
 PetscErrorCode  VecNormalize(Vec x,PetscReal *val)
@@ -345,8 +335,6 @@ PetscErrorCode  VecNormalize(Vec x,PetscReal *val)
    Returns the smallest index with the maximum value
    Level: intermediate
 
-   Concepts: maximum^of vector
-   Concepts: vector^maximum value
 
 .seealso: VecNorm(), VecMin()
 @*/
@@ -383,8 +371,6 @@ PetscErrorCode  VecMax(Vec x,PetscInt *p,PetscReal *val)
 
    This returns the smallest index with the minumum value
 
-   Concepts: minimum^of vector
-   Concepts: vector^minimum entry
 
 .seealso: VecMax()
 @*/
@@ -425,10 +411,6 @@ $     val = (x,y) = y^H x,
 
    Level: intermediate
 
-   Concepts: inner product^non-Hermitian
-   Concepts: vector^inner product
-   Concepts: non-Hermitian inner product
-
 .seealso: VecDot(), VecMTDot()
 @*/
 PetscErrorCode  VecTDot(Vec x,Vec y,PetscScalar *val)
@@ -468,8 +450,6 @@ $      x[i] = alpha * x[i], for i=1,...,n.
 
    Level: intermediate
 
-   Concepts: vector^scaling
-   Concepts: scaling^vector
 
 @*/
 PetscErrorCode  VecScale(Vec x, PetscScalar alpha)
@@ -528,8 +508,6 @@ $     x[i] = alpha, for i=1,...,n,
 
 .seealso VecSetValues(), VecSetValuesBlocked(), VecSetRandom()
 
-   Concepts: vector^setting to constant
-
 @*/
 PetscErrorCode  VecSet(Vec x,PetscScalar alpha)
 {
@@ -584,11 +562,17 @@ PetscErrorCode  VecSet(Vec x,PetscScalar alpha)
 
    Notes:
     x and y MUST be different vectors
+    This routine is optimized for alpha of 0.0, otherwise it calls the BLAS routine
 
-   Concepts: vector^BLAS
-   Concepts: BLAS
+$    VecAXPY(y,alpha,x)                   y = alpha x           +      y
+$    VecAYPX(y,beta,x)                    y =       x           + beta y
+$    VecAXPBY(y,alpha,beta,x)             y = alpha x           + beta y
+$    VecWAXPY(w,alpha,x,y)                w = alpha x           +      y
+$    VecAXPBYPCZ(w,alpha,beta,gamma,x,y)  z = alpha x           + beta y + gamma z
+$    VecMAXPY(y,nv,alpha[],x[])           y = sum alpha[i] x[i] +      y
 
-.seealso: VecAYPX(), VecMAXPY(), VecWAXPY()
+
+.seealso:  VecAYPX(), VecMAXPY(), VecWAXPY(), VecAXPBYPCZ(), VecAXPBY()
 @*/
 PetscErrorCode  VecAXPY(Vec y,PetscScalar alpha,Vec x)
 {
@@ -630,11 +614,10 @@ PetscErrorCode  VecAXPY(Vec y,PetscScalar alpha,Vec x)
 
    Notes:
     x and y MUST be different vectors
+    The implementation is optimized for alpha and/or beta values of 0.0 and 1.0
 
-   Concepts: BLAS
-   Concepts: vector^BLAS
 
-.seealso: VecAYPX(), VecMAXPY(), VecWAXPY(), VecAXPY()
+.seealso: VecAYPX(), VecMAXPY(), VecWAXPY(), VecAXPY(), VecAXPBYPCZ()
 @*/
 PetscErrorCode  VecAXPBY(Vec y,PetscScalar alpha,PetscScalar beta,Vec x)
 {
@@ -674,13 +657,10 @@ PetscErrorCode  VecAXPBY(Vec y,PetscScalar alpha,PetscScalar beta,Vec x)
 
    Notes:
     x, y and z must be different vectors
+    The implementation is optimized for alpha of 1.0 and gamma of 1.0 or 0.0
 
-   Developer Note:   alpha = 1 or gamma = 1 or gamma = 0.0 are handled as special cases
 
-   Concepts: BLAS
-   Concepts: vector^BLAS
-
-.seealso: VecAYPX(), VecMAXPY(), VecWAXPY(), VecAXPY()
+.seealso:  VecAYPX(), VecMAXPY(), VecWAXPY(), VecAXPY(), VecAXPBY()
 @*/
 PetscErrorCode  VecAXPBYPCZ(Vec z,PetscScalar alpha,PetscScalar beta,PetscScalar gamma,Vec x,Vec y)
 {
@@ -711,12 +691,12 @@ PetscErrorCode  VecAXPBYPCZ(Vec z,PetscScalar alpha,PetscScalar beta,PetscScalar
 }
 
 /*@
-   VecAYPX - Computes y = x + alpha y.
+   VecAYPX - Computes y = x + beta y.
 
    Logically Collective on Vec
 
    Input Parameters:
-+  alpha - the scalar
++  beta - the scalar
 -  x, y  - the vectors
 
    Output Parameter:
@@ -726,13 +706,12 @@ PetscErrorCode  VecAXPBYPCZ(Vec z,PetscScalar alpha,PetscScalar beta,PetscScalar
 
    Notes:
     x and y MUST be different vectors
+    The implementation is optimized for beta of -1.0, 0.0, and 1.0
 
-   Concepts: vector^BLAS
-   Concepts: BLAS
 
-.seealso: VecAXPY(), VecWAXPY()
+.seealso:  VecMAXPY(), VecWAXPY(), VecAXPY(), VecAXPBYPCZ(), VecAXPBY()
 @*/
-PetscErrorCode  VecAYPX(Vec y,PetscScalar alpha,Vec x)
+PetscErrorCode  VecAYPX(Vec y,PetscScalar beta,Vec x)
 {
   PetscErrorCode ierr;
 
@@ -744,10 +723,10 @@ PetscErrorCode  VecAYPX(Vec y,PetscScalar alpha,Vec x)
   PetscCheckSameTypeAndComm(x,3,y,1);
   VecCheckSameSize(x,1,y,3);
   if (x == y) SETERRQ(PetscObjectComm((PetscObject)x),PETSC_ERR_ARG_IDN,"x and y must be different vectors");
-  PetscValidLogicalCollectiveScalar(y,alpha,2);
+  PetscValidLogicalCollectiveScalar(y,beta,2);
 
   ierr = PetscLogEventBegin(VEC_AYPX,x,y,0,0);CHKERRQ(ierr);
-  ierr =  (*y->ops->aypx)(y,alpha,x);CHKERRQ(ierr);
+  ierr =  (*y->ops->aypx)(y,beta,x);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(VEC_AYPX,x,y,0,0);CHKERRQ(ierr);
   ierr = PetscObjectStateIncrease((PetscObject)y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -770,11 +749,10 @@ PetscErrorCode  VecAYPX(Vec y,PetscScalar alpha,Vec x)
 
    Notes:
     w cannot be either x or y, but x and y can be the same
+    The implementation is optimzed for alpha of -1.0, 0.0, and 1.0
 
-   Concepts: vector^BLAS
-   Concepts: BLAS
 
-.seealso: VecAXPY(), VecAYPX(), VecAXPBY()
+.seealso: VecAXPY(), VecAYPX(), VecAXPBY(), VecMAXPY(), VecAXPBYPCZ()
 @*/
 PetscErrorCode  VecWAXPY(Vec w,PetscScalar alpha,Vec x,Vec y)
 {
@@ -837,8 +815,6 @@ PetscErrorCode  VecWAXPY(Vec w,PetscScalar alpha,Vec x,Vec y)
 
    Level: beginner
 
-   Concepts: vector^setting values
-
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValuesLocal(),
            VecSetValue(), VecSetValuesBlocked(), InsertMode, INSERT_VALUES, ADD_VALUES, VecGetValues()
 @*/
@@ -887,8 +863,6 @@ PetscErrorCode  VecSetValues(Vec x,PetscInt ni,const PetscInt ix[],const PetscSc
    simply ignored.
 
    Level: beginner
-
-   Concepts: vector^getting values
 
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValues()
 @*/
@@ -940,8 +914,6 @@ PetscErrorCode  VecGetValues(Vec x,PetscInt ni,const PetscInt ix[],PetscScalar y
 
    Level: intermediate
 
-   Concepts: vector^setting values blocked
-
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValuesBlockedLocal(),
            VecSetValues()
 @*/
@@ -991,8 +963,6 @@ PetscErrorCode  VecSetValuesBlocked(Vec x,PetscInt ni,const PetscInt ix[],const 
    MUST be called after all calls to VecSetValuesLocal() have been completed.
 
    VecSetValuesLocal() uses 0-based indices in Fortran as well as in C.
-
-   Concepts: vector^setting values with local numbering
 
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValues(), VecSetLocalToGlobalMapping(),
            VecSetValuesBlockedLocal()
@@ -1059,8 +1029,6 @@ PetscErrorCode  VecSetValuesLocal(Vec x,PetscInt ni,const PetscInt ix[],const Pe
    VecSetValuesBlockedLocal() uses 0-based indices in Fortran as well as in C.
 
 
-   Concepts: vector^setting values blocked with local numbering
-
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValues(), VecSetValuesBlocked(),
            VecSetLocalToGlobalMapping()
 @*/
@@ -1115,8 +1083,6 @@ $      val = (x,y) = y^H x,
 
    Level: intermediate
 
-   Concepts: inner product^multiple
-   Concepts: vector^multiple inner products
 
 .seealso: VecMDot(), VecTDot()
 @*/
@@ -1166,8 +1132,6 @@ $     val = (x,y) = y^T x,
 
    Level: intermediate
 
-   Concepts: inner product^multiple
-   Concepts: vector^multiple inner products
 
 .seealso: VecMTDot(), VecDot()
 @*/
@@ -1195,7 +1159,7 @@ PetscErrorCode  VecMDot(Vec x,PetscInt nv,const Vec y[],PetscScalar val[])
 }
 
 /*@
-   VecMAXPY - Computes y = y + sum alpha[j] x[j]
+   VecMAXPY - Computes y = y + sum alpha[i] x[i]
 
    Logically Collective on Vec
 
@@ -1210,9 +1174,7 @@ PetscErrorCode  VecMDot(Vec x,PetscInt nv,const Vec y[],PetscScalar val[])
    Notes:
     y cannot be any of the x vectors
 
-   Concepts: BLAS
-
-.seealso: VecAXPY(), VecWAXPY(), VecAYPX()
+.seealso:  VecAYPX(), VecWAXPY(), VecAXPY(), VecAXPBYPCZ(), VecAXPBY()
 @*/
 PetscErrorCode  VecMAXPY(Vec y,PetscInt nv,const PetscScalar alpha[],Vec x[])
 {
@@ -1243,7 +1205,7 @@ PetscErrorCode  VecMAXPY(Vec y,PetscInt nv,const PetscScalar alpha[],Vec x[])
 /*@
    VecGetSubVector - Gets a vector representing part of another vector
 
-   Collective on IS (and Vec if nonlocal entries are needed)
+   Collective on IS
 
    Input Arguments:
 + X - vector from which to extract a subvector
@@ -1333,7 +1295,7 @@ PetscErrorCode  VecGetSubVector(Vec X,IS is,Vec *Y)
 /*@
    VecRestoreSubVector - Restores a subvector extracted using VecGetSubVector()
 
-   Collective on IS (and Vec if nonlocal entries need to be written)
+   Collective on IS
 
    Input Arguments:
 + X - vector from which subvector was obtained
@@ -1567,8 +1529,6 @@ $       call VecRestoreArray(x,x_array,i_x,ierr)
    petsc/src/snes/examples/tutorials/ex5f.F for details.
 
    Level: beginner
-
-   Concepts: vector^accessing local values
 
 .seealso: VecRestoreArray(), VecGetArrayRead(), VecGetArrays(), VecGetArrayF90(), VecGetArrayReadF90(), VecPlaceArray(), VecGetArray2d(),
           VecGetArrayPair(), VecRestoreArrayPair()
@@ -2161,8 +2121,6 @@ M*/
 
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
 
-   Concepts: vector^accessing local values as 2d array
-
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
           VecRestoreArray2d(), DMDAVecGetArray(), DMDAVecRestoreArray(), VecGetArray3d(), VecRestoreArray3d(),
           VecGetArray1d(), VecRestoreArray1d(), VecGetArray4d(), VecRestoreArray4d()
@@ -2294,8 +2252,6 @@ PetscErrorCode  VecGetArray1d(Vec x,PetscInt m,PetscInt mstart,PetscScalar *a[])
 
    This routine actually zeros out the a pointer.
 
-   Concepts: vector^accessing local values as 1d array
-
 .seealso: VecGetArray(), VecRestoreArray(), VecRestoreArrays(), VecRestoreArrayF90(), VecPlaceArray(),
           VecGetArray2d(), VecGetArray3d(), VecRestoreArray3d(), DMDAVecGetArray(), DMDAVecRestoreArray()
           VecGetArray1d(), VecRestoreArray2d(), VecGetArray4d(), VecRestoreArray4d()
@@ -2340,8 +2296,6 @@ PetscErrorCode  VecRestoreArray1d(Vec x,PetscInt m,PetscInt mstart,PetscScalar *
    the arguments from DMDAGet[Ghost]Corners() are reversed in the call to VecGetArray3d().
 
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
-
-   Concepts: vector^accessing local values as 3d array
 
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
           VecRestoreArray2d(), DMDAVecGetarray(), DMDAVecRestoreArray(), VecGetArray3d(), VecRestoreArray3d(),
@@ -2446,8 +2400,6 @@ PetscErrorCode  VecRestoreArray3d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscIn
    the arguments from DMDAGet[Ghost]Corners() are reversed in the call to VecGetArray3d().
 
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
-
-   Concepts: vector^accessing local values as 3d array
 
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
           VecRestoreArray2d(), DMDAVecGetarray(), DMDAVecRestoreArray(), VecGetArray3d(), VecRestoreArray3d(),
@@ -2554,8 +2506,6 @@ PetscErrorCode  VecRestoreArray4d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscIn
    the arguments from DMDAGet[Ghost]Corners() are reversed in the call to VecGetArray2d().
 
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
-
-   Concepts: vector^accessing local values as 2d array
 
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
           VecRestoreArray2d(), DMDAVecGetArray(), DMDAVecRestoreArray(), VecGetArray3d(), VecRestoreArray3d(),
@@ -2688,8 +2638,6 @@ PetscErrorCode  VecGetArray1dRead(Vec x,PetscInt m,PetscInt mstart,PetscScalar *
 
    This routine actually zeros out the a pointer.
 
-   Concepts: vector^accessing local values as 1d array
-
 .seealso: VecGetArray(), VecRestoreArray(), VecRestoreArrays(), VecRestoreArrayF90(), VecPlaceArray(),
           VecGetArray2d(), VecGetArray3d(), VecRestoreArray3d(), DMDAVecGetArray(), DMDAVecRestoreArray()
           VecGetArray1d(), VecRestoreArray2d(), VecGetArray4d(), VecRestoreArray4d()
@@ -2734,8 +2682,6 @@ PetscErrorCode  VecRestoreArray1dRead(Vec x,PetscInt m,PetscInt mstart,PetscScal
    the arguments from DMDAGet[Ghost]Corners() are reversed in the call to VecGetArray3dRead().
 
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
-
-   Concepts: vector^accessing local values as 3d array
 
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
           VecRestoreArray2d(), DMDAVecGetarray(), DMDAVecRestoreArray(), VecGetArray3d(), VecRestoreArray3d(),
@@ -2842,8 +2788,6 @@ PetscErrorCode  VecRestoreArray3dRead(Vec x,PetscInt m,PetscInt n,PetscInt p,Pet
 
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
 
-   Concepts: vector^accessing local values as 3d array
-
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
           VecRestoreArray2d(), DMDAVecGetarray(), DMDAVecRestoreArray(), VecGetArray3d(), VecRestoreArray3d(),
           VecGetArray1d(), VecRestoreArray1d(), VecGetArray4d(), VecRestoreArray4d()
@@ -2940,8 +2884,6 @@ PetscErrorCode  VecRestoreArray4dRead(Vec x,PetscInt m,PetscInt n,PetscInt p,Pet
 
    Level: beginner
 
-   Concepts: vector^accessing local values
-
 .seealso: VecRestoreArray(), VecGetArrayRead(), VecLockReadPush(), VecLockReadPop()
 @*/
 PetscErrorCode VecLockGet(Vec x,PetscInt *state)
@@ -2968,8 +2910,6 @@ PetscErrorCode VecLockGet(Vec x,PetscInt *state)
 
    Level: beginner
 
-   Concepts: vector^accessing local values
-
 .seealso: VecRestoreArray(), VecGetArrayRead(), VecLockReadPop(), VecLockGet()
 @*/
 PetscErrorCode VecLockReadPush(Vec x)
@@ -2990,8 +2930,6 @@ PetscErrorCode VecLockReadPush(Vec x)
 .  x - the vector
 
    Level: beginner
-
-   Concepts: vector^accessing local values
 
 .seealso: VecRestoreArray(), VecGetArrayRead(), VecLockReadPush(), VecLockGet()
 @*/
@@ -3033,8 +2971,6 @@ PetscErrorCode VecLockReadPop(Vec x)
 
    Level: beginner
 
-   Concepts: vector^accessing local values
-
 .seealso: VecRestoreArray(), VecGetArrayRead(), VecLockReadPush(), VecLockReadPop(), VecLockGet()
 @*/
 PetscErrorCode VecLockWriteSet_Private(Vec x,PetscBool flg)
@@ -3057,8 +2993,6 @@ PetscErrorCode VecLockWriteSet_Private(Vec x,PetscBool flg)
 
    Level: deprecated
 
-   Concepts: vector^accessing local values
-
 .seealso: VecLockReadPush()
 @*/
 PetscErrorCode VecLockPush(Vec x)
@@ -3073,8 +3007,6 @@ PetscErrorCode VecLockPush(Vec x)
    VecLockPop  - Pops a read-only lock from a vector
 
    Level: deprecated
-
-   Concepts: vector^accessing local values
 
 .seealso: VecLockReadPop()
 @*/

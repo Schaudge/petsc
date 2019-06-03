@@ -21,8 +21,6 @@
 
    Level: intermediate
 
-   Concepts: index sets^difference
-   Concepts: IS^difference
 
 .seealso: ISDestroy(), ISView(), ISSum(), ISExpand()
 
@@ -110,8 +108,6 @@ PetscErrorCode  ISDifference(IS is1,IS is2,IS *isout)
 
 .seealso: ISDestroy(), ISView(), ISDifference(), ISExpand()
 
-   Concepts: index sets^union
-   Concepts: IS^union
 
 @*/
 PetscErrorCode  ISSum(IS is1,IS is2,IS *is3)
@@ -240,8 +236,6 @@ PetscErrorCode  ISSum(IS is1,IS is2,IS *is3)
 
 .seealso: ISDestroy(), ISView(), ISDifference(), ISSum()
 
-   Concepts: index sets^difference
-   Concepts: IS^difference
 
 @*/
 PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
@@ -306,8 +300,7 @@ PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
 }
 
 /*@
-   ISIntersect - Computes the union of two index sets, by concatenating 2 lists, sorting,
-   and finding duplicates.
+   ISIntersect - Computes the intersection of two index sets, by sorting and comparing.
 
    Collective on IS
 
@@ -328,8 +321,6 @@ PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
 
 .seealso: ISDestroy(), ISView(), ISDifference(), ISSum(), ISExpand()
 
-   Concepts: index sets^intersection
-   Concepts: IS^intersection
 
 @*/
 PetscErrorCode ISIntersect(IS is1,IS is2,IS *isout)
@@ -431,7 +422,7 @@ PetscErrorCode ISIntersect_Caching_Internal(IS is1, IS is2, IS *isect)
    ISConcatenate - Forms a new IS by locally concatenating the indices from an IS list without reordering.
 
 
-   Collective on comm.
+   Collective.
 
    Input Parameter:
 +  comm    - communicator of the concatenated IS.
@@ -448,8 +439,6 @@ PetscErrorCode ISIntersect_Caching_Internal(IS is1, IS is2, IS *isect)
 
 .seealso: ISDifference(), ISSum(), ISExpand()
 
-   Concepts: index sets^concatenation
-   Concepts: IS^concatenation
 
 @*/
 PetscErrorCode ISConcatenate(MPI_Comm comm, PetscInt len, const IS islist[], IS *isout)
@@ -498,7 +487,7 @@ PetscErrorCode ISConcatenate(MPI_Comm comm, PetscInt len, const IS islist[], IS 
                         mapped to j.
 
 
-  Collective on comm.
+  Collective.
 
   Input arguments:
 + comm    -  MPI_Comm

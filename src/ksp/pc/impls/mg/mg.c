@@ -286,8 +286,6 @@ PetscErrorCode PCMGSetLevels_MG(PC pc,PetscInt levels,MPI_Comm *comms)
      If the number of levels is one then the multigrid uses the -mg_levels prefix
   for setting the level options rather than the -mg_coarse prefix.
 
-.keywords: MG, set, levels, multigrid
-
 .seealso: PCMGSetType(), PCMGGetLevels()
 @*/
 PetscErrorCode PCMGSetLevels(PC pc,PetscInt levels,MPI_Comm *comms)
@@ -323,6 +321,8 @@ PetscErrorCode PCDestroy_MG(PC pc)
     ierr = PetscFree(mg->levels);CHKERRQ(ierr);
   }
   ierr = PetscFree(pc->data);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)pc,"PCGetInterpolations_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)pc,"PCGetCoarseOperators_C",NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -675,6 +675,10 @@ PetscErrorCode PCSetUp_MG(PC pc)
       PetscBool dmhasrestrict, dmhasinject;
       ierr = KSPSetDM(mglevels[i]->smoothd,dms[i]);CHKERRQ(ierr);
       if (!needRestricts) {ierr = KSPSetDMActive(mglevels[i]->smoothd,PETSC_FALSE);CHKERRQ(ierr);}
+      if (mglevels[i]->smoothd != mglevels[i]->smoothu) {
+        ierr = KSPSetDM(mglevels[i]->smoothu,dms[i]);CHKERRQ(ierr);
+        if (!needRestricts) {ierr = KSPSetDMActive(mglevels[i]->smoothu,PETSC_FALSE);CHKERRQ(ierr);}
+      }
       ierr = DMGetDMKSPWrite(dms[i],&kdm);CHKERRQ(ierr);
       /* Ugly hack so that the next KSPSetUp() will use the RHS that we set. A better fix is to change dmActive to take
        * a bitwise OR of computing the matrix, RHS, and initial iterate. */
@@ -709,6 +713,10 @@ PetscErrorCode PCSetUp_MG(PC pc)
     /* finest smoother also gets DM but it is not active, independent of whether galerkin==PC_MG_GALERKIN_EXTERNAL */
     ierr = KSPSetDM(mglevels[n-1]->smoothd,pc->dm);CHKERRQ(ierr);
     ierr = KSPSetDMActive(mglevels[n-1]->smoothd,PETSC_FALSE);CHKERRQ(ierr);
+    if (mglevels[n-1]->smoothd != mglevels[n-1]->smoothu) {
+      ierr = KSPSetDM(mglevels[n-1]->smoothu,pc->dm);CHKERRQ(ierr);
+      ierr = KSPSetDMActive(mglevels[n-1]->smoothu,PETSC_FALSE);CHKERRQ(ierr);
+    }
   }
 
   if (mg->galerkin < PC_MG_GALERKIN_NONE) {
@@ -937,8 +945,6 @@ PetscErrorCode PCMGGetLevels_MG(PC pc, PetscInt *levels)
 
    Level: advanced
 
-.keywords: MG, get, levels, multigrid
-
 .seealso: PCMGSetLevels()
 @*/
 PetscErrorCode PCMGGetLevels(PC pc,PetscInt *levels)
@@ -970,8 +976,6 @@ PetscErrorCode PCMGGetLevels(PC pc,PetscInt *levels)
 
    Level: advanced
 
-.keywords: MG, set, method, multiplicative, additive, full, Kaskade, multigrid
-
 .seealso: PCMGSetLevels()
 @*/
 PetscErrorCode  PCMGSetType(PC pc,PCMGType form)
@@ -1002,8 +1006,6 @@ PetscErrorCode  PCMGSetType(PC pc,PCMGType form)
 
    Level: advanced
 
-.keywords: MG, set, method, multiplicative, additive, full, Kaskade, multigrid
-
 .seealso: PCMGSetLevels()
 @*/
 PetscErrorCode  PCMGGetType(PC pc,PCMGType *type)
@@ -1030,8 +1032,6 @@ PetscErrorCode  PCMGGetType(PC pc,PCMGType *type)
 .  -pc_mg_cycle_type <v,w> - provide the cycle desired
 
    Level: advanced
-
-.keywords: MG, set, cycles, V-cycle, W-cycle, multigrid
 
 .seealso: PCMGSetCycleTypeOnLevel()
 @*/
@@ -1067,8 +1067,6 @@ PetscErrorCode  PCMGSetCycleType(PC pc,PCMGCycleType n)
 
    Notes:
     This is not associated with setting a v or w cycle, that is set with PCMGSetCycleType()
-
-.keywords: MG, set, cycles, V-cycle, W-cycle, multigrid
 
 .seealso: PCMGSetCycleTypeOnLevel(), PCMGSetCycleType()
 @*/
@@ -1111,8 +1109,6 @@ PetscErrorCode PCMGSetGalerkin_MG(PC pc,PCMGGalerkinType use)
     Some codes that use PCMG such as PCGAMG use Galerkin internally while constructing the hierarchy and thus do not
      use the PCMG construction of the coarser grids.
 
-.keywords: MG, set, Galerkin
-
 .seealso: PCMGGetGalerkin(), PCMGGalerkinType
 
 @*/
@@ -1139,8 +1135,6 @@ PetscErrorCode PCMGSetGalerkin(PC pc,PCMGGalerkinType use)
 .  galerkin - one of PC_MG_GALERKIN_BOTH,PC_MG_GALERKIN_PMAT,PC_MG_GALERKIN_MAT, PC_MG_GALERKIN_NONE, or PC_MG_GALERKIN_EXTERNAL
 
    Level: intermediate
-
-.keywords: MG, set, Galerkin
 
 .seealso: PCMGSetGalerkin(), PCMGGalerkinType
 
@@ -1174,8 +1168,6 @@ PetscErrorCode  PCMGGetGalerkin(PC pc,PCMGGalerkinType  *galerkin)
    Notes:
     this does not set a value on the coarsest grid, since we assume that
     there is no separate smooth up on the coarsest grid.
-
-.keywords: MG, smooth, up, post-smoothing, steps, multigrid
 
 .seealso: PCMGSetDistinctSmoothUp()
 @*/
@@ -1219,8 +1211,6 @@ PetscErrorCode  PCMGSetNumberSmooth(PC pc,PetscInt n)
     this does not set a value on the coarsest grid, since we assume that
     there is no separate smooth up on the coarsest grid.
 
-.keywords: MG, smooth, up, post-smoothing, steps, multigrid
-
 .seealso: PCMGSetNumberSmooth()
 @*/
 PetscErrorCode  PCMGSetDistinctSmoothUp(PC pc)
@@ -1244,6 +1234,48 @@ PetscErrorCode  PCMGSetDistinctSmoothUp(PC pc)
     ierr = KSPSetOptionsPrefix(subksp,prefix);CHKERRQ(ierr);
     ierr = KSPAppendOptionsPrefix(subksp,"up_");CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+/* No new matrices are created, and the coarse operator matrices are the references to the original ones */
+PetscErrorCode  PCGetInterpolations_MG(PC pc,PetscInt *num_levels,Mat *interpolations[])
+{
+  PC_MG          *mg        = (PC_MG*)pc->data;
+  PC_MG_Levels   **mglevels = mg->levels;
+  Mat            *mat;
+  PetscInt       l;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!mglevels) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_WRONGSTATE,"Must set MG levels before calling");
+  ierr = PetscMalloc1(mg->nlevels,&mat);CHKERRQ(ierr);
+  for (l=1; l< mg->nlevels; l++) {
+    mat[l-1] = mglevels[l]->interpolate;
+    ierr = PetscObjectReference((PetscObject)mat[l-1]);CHKERRQ(ierr);
+  }
+  *num_levels = mg->nlevels;
+  *interpolations = mat;
+  PetscFunctionReturn(0);
+}
+
+/* No new matrices are created, and the coarse operator matrices are the references to the original ones */
+PetscErrorCode  PCGetCoarseOperators_MG(PC pc,PetscInt *num_levels,Mat *coarseOperators[])
+{
+  PC_MG          *mg        = (PC_MG*)pc->data;
+  PC_MG_Levels   **mglevels = mg->levels;
+  PetscInt       l;
+  Mat            *mat;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!mglevels) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_WRONGSTATE,"Must set MG levels before calling");
+  ierr = PetscMalloc1(mg->nlevels,&mat);CHKERRQ(ierr);
+  for (l=0; l<mg->nlevels-1; l++) {
+    ierr = KSPGetOperators(mglevels[l]->smoothd,NULL,&(mat[l]));CHKERRQ(ierr);
+    ierr = PetscObjectReference((PetscObject)mat[l]);CHKERRQ(ierr);
+  }
+  *num_levels = mg->nlevels;
+  *coarseOperators = mat;
   PetscFunctionReturn(0);
 }
 
@@ -1278,8 +1310,6 @@ PetscErrorCode  PCMGSetDistinctSmoothUp(PC pc)
 
    Level: intermediate
 
-   Concepts: multigrid/multilevel
-
 .seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PC, PCMGType, PCEXOTIC, PCGAMG, PCML, PCHYPRE
            PCMGSetLevels(), PCMGGetLevels(), PCMGSetType(), PCMGSetCycleType(),
            PCMGSetDistinctSmoothUp(), PCMGGetCoarseSolve(), PCMGSetResidual(), PCMGSetInterpolation(),
@@ -1311,5 +1341,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_MG(PC pc)
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCMGSetGalerkin_C",PCMGSetGalerkin_MG);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCMGGetLevels_C",PCMGGetLevels_MG);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCMGSetLevels_C",PCMGSetLevels_MG);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)pc,"PCGetInterpolations_C",PCGetInterpolations_MG);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)pc,"PCGetCoarseOperators_C",PCGetCoarseOperators_MG);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

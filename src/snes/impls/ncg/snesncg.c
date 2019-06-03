@@ -62,8 +62,8 @@ static PetscErrorCode SNESSetFromOptions_NCG(PetscOptionItems *PetscOptionsObjec
   SNES_NCG       *ncg = (SNES_NCG*)snes->data;
   PetscErrorCode ierr;
   PetscBool      debug = PETSC_FALSE;
-  SNESLineSearch linesearch;
   SNESNCGType    ncgtype=ncg->type;
+  SNESLineSearch linesearch;
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead(PetscOptionsObject,"SNES NCG options");CHKERRQ(ierr);
@@ -208,7 +208,6 @@ PetscErrorCode SNESNCGComputeYtJtF_Private(SNES snes, Vec X, Vec F, Vec Y, Vec W
    Notes:
    PRP is the default, and the only one that tolerates generalized search directions.
 
-.keywords: SNES, SNESNCG, selection, type, set
 @*/
 PetscErrorCode SNESNCGSetType(SNES snes, SNESNCGType btype)
 {
