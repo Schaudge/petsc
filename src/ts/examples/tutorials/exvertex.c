@@ -11,11 +11,12 @@ int main(int argc, char **argv)
         PetscErrorCode		ierr;
         MPI_Comm                comm;
         DM                      dm, dmDist;
+        PetscSection		section;
         PetscBool		dmInterp = PETSC_TRUE;
         IS			bcPointsIS;
-        PetscInt		dStart, dEnd, i, counter = 0, numBC, nVertex, nCoords;
+        PetscInt		dStart, dEnd, i, counter = 0, numFields, numBC, nVertex, nCoords;
         PetscScalar		*vecArray, *coordArray;
-        const PetscInt		numComp[1], numDOF[1], bcField[1];
+        PetscInt		numComp[1], numDOF[1], bcField[1];
         Vec			locVec, coords;
         PetscViewer		viewer;
 
@@ -35,15 +36,20 @@ int main(int argc, char **argv)
         numBC = 1;
         bcField[0] = 0;
 
-        
+
+        ierr = DMGetStratumIS(dm, "Cell Sets", 0, &bcPointsIS);CHKERRQ(ierr);
+        ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
         ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
+        ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
+        ierr = DMSetSection(dm, section);CHKERRQ(ierr);
+        printf("daodaowd\n");
         /*	Get Vertices	*/
         ierr = DMPlexGetDepthStratum(dm, 0, &dStart, &dEnd);CHKERRQ(ierr);
         ierr = DMGetLocalVector(dm, &locVec);CHKERRQ(ierr);
         ierr = VecGetLocalSize(locVec, &nVertex);CHKERRQ(ierr);
         ierr = VecGetArray(locVec, &vecArray);CHKERRQ(ierr);
 
-        
+
         ierr = DMGetCoordinatesLocal(dm, &coords);
         ierr = VecGetLocalSize(coords, &nCoords);CHKERRQ(ierr);
         ierr = VecGetArray(coords,&coordArray);CHKERRQ(ierr);
