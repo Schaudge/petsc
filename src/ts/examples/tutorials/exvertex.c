@@ -25,12 +25,10 @@ int main(int argc, char **argv)
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
         comm = PETSC_COMM_WORLD;
-        ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
-        ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+        ierr = PetscViewerCreate(comm, &viewer);
+        ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        //ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
-        ierr = DMPlexCreateFromFile(comm, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr);
-        //ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
+        ierr = DMPlexCreateFromFile(comm, "2Drectq4.exo", dmInterp, &dm);CHKERRQ(ierr);
 
         numFields = 1;
         numComp[0] = 1;
@@ -62,7 +60,6 @@ int main(int argc, char **argv)
                  ierr = PetscPrintf(comm, "     %d     | (%.2f , %.2f, %0.2f) | %d\n", counter, coordArray[dim*i], coordArray[(dim*i)+1], coordArray[(dim*i)+2], idx[counter]);CHKERRQ(ierr);
                 counter++;
         }
-
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
         return ierr;
