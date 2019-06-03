@@ -29,7 +29,7 @@ extern PetscErrorCode FormInitialSolution(DM,Vec,void*);
 
 int main(int argc,char **argv)
 {
-  TS             ts;                   /* nonlinear solver */
+  TS             ts;                   
   Vec            u,r;                  /* solution, residual vector */
   Mat            J;                    /* Jacobian matrix */
   PetscInt       steps;                /* iterations for convergence */
