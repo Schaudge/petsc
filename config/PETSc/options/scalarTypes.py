@@ -77,11 +77,6 @@ class Configure(config.base.Configure):
 
   def configurePrecision(self):
     '''Set the default real number precision for PETSc objects'''
-    if self.libraries.add('quadmath','logq',prototype='#include <quadmath.h>',call='__float128 f; logq(f);'):
-      self.addDefine('HAVE_REAL___FLOAT128', '1')
-      have__float128 = 1
-    else:
-      have__float128 = 0
     self.precision = self.framework.argDB['with-precision'].lower()
     if self.precision == '__fp16':  # supported by gcc trunk
       if self.scalartype == 'complex':
