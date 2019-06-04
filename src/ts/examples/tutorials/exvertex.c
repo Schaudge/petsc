@@ -25,10 +25,10 @@ int main(int argc, char **argv)
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
         comm = PETSC_COMM_WORLD;
-        ierr = PetscViewerCreate(comm, &viewer);
-        ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);
+        ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
+        ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
+        ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
 
         numFields = 1;
         numComp[0] = 1;
