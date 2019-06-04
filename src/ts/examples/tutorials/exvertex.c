@@ -49,7 +49,6 @@ int main(int argc, char **argv)
         /*	Get Vertices	*/
         ierr = DMPlexGetDepthStratum(dm, 0, &dStart, &dEnd);CHKERRQ(ierr);
         ierr = DMGetStratumIS(dm, "depth", 0, &points);CHKERRQ(ierr);
-        ierr = ISSort(points);
         ierr = ISGetIndices(points, &idx);CHKERRQ(ierr);
 
         /*	Get Global Coordinates	*/
