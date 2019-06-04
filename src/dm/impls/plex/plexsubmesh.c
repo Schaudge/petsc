@@ -3754,7 +3754,7 @@ PetscErrorCode DMGetEnclosurePoint(DM dmA, DM dmB, DMEnclosureType etype, PetscI
   DMLabel         spmap;
   IS              subpointIS;
   const PetscInt *subpoints;
-  PetscInt        numSubpoints, h;
+  PetscInt        numSubpoints;
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
@@ -3771,21 +3771,14 @@ PetscErrorCode DMGetEnclosurePoint(DM dmA, DM dmB, DMEnclosureType etype, PetscI
     break;
     case DM_ENC_SUBMESH:
     sdm  = dmA;
-    ierr = DMPlexGetVTKCellHeight(sdm, &h);CHKERRQ(ierr);
     ierr = DMPlexGetSubpointMap(sdm, &spmap);CHKERRQ(ierr);
-    if (spmap && !h) {
-      /* If we do not have "false" cells hanging off the mesh, we can use DMLabelGetValue(spmap, p, subp) directly. */
-      ierr = DMLabelGetValue(spmap, pB, pA);CHKERRQ(ierr);
-    } else {
-      /* Otherwise, we have to go through CreateSubpointIS() */
-      ierr = DMPlexCreateSubpointIS(sdm, &subpointIS);CHKERRQ(ierr);
-      ierr = ISGetLocalSize(subpointIS, &numSubpoints);CHKERRQ(ierr);
-      ierr = ISGetIndices(subpointIS, &subpoints);CHKERRQ(ierr);
-      ierr = PetscFindInt(pB, numSubpoints, subpoints, pA);CHKERRQ(ierr);
-      if (*pA < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %d not found in submesh", pB);
-      ierr = ISRestoreIndices(subpointIS, &subpoints);CHKERRQ(ierr);
-      ierr = ISDestroy(&subpointIS);CHKERRQ(ierr);
-    }
+    ierr = DMPlexCreateSubpointIS(sdm, &subpointIS);CHKERRQ(ierr);
+    ierr = ISGetLocalSize(subpointIS, &numSubpoints);CHKERRQ(ierr);
+    ierr = ISGetIndices(subpointIS, &subpoints);CHKERRQ(ierr);
+    ierr = PetscFindInt(pB, numSubpoints, subpoints, pA);CHKERRQ(ierr);
+    if (*pA < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %d not found in submesh", pB);
+    ierr = ISRestoreIndices(subpointIS, &subpoints);CHKERRQ(ierr);
+    ierr = ISDestroy(&subpointIS);CHKERRQ(ierr);
     break;
     case DM_ENC_EQUALITY:
     case DM_ENC_NONE:
