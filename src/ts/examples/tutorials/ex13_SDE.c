@@ -39,12 +39,13 @@ int main(int argc,char **argv)
   Vec            global,loc;
   PetscReal      ftime,dt;
   AppCtx         user;              /* user-defined work context */
+  PetscInt       N=8;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,8,8,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&da);CHKERRQ(ierr);
+  ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,N,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(da);CHKERRQ(ierr);
   ierr = DMSetUp(da);CHKERRQ(ierr);
 
@@ -58,6 +59,8 @@ int main(int argc,char **argv)
     ---------------------------------------------------------------------*/
   PetscInt Lx=2, Ly=3, xs,xm,ys,ym,ix,iy;
   PetscScalar x,y;
+  PetscInt ind;
+  PetscReal mesh[N*N];
 
   DMDASetUniformCoordinates(da,0.0,Lx,0.0,Ly,0.0,0.0);
   DMGetCoordinateDM(da,&cda);
@@ -66,15 +69,22 @@ int main(int argc,char **argv)
   DMGetCoordinates(da,&global);
   DMDAVecGetArray(cda,global,&coors);
  
-   for (ix=xs; ix<xs+xm; ix++) 
-     {for (iy=ys; iy<ys+ym; iy++) 
+   for (iy=ys; iy<ys+ym; iy++)
+     {for (ix=xs; ix<xs+xm; ix++)
         {
-        printf("test coordinates coord[%d][%d].x=%f", ix, iy,   coors[ix][ix].x);
-        coors[ix][ix].x=2*x;  //here we can modify
-        coors[ix][iy].y=y;
-       } 
+            printf("test coordinates coord[%d][%d]", ix, iy);
+            printf(".x=%f  ", coors[ix][ix].x);
+            printf(".y=%f\n", coors[iy][iy].y);
+            x=coors[ix][iy].x;  //here we can modify
+            y=coors[ix][iy].y;
+            
+//            ind=ix+N*(iy);
+//            mesh[ind]=ix;
+//            printf("mesh[%d]=%f\n", ind, mesh[ind]);
+       }
      }
-    DMDAVecRestoreArray(cda,global,&coors);
+    
+  DMDAVecRestoreArray(cda,global,&coors);
  
 
 
