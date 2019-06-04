@@ -1,4 +1,4 @@
-static char help[] = "Test getting all edges in mesh";
+static char help[] = "Test getting all vertices in mesh";
 
 #include <petscdmplex.h>
 #include <petscviewer.h>
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        //ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
+        //        ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
         ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
 
         numFields = 1;
@@ -46,14 +46,11 @@ int main(int argc, char **argv)
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 
         /*      Get Edges    */
-        // This call is purely to get the numerical offset "n" within the IS due to the cell IS.
-        // This is because for whatever fantastical reason the internal order is:
-        // [[cell ids (id0 to idn)],[point ids (idn+1 to idm)],[face ids (idm+1 to idEnd)]]
-        // but we need to index from 0 (i.e. IS entry n+1) in the actual coordinate array below
         ierr = DMPlexGetDepthStratum(dm, 2, NULL,  &dOffset);CHKERRQ(ierr);
         ierr = DMGetStratumIS(dm, "depth", 1, &faces);CHKERRQ(ierr);
         ierr = ISGetSize(faces, &numFaces);CHKERRQ(ierr);
         ierr = ISGetIndices(faces, &faceidx);CHKERRQ(ierr);
+
 
         /*      Get Local Coordinates   */
         ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
