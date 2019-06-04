@@ -10,14 +10,15 @@ int main(int argc, char **argv)
 {
         PetscErrorCode		ierr;
         MPI_Comm                comm;
-        DM                      dm, dmDist;
+        DM                      dm;
         PetscSection		section;
         PetscBool		dmInterp = PETSC_TRUE;
-        IS			bcPointsIS;
-        PetscInt		dStart, dEnd, i, counter = 0, numFields, numBC, nVertex, nCoords;
-        PetscScalar		*vecArray, *coordArray;
+        IS			points, bcPointsIS;
+        PetscInt		dStart, dEnd, i, counter = 0, numFields, numBC;
+        PetscScalar		*coordArray;
         PetscInt		numComp[1], numDOF[1], bcField[1];
-        Vec			locVec, coords;
+        const PetscInt		*idx;
+        Vec			coords;
         PetscViewer		viewer;
 
 
@@ -27,40 +28,38 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &viewer);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        ierr = DMPlexCreateFromFile(comm, "2Drectq4.exo", dmInterp, &dm);CHKERRQ(ierr);
+        ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
 
 
         numFields = 1;
         numComp[0] = 1;
         numDOF[0] = 1;
-        numBC = 1;
-        bcField[0] = 0;
-
+        numBC = 0;
+        // Please note that bcField stays uninitialized because numBC = 0,
+        // therefore having a trash value. This is probably handled internally
+        // within DMPlexCreateSection but idk how exactly.
 
         ierr = DMGetStratumIS(dm, "Cell Sets", 0, &bcPointsIS);CHKERRQ(ierr);
         ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
         ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
         ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
-        printf("daodaowd\n");
+
         /*	Get Vertices	*/
         ierr = DMPlexGetDepthStratum(dm, 0, &dStart, &dEnd);CHKERRQ(ierr);
-        ierr = DMGetLocalVector(dm, &locVec);CHKERRQ(ierr);
-        ierr = VecGetLocalSize(locVec, &nVertex);CHKERRQ(ierr);
-        ierr = VecGetArray(locVec, &vecArray);CHKERRQ(ierr);
+        ierr = DMGetStratumIS(dm, "depth", 0, &points);
+        ierr = ISGetIndices(points, &idx);
 
-
+        /*	Get Local Coordinates	*/
         ierr = DMGetCoordinatesLocal(dm, &coords);
-        ierr = VecGetLocalSize(coords, &nCoords);CHKERRQ(ierr);
         ierr = VecGetArray(coords,&coordArray);CHKERRQ(ierr);
-        printf("no error yet\n");
-        ierr = VecView(locVec, viewer);CHKERRQ(ierr);
+
+        ierr = PetscPrintf(comm, "Vertex Num |    Coord    | IS Index\n");
+        ierr = PetscPrintf(comm, "-----------------------------------\n");
         for (i = dStart; i < dEnd; i++) {
-                //                printf("%d\n", counter);
+                ierr = PetscPrintf(comm, "     %d     | (%3.f , %3.f) | %d\n", counter+1, coordArray[i], coordArray[i+1], idx[counter]);
                 counter++;
         }
-
-
 
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
