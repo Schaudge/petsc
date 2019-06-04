@@ -21,6 +21,7 @@ static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illust
 */
 typedef struct {
   PetscReal c;
+  Mat       A;
 } AppCtx;
 
 extern PetscErrorCode RHSFunction(TS,PetscReal,Vec,Vec,void*);
@@ -101,9 +102,9 @@ int main(int argc,char **argv)
 
   /* Set Jacobian */
   ierr = DMSetMatType(da,MATAIJ);CHKERRQ(ierr);
-  ierr = DMCreateMatrix(da,&J);CHKERRQ(ierr);
-  ierr = TSSetRHSJacobian(ts,J,J,RHSJacobian,NULL);CHKERRQ(ierr);
-
+  ierr = DMCreateMatrix(da,&user.A);CHKERRQ(ierr);
+  ierr = TSSetRHSJacobian(ts,user.A,user.A,RHSJacobian,&user);CHKERRQ(ierr);
+ 
   ftime = 1.0;
   ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
@@ -260,6 +261,7 @@ PetscErrorCode RHSJacobian(TS ts,PetscReal t,Vec U,Mat J,Mat Jpre,void *ctx)
     ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   }
+  //MatCopy(Jpre,ctx.A,SAME_NONZERO_PATTERN);
   PetscFunctionReturn(0);
 }
 
