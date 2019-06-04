@@ -22,219 +22,122 @@ static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illust
 typedef struct {
   PetscReal c;
   Mat       A;
+  DM        da;
 } AppCtx;
 
 extern PetscErrorCode RHSFunction(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode RHSJacobian(TS,PetscReal,Vec,Mat,Mat,void*);
 extern PetscErrorCode FormInitialSolution(DM,Vec,void*);
+extern PetscErrorCode BuildA(AppCtx*);
+
 
 int main(int argc,char **argv)
 {
-  TS             ts;                   
+                
   Vec            u,r;                  /* solution, residual vector */
-  Mat            J;                    /* Jacobian matrix */
-  PetscInt       steps;                /* iterations for convergence */
   PetscErrorCode ierr;
-  DM             da,cda;
+  DM             cda;
   DMDACoor2d     **coors;
   Vec            global,loc;
-  PetscReal      ftime,dt;
-  AppCtx         user;              /* user-defined work context */
+   AppCtx         user;              /* user-defined work context */
   PetscInt       N=8;
-
+  PetscScalar    **Cov, sigma, lc;
+ 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,N,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&da);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(da);CHKERRQ(ierr);
-  ierr = DMSetUp(da);CHKERRQ(ierr);
+  ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,N,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&user.da);CHKERRQ(ierr);
+  ierr = DMSetFromOptions(user.da);CHKERRQ(ierr);
+  ierr = DMSetUp(user.da);CHKERRQ(ierr);
 
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Extract global vectors from DMDA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMCreateGlobalVector(da,&u);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(user.da,&u);CHKERRQ(ierr);
   ierr = VecDuplicate(u,&r);CHKERRQ(ierr);
   /*------------------------------------------------------------------------
     Access coordinate field
     ---------------------------------------------------------------------*/
   PetscInt Lx=2, Ly=3, xs,xm,ys,ym,ix,iy;
-  PetscScalar x,y;
-  PetscInt ind;
-  PetscReal mesh[N*N];
+  PetscScalar x1,y1,x0,y0,rr;
+  PetscInt ind, N2, i,j;
 
-  DMDASetUniformCoordinates(da,0.0,Lx,0.0,Ly,0.0,0.0);
-  DMGetCoordinateDM(da,&cda);
-  DMDAGetCorners(da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+  sigma=0.5;
+  lc=0.1; 
+   
+  N2=N*N;
+  /// allocate covariance matrix
+  ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
+  ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
+  for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
 
-  DMGetCoordinates(da,&global);
+  DMDASetUniformCoordinates(user.da,0.0,Lx,0.0,Ly,0.0,0.0);
+  DMGetCoordinateDM(user.da,&cda);
+  DMDAGetCorners(user.da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+
+  DMGetCoordinates(user.da,&global);
   DMDAVecGetArray(cda,global,&coors);
- 
-   for (iy=ys; iy<ys+ym; iy++)
+  for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
         {
             printf("test coordinates coord[%d][%d]", ix, iy);
-            printf(".x=%f  ", coors[ix][ix].x);
-            printf(".y=%f\n", coors[iy][iy].y);
-            x=coors[ix][iy].x;  //here we can modify
-            y=coors[ix][iy].y;
-            
-//            ind=ix+N*(iy);
-//            mesh[ind]=ix;
-//            printf("mesh[%d]=%f\n", ind, mesh[ind]);
+            printf(".x=%f  ", coors[ix][iy].x);
+            printf(".y=%f\n", coors[ix][iy].y);
+            x0=coors[ix][iy].x;  //here we can modify
+            y0=coors[ix][iy].y;
+            for (j=ys; j<ys+ym; j++) 
+                {for (i=xs; i<xs+xm; i++)
+                    {x1=coors[i][j].x;  //here we can modify
+                    y1=coors[i][j].y;
+                    rr=PetscPowReal((x1-x0),2)+PetscPowReal((y1-y0),2);
+                    Cov[ix*xm+i][iy*ym+j]=sigma*PetscExpReal(-rr/lc);
+                    }
+                }
        }
      }
-    
-  DMDAVecRestoreArray(cda,global,&coors);
+
  
-
-
   /* Initialize user application context */
   user.c = -30.0;
 
-  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Create timestepping solver context
-     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
-  ierr = TSSetDM(ts,da);CHKERRQ(ierr);
-  ierr = TSSetType(ts,TSBEULER);CHKERRQ(ierr);
-  ierr = TSSetRHSFunction(ts,r,RHSFunction,&user);CHKERRQ(ierr);
-
-  /* Set Jacobian */
-  ierr = DMSetMatType(da,MATAIJ);CHKERRQ(ierr);
-  ierr = DMCreateMatrix(da,&user.A);CHKERRQ(ierr);
-  ierr = TSSetRHSJacobian(ts,user.A,user.A,RHSJacobian,&user);CHKERRQ(ierr);
  
-  ftime = 1.0;
-  ierr = TSSetMaxTime(ts,ftime);CHKERRQ(ierr);
-  ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
+  /* Set Matrix */
+  ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
+  
+  ierr = BuildA(&user);
+  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = FormInitialSolution(da,u,&user);CHKERRQ(ierr);
-  dt   = .01;
-  ierr = TSSetTimeStep(ts,dt);CHKERRQ(ierr);
-
-  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Set runtime options
-   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-
-  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Solve nonlinear system
-     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = TSSolve(ts,u);CHKERRQ(ierr);
-  ierr = TSGetSolveTime(ts,&ftime);CHKERRQ(ierr);
-  ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
-
+  //ierr = FormInitialSolution(user.da,u,&user);CHKERRQ(ierr);
+ 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = MatDestroy(&J);CHKERRQ(ierr);
+  ierr = MatDestroy(&user.A);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = VecDestroy(&r);CHKERRQ(ierr);
-  ierr = TSDestroy(&ts);CHKERRQ(ierr);
-  ierr = DMDestroy(&da);CHKERRQ(ierr);
+  ierr = DMDestroy(&user.da);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;
 }
-/* ------------------------------------------------------------------- */
-/*
-   RHSFunction - Evaluates nonlinear function, F(u).
 
-   Input Parameters:
-.  ts - the TS context
-.  U - input vector
-.  ptr - optional user-defined context, as set by TSSetFunction()
 
-   Output Parameter:
-.  F - function vector
- */
-PetscErrorCode RHSFunction(TS ts,PetscReal ftime,Vec U,Vec F,void *ptr)
-{
-  /* PETSC_UNUSED AppCtx *user=(AppCtx*)ptr; */
-  DM             da;
-  PetscErrorCode ierr;
-  PetscInt       i,j,Mx,My,xs,ys,xm,ym;
-  PetscReal      two = 2.0,hx,hy,sx,sy;
-  PetscScalar    u,uxx,uyy,**uarray,**f;
-  Vec            localU;
-
-  PetscFunctionBeginUser;
-  ierr = TSGetDM(ts,&da);CHKERRQ(ierr);
-  ierr = DMGetLocalVector(da,&localU);CHKERRQ(ierr);
-  ierr = DMDAGetInfo(da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
-
-  hx = 1.0/(PetscReal)(Mx-1); sx = 1.0/(hx*hx);
-  hy = 1.0/(PetscReal)(My-1); sy = 1.0/(hy*hy);
-
-  /*
-     Scatter ghost points to local vector,using the 2-step process
-        DMGlobalToLocalBegin(),DMGlobalToLocalEnd().
-     By placing code between these two statements, computations can be
-     done while messages are in transition.
-  */
-  ierr = DMGlobalToLocalBegin(da,U,INSERT_VALUES,localU);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(da,U,INSERT_VALUES,localU);CHKERRQ(ierr);
-
-  /* Get pointers to vector data */
-  ierr = DMDAVecGetArrayRead(da,localU,&uarray);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(da,F,&f);CHKERRQ(ierr);
-
-  /* Get local grid boundaries */
-  ierr = DMDAGetCorners(da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-
-  /* Compute function over the locally owned part of the grid */
-  for (j=ys; j<ys+ym; j++) {
-    for (i=xs; i<xs+xm; i++) {
-      if (i == 0 || j == 0 || i == Mx-1 || j == My-1) {
-        f[j][i] = uarray[j][i];
-        continue;
-      }
-      u       = uarray[j][i];
-      uxx     = (-two*u + uarray[j][i-1] + uarray[j][i+1])*sx;
-      uyy     = (-two*u + uarray[j-1][i] + uarray[j+1][i])*sy;
-      f[j][i] = uxx + uyy;
-    }
-  }
-
-  /* Restore vectors */
-  ierr = DMDAVecRestoreArrayRead(da,localU,&uarray);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(da,F,&f);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(da,&localU);CHKERRQ(ierr);
-  ierr = PetscLogFlops(11.0*ym*xm);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/* --------------------------------------------------------------------- */
-/*
-   RHSJacobian - User-provided routine to compute the Jacobian of
-   the nonlinear right-hand-side function of the ODE.
-
-   Input Parameters:
-   ts - the TS context
-   t - current time
-   U - global input vector
-   dummy - optional user-defined context, as set by TSetRHSJacobian()
-
-   Output Parameters:
-   J - Jacobian matrix
-   Jpre - optionally different preconditioning matrix
-   str - flag indicating matrix structure
-*/
-PetscErrorCode RHSJacobian(TS ts,PetscReal t,Vec U,Mat J,Mat Jpre,void *ctx)
+PetscErrorCode BuildA(AppCtx *user)
 {
   PetscErrorCode ierr;
-  DM             da;
   DMDALocalInfo  info;
   PetscInt       i,j;
   PetscReal      hx,hy,sx,sy;
+  PetscViewer     viewfile;
+  char var[12] ;
 
   PetscFunctionBeginUser;
-  ierr = TSGetDM(ts,&da);CHKERRQ(ierr);
-  ierr = DMDAGetLocalInfo(da,&info);CHKERRQ(ierr);
+  ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
   hx   = 1.0/(PetscReal)(info.mx-1); sx = 1.0/(hx*hx);
   hy   = 1.0/(PetscReal)(info.my-1); sy = 1.0/(hy*hy);
   for (j=info.ys; j<info.ys+info.ym; j++) {
@@ -252,23 +155,26 @@ PetscErrorCode RHSJacobian(TS ts,PetscReal t,Vec U,Mat J,Mat Jpre,void *ctx)
         col[nc].i = i;   col[nc].j = j+1; val[nc++] = sy;
         col[nc].i = i;   col[nc].j = j;   val[nc++] = -2*sx - 2*sy;
       }
-      ierr = MatSetValuesStencil(Jpre,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = MatSetValuesStencil(user->A,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-  ierr = MatAssemblyBegin(Jpre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(Jpre,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  if (J != Jpre) {
-    ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  }
-  //MatCopy(Jpre,ctx.A,SAME_NONZERO_PATTERN);
+  ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"test.m",&viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)user->A,var);
+  ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerPopFormat(viewfile);
+  PetscViewerDestroy(&viewfile);
+  
   PetscFunctionReturn(0);
 }
 
+
 /* ------------------------------------------------------------------- */
-PetscErrorCode FormInitialSolution(DM da,Vec U,void* ptr)
+PetscErrorCode BuildCov(Vec U,AppCtx* user)
 {
-  AppCtx         *user=(AppCtx*)ptr;
   PetscReal      c=user->c;
   PetscErrorCode ierr;
   PetscInt       i,j,xs,ys,xm,ym,Mx,My;
@@ -276,16 +182,16 @@ PetscErrorCode FormInitialSolution(DM da,Vec U,void* ptr)
   PetscReal      hx,hy,x,y,r;
 
   PetscFunctionBeginUser;
-  ierr = DMDAGetInfo(da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
+  ierr = DMDAGetInfo(user->da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
 
   hx = 1.0/(PetscReal)(Mx-1);
   hy = 1.0/(PetscReal)(My-1);
 
   /* Get pointers to vector data */
-  ierr = DMDAVecGetArray(da,U,&u);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(user->da,U,&u);CHKERRQ(ierr);
 
   /* Get local grid boundaries */
-  ierr = DMDAGetCorners(da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(user->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
 
   /* Compute function over the locally owned part of the grid */
   for (j=ys; j<ys+ym; j++) {
@@ -299,22 +205,54 @@ PetscErrorCode FormInitialSolution(DM da,Vec U,void* ptr)
   }
 
   /* Restore vectors */
-  ierr = DMDAVecRestoreArray(da,U,&u);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(user->da,U,&u);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-/*TEST
 
-    test:
-      args: -ts_max_steps 5 -ts_monitor 
+void svd(double **A, double *S2, int n)
+{
+  int  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0,
+    slimit = (n<120) ? 30 : n/4;
+  double eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0,
+    y0, q, r, c0, s0, d1, d2;
 
-    test:
-      suffix: 2
-      args: -ts_max_steps 5 -ts_monitor
-
-    test:
-      suffix: 3
-      args: -ts_max_steps 5 -snes_fd_color -ts_monitor
-
-TEST*/
-
+  for (i=0; i<n; i++) { for (j=0; j<n; j++) A[n+i][j] = 0.0; A[n+i][i] = 1.0; }
+  while (RotCount != 0 && SweepCount++ <= slimit) {
+    RotCount = EstColRank*(EstColRank-1)/2;
+    for (j=0; j<EstColRank-1; j++) 
+      for (k=j+1; k<EstColRank; k++) {
+        p = q = r = 0.0;
+        for (i=0; i<n; i++) {
+          x0 = A[i][j]; y0 = A[i][k];
+          p += x0*y0; q += x0*x0; r += y0*y0;
+        }
+        S2[j] = q; S2[k] = r;
+        if (q >= r) {
+          if (q<=e2*S2[0] || fabs(p)<=tol*q)
+            RotCount--;
+          else {
+            p /= q; r = 1.0-r/q; vt = sqrt(4.0*p*p+r*r);
+            c0 = sqrt(0.5*(1.0+r/vt)); s0 = p/(vt*c0);
+            for (i=0; i<2*n; i++) {
+              d1 = A[i][j]; d2 = A[i][k];
+              A[i][j] = d1*c0+d2*s0; A[i][k] = -d1*s0+d2*c0;
+            }
+          }
+        } else {
+          p /= r; q = q/r-1.0; vt = sqrt(4.0*p*p+q*q);
+          s0 = sqrt(0.5*(1.0-q/vt));
+          if (p<0.0) s0 = -s0;
+          c0 = p/(vt*s0);
+          for (i=0; i<2*n; i++) {
+            d1 = A[i][j]; d2 = A[i][k];
+            A[i][j] = d1*c0+d2*s0; A[i][k] = -d1*s0+d2*c0;
+          }
+        }
+      }
+    while (EstColRank>2 && S2[EstColRank-1]<=S2[0]*tol+tol*tol) EstColRank--;
+  }
+  if (SweepCount > slimit)
+    printf("Warning: Reached maximum number of sweeps (%d) in SVD routine...\n"
+	   ,slimit);
+}
