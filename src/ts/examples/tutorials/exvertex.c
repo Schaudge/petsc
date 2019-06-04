@@ -28,7 +28,7 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &viewer);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        ierr = DMPlexCreateFromFile(comm, "2Drectq4.exo", dmInterp, &dm);CHKERRQ(ierr);
+        ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
 
         numFields = 1;
         numComp[0] = 1;
