@@ -1,4 +1,4 @@
-static char help[] = "Test getting all vertices in mesh";
+static char help[] = "Test getting all edges in mesh";
 
 #include <petscdmplex.h>
 #include <petscviewer.h>
