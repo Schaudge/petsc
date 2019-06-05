@@ -35,7 +35,7 @@ int main(int argc,char **argv)
     double **A, *s;
     A = (double **) malloc(2 * rows * sizeof(double*));
     s = (double *) malloc(rows * sizeof(double));
-    printf("Matrix A\n");
+    printf("test svd:\n\nMatrix A\n");
     for (m = 0; m < 2 * rows; m++)
     {
         A[m] = malloc(2 * rows * sizeof(double));
@@ -51,8 +51,8 @@ int main(int argc,char **argv)
     }
 
     svd(A,s,rows);
-
-    printf("\nThe square of singe values of A=USV'\n");
+    printf("\nA=USV'\n");
+    printf("\nThe square of singular values S\n");
     for (n = 0; n < rows; n++)
     {
         printf("%6.2f", s[n]);
@@ -81,7 +81,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=8;
+  PetscInt       N=4;
   PetscScalar    **Cov, sigma, lc;
  
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
@@ -103,8 +103,8 @@ int main(int argc,char **argv)
   PetscScalar x1,y1,x0,y0,rr;
   PetscInt N2, i,j;
 
-  sigma=0.5;
-  lc=0.1;
+  sigma=1.0;
+  lc=5;
    
   N2=N*N;
   /// allocate covariance matrix
@@ -117,6 +117,7 @@ int main(int argc,char **argv)
   ierr = DMGetCoordinateDM(user.da,&cda);CHKERRQ(ierr);
   ierr = DMGetCoordinates(user.da,&global);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
+             printf("\ntest coordinates:\n");
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
             {
@@ -130,12 +131,19 @@ int main(int argc,char **argv)
                     {x1=coors[j][i].x;
                      y1=coors[j][i].y;
                      rr=PetscPowReal((x1-x0),2)+PetscPowReal((y1-y0),2);
-                     Cov[ix*xm+i][iy*ym+j]=sigma*PetscExpReal(-rr/lc);
+                     Cov[iy*ym+ix][j*xm+i]=sigma*PetscExpReal(-rr/lc);
                     }
                 }
             }
      }
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
+    printf("\ncovariance matrix:\n");
+    for (m = 0; m < N2; m++)
+    {
+        for (n = 0; n < N2; n++)
+            printf("%6.2f", Cov[m][n]);
+        printf("\n");
+    }
  
   /* Initialize user application context */
   user.c = -30.0;
@@ -174,7 +182,6 @@ PetscErrorCode BuildA(AppCtx *user)
   PetscInt       i,j;
   PetscReal      hx,hy,sx,sy;
   PetscViewer    viewfile;
-  char var[12] ;
 
   PetscFunctionBeginUser;
   ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
@@ -200,13 +207,13 @@ PetscErrorCode BuildA(AppCtx *user)
   }
   ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"test.m",&viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)user->A,var);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)user->A,"fdmat");CHKERRQ(ierr);
   ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
+       // to check pattern in Matlab >>fdmat;spy(fdmat)
   
   PetscFunctionReturn(0);
 }
