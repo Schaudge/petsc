@@ -48,7 +48,8 @@ int main(int argc, char **argv)
         /*      Get Edges    */
         // This call is purely to get the numerical offset "n" within the IS due to the cell IS.
         // This is because the internal order is:
-        // [[cell ids (id0 to idn)],[face ids (idn+1 to idm)],[point ids (idm+1 to idEnd)]]
+        // [[cell ids (id0 to idn)],[point ids (idn+1 to idm)],[face ids (idm+1 to idEnd)]]
+        // but we need to index from 0 in the actual coordinate array below
         ierr = DMPlexGetDepthStratum(dm, 2, NULL,  &dOffset);CHKERRQ(ierr);
         ierr = DMGetStratumIS(dm, "depth", 1, &faces);CHKERRQ(ierr);
         ierr = ISGetSize(faces, &numFaces);CHKERRQ(ierr);
