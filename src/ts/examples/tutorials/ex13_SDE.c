@@ -14,7 +14,6 @@ static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illust
 
 #include <petscdm.h>
 #include <petscdmda.h>
-#include <petscts.h>
 #include "svd.h"
 
 /*
@@ -43,40 +42,40 @@ int main(int argc,char **argv)
         for (n = 0; n < rows; n++)
             A[m][n] = m + n;
     }
-    
+
     for (m=0; m < rows; m++)
     {
         for (n=0; n < rows; n++)
-            printf("%f ", A[m][n]);
+            printf("%1.0f ", A[m][n]);
         printf("\n");
     }
-    
+
     svd(A,s,rows);
-    
+
     printf("\nThe square of singe values of A=USV'\n");
     for (n = 0; n < rows; n++)
     {
-        printf("%f", s[n]);
+        printf("%6.2f", s[n]);
         printf("\n");
     }
-    
+
     printf("\nUS\n");
     for (m = 0; m < rows; m++)
     {
         for (n = 0; n < rows; n++)
-            printf("%f", A[m][n]);
+            printf("%6.2f", A[m][n]);
         printf("\n");
     }
-    
+
     printf("\nV\n");
     for (m = rows; m < 2 * rows; m++)
     {
         for (n = 0; n < rows; n++)
-            printf("%f", A[m][n]);
+            printf("%6.2f", A[m][n]);
         printf("\n");
     }
-                
-  Vec            u,r;                  /* solution, residual vector */
+    
+  Vec            u;                  /* solution vector */
   PetscErrorCode ierr;
   DM             cda;
   DMDACoor2d     **coors;
@@ -97,7 +96,6 @@ int main(int argc,char **argv)
      Extract global vectors from DMDA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(user.da,&u);CHKERRQ(ierr);
-  ierr = VecDuplicate(u,&r);CHKERRQ(ierr);
   /*------------------------------------------------------------------------
     Access coordinate field
     ---------------------------------------------------------------------*/
@@ -112,21 +110,17 @@ int main(int argc,char **argv)
   /// allocate covariance matrix
   ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
   ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
-  for (i=1; i<N2; i++)
-    {Cov[i] = Cov[i-1]+N2;
-//     printf("Cov[%d]=%f\n",i,Cov[i]);
-    }
+  for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
 
-  DMDASetUniformCoordinates(user.da,0.0,Lx,0.0,Ly,0.0,0.0);
-  DMGetCoordinateDM(user.da,&cda);
-  DMDAGetCorners(user.da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-
-  DMGetCoordinates(user.da,&global);
-  DMDAVecGetArray(cda,global,&coors);
+  ierr = DMDASetUniformCoordinates(user.da,0.0,Lx,0.0,Ly,0.0,0.0);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(user.da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(user.da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(user.da,&global);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
             {
-             printf("test coordinates coord[%d][%d]", iy, ix);
+             printf("coord[%d][%d]", iy, ix);
              printf(".x=%f  ", coors[iy][ix].x);
              printf(".y=%f\n", coors[iy][ix].y);
              x0=coors[iy][ix].x;
@@ -141,7 +135,7 @@ int main(int argc,char **argv)
                 }
             }
      }
-
+  ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
  
   /* Initialize user application context */
   user.c = -30.0;
@@ -164,7 +158,8 @@ int main(int argc,char **argv)
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = MatDestroy(&user.A);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
-  ierr = VecDestroy(&r);CHKERRQ(ierr);
+//  ierr = VecDestroy(&global);CHKERRQ(ierr); //error occurs if turning on
+//  ierr = DMDestroy(&cda);CHKERRQ(ierr);     //error occurs if turnung on
   ierr = DMDestroy(&user.da);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
@@ -178,7 +173,7 @@ PetscErrorCode BuildA(AppCtx *user)
   DMDALocalInfo  info;
   PetscInt       i,j;
   PetscReal      hx,hy,sx,sy;
-  PetscViewer     viewfile;
+  PetscViewer    viewfile;
   char var[12] ;
 
   PetscFunctionBeginUser;
@@ -208,10 +203,10 @@ PetscErrorCode BuildA(AppCtx *user)
 
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"test.m",&viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)user->A,var);
+  ierr = PetscObjectSetName((PetscObject)user->A,var);CHKERRQ(ierr);
   ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);
-  PetscViewerDestroy(&viewfile);
+  ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
