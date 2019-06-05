@@ -126,7 +126,7 @@ int main(int argc,char **argv)
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
             {
-             printf("test coordinates coord[%d][%d]", ix, iy);
+             printf("test coordinates coord[%d][%d]", iy, ix);
              printf(".x=%f  ", coors[iy][ix].x);
              printf(".y=%f\n", coors[iy][ix].y);
              x0=coors[iy][ix].x;
