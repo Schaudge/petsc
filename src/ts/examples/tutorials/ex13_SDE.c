@@ -31,10 +31,13 @@ extern PetscErrorCode BuildCov(Vec, AppCtx*);
 int main(int argc,char **argv)
 {
     //test svd.c
-    int m,n,rows=4;
-    double **A, *s;
-    A = (double **) malloc(2 * rows * sizeof(double*));
-    s = (double *) malloc(rows * sizeof(double));
+    PetscInt m,n,rows=4;
+    PetscScalar **A, *S2;
+    //allocate test matrix A and vector s to store the square of singular values
+    A = (PetscScalar **) malloc(2 * rows * sizeof(double*));
+    S2 = (PetscScalar *) malloc(rows * sizeof(double));
+    
+    //Set test matrix A
     printf("test svd:\n\nMatrix A\n");
     for (m = 0; m < 2 * rows; m++)
     {
@@ -43,6 +46,7 @@ int main(int argc,char **argv)
             A[m][n] = m + n;
     }
 
+    //Print test matrix A
     for (m=0; m < rows; m++)
     {
         for (n=0; n < rows; n++)
@@ -50,12 +54,16 @@ int main(int argc,char **argv)
         printf("\n");
     }
 
-    svd(A,s,rows);
+    //Do SVD
+    svd(A,S2,rows);
+    
+    //Print Results
     printf("\nA=USV'\n");
-    printf("\nThe square of singular values S\n");
+    //Print S2
+    printf("\nThe square of singular values S2\n");
     for (n = 0; n < rows; n++)
     {
-        printf("%6.2f", s[n]);
+        printf("%6.2f", S2[n]);
         printf("\n");
     }
 
@@ -137,6 +145,7 @@ int main(int argc,char **argv)
             }
      }
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
+  // Print covariance matrix
     printf("\ncovariance matrix:\n");
     for (m = 0; m < N2; m++)
     {
@@ -256,7 +265,17 @@ PetscErrorCode BuildCov(Vec U,AppCtx* user)
   PetscFunctionReturn(0);
 }
 
-void svd(double **A, double *S2, int n)
+void svd(PetscScalar **A, PetscScalar *S2, PetscInt n)
+/* svd.c: Perform a singular value decomposition A = USV' of square matrix.
+ *
+ * This routine has been adapted with permission from a Pascal implementation
+ * (c) 1988 J. C. Nash, "Compact numerical methods for computers", Hilger 1990.
+ * The A matrix must be pre-allocated with 2n rows and n columns. On calling
+ * the matrix to be decomposed is contained in the first n rows of A. On return
+ * the n first rows of A contain the product US and the lower n rows contain V
+ * (not V'). The S2 vector returns the square of the singular values.
+ *
+ * (c) Copyright 1996 by Carl Edward Rasmussen. */
 {
   int  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0,
     slimit = (n<120) ? 30 : n/4;
