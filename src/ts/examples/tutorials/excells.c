@@ -1,4 +1,4 @@
-static char help[] = "Test getting all cells in mesh";
+static char help[] = "Test getting all vertices in mesh";
 
 #include <petscdmplex.h>
 #include <petscviewer.h>
@@ -17,7 +17,7 @@ int main(int argc, char **argv)
         PetscInt		dim = 3, vStart, vEnd, j, counter = 0, numFields, numBC, numcells, numindices, *indices, offset;
         PetscInt		ic, cStart, cEnd;
         PetscScalar		*coordArray;
-        PetscInt		numComp[1], numDOF[3], bcField[1];
+        PetscInt		numComp[1], numDOF[1], bcField[1];
         const PetscInt		*vertids, *cellids;
         Vec			coords;
         PetscViewer		viewer;
@@ -33,29 +33,27 @@ int main(int argc, char **argv)
         //ierr = DMPlexCreateFromFile(comm, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr);
         ierr = DMPlexCreateFromFile(comm, "3Dbrick4els.exo", dmInterp, &dm);CHKERRQ(ierr);
         //ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
-        DMGetDimension(dm, &dim);
 
         numFields = 1;
         numComp[0] = 1;
-        for (PetscInt k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
         numDOF[0] = 1;
         numBC = 0;
 
         // Please note that bcField stays uninitialized because numBC = 0,
         // therefore having a trash value. This is probably handled internally
         // within DMPlexCreateSection but idk how exactly.
-        ierr = DMGetStratumIS(dm, "depth", 2, &bcPointsIS);CHKERRQ(ierr);
+
+        ierr = DMGetStratumIS(dm, "Cell Sets", 0, &bcPointsIS);CHKERRQ(ierr);
         ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
         ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
         ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 
-        /*	Get Cells	*/
+        /*	Get Vertices	*/
         ierr = DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd);CHKERRQ(ierr);
         ierr = DMGetStratumIS(dm, "depth", 0, &verts);CHKERRQ(ierr);
         ierr = ISGetIndices(verts, &vertids);CHKERRQ(ierr);
 
-        // the closure in 3d has 4 topological units
         ierr = DMPlexGetDepthStratum(dm, 3, &cStart, &cEnd);CHKERRQ(ierr);
         ierr = DMGetStratumIS(dm, "depth", 3, &cells);CHKERRQ(ierr);
         ierr = ISGetIndices(cells, &cellids);CHKERRQ(ierr);
@@ -65,18 +63,19 @@ int main(int argc, char **argv)
         ierr = VecGetArray(coords,&coordArray);CHKERRQ(ierr);
 
         offset=cEnd-cStart;
+
  	ierr = PetscPrintf(comm, " Total number vertices %d\n", vEnd-vStart);CHKERRQ(ierr);
-        for (ic = 0; ic < cEnd-cStart; ic++)
+        for (ic = 0; ic < cEnd-cStart; ic++) 
 	{ 	ierr = DMPlexGetClosureIndices(dm,section,section,cellids[ic],&numindices,&indices,NULL);CHKERRQ(ierr);
 		ierr = DMPlexGetConeSize(dm, cellids[ic], &numcells);
-                ierr = PetscPrintf(comm, "Current cell %d, total number %d, numind %d  \n", ic, offset,numindices);CHKERRQ(ierr);
+                ierr = PetscPrintf(comm, "Current cell %d, total number %d  \n", ic, offset);CHKERRQ(ierr);
                 for (j = 0; j < numindices; j++){
-                        ierr = PetscPrintf(comm, "x(%2d, %2d, %2d)=(%.2f,%.2f,%0.2f)   \n", dim*(indices[j]), (dim*(indices[j]))+1, (dim*(indices[j]))+2,  
-                                           coordArray[dim*(indices[j])], coordArray[(dim*(indices[j]))+1], coordArray[(dim*(indices[j]))+2]);CHKERRQ(ierr); 
+                       ierr = PetscPrintf(comm, "x(%2d, %2d, %2d)=(%.2f,%.2f,%0.2f)   \n", dim*(indices[j]), (dim*(indices[j]))+1, (dim*(indices[j]))+2,  
+				coordArray[dim*(indices[j])], coordArray[(dim*(indices[j]))+1], coordArray[(dim*(indices[j]))+2]);CHKERRQ(ierr); 
                 }
                 ierr = DMPlexRestoreClosureIndices(dm,section,section,ic,&numindices,&indices,NULL);CHKERRQ(ierr);
-                ierr = PetscPrintf(comm, "      \n");CHKERRQ(ierr);
-                counter++;
+	       ierr = PetscPrintf(comm, "      \n");CHKERRQ(ierr);
+               counter++;
         }
 
 	ierr = VecRestoreArray(coords,&coordArray);CHKERRQ(ierr);
