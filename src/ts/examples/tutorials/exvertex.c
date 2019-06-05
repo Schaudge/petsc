@@ -14,7 +14,7 @@ int main(int argc, char **argv)
         PetscSection		section;
         PetscBool		dmInterp = PETSC_TRUE;
         IS			points, bcPointsIS;
-        PetscInt		dim = 2, dStart, dEnd, i, counter = 0, numFields, numBC;
+        PetscInt		dim = 3, dStart, dEnd, i, counter = 0, numFields, numBC;
         PetscScalar		*coordArray;
         PetscInt		numComp[1], numDOF[1], bcField[1];
         const PetscInt		*idx;
@@ -28,8 +28,9 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        //ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
-        ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
+        ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
+        ierr = DMPlexCreateFromFile(comm, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr);
+        //ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
 
         numFields = 1;
         numComp[0] = 1;
