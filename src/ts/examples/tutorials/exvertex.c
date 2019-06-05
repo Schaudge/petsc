@@ -51,7 +51,7 @@ int main(int argc, char **argv)
         ierr = DMGetStratumIS(dm, "depth", 0, &points);CHKERRQ(ierr);
         ierr = ISGetIndices(points, &idx);CHKERRQ(ierr);
 
-        /*	Get Global Coordinates	*/
+        /*	Get Local Coordinates	*/
         ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
         ierr = VecGetArray(coords,&coordArray);CHKERRQ(ierr);
 
