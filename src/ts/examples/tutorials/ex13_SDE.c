@@ -15,6 +15,7 @@ static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illust
 #include <petscdm.h>
 #include <petscdmda.h>
 #include <petscts.h>
+#include "svd.h"
 
 /*
    User-defined data structures and routines
@@ -25,21 +26,62 @@ typedef struct {
   DM        da;
 } AppCtx;
 
-extern PetscErrorCode RHSFunction(TS,PetscReal,Vec,Vec,void*);
-extern PetscErrorCode RHSJacobian(TS,PetscReal,Vec,Mat,Mat,void*);
-extern PetscErrorCode FormInitialSolution(DM,Vec,void*);
 extern PetscErrorCode BuildA(AppCtx*);
-
+extern PetscErrorCode BuildCov(Vec, AppCtx*);
 
 int main(int argc,char **argv)
 {
+    //test svd.c
+    int m,n,rows=4;
+    double **A, *s;
+    A = (double **) malloc(2 * rows * sizeof(double*));
+    s = (double *) malloc(rows * sizeof(double));
+    printf("Matrix A\n");
+    for (m = 0; m < 2 * rows; m++)
+    {
+        A[m] = malloc(2 * rows * sizeof(double));
+        for (n = 0; n < rows; n++)
+            A[m][n] = m + n;
+    }
+    
+    for (m=0; m < rows; m++)
+    {
+        for (n=0; n < rows; n++)
+            printf("%f ", A[m][n]);
+        printf("\n");
+    }
+    
+    svd(A,s,rows);
+    
+    printf("\nThe square of singe values of A=USV'\n");
+    for (n = 0; n < rows; n++)
+    {
+        printf("%f", s[n]);
+        printf("\n");
+    }
+    
+    printf("\nUS\n");
+    for (m = 0; m < rows; m++)
+    {
+        for (n = 0; n < rows; n++)
+            printf("%f", A[m][n]);
+        printf("\n");
+    }
+    
+    printf("\nV\n");
+    for (m = rows; m < 2 * rows; m++)
+    {
+        for (n = 0; n < rows; n++)
+            printf("%f", A[m][n]);
+        printf("\n");
+    }
                 
   Vec            u,r;                  /* solution, residual vector */
   PetscErrorCode ierr;
   DM             cda;
   DMDACoor2d     **coors;
-  Vec            global,loc;
-   AppCtx         user;              /* user-defined work context */
+  Vec            global;
+  AppCtx         user;              /* user-defined work context */
   PetscInt       N=8;
   PetscScalar    **Cov, sigma, lc;
  
@@ -61,16 +103,19 @@ int main(int argc,char **argv)
     ---------------------------------------------------------------------*/
   PetscInt Lx=2, Ly=3, xs,xm,ys,ym,ix,iy;
   PetscScalar x1,y1,x0,y0,rr;
-  PetscInt ind, N2, i,j;
+  PetscInt N2, i,j;
 
   sigma=0.5;
-  lc=0.1; 
+  lc=0.1;
    
   N2=N*N;
   /// allocate covariance matrix
   ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
   ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
-  for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
+  for (i=1; i<N2; i++)
+    {Cov[i] = Cov[i-1]+N2;
+//     printf("Cov[%d]=%f\n",i,Cov[i]);
+    }
 
   DMDASetUniformCoordinates(user.da,0.0,Lx,0.0,Ly,0.0,0.0);
   DMGetCoordinateDM(user.da,&cda);
@@ -80,21 +125,21 @@ int main(int argc,char **argv)
   DMDAVecGetArray(cda,global,&coors);
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
-        {
-            printf("test coordinates coord[%d][%d]", ix, iy);
-            printf(".x=%f  ", coors[ix][iy].x);
-            printf(".y=%f\n", coors[ix][iy].y);
-            x0=coors[ix][iy].x;  //here we can modify
-            y0=coors[ix][iy].y;
-            for (j=ys; j<ys+ym; j++) 
+            {
+             printf("test coordinates coord[%d][%d]", ix, iy);
+             printf(".x=%f  ", coors[iy][ix].x);
+             printf(".y=%f\n", coors[iy][ix].y);
+             x0=coors[iy][ix].x;
+             y0=coors[iy][ix].y;
+             for (j=ys; j<ys+ym; j++)
                 {for (i=xs; i<xs+xm; i++)
-                    {x1=coors[i][j].x;  //here we can modify
-                    y1=coors[i][j].y;
-                    rr=PetscPowReal((x1-x0),2)+PetscPowReal((y1-y0),2);
-                    Cov[ix*xm+i][iy*ym+j]=sigma*PetscExpReal(-rr/lc);
+                    {x1=coors[j][i].x;
+                     y1=coors[j][i].y;
+                     rr=PetscPowReal((x1-x0),2)+PetscPowReal((y1-y0),2);
+                     Cov[ix*xm+i][iy*ym+j]=sigma*PetscExpReal(-rr/lc);
                     }
                 }
-       }
+            }
      }
 
  
@@ -107,7 +152,7 @@ int main(int argc,char **argv)
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
   
   ierr = BuildA(&user);
-  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+//  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
@@ -208,7 +253,6 @@ PetscErrorCode BuildCov(Vec U,AppCtx* user)
   ierr = DMDAVecRestoreArray(user->da,U,&u);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 void svd(double **A, double *S2, int n)
 {
