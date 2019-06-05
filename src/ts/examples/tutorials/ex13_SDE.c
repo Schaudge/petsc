@@ -31,17 +31,17 @@ extern PetscErrorCode BuildCov(Vec, AppCtx*);
 int main(int argc,char **argv)
 {
     //test svd.c
-    PetscInt m,n,rows=4;
+    PetscInt m,n,rows=16;
     PetscScalar **A, *S2;
     //allocate test matrix A and vector s to store the square of singular values
-    A = (PetscScalar **) malloc(2 * rows * sizeof(double*));
-    S2 = (PetscScalar *) malloc(rows * sizeof(double));
+    A = (PetscScalar **) malloc(2 * rows * sizeof(PetscScalar*));
+    S2 = (PetscScalar *) malloc(rows * sizeof(PetscScalar));
     
     //Set test matrix A
     printf("test svd:\n\nMatrix A\n");
     for (m = 0; m < 2 * rows; m++)
     {
-        A[m] = malloc(2 * rows * sizeof(double));
+        A[m] = malloc(2 * rows * sizeof(PetscScalar));
         for (n = 0; n < rows; n++)
             A[m][n] = m + n;
     }
@@ -50,23 +50,23 @@ int main(int argc,char **argv)
     for (m=0; m < rows; m++)
     {
         for (n=0; n < rows; n++)
-            printf("%1.0f ", A[m][n]);
+            printf("%5.2f ", A[m][n]);
         printf("\n");
     }
 
     //Do SVD
     svd(A,S2,rows);
     
-    //Print Results
+    //Print Results: A=USV'
     printf("\nA=USV'\n");
     //Print S2
     printf("\nThe square of singular values S2\n");
     for (n = 0; n < rows; n++)
     {
-        printf("%6.2f", S2[n]);
+        printf("%8.2f", S2[n]);
         printf("\n");
     }
-
+    //Print US
     printf("\nUS\n");
     for (m = 0; m < rows; m++)
     {
@@ -74,7 +74,7 @@ int main(int argc,char **argv)
             printf("%6.2f", A[m][n]);
         printf("\n");
     }
-
+    //Print V
     printf("\nV\n");
     for (m = rows; m < 2 * rows; m++)
     {
@@ -107,9 +107,9 @@ int main(int argc,char **argv)
   /*------------------------------------------------------------------------
     Access coordinate field
     ---------------------------------------------------------------------*/
-  PetscInt Lx=2, Ly=3, xs,xm,ys,ym,ix,iy;
-  PetscScalar x1,y1,x0,y0,rr;
-  PetscInt N2, i,j;
+  PetscInt Lx=2, Ly=3, xs, xm, ys, ym, ix, iy;
+  PetscInt N2, i, j;
+  PetscScalar x1, y1, x0, y0, rr;
 
   sigma=1.0;
   lc=5;
@@ -147,13 +147,41 @@ int main(int argc,char **argv)
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
   // Print covariance matrix
     printf("\ncovariance matrix:\n");
-    for (m = 0; m < N2; m++)
+    for (i = 0; i < N2; i++)
     {
-        for (n = 0; n < N2; n++)
-            printf("%6.2f", Cov[m][n]);
+        for (j = 0; j < N2; j++)
+            printf("%6.2f", Cov[i][j]);
         printf("\n");
     }
- 
+// // Do SVD
+//    svd(Cov,S2,N2);
+// // Print Results: A=USV'
+//    printf("\nA=USV'\n");
+// // Print S2
+//    printf("\nThe square of singular values S2\n");
+//    for (j = 0; j < N2; j++)
+//    {
+//        printf("%8.2f", S2[j]);
+//        printf("\n");
+//    }
+// // Print US
+//    printf("\nUS\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++)
+//            printf("%6.2f", A[i][j]);
+//        printf("\n");
+//    }
+// // Print V
+//    printf("\nV\n");
+//    for (i = rows; i < 2 * N2; i++)
+//    {
+//        for (j = 0; j < N2; j++)
+//            printf("%6.2f", A[i][j]);
+//        printf("\n");
+//    }
+    
+    
   /* Initialize user application context */
   user.c = -30.0;
 
@@ -277,9 +305,9 @@ void svd(PetscScalar **A, PetscScalar *S2, PetscInt n)
  *
  * (c) Copyright 1996 by Carl Edward Rasmussen. */
 {
-  int  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0,
+  PetscInt  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0,
     slimit = (n<120) ? 30 : n/4;
-  double eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0,
+  PetscScalar eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0,
     y0, q, r, c0, s0, d1, d2;
 
   for (i=0; i<n; i++) { for (j=0; j<n; j++) A[n+i][j] = 0.0; A[n+i][i] = 1.0; }
