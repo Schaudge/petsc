@@ -30,60 +30,6 @@ extern PetscErrorCode BuildCov(Vec, AppCtx*);
 
 int main(int argc,char **argv)
 {
-    //test svd.c
-    PetscInt m,n,rows=4;
-    PetscScalar **A, **US, **V, *S2;
-    //allocate test matrix A,US,V and vector S2 to store the square of singular values
-    A = (PetscScalar **) malloc(rows * sizeof(PetscScalar*));
-    for (m = 0; m < rows; m++) A[m] = malloc(rows * sizeof(PetscScalar));
-    US = (PetscScalar **) malloc(rows * sizeof(PetscScalar*));
-    for (m = 0; m < rows; m++) US[m] = malloc(rows * sizeof(PetscScalar));
-    V = (PetscScalar **) malloc(rows * sizeof(PetscScalar*));
-    for (m = 0; m < rows; m++) V[m] = malloc(rows * sizeof(PetscScalar));
-    S2 = (PetscScalar *) malloc(rows * sizeof(PetscScalar));
-    
-    //Set test matrix A
-    printf("test svd:\n\nMatrix A\n");
-    for (m = 0; m < rows; m++)
-    {
-        for (n = 0; n < rows; n++) A[m][n] = m + n;
-    }
-
-    //Print test matrix A
-    for (m=0; m < rows; m++)
-    {
-        for (n=0; n < rows; n++) printf("%5.2f ", A[m][n]);
-        printf("\n");
-    }
-
-    //Do SVD
-    svd(A,US,V,S2,rows);
-    
-    //Print Results: A=USV'
-    printf("\nA=USV'\n");
-    //Print S2
-    printf("\nThe square of singular values S2\n");
-    for (n = 0; n < rows; n++)
-    {
-        printf("%8.2f", S2[n]);
-        printf("\n");
-    }
-    //Print US
-    printf("\nUS\n");
-    for (m = 0; m < rows; m++)
-    {
-        for (n = 0; n < rows; n++) printf("%6.2f", US[m][n]);
-        printf("\n");
-    }
-    //Print V
-    printf("\nV\n");
-    for (m = 0; m < rows; m++)
-    {
-        for (n = 0; n < rows; n++)
-            printf("%6.2f", V[m][n]);
-        printf("\n");
-    }
-    
   Vec            u;                  /* solution vector */
   PetscErrorCode ierr;
   DM             cda;
@@ -92,6 +38,7 @@ int main(int argc,char **argv)
   AppCtx         user;              /* user-defined work context */
   PetscInt       N=4;
   PetscScalar    **Cov, sigma, lc;
+  PetscScalar    **U, **V, *S;
  
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -113,13 +60,24 @@ int main(int argc,char **argv)
   PetscScalar x1, y1, x0, y0, rr;
 
   sigma=1.0;
-  lc=5;
+  lc=2.0;
    
   N2=N*N;
-  /// allocate covariance matrix
+  /// allocate covariance matrix and its SVD associates
   ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
   ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
   for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
+
+  ierr = PetscMalloc1(N2,&U);CHKERRQ(ierr);
+  ierr = PetscMalloc1(N2*N2,&U[0]);CHKERRQ(ierr);
+  for (i=1; i<N2; i++) U[i] = U[i-1]+N2;
+    
+  ierr = PetscMalloc1(N2,&V);CHKERRQ(ierr);
+  ierr = PetscMalloc1(N2*N2,&V[0]);CHKERRQ(ierr);
+  for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
+    
+  ierr = PetscMalloc1(N2,&S);CHKERRQ(ierr);
+  for (i=1; i<N2; i++) S[i] = S[i-1]+N2;
 
   ierr = DMDASetUniformCoordinates(user.da,0.0,Lx,0.0,Ly,0.0,0.0);CHKERRQ(ierr);
   ierr = DMDAGetCorners(user.da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
@@ -146,42 +104,42 @@ int main(int argc,char **argv)
             }
      }
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
-  // Print covariance matrix
-//    printf("\ncovariance matrix:\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++)
-//            printf("%6.2f", Cov[i][j]);
-//        printf("\n");
-//    }
+//   Print covariance matrix
+    printf("Cov\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+        printf("\n");
+    }
     
-// // Do SVD
-//    svd(Cov,S2,N2);
-// // Print Results: A=USV'
-//    printf("\nA=USV'\n");
-// // Print S2
-//    printf("\nThe square of singular values S2\n");
-//    for (j = 0; j < N2; j++)
-//    {
-//        printf("%8.2f", S2[j]);
-//        printf("\n");
-//    }
-// // Print US
-//    printf("\nUS\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++)
-//            printf("%6.2f", A[i][j]);
-//        printf("\n");
-//    }
-// // Print V
-//    printf("\nV\n");
-//    for (i = rows; i < 2 * N2; i++)
-//    {
-//        for (j = 0; j < N2; j++)
-//            printf("%6.2f", A[i][j]);
-//        printf("\n");
-//    }
+ // Do SVD
+    svd(Cov,U,V,S,N2);
+    
+ // Print Results: Cov=USV'
+    printf("\nCov=USV':\n");
+ // Print S2
+    printf("\nS(Singular values)\n");
+    for (j = 0; j < N2; j++)
+    {
+        printf("%8.2f", S[j]);
+        printf("\n");
+    }
+ // Print US
+    printf("\nU\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++)
+            printf("%6.2f", U[i][j]);
+        printf("\n");
+    }
+ // Print V
+    printf("\nV\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++)
+            printf("%6.2f", V[i][j]);
+        printf("\n");
+    }
     
     
   /* Initialize user application context */
@@ -295,19 +253,24 @@ PetscErrorCode BuildCov(Vec U,AppCtx* user)
   PetscFunctionReturn(0);
 }
 
-void svd(PetscScalar **A_input, PetscScalar **US, PetscScalar **V, PetscScalar *S2, PetscInt n)
+void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
 /* svd.c: Perform a singular value decomposition A = USV' of square matrix.
  *
  * Input: The A_input matrix must has n rows and n columns.
- * Output: The product are US and V(not V').
-           The S2 vector returns the square of the singular values. */
+ * Output: The product are U, S and V(not V').
+           The S vector returns the singular values. */
 {
   PetscInt  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0,
     slimit = (n<120) ? 30 : n/4;
   PetscScalar eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0,
     y0, q, r, c0, s0, d1, d2;
+  PetscScalar *S2;
   PetscScalar **A;
-  A = (PetscScalar **) malloc(2 * n * sizeof(PetscScalar*));
+  PetscMalloc1(n,&S2);
+  for (i=1; i<n; i++) S2[i] = S2[i-1]+n;
+  PetscMalloc1(n,&A);
+  PetscMalloc1(n*n,&A[0]);
+  for (i=1; i<n; i++) A[i] = A[i-1]+n;
   for (i=0; i<n; i++)
     {
         A[i] = malloc(n * sizeof(PetscScalar));
@@ -356,12 +319,13 @@ void svd(PetscScalar **A_input, PetscScalar **US, PetscScalar **V, PetscScalar *
   if (SweepCount > slimit)
     printf("Warning: Reached maximum number of sweeps (%d) in SVD routine...\n"
        ,slimit);
+    for (i=0; i<n; i++) S[i] = PetscSqrtReal(S2[i]);
     for (i=0; i<n; i++)
     {
         for (j=0; j<n; j++)
         {
-            US[i][j] = A[i][j];
-             V[i][j] = A[n+i][j];
+            U[i][j] = A[i][j]/S[j];
+            V[i][j] = A[n+i][j];
         }
     }
 }
