@@ -74,14 +74,14 @@ int main(int argc,char **argv)
             printf("%6.2f", A[m][n]);
         printf("\n");
     }
-    //Print V
-    printf("\nV\n");
-    for (m = rows; m < 2 * rows; m++)
-    {
-        for (n = 0; n < rows; n++)
-            printf("%6.2f", A[m][n]);
-        printf("\n");
-    }
+//    //Print V
+//    printf("\nV\n");
+//    for (m = rows; m < 2 * rows; m++)
+//    {
+//        for (n = 0; n < rows; n++)
+//            printf("%6.2f", A[m][n]);
+//        printf("\n");
+//    }
     
   Vec            u;                  /* solution vector */
   PetscErrorCode ierr;
@@ -153,6 +153,7 @@ int main(int argc,char **argv)
             printf("%6.2f", Cov[i][j]);
         printf("\n");
     }
+    
 // // Do SVD
 //    svd(Cov,S2,N2);
 // // Print Results: A=USV'
@@ -293,6 +294,7 @@ PetscErrorCode BuildCov(Vec U,AppCtx* user)
   PetscFunctionReturn(0);
 }
 
+//void svd(PetscScalar **A_input, PetscScalar *S2, PetscInt n)
 void svd(PetscScalar **A, PetscScalar *S2, PetscInt n)
 /* svd.c: Perform a singular value decomposition A = USV' of square matrix.
  *
@@ -309,8 +311,18 @@ void svd(PetscScalar **A, PetscScalar *S2, PetscInt n)
     slimit = (n<120) ? 30 : n/4;
   PetscScalar eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0,
     y0, q, r, c0, s0, d1, d2;
-
-  for (i=0; i<n; i++) { for (j=0; j<n; j++) A[n+i][j] = 0.0; A[n+i][i] = 1.0; }
+//  PetscScalar **A;
+//  A = (PetscScalar **) malloc(2 * n * sizeof(PetscScalar*));
+  for (i=0; i<n; i++)
+    { for (j=0; j<n; j++)
+        {
+//            A[i] = malloc(n * sizeof(PetscScalar));
+//            A[n+i] = malloc(n * sizeof(PetscScalar));
+//            A[i][j]   = A_input[i][j];
+            A[n+i][j] = 0.0;
+        }
+        A[n+i][i] = 1.0;
+    }
   while (RotCount != 0 && SweepCount++ <= slimit) {
     RotCount = EstColRank*(EstColRank-1)/2;
     for (j=0; j<EstColRank-1; j++) 
@@ -331,6 +343,11 @@ void svd(PetscScalar **A, PetscScalar *S2, PetscInt n)
               d1 = A[i][j]; d2 = A[i][k];
               A[i][j] = d1*c0+d2*s0; A[i][k] = -d1*s0+d2*c0;
             }
+//            for (i=0; i<n; i++)
+//            {
+//              A_input[i][j]=A[i][j];
+//              A_input[i][k]=A[i][k];
+//            }
           }
         } else {
           p /= r; q = q/r-1.0; vt = sqrt(4.0*p*p+q*q);
@@ -341,11 +358,23 @@ void svd(PetscScalar **A, PetscScalar *S2, PetscInt n)
             d1 = A[i][j]; d2 = A[i][k];
             A[i][j] = d1*c0+d2*s0; A[i][k] = -d1*s0+d2*c0;
           }
+//            for (i=0; i<n; i++)
+//            {
+//                A_input[i][j]=A[i][j];
+//                A_input[i][k]=A[i][k];
+//            }
         }
       }
     while (EstColRank>2 && S2[EstColRank-1]<=S2[0]*tol+tol*tol) EstColRank--;
-  }
+      }
   if (SweepCount > slimit)
     printf("Warning: Reached maximum number of sweeps (%d) in SVD routine...\n"
 	   ,slimit);
+//    for (i=0; i<n; i++)
+//    { for (j=0; j<n; j++)
+//    {
+//        A_input[i][j] = A[i][j];
+//    }
+//    }
 }
+

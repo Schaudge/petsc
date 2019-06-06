@@ -1,1 +1,1 @@
-extern void svd(double **A, double *S2, int n);
+extern void svd(double **, double *, int);
