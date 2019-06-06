@@ -37,7 +37,10 @@ int main(int argc,char **argv)
   Vec            global;
   AppCtx         user;              /* user-defined work context */
   PetscInt       N=4;
-  PetscScalar    **Cov, sigma, lc;
+  PetscScalar    **Cov;
+//  PetscScalar    sigma;
+//  PetscScalzr    lx, ly;
+  PetscScalar    lc;
   PetscScalar    **U, **V, *S;
  
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
@@ -59,8 +62,10 @@ int main(int argc,char **argv)
   PetscInt N2, i, j;
   PetscScalar x1, y1, x0, y0, rr;
 
-  sigma=1.0;
+//  sigma=1.0;
   lc=2.0;
+//  lx=lc;
+//  ly=lc;
    
   N2=N*N;
   /// allocate covariance matrix and its SVD associates
@@ -97,8 +102,9 @@ int main(int argc,char **argv)
                 {for (i=xs; i<xs+xm; i++)
                     {x1=coors[j][i].x;
                      y1=coors[j][i].y;
-                     rr=PetscPowReal((x1-x0),2)+PetscPowReal((y1-y0),2);
-                     Cov[iy*ym+ix][j*xm+i]=sigma*PetscExpReal(-rr/lc);
+//                     rr=PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
+                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Square Exp
+                     Cov[iy*ym+ix][j*xm+i]=PetscExpReal(-rr);
                     }
                 }
             }
