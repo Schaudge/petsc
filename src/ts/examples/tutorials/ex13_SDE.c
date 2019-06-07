@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=4;
+  PetscInt       N=6;
   PetscScalar    **Cov;
 //  PetscScalar    sigma;
 //  PetscScalzr    lx, ly;
@@ -112,13 +112,13 @@ int main(int argc,char **argv)
      }
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
     
-    //   Print covariance matrix (before adding weights)
-    printf("Cov\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-        printf("\n");
-    }
+//    //   Print covariance matrix (before adding weights)
+//    printf("Cov\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//        printf("\n");
+//    }
 // Approximate the covariance integral operator via collocation and vertex-based quadrature
     // allocate quadrature weights W along the diagonal
     ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
@@ -150,13 +150,13 @@ int main(int argc,char **argv)
             Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
         }
     }
-//   Print the approximation of covariance operator K (modified to be symmetric)
-    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-        printf("\n");
-    }
+////   Print the approximation of covariance operator K (modified to be symmetric)
+//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//        printf("\n");
+//    }
 
  // Do SVD
     svd(Cov,U,V,S,N2);
@@ -170,18 +170,18 @@ int main(int argc,char **argv)
         printf("%8.2f", S[j]);
         printf("\n");
     }
- // Print eigenvectors W^(-1/2) * U
-    printf("\nIts corresponding eigenvectors\n");
-    // Recover eigenvectors by divding sqrt(W)
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++)
-        {
-            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-            printf("%6.2f", U[i][j]);
-        }
-        printf("\n");
-    }
+// // Print eigenvectors W^(-1/2) * U
+//    printf("\nIts corresponding eigenvectors\n");
+//    // Recover eigenvectors by divding sqrt(W)
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++)
+//        {
+//            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
+//            printf("%6.2f", U[i][j]);
+//        }
+//        printf("\n");
+//    }
 
   /* Initialize user application context */
   user.c = -30.0;
