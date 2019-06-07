@@ -163,14 +163,14 @@ int main(int argc,char **argv)
 
  // Print Results: Cov=USV'
     printf("\nK=USV':\n");
- // Print S2
+ // Print S
     printf("\nS(Singular values)\n");
     for (j = 0; j < N2; j++)
     {
         printf("%8.2f", S[j]);
         printf("\n");
     }
- // Print US
+ // Print U
     printf("\nU\n");
     for (i = 0; i < N2; i++)
     {
