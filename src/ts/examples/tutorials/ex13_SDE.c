@@ -161,29 +161,25 @@ int main(int argc,char **argv)
  // Do SVD
     svd(Cov,U,V,S,N2);
 
- // Print Results: Cov=USV'
-    printf("\nK=USV':\n");
- // Print S
-    printf("\nS(Singular values)\n");
+//  Print Results: K=USV'
+//    printf("\nK=USV':\n");
+ // Print eigenvalues
+    printf("\nEigenvalues (in non-increasing order)\n");
     for (j = 0; j < N2; j++)
     {
         printf("%8.2f", S[j]);
         printf("\n");
     }
- // Print U
-    printf("\nU\n");
+ // Print eigenvectors W^(-1/2) * U
+    printf("\nIts corresponding eigenvectors\n");
+    // Recover eigenvectors by divding sqrt(W)
     for (i = 0; i < N2; i++)
     {
         for (j = 0; j < N2; j++)
+        {
+            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
             printf("%6.2f", U[i][j]);
-        printf("\n");
-    }
- // Print V
-    printf("\nV\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++)
-            printf("%6.2f", V[i][j]);
+        }
         printf("\n");
     }
 
