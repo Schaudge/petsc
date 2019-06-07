@@ -192,8 +192,6 @@ PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly)
 
         ierr = DMCreateMatrix(dm, &A);CHKERRQ(ierr);
         MatView(A,0);
-
-        return ierr;
 }
 int main(int argc, char **argv)
 {
@@ -238,7 +236,7 @@ int main(int argc, char **argv)
         //ierr = LargeAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
         //ierr = SmallAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
         ierr = Stretch2DJacobian(dm, lx, ly);
-
+        
         ierr = DMCreateGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
         //        ierr = VecSet(solVecGlobal, 0);CHKERRQ(ierr);
         ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
