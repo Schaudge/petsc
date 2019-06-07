@@ -94,9 +94,9 @@ int main(int argc,char **argv)
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
             {
-             printf("coord[%d][%d]", iy, ix);
-             printf(".x=%f  ", coors[iy][ix].x);
-             printf(".y=%f\n", coors[iy][ix].y);
+//             printf("coord[%d][%d]", iy, ix);
+//             printf(".x=%f  ", coors[iy][ix].x);
+//             printf(".y=%f\n", coors[iy][ix].y);
              x0=coors[iy][ix].x;
              y0=coors[iy][ix].y;
              for (j=ys; j<ys+ym; j++)
@@ -111,66 +111,81 @@ int main(int argc,char **argv)
             }
      }
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
-////   Print covariance matrix
-//    printf("Cov\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-//        printf("\n");
-//    }
-//
-// // Do SVD
-//    svd(Cov,U,V,S,N2);
-//
-// // Print Results: Cov=USV'
-//    printf("\nCov=USV':\n");
-// // Print S2
-//    printf("\nS(Singular values)\n");
-//    for (j = 0; j < N2; j++)
-//    {
-//        printf("%8.2f", S[j]);
-//        printf("\n");
-//    }
-// // Print US
-//    printf("\nU\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++)
-//            printf("%6.2f", U[i][j]);
-//        printf("\n");
-//    }
-// // Print V
-//    printf("\nV\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++)
-//            printf("%6.2f", V[i][j]);
-//        printf("\n");
-//    }
     
- // Approximate the covariance integral operator via collocation and vertex-based quadrature
-    
+    //   Print covariance matrix (before adding weights)
+    printf("Cov\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+        printf("\n");
+    }
+// Approximate the covariance integral operator via collocation and vertex-based quadrature
     // allocate quadrature weights W along the diagonal
     ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
     for (i=1; i<N2; i++) W[i] = W[i-1]+N2;
     // fill the weights (trapezoidal rule in 2d uniform mesh)
-        // fill the first and the last
-        W[0]=1; W[N-1]=1; W[N2-N]=1; W[N2-1]=1;
-        for (i=1; i<N-1; i++) {W[i] = 2; W[N2-N+i]=2;}
-        // fill in between
-            // the leading one
-            for (i=0; i<N; i++)
-            {
-                for (j=1; j<N-1; j++) W[j*N+i] = 2.0 * W[i];
-            }
-    // Print W before scaling
-    printf("W\n");
-    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    // fill the first and the last
+    W[0]=1; W[N-1]=1; W[N2-N]=1; W[N2-1]=1;
+    for (i=1; i<N-1; i++) {W[i] = 2; W[N2-N+i]=2;}
+    // fill in between
+    for (i=0; i<N; i++)
+        {
+        for (j=1; j<N-1; j++) W[j*N+i] = 2.0 * W[i];
+        }
+//    // Print W before scaling
+//    printf("W\n");
+//    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
     // Scale W
     for (i = 0; i < N2; i++) W[i] = W[i] * (Lx*Ly)/(4*PetscPowReal((N-1),2));
-    // Print W after scaling
-    printf("W\n");
-    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+//    // Print W after scaling
+//    printf("W\n");
+//    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
+    // Combine with covariance matrix to form covariance operator
+    // K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)
+    for (i=0; i<N2; i++)
+    {
+        for (j=0; j<N2; j++)
+        {
+            Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
+        }
+    }
+//   Print the approximation of covariance operator K (modified to be symmetric)
+    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+        printf("\n");
+    }
+
+ // Do SVD
+    svd(Cov,U,V,S,N2);
+
+ // Print Results: Cov=USV'
+    printf("\nK=USV':\n");
+ // Print S2
+    printf("\nS(Singular values)\n");
+    for (j = 0; j < N2; j++)
+    {
+        printf("%8.2f", S[j]);
+        printf("\n");
+    }
+ // Print US
+    printf("\nU\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++)
+            printf("%6.2f", U[i][j]);
+        printf("\n");
+    }
+ // Print V
+    printf("\nV\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++)
+            printf("%6.2f", V[i][j]);
+        printf("\n");
+    }
 
   /* Initialize user application context */
   user.c = -30.0;
