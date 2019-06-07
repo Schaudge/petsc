@@ -13,11 +13,12 @@ int main(int argc, char **argv)
         DM                      dm;
         PetscSection		section;
         PetscBool		dmInterp = PETSC_TRUE;
-        IS			points, bcPointsIS;
-        PetscInt		dim = 3, dStart, dEnd, i, counter = 0, numFields, numBC;
+        IS			verts, cells, bcPointsIS;
+        PetscInt		dim = 3, vStart, vEnd, j, counter = 0, numFields, numBC, numcells, numindices, *indices, offset;
+        PetscInt		ic, cStart, cEnd;
         PetscScalar		*coordArray;
         PetscInt		numComp[1], numDOF[1], bcField[1];
-        const PetscInt		*idx;
+        const PetscInt		*vertids, *cellids;
         Vec			coords;
         PetscViewer		viewer;
 
@@ -29,7 +30,8 @@ int main(int argc, char **argv)
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
         //ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
-        ierr = DMPlexCreateFromFile(comm, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr);
+        //ierr = DMPlexCreateFromFile(comm, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr);
+        ierr = DMPlexCreateFromFile(comm, "3Dbrick4els.exo", dmInterp, &dm);CHKERRQ(ierr);
         //ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
 
         numFields = 1;
@@ -48,20 +50,35 @@ int main(int argc, char **argv)
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 
         /*	Get Vertices	*/
-        ierr = DMPlexGetDepthStratum(dm, 0, &dStart, &dEnd);CHKERRQ(ierr);
-        ierr = DMGetStratumIS(dm, "depth", 0, &points);CHKERRQ(ierr);
-        ierr = ISGetIndices(points, &idx);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd);CHKERRQ(ierr);
+        ierr = DMGetStratumIS(dm, "depth", 0, &verts);CHKERRQ(ierr);
+        ierr = ISGetIndices(verts, &vertids);CHKERRQ(ierr);
+
+        ierr = DMPlexGetDepthStratum(dm, 3, &cStart, &cEnd);CHKERRQ(ierr);
+        ierr = DMGetStratumIS(dm, "depth", 3, &cells);CHKERRQ(ierr);
+        ierr = ISGetIndices(cells, &cellids);CHKERRQ(ierr);
 
         /*	Get Local Coordinates	*/
         ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
         ierr = VecGetArray(coords,&coordArray);CHKERRQ(ierr);
 
-        ierr = PetscPrintf(comm, "Vertex Num |     Coord     | IS Index\n");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "-------------------------------------\n");CHKERRQ(ierr);
-        for (i = 0; i < dEnd-dStart; i++) {
-                 ierr = PetscPrintf(comm, "     %d     | (%.2f , %.2f, %0.2f) | %d\n", counter, coordArray[dim*i], coordArray[(dim*i)+1], coordArray[(dim*i)+2], idx[counter]);CHKERRQ(ierr);
-                counter++;
+        offset=cEnd-cStart;
+
+ 	ierr = PetscPrintf(comm, " Total number vertices %d\n", vEnd-vStart);CHKERRQ(ierr);
+        for (ic = 0; ic < cEnd-cStart; ic++) 
+	{ 	ierr = DMPlexGetClosureIndices(dm,section,section,cellids[ic],&numindices,&indices,NULL);CHKERRQ(ierr);
+		ierr = DMPlexGetConeSize(dm, cellids[ic], &numcells);
+                ierr = PetscPrintf(comm, "Current cell %d, total number %d  \n", ic, offset);CHKERRQ(ierr);
+                for (j = 0; j < numindices; j++){
+                       ierr = PetscPrintf(comm, "x(%2d, %2d, %2d)=(%.2f,%.2f,%0.2f)   \n", dim*(indices[j]), (dim*(indices[j]))+1, (dim*(indices[j]))+2,  
+				coordArray[dim*(indices[j])], coordArray[(dim*(indices[j]))+1], coordArray[(dim*(indices[j]))+2]);CHKERRQ(ierr); 
+                }
+                ierr = DMPlexRestoreClosureIndices(dm,section,section,ic,&numindices,&indices,NULL);CHKERRQ(ierr);
+	       ierr = PetscPrintf(comm, "      \n");CHKERRQ(ierr);
+               counter++;
         }
+
+	ierr = VecRestoreArray(coords,&coordArray);CHKERRQ(ierr);
 
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
