@@ -71,6 +71,7 @@ class Package(config.base.Configure):
     self.publicInstall          = 1  # Installs the package in the --prefix directory if it was given. Packages that are only used
                                      # during the configuration/installation process such as sowing, make etc should be marked as 0
     self.parallelMake           = 1  # 1 indicates the package supports make -j np option
+    self.rparallelMake          = 0  # 1 indicates the package supports recursive parallel make 
 
     self.precisions             = ['__fp16','single','double','__float128']; # Floating point precision package works with
     self.complex                = 1  # 0 means cannot use complex
@@ -1466,8 +1467,10 @@ class GNUPackage(Package):
       raise RuntimeError('Error running configure on ' + self.PACKAGE+': '+str(e))
     try:
       self.logPrintBox('Running make on '+self.PACKAGE+'; this may take several minutes')
-      if self.parallelMake: pmake = self.make.make_jnp+' '+self.makerulename+' '
-      else: pmake = self.make.make+' '+self.makerulename+' '
+      if self.parallelMake: pmake = self.make.make_jnp
+      elif self.rparallelMake: pmake = self.make.make_jnp_makeflags
+      else: pmake = self.make.make
+      pmake = pmake+' '+self.makerulename+' '
 
       output2,err2,ret2  = config.base.Configure.executeShellCommand(self.make.make+' clean', cwd=self.packageDir, timeout=200, log = self.log)
       output3,err3,ret3  = config.base.Configure.executeShellCommand(pmake, cwd=self.packageDir, timeout=6000, log = self.log)

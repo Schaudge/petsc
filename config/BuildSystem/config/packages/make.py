@@ -199,6 +199,7 @@ class Configure(config.package.GNUPackage):
     self.addMakeMacro('MAKE_LOAD',str(make_load))
     self.addMakeMacro('NPMAX',str(cores))
     self.make_jnp = self.make + ' -j' + str(self.make_np) +' -l'+str(self.make_load)
+    self.make_jnp_makeflags = 'MFLAGS="-j' + str(self.make_np) +' -l'+str(self.make_load)+'" MAKEFLAGS="-j' + str(self.make_np) +' -l'+str(self.make_load)+'" '+self.make
     return
 
   def configure(self):
