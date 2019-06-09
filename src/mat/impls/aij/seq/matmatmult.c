@@ -74,7 +74,7 @@
      ierr = MatMatMultSymbolic_SeqAIJ_SeqAIJ_LLCondensed(A,B,fill,C);CHKERRQ(ierr);
      break;
    case 6:
-     ierr = MatMatMult_SeqAIJ_SeqAIJ_Combined(A,B,fill,C);CHKERRQ(ierr);
+     ierr = MatMatMultSymbolic_SeqAIJ_SeqAIJ_Combined(A,B,fill,C);CHKERRQ(ierr);
      break;
    case 7:
      ierr = MatMatMultSymbolic_SeqAIJ_SeqAIJ_RowMerge(A,B,fill,C);CHKERRQ(ierr);
@@ -1825,40 +1825,50 @@ PetscErrorCode MatTransposeColoringCreate_SeqAIJ(Mat mat,ISColoring iscoloring,M
   PetscFunctionReturn(0);
 }
 
-/* The combine method has done the symbolic and numeric in the first phase, and so we just return here */
-PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,Mat C)
+/* We combine symbolic and numeric phases so there's nothing to do at this time except prepare the matrix. */
+PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat *C)
 {
+  PetscErrorCode ierr;
+  PetscInt       am = A->rmap->N,bn = B->cmap->N;
+
   PetscFunctionBegin;
-  /* Empty function */
+  /* Create the new matrix */
+  ierr = MatCreate(((PetscObject)A)->comm,C);CHKERRQ(ierr);
+  ierr = MatSetSizes(*C,am,bn,am,bn);CHKERRQ(ierr);
+  ierr = MatSetType(*C,((PetscObject)A)->type_name);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation_SeqAIJ(*C,MAT_SKIP_ALLOCATION,NULL);CHKERRQ(ierr);
+  ierr = MatSetBlockSizesFromMats(*C,A,B);CHKERRQ(ierr);
+
+  (*C)->info.fill_ratio_given = fill;
+  (*C)->ops->matmultnumeric = MatMatMultNumeric_SeqAIJ_SeqAIJ_Combined;
   PetscFunctionReturn(0);
 }
 
 /* This algorithm combines the symbolic and numeric phase of matrix-matrix multiplication. */
-PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat *C)
+PetscErrorCode MatMatMultNumeric_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,Mat C)
 {
   PetscErrorCode     ierr;
   PetscLogDouble     flops=0.0;
-  Mat_SeqAIJ         *a=(Mat_SeqAIJ*)A->data,*b=(Mat_SeqAIJ*)B->data,*c;
+  Mat_SeqAIJ         *a = (Mat_SeqAIJ*)A->data,*b = (Mat_SeqAIJ*)B->data,*c = (Mat_SeqAIJ*)C->data;
   const PetscInt     *ai=a->i,*bi=b->i;
   PetscInt           *ci,*cj;
   PetscScalar        *ca;
   PetscInt           b_maxmemrow,c_maxmem;
   PetscInt           am=A->rmap->N,bn=B->cmap->N,bm=B->rmap->N;
-  PetscInt           i,j,k,ndouble=0;
-  PetscReal          afill;
+  PetscInt           i,j,k;
+  PetscReal          fill = C->info.fill_ratio_given,afill;
   PetscScalar        *c_row_val_dense;
   short              *c_row_idx_flags;
 
   PetscFunctionBegin;
   /* Step 1: Determine upper bounds on memory for C and allocate memory */
   /* This should be enough for almost all matrices. If still more memory is needed, it is reallocated later. */
-  c_maxmem    = (PetscInt)PetscCeilReal(fill*(ai[am]+bi[bm]));
+  c_maxmem = (PetscInt)PetscCeilReal(C->info.fill_ratio_given * ai[am]);
   b_maxmemrow = PetscMin(bi[bm],bn);
-  ierr  = PetscMalloc1(am+1,&ci);CHKERRQ(ierr);
-  ierr  = PetscMalloc1(bn,&c_row_val_dense);CHKERRQ(ierr);
-  ierr  = PetscMalloc1(bn,&c_row_idx_flags);CHKERRQ(ierr);
-  ierr  = PetscMalloc1(c_maxmem,&cj);CHKERRQ(ierr);
-  ierr  = PetscMalloc1(c_maxmem,&ca);CHKERRQ(ierr);
+  ierr = PetscMalloc1(am+1,&ci);CHKERRQ(ierr);
+  ierr = PetscMalloc1(c_maxmem,&cj);CHKERRQ(ierr);
+  ierr = PetscMalloc1(c_maxmem,&ca);CHKERRQ(ierr);
+  ierr = PetscMalloc2(bn,&c_row_val_dense,bn,&c_row_idx_flags);CHKERRQ(ierr);
   ci[0] = 0;
   ierr  = PetscMemzero(c_row_val_dense,bn*sizeof(PetscScalar));CHKERRQ(ierr);
   ierr  = PetscMemzero(c_row_idx_flags,bn*sizeof(c_row_idx_flags[0]));CHKERRQ(ierr);
@@ -1873,7 +1883,7 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
        Usually, there is enough memory in the first place, so this is not executed. */
     while (ci[i] + b_maxmemrow > c_maxmem) {
       c_maxmem *= 2;
-      ndouble++;
+      c->reallocs++;
       ierr = PetscRealloc(sizeof(PetscInt)*c_maxmem,&cj);CHKERRQ(ierr);
       ierr = PetscRealloc(sizeof(PetscScalar)*c_maxmem,&ca);CHKERRQ(ierr);
     }
@@ -1908,36 +1918,20 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
     ci[i+1] = ci[i] + cnzi;
     flops  += cnzi;
   }
+  ierr = PetscFree2(c_row_val_dense,c_row_idx_flags);CHKERRQ(ierr);
 
-  /* Step 5 */
-  /* Create the new matrix */
-  ierr = MatCreateSeqAIJWithArrays(PetscObjectComm((PetscObject)A),am,bn,ci,cj,NULL,C);CHKERRQ(ierr);
-  ierr = MatSetBlockSizesFromMats(*C,A,B);CHKERRQ(ierr);
-  ierr = MatSetType(*C,((PetscObject)A)->type_name);CHKERRQ(ierr);
-
-  /* MatCreateSeqAIJWithArrays flags matrix so PETSc doesn't free the user's arrays. */
-  /* These are PETSc arrays, so change flags so arrays can be deleted by PETSc */
-  c          = (Mat_SeqAIJ*)((*C)->data);
-  c->a       = ca;
-  c->free_a  = PETSC_TRUE;
-  c->free_ij = PETSC_TRUE;
-  c->nonew   = 0;
+  ierr = MatSeqAIJSetPreallocationCSR_Internal(C,ci,cj,ca,PETSC_OWN_POINTER);CHKERRQ(ierr);
+  c->maxnz = c_maxmem;
 
   /* set MatInfo */
   afill = (PetscReal)ci[am]/(ai[am]+bi[bm]) + 1.e-5;
   if (afill < 1.0) afill = 1.0;
-  c->maxnz                     = ci[am];
-  c->nz                        = ci[am];
-  (*C)->info.mallocs           = ndouble;
-  (*C)->info.fill_ratio_given  = fill;
-  (*C)->info.fill_ratio_needed = afill;
-  (*C)->ops->matmultnumeric    = MatMatMultNumeric_SeqAIJ_SeqAIJ_Combined;
+  C->info.fill_ratio_given  = fill;
+  C->info.fill_ratio_needed = afill;
+  C->ops->matmultnumeric    = MatMatMultNumeric_SeqAIJ_SeqAIJ_Sorted;
 
-  ierr = PetscFree(c_row_val_dense);CHKERRQ(ierr);
-  ierr = PetscFree(c_row_idx_flags);CHKERRQ(ierr);
-
-  ierr = MatAssemblyBegin(*C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(*C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = PetscLogFlops(flops);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
