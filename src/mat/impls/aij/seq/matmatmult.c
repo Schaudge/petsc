@@ -1840,39 +1840,35 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
   PetscLogDouble     flops=0.0;
   Mat_SeqAIJ         *a=(Mat_SeqAIJ*)A->data,*b=(Mat_SeqAIJ*)B->data,*c;
   const PetscInt     *ai=a->i,*bi=b->i;
-  PetscInt           *ci,*cj,*cj_i;
-  PetscScalar        *ca,*ca_i;
-  PetscInt           b_maxmemrow,c_maxmem,a_col;
+  PetscInt           *ci,*cj;
+  PetscScalar        *ca;
+  PetscInt           b_maxmemrow,c_maxmem;
   PetscInt           am=A->rmap->N,bn=B->cmap->N,bm=B->rmap->N;
-  PetscInt           i,k,ndouble=0;
+  PetscInt           i,j,k,ndouble=0;
   PetscReal          afill;
   PetscScalar        *c_row_val_dense;
   short              *c_row_idx_flags;
-  PetscInt           *aj_i=a->j;
-  PetscScalar        *aa_i=a->a;
 
   PetscFunctionBegin;
-
   /* Step 1: Determine upper bounds on memory for C and allocate memory */
   /* This should be enough for almost all matrices. If still more memory is needed, it is reallocated later. */
-  c_maxmem    = 8*(ai[am]+bi[bm]);
+  c_maxmem    = (PetscInt)PetscCeilReal(fill*(ai[am]+bi[bm]));
   b_maxmemrow = PetscMin(bi[bm],bn);
   ierr  = PetscMalloc1(am+1,&ci);CHKERRQ(ierr);
   ierr  = PetscMalloc1(bn,&c_row_val_dense);CHKERRQ(ierr);
   ierr  = PetscMalloc1(bn,&c_row_idx_flags);CHKERRQ(ierr);
   ierr  = PetscMalloc1(c_maxmem,&cj);CHKERRQ(ierr);
   ierr  = PetscMalloc1(c_maxmem,&ca);CHKERRQ(ierr);
-  ca_i  = ca;
-  cj_i  = cj;
   ci[0] = 0;
   ierr  = PetscMemzero(c_row_val_dense,bn*sizeof(PetscScalar));CHKERRQ(ierr);
   ierr  = PetscMemzero(c_row_idx_flags,bn*sizeof(c_row_idx_flags[0]));CHKERRQ(ierr);
   for (i=0; i<am; i++) {
     /* Step 2: Initialize the dense row vector for C  */
-    const PetscInt anzi = ai[i+1] - ai[i]; /* number of nonzeros in this row of A, this is the number of rows of B that we merge */
-    PetscInt       cnzi = 0;
-    PetscInt       *bj_i;
-    PetscScalar    *ba_i;
+    const PetscInt    anzi  = ai[i+1] - ai[i]; /* number of nonzeros in this row of A, this is the number of rows of B that we merge */
+    const PetscInt    *aj_i = a->j + ai[i];
+    const PetscScalar *aa_i = a->a + ai[i];
+    PetscInt          cnzi  = 0,*cj_i;
+    PetscScalar       *ca_i;
     /* If the number of indices in C so far + the max number of columns in the next row > c_maxmem  -> allocate more memory
        Usually, there is enough memory in the first place, so this is not executed. */
     while (ci[i] + b_maxmemrow > c_maxmem) {
@@ -1881,20 +1877,22 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
       ierr = PetscRealloc(sizeof(PetscInt)*c_maxmem,&cj);CHKERRQ(ierr);
       ierr = PetscRealloc(sizeof(PetscScalar)*c_maxmem,&ca);CHKERRQ(ierr);
     }
+    cj_i = cj + ci[i];
+    ca_i = ca + ci[i];
 
     /* Step 3: Do the numerical calculations */
-    for (a_col=0; a_col<anzi; a_col++) {          /* iterate over all non zero values in a row of A */
-      PetscInt       a_col_index = aj_i[a_col];
+    for (j=0; j<anzi; j++) {          /* iterate over all non zero values in a row of A */
+      PetscInt       a_col_index = aj_i[j];
       const PetscInt bnzi        = bi[a_col_index+1] - bi[a_col_index];
       flops += 2*bnzi;
-      bj_i   = b->j + bi[a_col_index];   /* points to the current row in bj */
-      ba_i   = b->a + bi[a_col_index];   /* points to the current row in ba */
+      const PetscInt *bj_i   = b->j + bi[a_col_index];   /* points to the current row in bj */
+      const PetscScalar *ba_i   = b->a + bi[a_col_index];   /* points to the current row in ba */
       for (k=0; k<bnzi; ++k) { /* iterate over all non zeros of this row in B */
         if (!c_row_idx_flags[bj_i[k]]) {
           cj_i[cnzi++]             = bj_i[k];
           c_row_idx_flags[bj_i[k]] = 1;
         }
-        c_row_val_dense[bj_i[k]] += aa_i[a_col] * ba_i[k];
+        c_row_val_dense[bj_i[k]] += aa_i[j] * ba_i[k];
       }
     }
 
@@ -1907,10 +1905,6 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
       c_row_idx_flags[cj_i[k]] = 0;
     }
     /* terminate current row */
-    aa_i   += anzi;
-    aj_i   += anzi;
-    ca_i   += cnzi;
-    cj_i   += cnzi;
     ci[i+1] = ci[i] + cnzi;
     flops  += cnzi;
   }
