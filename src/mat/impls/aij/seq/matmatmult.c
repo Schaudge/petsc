@@ -51,7 +51,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ(Mat A,Mat B,PetscReal fill,Mat *
   const char     *algTypes[9] = {"sorted","scalable","scalable_fast","heap","btheap","llcondensed","combined","rowmerge","hypre"};
   PetscInt       nalg = 9;
 #endif
-  PetscInt       alg = 0; /* set default algorithm */
+  PetscInt       alg = 6; /* set default algorithm */
 
   PetscFunctionBegin;
   ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)A),((PetscObject)A)->prefix,"MatMatMult","Mat");CHKERRQ(ierr);
