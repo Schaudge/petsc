@@ -1833,7 +1833,7 @@ PetscErrorCode MatMatMultSymbolic_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal f
 
   PetscFunctionBegin;
   /* Create the new matrix */
-  ierr = MatCreate(((PetscObject)A)->comm,C);CHKERRQ(ierr);
+  ierr = MatCreate(PetscObjectComm((PetscObject)A),C);CHKERRQ(ierr);
   ierr = MatSetSizes(*C,am,bn,am,bn);CHKERRQ(ierr);
   ierr = MatSetType(*C,((PetscObject)A)->type_name);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation_SeqAIJ(*C,MAT_SKIP_ALLOCATION,NULL);CHKERRQ(ierr);
