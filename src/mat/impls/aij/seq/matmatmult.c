@@ -1847,7 +1847,7 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
   PetscInt           i,k,ndouble=0;
   PetscReal          afill;
   PetscScalar        *c_row_val_dense;
-  PetscBool          *c_row_idx_flags;
+  short              *c_row_idx_flags;
   PetscInt           *aj_i=a->j;
   PetscScalar        *aa_i=a->a;
 
@@ -1866,7 +1866,7 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
   cj_i  = cj;
   ci[0] = 0;
   ierr  = PetscMemzero(c_row_val_dense,bn*sizeof(PetscScalar));CHKERRQ(ierr);
-  ierr  = PetscMemzero(c_row_idx_flags,bn*sizeof(PetscBool));CHKERRQ(ierr);
+  ierr  = PetscMemzero(c_row_idx_flags,bn*sizeof(c_row_idx_flags[0]));CHKERRQ(ierr);
   for (i=0; i<am; i++) {
     /* Step 2: Initialize the dense row vector for C  */
     const PetscInt anzi = ai[i+1] - ai[i]; /* number of nonzeros in this row of A, this is the number of rows of B that we merge */
@@ -1890,9 +1890,9 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
       bj_i   = b->j + bi[a_col_index];   /* points to the current row in bj */
       ba_i   = b->a + bi[a_col_index];   /* points to the current row in ba */
       for (k=0; k<bnzi; ++k) { /* iterate over all non zeros of this row in B */
-        if (c_row_idx_flags[bj_i[k]] == PETSC_FALSE) {
+        if (!c_row_idx_flags[bj_i[k]]) {
           cj_i[cnzi++]             = bj_i[k];
-          c_row_idx_flags[bj_i[k]] = PETSC_TRUE;
+          c_row_idx_flags[bj_i[k]] = 1;
         }
         c_row_val_dense[bj_i[k]] += aa_i[a_col] * ba_i[k];
       }
@@ -1904,7 +1904,7 @@ PetscErrorCode MatMatMult_SeqAIJ_SeqAIJ_Combined(Mat A,Mat B,PetscReal fill,Mat 
     for (k=0; k<cnzi; k++) {
       ca_i[k]                  = c_row_val_dense[cj_i[k]];
       c_row_val_dense[cj_i[k]] = 0.;
-      c_row_idx_flags[cj_i[k]] = PETSC_FALSE;
+      c_row_idx_flags[cj_i[k]] = 0;
     }
     /* terminate current row */
     aa_i   += anzi;
