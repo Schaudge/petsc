@@ -4555,11 +4555,6 @@ $        v =  {1,2,3,4,5,6}  [size = 6]
 PetscErrorCode  MatCreateSeqAIJWithArrays(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt i[],PetscInt j[],PetscScalar a[],Mat *mat)
 {
   PetscErrorCode ierr;
-  PetscInt       ii;
-  Mat_SeqAIJ     *aij;
-#if defined(PETSC_USE_DEBUG)
-  PetscInt jj;
-#endif
 
   PetscFunctionBegin;
   if (m > 0 && i[0]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"i (row indices) must start with 0");
@@ -4568,17 +4563,42 @@ PetscErrorCode  MatCreateSeqAIJWithArrays(MPI_Comm comm,PetscInt m,PetscInt n,Pe
   /* ierr = MatSetBlockSizes(*mat,,);CHKERRQ(ierr); */
   ierr = MatSetType(*mat,MATSEQAIJ);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation_SeqAIJ(*mat,MAT_SKIP_ALLOCATION,0);CHKERRQ(ierr);
-  aij  = (Mat_SeqAIJ*)(*mat)->data;
+  ierr = MatSeqAIJSetPreallocationCSR_Internal(*mat,i,j,a,PETSC_USE_POINTER);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* Uses i[], j[], a[] arrays without singlemalloc.  Takes ownership if cmode == PETSC_OWN_POINTER. */
+PetscErrorCode MatSeqAIJSetPreallocationCSR_Internal(Mat mat,PetscInt i[],PetscInt j[],PetscScalar a[],PetscCopyMode cmode) {
+  PetscErrorCode ierr;
+  Mat_SeqAIJ     *aij = (Mat_SeqAIJ*)mat->data;
+  PetscInt       ii,m = mat->rmap->n;
+#if defined(PETSC_USE_DEBUG)
+  PetscInt jj;
+#endif
+
+  PetscFunctionBegin;
+  ierr = MatSeqXAIJFreeAIJ(mat,&aij->a,&aij->j,&aij->i);CHKERRQ(ierr);
   ierr = PetscMalloc2(m,&aij->imax,m,&aij->ilen);CHKERRQ(ierr);
+  ierr = PetscLogObjectMemory((PetscObject)mat,2*m*sizeof(PetscInt));CHKERRQ(ierr);
 
   aij->i            = i;
   aij->j            = j;
   aij->a            = a;
   aij->singlemalloc = PETSC_FALSE;
   aij->nonew        = -1;             /*this indicates that inserting a new value in the matrix that generates a new nonzero is an error*/
-  aij->free_a       = PETSC_FALSE;
-  aij->free_ij      = PETSC_FALSE;
-
+  switch (cmode) {
+  case PETSC_COPY_VALUES: SETERRQ(((PetscObject)mat)->comm,PETSC_ERR_SUP,"PETSC_COPY_VALUES not implemented");
+    break;
+  case PETSC_OWN_POINTER:
+    aij->free_a  = PETSC_TRUE;
+    aij->free_ij = PETSC_TRUE;
+    break;
+  case PETSC_USE_POINTER:
+    aij->free_a  = PETSC_FALSE;
+    aij->free_ij = PETSC_FALSE;
+    break;
+  }
+  aij->nz = i[m];
   for (ii=0; ii<m; ii++) {
     aij->ilen[ii] = aij->imax[ii] = i[ii+1] - i[ii];
 #if defined(PETSC_USE_DEBUG)
@@ -4592,12 +4612,12 @@ PetscErrorCode  MatCreateSeqAIJWithArrays(MPI_Comm comm,PetscInt m,PetscInt n,Pe
 #if defined(PETSC_USE_DEBUG)
   for (ii=0; ii<aij->i[m]; ii++) {
     if (j[ii] < 0) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Negative column index at location = %D index = %D",ii,j[ii]);
-    if (j[ii] > n - 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column index to large at location = %D index = %D",ii,j[ii]);
+    if (j[ii] >= mat->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column index to large at location = %D index = %D",ii,j[ii]);
   }
 #endif
 
-  ierr = MatAssemblyBegin(*mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(*mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 /*@C
