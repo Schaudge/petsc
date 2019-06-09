@@ -3,7 +3,7 @@ static char help[] = "Benchmark for MatMatMult() of AIJ matrices using different
 #include <petscmat.h>
 
 /* Converts 3d grid coordinates (i,j,k) for a grid of size m \times n to global indexing. Pass k = 0 for a 2d grid. */
-int global_index(PetscInt i,PetscInt j,PetscInt k, PetscInt m, PetscInt n) { return i + j * m + k * m * n; }
+static int global_index(PetscInt i,PetscInt j,PetscInt k, PetscInt m, PetscInt n) { return i + j * m + k * m * n; }
 
 int main(int argc,char **argv)
 {
@@ -254,9 +254,10 @@ int main(int argc,char **argv)
   ierr = MatDuplicate(PtAP,MAT_COPY_VALUES,&PtAP_copy);CHKERRQ(ierr);
   ierr = MatMatMult(PtAP,PtAP_copy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&PtAP_squared);CHKERRQ(ierr);
 
-  ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = MatView(PtAP_squared,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
+  if (mat_view) {
+    ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = MatView(PtAP_squared,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
 
   ierr = MatDestroy(&PtAP_squared);CHKERRQ(ierr);
   ierr = MatDestroy(&PtAP_copy);CHKERRQ(ierr);
@@ -274,17 +275,17 @@ int main(int argc,char **argv)
  test:
       suffix: 1
       nsize: 1
-      args: -m 8 -n 8 -stencil 2d5point -matmatmult_via combined
+      args: -m 8 -n 8 -stencil 2d5point -result_view -matmatmult_via combined
 
  test:
        suffix: 2
        nsize: 1
-       args: -m 5 -n 5 -o 5 -stencil 3d27point -matmatmult_via rowmerge
+       args: -m 5 -n 5 -o 5 -stencil 3d27point -result_view -matmatmult_via rowmerge
 
  test:
       suffix: 3
       nsize: 4
-      args: -m 6 -n 6 -stencil 2d5point -matmatmult_via seqmpi
+      args: -m 6 -n 6 -stencil 2d5point -result_view -matmatmult_via seqmpi
 
 
 
