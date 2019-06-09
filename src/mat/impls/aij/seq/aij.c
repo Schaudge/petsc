@@ -4587,7 +4587,7 @@ PetscErrorCode MatSeqAIJSetPreallocationCSR_Internal(Mat mat,PetscInt i[],PetscI
   aij->singlemalloc = PETSC_FALSE;
   aij->nonew        = -1;             /*this indicates that inserting a new value in the matrix that generates a new nonzero is an error*/
   switch (cmode) {
-  case PETSC_COPY_VALUES: SETERRQ(((PetscObject)mat)->comm,PETSC_ERR_SUP,"PETSC_COPY_VALUES not implemented");
+  case PETSC_COPY_VALUES: SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"PETSC_COPY_VALUES not implemented");
     break;
   case PETSC_OWN_POINTER:
     aij->free_a  = PETSC_TRUE;
