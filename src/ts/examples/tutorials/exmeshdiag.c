@@ -194,6 +194,15 @@ PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly, Mat *Jac
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
         ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+
+        /*	 HOW JACOBIANS WORK IN PETSC:
+         When you call DMCreateMatrix it pulls an already constructed but zeroed out jacobian
+         matrix for you to insert values. Since our jacobian concerns 2 functions and 2 vars
+         it is a 2x2 per VERTEX. So, in order to insert we must construct a 2x2 for every
+         vertex, then pass that in as a flattened 1D array (V), and tell petsc which rows(II)
+         and cols(J) to insert it into the big global jacobian(Jac).
+         */
+
         for (PetscInt i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
@@ -347,7 +356,7 @@ int main(int argc, char **argv)
 {
         PetscErrorCode          ierr;
         MPI_Comm                comm;
-        DM                      dm;
+        DM                      dm, dmDist;
         PetscSection            section;
         PetscBool               dmInterp = PETSC_TRUE;
         IS                      bcPointsIS;
@@ -365,6 +374,9 @@ int main(int argc, char **argv)
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
         //        ierr  = DMPlexCreateFromFile(comm, "2Dtri3.exo", dmInterp, &dm);CHKERRQ(ierr);
+
+        ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
+        if (dmDist) {ierr = DMDestroy(&dm);CHKERRQ(ierr); dm = dmDist;}
 
         numFields = 1;
         numComp[0] = 1;
@@ -390,10 +402,11 @@ int main(int argc, char **argv)
         //        ierr = SmallAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
 
         //------------------------------------------------------------------
-        // Word to the wise: Don't try and combine the jacobian calls
-        // as they are only meant to be called alone (i.e. every jacobian
-        // is unique to its transform). I have left them out of the array
-        // modification routines because those can be combined!!
+        /* Word to the wise: Don't try and combine the jacobian calls
+         as they are only meant to be called alone (i.e. every jacobian
+         is unique to its transform). I have left them out of the array
+         modification routines because those can be combined!!
+         */
         //------------------------------------------------------------------
 
         //        ierr = Stretch2DJacobian(dm, lx, ly, &Jac);CHKERRQ(ierr);
