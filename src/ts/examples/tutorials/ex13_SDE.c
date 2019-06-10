@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=4;
+  PetscInt       N=6;
   PetscScalar    **Cov;
 //  PetscScalar    sigma;
 //  PetscScalzr    lx, ly;
@@ -103,8 +103,8 @@ int main(int argc,char **argv)
                 {for (i=xs; i<xs+xm; i++)
                     {x1=coors[j][i].x;
                      y1=coors[j][i].y;
-                     rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
-//                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Square Exp
+//                     rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
+                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Square Exp
                      Cov[iy*ym+ix][j*xm+i]=PetscExpReal(-rr);
                     }
                 }
@@ -112,13 +112,13 @@ int main(int argc,char **argv)
      }
   ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
     
-    //   Print covariance matrix (before adding weights)
-    printf("Cov\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-        printf("\n");
-    }
+//    //   Print covariance matrix Cov (before adding weights)
+//    printf("Cov\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//        printf("\n");
+//    }
     
 // Approximate the covariance integral operator via collocation and vertex-based quadrature
     // allocate quadrature weights W along the diagonal
@@ -134,16 +134,18 @@ int main(int argc,char **argv)
         for (j=1; j<N-1; j++) W[j*N+i] = 2.0 * W[i];
         }
     
-    // Print W before scaling
-    printf("\nW\n");
-    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+//    // Print W before scaling
+//    printf("\nW\n");
+//    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
     // Scale W
     for (i = 0; i < N2; i++) W[i] = W[i] * (Lx*Ly)/(4*PetscPowReal((N-1),2));
-//    // Print W after scaling
-    printf("\nW\n");
-    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
     
-    // Combine W with covariance matrix Cov to form covariance operator K
+////  // Print W after scaling
+//    printf("\nW\n");
+//    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
+//    // Combine W with covariance matrix Cov to form covariance operator K
     // K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)
     for (i=0; i<N2; i++)
     {
@@ -152,13 +154,14 @@ int main(int argc,char **argv)
             Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
         }
     }
-//   Print the approximation of covariance operator K (modified to be symmetric)
-    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-        printf("\n");
-    }
+    
+////   Print the approximation of covariance operator K (modified to be symmetric)
+//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//        printf("\n");
+//    }
 
  // Do SVD
     svd(Cov,U,V,S,N2);
@@ -172,18 +175,19 @@ int main(int argc,char **argv)
         printf("%8.2f", S[j]);
         printf("\n");
     }
- // Print eigenvectors W^(-1/2) * U
-    printf("\nIts corresponding eigenvectors\n");
-    // Recover eigenvectors by divding sqrt(W)
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++)
-        {
-            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-            printf("%6.2f", U[i][j]);
-        }
-        printf("\n");
-    }
+    
+// // Print eigenvectors W^(-1/2) * U
+//    printf("\nIts corresponding eigenvectors\n");
+//    // Recover eigenvectors by divding sqrt(W)
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++)
+//        {
+//            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
+//            printf("%6.2f", U[i][j]);
+//        }
+//        printf("\n");
+//    }
     
     ierr = PetscFree(Cov);CHKERRQ(ierr);
     ierr = PetscFree(U);CHKERRQ(ierr);
@@ -376,5 +380,7 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
             V[i][j] = A[n+i][j];
         }
     }
+    PetscFree(S2);
+//    PetscFree(A);
 }
 
