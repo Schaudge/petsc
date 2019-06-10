@@ -65,7 +65,7 @@ int main(int argc, char **argv)
                 const PetscInt	curFace = faceidx[i];
                 const PetscInt	*curPoints;
                 PetscInt	numPoints; // Number of points to define the face, for 1D = 2;
-                ierr = PetscPrintf(comm, "    %d     ", counter+1);CHKERRQ(ierr);
+                ierr = PetscPrintf(comm, "    %2d     ", counter+1);CHKERRQ(ierr);
                 ierr = DMPlexGetCone(dm, curFace, &curPoints);
                 ierr = DMPlexGetConeSize(dm, curFace, &numPoints);
                 for (j = 0; j < numPoints; j++){
