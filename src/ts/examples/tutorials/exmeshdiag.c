@@ -232,6 +232,15 @@ PetscErrorCode Shear2DJacobian(DM dm, PetscScalar theta, Mat *Jac)
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
         ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+
+        /*	 HOW JACOBIANS WORK IN PETSC:
+         When you call DMCreateMatrix it pulls an already constructed but zeroed out jacobian
+         matrix for you to insert values. Since our jacobian concerns 2 functions and 2 vars
+         it is a 2x2 per VERTEX. So, in order to insert we must construct a 2x2 for every
+         vertex, then pass that in as a flattened 1D array (V), and tell petsc which rows(II)
+         and cols(J) to insert it into the big global jacobian(Jac).
+         */
+
         for (PetscInt i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
@@ -261,6 +270,15 @@ PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
         ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+
+        /*	 HOW JACOBIANS WORK IN PETSC:
+         When you call DMCreateMatrix it pulls an already constructed but zeroed out jacobian
+         matrix for you to insert values. Since our jacobian concerns 2 functions and 2 vars
+         it is a 2x2 per VERTEX. So, in order to insert we must construct a 2x2 for every
+         vertex, then pass that in as a flattened 1D array (V), and tell petsc which rows(II)
+         and cols(J) to insert it into the big global jacobian(Jac).
+         */
+
         for (PetscInt i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
@@ -296,6 +314,14 @@ PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
         ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
 
+        /*	 HOW JACOBIANS WORK IN PETSC:
+         When you call DMCreateMatrix it pulls an already constructed but zeroed out jacobian
+         matrix for you to insert values. Since our jacobian concerns 2 functions and 2 vars
+         it is a 2x2 per VERTEX. So, in order to insert we must construct a 2x2 for every
+         vertex, then pass that in as a flattened 1D array (V), and tell petsc which rows(II)
+         and cols(J) to insert it into the big global jacobian(Jac).
+         */
+
         for (PetscInt i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
@@ -330,6 +356,14 @@ PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
         ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
         ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
+
+        /*	 HOW JACOBIANS WORK IN PETSC:
+         When you call DMCreateMatrix it pulls an already constructed but zeroed out jacobian
+         matrix for you to insert values. Since our jacobian concerns 2 functions and 2 vars
+         it is a 2x2 per VERTEX. So, in order to insert we must construct a 2x2 for every
+         vertex, then pass that in as a flattened 1D array (V), and tell petsc which rows(II)
+         and cols(J) to insert it into the big global jacobian(Jac).
+         */
 
         for (PetscInt i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
