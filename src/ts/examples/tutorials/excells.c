@@ -55,8 +55,8 @@ int main(int argc, char **argv)
         ierr = ISGetIndices(verts, &vertids);CHKERRQ(ierr);
 
         // OANA: Why was the index 3 instead of 2 here? I thought it only went from 0-2...
-        ierr = DMPlexGetDepthStratum(dm, 2, &cStart, &cEnd);CHKERRQ(ierr);
-        ierr = DMGetStratumIS(dm, "depth", 2, &cells);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, dim /*3*/, &cStart, &cEnd);CHKERRQ(ierr);
+        ierr = DMGetStratumIS(dm, "depth", dim /*3*/, &cells);CHKERRQ(ierr);
         ierr = ISGetIndices(cells, &cellids);CHKERRQ(ierr);
 
         /*	Get Local Coordinates	*/
@@ -70,8 +70,8 @@ int main(int argc, char **argv)
 		ierr = DMPlexGetConeSize(dm, cellids[ic], &numcells);
                 ierr = PetscPrintf(comm, "Current cell %d, total number %d  \n", ic, offset);CHKERRQ(ierr);
                 for (j = 0; j < numindices; j++){
-                        ierr = PetscPrintf(comm, "x(%2d, %2d, %2d)=(%.2f,%.2f,%0.2f)   \n", dim*(indices[j]), (dim*(indices[j]))+1, (dim*(indices[j]))+2,  
-                                           coordArray[dim*(indices[j])], coordArray[(dim*(indices[j]))+1], coordArray[(dim*(indices[j]))+2]);CHKERRQ(ierr); 
+                        ierr = PetscPrintf(comm, "x(%2d, %2d, %2d)=(%.2f,%.2f,%0.2f)   \n", dim*(indices[j]), (dim*(indices[j]))+1, (dim*(indices[j]))+2,
+                                           coordArray[dim*(indices[j])], coordArray[(dim*(indices[j]))+1], coordArray[(dim*(indices[j]))+2]);CHKERRQ(ierr);
                 }
                 ierr = DMPlexRestoreClosureIndices(dm,section,section,ic,&numindices,&indices,NULL);CHKERRQ(ierr);
                 ierr = PetscPrintf(comm, "      \n");CHKERRQ(ierr);

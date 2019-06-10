@@ -1,4 +1,4 @@
-static char help[] = "Diagnose mesh problems";
+ static char help[] = "Diagnose mesh problems";
 
 # include <petscdmplex.h>
 # include <petscviewer.h>
@@ -6,7 +6,7 @@ static char help[] = "Diagnose mesh problems";
 
 # define PETSCVIEWERASCII        "ascii"
 # define PETSCVIEWERVTK          "vtk"
-
+# define MATAIJ             	 "aij"
 /*	2D Array Routines	*/
 PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
 {
@@ -34,7 +34,7 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
         }
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
         return ierr;
 }
 
@@ -64,7 +64,7 @@ PetscErrorCode ShearArray2D(DM dm, PetscScalar theta)
         }
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
         return ierr;
 }
 
@@ -95,7 +95,7 @@ PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
         }
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 
         return ierr;
 }
@@ -141,7 +141,7 @@ PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi)
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = VecRestoreArray(coordsTemp, &tempCoordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsTemp);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsTemp);CHKERRQ(ierr);
         ierr = VecDestroy(&coordsTemp);CHKERRQ(ierr);
         return ierr;
 }
@@ -180,21 +180,169 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
                 }
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
         return ierr;
 }
 
 /*	2D Jacobians	*/
-PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly)
+PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly, Mat *Jac)
 {
         PetscErrorCode	ierr;
-        Mat 		*A;
+        DM		coordDM;
+        PetscInt	pStart, pEnd;
 
-        ierr = DMCreateMatrix(dm, &A);CHKERRQ(ierr);
-        MatView(A,0);
+        ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
+        ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+                PetscInt	II[2], J[2];
+                PetscScalar	V[4];
 
+                II[0] = 2*i;
+                II[1] = 2*i+1;
+                J[0] = 2*i;
+                J[1] = 2*i+1;
+                V[0] = lx;
+                V[1] = 0;
+                V[2] = 0;
+                V[3] = ly;
+
+                ierr = MatSetValuesLocal(*Jac, 2, II, 2, J, V, INSERT_VALUES);CHKERRQ(ierr);
+        }
+        ierr = MatAssemblyBegin(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
         return ierr;
 }
+
+PetscErrorCode Shear2DJacobian(DM dm, PetscScalar theta, Mat *Jac)
+{
+        PetscErrorCode	ierr;
+        DM		coordDM;
+        PetscInt	pStart, pEnd;
+
+        ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
+        ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+                PetscInt	II[2], J[2];
+                PetscScalar	V[4];
+
+                II[0] = 2*i;
+                II[1] = 2*i+1;
+                J[0] = 2*i;
+                J[1] = 2*i+1;
+                V[0] = 1;
+                V[1] = PetscSinReal(theta);
+                V[2] = 0;
+                V[3] = PetscCosReal(theta);
+
+                ierr = MatSetValuesLocal(*Jac, 2, II, 2, J, V, INSERT_VALUES);CHKERRQ(ierr);
+        }
+        ierr = MatAssemblyBegin(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        return ierr;
+}
+
+PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
+{
+        PetscErrorCode	ierr;
+        DM		coordDM;
+        PetscInt	pStart, pEnd;
+
+        ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
+        ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+                PetscInt	II[2], J[2];
+                PetscScalar	V[4];
+
+                II[0] = 2*i;
+                II[1] = 2*i+1;
+                J[0] = 2*i;
+                J[1] = 2*i+1;
+                V[0] = PetscCosReal(omega);
+                V[1] = 0;
+                V[2] = PetscSinReal(omega);
+                V[3] = 1;
+
+                ierr = MatSetValuesLocal(*Jac, 2, II, 2, J, V, INSERT_VALUES);CHKERRQ(ierr);
+        }
+        ierr = MatAssemblyBegin(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        return ierr;
+
+}
+
+PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
+{
+        PetscErrorCode	ierr;
+        DM		coordDM;
+        PetscScalar	*coordArray;
+        PetscInt	pStart, pEnd;
+        Vec		coords;
+
+        ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
+        ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+        ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
+        ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
+
+        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+                PetscInt	II[2], J[2];
+                PetscScalar	V[4];
+
+                II[0] = 2*i;
+                II[1] = 2*i+1;
+                J[0] = 2*i;
+                J[1] = 2*i+1;
+                V[0] = 1-(phi*coordArray[2*i+1])+(phi/2);
+                V[1] = (phi/2)-(phi*coordArray[2*i]);
+                V[2] = -(phi/2)+(phi*coordArray[2*i+1]);
+                V[3] = 1+(phi*coordArray[2*i])-(phi/2);
+
+                ierr = MatSetValuesLocal(*Jac, 2, II, 2, J, V, INSERT_VALUES);CHKERRQ(ierr);
+        }
+        ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
+        ierr = MatAssemblyBegin(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        return ierr;
+}
+
+PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
+{
+        PetscErrorCode	ierr;
+        DM		coordDM;
+        PetscScalar	*coordArray;
+        PetscInt	pStart, pEnd;
+        Vec		coords;
+
+        ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
+        ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
+        ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
+        ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
+        ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
+
+        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+                PetscInt	II[2], J[2];
+                PetscScalar	V[4];
+
+                II[0] = 2*i;
+                II[1] = 2*i+1;
+                J[0] = 2*i;
+                J[1] = 2*i+1;
+                V[0] = 1;
+                V[1] = 0;
+                V[2] = phi-(2*phi*coordArray[2*i+1]);
+                V[3] = 1-(2*phi*coordArray[2*i])+phi;
+
+                ierr = MatSetValuesLocal(*Jac, 2, II, 2, J, V, INSERT_VALUES);CHKERRQ(ierr);
+        }
+        ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
+        ierr = MatAssemblyBegin(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        return ierr;
+}
+
 int main(int argc, char **argv)
 {
         PetscErrorCode          ierr;
@@ -207,6 +355,7 @@ int main(int argc, char **argv)
         PetscScalar             lx = 1.0, ly = 2.0, phi = 0.2;
         PetscInt                numComp[1], numDOF[3], bcField[1];
         Vec			solVecLocal, solVecGlobal;
+        Mat			Jac;
         PetscViewer             viewer, vtkviewer;
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
@@ -215,12 +364,14 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
+        //        ierr  = DMPlexCreateFromFile(comm, "2Dtri3.exo", dmInterp, &dm);CHKERRQ(ierr);
 
         numFields = 1;
         numComp[0] = 1;
         for (PetscInt k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
         numDOF[0] = 1;
-        numBC = 0;
+        numBC = 1;
+        bcField[0] = 0;
         // Please note that bcField stays uninitialized because numBC = 0,
         // therefore having a trash value. This is probably handled internally
         // within DMPlexCreateSection but idk how exactly.
@@ -232,12 +383,26 @@ int main(int argc, char **argv)
         ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 
-        //ierr = StretchArray2D(dm, lx, ly);CHKERRQ(ierr);
-        //ierr = ShearArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
-        //ierr = SkewArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
-        //ierr = LargeAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
-        //ierr = SmallAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
-        ierr = Stretch2DJacobian(dm, lx, ly);
+        //        ierr = StretchArray2D(dm, lx, ly);CHKERRQ(ierr);
+        //        ierr = ShearArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
+        //        ierr = SkewArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
+        //        ierr = LargeAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
+        //        ierr = SmallAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
+
+        //------------------------------------------------------------------
+        // Word to the wise: Don't try and combine the jacobian calls
+        // as they are only meant to be called alone (i.e. every jacobian
+        // is unique to its transform). I have left them out of the array
+        // modification routines because those can be combined!!
+        //------------------------------------------------------------------
+
+        //        ierr = Stretch2DJacobian(dm, lx, ly, &Jac);CHKERRQ(ierr);
+        //        ierr = Shear2DJacobian(dm, PETSC_PI/3, &Jac);CHKERRQ(ierr);
+        //        ierr = Skew2DJacobian(dm, PETSC_PI/3, &Jac);CHKERRQ(ierr);
+        //        ierr = LargeAngle2DJacobian(dm, phi, &Jac);CHKERRQ(ierr);
+        //        ierr = SmallAngle2DJacobian(dm, phi, &Jac);CHKERRQ(ierr);
+        //        MatView(Jac, 0);
+
 
         ierr = DMCreateGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
         //        ierr = VecSet(solVecGlobal, 0);CHKERRQ(ierr);
@@ -249,9 +414,9 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
         ierr = PetscViewerFileSetName(vtkviewer, "deformedmesh.vtk");CHKERRQ(ierr);
-        //        ierr = VecView(solVecGlobal, vtkviewer);CHKERRQ(ierr);
-
+        ierr = VecView(solVecGlobal, vtkviewer);CHKERRQ(ierr);
         ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+
         ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
