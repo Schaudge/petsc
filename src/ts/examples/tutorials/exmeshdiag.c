@@ -302,7 +302,6 @@ PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
 
 PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
 {
-        MPI_Comm	comm;
         PetscErrorCode	ierr;
         DM		coordDM;
         PetscScalar	*coordArray;
@@ -352,7 +351,6 @@ PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
 
 PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
 {
-        MPI_Comm	comm;
         PetscErrorCode	ierr;
         DM		coordDM;
         PetscScalar	*coordArray;
