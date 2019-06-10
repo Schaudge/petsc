@@ -14,7 +14,7 @@ static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illust
 
 #include <petscdm.h>
 #include <petscdmda.h>
-#include "svd.h"
+#include "header.h"
 
 /*
    User-defined data structures and routines
@@ -36,10 +36,9 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=6;
+  PetscInt       N=4;
   PetscScalar    **Cov;
-//  PetscScalar    sigma;
-//  PetscScalzr    lx, ly;
+  PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
   PetscScalar    **U, **V, *S;
   PetscScalar    *W;
@@ -63,7 +62,8 @@ int main(int argc,char **argv)
   PetscInt N2, i, j;
   PetscScalar x1, y1, x0, y0, rr;
 
-//  sigma=1.0;
+  mu=0.0;
+  sigma=1.0;
   lc=2.0;
   lx=0.2;
   ly=0.1;
@@ -155,13 +155,13 @@ int main(int argc,char **argv)
         }
     }
     
-////   Print the approximation of covariance operator K (modified to be symmetric)
-//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-//        printf("\n");
-//    }
+//   Print the approximation of covariance operator K (modified to be symmetric)
+    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+        printf("\n");
+    }
 
  // Do SVD
     svd(Cov,U,V,S,N2);
@@ -176,24 +176,43 @@ int main(int argc,char **argv)
         printf("\n");
     }
     
-// // Print eigenvectors W^(-1/2) * U
-//    printf("\nIts corresponding eigenvectors\n");
-//    // Recover eigenvectors by divding sqrt(W)
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++)
-//        {
-//            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-//            printf("%6.2f", U[i][j]);
-//        }
-//        printf("\n");
-//    }
+ // Print eigenvectors W^(-1/2) * U
+    printf("\nIts corresponding eigenvectors\n");
+    // Recover eigenvectors by divding sqrt(W)
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++)
+        {
+            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
+            printf("%6.2f", U[i][j]);
+        }
+        printf("\n");
+    }
     
     ierr = PetscFree(Cov);CHKERRQ(ierr);
     ierr = PetscFree(U);CHKERRQ(ierr);
     ierr = PetscFree(V);CHKERRQ(ierr);
     ierr = PetscFree(S);CHKERRQ(ierr);
 
+    PetscScalar rndu, rndn;
+    
+//  PetscRandom rnd;
+//    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
+    /* force imaginary part of random number to always be zero; thus obtain reproducible results with real and complex numbers */
+//    ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
+//    ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
+//    ierr = PetscRandomGetValue(rnd,&rndu);CHKERRQ(ierr);
+    
+    time_t t;
+    srand((unsigned) time(&t));rand();//initialize random number generator in C
+    rndu = (PetscScalar) rand()/RAND_MAX;
+    printf("\nuniform random sample= %f\n",rndu);
+    
+    rndn = ltqnorm(rndu);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
+    printf("normal random sample= %f\n",rndn);
+    
+//    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
+    
   /* Initialize user application context */
   user.c = -30.0;
 
@@ -318,11 +337,14 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
     y0, q, r, c0, s0, d1, d2;
   PetscScalar *S2;
   PetscScalar **A;
+    
   PetscMalloc1(n,&S2);
   for (i=1; i<n; i++) S2[i] = S2[i-1]+n;
+    
   PetscMalloc1(n,&A);
   PetscMalloc1(n*n,&A[0]);
   for (i=1; i<n; i++) A[i] = A[i-1]+n;
+    
   for (i=0; i<n; i++)
     {
         A[i] = malloc(n * sizeof(PetscScalar));
@@ -382,5 +404,117 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
     }
     PetscFree(S2);
 //    PetscFree(A);
+//    free((char *) A[0]+n);
+//    free((char *) A+n);
 }
+
+/*
+ * Lower tail quantile for standard normal distribution function.
+ *
+ * This function returns an approximation of the inverse cumulative
+ * standard normal distribution function.  I.e., given P, it returns
+ * an approximation to the X satisfying P = Pr{Z <= X} where Z is a
+ * random variable from the standard normal distribution.
+ *
+ * The algorithm uses a minimax approximation by rational functions
+ * and the result has a relative error whose absolute value is less
+ * than 1.15e-9.
+ *
+ * Author:      Peter John Acklam
+ * Time-stamp:  2002-06-09 18:45:44 +0200
+ * E-mail:      jacklam@math.uio.no
+ * WWW URL:     http://www.math.uio.no/~jacklam
+ *
+ * C implementation adapted from Peter's Perl version
+ */
+
+#include <math.h>
+#include <errno.h>
+
+/* Coefficients in rational approximations. */
+static const double a[] =
+{
+    -3.969683028665376e+01,
+    2.209460984245205e+02,
+    -2.759285104469687e+02,
+    1.383577518672690e+02,
+    -3.066479806614716e+01,
+    2.506628277459239e+00
+};
+
+static const double b[] =
+{
+    -5.447609879822406e+01,
+    1.615858368580409e+02,
+    -1.556989798598866e+02,
+    6.680131188771972e+01,
+    -1.328068155288572e+01
+};
+
+static const double c[] =
+{
+    -7.784894002430293e-03,
+    -3.223964580411365e-01,
+    -2.400758277161838e+00,
+    -2.549732539343734e+00,
+    4.374664141464968e+00,
+    2.938163982698783e+00
+};
+
+static const double d[] =
+{
+    7.784695709041462e-03,
+    3.224671290700398e-01,
+    2.445134137142996e+00,
+    3.754408661907416e+00
+};
+
+#define LOW 0.02425
+#define HIGH 0.97575
+
+double ltqnorm(double p)
+{
+    double q, r;
+    
+    errno = 0;
+    
+    if (p < 0 || p > 1)
+    {
+        errno = EDOM;
+        return 0.0;
+    }
+    else if (p == 0)
+    {
+        errno = ERANGE;
+        return -HUGE_VAL /* minus "infinity" */;
+    }
+    else if (p == 1)
+    {
+        errno = ERANGE;
+        return HUGE_VAL /* "infinity" */;
+    }
+    else if (p < LOW)
+    {
+        /* Rational approximation for lower region */
+        q = sqrt(-2*log(p));
+        return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+        ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+    else if (p > HIGH)
+    {
+        /* Rational approximation for upper region */
+        q  = sqrt(-2*log(1-p));
+        return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+        ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+    else
+    {
+        /* Rational approximation for central region */
+        q = p - 0.5;
+        r = q*q;
+        return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
+        (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+    }
+}
+
 

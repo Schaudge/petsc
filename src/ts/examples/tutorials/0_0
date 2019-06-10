@@ -1,0 +1,22 @@
+[ 0]10368 bytes svd() line 313 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 313 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes svd() line 312 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 312 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes svd() line 310 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 310 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes main() line 124 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 124 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes main() line 85 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 85 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]10368 bytes main() line 82 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 82 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes main() line 81 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 81 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]10368 bytes main() line 78 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 78 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes main() line 77 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 77 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]10368 bytes main() line 74 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 74 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
+[ 0]288 bytes main() line 73 in /Users/luminche/soft/petsc/src/ts/examples/tutorials/ex13_SDE.c
+      [0]  PetscMallocA() line 73 in /Users/luminche/soft/petsc/src/sys/memory/mal.c
