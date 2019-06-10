@@ -1,4 +1,4 @@
-static char help[] = "Diagnose mesh problems";
+ static char help[] = "Diagnose mesh problems";
 
 # include <petscdmplex.h>
 # include <petscviewer.h>
@@ -6,7 +6,7 @@ static char help[] = "Diagnose mesh problems";
 
 # define PETSCVIEWERASCII        "ascii"
 # define PETSCVIEWERVTK          "vtk"
-
+# define MATAIJ             	 "aij"
 /*	2D Array Routines	*/
 PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
 {
@@ -34,7 +34,7 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
         }
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
         return ierr;
 }
 
@@ -64,7 +64,7 @@ PetscErrorCode ShearArray2D(DM dm, PetscScalar theta)
         }
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
         return ierr;
 }
 
@@ -95,7 +95,7 @@ PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
         }
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 
         return ierr;
 }
@@ -141,7 +141,7 @@ PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi)
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = VecRestoreArray(coordsTemp, &tempCoordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsTemp);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsTemp);CHKERRQ(ierr);
         ierr = VecDestroy(&coordsTemp);CHKERRQ(ierr);
         return ierr;
 }
@@ -180,7 +180,7 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
                 }
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
         return ierr;
 }
 
@@ -188,13 +188,35 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
 PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly)
 {
         PetscErrorCode	ierr;
-        Mat 		*A;
+        IS		pointsIS;
+        Mat		J;
+        const PetscInt	*pointsidx;
+        PetscInt	ISSize;
+        PetscScalar     arrayJ[1], val;
+        PetscViewer	matview;
 
-        ierr = DMCreateMatrix(dm, &A);CHKERRQ(ierr);
-        MatView(A,0);
+        ierr = DMCreateMatrix(dm, &J);CHKERRQ(ierr);
+        ierr = MatSetOption(J, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+        ierr = DMGetStratumIS(dm, "depth", 0, &pointsIS);CHKERRQ(ierr);
+        ierr = ISGetIndices(pointsIS, &pointsidx);CHKERRQ(ierr);
+        ierr = ISGetSize(pointsIS, &ISSize);CHKERRQ(ierr);
+        val = lx*ly;
+        printf("%d\n",pointsidx[0]-4);
+        for (PetscInt i = 0; i < ISSize; i++) {
+                for (PetscInt j = 0; j < ISSize; j++) {
+                        ierr = MatSetValuesLocal(J, 1, &i, 1, &j, &val, INSERT_VALUES);
+                }
+        }
+        ierr = MatAssemblyBegin(J, MAT_FINAL_ASSEMBLY);
+        ierr = MatAssemblyEnd(J, MAT_FINAL_ASSEMBLY);
+        ierr = PetscViewerCreate(PETSC_COMM_WORLD, &matview);
+        ierr = PetscViewerSetType(matview, PETSCVIEWERASCII);
+        ierr = PetscViewerPushFormat(matview, PETSC_VIEWER_ASCII_DENSE);
+        MatView(J, 0);
 
         return ierr;
 }
+
 int main(int argc, char **argv)
 {
         PetscErrorCode          ierr;
@@ -215,12 +237,14 @@ int main(int argc, char **argv)
         ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
+        //        ierr  = DMPlexCreateFromFile(comm, "2Dtri3.exo", dmInterp, &dm);CHKERRQ(ierr);
 
         numFields = 1;
         numComp[0] = 1;
         for (PetscInt k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
         numDOF[0] = 1;
-        numBC = 0;
+        numBC = 1;
+        bcField[0] = 0;
         // Please note that bcField stays uninitialized because numBC = 0,
         // therefore having a trash value. This is probably handled internally
         // within DMPlexCreateSection but idk how exactly.
@@ -232,26 +256,28 @@ int main(int argc, char **argv)
         ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 
-        //ierr = StretchArray2D(dm, lx, ly);CHKERRQ(ierr);
+        //        ierr = StretchArray2D(dm, lx, ly);CHKERRQ(ierr);
         //ierr = ShearArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
         //ierr = SkewArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
         //ierr = LargeAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
         //ierr = SmallAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
+
+
         ierr = Stretch2DJacobian(dm, lx, ly);
 
         ierr = DMCreateGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
         //        ierr = VecSet(solVecGlobal, 0);CHKERRQ(ierr);
         ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
-        //        ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
-        //        ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
-        //        ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+        //ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+        //ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+        //ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
 
         ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
         ierr = PetscViewerFileSetName(vtkviewer, "deformedmesh.vtk");CHKERRQ(ierr);
-        //        ierr = VecView(solVecGlobal, vtkviewer);CHKERRQ(ierr);
-
+        ierr = VecView(solVecGlobal, vtkviewer);CHKERRQ(ierr);
         ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+
         ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
