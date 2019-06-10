@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=4;
+  PetscInt       N=12;
   PetscScalar    **Cov;
   PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
@@ -155,17 +155,17 @@ int main(int argc,char **argv)
         }
     }
     
-//   Print the approximation of covariance operator K (modified to be symmetric)
-    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-        printf("\n");
-    }
-
+////   Print the approximation of covariance operator K (modified to be symmetric)
+//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//        printf("\n");
+//    }
+//
  // Do SVD
     svd(Cov,U,V,S,N2);
-
+//
 //  Print Results: K=USV'
     printf("\nK=USV':\n");
  // Print eigenvalues
@@ -175,19 +175,19 @@ int main(int argc,char **argv)
         printf("%8.2f", S[j]);
         printf("\n");
     }
-    
- // Print eigenvectors W^(-1/2) * U
-    printf("\nIts corresponding eigenvectors\n");
-    // Recover eigenvectors by divding sqrt(W)
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++)
-        {
-            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-            printf("%6.2f", U[i][j]);
-        }
-        printf("\n");
-    }
+//
+// // Print eigenvectors W^(-1/2) * U
+//    printf("\nIts corresponding eigenvectors\n");
+//    // Recover eigenvectors by divding sqrt(W)
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++)
+//        {
+//            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
+//            printf("%6.2f", U[i][j]);
+//        }
+//        printf("\n");
+//    }
     
     ierr = PetscFree(Cov);CHKERRQ(ierr);
     ierr = PetscFree(U);CHKERRQ(ierr);
@@ -341,8 +341,8 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
   PetscMalloc1(n,&S2);
   for (i=1; i<n; i++) S2[i] = S2[i-1]+n;
     
-  PetscMalloc1(n,&A);
-  PetscMalloc1(n*n,&A[0]);
+  PetscMalloc1(2*n,&A);
+  PetscMalloc1(2*n*n,&A[0]);
   for (i=1; i<n; i++) A[i] = A[i-1]+n;
     
   for (i=0; i<n; i++)
