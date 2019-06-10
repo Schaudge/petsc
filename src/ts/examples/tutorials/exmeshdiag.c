@@ -308,6 +308,12 @@ PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         PetscInt	pStart, pEnd;
         Vec		coords;
 
+        if ((phi < 0) || (phi > 1)) {
+                MPI_Comm comm;
+                ierr = PetscObjectGetComm((PetscObject) dm, &comm);
+                SETERRQ(comm, 1, "Phi must be between [0,1]");
+        }
+
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
         ierr = DMPlexGetDepthStratum(dm, 0, &pStart, &pEnd);CHKERRQ(ierr);
@@ -350,6 +356,12 @@ PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         PetscScalar	*coordArray;
         PetscInt	pStart, pEnd;
         Vec		coords;
+
+        if ((phi < 0) || (phi > 1)) {
+                MPI_Comm comm;
+                ierr = PetscObjectGetComm((PetscObject) dm, &comm);
+                SETERRQ(comm, 1, "Phi must be between [0,1]");
+        }
 
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
