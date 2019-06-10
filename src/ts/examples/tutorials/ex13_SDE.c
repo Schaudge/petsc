@@ -40,7 +40,7 @@ int main(int argc,char **argv)
   PetscScalar    **Cov;
 //  PetscScalar    sigma;
 //  PetscScalzr    lx, ly;
-  PetscScalar    lc;
+  PetscScalar    lc, lx, ly;
   PetscScalar    **U, **V, *S;
   PetscScalar    *W;
  
@@ -65,8 +65,8 @@ int main(int argc,char **argv)
 
 //  sigma=1.0;
   lc=2.0;
-//  lx=lc;
-//  ly=lc;
+  lx=0.2;
+  ly=0.1;
    
   N2=N*N;
   /// allocate covariance matrix and its SVD associates
@@ -103,8 +103,8 @@ int main(int argc,char **argv)
                 {for (i=xs; i<xs+xm; i++)
                     {x1=coors[j][i].x;
                      y1=coors[j][i].y;
-//                     rr=PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
-                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Square Exp
+                     rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
+//                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Square Exp
                      Cov[iy*ym+ix][j*xm+i]=PetscExpReal(-rr);
                     }
                 }
