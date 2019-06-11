@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=4;
+  PetscInt       N=11;
   PetscScalar    **Cov;
   PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
@@ -94,9 +94,9 @@ int main(int argc,char **argv)
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
             {
-             printf("coord[%d][%d]", iy, ix);
-             printf(".x=%1.2f  ", coors[iy][ix].x);
-             printf(".y=%1.2f\n", coors[iy][ix].y);
+//             printf("coord[%d][%d]", iy, ix);
+//             printf(".x=%1.2f  ", coors[iy][ix].x);
+//             printf(".y=%1.2f\n", coors[iy][ix].y);
              x0=coors[iy][ix].x;
              y0=coors[iy][ix].y;
              for (j=ys; j<ys+ym; j++)
@@ -141,53 +141,52 @@ int main(int argc,char **argv)
     // Scale W
     for (i = 0; i < N2; i++) W[i] = W[i] * (Lx*Ly)/(4*PetscPowReal((N-1),2));
     
-////  // Print W after scaling
+//    // Print W after scaling
 //    printf("\nW\n");
 //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
     
-//    // Combine W with covariance matrix Cov to form covariance operator K
-    // K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)
+    /* Combine W with covariance matrix Cov to form covariance operator K
+       K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
     for (i=0; i<N2; i++)
     {
-        for (j=0; j<N2; j++)
-        {
-            Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
-        }
+        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
     }
     
  // Print the approximation of covariance operator K (modified to be symmetric)
-    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-        printf("\n");
-    }
+//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//        printf("\n");
+//    }
 
  // Do SVD
     svd(Cov,U,V,S,N2);
-
- // Print Results: K=USV'
-    printf("\nK=USV':\n");
- // Print eigenvalues
-    printf("\nEigenvalues S (in non-increasing order)\n");
-    for (j = 0; j < N2; j++)
-    {
-        printf("%8.4f", S[j]);
-        printf("\n");
-    }
-
- // Print eigenvectors W^(-1/2) * U
-    printf("\nIts corresponding eigenvectors U (columns)\n");
-    // Recover eigenvectors by divding sqrt(W)
+    
+ // Recover eigenvectors by divding sqrt(W)
     for (i = 0; i < N2; i++)
     {
-        for (j = 0; j < N2; j++)
-        {
-            U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-            printf("%6.2f", U[i][j]);
-        }
-        printf("\n");
+        for (j = 0; j < N2; j++) U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
     }
+
+ // Print Results: K=USV'
+//    printf("\nK=USV':\n");
+    
+ // // Print eigenvalues
+//    printf("\nEigenvalues S (in non-increasing order)\n");
+//    for (j = 0; j < N2; j++)
+//    {
+//        printf("%8.4f", S[j]);
+//        printf("\n");
+//    }
+
+ // // Print eigenvectors W^(-1/2) * U
+//    printf("\nIts corresponding eigenvectors (columns)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%6.2f", U[i][j]);
+//        printf("\n");
+//    }
 
     PetscScalar *rndu, *rndn;
     ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
@@ -207,28 +206,30 @@ int main(int argc,char **argv)
     for (i = 0; i < N2; i++)
     {
         rndu[i] = (PetscScalar) rand()/RAND_MAX;
-        printf("\nuniform random sample= %f\n",rndu[i]);
+//        printf("\nuniform random sample= %f\n",rndu[i]);
         rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
-        printf("normal random sample= %f\n",rndn[i]);
+//        printf("normal random sample= %f\n",rndn[i]);
 //        mean = mean + rndu[i];
     }
 //    mean = mean/N2;
 //    printf("%f\n",mean);
     
-    PetscScalar *RF; // random field from KL expansion
+    PetscScalar *RF,tmp; // random field from KL expansion
     ierr = PetscMalloc1(N2,&RF);CHKERRQ(ierr);
     for (i=1; i<N2; i++) RF[i] = RF[i-1]+N2;
 
     for (i = 0; i < N2; i++)
     {
+        tmp=0.0;
         for (j = 0; j < N2; j++)
         {
-            RF[i] = mu + sigma * U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
+            tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
         }
+        RF[i] = mu + sigma * tmp;
     }
 
     printf("\nRandom Field RF from KL expansion\n");
-    for (i = 0; i < N2; i++) printf("%6.4f\n", RF[i]);
+    for (i = 0; i < N2; i++) printf("%6.8f\n", RF[i]);
     
 //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(Cov);CHKERRQ(ierr);
