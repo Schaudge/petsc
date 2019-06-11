@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-    PetscInt     Nx=5,Ny=6;
+  PetscInt       Nx=6,Ny=11;
   PetscScalar    **Cov;
   PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
@@ -58,7 +58,7 @@ int main(int argc,char **argv)
   /*------------------------------------------------------------------------
     Access coordinate field
     ---------------------------------------------------------------------*/
-  PetscInt Lx=1, Ly=1, xs, xm, ys, ym, ix, iy;
+  PetscInt Lx=1, Ly=2, xs, xm, ys, ym, ix, iy;
   PetscInt N2, i, j;
   PetscScalar x1, y1, x0, y0, rr;
 
@@ -228,6 +228,9 @@ int main(int argc,char **argv)
 
     printf("\nRandom Field RF from KL expansion\n");
     for (i = 0; i < N2; i++) printf("%6.8f\n", RF[i]);
+    // plot it in Matlab:
+    // >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
+    // >> surf(X,Y,reshape(RF,Nx,Ny)');shading interp;view(2);colorbar;
     
 //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(Cov);CHKERRQ(ierr);
