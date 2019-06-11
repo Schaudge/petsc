@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=11;
+    PetscInt     Nx=5,Ny=6;
   PetscScalar    **Cov;
   PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
@@ -47,7 +47,7 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,N,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&user.da);CHKERRQ(ierr);
+  ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&user.da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(user.da);CHKERRQ(ierr);
   ierr = DMSetUp(user.da);CHKERRQ(ierr);
 
@@ -68,7 +68,7 @@ int main(int argc,char **argv)
   lx=0.2;
   ly=0.1;
    
-  N2=N*N;
+  N2=Nx*Ny;
   /// allocate covariance matrix and its SVD associates
   ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
   ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
@@ -94,9 +94,9 @@ int main(int argc,char **argv)
   for (iy=ys; iy<ys+ym; iy++)
      {for (ix=xs; ix<xs+xm; ix++)
             {
-//             printf("coord[%d][%d]", iy, ix);
-//             printf(".x=%1.2f  ", coors[iy][ix].x);
-//             printf(".y=%1.2f\n", coors[iy][ix].y);
+             printf("coord[%d][%d]", iy, ix);
+             printf(".x=%1.2f  ", coors[iy][ix].x);
+             printf(".y=%1.2f\n", coors[iy][ix].y);
              x0=coors[iy][ix].x;
              y0=coors[iy][ix].y;
              for (j=ys; j<ys+ym; j++)
@@ -104,8 +104,9 @@ int main(int argc,char **argv)
                     {x1=coors[j][i].x;
                      y1=coors[j][i].y;
 //                     rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
-                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Square Exp
-                     Cov[iy*ym+ix][j*xm+i]=PetscExpReal(-rr);
+//                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
+                     rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
+                     Cov[iy*xm+ix][j*xm+i]=PetscExpReal(-rr);
                     }
                 }
             }
@@ -126,12 +127,12 @@ int main(int argc,char **argv)
     for (i=1; i<N2; i++) W[i] = W[i-1]+N2;
     // fill the weights (trapezoidal rule in 2d uniform mesh)
     // fill the first and the last
-    W[0]=1; W[N-1]=1; W[N2-N]=1; W[N2-1]=1;
-    for (i=1; i<N-1; i++) {W[i] = 2; W[N2-N+i]=2;}
+    W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
+    for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
     // fill in between
-    for (i=0; i<N; i++)
+    for (i=0; i<Nx; i++)
         {
-        for (j=1; j<N-1; j++) W[j*N+i] = 2.0 * W[i];
+         for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
         }
     
 //    // Print W before scaling
@@ -139,7 +140,7 @@ int main(int argc,char **argv)
 //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
     
     // Scale W
-    for (i = 0; i < N2; i++) W[i] = W[i] * (Lx*Ly)/(4*PetscPowReal((N-1),2));
+    for (i = 0; i < N2; i++) W[i] = W[i] * (Lx*Ly)/(4*(Nx-1)*(Ny-1));
     
 //    // Print W after scaling
 //    printf("\nW\n");
@@ -221,10 +222,7 @@ int main(int argc,char **argv)
     for (i = 0; i < N2; i++)
     {
         tmp=0.0;
-        for (j = 0; j < N2; j++)
-        {
-            tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
-        }
+        for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
         RF[i] = mu + sigma * tmp;
     }
 
