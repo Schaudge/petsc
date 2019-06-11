@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       Nx=6,Ny=11;
+  PetscInt       Nx=4,Ny=4;
   PetscScalar    **Cov;
   PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
@@ -58,8 +58,8 @@ int main(int argc,char **argv)
   /*------------------------------------------------------------------------
     Access coordinate field
     ---------------------------------------------------------------------*/
-  PetscInt Lx=1, Ly=2, xs, xm, ys, ym, ix, iy;
-  PetscInt N2, i, j;
+  PetscInt Lx=1, Ly=1, xs, xm, ys, ym;
+  PetscInt N2, i, j, i0, j0, i1, j1;
   PetscScalar x1, y1, x0, y0, rr;
 
   mu=0.0;
@@ -90,23 +90,24 @@ int main(int argc,char **argv)
   ierr = DMGetCoordinateDM(user.da,&cda);CHKERRQ(ierr);
   ierr = DMGetCoordinates(user.da,&global);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
+    
 //             printf("\ntest coordinates:\n");
-  for (iy=ys; iy<ys+ym; iy++)
-     {for (ix=xs; ix<xs+xm; ix++)
+  for (j0=ys; j0<ys+ym; j0++)
+     {for (i0=xs; i0<xs+xm; i0++)
             {
-             printf("coord[%d][%d]", iy, ix);
-             printf(".x=%1.2f  ", coors[iy][ix].x);
-             printf(".y=%1.2f\n", coors[iy][ix].y);
-             x0=coors[iy][ix].x;
-             y0=coors[iy][ix].y;
-             for (j=ys; j<ys+ym; j++)
-                {for (i=xs; i<xs+xm; i++)
-                    {x1=coors[j][i].x;
-                     y1=coors[j][i].y;
+             printf("coord[%d][%d]", j0, i0);
+             printf(".x=%1.2f  ", coors[j0][i0].x);
+             printf(".y=%1.2f\n", coors[j0][i0].y);
+             x0=coors[j0][i0].x;
+             y0=coors[j0][i0].y;
+             for (j1=ys; j1<ys+ym; j1++)
+                {for (i1=xs; i1<xs+xm; i1++)
+                    {x1=coors[j1][i1].x;
+                     y1=coors[j1][i1].y;
 //                     rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
 //                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
                      rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
-                     Cov[iy*xm+ix][j*xm+i]=PetscExpReal(-rr);
+                     Cov[j0*xm+i0][j1*xm+i1]=PetscExpReal(-rr);
                     }
                 }
             }
@@ -122,9 +123,11 @@ int main(int argc,char **argv)
 //    }
     
 // Approximate the covariance integral operator via collocation and vertex-based quadrature
+    
     // allocate quadrature weights W along the diagonal
     ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
     for (i=1; i<N2; i++) W[i] = W[i-1]+N2;
+    
     // fill the weights (trapezoidal rule in 2d uniform mesh)
     // fill the first and the last
     W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
@@ -207,8 +210,8 @@ int main(int argc,char **argv)
     for (i = 0; i < N2; i++)
     {
         rndu[i] = (PetscScalar) rand()/RAND_MAX;
-//        printf("\nuniform random sample= %f\n",rndu[i]);
         rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
+//        printf("\nuniform random sample= %f\n",rndu[i]);
 //        printf("normal random sample= %f\n",rndn[i]);
 //        mean = mean + rndu[i];
     }
@@ -242,12 +245,12 @@ int main(int argc,char **argv)
   user.c = -30.0;
 
  
-  /* Set Matrix */
+  /* Set Matrix A */
   ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
   
   ierr = BuildA(&user);
-//  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
