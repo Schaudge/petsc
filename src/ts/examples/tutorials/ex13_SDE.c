@@ -1,6 +1,6 @@
 
 
-static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illustrating how to use TS on a structured domain. \n";
+static char help[] = "Time-dependent SPDE in 2d. Adapted from ex13.c. \n";
 /*
    u_t = uxx + uyy
    0 < x < 1, 0 < y < 1;
@@ -36,7 +36,7 @@ int main(int argc,char **argv)
   DMDACoor2d     **coors;
   Vec            global;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       N=12;
+  PetscInt       N=10;
   PetscScalar    **Cov;
   PetscScalar    mu,sigma;
   PetscScalar    lc, lx, ly;
@@ -403,9 +403,7 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
         }
     }
     PetscFree(S2);
-//    PetscFree(A);
-//    free((char *) A[0]+n);
-//    free((char *) A+n);
+    PetscFree(A);
 }
 
 /*
