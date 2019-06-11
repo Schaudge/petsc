@@ -273,6 +273,24 @@ PETSC_STATIC_INLINE PetscErrorCode KSP_MatMultTranspose(KSP ksp,Mat A,Vec x,Vec 
   PetscFunctionReturn(0);
 }
 
+PETSC_STATIC_INLINE PetscErrorCode KSP_MatMatMult(KSP ksp,Mat A,Mat x,Mat* y,MatReuse MM)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  if (!ksp->transpose_solve) {ierr = MatMatMult(A,x,MM,PETSC_DEFAULT,y);CHKERRQ(ierr);}
+  else                       {ierr = MatTransposeMatMult(A,x,MM,PETSC_DEFAULT,y);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
+PETSC_STATIC_INLINE PetscErrorCode KSP_MatMatMultTranspose(KSP ksp,Mat A,Mat x,Mat* y,MatReuse MM)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  if (!ksp->transpose_solve) {ierr = MatTransposeMatMult(A,x,MM,PETSC_DEFAULT,y);CHKERRQ(ierr);}
+  else                       {ierr = MatMatMult(A,x,MM,PETSC_DEFAULT,y);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
 PETSC_STATIC_INLINE PetscErrorCode KSP_PCApply(KSP ksp,Vec x,Vec y)
 {
   PetscErrorCode ierr;
@@ -283,6 +301,20 @@ PETSC_STATIC_INLINE PetscErrorCode KSP_PCApply(KSP ksp,Vec x,Vec y)
   } else {
     ierr = PCApplyTranspose(ksp->pc,x,y);CHKERRQ(ierr);
     ierr = KSP_RemoveNullSpaceTranspose(ksp,y);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+
+PETSC_STATIC_INLINE PetscErrorCode KSP_PCApplyMultiPrecond(KSP ksp,Vec x,Mat y)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  if (!ksp->transpose_solve) {
+    ierr = PCApplyMultiPrecond(ksp->pc,x,y);CHKERRQ(ierr);
+//LMT    ierr = KSP_RemoveNullSpace(ksp,y);CHKERRQ(ierr);
+  } else {
+    SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"No multiprecond with tranpose",((PetscObject)ksp)->type_name);
   }
   PetscFunctionReturn(0);
 }

@@ -7,7 +7,7 @@
 
 /* Logging support */
 PetscClassId  PC_CLASSID;
-PetscLogEvent PC_SetUp, PC_SetUpOnBlocks, PC_Apply, PC_ApplyCoarse, PC_ApplyMultiple, PC_ApplySymmetricLeft;
+PetscLogEvent PC_SetUp, PC_SetUpOnBlocks, PC_Apply, PC_ApplyCoarse, PC_ApplyMultiple, PC_ApplySymmetricLeft, PC_ApplyMultiPrecond;
 PetscLogEvent PC_ApplySymmetricRight, PC_ModifySubMatrices, PC_ApplyOnBlocks, PC_ApplyTransposeOnBlocks;
 PetscInt      PetscMGLevelId;
 
@@ -593,6 +593,46 @@ PetscErrorCode  PCApplyTransposeExists(PC pc,PetscBool  *flg)
   PetscValidPointer(flg,2);
   if (pc->ops->applytranspose) *flg = PETSC_TRUE;
   else *flg = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   PCApplyMultiPrecond - Applies the multipreconditioner to a vector.
+
+   Collective on PC and Vec
+
+   Input Parameters:
++  pc - the preconditioner context
+-  x - input vector
+
+   Output Parameter:
+.  y - output matrix
+
+   Notes:
+   Currently, this routine is implemented only for PC_ASM preconditioner
+
+   Level: developer
+
+.keywords: PC, apply, multipreconditioner
+
+.seealso: PCApply(), 
+@*/
+PetscErrorCode  PCApplyMultiPrecond(PC pc,Vec x,Mat y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(pc,PC_CLASSID,1);
+  PetscValidHeaderSpecific(x,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(y,MAT_CLASSID,3);
+  if (pc->erroriffailure) {ierr = VecValidValues(x,2,PETSC_TRUE);CHKERRQ(ierr);}  /* VecValidValues is defined in src/vec/vec/interface/rvector.c */
+  ierr = PCSetUp(pc);CHKERRQ(ierr);
+  if (!pc->ops->applymultiprecond) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"PC does not support multipreconditioning");
+  ierr = VecLockReadPush(x);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(PC_ApplyMultiPrecond,pc,x,y,0);CHKERRQ(ierr);
+  ierr = (*pc->ops->applymultiprecond)(pc,x,y);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PC_ApplyMultiPrecond,pc,x,y,0);CHKERRQ(ierr);
+  ierr = VecLockReadPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -55,6 +55,9 @@
 #define KSPTSIRM 'tsirm'
 #define KSPCGLS 'cgls'
 #define KSPFETIDP 'fetidp'
+#define KSPMPCG 'mpcg'
+#define KSPMPOMIN 'mpomin'
+
 !
 !  Various Initial guesses for Krylov subspace methods
 !

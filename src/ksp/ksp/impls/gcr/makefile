@@ -7,7 +7,7 @@ SOURCEC  = gcr.c
 SOURCEH  =
 SOURCEF  =
 LIBBASE  = libpetscksp
-DIRS     = pipegcr
+DIRS     = pipegcr mpomin
 MANSEC   = KSP
 LOCDIR   = src/ksp/ksp/impls/gcr/
 
