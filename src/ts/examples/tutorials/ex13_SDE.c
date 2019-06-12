@@ -15,6 +15,7 @@ static char help[] = "Time-dependent SPDE in 2d. Adapted from ex13.c. \n";
 #include <petscdm.h>
 #include <petscdmda.h>
 #include "header.h"
+#include <time.h>
 
 /*
    User-defined data structures and routines
@@ -26,7 +27,7 @@ typedef struct {
 } AppCtx;
 
 extern PetscErrorCode BuildA(AppCtx*);
-extern PetscErrorCode BuildCov(Vec, AppCtx*);
+extern PetscErrorCode BuildR(Vec, AppCtx*);
 
 int main(int argc,char **argv)
 {
@@ -218,22 +219,22 @@ int main(int argc,char **argv)
 //    mean = mean/N2;
 //    printf("%f\n",mean);
     
-    PetscScalar *RF,tmp; // random field from KL expansion
-    ierr = PetscMalloc1(N2,&RF);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) RF[i] = RF[i-1]+N2;
+    PetscScalar *R,tmp; // random field from KL expansion
+    ierr = PetscMalloc1(N2,&R);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) R[i] = R[i-1]+N2;
 
     for (i = 0; i < N2; i++)
     {
         tmp=0.0;
         for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
-        RF[i] = mu + sigma * tmp;
+        R[i] = mu + sigma * tmp;
     }
 
-    printf("\nRandom Field RF from KL expansion\n");
-    for (i = 0; i < N2; i++) printf("%6.8f\n", RF[i]);
+    printf("\nRandom Field R from KL expansion\n");
+    for (i = 0; i < N2; i++) printf("%6.8f\n", R[i]);
     // plot it in Matlab:
     // >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
-    // >> surf(X,Y,reshape(RF,Nx,Ny)');shading interp;view(2);colorbar;
+    // >> surf(X,Y,reshape(R,Nx,Ny)');shading interp;view(2);colorbar;
     
 //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(Cov);CHKERRQ(ierr);
@@ -305,18 +306,18 @@ PetscErrorCode BuildA(AppCtx *user)
   ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)user->A,"fdmat");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
   ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-       // to check pattern in Matlab >>fdmat;spy(fdmat)
+       // to check pattern in Matlab >>fdmat;spy(mat)
   
   PetscFunctionReturn(0);
 }
 
 
 /* ------------------------------------------------------------------- */
-PetscErrorCode BuildCov(Vec U,AppCtx* user)
+PetscErrorCode BuildR(Vec U,AppCtx* user)
 {
   PetscReal      c=user->c;
   PetscErrorCode ierr;
