@@ -14,6 +14,8 @@ static char help[] = "Time-dependent SPDE in 2d. Adapted from ex13.c. \n";
 
 #include <petscdm.h>
 #include <petscdmda.h>
+//#include <petscdmlabel.h>
+//#include <petscds.h>
 #include "header.h"
 #include <time.h>
 
@@ -21,6 +23,8 @@ static char help[] = "Time-dependent SPDE in 2d. Adapted from ex13.c. \n";
    User-defined data structures and routines
 */
 typedef struct {
+  PetscInt  Lx;
+  PetscInt  Ly;
   PetscReal c;
   Mat       A;
   DM        da;
@@ -31,18 +35,15 @@ extern PetscErrorCode BuildR(Vec, AppCtx*);
 
 int main(int argc,char **argv)
 {
-  Vec            u;                  /* solution vector */
+  Vec            u,r;                  /* solution vector , random vector*/
   PetscErrorCode ierr;
-  DM             cda;
-  DMDACoor2d     **coors;
-  Vec            global;
   AppCtx         user;              /* user-defined work context */
   PetscInt       Nx=4,Ny=4;
-  PetscScalar    **Cov;
-  PetscScalar    mu,sigma;
-  PetscScalar    lc, lx, ly;
-  PetscScalar    **U, **V, *S;
-  PetscScalar    *W;
+  
+  /* Initialize user application context */
+  user.Lx = 1;
+  user.Ly = 1;
+  user.c = -30.0;
  
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -51,207 +52,26 @@ int main(int argc,char **argv)
   ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&user.da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(user.da);CHKERRQ(ierr);
   ierr = DMSetUp(user.da);CHKERRQ(ierr);
-
+  ierr = DMDASetUniformCoordinates(user.da,0.0,user.Lx,0.0,user.Ly,0.0,0.0);CHKERRQ(ierr);
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Extract global vectors from DMDA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(user.da,&u);CHKERRQ(ierr);
-  /*------------------------------------------------------------------------
-    Access coordinate field
-    ---------------------------------------------------------------------*/
-  PetscInt Lx=1, Ly=1, xs, xm, ys, ym;
-  PetscInt N2, i, j, i0, j0, i1, j1;
-  PetscScalar x1, y1, x0, y0, rr;
 
-  mu=0.0;
-  sigma=1.0;
-  lc=2.0;
-  lx=0.2;
-  ly=0.1;
-   
-  N2=Nx*Ny;
-  /// allocate covariance matrix and its SVD associates
-  ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
-  ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
-  for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
-
-  ierr = PetscMalloc1(N2,&U);CHKERRQ(ierr);
-  ierr = PetscMalloc1(N2*N2,&U[0]);CHKERRQ(ierr);
-  for (i=1; i<N2; i++) U[i] = U[i-1]+N2;
-    
-  ierr = PetscMalloc1(N2,&V);CHKERRQ(ierr);
-  ierr = PetscMalloc1(N2*N2,&V[0]);CHKERRQ(ierr);
-  for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
-    
-  ierr = PetscMalloc1(N2,&S);CHKERRQ(ierr);
-  for (i=1; i<N2; i++) S[i] = S[i-1]+N2;
-
-  ierr = DMDASetUniformCoordinates(user.da,0.0,Lx,0.0,Ly,0.0,0.0);CHKERRQ(ierr);
-  ierr = DMDAGetCorners(user.da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-  ierr = DMGetCoordinateDM(user.da,&cda);CHKERRQ(ierr);
-  ierr = DMGetCoordinates(user.da,&global);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
-    
-//             printf("\ntest coordinates:\n");
-  for (j0=ys; j0<ys+ym; j0++)
-     {for (i0=xs; i0<xs+xm; i0++)
-            {
-             printf("coord[%d][%d]", j0, i0);
-             printf(".x=%1.2f  ", coors[j0][i0].x);
-             printf(".y=%1.2f\n", coors[j0][i0].y);
-             x0=coors[j0][i0].x;
-             y0=coors[j0][i0].y;
-             for (j1=ys; j1<ys+ym; j1++)
-                {for (i1=xs; i1<xs+xm; i1++)
-                    {x1=coors[j1][i1].x;
-                     y1=coors[j1][i1].y;
-//                     rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
-//                     rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
-                     rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
-                     Cov[j0*xm+i0][j1*xm+i1]=PetscExpReal(-rr);
-                    }
-                }
-            }
-     }
-  ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
-    
-//    //   Print covariance matrix Cov (before adding weights)
-//    printf("Cov\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-//        printf("\n");
-//    }
-    
-// Approximate the covariance integral operator via collocation and vertex-based quadrature
-    
-    // allocate quadrature weights W along the diagonal
-    ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) W[i] = W[i-1]+N2;
-    
-    // fill the weights (trapezoidal rule in 2d uniform mesh)
-    // fill the first and the last
-    W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
-    for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
-    // fill in between
-    for (i=0; i<Nx; i++)
-        {
-         for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
-        }
-    
-//    // Print W before scaling
-//    printf("\nW\n");
-//    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
-    
-    // Scale W
-    for (i = 0; i < N2; i++) W[i] = W[i] * (Lx*Ly)/(4*(Nx-1)*(Ny-1));
-    
-//    // Print W after scaling
-//    printf("\nW\n");
-//    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
-    
-    /* Combine W with covariance matrix Cov to form covariance operator K
-       K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
-    for (i=0; i<N2; i++)
-    {
-        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
-    }
-    
- // Print the approximation of covariance operator K (modified to be symmetric)
-//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-//        printf("\n");
-//    }
-
- // Do SVD
-    svd(Cov,U,V,S,N2);
-    
- // Recover eigenvectors by divding sqrt(W)
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-    }
-
- // Print Results: K=USV'
-//    printf("\nK=USV':\n");
-    
- // // Print eigenvalues
-//    printf("\nEigenvalues S (in non-increasing order)\n");
-//    for (j = 0; j < N2; j++)
-//    {
-//        printf("%8.4f", S[j]);
-//        printf("\n");
-//    }
-
- // // Print eigenvectors W^(-1/2) * U
-//    printf("\nIts corresponding eigenvectors (columns)\n");
-//    for (i = 0; i < N2; i++)
-//    {
-//        for (j = 0; j < N2; j++) printf("%6.2f", U[i][j]);
-//        printf("\n");
-//    }
-
-    PetscScalar *rndu, *rndn;
-    ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) rndu[i] = rndu[i-1]+N2;
-    ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) rndn[i] = rndn[i-1]+N2;
-//  PetscRandom rnd;
-//    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
-    /* force imaginary part of random number to always be zero; thus obtain reproducible results with real and complex numbers */
-//    ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
-//    ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
-//    ierr = PetscRandomGetValue(rnd,&rndu);CHKERRQ(ierr);
-    
-    time_t t;
-    srand((unsigned) time(&t));rand();//initialize random number generator in C
-//    PetscScalar mean = 0;
-    for (i = 0; i < N2; i++)
-    {
-        rndu[i] = (PetscScalar) rand()/RAND_MAX;
-        rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
-//        printf("\nuniform random sample= %f\n",rndu[i]);
-//        printf("normal random sample= %f\n",rndn[i]);
-//        mean = mean + rndu[i];
-    }
-//    mean = mean/N2;
-//    printf("%f\n",mean);
-    
-    PetscScalar *R,tmp; // random field from KL expansion
-    ierr = PetscMalloc1(N2,&R);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) R[i] = R[i-1]+N2;
-
-    for (i = 0; i < N2; i++)
-    {
-        tmp=0.0;
-        for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
-        R[i] = mu + sigma * tmp;
-    }
-
-    printf("\nRandom Field R from KL expansion\n");
-    for (i = 0; i < N2; i++) printf("%6.8f\n", R[i]);
-    // plot it in Matlab:
-    // >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
-    // >> surf(X,Y,reshape(R,Nx,Ny)');shading interp;view(2);colorbar;
-    
-//    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
-    ierr = PetscFree(Cov);CHKERRQ(ierr);
-    ierr = PetscFree(U);CHKERRQ(ierr);
-    ierr = PetscFree(V);CHKERRQ(ierr);
-    ierr = PetscFree(S);CHKERRQ(ierr);
-    
-  /* Initialize user application context */
-  user.c = -30.0;
-
- 
   /* Set Matrix A */
   ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
   
   ierr = BuildA(&user);
   ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+    
+  /* Set Random vector r */
+  ierr = DMSetVecType(user.da,VECSEQ);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(user.da,&r);CHKERRQ(ierr);
+    
+  ierr = BuildR(r,&user);
+  ierr = VecView(r,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+    
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
@@ -263,6 +83,7 @@ int main(int argc,char **argv)
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = MatDestroy(&user.A);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&r);CHKERRQ(ierr);
 //  ierr = VecDestroy(&global);CHKERRQ(ierr); //error occurs if turning on
 //  ierr = DMDestroy(&cda);CHKERRQ(ierr);     //error occurs if turnung on
   ierr = DMDestroy(&user.da);CHKERRQ(ierr);
@@ -317,39 +138,211 @@ PetscErrorCode BuildA(AppCtx *user)
 
 
 /* ------------------------------------------------------------------- */
-PetscErrorCode BuildR(Vec U,AppCtx* user)
+PetscErrorCode BuildR(Vec R,AppCtx* user)
 {
-  PetscReal      c=user->c;
-  PetscErrorCode ierr;
-  PetscInt       i,j,xs,ys,xm,ym,Mx,My;
-  PetscScalar    **u;
-  PetscReal      hx,hy,x,y,r;
+    DM             cda;
+    DMDACoor2d     **coors;
+    Vec            global;
+    PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
+    PetscInt       i, j, i0, j0, i1, j1;
+    PetscReal      mu=0.0, sigma=1.0;
+    PetscReal      lc=2.0;
+//    PetscReal      lx=0.2, ly=0.1;
+    PetscScalar    **Cov;
+    PetscScalar    **U, **V, *S;
+    PetscScalar    *W;
+    PetscScalar    *r, tmp;           /* r: vector issued from random field by KL expansion */
+    PetscScalar    x1, y1, x0, y0, rr;
+    PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = DMDAGetInfo(user->da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
-
-  hx = 1.0/(PetscReal)(Mx-1);
-  hy = 1.0/(PetscReal)(My-1);
-
-  /* Get pointers to vector data */
-  ierr = DMDAVecGetArray(user->da,U,&u);CHKERRQ(ierr);
-
-  /* Get local grid boundaries */
-  ierr = DMDAGetCorners(user->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-
-  /* Compute function over the locally owned part of the grid */
-  for (j=ys; j<ys+ym; j++) {
-    y = j*hy;
-    for (i=xs; i<xs+xm; i++) {
-      x = i*hx;
-      r = PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5));
-      if (r < .125) u[j][i] = PetscExpReal(c*r*r*r);
-      else u[j][i] = 0.0;
+    
+    /*------------------------------------------------------------------------
+     Access coordinate field
+     ---------------------------------------------------------------------*/
+    ierr = DMDAGetInfo(user->da,PETSC_IGNORE,&Nx,&Ny,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
+    N2=Nx*Ny;
+    
+    /* Get pointers to vector data */
+    ierr = DMDAVecGetArray(user->da,R,&r);CHKERRQ(ierr);
+    
+    /* Get local grid boundaries */
+    ierr = DMDAGetCorners(user->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(user->da,&cda);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(user->da,&global);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
+    
+    /// allocate covariance matrix, its SVD associates and random vector r
+    ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
+    
+    ierr = PetscMalloc1(N2,&U);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&U[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) U[i] = U[i-1]+N2;
+    
+    ierr = PetscMalloc1(N2,&V);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&V[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
+    
+    ierr = PetscMalloc1(N2,&S);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) S[i] = S[i-1]+N2;
+    
+    ierr = PetscMalloc1(N2,&r);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) r[i] = r[i-1]+N2;
+    
+/* Compute covariance function over the locally owned part of the grid */
+    
+        //        printf("\ntest coordinates:\n");
+    for (j0=ys; j0<ys+ym; j0++)
+    {for (i0=xs; i0<xs+xm; i0++)
+    {
+        //        printf("coord[%d][%d]", j0, i0);
+        //        printf(".x=%1.2f  ", coors[j0][i0].x);
+        //        printf(".y=%1.2f\n", coors[j0][i0].y);
+        x0=coors[j0][i0].x;
+        y0=coors[j0][i0].y;
+        for (j1=ys; j1<ys+ym; j1++)
+        {for (i1=xs; i1<xs+xm; i1++)
+        {x1=coors[j1][i1].x;
+            y1=coors[j1][i1].y;
+//            rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
+//            rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
+            rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
+            Cov[j0*xm+i0][j1*xm+i1]=PetscExpReal(-rr);
+        }
+        }
     }
-  }
+    }
+    ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
+    
+    //    //   Print covariance matrix Cov (before adding weights)
+    //    printf("Cov\n");
+    //    for (i = 0; i < N2; i++)
+    //    {
+    //        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+    //        printf("\n");
+    //    }
+    
+/* Approximate the covariance integral operator via collocation and vertex-based quadrature */
+    
+    // allocate quadrature weights W along the diagonal
+    ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) W[i] = W[i-1]+N2;
+    
+    // fill the weights (trapezoidal rule in 2d uniform mesh)
+    // fill the first and the last
+    W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
+    for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
+    // fill in between
+    for (i=0; i<Nx; i++)
+    {
+        for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
+    }
+    
+    //    // Print W before scaling
+    //    printf("\nW\n");
+    //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
+    // Scale W
+    for (i = 0; i < N2; i++) W[i] = W[i] * ((user->Lx)*(user->Ly))/(4*(Nx-1)*(Ny-1));
+    
+    //    // Print W after scaling
+    //    printf("\nW\n");
+    //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
+    /* Combine W with covariance matrix Cov to form covariance operator K
+     K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
+    for (i=0; i<N2; i++)
+    {
+        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
+    }
+    
+//    //  Print the approximation of covariance operator K (modified to be symmetric)
+//        printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+//        for (i = 0; i < N2; i++)
+//        {
+//            for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+//            printf("\n");
+//        }
+    
+/* Use SVD to decompose the PSD matrix K to get its eigen decomposition */
+    svd(Cov,U,V,S,N2);
+    
+    // Recover eigenvectors by divding sqrt(W)
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
+    }
+    
+//    // Print decomposition results: K=USV'
+//        printf("\nK=USV':\n");
+//
+//     // Print eigenvalues
+//        printf("\nEigenvalues S (in non-increasing order)\n");
+//        for (j = 0; j < N2; j++)
+//        {
+//            printf("%8.4f", S[j]);
+//            printf("\n");
+//        }
+//
+//     // Print eigenvectors W^(-1/2) * U
+//        printf("\nIts corresponding eigenvectors (columns)\n");
+//        for (i = 0; i < N2; i++)
+//        {
+//            for (j = 0; j < N2; j++) printf("%6.2f", U[i][j]);
+//            printf("\n");
+//        }
+    
+/* Generate normal random numbers by transforming from the uniform one */
+    PetscScalar *rndu, *rndn;
+    ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) rndu[i] = rndu[i-1]+N2;
+    ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) rndn[i] = rndn[i-1]+N2;
+    //  PetscRandom rnd;
+    //    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
+    /* force imaginary part of random number to always be zero; thus obtain reproducible results with real and complex numbers */
+    //    ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
+    //    ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
+    //    ierr = PetscRandomGetValue(rnd,&rndu);CHKERRQ(ierr);
+    
+    time_t t;
+    srand((unsigned) time(&t));rand();//initialize random number generator in C
+//        PetscScalar mean = 0;
+    for (i = 0; i < N2; i++)
+    {
+        rndu[i] = (PetscScalar) rand()/RAND_MAX;
+        rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
+        //        printf("\nuniform random sample= %f\n",rndu[i]);
+        //        printf("normal random sample= %f\n",rndn[i]);
+//                mean = mean + rndu[i];
+    }
+//        mean = mean/N2;
+//        printf("%f\n",mean);
+    
+/* Do KL expansion by combining the above eigen decomposition and normal random numbers*/
+    for (i = 0; i < N2; i++)
+    {
+        tmp=0.0;
+        for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
+        r[i] = mu + sigma * tmp;
+    }
+    // Pring the random vector R issued from random field by KL expansion
+    printf("\nRandom vector R issued from random field by KL expansion\n");
+    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
+    // plot it in Matlab:
+    // >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
+    // >> surf(X,Y,reshape(R,Nx,Ny)');shading interp;view(2);colorbar;
+    
+    //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
+    ierr = PetscFree(Cov);CHKERRQ(ierr);
+    ierr = PetscFree(U);CHKERRQ(ierr);
+    ierr = PetscFree(V);CHKERRQ(ierr);
+    ierr = PetscFree(S);CHKERRQ(ierr);
 
   /* Restore vectors */
-  ierr = DMDAVecRestoreArray(user->da,U,&u);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(user->da,R,&r);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
