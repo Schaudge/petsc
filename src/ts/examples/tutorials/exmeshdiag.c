@@ -1,4 +1,4 @@
- static char help[] = "Diagnose mesh problems";
+static char help[] = "Diagnose mesh problems";
 
 # include <petscdmplex.h>
 # include <petscviewer.h>
@@ -7,6 +7,7 @@
 # define PETSCVIEWERASCII        "ascii"
 # define PETSCVIEWERVTK          "vtk"
 # define MATAIJ             	 "aij"
+
 /*	2D Array Routines	*/
 PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
 {
@@ -159,7 +160,7 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
                 ierr = PetscObjectGetComm((PetscObject) dm, &comm);
                 SETERRQ(comm, 1, "Phi must be between [0,1]");
         }
-       
+
 	ierr = DMGetCoordinatesLocal(dm, &coordsLocal);CHKERRQ(ierr);
         ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
         ierr = VecGetArray(coordsLocal, &coordArray);CHKERRQ(ierr);
@@ -271,7 +272,8 @@ PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
          VERTEX. So, in order to insert we must construct a 2x2 for every vertex, then
          pass that in as a flattened 1D array (V), and tell petsc which rows(II) and
          cols(J) to insert it into the big global jacobian(Jac).
-         */
+
+x         */
 
         for (PetscInt i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
@@ -292,6 +294,7 @@ PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
         ierr = MatAssemblyEnd(*Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
         return ierr;
 }
+
 PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
 {
         PetscErrorCode	ierr;
@@ -406,7 +409,7 @@ int main(int argc, char **argv)
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
-	
+
         ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);CHKERRQ(ierr);
@@ -459,7 +462,7 @@ int main(int argc, char **argv)
         //        ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
         //        ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         //        ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
-	
+
         ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
         ierr = PetscViewerFileSetName(vtkviewer, "deformedmesh.vtk");CHKERRQ(ierr);
