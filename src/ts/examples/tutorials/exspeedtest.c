@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
 	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
-	PetscInt		numComp[3], numDOF[3], bcField[1];
+	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen;
 	PetscScalar 		dot, *coords, *array;
 	PetscViewer		viewer;
@@ -141,7 +141,9 @@ int main(int argc, char **argv)
 
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
-          	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
+		faces[0] = 10;
+		faces[1] = 10;
+          	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
         } else {
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
         }
@@ -207,7 +209,7 @@ int main(int argc, char **argv)
 	ierr = VecGetArray(solVecLocal, &array);CHKERRQ(ierr);
 
 	/*	Create Vector for per process function evaluation	*/
-	if (speedTest){
+	if (!speedTest){
 		ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
 		ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
 		ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
@@ -243,7 +245,7 @@ int main(int argc, char **argv)
 	}
 
 	/*	LOOP OVER ALL VERTICES ON LOCAL MESH UNLESS ITS A SPEEDTEST */
-	if (speedTest) {
+	if (!speedTest) {
 		if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);
 			ierr = PetscPrintf(comm, "Before Op | After Op\n");CHKERRQ(ierr);
 		}
