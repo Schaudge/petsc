@@ -114,10 +114,10 @@ int main(int argc, char **argv)
 	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
-        size_t                  namelen;
+        size_t                  namelen=0;
 	PetscScalar 		dot, *coords, *array;
 	PetscViewer		viewer;
-	char			bar[18] = "------------------", filename[PETSC_MAX_PATH_LEN];
+	char			bar[18] = "------------------", filename[PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -140,6 +140,7 @@ int main(int argc, char **argv)
 	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
 
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
+        printf("%s\n",filename);
         if (!namelen){
 		faces[0] = 10;
 		faces[1] = 10;
