@@ -111,18 +111,19 @@ int main(int argc, char **argv)
 	IS			bcPointsIS;
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
-	PetscBool		fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
-	PetscInt		numComp[3], numDOF[3], bcField[1];
-        size_t                  namelen;
+	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
+        size_t                  namelen=0;
 	PetscScalar 		dot, *coords, *array;
 	PetscViewer		viewer;
-	char			bar[18] = "------------------", filename[PETSC_MAX_PATH_LEN];
+	char			bar[18] = "------------------", filename[PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
 
 	ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
+		ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", speedTest, &speedTest, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-vtkout", "Enable mesh distribution visualization", "", VTKdisp, &VTKdisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-disp", "Turn on all displays", "", dispFlag, &dispFlag, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-isview", "Turn on ISView for single threaded", "", isView, &isView, NULL);CHKERRQ(ierr);
@@ -140,7 +141,9 @@ int main(int argc, char **argv)
 
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
-          	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
+		faces[0] = 10;
+		faces[1] = 10;
+          	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
         } else {
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
         }
@@ -206,17 +209,19 @@ int main(int argc, char **argv)
 	ierr = VecGetArray(solVecLocal, &array);CHKERRQ(ierr);
 
 	/*	Create Vector for per process function evaluation	*/
-	ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
-	ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
-	ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
-	ierr = VecSetFromOptions(funcVecSin);CHKERRQ(ierr);
-	ierr = VecDuplicate(funcVecSin, &funcVecCos);CHKERRQ(ierr);
-	ierr = VecSet(funcVecSin, PetscSinReal(PETSC_PI));CHKERRQ(ierr);
-	ierr = VecSet(funcVecCos, PetscCosReal(PETSC_PI));CHKERRQ(ierr);
-	ierr = VecAssemblyBegin(funcVecSin);CHKERRQ(ierr);
-  	ierr = VecAssemblyEnd(funcVecSin);CHKERRQ(ierr);
-	ierr = VecAssemblyBegin(funcVecCos);CHKERRQ(ierr);
-  	ierr = VecAssemblyEnd(funcVecCos);CHKERRQ(ierr);
+	if (!speedTest){
+		ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
+		ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
+		ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
+		ierr = VecSetFromOptions(funcVecSin);CHKERRQ(ierr);
+		ierr = VecDuplicate(funcVecSin, &funcVecCos);CHKERRQ(ierr);
+		ierr = VecSet(funcVecSin, PetscSinReal(PETSC_PI));CHKERRQ(ierr);
+		ierr = VecSet(funcVecCos, PetscCosReal(PETSC_PI));CHKERRQ(ierr);
+		ierr = VecAssemblyBegin(funcVecSin);CHKERRQ(ierr);
+		ierr = VecAssemblyEnd(funcVecSin);CHKERRQ(ierr);
+		ierr = VecAssemblyBegin(funcVecCos);CHKERRQ(ierr);
+		ierr = VecAssemblyEnd(funcVecCos);CHKERRQ(ierr);
+	}
 
 	if (sectionDisp) {
 		ierr = PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);CHKERRQ(ierr);
@@ -239,22 +244,23 @@ int main(int argc, char **argv)
 		ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 	}
 
-	/*	LOOP OVER ALL VERTICES ON LOCAL MESH	*/
-	if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);
-                ierr = PetscPrintf(comm, "Before Op | After Op\n");CHKERRQ(ierr);
-        }
-        for(j = 0; j < nVertex; ++j) {
-		if (arrayDisp) {ierr = PetscPrintf(comm, "%.3f", array[j]);CHKERRQ(ierr);}
-                ierr = VecDot(funcVecCos, funcVecSin, &dot);CHKERRQ(ierr);
-		array[j] = dot;
-                if (arrayDisp) {ierr = PetscPrintf(comm, "\t  |%.3f\n", array[j]);CHKERRQ(ierr);}
-        }
+	/*	LOOP OVER ALL VERTICES ON LOCAL MESH UNLESS ITS A SPEEDTEST */
+	if (!speedTest) {
+		if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);
+			ierr = PetscPrintf(comm, "Before Op | After Op\n");CHKERRQ(ierr);
+		}
+		for(j = 0; j < nVertex; ++j) {
+			if (arrayDisp) {ierr = PetscPrintf(comm, "%.3f", array[j]);CHKERRQ(ierr);}
+			ierr = VecDot(funcVecCos, funcVecSin, &dot);CHKERRQ(ierr);
+			array[j] = dot;
+			if (arrayDisp) {ierr = PetscPrintf(comm, "\t  |%.3f\n", array[j]);CHKERRQ(ierr);}
+		}
 
-	if (arrayDisp) {
-		ierr = PetscPrintf(comm,"%d Number of LOCAL elements\n", nVertex);CHKERRQ(ierr);
-        	ierr = PetscPrintf(comm,"%s Array End %s\n", bar, bar);CHKERRQ(ierr);
+		if (arrayDisp) {
+			ierr = PetscPrintf(comm,"%d Number of LOCAL elements\n", nVertex);CHKERRQ(ierr);
+			ierr = PetscPrintf(comm,"%s Array End %s\n", bar, bar);CHKERRQ(ierr);
+		}
 	}
-
 	/*	Put LOCAL with changed values back into GLOBAL	*/
 	ierr = VecRestoreArray(solVecLocal, &array);CHKERRQ(ierr);
 	ierr = VecDestroy(&funcVecSin);CHKERRQ(ierr);
