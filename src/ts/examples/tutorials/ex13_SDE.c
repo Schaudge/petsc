@@ -37,10 +37,14 @@ extern PetscErrorCode BuildR(Vec, AppCtx*);
 
 int main(int argc,char **argv)
 {
-  Vec            u,r;                  /* solution vector , random vector*/
+  Vec            u,r;               /* solution vector , random vector */
+  Vec            unew;              /* vector for time stepping */
   PetscErrorCode ierr;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       Nx=21,Ny=21;
+  PetscInt       Nx=5,Ny=5;
+  PetscInt       i,tsteps;
+  PetscReal      ftime=1.0;
+  PetscScalar    dt=0.009;
   
   /* Initialize user application context */
   user.Lx = 1;
@@ -59,36 +63,42 @@ int main(int argc,char **argv)
      Extract global vectors from DMDA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(user.da,&u);CHKERRQ(ierr);
-
+  ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
   /* Set Matrix A */
   ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
-  
   ierr = BuildA(&user);
+  ierr = MatScale(user.A,dt);
 //  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-    
   /* Set Random vector r */
   ierr = DMSetVecType(user.da,VECSEQ);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(user.da,&r);CHKERRQ(ierr);
-    
-  ierr = BuildR(r,&user);
+//  ierr = BuildR(r,&user);
 //  ierr = VecView(r,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-    
-
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = FormInitialSolution(user.da,u,&user);CHKERRQ(ierr);
+//  ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Time stepping in Euler
+  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  tsteps = PetscRoundReal(ftime/dt);
+  for (i=0; i<tsteps; i++)
+  {
+      ierr = BuildR(r,&user);
+      ierr = VecAXPY(u,PetscSqrtReal(dt),r);
+      ierr = MatMultAdd(user.A,u,r,unew);
+      ierr = VecCopy(unew,u);CHKERRQ(ierr);
+  }
   ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
- 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = MatDestroy(&user.A);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = VecDestroy(&r);CHKERRQ(ierr);
-//  ierr = VecDestroy(&global);CHKERRQ(ierr); //error occurs if turning on
-//  ierr = DMDestroy(&cda);CHKERRQ(ierr);     //error occurs if turnung on
+  ierr = VecDestroy(&unew);CHKERRQ(ierr);
   ierr = DMDestroy(&user.da);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
@@ -185,7 +195,7 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     Vec            global;
     PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
     PetscInt       i, j, i0, j0, i1, j1;
-    PetscReal      mu=0.0, sigma=1.0;
+    PetscReal      mu=0.0, sigma=1.0; /* sigma here stands for noise strength */
     PetscReal      lc=2.0;
 //    PetscReal      lx=0.2, ly=0.1;
     PetscScalar    **Cov;
