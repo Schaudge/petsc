@@ -245,10 +245,17 @@ class Framework(config.base.Configure, script.LanguageProcessor):
   def saveHash(self):
     '''Saves the hash for configure (created in arch.py)'''
     if hasattr(self,'hash') and hasattr(self,'hashfile'):
-       self.logPrint('Attempting to save configure hash file: '+self.hashfile)
        try:
+         self.logPrint('Attempting to save configure hash file: '+self.hashfile)
+         try:
+           if not os.path.isdir(os.path.dirname(self.hashfile)):
+             self.logPrint('Attempting to make hash file directory: '+os.path.dirname(self.hashfile))
+             os.makedirs(os.path.dirname(self.hashfile))
+         except:
+           pass
          with open(self.hashfile, 'w') as f:
            f.write(self.hash)
+         self.logPrint('Saved configure hash file: '+self.hashfile)
        except:
          self.logPrint('Unable to save configure hash file: '+self.hashfile)
 

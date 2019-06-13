@@ -19,6 +19,8 @@ class Logger(args.ArgumentProcessor):
 
   def __init__(self, clArgs = None, argDB = None, log = None, out = defaultOut, debugLevel = None, debugSections = None, debugIndent = None):
     args.ArgumentProcessor.__init__(self, clArgs, argDB)
+    if self.defaultLog and self.defaultLog.closed:
+      self.defaultLog = None
     self.logName       = None
     self.log           = log
     self.out           = out
@@ -48,7 +50,7 @@ class Logger(args.ArgumentProcessor):
   def __setstate__(self, d):
     '''We must create the default log stream'''
     args.ArgumentProcessor.__setstate__(self, d)
-    if not 'log' in d:
+    if not 'log' in d or d['log'].closed:
       self.log = self.createLog(None)
     if not 'out' in d:
       self.out = Logger.defaultOut
@@ -106,7 +108,7 @@ class Logger(args.ArgumentProcessor):
     if not initLog is None:
       log = initLog
     else:
-      if Logger.defaultLog is None:
+      if Logger.defaultLog is None or Logger.defaultLog.closed:
         appendArg = nargs.Arg.findArgument('logAppend', self.clArgs)
         if self.checkLog(logName):
           if not self.argDB is None and ('logAppend' in self.argDB and self.argDB['logAppend']) or (not appendArg is None and bool(appendArg)):

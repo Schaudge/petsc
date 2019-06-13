@@ -281,7 +281,7 @@ class Package(config.base.Configure):
   arch = property(getArch, setArch, doc = 'The architecture identifier')
 
   def getDefaultInstallDir(self):
-    '''The installation directroy of the library'''
+    '''The installation directory of the library'''
     if hasattr(self, 'installDirProvider'):
       if hasattr(self.installDirProvider, 'dir'):
         return self.installDirProvider.dir

@@ -35,6 +35,7 @@ class Configure(config.base.Configure):
   def setupHelp(self, help):
     import nargs
     help.addArgument('PETSc',  '-prefix=<dir>',                   nargs.Arg(None, '', 'Specifiy location to install PETSc (eg. /usr/local)'))
+    help.addArgument('PETSc',  '-with-prefix-replace=<bool>',     nargs.ArgBool(None, 0,'Replace everything in prefix if any are out of date'))
     help.addArgument('PETSc',  '-with-prefetch=<bool>',           nargs.ArgBool(None, 1,'Enable checking for prefetch instructions'))
     help.addArgument('Windows','-with-windows-graphics=<bool>',   nargs.ArgBool(None, 1,'Enable check for Windows Graphics'))
     help.addArgument('PETSc', '-with-default-arch=<bool>',        nargs.ArgBool(None, 1, 'Allow using the last configured arch without setting PETSC_ARCH'))

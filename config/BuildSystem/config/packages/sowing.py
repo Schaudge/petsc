@@ -21,6 +21,7 @@ class Configure(config.package.GNUPackage):
   def setupHelp(self, help):
     import nargs
     config.package.GNUPackage.setupHelp(self, help)
+    help.addArgument('SOWING', '-download-sowing-public',                        nargs.ArgBool(None, 0, 'Install in -prefix'))
     help.addArgument('SOWING', '-download-sowing-cc=<prog>',                     nargs.Arg(None, None, 'C compiler for sowing configure'))
     help.addArgument('SOWING', '-download-sowing-cxx=<prog>',                    nargs.Arg(None, None, 'CXX compiler for sowing configure'))
     help.addArgument('SOWING', '-download-sowing-cpp=<prog>',                    nargs.Arg(None, None, 'CPP for sowing configure'))
@@ -36,7 +37,7 @@ class Configure(config.package.GNUPackage):
   def formGNUConfigureArgs(self):
     '''Does not use the standard arguments at all since this does not use the MPI compilers etc
        Sowing will chose its own compilers if they are not provided explicitly here'''
-    args = ['--prefix='+self.confDir]
+    args = ['--prefix='+self.installDir]
     if 'download-sowing-cc' in self.argDB and self.argDB['download-sowing-cc']:
       args.append('CC="'+self.argDB['download-sowing-cc']+'"')
     if 'download-sowing-cxx' in self.argDB and self.argDB['download-sowing-cxx']:
@@ -96,21 +97,23 @@ class Configure(config.package.GNUPackage):
           raise RuntimeError('You passed --with-sowing-dir='+installDir+' but it does not contain sowings bfort')
 
       else:
-        self.getExecutable('bfort', getFullPath = 1)
-        self.getExecutable('doctext', getFullPath = 1)
-        self.getExecutable('mapnames', getFullPath = 1)
-        self.getExecutable('bib2html', getFullPath = 1)
+        if not self.argDB['download-sowing']:
+          self.getExecutable('bfort', getFullPath = 1)
+          self.getExecutable('doctext', getFullPath = 1)
+          self.getExecutable('mapnames', getFullPath = 1)
+          self.getExecutable('bib2html', getFullPath = 1)
 
         if hasattr(self, 'bfort') and not self.argDB['download-sowing']:
           self.logPrint('Found bfort, not installing sowing')
         else:
+          if self.argDB['download-sowing-public']: self.publicInstall = 1
+
           self.logPrint('Bfort not found. Installing sowing for FortranStubs')
           if (not self.argDB['download-sowing']):  self.argDB['download-sowing'] = 1
           #check cygwin has g++
           if os.path.exists('/usr/bin/cygcheck.exe') and not os.path.exists('/usr/bin/g++.exe'):
             raise RuntimeError('Error! sowing on windows requires cygwin/g++. Please install it with cygwin setup.exe')
           config.package.GNUPackage.configure(self)
-
           installDir = os.path.join(self.installDir,'bin')
           self.getExecutable('bfort',    path=installDir, getFullPath = 1)
           self.getExecutable('doctext',  path=installDir, getFullPath = 1)

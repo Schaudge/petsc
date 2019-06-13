@@ -326,6 +326,7 @@ def petsc_configure(configure_options):
 
   try:
     # Command line arguments take precedence (but don't destroy argv[0])
+    import sys
     sys.argv = sys.argv[:1] + configure_options + sys.argv[1:]
     check_for_option_mistakes(sys.argv)
     check_for_option_changed(sys.argv)
@@ -374,6 +375,7 @@ def petsc_configure(configure_options):
     framework.setup()
     framework.logPrint('\n'.join(extraLogs))
     framework.configure(out = sys.stdout)
+    framework.argDB['-with-prefix-replace'] = 0
     framework.storeSubstitutions(framework.argDB)
     framework.argDB['configureCache'] = pickle.dumps(framework)
     framework.printSummary()
