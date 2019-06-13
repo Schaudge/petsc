@@ -10,13 +10,13 @@ int main(int argc, char **argv)
 {
         PetscErrorCode          ierr;
         MPI_Comm                comm;
-        DM                      dm;
+        DM                      dm, dmDist;
         PetscSection            section;
         PetscBool               dmInterp = PETSC_TRUE;
         IS                      faces, bcPointsIS;
         PetscInt                dim = 2, dOffset, i, j, counter = 0, numFields, numBC, numFaces;
         PetscScalar             *coordArray;
-        PetscInt                numComp[1], numDOF[1], bcField[1];
+        PetscInt                faceDim[2], numComp[1], numDOF[1], bcField[1];
         const PetscInt          *faceidx;
         Vec                     coords;
         PetscViewer             viewer;
@@ -25,12 +25,21 @@ int main(int argc, char **argv)
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
         comm = PETSC_COMM_WORLD;
+
         ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
-        //ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
-        ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
 
+	faceDim[0] = 10;
+	faceDim[1] = 10;
+	//ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
+        ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faceDim, NULL, NULL, NULL, dmInterp, &dm);
+
+	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
+	if (dmDist) {
+		ierr = DMDestroy(&dm);CHKERRQ(ierr);
+		dm = dmDist;
+	}
         numFields = 1;
         numComp[0] = 1;
         numDOF[0] = 1;
