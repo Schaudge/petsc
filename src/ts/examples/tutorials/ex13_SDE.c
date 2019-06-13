@@ -31,6 +31,7 @@ typedef struct {
   DM        da;
 } AppCtx;
 
+extern PetscErrorCode FormInitialSolution(DM,Vec,void*);
 extern PetscErrorCode BuildA(AppCtx*);
 extern PetscErrorCode BuildR(Vec, AppCtx*);
 
@@ -39,7 +40,7 @@ int main(int argc,char **argv)
   Vec            u,r;                  /* solution vector , random vector*/
   PetscErrorCode ierr;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       Nx=4,Ny=4;
+  PetscInt       Nx=21,Ny=21;
   
   /* Initialize user application context */
   user.Lx = 1;
@@ -64,20 +65,21 @@ int main(int argc,char **argv)
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
   
   ierr = BuildA(&user);
-  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+//  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
     
   /* Set Random vector r */
   ierr = DMSetVecType(user.da,VECSEQ);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(user.da,&r);CHKERRQ(ierr);
     
   ierr = BuildR(r,&user);
-  ierr = VecView(r,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+//  ierr = VecView(r,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
     
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  //ierr = FormInitialSolution(user.da,u,&user);CHKERRQ(ierr);
+  ierr = FormInitialSolution(user.da,u,&user);CHKERRQ(ierr);
+  ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
  
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
@@ -137,6 +139,43 @@ PetscErrorCode BuildA(AppCtx *user)
   PetscFunctionReturn(0);
 }
 
+/* ------------------------------------------------------------------- */
+PetscErrorCode FormInitialSolution(DM da,Vec U,void* ptr)
+{
+    AppCtx         *user=(AppCtx*)ptr;
+    PetscReal      c=user->c;
+    PetscErrorCode ierr;
+    PetscInt       i,j,xs,ys,xm,ym,Mx,My;
+    PetscScalar    **u;
+    PetscReal      hx,hy,x,y,r;
+    
+    PetscFunctionBeginUser;
+    ierr = DMDAGetInfo(da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
+    
+    hx = 1.0/(PetscReal)(Mx-1);
+    hy = 1.0/(PetscReal)(My-1);
+    
+    /* Get pointers to vector data */
+    ierr = DMDAVecGetArray(da,U,&u);CHKERRQ(ierr);
+    
+    /* Get local grid boundaries */
+    ierr = DMDAGetCorners(da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+    
+    /* Compute function over the locally owned part of the grid */
+    for (j=ys; j<ys+ym; j++) {
+        y = j*hy;
+        for (i=xs; i<xs+xm; i++) {
+            x = i*hx;
+            r = PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5));
+            if (r < .125) u[j][i] = PetscExpReal(c*r*r*r);
+            else u[j][i] = 0.0;
+        }
+    }
+    
+    /* Restore vectors */
+    ierr = DMDAVecRestoreArray(da,U,&u);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+}
 
 /* ------------------------------------------------------------------- */
 PetscErrorCode BuildR(Vec R,AppCtx* user)
@@ -323,11 +362,11 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
         r[i] = mu + sigma * tmp;
     }
     // Pring the random vector R issued from random field by KL expansion
-    printf("\nRandom vector R issued from random field by KL expansion\n");
-    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
-    // plot it in Matlab:
-    // >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
-    // >> surf(X,Y,reshape(R,Nx,Ny)');shading interp;view(2);colorbar;
+//    printf("\nRandom vector R issued from random field by KL expansion\n");
+//    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
+    /* plot R in Matlab:
+       >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
+       >> surf(X,Y,reshape(R,Nx,Ny)');shading interp;view(2);colorbar; */
     
     //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(Cov);CHKERRQ(ierr);
