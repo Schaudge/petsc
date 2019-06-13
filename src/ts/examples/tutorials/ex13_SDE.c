@@ -16,6 +16,7 @@ static char help[] = "Time-dependent SPDE in 2d. Adapted from ex13.c. \n";
 #include <petscdmda.h>
 //#include <petscdmlabel.h>
 //#include <petscds.h>
+//#include <petscvec.h>
 #include "header.h"
 #include <time.h>
 
@@ -164,8 +165,8 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     N2=Nx*Ny;
     
     /* Get pointers to vector data */
-    ierr = DMDAVecGetArray(user->da,R,&r);CHKERRQ(ierr);
-    
+    ierr = VecGetArray(R,&r);CHKERRQ(ierr);
+
     /* Get local grid boundaries */
     ierr = DMDAGetCorners(user->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
     ierr = DMGetCoordinateDM(user->da,&cda);CHKERRQ(ierr);
@@ -186,10 +187,6 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
     
     ierr = PetscMalloc1(N2,&S);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) S[i] = S[i-1]+N2;
-    
-    ierr = PetscMalloc1(N2,&r);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) r[i] = r[i-1]+N2;
     
 /* Compute covariance function over the locally owned part of the grid */
     
@@ -228,7 +225,6 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     
     // allocate quadrature weights W along the diagonal
     ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) W[i] = W[i-1]+N2;
     
     // fill the weights (trapezoidal rule in 2d uniform mesh)
     // fill the first and the last
@@ -297,9 +293,7 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
 /* Generate normal random numbers by transforming from the uniform one */
     PetscScalar *rndu, *rndn;
     ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) rndu[i] = rndu[i-1]+N2;
     ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) rndn[i] = rndn[i-1]+N2;
     //  PetscRandom rnd;
     //    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
     /* force imaginary part of random number to always be zero; thus obtain reproducible results with real and complex numbers */
@@ -342,7 +336,8 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     ierr = PetscFree(S);CHKERRQ(ierr);
 
   /* Restore vectors */
-  ierr = DMDAVecRestoreArray(user->da,R,&r);CHKERRQ(ierr);
+    ierr = VecRestoreArray(R,&r);CHKERRQ(ierr);
+ 
   PetscFunctionReturn(0);
 }
 
