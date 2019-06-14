@@ -142,7 +142,6 @@ int main(int argc, char **argv)
 	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
 
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
-        printf("%s\n",filename);
         if (!namelen){
 		faces[0] = 10;
 		faces[1] = 10;
