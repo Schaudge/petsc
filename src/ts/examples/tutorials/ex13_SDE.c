@@ -14,9 +14,7 @@ static char help[] = "Time-dependent SPDE in 2d. Adapted from ex13.c. \n";
 
 #include <petscdm.h>
 #include <petscdmda.h>
-//#include <petscdmlabel.h>
-//#include <petscds.h>
-//#include <petscvec.h>
+#include <petscmatlab.h>
 #include "header.h"
 #include <time.h>
 
@@ -37,14 +35,16 @@ extern PetscErrorCode BuildR(Vec, AppCtx*);
 
 int main(int argc,char **argv)
 {
+  char           *output;
   Vec            u,r;               /* solution vector , random vector */
-  Vec            unew;              /* vector for time stepping */
+  Vec            unew, uold;              /* vector for time stepping */
   PetscErrorCode ierr;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       Nx=5,Ny=5;
+  PetscInt       Nx=11,Ny=11;
   PetscInt       i,tsteps;
-  PetscReal      ftime=1.0;
-  PetscScalar    dt=0.009;
+  PetscReal      ftime=0.100;
+  PetscScalar    dt   =0.001;
+//  PetscViewer    viewfile;
   
   /* Initialize user application context */
   user.Lx = 1;
@@ -52,6 +52,7 @@ int main(int argc,char **argv)
   user.c = -30.0;
  
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
+  ierr = PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -64,6 +65,7 @@ int main(int argc,char **argv)
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(user.da,&u);CHKERRQ(ierr);
   ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
+  ierr = VecDuplicate(u,&uold);CHKERRQ(ierr);
   /* Set Matrix A */
   ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
@@ -79,19 +81,65 @@ int main(int argc,char **argv)
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = FormInitialSolution(user.da,u,&user);CHKERRQ(ierr);
-//  ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+    
+//    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"u0.m",&viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+//    ierr = PetscObjectSetName((PetscObject)u,"sol0");CHKERRQ(ierr);
+//    ierr = VecView(u,viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Time stepping in Euler
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   tsteps = PetscRoundReal(ftime/dt);
-  for (i=0; i<tsteps; i++)
+//  PetscInt tout = 1;
+    PetscReal dim[2], domain[2];
+    dim[0] = Nx; dim[1] = Ny;
+    domain[0] = user.Lx; domain[1] = user.Ly;
+    ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,dim,"dim");CHKERRQ(ierr);
+    ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,domain,"domain");CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject)u,"u");
+    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx = dim(1,1); Ny = dim(2,1); Lx = domain(1,1); Ly = domain(2,1);");CHKERRQ(ierr);
+    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx");CHKERRQ(ierr);
+    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ny");CHKERRQ(ierr);
+    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Lx");CHKERRQ(ierr);
+    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ly");CHKERRQ(ierr);
+    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+    for (i=0; i<tsteps; i++)
   {
+      ierr = VecCopy(u,uold);CHKERRQ(ierr);
       ierr = BuildR(r,&user);
-      ierr = VecAXPY(u,PetscSqrtReal(dt),r);
-      ierr = MatMultAdd(user.A,u,r,unew);
-      ierr = VecCopy(unew,u);CHKERRQ(ierr);
+      ierr = VecScale(r,PetscSqrtReal(dt));CHKERRQ(ierr);
+      ierr = MatMultAdd(user.A,u,r,unew);CHKERRQ(ierr);
+      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
+      ierr = VecCopy(unew,u);CHKERRQ(ierr);CHKERRQ(ierr);
+      ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
+      ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');shading interp;view(2);colorbar;pause(0.1)");CHKERRQ(ierr);
+      ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+
+//      if ( (i+1)%tout == 0)
+//      {
+//          ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+//          char s1[10], s2[10];
+//          sprintf(s1,"%s%d%s","u",(i+1)/tout,".m");
+//          printf("%s\n",s1);
+//          sprintf(s2,"%s%d","sol",(i+1)/tout);
+//          printf("%s\n",s2);
+//          ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,s1,&viewfile);CHKERRQ(ierr);
+//          ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+//          ierr = PetscObjectSetName((PetscObject)u,s2);CHKERRQ(ierr);
+//          ierr = VecView(u,viewfile);CHKERRQ(ierr);
+//          ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+//          ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
+//       }
+      
   }
-  ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+ 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -99,6 +147,7 @@ int main(int argc,char **argv)
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = VecDestroy(&unew);CHKERRQ(ierr);
+  ierr = VecDestroy(&uold);CHKERRQ(ierr);
   ierr = DMDestroy(&user.da);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
@@ -177,7 +226,7 @@ PetscErrorCode FormInitialSolution(DM da,Vec U,void* ptr)
         for (i=xs; i<xs+xm; i++) {
             x = i*hx;
             r = PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5));
-            if (r < .125) u[j][i] = PetscExpReal(c*r*r*r);
+            if (r < .7) u[j][i] = PetscExpReal(c*r*r*r);
             else u[j][i] = 0.0;
         }
     }
@@ -195,7 +244,7 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     Vec            global;
     PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
     PetscInt       i, j, i0, j0, i1, j1;
-    PetscReal      mu=0.0, sigma=1.0; /* sigma here stands for noise strength */
+    PetscReal      mu=0.0, sigma=0.5; /* sigma here stands for noise strength */
     PetscReal      lc=2.0;
 //    PetscReal      lx=0.2, ly=0.1;
     PetscScalar    **Cov;
