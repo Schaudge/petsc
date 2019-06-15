@@ -930,6 +930,15 @@ If its a remote branch, use: origin/'+self.gitcommit+' for gitcommit.')
     except:
       self.log.write('For '+self.package+' unable to run preprocessor to obtain version information: output below, skipping version check\n')
       return
+    try:
+      version_ge_found = 1
+      if hasattr(self,'versionprefix'): vpr = self.versionprefix
+      else: vpr = self.PACKAGE
+      outputge,err,ret  = self.preprocess('#include "'+self.versioninclude+'"\n#ifndef '+vpr+'_VERSION_GE\n#error\n#endif')
+    except:
+      version_ge_found = 0
+    if ret: version_ge_found = 0
+    if version_ge_found: self.provides_version_ge = 1
     self.popLanguage()
     self.compilers.CPPFLAGS = oldFlags
     loutput = output.split('\n')

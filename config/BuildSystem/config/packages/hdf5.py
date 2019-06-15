@@ -6,6 +6,7 @@ class Configure(config.package.GNUPackage):
     config.package.Package.__init__(self, framework)
     self.minversion     = '1.8'
     self.versionname    = 'H5_VERSION'
+    self.versionprefix  = 'H5'
     self.download       = ['https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-1.10.5/src/hdf5-1.10.5.tar.gz',
                            'http://ftp.mcs.anl.gov/pub/petsc/externalpackages/hdf5-1.10.5.tar.gz']
 # David Moulton reports that HDF5 configure can fail on NERSC systems and this can be worked around by removing the

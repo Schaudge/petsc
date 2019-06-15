@@ -727,8 +727,9 @@ class Framework(config.base.Configure, script.LanguageProcessor):
     f.write('        '+prefix+'VERSION_EQ(MAJOR,MINOR,SUBMINOR))\n\n')
     f.write('#define '+prefix+'VERSION_GT(MAJOR,MINOR,SUBMINOR)         \\\n')
     f.write('       ( 0 == '+prefix+'VERSION_LE(MAJOR,MINOR,SUBMINOR))\n\n')
-    f.write('#define '+prefix+'VERSION_GE(MAJOR,MINOR,SUBMINOR)         \\\n')
-    f.write('       ( 0 == '+prefix+'VERSION_LT(MAJOR,MINOR,SUBMINOR))\n\n')
+    if not hasattr(child,'provides_version_ge'):
+      f.write('#define '+prefix+'VERSION_GE(MAJOR,MINOR,SUBMINOR)         \\\n')
+      f.write('       ( 0 == '+prefix+'VERSION_LT(MAJOR,MINOR,SUBMINOR))\n\n')
 
   def outputTypedefs(self, f, child):
     '''If the child contains a dictionary named "typedefs", the entries are output as typedefs in the config header.'''
