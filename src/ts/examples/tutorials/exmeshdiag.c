@@ -9,7 +9,7 @@ static char help[] = "Diagnose mesh problems";
 # define MATAIJ             	 "aij"
 
 /*	2D Array Routines	*/
-PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
+PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly, char *deformId)
 {
         /*
          Analytical Jacobian:
@@ -34,10 +34,11 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
-        return ierr;
+	strcat(deformId,"STR");
+	return ierr;
 }
 
-PetscErrorCode ShearArray2D(DM dm, PetscScalar theta)
+PetscErrorCode ShearArray2D(DM dm, PetscScalar theta, char *deformId)
 {
         /*
          Analytical Jacobian:
@@ -46,9 +47,10 @@ PetscErrorCode ShearArray2D(DM dm, PetscScalar theta)
 
 
         PetscErrorCode          ierr;
-        PetscInt                i, nCoords;
+        PetscInt                i, nCoords, charlen = 20;
         Vec                     coordsLocal;
         PetscScalar             *coordArray;
+	char			phiintbuf[charlen], phidecbuf[charlen], tempbuf[charlen];
 
         ierr = DMGetCoordinatesLocal(dm, &coordsLocal);CHKERRQ(ierr);
         ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
@@ -64,10 +66,18 @@ PetscErrorCode ShearArray2D(DM dm, PetscScalar theta)
 
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
-        return ierr;
+
+	/*	String formatting for file name	*/
+	strcat(deformId, "SHR_theta_");
+	gcvt(theta, 5, tempbuf);
+	sprintf(phidecbuf, "%s", strchr(tempbuf, '.')+1);
+	sprintf(phiintbuf, "%d_", (int) theta);
+	strcat(deformId, phiintbuf);
+	strcat(deformId, phidecbuf);
+	return ierr;
 }
 
-PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
+PetscErrorCode SkewArray2D(DM dm, PetscScalar omega, char *deformId)
 {
         /*
          Analytical Jacobian:
@@ -76,9 +86,10 @@ PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
 
 
         PetscErrorCode          ierr;
-        PetscInt                i, nCoords;
+        PetscInt                i, nCoords, charlen = 20;
         Vec                     coordsLocal;
         PetscScalar             *coordArray;
+	char			phiintbuf[charlen], phidecbuf[charlen], tempbuf[charlen];
 
         ierr = DMGetCoordinatesLocal(dm, &coordsLocal);CHKERRQ(ierr);
         ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
@@ -94,10 +105,18 @@ PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
-        return ierr;
+
+	/*	String formatting for file name	*/
+	strcat(deformId, "SKW_omega_");
+	gcvt(omega, 5, tempbuf);
+	sprintf(phidecbuf, "%s", strchr(tempbuf, '.')+1);
+	sprintf(phiintbuf, "%d_", (int) omega);
+	strcat(deformId, phiintbuf);
+	strcat(deformId, phidecbuf);
+	return ierr;
 }
 
-PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi)
+PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi, char *deformId)
 {
         /*
          Analytical Jacobian:
@@ -106,10 +125,11 @@ PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi)
         */
 
         PetscErrorCode          ierr;
-        PetscInt                i, nCoords;
+        PetscInt                i, nCoords, charlen = 20;
         Vec                     coordsTemp, coordsLocal;
         PetscScalar		mx, my, bx, by;
         PetscScalar             *tempCoordArray, *coordArray;
+	char			phiintbuf[charlen], phidecbuf[charlen], tempbuf[charlen];
 
         if ((phi < 0) || (phi > 1)) {
                 MPI_Comm comm;
@@ -138,10 +158,18 @@ PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi)
         ierr = VecRestoreArray(coordsTemp, &tempCoordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinatesLocal(dm, coordsTemp);CHKERRQ(ierr);
         ierr = VecDestroy(&coordsTemp);CHKERRQ(ierr);
-        return ierr;
+
+	/*	String formatting for file name	*/
+	strcat(deformId, "LAD_phi_");
+	gcvt(phi, 5, tempbuf);
+	sprintf(phidecbuf, "%s", strchr(tempbuf, '.')+1);
+	sprintf(phiintbuf, "%d_", (int) phi);
+	strcat(deformId, phiintbuf);
+	strcat(deformId, phidecbuf);
+	return ierr;
 }
 
-PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
+PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi, char *deformId)
 {
 	/*
          Analytical Jacobian:
@@ -150,10 +178,11 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
         */
 
 	PetscErrorCode          ierr;
-        PetscInt                i, nCoords;
+        PetscInt                i, nCoords, charlen = 20;
         Vec                     coordsLocal;
         PetscScalar             my, by;
         PetscScalar             *coordArray;
+	char			phiintbuf[charlen], phidecbuf[charlen], tempbuf[charlen];
 
 	if ((phi < 0) || (phi > 1)) {
                 MPI_Comm comm;
@@ -176,7 +205,15 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi)
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
-        return ierr;
+
+	/*	String formatting for file name	*/
+	strcat(deformId, "SAD_phi_");
+	gcvt(phi, 5, tempbuf);
+	sprintf(phidecbuf, "%s", strchr(tempbuf, '.')+1);
+	sprintf(phiintbuf, "%d_", (int) phi);
+	strcat(deformId, phiintbuf);
+	strcat(deformId, phidecbuf);
+	return ierr;
 }
 
 /*	2D Jacobians	*/
@@ -392,6 +429,28 @@ PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         return ierr;
 }
 
+PetscErrorCode VTKPlotter(DM dm, char *deformId)
+{
+	PetscErrorCode		ierr;
+	MPI_Comm		comm;
+	PetscViewer		vtkviewer;
+	Vec			outVecGlobal;
+
+	strcat(deformId, ".vtk");
+
+	ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+	ierr = DMGetGlobalVector(dm, &outVecGlobal);CHKERRQ(ierr);CHKERRQ(ierr);
+
+	ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
+        ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
+        ierr = PetscViewerFileSetName(vtkviewer, deformId);CHKERRQ(ierr);
+        ierr = VecView(outVecGlobal, vtkviewer);CHKERRQ(ierr);
+
+        ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+	ierr = DMRestoreGlobalVector(dm, &outVecGlobal);CHKERRQ(ierr);
+	return ierr;
+}
+
 int main(int argc, char **argv)
 {
         PetscErrorCode          ierr;
@@ -405,6 +464,7 @@ int main(int argc, char **argv)
         PetscInt                numComp[1], numDOF[3], bcField[1];
         Vec			solVecLocal, solVecGlobal;
         Mat			Jac;
+	char			deformId[PETSC_MAX_PATH_LEN];
         PetscViewer             viewer, vtkviewer;
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
@@ -436,12 +496,12 @@ int main(int argc, char **argv)
         ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
         ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 
-        //        ierr = StretchArray2D(dm, lx, ly);CHKERRQ(ierr);
-        //        ierr = ShearArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
-        //        ierr = SkewArray2D(dm, PETSC_PI/3);CHKERRQ(ierr);
-        //        ierr = LargeAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
-        //        ierr = SmallAngleDeformArray2D(dm, phi);CHKERRQ(ierr);
-
+	//	  ierr = StretchArray2D(dm, lx, ly, deformId);CHKERRQ(ierr);
+        //        ierr = ShearArray2D(dm, PETSC_PI/3, deformId);CHKERRQ(ierr);
+	ierr = SkewArray2D(dm, PETSC_PI/3, deformId);CHKERRQ(ierr);
+        //        ierr = LargeAngleDeformArray2D(dm, phi, deformId);CHKERRQ(ierr);
+        //        ierr = SmallAngleDeformArray2D(dm, phi, deformId);CHKERRQ(ierr);
+	printf("%s\n",deformId);
         //------------------------------------------------------------------
         /* Word to the wise: Don't try and combine the jacobian calls as they are only
          meant to be called alone (i.e. every jacobian is unique to its transform). I have
@@ -459,17 +519,19 @@ int main(int argc, char **argv)
         ierr = DMCreateGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
         //        ierr = VecSet(solVecGlobal, 0);CHKERRQ(ierr);
 	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
-        //        ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+
+	//        ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
         //        ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         //        ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+	ierr = VTKPlotter(dm, deformId);CHKERRQ(ierr);
+	//        ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
+	//        ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
+	//        ierr = PetscViewerFileSetName(vtkviewer, "deformedmesh.vtk");CHKERRQ(ierr);
+	//        ierr = VecView(solVecGlobal, vtkviewer);CHKERRQ(ierr);
+	//        ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
 
-        ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
-        ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
-        ierr = PetscViewerFileSetName(vtkviewer, "deformedmesh.vtk");CHKERRQ(ierr);
-        ierr = VecView(solVecGlobal, vtkviewer);CHKERRQ(ierr);
-        ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
-
-        ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+	//        ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
         return ierr;
