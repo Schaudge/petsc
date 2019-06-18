@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 	IS			bcPointsIS;
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
-	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscBool		speedTest = PETSC_TRUE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen=0;
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
         }
 
-	ierr = PetscPrintf(comm,"%s Dm Alteration Info %s \n", bar, bar);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm,"%s General Info %s \n", bar, bar);CHKERRQ(ierr);
 	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
 		ierr = DMDestroy(&dm);CHKERRQ(ierr);
@@ -173,7 +173,16 @@ int main(int argc, char **argv)
 	}else{
 		ierr = PetscPrintf(comm,"Interped dm\n");CHKERRQ(ierr);
 	}
-	ierr = PetscPrintf(comm,"%s End Dm Alteration %s\n", bar, bar);CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "File read mode:       %s\n", fileflg ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Speedtest mode:       %s\n", speedTest ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "VTKoutput mode:       %s\n", VTKdisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Full Display mode:    %s\n", dispFlag ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "IS Display mode:      %s\n", isView ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "DM Display mode:      %s\n", dmDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Section Display mode: %s\n", sectionDisp? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Array Display mode:   %s\n", arrayDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Coord Disp mode:      %s\n", coordDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
+	ierr = PetscPrintf(comm,"%s End General Info %s\n", bar, bar);CHKERRQ(ierr);
 
 	/*	Set number of active fields	*/
 	numFields = 1;
