@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 	IS			bcPointsIS;
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
-	PetscBool		speedTest = PETSC_TRUE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen=0;
@@ -141,8 +141,8 @@ int main(int argc, char **argv)
 
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
-		faces[0] = 10;
-		faces[1] = 10;
+		faces[0] = 100;
+		faces[1] = 100;
           	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
         } else {
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
@@ -155,9 +155,9 @@ int main(int argc, char **argv)
 		ierr = PetscPrintf(comm,"Distributed dm\n");CHKERRQ(ierr);
 		dm = dmDist;
 	}else{
-		ierr = PetscPrintf(comm,"No distributed dm\n");CHKERRQ(ierr);
+          	if (!speedTest) {ierr = PetscPrintf(comm,"No distributed dm\n");CHKERRQ(ierr);}
 		if (isView) {
-                        ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
+                  	ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
 			ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
 		}
 	}
@@ -173,6 +173,7 @@ int main(int argc, char **argv)
 	}else{
 		ierr = PetscPrintf(comm,"Interped dm\n");CHKERRQ(ierr);
 	}
+
         ierr = PetscPrintf(comm, "File read mode:       %s\n", fileflg ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscPrintf(comm, "Speedtest mode:       %s\n", speedTest ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscPrintf(comm, "VTKoutput mode:       %s\n", VTKdisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
@@ -182,7 +183,7 @@ int main(int argc, char **argv)
         ierr = PetscPrintf(comm, "Section Display mode: %s\n", sectionDisp? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscPrintf(comm, "Array Display mode:   %s\n", arrayDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscPrintf(comm, "Coord Disp mode:      %s\n", coordDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-	ierr = PetscPrintf(comm,"%s End General Info %s\n", bar, bar);CHKERRQ(ierr);
+        ierr = PetscPrintf(comm,"%s End General Info %s\n", bar, bar);CHKERRQ(ierr);
 
 	/*	Set number of active fields	*/
 	numFields = 1;
@@ -272,8 +273,10 @@ int main(int argc, char **argv)
 	}
 	/*	Put LOCAL with changed values back into GLOBAL	*/
 	ierr = VecRestoreArray(solVecLocal, &array);CHKERRQ(ierr);
-	ierr = VecDestroy(&funcVecSin);CHKERRQ(ierr);
-	ierr = VecDestroy(&funcVecCos);CHKERRQ(ierr);
+	if (!speedTest) {
+        	ierr = VecDestroy(&funcVecSin);CHKERRQ(ierr);
+        	ierr = VecDestroy(&funcVecCos);CHKERRQ(ierr);
+        }
 	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 
         /*	Init Log	*/
@@ -316,7 +319,6 @@ int main(int argc, char **argv)
 		ierr = VecView(solVecGlobal, vtkviewersoln);CHKERRQ(ierr);
 		ierr = PetscViewerDestroy(&vtkviewersoln);CHKERRQ(ierr);
 	}
-
 	ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 	ierr = VecDestroy(&solVecGlobal);CHKERRQ(ierr);
 	ierr = DMDestroy(&dm);CHKERRQ(ierr);

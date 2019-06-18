@@ -221,7 +221,7 @@ PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly, Mat *Jac
 {
         PetscErrorCode	ierr;
         DM		coordDM;
-        PetscInt	pStart, pEnd;
+        PetscInt	i, pStart, pEnd;
 
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
@@ -235,7 +235,7 @@ PetscErrorCode Stretch2DJacobian(DM dm, PetscScalar lx, PetscScalar ly, Mat *Jac
          cols(J) to insert it into the big global jacobian(Jac).
          */
 
-        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+        for (i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
 
@@ -259,7 +259,7 @@ PetscErrorCode Shear2DJacobian(DM dm, PetscScalar theta, Mat *Jac)
 {
         PetscErrorCode	ierr;
         DM		coordDM;
-        PetscInt	pStart, pEnd;
+        PetscInt	i, pStart, pEnd;
 
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
@@ -273,7 +273,7 @@ PetscErrorCode Shear2DJacobian(DM dm, PetscScalar theta, Mat *Jac)
          cols(J) to insert it into the big global jacobian(Jac).
          */
 
-        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+        for (i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
 
@@ -297,7 +297,7 @@ PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
 {
         PetscErrorCode	ierr;
         DM		coordDM;
-        PetscInt	pStart, pEnd;
+        PetscInt	i, pStart, pEnd;
 
         ierr = DMGetCoordinateDM(dm, &coordDM);CHKERRQ(ierr);
         ierr = DMCreateMatrix(coordDM, Jac);CHKERRQ(ierr);
@@ -312,7 +312,7 @@ PetscErrorCode Skew2DJacobian(DM dm, PetscScalar omega, Mat *Jac)
 
 x         */
 
-        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+        for (i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
 
@@ -337,7 +337,7 @@ PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         PetscErrorCode	ierr;
         DM		coordDM;
         PetscScalar	*coordArray;
-        PetscInt	pStart, pEnd;
+        PetscInt	i, pStart, pEnd;
         Vec		coords;
 
         if ((phi < 0) || (phi > 1)) {
@@ -359,7 +359,7 @@ PetscErrorCode LargeAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
          cols(J) to insert it into the big global jacobian(Jac).
          */
 
-        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+        for (i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
 
@@ -385,7 +385,7 @@ PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
         PetscErrorCode	ierr;
         DM		coordDM;
         PetscScalar	*coordArray;
-        PetscInt	pStart, pEnd;
+        PetscInt	i, pStart, pEnd;
         Vec		coords;
 
         if ((phi < 0) || (phi > 1)) {
@@ -408,7 +408,7 @@ PetscErrorCode SmallAngle2DJacobian(DM dm, PetscScalar phi, Mat *Jac)
          cols(J) to insert it into the big global jacobian(Jac).
          */
 
-        for (PetscInt i = 0; i < (pEnd-pStart); i++) {
+        for (i = 0; i < (pEnd-pStart); i++) {
                 PetscInt	II[2], J[2];
                 PetscScalar	V[4];
 
@@ -459,7 +459,7 @@ int main(int argc, char **argv)
         PetscSection            section;
         PetscBool               dmInterp = PETSC_TRUE;
         IS                      bcPointsIS;
-        PetscInt                dim = 2, numFields, numBC;
+        PetscInt                i, k, dim = 2, numFields, numBC;
         PetscScalar             lx = 1.0, ly = 2.0, phi = 0.2;
         PetscInt                numComp[1], numDOF[3], bcField[1];
         Mat			Jac;
@@ -467,7 +467,7 @@ int main(int argc, char **argv)
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
 
-	for (PetscInt i = 0; i < 9; i++){
+	for (i = 0; i < 9; i++){
 
 		char		deformId[PETSC_MAX_PATH_LEN]="";
 		/*	Convert deg to rad	*/
@@ -481,7 +481,7 @@ int main(int argc, char **argv)
 
 		numFields = 1;
 		numComp[0] = 1;
-		for (PetscInt k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
+		for (k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
 		numDOF[0] = 1;
 		numBC = 1;
 		bcField[0] = 0;
