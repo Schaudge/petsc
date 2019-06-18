@@ -932,9 +932,9 @@ If its a remote branch, use: origin/'+self.gitcommit+' for gitcommit.')
       return
     try:
       version_ge_found = 1
-      if hasattr(self,'versionprefix'): vpr = self.versionprefix
-      else: vpr = self.PACKAGE
-      outputge,err,ret  = self.preprocess('#include "'+self.versioninclude+'"\n#ifndef '+vpr+'_VERSION_GE\n#error\n#endif')
+      if hasattr(self,'versionge'): vpr = self.versionge
+      else: vpr = self.PACKAGE+'_VERSION_GE'
+      outputge,err,ret  = self.preprocess('#include "'+self.versioninclude+'"\n#ifndef '+vpr+'\n#error\n#endif')
     except:
       version_ge_found = 0
     if ret: version_ge_found = 0
