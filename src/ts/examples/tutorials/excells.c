@@ -14,7 +14,7 @@ int main(int argc, char **argv)
         PetscSection		section;
         PetscBool		dmInterp = PETSC_TRUE;
         IS			verts, cells, bcPointsIS;
-        PetscInt		dim = 2, vStart, vEnd, j, counter = 0, numFields, numBC, numcells, numindices, *indices, offset;
+        PetscInt		dim = 3, vStart, vEnd, j, counter = 0, numFields, numBC, numcells, numindices, *indices, offset;
         PetscInt		ic, cStart, cEnd;
         PetscScalar		*coordArray;
         PetscInt		numComp[1], numDOF[3], bcField[1];
@@ -31,8 +31,9 @@ int main(int argc, char **argv)
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
         //ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
         //ierr = DMPlexCreateFromFile(comm, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr);
-        //ierr = DMPlexCreateFromFile(comm, "3Dbrick4els.exo", dmInterp, &dm);CHKERRQ(ierr);
-        ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
+        ierr = DMPlexCreateFromFile(comm, "3Dbrick4els.exo", dmInterp, &dm);CHKERRQ(ierr);
+        //ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, NULL, NULL, NULL, NULL, dmInterp, &dm);
+        DMGetDimension(dm, &dim);
 
         numFields = 1;
         numComp[0] = 1;
@@ -54,9 +55,9 @@ int main(int argc, char **argv)
         ierr = DMGetStratumIS(dm, "depth", 0, &verts);CHKERRQ(ierr);
         ierr = ISGetIndices(verts, &vertids);CHKERRQ(ierr);
 
-        // OANA: Why was the index 3 instead of 2 here? I thought it only went from 0-2...
-        ierr = DMPlexGetDepthStratum(dm, 2, &cStart, &cEnd);CHKERRQ(ierr);
-        ierr = DMGetStratumIS(dm, "depth", 2, &cells);CHKERRQ(ierr);
+        // the closure in 3d has 4 topological units
+        ierr = DMPlexGetDepthStratum(dm, 3, &cStart, &cEnd);CHKERRQ(ierr);
+        ierr = DMGetStratumIS(dm, "depth", 3, &cells);CHKERRQ(ierr);
         ierr = ISGetIndices(cells, &cellids);CHKERRQ(ierr);
 
         /*	Get Local Coordinates	*/
@@ -68,7 +69,7 @@ int main(int argc, char **argv)
         for (ic = 0; ic < cEnd-cStart; ic++)
 	{ 	ierr = DMPlexGetClosureIndices(dm,section,section,cellids[ic],&numindices,&indices,NULL);CHKERRQ(ierr);
 		ierr = DMPlexGetConeSize(dm, cellids[ic], &numcells);
-                ierr = PetscPrintf(comm, "Current cell %d, total number %d  \n", ic, offset);CHKERRQ(ierr);
+                ierr = PetscPrintf(comm, "Current cell %d, total number %d, numind %d  \n", ic, offset,numindices);CHKERRQ(ierr);
                 for (j = 0; j < numindices; j++){
                         ierr = PetscPrintf(comm, "x(%2d, %2d, %2d)=(%.2f,%.2f,%0.2f)   \n", dim*(indices[j]), (dim*(indices[j]))+1, (dim*(indices[j]))+2,  
                                            coordArray[dim*(indices[j])], coordArray[(dim*(indices[j]))+1], coordArray[(dim*(indices[j]))+2]);CHKERRQ(ierr); 
