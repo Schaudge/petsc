@@ -468,6 +468,7 @@ int main(int argc, char **argv)
 	comm = PETSC_COMM_WORLD;
 
 	for (PetscInt i = 0; i < 9; i++){
+
 		char		deformId[PETSC_MAX_PATH_LEN]="";
 		/*	Convert deg to rad	*/
 		PetscScalar 	dynamic_theta = 10*i*PETSC_PI/180.0;
