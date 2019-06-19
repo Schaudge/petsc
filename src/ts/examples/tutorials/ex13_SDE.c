@@ -40,8 +40,9 @@ int main(int argc,char **argv)
 {
   char           *output;
 //  KSP            ksp;
-  Vec            u,r,rhs;               /* solution vector , random vector , rhs vector*/
-  Vec            unew, uold;              /* vector for time stepping */
+  Vec            u,r;               /* solution vector , random vector */
+//  Vec            rhs;               /* rhs vector */
+  Vec            unew, uold;        /* vector for time stepping */
   PetscErrorCode ierr;
   AppCtx         user;              /* user-defined work context */
   PetscInt       Nx=16,Ny=16;
@@ -102,9 +103,10 @@ int main(int argc,char **argv)
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   tsteps = PetscRoundReal(ftime/dt);
   PetscInt tout = 1;
-    PetscReal dim[2], domain[2];
+    PetscReal dim[2], domain[2], tm[2];
     dim[0] = Nx; dim[1] = Ny;
     domain[0] = user.Lx; domain[1] = user.Ly;
+    tm[0] = dt; tm[1] = 0;
     ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,dim,"dim");CHKERRQ(ierr);
     ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,domain,"domain");CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject)u,"u");
@@ -119,6 +121,18 @@ int main(int argc,char **argv)
     ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
     for (i=0; i<tsteps; i++)
   {
+      if ( i%tout == 0)
+      {
+          ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,tm,"tm");CHKERRQ(ierr);
+          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"tm");CHKERRQ(ierr);
+          ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+          
+          ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
+          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title(['Time t= ',num2str(tm(2,1))]);shading interp;axis([0 1 0 1 -0.5 1]);view(2);colorbar;pause(0.01);");CHKERRQ(ierr);
+          ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
+          ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+      }
+      tm[1] = tm[1] + dt;
       ierr = VecCopy(u,uold);CHKERRQ(ierr);
       ierr = BuildR(r,&user);
       ierr = VecScale(r,PetscSqrtReal(dt));CHKERRQ(ierr);
@@ -134,13 +148,7 @@ int main(int argc,char **argv)
       
       ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
       ierr = VecCopy(unew,u);CHKERRQ(ierr);CHKERRQ(ierr);
-      if ( i%tout == 0)
-      {
-      ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
-          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');shading interp;axis([0 1 0 1 -0.5 1]);view(2);colorbar;pause(0.01)");CHKERRQ(ierr);
-      ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
-      ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-      }
+
 
 //      if ( (i+1)%tout == 0)
 //      {
@@ -168,7 +176,7 @@ int main(int argc,char **argv)
   ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = VecDestroy(&unew);CHKERRQ(ierr);
   ierr = VecDestroy(&uold);CHKERRQ(ierr);
-  ierr = VecDestroy(&rhs);CHKERRQ(ierr);
+//  ierr = VecDestroy(&rhs);CHKERRQ(ierr);
   ierr = DMDestroy(&user.da);CHKERRQ(ierr);
 //  ierr = KSPDestroy(&ksp);
 
