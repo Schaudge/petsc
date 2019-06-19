@@ -45,7 +45,7 @@ int main(int argc,char **argv)
   Vec            unew, uold;        /* vector for time stepping */
   PetscErrorCode ierr;
   AppCtx         user;              /* user-defined work context */
-  PetscInt       Nx=16,Ny=16;
+  PetscInt       Nx=8,Ny=8;
   PetscInt       i,tsteps;
   PetscReal      ftime=0.100;
   PetscScalar    dt   =0.001;
@@ -101,25 +101,27 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Time stepping in Euler
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  ierr = DMDAGetInfo(user.da,PETSC_IGNORE,&Nx,&Ny,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
   tsteps = PetscRoundReal(ftime/dt);
-  PetscInt tout = 1;
-    PetscReal dim[2], domain[2], tm[2];
-    dim[0] = Nx; dim[1] = Ny;
-    domain[0] = user.Lx; domain[1] = user.Ly;
-    tm[0] = dt; tm[1] = 0;
-    ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,dim,"dim");CHKERRQ(ierr);
-    ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,domain,"domain");CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)u,"u");
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx = dim(1,1); Ny = dim(2,1); Lx = domain(1,1); Ly = domain(2,1);");CHKERRQ(ierr);
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx");CHKERRQ(ierr);
-    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ny");CHKERRQ(ierr);
-    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Lx");CHKERRQ(ierr);
-    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ly");CHKERRQ(ierr);
-    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-    for (i=0; i<tsteps; i++)
+  PetscInt tout = 10;
+  PetscReal dim[2], domain[2], tm[2];
+  dim[0] = Nx; dim[1] = Ny;
+  domain[0] = user.Lx; domain[1] = user.Ly;
+  tm[0] = dt; tm[1] = 0;
+  ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,dim,"dim");CHKERRQ(ierr);
+  ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,domain,"domain");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)u,"u");
+  ierr = PetscObjectSetName((PetscObject)r,"r");
+  ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx = dim(1,1); Ny = dim(2,1); Lx = domain(1,1); Ly = domain(2,1);");CHKERRQ(ierr);
+  ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx");CHKERRQ(ierr);
+  ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+  ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ny");CHKERRQ(ierr);
+  ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+  ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Lx");CHKERRQ(ierr);
+  ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+  ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ly");CHKERRQ(ierr);
+  ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+  for (i=0; i<tsteps; i++)
   {
       if ( i%tout == 0)
       {
@@ -128,7 +130,9 @@ int main(int argc,char **argv)
           ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
           
           ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
-          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title(['Time t= ',num2str(tm(2,1))]);shading interp;axis([0 1 0 1 -0.5 1]);view(2);colorbar;pause(0.01);");CHKERRQ(ierr);
+          ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)r);CHKERRQ(ierr);
+          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({'Solution','Time t= ',num2str(tm(2,1))});shading interp;axis([0 1 0 1 -0.5 1]);axis square;xlabel('X','FontSize',16);ylabel('Y','FontSize',16);view(2);colorbar;pause(0.01);");CHKERRQ(ierr);
+          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');title({'Random field','Time t= ',num2str(tm(2,1))});shading interp;axis([0 1 0 1 -0.5 1]);axis square;xlabel('X','FontSize',16);ylabel('Y','FontSize',16);view(2);colorbar;pause(0.01);");CHKERRQ(ierr);
           ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
           ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
       }
@@ -534,12 +538,12 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
         for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
         r[i] = mu + sigma * tmp;
     }
-    // Pring the random vector R issued from random field by KL expansion
-//    printf("\nRandom vector R issued from random field by KL expansion\n");
+    // Pring the random vector r issued from random field by KL expansion
+//    printf("\nRandom vector r issued from random field by KL expansion\n");
 //    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
-    /* plot R in Matlab:
+    /* plot r in Matlab:
        >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
-       >> surf(X,Y,reshape(R,Nx,Ny)');shading interp;view(2);colorbar; */
+       >> surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
     
     //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(Cov);CHKERRQ(ierr);
