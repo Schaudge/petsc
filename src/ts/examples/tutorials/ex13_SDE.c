@@ -90,7 +90,6 @@ int main(int argc,char **argv)
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = FormInitialSolution(user.da,u,&user);CHKERRQ(ierr);
-  ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
     
 //    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"u0.m",&viewfile);CHKERRQ(ierr);
 //    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
@@ -131,8 +130,8 @@ int main(int argc,char **argv)
           
           ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
           ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)r);CHKERRQ(ierr);
-          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({'Solution','Time t= ',num2str(tm(2,1))});shading interp;axis([0 1 0 1 -0.5 1]);axis square;xlabel('X','FontSize',16);ylabel('Y','FontSize',16);view(2);colorbar;pause(0.01);");CHKERRQ(ierr);
-          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');title({'Random field','Time t= ',num2str(tm(2,1))});shading interp;axis([0 1 0 1 -0.5 1]);axis square;xlabel('X','FontSize',16);ylabel('Y','FontSize',16);view(2);colorbar;pause(0.01);");CHKERRQ(ierr);
+          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 1 0 1 -0.5 1]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);");CHKERRQ(ierr);
+          ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');title({['Random field'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 1 0 1 -0.5 1]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);");CHKERRQ(ierr);
           ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
           ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
       }
