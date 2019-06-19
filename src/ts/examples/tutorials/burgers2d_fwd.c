@@ -29,16 +29,22 @@ static char help[] = "Solves a simple data assimilation problem with one dimensi
 
 #include <petsctao.h>
 #include <petscts.h>
-#include <petscgll.h>
+//#include <petscgll.h>
+#include <petscdt.h>
 #include <petscdraw.h>
 #include <petscdmda.h>
-#include <petscblaslapack.h>
-#include <petsc/private/petscimpl.h>
+//#include <petscblaslapack.h>
+//#include <petsc/private/petscimpl.h>
 
 /*
    User-defined application context - contains data needed by the
    application-provided call-back routines.
 */
+typedef struct {
+  PetscInt  n;                /* number of nodes */
+  PetscReal *nodes;           /* GLL nodes */
+  PetscReal *weights;         /* GLL weights */
+} PetscGLL;
 
 typedef struct
 {
@@ -76,9 +82,6 @@ typedef struct
 {
   Vec grid; /* total grid */
   Vec mass; /* mass matrix for total integration */
-  //Mat         stiff;             /* stifness matrix */
-  //Mat         keptstiff;
-  //Mat         grad;
   PetscGLL gll;
 } PetscSEMOperators;
 
@@ -156,9 +159,9 @@ int main(int argc, char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create GLL data structures
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = PetscGLLCreate(appctx.param.N, PETSCGLL_VIA_LINEARALGEBRA, &appctx.SEMop.gll);
-  CHKERRQ(ierr);
-
+   ierr = PetscMalloc2(appctx.param.N,&appctx.SEMop.gll.nodes,appctx.param.N,&appctx.SEMop.gll.weights);CHKERRQ(ierr);
+  ierr = PetscDTGaussLobattoLegendreQuadrature(appctx.param.N,PETSCGAUSSLOBATTOLEGENDRE_VIA_LINEAR_ALGEBRA,appctx.SEMop.gll.nodes,appctx.SEMop.gll.weights);CHKERRQ(ierr);
+ 
   appctx.param.lenx = appctx.param.Ex * (appctx.param.N - 1);
   appctx.param.leny = appctx.param.Ey * (appctx.param.N - 1);
 
