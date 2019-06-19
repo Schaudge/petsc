@@ -39,9 +39,9 @@ extern PetscErrorCode BuildR(Vec, AppCtx*);
 int main(int argc,char **argv)
 {
   char           *output;
-//  KSP            ksp;
+  KSP            ksp;               /* KSP solver for Crank-Nicolson scheme*/
+  Vec            rhs;               /* rhs vector for Crank-Nicolson scheme*/
   Vec            u,r;               /* solution vector , random vector */
-//  Vec            rhs;               /* rhs vector */
   Vec            unew, uold;        /* vector for time stepping */
   PetscErrorCode ierr;
   AppCtx         user;              /* user-defined work context */
@@ -75,17 +75,17 @@ int main(int argc,char **argv)
   ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
   ierr = DMCreateMatrix(user.da,&user.A);CHKERRQ(ierr);
     
-  ierr = BuildA(&user);       //Euler TS
-  ierr = MatScale(user.A,dt);
+  /* Euler scheme */
+//  ierr = BuildA(&user);
+//  ierr = MatScale(user.A,dt);
     
-//  ierr = DMCreateGlobalVector(user.da,&rhs);CHKERRQ(ierr); //CN TS
-//  ierr = BuildCN(&user,dt);
-//  ierr = MatView(user.A,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+  /* Crank-Nicolson scheme */
+  ierr = DMCreateGlobalVector(user.da,&rhs);CHKERRQ(ierr);
+  ierr = BuildCN(&user,dt);
+    
   /* Set Random vector r */
   ierr = DMSetVecType(user.da,VECSEQ);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(user.da,&r);CHKERRQ(ierr);
-//  ierr = BuildR(r,&user);
-//  ierr = VecView(r,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -103,7 +103,7 @@ int main(int argc,char **argv)
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMDAGetInfo(user.da,PETSC_IGNORE,&Nx,&Ny,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
   tsteps = PetscRoundReal(ftime/dt);
-  PetscInt tout = 10;
+  PetscInt tout = 5;
   PetscReal dim[2], domain[2], tm[2];
   dim[0] = Nx; dim[1] = Ny;
   domain[0] = user.Lx; domain[1] = user.Ly;
@@ -141,16 +141,19 @@ int main(int argc,char **argv)
       ierr = BuildR(r,&user);
       ierr = VecScale(r,PetscSqrtReal(dt));CHKERRQ(ierr);
       
-      ierr = MatMultAdd(user.A,u,r,unew);CHKERRQ(ierr); //Euler TS
+      /* Euler scheme */
+//      ierr = MatMultAdd(user.A,u,r,unew);CHKERRQ(ierr);
+//      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
       
-//      ierr = FormCNRHS(&user,uold,dt,rhs); //CN TS
-//      ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);
-//      ierr = KSPSetOperators(ksp,user.A,user.A);
-//      ierr = KSPSetFromOptions(ksp);
-//      ierr = VecDuplicate(rhs, &unew);
-//      ierr = KSPSolve(ksp,rhs,unew);
-      
-      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
+      /* Crank-Nicolson scheme */
+      ierr = FormCNRHS(&user,uold,dt,rhs);
+      ierr = VecAXPY(rhs,1.0,r);CHKERRQ(ierr);
+      ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);
+      ierr = KSPSetOperators(ksp,user.A,user.A);
+      ierr = KSPSetFromOptions(ksp);
+      ierr = VecDuplicate(rhs,&unew);
+      ierr = KSPSolve(ksp,rhs,unew);
+
       ierr = VecCopy(unew,u);CHKERRQ(ierr);CHKERRQ(ierr);
 
 
@@ -290,9 +293,7 @@ PetscErrorCode FormCNRHS(AppCtx *user, Vec U, PetscScalar dt, Vec RHS)
     ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
     hx   = 1.0/(PetscReal)(info.mx-1); sx = 1.0/(hx*hx);
     hy   = 1.0/(PetscReal)(info.my-1); sy = 1.0/(hy*hy);
-    PetscInt *index;
-    ierr = PetscMalloc1(info.mx * info.my,&index);CHKERRQ(ierr);
-    for (i=0; i<info.mx*info.my; i++) index[i]=i;
+    
     for (j=info.ys; j<info.ys+info.ym; j++) {
         for (i=info.xs; i<info.xs+info.xm; i++) {
             if (i == 0 || j == 0 || i == info.mx-1 || j == info.my-1) {
@@ -304,7 +305,8 @@ PetscErrorCode FormCNRHS(AppCtx *user, Vec U, PetscScalar dt, Vec RHS)
             }
         }
     }
-    ierr = VecSetValues(RHS,info.mx * info.my,index,rhs,INSERT_VALUES);CHKERRQ(ierr);
+
+    ierr = VecRestoreArray(RHS,&rhs);
     ierr = VecAssemblyBegin(RHS);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(RHS);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"rhsvec.m",&viewfile);CHKERRQ(ierr);
@@ -538,13 +540,20 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
         for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
         r[i] = mu + sigma * tmp;
     }
+//    for (j=0; j<Ny; j++)
+//        {for (i=0; i<Nx; i++)
+//            {
+//                if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) {
+//                    r[Nx*j+i] = 0.0;}
+//            }
+//        }
     // Pring the random vector r issued from random field by KL expansion
-//    printf("\nRandom vector r issued from random field by KL expansion\n");
-//    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
+    printf("\nRandom vector r issued from random field by KL expansion\n");
+    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
     /* plot r in Matlab:
        >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
-       >> surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
-    
+       surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
+
     //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(Cov);CHKERRQ(ierr);
     ierr = PetscFree(U);CHKERRQ(ierr);
