@@ -161,7 +161,7 @@ int main(int argc, char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
    ierr = PetscMalloc2(appctx.param.N,&appctx.SEMop.gll.nodes,appctx.param.N,&appctx.SEMop.gll.weights);CHKERRQ(ierr);
   ierr = PetscDTGaussLobattoLegendreQuadrature(appctx.param.N,PETSCGAUSSLOBATTOLEGENDRE_VIA_LINEAR_ALGEBRA,appctx.SEMop.gll.nodes,appctx.SEMop.gll.weights);CHKERRQ(ierr);
- 
+   appctx.SEMop.gll.n = appctx.param.N;
   appctx.param.lenx = appctx.param.Ex * (appctx.param.N - 1);
   appctx.param.leny = appctx.param.Ey * (appctx.param.N - 1);
 
