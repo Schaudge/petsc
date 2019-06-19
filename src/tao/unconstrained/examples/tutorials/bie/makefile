@@ -4,25 +4,29 @@
 
 ALL:
 
-CFLAGS           =
-FFLAGS           =
+CFLAGS		 =
+FFLAGS		 =
 CPPFLAGS         =
 FPPFLAGS         =
-LOCDIR           = src/tao/leastsquares/examples/matlab/
-MANSEC           = Tao
-EXAMPLESC        = matlab_ls_test.c
+EXAMPLESC        = bieoptimizer.c
 EXAMPLESF        = 
 EXAMPLESCH       =
 EXAMPLESFH       = 
-EXAMPLESMATLAB   = TestingInitialize.m TestingFinalize.m ProblemInitialize.m ProblemFinalize.m
-DIRS             = 
+EXAMPLESMATLAB   = initialize.m ObjectiveAndGradient.m 
+LOCDIR		 = src/tao/unconstrained/examples/tutorials/bie
+MANSEC		 =
+DOCS		 =
+DIRS		 =
+CLEANFILES       = bieoptimizer
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
-matlab_ls_test: matlab_ls_test.o chkopts
-	-${CLINKER} -o matlab_ls_test matlab_ls_test.o ${PETSC_TAO_LIB}
-	${RM} matlab_ls_test.o
+
+bieoptimizer: bieoptimizer.o chkopts
+	-${CLINKER} -o bieoptimizer bieoptimizer.o ${PETSC_TAO_LIB}
+	${RM} bieoptimizer.o
+	
 
 include ${PETSC_DIR}/lib/petsc/conf/test
 

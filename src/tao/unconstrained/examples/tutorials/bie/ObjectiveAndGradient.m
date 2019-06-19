@@ -1,7 +1,17 @@
-function [obj, grad] = functionsOpt(GG)
+function [targ, grad] = ObjectiveAndGradient(X)
+    nn = length(X);
+    xp = X(1:nn/2);
+    yp = X(nn/2+1:end);
+    rc = 6;
+    N = 50;
+    nc=length(xp);
 
 
-    nc = length(GG);
+    for ii=1:nc
+        GG{ii} = cylinder(rc,xp(ii),yp(ii));
+        GG{ii} = curvquad(GG{ii},'ptr',N,10);
+    end
+
     %directization points on the surface of a circle
     N = 50;
 
@@ -12,12 +22,7 @@ function [obj, grad] = functionsOpt(GG)
 
     %location of the source
     ys = 13; xs = -25:25;  src= xs + 1i * ys; %-30:30;
-    nc = length(GG);
-
-
-
-         %pause
-        %uinc=exp(1i*k*abs(G.x-src))./abs(G.x-src)*1/4/pi;
+    
     k = 2*pi/8; eta = k;                           % wavenumber, SLP mixing amount 
     f =  @(z) sum(1i*1*besselh(0,1,k*abs(z-src))/4.0,2);   % known soln: interior source
     fgradx = @(z) sum(-1i/4.0*1*k*besselh(1,1,k*abs(z-src)).*(real(z-src))./abs(z-src),2);
@@ -56,7 +61,7 @@ function [obj, grad] = functionsOpt(GG)
         end 
 
     end
-    obj = -sum((abs(sum(uobj,2))).^2);
+    targ = -sum((abs(sum(uobj,2))).^2);
       
     %derivative of J wrt \sigma 
     B_r = zeros(length(obj), N*nc);
@@ -122,7 +127,7 @@ function [obj, grad] = functionsOpt(GG)
 
     dt_x = lambda*[(real(dFdxc));imag(dFdxc)] - dJdxc;
     dt_y = lambda*[real(dFdyc);imag(dFdyc)] - dJdyc;
-    grad = [dt_x, dt_y];   
+    grad = [dt_x; dt_y];   
 
 
 
