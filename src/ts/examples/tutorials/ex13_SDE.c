@@ -47,8 +47,8 @@ int main(int argc,char **argv)
   AppCtx         user;              /* user-defined work context */
   PetscInt       Nx=8,Ny=8;
   PetscInt       i,tsteps;
-  PetscReal      ftime=0.100;
-  PetscScalar    dt   =0.001;
+  PetscReal      ftime=1.00;
+  PetscScalar    dt   =0.01;
 //  PetscViewer    viewfile;
   
   /* Initialize user application context */
@@ -103,7 +103,7 @@ int main(int argc,char **argv)
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMDAGetInfo(user.da,PETSC_IGNORE,&Nx,&Ny,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
   tsteps = PetscRoundReal(ftime/dt);
-  PetscInt tout = 5;
+  PetscInt tout = 2;
   PetscReal dim[2], domain[2], tm[2];
   dim[0] = Nx; dim[1] = Ny;
   domain[0] = user.Lx; domain[1] = user.Ly;
@@ -183,9 +183,9 @@ int main(int argc,char **argv)
   ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = VecDestroy(&unew);CHKERRQ(ierr);
   ierr = VecDestroy(&uold);CHKERRQ(ierr);
-//  ierr = VecDestroy(&rhs);CHKERRQ(ierr);
   ierr = DMDestroy(&user.da);CHKERRQ(ierr);
-//  ierr = KSPDestroy(&ksp);
+  ierr = VecDestroy(&rhs);CHKERRQ(ierr); /* rhs vector for Crank-Nicolson scheme*/
+  ierr = KSPDestroy(&ksp);               /* KSP solver for Crank-Nicolson scheme*/
 
   ierr = PetscFinalize();
   return ierr;
@@ -364,7 +364,7 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
     Vec            global;
     PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
     PetscInt       i, j, i0, j0, i1, j1;
-    PetscReal      mu=0.0, sigma=0.5; /* sigma here stands for noise strength */
+    PetscReal      mu=0.0, sigma=0.1; /* sigma here stands for noise strength */
     PetscReal      lc=2.0;
 //    PetscReal      lx=0.2, ly=0.1;
     PetscScalar    **Cov;
@@ -540,18 +540,18 @@ PetscErrorCode BuildR(Vec R,AppCtx* user)
         for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
         r[i] = mu + sigma * tmp;
     }
-//    for (j=0; j<Ny; j++)
-//        {for (i=0; i<Nx; i++)
-//            {
-//                if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) {
-//                    r[Nx*j+i] = 0.0;}
-//            }
-//        }
+    for (j=0; j<Ny; j++)
+        {for (i=0; i<Nx; i++)
+            {
+                if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) {
+                    r[Nx*j+i] = 0.0;}
+            }
+        }
     // Pring the random vector r issued from random field by KL expansion
-    printf("\nRandom vector r issued from random field by KL expansion\n");
-    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
+//    printf("\nRandom vector r issued from random field by KL expansion\n");
+//    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
     /* plot r in Matlab:
-       >> Lx=1;Ly=2;Nx=6;Ny=11;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
+       >> Lx=1;Ly=1;Nx=8;Ny=8;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
        surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
 
     //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
