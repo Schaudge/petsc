@@ -100,7 +100,7 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
         return ierr;
 }
 
-PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedTest, PetscBool fileflg, PetscBool dmDistributed, PetscBool dmInterped, PetscBool dispFlag, PetscBool isView, PetscBool VTKdisp, PetscBool dmDisp, PetscBool sectionDisp, PetscBool arrayDisp, PetscBool coordDisp, PetscInt globalSize, PetscInt globalCellSize, PetscPartitionerType partitionername)
+PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedTest, PetscBool fileflg, PetscBool dmDistributed, PetscBool dmInterped, PetscBool dispFlag, PetscBool isView, PetscBool VTKdisp, PetscBool dmDisp, PetscBool sectionDisp, PetscBool arrayDisp, PetscBool coordDisp, PetscInt globalSize, PetscInt globalCellSize, PetscPartitionerType partitionername, char* filename)
 {
 	PetscErrorCode		ierr;
 
@@ -108,6 +108,9 @@ PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedT
 	ierr = PetscPrintf(comm, "Partitioner Used:%s>%s\n", bar + 2, partitionername);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "Global Node Num:%s>%d\n", bar + 1, globalSize);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
+	if (fileflg) {
+		ierr = PetscPrintf(comm, "File read name:%s>%s\n", bar, filename);CHKERRQ(ierr);
+	}
 	ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "Distributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "Interpolated dm:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
@@ -335,7 +338,7 @@ int main(int argc, char **argv)
 	ierr = DMPlexGetPartitioner(dm, &partitioner);CHKERRQ(ierr);CHKERRQ(ierr);
 	ierr = PetscPartitionerGetType(partitioner, &partitionername);CHKERRQ(ierr);
 
-	ierr = InfoSummaryPrintHelper(comm, bar, speedTest, fileflg, dmDistributed, dmInterped, dispFlag, isView, VTKdisp, dmDisp, sectionDisp, arrayDisp, coordDisp, globalSize, globalCellSize, partitionername);CHKERRQ(ierr);
+	ierr = InfoSummaryPrintHelper(comm, bar, speedTest, fileflg, dmDistributed, dmInterped, dispFlag, isView, VTKdisp, dmDisp, sectionDisp, arrayDisp, coordDisp, globalSize, globalCellSize, partitionername, filename);CHKERRQ(ierr);
 
 	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 	ierr = DMDestroy(&dm);CHKERRQ(ierr);
