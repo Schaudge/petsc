@@ -100,24 +100,50 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
         return ierr;
 }
 
+PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedTest, PetscBool fileflg, PetscBool dmDistributed, PetscBool dmInterped, PetscBool dispFlag, PetscBool isView, PetscBool VTKdisp, PetscBool dmDisp, PetscBool sectionDisp, PetscBool arrayDisp, PetscBool coordDisp, PetscInt globalSize, PetscInt globalCellSize, PetscPartitionerType partitionername)
+{
+	PetscErrorCode		ierr;
+
+	ierr = PetscPrintf(comm, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "Partitioner Used:%s>%s\n", bar + 2, partitionername);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "Global Node Num:%s>%d\n", bar + 1, globalSize);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "Distributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "Interpolated dm:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "File read mode:%s>%s\n", bar, fileflg ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Speedtest mode:%s>%s\n", bar, speedTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "VTKoutput mode:%s>%s\n", bar, VTKdisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Full Display mode:%s>%s\n", bar + 3, dispFlag ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "IS Display mode:%s>%s\n", bar + 1, isView ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "DM Display mode:%s>%s\n", bar + 1, dmDisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Section Display mode:%s>%s\n", bar + 6, sectionDisp? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Array Display mode:%s>%s\n", bar + 4, arrayDisp ? "PETSC_TRUE * " : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm, "Coord Disp mode:%s>%s\n", bar + 1, coordDisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
+
+	return ierr;
+}
+
 /* 	Main	*/
 int main(int argc, char **argv)
 {
 	MPI_Comm		comm;
 	PetscErrorCode		ierr;
+	PetscPartitioner	partitioner;
+	PetscPartitionerType	partitionername;
 	PetscLogStage 		stage;
 	PetscLogEvent 		event;
 	DM			dm, dmDist, dmInterp;
-	IS			bcPointsIS;
+	IS			bcPointsIS, globalCellNumIS;
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
-	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex;
+	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscInt		dim = 2, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize;
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen=0;
 	PetscScalar 		dot, *coords, *array;
-	PetscViewer		viewer;
-	char			bar[18] = "------------------", filename[PETSC_MAX_PATH_LEN]="";
+	char			bar[19] = "------------------\0", filename[PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -136,26 +162,21 @@ int main(int argc, char **argv)
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
 
-	ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
-	ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
-
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
-		faces[0] = 100;
-		faces[1] = 100;
+		faces[0] = 10;
+		faces[1] = 10;
           	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
         } else {
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
         }
 
-	ierr = PetscPrintf(comm,"%s General Info %s \n", bar, bar);CHKERRQ(ierr);
 	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
 		ierr = DMDestroy(&dm);CHKERRQ(ierr);
-		ierr = PetscPrintf(comm,"Distributed dm\n");CHKERRQ(ierr);
 		dm = dmDist;
+		dmDistributed = PETSC_TRUE;
 	}else{
-          	if (!speedTest) {ierr = PetscPrintf(comm,"No distributed dm\n");CHKERRQ(ierr);}
 		if (isView) {
                   	ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
 			ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
@@ -167,23 +188,11 @@ int main(int argc, char **argv)
 			ierr = DMDestroy(&dm);CHKERRQ(ierr);
 			ierr = PetscPrintf(comm,"Interped dm again [UNUSUAL]\n");CHKERRQ(ierr);
 			dm = dmInterp;
+			dmInterped = PETSC_TRUE;
 		}else{
 			ierr = PetscPrintf(comm,"No interped dm [QUITE UNUSUAL]\n");CHKERRQ(ierr);
 		}
-	}else{
-		ierr = PetscPrintf(comm,"Interped dm\n");CHKERRQ(ierr);
 	}
-
-        ierr = PetscPrintf(comm, "File read mode:       %s\n", fileflg ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "Speedtest mode:       %s\n", speedTest ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "VTKoutput mode:       %s\n", VTKdisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "Full Display mode:    %s\n", dispFlag ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "IS Display mode:      %s\n", isView ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "DM Display mode:      %s\n", dmDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "Section Display mode: %s\n", sectionDisp? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "Array Display mode:   %s\n", arrayDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm, "Coord Disp mode:      %s\n", coordDisp ? "PETSC_TRUE" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscPrintf(comm,"%s End General Info %s\n", bar, bar);CHKERRQ(ierr);
 
 	/*	Set number of active fields	*/
 	numFields = 1;
@@ -319,8 +328,16 @@ int main(int argc, char **argv)
 		ierr = VecView(solVecGlobal, vtkviewersoln);CHKERRQ(ierr);
 		ierr = PetscViewerDestroy(&vtkviewersoln);CHKERRQ(ierr);
 	}
-	ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-	ierr = VecDestroy(&solVecGlobal);CHKERRQ(ierr);
+
+	ierr = VecGetSize(solVecGlobal, &globalSize);CHKERRQ(ierr);
+	ierr = DMPlexGetCellNumbering(dm, &globalCellNumIS);CHKERRQ(ierr);
+	ierr = ISGetSize(globalCellNumIS, &globalCellSize);CHKERRQ(ierr);
+	ierr = DMPlexGetPartitioner(dm, &partitioner);CHKERRQ(ierr);CHKERRQ(ierr);
+	ierr = PetscPartitionerGetType(partitioner, &partitionername);CHKERRQ(ierr);
+
+	ierr = InfoSummaryPrintHelper(comm, bar, speedTest, fileflg, dmDistributed, dmInterped, dispFlag, isView, VTKdisp, dmDisp, sectionDisp, arrayDisp, coordDisp, globalSize, globalCellSize, partitionername);CHKERRQ(ierr);
+
+	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 	ierr = DMDestroy(&dm);CHKERRQ(ierr);
 	ierr = PetscFinalize();CHKERRQ(ierr);
 	return ierr;
