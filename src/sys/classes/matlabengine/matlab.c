@@ -45,7 +45,7 @@ PetscErrorCode  PetscMatlabEngineCreate(MPI_Comm comm,const char machine[],Petsc
   if (MATLABENGINE_CLASSID == -1) {
     ierr = PetscClassIdRegister("MATLAB Engine",&MATLABENGINE_CLASSID);CHKERRQ(ierr);
   }
-  ierr = PetscOptionsGetBool(NULL,NULL,"-matlab_engine_graphics",&flg,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-matlab-engine-graphics",&flg,NULL);CHKERRQ(ierr);
 
   ierr = PetscHeaderCreate(e,MATLABENGINE_CLASSID,"MatlabEngine","MATLAB Engine","Sys",comm,PetscMatlabEngineDestroy,NULL);CHKERRQ(ierr);
 
