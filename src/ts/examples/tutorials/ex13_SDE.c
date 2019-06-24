@@ -23,7 +23,7 @@ typedef struct { /* physical parameters */
   PetscInt       Lx, Ly;
   PetscReal      mu, sigma; /* sigma here stands for noise strength */
   PetscReal      lc;        /* corelation length for exponential or Gaussian covariance function*/
-//  PetscReal      lx,ly;     /* corelation length for separable exponential covariance function*/
+  PetscReal      lx,ly;     /* corelation length for separable exponential covariance function*/
   PetscScalar     b, c, rad;
 } Parameter;
 
@@ -138,16 +138,16 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     param->mu       = 0.0;
     param->sigma    = 1.5;   /* sigma here stands for noise strength */
     param->lc       = 2.0;   /* corelation length for exponential or Gaussian covariance function*/
-//    param->lx       =0.1;   /* corelation length for separable exponential covariance function*/
-//    param->ly       =0.1;   /* corelation length for separable exponential covariance function*/
+    param->lx       =0.1;   /* corelation length for separable exponential covariance function*/
+    param->ly       =0.1;   /* corelation length for separable exponential covariance function*/
     ierr = PetscOptionsGetReal(NULL,NULL,"-b",&(param->b),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-c",&(param->c),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-rad",&(param->rad),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-mu",&(param->mu),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-sigma",&(param->sigma),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-lc",&(param->lc),NULL);CHKERRQ(ierr);
-//    ierr = PetscOptionsGetReal(NULL,NULL,"-lx",&(param->lx),NULL);CHKERRQ(ierr);
-//    ierr = PetscOptionsGetReal(NULL,NULL,"-ly",&(param->ly),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-lx",&(param->lx),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-ly",&(param->ly),NULL);CHKERRQ(ierr);
     
     /* domain geometry */
     param->Lx       = 1;
@@ -481,8 +481,8 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
     PetscReal      mu     = param->mu;
     PetscReal      sigma  = param->sigma;
     PetscReal      lc     = param->lc;
-//    PetscReal      lx     = param->lx;
-//    PetscReal      ly     = param->ly;
+    PetscReal      lx     = param->lx;
+    PetscReal      ly     = param->ly;
     PetscErrorCode ierr;
 
     PetscFunctionBeginUser;

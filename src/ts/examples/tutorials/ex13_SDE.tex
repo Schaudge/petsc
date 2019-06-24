@@ -1,0 +1,376 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+
+\date{}
+
+\begin{document}
+
+\hypertarget{header-n133}{%
+\section{Stochastic Heat Equation in 2D}\label{header-n133}}
+
+\hypertarget{header-n2}{%
+\subsection{I. Governing equation}\label{header-n2}}
+
+We solve a stochastic heat equation in 2D:
+
+\begin{align}
+u_{t}&= \Delta u+\sigma \zeta(t,\mathbf{x}), \\
+u|_{t=0} &= b e^{c |\mathbf{x}|^{3}} 1_{\{|\mathbf{x}| \leq r\}}. \\
+\end{align}
+
+\begin{itemize}
+\item
+  \(\zeta(t,\mathbf{x})=\dot{W}^{Q}(t,\mathbf{x}) =dW^{Q}(t, \mathbf{x}) /dt.\)
+\item
+  Therefore, we may also write:
+
+  \begin{equation}
+  du=(u_{xx}+u_{yy}) dt+\sigma dW^Q. \label{spde}
+  \end{equation}
+\item
+  \(\zeta(t,\mathbf{x})\) is a \emph{space-time colored noise} (white in
+  time, colored in space):
+
+  \begin{itemize}
+  \item
+    \(\displaystyle \dot{W}^{Q}(t, \mathbf{x})= \sum_{j\ge1}\sqrt{q_j} \phi_j(\mathbf{x})\dot{w_j}(t).\)
+
+    \begin{itemize}
+    \item
+      \(q_j>0\) and \(\phi_j(\mathbf{x})\) are eigenpairs of \(Q\).
+    \item
+      \(Q\) is the covariance operator defined by
+
+      \(\displaystyle (Q\phi)(\mathbf{x})=\int_{D}q(\mathbf{x},\mathbf{x}^{\prime})\phi(\mathbf{x}^{\prime})d\mathbf{x}^{\prime}, \mathbf{x}\in D,\)
+
+      with the covariance function \(q(\mathbf{x},\mathbf{x}^{\prime})\)
+      as its kernel.
+    \item
+      \(\dot{w_j}(t) \text{ is the Gaussian white noise.}\)
+    \end{itemize}
+  \item
+    \(\mathbb{E}\left[\zeta(t,\mathbf{x}) \zeta(s,\mathbf{x}^{\prime})\right]=\mathbb{E}\left[\dot{W}^{Q}(t, \mathbf{x}) \dot{W}^{Q}(s,\mathbf{x}^{\prime})\right]=\delta(t-s) q(\mathbf{x},\mathbf{x}^{\prime}).\)
+  \item
+    \(q(\mathbf{x},\mathbf{x}^{\prime})\) is the covariance function for
+    its spatial correlation structure; i.e.,
+    \(q(\mathbf{x},\mathbf{x}^{\prime})=Cov[\zeta(t,\mathbf{x}),\zeta(t,\mathbf{x}^{\prime})]=\mathbb{E}\left[\zeta(t,\mathbf{x}) \zeta(t,\mathbf{x}^{\prime})\right], \forall t \in [0,\infty)\).
+  \end{itemize}
+\item
+  Since the Gaussian white noise \(\dot{w_j}(t)\) can be thought of as
+  the derivative of a Brownian motion/Wiener process \(w_j(t)\), we may
+  write:
+
+  \[\displaystyle W^{Q}(t, \mathbf{x})= \sum_{j\ge1}\sqrt{q_j} \phi_j(\mathbf{x})w_j(t). \label{Qwiener}\]
+
+  \begin{itemize}
+  \item
+    \( w_j(t)\) are i.i.d. Wiener process (Brownian motion). 
+  \item
+    It is in the form of \emph{Karhunen-Loéve (KL) expansion}.
+  \end{itemize}
+\item
+  Here we consider:
+
+  \begin{itemize}
+  \item
+    \(\mathbf{x}\in D=[0,1]^2, t\in[0,T]\). 
+  \item
+    \(q(\mathbf{x},\mathbf{y})\) is chosen from the covariance functions
+    below:
+
+    \begin{itemize}
+    \item
+      \(\exp\left(-\frac{|x_1-x^{\prime}_1|}{L_1}\right) \exp\left(-\frac{|x_2-x^{\prime}_2|}{L_2}\right)\)
+      : Separable exponential
+    \item
+      \(\exp \left(\frac{-\left\|\mathbf{x}-\mathbf{x}^{\prime}\right\|}{L_{c}}\right)\)
+      : Exponential
+    \item
+      \(\exp \left(\frac{-\left\|\mathbf{x}-\mathbf{x}^{\prime}\right\|^{2}}{2 L_{c}^{2}}\right)\)
+      : Gaussian
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{header-n63}{%
+\subsection{II. Discretization}\label{header-n63}}
+
+To discretize \(\eqref{spde}\), we apply Crank-Nicolson scheme:
+
+\[U^{n+1}_{i,j}-U^n_{i,j}=\frac{\Delta t}{2}\left(\frac{1}{\Delta x^2}(U^{n+1}_{i+1,j}-2U^{n+1}_{i,j}+U^{n+1}_{i-1,j})\\+\frac{1}{\Delta y^2}(U^{n+1}_{i,j+1}-2U^{n+1}_{i,j}+U^{n+1}_{i,j-1})+
+\frac{1}{\Delta x^2}(U^{n}_{i+1,j}-2U^{n}_{i,j}+U^{n}_{i-1,j})+\\\frac{1}{\Delta y^2}(U^{n}_{i,j+1}-2U^{n}_{i,j}+U^{n}_{i,j-1})\right)+\sigma \left((W^Q)^{n+1}-(W^Q)^{n}\right).\]
+
+Since \(w_j(t_{n+1})-w_j(t_n)\sim N(0, \Delta t)\), rewrite the
+stochastic part as:
+
+\[(W^Q)^{n+1}-(W^Q)^{n}=\sqrt{\Delta t}\sum_{j\ge1}\sqrt{q_j}\phi_j(\mathbf{x})\xi^n_{j}.\]
+
+, where \(\xi^n_j:=(w_j(t_{n+1})-w_j(t_n))/\sqrt{\Delta t}\sim N(0,1)\)
+i.i.d. are easily sampled.
+
+\hypertarget{header-n139}{%
+\subsection{III. Computation of KL expansion}\label{header-n139}}
+
+Given \(q(\mathbf{x},\mathbf{x}^\prime)\), we need to find eigenpairs
+\{\(q_{j},\phi_j\)\} of \(Q\) by solving:
+
+\[\int_D q(\mathbf{x},\mathbf{x}^\prime)\phi_j(\mathbf{x^\prime})d\mathbf{x}^\prime=q_j\phi_j(\mathbf{x}).\]
+
+It is called Fredholm integral equation of the second kind.
+
+\hypertarget{header-n223}{%
+\subsubsection{A. Approximation via collocation and
+quadrature}\label{header-n223}}
+
+\hypertarget{header-n154}{%
+\paragraph{\texorpdfstring{ 1. Collocation
+method}{ 1. Collocation method}}\label{header-n154}}
+
+Let \(\mathbf{x}_1,\mathbf{x}_2,…,\mathbf{x}_{P}\) be points in \(
+D\), define
+
+\[R_j:=\int_D q(\mathbf{x},\mathbf{x}^\prime)\phi_j(\mathbf{x}^\prime)d\mathbf{x}^\prime-q_j\phi_j(\mathbf{x}).\]
+
+If \(R_j(x_k)=0\) for \(k=1,…,P\), \{\(q_j,\phi_j\)\} is called a
+collocation approximation.
+
+\hypertarget{header-n170}{%
+\paragraph{\texorpdfstring{ 2.
+Quadrature}{ 2. Quadrature}}\label{header-n170}}
+
+Suppose the \(\mathbf{x}_k\) are quadrature points with weights
+\(\varpi_k\) chosen such that:
+
+\[\int_D q(\mathbf{x}_k,\mathbf{x^\prime})\phi(\mathbf{x^\prime})d\mathbf{x^\prime}\approx \sum^{P}_{i=1}\varpi_iq(\mathbf{x}_k,\mathbf{x_i})\phi(\mathbf{x_i}).\]
+
+\hypertarget{header-n163}{%
+\subsubsection{\texorpdfstring{ B. Eigenvalue
+problem}{ B. Eigenvalue problem}}\label{header-n163}}
+
+Thus, we obtain the collocation approximation by solving:
+
+\[\sum^{P}_{i=1}\varpi_i q(\mathbf{x_k},\mathbf{x_i})\phi_j(\mathbf{x_i})=q_j\phi_j(\mathbf{x_k}), \ k=1,...,P.\]
+
+In matrix notation:
+
+\[CW\psi_j=q_j\psi_j\]
+
+, where \(C\in \mathbb{R}^{P\times P}\) is the covariance matrix for the
+quadrature points, \(W\in \mathbb{R}^{P\times P}\) is the diagonal
+matrix of weights and \(\psi_j\) contains point evaluations of
+\(\phi_j\).
+
+This is an eigenvalue problem for matrix \(CW\), which may not be
+symmetric. We may alternatively consider the symmetric matrix
+\(K=W^{1/2}CW^{1/2}\), since then
+
+\[Kz_j=q_jz_j \label{symeig}\]
+
+with \(z_j:=W^{1/2}\psi_j\).
+
+\hypertarget{header-n207}{%
+\subsubsection{C. SVD decomposition}\label{header-n207}}
+
+We may apply SVD decomposition to solve \(\eqref{symeig}\):
+
+\[K=USV'\]
+
+, since \(K\) is a symmetric positive definite. (Recall \(q_j>0\) is
+assumed \(\forall j\in \mathbb{N}\).)
+
+Here \(S\) contains the eigenvalues \(q_j\) in non-increasing order, and
+\(U=V\) contains all the corresponding eigenvectors \(z_j\) of \(K\).
+The point evaluations \(\psi_j\) of the eigenvectors \(\phi_j\) can be
+recovered by \(\psi_j=W^{-1/2}z_j\) .
+
+\hypertarget{header-n220}{%
+\subsubsection{D. Vertex-based quadrature}\label{header-n220}}
+
+Partition \(D=[0,1]^2\) into \((N_x-1)\times (N_y-1)\) rectangles with
+edge with side length \(h_x=1/(N_x-1)\), \(h_y=1/(N_y-1)\) and let
+\(\mathbf{x_k}, k=1,2,…,P=N_xN_y\), be the vertices. We apply the
+quadrature (trapezoidal) rule with weights:
+
+\[w_{i}=\left\{\begin{array}{ll}{h_xh_y/ 4,} & {\text { if } x_{i} \text { is a corner of } D,} \\ {h_xh_y / 2,} & {\text { if } x_{i} \text { lies on an edge of } D,} \\ {h_xh_y,} & {\text { if } x_{i} \text { lies in the interior of } D.}\end{array}\right.\]
+
+\hypertarget{header-n225}{%
+\subsubsection{E. Truncated KL expansion}\label{header-n225}}
+
+Consider the finite sum approximation of \(W^Q\) in \(\eqref{Qwiener}\):
+
+\[W_J=\sum^{N_{KL}}_{j=1}\sqrt{q_j}\phi_j(\mathbf{x})w_{j}(t).\]
+
+Here we keep all terms in KL expansion \(N_{KL}=N_xN_y\).
+
+\hypertarget{header-n131}{%
+\subsection{IV. Test}\label{header-n131}}
+
+\hypertarget{header-n316}{%
+\subsubsection{\texorpdfstring{A. Gaussian covariance function:
+\(q(\mathbf{x},\mathbf{x}^{\prime})=\exp \left(\frac{-\left\|\mathbf{x}-\mathbf{x}^{\prime}\right\|^{2}}{2 L_{c}^{2}}\right)\)}{A. Gaussian covariance function: q(\textbackslash mathbf\{x\},\textbackslash mathbf\{x\}\^{}\{\textbackslash prime\})=\textbackslash exp \textbackslash left(\textbackslash frac\{-\textbackslash left\textbackslash\textbar\textbackslash mathbf\{x\}-\textbackslash mathbf\{x\}\^{}\{\textbackslash prime\}\textbackslash right\textbackslash\textbar\^{}\{2\}\}\{2 L\_\{c\}\^{}\{2\}\}\textbackslash right)}}\label{header-n316}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{>> ./ex13_SDE -matlab-engine-graphics -da_refine }\FloatTok{1}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{itemize}
+\item
+  \(N_x=N_y=31, \Delta t=0.01, t_{final}=0.20,\\b=5,c=-30,r=0.5,\\\sigma=1.5,L_{c}=2\)
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{/Users/luminche/soft/petsc/src/ts/examples/tutorials/plot.gif}
+\caption{}
+\end{figure}
+
+\hypertarget{header-n414}{%
+\subsubsection{\texorpdfstring{B. Separable exponential covariance
+function:
+\(q(\mathbf{x},\mathbf{x}^{\prime})=\exp\left(-\frac{|x_1-x^{\prime}_1|}{L_1}\right) \exp\left(-\frac{|x_2-x^{\prime}_2|}{L_2}\right)\)}{B. Separable exponential covariance function: q(\textbackslash mathbf\{x\},\textbackslash mathbf\{x\}\^{}\{\textbackslash prime\})=\textbackslash exp\textbackslash left(-\textbackslash frac\{\textbar x\_1-x\^{}\{\textbackslash prime\}\_1\textbar\}\{L\_1\}\textbackslash right) \textbackslash exp\textbackslash left(-\textbackslash frac\{\textbar x\_2-x\^{}\{\textbackslash prime\}\_2\textbar\}\{L\_2\}\textbackslash right)}}\label{header-n414}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{>> ./ex13_SDE -matlab-engine-graphics -da_refine }\FloatTok{1}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{itemize}
+\item
+  \(N_x=N_y=16, \Delta t=0.01, t_{final}=0.20,\\b=5,c=-30,r=0.5,\\\sigma=1.5,L_{x}=0.1,L_{y}=0.1\)
+\end{itemize}
+
+With the warning message from svd():
+
+Warning: Reached maximum number of sweeps (64) in SVD routine
+
+\begin{figure}
+\centering
+\includegraphics{/Users/luminche/soft/petsc/src/ts/examples/tutorials/SepExp_sigma=1.5,Lx=0.1,Ly=0.1.gif}
+\caption{}
+\end{figure}
+
+\hypertarget{header-n429}{%
+\subsubsection{C. Exponential covariance function:}\label{header-n429}}
+
+\hypertarget{header-n439}{%
+\subsubsection{\texorpdfstring{\(q(\mathbf{x},\mathbf{x}^{\prime})=\exp\left(-\frac{|x_1-x^{\prime}_1|}{L_1}\right) \exp\left(-\frac{|x_2-x^{\prime}_2|}{L_2}\right)\)}{q(\textbackslash mathbf\{x\},\textbackslash mathbf\{x\}\^{}\{\textbackslash prime\})=\textbackslash exp\textbackslash left(-\textbackslash frac\{\textbar x\_1-x\^{}\{\textbackslash prime\}\_1\textbar\}\{L\_1\}\textbackslash right) \textbackslash exp\textbackslash left(-\textbackslash frac\{\textbar x\_2-x\^{}\{\textbackslash prime\}\_2\textbar\}\{L\_2\}\textbackslash right)}}\label{header-n439}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{>> ./ex13_SDE -matlab-engine-graphics}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{itemize}
+\item
+  \(N_x=N_y=16, \Delta t=0.01, t_{final}=0.20,\\b=5,c=-30,r=0.5,\\\sigma=1.5,L_{x}=0.1,L_{y}=0.1\)
+\end{itemize}
+
+With the warning message from svd():
+
+Warning: Reached maximum number of sweeps (64) in SVD routine
+
+\begin{figure}
+\centering
+\includegraphics{/Users/luminche/soft/petsc/src/ts/examples/tutorials/Exp_sigma=1.5,Lc=2.gif}
+\caption{}
+\end{figure}
+
+\end{document}
