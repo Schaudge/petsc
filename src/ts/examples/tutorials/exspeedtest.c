@@ -296,8 +296,11 @@ int main(int argc, char **argv)
 	ierr = PetscLogEventRegister("CommuE", 0, &event);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(event, 0, 0, 0, 0);CHKERRQ(ierr);
-	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
-	ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+        PetscInt		commiter;
+        for (commiter = 0; commiter < 1000; commiter++) {
+        	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+                ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+        }
         /*	Push LocalToGlobal time to log	*/
         ierr = PetscLogEventEnd(event, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
