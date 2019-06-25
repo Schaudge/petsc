@@ -30,8 +30,8 @@ int main(int argc, char **argv)
         ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
         ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_INDEX);CHKERRQ(ierr);
 
-	faceDim[0] = 10;
-	faceDim[1] = 10;
+	faceDim[0] = 2;
+	faceDim[1] = 2;
 	//ierr = DMPlexCreateFromFile(comm, "2D1x1.exo", dmInterp, &dm);CHKERRQ(ierr);
         ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faceDim, NULL, NULL, NULL, dmInterp, &dm);
 
