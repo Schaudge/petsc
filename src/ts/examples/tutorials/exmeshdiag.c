@@ -6,7 +6,6 @@ static char help[] = "Diagnose mesh problems";
 
 # define PETSCVIEWERASCII        "ascii"
 # define PETSCVIEWERVTK          "vtk"
-# define MATAIJ             	 "aij"
 # define CHAR_LEN		 5
 
 /*	2D Array Routines	*/
@@ -541,6 +540,20 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat *detJac)
 	return ierr;
 }
 
+PetscErrorCode GeneralInfo(MPI_Comm comm, PetscViewer genViewer)
+{
+	PetscErrorCode 	ierr;
+	char		bar[15] = "--------------";
+	const char 	*string;
+	size_t 		size;
+
+
+	ierr = PetscPrintf(comm, "%s General Info %s\n", bar, bar);CHKERRQ(ierr);
+	ierr = PetscViewerStringGetStringRead(genViewer, &string, &size);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, string);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "%s End General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
+	return ierr;
+}
 /*	Geometry	*/
 PetscErrorCode Cell2Coords(DM dm, PetscInt cellId, PetscInt *points)
 {
@@ -603,6 +616,7 @@ int main(int argc, char **argv)
 {
         PetscErrorCode          ierr;
         MPI_Comm                comm;
+	PetscViewer		genViewer;
         DM                      dm, dmDist, coordDM;
         PetscSection            section;
         PetscBool               dmInterp = PETSC_TRUE;
@@ -612,11 +626,14 @@ int main(int argc, char **argv)
         PetscScalar             lx = 1.0, ly = 2.0, phi = 0.2;
         PetscInt                deformBoolArray[5], faces[2], numComp[1], numDOF[3], bcField[1];
         Mat			Jac, detJac;
+	char			genInfo[2048];
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
+	ierr = PetscViewerStringOpen(comm, genInfo, sizeof(genInfo), &genViewer);CHKERRQ(ierr);
 
 	for (i = 0; i < 9; i++){
+		ierr = PetscViewerStringSPrintf(genViewer, "Run %d: ", i);CHKERRQ(ierr);
 		for (booli = 0; booli < 5; booli++){
 		/*	Array used to check which deform was used	*/
 			deformBoolArray[booli] = 0;
@@ -659,25 +676,27 @@ int main(int argc, char **argv)
 		ierr = DMGetLocalToGlobalMapping(dm, &ltogmap);CHKERRQ(ierr);
 		ierr = MatSetLocalToGlobalMapping(detJac, ltogmap, ltogmap);CHKERRQ(ierr);
 
-		//		ierr = StretchArray2D(dm, lx, ly, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = StretchArray2D(dm, lx, ly, deformId, deformBoolArray);CHKERRQ(ierr);
 		ierr = ShearArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
-		//		ierr = SkewArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
-		//		ierr = LargeAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
-		//		ierr = SmallAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = SkewArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = LargeAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = SmallAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
 
-		if (deformBoolArray[0]){ierr = Stretch2DJacobian(dm, xdim, ydim, lx, ly, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "Stretch used\n");CHKERRQ(ierr);}
-		if (deformBoolArray[1]){ierr = Shear2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "Shear used\n");CHKERRQ(ierr);}
-		if (deformBoolArray[2]){ierr = Skew2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "Skew used\n");CHKERRQ(ierr);}
-		if (deformBoolArray[3]){ierr = LargeAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "LA used\n");CHKERRQ(ierr);}
-		if (deformBoolArray[4]){ierr = SmallAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "SA used\n");CHKERRQ(ierr);}
+		if (deformBoolArray[0]){ierr = Stretch2DJacobian(dm, xdim, ydim, lx, ly, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "Stretch used ");CHKERRQ(ierr);}
+		if (deformBoolArray[1]){ierr = Shear2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "Shear used ");CHKERRQ(ierr);}
+		if (deformBoolArray[2]){ierr = Skew2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "Skew used ");CHKERRQ(ierr);}
+		if (deformBoolArray[3]){ierr = LargeAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "LA used ");CHKERRQ(ierr);}
+		if (deformBoolArray[4]){ierr = SmallAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "SA used ");CHKERRQ(ierr);}
 
 		ierr = MatAssemblyBegin(Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyEnd(Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyBegin(detJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyEnd(detJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = VTKPlotter(dm, deformId, &detJac);CHKERRQ(ierr);
-		ierr = PetscPrintf(comm, "Wrote vtk file to: %s\n", deformId);CHKERRQ(ierr);
+		ierr = PetscViewerStringSPrintf(genViewer, "\n->Wrote vtk to: %s\n", deformId);CHKERRQ(ierr);
 	}
+	ierr = PetscViewerStringSPrintf(genViewer, "Total runs: %d\n", i);CHKERRQ(ierr);
+	ierr = GeneralInfo(comm, genViewer);CHKERRQ(ierr);
 	ierr = DMDestroy(&coordDM);CHKERRQ(ierr);
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
