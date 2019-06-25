@@ -14,7 +14,7 @@ int main(int argc, char **argv)
         PetscSection		section;
         PetscBool		dmInterp = PETSC_TRUE;
         IS			points, bcPointsIS;
-        PetscInt		dim = 3, dStart, dEnd, i, counter = 0, numFields, numBC;
+        PetscInt		dim = 2, dStart, dEnd, i, counter = 0, numFields, numBC;
         PetscScalar		*coordArray;
         PetscInt		numComp[1], numDOF[1], bcField[1];
         const PetscInt		*idx;
