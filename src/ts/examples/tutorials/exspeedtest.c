@@ -100,7 +100,7 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
         return ierr;
 }
 
-PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedTest, PetscBool fileflg, PetscBool dmDistributed, PetscBool dmInterped, PetscBool dispFlag, PetscBool isView, PetscBool VTKdisp, PetscBool dmDisp, PetscBool sectionDisp, PetscBool arrayDisp, PetscBool coordDisp, PetscInt globalSize, PetscInt globalCellSize, PetscPartitionerType partitionername, char* filename)
+PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedTest, PetscBool fileflg, PetscBool dmDistributed, PetscBool dmInterped, PetscBool dispFlag, PetscBool isView, PetscBool VTKdisp, PetscBool dmDisp, PetscBool sectionDisp, PetscBool arrayDisp, PetscBool coordDisp, PetscInt globalSize, PetscInt globalCellSize, PetscPartitionerType partitionername, char* filename, PetscInt dim)
 {
 	PetscErrorCode		ierr;
 
@@ -108,6 +108,7 @@ PetscErrorCode InfoSummaryPrintHelper(MPI_Comm comm, char* bar, PetscBool speedT
 	ierr = PetscPrintf(comm, "Partitioner Used:%s>%s\n", bar + 2, partitionername);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "Global Node Num:%s>%d\n", bar + 1, globalSize);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "Dimension of mesh:%s>%d\n", bar + 3, dim);CHKERRQ(ierr);
 	if (fileflg) {
 		ierr = PetscPrintf(comm, "File read name:%s>%s\n", bar, filename);CHKERRQ(ierr);
 	}
@@ -142,7 +143,7 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
 	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 3, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize;
+	PetscInt		dim = 2, meshSize = 10, i, j, k, numFields, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize;
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen=0;
 	PetscScalar 		dot, *coords, *array;
@@ -161,17 +162,22 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsBool("-arrview", "Turn on array display", "", arrayDisp, &arrayDisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-coordview","Turn on coordinate display", "", coordDisp, &coordDisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, sizeof(filename), &fileflg); CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(NULL, NULL, "-n", &meshSize, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &dim, NULL);CHKERRQ(ierr);
 	}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
 
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
-		faces[0] = 10;
-		faces[1] = 10;
+		for(i = 0; i < dim; i++){
+			/* Make the default box mesh creation with CLI options	*/
+			faces[i] = meshSize;
+		}
           	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
         } else {
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
+		ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
         }
 
 	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
@@ -297,7 +303,7 @@ int main(int argc, char **argv)
 	ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(event, 0, 0, 0, 0);CHKERRQ(ierr);
         PetscInt		commiter;
-        for (commiter = 0; commiter < 1000; commiter++) {
+        for (commiter = 0; commiter < 1; commiter++) {
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
@@ -341,7 +347,7 @@ int main(int argc, char **argv)
 	ierr = DMPlexGetPartitioner(dm, &partitioner);CHKERRQ(ierr);CHKERRQ(ierr);
 	ierr = PetscPartitionerGetType(partitioner, &partitionername);CHKERRQ(ierr);
 
-	ierr = InfoSummaryPrintHelper(comm, bar, speedTest, fileflg, dmDistributed, dmInterped, dispFlag, isView, VTKdisp, dmDisp, sectionDisp, arrayDisp, coordDisp, globalSize, globalCellSize, partitionername, filename);CHKERRQ(ierr);
+	ierr = InfoSummaryPrintHelper(comm, bar, speedTest, fileflg, dmDistributed, dmInterped, dispFlag, isView, VTKdisp, dmDisp, sectionDisp, arrayDisp, coordDisp, globalSize, globalCellSize, partitionername, filename, dim);CHKERRQ(ierr);
 
 	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 	ierr = DMDestroy(&dm);CHKERRQ(ierr);
