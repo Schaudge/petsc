@@ -533,7 +533,7 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat *detJac)
 	ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
         ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
         ierr = PetscViewerFileSetName(vtkviewer, deformId);CHKERRQ(ierr);
-	ierr = VecView(jacobianval, vtkviewer);CHKERRQ(ierr);
+	//	ierr = VecView(jacobianval, vtkviewer);CHKERRQ(ierr);
 
 	ierr = VecDestroy(&jacobianval);CHKERRQ(ierr);
         ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
@@ -616,7 +616,7 @@ int main(int argc, char **argv)
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
 
-	for (i = 0; i < 1; i++){
+	for (i = 0; i < 9; i++){
 		for (booli = 0; booli < 5; booli++){
 		/*	Array used to check which deform was used	*/
 			deformBoolArray[booli] = 0;
@@ -660,30 +660,23 @@ int main(int argc, char **argv)
 		ierr = MatSetLocalToGlobalMapping(detJac, ltogmap, ltogmap);CHKERRQ(ierr);
 
 		//		ierr = StretchArray2D(dm, lx, ly, deformId, deformBoolArray);CHKERRQ(ierr);
-		ierr = ShearArray2D(dm, PETSC_PI/3, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = ShearArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
 		//		ierr = SkewArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
 		//		ierr = LargeAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
 		//		ierr = SmallAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
 
-		//------------------------------------------------------------------
-		/* Word to the wise: Don't try and combine the jacobian calls as they are
-		   only meant to be called alone (i.e. every jacobian is unique to its
-		   transform). I have left them out of the array modification routines
-		   because those can be combined!!
-		*/
-		//------------------------------------------------------------------
-
-		if (deformBoolArray[0]){ierr = Stretch2DJacobian(dm, xdim, ydim, lx, ly, &Jac, &detJac);CHKERRQ(ierr);printf("stretch used\n");}
-		if (deformBoolArray[1]){ierr = Shear2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);printf("shear used\n");}
-		if (deformBoolArray[2]){ierr = Skew2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);printf("skew used\n");}
-		if (deformBoolArray[3]){ierr = LargeAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);printf("LA used\n");}
-		if (deformBoolArray[4]){ierr = SmallAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);printf("SA used\n");}
+		if (deformBoolArray[0]){ierr = Stretch2DJacobian(dm, xdim, ydim, lx, ly, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "Stretch used\n");CHKERRQ(ierr);}
+		if (deformBoolArray[1]){ierr = Shear2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "Shear used\n");CHKERRQ(ierr);}
+		if (deformBoolArray[2]){ierr = Skew2DJacobian(dm, xdim, ydim, PETSC_PI/3, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "Skew used\n");CHKERRQ(ierr);}
+		if (deformBoolArray[3]){ierr = LargeAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "LA used\n");CHKERRQ(ierr);}
+		if (deformBoolArray[4]){ierr = SmallAngle2DJacobian(dm, xdim, ydim, phi, &Jac, &detJac);CHKERRQ(ierr);ierr = PetscPrintf(comm, "SA used\n");CHKERRQ(ierr);}
 
 		ierr = MatAssemblyBegin(Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyEnd(Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyBegin(detJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyEnd(detJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = VTKPlotter(dm, deformId, &detJac);CHKERRQ(ierr);
+		ierr = PetscPrintf(comm, "Wrote vtk file to: %s\n", deformId);CHKERRQ(ierr);
 	}
 	ierr = DMDestroy(&coordDM);CHKERRQ(ierr);
         ierr = DMDestroy(&dm);CHKERRQ(ierr);
