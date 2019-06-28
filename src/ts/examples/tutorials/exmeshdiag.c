@@ -36,7 +36,7 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly, char *defor
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
-	strcat(deformId,"STR_lx_");
+	strcat(deformId,"STR_LX_");
 	/*	lx	*/
 	snprintf(tempbuf, sizeof(tempbuf), "%f", lx);
 	snprintf(ldecbuf, sizeof(ldecbuf), "%s", strchr(tempbuf, '.')+1);
@@ -44,7 +44,7 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly, char *defor
 	strcat(deformId, lintbuf);
 	strcat(deformId, ldecbuf);
 	/*	ly	*/
-	strcat(deformId,"_ly_");
+	strcat(deformId,"_LY_");
 	snprintf(tempbuf, sizeof(tempbuf), "%f", ly);
 	snprintf(ldecbuf, sizeof(ldecbuf), "%s", strchr(tempbuf, '.')+1);
 	snprintf(lintbuf, sizeof(lintbuf), "%d_", (int) ly);
@@ -84,7 +84,7 @@ PetscErrorCode ShearArray2D(DM dm, PetscScalar theta, char *deformId, PetscInt *
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 
 	/*	String formatting for file name	*/
-	strcat(deformId, "SHR_theta_");
+	strcat(deformId, "SHR_THTA_");
 	snprintf(tempbuf, sizeof(tempbuf), "%f", theta);
 	snprintf(phidecbuf, sizeof(phidecbuf), "%s", strchr(tempbuf, '.')+1);
 	snprintf(phiintbuf, sizeof(phiintbuf), "%d_", (int) theta);
@@ -123,7 +123,7 @@ PetscErrorCode SkewArray2D(DM dm, PetscScalar omega, char *deformId, PetscInt *d
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 
 	/*	String formatting for file name	*/
-	strcat(deformId, "SKW_omega_");
+	strcat(deformId, "SKW_OGA_");
 	snprintf(tempbuf, sizeof(tempbuf), "%f", omega);
 	snprintf(phidecbuf, sizeof(phidecbuf),"%s", strchr(tempbuf, '.')+1);
 	snprintf(phiintbuf, sizeof(phiintbuf), "%d_", (int) omega);
@@ -177,7 +177,7 @@ PetscErrorCode LargeAngleDeformArray2D(DM dm, PetscScalar phi, char *deformId, P
         ierr = VecDestroy(&coordsTemp);CHKERRQ(ierr);
 
 	/*	String formatting for file name	*/
-	strcat(deformId, "LAD_phi_");
+	strcat(deformId, "LAD_Phi_");
 	snprintf(tempbuf, sizeof(tempbuf), "%f", phi);
 	snprintf(phidecbuf, sizeof(phidecbuf), "%s", strchr(tempbuf, '.')+1);
 	snprintf(phiintbuf, sizeof(phiintbuf), "%d_", (int) phi);
@@ -224,7 +224,7 @@ PetscErrorCode SmallAngleDeformArray2D(DM dm, PetscScalar phi, char *deformId, P
         ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 
 	/*	String formatting for file name	*/
-	strcat(deformId, "SAD_phi_");
+	strcat(deformId, "SAD_Phi_");
 	snprintf(tempbuf, sizeof(tempbuf), "%f", phi);
 	snprintf(phidecbuf, sizeof(phidecbuf), "%s", strchr(tempbuf, '.')+1);
 	snprintf(phiintbuf, sizeof(phiintbuf), "%d_", (int) phi);
@@ -261,8 +261,7 @@ PetscErrorCode Stretch2DJacobian(PetscInt xdim, PetscInt ydim, PetscScalar lx, P
 			V[1] = 0;
 			V[2] = 0;
 			V[3] = ly;
-			printf("%d %d\n",II[0], II[1]);
-			printf("%d %d\n\n", J[0], J[1]);
+
 			Jdet[0] = col;
 			detV[0] = lx*ly;
 
@@ -477,7 +476,7 @@ PetscErrorCode DoesMyMeshSuck(DM dm, Mat detJac, Mat Jac, Mat condJac,  PetscSca
 	ierr = VecSet(*perCellMeshScore, 0.0);CHKERRQ(ierr);
 	*AggregateMeshScore = 0.0;
 	ierr = GetCellJacobian(dm, detJac, perCellMeshScore);CHKERRQ(ierr);
-	ierr = ConditionNumber2x2(Jac, condJac);CHKERRQ(ierr);
+
 	//	ierr = QuadrilateralAspectRatio2D(dm, perCellMeshScore);CHKERRQ(ierr);
 
 	ierr = VecGetArray(*perCellMeshScore, &perCellMeshScoreVal);CHKERRQ(ierr);
@@ -485,12 +484,11 @@ PetscErrorCode DoesMyMeshSuck(DM dm, Mat detJac, Mat Jac, Mat condJac,  PetscSca
 	for (i = 0; i < localSize; i++) {
 		//		perCellMeshScoreVal[i] +=
 	}
-
 	return ierr;
 }
 
-/*	Visualization	*/
-PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat detJac)
+/*	Visualization and Output	*/
+PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt outFlag)
 {
 	PetscErrorCode		ierr;
 	MPI_Comm		comm;
@@ -498,11 +496,10 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat detJac)
 	DM			dmLocal;
 	PetscSF         	sfPoint;
         PetscSection    	coordSection;
-        Vec             	coordinates, cellJacobian;
+        Vec             	coordinates;
         PetscSection    	sectionLocal;
         PetscInt        	sStart, sEnd, sIter;
 
-	strcat(deformId, ".vtk");
 	ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
 
 	/*	Make Temp DM	*/
@@ -529,19 +526,50 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat detJac)
         ierr = DMSetSection(dmLocal, sectionLocal);CHKERRQ(ierr);
 	ierr = PetscSectionDestroy(&sectionLocal);CHKERRQ(ierr);
 
-	/*	Gets a vector linking to the cells	*/
-	ierr = DMCreateLocalVector(dmLocal, &cellJacobian);CHKERRQ(ierr);
-	ierr = PetscObjectSetName((PetscObject)cellJacobian, "Jacobian_value_per_cell");CHKERRQ(ierr);
-	ierr = GetCellJacobian(dmLocal, detJac, &cellJacobian);CHKERRQ(ierr);
+	switch(outFlag) {
+	case 0:
+		{
+		/*	Gets a vector linking to the cells	*/
+			Vec	cellJacobian;
 
-	ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
-        ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
-        ierr = PetscViewerFileSetName(vtkviewer, deformId);CHKERRQ(ierr);
-	ierr = VecView(cellJacobian, vtkviewer);CHKERRQ(ierr);
+			ierr = DMCreateLocalVector(dmLocal, &cellJacobian);CHKERRQ(ierr);
+			ierr = PetscObjectSetName((PetscObject)cellJacobian, "Jacobian_value_per_cell");CHKERRQ(ierr);
+			ierr = GetCellJacobian(dmLocal, outMat, &cellJacobian);CHKERRQ(ierr);
 
-	ierr = VecDestroy(&cellJacobian);CHKERRQ(ierr);
-        ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
-	ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
+			strcat(deformId, "_JAC.vtk");
+			ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
+			ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
+			ierr = PetscViewerFileSetName(vtkviewer, deformId);CHKERRQ(ierr);
+			ierr = VecView(cellJacobian, vtkviewer);CHKERRQ(ierr);
+
+			ierr = VecDestroy(&cellJacobian);CHKERRQ(ierr);
+			ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+			ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
+		break;
+		}
+	case 1:
+		{
+		/*	Gets a vector linking to the cells	*/
+			Mat	condCopy;
+
+			ierr = MatDuplicate(outMat, MAT_COPY_VALUES, &condCopy);CHKERRQ(ierr);
+			ierr = PetscObjectSetName((PetscObject)condCopy, "Condition_number_of_Jacobian_per_Vertex");CHKERRQ(ierr);
+
+			strcat(deformId, "_COND.vtk");
+			ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
+			ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
+			ierr = PetscViewerFileSetName(vtkviewer, deformId);CHKERRQ(ierr);
+			ierr = MatView(condCopy, vtkviewer);CHKERRQ(ierr);
+
+			ierr = MatDestroy(&condCopy);CHKERRQ(ierr);
+			ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+			ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
+		break;
+		}
+	default:
+		printf("didnt print\n");
+		break;
+	}
 	return ierr;
 }
 
@@ -700,11 +728,12 @@ PetscErrorCode ConditionNumber2x2(Mat Jac, Mat condJac)
 	ierr = MatSetValue(Imat, 1, 1, 1.0, INSERT_VALUES);CHKERRQ(ierr);
 	ierr = MatSetUp(Imat);CHKERRQ(ierr);
 	ierr = MatSetUp(inverseMat);CHKERRQ(ierr);
-	MatView(Jac, 0);
+
 	for (subMatIterX = 0; subMatIterX < numSubMatsX; subMatIterX++) {
 		idx[0] = 2*subMatIterX;
 		idx[1] = (2*subMatIterX)+1;
 		ierr = ISCreateGeneral(comm, 2, idx, PETSC_COPY_VALUES, &subMatISX);CHKERRQ(ierr);
+
 		for (subMatIterY = 0; subMatIterY < numSubMatsY; subMatIterY++) {
 			jdx[0] = 2*subMatIterY;
 			jdx[1] = (2*subMatIterY)+1;
@@ -714,8 +743,6 @@ PetscErrorCode ConditionNumber2x2(Mat Jac, Mat condJac)
 			ierr = MatNorm(subMat, NORM_1, &regNorm);CHKERRQ(ierr);
 
 			ierr = Invert2x2(subMat, inverseMat);CHKERRQ(ierr);
-			ierr = MatAssemblyBegin(inverseMat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-			ierr = MatAssemblyEnd(inverseMat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 			ierr = MatNorm(inverseMat, NORM_1, &invNorm);CHKERRQ(ierr);
 			condNumber = regNorm/invNorm;
 
@@ -750,31 +777,9 @@ PetscErrorCode Invert2x2(Mat regMat, Mat inMat)
 			ierr = MatDenseRestoreArrayRead(regMat, &regMatArray);CHKERRQ(ierr);
 			ierr = MatDenseRestoreArray(inMat, &inMatArray);CHKERRQ(ierr);
 		} else {
-			// Matrix is singular, compute speudo inverse A+ = A^T*(A*A^T)^-1
-			ierr = PetscPrintf(PETSC_COMM_WORLD, "Matrix is singular! Make psuedo inverse\n");CHKERRQ(ierr);
-			Mat	transMat, tempInsideMatProd, tempInsideMatProdOut;
-
-			ierr = MatDenseRestoreArrayRead(regMat, &regMatArray);CHKERRQ(ierr);
-			ierr = MatDenseRestoreArray(inMat, &inMatArray);CHKERRQ(ierr);
-			ierr = MatZeroEntries(inMat);CHKERRQ(ierr);
-			/*
-			ierr = MatDuplicate(regMat, MAT_DO_NOT_COPY_VALUES, &transMat);CHKERRQ(ierr);
-			ierr = MatDuplicate(regMat, MAT_DO_NOT_COPY_VALUES, &tempInsideMatProd);CHKERRQ(ierr);
-			ierr = MatDuplicate(regMat, MAT_DO_NOT_COPY_VALUES, &tempInsideMatProdOut);CHKERRQ(ierr);
-			ierr = MatSetUp(transMat);CHKERRQ(ierr);
-			ierr = MatSetUp(tempInsideMatProd);CHKERRQ(ierr);
-			ierr = MatSetUp(tempInsideMatProdOut);CHKERRQ(ierr);
-
-			ierr = MatTranspose(regMat, MAT_INITIAL_MATRIX, &transMat);CHKERRQ(ierr);
-			ierr = MatMatMult(regMat, transMat, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tempInsideMatProd);CHKERRQ(ierr);
-
-			ierr = Invert2x2(tempInsideMatProd, tempInsideMatProdOut);CHKERRQ(ierr);
-			ierr = MatTransposeMatMult(regMat, tempInsideMatProdOut, MAT_REUSE_MATRIX, PETSC_DEFAULT, &inMat);CHKERRQ(ierr);
-
-			ierr = MatDestroy(&transMat);CHKERRQ(ierr);
-			ierr = MatDestroy(&tempInsideMatProd);CHKERRQ(ierr);
-			ierr = MatDestroy(&tempInsideMatProdOut);CHKERRQ(ierr);
-			*/
+			// Matrix is singular, this shouldn't happen, you have somehow
+			// managed to fuck this up
+			SETERRQ(PETSC_COMM_WORLD, ierr, "Can't invert a singular matrix my guy");
 		}
 	}
 	return ierr;
@@ -816,7 +821,6 @@ int main(int argc, char **argv)
 		xdim = faces[0] + 1;
 		ydim = faces[1] + 1;
 		ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterp, &dm);CHKERRQ(ierr);
-		//        ierr  = DMPlexCreateFromFile(comm, "2Dtri3.exo", dmInterp, &dm);CHKERRQ(ierr);
 
 		ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
 		if (dmDist) {ierr = DMDestroy(&dm);CHKERRQ(ierr); dm = dmDist;}
@@ -843,18 +847,21 @@ int main(int argc, char **argv)
 		ierr = MatCreateDense(comm, PETSC_DECIDE, PETSC_DECIDE, 2*xdim, 2*ydim, NULL, &Jac);CHKERRQ(ierr);
 		ierr = DMGetLocalToGlobalMapping(dm, &ltogmapJac);CHKERRQ(ierr);
 		ierr = MatSetLocalToGlobalMapping(Jac, ltogmapJac, ltogmapJac);CHKERRQ(ierr);
-		ierr = MatZeroEntries(Jac);CHKERRQ(ierr);
 		ierr = MatCreateDense(comm, PETSC_DECIDE, PETSC_DECIDE, xdim, ydim, NULL, &detJac);CHKERRQ(ierr);
 		ierr = DMGetLocalToGlobalMapping(dm, &ltogmap);CHKERRQ(ierr);
 		ierr = MatSetLocalToGlobalMapping(detJac, ltogmap, ltogmap);CHKERRQ(ierr);
 		ierr = MatDuplicate(detJac,  MAT_DO_NOT_COPY_VALUES, &condJac);CHKERRQ(ierr);
 
+		ierr = MatZeroEntries(Jac);CHKERRQ(ierr);
+		ierr = MatZeroEntries(detJac);CHKERRQ(ierr);
+		ierr = MatZeroEntries(condJac);CHKERRQ(ierr);
+
 		/*	Deformations	*/
 		ierr = StretchArray2D(dm, lx, ly, deformId, deformBoolArray);CHKERRQ(ierr);
-		//ierr = ShearArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
-		//ierr = SkewArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
-		//ierr = LargeAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
-		//ierr = SmallAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = ShearArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = SkewArray2D(dm, dynamic_theta, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = LargeAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
+		ierr = SmallAngleDeformArray2D(dm, phi, deformId, deformBoolArray);CHKERRQ(ierr);
 
 		/*	Jacobian Generation	*/
 		if (deformBoolArray[0]){ierr = Stretch2DJacobian(xdim, ydim, lx, ly, Jac, detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "Stretch used ");CHKERRQ(ierr);}
@@ -863,18 +870,25 @@ int main(int argc, char **argv)
 		if (deformBoolArray[3]){ierr = LargeAngle2DJacobian(dm, xdim, ydim, phi, Jac, detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "LA used ");CHKERRQ(ierr);}
 		if (deformBoolArray[4]){ierr = SmallAngle2DJacobian(dm, xdim, ydim, phi, Jac, detJac);CHKERRQ(ierr);ierr = PetscViewerStringSPrintf(genViewer, "SA used ");CHKERRQ(ierr);}
 
+		/*	Assemble EVERYTHING	*/
 		ierr = MatAssemblyBegin(Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyEnd(Jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyBegin(detJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 		ierr = MatAssemblyEnd(detJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-		ierr = VTKPlotter(dm, deformId, detJac);CHKERRQ(ierr);
+		ierr = ConditionNumber2x2(Jac, condJac);CHKERRQ(ierr);
+		ierr = MatAssemblyBegin(condJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+		ierr = MatAssemblyEnd(condJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+		/*	Output	*/
+		ierr = VTKPlotter(dm, deformId, detJac, 0);CHKERRQ(ierr);
 		ierr = PetscViewerStringSPrintf(genViewer, "\n->Wrote vtk to: %s\n", deformId);CHKERRQ(ierr);
 	}
 	ierr = DMCreateLocalVector(dm, &perCellMeshScore);CHKERRQ(ierr);
 	ierr = DoesMyMeshSuck(dm, detJac, Jac, condJac,  &AggregateMeshScore, &perCellMeshScore);CHKERRQ(ierr);
 	ierr = PetscViewerStringSPrintf(genViewer, "Total runs: %d\n", i);CHKERRQ(ierr);
 	ierr = GeneralInfo(comm, genViewer);CHKERRQ(ierr);
-        ierr = DMDestroy(&dm);CHKERRQ(ierr);
+	ierr = VecDestroy(&perCellMeshScore);CHKERRQ(ierr);
+	ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
         return ierr;
 }
