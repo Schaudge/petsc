@@ -35,7 +35,7 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly, char *defor
                 }
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
+	ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 	strcat(deformId,"STR_LX_");
 	/*	lx	*/
 	snprintf(tempbuf, sizeof(tempbuf), "%f", lx);
@@ -488,7 +488,7 @@ PetscErrorCode DoesMyMeshSuck(DM dm, Mat detJac, Mat Jac, Mat condJac,  PetscSca
 }
 
 /*	Visualization and Output	*/
-PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt outFlag)
+PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt visID)
 {
 	PetscErrorCode		ierr;
 	MPI_Comm		comm;
@@ -526,8 +526,13 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt outFlag)
         ierr = DMSetSection(dmLocal, sectionLocal);CHKERRQ(ierr);
 	ierr = PetscSectionDestroy(&sectionLocal);CHKERRQ(ierr);
 
-	switch(outFlag) {
+	switch(visID) {
 	case 0:
+		{
+			SETERRQ(comm, ierr, "visID 0 isn't supported rn, would visualize jacobian master matrix, but you probably don't want to see that anyways");
+			break;
+		}
+	case 1:
 		{
 		/*	Gets a vector linking to the cells	*/
 			Vec	cellJacobian;
@@ -547,7 +552,7 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt outFlag)
 			ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 		break;
 		}
-	case 1:
+	case 2:
 		{
 		/*	Gets a vector linking to the cells	*/
 			Mat	condCopy;
@@ -567,7 +572,7 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt outFlag)
 		break;
 		}
 	default:
-		printf("didnt print\n");
+		SETERRQ1(comm, ierr, "You gave an invalid visID = %d", visID);
 		break;
 	}
 	return ierr;
@@ -728,7 +733,6 @@ PetscErrorCode ConditionNumber2x2(Mat Jac, Mat condJac)
 	ierr = MatSetValue(Imat, 1, 1, 1.0, INSERT_VALUES);CHKERRQ(ierr);
 	ierr = MatSetUp(Imat);CHKERRQ(ierr);
 	ierr = MatSetUp(inverseMat);CHKERRQ(ierr);
-	printf("%d %d\n", numSubMatsX, numSubMatsY);
 	for (subMatIterX = 0; subMatIterX < numSubMatsX; subMatIterX++) {
 		idx[0] = 2*subMatIterX;
 		idx[1] = (2*subMatIterX)+1;
@@ -796,10 +800,10 @@ int main(int argc, char **argv)
         IS                      bcPointsIS;
 	ISLocalToGlobalMapping	ltogmap, ltogmapJac;
 	Vec			perCellMeshScore;
-        PetscInt                i, k, booli, dim = 2, xdim,  ydim, numFields, numBC;
+        PetscInt                i, k, booli, dim = 2, xdim,  ydim, numFields, numBC, visID = 1;
         PetscScalar             lx = 1.0, ly = 1.0, phi = 0.2, AggregateMeshScore;
         PetscInt                deformBoolArray[5], faces[2], numComp[1], numDOF[3], bcField[1];
-        Mat			Jac, detJac, condJac;
+        Mat			Jac, detJac, condJac, allMats[3];
 	char			genInfo[2048];
 
         ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
@@ -880,7 +884,12 @@ int main(int argc, char **argv)
 		ierr = MatAssemblyEnd(condJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
 		/*	Output	*/
-		ierr = VTKPlotter(dm, deformId, condJac, 1);CHKERRQ(ierr);
+		allMats[0] = Jac;
+		allMats[1] = detJac;
+		allMats[2] = condJac;
+		// Change visID above to display your desired output, so far only 1, 2 are
+		// supported. Check VTKPlotter to see what they plot
+		ierr = VTKPlotter(dm, deformId, allMats[visID], visID);CHKERRQ(ierr);
 		ierr = PetscViewerStringSPrintf(genViewer, "\n->Wrote vtk to: %s\n", deformId);CHKERRQ(ierr);
 	}
 	ierr = DMCreateLocalVector(dm, &perCellMeshScore);CHKERRQ(ierr);
