@@ -548,8 +548,6 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt visID)
 			ierr = VecView(cellJacobian, vtkviewer);CHKERRQ(ierr);
 
 			ierr = VecDestroy(&cellJacobian);CHKERRQ(ierr);
-			ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
-			ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 		break;
 		}
 	case 2:
@@ -567,14 +565,14 @@ PetscErrorCode VTKPlotter(DM dm, char *deformId, Mat outMat, PetscInt visID)
 			ierr = MatView(condCopy, vtkviewer);CHKERRQ(ierr);
 
 			ierr = MatDestroy(&condCopy);CHKERRQ(ierr);
-			ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
-			ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 		break;
 		}
 	default:
 		SETERRQ1(comm, ierr, "You gave an invalid visID = %d", visID);
 		break;
 	}
+	ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+	ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 	return ierr;
 }
 
@@ -757,6 +755,8 @@ PetscErrorCode ConditionNumber2x2(Mat Jac, Mat condJac)
 		}
 		ierr = ISDestroy(&subMatISX);CHKERRQ(ierr);
 	}
+	ierr = MatDestroy(&Imat);CHKERRQ(ierr);
+	ierr = MatDestroy(&inverseMat);CHKERRQ(ierr);
 	return ierr;
 }
 
@@ -896,6 +896,12 @@ int main(int argc, char **argv)
 	ierr = DoesMyMeshSuck(dm, detJac, Jac, condJac,  &AggregateMeshScore, &perCellMeshScore);CHKERRQ(ierr);
 	ierr = PetscViewerStringSPrintf(genViewer, "Total runs: %d\n", i);CHKERRQ(ierr);
 	ierr = GeneralInfo(comm, genViewer);CHKERRQ(ierr);
+
+	ierr = PetscViewerDestroy(&genViewer);CHKERRQ(ierr);
+	ierr = MatDestroy(&Jac);CHKERRQ(ierr);
+	ierr = MatDestroy(&detJac);CHKERRQ(ierr);
+	ierr = MatDestroy(&condJac);CHKERRQ(ierr);
+	ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
 	ierr = VecDestroy(&perCellMeshScore);CHKERRQ(ierr);
 	ierr = DMDestroy(&dm);CHKERRQ(ierr);
         ierr = PetscFinalize();CHKERRQ(ierr);
