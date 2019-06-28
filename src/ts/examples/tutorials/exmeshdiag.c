@@ -728,7 +728,7 @@ PetscErrorCode ConditionNumber2x2(Mat Jac, Mat condJac)
 	ierr = MatSetValue(Imat, 1, 1, 1.0, INSERT_VALUES);CHKERRQ(ierr);
 	ierr = MatSetUp(Imat);CHKERRQ(ierr);
 	ierr = MatSetUp(inverseMat);CHKERRQ(ierr);
-
+	printf("%d %d\n", numSubMatsX, numSubMatsY);
 	for (subMatIterX = 0; subMatIterX < numSubMatsX; subMatIterX++) {
 		idx[0] = 2*subMatIterX;
 		idx[1] = (2*subMatIterX)+1;
@@ -746,7 +746,7 @@ PetscErrorCode ConditionNumber2x2(Mat Jac, Mat condJac)
 			ierr = MatNorm(inverseMat, NORM_1, &invNorm);CHKERRQ(ierr);
 			condNumber = regNorm/invNorm;
 
-			ierr = MatSetValue(condJac, subMatIterX/3, subMatIterY/3, condNumber, INSERT_VALUES);CHKERRQ(ierr);
+			ierr = MatSetValue(condJac, subMatIterX, subMatIterY, condNumber, INSERT_VALUES);CHKERRQ(ierr);
 
 			ierr = MatDestroy(&subMat);CHKERRQ(ierr);
 			ierr = ISDestroy(&subMatISY);CHKERRQ(ierr);
@@ -880,7 +880,7 @@ int main(int argc, char **argv)
 		ierr = MatAssemblyEnd(condJac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
 		/*	Output	*/
-		ierr = VTKPlotter(dm, deformId, detJac, 0);CHKERRQ(ierr);
+		ierr = VTKPlotter(dm, deformId, condJac, 1);CHKERRQ(ierr);
 		ierr = PetscViewerStringSPrintf(genViewer, "\n->Wrote vtk to: %s\n", deformId);CHKERRQ(ierr);
 	}
 	ierr = DMCreateLocalVector(dm, &perCellMeshScore);CHKERRQ(ierr);
