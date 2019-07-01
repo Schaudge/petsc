@@ -15,33 +15,33 @@
 #include <petscblaslapack.h>
 
 typedef struct {
-  PetscInt   n, n_local, n_local_true;
-  PetscInt   overlap;             /* overlap requested by user */
-  KSP        *ksp;                /* linear solvers for each block */
-  VecScatter restriction;         /* mapping from global to overlapping (process) subdomain*/
-  VecScatter *lrestriction;       /* mapping from subregion to overlapping (process) subdomain */
-  VecScatter *lprolongation;      /* mapping from non-overlapping subregion to overlapping (process) subdomain; used for restrict additive version of algorithms */
-  Vec        lx, ly;              /* work vectors */
-  Vec        *x,*y;               /* work vectors */
-  IS         lis;                 /* index set that defines each overlapping multiplicative (process) subdomain */
-  IS         *is;                 /* index set that defines each overlapping subdomain */
-  IS         *is_local;           /* index set that defines each non-overlapping subdomain, may be NULL */
-  IS         sd_is,is_restrict;   /* index set to number the subdomains */
-  Mat        locnullsp;           /* local null space for coarse problem*/
-  Mat        coarseU,coarseVt ;   /*SVD factorization of the coarse matrix*/
-  Vec        coarseS;             /*SVD factorization of the coarse matrix*/
-  Mat        *mat,*pmat;          /* mat is not currently used */
-  PCASMType  type;                /* use reduced interpolation, restriction or both */
-  PetscBool  type_set;            /* if user set this value (so won't change it for symmetric problems) */
-  PetscBool  same_local_solves;   /* flag indicating whether all local solvers are same */
-  PetscBool  sort_indices;        /* flag to sort subdomain indices */
-  PetscBool  dm_subdomains;       /* whether DM is allowed to define subdomains */
-  PetscInt   use_kernel;          /* used in multiprecond 0 no kernel, 1 1 vector/subdomain ... ; should be an enum in the end*/
-  PetscScalar   smallAbs;          /* criterion for svd truncation */
+  PetscInt        n, n_local, n_local_true;
+  PetscInt        overlap;             /* overlap requested by user */
+  KSP             *ksp;                /* linear solvers for each block */
+  VecScatter      restriction;         /* mapping from global to overlapping (process) subdomain*/
+  VecScatter      *lrestriction;       /* mapping from subregion to overlapping (process) subdomain */
+  VecScatter      *lprolongation;      /* mapping from non-overlapping subregion to overlapping (process) subdomain; used for restrict additive version of algorithms */
+  Vec             lx, ly;              /* work vectors */
+  Vec             *x,*y;               /* work vectors */
+  IS              lis;                 /* index set that defines each overlapping multiplicative (process) subdomain */
+  IS              *is;                 /* index set that defines each overlapping subdomain */
+  IS              *is_local;           /* index set that defines each non-overlapping subdomain, may be NULL */
+  IS              sd_is,is_restrict;   /* index set to number the subdomains */
+  Mat             locnullsp;           /* local null space for coarse problem*/
+  Mat             coarseU,coarseVt ;   /*SVD factorization of the coarse matrix*/
+  Vec             coarseS;             /*SVD factorization of the coarse matrix*/
+  Mat             *mat,*pmat;          /* mat is not currently used */
+  PCASMType       type;                /* use reduced interpolation, restriction or both */
+  PetscBool       type_set;            /* if user set this value (so won't change it for symmetric problems) */
+  PetscBool       same_local_solves;   /* flag indicating whether all local solvers are same */
+  PetscBool       sort_indices;        /* flag to sort subdomain indices */
+  PetscBool       dm_subdomains;       /* whether DM is allowed to define subdomains */
+  PetscInt        use_kernel;          /* used in multiprecond 0 no kernel, 1 1 vector/subdomain ... ; should be an enum in the end*/
+  PetscScalar     smallAbs;          /* criterion for svd truncation */
   PCCompositeType loctype;        /* the type of composition for local solves */
-  MatType    sub_mat_type;        /* the type of Mat used for subdomain solves (can be MATSAME or NULL) */
+  MatType         sub_mat_type;        /* the type of Mat used for subdomain solves (can be MATSAME or NULL) */
   /* For multiplicative solve */
-  Mat       *lmats;               /* submatrices for overlapping multiplicative (process) subdomain */
+  Mat             *lmats;               /* submatrices for overlapping multiplicative (process) subdomain */
 } PC_ASM;
 
 static PetscErrorCode PCView_ASM(PC pc,PetscViewer viewer)
@@ -528,7 +528,7 @@ static PetscErrorCode PCApply_ASM(PC pc,Vec x,Vec y)
         if ( osm->loctype == PC_COMPOSITE_MULTIPLICATIVE){
           /* udpdate the overlapping (i+1)-block RHS using the current local solution */
           ierr = MatMult(osm->lmats[i+1], osm->ly, osm->y[i+1]);CHKERRQ(ierr);
-          ierr = VecAXPBY(osm->x[i+1],-1.,1., osm->y[i+1]); CHKERRQ(ierr);
+          ierr = VecAXPBY(osm->x[i+1],-1.,1., osm->y[i+1]);CHKERRQ(ierr);
         }
       }
     }
@@ -541,6 +541,28 @@ static PetscErrorCode PCApply_ASM(PC pc,Vec x,Vec y)
   PetscFunctionReturn(0);
 }
 
+/*@C
+    PCApplyMultiPrecond_ASM - Each block returns one search directions (instead of just one direction for all blocks).
+
+    Input Parameters:
+    pc - the preconditioner context
+.   x  - the input vector (in general residual)
+.   
+    Output:
+    Y - the matrix gathering the search direction
+    
+    Options Database Key:
+    -pc_asm_use_kernel <num> : experimental taking account of (near)nullspace
+                               0 (default) : no support, 1 the nearnullspace contributes to one extra direction.
+
+    Notes:
+    The treatment of redundant search directions is delegated to the multipreconditioned solver.
+
+    Level: advanced
+
+.seealso: KSPMPCG, KSPMPOMIN
+
+@*/
 static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
 {
   PC_ASM         *osm = (PC_ASM*)pc->data;
@@ -549,20 +571,25 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
   PetscMPIInt    rank,size;
   ScatterMode    forward = SCATTER_FORWARD,reverse = SCATTER_REVERSE;
   const PetscInt *idcol,*idrows;
-  PetscScalar    *Vvalues;
-  Vec            y; //PG Not proud of this but helpful
- 
- Vec            multiplicity,locmultiplicity;
- Mat            Amat,Pmat;
- MatNullSpace   nullsp;
- int            nullspcol;
-  
+  PetscScalar    *Vvalues,*arrayS,dummy;
+  Vec            y; 
+  Vec            multiplicity,locmultiplicity;
+  Mat            Amat,Pmat,coarseR;
+  MatNullSpace   nullsp;
+  PetscMPIInt    *sd_by_pro, nn;
+  PetscInt       start,end,first,k,total,thecol,nullspcol;
+  PetscInt       VecGloSize,VecLocSize;
+  Mat_SeqDense   *matU,*matVt,*matcoarseR;
+  Mat            W,coarse_mat;
+  Vec            rhs,rhs_R;
+  VecScatter     vs;
+  IS             glo_is;
+  PetscBLASInt   info;
+  PetscBool      has_cst ;
 
   PetscFunctionBegin;
-
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)pc), &size);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)pc), &rank);CHKERRQ(ierr);
-
   /*
      Support for limiting the restriction or interpolation to only local
      subdomain values (leaving the other values 0).
@@ -574,8 +601,7 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
   }
   if (!(osm->type & PC_ASM_INTERPOLATE)) {
     reverse = SCATTER_REVERSE_LOCAL;
-    PetscInt start,end;
-    ierr = VecGetOwnershipRange(x, &start, &end); CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(x, &start, &end);CHKERRQ(ierr);
     Vsize = end-start;
   } else {
     ierr = VecGetLocalSize(osm->ly, &Vsize);CHKERRQ(ierr);
@@ -586,51 +612,44 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
     First call to the method to intialize data
   */
   ierr = MatGetSize(Z, &i, &j);CHKERRQ(ierr);
-  if (i == 1 && j == 3)
-  {
+  if (i == 1 && j == 3) {
     ierr = MatSetValue(Z, 0, 0, osm->n, INSERT_VALUES);CHKERRQ(ierr);
     ierr = MatSetValue(Z, 0, 1, osm->n_local_true, INSERT_VALUES);CHKERRQ(ierr);
     ierr = MatSetValue(Z, 0, 2, osm->use_kernel, INSERT_VALUES);CHKERRQ(ierr);
-    MatAssemblyBegin(Z, MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(Z, MAT_FINAL_ASSEMBLY);
+    ierr = MatAssemblyBegin(Z, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(Z, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-    PetscMPIInt *sd_by_pro, nn;
-    PetscMalloc1(size, &sd_by_pro);
+    ierr = PetscMalloc1(size, &sd_by_pro);CHKERRQ(ierr);
     ierr = PetscMPIIntCast(osm->n_local_true, &nn);CHKERRQ(ierr);
     ierr = MPI_Allgather(&nn, 1, MPI_INT, sd_by_pro, 1, MPI_INT, PetscObjectComm((PetscObject)pc));CHKERRQ(ierr);
-    PetscInt first = 0,k,total;
-    for (k = 0; k < rank; ++k)
-    {
+    first=0;
+    for (k = 0; k < rank; ++k) {
       first += sd_by_pro[k];
     }
     total=first;
-    for (k = rank; k < size; ++k)
-    {
+    for (k = rank; k < size; ++k) {
       total += sd_by_pro[k];
     }
     ierr = ISCreateStride(PetscObjectComm((PetscObject)pc), osm->n_local_true, first, 1, &osm->sd_is);CHKERRQ(ierr);
-    PetscInt start,end;
-    ierr = VecGetOwnershipRange(x, &start, &end); CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(x, &start, &end);CHKERRQ(ierr);
     ierr = ISCreateStride(PetscObjectComm((PetscObject)pc), end-start, start, 1, &osm->is_restrict);CHKERRQ(ierr);
     PetscFree(sd_by_pro);
 
-/* Preparation of second level if available */
-    ierr = PCGetOperators(pc, &Amat, &Pmat); CHKERRQ(ierr);
-    ierr = MatGetNullSpace(Amat, &nullsp); CHKERRQ(ierr);
+    /* Preparation of second level if available */
+    ierr = PCGetOperators(pc, &Amat, &Pmat);CHKERRQ(ierr);
+    ierr = MatGetNullSpace(Amat, &nullsp);CHKERRQ(ierr);
     if (!nullsp) {
-      ierr = MatGetNearNullSpace(Amat, &nullsp); CHKERRQ(ierr);
+      ierr = MatGetNearNullSpace(Amat, &nullsp);CHKERRQ(ierr);
     }
     if (nullsp) {
-      ierr = MatCreateVecs(Amat,&multiplicity,NULL); CHKERRQ(ierr); 
+      ierr = MatCreateVecs(Amat,&multiplicity,NULL);CHKERRQ(ierr); 
       const Vec *nullvecs ;
-      PetscBool has_cst ;
       ierr = MatNullSpaceGetVecs(nullsp,&has_cst,&nullspcol,&nullvecs);CHKERRQ(ierr);
       nullspcol += has_cst ;
 
-      PetscInt VecGloSize,VecLocSize;
-      ierr = VecGetSize(multiplicity,&VecGloSize); CHKERRQ(ierr);
-      ierr = VecGetLocalSize(multiplicity,&VecLocSize); CHKERRQ(ierr);
-      ierr = MatCreateAIJ(PetscObjectComm((PetscObject)pc), VecLocSize, osm->n_local_true * nullspcol, VecGloSize, total*nullspcol, 0, NULL, 0, NULL, &osm->locnullsp); CHKERRQ(ierr);
+      ierr = VecGetSize(multiplicity,&VecGloSize);CHKERRQ(ierr);
+      ierr = VecGetLocalSize(multiplicity,&VecLocSize);CHKERRQ(ierr);
+      ierr = MatCreateAIJ(PetscObjectComm((PetscObject)pc), VecLocSize, osm->n_local_true * nullspcol, VecGloSize, total*nullspcol, 0, NULL, 0, NULL, &osm->locnullsp);CHKERRQ(ierr);
       ierr = MatSetOption(osm->locnullsp, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);CHKERRQ(ierr);
       ierr = ISGetIndices(osm->lis, &idrows);CHKERRQ(ierr);
       ierr = VecGetLocalSize(osm->ly, &VVsize);CHKERRQ(ierr);
@@ -646,7 +665,7 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
           ierr = VecScatterBegin(osm->restriction, y, osm->lx, INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
           ierr = VecScatterEnd(osm->restriction, y, osm->lx, INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
         }
-        for (k = 0; k<osm->n_local_true ; ++k){
+        for (k = 0; k<osm->n_local_true ; ++k) {
           ierr = VecSet(osm->x[k], 0.0);CHKERRQ(ierr); 
           ierr = VecScatterBegin(osm->lrestriction[k], osm->lx, osm->x[k], INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);
           ierr = VecScatterEnd(osm->lrestriction[k], osm->lx, osm->x[k],  INSERT_VALUES, SCATTER_FORWARD);CHKERRQ(ierr);      
@@ -654,21 +673,20 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
           ierr = VecScatterBegin(osm->lrestriction[k], osm->x[k], osm->ly, INSERT_VALUES, SCATTER_REVERSE);CHKERRQ(ierr);
           ierr = VecScatterEnd(osm->lrestriction[k], osm->x[k], osm->ly, INSERT_VALUES, SCATTER_REVERSE);CHKERRQ(ierr);
           ierr = VecGetArray(osm->ly, &Vvalues);CHKERRQ(ierr);
-          PetscInt thecol = (first+k)*nullspcol  +j ;
+          thecol = (first+k)*nullspcol  +j ;
           ierr = MatSetValues(osm->locnullsp, VVsize, idrows, 1, &thecol, Vvalues, INSERT_VALUES);CHKERRQ(ierr);
           ierr = VecRestoreArray(osm->ly, &Vvalues);CHKERRQ(ierr);
         }
       }
       ierr = ISRestoreIndices(osm->lis, &idrows);CHKERRQ(ierr);
-      MatAssemblyBegin(osm->locnullsp, MAT_FINAL_ASSEMBLY);
-      MatAssemblyEnd(osm->locnullsp, MAT_FINAL_ASSEMBLY);
+      ierr = MatAssemblyBegin(osm->locnullsp, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatAssemblyEnd(osm->locnullsp, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   
       ierr = VecDuplicate(osm->ly,&locmultiplicity);CHKERRQ(ierr);
       ierr = VecSet(locmultiplicity, 0.0);CHKERRQ(ierr);
       ierr = VecSet(multiplicity, 0.0);CHKERRQ(ierr);
       for (k = 0; k < osm->n_local_true; ++k) {
         ierr = VecSet(osm->y[k],1.0);CHKERRQ(ierr);
-
         if (osm->lprolongation) { /* interpolate the non-overalapping i-block solution to the local solution (only for restrictive additive) */
           ierr = VecScatterBegin(osm->lprolongation[k], osm->y[k], locmultiplicity, ADD_VALUES, forward);CHKERRQ(ierr);
           ierr = VecScatterEnd(osm->lprolongation[k], osm->y[k], locmultiplicity, ADD_VALUES, forward);CHKERRQ(ierr);
@@ -684,51 +702,43 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
       ierr = VecPointwiseDivide(multiplicity,y,multiplicity);CHKERRQ(ierr);
       ierr = MatDiagonalScale(osm->locnullsp,multiplicity,NULL);CHKERRQ(ierr);
 
-      Mat W,coarse_mat;
-      ierr = MatMatMult(Amat, osm->locnullsp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &W); CHKERRQ(ierr);
-      ierr = MatTransposeMatMult(osm->locnullsp, W, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &coarse_mat); CHKERRQ(ierr);
+      ierr = MatMatMult(Amat, osm->locnullsp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &W);CHKERRQ(ierr);
+      ierr = MatTransposeMatMult(osm->locnullsp, W, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &coarse_mat);CHKERRQ(ierr);
 
-      ierr = MatDestroy(&W); CHKERRQ(ierr);
-      ierr = VecDestroy(&y); CHKERRQ(ierr);
-      ierr = VecDestroy(&multiplicity); CHKERRQ(ierr);
-      ierr = VecDestroy(&locmultiplicity); CHKERRQ(ierr);
+      ierr = MatDestroy(&W);CHKERRQ(ierr);
+      ierr = VecDestroy(&y);CHKERRQ(ierr);
+      ierr = VecDestroy(&multiplicity);CHKERRQ(ierr);
+      ierr = VecDestroy(&locmultiplicity);CHKERRQ(ierr);
 
-      Mat coarseR;
-      ierr = MatCreateSeqDense(PETSC_COMM_SELF, total*nullspcol, total*nullspcol, NULL, &osm->coarseU); CHKERRQ(ierr);
-      ierr = MatCreateSeqDense(PETSC_COMM_SELF, total*nullspcol, total*nullspcol, NULL, &osm->coarseVt); CHKERRQ(ierr);
-      ierr = VecCreateSeq(PETSC_COMM_SELF, total*nullspcol, &osm->coarseS); CHKERRQ(ierr);
+      ierr = MatCreateSeqDense(PETSC_COMM_SELF, total*nullspcol, total*nullspcol, NULL, &osm->coarseU);CHKERRQ(ierr);
+      ierr = MatCreateSeqDense(PETSC_COMM_SELF, total*nullspcol, total*nullspcol, NULL, &osm->coarseVt);CHKERRQ(ierr);
+      ierr = VecCreateSeq(PETSC_COMM_SELF, total*nullspcol, &osm->coarseS);CHKERRQ(ierr);
 
-      PetscBLASInt info;
-      ierr = MatCreateRedundantMatrix(coarse_mat, size, MPI_COMM_NULL, MAT_INITIAL_MATRIX, &coarseR); CHKERRQ(ierr);
-      ierr = MatDestroy(&coarse_mat);  CHKERRQ(ierr);
-
-      ierr = MatConvert(coarseR, MATSEQDENSE, MAT_INPLACE_MATRIX, &coarseR); CHKERRQ(ierr);
+      ierr = MatCreateRedundantMatrix(coarse_mat, size, MPI_COMM_NULL, MAT_INITIAL_MATRIX, &coarseR);CHKERRQ(ierr);
+      ierr = MatDestroy(&coarse_mat);CHKERRQ(ierr);
+      ierr = MatConvert(coarseR, MATSEQDENSE, MAT_INPLACE_MATRIX, &coarseR);CHKERRQ(ierr);
       
-      Mat_SeqDense *matU,*matVt,*matcoarseR;
       matcoarseR =  (Mat_SeqDense *)coarseR->data;
       matU = (Mat_SeqDense *)osm->coarseU->data;
       matVt = (Mat_SeqDense *)osm->coarseVt->data;
-      PetscScalar* arrayS;
-      ierr = VecGetArray(osm->coarseS,&arrayS); CHKERRQ(ierr);
+      ierr = VecGetArray(osm->coarseS,&arrayS);CHKERRQ(ierr);
 
       if (!matcoarseR->fwork)
       {
-        PetscScalar dummy;
         matcoarseR->lfwork = -1;
         PetscStackCallBLAS("LAPACKgesvd",LAPACKgesvd_("A","A",&nullspcol,&nullspcol,matcoarseR->v,&nullspcol,arrayS,matU->v,&nullspcol,matVt->v,&nullspcol, &dummy, &matcoarseR->lfwork, &info));
         matcoarseR->lfwork = (PetscInt)PetscRealPart(dummy);
-        ierr = PetscMalloc1(matcoarseR->lfwork, &matcoarseR->fwork); CHKERRQ(ierr);
+        ierr = PetscMalloc1(matcoarseR->lfwork, &matcoarseR->fwork);CHKERRQ(ierr);
       }
       PetscStackCallBLAS("LAPACKgesvd",LAPACKgesvd_("A","A",&nullspcol,&nullspcol,matcoarseR->v,&nullspcol,arrayS,matU->v,&nullspcol,matVt->v,&nullspcol,matcoarseR->fwork, &matcoarseR->lfwork, &info));
-      if (info < 0) {
-        SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_MAT_CH_ZRPVT, "Bad parameter %D", (PetscInt)info - 1);
-      }
+      if (info < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_MAT_CH_ZRPVT, "Bad parameter %D", (PetscInt)info - 1);
+      
       for (k=0;k<nullspcol;++k){
         if (arrayS[k]>osm->smallAbs) arrayS[k]=1/arrayS[k];
         else arrayS[k]=0.;
       }
-      ierr = VecRestoreArray(osm->coarseS,&arrayS); CHKERRQ(ierr);  
-      ierr = MatDestroy(&coarseR); CHKERRQ(ierr);
+      ierr = VecRestoreArray(osm->coarseS,&arrayS);CHKERRQ(ierr);  
+      ierr = MatDestroy(&coarseR);CHKERRQ(ierr);
     }
     PetscFunctionReturn(0);
   }
@@ -736,13 +746,11 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
   ierr = ISGetIndices(osm->sd_is, &idcol);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&y);CHKERRQ(ierr);
 
-  if (osm->type & PC_ASM_INTERPOLATE){
+  if (osm->type & PC_ASM_INTERPOLATE) {
     ierr = ISGetIndices(osm->lis, &idrows);CHKERRQ(ierr);
   } else {
     ierr = ISGetIndices(osm->is_restrict, &idrows);CHKERRQ(ierr);
   }
-
-  
 
   /* zero the global and the local solutions */
   ierr = MatZeroEntries(Z);CHKERRQ(ierr);
@@ -757,13 +765,10 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
   /* do the local solves */
   for (i = 0; i < n_local_true; ++i) {
     ierr = VecSet(osm->ly, 0.0);CHKERRQ(ierr);
-
     /* solve the overlapping i-block */
     ierr = PetscLogEventBegin(PC_ApplyOnBlocks,osm->ksp[i],osm->x[i],osm->y[i],0);CHKERRQ(ierr);
     ierr = KSPSolve(osm->ksp[i], osm->x[i], osm->y[i]);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(PC_ApplyOnBlocks,osm->ksp[i],osm->x[i],osm->y[i],0);CHKERRQ(ierr);
-    
-
     if (osm->lprolongation) { /* interpolate the non-overalapping i-block solution to the local solution (only for restrictive additive) */
       ierr = VecScatterBegin(osm->lprolongation[i], osm->y[i], osm->ly, ADD_VALUES, forward);CHKERRQ(ierr);
       ierr = VecScatterEnd(osm->lprolongation[i], osm->y[i], osm->ly, ADD_VALUES, forward);CHKERRQ(ierr);
@@ -772,7 +777,6 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
       ierr = VecScatterBegin(osm->lrestriction[i], osm->y[i], osm->ly, ADD_VALUES, reverse);CHKERRQ(ierr);
       ierr = VecScatterEnd(osm->lrestriction[i], osm->y[i], osm->ly, ADD_VALUES, reverse);CHKERRQ(ierr);
     }
-
     if (i < n_local_true-1) {
       /* Restrict local RHS to the overlapping (i+1)-block RHS */
       ierr = VecScatterBegin(osm->lrestriction[i+1], osm->lx, osm->x[i+1], INSERT_VALUES, forward);CHKERRQ(ierr);
@@ -795,17 +799,13 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
   
   if (osm->use_kernel>0) {
     ierr = MatGetSize(osm->locnullsp,NULL,&nullspcol);CHKERRQ(ierr);
-    Vec rhs,rhs_R;
-    VecScatter vs;
-    IS glo_is;
- 
     ierr = ISCreateStride(((PetscObject)x)->comm,nullspcol,0,1,&glo_is);CHKERRQ(ierr);
-    ierr = VecCreateMPI(((PetscObject)x)->comm, PETSC_DECIDE, nullspcol, &rhs); CHKERRQ(ierr);
+    ierr = VecCreateMPI(((PetscObject)x)->comm, PETSC_DECIDE, nullspcol, &rhs);CHKERRQ(ierr);
     ierr = VecCreateSeq(PETSC_COMM_SELF, nullspcol, &rhs_R);CHKERRQ(ierr);
-    ierr = VecZeroEntries(rhs_R); CHKERRQ(ierr);
-    ierr = MatMultTranspose(osm->locnullsp,x,rhs); CHKERRQ(ierr);
+    ierr = VecZeroEntries(rhs_R);CHKERRQ(ierr);
+    ierr = MatMultTranspose(osm->locnullsp,x,rhs);CHKERRQ(ierr);
     ierr = VecScatterCreate(rhs,glo_is,rhs_R,glo_is,&vs);CHKERRQ(ierr);
-    ierr = ISDestroy(&glo_is); CHKERRQ(ierr);
+    ierr = ISDestroy(&glo_is);CHKERRQ(ierr);
     ierr = VecScatterBegin(vs,rhs,rhs_R,ADD_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
     ierr = VecScatterEnd(vs,rhs,rhs_R,ADD_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
     
@@ -813,18 +813,18 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
     ierr = VecPointwiseMult(rhs,osm->coarseS,rhs);CHKERRQ(ierr);
     ierr = MatMultTranspose(osm->coarseVt,rhs,rhs_R);CHKERRQ(ierr);
 
-    ierr = VecZeroEntries(rhs); CHKERRQ(ierr);
+    ierr = VecZeroEntries(rhs);CHKERRQ(ierr);
     ierr = VecScatterBegin(vs,rhs_R,rhs,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
     ierr = VecScatterEnd(vs,rhs_R,rhs,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
-    ierr = VecScatterDestroy(&vs); CHKERRQ(ierr);
+    ierr = VecScatterDestroy(&vs);CHKERRQ(ierr);
 
     ierr = MatMult(osm->locnullsp,rhs,y); 
     ierr = VecDestroy(&rhs_R);CHKERRQ(ierr);
     ierr = VecDestroy(&rhs);CHKERRQ(ierr);
 
-      ierr = VecGetArray(y, &Vvalues);CHKERRQ(ierr);
-      ierr = MatSetValues(Z, Vsize, idrows, 1, &osm->n, Vvalues, INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecRestoreArray(y, &Vvalues);CHKERRQ(ierr); 
+    ierr = VecGetArray(y, &Vvalues);CHKERRQ(ierr);
+    ierr = MatSetValues(Z, Vsize, idrows, 1, &osm->n, Vvalues, INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecRestoreArray(y, &Vvalues);CHKERRQ(ierr); 
   } 
 
   ierr = ISRestoreIndices(osm->sd_is, &idcol);CHKERRQ(ierr);
@@ -832,18 +832,15 @@ static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
     ierr = ISRestoreIndices(osm->lis, &idrows);CHKERRQ(ierr);
   } else {
     ierr = ISRestoreIndices(osm->is_restrict, &idrows);CHKERRQ(ierr);
-    ierr = VecDestroy(&y);CHKERRQ(ierr);
   }
+  ierr = VecDestroy(&y);CHKERRQ(ierr);
+
+  ierr = MatAssemblyBegin(Z, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Z, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   
-  MatAssemblyBegin(Z, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(Z, MAT_FINAL_ASSEMBLY);
-  
-  if (y) VecDestroy(&y);
 
   PetscFunctionReturn(0);
 }
-
-
 
 static PetscErrorCode PCApplyTranspose_ASM(PC pc,Vec x,Vec y)
 {
@@ -952,8 +949,8 @@ static PetscErrorCode PCReset_ASM(PC pc)
   }
 
   ierr = PetscFree(osm->sub_mat_type);CHKERRQ(ierr);
+  ierr = ISDestroy(&osm->sd_is);CHKERRQ(ierr);
 
-  if (osm->sd_is) {ierr = ISDestroy(&osm->sd_is);CHKERRQ(ierr);}
   if (osm->is_restrict) {ierr=ISDestroy(&osm->is_restrict);CHKERRQ(ierr);}
   if (osm->locnullsp) {ierr=MatDestroy(&osm->locnullsp);CHKERRQ(ierr);}
   if (osm->coarseU) {ierr=MatDestroy(&osm->coarseU);CHKERRQ(ierr);}

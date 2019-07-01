@@ -312,10 +312,7 @@ PETSC_STATIC_INLINE PetscErrorCode KSP_PCApplyMultiPrecond(KSP ksp,Vec x,Mat y)
   PetscFunctionBegin;
   if (!ksp->transpose_solve) {
     ierr = PCApplyMultiPrecond(ksp->pc,x,y);CHKERRQ(ierr);
-//LMT    ierr = KSP_RemoveNullSpace(ksp,y);CHKERRQ(ierr);
-  } else {
-    SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"No multiprecond with tranpose",((PetscObject)ksp)->type_name);
-  }
+  } else SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"No multiprecond with tranpose",((PetscObject)ksp)->type_name);
   PetscFunctionReturn(0);
 }
 

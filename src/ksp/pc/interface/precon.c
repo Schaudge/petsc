@@ -599,17 +599,25 @@ PetscErrorCode  PCApplyTransposeExists(PC pc,PetscBool  *flg)
 /*@
    PCApplyMultiPrecond - Applies the multipreconditioner to a vector.
 
-   Collective on PC and Vec
+   Collective on PC
 
    Input Parameters:
 +  pc - the preconditioner context
 -  x - input vector
 
    Output Parameter:
-.  y - output matrix
+.  Y - output matrix
 
-   Notes:
-   Currently, this routine is implemented only for PC_ASM preconditioner
+   Notes: Multipreconditioning [Bridson and Greif. doi:10.1137/040620047, Bovet et al. doi:j.crma.2017.01.010]
+   is a technique where the precondioner provides a full search space instead of a single direction. The search space is materialized by the matrix Y.  
+   The most classical example is an additive preconditioner P = \sum_{i=1}^N P_i :
+   usual preconditioner results in Vector y = \sum(P_i r), 
+   multipreconditioner  results in Matrix Y = [P_1 r, ... , P_N r].
+   The iteration is then optimized wrt a full subspace, with hopefuly fast convergence. 
+   The solver must take care of the subspace and in particular manage potential column-rank deficiency in Z.
+   Multipreconditioning comes with extra cost which do not scale well with N. 
+   For better performance, consider adaptive techniques [Spillane doi:10.1137/15M1028534] or exploitation of the sparsity [Molina and Roux. doi:10.1002/nme.6024]
+
 
    Level: developer
 
@@ -617,21 +625,21 @@ PetscErrorCode  PCApplyTransposeExists(PC pc,PetscBool  *flg)
 
 .seealso: PCApply(), 
 @*/
-PetscErrorCode  PCApplyMultiPrecond(PC pc,Vec x,Mat y)
+PetscErrorCode  PCApplyMultiPrecond(PC pc,Vec x,Mat Y)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc,PC_CLASSID,1);
   PetscValidHeaderSpecific(x,VEC_CLASSID,2);
-  PetscValidHeaderSpecific(y,MAT_CLASSID,3);
+  PetscValidHeaderSpecific(Y,MAT_CLASSID,3);
   if (pc->erroriffailure) {ierr = VecValidValues(x,2,PETSC_TRUE);CHKERRQ(ierr);}  /* VecValidValues is defined in src/vec/vec/interface/rvector.c */
   ierr = PCSetUp(pc);CHKERRQ(ierr);
   if (!pc->ops->applymultiprecond) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"PC does not support multipreconditioning");
   ierr = VecLockReadPush(x);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(PC_ApplyMultiPrecond,pc,x,y,0);CHKERRQ(ierr);
-  ierr = (*pc->ops->applymultiprecond)(pc,x,y);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(PC_ApplyMultiPrecond,pc,x,y,0);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(PC_ApplyMultiPrecond,pc,x,Y,0);CHKERRQ(ierr);
+  ierr = (*pc->ops->applymultiprecond)(pc,x,Y);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(PC_ApplyMultiPrecond,pc,x,Y,0);CHKERRQ(ierr);
   ierr = VecLockReadPop(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
