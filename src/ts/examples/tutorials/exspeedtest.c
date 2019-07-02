@@ -142,8 +142,8 @@ int main(int argc, char **argv)
 	PetscErrorCode		ierr;
 	PetscPartitioner	partitioner;
 	PetscPartitionerType	partitionername;
-	PetscLogStage 		stage;
-	PetscLogEvent 		event;
+	PetscLogStage 		stageINSERT, stageADD;
+	PetscLogEvent 		eventINSERT, eventADD;
 	DM			dm, dmDist, dmInterp;
 	IS			bcPointsIS, globalCellNumIS;
 	PetscSection		section;
@@ -303,29 +303,30 @@ int main(int argc, char **argv)
 	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 
         /*	Init Log	*/
-	ierr = PetscLogStageRegister("Commun", &stage);CHKERRQ(ierr);
-	ierr = PetscLogEventRegister("CommuINSERT", 0, &event);CHKERRQ(ierr);
-	ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
-	ierr = PetscLogEventBegin(event, 0, 0, 0, 0);CHKERRQ(ierr);
+	ierr = PetscLogStageRegister("CommunicationINSERT", &stageINSERT);CHKERRQ(ierr);
+	ierr = PetscLogEventRegister("CommuINSERT", 0, &eventINSERT);CHKERRQ(ierr);
+	ierr = PetscLogStagePush(stageINSERT);CHKERRQ(ierr);
+	ierr = PetscLogEventBegin(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
         PetscInt		commiter;
         for (commiter = 0; commiter < 1; commiter++) {
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
         /*	Push LocalToGlobal time to log	*/
-        ierr = PetscLogEventEnd(event, 0, 0, 0, 0);CHKERRQ(ierr);
+        ierr = PetscLogEventEnd(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
-	        /*	Init Log	*/
-	ierr = PetscLogEventRegister("CommuINSERT", 0, &event);CHKERRQ(ierr);
-	ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
-	ierr = PetscLogEventBegin(event, 0, 0, 0, 0);CHKERRQ(ierr);
+        //	Init Log
+	ierr = PetscLogStageRegister("CommunicationADDVAL", &stageADD);CHKERRQ(ierr);
+	ierr = PetscLogEventRegister("CommuADDVAL", 0, &eventADD);CHKERRQ(ierr);
+	ierr = PetscLogStagePush(stageADD);CHKERRQ(ierr);
+	ierr = PetscLogEventBegin(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
         for (commiter = 0; commiter < 1; commiter++) {
-        	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
-                ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+        	ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
+                ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
-        /*	Push LocalToGlobal time to log	*/
-        ierr = PetscLogEventEnd(event, 0, 0, 0, 0);CHKERRQ(ierr);
+        //	Push LocalToGlobal time to log
+        ierr = PetscLogEventEnd(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
 	/*	Get LOCAL coordinates for debug	*/
