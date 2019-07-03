@@ -4,11 +4,15 @@ static char help[] = "Element closure restrictions in tensor/lexicographic/spect
 
 int main(int argc, char **argv)
 {
-  DM             dm;
-  PetscSection   section;
+  DM             dm, cdm;
+  PetscBool      dmInterp=PETSC_TRUE;
+  PetscSection   section, coordsection;
   PetscFE        fe;
-  PetscInt       cells[3] = {2, 2, 2},dim = 2,c,cStart,cEnd,tmp;
+  PetscInt       cells[3] = {1, 1, 1},dim = 3,c,cStart,cEnd,tmp,v,vStart,vEnd;
   PetscErrorCode ierr;
+  Vec            coordinates;
+  PetscScalar    *coordArray;
+  PetscInt numindices,*indices;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"Spectral/tensor element restrictions",NULL);CHKERRQ(ierr);
@@ -17,7 +21,8 @@ int main(int argc, char **argv)
   ierr = PetscOptionsIntArray("-cells","Number of cells per dimension",NULL,cells,&tmp,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
-  ierr = DMPlexCreateBoxMesh(PETSC_COMM_WORLD,dim,PETSC_FALSE,cells,NULL,NULL,NULL,PETSC_TRUE,&dm);CHKERRQ(ierr);
+  //ierr = DMPlexCreateBoxMesh(PETSC_COMM_WORLD,dim,PETSC_FALSE,cells,NULL,NULL,NULL,PETSC_TRUE,&dm);CHKERRQ(ierr);
+  ierr = DMPlexCreateFromFile(PETSC_COMM_WORLD, "3Dbrick.exo", dmInterp, &dm);CHKERRQ(ierr); 
   ierr = PetscFECreateDefault(PETSC_COMM_SELF,dim,1,PETSC_FALSE,NULL,PETSC_DETERMINE,&fe);CHKERRQ(ierr);
   ierr = DMSetFromOptions(dm);CHKERRQ(ierr);
   ierr = DMAddField(dm,NULL,(PetscObject)fe);CHKERRQ(ierr);
@@ -25,13 +30,22 @@ int main(int argc, char **argv)
   ierr = DMPlexSetClosurePermutationTensor(dm,PETSC_DETERMINE,NULL);CHKERRQ(ierr);
   ierr = DMGetDefaultSection(dm,&section);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);
+  ierr = DMGetCoordinates(dm, &coordinates);
+  ierr = DMGetCoordinateSection(dm, &coordsection);
+
+
   for (c=cStart; c<cEnd; c++) {
     PetscInt numindices,*indices;
+    //ierr = DMPlexSetClosurePermutationTensor(dm,c,NULL);CHKERRQ(ierr);
+    //ierr = DMPlexSetClosurePermutationTensor(cdm,c,NULL);CHKERRQ(ierr);
+    ierr = DMPlexSetClosurePermutationTensor(dm,c,coordsection);CHKERRQ(ierr);
     ierr = DMPlexGetClosureIndices(dm,section,section,c,&numindices,&indices,NULL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Element #%D\n",c-cStart);CHKERRQ(ierr);
     ierr = PetscIntView(numindices,indices,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
     ierr = DMPlexRestoreClosureIndices(dm,section,section,c,&numindices,&indices,NULL);CHKERRQ(ierr);
   }
+
 
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
