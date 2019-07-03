@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 br x 1
 volume 1 move x 0.5 y 0.5 z 0.5
 =======
@@ -6,10 +7,16 @@ brick x 1 y 1 z 1
 >>>>>>> 3D support for libceed match
 body 1 size 1
 mesh volume 1
+=======
+reset
+
+#{nx = 50}
+
+brick x 1
+volume 1 move x 0.5 y 0.5 z 0.5
+>>>>>>> changed these meshes
 block 1 volume 1
-nodeset 1 surface 1
-sideset 1 surface 2
-group "my_surfaces" add surface 1 to 3
+
 surface 2 name "BackSurface"
 surface 3 name "BottomSurface"
 surface 1 name "FrontSurface"
@@ -17,7 +24,11 @@ surface 4 name "LeftSurface"
 surface 5 name "RightSurface"
 surface 6 name "TopSurface"
 
-block 1 element type hex8
+surface all interval {nx}
+set source surface pattern "FrontSurface"
+set target surface pattern "BackSurface"
+volume 1 scheme sweep  
+mesh volume all
 
 export mesh "./3Dbrick.exo" dimension 3 block 1 overwrite
 
