@@ -57,6 +57,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobian(PetscInt tag,Mat A,PetscScalar *u_ve
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /*
   Compute Jacobian for explicit TS in compressed format and recover from this, using
@@ -100,6 +101,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobianLocal(PetscInt tag,Mat A,PetscScalar 
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /*
   Compute Jacobian for implicit TS in compressed format and recover from this, using
@@ -167,6 +169,7 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
   ierr = AdolcFree2(J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /*
   Compute Jacobian for implicit TS in the special case where it is
@@ -217,6 +220,7 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
   ierr = MatShift(A,a);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /*
   Compute local portion of Jacobian for implicit TS in compressed format and recover from this, using
@@ -283,6 +287,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
   ierr = AdolcFree2(J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /*
   Compute local portion of Jacobian for implicit TS in the special case where it is
@@ -332,6 +337,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocalIDMass(PetscInt tag,Mat A,PetscSca
   ierr = MatShift(A,a);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /* --------------------------------------------------------------------------------
    Drivers for Jacobian w.r.t. a parameter
@@ -384,6 +390,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobianP(PetscInt tag,Mat A,PetscScalar *u_v
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 /*
   Compute local portion of Jacobian w.r.t a parameter for explicit TS.
@@ -432,6 +439,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobianPLocal(PetscInt tag,Mat A,PetscScalar
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+// TODO: MPIAIJ version
 
 
 /* --------------------------------------------------------------------------------

@@ -218,7 +218,9 @@ int main(int argc,char **argv)
   if (!implicitform) {
     if (!byhand) {
       // TODO: use MatCreateMPIAIJWithArrays
+      //ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
       ierr = TSSetRHSJacobian(ts,NULL,NULL,RHSJacobianAdolc,&appctx);CHKERRQ(ierr);
+      //ierr = MatDestroy(&A);CHKERRQ(ierr);
     } else {
       ierr = TSSetRHSJacobian(ts,NULL,NULL,RHSJacobianByHand,&appctx);CHKERRQ(ierr);
     }
@@ -228,10 +230,11 @@ int main(int argc,char **argv)
 
       ierr = DMSetMatType(da,MATSELL);CHKERRQ(ierr);
       ierr = DMCreateMatrix(da,&A);CHKERRQ(ierr);
+      // TODO: use MatCreateMPIAIJWithArrays
+      //ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
       ierr = MatConvert(A,MATAIJ,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
       /* FIXME do we need to change viewer to display matrix in natural ordering as DMCreateMatrix_DA does? */
       if (!byhand) {
-        // TODO: use MatCreateMPIAIJWithArrays
         ierr = TSSetIJacobian(ts,A,B,IJacobianAdolc,&appctx);CHKERRQ(ierr);
       } else {
         ierr = TSSetIJacobian(ts,A,B,IJacobianByHand,&appctx);CHKERRQ(ierr);
@@ -241,7 +244,9 @@ int main(int argc,char **argv)
     } else {
       if (!byhand) {
         // TODO: use MatCreateMPIAIJWithArrays
+        //ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
         ierr = TSSetIJacobian(ts,NULL,NULL,IJacobianAdolc,&appctx);CHKERRQ(ierr);
+      //ierr = MatDestroy(&A);CHKERRQ(ierr);
       } else {
         ierr = TSSetIJacobian(ts,NULL,NULL,IJacobianByHand,&appctx);CHKERRQ(ierr);
       }
