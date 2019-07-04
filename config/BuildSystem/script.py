@@ -151,14 +151,28 @@ class Script(logger.Logger):
         pipe = Popen(command, cwd=cwd, stdin=None, stdout=PIPE, stderr=PIPE,
                      shell=useShell)
         (out, err) = pipe.communicate()
-        if sys.version_info >= (3,0):
-          out = out.decode(encoding='UTF-8',errors='replace')
-          err = err.decode(encoding='UTF-8',errors='replace')
-        ret = pipe.returncode
       except OSError as e:
         return ('', e.message, e.errno)
       except FileNotFoundError as e:
         return ('', e.message, e.errno)
+      if sys.version_info >= (3,0):
+        try:
+          out = out.decode(encoding='UTF-8',errors='replace')
+        except TypeError as e:
+          if log: log.write('TypeError: Error decoding out \n')
+          out = 'dummy'
+        except ValueError as e:
+          if log: log.write('ValueError: Error decoding out \n')
+          out = 'dummy'
+        try:
+          err = err.decode(encoding='UTF-8',errors='replace')
+        except TypeError as e:
+          if log: log.write('TypeError: Error decoding err \n')
+          err = 'dummy'
+        except ValueError as e:
+          if log: log.write('ValueError: Error decoding err \n')
+          err = 'dummy'
+      ret = pipe.returncode
       output += out
       error += err
       if ret:
