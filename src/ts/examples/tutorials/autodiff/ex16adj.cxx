@@ -215,6 +215,7 @@ int main(int argc,char **argv)
   ierr = MatSetFromOptions(A);CHKERRQ(ierr);
   ierr = MatSetUp(A);CHKERRQ(ierr);
   ierr = MatCreateVecs(A,&x,NULL);CHKERRQ(ierr);
+  // TODO: use MatCreateMPIAIJWithArrays
 
   ierr = MatCreate(PETSC_COMM_WORLD,&Jacp);CHKERRQ(ierr);
   ierr = MatSetSizes(Jacp,PETSC_DECIDE,PETSC_DECIDE,2,1);CHKERRQ(ierr);

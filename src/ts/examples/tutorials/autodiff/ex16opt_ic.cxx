@@ -172,6 +172,7 @@ int main(int argc,char **argv)
   ierr = MatSetFromOptions(user.A);CHKERRQ(ierr);
   ierr = MatSetUp(user.A);CHKERRQ(ierr);
   ierr = MatCreateVecs(user.A,&user.x,NULL);CHKERRQ(ierr);
+  // TODO: use MatCreateMPIAIJWithArrays
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions

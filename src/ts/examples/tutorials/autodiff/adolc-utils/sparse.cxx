@@ -164,6 +164,7 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,Petsc
         if (a)
           C[i][colour] *= *a;
         ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+        // TODO: use MatUpdateMPIAIJWithArrays
       }
     }
   }
@@ -198,6 +199,7 @@ PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,
         if (a)
           C[i][colour] *= *a;
         ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+        // TODO: use MatUpdateMPIAIJWithArrays
       }
     }
   }
