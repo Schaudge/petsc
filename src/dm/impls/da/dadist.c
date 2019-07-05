@@ -23,14 +23,12 @@ PetscErrorCode  VecDuplicate_MPI_DA(Vec g,Vec *gg)
 PetscErrorCode  DMCreateGlobalVector_DA(DM da,Vec *g)
 {
   PetscErrorCode ierr;
-  DM_DA          *dd = (DM_DA*)da->data;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
   PetscValidPointer(g,2);
   ierr = VecCreate(PetscObjectComm((PetscObject)da),g);CHKERRQ(ierr);
-  ierr = VecSetSizes(*g,dd->Nlocal,PETSC_DETERMINE);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*g,dd->w);CHKERRQ(ierr);
+  ierr = VecSetLayout(*g,da->gmap);CHKERRQ(ierr);
   ierr = VecSetType(*g,da->vectype);CHKERRQ(ierr);
   ierr = VecSetDM(*g, da);CHKERRQ(ierr);
   ierr = VecSetLocalToGlobalMapping(*g,da->ltogmap);CHKERRQ(ierr);

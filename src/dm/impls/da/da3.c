@@ -447,9 +447,20 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
 
   /* allocate the base parallel and sequential vectors */
   dd->Nlocal = x*y*z*dof;
-  ierr       = VecCreateMPIWithArray(comm,dof,dd->Nlocal,PETSC_DECIDE,NULL,&global);CHKERRQ(ierr);
+  ierr       = PetscLayoutCreate(comm,&da->gmap);CHKERRQ(ierr);
+  ierr       = PetscLayoutSetLocalSize(da->gmap,dd->Nlocal);CHKERRQ(ierr);
+  ierr       = PetscLayoutSetBlockSize(da->gmap,dof);CHKERRQ(ierr);
+  ierr       = VecCreate(comm,&global);CHKERRQ(ierr);
+  ierr       = VecSetLayout(global,da->gmap);CHKERRQ(ierr);
+  ierr       = VecMPISetArray(global,NULL);CHKERRQ(ierr);
+
   dd->nlocal = (Xe-Xs)*(Ye-Ys)*(Ze-Zs)*dof;
-  ierr       = VecCreateSeqWithArray(PETSC_COMM_SELF,dof,dd->nlocal,NULL,&local);CHKERRQ(ierr);
+  ierr       = PetscLayoutCreate(PETSC_COMM_SELF,&da->lmap);CHKERRQ(ierr);
+  ierr       = PetscLayoutSetLocalSize(da->lmap,dd->nlocal);CHKERRQ(ierr);
+  ierr       = PetscLayoutSetBlockSize(da->lmap,dof);CHKERRQ(ierr);
+  ierr       = VecCreate(PETSC_COMM_SELF,&local);CHKERRQ(ierr);
+  ierr       = VecSetLayout(local,da->lmap);CHKERRQ(ierr);
+  ierr       = VecSeqSetArray(local,NULL);CHKERRQ(ierr);
 
   /* generate global to local vector scatter and local to global mapping*/
 

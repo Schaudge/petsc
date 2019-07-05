@@ -217,9 +217,9 @@ struct _p_DM {
   PetscBool               useNatural;           /* Create the natural SF */
   /* Allows a non-standard data layout */
   PetscBool               adjacency[2];         /* [use cone() or support() first, use the transitive closure] */
-  PetscSection            defaultSection;       /* Layout for local vectors */
-  PetscSection            defaultGlobalSection; /* Layout for global vectors */
-  PetscLayout             map;
+  PetscSection            defaultSection;       /* Section for local vectors */
+  PetscSection            defaultGlobalSection; /* Section for global vectors */
+  PetscLayout             lmap,gmap;            /* Layouts for local & global vectors */
   /* Constraints */
   PetscSection            defaultConstraintSection;
   Mat                     defaultConstraintMat;

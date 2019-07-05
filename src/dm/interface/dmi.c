@@ -3,50 +3,18 @@
 
 PetscErrorCode DMCreateGlobalVector_Section_Private(DM dm,Vec *vec)
 {
-  PetscSection   gSection;
-  PetscInt       localSize, bs, blockSize = -1, pStart, pEnd, p;
   PetscErrorCode ierr;
-  PetscInt       in[2],out[2];
+  PetscSection   gSection;
 
   PetscFunctionBegin;
-  ierr = DMGetGlobalSection(dm, &gSection);CHKERRQ(ierr);
-  ierr = PetscSectionGetChart(gSection, &pStart, &pEnd);CHKERRQ(ierr);
-  for (p = pStart; p < pEnd; ++p) {
-    PetscInt dof, cdof;
-
-    ierr = PetscSectionGetDof(gSection, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(gSection, p, &cdof);CHKERRQ(ierr);
-
-    if (dof > 0) {
-      if (blockSize < 0 && dof-cdof > 0) {
-        /* set blockSize */
-        blockSize = dof-cdof;
-      } else if (dof-cdof != blockSize) {
-        /* non-identical blockSize, set it as 1 */
-        blockSize = 1;
-        break;
-      }
-    }
+  if (!dm->gmap) { /* Lazy construction of gmap */
+    ierr = DMGetGlobalSection(dm,&gSection);CHKERRQ(ierr);
+    ierr = PetscSectionSetUp(gSection);CHKERRQ(ierr);
+    ierr = PetscSectionGetValueLayout(PetscObjectComm((PetscObject)dm),gSection,&dm->gmap);CHKERRQ(ierr);
   }
 
-  in[0] = blockSize < 0 ? PETSC_MIN_INT : -blockSize;
-  in[1] = blockSize;
-  ierr = MPIU_Allreduce(in,out,2,MPIU_INT,MPI_MAX,PetscObjectComm((PetscObject)dm));CHKERRQ(ierr);
-  /* -out[0] = min(blockSize), out[1] = max(blockSize) */
-  if (-out[0] == out[1]) {
-    bs = out[1];
-  } else bs = 1;
-
-  if (bs < 0) { /* Everyone was empty */
-    blockSize = 1;
-    bs        = 1;
-  }
-
-  ierr = PetscSectionGetConstrainedStorageSize(gSection, &localSize);CHKERRQ(ierr);
-  if (localSize%blockSize) SETERRQ2(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Mismatch between blocksize %d and local storage size %d", blockSize, localSize);
-  ierr = VecCreate(PetscObjectComm((PetscObject)dm), vec);CHKERRQ(ierr);
-  ierr = VecSetSizes(*vec, localSize, PETSC_DETERMINE);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*vec, bs);CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject)dm),vec);CHKERRQ(ierr);
+  ierr = VecSetLayout(*vec,dm->gmap);CHKERRQ(ierr);
   ierr = VecSetType(*vec,dm->vectype);CHKERRQ(ierr);
   ierr = VecSetDM(*vec, dm);CHKERRQ(ierr);
   /* ierr = VecSetLocalToGlobalMapping(*vec, dm->ltogmap);CHKERRQ(ierr); */
@@ -55,27 +23,17 @@ PetscErrorCode DMCreateGlobalVector_Section_Private(DM dm,Vec *vec)
 
 PetscErrorCode DMCreateLocalVector_Section_Private(DM dm,Vec *vec)
 {
-  PetscSection   section;
-  PetscInt       localSize, blockSize = -1, pStart, pEnd, p;
   PetscErrorCode ierr;
+  PetscSection   lSection;
 
   PetscFunctionBegin;
-  ierr = DMGetSection(dm, &section);CHKERRQ(ierr);
-  ierr = PetscSectionGetChart(section, &pStart, &pEnd);CHKERRQ(ierr);
-  for (p = pStart; p < pEnd; ++p) {
-    PetscInt dof;
-
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-    if ((blockSize < 0) && (dof > 0)) blockSize = dof;
-    if ((dof > 0) && (dof != blockSize)) {
-      blockSize = 1;
-      break;
-    }
+  if (!dm->lmap) { /* Lazy construction of lmap */
+    ierr = DMGetSection(dm,&lSection);CHKERRQ(ierr);
+    ierr = PetscSectionSetUp(lSection);CHKERRQ(ierr);
+    ierr = PetscSectionGetValueLayout(PETSC_COMM_SELF,lSection,&dm->lmap);CHKERRQ(ierr);
   }
-  ierr = PetscSectionGetStorageSize(section, &localSize);CHKERRQ(ierr);
-  ierr = VecCreate(PETSC_COMM_SELF, vec);CHKERRQ(ierr);
-  ierr = VecSetSizes(*vec, localSize, localSize);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*vec, blockSize);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_SELF,vec);CHKERRQ(ierr);
+  ierr = VecSetLayout(*vec,dm->lmap);CHKERRQ(ierr);
   ierr = VecSetType(*vec,dm->vectype);CHKERRQ(ierr);
   ierr = VecSetDM(*vec, dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
