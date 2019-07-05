@@ -43,6 +43,7 @@ PetscErrorCode VecSetType(Vec vec, VecType method)
     ierr = (*vec->ops->destroy)(vec);CHKERRQ(ierr);
     vec->ops->destroy = NULL;
   }
+  if (!vec->map) {ierr = PetscLayoutCreate(PetscObjectComm((PetscObject)vec),&vec->map);CHKERRQ(ierr);}
   if (vec->map->n < 0 && vec->map->N < 0) {
     vec->ops->create = r;
     vec->ops->load   = VecLoad_Default;
