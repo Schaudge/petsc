@@ -1371,7 +1371,7 @@ PetscErrorCode PetscSectionGetPointLayout(MPI_Comm comm, PetscSection s, PetscLa
 @*/
 PetscErrorCode PetscSectionGetValueLayout(MPI_Comm comm, PetscSection s, PetscLayout *layout)
 {
-  PetscInt       pStart, pEnd, p, localSize = 0;
+  PetscInt       pStart, pEnd, p, bs, dof, cdof, localSize, blockSize = -1, in[2], out[2];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -1379,15 +1379,39 @@ PetscErrorCode PetscSectionGetValueLayout(MPI_Comm comm, PetscSection s, PetscLa
   PetscValidPointer(layout, 3);
   ierr = PetscSectionGetChart(s, &pStart, &pEnd);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; ++p) {
-    PetscInt dof,cdof;
-
     ierr = PetscSectionGetDof(s, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
-    if (dof-cdof > 0) localSize += dof-cdof;
+
+    if (dof > 0) {
+      if (blockSize < 0 && dof-cdof > 0) {
+        /* set blockSize */
+        blockSize = dof-cdof;
+      } else if (dof-cdof != blockSize) {
+        /* non-identical blockSize, set it as 1 */
+        blockSize = 1;
+        break;
+      }
+    }
   }
+
+  in[0] = blockSize < 0 ? PETSC_MIN_INT : -blockSize;
+  in[1] = blockSize;
+  ierr = MPIU_Allreduce(in, out, 2, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
+  /* -out[0] = min(blockSize), out[1] = max(blockSize) */
+  if (-out[0] == out[1]) {
+    bs = out[1];
+  } else bs = 1;
+
+  if (bs < 0) { /* Everyone was empty */
+    blockSize = 1;
+    bs        = 1;
+  }
+
+  ierr = PetscSectionGetConstrainedStorageSize(s, &localSize);CHKERRQ(ierr);
+  if (localSize%blockSize) SETERRQ2(comm, PETSC_ERR_ARG_WRONG, "Mismatch between blocksize %d and local storage size %d", blockSize, localSize);
   ierr = PetscLayoutCreate(comm, layout);CHKERRQ(ierr);
   ierr = PetscLayoutSetLocalSize(*layout, localSize);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize(*layout, 1);CHKERRQ(ierr);
+  ierr = PetscLayoutSetBlockSize(*layout, bs);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(*layout);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

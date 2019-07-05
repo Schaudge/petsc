@@ -23,7 +23,6 @@ typedef struct {
   DMDAInterpolationType interptype;
 
   PetscInt              nlocal,Nlocal;         /* local size of local vector and global vector, includes the * w term */
-
   PetscInt              xol,yol,zol;           /* overlap of local subdomains */
   PetscInt              xo,yo,zo;              /* offsets for the indices in x y and z */
   PetscInt              Mo,No,Po;              /* the size of the problem the offset is in to */

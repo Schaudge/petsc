@@ -47,14 +47,12 @@ static PetscErrorCode  VecMatlabEnginePut_DA2d(PetscObject obj,void *mengine)
 PetscErrorCode  DMCreateLocalVector_DA(DM da,Vec *g)
 {
   PetscErrorCode ierr;
-  DM_DA          *dd = (DM_DA*)da->data;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
   PetscValidPointer(g,2);
   ierr = VecCreate(PETSC_COMM_SELF,g);CHKERRQ(ierr);
-  ierr = VecSetSizes(*g,dd->nlocal,PETSC_DETERMINE);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*g,dd->w);CHKERRQ(ierr);
+  ierr = VecSetLayout(*g,da->lmap);CHKERRQ(ierr);
   ierr = VecSetType(*g,da->vectype);CHKERRQ(ierr);
   ierr = VecSetDM(*g, da);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_MATLAB_ENGINE)

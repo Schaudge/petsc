@@ -277,7 +277,7 @@ PetscErrorCode DMPlexPointGlobalRead(DM dm,PetscInt point,const PetscScalar *arr
   PetscValidScalarPointer(array, 3);
   PetscValidPointer(ptr, 4);
   ierr = DMGetGlobalOffset_Private(dm, point, &start, &end);CHKERRQ(ierr);
-  *(const PetscScalar**) ptr = (start < end) ? array + start - dm->map->rstart : NULL;
+  *(const PetscScalar**) ptr = (start < end) ? array + start - dm->gmap->rstart : NULL;
   PetscFunctionReturn(0);
 }
 
@@ -315,7 +315,7 @@ PetscErrorCode DMPlexPointGlobalRef(DM dm,PetscInt point,PetscScalar *array,void
   PetscValidScalarPointer(array, 3);
   PetscValidPointer(ptr, 4);
   ierr = DMGetGlobalOffset_Private(dm, point, &start, &end);CHKERRQ(ierr);
-  *(PetscScalar**) ptr = (start < end) ? array + start - dm->map->rstart : NULL;
+  *(PetscScalar**) ptr = (start < end) ? array + start - dm->gmap->rstart : NULL;
   PetscFunctionReturn(0);
 }
 
@@ -382,7 +382,7 @@ PetscErrorCode DMPlexPointGlobalFieldRead(DM dm,PetscInt point,PetscInt field,co
   PetscValidScalarPointer(array, 3);
   PetscValidPointer(ptr, 4);
   ierr = DMGetGlobalFieldOffset_Private(dm, point, field, &start, &end);CHKERRQ(ierr);
-  *(const PetscScalar**) ptr = (start < end) ? array + start - dm->map->rstart : NULL;
+  *(const PetscScalar**) ptr = (start < end) ? array + start - dm->gmap->rstart : NULL;
   PetscFunctionReturn(0);
 }
 
@@ -414,6 +414,6 @@ PetscErrorCode DMPlexPointGlobalFieldRef(DM dm,PetscInt point,PetscInt field,Pet
   PetscValidScalarPointer(array, 3);
   PetscValidPointer(ptr, 4);
   ierr = DMGetGlobalFieldOffset_Private(dm, point, field, &start, &end);CHKERRQ(ierr);
-  *(PetscScalar**) ptr = (start < end) ? array + start - dm->map->rstart : NULL;
+  *(PetscScalar**) ptr = (start < end) ? array + start - dm->gmap->rstart : NULL;
   PetscFunctionReturn(0);
 }
