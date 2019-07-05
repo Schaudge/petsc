@@ -8754,22 +8754,20 @@ PetscErrorCode MatCreateVecs(Mat mat,Vec *right,Vec *left)
     ierr = (*mat->ops->getvecs)(mat,right,left);CHKERRQ(ierr);
   } else {
     PetscInt rbs,cbs;
+    MPI_Comm comm;
     ierr = MatGetBlockSizes(mat,&rbs,&cbs);CHKERRQ(ierr);
+    ierr = PetscObjectGetComm((PetscObject)mat,&comm);CHKERRQ(ierr);
     if (right) {
-      if (mat->cmap->n < 0) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"PetscLayout for columns not yet setup");
-      ierr = VecCreate(PetscObjectComm((PetscObject)mat),right);CHKERRQ(ierr);
-      ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
-      ierr = VecSetBlockSize(*right,cbs);CHKERRQ(ierr);
+      if (mat->cmap->n < 0) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"PetscLayout for columns not yet setup");
+      ierr = VecCreate(comm,right);CHKERRQ(ierr);
+      ierr = VecSetLayout(*right,mat->cmap);CHKERRQ(ierr);
       ierr = VecSetType(*right,mat->defaultvectype);CHKERRQ(ierr);
-      ierr = PetscLayoutReference(mat->cmap,&(*right)->map);CHKERRQ(ierr);
     }
     if (left) {
-      if (mat->rmap->n < 0) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"PetscLayout for rows not yet setup");
-      ierr = VecCreate(PetscObjectComm((PetscObject)mat),left);CHKERRQ(ierr);
-      ierr = VecSetSizes(*left,mat->rmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
-      ierr = VecSetBlockSize(*left,rbs);CHKERRQ(ierr);
+      if (mat->rmap->n < 0) SETERRQ(comm,PETSC_ERR_ARG_WRONGSTATE,"PetscLayout for rows not yet setup");
+      ierr = VecCreate(comm,left);CHKERRQ(ierr);
+      ierr = VecSetLayout(*left,mat->rmap);CHKERRQ(ierr);
       ierr = VecSetType(*left,mat->defaultvectype);CHKERRQ(ierr);
-      ierr = PetscLayoutReference(mat->rmap,&(*left)->map);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
