@@ -33,7 +33,6 @@ PetscErrorCode  VecCreate(MPI_Comm comm, Vec *vec)
 
   ierr = PetscHeaderCreate(v, VEC_CLASSID, "Vec", "Vector", "Vec", comm, VecDestroy, VecView);CHKERRQ(ierr);
 
-  ierr            = PetscLayoutCreate(comm,&v->map);CHKERRQ(ierr);
   v->array_gotten = PETSC_FALSE;
   v->petscnative  = PETSC_FALSE;
 

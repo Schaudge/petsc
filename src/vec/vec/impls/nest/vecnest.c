@@ -1083,6 +1083,7 @@ static PetscErrorCode VecSetUp_NestIS_Private(Vec V,PetscInt nb,IS is[])
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscLayoutSetUp(V->map);CHKERRQ(ierr);
   if (is) {                     /* Do some consistency checks and reference the is */
     offset = V->map->rstart;
     for (i=0; i<ctx->nb; i++) {
@@ -1160,10 +1161,8 @@ PetscErrorCode  VecCreateNest(MPI_Comm comm,PetscInt nb,IS is[],Vec x[],Vec *Y)
   n = N = 0;
   ierr = VecSize_Nest_Recursive(V,PETSC_TRUE,&N);CHKERRQ(ierr);
   ierr = VecSize_Nest_Recursive(V,PETSC_FALSE,&n);CHKERRQ(ierr);
-  ierr = PetscLayoutSetSize(V->map,N);CHKERRQ(ierr);
-  ierr = PetscLayoutSetLocalSize(V->map,n);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize(V->map,1);CHKERRQ(ierr);
-  ierr = PetscLayoutSetUp(V->map);CHKERRQ(ierr);
+  ierr = VecSetSizes(V,n,N);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(V,1);CHKERRQ(ierr);
 
   ierr = VecSetUp_NestIS_Private(V,nb,is);CHKERRQ(ierr);
 
