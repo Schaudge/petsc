@@ -21,9 +21,9 @@ PetscErrorCode MatSetUpMultiply_MPIDense(Mat mat)
   ierr = ISCreateStride(PETSC_COMM_SELF,mat->cmap->N,0,1,&to);CHKERRQ(ierr);
 
   /* Create temporary global vector to generate scatter context */
-  /* n    = mdn->cowners[mdn->rank+1] - mdn->cowners[mdn->rank]; */
-
-  ierr = VecCreateMPIWithArray(PetscObjectComm((PetscObject)mat),1,mdn->nvec,mat->cmap->N,NULL,&gvec);CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject)mat),&gvec);CHKERRQ(ierr);
+  ierr = VecSetLayout(gvec,mat->cmap);CHKERRQ(ierr);
+  ierr = VecMPISetArray(gvec,NULL);CHKERRQ(ierr);
 
   /* Generate the scatter context */
   ierr = VecScatterCreate(gvec,from,mdn->lvec,to,&mdn->Mvctx);CHKERRQ(ierr);

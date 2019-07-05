@@ -112,7 +112,9 @@ PetscErrorCode MatSetUpMultiply_MPIBAIJ(Mat mat)
   ierr = ISCreateBlock(PETSC_COMM_SELF,bs,ec,stmp,PETSC_OWN_POINTER,&to);CHKERRQ(ierr);
 
   /* create temporary global vector to generate scatter context */
-  ierr = VecCreateMPIWithArray(PetscObjectComm((PetscObject)mat),1,mat->cmap->n,mat->cmap->N,NULL,&gvec);CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject)mat),&gvec);CHKERRQ(ierr);
+  ierr = VecSetLayout(gvec,mat->cmap);CHKERRQ(ierr);
+  ierr = VecMPISetArray(gvec,NULL);CHKERRQ(ierr);
 
   ierr = VecScatterCreate(gvec,from,baij->lvec,to,&baij->Mvctx);CHKERRQ(ierr);
 

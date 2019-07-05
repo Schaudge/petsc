@@ -71,7 +71,10 @@ PetscErrorCode MatSetUpMultiply_MPISBAIJ(Mat mat)
 
   /* generate the scatter context
      -- Mvctx and lvec are not used by MatMult_MPISBAIJ(), but usefule for some applications */
-  ierr = VecCreateMPIWithArray(PetscObjectComm((PetscObject)mat),1,mat->cmap->n,mat->cmap->N,NULL,&gvec);CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject)mat),&gvec);CHKERRQ(ierr);
+  ierr = VecSetLayout(gvec,mat->cmap);CHKERRQ(ierr);
+  ierr = VecMPISetArray(gvec,NULL);CHKERRQ(ierr);
+
   ierr = VecScatterCreate(gvec,from,sbaij->lvec,to,&sbaij->Mvctx);CHKERRQ(ierr);
   ierr = VecDestroy(&gvec);CHKERRQ(ierr);
 
