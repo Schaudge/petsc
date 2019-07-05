@@ -194,7 +194,9 @@ PetscErrorCode MatSetUpMultiply_MPISELL(Mat mat)
 
   /* create temporary global vector to generate scatter context */
   /* This does not allocate the array's memory so is efficient */
-  ierr = VecCreateMPIWithArray(PetscObjectComm((PetscObject)mat),1,mat->cmap->n,mat->cmap->N,NULL,&gvec);CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject)mat),&gvec);CHKERRQ(ierr);
+  ierr = VecSetLayout(gvec,mat->cmap);CHKERRQ(ierr);
+  ierr = VecMPISetArray(gvec,NULL);CHKERRQ(ierr);
 
   /* generate the scatter context */
   ierr = VecScatterCreate(gvec,from,sell->lvec,to,&sell->Mvctx);CHKERRQ(ierr);
