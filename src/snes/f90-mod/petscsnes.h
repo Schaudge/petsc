@@ -4,10 +4,12 @@
 #include "petsc/finclude/petscsnes.h"
 
       type tSNES
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tSNES
 
       type tPetscConvEst
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tPetscConvEst
 

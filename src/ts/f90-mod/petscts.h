@@ -4,12 +4,15 @@
 #include "petsc/finclude/petscts.h"
 
       type tTS
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTS
       type tTSAdapt
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTSAdapt
       type tTSTrajectory
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTSTrajectory
 

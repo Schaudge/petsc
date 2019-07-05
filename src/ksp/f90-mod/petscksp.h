@@ -8,14 +8,16 @@
 !  CG Types
 !
       type tKSP
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tKSP
 
-      KSP, parameter :: PETSC_NULL_KSP = tKSP(0)
-
       type tKSPGuess
+        sequence
         PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tKSPGuess
+
+      type(tKSP), parameter :: PETSC_NULL_KSP = tKSP(0)
 
       KSPGuess, parameter :: PETSC_NULL_KSPGuess = tKSPGuess(0)
 
