@@ -630,6 +630,51 @@ PetscErrorCode  VecCreateMPIWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,Petsc
 }
 
 /*@C
+   VecMPISetArray - Sets a partially constructed MPI vector's data array to be what provided
+
+   Collective
+
+   Input Parameters:
++  v     - the partially constructed vector (layout of the vector is already known, but type is not yet set)
+-  array - the user provided array to store the vector values
+
+   Notes:
+   The subroutine is usefull when one has an existing PetscLayout object, wants to create an MPI vector
+   according to this layout and wants to provide his/her own storage for the vector. The tranditional way is
+     PetscLayoutGetSize(layout,&N);
+     PetscLayoutGetLocalSize(layout,&n);
+     PetscLayoutGetBlockSize(layout,&bs);
+     VecCreateMPIWithArray(comm,bs,n,N,array,&v);
+
+   The problem of this approach is that a duplicated layout is built for the vector, which can be an expensive
+   procedure. Using this subroutine, we can instead reuse the existing layout for the new vector:
+     VecCreate(comm,&v);
+     VecSetLayout(v,layout);
+     VecMPISetArray(v,array);
+
+   If the vector is already constructed, users should call VecPlaceArray() or VecReplaceArray() to make
+   the vector use their provided array.
+
+   PETSc does NOT free the array when the vector is destroyed via VecDestroy().
+   The user should not free the array until the vector is destroyed.
+
+   Level: intermediate
+
+.seealso: VecCreateSeqWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
+          VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray(), VecReplaceArray()
+@*/
+PetscErrorCode  VecMPISetArray(Vec v,const PetscScalar array[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!v->map) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"The vector's layout has not been set");
+  if (((PetscObject)v)->type_name) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"The vector is already constructed with type name %s",((PetscObject)v)->type_name);
+  ierr = VecCreate_MPI_Private(v,PETSC_FALSE,0,array);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
    VecCreateGhostWithArray - Creates a parallel vector with ghost padding on each processor;
    the caller allocates the array space.
 

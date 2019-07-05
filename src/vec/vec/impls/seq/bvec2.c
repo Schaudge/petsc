@@ -964,3 +964,37 @@ PetscErrorCode  VecCreateSeqWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,const
   ierr = VecCreate_Seq_Private(*V,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/*@C
+   VecSeqSetArray - Sets a partially constructed sequential vector's data array to be what provided
+
+   Collective
+
+   Input Parameters:
++  v     - the partially constructed vector (layout of the vector is already known, but type is not yet set)
+-  array - the user provided array to store the vector values
+
+   Notes:
+   See detailed comments at VecMPISetArray().
+
+   If the vector is already constructed, users should call VecPlaceArray() or VecReplaceArray() to make
+   the vector use their the provided array.
+
+   PETSc does NOT free the array when the vector is destroyed via VecDestroy().
+   The user should not free the array until the vector is destroyed.
+
+   Level: intermediate
+
+.seealso: VecMPISetArray(), VecCreateSeqWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
+          VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray(), VecReplaceArray()
+@*/
+PetscErrorCode  VecSeqSetArray(Vec v,const PetscScalar array[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!v->map) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"The vector's layout has not been set");
+  if (((PetscObject)v)->type_name) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"The vector is already constructed with type name %s",((PetscObject)v)->type_name);
+  ierr = VecCreate_Seq_Private(v,array);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
