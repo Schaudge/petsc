@@ -44,6 +44,8 @@ typedef struct {
   Parameter     *param;
   GridInfo      *grid;
   TsInfo        *ts;
+  PetscScalar**  U;
+  PetscScalar*   S;
 } AppCtx;
 
 extern PetscErrorCode SetParams(Parameter*,GridInfo*,TsInfo*);
@@ -53,6 +55,7 @@ extern PetscErrorCode BuildA_CN(AppCtx*);
 extern PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
 extern PetscErrorCode myTS(AppCtx*,Vec);
 extern PetscErrorCode BuildR(AppCtx*,Vec);
+extern PetscErrorCode BuildUS(AppCtx*);
 
 int main(int argc,char **argv)
 {
@@ -95,11 +98,11 @@ int main(int argc,char **argv)
     ierr = DMCreateMatrix(user->da,&user->A);CHKERRQ(ierr);
     
     /* Euler scheme */
-    //  ierr = BuildA(&user);
-    //  ierr = MatScale(user->A,dt);
+    //  ierr = BuildA(&user);CHKERRQ(ierr);
+    //  ierr = MatScale(user->A,dt);CHKERRQ(ierr);
     
     /* Crank-Nicolson scheme */
-    ierr = BuildA_CN(user);
+    ierr = BuildA_CN(user);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -111,9 +114,13 @@ int main(int argc,char **argv)
     //    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
     //    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Set KL expansion
+     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = BuildUS(user);CHKERRQ(ierr);
+    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Time Stepping
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-    ierr = myTS(user,u);
+    ierr = myTS(user,u);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -166,13 +173,14 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     /* ts information */
     ts->tfinal      = 0.20;
     ts->dt          = 0.01;
-    ts->tsteps      = PetscRoundReal(ts->tfinal/ts->dt);
     ts->tout        = 1;
     
     ierr = PetscOptionsGetReal(NULL,NULL,"-tfinal",&(ts->tfinal),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-dt",&(ts->dt),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-tsteps",&(ts->tsteps),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-tout",&(ts->tout),NULL);CHKERRQ(ierr);
+    
+    ts->tsteps      = PetscRoundReal(ts->tfinal/ts->dt);
     
     PetscFunctionReturn(0);
 }
@@ -464,27 +472,16 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
 /* ------------------------------------------------------------------- */
 PetscErrorCode BuildR(AppCtx* user, Vec R)
 {
-    DM             cda;
-    DMDACoor2d   **coors;
     DMDALocalInfo  info;
-    Vec            global;
-    PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
-    PetscInt       i, j, i0, j0, i1, j1;
-    PetscScalar  **Cov;
-    PetscScalar  **U, **V, *S;      /* SVD */
-    PetscScalar  *W;                /* Weights for quadrature (trapezoidal) */
-    PetscScalar  *r;                /* vector issued from random field by KL expansion */
-    PetscScalar    x1, y1, x0, y0, rr, tmp;
     Parameter     *param = user->param;
-    PetscInt       Lx     = param->Lx;
-    PetscInt       Ly     = param->Ly;
+    PetscInt       i,j,Nx,Ny,N2;
     PetscReal      mu     = param->mu;
     PetscReal      sigma  = param->sigma;
-    PetscReal      lc     = param->lc;
-    PetscReal      lx     = param->lx;
-    PetscReal      ly     = param->ly;
+    PetscScalar   *r,tmp;                /* vector issued from random field by KL expansion */
+    PetscScalar  **U = user->U;
+    PetscScalar   *S = user->S;
     PetscErrorCode ierr;
-
+    
     PetscFunctionBeginUser;
     
     /*------------------------------------------------------------------------
@@ -494,133 +491,9 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
     Nx   = info.mx;
     Ny   = info.my;
     N2   = Nx * Ny;
-    
-    /* Get pointers to vector data */
-    ierr = VecGetArray(R,&r);CHKERRQ(ierr);
 
-    /* Get local grid boundaries */
-    ierr = DMDAGetCorners(user->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-    ierr = DMGetCoordinateDM(user->da,&cda);CHKERRQ(ierr);
-    ierr = DMGetCoordinates(user->da,&global);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
-    
-    /// allocate covariance matrix, its SVD associates and random vector r
-    ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
-    ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
-    
-    ierr = PetscMalloc1(N2,&U);CHKERRQ(ierr);
-    ierr = PetscMalloc1(N2*N2,&U[0]);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) U[i] = U[i-1]+N2;
-    
-    ierr = PetscMalloc1(N2,&V);CHKERRQ(ierr);
-    ierr = PetscMalloc1(N2*N2,&V[0]);CHKERRQ(ierr);
-    for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
-    
-    ierr = PetscMalloc1(N2,&S);CHKERRQ(ierr);
-    
-/* Compute covariance function over the locally owned part of the grid */
-    
-        //        printf("\ntest coordinates:\n");
-    for (j0=ys; j0<ys+ym; j0++)
-    {for (i0=xs; i0<xs+xm; i0++)
-    {
-        //        printf("coord[%d][%d]", j0, i0);
-        //        printf(".x=%1.2f  ", coors[j0][i0].x);
-        //        printf(".y=%1.2f\n", coors[j0][i0].y);
-        x0=coors[j0][i0].x;
-        y0=coors[j0][i0].y;
-        for (j1=ys; j1<ys+ym; j1++)
-        {for (i1=xs; i1<xs+xm; i1++)
-        {x1=coors[j1][i1].x;
-            y1=coors[j1][i1].y;
-//            rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
-//            rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
-            rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
-            Cov[j0*xm+i0][j1*xm+i1]=PetscExpReal(-rr);
-        }
-        }
-    }
-    }
-    ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
-    
-    //    //   Print covariance matrix Cov (before adding weights)
-    //    printf("Cov\n");
-    //    for (i = 0; i < N2; i++)
-    //    {
-    //        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-    //        printf("\n");
-    //    }
-    
-/* Approximate the covariance integral operator via collocation and vertex-based quadrature */
-    
-    // allocate quadrature weights W along the diagonal
-    ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
-    
-    // fill the weights (trapezoidal rule in 2d uniform mesh)
-    // fill the first and the last
-    W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
-    for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
-    // fill in between
-    for (i=0; i<Nx; i++)
-    {
-        for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
-    }
-    
-    //    // Print W before scaling
-    //    printf("\nW\n");
-    //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
-    
-    // Scale W
-    for (i = 0; i < N2; i++) W[i] = W[i] * ((Lx)*(Ly))/(4*(Nx-1)*(Ny-1));
-    
-    //    // Print W after scaling
-    //    printf("\nW\n");
-    //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
-    
-    /* Combine W with covariance matrix Cov to form covariance operator K
-     K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
-    for (i=0; i<N2; i++)
-    {
-        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
-    }
-    
-//    //  Print the approximation of covariance operator K (modified to be symmetric)
-//        printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-//        for (i = 0; i < N2; i++)
-//        {
-//            for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-//            printf("\n");
-//        }
-    
-/* Use SVD to decompose the PSD matrix K to get its eigen decomposition */
-    svd(Cov,U,V,S,N2);
-    
-    // Recover eigenvectors by divding sqrt(W)
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) U[i][j] = U[i][j] / PetscSqrtReal(W[j]);
-    }
-    
-//    // Print decomposition results: K=USV'
-//        printf("\nK=USV':\n");
-//
-//     // Print eigenvalues
-//        printf("\nEigenvalues S (in non-increasing order)\n");
-//        for (j = 0; j < N2; j++)
-//        {
-//            printf("%8.4f", S[j]);
-//            printf("\n");
-//        }
-//
-//     // Print eigenvectors W^(-1/2) * U
-//        printf("\nIts corresponding eigenvectors (columns)\n");
-//        for (i = 0; i < N2; i++)
-//        {
-//            for (j = 0; j < N2; j++) printf("%6.2f", U[i][j]);
-//            printf("\n");
-//        }
-    
+/* Get pointers to vector data */
+    ierr = VecGetArray(R,&r);CHKERRQ(ierr);
 /* Generate normal random numbers by transforming from the uniform one */
     PetscScalar *rndu, *rndn;
     ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
@@ -668,15 +541,170 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
        surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
 
     //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
-    ierr = PetscFree(Cov);CHKERRQ(ierr);
-    ierr = PetscFree(U);CHKERRQ(ierr);
-    ierr = PetscFree(V);CHKERRQ(ierr);
-    ierr = PetscFree(S);CHKERRQ(ierr);
+
+    ierr = PetscFree(rndu);CHKERRQ(ierr);
+    ierr = PetscFree(rndn);CHKERRQ(ierr);
 
   /* Restore vectors */
     ierr = VecRestoreArray(R,&r);CHKERRQ(ierr);
  
   PetscFunctionReturn(0);
+}
+
+PetscErrorCode BuildUS(AppCtx* user)
+{
+    DM             cda;
+    DMDACoor2d   **coors;
+    DMDALocalInfo  info;
+    Vec            global;
+    PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
+    PetscInt       i, j, i0, j0, i1, j1;
+    PetscScalar  **Cov;
+    PetscScalar  **V;                /* SVD */
+    PetscScalar   *W;                /* Weights for quadrature (trapezoidal) */
+    PetscScalar    x1, y1, x0, y0, rr;
+    Parameter     *param = user->param;
+    PetscInt       Lx     = param->Lx;
+    PetscInt       Ly     = param->Ly;
+    PetscReal      lc     = param->lc;
+    PetscReal      lx     = param->lx;
+    PetscReal      ly     = param->ly;
+    PetscErrorCode ierr;
+    
+    PetscFunctionBeginUser;
+    
+    /*------------------------------------------------------------------------
+     Access coordinate field
+     ---------------------------------------------------------------------*/
+    ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
+    Nx   = info.mx;
+    Ny   = info.my;
+    N2   = Nx * Ny;
+    
+    /* Get local grid boundaries */
+    ierr = DMDAGetCorners(user->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(user->da,&cda);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(user->da,&global);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
+    
+    /// allocate covariance matrix, its SVD associates and random vector r
+    ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
+    ierr = PetscMalloc1(N2,&(user->U));CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&(user->U)[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) (user->U)[i] = (user->U)[i-1]+N2;
+    ierr = PetscMalloc1(N2,&V);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&V[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
+    ierr = PetscMalloc1(N2,&(user->S));CHKERRQ(ierr);
+    
+    /* Compute covariance function over the locally owned part of the grid */
+    
+    //        printf("\ntest coordinates:\n");
+    for (j0=ys; j0<ys+ym; j0++)
+    {for (i0=xs; i0<xs+xm; i0++)
+    {
+        //        printf("coord[%d][%d]", j0, i0);
+        //        printf(".x=%1.2f  ", coors[j0][i0].x);
+        //        printf(".y=%1.2f\n", coors[j0][i0].y);
+        x0=coors[j0][i0].x;
+        y0=coors[j0][i0].y;
+        for (j1=ys; j1<ys+ym; j1++)
+        {for (i1=xs; i1<xs+xm; i1++)
+        {x1=coors[j1][i1].x;
+            y1=coors[j1][i1].y;
+            //            rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
+            //            rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
+            rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
+            Cov[j0*xm+i0][j1*xm+i1]=PetscExpReal(-rr);
+        }
+        }
+    }
+    }
+    ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
+    
+    //    //   Print covariance matrix Cov (before adding weights)
+    //    printf("Cov\n");
+    //    for (i = 0; i < N2; i++)
+    //    {
+    //        for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+    //        printf("\n");
+    //    }
+    
+    /* Approximate the covariance integral operator via collocation and vertex-based quadrature */
+    
+    // allocate quadrature weights W along the diagonal
+    ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
+    
+    // fill the weights (trapezoidal rule in 2d uniform mesh)
+    // fill the first and the last
+    W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
+    for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
+    // fill in between
+    for (i=0; i<Nx; i++)
+    {
+        for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
+    }
+    
+    //    // Print W before scaling
+    //    printf("\nW\n");
+    //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
+    // Scale W
+    for (i = 0; i < N2; i++) W[i] = W[i] * ((Lx)*(Ly))/(4*(Nx-1)*(Ny-1));
+    
+    //    // Print W after scaling
+    //    printf("\nW\n");
+    //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
+    
+    /* Combine W with covariance matrix Cov to form covariance operator K
+     K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
+    for (i=0; i<N2; i++)
+    {
+        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
+    }
+    
+    //    //  Print the approximation of covariance operator K (modified to be symmetric)
+    //        printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+    //        for (i = 0; i < N2; i++)
+    //        {
+    //            for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
+    //            printf("\n");
+    //        }
+    
+    /* Use SVD to decompose the PSD matrix K to get its eigen decomposition */
+    svd(Cov,user->U,V,user->S,N2);
+    
+    // Recover eigenvectors by divding sqrt(W)
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) (user->U)[i][j] = (user->U)[i][j] / PetscSqrtReal(W[j]);
+    }
+    
+    //    // Print decomposition results: K=USV'
+    //        printf("\nK=USV':\n");
+    //
+    //     // Print eigenvalues
+    //        printf("\nEigenvalues S (in non-increasing order)\n");
+    //        for (j = 0; j < N2; j++)
+    //        {
+    //            printf("%8.4f", S[j]);
+    //            printf("\n");
+    //        }
+    //
+    //     // Print eigenvectors W^(-1/2) * U
+    //        printf("\nIts corresponding eigenvectors (columns)\n");
+    //        for (i = 0; i < N2; i++)
+    //        {
+    //            for (j = 0; j < N2; j++) printf("%6.2f", U[i][j]);
+    //            printf("\n");
+    //        }
+    ierr = PetscFree(Cov);CHKERRQ(ierr);
+//    ierr = PetscFree(U);CHKERRQ(ierr);
+    ierr = PetscFree(V);CHKERRQ(ierr);
+//    ierr = PetscFree(S);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
 }
 
 void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
