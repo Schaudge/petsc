@@ -65,6 +65,7 @@ int main(int argc,char **argv)
     Parameter      param;
     GridInfo       grid;
     TsInfo         ts;
+    DMDALocalInfo  info;
     PetscErrorCode ierr;
     //  PetscViewer    viewfile;
     
@@ -87,6 +88,7 @@ int main(int argc,char **argv)
     ierr = DMSetFromOptions(user->da);CHKERRQ(ierr);
     ierr = DMSetUp(user->da);CHKERRQ(ierr);
     ierr = DMDASetUniformCoordinates(user->da,0.0,param.Lx,0.0,param.Ly,0.0,0.0);CHKERRQ(ierr);
+    ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr); grid.Nx = info.mx; grid.Ny = info.my;
     /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Extract global vectors from DMDA;
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -191,7 +193,7 @@ PetscErrorCode BuildA(AppCtx *user)
     DMDALocalInfo  info;
     PetscInt       i,j;
     PetscReal      hx,hy,sx,sy;
-    PetscViewer    viewfile;
+//    PetscViewer    viewfile;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
@@ -218,13 +220,13 @@ PetscErrorCode BuildA(AppCtx *user)
     }
     ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
-    ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-    // to check pattern in Matlab >>fdmat;spy(mat)
+//    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+//    ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
+//    ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
+//    /* to check pattern in Matlab >>fdmat;spy(mat) */
     
     PetscFunctionReturn(0);
 }
@@ -236,7 +238,7 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     PetscReal      hx,hy,sx,sy;
     TsInfo        *ts = user->ts;
     PetscScalar    dt = ts->dt;
-    PetscViewer    viewfile;
+//    PetscViewer    viewfile;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
@@ -263,13 +265,13 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     }
     ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
-    ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-    /* to check pattern in Matlab >>fdmat;spy(mat) */
+//    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+//    ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
+//    ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
+//    /* to check pattern in Matlab >>fdmat;spy(mat) */
     
     PetscFunctionReturn(0);
 }
@@ -282,7 +284,7 @@ PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
     TsInfo        *ts = user->ts;
     PetscScalar    dt = ts->dt;
     DMDALocalInfo  info;
-    PetscViewer    viewfile;
+//    PetscViewer    viewfile;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
@@ -307,12 +309,12 @@ PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
     ierr = VecRestoreArray(U,&u);
     ierr = VecAssemblyBegin(RHS);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(RHS);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"rhsvec.m",&viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)U,"vec");CHKERRQ(ierr);
-    ierr = VecView(RHS,viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"rhsvec.m",&viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+//    ierr = PetscObjectSetName((PetscObject)U,"vec");CHKERRQ(ierr);
+//    ierr = VecView(RHS,viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+//    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
     
     PetscFunctionReturn(0);
 }
@@ -331,7 +333,6 @@ PetscErrorCode FormInitialSolution(AppCtx *user, Vec U)
     
     PetscFunctionBeginUser;
     ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
-    
     hx = 1.0/(PetscReal)(info.mx-1);
     hy = 1.0/(PetscReal)(info.my-1);
     
@@ -366,20 +367,20 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     KSP            ksp;               /* KSP solver for Crank-Nicolson scheme */
     Parameter     *param = user->param;
     TsInfo        *ts    = user->ts;
-    PetscInt       i, Nx, Ny;
+    GridInfo      *grid  = user->grid;
+    PetscInt       i;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
-    DMDAGetInfo(user->da,NULL,&Nx,&Ny,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Link Matlab Engine for plotting
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     ierr = PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
     
     PetscReal dim[2], domain[2], tm[2];
-    dim[0]    = Nx; dim[1]     = Ny;
+    dim[0]    = grid->Nx;  dim[1]    = grid->Ny;
     domain[0] = param->Lx; domain[1] = param->Ly;
-    tm[0]     = ts->dt;        tm[1] = 0;
+    tm[0]     = ts->dt;    tm[1]     = 0;
     ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,dim,"dim");CHKERRQ(ierr);
     ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,domain,"domain");CHKERRQ(ierr);
     ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx = dim(1,1); Ny = dim(2,1); Lx = domain(1,1); Ly = domain(2,1);");CHKERRQ(ierr);
