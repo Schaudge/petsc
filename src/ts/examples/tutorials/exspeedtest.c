@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
 	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 2, meshSize = 10, i, j, k, numFields = 100, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize;
+	PetscInt		dim = 2, meshSize = 10, i, j, k, numFields = 100, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen=0;
 	PetscScalar 		dot, *coords, *array;
@@ -282,11 +282,10 @@ int main(int argc, char **argv)
 	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 
         /*	Init Log	*/
-	ierr = PetscLogStageRegister("CommunicationINSERT", &stageINSERT);CHKERRQ(ierr);
-	ierr = PetscLogEventRegister("CommuINSERT", 0, &eventINSERT);CHKERRQ(ierr);
+	ierr = PetscLogStageRegister("CommStageINSERT", &stageINSERT);CHKERRQ(ierr);
+	ierr = PetscLogEventRegister("CommINSERT", 0, &eventINSERT);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageINSERT);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
-        PetscInt		commiter;
         for (commiter = 0; commiter < 1; commiter++) {
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
@@ -296,8 +295,8 @@ int main(int argc, char **argv)
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
         //	Init Log
-	ierr = PetscLogStageRegister("CommunicationADDVAL", &stageADD);CHKERRQ(ierr);
-	ierr = PetscLogEventRegister("CommuADDVAL", 0, &eventADD);CHKERRQ(ierr);
+	ierr = PetscLogStageRegister("CommStageADDVAL", &stageADD);CHKERRQ(ierr);
+	ierr = PetscLogEventRegister("CommADDVAL", 0, &eventADD);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageADD);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
         for (commiter = 0; commiter < 1; commiter++) {
