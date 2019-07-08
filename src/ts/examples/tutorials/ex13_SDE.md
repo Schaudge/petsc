@@ -139,3 +139,44 @@ Here we keep all terms in KL expansion $N_{KL}=N_xN_y$.
 
 ## IV. Test
 
+### A.  Gaussian covariance function: $q(\mathbf{x},\mathbf{x}^{\prime})=\exp \left(\frac{-\left\|\mathbf{x}-\mathbf{x}^{\prime}\right\|^{2}}{2 L_{c}^{2}}\right)$
+
+```matlab
+>> ./ex13_SDE -matlab-engine-graphics -da_refine 1
+```
+
+- $N_x=N_y=31, \Delta t=0.01, t_{final}=0.20,\\b=5,c=-30,r=0.5,\\\sigma=1.5,L_{c}=2$		
+
+  ![Gaussian_sigma=1.5,Lc=2](https://bitbucket.org/petsc/petsc/src/7cba5aba8fd1ead1681cfd3836ae6948e0fbc327/src/ts/examples/tutorials/SepExp_sigma=1.5,Lx=0.1,Ly=0.1.gif)
+
+  https://bitbucket.org/petsc/petsc/src/7cba5aba8fd1ead1681cfd3836ae6948e0fbc327/src/ts/examples/tutorials/SepExp_sigma=1.5,Lx=0.1,Ly=0.1.gif
+
+### B.  Separable exponential covariance function: $q(\mathbf{x},\mathbf{x}^{\prime})=\exp\left(-\frac{|x_1-x^{\prime}_1|}{L_1}\right) \exp\left(-\frac{|x_2-x^{\prime}_2|}{L_2}\right)$
+
+```matlab
+>> ./ex13_SDE -matlab-engine-graphics -da_refine 1
+```
+
+- $N_x=N_y=16, \Delta t=0.01, t_{final}=0.20,\\b=5,c=-30,r=0.5,\\\sigma=1.5,L_{x}=0.1,L_{y}=0.1$		
+
+With the warning message from svd():
+
+Warning: Reached maximum number of sweeps (64) in SVD routine
+
+![SepExp_sigma=1.5,Lx=0.1,Ly=0.1](/Users/luminche/soft/petsc/src/ts/examples/tutorials/SepExp_sigma=1.5,Lx=0.1,Ly=0.1.gif)
+
+### C. Exponential covariance function:
+
+### $q(\mathbf{x},\mathbf{x}^{\prime})=\exp\left(-\frac{|x_1-x^{\prime}_1|}{L_1}\right) \exp\left(-\frac{|x_2-x^{\prime}_2|}{L_2}\right)$
+
+```matlab
+>> ./ex13_SDE -matlab-engine-graphics
+```
+
+- $N_x=N_y=16, \Delta t=0.01, t_{final}=0.20,\\b=5,c=-30,r=0.5,\\\sigma=1.5,L_{x}=0.1,L_{y}=0.1$		
+
+With the warning message from svd():
+
+Warning: Reached maximum number of sweeps (64) in SVD routine
+
+![Exp_sigma=1.5,Lc=2](/Users/luminche/soft/petsc/src/ts/examples/tutorials/Exp_sigma=1.5,Lc=2.gif)
