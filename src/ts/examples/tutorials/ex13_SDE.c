@@ -135,7 +135,7 @@ int main(int argc,char **argv)
     ierr = PetscFinalize();
     return ierr;
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
 {
     PetscErrorCode ierr;
@@ -187,7 +187,7 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     
     PetscFunctionReturn(0);
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode BuildA(AppCtx *user)
 {
     DMDALocalInfo  info;
@@ -230,7 +230,7 @@ PetscErrorCode BuildA(AppCtx *user)
     
     PetscFunctionReturn(0);
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode BuildA_CN(AppCtx *user)
 {
     DMDALocalInfo  info;
@@ -275,7 +275,7 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     
     PetscFunctionReturn(0);
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
 {
     PetscInt       i,j;
@@ -318,7 +318,7 @@ PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
     
     PetscFunctionReturn(0);
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode FormInitialSolution(AppCtx *user, Vec U)
 {
     PetscInt       i,j,xs,ys,xm,ym;
@@ -357,7 +357,7 @@ PetscErrorCode FormInitialSolution(AppCtx *user, Vec U)
     ierr = DMDAVecRestoreArray(user->da,U,&u);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode myTS(AppCtx *user, Vec u)
 {
     char          *output;            /* Output for MatlabEngine */
@@ -471,7 +471,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     
     PetscFunctionReturn(0);
 }
-/* ------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode BuildR(AppCtx* user, Vec R)
 {
     DMDALocalInfo  info;
@@ -552,7 +552,7 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
  
   PetscFunctionReturn(0);
 }
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode BuildUS(AppCtx* user)
 {
     DM             cda;
@@ -605,24 +605,27 @@ PetscErrorCode BuildUS(AppCtx* user)
     
     //        printf("\ntest coordinates:\n");
     for (j0=ys; j0<ys+ym; j0++)
-    {for (i0=xs; i0<xs+xm; i0++)
     {
-        //        printf("coord[%d][%d]", j0, i0);
-        //        printf(".x=%1.2f  ", coors[j0][i0].x);
-        //        printf(".y=%1.2f\n", coors[j0][i0].y);
-        x0=coors[j0][i0].x;
-        y0=coors[j0][i0].y;
-        for (j1=ys; j1<ys+ym; j1++)
-        {for (i1=xs; i1<xs+xm; i1++)
-        {x1=coors[j1][i1].x;
-            y1=coors[j1][i1].y;
-            //            rr = PetscAbsReal(x1-x0)/lx+PetscAbsReal(y1-y0)/ly; //Seperable Exp
-            //            rr = PetscSqrtReal(PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/lc; //Exp
-            rr = (PetscPowReal(x1-x0,2)+PetscPowReal(y1-y0,2))/(2 * lc * lc); //Gaussian
-            Cov[j0*xm+i0][j1*xm+i1]=PetscExpReal(-rr);
+        for (i0=xs; i0<xs+xm; i0++)
+        {
+            //        printf("coord[%d][%d]", j0, i0);
+            //        printf(".x=%1.2f  ", coors[j0][i0].x);
+            //        printf(".y=%1.2f\n", coors[j0][i0].y);
+            x0=coors[j0][i0].x;
+            y0=coors[j0][i0].y;
+            for (j1=ys; j1<ys+ym; j1++)
+            {
+                for (i1=xs; i1<xs+xm; i1++)
+                {
+                    x1=coors[j1][i1].x;
+                    y1=coors[j1][i1].y;
+                    //rr = PetscAbsReal(x1-x0) / lx + PetscAbsReal(y1-y0) / ly; //Seperable Exp
+//                    rr = PetscSqrtReal(PetscPowReal(x1-x0,2) + PetscPowReal(y1-y0,2)) / lc; //Exp
+                    rr = (PetscPowReal(x1-x0,2) + PetscPowReal(y1-y0,2)) / (2 * lc * lc); //Gaussian
+                    Cov[j0*xm+i0][j1*xm+i1] = PetscExpReal(-rr);
+                }
+            }
         }
-        }
-    }
     }
     ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
     
@@ -708,7 +711,7 @@ PetscErrorCode BuildUS(AppCtx* user)
 //    ierr = PetscFree(S);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
 /* svd.c: Perform a singular value decomposition A = USV' of square matrix.
  *
@@ -852,7 +855,7 @@ static const double d[] =
 
 #define LOW 0.02425
 #define HIGH 0.97575
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
 PetscReal ltqnorm(PetscReal p)
 {
     PetscReal q, r;
