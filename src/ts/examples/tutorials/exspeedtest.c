@@ -105,13 +105,14 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, char bar[], PetscViewer genViewer)
 	PetscErrorCode	ierr;
 	const char 	*string;
 
-	ierr = PetscPrintf(comm, "%s General Info %s\n", &bar + 2, &bar + 2);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
 	ierr = PetscViewerStringGetStringRead(genViewer, &string, NULL);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, string);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
 
 	return ierr;
 }
+
 /* 	Main	*/
 int main(int argc, char **argv)
 {
@@ -287,7 +288,6 @@ int main(int argc, char **argv)
 	ierr = PetscLogStagePush(stageINSERT);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
         for (commiter = 0; commiter < 1; commiter++) {
-
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
