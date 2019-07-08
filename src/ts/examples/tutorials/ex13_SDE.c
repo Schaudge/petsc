@@ -14,7 +14,6 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
 #include <petscdm.h>
 #include <petscdmda.h>
 #include <petscmatlab.h>
-#include "header.h"
 #include <time.h>
 
 /* User-defined data structures and routines */
@@ -24,7 +23,7 @@ typedef struct { /* physical parameters */
   PetscReal      mu, sigma; /* sigma here stands for noise strength */
   PetscReal      lc;        /* corelation length for exponential or Gaussian covariance function*/
   PetscReal      lx,ly;     /* corelation length for separable exponential covariance function*/
-  PetscScalar     b, c, rad;
+  PetscScalar    b, c, rad;
 } Parameter;
 
 typedef struct { /* grid parameters */
@@ -56,6 +55,8 @@ extern PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
 extern PetscErrorCode myTS(AppCtx*,Vec);
 extern PetscErrorCode BuildR(AppCtx*,Vec);
 extern PetscErrorCode BuildUS(AppCtx*);
+extern PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
+extern PetscReal      ltqnorm(PetscReal);
 
 int main(int argc,char **argv)
 {
@@ -145,8 +146,8 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     param->mu       = 0.0;
     param->sigma    = 1.5;   /* sigma here stands for noise strength */
     param->lc       = 2.0;   /* corelation length for exponential or Gaussian covariance function*/
-    param->lx       =0.1;   /* corelation length for separable exponential covariance function*/
-    param->ly       =0.1;   /* corelation length for separable exponential covariance function*/
+    param->lx       = 0.1;   /* corelation length for separable exponential covariance function*/
+    param->ly       = 0.1;   /* corelation length for separable exponential covariance function*/
     ierr = PetscOptionsGetReal(NULL,NULL,"-b",&(param->b),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-c",&(param->c),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-rad",&(param->rad),NULL);CHKERRQ(ierr);
@@ -268,7 +269,7 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
     ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-    // to check pattern in Matlab >>fdmat;spy(mat)
+    /* to check pattern in Matlab >>fdmat;spy(mat) */
     
     PetscFunctionReturn(0);
 }
@@ -361,7 +362,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     char          *output;            /* Output for MatlabEngine */
     Vec            r;                 /* random vector */
     Vec            unew, uold;        /* vector for time stepping */
-    Vec            rhs;               /* rhs vector for Crank-Nicolson scheme*/
+    Vec            rhs;               /* rhs vector for Crank-Nicolson scheme */
     KSP            ksp;               /* KSP solver for Crank-Nicolson scheme */
     Parameter     *param = user->param;
     TsInfo        *ts    = user->ts;
@@ -416,10 +417,10 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
             
             ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
             ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)r);CHKERRQ(ierr);
-                ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 Lx 0 Ly -1 5]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);");CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 Lx 0 Ly -1 5]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);");CHKERRQ(ierr);
             ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');title({['Random field'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 Lx 0 Ly -1 1]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);drawnow");CHKERRQ(ierr);
             ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-                ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"frame = getframe(h);im = frame2im(frame);[imind,cm]=rgb2ind(im,256);imwrite(imind,cm,filename,'gif','WriteMode','append','DelayTime',1/5);");CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"frame = getframe(h);im = frame2im(frame);[imind,cm]=rgb2ind(im,256);imwrite(imind,cm,filename,'gif','WriteMode','append','DelayTime',1/5);");CHKERRQ(ierr);
             ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
             }
         }
@@ -519,7 +520,7 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
 //        mean = mean/N2;
 //        printf("%f\n",mean);
     
-/* Do KL expansion by combining the above eigen decomposition and normal random numbers*/
+/* Do KL expansion by combining the above eigen decomposition and normal random numbers */
     for (i = 0; i < N2; i++)
     {
         tmp=0.0;
@@ -533,7 +534,7 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
                     r[Nx*j+i] = 0.0;}
             }
         }
-    // Pring the random vector r issued from random field by KL expansion
+/* Pring the random vector r issued from random field by KL expansion */
 //    printf("\nRandom vector r issued from random field by KL expansion\n");
 //    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
     /* plot r in Matlab:
@@ -624,7 +625,7 @@ PetscErrorCode BuildUS(AppCtx* user)
     }
     ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
     
-    //    //   Print covariance matrix Cov (before adding weights)
+    //    /* Print covariance matrix Cov (before adding weights) */
     //    printf("Cov\n");
     //    for (i = 0; i < N2; i++)
     //    {
@@ -634,27 +635,27 @@ PetscErrorCode BuildUS(AppCtx* user)
     
     /* Approximate the covariance integral operator via collocation and vertex-based quadrature */
     
-    // allocate quadrature weights W along the diagonal
+    /* allocate quadrature weights W along the diagonal */
     ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
     
-    // fill the weights (trapezoidal rule in 2d uniform mesh)
-    // fill the first and the last
+    /* fill the weights (trapezoidal rule in 2d uniform mesh) */
+    /* fill the first and the last*/
     W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
     for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
-    // fill in between
+    /* fill in between */
     for (i=0; i<Nx; i++)
     {
         for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
     }
     
-    //    // Print W before scaling
+    //    /* Print W before scaling */
     //    printf("\nW\n");
     //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
     
-    // Scale W
+    /* Scale W*/
     for (i = 0; i < N2; i++) W[i] = W[i] * ((Lx)*(Ly))/(4*(Nx-1)*(Ny-1));
     
-    //    // Print W after scaling
+    //    /* Print W after scaling */
     //    printf("\nW\n");
     //    for (i = 0; i < N2; i++) printf("%f\n", W[i]);
     
@@ -665,7 +666,7 @@ PetscErrorCode BuildUS(AppCtx* user)
         for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
     }
     
-    //    //  Print the approximation of covariance operator K (modified to be symmetric)
+    //     /* Print the approximation of covariance operator K (modified to be symmetric) */
     //        printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
     //        for (i = 0; i < N2; i++)
     //        {
@@ -676,16 +677,16 @@ PetscErrorCode BuildUS(AppCtx* user)
     /* Use SVD to decompose the PSD matrix K to get its eigen decomposition */
     svd(Cov,user->U,V,user->S,N2);
     
-    // Recover eigenvectors by divding sqrt(W)
+    /* Recover eigenvectors by divding sqrt(W) */
     for (i = 0; i < N2; i++)
     {
         for (j = 0; j < N2; j++) (user->U)[i][j] = (user->U)[i][j] / PetscSqrtReal(W[j]);
     }
     
-    //    // Print decomposition results: K=USV'
+    //     /* Print decomposition results: K=USV' */
     //        printf("\nK=USV':\n");
     //
-    //     // Print eigenvalues
+    //     /* Print eigenvalues */
     //        printf("\nEigenvalues S (in non-increasing order)\n");
     //        for (j = 0; j < N2; j++)
     //        {
@@ -693,7 +694,7 @@ PetscErrorCode BuildUS(AppCtx* user)
     //            printf("\n");
     //        }
     //
-    //     // Print eigenvectors W^(-1/2) * U
+    //     /* Print eigenvectors W^(-1/2)*U */
     //        printf("\nIts corresponding eigenvectors (columns)\n");
     //        for (i = 0; i < N2; i++)
     //        {
@@ -707,7 +708,7 @@ PetscErrorCode BuildUS(AppCtx* user)
     PetscFunctionReturn(0);
 }
 
-void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
+PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
 /* svd.c: Perform a singular value decomposition A = USV' of square matrix.
  *
  * Input: The A_input matrix must has n rows and n columns.
@@ -716,9 +717,10 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
 {
     PetscInt  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0, slimit = (n<120) ? 30 : n/4;
     PetscScalar eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0, y0, q, r, c0, s0, d1, d2;
-    
     PetscScalar *S2;
     PetscScalar **A;
+    
+    PetscFunctionBeginUser;
     
     PetscMalloc1(n,&S2);
     PetscMalloc1(2*n,&A);
@@ -783,6 +785,7 @@ void svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S
     }
     PetscFree(S2);
     PetscFree(A);
+    PetscFunctionReturn(0);
 }
 
 /*
@@ -849,9 +852,10 @@ static const double d[] =
 #define LOW 0.02425
 #define HIGH 0.97575
 
-double ltqnorm(double p)
+PetscReal ltqnorm(PetscReal p)
 {
-    double q, r;
+    PetscReal q, r;
+    PetscFunctionBeginUser;
     
     errno = 0;
     
@@ -892,6 +896,7 @@ double ltqnorm(double p)
         return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
         (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
     }
+    PetscFunctionReturn(0);
 }
 
 
