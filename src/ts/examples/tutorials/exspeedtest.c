@@ -100,12 +100,12 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
         return ierr;
 }
 
-PetscErrorCode GeneralInfo(MPI_Comm comm, char* bar, PetscViewer genViewer)
+PetscErrorCode GeneralInfo(MPI_Comm comm, char bar[], PetscViewer genViewer)
 {
 	PetscErrorCode	ierr;
 	const char 	*string;
 
-	ierr = PetscPrintf(comm, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
+	ierr = PetscPrintf(comm, "%s General Info %s\n", &bar + 2, &bar + 2);CHKERRQ(ierr);
 	ierr = PetscViewerStringGetStringRead(genViewer, &string, NULL);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, string);CHKERRQ(ierr);
 	ierr = PetscPrintf(comm, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
         size_t                  namelen=0;
 	PetscScalar 		dot, *coords, *array;
-	char			genInfo[2048], bar[19] = "------------------\0", filename[PETSC_MAX_PATH_LEN]="";
+	char			genInfo[2048], bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -287,6 +287,7 @@ int main(int argc, char **argv)
 	ierr = PetscLogStagePush(stageINSERT);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
         for (commiter = 0; commiter < 1; commiter++) {
+
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
@@ -294,16 +295,16 @@ int main(int argc, char **argv)
         ierr = PetscLogEventEnd(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
-        //	Init Log
+        /*	Init Log	*/
 	ierr = PetscLogStageRegister("CommStageADDVAL", &stageADD);CHKERRQ(ierr);
 	ierr = PetscLogEventRegister("CommADDVAL", 0, &eventADD);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageADD);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
         for (commiter = 0; commiter < 1; commiter++) {
-        	ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
+          	ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
-        //	Push LocalToGlobal time to log
+        /*	Push LocalToGlobal time to log	*/
         ierr = PetscLogEventEnd(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
