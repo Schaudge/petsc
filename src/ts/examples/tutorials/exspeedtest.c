@@ -1,4 +1,4 @@
-static char help[] = "Test Unstructured Mesh Handling\n";
+static char help[33] = "Test Unstructured Mesh Handling\n";
 
 # include <petscdmplex.h>
 # include <petscviewer.h>
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
         } else {
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
 		ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-        }
+	}
 
 	ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
