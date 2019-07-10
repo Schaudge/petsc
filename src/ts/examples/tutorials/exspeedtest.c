@@ -100,7 +100,7 @@ PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
         return ierr;
 }
 
-PetscErrorCode GeneralInfo(MPI_Comm comm, char bar[], PetscViewer genViewer)
+PetscErrorCode GeneralInfo(MPI_Comm comm, char *bar, PetscViewer genViewer)
 {
 	PetscErrorCode	ierr;
 	const char 	*string;
@@ -116,30 +116,45 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, char bar[], PetscViewer genViewer)
 /* 	Main	*/
 int main(int argc, char **argv)
 {
+	clock_t 		start, diff;
 	MPI_Comm		comm;
 	PetscErrorCode		ierr;
 	PetscViewer		genViewer;
 	PetscPartitioner	partitioner;
 	PetscPartitionerType	partitionername;
-	PetscLogStage 		stageINSERT, stageADD;
-	PetscLogEvent 		eventINSERT, eventADD;
+	PetscLogStage 		stageINSERT, stageADD, stageGVD;
+	PetscLogEvent 		eventINSERT, eventADD, eventGVD;
 	DM			dm, dmDist, dmInterp;
 	IS			bcPointsIS, globalCellNumIS;
+	ISLocalToGlobalMapping	ltog;
 	PetscSection		section;
-	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates;
-	PetscBool		speedTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 2, meshSize = 10, i, j, k, numFields = 100, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
-	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
+	Vec			customTimer, funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
+	PetscBool		perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
+	PetscInt		numRanks, rank, dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
+	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1], *rankArr;
         size_t                  namelen=0;
-	PetscScalar 		dot, *coords, *array;
-	char			genInfo[2048], bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
+	PetscScalar 		dot, VDotResult, timerSum = 0.0, avgTime = 0.0;
+	PetscScalar		*coords, *array;
+	char			genInfo[2048]="", bar[19] = "-----------------\0", filename[2*PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
+	ierr = MPI_Comm_size(comm, &numRanks);CHKERRQ(ierr);
+	ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+	ierr = PetscMalloc(numRanks * sizeof(PetscInt), &rankArr);CHKERRQ(ierr);
+	for (i = 0; i < numRanks; i++) {
+		rankArr[i] = i;
+	}
+	ierr = VecCreate(comm, &customTimer);CHKERRQ(ierr);
+	ierr = VecSetSizes(customTimer, 1, numRanks);CHKERRQ(ierr);
+	ierr = ISLocalToGlobalMappingCreate(comm, 1, 1, rankArr, PETSC_OWN_POINTER, &ltog);CHKERRQ(ierr);
+	ierr = VecSetLocalToGlobalMapping(customTimer, ltog);CHKERRQ(ierr);
+	ierr = VecSetUp(customTimer);CHKERRQ(ierr);
+	ierr = VecZeroEntries(customTimer);CHKERRQ(ierr);
 	ierr = PetscViewerStringOpen(comm, genInfo, sizeof(genInfo), &genViewer);CHKERRQ(ierr);
 
 	ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
-		ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", speedTest, &speedTest, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", perfTest, &perfTest, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-vtkout", "Enable mesh distribution visualization", "", VTKdisp, &VTKdisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-disp", "Turn on all displays", "", dispFlag, &dispFlag, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-isview", "Turn on ISView for single threaded", "", isView, &isView, NULL);CHKERRQ(ierr);
@@ -151,6 +166,7 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsGetInt(NULL, NULL, "-n", &meshSize, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &dim, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-nf", &numFields, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &overlap, NULL);CHKERRQ(ierr);
 	}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
@@ -167,7 +183,7 @@ int main(int argc, char **argv)
 		ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
         }
 
-	ierr = DMPlexDistribute(dm, 0, NULL, &dmDist);CHKERRQ(ierr);
+	ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
 		ierr = DMDestroy(&dm);CHKERRQ(ierr);
 		dm = dmDist;
@@ -210,19 +226,20 @@ int main(int argc, char **argv)
 	ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 	ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
 	ierr = DMSetSection(dm, section);CHKERRQ(ierr);
+	if (sectionDisp) {
+		ierr = PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);CHKERRQ(ierr);
+		ierr = PetscSectionView(section, 0);CHKERRQ(ierr);
+		ierr = PetscPrintf(comm,"%s End Petsc Section View %s\n",bar, bar);CHKERRQ(ierr);
+	}
+	ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
 	if (dmDisp) {
 		ierr = PetscPrintf(comm,"%s DM View %s\n", bar, bar);CHKERRQ(ierr);
 		ierr = DMView(dm, 0);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s End DM View %s\n", bar, bar);CHKERRQ(ierr);
 	}
 
-	/*	Perform Function on LOCAL array	*/
-	ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
-	ierr = VecGetLocalSize(solVecLocal, &nVertex);CHKERRQ(ierr);
-	ierr = VecGetArray(solVecLocal, &array);CHKERRQ(ierr);
-
 	/*	Create Vector for per process function evaluation	*/
-	if (!speedTest){
+	if (!perfTest){
 		ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
 		ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
 		ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
@@ -234,12 +251,6 @@ int main(int argc, char **argv)
 		ierr = VecAssemblyEnd(funcVecSin);CHKERRQ(ierr);
 		ierr = VecAssemblyBegin(funcVecCos);CHKERRQ(ierr);
 		ierr = VecAssemblyEnd(funcVecCos);CHKERRQ(ierr);
-	}
-
-	if (sectionDisp) {
-		ierr = PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);CHKERRQ(ierr);
-		ierr = PetscSectionView(section, 0);CHKERRQ(ierr);
-		ierr = PetscPrintf(comm,"%s End Petsc Section View %s\n",bar, bar);CHKERRQ(ierr);
 	}
 
 	if (VTKdisp) {
@@ -258,7 +269,11 @@ int main(int argc, char **argv)
 	}
 
 	/*	LOOP OVER ALL VERTICES ON LOCAL MESH UNLESS ITS A SPEEDTEST */
-	if (!speedTest) {
+	if (!perfTest) {
+		/*	Perform Function on LOCAL array	*/
+		ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+		ierr = VecGetLocalSize(solVecLocal, &nVertex);CHKERRQ(ierr);
+		ierr = VecGetArray(solVecLocal, &array);CHKERRQ(ierr);
 		if (arrayDisp) {PetscPrintf(comm,"%s Array %s\n",bar, bar);
 			ierr = PetscPrintf(comm, "Before Op | After Op\n");CHKERRQ(ierr);
 		}
@@ -268,77 +283,113 @@ int main(int argc, char **argv)
 			array[j] = dot;
 			if (arrayDisp) {ierr = PetscPrintf(comm, "\t  |%.3f\n", array[j]);CHKERRQ(ierr);}
 		}
-
 		if (arrayDisp) {
 			ierr = PetscPrintf(comm,"%d Number of LOCAL elements\n", nVertex);CHKERRQ(ierr);
 			ierr = PetscPrintf(comm,"%s Array End %s\n", bar, bar);CHKERRQ(ierr);
 		}
-	}
-	/*	Put LOCAL with changed values back into GLOBAL	*/
-	ierr = VecRestoreArray(solVecLocal, &array);CHKERRQ(ierr);
-	if (!speedTest) {
+		/*	Put LOCAL with changed values back into GLOBAL	*/
         	ierr = VecDestroy(&funcVecSin);CHKERRQ(ierr);
         	ierr = VecDestroy(&funcVecCos);CHKERRQ(ierr);
+		ierr = VecRestoreArray(solVecLocal, &array);CHKERRQ(ierr);
+		ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
         }
-	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 
-        /*	Init Log	*/
+        /*	Init INSERT VALUES Log	*/
 	ierr = PetscLogStageRegister("CommStageINSERT", &stageINSERT);CHKERRQ(ierr);
 	ierr = PetscLogEventRegister("CommINSERT", 0, &eventINSERT);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageINSERT);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
-        for (commiter = 0; commiter < 1; commiter++) {
+	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+	ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+	/*	Custom timing	*/
+	start = clock();
+        for (commiter = 0; commiter < 100; commiter++) {
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
-        /*	Push LocalToGlobal time to log	*/
+	/*	End timer and insert	*/
+	diff = ((PetscScalar)(clock() - start));
+	ierr = VecSetValueLocal(customTimer, 0, diff, INSERT_VALUES);CHKERRQ(ierr);
+	ierr = VecAssemblyBegin(customTimer);CHKERRQ(ierr);
+	ierr = VecAssemblyEnd(customTimer);CHKERRQ(ierr);
+	ierr = VecSum(customTimer, &timerSum);CHKERRQ(ierr);
+	avgTime = timerSum/numRanks;
+	ierr = VecDestroy(&customTimer);CHKERRQ(ierr);
+	/*	Push LocalToGlobal time to log	*/
+	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+	ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
         ierr = PetscLogEventEnd(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
-        /*	Init Log	*/
+        /*	Init ADD_VALUES Log	*/
 	ierr = PetscLogStageRegister("CommStageADDVAL", &stageADD);CHKERRQ(ierr);
 	ierr = PetscLogEventRegister("CommADDVAL", 0, &eventADD);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageADD);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
-        for (commiter = 0; commiter < 1; commiter++) {
+	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+	ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+        for (commiter = 0; commiter < 100; commiter++) {
           	ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
         }
-        /*	Push LocalToGlobal time to log	*/
+        /*	Push time to log	*/
+	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+	ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
         ierr = PetscLogEventEnd(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
         ierr = PetscLogStagePop();CHKERRQ(ierr);
 
-	/*	Get LOCAL coordinates for debug	*/
-	ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
-	ierr = VecGetLocalSize(coordinates, &nCoords);CHKERRQ(ierr);
-	ierr = VecGetArray(coordinates,&coords);CHKERRQ(ierr);
+	/*	Init VecDot Log	*/
+	ierr = PetscLogStageRegister("CommStageGlblVecDot", &stageGVD);CHKERRQ(ierr);
+	ierr = PetscLogEventRegister("CommGlblVecDot", 0, &eventGVD);CHKERRQ(ierr);
+	ierr = PetscLogStagePush(stageGVD);CHKERRQ(ierr);
+	ierr = PetscLogEventBegin(eventGVD, 0, 0, 0, 0);CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(dm, &VDot);CHKERRQ(ierr);
+	ierr = VecSet(VDot, 1);CHKERRQ(ierr);
+	for (commiter = 0; commiter < 100; commiter++) {
+		ierr = VecDotBegin(VDot, VDot, &VDotResult);CHKERRQ(ierr);
+		ierr = VecDotEnd(VDot, VDot, &VDotResult);CHKERRQ(ierr);
+        }
+	/*	Push time to log	*/
+	ierr = VecDestroy(&VDot);CHKERRQ(ierr);
+	ierr = PetscLogEventEnd(eventGVD, 0, 0, 0, 0);CHKERRQ(ierr);
+        ierr = PetscLogStagePop();CHKERRQ(ierr);
 
-	/*	LOOP OVER ALL COORDINATES PAIRS ON LOCAL MESH
+	if (coordDisp) {
+		/*	Get LOCAL coordinates for debug	*/
+		ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+		ierr = VecGetLocalSize(coordinates, &nCoords);CHKERRQ(ierr);
+		ierr = VecGetArray(coordinates,&coords);CHKERRQ(ierr);
+
+		/*	LOOP OVER ALL COORDINATES PAIRS ON LOCAL MESH
 		NOTE: This is not the same as looping over values of a matrix A
 		representing the "vertices" but instead gives you the (x,y)
 		coordinates corresponding to an entry Aij. Rule of thumb for checking
 		is that there should be twice as many local coords as local vertices!	*/
-	if (coordDisp) {
+
 		ierr = PetscPrintf(comm,"%s Coords %s\n", bar, bar);CHKERRQ(ierr);
 		for(i=0; i < nCoords/2; i++) {
 			ierr = PetscPrintf(comm,"(%.2f,%.2f)\n", coords[2*i], coords[(2*i)+1]);CHKERRQ(ierr);
 		}
 		ierr = PetscPrintf(comm,"%d Number of LOCAL coordinates\n",i);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s Coords End %s\n", bar, bar);CHKERRQ(ierr);
+		ierr = VecRestoreArray(coordinates, &coords);CHKERRQ(ierr);
 	}
 
 	/*	Output vtk of global solution vector	*/
 	if (VTKdisp) {
 		PetscViewer	vtkviewersoln;
 
+		ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 		ierr = PetscViewerCreate(comm, &vtkviewersoln);CHKERRQ(ierr);
 		ierr = PetscViewerSetType(vtkviewersoln,PETSCVIEWERVTK);CHKERRQ(ierr);
 		ierr = PetscViewerFileSetName(vtkviewersoln, "solution.vtk");CHKERRQ(ierr);
 		ierr = VecView(solVecGlobal, vtkviewersoln);CHKERRQ(ierr);
+		ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 		ierr = PetscViewerDestroy(&vtkviewersoln);CHKERRQ(ierr);
 	}
 
 	/*	Get Some additional data about the mesh mainly for printing */
+	ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 	ierr = VecGetSize(solVecGlobal, &globalSize);CHKERRQ(ierr);
 	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
 	ierr = DMPlexGetCellNumbering(dm, &globalCellNumIS);CHKERRQ(ierr);
@@ -358,13 +409,19 @@ int main(int argc, char **argv)
 	} else {
 		ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
 	}
-	if (fileflg) {
-		ierr = PetscViewerStringSPrintf(genViewer, "File read name:%s>%s\n", bar, filename);CHKERRQ(ierr);
+	ierr = PetscViewerStringSPrintf(genViewer, "Ghost point overlap:%s>%d\n", bar + 5, overlap);CHKERRQ(ierr);
+	if (avgTime > 0.0) {
+		ierr = PetscViewerStringSPrintf(genViewer, "Timing (# clock cycles):%s>%.3f\n", bar + 9, avgTime);CHKERRQ(ierr);
 	}
-	ierr = PetscViewerStringSPrintf(genViewer,  "\nDistributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+
+
+	ierr = PetscViewerStringSPrintf(genViewer, "\nFile read mode:%s>%s\n", bar, fileflg ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	if (fileflg) {
+		ierr = PetscViewerStringSPrintf(genViewer, "┗ File read name:%s>%s\n", bar + 2, filename);CHKERRQ(ierr);
+	}
+	ierr = PetscViewerStringSPrintf(genViewer,  "Distributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 	ierr = PetscViewerStringSPrintf(genViewer, "Interpolated dm:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-	ierr = PetscViewerStringSPrintf(genViewer, "File read mode:%s>%s\n", bar, fileflg ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerStringSPrintf(genViewer, "Speedtest mode:%s>%s\n", bar, speedTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+        ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", bar + 7, perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "VTKoutput mode:%s>%s\n", bar, VTKdisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "Full Display mode:%s>%s\n", bar + 3, dispFlag ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "IS Display mode:%s>%s\n", bar + 1, isView ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
