@@ -571,20 +571,11 @@ PetscErrorCode  TSComputeRHSJacobian(TS ts,PetscReal t,Vec U,Mat A,Mat B)
   if (ts->rhsjacobian.time == t && (ts->problem_type == TS_LINEAR || (ts->rhsjacobian.Xid == Uid && ts->rhsjacobian.Xstate == Ustate)) && (rhsfunction != TSComputeRHSFunctionLinear)) PetscFunctionReturn(0);
 
   if (rhsjacobianfunc) {
-    PetscBool missing;
     ierr = PetscLogEventBegin(TS_JacobianEval,ts,U,A,B);CHKERRQ(ierr);
     PetscStackPush("TS user Jacobian function");
     ierr = (*rhsjacobianfunc)(ts,t,U,A,B,ctx);CHKERRQ(ierr);
     PetscStackPop;
     ierr = PetscLogEventEnd(TS_JacobianEval,ts,U,A,B);CHKERRQ(ierr);
-    if (A) {
-      ierr = MatMissingDiagonal(A,&missing,NULL);CHKERRQ(ierr);
-      if (missing) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Amat passed to TSSetRHSJacobian() must have all diagonal entries set, if they are zero you must still set them with a zero value");
-    }
-    if (B && B != A) {
-      ierr = MatMissingDiagonal(B,&missing,NULL);CHKERRQ(ierr);
-      if (missing) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Bmat passed to TSSetRHSJacobian() must have all diagonal entries set, if they are zero you must still set them with a zero value");
-    }
   } else {
     ierr = MatZeroEntries(A);CHKERRQ(ierr);
     if (B && A != B) {ierr = MatZeroEntries(B);CHKERRQ(ierr);}
