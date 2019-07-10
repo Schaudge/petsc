@@ -47,16 +47,16 @@ typedef struct {
   PetscScalar*   S;
 } AppCtx;
 
-extern PetscErrorCode SetParams(Parameter*,GridInfo*,TsInfo*);
-extern PetscErrorCode FormInitialSolution(AppCtx*,Vec);
-extern PetscErrorCode BuildA(AppCtx*);
-extern PetscErrorCode BuildA_CN(AppCtx*);
-extern PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
-extern PetscErrorCode myTS(AppCtx*,Vec);
-extern PetscErrorCode BuildR(AppCtx*,Vec);
-extern PetscErrorCode BuildUS(AppCtx*);
-extern PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
-extern PetscReal      ltqnorm(PetscReal);
+PetscErrorCode SetParams(Parameter*,GridInfo*,TsInfo*);
+PetscErrorCode FormInitialSolution(AppCtx*,Vec);
+PetscErrorCode BuildA(AppCtx*);
+PetscErrorCode BuildA_CN(AppCtx*);
+PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
+PetscErrorCode myTS(AppCtx*,Vec);
+PetscErrorCode BuildR(AppCtx*,Vec);
+PetscErrorCode BuildUS(AppCtx*);
+PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
+PetscReal      ltqnorm(PetscReal);
 
 int main(int argc,char **argv)
 {
