@@ -528,6 +528,7 @@ PetscErrorCode VTKPlotter(MPI_Comm comm, DM dm, char *deformId, Mat outMat, Vec 
 			break;
 		}
 	case 1:
+		/*	Visualize Jacobian determinant per cell	*/
 		{
 		/*	Gets a vector linking to the cells	*/
 			Vec	cellJacobian;
@@ -540,7 +541,7 @@ PetscErrorCode VTKPlotter(MPI_Comm comm, DM dm, char *deformId, Mat outMat, Vec 
 			ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
 			ierr = PetscViewerSetType(vtkviewer,PETSCVIEWERVTK);CHKERRQ(ierr);
 			ierr = PetscViewerFileSetName(vtkviewer, deformId);CHKERRQ(ierr);
-			//ierr = VecView(cellJacobian, vtkviewer);CHKERRQ(ierr);
+			ierr = VecView(cellJacobian, vtkviewer);CHKERRQ(ierr);
 
 			ierr = VecDestroy(&cellJacobian);CHKERRQ(ierr);
 			break;
@@ -563,6 +564,7 @@ PetscErrorCode VTKPlotter(MPI_Comm comm, DM dm, char *deformId, Mat outMat, Vec 
 			break;
 		}
 	case 3:
+		/*	Visualize orthogonal qualit per cell	*/
 		{
 			Vec	cellScoreTemp;
 
@@ -769,16 +771,17 @@ PetscErrorCode OrthoganalQuality(MPI_Comm comm, DM dm, Vec *OrthQual)
 		ierr = CentroidToFace(dm, cell, nPointsPerCell, &cent2faces, &faceNormVec);CHKERRQ(ierr);
 		for (i = 0; i < nPointsPerCell; i++) {
 			PetscInt	*idx;
+			size_t		size=2;
 			Vec  		subVecCent, subVecFace;
 
-			PetscMalloc1(2, &idx);idx[0] = 2*i; idx[1] = 2*i+1;
-			ierr = ISCreateGeneral(PETSC_COMM_WORLD, 2, idx, PETSC_OWN_POINTER, &subAlloc);CHKERRQ(ierr);
+			ierr = PetscMalloc1(size, &idx);CHKERRQ(ierr);
+			idx[0] = 2*i; idx[1] = 2*i+1;
+			ierr = ISCreateGeneral(PETSC_COMM_WORLD, 2, idx, PETSC_COPY_VALUES, &subAlloc);CHKERRQ(ierr);
+			ierr = PetscFree(idx);CHKERRQ(ierr);
 			ierr = VecGetSubVector(cent2faces, subAlloc, &subVecCent);CHKERRQ(ierr);
 			ierr = VecGetSubVector(faceNormVec, subAlloc, &subVecFace);CHKERRQ(ierr);
 			ierr = VecNorm(subVecCent, NORM_2, &Fnorm);CHKERRQ(ierr);
 			ierr = VecNorm(subVecFace, NORM_2, &Anorm);CHKERRQ(ierr);
-			VecView(subVecFace, 0);
-			VecView(subVecCent, 0);
 			ierr = VecDot(subVecCent, subVecFace, &DotProd);CHKERRQ(ierr);
 			OrthQualPerFace = DotProd/(Fnorm*Anorm);
 			ierr = VecSetValue(temp, i, OrthQualPerFace, INSERT_VALUES);CHKERRQ(ierr);
@@ -917,7 +920,7 @@ int main(int argc, char **argv)
         IS                      bcPointsIS;
 	ISLocalToGlobalMapping	ltogmap, ltogmapJac;
 	Vec			perCellMeshScore;
-        PetscInt                i, k, booli, dim = 2, xdim,  ydim, numFields, numBC, visID = 3, nCells;
+        PetscInt                i, k, booli, dim = 2, xdim,  ydim, numFields, numBC, visID = 1, nCells;
         PetscScalar             lx = 1.0, ly = 1.0, phi = 0.2, AggregateMeshScore;
         PetscInt                deformBoolArray[5], faces[2], numComp[1], numDOF[3], bcField[1];
         Mat			Jac, detJac, condJac, allMats[4];

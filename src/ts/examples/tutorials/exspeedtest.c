@@ -128,12 +128,12 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
 	PetscBool		perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
-	PetscInt		faces[2], numComp[3], numDOF[3], bcField[1];
+	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
+	PetscInt		numDOF[3], bcField[numBC];
         size_t                  namelen=0;
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
-	char			genInfo[2048]="", bar[19] = "-----------------\0", filename[2*PETSC_MAX_PATH_LEN]="";
+	char			genInfo[PETSC_MAX_PATH_LEN]="", bar[20] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -157,8 +157,10 @@ int main(int argc, char **argv)
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
 
+	PetscInt		numComp[numFields], faces[dim];
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
+
 		for(i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
@@ -193,15 +195,11 @@ int main(int argc, char **argv)
 	}
 
 	/* 	Init number of Field Components	*/
-	numComp[0] = 0;
+	for (k = 0; k < numFields; k++){numComp[k] = 1;}
 	/*	Init numDOF[field componentID] = Not Used	*/
 	for (k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
 	/*	numDOF[field componentID] = Used	*/
 	numDOF[0] = 1;
-	/*	numComp[componentID] = Used	*/
-	numComp[0] = 1;
-	/*	Init number of boundary conditions	*/
-	numBC = 1;
 	/*	bcField[boundary conditionID] = Dirichtlet Val	*/
 	bcField[0] = 0;
 
@@ -209,7 +207,6 @@ int main(int argc, char **argv)
         ierr = DMGetStratumIS(dm, "depth", 2, &bcPointsIS);CHKERRQ(ierr);
 	ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
 	ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
-	ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 	ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
 	ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 	if (sectionDisp) {
@@ -218,6 +215,7 @@ int main(int argc, char **argv)
 		ierr = PetscPrintf(comm,"%s End Petsc Section View %s\n",bar, bar);CHKERRQ(ierr);
 	}
 	ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
+	ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 	if (dmDisp) {
 		ierr = PetscPrintf(comm,"%s DM View %s\n", bar, bar);CHKERRQ(ierr);
 		ierr = DMView(dm, 0);CHKERRQ(ierr);
