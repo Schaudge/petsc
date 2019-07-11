@@ -445,6 +445,47 @@ PetscErrorCode PetscFindMPIInt(PetscMPIInt key, PetscInt n, const PetscMPIInt X[
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscSortIntWithArray_Private_Radix(PetscUInt L[],PetscUInt J[],PetscInt n,unsigned shift)
+{
+  PetscErrorCode ierr;
+  PetscInt i,bin;
+  const PetscUInt mask = 0xff,nbins = 256;
+  PetscUInt binshift;
+  size_t cursor[256],end[256] = {};
+
+  PetscFunctionBeginHot;
+  binshift = (shift == (sizeof(PetscInt)-1)*PETSC_BITS_PER_BYTE) ? nbins / 2 : 0;
+  for (i=0; i<n; i++) end[((L[i] >> shift) + binshift) & mask]++;
+  cursor[0] = 0;
+  for (i=1; i<nbins; i++) {
+    cursor[i] = end[i-1];
+    end[i] += end[i-1];
+  }
+  for (bin=0; bin<nbins; bin++) {
+    for ( ; cursor[bin] != end[bin]; cursor[bin]++) {
+      PetscInt t;
+      i = cursor[bin];
+      for (t = ((L[i] >> shift) + binshift) & mask; t != bin; t = ((L[i] >> shift) + binshift) & mask) {
+        PetscUInt tmp;
+        PetscInt j = cursor[t]++;
+        SWAP2(L[i],L[j],J[i],J[j],tmp);
+      }
+    }
+  }
+  if (shift > 0) {
+    for (bin=0; bin<256; bin++) {
+      PetscInt binstart = bin == 0 ? 0 : cursor[bin-1];
+      PetscInt binsize = cursor[bin] - binstart;
+      if (binsize > 64) {
+        ierr = PetscSortIntWithArray_Private_Radix(L+binstart,J+binstart,binsize,shift-8);CHKERRQ(ierr);
+      } else if (binsize > 1) {
+        ierr = PetscSortIntWithArray_Private((PetscInt*)L+binstart,(PetscInt*)J+binstart,binsize-1);CHKERRQ(ierr);
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
 /*@
    PetscSortIntWithArray - Sorts an array of integers in place in increasing order;
        changes a second array to match the sorted first array.
@@ -466,7 +507,20 @@ PetscErrorCode  PetscSortIntWithArray(PetscInt n,PetscInt X[],PetscInt Y[])
   PetscInt       pivot,t1,t2;
 
   PetscFunctionBegin;
-  QuickSort2(PetscSortIntWithArray,X,Y,n,pivot,t1,t2,ierr);
+  if (n<8) {
+    for (k=0; k<n; k++) {
+      ik = i[k];
+      for (j=k+1; j<n; j++) {
+        if (ik > i[j]) {
+          SWAP2(i[k],i[j],Ii[k],Ii[j],tmp);
+          ik = i[k];
+        }
+      }
+    }
+  } else {
+    //ierr = PetscSortIntWithArray_Private(i,Ii,n-1);CHKERRQ(ierr);
+    ierr = PetscSortIntWithArray_Private_Radix((PetscUInt*)i,(PetscUInt*)Ii,n,(sizeof(PetscInt)-1)*PETSC_BITS_PER_BYTE);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -491,8 +545,64 @@ PetscErrorCode  PetscSortIntWithArrayPair(PetscInt n,PetscInt X[],PetscInt Y[],P
   PetscErrorCode ierr;
   PetscInt       pivot,t1,t2,t3;
 
-  PetscFunctionBegin;
-  QuickSort3(PetscSortIntWithArrayPair,X,Y,Z,n,pivot,t1,t2,t3,ierr);
+  PetscFunctionBeginHot;
+  if (right <= 1) {
+    if (right == 1) {
+      if (L[0] > L[1]) SWAP3(L[0],L[1],J[0],J[1],K[0],K[1],tmp);
+    }
+    PetscFunctionReturn(0);
+  }
+  SWAP3(L[0],L[right/2],J[0],J[right/2],K[0],K[right/2],tmp);
+  vl   = L[0];
+  last = 0;
+  for (i=1; i<=right; i++) {
+    if (L[i] < vl) {last++; SWAP3(L[last],L[i],J[last],J[i],K[last],K[i],tmp);}
+  }
+  SWAP3(L[0],L[last],J[0],J[last],K[0],K[last],tmp);
+  ierr = PetscSortIntWithArrayPair_Private(L,J,K,last-1);CHKERRQ(ierr);
+  ierr = PetscSortIntWithArrayPair_Private(L+last+1,J+last+1,K+last+1,right-(last+1));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* Inspired by a "test" implementation in Heng Li's klib repository (MIT/X11 license) */
+static PetscErrorCode PetscSortIntWithArrayPair_Private_Radix(PetscUInt L[],PetscUInt J[],PetscUInt K[],PetscInt n,unsigned shift)
+{
+  PetscErrorCode ierr;
+  PetscInt i,bin;
+  const PetscUInt mask = 0xff,nbins = 256;
+  PetscUInt binshift;
+  size_t cursor[256],end[256] = {};
+
+  PetscFunctionBeginHot;
+  binshift = (shift == (sizeof(PetscInt)-1)*PETSC_BITS_PER_BYTE) ? nbins / 2 : 0;
+  for (i=0; i<n; i++) end[((L[i] >> shift) + binshift) & mask]++;
+  cursor[0] = 0;
+  for (i=1; i<nbins; i++) {
+    cursor[i] = end[i-1];
+    end[i] += end[i-1];
+  }
+  for (bin=0; bin<nbins; bin++) {
+    for ( ; cursor[bin] != end[bin]; cursor[bin]++) {
+      PetscInt t;
+      i = cursor[bin];
+      for (t = ((L[i] >> shift) + binshift) & mask; t != bin; t = ((L[i] >> shift) + binshift) & mask) {
+        PetscUInt tmp;
+        PetscInt j = cursor[t]++;
+        SWAP3(L[i],L[j],J[i],J[j],K[i],K[j],tmp);
+      }
+    }
+  }
+  if (shift > 0) {
+    for (bin=0; bin<256; bin++) {
+      PetscInt binstart = bin == 0 ? 0 : cursor[bin-1];
+      PetscInt binsize = cursor[bin] - binstart;
+      if (binsize > 64) {
+        ierr = PetscSortIntWithArrayPair_Private_Radix(L+binstart,J+binstart,K+binstart,binsize,shift-8);CHKERRQ(ierr);
+      } else if (binsize > 1) {
+        ierr = PetscSortIntWithArrayPair_Private((PetscInt*)L+binstart,(PetscInt*)J+binstart,(PetscInt*)K+binstart,binsize-1);CHKERRQ(ierr);
+      }
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -515,7 +625,20 @@ PetscErrorCode  PetscSortIntWithArrayPair(PetscInt n,PetscInt X[],PetscInt Y[],P
 PetscErrorCode  PetscSortedMPIInt(PetscInt n,const PetscMPIInt X[],PetscBool *sorted)
 {
   PetscFunctionBegin;
-  PetscSorted(n,X,*sorted);
+  if (n<8) {
+    for (k=0; k<n; k++) {
+      ik = L[k];
+      for (j=k+1; j<n; j++) {
+        if (ik > L[j]) {
+          SWAP3(L[k],L[j],J[k],J[j],K[k],K[j],tmp);
+          ik = L[k];
+        }
+      }
+    }
+  } else {
+    //ierr = PetscSortIntWithArrayPair_Private(L,J,K,n-1);CHKERRQ(ierr);
+    ierr = PetscSortIntWithArrayPair_Private_Radix((PetscUInt*)L,(PetscUInt*)J,(PetscUInt*)K,n,(sizeof(PetscInt)-1)*PETSC_BITS_PER_BYTE);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 

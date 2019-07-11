@@ -88,18 +88,23 @@ M*/
 
 #if defined(PETSC_HAVE_STDINT_H) && defined(PETSC_HAVE_INTTYPES_H) && defined(PETSC_HAVE_MPI_INT64_T) /* MPI_INT64_T is not guaranteed to be a macro */
    typedef int64_t PetscInt64;
+   typedef uint64_t PetscUInt64;
 #elif (PETSC_SIZEOF_LONG_LONG == 8)
    typedef long long PetscInt64;
+   typedef unsigned long long PetscUInt64;
 #elif defined(PETSC_HAVE___INT64)
    typedef __int64 PetscInt64;
+   typedef unsigned __int64 PetscUInt64;
 #else
 #  error "cannot determine PetscInt64 type"
 #endif
 
 #if defined(PETSC_USE_64BIT_INDICES)
    typedef PetscInt64 PetscInt;
+   typedef PetscUInt64 PetscUInt;
 #else
    typedef int PetscInt;
+   typedef unsigned int PetscUInt;
 #endif
 
 /*MC
