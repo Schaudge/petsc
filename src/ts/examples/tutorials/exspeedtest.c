@@ -133,7 +133,7 @@ int main(int argc, char **argv)
         size_t                  namelen=0;
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
-	char			genInfo[PETSC_MAX_PATH_LEN]="", bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
+	char			genInfo[PETSC_MAX_PATH_LEN]="", bar[19] = "-----------------\0", filename[2*PETSC_MAX_PATH_LEN];
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsBool("-secview","Turn on SectionView", "", sectionDisp, &sectionDisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-arrview", "Turn on array display", "", arrayDisp, &arrayDisp, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-coordview","Turn on coordinate display", "", coordDisp, &coordDisp, NULL);CHKERRQ(ierr);
-		ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, sizeof(filename), &fileflg); CHKERRQ(ierr);
+		ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, PETSC_MAX_PATH_LEN, &fileflg); CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-n", &meshSize, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &dim, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-nf", &numFields, NULL);CHKERRQ(ierr);
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 
 	PetscInt		numDOF[numFields*(dim+1)], numComp[numFields], faces[dim];
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
-        if (fileflg){
+        if (!fileflg){
 		for(i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 		ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
 	}
 
-	ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+	ierr = DMPlexDistribute(dm, overlap, &temp, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
 		ierr = DMDestroy(&dm);CHKERRQ(ierr);
 		dm = dmDist;
