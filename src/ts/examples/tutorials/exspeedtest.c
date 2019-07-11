@@ -133,7 +133,7 @@ int main(int argc, char **argv)
         size_t                  namelen=0;
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
-	char			genInfo[PETSC_MAX_PATH_LEN]="", bar[20] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
+	char			genInfo[PETSC_MAX_PATH_LEN]="", bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
 	comm = PETSC_COMM_WORLD;
@@ -155,12 +155,11 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &overlap, NULL);CHKERRQ(ierr);
 	}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
-	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
+	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE; arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
 
 	PetscInt		numDOF[numFields*(dim+1)], numComp[numFields], faces[dim];
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
-        if (!namelen){
-
+        if (fileflg){
 		for(i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
@@ -204,7 +203,7 @@ int main(int argc, char **argv)
 	bcField[0] = 0;
 
 	/*	Assign BC using IS of LOCAL boundaries	*/
-        ierr = DMGetStratumIS(dm, "depth", 2, &bcPointsIS);CHKERRQ(ierr);
+        ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
 	ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
 	ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
 	ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
