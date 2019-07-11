@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
 	PetscBool		perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
-	PetscInt		numDOF[3], bcField[numBC];
+	PetscInt		bcField[numBC];
         size_t                  namelen=0;
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE, arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
 
-	PetscInt		numComp[numFields], faces[dim];
+	PetscInt		numDOF[numFields*(dim+1)], numComp[numFields], faces[dim];
         ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
         if (!namelen){
 
