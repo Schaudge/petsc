@@ -4,8 +4,8 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
 /*
    du = (u_xx + u_yy) dt + sigma * dW(t)
    0 < x < 1, 0 < y < 1;
-   At t=0: u(x,y) = b*exp(c*r*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
-           u(x,y) = 0.0           , if r >= rad
+   At t=0: u(x,y) = b*exp(c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
+           u(x,y) = 0.0         , if r >= rad
 
     mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1
 */
@@ -348,7 +348,7 @@ PetscErrorCode FormInitialSolution(AppCtx *user, Vec U)
         for (i=xs; i<xs+xm; i++) {
             x = i*hx;
             r = PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5));
-            if (r < rad) u[j][i] = b * PetscExpReal(c*r*r*r);
+            if (r < rad) u[j][i] = b * PetscExpReal(c*r*r);
             else u[j][i] = 0.0;
         }
     }
