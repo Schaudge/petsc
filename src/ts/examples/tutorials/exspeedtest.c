@@ -315,9 +315,7 @@ int main(int argc, char **argv)
         for (commiter = 0; commiter < 100; commiter++) {
           	ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
-		/*	These aren't implemented	*/
-		//		ierr = DMGlobalToLocalBegin(dm, solVecGlobal, ADD_VALUES, solVecLocal);CHKERRQ(ierr);
-		//		ierr = DMGlobalToLocalEnd(dm, solVecGlobal, ADD_VALUES, solVecLocal);CHKERRQ(ierr);
+		/*	Global to Local aren't implemented	*/
         }
         /*	Push time to log	*/
 	ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
