@@ -5,6 +5,7 @@ reset
 brick x 1
 volume 1 move x 0.5 y 0.5 z 0.5
 block 1 volume 1
+volume 1 interval {nx}
 
 surface 2 name "BackSurface"
 surface 3 name "BottomSurface"
@@ -13,13 +14,12 @@ surface 4 name "LeftSurface"
 surface 5 name "RightSurface"
 surface 6 name "TopSurface"
 
-surface all interval {nx}
 set source surface pattern "FrontSurface"
 set target surface pattern "BackSurface"
 volume 1 scheme sweep  
-mesh volume all
+mesh volume 1
 
-export mesh "./3Dbrick.exo" dimension 3 block 1 overwrite
+export mesh "./3Dbrick125k.exo" dimension 3 block 1 overwrite
 
 exit
 

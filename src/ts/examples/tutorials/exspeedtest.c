@@ -130,12 +130,11 @@ int main(int argc, char **argv)
 	PetscBool		perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
 	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
 	PetscInt		bcField[numBC];
-        size_t                  namelen=0;
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
-	char			genInfo[PETSC_MAX_PATH_LEN]="", bar[19] = "-----------------\0", filename[2*PETSC_MAX_PATH_LEN];
+	char			genInfo[PETSC_MAX_PATH_LEN], bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
 
-	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr) return ierr;
+	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
 	comm = PETSC_COMM_WORLD;
 	ierr = PetscViewerStringOpen(comm, genInfo, sizeof(genInfo), &genViewer);CHKERRQ(ierr);
 
@@ -157,20 +156,19 @@ int main(int argc, char **argv)
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE; arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
 
-	PetscInt		numDOF[numFields*(dim+1)], numComp[numFields], faces[dim];
-        ierr = PetscStrlen(filename, &namelen);CHKERRQ(ierr);
-        if (!fileflg){
+	PetscInt		faces[dim];
+        if (fileflg) {
+          	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
+        } else {
 		for(i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
 		}
           	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
-        } else {
-          	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
-		ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
 	}
 
-	ierr = DMPlexDistribute(dm, overlap, &temp, &dmDist);CHKERRQ(ierr);
+	ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+	ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
 	if (dmDist) {
 		ierr = DMDestroy(&dm);CHKERRQ(ierr);
 		dm = dmDist;
@@ -193,6 +191,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	PetscInt		numDOF[numFields*(dim+1)], numComp[numFields];
 	/* 	Init number of Field Components	*/
 	for (k = 0; k < numFields; k++){numComp[k] = 1;}
 	/*	Init numDOF[field componentID] = Not Used	*/
