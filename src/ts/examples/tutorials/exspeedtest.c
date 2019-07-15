@@ -127,17 +127,18 @@ int main(int argc, char **argv)
 	IS			bcPointsIS, globalCellNumIS;
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
-	PetscBool		perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE;
-	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter;
+	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
+	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2;
 	PetscInt		bcField[numBC];
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
-	char			genInfo[PETSC_MAX_PATH_LEN], bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN]="";
+	char			genInfo[PETSC_MAX_PATH_LEN], bar[19] = "-----------------\0", filename[PETSC_MAX_PATH_LEN];
 
 	ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
 	comm = PETSC_COMM_WORLD;
 	ierr = PetscViewerStringOpen(comm, genInfo, sizeof(genInfo), &genViewer);CHKERRQ(ierr);
 
+	/*	Options and init	*/
 	ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
 		ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", perfTest, &perfTest, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-vtkout", "Enable mesh distribution visualization", "", VTKdisp, &VTKdisp, NULL);CHKERRQ(ierr);
@@ -152,19 +153,34 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &dim, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-nf", &numFields, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &overlap, NULL);CHKERRQ(ierr);
-	}
+		ierr = PetscOptionsBool("-petscfe", "Enable only making a petscFE", "", usePetscFE, &usePetscFE, NULL);CHKERRQ(ierr);
+		}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
-	if (dispFlag) {isView = PETSC_TRUE; dmDisp = PETSC_TRUE; sectionDisp = PETSC_TRUE; arrayDisp = PETSC_TRUE; coordDisp = PETSC_TRUE;}
+	if (dispFlag) {
+		isView = PETSC_TRUE;
+		dmDisp = PETSC_TRUE;
+		sectionDisp = PETSC_TRUE;
+		arrayDisp = PETSC_TRUE;
+		coordDisp = PETSC_TRUE;
+	}
+	if (usePetscFE) {
+		numFields = 1;
+	}
 
+	/*	Read in or create mesh	*/
+	{
 	PetscInt		faces[dim];
         if (fileflg) {
+		char 		*dup;
+		sprintf(filename, "%s%s", "./meshes/", (dup = strdup(filename)));
+		free(dup);
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
         } else {
 		for(i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
 		}
-          	ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
+          	ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
 	}
 
 	ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
@@ -190,8 +206,11 @@ int main(int argc, char **argv)
 			ierr = PetscPrintf(comm,"No interped dm [QUITE UNUSUAL]\n");CHKERRQ(ierr);
 		}
 	}
+	}
 
-	PetscInt		numDOF[numFields*(dim+1)], numComp[numFields];
+	/*	Set up DM and initialize fields	*/
+	{
+	PetscInt	numDOF[numFields*(dim+1)], numComp[numFields];
 	/* 	Init number of Field Components	*/
 	for (k = 0; k < numFields; k++){numComp[k] = 1;}
 	/*	Init numDOF[field componentID] = Not Used	*/
@@ -202,10 +221,10 @@ int main(int argc, char **argv)
 	bcField[0] = 0;
 
 	/*	Assign BC using IS of LOCAL boundaries	*/
-        ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
+	ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
 	ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
 	ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
-	ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
+	ierr = PetscSectionSetFieldName(section, 0, "Default_Field");CHKERRQ(ierr);
 	ierr = DMSetSection(dm, section);CHKERRQ(ierr);
 	if (sectionDisp) {
 		ierr = PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);CHKERRQ(ierr);
@@ -219,10 +238,22 @@ int main(int argc, char **argv)
 		ierr = DMView(dm, 0);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s End DM View %s\n", bar, bar);CHKERRQ(ierr);
 	}
+	}
+
+	/*	Create PetscFE	*/
+	if (usePetscFE) {
+		PetscFE			defaultFE;
+		ierr = PetscFECreateDefault(comm, dim, dim, simplex, NULL, qorder, &defaultFE);CHKERRQ(ierr);
+		ierr = PetscFESetName(defaultFE, "Default_FE");CHKERRQ(ierr);
+		ierr = DMSetField(dm, 0, NULL, (PetscObject) defaultFE);CHKERRQ(ierr);
+		ierr = DMCreateDS(dm);CHKERRQ(ierr);
+		PetscFEView(defaultFE, 0);
+		ierr = PetscFEDestroy(&defaultFE);CHKERRQ(ierr);
+	}
 
 	/*	Create Vector for per process function evaluation	*/
 	if (!perfTest){
-		ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
+		ierr = VecCreate(PETSC_COMM_WORLD, &funcVecSin);CHKERRQ(ierr);
 		ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
 		ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
 		ierr = VecSetFromOptions(funcVecSin);CHKERRQ(ierr);
@@ -260,7 +291,7 @@ int main(int argc, char **argv)
 			ierr = PetscPrintf(comm, "Before Op | After Op\n");CHKERRQ(ierr);
 		}
 		for(j = 0; j < nVertex; ++j) {
-			if (arrayDisp) {ierr = PetscPrintf(comm, "%.3f", array[j]);CHKERRQ(ierr);}
+			if (arrayDisp) { ierr = PetscPrintf(comm, "%.3f", array[j]);CHKERRQ(ierr); }
 			ierr = VecDot(funcVecCos, funcVecSin, &dot);CHKERRQ(ierr);
 			array[j] = dot;
 			if (arrayDisp) {ierr = PetscPrintf(comm, "\t  |%.3f\n", array[j]);CHKERRQ(ierr);}
