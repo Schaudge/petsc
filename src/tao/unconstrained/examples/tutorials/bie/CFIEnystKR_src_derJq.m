@@ -10,10 +10,10 @@ sw = GG.sp(j)*GG.w(j);
                        % speed weight
 %N = numel(GG.x);   % apply correction                 % kill diagonal
 d = t(i)-GG.x(j); kr = k*abs(d);           % CFIE kernel...
-a=0;
-if (abs(d) > 1e-5)
+%a=0;
+%if (abs(d) > 1e-10)
     costhetan = real(conj(GG.nx(j)).*d)./abs(d);  % theta angle between x-y & ny
     %a = (1i/4) * (k*costheta*besselh(1,1,kr) - 1i*eta*besselh(0,1,kr)) * sw;
     %Marieme
-    a = ((1i/4) * (k*costhetan.*besselh(1,1,kr) - 1i*eta*besselh(0,1,kr)) ) * sw;
-end
+    a = ((1i/4.0) * (k*costhetan.*besselh(1,1,kr) - 1i*eta*besselh(0,1,kr)) ) * sw;
+%end

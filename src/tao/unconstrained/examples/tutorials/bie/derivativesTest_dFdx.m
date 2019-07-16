@@ -35,13 +35,13 @@ epsilon = 1e-8;
 for ii=1:nc
     GG{ii} = cylinder(rc,xp(ii),yp(ii));
     GG{ii} = curvquad(GG{ii},'ptr',N,10);
-    GG_eps{ii} = cylinder(rc,xp(ii)+epsilon,yp(ii)); %to check wrt to y add epsilon to y
+    GG_eps{ii} = cylinder(rc,xp(ii),yp(ii)+epsilon); %to check wrt to y add epsilon to y
     GG_eps{ii} = curvquad(GG_eps{ii},'ptr',N,10);
 end
 k = 10; eta = k;                           % wavenumber, SLP mixing amount
 f = @(z) 1i*besselh(0,1,k*abs(z-src))/4.0;   % known soln: interior source
 fgradx = @(z) -1i/(4.0)*k*besselh(1,1,k*abs(z-src)).*(real(z-src))./abs(z-src);   % known soln: interior source
-fgrady = @(z) -1i/(4.0)*k*besselh(1,1,k*abs(z-src))/4.0.*(imag(z-src))./abs(z-src); 
+fgrady = @(z) -1i/(4.0)*k*besselh(1,1,k*abs(z-src)).*(imag(z-src))./abs(z-src); 
 unic=[]; rhs=[]; %rhs_eps = rhs; drhs = [];
 for ii=1:nc
    rhs = [rhs -2*f(GG{ii}.x)];
@@ -99,26 +99,31 @@ end
 
 for ii=1:nc
     pff_x=zeros(size(GG{ii}.x));
+    pff_y = pff_x;
     for jj=1:nc
         if (ii == jj)
             %[u,v] = evalCFIEhelm_src_derF_K(GG{ii}.x,GG{jj},sigma(1+(jj-1)*N:jj*N),k,eta);
             pff_x = pff_x + 2*0;
+            pff_y = pff_y + 2*0;
         end
         if (ii ~= jj) 
             [u,v] = evalCFIEhelm_src_derF_S(GG{ii}.x,GG{jj},sigma(1+(jj-1)*N:jj*N),k,eta);
-            pff_x = pff_x+2*u;   
+            pff_x = pff_x+2*u;
+            pff_y = pff_y+2*v;
             [uu,vv] = evalCFIEhelm_src_derF_S2(GG{jj}.x,GG{ii},sigma(1+(ii-1)*N:ii*N),k,eta);
             pf_x(N*(jj-1)+1:N*jj,ii) = 2*uu;
+            pf_y(N*(jj-1)+1:N*jj,ii) = 2*vv;
         end              
     end
     pf_x(N*(ii-1)+1:N*ii,ii) = pff_x+2*fgradx(GG{ii}.x);
+    pf_y(N*(ii-1)+1:N*ii,ii) = pff_y+2*fgrady(GG{ii}.x);
 
 end
 dFdxc = pf_x;        
-
-err = norm (dFdxc - dFdxc_eps);
+dFdyc = pf_y; 
+err = norm (dFdyc - dFdxc_eps);
 X = sprintf('derivative error is %s for step size %s', err, epsilon);
 disp(X)
 for ii=1:nc
-    error(ii) = norm(2*fgradx(GG{ii}.x) - 2*(f(GG_eps{ii}.x)-f(GG{ii}.x))/epsilon)
+    error(ii) = norm(2*fgradx(GG{ii}.x) - 2*(f(GG_eps{ii}.x)-f(GG{ii}.x))/epsilon);
 end

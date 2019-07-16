@@ -1,4 +1,4 @@
-function [ux, uy] = evalCFIEhelm_src_der_G_x(t,G,sigma,k,eta)
+function [ux, uy] = evalCFIEhelm_src_der_G_x_r(t,G,sigma,k,eta)
 
 %evaluate the derivative of u wrt to x
 %
@@ -25,7 +25,7 @@ for j=1:N
                     (abs(d)).^2  ); 
     
     
-    % u = u + (k*costhetan./besselh(1,kr) - 1i*eta*besselh(0,kr)) * ...
+    % u = u + (k*costhetan.*besselh(1,kr) - 1i*eta*besselh(0,kr)) * ...
       %    ((1i/4) * G.w(j) * G.sp(j) * sigma(j));  
     ux = ux + ( k*k*costhetan.*(besselh(1,1,kr)./kr - besselh(2,1,kr)).*(costheta) +...
            (k*dcosthetanx.*(besselh(1,1,kr))) -...

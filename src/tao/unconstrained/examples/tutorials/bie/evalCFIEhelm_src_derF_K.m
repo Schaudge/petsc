@@ -20,7 +20,7 @@ for j=1:N
       ctrl = 1;
   end
   kr = k*abs(d);
-  if (abs(d) > 1e-10)
+  %if (abs(d) > 1e-10)
 
 
     if (ctrl == 1)     
@@ -50,6 +50,6 @@ for j=1:N
 %           ( G.w(j) * G.sp(j) * dsigma(j));
     end
 
-  end
+  %end
 end
 u = u+vv;

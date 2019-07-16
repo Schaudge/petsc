@@ -2,31 +2,33 @@ function [targ, grad] = ObjectiveAndGradient(X)
     nn = length(X);
     xp = X(1:nn/2);
     yp = X(nn/2+1:end);
-    rc = 6;
+    rc = 2.0;
     N = 50;
     nc=length(xp);
+        %objective region
+    x0c = 0.0;
+    y0c = 40+23;
+    rj = 60;
+    thn = 0:0.1:2*pi;
+    %location of the source
+    ys = 13; xs = 0;  src= xs + 1i * ys; %-30:30;
 
-
+ 
     for ii=1:nc
         GG{ii} = cylinder(rc,xp(ii),yp(ii));
         GG{ii} = curvquad(GG{ii},'ptr',N,10);
     end
 
     %directization points on the surface of a circle
-    N = 50;
+  
 
-    %objective region
-    x0c = 0.0;
-    y0c = 40+23;
-    rj = 60;
 
-    %location of the source
-    ys = 13; xs = -25:25;  src= xs + 1i * ys; %-30:30;
     
-    k = 2*pi/8; eta = k;                           % wavenumber, SLP mixing amount 
-    f =  @(z) sum(1i*1*besselh(0,1,k*abs(z-src))/4.0,2);   % known soln: interior source
-    fgradx = @(z) sum(-1i/4.0*1*k*besselh(1,1,k*abs(z-src)).*(real(z-src))./abs(z-src),2);
-    fgrady = @(z) sum(-1i/4.0*1*k*besselh(1,1,k*abs(z-src)).*(imag(z-src))./abs(z-src),2);
+    k = 2*pi/8; eta = k;
+    % wavenumber, SLP mixing amount 
+        f =  @(z) sum(1i*1*besselh(0,1,k*abs(z-src))/4.0.*(double(gt(abs(z - src) ,1e-10))),2);   % known soln: interior source
+        fgradx = @(z) sum(-1i/4.0*1*k*besselh(1,1,k*abs(z-src)).*(real(z-src))./abs(z-src).*(double(gt(abs(z - src) ,1e-10))),2);
+        fgrady = @(z) sum(-1i/4.0*1*k*besselh(1,1,k*abs(z-src)).*(imag(z-src))./abs(z-src).*(double(gt(abs(z - src) ,1e-10))),2);
 
 
     rhs=[]; 
@@ -61,7 +63,8 @@ function [targ, grad] = ObjectiveAndGradient(X)
         end 
 
     end
-    targ = -sum((abs(sum(uobj,2))).^2);
+    targ = -sum((abs(sum(uobj,2))).^2)
+    pause(1)
       
     %derivative of J wrt \sigma 
     B_r = zeros(length(obj), N*nc);
@@ -127,7 +130,7 @@ function [targ, grad] = ObjectiveAndGradient(X)
 
     dt_x = lambda*[(real(dFdxc));imag(dFdxc)] - dJdxc;
     dt_y = lambda*[real(dFdyc);imag(dFdyc)] - dJdyc;
-    grad = [dt_x; dt_y];   
+    grad = [dt_x dt_y];   
 
 
 

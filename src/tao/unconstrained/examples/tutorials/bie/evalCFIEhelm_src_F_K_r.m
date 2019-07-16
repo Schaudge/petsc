@@ -1,4 +1,4 @@
-function u = evalCFIEhelm_src_F_K(t,t_r,G,sigma,k,eta,i,j)
+function u = evalCFIEhelm_src_F_K_r(t,t_r,G,sigma,k,eta,i,j)
 %Evaluate the derivative of the part of F corresponding to the point of
 % interest x_i on the circle C_i (diagonal part of the matrix of F)
 %
@@ -29,8 +29,8 @@ else
 
     costhetan = real(conj(G.nx(j)).*d)./abs(d);   % theta angle between x-y & ny
     costhetan_r = real(conj(G.nx(j)).*d_r)./abs(d_r);
-    u = (1i/4.0) * (k*costhetan*besselh(1,1,kr)- 1i*eta*besselh(0,1,kr)) * sw -...
-       1i/4.0*(k *costhetan_r * besselh(1,1,kr_r)- 1i*eta* besselh(0,1,kr_r)) * sw1;
+    u = (1i/4.0) * (k*costhetan*besselh(1,1,kr)- 1i*eta*besselh(0,1,kr)) * sw *sigma(j)-...
+       1i/4.0*(k *costhetan_r * besselh(1,1,kr_r)- 1i*eta* besselh(0,1,kr_r)) * sw1 * sigma(j);
 
 
 end
