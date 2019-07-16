@@ -69,6 +69,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscInt         i, stage1,n1,n2,nn1,nn2;
   PetscReal        bstepmin1, bstepmin2, bstepmax;
   PetscBool        g_computed=PETSC_FALSE; /* to prevent extra gradient computation */
+  PetscBool        changed_s;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls,TAOLINESEARCH_CLASSID,1);
@@ -112,6 +113,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
     ls->stepmax = PetscMin(bstepmax,1.0e15);
   }
 
+  ierr = TaoLineSearchPreCheck(ls,x,s,&changed_s);CHKERRQ(ierr);
   ierr = VecDot(g,s,&dginit);CHKERRQ(ierr);
   if (PetscIsInfOrNanReal(dginit)) {
     ierr = PetscInfo1(ls,"Initial Line Search step * g is Inf or Nan (%g)\n",(double)dginit);CHKERRQ(ierr);

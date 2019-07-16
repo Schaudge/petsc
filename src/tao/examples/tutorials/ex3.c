@@ -38,6 +38,9 @@ F*/
 #include <petscfe.h>
 #include <petscviewerhdf5.h>
 
+static PetscErrorCode MyLineSearchPreCheck(TaoLineSearch,Vec,Vec,PetscBool*,void*);
+
+
 typedef struct {
   DM  dm;
   Mat mass;
@@ -158,6 +161,19 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*
+    This is a dummy precheck for linesearch just to check that the machinary works
+*/
+static PetscErrorCode MyLineSearchPreCheck(TaoLineSearch ls,Vec x,Vec s,PetscBool *changed,void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecScale(x,.99);CHKERRQ(ierr);
+  *changed = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -364,6 +380,8 @@ int main(int argc, char **argv)
   Vec            u, lb, ub;
   AppCtx         user;
   PetscErrorCode ierr;
+  TaoLineSearch  ls;
+  PetscBool      usemylinesearchprecheck = PETSC_FALSE;
 
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
   ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
@@ -377,11 +395,18 @@ int main(int argc, char **argv)
   ierr = VecSet(ub, 0.8);CHKERRQ(ierr); /* a nontrivial upper bound */
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
+
   ierr = TaoSetInitialVector(tao, u);CHKERRQ(ierr);
   ierr = TaoSetObjectiveAndGradientRoutine(tao, ReducedFunctionGradient, &user);CHKERRQ(ierr);
   ierr = TaoSetVariableBounds(tao, lb, ub);CHKERRQ(ierr);
   ierr = TaoSetType(tao, TAOBLMVM);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
+  /* get the line search after everything is setup, otherwise it may not exist yet */
+  ierr = PetscOptionsGetBool(NULL,NULL,"-mylinesearchprecheck",&usemylinesearchprecheck,NULL);CHKERRQ(ierr);
+  if (usemylinesearchprecheck) {
+    ierr = TaoGetLineSearch(tao,&ls);CHKERRQ(ierr);
+    ierr = TaoLineSearchSetPreCheck(ls, MyLineSearchPreCheck,NULL);CHKERRQ(ierr);
+  }
 
   if (user.use_riesz) {
     ierr = TaoLMVMSetH0(tao, user.mass);CHKERRQ(ierr);       /* crucial for mesh independence */
@@ -417,6 +442,12 @@ int main(int argc, char **argv)
       suffix: guess_pod
       requires: double triangle
       args: -laplace_ksp_type cg -laplace_pc_type gamg -laplace_ksp_converged_reason -mat_lmvm_ksp_type cg -mat_lmvm_pc_type gamg -tao_monitor -petscspace_degree 1 -tao_converged_reason -dm_refine 3 -laplace_ksp_guess_type pod -tao_gatol 1e-6
+      filter: sed -e "s/-nan/nan/g"
+
+    test:
+      suffix: guess_pod_precheck
+      requires: double triangle
+      args: -laplace_ksp_type cg -laplace_pc_type gamg -laplace_ksp_converged_reason -mat_lmvm_ksp_type cg -mat_lmvm_pc_type gamg -tao_monitor -petscspace_degree 1 -tao_converged_reason -dm_refine 3 -laplace_ksp_guess_type pod -tao_gatol 1e-6 -mylinesearchprecheck
       filter: sed -e "s/-nan/nan/g"
 
 TEST*/

@@ -72,4 +72,8 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchFinalizePackage(void);
 
 PETSC_EXTERN PetscErrorCode TaoLineSearchRegister(const char[], PetscErrorCode (*)(TaoLineSearch));
 
+PETSC_EXTERN PetscErrorCode TaoLineSearchSetPreCheck(TaoLineSearch, PetscErrorCode (*)(TaoLineSearch,Vec,Vec,PetscBool*,void*),void*);
+PETSC_EXTERN PetscErrorCode TaoLineSearchGetPreCheck(TaoLineSearch, PetscErrorCode (**)(TaoLineSearch,Vec,Vec,PetscBool*,void*),void**);
+PETSC_EXTERN PetscErrorCode TaoLineSearchPreCheck(TaoLineSearch,Vec,Vec,PetscBool*);
+
 #endif
