@@ -365,15 +365,13 @@ typedef struct {
   $ The XYZ system rotates again about the x axis by beta. The Z axis is now at angle beta with respect to the z axis.
   $ The XYZ system rotates a third time about the z axis by gamma.
 */
-static PetscErrorCode DMPlexBasisTransformSetUp_Rotation_Internal(DM dm, void *ctx)
+static PetscErrorCode DMPlexBasisRotationCompute_Internal(DM dm, RotCtx *rc)
 {
-  RotCtx        *rc  = (RotCtx *) ctx;
-  PetscInt       dim = rc->dim;
+  const PetscInt dim = rc->dim;
   PetscReal      c1, s1, c2, s2, c3, s3;
   PetscErrorCode ierr;
 
-  PetscFunctionBegin;
-  ierr = PetscMalloc2(PetscSqr(dim), &rc->R, PetscSqr(dim), &rc->RT);CHKERRQ(ierr);
+  PetscFunctionBeginHot;
   switch (dim) {
   case 2:
     c1 = PetscCosReal(rc->alpha);s1 = PetscSinReal(rc->alpha);
@@ -396,6 +394,16 @@ static PetscErrorCode DMPlexBasisTransformSetUp_Rotation_Internal(DM dm, void *c
   }
   PetscFunctionReturn(0);
 }
+static PetscErrorCode DMPlexBasisTransformSetUp_Rotation_Internal(DM dm, void *ctx)
+{
+  RotCtx        *rc  = (RotCtx *) ctx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscMalloc2(PetscSqr(rc->dim), &rc->R, PetscSqr(rc->dim), &rc->RT);CHKERRQ(ierr);
+  ierr = DMPlexBasisRotationCompute_Internal(dm, rc);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode DMPlexBasisTransformDestroy_Rotation_Internal(DM dm, void *ctx)
 {
@@ -414,6 +422,47 @@ static PetscErrorCode DMPlexBasisTransformGetMatrix_Rotation_Internal(DM dm, con
 
   PetscFunctionBeginHot;
   PetscValidPointer(ctx, 5);
+  if (l2g) {*A = rc->R;}
+  else     {*A = rc->RT;}
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexBasisTransformSetUp_Spherical_Internal(DM dm, void *ctx)
+{
+  RotCtx        *rc  = (RotCtx *) ctx;
+  PetscInt       dim = rc->dim;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscMalloc2(PetscSqr(dim), &rc->R, PetscSqr(dim), &rc->RT);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexBasisTransformDestroy_Spherical_Internal(DM dm, void *ctx)
+{
+  RotCtx        *rc = (RotCtx *) ctx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFree2(rc->R, rc->RT);CHKERRQ(ierr);
+  ierr = PetscFree(rc);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexBasisTransformGetMatrix_Spherical_Internal(DM dm, const PetscReal x[], PetscBool l2g, const PetscScalar **A, void *ctx)
+{
+  RotCtx        *rc = (RotCtx *) ctx;
+  PetscInt       dim = rc->dim;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginHot;
+  PetscValidPointer(ctx, 5);
+  switch (dim) {
+  case 2:
+    rc->alpha = PetscAtan2Real(x[0], x[1]);break;
+  default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Dimension %D not supported", dim);
+  }
+  ierr = DMPlexBasisRotationCompute_Internal(dm, rc);CHKERRQ(ierr);
   if (l2g) {*A = rc->R;}
   else     {*A = rc->RT;}
   PetscFunctionReturn(0);
@@ -691,7 +740,7 @@ PetscErrorCode DMPlexLocalToGlobalBasis(DM dm, Vec lv)
 
   Level: developer
 
-.seealso: DMPlexGlobalToLocalBasis(), DMPlexLocalToGlobalBasis()
+.seealso: DMPlexCreateBasisSpherical(), DMPlexGlobalToLocalBasis(), DMPlexLocalToGlobalBasis()
 @*/
 PetscErrorCode DMPlexCreateBasisRotation(DM dm, PetscReal alpha, PetscReal beta, PetscReal gamma)
 {
@@ -710,6 +759,38 @@ PetscErrorCode DMPlexCreateBasisRotation(DM dm, PetscReal alpha, PetscReal beta,
   rc->alpha = alpha;
   rc->beta  = beta;
   rc->gamma = gamma;
+  ierr = (*dm->transformSetUp)(dm, dm->transformCtx);CHKERRQ(ierr);
+  ierr = DMConstructBasisTransform_Internal(dm);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+/*@
+  DMPlexCreateBasisSpherical - Create an internal transformation from the global basis, used to specify boundary conditions
+    and global solutions, to a local basis, appropriate for discretization integrals and assembly.
+
+  Input Parameters:
+. dm - The DM
+
+  Note: This transforms to the (r, phi) basis in 2D and (r, theta, phi) basis in 3D.
+
+  Level: developer
+
+.seealso: DMPlexCreateBasisRotation(), DMPlexGlobalToLocalBasis(), DMPlexLocalToGlobalBasis()
+@*/
+PetscErrorCode DMPlexCreateBasisSpherical(DM dm)
+{
+  RotCtx        *rc;
+  PetscInt       cdim;
+  PetscErrorCode ierr;
+
+  ierr = DMGetCoordinateDim(dm, &cdim);CHKERRQ(ierr);
+  ierr = PetscMalloc1(1, &rc);CHKERRQ(ierr);
+  dm->transformCtx       = rc;
+  dm->transformSetUp     = DMPlexBasisTransformSetUp_Spherical_Internal;
+  dm->transformDestroy   = DMPlexBasisTransformDestroy_Spherical_Internal;
+  dm->transformGetMatrix = DMPlexBasisTransformGetMatrix_Spherical_Internal;
+  rc->dim = cdim;
   ierr = (*dm->transformSetUp)(dm, dm->transformCtx);CHKERRQ(ierr);
   ierr = DMConstructBasisTransform_Internal(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);

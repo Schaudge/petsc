@@ -6178,13 +6178,15 @@ PetscErrorCode DMSetCoordinates(DM dm, Vec c)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  PetscValidHeaderSpecific(c,VEC_CLASSID,2);
-  ierr            = PetscObjectReference((PetscObject) c);CHKERRQ(ierr);
-  ierr            = VecDestroy(&dm->coordinates);CHKERRQ(ierr);
+  if (c) {
+    PetscValidHeaderSpecific(c,VEC_CLASSID,2);
+    ierr = PetscObjectReference((PetscObject) c);CHKERRQ(ierr);
+  }
+  ierr = VecDestroy(&dm->coordinates);CHKERRQ(ierr);
   dm->coordinates = c;
-  ierr            = VecDestroy(&dm->coordinatesLocal);CHKERRQ(ierr);
-  ierr            = DMCoarsenHookAdd(dm,DMRestrictHook_Coordinates,NULL,NULL);CHKERRQ(ierr);
-  ierr            = DMSubDomainHookAdd(dm,DMSubDomainHook_Coordinates,NULL,NULL);CHKERRQ(ierr);
+  ierr = VecDestroy(&dm->coordinatesLocal);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMRestrictHook_Coordinates,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_Coordinates,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -6214,12 +6216,12 @@ PetscErrorCode DMSetCoordinatesLocal(DM dm, Vec c)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  PetscValidHeaderSpecific(c,VEC_CLASSID,2);
-  ierr = PetscObjectReference((PetscObject) c);CHKERRQ(ierr);
+  if (c) {
+    PetscValidHeaderSpecific(c,VEC_CLASSID,2);
+    ierr = PetscObjectReference((PetscObject) c);CHKERRQ(ierr);
+  }
   ierr = VecDestroy(&dm->coordinatesLocal);CHKERRQ(ierr);
-
   dm->coordinatesLocal = c;
-
   ierr = VecDestroy(&dm->coordinates);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -7269,6 +7271,7 @@ PetscErrorCode DMGetOutputDM(DM dm, DM *odm)
 
     ierr = DMClone(dm, &dm->dmBC);CHKERRQ(ierr);
     ierr = DMCopyDisc(dm, dm->dmBC);CHKERRQ(ierr);
+    ierr = DMCopyTransform(dm, dm->dmBC);CHKERRQ(ierr);
     ierr = PetscSectionClone(section, &newSection);CHKERRQ(ierr);
     ierr = DMSetLocalSection(dm->dmBC, newSection);CHKERRQ(ierr);
     ierr = PetscSectionDestroy(&newSection);CHKERRQ(ierr);
