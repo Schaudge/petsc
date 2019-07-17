@@ -1,7 +1,8 @@
 #include <petscvec.h>
 #include <petsc/private/dmimpl.h>           /*I      "petscdm.h"          I*/
 #include <petsc/private/dmlabelimpl.h>      /*I      "petscdmlabel.h"     I*/
-#include <petsc/private/petscdsimpl.h>      /*I      "petscds.h"     I*/
+#include <petsc/private/petscdsimpl.h>      /*I      "petscds.h"          I*/
+#include <petsc/private/petscfeimpl.h>      /*I      "petscfe.h"          I*/
 #include <petscdmplex.h>
 #include <petscdmfield.h>
 #include <petscsf.h>
@@ -2437,18 +2438,72 @@ PetscErrorCode DMHasBasisTransform(DM dm, PetscBool *flg)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
+PetscErrorCode DMPlexGetContainingPoint(DM dm, PetscInt height, PetscInt point, PetscInt *cpoint)
 {
-  PetscSection   s, ts;
-  PetscScalar   *ta;
-  PetscInt       cdim, pStart, pEnd, p, Nf, f, Nc, dof;
-  PetscErrorCode ierr;
+  const PetscInt *support;
+  PetscInt        supportSize, p = point;
+  PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  ierr = DMGetCoordinateDim(dm, &cdim);CHKERRQ(ierr);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(cpoint, 4);
+  ierr = DMPlexGetSupportSize(dm, p, &supportSize);CHKERRQ(ierr);
+  while (supportSize) {
+    ierr = DMPlexGetSupport(dm, p, &support);CHKERRQ(ierr);
+    p    = support[0];
+    /* Check height here */
+    ierr = DMPlexGetSupportSize(dm, p, &supportSize);CHKERRQ(ierr);
+  }
+  *cpoint = p;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
+{
+  DM              plex;
+  PetscDS         ds;
+  PetscSection    s, ts;
+  IS              cellIS;
+  PetscScalar    *ta;
+  DMField         coordField = NULL;
+  PetscFEGeom    *affineGeom = NULL, **geoms = NULL;
+  PetscQuadrature affineQuad = NULL, *quads = NULL;
+  PetscInt        maxDegree  = PETSC_MAX_INT;
+  PetscReal      *x;
+  PetscInt        dim, cdim, depth, pStart, pEnd, p, Nf, f, Nc, dof;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   ierr = DMGetLocalSection(dm, &s);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(s, &pStart, &pEnd);CHKERRQ(ierr);
   ierr = PetscSectionGetNumFields(s, &Nf);CHKERRQ(ierr);
+  ierr = DMGetCellDS(dm, 0, &ds);CHKERRQ(ierr);
+  /* Get coordinate information for all cells */
+  ierr = DMConvert(dm, DMPLEX, &plex);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDim(dm, &cdim);CHKERRQ(ierr);
+  ierr = PetscDSGetWorkspace(ds, &x, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
+  ierr = DMPlexGetDepth(plex, &depth);CHKERRQ(ierr);
+  ierr = DMGetStratumIS(plex, "dim", depth, &cellIS);CHKERRQ(ierr);
+  if (!cellIS) {ierr = DMGetStratumIS(plex, "depth", depth, &cellIS);CHKERRQ(ierr);}
+  ierr = DMGetCoordinateField(dm, &coordField);CHKERRQ(ierr);
+  ierr = DMFieldGetDegree(coordField, cellIS, NULL, &maxDegree);CHKERRQ(ierr);
+  if (maxDegree <= 1) {
+    ierr = DMFieldCreateDefaultQuadrature(coordField, cellIS, &affineQuad);CHKERRQ(ierr);
+    if (affineQuad) {ierr = DMSNESGetFEGeom(coordField, cellIS, affineQuad, PETSC_FALSE, &affineGeom);CHKERRQ(ierr);}
+  } else {
+    ierr = PetscCalloc2(Nf, &quads, Nf, &geoms);CHKERRQ(ierr);
+    for (f = 0; f < Nf; ++f) {
+      PetscFE fe;
+
+      ierr = PetscDSGetDiscretization(ds, f, (PetscObject *) &fe);CHKERRQ(ierr);
+      //ierr = PetscFEGetSpatialDimension(fe, &dim);CHKERRQ(ierr);
+      ierr = PetscFEGetQuadrature(fe, &quads[f]);CHKERRQ(ierr);
+      ierr = PetscObjectReference((PetscObject) quads[f]);CHKERRQ(ierr);
+      ierr = DMSNESGetFEGeom(coordField, cellIS, quads[f], PETSC_FALSE, &geoms[f]);CHKERRQ(ierr);
+    }
+  }
+
   ierr = DMClone(dm, &dm->transformDM);CHKERRQ(ierr);
   ierr = DMGetLocalSection(dm->transformDM, &ts);CHKERRQ(ierr);
   ierr = PetscSectionSetNumFields(ts, Nf);CHKERRQ(ierr);
@@ -2468,20 +2523,56 @@ PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
   ierr = DMCreateLocalVector(dm->transformDM, &dm->transform);CHKERRQ(ierr);
   ierr = VecGetArray(dm->transform, &ta);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; ++p) {
+    PetscInt cell;
+
+    ierr = DMPlexGetContainingPoint(plex, 0, p, &cell);CHKERRQ(ierr);
     for (f = 0; f < Nf; ++f) {
       ierr = PetscSectionGetFieldDof(ts, p, f, &dof);CHKERRQ(ierr);
       if (dof) {
-        PetscReal          x[3] = {0.0, 0.0, 0.0};
+        PetscFE            fe;
+        PetscDualSpace     dsp;
+        PetscQuadrature    func;
+        const PetscReal   *quadPoints, *coords;
         PetscScalar       *tva;
         const PetscScalar *A;
+        PetscFEGeom       *geom  = affineGeom ? affineGeom : geoms[f];
+        PetscFEGeom       *cgeom = NULL;
+        PetscInt           q     = 0;
 
-        /* TODO Get quadrature point for this dual basis vector for coordinate */
-        ierr = (*dm->transformGetMatrix)(dm, x, PETSC_TRUE, &A, dm->transformCtx);CHKERRQ(ierr);
+        /* TODO Should I average quad points? How do I handle multiple dofs on a point? */
+        ierr = PetscDSGetDiscretization(ds, f, (PetscObject *) &fe);CHKERRQ(ierr);
+        ierr = PetscFEGetDualSpace(fe, &dsp);CHKERRQ(ierr);
+        ierr = PetscDualSpaceGetFunctional(dsp, 0, &func);CHKERRQ(ierr);
+        ierr = PetscQuadratureGetData(func, NULL, NULL, NULL, &quadPoints, NULL);CHKERRQ(ierr);
+
+        ierr = PetscFEGeomGetChunk(geom, cell, cell+1, &cgeom);CHKERRQ(ierr);
+        if (cgeom->isAffine) {
+          CoordinatesRefToReal(cdim, dim, cgeom->xi, cgeom->v, cgeom->J, &quadPoints[q*dim], x);
+          coords = x;
+        } else {
+          coords = &cgeom->v[q*cdim];
+        }
+        ierr = (*dm->transformGetMatrix)(dm, coords, PETSC_TRUE, &A, dm->transformCtx);CHKERRQ(ierr);
         ierr = DMPlexPointLocalFieldRef(dm->transformDM, p, f, ta, (void *) &tva);CHKERRQ(ierr);
         ierr = PetscArraycpy(tva, A, PetscSqr(cdim));CHKERRQ(ierr);
+        ierr = PetscFEGeomRestoreChunk(geom, cell, cell+1, &cgeom);CHKERRQ(ierr);
       }
     }
   }
+
+  if (maxDegree <= 1) {
+    ierr = DMSNESRestoreFEGeom(coordField, cellIS, affineQuad, PETSC_FALSE, &affineGeom);CHKERRQ(ierr);
+    ierr = PetscQuadratureDestroy(&affineQuad);CHKERRQ(ierr);
+  } else {
+    for (f = 0; f < Nf; ++f) {
+      ierr = DMSNESRestoreFEGeom(coordField, cellIS, quads[f], PETSC_FALSE, &geoms[f]);CHKERRQ(ierr);
+      ierr = PetscQuadratureDestroy(&quads[f]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree2(quads, geoms);CHKERRQ(ierr);
+  }
+
+  ierr = ISDestroy(&cellIS);CHKERRQ(ierr);
+  ierr = DMDestroy(&plex);CHKERRQ(ierr);
   ierr = VecRestoreArray(dm->transform, &ta);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
