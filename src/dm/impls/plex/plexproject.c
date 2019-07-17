@@ -240,7 +240,7 @@ static PetscErrorCode DMProjectPoint_Field_Private(DM dm, PetscDS ds, DM dmIn, D
     PetscInt          q, dim, numPoints;
     const PetscReal   *points;
     PetscScalar       *pointEval;
-    DM                dm;
+    DM                ddm;
 
     if (!sp[f]) continue;
     ierr = PetscDualSpaceGetDimension(sp[f], &spDim);CHKERRQ(ierr);
@@ -251,10 +251,10 @@ static PetscErrorCode DMProjectPoint_Field_Private(DM dm, PetscDS ds, DM dmIn, D
       }
       continue;
     }
-    ierr = PetscDualSpaceGetDM(sp[f],&dm);CHKERRQ(ierr);
+    ierr = PetscDualSpaceGetDM(sp[f],&ddm);CHKERRQ(ierr);
     ierr = PetscDualSpaceGetAllData(sp[f], &allPoints, NULL);CHKERRQ(ierr);
     ierr = PetscQuadratureGetData(allPoints,&dim,NULL,&numPoints,&points,NULL);CHKERRQ(ierr);
-    ierr = DMGetWorkArray(dm,numPoints*Nc[f],MPIU_SCALAR,&pointEval);CHKERRQ(ierr);
+    ierr = DMGetWorkArray(ddm,numPoints*Nc[f],MPIU_SCALAR,&pointEval);CHKERRQ(ierr);
     for (q = 0; q < numPoints; ++q, ++tp) {
       if (isAffine) {
         CoordinatesRefToReal(dE, cgeom->dim, fegeom.xi, cgeom->v, fegeom.J, &points[q*dim], x);
@@ -270,7 +270,7 @@ static PetscErrorCode DMProjectPoint_Field_Private(DM dm, PetscDS ds, DM dmIn, D
       (*funcs[f])(dE, NfIn, NfAux, uOff, uOff_x, u, u_t, u_x, aOff, aOff_x, a, a_t, a_x, time, fegeom.v, numConstants, constants, &pointEval[Nc[f]*q]);
     }
     ierr = PetscDualSpaceApplyAll(sp[f], pointEval, &values[v]);CHKERRQ(ierr);
-    ierr = DMRestoreWorkArray(dm,numPoints*Nc[f],MPIU_SCALAR,&pointEval);CHKERRQ(ierr);
+    ierr = DMRestoreWorkArray(ddm,numPoints*Nc[f],MPIU_SCALAR,&pointEval);CHKERRQ(ierr);
     v += spDim;
     /* TODO: For now, set both sides equal, but this should use info from other support cell */
     if (isHybrid && (f < Nf-1)) {
