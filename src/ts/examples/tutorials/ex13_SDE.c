@@ -4,8 +4,9 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
 /*
    du = (u_xx + u_yy) dt + sigma * dW(t)
    0 < x < 1, 0 < y < 1;
-   At t=0: u(x,y) = b*exp(c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
+   At t=0: u(x,y) = b*exp(-c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
            u(x,y) = 0.0         , if r >= rad
+   At bdry:u(x,y) = 0.0
 
     mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1
 */
@@ -143,7 +144,7 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     PetscFunctionBeginUser;
     /* physical parameters */
     param->b        = 5.0;
-    param->c        = -30.0;
+    param->c        = 30.0;
     param->rad      = 0.5;
     param->mu       = 0.0;
     param->sigma    = 1.5;   /* sigma here stands for noise strength */
@@ -180,10 +181,9 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     
     ierr = PetscOptionsGetReal(NULL,NULL,"-tfinal",&(ts->tfinal),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-dt",&(ts->dt),NULL);CHKERRQ(ierr);
+    ts->tsteps      = PetscRoundReal(ts->tfinal/ts->dt);
     ierr = PetscOptionsGetInt(NULL,NULL,"-tsteps",&(ts->tsteps),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-tout",&(ts->tout),NULL);CHKERRQ(ierr);
-    
-    ts->tsteps      = PetscRoundReal(ts->tfinal/ts->dt);
     
     PetscFunctionReturn(0);
 }
@@ -348,7 +348,7 @@ PetscErrorCode FormInitialSolution(AppCtx *user, Vec U)
         for (i=xs; i<xs+xm; i++) {
             x = i*hx;
             r = PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5));
-            if (r < rad) u[j][i] = b * PetscExpReal(c*r*r);
+            if (r < rad) u[j][i] = b * PetscExpReal(-c*r*r);
             else u[j][i] = 0.0;
         }
     }
@@ -619,7 +619,7 @@ PetscErrorCode BuildUS(AppCtx* user)
                 {
                     x1=coors[j1][i1].x;
                     y1=coors[j1][i1].y;
-                    //rr = PetscAbsReal(x1-x0) / lx + PetscAbsReal(y1-y0) / ly; //Seperable Exp
+//                    rr = PetscAbsReal(x1-x0) / lx + PetscAbsReal(y1-y0) / ly; //Seperable Exp
 //                    rr = PetscSqrtReal(PetscPowReal(x1-x0,2) + PetscPowReal(y1-y0,2)) / lc; //Exp
                     rr = (PetscPowReal(x1-x0,2) + PetscPowReal(y1-y0,2)) / (2 * lc * lc); //Gaussian
                     Cov[j0*xm+i0][j1*xm+i1] = PetscExpReal(-rr);
@@ -670,41 +670,50 @@ PetscErrorCode BuildUS(AppCtx* user)
         for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
     }
     
-    //     /* Print the approximation of covariance operator K (modified to be symmetric) */
-    //        printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
-    //        for (i = 0; i < N2; i++)
-    //        {
-    //            for (j = 0; j < N2; j++) printf("%6.2f", Cov[i][j]);
-    //            printf("\n");
-    //        }
+//    /* Print the approximation of covariance operator K (modified to be symmetric) */
+//    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%7.4f", Cov[i][j]);
+//        printf("\n");
+//    }
     
     /* Use SVD to decompose the PSD matrix K to get its eigen decomposition */
     svd(Cov,user->U,V,user->S,N2);
     
+//    /* Print decomposition results: K=USV' */
+//    printf("\nK=USV':\n");
+//
+//    /* Print eigenvectors U */
+//    printf("\nIts corresponding eigenvectors (columns)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%7.4f", user->U[i][j]);
+//        printf("\n");
+//    }
+//    /* Print eigenvalues S */
+//    printf("\nEigenvalues S (in non-increasing order)\n");
+//    for (j = 0; j < N2; j++)
+//    {
+//        printf("%8.4f", user->S[j]);
+//        printf("\n");
+//    }
+    
     /* Recover eigenvectors by divding sqrt(W) */
     for (i = 0; i < N2; i++)
     {
-        for (j = 0; j < N2; j++) (user->U)[i][j] = (user->U)[i][j] / PetscSqrtReal(W[j]);
+        for (j = 0; j < N2; j++) (user->U)[i][j] = (user->U)[i][j] / PetscSqrtReal(W[i]);
     }
     
-    //     /* Print decomposition results: K=USV' */
-    //        printf("\nK=USV':\n");
-    //
-    //     /* Print eigenvalues */
-    //        printf("\nEigenvalues S (in non-increasing order)\n");
-    //        for (j = 0; j < N2; j++)
-    //        {
-    //            printf("%8.4f", S[j]);
-    //            printf("\n");
-    //        }
-    //
-    //     /* Print eigenvectors W^(-1/2)*U */
-    //        printf("\nIts corresponding eigenvectors (columns)\n");
-    //        for (i = 0; i < N2; i++)
-    //        {
-    //            for (j = 0; j < N2; j++) printf("%6.2f", U[i][j]);
-    //            printf("\n");
-    //        }
+//    /* Print eigenvectors W^(-1/2)*U */
+//    printf("\nIts corresponding eigenvectors (columns)\n");
+//    for (i = 0; i < N2; i++)
+//    {
+//        for (j = 0; j < N2; j++) printf("%7.4f", user->U[i][j]);
+//        printf("\n");
+//    }
+//    exit(0);
+    
     ierr = PetscFree(Cov);CHKERRQ(ierr);
 //    ierr = PetscFree(U);CHKERRQ(ierr);
     ierr = PetscFree(V);CHKERRQ(ierr);
