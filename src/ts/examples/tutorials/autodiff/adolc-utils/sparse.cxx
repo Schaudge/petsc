@@ -115,25 +115,31 @@ PetscErrorCode GenerateSeedMatrixPlusRecovery(ISColoring iscoloring,PetscScalar 
   p        - the number of colors used (also the number of columns in Seed)
 
   Output parameter:
-  R        - the recovery matrix to be used for de-compression
+  Ri       - the row index component of the CSR recovery matrix to be used for de-compression
+  Rj       - the column index component of the CSR recovery matrix to be used for de-compression
+  R        - the values of the CSR recovery matrix to be used for de-compression
 */
-PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscInt m,PetscInt p,PetscScalar **R)
+PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R)
 {
-  PetscInt i,j,k,colour;
+  PetscInt i,j,k,nnz,rj = 0;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
     for (colour=0; colour<p; colour++) {
-      R[i][colour] = -1.;
-      for (k=1; k<=(PetscInt) sparsity[i][0]; k++) {
-        j = (PetscInt) sparsity[i][k];
+      nnz = (PetscInt) sparsity[i][0];  // Number of nonzeros on row i
+      if (colour == 0) Ri[i] = rj;      // Store counter for first nonzero on compressed row i
+      for (k=1; k<=nnz; k++) {
+        j = (PetscInt) sparsity[i][k];  // Column index of k^th nonzero on row i
         if (S[j][colour] == 1.) {
-          R[i][colour] = j;
+          R[rj] = j;                    // Store index of k^th nonzero on row i
+          Rj[rj] = colour;              // Store colour of k^th nonzero on row i
+          rj++;                         // Counter for nonzeros
           break;
         }
       }
     }
   }
+  Ri[m] = rj;
   PetscFunctionReturn(0);
 }
 
@@ -144,27 +150,29 @@ PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscIn
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
   p    - number of colors used in the compression of J (also the number of columns of R)
-  R    - recovery matrix to use in the decompression procedure
+  Ri   - the row index component of the CSR recovery matrix to be used for de-compression
+  Rj   - the column index component of the CSR recovery matrix to be used for de-compression
+  R    - the values of the CSR recovery matrix to be used for de-compression
   C    - compressed matrix to recover values from
   a    - shift value for implicit problems (select NULL or unity for explicit problems)
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar **R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,colour;
+  PetscInt       i,j,ri,rj,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    for (colour=0; colour<p; colour++) {
-      j = (PetscInt) R[i][colour];
-      if (j != -1) {
-        if (a)
-          C[i][colour] *= *a;
+    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
+    for (rj=ri; rj<Ri[i+1]; rj++) {
+      j = R[rj];                      // Index of rj^th nonzero on i^th row
+      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
+      if (a)
+        C[i][colour] *= *a;
         ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
-      }
     }
   }
   PetscFunctionReturn(0);
@@ -213,27 +221,29 @@ PetscErrorCode RecoverJacobianMPIAIJWithArrays(Mat A,InsertMode mode,PetscInt m,
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
   p    - number of colors used in the compression of J (also the number of columns of R)
-  R    - recovery matrix to use in the decompression procedure
+  Ri   - the row index component of the CSR recovery matrix to be used for de-compression
+  Rj   - the column index component of the CSR recovery matrix to be used for de-compression
+  R    - the values of the CSR recovery matrix to be used for de-compression
   C    - compressed matrix to recover values from
   a    - shift value for implicit problems (select NULL or unity for explicit problems)
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar **R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,colour;
+  PetscInt       i,j,ri,rj,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    for (colour=0; colour<p; colour++) {
-      j = (PetscInt) R[i][colour];
-      if (j != -1) {
-        if (a)
-          C[i][colour] *= *a;
+    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
+    for (rj=ri; rj<Ri[i+1]; rj++) {
+      j = R[rj];                      // Index of rj^th nonzero on i^th row
+      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
+      if (a)
+        C[i][colour] *= *a;
         ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
-      }
     }
   }
   PetscFunctionReturn(0);
