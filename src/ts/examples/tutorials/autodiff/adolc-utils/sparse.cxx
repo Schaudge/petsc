@@ -121,7 +121,7 @@ PetscErrorCode GenerateSeedMatrixPlusRecovery(ISColoring iscoloring,PetscScalar 
 */
 PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R)
 {
-  PetscInt i,j,k,nnz,rj = 0;
+  PetscInt i,j,k,nnz,rj = 0,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
@@ -159,7 +159,7 @@ PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscIn
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,j,ri,rj,colour;
@@ -170,9 +170,8 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,Petsc
     for (rj=ri; rj<Ri[i+1]; rj++) {
       j = R[rj];                      // Index of rj^th nonzero on i^th row
       colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      if (a)
-        C[i][colour] *= *a;
-        ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+      if (a) C[i][colour] *= *a;
+      ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -241,9 +240,8 @@ PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,
     for (rj=ri; rj<Ri[i+1]; rj++) {
       j = R[rj];                      // Index of rj^th nonzero on i^th row
       colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      if (a)
-        C[i][colour] *= *a;
-        ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+      if (a) C[i][colour] *= *a;
+      ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);

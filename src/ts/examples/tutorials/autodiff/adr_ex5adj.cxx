@@ -83,8 +83,8 @@ int main(int argc,char **argv)
   AdolcCtx       *adctx;
   Vec            lambda[1];
   PetscBool      forwardonly=PETSC_FALSE,implicitform=PETSC_FALSE,byhand=PETSC_FALSE;
-  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0};
-  PetscScalar    **Seed = NULL,**Rec = NULL,*u_vec;
+  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz;
+  PetscScalar    **Seed = NULL,*Ri = NULL,*Rj = NULL,*R = NULL,*u_vec;
   unsigned int   **JP = NULL;
   ISColoring     iscoloring;
 
@@ -187,13 +187,23 @@ int main(int argc,char **argv)
       ierr = ISColoringDestroy(&iscoloring);CHKERRQ(ierr);
 
       /*
-        Generate recovery matrix, which is used to recover the Jacobian from
+        Generate recovery vectors, which are used to recover the Jacobian from
         compressed format */
-      ierr = AdolcMalloc2(adctx->m,adctx->p,&Rec);CHKERRQ(ierr);
-      ierr = GetRecoveryMatrix(Seed,JP,adctx->m,adctx->p,Rec);CHKERRQ(ierr);
+      //ierr = AdolcMalloc2(adctx->m,adctx->p,&Rec);CHKERRQ(ierr);
+      ierr = PetscMalloc1(adctx->m+1,&Ri);CHKERRQ(ierr);
+      nnz = adctx->m*adctx->p;  // Note this is usually an overestimate
+      ierr = PetscMalloc1(nnz,&Rj);CHKERRQ(ierr);
+      ierr = PetscMalloc1(nnz,&R);CHKERRQ(ierr);
+      for (i=0; i<nnz; i++) {
+        Rj[i] = -1;  // TODO: Do this at the end instead, for remaining entries
+        R[i] = -1;
+      }
+      ierr = GetRecoveryMatrix(Seed,JP,adctx->m,adctx->p,Ri,Rj,R);CHKERRQ(ierr);
 
       /* Store results and free workspace */
-      adctx->Rec = Rec;
+      adctx->Ri = Ri;
+      adctx->Rj = Rj;
+      adctx->R = R;
       for (i=0;i<adctx->m;i++)
         free(JP[i]);
       free(JP);
@@ -299,7 +309,10 @@ int main(int argc,char **argv)
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   if (!adctx->no_an) {
     if (adctx->sparse)
-      ierr = AdolcFree2(Rec);CHKERRQ(ierr);
+      //ierr = AdolcFree2(Rec);CHKERRQ(ierr);
+      ierr = PetscFree(R);CHKERRQ(ierr);
+      ierr = PetscFree(Rj);CHKERRQ(ierr);
+      ierr = PetscFree(Ri);CHKERRQ(ierr);
     ierr = AdolcFree2(Seed);CHKERRQ(ierr);
   }
   ierr = DMDestroy(&da);CHKERRQ(ierr);
