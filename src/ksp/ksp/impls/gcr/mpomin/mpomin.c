@@ -2,7 +2,7 @@
   This file defines the multipreconditioned orthomin solver.
 
   It is adapted to SPD matrices (or even more general thanks to full orthogonalization), 
-  and any preconditioner which provides the PCApplyMultiPrecond method
+  and any preconditioner which provides the PCApplyMP method
 */
 #include <petsc/private/kspimpl.h>
 #include <../src/mat/impls/dense/seq/dense.h>
@@ -83,7 +83,7 @@ static PetscErrorCode KSPSolve_MPOMIN(KSP ksp)
 
   /* Ugly reverse communication to get info from the multipreconditioner */
   ierr = MatCreateSeqDense(PETSC_COMM_SELF, 1, 3, NULL, &Ztest);CHKERRQ(ierr);
-  ierr = KSP_PCApplyMultiPrecond(ksp, R, Ztest);CHKERRQ(ierr); 
+  ierr = KSP_PCApplyMP(ksp, R, Ztest);CHKERRQ(ierr); 
   ierr = MatDenseGetArray(Ztest, &vals);CHKERRQ(ierr);
   n_sd = (PetscInt)vals[0];
   n_coarse = (PetscInt)vals[2];
@@ -124,7 +124,7 @@ static PetscErrorCode KSPSolve_MPOMIN(KSP ksp)
   ierr = (*ksp->converged)(ksp,0,dp,&ksp->reason,ksp->cnvP);CHKERRQ(ierr);     /* test for convergence */
   if (ksp->reason) PetscFunctionReturn(0);
 
-  ierr = KSP_PCApplyMultiPrecond(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
+  ierr = KSP_PCApplyMP(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
   ierr = MatDuplicate(Z, MAT_COPY_VALUES, &P);CHKERRQ(ierr); /*     P <- Z                           */
   ierr = KSP_MatMatMult(ksp, Amat, P, &W, MAT_INITIAL_MATRIX);CHKERRQ(ierr); /* W <- A*P */
 
@@ -222,7 +222,7 @@ static PetscErrorCode KSPSolve_MPOMIN(KSP ksp)
     ierr = MatDestroy(&P);CHKERRQ(ierr);
     ierr = VecDestroy(&Beta2);CHKERRQ(ierr);
     
-    ierr = KSP_PCApplyMultiPrecond(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
+    ierr = KSP_PCApplyMP(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
     ierr = MatDuplicate(Z, MAT_COPY_VALUES, &P);CHKERRQ(ierr); /* P <- Z*/
     ierr = KSP_MatMatMult(ksp, Amat, P, &W, MAT_INITIAL_MATRIX);CHKERRQ(ierr); /* W <- A*P */
 
@@ -305,7 +305,7 @@ PetscErrorCode KSPSetFromOptions_MPOMIN(PetscOptionItems *PetscOptionsObject, KS
    Level: intermediate
 
    Notes: This is a simple implementation of multipreconditioned orthomin. 
-   It is adapted to any preconditioner providing the PCApplyMultiPrec method.
+   It is adapted to any preconditioner providing the PCApplyMP method.
    The computation of the pseudo inverse is based on the computation of eigenvalues, as proposed for mpcg in [Molina and Roux. doi:10.1002/nme.6024].
    This implementation is based on dense algebra for the pseudo-inversion, it is general but can not scale well with the number of columns.
    Depending on the PC context, optimization could be considered by the exploitation of the sparsity [Molina and Roux. doi:10.1002/nme.6024]

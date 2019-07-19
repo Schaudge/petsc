@@ -542,7 +542,7 @@ static PetscErrorCode PCApply_ASM(PC pc,Vec x,Vec y)
 }
 
 /*@C
-    PCApplyMultiPrecond_ASM - Each block returns one search directions (instead of just one direction for all blocks).
+    PCApplyMP_ASM - Each block returns one search directions (instead of just one direction for all blocks).
 
     Input Parameters:
     pc - the preconditioner context
@@ -563,7 +563,7 @@ static PetscErrorCode PCApply_ASM(PC pc,Vec x,Vec y)
 .seealso: KSPMPCG, KSPMPOMIN
 
 @*/
-static PetscErrorCode PCApplyMultiPrecond_ASM(PC pc, Vec x, Mat Z)
+static PetscErrorCode PCApplyMP_ASM(PC pc, Vec x, Mat Z)
 {
   PC_ASM         *osm = (PC_ASM*)pc->data;
   PetscErrorCode ierr;
@@ -1633,7 +1633,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_ASM(PC pc)
   pc->data                 = (void*)osm;
   pc->ops->apply           = PCApply_ASM;
   pc->ops->applytranspose  = PCApplyTranspose_ASM;
-  pc->ops->applymultiprecond = PCApplyMultiPrecond_ASM;
+  pc->ops->applymultiprecond = PCApplyMP_ASM;
   pc->ops->setup           = PCSetUp_ASM;
   pc->ops->reset           = PCReset_ASM;
   pc->ops->destroy         = PCDestroy_ASM;

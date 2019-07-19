@@ -2,7 +2,7 @@
   This file defines the multipreconditioned conjugate gradient solver.
 
   It is adapted to SPD matrices (or even more general thanks to full orthogonalization), 
-  and any preconditioner which provides the PCApplyMultiPrecond method
+  and any preconditioner which provides the PCApplyMP method
 */
 #include <petsc/private/kspimpl.h>
 #include <../src/mat/impls/dense/seq/dense.h>
@@ -79,7 +79,7 @@ static PetscErrorCode KSPSolve_MPCG(KSP ksp)
 
   /* Ugly reverse communication to get info from the multipreconditioner */
   ierr = MatCreateSeqDense(PETSC_COMM_SELF, 1, 3, NULL, &Ztest);CHKERRQ(ierr);
-  ierr = KSP_PCApplyMultiPrecond(ksp, R, Ztest);CHKERRQ(ierr);
+  ierr = KSP_PCApplyMP(ksp, R, Ztest);CHKERRQ(ierr);
   ierr = MatDenseGetArray(Ztest, &vals);CHKERRQ(ierr);
   n_sd = (PetscInt)vals[0];
   n_coarse = (PetscInt)vals[2];
@@ -107,7 +107,7 @@ static PetscErrorCode KSPSolve_MPCG(KSP ksp)
 
   switch (ksp->normtype) {
   case KSP_NORM_NATURAL:
-    ierr = KSP_PCApplyMultiPrecond(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
+    ierr = KSP_PCApplyMP(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
     ierr = MatMultTranspose(Z, R, Beta);CHKERRQ(ierr);
     ierr = VecSum(Beta, &beta);CHKERRQ(ierr);                            /*    Beta <- Z'*r                      */
     dp = PetscSqrtReal(PetscAbsScalar(beta)); /*    beta <- r'*(sum Bi)*r                      */
@@ -128,7 +128,7 @@ static PetscErrorCode KSPSolve_MPCG(KSP ksp)
   if (ksp->reason) PetscFunctionReturn(0);
 
   if (ksp->normtype != KSP_NORM_NATURAL) {
-    ierr = KSP_PCApplyMultiPrecond(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
+    ierr = KSP_PCApplyMP(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
     ierr = MatMultTranspose(Z, R, Beta);CHKERRQ(ierr);
     ierr = VecSum(Beta, &beta);CHKERRQ(ierr); /*    Beta <- Z'*r                      */
   }
@@ -240,7 +240,7 @@ static PetscErrorCode KSPSolve_MPCG(KSP ksp)
     ierr = MatDestroy(&P);CHKERRQ(ierr);
     ierr = VecDestroy(&Beta2);CHKERRQ(ierr);
 
-    ierr = KSP_PCApplyMultiPrecond(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
+    ierr = KSP_PCApplyMP(ksp, R, Z);CHKERRQ(ierr); /*    Z <- [B1 r, B2 r ... ]          */
     ierr = MatDuplicate(Z, MAT_COPY_VALUES, &P);CHKERRQ(ierr); /*     P <- Z                           */
 
     for (jj = 0; jj < i + 1; jj++) { /* Full block orthogonalization */
@@ -322,7 +322,7 @@ PetscErrorCode KSPSetFromOptions_MPCG(PetscOptionItems *PetscOptionsObject, KSP 
    Level: intermediate
 
    Notes: This is a simple implementation of multipreconditioned conjugate gradient. 
-   It is adapted to any preconditioner providing the PCApplyMultiPrecond method.
+   It is adapted to any preconditioner providing the PCApplyMP method.
    The computation of the pseudo inverse is based on the computation of eigenvalues, as proposed in [Molina and Roux. doi:10.1002/nme.6024].
    This implementation is based on dense algebra for the pseudo-inversion, it is general but can not scale well with the number of columns.
    The method proved to be efficient compared to cg for poorly conditioned system solved with FETI method [Bovet et al. doi:10.1016/j.crma.2017.01.010].

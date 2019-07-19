@@ -52,7 +52,7 @@ PETSC_EXTERN PetscErrorCode PCApplyBAorABTranspose(PC,PCSide,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode PCSetReusePreconditioner(PC,PetscBool);
 PETSC_EXTERN PetscErrorCode PCGetReusePreconditioner(PC,PetscBool*);
 PETSC_EXTERN PetscErrorCode PCSetErrorIfFailure(PC,PetscBool);
-PETSC_EXTERN PetscErrorCode PCApplyMultiPrecond(PC,Vec,Mat);
+PETSC_EXTERN PetscErrorCode PCApplyMP(PC,Vec,Mat);
 
 #define PC_FILE_CLASSID 1211222
 

@@ -597,7 +597,7 @@ PetscErrorCode  PCApplyTransposeExists(PC pc,PetscBool  *flg)
 }
 
 /*@
-   PCApplyMultiPrecond - Applies the multipreconditioner to a vector.
+   PCApplyMP - Applies the multipreconditioner to a vector.
 
    Collective on PC
 
@@ -625,7 +625,7 @@ PetscErrorCode  PCApplyTransposeExists(PC pc,PetscBool  *flg)
 
 .seealso: PCApply(), 
 @*/
-PetscErrorCode  PCApplyMultiPrecond(PC pc,Vec x,Mat Y)
+PetscErrorCode  PCApplyMP(PC pc,Vec x,Mat Y)
 {
   PetscErrorCode ierr;
 
