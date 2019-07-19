@@ -1,5 +1,5 @@
 static char help[33] = "Test Unstructured Mesh Handling\n";
-
+//
 # include <petscdmplex.h>
 # include <petscviewer.h>
 
@@ -252,8 +252,8 @@ int main(int argc, char **argv)
 	}
 
 	/*	Create Vector for per process function evaluation	*/
-	if (!perfTest){
-		ierr = VecCreate(PETSC_COMM_WORLD, &funcVecSin);CHKERRQ(ierr);
+	if (!perfTest) {
+		ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
 		ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
 		ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
 		ierr = VecSetFromOptions(funcVecSin);CHKERRQ(ierr);
