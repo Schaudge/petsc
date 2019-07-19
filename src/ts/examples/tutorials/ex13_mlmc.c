@@ -1,18 +1,17 @@
 
-static char help[] = "Uses MLMC on a simple wave equation problem\n\n";
+static char help[] = "Uses MLMC on a 2d heat equation problem\n\n";
 
 /*
  
- This code is a copy of the MATLAB code developed by Mohammad Motamed and presented at
- an Argonne National Laboratory tutorial on uncertainty quantification
- May 20 through May 24th, organized by Oana Marin who suggested coding this
- example.
+ This code is originally a copy of the MATLAB code developed by Mohammad Motamed
+ and presented at an Argonne National Laboratory tutorial on uncertainty quantification
+ May 20 through May 24th, organized by Oana Marin who suggested coding this example.
  */
 
 /*
  Include "petscmat.h" so that we can use matrices.
  automatically includes:
- petscsys.h       - base PETSc routines   petscvec.h    - vectors
+ petscsys.h    - base PETSc routines   petscvec.h    - vectors
  petscmat.h    - matrices
  petscis.h     - index sets            petscviewer.h - viewers
  */
@@ -39,27 +38,39 @@ typedef struct {
 } MLMC;
 
 /*
- Data structure for the solution of a single wave equation problem on a given grid with give parameters
+ Data structure for the solution of a single heat equation problem on a given grid with give parameters
  */
 typedef struct {
     DM          da;
     PetscReal   hx,hy,dt,T;
     PetscInt    nx,ny;
     PetscInt    nt;
-    PetscInt    kx,ky;
     Vec         x,y;      /* coordinates of local part of tensor product mesh */
     PetscReal   xQ;       /* location of QoI  */
-    PetscRandom rand;
-} WaveSimulation;
+//    PetscRandom rand;
+    PetscScalar**  U;
+    PetscScalar*   S;
+    PetscInt       Lx, Ly;
+    PetscReal      mu, sigma; /* sigma here stands for noise strength */
+    PetscReal      lc;        /* corelation length for exponential or Gaussian covariance function*/
+    PetscReal      lx,ly;     /* corelation length for separable exponential covariance function*/
+    PetscScalar    b, c, rad;
+    Mat            A;
+} HeatSimulation;
 
-PetscBool useMatlabRand = PETSC_TRUE;
+//PetscBool useMatlabRand = PETSC_TRUE;
 
-PetscErrorCode wave_solver(WaveSimulation*,PetscReal,PetscReal*);
-PetscErrorCode mlmc_wave(WaveSimulation **,PetscInt,PetscInt,PetscReal[]);
-PetscErrorCode fmlmc(MLMC *,WaveSimulation **,PetscReal,PetscReal*);
-PetscErrorCode WaveSimulationCreate(MPI_Comm,PetscReal,PetscInt,PetscInt,PetscInt,PetscInt,WaveSimulation**);
-PetscErrorCode WaveSimulationRefine(WaveSimulation*,WaveSimulation**);
-PetscErrorCode WaveSimulationDestroy(WaveSimulation**);
+PetscErrorCode heat_solver(HeatSimulation*,PetscReal,PetscReal*);
+PetscErrorCode mlmc_heat(HeatSimulation **,PetscInt,PetscInt,PetscReal[]);
+PetscErrorCode fmlmc(MLMC *,HeatSimulation **,PetscReal,PetscReal*);
+PetscErrorCode HeatSimulationCreate(MPI_Comm,PetscReal,PetscInt,PetscInt,PetscInt,PetscInt,HeatSimulation**);
+PetscErrorCode HeatSimulationRefine(HeatSimulation*,HeatSimulation**);
+PetscErrorCode HeatSimulationDestroy(HeatSimulation**);
+PetscErrorCode KLSetup(HeatSimulation*);
+PetscErrorCode FormInitialSolution(HeatSimulation*,Vec);
+PetscErrorCode BuildA_CN(HeatSimulation*);
+PetscErrorCode FormRHS_CN(HeatSimulation*,Vec,Vec);
+PetscErrorCode BuildR(HeatSimulation*,Vec);
 
 /*
  Options:
@@ -74,23 +85,22 @@ PetscErrorCode WaveSimulationDestroy(WaveSimulation**);
  
  The -w, -use_matlab_rand and -Nw and -lw are mostly for testing against the Matlab version
  */
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
 int main(int argc,char **args)
 {
     PetscErrorCode  ierr;
-    PetscReal       QoI,h0 = .1;  /* initial step size */
+    PetscReal       QoI,h0 = .125;  /* initial step size */
     PetscInt        nx,ny,i,Nw = 10,lw = 0;
-    WaveSimulation  *ws[MLMC_MAX_LEVELS];
+    HeatSimulation  *hs[MLMC_MAX_LEVELS];
     MLMC            mlmc;
-    PetscBool       flgw,flgNw,flglw;
-    PetscReal       w;
-    const PetscReal EQ_ex = 7.001531609613719e-01; /*EQ_ex=integral(@(w)sin(w*T-kx*xQ)*sin(ky*xQ),10,11,'RelTol',1e-14); */
+//    PetscBool       flgw,flgNw,flglw;
+//    PetscReal       w;
     
     ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-    ierr = PetscOptionsGetBool(NULL,NULL,"-use_matlab_rand",&useMatlabRand,NULL);CHKERRQ(ierr);
-    if (useMatlabRand) {
-        ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
-    }
+//    ierr = PetscOptionsGetBool(NULL,NULL,"-use_matlab_rand",&useMatlabRand,NULL);CHKERRQ(ierr);
+//    if (useMatlabRand) {
+//        ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
+//    }
     
     mlmc.q       = 2;
     mlmc.q1      = mlmc.q;
@@ -103,42 +113,43 @@ int main(int argc,char **args)
     mlmc.L       = 3;
     
     ierr = PetscOptionsGetReal(NULL,NULL,"-h0",&h0,NULL);CHKERRQ(ierr);
-    nx = ny = 1 + (PetscInt)PetscRoundReal(2.0/h0);
+    nx = ny = 1 + (PetscInt)PetscRoundReal(1.0/h0);
     ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&nx,NULL);
     ierr = PetscOptionsGetInt(NULL,NULL,"-nx",&ny,NULL);
     
-    ierr = PetscMemzero(ws,sizeof(ws));CHKERRQ(ierr);
-    ierr = WaveSimulationCreate(PETSC_COMM_WORLD,.5,nx,ny,6,4,&ws[0]);CHKERRQ(ierr);
+    ierr = PetscMemzero(hs,sizeof(hs));CHKERRQ(ierr);
+    ierr = HeatSimulationCreate(PETSC_COMM_WORLD,.1,nx,ny,&hs[0]);CHKERRQ(ierr);
     
-    ierr = PetscOptionsGetReal(NULL,NULL,"-w",&w,&flgw);CHKERRQ(ierr);
-    ierr = PetscOptionsGetInt(NULL,NULL,"-Nw",&Nw,&flgNw);CHKERRQ(ierr);
-    ierr = PetscOptionsGetInt(NULL,NULL,"-lw",&lw,&flglw);CHKERRQ(ierr);
-    if (flgw) {
-        PetscReal QoI;
-        ierr = wave_solver(ws[0],w,&QoI);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI for single wave solve %g using w %g\n",(double)QoI,(double)w);CHKERRQ(ierr);
-    } else if (flgNw || flglw) {
-        PetscReal sum[2];
-        for (i=1; i<lw; i++) {
-            ierr = WaveSimulationRefine(ws[i-1],&ws[i]);CHKERRQ(ierr);
-        }
-        ierr = mlmc_wave(ws,lw,Nw,sum);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI %g for Nw random wave solves %D on level %D\n",(double)sum[0],Nw,lw);CHKERRQ(ierr);
-        for (i=1; i<lw; i++) {
-            ierr = WaveSimulationDestroy(&ws[i]);CHKERRQ(ierr);
-        }
-    } else {
+//    ierr = PetscOptionsGetReal(NULL,NULL,"-w",&w,&flgw);CHKERRQ(ierr);
+//    ierr = PetscOptionsGetInt(NULL,NULL,"-Nw",&Nw,&flgNw);CHKERRQ(ierr);
+//    ierr = PetscOptionsGetInt(NULL,NULL,"-lw",&lw,&flglw);CHKERRQ(ierr);
+    
+//    if (flgw) {
+//        PetscReal QoI;
+//        ierr = heat_solver(hs[0],w,&QoI);CHKERRQ(ierr);
+//        ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI for single heat solve %g using w %g\n",(double)QoI,(double)w);CHKERRQ(ierr);
+//    } else if (flgNw || flglw) {
+//        PetscReal sum[2];
+//        for (i=1; i<lw; i++) {
+//            ierr = HeatSimulationRefine(hs[i-1],&hs[i]);CHKERRQ(ierr);
+//        }
+//        ierr = mlmc_heat(hs,lw,Nw,sum);CHKERRQ(ierr);
+//        ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI %g for Nw random heat solves %D on level %D\n",(double)sum[0],Nw,lw);CHKERRQ(ierr);
+//        for (i=1; i<lw; i++) {
+//            ierr = HeatSimulationDestroy(&hs[i]);CHKERRQ(ierr);
+//        }
+//    } else {
 #define MAX_EPS 10
         PetscReal eps[MAX_EPS];
         PetscInt  meps = MAX_EPS;
         
         eps[0] = .1;
         ierr = PetscOptionsGetRealArray(NULL,NULL,"-eps",eps,&meps,NULL);CHKERRQ(ierr);
-        ierr = WaveSimulationRefine(ws[0],&ws[1]);CHKERRQ(ierr);
-        ierr = WaveSimulationRefine(ws[1],&ws[2]);CHKERRQ(ierr);
+        ierr = HeatSimulationRefine(hs[0],&hs[1]);CHKERRQ(ierr);
+        ierr = HeatSimulationRefine(hs[1],&hs[2]);CHKERRQ(ierr);
         for (i=0; i<meps; i++) {
-            ierr = fmlmc(&mlmc,ws,eps[i],&QoI);CHKERRQ(ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI for complete solve %g with %g EPS tolerance with error %g\n",(double)QoI,(double)eps[i],(double)PetscAbsReal(QoI-EQ_ex));CHKERRQ(ierr);
+            ierr = fmlmc(&mlmc,hs,eps[i],&QoI);CHKERRQ(ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD,"QoI for complete solve %g with %g EPS tolerance\n",(double)QoI,(double)eps[i]);CHKERRQ(ierr);
             
             ierr = PetscMemzero(mlmc.Nl,sizeof(mlmc.Nl));CHKERRQ(ierr);   /* Reset counters for MLMC */
             mlmc.L = 3;
@@ -147,378 +158,681 @@ int main(int argc,char **args)
             }
         }
         for (i=1; i<MLMC_MAX_LEVELS; i++) {
-            ierr = WaveSimulationDestroy(&ws[i]);CHKERRQ(ierr);
+            ierr = HeatSimulationDestroy(&hs[i]);CHKERRQ(ierr);
         }
-    }
-    ierr = WaveSimulationDestroy(&ws[0]);CHKERRQ(ierr);
+//    }
+    ierr = HeatSimulationDestroy(&hs[0]);CHKERRQ(ierr);
     ierr = PetscFinalize();
     return ierr;
 }
-
-static PetscErrorCode WaveSimulationSetup(WaveSimulation *ws,PetscReal T,PetscInt kx,PetscInt ky)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+static PetscErrorCode HeatSimulationSetup(HeatSimulation *hs,PetscReal T)
 {
     PetscErrorCode ierr;
     PetscInt       nx,ny,xs,ys,xn,yn,i;
     PetscReal      *x,*y;
     
     PetscFunctionBeginUser;
-    ierr = DMDAGetInfo(ws->da,NULL,&nx,&ny,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
-    ws->kx = kx;
-    ws->ky = ky;
-    ws->hx = 2.0/(nx-1);
-    ws->hy = 2.0/(ny-1);
-    ws->nx = nx;
-    ws->ny = ny;
-    ws->dt = 0.5*ws->hx;
-    ws->T  = T;
-    ws->nt = 1 + (PetscInt) PetscFloorReal(ws->T/ws->dt);
-    ws->dt = ws->T/ws->nt;
-    ierr = DMDAGetCorners(ws->da,&xs,&ys,NULL,&xn,&yn,NULL);CHKERRQ(ierr);
-    ierr = VecCreateSeq(PETSC_COMM_SELF,xn,&ws->x);CHKERRQ(ierr);
-    ierr = VecCreateSeq(PETSC_COMM_SELF,yn,&ws->y);CHKERRQ(ierr);
-    ierr = VecGetArray(ws->x,&x);CHKERRQ(ierr);
-    for (i=0; i<xn; i++) x[i] = -1.0 + ws->hx*(i+xs);
-    ierr = VecRestoreArray(ws->x,&x);CHKERRQ(ierr);
-    ierr = VecGetArray(ws->y,&y);CHKERRQ(ierr);
-    for (i=0; i<yn; i++) y[i] = -1.0 + ws->hy*(i+ys);
-    ierr = VecRestoreArray(ws->y,&y);CHKERRQ(ierr);
-    ws->xQ = .5;
+    ierr = DMDAGetInfo(hs->da,NULL,&nx,&ny,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+    hs->hx = 1.0/(nx-1);
+    hs->hy = 1.0/(ny-1);
+    hs->nx = nx;
+    hs->ny = ny;
+    hs->dt = 0.5*hs->hx;
+    hs->T  = T;
+    hs->nt = 1 + (PetscInt) PetscFloorReal(hs->T/hs->dt);
+    hs->dt = hs->T/hs->nt;
+    ierr = DMDAGetCorners(hs->da,&xs,&ys,NULL,&xn,&yn,NULL);CHKERRQ(ierr);
+    ierr = VecCreateSeq(PETSC_COMM_SELF,xn,&hs->x);CHKERRQ(ierr);
+    ierr = VecCreateSeq(PETSC_COMM_SELF,yn,&hs->y);CHKERRQ(ierr);
+    ierr = VecGetArray(hs->x,&x);CHKERRQ(ierr);
+    for (i=0; i<xn; i++) x[i] = hs->hx*(i+xs);
+    ierr = VecRestoreArray(hs->x,&x);CHKERRQ(ierr);
+    ierr = VecGetArray(hs->y,&y);CHKERRQ(ierr);
+    for (i=0; i<yn; i++) y[i] = hs->hy*(i+ys);
+    ierr = VecRestoreArray(hs->y,&y);CHKERRQ(ierr);
+    hs->xQ = .5;
+    /* domain geometry */
+    hs>Lx       = 1;
+    hs->Ly       = 1;
+    /* physical parameters */
+    hs->b        = 5.0;
+    hs->c        = 30.0;
+    hs->rad      = 0.5;
+    hs->mu       = 0.0;
+    hs->sigma    = 1.5;   /* sigma here stands for noise strength */
+    hs->lc       = 2.0;   /* corelation length for exponential or Gaussian covariance function*/
+    hs->lx       = 0.1;   /* corelation length for separable exponential covariance function*/
+    hs->ly       = 0.1;   /* corelation length for separable exponential covariance function*/
+    ierr = PetscOptionsGetReal(NULL,NULL,"-b",&(hs->b),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-c",&(hs->c),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-rad",&(hs->rad),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-mu",&(hs->mu),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-sigma",&(hs->sigma),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-lc",&(hs->lc),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-lx",&(hs->lx),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL,NULL,"-ly",&(hs->ly),NULL);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-
-PetscErrorCode WaveSimulationDestroy(WaveSimulation **ws)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode HeatSimulationDestroy(HeatSimulation **hs)
 {
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
-    if (!*ws) PetscFunctionReturn(0);
-    ierr = DMDestroy(&(*ws)->da);CHKERRQ(ierr);
-    ierr = VecDestroy(&(*ws)->x);CHKERRQ(ierr);
-    ierr = VecDestroy(&(*ws)->y);CHKERRQ(ierr);
-    ierr = PetscRandomDestroy(&(*ws)->rand);CHKERRQ(ierr);
-    ierr = PetscFree(*ws);CHKERRQ(ierr);
+    if (!*hs) PetscFunctionReturn(0);
+    ierr = DMDestroy(&(*hs)->da);CHKERRQ(ierr);
+    ierr = VecDestroy(&(*hs)->x);CHKERRQ(ierr);
+    ierr = VecDestroy(&(*hs)->y);CHKERRQ(ierr);
+//    ierr = PetscRandomDestroy(&(*hs)->rand);CHKERRQ(ierr);
+    ierr = PetscFree(*hs);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-
-PetscErrorCode WaveSimulationCreate(MPI_Comm comm,PetscReal T,PetscInt nx,PetscInt ny,PetscInt kx,PetscInt ky,WaveSimulation **ws)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode HeatSimulationCreate(MPI_Comm comm,PetscReal T,PetscInt nx,PetscInt ny,HeatSimulation **hs)
 {
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
-    ierr = PetscNew(ws);CHKERRQ(ierr);
-    ierr = DMDACreate2d(comm,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,nx,ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&(*ws)->da);CHKERRQ(ierr);
-    ierr = DMSetUp((*ws)->da);CHKERRQ(ierr);
-    if (!useMatlabRand) {
-        ierr = PetscRandomCreate(comm,&(*ws)->rand);CHKERRQ(ierr);
-    }
-    WaveSimulationSetup(*ws,T,kx,ky);
+    ierr = PetscNew(hs);CHKERRQ(ierr);
+    ierr = DMDACreate2d(comm,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,nx,ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&(*hs)->da);CHKERRQ(ierr);
+    ierr = DMSetUp((*hs)->da);CHKERRQ(ierr);
+//    if (!useMatlabRand) {
+//        ierr = PetscRandomCreate(comm,&(*hs)->rand);CHKERRQ(ierr);
+//    }
+    ierr = HeatSimulationSetup(*hs,T);CHKERRQ(ierr);
+    ierr = DMDASetUniformCoordinates((*hs)->da,0.0,hs->Lx,0.0,hs->Ly,0.0,0.0);CHKERRQ(ierr);
+    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Setup KL expansion
+     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = KLSetup(*hs);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-
-PetscErrorCode WaveSimulationRefine(WaveSimulation *ws,WaveSimulation **wsf)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode HeatSimulationRefine(HeatSimulation *hs,HeatSimulation **hsf)
 {
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
-    ierr = PetscNew(wsf);CHKERRQ(ierr);
-    ierr = DMRefine(ws->da,PetscObjectComm((PetscObject)ws->da),&(*wsf)->da);CHKERRQ(ierr);
-    ierr = WaveSimulationSetup(*wsf,ws->T,ws->kx,ws->ky);CHKERRQ(ierr);
+    ierr = PetscNew(hsf);CHKERRQ(ierr);
+    ierr = DMRefine(hs->da,PetscObjectComm((PetscObject)hs->da),&(*hsf)->da);CHKERRQ(ierr);
+    ierr = HeatSimulationSetup(*hsf,hs->T);CHKERRQ(ierr);
+    ierr = DMDASetUniformCoordinates((*hsf)->da,0.0,hs->Lx,0.0,hs->Ly,0.0,0.0);CHKERRQ(ierr);
+    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Setup KL expansion
+     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = KLSetup(*hsf);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-
-PetscErrorCode VecOutterProduct(Vec vx,Vec vy,Vec vxy)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode KLSetup(HeatSimulation *hs)
 {
-    PetscErrorCode  ierr;
-    const PetscReal *x,*y;
-    PetscReal       **xy;
-    PetscInt        i,j,m,n;
+    DM             cda;
+    DMDACoor2d   **coors;
+    DMDALocalInfo  info;
+    Vec            global;
+    PetscInt       xs, xm, ys, ym, N2, Nx, Ny;
+    PetscInt       i, j, i0, j0, i1, j1;
+    PetscScalar  **Cov;
+    PetscScalar  **V;                /* SVD */
+    PetscScalar   *W;                /* Weights for quadrature (trapezoidal) */
+    PetscScalar    x1, y1, x0, y0, rr;
+    PetscInt       Lx     = hs->Lx;
+    PetscInt       Ly     = hs->Ly;
+    PetscReal      lc     = hs->lc;
+    PetscReal      lx     = hs->lx;
+    PetscReal      ly     = hs->ly;
+    PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
-    ierr = VecGetArrayRead(vx,&x);CHKERRQ(ierr);
-    ierr = VecGetArrayRead(vy,&y);CHKERRQ(ierr);
-    ierr = VecGetLocalSize(vx,&m);CHKERRQ(ierr);
-    ierr = VecGetLocalSize(vy,&n);CHKERRQ(ierr);
-    ierr = VecGetArray2d(vxy,m,n,0,0,&xy);CHKERRQ(ierr);
-    for (j=0; j<n; j++) {
-        for (i=0; i<m; i++) {
-            xy[j][i] = x[i]*y[j];
+    
+    /*------------------------------------------------------------------------
+     Access coordinate field
+     ---------------------------------------------------------------------*/
+    ierr = DMDAGetLocalInfo(hs->da,&info);CHKERRQ(ierr);
+    Nx   = info.mx;
+    Ny   = info.my;
+    N2   = Nx * Ny;
+    
+    /* Get local grid boundaries */
+    ierr = DMDAGetCorners(hs->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(hs->da,&cda);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(hs->da,&global);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
+    
+    /* allocate covariance matrix, its SVD associates */
+    ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
+    ierr = PetscMalloc1(N2,&(hs->U));CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&(hs->U)[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) (hs->U)[i] = (hs->U)[i-1]+N2;
+    ierr = PetscMalloc1(N2,&V);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2*N2,&V[0]);CHKERRQ(ierr);
+    for (i=1; i<N2; i++) V[i] = V[i-1]+N2;
+    ierr = PetscMalloc1(N2,&(hs->S));CHKERRQ(ierr);
+    
+    /* Compute covariance function over the locally owned part of the grid */
+    for (j0=ys; j0<ys+ym; j0++)
+    {
+        for (i0=xs; i0<xs+xm; i0++)
+        {
+            x0=coors[j0][i0].x;
+            y0=coors[j0][i0].y;
+            for (j1=ys; j1<ys+ym; j1++)
+            {
+                for (i1=xs; i1<xs+xm; i1++)
+                {
+                    x1=coors[j1][i1].x;
+                    y1=coors[j1][i1].y;
+//                    rr = PetscAbsReal(x1-x0) / lx + PetscAbsReal(y1-y0) / ly; //Seperable Exp
+//                    rr = PetscSqrtReal(PetscPowReal(x1-x0,2) + PetscPowReal(y1-y0,2)) / lc; //Exp
+                    rr = (PetscPowReal(x1-x0,2) + PetscPowReal(y1-y0,2)) / (2 * lc * lc); //Gaussian
+                    Cov[j0*xm+i0][j1*xm+i1] = PetscExpReal(-rr);
+                }
+            }
         }
     }
-    ierr = VecRestoreArray2d(vxy,m,n,0,0,&xy);CHKERRQ(ierr);
-    ierr = VecRestoreArrayRead(vx,&x);CHKERRQ(ierr);
-    ierr = VecRestoreArrayRead(vx,&x);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-}
+    ierr = DMDAVecRestoreArray(cda,global,&coors);CHKERRQ(ierr);
 
-static PetscErrorCode u_exact_x(WaveSimulation *ws, PetscReal t,PetscReal w,Vec vf)
-{
-    PetscErrorCode  ierr;
-    PetscInt        i,m;
-    const PetscReal *x;
-    PetscReal       *f;
+    /* Approximate the covariance integral operator via collocation and vertex-based quadrature */
     
-    PetscFunctionBeginUser;
-    ierr = VecGetArrayRead(ws->x,&x);CHKERRQ(ierr);
-    ierr = VecGetArray(vf,&f);CHKERRQ(ierr);
-    ierr = VecGetLocalSize(vf,&m);CHKERRQ(ierr);
-    for (i=0; i<m; i++) {
-        f[i] = PetscSinReal(w*t-ws->kx*x[i]);
+    /* allocate quadrature weights W along the diagonal */
+    ierr = PetscMalloc1(N2,&W);CHKERRQ(ierr);
+    
+    /* fill the weights (trapezoidal rule in 2d uniform mesh) */
+    /* fill the first and the last*/
+    W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
+    for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
+    /* fill in between */
+    for (i=0; i<Nx; i++)
+    {
+        for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
     }
-    ierr = VecRestoreArrayRead(ws->x,&x);CHKERRQ(ierr);
-    ierr = VecRestoreArray(vf,&f);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-}
-
-static PetscErrorCode u_exact_y(WaveSimulation *ws, PetscReal t,PetscReal w,Vec vf)
-{
-    PetscErrorCode  ierr;
-    PetscInt        i,m;
-    const PetscReal *y;
-    PetscReal       *f;
     
-    PetscFunctionBeginUser;
-    ierr = VecGetArrayRead(ws->y,&y);CHKERRQ(ierr);
-    ierr = VecGetArray(vf,&f);CHKERRQ(ierr);
-    ierr = VecGetLocalSize(vf,&m);CHKERRQ(ierr);
-    for (i=0; i<m; i++) {
-        f[i] = PetscSinReal(ws->ky*y[i]);
+    /* Scale W*/
+    for (i = 0; i < N2; i++) W[i] = W[i] * ((Lx)*(Ly))/(4*(Nx-1)*(Ny-1));
+    
+    /* Combine W with covariance matrix Cov to form covariance operator K
+     K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
+    for (i=0; i<N2; i++)
+    {
+        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
     }
-    ierr = VecRestoreArrayRead(ws->x,&y);CHKERRQ(ierr);
-    ierr = VecRestoreArray(vf,&f);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-}
-
-/*
- function u=u_exact(t,x,y,w,kx,ky)
- u=sin(w*t-kx*x)'*sin(ky*y)';
- */
-static PetscErrorCode u_exact(WaveSimulation *ws,PetscReal t,PetscReal w,Vec vf)
-{
-    PetscErrorCode ierr;
-    Vec            vfx,vfy;
     
-    PetscFunctionBeginUser;
-    ierr = VecDuplicate(ws->x,&vfx);CHKERRQ(ierr);
-    ierr = VecDuplicate(ws->y,&vfy);CHKERRQ(ierr);
-    ierr = u_exact_x(ws,t,w,vfx);CHKERRQ(ierr);
-    ierr = u_exact_y(ws,t,w,vfy);CHKERRQ(ierr);
-    ierr = VecOutterProduct(vfx,vfy,vf);CHKERRQ(ierr);
-    ierr = VecDestroy(&vfx);CHKERRQ(ierr);
-    ierr = VecDestroy(&vfy);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-}
-
-static PetscErrorCode f2_fun_x(WaveSimulation *ws, PetscReal t,PetscReal w,Vec vf)
-{
-    PetscErrorCode  ierr;
-    PetscInt        i,m;
-    const PetscReal *x;
-    PetscReal       *f;
+    /* Use SVD to decompose the PSD matrix K to get its eigen decomposition */
+    svd(Cov,hs->U,V,hs->S,N2);
     
-    PetscFunctionBeginUser;
-    ierr = VecGetArrayRead(ws->x,&x);CHKERRQ(ierr);
-    ierr = VecGetArray(vf,&f);CHKERRQ(ierr);
-    ierr = VecGetLocalSize(vf,&m);CHKERRQ(ierr);
-    for (i=0; i<m; i++) {
-        f[i] = w*PetscCosReal(ws->kx*x[i]);
+    /* Recover eigenvectors by divding sqrt(W) */
+    for (i = 0; i < N2; i++)
+    {
+        for (j = 0; j < N2; j++) (hs->U)[i][j] = (hs->U)[i][j] / PetscSqrtReal(W[i]);
     }
-    ierr = VecRestoreArrayRead(ws->x,&x);CHKERRQ(ierr);
-    ierr = VecRestoreArray(vf,&f);CHKERRQ(ierr);
+    
+    ierr = PetscFree(Cov);CHKERRQ(ierr);
+//    ierr = PetscFree(U);CHKERRQ(ierr);
+    ierr = PetscFree(V);CHKERRQ(ierr);
+//    ierr = PetscFree(S);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
-
-/*
- function f=f2_fun(x,y,w,kx,ky)
- f=w*cos(kx*x)'*sin(ky*y)'
- */
-static PetscErrorCode f2_fun(WaveSimulation *ws,PetscReal w,Vec vf)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+static PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
+/* svd.c: Perform a singular value decomposition A = USV' of square matrix.
+ *
+ * Input: The A_input matrix must has n rows and n columns.
+ * Output: The product are U, S and V(not V').
+ The S vector returns the singular values. */
 {
-    PetscErrorCode ierr;
-    Vec            vfx,vfy;
+    PetscInt  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0, slimit = (n<120) ? 30 : n/4;
+    PetscScalar eps = 1e-15, e2 = 10.0*n*eps*eps, tol = 0.1*eps, vt, p, x0, y0, q, r, c0, s0, d1, d2;
+    PetscScalar *S2;
+    PetscScalar **A;
     
     PetscFunctionBeginUser;
-    ierr = VecDuplicate(ws->x,&vfx);CHKERRQ(ierr);
-    ierr = VecDuplicate(ws->y,&vfy);CHKERRQ(ierr);
-    ierr = f2_fun_x(ws,0.0,w,vfx);CHKERRQ(ierr);
-    ierr = u_exact_y(ws,0.0,w,vfy);CHKERRQ(ierr);
-    ierr = VecOutterProduct(vfx,vfy,vf);CHKERRQ(ierr);
-    ierr = VecDestroy(&vfx);CHKERRQ(ierr);
-    ierr = VecDestroy(&vfy);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-}
-
-/*
- function force=forcing(t,x,y,w,kx,ky)
- force=-(w^2-kx^2-ky^2)*sin(w*t-kx*x)'*sin(ky*y)';
- */
-static PetscErrorCode forcing(WaveSimulation *ws,PetscReal t,PetscReal w,Vec vf)
-{
-    PetscErrorCode ierr;
     
-    PetscFunctionBeginUser;
-    ierr = u_exact(ws,t,w,vf);CHKERRQ(ierr);
-    ierr = VecScale(vf,-1.0*(w*w - ws->kx*ws->kx - ws->ky*ws->ky));CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-}
-
-
-/*
- function L=laplac(u,hx,hy,nx,ny)
- L=zeros(size(u));
- for j=2:ny-1
- I=2:nx-1;
- L(j,I)=(1/hx^2)*u(j,I+1)+(1/hx^2)*u(j,I-1)+(1/hy^2)*u(j+1,I)+(1/hy^2)*u(j-1,I)-((2/hx^2)+(2/hy^2))*u(j,I);
- end
- */
-static PetscErrorCode laplac(WaveSimulation *ws, Vec vu,Vec vL)
-{
-    PetscErrorCode  ierr;
-    PetscInt        i,j,xs,ys,xm,ym;
-    const PetscReal **u;
-    PetscReal       **L,ihx2 = 1.0/(ws->hx*ws->hx), ihy2 = 1.0/(ws->hy*ws->hy);
-    Vec             ulocal;
+    PetscMalloc1(n,&S2);
+    PetscMalloc1(2*n,&A);
+    PetscMalloc1(2*n*n,&A[0]);
+    for (i=1; i<n; i++) A[i] = A[i-1]+n;
     
-    PetscFunctionBeginUser;
-    ierr = DMGetLocalVector(ws->da,&ulocal);CHKERRQ(ierr);
-    ierr = DMGlobalToLocalBegin(ws->da,vu,INSERT_VALUES,ulocal);CHKERRQ(ierr);
-    ierr = DMGlobalToLocalEnd(ws->da,vu,INSERT_VALUES,ulocal);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ws->da,ulocal,&u);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ws->da,vL,&L);CHKERRQ(ierr);
-    ierr = DMDAGetGhostCorners(ws->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-    for (j=ys+1; j<ys+ym-1; j++) {
-        for (i=xs+1; i<xs+xm-1; i++) {
-            L[j][i] = ihx2*u[j][i+1] + ihx2*u[j][i-1] + ihy2*u[j+1][i] + ihy2*u[j-1][i] - 2.0*(ihx2 + ihy2)*u[j][i];
+    for (i=0; i<n; i++)
+    {
+        A[i] = malloc(n * sizeof(PetscScalar));
+        A[n+i] = malloc(n * sizeof(PetscScalar));
+        for (j=0; j<n; j++)
+        {
+            A[i][j]   = A_input[i][j];
+            A[n+i][j] = 0.0;
+        }
+        A[n+i][i] = 1.0;
+    }
+    while (RotCount != 0 && SweepCount++ <= slimit) {
+        RotCount = EstColRank*(EstColRank-1)/2;
+        for (j=0; j<EstColRank-1; j++)
+            for (k=j+1; k<EstColRank; k++) {
+                p = q = r = 0.0;
+                for (i=0; i<n; i++) {
+                    x0 = A[i][j]; y0 = A[i][k];
+                    p += x0*y0; q += x0*x0; r += y0*y0;
+                }
+                S2[j] = q; S2[k] = r;
+                if (q >= r) {
+                    if (q<=e2*S2[0] || fabs(p)<=tol*q)
+                        RotCount--;
+                    else {
+                        p /= q; r = 1.0-r/q; vt = sqrt(4.0*p*p+r*r);
+                        c0 = sqrt(0.5*(1.0+r/vt)); s0 = p/(vt*c0);
+                        for (i=0; i<2*n; i++) {
+                            d1 = A[i][j]; d2 = A[i][k];
+                            A[i][j] = d1*c0+d2*s0; A[i][k] = -d1*s0+d2*c0;
+                        }
+                    }
+                } else {
+                    p /= r; q = q/r-1.0; vt = sqrt(4.0*p*p+q*q);
+                    s0 = sqrt(0.5*(1.0-q/vt));
+                    if (p<0.0) s0 = -s0;
+                    c0 = p/(vt*s0);
+                    for (i=0; i<2*n; i++) {
+                        d1 = A[i][j]; d2 = A[i][k];
+                        A[i][j] = d1*c0+d2*s0; A[i][k] = -d1*s0+d2*c0;
+                    }
+                }
+            }
+        while (EstColRank>2 && S2[EstColRank-1]<=S2[0]*tol+tol*tol) EstColRank--;
+    }
+    if (SweepCount > slimit)
+        printf("Warning: Reached maximum number of sweeps (%d) in SVD routine...\n", slimit);
+    for (i=0; i<n; i++) S[i] = PetscSqrtReal(S2[i]);
+    for (i=0; i<n; i++)
+    {
+        for (j=0; j<n; j++)
+        {
+            U[i][j] = A[i][j]/S[j];
+            V[i][j] = A[n+i][j];
         }
     }
-    for (j=ys; j<ys+ym; j++) L[j][xs] = L[j][xs+xm-1] = 0.0;
-    for (i=xs; i<xs+xm; i++) L[ys][i] = L[ys+ym-1][i] = 0.0;
-    ierr = DMDAVecRestoreArray(ws->da,ulocal,&u);CHKERRQ(ierr);
-    ierr = DMDAVecRestoreArray(ws->da,vL,&L);CHKERRQ(ierr);
-    ierr = DMRestoreLocalVector(ws->da,&ulocal);CHKERRQ(ierr);
+    PetscFree(S2);
+    PetscFree(A);
     PetscFunctionReturn(0);
 }
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
 /*
- Sets the exact solution onto the boundary values of the domain
- This is the same as u_exact() using a tensor product except it only updates boundary values
+ * Lower tail quantile for standard normal distribution function.
+ *
+ * This function returns an approximation of the inverse cumulative
+ * standard normal distribution function.  I.e., given P, it returns
+ * an approximation to the X satisfying P = Pr{Z <= X} where Z is a
+ * random variable from the standard normal distribution.
+ *
+ * The algorithm uses a minimax approximation by rational functions
+ * and the result has a relative error whose absolute value is less
+ * than 1.15e-9.
+ *
+ * Author:      Peter John Acklam
+ * Time-stamp:  2002-06-09 18:45:44 +0200
+ * E-mail:      jacklam@math.uio.no
+ * WWW URL:     http://www.math.uio.no/~jacklam
+ *
+ * C implementation adapted from Peter's Perl version
  */
-static PetscErrorCode WaveSimulationPatchBoundary(WaveSimulation *ws, PetscReal t, PetscReal w, Vec vu)
+
+#include <math.h>
+#include <errno.h>
+
+/* Coefficients in rational approximations. */
+static const double a[] =
 {
-    PetscErrorCode  ierr;
-    PetscInt        i,j,xs,ys,xm,ym,nx,ny;
-    PetscReal       **u;
-    const PetscReal *fx,*fy;
-    Vec             vfx,vfy;
+    -3.969683028665376e+01,
+    2.209460984245205e+02,
+    -2.759285104469687e+02,
+    1.383577518672690e+02,
+    -3.066479806614716e+01,
+    2.506628277459239e+00
+};
+
+static const double b[] =
+{
+    -5.447609879822406e+01,
+    1.615858368580409e+02,
+    -1.556989798598866e+02,
+    6.680131188771972e+01,
+    -1.328068155288572e+01
+};
+
+static const double c[] =
+{
+    -7.784894002430293e-03,
+    -3.223964580411365e-01,
+    -2.400758277161838e+00,
+    -2.549732539343734e+00,
+    4.374664141464968e+00,
+    2.938163982698783e+00
+};
+
+static const double d[] =
+{
+    7.784695709041462e-03,
+    3.224671290700398e-01,
+    2.445134137142996e+00,
+    3.754408661907416e+00
+};
+
+#define LOW 0.02425
+#define HIGH 0.97575
+static PetscReal ltqnorm(PetscReal p)
+{
+    PetscReal q, r;
+    PetscFunctionBeginUser;
+    
+    errno = 0;
+    
+    if (p < 0 || p > 1)
+    {
+        errno = EDOM;
+        return 0.0;
+    }
+    else if (p == 0)
+    {
+        errno = ERANGE;
+        return -HUGE_VAL /* minus "infinity" */;
+    }
+    else if (p == 1)
+    {
+        errno = ERANGE;
+        return HUGE_VAL /* "infinity" */;
+    }
+    else if (p < LOW)
+    {
+        /* Rational approximation for lower region */
+        q = sqrt(-2*log(p));
+        return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+        ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+    else if (p > HIGH)
+    {
+        /* Rational approximation for upper region */
+        q  = sqrt(-2*log(1-p));
+        return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+        ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+    else
+    {
+        /* Rational approximation for central region */
+        q = p - 0.5;
+        r = q*q;
+        return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
+        (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+    }
+    PetscFunctionReturn(0);
+}
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode BuildA_CN(HeatSimulation *hs)
+{
+    DMDALocalInfo  info;
+    PetscInt       i,j;
+    PetscReal      hx,hy,sx,sy;
+    PetscScalar    dt = hs->dt;
+    PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
-    ierr = VecDuplicate(ws->x,&vfx);CHKERRQ(ierr);
-    ierr = VecDuplicate(ws->y,&vfy);CHKERRQ(ierr);
-    ierr = u_exact_x(ws,t,w,vfx);CHKERRQ(ierr);
-    ierr = u_exact_y(ws,t,w,vfy);CHKERRQ(ierr);
-    ierr = VecGetArrayRead(vfx,&fx);CHKERRQ(ierr);
-    ierr = VecGetArrayRead(vfy,&fy);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ws->da,vu,&u);CHKERRQ(ierr);
-    ierr = DMDAGetInfo(ws->da,NULL,&nx,&ny,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
-    ierr = DMDAGetCorners(ws->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
-    if (xs == 0) {
-        for (j=ys; j<ys+ym; j++) u[j][0] = fx[0]*fy[j-ys];       /* Note that u[][] uses the parallel numbering while fx[] and fy[] use the local */
+    ierr = DMDAGetLocalInfo(hs->da,&info);CHKERRQ(ierr);
+    hx   = 1.0/(PetscReal)(info.mx-1); sx = 1.0/(hx*hx);
+    hy   = 1.0/(PetscReal)(info.my-1); sy = 1.0/(hy*hy);
+    for (j=info.ys; j<info.ys+info.ym; j++) {
+        for (i=info.xs; i<info.xs+info.xm; i++) {
+            PetscInt    nc = 0;
+            MatStencil  row,col[5];
+            PetscScalar val[5];
+            row.i = i; row.j = j;
+            if (i == 0 || j == 0 || i == info.mx-1 || j == info.my-1) {
+                col[nc].i = i; col[nc].j = j; val[nc++] = 1.0;
+            } else {
+                col[nc].i = i-1; col[nc].j = j;   val[nc++] = -.5*sx*dt;
+                col[nc].i = i+1; col[nc].j = j;   val[nc++] = -.5*sx*dt;
+                col[nc].i = i;   col[nc].j = j-1; val[nc++] = -.5*sy*dt;
+                col[nc].i = i;   col[nc].j = j+1; val[nc++] = -.5*sy*dt;
+                col[nc].i = i;   col[nc].j = j;   val[nc++] = 1 + sx*dt + sy*dt;
+            }
+            ierr = MatSetValuesStencil(hs->A,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
+        }
     }
-    if (xs+xm == nx) {
-        for (j=ys; j<ys+ym; j++) u[j][nx-1] = fx[xm-1]*fy[j-ys];
-    }
-    if (ys == 0) {
-        for (i=xs; i<xs+xm; i++) u[0][i] = fx[i-xs]*fy[0];
-    }
-    if (ys+ym == ny) {
-        for (i=xs; i<xs+xm; i++) u[ny-1][i] = fx[i-xs]*fy[ym-1];
-    }
-    ierr = DMDAVecRestoreArray(ws->da,vu,&u);CHKERRQ(ierr);
-    ierr = VecRestoreArrayRead(vfx,&fx);CHKERRQ(ierr);
-    ierr = VecRestoreArrayRead(vfy,&fy);CHKERRQ(ierr);
-    ierr = VecDestroy(&vfx);CHKERRQ(ierr);
-    ierr = VecDestroy(&vfy);CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(hs->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(hs->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    
     PetscFunctionReturn(0);
 }
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode FormRHS_CN(HeatSimulation *hs, Vec U, Vec RHS)
+{
+    PetscInt       i,j;
+    PetscReal      hx,hy,sx,sy;
+    PetscScalar   *u, *rhs;
+    PetscScalar    dt = hs->dt;
+    DMDALocalInfo  info;
+    PetscErrorCode ierr;
+    
+    PetscFunctionBeginUser;
+    ierr = VecGetArray(U,&u);CHKERRQ(ierr);
+    ierr = VecGetArray(RHS,&rhs);CHKERRQ(ierr);
+    ierr = DMDAGetLocalInfo(hs->da,&info);CHKERRQ(ierr);
+    hx   = 1.0/(PetscReal)(info.mx-1); sx = 1.0/(hx*hx);
+    hy   = 1.0/(PetscReal)(info.my-1); sy = 1.0/(hy*hy);
+    
+    for (j=info.ys; j<info.ys+info.ym; j++) {
+        for (i=info.xs; i<info.xs+info.xm; i++) {
+            if (i == 0 || j == 0 || i == info.mx-1 || j == info.my-1) {
+                rhs[info.mx*j+i] = u[info.mx*j+i];
+            } else {
+                rhs[info.mx*j+i] = u[info.mx*j+i]                            * (1-sx*dt-sy*dt)
+                + ( u[info.mx*j+(i+1)] + u[info.mx*j+(i-1)] ) * .5*sx*dt
+                + ( u[info.mx*(j+1)+i] + u[info.mx*(j-1)+i] ) * .5*sy*dt;
+            }
+        }
+    }
+    ierr = VecRestoreArray(RHS,&rhs);
+    ierr = VecRestoreArray(U,&u);
+    ierr = VecAssemblyBegin(RHS);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(RHS);CHKERRQ(ierr);
+    
+    PetscFunctionReturn(0);
+}
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode FormInitialSolution(HeatSimulation *hs, Vec U)
+{
+    PetscInt       i,j,xs,ys,xm,ym;
+    PetscReal      hx,hy,x,y,r;
+    DMDALocalInfo  info;
+    PetscScalar    b     = hs->b;
+    PetscScalar    c     = hs->c;
+    PetscScalar    rad   = hs->rad;
+    PetscScalar  **u;
+    PetscErrorCode ierr;
+    
+    PetscFunctionBeginUser;
+    ierr = DMDAGetLocalInfo(hs->da,&info);CHKERRQ(ierr);
+    hx = 1.0/(PetscReal)(info.mx-1);
+    hy = 1.0/(PetscReal)(info.my-1);
+    
+    /* Get pointers to vector data */
+    ierr = DMDAVecGetArray(hs->da,U,&u);CHKERRQ(ierr);
+    
+    /* Get local grid boundaries */
+    ierr = DMDAGetCorners(hs->da,&xs,&ys,NULL,&xm,&ym,NULL);CHKERRQ(ierr);
+    
+    /* Compute function over the locally owned part of the grid */
+    for (j=ys; j<ys+ym; j++) {
+        y = j*hy;
+        for (i=xs; i<xs+xm; i++) {
+            x = i*hx;
+            r = PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5));
+            if (r < rad) u[j][i] = b * PetscExpReal(-c*r*r);
+            else u[j][i] = 0.0;
+        }
+    }
+    
+    /* Restore vectors */
+    ierr = DMDAVecRestoreArray(hs->da,U,&u);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+}
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode BuildR(HeatSimulation* hs, Vec R)
+{
+    DMDALocalInfo  info;
+    PetscInt       i,j,Nx,Ny,N2;
+    PetscReal      mu     = hs->mu;
+    PetscReal      sigma  = hs->sigma;
+    PetscScalar   *r,tmp;                /* vector issued from random field by KL expansion */
+    PetscScalar  **U = hs->U;
+    PetscScalar   *S = hs->S;
+    PetscErrorCode ierr;
+    
+    PetscFunctionBeginUser;
+    
+    /*------------------------------------------------------------------------
+     Access coordinate field
+     ---------------------------------------------------------------------*/
+    ierr = DMDAGetLocalInfo(hs->da,&info);CHKERRQ(ierr);
+    Nx   = info.mx;
+    Ny   = info.my;
+    N2   = Nx * Ny;
+    
+    /* Get pointers to vector data */
+    ierr = VecGetArray(R,&r);CHKERRQ(ierr);
+    /* Generate normal random numbers by transforming from the uniform one */
+    PetscScalar *rndu, *rndn;
+    ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
+    //  PetscRandom rnd;
+    //    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
+    /* force imaginary part of random number to always be zero; thus obtain reproducible results with real and complex numbers */
+    //    ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
+    //    ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
+    //    ierr = PetscRandomGetValue(rnd,&rndu);CHKERRQ(ierr);
+    
+    time_t t;
+    srand((unsigned) time(&t));rand();//initialize random number generator in C
+    //        PetscScalar mean = 0;
+    for (i = 0; i < N2; i++)
+    {
+        rndu[i] = (PetscScalar) rand()/RAND_MAX;
+        rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
+        //        printf("\nuniform random sample= %f\n",rndu[i]);
+        //        printf("normal random sample= %f\n",rndn[i]);
+        //                mean = mean + rndu[i];
+    }
+    //        mean = mean/N2;
+    //        printf("%f\n",mean);
+    
+    /* Do KL expansion by combining the above eigen decomposition and normal random numbers */
+    for (i = 0; i < N2; i++)
+    {
+        tmp=0.0;
+        for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
+        r[i] = mu + sigma * tmp;
+    }
+    for (j=0; j<Ny; j++)
+    {for (i=0; i<Nx; i++)
+    {
+        if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) {
+            r[Nx*j+i] = 0.0;}
+    }
+    }
+    /* Pring the random vector r issued from random field by KL expansion */
+    //    printf("\nRandom vector r issued from random field by KL expansion\n");
+    //    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
+    /* plot r in Matlab:
+     >> Lx=1;Ly=1;Nx=8;Ny=8;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
+     surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
+    
+    //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
+    
+    ierr = PetscFree(rndu);CHKERRQ(ierr);
+    ierr = PetscFree(rndn);CHKERRQ(ierr);
+    
+    /* Restore vectors */
+    ierr = VecRestoreArray(R,&r);CHKERRQ(ierr);
+    
+    PetscFunctionReturn(0);
+}
+/* ----------------------------------------------------------------------------------------------------------------------- */
 /*
- Solves a single wave equation on a fixed grid
+ Solves a single heat equation on a fixed grid
  
  Input Parameters:
- ws - the information about the grid the problem is solved on including timestep etc
- w - parameter of the problem
+ hs - the information about the grid the problem is solved on including timestep etc
  
  Output Parameter:
  QoI - the quantity of interest computed from the solution
  */
-PetscErrorCode wave_solver(WaveSimulation *ws,PetscReal w,PetscReal *QoI)
+PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
 {
     PetscErrorCode  ierr;
-    DM              da = ws->da;
-    Vec             u0,u1,u2,f2,L,f,u0temp;
-    PetscInt        k,mQ;
-    PetscReal       t;
-    const PetscReal **u1_array;
+    DM              da = hs->da;
+    Vec             u;               /* solution vector */
+    PetscInt        mQ;
+    const PetscReal **unew_array;
     
     PetscFunctionBeginUser;
-    ierr = DMCreateGlobalVector(da,&u0);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(da,&u1);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(da,&u2);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(da,&f2);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(da,&L);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(da,&f);CHKERRQ(ierr);
+
+    /* Crank-Nicolson scheme */
+    /* Set Matrix A */
+    ierr = DMSetMatType(hs->da,MATAIJ);CHKERRQ(ierr);
+    ierr = DMCreateMatrix(hs->da,&hs->A);CHKERRQ(ierr);
+    ierr = BuildA_CN(hs);CHKERRQ(ierr);
+    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Set initial conditions
+     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = FormInitialSolution(hs,u);CHKERRQ(ierr);
     
-    /* compute initial condition */
-    ierr = u_exact(ws,0,w,u0);CHKERRQ(ierr);
+    Vec            r;                 /* random vector */
+    Vec            unew, uold;        /* vector for time stepping */
+    Vec            rhs;               /* rhs vector for Crank-Nicolson scheme */
+    KSP            ksp;               /* KSP solver for Crank-Nicolson scheme */
+    PetscInt       i;
     
-    /* compute solution at first time step */
-    ierr = f2_fun(ws,w,f2);CHKERRQ(ierr);
-    ierr = laplac(ws,u0,L);CHKERRQ(ierr);
-    ierr = forcing(ws,0,w,f);CHKERRQ(ierr);
-    /* u1 = u0 + dt*f2 + 0.5*(dt^2)*(L + f); */
-    ierr = VecAXPY(L,1.0,f);CHKERRQ(ierr);                  /*  L = L + f */
-    ierr = VecAYPX(L,.5*ws->dt*ws->dt,u0);CHKERRQ(ierr);    /*  L = u0 + 0.5*(dt^2)L */
-    ierr = VecWAXPY(u1,ws->dt,f2,L);CHKERRQ(ierr);          /*  u1 = dt*f2 + L */
-    ierr = WaveSimulationPatchBoundary(ws,ws->dt,w,u1);CHKERRQ(ierr);
-    
-    for (k=0; k<ws->nt-1; k++) {
-        t = (k+1)*ws->dt;
-        /* f=forcing(t,x,y,w,kx,ky); */
-        ierr = forcing(ws,t,w,f);CHKERRQ(ierr);
-        /* L=laplac(u1,hx,hy,nx,ny); */
-        ierr = laplac(ws,u1,L);CHKERRQ(ierr);
-        /* u2=2*u1-u0+(dt^2)*(L+f); */
-        ierr = VecAXPY(L,1.0,f);CHKERRQ(ierr);                   /*  L = L + f */
-        ierr = VecAXPBY(L,-1.0,ws->dt*ws->dt,u0);CHKERRQ(ierr);  /*  L = -u0 + (dt^2)L */
-        ierr = VecWAXPY(u2,2.0,u1,L);CHKERRQ(ierr);              /*  u2 = 2.0*u1 + L */
-        ierr = WaveSimulationPatchBoundary(ws,t+ws->dt,w,u2);CHKERRQ(ierr);
+    for (i=0; i<hs->nt+1; i++)
+    {
+        /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Time stepping
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+        ierr = VecCopy(u,uold);CHKERRQ(ierr);
+        ierr = BuildR(user,r);
+        ierr = VecScale(r,PetscSqrtReal(hs->dt));CHKERRQ(ierr);
         
-        /*  switch solution at different time levels */
-        u0temp = u0;
-        u0     = u1;
-        u1     = u2;
-        u2     = u0temp;
+        /* Euler scheme */
+        //      ierr = MatMultAdd(user->A,uold,r,unew);CHKERRQ(ierr);
+        //      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
+        
+        /* Crank-Nicolson scheme */
+        ierr = FormRHS_CN(user,uold,rhs);
+        ierr = VecAXPY(rhs,1.0,r);CHKERRQ(ierr);
+        ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);
+        ierr = KSPSetOperators(ksp,user->A,user->A);
+        ierr = KSPSetFromOptions(ksp);
+        ierr = KSPSolve(ksp,rhs,unew);
+        
+        ierr = VecCopy(unew,u);CHKERRQ(ierr);
     }
     
     /* compute quantity of interest; currently only works sequentially */
-    /* Note that u1 contains the current solution, unlike the Matlab code where it is in u2 */
-    mQ   = (PetscInt)PetscRoundReal(0.5*(ws->nx-1)*(1.0+ws->xQ));
-    ierr = DMDAVecGetArray(ws->da,u1,&u1_array);CHKERRQ(ierr);
-    *QoI =u1_array[mQ][mQ];
-    ierr = DMDAVecRestoreArray(ws->da,u1,&u1_array);CHKERRQ(ierr);
+    mQ   = (PetscInt)PetscRoundReal(0.5*(hs->nx-1)*(1.0+hs->xQ));
+    ierr = DMDAVecGetArray(hs->da,unew,&unew_array);CHKERRQ(ierr);
+    *QoI = unew_array[mQ][mQ];
+    ierr = DMDAVecRestoreArray(hs->da,unew,&unew_array);CHKERRQ(ierr);
     
-    ierr = VecDestroy(&u0);CHKERRQ(ierr);
-    ierr = VecDestroy(&u1);CHKERRQ(ierr);
-    ierr = VecDestroy(&u2);CHKERRQ(ierr);
-    ierr = VecDestroy(&f2);CHKERRQ(ierr);
-    ierr = VecDestroy(&L);CHKERRQ(ierr);
-    ierr = VecDestroy(&f);CHKERRQ(ierr);
+    ierr = VecDestroy(&r);CHKERRQ(ierr);
+    ierr = VecDestroy(&unew);CHKERRQ(ierr);
+    ierr = VecDestroy(&uold);CHKERRQ(ierr);
+    ierr = VecDestroy(&rhs);CHKERRQ(ierr); /* rhs vector for Crank-Nicolson scheme*/
+    ierr = KSPDestroy(&ksp);CHKERRQ(ierr); /* KSP solver for Crank-Nicolson scheme*/
+    
     PetscFunctionReturn(0);
 }
-
+/* ----------------------------------------------------------------------------------------------------------------------- */
 /*
  Evaluates the sum of the differences of the QoI for two adjacent levels
  */
-PetscErrorCode mlmc_wave(WaveSimulation **ws,PetscInt l,PetscInt M,PetscReal sum1[])
+PetscErrorCode mlmc_heat(HeatSimulation **hs,PetscInt l,PetscInt M,PetscReal sum1[])
 {
     PetscErrorCode     ierr;
     PetscInt           N1;
@@ -527,26 +841,25 @@ PetscErrorCode mlmc_wave(WaveSimulation **ws,PetscInt l,PetscInt M,PetscReal sum
     PetscFunctionBeginUser;
     sum1[0] = sum1[1] = 0;
     for (N1=0; N1<M; N1++) {
-        if (useMatlabRand) {
-            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"x = rand(1,1);");CHKERRQ(ierr);
-            ierr = PetscMatlabEngineGetArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),1,1,&w,"x");CHKERRQ(ierr);
-        } else {
-            ierr = PetscRandomGetValue(ws[0]->rand,&w);CHKERRQ(ierr);
-        }
-        w += 10;
-        ierr = wave_solver(ws[l],w,&Qf);CHKERRQ(ierr);
+//        if (useMatlabRand) {
+//            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"x = rand(1,1);");CHKERRQ(ierr);
+//            ierr = PetscMatlabEngineGetArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),1,1,&w,"x");CHKERRQ(ierr);
+//        } else {
+//            ierr = PetscRandomGetValue(hs[0]->rand,&w);CHKERRQ(ierr);
+//        }
+        ierr = heat_solver(hs[l],w,&Qf);CHKERRQ(ierr);
         if (l == 0) {
             Qc = 0;
         } else {
-            ierr = wave_solver(ws[l-1],w,&Qc);CHKERRQ(ierr);
+            ierr = heat_solver(hs[l-1],w,&Qc);CHKERRQ(ierr);
         }
         sum1[0] += (Qf-Qc);
         sum1[1] += (Qf-Qc)*(Qf-Qc);
     }
     PetscFunctionReturn(0);
 }
-
-PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode fmlmc(MLMC *mlmc,HeatSimulation **hs,PetscReal eps,PetscReal *EQ)
 {
     PetscErrorCode ierr;
     PetscInt       L,dNl[MLMC_MAX_LEVELS];
@@ -577,21 +890,21 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
             if (dNl[l] > 0) {
                 PetscReal sums[2];
                 /*        sums = feval(mlmc_l,l,dNl(l+1),q,T,h0,beta); */
-                mlmc_wave(ws,l,dNl[l],sums);CHKERRQ(ierr);
+                mlmc_heat(hs,l,dNl[l],sums);CHKERRQ(ierr);
                 mlmc->Nl[l] += dNl[l];
                 suml[l][0]  += sums[0];
                 suml[l][1]  += sums[1];
             }
         }
         
-        /*  compute variances for levels l=0:L (fromula (6) in lecture notes)
+        /*  compute variances for levels l=0:L (formula (6) in lecture notes)
          mul = abs(suml(1,:)./Nl);
          Vl = max(0, suml(2,:)./Nl - mul.^2);
          */
         for (i=0; i<L; i++) mul[i] = PetscAbsReal(suml[i][0]/mlmc->Nl[i]);
-        for (i=0; i<L; i++) Vl[i] = PetscMax(0.0,suml[i][1]/mlmc->Nl[i] - mul[i]*mul[i]);
+        for (i=0; i<L; i++) Vl[i]  = PetscMax(0.0,suml[i][1]/mlmc->Nl[i] - mul[i]*mul[i]);
         
-        /* update optimal number of samples (fromula (4) in lecture notes)
+        /* update optimal number of samples (formula (4) in lecture notes)
          Wl  = beta.^(gamma*(0:L));
          Ns  = ceil(sqrt(Vl./Wl) * sum(sqrt(Vl.*Wl)) / (theta*eps^2/C_alpha));
          dNl = max(0, Ns-Nl);
@@ -627,9 +940,9 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
             }
             if (rem > (1.0 - mlmc->theta)*eps) {
                 PetscInt i;
-                ierr = PetscInfo(NULL,"Adding another MCML level to the hiearchy\n");CHKERRQ(ierr);
+                ierr = PetscInfo(NULL,"Adding another MLMC level to the hiearchy\n");CHKERRQ(ierr);
                 L = L + 1;
-                ierr = WaveSimulationRefine(ws[L-2],&ws[L-1]);CHKERRQ(ierr);
+                ierr = HeatSimulationRefine(hs[L-2],&hs[L-1]);CHKERRQ(ierr);
                 Vl[L-1] = Vl[L-2]/PetscPowReal(mlmc->beta,mlmc->q2);
                 for (i=0; i<L; i++) Wl[i] = PetscPowReal(mlmc->beta,mlmc->gamma*i);
                 sumVlWl = 0.0; for (i=0; i<L; i++) sumVlWl += PetscSqrtReal(Vl[i]*Wl[i]);
@@ -656,7 +969,7 @@ PetscErrorCode fmlmc(MLMC *mlmc,WaveSimulation **ws,PetscReal eps,PetscReal *EQ)
  
  # When run with the Matlab random generator these results are identical
  # to those from the Matlab code if you add a call to rng('default') in
- # mlmc_wave_conv.m before each new call to mlmc()
+ # mlmc_heat_conv.m before each new call to mlmc()
  test:
  args: -eps .0014,.0012,.0010,.0008,.0006,.0004,.0002,.0001 -info
  filter: egrep "(MLMC|QoI)"

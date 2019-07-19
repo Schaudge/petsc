@@ -589,7 +589,7 @@ PetscErrorCode BuildUS(AppCtx* user)
     ierr = DMGetCoordinates(user->da,&global);CHKERRQ(ierr);
     ierr = DMDAVecGetArray(cda,global,&coors);CHKERRQ(ierr);
     
-    /// allocate covariance matrix, its SVD associates and random vector r
+    /* allocate covariance matrix, its SVD associates */
     ierr = PetscMalloc1(N2,&Cov);CHKERRQ(ierr);
     ierr = PetscMalloc1(N2*N2,&Cov[0]);CHKERRQ(ierr);
     for (i=1; i<N2; i++) Cov[i] = Cov[i-1]+N2;
