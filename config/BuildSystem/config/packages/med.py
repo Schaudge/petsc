@@ -3,8 +3,8 @@ import config.package
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.gitcommit         = '643c242b8c1cdc2f99b528b16053d276b96cf249'
-    self.download          = ['git://https://bitbucket.org/petsc/pkg-med.git','https://bitbucket.org/petsc/pkg-med/get/'+self.gitcommit+'.tar.gz', 'http://files.salome-platform.org/Salome/other/med-3.3.1.tar.gz']
+    self.gitcommit         = 'origin/maint-4.0.0'
+    self.download          = ['git://https://bitbucket.org/petsc/pkg-med.git','https://bitbucket.org/petsc/pkg-med/get/'+self.gitcommit+'.tar.gz']
     self.functions         = ['MEDfileOpen']
     self.includes          = ['med.h']
     self.liblist           = [['libmed.a']]
@@ -25,3 +25,17 @@ class Configure(config.package.GNUPackage):
     args.append('--disable-python')
     args.append('--with-hdf5=%s' % self.hdf5.directory)
     return args
+
+  def Install(self):
+    '''bootstrap, then standard GNU configure; make; make install'''
+    import os
+    if not self.programs.libtoolize:
+      raise RuntimeError('Could not bootstrap med using autotools: libtoolize not found')
+    if not self.programs.autoreconf:
+      raise RuntimeError('Could not bootstrap med using autotools: autoreconf not found')
+    self.logPrintBox('Trying to bootstrap med using autotools; this may take several minutes')
+    try:
+      self.executeShellCommand('./bootstrap',cwd=self.packageDir,log=self.log)
+    except RuntimeError as e:
+      raise RuntimeError('Could not bootstrap med using autotools: maybe autotools (or recent enough autotools) could not be found?\nError: '+str(e))
+    return config.package.GNUPackage.Install(self)
