@@ -104,21 +104,11 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
     '''     This mode is intended mostly for testing to reduce time of reinstalling external packages'''
     import os
     import sys
-    import hashlib
-    args = sorted(set(filter(lambda x: not (x.startswith('PETSC_ARCH') or x == '--force'),sys.argv[1:])))
-    hash = 'args:\n' + '\n'.join('    '+a for a in args) + '\n'
-    hash += 'PATH=' + os.environ.get('PATH', '') + '\n'
-    try:
-      for root, dirs, files in os.walk('config'):
-        if root == 'config':
-          dirs.remove('examples')
-        for f in files:
-          if not f.endswith('.py') or f.startswith('.') or f.startswith('#'):
-            continue
-          fname = os.path.join(root, f)
-          with open(fname,'rb') as f:
-            hash += hashlib.sha256(f.read()).hexdigest() + '  ' + fname + '\n'
-    except:
+    import PETSc.hashconfig
+    hashfile = os.path.join(self.arch,'lib','petsc','conf','configure-hash')
+    args = set(filter(lambda x: not (x.startswith('PETSC_ARCH') or x == '--force'),sys.argv[1:]))
+    hash = PETSc.hashconfig.hash(args)
+    if not hash:
       self.logPrint('Error generating file list/hash from config directory for configure hash, forcing new configuration')
       return
 
@@ -187,8 +177,8 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
       print('Your configure options and state has not changed; no need to run configure')
       print('However you can force a configure run using the option: --force')
       sys.exit()
-    self.logPrint('configure hash file: '+hashfile+' does not match\n'+a+'\n---\n'+hash+'\n need to run configure')
-    self.makeDependency(hash,hashfile,hashfilepackages)
+    self.makeDependency(hash,hashfile)
+    self.logPrint('configure hash file: '+hashfile+' does not match computed hash, need to run configure')
 
   def configure(self):
     self.executeTest(self.setNativeArchitecture)

@@ -40,7 +40,7 @@ gnumake:
 	+@make libs
 
 libs:
-	+@cd ${PETSC_DIR} && MAKEFLAGS="-j$(MAKE_NP) -l$(MAKE_LOAD) $(MAKEFLAGS)" ${OMAKE_PRINTDIR} -f gmakefile ${MAKE_PAR_OUT_FLG} V=${V}
+	+@cd ${PETSC_DIR} && MAKEFLAGS="-j$(MAKE_NP) -l$(MAKE_LOAD) $(MAKEFLAGS)" ${OMAKE} -f gmakefile ${MAKE_PAR_OUT_FLG} V=${V}
 
 # Does nothing; needed for some rules that require actions.
 foo:

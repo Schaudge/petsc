@@ -51,6 +51,7 @@ libpetscall := $(if $(filter-out no,$(BUILDSHAREDLIB)),$(libpetscall_shared),$(l
 generated      := $(PETSC_ARCH)/lib/petsc/conf/files
 
 all : $(generated) $(libpetscall)
+	-@$(PYTHON) ./config/PETSc/hashconfig.py
 
 .SECONDEXPANSION:		# to expand $$(@D)/.DIR
 

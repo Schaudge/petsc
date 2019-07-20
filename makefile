@@ -29,7 +29,7 @@ include ${PETSC_DIR}/lib/petsc/conf/test.common
 all:
 	+@${OMAKE}  PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} chk_petscdir chk_upgrade | tee ${PETSC_ARCH}/lib/petsc/conf/make.log
 	@ln -sf ${PETSC_ARCH}/lib/petsc/conf/make.log make.log
-	+@${OMAKE_PRINTDIR} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} all-local 2>&1 | tee -a ${PETSC_ARCH}/lib/petsc/conf/make.log;
+	+@${OMAKE} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} all-local 2>&1 | tee -a ${PETSC_ARCH}/lib/petsc/conf/make.log;
 	@egrep -i "( error | error: |no such file or directory)" ${PETSC_ARCH}/lib/petsc/conf/make.log | tee ${PETSC_ARCH}/lib/petsc/conf/error.log > /dev/null
 	+@if test -s ${PETSC_ARCH}/lib/petsc/conf/error.log; then \
            printf ${PETSC_TEXT_HILIGHT}"**************************ERROR*************************************\n" 2>&1 | tee -a ${PETSC_ARCH}/lib/petsc/conf/make.log; \
