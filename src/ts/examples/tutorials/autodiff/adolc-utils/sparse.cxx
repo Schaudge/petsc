@@ -181,22 +181,22 @@ PetscErrorCode ConvertToCSR(PetscScalar **C,PetscInt m,PetscInt *Ri,PetscInt *Rj
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
-  Ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  R    - the values of the CSR recovery matrix to be used for de-compression
+  ri   - the row index component of the CSR recovery matrix to be used for de-compression
+  r    - the values of the CSR recovery matrix to be used for de-compression
   c    - CSR vector version of compressed Jacobian
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt *Ri,PetscInt *R,PetscScalar *c)
+PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt *ri,PetscInt *r,PetscScalar *c)
 {
   PetscErrorCode ierr;
   PetscInt       i,j;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    for (j=Ri[i]; j<Ri[i+1]; j++) {
-      ierr = MatSetValues(A,1,&i,1,&R[j],&c[j],mode);CHKERRQ(ierr);
+    for (j=ri[i]; j<ri[i+1]; j++) {
+      ierr = MatSetValues(A,1,&i,1,&r[j],&c[j],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -210,22 +210,22 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt *Ri,Pet
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
-  Ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  R    - the values of the CSR recovery matrix to be used for de-compression
+  ri   - the row index component of the CSR recovery matrix to be used for de-compression
+  r    - the values of the CSR recovery matrix to be used for de-compression
   c    - CSR vector version of compressed Jacobian
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt *Ri,PetscInt *R,PetscScalar *c)
+PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt *ri,PetscInt *r,PetscScalar *c)
 {
   PetscErrorCode ierr;
   PetscInt       i,j;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    for (j=Ri[i]; j<Ri[i+1]; j++) {
-      ierr = MatSetValuesLocal(A,1,&i,1,&R[j],&c[j],mode);CHKERRQ(ierr);
+    for (j=ri[i]; j<ri[i+1]; j++) {
+      ierr = MatSetValuesLocal(A,1,&i,1,&r[j],&c[j],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -238,21 +238,21 @@ PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt *R
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
-  R    - recovery vector to use in the decompression procedure
+  r    - recovery vector to use in the decompression procedure
   C    - compressed matrix to recover values from
   a    - shift value for implicit problems (select NULL or unity for explicit problems)
 
   Output parameter:
   diag - Vec to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverDiagonal(Vec diag,InsertMode mode,PetscInt m,PetscInt *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverDiagonal(Vec diag,InsertMode mode,PetscInt m,PetscInt *r,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    colour = (PetscInt)R[i];
+    colour = (PetscInt)r[i];
     if (a)
       C[i][colour] *= *a;
     ierr = VecSetValues(diag,1,&i,&C[i][colour],mode);CHKERRQ(ierr);
@@ -266,21 +266,21 @@ PetscErrorCode RecoverDiagonal(Vec diag,InsertMode mode,PetscInt m,PetscInt *R,P
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
-  R    - recovery vector to use in the decompression procedure
+  r    - recovery vector to use in the decompression procedure
   C    - compressed matrix to recover values from
   a    - shift value for implicit problems (select NULL or unity for explicit problems)
 
   Output parameter:
   diag - Vec to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverDiagonalLocal(Vec diag,InsertMode mode,PetscInt m,PetscInt *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverDiagonalLocal(Vec diag,InsertMode mode,PetscInt m,PetscInt *r,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    colour = (PetscInt)R[i];
+    colour = (PetscInt)r[i];
     if (a)
       C[i][colour] *= *a;
     ierr = VecSetValuesLocal(diag,1,&i,&C[i][colour],mode);CHKERRQ(ierr);

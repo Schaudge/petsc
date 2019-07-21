@@ -38,13 +38,13 @@ PetscErrorCode PetscAdolcComputeRHSJacobian(PetscInt tag,Mat A,PetscScalar *u_ve
   PetscFunctionBegin;
   ierr = AdolcMalloc2(m,p,&J);CHKERRQ(ierr);
   if (adctx->Seed) {
-    ierr = PetscMalloc1(adctx->Ri[m],&c);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->ri[m],&c);CHKERRQ(ierr);
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,NULL);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,NULL);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverJacobian(A,INSERT_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobian(A,INSERT_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -60,7 +60,6 @@ PetscErrorCode PetscAdolcComputeRHSJacobian(PetscInt tag,Mat A,PetscScalar *u_ve
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /*
   Compute Jacobian for explicit TS in compressed format and recover from this, using
@@ -85,13 +84,13 @@ PetscErrorCode PetscAdolcComputeRHSJacobianLocal(PetscInt tag,Mat A,PetscScalar 
   PetscFunctionBegin;
   ierr = AdolcMalloc2(m,p,&J);CHKERRQ(ierr);
   if (adctx->Seed) {
-    ierr = PetscMalloc1(adctx->Ri[m],&c);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->ri[m],&c);CHKERRQ(ierr);
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,NULL);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,NULL);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverJacobianLocal(A,INSERT_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobianLocal(A,INSERT_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -107,7 +106,6 @@ PetscErrorCode PetscAdolcComputeRHSJacobianLocal(PetscInt tag,Mat A,PetscScalar 
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /*
   Compute Jacobian for implicit TS in compressed format and recover from this, using
@@ -135,14 +133,14 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(adctx->Ri[m],&c);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->ri[m],&c);CHKERRQ(ierr);
     fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,&a);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,&a);CHKERRQ(ierr);
   } else
     jacobian(tag1,m,n,u_vec,J);
   ierr = MatZeroEntries(A);CHKERRQ(ierr);
   if (adctx->sparse) {
-    ierr = RecoverJacobian(A,INSERT_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobian(A,INSERT_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
       for (j=0; j<n; j++) {
@@ -158,11 +156,11 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
   /* a * dF/d(xdot) part */
   if (adctx->Seed) {
     fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,&a);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,&a);CHKERRQ(ierr);
   } else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverJacobian(A,ADD_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobian(A,ADD_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -179,7 +177,6 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
   ierr = AdolcFree2(J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /*
   Compute Jacobian for implicit TS in the special case where it is
@@ -207,14 +204,14 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(adctx->Ri[m],&c);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->ri[m],&c);CHKERRQ(ierr);
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,NULL);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,NULL);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   ierr = MatZeroEntries(A);CHKERRQ(ierr);
   if (adctx->sparse) {
-    ierr = RecoverJacobian(A,INSERT_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobian(A,INSERT_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -233,7 +230,6 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
   ierr = MatShift(A,a);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /*
   Compute local portion of Jacobian for implicit TS in compressed format and recover from this, using
@@ -261,13 +257,13 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(adctx->Ri[m],&c);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->ri[m],&c);CHKERRQ(ierr);
     fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,&a);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,&a);CHKERRQ(ierr);
   } else
     jacobian(tag1,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverJacobianLocal(A,INSERT_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobianLocal(A,INSERT_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
       for (j=0; j<n; j++) {
@@ -283,11 +279,11 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
   /* a * dF/d(xdot) part */
   if (adctx->Seed) {
     fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,&a);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,&a);CHKERRQ(ierr);
   } else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverJacobianLocal(A,ADD_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobianLocal(A,ADD_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -304,7 +300,6 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
   ierr = AdolcFree2(J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /*
   Compute local portion of Jacobian for implicit TS in the special case where it is
@@ -332,13 +327,13 @@ PetscErrorCode PetscAdolcComputeIJacobianLocalIDMass(PetscInt tag,Mat A,PetscSca
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(adctx->Ri[m],&c);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->ri[m],&c);CHKERRQ(ierr);
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
-    ierr = ConvertToCSR(J,m,adctx->Ri,adctx->Rj,c,NULL);CHKERRQ(ierr);
+    ierr = ConvertToCSR(J,m,adctx->ri,adctx->rj,c,NULL);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverJacobianLocal(A,INSERT_VALUES,m,adctx->Ri,adctx->R,c);CHKERRQ(ierr);
+    ierr = RecoverJacobianLocal(A,INSERT_VALUES,m,adctx->ri,adctx->r,c);CHKERRQ(ierr);
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -357,7 +352,6 @@ PetscErrorCode PetscAdolcComputeIJacobianLocalIDMass(PetscInt tag,Mat A,PetscSca
   ierr = MatShift(A,a);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /* --------------------------------------------------------------------------------
    Drivers for Jacobian w.r.t. a parameter
@@ -410,7 +404,6 @@ PetscErrorCode PetscAdolcComputeRHSJacobianP(PetscInt tag,Mat A,PetscScalar *u_v
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 /*
   Compute local portion of Jacobian w.r.t a parameter for explicit TS.
@@ -459,7 +452,6 @@ PetscErrorCode PetscAdolcComputeRHSJacobianPLocal(PetscInt tag,Mat A,PetscScalar
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-// TODO: MPIAIJ version
 
 
 /* --------------------------------------------------------------------------------
@@ -495,7 +487,7 @@ PetscErrorCode PetscAdolcComputeIJacobianAndDiagonalLocal(PetscInt tag1,PetscInt
   else
     jacobian(tag1,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverDiagonalLocal(diag,INSERT_VALUES,m,adctx->rec,J,NULL);CHKERRQ(ierr);
+    ierr = RecoverDiagonalLocal(diag,INSERT_VALUES,m,adctx->r,J,NULL);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
       if (fabs(J[i][i]) > 1.e-16) {
@@ -512,7 +504,7 @@ PetscErrorCode PetscAdolcComputeIJacobianAndDiagonalLocal(PetscInt tag1,PetscInt
   else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
-    ierr = RecoverDiagonalLocal(diag,ADD_VALUES,m,adctx->rec,J,NULL);CHKERRQ(ierr);
+    ierr = RecoverDiagonalLocal(diag,ADD_VALUES,m,adctx->r,J,NULL);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
       if (fabs(J[i][i]) > 1.e-16) {

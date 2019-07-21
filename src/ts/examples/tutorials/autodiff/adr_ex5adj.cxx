@@ -76,14 +76,14 @@ extern PetscErrorCode RHSJacobianAdolc(TS ts,PetscReal t,Vec U,Mat A,Mat B,void 
 int main(int argc,char **argv)
 {
   TS             ts;                  		/* ODE integrator */
-  Vec            x,r,xdot;             		/* solution, residual, derivative */
+  Vec            x,residual,xdot;     		/* solution, residual, derivative */
   PetscErrorCode ierr;
   DM             da;
   AppCtx         appctx;
   AdolcCtx       *adctx;
   Vec            lambda[1];
   PetscBool      forwardonly=PETSC_FALSE,implicitform=PETSC_FALSE,byhand=PETSC_FALSE;
-  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,*Ri = NULL,*Rj = NULL,*R = NULL;
+  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,*ri = NULL,*rj = NULL,*r = NULL;
   PetscScalar    **Seed = NULL,*u_vec;
   unsigned int   **JP = NULL;
   ISColoring     iscoloring;
@@ -118,7 +118,7 @@ int main(int argc,char **argv)
      vectors that are the same types
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&x);CHKERRQ(ierr);
-  ierr = VecDuplicate(x,&r);CHKERRQ(ierr);
+  ierr = VecDuplicate(x,&residual);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&xdot);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -143,9 +143,9 @@ int main(int argc,char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     ierr = PetscMalloc1(adctx->n,&u_vec);CHKERRQ(ierr);
     if (!implicitform) {
-      ierr = RHSFunctionActive(ts,1.0,x,r,&appctx);CHKERRQ(ierr);
+      ierr = RHSFunctionActive(ts,1.0,x,residual,&appctx);CHKERRQ(ierr);
     } else {
-      ierr = IFunctionActive(ts,1.0,x,xdot,r,&appctx);CHKERRQ(ierr);
+      ierr = IFunctionActive(ts,1.0,x,xdot,residual,&appctx);CHKERRQ(ierr);
     }
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -189,21 +189,20 @@ int main(int argc,char **argv)
       /*
         Generate recovery vectors, which are used to recover the Jacobian from
         compressed format */
-      //ierr = AdolcMalloc2(adctx->m,adctx->p,&Rec);CHKERRQ(ierr);
-      ierr = PetscMalloc1(adctx->m+1,&Ri);CHKERRQ(ierr);
+      ierr = PetscMalloc1(adctx->m+1,&ri);CHKERRQ(ierr);
       nnz = adctx->m*adctx->p;  // Note this is usually an overestimate  FIXME!!!!
-      ierr = PetscMalloc1(nnz,&Rj);CHKERRQ(ierr);
-      ierr = PetscMalloc1(nnz,&R);CHKERRQ(ierr);
+      ierr = PetscMalloc1(nnz,&rj);CHKERRQ(ierr);
+      ierr = PetscMalloc1(nnz,&r);CHKERRQ(ierr);
       for (i=0; i<nnz; i++) {
-        Rj[i] = -1;  // TODO: Do this at the end instead, for remaining entries
-        R[i] = -1;
+        rj[i] = -1;  // TODO: Do this at the end instead, for remaining entries
+        r[i] = -1;
       }
-      ierr = GetRecoveryMatrix(Seed,JP,adctx->m,adctx->p,Ri,Rj,R);CHKERRQ(ierr);
+      ierr = GetRecoveryMatrix(Seed,JP,adctx->m,adctx->p,ri,rj,r);CHKERRQ(ierr);
 
       /* Store results and free workspace */
-      adctx->Ri = Ri;
-      adctx->Rj = Rj;
-      adctx->R = R;
+      adctx->ri = ri;
+      adctx->rj = rj;
+      adctx->r = r;
       for (i=0;i<adctx->m;i++)
         free(JP[i]);
       free(JP);
@@ -304,15 +303,14 @@ int main(int argc,char **argv)
      Free work space.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecDestroy(&xdot);CHKERRQ(ierr);
-  ierr = VecDestroy(&r);CHKERRQ(ierr);
+  ierr = VecDestroy(&residual);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   if (!adctx->no_an) {
     if (adctx->sparse)
-      //ierr = AdolcFree2(Rec);CHKERRQ(ierr);
-      ierr = PetscFree(R);CHKERRQ(ierr);
-      ierr = PetscFree(Rj);CHKERRQ(ierr);
-      ierr = PetscFree(Ri);CHKERRQ(ierr);
+      ierr = PetscFree(r);CHKERRQ(ierr);
+      ierr = PetscFree(rj);CHKERRQ(ierr);
+      ierr = PetscFree(ri);CHKERRQ(ierr);
     ierr = AdolcFree2(Seed);CHKERRQ(ierr);
   }
   ierr = DMDestroy(&da);CHKERRQ(ierr);
