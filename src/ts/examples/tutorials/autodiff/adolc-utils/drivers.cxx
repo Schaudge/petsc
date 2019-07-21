@@ -38,7 +38,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobian(PetscInt tag,Mat A,PetscScalar *u_ve
   PetscFunctionBegin;
   ierr = AdolcMalloc2(m,p,&J);CHKERRQ(ierr);
   if (adctx->Seed)
-    fov_forward(tag,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -82,7 +82,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobianLocal(PetscInt tag,Mat A,PetscScalar 
   PetscFunctionBegin;
   ierr = AdolcMalloc2(m,p,&J);CHKERRQ(ierr);
   if (adctx->Seed)
-    fov_forward(tag,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -129,7 +129,7 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
 
   /* dF/dx part */
   if (adctx->Seed)
-    fov_forward(tag1,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag1,m,n,u_vec,J);
   ierr = MatZeroEntries(A);CHKERRQ(ierr);
@@ -149,7 +149,7 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
 
   /* a * dF/d(xdot) part */
   if (adctx->Seed)
-    fov_forward(tag2,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -197,7 +197,7 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
 
   /* dF/dx part */
   if (adctx->Seed)
-    fov_forward(tag,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag,m,n,u_vec,J);
   ierr = MatZeroEntries(A);CHKERRQ(ierr);
@@ -248,7 +248,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
 
   /* dF/dx part */
   if (adctx->Seed)
-    fov_forward(tag1,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag1,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -267,7 +267,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
 
   /* a * dF/d(xdot) part */
   if (adctx->Seed)
-    fov_forward(tag2,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -315,7 +315,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocalIDMass(PetscInt tag,Mat A,PetscSca
 
   /* dF/dx part */
   if (adctx->Seed)
-    fov_forward(tag,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -373,7 +373,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobianP(PetscInt tag,Mat A,PetscScalar *u_v
   for (i=0; i<p; i++) concat[n+i] = params[i];
 
   /* Propagate the appropriate seed matrix through the forward mode of AD */
-  fov_forward(tag,m,n+p,p,concat,S,NULL,J);
+  fov_forward(tag,m,n+p,p,concat,(PetscScalar**)S,NULL,J);
   ierr = AdolcFree2(S);CHKERRQ(ierr);
   ierr = PetscFree(concat);CHKERRQ(ierr);
 
@@ -422,7 +422,7 @@ PetscErrorCode PetscAdolcComputeRHSJacobianPLocal(PetscInt tag,Mat A,PetscScalar
   for (i=0; i<p; i++) concat[n+i] = params[i];
 
   /* Propagate the appropriate seed matrix through the forward mode of AD */
-  fov_forward(tag,m,n+p,p,concat,S,NULL,J);
+  fov_forward(tag,m,n+p,p,concat,(PetscScalar**)S,NULL,J);
   ierr = AdolcFree2(S);CHKERRQ(ierr);
   ierr = PetscFree(concat);CHKERRQ(ierr);
 
@@ -471,7 +471,7 @@ PetscErrorCode PetscAdolcComputeIJacobianAndDiagonalLocal(PetscInt tag1,PetscInt
 
   /* dF/dx part */
   if (adctx->Seed)
-    fov_forward(tag1,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag1,m,n,u_vec,J);
   if (adctx->sparse) {
@@ -488,7 +488,7 @@ PetscErrorCode PetscAdolcComputeIJacobianAndDiagonalLocal(PetscInt tag1,PetscInt
 
   /* a * dF/d(xdot) part */
   if (adctx->Seed)
-    fov_forward(tag2,m,n,p,u_vec,adctx->Seed,NULL,J);
+    fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
   else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {

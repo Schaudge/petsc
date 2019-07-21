@@ -15,8 +15,8 @@ typedef struct {
 
   /* Compressed Jacobian computation */
   PetscBool   sparse,sparse_view,sparse_view_done;
-  PetscScalar **Seed,*Ri,*Rj,*R,*rec;
-  PetscInt    p;
+  PetscScalar **Seed;
+  PetscInt    *Ri,*Rj,*R,*rec,p;
 
   /* Matrix dimensions, number of parameters */
   PetscInt    m,n,num_params;

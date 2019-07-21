@@ -83,8 +83,8 @@ int main(int argc,char **argv)
   AdolcCtx       *adctx;
   Vec            lambda[1];
   PetscBool      forwardonly=PETSC_FALSE,implicitform=PETSC_FALSE,byhand=PETSC_FALSE;
-  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz;
-  PetscScalar    **Seed = NULL,*Ri = NULL,*Rj = NULL,*R = NULL,*u_vec;
+  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,*Ri = NULL,*Rj = NULL,*R = NULL;
+  PetscScalar    **Seed = NULL,*u_vec;
   unsigned int   **JP = NULL;
   ISColoring     iscoloring;
 
@@ -191,7 +191,7 @@ int main(int argc,char **argv)
         compressed format */
       //ierr = AdolcMalloc2(adctx->m,adctx->p,&Rec);CHKERRQ(ierr);
       ierr = PetscMalloc1(adctx->m+1,&Ri);CHKERRQ(ierr);
-      nnz = adctx->m*adctx->p;  // Note this is usually an overestimate
+      nnz = adctx->m*adctx->p;  // Note this is usually an overestimate  FIXME!!!!
       ierr = PetscMalloc1(nnz,&Rj);CHKERRQ(ierr);
       ierr = PetscMalloc1(nnz,&R);CHKERRQ(ierr);
       for (i=0; i<nnz; i++) {

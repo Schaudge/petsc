@@ -62,7 +62,7 @@ PetscErrorCode GenerateSeedMatrix(ISColoring iscoloring,PetscScalar **S)
     ierr = ISGetLocalSize(is[colour],&size);CHKERRQ(ierr);
     ierr = ISGetIndices(is[colour],&indices);CHKERRQ(ierr);
     for (j=0; j<size; j++)
-      S[indices[j]][colour] = 1.;
+      S[indices[j]][colour] = 1;
     ierr = ISRestoreIndices(is[colour],&indices);CHKERRQ(ierr);
   }
   ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
@@ -81,7 +81,7 @@ PetscErrorCode GenerateSeedMatrix(ISColoring iscoloring,PetscScalar **S)
   Output parameter:
   R        - the recovery vector to be used for de-compression
 */
-PetscErrorCode GenerateSeedMatrixPlusRecovery(ISColoring iscoloring,PetscScalar **S,PetscScalar *R)
+PetscErrorCode GenerateSeedMatrixPlusRecovery(ISColoring iscoloring,PetscScalar **S,PetscInt *R)
 {
   PetscErrorCode ierr;
   IS             *is;
@@ -114,12 +114,12 @@ PetscErrorCode GenerateSeedMatrixPlusRecovery(ISColoring iscoloring,PetscScalar 
   m        - the number of rows of Seed (and the matrix to be recovered)
   p        - the number of colors used (also the number of columns in Seed)
 
-  Output parameter:
+  Output parameters:
   Ri       - the row index component of the CSR recovery matrix to be used for de-compression
   Rj       - the column index component of the CSR recovery matrix to be used for de-compression
   R        - the values of the CSR recovery matrix to be used for de-compression
 */
-PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R)
+PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R)
 {
   PetscInt i,j,k,nnz,rj = 0,colour;
 
@@ -192,21 +192,20 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,Petsc
   Output parameter:
   A    - MPIAIJ Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianMPIAIJWithArrays(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar **R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobianMPIAIJWithArrays(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,colour;
+  PetscInt       i,j,ri,rj,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    for (colour=0; colour<p; colour++) {
-      j = (PetscInt) R[i][colour];
-      if (j != -1) {
-        if (a)
-          C[i][colour] *= *a;
-        ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
+    for (rj=ri; rj<Ri[i+1]; rj++) {
+      j = R[rj];                      // Index of rj^th nonzero on i^th row
+      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
+      if (a) C[i][colour] *= *a;
+      ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
         // TODO: use MatUpdateMPIAIJWithArrays
-      }
     }
   }
   PetscFunctionReturn(0);
@@ -229,7 +228,7 @@ PetscErrorCode RecoverJacobianMPIAIJWithArrays(Mat A,InsertMode mode,PetscInt m,
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,j,ri,rj,colour;
@@ -262,21 +261,20 @@ PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,
   Output parameter:
   A    - MPIAIJ Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianMPIAIJWithArraysLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar **R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobianMPIAIJWithArraysLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,colour;
+  PetscInt       i,j,ri,rj,colour;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    for (colour=0; colour<p; colour++) {
-      j = (PetscInt) R[i][colour];
-      if (j != -1) {
-        if (a)
-          C[i][colour] *= *a;
-        ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
+    for (rj=ri; rj<Ri[i+1]; rj++) {
+      j = R[rj];                      // Index of rj^th nonzero on i^th row
+      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
+      if (a) C[i][colour] *= *a;
+      ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
         // TODO: use MatUpdateMPIAIJWithArrays
-      }
     }
   }
   PetscFunctionReturn(0);
@@ -295,7 +293,7 @@ PetscErrorCode RecoverJacobianMPIAIJWithArraysLocal(Mat A,InsertMode mode,PetscI
   Output parameter:
   diag - Vec to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverDiagonal(Vec diag,InsertMode mode,PetscInt m,PetscScalar *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverDiagonal(Vec diag,InsertMode mode,PetscInt m,PetscInt *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,colour;
@@ -323,7 +321,7 @@ PetscErrorCode RecoverDiagonal(Vec diag,InsertMode mode,PetscInt m,PetscScalar *
   Output parameter:
   diag - Vec to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverDiagonalLocal(Vec diag,InsertMode mode,PetscInt m,PetscScalar *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverDiagonalLocal(Vec diag,InsertMode mode,PetscInt m,PetscInt *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,colour;
