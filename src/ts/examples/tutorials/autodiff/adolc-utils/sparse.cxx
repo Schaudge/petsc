@@ -159,10 +159,17 @@ PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscIn
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscScalar *Ri,PetscScalar *Rj,PetscScalar *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
 {
   PetscErrorCode ierr;
   PetscInt       i,j,ri,rj,colour;
+  PetscScalar    c[Ri[m]];
+
+  /*
+    NOTE:
+       CSR decomposition of recovery matrix is given by Ri, Rj, R
+       CSR decomposition of compressed Jac is given by Ri, R, c, where c is given in the following
+  */
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
@@ -170,8 +177,9 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,Petsc
     for (rj=ri; rj<Ri[i+1]; rj++) {
       j = R[rj];                      // Index of rj^th nonzero on i^th row
       colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      if (a) C[i][colour] *= *a;
-      ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+      c[rj] = C[i][colour];
+      if (a) c[rj] *= *a;
+      ierr = MatSetValues(A,1,&i,1,&j,&c[rj],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
