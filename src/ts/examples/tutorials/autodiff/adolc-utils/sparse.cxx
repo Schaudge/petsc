@@ -139,7 +139,39 @@ PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscIn
       }
     }
   }
-  Ri[m] = rj;
+  Ri[m] = rj;  // NOTE: This is number of nonzeros in matrix itself
+  PetscFunctionReturn(0);
+}
+
+/*
+  Convert an m x p compressed Jacobian into CSR format, using the CSR form recovery matrix defined by
+  integer vectors Ri and Rj.
+
+  NOTE:
+   CSR decomposition of recovery matrix is given by Ri, Rj, R
+   CSR decomposition of compressed Jac is given by Ri, R, c
+
+  Input parameters:
+  C    - compressed matrix to recover values from
+  m    - number of rows of matrix.
+  Ri   - the row index component of the CSR recovery matrix to be used for de-compression
+  Rj   - the column index component of the CSR recovery matrix to be used for de-compression
+  a    - shift value for implicit problems (select NULL or unity for explicit problems)
+
+  Output parameter:
+  c    - CSR vector version of compressed Jacobian
+*/
+PetscErrorCode ConvertToCSR(PetscScalar **C,PetscInt m,PetscInt *Ri,PetscInt *Rj,PetscScalar *c,PetscReal *a)
+{
+  PetscInt       i,j;
+
+  PetscFunctionBegin;
+  for (i=0; i<m; i++) {
+    for (j=Ri[i]; j<Ri[i+1]; j++) {
+      c[j] = C[i][Rj[j]];  // Rj[j] = colour of j^th nonzero on i^th compressed row
+      if (a) c[j] *= *a;
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -149,75 +181,27 @@ PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscIn
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
-  p    - number of colors used in the compression of J (also the number of columns of R)
   Ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  Rj   - the column index component of the CSR recovery matrix to be used for de-compression
   R    - the values of the CSR recovery matrix to be used for de-compression
-  C    - compressed matrix to recover values from
-  a    - shift value for implicit problems (select NULL or unity for explicit problems)
+  c    - CSR vector version of compressed Jacobian
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt *Ri,PetscInt *R,PetscScalar *c)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,ri,rj,colour;
-  PetscScalar    c[Ri[m]];
-
-  /*
-    NOTE:
-       CSR decomposition of recovery matrix is given by Ri, Rj, R
-       CSR decomposition of compressed Jac is given by Ri, R, c, where c is given in the following
-  */
+  PetscInt       i,j;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
-    for (rj=ri; rj<Ri[i+1]; rj++) {
-      j = R[rj];                      // Index of rj^th nonzero on i^th row
-      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      c[rj] = C[i][colour];
-      if (a) c[rj] *= *a;
-      ierr = MatSetValues(A,1,&i,1,&j,&c[rj],mode);CHKERRQ(ierr);
+    for (j=Ri[i]; j<Ri[i+1]; j++) {
+      ierr = MatSetValues(A,1,&i,1,&R[j],&c[j],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
 }
-
-/*
-  Recover the values of a sparse matrix from a compressed format and insert these into a matrix
-  using MatUpdateMPIAIJWithArrays.
-
-  Input parameters:
-  mode - use INSERT_VALUES or ADD_VALUES, as required
-  m    - number of rows of matrix.
-  p    - number of colors used in the compression of J (also the number of columns of R)
-  R    - recovery matrix to use in the decompression procedure
-  C    - compressed matrix to recover values from
-  a    - shift value for implicit problems (select NULL or unity for explicit problems)
-
-  Output parameter:
-  A    - MPIAIJ Mat to be populated with values from compressed matrix
-*/
-PetscErrorCode RecoverJacobianMPIAIJWithArrays(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
-{
-  PetscErrorCode ierr;
-  PetscInt       i,j,ri,rj,colour;
-
-  PetscFunctionBegin;
-  for (i=0; i<m; i++) {
-    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
-    for (rj=ri; rj<Ri[i+1]; rj++) {
-      j = R[rj];                      // Index of rj^th nonzero on i^th row
-      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      if (a) C[i][colour] *= *a;
-      ierr = MatSetValues(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
-        // TODO: use MatUpdateMPIAIJWithArrays
-    }
-  }
-  PetscFunctionReturn(0);
-}
+// TODO: version using MatUpdateMPIAIJWithArrays
 
 /*
   Recover the values of the local portion of a sparse matrix from a compressed format and insert
@@ -226,67 +210,27 @@ PetscErrorCode RecoverJacobianMPIAIJWithArrays(Mat A,InsertMode mode,PetscInt m,
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
   m    - number of rows of matrix.
-  p    - number of colors used in the compression of J (also the number of columns of R)
   Ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  Rj   - the column index component of the CSR recovery matrix to be used for de-compression
   R    - the values of the CSR recovery matrix to be used for de-compression
-  C    - compressed matrix to recover values from
-  a    - shift value for implicit problems (select NULL or unity for explicit problems)
+  c    - CSR vector version of compressed Jacobian
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
+PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt *Ri,PetscInt *R,PetscScalar *c)
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,ri,rj,colour;
+  PetscInt       i,j;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
-    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
-    for (rj=ri; rj<Ri[i+1]; rj++) {
-      j = R[rj];                      // Index of rj^th nonzero on i^th row
-      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      if (a) C[i][colour] *= *a;
-      ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
+    for (j=Ri[i]; j<Ri[i+1]; j++) {
+      ierr = MatSetValuesLocal(A,1,&i,1,&R[j],&c[j],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
 }
-
-/*
-  Recover the values of the local portion of a sparse matrix from a compressed format and insert
-  these into the local portion of a matrix using MatUpdateMPIAIJWithArrays.
-
-  Input parameters:
-  mode - use INSERT_VALUES or ADD_VALUES, as required
-  m    - number of rows of matrix.
-  p    - number of colors used in the compression of J (also the number of columns of R)
-  R    - recovery matrix to use in the decompression procedure
-  C    - compressed matrix to recover values from
-  a    - shift value for implicit problems (select NULL or unity for explicit problems)
-
-  Output parameter:
-  A    - MPIAIJ Mat to be populated with values from compressed matrix
-*/
-PetscErrorCode RecoverJacobianMPIAIJWithArraysLocal(Mat A,InsertMode mode,PetscInt m,PetscInt p,PetscInt *Ri,PetscInt *Rj,PetscInt *R,PetscScalar **C,PetscReal *a)
-{
-  PetscErrorCode ierr;
-  PetscInt       i,j,ri,rj,colour;
-
-  PetscFunctionBegin;
-  for (i=0; i<m; i++) {
-    ri = Ri[i];                       // Index of first nonzero on i^th compressed row
-    for (rj=ri; rj<Ri[i+1]; rj++) {
-      j = R[rj];                      // Index of rj^th nonzero on i^th row
-      colour = Rj[rj];                // Colour of rj^th nonzero on i^th compressed row
-      if (a) C[i][colour] *= *a;
-      ierr = MatSetValuesLocal(A,1,&i,1,&j,&C[i][colour],mode);CHKERRQ(ierr);
-        // TODO: use MatUpdateMPIAIJWithArrays
-    }
-  }
-  PetscFunctionReturn(0);
-}
+// TODO: version using MatUpdateMPIAIJWithArrays
 
 /*
   Recover the diagonal of the Jacobian from its compressed matrix format
