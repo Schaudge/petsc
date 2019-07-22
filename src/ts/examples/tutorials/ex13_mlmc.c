@@ -60,10 +60,10 @@ typedef struct {
 
 //PetscBool useMatlabRand = PETSC_TRUE;
 
-PetscErrorCode heat_solver(HeatSimulation*,PetscReal,PetscReal*);
+PetscErrorCode heat_solver(HeatSimulation*,PetscReal*);
 PetscErrorCode mlmc_heat(HeatSimulation **,PetscInt,PetscInt,PetscReal[]);
 PetscErrorCode fmlmc(MLMC *,HeatSimulation **,PetscReal,PetscReal*);
-PetscErrorCode HeatSimulationCreate(MPI_Comm,PetscReal,PetscInt,PetscInt,PetscInt,PetscInt,HeatSimulation**);
+PetscErrorCode HeatSimulationCreate(MPI_Comm,PetscReal,PetscInt,PetscInt,HeatSimulation**);
 PetscErrorCode HeatSimulationRefine(HeatSimulation*,HeatSimulation**);
 PetscErrorCode HeatSimulationDestroy(HeatSimulation**);
 PetscErrorCode KLSetup(HeatSimulation*);
@@ -153,9 +153,9 @@ int main(int argc,char **args)
             
             ierr = PetscMemzero(mlmc.Nl,sizeof(mlmc.Nl));CHKERRQ(ierr);   /* Reset counters for MLMC */
             mlmc.L = 3;
-            if (useMatlabRand) {
-                ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
-            }
+//            if (useMatlabRand) {
+//                ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF),"rng('default')");CHKERRQ(ierr);
+//            }
         }
         for (i=1; i<MLMC_MAX_LEVELS; i++) {
             ierr = HeatSimulationDestroy(&hs[i]);CHKERRQ(ierr);
@@ -193,7 +193,7 @@ static PetscErrorCode HeatSimulationSetup(HeatSimulation *hs,PetscReal T)
     ierr = VecRestoreArray(hs->y,&y);CHKERRQ(ierr);
     hs->xQ = .5;
     /* domain geometry */
-    hs>Lx       = 1;
+    hs->Lx       = 1;
     hs->Ly       = 1;
     /* physical parameters */
     hs->b        = 5.0;
@@ -241,7 +241,7 @@ PetscErrorCode HeatSimulationCreate(MPI_Comm comm,PetscReal T,PetscInt nx,PetscI
 //        ierr = PetscRandomCreate(comm,&(*hs)->rand);CHKERRQ(ierr);
 //    }
     ierr = HeatSimulationSetup(*hs,T);CHKERRQ(ierr);
-    ierr = DMDASetUniformCoordinates((*hs)->da,0.0,hs->Lx,0.0,hs->Ly,0.0,0.0);CHKERRQ(ierr);
+    ierr = DMDASetUniformCoordinates((*hs)->da,0.0,(*hs)->Lx,0.0,(*hs)->Ly,0.0,0.0);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Setup KL expansion
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -767,7 +767,6 @@ PetscErrorCode BuildR(HeatSimulation* hs, Vec R)
 PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
 {
     PetscErrorCode  ierr;
-    DM              da = hs->da;
     Vec             u;               /* solution vector */
     PetscInt        mQ;
     const PetscReal **unew_array;
@@ -796,7 +795,7 @@ PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
          Time stepping
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
         ierr = VecCopy(u,uold);CHKERRQ(ierr);
-        ierr = BuildR(user,r);
+        ierr = BuildR(hs,r);
         ierr = VecScale(r,PetscSqrtReal(hs->dt));CHKERRQ(ierr);
         
         /* Euler scheme */
@@ -804,10 +803,10 @@ PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
         //      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
         
         /* Crank-Nicolson scheme */
-        ierr = FormRHS_CN(user,uold,rhs);
+        ierr = FormRHS_CN(hs,uold,rhs);
         ierr = VecAXPY(rhs,1.0,r);CHKERRQ(ierr);
         ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);
-        ierr = KSPSetOperators(ksp,user->A,user->A);
+        ierr = KSPSetOperators(ksp,hs->A,hs->A);
         ierr = KSPSetFromOptions(ksp);
         ierr = KSPSolve(ksp,rhs,unew);
         
@@ -836,7 +835,7 @@ PetscErrorCode mlmc_heat(HeatSimulation **hs,PetscInt l,PetscInt M,PetscReal sum
 {
     PetscErrorCode     ierr;
     PetscInt           N1;
-    PetscReal          Qf,Qc,w;
+    PetscReal          Qf,Qc;
     
     PetscFunctionBeginUser;
     sum1[0] = sum1[1] = 0;
@@ -847,11 +846,11 @@ PetscErrorCode mlmc_heat(HeatSimulation **hs,PetscInt l,PetscInt M,PetscReal sum
 //        } else {
 //            ierr = PetscRandomGetValue(hs[0]->rand,&w);CHKERRQ(ierr);
 //        }
-        ierr = heat_solver(hs[l],w,&Qf);CHKERRQ(ierr);
+        ierr = heat_solver(hs[l],&Qf);CHKERRQ(ierr);
         if (l == 0) {
             Qc = 0;
         } else {
-            ierr = heat_solver(hs[l-1],w,&Qc);CHKERRQ(ierr);
+            ierr = heat_solver(hs[l-1],&Qc);CHKERRQ(ierr);
         }
         sum1[0] += (Qf-Qc);
         sum1[1] += (Qf-Qc)*(Qf-Qc);
