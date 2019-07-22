@@ -121,8 +121,8 @@ int main(int argc, char **argv)
 	PetscViewer		genViewer;
 	PetscPartitioner	partitioner;
 	PetscPartitionerType	partitionername;
-	PetscLogStage 		stageINSERT, stageADD, stageGVD;
-	PetscLogEvent 		eventINSERT, eventADD, eventGVD;
+	PetscLogStage 		stageREAD, stageCREATE, stageINSERT, stageADD, stageGVD;
+	PetscLogEvent 		eventREAD, eventCREATE, eventINSERT, eventADD, eventGVD;
 	DM			dm, dmDist, dmInterp;
 	IS			bcPointsIS, globalCellNumIS;
 	PetscSection		section;
@@ -154,6 +154,7 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsGetInt(NULL, NULL, "-nf", &numFields, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &overlap, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-petscfe", "Enable only making a petscFE", "", usePetscFE, &usePetscFE, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(NULL, NULL, "-qorder", &qorder, NULL);CHKERRQ(ierr);
 		}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {
@@ -174,13 +175,25 @@ int main(int argc, char **argv)
 		char 		*dup;
 		sprintf(filename, "%s%s", "./meshes/", (dup = strdup(filename)));
 		free(dup);
+		ierr = PetscLogStageRegister("READ Mesh Stage", &stageREAD);CHKERRQ(ierr);
+		ierr = PetscLogEventRegister("READ Mesh", 0, &eventREAD);CHKERRQ(ierr);
+		ierr = PetscLogStagePush(stageREAD);CHKERRQ(ierr);
+		ierr = PetscLogEventBegin(eventREAD, 0, 0, 0, 0);CHKERRQ(ierr);
           	ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
+		ierr = PetscLogEventEnd(eventREAD, 0, 0, 0, 0);CHKERRQ(ierr);
+		ierr = PetscLogStagePop();CHKERRQ(ierr);
         } else {
 		for(i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
 		}
+		ierr = PetscLogStageRegister("CREATE Box Mesh Stage", &stageCREATE);CHKERRQ(ierr);
+		ierr = PetscLogEventRegister("Create Box Mesh", 0, &eventCREATE);CHKERRQ(ierr);
+		ierr = PetscLogStagePush(stageCREATE);CHKERRQ(ierr);
+		ierr = PetscLogEventBegin(eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
           	ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
+		ierr = PetscLogEventEnd(eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
+		ierr = PetscLogStagePop();CHKERRQ(ierr);
 	}
 
 	ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
@@ -247,7 +260,6 @@ int main(int argc, char **argv)
 		ierr = PetscFESetName(defaultFE, "Default_FE");CHKERRQ(ierr);
 		ierr = DMSetField(dm, 0, NULL, (PetscObject) defaultFE);CHKERRQ(ierr);
 		ierr = DMCreateDS(dm);CHKERRQ(ierr);
-		PetscFEView(defaultFE, 0);
 		ierr = PetscFEDestroy(&defaultFE);CHKERRQ(ierr);
 	}
 
@@ -426,6 +438,8 @@ int main(int argc, char **argv)
 	ierr = PetscViewerStringSPrintf(genViewer, "Number of Fields:%s>%d", bar + 2, numFields);CHKERRQ(ierr);
 	if (numFields == 100) {
 		ierr = PetscViewerStringSPrintf(genViewer, "(default)\n");CHKERRQ(ierr);
+	} else if (numFields == 1) {
+		ierr = PetscViewerStringSPrintf(genViewer, "(default PetscFE)\n");CHKERRQ(ierr);
 	} else {
 		ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
 	}
@@ -438,6 +452,13 @@ int main(int argc, char **argv)
 	ierr = PetscViewerStringSPrintf(genViewer,  "Distributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 	ierr = PetscViewerStringSPrintf(genViewer, "Interpolated dm:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", bar + 7, perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	ierr = PetscViewerStringSPrintf(genViewer, "PETScFE enabled mode:%s>%s\n", bar + 6, usePetscFE ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	if (usePetscFE) {
+		ierr = PetscViewerStringSPrintf(genViewer, "┗ Quadrature order:%s>%d\n\n", bar + 4 , qorder);CHKERRQ(ierr);
+	} else {
+		ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
+	}
+
         ierr = PetscViewerStringSPrintf(genViewer, "VTKoutput mode:%s>%s\n", bar, VTKdisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "Full Display mode:%s>%s\n", bar + 3, dispFlag ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "IS Display mode:%s>%s\n", bar + 1, isView ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
