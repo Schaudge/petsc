@@ -3,7 +3,7 @@
 #COBALT -t 180
 #COBALT -q default
 #COBALT --attrs mcdram=cache:numa=quad
-#COBALT -A $COBALT_PROJ
+#COBALT -A $COBALT_PROJDM
 
 echo "Start"
 echo "-n total mpi ranks (-N*-n)"
