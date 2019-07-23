@@ -16,13 +16,17 @@ echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 echo "+++                   DEPLOYED VERSION                    +++"
 echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 
-filtINSERT='filtoutINSERT.txt'
-filtADDVAL='filtoutADDVAL.txt'
-nprocess='nprocess.txt'
-rawlog='rawlog.txt'
-cellprank='cellprank.txt'
-packsizeINSERT='packsizeINSERT.txt'
-packsizeADDVAL='packsizeADDVAL.txt'
+echo "Creating Directories"
+now=$(date +"%m_%d_%Y")
+dirname="out_dep_$now"
+mkdir -p ./$dirname
+filtINSERT="./${dirname}/filtoutINSERT.txt"
+filtADDVAL="./${dirname}/filtoutADDVAL.txt"
+nprocess="./${dirname}/nprocess.txt"
+rawlog="./${dirname}/rawlog.txt"
+cellprank="./${dirname}/cellprank.txt"
+packsizeINSERT="./${dirname}/packsizeINSERT.txt"
+packsizeADDVAL="./${dirname}/packsizeADDVAL.txt"
 
 echo "resetting full log and filtered outputs..."
 >./$filtINSERT

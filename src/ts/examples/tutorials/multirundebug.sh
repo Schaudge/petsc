@@ -17,14 +17,17 @@ echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 echo "+++                     DEBUG VERSION                     +++"
 echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 
-mkdir -p
-filtINSERT='filtoutdebugINSERT.txt'
-filtADDVAL='filtoutdebugADDVAL.txt'
-nprocess='nprocessdebug.txt'
-rawlog='rawlogdebug.txt'
-cellprank='cellprankdebug.txt'
-packsizeINSERT='packsizedebugINSERT.txt'
-packsizeADDVAL='packsizedebugADDVAL.txt'
+echo "Creating Directories"
+now=$(date +"%m_%d_%Y")
+dirname="out_debug_$now"
+mkdir -p ./$dirname
+filtINSERT="./${dirname}/filtoutdebugINSERT.txt"
+filtADDVAL="./${dirname}/filtoutdebugADDVAL.txt"
+nprocess="./${dirname}/nprocessdebug.txt"
+rawlog="./${dirname}/rawlogdebug.txt"
+cellprank="./${dirname}/cellprankdebug.txt"
+packsizeINSERT="./${dirname}/packsizedebugINSERT.txt"
+packsizeADDVAL="./${dirname}/packsizedebugADDVAL.txt"
 
 echo "resetting full log and filtered outputs..."
 >./$filtINSERT
