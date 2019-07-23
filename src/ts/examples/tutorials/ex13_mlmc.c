@@ -71,6 +71,7 @@ PetscErrorCode FormInitialSolution(HeatSimulation*,Vec);
 PetscErrorCode BuildA_CN(HeatSimulation*);
 PetscErrorCode FormRHS_CN(HeatSimulation*,Vec,Vec);
 PetscErrorCode BuildR(HeatSimulation*,Vec);
+PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
 
 /*
  Options:
@@ -90,7 +91,7 @@ int main(int argc,char **args)
 {
     PetscErrorCode  ierr;
     PetscReal       QoI,h0 = .125;  /* initial step size */
-    PetscInt        nx,ny,i,Nw = 10,lw = 0;
+    PetscInt        nx,ny,i;
     HeatSimulation  *hs[MLMC_MAX_LEVELS];
     MLMC            mlmc;
 //    PetscBool       flgw,flgNw,flglw;
@@ -280,8 +281,8 @@ PetscErrorCode KLSetup(HeatSimulation *hs)
     PetscInt       Lx     = hs->Lx;
     PetscInt       Ly     = hs->Ly;
     PetscReal      lc     = hs->lc;
-    PetscReal      lx     = hs->lx;
-    PetscReal      ly     = hs->ly;
+//    PetscReal      lx     = hs->lx;
+//    PetscReal      ly     = hs->ly;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
@@ -376,7 +377,7 @@ PetscErrorCode KLSetup(HeatSimulation *hs)
     PetscFunctionReturn(0);
 }
 /* ----------------------------------------------------------------------------------------------------------------------- */
-static PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
+PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, PetscScalar *S, PetscInt n)
 /* svd.c: Perform a singular value decomposition A = USV' of square matrix.
  *
  * Input: The A_input matrix must has n rows and n columns.
