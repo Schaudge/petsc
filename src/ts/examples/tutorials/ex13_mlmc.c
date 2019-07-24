@@ -15,6 +15,8 @@ static char help[] = "Uses MLMC on a 2d heat equation problem\n\n";
  petscmat.h    - matrices
  petscis.h     - index sets            petscviewer.h - viewers
  */
+#include <time.h>
+#include <petscksp.h>
 #include <petscmat.h>
 #include <petscdm.h>
 #include <petscdmda.h>
@@ -782,6 +784,7 @@ PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = DMCreateGlobalVector(hs->da,&u);CHKERRQ(ierr);
     ierr = FormInitialSolution(hs,u);CHKERRQ(ierr);
     
     Vec            r;                 /* random vector */
