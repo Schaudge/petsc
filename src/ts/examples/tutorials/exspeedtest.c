@@ -8,6 +8,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # define VECSTANDARD    	 "standard"
 
 /*	ADDITIONAL FUNCTIONS	*/
+/*	Phasing this out in favor of using new official function now
 PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
 {
         MPI_Comm	DMcomm;
@@ -21,27 +22,27 @@ PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
 	PetscErrorCode 	ierr;
 
 
-	/*	Make Temp DM	*/
+	Make Temp DM
 	ierr = DMClone(dm, dmLocal);CHKERRQ(ierr);
-	/*	Get and Set Coord Map	*/
+	//	Get and Set Coord Map
 	ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
 	ierr = DMSetCoordinateSection(*dmLocal, PETSC_DETERMINE, coordSection);CHKERRQ(ierr);
-	/*	Get and Set Neighbors	*/
-	ierr = DMGetPointSF(dm, &sfPoint);CHKERRQ(ierr);
-	ierr = DMSetPointSF(*dmLocal, sfPoint);CHKERRQ(ierr);
-	/*	Populate Coords		*/
+	//	Get and Set Neighbors
+	//ierr = DMGetPointSF(dm, &sfPoint);CHKERRQ(ierr);
+	//ierr = DMSetPointSF(*dmLocal, sfPoint);CHKERRQ(ierr);
+	/	Populate Coords
 	ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
 	ierr = DMSetCoordinatesLocal(*dmLocal, coordinates);CHKERRQ(ierr);
-	/*	Get Local Comm handle	*/
+	//	Get Local Comm handle
 	ierr = PetscObjectGetComm((PetscObject) *dmLocal, &DMcomm);CHKERRQ(ierr);
 	ierr = MPI_Comm_rank(DMcomm , &rank);CHKERRQ(ierr);
-	/*	Setup the partition "field"	*/
+	//	Setup the partition "field"
 	ierr = PetscSectionCreate(DMcomm , &sectionLocal);CHKERRQ(ierr);
 	ierr = DMPlexGetHeightStratum(*dmLocal, 0, &sStart, &sEnd);CHKERRQ(ierr);
 	ierr = PetscSectionSetChart(sectionLocal, sStart, sEnd);CHKERRQ(ierr);
 
 	for (sIter = sStart; sIter < sEnd; ++sIter) {
-		/*	Allow for assigning value	*/
+	//	Allow for assigning value
 		ierr = PetscSectionSetDof(sectionLocal, sIter, 1);CHKERRQ(ierr);
 	}
 
@@ -58,6 +59,7 @@ PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
 	ierr = VecRestoreArray(*partition, &arrayLocal);CHKERRQ(ierr);
 	return ierr;
 }
+*/
 
 PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
 {
@@ -241,6 +243,7 @@ int main(int argc, char **argv)
 		ierr = PetscLogStagePop();CHKERRQ(ierr);
 		dmRefine = PETSC_TRUE;
 	}
+
 	/*	Set up DM and initialize fields	*/
 	{
 	PetscInt	numDOF[numFields*(dim+1)], numComp[numFields];
@@ -301,16 +304,15 @@ int main(int argc, char **argv)
 	if (VTKdisp) {
 		PetscViewer	vtkviewerpart;
 		Vec 		partition;
-		DM		dmLocal;
 
-		ierr = VTKPartitionVisualize(dm, &dmLocal, &partition);CHKERRQ(ierr);
+		ierr = DMPlexCreateRankField(dm, &partition);CHKERRQ(ierr);
+		VecView(partition, 0);
 		ierr = PetscViewerCreate(comm, &vtkviewerpart);CHKERRQ(ierr);
 		ierr = PetscViewerSetType(vtkviewerpart,PETSCVIEWERVTK);CHKERRQ(ierr);
 		ierr = PetscViewerFileSetName(vtkviewerpart, "partition-map.vtk");CHKERRQ(ierr);
 		ierr = VecView(partition, vtkviewerpart);CHKERRQ(ierr);
 		ierr = PetscViewerDestroy(&vtkviewerpart);CHKERRQ(ierr);
 		ierr = VecDestroy(&partition);CHKERRQ(ierr);
-		ierr = DMDestroy(&dmLocal);CHKERRQ(ierr);
 	}
 
 	/*	LOOP OVER ALL VERTICES ON LOCAL MESH UNLESS ITS A SPEEDTEST */
