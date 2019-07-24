@@ -793,6 +793,11 @@ PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
     KSP            ksp;               /* KSP solver for Crank-Nicolson scheme */
     PetscInt       i;
     
+    ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
+    ierr = VecDuplicate(u,&uold);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(hs->da,&r);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(hs->da,&rhs);CHKERRQ(ierr);
+    
     for (i=0; i<hs->nt+1; i++)
     {
         /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
