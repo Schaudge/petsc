@@ -948,7 +948,7 @@ PetscErrorCode fmlmc(MLMC *mlmc,HeatSimulation **hs,PetscReal eps,PetscReal *EQ)
             }
             if (rem > (1.0 - mlmc->theta)*eps) {
                 PetscInt i;
-                ierr = PetscInfo(NULL,"Adding another MLMC level to the hiearchy\n");CHKERRQ(ierr);
+                ierr = PetscInfo(NULL,"Adding another MLMC level to the hierarchy\n");CHKERRQ(ierr);
                 L = L + 1;
                 ierr = HeatSimulationRefine(hs[L-2],&hs[L-1]);CHKERRQ(ierr);
                 Vl[L-1] = Vl[L-2]/PetscPowReal(mlmc->beta,mlmc->q2);
@@ -966,7 +966,7 @@ PetscErrorCode fmlmc(MLMC *mlmc,HeatSimulation **hs,PetscReal eps,PetscReal *EQ)
      */
     *EQ = 0; for (i=0; i<L; i++) *EQ += suml[i][0]/mlmc->Nl[i];
     mlmc->L = L;
-    ierr = PetscInfo2(NULL,"Completed MLMC algorith QoI %g Number of levels %D\n",*EQ,L);CHKERRQ(ierr);
+    ierr = PetscInfo2(NULL,"Completed MLMC algorithm QoI %g Number of levels %D\n",*EQ,L);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
 
