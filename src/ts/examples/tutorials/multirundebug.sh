@@ -11,7 +11,6 @@ echo "-N ranks per node"
 echo "-cc how ranks are bound to cores, depth allows specification"
 echo "-d hardware threads per rank"
 echo "-j hardware threads per core (max 4)"
-echo "aprun -n 256 -N 256 -cc depth -d 1 -j 4 ./exspeedtest -f ssthimble1M.msh4 -disp -log_view"
 
 echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 echo "+++                     DEBUG VERSION                     +++"
@@ -19,7 +18,7 @@ echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 
 echo "Creating Directories"
 now=$(date +"%m_%d_%Y")
-dirname="out_debug_$now"
+dirname="med_out_debug_$now"
 mkdir -p ./$dirname
 filtINSERT="./${dirname}/filtoutdebugINSERT.txt"
 filtADDVAL="./${dirname}/filtoutdebugADDVAL.txt"
@@ -39,9 +38,14 @@ echo "resetting full log and filtered outputs..."
 >./$packsizeADDVAL
 echo "done"
 
-maxcount=9
+maxcount=0
 counter=0
 cells=1000000
+dim=3
+lvl=2
+nface=25
+nfield=1
+maxcom=0
 echo "Max number of Iterations:		$(($maxcount-$counter))"
 echo "looping..."
 echo "-----------"
@@ -49,19 +53,21 @@ until [ $counter -gt $maxcount ]
 do
     #ranks=$((2**$counter))
     ranks=256
-    cellprank=$(bc <<< "scale=3; $cells/$ranks")
+    cellprankval=$(bc <<< "scale=3; $cells/$ranks")
     echo "counter:                         	$counter"
     echo "current number of MPI ranks:     	$ranks"
-    echo "approx cells/rank:			$cellprank"
+    echo "current number of faces:		$nface"
+    echo "approx cells/rank:			$cellprankval"
     echo "start time:                      	$(date -u)"
     SECONDS=0
-    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -f ssthimble1M.med -speed -log_view >> ./$rawlog
+    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble1M.med -log_view >> ./$rawlog
+    #aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -dim $dim -level $lvl -n $nface -nf $nfield -maxcom -$maxcom -log_view >> ./$rawlog
     echo "+++++++++++++++++++++++++++++ End of Log +++++++++++++++++++++++++++++++">>./$rawlog
     ((counter++))
     duration=$SECONDS
     echo "end time:			 	$(date -u)"
     echo "runtime:                         	$(($duration / 60)) minutes and $(($duration % 60)) seconds"
-    echo "$cellprank">>./$cellprank
+    echo "$cellprankval">>./$cellprank
     echo "-----------"
 done
 echo "--------------------------- Successful exit! ---------------------------">>./$rawlog

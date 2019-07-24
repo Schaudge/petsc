@@ -8,59 +8,6 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # define VECSTANDARD    	 "standard"
 
 /*	ADDITIONAL FUNCTIONS	*/
-/*	Phasing this out in favor of using new official function now
-PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
-{
-        MPI_Comm	DMcomm;
-        PetscSF        	sfPoint;
-	PetscSection   	coordSection;
-	Vec            	coordinates;
-	PetscSection   	sectionLocal;
-	PetscScalar    	*arrayLocal;
-	PetscInt       	sStart, sEnd, sIter;
-	PetscMPIInt    	rank;
-	PetscErrorCode 	ierr;
-
-
-	Make Temp DM
-	ierr = DMClone(dm, dmLocal);CHKERRQ(ierr);
-	//	Get and Set Coord Map
-	ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
-	ierr = DMSetCoordinateSection(*dmLocal, PETSC_DETERMINE, coordSection);CHKERRQ(ierr);
-	//	Get and Set Neighbors
-	//ierr = DMGetPointSF(dm, &sfPoint);CHKERRQ(ierr);
-	//ierr = DMSetPointSF(*dmLocal, sfPoint);CHKERRQ(ierr);
-	/	Populate Coords
-	ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
-	ierr = DMSetCoordinatesLocal(*dmLocal, coordinates);CHKERRQ(ierr);
-	//	Get Local Comm handle
-	ierr = PetscObjectGetComm((PetscObject) *dmLocal, &DMcomm);CHKERRQ(ierr);
-	ierr = MPI_Comm_rank(DMcomm , &rank);CHKERRQ(ierr);
-	//	Setup the partition "field"
-	ierr = PetscSectionCreate(DMcomm , &sectionLocal);CHKERRQ(ierr);
-	ierr = DMPlexGetHeightStratum(*dmLocal, 0, &sStart, &sEnd);CHKERRQ(ierr);
-	ierr = PetscSectionSetChart(sectionLocal, sStart, sEnd);CHKERRQ(ierr);
-
-	for (sIter = sStart; sIter < sEnd; ++sIter) {
-	//	Allow for assigning value
-		ierr = PetscSectionSetDof(sectionLocal, sIter, 1);CHKERRQ(ierr);
-	}
-
-	ierr = PetscSectionSetUp(sectionLocal);CHKERRQ(ierr);
-	ierr = DMSetSection(*dmLocal, sectionLocal);CHKERRQ(ierr);
-	ierr = PetscSectionDestroy(&sectionLocal);CHKERRQ(ierr);
-	ierr = DMCreateLocalVector(*dmLocal, partition);CHKERRQ(ierr);
-	ierr = VecGetArray(*partition, &arrayLocal);CHKERRQ(ierr);
-	ierr = PetscObjectSetName((PetscObject)*partition, "Partition_per_process");CHKERRQ(ierr);
-
-	for (sIter = sStart; sIter < sEnd; ++sIter) {
-		arrayLocal[sIter] = rank;
-	}
-	ierr = VecRestoreArray(*partition, &arrayLocal);CHKERRQ(ierr);
-	return ierr;
-}
-*/
-
 PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
 {
 	PetscViewer	viewer;
@@ -130,7 +77,7 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
 	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dmRefine = PETSC_FALSE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
-	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 2, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;;
+	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 1, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;;
 	PetscInt		bcField[numBC];
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
@@ -201,17 +148,44 @@ int main(int argc, char **argv)
 	}
 
 	ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-	ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
-	if (dmDist) {
-		ierr = DMDestroy(&dm);CHKERRQ(ierr);
-		dm = dmDist;
-		dmDistributed = PETSC_TRUE;
-	} else {
-		if (isView) {
-                  	ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
-			ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
+	if (!fileflg) {
+		DM 		dmf;
+
+		for (i = 0; i < level; i++) {
+			ierr = PetscLogStageRegister("REFINE Mesh Stage", &stageREFINE);CHKERRQ(ierr);
+			ierr = PetscLogEventRegister("REFINE Mesh", 0, &eventREFINE);CHKERRQ(ierr);
+			ierr = PetscLogStagePush(stageREFINE);CHKERRQ(ierr);
+			ierr = PetscLogEventBegin(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+			ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
+			ierr = PetscLogEventEnd(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+			ierr = PetscLogStagePop();CHKERRQ(ierr);
+			if (dmf) {
+				ierr = DMDestroy(&dm);CHKERRQ(ierr);
+				dm = dmf;
+			}
+			ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+			if (dmDist) {
+				ierr = DMDestroy(&dm);CHKERRQ(ierr);
+				dm = dmDist;
+				dmDistributed = PETSC_TRUE;
+			}
+		}
+		dmRefine = PETSC_TRUE;
+	}
+	if (level == 0) {
+		ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+		if (dmDist) {
+			ierr = DMDestroy(&dm);CHKERRQ(ierr);
+			dm = dmDist;
+			dmDistributed = PETSC_TRUE;
 		}
 	}
+
+	if (!dmDistributed && isView) {
+		ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
+		ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
+	}
+
 	if (!dmInterped) {
 		ierr = DMPlexInterpolate(dm, &dmInterp);CHKERRQ(ierr);
 		if (dmInterp) {
@@ -223,25 +197,6 @@ int main(int argc, char **argv)
 			ierr = PetscPrintf(comm,"No interped dm [QUITE UNUSUAL]\n");CHKERRQ(ierr);
 		}
 	}
-	}
-
-	if (perfTest) {
-		DM 		dmf;
-
-		ierr = PetscLogStageRegister("REFINE Mesh Stage", &stageREFINE);CHKERRQ(ierr);
-		ierr = PetscLogEventRegister("REFINE Mesh", 0, &eventREFINE);CHKERRQ(ierr);
-		ierr = PetscLogStagePush(stageREFINE);CHKERRQ(ierr);
-		ierr = PetscLogEventBegin(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
-		for (i = 0; i < level; i++) {
-			ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
-			if (dmf) {
-				ierr = DMDestroy(&dm);CHKERRQ(ierr);
-				dm = dmf;
-			}
-		}
-		ierr = PetscLogEventEnd(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
-		ierr = PetscLogStagePop();CHKERRQ(ierr);
-		dmRefine = PETSC_TRUE;
 	}
 
 	/*	Set up DM and initialize fields	*/
