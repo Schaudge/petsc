@@ -966,6 +966,7 @@ PetscErrorCode fmlmc(MLMC *mlmc,HeatSimulation **hs,PetscReal eps,PetscReal *EQ)
      */
     *EQ = 0; for (i=0; i<L; i++) *EQ += suml[i][0]/mlmc->Nl[i];
     mlmc->L = L;
+    printf("EQ=%f\n",*EQ);
     ierr = PetscInfo2(NULL,"Completed MLMC algorithm QoI %g Number of levels %D\n",*EQ,L);CHKERRQ(ierr);
     PetscFunctionReturn(0);
 }
