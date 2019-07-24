@@ -42,6 +42,9 @@ echo "done"
 maxcount=9
 counter=0
 cells=1000000
+dim=3
+lvl=1
+nface=4
 echo "Max number of Iterations:		$(($maxcount-$counter))"
 echo "looping..."
 echo "-----------"
@@ -52,13 +55,15 @@ do
     cellprank=$(bc <<< "scale=3; $cells/$ranks")
     echo "counter:                         	$counter"
     echo "current number of MPI ranks:     	$ranks"
+    echo "current number of faces:		$nface"
     echo "approx cells/rank:			$cellprank"
     echo "start time:                      	$(date -u)"
     SECONDS=0
-    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -f ssthimble1M.med -speed -log_view >> ./$rawlog
+    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -dim $dim -level $lvl -n $nface -nf 1 -maxcom 0 -vtkout -log_view >> ./$rawlog
     echo "+++++++++++++++++++++++++++++ End of Log +++++++++++++++++++++++++++++++">>./$rawlog
     ((counter++))
     duration=$SECONDS
+    nface=$(($nface+1))
     echo "end time:			 	$(date -u)"
     echo "runtime:                         	$(($duration / 60)) minutes and $(($duration % 60)) seconds"
     echo "$cellprank">>./$cellprank

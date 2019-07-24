@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
 	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dmRefine = PETSC_FALSE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
-	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 2, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;;
+	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 1, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;;
 	PetscInt		bcField[numBC];
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
@@ -201,17 +201,36 @@ int main(int argc, char **argv)
 	}
 
 	ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-	ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
-	if (dmDist) {
-		ierr = DMDestroy(&dm);CHKERRQ(ierr);
-		dm = dmDist;
-		dmDistributed = PETSC_TRUE;
-	} else {
-		if (isView) {
-                  	ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
-			ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
+	if (!fileflg) {
+		DM 		dmf;
+
+		for (i = 0; i < level; i++) {
+			ierr = PetscLogStageRegister("REFINE Mesh Stage", &stageREFINE);CHKERRQ(ierr);
+			ierr = PetscLogEventRegister("REFINE Mesh", 0, &eventREFINE);CHKERRQ(ierr);
+			ierr = PetscLogStagePush(stageREFINE);CHKERRQ(ierr);
+			ierr = PetscLogEventBegin(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+			ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
+			ierr = PetscLogEventEnd(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+			ierr = PetscLogStagePop();CHKERRQ(ierr);
+			if (dmf) {
+				ierr = DMDestroy(&dm);CHKERRQ(ierr);
+				dm = dmf;
+			}
+			ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+			if (dmDist) {
+				ierr = DMDestroy(&dm);CHKERRQ(ierr);
+				dm = dmDist;
+				dmDistributed = PETSC_TRUE;
+			}
 		}
+		dmRefine = PETSC_TRUE;
 	}
+
+	if (!dmDistributed && isView) {
+		ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
+		ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
+	}
+
 	if (!dmInterped) {
 		ierr = DMPlexInterpolate(dm, &dmInterp);CHKERRQ(ierr);
 		if (dmInterp) {
@@ -223,25 +242,6 @@ int main(int argc, char **argv)
 			ierr = PetscPrintf(comm,"No interped dm [QUITE UNUSUAL]\n");CHKERRQ(ierr);
 		}
 	}
-	}
-
-	if (perfTest) {
-		DM 		dmf;
-
-		ierr = PetscLogStageRegister("REFINE Mesh Stage", &stageREFINE);CHKERRQ(ierr);
-		ierr = PetscLogEventRegister("REFINE Mesh", 0, &eventREFINE);CHKERRQ(ierr);
-		ierr = PetscLogStagePush(stageREFINE);CHKERRQ(ierr);
-		ierr = PetscLogEventBegin(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
-		for (i = 0; i < level; i++) {
-			ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
-			if (dmf) {
-				ierr = DMDestroy(&dm);CHKERRQ(ierr);
-				dm = dmf;
-			}
-		}
-		ierr = PetscLogEventEnd(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
-		ierr = PetscLogStagePop();CHKERRQ(ierr);
-		dmRefine = PETSC_TRUE;
 	}
 
 	/*	Set up DM and initialize fields	*/
