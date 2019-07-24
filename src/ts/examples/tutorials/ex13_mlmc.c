@@ -973,13 +973,13 @@ PetscErrorCode fmlmc(MLMC *mlmc,HeatSimulation **hs,PetscReal eps,PetscReal *EQ)
 /*TEST
  
  build:
- requires: !complex
+   requires: !complex
  
  # When run with the Matlab random generator these results are identical
  # to those from the Matlab code if you add a call to rng('default') in
  # mlmc_heat_conv.m before each new call to mlmc()
  test:
- args: -eps .0014,.0012,.0010,.0008,.0006,.0004,.0002,.0001 -info
- filter: egrep "(MLMC|QoI)"
+   args: -eps .0014,.0012,.0010,.0008,.0006,.0004,.0002,.0001 -info
+   filter: egrep "(MLMC|QoI)"
  
  TEST*/
