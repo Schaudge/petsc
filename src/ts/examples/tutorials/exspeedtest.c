@@ -121,14 +121,14 @@ int main(int argc, char **argv)
 	PetscViewer		genViewer;
 	PetscPartitioner	partitioner;
 	PetscPartitionerType	partitionername;
-	PetscLogStage 		stageREAD, stageCREATE, stageINSERT, stageADD, stageGVD;
-	PetscLogEvent 		eventREAD, eventCREATE, eventINSERT, eventADD, eventGVD;
+	PetscLogStage 		stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD;
+	PetscLogEvent 		eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD;
 	DM			dm, dmDist, dmInterp;
 	IS			bcPointsIS, globalCellNumIS;
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
-	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
-	PetscInt		dim = 2, overlap = 0, meshSize = 10, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2;
+	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dmRefine = PETSC_FALSE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
+	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 2, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;;
 	PetscInt		bcField[numBC];
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
@@ -155,6 +155,8 @@ int main(int argc, char **argv)
 		ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &overlap, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsBool("-petscfe", "Enable only making a petscFE", "", usePetscFE, &usePetscFE, NULL);CHKERRQ(ierr);
 		ierr = PetscOptionsGetInt(NULL, NULL, "-qorder", &qorder, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(NULL, NULL, "-level", &level, NULL);CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(NULL, NULL, "-maxcom", &commax, NULL);CHKERRQ(ierr);
 		}
 	ierr = PetscOptionsEnd();CHKERRQ(ierr);
 	if (dispFlag) {
@@ -183,7 +185,7 @@ int main(int argc, char **argv)
 		ierr = PetscLogEventEnd(eventREAD, 0, 0, 0, 0);CHKERRQ(ierr);
 		ierr = PetscLogStagePop();CHKERRQ(ierr);
         } else {
-		for(i = 0; i < dim; i++){
+		for (i = 0; i < dim; i++){
 			/* Make the default box mesh creation with CLI options	*/
 			faces[i] = meshSize;
 		}
@@ -191,7 +193,7 @@ int main(int argc, char **argv)
 		ierr = PetscLogEventRegister("Create Box Mesh", 0, &eventCREATE);CHKERRQ(ierr);
 		ierr = PetscLogStagePush(stageCREATE);CHKERRQ(ierr);
 		ierr = PetscLogEventBegin(eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
-          	ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
+		ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
 		ierr = PetscLogEventEnd(eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
 		ierr = PetscLogStagePop();CHKERRQ(ierr);
 	}
@@ -202,7 +204,7 @@ int main(int argc, char **argv)
 		ierr = DMDestroy(&dm);CHKERRQ(ierr);
 		dm = dmDist;
 		dmDistributed = PETSC_TRUE;
-	}else{
+	} else {
 		if (isView) {
                   	ierr = PetscPrintf(comm, "%s Label View %s\n",bar, bar);CHKERRQ(ierr);
 			ierr = ViewISInfo(comm, dm);CHKERRQ(ierr);
@@ -221,6 +223,24 @@ int main(int argc, char **argv)
 	}
 	}
 
+	if (perfTest) {
+		DM 		dmf;
+
+		ierr = PetscLogStageRegister("REFINE Mesh Stage", &stageREFINE);CHKERRQ(ierr);
+		ierr = PetscLogEventRegister("REFINE Mesh", 0, &eventREFINE);CHKERRQ(ierr);
+		ierr = PetscLogStagePush(stageREFINE);CHKERRQ(ierr);
+		ierr = PetscLogEventBegin(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+		for (i = 0; i < level; i++) {
+			ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
+			if (dmf) {
+				ierr = DMDestroy(&dm);CHKERRQ(ierr);
+				dm = dmf;
+			}
+		}
+		ierr = PetscLogEventEnd(eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+		ierr = PetscLogStagePop();CHKERRQ(ierr);
+		dmRefine = PETSC_TRUE;
+	}
 	/*	Set up DM and initialize fields	*/
 	{
 	PetscInt	numDOF[numFields*(dim+1)], numComp[numFields];
@@ -264,7 +284,7 @@ int main(int argc, char **argv)
 	}
 
 	/*	Create Vector for per process function evaluation	*/
-	if (!perfTest) {
+	if (!perfTest || arrayDisp) {
 		ierr = VecCreate(PETSC_COMM_SELF, &funcVecSin);CHKERRQ(ierr);
 		ierr = VecSetType(funcVecSin, VECSTANDARD);CHKERRQ(ierr);
 		ierr = VecSetSizes(funcVecSin, PETSC_DECIDE, vecsize);CHKERRQ(ierr);
@@ -294,7 +314,7 @@ int main(int argc, char **argv)
 	}
 
 	/*	LOOP OVER ALL VERTICES ON LOCAL MESH UNLESS ITS A SPEEDTEST */
-	if (!perfTest) {
+	if (!perfTest || arrayDisp) {
 		/*	Perform Function on LOCAL array	*/
 		ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
 		ierr = VecGetLocalSize(solVecLocal, &nVertex);CHKERRQ(ierr);
@@ -332,7 +352,7 @@ int main(int argc, char **argv)
 	ierr = PetscLogEventRegister("CommINSERT", 0, &eventINSERT);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageINSERT);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
-        for (commiter = 0; commiter < 100; commiter++) {
+        for (commiter = 0; commiter < commax; commiter++) {
         	ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
 		ierr = DMGlobalToLocalBegin(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
@@ -355,7 +375,7 @@ int main(int argc, char **argv)
 	ierr = PetscLogEventRegister("CommADDVAL", 0, &eventADD);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageADD);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
-        for (commiter = 0; commiter < 100; commiter++) {
+        for (commiter = 0; commiter < commax; commiter++) {
           	ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
                 ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
 		/*	Global to Local aren't implemented	*/
@@ -377,7 +397,7 @@ int main(int argc, char **argv)
 	ierr = PetscLogEventRegister("CommGlblVecDot", 0, &eventGVD);CHKERRQ(ierr);
 	ierr = PetscLogStagePush(stageGVD);CHKERRQ(ierr);
 	ierr = PetscLogEventBegin(eventGVD, 0, 0, 0, 0);CHKERRQ(ierr);
-	for (commiter = 0; commiter < 100; commiter++) {
+	for (commiter = 0; commiter < commax; commiter++) {
 		ierr = VecDotBegin(VDot, VDot, &VDotResult);CHKERRQ(ierr);
 		ierr = VecDotEnd(VDot, VDot, &VDotResult);CHKERRQ(ierr);
         }
@@ -449,7 +469,11 @@ int main(int argc, char **argv)
 	if (fileflg) {
 		ierr = PetscViewerStringSPrintf(genViewer, "┗ File read name:%s>%s\n", bar + 2, filename);CHKERRQ(ierr);
 	}
-	ierr = PetscViewerStringSPrintf(genViewer,  "Distributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	ierr = PetscViewerStringSPrintf(genViewer, "Mesh refinement:%s>%s\n", bar + 1, dmRefine ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+	if (dmRefine) {
+		ierr = PetscViewerStringSPrintf(genViewer, "┗ Refinement level:%s>%d\n", bar + 4, level);CHKERRQ(ierr);
+	}
+	ierr = PetscViewerStringSPrintf(genViewer, "Distributed dm:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 	ierr = PetscViewerStringSPrintf(genViewer, "Interpolated dm:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
         ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", bar + 7, perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 	ierr = PetscViewerStringSPrintf(genViewer, "PETScFE enabled mode:%s>%s\n", bar + 6, usePetscFE ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
