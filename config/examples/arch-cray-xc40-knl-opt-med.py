@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-# Example configure script for Cray XC-series systems with Intel "Knights 
+# Example configure script for Cray XC-series systems with Intel "Knights
 # Landing" (KNL) processors.
-# This script was constructed for and tested on the Cori XC40 system, but 
+# This script was constructed for and tested on the Cori XC40 system, but
 # should work (or be easily modified to do so) on other Cray XC-series systems.
 
 if __name__ == '__main__':
@@ -11,28 +11,28 @@ if __name__ == '__main__':
   sys.path.insert(0, os.path.abspath('config'))
   import configure
   configure_options = [
-    # We use the Cray compiler wrappers below, regardless of what underlying 
+    # We use the Cray compiler wrappers below, regardless of what underlying
     # compilers we are actually using.
     '--with-cc=cc',
     '--with-cxx=CC',
     '--with-fc=ftn',
 
     # Cray supports the use of Intel, Cray, or GCC compilers.
-    # Make sure that the correct programming environment module is loaded, 
+    # Make sure that the correct programming environment module is loaded,
     # and then comment/uncomment the apprpriate stanzas below.
 
     # Flags for the Intel compilers:
     # NOTE: For versions of the Intel compiler < 18.x, one may need to specify
-    # the undocumented compiler option '-mP2OPT_hpo_vec_remainder=F', which 
-    # disables generation of vectorized remainder loops; this works around 
-    # some incorrect code generation. This option should NOT be used with later 
-    # compiler versions -- it is detrimental to performance, and the behavior 
+    # the undocumented compiler option '-mP2OPT_hpo_vec_remainder=F', which
+    # disables generation of vectorized remainder loops; this works around
+    # some incorrect code generation. This option should NOT be used with later
+    # compiler versions -- it is detrimental to performance, and the behavior
     # may change without warning because this is an undocumented option.
     '--COPTFLAGS=-g -xMIC-AVX512 -O3',
     '--CXXOPTFLAGS=-g -xMIC-AVX512 -O3',
     '--FOPTFLAGS=-g -xMIC-AVX512 -O3',
     # Use  BLAS and LAPACK provided by Intel MKL.
-    # (Below only works when PrgEnv-intel is loaded; it is possible, but not 
+    # (Below only works when PrgEnv-intel is loaded; it is possible, but not
     # straightfoward, to use MKL on Cray systems with non-Intel compilers.)
     # If Cray libsci is preferred, comment out the line below.
     '--with-blaslapack-lib=-mkl -L' + os.environ['MKLROOT'] + '/lib/intel64',
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     '--LIBS=-lstdc++',
     '--LDFLAGS=-dynamic', # Needed if wish to use dynamic shared libraries.
 
-    # Below "--known-" options are from the "reconfigure.py" script generated 
+    # Below "--known-" options are from the "reconfigure.py" script generated
     # after an intial configure.py run using '--with-batch'.
     '--known-level1-dcache-size=32768',
     '--known-level1-dcache-linesize=64',
@@ -89,17 +89,20 @@ if __name__ == '__main__':
     '--with-batch=1',
 
     # My Custom Install Options
-    '--with-mpiexec=aprun'
-    '--with-mkl_sparse=0'
-    '--with-mkl_sparse_optimize=0'
-    '--with-zlib=1'
-    '--with-pnetcdf-dir=' + os.environ['PARALLEL_NETCDF_DIR']
-    '--with-netcdf-dir=' + os.environ['NETCDF_DIR']
-    '--download-chaco=1'
-    '--download-metis=1'
-    '--download-parmetis=1'
-    '--download-exodusii'
-    '--download-med'
-    '--download-med-configure-arguments="--with-hdf5-bin=/opt/cray/pe/hdf5-parallel/1.10.2.0/bin"'
+    '--with-mpiexec=aprun',
+    '--with-mkl_sparse=0',
+    '--with-mkl_sparse_optimize=0',
+    '--with-zlib=1',
+    '--with-hdf5-dir=' + os.environ['HDF5_DIR'],
+    '--with-pnetcdf-dir=' + os.environ['PARALLEL_NETCDF_DIR'],
+    '--with-netcdf-dir=' + os.environ['NETCDF_DIR'],
+    '--download-chaco=1',
+    '--download-metis=1',
+    '--download-parmetis=1',
+    '--download-exodusii',
+    '--with-med=1',
+    '--download-med-configure-arguments="--with-hdf5-bin=/opt/cray/pe/hdf5-parallel/1.10.2.0/bin"',
+    '--download-med-configure-arguments="--host="',
+    'PETSC_ARCH=arch-cray-xc40-knl-opt'
   ]
   configure.petsc_configure(configure_options)
