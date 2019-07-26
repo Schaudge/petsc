@@ -97,7 +97,7 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
   ngeo = MEDmeshnEntity(fileID, meshname, MED_NO_DT, MED_NO_IT, MED_CELL,MED_GEO_ALL, MED_CONNECTIVITY,
                         MED_NODAL, &coordinatechangement, &geotransformation);
   if (ngeo < 1) SETERRQ4(comm, PETSC_ERR_ARG_WRONG, "No cells found in .med v%d.%d.%d mesh file: %s", major, minor, release, filename);
-  if (ngeo > 2) SETERRQ4(comm, PETSC_ERR_ARG_WRONG, "Currently no support for hybrid meshes in .med mesh file: %s", major, minor, release, filename);
+  if (ngeo > 2) SETERRQ4(comm, PETSC_ERR_ARG_WRONG, "Currently no support for hybrid meshes in .med v%d.%d.%d mesh file: %s", major, minor, release, filename);
   ierr = MEDmeshEntityInfo(fileID, meshname, MED_NO_DT, MED_NO_IT, MED_CELL, 1, geotypename, &(geotype[0]));CHKERRQ(ierr);
   if (ngeo > 1) {ierr = MEDmeshEntityInfo(fileID, meshname, MED_NO_DT, MED_NO_IT, MED_CELL, 2, geotypename, &(geotype[1]));CHKERRQ(ierr);}
   else geotype[1] = 0;
@@ -143,12 +143,6 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
     PetscInt *pcone = &cellList[c*numCorners];
 
     if (meshDim == 3) {
-      /* Tetrahedra are inverted */
-      if (numCorners == 4) {
-        PetscInt tmp = pcone[0];
-        pcone[0] = pcone[1];
-        pcone[1] = tmp;
-      }
       /* Hexahedra are inverted */
       if (numCorners == 8) {
         PetscInt tmp = pcone[4+1];
@@ -208,7 +202,6 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
     {
       /* Send facets and IDs to a rendezvous partition that is based on the initial vertex partitioning. */
       PetscInt           p, r;
-      PetscSFNode       *remoteProc;
       DMLabel            lblFacetRendezvous, lblFacetMigration;
       PetscSection       facetSection, facetSectionRendezvous;
       PetscSF            sfProcess, sfFacetMigration;
@@ -225,14 +218,9 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
         }
       }
       /* Build a global process SF */
-      ierr = PetscMalloc1(size, &remoteProc);CHKERRQ(ierr);
-      for (p = 0; p < size; ++p) {
-        remoteProc[p].rank  = p;
-        remoteProc[p].index = rank;
-      }
-      ierr = PetscSFCreate(comm, &sfProcess);CHKERRQ(ierr);
+      ierr = PetscSFCreate(comm,&sfProcess);CHKERRQ(ierr);
+      ierr = PetscSFSetGraphWithPattern(sfProcess,NULL,PETSCSF_PATTERN_ALLTOALL);CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) sfProcess, "Process SF");CHKERRQ(ierr);
-      ierr = PetscSFSetGraph(sfProcess, size, size, NULL, PETSC_OWN_POINTER, remoteProc, PETSC_OWN_POINTER);CHKERRQ(ierr);
       /* Convert facet rendezvous label into SF for migration */
       ierr = DMPlexPartitionLabelInvert(*dm, lblFacetRendezvous, sfProcess, lblFacetMigration);CHKERRQ(ierr);
       ierr = DMPlexPartitionLabelCreateSF(*dm, lblFacetMigration, &sfFacetMigration);CHKERRQ(ierr);

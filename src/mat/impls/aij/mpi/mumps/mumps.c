@@ -340,8 +340,15 @@ PetscErrorCode MatConvertToTriples_seqsbaij_seqsbaij(Mat A,int shift,MatReuse re
   PetscErrorCode ierr;
   PetscInt       *row,*col;
   Mat_SeqSBAIJ   *aa=(Mat_SeqSBAIJ*)A->data;
+#if defined(PETSC_USE_COMPLEX)
+  PetscBool      hermitian;
+#endif
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_COMPLEX)
+  ierr = MatGetOption(A,MAT_HERMITIAN,&hermitian);CHKERRQ(ierr);
+  if (hermitian) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"MUMPS does not support Hermitian symmetric matrices for Choleksy");
+#endif
   *v = aa->a;
   if (reuse == MAT_INITIAL_MATRIX) {
     nz   = aa->nz;
@@ -375,8 +382,15 @@ PetscErrorCode MatConvertToTriples_seqaij_seqsbaij(Mat A,int shift,MatReuse reus
   PetscInt          *row,*col;
   Mat_SeqAIJ        *aa=(Mat_SeqAIJ*)A->data;
   PetscBool         missing;
+#if defined(PETSC_USE_COMPLEX)
+  PetscBool         hermitian;
+#endif
 
   PetscFunctionBegin;
+#if defined(PETSC_USE_COMPLEX)
+  ierr = MatGetOption(A,MAT_HERMITIAN,&hermitian);CHKERRQ(ierr);
+  if (hermitian) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"MUMPS does not support Hermitian symmetric matrices for Choleksy");
+#endif
   ai    = aa->i; aj = aa->j; av = aa->a;
   adiag = aa->diag;
   ierr  = MatMissingDiagonal_SeqAIJ(A,&missing,&i);CHKERRQ(ierr);
@@ -475,10 +489,22 @@ PetscErrorCode MatConvertToTriples_mpisbaij_mpisbaij(Mat A,int shift,MatReuse re
   Mat_MPISBAIJ      *mat = (Mat_MPISBAIJ*)A->data;
   Mat_SeqSBAIJ      *aa  = (Mat_SeqSBAIJ*)(mat->A)->data;
   Mat_SeqBAIJ       *bb  = (Mat_SeqBAIJ*)(mat->B)->data;
+#if defined(PETSC_USE_COMPLEX)
+  PetscBool         hermitian;
+#endif
 
   PetscFunctionBegin;
-  ai=aa->i; aj=aa->j; bi=bb->i; bj=bb->j; rstart= A->rmap->rstart;
-  av=aa->a; bv=bb->a;
+#if defined(PETSC_USE_COMPLEX)
+  ierr = MatGetOption(A,MAT_HERMITIAN,&hermitian);CHKERRQ(ierr);
+  if (hermitian) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"MUMPS does not support Hermitian symmetric matrices for Choleksy");
+#endif
+  rstart = A->rmap->rstart;
+  ai = aa->i;
+  aj = aa->j;
+  bi = bb->i;
+  bj = bb->j;
+  av = aa->a;
+  bv = bb->a;
 
   garray = mat->garray;
 
@@ -536,8 +562,13 @@ PetscErrorCode MatConvertToTriples_mpiaij_mpiaij(Mat A,int shift,MatReuse reuse,
   Mat_SeqAIJ        *bb  = (Mat_SeqAIJ*)(mat->B)->data;
 
   PetscFunctionBegin;
-  ai=aa->i; aj=aa->j; bi=bb->i; bj=bb->j; rstart= A->rmap->rstart;
-  av=aa->a; bv=bb->a;
+  rstart = A->rmap->rstart;
+  ai = aa->i;
+  aj = aa->j;
+  bi = bb->i;
+  bj = bb->j;
+  av = aa->a;
+  bv = bb->a;
 
   garray = mat->garray;
 
@@ -662,11 +693,23 @@ PetscErrorCode MatConvertToTriples_mpiaij_mpisbaij(Mat A,int shift,MatReuse reus
   Mat_MPIAIJ        *mat =  (Mat_MPIAIJ*)A->data;
   Mat_SeqAIJ        *aa  =(Mat_SeqAIJ*)(mat->A)->data;
   Mat_SeqAIJ        *bb  =(Mat_SeqAIJ*)(mat->B)->data;
+#if defined(PETSC_USE_COMPLEX)
+  PetscBool         hermitian;
+#endif
 
   PetscFunctionBegin;
-  ai=aa->i; aj=aa->j; adiag=aa->diag;
-  bi=bb->i; bj=bb->j; garray = mat->garray;
-  av=aa->a; bv=bb->a;
+#if defined(PETSC_USE_COMPLEX)
+  ierr = MatGetOption(A,MAT_HERMITIAN,&hermitian);CHKERRQ(ierr);
+  if (hermitian) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"MUMPS does not support Hermitian symmetric matrices for Choleksy");
+#endif
+  ai     = aa->i;
+  aj     = aa->j;
+  adiag  = aa->diag;
+  bi     = bb->i;
+  bj     = bb->j;
+  garray = mat->garray;
+  av     = aa->a;
+  bv     = bb->a;
 
   rstart = A->rmap->rstart;
 
@@ -971,6 +1014,11 @@ PetscErrorCode MatMatSolve_MUMPS(Mat A,Mat B,Mat X)
   ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,nlsol_loc,(PetscScalar*)sol_loc,&msol_loc);CHKERRQ(ierr);
 
   if (!Bt) { /* dense B */
+    /* TODO: Because of non-contiguous indices, the created vecscatter scat_rhs is not done in MPI_Gather, resulting in
+       very inefficient communication. An optimization is to use VecScatterCreateToZero to gather B to rank 0. Then on rank
+       0, re-arrange B into desired order, which is a local operation.
+     */
+
     /* scatter v_mpi to b_seq because MUMPS only supports centralized rhs */
     /* wrap dense rhs matrix B into a vector v_mpi */
     ierr = MatGetLocalSize(B,&m,NULL);CHKERRQ(ierr);
@@ -1469,7 +1517,6 @@ PetscErrorCode MatLUFactorSymbolic_AIJMUMPS(Mat F,Mat A,IS r,IS c,const MatFacto
   Mat_MUMPS      *mumps = (Mat_MUMPS*)F->data;
   PetscErrorCode ierr;
   Vec            b;
-  IS             is_iden;
   const PetscInt M = A->rmap->N;
 
   PetscFunctionBegin;
@@ -1520,16 +1567,8 @@ PetscErrorCode MatLUFactorSymbolic_AIJMUMPS(Mat F,Mat A,IS r,IS c,const MatFacto
       mumps->id.a_loc = (MumpsScalar*)mumps->val;
     }
     /* MUMPS only supports centralized rhs. Create scatter scat_rhs for repeated use in MatSolve() */
-    if (!mumps->myid) {
-      ierr = VecCreateSeq(PETSC_COMM_SELF,A->rmap->N,&mumps->b_seq);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF,A->rmap->N,0,1,&is_iden);CHKERRQ(ierr);
-    } else {
-      ierr = VecCreateSeq(PETSC_COMM_SELF,0,&mumps->b_seq);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF,0,0,1,&is_iden);CHKERRQ(ierr);
-    }
     ierr = MatCreateVecs(A,NULL,&b);CHKERRQ(ierr);
-    ierr = VecScatterCreate(b,is_iden,mumps->b_seq,is_iden,&mumps->scat_rhs);CHKERRQ(ierr);
-    ierr = ISDestroy(&is_iden);CHKERRQ(ierr);
+    ierr = VecScatterCreateToZero(b,&mumps->scat_rhs,&mumps->b_seq);CHKERRQ(ierr);
     ierr = VecDestroy(&b);CHKERRQ(ierr);
     break;
   }
@@ -1550,7 +1589,6 @@ PetscErrorCode MatLUFactorSymbolic_BAIJMUMPS(Mat F,Mat A,IS r,IS c,const MatFact
   Mat_MUMPS      *mumps = (Mat_MUMPS*)F->data;
   PetscErrorCode ierr;
   Vec            b;
-  IS             is_iden;
   const PetscInt M = A->rmap->N;
 
   PetscFunctionBegin;
@@ -1582,16 +1620,8 @@ PetscErrorCode MatLUFactorSymbolic_BAIJMUMPS(Mat F,Mat A,IS r,IS c,const MatFact
       mumps->id.a_loc = (MumpsScalar*)mumps->val;
     }
     /* MUMPS only supports centralized rhs. Create scatter scat_rhs for repeated use in MatSolve() */
-    if (!mumps->myid) {
-      ierr = VecCreateSeq(PETSC_COMM_SELF,A->cmap->N,&mumps->b_seq);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF,A->cmap->N,0,1,&is_iden);CHKERRQ(ierr);
-    } else {
-      ierr = VecCreateSeq(PETSC_COMM_SELF,0,&mumps->b_seq);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF,0,0,1,&is_iden);CHKERRQ(ierr);
-    }
     ierr = MatCreateVecs(A,NULL,&b);CHKERRQ(ierr);
-    ierr = VecScatterCreate(b,is_iden,mumps->b_seq,is_iden,&mumps->scat_rhs);CHKERRQ(ierr);
-    ierr = ISDestroy(&is_iden);CHKERRQ(ierr);
+    ierr = VecScatterCreateToZero(b,&mumps->scat_rhs,&mumps->b_seq);CHKERRQ(ierr);
     ierr = VecDestroy(&b);CHKERRQ(ierr);
     break;
   }
@@ -1610,7 +1640,6 @@ PetscErrorCode MatCholeskyFactorSymbolic_MUMPS(Mat F,Mat A,IS r,const MatFactorI
   Mat_MUMPS      *mumps = (Mat_MUMPS*)F->data;
   PetscErrorCode ierr;
   Vec            b;
-  IS             is_iden;
   const PetscInt M = A->rmap->N;
 
   PetscFunctionBegin;
@@ -1642,16 +1671,8 @@ PetscErrorCode MatCholeskyFactorSymbolic_MUMPS(Mat F,Mat A,IS r,const MatFactorI
       mumps->id.a_loc = (MumpsScalar*)mumps->val;
     }
     /* MUMPS only supports centralized rhs. Create scatter scat_rhs for repeated use in MatSolve() */
-    if (!mumps->myid) {
-      ierr = VecCreateSeq(PETSC_COMM_SELF,A->cmap->N,&mumps->b_seq);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF,A->cmap->N,0,1,&is_iden);CHKERRQ(ierr);
-    } else {
-      ierr = VecCreateSeq(PETSC_COMM_SELF,0,&mumps->b_seq);CHKERRQ(ierr);
-      ierr = ISCreateStride(PETSC_COMM_SELF,0,0,1,&is_iden);CHKERRQ(ierr);
-    }
     ierr = MatCreateVecs(A,NULL,&b);CHKERRQ(ierr);
-    ierr = VecScatterCreate(b,is_iden,mumps->b_seq,is_iden,&mumps->scat_rhs);CHKERRQ(ierr);
-    ierr = ISDestroy(&is_iden);CHKERRQ(ierr);
+    ierr = VecScatterCreateToZero(b,&mumps->scat_rhs,&mumps->b_seq);CHKERRQ(ierr);
     ierr = VecDestroy(&b);CHKERRQ(ierr);
     break;
   }
@@ -2424,7 +2445,7 @@ PetscErrorCode MatMumpsGetRinfog(Mat F,PetscInt icntl,PetscReal *val)
 
   Works with MATAIJ and MATSBAIJ matrices
 
-  Use ./configure --download-mumps --download-scalapack --download-parmetis --download-metis --download-ptscotch  to have PETSc installed with MUMPS
+  Use ./configure --download-mumps --download-scalapack --download-parmetis --download-metis --download-ptscotch to have PETSc installed with MUMPS
 
   Use ./configure --with-openmp --download-hwloc (or --with-hwloc) to enable running MUMPS in MPI+OpenMP hybrid mode and non-MUMPS in flat-MPI mode. See details below.
 
@@ -2469,6 +2490,8 @@ PetscErrorCode MatMumpsGetRinfog(Mat F,PetscInt icntl,PetscReal *val)
   Level: beginner
 
     Notes:
+    MUMPS Cholesky does not handle (complex) Hermitian matrices http://mumps.enseeiht.fr/doc/userguide_5.2.1.pdf so using it will error if the matrix is Hermitian.
+
     When a MUMPS factorization fails inside a KSP solve, for example with a KSP_DIVERGED_PC_FAILED, one can find the MUMPS information about the failure by calling
 $          KSPGetPC(ksp,&pc);
 $          PCFactorGetMatrix(pc,&mat);
@@ -2476,23 +2499,21 @@ $          MatMumpsGetInfo(mat,....);
 $          MatMumpsGetInfog(mat,....); etc.
            Or you can run with -ksp_error_if_not_converged and the program will be stopped and the information printed in the error message.
 
-   If you want to run MUMPS in MPI+OpenMP hybrid mode (i.e., enable multithreading in MUMPS), but still want to run the non-MUMPS part
+   Two modes to run MUMPS/PETSc with OpenMP
+
+$     Set OMP_NUM_THREADS and run with fewer MPI ranks than cores. For example, if you want to have 16 OpenMP
+$     threads per rank, then you may use "export OMP_NUM_THREADS=16 && mpirun -n 4 ./test".
+
+$     -mat_mumps_use_omp_threads [m] and run your code with as many MPI ranks as the number of cores. For example,
+$     if a compute node has 32 cores and you run on two nodes, you may use "mpirun -n 64 ./test -mat_mumps_use_omp_threads 16"
+
+   To run MUMPS in MPI+OpenMP hybrid mode (i.e., enable multithreading in MUMPS), but still run the non-MUMPS part
    (i.e., PETSc part) of your code in the so-called flat-MPI (aka pure-MPI) mode, you need to configure PETSc with --with-openmp --download-hwloc
    (or --with-hwloc), and have an MPI that supports MPI-3.0's process shared memory (which is usually available). Since MUMPS calls BLAS
-   libraries, to really get performance, you should have multithreaded BLAS libraries such as Intel MKL, AMD ACML, Cray libSci or open sourced
-   OpenBLAS (PETSc has configure options to install/specify them). With these conditions met, you can run your program as before but with
-   an extra option -mat_mumps_use_omp_threads [m]. It works as if we set OMP_NUM_THREADS=m to MUMPS, with m defaults to the number of cores
-   per CPU socket (or package, in hwloc term), or number of PETSc MPI processes on a node, whichever is smaller.
+   libraries, to really get performance, you should have multithreaded BLAS libraries such as Intel MKL, AMD ACML, Cray libSci or OpenBLAS
+   (PETSc will automatically try to utilized a threaded BLAS if --with-openmp is provided).
 
-   By flat-MPI or pure-MPI mode, it means you run your code with as many MPI ranks as the number of cores. For example,
-   if a compute node has 32 cores and you run on two nodes, you may use "mpirun -n 64 ./test". To run MPI+OpenMP hybrid MUMPS,
-   the tranditional way is to set OMP_NUM_THREADS and run with fewer MPI ranks than cores. For example, if you want to have 16 OpenMP
-   threads per rank, then you may use "export OMP_NUM_THREADS=16 && mpirun -n 4 ./test". The problem of this approach is that the non-MUMPS
-   part of your code is run with fewer cores and CPUs are wasted. "-mat_mumps_use_omp_threads [m]" provides an alternative such that
-   you can stil run your code with as many MPI ranks as the number of cores, but have MUMPS run in MPI+OpenMP hybrid mode. In our example,
-   you can use "mpirun -n 64 ./test -mat_mumps_use_omp_threads 16".
-
-   If you run your code through a job submission system, there are caveats in MPI rank mapping. We use MPI_Comm_split_type to get MPI
+   If you run your code through a job submission system, there are caveats in MPI rank mapping. We use MPI_Comm_split_type() to obtain MPI
    processes on each compute node. Listing the processes in rank ascending order, we split processes on a node into consecutive groups of
    size m and create a communicator called omp_comm for each group. Rank 0 in an omp_comm is called the master rank, and others in the omp_comm
    are called slave ranks (or slaves). Only master ranks are seen to MUMPS and slaves are not. We will free CPUs assigned to slaves (might be set
@@ -2502,7 +2523,7 @@ $          MatMumpsGetInfog(mat,....); etc.
    MPI ranks to cores, then with -mat_mumps_use_omp_threads 16, a master rank (and threads it spawns) will use half cores in socket 0, and half
    cores in socket 1, that definitely hurts locality. On the other hand, if you map MPI ranks consecutively on the two sockets, then the
    problem will not happen. Therefore, when you use -mat_mumps_use_omp_threads, you need to keep an eye on your MPI rank mapping and CPU binding.
-   For example, with the Slurm job scheduler, one can use srun --cpu-bind=verbsoe -m block:block to map consecutive MPI ranks to sockets and
+   For example, with the Slurm job scheduler, one can use srun --cpu-bind=verbose -m block:block to map consecutive MPI ranks to sockets and
    examine the mapping result.
 
    PETSc does not control thread binding in MUMPS. So to get best performance, one still has to set OMP_PROC_BIND and OMP_PLACES in job scripts,
