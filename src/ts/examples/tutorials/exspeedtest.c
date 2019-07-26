@@ -8,59 +8,6 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # define VECSTANDARD    	 "standard"
 
 /*	ADDITIONAL FUNCTIONS	*/
-/*	Phasing this out in favor of using new official function now
-PetscErrorCode VTKPartitionVisualize(DM dm, DM *dmLocal, Vec *partition)
-{
-        MPI_Comm	DMcomm;
-        PetscSF        	sfPoint;
-	PetscSection   	coordSection;
-	Vec            	coordinates;
-	PetscSection   	sectionLocal;
-	PetscScalar    	*arrayLocal;
-	PetscInt       	sStart, sEnd, sIter;
-	PetscMPIInt    	rank;
-	PetscErrorCode 	ierr;
-
-
-	Make Temp DM
-	ierr = DMClone(dm, dmLocal);CHKERRQ(ierr);
-	//	Get and Set Coord Map
-	ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
-	ierr = DMSetCoordinateSection(*dmLocal, PETSC_DETERMINE, coordSection);CHKERRQ(ierr);
-	//	Get and Set Neighbors
-	//ierr = DMGetPointSF(dm, &sfPoint);CHKERRQ(ierr);
-	//ierr = DMSetPointSF(*dmLocal, sfPoint);CHKERRQ(ierr);
-	/	Populate Coords
-	ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
-	ierr = DMSetCoordinatesLocal(*dmLocal, coordinates);CHKERRQ(ierr);
-	//	Get Local Comm handle
-	ierr = PetscObjectGetComm((PetscObject) *dmLocal, &DMcomm);CHKERRQ(ierr);
-	ierr = MPI_Comm_rank(DMcomm , &rank);CHKERRQ(ierr);
-	//	Setup the partition "field"
-	ierr = PetscSectionCreate(DMcomm , &sectionLocal);CHKERRQ(ierr);
-	ierr = DMPlexGetHeightStratum(*dmLocal, 0, &sStart, &sEnd);CHKERRQ(ierr);
-	ierr = PetscSectionSetChart(sectionLocal, sStart, sEnd);CHKERRQ(ierr);
-
-	for (sIter = sStart; sIter < sEnd; ++sIter) {
-	//	Allow for assigning value
-		ierr = PetscSectionSetDof(sectionLocal, sIter, 1);CHKERRQ(ierr);
-	}
-
-	ierr = PetscSectionSetUp(sectionLocal);CHKERRQ(ierr);
-	ierr = DMSetSection(*dmLocal, sectionLocal);CHKERRQ(ierr);
-	ierr = PetscSectionDestroy(&sectionLocal);CHKERRQ(ierr);
-	ierr = DMCreateLocalVector(*dmLocal, partition);CHKERRQ(ierr);
-	ierr = VecGetArray(*partition, &arrayLocal);CHKERRQ(ierr);
-	ierr = PetscObjectSetName((PetscObject)*partition, "Partition_per_process");CHKERRQ(ierr);
-
-	for (sIter = sStart; sIter < sEnd; ++sIter) {
-		arrayLocal[sIter] = rank;
-	}
-	ierr = VecRestoreArray(*partition, &arrayLocal);CHKERRQ(ierr);
-	return ierr;
-}
-*/
-
 PetscErrorCode ViewISInfo(MPI_Comm comm, DM dm)
 {
 	PetscViewer	viewer;
