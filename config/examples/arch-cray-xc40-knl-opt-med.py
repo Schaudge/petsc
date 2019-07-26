@@ -101,8 +101,8 @@ if __name__ == '__main__':
     '--download-parmetis=1',
     '--download-exodusii',
     '--with-med=1',
-    '--download-med-configure-arguments="--with-hdf5-bin=/opt/cray/pe/hdf5-parallel/1.10.2.0/bin"',
-    '--download-med-configure-arguments="--host="',
+    '--with-med-dir=/home/balay/soft/theta/med',
+    #'--with-med-dir=' + os.environ['PETSC_DIR'] + '/' + os.environ['PETSC_ARCH'] + '/externalpackages/git.med/',
     'PETSC_ARCH=arch-cray-xc40-knl-opt'
   ]
   configure.petsc_configure(configure_options)
