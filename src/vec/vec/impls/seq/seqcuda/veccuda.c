@@ -13,6 +13,116 @@
 #include <../src/vec/vec/impls/dvecimpl.h>
 #include <../src/vec/vec/impls/seq/seqcuda/cudavecimpl.h>
 
+static PetscErrorCode PetscCUBLASDestroyHandle();
+
+/*
+   Implementation for obtaining read-write access to the cuBLAS handle.
+   Required to properly deal with repeated calls of PetscInitizalize()/PetscFinalize().
+ */
+static PetscErrorCode PetscCUBLASGetHandle_Private(cublasHandle_t **handle)
+{
+  static cublasHandle_t cublasv2handle = NULL;
+  cublasStatus_t        cberr;
+  PetscErrorCode        ierr;
+
+  PetscFunctionBegin;
+  if (!cublasv2handle) {
+    cberr = cublasCreate(&cublasv2handle);CHKERRCUBLAS(cberr);
+    /* Make sure that the handle will be destroyed properly */
+    ierr = PetscRegisterFinalize(PetscCUBLASDestroyHandle);CHKERRQ(ierr);
+  }
+  *handle = &cublasv2handle;
+  PetscFunctionReturn(0);
+}
+
+/*
+    Initializing the cuBLAS handle can take 1/2 a second therefor
+    initialize in PetscInitialize() before being timing so it does
+    not distort the -log_view information
+*/
+PetscErrorCode PetscCUBLASInitializeHandle(void)
+{
+  cublasHandle_t *p_cublasv2handle;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscCUBLASGetHandle_Private(&p_cublasv2handle);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*
+   Singleton for obtaining a handle to cuBLAS.
+   The handle is required for calls to routines in cuBLAS.
+ */
+PetscErrorCode PetscCUBLASGetHandle(cublasHandle_t *handle)
+{
+  cublasHandle_t *p_cublasv2handle;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscCUBLASGetHandle_Private(&p_cublasv2handle);CHKERRQ(ierr);
+  *handle = *p_cublasv2handle;
+  PetscFunctionReturn(0);
+}
+
+
+/*
+   Destroys the CUBLAS handle.
+   This function is intended and registered for PetscFinalize - do not call manually!
+ */
+PetscErrorCode PetscCUBLASDestroyHandle()
+{
+  cublasHandle_t *p_cublasv2handle;
+  cublasStatus_t cberr;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscCUBLASGetHandle_Private(&p_cublasv2handle);CHKERRQ(ierr);
+  cberr = cublasDestroy(*p_cublasv2handle);CHKERRCUBLAS(cberr);
+  *p_cublasv2handle = NULL;  /* Ensures proper reinitialization */
+  PetscFunctionReturn(0);
+}
+
+/*@
+  VecCUDASetPinnedMemoryMin - Set the minimum data size for which pinned memory on CPU will be allocated..
+
+  Collective on Vec
+
+  Input Parameters:
++  v    - the vector
+-  mbytes - minimum data size in bytes
+
+  Level: advanced
+.seealso: VecCUDAGetPinnedMemoryMin()
+@*/
+PetscErrorCode VecCUDASetPinnedMemoryMin(Vec v,PetscInt mbytes)
+{
+  Vec_CUDA *veccuda = (Vec_CUDA*)v->spptr;
+
+  PetscFunctionBegin;
+  veccuda->minimum_bytes_pinned_memory = mbytes;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  VecCUDAGetPinnedMemoryMin - Get the minimum data size for which pinned memory on CPU will be allocated.
+
+  Collective on Vec
+
+  Input Parameters:
++  v    - the vector
+-  mbytes - minimum data size in bytes
+.seealso: VecCUDASetPinnedMemoryMin()
+@*/
+PetscErrorCode VecCUDAGetPinnedMemoryMin(Vec v,PetscInt* mbytes)
+{
+  Vec_CUDA *veccuda = (Vec_CUDA*)v->spptr;
+
+  PetscFunctionBegin;
+  *mbytes = veccuda->minimum_bytes_pinned_memory;
+  PetscFunctionReturn(0);
+}
+
 /*
     Allocates space for the vector array on the Host if it does not exist.
     Does NOT change the PetscCUDAFlag for the vector
@@ -23,6 +133,7 @@ PetscErrorCode VecCUDAAllocateCheckHost(Vec v)
   PetscErrorCode ierr;
   PetscScalar    *array;
   Vec_Seq        *s = (Vec_Seq*)v->data;
+  Vec_CUDA       *veccuda = (Vec_CUDA*)v->spptr;
   PetscInt       n = v->map->n;
 
   PetscFunctionBegin;
@@ -31,14 +142,14 @@ PetscErrorCode VecCUDAAllocateCheckHost(Vec v)
     v->data = s;
   }
   if (!s->array) {
-    if (n*sizeof(PetscScalar)> 134217728) {
+    if (n*sizeof(PetscScalar)> veccuda->minimum_bytes_pinned_memory) {
       ierr = PetscMallocSetCUDAHost();CHKERRQ(ierr);
     }
     ierr = PetscMalloc1(n,&array);CHKERRQ(ierr);
     ierr = PetscLogObjectMemory((PetscObject)v,n*sizeof(PetscScalar));CHKERRQ(ierr);
     s->array           = array;
     s->array_allocated = array;
-    if (n*sizeof(PetscScalar) > 134217728) {
+    if (n*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
       ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
     }
     if (v->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
@@ -83,6 +194,7 @@ PetscErrorCode VecSetRandom_SeqCUDA_Private(Vec xin,PetscRandom r)
 PetscErrorCode VecDestroy_SeqCUDA_Private(Vec v)
 {
   Vec_Seq        *vs = (Vec_Seq*)v->data;
+  Vec_CUDA       *veccuda = (Vec_CUDA*)v->spptr;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -92,11 +204,11 @@ PetscErrorCode VecDestroy_SeqCUDA_Private(Vec v)
 #endif
   if (vs) {
     if (vs->array_allocated) {
-      if (v->map->n*sizeof(PetscScalar) > 134217728) {
+      if (v->map->n*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
         ierr = PetscMallocSetCUDAHost();CHKERRQ(ierr);
       }
       ierr = PetscFree(vs->array_allocated);CHKERRQ(ierr);
-      if (v->map->n*sizeof(PetscScalar) > 134217728) {
+      if (v->map->n*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
         ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
       }
     }
