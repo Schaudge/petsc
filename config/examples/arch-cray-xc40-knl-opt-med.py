@@ -100,8 +100,9 @@ if __name__ == '__main__':
     '--download-metis=1',
     '--download-parmetis=1',
     '--download-exodusii',
-    '--with-med=1',
-    '--with-med-dir=/home/balay/soft/theta/med',
+    '--download-med',
+    #'--with-med=1',
+    #'--with-med-dir=/home/balay/soft/theta/med',
     #'--with-med-dir=' + os.environ['PETSC_DIR'] + '/' + os.environ['PETSC_ARCH'] + '/externalpackages/git.med/',
     'PETSC_ARCH=arch-cray-xc40-knl-opt'
   ]
