@@ -18,4 +18,6 @@ PETSC_EXTERN PetscErrorCode VecCUDAReplaceArray(Vec, PetscScalar *);
 PETSC_EXTERN PetscErrorCode VecCUDAResetArray(Vec);
 PETSC_EXTERN PetscErrorCode PetscCUBLASGetHandle(cublasHandle_t *handle);
 
+PETSC_EXTERN PetscErrorCode VecCUDASetPinnedMemoryMin(Vec, PetscInt);
+PETSC_EXTERN PetscErrorCode VecCUDAGetPinnedMemoryMin(Vec, PetscInt*);
 #endif
