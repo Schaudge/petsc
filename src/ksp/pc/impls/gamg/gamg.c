@@ -99,6 +99,12 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
 
   if (new_size==nactive) {
     *a_Amat_crs = Cmat; /* output - no repartitioning or reduction - could bail here */
+    if (new_size < size) {
+      /* odd case where multiple coarse grids are on one processor or no coarsening ... */
+      ierr = PetscInfo1(pc,"reduced grid using same number of processors (%D) as last grid???\n",nactive);CHKERRQ(ierr);
+      ierr = MatPinToCPU(*a_Amat_crs,PETSC_TRUE);CHKERRQ(ierr);
+      ierr = MatPinToCPU(*a_P_inout,PETSC_TRUE);CHKERRQ(ierr);
+    }
     /* we know that the grid structure can be reused in MatPtAP */
   } else { /* reduce active processors - we know that the grid structure can NOT be reused in MatPtAP */
     PetscInt       *counts,*newproc_idx,ii,jj,kk,strideNew,*tidx,ncrs_new,ncrs_eq_new,nloc_old;
@@ -318,10 +324,10 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
       */
       ierr = PetscFree(pc_gamg->data);CHKERRQ(ierr);
       ierr = PetscMalloc1(node_data_sz*ncrs_new, &pc_gamg->data);CHKERRQ(ierr);
-      
+
       pc_gamg->data_sz = node_data_sz*ncrs_new;
       strideNew        = ncrs_new*ndata_rows;
-      
+
       ierr = VecGetArray(dest_crd, &array);CHKERRQ(ierr);
       for (jj=0; jj<ndata_cols; jj++) {
 	for (ii=0; ii<ncrs_new; ii++) {
@@ -393,6 +399,25 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
     ierr = ISDestroy(&new_eq_indices);CHKERRQ(ierr);
 
     *a_nactive_proc = new_size; /* output */
+
+    /* hard-wire pinning on reduced grids, not a bad heuristic and optimization gets folded into process reduction optimization */
+    if (1) {
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+      ierr = PetscInfo(pc,"Pinning level to the CPU\n");CHKERRQ(ierr);
+#endif
+      ierr = MatPinToCPU(*a_Amat_crs,PETSC_TRUE);CHKERRQ(ierr);
+      ierr = MatPinToCPU(*a_P_inout,PETSC_TRUE);CHKERRQ(ierr);
+      if (0) { /* lvec is created, need to pin it, this is done in MatSetUpMultiply_MPIAIJ -- do we need this code??? */
+        Mat         A = *a_Amat_crs, P = *a_P_inout;
+        PetscMPIInt size;
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)A),&size);CHKERRQ(ierr);
+        if (size > 1) {
+          Mat_MPIAIJ     *a = (Mat_MPIAIJ*)A->data, *p = (Mat_MPIAIJ*)P->data;
+          ierr = VecPinToCPU(a->lvec,PETSC_TRUE);CHKERRQ(ierr);
+          ierr = VecPinToCPU(p->lvec,PETSC_TRUE);CHKERRQ(ierr);
+        }
+      }
+    }
   }
   PetscFunctionReturn(0);
 }

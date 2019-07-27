@@ -106,7 +106,12 @@ PetscErrorCode MatSetUpMultiply_MPIAIJ(Mat mat)
 
   if (!aij->lvec) {
     /* create local vector that is used to scatter into */
-    ierr = VecCreateSeq(PETSC_COMM_SELF,ec,&aij->lvec);CHKERRQ(ierr);
+    ierr = VecCreate(PETSC_COMM_SELF,&aij->lvec);CHKERRQ(ierr);
+    ierr = VecSetSizes(aij->lvec,ec,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetType(aij->lvec,mat->defaultvectype);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+    ierr = VecPinToCPU(aij->lvec,mat->pinnedtocpu);CHKERRQ(ierr);
+#endif
   } else {
     ierr = VecGetSize(aij->lvec,&ec);CHKERRQ(ierr);
   }

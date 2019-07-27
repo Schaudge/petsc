@@ -125,6 +125,7 @@ PetscErrorCode VecDuplicate_MPICUDA(Vec win,Vec *v)
   ierr = VecCreate_MPICUDA_Private(*v,PETSC_TRUE,w->nghost,0);CHKERRQ(ierr);
   vw   = (Vec_MPI*)(*v)->data;
   ierr = PetscMemcpy((*v)->ops,win->ops,sizeof(struct _VecOps));CHKERRQ(ierr);
+  ierr = VecPinToCPU(*v,win->pinnedtocpu);CHKERRQ(ierr);
 
   /* save local representation of the parallel vector (and scatter) if it exists */
   if (w->localrep) {
@@ -251,8 +252,8 @@ PetscErrorCode VecPinToCPU_MPICUDA(Vec V,PetscBool pin)
   PetscFunctionBegin;
   V->pinnedtocpu = pin;
   if (pin) {
-    ierr = VecCUDACopyFromGPU(V);CHKERRQ(ierr);
     V->valid_GPU_array = PETSC_OFFLOAD_CPU; /* since the CPU code will likely change values in the vector */
+    ierr = VecCUDACopyFromGPU(V);CHKERRQ(ierr);
     V->ops->dotnorm2               = NULL;
     V->ops->waxpy                  = VecWAXPY_Seq;
     V->ops->dot                    = VecDot_MPI;

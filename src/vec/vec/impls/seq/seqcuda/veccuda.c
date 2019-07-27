@@ -298,6 +298,7 @@ PetscErrorCode VecCreateSeqCUDA(MPI_Comm comm,PetscInt n,Vec *v)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecPinToCPU_SeqCUDA(Vec,PetscBool);
 PetscErrorCode VecDuplicate_SeqCUDA(Vec win,Vec *V)
 {
   PetscErrorCode ierr;
@@ -308,6 +309,7 @@ PetscErrorCode VecDuplicate_SeqCUDA(Vec win,Vec *V)
   ierr = PetscObjectListDuplicate(((PetscObject)win)->olist,&((PetscObject)(*V))->olist);CHKERRQ(ierr);
   ierr = PetscFunctionListDuplicate(((PetscObject)win)->qlist,&((PetscObject)(*V))->qlist);CHKERRQ(ierr);
   (*V)->stash.ignorenegidx = win->stash.ignorenegidx;
+  ierr = VecPinToCPU_SeqCUDA(*V,win->pinnedtocpu);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

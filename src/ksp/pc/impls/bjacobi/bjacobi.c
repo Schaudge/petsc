@@ -4,7 +4,7 @@
 */
 
 #include <../src/ksp/pc/impls/bjacobi/bjacobi.h> /*I "petscpc.h" I*/
-
+#include <../src/mat/impls/aij/mpi/mpiaij.h>   /*I "petscmat.h" I*/
 static PetscErrorCode PCSetUp_BJacobi_Singleblock(PC,Mat,Mat);
 static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC,Mat,Mat);
 static PetscErrorCode PCSetUp_BJacobi_Multiproc(PC);
@@ -790,6 +790,8 @@ static PetscErrorCode PCSetUp_BJacobi_Singleblock(PC pc,Mat mat,Mat pmat)
     if (is_gpumatrix) {
       ierr = VecSetType(bjac->x,VECCUDA);CHKERRQ(ierr);
       ierr = VecSetType(bjac->y,VECCUDA);CHKERRQ(ierr);
+      ierr = VecPinToCPU(bjac->x,pmat->pinnedtocpu);CHKERRQ(ierr);
+      ierr = VecPinToCPU(bjac->y,pmat->pinnedtocpu);CHKERRQ(ierr);
     }
 #endif
 #if defined(PETSC_HAVE_VIENNACL)
@@ -1035,7 +1037,6 @@ static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC pc,Mat mat,Mat pmat)
       block. We do not need to allocate space for the vectors since
       that is provided via VecPlaceArray() just before the call to
       KSPSolve() on the block.
-
       */
       ierr = VecCreateSeq(PETSC_COMM_SELF,m,&x);CHKERRQ(ierr);
       ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,m,NULL,&y);CHKERRQ(ierr);
@@ -1044,6 +1045,8 @@ static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC pc,Mat mat,Mat pmat)
       if (is_gpumatrix) {
         ierr = VecSetType(x,VECCUDA);CHKERRQ(ierr);
         ierr = VecSetType(y,VECCUDA);CHKERRQ(ierr);
+	ierr = VecPinToCPU(x,pmat->pinnedtocpu);CHKERRQ(ierr);
+	ierr = VecPinToCPU(y,pmat->pinnedtocpu);CHKERRQ(ierr);
       }
 #endif
 #if defined(PETSC_HAVE_VIENNACL)
@@ -1245,6 +1248,8 @@ static PetscErrorCode PCSetUp_BJacobi_Multiproc(PC pc)
     if (is_gpumatrix) {
       ierr = VecSetType(mpjac->xsub,VECMPICUDA);CHKERRQ(ierr);
       ierr = VecSetType(mpjac->ysub,VECMPICUDA);CHKERRQ(ierr);
+      ierr = VecPinToCPU(mpjac->xsub,pc->pmat->pinnedtocpu);CHKERRQ(ierr);
+      ierr = VecPinToCPU(mpjac->ysub,pc->pmat->pinnedtocpu);CHKERRQ(ierr);
     }
 #endif
 #if defined(PETSC_HAVE_VIENNACL)

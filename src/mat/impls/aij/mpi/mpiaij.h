@@ -106,6 +106,11 @@ PETSC_INTERN PetscErrorCode MatCreateSubMatrix_MPIAIJ_SameRowDist(Mat,IS,IS,IS,M
 PETSC_INTERN PetscErrorCode MatCreateSubMatrix_MPIAIJ_SameRowColDist(Mat,IS,IS,MatReuse,Mat*);
 PETSC_INTERN PetscErrorCode MatGetMultiProcBlock_MPIAIJ(Mat,MPI_Comm,MatReuse,Mat*);
 
+PETSC_INTERN PetscErrorCode MatMult_MPIAIJ(Mat A,Vec xx,Vec yy);
+PETSC_INTERN PetscErrorCode MatMultAdd_MPIAIJ(Mat A,Vec xx,Vec yy,Vec zz);
+PETSC_INTERN PetscErrorCode MatMultTranspose_MPIAIJ(Mat A,Vec xx,Vec yy);
+PETSC_INTERN PetscErrorCode MatMultTransposeAdd_MPIAIJ(Mat A,Vec xx,Vec yy,Vec zz);
+
 PETSC_INTERN PetscErrorCode MatLoad_MPIAIJ(Mat,PetscViewer);
 PETSC_INTERN PetscErrorCode MatLoad_MPIAIJ_Binary(Mat,PetscViewer);
 PETSC_INTERN PetscErrorCode MatCreateColmap_MPIAIJ_Private(Mat);
