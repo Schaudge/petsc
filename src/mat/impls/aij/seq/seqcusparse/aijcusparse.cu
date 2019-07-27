@@ -94,7 +94,7 @@ PetscErrorCode MatFactorGetSolverType_seqaij_cusparse(Mat A,MatSolverType *type)
 
 .seealso: PCFactorSetMatSolverType(), MatSolverType, MatCreateSeqAIJCUSPARSE(), MATAIJCUSPARSE, MatCreateAIJCUSPARSE(), MatCUSPARSESetFormat(), MatCUSPARSEStorageFormat, MatCUSPARSEFormatOperation
 M*/
-
+static PetscErrorCode MatPinToCPU_SeqAIJCUSPARSE(Mat A,PetscBool flg);
 PETSC_EXTERN PetscErrorCode MatGetFactor_seqaijcusparse_cusparse(Mat A,MatFactorType ftype,Mat *B)
 {
   PetscErrorCode ierr;
@@ -116,6 +116,9 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_seqaijcusparse_cusparse(Mat A,MatFactor
   } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Factor type not supported for CUSPARSE Matrix Types");
 
   ierr = MatSeqAIJSetPreallocation(*B,MAT_SKIP_ALLOCATION,NULL);CHKERRQ(ierr);
+  ierr = MatPinToCPU_SeqAIJCUSPARSE(*B,A->pinnedtocpu);CHKERRQ(ierr);
+  (*B)->ops->pintocpu = MatPinToCPU_SeqAIJCUSPARSE;
+
   ierr = PetscObjectComposeFunction((PetscObject)(*B),"MatFactorGetSolverType_C",MatFactorGetSolverType_seqaij_cusparse);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1588,10 +1591,33 @@ static PetscErrorCode MatAssemblyEnd_SeqAIJCUSPARSE(Mat A,MatAssemblyType mode)
   if (A->factortype == MAT_FACTOR_NONE) {
     ierr = MatSeqAIJCUSPARSECopyToGPU(A);CHKERRQ(ierr);
   }
-  A->ops->mult             = MatMult_SeqAIJCUSPARSE;
-  A->ops->multadd          = MatMultAdd_SeqAIJCUSPARSE;
-  A->ops->multtranspose    = MatMultTranspose_SeqAIJCUSPARSE;
-  A->ops->multtransposeadd = MatMultTransposeAdd_SeqAIJCUSPARSE;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode MatDestroy_SeqAIJCUSPARSE(Mat A);
+static PetscErrorCode MatDuplicate_SeqAIJCUSPARSE(Mat A,MatDuplicateOption cpvalues,Mat *B);
+static PetscErrorCode MatPinToCPU_SeqAIJCUSPARSE(Mat A,PetscBool flg)
+{
+  PetscFunctionBegin;
+  A->pinnedtocpu = flg;
+  if (flg) {
+    A->ops->assemblyend      = MatAssemblyEnd_SeqAIJ;
+    A->ops->destroy          = MatDestroy_SeqAIJ;
+    A->ops->duplicate        = MatDuplicate_SeqAIJ;
+    A->ops->mult             = MatMult_SeqAIJ;
+    A->ops->multadd          = MatMultAdd_SeqAIJ;
+    A->ops->multtranspose    = MatMultTranspose_SeqAIJ;
+    A->ops->multtransposeadd = MatMultTransposeAdd_SeqAIJ;
+  } else {
+    A->ops->assemblyend      = MatAssemblyEnd_SeqAIJCUSPARSE;
+    A->ops->destroy          = MatDestroy_SeqAIJCUSPARSE;
+    A->ops->duplicate        = MatDuplicate_SeqAIJCUSPARSE;
+    A->ops->mult             = MatMult_SeqAIJCUSPARSE;
+    A->ops->multadd          = MatMultAdd_SeqAIJCUSPARSE;
+    A->ops->multtranspose    = MatMultTranspose_SeqAIJCUSPARSE;
+    A->ops->multtransposeadd = MatMultTransposeAdd_SeqAIJCUSPARSE;
+  }
+  A->ops->setfromoptions   = MatSetFromOptions_SeqAIJCUSPARSE;
   PetscFunctionReturn(0);
 }
 
@@ -1652,6 +1678,8 @@ PetscErrorCode  MatCreateSeqAIJCUSPARSE(MPI_Comm comm,PetscInt m,PetscInt n,Pets
   ierr = MatSetSizes(*A,m,n,m,n);CHKERRQ(ierr);
   ierr = MatSetType(*A,MATSEQAIJCUSPARSE);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation_SeqAIJ(*A,nz,(PetscInt*)nnz);CHKERRQ(ierr);
+  ierr = MatPinToCPU_SeqAIJCUSPARSE(*A,PETSC_FALSE);CHKERRQ(ierr);
+  (*A)->ops->pintocpu = MatPinToCPU_SeqAIJCUSPARSE;
   PetscFunctionReturn(0);
 }
 
@@ -1684,6 +1712,9 @@ static PetscErrorCode MatDuplicate_SeqAIJCUSPARSE(Mat A,MatDuplicateOption cpval
   ierr = PetscFree(C->defaultvectype);CHKERRQ(ierr);
   ierr = PetscStrallocpy(VECCUDA,&C->defaultvectype);CHKERRQ(ierr);
 
+  ierr = MatPinToCPU_SeqAIJCUSPARSE(C,A->pinnedtocpu);CHKERRQ(ierr);
+  C->ops->pintocpu = MatPinToCPU_SeqAIJCUSPARSE;
+
   /* inject CUSPARSE-specific stuff */
   if (C->factortype==MAT_FACTOR_NONE) {
     /* you cannot check the inode.use flag here since the matrix was just created.
@@ -1712,15 +1743,6 @@ static PetscErrorCode MatDuplicate_SeqAIJCUSPARSE(Mat A,MatDuplicateOption cpval
     ((Mat_SeqAIJCUSPARSETriFactors*)C->spptr)->handle                  = handle;
     ((Mat_SeqAIJCUSPARSETriFactors*)C->spptr)->nnz                     = 0;
   }
-
-  C->ops->assemblyend      = MatAssemblyEnd_SeqAIJCUSPARSE;
-  C->ops->destroy          = MatDestroy_SeqAIJCUSPARSE;
-  C->ops->setfromoptions   = MatSetFromOptions_SeqAIJCUSPARSE;
-  C->ops->mult             = MatMult_SeqAIJCUSPARSE;
-  C->ops->multadd          = MatMultAdd_SeqAIJCUSPARSE;
-  C->ops->multtranspose    = MatMultTranspose_SeqAIJCUSPARSE;
-  C->ops->multtransposeadd = MatMultTransposeAdd_SeqAIJCUSPARSE;
-  C->ops->duplicate        = MatDuplicate_SeqAIJCUSPARSE;
 
   ierr = PetscObjectChangeTypeName((PetscObject)C,MATSEQAIJCUSPARSE);CHKERRQ(ierr);
 
@@ -1767,14 +1789,8 @@ PETSC_EXTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat B)
     ((Mat_SeqAIJCUSPARSETriFactors*)B->spptr)->nnz                     = 0;
   }
 
-  B->ops->assemblyend      = MatAssemblyEnd_SeqAIJCUSPARSE;
-  B->ops->destroy          = MatDestroy_SeqAIJCUSPARSE;
-  B->ops->setfromoptions   = MatSetFromOptions_SeqAIJCUSPARSE;
-  B->ops->mult             = MatMult_SeqAIJCUSPARSE;
-  B->ops->multadd          = MatMultAdd_SeqAIJCUSPARSE;
-  B->ops->multtranspose    = MatMultTranspose_SeqAIJCUSPARSE;
-  B->ops->multtransposeadd = MatMultTransposeAdd_SeqAIJCUSPARSE;
-  B->ops->duplicate        = MatDuplicate_SeqAIJCUSPARSE;
+  ierr = MatPinToCPU_SeqAIJCUSPARSE(B,PETSC_FALSE);CHKERRQ(ierr);
+  B->ops->pintocpu = MatPinToCPU_SeqAIJCUSPARSE;
 
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQAIJCUSPARSE);CHKERRQ(ierr);
 

@@ -15,6 +15,7 @@
 #include <../src/vec/vec/impls/seq/seqcuda/cudavecimpl.h>
 
 static PetscErrorCode PetscCUBLASDestroyHandle();
+PetscErrorCode VecPinToCPU_SeqCUDA(Vec V,PetscBool pin);
 
 /*
    Implementation for obtaining read-write access to the cuBLAS handle.
@@ -308,6 +309,7 @@ PetscErrorCode VecDuplicate_SeqCUDA(Vec win,Vec *V)
   ierr = PetscObjectListDuplicate(((PetscObject)win)->olist,&((PetscObject)(*V))->olist);CHKERRQ(ierr);
   ierr = PetscFunctionListDuplicate(((PetscObject)win)->qlist,&((PetscObject)(*V))->qlist);CHKERRQ(ierr);
   (*V)->stash.ignorenegidx = win->stash.ignorenegidx;
+  ierr = VecPinToCPU_SeqCUDA(*V,win->pinnedtocpu);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

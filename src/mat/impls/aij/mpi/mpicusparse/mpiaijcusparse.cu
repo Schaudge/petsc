@@ -228,6 +228,67 @@ PetscErrorCode MatDestroy_MPIAIJCUSPARSE(Mat A)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode MatCreateVecs_MPIAIJCUSPARSE(Mat mat,Vec *right,Vec *left)
+{
+  PetscErrorCode ierr;
+  PetscInt rbs,cbs;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
+  PetscValidType(mat,1);
+  ierr = MatGetBlockSizes(mat,&rbs,&cbs);CHKERRQ(ierr);
+  if (right) {
+    if (mat->cmap->n < 0) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"PetscLayout for columns not yet setup");
+    ierr = VecCreate(PetscObjectComm((PetscObject)mat),right);CHKERRQ(ierr);
+    ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*right,cbs);CHKERRQ(ierr);
+    ierr = VecSetType(*right,mat->defaultvectype);CHKERRQ(ierr);
+    ierr = PetscLayoutReference(mat->cmap,&(*right)->map);CHKERRQ(ierr);
+    ierr = VecPinToCPU(*right,mat->pinnedtocpu);CHKERRQ(ierr);
+  }
+  if (left) {
+    if (mat->rmap->n < 0) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"PetscLayout for rows not yet setup");
+    ierr = VecCreate(PetscObjectComm((PetscObject)mat),left);CHKERRQ(ierr);
+    ierr = VecSetSizes(*left,mat->rmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*left,rbs);CHKERRQ(ierr);
+    ierr = VecSetType(*left,mat->defaultvectype);CHKERRQ(ierr);
+    ierr = PetscLayoutReference(mat->rmap,&(*left)->map);CHKERRQ(ierr);
+    ierr = VecPinToCPU(*left,mat->pinnedtocpu);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode MatPinToCPU_MPIAIJCUSPARSE(Mat A,PetscBool flg)
+{
+  PetscErrorCode     ierr;
+  Mat_MPIAIJ         *b = (Mat_MPIAIJ*)A->data;
+  PetscFunctionBegin;
+  A->pinnedtocpu = flg;
+  if (flg) {
+    A->ops->assemblyend    = MatAssemblyEnd_MPIAIJ;
+    A->ops->mult           = MatMult_MPIAIJ;
+    A->ops->multadd        = MatMultAdd_MPIAIJ;
+    A->ops->multtranspose  = MatMultTranspose_MPIAIJ;
+    A->ops->setfromoptions = MatSetFromOptions_MPIAIJ;
+    A->ops->destroy        = MatDestroy_MPIAIJ;
+  } else {
+    A->ops->assemblyend    = MatAssemblyEnd_MPIAIJCUSPARSE;
+    A->ops->mult           = MatMult_MPIAIJCUSPARSE;
+    A->ops->multadd        = MatMultAdd_MPIAIJCUSPARSE;
+    A->ops->multtranspose  = MatMultTranspose_MPIAIJCUSPARSE;
+    A->ops->setfromoptions = MatSetFromOptions_MPIAIJCUSPARSE;
+    A->ops->destroy        = MatDestroy_MPIAIJCUSPARSE;
+  }
+  A->ops->getvecs        = MatCreateVecs_MPIAIJCUSPARSE;
+  if (b->A) { // can be before preallocate
+    ierr = MatPinToCPU(b->A,A->pinnedtocpu);CHKERRQ(ierr);
+  }
+  if (b->B) {
+    ierr = MatPinToCPU(b->B,A->pinnedtocpu);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat A)
 {
   PetscErrorCode     ierr;
@@ -251,12 +312,8 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat A)
   stat = cusparseCreate(&(cusparseStruct->handle));CHKERRCUDA(stat);
   err = cudaStreamCreate(&(cusparseStruct->stream));CHKERRCUDA(err);
 
-  A->ops->assemblyend    = MatAssemblyEnd_MPIAIJCUSPARSE;
-  A->ops->mult           = MatMult_MPIAIJCUSPARSE;
-  A->ops->multadd        = MatMultAdd_MPIAIJCUSPARSE;
-  A->ops->multtranspose  = MatMultTranspose_MPIAIJCUSPARSE;
-  A->ops->setfromoptions = MatSetFromOptions_MPIAIJCUSPARSE;
-  A->ops->destroy        = MatDestroy_MPIAIJCUSPARSE;
+  A->ops->pintocpu = MatPinToCPU_MPIAIJCUSPARSE;
+  ierr = MatPinToCPU_MPIAIJCUSPARSE(A,PETSC_FALSE);CHKERRQ(ierr);
 
   ierr = PetscObjectChangeTypeName((PetscObject)A,MATMPIAIJCUSPARSE);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatCUSPARSESetFormat_C",  MatCUSPARSESetFormat_MPIAIJCUSPARSE);CHKERRQ(ierr);

@@ -397,6 +397,19 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
     ierr = ISDestroy(&new_eq_indices);CHKERRQ(ierr);
 
     *a_nactive_proc = new_size; /* output */
+    /* pin reduced coase grid - could do something smarter - does NOT percolate to vectors */
+    ierr = MatPinToCPU(*a_Amat_crs,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = MatPinToCPU(*a_P_inout,PETSC_TRUE);CHKERRQ(ierr);
+    { /* hacks */
+      Mat         A = *a_Amat_crs, P = *a_P_inout;
+      PetscMPIInt size;
+      ierr = MPI_Comm_size(PetscObjectComm((PetscObject)A),&size);CHKERRQ(ierr);
+      if (size > 1) {
+	Mat_MPIAIJ     *a = (Mat_MPIAIJ*)A->data, *p = (Mat_MPIAIJ*)P->data;
+	ierr = VecPinToCPU(a->lvec,PETSC_TRUE);CHKERRQ(ierr);
+	ierr = VecPinToCPU(p->lvec,PETSC_TRUE);CHKERRQ(ierr);
+      }
+    }
   }
   PetscFunctionReturn(0);
 }

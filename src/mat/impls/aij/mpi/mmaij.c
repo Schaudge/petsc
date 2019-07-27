@@ -105,8 +105,15 @@ PetscErrorCode MatSetUpMultiply_MPIAIJ(Mat mat)
   }
 
   if (!aij->lvec) {
+    PetscInt       rbs,cbs;
+    ierr = MatGetBlockSizes(mat,&rbs,&cbs);CHKERRQ(ierr);
     /* create local vector that is used to scatter into */
-    ierr = VecCreateSeq(PETSC_COMM_SELF,ec,&aij->lvec);CHKERRQ(ierr);
+    ierr = VecCreate(PETSC_COMM_SELF,&aij->lvec);CHKERRQ(ierr);
+    ierr = VecSetSizes(aij->lvec,ec,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(aij->lvec,cbs);CHKERRQ(ierr);
+    //ierr = VecCreateSeq(PETSC_COMM_SELF,ec,&aij->lvec);CHKERRQ(ierr);
+    ierr = VecSetType(aij->lvec,mat->defaultvectype);CHKERRQ(ierr);
+    ierr = VecPinToCPU(aij->lvec,mat->pinnedtocpu);CHKERRQ(ierr);
   } else {
     ierr = VecGetSize(aij->lvec,&ec);CHKERRQ(ierr);
   }
