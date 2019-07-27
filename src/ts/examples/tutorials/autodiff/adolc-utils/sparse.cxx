@@ -201,7 +201,6 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt *ri,Pet
   }
   PetscFunctionReturn(0);
 }
-// TODO: version using MatUpdateMPIAIJWithArrays
 
 /*
   Recover the values of the local portion of a sparse matrix from a compressed format and insert
@@ -230,7 +229,22 @@ PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt *r
   }
   PetscFunctionReturn(0);
 }
-// TODO: version using MatUpdateMPIAIJWithArrays
+
+// TODO: split inputs so this will work
+// TODO: test it works
+// TODO: documentation
+PetscErrorCode RecoverJacobianWithArrays(Mat A,PetscInt m,PetscInt **ri,PetscInt **r,PetscScalar **c)
+{
+  PetscErrorCode ierr;
+  MPI_Comm       comm = PETSC_COMM_WORLD;
+  PetscMPIInt    rank,size;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MatUpdateMPIAIJWithArrays(A,m/size,m/size,PETSC_DETERMINE,PETSC_DETERMINE,ri[rank],r[rank],c[rank]);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 /*
   Recover the diagonal of the Jacobian from its compressed matrix format

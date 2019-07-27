@@ -243,10 +243,30 @@ int main(int argc,char **argv)
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   if (!implicitform) {
     if (!byhand) {
-      // TODO: use MatCreateMPIAIJWithArrays
-      //ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
+      // TODO: use MatCreateMPIAIJWithArrays:
+      // Mat A;
+
+    /*
+      ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
+    */
+
+      // or possibly:
+
+    /*
+      ierr = DMCreateMatrix(da,&A);CHKERRQ(ierr);
+      ierr = MatConvert(A,MATAIJ,MAT_INPLACE_MATRIX,&A);CHKERRQ(ierr);
+    */
+
+      // then
+
+    /*
+      ierr = TSSetRHSJacobian(ts,A,NULL,RHSJacobianAdolc,&appctx);CHKERRQ(ierr);
+      ierr = MatDestroy(&A);CHKERRQ(ierr);
+    */
+
+      // instead of
+
       ierr = TSSetRHSJacobian(ts,NULL,NULL,RHSJacobianAdolc,&appctx);CHKERRQ(ierr);
-      //ierr = MatDestroy(&A);CHKERRQ(ierr);
     } else {
       ierr = TSSetRHSJacobian(ts,NULL,NULL,RHSJacobianByHand,&appctx);CHKERRQ(ierr);
     }
@@ -259,7 +279,6 @@ int main(int argc,char **argv)
       // TODO: use MatCreateMPIAIJWithArrays
       //ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
       ierr = MatConvert(A,MATAIJ,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
-      /* FIXME do we need to change viewer to display matrix in natural ordering as DMCreateMatrix_DA does? */
       if (!byhand) {
         ierr = TSSetIJacobian(ts,A,B,IJacobianAdolc,&appctx);CHKERRQ(ierr);
       } else {
