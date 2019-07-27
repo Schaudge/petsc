@@ -1,5 +1,5 @@
 
-static char help[] ="Tests MatCreateMPIAIJWithArrays() abd MatUpdateMPIAIJWithArrays()\n";
+static char help[] ="Tests MatCreateMPIAIJWithArrays() and MatUpdateMPIAIJWithArrays()\n";
 
 #include <petscmat.h>
 

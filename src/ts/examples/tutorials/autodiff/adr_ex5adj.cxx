@@ -83,12 +83,18 @@ int main(int argc,char **argv)
   AdolcCtx       *adctx;
   Vec            lambda[1];
   PetscBool      forwardonly=PETSC_FALSE,implicitform=PETSC_FALSE,byhand=PETSC_FALSE;
-  PetscInt       gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,*ri = NULL,*rj = NULL,*r = NULL;
+  PetscInt       nrows,gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,*ri = NULL,*rj = NULL,*r = NULL;
   PetscScalar    **Seed = NULL,*u_vec;
   unsigned int   **JP = NULL;
   ISColoring     iscoloring;
+  MPI_Comm       comm;
+  PetscMPIInt    size;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);if (ierr) return ierr;
+
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Extract command line parameters
+  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = PetscNew(&adctx);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-forwardonly",&forwardonly,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-implicitform",&implicitform,NULL);CHKERRQ(ierr);
@@ -110,8 +116,21 @@ int main(int argc,char **argv)
   ierr = DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_PERIODIC,DM_BOUNDARY_PERIODIC,DMDA_STENCIL_STAR,65,65,PETSC_DECIDE,PETSC_DECIDE,2,1,NULL,NULL,&da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(da);CHKERRQ(ierr);
   ierr = DMSetUp(da);CHKERRQ(ierr);
+  ierr = DMDAGetInfo(da,0,&nrows,0,0,0,0,0,0,0,0,0,0,0);CHKERRQ(ierr);
   ierr = DMDASetFieldName(da,0,"u");CHKERRQ(ierr);
   ierr = DMDASetFieldName(da,1,"v");CHKERRQ(ierr);
+
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Assert that the number of rows in the global matrix is divisible by
+     both the number of processors and the stencil size
+  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  comm = PETSC_COMM_WORLD;
+  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  if (adctx->sparse) {
+    if (nrows % size != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of rows in global matrix must be divisible by number of MPI processes\n");
+    if (nrows % 5 != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of rows in global matrix must be divisible by the stencil size (five)\n");
+    if (size % 4 != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of MPI processes must be divisible by four, so that sides identified by the periodic boundary condition do not share any processor\n");
+  }
 
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Extract global vectors from DMDA; then duplicate for remaining
@@ -207,18 +226,16 @@ int main(int argc,char **argv)
         free(JP[i]);
       free(JP);
       ierr = PetscFree(u_vec);CHKERRQ(ierr);
+      adctx->Seed = Seed;
 
     } else {
 
       /*
-        In 'full' Jacobian mode, propagate an identity matrix through the
-        forward mode of AD.
+        In 'full' Jacobian mode, the `natural colouring' strategy is used: propagate an identity
+        matrix through the forward mode of AD. That is, number of colours = number of columns.
       */
       adctx->p = adctx->n;
-      ierr = AdolcMalloc2(adctx->n,adctx->p,&Seed);CHKERRQ(ierr);
-      ierr = Identity(adctx->n,Seed);CHKERRQ(ierr);
     }
-    adctx->Seed = Seed;
   }
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -307,11 +324,12 @@ int main(int argc,char **argv)
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   if (!adctx->no_an) {
-    if (adctx->sparse)
+    if (adctx->sparse) {
       ierr = PetscFree(r);CHKERRQ(ierr);
       ierr = PetscFree(rj);CHKERRQ(ierr);
       ierr = PetscFree(ri);CHKERRQ(ierr);
-    ierr = AdolcFree2(Seed);CHKERRQ(ierr);
+      ierr = AdolcFree2(Seed);CHKERRQ(ierr);
+    }
   }
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = PetscFree(adctx);CHKERRQ(ierr);
