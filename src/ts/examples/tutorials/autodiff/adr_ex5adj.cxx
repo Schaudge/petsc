@@ -83,7 +83,7 @@ int main(int argc,char **argv)
   AdolcCtx       *adctx;
   Vec            lambda[1];
   PetscBool      forwardonly=PETSC_FALSE,implicitform=PETSC_FALSE,byhand=PETSC_FALSE;
-  PetscInt       nrows,gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz;
+  PetscInt       nrows,gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,rank;
   PetscScalar    *u_vec;
   unsigned int   **JP = NULL;
   ISColoring     iscoloring;
@@ -126,10 +126,11 @@ int main(int argc,char **argv)
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   comm = PETSC_COMM_WORLD;
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  adctx->size = (PetscInt)size;
   if (adctx->sparse) {
-    if (nrows % size != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of rows in global matrix must be divisible by number of MPI processes\n");
+    if (nrows % adctx->size != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of rows in global matrix must be divisible by number of MPI processes\n");
     if (nrows % 5 != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of rows in global matrix must be divisible by the stencil size (five)\n");
-    if (size % 4 != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of MPI processes must be divisible by four, so that sides identified by the periodic boundary condition do not share any processor\n");
+    if (adctx->size % 4 != 0) SETERRQ(comm,PETSC_ERR_ARG_INCOMP,"Number of MPI processes must be divisible by four, so that sides identified by the periodic boundary condition do not share any processor\n");
   }
 
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -208,16 +209,19 @@ int main(int argc,char **argv)
       /*
         Generate recovery vectors, which are used to recover the Jacobian from
         compressed format */
-      ierr = PetscMalloc1(1,&adctx->ri);CHKERRQ(ierr);
-      ierr = PetscMalloc1(adctx->m+1,&adctx->ri[0]);CHKERRQ(ierr);
-      nnz = adctx->m*adctx->p;  // Note this is usually an overestimate  FIXME!!!!
-      ierr = PetscMalloc1(1,&adctx->rj);CHKERRQ(ierr);
-      ierr = PetscMalloc1(nnz,&adctx->rj[0]);CHKERRQ(ierr);
-      ierr = PetscMalloc1(1,&adctx->r);CHKERRQ(ierr);
-      ierr = PetscMalloc1(nnz,&adctx->r[0]);CHKERRQ(ierr);
-      for (i=0; i<nnz; i++) {
-        adctx->rj[0][i] = -1;  // TODO: Do this at the end instead, for remaining entries
-        adctx->r[0][i] = -1;
+      adctx->l = adctx->m/adctx->size;
+      ierr = PetscMalloc1(adctx->size,&adctx->ri);CHKERRQ(ierr);
+      ierr = PetscMalloc1(adctx->size,&adctx->rj);CHKERRQ(ierr);
+      ierr = PetscMalloc1(adctx->size,&adctx->r);CHKERRQ(ierr);
+      nnz = adctx->l*adctx->p;  // Number of nonzeros per partition  FIXME: its an overestimate
+      for (rank=0; rank<adctx->size; rank++) {
+        ierr = PetscMalloc1(adctx->l+1,&adctx->ri[rank]);CHKERRQ(ierr);
+        ierr = PetscMalloc1(nnz,&adctx->rj[rank]);CHKERRQ(ierr);
+        ierr = PetscMalloc1(nnz,&adctx->r[rank]);CHKERRQ(ierr);
+        for (i=0; i<nnz; i++) {
+          adctx->rj[rank][i] = -1;  // TODO: Do this at the end instead, for remaining entries
+          adctx->r[rank][i] = -1;
+        }
       }
       ierr = GetRecoveryMatrix(JP,adctx);CHKERRQ(ierr);
 
@@ -274,9 +278,10 @@ int main(int argc,char **argv)
       Mat A,B;
 
       ierr = DMSetMatType(da,MATSELL);CHKERRQ(ierr);
+      //ierr = DMSetMatType(da,MATMPIAIJ);CHKERRQ(ierr);
       ierr = DMCreateMatrix(da,&A);CHKERRQ(ierr);
       // TODO: use MatCreateMPIAIJWithArrays
-      //ierr = MatCreateMPIAIJWithArrays(comm,n,n,PETSC_DETERMINE,PETSC_DETERMINE,i[rank],j[rank],a[rank],&A);CHKERRQ(ierr);
+      //ierr = MatCreateMPIAIJWithArrays(comm,adctx->l,adctx->l,PETSC_DETERMINE,PETSC_DETERMINE,adctx->ri[rank],adctx->r[rank],(PetscScalar*)adctx->r[rank],&A);CHKERRQ(ierr);
       ierr = MatConvert(A,MATAIJ,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
       if (!byhand) {
         ierr = TSSetIJacobian(ts,A,B,IJacobianAdolc,&appctx);CHKERRQ(ierr);
@@ -343,11 +348,13 @@ int main(int argc,char **argv)
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   if (!adctx->no_an) {
     if (adctx->sparse) {
-      ierr = PetscFree(adctx->r[0]);CHKERRQ(ierr);
+      for (rank=adctx->size-1; rank>=0; rank--) {
+        ierr = PetscFree(adctx->r[rank]);CHKERRQ(ierr);
+        ierr = PetscFree(adctx->rj[rank]);CHKERRQ(ierr);
+        ierr = PetscFree(adctx->ri[rank]);CHKERRQ(ierr);
+      }
       ierr = PetscFree(adctx->r);CHKERRQ(ierr);
-      ierr = PetscFree(adctx->rj[0]);CHKERRQ(ierr);
       ierr = PetscFree(adctx->rj);CHKERRQ(ierr);
-      ierr = PetscFree(adctx->ri[0]);CHKERRQ(ierr);
       ierr = PetscFree(adctx->ri);CHKERRQ(ierr);
       ierr = AdolcFree2(adctx->Seed);CHKERRQ(ierr);
     }

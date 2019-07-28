@@ -32,21 +32,26 @@ PetscErrorCode PetscAdolcComputeRHSJacobian(PetscInt tag,Mat A,PetscScalar *u_ve
 {
   AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscErrorCode ierr;
-  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p;
+  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p,l = adctx->l,rank;
   PetscScalar    **J,**c;
 
   PetscFunctionBegin;
   ierr = AdolcMalloc2(m,p,&J);CHKERRQ(ierr);
   if (adctx->Seed) {
-    ierr = PetscMalloc1(1,&c);CHKERRQ(ierr);
-    ierr = PetscMalloc1(adctx->ri[0][m],&c[0]);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->size,&c);CHKERRQ(ierr);
+    for (rank=0; rank<adctx->size; rank++) {
+      ierr = PetscMalloc1(adctx->ri[rank][l],&c[rank]);CHKERRQ(ierr);
+    }
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,NULL,adctx);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
     ierr = RecoverJacobian(A,INSERT_VALUES,c,adctx);CHKERRQ(ierr);
-    ierr = PetscFree(c[0]);CHKERRQ(ierr);
+    //ierr = RecoverJacobianWithArrays(A,c,adctx);CHKERRQ(ierr);
+    for (rank=adctx->size-1; rank>=0; rank--) {
+      ierr = PetscFree(c[rank]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -80,21 +85,26 @@ PetscErrorCode PetscAdolcComputeRHSJacobianLocal(PetscInt tag,Mat A,PetscScalar 
 {
   AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscErrorCode ierr;
-  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p;
+  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p,l = adctx->l,rank;
   PetscScalar    **J,**c;
 
   PetscFunctionBegin;
   ierr = AdolcMalloc2(m,p,&J);CHKERRQ(ierr);
   if (adctx->Seed) {
-    ierr = PetscMalloc1(1,&c);CHKERRQ(ierr);
-    ierr = PetscMalloc1(adctx->ri[0][m],&c[0]);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->size,&c);CHKERRQ(ierr);
+    for (rank=0; rank<adctx->size; rank++) {
+      ierr = PetscMalloc1(adctx->ri[rank][l],&c[rank]);CHKERRQ(ierr);
+    }
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,NULL,adctx);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
     ierr = RecoverJacobianLocal(A,INSERT_VALUES,c,adctx);CHKERRQ(ierr);
-    ierr = PetscFree(c[0]);CHKERRQ(ierr);
+    //ierr = RecoverJacobianWithArrays(A,c,adctx);CHKERRQ(ierr);
+    for (rank=adctx->size-1; rank>=0; rank--) {
+      ierr = PetscFree(c[rank]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -129,7 +139,7 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
 {
   AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscErrorCode ierr;
-  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p;
+  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p,l = adctx->l,rank;
   PetscScalar    **J,**c;
 
   PetscFunctionBegin;
@@ -137,8 +147,10 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(1,&c);CHKERRQ(ierr);
-    ierr = PetscMalloc1(adctx->ri[0][m],&c[0]);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->size,&c);CHKERRQ(ierr);
+    for (rank=0; rank<adctx->size; rank++) {
+      ierr = PetscMalloc1(adctx->ri[rank][l],&c[rank]);CHKERRQ(ierr);
+    }
     fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,&a,adctx);CHKERRQ(ierr);
   } else
@@ -162,11 +174,14 @@ PetscErrorCode PetscAdolcComputeIJacobian(PetscInt tag1,PetscInt tag2,Mat A,Pets
   if (adctx->Seed) {
     fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,&a,adctx);CHKERRQ(ierr);
+    // TODO: AddtoCSR function
   } else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
     ierr = RecoverJacobian(A,ADD_VALUES,c,adctx);CHKERRQ(ierr);
-    ierr = PetscFree(c[0]);CHKERRQ(ierr);
+    for (rank=adctx->size-1; rank>=0; rank--) {
+      ierr = PetscFree(c[rank]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -202,7 +217,7 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
 {
   AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscErrorCode ierr;
-  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p;
+  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p,l = adctx->l,rank;
   PetscScalar    **J,**c;
 
   PetscFunctionBegin;
@@ -210,8 +225,10 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(1,&c);CHKERRQ(ierr);
-    ierr = PetscMalloc1(adctx->ri[0][m],&c[0]);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->size,&c);CHKERRQ(ierr);
+    for (rank=0; rank<adctx->size; rank++) {
+      ierr = PetscMalloc1(adctx->ri[rank][l],&c[rank]);CHKERRQ(ierr);
+    }
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,NULL,adctx);CHKERRQ(ierr);
   } else
@@ -219,7 +236,10 @@ PetscErrorCode PetscAdolcComputeIJacobianIDMass(PetscInt tag,Mat A,PetscScalar *
   ierr = MatZeroEntries(A);CHKERRQ(ierr);
   if (adctx->sparse) {
     ierr = RecoverJacobian(A,INSERT_VALUES,c,adctx);CHKERRQ(ierr);
-    ierr = PetscFree(c[0]);CHKERRQ(ierr);
+    //ierr = RecoverJacobianWithArrays(A,c,adctx);CHKERRQ(ierr);
+    for (rank=adctx->size-1; rank>=0; rank--) {
+      ierr = PetscFree(c[rank]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -257,7 +277,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
 {
   AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscErrorCode ierr;
-  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p;
+  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p,l = adctx->l,rank;
   PetscScalar    **J,**c;
 
   PetscFunctionBegin;
@@ -265,8 +285,10 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(1,&c);CHKERRQ(ierr);
-    ierr = PetscMalloc1(adctx->ri[0][m],&c[0]);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->size,&c);CHKERRQ(ierr);
+    for (rank=0; rank<adctx->size; rank++) {
+      ierr = PetscMalloc1(adctx->ri[rank][l],&c[rank]);CHKERRQ(ierr);
+    }
     fov_forward(tag1,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,&a,adctx);CHKERRQ(ierr);
   } else
@@ -289,11 +311,14 @@ PetscErrorCode PetscAdolcComputeIJacobianLocal(PetscInt tag1,PetscInt tag2,Mat A
   if (adctx->Seed) {
     fov_forward(tag2,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,&a,adctx);CHKERRQ(ierr);
+    // TODO: AddtoCSR function
   } else
     jacobian(tag2,m,n,u_vec,J);
   if (adctx->sparse) {
     ierr = RecoverJacobianLocal(A,ADD_VALUES,c,adctx);CHKERRQ(ierr);
-    ierr = PetscFree(c[0]);CHKERRQ(ierr);
+    for (rank=adctx->size-1; rank>=0; rank--) {
+      ierr = PetscFree(c[rank]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
@@ -329,7 +354,7 @@ PetscErrorCode PetscAdolcComputeIJacobianLocalIDMass(PetscInt tag,Mat A,PetscSca
 {
   AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscErrorCode ierr;
-  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p;
+  PetscInt       i,j,m = adctx->m,n = adctx->n,p = adctx->p,l = adctx->l,rank;
   PetscScalar    **J,**c;
 
   PetscFunctionBegin;
@@ -337,15 +362,20 @@ PetscErrorCode PetscAdolcComputeIJacobianLocalIDMass(PetscInt tag,Mat A,PetscSca
 
   /* dF/dx part */
   if (adctx->Seed) {
-    ierr = PetscMalloc1(1,&c);CHKERRQ(ierr);
-    ierr = PetscMalloc1(adctx->ri[0][m],&c[0]);CHKERRQ(ierr);
+    ierr = PetscMalloc1(adctx->size,&c);CHKERRQ(ierr);
+    for (rank=0; rank<adctx->size; rank++) {
+      ierr = PetscMalloc1(adctx->ri[rank][l],&c[rank]);CHKERRQ(ierr);
+    }
     fov_forward(tag,m,n,p,u_vec,(PetscScalar**)adctx->Seed,NULL,J);
     ierr = ConvertToCSR(J,c,NULL,adctx);CHKERRQ(ierr);
   } else
     jacobian(tag,m,n,u_vec,J);
   if (adctx->sparse) {
     ierr = RecoverJacobianLocal(A,INSERT_VALUES,c,adctx);CHKERRQ(ierr);
-    ierr = PetscFree(c[0]);CHKERRQ(ierr);
+    //ierr = RecoverJacobianWithArrays(A,c,adctx);CHKERRQ(ierr);
+    for (rank=adctx->size-1; rank>=0; rank--) {
+      ierr = PetscFree(c[rank]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(c);CHKERRQ(ierr);
   } else {
     for (i=0; i<m; i++) {
