@@ -83,8 +83,8 @@ int main(int argc,char **argv)
   AdolcCtx       *adctx;
   Vec            lambda[1];
   PetscBool      forwardonly=PETSC_FALSE,implicitform=PETSC_FALSE,byhand=PETSC_FALSE;
-  PetscInt       nrows,gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz,**ri = NULL,**rj = NULL,**r = NULL;
-  PetscScalar    **Seed = NULL,*u_vec;
+  PetscInt       nrows,gxm,gym,i,dofs = 2,ctrl[3] = {0,0,0},nnz;
+  PetscScalar    *u_vec;
   unsigned int   **JP = NULL;
   ISColoring     iscoloring;
   MPI_Comm       comm;
@@ -201,35 +201,31 @@ int main(int argc,char **argv)
       ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&adctx->p,NULL);CHKERRQ(ierr);
 
       /* Generate seed matrix to propagate through the forward mode of AD */
-      ierr = AdolcMalloc2(adctx->n,adctx->p,&Seed);CHKERRQ(ierr);
-      ierr = GenerateSeedMatrix(iscoloring,Seed);CHKERRQ(ierr);
+      ierr = AdolcMalloc2(adctx->n,adctx->p,&adctx->Seed);CHKERRQ(ierr);
+      ierr = GenerateSeedMatrix(iscoloring,adctx->Seed);CHKERRQ(ierr);
       ierr = ISColoringDestroy(&iscoloring);CHKERRQ(ierr);
 
       /*
         Generate recovery vectors, which are used to recover the Jacobian from
         compressed format */
-      ierr = PetscMalloc1(1,&ri);CHKERRQ(ierr);
-      ierr = PetscMalloc1(adctx->m+1,&ri[0]);CHKERRQ(ierr);
+      ierr = PetscMalloc1(1,&adctx->ri);CHKERRQ(ierr);
+      ierr = PetscMalloc1(adctx->m+1,&adctx->ri[0]);CHKERRQ(ierr);
       nnz = adctx->m*adctx->p;  // Note this is usually an overestimate  FIXME!!!!
-      ierr = PetscMalloc1(1,&rj);CHKERRQ(ierr);
-      ierr = PetscMalloc1(nnz,&rj[0]);CHKERRQ(ierr);
-      ierr = PetscMalloc1(1,&r);CHKERRQ(ierr);
-      ierr = PetscMalloc1(nnz,&r[0]);CHKERRQ(ierr);
+      ierr = PetscMalloc1(1,&adctx->rj);CHKERRQ(ierr);
+      ierr = PetscMalloc1(nnz,&adctx->rj[0]);CHKERRQ(ierr);
+      ierr = PetscMalloc1(1,&adctx->r);CHKERRQ(ierr);
+      ierr = PetscMalloc1(nnz,&adctx->r[0]);CHKERRQ(ierr);
       for (i=0; i<nnz; i++) {
-        rj[0][i] = -1;  // TODO: Do this at the end instead, for remaining entries
-        r[0][i] = -1;
+        adctx->rj[0][i] = -1;  // TODO: Do this at the end instead, for remaining entries
+        adctx->r[0][i] = -1;
       }
-      ierr = GetRecoveryMatrix(Seed,JP,adctx->m,adctx->p,ri,rj,r);CHKERRQ(ierr);
+      ierr = GetRecoveryMatrix(JP,adctx);CHKERRQ(ierr);
 
       /* Store results and free workspace */
-      adctx->ri = ri;
-      adctx->rj = rj;
-      adctx->r = r;
       for (i=0;i<adctx->m;i++)
         free(JP[i]);
       free(JP);
       ierr = PetscFree(u_vec);CHKERRQ(ierr);
-      adctx->Seed = Seed;
 
     } else {
 
@@ -347,13 +343,13 @@ int main(int argc,char **argv)
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   if (!adctx->no_an) {
     if (adctx->sparse) {
-      ierr = PetscFree(r[0]);CHKERRQ(ierr);
-      ierr = PetscFree(r);CHKERRQ(ierr);
-      ierr = PetscFree(rj[0]);CHKERRQ(ierr);
-      ierr = PetscFree(rj);CHKERRQ(ierr);
-      ierr = PetscFree(ri[0]);CHKERRQ(ierr);
-      ierr = PetscFree(ri);CHKERRQ(ierr);
-      ierr = AdolcFree2(Seed);CHKERRQ(ierr);
+      ierr = PetscFree(adctx->r[0]);CHKERRQ(ierr);
+      ierr = PetscFree(adctx->r);CHKERRQ(ierr);
+      ierr = PetscFree(adctx->rj[0]);CHKERRQ(ierr);
+      ierr = PetscFree(adctx->rj);CHKERRQ(ierr);
+      ierr = PetscFree(adctx->ri[0]);CHKERRQ(ierr);
+      ierr = PetscFree(adctx->ri);CHKERRQ(ierr);
+      ierr = AdolcFree2(adctx->Seed);CHKERRQ(ierr);
     }
   }
   ierr = DMDestroy(&da);CHKERRQ(ierr);

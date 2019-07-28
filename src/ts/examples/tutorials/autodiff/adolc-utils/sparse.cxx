@@ -1,3 +1,4 @@
+#include "contexts.cxx"
 #include <petscmat.h>
 #include <adolc/adolc_sparse.h>
 
@@ -108,38 +109,38 @@ PetscErrorCode GenerateSeedMatrixPlusRecovery(ISColoring iscoloring,PetscScalar 
   in a matrix which has been compressed using the coloring defined by some seed matrix
 
   Input parameters:
-  S        - the seed matrix defining the coloring
-  sparsity - the sparsity pattern of the matrix to be recovered, typically computed using an ADOL-C
-             function, such as jac_pat or hess_pat
-  m        - the number of rows of Seed (and the matrix to be recovered)
-  p        - the number of colors used (also the number of columns in Seed)
+  sparsity  - the sparsity pattern of the matrix to be recovered, typically computed using an ADOL-C
+              function, such as jac_pat or hess_pat
+  ctx       - AdolcCtx object containing number of rows, number of colours, seed matrix and CSR
+              vectors
 
   Output parameters:
-  Ri       - the row index component of the CSR recovery matrix to be used for de-compression
-  Rj       - the column index component of the CSR recovery matrix to be used for de-compression
-  R        - the values of the CSR recovery matrix to be used for de-compression
+  adctx->ri - the row index component of the CSR recovery matrix to be used for de-compression
+  adctx->rj - the column index component of the CSR recovery matrix to be used for de-compression
+  adctx->r  - the values of the CSR recovery matrix to be used for de-compression
 */
-PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscInt m,PetscInt p,PetscInt **Ri,PetscInt **Rj,PetscInt **R)
+PetscErrorCode GetRecoveryMatrix(unsigned int **sparsity,void *ctx)
 {
-  PetscInt i,j,k,nnz,rj = 0,colour;
+  AdolcCtx *adctx = (AdolcCtx*)ctx;
+  PetscInt i,j,jj = 0,k,nnz,colour,m = adctx->m,p = adctx->p;
 
   PetscFunctionBegin;
   for (i=0; i<m; i++) {
     for (colour=0; colour<p; colour++) {
-      nnz = (PetscInt) sparsity[i][0];  // Number of nonzeros on row i
-      if (colour == 0) Ri[0][i] = rj;   // Store counter for first nonzero on compressed row i
+      nnz = (PetscInt) sparsity[i][0];        // Number of nonzeros on row i
+      if (colour == 0) adctx->ri[0][i] = jj;  // Store counter for first nonzero on compressed row i
       for (k=1; k<=nnz; k++) {
-        j = (PetscInt) sparsity[i][k];  // Column index of k^th nonzero on row i
-        if (S[j][colour] == 1.) {
-          R[0][rj] = j;                 // Store index of k^th nonzero on row i
-          Rj[0][rj] = colour;           // Store colour of k^th nonzero on row i
-          rj++;                         // Counter for nonzeros
+        j = (PetscInt) sparsity[i][k];        // Column index of k^th nonzero on row i
+        if (adctx->Seed[j][colour] == 1.) {
+          adctx->r[0][jj] = j;                // Store index of k^th nonzero on row i
+          adctx->rj[0][jj] = colour;          // Store colour of k^th nonzero on row i
+          jj++;                               // Counter for nonzeros
           break;
         }
       }
     }
   }
-  Ri[0][m] = rj;  // NOTE: This is number of nonzeros in matrix itself
+  adctx->ri[0][m] = jj;  // NOTE: This is number of nonzeros in matrix itself
   PetscFunctionReturn(0);
 }
 
@@ -152,23 +153,22 @@ PetscErrorCode GetRecoveryMatrix(PetscScalar **S,unsigned int **sparsity,PetscIn
    CSR decomposition of compressed Jac is given by Ri, R, c
 
   Input parameters:
-  C    - compressed matrix to recover values from
-  m    - number of rows of matrix.
-  Ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  Rj   - the column index component of the CSR recovery matrix to be used for de-compression
-  a    - shift value for implicit problems (select NULL or unity for explicit problems)
+  C   - compressed matrix to recover values from
+  a   - shift value for implicit problems (select NULL or unity for explicit problems)
+  ctx - AdolcCtx containing number of rows and CSR vectors
 
   Output parameter:
-  c    - CSR vector version of compressed Jacobian
+  c   - CSR vector version of compressed Jacobian
 */
-PetscErrorCode ConvertToCSR(PetscScalar **C,PetscInt m,PetscInt **Ri,PetscInt **Rj,PetscScalar **c,PetscReal *a)
+PetscErrorCode ConvertToCSR(PetscScalar **C,PetscScalar **c,PetscReal *a,void *ctx)
 {
-  PetscInt       i,j;
+  AdolcCtx *adctx = (AdolcCtx*)ctx;
+  PetscInt i,j;
 
   PetscFunctionBegin;
-  for (i=0; i<m; i++) {
-    for (j=Ri[0][i]; j<Ri[0][i+1]; j++) {
-      c[0][j] = C[i][Rj[0][j]];  // Rj[0][j] = colour of j^th nonzero on i^th compressed row
+  for (i=0; i<adctx->m; i++) {
+    for (j=adctx->ri[0][i]; j<adctx->ri[0][i+1]; j++) {
+      c[0][j] = C[i][adctx->rj[0][j]];  // rj[0][j] = colour of j^th nonzero on i^th compressed row
       if (a) c[0][j] *= *a;
     }
   }
@@ -180,23 +180,22 @@ PetscErrorCode ConvertToCSR(PetscScalar **C,PetscInt m,PetscInt **Ri,PetscInt **
 
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
-  m    - number of rows of matrix.
-  ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  r    - the values of the CSR recovery matrix to be used for de-compression
   c    - CSR vector version of compressed Jacobian
+  ctx  - AdolcCtx containing number of rows and CSR vectors
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt **ri,PetscInt **r,PetscScalar **c)
+PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscScalar **c,void *ctx)
 {
   PetscErrorCode ierr;
+  AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscInt       i,j;
 
   PetscFunctionBegin;
-  for (i=0; i<m; i++) {
-    for (j=ri[0][i]; j<ri[0][i+1]; j++) {
-      ierr = MatSetValues(A,1,&i,1,&r[0][j],&c[0][j],mode);CHKERRQ(ierr);
+  for (i=0; i<adctx->m; i++) {
+    for (j=adctx->ri[0][i]; j<adctx->ri[0][i+1]; j++) {
+      ierr = MatSetValues(A,1,&i,1,&adctx->r[0][j],&c[0][j],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -208,23 +207,22 @@ PetscErrorCode RecoverJacobian(Mat A,InsertMode mode,PetscInt m,PetscInt **ri,Pe
 
   Input parameters:
   mode - use INSERT_VALUES or ADD_VALUES, as required
-  m    - number of rows of matrix.
-  ri   - the row index component of the CSR recovery matrix to be used for de-compression
-  r    - the values of the CSR recovery matrix to be used for de-compression
   c    - CSR vector version of compressed Jacobian
+  ctx  - AdolcCtx containing number of rows and CSR vectors
 
   Output parameter:
   A    - Mat to be populated with values from compressed matrix
 */
-PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt **ri,PetscInt **r,PetscScalar **c)
+PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscScalar **c,void *ctx)
 {
   PetscErrorCode ierr;
+  AdolcCtx       *adctx = (AdolcCtx*)ctx;
   PetscInt       i,j;
 
   PetscFunctionBegin;
-  for (i=0; i<m; i++) {
-    for (j=ri[0][i]; j<ri[0][i+1]; j++) {
-      ierr = MatSetValuesLocal(A,1,&i,1,&r[0][j],&c[0][j],mode);CHKERRQ(ierr);
+  for (i=0; i<adctx->m; i++) {
+    for (j=adctx->ri[0][i]; j<adctx->ri[0][i+1]; j++) {
+      ierr = MatSetValuesLocal(A,1,&i,1,&adctx->r[0][j],&c[0][j],mode);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -233,16 +231,16 @@ PetscErrorCode RecoverJacobianLocal(Mat A,InsertMode mode,PetscInt m,PetscInt **
 // TODO: split inputs so this will work
 // TODO: test it works
 // TODO: documentation
-PetscErrorCode RecoverJacobianWithArrays(Mat A,PetscInt m,PetscInt **ri,PetscInt **r,PetscScalar **c)
+PetscErrorCode RecoverJacobianWithArrays(Mat A,PetscScalar **c,void *ctx)
 {
   PetscErrorCode ierr;
+  AdolcCtx       *adctx = (AdolcCtx*)ctx;
   MPI_Comm       comm = PETSC_COMM_WORLD;
-  PetscMPIInt    rank,size;
+  PetscMPIInt    rank;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  ierr = MatUpdateMPIAIJWithArrays(A,m/size,m/size,PETSC_DETERMINE,PETSC_DETERMINE,ri[rank],r[rank],c[rank]);CHKERRQ(ierr);
+  ierr = MatUpdateMPIAIJWithArrays(A,adctx->l,adctx->l,PETSC_DETERMINE,PETSC_DETERMINE,adctx->ri[rank],adctx->r[rank],c[rank]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
