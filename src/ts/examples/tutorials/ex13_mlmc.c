@@ -823,7 +823,7 @@ PetscErrorCode heat_solver(HeatSimulation *hs,PetscReal *QoI)
     }
     
     /* compute quantity of interest; currently only works sequentially */
-    mQ   = (PetscInt)PetscRoundReal(0.5*(hs->nx-1)*(1.0+hs->xQ));
+    mQ   = (PetscInt)PetscRoundReal((hs->nx-1)*(hs->xQ));
     ierr = DMDAVecGetArray(hs->da,unew,&unew_array);CHKERRQ(ierr);
     *QoI = unew_array[mQ][mQ];
     ierr = DMDAVecRestoreArray(hs->da,unew,&unew_array);CHKERRQ(ierr);
