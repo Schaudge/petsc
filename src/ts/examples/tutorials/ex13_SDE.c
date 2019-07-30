@@ -5,10 +5,11 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
    du = (u_xx + u_yy) dt + sigma * dW(t)
    0 < x < 1, 0 < y < 1;
    At t=0: u(x,y) = b*exp(-c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
-           u(x,y) = 0.0         , if r >= rad
+           u(x,y) = 0.0          , if r >= rad
    At bdry:u(x,y) = 0.0
 
-    mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1
+   mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1
+  (Need to configure PETSc with options: --with-matlab --with-matlab-engine)
 */
 
 #include <petsc.h>
@@ -32,9 +33,11 @@ typedef struct { /* grid parameters */
 } GridInfo;
 
 typedef struct { /* ts parameters */
+  PetscInt       i;         /* Present time step */
   PetscInt       tout;
   PetscInt       tsteps;
   PetscReal      tfinal;
+  PetscReal      tm[2];     /* for Matlab plot */
   PetscScalar    dt;
 } TsInfo;
 
@@ -54,8 +57,10 @@ PetscErrorCode BuildA(AppCtx*);
 PetscErrorCode BuildA_CN(AppCtx*);
 PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
 PetscErrorCode myTS(AppCtx*,Vec);
+PetscErrorCode PlotSetup(AppCtx*, Vec, Vec, char*);
+PetscErrorCode Plot(AppCtx*, Vec, Vec, char*);
 PetscErrorCode BuildR(AppCtx*,Vec);
-PetscErrorCode BuildUS(AppCtx*);
+PetscErrorCode KLSetup(AppCtx*);
 PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
 PetscReal      ltqnorm(PetscReal);
 
@@ -120,7 +125,7 @@ int main(int argc,char **argv)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set KL expansion
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-    ierr = BuildUS(user);CHKERRQ(ierr);
+    ierr = KLSetup(user);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Time Stepping
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -168,14 +173,14 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     ierr = PetscOptionsGetInt(NULL,NULL,"-Ly",&(param->Ly),NULL);CHKERRQ(ierr);
     
     /* grid information */
-    grid->Nx        = 16;
-    grid->Ny        = 16;
+    grid->Nx        = 17;
+    grid->Ny        = 17;
     
     ierr = PetscOptionsGetInt(NULL,NULL,"-Nx",&(grid->Nx),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-Ny",&(grid->Ny),NULL);CHKERRQ(ierr);
     
     /* ts information */
-    ts->tfinal      = 0.20;
+    ts->tfinal      = 0.10;
     ts->dt          = 0.01;
     ts->tout        = 1;
     
@@ -305,8 +310,8 @@ PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
             }
         }
     }
-    ierr = VecRestoreArray(RHS,&rhs);
-    ierr = VecRestoreArray(U,&u);
+    ierr = VecRestoreArray(RHS,&rhs);CHKERRQ(ierr);
+    ierr = VecRestoreArray(U,&u);CHKERRQ(ierr);
     ierr = VecAssemblyBegin(RHS);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(RHS);CHKERRQ(ierr);
 //    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"rhsvec.m",&viewfile);CHKERRQ(ierr);
@@ -365,22 +370,89 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     Vec            unew, uold;        /* vector for time stepping */
     Vec            rhs;               /* rhs vector for Crank-Nicolson scheme */
     KSP            ksp;               /* KSP solver for Crank-Nicolson scheme */
-    Parameter     *param = user->param;
     TsInfo        *ts    = user->ts;
     GridInfo      *grid  = user->grid;
-    PetscInt       i;
+    PetscInt       mQ;
+    PetscReal      QoI;
+    PetscReal    **unew_array;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
+    
+    ierr = DMCreateGlobalVector(user->da,&r);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(user->da,&rhs);CHKERRQ(ierr);
+    ierr = VecDuplicate(u,&uold);CHKERRQ(ierr);
+    ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
+    
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Link Matlab Engine for plotting
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     ierr = PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
+    ierr = PlotSetup(user,u,r,output);CHKERRQ(ierr);
+    ts->tm[0] = ts->dt; /* time step size for checking */
+    ts->tm[1] = 0;      /* time for check */
     
-    PetscReal dim[2], domain[2], tm[2];
-    dim[0]    = grid->Nx;  dim[1]    = grid->Ny;
+    for ( (ts->i) = 0; (ts->i) < (ts->tsteps) + 1; (ts->i)++)
+    {
+        /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Link Matlab Engine for plotting
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+        ierr = Plot(user,u,r,output);CHKERRQ(ierr);
+        ts->tm[1] = ts->tm[1] + ts->dt;
+        /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Time stepping
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+        ierr = VecCopy(u,uold);CHKERRQ(ierr);
+        ierr = BuildR(user,r);CHKERRQ(ierr);
+        ierr = VecScale(r,PetscSqrtReal(ts->dt));CHKERRQ(ierr);
+        
+        /* Euler scheme */
+        //      ierr = MatMultAdd(user->A,uold,r,unew);CHKERRQ(ierr);
+        //      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
+        
+        /* Crank-Nicolson scheme */
+        ierr = FormRHS_CN(user,uold,rhs);CHKERRQ(ierr);
+        ierr = VecAXPY(rhs,1.0,r);CHKERRQ(ierr);
+        ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
+        ierr = KSPSetOperators(ksp,user->A,user->A);CHKERRQ(ierr);
+        ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+        ierr = KSPSolve(ksp,rhs,unew);CHKERRQ(ierr);
+        
+        ierr = VecCopy(unew,u);CHKERRQ(ierr);
+    }
+    
+    /* compute quantity of interest */
+    mQ   = (PetscInt)PetscRoundReal((grid->Nx)*0.5);
+    ierr = DMDAVecGetArray(user->da,unew,&unew_array);CHKERRQ(ierr);
+    QoI = unew_array[mQ][mQ];
+    printf("mQ=%d;QoI=%f",mQ,QoI);
+    ierr = DMDAVecRestoreArray(user->da,unew,&unew_array);CHKERRQ(ierr);
+    
+    ierr = VecDestroy(&r);CHKERRQ(ierr);
+    ierr = VecDestroy(&unew);CHKERRQ(ierr);
+    ierr = VecDestroy(&uold);CHKERRQ(ierr);
+    ierr = VecDestroy(&rhs);CHKERRQ(ierr); /* rhs vector for Crank-Nicolson scheme*/
+    ierr = KSPDestroy(&ksp);CHKERRQ(ierr); /* KSP solver for Crank-Nicolson scheme*/
+    
+    PetscFunctionReturn(0);
+}
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode PlotSetup(AppCtx* user, Vec u, Vec r, char* output)
+{
+    DMDALocalInfo  info;
+    Parameter     *param = user->param;
+    PetscReal      dim[2], domain[2];
+    PetscErrorCode ierr;
+    
+    ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
+    dim[0]    = info.mx;   dim[1]    = info.my;
     domain[0] = param->Lx; domain[1] = param->Ly;
-    tm[0]     = ts->dt;    tm[1]     = 0;
+ 
+    PetscFunctionBeginUser;
+    
+    PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
+
+    /* Info for checking before plotting*/
     ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,dim,"dim");CHKERRQ(ierr);
     ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,domain,"domain");CHKERRQ(ierr);
     ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Nx = dim(1,1); Ny = dim(2,1); Lx = domain(1,1); Ly = domain(2,1);");CHKERRQ(ierr);
@@ -392,83 +464,39 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
     ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"Ly");CHKERRQ(ierr);
     ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-    
-    ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
-    ierr = VecDuplicate(u,&uold);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(user->da,&r);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(user->da,&rhs);CHKERRQ(ierr);
-    
+
+    /* Set up Objects*/
     ierr = PetscObjectSetName((PetscObject)u,"u");CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject)r,"r");CHKERRQ(ierr);
     
-    ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"h=figure(1);axis tight manual;filename = 'plot.gif';");CHKERRQ(ierr);
-    ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+}
+/* ----------------------------------------------------------------------------------------------------------------------- */
+PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
+{
+    TsInfo       *ts = user->ts;
+    PetscErrorCode ierr;
     
-    for (i=0; i<ts->tsteps+1; i++)
+    if ( (ts->i) % (ts->tout) == 0)
     {
-        if ( i%ts->tout == 0)
+        if ( (ts->i) == 0)
         {
-            if (i==0)
-            {ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"frame = getframe(h);im = frame2im(frame);[imind,cm] =rgb2ind(im,256);imwrite(imind,cm,filename,'gif', 'Loopcount',inf,'DelayTime',1/5);");CHKERRQ(ierr);
-                ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);}
-            else{
-            ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,tm,"tm");CHKERRQ(ierr);
-            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"tm");CHKERRQ(ierr);
-            ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"h=figure(1);axis tight manual;filename = 'plot.gif';");CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"frame = getframe(h);im = frame2im(frame);[imind,cm] =rgb2ind(im,256);imwrite(imind,cm,filename,'gif', 'Loopcount',inf,'DelayTime',1/5);");CHKERRQ(ierr);
             
+        }
+        else
+        {
+            ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,ts->tm,"tm");CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"tm");CHKERRQ(ierr);
             ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
             ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)r);CHKERRQ(ierr);
-            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 Lx 0 Ly -1 5]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);");CHKERRQ(ierr);
-            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');title({['Random field'],['Time t= ',num2str(tm(2,1))]});shading interp;axis([0 Lx 0 Ly -1 1]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);drawnow");CHKERRQ(ierr);
-            ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2))]});shading interp;axis([0 Lx 0 Ly -1 5]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);");CHKERRQ(ierr);
+            ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');title({['Random field'],['Time t= ',num2str(tm(2))]});shading interp;axis([0 Lx 0 Ly -1 1]);axis square;xlabel('X');ylabel('Y');view(2);colorbar;set(gca,'fontsize', 16);pause(0.01);drawnow");CHKERRQ(ierr);
             ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"frame = getframe(h);im = frame2im(frame);[imind,cm]=rgb2ind(im,256);imwrite(imind,cm,filename,'gif','WriteMode','append','DelayTime',1/5);");CHKERRQ(ierr);
             ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
-            }
         }
-        /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-         Time stepping
-         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-        tm[1] = tm[1] + ts->dt;
-        ierr = VecCopy(u,uold);CHKERRQ(ierr);
-        ierr = BuildR(user,r);
-        ierr = VecScale(r,PetscSqrtReal(ts->dt));CHKERRQ(ierr);
-        
-        /* Euler scheme */
-        //      ierr = MatMultAdd(user->A,uold,r,unew);CHKERRQ(ierr);
-        //      ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
-        
-        /* Crank-Nicolson scheme */
-        ierr = FormRHS_CN(user,uold,rhs);
-        ierr = VecAXPY(rhs,1.0,r);CHKERRQ(ierr);
-        ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);
-        ierr = KSPSetOperators(ksp,user->A,user->A);
-        ierr = KSPSetFromOptions(ksp);
-        ierr = KSPSolve(ksp,rhs,unew);
-        
-        ierr = VecCopy(unew,u);CHKERRQ(ierr);
-        //      if ( (i+1)%tout == 0)
-        //      {
-        //          ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-        //          char s1[10], s2[10];
-        //          sprintf(s1,"%s%d%s","u",(i+1)/tout,".m");
-        //          printf("%s\n",s1);
-        //          sprintf(s2,"%s%d","sol",(i+1)/tout);
-        //          printf("%s\n",s2);
-        //          ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,s1,&viewfile);CHKERRQ(ierr);
-        //          ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-        //          ierr = PetscObjectSetName((PetscObject)u,s2);CHKERRQ(ierr);
-        //          ierr = VecView(u,viewfile);CHKERRQ(ierr);
-        //          ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-        //          ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-        //       }
     }
-    
-    ierr = VecDestroy(&r);CHKERRQ(ierr);
-    ierr = VecDestroy(&unew);CHKERRQ(ierr);
-    ierr = VecDestroy(&uold);CHKERRQ(ierr);
-    ierr = VecDestroy(&rhs);CHKERRQ(ierr); /* rhs vector for Crank-Nicolson scheme*/
-    ierr = KSPDestroy(&ksp);CHKERRQ(ierr); /* KSP solver for Crank-Nicolson scheme*/
-    
     PetscFunctionReturn(0);
 }
 /* ----------------------------------------------------------------------------------------------------------------------- */
@@ -553,7 +581,7 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
   PetscFunctionReturn(0);
 }
 /* ----------------------------------------------------------------------------------------------------------------------- */
-PetscErrorCode BuildUS(AppCtx* user)
+PetscErrorCode KLSetup(AppCtx* user)
 {
     DM             cda;
     DMDACoor2d   **coors;
@@ -569,8 +597,8 @@ PetscErrorCode BuildUS(AppCtx* user)
     PetscInt       Lx     = param->Lx;
     PetscInt       Ly     = param->Ly;
     PetscReal      lc     = param->lc;
-    PetscReal      lx     = param->lx;
-    PetscReal      ly     = param->ly;
+//    PetscReal      lx     = param->lx;
+//    PetscReal      ly     = param->ly;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
