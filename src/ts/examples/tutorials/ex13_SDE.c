@@ -133,7 +133,7 @@ int main(int argc,char **argv)
          Time Stepping
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
         ierr = myTS(user,u);CHKERRQ(ierr);
-        printf("QoI=%f\n", user->QoI);
+//        printf("QoI=%f\n", user->QoI);
         ierr = VecDestroy(&u);CHKERRQ(ierr);
         MC   = MC + user->QoI;
     }
@@ -208,13 +208,13 @@ PetscErrorCode BuildA(AppCtx *user)
     DMDALocalInfo  info;
     PetscInt       i,j;
     PetscReal      hx,hy,sx,sy;
-//    PetscViewer    viewfile;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
     ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
     hx   = 1.0/(PetscReal)(info.mx-1); sx = 1.0/(hx*hx);
     hy   = 1.0/(PetscReal)(info.my-1); sy = 1.0/(hy*hy);
+    
     for (j=info.ys; j<info.ys+info.ym; j++) {
         for (i=info.xs; i<info.xs+info.xm; i++) {
             PetscInt    nc = 0;
@@ -233,15 +233,9 @@ PetscErrorCode BuildA(AppCtx *user)
             ierr = MatSetValuesStencil(user->A,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
         }
     }
+    
     ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-//    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
-//    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-//    ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
-//    ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
-//    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-//    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-//    /* to check pattern in Matlab >>fdmat;spy(mat) */
     
     PetscFunctionReturn(0);
 }
@@ -260,6 +254,7 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr);
     hx   = 1.0/(PetscReal)(info.mx-1); sx = 1.0/(hx*hx);
     hy   = 1.0/(PetscReal)(info.my-1); sy = 1.0/(hy*hy);
+
     for (j=info.ys; j<info.ys+info.ym; j++) {
         for (i=info.xs; i<info.xs+info.xm; i++) {
             PetscInt    nc = 0;
@@ -278,6 +273,7 @@ PetscErrorCode BuildA_CN(AppCtx *user)
             ierr = MatSetValuesStencil(user->A,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
         }
     }
+    
     ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 //    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
@@ -318,15 +314,17 @@ PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
                                + ( u[info.mx*j+(i+1)] + u[info.mx*j+(i-1)] ) * .5*sx*dt
                                + ( u[info.mx*(j+1)+i] + u[info.mx*(j-1)+i] ) * .5*sy*dt;
             }
+            printf("i=%d,j=%d,rhs[%d]=%f\n",i,j,info.mx*j+i,rhs[info.mx*j+i]);
         }
     }
+    
     ierr = VecRestoreArray(RHS,&rhs);CHKERRQ(ierr);
     ierr = VecRestoreArray(U,&u);CHKERRQ(ierr);
     ierr = VecAssemblyBegin(RHS);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(RHS);CHKERRQ(ierr);
 //    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"rhsvec.m",&viewfile);CHKERRQ(ierr);
 //    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-//    ierr = PetscObjectSetName((PetscObject)U,"vec");CHKERRQ(ierr);
+//    ierr = PetscObjectSetName((PetscObject)RHS,"vec");CHKERRQ(ierr);
 //    ierr = VecView(RHS,viewfile);CHKERRQ(ierr);
 //    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
 //    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
@@ -566,12 +564,12 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
         r[i] = mu + sigma * tmp;
     }
     for (j=0; j<Ny; j++)
-        {for (i=0; i<Nx; i++)
-            {
-                if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) {
-                    r[Nx*j+i] = 0.0;}
-            }
+    {
+        for (i=0; i<Nx; i++)
+        {
+            if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) r[Nx*j+i] = 0.0;
         }
+    }
 /* Print the random vector r issued from random field by KL expansion */
 //    printf("\nRandom vector r issued from random field by KL expansion\n");
 //    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
