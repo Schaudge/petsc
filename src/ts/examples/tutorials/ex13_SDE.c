@@ -17,7 +17,6 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
 #include <petscdm.h>
 #include <petscdmda.h>
 #include <petscmatlab.h>
-#include <time.h>
 
 /* User-defined data structures and routines */
 
@@ -539,21 +538,20 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
     ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
     ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
     
-/* Use Petsc Random number generator */
-    PetscRandom rnd;
-/* Use random number generator in C */
-//    time_t t;
-//    srand((unsigned) time(&t));rand();//initialize random number generator in C
+/* Try Petsc Random number generator */
+//    PetscRandom rnd;
+/* Mean For test */
 //    PetscScalar mean = 0;
     for (i = 0; i < N2; i++)
     {
-        ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
-        ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
-        ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
-        ierr = PetscRandomGetValue(rnd,&rndu[i]);CHKERRQ(ierr);
+//        ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
+//        ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
+//        ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
+//        ierr = PetscRandomGetValue(rnd,&rndu[i]);CHKERRQ(ierr);
+        /* Use random number generator in C */
         rndu[i] = (PetscScalar) rand()/RAND_MAX;
         rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
-//        printf("\nuniform random sample= %f\n",rndu[i]);
+//        printf("\n uniform random sample= %f\n",rndu[i]);
 //        printf("normal random sample= %f\n",rndn[i]);
 //        mean = mean + rndu[i];
     }
@@ -577,11 +575,11 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
 /* Print the random vector r issued from random field by KL expansion */
 //    printf("\nRandom vector r issued from random field by KL expansion\n");
 //    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
-    /* plot r in Matlab:
-       >> Lx=1;Ly=1;Nx=8;Ny=8;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
-       surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
+/* plot r in Matlab:
+>> Lx=1;Ly=1;Nx=8;Ny=8;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
+>> surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
 
-    //    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
+//    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
 
     ierr = PetscFree(rndu);CHKERRQ(ierr);
     ierr = PetscFree(rndn);CHKERRQ(ierr);
