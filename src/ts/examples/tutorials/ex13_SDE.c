@@ -51,6 +51,7 @@ typedef struct {
   TsInfo        *ts;
   PetscScalar**  U;
   PetscScalar*   S;
+  PetscReal      QoI;
 } AppCtx;
 
 PetscErrorCode SetParams(Parameter*,GridInfo*,TsInfo*);
@@ -75,6 +76,7 @@ int main(int argc,char **argv)
     TsInfo         ts;
     DMDALocalInfo  info;
     PetscInt       i;
+    PetscReal      MC=0.0;
     PetscErrorCode ierr;
     //  PetscViewer    viewfile;
     
@@ -132,8 +134,12 @@ int main(int argc,char **argv)
          Time Stepping
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
         ierr = myTS(user,u);CHKERRQ(ierr);
+        printf("QoI=%f\n", user->QoI);
         ierr = VecDestroy(&u);CHKERRQ(ierr);
+        MC   = MC + user->QoI;
     }
+    MC = MC/param.M;
+    printf(" MC=%f\n",MC);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -378,7 +384,6 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     TsInfo        *ts    = user->ts;
     GridInfo      *grid  = user->grid;
     PetscInt       mQ;
-    PetscReal      QoI;
     PetscReal    **unew_array;
     PetscErrorCode ierr;
     
@@ -430,8 +435,8 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     /* compute quantity of interest */
     mQ   = (PetscInt)PetscRoundReal((grid->Nx)*0.5);
     ierr = DMDAVecGetArray(user->da,unew,&unew_array);CHKERRQ(ierr);
-    QoI = unew_array[mQ][mQ];
-    printf("mQ=%d;QoI=%f\n",mQ,QoI);
+    user->QoI = unew_array[mQ][mQ];
+//    printf("mQ=%d;QoI=%f\n",mQ,user->QoI);
     ierr = DMDAVecRestoreArray(user->da,unew,&unew_array);CHKERRQ(ierr);
     
     ierr = VecDestroy(&r);CHKERRQ(ierr);
