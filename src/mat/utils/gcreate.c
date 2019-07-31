@@ -244,6 +244,9 @@ PetscErrorCode  MatSetFromOptions(Mat B)
   ierr = PetscOptionsBool("-mat_new_nonzero_allocation_err","Generate an error if new nonzeros are allocated in the matrix structure (useful to test preallocation)","MatSetOption",flg,&flg,&set);CHKERRQ(ierr);
   if (set) {ierr = MatSetOption(B,MAT_NEW_NONZERO_ALLOCATION_ERR,flg);CHKERRQ(ierr);}
 
+  B->assembly_use_hash = PETSC_FALSE;
+  ierr = PetscOptionsBool("-mat_assembly_use_hash","Assemble matrix using a hash table for saving memory","Assemble matrix using hash",B->assembly_use_hash,&B->assembly_use_hash,NULL);CHKERRQ(ierr);
+
   /* process any options handlers added with PetscObjectAddOptionsHandler() */
   ierr = PetscObjectProcessOptionsHandlers(PetscOptionsObject,(PetscObject)B);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);

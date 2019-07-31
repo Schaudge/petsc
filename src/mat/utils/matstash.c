@@ -43,6 +43,7 @@ PetscErrorCode MatStashCreate_Private(MPI_Comm comm,PetscInt bs,MatStash *stash)
   ierr = PetscMalloc1(2*stash->size,&stash->flg_v);CHKERRQ(ierr);
   for (i=0; i<2*stash->size; i++) stash->flg_v[i] = -1;
 
+  ierr = PetscHMapIJVCreate(&stash->ht);CHKERRQ(ierr);
 
   nopt = stash->size;
   ierr = PetscMalloc1(nopt,&opt);CHKERRQ(ierr);
@@ -108,6 +109,7 @@ PetscErrorCode MatStashDestroy_Private(MatStash *stash)
 
   PetscFunctionBegin;
   ierr = PetscMatStashSpaceDestroy(&stash->space_head);CHKERRQ(ierr);
+  ierr = PetscHMapIJVDestroy(&stash->ht);CHKERRQ(ierr);
   if (stash->ScatterDestroy) {ierr = (*stash->ScatterDestroy)(stash);CHKERRQ(ierr);}
 
   stash->space = 0;
@@ -250,6 +252,7 @@ static PetscErrorCode MatStashExpand_Private(MatStash *stash,PetscInt incr)
   stash->nmax = newnmax;
   PetscFunctionReturn(0);
 }
+
 /*
   MatStashValuesRow_Private - inserts values into the stash. This function
   expects the values to be roworiented. Multiple columns belong to the same row
@@ -286,6 +289,39 @@ PetscErrorCode MatStashValuesRow_Private(MatStash *stash,PetscInt row,PetscInt n
   stash->n               += cnt;
   space->local_used      += cnt;
   space->local_remaining -= cnt;
+  PetscFunctionReturn(0);
+}
+
+/*
+  MatStashValuesRow_Private - inserts values into the stash. This function
+  expects the values to be roworiented. Multiple columns belong to the same row
+  can be inserted with a single call to this function.
+
+  Input Parameters:
+  stash  - the stash
+  row    - the global row correspoiding to the values
+  n      - the number of elements inserted. All elements belong to the above row.
+  idxn   - the global column indices corresponding to each of the values.
+  values - the values inserted
+*/
+PetscErrorCode MatStashValuesRow_Hash_Private(MatStash *stash,PetscInt row,PetscInt n,const PetscInt idxn[],const PetscScalar values[],InsertMode insert,PetscBool ignorezeroentries)
+{
+  PetscErrorCode     ierr;
+  PetscInt           i;
+  PetscHMapIJV       ht=stash->ht;
+  PetscHashIJKey     key;
+
+  PetscFunctionBegin;
+  for (i=0; i<n; i++) {
+    if (ignorezeroentries && (values[i] == 0.0)) continue;
+    key.i = row;
+    key.j = idxn[i];
+    if (insert == ADD_VALUES) {
+      ierr =  PetscHMapIJVAddValue(ht,key,values[i]);
+    } else if (insert == INSERT_VALUES) {
+      ierr =  PetscHMapIJVSet(ht,key,values[i]);
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -846,7 +882,30 @@ static PetscErrorCode MatStashScatterBegin_BTS(Mat mat,MatStash *stash,PetscInt 
 #endif
 
   ierr = MatStashBlockTypeSetUp(stash);CHKERRQ(ierr);
-  ierr = MatStashSortCompress_Private(stash,mat->insertmode);CHKERRQ(ierr);
+  /* Data should be already compressed using a hashtable */
+  if (mat->assembly_use_hash) {
+    PetscInt       size,i;
+    MatStashBlock  *block;
+    PetscHashIJKey *keys;
+    PetscScalar    *values;
+
+    ierr = PetscHMapIJVGetSize(stash->ht,&size);CHKERRQ(ierr);
+    /* Copy data over to local arrays */
+    ierr = PetscMalloc2(size,&keys,size,&values);CHKERRQ(ierr);
+    size = 0;
+    ierr = PetscHMapIJVGetPairs(stash->ht,&size,keys,values);CHKERRQ(ierr);
+    ierr = PetscHMapIJVDestroy(&stash->ht);CHKERRQ(ierr);
+    ierr = PetscSegBufferGet(stash->segsendblocks,size,&block);CHKERRQ(ierr);
+    /* Copy data to send buffers */
+    for (i=0;i<size;i++) {
+      block[i].row = keys[i].i;
+      block[i].col = keys[i].j;
+      block[i].vals[0] = values[i];
+    }
+    ierr = PetscFree2(keys,values);CHKERRQ(ierr);
+  } else {
+     ierr = MatStashSortCompress_Private(stash,mat->insertmode);CHKERRQ(ierr);
+  }
   ierr = PetscSegBufferGetSize(stash->segsendblocks,&nblocks);CHKERRQ(ierr);
   ierr = PetscSegBufferExtractInPlace(stash->segsendblocks,&sendblocks);CHKERRQ(ierr);
   if (stash->first_assembly_done) { /* Set up sendhdrs and sendframes for each rank that we sent before */

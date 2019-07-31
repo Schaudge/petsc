@@ -5,6 +5,7 @@
 #include <petscmat.h>
 #include <petscmatcoarsen.h>
 #include <petsc/private/petscimpl.h>
+#include <petsc/private/hashmapijv.h>
 
 PETSC_EXTERN PetscBool MatRegisterAllCalled;
 PETSC_EXTERN PetscBool MatSeqAIJRegisterAllCalled;
@@ -283,6 +284,7 @@ struct _MatStash {
   PetscInt      bs;                     /* block size of the stash */
   PetscInt      reallocs;               /* preserve the no of mallocs invoked */
   PetscMatStashSpace space_head,space;  /* linked list to hold stashed global row/column numbers and matrix values */
+  PetscHMapIJV  ht;
 
   PetscErrorCode (*ScatterBegin)(Mat,MatStash*,PetscInt*);
   PetscErrorCode (*ScatterGetMesg)(MatStash*,PetscMPIInt*,PetscInt**,PetscInt**,PetscScalar**,PetscInt*);
@@ -343,6 +345,7 @@ PETSC_INTERN PetscErrorCode MatStashScatterEnd_Private(MatStash*);
 PETSC_INTERN PetscErrorCode MatStashSetInitialSize_Private(MatStash*,PetscInt);
 PETSC_INTERN PetscErrorCode MatStashGetInfo_Private(MatStash*,PetscInt*,PetscInt*);
 PETSC_INTERN PetscErrorCode MatStashValuesRow_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscBool );
+PETSC_INTERN PetscErrorCode MatStashValuesRow_Hash_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],InsertMode,PetscBool );
 PETSC_INTERN PetscErrorCode MatStashValuesCol_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscBool );
 PETSC_INTERN PetscErrorCode MatStashValuesRowBlocked_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscInt,PetscInt);
 PETSC_INTERN PetscErrorCode MatStashValuesColBlocked_Private(MatStash*,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],PetscInt,PetscInt,PetscInt);
@@ -402,7 +405,7 @@ struct _p_Mat {
   PetscBool              assembly_subset;  /* set by MAT_SUBSET_OFF_PROC_ENTRIES */
   PetscBool              submat_singleis;  /* for efficient PCSetUP_ASM() */
   PetscBool              structure_only;
-  PetscBool              sortedfull;       /* full, sorted rows are inserted */ 
+  PetscBool              sortedfull;       /* full, sorted rows are inserted */
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
   PetscOffloadFlag       valid_GPU_matrix; /* flag pointing to the matrix on the gpu*/
   PetscBool              pinnedtocpu;
@@ -420,6 +423,7 @@ struct _p_Mat {
   PetscInt               factorerror_zeropivot_row;     /* Row where zero pivot was detected */
   PetscInt               nblocks,*bsizes;   /* support for MatSetVariableBlockSizes() */
   char                   *defaultvectype;
+  PetscBool              assembly_use_hash;
 };
 
 PETSC_INTERN PetscErrorCode MatAXPY_Basic(Mat,PetscScalar,Mat,MatStructure);
