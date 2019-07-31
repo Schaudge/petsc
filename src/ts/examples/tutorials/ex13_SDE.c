@@ -101,15 +101,15 @@ int main(int argc,char **argv)
     ierr = DMDASetUniformCoordinates(user->da,0.0,param.Lx,0.0,param.Ly,0.0,0.0);CHKERRQ(ierr);
     ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr); grid.Nx = info.mx; grid.Ny = info.my;
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Differential Operator
+     Set Differential Operator
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     /* Set Matrix A */
     ierr = DMSetMatType(user->da,MATAIJ);CHKERRQ(ierr);
     ierr = DMCreateMatrix(user->da,&user->A);CHKERRQ(ierr);
     
     /* Euler scheme */
-    //  ierr = BuildA(&user);CHKERRQ(ierr);
-    //  ierr = MatScale(user->A,dt);CHKERRQ(ierr);
+//      ierr = BuildA(user);CHKERRQ(ierr);
+//      ierr = MatScale(user->A,ts.dt);CHKERRQ(ierr);
     
     /* Crank-Nicolson scheme */
     ierr = BuildA_CN(user);CHKERRQ(ierr);
@@ -118,7 +118,7 @@ int main(int argc,char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     ierr = KLSetup(user);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     MC Simulation
+     Do MC Simulation
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     for (i=0 ; i < (param.M); i++)
     {
@@ -390,7 +390,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     PetscFunctionBeginUser;
     
     ierr = DMCreateGlobalVector(user->da,&r);CHKERRQ(ierr);
-    ierr = DMCreateGlobalVector(user->da,&rhs);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(user->da,&rhs);CHKERRQ(ierr); /* Create rhs vector for Crank-Nicolson scheme */
     ierr = VecDuplicate(u,&uold);CHKERRQ(ierr);
     ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
     
@@ -424,7 +424,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
         ierr = KSPSetOperators(ksp,user->A,user->A);CHKERRQ(ierr);
         ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
         ierr = KSPSolve(ksp,rhs,unew);CHKERRQ(ierr);
-            
+        
         /* Euler scheme */
 //        ierr = MatMultAdd(user->A,uold,r,unew);CHKERRQ(ierr);
 //        ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
@@ -574,7 +574,7 @@ PetscErrorCode BuildR(AppCtx* user, Vec R)
                     r[Nx*j+i] = 0.0;}
             }
         }
-/* Pring the random vector r issued from random field by KL expansion */
+/* Print the random vector r issued from random field by KL expansion */
 //    printf("\nRandom vector r issued from random field by KL expansion\n");
 //    for (i = 0; i < N2; i++) printf("%6.8f\n", r[i]);
     /* plot r in Matlab:
