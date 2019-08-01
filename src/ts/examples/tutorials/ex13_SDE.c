@@ -99,6 +99,10 @@ int main(int argc,char **argv)
     ierr = DMSetUp(user->da);CHKERRQ(ierr);
     ierr = DMDASetUniformCoordinates(user->da,0.0,param.Lx,0.0,param.Ly,0.0,0.0);CHKERRQ(ierr);
     ierr = DMDAGetLocalInfo(user->da,&info);CHKERRQ(ierr); grid.Nx = info.mx; grid.Ny = info.my;
+    /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Extract global vectors from DMDA;
+     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = DMCreateGlobalVector(user->da,&u);CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set Differential Operator
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -121,10 +125,6 @@ int main(int argc,char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     for (i=0 ; i < (param.M); i++)
     {
-        /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-         Extract global vectors from DMDA;
-         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-        ierr = DMCreateGlobalVector(user->da,&u);CHKERRQ(ierr);
         /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
          Set initial conditions
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -134,7 +134,6 @@ int main(int argc,char **argv)
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
         ierr = myTS(user,u);CHKERRQ(ierr);
 //        printf("QoI=%f\n", user->QoI);
-        ierr = VecDestroy(&u);CHKERRQ(ierr);
         MC   = MC + user->QoI;
     }
     MC = MC/param.M;
@@ -142,6 +141,7 @@ int main(int argc,char **argv)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    ierr = VecDestroy(&u);CHKERRQ(ierr);
     ierr = MatDestroy(&user->A);CHKERRQ(ierr);
     ierr = DMDestroy(&user->da);CHKERRQ(ierr);
     ierr = PetscFree(user);CHKERRQ(ierr);
