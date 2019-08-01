@@ -61,7 +61,7 @@ PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
 PetscErrorCode myTS(AppCtx*,Vec);
 PetscErrorCode PlotSetup(AppCtx*, Vec, Vec, char*);
 PetscErrorCode Plot(AppCtx*, Vec, Vec, char*);
-PetscErrorCode BuildR(AppCtx*,Vec);
+PetscErrorCode BuildKL(AppCtx*,Vec);
 PetscErrorCode KLSetup(AppCtx*);
 PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
 PetscReal      ltqnorm(PetscReal);
@@ -160,8 +160,8 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     param->b        = 5.0;
     param->c        = 30.0;
     param->rad      = 0.5;
-    param->mu       = 0.0;
-    param->sigma    = 0.0;   /* sigma here stands for noise strength */
+    param->mu       = 1.0;
+    param->sigma    = 2.0;   /* sigma here stands for noise strength */
     param->lc       = 2.0;   /* corelation length for exponential or Gaussian covariance function*/
     param->lx       = 0.1;   /* corelation length for separable exponential covariance function*/
     param->ly       = 0.1;   /* corelation length for separable exponential covariance function*/
@@ -409,7 +409,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
         }
         
         ierr = VecCopy(u,uold);CHKERRQ(ierr);
-        ierr = BuildR(user,r);CHKERRQ(ierr);
+        ierr = BuildKL(user,r);CHKERRQ(ierr);
         ierr = VecScale(r,PetscSqrtReal(ts->dt));CHKERRQ(ierr);
             
         /* Crank-Nicolson scheme */
@@ -425,6 +425,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
 //        ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
         
         ierr = VecCopy(unew,u);CHKERRQ(ierr);
+        
         /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
          Link Matlab_Engine for plotting
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -510,7 +511,7 @@ PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
     PetscFunctionReturn(0);
 }
 /* ----------------------------------------------------------------------------------------------------------------------- */
-PetscErrorCode BuildR(AppCtx* user, Vec R)
+PetscErrorCode BuildKL(AppCtx* user, Vec R)
 {
     DMDALocalInfo  info;
     Parameter     *param = user->param;
