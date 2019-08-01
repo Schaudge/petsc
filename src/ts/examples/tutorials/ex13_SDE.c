@@ -156,12 +156,12 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     
     PetscFunctionBeginUser;
     /* physical parameters */
-    param->M        = 10;
+    param->M        = 1;
     param->b        = 5.0;
     param->c        = 30.0;
     param->rad      = 0.5;
-    param->mu       = 1.0;
-    param->sigma    = 1.5;   /* sigma here stands for noise strength */
+    param->mu       = 0.0;
+    param->sigma    = 0.0;   /* sigma here stands for noise strength */
     param->lc       = 2.0;   /* corelation length for exponential or Gaussian covariance function*/
     param->lx       = 0.1;   /* corelation length for separable exponential covariance function*/
     param->ly       = 0.1;   /* corelation length for separable exponential covariance function*/
@@ -183,16 +183,16 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     ierr = PetscOptionsGetInt(NULL,NULL,"-Ly",&(param->Ly),NULL);CHKERRQ(ierr);
     
     /* grid information */
-    grid->Nx        = 9;
-    grid->Ny        = 9;
+    grid->Nx        = 11;
+    grid->Ny        = 11;
     
     ierr = PetscOptionsGetInt(NULL,NULL,"-Nx",&(grid->Nx),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-Ny",&(grid->Ny),NULL);CHKERRQ(ierr);
     
     /* ts information */
-    ts->tfinal      = 0.10;
+    ts->tfinal      = 0.50;
     ts->dt          = 0.01;
-    ts->tout        = 1;
+    ts->tout        = 10;
     
     ierr = PetscOptionsGetReal(NULL,NULL,"-tfinal",&(ts->tfinal),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetReal(NULL,NULL,"-dt",&(ts->dt),NULL);CHKERRQ(ierr);
@@ -390,12 +390,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     ierr = DMCreateGlobalVector(user->da,&rhs);CHKERRQ(ierr); /* Create rhs vector for Crank-Nicolson scheme */
     ierr = VecDuplicate(u,&uold);CHKERRQ(ierr);
     ierr = VecDuplicate(u,&unew);CHKERRQ(ierr);
-    
-    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Link Matlab_Engine for plotting
-     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-    
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     Time stepping
     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -403,16 +398,15 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     {
         if ((ts->i) == 0)
         {
+            /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+             Link Matlab_Engine for plotting
+             - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
             ierr = PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
             ierr = PlotSetup(user,u,r,output);CHKERRQ(ierr);
             ts->tm[0] = ts->dt; /* time step size for checking */
             ts->tm[1] = 0;      /* time for check */
             ierr = Plot(user,u,r,output);CHKERRQ(ierr);
         }
-        /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        Link Matlab_Engine for plotting
-        - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-        ts->tm[1] = ts->tm[1] + ts->dt;
         
         ierr = VecCopy(u,uold);CHKERRQ(ierr);
         ierr = BuildR(user,r);CHKERRQ(ierr);
@@ -431,6 +425,10 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
 //        ierr = VecAXPY(unew,1.0,uold);CHKERRQ(ierr);
         
         ierr = VecCopy(unew,u);CHKERRQ(ierr);
+        /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Link Matlab_Engine for plotting
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+        ts->tm[1] = ts->tm[1] + ts->dt;
         if ((ts->i) != 0) ierr = Plot(user,u,r,output);CHKERRQ(ierr);
 
     }
