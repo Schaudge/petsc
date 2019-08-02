@@ -638,6 +638,15 @@ class Configure(script.Script):
       (output, error, status) = Configure.executeShellCommand(command, log = self.log)
     except RuntimeError as e:
       self.logWrite('ERROR while running executable: '+str(e)+'\n')
+    if status:
+      output = output+error
+      #  this is the current string Intel produces: Please verify that both the operating system and the processor support Intel(R) AVX512F, ADX, AVX512ER, AVX512PF and AVX512CD instructions.
+      #  they may change in the future so look for key phrases they hopefully won't change
+      if output and output.find('support') > -1 and output.find('Intel') > 0 and output.find('instructions') > 0:
+        raise RuntimeError('It appears you are compiling for Intel instructions that are not supported by the hardware doing the compiles,\n\
+for example compiling for Intel KNL on a Intel Xeon system. Here is the message from attempting to run the executable\n'+\
+output+'\n\
+You may need to run configure with --with-batch')
     if os.path.isfile(self.compilerObj):
       try:
         os.remove(self.compilerObj)
@@ -649,7 +658,7 @@ class Configure(script.Script):
         os.remove(self.linkerObj)
       except RuntimeError as e:
         self.logWrite('ERROR while removing executable file: '+str(e)+'\n')
-    return (output+error, status)
+    return (output, status)
 
   def checkRun(self, includes = '', body = '', cleanup = 1, defaultArg = '', executor = None, linkLanguage=None):
     (output, returnCode) = self.outputRun(includes, body, cleanup, defaultArg, executor,linkLanguage=linkLanguage)
