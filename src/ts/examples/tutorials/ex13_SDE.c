@@ -505,7 +505,7 @@ PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
         ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
         ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)r);CHKERRQ(ierr);
         ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');colorbar;title({['Random field'],['Time t= ',num2str(tm(2))]});shading interp;axis auto;axis square;xlabel('X');ylabel('Y');view(2);set(gca,'fontsize', 16);");CHKERRQ(ierr);
-        ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');colorbar;giFixtitle({['Solution'],['Time t= ',num2str(tm(2))]});shading interp;axis auto;axis square;xlabel('X');ylabel('Y');view(2);set(gca,'fontsize', 16);pause(0.01);drawnow");CHKERRQ(ierr);
+        ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2))]});axis auto;axis square;xlabel('X');ylabel('Y');view(3);set(gca,'fontsize', 16);pause(0.01);drawnow");CHKERRQ(ierr);
 
         if ((ts->i) == 0)
         {
