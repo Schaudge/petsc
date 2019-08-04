@@ -153,7 +153,7 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
 
     if self.argDB['force']:
       self.logPrint('Forcing a new configuration requested by use')
-      self.makeDependency(hash,hashfile,None)
+      self.makeDependency(hash,hashfile,hashfilepackages)
       return
     a = ''
     try:
@@ -177,7 +177,7 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
       print('Your configure options and state has not changed; no need to run configure')
       print('However you can force a configure run using the option: --force')
       sys.exit()
-    self.makeDependency(hash,hashfile)
+    self.makeDependency(hash,hashfile,hashfilepackages)
     self.logPrint('configure hash file: '+hashfile+' does not match computed hash, need to run configure')
 
   def configure(self):
