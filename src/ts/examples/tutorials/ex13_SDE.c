@@ -2,13 +2,13 @@
 
 static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Adapted from ex13.c. \n";
 /*
-   du = (u_xx + u_yy) dt + sigma * dW(t)
+   du = D (u_xx + u_yy) dt + sigma * dW(t)
    0 < x < 1, 0 < y < 1;
    At t=0: u(x,y) = b*exp(-c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
            u(x,y) = 0.0          , if r >= rad
    At bdry:u(x,y) = 0.0
 
-   mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1 -M 1
+   mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 0.5 -sigma 1
    mpiexec -n 1 ./ex13_SDE -sigma 0.1 -M 10
    (Need to configure PETSc with options: --with-matlab --with-matlab-engine)
 */
@@ -185,8 +185,8 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     ierr = PetscOptionsGetInt(NULL,NULL,"-Ly",&(param->Ly),NULL);CHKERRQ(ierr);
     
     /* grid information */
-    grid->Nx        = 21;
-    grid->Ny        = 21;
+    grid->Nx        = 11;
+    grid->Ny        = 11;
     
     ierr = PetscOptionsGetInt(NULL,NULL,"-Nx",&(grid->Nx),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL,NULL,"-Ny",&(grid->Ny),NULL);CHKERRQ(ierr);
@@ -549,18 +549,20 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
     ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
     ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
     
-/* Try Petsc Random number generator */
-//    PetscRandom rnd;
+/*  Petsc Random number generator */
+    PetscRandom rnd;
 /* Mean For test */
 //    PetscScalar mean = 0;
+    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
+    ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
+    ierr = PetscRandomSetSeed(rnd,(unsigned long) rand());
+    ierr = PetscRandomSeed(rnd);
+    ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
     for (i = 0; i < N2; i++)
     {
-//        ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rnd);CHKERRQ(ierr);
-//        ierr = PetscRandomSetInterval(rnd,0.0,1.0);CHKERRQ(ierr);
-//        ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
-//        ierr = PetscRandomGetValue(rnd,&rndu[i]);CHKERRQ(ierr);
+        ierr = PetscRandomGetValue(rnd,&rndu[i]);CHKERRQ(ierr);
         /* Use random number generator in C */
-        rndu[i] = (PetscScalar) rand()/RAND_MAX;
+//        rndu[i] = (PetscScalar) rand()/RAND_MAX;
         rndn[i] = ltqnorm(rndu[i]);// transform from uniform(0,1) to normal(0,1) by N = norminv(U)
 //        printf("\n uniform random sample= %f\n",rndu[i]);
 //        printf("normal random sample= %f\n",rndn[i]);
@@ -568,6 +570,7 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
     }
 //        mean = mean/N2;
 //        printf("%f\n",mean);
+//        exit(0);
     
 /* Do KL expansion by combining the above eigen decomposition and normal random numbers */
     for (i = 0; i < N2; i++)
