@@ -1158,7 +1158,17 @@ that use Fortran (for example, MUMPS requires Fortran) you can use --with-fc=0 f
             </li>
               <li>
                 Notes on usage:
-                <ul>
+                 <ul>
+                  <li> Log into theta.alcf.anl.gov </li>
+                  <li> There are three compiler suites <a href="https://www.alcf.anl.gov/user-guides/compiling-and-linking-xc40">Modules</a>
+                 <ul>
+                  <li> module load intel ; module load PrgEnv-intel </li>
+                  <li>  module load PrgEnv-cray </li>
+                  <li>  module load PrgEnv-gnu </li>
+                </ul>
+                  <li> ./configure                  </li>
+                  <li> module avail                  </li>
+                 <ul>
                   <li> Log into theta.alcf.anl.gov </li>
                   <li> module load cray-hdf5-parallel cray-netcdf-hdf5parallel cray-parallel-netcdf</li>
                   <li> Use config/examples/arch-cray-xc40-knl-opt.py as a template for running configure </li>
