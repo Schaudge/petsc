@@ -2,15 +2,19 @@
 
 static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Adapted from ex13.c. \n";
 /*
-   du = D (u_xx + u_yy) dt + sigma * dW(t)
-   0 < x < 1, 0 < y < 1;
-   At t=0: u(x,y) = b*exp(-c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
-           u(x,y) = 0.0          , if r >= rad
-   At bdry:u(x,y) = 0.0
+   du = D (u_xx + u_yy) dt + sigma * dW^Q
+   G = { (x,y) |0 < x < 1, 0 < y < 1}
+   At t=0:  u(x,y) = b*exp(-c*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < rad
+            u(x,y) = 0.0          , if r >= rad
+   At bdry: u(x,y) = 0.0
+   sigma * dW^Q(t,x,y) = mu + sigma \sum_{j>=1} sqrt{q_j} \phi_j(x,y) * dw_j(t)
+   dw_j(t) are Gaussian white noise
+   q_j and \phi_j are eigenpairs of covariance (integral) operator Q = \int_G q((x,y),(x',y')) \phi_j(x',y') dx'dy'
+   q((x,y),(x',y')) = exp(-||(x,y)-(x',y')||/Lc)
 
-   mpiexec -n 1 ./ex13_SDE -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 0.5 -sigma 1
+   mpiexec -n 1 ./ex13_SDE -use-matlab-plot -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 0.5 -sigma 1
    mpiexec -n 1 ./ex13_SDE -sigma 0.1 -M 10
-   (Need to configure PETSc with options: --with-matlab --with-matlab-engine)
+   Need to configure PETSc with options: --with-matlab --with-matlab-engine
 */
 
 #include <petsc.h>
@@ -27,7 +31,7 @@ typedef struct { /* physical parameters */
   PetscReal      lc;        /* corelation length for exponential or Gaussian covariance function*/
   PetscReal      lx,ly;     /* corelation length for separable exponential covariance function*/
   PetscScalar    b, c, rad;
-} Parameter;
+} ParamInfo;
 
 typedef struct { /* grid parameters */
   PetscInt       Nx, Ny;
@@ -45,7 +49,7 @@ typedef struct { /* ts parameters */
 typedef struct {
   Mat            A;
   DM             da;
-  Parameter     *param;
+  ParamInfo      *param;
   GridInfo      *grid;
   TsInfo        *ts;
   PetscScalar**  U;
@@ -53,9 +57,11 @@ typedef struct {
   PetscReal      QoI;
 } AppCtx;
 
-PetscErrorCode SetParams(Parameter*,GridInfo*,TsInfo*);
+PetscBool useMatlabPlot = PETSC_TRUE;
+
+PetscErrorCode SetParams(ParamInfo*,GridInfo*,TsInfo*);
 PetscErrorCode FormInitialSolution(AppCtx*,Vec);
-PetscErrorCode BuildA(AppCtx*);
+PetscErrorCode BuildA_EU(AppCtx*);
 PetscErrorCode BuildA_CN(AppCtx*);
 PetscErrorCode FormRHS_CN(AppCtx*,Vec,Vec);
 PetscErrorCode myTS(AppCtx*,Vec);
@@ -66,11 +72,27 @@ PetscErrorCode KLSetup(AppCtx*);
 PetscErrorCode svd(PetscScalar**,PetscScalar**,PetscScalar**,PetscScalar*,PetscInt);
 PetscReal      ltqnorm(PetscReal);
 
+/*
+ Options:
+ -D  <D>  - diffusion constant
+ -M  <M>  - total sample numbers for MC
+ -mu <mu> - mean of the noise
+ -sigma <sigma> - strength of the random field
+ -Lc <Lc> - correlation length of random field
+ -use-matlab-plot - use the Matlab engine to plot
+ -matlab-engine-graphics - enable Matlab engine graphics to work
+ -tout <tout> - output time step
+ -dt <dt> - time step for discretization
+ -Nx <Nx> - mesh size in x-axis
+ -Ny <Ny> - mesh size in y-axis
+ -da_refine <n> - refine mesh level
+ */
+
 int main(int argc,char **argv)
 {
     Vec            u;               /* solution vector */
     AppCtx        *user;              /* user-defined work context */
-    Parameter      param;
+    ParamInfo      param;
     GridInfo       grid;
     TsInfo         ts;
     DMDALocalInfo  info;
@@ -111,7 +133,7 @@ int main(int argc,char **argv)
     ierr = DMCreateMatrix(user->da,&user->A);CHKERRQ(ierr);
     
     /* Euler scheme */
-//      ierr = BuildA(user);CHKERRQ(ierr);
+//      ierr = BuildA_EU(user);CHKERRQ(ierr);
 //      ierr = MatScale(user->A,ts.dt);CHKERRQ(ierr);
     
     /* Crank-Nicolson scheme */
@@ -123,8 +145,7 @@ int main(int argc,char **argv)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Do MC Simulation
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-    for (i=0 ; i < (param.M); i++)
-    {
+    for (i=0 ; i < (param.M); i++){
         /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
          Set initial conditions
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -150,7 +171,7 @@ int main(int argc,char **argv)
     return ierr;
 }
 /* ----------------------------------------------------------------------------------------------------------------------- */
-PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
+PetscErrorCode SetParams(ParamInfo *param, GridInfo *grid, TsInfo *ts)
 {
     PetscErrorCode ierr;
     
@@ -205,10 +226,10 @@ PetscErrorCode SetParams(Parameter *param, GridInfo *grid, TsInfo *ts)
     PetscFunctionReturn(0);
 }
 /* ----------------------------------------------------------------------------------------------------------------------- */
-PetscErrorCode BuildA(AppCtx *user)
+PetscErrorCode BuildA_EU(AppCtx *user)
 {
     DMDALocalInfo  info;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscScalar    D     = param->D;
     PetscInt       i,j;
     PetscReal      hx,hy,mux,muy;
@@ -249,11 +270,10 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     DMDALocalInfo  info;
     PetscInt       i,j;
     PetscReal      hx,hy,mux,muy;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscScalar    D     = param->D;
     TsInfo        *ts = user->ts;
     PetscScalar    dt = ts->dt;
-//    PetscViewer    viewfile;
     PetscErrorCode ierr;
     
     PetscFunctionBeginUser;
@@ -282,13 +302,6 @@ PetscErrorCode BuildA_CN(AppCtx *user)
     
     ierr = MatAssemblyBegin(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(user->A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-//    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"fdmat.m",&viewfile);CHKERRQ(ierr);
-//    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-//    ierr = PetscObjectSetName((PetscObject)user->A,"mat");CHKERRQ(ierr);
-//    ierr = MatView(user->A,viewfile);CHKERRQ(ierr);
-//    ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-//    ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-//    /* to check pattern in Matlab >>fdmat;spy(mat) */
     
     PetscFunctionReturn(0);
 }
@@ -298,7 +311,7 @@ PetscErrorCode FormRHS_CN(AppCtx *user, Vec U, Vec RHS)
     PetscInt       i,j;
     PetscReal      hx,hy,mux,muy;
     PetscScalar   *u, *rhs;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscScalar    D     = param->D;
     TsInfo        *ts = user->ts;
     PetscScalar    dt = ts->dt;
@@ -345,7 +358,7 @@ PetscErrorCode FormInitialSolution(AppCtx *user, Vec U)
     PetscInt       i,j,xs,ys,xm,ym;
     PetscReal      hx,hy,x,y,r;
     DMDALocalInfo  info;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscScalar    b     = param->b;
     PetscScalar    c     = param->c;
     PetscScalar    rad   = param->rad;
@@ -402,18 +415,19 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     Time stepping
     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-    for ( (ts->i) = 0; (ts->i) < (ts->tsteps) ; (ts->i)++)
-    {
-        if ((ts->i) == 0)
-        {
+    for ( (ts->i) = 0; (ts->i) < (ts->tsteps) ; (ts->i)++){
+        ierr = PetscOptionsGetBool(NULL,NULL,"-use-matlab-plot",&useMatlabPlot,NULL);CHKERRQ(ierr);
+        if (useMatlabPlot) {
+            if ((ts->i) == 0){
             /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
              Link Matlab_Engine for plotting
              - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-            ierr = PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
-            ierr = PlotSetup(user,u,r,output);CHKERRQ(ierr);
-            ts->tm[0] = ts->dt; /* time step size for checking */
-            ts->tm[1] = 0;      /* time for check */
-            ierr = Plot(user,u,r,output);CHKERRQ(ierr);
+                ierr = PetscMatlabEngineGetOutput(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),&output);CHKERRQ(ierr);
+                ierr = PlotSetup(user,u,r,output);CHKERRQ(ierr);
+                ts->tm[0] = ts->dt; /* time step size for checking */
+                ts->tm[1] = 0;      /* time for check */
+                ierr = Plot(user,u,r,output);CHKERRQ(ierr);
+            }
         }
         
         ierr = VecCopy(u,uold);CHKERRQ(ierr);
@@ -438,7 +452,10 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
          Link Matlab_Engine for plotting
          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
         ts->tm[1] = ts->tm[1] + ts->dt;
-        if ((ts->i) != 0) ierr = Plot(user,u,r,output);CHKERRQ(ierr);
+        ierr = PetscOptionsGetBool(NULL,NULL,"-use-matlab-plot",&useMatlabPlot,NULL);CHKERRQ(ierr);
+        if (useMatlabPlot) {
+                if ((ts->i) != 0) ierr = Plot(user,u,r,output);CHKERRQ(ierr);
+        }
 
     }
         
@@ -446,7 +463,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
     mQ   = (PetscInt)PetscRoundReal((grid->Nx)*0.5-1);
     ierr = DMDAVecGetArray(user->da,unew,&unew_array);CHKERRQ(ierr);
     user->QoI = unew_array[mQ][mQ];
-    printf("mQ=%d;QoI=%f\n",mQ,user->QoI);
+//    printf("mQ=%d;QoI=%f\n",mQ,user->QoI);
     ierr = DMDAVecRestoreArray(user->da,unew,&unew_array);CHKERRQ(ierr);
     
     ierr = VecDestroy(&r);CHKERRQ(ierr);
@@ -461,7 +478,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
 PetscErrorCode PlotSetup(AppCtx* user, Vec u, Vec r, char* output)
 {
     DMDALocalInfo  info;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscReal      dim[2], domain[2];
     PetscErrorCode ierr;
     
@@ -498,8 +515,7 @@ PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
     TsInfo       *ts = user->ts;
     PetscErrorCode ierr;
     
-    if ( (ts->i) == 0 || ((ts->i) + 1) % (ts->tout) == 0)
-    {
+    if ( (ts->i) == 0 || ((ts->i) + 1) % (ts->tout) == 0){
         ierr = PetscMatlabEnginePutArray(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),2,1,ts->tm,"tm");CHKERRQ(ierr);
         ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"tm");CHKERRQ(ierr);
         ierr = PetscMatlabEnginePut(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),(PetscObject)u);CHKERRQ(ierr);
@@ -507,12 +523,10 @@ PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
         ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,2);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(r,Nx,Ny)');colorbar;title({['Random field'],['Time t= ',num2str(tm(2))]});shading interp;axis auto;axis square;xlabel('X');ylabel('Y');view(2);set(gca,'fontsize', 16);");CHKERRQ(ierr);
         ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"subplot(1,2,1);[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));surf(X,Y,reshape(u,Nx,Ny)');title({['Solution'],['Time t= ',num2str(tm(2))]});axis auto;axis square;xlabel('X');ylabel('Y');view(3);set(gca,'fontsize', 16);pause(0.01);drawnow");CHKERRQ(ierr);
 
-        if ((ts->i) == 0)
-        {
+        if ((ts->i) == 0){
             ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"h=figure(1);axis tight manual;filename = 'plot.gif';frame = getframe(h);im = frame2im(frame);[imind,cm] =rgb2ind(im,256);imwrite(imind,cm,filename,'gif', 'Loopcount',inf,'DelayTime',1/5);");CHKERRQ(ierr);
         }
-        else
-        {
+        else{
             ierr = PetscMatlabEngineEvaluate(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD),"h=figure(1);axis tight manual;filename = 'plot.gif';frame = getframe(h);im = frame2im(frame);[imind,cm]=rgb2ind(im,256);imwrite(imind,cm,filename,'gif','WriteMode','append','DelayTime',1/5);");CHKERRQ(ierr);
             ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"%s",output);CHKERRQ(ierr);
         }
@@ -523,7 +537,7 @@ PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
 PetscErrorCode BuildKL(AppCtx* user, Vec R)
 {
     DMDALocalInfo  info;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscInt       i,j,Nx,Ny,N2;
     PetscReal      mu     = param->mu;
     PetscReal      sigma  = param->sigma;
@@ -558,8 +572,7 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
     ierr = PetscRandomSetSeed(rnd,(unsigned long) rand());
     ierr = PetscRandomSeed(rnd);
     ierr = PetscRandomSetFromOptions(rnd);CHKERRQ(ierr);
-    for (i = 0; i < N2; i++)
-    {
+    for (i = 0; i < N2; i++){
         ierr = PetscRandomGetValue(rnd,&rndu[i]);CHKERRQ(ierr);
         /* Use random number generator in C */
 //        rndu[i] = (PetscScalar) rand()/RAND_MAX;
@@ -573,16 +586,13 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
 //        exit(0);
     
 /* Do KL expansion by combining the above eigen decomposition and normal random numbers */
-    for (i = 0; i < N2; i++)
-    {
+    for (i = 0; i < N2; i++){
         tmp=0.0;
         for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
         r[i] = mu + sigma * tmp;
     }
-    for (j=0; j<Ny; j++)
-    {
-        for (i=0; i<Nx; i++)
-        {
+    for (j=0; j<Ny; j++){
+        for (i=0; i<Nx; i++){
             if (i == 0 || j == 0 || i == Nx-1 || j == Ny-1) r[Nx*j+i] = 0.0;
         }
     }
@@ -616,7 +626,7 @@ PetscErrorCode KLSetup(AppCtx* user)
     PetscScalar  **V;                /* SVD */
     PetscScalar   *W;                /* Weights for quadrature (trapezoidal) */
     PetscScalar    x1, y1, x0, y0, rr;
-    Parameter     *param = user->param;
+    ParamInfo     *param = user->param;
     PetscInt       Lx     = param->Lx;
     PetscInt       Ly     = param->Ly;
     PetscReal      lc     = param->lc;
@@ -655,19 +665,15 @@ PetscErrorCode KLSetup(AppCtx* user)
     /* Compute covariance function over the locally owned part of the grid */
     
     //        printf("\ntest coordinates:\n");
-    for (j0=ys; j0<ys+ym; j0++)
-    {
-        for (i0=xs; i0<xs+xm; i0++)
-        {
+    for (j0=ys; j0<ys+ym; j0++){
+        for (i0=xs; i0<xs+xm; i0++){
             //        printf("coord[%d][%d]", j0, i0);
             //        printf(".x=%1.2f  ", coors[j0][i0].x);
             //        printf(".y=%1.2f\n", coors[j0][i0].y);
             x0=coors[j0][i0].x;
             y0=coors[j0][i0].y;
-            for (j1=ys; j1<ys+ym; j1++)
-            {
-                for (i1=xs; i1<xs+xm; i1++)
-                {
+            for (j1=ys; j1<ys+ym; j1++){
+                for (i1=xs; i1<xs+xm; i1++){
                     x1=coors[j1][i1].x;
                     y1=coors[j1][i1].y;
 //                    rr = PetscAbsReal(x1-x0) / lx + PetscAbsReal(y1-y0) / ly; //Seperable Exp
@@ -698,10 +704,8 @@ PetscErrorCode KLSetup(AppCtx* user)
     W[0]=1; W[Nx-1]=1; W[N2-Nx]=1; W[N2-1]=1;
     for (i=1; i<Nx-1; i++) {W[i] = 2; W[N2-Nx+i]=2;}
     /* fill in between */
-    for (i=0; i<Nx; i++)
-    {
-        for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];
-    }
+    for (i=0; i<Nx; i++){
+        for (j=1; j<Ny-1; j++) W[j*Nx+i] = 2.0 * W[i];}
     
     //    /* Print W before scaling */
     //    printf("\nW\n");
@@ -716,10 +720,8 @@ PetscErrorCode KLSetup(AppCtx* user)
     
     /* Combine W with covariance matrix Cov to form covariance operator K
      K = sqrt(W) * Cov * sqrt(W) (modifed to be symmetric)             */
-    for (i=0; i<N2; i++)
-    {
-        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);
-    }
+    for (i=0; i<N2; i++){
+        for (j=0; j<N2; j++) Cov[i][j] = Cov[i][j] * PetscSqrtReal(W[i]) * PetscSqrtReal(W[j]);}
     
 //    /* Print the approximation of covariance operator K (modified to be symmetric) */
 //    printf("\nK = sqrt(W) * Cov * sqrt(W)\n");
@@ -751,10 +753,8 @@ PetscErrorCode KLSetup(AppCtx* user)
 //    }
     
     /* Recover eigenvectors by divding sqrt(W) */
-    for (i = 0; i < N2; i++)
-    {
-        for (j = 0; j < N2; j++) (user->U)[i][j] = (user->U)[i][j] / PetscSqrtReal(W[i]);
-    }
+    for (i = 0; i < N2; i++){
+        for (j = 0; j < N2; j++) (user->U)[i][j] = (user->U)[i][j] / PetscSqrtReal(W[i]);}
     
 //    /* Print eigenvectors W^(-1/2)*U */
 //    printf("\nIts corresponding eigenvectors (columns)\n");
@@ -791,12 +791,10 @@ PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, Pets
     PetscMalloc1(2*n*n,&A[0]);
     for (i=1; i<n; i++) A[i] = A[i-1]+n;
     
-    for (i=0; i<n; i++)
-    {
+    for (i=0; i<n; i++){
         A[i] = malloc(n * sizeof(PetscScalar));
         A[n+i] = malloc(n * sizeof(PetscScalar));
-        for (j=0; j<n; j++)
-        {
+        for (j=0; j<n; j++){
             A[i][j]   = A_input[i][j];
             A[n+i][j] = 0.0;
         }
@@ -839,10 +837,8 @@ PetscErrorCode svd(PetscScalar **A_input, PetscScalar **U, PetscScalar **V, Pets
     if (SweepCount > slimit)
         printf("Warning: Reached maximum number of sweeps (%d) in SVD routine...\n", slimit);
     for (i=0; i<n; i++) S[i] = PetscSqrtReal(S2[i]);
-    for (i=0; i<n; i++)
-    {
-        for (j=0; j<n; j++)
-        {
+    for (i=0; i<n; i++){
+        for (j=0; j<n; j++){
             U[i][j] = A[i][j]/S[j];
             V[i][j] = A[n+i][j];
         }
@@ -923,37 +919,31 @@ PetscReal ltqnorm(PetscReal p)
     
     errno = 0;
     
-    if (p < 0 || p > 1)
-    {
+    if (p < 0 || p > 1){
         errno = EDOM;
         return 0.0;
     }
-    else if (p == 0)
-    {
+    else if (p == 0){
         errno = ERANGE;
         return -HUGE_VAL /* minus "infinity" */;
     }
-    else if (p == 1)
-    {
+    else if (p == 1){
         errno = ERANGE;
         return HUGE_VAL /* "infinity" */;
     }
-    else if (p < LOW)
-    {
+    else if (p < LOW){
         /* Rational approximation for lower region */
         q = sqrt(-2*log(p));
         return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
         ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
     }
-    else if (p > HIGH)
-    {
+    else if (p > HIGH){
         /* Rational approximation for upper region */
         q  = sqrt(-2*log(1-p));
         return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
         ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
     }
-    else
-    {
+    else{
         /* Rational approximation for central region */
         q = p - 0.5;
         r = q*q;
