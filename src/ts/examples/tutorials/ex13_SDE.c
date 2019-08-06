@@ -28,8 +28,8 @@ typedef struct { /* physical parameters */
   PetscInt       M;
   PetscInt       Lx, Ly;
   PetscReal      D, mu, sigma;
-  PetscReal      lc;        /* corelation length for exponential or Gaussian covariance function*/
-  PetscReal      lx,ly;     /* corelation length for separable exponential covariance function*/
+  PetscReal      lc;        /* correlation length for exponential or Gaussian covariance function */
+  PetscReal      lx,ly;     /* correlation length for separable exponential covariance function */
   PetscScalar    b, c, rad;
 } ParamInfo;
 
@@ -78,7 +78,7 @@ PetscReal      ltqnorm(PetscReal);
  -M  <M>  - total sample numbers for MC
  -mu <mu> - mean of the noise
  -sigma <sigma> - strength of the random field
- -Lc <Lc> - correlation length of random field
+ -lc <lc> - correlation length for Gaussian covariance function
  -use-matlab-plot - use the Matlab engine to plot
  -matlab-engine-graphics - enable Matlab engine graphics to work
  -tout <tout> - output time step
@@ -91,13 +91,13 @@ PetscReal      ltqnorm(PetscReal);
 int main(int argc,char **argv)
 {
     Vec            u;               /* solution vector */
-    AppCtx        *user;              /* user-defined work context */
+    AppCtx        *user;            /* user-defined work context */
     ParamInfo      param;
     GridInfo       grid;
     TsInfo         ts;
     DMDALocalInfo  info;
     PetscInt       i;
-    PetscReal      MC=0.0;
+    PetscReal      MC = 0.0;
     PetscErrorCode ierr;
     //  PetscViewer    viewfile;
     
@@ -396,7 +396,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
 {
     char          *output;            /* Output for Matlab_Engine */
     Vec            r;                 /* random vector */
-    Vec            unew, uold;        /* vector for time stepping */
+    Vec            unew, uold;        /* vectors for time stepping */
     Vec            rhs;               /* rhs vector for Crank-Nicolson scheme */
     KSP            ksp;               /* KSP solver for Crank-Nicolson scheme */
     TsInfo        *ts    = user->ts;
