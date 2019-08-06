@@ -12,8 +12,8 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
    q_j and \phi_j are eigenpairs of covariance (integral) operator Q = \int_G q((x,y),(x',y')) \phi_j(x',y') dx'dy'
    q((x,y),(x',y')) = exp(-||(x,y)-(x',y')||/Lc)
 
-   mpiexec -n 1 ./ex13_SDE -use-matlab-plot -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 0.5 -sigma 1
-   mpiexec -n 1 ./ex13_SDE -sigma 0.1 -M 10
+   mpiexec -n 1 ./ex13_SDE -use-matlab-plot 1 -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 0.5 -sigma 1
+   mpiexec -n 1 ./ex13_SDE -use-matlab-plot 0 -M 10 -mu 0.5 -sigma 1
    Need to configure PETSc with options: --with-matlab --with-matlab-engine
 */
 
@@ -82,6 +82,7 @@ PetscReal      ltqnorm(PetscReal);
  -use-matlab-plot - use the Matlab engine to plot
  -matlab-engine-graphics - enable Matlab engine graphics to work
  -tout <tout> - output time step
+ -tfinal <tfinal> - final time
  -dt <dt> - time step for discretization
  -Nx <Nx> - mesh size in x-axis
  -Ny <Ny> - mesh size in y-axis
