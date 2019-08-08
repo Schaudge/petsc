@@ -12,8 +12,8 @@ static char help[] = "Time-dependent SPDE with additive Q-Wiener noise in 2d. Ad
    q_j and \phi_j are eigenpairs of covariance (integral) operator Q = \int_G q((x,y),(x',y')) \phi_j(x',y') dx'dy'
    q((x,y),(x',y')) = exp(-||(x,y)-(x',y')||/Lc)
 
-   mpiexec -n 1 ./ex13_SDE -use-matlab-plot 1 -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 0.5 -sigma 1
-   mpiexec -n 1 ./ex13_SDE -use-matlab-plot 0 -M 10 -mu 0.5 -sigma 1
+   mpiexec -n 1 ./ex13_SDE -use-matlab-plot 1 -matlab-engine-graphics -da_refine 1 -tout 2 -M 1 -mu 5 -sigma 1
+   mpiexec -n 1 ./ex13_SDE -use-matlab-plot 0 -M 10 -mu 5 -sigma 1
    Need to configure PETSc with options: --with-matlab --with-matlab-engine
 */
 
@@ -433,8 +433,7 @@ PetscErrorCode myTS(AppCtx *user, Vec u)
         
         ierr = VecCopy(u,uold);CHKERRQ(ierr);
         ierr = BuildKL(user,r);CHKERRQ(ierr);
-        ierr = VecScale(r,PetscSqrtReal(ts->dt));CHKERRQ(ierr);
-            
+        
         /* Crank-Nicolson scheme */
         ierr = FormRHS_CN(user,uold,rhs);CHKERRQ(ierr);
         ierr = VecAXPY(rhs,1.0,r);CHKERRQ(ierr);
@@ -538,6 +537,7 @@ PetscErrorCode Plot(AppCtx* user, Vec u, Vec r, char* output)
 PetscErrorCode BuildKL(AppCtx* user, Vec R)
 {
     DMDALocalInfo  info;
+    TsInfo        *ts    = user->ts;
     ParamInfo     *param = user->param;
     PetscInt       i,j,Nx,Ny,N2;
     PetscReal      mu     = param->mu;
@@ -559,11 +559,11 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
 
 /* Get pointers to vector data */
     ierr = VecGetArray(R,&r);CHKERRQ(ierr);
+    
 /* Generate normal random numbers by transforming from the uniform one */
     PetscScalar *rndu, *rndn;
     ierr = PetscMalloc1(N2,&rndu);CHKERRQ(ierr);
     ierr = PetscMalloc1(N2,&rndn);CHKERRQ(ierr);
-    
 /*  Petsc Random number generator */
     PetscRandom rnd;
 /* Mean For test */
@@ -584,13 +584,12 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
     }
 //        mean = mean/N2;
 //        printf("%f\n",mean);
-//        exit(0);
     
-/* Do KL expansion by combining the above eigen decomposition and normal random numbers */
+/* Do KL expansion by combining eigen decomposition due to KLSetup() and normal random numbers */
     for (i = 0; i < N2; i++){
         tmp=0.0;
         for (j = 0; j < N2; j++) tmp = tmp + U[i][j] * PetscSqrtReal(S[j]) * rndn[j];
-        r[i] = mu + sigma * tmp;
+        r[i] = mu * (ts->dt) + sigma * tmp * PetscSqrtReal(ts->dt);
     }
     for (j=0; j<Ny; j++){
         for (i=0; i<Nx; i++){
@@ -604,8 +603,7 @@ PetscErrorCode BuildKL(AppCtx* user, Vec R)
 >> Lx=1;Ly=1;Nx=8;Ny=8;[X,Y]=meshgrid(linspace(0,Lx,Nx),linspace(0,Ly,Ny));
 >> surf(X,Y,reshape(r,Nx,Ny)');shading interp;view(2);colorbar; */
 
-//    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
-
+    ierr = PetscRandomDestroy(&rnd);CHKERRQ(ierr);
     ierr = PetscFree(rndu);CHKERRQ(ierr);
     ierr = PetscFree(rndn);CHKERRQ(ierr);
 
