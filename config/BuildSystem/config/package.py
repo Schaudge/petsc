@@ -1613,8 +1613,12 @@ class GNUPackage(Package):
     return self.installDir
 
 class CMakePackage(Package):
-  def __init__(self, framework):
+  def __init__(self, framework, cmakesrcdir=None):
     Package.__init__(self, framework)
+    if cmakesrcdir is None:
+      self.cmakesrcdir = '..'
+    else:
+      self.cmakesrcdir = os.path.join('..', cmakesrcdir)
     return
 
   def setupHelp(self, help):
@@ -1696,7 +1700,7 @@ class CMakePackage(Package):
 
       try:
         self.logPrintBox('Configuring '+self.PACKAGE+' with cmake, this may take several minutes')
-        output1,err1,ret1  = config.package.Package.executeShellCommand([self.cmake.cmake, '..'] + args, cwd=folder, timeout=900, log = self.log)
+        output1,err1,ret1  = config.package.Package.executeShellCommand([self.cmake.cmake, self.cmakesrcdir] + args, cwd=folder, timeout=900, log = self.log)
       except RuntimeError as e:
         self.logPrint('Error configuring '+self.PACKAGE+' with cmake '+str(e))
         raise RuntimeError('Error configuring '+self.PACKAGE+' with cmake')
