@@ -42,7 +42,7 @@ class Configure(config.package.CMakePackage):
       args.append('-DMETIS_USE_LONGINDEX=1')
     if self.framework.argDB['download-metis-use-doubleprecision']:
       args.append('-DMETIS_USE_DOUBLEPRECISION=1')
-    args.append('-DMATH_LIB="'+self.libraries.toStringNoDupes(self.mathlib.lib)+'"')
+    args.append('-DMATH_LIB='+self.libraries.toStringNoDupes(self.mathlib.lib))
     return args
 
   def configureLibrary(self):

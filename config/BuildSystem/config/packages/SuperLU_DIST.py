@@ -49,11 +49,11 @@ class Configure(config.package.CMakePackage):
     else:
       self.usesopenmp = 'yes'
     args.append('-DUSE_XSDK_DEFAULTS=YES')
-    args.append('-DTPL_BLAS_LIBRARIES="'+self.libraries.toString(self.blasLapack.dlib)+'"')
-    args.append('-DTPL_LAPACK_LIBRARIES="'+self.libraries.toString(self.blasLapack.dlib)+'"')
+    args.append('-DTPL_BLAS_LIBRARIES='+self.libraries.toString(self.blasLapack.dlib))
+    args.append('-DTPL_LAPACK_LIBRARIES='+self.libraries.toString(self.blasLapack.dlib))
     if self.parmetis.found:
-      args.append('-DTPL_PARMETIS_INCLUDE_DIRS="'+';'.join(self.parmetis.dinclude)+'"')
-      args.append('-DTPL_PARMETIS_LIBRARIES="'+self.libraries.toString(self.parmetis.dlib)+'"')
+      args.append('-DTPL_PARMETIS_INCLUDE_DIRS='+';'.join(self.parmetis.dinclude))
+      args.append('-DTPL_PARMETIS_LIBRARIES='+self.libraries.toString(self.parmetis.dlib))
     else:
       args.append('-Denable_parmetislib=FALSE')
       args.append('-DTPL_ENABLE_PARMETISLIB=FALSE')
@@ -67,13 +67,13 @@ class Configure(config.package.CMakePackage):
     args.append('-Denable_tests=0')
     args.append('-Denable_examples=0')
     #  CMake in SuperLU should set this; but like many other packages it does not
-    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
-    args.append('-DMPI_C_COMPILER:STRING="'+self.framework.getCompiler()+'"')
-    args.append('-DMPI_C_COMPILE_FLAGS:STRING=""')
-    args.append('-DMPI_C_INCLUDE_PATH:STRING=""')
-    args.append('-DMPI_C_HEADER_DIR:STRING=""')
-    args.append('-DMPI_C_LIBRARIES:STRING=""')
-    args.append('-DCMAKE_INSTALL_LIBDIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
+    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING='+os.path.join(self.installDir,self.libdir))
+    args.append('-DMPI_C_COMPILER:STRING='+self.framework.getCompiler())
+    args.append('-DMPI_C_COMPILE_FLAGS:STRING=')
+    args.append('-DMPI_C_INCLUDE_PATH:STRING=')
+    args.append('-DMPI_C_HEADER_DIR:STRING=')
+    args.append('-DMPI_C_LIBRARIES:STRING=')
+    args.append('-DCMAKE_INSTALL_LIBDIR:STRING='+os.path.join(self.installDir,self.libdir))
 
     # Add in fortran mangling flag
     if self.blasLapack.mangling == 'underscore':

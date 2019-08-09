@@ -63,7 +63,7 @@ class Configure(config.package.CMakePackage):
     args.append('-DTrilinos_INSTALL_DIR='+os.path.dirname(self.trilinos.include[0]))
     if self.hypre.found:
       args.append('-DTPL_ENABLE_HYPRE=ON')
-      args.append('-DTPL_HYPRE_LIBRARIES="'+self.libraries.toStringNoDupes(self.hypre.lib)+'"')
+      args.append('-DTPL_HYPRE_LIBRARIES='+self.libraries.toStringNoDupes(self.hypre.lib))
       args.append('-DTPL_HYPRE_INCLUDE_DIRS='+self.headers.toStringNoDupes(self.hypre.include)[2:])
 
     args.append('-DTPL_ENABLE_PETSC=ON')
@@ -82,7 +82,7 @@ class Configure(config.package.CMakePackage):
     else:
       plibs = self.libraries.toStringNoDupes(['-L'+idir,'-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetscsys']+plibs)
 
-    args.append('-DTPL_PETSC_LIBRARIES="'+plibs+'"')
+    args.append('-DTPL_PETSC_LIBRARIES='+plibs)
     args.append('-DTPL_PETSC_INCLUDE_DIRS='+os.path.join(self.petscdir.dir,'include'))
 
     if self.compilerFlags.debugging:
@@ -92,7 +92,7 @@ class Configure(config.package.CMakePackage):
       args.append('-DCMAKE_BUILD_TYPE=RELEASE')
       args.append('-DxSDKTrilinos_ENABLE_DEBUG=NO')
 
-    args.append('-DxSDKTrilinos_EXTRA_LINK_FLAGS="'+self.libraries.toStringNoDupes(self.flibs.lib+self.cxxlibs.lib+self.mathlib.lib)+' '+self.compilers.LIBS+'"')
+    args.append('-DxSDKTrilinos_EXTRA_LINK_FLAGS='+self.libraries.toStringNoDupes(self.flibs.lib+self.cxxlibs.lib+self.mathlib.lib)+' '+self.compilers.LIBS)
     args.append('-DxSDKTrilinos_ENABLE_TESTS=ON')
     return args
 

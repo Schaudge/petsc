@@ -34,12 +34,12 @@ class Configure(config.package.CMakePackage):
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
     args.append('-DUSE_XSDK_DEFAULTS=YES')
 
-    args.append('-DTPL_BLAS_LIBRARIES="'+self.libraries.toString(self.blasLapack.dlib)+'"')
+    args.append('-DTPL_BLAS_LIBRARIES='+self.libraries.toString(self.blasLapack.dlib))
 
     #  Tests are broken on Apple since they depend on a shared library that is not resolved against BLAS
     args.append('-Denable_tests=0')
     #  CMake in SuperLU should set this; but like many other packages it does not [and its different from superlu_dist]
-    args.append('-DCMAKE_INSTALL_LIBDIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
+    args.append('-DCMAKE_INSTALL_LIBDIR:STRING='+os.path.join(self.installDir,self.libdir))
 
     if not hasattr(self.compilers, 'FC'):
       args.append('-DXSDK_ENABLE_Fortran=OFF')

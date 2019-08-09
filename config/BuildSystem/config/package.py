@@ -1634,7 +1634,7 @@ class CMakePackage(Package):
     args = ['-DCMAKE_INSTALL_PREFIX='+self.installDir]
     args.append('-DCMAKE_VERBOSE_MAKEFILE=1')
     self.framework.pushLanguage('C')
-    args.append('-DCMAKE_C_COMPILER="'+self.framework.getCompiler()+'"')
+    args.append('-DCMAKE_C_COMPILER='+self.framework.getCompiler())
     args.append('-DCMAKE_AR='+self.setCompilers.AR)
     ranlib = shlex.split(self.setCompilers.RANLIB)[0]
     args.append('-DCMAKE_RANLIB='+ranlib)
@@ -1643,28 +1643,28 @@ class CMakePackage(Package):
       if (self.compilers.c99flag == None):
         raise RuntimeError('Requires c99 compiler. Configure cold not determine compatible compiler flag. Perhaps you can specify via CFLAG')
       cflags += ' '+self.compilers.c99flag
-    args.append('-DCMAKE_C_FLAGS:STRING="'+cflags+'"')
-    args.append('-DCMAKE_C_FLAGS_DEBUG:STRING="'+cflags+'"')
-    args.append('-DCMAKE_C_FLAGS_RELEASE:STRING="'+cflags+'"')
+    args.append('-DCMAKE_C_FLAGS:STRING='+cflags)
+    args.append('-DCMAKE_C_FLAGS_DEBUG:STRING='+cflags)
+    args.append('-DCMAKE_C_FLAGS_RELEASE:STRING='+cflags)
     self.framework.popLanguage()
     if hasattr(self.compilers, 'CXX'):
       self.framework.pushLanguage('Cxx')
-      args.append('-DCMAKE_CXX_COMPILER="'+self.framework.getCompiler()+'"')
-      args.append('-DCMAKE_CXX_FLAGS:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_CXX_COMPILER='+self.framework.getCompiler())
+      args.append('-DCMAKE_CXX_FLAGS:STRING='+self.removeWarningFlags(self.framework.getCompilerFlags()))
+      args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING='+self.removeWarningFlags(self.framework.getCompilerFlags()))
+      args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING='+self.removeWarningFlags(self.framework.getCompilerFlags()))
       self.framework.popLanguage()
 
     if hasattr(self.compilers, 'FC'):
       self.framework.pushLanguage('FC')
-      args.append('-DCMAKE_Fortran_COMPILER="'+self.framework.getCompiler()+'"')
-      args.append('-DCMAKE_Fortran_FLAGS:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_Fortran_FLAGS_DEBUG:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_Fortran_FLAGS_RELEASE:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_Fortran_COMPILER='+self.framework.getCompiler())
+      args.append('-DCMAKE_Fortran_FLAGS:STRING='+self.removeWarningFlags(self.framework.getCompilerFlags()))
+      args.append('-DCMAKE_Fortran_FLAGS_DEBUG:STRING='+self.removeWarningFlags(self.framework.getCompilerFlags()))
+      args.append('-DCMAKE_Fortran_FLAGS_RELEASE:STRING='+self.removeWarningFlags(self.framework.getCompilerFlags()))
       self.framework.popLanguage()
 
     if self.setCompilers.LDFLAGS:
-      args.append('-DCMAKE_EXE_LINKER_FLAGS:STRING="'+self.setCompilers.LDFLAGS+'"')
+      args.append('-DCMAKE_EXE_LINKER_FLAGS:STRING='+self.setCompilers.LDFLAGS)
 
     if self.checkSharedLibrariesEnabled():
       args.append('-DBUILD_SHARED_LIBS=on')
@@ -1673,14 +1673,13 @@ class CMakePackage(Package):
     return args
 
   def Install(self):
-    import os
+    import os, shlex
     args = self.formCMakeConfigureArgs()
     if self.download and self.argDB['download-'+self.downloadname.lower()+'-cmake-arguments']:
        args.append(self.argDB['download-'+self.downloadname.lower()+'-cmake-arguments'])
-    args = ' '.join(args)
     conffile = os.path.join(self.packageDir,self.package+'.petscconf')
     fd = open(conffile, 'w')
-    fd.write(args)
+    fd.write(' '.join([shlex.quote(arg) for arg in args]))
     fd.close()
 
     if self.installNeeded(conffile):
@@ -1697,7 +1696,7 @@ class CMakePackage(Package):
 
       try:
         self.logPrintBox('Configuring '+self.PACKAGE+' with cmake, this may take several minutes')
-        output1,err1,ret1  = config.package.Package.executeShellCommand(self.cmake.cmake+' .. '+args, cwd=folder, timeout=900, log = self.log)
+        output1,err1,ret1  = config.package.Package.executeShellCommand([self.cmake.cmake, '..'] + args, cwd=folder, timeout=900, log = self.log)
       except RuntimeError as e:
         self.logPrint('Error configuring '+self.PACKAGE+' with cmake '+str(e))
         raise RuntimeError('Error configuring '+self.PACKAGE+' with cmake')

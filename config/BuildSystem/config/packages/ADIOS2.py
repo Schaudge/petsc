@@ -26,7 +26,7 @@ class Configure(config.package.CMakePackage):
     args.append('-DADIOS2_USE_MPI=ON')
     if self.hdf5.found:
       args.append('-DADIOS2_USE_HDF5=ON')
-      args.append('-DHDF5_DIR="'+self.hdf5.directory+'"')
+      args.append('-DHDF5_DIR='+self.hdf5.directory)
     else:
       args.append('-DADIOS2_USE_HDF5=OFF')
     if not hasattr(self.compilers, 'FC'):

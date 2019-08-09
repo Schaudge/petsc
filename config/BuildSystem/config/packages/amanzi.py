@@ -61,7 +61,7 @@ class Configure(config.package.CMakePackage):
       args.append('-DXSDK_ENABLE_DEBUG=NO')
 
     # This is required for CMAKE to properly make shared libraries on Apple
-    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
+    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING='+os.path.join(self.installDir,self.libdir))
 
     if self.boost.found:
       args.append('-DBOOST_INCLUDEDIR='+os.path.join(self.boost.directory,self.boost.includedir))
@@ -77,20 +77,20 @@ class Configure(config.package.CMakePackage):
 
     args.append('-DTrilinos_DIR:FILEPATH='+os.path.dirname(self.trilinos.include[0]))
 
-    args.append('-DUnitTest_LIBRARIES="'+self.libraries.toStringNoDupes(self.unittestcpp.lib)+'"')
+    args.append('-DUnitTest_LIBRARIES='+self.libraries.toStringNoDupes(self.unittestcpp.lib))
     args.append('-DUnitTest_INCLUDE_DIRS='+os.path.join(self.unittestcpp.directory,'include','UnitTest++','UnitTest++'))
 
     self.framework.pushLanguage('C')
-    args.append('-DMPI_C_COMPILER="'+self.framework.getCompiler()+'"')
+    args.append('-DMPI_C_COMPILER='+self.framework.getCompiler())
     self.framework.popLanguage()
 
     self.framework.pushLanguage('Cxx')
-    args.append('-DMPI_CXX_COMPILER="'+self.framework.getCompiler()+'"')
+    args.append('-DMPI_CXX_COMPILER='+self.framework.getCompiler())
     self.framework.popLanguage()
 
     if hasattr(self.setCompilers, 'FC'):
       self.framework.pushLanguage('FC')
-      args.append('-DMPI_Fortran_COMPILER="'+self.framework.getCompiler()+'"')
+      args.append('-DMPI_Fortran_COMPILER='+self.framework.getCompiler())
       self.framework.popLanguage()
     else:
       args.append('-DTrilinos_ENABLE_Fortran=OFF')

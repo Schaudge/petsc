@@ -31,14 +31,14 @@ class Configure(config.package.CMakePackage):
     args.append('-DCMAKE_INSTALL_PREFIX:PATH='+self.installDir)
     args.append('-DCMAKE_INSTALL_RPATH:PATH='+os.path.join(self.installDir,'lib'))
     self.setCompilers.pushLanguage('C')
-    args.append('-DCMAKE_C_COMPILER:FILEPATH="'+self.setCompilers.getCompiler()+'"')
+    args.append('-DCMAKE_C_COMPILER:FILEPATH='+self.setCompilers.getCompiler())
     self.setCompilers.popLanguage()
     # building the fortran library is technically not required to add exodus support
     # we build it anyway so that fortran users can still use exodus functions directly 
     # from their code
     if hasattr(self.setCompilers, 'FC'):
       self.setCompilers.pushLanguage('FC')
-      args.append('-DCMAKE_Fortran_COMPILER:FILEPATH="'+self.setCompilers.getCompiler()+'"')
+      args.append('-DCMAKE_Fortran_COMPILER:FILEPATH='+self.setCompilers.getCompiler())
       args.append('-DSEACASProj_ENABLE_SEACASExodus_for=ON')
       args.append('-DSEACASProj_ENABLE_SEACASExoIIv2for32=ON')
       self.setCompilers.popLanguage()

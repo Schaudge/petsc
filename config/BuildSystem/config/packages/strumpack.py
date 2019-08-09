@@ -36,24 +36,24 @@ class Configure(config.package.CMakePackage):
   def formCMakeConfigureArgs(self):
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
 
-    args.append('-DTPL_BLAS_LIBRARIES="'+self.libraries.toString(self.blasLapack.dlib)+'"')
-    args.append('-DTPL_LAPACK_LIBRARIES="'+self.libraries.toString(self.blasLapack.dlib)+'"')
-    args.append('-DTPL_SCALAPACK_LIBRARIES="'+self.libraries.toString(self.scalapack.lib)+'"')
+    args.append('-DTPL_BLAS_LIBRARIES='+self.libraries.toString(self.blasLapack.dlib))
+    args.append('-DTPL_LAPACK_LIBRARIES='+self.libraries.toString(self.blasLapack.dlib))
+    args.append('-DTPL_SCALAPACK_LIBRARIES='+self.libraries.toString(self.scalapack.lib))
 
-    args.append('-DTPL_METIS_LIBRARIES="'+self.libraries.toString(self.metis.lib)+'"')
-    args.append('-DTPL_METIS_INCLUDE_DIRS="'+self.headers.toStringNoDupes(self.metis.include)[2:]+'"')
+    args.append('-DTPL_METIS_LIBRARIES='+self.libraries.toString(self.metis.lib))
+    args.append('-DTPL_METIS_INCLUDE_DIRS='+self.headers.toStringNoDupes(self.metis.include)[2:])
 
     if self.parmetis.found:
       args.append('-DTPL_ENABLE_PARMETIS=ON')
-      args.append('-DTPL_PARMETIS_LIBRARIES="'+self.libraries.toString(self.parmetis.lib)+'"')
-      args.append('-DTPL_PARMETIS_INCLUDE_DIRS="'+self.headers.toStringNoDupes(self.parmetis.include)[2:]+'"')
+      args.append('-DTPL_PARMETIS_LIBRARIES='+self.libraries.toString(self.parmetis.lib))
+      args.append('-DTPL_PARMETIS_INCLUDE_DIRS='+self.headers.toStringNoDupes(self.parmetis.include)[2:])
     else:
       args.append('-DTPL_ENABLE_PARMETIS=OFF')
 
     if self.ptscotch.found:
       args.append('-DTPL_ENABLE_SCOTCH=ON')
-      args.append('-DTPL_SCOTCH_LIBRARIES="'+self.libraries.toString(self.ptscotch.lib)+'"')
-      args.append('-DTPL_SCOTCH_INCLUDE_DIRS="'+self.headers.toStringNoDupes(self.ptscotch.include)[2:]+'"')
+      args.append('-DTPL_SCOTCH_LIBRARIES='+self.libraries.toString(self.ptscotch.lib))
+      args.append('-DTPL_SCOTCH_INCLUDE_DIRS='+self.headers.toStringNoDupes(self.ptscotch.include)[2:])
     else:
       args.append('-DTPL_ENABLE_SCOTCH=OFF')
 
@@ -68,18 +68,18 @@ class Configure(config.package.CMakePackage):
       args.append('-DSTRUMPACK_USE_OPENMP=OFF')
 
     self.framework.pushLanguage('C')
-    args.append('-DMPI_C_COMPILER="' + self.framework.getCompiler() + '"')
+    args.append('-DMPI_C_COMPILER=' + self.framework.getCompiler())
     self.framework.popLanguage()
 
     self.framework.pushLanguage('Cxx')
-    args.append('-DMPI_CXX_COMPILER="' + self.framework.getCompiler() + '"')
+    args.append('-DMPI_CXX_COMPILER=' + self.framework.getCompiler())
     self.framework.popLanguage()
 
     self.framework.pushLanguage('FC')
-    args.append('-DMPI_Fortran_COMPILER="' + self.framework.getCompiler() + '"')
+    args.append('-DMPI_Fortran_COMPILER=' + self.framework.getCompiler())
     self.framework.popLanguage()
 
-    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
+    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING='+os.path.join(self.installDir,self.libdir))
 
     return args
 
