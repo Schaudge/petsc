@@ -4,8 +4,7 @@ import config.package
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    self.download          = ['http://downloads.sourceforge.net/project/boost/boost/1.61.0/boost_1_61_0.tar.gz',
-                              'http://ftp.mcs.anl.gov/pub/petsc/externalpackages/boost_1_61_0.tar.gz']
+    self.download          = ['https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.bz2']
     self.includes          = ['boost/multi_index_container.hpp']
     self.liblist           = []
     self.cxx               = 1
@@ -18,9 +17,67 @@ class Configure(config.package.Package):
     config.package.Package.setupHelp(self, help)
     help.addArgument('BOOST', '-boost-headers-only=<bool>', nargs.ArgBool(None, 0, 'When true, do not build boost libraries, only install headers'))
 
+  def setupDependencies(self, framework):
+    config.package.Package.setupDependencies(self, framework)
+    self.openmp  = framework.require('config.packages.openmp',self)
+    self.setCompilers  = framework.require('config.setCompilers',self)
+
   def Install(self):
     import shutil
     import os
+
+    threading = ''
+    if self.openmp.found: threading = ' threading=multi,single '
+
+    #   try to build boost libraries with the current sequential compiler
+    #    #
+    #   Could not get this to work on Apple; instead used brew install -s  -cc=g++-9 boost
+    #
+    #    Assumes that clang is only used on Apple, needs to be fixed for clang on other systems
+    #
+    compiler = ''
+    cxxcompiler = ''
+    toolset = ''
+    if self.setCompilers.usedMPICompilers:
+      if config.setCompilers.Configure.isClang(self.getCompiler('C'),self.log):  # On Apple mpicc -show prints gcc when it should print clang
+        compiler = 'clang'
+        cxxcompiler = 'clang++'
+      else:
+        try:
+          self.setCompilers.pushLanguage('C')
+          pcompiler = self.setCompilers.getCompiler()
+          self.setCompilers.popLanguage()
+          self.framework.saveLog()
+          output   = self.executeShellCommand(pcompiler + ' -show', log = self.log)[0]
+          self.logWrite(self.framework.restoreLog())
+          compiler = output.split(' ')[0]
+          self.setCompilers.pushLanguage('Cxx')
+          pcompiler = self.setCompilers.getCompiler()
+          self.setCompilers.popLanguage()
+          self.framework.saveLog()
+          output   = self.executeShellCommand(pcompiler + ' -show', log = self.log)[0]
+          self.logWrite(self.framework.restoreLog())
+          cxxcompiler = output.split(' ')[0]
+        except:
+          raise RuntimeError("Unable to determined names of compilers needed for building Boost")
+
+    else:
+      self.setCompilers.pushLanguage('C')
+      compiler = self.setCompilers.getCompiler()
+      self.setCompilers.popLanguage()
+      self.setCompilers.pushLanguage('CXX')
+      cxxcompiler = self.setCompilers.getCompiler()
+      self.setCompilers.popLanguage()
+    if compiler.startswith('gcc'): toolset = 'gcc'
+    elif compiler.startswith('clang'): toolset = 'darwin'
+    else: toolset = compiler
+
+    self.log.write('Using toolset '+toolset+' and compiler '+cxxcompiler+' to build boost libraries\n')
+    fd = open(os.path.join(self.packageDir,'user-config.jam'),'w')
+    fd.write('using darwin ;\n')
+    fd.write('using '+toolset+' : 9.0 : '+cxxcompiler+' ;\n')
+    fd.close()
+    toolsetflag = 'toolset='+toolset+' cxxflags=-std=c++17' 
 
     conffile = os.path.join(self.packageDir,self.package+'.petscconf')
     fd = open(conffile, 'w')
@@ -46,7 +103,7 @@ class Configure(config.package.Package):
        self.logPrintBox('Building and installing boost, this may take many minutes')
        self.installDirProvider.printSudoPasswordMessage()
        try:
-         output,err,ret  = config.base.Configure.executeShellCommand('cd '+self.packageDir+'; ./bootstrap.sh --prefix='+self.installDir+'; ./b2 -j'+str(self.make.make_np)+';'+self.installSudo+'./b2 install', timeout=6000, log = self.log)
+         output,err,ret  = config.base.Configure.executeShellCommand('cd '+self.packageDir+'; ./bootstrap.sh --prefix='+self.installDir+' ; ./b2 -j'+str(self.make.make_np)+' '+toolsetflag+' '+threading+' --debug-configuration --debug-building --user-config=user-config.jam ;'+self.installSudo+'./b2 install', timeout=6000, log = self.log)
        except RuntimeError as e:
          raise RuntimeError('Error building/install Boost files from '+os.path.join(self.packageDir, 'Boost')+' to '+self.packageDir)
        self.postInstall(output+err,conffile)

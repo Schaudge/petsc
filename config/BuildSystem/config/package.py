@@ -96,6 +96,7 @@ class Package(config.base.Configure):
 
     self.downloaded             = 0  # 1 indicates that this package is being downloaded during this run (internal use only)
     self.executablename         = '' # full path of executable, for example cmake, bfort etc
+    self.makeinstall            = 1  # The package will be installed in the prefix location if this is true; only false for PIPS
     return
 
   def __str__(self):
@@ -608,7 +609,7 @@ class Package(config.base.Configure):
           config.base.Configure.executeShellCommand([self.sourceControl.git, 'fetch'], cwd=self.packageDir, log = self.log)
         except:
           raise RuntimeError('Unable to fetch '+self.gitcommit+' in repository '+self.packageDir+
-                             '.\nTo use previous git snapshot - use: --download-'+self.package+'gitcommit=HEAD')
+                             '.\nTo use previous git snapshot - use: --download-'+self.package+'-commit=HEAD')
       try:
         gitcommit_hash,err,ret = config.base.Configure.executeShellCommand([self.sourceControl.git, 'rev-parse', self.gitcommit], cwd=self.packageDir, log = self.log)
       except:
@@ -633,6 +634,7 @@ If its a remote branch, use: origin/'+self.gitcommit+' for gitcommit.')
 
   def getDir(self):
     '''Find the directory containing the package'''
+    if not isinstance(self.downloaddirnames,list): self.downloaddirnames = [self.downloaddirnames]
     packages = self.externalPackagesDir
     if not os.path.isdir(packages):
       os.makedirs(packages)
@@ -1500,9 +1502,10 @@ class GNUPackage(Package):
 
       output2,err2,ret2  = config.base.Configure.executeShellCommand(self.make.make+' clean', cwd=self.packageDir, timeout=200, log = self.log)
       output3,err3,ret3  = config.base.Configure.executeShellCommand(pmake, cwd=self.packageDir, timeout=6000, log = self.log)
-      self.logPrintBox('Running make install on '+self.PACKAGE+'; this may take several minutes')
-      self.installDirProvider.printSudoPasswordMessage(self.installSudo)
-      output4,err4,ret4  = config.base.Configure.executeShellCommand(self.installSudo+self.make.make+' install', cwd=self.packageDir, timeout=1000, log = self.log)
+      if self.makeinstall:
+        self.logPrintBox('Running make install on '+self.PACKAGE+'; this may take several minutes')
+        self.installDirProvider.printSudoPasswordMessage(self.installSudo)
+        output4,err4,ret4  = config.base.Configure.executeShellCommand(self.installSudo+self.make.make+' install', cwd=self.packageDir, timeout=1000, log = self.log)
     except RuntimeError as e:
       raise RuntimeError('Error running make; make install on '+self.PACKAGE+': '+str(e))
     self.postInstall(output1+err1+output2+err2+output3+err3+output4+err4, conffile)
@@ -1546,9 +1549,9 @@ class CMakePackage(Package):
     if hasattr(self.compilers, 'CXX'):
       self.framework.pushLanguage('Cxx')
       args.append('-DCMAKE_CXX_COMPILER="'+self.framework.getCompiler()+'"')
-      args.append('-DCMAKE_CXX_FLAGS:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_CXX_FLAGS:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+' -std=c++17"')
+      args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+' -std=c++17"')
+      args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+' -std=c++17"')
       self.framework.popLanguage()
 
     if hasattr(self.compilers, 'FC'):
@@ -1594,14 +1597,18 @@ class CMakePackage(Package):
       try:
         self.logPrintBox('Configuring '+self.PACKAGE+' with cmake, this may take several minutes')
         output1,err1,ret1  = config.package.Package.executeShellCommand(self.cmake.cmake+' .. '+args, cwd=folder, timeout=900, log = self.log)
+        output = output1 + err1
       except RuntimeError as e:
         raise RuntimeError('Error configuring '+self.PACKAGE+' with cmake '+str(e))
       try:
         self.logPrintBox('Compiling and installing '+self.PACKAGE+'; this may take several minutes')
         self.installDirProvider.printSudoPasswordMessage()
         output2,err2,ret2  = config.package.Package.executeShellCommand(self.make.make_jnp+' '+self.makerulename, cwd=folder, timeout=3000, log = self.log)
-        output3,err3,ret3  = config.package.Package.executeShellCommand(self.installSudo+' '+self.make.make+' install', cwd=folder, timeout=3000, log = self.log)
+        output = output + output2 + err2
+        if self.makeinstall:
+          output3,err3,ret3  = config.package.Package.executeShellCommand(self.installSudo+' '+self.make.make+' install', cwd=folder, timeout=3000, log = self.log)
+          output = output + output3 + err3
       except RuntimeError as e:
         raise RuntimeError('Error running make on  '+self.PACKAGE+': '+str(e))
-      self.postInstall(output1+err1+output2+err2+output3+err3,conffile)
+      self.postInstall(output,conffile)
     return self.installDir
