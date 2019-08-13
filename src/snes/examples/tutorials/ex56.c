@@ -208,7 +208,7 @@ int main(int argc,char **args)
   KSP            ksp;
   MPI_Comm       comm;
   PetscMPIInt    rank;
-  PetscLogStage  stage[7];
+  PetscLogStage  stage[17];
   PetscBool      test_nonzero_cols=PETSC_FALSE,use_nearnullspace=PETSC_TRUE,attach_nearnullspace=PETSC_FALSE;
   Vec            xx,bb;
   PetscInt       iter,i,N,dim=3,cells[3]={1,1,1},max_conv_its,local_sizes[7],run_type=1;
@@ -251,12 +251,14 @@ int main(int argc,char **args)
     if (!flg || i!=3) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER, "'-mat_block_size 3' must be set (%D) and = 3 (%D)",flg,flg? i : 3);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  ierr = PetscLogStageRegister("Mesh Setup", &stage[6]);CHKERRQ(ierr);
-  ierr = PetscLogStageRegister("1st Setup", &stage[0]);CHKERRQ(ierr);
-  ierr = PetscLogStageRegister("1st Solve", &stage[1]);CHKERRQ(ierr);
-
+  ierr = PetscLogStageRegister("Mesh Setup", &stage[16]);CHKERRQ(ierr);
+  for (iter=0 ; iter<max_conv_its ; iter++) {
+    char str[] = "Solve 0";
+    str[6] += iter;
+    ierr = PetscLogStageRegister(str, &stage[iter]);CHKERRQ(ierr);
+  }
   /* create DM, Plex calls DMSetup */
-  ierr = PetscLogStagePush(stage[6]);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(stage[16]);CHKERRQ(ierr);
   ierr = DMPlexCreateBoxMesh(comm, dim, PETSC_FALSE, cells, NULL, NULL, NULL, PETSC_TRUE, &dm);CHKERRQ(ierr);
   {
     DMLabel         label;
@@ -371,7 +373,7 @@ int main(int argc,char **args)
   basedm = dm; dm = NULL;
 
   for (iter=0 ; iter<max_conv_its ; iter++) {
-    ierr = PetscLogStagePush(stage[6]);CHKERRQ(ierr);
+    ierr = PetscLogStagePush(stage[16]);CHKERRQ(ierr);
     /* make new DM */
     ierr = DMClone(basedm, &dm);CHKERRQ(ierr);
     ierr = PetscObjectSetOptionsPrefix((PetscObject) dm, "ex56_");CHKERRQ(ierr);
@@ -452,7 +454,7 @@ int main(int argc,char **args)
     ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
     ierr = DMSetUp(dm);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
-    ierr = PetscLogStagePush(stage[0]);CHKERRQ(ierr);
+    ierr = PetscLogStagePush(stage[16]);CHKERRQ(ierr);
     /* ksp */
     ierr = SNESGetKSP(snes, &ksp);CHKERRQ(ierr);
     ierr = KSPSetComputeSingularValues(ksp,PETSC_TRUE);CHKERRQ(ierr);
@@ -476,7 +478,7 @@ int main(int argc,char **args)
     }
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     /* solve */
-    ierr = PetscLogStagePush(stage[1]);CHKERRQ(ierr);
+    ierr = PetscLogStagePush(stage[iter]);CHKERRQ(ierr);
     ierr = SNESSolve(snes, bb, xx);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = VecNorm(xx,NORM_INFINITY,&mdisp[iter]);CHKERRQ(ierr);
