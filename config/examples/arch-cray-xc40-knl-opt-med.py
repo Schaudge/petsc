@@ -94,7 +94,7 @@ if __name__ == '__main__':
     '--with-mkl_sparse_optimize=0',
     '--with-zlib=1',
     '--with-hdf5=1',
-    '--with-hdf5-dir=' + os.environ['HDF5_DIR'],
+    #'--with-hdf5-dir=' + os.environ['HDF5_DIR'],
     '--with-pnetcdf-dir=' + os.environ['PARALLEL_NETCDF_DIR'],
     '--with-netcdf-dir=' + os.environ['NETCDF_DIR'],
     '--download-chaco=1',
@@ -102,9 +102,6 @@ if __name__ == '__main__':
     '--download-parmetis=1',
     '--download-exodusii',
     '--download-med=1',
-    #'--with-med=1',
-    #'--with-med-dir=/home/balay/soft/theta/med',
-    #'--with-med-dir=' + os.environ['PETSC_DIR'] + '/' + os.environ['PETSC_ARCH'] + '/externalpackages/git.med/',
     'PETSC_ARCH=arch-cray-xc40-knl-opt'
   ]
   configure.petsc_configure(configure_options)
