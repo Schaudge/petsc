@@ -60,7 +60,7 @@ do
     echo "approx cells/rank:			$cellprankval"
     echo "start time:                      	$(date -u)"
     SECONDS=0
-    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble1M.med -log_view >> ./$rawlog
+    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble1Mm4.med -log_view >> ./$rawlog
     #aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -dim $dim -level $lvl -n $nface -nf $nfield -maxcom -$maxcom -log_view >> ./$rawlog
     echo "+++++++++++++++++++++++++++++ End of Log +++++++++++++++++++++++++++++++">>./$rawlog
     ((counter++))

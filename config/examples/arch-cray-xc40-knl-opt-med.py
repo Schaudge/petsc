@@ -94,6 +94,7 @@ if __name__ == '__main__':
     '--with-mkl_sparse_optimize=0',
     '--with-zlib=1',
     '--with-hdf5=1',
+    #'--download-hdf5=1',
     #'--with-hdf5-dir=' + os.environ['HDF5_DIR'],
     '--with-pnetcdf-dir=' + os.environ['PARALLEL_NETCDF_DIR'],
     '--with-netcdf-dir=' + os.environ['NETCDF_DIR'],
