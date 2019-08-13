@@ -217,9 +217,15 @@ int main(int argc, char **argv)
 	ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
 	ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 	if (dmDisp) {
+		PetscViewer	asciiviewer;
+
+		ierr = PetscViewerCreate(comm, &asciiviewer);CHKERRQ(ierr);
+		ierr = PetscViewerSetType(asciiviewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+		ierr = PetscViewerPushFormat(asciiviewer, PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s DM View %s\n", bar, bar);CHKERRQ(ierr);
-		ierr = DMView(dm, 0);CHKERRQ(ierr);
+		ierr = DMView(dm, asciiviewer);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s End DM View %s\n", bar, bar);CHKERRQ(ierr);
+		ierr = PetscViewerDestroy(&asciiviewer);CHKERRQ(ierr);
 	}
 	}
 
