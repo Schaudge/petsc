@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
 	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dmRefine = PETSC_FALSE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
-	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 1, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;;
+	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 0, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;
 	PetscInt		bcField[numBC];
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 		}
 		dmRefine = PETSC_TRUE;
 	}
-	if (level == 0) {
+	if (!dmDistributed) {
 		ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
 		if (dmDist) {
 			ierr = DMDestroy(&dm);CHKERRQ(ierr);
@@ -225,9 +225,15 @@ int main(int argc, char **argv)
 	ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
 	ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 	if (dmDisp) {
+		PetscViewer	asciiviewer;
+
+		ierr = PetscViewerCreate(comm, &asciiviewer);CHKERRQ(ierr);
+		ierr = PetscViewerSetType(asciiviewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+		ierr = PetscViewerPushFormat(asciiviewer, PETSC_VIEWER_ASCII_INFO_DETAIL);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s DM View %s\n", bar, bar);CHKERRQ(ierr);
-		ierr = DMView(dm, 0);CHKERRQ(ierr);
+		ierr = DMView(dm, asciiviewer);CHKERRQ(ierr);
 		ierr = PetscPrintf(comm,"%s End DM View %s\n", bar, bar);CHKERRQ(ierr);
+		ierr = PetscViewerDestroy(&asciiviewer);CHKERRQ(ierr);
 	}
 	}
 
@@ -261,7 +267,6 @@ int main(int argc, char **argv)
 		Vec 		partition;
 
 		ierr = DMPlexCreateRankField(dm, &partition);CHKERRQ(ierr);
-		VecView(partition, 0);
 		ierr = PetscViewerCreate(comm, &vtkviewerpart);CHKERRQ(ierr);
 		ierr = PetscViewerSetType(vtkviewerpart,PETSCVIEWERVTK);CHKERRQ(ierr);
 		ierr = PetscViewerFileSetName(vtkviewerpart, "partition-map.vtk");CHKERRQ(ierr);
