@@ -129,6 +129,56 @@ PetscErrorCode DMPlexGetRawFaces_Internal(DM dm, PetscInt dim, PetscInt coneSize
       if (numFaces) *numFaces = 4;
       if (faceSize) *faceSize = 3;
       break;
+    case 5:
+      /*
+        3-------2
+        | \   / |
+        |  \ /  |
+        |   4   |
+        |  / \  |
+        | /   \ |
+        0-------1
+       */
+      if (faces) {
+        PetscInt pyramidfaces[] = {
+          0,3,2,1, // bottom with outward-facing normal
+          0,1,4,
+          1,2,4,
+          2,3,4,
+          3,0,4
+        };
+        ierr = PetscArraycpy(facesTmp,pyramidfaces,4+3*4);CHKERRQ(ierr);
+        *faces = facesTmp;
+      }
+      if (numFaces) *numFaces = 5;
+      if (faceSize) *faceSize = {4,3,3,3,3}; // Need to refactor API to accept an array of face sizes instead of a single value.
+      break;
+    case 6:
+      /*
+           5
+         / | \
+        /  |  \
+       3---|---4
+       |   |   |
+       |   2   |
+       | /   \ |
+       |/     \|
+       0-------1
+       */
+      if (faces) {
+        PetscInt prismfaces[] = {
+          0,2,1,
+          0,1,4,3,
+          1,2,5,4,
+          2,0,3,5,
+          3,4,5
+        };
+        ierr = PetscArraycpy(facesTmp,prismfaces,2*3+3.4);CHKERRQ(ierr);
+        *faces = facesTmp;
+      }
+      if (numFaces) *numFaces = 6;
+      if (faceSize) *faceSize = {3,4,4,4,3}; // Need to refactor API to accept an array of face sizes instead of a single value.
+      break;
     case 8:
       /*  7--------6
          /|       /|
