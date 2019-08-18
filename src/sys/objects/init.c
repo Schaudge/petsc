@@ -272,6 +272,8 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
       err = cudaGetDeviceProperties(&prop,devicecnt);
       if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaGetDeviceProperties %s",cudaGetErrorString(err));
       ierr = PetscPrintf(comm, "CUDA device %d: %s\n", devicecnt, prop.name);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "  concurrentManagedAcess: %d\n", prop.concurrentManagedAccess);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "  major*100 + minor*10: %d\n", prop.major*100+prop.minor*10);CHKERRQ(ierr);
     }
     ierr = PetscSynchronizedPrintf(comm,"[%d] Using CUDA device %d.\n",rank,device);CHKERRQ(ierr);
     ierr = PetscSynchronizedFlush(comm,PETSC_STDOUT);CHKERRQ(ierr);
