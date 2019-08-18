@@ -100,7 +100,7 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
     *a_Amat_crs = Cmat; /* output - no repartitioning or reduction - could bail here */
     if (new_size < size) {
       /* odd case where multiple coarse grids are on one processor or no coarsening ... */
-      ierr = PetscInfo1(pc,"reduced grid using same number of processors (%D) as last grid (use larger coarse grid)\n",nactive);CHKERRQ(ierr);
+      /* ierr = PetscInfo1(pc,"reduced grid using same number of processors (%D) as last grid (use larger coarse grid)\n",nactive);CHKERRQ(ierr); */
       if (pc_gamg->cpu_pin_coarse_grids) {
         ierr = MatPinToCPU(*a_Amat_crs,PETSC_TRUE);CHKERRQ(ierr);
         ierr = MatPinToCPU(*a_P_inout,PETSC_TRUE);CHKERRQ(ierr);
@@ -116,7 +116,7 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
     ierr = PetscLogEventBegin(petsc_gamg_setup_events[SET12],0,0,0,0);CHKERRQ(ierr);
 #endif
     if (!pc_gamg->use_compact_coarse_grid_layout || !pc_gamg->repart) {
-      PetscInt newsizeOld = new_size;
+      /* PetscInt newsizeOld = new_size; */
       /* find factor */
       if (new_size == 1) rfactor = size; /* easy */
       else {
@@ -137,15 +137,15 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
         else expand_factor = rfactor;
       }
       new_size = size/rfactor; /* make new size one that is factor */
-      ierr = PetscInfo2(pc,"Using factorable active processors %D --> %D\n",newsizeOld,new_size);CHKERRQ(ierr);
+      /* ierr = PetscInfo2(pc,"Using factorable active processors %D --> %D\n",newsizeOld,new_size);CHKERRQ(ierr); */
     }
     /* make 'is_eq_newproc' */
     ierr = PetscMalloc1(size, &counts);CHKERRQ(ierr);
     if (pc_gamg->repart) {
       /* Repartition Cmat_{k} and move colums of P^{k}_{k-1} and coordinates of primal part accordingly */
       Mat      adj;
-      ierr = PetscInfo4(pc,"Repartition: size (active): %D --> %D, %D local equations, using %s process layout\n",*a_nactive_proc,new_size,ncrs_eq,pc_gamg->use_compact_coarse_grid_layout?"compact":"distributed");CHKERRQ(ierr);
-
+      /* ierr = PetscInfo4(pc,"Repartition: size (active): %D --> %D, %D local equations, using %s process layout\n",*a_nactive_proc,new_size,ncrs_eq,pc_gamg->use_compact_coarse_grid_layout?"compact":"distributed");CHKERRQ(ierr); */
+      ierr = PetscInfo3(pc,"Repartition: size (active): %D --> %D, %D local equations\n",*a_nactive_proc,new_size,ncrs_eq);CHKERRQ(ierr);
       /* get 'adj' */
       if (cr_bs == 1) {
         ierr = MatConvert(Cmat, MATMPIADJ, MAT_INITIAL_MATRIX, &adj);CHKERRQ(ierr);
@@ -262,7 +262,7 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
     ierr        = ISPartitioningCount(is_eq_newproc, size, counts);CHKERRQ(ierr);
     ncrs_eq_new = counts[rank];
     ierr        = ISDestroy(&is_eq_newproc);CHKERRQ(ierr);
-    ncrs_new = ncrs_eq_new/cr_bs; /* eqs */
+    ncrs_new = ncrs_eq_new/cr_bs;
 
     ierr = PetscFree(counts);CHKERRQ(ierr);
 #if defined PETSC_GAMG_USE_LOG
@@ -403,7 +403,7 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
     /* pinning on reduced grids, not a bad heuristic and optimization gets folded into process reduction optimization */
     if (pc_gamg->cpu_pin_coarse_grids) {
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
-      ierr = PetscInfo(pc,"Pinning level to the CPU\n");CHKERRQ(ierr);
+      /* ierr = PetscInfo(pc,"Pinning level to the CPU\n");CHKERRQ(ierr); */
 #endif
       ierr = MatPinToCPU(*a_Amat_crs,PETSC_TRUE);CHKERRQ(ierr);
       ierr = MatPinToCPU(*a_P_inout,PETSC_TRUE);CHKERRQ(ierr);
@@ -1291,14 +1291,14 @@ static PetscErrorCode PCView_GAMG(PC pc,PetscViewer viewer)
   }
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
   if (pc_gamg->cpu_pin_coarse_grids) {
-    ierr = PetscViewerASCIIPrintf(viewer,"      Pinning coarse grids to the CPU)\n");CHKERRQ(ierr);
+    /* ierr = PetscViewerASCIIPrintf(viewer,"      Pinning coarse grids to the CPU)\n");CHKERRQ(ierr); */
   }
 #endif
-  if (pc_gamg->use_compact_coarse_grid_layout) {
-    ierr = PetscViewerASCIIPrintf(viewer,"      Put reduced grids on processes in natural order (ie, 0,1,2...)\n");CHKERRQ(ierr);
-  } else {
-    ierr = PetscViewerASCIIPrintf(viewer,"      Put reduced grids on whole machine (ie, 0,1*f,2*f...,np-f)\n");CHKERRQ(ierr);
-  }
+  /* if (pc_gamg->use_compact_coarse_grid_layout) { */
+  /*   ierr = PetscViewerASCIIPrintf(viewer,"      Put reduced grids on processes in natural order (ie, 0,1,2...)\n");CHKERRQ(ierr); */
+  /* } else { */
+  /*   ierr = PetscViewerASCIIPrintf(viewer,"      Put reduced grids on whole machine (ie, 0,1*f,2*f...,np-f)\n");CHKERRQ(ierr); */
+  /* } */
   if (pc_gamg->ops->view) {
     ierr = (*pc_gamg->ops->view)(pc,viewer);CHKERRQ(ierr);
   }
