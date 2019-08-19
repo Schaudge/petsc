@@ -21,8 +21,10 @@ PETSC_EXTERN PetscErrorCode TaoMeritView(TaoMerit, PetscViewer);
 PETSC_EXTERN PetscErrorCode TaoMeritSetType(TaoMerit, TaoMeritType);
 PETSC_EXTERN PetscErrorCode TaoMeritGetType(TaoMerit, TaoMeritType*);
 
-PETSC_EXTERN PetscErrorCode TaoMeritReset(TaoMerit, Vec, Vec);
-PETSC_EXTERN PetscErrorCode TaoMeritEvaluate(TaoMerit, PetscReal, PetscReal*);
+PETSC_EXTERN PetscErrorCode TaoMeritReset(TaoMerit, Vec, Vec, Vec);
+PETSC_EXTERN PetscErrorCode TaoMeritGetValue(TaoMerit, PetscReal, PetscReal*);
+PETSC_EXTERN PetscErrorCode TaoMeritGetDirDeriv(TaoMerit, PetscReal, PetscReal*);
+PETSC_EXTERN PetscErrorCode TaoMeritGetValueAndDirDeriv(TaoMerit, PetscReal, PetscReal*, PetscReal*);
 
 PETSC_EXTERN PetscErrorCode TaoMeritInitializePackage(void);
 PETSC_EXTERN PetscErrorCode TaoMeritFinalizePackage(void);

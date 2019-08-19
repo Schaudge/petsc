@@ -90,7 +90,7 @@ PetscErrorCode TaoMeritView(TaoMerit merit, PetscViewer viewer)
 
    Level: beginner
 
-.seealso: TaoMeritSetType(), TaoMeritEvaluate(), TaoMeritDestroy()
+.seealso: TaoMeritSetType(), TaoMeritGetValue(), TaoMeritDestroy()
 @*/
 
 PetscErrorCode TaoMeritCreate(Tao tao, TaoMerit *newmerit)
@@ -109,9 +109,12 @@ PetscErrorCode TaoMeritCreate(Tao tao, TaoMerit *newmerit)
   merit->setupcalled = PETSC_FALSE;
   merit->resetcalled = PETSC_FALSE;
   merit->last_alpha = 0.0;
-  merit->last_eval = 0.0;
+  merit->last_value = 0.0;
+  merit->last_dirderiv = 0.0;
   merit->ops->setup=0;
-  merit->ops->eval=0;
+  merit->ops->getvalue=0;
+  merit->ops->getdirderiv=0;
+  merit->ops->getvalueanddirderiv=0;
   merit->ops->view=0;
   merit->ops->setfromoptions=0;
   merit->ops->destroy=0;
@@ -137,7 +140,7 @@ PetscErrorCode TaoMeritCreate(Tao tao, TaoMerit *newmerit)
 
   Level: developer
 
-.seealso: TaoMeritCreate(), TaoMeritEvaluate(), TaoMeritDestroy()
+.seealso: TaoMeritCreate(), TaoMeritGetValue(), TaoMeritDestroy()
 @*/
 
 PetscErrorCode TaoMeritSetUp(TaoMerit merit)
@@ -151,6 +154,8 @@ PetscErrorCode TaoMeritSetUp(TaoMerit merit)
   if (!merit->setupcalled) {
     ierr = VecDuplicate(merit->tao->solution, &merit->Xinit);CHKERRQ(ierr);
     ierr = VecDuplicate(merit->tao->solution, &merit->Xtrial);CHKERRQ(ierr);
+    ierr = VecDuplicate(merit->tao->gradient, &merit->Ginit);CHKERRQ(ierr);
+    ierr = VecDuplicate(merit->tao->gradient, &merit->Gtrial);CHKERRQ(ierr);
     ierr = VecDuplicate(merit->tao->stepdirection, &merit->step);CHKERRQ(ierr);
     merit->setupcalled = PETSC_TRUE;
   }
@@ -171,9 +176,9 @@ PetscErrorCode TaoMeritSetUp(TaoMerit merit)
 
   Level: developer
 
-.seealso: TaoMeritCreate(), TaoMeritEvaluate()
+.seealso: TaoMeritCreate(), TaoMeritGetValue()
 @*/
-PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec p)
+PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec g, Vec p)
 {
   PetscErrorCode ierr;
 
@@ -188,7 +193,8 @@ PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec p)
   ierr = VecCopy(x0, merit->Xtrial);CHKERRQ(ierr);
   ierr = VecCopy(p, merit->step);CHKERRQ(ierr);
   merit->last_alpha = 0.0;
-  merit->last_eval = 0.0;
+  merit->last_value = 0.0;
+  merit->last_dirderiv = 0.0;
   if (merit->ops->reset) {
     ierr = (*merit->ops->reset)(merit,x0,p);CHKERRQ(ierr);
   }
@@ -197,7 +203,7 @@ PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec p)
 }
 
 /*@
-  TaoMeritEvaluate - Evaluate the merit function with a new step length
+  TaoMeritGetValue - Evaluate the merit function value at a new step length.
 
   Collective on TaoMerit
 
@@ -212,19 +218,120 @@ PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec p)
 
 .seealso: TaoMeritCreate(), TaoMeritReset()
 @*/
-PetscErrorCode TaoMeritEvaluate(TaoMerit merit, PetscReal alpha, PetscReal *fval)
+PetscErrorCode TaoMeritGetValue(TaoMerit merit, PetscReal alpha, PetscReal *fval)
 {
   PetscErrorCode ierr;
 
   PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
-  PetscLogEventBegin(TAOMERIT_Eval,merit,0,0,0);
+  PetscLogEventBegin(TAOMERIT_GetValue,merit,0,0,0);
   if (!merit->resetcalled) SETERRQ(PetscComm((PetscObject)merit), PETSC_ERR_ORDER, "Must call TaoMeritReset() with new point and step direction before evaluating the merit function");
-  if (merit->ops->eval) {
-    ierr = (*(merit->ops->eval))(merit, alpha, fval);CHKERRQ(ierr);
-  } else {
-    SETERRQ(PetscComm((PetscObject)merit),PETSC_ERR_ARG_WRONGSTATE,"Evaluation function not defined for TaoMerit type");
+  if (alpha == merit->last_alpha) {
+    /* Avoid unnecessary computation if the step length is same as last evaluated step length */
+    *fval = merit->last_value;
+    PetscFunctionReturn(0);
   }
-  PetscLogEventEnd(TAOMERIT_Eval,merit,0,0,0);
+  if (merit->ops->getvalue) {
+    ierr = (*(merit->ops->getvalue))(merit, alpha, &merit->last_value);CHKERRQ(ierr);
+  } else if (merit->ops->getvalueanddirderiv) {
+    ierr = (*(merit->ops->getvalueanddirderiv))(merit, alpha, &merit->last_value, NULL);CHKERRQ(ierr);
+  } else {
+    SETERRQ(PetscComm((PetscObject)merit),PETSC_ERR_ARG_WRONGSTATE,"Merit function value not defined for TaoMerit type");
+  }
+  merit->last_alpha = alpha;
+  *fval = merit->last_value;
+  PetscLogEventEnd(TAOMERIT_GetValue,merit,0,0,0);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  TaoMeritGetDirDeriv - Evaluate the merit function directional derivative at a new step length.
+  The directional derivative is the dot product between the step direction and the gradient of the 
+  merit function.
+
+  Collective on TaoMerit
+
+  Input Parameter:
++ merit - TaoMerit context
+- alpha - step length
+
+  Output Parameter:
+. gtp - directional derivative evaluated at alpha
+
+  Level: beginner
+
+.seealso: TaoMeritCreate(), TaoMeritReset()
+@*/
+PetscErrorCode TaoMeritGetDirDeriv(TaoMerit merit, PetscReal alpha, PetscReal *gtp)
+{
+  PetscErrorCode ierr;
+
+  PetscErrorCode ierr;
+
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscLogEventBegin(TAOMERIT_GetDirDeriv,merit,0,0,0);
+  if (!merit->resetcalled) SETERRQ(PetscComm((PetscObject)merit), PETSC_ERR_ORDER, "Must call TaoMeritReset() with new point and step direction before evaluating the merit function");
+  if (alpha == merit->last_alpha) {
+    /* Avoid unnecessary computation if the step length is same as last evaluated step length */
+    *gtp = merit->last_dirderiv;
+    PetscFunctionReturn(0);
+  }
+  if (merit->ops->getdirderiv) {
+    ierr = (*(merit->ops->getvalue))(merit, alpha, &merit->last_dirderiv);CHKERRQ(ierr);
+  } else if (merit->ops->getvalueanddirderiv) {
+    ierr = (*(merit->ops->getvalueanddirderiv))(merit, alpha, NULL, &merit->last_dirderiv);CHKERRQ(ierr);
+  } else {
+    SETERRQ(PetscComm((PetscObject)merit),PETSC_ERR_ARG_WRONGSTATE,"Directional derivative evaluation not defined for TaoMerit type");
+  }
+  merit->last_alpha = alpha;
+  *gtp = merit->last_dirderiv;
+  PetscLogEventEnd(TAOMERIT_GetDirDeriv,merit,0,0,0);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  TaoMeritGetValueAndDirDeriv - Evaluate both the merit function value and its directional 
+  derivative at a new step length. The directional derivative is the dot product between the 
+  step direction and the gradient of the merit function.
+
+  Collective on TaoMerit
+
+  Input Parameter:
++ merit - TaoMerit context
+- alpha - step length
+
+  Output Parameter:
++ fval - merit function value evaluated at alpha
+- gtp - directional derivative value at alpha
+
+  Level: intermediate
+
+.seealso: TaoMeritCreate(), TaoMeritReset()
+@*/
+PetscErrorCode TaoMeritGetValueAndDirDeriv(TaoMerit merit, PetscReal alpha, PetscReal *fval, PetscReal *gtp)
+{
+  PetscErrorCode ierr;
+
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscLogEventBegin(TAOMERIT_GetValueAndDirDeriv,merit,0,0,0);
+  if (!merit->resetcalled) SETERRQ(PetscComm((PetscObject)merit), PETSC_ERR_ORDER, "Must call TaoMeritReset() with new point and step direction before evaluating the merit function");
+  if (alpha == merit->last_alpha) {
+    /* Avoid unnecessary computation if the step length is same as last evaluated step length */
+    *fval = merit->last_value;
+    *gtp = merit->last_dirderiv;
+    PetscFunctionReturn(0);
+  }
+  if (merit->ops->getvalueanddirderiv) {
+    ierr = (*(merit->ops->getvalueanddirderiv))(merit, alpha, &merit->last_value, &merit->last_dirderiv);CHKERRQ(ierr);
+  } else if ((merit->ops->getvalue) && (merit->ops->getdirderiv)) {
+    ierr = (*(merit->ops->getvalue))(merit, alpha, &merit->last_value);CHKERRQ(ierr);
+    ierr = (*(merit->ops->getdirderiv))(merit, alpha, &merit->last_dirderiv);CHKERRQ(ierr);
+  } else {
+    SETERRQ(PetscComm((PetscObject)merit),PETSC_ERR_ARG_WRONGSTATE,"Function value and directional derivative evaluations are not defined for TaoMerit type");
+  }
+  merit->last_alpha = alpha;
+  *fval = merit->last_value;
+  *gtp = merit->last_dirderiv;
+  PetscLogEventEnd(TAOMERIT_GetValueAndDirDeriv,merit,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -239,7 +346,7 @@ PetscErrorCode TaoMeritEvaluate(TaoMerit merit, PetscReal alpha, PetscReal *fval
 
   Level: beginner
 
-.seealso: TaoMeritCreate(), TaoMeritEvaluate()
+.seealso: TaoMeritCreate(), TaoMeritGetValue()
 @*/
 PetscErrorCode TaoMeritDestroy(TaoMerit *merit)
 {
@@ -251,6 +358,8 @@ PetscErrorCode TaoMeritDestroy(TaoMerit *merit)
   if (--((PetscObject)*merit)->refct > 0) {*merit=0; PetscFunctionReturn(0);}
   ierr = VecDestroy(&(*merit)->Xinit);CHKERRQ(ierr);
   ierr = VecDestroy(&(*merit)->Xtrial);CHKERRQ(ierr);
+  ierr = VecDestroy(&(*merit)->Ginit);CHKERRQ(ierr);
+  ierr = VecDestroy(&(*merit)->Gtrial);CHKERRQ(ierr);
   ierr = VecDestroy(&(*merit)->step);CHKERRQ(ierr);
   if ((*merit)->ops->destroy) {
     ierr = (*(*merit)->ops->destroy)(*merit);CHKERRQ(ierr);
@@ -276,7 +385,7 @@ PetscErrorCode TaoMeritDestroy(TaoMerit *merit)
 
   Level: developer
 
-.seealso: TaoMeritCreate(), TaoMeritGetType(), TaoMeritEvaluate()
+.seealso: TaoMeritCreate(), TaoMeritGetType(), TaoMeritGetValue()
 
 @*/
 
@@ -299,7 +408,9 @@ PetscErrorCode TaoMeritSetType(TaoMerit merit, TaoMeritType type)
     ierr = (*(merit)->ops->destroy)(&merit);CHKERRQ(ierr);
   }
   merit->ops->setup=0;
-  merit->ops->eval=0;
+  merit->ops->getvalue=0;
+  merit->ops->getdirderiv=0;
+  merit->ops->getvalueanddirderiv=0;
   merit->ops->view=0;
   merit->ops->setfromoptions=0;
   merit->ops->destroy=0;
