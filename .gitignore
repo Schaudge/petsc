@@ -10,6 +10,8 @@
 *.pvt[ksu]
 *.h5m
 .*_license
+build/*
+config/pypi/*
 unix/*
 unix-opt/*
 unix-gcov/*
@@ -176,3 +178,4 @@ src/benchmarks/streams/PthreadVersion
 src/benchmarks/streams/scaling.png
 ftn-auto-interfaces
 horse.ply
+setup.cfg
