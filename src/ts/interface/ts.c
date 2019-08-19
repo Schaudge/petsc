@@ -2171,6 +2171,9 @@ PetscErrorCode TSSetStepNumber(TS ts,PetscInt steps)
 +  ts - the TS context obtained from TSCreate()
 -  time_step - the size of the timestep
 
+   Options Database:
+.  -ts_dt <dt> - set the initial timestep to use
+
    Level: intermediate
 
 .seealso: TSGetTimeStep(), TSSetTime()

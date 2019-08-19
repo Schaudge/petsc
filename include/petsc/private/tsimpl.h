@@ -394,18 +394,19 @@ PETSC_EXTERN PetscErrorCode DMTSView(DMTS,PetscViewer);
 PETSC_EXTERN PetscErrorCode DMTSLoad(DMTS,PetscViewer);
 PETSC_EXTERN PetscErrorCode DMTSCopy(DMTS,DMTS);
 
-typedef enum {TSEVENT_NONE,TSEVENT_LOCATED_INTERVAL,TSEVENT_PROCESSING,TSEVENT_ZERO,TSEVENT_RESET_NEXTSTEP} TSEventStatus;
+typedef enum {TSEVENT_NONE,TSEVENT_LOCATED_INTERVAL,TSEVENT_PROCESSING} TSEventStatus;
 
 struct _n_TSEvent {
   PetscScalar    *fvalue;          /* value of event function at the end of the step*/
   PetscScalar    *fvalue_prev;     /* value of event function at start of the step (left end-point of event interval) */
-  PetscReal       ptime_prev;      /* time at step start (left end-point of event interval) */
+  PetscReal       ptime_left;      /* time at step start (left end-point of event interval) */
   PetscReal       ptime_end;       /* end time of step (when an event interval is detected, ptime_end is fixed to the time at step end during event processing) */
   PetscReal       ptime_right;     /* time on the right end-point of the event interval */
   PetscScalar    *fvalue_right;    /* value of event function at the right end-point of the event interval */
   PetscInt       *side;            /* Used for detecting repetition of end-point, -1 => left, +1 => right */
-  PetscReal       timestep_prev;   /* previous time step */
-  PetscReal       timestep_posteventinterval;  /* time step immediately after the event interval */
+  PetscReal       prev_dt;         /* time step before event was detected */
+  PetscReal       postevent_dt;    /* time step to use immediately after the event interval */
+  PetscReal       postevent_dtscale;  /* time step to use immediately after the event interval based on time-step before event was detected */
   PetscBool      *zerocrossing;    /* Flag to signal zero crossing detection */
   PetscErrorCode  (*eventhandler)(TS,PetscReal,Vec,PetscScalar*,void*); /* User event handler function */
   PetscErrorCode  (*postevent)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void*); /* User post event function */
@@ -415,9 +416,9 @@ struct _n_TSEvent {
   PetscInt        nevents;          /* Number of events to handle */
   PetscInt        nevents_zero;     /* Number of event zero detected */
   PetscInt       *events_zero;      /* List of events that have reached zero */
-  PetscReal      *vtol;             /* Vector tolerances for event zero check */
+  PetscReal       tol;             /* Tolerances for event zero crossing check */
   TSEventStatus   status;           /* Event status */
-  PetscInt        iterctr;          /* Iteration counter */
+  PetscInt        iterctr;          /* Iteration counter; how many times it has tried to shrink the event interval */
   PetscViewer     monitor;
   /* Struct to record the events */
   struct {

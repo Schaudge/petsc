@@ -17,6 +17,9 @@ typedef struct {
   PetscInt nbounces;
 } AppCtx;
 
+/*
+     A sign change in this function indicates the location of the event
+*/
 PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
 {
   AppCtx            *app=(AppCtx*)ctx;
@@ -33,6 +36,9 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *c
   PetscFunctionReturn(0);
 }
 
+/*
+    This changes the physical model after the event is detected, the velocity of the ball is scaled and flipped
+*/
 PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 {
   AppCtx         *app=(AppCtx*)ctx;
@@ -45,7 +51,7 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
     /* Set new initial conditions with .9 attenuation */
     ierr = VecGetArray(U,&u);CHKERRQ(ierr);
     u[0] =  0.0;
-    u[1] = -0.9*u[1];
+    u[1] =  0.9*PetscAbsScalar(u[1]);
     ierr = VecRestoreArray(U,&u);CHKERRQ(ierr);
   } else if (event_list[0] == 1) {
     ierr = PetscPrintf(PETSC_COMM_SELF,"Ball bounced %D times\n",app->nbounces);CHKERRQ(ierr);
@@ -55,7 +61,10 @@ PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],Pe
 }
 
 /*
-     Defines the ODE passed to the ODE solver in explicit form: U_t = F(U)
+     Defines the ODE  in explicit form: U_t = F(U)
+
+     u(0) is the location above the surface
+     u(1) is the velocity, positive indices moving upward
 */
 static PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec U,Vec F,void *ctx)
 {
@@ -179,7 +188,7 @@ int main(int argc,char **argv)
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Only for sequential runs");
 
-  app.nbounces = 0;
+  app.nbounces   = 0;
   app.maxbounces = 10;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"ex40 options","");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-maxbounces","","",app.maxbounces,&app.maxbounces,NULL);CHKERRQ(ierr);
@@ -224,6 +233,11 @@ int main(int argc,char **argv)
   ierr = VecSetSizes(U,n,PETSC_DETERMINE);CHKERRQ(ierr);
   ierr = VecSetUp(U);CHKERRQ(ierr);
   ierr = VecGetArray(U,&u);CHKERRQ(ierr);
+  /*
+     on the surface moving up with a velocity of 20
+     note that since the initual location is on the surface it will
+     detect an event at this time
+  */
   u[0] = 0.0;
   u[1] = 20.0;
   ierr = VecRestoreArray(U,&u);CHKERRQ(ierr);
