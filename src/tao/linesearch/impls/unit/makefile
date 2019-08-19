@@ -3,13 +3,13 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = objective.c
+SOURCEC   = unit.c
 SOURCEF   =
-SOURCEH   = 
+SOURCEH   = unit.h
 LIBBASE   = libpetsctao
 MANSEC    = Tao
-SUBMANSEC = TaoMerit
-LOCDIR    = src/tao/merit/impls/unit/
+SUBMANSEC = TaoLineSearch
+LOCDIR    = src/tao/linesearch/impls/unit/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
