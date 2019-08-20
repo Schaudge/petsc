@@ -196,12 +196,18 @@ PetscErrorCode MatAssemblyEnd_MPIAIJCUSPARSE(Mat A,MatAssemblyType mode)
 {
   PetscErrorCode ierr;
   Mat_MPIAIJ     *mpiaij;
+  PetscBool      v;
 
   PetscFunctionBegin;
   mpiaij = (Mat_MPIAIJ*)A->data;
   ierr = MatAssemblyEnd_MPIAIJ(A,mode);CHKERRQ(ierr);
-  if (!A->was_assembled && mode == MAT_FINAL_ASSEMBLY) {
-    ierr = VecSetType(mpiaij->lvec,VECSEQCUDA);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)mpiaij->lvec,VECSEQCUDA,&v);CHKERRQ(ierr);
+  if (!v) {
+    PetscInt m;
+    ierr = VecGetSize(mpiaij->lvec,&m);CHKERRQ(ierr);
+    ierr = VecDestroy(&mpiaij->lvec);CHKERRQ(ierr);
+    ierr = VecCreateSeqCUDA(PETSC_COMM_SELF,m,&mpiaij->lvec);CHKERRQ(ierr);
+    ierr = VecPinToCPU(mpiaij->lvec,A->pinnedtocpu);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

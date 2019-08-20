@@ -41,6 +41,7 @@ PetscErrorCode MatAssemblyEnd_MPIAIJViennaCL(Mat A,MatAssemblyType mode)
     ierr = VecGetSize(b->lvec,&m);CHKERRQ(ierr);
     ierr = VecDestroy(&b->lvec);CHKERRQ(ierr);
     ierr = VecCreateSeqViennaCL(PETSC_COMM_SELF,m,&b->lvec);CHKERRQ(ierr);
+    ierr = VecPinToCPU(b->lvec,A->pinnedtocpu);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
