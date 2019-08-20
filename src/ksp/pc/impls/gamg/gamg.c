@@ -115,10 +115,11 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
 #if defined PETSC_GAMG_USE_LOG
     ierr = PetscLogEventBegin(petsc_gamg_setup_events[SET12],0,0,0,0);CHKERRQ(ierr);
 #endif
+    /* get new_size and rfactor */
     if (!pc_gamg->use_compact_coarse_grid_layout || !pc_gamg->repart) {
       /* PetscInt newsizeOld = new_size; */
       /* find factor */
-      if (new_size == 1) rfactor = size; /* easy */
+      if (new_size == 1) rfactor = size; /* don't modify */
       else {
         PetscReal best_fact = 0.;
         jj = -1;
@@ -132,7 +133,7 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
           }
         }
         if (jj != -1) rfactor = jj;
-        else rfactor = 1; /* does this happen .. a prime */
+        else rfactor = 1; /* a prime */
         if (pc_gamg->use_compact_coarse_grid_layout) expand_factor = 1;
         else expand_factor = rfactor;
       }
