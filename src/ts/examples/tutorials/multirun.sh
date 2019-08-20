@@ -38,12 +38,9 @@ echo "resetting full log and filtered outputs..."
 >./$packsizeADDVAL
 echo "done"
 
-maxcount=18
-counter=11
+maxcount=19
+counter=10
 cells=8000000
-dim=3
-lvl=2
-nface=25
 echo "Max number of iterations:		$(($maxcount-$counter))"
 echo "looping..."
 echo "-----------"
@@ -56,7 +53,7 @@ do
     echo "approx cells/rank:                    $cellprank"
     echo "start time:                      	$(date -u)"
     SECONDS=0
-    aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -dim $dim -level $lvl -n $nface -log_view >> ./$rawlog
+    #aprun -n $ranks -N 256 -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble8M.med -log_view >> ./$rawlog
     echo "+++++++++++++++++++++++++++ End of Log ++++++++++++++++++++++++++++++++++">>./$rawlog
     ((counter++))
     duration=$SECONDS

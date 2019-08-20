@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 	PetscSection		section;
 	Vec			funcVecSin, funcVecCos, solVecLocal, solVecGlobal, coordinates, VDot;
 	PetscBool		simplex = PETSC_FALSE, perfTest = PETSC_FALSE, fileflg = PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_TRUE, dmRefine = PETSC_FALSE, dispFlag = PETSC_FALSE, isView = PETSC_FALSE,  VTKdisp = PETSC_FALSE, dmDisp = PETSC_FALSE, sectionDisp = PETSC_FALSE, arrayDisp = PETSC_FALSE, coordDisp = PETSC_FALSE, usePetscFE = PETSC_FALSE;
-	PetscInt		dim = 3, overlap = 0, meshSize = 10, level = 0, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;
+	PetscInt		dim = 2, overlap = 0, meshSize = 2, level = 0, i, j, k, numFields = 100, numBC = 1, vecsize = 1000, nCoords, nVertex, globalSize, globalCellSize, commiter, qorder = 2, commax = 100;
 	PetscInt		bcField[numBC];
 	PetscScalar 		dot, VDotResult;
 	PetscScalar		*coords, *array;
@@ -150,7 +150,6 @@ int main(int argc, char **argv)
 	ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
 	if (!fileflg) {
 		DM 		dmf;
-
 		for (i = 0; i < level; i++) {
 			ierr = PetscLogStageRegister("REFINE Mesh Stage", &stageREFINE);CHKERRQ(ierr);
 			ierr = PetscLogEventRegister("REFINE Mesh", 0, &eventREFINE);CHKERRQ(ierr);
@@ -170,7 +169,7 @@ int main(int argc, char **argv)
 				dmDistributed = PETSC_TRUE;
 			}
 		}
-		dmRefine = PETSC_TRUE;
+		if (level > 0) { dmRefine = PETSC_TRUE;}
 	}
 	if (!dmDistributed) {
 		ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
