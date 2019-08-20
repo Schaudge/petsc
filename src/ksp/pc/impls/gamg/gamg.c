@@ -408,7 +408,7 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
 #endif
       ierr = MatPinToCPU(*a_Amat_crs,PETSC_TRUE);CHKERRQ(ierr);
       ierr = MatPinToCPU(*a_P_inout,PETSC_TRUE);CHKERRQ(ierr);
-      if (0) { /* lvec is created, need to pin it, this is done in MatSetUpMultiply_MPIAIJ -- do we need this code??? */
+      if (1) { /* lvec is created, need to pin it, this is done in MatSetUpMultiply_MPIAIJ. Hack */
         Mat         A = *a_Amat_crs, P = *a_P_inout;
         PetscMPIInt size;
         ierr = MPI_Comm_size(PetscObjectComm((PetscObject)A),&size);CHKERRQ(ierr);
