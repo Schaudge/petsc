@@ -54,6 +54,11 @@ class Configure(config.package.Package):
   def Install(self):
     import os
 
+    self.setCompilers.pushLanguage('FC')
+    if config.setCompilers.Configure.isNAG(self.setCompilers.getLinker(), self.log):
+      raise RuntimeError('Cannot compile OpenBlass with NAG compiler')
+    self.setCompilers.popLanguage()
+
     # OpenBLAS handles its own compiler optimization options
     cmdline = 'CC='+self.compilers.CC+' '
     cmdline += 'FC='+self.compilers.FC+' '
