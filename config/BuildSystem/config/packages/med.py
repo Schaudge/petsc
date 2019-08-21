@@ -3,6 +3,9 @@ import config.package
 class Configure(config.package.CMakePackage):
   def __init__(self, framework):
     config.package.CMakePackage.__init__(self, framework)
+    self.version          = '4.0.0'
+    self.minversion       = '4.0.0'
+    self.versionname      = 'MED_MAJOR_NUM.MED_MINOR_NUM.MED_RELEASE_NUM'
     self.gitcommit         = 'origin/maint-4.0.0'
     self.download          = ['git://https://bitbucket.org/petsc/pkg-med.git','https://bitbucket.org/petsc/pkg-med/get/'+self.gitcommit+'.tar.gz']
     self.functions         = ['MEDfileOpen']
@@ -18,7 +21,8 @@ class Configure(config.package.CMakePackage):
     self.mpi            = framework.require('config.packages.MPI', self)
     self.hdf5           = framework.require('config.packages.hdf5', self)
     self.mathlib        = framework.require('config.packages.mathlib',self)
-    self.deps           = [self.mpi, self.hdf5, self.mathlib]
+    self.deps           = [self.hdf5, self.mathlib]
+    self.odeps          = [self.mpi]
     return
 
   def formCMakeConfigureArgs(self):

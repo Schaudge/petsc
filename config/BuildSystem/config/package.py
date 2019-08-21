@@ -664,7 +664,7 @@ If its a remote branch, use: origin/'+self.gitcommit+' for gitcommit.')
       return
 
   def downLoad(self):
-    '''Downloads a package; using hg or ftp; opens it in the with-packages-build-dir directory'''
+    '''Downloads a package; using hg, git, http, or ftp; opens it in the with-packages-build-dir directory'''
     import retrieval
 
     if self.havePETSc:

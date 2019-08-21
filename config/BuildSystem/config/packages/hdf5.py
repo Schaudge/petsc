@@ -30,8 +30,8 @@ class Configure(config.package.GNUPackage):
     self.mathlib        = framework.require('config.packages.mathlib',self)
     self.zlib           = framework.require('config.packages.zlib',self)
     self.szlib          = framework.require('config.packages.szlib',self)
-    self.deps           = [self.mpi,self.mathlib]
-    self.odeps          = [self.zlib,self.szlib]
+    self.deps           = [self.mathlib]
+    self.odeps          = [self.mpi,self.zlib,self.szlib]
     return
 
   def versionToStandardForm(self,ver):
@@ -39,10 +39,10 @@ class Configure(config.package.GNUPackage):
     return ver.replace('-patch','.')
 
   def formGNUConfigureArgs(self):
-    ''' Add HDF5 specific --enable-parallel flag and enable Fortran if available '''
     args = config.package.GNUPackage.formGNUConfigureArgs(self)
     args.append('--with-default-api-version=v18') # for hdf-1.10
-    args.append('--enable-parallel')
+    if self.mpi.found:
+      args.append('--enable-parallel')
     if hasattr(self.compilers, 'FC') and self.argDB['download-hdf5-fc']:
       self.setCompilers.pushLanguage('FC')
       args.append('--enable-fortran')

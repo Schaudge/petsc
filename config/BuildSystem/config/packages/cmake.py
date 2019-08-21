@@ -87,6 +87,7 @@ class Configure(config.package.GNUPackage):
       if gver:
         try:
            self.foundversion = ".".join(gver.groups())
+           self.version_tuple = self.versionToTuple(self.foundversion)
            self.log.write('cmake version found '+self.foundversion+'\n')
            return
         except: pass
@@ -99,7 +100,7 @@ class Configure(config.package.GNUPackage):
            val = list(gver.groups())
            v = [val[0],val[1],'0',val[2]]
            self.foundversion = ".".join(v)
-           print(self.foundversion)
+           self.version_tuple = self.versionToTuple(self.foundversion)
            self.log.write('cmake version found '+self.foundversion+'\n')
            return
         except: pass
