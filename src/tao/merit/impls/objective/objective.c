@@ -5,9 +5,9 @@ static PetscErrorCode TaoMeritGetValue_Objective(TaoMerit merit, PetscReal alpha
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCopy(merit->Xtrial, merit->Xinit);CHKERRQ(ierr);
+  ierr = VecCopy(merit->Xinit, merit->Xtrial);CHKERRQ(ierr);
   ierr = VecAXPY(merit->Xtrial, alpha, merit->step);CHKERRQ(ierr);
-  ierr = TaoComputeObjective(merit->tao, merit->Xtrial, fval);CHKERRQ(ierr);
+  ierr = TaoMeritComputeObjective(merit, merit->Xtrial, fval);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -16,9 +16,9 @@ static PetscErrorCode TaoMeritGetDirDeriv_Objective(TaoMerit merit, PetscReal al
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCopy(merit->Xtrial, merit->Xinit);CHKERRQ(ierr);
+  ierr = VecCopy(merit->Xinit, merit->Xtrial);CHKERRQ(ierr);
   ierr = VecAXPY(merit->Xtrial, alpha, merit->step);CHKERRQ(ierr);
-  ierr = TaoComputeGradient(merit->tao, merit->Xtrial, merit->Gtrial);CHKERRQ(ierr);
+  ierr = TaoMeritComputeGradient(merit, merit->Xtrial, merit->Gtrial);CHKERRQ(ierr);
   ierr = VecDot(merit->step, merit->Gtrial, gts);
   PetscFunctionReturn(0);
 }
@@ -28,9 +28,9 @@ static PetscErrorCode TaoMeritGetValueAndDirDeriv_Objective(TaoMerit merit, Pets
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCopy(merit->Xtrial, merit->Xinit);CHKERRQ(ierr);
+  ierr = VecCopy(merit->Xinit, merit->Xtrial);CHKERRQ(ierr);
   ierr = VecAXPY(merit->Xtrial, alpha, merit->step);CHKERRQ(ierr);
-  ierr = TaoComputeObjectiveAndGradient(merit->tao, merit->Xtrial, fval, merit->Gtrial);CHKERRQ(ierr);
+  ierr = TaoMeritComputeObjectiveAndGradient(merit, merit->Xtrial, fval, merit->Gtrial);CHKERRQ(ierr);
   ierr = VecDot(merit->step, merit->Gtrial, gts);
   PetscFunctionReturn(0);
 }
@@ -44,7 +44,7 @@ static PetscErrorCode TaoMeritGetValueAndDirDeriv_Objective(TaoMerit merit, Pets
 
 .keywords: Tao, merit
 M*/
-PETSC_EXTERN PetscErrorCode TaoMeritCreate_Objective(Tao tao, TaoMerit merit)
+PETSC_EXTERN PetscErrorCode TaoMeritCreate_Objective(TaoMerit merit)
 {
   PetscFunctionBegin;
   merit->ops->getvalue = TaoMeritGetValue_Objective;

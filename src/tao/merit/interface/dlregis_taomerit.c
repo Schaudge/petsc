@@ -2,10 +2,10 @@
 #include <petsc/private/taomeritimpl.h>
 
 
-PETSC_EXTERN PetscErrorCode TaoMeritCreate_Objective(Tao, TaoMerit);
-PETSC_EXTERN PetscErrorCode TaoMeritCreate_Lagrangian(Tao, TaoMerit);
-PETSC_EXTERN PetscErrorCode TaoMeritCreate_AugLag(Tao, TaoMerit);
-PETSC_EXTERN PetscErrorCode TaoMeritCreate_LogBarrier(Tao, TaoMerit);
+PETSC_EXTERN PetscErrorCode TaoMeritCreate_Objective(TaoMerit);
+PETSC_EXTERN PetscErrorCode TaoMeritCreate_Lagrangian(TaoMerit);
+PETSC_EXTERN PetscErrorCode TaoMeritCreate_AugLag(TaoMerit);
+PETSC_EXTERN PetscErrorCode TaoMeritCreate_LogBarrier(TaoMerit);
 static PetscBool TaoMeritPackageInitialized = PETSC_FALSE;
 
 /*@C
@@ -47,7 +47,9 @@ PetscErrorCode TaoMeritInitializePackage(void)
   ierr = TaoLineSearchRegister("lagrangian",TaoMeritCreate_Lagrangian);CHKERRQ(ierr);
   ierr = TaoLineSearchRegister("auglag",TaoMeritCreate_AugLag);CHKERRQ(ierr);
   ierr = TaoLineSearchRegister("logbarrier",TaoMeritCreate_LogBarrier);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("TaoMeritEvaluate", TAOMERIT_CLASSID,&TAOMERIT_Eval);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("TaoMeritGetValue", TAOMERIT_CLASSID,&TAOMERIT_GetValue);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("TaoMeritGetDirDeriv", TAOMERIT_CLASSID,&TAOMERIT_GetDirDeriv);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("TaoMeritGetValueAndDirDeriv", TAOMERIT_CLASSID,&TAOMERIT_GetValueAndDirDeriv);CHKERRQ(ierr);
 #endif
   ierr = PetscRegisterFinalize(TaoMeritFinalizePackage);CHKERRQ(ierr);
   PetscFunctionReturn(0);

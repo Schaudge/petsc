@@ -93,7 +93,7 @@ PetscErrorCode TaoMeritView(TaoMerit merit, PetscViewer viewer)
 .seealso: TaoMeritSetType(), TaoMeritGetValue(), TaoMeritDestroy()
 @*/
 
-PetscErrorCode TaoMeritCreate(Tao tao, TaoMerit *newmerit)
+PetscErrorCode TaoMeritCreate(MPI_Comm comm, TaoMerit *newmerit)
 {
   PetscErrorCode ierr;
   TaoMerit  merit;
@@ -104,13 +104,16 @@ PetscErrorCode TaoMeritCreate(Tao tao, TaoMerit *newmerit)
 
   ierr = TaoMeritInitializePackage();CHKERRQ(ierr);
 
-  ierr = PetscHeaderCreate(merit,TAOMERIT_CLASSID,"TaoMerit","Merit","Tao",PetscObjectComm((PetscObject)tao),TaoMeritDestroy,TaoMeritView);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(merit,TAOMERIT_CLASSID,"TaoMerit","Merit","Tao",comm,TaoMeritDestroy,TaoMeritView);CHKERRQ(ierr);
 
   merit->setupcalled = PETSC_FALSE;
   merit->resetcalled = PETSC_FALSE;
-  merit->last_alpha = 0.0;
+  merit->use_tao = PETSC_FALSE;
+
+  merit->last_alpha = -1.0;
   merit->last_value = 0.0;
   merit->last_dirderiv = 0.0;
+
   merit->ops->setup=0;
   merit->ops->getvalue=0;
   merit->ops->getdirderiv=0;
@@ -118,6 +121,15 @@ PetscErrorCode TaoMeritCreate(Tao tao, TaoMerit *newmerit)
   merit->ops->view=0;
   merit->ops->setfromoptions=0;
   merit->ops->destroy=0;
+
+  merit->ops->userobjective=0;
+  merit->ops->usergradient=0;
+  merit->ops->userobjandgrad=0;
+  merit->ops->userhessian=0;
+  merit->ops->usercnstreq=0;
+  merit->ops->usercnstrineq=0;
+  merit->ops->userjaceq=0;
+  merit->ops->userjacineq=0;
 
   *newmerit = merit;
   PetscFunctionReturn(0);
@@ -152,9 +164,7 @@ PetscErrorCode TaoMeritSetUp(TaoMerit merit)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
   if (!merit->setupcalled) {
-    ierr = VecDuplicate(merit->tao->solution, &merit->Xinit);CHKERRQ(ierr);
     ierr = VecDuplicate(merit->tao->solution, &merit->Xtrial);CHKERRQ(ierr);
-    ierr = VecDuplicate(merit->tao->gradient, &merit->Ginit);CHKERRQ(ierr);
     ierr = VecDuplicate(merit->tao->gradient, &merit->Gtrial);CHKERRQ(ierr);
     ierr = VecDuplicate(merit->tao->stepdirection, &merit->step);CHKERRQ(ierr);
     merit->setupcalled = PETSC_TRUE;
@@ -178,25 +188,22 @@ PetscErrorCode TaoMeritSetUp(TaoMerit merit)
 
 .seealso: TaoMeritCreate(), TaoMeritGetValue()
 @*/
-PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec g, Vec p)
+PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec p)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
-  PetscValidHeaderSpecific(x0,VEC_CLASSID,2);
-  PetscValidHeaderSpecific(p,VEC_CLASSID,3);
   if (!merit->setupcalled) {
     ierr = TaoMeritSetUp(merit);CHKERRQ(ierr);
   }
-  ierr = VecCopy(x0, merit->Xinit);CHKERRQ(ierr);
-  ierr = VecCopy(x0, merit->Xtrial);CHKERRQ(ierr);
-  ierr = VecCopy(p, merit->step);CHKERRQ(ierr);
-  merit->last_alpha = 0.0;
+  merit->Xinit = x0;
+  merit->step = p;
+  merit->last_alpha = -1.0;
   merit->last_value = 0.0;
   merit->last_dirderiv = 0.0;
   if (merit->ops->reset) {
-    ierr = (*merit->ops->reset)(merit,x0,p);CHKERRQ(ierr);
+    ierr = (*merit->ops->reset)(merit, x0, p);CHKERRQ(ierr);
   }
   merit->resetcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -214,7 +221,7 @@ PetscErrorCode TaoMeritReset(TaoMerit merit, Vec x0, Vec g, Vec p)
   Output Parameter:
 . fval - merit function value evaluated at alpha
 
-  Level: beginner
+  Level: developer
 
 .seealso: TaoMeritCreate(), TaoMeritReset()
 @*/
@@ -257,7 +264,7 @@ PetscErrorCode TaoMeritGetValue(TaoMerit merit, PetscReal alpha, PetscReal *fval
   Output Parameter:
 . gtp - directional derivative evaluated at alpha
 
-  Level: beginner
+  Level: developer
 
 .seealso: TaoMeritCreate(), TaoMeritReset()
 @*/
@@ -303,7 +310,7 @@ PetscErrorCode TaoMeritGetDirDeriv(TaoMerit merit, PetscReal alpha, PetscReal *g
 + fval - merit function value evaluated at alpha
 - gtp - directional derivative value at alpha
 
-  Level: intermediate
+  Level: developer
 
 .seealso: TaoMeritCreate(), TaoMeritReset()
 @*/
@@ -355,15 +362,29 @@ PetscErrorCode TaoMeritDestroy(TaoMerit *merit)
   PetscFunctionBegin;
   if (!*merit) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(*merit,TAOMERIT_CLASSID,1);
-  if (--((PetscObject)*merit)->refct > 0) {*merit=0; PetscFunctionReturn(0);}
+  if (--((PetscObject)*merit)->refct > 0) {
+    *merit = 0;
+    PetscFunctionReturn(0);
+  }
+
+  ierr = MatDestroy(&(*merit)->H);CHKERRQ(ierr);
+  ierr = MatDestroy(&(*merit)->Hpre);CHKERRQ(ierr);
+  ierr = MatDestroy(&(*merit)->Jeq);CHKERRQ(ierr);
+  ierr = MatDestroy(&(*merit)->Jeq_pre);CHKERRQ(ierr);
+  ierr = MatDestroy(&(*merit)->Jineq);CHKERRQ(ierr);
+  ierr = MatDestroy(&(*merit)->Jineq_pre);CHKERRQ(ierr);
+
   ierr = VecDestroy(&(*merit)->Xinit);CHKERRQ(ierr);
-  ierr = VecDestroy(&(*merit)->Xtrial);CHKERRQ(ierr);
-  ierr = VecDestroy(&(*merit)->Ginit);CHKERRQ(ierr);
-  ierr = VecDestroy(&(*merit)->Gtrial);CHKERRQ(ierr);
+  ierr = VecDestroy(&(*merit)->Ceq);CHKERRQ(ierr);
+  ierr = VecDestroy(&(*merit)->Cineq);CHKERRQ(ierr);
   ierr = VecDestroy(&(*merit)->step);CHKERRQ(ierr);
+  ierr = VecDestroy(&(*merit)->Xtrial);CHKERRQ(ierr);
+  ierr = VecDestroy(&(*merit)->Gtrial);CHKERRQ(ierr);
+
   if ((*merit)->ops->destroy) {
     ierr = (*(*merit)->ops->destroy)(*merit);CHKERRQ(ierr);
   }
+
   ierr = PetscHeaderDestroy(merit);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -383,7 +404,7 @@ PetscErrorCode TaoMeritDestroy(TaoMerit *merit)
 . aug-lag - augmented lagrangian
 - log-barrier - objective plus logarithmic barrier term
 
-  Level: developer
+  Level: beginner
 
 .seealso: TaoMeritCreate(), TaoMeritGetType(), TaoMeritGetValue()
 
@@ -392,20 +413,18 @@ PetscErrorCode TaoMeritDestroy(TaoMerit *merit)
 PetscErrorCode TaoMeritSetType(TaoMerit merit, TaoMeritType type)
 {
   PetscErrorCode ierr;
-  PetscErrorCode (*r)(Tao, TaoMerit*);
+  PetscErrorCode (*r)(TaoMerit);
   PetscBool      flg;
-  Tao            tao = merit->tao;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
   PetscValidCharPointer(type,2);
   ierr = PetscObjectTypeCompare((PetscObject)merit, type, &flg);CHKERRQ(ierr);
   if (flg) PetscFunctionReturn(0);
-
-  ierr = PetscFunctionListFind(TaoMeritList,type, (void (**)(void)) &r);CHKERRQ(ierr);
+  ierr = PetscFunctionListFind(TaoMeritList,type,(void (**)(void)) &r);CHKERRQ(ierr);
   if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unable to find requested TaoMerit type %s",type);
   if (merit->ops->destroy) {
-    ierr = (*(merit)->ops->destroy)(&merit);CHKERRQ(ierr);
+    ierr = (*(merit->ops->destroy))(&merit);CHKERRQ(ierr);
   }
   merit->ops->setup=0;
   merit->ops->getvalue=0;
@@ -416,7 +435,7 @@ PetscErrorCode TaoMeritSetType(TaoMerit merit, TaoMeritType type)
   merit->ops->destroy=0;
   merit->setupcalled = PETSC_FALSE;
   merit->resetcalled = PETSC_FALSE;
-  ierr = (*r)(tao, merit);CHKERRQ(ierr);
+  ierr = (*r)(merit);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)merit, type);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -487,28 +506,28 @@ PetscErrorCode TaoMeritGetType(TaoMerit merit, TaoMeritType *type)
 }
 
 /*@C
-   TaoMeritRegister - Adds a new merit function type to the registry
+  TaoMeritRegister - Adds a new merit function type to the registry
 
-   Not collective
+  Not collective
 
-   Input Parameters:
-+  sname - name of a new user-defined merit function
--  func - routine to Create method context
+  Input Parameters:
++ sname - name of a new user-defined merit function
+- func - routine to Create method context
 
-   Notes:
-   TaoMeritRegister() may be called multiple times to add several user-defined merit functions.
+  Notes:
+  TaoMeritRegister() may be called multiple times to add several user-defined merit functions.
 
-   Sample usage:
+  Sample usage:
 .vb
-   TaoMeritRegister("my_merit",MyMeritCreate);
+  TaoMeritRegister("my_merit",MyMeritCreate);
 .ve
 
-   Then, your solver can be chosen with the procedural interface via
-$     TaoMeritSetType(ls,"my_merit")
-   or at runtime via the option
-$     -tao_merit_type my_merit
+  Then, your solver can be chosen with the procedural interface via
+$    TaoMeritSetType(ls,"my_merit")
+  or at runtime via the option
+$    -tao_merit_type my_merit
 
-   Level: developer
+  Level: developer
 
 @*/
 PetscErrorCode TaoMeritRegister(const char sname[], PetscErrorCode (*func)(Tao, TaoMerit*))
@@ -517,5 +536,276 @@ PetscErrorCode TaoMeritRegister(const char sname[], PetscErrorCode (*func)(Tao, 
   PetscFunctionBegin;
   ierr = TaoMeritInitializePackage();CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&TaoMeritList, sname, (void (*)(void))func);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritUseTaoCallbacks - Make the TaoMerit object use the same user defined 
+  callbacks set into the Tao object
+
+  Input Parameters:
++ merit - the TaoMerit context
+- tao - the Tao context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritUseTaoCallbacks(TaoMerit merit, Tao tao)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(tao,TAO_CLASSID,2);
+  merit->tao = tao;
+  merit->use_tao = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritIsUsingTaoCallbacks - Check if the TaoMerit object is using Tao callbacks
+
+  Input Parameters:
++ merit - the TaoMerit context
+- flg - PETSC_TRUE if tao callbacks are active
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritUseTaoCallbacks(TaoMerit merit, PetscBool *flg)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  *flg = merit->use_tao;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetObjectiveRoutine - Set the user callback for evaluating the objective function
+
+  Input Parameters:
++ merit - the TaoMerit context
+. X - Vec object for optimization variables
+. func - function pointer for objective function evaluations
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetObjectiveRoutine(TaoMerit merit, Vec X, PetscErrorCode(*func)(TaoMerit, Vec, PetscReal*, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(X,VEC_CLASSID,2);
+  if (merit->Xinit) {
+    ierr = VecDestroy(&merit->Xinit);CHKERRQ(ierr);
+  }
+  ierr = PetscObjectReference((PetscObject)X);CHKERRQ(ierr);
+  merit->Xinit = X;
+  merit->ops->userobjective = func;
+  merit->user_obj = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetGradientRoutine - Set the user callback for evaluating the gradient of the objective function
+
+  Input Parameters:
++ merit - the TaoMerit context
+. X - Vec object for optimization variables
+. func - function pointer for gradient evaluations
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetGradientRoutine(TaoMerit merit, Vec X, PetscErrorCode(*func)(TaoMerit, Vec, Vec, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(X,VEC_CLASSID,2);
+  if (merit->Xinit) {
+    ierr = VecDestroy(&merit->Xinit);CHKERRQ(ierr);
+  }
+  ierr = PetscObjectReference((PetscObject)X);CHKERRQ(ierr);
+  merit->Xinit = X;
+  merit->ops->usergradient = func;
+  merit->user_grad = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetObjectiveAndGradientRoutine - Set the user callback for evaluating the objective function 
+  and its gradient at the same time
+
+  Input Parameters:
++ merit - the TaoMerit context
+. X - Vec object for optimization variables
+. func - function pointer for objective function and gradient evaluations
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetObjectiveAndGradientRoutine(TaoMerit merit, Vec X, PetscErrorCode(*func)(TaoMerit, Vec, PetscReal*, Vec, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(X,VEC_CLASSID,2);
+  if (merit->Xinit) {
+    ierr = VecDestroy(&merit->Xinit);CHKERRQ(ierr);
+  }
+  ierr = PetscObjectReference((PetscObject)X);CHKERRQ(ierr);
+  merit->Xinit = X;
+  merit->ops->userobjandgrad = func;
+  merit->user_objgrad = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetHessianRoutine - Set the user callback for evaluating the Hessian of the objective function
+
+  Input Parameters:
++ merit - the TaoMerit context
+. H - Mat object for the Hessian
+. Hpre - Mat object for the Hessian preconditioner/pseudo-inverse
+. func - function pointer for Hessian evaluations
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetHessianRoutine(TaoMerit merit, Mat H, Mat Hpre, PetscErrorCode(*func)(TaoMerit, Vec, Mat, Mat, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(H,MAT_CLASSID,2);
+  PetscValidHeaderSpecific(Hpre,MAT_CLASSID,3);
+  ierr = MatDestroy(&merit->H);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)H);CHKERRQ(ierr);
+  merit->H = H;
+  ierr = MatDestroy(&merit->Hpre);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)Hpre);CHKERRQ(ierr);
+  merit->Hpre = Hpre;
+  merit->ops->userhessian = func;
+  merit->user_hess = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetEqualityConstraints - Set the user callback for evaluating the equality constraints
+
+  Input Parameters:
++ merit - the TaoMerit context
+. Ceq - Vec object for equality constraints
+. func - function pointer for equality constraint evaluations
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetEqualityConstraints(TaoMerit merit, Vec Ceq, PetscErrorCode(*func)(TaoMerit, Vec, Vec, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(Ceq,VEC_CLASSID,2);
+  if (merit->Ceq) {
+    ierr = VecDestroy(&merit->Ceq);CHKERRQ(ierr);
+  }
+  ierr = PetscObjectReference((PetscObject)Ceq);CHKERRQ(ierr);
+  merit->Ceq = Ceq;
+  merit->ops->usercnstreq = func;
+  merit->user_cnstreq = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetInequalityConstraints - Set the user callback for evaluating the inequality constraints
+
+  Input Parameters:
++ merit - the TaoMerit context
+. Cineq - Vec object for inequality constraints
+. func - function pointer for inequality constraint evaluation
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetInequalityConstraints(TaoMerit merit, Vec Cineq, PetscErrorCode(*func)(TaoMerit, Vec, Vec, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(Cineq,VEC_CLASSID,2);
+  if (merit->Cineq) {
+    ierr = VecDestroy(&merit->Cineq);CHKERRQ(ierr);
+  }
+  ierr = PetscObjectReference((PetscObject)Cineq);CHKERRQ(ierr);
+  merit->Cineq = Cineq;
+  merit->ops->usercnstrineq = func;
+  merit->user_cnstrineq = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetEqualityJacobian - Set the user callback for evaluating the Jacobian of the equality constraints
+
+  Input Parameters:
++ merit - the TaoMerit context
+. Jeq - Mat object for equality constraint Jacobian
+. func - function pointer for equality constraint Jacobian evaluation
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetEqualityJacobian(TaoMerit merit, Mat Jeq, PetscErrorCode(*func)(TaoMerit, Vec, Mat, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(Jeq,MAT_CLASSID,2);
+  ierr = MatDestroy(&merit->Jeq);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)Jeq);CHKERRQ(ierr);
+  merit->Jeq = Jeq;
+  merit->ops->userjaceq = func;
+  merit->user_jaceq = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  TaoMeritSetInequalityJacobian - Set the user callback for evaluating the Jacobian of the inequality constraints
+
+  Input Parameters:
++ merit - the TaoMerit context
+. Jeq - Mat object for inequality constraint Jacobian
+. func - function pointer for inequality constraint Jacobian evaluation
+- ctx - user application context
+
+  Level: intermediate
+
+@*/
+PetscErrorCode TaoMeritSetInequalityJacobian(TaoMerit merit, Mat Jineq, PetscErrorCode(*func)(TaoMerit, Vec, Mat, void*), void *ctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(merit,TAOMERIT_CLASSID,1);
+  PetscValidHeaderSpecific(Jineq,MAT_CLASSID,2);
+  ierr = MatDestroy(&merit->Jineq);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)Jineq);CHKERRQ(ierr);
+  merit->Jineq = Jineq;
+  merit->ops->userjacineq = func;
+  merit->user_jacineq = ctx;
   PetscFunctionReturn(0);
 }

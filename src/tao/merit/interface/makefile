@@ -3,7 +3,7 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = taomerit.c dlregis_taomerit.c
+SOURCEC   = taomerit.c taomerit_utils.c dlregis_taomerit.c
 SOURCEF   =
 SOURCEH   =
 LIBBASE   = libpetsctao
