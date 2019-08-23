@@ -198,6 +198,8 @@ typedef struct {
   /* Labels and numbering */
   PetscObjectState     depthState;        /* State of depth label, so that we can determine if a user changes it */
   IS                   globalVertexNumbers;
+  IS		       globalEdgeNumbers;
+  IS		       globalFaceNumbers;
   IS                   globalCellNumbers;
 
   /* Constraints */
