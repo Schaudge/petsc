@@ -11,7 +11,7 @@
 PetscLogEvent DMPLEX_Interpolate, DMPLEX_Partition, DMPLEX_Distribute, DMPLEX_DistributeCones, DMPLEX_DistributeLabels, DMPLEX_DistributeSF, DMPLEX_DistributeOverlap, DMPLEX_DistributeField, DMPLEX_DistributeData, DMPLEX_Migrate, DMPLEX_InterpolateSF, DMPLEX_GlobalToNaturalBegin, DMPLEX_GlobalToNaturalEnd, DMPLEX_NaturalToGlobalBegin, DMPLEX_NaturalToGlobalEnd, DMPLEX_Stratify, DMPLEX_Symmetrize, DMPLEX_Preallocate, DMPLEX_ResidualFEM, DMPLEX_JacobianFEM, DMPLEX_InterpolatorFEM, DMPLEX_InjectorFEM, DMPLEX_IntegralFEM, DMPLEX_CreateGmsh, DMPLEX_RebalanceSharedPoints, DMPLEX_PartSelf, DMPLEX_PartLabelInvert, DMPLEX_PartLabelCreateSF, DMPLEX_PartStratSF, DMPLEX_CreatePointSF;
 
 PETSC_EXTERN PetscErrorCode VecView_MPI(Vec, PetscViewer);
-
+static PetscErrorCode DMPlexGetBinnedPointPerProcess(DM, PetscInt, PetscInt *, PetscScalar *[], PetscInt *[]);
 /*@
   DMPlexRefineSimplexToTensor - Uniformly refines simplicial cells into tensor product cells.
   3 quadrilaterals per triangle in 2D and 4 hexahedra per tetrahedron in 3D.
@@ -1053,6 +1053,188 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr  = PetscFree(start);CHKERRQ(ierr);
     ierr  = PetscFree(adjacency);CHKERRQ(ierr);
     ierr  = VecDestroy(&acown);CHKERRQ(ierr);
+  } else if (format == PETSC_VIEWER_ASCII_INFO_CONCISE) {
+    MPI_Comm	comm;
+    PetscMPIInt	rank = 0, size = 0;
+    IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
+    PetscInt	i, depth, dim, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
+    PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
+    PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
+    PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, facesOK = PETSC_FALSE, pointsfOK = PETSC_FALSE;
+    PetscBool	CA[2] = { PETSC_FALSE }, CF[2] = { PETSC_FALSE }, CS[2] = { PETSC_FALSE }, CMrSkeltal[2] = { PETSC_FALSE }, CPSF[2] = { PETSC_FALSE }, CG[2] = { PETSC_FALSE }, CIC[2] = { PETSC_FALSE };
+    char	bar[19] = "-----------------\0", *interpolationStatus;
+    DMPlexInterpolatedFlag interpolated;
+
+    ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
+
+    /*	Get General DMPlex Information	*/
+    ierr = DMPlexIsDistributed(dm, &dmDistributed);CHKERRQ(ierr);
+    ierr = DMPlexGetOverlap(dm, &maxOverlap);CHKERRQ(ierr);
+    if (maxOverlap) dmOverlapped = PETSC_TRUE;
+    ierr = DMPlexIsInterpolatedCollective(dm, &interpolated);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(DMPlexInterpolatedFlags[interpolated], &interpolationStatus);CHKERRQ(ierr);
+    ierr = PetscStrtoupper(interpolationStatus);CHKERRQ(ierr);
+
+    /* Global and Local Sizing	*/
+    ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+    if (dim > 3) {
+      ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
+      SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Only available for meshes of dimension 3 or lower, not for mesh with dimension %d", dim);
+    }
+    ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
+    ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
+
+    for (i = 0; i <= depth; ++i) {
+      PetscInt	max = 0, tempi = i;
+      if (interpolated != DMPLEX_INTERPOLATED_FULL && (i != 0)) { i = 3;}
+      /* In case that dm is not interpolated, will only have cell-vertex mesh */
+      if ((dim == 2) && (i == depth)) { i = 3; tempi = depth;}
+      /* For 2D calls the faces "cells", make i = 3 to jump to cell, but use tempi to work at actual cell depth */
+      switch (i)
+      {
+      case 0:
+        ierr = DMPlexGetVertexNumbering(dm, &vertexIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(vertexIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
+        break;
+      case 1:
+        ierr = DMPlexGetEdgeNumbering(dm, &edgeIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(edgeIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
+        break;
+      case 2:
+        ierr = DMPlexGetFaceNumbering(dm, &faceIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(faceIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
+        break;
+      case 3:
+        ierr = DMPlexGetCellNumbering(dm, &cellIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(cellIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
+        break;
+      default:
+        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Depth of %d is not supported!\n", i);
+        break;
+      }
+    }
+
+    /* Various Diagnostic DMPlex Checks */
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_all", &CA[0], &CA[1]);CHKERRQ(ierr);
+    if (CA[0] && CA[1]) {
+      CF[0] = PETSC_TRUE; 	  CF[1] = PETSC_TRUE;
+      CS[0] = PETSC_TRUE; 	  CS[1] = PETSC_TRUE;
+      CMrSkeltal[0] = PETSC_TRUE; CMrSkeltal[1] = PETSC_TRUE;
+      CPSF[0] = PETSC_TRUE; 	  CPSF[1] = PETSC_TRUE;
+      CG[0] = PETSC_TRUE; 	  CG[1] = PETSC_TRUE;
+      CIC[0] = PETSC_TRUE; 	  CIC[1] = PETSC_TRUE;
+      goto meshdiagnostics;
+    }
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_faces", &CF[0], &CF[1]);CHKERRQ(ierr);
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_symmetry", &CS[0], &CS[1]);CHKERRQ(ierr);
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_skeleton", &CMrSkeltal[0], &CMrSkeltal[1]);CHKERRQ(ierr);
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_pointsf", &CPSF[0], &CPSF[1]);CHKERRQ(ierr);
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_geometry", &CG[0], &CG[1]);CHKERRQ(ierr);
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_interface_cones", &CIC[0], &CIC[1]);CHKERRQ(ierr);
+
+meshdiagnostics:
+    if (CF[0] && CF[1]) {
+      if (interpolated == DMPLEX_INTERPOLATED_FULL) {
+        ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr);
+        facesOK = PETSC_TRUE;
+      } else {
+        ierr = PetscInfo(dm, "WARNING: Mesh is NOT fully interpolated, skipping DMPlexCheckFaces\n");CHKERRQ(ierr);
+      }
+    }
+    if (CS[0] && CS[1]) ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr);
+    if (CMrSkeltal[0] && CMrSkeltal[1]) ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr);
+    if (CPSF[0] && CPSF[1]) {
+      if (!dmOverlapped) {
+        ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr);
+        pointsfOK = PETSC_TRUE;
+      } else {
+        ierr = PetscInfo(dm, "WARNING: DMPlexCheckPointSF() only supports non-overlapped meshes currently\n");CHKERRQ(ierr);
+      }
+    }
+    if (CG[0] && CG[1]) ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);
+    if (CIC[0] && CIC[1]) ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr);
+
+    /* Printing     */
+    /* Autotest Output      */
+    if (CF[0] && CF[1]) ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "SKIPPED (Mesh Not Interpolated)");CHKERRQ(ierr);
+    if (CS[0] && CS[1]) ierr = PetscViewerASCIIPrintf(viewer, "Adjacency Symmetry OK:%s>%s\n", bar + 7, "PETSC_TRUE *");CHKERRQ(ierr);
+    if (CMrSkeltal[0] && CMrSkeltal[1]) ierr = PetscViewerASCIIPrintf(viewer, "Cells Vertex Count OK:%s>%s\n", bar + 7, "PETSC_TRUE *");CHKERRQ(ierr);
+    if (CPSF[0] && CPSF[1]) ierr = PetscViewerASCIIPrintf(viewer, "Point SF OK:%s%s>%s\n", bar, bar + 14, pointsfOK ? "PETSC_TRUE *" : "SKIPPED (No Support For Mesh Overlap)");CHKERRQ(ierr);
+    if (CG[0] && CG[1]) ierr = PetscViewerASCIIPrintf(viewer, "Geometry OK:%s%s>%s\n", bar, bar + 14, "PETSC_TRUE *");CHKERRQ(ierr);
+    if (CIC[0] && CIC[1]) ierr = PetscViewerASCIIPrintf(viewer, "Cone Interfaces Conform OK:%s>%s\n\n", bar + 12, "PETSC_TRUE *");CHKERRQ(ierr);
+
+    /* Mesh Information     */
+    ierr = PetscViewerASCIIPrintf(viewer, "Distributed DM:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "DM Interpolation Flag:%s>%s\n", bar + 7, interpolationStatus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Overlapped DM:%s%s>%s\n", bar, bar + 16, dmOverlapped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    if (dmOverlapped) {
+    ierr = PetscViewerASCIIPrintf(viewer, "Maximum Overlap in DM:%s>%d\n", bar + 7, maxOverlap);CHKERRQ(ierr);
+    }
+    ierr = PetscViewerASCIIPrintf(viewer, "Dimension of mesh:%s>%d\n", bar + 3, dim);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%d\n", bar + 3, globalVertexSize);CHKERRQ(ierr);
+    if (globalEdgeSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%d\n", bar + 1, globalEdgeSize);CHKERRQ(ierr);}
+    if (globalFaceSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%d\n", bar + 1, globalFaceSize);CHKERRQ(ierr);}
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
+
+    /* Parallel Information */
+    if (binnedVertices) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nVertices Per Process Range: %.0f - %.0f\n", verticesPerProcess[0], verticesPerProcess[numBinnedVertexProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedVertexProcesses; i++) {
+        if (!i) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
+        }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", verticesPerProcess[i], binnedVertices[i]);CHKERRQ(ierr);
+      }
+    }
+    if (binnedEdges) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nEdges Per Process Range: %.0f - %.0f\n", edgesPerProcess[0], edgesPerProcess[numBinnedEdgeProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedEdgeProcesses; i++) {
+        if (!i) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
+        }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", edgesPerProcess[i], binnedEdges[i]);CHKERRQ(ierr);
+      }
+    }
+    if (binnedFaces) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nFaces Per Process Range: %.0f - %.0f\n", facesPerProcess[0], facesPerProcess[numBinnedFaceProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedFaceProcesses; i++) {
+        if (!i) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
+        }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", facesPerProcess[i], binnedFaces[i]);CHKERRQ(ierr);
+      }
+    }
+    if (binnedCells) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nCells Per Process Range: %.0f - %.0f\n", cellsPerProcess[0], cellsPerProcess[numBinnedCellProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedCellProcesses; i++) {
+        if (!i) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
+        }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", cellsPerProcess[i], binnedCells[i]);CHKERRQ(ierr);
+      }
+    }
+    ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
+    ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
+    ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   } else {
     MPI_Comm    comm;
     PetscInt   *sizes, *hybsizes, *ghostsizes;
@@ -6722,7 +6904,7 @@ PetscErrorCode DMPlexCreateCellNumbering_Internal(DM dm, PetscBool includeHybrid
 
   Level: developer
 
-.seealso DMPlexGetVertexNumbering()
+.seealso DMPlexGetVertexNumbering(), DMPlexGetEdgeNumbering(), DMPlexGetFaceNumbering()
 @*/
 PetscErrorCode DMPlexGetCellNumbering(DM dm, IS *globalCellNumbers)
 {
@@ -6733,6 +6915,107 @@ PetscErrorCode DMPlexGetCellNumbering(DM dm, IS *globalCellNumbers)
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   if (!mesh->globalCellNumbers) {ierr = DMPlexCreateCellNumbering_Internal(dm, PETSC_FALSE, &mesh->globalCellNumbers);CHKERRQ(ierr);}
   *globalCellNumbers = mesh->globalCellNumbers;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexCreateFaceNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalFaceNumbers)
+{
+  PetscInt       fStart, fEnd, fMax;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexGetDepthStratum(dm, 2, &fStart, &fEnd);CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &fMax);CHKERRQ(ierr);
+  if (fMax >= 0 && !includeHybrid) fEnd = PetscMin(fEnd, fMax);
+  ierr = DMPlexCreateNumbering_Internal(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMPlexGetFaceNumbering - Get a global numbering for all faces on this process
+
+  Collective on dm
+
+  Input Parameter:
+. dm   - The DMPlex object
+
+  Output Parameter:
+. globalFaceNumbers - Global face numbers for all faces on this process
+
+  Note: Given that faces are intermediary points, this will return a value of NULL if the input mesh is not fully interpolated
+
+  Level: developer
+
+.seealso DMPlexGetCellNumbering(), DMPlexGetVertexNumbering(), DMPlexGetEdgeNumbering()
+@*/
+PetscErrorCode DMPlexGetFaceNumbering(DM dm, IS *globalFaceNumbers)
+{
+  DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscErrorCode ierr;
+  DMPlexInterpolatedFlag interpolated;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexIsInterpolatedCollective(dm, &interpolated);CHKERRQ(ierr);
+  if (interpolated != DMPLEX_INTERPOLATED_FULL) {
+    *globalFaceNumbers = NULL;
+    PetscFunctionReturn(0);
+  }
+  if (!mesh->globalFaceNumbers) {ierr = DMPlexCreateFaceNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalFaceNumbers);CHKERRQ(ierr);}
+  *globalFaceNumbers = mesh->globalFaceNumbers;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexCreateEdgeNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalEdgeNumbers)
+{
+  PetscInt       eStart, eEnd, eMax;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd);CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &eMax);CHKERRQ(ierr);
+  if (eMax >= 0 && !includeHybrid) eEnd = PetscMin(eEnd, eMax);
+  ierr = DMPlexCreateNumbering_Internal(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMPlexGetEdgeNumbering - Get a global numbering for all edges on this process
+
+  Collective on dm
+
+  Input Parameter:
+. dm   - The DMPlex object
+
+  Output Parameter:
+. globalEdgeNumbers - Global edge numbers for all edges on this process
+
+  Note: Given that edges are intermediary points, this will return a value of NULL if the input mesh is not fully interpolated
+
+  Level: developer
+
+.seealso DMPlexGetCellNumbering(), DMPlexGetVertexNumbering(), DMPlexGetFaceNumbering()
+@*/
+PetscErrorCode DMPlexGetEdgeNumbering(DM dm, IS *globalEdgeNumbers)
+{
+  DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscErrorCode ierr;
+  DMPlexInterpolatedFlag interpolated;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexIsInterpolatedCollective(dm, &interpolated);CHKERRQ(ierr);
+  if (interpolated != DMPLEX_INTERPOLATED_FULL) {
+    ierr = PetscInfo(dm, "DM is not fully interpolated, can't get edge numbering");
+    *globalEdgeNumbers = NULL;
+    PetscFunctionReturn(0);
+  }
+  if (!mesh->globalEdgeNumbers) {
+    ierr = DMPlexCreateEdgeNumbering_Internal(dm, PETSC_FALSE, &mesh->globalEdgeNumbers);CHKERRQ(ierr);
+  }
+  *globalEdgeNumbers = mesh->globalEdgeNumbers;
   PetscFunctionReturn(0);
 }
 
@@ -6761,7 +7044,7 @@ PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM dm, PetscBool includeHybr
 
   Level: developer
 
-.seealso DMPlexGetCellNumbering()
+.seealso DMPlexGetCellNumbering(), DMPlexGetFaceNumbering(), DMPlexGetEdgeNumbering()
 @*/
 PetscErrorCode DMPlexGetVertexNumbering(DM dm, IS *globalVertexNumbers)
 {
@@ -6823,7 +7106,6 @@ PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
   for (d = 0; d <= depth; ++d) {ierr = ISDestroy(&nums[d]);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
-
 
 /*@
   DMPlexCreateRankField - Create a cell field whose value is the rank of the owner
@@ -7246,7 +7528,7 @@ PetscErrorCode DMPlexCheckPointSF(DM dm)
   if (!distributed) PetscFunctionReturn(0);
   ierr = DMPlexGetOverlap(dm, &overlap);CHKERRQ(ierr);
   if (overlap) {
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)dm), "Warning: DMPlexCheckPointSF() is currently not implemented for meshes with partition overlapping");
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)dm), "Warning: DMPlexCheckPointSF() is currently not implemented for meshes with partition overlapping\n");CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
   if (!pointSF) SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "This DMPlex is distributed but does not have PointSF attached");
@@ -7965,5 +8247,52 @@ PetscErrorCode DMCreateSubDomainDM_Plex(DM dm, DMLabel label, PetscInt value, IS
       ierr = MatNullSpaceDestroy(&nullSpace);CHKERRQ(ierr);
     }
   }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexGetBinnedPointPerProcess(DM dm, PetscInt depth, PetscInt *numBins, PetscScalar *numPerProcess[], PetscInt *binnedProcesses[])
+{
+  MPI_Comm                comm;
+  PetscMPIInt             rank, size;
+  PetscErrorCode          ierr;
+  IS                      PerProcessTaggedIS;
+  ISLocalToGlobalMapping  ltog;
+  Vec                     vecPerProcess;
+  VecTagger               tagger;
+  VecTaggerBox            *box;
+  PetscInt                i, cstart, cend, numBins_;
+  PetscInt                *binnedProcesses_;
+  PetscScalar             *numPerProcess_;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
+  ierr = VecCreateMPI(comm, 1, size, &vecPerProcess);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingCreate(comm, 1, 1, &rank, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
+  ierr = VecSetLocalToGlobalMapping(vecPerProcess, ltog);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingDestroy(&ltog);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, depth, &cstart, &cend);CHKERRQ(ierr);
+  ierr = VecSetValueLocal(vecPerProcess, 0, cend-cstart, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecUniqueEntries(vecPerProcess, &numBins_, &numPerProcess_);CHKERRQ(ierr);
+  ierr = PetscCalloc1(numBins_, &binnedProcesses_);CHKERRQ(ierr);
+  for (i = 0; i < numBins_; i++) {
+    ierr = VecTaggerCreate(comm, &tagger);CHKERRQ(ierr);
+    ierr = VecTaggerSetType(tagger, VECTAGGERABSOLUTE);CHKERRQ(ierr);
+    ierr = PetscMalloc1(1, &box);CHKERRQ(ierr);
+    box->min = numPerProcess_[i]-0.5;
+    box->max = numPerProcess_[i]+0.5;
+    ierr = VecTaggerAbsoluteSetBox(tagger, box);CHKERRQ(ierr);
+    ierr = PetscFree(box);CHKERRQ(ierr);
+    ierr = VecTaggerSetUp(tagger);CHKERRQ(ierr);
+    ierr = VecTaggerComputeIS(tagger, vecPerProcess, &PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = ISGetSize(PerProcessTaggedIS, &binnedProcesses_[i]);CHKERRQ(ierr);
+    ierr = ISDestroy(&PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
+  }
+  ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
+  if (numBins) *numBins = numBins_;
+  if (numPerProcess) { *numPerProcess = numPerProcess_;} else { ierr = PetscFree(numPerProcess_);CHKERRQ(ierr);}
+  *binnedProcesses = binnedProcesses_;
   PetscFunctionReturn(0);
 }
