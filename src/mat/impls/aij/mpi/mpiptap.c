@@ -122,16 +122,9 @@ PetscErrorCode MatDestroy_MPIAIJ_PtAP(Mat A)
 PETSC_INTERN PetscErrorCode MatPtAP_MPIAIJ_MPIAIJ(Mat A,Mat P,MatReuse scall,PetscReal fill,Mat *C)
 {
   PetscErrorCode ierr;
-  PetscBool      flg;
   MPI_Comm       comm;
-#if !defined(PETSC_HAVE_HYPRE)
-  const char          *algTypes[4] = {"scalable","nonscalable","allatonce","allatonce_merged"};
-  PetscInt            nalg=4;
-#else
-  const char          *algTypes[5] = {"scalable","nonscalable","allatonce","allatonce_merged","hypre"};
-  PetscInt            nalg=5;
-#endif
-  PetscInt            pN=P->cmap->N,alg=1; /* set default algorithm */
+  PetscInt       pN=P->cmap->N;
+  Mat_MPIAIJ     *p = (Mat_MPIAIJ*) P->data;
 
   PetscFunctionBegin;
   /* check if matrix local sizes are compatible */
@@ -140,12 +133,16 @@ PETSC_INTERN PetscErrorCode MatPtAP_MPIAIJ_MPIAIJ(Mat A,Mat P,MatReuse scall,Pet
   if (A->cmap->rstart != P->rmap->rstart || A->cmap->rend != P->rmap->rend) SETERRQ4(comm,PETSC_ERR_ARG_SIZ,"Matrix local dimensions are incompatible, Acol (%D, %D) != Prow (%D,%D)",A->cmap->rstart,A->cmap->rend,P->rmap->rstart,P->rmap->rend);
 
   if (scall == MAT_INITIAL_MATRIX) {
-    /* pick an algorithm */
-    ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)A),((PetscObject)A)->prefix,"MatPtAP","Mat");CHKERRQ(ierr);
-    ierr = PetscOptionsEList("-matptap_via","Algorithmic approach","MatPtAP",algTypes,nalg,algTypes[alg],&alg,&flg);CHKERRQ(ierr);
-    ierr = PetscOptionsEnd();CHKERRQ(ierr);
-
-    if (!flg && pN > 100000) { /* may switch to scalable algorithm as default */
+    PetscBool      isscalable,isnonscalable,isallatonce,isallatoncemerged;
+    PetscBool      ishypre=PETSC_FALSE;
+    ierr = PetscStrcmp(p->ptaptype,MATPTAPSCALABLE,&isscalable);CHKERRQ(ierr);
+    ierr = PetscStrcmp(p->ptaptype,MATPTAPNONSCALABLE,&isnonscalable);CHKERRQ(ierr);
+    ierr = PetscStrcmp(p->ptaptype,MATPTAPALLATONCE,&isallatonce);CHKERRQ(ierr);
+    ierr = PetscStrcmp(p->ptaptype,MATPTAPALLATONCEMERGED,&isallatoncemerged);CHKERRQ(ierr);
+#if PETSC_HAVE_HYPRE
+    ierr = PetscStrcmp(p->ptaptype,MATPTAPHYPRE,&ishypre);CHKERRQ(ierr);
+#endif
+    if (isnonscalable && pN > 100000) { /* may switch to scalable algorithm as default */
       MatInfo     Ainfo,Pinfo;
       PetscInt    nz_local;
       PetscBool   alg_scalable_loc=PETSC_FALSE,alg_scalable;
@@ -158,46 +155,32 @@ PETSC_INTERN PetscErrorCode MatPtAP_MPIAIJ_MPIAIJ(Mat A,Mat P,MatReuse scall,Pet
       ierr = MPIU_Allreduce(&alg_scalable_loc,&alg_scalable,1,MPIU_BOOL,MPI_LOR,comm);CHKERRQ(ierr);
 
       if (alg_scalable) {
-        alg = 0; /* scalable algorithm would 50% slower than nonscalable algorithm */
+        isscalable = PETSC_TRUE; /* scalable algorithm would 50% slower than nonscalable algorithm */
+        isnonscalable = PETSC_FALSE;
       }
     }
 
-    switch (alg) {
-    case 1:
-      /* do R=P^T locally, then C=R*A*P -- nonscalable */
-      ierr = PetscLogEventBegin(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ(A,P,fill,C);CHKERRQ(ierr);
-      ierr = PetscLogEventEnd(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      break;
-    case 2:
-      /* compute C=P^T*A*P allatonce */
-      ierr = PetscLogEventBegin(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ_allatonce(A,P,fill,C);CHKERRQ(ierr);
-      ierr = PetscLogEventEnd(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      break;
-    case 3:
-      /* compute C=P^T*A*P allatonce */
-      ierr = PetscLogEventBegin(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ_allatonce_merged(A,P,fill,C);CHKERRQ(ierr);
-      ierr = PetscLogEventEnd(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      break;
-#if defined(PETSC_HAVE_HYPRE)
-    case 4:
-      /* Use boomerAMGBuildCoarseOperator */
-      ierr = PetscLogEventBegin(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      ierr = MatPtAPSymbolic_AIJ_AIJ_wHYPRE(A,P,fill,C);CHKERRQ(ierr);
-      ierr = PetscLogEventEnd(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      break;
-#endif
-    default:
-      /* do R=P^T locally, then C=R*A*P */
-      ierr = PetscLogEventBegin(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
+    ierr = PetscLogEventBegin(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
+    if (isscalable) {
       ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ_scalable(A,P,fill,C);CHKERRQ(ierr);
-      ierr = PetscLogEventEnd(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
-      break;
+    } else if (isnonscalable) {
+      ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ(A,P,fill,C);CHKERRQ(ierr);
+    } else if (isallatonce) {
+      ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ_allatonce(A,P,fill,C);CHKERRQ(ierr);
+    } else if (isallatoncemerged) {
+      ierr = MatPtAPSymbolic_MPIAIJ_MPIAIJ_allatonce_merged(A,P,fill,C);CHKERRQ(ierr);
     }
+#if PETSC_HAVE_HYPRE
+    else if (ishypre) {
+      ierr = MatPtAPSymbolic_AIJ_AIJ_wHYPRE(A,P,fill,C);CHKERRQ(ierr);
+    }
+#endif
+    else SETERRQ1(comm,PETSC_ERR_ARG_WRONG,"Does not exist ptap type %s \n",p->ptaptype);
 
-    if (alg == 0 || alg == 1 || alg == 2 || alg == 3) {
+    ierr = PetscLogEventEnd(MAT_PtAPSymbolic,A,P,0,0);CHKERRQ(ierr);
+    /*ierr = MatView(*C, NULL);CHKERRQ(ierr);*/
+    if (!ishypre)
+    {
       Mat_MPIAIJ *c  = (Mat_MPIAIJ*)(*C)->data;
       Mat_APMPI  *ap = c->ap;
       ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)(*C)),((PetscObject)(*C))->prefix,"MatFreeIntermediateDataStructures","Mat");CHKERRQ(ierr);

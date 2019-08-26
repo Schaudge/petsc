@@ -9080,6 +9080,31 @@ PetscErrorCode MatPtAP_Basic(Mat A,Mat P,MatReuse scall,PetscReal fill,Mat *C)
   PetscFunctionReturn(0);
 }
 
+/*@C
+   MatPtAPSetType - Set an algorithm for the matrix product C = P^T * A * P
+
+   Neighbor-wise Collective on Mat
+
+   Input Parameters:
++  P - the projection matrix
+-  type - PtAP algorithm
+
+   Level: intermediate
+
+.seealso: MatPtAPSymbolic(), MatPtAPNumeric(), MatMatMult(), MatRARt(), MatPtAP()
+@C*/
+PetscErrorCode MatPtAPSetType(Mat P,MatPtAPType type)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(P,MAT_CLASSID,1);
+  PetscValidType(P,1);
+  MatCheckPreallocated(P,1);
+  ierr = PetscTryMethod(P,"MatPtAPSetType_C",(Mat,MatPtAPType),(P,type));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@
    MatPtAP - Creates the matrix product C = P^T * A * P
 

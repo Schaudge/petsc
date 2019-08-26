@@ -605,6 +605,23 @@ PETSC_EXTERN PetscErrorCode MatMatMultNumeric(Mat,Mat,Mat);
 PETSC_EXTERN PetscErrorCode MatMatMatMult(Mat,Mat,Mat,MatReuse,PetscReal,Mat*);
 PETSC_EXTERN PetscErrorCode MatGalerkin(Mat,Mat,Mat,MatReuse,PetscReal,Mat*);
 
+/*E
+    MatPtAPType - String with the name of a PETSc matrix PtAP triple product algorithm.
+
+   Level: beginner
+
+.seealso: MatPtAP(), MatPtAPSymbolic(), MatPtAPNumeric()
+E*/
+typedef const char* MatPtAPType;
+#define MATPTAPSCALABLE          "scalable"
+#define MATPTAPNONSCALABLE       "nonscalable"
+#define MATPTAPALLATONCE         "allatonce"
+#define MATPTAPALLATONCEMERGED   "allatonce_merged"
+#if PETSC_HAVE_HYPRE
+#define MATPTAPHYPRE             "hypre"
+#endif
+
+PETSC_EXTERN PetscErrorCode MatPtAPSetType(Mat,MatPtAPType);
 PETSC_EXTERN PetscErrorCode MatPtAP(Mat,Mat,MatReuse,PetscReal,Mat*);
 PETSC_EXTERN PetscErrorCode MatPtAPSymbolic(Mat,Mat,PetscReal,Mat*);
 PETSC_EXTERN PetscErrorCode MatPtAPNumeric(Mat,Mat,Mat);

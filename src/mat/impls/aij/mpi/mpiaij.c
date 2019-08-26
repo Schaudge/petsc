@@ -1242,6 +1242,7 @@ PetscErrorCode MatDestroy_MPIAIJ(Mat mat)
   if (aij->Mvctx_mpi1) {ierr = VecScatterDestroy(&aij->Mvctx_mpi1);CHKERRQ(ierr);}
   ierr = PetscFree2(aij->rowvalues,aij->rowindices);CHKERRQ(ierr);
   ierr = PetscFree(aij->ld);CHKERRQ(ierr);
+  ierr = PetscFree(aij->ptaptype);CHKERRQ(ierr);
   ierr = PetscFree(mat->data);CHKERRQ(ierr);
 
   ierr = PetscObjectChangeTypeName((PetscObject)mat,0);CHKERRQ(ierr);
@@ -1262,6 +1263,7 @@ PetscErrorCode MatDestroy_MPIAIJ(Mat mat)
 #endif
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatConvert_mpiaij_is_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatPtAP_is_mpiaij_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)mat,"MatPtAPSetType_C",NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2546,6 +2548,15 @@ PetscErrorCode MatSetFromOptions_MPIAIJ(PetscOptionItems *PetscOptionsObject,Mat
 {
   PetscErrorCode       ierr;
   PetscBool            sc = PETSC_FALSE,flg;
+#if !defined(PETSC_HAVE_HYPRE)
+  const char          *algTypes[4] = {"scalable","nonscalable","allatonce","allatonce_merged"};
+  PetscInt            nalg=4;
+#else
+  const char          *algTypes[5] = {"scalable","nonscalable","allatonce","allatonce_merged","hypre"};
+  PetscInt            nalg=5;
+#endif
+  PetscInt            alg=1; /* set default algorithm */
+  Mat_MPIAIJ          *a = (Mat_MPIAIJ*) A->data;
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead(PetscOptionsObject,"MPIAIJ options");CHKERRQ(ierr);
@@ -2553,6 +2564,31 @@ PetscErrorCode MatSetFromOptions_MPIAIJ(PetscOptionItems *PetscOptionsObject,Mat
   ierr = PetscOptionsBool("-mat_increase_overlap_scalable","Use a scalable algorithm to compute the overlap","MatIncreaseOverlap",sc,&sc,&flg);CHKERRQ(ierr);
   if (flg) {
     ierr = MatMPIAIJSetUseScalableIncreaseOverlap(A,sc);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsEList("-matptap_via","Algorithmic approach","MatPtAP",algTypes,nalg,algTypes[alg],&alg,&flg);CHKERRQ(ierr);
+  switch (alg) {
+  case 0:
+    ierr = PetscFree(a->ptaptype);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATPTAPSCALABLE,&a->ptaptype);CHKERRQ(ierr);
+    break;
+  case 1:
+    ierr = PetscFree(a->ptaptype);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATPTAPNONSCALABLE,&a->ptaptype);CHKERRQ(ierr);
+    break;
+  case 2:
+    ierr = PetscFree(a->ptaptype);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATPTAPALLATONCE,&a->ptaptype);CHKERRQ(ierr);
+    break;
+  case 3:
+    ierr = PetscFree(a->ptaptype);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATPTAPALLATONCEMERGED,&a->ptaptype);CHKERRQ(ierr);
+    break;
+#if PETSC_HAVE_HYPRE
+  case 4:
+    ierr = PetscFree(a->ptaptype);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATPTAPHYPRE,&a->ptaptype);CHKERRQ(ierr);
+    break;
+#endif
   }
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -5955,6 +5991,17 @@ PETSC_INTERN PetscErrorCode MatMatMult_MPIDense_MPIAIJ(Mat A,Mat B,MatReuse scal
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode MatPtAPSetType_MPIAIJ(Mat P,MatPtAPType type)
+{
+  PetscErrorCode      ierr;
+  Mat_MPIAIJ         *aij = (Mat_MPIAIJ*)P->data;
+
+  PetscFunctionBegin;
+  ierr = PetscFree(aij->ptaptype);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(type,&aij->ptaptype);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*MC
    MATMPIAIJ - MATMPIAIJ = "mpiaij" - A matrix type to be used for parallel sparse matrices.
 
@@ -6012,6 +6059,8 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJ(Mat B)
   /* flexible pointer used in CUSP/CUSPARSE classes */
   b->spptr = NULL;
 
+  ierr = PetscStrallocpy(MATPTAPNONSCALABLE,&b->ptaptype);CHKERRQ(ierr);
+
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatMPIAIJSetUseScalableIncreaseOverlap_C",MatMPIAIJSetUseScalableIncreaseOverlap_MPIAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatStoreValues_C",MatStoreValues_MPIAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatRetrieveValues_C",MatRetrieveValues_MPIAIJ);CHKERRQ(ierr);
@@ -6042,6 +6091,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJ(Mat B)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatMatMatMult_transpose_mpiaij_mpiaij_C",MatMatMatMult_Transpose_AIJ_AIJ);CHKERRQ(ierr);
 #endif
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatPtAP_is_mpiaij_C",MatPtAP_IS_XAIJ);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatPtAPSetType_C",MatPtAPSetType_MPIAIJ);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATMPIAIJ);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

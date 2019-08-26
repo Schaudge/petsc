@@ -179,13 +179,15 @@ PetscErrorCode PCSetUp_HMG(PC pc)
         ierr = MatCreateMAIJ(interpolations[level-1],blocksize,&P);CHKERRQ(ierr);
         ierr = MatDestroy(&interpolations[level-1]);CHKERRQ(ierr);
       } else {
-        /* Grow interpolation. In the future, we should use MAIJ */
+        /* Grow interpolation if use MPIAIJ*/
         ierr = PCHMGExpandInterpolation_Private(interpolations[level-1],&P,blocksize);CHKERRQ(ierr);
         ierr = MatDestroy(&interpolations[level-1]);CHKERRQ(ierr);
       }
     } else {
       P = interpolations[level-1];
     }
+    /* MATPTAPALLATONCE is memory efficient and also really fast */
+    ierr = MatPtAPSetType(P,MATPTAPALLATONCE);CHKERRQ(ierr);
     ierr = MatCreateVecs(P,&b,&r);CHKERRQ(ierr);
     ierr = PCMGSetInterpolation(pc,level,P);CHKERRQ(ierr);
     ierr = PCMGSetRestriction(pc,level,P);CHKERRQ(ierr);

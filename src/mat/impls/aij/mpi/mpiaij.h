@@ -82,6 +82,7 @@ typedef struct {
   /* Used by MPICUSP and MPICUSPARSE classes */
   void * spptr;
 
+  char*  ptaptype;    /* algorithm is used to */
 } Mat_MPIAIJ;
 
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJ(Mat);
