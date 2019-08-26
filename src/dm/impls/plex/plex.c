@@ -1045,153 +1045,148 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr  = PetscFree(adjacency);CHKERRQ(ierr);
     ierr  = VecDestroy(&acown);CHKERRQ(ierr);
   } else if (format == PETSC_VIEWER_ASCII_INFO_CONCISE) {
+    MPI_Comm	comm;
+    PetscMPIInt	rank = 0, size = 0;
+    IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
+    PetscInt	i, locdepth, depth, dim, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
+    PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
+    PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
+    PetscBool	dmDistributed = PETSC_FALSE, dmInterped = PETSC_FALSE, facesOK = PETSC_FALSE, symmetryOK = PETSC_FALSE, skeletonOK = PETSC_FALSE, pointSFOK = PETSC_FALSE, geometryOK = PETSC_FALSE, coneConformOnInterfacesOK = PETSC_FALSE;
+    char		bar[19] = "-----------------\0";
 
-	  MPI_Comm	comm;
-	  PetscMPIInt	rank = 0, size = 0;
-	  IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
-	  PetscInt	i, locdepth, depth, dim, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
-	  PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
-	  PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
-	  PetscBool	dmDistributed = PETSC_FALSE, dmInterped = PETSC_FALSE, facesOK = PETSC_FALSE, symmetryOK = PETSC_FALSE, skeletonOK = PETSC_FALSE, pointSFOK = PETSC_FALSE, geometryOK = PETSC_FALSE, coneConformOnInterfacesOK = PETSC_FALSE;
-	  char		bar[19] = "-----------------\0";
+    ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
 
-	  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-	  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
-	  ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
-	  ierr = PetscViewerASCIIPrintf(viewer, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
-	  if (size > 1) {
-                PetscSF         sf;
+    if (size > 1) {
+      PetscSF	sf;
 
-                ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
-                if (sf) { dmDistributed = PETSC_TRUE;}
-	  }
+      ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
+      if (sf) { dmDistributed = PETSC_TRUE;}
+    }
 
-	  /* Global and Local Sizing	*/
-	  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-	  ierr = DMPlexGetDepth(dm, &locdepth);CHKERRQ(ierr);
-	  ierr = MPIU_Allreduce(&locdepth, &depth, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
-	  if (dim == depth) {
-                dmInterped = PETSC_TRUE;
-	  }
-	  for (i = 0; i <= depth; i++) {
-		  if (!dmInterped && (i != 0)) { i = 3;}
-		  /* In case that dm is not interpolated, will only have cell-vertex mesh */
-		  if ((dim == 2) && (i == depth)) { i = 3;}
-		  /* For 2D calls the faces "cells"       */
-		  PetscInt        min = 0, max = 0;
-		  switch (i)
-			  {
-			  case 0:
-				  ierr = DMPlexGetVertexNumbering(dm, &vertexIS);CHKERRQ(ierr);
-				  ierr = ISGetMinMax(vertexIS, &min, &max);CHKERRQ(ierr);
-				  max = PetscAbsInt(max); min = PetscAbsInt(min);
-				  max = PetscMax(max, min);
-				  if (size < 2) { max += 1;} //0 indexing strikes again
-				  ierr = MPI_Reduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-				  ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
-				  break;
-			  case 1:
-				  ierr = DMPlexGetEdgeNumbering(dm, &edgeIS);CHKERRQ(ierr);
-				  ierr = ISGetMinMax(edgeIS, &min, &max);CHKERRQ(ierr);
-				  max = PetscAbsInt(max); min = PetscAbsInt(min);
-				  max = PetscMax(max, min);
-				  if (size < 2) { max += 1;} //0 indexing strikes again
-				  ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-				  ierr = ISDestroy(&edgeIS);CHKERRQ(ierr);
-				  ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
-				  break;
-			  case 2:
-				  ierr = DMPlexGetFaceNumbering(dm, &faceIS);CHKERRQ(ierr);
-				  ierr = ISGetMinMax(faceIS, &min, &max);CHKERRQ(ierr);
-				  max = PetscAbsInt(max); min = PetscAbsInt(min);
-				  max = PetscMax(max, min);
-				  if (size < 2) { max += 1;} //0 indexing strikes again
-				  ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-				  ierr = ISDestroy(&faceIS);CHKERRQ(ierr);
-				  ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
-				  break;
-			  case 3:
-				  ierr = DMPlexGetCellNumbering(dm, &cellIS);CHKERRQ(ierr);
-				  ierr = ISGetMinMax(cellIS, &min, &max);CHKERRQ(ierr);
-				  max = PetscAbsInt(max); min = PetscAbsInt(min);
-				  max = PetscMax(max, min);
-				  if (size < 2) { max += 1;} //0 indexing strikes again
-				  ierr = MPI_Reduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-				  if (dim == 2) i = 2; //result of hacking faces = cells
-				  ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
-				  break;
-			  default:
-				  ierr = PetscPrintf(comm, "%i depth not suppoerted\n", i);CHKERRQ(ierr);
-				  break;
-			  }
-	  }
+    /* Global and Local Sizing	*/
+    ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+    ierr = DMPlexGetDepth(dm, &locdepth);CHKERRQ(ierr);
+    ierr = MPIU_Allreduce(&locdepth, &depth, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
+    if (dim == depth) {
+      dmInterped = PETSC_TRUE;
+    }
+    for (i = 0; i <= depth; i++) {
+      if (!dmInterped && (i != 0)) { i = 3;}
+      /* In case that dm is not interpolated, will only have cell-vertex mesh */
+      if ((dim == 2) && (i == depth)) { i = 3;}
+      /* For 2D calls the faces "cells"       */
+      PetscInt	max = 0;
+      switch (i)
+      {
+      case 0:
+        ierr = DMPlexGetVertexNumbering(dm, &vertexIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(vertexIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        ISView(vertexIS, 0);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
+        break;
+      case 1:
+        ierr = DMPlexGetEdgeNumbering(dm, &edgeIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(edgeIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = ISDestroy(&edgeIS);CHKERRQ(ierr);
+        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
+        break;
+      case 2:
+        ierr = DMPlexGetFaceNumbering(dm, &faceIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(faceIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = ISDestroy(&faceIS);CHKERRQ(ierr);
+        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
+        break;
+      case 3:
+        ierr = DMPlexGetCellNumbering(dm, &cellIS);CHKERRQ(ierr);
+        ierr = ISGetMinMax(cellIS, NULL, &max);CHKERRQ(ierr);
+        max = PetscAbsInt(max);
+        max += 1;
+        ierr = MPI_Reduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        if (dim == 2) i = 2; //result of hacking faces = cells
+        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
+        break;
+      default:
+        ierr = PetscPrintf(comm, "%i depth not supported\n", i);CHKERRQ(ierr);
+        break;
+      }
+    }
 
-	  /* Various Diagnostic DMPlex Checks     */
-	  ierr = DMPlexCheckFaces(dm, 0);CHKERRQ(ierr); if (!ierr) { facesOK = PETSC_TRUE;}
-	  ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr); if (!ierr) { symmetryOK = PETSC_TRUE;}
-	  ierr = DMPlexCheckSkeleton(dm, 0);CHKERRQ(ierr); if (!ierr) { skeletonOK = PETSC_TRUE;}
-	  ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr); if(!ierr) { pointSFOK = PETSC_TRUE;}
-	  ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr); if (!ierr) { geometryOK = PETSC_TRUE;}
-	  ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr); if(!ierr) { coneConformOnInterfacesOK = PETSC_TRUE;}
+    /* Various Diagnostic DMPlex Checks     */
+    ierr = DMPlexCheckFaces(dm, 0);CHKERRQ(ierr); if (!ierr) { facesOK = PETSC_TRUE;}
+    ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr); if (!ierr) { symmetryOK = PETSC_TRUE;}
+    ierr = DMPlexCheckSkeleton(dm, 0);CHKERRQ(ierr); if (!ierr) { skeletonOK = PETSC_TRUE;}
+    ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr); if(!ierr) { pointSFOK = PETSC_TRUE;}
+    ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr); if (!ierr) { geometryOK = PETSC_TRUE;}
+    ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr); if(!ierr) { coneConformOnInterfacesOK = PETSC_TRUE;}
 
-	  /* Printing     */
-	  /* Autotest Output      */
-	  ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Adjacency Symmetry OK:%s>%s\n", bar + 7, symmetryOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Cells Vertex Count OK:%s>%s\n", bar + 7, skeletonOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Point SF OK:%s%s>%s\n", bar, bar + 14, pointSFOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Geometry OK:%s%s>%s\n", bar, bar + 14, geometryOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Cone Interfaces Conform OK:%s>%s\n\n", bar + 12, coneConformOnInterfacesOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    /* Printing     */
+    /* Autotest Output      */
+    ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Adjacency Symmetry OK:%s>%s\n", bar + 7, symmetryOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Cells Vertex Count OK:%s>%s\n", bar + 7, skeletonOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Point SF OK:%s%s>%s\n", bar, bar + 14, pointSFOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Geometry OK:%s%s>%s\n", bar, bar + 14, geometryOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Cone Interfaces Conform OK:%s>%s\n\n", bar + 12, coneConformOnInterfacesOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 
-	/* Mesh Information     */
+    /* Mesh Information     */
+    ierr = PetscViewerASCIIPrintf(viewer, "Distributed DM:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Interpolated DM:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Dimension of mesh:%s>%d\n", bar + 3, dim);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%d\n", bar + 3, globalVertexSize);CHKERRQ(ierr);
+    if (globalEdgeSize > 0) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%d\n", bar + 1, globalEdgeSize);CHKERRQ(ierr);}
+    if (globalFaceSize > 0) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%d\n", bar + 1, globalFaceSize);CHKERRQ(ierr);}
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
 
-        ierr = PetscViewerASCIIPrintf(viewer, "Distributed DM:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Interpolated DM:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Dimension of mesh:%s>%d\n", bar + 3, dim);CHKERRQ(ierr);
-        ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%d\n", bar + 3, globalVertexSize);CHKERRQ(ierr);
-        if (globalEdgeSize > 0) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%d\n", bar + 1, globalEdgeSize);CHKERRQ(ierr);}
-        if (globalFaceSize > 0) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%d\n", bar + 1, globalFaceSize);CHKERRQ(ierr);}
-        ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
-
-	/* Parallel Information */
-
-	if (binnedVertices) {
-                ierr = PetscViewerASCIIPrintf(viewer, "\nVertices Per Process Range: %.0f - %.0f\n", verticesPerProcess[0], verticesPerProcess[numBinnedVertexProcesses-1]);CHKERRQ(ierr);
-                for (i = 0; i < numBinnedVertexProcesses; i++) {
-                        if (i == 0) {
-                                ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
-                        }
-                        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", verticesPerProcess[i], binnedVertices[i]);CHKERRQ(ierr);
-                }
+    /* Parallel Information */
+    if (binnedVertices) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nVertices Per Process Range: %.0f - %.0f\n", verticesPerProcess[0], verticesPerProcess[numBinnedVertexProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedVertexProcesses; i++) {
+        if (i == 0) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        if (binnedEdges) {
-                ierr = PetscViewerASCIIPrintf(viewer, "\nEdges Per Process Range: %.0f - %.0f\n", edgesPerProcess[0], edgesPerProcess[numBinnedEdgeProcesses-1]);CHKERRQ(ierr);
-                for (i = 0; i < numBinnedEdgeProcesses; i++) {
-                        if (i == 0) {
-                                ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
-                        }
-                        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", edgesPerProcess[i], binnedEdges[i]);CHKERRQ(ierr);
-                }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", verticesPerProcess[i], binnedVertices[i]);CHKERRQ(ierr);
+      }
+    }
+    if (binnedEdges) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nEdges Per Process Range: %.0f - %.0f\n", edgesPerProcess[0], edgesPerProcess[numBinnedEdgeProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedEdgeProcesses; i++) {
+        if (i == 0) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-	if (binnedFaces) {
-                ierr = PetscViewerASCIIPrintf(viewer, "\nFaces Per Process Range: %.0f - %.0f\n", facesPerProcess[0], facesPerProcess[numBinnedFaceProcesses-1]);CHKERRQ(ierr);
-                for (i = 0; i < numBinnedFaceProcesses; i++) {
-                        if (i == 0) {
-                                ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
-                        }
-                        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", facesPerProcess[i], binnedFaces[i]);CHKERRQ(ierr);
-                }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", edgesPerProcess[i], binnedEdges[i]);CHKERRQ(ierr);
+      }
+    }
+    if (binnedFaces) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nFaces Per Process Range: %.0f - %.0f\n", facesPerProcess[0], facesPerProcess[numBinnedFaceProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedFaceProcesses; i++) {
+        if (i == 0) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        if (binnedCells) {
-                ierr = PetscViewerASCIIPrintf(viewer, "\nCells Per Process Range: %.0f - %.0f\n", cellsPerProcess[0], cellsPerProcess[numBinnedCellProcesses-1]);CHKERRQ(ierr);
-                for (i = 0; i < numBinnedCellProcesses; i++) {
-                        if (i == 0) {
-                                ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
-                        }
-                        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", cellsPerProcess[i], binnedCells[i]);CHKERRQ(ierr);
-                }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", facesPerProcess[i], binnedFaces[i]);CHKERRQ(ierr);
+      }
+    }
+    if (binnedCells) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nCells Per Process Range: %.0f - %.0f\n", cellsPerProcess[0], cellsPerProcess[numBinnedCellProcesses-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBinnedCellProcesses; i++) {
+        if (i == 0) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", cellsPerProcess[i], binnedCells[i]);CHKERRQ(ierr);
+      }
+    }
+    ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
 
   } else {
     MPI_Comm    comm;
