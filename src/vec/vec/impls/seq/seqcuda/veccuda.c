@@ -205,11 +205,11 @@ PetscErrorCode VecDestroy_SeqCUDA_Private(Vec v)
 #endif
   if (vs) {
     if (vs->array_allocated) {
-      if (v->map->n*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
+      if ((v->map->n)*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
         ierr = PetscMallocSetCUDAHost();CHKERRQ(ierr);
       }
       ierr = PetscFree(vs->array_allocated);CHKERRQ(ierr);
-      if (v->map->n*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
+      if ((v->map->n)*sizeof(PetscScalar) > veccuda->minimum_bytes_pinned_memory) {
         ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
       }
     }
