@@ -61,12 +61,15 @@ do
     echo "approx cells/rank:			$cellprankval"
     echo "start time:                      	$(date -u)"
     runFlag="+++++++++++++++++++++++++++++ RUN $counter RANKS $ranks +++++++++++++++++++++++++++++"
+    runCleanFlag="_________________________ RUN $counter RANKS $ranks CLEAN _________________________"
     echo "$runFlag">>./$runERROR
     SECONDS=0
     aprun -n $ranks -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble1M.med -log_view 2>> ./$runERROR 1>> ./$rawlog
     duration=$SECONDS
-    line=$(grep -A1 "$runFlag" ./$runERROR | tail -n 1 | grep -q "ERROR")
-    if [ $? -eq 1 ] || [ $failcount -eq $maxfail ]; then
+    echo "$runCleanFlag">>./$runERROR
+    line=$(grep -A1 "$runFlag" ./$runERROR | tail -n 1 | grep -q "$runCleanFlag")
+    #line=$(grep -A1 "$runFlag" ./$runERROR | tail -n 1 | grep -q "ERROR")
+    if [ $? -eq 0 ] || [ $failcount -eq $maxfail ]; then
 	if [ $failcount -eq $maxfail ]; then
 	    echo "=============================================================================================">>./$runERROR
 	    echo -e "\t\t\t\t RUN $counter RANKS $ranks ERROR BUT EXITING ANYWAY">>./$runERROR
@@ -80,6 +83,7 @@ do
 	    runcount=0
 	    failcount=0
 	    ranks=$((2**$counter))
+	    echo "+++++++++++++++++++++++++++ End of RUN $counter RANKS $ranks Attempt +++++++++++++++++++++++++++++">>./$rawlog
 	else
 	    ((runcount++))
 	fi;
@@ -88,7 +92,6 @@ do
 	((failcount++))
 	ranks=$(($ranks-1))
     fi
-    echo "+++++++++++++++++++++++++++++ End of Log +++++++++++++++++++++++++++++++">>./$rawlog
     echo "end time:			 	$(date -u)"
     echo "runtime:                         	$(($duration / 60)) minutes and $(($duration % 60)) seconds"
     echo "-----------"

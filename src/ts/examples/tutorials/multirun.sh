@@ -2,7 +2,7 @@
 
 #COBALT -t 60
 #COBALT -q default
-#COBALT --attrs mcdram=cache:numa=quad enable_ssh=1
+#COBALT --attrs mcdram=cache:numa=quad
 #COBALT -A $COBALT_PROJDM
 
 echo "Start"
@@ -46,9 +46,10 @@ cells=8000000
 ranks=$((2**$counter))
 failcount=0
 runcount=0
-maxfail=10
-maxruncount=5
-echo "Max number of Iterations:         $(((($maxcount-$counter))*$maxruncount))"
+maxfail=5
+maxruncount=1
+failsafe=$(($maxfail+$maxruncount))
+echo "Max number of Iterations:         	$(((($maxcount-$counter))*$maxruncount))"
 echo "looping..."
 echo "-----------"
 until [ $counter -gt $maxcount ]
@@ -56,39 +57,52 @@ do
     cellprankval=$(bc <<< "scale=3; $cells/$ranks")
     echo "counter:			   	$counter"
     echo "run count:				$runcount"
+    echo "fail count:				$failcount"
     echo "current number of MPI ranks:		$ranks"
-    echo "approx cells/rank:                    $cellprankval"
+    echo "approx cells/rank:			$cellprankval"
     echo "start time:				$(date -u)"
     runFlag="+++++++++++++++++++++++++++++ RUN $counter RANKS $ranks +++++++++++++++++++++++++++++"
+    runCleanFlag="_________________________ RUN $counter RANKS $ranks CLEAN _________________________"
     echo "$runFlag">>./$runERROR
     SECONDS=0
     aprun -n $ranks -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble8M.med -log_view 2>> ./$runERROR 1>> ./$rawlog
     duration=$SECONDS
-    line=$(grep -A1 "$runFlag" ./$runERROR | tail -n 1 | grep -q "ERROR")
-    if [ $? -eq 1 ] || [ $failcount -eq $maxfail ]; then
+    echo "$runCleanFlag">>./$runERROR
+    line=$(grep -A1 "$runFlag" ./$runERROR | tail -n 1 | grep -q "$runCleanFlag")
+    if [ $? -eq 0 ] || [ $failcount -eq $maxfail ]; then
 	if [ $failcount -eq $maxfail ]; then
             echo "=============================================================================================">>./$runERROR
             echo -e "\t\t\t\t RUN $counter RANKS $ranks ERROR BUT EXITING ANYWAY">>./$runERROR
             echo "=============================================================================================">>./$runERROR
+            ((counter++))
+            runcount=0
+            failcount=0
+            ranks=$((2**$counter))
+	    echo "+++++++++++++++++++++++++++ End of RUN $counter RANKS $ranks Attempt +++++++++++++++++++++++++++++">>./$rawlog
         else
             echo "+++++++++++++++++++++++++++++ RUN $counter RANKS $ranks NO ERROR +++++++++++++++++++++++++++++">>./$runERROR
-	    echo "$cellprankval">>./$cellprankval
+	    echo "$cellprankval">>./$cellprank
 	fi;
 	if [ $runcount -eq $maxruncount ]; then
             ((counter++))
             runcount=0
             failcount=0
             ranks=$((2**$counter))
+	    echo "+++++++++++++++++++++++++++ End of RUN $counter RANKS $ranks Attempt +++++++++++++++++++++++++++++">>./$rawlog
         else
             ((runcount++))
         fi;
     else
         echo "Command failed"
 	((failcount++))
-        ranks=$(($ranks-2))
+        ranks=$(($ranks-1))
     fi
-    echo "+++++++++++++++++++++++++++++ End of Log +++++++++++++++++++++++++++++++">>./$rawlog
-    echo "end time:                      	$(date -u)"
+    if [ $(($failcount+$runcount)) -eq $failsafe ]; then
+	echo "=============================================================================================">>./$runERROR
+        echo -e "\t\t\t\t RUN $counter RANKS $ranks FAILSAFE">>./$runERROR
+        echo "=============================================================================================">>./$runERROR
+    fi
+    echo "end time:				$(date -u)"
     echo "runtime:                         	$(($duration / 60)) minutes and $(($duration % 60)) seconds"
     echo "-----------"
 done
