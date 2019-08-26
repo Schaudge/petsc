@@ -30,6 +30,8 @@ T*/
      petscksp.h    - linear solvers
 */
 
+#include <Kokkos_Core.hpp>
+#include <Kokkos_OffsetView.hpp>
 #include <petscdm.h>
 #include <petscdmda.h>
 #include <petscsnes.h>
@@ -248,26 +250,45 @@ int main(int argc,char **argv)
   /*
      Get pointers to vector data
   */
-  ierr = DMDAVecGetArray(ctx.da,F,&FF);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(ctx.da,U,&UU);CHKERRQ(ierr);
+  ierr = VecGetArray(F,&FF);CHKERRQ(ierr);
+  ierr = VecGetArray(U,&UU);CHKERRQ(ierr);
+
+  Kokkos::initialize( argc, argv );
 
   /*
-     Compute local vector entries
+    OMP_NUM_THREADS
+    OMP_PROC_BIND=spread OMP_PLACES=threads
   */
+  /* introduce a view object; reference like object  */
+  Kokkos::Experimental::OffsetView<PetscScalar*> xFF(Kokkos::View<PetscScalar*>(FF,xm-xs),{xs}), xUU(Kokkos::View<PetscScalar*>(UU,xm-xs),{xs});
+
+  PetscReal xpbase = xs*ctx.h;
+  Kokkos:: parallel_for(Kokkos::RangePolicy<> (xs,xm), KOKKOS_LAMBDA ( int j ) {
+    PetscReal xp = xpbase + j*ctx.h;
+    xFF(j) = 6.0*xp + PetscPowScalar(xp+1.e-12,6.0); /* +1.e-12 is to prevent 0^6 */
+    xUU(j) = xp*xp*xp;
+  });
+
+
+  Kokkos::finalize(); 
+
+  /*
+     Compute local vector entries; non-Kokkos
   xp = ctx.h*xs;
+  parallel_for(
   for (i=xs; i<xs+xm; i++) {
-    FF[i] = 6.0*xp + PetscPowScalar(xp+1.e-12,6.0); /* +1.e-12 is to prevent 0^6 */
+    FF[i] = 6.0*xp + PetscPowScalar(xp+1.e-12,6.0);
     UU[i] = xp*xp*xp;
     xp   += ctx.h;
   }
+  */
 
   /*
      Restore vectors
   */
-  ierr = DMDAVecRestoreArray(ctx.da,F,&FF);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(ctx.da,U,&UU);CHKERRQ(ierr);
-
-    VecView(U,0);
+  ierr = VecRestoreArray(F,&FF);CHKERRQ(ierr);
+  ierr = VecRestoreArray(U,&UU);CHKERRQ(ierr);
+  VecView(U,0);
   VecView(F,0);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -2,9 +2,9 @@
 # This directory contains SNES example programs for solving systems of
 # nonlinear equations.
 
-CFLAGS           =
+CFLAGS           = 
 FFLAGS		 =
-CPPFLAGS         =
+CPPFLAGS         = -I/Users/barrysmith/Src/kokkos-openmp/include/
 FPPFLAGS         =
 LOCDIR		 = src/snes/examples/tutorials/
 MANSEC           = SNES
@@ -23,6 +23,11 @@ DIRS		 = ex10d network
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
+
+
+ex3kokkos :  ex3kokkos.o
+	$(LINK.C) $^ $(LOADLIBES) -L/Users/barrysmith/Src/kokkos-openmp/lib -lkokkos $(LDLIBS) -o $@ 
+
 
 #-------------------------------------------------------------------------
 
