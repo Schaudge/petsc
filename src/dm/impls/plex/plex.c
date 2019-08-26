@@ -1058,7 +1058,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 	  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
 	  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
 	  ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
-
+	  ierr = PetscViewerASCIIPrintf(viewer, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
 	  if (size > 1) {
                 PetscSF         sf;
 
