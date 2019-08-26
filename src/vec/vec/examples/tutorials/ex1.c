@@ -25,9 +25,11 @@ int main(int argc,char **argv)
   PetscInt       n = 20,maxind;
   PetscErrorCode ierr;
   PetscScalar    one = 1.0,two = 2.0,three = 3.0,dots[3],dot;
+  PetscBool      pinned;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-pinned",&pinned,NULL);CHKERRQ(ierr);
 
   /*
      Create a vector, specifying only its global dimension.
@@ -51,6 +53,7 @@ int main(int argc,char **argv)
   ierr = VecCreate(PETSC_COMM_WORLD,&x);CHKERRQ(ierr);
   ierr = VecSetSizes(x,PETSC_DECIDE,n);CHKERRQ(ierr);
   ierr = VecSetFromOptions(x);CHKERRQ(ierr);
+  ierr = VecCUDASetPinnedMemoryMin(x,0);CHKERRQ(ierr);
   /*
      Duplicate some work vectors (of the same format and
      partitioning as the initial vector).
