@@ -1097,7 +1097,6 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        //ierr = ISDestroy(&edgeIS);CHKERRQ(ierr);
         ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
         break;
       case 2:
@@ -1106,7 +1105,6 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        //ierr = ISDestroy(&faceIS);CHKERRQ(ierr);
         ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
         break;
       case 3:
@@ -7101,7 +7099,7 @@ PetscErrorCode DMPlexCreateEdgeNumbering_Internal(DM dm, PetscBool includeHybrid
 	PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexCreateEdgeNumbering(DM dm, IS *globalEdgeNumbers)
+PetscErrorCode DMPlexGetEdgeNumbering(DM dm, IS *globalEdgeNumbers)
 {
 	DM_Plex       *mesh = (DM_Plex*) dm->data;
         PetscErrorCode ierr;
