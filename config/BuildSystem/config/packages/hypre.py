@@ -71,7 +71,7 @@ class Configure(config.package.GNUPackage):
       args.append('--with-cuda')
       args.append('--enable-unified-memory')
       args.append('CUDA_HOME="'+self.cuda.directory+'"')
-      #HYPRE_CUDA_SM=60
+      #TODO NEED TO MAKE HYPRE HYPRE_CUDA_SM customizable (defaults to 60)
       # Hypre changes the shared library linker to nvcc which cannot handle -Wl,-rpath
       blaslibs = blaslibs.split(' ')
       blaslibs = [x for x in blaslibs if not x.startswith('-Wl,-rpath')]
@@ -131,25 +131,26 @@ class Configure(config.package.GNUPackage):
       raise RuntimeError('Hypre specified is incompatible!\n'+msg+'Suggest using --download-hypre for a compatible hypre')
     self.compilers.CPPFLAGS = oldFlags
 
+    # need to apply the patch to HYPRE and manually configure and compile
     # hypre puts HYPRE_USING_CUDA in HYPRE_config.h which causes all of the hypre includes to no longer simple
     # define the C API but instead have active Cuda code that cannot be compiled with PETSc; also provides prototypes
     # for VecScale(), VecSet(), and VecCopy() that conflict with PETSc's
     # This will not work if the hypre package has been installed in a sudo location
-    if self.cuda.found:
-      configfile = os.path.join(self.installDir,'include','HYPRE_config.h')
-      try:
-        fd = open(configfile,'r')
-        f = fd.read()
-        fd.close()
-      except:
-        raise RuntimeError('Unable open '+ configfile +' for reading to remove CUDA declaration')
-      try:
-        fd = open(configfile,'w')
-        f = f.split('\n')
-        for i in f:
-          if i.find('HYPRE_USING_CUDA') > -1: continue
-          if i.find('HYPRE_USING_GPU') > -1: continue
-          fd.write(i+'\n')
-        fd.close()
-      except:
-        raise RuntimeError('Unable open '+ configfile +' for reading to remove CUDA declaration')
+    #if self.cuda.found:
+    #  configfile = os.path.join(self.installDir,'include','HYPRE_config.h')
+    #  try:
+    #    fd = open(configfile,'r')
+    #    f = fd.read()
+    #    fd.close()
+    #  except:
+    #    raise RuntimeError('Unable open '+ configfile +' for reading to remove CUDA declaration')
+    #  try:
+    #    fd = open(configfile,'w')
+    #    f = f.split('\n')
+    #    for i in f:
+    #      if i.find('HYPRE_USING_CUDA') > -1: continue
+    #      if i.find('HYPRE_USING_GPU') > -1: continue
+    #      fd.write(i+'\n')
+    #    fd.close()
+    #  except:
+    #    raise RuntimeError('Unable open '+ configfile +' for reading to remove CUDA declaration')
