@@ -1048,7 +1048,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     MPI_Comm	comm;
     PetscMPIInt	rank = 0, size = 0;
     IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
-    PetscInt	i, locdepth, depth, dim, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
+    PetscInt	i, locdepth, depth, dim, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
     PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
     PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
     PetscBool	dmDistributed = PETSC_FALSE, dmInterped = PETSC_FALSE, facesOK = PETSC_FALSE, symmetryOK = PETSC_FALSE, skeletonOK = PETSC_FALSE, pointSFOK = PETSC_FALSE, geometryOK = PETSC_FALSE, coneConformOnInterfacesOK = PETSC_FALSE;
@@ -1070,6 +1070,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 
     /* Global and Local Sizing	*/
     ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+    ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
     ierr = DMPlexGetDepth(dm, &locdepth);CHKERRQ(ierr);
     ierr = MPIU_Allreduce(&locdepth, &depth, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
     if (dim == depth) {
@@ -1117,16 +1118,15 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
         break;
       default:
-        ierr = PetscPrintf(comm, "%i depth not supported\n", i);CHKERRQ(ierr);
+        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Depth of %d is not supported!\n", i);
         break;
       }
     }
 
-
     /* Various Diagnostic DMPlex Checks     */
-    ierr = DMPlexCheckFaces(dm, 0);CHKERRQ(ierr); if (!ierr) { facesOK = PETSC_TRUE;}
+    ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr); if (!ierr) { facesOK = PETSC_TRUE;}
     ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr); if (!ierr) { symmetryOK = PETSC_TRUE;}
-    ierr = DMPlexCheckSkeleton(dm, 0);CHKERRQ(ierr); if (!ierr) { skeletonOK = PETSC_TRUE;}
+    ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr); if (!ierr) { skeletonOK = PETSC_TRUE;}
     ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr); if(!ierr) { pointSFOK = PETSC_TRUE;}
     ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr); if (!ierr) { geometryOK = PETSC_TRUE;}
     ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr); if(!ierr) { coneConformOnInterfacesOK = PETSC_TRUE;}
