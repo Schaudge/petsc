@@ -71,6 +71,10 @@ class Configure(config.package.GNUPackage):
       args.append('--with-cuda')
       args.append('--enable-unified-memory')
       args.append('CUDA_HOME="'+self.cuda.directory+'"')
+      # hypre uses nvcc to compiler everything as the C++ compiler thus we cannot pass any flags since nvcc won't recognize them
+      # note this puts hypre completely in charge of choosing optimzation flags etc.
+      # TODO: perhaps pass in our NVCC compiler flags for CXXFLAGS
+      args = self.rmArgsStartsWith(args,['CXXFLAGS'])
       #HYPRE_CUDA_SM=60
       # Hypre changes the shared library linker to nvcc which cannot handle -Wl,-rpath
       blaslibs = blaslibs.split(' ')
