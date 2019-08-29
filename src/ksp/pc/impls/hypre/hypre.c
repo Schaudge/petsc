@@ -2107,17 +2107,6 @@ PETSC_EXTERN PetscErrorCode PCCreate_HYPRE(PC pc)
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCHYPRESetInterpolations_C",PCHYPRESetInterpolations_HYPRE);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCHYPRESetEdgeConstantVectors_C",PCHYPRESetEdgeConstantVectors_HYPRE);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCHYPRESetPoissonMatrix_C",PCHYPRESetPoissonMatrix_HYPRE);CHKERRQ(ierr);
-
-#if defined(PETSC_HAVE_CUDA)
-  {
-    static PetscBool hypre_GPUInited = PETSC_FALSE;
-    extern void hypre_GPUInit(int);
-    if (!hypre_GPUInited) {
-      hypre_GPUInit(-1);
-      hypre_GPUInited = PETSC_TRUE;
-    }
-  }
-#endif
   PetscFunctionReturn(0);
 }
 

@@ -38,6 +38,7 @@ PetscBool   PetscBeganMPI         = PETSC_FALSE;
 PetscBool   PetscInitializeCalled = PETSC_FALSE;
 PetscBool   PetscFinalizeCalled   = PETSC_FALSE;
 PetscBool   PetscCUDAInitialized  = PETSC_FALSE;
+PetscBool   PetscCUDAInitHYPRE    = PETSC_FALSE;
 
 PetscMPIInt PetscGlobalRank       = -1;
 PetscMPIInt PetscGlobalSize       = -1;
@@ -194,6 +195,12 @@ void Petsc_MPI_DebuggerOnError(MPI_Comm *comm,PetscMPIInt *flag,...)
 }
 
 #if defined(PETSC_HAVE_CUDA)
+
+#if defined(PETSC_HAVE_HYPRE)
+#include <petsc/private/petschypre.h>
+#include <_hypre_utilities.h>
+#endif
+
 /*@C
      PetscCUDAInitialize - Initializes the CUDA device and cuBLAS on the device
 
@@ -239,6 +246,7 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
   ierr = PetscOptionsDeprecated("-cuda_show_devices","-cuda_view","3.12",NULL);CHKERRQ(ierr);
   ierr = PetscOptionsName("-cuda_view","Display CUDA device information and assignments",NULL,&cuda_view_flag);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
+
   if (!PetscCUDAInitialized) {
     ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
 
@@ -247,7 +255,7 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
       /* we're not using the same GPU on multiple MPI threads. So try to allocated different   GPUs to different processes */
 
       /* First get the device count */
-      err   = cudaGetDeviceCount(&devCount);
+      err = cudaGetDeviceCount(&devCount);
       if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaGetDeviceCount %s",cudaGetErrorString(err));
 
       /* next determine the rank and then set the device via a mod */
@@ -263,10 +271,21 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
 
     ierr = PetscCUBLASInitializeHandle();CHKERRQ(ierr);
     PetscCUDAInitialized = PETSC_TRUE;
+
+    /* TODO: add finalize? */
+#if defined(PETSC_HAVE_HYPRE) && defined(HYPRE_USING_GPU)
+    {
+      if (!HYPRE_GPU_HANDLE) {
+        hypre_GPUInit(device);
+        PetscCUDAInitHYPRE = PETSC_TRUE;
+      }
+    }
+#endif
   }
+
   if (cuda_view_flag) {
-    ierr   = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-    err = cudaGetDeviceCount(&devCount);
+    ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+    err  = cudaGetDeviceCount(&devCount);
     if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaGetDeviceCount %s",cudaGetErrorString(err));
     for (devicecnt = 0; devicecnt < devCount; ++devicecnt) {
       err = cudaGetDeviceProperties(&prop,devicecnt);
