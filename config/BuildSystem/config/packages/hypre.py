@@ -4,13 +4,14 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.version         = '2.16.0'
+    self.version         = '2.16.0-cuda'
     self.minversion      = '2.14'
     self.versionname     = 'HYPRE_RELEASE_VERSION'
     self.versioninclude  = 'HYPRE_config.h'
     self.requiresversion = 1
     self.gitcommit       = 'v'+self.version
-    self.download        = ['git://https://github.com/hypre-space/hypre','https://github.com/hypre-space/hypre/archive/'+self.gitcommit+'.tar.gz']
+    #self.download        = ['git://https://github.com/hypre-space/hypre','https://github.com/hypre-space/hypre/archive/'+self.gitcommit+'.tar.gz']
+    self.download        = ['git://https://bitbucket.org/petsc/pkg-hypre.git']
     self.functions       = ['HYPRE_IJMatrixCreate']
     self.includes        = ['HYPRE.h']
     self.liblist         = [['libHYPRE.a']]
@@ -62,6 +63,7 @@ class Configure(config.package.GNUPackage):
       args.append('--with-openmp')
       self.usesopenmp = 'yes'
       # use OMP_NUM_THREADS to control the number of threads used
+      # TODO: they may also use OMP for GPUs
 
     blaslibs = self.libraries.toString(self.blasLapack.dlib)
     if self.cuda.found:
@@ -71,11 +73,7 @@ class Configure(config.package.GNUPackage):
       args.append('--with-cuda')
       args.append('--enable-unified-memory')
       args.append('CUDA_HOME="'+self.cuda.directory+'"')
-      #TODO NEED TO MAKE HYPRE HYPRE_CUDA_SM customizable (defaults to 60)
-      # Hypre changes the shared library linker to nvcc which cannot handle -Wl,-rpath
-      blaslibs = blaslibs.split(' ')
-      blaslibs = [x for x in blaslibs if not x.startswith('-Wl,-rpath')]
-      blaslibs = ' '.join(blaslibs)
+      # TODO: NEED TO MAKE HYPRE_CUDA_SM customizable (defaults to 60)
 
     # tell hypre configure not to look for blas/lapack [and not use hypre-internal blas]
     args.append('--with-blas-lib="'+blaslibs+'"')
@@ -106,6 +104,11 @@ class Configure(config.package.GNUPackage):
     # hypre configure assumes the AR flags are passed in with AR
     args = [arg for arg in args if not arg.startswith('AR')]
     args.append('AR="'+self.setCompilers.AR+' '+self.setCompilers.AR_FLAGS+'"')
+
+    # Hypre changes the shared library linker to nvcc which cannot handle -Wl,-rpath
+    if self.cuda.found:
+      args = [arg.replace('-Wl,-rpath,','-L') for arg in args]
+
     return args
 
   def consistencyChecks(self):
@@ -130,27 +133,3 @@ class Configure(config.package.GNUPackage):
     if not self.checkCompile('#include "HYPRE_config.h"',code):
       raise RuntimeError('Hypre specified is incompatible!\n'+msg+'Suggest using --download-hypre for a compatible hypre')
     self.compilers.CPPFLAGS = oldFlags
-
-    # need to apply the patch to HYPRE and manually configure and compile
-    # hypre puts HYPRE_USING_CUDA in HYPRE_config.h which causes all of the hypre includes to no longer simple
-    # define the C API but instead have active Cuda code that cannot be compiled with PETSc; also provides prototypes
-    # for VecScale(), VecSet(), and VecCopy() that conflict with PETSc's
-    # This will not work if the hypre package has been installed in a sudo location
-    #if self.cuda.found:
-    #  configfile = os.path.join(self.installDir,'include','HYPRE_config.h')
-    #  try:
-    #    fd = open(configfile,'r')
-    #    f = fd.read()
-    #    fd.close()
-    #  except:
-    #    raise RuntimeError('Unable open '+ configfile +' for reading to remove CUDA declaration')
-    #  try:
-    #    fd = open(configfile,'w')
-    #    f = f.split('\n')
-    #    for i in f:
-    #      if i.find('HYPRE_USING_CUDA') > -1: continue
-    #      if i.find('HYPRE_USING_GPU') > -1: continue
-    #      fd.write(i+'\n')
-    #    fd.close()
-    #  except:
-    #    raise RuntimeError('Unable open '+ configfile +' for reading to remove CUDA declaration')
