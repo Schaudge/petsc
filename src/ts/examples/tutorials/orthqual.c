@@ -9,14 +9,26 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
   PetscErrorCode        ierr;
   IS			centIS, fcentIS, fnormIS, subCellIS, subFaceIS;
   Vec                   cellGeom, faceGeom, subCell, subFace, subCellCent, subFaceCent, subFaceNormal;
-  PetscInt		celliter, faceiter, i, j, cellHeight, dim, depth, cStart, cEnd, fStart, numFaces;
-  PetscInt		*cdx, *fdx, *centdx, *fcentdx, *fnormdx;
-  PetscScalar		*OrthogonalQualityArray;
+  PetscInt		lo, celliter, faceiter, i, j, cellHeight, cStart, cEnd, fStart, numFaces;
+  PetscInt		*ltogdx, *cdx, *fdx, *centdx, *fcentdx, *fnormdx;
   size_t		subCellVecSize = 4, subFaceVecSize = 12, centVecSize = 3, normalVecSize = 3;
+  ISLocalToGlobalMapping ltog;
 
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
+  ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(dm, cellHeight, &cStart, &cEnd);CHKERRQ(ierr);
+  ierr = VecCreateMPI(comm, cEnd-cStart, PETSC_DETERMINE, OrthogonalQuality);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(*OrthogonalQuality, &lo, NULL);CHKERRQ(ierr);
+  ierr = PetscMalloc1(cEnd-cStart, &ltogdx);CHKERRQ(ierr);
+  for (i = 0; i < cEnd-cStart; i++) {
+    ltogdx[i] = lo+i;
+  }
+  printf("CSTART %d CEND %d\n", cStart, cEnd);
+  ierr = ISLocalToGlobalMappingCreate(comm, 1, cEnd-cStart, ltogdx, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
+  ierr = VecSetLocalToGlobalMapping(*OrthogonalQuality, ltog);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingDestroy(&ltog);CHKERRQ(ierr);
+  ierr = PetscFree(ltogdx);CHKERRQ(ierr);
+
   ierr = PetscObjectQuery((PetscObject) dm, "DMPlex_cellgeom_fvm", &cellgeomobj);CHKERRQ(ierr);
   ierr = PetscObjectQuery((PetscObject) dm, "DMPlex_facegeom_fvm", &facegeomobj);CHKERRQ(ierr);
   if ((!cellgeomobj) || (!facegeomobj)) {
@@ -25,16 +37,7 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
     cellGeom = (Vec) cellgeomobj;
     faceGeom = (Vec) facegeomobj;
   }
-  VecView(cellGeom, 0);
-  VecView(faceGeom, 0);
-  ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, cellHeight, &cStart, &cEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, cellHeight+1, &fStart, NULL);CHKERRQ(ierr);
-  if (!*OrthogonalQuality) {
-    ierr = DMCreateGlobalVector(dm, OrthogonalQuality);CHKERRQ(ierr);
-    ierr = VecZeroEntries(*OrthogonalQuality);CHKERRQ(ierr);
-  }
-  ierr = VecGetArray(*OrthogonalQuality, &OrthogonalQualityArray);CHKERRQ(ierr);
+
   ierr = PetscMalloc1(subCellVecSize, &cdx);CHKERRQ(ierr);
   ierr = PetscMalloc1(subFaceVecSize, &fdx);CHKERRQ(ierr);
   ierr = PetscMalloc1(centVecSize, &centdx);CHKERRQ(ierr);
@@ -43,15 +46,15 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
   centdx[0] = 0; centdx[1] = 1; centdx[2] = 2;
   fcentdx[0] = 3; fcentdx[1] = 4; fcentdx[2] = 5;
   fnormdx[0] = 0; fnormdx[1] = 1; fnormdx[2] = 2;
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, centVecSize, centdx, PETSC_COPY_VALUES, &centIS);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, centVecSize, fcentdx, PETSC_COPY_VALUES, &fcentIS);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, normalVecSize, fnormdx, PETSC_COPY_VALUES, &fnormIS);CHKERRQ(ierr);
-
+  ierr = ISCreateGeneral(PETSC_COMM_SELF, centVecSize, centdx, PETSC_COPY_VALUES, &centIS);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_SELF, centVecSize, fcentdx, PETSC_COPY_VALUES, &fcentIS);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_SELF, normalVecSize, fnormdx, PETSC_COPY_VALUES, &fnormIS);CHKERRQ(ierr);
   ierr = PetscFree(centdx);CHKERRQ(ierr);
   ierr = PetscFree(fcentdx);CHKERRQ(ierr);
   ierr = PetscFree(fnormdx);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(dm, cellHeight+1, &fStart, NULL);CHKERRQ(ierr);
   for (celliter = cStart; celliter < cEnd; celliter++) {
-    PetscScalar		OrthQualPerFace = 0.0, OrthQualPerCell = 0.0, Anorm, Fnorm, DotProd = 0.0;
+    PetscScalar		OrthQualPerFace, OrthQualPerCell = 1.0, Anorm, Fnorm, DotProd;
     PetscInt		*coneCopy;
     const PetscInt	*cone;
 
@@ -59,20 +62,21 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
     ierr = DMPlexGetCone(dm, celliter, &cone);CHKERRQ(ierr);
     ierr = PetscMalloc1(numFaces, &coneCopy);CHKERRQ(ierr);
     for (i = 0; i < numFaces; i++) {
-      printf("CONE: %d\n", cone[i]);
+      PetscPrintf(comm, "CONE: %d\n", cone[i]);
       coneCopy[i] = cone[i] - fStart;
     }
     for (j = 0; j < subCellVecSize; j++) {
       cdx[j] = (subCellVecSize*celliter)+j;
     }
     PetscPrintf(comm, "=========================== ");
-    PetscPrintf(comm, "cell #%d\n", celliter);
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, subCellVecSize, cdx, PETSC_COPY_VALUES, &subCellIS);CHKERRQ(ierr);
+    PetscPrintf(comm, "cell #%d NUM faces: %d\n", celliter, numFaces);
+
+    ierr = ISCreateGeneral(PETSC_COMM_SELF, subCellVecSize, cdx, PETSC_COPY_VALUES, &subCellIS);CHKERRQ(ierr);
     ierr = VecGetSubVector(cellGeom, subCellIS, &subCell);CHKERRQ(ierr);
     ierr = VecGetSubVector(subCell, centIS, &subCellCent);CHKERRQ(ierr);
-    //VecView(subCell,0);
     for (faceiter = 0; faceiter < numFaces; faceiter++) {
       Vec		cent2face;
+      PetscScalar	tempCalc;
       PetscPrintf(comm, "face #%d\n", faceiter);
       PetscPrintf(comm, "sub alloc start: %d\n", subFaceVecSize*(coneCopy[faceiter]));
 
@@ -80,15 +84,19 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
         fdx[j] = (subFaceVecSize*(coneCopy[faceiter]))+j;
       }
 
-      ierr = ISCreateGeneral(PETSC_COMM_WORLD, subFaceVecSize, fdx, PETSC_COPY_VALUES, &subFaceIS);CHKERRQ(ierr);
+      ierr = ISCreateGeneral(PETSC_COMM_SELF, subFaceVecSize, fdx, PETSC_COPY_VALUES, &subFaceIS);CHKERRQ(ierr);
       ierr = VecGetSubVector(faceGeom, subFaceIS, &subFace);CHKERRQ(ierr);
       ierr = VecGetSubVector(subFace, fcentIS, &subFaceCent);CHKERRQ(ierr);
       ierr = VecGetSubVector(subFace, fnormIS, &subFaceNormal);CHKERRQ(ierr);
       ierr = VecDuplicate(subFaceCent, &cent2face);CHKERRQ(ierr);
+
       ierr = VecWAXPY(cent2face, -1.0, subCellCent, subFaceCent);CHKERRQ(ierr);
       ierr = VecDot(cent2face, subFaceNormal, &DotProd);CHKERRQ(ierr);
       ierr = VecNorm(subFaceNormal, NORM_2, &Anorm);CHKERRQ(ierr);
       ierr = VecNorm(cent2face, NORM_2, &Fnorm);CHKERRQ(ierr);
+      tempCalc = DotProd/(Anorm*Fnorm);
+      tempCalc = PetscAbs(tempCalc);
+      OrthQualPerCell = PetscMin(tempCalc, OrthQualPerCell);
 
       ierr = VecDestroy(&cent2face);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(subFace, fnormIS, &subFaceNormal);CHKERRQ(ierr);
@@ -96,14 +104,21 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
       ierr = VecRestoreSubVector(faceGeom, subFaceIS, &subFace);CHKERRQ(ierr);
       ierr = ISDestroy(&subFaceIS);CHKERRQ(ierr);
     }
+    PetscPrintf(comm, "MIN %f CELLITER%d\n", OrthQualPerCell, celliter);
+    ierr = VecSetValueLocal(*OrthogonalQuality, celliter-cStart, OrthQualPerCell, INSERT_VALUES);CHKERRQ(ierr);
     ierr = PetscFree(coneCopy);CHKERRQ(ierr);
     ierr = VecRestoreSubVector(subCell, centIS, &subCellCent);CHKERRQ(ierr);
     ierr = VecRestoreSubVector(cellGeom, subCellIS, &subCell);CHKERRQ(ierr);
     ierr = ISDestroy(&subCellIS);CHKERRQ(ierr);
   }
+  ierr = VecAssemblyBegin(*OrthogonalQuality);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(*OrthogonalQuality);CHKERRQ(ierr);
+  ierr = ISDestroy(&fnormIS);CHKERRQ(ierr);
+  ierr = ISDestroy(&fcentIS);CHKERRQ(ierr);
+  ierr = ISDestroy(&centIS);CHKERRQ(ierr);
   ierr = PetscFree(cdx);CHKERRQ(ierr);
   ierr = PetscFree(fdx);CHKERRQ(ierr);
-  return ierr;
+    return ierr;
 }
 
 int main(int argc, char **argv)
@@ -116,12 +131,15 @@ int main(int argc, char **argv)
   DM                    dm, dmDist;
   PetscInt              overlap = 0, i, dim = 2, numFields = 1, numBC = 1, faces[dim], bcField[numBC];
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE;
+  PetscViewer           viewer;
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
   comm = PETSC_COMM_WORLD;
+  ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);
 
   for (i = 0; i < dim; i++) {
-    faces[i] = 2;
+    faces[i] = 4;
   }
 
   ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
@@ -145,6 +163,8 @@ int main(int argc, char **argv)
   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 
   ierr = DMPlexComputeCellOrthogonalQuality(dm, &OrthogonalQuality);CHKERRQ(ierr);
+  VecView(OrthogonalQuality, viewer);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
   return ierr;
 }
