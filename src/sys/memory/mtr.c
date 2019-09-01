@@ -72,6 +72,41 @@ static size_t     *PetscLogMallocLength;
 static const char **PetscLogMallocFile,**PetscLogMallocFunction;
 static PetscBool  PetscSetUseTrMallocCalled = PETSC_FALSE;
 
+#if defined(PETSC_HAVE_CUDA)
+#include <cuda_runtime.h>
+
+static PetscErrorCode PetscCudaManagedMalloc(size_t a,PetscBool clear,int lineno,const char function[],const char filename[],void **res)
+{
+  void        *mem;
+  cudaError_t cerr = 0;
+
+  if (!a) { *res = NULL; return 0; }
+  cerr = cudaMallocManaged(&mem,a,cudaMemAttachHost);CHKERRCUDA(cerr);
+  if (clear) memset((char*)mem,0,a);
+  *res = mem;
+  return cerr;
+}
+
+static PetscErrorCode PetscCudaManagedFree(void *aa,int lineno,const char function[],const char filename[])
+{
+  cudaError_t cerr = 0;
+
+  if (!aa) return 0;
+  cerr = cudaFree(aa);CHKERRCUDA(cerr);
+  return cerr;
+}
+
+PETSC_INTERN PetscErrorCode PetscSetUseCudaManagedMalloc_Private(void)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscMallocSet(PetscCudaManagedMalloc,PetscCudaManagedFree);CHKERRQ(ierr);
+  PetscTrRealloc = PetscTrReallocDefault;
+  PetscFunctionReturn(0);
+}
+#endif
+
 PETSC_INTERN PetscErrorCode PetscSetUseTrMalloc_Private(void)
 {
   PetscErrorCode ierr;

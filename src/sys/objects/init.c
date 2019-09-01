@@ -239,14 +239,11 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
     ierr = PetscOptionsHasName(NULL,NULL,"-log_view",&PetscCUDASynchronize);CHKERRQ(ierr);
   }
 
-  ierr = PetscOptionsBegin(comm,NULL,"CUDA options","Sys");CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-cuda_set_device","Set all MPI ranks to use the specified CUDA device",NULL,deviceOpt,&deviceOpt,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(NULL,NULL,"-cuda_view",&cuda_view_flag);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,NULL,"-cuda_set_device",&deviceOpt,&flg);CHKERRQ(ierr);
   device = (int)deviceOpt;
-  ierr = PetscOptionsBool("-cuda_synchronize","Wait for the GPU to complete operations before returning to the CPU",NULL,PetscCUDASynchronize,&PetscCUDASynchronize,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsDeprecated("-cuda_show_devices","-cuda_view","3.12",NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsName("-cuda_view","Display CUDA device information and assignments",NULL,&cuda_view_flag);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-
+  ierr = PetscOptionsGetBool(NULL,NULL,"-cuda_synchronize",&PetscCUDASynchronize,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(NULL,NULL,"-cuda_view",&cuda_view_flag);CHKERRQ(ierr);
   if (!PetscCUDAInitialized) {
     ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
 
@@ -291,7 +288,7 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
       err = cudaGetDeviceProperties(&prop,devicecnt);
       if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaGetDeviceProperties %s",cudaGetErrorString(err));
       ierr = PetscPrintf(comm, "CUDA device %d: %s\n", devicecnt, prop.name);CHKERRQ(ierr);
-      ierr = PetscPrintf(comm, "  concurrentManagedAcess: %d\n", prop.concurrentManagedAccess);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "  concurrentManagedAccess: %d\n", prop.concurrentManagedAccess);CHKERRQ(ierr);
       ierr = PetscPrintf(comm, "  major*100 + minor*10: %d\n", prop.major*100+prop.minor*10);CHKERRQ(ierr);
     }
     ierr = PetscSynchronizedPrintf(comm,"[%d] Using CUDA device %d.\n",rank,device);CHKERRQ(ierr);
@@ -325,6 +322,9 @@ PetscErrorCode  PetscEnd(void)
 }
 
 PetscBool PetscOptionsPublish = PETSC_FALSE;
+#if defined(PETSC_HAVE_CUDA)
+PETSC_INTERN PetscErrorCode PetscSetUseCudaManagedMalloc_Private(void);
+#endif
 PETSC_INTERN PetscErrorCode PetscSetUseTrMalloc_Private(void);
 PETSC_INTERN PetscErrorCode PetscSetUseHBWMalloc_Private(void);
 PETSC_INTERN PetscBool      petscsetmallocvisited;
@@ -381,7 +381,14 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
+  ierr = PetscOptionsGetBool(NULL,NULL,"-cuda_initialize",&initCuda,NULL);CHKERRQ(ierr);
+  if (initCuda) {ierr = PetscCUDAInitialize(PETSC_COMM_WORLD);CHKERRQ(ierr);}
+#endif
 
+#if defined(PETSC_HAVE_HYPRE) && defined(HYPRE_USING_GPU)
+  ierr = PetscSetUseCudaManagedMalloc_Private();CHKERRQ(ierr);
+#else
 #if !defined(PETSC_HAVE_THREADSAFETY)
   /*
       Setup the memory management; support for tracing malloc() usage
@@ -437,6 +444,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   if (flg1) {
     ierr = PetscMemorySetGetMaximumUsage();CHKERRQ(ierr);
   }
+#endif
 #endif
 
 #if defined(PETSC_USE_LOG)
@@ -662,13 +670,6 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
 
   ierr = PetscOptionsGetBool(NULL,NULL,"-saws_options",&PetscOptionsPublish,NULL);CHKERRQ(ierr);
 
-#if defined(PETSC_HAVE_CUDA)
-  ierr = PetscOptionsBegin(comm,NULL,"CUDA initialize","Sys");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-cuda_initialize","Initialize the CUDA devices and cuBLAS during PetscInitialize()",NULL,initCuda,&initCuda,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  if (initCuda) {ierr = PetscCUDAInitialize(PETSC_COMM_WORLD);CHKERRQ(ierr);}
-#endif
-
   /*
        Print basic help message
   */
@@ -718,8 +719,10 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
 #endif
     ierr = (*PetscHelpPrintf)(comm," -v: prints PETSc version number and release date\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -options_file <file>: reads options from file\n");CHKERRQ(ierr);
-    ierr = (*PetscHelpPrintf)(comm," -petsc_sleep n: sleeps n seconds before running program\n");CHKERRQ(ierr);
-    ierr = (*PetscHelpPrintf)(comm,"-----------------------------------------------\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -cuda_set_device <int>: sets all MPI ranks to use the specified CUDA device\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -cuda_synchronize: waits for the GPU to complete operations before returning to the CPU\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -cuda_view: displays CUDA device information and assignments\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," \n");CHKERRQ(ierr);
   }
 
 #if defined(PETSC_HAVE_POPEN)
