@@ -322,9 +322,6 @@ PetscErrorCode  PetscEnd(void)
 }
 
 PetscBool PetscOptionsPublish = PETSC_FALSE;
-#if defined(PETSC_HAVE_CUDA)
-PETSC_INTERN PetscErrorCode PetscSetUseCudaManagedMalloc_Private(void);
-#endif
 PETSC_INTERN PetscErrorCode PetscSetUseTrMalloc_Private(void);
 PETSC_INTERN PetscErrorCode PetscSetUseHBWMalloc_Private(void);
 PETSC_INTERN PetscBool      petscsetmallocvisited;
@@ -386,9 +383,6 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   if (initCuda) {ierr = PetscCUDAInitialize(PETSC_COMM_WORLD);CHKERRQ(ierr);}
 #endif
 
-#if defined(PETSC_HAVE_HYPRE) && defined(HYPRE_USING_GPU)
-  ierr = PetscSetUseCudaManagedMalloc_Private();CHKERRQ(ierr);
-#else
 #if !defined(PETSC_HAVE_THREADSAFETY)
   /*
       Setup the memory management; support for tracing malloc() usage
@@ -444,7 +438,6 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   if (flg1) {
     ierr = PetscMemorySetGetMaximumUsage();CHKERRQ(ierr);
   }
-#endif
 #endif
 
 #if defined(PETSC_USE_LOG)
