@@ -245,6 +245,8 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
   ierr = PetscOptionsGetBool(NULL,NULL,"-cuda_synchronize",&PetscCUDASynchronize,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsHasName(NULL,NULL,"-cuda_view",&cuda_view_flag);CHKERRQ(ierr);
   if (!PetscCUDAInitialized) {
+    PetscBool setflg = PETSC_TRUE;
+
     ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
 
     if (size>1 && !flg) {
@@ -258,13 +260,16 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
       /* next determine the rank and then set the device via a mod */
       ierr   = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
       device = rank % devCount;
+      setflg = rank/devCount ? PETSC_FALSE : PETSC_TRUE;
     }
     err = cudaSetDevice(device);
     if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaSetDevice %s",cudaGetErrorString(err));
 
     /* set the device flags so that it can map host memory */
-    err = cudaSetDeviceFlags(cudaDeviceMapHost);
-    if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaSetDeviceFlags %s",cudaGetErrorString(err));
+    if (setflg) {
+      err = cudaSetDeviceFlags(cudaDeviceMapHost);
+      if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaSetDeviceFlags %s",cudaGetErrorString(err));
+    }
 
     ierr = PetscCUBLASInitializeHandle();CHKERRQ(ierr);
     PetscCUDAInitialized = PETSC_TRUE;
