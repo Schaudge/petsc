@@ -1,3 +1,4 @@
+
 /*
  GAMG geometric-algebric multigrid PC - Mark Adams 2011
  */
@@ -138,7 +139,15 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
         else expand_factor = rfactor;
       }
       new_size = size/rfactor; /* make new size one that is factor */
-      /* ierr = PetscInfo2(pc,"Using factorable active processors %D --> %D\n",newsizeOld,new_size);CHKERRQ(ierr); */
+      /* if (new_size != 1) ierr = PetscPrintf(PetscObjectComm((PetscObject)pc),"Using factorable active processors %D --> %D\n",newsizeOld,new_size);CHKERRQ(ierr); */
+      if (new_size==nactive) {
+        *a_Amat_crs = Cmat; /* output - no repartitioning or reduction, bail out because nested here */
+        ierr = PetscInfo2(pc,"Finding factorable processor set stopped reduction: new_size=%D, neq(loc)=%D\n",new_size,ncrs_eq);CHKERRQ(ierr);
+#if defined PETSC_GAMG_USE_LOG
+        ierr = PetscLogEventEnd(petsc_gamg_setup_events[SET12],0,0,0,0);CHKERRQ(ierr);
+#endif
+        PetscFunctionReturn(0);
+      }
     }
     /* make 'is_eq_newproc' */
     ierr = PetscMalloc1(size, &counts);CHKERRQ(ierr);
