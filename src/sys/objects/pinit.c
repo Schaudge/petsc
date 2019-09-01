@@ -791,6 +791,8 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
   PetscFunctionBegin;
   if (PetscInitializeCalled) PetscFunctionReturn(0);
+  /* PetscOptions use PetscSegBuffer, which in turns uses PetscNew. Use standard malloc instead of CudaMallocManaged */
+  ierr = PetscPushMallocType(PETSC_MALLOC_STANDARD);CHKERRQ(ierr);
   /*
       The checking over compatible runtime libraries is complicated by the MPI ABI initiative
       https://wiki.mpich.org/mpich/index.php/ABI_Compatibility_Initiative which started with
@@ -1018,6 +1020,7 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
   /* call a second time so it can look in the options database */
   ierr = PetscErrorPrintfInitialize();CHKERRQ(ierr);
 
+
   /*
      Check system options and print help
   */
@@ -1127,6 +1130,7 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
   ierr = PetscOptionsHasName(NULL,NULL,"-python",&flg);CHKERRQ(ierr);
   if (flg) {ierr = PetscPythonInitialize(NULL,NULL);CHKERRQ(ierr);}
+  ierr = PetscPopMallocType();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1406,6 +1410,7 @@ PetscErrorCode  PetscFinalize(void)
   /* to prevent PETSc -options_left from warning */
   ierr = PetscOptionsHasName(NULL,NULL,"-nox",&flg1);CHKERRQ(ierr);
   ierr = PetscOptionsHasName(NULL,NULL,"-nox_warning",&flg1);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(NULL,NULL,"-cuda_initialize",&flg1);CHKERRQ(ierr);
 
   flg3 = PETSC_FALSE; /* default value is required */
   ierr = PetscOptionsGetBool(NULL,NULL,"-options_left",&flg3,&flg1);CHKERRQ(ierr);

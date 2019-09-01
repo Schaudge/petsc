@@ -233,7 +233,7 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
 {
   PetscErrorCode        ierr;
   PetscInt              deviceOpt = 0;
-  PetscBool             cuda_view_flag = PETSC_FALSE,flg;
+  PetscBool             initCuda = PETSC_TRUE, cuda_view_flag = PETSC_FALSE,flg;
   struct cudaDeviceProp prop;
   int                   devCount,device,devicecnt;
   cudaError_t           err = cudaSuccess;
@@ -241,18 +241,17 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
 
   PetscFunctionBegin;
   ierr = PetscOptionsBegin(comm,NULL,"CUDA options","Sys");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-cuda_initialize","Initialize the CUDA devices, cuBLAS and cuSolverDN during PetscInitialize()",NULL,initCuda,&initCuda,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-cuda_set_device","Set all MPI ranks to use the specified CUDA device",NULL,deviceOpt,&deviceOpt,&flg);CHKERRQ(ierr);
   device = (int)deviceOpt;
   ierr = PetscOptionsDeprecated("-cuda_show_devices","-cuda_view","3.12",NULL);CHKERRQ(ierr);
   ierr = PetscOptionsName("-cuda_view","Display CUDA device information and assignments",NULL,&cuda_view_flag);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-
-  if (!PetscCUDAInitialized) {
+  if (initCuda) {
     PetscBool setflg = PETSC_TRUE;
 
     ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-
-    if (size>1 && !flg) {
+    if (size > 1 && !flg) {
       /* check to see if we force multiple ranks to hit the same GPU */
       /* we're not using the same GPU on multiple MPI threads. So try to allocated different   GPUs to different processes */
 
@@ -297,7 +296,7 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
       err = cudaGetDeviceProperties(&prop,devicecnt);
       if (err != cudaSuccess) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"error in cudaGetDeviceProperties %s",cudaGetErrorString(err));
       ierr = PetscPrintf(comm, "CUDA device %d: %s\n", devicecnt, prop.name);CHKERRQ(ierr);
-      ierr = PetscPrintf(comm, "  concurrentManagedAcess: %d\n", prop.concurrentManagedAccess);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "  concurrentManagedAccess: %d\n", prop.concurrentManagedAccess);CHKERRQ(ierr);
       ierr = PetscPrintf(comm, "  major*100 + minor*10: %d\n", prop.major*100+prop.minor*10);CHKERRQ(ierr);
     }
     ierr = PetscSynchronizedPrintf(comm,"[%d] Using CUDA device %d.\n",rank,device);CHKERRQ(ierr);
@@ -331,7 +330,6 @@ PetscErrorCode  PetscEnd(void)
 }
 
 PetscBool PetscOptionsPublish = PETSC_FALSE;
-PETSC_INTERN PetscErrorCode PetscSetUseHBWMalloc_Private(void);
 PETSC_INTERN PetscBool      petscsetmallocvisited;
 static       char           emacsmachinename[256];
 
@@ -398,7 +396,6 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-
 #if !defined(PETSC_HAVE_THREADSAFETY)
   if (!(PETSC_RUNNING_ON_VALGRIND)) {
     /*
@@ -449,10 +446,6 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
 
   ierr = PetscOptionsGetBool(NULL,NULL,"-malloc_coalesce",&flg1,&flg2);CHKERRQ(ierr);
   if (flg2) {ierr = PetscMallocSetCoalesce(flg1);CHKERRQ(ierr);}
-  flg1 = PETSC_FALSE;
-  ierr = PetscOptionsGetBool(NULL,NULL,"-malloc_hbw",&flg1,NULL);CHKERRQ(ierr);
-  /* ignore this option if malloc is already set */
-  if (flg1 && !petscsetmallocvisited) {ierr = PetscSetUseHBWMalloc_Private();CHKERRQ(ierr);}
 
   flg1 = PETSC_FALSE;
   ierr = PetscOptionsGetBool(NULL,NULL,"-malloc_info",&flg1,NULL);CHKERRQ(ierr);
@@ -787,7 +780,8 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
     ierr = (*PetscHelpPrintf)(comm," -options_file <file>: reads options from file\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -options_monitor: monitor options to standard output, including that set previously e.g. in option files\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -options_monitor_cancel: cancels all hardwired option monitors\n");CHKERRQ(ierr);
-    ierr = (*PetscHelpPrintf)(comm," -petsc_sleep n: sleeps n seconds before running program\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -petsc_sleep <int>: sleeps given seconds before running program\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm,"-----------------------------------------------\n");CHKERRQ(ierr);
   }
 
 #if defined(PETSC_HAVE_POPEN)

@@ -24,6 +24,7 @@ class Configure(config.package.Package):
     import nargs
     config.package.Package.setupHelp(self, help)
     help.addArgument('CUDA', '-with-cuda-gencodearch', nargs.ArgInt(None, 0, 'Cuda architecture for code generation (may be used by external packages)'))
+    help.addArgument('CUDA', '-with-cuda-unifiedmemory', nargs.ArgBool(None, 0, 'Use CudaMallocManaged() for PetscMalloc calls (experimental)'))
     return
 
   def setupDependencies(self, framework):
@@ -102,4 +103,6 @@ class Configure(config.package.Package):
     if gencodearch:
       self.gencodearch = str(gencodearch)
     self.addDefine('HAVE_CUDA','1')
+    if self.argDB['with-cuda-unifiedmemory']:
+      self.addDefine('USE_CUDA_UNIFIED_MEMORY','1')
     return
