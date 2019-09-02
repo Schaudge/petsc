@@ -19,7 +19,7 @@ typedef struct {
   PetscInt  maxbounces;
 } AppCtx;
 
-static PetscErrorCode Event(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
+static PetscErrorCode EventDetect(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
 {
   AppCtx            *app = (AppCtx*)ctx;
   Vec               V;
@@ -39,7 +39,7 @@ static PetscErrorCode Event(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ct
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PostEvent(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
+static PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 {
   AppCtx         *app = (AppCtx*)ctx;
   Vec            V;
@@ -156,7 +156,7 @@ int main(int argc,char **argv)
 
   direction[0] = -1; terminate[0] = PETSC_FALSE;
   direction[1] = -1; terminate[1] = PETSC_TRUE;
-  ierr = TSSetEventHandler(ts,2,direction,terminate,Event,PostEvent,&app);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,2,direction,terminate,EventDetect,EventHandle,&app);CHKERRQ(ierr);
 
   ierr = MatCreateAIJ(PETSC_COMM_WORLD,1,1,PETSC_DECIDE,PETSC_DECIDE,1,NULL,0,NULL,&J);CHKERRQ(ierr);
   ierr = MatSetFromOptions(J);CHKERRQ(ierr);

@@ -408,8 +408,8 @@ struct _n_TSEvent {
   PetscReal       postevent_dt;    /* time step to use immediately after the event interval */
   PetscReal       postevent_dtscale;  /* time step to use immediately after the event interval based on time-step before event was detected */
   PetscBool      *zerocrossing;    /* Flag to signal zero crossing detection */
-  PetscErrorCode  (*eventhandler)(TS,PetscReal,Vec,PetscScalar*,void*); /* User event handler function */
-  PetscErrorCode  (*postevent)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void*); /* User post event function */
+  PetscErrorCode  (*eventdetector)(TS,PetscReal,Vec,PetscScalar*,void*); /* User event handler function */
+  PetscErrorCode  (*eventhandler)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void*); /* User post event function */
   void           *ctx;              /* User context for event handler and post even functions */
   PetscInt       *direction;        /* Zero crossing direction: 1 -> Going positive, -1 -> Going negative, 0 -> Any */
   PetscBool      *terminate;        /* 1 -> Terminate time stepping, 0 -> continue */

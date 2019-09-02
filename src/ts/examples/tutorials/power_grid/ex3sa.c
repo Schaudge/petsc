@@ -175,7 +175,7 @@ int main(int argc,char **argv)
   direction[0] = direction[1] = 1;
   terminate[0] = terminate[1] = PETSC_FALSE;
 
-  ierr = TSSetEventHandler(ts,2,direction,terminate,EventFunction,PostEventFunction,(void*)&ctx);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,2,direction,terminate,EventDetect,EventHandle,(void*)&ctx);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Solve nonlinear system

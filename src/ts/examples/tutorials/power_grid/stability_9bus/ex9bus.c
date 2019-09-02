@@ -134,7 +134,7 @@ typedef struct {
   to check the min/max limits on the state variable VR. A non windup limiter is used for
   the VR limits.
 */
-PetscErrorCode EventFunction(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *ctx)
+PetscErrorCode EventDetect(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *ctx)
 {
   Userctx        *user=(Userctx*)ctx;
   Vec            Xgen,Xnet;
@@ -185,7 +185,7 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec X,PetscBool forwardsolve,void* ctx)
+PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec X,PetscBool forwardsolve,void* ctx)
 {
   Userctx *user=(Userctx*)ctx;
   Vec      Xgen,Xnet;
@@ -1167,7 +1167,7 @@ int main(int argc,char **argv)
     terminate[2+2*i] = terminate[2+2*i+1] = PETSC_FALSE;
   }
 
-  ierr = TSSetEventHandler(ts,2*ngen+2,direction,terminate,EventFunction,PostEventFunction,(void*)&user);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,2*ngen+2,direction,terminate,EventDetect,EventHandle,(void*)&user);CHKERRQ(ierr);
 
   if(user.semiexplicit) {
     /* Use a semi-explicit approach with the time-stepping done by an explicit method and the

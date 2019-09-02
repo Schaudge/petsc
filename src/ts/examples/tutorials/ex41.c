@@ -14,7 +14,7 @@ static char help[] = "Parallel bouncing ball example to test TS event feature.\n
 
 #include <petscts.h>
 
-PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
+PetscErrorCode EventDetect(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
 {
   PetscErrorCode    ierr;
   const PetscScalar *u;
@@ -27,7 +27,7 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
+PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 {
   PetscErrorCode ierr;
   PetscScalar    *u;
@@ -226,7 +226,7 @@ int main(int argc,char **argv)
   ierr = TSAdaptSetStepLimits(adapt,0.0,0.5);CHKERRQ(ierr);
 
   /* Set direction and terminate flag for the event */
-  ierr = TSSetEventHandler(ts,1,&direction,&terminate,EventFunction,PostEventFunction,NULL);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,1,&direction,&terminate,EventDetect,EventHandle,NULL);CHKERRQ(ierr);
 
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
@@ -245,7 +245,7 @@ int main(int argc,char **argv)
     ierr = TSRestartStep(ts);CHKERRQ(ierr);
     ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-    ierr = TSSetEventHandler(ts,1,&direction,&terminate,EventFunction,PostEventFunction,NULL);CHKERRQ(ierr);
+    ierr = TSSetEventHandler(ts,1,&direction,&terminate,EventDetect,EventHandle,NULL);CHKERRQ(ierr);
     ierr = TSGetAdapt(ts,&adapt);CHKERRQ(ierr);
     ierr = TSAdaptSetType(adapt,TSADAPTHISTORY);CHKERRQ(ierr);
     ierr = TSGetTrajectory(ts,&tj);CHKERRQ(ierr);

@@ -5443,7 +5443,7 @@ For problems that involve discontinuous right hand sides, one can set an ``event
 $ g(t,u) $ for PETSc to detect and locate the times of discontinuities (zeros of $g(t,u)$). Events can be defined through the
 event monitoring routine
 \begin{lstlisting}
-TSSetEventHandler(TS ts,PetscInt nevents,PetscInt *direction,PetscBool *terminate,PetscErrorCode (*eventhandler)(TS,PetscReal,Vec,PetscScalar*,void* eventP),PetscErrorCode (*postevent)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void* eventP),void *eventP);
+TSSetEventHandler(TS ts,PetscInt nevents,PetscInt *direction,PetscBool *terminate,PetscErrorCode (*eventdetector)(TS,PetscReal,Vec,PetscScalar*,void* eventP),PetscErrorCode (*eventhandler)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void* eventP),void *eventP);
 \end{lstlisting}
 Here, \lstinline{nevents} denotes the number of events, \lstinline{direction} sets the type of zero crossing to be detected for
 an event (+1 for positive zero-crossing, -1 for negative zero-crossing, and 0 for both), \lstinline{terminate} conveys whether

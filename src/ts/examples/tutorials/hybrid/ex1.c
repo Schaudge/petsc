@@ -23,7 +23,7 @@ typedef struct {
   PetscInt    mode;  /* mode flag*/
 } AppCtx;
 
-PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
+PetscErrorCode EventDetect(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
 {
   AppCtx         *actx=(AppCtx*)ctx;
   PetscErrorCode    ierr;
@@ -40,7 +40,7 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
+PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 {
   AppCtx         *actx=(AppCtx*)ctx;
   PetscErrorCode ierr;
@@ -191,7 +191,7 @@ int main(int argc,char **argv)
   /* Set directions and terminate flags for the two events */
   direction[0] = 0;
   terminate[0] = PETSC_FALSE;
-  ierr = TSSetEventHandler(ts,1,direction,terminate,EventFunction,PostEventFunction,(void*)&app);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,1,direction,terminate,EventDetect,EventHandle,(void*)&app);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Run timestepping solver

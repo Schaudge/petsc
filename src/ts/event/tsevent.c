@@ -12,9 +12,9 @@ PetscErrorCode TSEventInitialize(TSEvent event,TS ts,PetscReal t,Vec U)
   PetscValidPointer(event,1);
   PetscValidHeaderSpecific(ts,TS_CLASSID,2);
   PetscValidHeaderSpecific(U,VEC_CLASSID,4);
-  event->ptime_prev = t;
+  event->ptime_left = t;
   event->iterctr    = 0;
-  ierr = (*event->eventhandler)(ts,t,U,event->fvalue_prev,event->ctx);CHKERRQ(ierr);
+  ierr = (*event->eventdetector)(ts,t,U,event->fvalue_prev,event->ctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -46,25 +46,25 @@ PetscErrorCode TSEventDestroy(TSEvent *event)
 
   Input Arguments:
 + ts - time integration context
-- dt - post event interval scaling factor
+- dtscale - post event interval scaling factor
 
   Options Database Keys:
-. -ts_post_event_dt_scale <dt> -  scaling of time-step after event interval
+. -ts_post_event_dt_scale <dtscale> -  scaling of time-step after event interval
 
   Notes:
   The post event interval time-step should be selected based on the dynamics following the event.
-  If the dynamics are stiff, a conservative (small) step should be used.
-  If not, then a larger time-step can be used. TSSetPostEventTimeStep() can be used to set a particular given value for the post event timestep
+  If the dynamics are stiff, a conservative (small) value should be used.
+  If not, then a larger value can be used. TSSetPostEventTimeStep() can be used to set a particular given value for the post event timestep
 
   Level: advanced
 
   .seealso: TS, TSEvent, TSSetEventHandler(), TSSetPostEventTimeStep()
 @*/
-PetscErrorCode TSSetPostEventTimeStepScale(TS ts,PetscReal dt)
+PetscErrorCode TSSetPostEventTimeStepScale(TS ts,PetscReal dtscale)
 {
   PetscFunctionBegin;
-  if (dt <= 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Post event timestep scale must be positive");
-  ts->event->postevent_dtscale = dt;
+  if (dtscale <= 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Post event timestep scale must be positive");
+  ts->event->postevent_dtscale = dtscale;
   PetscFunctionReturn(0);
 }
 
@@ -99,7 +99,7 @@ PetscErrorCode TSSetPostEventTimeStep(TS ts,PetscReal dt)
 }
 
 /*@
-   TSSetEventTolerance - Set tolerance for event zero crossings when using event handler, this is relative to the time-step size
+   TSSetEventTolerance - Set tolerance for event zero crossings when using event handler, this is relative to the current time-step size
 
    Logically Collective
 
@@ -128,7 +128,7 @@ PetscErrorCode TSSetEventTolerance(TS ts,PetscReal tol)
 }
 
 /*@C
-   TSSetEventHandler - Sets a function used for detecting events
+   TSSetEventHandler - Sets a function used for detecting events and for handling it (making chanages in the problem being solved)
 
    Logically Collective on TS
 
@@ -144,8 +144,8 @@ PetscErrorCode TSSetEventTolerance(TS ts,PetscReal tol)
 -  ctx       - [optional] user-defined context for private data for the event function and post event routine (use NULL if no
                context is desired)
 
-   Calling sequence of eventhandler:
-   PetscErrorCode PetscEventHandler(TS ts,PetscReal t,Vec U,PetscScalar fvalue[],void* ctx)
+   Calling sequence of eventdetector:
+   PetscErrorCode eventdetector(TS ts,PetscReal t,Vec U,PetscScalar fvalue[],void* ctx)
 
    Input Parameters:
 +  ts  - the TS context
@@ -156,8 +156,8 @@ PetscErrorCode TSSetEventTolerance(TS ts,PetscReal tol)
    Output parameters:
 .  fvalue    - function value of events at time t
 
-   Calling sequence of postevent:
-   PetscErrorCode PostEvent(TS ts,PetscInt nevents_zero,PetscInt events_zero[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
+   Calling sequence of eventhandler:
+   PetscErrorCode eventhandler(TS ts,PetscInt nevents_zero,PetscInt events_zero[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 
    Input Parameters:
 +  ts - the TS context
@@ -172,7 +172,7 @@ PetscErrorCode TSSetEventTolerance(TS ts,PetscReal tol)
 
 .seealso: TSCreate(), TSSetTimeStep(), TSSetConvergedReason()
 @*/
-PetscErrorCode TSSetEventHandler(TS ts,PetscInt nevents,PetscInt direction[],PetscBool terminate[],PetscErrorCode (*eventhandler)(TS,PetscReal,Vec,PetscScalar[],void*),PetscErrorCode (*postevent)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void*),void *ctx)
+PetscErrorCode TSSetEventHandler(TS ts,PetscInt nevents,PetscInt direction[],PetscBool terminate[],PetscErrorCode (*eventdetector)(TS,PetscReal,Vec,PetscScalar[],void*),PetscErrorCode (*eventhandler)(TS,PetscInt,PetscInt[],PetscReal,Vec,PetscBool,void*),void *ctx)
 {
   PetscErrorCode ierr;
   TSEvent        event;
@@ -197,7 +197,7 @@ PetscErrorCode TSSetEventHandler(TS ts,PetscInt nevents,PetscInt direction[],Pet
   }
   event->nevents           = nevents;
   event->eventhandler      = eventhandler;
-  event->postevent         = postevent;
+  event->eventdetector     = eventdetector;
   event->ctx               = ctx;
   event->postevent_dt      = PETSC_DECIDE;
   event->postevent_dtscale = 1.0;
@@ -206,7 +206,7 @@ PetscErrorCode TSSetEventHandler(TS ts,PetscInt nevents,PetscInt direction[],Pet
   ierr = PetscOptionsBegin(((PetscObject)ts)->comm,((PetscObject)ts)->prefix,"TS Event options","TS");CHKERRQ(ierr);
   {
     event->tol = 1.e-3;
-    ierr = PetscOptionsReal("-ts_event_tol","Scalar event tolerance for zero crossing check","TSSetEventTolerances",event->tol,&event->tol,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-ts_event_tol","Scalar event tolerance for zero crossing check","TSSetEventTolerance",event->tol,&event->tol,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsName("-ts_event_monitor","Print choices made by event handler","",&flg);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-ts_event_recorder_initial_size","Initial size of event recorder","",event->recsize,&event->recsize,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-ts_event_post_event_dt","Time step after event detected","TSSetEventPostTimeStep",event->postevent_dt,&event->postevent_dt,NULL);CHKERRQ(ierr);
@@ -264,18 +264,17 @@ static PetscErrorCode TSEventRecorderResize(TSEvent event)
   ierr = PetscFree4(event->recorder.eventidx,event->recorder.nevents,event->recorder.stepnum,event->recorder.time);CHKERRQ(ierr);
 
   /* Set pointers */
-  event->recorder.time = time;
-  event->recorder.stepnum = stepnum;
-  event->recorder.nevents = nevents;
+  event->recorder.time     = time;
+  event->recorder.stepnum  = stepnum;
+  event->recorder.nevents  = nevents;
   event->recorder.eventidx = eventidx;
 
-  /* Double size */
   event->recsize *= fact;
   PetscFunctionReturn(0);
 }
 
 /*
-   Helper routine to handle user postevents and recording
+   Helper routine to manage user handler and recording
 */
 static PetscErrorCode TSPostEvent(TS ts,PetscReal t,Vec U)
 {
@@ -288,10 +287,10 @@ static PetscErrorCode TSPostEvent(TS ts,PetscReal t,Vec U)
   PetscBool      forwardsolve = PETSC_TRUE; /* Flag indicating that TS is doing a forward solve */
 
   PetscFunctionBegin;
-  if (event->postevent) {
+  if (event->eventhandler) {
     PetscObjectState state_prev,state_post;
     ierr = PetscObjectStateGet((PetscObject)U,&state_prev);CHKERRQ(ierr);
-    ierr = (*event->postevent)(ts,event->nevents_zero,event->events_zero,t,U,forwardsolve,event->ctx);CHKERRQ(ierr);
+    ierr = (*event->eventhandler)(ts,event->nevents_zero,event->events_zero,t,U,forwardsolve,event->ctx);CHKERRQ(ierr);
     ierr = PetscObjectStateGet((PetscObject)U,&state_post);CHKERRQ(ierr);
     if (state_prev != state_post) restart = PETSC_TRUE;
   }
@@ -305,14 +304,14 @@ static PetscErrorCode TSPostEvent(TS ts,PetscReal t,Vec U)
   if (terminate) {ierr = TSSetConvergedReason(ts,TS_CONVERGED_EVENT);CHKERRQ(ierr);}
 
   /* Reset event residual functions as states might get changed by the postevent callback */
-  if (event->postevent) {
+  if (event->eventhandler) {
     ierr = VecLockReadPush(U);CHKERRQ(ierr);
-    ierr = (*event->eventhandler)(ts,t,U,event->fvalue,event->ctx);CHKERRQ(ierr);
+    ierr = (*event->eventdetector)(ts,t,U,event->fvalue,event->ctx);CHKERRQ(ierr);
     ierr = VecLockReadPop(U);CHKERRQ(ierr);
   }
 
   /* Cache current time and event residual functions */
-  event->ptime_prev = t;
+  event->ptime_left = t;
   for (i=0; i<event->nevents; i++) event->fvalue_prev[i] = event->fvalue[i];
 
   /* Record the event in the event recorder */
@@ -383,7 +382,7 @@ PetscErrorCode TSEventHandler(TS ts)
 
   /* evalute the sign crossing functions at current time */
   ierr = VecLockReadPush(U);CHKERRQ(ierr);
-  ierr = (*event->eventhandler)(ts,t,U,event->fvalue,event->ctx);CHKERRQ(ierr);
+  ierr = (*event->eventdetector)(ts,t,U,event->fvalue,event->ctx);CHKERRQ(ierr);
   ierr = VecLockReadPop(U);CHKERRQ(ierr);
 
   /* check for any events that have sign crossings between current time and previous time */
@@ -539,8 +538,8 @@ PetscErrorCode TSAdjointEventHandler(TS ts)
   ctr = event->recorder.ctr-1;
   if (ctr >= 0 && PetscAbsReal(t - event->recorder.time[ctr]) < PETSC_SMALL) {
     /* Call the user postevent function */
-    if (event->postevent) {
-      ierr = (*event->postevent)(ts,event->recorder.nevents[ctr],event->recorder.eventidx[ctr],t,U,PETSC_FALSE,event->ctx);CHKERRQ(ierr);
+    if (event->eventhandler) {
+      ierr = (*event->eventhandler)(ts,event->recorder.nevents[ctr],event->recorder.eventidx[ctr],t,U,PETSC_FALSE,event->ctx);CHKERRQ(ierr);
       event->recorder.ctr--;
     }
   }

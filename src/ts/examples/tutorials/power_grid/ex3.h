@@ -15,7 +15,7 @@ typedef struct {
 } AppCtx;
 
 /* Event check */
-PetscErrorCode EventFunction(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *ctx)
+PetscErrorCode EventDetect(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *ctx)
 {
   AppCtx *user=(AppCtx*)ctx;
 
@@ -28,7 +28,7 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec X,PetscBool forwardsolve,void* ctx)
+PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec X,PetscBool forwardsolve,void* ctx)
 {
   AppCtx *user=(AppCtx*)ctx;
   PetscErrorCode    ierr;

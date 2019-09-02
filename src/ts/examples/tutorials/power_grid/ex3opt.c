@@ -156,7 +156,7 @@ int main(int argc,char **argv)
 
   direction[0] = direction[1] = 1;
   terminate[0] = terminate[1] = PETSC_FALSE;
-  ierr = TSSetEventHandler(ctx.ts,2,direction,terminate,EventFunction,PostEventFunction,&ctx);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ctx.ts,2,direction,terminate,EventDetect,EventHandle,&ctx);CHKERRQ(ierr);
 
   /* Create TAO solver and set desired solution method */
   ierr = TaoCreate(PETSC_COMM_WORLD,&tao);CHKERRQ(ierr);

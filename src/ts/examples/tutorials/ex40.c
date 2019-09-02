@@ -20,7 +20,7 @@ typedef struct {
 /*
      A sign change in this function indicates the location of the event
 */
-PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
+PetscErrorCode EventDetect(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
 {
   AppCtx            *app=(AppCtx*)ctx;
   PetscErrorCode    ierr;
@@ -39,7 +39,7 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *c
 /*
     This changes the physical model after the event is detected, the velocity of the ball is scaled and flipped
 */
-PetscErrorCode PostEventFunction(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
+PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 {
   AppCtx         *app=(AppCtx*)ctx;
   PetscErrorCode ierr;
@@ -259,7 +259,7 @@ int main(int argc,char **argv)
   /* Set directions and terminate flags for the two events */
   direction[0] = -1;            direction[1] = -1;
   terminate[0] = PETSC_FALSE;   terminate[1] = PETSC_TRUE;
-  ierr = TSSetEventHandler(ts,2,direction,terminate,EventFunction,PostEventFunction,(void*)&app);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,2,direction,terminate,EventDetect,EventHandle,(void*)&app);CHKERRQ(ierr);
 
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 

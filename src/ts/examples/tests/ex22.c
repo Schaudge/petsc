@@ -66,7 +66,7 @@ PetscErrorCode InitialConditions(Vec U,DM da,AppCtx *app)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
+PetscErrorCode EventDetect(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *ctx)
 {
   AppCtx            *app=(AppCtx*)ctx;
   PetscErrorCode    ierr;
@@ -81,7 +81,7 @@ PetscErrorCode EventFunction(TS ts,PetscReal t,Vec U,PetscScalar *fvalue,void *c
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PostEventFunction(TS ts,PetscInt nevents_zero,PetscInt events_zero[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
+PetscErrorCode EventHandle(TS ts,PetscInt nevents_zero,PetscInt events_zero[],PetscReal t,Vec U,PetscBool forwardsolve,void* ctx)
 {
   AppCtx         *app=(AppCtx*)ctx;
   PetscInt       i,idx;
@@ -251,7 +251,7 @@ int main(int argc,char **argv)
     direction[i] = -1;
     terminate[i] = PETSC_FALSE;
   }
-  ierr = TSSetEventHandler(ts,lsize,direction,terminate,EventFunction,PostEventFunction,(void*)&app);CHKERRQ(ierr);
+  ierr = TSSetEventHandler(ts,lsize,direction,terminate,EventDetect,EventHandle,(void*)&app);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Run timestepping solver
