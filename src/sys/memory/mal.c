@@ -15,6 +15,12 @@ PetscMemkindType previousmktype = PETSC_MK_HBW_PREFERRED;
 #endif
 #if defined(PETSC_HAVE_CUDA)
 #define PETSC_USE_CUDA_UNIFIED_MEMORY 1
+
+typedef enum {
+  PETSC_MALLOC_HOST = 0,
+  PETSC_MALLOC_SHARED
+} PetscMallocType;
+
 #include <cuda_runtime.h>
 #endif
 
@@ -35,21 +41,31 @@ PETSC_EXTERN PetscErrorCode PetscMallocAlign(size_t mem,PetscBool clear,int line
   if (!mem) {*result = NULL; return 0;}
 #if defined(PETSC_USE_CUDA_UNIFIED_MEMORY)
   {
-    void   *ptr;
-    int    shift;
-    size_t sm = PETSC_MEMALIGN;
-    size_t sp = sizeof(void*);
-    size_t ss = sizeof(size_t);
-    size_t len = mem + sm + sp + ss;
-    ierr = cudaMallocManaged(&ptr,len,cudaMemAttachHost);
-    if (ierr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(ierr));
-    if (clear) memset((char*)ptr,0,len);
-    shift   = PETSC_MEMALIGN - (int)((PETSC_UINTPTR_T)((char*)ptr + ss + sp) % PETSC_MEMALIGN);
+    PetscMallocType mtype;
+    void            *ptr;
+    int             shift;
+    const size_t    sm = PETSC_MEMALIGN;
+    const size_t    sp = sizeof(void*);
+    const size_t    ss = sizeof(size_t);
+    const size_t    se = sizeof(PetscMallocType);
+    const size_t    len = mem + sm + sp + ss + se;
 
-    /* store "allocated" memory, "allocated" memory size and original pointer, so that we can realloc and free */
-    *result = (void*)((char*)ptr + ss + sp + shift);
-    *((size_t*)((char*)*result - ss))     = mem;
-    *((void**)((char*)*result - ss - sp)) = ptr;
+    if (!PetscCUDAInitialized) { /* we can add customization */
+      ptr   = malloc(len);
+      mtype = PETSC_MALLOC_HOST;
+    } else {
+      ierr  = cudaMallocManaged(&ptr,len,cudaMemAttachHost);
+      if (ierr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(ierr));
+      mtype = PETSC_MALLOC_SHARED;
+    }
+    if (clear) memset((char*)ptr,0,len);
+    shift = PETSC_MEMALIGN - (int)((PETSC_UINTPTR_T)((char*)ptr + ss + sp + se) % PETSC_MEMALIGN);
+
+    /* store "allocated" memory, "allocated" memory size, allocation type and original pointer, so that we can realloc and free */
+    *result = (void*)((char*)ptr + ss + sp + se + shift);
+    *((PetscMallocType*)((char*)*result - se)) = mtype;
+    *((size_t*)((char*)*result - ss - se))     = mem;
+    *((void**)((char*)*result - sp - ss - se)) = ptr;
     return 0;
   }
 #elif defined(PETSC_HAVE_MEMKIND)
@@ -109,11 +125,29 @@ PETSC_EXTERN PetscErrorCode PetscFreeAlign(void *ptr,int line,const char func[],
   if (!ptr) return 0;
 #if defined(PETSC_USE_CUDA_UNIFIED_MEMORY)
   {
-    size_t sp = sizeof(void*);
-    size_t ss = sizeof(size_t);
-    ptr = *((void**)((char*)ptr - ss - sp));
-    ierr = cudaFree(ptr);
-    if (ierr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(ierr));
+    PetscMallocType mtype;
+    const size_t se = sizeof(PetscMallocType);
+    const size_t sp = sizeof(void*);
+    const size_t ss = sizeof(size_t);
+
+    mtype = *((PetscMallocType*)((char*)ptr - se));
+    ptr   = *((void**)((char*)ptr - ss - sp - se));
+    switch (mtype) {
+    case PETSC_MALLOC_HOST:
+#if defined(PETSC_HAVE_FREE_RETURN_INT)
+      {
+        int err = free(ptr);
+        if (err) return PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"System free returned error %d",err);
+      }
+#else
+      free(ptr);
+#endif
+      break;
+    case PETSC_MALLOC_SHARED:
+      ierr = cudaFree(ptr);
+      if (ierr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(ierr));
+      break;
+    }
     return 0;
   }
 #elif defined(PETSC_HAVE_MEMKIND)
@@ -154,16 +188,17 @@ PETSC_EXTERN PetscErrorCode PetscReallocAlign(size_t mem, int line, const char f
   }
 #if defined(PETSC_USE_CUDA_UNIFIED_MEMORY)
   {
-    size_t sp    = sizeof(void*);
-    size_t ss    = sizeof(size_t);
-    size_t omem  = ((size_t*)((char*)*result - ss))[0];
-    void   *optr = *((void**)((char*)*result - ss - sp));
-    void   *oresult = *result;
 
-    ierr = PetscMallocAlign(mem,PETSC_FALSE,line,func,file,result);if (ierr) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap");
-    ierr = PetscMemcpy(*result,oresult,omem);if (ierr) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap");
-    ierr = cudaFree(optr);
-    if (ierr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(ierr));
+    void            *newResult;
+    const size_t    sp    = sizeof(void*);
+    const size_t    ss    = sizeof(size_t);
+    const size_t    se    = sizeof(PetscMallocType);
+    const size_t    omem  = *((size_t*)((char*)*result - ss - se));
+
+    ierr = PetscMallocAlign(mem,PETSC_FALSE,line,func,file,&newResult);if (ierr) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_REPEAT,"Likely memory corruption in heap");
+    ierr = PetscMemcpy(newResult,*result,PetscMin(omem,mem));if (ierr) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_REPEAT,"Likely memory corruption in heap");
+    ierr = PetscFreeAlign(*result,line,func,file); if (ierr) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_REPEAT,"Likely memory corruption in heap");
+    *result = newResult;
     return 0;
   }
 #else

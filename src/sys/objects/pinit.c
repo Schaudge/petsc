@@ -971,7 +971,6 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
   ierr = MPI_Type_commit(&MPIU_2INT);CHKERRQ(ierr);
 #endif
 
-
   /*
      Attributes to be set on PETSc communicators
   */
@@ -987,6 +986,17 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
   /* call a second time so it can look in the options database */
   ierr = PetscErrorPrintfInitialize();CHKERRQ(ierr);
+
+#if defined(PETSC_HAVE_CUDA)
+  {
+    PetscBool initCuda = PETSC_TRUE;
+    ierr = PetscOptionsGetBool(NULL,NULL,"-cuda_initialize",&initCuda,NULL);CHKERRQ(ierr);
+    if (initCuda) {
+      ierr = PetscCUDAInitialize(PETSC_COMM_WORLD);CHKERRQ(ierr);
+      PetscCUDAInitialized = PETSC_TRUE;
+    }
+  }
+#endif
 
   /*
      Print main application help message

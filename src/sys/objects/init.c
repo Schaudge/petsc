@@ -248,8 +248,7 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
     PetscBool setflg = PETSC_TRUE;
 
     ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-
-    if (size>1 && !flg) {
+    if (size > 1 && !flg) {
       /* check to see if we force multiple ranks to hit the same GPU */
       /* we're not using the same GPU on multiple MPI threads. So try to allocated different   GPUs to different processes */
 
@@ -377,17 +376,9 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   PetscViewerFormat format;
   PetscBool         flg4 = PETSC_FALSE;
 #endif
-#if defined(PETSC_HAVE_CUDA)
-  PetscBool         initCuda = PETSC_TRUE;
-#endif
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
-  ierr = PetscOptionsGetBool(NULL,NULL,"-cuda_initialize",&initCuda,NULL);CHKERRQ(ierr);
-  if (initCuda) {ierr = PetscCUDAInitialize(PETSC_COMM_WORLD);CHKERRQ(ierr);}
-#endif
-
 #if !defined(PETSC_HAVE_THREADSAFETY)
   /*
       Setup the memory management; support for tracing malloc() usage
@@ -717,9 +708,11 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
 #endif
     ierr = (*PetscHelpPrintf)(comm," -v: prints PETSc version number and release date\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -options_file <file>: reads options from file\n");CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
     ierr = (*PetscHelpPrintf)(comm," -cuda_set_device <int>: sets all MPI ranks to use the specified CUDA device\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -cuda_synchronize: waits for the GPU to complete operations before returning to the CPU\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -cuda_view: displays CUDA device information and assignments\n");CHKERRQ(ierr);
+#endif
     ierr = (*PetscHelpPrintf)(comm," \n");CHKERRQ(ierr);
   }
 
