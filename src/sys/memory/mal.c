@@ -66,6 +66,9 @@ PETSC_EXTERN PetscErrorCode PetscMallocAlign(size_t mem,PetscBool clear,int line
     *((PetscMallocType*)((char*)*result - se)) = mtype;
     *((size_t*)((char*)*result - ss - se))     = mem;
     *((void**)((char*)*result - sp - ss - se)) = ptr;
+#if defined(PETSC_USE_DEBUG)
+    if (((size_t) (*result)) % PETSC_MEMALIGN) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Unaligned memory generated! Expected %d, shift %d",PETSC_MEMALIGN,((size_t) (*result)) % PETSC_MEMALIGN); 
+#endif
     return 0;
   }
 #elif defined(PETSC_HAVE_MEMKIND)
