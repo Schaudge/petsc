@@ -11,7 +11,7 @@ class Configure(config.package.GNUPackage):
     self.requiresversion = 1
     #self.gitcommit       = 'v'+self.version
     #self.download        = ['git://https://github.com/hypre-space/hypre','https://github.com/hypre-space/hypre/archive/'+self.gitcommit+'.tar.gz']
-    self.gitcommit       = '207678e3'
+    self.gitcommit       = '7aedddf'
     self.download        = ['git://https://bitbucket.org/petsc/pkg-hypre.git']
     self.functions       = ['HYPRE_IJMatrixCreate']
     self.includes        = ['HYPRE.h']
