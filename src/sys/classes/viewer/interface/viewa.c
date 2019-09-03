@@ -8,6 +8,7 @@ const char *const PetscViewerFormats[] = {
   "ASCII_IMPL",
   "ASCII_INFO",
   "ASCII_INFO_DETAIL",
+  "ASCII_INFO_CONCISE",
   "ASCII_COMMON",
   "ASCII_SYMMODU",
   "ASCII_INDEX",
