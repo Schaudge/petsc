@@ -1882,4 +1882,11 @@ int main(int argc, char **argv)
       args: -distribute -petscpartitioner_type parmetis
       args: -interpolate parallel           #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
 
+  testset:
+    args: -cell_simplex 0 -dm_view ascii::ascii_info_concise
+    test:
+      suffix: 10_dmplex_view_concise_seq_noninterp
+      nsize: 1
+      args: -interpolate none
+
 TEST*/
