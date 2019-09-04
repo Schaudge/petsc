@@ -1588,7 +1588,7 @@ int main(int argc, char **argv)
     args: -dm_plex_check_all
     test:
       suffix: 2
-      args: -dm_view ascii::ascii_info_detail 
+      args: -dm_view ascii::ascii_info_detail
     test:
       suffix: 2a
       args: -dm_plex_check_cones_conform_on_interfaces_verbose
@@ -1883,10 +1883,38 @@ int main(int argc, char **argv)
       args: -interpolate parallel           #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
 
   testset:
-    args: -cell_simplex 0 -dm_view ascii::ascii_info_concise
+    suffix: 10
+    args: -use_generator -cell_simplex 0 -dm_view ascii::ascii_info_concise
     test:
-      suffix: 10_dmplex_view_concise_seq_noninterp
+      suffix: 2D_dmplex_view_concise_seq_noninterp
       nsize: 1
-      args: -interpolate none
-
+      args: -interpolate none -dim 2 -faces 2,2
+    test:
+      suffix: 2D_dmplex_view_concise_seq_interp
+      nsize: 1
+      args: -interpolate serial -dim 2 -faces 2,2
+    test:
+      suffix: 3D_dmplex_view_concise_seq_noninterp
+      nsize: 1
+      args: -interpolate none -dim 3 -faces 2,2,2
+    test:
+      suffix: 3D_dmplex_view_concise_seq_interp
+      nsize: 1
+      args: -interpolate serial -dim 3 -faces 2,2,2
+    test:
+      suffix: 2D_dmplex_view_concise_par_noninterp
+      nsize: 2
+      args: -distribute -interpolate none -dim 2 -faces 2,2
+    test:
+      suffix: 2D_dmplex_view_concise_par_interp
+      nsize: 2
+      args: -distribute -interpolate serial -dim 2 -faces 2,2
+    test:
+      suffix: 3D_dmplex_view_concise_par_noninterp
+      nsize: 2
+      args: -distribute -interpolate none -dim 3 -faces 2,2,2
+    test:
+      suffix: 3D_dmplex_view_concise_par_interp
+      nsize: 2
+      args: -distribute -interpolate serial -dim 3 -faces 2,2,2
 TEST*/

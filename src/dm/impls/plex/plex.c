@@ -1067,7 +1067,6 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         dmDistributed = PETSC_TRUE;
       }
     }
-
     /* Global and Local Sizing	*/
     ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
     ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
@@ -1081,7 +1080,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
       /* In case that dm is not interpolated, will only have cell-vertex mesh */
       if ((dim == 2) && (i == depth)) { i = 3;}
       /* For 2D calls the faces "cells"       */
-      PetscInt	max = 0;
+      PetscInt	max = 0, tempi = i;
       switch (i)
       {
       case 0:
@@ -1114,8 +1113,8 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        if (dim == 2) i = 2; //result of hacking faces = cells
-        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
+        if (dim == 2) { tempi = depth;} //result of hacking faces = cells
+        ierr = DMPlexGetXXXPerProcess(dm, tempi, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
         break;
       default:
         SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Depth of %d is not supported!\n", i);
@@ -7106,7 +7105,7 @@ PetscErrorCode DMPlexGetEdgeNumbering(DM dm, IS *globalEdgeNumbers)
 
         PetscFunctionBegin;
         PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-        if (!mesh->globalEdgeNumbers) {ierr = DMPlexCreateFaceNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalEdgeNumbers);CHKERRQ(ierr);}
+        if (!mesh->globalEdgeNumbers) {ierr = DMPlexCreateEdgeNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalEdgeNumbers);CHKERRQ(ierr);}
         *globalEdgeNumbers = mesh->globalEdgeNumbers;
         PetscFunctionReturn(0);
 }
