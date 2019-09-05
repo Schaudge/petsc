@@ -53,12 +53,12 @@ int main(int argc, char **argv)
   MPI_Comm              comm;
   PetscErrorCode        ierr;
   DM                    dm, dmDist;
-  IS                    bcPointsIS, globalCellIS;
+  IS                    bcPointsIS, globalCellIS, vertexIS;
   Vec			coords, refCoords, cellGeom, faceGeom;
   PetscSection          section;
-  PetscInt              overlap = 0, i, dim = 2, conesize, numFields = 1, numBC = 1, size;
+  PetscInt              overlap = 0, i, dim = 2, conesize, numFields = 1, numBC = 1, size, vsize, cEnd;
   PetscInt		faces[dim], bcField[numBC];
-  const PetscInt	*ptr;
+  const PetscInt	*ptr, *vptr;
   PetscScalar		*coordArray, refArray[8] = {0, 0, 1, 0, 0, 1, 1, 1};
   PetscReal             *v0, *J, *invJ, detJ;
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE;
@@ -90,21 +90,43 @@ int main(int argc, char **argv)
   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 
   //ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
-  ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
+  //ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
 
   ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
+  ierr = DMGetStratumIS(dm, "depth", 0, &vertexIS);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(dm, 0, NULL, &cEnd);CHKERRQ(ierr);
   ierr = ISGetIndices(globalCellIS, &ptr);CHKERRQ(ierr);
+  ierr = ISGetIndices(vertexIS, &vptr);CHKERRQ(ierr);
   ierr = DMPlexGetConeSize(dm, ptr[0], &conesize);CHKERRQ(ierr);
   ierr = ISGetSize(globalCellIS, &size);CHKERRQ(ierr);
+  ierr = ISGetSize(vertexIS, &vsize);CHKERRQ(ierr);
 
   ierr = DMGetCoordinates(dm, &coords);CHKERRQ(ierr);
   ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
   ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, dim*conesize, refArray, &refCoords);CHKERRQ(ierr);
+  printf("numCoords: %d\n", vsize);
+  for (i = 0; i < vsize; i++) {
+    PetscScalar	vertex = vptr[i];
+    PetscInt	*points;
+    PetscInt	numPoints, j, actualj, point;
+
+    ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
+    printf("VERTEX: %.1f -> ", vertex);
+    PetscIntView(2*numPoints, points, 0);
+    for (j = 0; j < numPoints; j++) {
+      actualj = 2*j;
+      point = points[actualj];
+      if (point < cEnd) {
+        printf("cell!: %d\n", point);
+      }
+    }
+    ierr = DMPlexRestoreTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
+  }
 
   VecView(coords, 0);
-  VecView(refCoords, 0);
-  DMView(dm, 0);
-  ISView(globalCellIS, 0);
+  //VecView(refCoords, 0);
+  //DMView(dm, 0);
+  //ISView(globalCellIS, 0);
   ierr = DMPlexComputeGeometryFVM(dm, &cellGeom, &faceGeom);CHKERRQ(ierr);
   //VecView(cellGeom,0);
   //VecView(faceGeom,0);
@@ -119,7 +141,6 @@ int main(int argc, char **argv)
     printf("===\n");
   }
 
-  //ierr = ISRestoreIndices(globalCellIS, &ptr);CHKERRQ(ierr);
   ierr = VecDestroy(&refCoords);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
