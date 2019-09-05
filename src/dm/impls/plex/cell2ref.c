@@ -144,7 +144,7 @@ int main(int argc, char **argv)
   PetscInt              overlap = 0, i, dim = 2, conesize, numFields = 1, numBC = 1, size, vsize, cEnd;
   PetscInt		faces[dim], bcField[numBC];
   const PetscInt	*ptr, *vptr;
-  PetscScalar		*coordArray, refArray[8] = {0, 0, 1, 0, 0, 1, 1, 1};
+  PetscScalar		*coordArray, refArray[8] = {0, 0, 1, 0, 0, 1, 1, 1}, *BIGX2Rmat, *BIGR2Xmat;
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE;
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, NULL);if(ierr){ return ierr;}
@@ -190,27 +190,39 @@ int main(int argc, char **argv)
   ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, dim*conesize, refArray, &refCoords);CHKERRQ(ierr);
   for (i = 0; i < vsize; i++) {
     PetscInt	vertex = vptr[i];
-    PetscInt	*points;
-    PetscInt	numPoints, j, actualj, cell;
+    PetscInt	*points, *foundcells;
+    PetscInt	numPoints, j, actualj, cell, k;
 
     ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
     printf("VERTEX# : %d -> (%.1f , %.1f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
     PetscIntView(2*numPoints, points, 0);
     printf("--------\n");
+    ierr = PetscCalloc1(4, &foundcells);CHKERRQ(ierr);
+    k = 0;
     for (j = 0; j < numPoints; j++) {
       actualj = 2*j;
       cell = points[actualj];
       if (cell < cEnd) {
-        PetscScalar	*R2Xmat, *X2Rmat;
-
-        ierr = PetscCalloc1(dim*dim, &R2Xmat);CHKERRQ(ierr);
-        ierr = PetscCalloc1(dim*dim, &X2Rmat);CHKERRQ(ierr);
-        printf("cell!: %d\n", cell);
-        ierr = ComputeR2X2RMapping(dm, vertex, cell, R2Xmat, X2Rmat);CHKERRQ(ierr);
-
-
+        foundcells[k] = cell;
+        k++;
       }
     }
+    printf("For Vertex %d found %d cells\n", vertex, k);
+    ierr = PetscCalloc1(k*dim*dim, &BIGR2Xmat);CHKERRQ(ierr);
+    ierr = PetscCalloc1(k*dim*dim, &BIGX2Rmat);CHKERRQ(ierr);
+    for (j = 0; j < k; j++) {
+      PetscScalar	*R2Xmat, *X2Rmat;
+
+      ierr = PetscCalloc1(dim*dim, &R2Xmat);CHKERRQ(ierr);
+      ierr = PetscCalloc1(dim*dim, &X2Rmat);CHKERRQ(ierr);
+      printf("cell!: %d\n", cell);
+      ierr = ComputeR2X2RMapping(dm, vertex, cell, R2Xmat, X2Rmat);CHKERRQ(ierr);
+      ierr = PetscArraycpy(&BIGR2Xmat[j*dim*dim], &R2Xmat, dim*dim);CHKERRQ(ierr);
+      ierr = PetscArraycpy(&BIGX2Rmat[j*dim*dim], &X2Rmat, dim*dim);CHKERRQ(ierr);
+      ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
+      ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
+    }
+    PetscRealView(k*dim*dim, BIGR2Xmat, 0);
     printf("--------\n");
     ierr = DMPlexRestoreTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
   }
@@ -223,6 +235,8 @@ int main(int argc, char **argv)
   //VecView(cellGeom,0);
   //VecView(faceGeom,0);
 
+  ierr = PetscFree(BIGX2Rmat);CHKERRQ(ierr);
+  ierr = PetscFree(BIGR2Xmat);CHKERRQ(ierr);
   ierr = VecDestroy(&refCoords);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
