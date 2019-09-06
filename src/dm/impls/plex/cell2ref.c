@@ -1,4 +1,5 @@
 # include <petscdmplex.h>
+# include <petscviewer.h>
 #include <petsc/private/dmpleximpl.h>
 
 PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
@@ -14,12 +15,12 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
 
         // Order in coordarray is [x1,y1,z1....]
         for (i = 0; i < nCoords; i++) {
-          //if ((i < 6) || (i > 11)) {
+          if ((i < 6) || (i > 11)) {
             if (i % 2) {
               coordArray[i-1] = lx*coordArray[i-1];
               coordArray[i] = ly*coordArray[i];
             }
-            //}
+          }
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
@@ -181,7 +182,6 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   ierr = PetscFree(nodupidx);CHKERRQ(ierr);
   ierr = PetscFree(xtilde);CHKERRQ(ierr);
   ierr = PetscFree(rtilde);CHKERRQ(ierr);
-
   return ierr;
 }
 
@@ -189,18 +189,22 @@ int main(int argc, char **argv)
 {
   MPI_Comm              comm;
   PetscErrorCode        ierr;
+  PetscViewer		viewer;
   DM                    dm, dmDist;
   IS                    bcPointsIS, globalCellIS, vertexIS;
-  Vec			coords, refCoords, cellGeom, faceGeom;
+  Vec			coords;
   PetscSection          section;
   PetscInt              overlap = 0, i, dim = 2, conesize, numFields = 1, numBC = 1, size, vsize, cEnd;
   PetscInt		faces[dim], bcField[numBC];
   const PetscInt	*ptr, *vptr;
-  PetscScalar		*coordArray, refArray[8] = {0, 0, 1, 0, 0, 1, 1, 1};
+  PetscScalar		*coordArray;
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE;
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, NULL);if(ierr){ return ierr;}
   comm = PETSC_COMM_WORLD;
+  ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerVTKOpen(comm, "mesh.vtk", FILE_MODE_WRITE, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetUp(viewer);CHKERRQ(ierr);
 
   for (i = 0; i < dim; i++) {
     faces[i] = 2;
@@ -225,7 +229,7 @@ int main(int argc, char **argv)
   ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 
-  //ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
+  ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
   ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
 
   ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
@@ -239,18 +243,14 @@ int main(int argc, char **argv)
 
   ierr = DMGetCoordinates(dm, &coords);CHKERRQ(ierr);
   ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
-  ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, dim*conesize, refArray, &refCoords);CHKERRQ(ierr);
   for (i = 0; i < vsize; i++) {
     PetscInt	vertex = vptr[i];
     PetscInt	*points, *foundcells;
-    PetscInt	numPoints, j, actualj, cell, k;
+    PetscInt	numPoints, j, actualj, cell, k = 0;
 
     ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
     printf("VERTEX# : %d -> (%.3f , %.3f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
-    //PetscIntView(2*numPoints, points, 0);
-    //printf("\n--------\n");
     ierr = PetscCalloc1(4, &foundcells);CHKERRQ(ierr);
-    k = 0;
     for (j = 0; j < numPoints; j++) {
       actualj = 2*j;
       cell = points[actualj];
@@ -270,20 +270,19 @@ int main(int argc, char **argv)
       ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
     }
-    //PetscRealView(k*dim*dim, BIGR2Xmat, 0);
     printf("=====================================================\n");
+    ierr = PetscFree(foundcells);CHKERRQ(ierr);
     ierr = DMPlexRestoreTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
   }
+  ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(globalCellIS, &ptr);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(vertexIS, &vptr);CHKERRQ(ierr);
+  ierr = ISDestroy(&vertexIS);CHKERRQ(ierr);
 
-  //VecView(coords, 0);
-  //VecView(refCoords, 0);
-  //DMView(dm, 0);
-  //ISView(globalCellIS, 0);
-  ierr = DMPlexComputeGeometryFVM(dm, &cellGeom, &faceGeom);CHKERRQ(ierr);
-  //VecView(cellGeom,0);
-  //VecView(faceGeom,0);
+  ierr = PetscObjectSetName((PetscObject)coords, "Deformed");CHKERRQ(ierr);
+  ierr = DMPlexVTKWriteAll((PetscObject) dm, viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  ierr = VecDestroy(&refCoords);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
   return ierr;
