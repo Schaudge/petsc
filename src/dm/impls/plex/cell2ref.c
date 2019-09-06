@@ -81,13 +81,6 @@ PetscErrorCode RemoveDupsArray(const PetscInt unsortarr[], PetscInt noduparr[], 
   return (0);
 }
 
-PetscErrorCode RemapWholeCell(DM dm, PetscInt cell, PetscScalar X2Rmat[])
-{
-  PetscErrorCode	ierr;
-
-
-  return (0);
-}
 PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscScalar R2Xmat[], PetscScalar X2Rmat[])
 {
   PetscErrorCode	ierr;
@@ -106,8 +99,8 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
   ierr = PetscMalloc1(dim*dim, &xtilde);CHKERRQ(ierr);
   ierr = PetscMalloc1(dim*dim, &rtilde);CHKERRQ(ierr);
-  rtilde[0] = 0.0; rtilde[1] = 1.0; rtilde[2] = 1.0;
-  rtilde[3] = 1.0; rtilde[4] = 1.0; rtilde[5] = 0.0;
+  rtilde[0] = 0.0; rtilde[1] = 0.0; rtilde[2] = 1.0;
+  rtilde[3] = 0.0; rtilde[4] = 1.0; rtilde[5] = 1.0;
   rtilde[6] = 1.0; rtilde[7] = 1.0; rtilde[8] = 1.0;
   xtilde[6] = 1.0; xtilde[7] = 1.0; xtilde[8] = 1.0;
 
@@ -161,6 +154,26 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   ierr = Matvis("RTmat", rtilde);CHKERRQ(ierr);
   DMPlex_Det3D_Internal(&detR2X, R2Xmat);
   DMPlex_Invert3D_Internal(X2Rmat, R2Xmat, detR2X);
+
+  printf("\n");
+  for (i = 0; i < nverts; i++) {
+    PetscScalar x, y;
+    PetscScalar	realC[3], *refC;
+
+    x = coordArray[(dim-1)*(nodupidx[i]-vStart)];
+    y = coordArray[(dim-1)*(nodupidx[i]-vStart)+1];
+    realC[0] = x; realC[1] = y; realC[2] = 1.0;
+    ierr = PetscCalloc1(dim, &refC);CHKERRQ(ierr);
+
+    DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
+    if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
+    printf("FOR CELL %3d, VERTEX %3d REALC: (%.3f, %.3f) -> REFC: (%.3f, %.3f)\n", cell, nodupidx[i], realC[0], realC[1], refC[0], refC[1]);
+    if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
+    ierr = PetscFree(refC);CHKERRQ(ierr);
+  }
+  printf("\n");
+  ierr = Matvis("R2Xmat", R2Xmat);CHKERRQ(ierr);
+  ierr = Matvis("X2Rmat", X2Rmat);CHKERRQ(ierr);
   ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
   ierr = ISDestroy(&vertsIS);CHKERRQ(ierr);
   ierr = ISDestroy(&singleCellIS);CHKERRQ(ierr);
@@ -248,19 +261,12 @@ int main(int argc, char **argv)
     }
     printf("For Vertex %d found %d cells\n", vertex, k);
     for (j = 0; j < k; j++) {
-      PetscScalar	x = coordArray[2*i], y = coordArray[2*i+1];
-      PetscScalar	*R2Xmat, *X2Rmat, realC[3] = {x, y, 1}, *refC;
+      PetscScalar	*R2Xmat, *X2Rmat;
 
       ierr = PetscCalloc1((dim+1)*(dim+1), &R2Xmat);CHKERRQ(ierr);
       ierr = PetscCalloc1((dim+1)*(dim+1), &X2Rmat);CHKERRQ(ierr);
-      ierr = PetscCalloc1(dim+1, &refC);CHKERRQ(ierr);
       printf("\ncell: %d, vertex: %d\n", foundcells[j], vertex);
       ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat);CHKERRQ(ierr);
-      ierr = RemapWholeCell(dm, foundcells[j], X2Rmat);CHKERRQ(ierr);
-      DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
-      printf("FOR CELL %d: REALC: (%.3f, %.3f) -> REFC: (%f, %f)\n", foundcells[j], realC[0], realC[1], refC[0], refC[1]);
-      ierr = Matvis("R2Xmat", R2Xmat);CHKERRQ(ierr);
-      ierr = Matvis("X2Rmat", X2Rmat);CHKERRQ(ierr);
       ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
     }
