@@ -51,13 +51,50 @@ PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
         return ierr;
 }
 
+PetscErrorCode Matvis(const char prefix[], PetscScalar mat[])
+{
+  PetscErrorCode	ierr;
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "%s ->\t[%2.2f, %2.2f, %2.2f]\n\t\t[%2.2f, %2.2f, %2.2f]\n\t\t[%2.2f, %2.2f, %2.2f]\n", prefix, mat[0], mat[1], mat[2], mat[3], mat[4], mat[5], mat[6], mat[7], mat[8]);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode RemoveDupsArray(const PetscInt unsortarr[], PetscInt noduparr[], PetscInt ntotal, PetscInt n, PetscInt search, PetscInt loc)
+{
+  PetscInt	i, j, k = 0;
+
+
+  for (i = 0; i < ntotal; i++) {
+    PetscInt 	key = unsortarr[i];
+    PetscBool	found = PETSC_FALSE;
+    for (j = 0; j < n; j++) {
+      if (noduparr[j] == key) {
+        found = PETSC_TRUE;
+      }
+    }
+    if (!found) {
+      noduparr[k] = key;
+      if (key == search) { loc = k;}
+      k++;
+    }
+  }
+  return (0);
+}
+
+PetscErrorCode RemapWholeCell(DM dm, PetscInt cell, PetscScalar X2Rmat[])
+{
+  PetscErrorCode	ierr;
+
+
+  return (0);
+}
 PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscScalar R2Xmat[], PetscScalar X2Rmat[])
 {
   PetscErrorCode	ierr;
   IS      		singleCellIS, vertsIS, vertsISfake;
   Vec			coords;
   PetscInt		idx[1] = {cell}, *nodupidx;
-  PetscInt		dim, i, k = 0, nverts, ntotal, vStart, loc, tempi, tempi2, tempi3;
+  PetscInt		dim, i, nverts, ntotal, vStart, loc = 0, tempi, tempi2, tempi3;
   const PetscInt	*ptr;
   PetscScalar		*xtilde, *rtilde, *invR, *coordArray;
   PetscScalar		detR2X, detR;
@@ -83,20 +120,7 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   ierr = ISDestroy(&vertsISfake);CHKERRQ(ierr);
   ierr = PetscCalloc1(nverts, &nodupidx);CHKERRQ(ierr);
   ierr = ISGetIndices(vertsIS, &ptr);CHKERRQ(ierr);
-  for (i = 0; i < ntotal; i++) {
-    PetscInt 	key = ptr[i], j;
-    PetscBool	found = PETSC_FALSE;
-    for (j = 0; j < nverts; j++) {
-      if (nodupidx[j] == key) {
-        found = PETSC_TRUE;
-      }
-    }
-    if (!found) {
-      nodupidx[k] = key;
-      if (key == vertex) { loc = k;}
-      k++;
-    }
-  }
+  ierr = RemoveDupsArray(ptr, nodupidx, ntotal, nverts, vertex, loc);CHKERRQ(ierr);
   ierr = ISRestoreIndices(vertsIS, &ptr);CHKERRQ(ierr);
   printf("LOC: %d\n", loc);
   PetscIntView(nverts, nodupidx, 0);
@@ -108,19 +132,9 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
     if (tempi2-1 < 0) 	{ tempi3 = nverts-1;} else { tempi3 = tempi2-1;}
     xval = coordArray[(dim-1)*(nodupidx[tempi]-vStart)];
     yval = coordArray[(dim-1)*(nodupidx[tempi]-vStart)+1];
+
     printf("CURRENT %d\t -> [%.1f %.1f]\nNEXT %d\t\t -> [%.1f %.1f]\nNEXT %d\t\t -> [%.1f %.1f]\n", nodupidx[tempi], xval, yval, nodupidx[tempi2], coordArray[(dim-1)*(nodupidx[tempi2]-vStart)], coordArray[(dim-1)*(nodupidx[tempi2]-vStart)+1], nodupidx[tempi3], coordArray[(dim-1)*(nodupidx[tempi3]-vStart)], coordArray[(dim-1)*(nodupidx[tempi3]-vStart)+1]);
-    /*
-    if (!((xval == 0.0) && (yval == 0.0))) {
-      xval = coordArray[dim*(nodupidx[tempi2]-vStart)];
-      yval = coordArray[dim*(nodupidx[tempi2]-vStart)+1];
-      if (!((xval == 0.0) && (yval == 0.0))) {
 
-
-        xtilde[0] = coordArray[dim*(nodupidx[tempi]-vStart)];
-        xtilde[2] = coordArray[dim*(nodupidx[tempi]-vStart)+1];
-        xtilde[1] = coordArray[dim*(nodupidx[tempi2]-vStart)];
-     xtilde[3] = coordArray[dim*(nodupidx[tempi2]-vStart)+1];
-*/
     xtilde[0] = coordArray[(dim-1)*(nodupidx[tempi]-vStart)];
     xtilde[1] = coordArray[(dim-1)*(nodupidx[tempi2]-vStart)];
     xtilde[2] = coordArray[(dim-1)*(nodupidx[tempi3]-vStart)];
@@ -129,8 +143,9 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
     xtilde[5] = coordArray[(dim-1)*(nodupidx[tempi3]-vStart)+1];
     printf("But wait! Theres more! Check DETERMINANT\n");
     DMPlex_Det3D_Internal(&detX, xtilde);
-    if (PetscAbs(detX)) {
-      printf("USING:\t\t %d, %d %d\n", nodupidx[tempi], nodupidx[tempi2], nodupidx[tempi3]);
+    printf("DETX %f\n", PetscAbs(detX));
+    if (PetscAbs(detX) > 0) {
+      printf("USING:\t\t %d, %d %d\n\n", nodupidx[tempi], nodupidx[tempi2], nodupidx[tempi3]);
       i = 0;
     } else {
       printf("%d, %d %d ZERO DETERMINANT: %.1f\n", nodupidx[tempi], nodupidx[tempi2], nodupidx[tempi3], detX);
@@ -142,18 +157,10 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   DMPlex_Det3D_Internal(&detR, rtilde);
   DMPlex_Invert3D_Internal(invR, rtilde, detR);
   DMPlex_MatMult3D_Internal(xtilde, dim, dim, invR, R2Xmat);
-  printf("RT ");
-  PetscRealView(dim*dim, rtilde, 0);
-  printf("INV R ");
-  PetscRealView(dim*dim, invR, 0);
-  printf("XT ");
-  PetscRealView(dim*dim, xtilde, 0);
-  printf("R2X MAT ");
-  PetscRealView(dim*dim, R2Xmat, 0);
+  ierr = Matvis("XTmat", xtilde);CHKERRQ(ierr);
+  ierr = Matvis("RTmat", rtilde);CHKERRQ(ierr);
   DMPlex_Det3D_Internal(&detR2X, R2Xmat);
   DMPlex_Invert3D_Internal(X2Rmat, R2Xmat, detR2X);
-  printf("X2R MAT ");
-  PetscRealView(dim*dim, X2Rmat, 0);
   ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
   ierr = ISDestroy(&vertsIS);CHKERRQ(ierr);
   ierr = ISDestroy(&singleCellIS);CHKERRQ(ierr);
@@ -176,7 +183,7 @@ int main(int argc, char **argv)
   PetscInt              overlap = 0, i, dim = 2, conesize, numFields = 1, numBC = 1, size, vsize, cEnd;
   PetscInt		faces[dim], bcField[numBC];
   const PetscInt	*ptr, *vptr;
-  PetscScalar		*coordArray, refArray[8] = {0, 0, 1, 0, 0, 1, 1, 1}, *BIGX2Rmat, *BIGR2Xmat;
+  PetscScalar		*coordArray, refArray[8] = {0, 0, 1, 0, 0, 1, 1, 1};
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE;
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, NULL);if(ierr){ return ierr;}
@@ -205,8 +212,8 @@ int main(int argc, char **argv)
   ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 
-  ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
-  //ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
+  //ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
+  ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
 
   ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
   ierr = DMGetStratumIS(dm, "depth", 0, &vertexIS);CHKERRQ(ierr);
@@ -226,7 +233,7 @@ int main(int argc, char **argv)
     PetscInt	numPoints, j, actualj, cell, k;
 
     ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
-    printf("VERTEX# : %d -> (%.1f , %.1f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
+    printf("VERTEX# : %d -> (%.3f , %.3f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
     //PetscIntView(2*numPoints, points, 0);
     //printf("\n--------\n");
     ierr = PetscCalloc1(4, &foundcells);CHKERRQ(ierr);
@@ -240,21 +247,20 @@ int main(int argc, char **argv)
       }
     }
     printf("For Vertex %d found %d cells\n", vertex, k);
-    ierr = PetscCalloc1(k*dim*dim, &BIGR2Xmat);CHKERRQ(ierr);
-    ierr = PetscCalloc1(k*dim*dim, &BIGX2Rmat);CHKERRQ(ierr);
     for (j = 0; j < k; j++) {
       PetscScalar	x = coordArray[2*i], y = coordArray[2*i+1];
-      PetscScalar	*R2Xmat, *X2Rmat, realC[2] = {x, y}, *refC;
+      PetscScalar	*R2Xmat, *X2Rmat, realC[3] = {x, y, 1}, *refC;
 
       ierr = PetscCalloc1((dim+1)*(dim+1), &R2Xmat);CHKERRQ(ierr);
       ierr = PetscCalloc1((dim+1)*(dim+1), &X2Rmat);CHKERRQ(ierr);
-      ierr = PetscCalloc1(dim, &refC);CHKERRQ(ierr);
+      ierr = PetscCalloc1(dim+1, &refC);CHKERRQ(ierr);
       printf("\ncell: %d, vertex: %d\n", foundcells[j], vertex);
       ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat);CHKERRQ(ierr);
-      DMPlex_Mult3D_Internal(X2Rmat, 2, realC, refC);
-      printf("FOR CELL %d: REALC: (%.2f, %.2f) -> REFC: (%.2f, %.2f)\n", foundcells[j], realC[0], realC[1], refC[0], refC[1]);
-      //ierr = PetscArraycpy(&BIGR2Xmat[j*dim*dim], &R2Xmat, dim*dim);CHKERRQ(ierr);
-      //ierr = PetscArraycpy(&BIGX2Rmat[j*dim*dim], &X2Rmat, dim*dim);CHKERRQ(ierr);
+      ierr = RemapWholeCell(dm, foundcells[j], X2Rmat);CHKERRQ(ierr);
+      DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
+      printf("FOR CELL %d: REALC: (%.3f, %.3f) -> REFC: (%f, %f)\n", foundcells[j], realC[0], realC[1], refC[0], refC[1]);
+      ierr = Matvis("R2Xmat", R2Xmat);CHKERRQ(ierr);
+      ierr = Matvis("X2Rmat", X2Rmat);CHKERRQ(ierr);
       ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
     }
@@ -271,8 +277,6 @@ int main(int argc, char **argv)
   //VecView(cellGeom,0);
   //VecView(faceGeom,0);
 
-  ierr = PetscFree(BIGX2Rmat);CHKERRQ(ierr);
-  ierr = PetscFree(BIGR2Xmat);CHKERRQ(ierr);
   ierr = VecDestroy(&refCoords);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
