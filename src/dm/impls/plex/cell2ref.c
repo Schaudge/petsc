@@ -15,12 +15,12 @@ PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
 
         // Order in coordarray is [x1,y1,z1....]
         for (i = 0; i < nCoords; i++) {
-          if ((i < 6) || (i > 11)) {
+          //if ((i < 6) || (i > 11)) {
             if (i % 2) {
               coordArray[i-1] = lx*coordArray[i-1];
               coordArray[i] = ly*coordArray[i];
             }
-          }
+            // }
         }
         ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
         ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
@@ -169,6 +169,9 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
     DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
     if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
     printf("FOR CELL %3d, VERTEX %3d REALC: (%.3f, %.3f) -> REFC: (%.3f, %.3f)\n", cell, nodupidx[i], realC[0], realC[1], refC[0], refC[1]);
+    if ((refC[0] != 0) && (refC[1] != 0)) {
+
+    }
     if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
     ierr = PetscFree(refC);CHKERRQ(ierr);
   }
