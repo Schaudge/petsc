@@ -57,18 +57,22 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   IS      		singleCellIS, vertsIS, vertsISfake;
   Vec			coords;
   PetscInt		idx[1] = {cell}, *nodupidx;
-  PetscInt		dim, i, k = 0, nverts, ntotal, vStart;
+  PetscInt		dim, i, k = 0, nverts, ntotal, vStart, loc, tempi, tempi2, tempi3;
   const PetscInt	*ptr;
   PetscScalar		*xtilde, *rtilde, *invR, *coordArray;
   PetscScalar		detR2X, detR;
 
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  dim = dim+1;
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart, NULL);CHKERRQ(ierr);
   ierr = DMGetCoordinates(dm, &coords);CHKERRQ(ierr);
   ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
   ierr = PetscMalloc1(dim*dim, &xtilde);CHKERRQ(ierr);
   ierr = PetscMalloc1(dim*dim, &rtilde);CHKERRQ(ierr);
-  rtilde[0] = 0.0; rtilde[1] = 1.0; rtilde[2] = 1.0; rtilde[3] = 1.0;
+  rtilde[0] = 0.0; rtilde[1] = 1.0; rtilde[2] = 1.0;
+  rtilde[3] = 1.0; rtilde[4] = 1.0; rtilde[5] = 0.0;
+  rtilde[6] = 1.0; rtilde[7] = 1.0; rtilde[8] = 1.0;
+  xtilde[6] = 1.0; xtilde[7] = 1.0; xtilde[8] = 1.0;
 
   ierr = ISCreateGeneral(PETSC_COMM_WORLD, 1, idx, PETSC_COPY_VALUES, &singleCellIS);CHKERRQ(ierr);
   ierr = DMPlexGetConeRecursiveVertices(dm, singleCellIS, &vertsIS);CHKERRQ(ierr);
@@ -89,39 +93,67 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
     }
     if (!found) {
       nodupidx[k] = key;
+      if (key == vertex) { loc = k;}
       k++;
     }
   }
   ierr = ISRestoreIndices(vertsIS, &ptr);CHKERRQ(ierr);
-
+  printf("LOC: %d\n", loc);
+  PetscIntView(nverts, nodupidx, 0);
   for (i = nverts-1; i > 0; i--) {
-    printf("%d\n", i);
-    PetscScalar	xval, yval;
-    xval = coordArray[dim*(nodupidx[i]-vStart)];
-    yval = coordArray[dim*(nodupidx[i]-vStart)+1];
+    PetscScalar	xval, yval, detX;
+
+    tempi = (loc+i+1)%nverts;
+    if (tempi-1 < 0) 	{ tempi2 = nverts-1;} else { tempi2 = tempi-1;}
+    if (tempi2-1 < 0) 	{ tempi3 = nverts-1;} else { tempi3 = tempi2-1;}
+    xval = coordArray[(dim-1)*(nodupidx[tempi]-vStart)];
+    yval = coordArray[(dim-1)*(nodupidx[tempi]-vStart)+1];
+    printf("CURRENT %d\t -> [%.1f %.1f]\nNEXT %d\t\t -> [%.1f %.1f]\nNEXT %d\t\t -> [%.1f %.1f]\n", nodupidx[tempi], xval, yval, nodupidx[tempi2], coordArray[(dim-1)*(nodupidx[tempi2]-vStart)], coordArray[(dim-1)*(nodupidx[tempi2]-vStart)+1], nodupidx[tempi3], coordArray[(dim-1)*(nodupidx[tempi3]-vStart)], coordArray[(dim-1)*(nodupidx[tempi3]-vStart)+1]);
+    /*
     if (!((xval == 0.0) && (yval == 0.0))) {
-      xval = coordArray[dim*(nodupidx[i-1]-vStart)];
-      yval = coordArray[dim*(nodupidx[i-1]-vStart)+1];
+      xval = coordArray[dim*(nodupidx[tempi2]-vStart)];
+      yval = coordArray[dim*(nodupidx[tempi2]-vStart)+1];
       if (!((xval == 0.0) && (yval == 0.0))) {
-        xtilde[0] = coordArray[dim*(nodupidx[i]-vStart)];
-        xtilde[2] = coordArray[dim*(nodupidx[i]-vStart)+1];
-        xtilde[1] = coordArray[dim*(nodupidx[i-1]-vStart)];
-        xtilde[3] = coordArray[dim*(nodupidx[i-1]-vStart)+1];
-        printf("FOUND: %f %f %f %f\n", xtilde[0], xtilde[1], xtilde[2], xtilde[3]);
-        i = 0;
-      } else {
-        i--;
-      }
+
+
+        xtilde[0] = coordArray[dim*(nodupidx[tempi]-vStart)];
+        xtilde[2] = coordArray[dim*(nodupidx[tempi]-vStart)+1];
+        xtilde[1] = coordArray[dim*(nodupidx[tempi2]-vStart)];
+     xtilde[3] = coordArray[dim*(nodupidx[tempi2]-vStart)+1];
+*/
+    xtilde[0] = coordArray[(dim-1)*(nodupidx[tempi]-vStart)];
+    xtilde[1] = coordArray[(dim-1)*(nodupidx[tempi2]-vStart)];
+    xtilde[2] = coordArray[(dim-1)*(nodupidx[tempi3]-vStart)];
+    xtilde[3] = coordArray[(dim-1)*(nodupidx[tempi]-vStart)+1];
+    xtilde[4] = coordArray[(dim-1)*(nodupidx[tempi2]-vStart)+1];
+    xtilde[5] = coordArray[(dim-1)*(nodupidx[tempi3]-vStart)+1];
+    printf("But wait! Theres more! Check DETERMINANT\n");
+    DMPlex_Det3D_Internal(&detX, xtilde);
+    if (PetscAbs(detX)) {
+      printf("USING:\t\t %d, %d %d\n", nodupidx[tempi], nodupidx[tempi2], nodupidx[tempi3]);
+      i = 0;
+    } else {
+      printf("%d, %d %d ZERO DETERMINANT: %.1f\n", nodupidx[tempi], nodupidx[tempi2], nodupidx[tempi3], detX);
+      i--;
     }
   }
 
-  ierr = PetscCalloc1(nverts, &invR);CHKERRQ(ierr);
-  DMPlex_Det2D_Internal(&detR, rtilde);
-  printf("%f\n", detR);
-  DMPlex_Invert2D_Internal(invR, rtilde, detR);
-  DMPlex_MatMult2D_Internal(xtilde, dim, dim, invR, R2Xmat);
-  DMPlex_Det2D_Internal(&detR2X, R2Xmat);
-  DMPlex_Invert2D_Internal(X2Rmat, R2Xmat, detR2X);
+  ierr = PetscCalloc1(dim*dim, &invR);CHKERRQ(ierr);
+  DMPlex_Det3D_Internal(&detR, rtilde);
+  DMPlex_Invert3D_Internal(invR, rtilde, detR);
+  DMPlex_MatMult3D_Internal(xtilde, dim, dim, invR, R2Xmat);
+  printf("RT ");
+  PetscRealView(dim*dim, rtilde, 0);
+  printf("INV R ");
+  PetscRealView(dim*dim, invR, 0);
+  printf("XT ");
+  PetscRealView(dim*dim, xtilde, 0);
+  printf("R2X MAT ");
+  PetscRealView(dim*dim, R2Xmat, 0);
+  DMPlex_Det3D_Internal(&detR2X, R2Xmat);
+  DMPlex_Invert3D_Internal(X2Rmat, R2Xmat, detR2X);
+  printf("X2R MAT ");
+  PetscRealView(dim*dim, X2Rmat, 0);
   ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
   ierr = ISDestroy(&vertsIS);CHKERRQ(ierr);
   ierr = ISDestroy(&singleCellIS);CHKERRQ(ierr);
@@ -195,8 +227,8 @@ int main(int argc, char **argv)
 
     ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
     printf("VERTEX# : %d -> (%.1f , %.1f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
-    PetscIntView(2*numPoints, points, 0);
-    printf("--------\n");
+    //PetscIntView(2*numPoints, points, 0);
+    //printf("\n--------\n");
     ierr = PetscCalloc1(4, &foundcells);CHKERRQ(ierr);
     k = 0;
     for (j = 0; j < numPoints; j++) {
@@ -211,19 +243,23 @@ int main(int argc, char **argv)
     ierr = PetscCalloc1(k*dim*dim, &BIGR2Xmat);CHKERRQ(ierr);
     ierr = PetscCalloc1(k*dim*dim, &BIGX2Rmat);CHKERRQ(ierr);
     for (j = 0; j < k; j++) {
-      PetscScalar	*R2Xmat, *X2Rmat;
+      PetscScalar	x = coordArray[2*i], y = coordArray[2*i+1];
+      PetscScalar	*R2Xmat, *X2Rmat, realC[2] = {x, y}, *refC;
 
-      ierr = PetscCalloc1(dim*dim, &R2Xmat);CHKERRQ(ierr);
-      ierr = PetscCalloc1(dim*dim, &X2Rmat);CHKERRQ(ierr);
-      printf("cell!: %d\n", cell);
-      ierr = ComputeR2X2RMapping(dm, vertex, cell, R2Xmat, X2Rmat);CHKERRQ(ierr);
-      ierr = PetscArraycpy(&BIGR2Xmat[j*dim*dim], &R2Xmat, dim*dim);CHKERRQ(ierr);
-      ierr = PetscArraycpy(&BIGX2Rmat[j*dim*dim], &X2Rmat, dim*dim);CHKERRQ(ierr);
+      ierr = PetscCalloc1((dim+1)*(dim+1), &R2Xmat);CHKERRQ(ierr);
+      ierr = PetscCalloc1((dim+1)*(dim+1), &X2Rmat);CHKERRQ(ierr);
+      ierr = PetscCalloc1(dim, &refC);CHKERRQ(ierr);
+      printf("\ncell: %d, vertex: %d\n", foundcells[j], vertex);
+      ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat);CHKERRQ(ierr);
+      DMPlex_Mult3D_Internal(X2Rmat, 2, realC, refC);
+      printf("FOR CELL %d: REALC: (%.2f, %.2f) -> REFC: (%.2f, %.2f)\n", foundcells[j], realC[0], realC[1], refC[0], refC[1]);
+      //ierr = PetscArraycpy(&BIGR2Xmat[j*dim*dim], &R2Xmat, dim*dim);CHKERRQ(ierr);
+      //ierr = PetscArraycpy(&BIGX2Rmat[j*dim*dim], &X2Rmat, dim*dim);CHKERRQ(ierr);
       ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
     }
-    PetscRealView(k*dim*dim, BIGR2Xmat, 0);
-    printf("--------\n");
+    //PetscRealView(k*dim*dim, BIGR2Xmat, 0);
+    printf("=====================================================\n");
     ierr = DMPlexRestoreTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
   }
 
