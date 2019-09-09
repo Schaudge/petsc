@@ -82,7 +82,7 @@ PetscErrorCode RemoveDupsArray(const PetscInt unsortarr[], PetscInt noduparr[], 
   return (0);
 }
 
-PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscScalar R2Xmat[], PetscScalar X2Rmat[])
+PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscScalar R2Xmat[], PetscScalar X2Rmat[], PetscScalar realC_[], PetscScalar refC_[])
 {
   PetscErrorCode	ierr;
   IS      		singleCellIS, vertsIS, vertsISfake;
@@ -92,6 +92,7 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   const PetscInt	*ptr;
   PetscScalar		*xtilde, *rtilde, *invR, *coordArray;
   PetscScalar		detR2X, detR;
+  PetscBool		USE_ROTATION = PETSC_FALSE;
 
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   dim = dim+1;
@@ -146,7 +147,6 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
       i--;
     }
   }
-
   ierr = PetscCalloc1(dim*dim, &invR);CHKERRQ(ierr);
   DMPlex_Det3D_Internal(&detR, rtilde);
   DMPlex_Invert3D_Internal(invR, rtilde, detR);
@@ -159,18 +159,19 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   printf("\n");
   for (i = 0; i < nverts; i++) {
     PetscScalar x, y;
-    PetscScalar	realC[dim], *refC;
+    PetscScalar	*realC, *refC;
 
+    ierr = PetscCalloc1(dim, &refC);CHKERRQ(ierr);
+    ierr = PetscCalloc1(dim,&realC);CHKERRQ(ierr);
     x = coordArray[(dim-1)*(nodupidx[i]-vStart)];
     y = coordArray[(dim-1)*(nodupidx[i]-vStart)+1];
     realC[0] = x; realC[1] = y; realC[2] = 1.0;
-    ierr = PetscCalloc1(dim, &refC);CHKERRQ(ierr);
 
     DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
     if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
     printf("FOR CELL %3d, VERTEX %3d REALC: (%.3f, %.3f) -> REFC: (%.3f, %.3f)\n", cell, nodupidx[i], realC[0], realC[1], refC[0], refC[1]);
 
-    if (nodupidx[i] == vertex) {
+    if ((nodupidx[i] == vertex) && USE_ROTATION) {
       PetscScalar	xc = 0.5, yc = 0.5, theta;
       PetscScalar	*rotMat, *X2Rtemp;
       PetscInt		k;
@@ -202,6 +203,12 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
       ierr = PetscFree(X2Rtemp);CHKERRQ(ierr);
     }
     if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
+
+    realC_[(dim-1)*i] = realC[0];
+    realC_[((dim-1)*i)+1] = realC[1];
+    refC_[(dim-1)*i] = refC[0];
+    refC_[((dim-1)*i)+1] = refC[1];
+    ierr = PetscFree(realC);CHKERRQ(ierr);
     ierr = PetscFree(refC);CHKERRQ(ierr);
   }
   printf("\n");
@@ -284,7 +291,7 @@ int main(int argc, char **argv)
 
     ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
     printf("VERTEX# : %d -> (%.3f , %.3f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
-    ierr = PetscCalloc1(4, &foundcells);CHKERRQ(ierr);
+    ierr = PetscCalloc1(conesize, &foundcells);CHKERRQ(ierr);
     for (j = 0; j < numPoints; j++) {
       actualj = 2*j;
       cell = points[actualj];
@@ -295,14 +302,18 @@ int main(int argc, char **argv)
     }
     printf("For Vertex %d found %d cells\n", vertex, k);
     for (j = 0; j < k; j++) {
-      PetscScalar	*R2Xmat, *X2Rmat;
+      PetscScalar	*R2Xmat, *X2Rmat, *realCtemp, *refCtemp;
 
       ierr = PetscCalloc1((dim+1)*(dim+1), &R2Xmat);CHKERRQ(ierr);
       ierr = PetscCalloc1((dim+1)*(dim+1), &X2Rmat);CHKERRQ(ierr);
+      ierr = PetscCalloc1((dim+1)*conesize, &realCtemp);CHKERRQ(ierr);
+      ierr = PetscCalloc1((dim+1)*conesize, &refCtemp);CHKERRQ(ierr);
       printf("\ncell: %d, vertex: %d\n", foundcells[j], vertex);
-      ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat);CHKERRQ(ierr);
+      ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat, realCtemp, refCtemp);CHKERRQ(ierr);
       ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
+      ierr = PetscFree(realCtemp);CHKERRQ(ierr);
+      ierr = PetscFree(refCtemp);CHKERRQ(ierr);
     }
     printf("=====================================================\n");
     ierr = PetscFree(foundcells);CHKERRQ(ierr);
