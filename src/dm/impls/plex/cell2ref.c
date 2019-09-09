@@ -159,7 +159,7 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
   printf("\n");
   for (i = 0; i < nverts; i++) {
     PetscScalar x, y;
-    PetscScalar	realC[3], *refC;
+    PetscScalar	realC[dim], *refC;
 
     x = coordArray[(dim-1)*(nodupidx[i]-vStart)];
     y = coordArray[(dim-1)*(nodupidx[i]-vStart)+1];
@@ -169,13 +169,44 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
     DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
     if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
     printf("FOR CELL %3d, VERTEX %3d REALC: (%.3f, %.3f) -> REFC: (%.3f, %.3f)\n", cell, nodupidx[i], realC[0], realC[1], refC[0], refC[1]);
-    if ((refC[0] != 0) && (refC[1] != 0)) {
 
+    if (nodupidx[i] == vertex) {
+      PetscScalar	xc = 0.5, yc = 0.5, theta;
+      PetscScalar	*rotMat, *X2Rtemp;
+      PetscInt		k;
+
+      ierr = PetscCalloc1(dim*dim, &X2Rtemp);CHKERRQ(ierr);
+      for (k = 0; k < dim*dim; k++) {
+        X2Rtemp[k] = X2Rmat[k];
+      }
+      ierr = PetscCalloc1(dim*dim, &rotMat);CHKERRQ(ierr);
+      rotMat[0] = 1; rotMat[4] = 1; rotMat[8] = 1;
+
+      if ((PetscAbs(refC[0]) > 0.1) || (PetscAbs(refC[1]) > 0.1)) {
+        printf("%f %f\n", refC[0], refC[1]);
+        if (refC[0] == refC[1]) { theta = PETSC_PI;} else { theta = refC[1] > refC[0] ? PETSC_PI/2 : -1.0*PETSC_PI/2;}
+        rotMat[0] = PetscCosReal(theta); rotMat[1] = -1.0*PetscSinReal(theta);
+        rotMat[2] = (-xc*PetscCosReal(theta)) + (yc*PetscSinReal(theta)) + xc;
+        rotMat[3] = PetscSinReal(theta); rotMat[4] = PetscCosReal(theta);
+        rotMat[5] = (-xc*PetscSinReal(theta)) - (yc*PetscCosReal(theta)) + yc;
+        DMPlex_MatMult3D_Internal(rotMat, dim, dim, X2Rmat, X2Rtemp);
+        for (k = 0; k < dim*dim; k++) {
+          X2Rmat[k] = X2Rtemp[k];
+        }
+        ierr = Matvis("X2R + ROT", X2Rmat);CHKERRQ(ierr);
+        DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
+        printf("%f, %f, %f\n", theta, refC[0], refC[1]);
+        i = -1;
+        }
+      ierr = PetscFree(rotMat);CHKERRQ(ierr);
+      ierr = PetscFree(X2Rtemp);CHKERRQ(ierr);
     }
     if (nodupidx[i] == vertex) { printf("++++++++++++++++++++++++++++++++++++++++++++++++\n");}
     ierr = PetscFree(refC);CHKERRQ(ierr);
   }
   printf("\n");
+  DMPlex_Det3D_Internal(&detR2X, R2Xmat);
+  DMPlex_Invert3D_Internal(X2Rmat, R2Xmat, detR2X);
   ierr = Matvis("R2Xmat", R2Xmat);CHKERRQ(ierr);
   ierr = Matvis("X2Rmat", X2Rmat);CHKERRQ(ierr);
   ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
