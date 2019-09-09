@@ -368,10 +368,6 @@ PetscErrorCode TSEventHandler(TS ts)
   ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
   ierr = TSGetSolution(ts,&U);CHKERRQ(ierr);
 
-  if (event->status == TSEVENT_NONE) {
-    event->prev_dt    = dt;   /* last regular timestep before event detected */
-    event->ptime_left = t;    /* last current time before event detected and after event detected it is left end of interval containing zero crossings */
-  }
 
   /*
      TSEVENT_NONE - no events currently detected
@@ -389,7 +385,7 @@ PetscErrorCode TSEventHandler(TS ts)
   for (i=0; i < event->nevents; i++) {
     fvalue_sign = PetscSign(PetscRealPart(event->fvalue[i]));
     fvalueprev_sign = PetscSign(PetscRealPart(event->fvalue_prev[i]));
-    printf("Event %d event->iterctr, %d fvalues and singe %g %g %d %d \n",i,event->iterctr,event->fvalue_prev[i],event->fvalue[i],fvalueprev_sign,fvalue_sign);
+    printf("Time %g Event %d event->iterctr, %d fvalues and singe %g %g %d %d \n",(double)t,i,event->iterctr,event->fvalue_prev[i],event->fvalue[i],fvalueprev_sign,fvalue_sign);
     if (fvalueprev_sign != 0 && (fvalue_sign != fvalueprev_sign)) {
       switch (event->direction[i]) {
       case -1:
@@ -480,7 +476,7 @@ PetscErrorCode TSEventHandler(TS ts)
     ierr = TSSetTimeStep(ts,dt);CHKERRQ(ierr);
     event->iterctr = 0;
     event->status = TSEVENT_NONE;
-    PetscFunctionReturn(0);
+    goto done;
   }
 
   for (i=0; i < event->nevents; i++) {
@@ -516,6 +512,12 @@ PetscErrorCode TSEventHandler(TS ts)
 
   ierr = MPIU_Allreduce(&dt,&dt_min,1,MPIU_REAL,MPIU_MIN,PetscObjectComm((PetscObject)ts));CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,dt_min);CHKERRQ(ierr);
+
+  done:
+  if (event->status == TSEVENT_NONE) {
+    event->prev_dt    = dt;   /* last regular timestep before event detected */
+    event->ptime_left = t;    /* last current time before event detected and after event detected it is left end of interval containing zero crossings */
+  }
   PetscFunctionReturn(0);
 }
 

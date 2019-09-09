@@ -346,7 +346,7 @@ PetscErrorCode calcfluxa(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar e
   PetscScalar emm = 0.001;
 
   PetscFunctionBeginUser;
-  *flux = SIG*(-emm*(PetscPowScalarInt(airtemp,4)));      /* calculates flux usinge Stefan-Boltzmann relation */
+  *flux = SIG*(-emm*(PetscPowScalarInt(airtemp,4)));      /* calculates flux using Stefan-Boltzmann relation */
   PetscFunctionReturn(0);
 }
 PetscErrorCode sensibleflux(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar wind, PetscScalar *sheat)
