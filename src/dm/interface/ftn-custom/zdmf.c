@@ -230,6 +230,6 @@ PETSC_EXTERN void PETSC_STDCALL dmremovelabel_(DM *dm, char* name PETSC_MIXED_LE
   char *lname;
 
   FIXCHAR(name, lenN, lname);
-  *ierr = DMRemoveLabel(*dm, lname, label);if (*ierr) return;
+  *ierr = DMRemoveLabel(*dm, lname, *label);if (*ierr) return;
   FREECHAR(name, lname);
 }

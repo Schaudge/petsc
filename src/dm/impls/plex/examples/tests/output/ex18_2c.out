@@ -47,8 +47,8 @@ Process 0:
 IS Object: 1 MPI processes
   type: general
 Number of indices in set 12
-0 1
-1 2
+0 2
+1 1
 2 3
 3 2
 4 3

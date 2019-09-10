@@ -103,6 +103,8 @@ PETSC_EXTERN PetscErrorCode ISOnComm(IS,MPI_Comm,PetscCopyMode,IS*);
 PETSC_EXTERN PetscErrorCode ISRenumber(IS,IS,PetscInt*,IS*);
 PETSC_EXTERN PetscErrorCode ISCreateSubIS(IS,IS,IS*);
 
+PETSC_EXTERN PetscErrorCode ISGeneralFilter(IS,PetscInt,PetscInt);
+
 /* --------------------------------------------------------------------------*/
 PETSC_EXTERN PetscClassId IS_LTOGM_CLASSID;
 
@@ -313,10 +315,6 @@ PETSC_EXTERN PetscErrorCode PetscLayoutSetISLocalToGlobalMapping(PetscLayout,ISL
 PETSC_EXTERN PetscErrorCode PetscLayoutMapLocal(PetscLayout,PetscInt,const PetscInt[],PetscInt*,PetscInt**,PetscInt**);
 PETSC_EXTERN PetscErrorCode PetscSFSetGraphLayout(PetscSF,PetscLayout,PetscInt,const PetscInt*,PetscCopyMode,const PetscInt*);
 
-/* Generic HDF5 I/O */
-#if defined(PETSC_HAVE_HDF5)
-PETSC_EXTERN PetscErrorCode PetscViewerHDF5ReadSizes(PetscViewer, const char[], PetscInt *, PetscInt *);
-#endif
 
 PETSC_EXTERN PetscClassId PETSC_SECTION_CLASSID;
 

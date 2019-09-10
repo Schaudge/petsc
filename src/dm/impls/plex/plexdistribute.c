@@ -1048,8 +1048,8 @@ static PetscErrorCode DMPlexDistributeLabels(DM dm, PetscSF migrationSF, DM dmPa
   lsendDepth = mesh->depthState != depthState ? PETSC_TRUE : PETSC_FALSE;
   ierr = MPIU_Allreduce(&lsendDepth, &sendDepth, 1, MPIU_BOOL, MPI_LOR, comm);CHKERRQ(ierr);
   if (sendDepth) {
-    ierr = DMRemoveLabel(dmParallel, "depth", &depthLabel);CHKERRQ(ierr);
-    ierr = DMLabelDestroy(&depthLabel);CHKERRQ(ierr);
+    ierr = DMPlexGetDepthLabel(dmParallel, &depthLabel);CHKERRQ(ierr);
+    ierr = DMRemoveLabel(dmParallel, NULL, depthLabel);CHKERRQ(ierr);
   }
   /* Everyone must have either the same number of labels, or none */
   ierr = DMGetNumLabels(dm, &numLocalLabels);CHKERRQ(ierr);
@@ -1089,6 +1089,7 @@ static PetscErrorCode DMPlexDistributeLabels(DM dm, PetscSF migrationSF, DM dmPa
     ierr = MPIU_Allreduce(&lisOutput, &isOutput, 1, MPIU_BOOL, MPI_LAND, comm);CHKERRQ(ierr);
     ierr = PetscObjectGetName((PetscObject) labelNew, &name);CHKERRQ(ierr);
     ierr = DMSetLabelOutput(dmParallel, name, isOutput);CHKERRQ(ierr);
+    ierr = DMLabelDestroy(&labelNew);CHKERRQ(ierr);
   }
   ierr = PetscLogEventEnd(DMPLEX_DistributeLabels,dm,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1715,7 +1716,7 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
   if (dm->useNatural) {
     PetscSection section;
 
-    ierr = DMGetSection(dm, &section);CHKERRQ(ierr);
+    ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);
     ierr = DMPlexCreateGlobalToNaturalSF(*dmParallel, section, sfMigration, &(*dmParallel)->sfNatural);CHKERRQ(ierr);
     ierr = DMSetUseNatural(*dmParallel, PETSC_TRUE);CHKERRQ(ierr);
   }
@@ -1926,5 +1927,35 @@ PetscErrorCode DMPlexGetRedundantDM(DM dm, PetscSF *sf, DM *redundantMesh)
   ierr = PetscSFDestroy(&migrationSF);CHKERRQ(ierr);
   ierr = PetscSFDestroy(&gatherSF);CHKERRQ(ierr);
   ierr = DMDestroy(&gatherDM);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMPlexIsDistributed - Find out whether this DM is distributed, i.e. more than one rank owns some points.
+
+  Input Parameter:
+. dm      - The DM object
+
+  Output Parameter:
+. distributed - Flag whether the DM is distributed
+
+  Level: intermediate
+
+.seealso: DMPlexDistribute()
+@*/
+PetscErrorCode DMPlexIsDistributed(DM dm, PetscBool *distributed)
+{
+  PetscInt          pStart, pEnd, count;
+  MPI_Comm          comm;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(distributed,2);
+  ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
+  ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
+  count = !!(pEnd - pStart);
+  ierr = MPI_Allreduce(MPI_IN_PLACE, &count, 1, MPIU_INT, MPI_SUM, comm);CHKERRQ(ierr);
+  *distributed = count > 1 ? PETSC_TRUE : PETSC_FALSE;
   PetscFunctionReturn(0);
 }

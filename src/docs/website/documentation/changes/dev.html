@@ -162,6 +162,10 @@
         <ul>
           <li>Changed DIVERGED_TR_DELTA to negative value to indicate diverged, unclear why it would be positive since tiny trust region would indicate trouble, not converged</li>
         </ul>
+        <h4>SNES:</h4>
+               <ul>
+          <li>-snes_mf no longer turns the preconditioner to none; to use it generally you will also need -pc_type none</li>
+        </ul>
       <h4>SNESLineSearch:</h4>
       <h4>TS:</h4>
         <ul>
@@ -171,10 +175,18 @@
           <li>Changed the APIs for integrand evaluations and corresponding derivative evaluations. TSSetCostIntegrand() is deprecated. (Instead a quadrature TS is used to handle the callbacks)</li>
         </ul>
       <h4>DM/DA:</h4>
+      <ul>
+        <li>Add DMGetLocalSection() to be used in preference to DMGetSection().</li>
+        <li>Add DMSetLocalSection() to be used in preference to DMSetSection().</li>
+        <li>DMAddLabel()/DMRemoveLabel() now increment/decrement DMLabel's reference count.</li>
+        <li>DMRemoveLabel() can now lookup the DMLabel by itself or just by name (like up to now). It no longer returns the label after removal.</li>
+      </ul>
       <h4>DMPlex:</h4>
         <ul>
           <li>Rename DMPlexCreateSpectralClosurePermutation() to DMPlexSetClosurePermutationTensor()</li>
           <li>Add DMPlexFindVertices() for vertex coordinates -> DAG point lookup</li>
+          <li>Added DMPlexIsInterpolated() which finds out whether the plex is interpolated</li>
+          <li>Added DMPlexIsDistributed() which finds out whether the plex is distributed</li>
         </ul>
       <h4>DMNetwork:</h4>
         <ul>

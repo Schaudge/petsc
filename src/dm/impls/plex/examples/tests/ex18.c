@@ -1,7 +1,6 @@
 static char help[] = "Tests for parallel mesh loading\n\n";
 
 #include <petsc/private/dmpleximpl.h>
-
 /* List of test meshes
 
 Network
@@ -198,6 +197,7 @@ typedef struct {
   InterpType interpolate;                  /* Interpolate the mesh before or after DMPlexDistribute() */
   PetscBool  useGenerator;                 /* Construct mesh with a mesh generator */
   PetscBool  testOrientIF;                 /* Test for different original interface orientations */
+  PetscBool  viewDistIntp;                 /* Show results of DMIsDistributed() and DMIsInterpolated() */
   PetscInt   ornt[2];                      /* Orientation of interface on rank 0 and rank 1 */
   PetscInt   faces[3];                     /* Number of faces per dimension for generator */
   PetscReal  coords[128];
@@ -208,6 +208,33 @@ typedef struct {
   PetscBool  testExpandPointsEmpty;
   char       filename[PETSC_MAX_PATH_LEN]; /* Import mesh from file */
 } AppCtx;
+
+struct _n_PortableBoundary {
+  Vec coordinates;
+  PetscInt depth;
+  PetscSection *sections;
+};
+typedef struct _n_PortableBoundary * PortableBoundary;
+
+static PetscErrorCode DMPlexCheckPointSFHeavy(DM, PortableBoundary);
+static PetscErrorCode DMPlexSetOrientInterface_Private(DM,PetscBool);
+static PetscErrorCode DMPlexGetExpandedBoundary_Private(DM, PortableBoundary *);
+
+static PetscErrorCode PortableBoundaryDestroy(PortableBoundary *bnd)
+{
+  PetscInt       d;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!*bnd) PetscFunctionReturn(0);
+  ierr = VecDestroy(&(*bnd)->coordinates);CHKERRQ(ierr);
+  for (d=0; d < (*bnd)->depth; d++) {
+    ierr = PetscSectionDestroy(&(*bnd)->sections[d]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree((*bnd)->sections);CHKERRQ(ierr);
+  ierr = PetscFree(*bnd);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
@@ -225,6 +252,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->interpolate  = NONE;
   options->useGenerator = PETSC_FALSE;
   options->testOrientIF = PETSC_FALSE;
+  options->viewDistIntp = PETSC_FALSE;
   options->testExpandPointsEmpty = PETSC_FALSE;
   options->ornt[0]      = 0;
   options->ornt[1]      = 0;
@@ -256,6 +284,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   if (options->nPointsToExpand) {
     ierr = PetscOptionsBool("-test_expand_points_empty", "For -test_expand_points, rank 0 will have empty input array", "ex18.c", options->testExpandPointsEmpty, &options->testExpandPointsEmpty, NULL);CHKERRQ(ierr);
   }
+  ierr = PetscOptionsBool("-view_distributed_interpolated", "Show results of DMIsDistributed() and DMIsInterpolated()", "ex18.c", options->viewDistIntp, &options->viewDistIntp, NULL);CHKERRQ(ierr);
   if (options->testOrientIF) {
     PetscInt i;
     for (i=0; i<2; i++) {
@@ -536,7 +565,7 @@ static PetscErrorCode CreateSimplex_3D(MPI_Comm comm, PetscBool interpolate, App
     ierr = DMPlexFixFaceOrientations_Translate_Private(user->ornt[rank], &start, &reverse);CHKERRQ(ierr);
     ierr = DMPlexOrientCell_Internal(*dm, ifp[rank], start, reverse);CHKERRQ(ierr);
     ierr = DMPlexCheckFaces(*dm, 0);CHKERRQ(ierr);
-    ierr = DMPlexOrientInterface(*dm);CHKERRQ(ierr);
+    ierr = DMPlexOrientInterface_Internal(*dm);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -629,6 +658,9 @@ static PetscErrorCode CreateHex_3D(MPI_Comm comm, PetscBool interpolate, AppCtx 
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
+  PetscPartitioner part;
+  PortableBoundary boundary     = NULL;
+  DM             serialDM       = NULL;
   PetscInt       dim            = user->dim;
   PetscBool      cellSimplex    = user->cellSimplex;
   PetscBool      useGenerator   = user->useGenerator;
@@ -636,6 +668,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscBool      interpParallel = user->interpolate == PARALLEL ? PETSC_TRUE : PETSC_FALSE;
   const char    *filename       = user->filename;
   size_t         len;
+  PetscBool      distributed, interpolated;
   PetscMPIInt    rank;
   PetscErrorCode ierr;
 
@@ -643,7 +676,16 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
   ierr = PetscStrlen(filename, &len);CHKERRQ(ierr);
   if (len) {
-    ierr = DMPlexCreateFromFile(comm, filename, interpSerial, dm);CHKERRQ(ierr);
+    if (interpSerial) {ierr = DMPlexSetOrientInterface_Private(NULL, PETSC_FALSE);CHKERRQ(ierr);}
+    ierr = DMPlexCreateFromFile(comm, filename, interpSerial, dm);CHKERRQ(ierr); /* with DMPlexOrientInterface_Internal() call skipped so that PointSF issues are left to DMPlexCheckPointSFHeavy() */
+    if (interpSerial) {ierr = DMPlexSetOrientInterface_Private(NULL, PETSC_TRUE);CHKERRQ(ierr);}
+    ierr = DMPlexIsDistributed(*dm, &distributed);CHKERRQ(ierr);
+    if (distributed) {
+      ierr = PetscOptionsSetValue(NULL, "-dm_plex_hdf5_force_sequential", NULL);CHKERRQ(ierr);
+      ierr = DMPlexCreateFromFile(comm, filename, interpSerial, &serialDM);CHKERRQ(ierr);
+      ierr = DMPlexIsDistributed(serialDM, &distributed);CHKERRQ(ierr);
+      if (distributed) SETERRQ(comm, PETSC_ERR_PLIB, "unable to create a serial DM from file");
+    }
     ierr = DMGetDimension(*dm, &dim);CHKERRQ(ierr);
     user->dim = dim;
   } else if (useGenerator) {
@@ -675,14 +717,30 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   ierr = PetscObjectSetName((PetscObject) *dm, "Original Mesh");CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-orig_dm_view");CHKERRQ(ierr);
 
-  if (user->distribute) {
-    DM               pdm = NULL;
-    PetscPartitioner part;
-
-    /* Set partitioner options */
-    ierr = DMPlexGetPartitioner(*dm, &part);CHKERRQ(ierr);
+  /* Set partitioner options */
+  ierr = DMPlexGetPartitioner(*dm, &part);CHKERRQ(ierr);
+  if (part) {
     ierr = PetscPartitionerSetType(part, PETSCPARTITIONERSIMPLE);CHKERRQ(ierr);
     ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
+  }
+
+  ierr = DMPlexIsDistributed(*dm, &distributed);CHKERRQ(ierr);
+  ierr = DMPlexIsInterpolated(*dm, &interpolated);CHKERRQ(ierr);
+  if (user->viewDistIntp) {ierr = PetscPrintf(comm, "DMPlexIsDistributed: %s\nDMPlexIsInterpolated: %s\n", PetscBools[distributed], PetscBools[interpolated]);CHKERRQ(ierr);}
+  if (!serialDM && !distributed) {
+    serialDM = *dm;
+    ierr = PetscObjectReference((PetscObject)*dm);CHKERRQ(ierr);
+  }
+  if (serialDM) {
+    ierr = DMPlexGetExpandedBoundary_Private(serialDM, &boundary);CHKERRQ(ierr);
+  }
+  if (boundary) {
+    /* check DM which has been created in parallel and already interpolated */
+    ierr = DMPlexCheckPointSFHeavy(*dm, boundary);CHKERRQ(ierr);
+    ierr = DMPlexOrientInterface_Internal(*dm);CHKERRQ(ierr); /* orient interface because it was deliberately skipped above */
+  }
+  if (user->distribute) {
+    DM               pdm = NULL;
 
     /* Redistribute mesh over processes using that partitioner */
     ierr = DMPlexDistribute(*dm, 0, NULL, &pdm);CHKERRQ(ierr);
@@ -696,16 +754,31 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     if (interpParallel) {
       DM idm;
 
-      ierr = DMPlexInterpolate(*dm, &idm);CHKERRQ(ierr);
+      ierr = DMPlexSetOrientInterface_Private(*dm, PETSC_FALSE);CHKERRQ(ierr);
+      ierr = DMPlexInterpolate(*dm, &idm);CHKERRQ(ierr); /* with DMPlexOrientInterface_Internal() call skipped so that PointSF issues are left to DMPlexCheckPointSFHeavy() */
+      ierr = DMPlexSetOrientInterface_Private(*dm, PETSC_TRUE);CHKERRQ(ierr);
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm = idm;
       ierr = PetscObjectSetName((PetscObject) *dm, "Interpolated Redistributed Mesh");CHKERRQ(ierr);
       ierr = DMViewFromOptions(*dm, NULL, "-intp_dm_view");CHKERRQ(ierr);
     }
   }
+  if (boundary) {
+    ierr = DMPlexCheckPointSFHeavy(*dm, boundary);CHKERRQ(ierr);
+  }
+
+  /* Orient interface because it could be deliberately skipped above. It is idempotent. */
+  ierr = DMPlexOrientInterface_Internal(*dm);CHKERRQ(ierr);
+
   ierr = PetscObjectSetName((PetscObject) *dm, "Parallel Mesh");CHKERRQ(ierr);
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+
+  ierr = DMPlexIsDistributed(*dm, &distributed);CHKERRQ(ierr);
+  ierr = DMPlexIsInterpolated(*dm, &interpolated);CHKERRQ(ierr);
+  if (user->viewDistIntp) {ierr = PetscPrintf(comm, "DMPlexIsDistributed: %s\nDMPlexIsInterpolated: %s\n", PetscBools[distributed], PetscBools[interpolated]);CHKERRQ(ierr);}
+  ierr = DMDestroy(&serialDM);CHKERRQ(ierr);
+  ierr = PortableBoundaryDestroy(&boundary);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -784,6 +857,543 @@ static PetscErrorCode TestExpandPoints(DM dm, AppCtx *user)
   ierr = PetscSequentialPhaseEnd(PETSC_COMM_WORLD,1);CHKERRQ(ierr);
   ierr = DMPlexRestoreConeRecursive(dm, is, &depth, &iss, &sects);CHKERRQ(ierr);
   ierr = ISDestroy(&is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexExpandedConesToFaces_Private(DM dm, IS is, PetscSection section, IS *newis)
+{
+  PetscInt          n,n1,ncone,numCoveredPoints,o,p,q,start,end;
+  const PetscInt    *coveredPoints;
+  const PetscInt    *arr, *cone;
+  PetscInt          *newarr;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = ISGetLocalSize(is, &n);CHKERRQ(ierr);
+  ierr = PetscSectionGetStorageSize(section, &n1);CHKERRQ(ierr);
+  ierr = PetscSectionGetChart(section, &start, &end);CHKERRQ(ierr);
+  if (n != n1) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "IS size = %D != %D = section storage size\n", n, n1);
+  ierr = ISGetIndices(is, &arr);CHKERRQ(ierr);
+  ierr = PetscMalloc1(end-start, &newarr);CHKERRQ(ierr);
+  for (q=start; q<end; q++) {
+    ierr = PetscSectionGetDof(section, q, &ncone);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(section, q, &o);CHKERRQ(ierr);
+    cone = &arr[o];
+    if (ncone == 1) {
+      numCoveredPoints = 1;
+      p = cone[0];
+    } else {
+      PetscInt i;
+      p = PETSC_MAX_INT;
+      for (i=0; i<ncone; i++) if (cone[i] < 0) {p = -1; break;}
+      if (p >= 0) {
+        ierr = DMPlexGetJoin(dm, ncone, cone, &numCoveredPoints, &coveredPoints);CHKERRQ(ierr);
+        if (numCoveredPoints > 1) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "more than one covered points for section point %D",q);
+        if (numCoveredPoints) p = coveredPoints[0];
+        else                  p = -2;
+        ierr = DMPlexRestoreJoin(dm, ncone, cone, &numCoveredPoints, &coveredPoints);CHKERRQ(ierr);
+      }
+    }
+    newarr[q] = p;
+  }
+  ierr = ISRestoreIndices(is, &arr);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_SELF, end-start, newarr, PETSC_OWN_POINTER, newis);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexExpandedVerticesToFaces_Private(DM dm, IS boundary_expanded_is, PetscInt depth, PetscSection sections[], IS *boundary_is)
+{
+  PetscInt          d;
+  IS                is,newis;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  is = boundary_expanded_is;
+  ierr = PetscObjectReference((PetscObject)is);CHKERRQ(ierr);
+  for (d = 0; d < depth-1; ++d) {
+    ierr = DMPlexExpandedConesToFaces_Private(dm, is, sections[d], &newis);CHKERRQ(ierr);
+    ierr = ISDestroy(&is);CHKERRQ(ierr);
+    is = newis;
+  }
+  *boundary_is = is;
+  PetscFunctionReturn(0);
+}
+
+#define CHKERRQI(incall,ierr) if (ierr) {incall = PETSC_FALSE; }
+
+static PetscErrorCode DMLabelViewFromOptionsOnComm_Private(DMLabel label, const char optionname[], MPI_Comm comm)
+{
+  PetscErrorCode    ierr;
+  PetscViewer       viewer;
+  PetscBool         flg;
+  static PetscBool  incall = PETSC_FALSE;
+  PetscViewerFormat format;
+
+  PetscFunctionBegin;
+  if (incall) PetscFunctionReturn(0);
+  incall = PETSC_TRUE;
+  ierr   = PetscOptionsGetViewer(comm,((PetscObject)label)->options,((PetscObject)label)->prefix,optionname,&viewer,&format,&flg);CHKERRQI(incall,ierr);
+  if (flg) {
+    ierr = PetscViewerPushFormat(viewer,format);CHKERRQI(incall,ierr);
+    ierr = DMLabelView(label, viewer);CHKERRQI(incall,ierr);
+    ierr = PetscViewerPopFormat(viewer);CHKERRQI(incall,ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQI(incall,ierr);
+  }
+  incall = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+/* TODO: this is hotfixing DMLabelGetStratumIS() - it should be fixed systematically instead */
+PETSC_STATIC_INLINE PetscErrorCode DMLabelGetStratumISOnComm_Private(DMLabel label, PetscInt value, MPI_Comm comm, IS *is)
+{
+  IS                tmpis;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = DMLabelGetStratumIS(label, value, &tmpis);CHKERRQ(ierr);
+  if (!tmpis) {ierr = ISCreateGeneral(PETSC_COMM_SELF, 0, NULL, PETSC_USE_POINTER, &tmpis);CHKERRQ(ierr);}
+  ierr = ISOnComm(tmpis, comm, PETSC_COPY_VALUES, is);CHKERRQ(ierr);
+  ierr = ISDestroy(&tmpis);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode VecReplicate_Private(MPI_Comm comm, PetscMPIInt rootrank, Vec vec0, Vec *vecout)
+{
+  PetscInt          n=-1;
+  PetscMPIInt       rank;
+  PetscScalar       *arr;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  if (rank == rootrank) {ierr = VecGetLocalSize(vec0, &n);CHKERRQ(ierr);}
+  ierr = MPI_Bcast(&n, 1, MPIU_INT, rootrank, comm);CHKERRQ(ierr);
+  ierr = VecCreateMPI(comm, n, PETSC_DECIDE, vecout);CHKERRQ(ierr);
+  if (rank == rootrank) {ierr = VecCopy(vec0, *vecout);CHKERRQ(ierr);}
+  ierr = VecGetArray(*vecout, &arr);CHKERRQ(ierr);
+  ierr = MPI_Bcast(arr, n, MPIU_SCALAR, 0, comm);CHKERRQ(ierr);
+  ierr = VecRestoreArray(*vecout, &arr);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* currently only for simple PetscSection without fields or constraints */
+static PetscErrorCode PetscSectionReplicate_Private(MPI_Comm comm, PetscMPIInt rootrank, PetscSection sec0, PetscSection *secout)
+{
+  PetscSection      sec;
+  PetscInt          chart[2], p;
+  PetscInt          *dofarr;
+  PetscMPIInt       rank;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  if (rank == rootrank) {
+    ierr = PetscSectionGetChart(sec0, &chart[0], &chart[1]);CHKERRQ(ierr);
+  }
+  ierr = MPI_Bcast(chart, 2, MPIU_INT, rootrank, comm);CHKERRQ(ierr);
+  ierr = PetscMalloc1(chart[1]-chart[0], &dofarr);CHKERRQ(ierr);
+  if (rank == rootrank) {
+    for (p = chart[0]; p < chart[1]; p++) {
+      ierr = PetscSectionGetDof(sec0, p, &dofarr[p-chart[0]]);CHKERRQ(ierr);
+    }
+  }
+  ierr = MPI_Bcast(dofarr, chart[1]-chart[0], MPIU_INT, rootrank, comm);CHKERRQ(ierr);
+  ierr = PetscSectionCreate(comm, &sec);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(sec, chart[0], chart[1]);CHKERRQ(ierr);
+  for (p = chart[0]; p < chart[1]; p++) {
+    ierr = PetscSectionSetDof(sec, p, dofarr[p-chart[0]]);CHKERRQ(ierr);
+  }
+  ierr = PetscSectionSetUp(sec);CHKERRQ(ierr);
+  ierr = PetscFree(dofarr);CHKERRQ(ierr);
+  *secout = sec;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode VecToPetscReal_Private(Vec vec, PetscReal *rvals[])
+{
+  PetscInt          n;
+  const PetscScalar *svals;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = VecGetLocalSize(vec, &n);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(vec, &svals);CHKERRQ(ierr);
+  ierr = PetscMalloc1(n, rvals);CHKERRQ(ierr);
+#if defined(PETSC_USE_COMPLEX)
+  {
+    PetscInt i;
+    for (i=0; i<n; i++) (*rvals)[i] = PetscRealPart(svals[i]);
+  }
+#else
+  ierr = PetscMemcpy(*rvals, svals, n*sizeof(PetscReal));
+#endif
+  ierr = VecRestoreArrayRead(vec, &svals);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexExpandedVerticesCoordinatesToFaces_Private(DM ipdm, PortableBoundary bnd, IS *face_is)
+{
+  PetscInt            dim, ncoords, npoints;
+  PetscReal           *rcoords;
+  PetscInt            *points;
+  IS                  faces_expanded_is;
+  PetscErrorCode      ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetDimension(ipdm, &dim);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(bnd->coordinates, &ncoords);CHKERRQ(ierr);
+  ierr = VecToPetscReal_Private(bnd->coordinates, &rcoords);CHKERRQ(ierr);
+  npoints = ncoords / dim;
+  ierr = PetscMalloc1(npoints, &points);CHKERRQ(ierr);
+  ierr = DMPlexFindVertices(ipdm, npoints, rcoords, PETSC_DECIDE, points);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_SELF, npoints, points, PETSC_OWN_POINTER, &faces_expanded_is);CHKERRQ(ierr);
+  ierr = DMPlexExpandedVerticesToFaces_Private(ipdm, faces_expanded_is, bnd->depth, bnd->sections, face_is);CHKERRQ(ierr);
+  ierr = PetscFree(rcoords);CHKERRQ(ierr);
+  ierr = ISDestroy(&faces_expanded_is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* hack disabling DMPlexOrientInterface() call in DMPlexInterpolate() via -dm_plex_interpolate_orient_interfaces option */
+static PetscErrorCode DMPlexSetOrientInterface_Private(DM dm, PetscBool enable)
+{
+  PetscOptions      options = NULL;
+  const char        *prefix = NULL;
+  const char        opt[] = "-dm_plex_interpolate_orient_interfaces";
+  char              prefix_opt[512];
+  PetscBool         flg, set;
+  static PetscBool  wasSetTrue = PETSC_FALSE;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  if (dm) {
+    ierr = PetscObjectGetOptionsPrefix((PetscObject)dm, &prefix);CHKERRQ(ierr);
+    options = ((PetscObject)dm)->options;
+  }
+  ierr = PetscStrcpy(prefix_opt, "-");CHKERRQ(ierr);
+  ierr = PetscStrlcat(prefix_opt, prefix, sizeof(prefix_opt));CHKERRQ(ierr);
+  ierr = PetscStrlcat(prefix_opt, &opt[1], sizeof(prefix_opt));CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(options, prefix, opt, &flg, &set);CHKERRQ(ierr);
+  if (!enable) {
+    if (set && flg) wasSetTrue = PETSC_TRUE;
+    ierr = PetscOptionsSetValue(options, prefix_opt, "0");CHKERRQ(ierr);
+  } else if (set && !flg) {
+    if (wasSetTrue) {
+      ierr = PetscOptionsSetValue(options, prefix_opt, "1");CHKERRQ(ierr);
+    } else {
+      /* default is PETSC_TRUE */
+      ierr = PetscOptionsClearValue(options, prefix_opt);CHKERRQ(ierr);
+    }
+    wasSetTrue = PETSC_FALSE;
+  }
+#if defined(PETSC_USE_DEBUG)
+  {
+    ierr = PetscOptionsGetBool(options, prefix, opt, &flg, &set);CHKERRQ(ierr);
+    if (PetscUnlikely(set && flg != enable)) SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_PLIB, "PetscOptionsSetValue did not have the desired effect");
+  }
+#endif
+  PetscFunctionReturn(0);
+}
+
+/* get coordinate description of the whole-domain boundary */
+static PetscErrorCode DMPlexGetExpandedBoundary_Private(DM dm, PortableBoundary *boundary)
+{
+  PortableBoundary  bnd0, bnd;
+  MPI_Comm          comm;
+  PetscBool         flg;
+  DM                idm;
+  DMLabel           label;
+  PetscInt          d;
+  const char        boundaryName[] = "DMPlexDistributeInterpolateMarkInterface_boundary";
+  IS                boundary_is;
+  IS                *boundary_expanded_iss;
+  PetscMPIInt       rootrank = 0;
+  PetscMPIInt       rank;
+  PetscInt          value = 1;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscNew(&bnd);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
+  if (flg) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "serial DM (all points on one rank) needed");
+
+  /* interpolate serial DM if not yet interpolated */
+  ierr = DMPlexIsInterpolated(dm, &flg);CHKERRQ(ierr);
+  if (flg) {
+    idm = dm;
+    ierr = PetscObjectReference((PetscObject)dm);CHKERRQ(ierr);
+  } else {
+    ierr = DMPlexInterpolate(dm, &idm);CHKERRQ(ierr);
+    ierr = DMViewFromOptions(idm, NULL, "-idm_view");CHKERRQ(ierr);
+  }
+
+  /* mark whole-domain boundary of the serial DM */
+  ierr = DMLabelCreate(PETSC_COMM_SELF, boundaryName, &label);CHKERRQ(ierr);
+  ierr = DMAddLabel(idm, label);CHKERRQ(ierr);
+  ierr = DMPlexMarkBoundaryFaces(idm, value, label);CHKERRQ(ierr);
+  ierr = DMLabelViewFromOptionsOnComm_Private(label, "-idm_boundary_view", comm);CHKERRQ(ierr);
+  ierr = DMLabelGetStratumIS(label, value, &boundary_is);CHKERRQ(ierr);
+
+  /* translate to coordinates */
+  ierr = PetscNew(&bnd0);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocalSetUp(idm);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = DMPlexGetConeRecursive(idm, boundary_is, &bnd0->depth, &boundary_expanded_iss, &bnd0->sections);CHKERRQ(ierr);
+    ierr = DMGetCoordinatesLocalTuple(dm, boundary_expanded_iss[0], NULL, &bnd0->coordinates);CHKERRQ(ierr);
+    /* self-check */
+    {
+      IS is0;
+      ierr = DMPlexExpandedVerticesCoordinatesToFaces_Private(idm, bnd0, &is0);CHKERRQ(ierr);
+      ierr = ISEqual(is0, boundary_is, &flg);CHKERRQ(ierr);
+      if (!flg) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "DMPlexExpandedVerticesCoordinatesToFaces_Private produced a wrong IS");
+      ierr = ISDestroy(&is0);CHKERRQ(ierr);
+    }
+  }
+
+  /* replicate outputs to all ranks */
+  bnd->depth = bnd0->depth;
+  ierr = MPI_Bcast(&bnd->depth, 1, MPIU_INT, rootrank, comm);CHKERRQ(ierr);
+  ierr = VecReplicate_Private(comm, rootrank, bnd0->coordinates, &bnd->coordinates);CHKERRQ(ierr);
+  ierr = PetscMalloc1(bnd->depth, &bnd->sections);CHKERRQ(ierr);
+  for (d=0; d<bnd->depth; d++) {
+    ierr = PetscSectionReplicate_Private(comm, rootrank, rank ? NULL : bnd0->sections[d], &bnd->sections[d]);CHKERRQ(ierr);
+  }
+
+  if (!rank) {
+    ierr = DMPlexRestoreConeRecursive(idm, boundary_is, &bnd0->depth, &boundary_expanded_iss, &bnd0->sections);CHKERRQ(ierr);
+  }
+  ierr = PortableBoundaryDestroy(&bnd0);CHKERRQ(ierr);
+  ierr = DMRemoveLabel(idm, NULL, label);CHKERRQ(ierr);
+  ierr = DMLabelDestroy(&label);CHKERRQ(ierr);
+  ierr = ISDestroy(&boundary_is);CHKERRQ(ierr);
+  ierr = DMDestroy(&idm);CHKERRQ(ierr);
+  *boundary = bnd;
+  PetscFunctionReturn(0);
+}
+
+/* get faces of inter-partition interface */
+static PetscErrorCode DMPlexGetInterfaceFaces_Private(DM ipdm, IS boundary_faces_is, IS *interface_faces_is)
+{
+  MPI_Comm          comm;
+  DMLabel           label;
+  IS                part_boundary_faces_is;
+  const char        partBoundaryName[] = "DMPlexDistributeInterpolateMarkInterface_partBoundary";
+  PetscInt          value = 1;
+  PetscBool         flg;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)ipdm, &comm);CHKERRQ(ierr);
+  ierr = DMPlexIsInterpolated(ipdm, &flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "only for interpolated DMPlex");
+
+  /* get ipdm partition boundary (partBoundary) */
+  ierr = DMLabelCreate(PETSC_COMM_SELF, partBoundaryName, &label);CHKERRQ(ierr);
+  ierr = DMAddLabel(ipdm, label);CHKERRQ(ierr);
+  ierr = DMPlexMarkBoundaryFaces(ipdm, value, label);CHKERRQ(ierr);
+  ierr = DMLabelViewFromOptionsOnComm_Private(label, "-ipdm_part_boundary_view", comm);CHKERRQ(ierr);
+  ierr = DMLabelGetStratumISOnComm_Private(label, value, comm, &part_boundary_faces_is);CHKERRQ(ierr);
+  ierr = DMRemoveLabel(ipdm, NULL, label);CHKERRQ(ierr);
+  ierr = DMLabelDestroy(&label);CHKERRQ(ierr);
+
+  /* remove ipdm whole-domain boundary (boundary_faces_is) from ipdm partition boundary (part_boundary_faces_is), resulting just in inter-partition interface */
+  ierr = ISDifference(part_boundary_faces_is,boundary_faces_is,interface_faces_is);CHKERRQ(ierr);
+  ierr = ISDestroy(&part_boundary_faces_is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* compute inter-partition interface including edges and vertices */
+static PetscErrorCode DMPlexComputeCompleteInterface_Private(DM ipdm, IS interface_faces_is, IS *interface_is)
+{
+  DMLabel         label;
+  PetscInt        value = 1;
+  const char      interfaceName[] = "DMPlexDistributeInterpolateMarkInterface_interface";
+  MPI_Comm        comm;
+  PetscBool       flg;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)ipdm, &comm);CHKERRQ(ierr);
+  ierr = DMPlexIsInterpolated(ipdm, &flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "only for interpolated DMPlex");
+
+  ierr = DMLabelCreate(PETSC_COMM_SELF, interfaceName, &label);CHKERRQ(ierr);
+  ierr = DMAddLabel(ipdm, label);CHKERRQ(ierr);
+  ierr = DMLabelSetStratumIS(label, value, interface_faces_is);CHKERRQ(ierr);
+  ierr = DMLabelViewFromOptionsOnComm_Private(label, "-interface_faces_view", comm);CHKERRQ(ierr);
+  ierr = DMPlexLabelComplete(ipdm, label);CHKERRQ(ierr);
+  ierr = DMLabelViewFromOptionsOnComm_Private(label, "-interface_view", comm);CHKERRQ(ierr);
+  ierr = DMLabelGetStratumISOnComm_Private(label, value, comm, interface_is);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)*interface_is, "interface_is");CHKERRQ(ierr);
+  ierr = ISViewFromOptions(*interface_is, NULL, "-interface_is_view");CHKERRQ(ierr);
+  ierr = DMRemoveLabel(ipdm, NULL, label);CHKERRQ(ierr);
+  ierr = DMLabelDestroy(&label);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PointSFGetOutwardInterfacePoints(PetscSF sf, IS *is)
+{
+  PetscInt        n;
+  const PetscInt  *arr;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscSFGetGraph(sf, NULL, &n, &arr, NULL);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject)sf), n, arr, PETSC_USE_POINTER, is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PointSFGetInwardInterfacePoints(PetscSF sf, IS *is)
+{
+  PetscInt        n;
+  const PetscInt  *rootdegree;
+  PetscInt        *arr;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscSFSetUp(sf);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeBegin(sf, &rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeEnd(sf, &rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeMultiRootOriginalNumbering(sf, rootdegree, &n, &arr);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject)sf), n, arr, PETSC_OWN_POINTER, is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PointSFGetInterfacePoints_Private(PetscSF pointSF, IS *is)
+{
+  IS pointSF_out_is, pointSF_in_is;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PointSFGetOutwardInterfacePoints(pointSF, &pointSF_out_is);CHKERRQ(ierr);
+  ierr = PointSFGetInwardInterfacePoints(pointSF, &pointSF_in_is);CHKERRQ(ierr);
+  ierr = ISExpand(pointSF_out_is, pointSF_in_is, is);CHKERRQ(ierr);
+  ierr = ISDestroy(&pointSF_out_is);CHKERRQ(ierr);
+  ierr = ISDestroy(&pointSF_in_is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#define MYCHKERRQ(ierr) do {if (PetscUnlikely(ierr)) SETERRQ(comm, PETSC_ERR_PLIB, "PointSF is wrong. Unable to show details!");} while (0)
+
+static PetscErrorCode DMPlexComparePointSFWithInterface_Private(DM ipdm, IS interface_is)
+{
+  PetscSF         pointsf;
+  IS              pointsf_is;
+  PetscBool       flg;
+  MPI_Comm        comm;
+  PetscMPIInt     size;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)ipdm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
+  ierr = DMGetPointSF(ipdm, &pointsf);CHKERRQ(ierr);
+  if (pointsf) {
+    PetscInt nroots;
+    ierr = PetscSFGetGraph(pointsf, &nroots, NULL, NULL, NULL);CHKERRQ(ierr);
+    if (nroots < 0) pointsf = NULL; /* uninitialized SF */
+  }
+  if (!pointsf) {
+    PetscInt N=0;
+    if (interface_is) {ierr = ISGetSize(interface_is, &N);CHKERRQ(ierr);}
+    if (N) SETERRQ(comm, PETSC_ERR_PLIB, "interface_is should be NULL or empty for PointSF being NULL");
+    PetscFunctionReturn(0);
+  }
+
+  /* get PointSF points as IS pointsf_is */
+  ierr = PointSFGetInterfacePoints_Private(pointsf, &pointsf_is);CHKERRQ(ierr);
+
+  /* compare pointsf_is with interface_is */
+  ierr = ISEqual(interface_is, pointsf_is, &flg);CHKERRQ(ierr);
+  if (!flg) {
+    IS pointsf_extra_is, pointsf_missing_is;
+    PetscViewer errv = PETSC_VIEWER_STDERR_(comm);
+    ierr = ISDifference(interface_is, pointsf_is, &pointsf_missing_is);MYCHKERRQ(ierr);
+    ierr = ISDifference(pointsf_is, interface_is, &pointsf_extra_is);MYCHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(errv, "Points missing in PointSF:\n");MYCHKERRQ(ierr);
+    ierr = ISView(pointsf_missing_is, errv);MYCHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(errv, "Extra points in PointSF:\n");MYCHKERRQ(ierr);
+    ierr = ISView(pointsf_extra_is, errv);MYCHKERRQ(ierr);
+    ierr = ISDestroy(&pointsf_extra_is);MYCHKERRQ(ierr);
+    ierr = ISDestroy(&pointsf_missing_is);MYCHKERRQ(ierr);
+    SETERRQ(comm, PETSC_ERR_PLIB, "PointSF is wrong! See details above.");
+  }
+  ierr = ISDestroy(&pointsf_is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* remove faces & edges from label, leave just vertices */
+static PetscErrorCode DMPlexISFilterVertices_Private(DM dm, IS points)
+{
+  PetscInt        vStart, vEnd;
+  MPI_Comm        comm;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)dm, &comm);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd);CHKERRQ(ierr);
+  ierr = ISGeneralFilter(points, vStart, vEnd);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*
+  DMPlexCheckPointSFHeavy - Thorough test that the PointSF after parallel DMPlexInterpolate() includes exactly all interface points.
+
+  Input Parameters:
+. dm - The DMPlex object
+
+  Notes:
+  The input DMPlex must be serial (one partition has all points, the other partitions have no points).
+  This is a very heavy test which involves serial distribution of the serial DM.
+  This is mainly intended for debugging/testing purposes.
+
+  Level: developer
+
+.seealso: DMGetPointSF(), DMPlexCheckSymmetry(), DMPlexCheckSkeleton(), DMPlexCheckFaces()
+*/
+static PetscErrorCode DMPlexCheckPointSFHeavy(DM dm, PortableBoundary bnd)
+{
+  DM              ipdm=NULL;
+  IS              boundary_faces_is, interface_faces_is, interface_is;
+  PetscBool       interpolated;
+  MPI_Comm        comm;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)dm, &comm);CHKERRQ(ierr);
+
+  ierr = DMPlexIsInterpolated(dm, &interpolated);CHKERRQ(ierr);
+  if (interpolated) {
+    ipdm = dm;
+  } else {
+    /* create temporary interpolated DM if input DM is not interpolated */
+    ierr = DMPlexSetOrientInterface_Private(dm, PETSC_FALSE);CHKERRQ(ierr);
+    ierr = DMPlexInterpolate(dm, &ipdm);CHKERRQ(ierr); /* with DMPlexOrientInterface_Internal() call skipped so that PointSF issues are left to DMPlexComparePointSFWithInterface_Private() below */
+    ierr = DMPlexSetOrientInterface_Private(dm, PETSC_TRUE);CHKERRQ(ierr);
+  }
+  ierr = DMViewFromOptions(ipdm, NULL, "-ipdm_view");CHKERRQ(ierr);
+
+  /* recover ipdm whole-domain boundary faces from the expanded vertices coordinates */
+  ierr = DMPlexExpandedVerticesCoordinatesToFaces_Private(ipdm, bnd, &boundary_faces_is);CHKERRQ(ierr);
+  /* get inter-partition interface faces (interface_faces_is)*/
+  ierr = DMPlexGetInterfaceFaces_Private(ipdm, boundary_faces_is, &interface_faces_is);CHKERRQ(ierr);
+  /* compute inter-partition interface including edges and vertices (interface_is) */
+  ierr = DMPlexComputeCompleteInterface_Private(ipdm, interface_faces_is, &interface_is);CHKERRQ(ierr);
+  /* destroy immediate ISs */
+  ierr = ISDestroy(&boundary_faces_is);CHKERRQ(ierr);
+  ierr = ISDestroy(&interface_faces_is);CHKERRQ(ierr);
+
+  /* for uninterpolated case, keep just vertices in interface */
+  if (!interpolated) {
+    ierr = DMPlexISFilterVertices_Private(ipdm, interface_is);CHKERRQ(ierr);
+    ierr = DMDestroy(&ipdm);CHKERRQ(ierr);
+  }
+
+  /* compare PointSF with the boundary reconstructed from coordinates */
+  ierr = DMPlexComparePointSFWithInterface_Private(dm, interface_is);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm, "DMPlexCheckPointSFHeavy PASSED\n");CHKERRQ(ierr);
+  ierr = ISDestroy(&interface_is);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -876,20 +1486,26 @@ int main(int argc, char **argv)
 
   testset:
     requires: exodusii
-    nsize: 2
     args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/TwoQuads.exo
     args: -dm_view ascii::ascii_info_detail -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
+    args: -view_distributed_interpolated
+    test:
+      suffix: 5_seq
+      nsize: 1
+      args: -distribute 0 -interpolate {{none serial}separate output}
     test:
       suffix: 5_dist0
+      nsize: 2
       args: -distribute 0 -interpolate {{none serial}separate output}
     test:
       suffix: 5_dist1
+      nsize: 2
       args: -distribute 1 -interpolate {{none serial parallel}separate output}
 
   testset:
     nsize: {{1 2 4}}
     args: -use_generator -dm_plex_check_symmetry -dm_plex_check_geometry
-    args: -distribute -interpolate {{none serial parallel}}
+    args: -distribute -interpolate none
     test:
       suffix: 6_tri
       requires: triangle
@@ -898,70 +1514,149 @@ int main(int argc, char **argv)
       suffix: 6_quad
       args: -faces {{2,2  1,3  7,4}} -cell_simplex 0 -dm_plex_check_skeleton
     test:
-      TODO: this is failing due to DMPlexCheckPointSF() and should be fixed
       suffix: 6_tet
       requires: ctetgen
       args: -faces {{2,2,2  1,3,5  3,4,7}} -cell_simplex 1 -dm_plex_generator ctetgen -dm_plex_check_skeleton
     test:
       suffix: 6_hex
       args: -faces {{2,2,2  1,3,5  3,4,7}} -cell_simplex 0 -dm_plex_check_skeleton
-
   testset:
-    nsize: {{1 2 4 5}}
+    nsize: {{1 2 4}}
+    args: -use_generator -dm_plex_check_symmetry -dm_plex_check_geometry
+    args: -distribute -interpolate serial
+    test:
+      suffix: 6_int_tri
+      requires: triangle
+      args: -faces {{2,2  1,3  7,4}} -cell_simplex 1 -dm_plex_generator triangle -dm_plex_check_skeleton
+    test:
+      suffix: 6_int_quad
+      args: -faces {{2,2  1,3  7,4}} -cell_simplex 0 -dm_plex_check_skeleton
+    test:
+      suffix: 6_int_tet
+      requires: ctetgen
+      args: -faces {{2,2,2  1,3,5  3,4,7}} -cell_simplex 1 -dm_plex_generator ctetgen -dm_plex_check_skeleton
+    test:
+      suffix: 6_int_hex
+      args: -faces {{2,2,2  1,3,5  3,4,7}} -cell_simplex 0 -dm_plex_check_skeleton
+  testset:
+    nsize: {{2 4}}
+    args: -use_generator -dm_plex_check_symmetry -dm_plex_check_geometry
+    args: -distribute -interpolate parallel
+    test:
+      suffix: 6_parint_tri
+      requires: triangle
+      args: -faces {{2,2  1,3  7,4}} -cell_simplex 1 -dm_plex_generator triangle -dm_plex_check_skeleton
+    test:
+      suffix: 6_parint_quad
+      args: -faces {{2,2  1,3  7,4}} -cell_simplex 0 -dm_plex_check_skeleton
+    test:
+      TODO: DMPlexCheckPointSFHeavy() fails for nsize 4
+      suffix: 6_parint_tet
+      requires: ctetgen
+      args: -faces {{2,2,2  1,3,5  3,4,7}} -cell_simplex 1 -dm_plex_generator ctetgen -dm_plex_check_skeleton
+    test:
+      suffix: 6_parint_hex
+      args: -faces {{2,2,2  1,3,5  3,4,7}} -cell_simplex 0 -dm_plex_check_skeleton
+
+  testset: # 7 EXODUS
+    requires: exodusii
     args: -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
-    test:
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.exo
+    args: -distribute
+    test: # seq load, simple partitioner
       suffix: 7_exo
-      requires: exodusii
-      args: -distribute -petscpartitioner_type simple
-      args: -interpolate {{none serial parallel}}
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.exo
-    test:
-      TODO: This fails for nsize 5, but I already know why :-)
-      suffix: 7_exo_metis
-      requires: exodusii parmetis
-      args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{serial parallel}}
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.exo
-    test:
-      suffix: 7_hdf5_seqload
-      requires: hdf5 !complex
-      args: -distribute -petscpartitioner_type simple
-      args: -interpolate {{none serial parallel}}
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf -dm_plex_hdf5_force_sequential
-    test:
-      suffix: 7_hdf5_seqload_metis
-      requires: hdf5 !complex parmetis
-      args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{serial parallel}}
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf -dm_plex_hdf5_force_sequential
-    test:
-      suffix: 7_hdf5
-      requires: hdf5 !complex
-      args: -interpolate {{none serial}}  #TODO serial means before DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf
-    test:
-      suffix: 7_hdf5_repart
-      requires: hdf5 !complex parmetis
-      args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{serial}}  #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf
-    test:
-      TODO: Parallel partitioning of uninterpolated meshes not supported
-      suffix: 7_hdf5_repart_ppu
-      requires: hdf5 !complex parmetis
-      args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{none parallel}}  #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
-      args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf
-  test:
-    suffix: 7_hdf5_hierarch
-    requires: hdf5 ptscotch !complex
-    nsize: {{2 3 4}separate output}
-    args: -distribute -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
-    args: -interpolate serial
+      nsize: {{1 2 4 5}}
+      args: -interpolate none
+    test: # seq load, seq interpolation, simple partitioner
+      suffix: 7_exo_int_simple
+      nsize: {{1 2 4 5}}
+      args: -interpolate serial
+    test: # seq load, seq interpolation, metis partitioner
+      suffix: 7_exo_int_metis
+      requires: parmetis
+      nsize: {{2 4 5}}
+      args: -interpolate serial
+      args: -petscpartitioner_type parmetis
+    test: # seq load, simple partitioner, par interpolation
+      suffix: 7_exo_simple_int
+      nsize: {{2 4 5}}
+      args: -interpolate parallel
+    test: # seq load, metis partitioner, par interpolation
+      suffix: 7_exo_metis_int
+      requires: parmetis
+      nsize: {{2 4 5}}
+      args: -interpolate parallel
+      args: -petscpartitioner_type parmetis
+
+  testset: # 7 HDF5 SEQUANTIAL LOAD
+    requires: hdf5 !complex
+    args: -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
     args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf
-    args: -petscpartitioner_type matpartitioning -petscpartitioner_view ::ascii_info
-    args: -mat_partitioning_type hierarch -mat_partitioning_hierarchical_nfineparts 2
-    args: -mat_partitioning_hierarchical_coarseparttype ptscotch -mat_partitioning_hierarchical_fineparttype ptscotch
+    args: -dm_plex_hdf5_force_sequential
+    args: -distribute
+    test: # seq load, simple partitioner
+      suffix: 7_seq_hdf5_simple
+      nsize: {{1 2 4 5}}
+      args: -interpolate none
+    test: # seq load, seq interpolation, simple partitioner
+      suffix: 7_seq_hdf5_int_simple
+      nsize: {{1 2 4 5}}
+      args: -interpolate serial
+    test: # seq load, seq interpolation, metis partitioner
+      nsize: {{2 4 5}}
+      suffix: 7_seq_hdf5_int_metis
+      requires: parmetis
+      args: -interpolate serial
+      args: -petscpartitioner_type parmetis
+    test: # seq load, simple partitioner, par interpolation
+      suffix: 7_seq_hdf5_simple_int
+      nsize: {{2 4 5}}
+      args: -interpolate parallel
+    test: # seq load, metis partitioner, par interpolation
+      nsize: {{2 4 5}}
+      suffix: 7_seq_hdf5_metis_int
+      requires: parmetis
+      args: -interpolate parallel
+      args: -petscpartitioner_type parmetis
+
+  testset: # 7 HDF5 PARALLEL LOAD
+    requires: hdf5 !complex
+    nsize: {{2 4 5}}
+    args: -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
+    args: -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/blockcylinder-50.h5 -dm_plex_create_from_hdf5_xdmf
+    test: # par load
+      suffix: 7_par_hdf5
+      args: -interpolate none
+    test: # par load, par interpolation
+      suffix: 7_par_hdf5_int
+      args: -interpolate serial             #TODO serial means before DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
+    test: # par load, parmetis repartitioner
+      TODO: Parallel partitioning of uninterpolated meshes not supported
+      suffix: 7_par_hdf5_parmetis
+      requires: parmetis
+      args: -distribute -petscpartitioner_type parmetis
+      args: -interpolate none
+    test: # par load, par interpolation, parmetis repartitioner
+      suffix: 7_par_hdf5_int_parmetis
+      requires: parmetis
+      args: -distribute -petscpartitioner_type parmetis
+      args: -interpolate serial             #TODO serial means before DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
+    test: # par load, parmetis partitioner, par interpolation
+      TODO: Parallel partitioning of uninterpolated meshes not supported
+      suffix: 7_par_hdf5_parmetis_int
+      requires: parmetis
+      args: -distribute -petscpartitioner_type parmetis
+      args: -interpolate parallel           #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
+
+    test:
+      suffix: 7_hdf5_hierarch
+      requires: hdf5 ptscotch !complex
+      nsize: {{2 3 4}separate output}
+      args: -distribute
+      args: -interpolate serial
+      args: -petscpartitioner_type matpartitioning -petscpartitioner_view ::ascii_info
+      args: -mat_partitioning_type hierarch -mat_partitioning_hierarchical_nfineparts 2
+      args: -mat_partitioning_hierarchical_coarseparttype ptscotch -mat_partitioning_hierarchical_fineparttype ptscotch
 
   test:
     suffix: 8
@@ -971,36 +1666,68 @@ int main(int argc, char **argv)
     args: -distribute 0 -interpolate serial
     args: -view_vertices_from_coords 0.,1.,0.,-0.5,1.,0.,0.583,-0.644,0.,-2.,-2.,-2. -view_vertices_from_coords_tol 1e-3
 
-  testset:
+  testset: # 9 HDF5 SEQUANTIAL LOAD
     requires: hdf5 !complex datafilespath
-    #TODO DMPlexCheckPointSF() fails for nsize 4
-    nsize: {{1 2}}
     args: -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
     args: -filename ${DATAFILESPATH}/meshes/cube-hexahedra-refined.h5 -dm_plex_create_from_hdf5_xdmf -dm_plex_hdf5_topology_path /cells -dm_plex_hdf5_geometry_path /coordinates
-    test:
-      suffix: 9_hdf5_seqload
-      args: -distribute -petscpartitioner_type simple
-      args: -interpolate {{none serial parallel}}
-      args: -dm_plex_hdf5_force_sequential
-    test:
-      suffix: 9_hdf5_seqload_metis
+    args: -dm_plex_hdf5_force_sequential
+    args: -distribute
+    test: # seq load, simple partitioner
+      suffix: 9_seq_hdf5_simple
+      nsize: {{1 2 4 5}}
+      args: -interpolate none
+    test: # seq load, seq interpolation, simple partitioner
+      suffix: 9_seq_hdf5_int_simple
+      nsize: {{1 2 4 5}}
+      args: -interpolate serial
+    test: # seq load, seq interpolation, metis partitioner
+      nsize: {{2 4 5}}
+      suffix: 9_seq_hdf5_int_metis
       requires: parmetis
-      args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{serial parallel}}
-      args: -dm_plex_hdf5_force_sequential
-    test:
-      suffix: 9_hdf5
-      args: -interpolate {{none serial}}  #TODO serial means before DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
-    test:
-      suffix: 9_hdf5_repart
+      args: -interpolate serial
+      args: -petscpartitioner_type parmetis
+    test: # seq load, simple partitioner, par interpolation
+      TODO: DMPlexCheckPointSFHeavy() fails for nsize 4,5
+      suffix: 9_seq_hdf5_simple_int
+      nsize: {{2 4 5}}
+      args: -interpolate parallel
+    test: # seq load, metis partitioner, par interpolation
+      TODO: DMPlexCheckPointSFHeavy() fails for nsize 5
+      nsize: {{2 4 5}}
+      suffix: 9_seq_hdf5_metis_int
       requires: parmetis
-      args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{serial}}  #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
-    test:
+      args: -interpolate parallel
+      args: -petscpartitioner_type parmetis
+
+  testset: # 9 HDF5 PARALLEL LOAD
+    requires: hdf5 !complex datafilespath
+    nsize: {{2 4 5}}
+    args: -dm_plex_check_symmetry -dm_plex_check_skeleton -dm_plex_check_geometry
+    args: -filename ${DATAFILESPATH}/meshes/cube-hexahedra-refined.h5 -dm_plex_create_from_hdf5_xdmf -dm_plex_hdf5_topology_path /cells -dm_plex_hdf5_geometry_path /coordinates
+    test: # par load
+      suffix: 9_par_hdf5
+      args: -interpolate none
+    test: # par load, par interpolation
+      TODO: DMPlexCheckPointSFHeavy() fails for nsize 4,5
+      suffix: 9_par_hdf5_int
+      args: -interpolate serial             #TODO serial means before DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
+    test: # par load, parmetis repartitioner
       TODO: Parallel partitioning of uninterpolated meshes not supported
-      suffix: 9_hdf5_repart_ppu
+      suffix: 9_par_hdf5_parmetis
       requires: parmetis
       args: -distribute -petscpartitioner_type parmetis
-      args: -interpolate {{none parallel}}  #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
+      args: -interpolate none
+    test: # par load, par interpolation, parmetis repartitioner
+      TODO: DMPlexCheckPointSFHeavy() fails for nsize 4,5
+      suffix: 9_par_hdf5_int_parmetis
+      requires: parmetis
+      args: -distribute -petscpartitioner_type parmetis
+      args: -interpolate serial             #TODO serial means before DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
+    test: # par load, parmetis partitioner, par interpolation
+      TODO: Parallel partitioning of uninterpolated meshes not supported
+      suffix: 9_par_hdf5_parmetis_int
+      requires: parmetis
+      args: -distribute -petscpartitioner_type parmetis
+      args: -interpolate parallel           #TODO parallel means after DMPlexDistribute but plex is already parallel from DMLoad - serial/parallel should be renamed
 
 TEST*/

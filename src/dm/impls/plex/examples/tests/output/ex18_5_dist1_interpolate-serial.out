@@ -1,3 +1,7 @@
+DMPlexIsDistributed: FALSE
+DMPlexIsInterpolated: TRUE
+DMPlexCheckPointSFHeavy PASSED
+DMPlexCheckPointSFHeavy PASSED
 DM Object: Parallel Mesh 2 MPI processes
   type: plex
 Parallel Mesh in 2 dimensions:
@@ -81,3 +85,5 @@ PetscSF Object: 2 MPI processes
   [0]    2 <- 2
   [0]    5 <- 5
   [1] Roots referenced by my leaves, by rank
+DMPlexIsDistributed: TRUE
+DMPlexIsInterpolated: TRUE

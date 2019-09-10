@@ -36,14 +36,14 @@ Number of indices in set 12
 1 2
 2 3
 3 2
-4 1
-5 3
+4 3
+5 1
 6 1
 7 2
 8 3
 9 2
-10 1
-11 3
+10 3
+11 1
 [1] ==========================
 depth 1 ---------------
 PetscSection Object: 1 MPI processes
@@ -78,8 +78,8 @@ Process 0:
 IS Object: 1 MPI processes
   type: general
 Number of indices in set 12
-0 1
-1 2
+0 2
+1 1
 2 3
 3 2
 4 3
