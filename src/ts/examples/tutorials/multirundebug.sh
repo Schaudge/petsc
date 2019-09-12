@@ -42,7 +42,7 @@ echo "done"
 
 maxcount=10
 counter=5
-cells=1000000
+cells=2000000
 #ranks=$((2**$counter))
 ranks=1024
 failcount=0
@@ -66,7 +66,7 @@ do
     runCleanFlag="_________________________ RUN $counter RANKS $ranks CLEAN _________________________"
     echo "$runFlag">>./$runERROR
     SECONDS=0
-    aprun -n $ranks -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble8M.med -log_view 2>> ./$runERROR 1>> ./$rawlog
+    aprun -n $ranks -cc depth -d 1 -j 4 ./exspeedtest -speed -f ssthimble2M.med -log_view 2>> ./$runERROR 1>> ./$rawlog
     duration=$SECONDS
     echo "$runCleanFlag">>./$runERROR
     line=$(grep -A1 "$runFlag" ./$runERROR | tail -n 1 | grep -q "$runCleanFlag")
@@ -108,11 +108,13 @@ do
     echo "-----------"
 done
 echo "--------------------------- Successful exit! ---------------------------">>./$rawlog
-echo "done"
-echo "grepping..."
-grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT
-grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtADDVAL
-grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess
-grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT
-grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL
-echo "done"
+trap finish EXIT
+function finish {
+    echo "grepping..."
+    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT
+    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtADDVAL
+    grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess
+    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT
+    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL
+    echo "done"
+}
