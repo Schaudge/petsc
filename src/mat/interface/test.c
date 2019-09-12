@@ -8,6 +8,7 @@ PetscScalar findEPS(PetscScalar eps)
   }
   return eps;
 }
+
 PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt n, PetscInt m)
 {
   PetscErrorCode        ierr;
@@ -15,7 +16,9 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt n, PetscInt m)
   PetscInt		i, j;
   PetscScalar		*colvecs, *vecarrs;
   PetscScalar		shift, u = 0.2, norm;
-  Mat			vecMat, Q, R, A;
+  Mat			vecMat, Q, R, Rhat;
+  MatFactorInfo		info;
+  IS			rowperm, colperm;
 
   ierr = PetscObjectGetComm((PetscObject) vecs[0], &comm);CHKERRQ(ierr);
   ierr = MatCreateSeqDense(comm, n, m, NULL, &vecMat);CHKERRQ(ierr);
@@ -30,12 +33,64 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt n, PetscInt m)
   }
   ierr = MatNorm(vecMat, NORM_FROBENIUS, &norm);CHKERRQ(ierr);
   ierr = MatDuplicate(vecMat, MAT_COPY_VALUES, &Q);CHKERRQ(ierr);
-  ierr = MatCreateNormal(Q, &A);CHKERRQ(ierr);
+  ierr = MatMatMult(Q, Q, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Rhat);CHKERRQ(ierr);
   u = findEPS(0.1);
+
+  /*	Initial shift Cholesky	*/
   shift = 11*((m*n)+(n*(n+1)))*u*norm;
-  printf("%f\n", shift);
+  ierr = MatShift(Rhat, shift);CHKERRQ(ierr);
+  ierr = MatDuplicate(Rhat, MAT_COPY_VALUES, &R);CHKERRQ(ierr);
+  ierr = MatCholeskyFactor(R, NULL, &info);CHKERRQ(ierr);
+  ierr = MatSetUnfactored(R);CHKERRQ(ierr);
+  ierr = MatSetUnfactored(Q);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(R, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(R, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  for (i = 0; i < 2; i++) {
+    /*	Cholesky QR2/3	*/
+    ierr = MatGetOrdering(Q, MATORDERINGNATURAL, &rowperm, &colperm);CHKERRQ(ierr);
+    ierr = MatGetFactor(Q, MATSOLVERPETSC, MAT_FACTOR_LU, &Q);CHKERRQ(ierr);
+    ierr = MatLUFactorSymbolic(Q, Q, rowperm, colperm, &info);CHKERRQ(ierr);
+    ierr = MatLUFactorNumeric(Q, Q, &info);CHKERRQ(ierr);
+    ierr = MatMatSolve(Q, Q, R);CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(Q, MAT_FLUSH_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(Q, MAT_FLUSH_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatSetUnfactored(Q);CHKERRQ(ierr);
+
+    ierr = MatMatMult(Q, Q, MAT_REUSE_MATRIX, PETSC_DEFAULT, &Rhat);CHKERRQ(ierr);
+    ierr = MatCholeskyFactor(Rhat, NULL, &info);CHKERRQ(ierr);
+
+    ierr = MatGetFactor(Q, MATSOLVERPETSC, MAT_FACTOR_LU, &Q);CHKERRQ(ierr);
+    ierr = MatGetOrdering(Q, MATORDERINGNATURAL, &rowperm, &colperm);CHKERRQ(ierr);
+    ierr = MatLUFactorSymbolic(Q, Q, rowperm, colperm, &info);CHKERRQ(ierr);
+    ierr = MatLUFactorNumeric(Q, Q, &info);CHKERRQ(ierr);
+    ierr = MatMatSolve(Q, Q, Rhat);CHKERRQ(ierr);
+    ierr = MatSetUnfactored(Q);CHKERRQ(ierr);
+    //ierr = MatSetUnfactored(Rhat);CHKERRQ(ierr);
+    ierr = MatMatMultSymbolic(Rhat, R, PETSC_DEFAULT, &R);CHKERRQ(ierr);
+    ierr = MatMatMultNumeric(Rhat, R, R);CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  }
+
+  MatView(vecMat, 0);
+  MatView(Rhat, 0);
+  for (i = 0; i < m; i++) {
+    ierr = MatDenseGetColumn(R, i, &colvecs);CHKERRQ(ierr);
+    ierr = VecGetArray(vecs[i], &vecarrs);CHKERRQ(ierr);
+    for (j = 0; j < n; j++) {
+      vecarrs[j] = colvecs[j];
+    }
+    ierr = VecRestoreArray(vecs[i], &vecarrs);CHKERRQ(ierr);
+    ierr = MatDenseRestoreColumn(R, &colvecs);CHKERRQ(ierr);
+  }
+  ierr = VecView(vecs[0], 0);CHKERRQ(ierr);
+  ierr = ISDestroy(&rowperm);CHKERRQ(ierr);
+  ierr = ISDestroy(&colperm);CHKERRQ(ierr);
   ierr = MatDestroy(&Q);CHKERRQ(ierr);
-  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  ierr = MatDestroy(&Rhat);CHKERRQ(ierr);
+  ierr = MatDestroy(&R);CHKERRQ(ierr);
   ierr = MatDestroy(&vecMat);CHKERRQ(ierr);
   return ierr;
 }
