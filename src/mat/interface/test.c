@@ -37,7 +37,7 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   ierr = MatDuplicate(X, MAT_COPY_VALUES, &Q);CHKERRQ(ierr);
   PetscInt qm,qn;
   ierr = MatGetLocalSize(Q, &qm, &qn);CHKERRQ(ierr);
-  PetscPrintf(comm, "%d %d\n", qm, qn);
+  PetscPrintf(comm, "M Parallel: %d N Parallel:%d\n", qm, qn);
   MatView(X, viewer);
 
   ierr = MatDenseGetArray(Q, &matarray);CHKERRQ(ierr);
