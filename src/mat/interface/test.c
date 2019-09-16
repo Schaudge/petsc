@@ -1,5 +1,40 @@
 #include <petscmat.h>
 
+PetscErrorCode PMatView(Mat mat, const char *name, PetscViewer viewer)
+{
+  PetscErrorCode	ierr;
+  PetscScalar		*array;
+  PetscInt		m, n;
+
+  ierr = MatGetSize(mat, &m, &n);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(mat, &array);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "%s\n", name);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);
+  ierr = PetscScalarView(m*n, array, viewer);CHKERRQ(ierr);
+  ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPopSynchronized(viewer);CHKERRQ(ierr);
+  ierr = MatDenseRestoreArray(mat, &array);CHKERRQ(ierr);
+
+  return ierr;
+}
+
+PetscErrorCode zeroUpperTriangular(Mat mat)
+{
+  PetscErrorCode	ierr;
+  PetscInt		n, i, j;
+  PetscScalar		*array;
+
+  ierr = MatGetSize(mat, NULL, &n);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(mat, &array);CHKERRQ(ierr);
+  for (i = 0; i < n; i++) {
+    for (j = i+1; j < n; j++) {
+      array[j+(i*n)] = 0.0;
+    }
+  }
+
+  ierr = MatDenseRestoreArray(mat, &array);CHKERRQ(ierr);
+  return ierr;
+}
 PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
 {
   PetscErrorCode        	ierr;
@@ -8,9 +43,9 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   PetscInt			i, j, m, M;
   PetscScalar			*colvecs, *vecarrs, *matarray, *matarrayQL, *Rmatarray;
   PetscScalar			shift, norm;
-  Mat				X, Q, R, Rhat, QL;
+  Mat				X, Q, R, Rinv, Rhat, QL, Ident;
   MatFactorInfo			info;
-  IS				rowperm, colperm;
+  IS				rowperm, colperm, rows;
 
   ierr = PetscObjectGetComm((PetscObject) vecs[0], &comm);CHKERRQ(ierr);
   ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
@@ -20,6 +55,8 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   PetscPrintf(comm, "N %d m %d\n",N, m);
   ierr = VecGetSize(vecs[0], &M);CHKERRQ(ierr);
   ierr = MatCreateDense(comm, m, PETSC_DETERMINE, PETSC_DETERMINE, N, NULL, &X);CHKERRQ(ierr);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF, N, N, NULL, &Ident);CHKERRQ(ierr);
+  ierr = MatShift(Ident, 1.0);CHKERRQ(ierr);
 
   ierr = MatAssemblyBegin(X, MAT_FLUSH_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(X, MAT_FLUSH_ASSEMBLY);CHKERRQ(ierr);
@@ -47,28 +84,33 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   ierr = MatDestroy(&QL);CHKERRQ(ierr);
   ierr = MatDenseGetArray(Rhat, &Rmatarray);CHKERRQ(ierr);
   ierr = MPIU_Allreduce(MPI_IN_PLACE, Rmatarray, N*N, MPIU_SCALAR, MPI_SUM, comm);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);
   for (i = 0; i < N*N; i++) {
     //ierr = PetscViewerASCIISynchronizedPrintf(viewer, "%f\n", Rmatarray[i]);CHKERRQ(ierr);
   }
+  ierr = PetscViewerASCIIPopSynchronized(viewer);CHKERRQ(ierr);
   PetscScalarView(N*N, Rmatarray, viewer);
   ierr = MatDenseRestoreArray(Rhat, &Rmatarray);CHKERRQ(ierr);
 
   ierr = MatNorm(Q, NORM_FROBENIUS, &norm);CHKERRQ(ierr);
-  MatView(Q, viewer);
   /*	Initial shift Cholesky	*/
   shift = 11*((M*N)+(N*(N+1)))*PETSC_MACHINE_EPSILON*norm;
   ierr = MatShift(Rhat, shift);CHKERRQ(ierr);
   ierr = MatDuplicate(Rhat, MAT_COPY_VALUES, &R);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(R, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(R, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatCholeskyFactor(R, NULL, &info);CHKERRQ(ierr);
-  //ierr = MatSetUnfactored(R);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(Rhat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Rhat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatGetOwnershipIS(R, &rows, NULL);CHKERRQ(ierr);
+  ierr = MatCholeskyFactor(Rhat, rows, &info);CHKERRQ(ierr);
+  ierr = zeroUpperTriangular(Rhat);CHKERRQ(ierr);
+  ierr = PMatView(Rhat, "Rhat", viewer);CHKERRQ(ierr);
   for (i = 0; i < 2; i++) {
     /*	Cholesky QR2/3	*/
+    //ierr = PMatView(R, "Rmat", viewer);CHKERRQ(ierr);
+    ierr = MatMatSolve(Rhat, Ident, &Rinv);CHKERRQ(ierr);
+    ierr = PMatView(Rinv, "Rinv", viewer);CHKERRQ(ierr);
+    //    ierr = MatSetUnfactored(R);CHKERRQ(ierr);
     ierr = MatDenseGetLocalMatrix(Q, &QL);CHKERRQ(ierr);
-    MatView(QL, viewer);
-    ierr = MatMatSolve(R, QL, QL);CHKERRQ(ierr);
-    ierr = MatSetUnfactored(Q);CHKERRQ(ierr);
+    ierr = MatMatMult(Q, R, MAT_REUSE_MATRIX, PETSC_DEFAULT, &Q);CHKERRQ(ierr);
 
     ierr = MatTransposeMatMult(Q, Q, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Rhat);CHKERRQ(ierr);
     ierr = MatGetOrdering(Rhat, MATORDERINGNATURAL, &rowperm, &colperm);CHKERRQ(ierr);
@@ -98,6 +140,7 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   ierr = VecView(vecs[0], viewer);CHKERRQ(ierr);
   ierr = ISDestroy(&rowperm);CHKERRQ(ierr);
   ierr = ISDestroy(&colperm);CHKERRQ(ierr);
+  ierr = MatDestroy(&Ident);CHKERRQ(ierr);
   ierr = MatDestroy(&Q);CHKERRQ(ierr);
   ierr = MatDestroy(&Rhat);CHKERRQ(ierr);
   ierr = MatDestroy(&R);CHKERRQ(ierr);
