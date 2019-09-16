@@ -18,34 +18,42 @@ PetscErrorCode PMatView(Mat mat, const char *name, PetscViewer viewer)
   return ierr;
 }
 
-PetscErrorCode zeroUpperTriangular(Mat mat)
+PetscErrorCode MatNormLocal(Mat mat, PetscInt N, Mat *workmat)
 {
   PetscErrorCode	ierr;
-  PetscInt		n, i, j;
-  PetscScalar		*array;
+  MPI_Comm		comm;
+  PetscScalar		*array, *workarray;
+  PetscInt		M, i;
+  Mat			temp;
 
-  ierr = MatGetSize(mat, NULL, &n);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject) mat, &comm);CHKERRQ(ierr);
   ierr = MatDenseGetArray(mat, &array);CHKERRQ(ierr);
-  for (i = 0; i < n; i++) {
-    for (j = i+1; j < n; j++) {
-      array[j+(i*n)] = 0.0;
-    }
-  }
-
+  ierr = MatGetLocalSize(mat, &M, NULL);CHKERRQ(ierr);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF, M, N, NULL, &temp);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(temp, &workarray);CHKERRQ(ierr);
+  for (i = 0; i < N*N; i++) { workarray[i] = array[i];}
+  ierr = MatDenseRestoreArray(temp, &workarray);CHKERRQ(ierr);
   ierr = MatDenseRestoreArray(mat, &array);CHKERRQ(ierr);
+  ierr = MatTransposeMatMult(temp, temp, MAT_INITIAL_MATRIX, PETSC_DEFAULT, workmat);CHKERRQ(ierr);
+  ierr = MatDestroy(&temp);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(*workmat, &workarray);CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(MPI_IN_PLACE, workarray, N*N, MPIU_SCALAR, MPI_SUM, comm);CHKERRQ(ierr);
+  ierr = MatDenseRestoreArray(*workmat, &workarray);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(*workmat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(*workmat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   return ierr;
 }
 PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
 {
-  PetscErrorCode        	ierr;
-  MPI_Comm              	comm;
-  PetscViewer			viewer;
-  PetscInt			i, j, m, M;
-  PetscScalar			*colvecs, *vecarrs, *matarray, *matarrayQL, *Rmatarray;
-  PetscScalar			shift, norm;
-  Mat				X, Q, R, Rinv, Rhat, QL, Ident;
-  MatFactorInfo			info;
-  IS				rowperm, colperm, rows;
+  PetscErrorCode	ierr;
+  MPI_Comm		comm;
+  PetscViewer		viewer;
+  PetscInt		i, j, m, M;
+  PetscScalar		*colvecs, *vecarrs, *matarray, *Qmatarray;
+  PetscScalar		shift, norm;
+  Mat			X, Q, R, Rinv, QL, QNew, Ident;
+  MatFactorInfo		info;
+  IS			rows, cols;
 
   ierr = PetscObjectGetComm((PetscObject) vecs[0], &comm);CHKERRQ(ierr);
   ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
@@ -57,6 +65,8 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   ierr = MatCreateDense(comm, m, PETSC_DETERMINE, PETSC_DETERMINE, N, NULL, &X);CHKERRQ(ierr);
   ierr = MatCreateSeqDense(PETSC_COMM_SELF, N, N, NULL, &Ident);CHKERRQ(ierr);
   ierr = MatShift(Ident, 1.0);CHKERRQ(ierr);
+  ierr = MatDuplicate(Ident, MAT_COPY_VALUES, &Rinv);CHKERRQ(ierr);
+  ierr = MatZeroEntries(Rinv);CHKERRQ(ierr);
 
   ierr = MatAssemblyBegin(X, MAT_FLUSH_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(X, MAT_FLUSH_ASSEMBLY);CHKERRQ(ierr);
@@ -72,77 +82,63 @@ PetscErrorCode shiftedCholeskyQR3(Vec vecs[], PetscInt N)
   ierr = MatAssemblyBegin(X, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(X, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatDuplicate(X, MAT_COPY_VALUES, &Q);CHKERRQ(ierr);
-  MatView(X, viewer);
-
-  ierr = MatDenseGetArray(Q, &matarray);CHKERRQ(ierr);
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF, m, N, NULL, &QL);CHKERRQ(ierr);
-  ierr = MatDenseGetArray(QL, &matarrayQL);CHKERRQ(ierr);
-  for (i = 0; i < N*N; i++) { matarrayQL[i] = matarray[i];}
-  ierr = MatDenseRestoreArray(QL, &matarrayQL);CHKERRQ(ierr);
-  ierr = MatDenseRestoreArray(Q, &matarray);CHKERRQ(ierr);
-  ierr = MatTransposeMatMult(QL, QL, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Rhat);CHKERRQ(ierr);
-  ierr = MatDestroy(&QL);CHKERRQ(ierr);
-  ierr = MatDenseGetArray(Rhat, &Rmatarray);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(MPI_IN_PLACE, Rmatarray, N*N, MPIU_SCALAR, MPI_SUM, comm);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);
-  for (i = 0; i < N*N; i++) {
-    //ierr = PetscViewerASCIISynchronizedPrintf(viewer, "%f\n", Rmatarray[i]);CHKERRQ(ierr);
-  }
-  ierr = PetscViewerASCIIPopSynchronized(viewer);CHKERRQ(ierr);
-  PetscScalarView(N*N, Rmatarray, viewer);
-  ierr = MatDenseRestoreArray(Rhat, &Rmatarray);CHKERRQ(ierr);
-
-  ierr = MatNorm(Q, NORM_FROBENIUS, &norm);CHKERRQ(ierr);
+  ierr = MatNorm(X, NORM_FROBENIUS, &norm);CHKERRQ(ierr);
+  ierr = MatNormLocal(Q, N, &R);CHKERRQ(ierr);
+  PetscPrintf(comm, "\nR MAT\n");
+  MatView(R, viewer);
   /*	Initial shift Cholesky	*/
-  shift = 11*((M*N)+(N*(N+1)))*PETSC_MACHINE_EPSILON*norm;
-  ierr = MatShift(Rhat, shift);CHKERRQ(ierr);
-  ierr = MatDuplicate(Rhat, MAT_COPY_VALUES, &R);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(Rhat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(Rhat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatGetOwnershipIS(R, &rows, NULL);CHKERRQ(ierr);
-  ierr = MatCholeskyFactor(Rhat, rows, &info);CHKERRQ(ierr);
-  ierr = zeroUpperTriangular(Rhat);CHKERRQ(ierr);
-  ierr = PMatView(Rhat, "Rhat", viewer);CHKERRQ(ierr);
+  shift = 11*((M*N)+(N*(N+1)))*PETSC_MACHINE_EPSILON*13.65;
+  ierr = MatShift(R, shift);CHKERRQ(ierr);
   for (i = 0; i < 2; i++) {
     /*	Cholesky QR2/3	*/
-    //ierr = PMatView(R, "Rmat", viewer);CHKERRQ(ierr);
-    ierr = MatMatSolve(Rhat, Ident, &Rinv);CHKERRQ(ierr);
-    ierr = PMatView(Rinv, "Rinv", viewer);CHKERRQ(ierr);
-    //    ierr = MatSetUnfactored(R);CHKERRQ(ierr);
-    ierr = MatDenseGetLocalMatrix(Q, &QL);CHKERRQ(ierr);
-    ierr = MatMatMult(Q, R, MAT_REUSE_MATRIX, PETSC_DEFAULT, &Q);CHKERRQ(ierr);
-
-    ierr = MatTransposeMatMult(Q, Q, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Rhat);CHKERRQ(ierr);
-    ierr = MatGetOrdering(Rhat, MATORDERINGNATURAL, &rowperm, &colperm);CHKERRQ(ierr);
-    ierr = MatCholeskyFactor(Rhat, rowperm, &info);CHKERRQ(ierr);
-
-    ierr = MatGetOrdering(Q, MATORDERINGNATURAL, &rowperm, &colperm);CHKERRQ(ierr);
-    ierr = MatLUFactor(Q, rowperm, colperm, &info);CHKERRQ(ierr);
-    ierr = MatMatSolve(Q, Q, Rhat);CHKERRQ(ierr);
+    ierr = MatGetOwnershipIS(R, &rows, &cols);CHKERRQ(ierr);
+    ierr = MatCholeskyFactor(R, cols, &info);CHKERRQ(ierr);
+    /*	Invert	*/
+    ierr = MatMatSolveTranspose(R, Ident, Rinv);CHKERRQ(ierr);
     ierr = MatSetUnfactored(R);CHKERRQ(ierr);
-    ierr = MatSetUnfactored(Rhat);CHKERRQ(ierr);
-    ierr = MatSetUnfactored(Q);CHKERRQ(ierr);
-    ierr = MatMatMult(Rhat, R, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &R);CHKERRQ(ierr);
+    PetscPrintf(comm, "\nR MAT INSIDE CHOL\n");
+    MatView(R, viewer);
+    PetscPrintf(comm, "\nRINV INSIDE CHOL-----------------\n");
+    MatView(Rinv, viewer);
+
+    ierr = MatZeroEntries(R);CHKERRQ(ierr);
+    /* Update	*/
+    ierr = MatDenseGetLocalMatrix(Q, &QL);CHKERRQ(ierr);
+
+    PetscPrintf(comm, "QL, RINV---------------------\n");
+    MatView(QL, viewer);
+    MatView(Rinv, viewer);
+
+    ierr = MatMatMult(QL, Rinv, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &QNew);CHKERRQ(ierr);
+    ierr = MatDenseGetArray(QNew, &matarray);CHKERRQ(ierr);
+    ierr = MatDenseGetArray(Q, &Qmatarray);CHKERRQ(ierr);
+    for (j = 0; j < N*N; j++) {
+      Qmatarray[j] = matarray[j];
+    }
+    ierr = MatDenseRestoreArray(Q, &Qmatarray);CHKERRQ(ierr);
+    ierr = MatDenseRestoreArray(QNew, &matarray);CHKERRQ(ierr);
+    PetscPrintf(comm, "=================QNEW====================\n");
+    MatView(QL, viewer);
+    PetscPrintf(comm, "-------------\nQ MAT\n");
+    MatView(Q, viewer);
+    PetscPrintf(comm, "-------------\n");
+    ierr = MatNormLocal(Q, N, &R);CHKERRQ(ierr);
   }
   MatView(X, viewer);
-  MatView(Q, viewer);
   for (i = 0; i < N; i++) {
-    ierr = MatDenseGetColumn(R, i, &colvecs);CHKERRQ(ierr);
+    ierr = MatDenseGetColumn(Q, i, &colvecs);CHKERRQ(ierr);
     ierr = VecGetArray(vecs[i], &vecarrs);CHKERRQ(ierr);
     for (j = 0; j < m; j++) {
       vecarrs[j] = colvecs[j];
     }
     ierr = VecRestoreArray(vecs[i], &vecarrs);CHKERRQ(ierr);
     ierr = VecNormalize(vecs[i], NULL);CHKERRQ(ierr);
-    ierr = MatDenseRestoreColumn(R, &colvecs);CHKERRQ(ierr);
+    VecView(vecs[i], viewer);
+    ierr = MatDenseRestoreColumn(Q, &colvecs);CHKERRQ(ierr);
   }
-
-  ierr = VecView(vecs[0], viewer);CHKERRQ(ierr);
-  ierr = ISDestroy(&rowperm);CHKERRQ(ierr);
-  ierr = ISDestroy(&colperm);CHKERRQ(ierr);
+  MatView(Q, viewer);
   ierr = MatDestroy(&Ident);CHKERRQ(ierr);
   ierr = MatDestroy(&Q);CHKERRQ(ierr);
-  ierr = MatDestroy(&Rhat);CHKERRQ(ierr);
   ierr = MatDestroy(&R);CHKERRQ(ierr);
   ierr = MatDestroy(&X);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
@@ -156,7 +152,8 @@ int main(int argc, char **argv)
   PetscInt		nvecs = 3, i;
   const PetscInt	n = 3;
   const PetscInt	ix[n] = {0, 1, 2};
-  const PetscScalar	vecarray1[n] = {0, 1, 2}, vecarray2[n] = {1, 3, 0}, vecarray3[n] = {4, 0, 2};
+  //const PetscScalar	vecarray1[n] = {0, 1, 2}, vecarray2[n] = {1, 3, 0}, vecarray3[n] = {4, 0, 2};
+  const PetscScalar	vecarray1[n] = {1, 2, 1}, vecarray2[n] = {0, 2, 0}, vecarray3[n] = {1, 0, 3};
   PetscScalar		vdot;
   Vec                   vecs[nvecs];
 
@@ -175,11 +172,11 @@ int main(int argc, char **argv)
   for (i = 0; i < nvecs; i++) {
     ierr = VecAssemblyBegin(vecs[i]);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(vecs[i]);CHKERRQ(ierr);
-    VecView(vecs[i], 0);CHKERRQ(ierr);
-  }
+   }
 
   ierr = shiftedCholeskyQR3(vecs, nvecs);CHKERRQ(ierr);
   for (i = 0; i < nvecs-1; i++) {
+    VecView(vecs[i], 0);
     ierr = VecDot(vecs[i], vecs[i+1], &vdot);CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "DOT: %f\n", vdot);CHKERRQ(ierr);
   }
