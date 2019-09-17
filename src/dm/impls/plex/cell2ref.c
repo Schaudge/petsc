@@ -64,46 +64,57 @@ PetscErrorCode Matvis(const char prefix[], PetscScalar mat[])
   return ierr;
 }
 
-PetscErrorCode AngleBetweenConnectedEdges(DM dm, PetscInt *foundcells, PetscInt numCells, PetscInt vertex, PetscScalar **angles)
+PetscErrorCode AngleBetweenConnectedEdges(DM dm, PetscInt *foundcells, PetscInt numCells, PetscInt vertex, PetscScalar *angles[], PetscInt *startEdge)
 {
   PetscErrorCode	ierr;
   const PetscInt	*edges, *vertsOnEdge;
-  PetscInt		i, j, numEdges, numVerts, coordsize, dim, vStart;
-  PetscInt		*idx, *edgescopy;
-  PetscScalar		centerx, centery, det, dot;
-  PetscScalar		*carr, *xyidx;
+  PetscInt		i, j, numEdges, numVerts, dim, vStart, refVert, compVert;
+  PetscScalar		refx, refy, compx, compy, centerx, centery, det, dot, x;
+  PetscScalar		*carr, *angles_;
   Vec			coordinates;
-  IS			edgeIS;
 
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart, NULL);CHKERRQ(ierr);
   ierr = DMGetDimension(dm,  &dim);CHKERRQ(ierr);
-  ierr = DMGetCoordinates(dm, &coordinates);CHKERRQ(ierr);
-  ierr = VecGetSize(coordinates, &coordsize);CHKERRQ(ierr);
-  ierr = VecGetArray(coordinates, &carr);CHKERRQ(ierr);
-  centerx = carr[dim*(vertex-vStart)]; centery = carr[dim*(vertex-vStart)+1];
   ierr = DMPlexGetSupport(dm, vertex, &edges);CHKERRQ(ierr);
   ierr = DMPlexGetSupportSize(dm, vertex, &numEdges);CHKERRQ(ierr);
-  ierr = PetscCalloc1(numEdges, &angles);CHKERRQ(ierr);
-  ierr = PetscCalloc1(numEdges, &edgescopy);CHKERRQ(ierr);
-  for (i = 0; i < numEdges; i++) { edgescopy[i] = edges[i];}
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, numEdges, edgescopy, PETSC_COPY_VALUES, &edgeIS);CHKERRQ(ierr);
-
-  /*
-  Vec			vecs[numEdges];
-  ierr = VecCreateSeq(PETSC_COMM_WORLD, dim, &vecs[0]);CHKERRQ(ierr);
-  for (i = 1; i < numEdges; i++) { ierr = VecDuplicate(vecs[0], &vecs[i]);CHKERRQ(ierr);}
-  for (i = 0; i < numEdges; i++) {
-    printf("Edge %d\n", edges[i]);
+  printf("\nNUMBER OF EDGES: %2d\n", numEdges);
+  ierr = PetscCalloc1(numEdges, &angles_);CHKERRQ(ierr);
+  ierr = DMPlexGetCone(dm, edges[0], &vertsOnEdge);CHKERRQ(ierr);
+  ierr = DMPlexGetConeSize(dm, edges[0], &numVerts);CHKERRQ(ierr);
+  for (i = 0; i < numVerts; i++) {
+    if (vertsOnEdge[i] != vertex) { refVert = vertsOnEdge[i];}
+  }
+  ierr = DMGetCoordinates(dm, &coordinates);CHKERRQ(ierr);
+  ierr = VecGetArray(coordinates, &carr);CHKERRQ(ierr);
+  centerx = carr[dim*(vertex-vStart)]; centery = carr[dim*(vertex-vStart)+1];
+  refx = carr[dim*(refVert-vStart)]-centerx; refy = carr[dim*(refVert-vStart)+1]-centery;
+  printf("REFERENCE VERTEX: %d -> (%2.2f,%2.2f)\n\n", refVert, refx, refy);
+  for (i = 1; i < numEdges; i++) {
+    printf("EDGE: %2d\n", edges[i]);
     ierr = DMPlexGetCone(dm, edges[i], &vertsOnEdge);CHKERRQ(ierr);
     ierr = DMPlexGetConeSize(dm, edges[i], &numVerts);CHKERRQ(ierr);
     for (j = 0; j < numVerts; j++) {
-      xyidx[j] =
+      //printf("CURRENT %2d --- COMPARE %2d\n", vertsOnEdge[j], vertex);
+      if (vertsOnEdge[j] != vertex) { compVert = vertsOnEdge[j];}
     }
+    compx = carr[dim*(compVert-vStart)]-centerx; compy = carr[dim*(compVert-vStart)+1]-centery;
+    printf("Chosen Vertex:\t%2.d -> (%2.2f,%2.2f)\n", compVert, compx, compy);
+    dot = (refx*compx) + (refy*compy);
+    det = (refx*compy) - (refy*compx);
+    printf("DOT: %2.2f\nDET: %2.2f\n", dot, det);
+    x = PetscAtan2Real(det, dot);
+    angles_[i-1] = (x > 0 ? x : (2*PETSC_PI + x)) * 360 / (2*PETSC_PI);
+    printf("COMPUTED ANGLE: %f\n\n", angles_[i-1]);
   }
-  for (i = 0; i < numEdges; i++) { ierr = VecDestroy(&vecs[i]);CHKERRQ(ierr);}
   ierr = VecRestoreArray(coordinates, &carr);CHKERRQ(ierr);
-   ierr = PetscFree(idx);CHKERRQ(ierr);
-   */
+  ierr = PetscSortReal(numEdges, angles_);CHKERRQ(ierr);
+  for (i = 0; i < numEdges-1; i++) {
+    angles_[i] = angles_[i+1]-angles_[i];
+  }
+  angles_[numEdges-1] = 360-angles_[numEdges-2];
+  ierr = PetscArraycpy(*angles, angles_, numEdges);CHKERRQ(ierr);
+  *startEdge = edges[0];
+  ierr = PetscFree(angles_);CHKERRQ(ierr);
   return ierr;
 }
 
@@ -325,8 +336,8 @@ int main(int argc, char **argv)
   ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
 
-  //ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
-  //ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
+  ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
+  ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
 
   ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
   ierr = DMGetStratumIS(dm, "depth", 0, &vertexIS);CHKERRQ(ierr);
@@ -342,7 +353,7 @@ int main(int argc, char **argv)
   for (i = 0; i < vsize; i++) {
     PetscInt	vertex = vptr[i];
     PetscInt	*points, *foundcells;
-    PetscInt	numPoints, j, actualj, cell, k = 0;
+    PetscInt	numPoints, numEdges, j, actualj, cell, k = 0, sEdge;
 
     ierr = DMPlexGetTransitiveClosure(dm, vertex, PETSC_FALSE, &numPoints, &points);CHKERRQ(ierr);
     printf("VERTEX# : %d -> (%.3f , %.3f) ", vertex, coordArray[2*i], coordArray[2*i+1]);
@@ -356,7 +367,11 @@ int main(int argc, char **argv)
       }
     }
     printf("For Vertex %d found %d cells\n", vertex, k);
-    ierr = AngleBetweenConnectedEdges(dm, foundcells, k, vertex, &angles);CHKERRQ(ierr);
+    ierr = DMPlexGetSupportSize(dm, vertex, &numEdges);CHKERRQ(ierr);
+    ierr = PetscCalloc1(numEdges, &angles);CHKERRQ(ierr);
+    ierr = AngleBetweenConnectedEdges(dm, foundcells, k, vertex, &angles, &sEdge);CHKERRQ(ierr);
+    PetscScalarView(numEdges, angles, 0);
+    ierr = PetscFree(angles);CHKERRQ(ierr);
     for (j = 0; j < k; j++) {
       PetscScalar	*R2Xmat, *X2Rmat, *realCtemp, *refCtemp;
 
