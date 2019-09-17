@@ -6,54 +6,239 @@
 # define ANSI_GREEN "\033[1;32m"
 # define ANSI_RESET "\033[0m"
 
+PetscErrorCode OrthoganalQuality(MPI_Comm comm, DM dm, Vec *OrthQual)
+{
+  PetscErrorCode	ierr;
+  IS			cellIS, subAlloc;
+  const PetscInt	*cells;
+  PetscInt		cStart, cEnd, cellIter, nPointsPerCell, i;
+  Vec			temp, cent2faces, faceNormVec;
+
+  ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
+  ierr = DMGetStratumIS(dm, "depth", 2, &cellIS);CHKERRQ(ierr);
+  ierr = ISGetIndices(cellIS, &cells);CHKERRQ(ierr);
+  ierr = DMPlexGetConeSize(dm, cells[0], &nPointsPerCell);CHKERRQ(ierr);
+
+  ierr = VecCreate(comm, &temp);CHKERRQ(ierr);
+  ierr = VecSetSizes(temp, PETSC_DECIDE, nPointsPerCell);CHKERRQ(ierr);
+  ierr = VecSetUp(temp);CHKERRQ(ierr);
+  ierr = VecZeroEntries(temp);CHKERRQ(ierr);
+
+  ierr = VecCreate(comm, &cent2faces);CHKERRQ(ierr);
+  ierr = VecSetSizes(cent2faces, PETSC_DECIDE, 2*nPointsPerCell);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(cent2faces, 2);CHKERRQ(ierr);
+  ierr = VecSetUp(cent2faces);CHKERRQ(ierr);
+  ierr = VecZeroEntries(cent2faces);CHKERRQ(ierr);
+  ierr = VecDuplicate(cent2faces, &faceNormVec);CHKERRQ(ierr);
+  ierr = VecCopy(cent2faces, faceNormVec);CHKERRQ(ierr);
+  ierr = VecSetUp(faceNormVec);CHKERRQ(ierr);
+
+  for (cellIter = cStart; cellIter < cEnd; cellIter++) {
+    const PetscInt	cell = cells[cellIter];
+    PetscScalar		OrthQualPerFace = 0.0, OrthQualPerCell = 0.0, Anorm, Fnorm, DotProd= 0.0;
+    ierr = VecZeroEntries(cent2faces);CHKERRQ(ierr);
+    ierr = VecZeroEntries(faceNormVec);CHKERRQ(ierr);
+    ierr = CentroidToFace(dm, cell, nPointsPerCell, &cent2faces, &faceNormVec);CHKERRQ(ierr);
+    for (i = 0; i < nPointsPerCell; i++) {
+      PetscInt		*idx;
+      size_t		size=2;
+      Vec  		subVecCent, subVecFace;
+
+      ierr = PetscMalloc1(size, &idx);CHKERRQ(ierr);
+      idx[0] = 2*i; idx[1] = 2*i+1;
+      ierr = ISCreateGeneral(PETSC_COMM_WORLD, 2, idx, PETSC_COPY_VALUES, &subAlloc);CHKERRQ(ierr);
+      ierr = PetscFree(idx);CHKERRQ(ierr);
+      ierr = VecGetSubVector(cent2faces, subAlloc, &subVecCent);CHKERRQ(ierr);
+      ierr = VecGetSubVector(faceNormVec, subAlloc, &subVecFace);CHKERRQ(ierr);
+      ierr = VecNorm(subVecCent, NORM_2, &Fnorm);CHKERRQ(ierr);
+      ierr = VecNorm(subVecFace, NORM_2, &Anorm);CHKERRQ(ierr);
+      ierr = VecDot(subVecCent, subVecFace, &DotProd);CHKERRQ(ierr);
+      OrthQualPerFace = DotProd/(Fnorm*Anorm);
+      ierr = VecSetValue(temp, i, OrthQualPerFace, INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecAssemblyBegin(temp);CHKERRQ(ierr);
+      ierr = VecAssemblyEnd(temp);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(cent2faces, subAlloc, &subVecCent);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(faceNormVec, subAlloc, &subVecFace);CHKERRQ(ierr);
+      ierr = ISDestroy(&subAlloc);CHKERRQ(ierr);
+    }
+    ierr = VecAbs(temp);CHKERRQ(ierr);
+    ierr = VecMin(temp, NULL, &OrthQualPerCell);CHKERRQ(ierr);
+    ierr = VecSetValue(*OrthQual, cellIter, OrthQualPerCell, INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecAssemblyBegin(*OrthQual);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(*OrthQual);CHKERRQ(ierr);
+  }
+  ierr = ISRestoreIndices(cellIS, &cells);CHKERRQ(ierr);
+  ierr = VecDestroy(&temp);CHKERRQ(ierr);
+  ierr = VecDestroy(&faceNormVec);CHKERRQ(ierr);
+  ierr = VecDestroy(&cent2faces);CHKERRQ(ierr);
+
+  return ierr;
+}
+
+PetscErrorCode CentroidToFace(DM dm, const PetscInt cellid, PetscInt nPointsPerCell, Vec *cent2faces, Vec *faceNormVec)
+{
+  PetscErrorCode	ierr;
+  PetscSection 		cSection;
+  Vec 			cellCoord;
+  const PetscInt	*faces;
+  PetscInt		p, offset, minOff;
+  PetscInt		points[nPointsPerCell];
+  PetscScalar		xsum = 0.0, ysum = 0.0;
+  PetscScalar		*cArray, *c2farr, centCoord[2], faceCent[2];
+
+  ierr = DMGetCoordinatesLocal(dm, &cellCoord);CHKERRQ(ierr);
+  ierr = DMGetCoordinateSection(dm, &cSection);CHKERRQ(ierr);
+  ierr = VecGetArray(cellCoord, &cArray);CHKERRQ(ierr);
+  ierr = VecGetArray(*cent2faces, &c2farr);CHKERRQ(ierr);
+  ierr = Cell2Coords(dm, cellid, &points);CHKERRQ(ierr);
+  for (p = 0; p < nPointsPerCell; p++) {
+    ierr = PetscSectionGetOffset(cSection, points[p], &offset);CHKERRQ(ierr);
+    xsum += cArray[offset];
+    ysum += cArray[offset + 1];
+  }
+  centCoord[0] = xsum/(PetscScalar)nPointsPerCell;
+  centCoord[1] = ysum/(PetscScalar)nPointsPerCell;
+
+  ierr = DMPlexGetCone(dm, cellid, &faces);CHKERRQ(ierr);
+  ierr = PetscSectionGetOffsetRange(cSection, &minOff, NULL);CHKERRQ(ierr);
+  for (p = 0; p < nPointsPerCell; p++) {
+    const PetscInt	face = faces[p];
+    const PetscInt	*facePoints;
+    PetscInt		i;
+    xsum = 0.0; ysum = 0.0;
+    ierr = DMPlexGetCone(dm, face, &facePoints);CHKERRQ(ierr);
+    for (i = 0; i < 2; i++) {
+      ierr = PetscSectionGetOffset(cSection, facePoints[i], &offset);CHKERRQ(ierr);
+      xsum += cArray[offset-minOff];
+      ysum += cArray[offset-minOff + 1];
+    }
+    faceCent[0] = xsum/2.0;
+    faceCent[1] = ysum/2.0;
+    c2farr[2*p] = faceCent[0]-centCoord[0];
+    c2farr[2*p + 1] = faceCent[1]-centCoord[1];
+    ierr = FaceNormPerCell(dm, cSection, facePoints, p, faceNormVec);CHKERRQ(ierr);
+  }
+  ierr = VecRestoreArray(cellCoord, &cArray);CHKERRQ(ierr);
+  ierr = VecRestoreArray(*cent2faces, &c2farr);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode Cell2Coords(DM dm, PetscInt cellId, PetscInt *points)
+{
+  PetscErrorCode	ierr;
+  PetscInt		zeroiter, edgeIter, numConnEdges;
+  const PetscInt	*connEdges;
+
+  ierr = DMPlexGetCone(dm, cellId, &connEdges);CHKERRQ(ierr);
+  ierr = DMPlexGetConeSize(dm, cellId, &numConnEdges);CHKERRQ(ierr);
+
+  for (zeroiter = 0; zeroiter < numConnEdges; zeroiter++) {
+    points[zeroiter] = -1;
+  }
+  for (edgeIter = 0;edgeIter < numConnEdges; edgeIter++) {
+    PetscInt		pointIter, numConnPoints;
+    const PetscInt	*connPoints;
+
+    ierr = DMPlexGetCone(dm, connEdges[edgeIter], &connPoints);CHKERRQ(ierr);
+    ierr = DMPlexGetConeSize(dm, connEdges[edgeIter], &numConnPoints);CHKERRQ(ierr);
+    for (pointIter = 0; pointIter < numConnPoints; pointIter++) {
+      PetscBool		inArray = PETSC_FALSE;
+
+      valueInArray(connPoints[pointIter], points, numConnEdges, &inArray);
+      if (!inArray) {
+        points[edgeIter+pointIter] = connPoints[pointIter];
+      }
+    }
+  }
+  return ierr;
+}
+
+PetscErrorCode FaceNormPerCell(DM dm, PetscSection cSection, const PetscInt faceid[], PetscInt idx,  Vec *faceNormVec)
+{
+  PetscErrorCode	ierr;
+  Vec			coords;
+  PetscInt		offset0, offset1, minOff;
+  PetscScalar		dx = 0.0, dy = 0.0;
+  PetscScalar		*cArray, *fArray;
+
+  ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
+  ierr = VecGetArray(coords, &cArray);CHKERRQ(ierr);
+  ierr = VecGetArray(*faceNormVec, &fArray);CHKERRQ(ierr);
+  ierr = PetscSectionGetOffsetRange(cSection, &minOff, NULL);CHKERRQ(ierr);
+  ierr = PetscSectionGetOffset(cSection, faceid[1], &offset1);CHKERRQ(ierr);
+  ierr = PetscSectionGetOffset(cSection, faceid[0], &offset0);CHKERRQ(ierr);
+
+  dx = cArray[offset1-minOff]-cArray[offset0-minOff];
+  dy = cArray[offset1-minOff+1]-cArray[offset0-minOff+1];
+  fArray[2*idx] = -dy;
+  fArray[2*idx + 1] = dx;
+
+  ierr = VecRestoreArray(coords, &cArray);CHKERRQ(ierr);
+  ierr = VecRestoreArray(*faceNormVec, &fArray);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode valueInArray(const PetscInt val, PetscInt *arr, PetscInt sizeOfArr, PetscBool *inArray)
+{
+  PetscInt	i;
+  for(i = 0; i < sizeOfArr; i++) {
+    if(arr[i] == val) {
+      *inArray = PETSC_TRUE;
+      return 1;
+    }
+  }
+  *inArray = PETSC_FALSE;
+  return (0);
+}
+
 PetscErrorCode StretchArray2D(DM dm, PetscScalar lx, PetscScalar ly)
 {
-        PetscErrorCode          ierr;
-        PetscInt                i, nCoords;
-        Vec                     coordsLocal;
-        PetscScalar             *coordArray;
+  PetscErrorCode          ierr;
+  PetscInt                i, nCoords;
+  Vec                     coordsLocal;
+  PetscScalar             *coordArray;
 
-        ierr = DMGetCoordinates(dm, &coordsLocal);CHKERRQ(ierr);
-        ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
-        ierr = VecGetArray(coordsLocal, &coordArray);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(dm, &coordsLocal);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
+  ierr = VecGetArray(coordsLocal, &coordArray);CHKERRQ(ierr);
 
-        // Order in coordarray is [x1,y1,z1....]
-        for (i = 0; i < nCoords; i++) {
-          //if ((i < 6) || (i > 11)) {
-            if (i % 2) {
-              coordArray[i-1] = lx*coordArray[i-1];
-              coordArray[i] = ly*coordArray[i];
-            }
-            // }
-        }
-        ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
-        return ierr;
+  // Order in coordarray is [x1,y1,z1....]
+  for (i = 0; i < nCoords; i++) {
+    //if ((i < 6) || (i > 11)) {
+    if (i % 2) {
+      coordArray[i-1] = lx*coordArray[i-1];
+      coordArray[i] = ly*coordArray[i];
+    }
+    // }
+  }
+  ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
+  ierr = DMSetCoordinates(dm, coordsLocal);CHKERRQ(ierr);
+  return ierr;
 }
 
 PetscErrorCode SkewArray2D(DM dm, PetscScalar omega)
 {
-        PetscErrorCode          ierr;
-        PetscInt                i, nCoords;
-        Vec                     coordsLocal;
-        PetscScalar             *coordArray;
+  PetscErrorCode          ierr;
+  PetscInt                i, nCoords;
+  Vec                     coordsLocal;
+  PetscScalar             *coordArray;
 
-        ierr = DMGetCoordinatesLocal(dm, &coordsLocal);CHKERRQ(ierr);
-        ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
-        ierr = VecGetArray(coordsLocal, &coordArray);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordsLocal);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
+  ierr = VecGetArray(coordsLocal, &coordArray);CHKERRQ(ierr);
 
-        // Order in coordarray is [x1,y1,z1....]
-        for (i = 0; i < nCoords; i++) {
-                if (i % 2) {
-                        coordArray[i] = coordArray[i] + coordArray[i-1]*PetscSinReal(omega);
-                        coordArray[i-1] = coordArray[i-1]*PetscCosReal(omega);
-                        // reversing order sice "y" is changed first
-                }
-        }
-        ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
-        ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
+  // Order in coordarray is [x1,y1,z1....]
+  for (i = 0; i < nCoords; i++) {
+    if (i % 2) {
+      coordArray[i] = coordArray[i] + coordArray[i-1]*PetscSinReal(omega);
+      coordArray[i-1] = coordArray[i-1]*PetscCosReal(omega);
+      // reversing order sice "y" is changed first
+    }
+  }
+  ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
+  ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
 
-        return ierr;
+  return ierr;
 }
 
 PetscErrorCode Matvis(const char prefix[], PetscScalar mat[])
@@ -73,6 +258,7 @@ PetscErrorCode AngleBetweenConnectedEdges(DM dm, PetscInt *foundcells, PetscInt 
   PetscScalar		*carr, *angles_;
   Vec			coordinates;
 
+  printf("--------------------- ANGLES --------------------");
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart, NULL);CHKERRQ(ierr);
   ierr = DMGetDimension(dm,  &dim);CHKERRQ(ierr);
   ierr = DMPlexGetSupport(dm, vertex, &edges);CHKERRQ(ierr);
@@ -98,13 +284,13 @@ PetscErrorCode AngleBetweenConnectedEdges(DM dm, PetscInt *foundcells, PetscInt 
       if (vertsOnEdge[j] != vertex) { compVert = vertsOnEdge[j];}
     }
     compx = carr[dim*(compVert-vStart)]-centerx; compy = carr[dim*(compVert-vStart)+1]-centery;
-    printf("Chosen Vertex:\t%2.d -> (%2.2f,%2.2f)\n", compVert, compx, compy);
+    printf("Chosen Vertex:\t  %2.d -> (%2.2f,%2.2f)\n", compVert, compx, compy);
     dot = (refx*compx) + (refy*compy);
     det = (refx*compy) - (refy*compx);
     printf("DOT: %2.2f\nDET: %2.2f\n", dot, det);
     x = PetscAtan2Real(det, dot);
     angles_[i-1] = (x > 0 ? x : (2*PETSC_PI + x)) * 360 / (2*PETSC_PI);
-    printf("COMPUTED ANGLE: %f\n\n", angles_[i-1]);
+    printf("COMPUTED ANGLE: %f\n", angles_[i-1]);
   }
   ierr = VecRestoreArray(coordinates, &carr);CHKERRQ(ierr);
   ierr = PetscSortReal(numEdges, angles_);CHKERRQ(ierr);
@@ -115,6 +301,7 @@ PetscErrorCode AngleBetweenConnectedEdges(DM dm, PetscInt *foundcells, PetscInt 
   ierr = PetscArraycpy(*angles, angles_, numEdges);CHKERRQ(ierr);
   *startEdge = edges[0];
   ierr = PetscFree(angles_);CHKERRQ(ierr);
+  printf("-------------------------------------------------");
   return ierr;
 }
 
@@ -264,7 +451,7 @@ PetscErrorCode ComputeR2X2RMapping(DM dm, PetscInt vertex, PetscInt cell, PetscS
         DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
         printf("%f, %f, %f\n", theta, refC[0], refC[1]);
         i = -1;
-        }
+      }
       ierr = PetscFree(rotMat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rtemp);CHKERRQ(ierr);
     }
@@ -299,7 +486,7 @@ int main(int argc, char **argv)
   PetscViewer		viewer;
   DM                    dm, dmDist;
   IS                    bcPointsIS, globalCellIS, vertexIS;
-  Vec			coords;
+  Vec			coords, OrthQual;
   PetscSection          section;
   PetscInt              overlap = 0, i, dim = 2, conesize, numFields = 1, numBC = 1, size, vsize, cEnd;
   PetscInt		faces[dim], bcField[numBC];
@@ -370,7 +557,6 @@ int main(int argc, char **argv)
     ierr = DMPlexGetSupportSize(dm, vertex, &numEdges);CHKERRQ(ierr);
     ierr = PetscCalloc1(numEdges, &angles);CHKERRQ(ierr);
     ierr = AngleBetweenConnectedEdges(dm, foundcells, k, vertex, &angles, &sEdge);CHKERRQ(ierr);
-    PetscScalarView(numEdges, angles, 0);
     ierr = PetscFree(angles);CHKERRQ(ierr);
     for (j = 0; j < k; j++) {
       PetscScalar	*R2Xmat, *X2Rmat, *realCtemp, *refCtemp;
@@ -380,7 +566,7 @@ int main(int argc, char **argv)
       ierr = PetscCalloc1((dim+1)*conesize, &realCtemp);CHKERRQ(ierr);
       ierr = PetscCalloc1((dim+1)*conesize, &refCtemp);CHKERRQ(ierr);
       printf("\ncell: %d, vertex: %d\n", foundcells[j], vertex);
-      //ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat, realCtemp, refCtemp);CHKERRQ(ierr);
+      ierr = ComputeR2X2RMapping(dm, vertex, foundcells[j], R2Xmat, X2Rmat, realCtemp, refCtemp);CHKERRQ(ierr);
 
       ierr = PetscFree(R2Xmat);CHKERRQ(ierr);
       ierr = PetscFree(X2Rmat);CHKERRQ(ierr);
@@ -396,6 +582,10 @@ int main(int argc, char **argv)
   ierr = ISRestoreIndices(vertexIS, &vptr);CHKERRQ(ierr);
   ierr = ISDestroy(&vertexIS);CHKERRQ(ierr);
 
+  ierr = VecCreateSeq(comm, cEnd, &OrthQual);CHKERRQ(ierr);
+  ierr = OrthoganalQuality(comm, dm, &OrthQual);CHKERRQ(ierr);
+  VecView(OrthQual, 0);
+  ierr = VecDestroy(&OrthQual);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)coords, "Deformed");CHKERRQ(ierr);
   ierr = DMPlexVTKWriteAll((PetscObject) dm, viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
