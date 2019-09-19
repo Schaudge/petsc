@@ -59,7 +59,7 @@ PETSC_EXTERN PetscLogDouble petsc_TotalFlops;
 PETSC_EXTERN PetscLogDouble petsc_tmp_flops;
 
 /* Global GPU counters */
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) 
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
 PETSC_EXTERN PetscLogDouble petsc_ctog_ct;
 PETSC_EXTERN PetscLogDouble petsc_gtoc_ct;
 PETSC_EXTERN PetscLogDouble petsc_ctog_sz;
@@ -148,7 +148,7 @@ typedef struct {
   PetscLogDouble mallocIncrease;/* How much the maximum malloced space has increased in this event */
   PetscLogDouble mallocSpace;   /* How much the space was malloced and kept during this event */
   PetscLogDouble mallocIncreaseEvent;  /* Maximum of the high water mark with in event minus memory available at the end of the event */
-  #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+  #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
   PetscLogDouble CpuToGpuCount; /* The total number of CPU to GPU copies */
   PetscLogDouble GpuToCpuCount; /* The total number of GPU to CPU copies */
   PetscLogDouble CpuToGpuSize;  /* The total size of CPU to GPU copies */
@@ -235,7 +235,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscLogFlops(PetscLogDouble n)
   PetscFunctionReturn(0);
 }
 
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
 PETSC_STATIC_INLINE PetscErrorCode PetscLogCpuToGpu(PetscLogDouble size){
   PetscFunctionBegin;
   petsc_ctog_ct += 1;

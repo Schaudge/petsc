@@ -28,6 +28,9 @@ PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
 #if defined(PETSC_HAVE_VIENNACL)
 PETSC_EXTERN PetscErrorCode PetscViennaCLInit();
 #endif
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode PetscHybridInit();
+#endif
 
 /* ------------------------Nasty global variables -------------------------------*/
 /*
@@ -95,6 +98,7 @@ PetscErrorCode (*PetscVFPrintf)(FILE*,const char[],va_list)    = PetscVFPrintfDe
 */
 PetscBool PetscViennaCLSynchronize = PETSC_FALSE;
 PetscBool PetscCUDASynchronize = PETSC_FALSE;
+PetscBool PetscHybridSynchronize = PETSC_FALSE;
 
 /* ------------------------------------------------------------------------------*/
 /*
@@ -734,6 +738,17 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   PetscViennaCLSynchronize = flg3;
   ierr = PetscViennaCLInit();CHKERRQ(ierr);
 #endif
+
+#if defined(PETSC_HAVE_LIBAXB)
+  ierr = PetscOptionsHasName(NULL,NULL,"-log_summary",&flg3);CHKERRQ(ierr);
+  if (!flg3) {
+    ierr = PetscOptionsHasName(NULL,NULL,"-log_view",&flg3);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsGetBool(NULL,NULL,"-hybrid_synchronize",&flg3,NULL);CHKERRQ(ierr);
+  PetscHybridSynchronize = flg3;
+  ierr = PetscHybridInit();CHKERRQ(ierr);
+#endif
+
 
   /*
      Creates the logging data structures; this is enabled even if logging is not turned on

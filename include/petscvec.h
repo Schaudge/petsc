@@ -93,12 +93,18 @@ typedef const char* VecType;
 #define VECMPI         "mpi"
 #define VECSTANDARD    "standard"   /* seq on one process and mpi on several */
 #define VECSHARED      "shared"
+#define VECSEQHYBRID   "seqhybrid"
+#define VECMPIHYBRID   "mpihybrid"
+#define VECHYBRID      "hybrid"   /* seqviennacl on one process and mpiviennacl on several */
 #define VECSEQVIENNACL "seqviennacl"
 #define VECMPIVIENNACL "mpiviennacl"
 #define VECVIENNACL    "viennacl"   /* seqviennacl on one process and mpiviennacl on several */
 #define VECSEQCUDA     "seqcuda"
 #define VECMPICUDA     "mpicuda"
 #define VECCUDA        "cuda"       /* seqcuda on one process and mpicuda on several */
+#define VECSEQHYBRID   "seqhybrid"
+#define VECMPIHYBRID   "mpihybrid"
+#define VECHYBRID      "hybrid"     /* seqviennacl on one process and mpiviennacl on several */
 #define VECNEST        "nest"
 #define VECNODE        "node"       /* use on-node shared memory */
 
@@ -642,6 +648,10 @@ PETSC_EXTERN PetscErrorCode VecsCreateSeq(MPI_Comm,PetscInt,PetscInt,Vecs*);
 PETSC_EXTERN PetscErrorCode VecsCreateSeqWithArray(MPI_Comm,PetscInt,PetscInt,PetscScalar*,Vecs*);
 PETSC_EXTERN PetscErrorCode VecsDuplicate(Vecs,Vecs*);
 
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode VecCreateSeqHybrid(MPI_Comm,PetscInt,Vec*);
+PETSC_EXTERN PetscErrorCode VecCreateMPIHybrid(MPI_Comm,PetscInt,PetscInt,Vec*);
+#endif
 #if defined(PETSC_HAVE_VIENNACL)
 typedef struct _p_PetscViennaCLIndices* PetscViennaCLIndices;
 PETSC_EXTERN PetscErrorCode PetscViennaCLIndicesCreate(PetscInt, PetscInt*,PetscInt, PetscInt*,PetscViennaCLIndices*);

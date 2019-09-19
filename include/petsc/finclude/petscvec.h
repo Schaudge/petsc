@@ -26,6 +26,9 @@
 #define VECSEQVIENNACL 'seqviennacl'
 #define VECMPIVIENNACL 'mpiviennacl'
 #define VECVIENNACL    'viennacl'
+#define VECSEQHYBRID   'seqhybrid'
+#define VECMPIHYBRID   'mpihybrid'
+#define VECHYBRID      'hybrid'
 #define VECNEST 'nest'
 
 #define VecScatterType character*(80)
