@@ -150,7 +150,6 @@ PetscErrorCode VecPinToCPU_SeqHybrid(Vec V,PetscBool pin)
   V->pinnedtocpu = pin;
   if (pin) {
     ierr = VecHybridCopyFromGPU(V);CHKERRQ(ierr);
-    V->valid_GPU_array = PETSC_OFFLOAD_CPU; /* since the CPU code will likely change values in the vector */
     V->ops->dot                    = VecDot_Seq;
     V->ops->norm                   = VecNorm_Seq;
     V->ops->tdot                   = VecTDot_Seq;
@@ -230,77 +229,5 @@ PetscErrorCode VecCreate_SeqHybrid(Vec V)
   V->ops->pintocpu = VecPinToCPU_SeqHybrid;
   ierr = VecHybridAllocateCheck(V);CHKERRQ(ierr);
   ierr = VecSet(V,0.0);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-
-PETSC_EXTERN PetscErrorCode PetscHybridInit()
-{
-  PetscErrorCode         ierr;
-  char                   string[20];
-  PetscBool              flg;
-  struct axbMemBackend_s **mem_backends;
-  struct axbOpBackend_s  **op_backends;
-  size_t                 num_backends,i;
-  const char             *backend_name;
-
-  PetscFunctionBegin;
-  ierr = axbInit(&axb_handle);CHKERRQ(ierr);
-  ierr = axbMemBackendGetAll(axb_handle, &mem_backends, &num_backends);CHKERRQ(ierr);
-  axb_mem_backend = mem_backends[num_backends-1];
-  ierr = axbOpBackendGetAll(axb_handle, &op_backends, &num_backends);CHKERRQ(ierr);
-  axb_op_backend = op_backends[num_backends-1];
-
-  /* Memory backend selection: host, CUDA, OpenCL, etc.*/
-  ierr = PetscOptionsGetString(NULL,NULL,"-hybrid_memory",string,12,&flg);CHKERRQ(ierr);
-  if (flg) {
-    for (i=0; i<num_backends; ++i) {
-      ierr = axbMemBackendGetName(mem_backends[i], &backend_name);CHKERRQ(ierr);
-      if (strcmp(backend_name, string) == 0) {
-        axb_mem_backend = mem_backends[i];
-        break;
-      }
-    }
-    if (i==num_backends) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"libaxb error: Hybrid memory backend not recognized or available: %s.\n Pass -hybrid_view to see available backends.\n", string);
-  }
-
-  /* Operations backend selection: host, CUDA, CUBLAS, clSparse, etc. */
-  ierr = PetscOptionsGetString(NULL,NULL,"-hybrid_ops",string,12,&flg);CHKERRQ(ierr);
-  if (flg) {
-    for (i=0; i<num_backends; ++i) {
-      ierr = axbOpBackendGetName(op_backends[i], &backend_name);CHKERRQ(ierr);
-      if (strcmp(backend_name, string) == 0) {
-        axb_op_backend = op_backends[i];
-        break;
-      }
-    }
-    if (i==num_backends) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"libaxb error: Hybrid operations backend not recognized or available: %s.\n Pass -hybrid_view to see available backends.\n", string);
-  }
-
-  /* Print available backends */
-  ierr = PetscOptionsHasName(NULL,NULL,"-hybrid_view",&flg);CHKERRQ(ierr);
-  if (flg) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Hybrid memory backends available: ");CHKERRQ(ierr);
-    for (i=0; i<num_backends; ++i) {
-      ierr = axbMemBackendGetName(mem_backends[i], &backend_name);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_WORLD, "%s ", backend_name);CHKERRQ(ierr);
-    }
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");CHKERRQ(ierr);
-
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Hybrid operations backends available: ");CHKERRQ(ierr);
-    for (i=0; i<num_backends; ++i) {
-      ierr = axbOpBackendGetName(op_backends[i], &backend_name);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_WORLD, "%s ", backend_name);CHKERRQ(ierr);
-    }
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");CHKERRQ(ierr);
-
-    /* Print selected backends */
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Hybrid memory backend selected (customize via -hybrid_memory): ");CHKERRQ(ierr);
-    ierr = axbMemBackendGetName(axb_mem_backend, &backend_name);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s\n", backend_name);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Hybrid operations backend selected (customize via -hybrid_ops): ");CHKERRQ(ierr);
-    ierr = axbOpBackendGetName(axb_op_backend, &backend_name);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s\n", backend_name);CHKERRQ(ierr);
-  }
   PetscFunctionReturn(0);
 }
