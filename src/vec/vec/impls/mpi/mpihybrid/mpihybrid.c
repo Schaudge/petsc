@@ -9,12 +9,12 @@
 PetscErrorCode VecDestroy_MPIHybrid(Vec v)
 {
   PetscErrorCode ierr;
-  Vec_Hybrid     *vec_hybrid = (Vec_Hybrid *)v->spptr;
+  Vec_Hybrid     *vec_hybrid = (Vec_Hybrid*)v->spptr;
 
   PetscFunctionBegin;
   if (v->spptr) {
     ierr = axbVecDestroy(vec_hybrid->vec);CHKERRQ(ierr);
-    PetscFree(v->spptr);
+    ierr = PetscFree(v->spptr);CHKERRQ(ierr);
   }
   ierr = VecDestroy_MPI(v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -93,6 +93,19 @@ PetscErrorCode VecMDot_MPIHybrid(Vec xin,PetscInt nv,const Vec y[],PetscScalar *
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecDotNorm2_MPIHybrid(Vec s,Vec t,PetscScalar *dp,PetscScalar *nm)
+{
+  PetscErrorCode ierr;
+  PetscScalar    work[2],sum[2];
+
+  PetscFunctionBegin;
+  ierr = VecDotNorm2_SeqHybrid(s,t,work,work+1);CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&work,&sum,2,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)s));CHKERRQ(ierr);
+  *dp  = sum[0];
+  *nm  = sum[1];
+  PetscFunctionReturn(0);
+}
+
 /*MC
    VECMPIHYBRID - VECMPIHYBRID = "mpihybrid" - The basic parallel vector, modified to use libaxb for hybrid compute devices
 
@@ -146,16 +159,79 @@ PetscErrorCode VecDuplicate_MPIHybrid(Vec win,Vec *v)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecDotNorm2_MPIHybrid(Vec s,Vec t,PetscScalar *dp,PetscScalar *nm)
+static PetscErrorCode VecPinToCPU_MPIHybrid(Vec V,PetscBool pin)
 {
   PetscErrorCode ierr;
-  PetscScalar    work[2],sum[2];
 
   PetscFunctionBegin;
-  ierr = VecDotNorm2_SeqHybrid(s,t,work,work+1);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce((void*)&work,(void*)&sum,2,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)s));CHKERRQ(ierr);
-  *dp  = sum[0];
-  *nm  = sum[1];
+  V->pinnedtocpu = pin;
+  if (pin) {
+    ierr = VecCUDACopyFromGPU(V);CHKERRQ(ierr);
+    V->valid_GPU_array = PETSC_OFFLOAD_CPU; /* since the CPU code will likely change values in the vector */
+    V->ops->dotnorm2               = NULL;
+    V->ops->waxpy                  = VecWAXPY_Seq;
+    V->ops->dot                    = VecDot_MPI;
+    V->ops->mdot                   = VecMDot_MPI;
+    V->ops->tdot                   = VecTDot_MPI;
+    V->ops->norm                   = VecNorm_MPI;
+    V->ops->scale                  = VecScale_Seq;
+    V->ops->copy                   = VecCopy_Seq;
+    V->ops->set                    = VecSet_Seq;
+    V->ops->swap                   = VecSwap_Seq;
+    V->ops->axpy                   = VecAXPY_Seq;
+    V->ops->axpby                  = VecAXPBY_Seq;
+    V->ops->maxpy                  = VecMAXPY_Seq;
+    V->ops->aypx                   = VecAYPX_Seq;
+    V->ops->axpbypcz               = VecAXPBYPCZ_Seq;
+    V->ops->pointwisemult          = VecPointwiseMult_Seq;
+    V->ops->setrandom              = VecSetRandom_Seq;
+    V->ops->placearray             = VecPlaceArray_Seq;
+    V->ops->replacearray           = VecReplaceArray_Seq;
+    V->ops->resetarray             = VecResetArray_Seq;
+    V->ops->dot_local              = VecDot_Seq;
+    V->ops->tdot_local             = VecTDot_Seq;
+    V->ops->norm_local             = VecNorm_Seq;
+    V->ops->mdot_local             = VecMDot_Seq;
+    V->ops->pointwisedivide        = VecPointwiseDivide_Seq;
+    V->ops->getlocalvector         = NULL;
+    V->ops->restorelocalvector     = NULL;
+    V->ops->getlocalvectorread     = NULL;
+    V->ops->restorelocalvectorread = NULL;
+    V->ops->getarraywrite          = NULL;
+  } else {
+    V->ops->dotnorm2               = VecDotNorm2_MPIHybrid;
+    V->ops->waxpy                  = VecWAXPY_SeqHybrid;
+    V->ops->duplicate              = VecDuplicate_MPIHybrid;
+    V->ops->dot                    = VecDot_MPIHybrid;
+    V->ops->mdot                   = VecMDot_MPIHybrid;
+    V->ops->tdot                   = VecTDot_MPIHybrid;
+    V->ops->norm                   = VecNorm_MPIHybrid;
+    V->ops->scale                  = VecScale_SeqHybrid;
+    V->ops->copy                   = VecCopy_SeqHybrid;
+    V->ops->set                    = VecSet_SeqHybrid;
+    V->ops->swap                   = VecSwap_SeqHybrid;
+    V->ops->axpy                   = VecAXPY_SeqHybrid;
+    V->ops->axpby                  = VecAXPBY_SeqHybrid;
+    V->ops->maxpy                  = VecMAXPY_SeqHybrid;
+    V->ops->aypx                   = VecAYPX_SeqHybrid;
+    V->ops->axpbypcz               = VecAXPBYPCZ_SeqHybrid;
+    V->ops->pointwisemult          = VecPointwiseMult_SeqHybrid;
+    V->ops->setrandom              = VecSetRandom_SeqHybrid;
+    V->ops->placearray             = VecPlaceArray_SeqHybrid;
+    V->ops->replacearray           = VecReplaceArray_SeqHybrid;
+    V->ops->resetarray             = VecResetArray_SeqHybrid;
+    V->ops->dot_local              = VecDot_SeqHybrid;
+    V->ops->tdot_local             = VecTDot_SeqHybrid;
+    V->ops->norm_local             = VecNorm_SeqHybrid;
+    V->ops->mdot_local             = VecMDot_SeqHybrid;
+    V->ops->destroy                = VecDestroy_MPIHybrid;
+    V->ops->pointwisedivide        = VecPointwiseDivide_SeqHybrid;
+    V->ops->getlocalvector         = NULL;
+    V->ops->restorelocalvector     = NULL;
+    V->ops->getlocalvectorread     = NULL;
+    V->ops->restorelocalvectorread = NULL;
+    V->ops->getarraywrite          = NULL;
+  }
   PetscFunctionReturn(0);
 }
 
@@ -166,39 +242,10 @@ PETSC_EXTERN PetscErrorCode VecCreate_MPIHybrid(Vec vv)
   PetscFunctionBegin;
   ierr = VecCreate_MPI_Private(vv,PETSC_FALSE,0,0);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)vv,VECMPIHYBRID);CHKERRQ(ierr);
-
-  vv->ops->dotnorm2        = VecDotNorm2_MPIHybrid;
-  vv->ops->waxpy           = VecWAXPY_SeqHybrid;
-  vv->ops->duplicate       = VecDuplicate_MPIHybrid;
-  vv->ops->dot             = VecDot_MPIHybrid;
-  vv->ops->mdot            = VecMDot_MPIHybrid;
-  vv->ops->tdot            = VecTDot_MPIHybrid;
-  vv->ops->norm            = VecNorm_MPIHybrid;
-  vv->ops->scale           = VecScale_SeqHybrid;
-  vv->ops->copy            = VecCopy_SeqHybrid;
-  vv->ops->set             = VecSet_SeqHybrid;
-  vv->ops->swap            = VecSwap_SeqHybrid;
-  vv->ops->axpy            = VecAXPY_SeqHybrid;
-  vv->ops->axpby           = VecAXPBY_SeqHybrid;
-  vv->ops->maxpy           = VecMAXPY_SeqHybrid;
-  vv->ops->aypx            = VecAYPX_SeqHybrid;
-  vv->ops->axpbypcz        = VecAXPBYPCZ_SeqHybrid;
-  vv->ops->pointwisemult   = VecPointwiseMult_SeqHybrid;
-  vv->ops->setrandom       = VecSetRandom_SeqHybrid;
-  vv->ops->dot_local       = VecDot_SeqHybrid;
-  vv->ops->tdot_local      = VecTDot_SeqHybrid;
-  vv->ops->norm_local      = VecNorm_SeqHybrid;
-  vv->ops->mdot_local      = VecMDot_SeqHybrid;
-  vv->ops->destroy         = VecDestroy_MPIHybrid;
-  vv->ops->pointwisedivide = VecPointwiseDivide_SeqHybrid;
-  vv->ops->placearray      = VecPlaceArray_SeqHybrid;
-  vv->ops->replacearray    = VecReplaceArray_SeqHybrid;
-  vv->ops->resetarray      = VecResetArray_SeqHybrid;
-  /*
-     get values?
-  */
+  ierr = VecPinToCPU_MPIHybrid(vv,PETSC_FALSE);CHKERRQ(ierr);
+  vv->ops->pintocpu = VecPinToCPU_MPIHybrid;
   ierr = VecHybridAllocateCheck(vv);CHKERRQ(ierr);
-  vv->valid_GPU_array      = PETSC_OFFLOAD_GPU;
+  vv->valid_GPU_array = PETSC_OFFLOAD_GPU;
   ierr = VecSet(vv,0.0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
