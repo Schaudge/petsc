@@ -217,50 +217,30 @@ PetscErrorCode VecWAXPY_SeqHybrid(Vec win,PetscScalar alpha,Vec xin, Vec yin)
 
 PetscErrorCode VecMAXPY_SeqHybrid(Vec xin, PetscInt nv,const PetscScalar *alpha,Vec *y)
 {
-  PetscErrorCode ierr;
-  PetscInt       n = xin->map->n,j,j_rem;
-  PetscScalar    alpha0,alpha1,alpha2,alpha3;
+  PetscErrorCode           ierr;
+  PetscInt                 n = xin->map->n,j;
+  struct axbVec_s          *xhybrid;
+  struct axbScalar_s       **alphas_hybrid;
+  const struct axbVec_s    **yin_hybrid;
 
   PetscFunctionBegin;
+  ierr = PetscMalloc1(nv,&yin_hybrid);CHKERRQ(ierr);
+  ierr = PetscMalloc1(nv,&alphas_hybrid);CHKERRQ(ierr);
+  ierr = VecHybridGetArrayWrite(xin,&xhybrid);CHKERRQ(ierr);
+  for (j=0; j<nv; ++j) {
+    ierr = axbScalarCreate(axb_handle,&(alphas_hybrid[j]),(void*)(alpha + j),AXB_REAL_DOUBLE,axb_mem_backend);CHKERRQ(ierr);
+    ierr = VecHybridGetArrayRead(y[j],&(yin_hybrid[j]));CHKERRQ(ierr);
+  }
   ierr = PetscLogGpuFlops(nv*2.0*n);CHKERRQ(ierr);
-  switch (j_rem=nv&0x3) {
-    case 3:
-      alpha0 = alpha[0];
-      alpha1 = alpha[1];
-      alpha2 = alpha[2];
-      alpha += 3;
-      ierr   = VecAXPY_SeqHybrid(xin,alpha0,y[0]);CHKERRQ(ierr);
-      ierr   = VecAXPY_SeqHybrid(xin,alpha1,y[1]);CHKERRQ(ierr);
-      ierr   = VecAXPY_SeqHybrid(xin,alpha2,y[2]);CHKERRQ(ierr);
-      y   += 3;
-      break;
-    case 2:
-      alpha0 = alpha[0];
-      alpha1 = alpha[1];
-      alpha +=2;
-      ierr   = VecAXPY_SeqHybrid(xin,alpha0,y[0]);CHKERRQ(ierr);
-      ierr   = VecAXPY_SeqHybrid(xin,alpha1,y[1]);CHKERRQ(ierr);
-      y +=2;
-      break;
-    case 1:
-      alpha0 = *alpha++;
-      ierr   = VecAXPY_SeqHybrid(xin,alpha0,y[0]);CHKERRQ(ierr);
-      y     +=1;
-      break;
-  }
-  for (j=j_rem; j<nv; j+=4) {
-    alpha0 = alpha[0];
-    alpha1 = alpha[1];
-    alpha2 = alpha[2];
-    alpha3 = alpha[3];
-    alpha += 4;
-    ierr   = VecAXPY_SeqHybrid(xin,alpha0,y[0]);CHKERRQ(ierr);
-    ierr   = VecAXPY_SeqHybrid(xin,alpha1,y[1]);CHKERRQ(ierr);
-    ierr   = VecAXPY_SeqHybrid(xin,alpha2,y[2]);CHKERRQ(ierr);
-    ierr   = VecAXPY_SeqHybrid(xin,alpha3,y[3]);CHKERRQ(ierr);
-    y   += 4;
-  }
+  ierr = axbVecMAXPY(xhybrid,nv,(const struct axbScalar_s * const *)alphas_hybrid,yin_hybrid);CHKERRQ(ierr);
   ierr = WaitForGPU();CHKERRQ(ierr);
+  for (j=0; j<nv; ++j) {
+    ierr = VecHybridRestoreArrayRead(y[j],&(yin_hybrid[j]));CHKERRQ(ierr);
+    ierr = axbScalarDestroy(alphas_hybrid[j]);
+  }
+  ierr = VecHybridRestoreArrayWrite(xin,&xhybrid);CHKERRQ(ierr);
+  ierr = PetscFree(yin_hybrid);CHKERRQ(ierr);
+  ierr = PetscFree(alphas_hybrid);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
