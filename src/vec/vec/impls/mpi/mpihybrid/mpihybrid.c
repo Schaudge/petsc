@@ -184,7 +184,6 @@ static PetscErrorCode VecPinToCPU_MPIHybrid(Vec V,PetscBool pin)
     V->ops->aypx                   = VecAYPX_Seq;
     V->ops->axpbypcz               = VecAXPBYPCZ_Seq;
     V->ops->pointwisemult          = VecPointwiseMult_Seq;
-    V->ops->setrandom              = VecSetRandom_Seq;
     V->ops->placearray             = VecPlaceArray_Seq;
     V->ops->replacearray           = VecReplaceArray_Seq;
     V->ops->resetarray             = VecResetArray_Seq;
@@ -216,7 +215,6 @@ static PetscErrorCode VecPinToCPU_MPIHybrid(Vec V,PetscBool pin)
     V->ops->aypx                   = VecAYPX_SeqHybrid;
     V->ops->axpbypcz               = VecAXPBYPCZ_SeqHybrid;
     V->ops->pointwisemult          = VecPointwiseMult_SeqHybrid;
-    V->ops->setrandom              = VecSetRandom_SeqHybrid;
     V->ops->placearray             = VecPlaceArray_SeqHybrid;
     V->ops->replacearray           = VecReplaceArray_SeqHybrid;
     V->ops->resetarray             = VecResetArray_SeqHybrid;
