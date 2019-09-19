@@ -483,7 +483,7 @@ int main(int argc, char **argv)
 {
   MPI_Comm              comm;
   PetscErrorCode        ierr;
-  PetscViewer		viewer;
+  PetscViewer		viewer, textviewer, hdf5viewer;
   DM                    dm, dmDist;
   IS                    bcPointsIS, globalCellIS, vertexIS;
   Vec			coords, OrthQual;
@@ -499,6 +499,12 @@ int main(int argc, char **argv)
   ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
   ierr = PetscViewerVTKOpen(comm, "mesh.vtk", FILE_MODE_WRITE, &viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetUp(viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerCreate(comm, &textviewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(textviewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(textviewer, FILE_MODE_WRITE);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(textviewer, "Angles.txt");CHKERRQ(ierr);
+  ierr = PetscViewerSetUp(textviewer);CHKERRQ(ierr);
 
   for (i = 0; i < dim; i++) {
     faces[i] = 2;
@@ -557,6 +563,10 @@ int main(int argc, char **argv)
     ierr = DMPlexGetSupportSize(dm, vertex, &numEdges);CHKERRQ(ierr);
     ierr = PetscCalloc1(numEdges, &angles);CHKERRQ(ierr);
     ierr = AngleBetweenConnectedEdges(dm, foundcells, k, vertex, &angles, &sEdge);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(textviewer, "#NUMEDGE %d VERT %d StartEdge %d\n", numEdges, vertex, sEdge);CHKERRQ(ierr);
+    for (j = 0; j < numEdges; j++) {
+      ierr = PetscViewerASCIIPrintf(textviewer, "%f\n", angles[j]);CHKERRQ(ierr);
+    }
     ierr = PetscFree(angles);CHKERRQ(ierr);
     for (j = 0; j < k; j++) {
       PetscScalar	*R2Xmat, *X2Rmat, *realCtemp, *refCtemp;
@@ -584,11 +594,25 @@ int main(int argc, char **argv)
 
   ierr = VecCreateSeq(comm, cEnd, &OrthQual);CHKERRQ(ierr);
   ierr = OrthoganalQuality(comm, dm, &OrthQual);CHKERRQ(ierr);
-  VecView(OrthQual, 0);
+  ierr = PetscViewerCreate(comm, &textviewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(textviewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(textviewer, FILE_MODE_WRITE);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(textviewer, "Orthqual.txt");CHKERRQ(ierr);
+  ierr = PetscViewerSetUp(textviewer);CHKERRQ(ierr);
+  ierr = VecView(OrthQual, textviewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&textviewer);CHKERRQ(ierr);
   ierr = VecDestroy(&OrthQual);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)coords, "Deformed");CHKERRQ(ierr);
   ierr = DMPlexVTKWriteAll((PetscObject) dm, viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerCreate(comm, &hdf5viewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(hdf5viewer, PETSCVIEWERHDF5);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(hdf5viewer, FILE_MODE_WRITE);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(hdf5viewer, "Mesh.H5");CHKERRQ(ierr);
+  ierr = PetscViewerSetUp(hdf5viewer);CHKERRQ(ierr);
+  ierr = DMView(dm, hdf5viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&hdf5viewer);CHKERRQ(ierr);
 
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
