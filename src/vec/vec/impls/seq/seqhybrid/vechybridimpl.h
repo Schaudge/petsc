@@ -44,10 +44,8 @@ PETSC_EXTERN PetscErrorCode VecCreate_SeqHybrid(Vec);
 PETSC_INTERN PetscErrorCode VecDestroy_SeqHybrid(Vec);
 PETSC_INTERN PetscErrorCode VecDestroy_MPIHybrid(Vec);
 PETSC_INTERN PetscErrorCode VecAYPX_SeqHybrid(Vec,PetscScalar,Vec);
-PETSC_INTERN PetscErrorCode VecSetRandom_SeqHybrid(Vec,PetscRandom);
 PETSC_INTERN PetscErrorCode VecRestoreLocalVector_SeqHybrid(Vec,Vec);
 PETSC_INTERN PetscErrorCode VecCopy_SeqHybrid_Private(Vec,Vec);
-PETSC_INTERN PetscErrorCode VecSetRandom_SeqHybrid(Vec,PetscRandom );
 PETSC_INTERN PetscErrorCode VecDestroy_SeqHybrid(Vec);
 PETSC_INTERN PetscErrorCode VecResetArray_SeqHybrid(Vec);
 

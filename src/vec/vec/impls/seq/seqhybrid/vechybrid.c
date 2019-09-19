@@ -62,20 +62,6 @@ PetscErrorCode VecCopy_SeqHybrid_Private(Vec xin,Vec yin)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecSetRandom_SeqHybrid(Vec xin,PetscRandom r)
-{
-  PetscErrorCode ierr;
-  PetscInt       n = xin->map->n,i;
-  PetscScalar    *xx;
-
-  PetscFunctionBegin;
-  ierr = VecGetArray(xin,&xx);CHKERRQ(ierr);
-  for (i=0; i<n; i++) { ierr = PetscRandomGetValue(r,&xx[i]);CHKERRQ(ierr); }
-  ierr = VecRestoreArray(xin,&xx);CHKERRQ(ierr);
-  xin->valid_GPU_array = PETSC_OFFLOAD_CPU;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode VecResetArray_SeqHybrid(Vec vin)
 {
   PetscErrorCode ierr;
@@ -177,7 +163,6 @@ PetscErrorCode VecPinToCPU_SeqHybrid(Vec V,PetscBool pin)
     V->ops->axpbypcz               = VecAXPBYPCZ_Seq;
     V->ops->pointwisemult          = VecPointwiseMult_Seq;
     V->ops->pointwisedivide        = VecPointwiseDivide_Seq;
-    V->ops->setrandom              = VecSetRandom_Seq;
     V->ops->dot_local              = VecDot_Seq;
     V->ops->tdot_local             = VecTDot_Seq;
     V->ops->norm_local             = VecNorm_Seq;
@@ -212,7 +197,6 @@ PetscErrorCode VecPinToCPU_SeqHybrid(Vec V,PetscBool pin)
     V->ops->axpbypcz               = VecAXPBYPCZ_SeqHybrid;
     V->ops->pointwisemult          = VecPointwiseMult_SeqHybrid;
     V->ops->pointwisedivide        = VecPointwiseDivide_SeqHybrid;
-    V->ops->setrandom              = VecSetRandom_SeqHybrid;
     V->ops->dot_local              = VecDot_SeqHybrid;
     V->ops->tdot_local             = VecTDot_SeqHybrid;
     V->ops->norm_local             = VecNorm_SeqHybrid;
