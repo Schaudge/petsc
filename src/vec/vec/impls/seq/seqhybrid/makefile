@@ -1,15 +1,16 @@
-
+#requirespackage 'PETSC_HAVE_LIBAXB'
 ALL: lib
 
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = pbvec.c pdvec.c pvec2.c vmpicr.c commonmpvec.c
+SOURCEC  = vechybrid.c vechybrid2.c
+SOURCECU =
 SOURCEF  =
-SOURCEH  = pvecimpl.h
+SOURCEH  = vechybridimpl.h
 LIBBASE  = libpetscvec
 MANSEC   = Vec
-DIRS     = mpiviennacl mpiviennaclcuda mpicuda mpihybrid
-LOCDIR   = src/vec/vec/impls/mpi/
+LOCDIR   = src/vec/vec/impls/seq/seqhybrid/
+DIRS     =
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

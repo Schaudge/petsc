@@ -16,6 +16,7 @@ PetscLogEvent VEC_DotNorm2, VEC_AXPBYPCZ;
 PetscLogEvent VEC_ViennaCLCopyFromGPU, VEC_ViennaCLCopyToGPU;
 PetscLogEvent VEC_CUDACopyFromGPU, VEC_CUDACopyToGPU;
 PetscLogEvent VEC_CUDACopyFromGPUSome, VEC_CUDACopyToGPUSome;
+PetscLogEvent VEC_HybridCopyFromGPU, VEC_HybridCopyToGPU;
 
 /*@
    VecStashGetInfo - Gets how many values are currently in the vector stash, i.e. need
@@ -1826,7 +1827,7 @@ PetscErrorCode VecSetInf(Vec xin)
 PetscErrorCode VecPinToCPU(Vec v,PetscBool flg)
 {
   PetscFunctionBegin;
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
   PetscErrorCode ierr;
 
   if (v->pinnedtocpu == flg) return 0;
