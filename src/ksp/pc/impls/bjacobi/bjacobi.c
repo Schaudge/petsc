@@ -737,7 +737,7 @@ static PetscErrorCode PCSetUp_BJacobi_Singleblock(PC pc,Mat mat,Mat pmat)
   KSP                    ksp;
   PC_BJacobi_Singleblock *bjac;
   PetscBool              wasSetup = PETSC_TRUE;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
   PetscBool              is_gpumatrix = PETSC_FALSE;
 #endif
 
@@ -797,6 +797,13 @@ static PetscErrorCode PCSetUp_BJacobi_Singleblock(PC pc,Mat mat,Mat pmat)
     if (is_gpumatrix) {
       ierr = VecSetType(bjac->x,VECVIENNACL);CHKERRQ(ierr);
       ierr = VecSetType(bjac->y,VECVIENNACL);CHKERRQ(ierr);
+    }
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+    ierr = PetscObjectTypeCompareAny((PetscObject)pmat,&is_gpumatrix,MATAIJHYBRID,MATSEQAIJHYBRID,MATMPIAIJHYBRID,"");CHKERRQ(ierr);
+    if (is_gpumatrix) {
+      ierr = VecSetType(bjac->x,VECHYBRID);CHKERRQ(ierr);
+      ierr = VecSetType(bjac->y,VECHYBRID);CHKERRQ(ierr);
     }
 #endif
     ierr = PetscLogObjectParent((PetscObject)pc,(PetscObject)bjac->x);CHKERRQ(ierr);
@@ -973,7 +980,7 @@ static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC pc,Mat mat,Mat pmat)
   PC                    subpc;
   IS                    is;
   MatReuse              scall;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
   PetscBool              is_gpumatrix = PETSC_FALSE;
 #endif
 
@@ -1051,6 +1058,13 @@ static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC pc,Mat mat,Mat pmat)
       if (is_gpumatrix) {
         ierr = VecSetType(x,VECVIENNACL);CHKERRQ(ierr);
         ierr = VecSetType(y,VECVIENNACL);CHKERRQ(ierr);
+      }
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+      ierr = PetscObjectTypeCompareAny((PetscObject)pmat,&is_gpumatrix,MATAIJHYBRID,MATSEQAIJHYBRID,MATMPIAIJHYBRID,"");CHKERRQ(ierr);
+      if (is_gpumatrix) {
+        ierr = VecSetType(x,VECHYBRID);CHKERRQ(ierr);
+        ierr = VecSetType(y,VECHYBRID);CHKERRQ(ierr);
       }
 #endif
       ierr = PetscLogObjectParent((PetscObject)pc,(PetscObject)x);CHKERRQ(ierr);

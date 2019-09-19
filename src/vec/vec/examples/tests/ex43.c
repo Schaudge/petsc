@@ -71,5 +71,10 @@ int main(int argc, char **argv)
       args: -vec_type cuda
       output_file: output/ex43_1.out
       requires: cuda
+   test:
+      suffix: hybrid
+      args: -vec_type hybrid
+      output_file: output/ex43_1.out
+      requires: libaxb
 
 TEST*/

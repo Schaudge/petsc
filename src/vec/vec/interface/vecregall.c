@@ -18,6 +18,11 @@ PETSC_EXTERN PetscErrorCode VecCreate_SeqCUDA(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_MPICUDA(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_CUDA(Vec);
 #endif
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode VecCreate_SeqHybrid(Vec);
+PETSC_EXTERN PetscErrorCode VecCreate_MPIHybrid(Vec);
+PETSC_EXTERN PetscErrorCode VecCreate_Hybrid(Vec);
+#endif
 
 /*@C
   VecRegisterAll - Registers all of the vector components in the Vec package.
@@ -52,6 +57,11 @@ PetscErrorCode VecRegisterAll(void)
   ierr = VecRegister(VECSEQCUDA,    VecCreate_SeqCUDA);CHKERRQ(ierr);
   ierr = VecRegister(VECMPICUDA,    VecCreate_MPICUDA);CHKERRQ(ierr);
   ierr = VecRegister(VECCUDA,       VecCreate_CUDA);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+  ierr = VecRegister(VECSEQHYBRID,  VecCreate_SeqHybrid);CHKERRQ(ierr);
+  ierr = VecRegister(VECMPIHYBRID,  VecCreate_MPIHybrid);CHKERRQ(ierr);
+  ierr = VecRegister(VECHYBRID,     VecCreate_Hybrid);CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
 }

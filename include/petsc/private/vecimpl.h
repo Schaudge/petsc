@@ -140,7 +140,7 @@ struct _p_Vec {
   VecStash               stash,bstash; /* used for storing off-proc values during assembly */
   PetscBool              petscnative;  /* means the ->data starts with VECHEADER and can use VecGetArrayFast()*/
   PetscInt               lock;         /* lock state. vector can be free (=0), locked for read (>0) or locked for write(<0) */
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
   PetscOffloadMask       offloadmask;  /* a mask which indicates where the valid vector data is (GPU, CPU or both) */
   PetscBool              pinnedtocpu;
   void                   *spptr; /* this is the special pointer to the array on the GPU */
@@ -185,6 +185,8 @@ PETSC_EXTERN PetscLogEvent VEC_CUDACopyToGPU;
 PETSC_EXTERN PetscLogEvent VEC_CUDACopyFromGPU;
 PETSC_EXTERN PetscLogEvent VEC_CUDACopyToGPUSome;
 PETSC_EXTERN PetscLogEvent VEC_CUDACopyFromGPUSome;
+PETSC_EXTERN PetscLogEvent VEC_HybridCopyToGPU;
+PETSC_EXTERN PetscLogEvent VEC_HybridCopyFromGPU;
 
 PETSC_EXTERN PetscErrorCode VecView_Seq(Vec,PetscViewer);
 #if defined(PETSC_HAVE_VIENNACL)
@@ -195,7 +197,10 @@ PETSC_EXTERN PetscErrorCode VecViennaCLCopyFromGPU(Vec v);
 PETSC_EXTERN PetscErrorCode VecCUDAAllocateCheckHost(Vec v);
 PETSC_EXTERN PetscErrorCode VecCUDACopyFromGPU(Vec v);
 #endif
-
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode VecHybridAllocateCheckHost(Vec v);
+PETSC_EXTERN PetscErrorCode VecHybridCopyFromGPU(Vec v);
+#endif
 
 /*
      Common header shared by array based vectors,
