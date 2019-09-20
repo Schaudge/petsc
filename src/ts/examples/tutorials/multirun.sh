@@ -27,7 +27,13 @@ rawlog="./${dirname}/rawlog.txt"
 cellprank="./${dirname}/cellprank.txt"
 packsizeINSERT="./${dirname}/packsizeINSERT.txt"
 packsizeADDVAL="./${dirname}/packsizeADDVAL.txt"
+VecDotTime="./${dirname}/vecdottime.txt"
+VecDotFlops="./${dirname}/vecdotflops.txt"
 runERROR="./${dirname}/runerror.txt"
+NodeNum="./${dirname}/nodenum.txt"
+CellNum="./${dirname}/cellnum.txt"
+Fields="./${dirname}/fields.txt"
+Overlap="./${dirname}/overlap.txt"
 
 echo "Resetting full log and filtered outputs..."
 >./$filtINSERT
@@ -37,7 +43,13 @@ echo "Resetting full log and filtered outputs..."
 >./$cellprank
 >./$packsizeINSERT
 >./$packsizeADDVAL
+>./$VecDotTime
+>./$VecDotFlops
 >./$runERROR
+>./$NodeNum
+>./$CellNum
+>./$Fields
+>./$Overlap
 echo "done"
 
 maxcount=18
@@ -115,5 +127,11 @@ function finish {
     grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess
     grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT
     grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL
+    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> ./$VecDotTime
+    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> ./$VecDotFlops
+    grep "Global Node Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$NodeNum
+    grep "Global Cell Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$CellNum
+    grep "Fields" --line-buffered ./$rawlog | sed 's:.*>::' | sed 's:(.*::' >> ./$Fields
+    grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap
     echo "done"
 }
