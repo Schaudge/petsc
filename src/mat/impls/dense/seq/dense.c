@@ -518,18 +518,21 @@ static PetscErrorCode MatMatSolve_SeqDense(Mat A,Mat B,Mat X)
 #else
     if (A->spd) {
       ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+      printf("SOLVE POTRS\n");
       PetscStackCallBLAS("LAPACKpotrs",LAPACKpotrs_("L",&m,&nrhs,mat->v,&mat->lda,x,&m,&info));
       ierr = PetscFPTrapPop();CHKERRQ(ierr);
       if (info) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"POTRS Bad solve");
 #if defined(PETSC_USE_COMPLEX)
     } else if (A->hermitian) {
       ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+      printf("SOLVE HETRS\n");
       PetscStackCallBLAS("LAPACKhetrs",LAPACKhetrs_("L",&m,&nrhs,mat->v,&mat->lda,mat->pivots,x,&m,&info));
       ierr = PetscFPTrapPop();CHKERRQ(ierr);
       if (info) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"HETRS Bad solve");
 #endif
     } else { /* symmetric case */
       ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+      printf("SOLVE SYTRS\n");
       PetscStackCallBLAS("LAPACKsytrs",LAPACKsytrs_("L",&m,&nrhs,mat->v,&mat->lda,mat->pivots,x,&m,&info));
       ierr = PetscFPTrapPop();CHKERRQ(ierr);
       if (info) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"SYTRS Bad solve");
@@ -661,6 +664,7 @@ PetscErrorCode MatCholeskyFactor_SeqDense(Mat A,IS perm,const MatFactorInfo *fac
   if (!A->rmap->n || !A->cmap->n) PetscFunctionReturn(0);
   if (A->spd) {
     ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+    printf("DOING POTRF\n");
     PetscStackCallBLAS("LAPACKpotrf",LAPACKpotrf_("L",&n,mat->v,&mat->lda,&info));
     ierr = PetscFPTrapPop();CHKERRQ(ierr);
 #if defined(PETSC_USE_COMPLEX)
@@ -694,7 +698,9 @@ PetscErrorCode MatCholeskyFactor_SeqDense(Mat A,IS perm,const MatFactorInfo *fac
 
       mat->lfwork = -1;
       ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+      printf("DOING SYTRF\n");
       PetscStackCallBLAS("LAPACKsytrf",LAPACKsytrf_("L",&n,mat->v,&mat->lda,mat->pivots,&dummy,&mat->lfwork,&info));
+      printf("%d\n", info);
       ierr = PetscFPTrapPop();CHKERRQ(ierr);
       mat->lfwork = (PetscInt)PetscRealPart(dummy);
       ierr = PetscMalloc1(mat->lfwork,&mat->fwork);CHKERRQ(ierr);
