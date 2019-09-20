@@ -198,8 +198,8 @@ PETSC_EXTERN PetscErrorCode VecCUDAAllocateCheckHost(Vec v);
 PETSC_EXTERN PetscErrorCode VecCUDACopyFromGPU(Vec v);
 #endif
 #if defined(PETSC_HAVE_LIBAXB)
-PETSC_EXTERN PetscErrorCode VecHybridAllocateCheckHost(Vec v);
-PETSC_EXTERN PetscErrorCode VecHybridCopyFromGPU(Vec v);
+PETSC_EXTERN PetscErrorCode VecHybridAllocateCheckHost(Vec);
+PETSC_EXTERN PetscErrorCode VecHybridCopyFromGPU(Vec);
 #endif
 
 /*
