@@ -475,16 +475,16 @@ PetscErrorCode DMPlexCreateOverlapLabel(DM dm, PetscInt levels, PetscSection roo
   const PetscInt    *nrank, *rrank;
   PetscInt          *adj = NULL;
   PetscInt           pStart, pEnd, p, sStart, sEnd, nleaves, l;
-  PetscMPIInt        rank, size;
+  PetscMPIInt        rank;
   PetscBool          flg;
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
   *ovLabel = NULL;
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
-  if (size == 1) PetscFunctionReturn(0);
+  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(comm, PETSC_ERR_SUP, "only for distributed DMPlex");
   ierr = DMGetPointSF(dm, &sfPoint);CHKERRQ(ierr);
   ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(leafSection, &sStart, &sEnd);CHKERRQ(ierr);
@@ -1788,6 +1788,7 @@ PetscErrorCode DMPlexDistributeOverlap(DM dm, PetscInt overlap, PetscSF *sf, DM 
   DM                     dmCoord;
   DMLabel                lblOverlap;
   PetscSF                sfOverlap, sfStratified, sfPoint;
+  PetscBool              flg;
   PetscErrorCode         ierr;
 
   PetscFunctionBegin;
@@ -1802,6 +1803,8 @@ PetscErrorCode DMPlexDistributeOverlap(DM dm, PetscInt overlap, PetscSF *sf, DM 
   ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
   if (size == 1) PetscFunctionReturn(0);
+  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(comm, PETSC_ERR_SUP, "only for distributed DMPlex");
 
   ierr = PetscLogEventBegin(DMPLEX_DistributeOverlap, dm, 0, 0, 0);CHKERRQ(ierr);
   /* Compute point overlap with neighbouring processes on the distributed DM */
