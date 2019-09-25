@@ -296,6 +296,9 @@ alletags:
 allgtags:
 	-@find ${PETSC_DIR}/include ${PETSC_DIR}/src ${PETSC_DIR}/bin -regex '\(.*makefile\|.*\.\(cc\|hh\|cpp\|C\|hpp\|c\|h\|cu\|m\)$$\)' | grep -v ftn-auto  | gtags -f -
 
+allctags :
+	-@ctags -o $(PETSC_DIR)/ctags -R --exclude=$(PETSC_DIR)/include/petsc/finclude --langmap=c++:+.cu $(PETSC_DIR)/src/ $(PETSC_DIR)/include/
+
 allfortranstubs:
 	-@${RM} -rf ${PETSC_ARCH}/include/petsc/finclude/ftn-auto/*-tmpdir
 	@${PYTHON} lib/petsc/bin/maint/generatefortranstubs.py ${BFORT}  ${VERBOSE}
@@ -506,6 +509,6 @@ checkpackagetests:
 	-@cat config/examples/*.py > configexamples; pushd config/BuildSystem/config/packages/; packages=`grep -l "download " *.py  | sed "s/\\.py//g"`;popd; for i in $${packages}; do j=`echo $${i} | tr '[:upper:]' '[:lower:]'`; printf $${j} ; egrep "(download-$${j})" configexamples | grep -v "=0" | wc -l ; done
 
 .PHONY: info info_h all deletelibs allclean update \
-        alletags etags etags_complete etags_noexamples etags_makefiles etags_examples etags_fexamples alldoc allmanualpages \
+        alletags etags etags_complete etags_noexamples etags_makefiles etags_examples etags_fexamples allctags alldoc allmanualpages \
         allhtml allcleanhtml  countfortranfunctions \
         start_configure configure_petsc configure_clean matlabbin install
