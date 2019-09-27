@@ -122,6 +122,40 @@ typedef struct {
   PetscInt       ams_proj_freq;
 } PC_HYPRE;
 
+PetscErrorCode PCHYPRESetElasticityParams(PC pc)
+{
+  PetscBool      ishypre;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = PetscObjectTypeCompare((PetscObject)pc,PCHYPRE,&ishypre);CHKERRQ(ierr);
+  if (ishypre) {
+    PC_HYPRE *jac = (PC_HYPRE*)pc->data;
+    /* Nodal coarsening options (nodal coarsening is required for this solver) */
+    /* See hypre's new_ij driver and the paper for descriptions. */
+    int nodal                 = 4; // strength reduction norm: 1, 3 or 4
+    int nodal_diag            = 1; // diagonal in strength matrix: 0, 1 or 2
+    int relax_coarse          = 8; // smoother on the coarsest grid: 8, 99 or 29
+    
+    /* Elasticity interpolation options */
+    int interp_vec_variant    = 2; // 1 = GM-1, 2 = GM-2, 3 = LN
+    int q_max                 = 4; // max elements per row for each Q
+    int smooth_interp_vectors = 1; // smooth the rigid-body modes?
+    
+    /* Optionally pre-process the interpolation matrix through iterative weight */
+    /* refinement (this is generally applicable for any system) */
+    int interp_refine         = 1;
+
+    ierr = HYPRE_BoomerAMGSetNodal(jac->hsolver, nodal);
+    ierr = HYPRE_BoomerAMGSetNodalDiag(jac->hsolver, nodal_diag);
+    ierr = HYPRE_BoomerAMGSetCycleRelaxType(jac->hsolver, relax_coarse, 3);
+    ierr = HYPRE_BoomerAMGSetInterpVecVariant(jac->hsolver, interp_vec_variant);
+    ierr = HYPRE_BoomerAMGSetInterpVecQMax(jac->hsolver, q_max);
+    ierr = HYPRE_BoomerAMGSetSmoothInterpVectors(jac->hsolver, smooth_interp_vectors);
+    ierr = HYPRE_BoomerAMGSetInterpRefine(jac->hsolver, interp_refine);
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode PCHYPREGetSolver(PC pc,HYPRE_Solver *hsolver)
 {
   PC_HYPRE *jac = (PC_HYPRE*)pc->data;

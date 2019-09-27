@@ -3,7 +3,9 @@
 typedef struct {
   PetscBool transpose_solve;
 } SNES_KSPONLY;
+
 extern PetscLogStage  stage[17];
+
 static PetscErrorCode SNESSolve_KSPONLY(SNES snes)
 {
   SNES_KSPONLY   *ksponly = (SNES_KSPONLY*)snes->data;
@@ -42,6 +44,13 @@ static PetscErrorCode SNESSolve_KSPONLY(SNES snes)
   SNESCheckJacobianDomainerror(snes);
 
   ierr = KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre);CHKERRQ(ierr);
+
+ierr = PetscLogStagePush(stage[16]);CHKERRQ(ierr);
+ierr = KSPSetUp(snes->ksp);CHKERRQ(ierr);
+ierr = KSPSolve(snes->ksp,F,X);CHKERRQ(ierr);
+ierr = VecZeroEntries(X);CHKERRQ(ierr);
+ierr = PetscLogStagePop();CHKERRQ(ierr);
+
 
   if (ksponly->transpose_solve) {
     ierr = KSPSolveTranspose(snes->ksp,F,Y);CHKERRQ(ierr);
