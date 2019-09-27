@@ -25,7 +25,7 @@ typedef struct gamg_TAG {
   PetscBool reuse_prol;
   PetscBool use_aggs_in_asm;
   PetscBool use_parallel_coarse_grid_solver;
-  PetscBool use_compact_coarse_grid_layout;
+  PCGAMGLayoutType layout_type;
   PetscBool cpu_pin_coarse_grids;
   PetscInt  min_eq_proc;
   PetscInt  coarse_eq_limit;

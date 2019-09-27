@@ -2658,9 +2658,9 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
     PetscFunctionReturn(0);
   }
   if (snes->npc && snes->npcside== PC_LEFT) {
-      ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-      ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-      PetscFunctionReturn(0);
+    ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
   }
 
   ierr = PetscLogEventBegin(SNES_JacobianEval,snes,X,A,B);CHKERRQ(ierr);
@@ -2670,6 +2670,9 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
   PetscStackPop;
   ierr = VecLockReadPop(X);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(SNES_JacobianEval,snes,X,A,B);CHKERRQ(ierr);
+
+  /* attach latest linearization point to the preconditioning matrix */
+  ierr = PetscObjectCompose((PetscObject)B,"__SNES_latest_X",(PetscObject)X);CHKERRQ(ierr);
 
   /* the next line ensures that snes->ksp exists */
   ierr = SNESGetKSP(snes,&ksp);CHKERRQ(ierr);
@@ -4550,7 +4553,7 @@ PetscErrorCode  SNESSetType(SNES snes,SNESType type)
   ierr = PetscObjectTypeCompare((PetscObject)snes,type,&match);CHKERRQ(ierr);
   if (match) PetscFunctionReturn(0);
 
-  ierr =  PetscFunctionListFind(SNESList,type,&r);CHKERRQ(ierr);
+  ierr = PetscFunctionListFind(SNESList,type,&r);CHKERRQ(ierr);
   if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unable to find requested SNES type %s",type);
   /* Destroy the previous private SNES context */
   if (snes->ops->destroy) {
@@ -4563,7 +4566,12 @@ PetscErrorCode  SNESSetType(SNES snes,SNESType type)
   snes->ops->view           = 0;
   snes->ops->setfromoptions = 0;
   snes->ops->destroy        = 0;
-  ierr = SNESLineSearchDestroy(&snes->linesearch);CHKERRQ(ierr);
+
+  /* It may happen the user has customized the line search before calling SNESSetType */
+  if (((PetscObject)snes)->type_name) {
+    ierr = SNESLineSearchDestroy(&snes->linesearch);CHKERRQ(ierr);
+  }
+
   /* Call the SNESCreate_XXX routine for this particular Nonlinear solver */
   snes->setupcalled = PETSC_FALSE;
 

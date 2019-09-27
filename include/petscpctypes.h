@@ -70,6 +70,7 @@ typedef const char* PCType;
 #define PCLMVM            "lmvm"
 #define PCHMG             "hmg"
 #define PCDEFLATION       "deflation"
+#define PCHPDDM           "hpddm"
 
 /*E
     PCSide - If the preconditioner is to be applied to the left, right
@@ -345,6 +346,20 @@ typedef enum {
 } PCDeflationSpaceType;
 
 /*E
+    PCHPDDMCoarseCorrectionType - Type of coarse correction used by PCHPDDM
+
+    Level: intermediate
+
+    Values:
++   PC_HPDDM_COARSE_CORRECTION_DEFLATED (default) - eq. (1) in PCHPDDMShellApply()
+.   PC_HPDDM_COARSE_CORRECTION_ADDITIVE - eq. (2)
+-   PC_HPDDM_COARSE_CORRECTION_BALANCED - eq. (3)
+
+.seealso: PCHPDDM, PCSetType(), PCHPDDMShellApply()
+E*/
+typedef enum { PC_HPDDM_COARSE_CORRECTION_DEFLATED, PC_HPDDM_COARSE_CORRECTION_ADDITIVE, PC_HPDDM_COARSE_CORRECTION_BALANCED } PCHPDDMCoarseCorrectionType;
+
+/*E
     PCFailedReason - indicates type of PC failure
 
     Level: beginner
@@ -352,4 +367,15 @@ typedef enum {
     Any additions/changes here MUST also be made in include/petsc/finclude/petscpc.h
 E*/
 typedef enum {PC_NOERROR,PC_FACTOR_STRUCT_ZEROPIVOT,PC_FACTOR_NUMERIC_ZEROPIVOT,PC_FACTOR_OUTMEMORY,PC_FACTOR_OTHER,PC_SUBPC_ERROR} PCFailedReason;
+
+/*E
+    PCGAMGLayoutType - Layout for reduced grids
+
+    Level: intermediate
+
+.seealso: PCGAMGSetCoarseGridLayoutType()
+    Any additions/changes here MUST also be made in include/petsc/finclude/petscpc.h
+E*/
+typedef enum {PCGAMG_LAYOUT_COMPACT=0,PCGAMG_LAYOUT_SPREAD} PCGAMGLayoutType;
+
 #endif

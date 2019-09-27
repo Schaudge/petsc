@@ -20,7 +20,9 @@ PetscErrorCode VecDestroy_MPICUDA(Vec v)
       err = cudaFree(((Vec_CUDA*)v->spptr)->GPUarray_allocated);CHKERRCUDA(err);
       ((Vec_CUDA*)v->spptr)->GPUarray_allocated = NULL;
     }
-    err = cudaStreamDestroy(((Vec_CUDA*)v->spptr)->stream);CHKERRCUDA(err);
+    if (((Vec_CUDA*)v->spptr)->stream) {
+      err = cudaStreamDestroy(((Vec_CUDA*)v->spptr)->stream);CHKERRCUDA(err);
+    }
     ierr = PetscFree(v->spptr);CHKERRQ(ierr);
   }
   ierr = VecDestroy_MPI(v);CHKERRQ(ierr);
@@ -175,9 +177,11 @@ PetscErrorCode VecCreate_MPICUDA(Vec vv)
   PetscFunctionBegin;
   ierr = PetscLayoutSetUp(vv->map);CHKERRQ(ierr);
   ierr = VecCUDAAllocateCheck(vv);CHKERRCUDA(ierr);
-  vv->valid_GPU_array      = PETSC_OFFLOAD_GPU;
   ierr = VecCreate_MPICUDA_Private(vv,PETSC_FALSE,0,((Vec_CUDA*)vv->spptr)->GPUarray_allocated);CHKERRQ(ierr);
+  ierr = VecCUDAAllocateCheckHost(vv);CHKERRQ(ierr);
   ierr = VecSet(vv,0.0);CHKERRQ(ierr);
+  ierr = VecSet_Seq(vv,0.0);CHKERRQ(ierr);
+  vv->valid_GPU_array = PETSC_OFFLOAD_BOTH;
   PetscFunctionReturn(0);
 }
 
@@ -324,7 +328,6 @@ PetscErrorCode VecPinToCPU_MPICUDA(Vec V,PetscBool pin)
 PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,const PetscScalar array[])
 {
   PetscErrorCode ierr;
-  cudaError_t    err;
   Vec_CUDA       *veccuda;
 
   PetscFunctionBegin;
@@ -337,14 +340,17 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
   /* Later, functions check for the Vec_CUDA structure existence, so do not create it without array */
   if (alloc && !array) {
     ierr = VecCUDAAllocateCheck(vv);CHKERRQ(ierr);
+    ierr = VecCUDAAllocateCheckHost(vv);CHKERRQ(ierr);
     ierr = VecSet(vv,0.0);CHKERRQ(ierr);
+    ierr = VecSet_Seq(vv,0.0);CHKERRQ(ierr);
+    vv->valid_GPU_array = PETSC_OFFLOAD_BOTH;
   }
   if (array) {
     if (!vv->spptr) {
       /* Cannot use PetscNew() here because spptr is void* */
       ierr = PetscMalloc(sizeof(Vec_CUDA),&vv->spptr);CHKERRQ(ierr);
       veccuda = (Vec_CUDA*)vv->spptr;
-      err = cudaStreamCreate(&veccuda->stream);CHKERRCUDA(err);
+      veccuda->stream = 0; /* using default stream */
       veccuda->GPUarray_allocated = 0;
       veccuda->hostDataRegisteredAsPageLocked = PETSC_FALSE;
       vv->valid_GPU_array = PETSC_OFFLOAD_UNALLOCATED;

@@ -4,7 +4,7 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.version         = '2.16.0'
+    self.version         = '2.17.0'
     self.minversion      = '2.14'
     self.versionname     = 'HYPRE_RELEASE_VERSION'
     self.versioninclude  = 'HYPRE_config.h'
@@ -22,6 +22,7 @@ class Configure(config.package.GNUPackage):
     #self.complex           = 0
     self.hastests          = 1
     self.hastestsdatafiles = 1
+    self.installwithbatch  = 0
 
   def setupDependencies(self, framework):
     config.package.GNUPackage.setupDependencies(self, framework)
@@ -87,8 +88,15 @@ class Configure(config.package.GNUPackage):
       args.append('--enable-complex')
 
     # hypre configure assumes the AR flags are passed in with AR
-    args = [arg for arg in args if not arg.startswith('AR')]
+    args = self.rmArgsStartsWith(args,['AR'])
     args.append('AR="'+self.setCompilers.AR+' '+self.setCompilers.AR_FLAGS+'"')
+
+    # On CRAY with shared libraries, libHYPRE.so is linked as
+    # $ cc -shared -o libHYPRE.so ...a bunch of .o files.... ...libraries.... -dynamic
+    # The -dynamic at the end makes cc think it is creating an executable
+    args = self.rmArgsStartsWith(args,['LDFLAGS'])
+    args.append('LDFLAGS="'+self.setCompilers.LDFLAGS.replace('-dynamic','')+'"')
+
     return args
 
   def consistencyChecks(self):
