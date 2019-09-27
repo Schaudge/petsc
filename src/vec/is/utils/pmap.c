@@ -248,7 +248,7 @@ PetscErrorCode PetscLayoutSetUp(PetscLayout map)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (map->setupcalled && (map->n != map->oldn || map->N != map->oldN)) SETERRQ4(map->comm,PETSC_ERR_ARG_WRONGSTATE,"Layout is already setup with (local=%D,global=%D), cannot call setup again with (local=%D,global=%D)", map->oldn, map->oldN, map->n, map->N);
+  if (map->setupcalled && (map->n != map->oldn || map->N != map->oldN || map->bs != map->oldbs)) SETERRQ6(map->comm,PETSC_ERR_ARG_WRONGSTATE,"Layout is already setup with (n=%D,N=%D,bs=%D), cannot call setup again with (n=%D,N=%D,bs=%D)", map->oldn, map->oldN, map->oldbs, map->n, map->N, map->bs);
   if (map->setupcalled) PetscFunctionReturn(0);
 
   if (map->n > 0 && map->bs > 1) {
