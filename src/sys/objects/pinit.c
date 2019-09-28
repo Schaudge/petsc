@@ -791,8 +791,6 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
   PetscFunctionBegin;
   if (PetscInitializeCalled) PetscFunctionReturn(0);
-  /* PetscOptions use PetscSegBuffer, which in turns uses PetscNew. Use standard malloc instead of CudaMallocManaged */
-  ierr = PetscPushMallocType(PETSC_MALLOC_STANDARD);CHKERRQ(ierr);
   /*
       The checking over compatible runtime libraries is complicated by the MPI ABI initiative
       https://wiki.mpich.org/mpich/index.php/ABI_Compatibility_Initiative which started with
@@ -1012,6 +1010,8 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
   ierr = MPI_Comm_create_keyval(MPI_COMM_NULL_COPY_FN,Petsc_OuterComm_Attr_Delete_Fn,&Petsc_OuterComm_keyval,(void*)0);CHKERRQ(ierr);
   ierr = MPI_Comm_create_keyval(MPI_COMM_NULL_COPY_FN,Petsc_ShmComm_Attr_Delete_Fn,&Petsc_ShmComm_keyval,(void*)0);CHKERRQ(ierr);
 
+  /* PetscOptions use PetscSegBuffer, which in turns uses PetscNew. Use standard malloc instead of CudaMallocManaged */
+  ierr = PetscPushMallocType(PETSC_MALLOC_STANDARD);CHKERRQ(ierr);
   /*
      Build the options database
   */
