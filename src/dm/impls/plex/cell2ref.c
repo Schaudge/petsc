@@ -130,13 +130,12 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexCreatePointNumField(DM dm)
+PetscErrorCode DMPlexCreatePointNumField(DM dm, Vec *PointNumbering)
 {
   PetscFE        	fe;
   PetscScalar    	*vArray;
   PetscInt       	dim, vStart, vEnd, v, nPoints;
   PetscErrorCode	ierr;
-  Vec			PointNumbering;
   IS			globalPointIS;
 
   PetscFunctionBegin;
@@ -150,24 +149,23 @@ PetscErrorCode DMPlexCreatePointNumField(DM dm)
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd);CHKERRQ(ierr);
   ierr = DMPlexGetVertexNumbering(dm, &globalPointIS);CHKERRQ(ierr);
   ierr = ISGetSize(globalPointIS, &nPoints);CHKERRQ(ierr);
-  ierr = DMGetNamedGlobalVector(dm, "Point_Numbering", &PointNumbering);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) PointNumbering, "PNum");CHKERRQ(ierr);
-  ierr = VecGetArray(PointNumbering, &vArray);CHKERRQ(ierr);
-  for (v = vStart; v < vEnd-vStart; ++v) {
+  ierr = DMCreateGlobalVector(dm, PointNumbering);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *PointNumbering, "PNum");CHKERRQ(ierr);
+  ierr = VecGetArray(*PointNumbering, &vArray);CHKERRQ(ierr);
+  for (v = 0; v < vEnd-vStart; ++v) {
+    printf("%d %d\n", v, vStart);
     vArray[v] = v+vStart;
   }
-  ierr = VecRestoreArray(PointNumbering, &vArray);CHKERRQ(ierr);
-  ierr = DMRestoreNamedGlobalVector(dm, "Point_Numbering", &PointNumbering);CHKERRQ(ierr);
+  ierr = VecRestoreArray(*PointNumbering, &vArray);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexCreateCellNumField(DM dm)
+PetscErrorCode DMPlexCreateCellNumField(DM dm, Vec *CellNumbering)
 {
   PetscFE        	fe;
   PetscScalar    	*cArray;
   PetscInt       	dim, cStart, cEnd, c, nCells;
   PetscErrorCode	ierr;
-  Vec			CellNumbering;
   IS			globalCellIS;
 
   PetscFunctionBegin;
@@ -181,14 +179,14 @@ PetscErrorCode DMPlexCreateCellNumField(DM dm)
   ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
   ierr = ISGetSize(globalCellIS, &nCells);CHKERRQ(ierr);
-  ierr = DMGetNamedGlobalVector(dm, "Cell_Numbering", &CellNumbering);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) CellNumbering, "CNum");CHKERRQ(ierr);
-  ierr = VecGetArray(CellNumbering, &cArray);CHKERRQ(ierr);
-  for (c = cStart; c < cEnd-cStart; ++c) {
-    cArray[c] = c+cStart;
+  ierr = DMCreateGlobalVector(dm, CellNumbering);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *CellNumbering, "CNum");CHKERRQ(ierr);
+  ierr = VecGetArray(*CellNumbering, &cArray);CHKERRQ(ierr);
+  for (c = 0; c < cEnd-cStart; ++c) {
+    printf("%d %d\n", c, cStart);
+    cArray[c] = c;
   }
-  ierr = VecRestoreArray(CellNumbering, &cArray);CHKERRQ(ierr);
-  ierr = DMRestoreNamedGlobalVector(dm, "Cell_Numbering", &CellNumbering);CHKERRQ(ierr);
+  ierr = VecRestoreArray(*CellNumbering, &cArray);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -501,7 +499,7 @@ int main(int argc, char **argv)
   PetscInt		faces[dim], bcField[numBC];
   const PetscInt	*ptr, *vptr;
   PetscScalar		*coordArray, *angles;
-  PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE, fileflag = PETSC_FALSE, hasPointNum = PETSC_FALSE, hasCellNum = PETSC_FALSE;
+  PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE, fileflag = PETSC_FALSE;
   char			filename[PETSC_MAX_PATH_LEN];
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, NULL);if(ierr){ return ierr;}
@@ -563,8 +561,7 @@ int main(int argc, char **argv)
   ierr = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)coords, "Deformed");CHKERRQ(ierr);
   ierr = VecGetArray(coords, &coordArray);CHKERRQ(ierr);
-  PetscPrintf(comm, "\n\n\n%d\n\n\n", vsize);
-  if (1) {
+  if (0) {
     for (i = 0; i < vsize; i++) {
       PetscInt	vertex = vptr[i];
       PetscInt	*points, *foundcells;
@@ -611,8 +608,8 @@ int main(int argc, char **argv)
     }
   }
   ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
-
   ierr = ISRestoreIndices(vertexIS, &vptr);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(globalCellIS, &ptr);CHKERRQ(ierr);
   ierr = ISDestroy(&vertexIS);CHKERRQ(ierr);
 
   ierr = DMPlexComputeCellOrthogonalQuality(dm, &OrthQual);CHKERRQ(ierr);
@@ -625,51 +622,23 @@ int main(int argc, char **argv)
   ierr = PetscViewerDestroy(&textviewer);CHKERRQ(ierr);
   ierr = VecDestroy(&OrthQual);CHKERRQ(ierr);
 
-  ierr = DMPlexCreatePointNumField(dm);CHKERRQ(ierr);
-  ierr = DMHasNamedGlobalVector(dm, "Point_Numbering", &hasPointNum);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm, "POINT NUMBERING:\t%s%s%s\n", hasPointNum ? ANSI_GREEN : ANSI_RED, hasPointNum ? "PETSC_TRUE" : "PETSC_FALSE", ANSI_RESET);CHKERRQ(ierr);
-  ierr = DMGetNamedGlobalVector(dm, "Point_Numbering", &PointNum);CHKERRQ(ierr);
+  ierr = DMPlexCreatePointNumField(dm, &PointNum);CHKERRQ(ierr);
   ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
-  ierr = DMRestoreNamedGlobalVector(dm, "Point_Numbering", &PointNum);CHKERRQ(ierr);
 
-  ierr = DMPlexCreateCellNumField(dm);CHKERRQ(ierr);
-  ierr = DMHasNamedGlobalVector(dm, "Cell_Numbering", &hasCellNum);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm, "CELL NUMBERING:\t\t%s%s%s\n", hasCellNum ? ANSI_GREEN : ANSI_RED, hasCellNum ? "PETSC_TRUE" : "PETSC_FALSE", ANSI_RESET);CHKERRQ(ierr);
-  ierr = DMGetNamedGlobalVector(dm, "Cell_Numbering", &CellNum);CHKERRQ(ierr);
+  ierr = DMPlexCreateCellNumField(dm, &CellNum);CHKERRQ(ierr);
   ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_CELL_FIELD, PETSC_TRUE, (PetscObject) CellNum);CHKERRQ(ierr);
-  ierr = DMRestoreNamedGlobalVector(dm, "Cell_Numbering", &CellNum);CHKERRQ(ierr);
-  ierr = DMPlexVTKWriteAll((PetscObject) dm, vtkviewer);CHKERRQ(ierr);
-
-  if (0) {
-  ierr = PetscViewerCreate(comm, &vtkviewer);CHKERRQ(ierr);
-  ierr = PetscViewerVTKOpen(comm, "test.vtk", FILE_MODE_WRITE, &vtkviewer);CHKERRQ(ierr);
-  ierr = PetscViewerSetUp(vtkviewer);CHKERRQ(ierr);
-  Vec test;
-  ierr = VecCreate(comm, &test);CHKERRQ(ierr);
-  ierr = VecSetType(test, VECSTANDARD);CHKERRQ(ierr);
-  ierr = VecSetSizes(test, size, size);CHKERRQ(ierr);
-  ierr = VecSetUp(test);CHKERRQ(ierr);
-  for (i = 0; i < cEnd-cStart; i++) {
-    ierr = PetscPrintf(comm, "%d\n", i);CHKERRQ(ierr);
-    ierr = VecSetValue(test, i, i, INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(test);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(test);CHKERRQ(ierr);
-  ierr = VecView(test, vtkviewer);CHKERRQ(ierr);
-  ierr = VecDestroy(&test);CHKERRQ(ierr);
-  }
-  //ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
+  ierr = DMView(dm, vtkviewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
 
   ierr = PetscViewerCreate(comm, &hdf5viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetType(hdf5viewer, PETSCVIEWERHDF5);CHKERRQ(ierr);
   ierr = PetscViewerFileSetMode(hdf5viewer, FILE_MODE_WRITE);CHKERRQ(ierr);
   ierr = PetscViewerFileSetName(hdf5viewer, "Mesh.H5");CHKERRQ(ierr);
   ierr = PetscViewerSetUp(hdf5viewer);CHKERRQ(ierr);
-  //ierr = DMView(dm, hdf5viewer);CHKERRQ(ierr);
+  ierr = DMView(dm, hdf5viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&hdf5viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&genviewer);CHKERRQ(ierr);
 
-  ierr = ISRestoreIndices(globalCellIS, &ptr);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
   return ierr;
