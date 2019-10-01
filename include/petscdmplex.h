@@ -253,7 +253,7 @@ PETSC_EXTERN PetscErrorCode DMPlexDistributeOwnership(DM, PetscSection, IS *, Pe
 PETSC_EXTERN PetscErrorCode DMPlexCreateOverlapLabel(DM, PetscInt, PetscSection, IS, PetscSection, IS, DMLabel *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateOverlapMigrationSF(DM, PetscSF, PetscSF *);
 PETSC_EXTERN PetscErrorCode DMPlexStratifyMigrationSF(DM, PetscSF, PetscSF *);
-PETSC_EXTERN PetscErrorCode DMPlexGetXXXPerProcess(DM, PetscInt, PetscInt *, PetscScalar *[], PetscInt *[]);
+PETSC_EXTERN PetscErrorCode DMPlexGetBinnedPointsPerProcess(DM, PetscInt, PetscInt *, PetscScalar *[], PetscInt *[]);
 
 /* Submesh Support */
 PETSC_EXTERN PetscErrorCode DMPlexCreateSubmesh(DM, DMLabel, PetscInt, PetscBool, DM*);

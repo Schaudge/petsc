@@ -1069,7 +1069,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     }
 
     /*	Get General DMPlex Information	*/
-    ierr = DMPlexGetOverlap(dm, &maxoverlap);CHKERRQ(ierr);
+    ierr = DMPlexGetOverlap(dm, &maxOverlap);CHKERRQ(ierr);
     if (maxOverlap > 0) { dmOverlapped = PETSC_TRUE;}
 
     /* Global and Local Sizing	*/
@@ -1094,7 +1094,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
         break;
       case 1:
         ierr = DMPlexGetEdgeNumbering(dm, &edgeIS);CHKERRQ(ierr);
@@ -1102,7 +1102,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
         break;
       case 2:
         ierr = DMPlexGetFaceNumbering(dm, &faceIS);CHKERRQ(ierr);
@@ -1110,7 +1110,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        ierr = DMPlexGetXXXPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
         break;
       case 3:
         ierr = DMPlexGetCellNumbering(dm, &cellIS);CHKERRQ(ierr);
@@ -1118,8 +1118,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        if (dim == 2) { tempi = depth;} //result of hacking faces = cells
-        ierr = DMPlexGetXXXPerProcess(dm, tempi, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
         break;
       default:
         SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Depth of %d is not supported!\n", i);
@@ -1128,12 +1127,23 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     }
 
     /* Various Diagnostic DMPlex Checks     */
-    ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr); if (!ierr) { facesOK = PETSC_TRUE;}
-    ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr); if (!ierr) { symmetryOK = PETSC_TRUE;}
-    ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr); if (!ierr) { skeletonOK = PETSC_TRUE;}
-    ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr); if(!ierr) { pointSFOK = PETSC_TRUE;}
-    ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr); if (!ierr) { geometryOK = PETSC_TRUE;}
-    ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr); if(!ierr) { coneConformOnInterfacesOK = PETSC_TRUE;}
+    if (dmInterped) {
+      ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr);
+      if (!ierr) { facesOK = PETSC_TRUE;}
+    } else {
+      ierr = PetscViewerASCIIPrintf(viewer, "WARNING: Mesh is NOT interpolated, skipping DMPlexCheckFaces\n");CHKERRQ(ierr);
+    }
+    ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr);
+    ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr);
+    ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr);
+    ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);
+    ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr);
+
+    symmetryOK = PETSC_TRUE;
+    skeletonOK = PETSC_TRUE;
+    pointSFOK = PETSC_TRUE;
+    geometryOK = PETSC_TRUE;
+    coneConformOnInterfacesOK = PETSC_TRUE;
 
     /* Printing     */
     /* Autotest Output      */
@@ -7069,54 +7079,54 @@ PetscErrorCode DMPlexGetCellNumbering(DM dm, IS *globalCellNumbers)
 
 PetscErrorCode DMPlexCreateFaceNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalFaceNumbers)
 {
-	PetscInt       fStart, fEnd, fMax;
-	PetscErrorCode ierr;
+  PetscInt       fStart, fEnd, fMax;
+  PetscErrorCode ierr;
 
-	PetscFunctionBegin;
-	PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-	ierr = DMPlexGetDepthStratum(dm, 2, &fStart, &fEnd);CHKERRQ(ierr);
-	ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &fMax);CHKERRQ(ierr);
-	if (fMax >= 0 && !includeHybrid) fEnd = PetscMin(fEnd, fMax);
-	ierr = DMPlexCreateNumbering_Internal(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
-	PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexGetDepthStratum(dm, 2, &fStart, &fEnd);CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &fMax);CHKERRQ(ierr);
+  if (fMax >= 0 && !includeHybrid) fEnd = PetscMin(fEnd, fMax);
+  ierr = DMPlexCreateNumbering_Internal(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMPlexGetFaceNumbering(DM dm, IS *globalFaceNumbers)
 {
-	DM_Plex       *mesh = (DM_Plex*) dm->data;
-	PetscErrorCode ierr;
+  DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscErrorCode ierr;
 
-	PetscFunctionBegin;
-	PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-	if (!mesh->globalFaceNumbers) {ierr = DMPlexCreateFaceNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalFaceNumbers);CHKERRQ(ierr);}
-	*globalFaceNumbers = mesh->globalFaceNumbers;
-	PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (!mesh->globalFaceNumbers) {ierr = DMPlexCreateFaceNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalFaceNumbers);CHKERRQ(ierr);}
+  *globalFaceNumbers = mesh->globalFaceNumbers;
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMPlexCreateEdgeNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalEdgeNumbers)
 {
-	PetscInt       eStart, eEnd, eMax;
-	PetscErrorCode ierr;
+  PetscInt       eStart, eEnd, eMax;
+  PetscErrorCode ierr;
 
-	PetscFunctionBegin;
-	PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-	ierr = DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd);CHKERRQ(ierr);
-	ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &eMax);CHKERRQ(ierr);
-	if (eMax >= 0 && !includeHybrid) eEnd = PetscMin(eEnd, eMax);
-	ierr = DMPlexCreateNumbering_Internal(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
-	PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd);CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &eMax);CHKERRQ(ierr);
+  if (eMax >= 0 && !includeHybrid) eEnd = PetscMin(eEnd, eMax);
+  ierr = DMPlexCreateNumbering_Internal(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMPlexGetEdgeNumbering(DM dm, IS *globalEdgeNumbers)
 {
-	DM_Plex       *mesh = (DM_Plex*) dm->data;
-        PetscErrorCode ierr;
+  DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscErrorCode ierr;
 
-        PetscFunctionBegin;
-        PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-        if (!mesh->globalEdgeNumbers) {ierr = DMPlexCreateEdgeNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalEdgeNumbers);CHKERRQ(ierr);}
-        *globalEdgeNumbers = mesh->globalEdgeNumbers;
-        PetscFunctionReturn(0);
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (!mesh->globalEdgeNumbers) {ierr = DMPlexCreateEdgeNumbering_Internal(dm, PETSC_FALSE, &mesh-> globalEdgeNumbers);CHKERRQ(ierr);}
+  *globalEdgeNumbers = mesh->globalEdgeNumbers;
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMPlexCreateVertexNumbering_Internal(DM dm, PetscBool includeHybrid, IS *globalVertexNumbers)
@@ -8397,7 +8407,7 @@ PetscErrorCode DMPlexMonitorThroughput(DM dm, void *dummy)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMPlexGetXXXPerProcess(DM dm, PetscInt depth, PetscInt *numBins, PetscScalar *numPerProcess[], PetscInt *binnedProcesses[])
+PetscErrorCode DMPlexGetBinnedPointPerProcess(DM dm, PetscInt depth, PetscInt *numBins, PetscScalar *numPerProcess[], PetscInt *binnedProcesses[])
 {
 	MPI_Comm                comm;
         PetscMPIInt             rank, size;
