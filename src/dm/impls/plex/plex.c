@@ -1048,7 +1048,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     MPI_Comm	comm;
     PetscMPIInt	rank = 0, size = 0;
     IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
-    PetscInt	i, locdepth, depth, dim, locOverlap, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
+    PetscInt	i, locdepth, depth, dim, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
     PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
     PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
     PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_FALSE, facesOK = PETSC_FALSE, symmetryOK = PETSC_FALSE, skeletonOK = PETSC_FALSE, pointSFOK = PETSC_FALSE, geometryOK = PETSC_FALSE, coneConformOnInterfacesOK = PETSC_FALSE;
@@ -1069,8 +1069,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     }
 
     /*	Get General DMPlex Information	*/
-    ierr = DMPlexGetOverlap(dm, &overlap);CHKERRQ(ierr);
-    ierr = MPI_Reduce(&overlap, &maxOverlap, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+    ierr = DMPlexGetOverlap(dm, &maxoverlap);CHKERRQ(ierr);
     if (maxOverlap > 0) { dmOverlapped = PETSC_TRUE;}
 
     /* Global and Local Sizing	*/
