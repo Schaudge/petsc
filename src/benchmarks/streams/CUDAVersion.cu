@@ -19,15 +19,14 @@
 
   User interface motivated by bandwidthTest NVIDIA SDK example.
 */
-static char *help = "Single-Precision STREAM Benchmark implementation in CUDA\n"
-                    "Performs Copy, Scale, Add, and Triad single-precision kernels\n\n";
+static char help[] = "Double-Precision STREAM Benchmark implementation in CUDA\n Performs Copy, Scale, Add, and Triad double-precision kernels\n\n";
 
 #include <petscconf.h>
 #include <petscsys.h>
 #include <petsctime.h>
 
-#define N        2000000
-#define N_DOUBLE 8000000
+#define N        10000000
+#define N_DOUBLE 40000000
 #define NTIMES   10
 
 # ifndef MIN
@@ -243,7 +242,7 @@ bool STREAM_Copy_verify_double(double *a, double *b, size_t len)
   for (idx = 0; idx < len && !bDifferent; idx++) {
     double expectedResult     = a[idx];
     double diffResultExpected = (b[idx] - expectedResult);
-    double relErrorULPS       = (fabsf(diffResultExpected)/fabsf(expectedResult))/flt_eps;
+    double relErrorULPS       = (fabsf(diffResultExpected)/fabsf(expectedResult))/dbl_eps;
     /* element-wise relative error determination */
     bDifferent = (relErrorULPS > 2.);
   }
@@ -356,13 +355,13 @@ PetscErrorCode printResultsReadable(float times[][NTIMES]);
 int main(int argc, char *argv[])
 {
   PetscInt       device    = 0;
-  PetscBool      runDouble = PETSC_FALSE;
+  PetscBool      runDouble = PETSC_TRUE;
   PetscBool      cpuTiming = PETSC_FALSE;
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc, &argv, 0, help);if (ierr) return ierr;
-  ierr = PetscPrintf(PETSC_COMM_SELF, "[Single and Double-Precision Device-Only STREAM Benchmark implementation in CUDA]\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_SELF, "%s Starting...\n\n", argv[0]);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, "[Single and Double-Precision Device-Only STREAM Benchmark implementation in CUDA]\n");CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, "%s Starting...\n\n", argv[0]);CHKERRQ(ierr);
 
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, "", "STREAM Benchmark Options", "STREAM");CHKERRQ(ierr);
   ierr = PetscOptionsBoundedInt("-device", "Specify the CUDA device to be used", "STREAM", device, &device, NULL,0);CHKERRQ(ierr);
@@ -371,7 +370,7 @@ int main(int argc, char *argv[])
   ierr = PetscOptionsEnd();
 
   ierr = setupStream(device, runDouble, cpuTiming);
-  if (ierr >= 0) {
+  if (ierr) {
     ierr = PetscPrintf(PETSC_COMM_SELF, "\n[streamBenchmark] - results:\t%s\n\n", (ierr == 0) ? "PASSES" : "FAILED");CHKERRQ(ierr);
   }
   ierr = PetscFinalize();
@@ -404,10 +403,10 @@ PetscErrorCode setupStream(PetscInt deviceNum, PetscBool runDouble, PetscBool cp
   }
 
   cudaSetDevice(deviceNum);
-  ierr = PetscPrintf(PETSC_COMM_SELF, "Running on...\n\n");CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, "Running on...\n\n");CHKERRQ(ierr);
   cudaDeviceProp deviceProp;
   if (cudaGetDeviceProperties(&deviceProp, deviceNum) == cudaSuccess) {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " Device %d: %s\n", deviceNum, deviceProp.name);CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " Device %d: %s\n", deviceNum, deviceProp.name);CHKERRQ(ierr);
   } else {
     ierr = PetscPrintf(PETSC_COMM_SELF, " Unable to determine device %d properties, exiting\n");CHKERRQ(ierr);
     return -1;
@@ -421,12 +420,12 @@ PetscErrorCode setupStream(PetscInt deviceNum, PetscBool runDouble, PetscBool cp
   else iNumThreadsPerBlock = 128; /* GF100 architecture / 32 CUDA Cores per MP */
 
   if (cpuTiming) {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " Using cpu-only timer.\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " Using cpu-only timer.\n");CHKERRQ(ierr);
   }
 
   ierr = runStream(iNumThreadsPerBlock, cpuTiming);CHKERRQ(ierr);
   if (runDouble) {
-    ierr = cudaSetDeviceFlags(cudaDeviceBlockingSync);CHKERRQ(ierr);
+    //ierr = cudaSetDeviceFlags(cudaDeviceBlockingSync);CHKERRQ(ierr);
     ierr = runStreamDouble(iNumThreadsPerBlock, cpuTiming);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -455,8 +454,8 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
   dim3 dimGrid(N/dimBlock.x); /* (N/dimBlock.x,1,1) */
   if (N % dimBlock.x != 0) dimGrid.x+=1;
 
-  ierr = PetscPrintf(PETSC_COMM_SELF, " Array size (single precision) = %u\n",N);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_SELF, " using %u threads per block, %u blocks\n",dimBlock.x,dimGrid.x);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, " Array size (single precision) = %u\n",N);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, " using %u threads per block, %u blocks\n",dimBlock.x,dimGrid.x);CHKERRQ(ierr);
 
   /* Initialize memory on the device */
   set_array<<<dimGrid,dimBlock>>>(d_a, 2.f, N);
@@ -614,7 +613,7 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy:\t\tError detected in device STREAM_Copy, exiting\n");CHKERRQ(ierr);
     exit(-2000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -630,7 +629,7 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy_Optimized:\tError detected in device STREAM_Copy_Optimized, exiting\n");CHKERRQ(ierr);
     exit(-3000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy_Optimized:\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy_Optimized:\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -645,7 +644,7 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Scale:\t\tError detected in device STREAM_Scale, exiting\n");CHKERRQ(ierr);
     exit(-4000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Scale:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Scale:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -662,7 +661,7 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Add:\t\tError detected in device STREAM_Add, exiting\n");CHKERRQ(ierr);
     exit(-5000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Add:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Add:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -679,11 +678,11 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tError detected in device STREAM_Triad, exiting\n");CHKERRQ(ierr);
     exit(-6000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* continue from here */
-  printResultsReadable(times);
+  // printResultsReadable(times);
 
   //clean up timers
   ierr = cudaEventDestroy(stop);CHKERRQ(ierr);
@@ -716,8 +715,8 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
   dim3 dimGrid(N/dimBlock.x); /* (N/dimBlock.x,1,1) */
   if (N % dimBlock.x != 0) dimGrid.x+=1;
 
-  ierr = PetscPrintf(PETSC_COMM_SELF, " Array size (double precision) = %u\n",N);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_SELF, " using %u threads per block, %u blocks\n",dimBlock.x,dimGrid.x);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, " Array size (double precision) = %u\n",N);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_SELF, " using %u threads per block, %u blocks\n",dimBlock.x,dimGrid.x);CHKERRQ(ierr);
 
   /* Initialize memory on the device */
   set_array_double<<<dimGrid,dimBlock>>>(d_a, 2., N);
@@ -877,7 +876,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy:\t\tError detected in device STREAM_Copy, exiting\n");CHKERRQ(ierr);
     exit(-2000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -893,7 +892,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy_Optimized:\tError detected in device STREAM_Copy_Optimized, exiting\n");CHKERRQ(ierr);
     exit(-3000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy_Optimized:\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Copy_Optimized:\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -908,7 +907,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Scale:\t\tError detected in device STREAM_Scale, exiting\n");CHKERRQ(ierr);
     exit(-4000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Scale:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Scale:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -925,7 +924,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Add:\t\tError detected in device STREAM_Add, exiting\n");CHKERRQ(ierr);
     exit(-5000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Add:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Add:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* Initialize memory on the device */
@@ -942,7 +941,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tError detected in device STREAM_Triad, exiting\n");CHKERRQ(ierr);
     exit(-6000);
   } else {
-    ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tPass\n");CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tPass\n");CHKERRQ(ierr);
   }
 
   /* continue from here */
@@ -969,8 +968,8 @@ PetscErrorCode printResultsReadable(float times[][NTIMES])
   float          avgtime[8]          = {0., 0., 0., 0., 0., 0., 0., 0.};
   float          maxtime[8]          = {0., 0., 0., 0., 0., 0., 0., 0.};
   float          mintime[8]          = {1e30,1e30,1e30,1e30,1e30,1e30,1e30,1e30};
-  char           *label[8]           = {"Copy:      ", "Copy Opt.: ", "Scale:     ", "Scale Opt: ", "Add:       ", "Add Opt:   ", "Triad:     ", "Triad Opt: "};
-  float          bytes_per_kernel[8] = {
+  // char           *label[8]           = {"Copy:      ", "Copy Opt.: ", "Scale:     ", "Scale Opt: ", "Add:       ", "Add Opt:   ", "Triad:     ", "Triad Opt: "};
+  const float    bytes_per_kernel[8] = {
     2. * sizeof(float) * N,
     2. * sizeof(float) * N,
     2. * sizeof(float) * N,
@@ -980,21 +979,42 @@ PetscErrorCode printResultsReadable(float times[][NTIMES])
     3. * sizeof(float) * N,
     3. * sizeof(float) * N
   };
-
+  double         rate,irate;
+  int            rank,size;
   PetscFunctionBegin;
+  ierr = MPI_Comm_rank(MPI_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(MPI_COMM_WORLD,&size);CHKERRQ(ierr);
   /* --- SUMMARY --- */
-  for (k = 1; k < NTIMES; ++k)   /* note -- skip first iteration */
+  for (k = 0; k < NTIMES; ++k) {
     for (j = 0; j < 8; ++j) {
       avgtime[j] = avgtime[j] + (1.e-03f * times[j][k]);
       mintime[j] = MIN(mintime[j], (1.e-03f * times[j][k]));
       maxtime[j] = MAX(maxtime[j], (1.e-03f * times[j][k]));
     }
-
-  ierr = PetscPrintf(PETSC_COMM_SELF, "Function    Rate (MB/s)    Avg time      Min time      Max time\n");CHKERRQ(ierr);
-
+  }
+  // ierr = PetscPrintf(PETSC_COMM_SELF, "Function    Rate (MB/s)    Avg time      Min time      Max time\n");CHKERRQ(ierr);
   for (j = 0; j < 8; ++j) {
     avgtime[j] = avgtime[j]/(float)(NTIMES-1);
-    ierr       = PetscPrintf(PETSC_COMM_SELF, "%s%11.4f  %11.6f  %12.6f  %12.6f\n", label[j], 1.0E-06 * bytes_per_kernel[j]/mintime[j], avgtime[j], mintime[j], maxtime[j]);CHKERRQ(ierr);
+    // ierr       = PetscPrintf(PETSC_COMM_SELF, "%s%11.4f  %11.6f  %12.6f  %12.6f\n", label[j], 1.0E-06 * bytes_per_kernel[j]/mintime[j], avgtime[j], mintime[j], maxtime[j]);CHKERRQ(ierr);
   }
+  j = 7;
+  irate = 1.0E-06 * bytes_per_kernel[j]/mintime[j];
+  ierr = MPI_Reduce(&irate,&rate,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+  if (!rank) {
+    FILE *fd;
+    if (size == 1) {
+      printf("%d %11.4f   Rate (MB/s)\n",size, rate);
+      fd = fopen("flops","w");
+      fprintf(fd,"%g\n",rate);
+      fclose(fd);
+    } else {
+      double prate;
+      fd = fopen("flops","r");
+      fscanf(fd,"%lg",&prate);
+      fclose(fd);
+      printf("%d %11.4f   Rate (MB/s) %g \n", size, rate, rate/prate);
+    }
+  }
+
   PetscFunctionReturn(0);
 }
