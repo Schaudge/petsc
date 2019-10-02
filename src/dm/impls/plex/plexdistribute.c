@@ -1588,7 +1588,10 @@ PetscErrorCode DMPlexMigrate(DM dm, PetscSF sf, DM targetDM)
 + sf - The PetscSF used for point distribution, or NULL if not needed
 - dmParallel - The distributed DMPlex object
 
-  Note: If the mesh was not distributed, the output dmParallel will be NULL.
+  Notes:
+  If the mesh was not distributed, the output dmParallel will be NULL.
+  This can happen if commsize is 1 or if the partitioning results is still non-distributed DM
+  (e.g. when the mesh size is very small compared to commsize).
 
   The user can control the definition of adjacency for the mesh using DMSetAdjacency(). They should choose the combination appropriate for the function
   representation on the mesh.
@@ -1606,7 +1609,7 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
   DM                     dmCoord;
   DMLabel                lblPartition, lblMigration;
   PetscSF                sfMigration, sfStratified, sfPoint;
-  PetscBool              flg, balance;
+  PetscBool              flg, balance, distributed;
   PetscMPIInt            rank, size;
   PetscErrorCode         ierr;
 
@@ -1685,6 +1688,19 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
   ierr = DMPlexCreate(comm, dmParallel);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *dmParallel, "Parallel Mesh");CHKERRQ(ierr);
   ierr = DMPlexMigrate(dm, sfMigration, *dmParallel);CHKERRQ(ierr);
+
+  /* Return NULL if the resulting DM is non-distributed (can happen for mesh size << comm size) */
+  ierr = DMPlexIsDistributed(*dmParallel, &distributed);CHKERRQ(ierr);
+  if (!distributed) {
+    ierr = DMDestroy(dmParallel);CHKERRQ(ierr);
+    ierr = DMLabelDestroy(&lblPartition);CHKERRQ(ierr);
+    ierr = DMLabelDestroy(&lblMigration);CHKERRQ(ierr);
+    ierr = PetscSectionDestroy(&cellPartSection);CHKERRQ(ierr);
+    ierr = ISDestroy(&cellPart);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfMigration);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(DMPLEX_Distribute,dm,0,0,0);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
 
   /* Build the point SF without overlap */
   ierr = DMPlexGetPartitionBalance(dm, &balance);CHKERRQ(ierr);
