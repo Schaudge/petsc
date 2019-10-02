@@ -132,11 +132,10 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
 
 PetscErrorCode DMPlexCreatePointNumField(DM dm, Vec *PointNumbering)
 {
+  PetscErrorCode	ierr;
   PetscFE        	fe;
   PetscScalar    	*vArray;
-  PetscInt       	dim, vStart, vEnd, v, nPoints;
-  PetscErrorCode	ierr;
-  IS			globalPointIS;
+  PetscInt       	dim, vStart, vEnd, v;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
@@ -147,13 +146,10 @@ PetscErrorCode DMPlexCreatePointNumField(DM dm, Vec *PointNumbering)
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetVertexNumbering(dm, &globalPointIS);CHKERRQ(ierr);
-  ierr = ISGetSize(globalPointIS, &nPoints);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(dm, PointNumbering);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *PointNumbering, "PNum");CHKERRQ(ierr);
   ierr = VecGetArray(*PointNumbering, &vArray);CHKERRQ(ierr);
   for (v = 0; v < vEnd-vStart; ++v) {
-    printf("%d %d\n", v, vStart);
     vArray[v] = v+vStart;
   }
   ierr = VecRestoreArray(*PointNumbering, &vArray);CHKERRQ(ierr);
@@ -162,11 +158,10 @@ PetscErrorCode DMPlexCreatePointNumField(DM dm, Vec *PointNumbering)
 
 PetscErrorCode DMPlexCreateCellNumField(DM dm, Vec *CellNumbering)
 {
+  PetscErrorCode	ierr;
   PetscFE        	fe;
   PetscScalar    	*cArray;
-  PetscInt       	dim, cStart, cEnd, c, nCells;
-  PetscErrorCode	ierr;
-  IS			globalCellIS;
+  PetscInt       	dim, cStart, cEnd, c;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
@@ -177,13 +172,10 @@ PetscErrorCode DMPlexCreateCellNumField(DM dm, Vec *CellNumbering)
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
-  ierr = ISGetSize(globalCellIS, &nCells);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(dm, CellNumbering);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *CellNumbering, "CNum");CHKERRQ(ierr);
   ierr = VecGetArray(*CellNumbering, &cArray);CHKERRQ(ierr);
   for (c = 0; c < cEnd-cStart; ++c) {
-    printf("%d %d\n", c, cStart);
     cArray[c] = c;
   }
   ierr = VecRestoreArray(*CellNumbering, &cArray);CHKERRQ(ierr);
@@ -495,8 +487,8 @@ int main(int argc, char **argv)
   IS                    bcPointsIS, globalCellIS, vertexIS;
   Vec			coords, OrthQual, PointNum, CellNum;
   PetscSection          section;
-  PetscInt              overlap = 0, i, dim = 2, numFields = 1, numBC = 1, size, vsize, cStart, cEnd, conesize;
-  PetscInt		faces[dim], bcField[numBC];
+  PetscInt              overlap = 0, i, dim = 2, numFields = 3, numBC = 1, size, vsize, cStart, cEnd, conesize;
+  PetscInt		faces[dim], *bcField, *numComp, *numDOF;
   const PetscInt	*ptr, *vptr;
   PetscScalar		*coordArray, *angles;
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE, fileflag = PETSC_FALSE;
@@ -533,11 +525,11 @@ int main(int argc, char **argv)
   }
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
 
-  PetscInt      numDOF[numFields*(dim+1)], numComp[numFields];
+  ierr = PetscCalloc1(numBC, &bcField);CHKERRQ(ierr);
+  ierr = PetscCalloc1(numFields*(dim+1), &numDOF);CHKERRQ(ierr);
+  ierr = PetscCalloc1(numFields, &numComp);CHKERRQ(ierr);
   for (i = 0; i < numFields; i++){numComp[i] = 1;}
-  for (i = 0; i < numFields*(dim+1); i++){numDOF[i] = 0;}
   numDOF[0] = 1;
-  bcField[0] = 0;
   ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
   ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
   ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
@@ -545,6 +537,16 @@ int main(int argc, char **argv)
   ierr = DMSetSection(dm, section);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
+  ierr = PetscFree(bcField);CHKERRQ(ierr);
+  ierr = PetscFree(numDOF);CHKERRQ(ierr);
+  ierr = PetscFree(numComp);CHKERRQ(ierr);
+
+  ierr = DMPlexCreatePointNumField(dm, &PointNum);CHKERRQ(ierr);
+  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
+
+  ierr = DMPlexCreateCellNumField(dm, &CellNum);CHKERRQ(ierr);
+  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_CELL_FIELD, PETSC_TRUE, (PetscObject) CellNum);CHKERRQ(ierr);
+  ierr = DMView(dm, vtkviewer);CHKERRQ(ierr);
 
   //ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
   //ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
@@ -622,23 +624,16 @@ int main(int argc, char **argv)
   ierr = PetscViewerDestroy(&textviewer);CHKERRQ(ierr);
   ierr = VecDestroy(&OrthQual);CHKERRQ(ierr);
 
-  ierr = DMPlexCreatePointNumField(dm, &PointNum);CHKERRQ(ierr);
-  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
-
-  ierr = DMPlexCreateCellNumField(dm, &CellNum);CHKERRQ(ierr);
-  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_CELL_FIELD, PETSC_TRUE, (PetscObject) CellNum);CHKERRQ(ierr);
-  ierr = DMView(dm, vtkviewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
-
   ierr = PetscViewerCreate(comm, &hdf5viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetType(hdf5viewer, PETSCVIEWERHDF5);CHKERRQ(ierr);
   ierr = PetscViewerFileSetMode(hdf5viewer, FILE_MODE_WRITE);CHKERRQ(ierr);
   ierr = PetscViewerFileSetName(hdf5viewer, "Mesh.H5");CHKERRQ(ierr);
   ierr = PetscViewerSetUp(hdf5viewer);CHKERRQ(ierr);
   ierr = DMView(dm, hdf5viewer);CHKERRQ(ierr);
+
   ierr = PetscViewerDestroy(&hdf5viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&genviewer);CHKERRQ(ierr);
-
+  ierr = PetscViewerDestroy(&vtkviewer);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
   return ierr;
