@@ -147,6 +147,7 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
   PetscScalar    *array,*scaling_factors,*vals_B_delta;
   PetscScalar    **all_factors;
   PetscInt       *aux_local_numbering_2;
+  PetscInt       *count,**neighbours_set;
   PetscLayout    llay;
 
   /* saddlepoint */
@@ -236,10 +237,9 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
   n_local_lambda = 0;
   partial_sum = 0;
   n_boundary_dofs = 0;
-  s = 0;
 
   /* Get Vertices used to define the BDDC */
-  ierr = PCBDDCGraphGetCandidatesIS(pcbddc->mat_graph,NULL,NULL,NULL,NULL,&isvert);CHKERRQ(ierr);
+  ierr = PCBDDCGraphGetCandidatesIS(mat_graph,NULL,NULL,NULL,NULL,&isvert);CHKERRQ(ierr);
   ierr = ISGetLocalSize(isvert,&n_vertices);CHKERRQ(ierr);
   ierr = ISGetIndices(isvert,&vertex_indices);CHKERRQ(ierr);
 
@@ -248,9 +248,29 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
   ierr = PetscMalloc1(dual_size,&aux_local_numbering_1);CHKERRQ(ierr);
   ierr = PetscMalloc1(dual_size,&aux_local_numbering_2);CHKERRQ(ierr);
 
+  /* the code below does not support multiple subdomains per process
+     error out in this case */
+  ierr = PetscMalloc2(pcis->n,&count,pcis->n,&neighbours_set);CHKERRQ(ierr);
+  for (i=0,j=0;i<pcis->n;i++) j += mat_graph->count[i];
+  if (pcis->n) {
+    ierr = PetscMalloc1(j,&neighbours_set[0]);CHKERRQ(ierr);
+  }
+  for (i=0;i<pcis->n;i++) {
+    count[i] = 0;
+    for (j=0;j<mat_graph->count[i];j++) {
+      if (mat_graph->neighbours_set[i][j] == rank) continue;
+      neighbours_set[i][count[i]++] = mat_graph->neighbours_set[i][j];
+    }
+    if (count[i] != mat_graph->count[i]-1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Multiple subdomains per process not supported");
+    s = count[i];
+    ierr = PetscSortRemoveDupsInt(count+i,neighbours_set[i]);CHKERRQ(ierr);
+    if (s != count[i]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Multiple subdomains per process not supported");
+    if (i != pcis->n - 1) neighbours_set[i+1] = neighbours_set[i] + count[i];
+  }
+
   ierr = VecGetArray(pcis->vec1_N,&array);CHKERRQ(ierr);
-  for (i=0;i<pcis->n;i++){
-    j = mat_graph->count[i]; /* RECALL: mat_graph->count[i] does not count myself */
+  for (i=0,s=0;i<pcis->n;i++) {
+    j = count[i]; /* RECALL: count[i] does not count myself */
     if (j > 0) n_boundary_dofs++;
     skip_node = PETSC_FALSE;
     if (s < n_vertices && vertex_indices[s] == i) { /* it works for a sorted set of vertices */
@@ -278,7 +298,7 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
   }
   ierr = VecRestoreArray(pcis->vec1_N,&array);CHKERRQ(ierr);
   ierr = ISRestoreIndices(isvert,&vertex_indices);CHKERRQ(ierr);
-  ierr = PCBDDCGraphRestoreCandidatesIS(pcbddc->mat_graph,NULL,NULL,NULL,NULL,&isvert);CHKERRQ(ierr);
+  ierr = PCBDDCGraphRestoreCandidatesIS(mat_graph,NULL,NULL,NULL,NULL,&isvert);CHKERRQ(ierr);
   dual_size = partial_sum;
 
   /* compute global ordering of lagrange multipliers and associate l2g map */
@@ -318,7 +338,7 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
     ierr = PetscMalloc1(partial_sum,&recv_buffer);CHKERRQ(ierr);
     ierr = PetscMalloc1(partial_sum,&all_factors[0]);CHKERRQ(ierr);
     for (i=0;i<pcis->n-1;i++) {
-      j = mat_graph->count[i];
+      j = count[i];
       all_factors[i+1]=all_factors[i]+j;
     }
 
@@ -345,7 +365,7 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
       for (j=0;j<pcis->n_shared[i];j++) {
         k = pcis->shared[i][j];
         neigh_position = 0;
-        while(mat_graph->neighbours_set[k][neigh_position] != pcis->neigh[i]) {neigh_position++;}
+        while (neighbours_set[k][neigh_position] != pcis->neigh[i]) {neigh_position++;}
         all_factors[k][neigh_position]=recv_buffer[ptrs_buffer[i-1]+j];
       }
     }
@@ -375,42 +395,42 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
   cum = 0;
   for (i=0;i<dual_size;i++) {
     n_global_lambda = aux_global_numbering[cum];
-    j = mat_graph->count[aux_local_numbering_1[i]];
+    j = count[aux_local_numbering_1[i]];
     aux_sums[0]=0;
     for (s=1;s<j;s++) {
       aux_sums[s]=aux_sums[s-1]+j-s+1;
     }
     if (all_factors) array = all_factors[aux_local_numbering_1[i]];
     n_neg_values = 0;
-    while(n_neg_values < j && mat_graph->neighbours_set[aux_local_numbering_1[i]][n_neg_values] < rank) {n_neg_values++;}
+    while (n_neg_values < j && neighbours_set[aux_local_numbering_1[i]][n_neg_values] < rank) {n_neg_values++;}
     n_pos_values = j - n_neg_values;
     if (fully_redundant) {
       for (s=0;s<n_neg_values;s++) {
-        l2g_indices    [partial_sum+s]=aux_sums[s]+n_neg_values-s-1+n_global_lambda;
-        cols_B_delta   [partial_sum+s]=dual_dofs_boundary_indices[i];
-        vals_B_delta   [partial_sum+s]=-1.0;
+        l2g_indices [partial_sum+s]=aux_sums[s]+n_neg_values-s-1+n_global_lambda;
+        cols_B_delta[partial_sum+s]=dual_dofs_boundary_indices[i];
+        vals_B_delta[partial_sum+s]=-1.0;
         if (!pcbddc->use_deluxe_scaling) scaling_factors[partial_sum+s]=array[s];
       }
       for (s=0;s<n_pos_values;s++) {
-        l2g_indices    [partial_sum+s+n_neg_values]=aux_sums[n_neg_values]+s+n_global_lambda;
-        cols_B_delta   [partial_sum+s+n_neg_values]=dual_dofs_boundary_indices[i];
-        vals_B_delta   [partial_sum+s+n_neg_values]=1.0;
+        l2g_indices [partial_sum+s+n_neg_values]=aux_sums[n_neg_values]+s+n_global_lambda;
+        cols_B_delta[partial_sum+s+n_neg_values]=dual_dofs_boundary_indices[i];
+        vals_B_delta[partial_sum+s+n_neg_values]=1.0;
         if (!pcbddc->use_deluxe_scaling) scaling_factors[partial_sum+s+n_neg_values]=array[s+n_neg_values];
       }
       partial_sum += j;
     } else {
       /* l2g_indices and default cols and vals of B_delta */
       for (s=0;s<j;s++) {
-        l2g_indices    [partial_sum+s]=n_global_lambda+s;
-        cols_B_delta   [partial_sum+s]=dual_dofs_boundary_indices[i];
-        vals_B_delta   [partial_sum+s]=0.0;
+        l2g_indices [partial_sum+s]=n_global_lambda+s;
+        cols_B_delta[partial_sum+s]=dual_dofs_boundary_indices[i];
+        vals_B_delta[partial_sum+s]=0.0;
       }
       /* B_delta */
       if ( n_neg_values > 0 ) { /* there's a rank next to me to the left */
-        vals_B_delta   [partial_sum+n_neg_values-1]=-1.0;
+        vals_B_delta[partial_sum+n_neg_values-1]=-1.0;
       }
       if ( n_neg_values < j ) { /* there's a rank next to me to the right */
-        vals_B_delta   [partial_sum+n_neg_values]=1.0;
+        vals_B_delta[partial_sum+n_neg_values]=1.0;
       }
       /* scaling as in Klawonn-Widlund 1999 */
       if (!pcbddc->use_deluxe_scaling) {
@@ -439,6 +459,10 @@ PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx fetidpmat_ctx )
     ierr = PetscFree(all_factors[0]);CHKERRQ(ierr);
     ierr = PetscFree(all_factors);CHKERRQ(ierr);
   }
+  if (pcis->n) {
+    ierr = PetscFree(neighbours_set[0]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree2(count,neighbours_set);CHKERRQ(ierr);
 
   /* Create local part of B_delta */
   ierr = MatCreate(PETSC_COMM_SELF,&fetidpmat_ctx->B_delta);CHKERRQ(ierr);
