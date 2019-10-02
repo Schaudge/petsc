@@ -284,6 +284,7 @@ PETSC_EXTERN PetscErrorCode DMPlexMarkBoundaryFaces(DM, PetscInt, DMLabel);
 
 PETSC_EXTERN PetscErrorCode DMPlexCreateSection(DM, DMLabel [], const PetscInt [], const PetscInt [], PetscInt, const PetscInt [], const IS [], const IS [], IS, PetscSection *);
 PETSC_EXTERN PetscErrorCode DMPlexGetSubdomainSection(DM, PetscSection*);
+PETSC_EXTERN PetscErrorCode DMPlexSetSubdomainSection(DM, PetscSection);
 
 PETSC_EXTERN PetscErrorCode DMPlexComputeCellGeometryAffineFEM(DM, PetscInt, PetscReal *, PetscReal *, PetscReal *, PetscReal *);
 PETSC_EXTERN PetscErrorCode DMPlexComputeCellGeometryFEM(DM, PetscInt, PetscQuadrature, PetscReal *, PetscReal *, PetscReal *, PetscReal *);
