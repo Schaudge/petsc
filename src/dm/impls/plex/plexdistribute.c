@@ -1,6 +1,8 @@
 #include <petsc/private/dmpleximpl.h>    /*I      "petscdmplex.h"   I*/
 #include <petsc/private/dmlabelimpl.h>   /*I      "petscdmlabel.h"  I*/
 
+static PetscErrorCode DMPlexDistributeOverlap_Internal(DM, PetscInt, PetscSF *, DM *);
+
 /*@C
   DMPlexSetAdjacencyUser - Define adjacency in the mesh using a user-provided callback
 
@@ -1720,7 +1722,7 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
     PetscSF            sfOverlap, sfOverlapPoint;
 
     /* Add the partition overlap to the distributed DM */
-    ierr = DMPlexDistributeOverlap(*dmParallel, overlap, &sfOverlap, &dmOverlap);CHKERRQ(ierr);
+    ierr = DMPlexDistributeOverlap_Internal(*dmParallel, overlap, &sfOverlap, &dmOverlap);CHKERRQ(ierr);
     ierr = DMDestroy(dmParallel);CHKERRQ(ierr);
     *dmParallel = dmOverlap;
     if (flg) {
@@ -1797,12 +1799,6 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
 @*/
 PetscErrorCode DMPlexDistributeOverlap(DM dm, PetscInt overlap, PetscSF *sf, DM *dmOverlap)
 {
-  MPI_Comm               comm;
-  PetscSection           rootSection, leafSection;
-  IS                     rootrank, leafrank;
-  DM                     dmCoord;
-  DMLabel                lblOverlap;
-  PetscSF                sfOverlap, sfStratified, sfPoint;
   PetscBool              flg;
   PetscErrorCode         ierr;
 
@@ -1811,12 +1807,31 @@ PetscErrorCode DMPlexDistributeOverlap(DM dm, PetscInt overlap, PetscSF *sf, DM 
   PetscValidLogicalCollectiveInt(dm, overlap, 2);
   if (sf) PetscValidPointer(sf, 3);
   PetscValidPointer(dmOverlap, 4);
+  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
+  if (flg) {
+    ierr = DMPlexDistributeOverlap_Internal(dm, overlap, sf, dmOverlap);CHKERRQ(ierr);
+  } else {
+    if (sf) *sf = NULL;
+    *dmOverlap  = NULL;
+  }
+  PetscFunctionReturn(0);
+}
 
+/* All of DMPlexDistributeOverlap() without checking input DM is distributed (DMPlexIsDistributed()) */
+static PetscErrorCode DMPlexDistributeOverlap_Internal(DM dm, PetscInt overlap, PetscSF *sf, DM *dmOverlap)
+{
+  MPI_Comm               comm;
+  PetscSection           rootSection, leafSection;
+  IS                     rootrank, leafrank;
+  DM                     dmCoord;
+  DMLabel                lblOverlap;
+  PetscSF                sfOverlap, sfStratified, sfPoint;
+  PetscErrorCode         ierr;
+
+  PetscFunctionBegin;
   if (sf) *sf = NULL;
   *dmOverlap  = NULL;
   ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
-  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
-  if (!flg) PetscFunctionReturn(0);
 
   ierr = PetscLogEventBegin(DMPLEX_DistributeOverlap, dm, 0, 0, 0);CHKERRQ(ierr);
   /* Compute point overlap with neighbouring processes on the distributed DM */
