@@ -1478,9 +1478,12 @@ PetscErrorCode DMCreateMatrix_Plex(DM dm, Mat *J)
   Output Parameters:
 . subsection - The subdomain section
 
+  Note:
+  The reference count of subsection is not incremented, the user must not destroy the PetscSection.
+
   Level: developer
 
-.seealso:
+.seealso: MATIS
 @*/
 PetscErrorCode DMPlexGetSubdomainSection(DM dm, PetscSection *subsection)
 {
@@ -1499,6 +1502,36 @@ PetscErrorCode DMPlexGetSubdomainSection(DM dm, PetscSection *subsection)
     ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
   }
   *subsection = mesh->subdomainSection;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMPlexSetSubdomainSection - Sets the section associated with the subdomain
+
+  Not collective
+
+  Input Parameter:
++ mesh - The DMPlex
+- subsection - The subdomain section
+
+  Note:
+  The reference count of subsection is incremented, the user must call PetscSectionDestroy when no longer needed by the caller
+
+  Level: developer
+
+.seealso: MATIS
+@*/
+PetscErrorCode DMPlexSetSubdomainSection(DM dm, PetscSection subsection)
+{
+  DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (subsection) PetscValidHeaderSpecific(subsection, PETSC_SECTION_CLASSID, 2);
+  ierr = PetscObjectReference((PetscObject)subsection);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&mesh->subdomainSection);CHKERRQ(ierr);
+  mesh->subdomainSection = subsection;
   PetscFunctionReturn(0);
 }
 
@@ -6052,19 +6085,19 @@ PetscErrorCode DMPlexMatSetClosure(DM dm, PetscSection section, PetscSection glo
     ierr = PetscSectionGetUseFieldOffsets(globalSection, &useFieldOffsets);CHKERRQ(ierr);
     if (useFieldOffsets) {
       for (p = 0; p < numPoints; p++) {
-        DMPlexGetIndicesPointFieldsSplit_Internal(section, globalSection, points[2*p], offsets, PETSC_FALSE, perms, p, clperm, indices);
+        ierr = DMPlexGetIndicesPointFieldsSplit_Internal(section, globalSection, points[2*p], offsets, PETSC_FALSE, perms, p, clperm, indices);CHKERRQ(ierr);
       }
     } else {
       for (p = 0; p < numPoints; p++) {
         ierr = PetscSectionGetOffset(globalSection, points[2*p], &globalOff);CHKERRQ(ierr);
-        DMPlexGetIndicesPointFields_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, offsets, PETSC_FALSE, perms, p, clperm, indices);
+        ierr = DMPlexGetIndicesPointFields_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, offsets, PETSC_FALSE, perms, p, clperm, indices);CHKERRQ(ierr);
       }
     }
   } else {
     for (p = 0, off = 0; p < numPoints; p++) {
       const PetscInt *perm = perms[0] ? perms[0][p] : NULL;
       ierr = PetscSectionGetOffset(globalSection, points[2*p], &globalOff);CHKERRQ(ierr);
-      DMPlexGetIndicesPoint_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, clperm, indices);
+      ierr = DMPlexGetIndicesPoint_Internal(section, points[2*p], globalOff < 0 ? -(globalOff+1) : globalOff, &off, PETSC_FALSE, perm, clperm, indices);CHKERRQ(ierr);
     }
   }
   if (mesh->printSetValues) {ierr = DMPlexPrintMatSetValues(PETSC_VIEWER_STDOUT_SELF, A, point, numIndices, indices, 0, NULL, values);CHKERRQ(ierr);}
