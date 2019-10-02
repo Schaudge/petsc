@@ -692,6 +692,11 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
   ierr = cudaFree(d_a);CHKERRQ(ierr);
   ierr = cudaFree(d_b);CHKERRQ(ierr);
   ierr = cudaFree(d_c);CHKERRQ(ierr);
+
+  free(h_a);
+  free(h_b);
+  free(h_c);
+  
   PetscFunctionReturn(0);
 }
 
@@ -955,6 +960,11 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
   ierr = cudaFree(d_a);CHKERRQ(ierr);
   ierr = cudaFree(d_b);CHKERRQ(ierr);
   ierr = cudaFree(d_c);CHKERRQ(ierr);
+
+  free(h_a);
+  free(h_b);
+  free(h_c);
+
   PetscFunctionReturn(0);
 }
 
