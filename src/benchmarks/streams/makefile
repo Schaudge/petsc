@@ -55,9 +55,13 @@ cudastreamjsrun:  CUDAVersion
 	@if [ "${NPMAX}foo" = "foo" ]; then echo "---------"; printf " Run with [PETSC_OPTIONS=-process_view] make streams NPMAX=<integer number of MPI processes> [MPI_BINDING='-bind-to core -map-by numa']\n or       [I_MPI_PIN_PROCESSOR_LIST=:map=scatter] [PETSC_OPTIONS=-process_view] make streams NPMAX=<integer number of MPI processes>\n"; exit 1 ; fi
 	-@printf "" > scaling.log
 	-@printf "Running streams with '${MPIEXEC} ${MPI_BINDING}' using 'NPMAX=${NPMAX}' \n"
-	-@i=0; while [ $${i} -lt ${NPMAX} ]; do i=`expr $${i} + 1`; \
-	  ${MPIEXEC} ${MPI_BINDING} -n 1 -c$${i} -a$${i} -g 6 ./CUDAVersion | tee -a scaling.log; \
+	-@i=0; while [ $${i} -lt ${NPMAX} ] && [ $${i} -lt 7 ]; do i=`expr $${i} + 1`; \
+	  ${MPIEXEC} ${MPI_BINDING} -n 1 -c$${i} -a$${i} -g1 ./CUDAVersion | tee -a scaling.log; \
         done
+	-@n=1; i=7; while [ $${i} -lt ${NPMAX} ]; do i=`expr $${i} + 7`; n=`expr $${n} + 1`; \
+	       c=5; while [ $${c} -lt 7 ]; do c=`expr $${c} + 1`; \
+	  ${MPIEXEC} ${MPI_BINDING} -n $${n} -c$${c} -a$${c} -g1 ./CUDAVersion | tee -a scaling.log; \
+        done; done
 	-@echo "------------------------------------------------"
 	-@${PYTHON} process.py CUDA fileoutput
 
