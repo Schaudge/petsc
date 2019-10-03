@@ -2410,7 +2410,7 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
   Input Parameters:
 + mesh - The DMPlex
 . p - The point, which must lie in the chart set with DMPlexSetChart()
-. orientation - The orientation of the point
+. ornt - The orientation of the point
 . useCone - PETSC_TRUE for in-edges,  otherwise use out-edges
 - points - If points is NULL on input, internal storage will be returned, otherwise the provided array is used
 
