@@ -140,7 +140,7 @@ PetscErrorCode DMPlexCreatePointNumField(DM dm, Vec *PointNumbering)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, PETSC_TRUE, NULL, -1, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), 1, 1, PETSC_TRUE, NULL, -1, &fe);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe, "PointNumbering");CHKERRQ(ierr);
   ierr = DMSetField(dm, 1, NULL, (PetscObject) fe);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
@@ -166,9 +166,9 @@ PetscErrorCode DMPlexCreateCellNumField(DM dm, Vec *CellNumbering)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, PETSC_TRUE, NULL, -1, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), 1, 1, PETSC_TRUE, NULL, -1, &fe);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe, "CellNumbering");CHKERRQ(ierr);
-  ierr = DMSetField(dm, 1, NULL, (PetscObject) fe);CHKERRQ(ierr);
+  ierr = DMSetField(dm, 2, NULL, (PetscObject) fe);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
@@ -176,7 +176,7 @@ PetscErrorCode DMPlexCreateCellNumField(DM dm, Vec *CellNumbering)
   ierr = PetscObjectSetName((PetscObject) *CellNumbering, "CNum");CHKERRQ(ierr);
   ierr = VecGetArray(*CellNumbering, &cArray);CHKERRQ(ierr);
   for (c = 0; c < cEnd-cStart; ++c) {
-    cArray[c] = c;
+    cArray[c] = c+cStart;
   }
   ierr = VecRestoreArray(*CellNumbering, &cArray);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -487,7 +487,7 @@ int main(int argc, char **argv)
   IS                    bcPointsIS, globalCellIS, vertexIS;
   Vec			coords, OrthQual, PointNum, CellNum;
   PetscSection          section;
-  PetscInt              overlap = 0, i, dim = 2, numFields = 3, numBC = 1, size, vsize, cStart, cEnd, conesize;
+  PetscInt              overlap = 0, i, dim = 2, numFields = 3, numBC = 1, size, vsize, cStart, cEnd, conesize, depth;
   PetscInt		faces[dim], *bcField, *numComp, *numDOF;
   const PetscInt	*ptr, *vptr;
   PetscScalar		*coordArray, *angles;
@@ -524,14 +524,17 @@ int main(int argc, char **argv)
     dm = dmDist;
   }
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
+  ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
 
   ierr = PetscCalloc1(numBC, &bcField);CHKERRQ(ierr);
   ierr = PetscCalloc1(numFields*(dim+1), &numDOF);CHKERRQ(ierr);
   ierr = PetscCalloc1(numFields, &numComp);CHKERRQ(ierr);
-  for (i = 0; i < numFields; i++){numComp[i] = 1;}
-  numDOF[0] = 1;
+  for (i = 0; i < numFields; i++){ numComp[i] = 1;}
+  numDOF[0*(dim+1)] = 1;
+  //numDOF[1*(dim+1)+1] = 1;
+  numDOF[2*(dim+1)+depth] = 1;
   ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
-  ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
   ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
   ierr = PetscSectionSetFieldName(section, 0, "Default");CHKERRQ(ierr);
   ierr = DMSetSection(dm, section);CHKERRQ(ierr);
@@ -540,13 +543,6 @@ int main(int argc, char **argv)
   ierr = PetscFree(bcField);CHKERRQ(ierr);
   ierr = PetscFree(numDOF);CHKERRQ(ierr);
   ierr = PetscFree(numComp);CHKERRQ(ierr);
-
-  ierr = DMPlexCreatePointNumField(dm, &PointNum);CHKERRQ(ierr);
-  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
-
-  ierr = DMPlexCreateCellNumField(dm, &CellNum);CHKERRQ(ierr);
-  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_CELL_FIELD, PETSC_TRUE, (PetscObject) CellNum);CHKERRQ(ierr);
-  ierr = DMView(dm, vtkviewer);CHKERRQ(ierr);
 
   //ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);
   //ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);
@@ -623,6 +619,15 @@ int main(int argc, char **argv)
   ierr = VecView(OrthQual, textviewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&textviewer);CHKERRQ(ierr);
   ierr = VecDestroy(&OrthQual);CHKERRQ(ierr);
+
+  if (0) {
+    ierr = DMPlexCreatePointNumField(dm, &PointNum);CHKERRQ(ierr);
+    ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
+  }
+
+  ierr = DMPlexCreateCellNumField(dm, &CellNum);CHKERRQ(ierr);
+  ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_CELL_FIELD, PETSC_FALSE, (PetscObject) CellNum);CHKERRQ(ierr);
+  ierr = DMView(dm, vtkviewer);CHKERRQ(ierr);
 
   ierr = PetscViewerCreate(comm, &hdf5viewer);CHKERRQ(ierr);
   ierr = PetscViewerSetType(hdf5viewer, PETSCVIEWERHDF5);CHKERRQ(ierr);
