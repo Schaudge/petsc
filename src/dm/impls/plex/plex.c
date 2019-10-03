@@ -2403,7 +2403,7 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
 }
 
 /*@C
-  DMPlexGetTransitiveClosureByOrientation - Return the points on the transitive closure of the in-edges or out-edges for this point in the DAG with a specified initial orientation
+  DMPlexGetTransitiveClosureWithInitialOrientation - Return the points on the transitive closure of the in-edges or out-edges for this point in the DAG with a specified initial orientation
 
   Not collective
 
@@ -2431,7 +2431,7 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
 
 .seealso: DMPlexRestoreTransitiveClosure(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
 @*/
-PetscErrorCode DMPlexGetTransitiveClosureByOrientation(DM dm, PetscInt p, PetscInt ornt, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
+PetscErrorCode DMPlexGetTransitiveClosureWithInitialOrientation(DM dm, PetscInt p, PetscInt ornt, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
   DM_Plex        *mesh = (DM_Plex*) dm->data;
   PetscInt       *closure, *fifo;
