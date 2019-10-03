@@ -26,8 +26,7 @@ static char help[] = "Double-Precision STREAM Benchmark implementation in CUDA\n
 #include <petsctime.h>
 
 #define N        10000000
-#define N_DOUBLE 40000000
-#define NTIMES   5
+#define NTIMES   10
 
 # ifndef MIN
 # define MIN(x,y) ((x)<(y) ? (x) : (y))
@@ -350,7 +349,7 @@ bool STREAM_Triad_verify_double(double *a, double *b, double *c, double scalar, 
 PetscErrorCode setupStream(PetscInt device, PetscBool runDouble, PetscBool cpuTiming);
 PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseGPUTiming);
 PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseGPUTiming);
-PetscErrorCode printResultsReadable(float times[][NTIMES]);
+PetscErrorCode printResultsReadable(float times[][NTIMES], size_t);
 
 int main(int argc, char *argv[])
 {
@@ -358,6 +357,8 @@ int main(int argc, char *argv[])
   PetscBool      runDouble = PETSC_TRUE;
   PetscBool      cpuTiming = PETSC_FALSE;
   PetscErrorCode ierr;
+
+  ierr = cudaSetDeviceFlags(cudaDeviceBlockingSync);CHKERRQ(ierr);
 
   ierr = PetscInitialize(&argc, &argv, 0, help);if (ierr) return ierr;
   // ierr = PetscPrintf(PETSC_COMM_SELF, "[Single and Double-Precision Device-Only STREAM Benchmark implementation in CUDA]\n");CHKERRQ(ierr);
@@ -423,9 +424,8 @@ PetscErrorCode setupStream(PetscInt deviceNum, PetscBool runDouble, PetscBool cp
     // ierr = PetscPrintf(PETSC_COMM_SELF, " Using cpu-only timer.\n");CHKERRQ(ierr);
   }
 
-  ierr = runStream(iNumThreadsPerBlock, cpuTiming);CHKERRQ(ierr);
+  // ierr = runStream(iNumThreadsPerBlock, cpuTiming);CHKERRQ(ierr);
   if (runDouble) {
-    //ierr = cudaSetDeviceFlags(cudaDeviceBlockingSync);CHKERRQ(ierr);
     ierr = runStreamDouble(iNumThreadsPerBlock, cpuTiming);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -577,7 +577,7 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
 
   }
 
-  /* verify kernels */
+  if (0) { /* verify kernels */
   float *h_a, *h_b, *h_c;
   bool  errorSTREAMkernel = true;
 
@@ -633,6 +633,7 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
   }
 
   /* Initialize memory on the device */
+  set_array<<<dimGrid,dimBlock>>>(d_a, 2.f, N);
   set_array<<<dimGrid,dimBlock>>>(d_b, .5f, N);
   set_array<<<dimGrid,dimBlock>>>(d_c, .5f, N);
 
@@ -681,8 +682,12 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
     // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tPass\n");CHKERRQ(ierr);
   }
 
+  free(h_a);
+  free(h_b);
+  free(h_c);
+  }
   /* continue from here */
-  // printResultsReadable(times);
+  printResultsReadable(times, sizeof(float));
 
   //clean up timers
   ierr = cudaEventDestroy(stop);CHKERRQ(ierr);
@@ -692,10 +697,6 @@ PetscErrorCode runStream(const PetscInt iNumThreadsPerBlock, PetscBool bDontUseG
   ierr = cudaFree(d_a);CHKERRQ(ierr);
   ierr = cudaFree(d_b);CHKERRQ(ierr);
   ierr = cudaFree(d_c);CHKERRQ(ierr);
-
-  free(h_a);
-  free(h_b);
-  free(h_c);
   
   PetscFunctionReturn(0);
 }
@@ -788,7 +789,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     PetscTimeAdd(&cpuTimer);
     if (bDontUseGPUTiming) times[3][k] = cpuTimer;
     else {
-      ierr = cudaEventElapsedTime(&times[2][k], start, stop);CHKERRQ(ierr);
+      ierr = cudaEventElapsedTime(&times[3][k], start, stop);CHKERRQ(ierr);
     }
 
     cpuTimer = 0.0;
@@ -801,7 +802,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     PetscTimeAdd(&cpuTimer);
     if (bDontUseGPUTiming) times[4][k] = cpuTimer;
     else {
-      ierr = cudaEventElapsedTime(&times[3][k], start, stop);CHKERRQ(ierr);
+      ierr = cudaEventElapsedTime(&times[4][k], start, stop);CHKERRQ(ierr);
     }
 
     cpuTimer = 0.0;
@@ -814,7 +815,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     PetscTimeAdd(&cpuTimer);
     if (bDontUseGPUTiming) times[5][k] = cpuTimer;
     else {
-      ierr = cudaEventElapsedTime(&times[3][k], start, stop);CHKERRQ(ierr);
+      ierr = cudaEventElapsedTime(&times[5][k], start, stop);CHKERRQ(ierr);
     }
 
     cpuTimer = 0.0;
@@ -827,7 +828,7 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     PetscTimeAdd(&cpuTimer);
     if (bDontUseGPUTiming) times[6][k] = cpuTimer;
     else {
-      ierr = cudaEventElapsedTime(&times[4][k], start, stop);CHKERRQ(ierr);
+      ierr = cudaEventElapsedTime(&times[6][k], start, stop);CHKERRQ(ierr);
     }
 
     cpuTimer = 0.0;
@@ -840,12 +841,12 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     PetscTimeAdd(&cpuTimer);
     if (bDontUseGPUTiming) times[7][k] = cpuTimer;
     else {
-      ierr = cudaEventElapsedTime(&times[4][k], start, stop);CHKERRQ(ierr);
+      ierr = cudaEventElapsedTime(&times[7][k], start, stop);CHKERRQ(ierr);
     }
 
   }
 
-  /* verify kernels */
+  if (0) { /* verify kernels */
   double *h_a, *h_b, *h_c;
   bool   errorSTREAMkernel = true;
 
@@ -949,8 +950,12 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
     // ierr = PetscPrintf(PETSC_COMM_SELF, " device STREAM_Triad:\t\tPass\n");CHKERRQ(ierr);
   }
 
+  free(h_a);
+  free(h_b);
+  free(h_c);
+  }
   /* continue from here */
-  printResultsReadable(times);
+  printResultsReadable(times,sizeof(double));
 
   //clean up timers
   ierr = cudaEventDestroy(stop);CHKERRQ(ierr);
@@ -961,17 +966,13 @@ PetscErrorCode runStreamDouble(const PetscInt iNumThreadsPerBlock, PetscBool bDo
   ierr = cudaFree(d_b);CHKERRQ(ierr);
   ierr = cudaFree(d_c);CHKERRQ(ierr);
 
-  free(h_a);
-  free(h_b);
-  free(h_c);
-
   PetscFunctionReturn(0);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 //Print Results to Screen and File
 ///////////////////////////////////////////////////////////////////////////
-PetscErrorCode printResultsReadable(float times[][NTIMES])
+PetscErrorCode printResultsReadable(float times[][NTIMES], const size_t bsize)
 {
   PetscErrorCode ierr;
   PetscInt       j, k;
@@ -980,14 +981,14 @@ PetscErrorCode printResultsReadable(float times[][NTIMES])
   float          mintime[8]          = {1e30,1e30,1e30,1e30,1e30,1e30,1e30,1e30};
   // char           *label[8]           = {"Copy:      ", "Copy Opt.: ", "Scale:     ", "Scale Opt: ", "Add:       ", "Add Opt:   ", "Triad:     ", "Triad Opt: "};
   const float    bytes_per_kernel[8] = {
-    2. * sizeof(float) * N,
-    2. * sizeof(float) * N,
-    2. * sizeof(float) * N,
-    2. * sizeof(float) * N,
-    3. * sizeof(float) * N,
-    3. * sizeof(float) * N,
-    3. * sizeof(float) * N,
-    3. * sizeof(float) * N
+    2. * bsize * N,
+    2. * bsize * N,
+    2. * bsize * N,
+    2. * bsize * N,
+    3. * bsize * N,
+    3. * bsize * N,
+    3. * bsize * N,
+    3. * bsize * N
   };
   double         rate,irate;
   int            rank,size;
