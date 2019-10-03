@@ -2403,7 +2403,7 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
 }
 
 /*@C
-  DMPlexGetTransitiveClosure_Internal - Return the points on the transitive closure of the in-edges or out-edges for this point in the DAG with a specified initial orientation
+  DMPlexGetTransitiveClosureByOrientation - Return the points on the transitive closure of the in-edges or out-edges for this point in the DAG with a specified initial orientation
 
   Not collective
 
@@ -2431,7 +2431,7 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
 
 .seealso: DMPlexRestoreTransitiveClosure(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
 @*/
-PetscErrorCode DMPlexGetTransitiveClosure_Internal(DM dm, PetscInt p, PetscInt ornt, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
+PetscErrorCode DMPlexGetTransitiveClosureByOrientation(DM dm, PetscInt p, PetscInt ornt, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
   DM_Plex        *mesh = (DM_Plex*) dm->data;
   PetscInt       *closure, *fifo;
@@ -6979,7 +6979,7 @@ PetscErrorCode DMPlexCheckFaces(DM dm, PetscInt cellHeight)
       for (f = 0; f < numFaces; ++f) {
         PetscInt *fclosure = NULL, fclosureSize, cl, fnumCorners = 0, v;
 
-        ierr = DMPlexGetTransitiveClosure_Internal(dm, cone[f], ornt[f], PETSC_TRUE, &fclosureSize, &fclosure);CHKERRQ(ierr);
+        ierr = DMPlexGetTransitiveClosureByOrientation(dm, cone[f], ornt[f], PETSC_TRUE, &fclosureSize, &fclosure);CHKERRQ(ierr);
         for (cl = 0; cl < fclosureSize*2; cl += 2) {
           const PetscInt p = fclosure[cl];
           if ((p >= vStart) && (p < vEnd)) fclosure[fnumCorners++] = p;
