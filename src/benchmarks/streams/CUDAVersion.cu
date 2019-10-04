@@ -16,9 +16,10 @@
 #include <math.h>
 #include <limits.h>
 #include <float.h>
-#include <mpi.h>
+#include <petscsys.h>
 
-#define N       20000000
+#define N     20000000
+
 #define NTIMES  50
 #define OFFSET  0
 
@@ -28,14 +29,6 @@
 #ifndef MAX
 #define MAX(x,y) ((x)>(y) ? (x) : (y))
 #endif
-
-#define CHKERRQ(ierr)   do {if(ierr) return ierr;} while(0)
-#define CHKERRCUDA(err) do {if(err) return err;} while(0)
-
-static double a[N+OFFSET],
-              b[N+OFFSET],
-              c[N+OFFSET];
-static double *d_a, *d_b, *d_c;
 
 static double bytes[4] = {
   2 * sizeof(double) * N,
@@ -87,14 +80,14 @@ int main(int argc, char *argv[])
   int           j,k,nthreads,nblocks;
   int           rank,size,devCount,device;
   double        irate[4],rate[4];
-  float         times[4][NTIMES];
+  double        times[4][NTIMES] = {0};
   double        mintime[4] = {FLT_MAX,FLT_MAX,FLT_MAX,FLT_MAX};
   double        scalar=3.0;
-  cudaEvent_t   start,stop;
   size_t        sz;
   FILE          *fd;
+  double        *a, *b, *c, *d_a, *d_b, *d_c;
 
-  ierr = MPI_Init(&argc,&argv);CHKERRQ(ierr);
+  ierr = PetscInitialize(&argc,&argv,NULL,NULL);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(MPI_COMM_WORLD,&rank);CHKERRQ(ierr);
   ierr = MPI_Comm_size(MPI_COMM_WORLD,&size);CHKERRQ(ierr);
 
@@ -107,12 +100,17 @@ int main(int argc, char *argv[])
   nblocks  = (N+nthreads-1)/nthreads;
 
   /* Init arrays on host and then copy them to device  */
+  sz  = sizeof(double)*N;
+
+  ierr = PetscMalloc1(N,&a);CHKERRQ(ierr);
+  ierr = PetscMalloc1(N,&b);CHKERRQ(ierr);
+  ierr = PetscMalloc1(N,&c);CHKERRQ(ierr);
+
   for (j=0; j<N; j++) {
     a[j] = 1.0;
     b[j] = 2.0;
     c[j] = 0.0;
   }
-  sz  = sizeof(double)*N;
   err = cudaMalloc((void**)&d_a,sz);CHKERRCUDA(err);
   err = cudaMalloc((void**)&d_b,sz);CHKERRCUDA(err);
   err = cudaMalloc((void**)&d_c,sz);CHKERRCUDA(err);
@@ -122,38 +120,37 @@ int main(int argc, char *argv[])
 
   err = cudaDeviceSynchronize();CHKERRCUDA(err);
 
-  /* Both timers report msec (10^-3 sec) */
-  err = cudaEventCreate(&start);CHKERRCUDA(err);
-  err = cudaEventCreate(&stop);CHKERRCUDA(err);
-
   for (k=0; k<NTIMES; ++k) {
-    err = cudaEventRecord(start, 0);CHKERRCUDA(err);
+    ierr = MPI_Barrier(MPI_COMM_WORLD);CHKERRQ(ierr);
+    times[0][k] = -MPI_Wtime();
     STREAM_Copy<<<nblocks,nthreads>>>(d_c, d_a, N);
-    err = cudaEventRecord(stop, 0);CHKERRCUDA(err);
-    err = cudaEventSynchronize(stop);CHKERRCUDA(err);
-    err = cudaEventElapsedTime(&times[0][k], start, stop);CHKERRCUDA(err);
+    err  = cudaStreamSynchronize(NULL);CHKERRCUDA(err);
+    ierr = MPI_Barrier(MPI_COMM_WORLD);CHKERRQ(ierr);
+    times[0][k] += MPI_Wtime();
 
-    err = cudaEventRecord(start, 0);CHKERRCUDA(err);
+    times[1][k] = -MPI_Wtime();
     STREAM_Scale<<<nblocks,nthreads>>>(d_b, d_c, scalar, N);
-    err = cudaEventRecord(stop, 0);CHKERRCUDA(err);
-    err = cudaEventSynchronize(stop);CHKERRCUDA(err);
-    err = cudaEventElapsedTime(&times[1][k], start, stop);CHKERRCUDA(err);
+    err  = cudaStreamSynchronize(NULL);CHKERRCUDA(err);
+    ierr = MPI_Barrier(MPI_COMM_WORLD);CHKERRQ(ierr);
+    times[1][k] += MPI_Wtime();
 
-    err = cudaEventRecord(start, 0);CHKERRCUDA(err);
+    times[2][k] = -MPI_Wtime();
     STREAM_Add<<<nblocks,nthreads>>>(d_c, d_a, d_b,  N);
-    err = cudaEventRecord(stop, 0);CHKERRCUDA(err);
-    err = cudaEventSynchronize(stop);CHKERRCUDA(err);
-    err = cudaEventElapsedTime(&times[2][k], start, stop);CHKERRCUDA(err);
+    err  = cudaStreamSynchronize(NULL);CHKERRCUDA(err);
+    ierr = MPI_Barrier(MPI_COMM_WORLD);CHKERRQ(ierr);
+    times[2][k] += MPI_Wtime();
 
-    err = cudaEventRecord(start, 0);CHKERRCUDA(err);
+    times[3][k] = -MPI_Wtime();
     STREAM_Triad<<<nblocks,nthreads>>>(d_a, d_b, d_c, scalar, N);
-    err = cudaEventRecord(stop, 0);CHKERRCUDA(err);
-    err = cudaEventSynchronize(stop);CHKERRCUDA(err);
-    err = cudaEventElapsedTime(&times[3][k], start, stop);CHKERRCUDA(err);
+    err  = cudaStreamSynchronize(NULL);CHKERRCUDA(err);
+    ierr = MPI_Barrier(MPI_COMM_WORLD);CHKERRQ(ierr);
+    times[3][k] += MPI_Wtime();
   }
 
-  err = cudaEventDestroy(stop);CHKERRCUDA(err);
-  err = cudaEventDestroy(start);CHKERRCUDA(err);
+  ierr = PetscFree(a);CHKERRQ(ierr);
+  ierr = PetscFree(b);CHKERRQ(ierr);
+  ierr = PetscFree(c);CHKERRQ(ierr);
+
   err = cudaFree(d_a);CHKERRCUDA(err);
   err = cudaFree(d_b);CHKERRCUDA(err);
   err = cudaFree(d_c);CHKERRCUDA(err);
@@ -162,7 +159,7 @@ int main(int argc, char *argv[])
   for (k=0; k<NTIMES; k++)
     for (j=0; j<4; j++) mintime[j] = MIN(mintime[j], times[j][k]);
 
-  for (j=0; j<4; j++) irate[j] = 1.0E-03*bytes[j]/mintime[j]; /* mintime is in msec */
+  for (j=0; j<4; j++) irate[j] = 1.0E-06*bytes[j]/mintime[j]; /* mintime is in msec */
   ierr = MPI_Reduce(irate,rate,4,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);CHKERRQ(ierr);
 
   if (!rank) {
@@ -180,6 +177,6 @@ int main(int argc, char *argv[])
     }
   }
 
-  MPI_Finalize();
+  PetscFinalize();
   return 0;
 }
