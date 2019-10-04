@@ -3691,7 +3691,7 @@ PetscErrorCode DMPlexCreateSubpointIS(DM dm, IS *subpointIS)
 @*/
 PetscErrorCode DMGetEnclosureRelation(DM dmA, DM dmB, DMEnclosureType *rel)
 {
-  DM             plexA, plexB, odm, sdm;
+  DM             plexA, plexB, sdm;
   DMLabel        spmap;
   PetscInt       pStartA, pEndA, pStartB, pEndB, NpA, NpB;
   PetscErrorCode ierr;
@@ -3716,8 +3716,7 @@ PetscErrorCode DMGetEnclosureRelation(DM dmA, DM dmB, DMEnclosureType *rel)
   NpA = pEndA - pStartA;
   NpB = pEndB - pStartB;
   if (NpA == NpB) goto end;
-  odm = NpA > NpB ? plexA : plexB;
-  sdm = NpA > NpB ? plexB : plexA;
+  sdm = NpA > NpB ? plexB : plexA; /* The other is the original, enclosing dm */
   ierr = DMPlexGetSubpointMap(sdm, &spmap);CHKERRQ(ierr);
   if (!spmap) goto end;
   /* TODO Check the space mapped to by subpointMap is same size as dm */
