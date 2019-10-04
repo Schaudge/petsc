@@ -3705,8 +3705,8 @@ PetscErrorCode DMGetEnclosureRelation(DM dmA, DM dmB, DMEnclosureType *rel)
   if (dmA == dmB) {*rel = DM_ENC_EQUALITY; PetscFunctionReturn(0);}
   ierr = DMConvert(dmA, DMPLEX, &plexA);CHKERRQ(ierr);
   ierr = DMConvert(dmB, DMPLEX, &plexB);CHKERRQ(ierr);
-  ierr = DMPlexGetChart(dmA, &pStartA, &pEndA);CHKERRQ(ierr);
-  ierr = DMPlexGetChart(dmB, &pStartB, &pEndB);CHKERRQ(ierr);
+  ierr = DMPlexGetChart(plexA, &pStartA, &pEndA);CHKERRQ(ierr);
+  ierr = DMPlexGetChart(plexB, &pStartB, &pEndB);CHKERRQ(ierr);
   /* Assumption 1: subDMs have smaller charts than the DMs that they originate from
     - The degenerate case of a subdomain which includes all of the domain on some process can be treated as equality */
   if ((pStartA == pStartB) && (pEndA == pEndB)) {

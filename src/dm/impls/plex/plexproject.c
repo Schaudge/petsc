@@ -410,6 +410,7 @@ static PetscErrorCode PetscDualSpaceGetAllPointsUnion(PetscInt Nf, PetscDualSpac
 
 static PetscErrorCode DMGetFirstLabelEntry_Private(DM dm, DM odm, DMLabel label, PetscInt numIds, const PetscInt ids[], PetscInt height, PetscInt *lStart, PetscDS *ds)
 {
+  DM              plex;
   DMEnclosureType enc;
   DMLabel         depthLabel;
   PetscInt        dim, cdepth, ls = -1, i;
@@ -420,7 +421,8 @@ static PetscErrorCode DMGetFirstLabelEntry_Private(DM dm, DM odm, DMLabel label,
   if (!label) PetscFunctionReturn(0);
   ierr = DMGetEnclosureRelation(dm, odm, &enc);CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = DMPlexGetDepthLabel(dm, &depthLabel);CHKERRQ(ierr);
+  ierr = DMConvert(dm, DMPLEX, &plex);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(plex, &depthLabel);CHKERRQ(ierr);
   cdepth = dim - height;
   for (i = 0; i < numIds; ++i) {
     IS              pointIS;
@@ -441,6 +443,7 @@ static PetscErrorCode DMGetFirstLabelEntry_Private(DM dm, DM odm, DMLabel label,
     if (ls >= 0) break;
   }
   if (lStart) *lStart = ls;
+  ierr = DMDestroy(&plex);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
