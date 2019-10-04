@@ -3,6 +3,7 @@
 # include <petsc/private/dmpleximpl.h>
 
 # define ANSI_RED "\033[1;31m"
+# define ANSI_YELLOW "\033[1;33m"
 # define ANSI_GREEN "\033[1;32m"
 # define ANSI_RESET "\033[0m"
 
@@ -151,9 +152,14 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
       ierr = VecRestoreSubVector(faceGeom, subFaceIS, &subFace);CHKERRQ(ierr);
       ierr = ISDestroy(&subFaceIS);CHKERRQ(ierr);
     }
+
     if (OrthQualArr[2] <= OrthQualArr[1]) { OrthQualArr[0] = -1.0;}
-    if (OrthQualArr[0] == -1.0 && dbg) {
-      ierr = PetscPrintf(comm, "\tCELL: %d Blames Itself!\n\tOrthogonal Quality: %s%f%s\n", celliter,ANSI_RED,  OrthQualArr[1], ANSI_RESET);CHKERRQ(ierr);
+    if (dbg) {
+      if (OrthQualArr[0] == -1.0) {
+        ierr = PetscPrintf(comm, "\t%sCELL BLAMES ITSELF!%s\n\tINTER OQ: %f\n\tINTRA OQ: %s%f%s\n", ANSI_RED, ANSI_RESET, OrthQualArr[1], ANSI_RED, OrthQualArr[2], ANSI_RESET);CHKERRQ(ierr);
+      } else {
+        ierr = PetscPrintf(comm, "\t%sCELL BLAMES CELL %3d!%s\n\tINTER OQ: %s%f%s\n\tINTRA OQ: %f\n", ANSI_YELLOW, (PetscInt) OrthQualArr[0], ANSI_RESET, ANSI_RED, OrthQualArr[1], ANSI_RESET, OrthQualArr[2]);CHKERRQ(ierr);
+      }
     }
     ierr = VecSetValuesBlockedLocal(*OrthogonalQuality, 1, (const PetscInt *) cellIterArr, (const PetscScalar *) OrthQualArr, INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreSubVector(subCell, centIS, &subCellCent);CHKERRQ(ierr);
@@ -530,7 +536,7 @@ int main(int argc, char **argv)
   PetscViewer		vtkviewer, textviewer, hdf5viewer, genviewer;
   DM                    dm, dmDist;
   IS                    bcPointsIS, globalCellIS, vertexIS;
-  Vec			coords, OrthQual, PointNum, CellNum;
+  Vec			coords, OrthQual, PointNum, CellNum, FECellGeomVec;
   PetscSection          section;
   PetscInt              overlap = 0, i, dim = 2, numFields = 3, numBC = 1, csize, vsize, conesize, depth, cEnd;
   PetscInt		faces[dim], *bcField, *numComp, *numDOF;
@@ -572,11 +578,15 @@ int main(int argc, char **argv)
   ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
   ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
 
-   ierr = PetscCalloc1(numBC, &bcField);CHKERRQ(ierr);
+  ierr = PetscCalloc1(numBC, &bcField);CHKERRQ(ierr);
   ierr = PetscCalloc1(numFields*(dim+1), &numDOF);CHKERRQ(ierr);
   ierr = PetscCalloc1(numFields, &numComp);CHKERRQ(ierr);
   for (i = 0; i < numFields; i++){ numComp[i] = 1;}
-  numDOF[0*(dim+1)] = 1;
+  numComp[0] = dim;
+  numDOF[0*(dim+1)] = 2;
+  //numDOF[1*(dim+1)] = 2;
+  //numDOF[1*(dim+1)+1] = 2;
+  //numDOF[1*(dim+1)+2] = 2;
   numDOF[2*(dim+1)+depth] = 1;
   ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
   ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
@@ -663,6 +673,25 @@ int main(int argc, char **argv)
   ierr = VecView(OrthQual, textviewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&textviewer);CHKERRQ(ierr);
   ierr = VecDestroy(&OrthQual);CHKERRQ(ierr);
+
+  PetscFE	fe;
+  ierr = PetscFECreateDefault(comm, dim, dim, simplex, NULL, PETSC_DECIDE, &fe);CHKERRQ(ierr);
+  ierr = PetscFESetName(fe, "Default_FE");CHKERRQ(ierr);
+  ierr = DMSetField(dm, 0, NULL, (PetscObject) fe);CHKERRQ(ierr);
+  ierr = DMCreateDS(dm);CHKERRQ(ierr);
+  DMView(dm, 0);
+  PetscFEView(fe, 0);
+  ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
+  ierr = PetscViewerCreate(comm, &textviewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(textviewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(textviewer, FILE_MODE_WRITE);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(textviewer, "JacDat.txt");CHKERRQ(ierr);
+  ierr = PetscViewerSetUp(textviewer);CHKERRQ(ierr);
+  //ierr = DMPlexComputeGeometryFEM(dm, &FECellGeomVec);CHKERRQ(ierr);
+  //ierr = VecView(FECellGeomVec, textviewer);CHKERRQ(ierr);
+  //ierr = VecDestroy(&FECellGeomVec);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&textviewer);CHKERRQ(ierr);
+
   if (0) {
     ierr = DMPlexCreatePointNumField(dm, &PointNum);CHKERRQ(ierr);
     ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
