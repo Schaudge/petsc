@@ -253,7 +253,7 @@ static PetscErrorCode DMProjectPoint_BdField_Private(DM dm, PetscDS ds, DM dmIn,
   ierr = PetscDSGetWorkspace(ds, &x, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
   ierr = PetscDSGetConstants(ds, &numConstants, &constants);CHKERRQ(ierr);
   ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);
-  ierr = DMPlexVecGetClosure(dm, section, localU, p, NULL, &coefficients);CHKERRQ(ierr);
+  ierr = DMPlexVecGetClosure(dmIn, section, localU, p, NULL, &coefficients);CHKERRQ(ierr);
   if (dmAux) {
     PetscInt subp;
 
@@ -325,7 +325,7 @@ static PetscErrorCode DMProjectPoint_BdField_Private(DM dm, PetscDS ds, DM dmIn,
     ierr = DMRestoreWorkArray(dm,numPoints*Nc[f],MPIU_SCALAR,&pointEval);CHKERRQ(ierr);
     v += spDim;
   }
-  ierr = DMPlexVecRestoreClosure(dm, section, localU, p, NULL, &coefficients);CHKERRQ(ierr);
+  ierr = DMPlexVecRestoreClosure(dmIn, section, localU, p, NULL, &coefficients);CHKERRQ(ierr);
   if (dmAux) {ierr = DMPlexVecRestoreClosure(dmAux, sectionAux, localA, p, NULL, &coefficientsAux);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
@@ -483,7 +483,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
                                                   DMBoundaryConditionType type, void (**funcs)(void), void **ctxs,
                                                   InsertMode mode, Vec localX)
 {
-  DM              dmIn, dmAux = NULL, tdm;
+  DM              plex, dmIn, plexIn, dmAux = NULL, plexAux = NULL, tdm;
   DMEnclosureType encIn, encAux;
   PetscDS         ds = NULL, dsIn = NULL, dsAux = NULL;
   Vec             localA = NULL, tv;
@@ -503,10 +503,12 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
   else        {dmIn = dm;}
   ierr = PetscObjectQuery((PetscObject) dm, "dmAux", (PetscObject *) &dmAux);CHKERRQ(ierr);
   ierr = PetscObjectQuery((PetscObject) dm, "A", (PetscObject *) &localA);CHKERRQ(ierr);
+  ierr = DMConvert(dm, DMPLEX, &plex);CHKERRQ(ierr);
+  ierr = DMConvert(dmIn, DMPLEX, &plexIn);CHKERRQ(ierr);
   ierr = DMGetEnclosureRelation(dmIn, dm, &encIn);CHKERRQ(ierr);
   ierr = DMGetEnclosureRelation(dmAux, dm, &encAux);CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = DMPlexGetVTKCellHeight(dm, &minHeight);CHKERRQ(ierr);
+  ierr = DMPlexGetVTKCellHeight(plex, &minHeight);CHKERRQ(ierr);
   ierr = DMGetBasisTransformDM_Internal(dm, &tdm);CHKERRQ(ierr);
   ierr = DMGetBasisTransformVec_Internal(dm, &tv);CHKERRQ(ierr);
   ierr = DMHasBasisTransform(dm, &transform);CHKERRQ(ierr);
@@ -517,16 +519,17 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       DMLabel spmap;
 
       /* If dmAux is a surface, then force the projection to take place over a surface */
-      ierr = DMPlexGetSubpointMap(dmAux, &spmap);CHKERRQ(ierr);
+      ierr = DMConvert(dmAux, DMPLEX, &plexAux);CHKERRQ(ierr);
+      ierr = DMPlexGetSubpointMap(plexAux, &spmap);CHKERRQ(ierr);
       if (spmap) {
-        ierr = DMPlexGetVTKCellHeight(dmAux, &minHeight);CHKERRQ(ierr);
+        ierr = DMPlexGetVTKCellHeight(plexAux, &minHeight);CHKERRQ(ierr);
         auxBd = minHeight ? PETSC_TRUE : PETSC_FALSE;
       }
     }
   }
-  ierr = DMPlexGetDepth(dm,&depth);CHKERRQ(ierr);
-  ierr = DMPlexGetDepthLabel(dm,&depthLabel);CHKERRQ(ierr);
-  ierr = DMPlexGetMaxProjectionHeight(dm, &maxHeight);CHKERRQ(ierr);
+  ierr = DMPlexGetDepth(plex, &depth);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(plex, &depthLabel);CHKERRQ(ierr);
+  ierr = DMPlexGetMaxProjectionHeight(plex, &maxHeight);CHKERRQ(ierr);
   maxHeight = PetscMax(maxHeight, minHeight);
   if (maxHeight < 0 || maxHeight > dim) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Maximum projection height %D not in [0, %D)", maxHeight, dim);
   ierr = DMGetFirstLabelEntry_Private(dm, dm, label, numIds, ids, 0, NULL, &ds);CHKERRQ(ierr);
@@ -545,7 +548,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
   ierr = PetscMalloc2(Nf, &isFE, Nf, &sp);CHKERRQ(ierr);
   if (maxHeight > 0) {ierr = PetscMalloc1(Nf, &cellsp);CHKERRQ(ierr);}
   else               {cellsp = sp;}
-  if (localU && localU != localX) {ierr = DMPlexInsertBoundaryValues(dm, PETSC_TRUE, localU, time, NULL, NULL, NULL);CHKERRQ(ierr);}
+  if (localU && localU != localX) {ierr = DMPlexInsertBoundaryValues(plex, PETSC_TRUE, localU, time, NULL, NULL, NULL);CHKERRQ(ierr);}
   /* Get cell dual spaces */
   for (f = 0; f < Nf; ++f) {
     PetscObject  obj;
@@ -611,13 +614,13 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
     IS           heightIS;
 
     /* Note we assume that dm and dmIn share the same topology */
-    ierr = DMPlexGetHeightStratum(dm, h, &pStart, &pEnd);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(plex, h, &pStart, &pEnd);CHKERRQ(ierr);
     ierr = DMGetFirstLabelEntry_Private(dm, dm, label, numIds, ids, h, &lStart, NULL);CHKERRQ(ierr);
     ierr = DMLabelGetStratumIS(depthLabel, depth - h, &heightIS);CHKERRQ(ierr);
     if (!h) {
       PetscInt cEndInterior;
 
-      ierr = DMPlexGetHybridBounds(dm, &cEndInterior, NULL, NULL, NULL);CHKERRQ(ierr);
+      ierr = DMPlexGetHybridBounds(plex, &cEndInterior, NULL, NULL, NULL);CHKERRQ(ierr);
       pEnd = cEndInterior < 0 ? pEnd : cEndInterior;
     }
     if (pEnd <= pStart) {
@@ -636,7 +639,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       ierr = PetscDualSpaceGetDimension(sp[f], &spDim);CHKERRQ(ierr);
       totDim += spDim;
     }
-    ierr = DMPlexVecGetClosure(dm, section, localX, lStart < 0 ? pStart : lStart, &numValues, NULL);CHKERRQ(ierr);
+    ierr = DMPlexVecGetClosure(plex, section, localX, lStart < 0 ? pStart : lStart, &numValues, NULL);CHKERRQ(ierr);
     if (numValues != totDim) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "The section point closure size %d != dual space dimension %d", numValues, totDim);
     if (!totDim) {
       ierr = ISDestroy(&heightIS);CHKERRQ(ierr);
@@ -682,15 +685,15 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
 
           ierr = PetscArrayzero(values, numValues);CHKERRQ(ierr);
           ierr = PetscFEGeomGetChunk(fegeom,p,p+1,&chunkgeom);CHKERRQ(ierr);
-          ierr = DMProjectPoint_Private(dm, dsEff, dmIn, encIn, dsIn, dmAux, encAux, dsAux, chunkgeom, effectiveHeight, time, localU, localA, hasFE, hasFV, isFE, sp, point, basisTab, basisDerTab, basisTabAux, basisDerTabAux, type, funcs, ctxs, fieldActive, values);
+          ierr = DMProjectPoint_Private(dm, dsEff, plexIn, encIn, dsIn, plexAux, encAux, dsAux, chunkgeom, effectiveHeight, time, localU, localA, hasFE, hasFV, isFE, sp, point, basisTab, basisDerTab, basisTabAux, basisDerTabAux, type, funcs, ctxs, fieldActive, values);
           if (ierr) {
             PetscErrorCode ierr2;
             ierr2 = DMRestoreWorkArray(dm, numValues, MPIU_SCALAR, &values);CHKERRQ(ierr2);
             ierr2 = DMRestoreWorkArray(dm, Nf, MPI_INT, &fieldActive);CHKERRQ(ierr2);
             CHKERRQ(ierr);
           }
-          if (transform) {ierr = DMPlexBasisTransformPoint_Internal(dm, tdm, tv, point, fieldActive, PETSC_FALSE, values);CHKERRQ(ierr);}
-          ierr = DMPlexVecSetFieldClosure_Internal(dm, section, localX, fieldActive, point, Ncc, comps, values, mode);CHKERRQ(ierr);
+          if (transform) {ierr = DMPlexBasisTransformPoint_Internal(plex, tdm, tv, point, fieldActive, PETSC_FALSE, values);CHKERRQ(ierr);}
+          ierr = DMPlexVecSetFieldClosure_Internal(plex, section, localX, fieldActive, point, Ncc, comps, values, mode);CHKERRQ(ierr);
         }
         ierr = PetscFEGeomRestoreChunk(fegeom,p,p+1,&chunkgeom);CHKERRQ(ierr);
         ierr = PetscFEGeomDestroy(&fegeom);CHKERRQ(ierr);
@@ -720,15 +723,15 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       for (p = pStart; p < pEnd; ++p) {
         ierr = PetscArrayzero(values, numValues);CHKERRQ(ierr);
         ierr = PetscFEGeomGetChunk(fegeom,p-pStart,p-pStart+1,&chunkgeom);CHKERRQ(ierr);
-        ierr = DMProjectPoint_Private(dm, dsEff, dmIn, encIn, dsIn, dmAux, encAux, dsAux, chunkgeom, effectiveHeight, time, localU, localA, hasFE, hasFV, isFE, sp, p, basisTab, basisDerTab, basisTabAux, basisDerTabAux, type, funcs, ctxs, fieldActive, values);
+        ierr = DMProjectPoint_Private(dm, dsEff, plexIn, encIn, dsIn, plexAux, encAux, dsAux, chunkgeom, effectiveHeight, time, localU, localA, hasFE, hasFV, isFE, sp, p, basisTab, basisDerTab, basisTabAux, basisDerTabAux, type, funcs, ctxs, fieldActive, values);
         if (ierr) {
           PetscErrorCode ierr2;
           ierr2 = DMRestoreWorkArray(dm, numValues, MPIU_SCALAR, &values);CHKERRQ(ierr2);
           ierr2 = DMRestoreWorkArray(dm, Nf, MPI_INT, &fieldActive);CHKERRQ(ierr2);
           CHKERRQ(ierr);
         }
-        if (transform) {ierr = DMPlexBasisTransformPoint_Internal(dm, tdm, tv, p, fieldActive, PETSC_FALSE, values);CHKERRQ(ierr);}
-        ierr = DMPlexVecSetFieldClosure_Internal(dm, section, localX, fieldActive, p, Ncc, comps, values, mode);CHKERRQ(ierr);
+        if (transform) {ierr = DMPlexBasisTransformPoint_Internal(plex, tdm, tv, p, fieldActive, PETSC_FALSE, values);CHKERRQ(ierr);}
+        ierr = DMPlexVecSetFieldClosure_Internal(plex, section, localX, fieldActive, p, Ncc, comps, values, mode);CHKERRQ(ierr);
       }
       ierr = PetscFEGeomRestoreChunk(fegeom,p-pStart,pStart-p+1,&chunkgeom);CHKERRQ(ierr);
       ierr = PetscFEGeomDestroy(&fegeom);CHKERRQ(ierr);
@@ -764,6 +767,9 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
   ierr = PetscQuadratureDestroy(&allPoints);CHKERRQ(ierr);
   ierr = PetscFree2(isFE, sp);CHKERRQ(ierr);
   if (maxHeight > 0) {ierr = PetscFree(cellsp);CHKERRQ(ierr);}
+  ierr = DMDestroy(&plex);CHKERRQ(ierr);
+  ierr = DMDestroy(&plexIn);CHKERRQ(ierr);
+  if (dmAux) {ierr = DMDestroy(&plexAux);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
