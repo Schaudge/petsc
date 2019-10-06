@@ -3,9 +3,11 @@
 #include <petsc/private/hashmapi.h>
 #include <petscsf.h>
 #include <petscviewer.h>
+#include <petscctable.h>
+#include <petscbt.h>
 
 PetscClassId IS_LTOGM_CLASSID;
-static PetscErrorCode  ISLocalToGlobalMappingGetBlockInfo_Private(ISLocalToGlobalMapping,PetscInt*,PetscInt**,PetscInt**,PetscInt***);
+static PetscErrorCode  ISLocalToGlobalMappingSetUpBlockInfo_Private(ISLocalToGlobalMapping);
 
 typedef struct {
   PetscInt *globals;
@@ -377,6 +379,32 @@ PetscErrorCode ISLocalToGlobalMappingCreateSF(PetscSF sf,PetscInt start,ISLocalT
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode ISLocalToGlobalMappingResetBlockInfo_Private(ISLocalToGlobalMapping mapping)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFree(mapping->info_procs);CHKERRQ(ierr);
+  ierr = PetscFree(mapping->info_numprocs);CHKERRQ(ierr);
+  if (mapping->info_indices) {
+    PetscInt i;
+
+    ierr = PetscFree(mapping->info_indices[0]);CHKERRQ(ierr);
+    for (i=1; i<mapping->info_nproc; i++) {
+      ierr = PetscFree(mapping->info_indices[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(mapping->info_indices);CHKERRQ(ierr);
+  }
+  if (mapping->info_nodei) {
+    ierr = PetscFree(mapping->info_nodei[0]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree2(mapping->info_nodec,mapping->info_nodei);CHKERRQ(ierr);
+  mapping->info_cached = PETSC_FALSE;
+  mapping->info_free = PETSC_FALSE;
+  mapping->info_nfree = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
 /*@
     ISLocalToGlobalMappingSetBlockSize - Sets the blocksize of the mapping
 
@@ -433,24 +461,14 @@ PetscErrorCode  ISLocalToGlobalMappingSetBlockSize(ISLocalToGlobalMapping mappin
   mapping->globalend   = 0;
 
   /* reset the cached information */
-  ierr = PetscFree(mapping->info_procs);CHKERRQ(ierr);
-  ierr = PetscFree(mapping->info_numprocs);CHKERRQ(ierr);
-  if (mapping->info_indices) {
-    PetscInt i;
-
-    ierr = PetscFree((mapping->info_indices)[0]);CHKERRQ(ierr);
-    for (i=1; i<mapping->info_nproc; i++) {
-      ierr = PetscFree(mapping->info_indices[i]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree(mapping->info_indices);CHKERRQ(ierr);
-  }
-  mapping->info_cached = PETSC_FALSE;
+  ierr = ISLocalToGlobalMappingResetBlockInfo_Private(mapping);CHKERRQ(ierr);
 
   if (mapping->ops->destroy) {
     ierr = (*mapping->ops->destroy)(mapping);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
+
 
 /*@
     ISLocalToGlobalMappingGetBlockSize - Gets the blocksize of the mapping
@@ -522,6 +540,7 @@ PetscErrorCode  ISLocalToGlobalMappingCreate(MPI_Comm comm,PetscInt bs,PetscInt 
   (*mapping)->bs            = bs;
   (*mapping)->info_cached   = PETSC_FALSE;
   (*mapping)->info_free     = PETSC_FALSE;
+  (*mapping)->info_nfree    = PETSC_FALSE;
   (*mapping)->info_procs    = NULL;
   (*mapping)->info_numprocs = NULL;
   (*mapping)->info_indices  = NULL;
@@ -539,8 +558,7 @@ PetscErrorCode  ISLocalToGlobalMappingCreate(MPI_Comm comm,PetscInt bs,PetscInt 
   } else if (mode == PETSC_OWN_POINTER) {
     (*mapping)->indices = (PetscInt*)indices;
     ierr = PetscLogObjectMemory((PetscObject)*mapping,n*sizeof(PetscInt));CHKERRQ(ierr);
-  }
-  else SETERRQ(comm,PETSC_ERR_SUP,"Cannot currently use PETSC_USE_POINTER");
+  } else SETERRQ(comm,PETSC_ERR_SUP,"Cannot currently use PETSC_USE_POINTER");
   PetscFunctionReturn(0);
 }
 
@@ -599,26 +617,11 @@ PetscErrorCode  ISLocalToGlobalMappingDestroy(ISLocalToGlobalMapping *mapping)
   PetscValidHeaderSpecific((*mapping),IS_LTOGM_CLASSID,1);
   if (--((PetscObject)(*mapping))->refct > 0) {*mapping = 0;PetscFunctionReturn(0);}
   ierr = PetscFree((*mapping)->indices);CHKERRQ(ierr);
-  ierr = PetscFree((*mapping)->info_procs);CHKERRQ(ierr);
-  ierr = PetscFree((*mapping)->info_numprocs);CHKERRQ(ierr);
-  if ((*mapping)->info_indices) {
-    PetscInt i;
-
-    ierr = PetscFree(((*mapping)->info_indices)[0]);CHKERRQ(ierr);
-    for (i=1; i<(*mapping)->info_nproc; i++) {
-      ierr = PetscFree(((*mapping)->info_indices)[i]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree((*mapping)->info_indices);CHKERRQ(ierr);
-  }
-  if ((*mapping)->info_nodei) {
-    ierr = PetscFree(((*mapping)->info_nodei)[0]);CHKERRQ(ierr);
-  }
-  ierr = PetscFree2((*mapping)->info_nodec,(*mapping)->info_nodei);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingResetBlockInfo_Private(*mapping);CHKERRQ(ierr);
   if ((*mapping)->ops->destroy) {
     ierr = (*(*mapping)->ops->destroy)(*mapping);CHKERRQ(ierr);
   }
-  ierr     = PetscHeaderDestroy(mapping);CHKERRQ(ierr);
-  *mapping = 0;
+  ierr = PetscHeaderDestroy(mapping);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -916,10 +919,9 @@ PetscErrorCode  ISGlobalToLocalMappingApplyBlock(ISLocalToGlobalMapping mapping,
   PetscFunctionReturn(0);
 }
 
-
 /*@C
     ISLocalToGlobalMappingGetBlockInfo - Gets the neighbor information for each processor and
-     each index shared by more than one processor
+     each index shared with other processors
 
     Collective on ISLocalToGlobalMapping
 
@@ -927,23 +929,17 @@ PetscErrorCode  ISGlobalToLocalMappingApplyBlock(ISLocalToGlobalMapping mapping,
 .   mapping - the mapping from local to global indexing
 
     Output Parameter:
-+   nproc - number of processors that are connected to this one
-.   proc - neighboring processors
-.   numproc - number of indices for each subdomain (processor)
--   indices - indices of nodes (in local numbering) shared with neighbors (sorted by global numbering)
++   nproc - number of processors that are connected to this one (including self)
+.   proc - neighboring processor ranks (self is first of the list)
+.   numproc - number of block indices for each of the identified processors
+-   indices - block indices (in local numbering of this processor) shared with neighbors (sorted by global numbering)
 
     Level: advanced
 
-    Fortran Usage:
-$        ISLocalToGlobalMpngGetInfoSize(ISLocalToGlobalMapping,PetscInt nproc,PetscInt numprocmax,ierr) followed by
-$        ISLocalToGlobalMappingGetInfo(ISLocalToGlobalMapping,PetscInt nproc, PetscInt procs[nproc],PetscInt numprocs[nproc],
-          PetscInt indices[nproc][numprocmax],ierr)
-        There is no ISLocalToGlobalMappingRestoreInfo() in Fortran. You must make sure that procs[], numprocs[] and
-        indices[][] are large enough arrays, either by allocating them dynamically or defining static ones large enough.
-
+    Notes: The user needs to call ISLocalToGlobalMappingRestoreBlockInfo() when the data is no longer needed.
 
 .seealso: ISLocalToGlobalMappingDestroy(), ISLocalToGlobalMappingCreateIS(), ISLocalToGlobalMappingCreate(),
-          ISLocalToGlobalMappingRestoreInfo()
+          ISLocalToGlobalMappingRestoreBlockInfo()
 @*/
 PetscErrorCode  ISLocalToGlobalMappingGetBlockInfo(ISLocalToGlobalMapping mapping,PetscInt *nproc,PetscInt *procs[],PetscInt *numprocs[],PetscInt **indices[])
 {
@@ -951,421 +947,250 @@ PetscErrorCode  ISLocalToGlobalMappingGetBlockInfo(ISLocalToGlobalMapping mappin
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
-  if (mapping->info_cached) {
-    *nproc    = mapping->info_nproc;
-    *procs    = mapping->info_procs;
-    *numprocs = mapping->info_numprocs;
-    *indices  = mapping->info_indices;
-  } else {
-    ierr = ISLocalToGlobalMappingGetBlockInfo_Private(mapping,nproc,procs,numprocs,indices);CHKERRQ(ierr);
-  }
+  ierr = ISLocalToGlobalMappingSetUpBlockInfo_Private(mapping);CHKERRQ(ierr);
+  if (nproc)    *nproc    = mapping->info_nproc;
+  if (procs)    *procs    = mapping->info_procs;
+  if (numprocs) *numprocs = mapping->info_numprocs;
+  if (indices)  *indices  = mapping->info_indices;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode  ISLocalToGlobalMappingGetBlockInfo_Private(ISLocalToGlobalMapping mapping,PetscInt *nproc,PetscInt *procs[],PetscInt *numprocs[],PetscInt **indices[])
+/*@C
+    ISLocalToGlobalMappingGetBlockNodeInfo - Gets the neighbor information for each local block index
+
+    Collective on ISLocalToGlobalMapping
+
+    Input Parameters:
+.   mapping - the mapping from local to global indexing
+
+    Output Parameter:
++   nnodes - number of local block indices
+.   count - number of neighboring processors per local block index (including self)
+-   indices - indices of processes sharing the node (sorted, may contain duplicates)
+
+    Level: advanced
+
+    Notes: The user needs to call ISLocalToGlobalMappingRestoreBlockNodeInfo() when the data is no longer needed.
+           The information returned by this function complements that of ISLocalToGlobalMappingGetBlockInfo().
+           The latter only provides local information, and the neighboring information
+           cannot be inferred in the general case, unless the mapping is locally one-to-one on each process.
+
+.seealso: ISLocalToGlobalMappingDestroy(), ISLocalToGlobalMappingCreateIS(), ISLocalToGlobalMappingCreate(),
+          ISLocalToGlobalMappingGetBlockInfo(), ISLocalToGlobalMappingRestoreBlockNodeInfo()
+@*/
+PetscErrorCode  ISLocalToGlobalMappingGetBlockNodeInfo(ISLocalToGlobalMapping mapping,PetscInt *n,PetscInt *n_procs[],PetscInt **procs[])
 {
   PetscErrorCode ierr;
-  PetscMPIInt    size,rank,tag1,tag2,tag3,*len,*source,imdex;
-  PetscInt       i,n = mapping->n,Ng,ng,max = 0,*lindices = mapping->indices;
-  PetscInt       *nprocs,*owner,nsends,*sends,j,*starts,nmax,nrecvs,*recvs,proc;
-  PetscInt       cnt,scale,*ownedsenders,*nownedsenders,rstart,nowned;
-  PetscInt       node,nownedm,nt,*sends2,nsends2,*starts2,*lens2,*dest,nrecvs2,*starts3,*recvs2,k,*bprocs,*tmp;
-  PetscInt       first_procs,first_numprocs,*first_indices;
-  MPI_Request    *recv_waits,*send_waits;
-  MPI_Status     recv_status,*send_status,*recv_statuses;
-  MPI_Comm       comm;
-  PetscBool      debug = PETSC_FALSE;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
+  ierr = ISLocalToGlobalMappingSetUpBlockInfo_Private(mapping);CHKERRQ(ierr);
+  if (n)       *n       = mapping->n;
+  if (n_procs) *n_procs = mapping->info_nodec;
+  if (procs)   *procs   = mapping->info_nodei;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+    ISLocalToGlobalMappingRestoreBlockNodeInfo - Frees the memory allocated by ISLocalToGlobalMappingGetBlockNodeInfo()
+
+    Collective on ISLocalToGlobalMapping
+
+    Input Parameters:
++   mapping - the mapping from local to global indexing
+.   nnodes - number of block local nodes
+.   count - number of neighboring processors per block node
+-   indices - indices of processes sharing the node (sorted)
+
+    Level: advanced
+
+.seealso: ISLocalToGlobalMappingDestroy(), ISLocalToGlobalMappingCreateIS(), ISLocalToGlobalMappingCreate(),
+          ISLocalToGlobalMappingGetBlockNodeInfo()
+@*/
+PetscErrorCode  ISLocalToGlobalMappingRestoreBlockNodeInfo(ISLocalToGlobalMapping mapping,PetscInt *nnodes,PetscInt *count[],PetscInt **indices[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
+  if (mapping->info_nfree) {
+    if (count) {
+      ierr = PetscFree(*count);CHKERRQ(ierr);
+    }
+    if (indices) {
+      if (*indices) {
+        ierr = PetscFree((*indices)[0]);CHKERRQ(ierr);
+      }
+      ierr = PetscFree(*indices);CHKERRQ(ierr);
+    }
+  }
+  mapping->info_nfree = PETSC_FALSE;
+  if (nnodes)  *nnodes  = 0;
+  if (count)   *count   = NULL;
+  if (indices) *indices = NULL;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode  ISLocalToGlobalMappingSetUpBlockInfo_Private(ISLocalToGlobalMapping mapping)
+{
+  PetscSF            sf;
+  MPI_Comm           comm;
+  const PetscSFNode *sfnode;
+  PetscSFNode        *newsfnode;
+  PetscTable         table;
+  PetscTablePosition pos;
+  PetscLayout        layout;
+  const PetscInt     *gidxs,*rootdegree;
+  PetscInt           *mask,*mrootdata,*leafdata,*newleafdata,*leafrd,*tmpg;
+  PetscInt           nroots,nleaves,newnleaves,bs,i,j,m,mnroots,p,cum;
+  PetscMPIInt        rank,size;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  if (mapping->info_cached) PetscFunctionReturn(0);
   ierr = PetscObjectGetComm((PetscObject)mapping,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (size == 1) {
-    *nproc         = 0;
-    *procs         = NULL;
-    ierr           = PetscNew(numprocs);CHKERRQ(ierr);
-    (*numprocs)[0] = 0;
-    ierr           = PetscNew(indices);CHKERRQ(ierr);
-    (*indices)[0]  = NULL;
-    /* save info for reuse */
-    mapping->info_nproc = *nproc;
-    mapping->info_procs = *procs;
-    mapping->info_numprocs = *numprocs;
-    mapping->info_indices = *indices;
-    mapping->info_cached = PETSC_TRUE;
-    PetscFunctionReturn(0);
+
+  /* Get mapping indices */
+  ierr = ISLocalToGlobalMappingGetBlockSize(mapping,&bs);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingGetBlockIndices(mapping,&gidxs);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingGetSize(mapping,&nleaves);CHKERRQ(ierr);
+  nleaves /= bs;
+
+  /* Create layout for global indices */
+  for (i=0,m=0;i<nleaves;i++) m = PetscMax(m,gidxs[i]);
+  ierr = MPIU_Allreduce(MPI_IN_PLACE,&m,1,MPIU_INT,MPI_MAX,comm);CHKERRQ(ierr);
+  ierr = PetscLayoutCreate(comm,&layout);CHKERRQ(ierr);
+  ierr = PetscLayoutSetSize(layout,m+1);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(layout);CHKERRQ(ierr);
+
+  /* Create SF to share global indices */
+  ierr = PetscSFCreate(comm,&sf);CHKERRQ(ierr);
+  ierr = PetscSFSetGraphLayout(sf,layout,nleaves,NULL,PETSC_OWN_POINTER,gidxs);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(sf);CHKERRQ(ierr);
+  ierr = PetscLayoutDestroy(&layout);CHKERRQ(ierr);
+
+  /* communicate root degree to leaves */
+  ierr = PetscSFGetGraph(sf,&nroots,NULL,NULL,&sfnode);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeBegin(sf,&rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeEnd(sf,&rootdegree);CHKERRQ(ierr);
+  for (i=0,mnroots=0;i<nroots;i++) mnroots += rootdegree[i];
+  ierr = PetscMalloc3(2*PetscMax(mnroots,nroots),&mrootdata,2*nleaves,&leafdata,nleaves,&leafrd);CHKERRQ(ierr);
+  for (i=0,m=0;i<nroots;i++) {
+    mrootdata[2*i+0] = rootdegree[i];
+    mrootdata[2*i+1] = m;
+    m += rootdegree[i];
+  }
+  ierr = PetscSFBcastBegin(sf,MPIU_2INT,mrootdata,leafdata);CHKERRQ(ierr);
+  ierr = PetscSFBcastEnd(sf,MPIU_2INT,mrootdata,leafdata);CHKERRQ(ierr);
+
+  /* allocate enough space to store ranks */
+  for (i=0,newnleaves=0;i<nleaves;i++) {
+    newnleaves += leafdata[2*i];
+    leafrd[i] = leafdata[2*i];
   }
 
-  ierr = PetscOptionsGetBool(((PetscObject)mapping)->options,NULL,"-islocaltoglobalmappinggetinfo_debug",&debug,NULL);CHKERRQ(ierr);
-
-  /*
-    Notes on ISLocalToGlobalMappingGetBlockInfo
-
-    globally owned node - the nodes that have been assigned to this processor in global
-           numbering, just for this routine.
-
-    nontrivial globally owned node - node assigned to this processor that is on a subdomain
-           boundary (i.e. is has more than one local owner)
-
-    locally owned node - node that exists on this processors subdomain
-
-    nontrivial locally owned node - node that is not in the interior (i.e. has more than one
-           local subdomain
-  */
-  ierr = PetscObjectGetNewTag((PetscObject)mapping,&tag1);CHKERRQ(ierr);
-  ierr = PetscObjectGetNewTag((PetscObject)mapping,&tag2);CHKERRQ(ierr);
-  ierr = PetscObjectGetNewTag((PetscObject)mapping,&tag3);CHKERRQ(ierr);
-
-  for (i=0; i<n; i++) {
-    if (lindices[i] > max) max = lindices[i];
-  }
-  ierr   = MPIU_Allreduce(&max,&Ng,1,MPIU_INT,MPI_MAX,comm);CHKERRQ(ierr);
-  Ng++;
-  ierr   = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  ierr   = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  scale  = Ng/size + 1;
-  ng     = scale; if (rank == size-1) ng = Ng - scale*(size-1); ng = PetscMax(1,ng);
-  rstart = scale*rank;
-
-  /* determine ownership ranges of global indices */
-  ierr = PetscMalloc1(2*size,&nprocs);CHKERRQ(ierr);
-  ierr = PetscArrayzero(nprocs,2*size);CHKERRQ(ierr);
-
-  /* determine owners of each local node  */
-  ierr = PetscMalloc1(n,&owner);CHKERRQ(ierr);
-  for (i=0; i<n; i++) {
-    proc             = lindices[i]/scale; /* processor that globally owns this index */
-    nprocs[2*proc+1] = 1;                 /* processor globally owns at least one of ours */
-    owner[i]         = proc;
-    nprocs[2*proc]++;                     /* count of how many that processor globally owns of ours */
-  }
-  nsends = 0; for (i=0; i<size; i++) nsends += nprocs[2*i+1];
-  ierr = PetscInfo1(mapping,"Number of global owners for my local data %D\n",nsends);CHKERRQ(ierr);
-
-  /* inform other processors of number of messages and max length*/
-  ierr = PetscMaxSum(comm,nprocs,&nmax,&nrecvs);CHKERRQ(ierr);
-  ierr = PetscInfo1(mapping,"Number of local owners for my global data %D\n",nrecvs);CHKERRQ(ierr);
-
-  /* post receives for owned rows */
-  ierr = PetscMalloc1((2*nrecvs+1)*(nmax+1),&recvs);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nrecvs+1,&recv_waits);CHKERRQ(ierr);
-  for (i=0; i<nrecvs; i++) {
-    ierr = MPI_Irecv(recvs+2*nmax*i,2*nmax,MPIU_INT,MPI_ANY_SOURCE,tag1,comm,recv_waits+i);CHKERRQ(ierr);
-  }
-
-  /* pack messages containing lists of local nodes to owners */
-  ierr      = PetscMalloc1(2*n+1,&sends);CHKERRQ(ierr);
-  ierr      = PetscMalloc1(size+1,&starts);CHKERRQ(ierr);
-  starts[0] = 0;
-  for (i=1; i<size; i++) starts[i] = starts[i-1] + 2*nprocs[2*i-2];
-  for (i=0; i<n; i++) {
-    sends[starts[owner[i]]++] = lindices[i];
-    sends[starts[owner[i]]++] = i;
-  }
-  ierr = PetscFree(owner);CHKERRQ(ierr);
-  starts[0] = 0;
-  for (i=1; i<size; i++) starts[i] = starts[i-1] + 2*nprocs[2*i-2];
-
-  /* send the messages */
-  ierr = PetscMalloc1(nsends+1,&send_waits);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nsends+1,&dest);CHKERRQ(ierr);
-  cnt = 0;
-  for (i=0; i<size; i++) {
-    if (nprocs[2*i]) {
-      ierr      = MPI_Isend(sends+starts[i],2*nprocs[2*i],MPIU_INT,i,tag1,comm,send_waits+cnt);CHKERRQ(ierr);
-      dest[cnt] = i;
-      cnt++;
-    }
-  }
-  ierr = PetscFree(starts);CHKERRQ(ierr);
-
-  /* wait on receives */
-  ierr = PetscMalloc1(nrecvs+1,&source);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nrecvs+1,&len);CHKERRQ(ierr);
-  cnt  = nrecvs;
-  ierr = PetscCalloc1(ng+1,&nownedsenders);CHKERRQ(ierr);
-  while (cnt) {
-    ierr = MPI_Waitany(nrecvs,recv_waits,&imdex,&recv_status);CHKERRQ(ierr);
-    /* unpack receives into our local space */
-    ierr          = MPI_Get_count(&recv_status,MPIU_INT,&len[imdex]);CHKERRQ(ierr);
-    source[imdex] = recv_status.MPI_SOURCE;
-    len[imdex]    = len[imdex]/2;
-    /* count how many local owners for each of my global owned indices */
-    for (i=0; i<len[imdex]; i++) nownedsenders[recvs[2*imdex*nmax+2*i]-rstart]++;
-    cnt--;
-  }
-  ierr = PetscFree(recv_waits);CHKERRQ(ierr);
-
-  /* count how many globally owned indices are on an edge multiplied by how many processors own them. */
-  nowned  = 0;
-  nownedm = 0;
-  for (i=0; i<ng; i++) {
-    if (nownedsenders[i] > 1) {nownedm += nownedsenders[i]; nowned++;}
-  }
-
-  /* create single array to contain rank of all local owners of each globally owned index */
-  ierr      = PetscMalloc1(nownedm+1,&ownedsenders);CHKERRQ(ierr);
-  ierr      = PetscMalloc1(ng+1,&starts);CHKERRQ(ierr);
-  starts[0] = 0;
-  for (i=1; i<ng; i++) {
-    if (nownedsenders[i-1] > 1) starts[i] = starts[i-1] + nownedsenders[i-1];
-    else starts[i] = starts[i-1];
-  }
-
-  /* for each nontrival globally owned node list all arriving processors */
-  for (i=0; i<nrecvs; i++) {
-    for (j=0; j<len[i]; j++) {
-      node = recvs[2*i*nmax+2*j]-rstart;
-      if (nownedsenders[node] > 1) ownedsenders[starts[node]++] = source[i];
+  /* create new SF nodes to collect multi-root data at leaves */
+  ierr = PetscMalloc1(newnleaves,&newsfnode);CHKERRQ(ierr);
+  for (i=0,m=0;i<nleaves;i++) {
+    for (j=0;j<leafrd[i];j++) {
+      newsfnode[m].rank = sfnode[i].rank;
+      newsfnode[m].index = leafdata[2*i+1]+j;
+      m++;
     }
   }
 
-  if (debug) { /* -----------------------------------  */
-    starts[0] = 0;
-    for (i=1; i<ng; i++) {
-      if (nownedsenders[i-1] > 1) starts[i] = starts[i-1] + nownedsenders[i-1];
-      else starts[i] = starts[i-1];
-    }
-    for (i=0; i<ng; i++) {
-      if (nownedsenders[i] > 1) {
-        ierr = PetscSynchronizedPrintf(comm,"[%d] global node %D local owner processors: ",rank,i+rstart);CHKERRQ(ierr);
-        for (j=0; j<nownedsenders[i]; j++) {
-          ierr = PetscSynchronizedPrintf(comm,"%D ",ownedsenders[starts[i]+j]);CHKERRQ(ierr);
-        }
-        ierr = PetscSynchronizedPrintf(comm,"\n");CHKERRQ(ierr);
+  /* gather ranks at multi roots */
+  for (i=0;i<mnroots;i++) mrootdata[i] = -1;
+  for (i=0;i<nleaves;i++) leafdata[i] = (PetscInt)rank;
+
+  ierr = PetscSFGatherBegin(sf,MPIU_INT,leafdata,mrootdata);CHKERRQ(ierr);
+  ierr = PetscSFGatherEnd(sf,MPIU_INT,leafdata,mrootdata);CHKERRQ(ierr);
+
+  /* set new multi-leaves graph into the SF */
+  ierr = PetscSFSetGraph(sf,mnroots,newnleaves,NULL,PETSC_OWN_POINTER,newsfnode,PETSC_OWN_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(sf);CHKERRQ(ierr);
+
+  /* broadcoast multi-root data to multi-leaves */
+  ierr = PetscMalloc1(newnleaves,&newleafdata);CHKERRQ(ierr);
+  ierr = PetscSFBcastBegin(sf,MPIU_INT,mrootdata,newleafdata);CHKERRQ(ierr);
+  ierr = PetscSFBcastEnd(sf,MPIU_INT,mrootdata,newleafdata);CHKERRQ(ierr);
+
+  /* sort sharing ranks */
+  for (i=0,m=0;i<nleaves;i++) {
+    ierr = PetscSortInt(leafrd[i],newleafdata + m);CHKERRQ(ierr);
+    m += leafrd[i];
+  }
+
+  /* Number of neighbors and their ranks */
+  ierr = PetscTableCreate(10,size,&table);CHKERRQ(ierr);
+  for (i=0; i<newnleaves; i++) {
+    ierr = PetscTableAdd(table,newleafdata[i]+1,1,ADD_VALUES);CHKERRQ(ierr);
+  }
+  ierr = PetscTableGetCount(table,&mapping->info_nproc);CHKERRQ(ierr);
+  ierr = PetscMalloc1(mapping->info_nproc+1,&mapping->info_procs);CHKERRQ(ierr);
+  ierr = PetscTableGetHeadPosition(table,&pos);CHKERRQ(ierr);
+  for (i=0, cum=1; i<mapping->info_nproc; i++) {
+    PetscInt dummy,newr;
+
+    ierr = PetscTableGetNext(table,&pos,&newr,&dummy);CHKERRQ(ierr);
+    newr--;
+    if (newr == rank) mapping->info_procs[0] = newr; /* info on myself first */
+    else mapping->info_procs[cum++] = newr;
+  }
+  ierr = PetscTableDestroy(&table);CHKERRQ(ierr);
+
+  /* collect info data */
+  ierr = PetscMalloc1(mapping->info_nproc+1,&mapping->info_numprocs);CHKERRQ(ierr);
+  ierr = PetscMalloc1(mapping->info_nproc+1,&mapping->info_indices);CHKERRQ(ierr);
+  for (i=0;i<mapping->info_nproc+1;i++) mapping->info_indices[i] = NULL;
+
+  ierr = PetscMalloc1(nleaves,&mask);CHKERRQ(ierr);
+  ierr = PetscMalloc1(nleaves,&tmpg);CHKERRQ(ierr);
+  for (p=0;p<mapping->info_nproc;p++) {
+    PetscInt *tmp, trank = mapping->info_procs[p];
+
+    ierr = PetscMemzero(mask,nleaves*sizeof(*mask));CHKERRQ(ierr);
+    for (i=0,m=0;i<nleaves;i++) {
+      for (j=0;j<leafrd[i];j++) {
+        if (newleafdata[m] == trank) mask[i]++;
+        if (!p && newleafdata[m] != rank) mask[i]++;
+        m++;
       }
     }
-    ierr = PetscSynchronizedFlush(comm,PETSC_STDOUT);CHKERRQ(ierr);
-  } /* -----------------------------------  */
+    for (i=0,m=0;i<nleaves;i++)
+      if (mask[i] > (!p ? 1 : 0)) m++;
 
-  /* wait on original sends */
-  if (nsends) {
-    ierr = PetscMalloc1(nsends,&send_status);CHKERRQ(ierr);
-    ierr = MPI_Waitall(nsends,send_waits,send_status);CHKERRQ(ierr);
-    ierr = PetscFree(send_status);CHKERRQ(ierr);
-  }
-  ierr = PetscFree(send_waits);CHKERRQ(ierr);
-  ierr = PetscFree(sends);CHKERRQ(ierr);
-  ierr = PetscFree(nprocs);CHKERRQ(ierr);
-
-  /* pack messages to send back to local owners */
-  starts[0] = 0;
-  for (i=1; i<ng; i++) {
-    if (nownedsenders[i-1] > 1) starts[i] = starts[i-1] + nownedsenders[i-1];
-    else starts[i] = starts[i-1];
-  }
-  nsends2 = nrecvs;
-  ierr    = PetscMalloc1(nsends2+1,&nprocs);CHKERRQ(ierr); /* length of each message */
-  for (i=0; i<nrecvs; i++) {
-    nprocs[i] = 1;
-    for (j=0; j<len[i]; j++) {
-      node = recvs[2*i*nmax+2*j]-rstart;
-      if (nownedsenders[node] > 1) nprocs[i] += 2 + nownedsenders[node];
-    }
-  }
-  nt = 0;
-  for (i=0; i<nsends2; i++) nt += nprocs[i];
-
-  ierr = PetscMalloc1(nt+1,&sends2);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nsends2+1,&starts2);CHKERRQ(ierr);
-
-  starts2[0] = 0;
-  for (i=1; i<nsends2; i++) starts2[i] = starts2[i-1] + nprocs[i-1];
-  /*
-     Each message is 1 + nprocs[i] long, and consists of
-       (0) the number of nodes being sent back
-       (1) the local node number,
-       (2) the number of processors sharing it,
-       (3) the processors sharing it
-  */
-  for (i=0; i<nsends2; i++) {
-    cnt = 1;
-    sends2[starts2[i]] = 0;
-    for (j=0; j<len[i]; j++) {
-      node = recvs[2*i*nmax+2*j]-rstart;
-      if (nownedsenders[node] > 1) {
-        sends2[starts2[i]]++;
-        sends2[starts2[i]+cnt++] = recvs[2*i*nmax+2*j+1];
-        sends2[starts2[i]+cnt++] = nownedsenders[node];
-        ierr = PetscArraycpy(&sends2[starts2[i]+cnt],&ownedsenders[starts[node]],nownedsenders[node]);CHKERRQ(ierr);
-        cnt += nownedsenders[node];
-      }
-    }
+    ierr = PetscMalloc1(m,&tmp);CHKERRQ(ierr);
+    for (i=0,m=0;i<nleaves;i++)
+      if (mask[i] > (!p ? 1 : 0)) {
+        tmp[m]  = i;
+        tmpg[m] = gidxs[i];
+        m++;
+     }
+    ierr = PetscSortIntWithArray(m,tmpg,tmp);CHKERRQ(ierr);
+    mapping->info_indices[p]  = tmp;
+    mapping->info_numprocs[p] = m;
   }
 
-  /* receive the message lengths */
-  nrecvs2 = nsends;
-  ierr    = PetscMalloc1(nrecvs2+1,&lens2);CHKERRQ(ierr);
-  ierr    = PetscMalloc1(nrecvs2+1,&starts3);CHKERRQ(ierr);
-  ierr    = PetscMalloc1(nrecvs2+1,&recv_waits);CHKERRQ(ierr);
-  for (i=0; i<nrecvs2; i++) {
-    ierr = MPI_Irecv(&lens2[i],1,MPIU_INT,dest[i],tag2,comm,recv_waits+i);CHKERRQ(ierr);
+  /* Node info */
+  ierr = PetscMalloc2(nleaves,&mapping->info_nodec,nleaves+1,&mapping->info_nodei);CHKERRQ(ierr);
+  ierr = PetscArraycpy(mapping->info_nodec,leafrd,nleaves);CHKERRQ(ierr);
+  ierr = PetscMalloc1(newnleaves,&mapping->info_nodei[0]);CHKERRQ(ierr);
+  for (i=0;i<nleaves-1;i++) {
+    mapping->info_nodei[i+1] = mapping->info_nodei[i] + mapping->info_nodec[i];
   }
+  ierr = PetscArraycpy(mapping->info_nodei[0],newleafdata,newnleaves);CHKERRQ(ierr);
 
-  /* send the message lengths */
-  for (i=0; i<nsends2; i++) {
-    ierr = MPI_Send(&nprocs[i],1,MPIU_INT,source[i],tag2,comm);CHKERRQ(ierr);
-  }
-
-  /* wait on receives of lens */
-  if (nrecvs2) {
-    ierr = PetscMalloc1(nrecvs2,&recv_statuses);CHKERRQ(ierr);
-    ierr = MPI_Waitall(nrecvs2,recv_waits,recv_statuses);CHKERRQ(ierr);
-    ierr = PetscFree(recv_statuses);CHKERRQ(ierr);
-  }
-  ierr = PetscFree(recv_waits);CHKERRQ(ierr);
-
-  starts3[0] = 0;
-  nt         = 0;
-  for (i=0; i<nrecvs2-1; i++) {
-    starts3[i+1] = starts3[i] + lens2[i];
-    nt          += lens2[i];
-  }
-  if (nrecvs2) nt += lens2[nrecvs2-1];
-
-  ierr = PetscMalloc1(nt+1,&recvs2);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nrecvs2+1,&recv_waits);CHKERRQ(ierr);
-  for (i=0; i<nrecvs2; i++) {
-    ierr = MPI_Irecv(recvs2+starts3[i],lens2[i],MPIU_INT,dest[i],tag3,comm,recv_waits+i);CHKERRQ(ierr);
-  }
-
-  /* send the messages */
-  ierr = PetscMalloc1(nsends2+1,&send_waits);CHKERRQ(ierr);
-  for (i=0; i<nsends2; i++) {
-    ierr = MPI_Isend(sends2+starts2[i],nprocs[i],MPIU_INT,source[i],tag3,comm,send_waits+i);CHKERRQ(ierr);
-  }
-
-  /* wait on receives */
-  if (nrecvs2) {
-    ierr = PetscMalloc1(nrecvs2,&recv_statuses);CHKERRQ(ierr);
-    ierr = MPI_Waitall(nrecvs2,recv_waits,recv_statuses);CHKERRQ(ierr);
-    ierr = PetscFree(recv_statuses);CHKERRQ(ierr);
-  }
-  ierr = PetscFree(recv_waits);CHKERRQ(ierr);
-  ierr = PetscFree(nprocs);CHKERRQ(ierr);
-
-  if (debug) { /* -----------------------------------  */
-    cnt = 0;
-    for (i=0; i<nrecvs2; i++) {
-      nt = recvs2[cnt++];
-      for (j=0; j<nt; j++) {
-        ierr = PetscSynchronizedPrintf(comm,"[%d] local node %D number of subdomains %D: ",rank,recvs2[cnt],recvs2[cnt+1]);CHKERRQ(ierr);
-        for (k=0; k<recvs2[cnt+1]; k++) {
-          ierr = PetscSynchronizedPrintf(comm,"%D ",recvs2[cnt+2+k]);CHKERRQ(ierr);
-        }
-        cnt += 2 + recvs2[cnt+1];
-        ierr = PetscSynchronizedPrintf(comm,"\n");CHKERRQ(ierr);
-      }
-    }
-    ierr = PetscSynchronizedFlush(comm,PETSC_STDOUT);CHKERRQ(ierr);
-  } /* -----------------------------------  */
-
-  /* count number subdomains for each local node */
-  ierr = PetscCalloc1(size,&nprocs);CHKERRQ(ierr);
-  cnt  = 0;
-  for (i=0; i<nrecvs2; i++) {
-    nt = recvs2[cnt++];
-    for (j=0; j<nt; j++) {
-      for (k=0; k<recvs2[cnt+1]; k++) nprocs[recvs2[cnt+2+k]]++;
-      cnt += 2 + recvs2[cnt+1];
-    }
-  }
-  nt = 0; for (i=0; i<size; i++) nt += (nprocs[i] > 0);
-  *nproc    = nt;
-  ierr = PetscMalloc1(nt+1,procs);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nt+1,numprocs);CHKERRQ(ierr);
-  ierr = PetscMalloc1(nt+1,indices);CHKERRQ(ierr);
-  for (i=0;i<nt+1;i++) (*indices)[i]=NULL;
-  ierr = PetscMalloc1(size,&bprocs);CHKERRQ(ierr);
-  cnt  = 0;
-  for (i=0; i<size; i++) {
-    if (nprocs[i] > 0) {
-      bprocs[i]        = cnt;
-      (*procs)[cnt]    = i;
-      (*numprocs)[cnt] = nprocs[i];
-      ierr             = PetscMalloc1(nprocs[i],&(*indices)[cnt]);CHKERRQ(ierr);
-      cnt++;
-    }
-  }
-
-  /* make the list of subdomains for each nontrivial local node */
-  ierr = PetscArrayzero(*numprocs,nt);CHKERRQ(ierr);
-  cnt  = 0;
-  for (i=0; i<nrecvs2; i++) {
-    nt = recvs2[cnt++];
-    for (j=0; j<nt; j++) {
-      for (k=0; k<recvs2[cnt+1]; k++) (*indices)[bprocs[recvs2[cnt+2+k]]][(*numprocs)[bprocs[recvs2[cnt+2+k]]]++] = recvs2[cnt];
-      cnt += 2 + recvs2[cnt+1];
-    }
-  }
-  ierr = PetscFree(bprocs);CHKERRQ(ierr);
-  ierr = PetscFree(recvs2);CHKERRQ(ierr);
-
-  /* sort the node indexing by their global numbers */
-  nt = *nproc;
-  for (i=0; i<nt; i++) {
-    ierr = PetscMalloc1((*numprocs)[i],&tmp);CHKERRQ(ierr);
-    for (j=0; j<(*numprocs)[i]; j++) tmp[j] = lindices[(*indices)[i][j]];
-    ierr = PetscSortIntWithArray((*numprocs)[i],tmp,(*indices)[i]);CHKERRQ(ierr);
-    ierr = PetscFree(tmp);CHKERRQ(ierr);
-  }
-
-  if (debug) { /* -----------------------------------  */
-    nt = *nproc;
-    for (i=0; i<nt; i++) {
-      ierr = PetscSynchronizedPrintf(comm,"[%d] subdomain %D number of indices %D: ",rank,(*procs)[i],(*numprocs)[i]);CHKERRQ(ierr);
-      for (j=0; j<(*numprocs)[i]; j++) {
-        ierr = PetscSynchronizedPrintf(comm,"%D ",(*indices)[i][j]);CHKERRQ(ierr);
-      }
-      ierr = PetscSynchronizedPrintf(comm,"\n");CHKERRQ(ierr);
-    }
-    ierr = PetscSynchronizedFlush(comm,PETSC_STDOUT);CHKERRQ(ierr);
-  } /* -----------------------------------  */
-
-  /* wait on sends */
-  if (nsends2) {
-    ierr = PetscMalloc1(nsends2,&send_status);CHKERRQ(ierr);
-    ierr = MPI_Waitall(nsends2,send_waits,send_status);CHKERRQ(ierr);
-    ierr = PetscFree(send_status);CHKERRQ(ierr);
-  }
-
-  ierr = PetscFree(starts3);CHKERRQ(ierr);
-  ierr = PetscFree(dest);CHKERRQ(ierr);
-  ierr = PetscFree(send_waits);CHKERRQ(ierr);
-
-  ierr = PetscFree(nownedsenders);CHKERRQ(ierr);
-  ierr = PetscFree(ownedsenders);CHKERRQ(ierr);
-  ierr = PetscFree(starts);CHKERRQ(ierr);
-  ierr = PetscFree(starts2);CHKERRQ(ierr);
-  ierr = PetscFree(lens2);CHKERRQ(ierr);
-
-  ierr = PetscFree(source);CHKERRQ(ierr);
-  ierr = PetscFree(len);CHKERRQ(ierr);
-  ierr = PetscFree(recvs);CHKERRQ(ierr);
-  ierr = PetscFree(nprocs);CHKERRQ(ierr);
-  ierr = PetscFree(sends2);CHKERRQ(ierr);
-
-  /* put the information about myself as the first entry in the list */
-  first_procs    = (*procs)[0];
-  first_numprocs = (*numprocs)[0];
-  first_indices  = (*indices)[0];
-  for (i=0; i<*nproc; i++) {
-    if ((*procs)[i] == rank) {
-      (*procs)[0]    = (*procs)[i];
-      (*numprocs)[0] = (*numprocs)[i];
-      (*indices)[0]  = (*indices)[i];
-      (*procs)[i]    = first_procs;
-      (*numprocs)[i] = first_numprocs;
-      (*indices)[i]  = first_indices;
-      break;
-    }
-  }
+  ierr = ISLocalToGlobalMappingRestoreBlockIndices(mapping,&gidxs);CHKERRQ(ierr);
+  ierr = PetscFree(tmpg);CHKERRQ(ierr);
+  ierr = PetscFree(mask);CHKERRQ(ierr);
+  ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
+  ierr = PetscFree3(mrootdata,leafdata,leafrd);CHKERRQ(ierr);
+  ierr = PetscFree(newleafdata);CHKERRQ(ierr);
 
   /* save info for reuse */
-  mapping->info_nproc = *nproc;
-  mapping->info_procs = *procs;
-  mapping->info_numprocs = *numprocs;
-  mapping->info_indices = *indices;
   mapping->info_cached = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -1376,18 +1201,16 @@ static PetscErrorCode  ISLocalToGlobalMappingGetBlockInfo_Private(ISLocalToGloba
     Collective on ISLocalToGlobalMapping
 
     Input Parameters:
-.   mapping - the mapping from local to global indexing
-
-    Output Parameter:
-+   nproc - number of processors that are connected to this one
++   mapping - the mapping from local to global indexing
+.   nproc - number of processors that are connected to this one
 .   proc - neighboring processors
-.   numproc - number of indices for each processor
--   indices - indices of local nodes shared with neighbor (sorted by global numbering)
+.   numproc - number of block indices for each processor
+-   indices - block indices shared with neighbor (sorted by global numbering)
 
     Level: advanced
 
 .seealso: ISLocalToGlobalMappingDestroy(), ISLocalToGlobalMappingCreateIS(), ISLocalToGlobalMappingCreate(),
-          ISLocalToGlobalMappingGetInfo()
+          ISLocalToGlobalMappingGetBlockInfo()
 @*/
 PetscErrorCode  ISLocalToGlobalMappingRestoreBlockInfo(ISLocalToGlobalMapping mapping,PetscInt *nproc,PetscInt *procs[],PetscInt *numprocs[],PetscInt **indices[])
 {
@@ -1396,8 +1219,10 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreBlockInfo(ISLocalToGlobalMapping ma
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
   if (mapping->info_free) {
-    ierr = PetscFree(*numprocs);CHKERRQ(ierr);
-    if (*indices) {
+    if (numprocs) {
+      ierr = PetscFree(*numprocs);CHKERRQ(ierr);
+    }
+    if (indices && *indices) {
       PetscInt i;
 
       ierr = PetscFree((*indices)[0]);CHKERRQ(ierr);
@@ -1407,10 +1232,11 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreBlockInfo(ISLocalToGlobalMapping ma
       ierr = PetscFree(*indices);CHKERRQ(ierr);
     }
   }
-  *nproc    = 0;
-  *procs    = NULL;
-  *numprocs = NULL;
-  *indices  = NULL;
+  mapping->info_free = PETSC_FALSE;
+  if (nproc)    *nproc    = 0;
+  if (procs)    *procs    = NULL;
+  if (numprocs) *numprocs = NULL;
+  if (indices)  *indices  = NULL;
   PetscFunctionReturn(0);
 }
 
@@ -1424,14 +1250,14 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreBlockInfo(ISLocalToGlobalMapping ma
 .   mapping - the mapping from local to global indexing
 
     Output Parameter:
-+   nproc - number of processors that are connected to this one
-.   proc - neighboring processors
-.   numproc - number of indices for each subdomain (processor)
--   indices - indices of nodes (in local numbering) shared with neighbors (sorted by global numbering)
++   nproc - number of processors that are connected to this one (including self)
+.   proc - neighboring processor ranks (self is first of the list)
+.   numproc - number of indices for each of the identified processors
+-   indices - indices (in local numbering of this processor) shared with neighbors (sorted by global numbering)
 
     Level: advanced
 
-    Notes: The user needs to call ISLocalToGlobalMappingRestoreInfo when the data is no longer needed.
+    Notes: The user needs to call ISLocalToGlobalMappingRestoreInfo() when the data is no longer needed.
 
     Fortran Usage:
 $        ISLocalToGlobalMpngGetInfoSize(ISLocalToGlobalMapping,PetscInt nproc,PetscInt numprocmax,ierr) followed by
@@ -1447,28 +1273,38 @@ $        ISLocalToGlobalMappingGetInfo(ISLocalToGlobalMapping,PetscInt nproc, Pe
 PetscErrorCode  ISLocalToGlobalMappingGetInfo(ISLocalToGlobalMapping mapping,PetscInt *nproc,PetscInt *procs[],PetscInt *numprocs[],PetscInt **indices[])
 {
   PetscErrorCode ierr;
-  PetscInt       **bindices = NULL,*bnumprocs = NULL,bs = mapping->bs,i,j,k;
+  PetscInt       **bindices = NULL,*bnumprocs = NULL,bs = mapping->bs,i,j,k,n,*bprocs;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
-  ierr = ISLocalToGlobalMappingGetBlockInfo(mapping,nproc,procs,&bnumprocs,&bindices);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingGetBlockInfo(mapping,&n,&bprocs,&bnumprocs,&bindices);CHKERRQ(ierr);
   if (bs > 1) { /* we need to expand the cached info */
-    ierr = PetscCalloc1(*nproc,&*indices);CHKERRQ(ierr);
-    ierr = PetscCalloc1(*nproc,&*numprocs);CHKERRQ(ierr);
-    for (i=0; i<*nproc; i++) {
-      ierr = PetscMalloc1(bs*bnumprocs[i],&(*indices)[i]);CHKERRQ(ierr);
-      for (j=0; j<bnumprocs[i]; j++) {
-        for (k=0; k<bs; k++) {
-          (*indices)[i][j*bs+k] = bs*bindices[i][j] + k;
+    if (indices) {
+      ierr = PetscCalloc1(n,indices);CHKERRQ(ierr);
+    }
+    if (numprocs) {
+      ierr = PetscCalloc1(n,numprocs);CHKERRQ(ierr);
+    }
+    if (indices || numprocs) {
+      for (i=0; i<n; i++) {
+        if (indices) {
+          ierr = PetscMalloc1(bs*bnumprocs[i],&(*indices)[i]);CHKERRQ(ierr);
+          for (j=0; j<bnumprocs[i]; j++) {
+            for (k=0; k<bs; k++) {
+              (*indices)[i][j*bs+k] = bs*bindices[i][j] + k;
+            }
+          }
         }
+        if (numprocs) (*numprocs)[i] = bnumprocs[i]*bs;
       }
-      (*numprocs)[i] = bnumprocs[i]*bs;
     }
     mapping->info_free = PETSC_TRUE;
   } else {
-    *numprocs = bnumprocs;
-    *indices  = bindices;
+    if (numprocs) *numprocs = bnumprocs;
+    if (indices)  *indices  = bindices;
   }
+  if (nproc)    *nproc    = n;
+  if (procs)    *procs    = bprocs;
   PetscFunctionReturn(0);
 }
 
@@ -1478,10 +1314,8 @@ PetscErrorCode  ISLocalToGlobalMappingGetInfo(ISLocalToGlobalMapping mapping,Pet
     Collective on ISLocalToGlobalMapping
 
     Input Parameters:
-.   mapping - the mapping from local to global indexing
-
-    Output Parameter:
-+   nproc - number of processors that are connected to this one
++   mapping - the mapping from local to global indexing
+.   nproc - number of processors that are connected to this one
 .   proc - neighboring processors
 .   numproc - number of indices for each processor
 -   indices - indices of local nodes shared with neighbor (sorted by global numbering)
@@ -1501,7 +1335,7 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreInfo(ISLocalToGlobalMapping mapping
 }
 
 /*@C
-    ISLocalToGlobalMappingGetNodeInfo - Gets the neighbor information for each node
+    ISLocalToGlobalMappingGetNodeInfo - Gets the neighbor information for each local index
 
     Collective on ISLocalToGlobalMapping
 
@@ -1509,59 +1343,70 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreInfo(ISLocalToGlobalMapping mapping
 .   mapping - the mapping from local to global indexing
 
     Output Parameter:
-+   nnodes - number of local nodes (same ISLocalToGlobalMappingGetSize())
-.   count - number of neighboring processors per node
--   indices - indices of processes sharing the node (sorted)
++   nnodes - number of local indices (same ISLocalToGlobalMappingGetSize())
+.   count - number of neighboring processors per local index (including self)
+-   indices - indices of processes sharing the node (sorted, may contain duplicates)
 
     Level: advanced
 
-    Notes: The user needs to call ISLocalToGlobalMappingRestoreInfo when the data is no longer needed.
+    Notes: The user needs to call ISLocalToGlobalMappingRestoreNodeInfo() when the data is no longer needed.
+           The information returned by this function complements that of ISLocalToGlobalMappingGetInfo().
+           The latter only provides local information, and the neighboring information
+           cannot be inferred in the general case, unless the mapping is locally one-to-one on each process.
 
 .seealso: ISLocalToGlobalMappingDestroy(), ISLocalToGlobalMappingCreateIS(), ISLocalToGlobalMappingCreate(),
           ISLocalToGlobalMappingGetInfo(), ISLocalToGlobalMappingRestoreNodeInfo()
 @*/
 PetscErrorCode  ISLocalToGlobalMappingGetNodeInfo(ISLocalToGlobalMapping mapping,PetscInt *nnodes,PetscInt *count[],PetscInt **indices[])
 {
-  PetscInt       n;
+  PetscInt       **bindices = NULL,*bcount = NULL,bs = mapping->bs,i,j,k,bn;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
-  ierr = ISLocalToGlobalMappingGetSize(mapping,&n);CHKERRQ(ierr);
-  if (!mapping->info_nodec) {
-    PetscInt i,m,n_neigh,*neigh,*n_shared,**shared;
+  ierr = ISLocalToGlobalMappingGetBlockNodeInfo(mapping,&bn,&bcount,&bindices);CHKERRQ(ierr);
+  if (bs > 1) { /* we need to expand the cached info */
+    PetscInt *tcount;
+    PetscInt c;
 
-    ierr = PetscMalloc2(n+1,&mapping->info_nodec,n,&mapping->info_nodei);CHKERRQ(ierr);
-    ierr = ISLocalToGlobalMappingGetInfo(mapping,&n_neigh,&neigh,&n_shared,&shared);CHKERRQ(ierr);
-    for (i=0;i<n;i++) { mapping->info_nodec[i] = 1;}
-    m = n;
-    mapping->info_nodec[n] = 0;
-    for (i=1;i<n_neigh;i++) {
-      PetscInt j;
-
-      m += n_shared[i];
-      for (j=0;j<n_shared[i];j++) mapping->info_nodec[shared[i][j]] += 1;
-    }
-    if (n) { ierr = PetscMalloc1(m,&mapping->info_nodei[0]);CHKERRQ(ierr); }
-    for (i=1;i<n;i++) mapping->info_nodei[i] = mapping->info_nodei[i-1] + mapping->info_nodec[i-1];
-    ierr = PetscArrayzero(mapping->info_nodec,n);CHKERRQ(ierr);
-    for (i=0;i<n;i++) { mapping->info_nodec[i] = 1; mapping->info_nodei[i][0] = neigh[0]; }
-    for (i=1;i<n_neigh;i++) {
-      PetscInt j;
-
-      for (j=0;j<n_shared[i];j++) {
-        PetscInt k = shared[i][j];
-
-        mapping->info_nodei[k][mapping->info_nodec[k]] = neigh[i];
-        mapping->info_nodec[k] += 1;
+    ierr = PetscMalloc1(bn*bs,&tcount);CHKERRQ(ierr);
+    for (i=0,c=0; i<bn; i++) {
+      for (k=0; k<bs; k++) {
+        tcount[i*bs+k] = bcount[i];
       }
+      c += bs*bcount[i];
     }
-    for (i=0;i<n;i++) { ierr = PetscSortRemoveDupsInt(&mapping->info_nodec[i],mapping->info_nodei[i]);CHKERRQ(ierr); }
-    ierr = ISLocalToGlobalMappingRestoreInfo(mapping,&n_neigh,&neigh,&n_shared,&shared);CHKERRQ(ierr);
+    if (nnodes) *nnodes = bn*bs;
+    if (indices) {
+      PetscInt **tindices;
+      PetscInt tn = bn*bs;
+
+      ierr = PetscMalloc1(tn,&tindices);CHKERRQ(ierr);
+      if (tn) {
+        ierr = PetscMalloc1(c,&tindices[0]);CHKERRQ(ierr);
+      }
+      for (i=0;i<tn-1;i++) {
+        tindices[i+1] = tindices[i] + tcount[i];
+      }
+      for (i=0; i<bn; i++) {
+        for (k=0; k<bs; k++) {
+          for (j=0;j<bcount[i];j++) {
+            tindices[i*bs+k][j] = bindices[i][j];
+          }
+        }
+      }
+      *indices = tindices;
+    }
+    if (count) *count = tcount;
+    else {
+      ierr = PetscFree(tcount);CHKERRQ(ierr);
+    }
+    mapping->info_nfree = PETSC_TRUE;
+  } else {
+    if (nnodes)  *nnodes  = bn;
+    if (count)   *count   = bcount;
+    if (indices) *indices = bindices;
   }
-  if (nnodes)  *nnodes  = n;
-  if (count)   *count   = mapping->info_nodec;
-  if (indices) *indices = mapping->info_nodei;
   PetscFunctionReturn(0);
 }
 
@@ -1571,10 +1416,8 @@ PetscErrorCode  ISLocalToGlobalMappingGetNodeInfo(ISLocalToGlobalMapping mapping
     Collective on ISLocalToGlobalMapping
 
     Input Parameters:
-.   mapping - the mapping from local to global indexing
-
-    Output Parameter:
-+   nnodes - number of local nodes
++   mapping - the mapping from local to global indexing
+.   nnodes - number of local nodes
 .   count - number of neighboring processors per node
 -   indices - indices of processes sharing the node (sorted)
 
@@ -1585,11 +1428,11 @@ PetscErrorCode  ISLocalToGlobalMappingGetNodeInfo(ISLocalToGlobalMapping mapping
 @*/
 PetscErrorCode  ISLocalToGlobalMappingRestoreNodeInfo(ISLocalToGlobalMapping mapping,PetscInt *nnodes,PetscInt *count[],PetscInt **indices[])
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
-  if (nnodes)  *nnodes  = 0;
-  if (count)   *count   = NULL;
-  if (indices) *indices = NULL;
+  ierr = ISLocalToGlobalMappingRestoreBlockNodeInfo(mapping,nnodes,count,indices);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
