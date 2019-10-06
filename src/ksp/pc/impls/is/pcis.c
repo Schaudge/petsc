@@ -153,9 +153,8 @@ PetscErrorCode  PCISSetUp(PC pc, PetscBool computematrices, PetscBool computesol
   /* first time creation, get info on substructuring */
   if (!pc->setupcalled) {
     PetscInt    n_I;
-    PetscInt    *idx_I_local,*idx_B_local,*idx_I_global,*idx_B_global;
-    PetscBT     bt;
-    PetscInt    i,j;
+    PetscInt    *idx_I_local,*idx_B_local,*idx_I_global,*idx_B_global,*count;
+    PetscInt    i;
 
     /* get info on mapping */
     ierr = PetscObjectReference((PetscObject)pc->pmat->rmap->mapping);CHKERRQ(ierr);
@@ -165,17 +164,11 @@ PetscErrorCode  PCISSetUp(PC pc, PetscBool computematrices, PetscBool computesol
     ierr = ISLocalToGlobalMappingGetInfo(pcis->mapping,&(pcis->n_neigh),&(pcis->neigh),&(pcis->n_shared),&(pcis->shared));CHKERRQ(ierr);
 
     /* Identifying interior and interface nodes, in local numbering */
-    ierr = PetscBTCreate(pcis->n,&bt);CHKERRQ(ierr);
-    for (i=0;i<pcis->n_neigh;i++)
-      for (j=0;j<pcis->n_shared[i];j++) {
-        ierr = PetscBTSet(bt,pcis->shared[i][j]);CHKERRQ(ierr);
-      }
-
-    /* Creating local and global index sets for interior and inteface nodes. */
+    ierr = ISLocalToGlobalMappingGetNodeInfo(pcis->mapping,NULL,&count,NULL);CHKERRQ(ierr);
     ierr = PetscMalloc1(pcis->n,&idx_I_local);CHKERRQ(ierr);
     ierr = PetscMalloc1(pcis->n,&idx_B_local);CHKERRQ(ierr);
     for (i=0, pcis->n_B=0, n_I=0; i<pcis->n; i++) {
-      if (!PetscBTLookup(bt,i)) {
+      if (count[i] < 2) {
         idx_I_local[n_I] = i;
         n_I++;
       } else {
@@ -183,6 +176,7 @@ PetscErrorCode  PCISSetUp(PC pc, PetscBool computematrices, PetscBool computesol
         pcis->n_B++;
       }
     }
+    ierr = ISLocalToGlobalMappingRestoreNodeInfo(pcis->mapping,NULL,&count,NULL);CHKERRQ(ierr);
 
     /* Getting the global numbering */
     idx_B_global = idx_I_local + n_I; /* Just avoiding allocating extra memory, since we have vacant space */
@@ -199,7 +193,6 @@ PetscErrorCode  PCISSetUp(PC pc, PetscBool computematrices, PetscBool computesol
     /* Freeing memory */
     ierr = PetscFree(idx_B_local);CHKERRQ(ierr);
     ierr = PetscFree(idx_I_local);CHKERRQ(ierr);
-    ierr = PetscBTDestroy(&bt);CHKERRQ(ierr);
 
     /* Creating work vectors and arrays */
     ierr = VecDuplicate(matis->x,&pcis->vec1_N);CHKERRQ(ierr);
