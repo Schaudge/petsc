@@ -64,6 +64,7 @@ struct _p_ISLocalToGlobalMapping{
   PetscInt     globalend;       /* last + 1 global referenced in indices */
   PetscBool    info_cached;     /* reuse GetInfo */
   PetscBool    info_free;
+  PetscBool    info_nfree;
   PetscInt     info_nproc;
   PetscInt    *info_procs;
   PetscInt    *info_numprocs;
