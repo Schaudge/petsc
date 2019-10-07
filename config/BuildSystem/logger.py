@@ -224,7 +224,7 @@ class Logger(args.ArgumentProcessor):
   def logPrintBox(self,msg, debugLevel = -1, debugSection = 'screen', indent = 1, comm = None):
     self.logClear()
     self.logPrintDivider(debugLevel = debugLevel, debugSection = debugSection)
-    [self.logPrint('      '+line, debugLevel = debugLevel, debugSection = debugSection) for line in msg.split('\n')]
+    [self.logPrint('      '+line+'\n', debugLevel = debugLevel, debugSection = debugSection, forceScroll = 1) for line in msg.split('\n')]
     self.logPrintDivider(debugLevel = debugLevel, debugSection = debugSection)
     self.logPrint('', debugLevel = debugLevel, debugSection = debugSection)
     return

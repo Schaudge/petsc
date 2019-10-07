@@ -221,7 +221,8 @@ extern "C" {
     if libDir:
       if not isinstance(libDir, list): libDir = [libDir]
       for dir in libDir:
-        self.setCompilers.LIBS += ' -L'+dir
+        if dir:
+          self.setCompilers.LIBS += ' -L'+dir
     # new libs may/will depend on system libs so list new libs first!
     # Matt, do not change this without talking to me
     if libName and otherLibs:

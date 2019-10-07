@@ -6,7 +6,7 @@ import config.package
 #       does not support 64 bit integers with INTERFACE64
 
 
-class Configure(config.package.Package):
+class Configure(config.packages.BlasLapack.Configure):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
     self.version                = '0.3.7'
@@ -39,18 +39,18 @@ class Configure(config.package.Package):
     self.make            = framework.require('config.packages.make',self)
     self.openmp          = framework.require('config.packages.openmp',self)
 
+  def generateGuessesLib(self,libDir):
+    for (name,dir,lib,include) in config.packages.generateGuesses(self):
+    if self.directory and libDir: raise RuntimeError('Using both --download-openblas and --with-blaslapack-dir not allowed')
+    if self.directory: libDir = os.path.join(self.directory,'lib')
+    yield (libDir, 'libopenblas.a',self.known64,self.usesopenmp)
+
   def configureLibrary(self):
     import os
-    config.package.Package.configureLibrary(self)
-    self.checkVersion()
+    config.packages.BlasLapack.Configure.configureLibrary(self)
     if self.found:
+      pass
       # TODO: Use openblas_get_config() or openblas_config.h to determine use of OpenMP and 64 bit indices for prebuilt OpenBLAS libraries
-      if not hasattr(self,'usesopenmp'): self.usesopenmp = 'unknown'
-      if  self.directory:
-        self.libDir = os.path.join(self.directory,'lib')
-      else:
-        self.libDir = None
-    if not hasattr(self,'known64'): self.known64 = 'unknown'
     return
 
   def versionToStandardForm(self,ver):
@@ -62,7 +62,6 @@ class Configure(config.package.Package):
 
   def Install(self):
     import os
-
     # OpenBLAS handles its own compiler optimization options
     cmdline = 'CC='+self.compilers.CC+' '
     cmdline += 'FC='+self.compilers.FC+' '
@@ -90,15 +89,12 @@ class Configure(config.package.Package):
       else:
         cmdline += " USE_THREAD=0 "
     cmdline += " NO_EXPRECISION=1 "
-
     libdir = self.libDir
     blasDir = self.packageDir
-
     g = open(os.path.join(blasDir,'tmpmakefile'),'w')
     g.write(cmdline)
     g.close()
     if not self.installNeeded('tmpmakefile'): return self.installDir
-
     try:
       self.logPrintBox('Compiling OpenBLAS; this may take several minutes')
       output1,err1,ret  = config.package.Package.executeShellCommand('cd '+blasDir+' && make '+cmdline, timeout=2500, log = self.log)
