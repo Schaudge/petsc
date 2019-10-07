@@ -2275,7 +2275,8 @@ PetscErrorCode DMPlexInsertSupport(DM dm, PetscInt p, PetscInt supportPos, Petsc
 - points - The points and point orientations, interleaved as pairs [p0, o0, p1, o1, ...]
 
   Note:
-  If using internal storage (points is NULL on input), each call overwrites the last output.
+  If using internal storage (points is NULL on input), each call overwrites the last output. This routine creates
+  several work arrays, the user must therefore call DMPlexRestoreTransitiveClosure() when finished.
 
   Fortran Notes:
   Since it returns an array, this routine is only available in Fortran 90, and you must
@@ -2285,7 +2286,7 @@ PetscErrorCode DMPlexInsertSupport(DM dm, PetscInt p, PetscInt supportPos, Petsc
 
   Level: beginner
 
-.seealso: DMPlexRestoreTransitiveClosure(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
+.seealso: DMPlexRestoreTransitiveClosure(), DMPlexGetTransitiveClosureWithInitialOrientation(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
 @*/
 PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
@@ -2419,7 +2420,8 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
 - points - The points and point orientations, interleaved as pairs [p0, o0, p1, o1, ...]
 
   Note:
-  If using internal storage (points is NULL on input), each call overwrites the last output.
+  If using internal storage (points is NULL on input), each call overwrites the last output. This routine creates
+  several work arrays, the user must therefore call DMPlexRestoreTransitiveClosure() when finished.
 
   Fortran Notes:
   Since it returns an array, this routine is only available in Fortran 90, and you must
@@ -2429,7 +2431,7 @@ PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, 
 
   Level: beginner
 
-.seealso: DMPlexRestoreTransitiveClosure(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
+.seealso: DMPlexRestoreTransitiveClosure(), DMPlexGetTransitiveClosure, DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
 @*/
 PetscErrorCode DMPlexGetTransitiveClosureWithInitialOrientation(DM dm, PetscInt p, PetscInt ornt, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
@@ -2577,7 +2579,7 @@ PetscErrorCode DMPlexGetTransitiveClosureWithInitialOrientation(DM dm, PetscInt 
 
   Level: beginner
 
-.seealso: DMPlexGetTransitiveClosure(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
+.seealso: DMPlexGetTransitiveClosure(), DMPlexGetTransitiveClosureWithInitialOrientation(), DMPlexCreate(), DMPlexSetCone(), DMPlexSetChart(), DMPlexGetCone()
 @*/
 PetscErrorCode DMPlexRestoreTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
