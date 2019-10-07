@@ -6981,7 +6981,7 @@ PetscErrorCode DMPlexCheckFaces(DM dm, PetscInt cellHeight)
       for (f = 0; f < numFaces; ++f) {
         PetscInt *fclosure = NULL, fclosureSize, cl, fnumCorners = 0, v;
 
-        ierr = DMPlexGetTransitiveClosureByOrientation(dm, cone[f], ornt[f], PETSC_TRUE, &fclosureSize, &fclosure);CHKERRQ(ierr);
+        ierr = DMPlexGetTransitiveClosureWithInitialOrientation(dm, cone[f], ornt[f], PETSC_TRUE, &fclosureSize, &fclosure);CHKERRQ(ierr);
         for (cl = 0; cl < fclosureSize*2; cl += 2) {
           const PetscInt p = fclosure[cl];
           if ((p >= vStart) && (p < vEnd)) fclosure[fnumCorners++] = p;
