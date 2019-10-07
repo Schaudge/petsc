@@ -534,16 +534,15 @@ int main(int argc, char **argv)
   MPI_Comm              comm;
   PetscErrorCode        ierr;
   PetscViewer		vtkviewer, textviewer, hdf5viewer, genviewer;
-  DM                    dm, dmDist;
+  DM                    dm, dmDist, dmf;
   IS			globalCellIS, vertexIS;
   Vec			coords, OrthQual, PointNum, CellNum;
-  PetscInt              overlap = 0, i, dim = 2, csize, vsize, conesize, cEnd;
+  PetscInt              overlap = 0, i, dim = 2, csize, vsize, conesize, cEnd, refine = 0;
   PetscInt		faces[dim];
   const PetscInt	*ptr, *vptr;
   PetscScalar		*coordArray, *angles;
   PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE, fileflag = PETSC_FALSE;
   char			filename[PETSC_MAX_PATH_LEN];
-
 
   PetscSection          section;
   PetscInt		*bcField, *numDOF, *numComp;
@@ -567,6 +566,7 @@ int main(int argc, char **argv)
   ierr = PetscViewerSetUp(textviewer);CHKERRQ(ierr);
 
   ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, PETSC_MAX_PATH_LEN, &fileflag); CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL, NULL, "-ref", &refine, NULL);CHKERRQ(ierr);
 
   if (!fileflag) {
     for (i = 0; i < dim; i++) {
@@ -580,6 +580,13 @@ int main(int argc, char **argv)
   if (dmDist) {
     ierr = DMDestroy(&dm);CHKERRQ(ierr);
     dm = dmDist;
+  }
+  for (i = 0; i < refine; ++i) {
+    ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
+    if (dmf) {
+      ierr = DMDestroy(&dm);CHKERRQ(ierr);
+      dm = dmf;
+    }
   }
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
 
@@ -729,6 +736,11 @@ int main(int argc, char **argv)
   ierr = PetscViewerFileSetName(hdf5viewer, "Mesh.H5");CHKERRQ(ierr);
   ierr = PetscViewerSetUp(hdf5viewer);CHKERRQ(ierr);
   ierr = DMView(dm, hdf5viewer);CHKERRQ(ierr);
+
+  Vec test;
+  ierr = DMPlexCreateRankField(dm, &test);CHKERRQ(ierr);
+  VecView(test,0);
+  ierr = VecDestroy(&test);CHKERRQ(ierr);
 
   DMView(dm, 0);
 
