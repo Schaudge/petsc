@@ -11,6 +11,7 @@
 PetscLogEvent DMPLEX_Interpolate, DMPLEX_Partition, DMPLEX_Distribute, DMPLEX_DistributeCones, DMPLEX_DistributeLabels, DMPLEX_DistributeSF, DMPLEX_DistributeOverlap, DMPLEX_DistributeField, DMPLEX_DistributeData, DMPLEX_Migrate, DMPLEX_InterpolateSF, DMPLEX_GlobalToNaturalBegin, DMPLEX_GlobalToNaturalEnd, DMPLEX_NaturalToGlobalBegin, DMPLEX_NaturalToGlobalEnd, DMPLEX_Stratify, DMPLEX_Symmetrize, DMPLEX_Preallocate, DMPLEX_ResidualFEM, DMPLEX_JacobianFEM, DMPLEX_InterpolatorFEM, DMPLEX_InjectorFEM, DMPLEX_IntegralFEM, DMPLEX_CreateGmsh, DMPLEX_RebalanceSharedPoints, DMPLEX_PartSelf, DMPLEX_PartLabelInvert, DMPLEX_PartLabelCreateSF, DMPLEX_PartStratSF, DMPLEX_CreatePointSF;
 
 PETSC_EXTERN PetscErrorCode VecView_MPI(Vec, PetscViewer);
+PETSC_EXTERN PetscErrorCode DMPlexGetTransitiveClosure_Internal(DM, PetscInt, PetscInt, PetscBool, PetscInt *, PetscInt *[]);
 
 /*@
   DMPlexRefineSimplexToTensor - Uniformly refines simplicial cells into tensor product cells.
@@ -2321,116 +2322,11 @@ PetscErrorCode DMPlexInsertSupport(DM dm, PetscInt p, PetscInt supportPos, Petsc
 @*/
 PetscErrorCode DMPlexGetTransitiveClosure(DM dm, PetscInt p, PetscBool useCone, PetscInt *numPoints, PetscInt *points[])
 {
-  DM_Plex        *mesh = (DM_Plex*) dm->data;
-  PetscInt       *closure, *fifo;
-  const PetscInt *tmp = NULL, *tmpO = NULL;
-  PetscInt        tmpSize, t;
-  PetscInt        depth       = 0, maxSize;
-  PetscInt        closureSize = 2, fifoSize = 0, fifoStart = 0;
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  ierr    = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
-  /* This is only 1-level */
-  if (useCone) {
-    ierr = DMPlexGetConeSize(dm, p, &tmpSize);CHKERRQ(ierr);
-    ierr = DMPlexGetCone(dm, p, &tmp);CHKERRQ(ierr);
-    ierr = DMPlexGetConeOrientation(dm, p, &tmpO);CHKERRQ(ierr);
-  } else {
-    ierr = DMPlexGetSupportSize(dm, p, &tmpSize);CHKERRQ(ierr);
-    ierr = DMPlexGetSupport(dm, p, &tmp);CHKERRQ(ierr);
-  }
-  if (depth == 1) {
-    if (*points) {
-      closure = *points;
-    } else {
-      maxSize = 2*(PetscMax(mesh->maxConeSize, mesh->maxSupportSize)+1);
-      ierr = DMGetWorkArray(dm, maxSize, MPIU_INT, &closure);CHKERRQ(ierr);
-    }
-    closure[0] = p; closure[1] = 0;
-    for (t = 0; t < tmpSize; ++t, closureSize += 2) {
-      closure[closureSize]   = tmp[t];
-      closure[closureSize+1] = tmpO ? tmpO[t] : 0;
-    }
-    if (numPoints) *numPoints = closureSize/2;
-    if (points)    *points    = closure;
-    PetscFunctionReturn(0);
-  }
-  {
-    PetscInt c, coneSeries, s,supportSeries;
-
-    c = mesh->maxConeSize;
-    coneSeries = (c > 1) ? ((PetscPowInt(c,depth+1)-1)/(c-1)) : depth+1;
-    s = mesh->maxSupportSize;
-    supportSeries = (s > 1) ? ((PetscPowInt(s,depth+1)-1)/(s-1)) : depth+1;
-    maxSize = 2*PetscMax(coneSeries,supportSeries);
-  }
-  ierr    = DMGetWorkArray(dm, maxSize, MPIU_INT, &fifo);CHKERRQ(ierr);
-  if (*points) {
-    closure = *points;
-  } else {
-    ierr = DMGetWorkArray(dm, maxSize, MPIU_INT, &closure);CHKERRQ(ierr);
-  }
-  closure[0] = p; closure[1] = 0;
-  for (t = 0; t < tmpSize; ++t, closureSize += 2, fifoSize += 2) {
-    const PetscInt cp = tmp[t];
-    const PetscInt co = tmpO ? tmpO[t] : 0;
-
-    closure[closureSize]   = cp;
-    closure[closureSize+1] = co;
-    fifo[fifoSize]         = cp;
-    fifo[fifoSize+1]       = co;
-  }
-  /* Should kick out early when depth is reached, rather than checking all vertices for empty cones */
-  while (fifoSize - fifoStart) {
-    const PetscInt q   = fifo[fifoStart];
-    const PetscInt o   = fifo[fifoStart+1];
-    const PetscInt rev = o >= 0 ? 0 : 1;
-    const PetscInt off = rev ? -(o+1) : o;
-
-    if (useCone) {
-      ierr = DMPlexGetConeSize(dm, q, &tmpSize);CHKERRQ(ierr);
-      ierr = DMPlexGetCone(dm, q, &tmp);CHKERRQ(ierr);
-      ierr = DMPlexGetConeOrientation(dm, q, &tmpO);CHKERRQ(ierr);
-    } else {
-      ierr = DMPlexGetSupportSize(dm, q, &tmpSize);CHKERRQ(ierr);
-      ierr = DMPlexGetSupport(dm, q, &tmp);CHKERRQ(ierr);
-      tmpO = NULL;
-    }
-    for (t = 0; t < tmpSize; ++t) {
-      const PetscInt i  = ((rev ? tmpSize-t : t) + off)%tmpSize;
-      const PetscInt cp = tmp[i];
-      /* Must propogate orientation: When we reverse orientation, we both reverse the direction of iteration and start at the other end of the chain. */
-      /* HACK: It is worse to get the size here, than to change the interpretation of -(*+1)
-       const PetscInt co = tmpO ? (rev ? -(tmpO[i]+1) : tmpO[i]) : 0; */
-      PetscInt       co = tmpO ? tmpO[i] : 0;
-      PetscInt       c;
-
-      if (rev) {
-        PetscInt childSize, coff;
-        ierr = DMPlexGetConeSize(dm, cp, &childSize);CHKERRQ(ierr);
-        coff = tmpO[i] < 0 ? -(tmpO[i]+1) : tmpO[i];
-        co   = childSize ? -(((coff+childSize-1)%childSize)+1) : 0;
-      }
-      /* Check for duplicate */
-      for (c = 0; c < closureSize; c += 2) {
-        if (closure[c] == cp) break;
-      }
-      if (c == closureSize) {
-        closure[closureSize]   = cp;
-        closure[closureSize+1] = co;
-        fifo[fifoSize]         = cp;
-        fifo[fifoSize+1]       = co;
-        closureSize           += 2;
-        fifoSize              += 2;
-      }
-    }
-    fifoStart += 2;
-  }
-  if (numPoints) *numPoints = closureSize/2;
-  if (points)    *points    = closure;
-  ierr = DMRestoreWorkArray(dm, maxSize, MPIU_INT, &fifo);CHKERRQ(ierr);
+  ierr = DMPlexGetTransitiveClosure_Internal(dm, p, 0, useCone, numPoints, points);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -2494,7 +2390,7 @@ PetscErrorCode DMPlexGetTransitiveClosure_Internal(DM dm, PetscInt p, PetscInt o
     }
     closure[0] = p; closure[1] = ornt;
     for (t = 0; t < tmpSize; ++t, closureSize += 2) {
-      const PetscInt i = ornt >= 0 ? (t+ornt)%tmpSize : (-(ornt+1) + tmpSize-t)%tmpSize;
+      const PetscInt i = ornt ? (ornt > 0 ? (t+ornt)%tmpSize : (-(ornt+1) + tmpSize-t)%tmpSize) : t;
       closure[closureSize]   = tmp[i];
       closure[closureSize+1] = tmpO ? tmpO[i] : 0;
     }
@@ -2519,7 +2415,7 @@ PetscErrorCode DMPlexGetTransitiveClosure_Internal(DM dm, PetscInt p, PetscInt o
   }
   closure[0] = p; closure[1] = ornt;
   for (t = 0; t < tmpSize; ++t, closureSize += 2, fifoSize += 2) {
-    const PetscInt i  = ornt >= 0 ? (t+ornt)%tmpSize : (-(ornt+1) + tmpSize-t)%tmpSize;
+    const PetscInt i = ornt ? (ornt > 0 ? (t+ornt)%tmpSize : (-(ornt+1) + tmpSize-t)%tmpSize) : t;
     const PetscInt cp = tmp[i];
     PetscInt       co = tmpO ? tmpO[i] : 0;
 
