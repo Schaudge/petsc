@@ -426,8 +426,8 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
   PetscInt		idx[1] = {cell}, *nodupidx;
   PetscInt		dim, dimp1, i, j, nverts, ntotal, vStart, vEnd, loc = 0, tempi, tempi2, tempi3, tempi4;
   const PetscInt	*ptr;
-  PetscScalar		*xtildeHom, *x4tildeVec, *invXTHom, *taus, *Amat, *rtildeHom, *Bmat, *Cmat, *coordArray;
-  PetscScalar		detR2X, detXTHom;
+  PetscScalar		*xtildeHom, *x4tildeVec, *invXTHom, *taus, *Amat, *invA, *Bmat, *coordArray;
+  PetscScalar		detA, detXTHom, detX2R;
   PetscBool		USE_ROTATION = PETSC_FALSE;
 
   PetscFunctionBeginUser;
@@ -443,13 +443,12 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
   ierr = PetscMalloc1(dimp1, &taus);CHKERRQ(ierr);
   ierr = PetscMalloc1(dimp1*dimp1, &Amat);CHKERRQ(ierr);
   ierr = PetscMalloc1(dimp1*dimp1, &Bmat);CHKERRQ(ierr);
-  ierr = PetscMalloc1(dimp1*dimp1, &Cmat);CHKERRQ(ierr);
+  ierr = PetscMalloc1(dimp1*dimp1, &invA);CHKERRQ(ierr);
   ierr = PetscMalloc1(dimp1*dimp1, &xtildeHom);CHKERRQ(ierr);
-  ierr = PetscMalloc1(dimp1*domp1, &rtildeHom);CHKERRQ(ierr);
   ierr = PetscMalloc1(dimp1, &x4tildeVec);CHKERRQ(ierr);
-  rtildeHom[0] = 0.0; rtildeHom[1] = 0.0; rtildeHom[2] = 1.0;
-  rtildeHom[3] = 0.0; rtildeHom[4] = 1.0; rtildeHom[5] = 1.0;
-  rtildeHom[6] = 1.0; rtildeHom[7] = 1.0; rtildeHom[8] = 1.0;
+  Bmat[0] = 0.0; Bmat[1] =  0.0; Bmat[2] = 1.0;
+  Bmat[3] = 0.0; Bmat[4] = -1.0; Bmat[5] = 1.0;
+  Bmat[6] = 1.0; Bmat[7] = -1.0; Bmat[8] = 1.0;
   xtildeHom[6] = 1.0; xtildeHom[7] = 1.0; xtildeHom[8] = 1.0;
   x4tildeVec[2] = 1.0;
 
@@ -479,14 +478,14 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
 
     ierr = PetscPrintf(comm, "CURRENT %d\t -> [%.1f %.1f]\nNEXT \t%d\t -> [%.1f %.1f]\nNEXT \t%d\t -> [%.1f %.1f]\nX4 \t%d\t -> [%.1f %.1f]\n", nodupidx[tempi], xval, yval, nodupidx[tempi2], coordArray[(dim)*(nodupidx[tempi2]-vStart)], coordArray[(dim)*(nodupidx[tempi2]-vStart)+1], nodupidx[tempi3], coordArray[(dim)*(nodupidx[tempi3]-vStart)], coordArray[(dim)*(nodupidx[tempi3]-vStart)+1], nodupidx[tempi4], coordArray[(dim)*(nodupidx[tempi4]-vStart)], coordArray[(dim)*(nodupidx[tempi4]-vStart)+1]);CHKERRQ(ierr);
 
-    xtildeHom[0] = coordArray[(dim)*(nodupidx[tempi]-vStart)];
-    xtildeHom[1] = coordArray[(dim)*(nodupidx[tempi2]-vStart)];
-    xtildeHom[2] = coordArray[(dim)*(nodupidx[tempi3]-vStart)];
-    xtildeHom[3] = coordArray[(dim)*(nodupidx[tempi]-vStart)+1];
-    xtildeHom[4] = coordArray[(dim)*(nodupidx[tempi2]-vStart)+1];
-    xtildeHom[5] = coordArray[(dim)*(nodupidx[tempi3]-vStart)+1];
-    x4tildeVec[0] = coordArray[(dim)*(nodupidx[tempi4]-vStart)];
-    x4tildeVec[1] = coordArray[(dim)*(nodupidx[tempi4]-vStart)+1];
+    xtildeHom[0] = coordArray[dim*(nodupidx[tempi]-vStart)];
+    xtildeHom[1] = coordArray[dim*(nodupidx[tempi2]-vStart)];
+    xtildeHom[2] = coordArray[dim*(nodupidx[tempi3]-vStart)];
+    xtildeHom[3] = coordArray[dim*(nodupidx[tempi]-vStart)+1];
+    xtildeHom[4] = coordArray[dim*(nodupidx[tempi2]-vStart)+1];
+    xtildeHom[5] = coordArray[dim*(nodupidx[tempi3]-vStart)+1];
+    x4tildeVec[0] = coordArray[dim*(nodupidx[tempi4]-vStart)];
+    x4tildeVec[1] = coordArray[dim*(nodupidx[tempi4]-vStart)+1];
     ierr = PetscPrintf(comm, "But wait! Theres more! Check DETERMINANT\n");
     DMPlex_Det3D_Internal(&detX, xtildeHom);
     ierr = PetscPrintf(comm, "%sDETX%s:\t\t%f\n", (PetscAbs(detX) > 0) ? ANSI_GREEN : ANSI_RED, ANSI_RESET, PetscAbs(detX));CHKERRQ(ierr);
@@ -507,6 +506,7 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
   DMPlex_Invert3D_Internal(invXTHom, xtildeHom, detXTHom);
   DMPlex_Mult3D_Internal(invXTHom, 1, x4tildeVec, taus);
   ierr = Matvis("XTHmat", xtildeHom);CHKERRQ(ierr);
+  PetscScalarView(3, x4tildeVec, 0);
   PetscScalarView(3, taus, 0);
   for (i = 0; i < dimp1; ++i) {
     for (j = 0; j < dimp1; ++j) {
@@ -514,9 +514,11 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
     }
   }
   ierr = Matvis("A MAT", Amat);CHKERRQ(ierr);
-  DMPlex_Det3D_Internal(&detR2X, R2Xmat);
-  DMPlex_Invert3D_Internal(X2Rmat, R2Xmat, detR2X);
-
+  ierr = Matvis("B MAT", Bmat);CHKERRQ(ierr);
+  DMPlex_Det3D_Internal(&detA, Amat);
+  DMPlex_Invert3D_Internal(invA, Amat, detA);
+  ierr = Matvis("INV A", invA);CHKERRQ(ierr);
+  DMPlex_MatMult3D_Internal(Bmat, dimp1, dimp1, invA, X2Rmat);
   ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
   for (i = 0; i < nverts; i++) {
     PetscScalar x, y;
@@ -524,11 +526,12 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
 
     ierr = PetscCalloc1(dimp1, &refC);CHKERRQ(ierr);
     ierr = PetscCalloc1(dimp1,&realC);CHKERRQ(ierr);
-    x = coordArray[(dim-1)*(nodupidx[i]-vStart)];
-    y = coordArray[(dim-1)*(nodupidx[i]-vStart)+1];
+    x = coordArray[(dim)*(nodupidx[i]-vStart)];
+    y = coordArray[(dim)*(nodupidx[i]-vStart)+1];
     realC[0] = x; realC[1] = y; realC[2] = 1.0;
 
     DMPlex_Mult3D_Internal(X2Rmat, 1, realC, refC);
+    for (j = 0; j < dimp1; ++j) { refC[j] = refC[j]/refC[dim];}
     if (nodupidx[i] == vertex) { ierr = PetscPrintf(comm, "++++++++++++++++++++++++++++++++++++++++++++++++\n");CHKERRQ(ierr);}
     ierr = PetscPrintf(comm, "FOR CELL %3d, VERTEX %3d REALC: (%.3f, %.3f) -> REFC: (%.3f, %.3f)\n", cell, nodupidx[i], realC[0], realC[1], refC[0], refC[1]);CHKERRQ(ierr);
 
@@ -537,11 +540,11 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
       PetscScalar	*rotMat, *X2Rtemp;
       PetscInt		k;
 
-      ierr = PetscCalloc1(dim*dim, &X2Rtemp);CHKERRQ(ierr);
-      for (k = 0; k < dim*dim; k++) {
+      ierr = PetscCalloc1(dimp1*dimp1, &X2Rtemp);CHKERRQ(ierr);
+      for (k = 0; k < dimp1*dimp1; k++) {
         X2Rtemp[k] = X2Rmat[k];
       }
-      ierr = PetscCalloc1(dim*dim, &rotMat);CHKERRQ(ierr);
+      ierr = PetscCalloc1(dimp1*dimp1, &rotMat);CHKERRQ(ierr);
       rotMat[0] = 1; rotMat[4] = 1; rotMat[8] = 1;
 
       if ((PetscAbs(refC[0]) > 0.1) || (PetscAbs(refC[1]) > 0.1)) {
@@ -551,8 +554,8 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
         rotMat[2] = (-xc*PetscCosReal(theta)) + (yc*PetscSinReal(theta)) + xc;
         rotMat[3] = PetscSinReal(theta); rotMat[4] = PetscCosReal(theta);
         rotMat[5] = (-xc*PetscSinReal(theta)) - (yc*PetscCosReal(theta)) + yc;
-        DMPlex_MatMult3D_Internal(rotMat, dim, dim, X2Rmat, X2Rtemp);
-        for (k = 0; k < dim*dim; k++) {
+        DMPlex_MatMult3D_Internal(rotMat, dimp1, dimp1, X2Rmat, X2Rtemp);
+        for (k = 0; k < dimp1*dimp1; k++) {
           X2Rmat[k] = X2Rtemp[k];
         }
         ierr = Matvis("X2R + ROT", X2Rmat);CHKERRQ(ierr);
@@ -565,29 +568,30 @@ PetscErrorCode ComputeR2X2RMappingNONAFFINE(DM dm, PetscInt vertex, PetscInt cel
     }
     if (nodupidx[i] == vertex) { ierr = PetscPrintf(comm, "++++++++++++++++++++++++++++++++++++++++++++++++\n");CHKERRQ(ierr);}
 
-    realC_[(dim-1)*i] = realC[0];
-    realC_[((dim-1)*i)+1] = realC[1];
-    refC_[(dim-1)*i] = refC[0];
-    refC_[((dim-1)*i)+1] = refC[1];
+    realC_[dim*i] = realC[0];
+    realC_[(dim*i)+1] = realC[1];
+    refC_[dim*i] = refC[0];
+    refC_[(dim*i)+1] = refC[1];
     ierr = PetscFree(realC);CHKERRQ(ierr);
     ierr = PetscFree(refC);CHKERRQ(ierr);
   }
-  ierr = PetscPrintf(comm,"\n");CHKERRQ(ierr);
-  DMPlex_Det3D_Internal(&detR2X, R2Xmat);
-  DMPlex_Invert3D_Internal(X2Rmat, R2Xmat, detR2X);
-  ierr = Matvis("R2Xmat", R2Xmat);CHKERRQ(ierr);
-  ierr = Matvis("X2Rmat", X2Rmat);CHKERRQ(ierr);
   ierr = VecRestoreArray(coords, &coordArray);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm,"\n");CHKERRQ(ierr);
+  DMPlex_Det3D_Internal(&detX2R, X2Rmat);
+  DMPlex_Invert3D_Internal(R2Xmat, X2Rmat, detX2R);
+  ierr = Matvis("X2Rmat", X2Rmat);CHKERRQ(ierr);
+  ierr = Matvis("R2Xmat", R2Xmat);CHKERRQ(ierr);
+
   ierr = ISDestroy(&vertsIS);CHKERRQ(ierr);
   ierr = ISDestroy(&singleCellIS);CHKERRQ(ierr);
   ierr = PetscFree(x4tildeVec);CHKERRQ(ierr);
   ierr = PetscFree(invXTHom);CHKERRQ(ierr);
-  ierr = PetscFree(nodupidx);CHKERRQ(ierr);
   ierr = PetscFree(xtildeHom);CHKERRQ(ierr);
-  ierr = PetscFree(rtildeHom);CHKERRQ(ierr);
+  ierr = PetscFree(taus);CHKERRQ(ierr);
+  ierr = PetscFree(nodupidx);CHKERRQ(ierr);
   ierr = PetscFree(Amat);CHKERRQ(ierr);
   ierr = PetscFree(Bmat);CHKERRQ(ierr);
-  ierr = PetscFree(Cmat);CHKERRQ(ierr);
+  ierr = PetscFree(invA);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
