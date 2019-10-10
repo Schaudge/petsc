@@ -249,7 +249,7 @@ PetscErrorCode ISCreateSubIS(IS is,IS comps,IS *subis)
 /*@
    ISIdentity - Determines whether index set is the identity mapping.
 
-   Collective on IS
+   Not collective
 
    Input Parmeters:
 .  is - the index set
@@ -259,6 +259,10 @@ PetscErrorCode ISCreateSubIS(IS is,IS comps,IS *subis)
 
    Level: intermediate
 
+   Notes:
+    For parallel IS objects this only indicates if the local part of the IS
+          is the identity. So some processors may return PETSC_TRUE while others may
+          return PETSC_FALSE.
 
 .seealso: ISSetIdentity()
 @*/
@@ -340,7 +344,7 @@ PetscErrorCode  ISContiguousLocal(IS is,PetscInt gstart,PetscInt gend,PetscInt *
    ISPermutation - PETSC_TRUE or PETSC_FALSE depending on whether the
    index set has been declared to be a permutation.
 
-   Logically Collective on IS
+   Not collective
 
    Input Parmeters:
 .  is - the index set
@@ -350,6 +354,10 @@ PetscErrorCode  ISContiguousLocal(IS is,PetscInt gstart,PetscInt gend,PetscInt *
 
    Level: intermediate
 
+   Notes:
+    For parallel IS objects this only indicates if the local part of the IS
+          is a permutation. So some processors may return PETSC_TRUE while others may
+          return PETSC_FALSE.
 
 .seealso: ISSetPermutation()
 @*/
@@ -1100,7 +1108,7 @@ PetscErrorCode  ISToGeneral(IS is)
 /*@
    ISSorted - Checks the indices to determine whether they have been sorted.
 
-   Collective on IS
+   Not collective
 
    Input Parameter:
 .  is - the index set
