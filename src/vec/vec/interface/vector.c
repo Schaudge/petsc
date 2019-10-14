@@ -486,12 +486,13 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
    You can change the format the vector is printed using the
    option PetscViewerPushFormat().
 
-   The user can open alternative visualization contexts with
+   The user can open alternative viewers with
 +    PetscViewerASCIIOpen() - Outputs vector to a specified file
 .    PetscViewerBinaryOpen() - Outputs vector in binary to a
          specified file; corresponding input uses VecLoad()
 .    PetscViewerDrawOpen() - Outputs vector to an X window display
--    PetscViewerSocketOpen() - Outputs vector to Socket viewer
+.    PetscViewerSocketOpen() - Outputs vector to Socket viewer
+-    PetscViewerHDF5Open() - Outputs vector to HDF5 file viewer 
 
    The user can call PetscViewerPushFormat() to specify the output
    format of ASCII printed objects (when using PETSC_VIEWER_STDOUT_SELF,
@@ -518,6 +519,10 @@ $    filename. If you copy the binary file, make sure you copy the associated .i
 $    for the object in the HDF5 file. If you wish to store the same vector to the HDF5 viewer (with different values,
 $    obviously) several times, you must change its name each time before calling the VecView(). The name you use
 $    here should equal the name that you use in the Vec object that you use with VecLoad().
+$
+$    If the block size of the vector is greater than 1 then it is used as the first dimension in the HDF5 array.
+$    If the function PetscViewerHDF5SetBaseDimension2()is called then even if the block size is one it will
+$    be used as the first dimension in the HDF5 array (that is the HDf5 array will always be two dimensional)
 
    See the manual page for VecLoad() on the exact format the binary viewer stores
    the values in the file.
@@ -527,7 +532,7 @@ $    here should equal the name that you use in the Vec object that you use with
 
 .seealso: PetscViewerASCIIOpen(), PetscViewerDrawOpen(), PetscDrawLGCreate(),
           PetscViewerSocketOpen(), PetscViewerBinaryOpen(), VecLoad(), PetscViewerCreate(),
-          PetscRealView(), PetscScalarView(), PetscIntView()
+           PetscRealView(), PetscScalarView(), PetscIntView()
 @*/
 PetscErrorCode  VecView(Vec vec,PetscViewer viewer)
 {
@@ -854,7 +859,7 @@ PetscErrorCode  VecResetArray(Vec vec)
   sets the type and the local and global sizes. If type and/or
   sizes are already set, then the same are used.
 
-  If using binary and the blocksize of the vector is greater than one then you must provide a unique prefix to
+  If using the binary viewer and the blocksize of the vector is greater than one then you must provide a unique prefix to
   the vector with PetscObjectSetOptionsPrefix((PetscObject)vec,"uniqueprefix"); BEFORE calling VecView() on the
   vector to be stored and then set that same unique prefix on the vector that you pass to VecLoad(). The blocksize
   information is stored in an ASCII file with the same name as the binary file plus a ".info" appended to the
@@ -862,24 +867,28 @@ PetscErrorCode  VecResetArray(Vec vec)
 
   If using HDF5, you must assign the Vec the same name as was used in the Vec
   that was stored in the file using PetscObjectSetName(). Otherwise you will
-  get the error message: "Cannot H5DOpen2() with Vec name NAMEOFOBJECT"
+  get the error message: "Cannot H5DOpen2() with Vec name NAMEOFOBJECT".
 
-  Notes for advanced users:
+  If the HDF5 file contains a two dimensional array the first dimension is treated as the block size
+  in loading the vector. Hence, for example, using Matlab notation h5create('vector.dat','/Test_Vec',[27 1]);
+  will load a vector of size 27 and block size 27 thus resulting in all 27 entries being on the first process of
+  vectors communicator and the rest of the processes having zero entries
+
+  Notes for advanced users when using the binary viewer:
   Most users should not need to know the details of the binary storage
   format, since VecLoad() and VecView() completely hide these details.
   But for anyone who's interested, the standard binary vector storage
   format is
 .vb
-     int    VEC_FILE_CLASSID
-     int    number of rows
+     PetscInt    VEC_FILE_CLASSID
+     PetscInt    number of rows
      PetscScalar *values of all entries
 .ve
 
-   In addition, PETSc automatically does the byte swapping for
-machines that store the bytes reversed, e.g.  DEC alpha, freebsd,
-linux, Windows and the paragon; thus if you write your own binary
-read/write routines you have to swap the bytes; see PetscBinaryRead()
-and PetscBinaryWrite() to see how this may be done.
+   In addition, PETSc automatically uses byte swapping to work on all machines; the files
+   are written ALWAYS using big-endian ordering. On small-endian machines the numbers
+   are converted to the small-endian format when they are read in from the file.
+   See PetscBinaryRead() and PetscBinaryWrite() to see how this may be done.
 
 .seealso: PetscViewerBinaryOpen(), VecView(), MatLoad(), VecLoad()
 @*/
