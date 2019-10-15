@@ -4,9 +4,8 @@ import os
 class Configure(config.package.CMakePackage):
   def __init__(self, framework):
     config.package.CMakePackage.__init__(self, framework)
-    self.gitcommit        = 'fab6197820' # xsdk-0.2.0 + superlu_dist-5.4.0, superlu_dist-6.0.1  fix oct-12-2018
-    #self.download         = ['git://https://github.com/trilinos/trilinos','https://github.com/trilinos/trilinos/archive/'+self.gitcommit+'.tar.gz']
-    self.download         = ['git://https://github.com/balay/trilinos','https://github.com/balay/trilinos/archive/'+self.gitcommit+'.tar.gz']
+    self.gitcommit        = 'origin/trilinos-release-12-18-branch'
+    self.download         = ['git://https://github.com/trilinos/trilinos']
     self.downloaddirnames = ['trilinos']
     self.includes         = ['Trilinos_version.h']
     self.functions        = ['Zoltan_Create']   # one of the very few C routines in Trilinos
@@ -24,7 +23,6 @@ class Configure(config.package.CMakePackage):
     self.hwloc           = framework.require('config.packages.hwloc',self)
     self.blasLapack      = framework.require('config.packages.BlasLapack',self)
     self.mpi             = framework.require('config.packages.MPI',self)
-    self.superlu         = framework.require('config.packages.SuperLU',self)
     self.superlu_dist    = framework.require('config.packages.SuperLU_DIST',self)
     self.mkl_pardiso     = framework.require('config.packages.mkl_pardiso',self)
     self.metis           = framework.require('config.packages.metis',self)
@@ -44,7 +42,7 @@ class Configure(config.package.CMakePackage):
     self.cxxlibs         = framework.require('config.packages.cxxlibs',self)
     self.mathlib         = framework.require('config.packages.mathlib',self)
     self.deps            = [self.mpi,self.blasLapack,self.flibs,self.cxxlibs,self.mathlib]
-    self.odeps           = [self.hwloc,self.hypre,self.superlu,self.superlu_dist,self.parmetis,self.metis,self.ptscotch,self.boost,self.netcdf,self.hdf5]
+    self.odeps           = [self.hwloc,self.hypre,self.superlu_dist,self.parmetis,self.metis,self.ptscotch,self.boost,self.netcdf,self.hdf5]
     #
     # also requires the ./configure option --with-cxx-dialect=C++11
     return
@@ -201,15 +199,8 @@ class Configure(config.package.CMakePackage):
       args.append('-DTPL_HWLOC_INCLUDE_DIRS="'+';'.join(self.hwloc.include)+'"')
       args.append('-DTPL_HWLOC_LIBRARIES="'+self.toStringNoDupes(self.hwloc.lib)+'"')
 
-    if self.superlu.found and self.superlu_dist.found:
-      raise RuntimeError('Trilinos cannot currently support SuperLU and SuperLU_DIST in the same configuration')
-
-    if self.superlu.found:
-      args.append('-DTPL_ENABLE_SuperLU:BOOL=ON')
-      args.append('-DTPL_SuperLU_INCLUDE_DIRS="'+';'.join(self.superlu.include)+'"')
-      args.append('-DTPL_SuperLU_LIBRARIES="'+self.toStringNoDupes(self.superlu.lib)+'"')
-    else:
-      args.append('-DTPL_ENABLE_TPL_SuperLU:BOOL=OFF')
+    # trilinos supports superlu version < 5 so disable this interface
+    args.append('-DTPL_ENABLE_TPL_SuperLU:BOOL=OFF')
 
     if self.superlu_dist.found:
       args.append('-DTPL_ENABLE_SuperLUDist:BOOL=ON')

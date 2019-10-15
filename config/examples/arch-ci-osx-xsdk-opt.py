@@ -6,7 +6,19 @@ if not os.path.isdir(petsc_hash_pkgs): os.mkdir(petsc_hash_pkgs)
 
 configure_options = [
   '--package-prefix-hash='+petsc_hash_pkgs,
-  '--download-xsdk',
+
+  # xsdk pkgs
+  '--download-pflotran',
+  '--download-hdf5',
+  '--download-zlib',
+  '--download-netcdf',
+  '--download-metis',
+  '--download-superlu_dist',
+  '--download-parmetis',
+  '--download-hypre',
+  '--download-trilinos',
+  '--download-boost',
+
   '--download-triangle', # for TRIANGLE_HDF5 test (with trilinos chaco)
   '--download-mpich=1',
   '--download-cmake=1',
