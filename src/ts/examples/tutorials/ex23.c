@@ -9,6 +9,7 @@ struct _UserCtx {
   Vec       U1loc,U2loc;
   PetscReal eddydiff1,eddydiff2;
   PetscReal diff1,diff2,rho1,c1,rho2,c2,hx1,hx2;
+  PetscInt  m1,m2;
 };
 
 static PetscErrorCode FormRHSFunctionLocal1(User user,DMDALocalInfo *info,const PetscScalar u1[],PetscScalar f1[])
@@ -22,7 +23,7 @@ static PetscErrorCode FormRHSFunctionLocal1(User user,DMDALocalInfo *info,const 
     else if (i == info->mx-1) { /* interface, assume the data is already in the ghost point */
       PetscScalar iflux1,iflux2;
       iflux1 = diff1*(u1[i] - u1[i-1])/hx1;
-      iflux2 = diff2*(u1[i] - u1[i+1])/hx2;
+      iflux2 = diff2*(u1[i+1] - u1[i])/hx2;
       f1[i] = 2*(iflux1-iflux2)/(rho1*c1*hx1+ rho2*c2*hx2);
     } else f1[i] = eddydiff1*(u1[i-1] +  u1[i+1] - 2*u1[i])/(hx1*hx1);
   }
@@ -36,8 +37,8 @@ static PetscErrorCode FormRHSFunctionLocal2(User user,DMDALocalInfo *info,const 
 
   PetscFunctionBeginUser;
   for (i=info->xs; i<info->xs+info->xm; i++) {
-    if (i == info->mx-1) f2[i] = eddydiff2*(u2[i+1] - 2.0*u2[i])/(hx2*hx2); /* zero boundary */
-    else f2[i] = eddydiff2*(u2[i-1] +  u2[i+1] - 2.0*u2[i])/(hx2*hx2);
+    if (i == info->mx-1) f2[i] = eddydiff2*(u2[i-1] - 2.0*u2[i])/(hx2*hx2); /* zero boundary */
+    else f2[i] = eddydiff2*(u2[i-1] + u2[i+1] - 2.0*u2[i])/(hx2*hx2);
   }
   PetscFunctionReturn(0);
 }
@@ -72,7 +73,7 @@ static PetscErrorCode FormRHSFunction_All(TS ts,PetscReal t,Vec X,Vec F,void *ct
   isize1 = 0;
   isize2 = 0;
   if (info2.xs == 0) { /* first rank on DM 2 */
-    idx2[isize2++] = 0; /* ghost boundary on DM 2, local index */
+    idx2[isize2++] = info2.xs-info2.gxs-1; /* ghost boundary on DM 2, local index */
     idx1[isize1++] = info1.mx-1; /* interface node on DM 1, global index */
   }
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,isize1,idx1,PETSC_COPY_VALUES,&isin1to2);CHKERRQ(ierr);
@@ -83,7 +84,7 @@ static PetscErrorCode FormRHSFunction_All(TS ts,PetscReal t,Vec X,Vec F,void *ct
   isize1 = 0;
   isize2 = 0;
   if (info1.xs+info1.xm == info1.mx) { /* last rank on DM 1 */
-    idx1[isize1++] = info1.xm+1; /* ghost boundary on DM 1, local index */
+    idx1[isize1++] = info1.xm+info1.xs-info1.gxs; /* ghost boundary on DM 1, local index */
     idx2[isize2++] = 0; /* interface node on DM2, global index */
   }
   ierr = ISCreateGeneral(PETSC_COMM_SELF,isize1,idx1,PETSC_COPY_VALUES,&isout2to1);CHKERRQ(ierr);
@@ -92,9 +93,9 @@ static PetscErrorCode FormRHSFunction_All(TS ts,PetscReal t,Vec X,Vec F,void *ct
 
   ierr = VecScatterBegin(scatter1,U1,U2loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterEnd(scatter1,U1,U2loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+
   ierr = VecScatterBegin(scatter2,U2,U1loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterEnd(scatter2,U2,U1loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-
   ierr = VecScatterDestroy(&scatter1);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&scatter2);CHKERRQ(ierr);
   ierr = ISDestroy(&isin1to2);CHKERRQ(ierr);
@@ -128,7 +129,7 @@ static PetscErrorCode FormRHSJacobianLocal_J11(User user,DMDALocalInfo *info,con
       ierr = MatSetValuesLocal(J11,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else if (i == info->mx-1) {
       PetscInt    cols[] = {row-1,row};
-      PetscScalar vals[] = {2.0*diff1/hx1/(rho1*c1*hx1+ rho2*c2*hx2),2.0*(diff1/hx1+diff2/hx2)/(rho1*c1*hx1+ rho2*c2*hx2)};
+      PetscScalar vals[] = {-2.0*diff1/hx1/(rho1*c1*hx1+rho2*c2*hx2),2.0*(diff1/hx1+diff2/hx2)/(rho1*c1*hx1+rho2*c2*hx2)};
       ierr = MatSetValuesLocal(J11,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else {
       PetscInt    cols[] = {row-1,row,row+1};
@@ -173,8 +174,8 @@ static PetscErrorCode FormRHSJacobianLocal_J12(User user,DMDALocalInfo *info,con
   PetscFunctionBeginUser;
   if (!J12) PetscFunctionReturn(0); /* Not assembling this block */
   if (info->xs+info->xm == info->mx) {
-    PetscInt    row = info->mx-1-info->gxs,col = 0;
-    PetscScalar val = 2.0*diff2/hx2/(rho1*c1*hx1+ rho2*c2*hx2);
+    PetscInt    row = info->mx-1-info->gxs,col = 1;
+    PetscScalar val = -2.0*diff2/hx2/(rho1*c1*hx1+rho2*c2*hx2);
     ierr = MatSetValuesLocal(J12,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -182,14 +183,14 @@ static PetscErrorCode FormRHSJacobianLocal_J12(User user,DMDALocalInfo *info,con
 
 static PetscErrorCode FormRHSJacobianLocal_J21(User user,DMDALocalInfo *info,const PetscScalar u2[],Mat J21)
 {
-  PetscReal      hx1 = user->hx1,hx2 = user->hx2,rho1 = user->rho1,rho2 = user->rho2,c1 = user->c1,c2 = user->c2,diff2 = user->diff2;
+  PetscReal      hx2 = user->hx2,eddydiff2 = user->eddydiff2;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   if (!J21) PetscFunctionReturn(0); /* Not assembling this block */
   if (info->xs == 0) {
-    PetscInt    row = -info->gxs,col = info->mx-1;
-    PetscScalar val = 2.0*diff2/hx2/(rho1*c1*hx1+ rho2*c2*hx2);
+    PetscInt    row = -info->gxs,col = user->m1;
+    PetscScalar val = eddydiff2/(hx2*hx2);
     ierr = MatSetValuesLocal(J21,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -312,6 +313,9 @@ int main(int argc,char **argv)
   ierr           = PetscOptionsGetInt(NULL,NULL,"-m1",&m1,NULL);CHKERRQ(ierr);
   ierr           = PetscOptionsGetInt(NULL,NULL,"-m2",&m2,NULL);CHKERRQ(ierr);
   //ierr           = PetscOptionsHasName(NULL,NULL,"-debug",&user.debug);CHKERRQ(ierr);
+  ierr           = PetscOptionsGetBool(NULL,NULL,"-pass_dm",&pass_dm,NULL);CHKERRQ(ierr);
+  user.m1        = m1;
+  user.m2        = m2;
   user.hx1       = 1.0/(m1-1);
   user.hx2       = 1.0/m2;
   user.rho1      = 1.0;
@@ -369,6 +373,7 @@ int main(int argc,char **argv)
   ierr = FormInitial_Coupled(&user,U);CHKERRQ(ierr);
 
   ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
+  ierr = TSSetDM(ts,user.pack);CHKERRQ(ierr);
 
   ierr = DMCreateMatrix(user.pack,&JP);CHKERRQ(ierr);
   /* This example does not correctly allocate off-diagonal blocks. These options allows new nonzeros (slow). */
