@@ -9,6 +9,44 @@ static char help[5] = "bla\n";
 # define ANSI_GREEN "\033[1;32m"
 # define ANSI_RESET "\033[0m"
 
+PetscErrorCode ComputeJacobian(DM dm, Vec *JacVec)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode CreateSkewedMesh(DM dm, PetscScalar phi)
+{
+  PetscErrorCode	ierr;
+  PetscInt		i, nCoords, dim;
+  Vec			coordsLocal;
+  PetscScalar		coeff = 1.0;
+  PetscScalar		*coordArray;
+
+  PetscFunctionBegin;
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordsLocal);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(coordsLocal, &nCoords);CHKERRQ(ierr);
+  ierr = VecGetArray(coordsLocal, &coordArray);CHKERRQ(ierr);
+
+  phi = phi*PETSC_PI/180;
+  // Order in coordarray is [x1,y1,z1....]
+  for (i = 0; i < nCoords; i++) {
+    if (i % dim) {
+      coeff = coeff*-1.0;
+      printf("%d FLIP %f\n", i, coeff);
+      coordArray[i-1] = coordArray[i-1]*PetscCosReal(phi);
+      coordArray[i] = coordArray[i] + coeff*coordArray[i-1]*PetscSinReal(phi);
+      // reversing order sice "y" is changed first
+    }
+  }
+  ierr = VecRestoreArray(coordsLocal, &coordArray);CHKERRQ(ierr);
+  ierr = DMSetCoordinatesLocal(dm, coordsLocal);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode SetUpDiscretization(DM dm)
 {
   PetscErrorCode	ierr;
@@ -58,6 +96,8 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
   ISLocalToGlobalMapping ltog;
   PetscBool		dbg = PETSC_FALSE;
 
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = PetscOptionsGetBool(NULL, NULL, "-dbg", NULL, &dbg);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm, &commSize);CHKERRQ(ierr);
@@ -217,7 +257,7 @@ PetscErrorCode DMPlexComputeCellOrthogonalQuality(DM dm, Vec *OrthogonalQuality)
   ierr = PetscFree(fnormdx);CHKERRQ(ierr);
   ierr = PetscFree(fdx);CHKERRQ(ierr);
   ierr = PetscFree(cdx);CHKERRQ(ierr);
-  return ierr;
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMPlexCreatePointNumField(DM dm, Vec *PointNumbering)
@@ -758,23 +798,102 @@ PetscErrorCode ComputeR2X2RMappingAFFINE(DM dm, PetscInt vertex, PetscInt cell, 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode SetupMesh(DM *dm)
+{
+  PetscErrorCode	ierr;
+  MPI_Comm		comm;
+  DM                    dmDist, dmf;
+  PetscInt		i, dim = 2, overlap = 0, refine = 0, Nmax = 2, numFields = 2, numBC = 1, depth;
+  PetscInt		faces[dim];
+  PetscBool		fileflag = PETSC_FALSE, skew = PETSC_FALSE, stretch = PETSC_FALSE, dbg = PETSC_FALSE, simplex = PETSC_FALSE, dmInterped = PETSC_TRUE;
+  PetscScalar		lxly[2] = {2.0, 1.0};
+  PetscScalar		phi = 45.0;
+  IS			bcPointsIS;
+  PetscSection          section;
+  char			filename[PETSC_MAX_PATH_LEN]="";
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject) *dm, &comm);CHKERRQ(ierr);
+  ierr = PetscOptionsBegin(comm, NULL, "Cell2ref Opts", "");CHKERRQ(ierr); {
+    ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, PETSC_MAX_PATH_LEN, &fileflag); CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-ref", &refine, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetScalar(NULL, NULL, "-skew", &phi, &skew);CHKERRQ(ierr);
+    ierr = PetscOptionsGetScalarArray(NULL, NULL, "-stretch", lxly, &Nmax, &stretch);CHKERRQ(ierr);
+    ierr = PetscOptionsGetBool(NULL, NULL, "-dbg", NULL, &dbg);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+
+  if (fileflag) {
+    ierr = DMPlexCreateFromFile(comm, filename, dmInterped, dm);CHKERRQ(ierr);
+  } else {
+    for (i = 0; i < dim; i++) {
+      faces[i] = 1;
+    }
+    ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, dm);CHKERRQ(ierr);
+  }
+  ierr = DMPlexDistribute(*dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+  if (dmDist) {
+    if (dbg) { ierr = PetscPrintf(comm, "Destroyed in Distribute\n");CHKERRQ(ierr);}
+    ierr = DMDestroy(dm);CHKERRQ(ierr);
+    *dm = dmDist;
+  }
+  for (i = 0; i < refine; ++i) {
+    ierr = DMRefine(*dm, comm, &dmf);CHKERRQ(ierr);
+    if (dmf) {
+      if (dbg) { ierr = PetscPrintf(comm, "Destroyed in Refine\n");CHKERRQ(ierr);}
+      ierr = DMDestroy(dm);CHKERRQ(ierr);
+      *dm = dmf;
+    }
+  }
+
+  ierr = DMGetDimension(*dm, &dim);CHKERRQ(ierr);
+  ierr = DMPlexGetDepth(*dm, &depth);CHKERRQ(ierr);
+  ierr = DMSetUp(*dm);CHKERRQ(ierr);
+  ierr = DMCreateDS(*dm);CHKERRQ(ierr);
+
+  PetscInt      numDOF[numFields*(dim+1)], numComp[numFields], bcField[numBC];
+  for (i = 0; i < numFields; i++){numComp[i] = 1;}
+  for (i = 0; i < numFields*(dim+1); i++){numDOF[i] = 0;}
+  //numDOF[0] = 1;
+  bcField[0] = 0;
+
+  /* Behold Ye Olde Klusterfucke	*/
+  //numComp[1] = 3;
+  //numDOF[0*(dim+1)] = 1;
+  //numDOF[1*(dim+1)] = 1;
+  //numDOF[1*(dim+1)+1] = 1;
+  numDOF[1*(dim+1)+depth] = 1; /* ACTIVATE ME AND ONLY ME FOR ACCURATE CELL MAP */
+  //numDOF[1*(dim+1)+depth] = 1;
+
+  ierr = DMGetStratumIS(*dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
+  ierr = DMSetNumFields(*dm, numFields);CHKERRQ(ierr);
+  ierr = DMPlexCreateSection(*dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
+  ierr = PetscSectionSetFieldName(section, 0, "Default_Field");CHKERRQ(ierr);
+  ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
+  ierr = DMSetSection(*dm, section);CHKERRQ(ierr);
+  ierr = DMCreateDS(*dm);CHKERRQ(ierr);
+  ierr = DMSetUp(*dm);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
+  ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
+
+  DMView(*dm, 0);
+  if (stretch) { ierr = StretchArray2D(*dm, lxly[0], lxly[1]);CHKERRQ(ierr);}
+  if (skew)    { ierr = CreateSkewedMesh(*dm, phi);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   MPI_Comm              comm;
   PetscErrorCode        ierr;
+  DM			dm;
   PetscViewer		vtkviewer, textviewer, hdf5viewer, genviewer;
-  DM                    dm, dmDist, dmf;
   IS			globalCellIS, vertexIS;
   Vec			coords, OrthQual, PointNum, CellNum;
-  PetscInt              overlap = 0, i, dim = 2, csize, vsize, conesize, cEnd, refine = 0, depth, cellPrint;
-  PetscInt		faces[dim];
+  PetscInt              i, csize, vsize, conesize, cEnd, cellPrint, dim = 2;
   const PetscInt	*cptr, *vptr;
   PetscScalar		*coordArray, *angles;
-  PetscBool             simplex = PETSC_FALSE, dmInterped = PETSC_TRUE, fileflag = PETSC_FALSE, stretch = PETSC_FALSE, skew = PETSC_FALSE, cellReq = PETSC_FALSE, getAngles = PETSC_FALSE, dbg = PETSC_FALSE;
-  char			filename[PETSC_MAX_PATH_LEN]="";
-  PetscSection          section;
-  PetscInt		numFields = 2, numBC = 1;
-  IS			bcPointsIS;
+  PetscBool		cellReq = PETSC_FALSE, getAngles = PETSC_FALSE, dbg = PETSC_FALSE;
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
   comm = PETSC_COMM_WORLD;
@@ -792,77 +911,19 @@ int main(int argc, char **argv)
   ierr = PetscViewerSetUp(textviewer);CHKERRQ(ierr);
 
   ierr = PetscOptionsBegin(comm, NULL, "Cell2ref Opts", "");CHKERRQ(ierr); {
-    ierr = PetscOptionsGetString(NULL, NULL, "-f", filename, PETSC_MAX_PATH_LEN, &fileflag); CHKERRQ(ierr);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-ref", &refine, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-cell", &cellPrint, &cellReq);CHKERRQ(ierr);
-    ierr = PetscOptionsGetBool(NULL, NULL, "-skew", &skew, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsGetBool(NULL, NULL, "-stretch", &stretch, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetBool(NULL, NULL, "-angles", NULL, &getAngles);CHKERRQ(ierr);
     ierr = PetscOptionsGetBool(NULL, NULL, "-dbg", NULL, &dbg);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
+
   if (cellReq) {
     ierr = PetscOptionsSetValue(NULL, "-dbg", "true");CHKERRQ(ierr);
     dbg = PETSC_TRUE;
   }
-
-  if (fileflag) {
-    ierr = DMPlexCreateFromFile(comm, filename, dmInterped, &dm);CHKERRQ(ierr);
-  } else {
-    for (i = 0; i < dim; i++) {
-      faces[i] = 2;
-    }
-    ierr = DMPlexCreateBoxMesh(comm, dim, simplex, faces, NULL, NULL, NULL, dmInterped, &dm);CHKERRQ(ierr);
-  }
-  ierr = DMPlexDistribute(dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
-  if (dmDist) {
-    if (dbg) { ierr = PetscPrintf(comm, "Destroyed in Distribute\n");CHKERRQ(ierr);}
-    ierr = DMDestroy(&dm);CHKERRQ(ierr);
-    dm = dmDist;
-  }
-  for (i = 0; i < refine; ++i) {
-    ierr = DMRefine(dm, comm, &dmf);CHKERRQ(ierr);
-    if (dmf) {
-      if (dbg) { ierr = PetscPrintf(comm, "Destroyed in Refine\n");CHKERRQ(ierr);}
-      ierr = DMDestroy(&dm);CHKERRQ(ierr);
-      dm = dmf;
-    }
-  }
-
-  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
-  ierr = DMSetUp(dm);CHKERRQ(ierr);
-  ierr = DMCreateDS(dm);CHKERRQ(ierr);
-
+  ierr = DMPlexCreate(comm, &dm);CHKERRQ(ierr);
+  ierr = SetupMesh(&dm);CHKERRQ(ierr);
   //ierr = SetUpDiscretization(dm);CHKERRQ(ierr);
-  if (1) {
-    PetscInt      numDOF[numFields*(dim+1)], numComp[numFields], bcField[numBC];
-    for (i = 0; i < numFields; i++){numComp[i] = 1;}
-    for (i = 0; i < numFields*(dim+1); i++){numDOF[i] = 0;}
-    //numDOF[0] = 1;
-    bcField[0] = 0;
-
-    /* Behold Ye Olde Klusterfucke	*/
-    //numComp[1] = 3;
-    //numDOF[0*(dim+1)] = 1;
-    //numDOF[1*(dim+1)] = 1;
-    //numDOF[1*(dim+1)+1] = 1;
-    numDOF[1*(dim+1)+depth] = 1; /* ACTIVATE ME AND ONLY ME FOR ACCURATE CELL MAP */
-    //numDOF[1*(dim+1)+depth] = 1;
-
-    ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
-    ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
-    ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldName(section, 0, "Default_Field");CHKERRQ(ierr);
-    ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
-    ierr = DMSetSection(dm, section);CHKERRQ(ierr);
-    ierr = DMCreateDS(dm);CHKERRQ(ierr);
-    ierr = DMSetUp(dm);CHKERRQ(ierr);
-    ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
-    ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
-  }
-  if (stretch) { ierr = StretchArray2D(dm, 2.0, 1.0);CHKERRQ(ierr);}
-  if (skew)    { ierr = SkewArray2D(dm, 45.0);CHKERRQ(ierr);}
 
   ierr = DMPlexGetCellNumbering(dm, &globalCellIS);CHKERRQ(ierr);
   ierr = DMGetStratumIS(dm, "depth", 0, &vertexIS);CHKERRQ(ierr);
@@ -944,6 +1005,11 @@ int main(int argc, char **argv)
   ierr = PetscViewerFileSetMode(textviewer, FILE_MODE_WRITE);CHKERRQ(ierr);
   ierr = PetscViewerFileSetName(textviewer, "Orthqual.txt");CHKERRQ(ierr);
   ierr = PetscViewerSetUp(textviewer);CHKERRQ(ierr);
+
+  PetscScalar v, J, invJ, detJ;
+  ierr = DMPlexComputeCellGeometryFEM(dm, 0, NULL, &v, &J, &invJ, &detJ);CHKERRQ(ierr);
+  PetscScalarView(dim, &v, 0);
+  PetscScalarView(10, &J, 0);
   /*
   PetscFE fe;
   DM dmoq;
@@ -968,7 +1034,7 @@ int main(int argc, char **argv)
     ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_POINT_FIELD, PETSC_TRUE, (PetscObject) PointNum);CHKERRQ(ierr);
   }
 
-  if (1) {
+  if (0) {
     ierr = DMPlexCreateCellNumField(dm, &CellNum);CHKERRQ(ierr);
     ierr = PetscViewerVTKAddField(vtkviewer, (PetscObject) dm, &DMPlexVTKWriteAll, PETSC_VTK_CELL_FIELD, PETSC_FALSE, (PetscObject) CellNum);CHKERRQ(ierr);
     ierr = DMView(dm, vtkviewer);CHKERRQ(ierr);
