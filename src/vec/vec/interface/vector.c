@@ -1,4 +1,3 @@
-
 /*
      Provides the interface functions for vector operations that do NOT have PetscScalar/PetscReal in the signature
    These are the vector functions the user calls.
@@ -506,33 +505,38 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
    Notes:
     You can pass any number of vector objects, or other PETSc objects to the same viewer.
 
-   Notes for binary viewer: If you pass multiply vectors to a binary viewer you can read them back in in the same order
-$     with VecLoad().
-$
-$    If the blocksize of the vector is greater than one then you must provide a unique prefix to
-$    the vector with PetscObjectSetOptionsPrefix((PetscObject)vec,"uniqueprefix"); BEFORE calling VecView() on the
-$    vector to be stored and then set that same unique prefix on the vector that you pass to VecLoad(). The blocksize
-$    information is stored in an ASCII file with the same name as the binary file plus a ".info" appended to the
-$    filename. If you copy the binary file, make sure you copy the associated .info file with it.
+   Notes for binary viewer: 
+     If you pass multiply vectors to a binary viewer you can read them back in in the same order
+     with VecLoad().
 
-   Notes for HDF5 Viewer: the name of the Vec (given with PetscObjectSetName() is the name that is used
-$    for the object in the HDF5 file. If you wish to store the same vector to the HDF5 viewer (with different values,
-$    obviously) several times, you must change its name each time before calling the VecView(). The name you use
-$    here should equal the name that you use in the Vec object that you use with VecLoad().
-$
-$    If the block size of the vector is greater than 1 then it is used as the first dimension in the HDF5 array.
-$    If the function PetscViewerHDF5SetBaseDimension2()is called then even if the block size is one it will
-$    be used as the first dimension in the HDF5 array (that is the HDf5 array will always be two dimensional)
+     If the blocksize of the vector is greater than one then you must provide a unique prefix to
+     the vector with PetscObjectSetOptionsPrefix((PetscObject)vec,"uniqueprefix"); BEFORE calling VecView() on the
+     vector to be stored and then set that same unique prefix on the vector that you pass to VecLoad(). The blocksize
+     information is stored in an ASCII file with the same name as the binary file plus a ".info" appended to the
+     filename. If you copy the binary file, make sure you copy the associated .info file with it.
+     
+    See the manual page for VecLoad() on the exact format the binary viewer stores
+    the values in the file.
 
-   See the manual page for VecLoad() on the exact format the binary viewer stores
-   the values in the file.
 
+   Notes for HDF5 Viewer: 
+     The name of the Vec (given with PetscObjectSetName() is the name that is used
+     for the object in the HDF5 file. If you wish to store the same vector to the HDF5 viewer (with different values,
+     obviously) several times, you must change its name each time before calling the VecView(). The name you use
+     here should equal the name that you use in the Vec object that you use with VecLoad().
+ 
+     If the block size of the vector is greater than 1 then it is used as the first dimension in the HDF5 array.
+     If the function PetscViewerHDF5SetBaseDimension2()is called then even if the block size is one it will
+     be used as the first dimension in the HDF5 array (that is the HDf5 array will always be two dimensional)
+     See also PetscViewerHDF5SetTimestep() which adds an additional complication to reading and writing Vecs
+     with the HDF5 viewer.
+     
    Level: beginner
 
 
 .seealso: PetscViewerASCIIOpen(), PetscViewerDrawOpen(), PetscDrawLGCreate(),
           PetscViewerSocketOpen(), PetscViewerBinaryOpen(), VecLoad(), PetscViewerCreate(),
-           PetscRealView(), PetscScalarView(), PetscIntView()
+          PetscRealView(), PetscScalarView(), PetscIntView(), PetscViewerHDF5SetTimestep()
 @*/
 PetscErrorCode  VecView(Vec vec,PetscViewer viewer)
 {
