@@ -521,9 +521,10 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
 
    Notes for HDF5 Viewer: 
      The name of the Vec (given with PetscObjectSetName() is the name that is used
-     for the object in the HDF5 file. If you wish to store the same vector to the HDF5 viewer (with different values,
-     obviously) several times, you must change its name each time before calling the VecView(). The name you use
-     here should equal the name that you use in the Vec object that you use with VecLoad().
+     for the object in the HDF5 file. If you wish to store the same Vec into multiple
+     datasets in the same file (typically with different values), you must change its
+     name each time before calling the VecView(). To load the same vector,
+     the name of the Vec object passed to VecLoad() must be the same.
  
      If the block size of the vector is greater than 1 then it is used as the first dimension in the HDF5 array.
      If the function PetscViewerHDF5SetBaseDimension2()is called then even if the block size is one it will
