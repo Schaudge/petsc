@@ -506,7 +506,7 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
     You can pass any number of vector objects, or other PETSc objects to the same viewer.
 
    Notes for binary viewer: 
-     If you pass multiply vectors to a binary viewer you can read them back in in the same order
+     If you pass multiple vectors to a binary viewer you can read them back in in the same order
      with VecLoad().
 
      If the blocksize of the vector is greater than one then you must provide a unique prefix to
