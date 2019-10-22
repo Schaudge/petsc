@@ -528,7 +528,7 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
  
      If the block size of the vector is greater than 1 then it is used as the first dimension in the HDF5 array.
      If the function PetscViewerHDF5SetBaseDimension2()is called then even if the block size is one it will
-     be used as the first dimension in the HDF5 array (that is the HDf5 array will always be two dimensional)
+     be used as the first dimension in the HDF5 array (that is the HDF5 array will always be two dimensional)
      See also PetscViewerHDF5SetTimestep() which adds an additional complication to reading and writing Vecs
      with the HDF5 viewer.
      
