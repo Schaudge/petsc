@@ -515,8 +515,8 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
      information is stored in an ASCII file with the same name as the binary file plus a ".info" appended to the
      filename. If you copy the binary file, make sure you copy the associated .info file with it.
      
-    See the manual page for VecLoad() on the exact format the binary viewer stores
-    the values in the file.
+     See the manual page for VecLoad() on the exact format the binary viewer stores
+     the values in the file.
 
 
    Notes for HDF5 Viewer: 
