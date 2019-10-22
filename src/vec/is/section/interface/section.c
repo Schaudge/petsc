@@ -201,7 +201,8 @@ PetscErrorCode PetscSectionSetFromOptions(PetscSection s)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
   ierr = PetscObjectOptionsBegin((PetscObject) s);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-petscsection_point_major", "The for ordering, either point major or field major", "PetscSectionSetPointMajor", s->pointMajor, &s->pointMajor, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-petscsection_point_major", "The local ordering, either point major or field major", "PetscSectionSetPointMajor", s->pointMajor, &s->pointMajor, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-petscsection_chunk_major", "The point ordering, either chunk major or field major", "PetscSectionSetChunkMajor", s->chunkMajor, &s->chunkMajor, NULL);CHKERRQ(ierr);
   /* process any options handlers added with PetscObjectAddOptionsHandler() */
   ierr = PetscObjectProcessOptionsHandlers(PetscOptionsObject,(PetscObject) s);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
@@ -620,7 +621,7 @@ PetscErrorCode PetscSectionSetPermutation(PetscSection s, IS perm)
 
   Level: intermediate
 
-.seealso: PetscSectionSetPointMajor()
+.seealso: PetscSectionSetPointMajor(), PetscSectionGetChunkMajor()
 @*/
 PetscErrorCode PetscSectionGetPointMajor(PetscSection s, PetscBool *pm)
 {
@@ -640,11 +641,12 @@ PetscErrorCode PetscSectionGetPointMajor(PetscSection s, PetscBool *pm)
 + s  - the PetscSection
 - pm - the flag for point major ordering
 
-  Not collective
+  Options Database Keys:
+. -petscsection_point_major - If true, points are ordered first, otherwise fields are ordered first
 
   Level: intermediate
 
-.seealso: PetscSectionGetPointMajor()
+.seealso: PetscSectionGetPointMajor(), PetscSectionSetChunkMajor()
 @*/
 PetscErrorCode PetscSectionSetPointMajor(PetscSection s, PetscBool pm)
 {
@@ -652,6 +654,55 @@ PetscErrorCode PetscSectionSetPointMajor(PetscSection s, PetscBool pm)
   PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
   if (s->setup) SETERRQ(PetscObjectComm((PetscObject) s), PETSC_ERR_ARG_WRONGSTATE, "Cannot set the dof ordering after the section is setup");
   s->pointMajor = pm;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  PetscSectionGetChunkMajor - Returns the flag for dof point ordering, true if it is chunk major, otherwise field major
+
+  Not collective
+
+  Input Parameter:
+. s - the PetscSection
+
+  Output Parameter:
+. cm - the flag for chunk major ordering
+
+  Level: intermediate
+
+.seealso: PetscSectionSetChunkMajor(), PetscSectionGetPointMajor()
+@*/
+PetscErrorCode PetscSectionGetChunkMajor(PetscSection s, PetscBool *cm)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
+  PetscValidPointer(cm,2);
+  *cm = s->chunkMajor;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  PetscSectionSetChunkMajor - Sets the flag for dof point ordering, true if it is chunk major, otherwise field major
+
+  Not collective
+
+  Input Parameters:
++ s  - the PetscSection
+- cm - the flag for chunk major ordering
+
+  Options Database Keys:
+. -petscsection_chunk_major - If true, chunks are ordered first, otherwise fields are ordered first
+
+  Level: intermediate
+
+.seealso: PetscSectionGetChunkMajor(), PetscSectionSetPointMajor()
+@*/
+PetscErrorCode PetscSectionSetChunkMajor(PetscSection s, PetscBool cm)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 1);
+  if (s->setup) SETERRQ(PetscObjectComm((PetscObject) s), PETSC_ERR_ARG_WRONGSTATE, "Cannot set the dof ordering after the section is setup");
+  s->chunkMajor = cm;
   PetscFunctionReturn(0);
 }
 
@@ -1035,12 +1086,36 @@ PetscErrorCode PetscSectionSetUp(PetscSection s)
       s->atlasOff[q] = offset;
       offset        += s->atlasDof[q];
       s->maxDof      = PetscMax(s->maxDof, s->atlasDof[q]);
-      /* Set field offset */
-      for (f = 0, foff = s->atlasOff[q]; f < s->numFields; ++f) {
-        PetscSection sf = s->field[f];
+      if (s->chunkMajor) {
+        /* All fields must have same number of chunks on a point */
+        for (f = 0; f < s->numFields; ++f) {
+          PetscSection   sf   = s->field[f];
+          const PetscInt fdof = sf->atlasDof[q];
+          const PetscInt cs   = sf->atlasChunk[q*2];
+          PetscInt       Nc, fNc;
 
-        sf->atlasOff[q] = foff;
-        foff += sf->atlasDof[q];
+          if (!sf->atlasChunk) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "On point %D, chunk major ordering requires that field %D set the number of chunks", p, f);
+          Nc  = s->field[0]->atlasChunk[q*2] / s->field[0]->atlasDof[q];
+          fNc = cs / fdof;
+          if (fNc != Nc) SETERRQ4(PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "On point %D, chunk major ordering requires that the number of chunks %D for field %D be equal to the common number of chunks %D", p, fNc, f, Nc);
+          if (cs && fdof%cs) SETERRQ4(PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "On point %D, chunk major ordering requires that the field dofs %D for field %D be divisible by the number of chunks %D", p, fdof, f, Nc);
+        }
+        /* Set field offset */
+        for (f = 0, foff = s->atlasOff[q]; f < s->numFields; ++f) {
+          PetscSection   sf = s->field[f];
+          const PetscInt cs = sf->atlasChunk[q*2];
+
+          sf->atlasOff[q] = foff;
+          foff += cs;
+        }
+      } else {
+        /* Set field offset */
+        for (f = 0, foff = s->atlasOff[q]; f < s->numFields; ++f) {
+          PetscSection sf = s->field[f];
+
+          sf->atlasOff[q] = foff;
+          foff += sf->atlasDof[q];
+        }
       }
     }
   } else {
@@ -1925,6 +2000,10 @@ static PetscErrorCode PetscSectionView_ASCII(PetscSection s, PetscViewer viewer)
   ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);
   ierr = PetscViewerASCIISynchronizedPrintf(viewer, "Process %d:\n", rank);CHKERRQ(ierr);
   for (p = 0; p < s->pEnd - s->pStart; ++p) {
+    const PetscInt Nc = s->atlasChunk ? s->atlasDof[p]/s->atlasChunk[p*2+0] : 1;
+    const PetscInt cs = s->atlasChunk ? s->atlasChunk[p*2+1] : 1;
+    PetscInt       c;
+
     if ((s->bc) && (s->bc->atlasDof[p] > 0)) {
       PetscInt b;
 
@@ -1934,7 +2013,9 @@ static PetscErrorCode PetscSectionView_ASCII(PetscSection s, PetscViewer viewer)
       }
       ierr = PetscViewerASCIISynchronizedPrintf(viewer, "\n");CHKERRQ(ierr);
     } else {
-      ierr = PetscViewerASCIISynchronizedPrintf(viewer, "  (%4D) dim %2D offset %3D\n", p+s->pStart, s->atlasDof[p], s->atlasOff[p]);CHKERRQ(ierr);
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer, "  (%4D) dim %2D offset", p+s->pStart, s->atlasDof[p]);CHKERRQ(ierr);
+      for (c = 0; c < Nc; ++c) {ierr = PetscViewerASCIISynchronizedPrintf(viewer, " %3D", s->atlasOff[p] + c*cs);CHKERRQ(ierr);}
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer, "\n");CHKERRQ(ierr);
     }
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -2015,6 +2096,7 @@ PetscErrorCode PetscSectionReset(PetscSection s)
   ierr = PetscSectionDestroy(&s->bc);CHKERRQ(ierr);
   ierr = PetscFree(s->bcIndices);CHKERRQ(ierr);
   ierr = PetscFree2(s->atlasDof, s->atlasOff);CHKERRQ(ierr);
+  ierr = PetscFree(s->atlasChunk);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&s->clSection);CHKERRQ(ierr);
   ierr = ISDestroy(&s->clPoints);CHKERRQ(ierr);
   ierr = ISDestroy(&s->perm);CHKERRQ(ierr);
@@ -3367,9 +3449,12 @@ PetscErrorCode PetscSectionRestoreFieldPointSyms(PetscSection section, PetscInt 
   Output Parameters:
 . flg - the flag
 
+  Note: This is currently used only in DMPlexMatSetClosure(). It allows a user to override the point numbering in a
+  global section, and instead use a completely custom numbering, such as an outer grouping by field as LibMesh has.
+
   Level: developer
 
-.seealso: PetscSectionSetChart(), PetscSectionCreate()
+.seealso: PetscSectionSetChart(), PetscSectionCreate(), DMPlexMatSetClosure()
 @*/
 PetscErrorCode PetscSectionGetUseFieldOffsets(PetscSection s, PetscBool *flg)
 {
@@ -3388,9 +3473,12 @@ PetscErrorCode PetscSectionGetUseFieldOffsets(PetscSection s, PetscBool *flg)
 + s   - the global PetscSection
 - flg - the flag
 
+  Note: This is currently used only in DMPlexMatSetClosure(). It allows a user to override the point numbering in a
+  global section, and instead use a completely custom numbering, such as an outer grouping by field as LibMesh has.
+
   Level: developer
 
-.seealso: PetscSectionGetUseFieldOffsets(), PetscSectionSetChart(), PetscSectionCreate()
+.seealso: PetscSectionGetUseFieldOffsets(), PetscSectionSetChart(), PetscSectionCreate(), DMPlexMatSetClosure()
 @*/
 PetscErrorCode PetscSectionSetUseFieldOffsets(PetscSection s, PetscBool flg)
 {

@@ -1,0 +1,85 @@
+DM Object: Mesh 1 MPI processes
+  type: plex
+Mesh in 2 dimensions:
+  0-cells: 4
+  1-cells: 5
+  2-cells: 2
+Labels:
+  depth: 3 strata with value/size (0 (4), 1 (5), 2 (2))
+  marker: 1 strata with value/size (1 (8))
+  Face Sets: 1 strata with value/size (1 (4))
+Discrete System with 2 fields
+    cell total dim 30 total comp 3
+  Field field A FEM 1 component  (implicit) (Nq 16 Nqc 1)
+    PetscFE Object: field A (a_) 1 MPI processes
+      type: basic
+      Basic Finite Element in 2 dimensions with 1 components
+      PetscSpace Object: (a_) 1 MPI processes
+        type: poly
+        Space in 2 variables with 1 components, size 10
+        Polynomial space of degree 3
+      PetscDualSpace Object: PetscDualSpace_0x84000000_2 (a_) 1 MPI processes
+        type: lagrange
+        Dual space with 1 components, size 10
+        Continuous Lagrange dual space
+        Quadrature of order 7 on 16 points (dim 2)
+  Field field B FEM 2 components (implicit) (Nq 16 Nqc 1)
+    PetscFE Object: field B (b_) 1 MPI processes
+      type: basic
+      Basic Finite Element in 2 dimensions with 2 components
+      PetscSpace Object: (b_) 1 MPI processes
+        type: poly
+        Space in 2 variables with 2 components, size 20
+        Polynomial space of degree 3
+      PetscDualSpace Object: PetscDualSpace_0x84000000_4 (b_) 1 MPI processes
+        type: lagrange
+        Dual space with 2 components, size 20
+        Continuous Lagrange dual space
+        Quadrature of order 7 on 16 points (dim 2)
+PetscSection Object: 1 MPI processes
+  type not yet set
+2 fields
+  field 0 with 1 components
+Process 0:
+  (   0) dim  1 offset   0
+  (   1) dim  1 offset   3
+  (   2) dim  1 offset   6
+  (   3) dim  1 offset   9
+  (   4) dim  1 offset  12
+  (   5) dim  1 offset  15
+  (   6) dim  2 offset  18
+  (   7) dim  2 offset  24
+  (   8) dim  2 offset  30
+  (   9) dim  2 offset  36
+  (  10) dim  2 offset  42
+  PetscSectionSym Object: 1 MPI processes
+    type: label
+    Label 'depth'
+    Symmetry for stratum value 0 (0 dofs per point): no symmetries
+    Symmetry for stratum value 1 (2 dofs per point):
+      Orientation range: [-2, 2)
+    Symmetry for stratum value 2 (1 dofs per point):
+      Orientation range: [-3, 3)
+    Symmetry for stratum value -1 (0 dofs per point): no symmetries
+  field 1 with 2 components
+Process 0:
+  (   0) dim  2 offset   1
+  (   1) dim  2 offset   4
+  (   2) dim  2 offset   7
+  (   3) dim  2 offset  10
+  (   4) dim  2 offset  13
+  (   5) dim  2 offset  16
+  (   6) dim  4 offset  20
+  (   7) dim  4 offset  26
+  (   8) dim  4 offset  32
+  (   9) dim  4 offset  38
+  (  10) dim  4 offset  44
+  PetscSectionSym Object: 1 MPI processes
+    type: label
+    Label 'depth'
+    Symmetry for stratum value 0 (0 dofs per point): no symmetries
+    Symmetry for stratum value 1 (4 dofs per point):
+      Orientation range: [-2, 2)
+    Symmetry for stratum value 2 (2 dofs per point):
+      Orientation range: [-3, 3)
+    Symmetry for stratum value -1 (0 dofs per point): no symmetries

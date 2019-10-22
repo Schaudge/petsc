@@ -11,6 +11,9 @@ struct _p_PetscSection {
   PetscBool                     pointMajor;   /* True if the offsets are point major, otherwise they are fieldMajor */
   PetscInt                     *atlasDof;     /* Describes layout of storage, point --> # of values */
   PetscInt                     *atlasOff;     /* Describes layout of storage, point --> offset into storage */
+  PetscInt                     *atlasChunk;   /* SECTION: point --> {chunk size,       chunk size}
+                                                 FIELD:   point --> {field chunk size, chunk size} (usually corresponds to dual vectors) */
+  PetscBool                     chunkMajor;   /* True if the point offsets are chunk major, otherwise they are fieldMajor */
   PetscInt                      maxDof;       /* Maximum dof on any point */
   PetscSection                  bc;           /* Describes constraints, point --> # local dofs which are constrained */
   PetscInt                     *bcIndices;    /* Local indices for constrained dofs */
@@ -19,6 +22,7 @@ struct _p_PetscSection {
   PetscInt                      numFields;    /* The number of fields making up the degrees of freedom */
   char                        **fieldNames;   /* The field names */
   PetscInt                     *numFieldComponents; /* The number of components in each field */
+  PetscInt                     *fieldUnits;   /* The units for each field, expressed as exponents for the 7 fundamental quantities */
   PetscSection                 *field;        /* A section describing the layout and constraints for each field */
   PetscBool                     useFieldOff;  /* Use the field offsets directly for the global section, rather than the point offset */
 

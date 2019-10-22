@@ -151,6 +151,41 @@ static PetscErrorCode DMPlexCreateSectionDof(DM dm, DMLabel label[],const PetscI
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMPlexCreateSectionChunkSizes(DM dm, const PetscInt numComp[], const PetscInt numDof[], PetscSection s)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (s->chunkMajor) {
+    DMLabel  depthLabel;
+    PetscInt dim, depth, pStart, pEnd, p, f, d;
+
+    ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+    ierr = DMGetDimension(dm, &depth);CHKERRQ(ierr);
+    if (dim != depth) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONGSTATE, "Chunk major ordering only applies to interpolated meshes");
+    ierr = DMPlexGetDepthLabel(dm, &depthLabel);CHKERRQ(ierr);
+    ierr = PetscSectionGetChart(s, &pStart, &pEnd);CHKERRQ(ierr);
+    ierr = PetscCalloc1((pEnd-pStart)*2, &s->atlasChunk);CHKERRQ(ierr);
+    for (f = 0; f < s->numFields; ++f) {
+      PetscSection sf = s->field[f];
+
+      ierr = PetscMalloc1((pEnd-pStart)*2, &sf->atlasChunk);CHKERRQ(ierr);
+      for (p = 0; p < pEnd-pStart; ++p) {
+        ierr = DMLabelGetValue(depthLabel, p+pStart, &d);CHKERRQ(ierr);
+        sf->atlasChunk[p*2+0] = numDof[f*(dim+1)+d] ? numComp[f] : 0;
+        s->atlasChunk[p*2+0] += sf->atlasChunk[p*2+0];
+      }
+    }
+    for (p = 0; p < pEnd-pStart; ++p) {
+      s->atlasChunk[p*2+1] = s->atlasChunk[p*2+0];
+      for (f = 0; f < s->numFields; ++f) {
+        s->field[f]->atlasChunk[p*2+1] = s->atlasChunk[p*2+0];
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
 /* Set the number of dof on each point and separate by fields
    If bcComps is NULL or the IS is NULL, constrain every dof on the point
 */
@@ -381,6 +416,7 @@ PetscErrorCode DMPlexCreateSection(DM dm, DMLabel label[], const PetscInt numCom
   ierr = DMPlexCreateSectionBCDof(dm, numBC, bcField, bcComps, bcPoints, *section);CHKERRQ(ierr);
   if (perm) {ierr = PetscSectionSetPermutation(*section, perm);CHKERRQ(ierr);}
   ierr = PetscSectionSetFromOptions(*section);CHKERRQ(ierr);
+  ierr = DMPlexCreateSectionChunkSizes(dm, numComp, numDof, *section);CHKERRQ(ierr);
   ierr = PetscSectionSetUp(*section);CHKERRQ(ierr);
   ierr = DMPlexGetAnchors(dm,&aSec,NULL);CHKERRQ(ierr);
   if (numBC || aSec) {

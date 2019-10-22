@@ -5984,11 +5984,14 @@ Data is associated with a mesh using the \lstinline{PetscSection} object. A \lst
 \lstinline{PetscLayout}, in the same way that a fiber bundle is a generalization of the normal Euclidean basis used in linear
 algebra. With \lstinline{PetscLayout}, we associate a unit vector ($e_i$) with every point in the space, and just divide up points
 between processes. Using \lstinline{PetscSection}, we can associate a set of dofs, a small space $\{e_k\}$, with every point, and
-though our points must be contiguous like \lstinline{PetscLayout}, they can be in any range $[\mathrm{pStart}, \mathrm{pEnd})$.
+though our points must be contiguous like \lstinline{PetscLayout}, they can be in any range $[\mathrm{pStart}, \mathrm{pEnd})$. While
+\lstinline{PetscSection} allows these points to be arbitrary integers, when using Plex the points will generally represent mesh points.
+However, it is not alwyas the case. For instance, when bootstrapping partitions, we make a \lstinline{PetscSection} where points represent
+processes, and in calculating the JAcobian nonzero pattern we make a \lstinline{PetscSection} where points represent dofs.
 
 The sequence for setting up any \lstinline{PetscSection} is the following:
 \begin{enumerate}
-  \item Specify the chart,
+  \item Specify the chart (or point space),
   \item Specify the number of dofs per point, and
   \item Set up the \lstinline{PetscSection}.
 \end{enumerate}
@@ -6014,12 +6017,12 @@ DMPlexGetHeightStratum() returns all the points of the requested
 height in the DAG. Since this problem is in two dimensions the edges
 are at height 1 and the vertices at height 2 (the cells are always at
 height 0). One can also use \lstinline{DMPlexGetDepthStratum()} to use the depth
-in the DAG to select the points. \lstinline{DMPlexGetDepth(,&depth)} routines the depth of the DAG, hence
-\lstinline{DMPlexGetDepthStratum(dm,depth-1-h,)} returns the same values as \lstinline{DMPlexGetHeightStratum(dm,h,)}.
+in the DAG to select the points. \lstinline{DMPlexGetDepth(dm,&depth)} routines the depth of the DAG, hence
+\lstinline{DMPlexGetDepthStratum(dm,depth-h,)} returns the same values as \lstinline{DMPlexGetHeightStratum(dm,h,)}.
 
 For P3 elements there is one degree of freedom at each vertex, 2 along
-each edge (resulting in a total of 4 degrees of freedom alone each
-edge including the vertices, thus being able to reproduce a cubic
+each edge (resulting in a total of 4 degrees of freedom along each
+edge including the vertices, enabling it to reproduce a cubic
 function) and 1 degree of freedom within the cell (the bubble function
 which is zero along all edges).
 
@@ -6035,6 +6038,16 @@ DMSetLocalSection(dm, s);
 DMGetLocalVector(dm, &localVec);
 DMGetGlobalVector(dm, &globalVec);
 \end{lstlisting}
+
+\subsubsection{Local Ordering}
+
+When creating the local vector above, we used the default ordering. However, \lst{PetscSection} offers many options for the user to customize the ordering to promote optimization or to match existing code. We will describe completely the production of a local ordering, beginning with the largest divsions and proceeding to the smaller. At the topmost level, the Section orders points in the canonical order, smallest to largest \lstinline{[pStart, pEnd)}, and then order fields on each point. The point ordering can be overridden by the user with an arbitrary permutation using \lstinline{PetscSectionSetPermutation()}. In addition, this scheme may be inverted to first order fields, and within each field order points, by calling \lstinline{PetscSectionSetPointMajor}. However, this makes the point offsets undefined, so they are disabled in this case and \lstinline{PetscSectionGetOffset()} returns -1.
+
+With point major ordering, at the lower level on each point, a field will have some number of values, set using \lstinline{PetscSectionGetFieldDof()}. This need not correspond to the number of field components, and usually depends on the details of the discretization being used. An additional specification that can be made here is that the field dofs are stored in some number of equal size chunks, set using \lstinline{PetscSectionSetFieldChunks()}. In the P3 example above, the field would have two chunks per edge corresponding to the two dual basis vectors attached to each edge. The default ordering separates first by field, then by chunk, however the user can invert this ordering using \lstinline{PetscSectionSetChunkMajor()}. The chunk major ordering is a specialized thing that will not work unless the mesh is interpolated, all fields have the same number of chunks, and the number of degrees of freedom for a chunk is the number for the point divided by the number of field components.
+
+\subsubsection{Closure Ordering}
+
+A permutation for the closure of a set of points in the chart may be specified, when the points all have the same closure size. A common use case for this is the implementation of tensor product finite elements as in spectral element methods. The user would like closures with lexicographic ordering, whereas the default Plex ordering returns points ordered by height. The spectral reordering can be employed by calling \lstinline{DMPlexSetClosurePermutationTensor()}.
 
 \subsection{Partitioning and Ordering}
 

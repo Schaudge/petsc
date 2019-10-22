@@ -645,4 +645,13 @@ typedef struct _n_PetscSegBuffer *PetscSegBuffer;
 
 typedef struct _n_PetscOptionsHelpPrinted *PetscOptionsHelpPrinted;
 
+/*E
+  PetscUnit - The seven fundamental SI units
+
+  Level: beginner
+
+.seealso: DMPlexGetScale(), DMPlexSetScale()
+E*/
+typedef enum {PETSC_UNIT_LENGTH, PETSC_UNIT_MASS, PETSC_UNIT_TIME, PETSC_UNIT_CURRENT, PETSC_UNIT_TEMPERATURE, PETSC_UNIT_AMOUNT, PETSC_UNIT_LUMINOSITY, NUM_PETSC_UNITS} PetscUnit;
+
 #endif
