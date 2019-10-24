@@ -1059,16 +1059,8 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "%s General Info %s\n", bar + 2, bar + 2);CHKERRQ(ierr);
 
-    if (size > 1) {
-      PetscSF	sf;
-
-      ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
-      if (sf) {
-        dmDistributed = PETSC_TRUE;
-      }
-    }
-
     /*	Get General DMPlex Information	*/
+    ierr = DMPlexIsDistributed(dm, &dmDistributed);CHKERRQ(ierr);
     ierr = DMPlexGetOverlap(dm, &maxOverlap);CHKERRQ(ierr);
     if (maxOverlap > 0) { dmOverlapped = PETSC_TRUE;}
 
