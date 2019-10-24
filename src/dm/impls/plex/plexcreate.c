@@ -1133,6 +1133,171 @@ PetscErrorCode DMPlexCreateWedgeBoxMesh(MPI_Comm comm, const PetscInt faces[], c
   PetscFunctionReturn(0);
 }
 
+/*
+  DMPlexCreateDiamondBox - Creates a diamond inside a square in a periodic array.
+
+  Collective on comm
+
+  Input Parameter:
+. comm - The MPI communicator
+
+  Output Parameter:
+. odm - The output DM
+
+  Note: This produces the following periodic mesh
+$ ------------
+$ | /|\  /|\
+$ |/ | \/ | \
+$ |\ | /\ | /
+$ | \|/  \|/
+$ -----------
+This is used in the two-stream instability test for plasma physics.
+
+  Level: beginner
+
+.seealso: DMPlexCreateBoxMesh(), DMPlexCreate()
+*/
+PetscErrorCode DMPlexCreateDiamondBox(MPI_Comm comm, DM *odm)
+{
+  DM             dm, idm;
+  DMLabel        bdLabel, cutLabel = NULL;
+  PetscInt       cone[3];
+  PetscInt       dim = 2, markerBottom = 1, markerTop = 1, Nc, c, Nv, v;
+  PetscMPIInt    rank;
+  PetscBool      markerSeparate = PETSC_FALSE, cutMarker = PETSC_FALSE;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidPointer(odm, 2);
+  ierr = DMCreate(comm, &dm);CHKERRQ(ierr);
+  ierr = DMSetType(dm, DMPLEX);CHKERRQ(ierr);
+  ierr = DMSetDimension(dm, dim);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(((PetscObject) dm)->options,((PetscObject) dm)->prefix, "-dm_plex_separate_marker", &markerSeparate, NULL);CHKERRQ(ierr);
+  if (markerSeparate) {
+  }
+  ierr = DMCreateLabel(dm, "marker");CHKERRQ(ierr);
+  ierr = DMGetLabel(dm, "marker", &bdLabel);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(((PetscObject) dm)->options,((PetscObject) dm)->prefix, "-dm_plex_periodic_cut", &cutMarker, NULL);CHKERRQ(ierr);
+  if (cutMarker) {
+    ierr = DMCreateLabel(dm, "periodic_cut");CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, "periodic_cut", &cutLabel);CHKERRQ(ierr);
+  }
+  /* Create topology */
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  Nc   = 12;
+  Nv   = 10;
+  ierr = DMPlexSetChart(dm, 0, Nc+Nv);CHKERRQ(ierr);
+  for (c = 0; c < Nc; ++c) {
+    ierr = DMPlexSetConeSize(dm, c, 3);CHKERRQ(ierr);
+  }
+  ierr = DMSetUp(dm);CHKERRQ(ierr); /* Allocate space for cones */
+  /*   Build cells */
+  cone[0] = 12; cone[1] = 15; cone[2] = 13;
+  ierr = DMPlexSetCone(dm,  0, cone);CHKERRQ(ierr);
+  cone[0] = 15; cone[1] = 16; cone[2] = 13;
+  ierr = DMPlexSetCone(dm,  1, cone);CHKERRQ(ierr);
+  cone[0] = 13; cone[1] = 16; cone[2] = 14;
+  ierr = DMPlexSetCone(dm,  2, cone);CHKERRQ(ierr);
+  cone[0] = 15; cone[1] = 17; cone[2] = 18;
+  ierr = DMPlexSetCone(dm,  3, cone);CHKERRQ(ierr);
+  cone[0] = 15; cone[1] = 18; cone[2] = 16;
+  ierr = DMPlexSetCone(dm,  4, cone);CHKERRQ(ierr);
+  cone[0] = 18; cone[1] = 19; cone[2] = 16;
+  ierr = DMPlexSetCone(dm,  5, cone);CHKERRQ(ierr);
+  cone[0] = 17; cone[1] = 20; cone[2] = 18;
+  ierr = DMPlexSetCone(dm,  6, cone);CHKERRQ(ierr);
+  cone[0] = 20; cone[1] = 21; cone[2] = 18;
+  ierr = DMPlexSetCone(dm,  7, cone);CHKERRQ(ierr);
+  cone[0] = 18; cone[1] = 21; cone[2] = 19;
+  ierr = DMPlexSetCone(dm,  8, cone);CHKERRQ(ierr);
+  cone[0] = 20; cone[1] = 12; cone[2] = 13;
+  ierr = DMPlexSetCone(dm,  9, cone);CHKERRQ(ierr);
+  cone[0] = 20; cone[1] = 13; cone[2] = 21;
+  ierr = DMPlexSetCone(dm, 10, cone);CHKERRQ(ierr);
+  cone[0] = 21; cone[1] = 13; cone[2] = 14;
+  ierr = DMPlexSetCone(dm, 11, cone);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 12, markerBottom);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 15, markerBottom);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 17, markerBottom);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 20, markerBottom);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 14, markerTop);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 16, markerTop);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 19, markerTop);CHKERRQ(ierr);
+  ierr = DMLabelSetValue(bdLabel, 21, markerTop);CHKERRQ(ierr);
+  ierr = DMPlexSymmetrize(dm);CHKERRQ(ierr);
+  ierr = DMPlexStratify(dm);CHKERRQ(ierr);
+  ierr = DMPlexInterpolate(dm, &idm);CHKERRQ(ierr);
+  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  dm   = idm;
+  /* Create geometry */
+  {
+    DM           cdm;
+    PetscSection cs;
+    Vec          coordinates;
+    PetscScalar *coords;
+
+    ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+    ierr = DMGetCoordinateSection(dm, &cs);CHKERRQ(ierr);
+    ierr = PetscSectionSetNumFields(cs, 1);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldComponents(cs, 0, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetChart(cs, Nc, Nc+Nv);CHKERRQ(ierr);
+    for (v = Nc; v < Nc+Nv; ++v) {
+      ierr = PetscSectionSetDof(cs, v, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldDof(cs, v, 0, dim);CHKERRQ(ierr);
+    }
+    ierr = PetscSectionSetUp(cs);CHKERRQ(ierr);
+    ierr = DMCreateLocalVector(cdm, &coordinates);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) coordinates, "coordinates");CHKERRQ(ierr);
+    ierr = VecGetArray(coordinates, &coords);CHKERRQ(ierr);
+    coords[0*dim+0] = 0.0; coords[0*dim+1] = 0.0;
+    coords[1*dim+0] = 0.0; coords[1*dim+1] = 1.0;
+    coords[2*dim+0] = 0.0; coords[2*dim+1] = 2.0;
+    coords[3*dim+0] = 1.0; coords[3*dim+1] = 0.0;
+    coords[4*dim+0] = 1.0; coords[4*dim+1] = 2.0;
+    coords[5*dim+0] = 2.0; coords[5*dim+1] = 0.0;
+    coords[6*dim+0] = 2.0; coords[6*dim+1] = 1.0;
+    coords[7*dim+0] = 2.0; coords[7*dim+1] = 2.0;
+    coords[8*dim+0] = 3.0; coords[8*dim+1] = 0.0;
+    coords[9*dim+0] = 3.0; coords[9*dim+1] = 2.0;
+    ierr = VecRestoreArray(coordinates, &coords);CHKERRQ(ierr);
+    ierr = DMSetCoordinatesLocal(dm, coordinates);CHKERRQ(ierr);
+    ierr = VecDestroy(&coordinates);CHKERRQ(ierr);
+  }
+  /* Create Periodicity */
+  if (cutLabel) {
+    const PetscInt *edge;
+    PetscInt        n;
+
+    ierr = DMLabelSetValue(cutLabel,  9, 2);CHKERRQ(ierr);
+    ierr = DMLabelSetValue(cutLabel, 11, 2);CHKERRQ(ierr);
+    ierr = DMLabelSetValue(cutLabel,  0, 1);CHKERRQ(ierr);
+    ierr = DMLabelSetValue(cutLabel,  1, 1);CHKERRQ(ierr);
+    ierr = DMLabelSetValue(cutLabel,  1, 2);CHKERRQ(ierr);
+    cone[0] = 0; cone[1] = 1;
+    ierr = DMPlexGetJoin(dm, 2, cone, &n, &edge);CHKERRQ(ierr);
+    if (n != 1) SETERRQ3(comm, PETSC_ERR_PLIB, "Invalid join for (%D, %D): %D points", cone[0], cone[1], n);
+    ierr = DMLabelSetValue(cutLabel, edge[0], 1);CHKERRQ(ierr);
+    ierr = DMPlexRestoreJoin(dm, 2, cone, &n, &edge);CHKERRQ(ierr);
+    cone[0] = 1; cone[1] = 2;
+    ierr = DMPlexGetJoin(dm, 2, cone, &n, &edge);CHKERRQ(ierr);
+    if (n != 1) SETERRQ3(comm, PETSC_ERR_PLIB, "Invalid join for (%D, %D): %D points", cone[0], cone[1], n);
+    ierr = DMLabelSetValue(cutLabel, edge[0], 1);CHKERRQ(ierr);
+    ierr = DMPlexRestoreJoin(dm, 2, cone, &n, &edge);CHKERRQ(ierr);
+  }
+  {
+    DMBoundaryType periodicity[2] = {DM_BOUNDARY_PERIODIC, DM_BOUNDARY_NONE};
+    PetscReal      L[2], maxCell[2];
+
+    L[0]       = 4.0;
+    maxCell[0] = 1.0;
+    L[1]       = 2.0;
+    maxCell[1] = 2.0;
+    ierr = DMSetPeriodicity(dm, PETSC_TRUE, maxCell, L, periodicity);CHKERRQ(ierr);
+  }
+  *odm = dm;
+  PetscFunctionReturn(0);
+}
+
 /*@
   DMPlexExtrude - Creates a (d+1)-D mesh by extruding a d-D mesh in the normal direction using prismatic cells.
 

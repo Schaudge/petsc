@@ -2,7 +2,7 @@ static char help[] = "Tests various DMPlex routines to construct, refine and dis
 
 #include <petscdmplex.h>
 
-typedef enum {BOX, CYLINDER} DomainShape;
+typedef enum {BOX, CYLINDER, DIAMOND} DomainShape;
 enum {STAGE_LOAD, STAGE_DISTRIBUTE, STAGE_REFINE, STAGE_OVERLAP};
 
 typedef struct {
@@ -37,7 +37,7 @@ typedef struct {
 
 PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
-  const char       *dShapes[2] = {"box", "cylinder"};
+  const char       *dShapes[3] = {"box", "cylinder", "diamond"};
   PetscInt         shape, bd, n;
   static PetscInt  domainBoxSizes[3] = {1,1,1};
   static PetscReal domainBoxL[3] = {0.,0.,0.};
@@ -84,7 +84,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBool("-simplex2tensor", "Refine simplicial cells in tensor product cells", "ex1.c", options->simplex2tensor, &options->simplex2tensor, NULL);CHKERRQ(ierr);
   if (options->simplex2tensor) options->interpolate = PETSC_TRUE;
   shape = options->domainShape;
-  ierr = PetscOptionsEList("-domain_shape","The shape of the domain","ex1.c", dShapes, 2, dShapes[options->domainShape], &shape, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEList("-domain_shape","The shape of the domain","ex1.c", dShapes, 3, dShapes[options->domainShape], &shape, NULL);CHKERRQ(ierr);
   options->domainShape = (DomainShape) shape;
   ierr = PetscOptionsIntArray("-domain_box_sizes","The sizes of the box domain","ex1.c", domainBoxSizes, (n=3,&n), &flg);CHKERRQ(ierr);
   if (flg) { options->domainShape = BOX; options->domainBoxSizes = domainBoxSizes;}
@@ -198,6 +198,11 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       } else {
         ierr = DMPlexCreateHexCylinderMesh(comm, 3, user->periodicity[2], dm);CHKERRQ(ierr);
       }
+      break;
+    case DIAMOND:
+      if (dim != 2)     SETERRQ1(comm, PETSC_ERR_ARG_WRONG, "Dimension must be 2 for a diamond box mesh, not %D", dim);
+      if (!cellSimplex) SETERRQ(comm, PETSC_ERR_ARG_WRONG, "Cannot mesh the diamond box with quads");
+      ierr = DMPlexCreateDiamondBox(comm, dm);CHKERRQ(ierr);
       break;
     default: SETERRQ1(comm, PETSC_ERR_ARG_WRONG, "Unknown domain shape %D", user->domainShape);
     }
@@ -1013,4 +1018,8 @@ int main(int argc, char **argv)
   test:
     suffix: glvis_3d_hyb_s2t
     args: -dim 3 -filename ${wPETSC_DIR}/share/petsc/datafiles/meshes/hybrid_3d_cube.msh -interpolate -dm_view glvis: -viewer_glvis_dm_plex_enable_boundary -petscpartitioner_type simple -simplex2tensor
+
+  test:
+    suffix: 2d_diamond
+    args: -domain_shape diamond -dm_view
 TEST*/
