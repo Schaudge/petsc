@@ -1,10 +1,11 @@
-#
+#requirespackage 'PETSC_HAVE_CUDA'
 ALL: lib
 
 CFLAGS    =
 FFLAGS    =
 CPPFLAGS  =
 SOURCEC   = mis.c
+SOURCECU  = pmiscuda.cu
 SOURCEH   =
 LIBBASE   = libpetscmat
 LOCDIR    = src/mat/coarsen/impls/mis/

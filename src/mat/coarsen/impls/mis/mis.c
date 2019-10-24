@@ -8,6 +8,10 @@
 #define MIS_REMOVED  -3
 #define MIS_IS_SELECTED(s) (s!=MIS_DELETED && s!=MIS_NOT_DONE && s!=MIS_REMOVED)
 
+#if defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS,Mat,PetscBool,PetscCoarsenData**);
+#endif
+
 /* -------------------------------------------------------------------------- */
 /*
    maxIndSetAgg - parallel maximal independent set (MIS) with data locality info. MatAIJ specific!!!
@@ -279,7 +283,11 @@ static PetscErrorCode MatCoarsenApply_MIS(MatCoarsen coarse)
     ierr = maxIndSetAgg(perm, mat, coarse->strict_aggs, &coarse->agg_lists);CHKERRQ(ierr);
     ierr = ISDestroy(&perm);CHKERRQ(ierr);
   } else {
+#if defined(PETSC_HAVE_CUDA)
+    ierr = maxIndSetAggCUDA(coarse->perm,mat,coarse->strict_aggs,&coarse->agg_lists);CHKERRQ(ierr);
+#else
     ierr = maxIndSetAgg(coarse->perm, mat, coarse->strict_aggs,  &coarse->agg_lists);CHKERRQ(ierr);
+#endif
   }
   PetscFunctionReturn(0);
 }
