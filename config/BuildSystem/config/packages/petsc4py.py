@@ -62,6 +62,8 @@ class Configure(config.package.Package):
              (echo "**************************ERROR*************************************" && \\\n\
              echo "Error building petsc4py. Check ${PETSC_ARCH}/lib/petsc/conf/petsc4py.log" && \\\n\
              echo "********************************************************************" && \\\n\
+             cat ${PETSC_ARCH}/lib/petsc/conf/petsc4py.log                               && \\\n\
+             echo "********************************************************************" && \\\n\
              touch ${PETSC_ARCH}/lib/petsc/conf/petsc4py.errorflg && \\\n\
              exit 1)'])
     self.addMakeRule('petsc4pyinstall','', \
@@ -70,6 +72,8 @@ class Configure(config.package.Package):
            '+newdir+archflags+self.python.pyexe+' setup.py install --install-lib='+os.path.join(self.installDir,'lib')+') >> ${PETSC_ARCH}/lib/petsc/conf/petsc4py.log 2>&1 || \\\n\
              (echo "**************************ERROR*************************************" && \\\n\
              echo "Error building petsc4py. Check ${PETSC_ARCH}/lib/petsc/conf/petsc4py.log" && \\\n\
+             echo "********************************************************************" && \\\n\
+             cat ${PETSC_ARCH}/lib/petsc/conf/petsc4py.log                               && \\\n\
              echo "********************************************************************" && \\\n\
              exit 1)',\
                           '@echo "====================================="',\
