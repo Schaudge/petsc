@@ -15,6 +15,7 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_VTK(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerCreate_GLVis(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerCreate_ADIOS(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerCreate_ADIOS2(PetscViewer);
+PETSC_INTERN PetscErrorCode PetscViewerCreate_Conduit(PetscViewer);
 
 PetscBool PetscViewerRegisterAllCalled;
 
@@ -62,6 +63,9 @@ PetscErrorCode  PetscViewerRegisterAll(void)
 #endif
 #if defined(PETSC_HAVE_ADIOS2)
   ierr = PetscViewerRegister(PETSCVIEWERADIOS2,      PetscViewerCreate_ADIOS2);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_CONDUIT)
+  ierr = PetscViewerRegister(PETSCVIEWERCONDUIT,     PetscViewerCreate_Conduit);CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
 }

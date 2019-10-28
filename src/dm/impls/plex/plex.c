@@ -299,7 +299,7 @@ static PetscErrorCode VecView_Plex_Local_VTK(Vec v, PetscViewer viewer)
 PetscErrorCode VecView_Plex_Local(Vec v, PetscViewer viewer)
 {
   DM             dm;
-  PetscBool      isvtk, ishdf5, isdraw, isglvis;
+  PetscBool      isvtk, ishdf5, isdraw, isglvis, isconduit;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -309,7 +309,8 @@ PetscErrorCode VecView_Plex_Local(Vec v, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
-  if (isvtk || ishdf5 || isdraw || isglvis) {
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERCONDUIT, &isconduit);CHKERRQ(ierr);
+  if (isvtk || ishdf5 || isdraw || isglvis || isconduit) {
     PetscInt    i,numFields;
     PetscObject fe;
     PetscBool   fem = PETSC_FALSE;
@@ -345,6 +346,8 @@ PetscErrorCode VecView_Plex_Local(Vec v, PetscViewer viewer)
       ierr = DMGetOutputSequenceNumber(dm, &step, NULL);CHKERRQ(ierr);
       ierr = PetscViewerGLVisSetSnapId(viewer, step);CHKERRQ(ierr);
       ierr = VecView_GLVis(locv, viewer);CHKERRQ(ierr);
+    } else if (isconduit) {
+      ierr = VecView_Plex_Local_Conduit(locv, viewer);CHKERRQ(ierr);
     }
     if (fem) {ierr = DMRestoreLocalVector(dm, &locv);CHKERRQ(ierr);}
   } else {
@@ -360,7 +363,7 @@ PetscErrorCode VecView_Plex_Local(Vec v, PetscViewer viewer)
 PetscErrorCode VecView_Plex(Vec v, PetscViewer viewer)
 {
   DM             dm;
-  PetscBool      isvtk, ishdf5, isdraw, isglvis;
+  PetscBool      isvtk, ishdf5, isdraw, isglvis, isconduit;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -370,7 +373,8 @@ PetscErrorCode VecView_Plex(Vec v, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
-  if (isvtk || isdraw || isglvis) {
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERCONDUIT, &isconduit);CHKERRQ(ierr);
+  if (isvtk || isdraw || isglvis || isconduit) {
     Vec         locv;
     const char *name;
 
