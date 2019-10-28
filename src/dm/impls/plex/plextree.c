@@ -2154,10 +2154,11 @@ PetscErrorCode DMPlexTreeRefineCell (DM dm, PetscInt cell, DM *ncdm)
     ierr = PetscFree4(Kembedding,perm,iperm,preOrient);CHKERRQ(ierr);
   }
   else {
-    PetscInt    p, counts[4];
-    PetscInt    *coneSizes, *cones, *orientations;
-    Vec         coordVec;
-    PetscScalar *coords;
+    PetscInt       p, counts[4];
+    const PetscInt *cones;
+    PetscInt       *coneSizes, *orientations;
+    Vec            coordVec;
+    PetscScalar    *coords;
 
     for (d = 0; d <= dim; d++) {
       PetscInt dStart, dEnd;

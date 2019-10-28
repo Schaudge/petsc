@@ -1709,11 +1709,11 @@ PetscErrorCode DMPlexGetCone(DM dm, PetscInt p, const PetscInt *cone[])
 @*/
 PetscErrorCode DMPlexGetConeTuple(DM dm, IS p, PetscSection *pConesSection, IS *pCones)
 {
-  PetscSection        cs, newcs;
-  PetscInt            *cones;
-  PetscInt            *newarr=NULL;
-  PetscInt            n;
-  PetscErrorCode      ierr;
+  PetscSection    cs, newcs;
+  const PetscInt *cones;
+  PetscInt       *newarr = NULL;
+  PetscInt        n;
+  PetscErrorCode  ierr;
 
   PetscFunctionBegin;
   ierr = DMPlexGetCones(dm, &cones);CHKERRQ(ierr);
@@ -3792,9 +3792,9 @@ PetscErrorCode DMPlexGetSupportSection(DM dm, PetscSection *section)
 
 .seealso: DMPlexGetConeSection()
 @*/
-PetscErrorCode DMPlexGetCones(DM dm, PetscInt *cones[])
+PetscErrorCode DMPlexGetCones(DM dm, const PetscInt *cones[])
 {
-  DM_Plex *mesh = (DM_Plex*) dm->data;
+  DM_Plex *mesh = (DM_Plex *) dm->data;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
@@ -3817,7 +3817,7 @@ PetscErrorCode DMPlexGetCones(DM dm, PetscInt *cones[])
 
 .seealso: DMPlexGetConeSection()
 @*/
-PetscErrorCode DMPlexGetConeOrientations(DM dm, PetscInt *coneOrientations[])
+PetscErrorCode DMPlexGetConeOrientations(DM dm, const PetscInt *coneOrientations[])
 {
   DM_Plex *mesh = (DM_Plex*) dm->data;
 
