@@ -239,6 +239,7 @@ PetscErrorCode VecTaggerSetBlockSize(VecTagger tagger, PetscInt blocksize)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tagger,VEC_TAGGER_CLASSID,1);
   PetscValidLogicalCollectiveInt(tagger,blocksize,2);
+  if (blocksize <= 0) SETERRQ1(PetscObjectComm((PetscObject)tagger),PETSC_ERR_ARG_OUTOFRANGE,"Invalid block size %D", blocksize);
   tagger->blocksize = blocksize;
   PetscFunctionReturn(0);
 }
@@ -445,6 +446,7 @@ PetscErrorCode VecTaggerComputeIS_FromBoxes(VecTagger tagger, Vec vec, IS *is)
   numTagged = 0;
   offset = 0;
   tagged = NULL;
+  if (bs <= 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"blocksize %D is not positive", bs);
   if (n % bs) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"blocksize %D does not divide vector length %D", bs, n);
   n /= bs;
   for (i = 0; i < 2; i++) {
