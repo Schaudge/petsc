@@ -2011,4 +2011,3 @@ PetscErrorCode PetscSFBcastToZero_Private(PetscSF sf,MPI_Datatype unit,const voi
   ierr = PetscLogEventEnd(PETSCSF_BcastAndOpBegin,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-

@@ -95,4 +95,27 @@ PETSC_EXTERN PetscErrorCode PetscSectionRestorePointSyms(PetscSection, PetscInt,
 PETSC_EXTERN PetscErrorCode PetscSectionGetFieldPointSyms(PetscSection, PetscInt, PetscInt, const PetscInt *, const PetscInt ***, const PetscScalar ***);
 PETSC_EXTERN PetscErrorCode PetscSectionRestoreFieldPointSyms(PetscSection, PetscInt, PetscInt, const PetscInt *, const PetscInt ***, const PetscScalar ***);
 
+PETSC_STATIC_INLINE PetscErrorCode PetscInsertModeIsInsert(InsertMode mode, PetscBool *isInsert)
+{
+  PetscFunctionBegin;
+  switch (mode) {
+    case INSERT_VALUES:
+    case INSERT_ALL_VALUES:
+    case INSERT_BC_VALUES:
+    *isInsert = PETSC_TRUE;break;
+    case ADD_VALUES:
+    case ADD_ALL_VALUES:
+    case ADD_BC_VALUES:
+    *isInsert = PETSC_FALSE;break;
+    default:
+    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Invalid insertion mode %D", (PetscInt) mode);
+  }
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode PetscSFLocalToGlobalBegin(PetscSF, PetscSection, PetscSection, MPI_Datatype, const void *, InsertMode, void *);
+PETSC_EXTERN PetscErrorCode PetscSFLocalToGlobalEnd(PetscSF, PetscSection, PetscSection, MPI_Datatype, const void *, InsertMode, void *);
+PETSC_EXTERN PetscErrorCode PetscSFGlobalToLocalBegin(PetscSF, PetscSection, PetscSection, MPI_Datatype, const void *, InsertMode, void *);
+PETSC_EXTERN PetscErrorCode PetscSFGlobalToLocalEnd(PetscSF, PetscSection, PetscSection, MPI_Datatype, const void *, InsertMode, void *);
+
 #endif

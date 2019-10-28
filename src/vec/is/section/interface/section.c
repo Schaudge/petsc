@@ -3473,3 +3473,100 @@ PetscErrorCode PetscSectionExtractDofsFromArray(PetscSection origSection, MPI_Da
   }
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode PetscSFLocalToGlobalBegin(PetscSF sf, PetscSection s, PetscSection gs, MPI_Datatype unit, const void *larray, InsertMode mode, void *garray)
+{
+  PetscBool      isInsert;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sf, PETSCSF_CLASSID, 1);
+  ierr = PetscInsertModeIsInsert(mode, &isInsert);CHKERRQ(ierr);
+  if (!isInsert) {
+    ierr = PetscSFReduceBegin(sf, unit, larray, garray, MPIU_SUM);CHKERRQ(ierr);
+  } else if (isInsert) {
+    const PetscScalar *slarray = NULL;
+    const PetscInt    *ilarray = NULL;
+    PetscScalar       *sgarray = NULL;
+    PetscInt          *igarray = NULL;
+    PetscInt           pStart, pEnd, p, gstart;
+
+    PetscValidHeaderSpecific(s,  PETSC_SECTION_CLASSID, 2);
+    PetscValidHeaderSpecific(gs, PETSC_SECTION_CLASSID, 3);
+    ierr = PetscSectionGetOffsetRange(gs, &gstart, NULL);CHKERRQ(ierr);
+     switch (unit) {
+      case MPIU_SCALAR: slarray = larray; sgarray = garray;break;
+      case MPIU_INT:    ilarray = larray; igarray = garray;break;
+    }
+    ierr = PetscSectionGetChart(s, &pStart, &pEnd);CHKERRQ(ierr);
+    for (p = pStart; p < pEnd; ++p) {
+      PetscInt dof, gdof, cdof, gcdof, off, goff, d, e;
+
+      ierr = PetscSectionGetDof(s, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetDof(gs, p, &gdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetConstraintDof(gs, p, &gcdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(s, p, &off);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(gs, p, &goff);CHKERRQ(ierr);
+      /* Ignore off-process data and points with no global data */
+      if (!gdof || goff < 0) continue;
+      if (dof != gdof) SETERRQ5(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Inconsistent sizes, p: %d dof: %d gdof: %d cdof: %d gcdof: %d", p, dof, gdof, cdof, gcdof);
+      /* If no constraints are enforced in the global vector */
+      if (!gcdof) {
+        if (slarray) {
+          for (d = 0; d < dof; ++d) sgarray[goff-gstart+d] = slarray[off+d];
+        } else {
+          for (d = 0; d < dof; ++d) igarray[goff-gstart+d] = ilarray[off+d];
+        }
+        /* If constraints are enforced in the global vector */
+      } else if (cdof == gcdof) {
+        const PetscInt *cdofs;
+        PetscInt        cind = 0;
+
+        ierr = PetscSectionGetConstraintIndices(s, p, &cdofs);CHKERRQ(ierr);
+        for (d = 0, e = 0; d < dof; ++d) {
+          if ((cind < cdof) && (d == cdofs[cind])) {++cind; continue;}
+          if (slarray) {
+            sgarray[goff-gstart+e++] = slarray[off+d];
+          } else {
+            igarray[goff-gstart+e++] = ilarray[off+d];
+          }
+        }
+      } else SETERRQ5(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "Inconsistent sizes, p: %d dof: %d gdof: %d cdof: %d gcdof: %d", p, dof, gdof, cdof, gcdof);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscSFLocalToGlobalEnd(PetscSF sf, PetscSection s, PetscSection gs, MPI_Datatype unit, const void *larray, InsertMode mode, void *garray)
+{
+  PetscBool      isInsert;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscInsertModeIsInsert(mode, &isInsert);CHKERRQ(ierr);
+  if (!isInsert) {
+    ierr = PetscSFReduceEnd(sf, unit, larray, garray, MPIU_SUM);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscSFGlobalToLocalBegin(PetscSF sf, PetscSection s, PetscSection gs, MPI_Datatype unit, const void *garray, InsertMode mode, void *larray)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (mode == ADD_VALUES) SETERRQ1(PetscObjectComm((PetscObject) sf), PETSC_ERR_ARG_OUTOFRANGE, "Invalid insertion mode %D", mode);
+  ierr = PetscSFBcastBegin(sf, unit, garray, larray);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscSFGlobalToLocalEnd(PetscSF sf, PetscSection s, PetscSection gs, MPI_Datatype unit, const void *garray, InsertMode mode, void *larray)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (mode == ADD_VALUES) SETERRQ1(PetscObjectComm((PetscObject) sf), PETSC_ERR_ARG_OUTOFRANGE, "Invalid insertion mode %D", mode);
+  ierr = PetscSFBcastEnd(sf, unit, garray, larray);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
