@@ -189,7 +189,7 @@ PetscErrorCode DMPlexCheckConesConformOnInterfaces(DM dm)
   Vec                 *refCoordinatesPerRank;
   Vec                 *recCoordinatesPerRank=0;
   PetscInt            r;
-  PetscMPIInt         commsize, myrank;
+  PetscMPIInt         commsize, myrank, badrank = -1;
   PetscBool           same;
   PetscBool           verbose=PETSC_FALSE;
   MPI_Comm            comm;
@@ -267,7 +267,7 @@ PetscErrorCode DMPlexCheckConesConformOnInterfaces(DM dm)
   /* Compare recCoordinatesPerRank with refCoordinatesPerRank */
   for (r=0; r<niranks; r++) {
     ierr = VecEqual(refCoordinatesPerRank[r], recCoordinatesPerRank[r], &same);CHKERRQ(ierr);
-    if (!same) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "interface cones do not conform for remote rank %d", iranks[r]);
+    if (!same) {badrank = iranks[r]; break;}
   }
 
   /* destroy sent stuff */
@@ -290,5 +290,6 @@ PetscErrorCode DMPlexCheckConesConformOnInterfaces(DM dm)
     ierr = VecDestroy(&recCoordinatesPerRank[r]);CHKERRQ(ierr);
   }
   ierr = PetscFree(recCoordinatesPerRank);CHKERRQ(ierr);
+  if (!same) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "interface cones do not conform for remote rank %d", badrank);
   PetscFunctionReturn(0);
 }
