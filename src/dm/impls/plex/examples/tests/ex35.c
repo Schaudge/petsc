@@ -25,7 +25,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode CreateMesh_0(MPI_Comm comm, DM *dm)
+static PetscErrorCode CreateMesh_0(MPI_Comm comm, PetscInt ornt, DM *dm)
 {
   PetscSF        sf;
   PetscInt       Np[4]        = {4, 6, 4, 1};
@@ -69,6 +69,17 @@ static PetscErrorCode CreateMesh_0(MPI_Comm comm, DM *dm)
     coord[2*dim+0] =  0.0;coord[2*dim+1] =  0.0;coord[2*dim+2] = -1.0;
     coord[3*dim+0] = -1.0;coord[3*dim+1] =  0.0;coord[3*dim+2] =  0.0;
     ierr = PetscSFSetGraph(sf, 15, 0, NULL, PETSC_COPY_VALUES, NULL, PETSC_COPY_VALUES);CHKERRQ(ierr);
+    {
+      const PetscInt cone[3] = {9, 10, 11};
+      const PetscInt start   = ornt >= 0 ? -ornt : -(ornt+1);
+      const PetscInt inc     = ornt >= 0 ? 1 : -1;
+      const PetscInt fornt   = ornt >= 0 ? 0 : -2;
+
+      /* Rotate face 5 */
+      ornts[0] = ornt;
+      cones[4] = cone[(start+3)%3];cones[5] = cone[(start+3+inc)%3];cones[6] = cone[(start+3+inc+inc)%3];
+      ornts[4] = fornt;            ornts[5] = fornt;                ornts[6] = fornt;
+    }
     break;
     case 1:
     cones[0]  =  5;cones[1]  =  6;cones[2]  =  8;cones[3] = 7;
@@ -109,6 +120,26 @@ static PetscErrorCode CreateMesh_0(MPI_Comm comm, DM *dm)
   ierr = DMPlexCreateFromDAG(*dm, depth, Np, coneSize, cones, ornts, coord);CHKERRQ(ierr);
   ierr = DMSetPointSF(*dm, sf);CHKERRQ(ierr);
   ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
+  {
+    PetscInt *closure = NULL;
+    PetscInt  clSize, cl;
+
+    ierr = DMPlexGetTransitiveClosure(*dm, 5, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "Face 5, ornt %D\n  ", ornt);CHKERRQ(ierr);
+    for (cl = 0; cl < clSize; ++cl) {
+      ierr = PetscPrintf(comm, " (%D, %D)", closure[cl*2], closure[cl*2+1]);CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = DMPlexRestoreTransitiveClosure(*dm, 5, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
+
+    ierr = DMPlexGetTransitiveClosure(*dm, 0, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "Cell 0\n  ");CHKERRQ(ierr);
+    for (cl = 0; cl < clSize; ++cl) {
+      ierr = PetscPrintf(comm, " (%D, %D)", closure[cl*2], closure[cl*2+1]);CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = DMPlexRestoreTransitiveClosure(*dm, 0, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -235,14 +266,17 @@ static PetscErrorCode CreateMesh_1(MPI_Comm comm, DM *dm)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode CreateMesh(MPI_Comm comm, PetscInt meshNum, DM *dm)
+static PetscErrorCode CreateMesh(MPI_Comm comm, PetscInt meshNum, PetscInt ornt, DM *dm)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
   switch(meshNum) {
-    case 0: CreateMesh_0(comm, dm); break;
+    case 0: CreateMesh_0(comm, ornt, dm); break;
     case 1: CreateMesh_1(comm, dm); break;
     default: SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Invalid test mesh number %D", meshNum);
   }
+  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -261,12 +295,12 @@ static PetscErrorCode ComputeRelativeOrientation(PetscInt n, const PetscInt ccon
   /* Check direction for iteration */
   if (c1 == ccone[(c+1)%n]) {
     /* Forward */
-    for (d = 0; d < n; ++d) if (ccone[d] != cone[(c+d)%n]) break;
+    for (d = 0; d < n; ++d) if (cone[d] != ccone[(c+d)%n]) break;
     if (d < n) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Failed to compute relative cone orientation");
     *rornt = c;
   } else {
     /* Reverse */
-    for (d = 0; d < n; ++d) if (ccone[d] != cone[(c+n-d)%n]) break;
+    for (d = 0; d < n; ++d) if (cone[d] != ccone[(c+n-d)%n]) break;
     if (d < n) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Failed to compute relative cone orientation");
     *rornt = -(c+1);
   }
@@ -645,11 +679,21 @@ int main(int argc, char **argv)
 
   ierr = PetscInitialize(&argc, &argv, NULL, help); if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD, &ctx);CHKERRQ(ierr);
-  ierr = CreateMesh(PETSC_COMM_WORLD, ctx.meshNum, &dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
-  if (ctx.orient) {ierr = DMPlexOrientParallel_Internal(dm);CHKERRQ(ierr);}
-  ierr = CheckMesh(dm);CHKERRQ(ierr);
-  ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  if (ctx.meshNum == 0) {
+    PetscInt ornt;
+
+    for (ornt = -3; ornt < 3; ++ornt) {
+      ierr = CreateMesh(PETSC_COMM_WORLD, ctx.meshNum, ornt, &dm);CHKERRQ(ierr);
+      if (ctx.orient) {ierr = DMPlexOrientParallel_Internal(dm);CHKERRQ(ierr);}
+      ierr = CheckMesh(dm);CHKERRQ(ierr);
+      ierr = DMDestroy(&dm);CHKERRQ(ierr);
+    }
+  } else if (ctx.meshNum == 1) {
+    ierr = CreateMesh(PETSC_COMM_WORLD, ctx.meshNum, 0, &dm);CHKERRQ(ierr);
+    if (ctx.orient) {ierr = DMPlexOrientParallel_Internal(dm);CHKERRQ(ierr);}
+    ierr = CheckMesh(dm);CHKERRQ(ierr);
+    ierr = DMDestroy(&dm);CHKERRQ(ierr);
+  }
   ierr = PetscFinalize();
   return ierr;
 }
