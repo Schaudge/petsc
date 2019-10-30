@@ -69,7 +69,7 @@ PetscErrorCode PetscSectionCreate(MPI_Comm comm, PetscSection *s)
 }
 
 /*@
-  PetscSectionCopy - Creates a shallow (if possible) copy of the PetscSection
+  PetscSectionCopy -  Copies the layout to a new PetscSection
 
   Collective
 
@@ -153,7 +153,7 @@ PetscErrorCode PetscSectionCopy(PetscSection section, PetscSection newSection)
 }
 
 /*@
-  PetscSectionClone - Creates a shallow (if possible) copy of the PetscSection
+  PetscSectionClone - Creates a copy of the PetscSection
 
   Collective
 
@@ -2504,6 +2504,7 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
   Input Parameters:
 + sf          - The SF
 . rootSection - Data layout of remote points for outgoing data (this is layout for SF roots)
+. rootGlobal  = Flag indicating that the root section is global so the offsets should be localized
 - leafSection - Data layout of local points for incoming data  (this is layout for SF leaves)
 
   Output Parameter:
@@ -2513,10 +2514,11 @@ PetscErrorCode PetscSFDistributeSection(PetscSF sf, PetscSection rootSection, Pe
 
 .seealso: PetscSFCreate()
 @*/
-PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, PetscSection leafSection, PetscInt **remoteOffsets)
+PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, PetscBool rootGlobal, PetscSection leafSection, PetscInt **remoteOffsets)
 {
   PetscSF         embedSF;
   const PetscInt *indices;
+  PetscInt       *offsets;
   IS              selected;
   PetscInt        numRoots, rpStart = 0, rpEnd = 0, lpStart = 0, lpEnd = 0;
   PetscErrorCode  ierr;
@@ -2534,8 +2536,22 @@ PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, 
   ierr = ISRestoreIndices(selected, &indices);CHKERRQ(ierr);
   ierr = ISDestroy(&selected);CHKERRQ(ierr);
   ierr = PetscCalloc1(lpEnd - lpStart, remoteOffsets);CHKERRQ(ierr);
-  ierr = PetscSFBcastBegin(embedSF, MPIU_INT, &rootSection->atlasOff[-rpStart], &(*remoteOffsets)[-lpStart]);CHKERRQ(ierr);
-  ierr = PetscSFBcastEnd(embedSF, MPIU_INT, &rootSection->atlasOff[-rpStart], &(*remoteOffsets)[-lpStart]);CHKERRQ(ierr);
+  if (rootGlobal) {
+    PetscLayout layout;
+    PetscInt    gStart, p;
+
+    ierr = PetscSectionGetValueLayout(PetscObjectComm((PetscObject) rootSection), rootSection, &layout);CHKERRQ(ierr);
+    ierr = PetscLayoutGetRange(layout, &gStart, NULL);CHKERRQ(ierr);
+    ierr = PetscLayoutDestroy(&layout);CHKERRQ(ierr);
+    ierr = PetscMalloc1(rpEnd-rpStart, &offsets);CHKERRQ(ierr);
+    ierr = PetscArraycpy(offsets, rootSection->atlasOff, rpEnd-rpStart);CHKERRQ(ierr);
+    for (p = 0; p < rpEnd-rpStart; ++p) if (offsets[0] >= 0) offsets[p] -= gStart;
+  } else {
+    offsets = rootSection->atlasOff;
+  }
+  ierr = PetscSFBcastBegin(embedSF, MPIU_INT, &offsets[-rpStart], &(*remoteOffsets)[-lpStart]);CHKERRQ(ierr);
+  ierr = PetscSFBcastEnd(embedSF, MPIU_INT, &offsets[-rpStart], &(*remoteOffsets)[-lpStart]);CHKERRQ(ierr);
+  if (rootGlobal) {ierr = PetscFree(offsets);CHKERRQ(ierr);}
   ierr = PetscSFDestroy(&embedSF);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(PETSCSF_RemoteOff,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);

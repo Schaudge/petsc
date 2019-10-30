@@ -292,7 +292,7 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     ierr = PetscSectionView(rootSectionAdj, NULL);CHKERRQ(ierr);
   }
   /* Create adj SF based on dof SF */
-  ierr = PetscSFCreateRemoteOffsets(sfDof, rootSectionAdj, leafSectionAdj, &remoteOffsets);CHKERRQ(ierr);
+  ierr = PetscSFCreateRemoteOffsets(sfDof, rootSectionAdj, PETSC_FALSE, leafSectionAdj, &remoteOffsets);CHKERRQ(ierr);
   ierr = PetscSFCreateSectionSF(sfDof, rootSectionAdj, remoteOffsets, leafSectionAdj, &sfAdj);CHKERRQ(ierr);
   ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
   if (debug && size > 1) {
@@ -752,7 +752,7 @@ PetscErrorCode DMPlexPreallocateOperator(DM dm, PetscInt bs, PetscInt dnz[], Pet
       ierr = PetscSFView(sf, NULL);CHKERRQ(ierr);
     }
   }
-  ierr = PetscSFCreateRemoteOffsets(sf, section, section, &remoteOffsets);CHKERRQ(ierr);
+  ierr = PetscSFCreateRemoteOffsets(sf, section, PETSC_FALSE, section, &remoteOffsets);CHKERRQ(ierr);
   ierr = PetscSFCreateSectionSF(sf, section, remoteOffsets, section, &sfDof);CHKERRQ(ierr);
   ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
   if (debug && size > 1) {
