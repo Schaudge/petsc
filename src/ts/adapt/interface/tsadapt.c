@@ -116,20 +116,20 @@ PetscErrorCode  TSAdaptInitializePackage(void)
 }
 
 /*@C
-  TSAdaptSetType - sets the approach used for the error adapter, currently there is only TSADAPTBASIC and TSADAPTNONE
+  TSAdaptSetType - sets the approach used for the error adapter
 
   Logicially Collective on TSAdapt
 
   Input Parameter:
 + adapt - the TS adapter, most likely obtained with TSGetAdapt()
-- type - either  TSADAPTBASIC or TSADAPTNONE
+- type - for example,  TSADAPTBASIC or TSADAPTNONE
 
   Options Database:
-. -ts_adapt_type <basic or dsp or none> - to set the adapter type
+. -ts_adapt_type <for example, basic or dsp or none> - to set the adapter type
 
   Level: intermediate
 
-.seealso: TSGetAdapt(), TSAdaptDestroy(), TSAdaptType, TSAdaptGetType()
+.seealso: TSGetAdapt(), TSAdaptDestroy(), TSAdaptType, TSAdaptGetType(), TSADAPTNONE, TSADAPTBASIC, TSADAPTDSP, TSADAPTCFL, TSADAPTGLEE, TSADAPTHISTORY
 @*/
 PetscErrorCode  TSAdaptSetType(TSAdapt adapt,TSAdaptType type)
 {
