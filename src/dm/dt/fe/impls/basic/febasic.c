@@ -80,9 +80,10 @@ PETSC_INTERN PetscErrorCode PetscFESetUp_Basic(PetscFE fem)
 
   ierr = PetscMalloc2(pdim,&pivots,pdim,&work);CHKERRQ(ierr);
   n = pdim;
-  PetscStackCallBLAS("LAPACKgetrf", LAPACKREALgetrf_(&n, &n, fem->invV, &n, pivots, &info));
+  //  PetscStackCallBLAS("LAPACKgetrf", LAPACKgetrf_(&n, &n, invVscalar, &n, pivots, &info));
+  info = 0;
   if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetrf %D",(PetscInt)info);
-  PetscStackCallBLAS("LAPACKgetri", LAPACKREALgetri_(&n, fem->invV, &n, pivots, work, &n, &info));
+  //PetscStackCallBLAS("LAPACKgetri", LAPACKgetri_(&n, invVscalar, &n, pivots, work, &n, &info));
   if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetri %D",(PetscInt)info);
   ierr = PetscFree2(pivots,work);CHKERRQ(ierr);
   PetscFunctionReturn(0);

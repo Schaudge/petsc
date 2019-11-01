@@ -1,0 +1,144 @@
+#! /bin/bash
+
+#BSUB -P CSC314
+#BSUB -W 1:00
+#BSUB -alloc_flags gpumps
+#BSUB -J petsc_comm_ops
+
+export PETSC_ARCH=64-arch-olcf-summit-opt;
+echo "PETSC_ARCH=${PETSC_ARCH}";
+echo "Start";
+echo "-n Number of resource sets";
+echo "-c Number of CPUs per resource set";
+echo "-g Number of GPUs per resource set";
+echo "-a Number of MPI ranks per resource set";
+echo "-d How tasks are started on resource sets";
+echo "-b Binding of tasks within a resource set";
+
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
+echo "+++                     DEBUG VERSION                     +++";
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
+
+CLn=1;
+CLc=7;
+CLg=1;
+CLa=1;
+procpernode=42;
+localVSize=750000;
+maxcom=1;
+nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
+
+echo "Creating Directories";
+now=$(date +"%F_%H_%M_%S");
+dirname="DEBUG_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+mkdir -p ./$dirname;
+filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt";
+filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
+nprocess="./${dirname}/nprocess_${LSB_JOBID}.txt";
+rawlog="./${dirname}/rawlog_${LSB_JOBID}.txt";
+cellprank="./${dirname}/cellprank_${LSB_JOBID}.txt";
+packsizeINSERT="./${dirname}/packsizeINSERT_${LSB_JOBID}.txt";
+packsizeADDVAL="./${dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
+VecDotTime="./${dirname}/vecdottime_${LSB_JOBID}.txt";
+VecDotFlops="./${dirname}/vecdotflops_${LSB_JOBID}.txt";
+ZeroVecDotTime="./${dirname}/zero_vecdottime_${LSB_JOBID}.txt"
+ZeroVecDotFlops="./${dirname}/zero_vecdotflops_${LSB_JOBID}.txt";
+VertNum="./${dirname}/vertnum_${LSB_JOBID}.txt";
+CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt";
+Overlap="./${dirname}/overlap_${LSB_JOBID}.txt";
+Order="./${dirname}/feorder_${LSB_JOBID}.txt";
+CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
+GVS="./${dirname}/globvecsize_${LSB_JOBID}.txt"
+runError="./${dirname}/runError_${LSB_JOBID}.txt";
+jsrunMapping="./${dirname}/jsrunMapping_${LSB_JOBID}.txt";
+
+echo "Resetting full log and filtered outputs...";
+>./$filtINSERT;
+>./$filtADDVAL;
+>./$nprocess;
+>./$rawlog;
+>./$cellprank;
+>./$packsizeINSERT;
+>./$packsizeADDVAL;
+>./$VecDotTime;
+>./$VecDotFlops;
+>./$ZeroVecDotTime;
+>./$ZeroVecDotFlops;
+>./$VertNum;
+>./$CellNum;
+>./$Overlap;
+>./$Order;
+>./$CompNum;
+>./$GVS;
+>./$runError;
+>./$jsrunMapping;
+echo "Done";
+
+echo "Running jsrun mapping generator";
+set -x
+jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -e collected ./hello_jsrun | sort -o ${jsrunMapping}
+set +x
+echo "Done";
+
+runcount=0;
+echo "Looping...";
+echo "-----------";
+for NC in 1 3
+do
+    echo "--------------------------- Num Comp: ${NC} ---------------------------">>./$rawlog;
+    for deg in 1 2 4 8 16
+    do
+        dim=3;
+        nfx=48;
+        nfy=64;
+        nfz=64;
+        nfaces=$nfx,$nfy,$nfz;
+        cells=$(($nfx*$nfy*$nfz));
+        ranks=$(($nodesReq*$CLa*$CLn));
+        cellprankval=$(bc <<< "scale=3; $cells/$ranks");
+        echo "run count:                     $runcount";
+        echo "number of nodes requested:     $nodesReq";
+        echo "current number of MPI ranks:   $ranks";
+        echo "cell number:                   $cells";
+        echo "approx cells/rank:             $cellprankval";
+        echo "current num components:        $NC";
+        echo "current petsc space degree:    $deg";
+        echo "local cache clear vec size:    $localVSize";
+        echo "number of communications:      $maxcom";
+        echo "start time:                    $(date -u)";
+        SECONDS=0
+        set -x
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/tutorials/perftest/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
+        set +x
+        duration=$SECONDS
+        echo "end time:                      $(date -u)";
+        echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds";
+        echo "-----------";
+        ((runcount++));
+    done
+done
+echo "--------------------------- Successful exit! ---------------------------">>./$rawlog;
+trap finish EXIT
+function finish {
+    echo "moving things";
+    mv ./resources.${LSB_JOBID} ./${dirname};
+    mv ./petsc_comm_ops.${LSB_JOBID} ./${dirname};
+    echo "done";
+    echo "grepping...";
+    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT;
+    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtADDVAL;
+    grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess;
+    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT;
+    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL;
+    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> ./$VecDotTime;
+    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> ./$VecDotFlops;
+    grep "CommZEROVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> $ZeroVecDotTime;
+    grep "CommZEROVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> $ZeroVecDotFlops;
+    grep "Global Vertex Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$VertNum;
+    grep "Global Cell Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$CellNum;
+    grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap;
+    grep "petscspace_degree" --line-buffered ./$rawlog | awk '{print $2}' >> $Order;
+    grep "num_fields" --line-buffered ./$rawlog | awk '{print $2}' >> $CompNum;
+    grep "Global Vector Size" --line-buffered ./$rawlog | awk '{print $4}' >> $GVS;
+    echo "done";
+}

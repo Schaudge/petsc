@@ -1,0 +1,26 @@
+#! /bin/bash
+
+#BSUB -P CSC314
+#BSUB -W 2:00
+#BSUB -nnodes 1
+
+
+echo "PETSC_ARCH=${PETSC_ARCH}"
+
+#RS allocation
+rs_rnum=6;      #opt: --rs_per_host  (-r)
+rs_cpu=7;       #opt: --cpu_per_rs   (-c) default 1
+rs_gpu=1;       #opt: --gpu_per_rs   (-g) default 0
+rs_tasks=1;     #opt: --tasks_per_rs (-a) total tasks (-p)
+let cores=$rs_rnum;        #opt: --nrs          (-n) number of resource sets, all cores
+#additonal options 
+#--bind			(-b)	Binding of tasks within a resource set. Can be none, rs, or packed:#,. 		Rec.:packed:7
+#--latency_priority	(-l)	Latency Priority. Can currently be cpu-cpu or gpu-cpu,cpu-mem,cpu-cpu,gpu-gpu. 	Rec.:GPU-GPU 
+#--launch_distribution	(-d)	How tasks are started on resource sets	packed. 				Rec.:packed
+export OMP_NUM_THREADS=1;
+
+#ntasks=$rs_num*$nodes;
+#nodeNum=$ntasks;
+
+jsrun --smpiargs "-gpu" -n $cores -r $rs_rnum -a $rs_tasks -c $rs_cpu -g $rs_gpu -b rs -d packed
+#./exspeedtest

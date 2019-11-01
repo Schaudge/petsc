@@ -1,0 +1,113 @@
+#! /bin/bash
+
+#BSUB -P CSC314
+#BSUB -W 2:00
+#BSUB -nnodes 1
+#BSUB -J petsc_sftest_64
+
+export PETSC_ARCH=64-arch-olcf-summit-opt
+export PETSC_DIR=/autofs/nccs-svm1_home1/jfaibussow/petsc
+export CUDA_HOME=/sw/summit/cuda/10.2.89
+export CUDA_PATH=/sw/summit/cuda/10.2.89
+export GDRCOPY_HOME=/sw/summit/gdrcopy/2.0
+export NVSHMEM_USE_GDRCOPY=1
+export NCCL_HOME=/sw/summit/open-ce/anaconda-base/envs/open-ce-0.1-0/
+export NVSHMEM_USE_NCCL=1
+export MPI_HOME=${MPI_ROOT}
+export NVSHMEM_MPI_SUPPORT=1
+export NVSHMEM_MPI_IS_OMPI=1
+export NVSHMEM_ENABLE_NIC_PE_MAPPING=1
+export NVSHMEM_HOME=$HOME/soft/nvshmem
+export NVSHMEM_PREFIX=$HOME/soft/nvshmem
+export NVCC_GENCODE="-gencode=arch=compute_70,code=sm_70"
+
+prefix="OPT"
+suffix="_64"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+echo "+++                   ${prefix} VERSION                   +++"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+echo "PETSC_ARCH=${PETSC_ARCH}"
+
+set -x
+nodeNum=1
+binfile=0To34-1To3-2To3_Sym
+resourcefile="resources${suffix}.${LSB_JOBID}"
+stdoutfile="petsc_sftest${suffix}.${LSB_JOBID}"
+origdir=`pwd`
+scratchdir=${MEMBERWORK}/csc314
+cd ${scratchdir}
+mkdir -p ./${LSB_JOBID}
+cd ${LSB_JOBID}
+mv ${origdir}/${stdoutfile} ./
+
+now=$(date +"%F_%H_%M_%S")
+run_scratch_dirname="${prefix}${suffix}_sftest_${LSB_JOBID}_$now"
+mkdir -p ./${run_scratch_dirname}
+rawlog="./${run_scratch_dirname}/rawlog_${LSB_JOBID}.txt"
+runError="./${run_scratch_dirname}/runError_${LSB_JOBID}.txt"
+jsrunMapping="./${run_scratch_dirname}/jsrunMapping_${LSB_JOBID}.txt"
+outBinFile="./${run_scratch_dirname}/sftest_out_${LSB_JOBID}"
+numFieldArr=(0 1 1000 4000 8000 16000 32000 64000 128000 256000)
+
+#Set resource set variables
+nodes=2; 	#number of physical nodes
+cores=1; 	#opt: --nrs          (-n) number of resource sets, all cores
+rs_num=1;	#opt: --rs_per_host  (-r)
+rs_cpu=42;	#opt: --cpu_per_rs   (-c) default 1
+rs_gpu=6;	#opt: --gpu_per_rs   (-g) default 0
+rs_tasks=6;	#opt: --tasks_per_rs (-a) total tasks (-p)
+#additonal options 
+#--bind			(-b)	Binding of tasks within a resource set. Can be none, rs, or packed:#,. 		Rec.:packed:7
+#--latency_priority	(-l)	Latency Priority. Can currently be cpu-cpu or gpu-cpu,cpu-mem,cpu-cpu,gpu-gpu. 	Rec.:GPU-GPU 
+#--launch_distribution	(-d)	How tasks are started on resource sets	packed. 				Rec.:packed
+
+ntasks=$rs_num*$nodes;
+nodeNum=$ntasks;
+set +x
+echo "=================== Resetting full log and filtered outputs..."
+>./$rawlog
+>./$runError
+>./$jsrunMapping
+
+echo "=================== Running jsrun mapping generator"
+set -x
+jsrun --smpiargs "-gpu" -n 1 -a $rs_tasks -c $rs_cpu -g $rs_gpu -r $rs_num -l GPU-GPU -d packed -b packed:7 -e collected -k ${runError} ${origdir}/hello_jsrun | sort -o ${jsrunMapping}
+
+set +x
+echo "-------------------------------------------------------------------------------"
+for numFields in ${numFieldArr[@]}
+do
+  echo "Number of fields:               $numFields"
+  for runcount in {1..4}
+  do
+    echo "run count:                     $runcount"
+    echo "start time:                    $(date -u)"
+    SECONDS=0
+    set -x
+    jsrun --smpiargs "-gpu" -n ${nodeNum} -a $rs_tasks -c $rs_cpu -g $rs_gpu -r $rs_num -l GPU-GPU -d packed -b packed:7 -S ${resourcefile} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/sftest64 -fname ${PETSC_DIR}/src/ts/tutorials/perftest/bin/${binfile} -fout ${outBinFile} -num_fields ${numFields} -vec_type cuda -use_nvshmem
+    jsrun --smpiargs "-gpu" -n ${nodeNum} -a $rs_tasks -c $rs_cpu -g $rs_gpu -r $rs_num -l GPU-GPU -d packed -b packed:7 -S ${resourcefile} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/sftest64  -fname ${PETSC_DIR}/src/ts/tutorials/perftest/bin/${binfile} -fout ${outBinFile} -num_fields ${numFields} -vec_type cuda
+    set +x
+    duration=$SECONDS
+    echo "end time:                      $(date -u)"
+    echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds"
+    echo "--------------------"
+    done
+done
+sleep 5
+echo "--------------------------- Successful exit! ---------------------------" >> ./$rawlog
+trap finish EXIT
+function finish {
+  sleep 30
+  echo "=== mv ==="
+  set -x
+  mv ./${resourcefile} ./${run_scratch_dirname}
+  mv ./${stdoutfile} ./${run_scratch_dirname}
+  mv ./${run_scratch_dirname} ${origdir}
+  cd ..
+  rm -rf ${LSB_JOBID}
+  cd ${origdir}
+  mv ./${stdoutfile} /${run_scratch_dirname}
+  set +x
+  echo "=== Done ==="
+  echo "======================= ALL FINISHED ======================="
+}

@@ -1,0 +1,148 @@
+#! /bin/bash
+
+#BSUB -P CSC314
+#BSUB -W 2:00
+#BSUB -nnodes 1
+#BSUB -J petsc_comm_ops_64
+
+export PETSC_ARCH=64-arch-olcf-summit-opt;
+
+prefix="OPT"
+suffix="_64"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
+echo "+++                   ${prefix} VERSION                   +++";
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
+echo "PETSC_ARCH=${PETSC_ARCH}";
+echo "-n Number of resource sets";
+echo "-c Number of CPUs per resource set";
+echo "-g Number of GPUs per resource set";
+echo "-a Number of MPI ranks per resource set";
+echo "-d How tasks are started on resource sets";
+echo "-b Binding of tasks within a resource set";
+
+set -x
+resourcefile="resources${suffix}";
+stdoutfile="petsc_comm_ops${suffix}";
+origdir=`pwd`;
+scratchdir=${MEMBERWORK}/csc314;
+cd ${scratchdir}
+mkdir -p ./${LSB_JOBID}
+cd ${LSB_JOBID}
+
+CLn=6 #rs_per_host
+CLc=7 #cpu_per_rs default 1
+CLg=1 #gpu_per_rs default 0
+CLa=1 #tasks_per_rs
+procpernode=42;
+localVSize=750000;
+maxcom=50;
+nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
+
+set +x
+echo "=================== Creating Directories";
+set -x
+now=$(date +"%F_%H_%M_%S");
+run_scratch_dirname="${prefix}${suffix}_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+mkdir -p ./$run_scratch_dirname;
+filtINSERT="./${run_scratch_dirname}/filtoutINSERT_${LSB_JOBID}.txt";
+filtADDVAL="./${run_scratch_dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
+nprocess="./${run_scratch_dirname}/nprocess_${LSB_JOBID}.txt";
+rawlog="./${run_scratch_dirname}/rawlog_${LSB_JOBID}.txt";
+packsizeINSERT="./${run_scratch_dirname}/packsizeINSERT_${LSB_JOBID}.txt";
+packsizeADDVAL="./${run_scratch_dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
+VecDotTime="./${run_scratch_dirname}/vecdottime_${LSB_JOBID}.txt";
+VecDotFlops="./${run_scratch_dirname}/vecdotflops_${LSB_JOBID}.txt";
+ZeroVecDotTime="./${run_scratch_dirname}/zero_vecdottime_${LSB_JOBID}.txt"
+ZeroVecDotFlops="./${run_scratch_dirname}/zero_vecdotflops_${LSB_JOBID}.txt";
+CellNum="./${run_scratch_dirname}/cellnum_${LSB_JOBID}.txt";
+Overlap="./${run_scratch_dirname}/overlap_${LSB_JOBID}.txt";
+Order="./${run_scratch_dirname}/feorder_${LSB_JOBID}.txt";
+CompNum="./${run_scratch_dirname}/compnum_${LSB_JOBID}.txt";
+GVS="./${run_scratch_dirname}/globvecsize_${LSB_JOBID}.txt"
+runError="./${run_scratch_dirname}/runError_${LSB_JOBID}.txt";
+jsrunMapping="./${run_scratch_dirname}/jsrunMapping_${LSB_JOBID}.txt";
+
+set +x
+echo "=================== Resetting full log and filtered outputs...";
+set -x
+>./$filtINSERT;
+>./$filtADDVAL;
+>./$nprocess;
+>./$rawlog;
+>./$packsizeINSERT;
+>./$packsizeADDVAL;
+>./$VecDotTime;
+>./$VecDotFlops;
+>./$ZeroVecDotTime;
+>./$ZeroVecDotFlops;
+>./$CellNum;
+>./$Overlap;
+>./$Order;
+>./$CompNum;
+>./$GVS;
+>./$runError;
+>./$jsrunMapping;
+
+set +x
+echo "=================== Running jsrun mapping generator"
+set -x
+jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -e collected ${origdir}/hello_jsrun | sort -o ${jsrunMapping}
+
+set +x
+echo "-------------------------------------------------------------------------------"
+for runcount in {1..5}
+do
+  NV_PROFILE_FILE="./${run_scratch_dirname}/nvProfile_${LSB_JOBID}_${runcount}"
+  numfields=$((${runcount}*10))
+  spacedeg=6
+  cells=125000
+  ranks=$(($nodesReq*$CLa*$CLn))
+  cellprankval=$(bc <<< "scale=3; $cells/$ranks")
+  echo "run count:                     $runcount"
+  echo "number of nodes requested:     $nodesReq"
+  echo "current number of MPI ranks:   $ranks"
+  echo "cell number:                   $cells"
+  echo "approx cells/rank:             $cellprankval"
+  echo "current num components:        $numfields"
+  echo "current petsc space degree:    $spacedeg"
+  echo "local cache clear vec size:    $localVSize"
+  echo "number of communications:      $maxcom"
+  echo "start time:                    $(date -u)"
+  SECONDS=0
+  set -x
+  #jsrun  --smpiargs="-gpu" --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} nsys profile --output=${NV_PROFILE_FILE}_%q{OMPI_COMM_WORLD_RANK} ${PETSC_DIR}/src/ts/tutorials/perftest/exspeedtest64 -speed -filename ${origdir}/meshes/3Dbrick125k.exo -num_fields ${numfields} -petscspace_degree ${spacedeg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
+  #jsrun --smpiargs "-gpu" -n 1 -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} nsys profile --output=${NV_PROFILE_FILE}_%q{OMPI_COMM_WORLD_RANK} ${PETSC_DIR}/src/ts/tutorials/perftest/exspeedtest64 -speed -filename ${origdir}/meshes/3Dbrick125k.exo -num_fields ${numfields} -petscspace_degree ${spacedeg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -use_nvshme
+  jsrun --smpiargs "-gpu" -n 1 -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/exspeedtest64 -speed -filename ${PETSC_DIR}/src/ts/tutorials/perftest/meshes/3Dbrick125k.exo -num_fields ${numfields} -petscspace_degree ${spacedeg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -use_nvshmem
+  mv binaryoutput binaryoutput_${runcount}_nvshmem
+  mv binaryoutput.info binaryoutput_${runcount}_nvshmem.info
+  jsrun --smpiargs "-gpu" -n 1 -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/exspeedtest64 -speed -filename ${PETSC_DIR}/src/ts/tutorials/perftest/meshes/3Dbrick125k.exo -num_fields ${numfields} -petscspace_degree ${spacedeg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
+  mv binaryoutput binaryoutput_${runcount}_mpi
+  mv binaryoutput.info binaryoutput_${runcount}_mpi.info
+  set +x
+  duration=$SECONDS
+  echo "end time:                      $(date -u)";
+  echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds";
+  echo "--------------------";
+done
+sleep 5;
+echo "--------------------------- Successful exit! ---------------------------" >> ./$rawlog;
+trap finish EXIT
+function finish {
+  sleep 30;
+  echo "=== mv ==="
+  set -x
+  mv ./${resourcefile}.${LSB_JOBID} ./${run_scratch_dirname}
+  mv ./binaryoutput* ./${run_scratch_dirname}
+  mv ./partition_map* ./${run_scratch_dirname}
+  mv ./${run_scratch_dirname} ${origdir}
+  cd ..
+  rm -rf ${LSB_JOBID}
+  cd ${origdir}
+  mv ./${stdoutfile}.${LSB_JOBID} ./${run_scratch_dirname}
+  set +x
+  echo "=== Done ==="
+  echo "=== Post Processing ==="
+  sleep 5
+  /bin/bash ./grepshell.sh -p ${run_scratch_dirname} -a ${origdir}/*
+  echo "======================= ALL FINISHED ======================="
+}

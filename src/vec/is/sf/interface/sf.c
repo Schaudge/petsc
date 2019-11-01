@@ -129,6 +129,37 @@ PetscErrorCode PetscSFCreate(MPI_Comm comm,PetscSF *sf)
 }
 
 /*@
+   PetscSFGetUseNVSHMEM - returns PETSC_TRUE if the PetscSF is using NVSHMEM
+
+   Logically Collective
+
+   Input Argument:
+.  sf - star forest context
+
+   Output Argument:
+.  used - PETSC_TRUE if NVSHMEM is being used with this PetscSF
+
+   Options Database Keys:
+.  -use_nvshmem
+
+   Level: intermediate
+
+.seealso: PetscSFSetGraph(), PetscSFSetGraphWithPattern(), PetscSFDestroy(), PetscSFCreate()
+@*/
+PetscErrorCode PetscSFGetUseNVSHMEM(PetscSF sf,PetscBool *used)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sf,PETSCSF_CLASSID,1);
+  PetscValidBoolPointer(used,2);
+#if defined(PETSC_HAVE_NVSHMEM)
+  *used = sf->use_nvshmem;
+#else
+  *used = PETSC_FALSE;
+#endif
+  PetscFunctionReturn(0);
+}
+
+/*@
    PetscSFReset - Reset a star forest so that different sizes or neighbors can be used
 
    Collective
@@ -870,6 +901,9 @@ PetscErrorCode  PetscSFViewFromOptions(PetscSF A,PetscObject obj,const char name
 -  viewer - viewer to display graph, for example PETSC_VIEWER_STDOUT_WORLD
 
    Level: beginner
+
+   Notes:
+     If passed a binary viewer this will save a sparse matrix where each row contains a list of ranks that it sends to and how much data it sends to them.
 
 .seealso: PetscSFCreate(), PetscSFSetGraph()
 @*/

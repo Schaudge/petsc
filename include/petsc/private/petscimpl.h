@@ -1007,8 +1007,71 @@ PETSC_INTERN PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool*);
 PETSC_INTERN PetscErrorCode PetscKokkosFinalize_Private(void);
 #endif
 
-#if defined(PETSC_HAVE_OPENMP)
-PETSC_EXTERN PetscInt PetscNumOMPThreads;
+#if defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN PetscBool      PetscCUDAInitialized;  /* Is CUDA initialized? One can use this flag to guard CUDA calls. */
+PETSC_EXTERN PetscBool      PetscMPICUDAAwarenessCheck(void);
 #endif
 
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscBool      PetscHIPInitialized;
+PETSC_EXTERN PetscBool      PetscMPIHIPAwarenessCheck(void);
+#endif
+
+PETSC_EXTERN PetscBool      PetscCreatedGpuObjects;
+
+struct _n_HookInfo {
+  int       prevTag;
+  int       *line;
+  char      **func;
+  char      **file;
+  PetscInt  **commHistory;
+  PetscInt  historySize;
+  PetscInt  numCycles;
+  PetscBool type; /* True if send, false if recieve */
+};
+typedef struct _n_HookInfo* HookInfo;
+PETSC_EXTERN PetscErrorCode PetscMPI_isend_hook(int,MPI_Datatype,int,int,MPI_Request*,int,const char*,const char*);
+PETSC_EXTERN PetscErrorCode PetscMPI_irecv_hook(int,MPI_Datatype,int,int,MPI_Request*,int,const char*,const char*);
+PETSC_EXTERN PetscErrorCode PetscMPIHookGetStats(HookInfo*,PetscBool);
+PETSC_EXTERN PetscErrorCode PetscMPIHookViewFromOptions(MPI_Comm,HookInfo,const char[]);
+PETSC_EXTERN PetscErrorCode PetscMPIHookZeroCounters(HookInfo);
+
+/* Extra layer of indirection so we can toggle doing the init */
+PETSC_STATIC_INLINE PetscErrorCode PetscMPI_isend_hook_wrap(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request, int line, const char *func, const char *file, PetscBool hookOnly)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscMPI_isend_hook(count,datatype,dest,tag,request,line,func,file);CHKERRQ(ierr);
+  if (!hookOnly) {ierr = MPI_Send_init(buf,count,datatype,dest,tag,comm,request);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
+PETSC_STATIC_INLINE PetscErrorCode PetscMPI_irecv_hook_wrap(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Request *request, int line, const char *func, const char *file, PetscBool hookOnly)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscMPI_irecv_hook(count,datatype,source,tag,request,line,func,file);CHKERRQ(ierr);
+  if (!hookOnly) {ierr = MPI_Recv_init(buf,count,datatype,source,tag,comm,request);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
+/* define to enable the hook */
+//#define EXSPEEDTEST_HOOK
+/* Define a wrapper here */
+#if defined(EXSPEEDREST_HOOK)
+#define MPI_Send_init_hooked(buf,count,datatype,dest,tag,comm,request,hookOnly) \
+  (PetscMPI_isend_hook_wrap((buf),(count),(datatype),(dest),(tag),(comm),(request),(__LINE__),(PETSC_FUNCTION_NAME),(__FILE__),(hookOnly)))
+
+#define MPI_Recv_init_hooked(buf,count,datatype,source,tag,comm,request,hookOnly) \
+  (PetscMPI_irecv_hook_wrap((buf),(count),(datatype),(source),(tag),(comm),(request),(__LINE__),(PETSC_FUNCTION_NAME),(__FILE__),(hookOnly)))
+#undef EXSPEEDTEST_HOOK
+#else
+#define MPI_Send_init_hooked(buf,count,datatype,dest,tag,comm,request,hookOnly) \
+  (MPI_Send_init((buf),(count),(datatype),(dest),(tag),(comm),(request)))
+
+#define MPI_Recv_init_hooked(buf,count,datatype,source,tag,comm,request,hookOnly) \
+  (MPI_Recv_init((buf),(count),(datatype),(source),(tag),(comm),(request)))
+#endif
 #endif /* PETSCIMPL_H */

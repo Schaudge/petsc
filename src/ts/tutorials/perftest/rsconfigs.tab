@@ -1,0 +1,3 @@
+rs_tasks=1 rs_cpu=7 rs_gpu=1 rs_rnum=6 nodes=1 bindtype=packed:7 packdist=packed latency=GPU-CPU
+rs_tasks=1 rs_cpu=7 rs_gpu=1 rs_rnum=6 nodes=1 bindtype=rs       packdist=packed latency=GPU-CPU
+rs_tasks=1 rs_cpu=7 rs_gpu=1 rs_rnum=6 nodes=1 bindtype=packed:1 packdist=packed latency=GPU-CPU

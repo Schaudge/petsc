@@ -1,0 +1,25 @@
+DM Object: Parallel Mesh 1 MPI processes
+  type: plex
+--------------- General Info ---------------
+Face Orientation OK:------------>SKIPPED (Mesh Not Interpolated)
+Adjacency Symmetry OK:---------->PETSC_TRUE *
+Cells Vertex Count OK:---------->PETSC_TRUE *
+Point SF OK:-------------------->PETSC_TRUE *
+Geometry OK:-------------------->PETSC_TRUE *
+Cone Interfaces Conform OK:----->PETSC_TRUE *
+
+Distributed DM:----------------->PETSC_FALSE
+DM Interpolation Flag:---------->NONE
+Overlapped DM:------------------>PETSC_FALSE
+Dimension of mesh:-------------->2
+Global Vertex Num:-------------->9
+Global Cell Num:---------------->4
+
+Vertices Per Process Range: 9 - 9
+Num Per Proc. - Num Proc.
+	    9 - 1
+
+Cells Per Process Range: 4 - 4
+Num Per Proc. - Num Proc.
+	    4 - 1
+--------------- End General Info ------------

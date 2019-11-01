@@ -143,23 +143,19 @@ PETSC_INTERN PetscErrorCode PetscSFView_Basic_PatternAndSizes(PetscSF sf,PetscVi
   PetscFunctionBegin;
   ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
-  /* PetscSFView is most useful for the SF used in VecScatterBegin/End in MatMult etc, where we do
-    PetscSFBcast, i.e., roots send data to leaves.  We dump the communication pattern into a matrix
-    in senders' view point: how many bytes I will send to my neighbors.
-
-    Looking at a column of the matrix, one can also know how many bytes the rank will receive from others.
-
-    If PetscSFLink bas->inuse is available, we can use that to get tree vertex size. But that would give
-    different interpretations for the same SF for different data types. Since we most care about VecScatter,
-    we uniformly treat each vertex as a PetscScalar.
-  */
-  unitbytes = (PetscScalar)sizeof(PetscScalar);
-
-  ierr = PetscSFGetRootInfo_Basic(sf,&nrootranks,&ndrootranks,&rootranks,&rootoffset,NULL);CHKERRQ(ierr);
-  ierr = MatCreateAIJ(comm,1,1,size,size,1,NULL,nrootranks-ndrootranks,NULL,&A);CHKERRQ(ierr);
-  ierr = MatSetOptionsPrefix(A,"__petsc_internal__");CHKERRQ(ierr); /* To prevent the internal A from taking any command line options */
-  for (i=0; i<nrootranks; i++) {
-    ierr = MatSetValue(A,(PetscInt)rank,bas->iranks[i],(rootoffset[i+1]-rootoffset[i])*unitbytes,INSERT_VALUES);CHKERRQ(ierr);
+  myrank = rank;
+  if (sf->persistent) {
+    /* amount of data I receive from other ranks - global to local (that is the data for all the roots of my leaves) */
+    ierr = MatCreateAIJ(comm,1,1,size,size,20,NULL,20,NULL,&A);CHKERRQ(ierr);
+    ierr = PetscSFGetRootInfo_Basic(sf,&nrootranks,&ndrootranks,NULL,&rootoffset,NULL);CHKERRQ(ierr);
+    for (i=0; i<nrootranks; i++) {
+      ierr = MatSetValue(A,myrank,bas->iranks[i],(rootoffset[i+1] - rootoffset[i])*link->unitbytes,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatTranspose(A,MAT_INITIAL_MATRIX,&A);CHKERRQ(ierr);
+    ierr = MatView(A,viewer);CHKERRQ(ierr);
+    ierr = MatDestroy(&A);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
