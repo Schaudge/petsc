@@ -348,6 +348,17 @@ PETSC_STATIC_INLINE PetscReal TSEventComputeStepSize(PetscReal tleft,PetscReal t
   return PetscMin(dt,new_dt);
 }
 
+/*
+    TSEventHandler - Manages events for TS
+
+     The behavior depends on event->status
+
+     TSEVENT_NONE - no events currently detected, so checks if the current time-step includes any events
+     TSEVENT_LOCATED_INTERVAL - one more events detected in an interval (used only within this routine)
+     TSEVENT_PROCESSING - an interval was detected, now it is running the time-stepper to reduce the size of the interval and locate the event
+         TSEVENT_NONE -> TSEVENT_LOCATED_INTERVAL -> TSEVENT_PROCESSING
+
+*/
 PetscErrorCode TSEventHandler(TS ts)
 {
   PetscErrorCode ierr;
@@ -368,14 +379,6 @@ PetscErrorCode TSEventHandler(TS ts)
   ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
   ierr = TSGetSolution(ts,&U);CHKERRQ(ierr);
 
-
-  /*
-     TSEVENT_NONE - no events currently detected
-     TSEVENT_LOCATED_INTERVAL - one more events detected in an interval (used only within this routine)
-     TSEVENT_PROCESSING - an interval was detected, now it is running the time-stepper to reduce the size of the interval and locate the event
-         TSEVENT_NONE -> TSEVENT_LOCATED_INTERVAL -> TSEVENT_PROCESSING
-  */
-
   /* evalute the sign crossing functions at current time */
   ierr = VecLockReadPush(U);CHKERRQ(ierr);
   ierr = (*event->eventdetector)(ts,t,U,event->fvalue,event->ctx);CHKERRQ(ierr);
@@ -385,7 +388,7 @@ PetscErrorCode TSEventHandler(TS ts)
   for (i=0; i < event->nevents; i++) {
     fvalue_sign = PetscSign(PetscRealPart(event->fvalue[i]));
     fvalueprev_sign = PetscSign(PetscRealPart(event->fvalue_prev[i]));
-    printf("Time %g Event %d event->iterctr, %d fvalues and sign %g %g %d %d \n",(double)t,i,event->iterctr,event->fvalue_prev[i],event->fvalue[i],fvalueprev_sign,fvalue_sign);
+    //    printf("Time %g Event %d event->iterctr, %d fvalues and sign %g %g %d %d \n",(double)t,i,event->iterctr,event->fvalue_prev[i],event->fvalue[i],fvalueprev_sign,fvalue_sign);
     if (fvalueprev_sign != 0 && (fvalue_sign != fvalueprev_sign)) {
       switch (event->direction[i]) {
       case -1:
@@ -528,6 +531,7 @@ PetscErrorCode TSAdjointEventHandler(TS ts)
 {
   PetscErrorCode ierr;
   TSEvent        event;
+  PetscInt       step;
   PetscReal      t;
   Vec            U;
   PetscInt       ctr;
@@ -536,19 +540,16 @@ PetscErrorCode TSAdjointEventHandler(TS ts)
   PetscValidHeaderSpecific(ts,TS_CLASSID,1);
   if (!ts->event) PetscFunctionReturn(0);
   event = ts->event;
-
-  ierr = TSGetTime(ts,&t);CHKERRQ(ierr);
-  ierr = TSGetSolution(ts,&U);CHKERRQ(ierr);
-
-  ctr = event->recorder.ctr-1;
-  if (ctr >= 0 && PetscAbsReal(t - event->recorder.time[ctr]) < PETSC_SMALL) {
-    /* Call the user postevent function */
+  ierr  = TSGetStepNumber(ts,&step);CHKERRQ(ierr);
+  ctr   = event->recorder.ctr-1;
+  if (ctr >= 0 && (step == event->recorder.stepnum[ctr])) {
+    ierr = TSGetTime(ts,&t);CHKERRQ(ierr);
+    ierr = TSGetSolution(ts,&U);CHKERRQ(ierr);
     if (event->eventhandler) {
       ierr = (*event->eventhandler)(ts,event->recorder.nevents[ctr],event->recorder.eventidx[ctr],t,U,PETSC_FALSE,event->ctx);CHKERRQ(ierr);
       event->recorder.ctr--;
     }
   }
-
   ierr = PetscBarrier((PetscObject)ts);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

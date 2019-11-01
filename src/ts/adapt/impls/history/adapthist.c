@@ -12,6 +12,7 @@ static PetscErrorCode TSAdaptChoose_History(TSAdapt adapt,TS ts,PetscReal h,Pets
   TSAdapt_History *thadapt = (TSAdapt_History*)adapt->data;
 
   PetscFunctionBegin;
+  if (ts->event) SETERRQ(PetscObjectComm((PetscObject)adapt),PETSC_ERR_USER,"Cannot use TSADAPTHISTORY with events");
   if (!thadapt->hist) SETERRQ(PetscObjectComm((PetscObject)adapt),PETSC_ERR_USER,"Need call TSAdaptHistorySetHistory()");
   ierr = TSGetStepNumber(ts,&step);CHKERRQ(ierr);
   ierr = TSHistoryGetTimeStep(thadapt->hist,thadapt->bw,step+1,next_h);CHKERRQ(ierr);
@@ -74,8 +75,6 @@ PetscErrorCode TSAdaptHistorySetTSHistory(TSAdapt adapt, TSHistory hist, PetscBo
 +  t  - the time corresponding to the requested step (can be NULL)
 -  dt - the time step to be taken at the requested step (can be NULL)
 
-   Notes: The time history is internally copied, and the user can free the hist array. The user still needs to specify the termination of the solve via TSSetMaxSteps().
-
    Level: advanced
 
 .seealso: TSGetAdapt(), TSAdaptSetType(), TSAdaptHistorySetTrajectory(), TSADAPTHISTORY
@@ -114,7 +113,7 @@ PetscErrorCode TSAdaptHistoryGetStep(TSAdapt adapt, PetscInt step, PetscReal *t,
 
 .seealso: TSGetAdapt(), TSAdaptSetType(), TSAdaptHistorySetTrajectory(), TSADAPTHISTORY
 @*/
-PetscErrorCode TSAdaptHistorySetHistory(TSAdapt adapt, PetscInt n, PetscReal hist[], PetscBool backward)
+PetscErrorCode TSAdaptHistorySetHistory(TSAdapt adapt, PetscInt n, const PetscReal hist[], PetscBool backward)
 {
   TSAdapt_History *thadapt;
   PetscBool       flg;

@@ -837,6 +837,9 @@ PetscErrorCode TSAdaptCandidatesGet(TSAdapt adapt,PetscInt *n,const PetscInt **o
    The input value of parameter accept is retained from the last time step, so it will be PETSC_FALSE if the step is
    being retried after an initial rejection.
 
+   Because this selects for the next time-step the initial step used by the integrator is always that provided initially in the TS.
+   If that value is inappropriately large for accuracy reasons this means the solver can generate garbage.
+
    Level: developer
 
 .seealso: TSAdapt, TSAdaptCandidatesClear(), TSAdaptCandidateAdd()

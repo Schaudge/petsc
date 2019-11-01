@@ -141,7 +141,7 @@ PetscErrorCode TSHistoryGetLocFromTime(TSHistory tsh, PetscReal time, PetscInt *
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TSHistorySetHistory(TSHistory tsh, PetscInt n, PetscReal hist[], PetscInt hist_id[], PetscBool sorted)
+PetscErrorCode TSHistorySetHistory(TSHistory tsh, PetscInt n, const PetscReal hist[], const PetscInt hist_id[], PetscBool sorted)
 {
   PetscInt       i;
   PetscErrorCode ierr;
