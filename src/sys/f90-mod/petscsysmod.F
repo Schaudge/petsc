@@ -1,13 +1,14 @@
+#include <petscconf.h>
 
         module petscsysdefdummy
-#include <petscconf.h>
-#if defined(PETSC_HAVE_MPIUNI)
-        use mpiuni
-#define PETSC_AVOID_MPIF_H
+#if defined(PETSC_HAVE_MPI_F08MODULE)
+        use mpi_f08
 #elif defined(PETSC_HAVE_MPI_F90MODULE)
         use mpi
-#define PETSC_AVOID_MPIF_H
+#elif defined(PETSC_HAVE_MPIUNI)
+        use mpiuni
 #endif
+
 #include <../src/sys/f90-mod/petscsys.h>
 #include <../src/sys/f90-mod/petscdraw.h>
 #include <../src/sys/f90-mod/petscviewer.h>
@@ -373,18 +374,3 @@
         return
         end
 
-
-      block data PetscCommInit
-      implicit none
-!
-!     this code is duplicated - because including ../src/sys/f90-mod/petscsys.h here
-!     gives compile errors.
-!
-      MPI_Comm PETSC_COMM_WORLD
-      MPI_Comm PETSC_COMM_SELF
-      common /petscfortran9/ PETSC_COMM_WORLD
-      common /petscfortran10/ PETSC_COMM_SELF
-      data   PETSC_COMM_WORLD /0/
-      data   PETSC_COMM_SELF /0/
-      end
-      

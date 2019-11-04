@@ -78,8 +78,13 @@
 #define MPI_Group PetscFortranInt
 #define PetscMPIInt PetscFortranInt
 #else
+#if defined(PETSC_HAVE_MPI_F08MODULE)
+#define MPI_Comm type(mpi_Comm)
+#define MPI_Group type(mpi_Group)
+#else
 #define MPI_Comm integer
 #define MPI_Group integer
+#endif
 #define PetscMPIInt integer
 #endif
 !
@@ -218,5 +223,49 @@
 #define PetscOptions type(tPetscOptions)
 
 #define PetscFunctionList PetscFortranAddr
+
+#if defined(PETSC_HAVE_MPI_F08MODULE)
+!
+!     This module uses mpi, but only let out the stuff that you need from it
+!     This is temporary fix to provide limited support for mpi_f08;  a large refactorization is needed
+!
+! ----------------------------------------------------------------------------
+!
+! ----------------------------------------------------------------------------
+!    BEGIN PETSc aliases for MPI_ constants
+!
+!   These values for __float128 are handled in the common block (below)
+!     and transmitted from the C code
+!
+#if !defined(PETSC_USE_REAL___FLOAT128)
+#if defined (PETSC_USE_REAL_SINGLE)
+#define MPIU_REAL MPI_REAL
+#else
+#define MPIU_REAL MPI_DOUBLE_PRECISION
+#endif
+
+#define MPIU_SUM  MPI_SUM
+
+#if defined(PETSC_USE_COMPLEX)
+#if defined (PETSC_USE_REAL_SINGLE)
+#define MPIU_SCALAR MPI_COMPLEX
+#else
+#define MPIU_SCALAR  MPI_DOUBLE_COMPLEX
+#endif
+#else
+#if defined (PETSC_USE_REAL_SINGLE)
+#define MPIU_SCALAR MPI_REAL
+#else
+#define MPIU_SCALAR MPI_DOUBLE_PRECISION
+#endif
+#endif
+#endif
+
+#if defined(PETSC_USE_64BIT_INDICES)
+#define MPIU_INTEGER MPI_INTEGER8
+#else
+#define MPIU_INTEGER MPI_INTEGER
+#endif
+#endif
 
 #endif

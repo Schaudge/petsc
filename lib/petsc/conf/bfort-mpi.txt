@@ -9,7 +9,7 @@ toptr MPI_File MPI_File_f2c(*(%s))
 toptr MPI_Info MPI_Info_f2c(*(%s))
 toptr MPI_Message MPI_Message_f2c(*(%s))
 # 
-nativeptr MPI_Comm
+nativeptr MPI_Comm MPI_Comm
 nativeptr MPI_Request
 nativeptr MPI_Group
 nativeptr MPI_Op

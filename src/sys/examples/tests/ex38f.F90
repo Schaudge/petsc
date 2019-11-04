@@ -14,7 +14,7 @@
        endif
 
        f(1) = 1
-       call MPI_Allreduce(MPI_IN_PLACE,f,1,MPIU_INTEGER,MPI_MIN,PETSC_COMM_WORLD,ierr)
+       call MPI_Allreduce(MPI_IN_PLACE,f,1,MPIU_SCALAR,MPI_MIN,PETSC_COMM_WORLD,ierr)
        call PetscFinalize(ierr)
        end
 
