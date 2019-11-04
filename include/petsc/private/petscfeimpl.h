@@ -280,6 +280,25 @@ PETSC_STATIC_INLINE PetscErrorCode PetscFEInterpolateFieldAndGradient_Static(Pet
   PetscFunctionReturn(0);
 }
 
+PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomial_Internal(PetscInt n, PetscInt k, PetscInt *factorial)
+{
+  PetscReal f = 1.0;
+  PetscReal g = 1.0;
+  PetscErrorCode ierr;
+  PetscInt  i;
+
+  PetscFunctionBegin;
+  if (n < 0 || k < 0) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Binomal arguments (%D %D) must be non-negative\n", n, k);
+  if (2 * k < n) {
+    ierr = PetscDTBinomial_Internal(n, n - k, factorial);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+  for (i = k + 1; i <= n; i++) f *= i;
+  for (i = 1; i <= n - k; i++) g *= i;
+  *factorial = (PetscInt) (f / g);
+  PetscFunctionReturn(0);
+}
+
 PETSC_INTERN PetscErrorCode PetscDualSpaceLatticePointLexicographic_Internal(PetscInt, PetscInt, PetscInt[]);
 PETSC_INTERN PetscErrorCode PetscDualSpaceTensorPointLexicographic_Internal(PetscInt, PetscInt, PetscInt[]);
 
