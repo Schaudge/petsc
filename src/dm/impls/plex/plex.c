@@ -1053,6 +1053,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
     PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, dmInterped = PETSC_FALSE, facesOK = PETSC_FALSE, symmetryOK = PETSC_FALSE, skeletonOK = PETSC_FALSE, pointSFOK = PETSC_FALSE, geometryOK = PETSC_FALSE, coneConformOnInterfacesOK = PETSC_FALSE;
     char		bar[19] = "-----------------\0";
+    DMPlexInterpolatedFlag interpolated;
 
     ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
     ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
@@ -1063,15 +1064,13 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr = DMPlexIsDistributed(dm, &dmDistributed);CHKERRQ(ierr);
     ierr = DMPlexGetOverlap(dm, &maxOverlap);CHKERRQ(ierr);
     if (maxOverlap > 0) { dmOverlapped = PETSC_TRUE;}
+    ierr = DMPlexIsInterpolatedCollective(dm, &interpolated);CHKERRQ(ierr);
 
     /* Global and Local Sizing	*/
     ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
     ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
     ierr = DMPlexGetDepth(dm, &locdepth);CHKERRQ(ierr);
-    ierr = MPIU_Allreduce(&locdepth, &depth, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
-    if (dim == depth) {
-      dmInterped = PETSC_TRUE;
-    }
+
     for (i = 0; i <= depth; i++) {
       if (!dmInterped && (i != 0)) { i = 3;}
       /* In case that dm is not interpolated, will only have cell-vertex mesh */
@@ -1119,11 +1118,11 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     }
 
     /* Various Diagnostic DMPlex Checks     */
-    if (dmInterped) {
+    if (interpolated == DMPLEX_INTERPOLATED_FULL) {
       ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr);
-      if (!ierr) { facesOK = PETSC_TRUE;}
+      facesOK = PETSC_TRUE;
     } else {
-      ierr = PetscViewerASCIIPrintf(viewer, "WARNING: Mesh is NOT interpolated, skipping DMPlexCheckFaces\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "WARNING: Mesh is NOT fully interpolated, skipping DMPlexCheckFaces\n");CHKERRQ(ierr);
     }
     ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr);
     ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr);
@@ -1139,7 +1138,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 
     /* Printing     */
     /* Autotest Output      */
-    ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "SKIPPED");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "Adjacency Symmetry OK:%s>%s\n", bar + 7, symmetryOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "Cells Vertex Count OK:%s>%s\n", bar + 7, skeletonOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "Point SF OK:%s%s>%s\n", bar, bar + 14, pointSFOK ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
@@ -1148,7 +1147,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 
     /* Mesh Information     */
     ierr = PetscViewerASCIIPrintf(viewer, "Distributed DM:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "Interpolated DM:%s>%s\n", bar + 1, dmInterped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Interpolated DM:%s>%s\n", bar + 1, interpolated ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "Overlapped DM:%s%s>%s\n", bar, bar + 14, dmOverlapped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     if (dmOverlapped) {
     ierr = PetscViewerASCIIPrintf(viewer, "Maximum Overlap in DM:%s>%d\n", bar + 7, maxOverlap);CHKERRQ(ierr);
