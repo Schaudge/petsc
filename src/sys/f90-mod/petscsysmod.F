@@ -1,13 +1,72 @@
+#if defined(PETSC_HAVE_MPI_F08MODULE)
+!
+!     This module uses mpi, but only let out the stuff that you need from it
+!     This is temporary fix to provide limited support for mpi_f08;  a large refactorization is needed
+!
+
+        module petsc_mpi
+#include <petscconf.h>
+
+        private
+#if !defined(PETSC_USE_REAL___FLOAT128)
+        public:: MPIU_REAL, MPIU_SUM, MPIU_SCALAR, MPIU_INTEGER
+#else
+        public:: MPIU_INTEGER
+#endif
+! ----------------------------------------------------------------------------
+!
+! ----------------------------------------------------------------------------
+!    BEGIN PETSc aliases for MPI_ constants
+!
+!   These values for __float128 are handled in the common block (below)
+!     and transmitted from the C code
+!
+#if !defined(PETSC_USE_REAL___FLOAT128)
+        integer MPIU_REAL
+#if defined (PETSC_USE_REAL_SINGLE)
+        parameter (MPIU_REAL = MPI_REAL)
+#else
+        parameter(MPIU_REAL = MPI_DOUBLE_PRECISION)
+#endif
+
+        integer MPIU_SUM
+        parameter (MPIU_SUM = MPI_SUM)
+
+        integer MPIU_SCALAR
+#if defined(PETSC_USE_COMPLEX)
+#if defined (PETSC_USE_REAL_SINGLE)
+        parameter(MPIU_SCALAR = MPI_COMPLEX)
+#else
+        parameter(MPIU_SCALAR = MPI_DOUBLE_COMPLEX)
+#endif
+#else
+#if defined (PETSC_USE_REAL_SINGLE)
+        parameter (MPIU_SCALAR = MPI_REAL)
+#else
+        parameter(MPIU_SCALAR = MPI_DOUBLE_PRECISION)
+#endif
+#endif
+#endif
+
+        integer MPIU_INTEGER
+#if defined(PETSC_USE_64BIT_INDICES)
+        parameter(MPIU_INTEGER = MPI_INTEGER8)
+#else
+        parameter(MPIU_INTEGER = MPI_INTEGER)
+#endif
+        end module petsc_mpi
+#endif
 
         module petscsysdefdummy
-#include <petscconf.h>
-#if defined(PETSC_HAVE_MPIUNI)
-        use mpiuni
-#define PETSC_AVOID_MPIF_H
+#if defined(PETSC_HAVE_MPI_F08MODULE)
+        use petsc_mpi
+        use mpi_f08
 #elif defined(PETSC_HAVE_MPI_F90MODULE)
         use mpi
-#define PETSC_AVOID_MPIF_H
+#elif defined(PETSC_HAVE_MPIUNI)
+        use mpiuni
 #endif
+
 #include <../src/sys/f90-mod/petscsys.h>
 #include <../src/sys/f90-mod/petscdraw.h>
 #include <../src/sys/f90-mod/petscviewer.h>

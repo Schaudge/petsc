@@ -63,6 +63,7 @@ class Configure(config.package.Package):
     help.addArgument('MPI', '-with-mpiexec=<prog>',                              nargs.Arg(None, None, 'The utility used to launch MPI jobs. (should support "-n <np>" option)'))
     help.addArgument('MPI', '-with-mpi-compilers=<bool>',                        nargs.ArgBool(None, 1, 'Try to use the MPI compilers, e.g. mpicc'))
     help.addArgument('MPI', '-known-mpi-shared-libraries=<bool>',                nargs.ArgBool(None, None, 'Indicates the MPI libraries are shared (the usual test will be skipped)'))
+    help.addArgument('MPI', '-with-mpi-f08-module=<bool>',                       nargs.ArgBool(None, 0, 'Allow use of MPI f08 module'))
     return
 
   def setupDependencies(self, framework):
@@ -437,6 +438,12 @@ to remove this warning message *****')
       if self.libraries.check(self.lib,'', call = '       use mpi\n       integer ierr,rank\n       call mpi_init(ierr)\n       call mpi_comm_rank(MPI_COMM_WORLD,rank,ierr)\n'):
         self.havef90module = 1
         self.addDefine('HAVE_MPI_F90MODULE', 1)
+        if self.argDB['with-mpi-f08-module']:
+          if self.libraries.check(self.lib,'', call = '       use mpi_f08\n       integer ierr,rank\n       call mpi_init(ierr)\n       call mpi_comm_rank(MPI_COMM_WORLD,rank,ierr)\n'):
+            self.havef08module = 1
+            self.addDefine('HAVE_MPI_F08MODULE', 1)
+          else:
+            raise RuntimeError("You requested --with-mpi-f08-module but it is unavailable or broken")
     self.compilers.FPPFLAGS = oldFlags
     self.libraries.popLanguage()
     return 0

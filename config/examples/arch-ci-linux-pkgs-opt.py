@@ -7,6 +7,7 @@ if not os.path.isdir(petsc_hash_pkgs): os.mkdir(petsc_hash_pkgs)
 configure_options = [
   '--package-prefix-hash='+petsc_hash_pkgs,
   '--with-debugging=0',
+  '--with-mpi-f08-module',
   #'--with-cc=mpicc.openmpi',
   #'--with-cxx=mpicxx.openmpi',
   #'--with-fc=mpif90.openmpi',

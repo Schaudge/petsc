@@ -118,6 +118,9 @@
       parameter (PETSC_i = (0.0d0,1.0d0))
 #endif
 
+!    See the message in petscsysmod.F for comment about temporary fix
+
+#if !defined(PETSC_HAVE_MPI_F08MODULE)
 !
 ! ----------------------------------------------------------------------------
 !    BEGIN PETSc aliases for MPI_ constants
@@ -157,6 +160,7 @@
       parameter(MPIU_INTEGER = MPI_INTEGER8)
 #else
       parameter(MPIU_INTEGER = MPI_INTEGER)
+#endif
 #endif
 
 !      A PETSC_NULL_FUNCTION pointer
