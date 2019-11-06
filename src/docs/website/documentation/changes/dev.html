@@ -128,6 +128,9 @@
       <h4>SNES:</h4>
       <h4>SNESLineSearch:</h4>
       <h4>TS:</h4>
+        <li>TSEvent no longer uses the magnitude of the user event detection function to determine zero crossings, instead it shrinks the time-step to below some tolerance</li>
+        <li>TSSetEventTolerance() is now relative to the current time-step when the event was detected; it is no longer related to the size of the detection function</li>
+        <li>Add TSSetPostEventTimeStepScale(): set the post-event time step relative to the time-step before the event was detected</li>
       <h4>DM/DA:</h4>
         <ul>
           <li>DMCopyLabels(): Add two additional input flags</li>

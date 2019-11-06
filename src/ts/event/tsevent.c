@@ -114,6 +114,8 @@ PetscErrorCode TSSetPostEventTimeStep(TS ts,PetscReal dt)
    This tolerance is the relative size compare to the initial timestep of the interval that captures the sign change of the event
    Must call TSSetEventHandler() before setting the tolerances.
 
+  The default is 1.e-3
+
    Level: beginner
 
 .seealso: TS, TSEvent, TSSetEventHandler()
