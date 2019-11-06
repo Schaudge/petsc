@@ -144,7 +144,6 @@ PetscErrorCode EventDetect(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *ctx
   PetscScalar    Efd,RF,VR,Vr,Vi,Vm;
 
   PetscFunctionBegin;
-
   ierr = DMCompositeGetLocalVectors(user->dmpgrid,&Xgen,&Xnet);CHKERRQ(ierr);
   ierr = DMCompositeScatter(user->dmpgrid,X,Xgen,Xnet);CHKERRQ(ierr);
 
@@ -179,32 +178,29 @@ PetscErrorCode EventDetect(TS ts,PetscReal t,Vec X,PetscScalar *fvalue,void *ctx
   }
   ierr = VecRestoreArrayRead(Xgen,&xgen);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(Xnet,&xnet);CHKERRQ(ierr);
-
   ierr = DMCompositeRestoreLocalVectors(user->dmpgrid,&Xgen,&Xnet);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscReal t,Vec X,PetscBool forwardsolve,void* ctx)
 {
-  Userctx *user=(Userctx*)ctx;
-  Vec      Xgen,Xnet;
-  PetscScalar *xgen,*xnet;
-  PetscInt row_loc,col_loc;
-  PetscScalar val;
-  PetscErrorCode ierr;
-  PetscInt i,idx=0,event_num;
-  PetscScalar fvalue;
-  PetscScalar Efd, RF, VR;
-  PetscScalar Vr,Vi,Vm;
+  Userctx           *user=(Userctx*)ctx;
+  Vec               Xgen,Xnet;
+  const PetscScalar *xgen,*xnet;
+  PetscInt          row_loc,col_loc;
+  PetscScalar       val;
+  PetscErrorCode    ierr;
+  PetscInt          i,idx=0,event_num;
+  PetscScalar       fvalue;
+  PetscScalar       Efd, RF, VR;
+  PetscScalar       Vr,Vi,Vm;
   
   PetscFunctionBegin;
-
   ierr = DMCompositeGetLocalVectors(user->dmpgrid,&Xgen,&Xnet);CHKERRQ(ierr);
   ierr = DMCompositeScatter(user->dmpgrid,X,Xgen,Xnet);CHKERRQ(ierr);
 
-  ierr = VecGetArray(Xgen,&xgen);CHKERRQ(ierr);
-  ierr = VecGetArray(Xnet,&xnet);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(Xgen,&xgen);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(Xnet,&xnet);CHKERRQ(ierr);
 
   for (i=0; i < nevents; i++) {
     if (event_list[i] == 0) {
@@ -257,8 +253,7 @@ PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscRea
 	}
 	if (VRatmin[i]) {
 	  fvalue =  (VR - KA[i]*RF + KA[i]*KF[i]*Efd/TF[i] - KA[i]*(Vref[i] - Vm))/TA[i];
-
-	  if(fvalue > 0) {
+	  if (fvalue > 0) {
 	    VRatmin[i] = 0;
 	    ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: dVR_dt went positive on fault clearing at time %g\n",i,t);CHKERRQ(ierr);
 	  }
@@ -272,8 +267,7 @@ PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscRea
 	if (!VRatmax[idx]) {
 	  VRatmax[idx] = 1;
 	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: hit upper limit at time %g\n",idx,t);CHKERRQ(ierr);
-	}
-	else {
+	} else {
 	  VRatmax[idx] = 0;
 	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: freeing variable as dVR_dt is negative at time %g\n",idx,t);CHKERRQ(ierr);
 	}
@@ -281,8 +275,7 @@ PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscRea
 	if (!VRatmin[idx]) {
 	  VRatmin[idx] = 1;
 	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: hit lower limit at time %g\n",idx,t);CHKERRQ(ierr);
-	}
-	else {
+	} else {
 	  VRatmin[idx] = 0;
 	  ierr = PetscPrintf(PETSC_COMM_SELF,"VR[%d]: freeing variable as dVR_dt is positive at time %g\n",idx,t);CHKERRQ(ierr);
 	}
@@ -290,11 +283,9 @@ PetscErrorCode EventHandle(TS ts,PetscInt nevents,PetscInt event_list[],PetscRea
     }
   }
 
-  ierr = VecRestoreArray(Xgen,&xgen);CHKERRQ(ierr);
-  ierr = VecRestoreArray(Xnet,&xnet);CHKERRQ(ierr);
-
+  ierr = VecRestoreArrayRead(Xgen,&xgen);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(Xnet,&xnet);CHKERRQ(ierr);
   ierr = DMCompositeRestoreLocalVectors(user->dmpgrid,&Xgen,&Xnet);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -344,15 +335,16 @@ PetscErrorCode SaveSolution(TS ts)
 
 PetscErrorCode SetInitialGuess(Vec X,Userctx *user)
 {
-  PetscErrorCode ierr;
-  Vec            Xgen,Xnet;
-  PetscScalar    *xgen,*xnet;
-  PetscInt       i,idx=0;
-  PetscScalar    Vr,Vi,IGr,IGi,Vm,Vm2;
-  PetscScalar    Eqp,Edp,delta;
-  PetscScalar    Efd,RF,VR; /* Exciter variables */
-  PetscScalar    Id,Iq;  /* Generator dq axis currents */
-  PetscScalar    theta,Vd,Vq,SE;
+  PetscErrorCode    ierr;
+  Vec               Xgen,Xnet;
+  PetscScalar       *xgen;
+  const PetscScalar *xnet;
+  PetscInt          i,idx=0;
+  PetscScalar       Vr,Vi,IGr,IGi,Vm,Vm2;
+  PetscScalar       Eqp,Edp,delta;
+  PetscScalar       Efd,RF,VR; /* Exciter variables */
+  PetscScalar       Id,Iq;  /* Generator dq axis currents */
+  PetscScalar       theta,Vd,Vq,SE;
 
   PetscFunctionBegin;
   M[0] = 2*H[0]/w_s; M[1] = 2*H[1]/w_s; M[2] = 2*H[2]/w_s;
@@ -365,7 +357,7 @@ PetscErrorCode SetInitialGuess(Vec X,Userctx *user)
 
   /* Generator subsystem initialization */
   ierr = VecGetArray(Xgen,&xgen);CHKERRQ(ierr);
-  ierr = VecGetArray(Xnet,&xnet);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(Xnet,&xnet);CHKERRQ(ierr);
 
   for (i=0; i < ngen; i++) {
     Vr  = xnet[2*gbus[i]]; /* Real part of generator terminal voltage */
@@ -420,7 +412,7 @@ PetscErrorCode SetInitialGuess(Vec X,Userctx *user)
   }
 
   ierr = VecRestoreArray(Xgen,&xgen);CHKERRQ(ierr);
-  ierr = VecRestoreArray(Xnet,&xnet);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(Xnet,&xnet);CHKERRQ(ierr);
 
   /* ierr = VecView(Xgen,0);CHKERRQ(ierr); */
   ierr = DMCompositeGather(user->dmpgrid,INSERT_VALUES,X,Xgen,Xnet);CHKERRQ(ierr);
@@ -431,19 +423,20 @@ PetscErrorCode SetInitialGuess(Vec X,Userctx *user)
 /* Computes F = [f(x,y);g(x,y)] */
 PetscErrorCode ResidualFunction(Vec X, Vec F, Userctx *user)
 {
-  PetscErrorCode ierr;
-  Vec            Xgen,Xnet,Fgen,Fnet;
-  PetscScalar    *xgen,*xnet,*fgen,*fnet;
-  PetscInt       i,idx=0;
-  PetscScalar    Vr,Vi,Vm,Vm2;
-  PetscScalar    Eqp,Edp,delta,w; /* Generator variables */
-  PetscScalar    Efd,RF,VR; /* Exciter variables */
-  PetscScalar    Id,Iq;  /* Generator dq axis currents */
-  PetscScalar    Vd,Vq,SE;
-  PetscScalar    IGr,IGi,IDr,IDi;
-  PetscScalar    Zdq_inv[4],det;
-  PetscScalar    PD,QD,Vm0,*v0;
-  PetscInt       k;
+  PetscErrorCode    ierr;
+  Vec               Xgen,Xnet,Fgen,Fnet;
+  const PetscScalar *xgen,*xnet;
+  PetscScalar       *fgen,*fnet;
+  PetscInt          i,idx=0;
+  PetscScalar       Vr,Vi,Vm,Vm2;
+  PetscScalar       Eqp,Edp,delta,w; /* Generator variables */
+  PetscScalar       Efd,RF,VR; /* Exciter variables */
+  PetscScalar       Id,Iq;  /* Generator dq axis currents */
+  PetscScalar       Vd,Vq,SE;
+  PetscScalar       IGr,IGi,IDr,IDi;
+  PetscScalar       Zdq_inv[4],det;
+  PetscScalar       PD,QD,Vm0,*v0;
+  PetscInt          k;
 
   PetscFunctionBegin;
   ierr = VecZeroEntries(F);CHKERRQ(ierr);
@@ -462,8 +455,8 @@ PetscErrorCode ResidualFunction(Vec X, Vec F, Userctx *user)
   */
   ierr = MatMult(user->Ybus,Xnet,Fnet);CHKERRQ(ierr);
 
-  ierr = VecGetArray(Xgen,&xgen);CHKERRQ(ierr);
-  ierr = VecGetArray(Xnet,&xnet);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(Xgen,&xgen);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(Xnet,&xnet);CHKERRQ(ierr);
   ierr = VecGetArray(Fgen,&fgen);CHKERRQ(ierr);
   ierr = VecGetArray(Fnet,&fnet);CHKERRQ(ierr);
 
@@ -513,7 +506,7 @@ PetscErrorCode ResidualFunction(Vec X, Vec F, Userctx *user)
     /* Exciter differential equations */
     fgen[idx+6] = (-KE[i]*Efd - SE + VR)/TE[i];
     fgen[idx+7] = (-RF + KF[i]*Efd/TF[i])/TF[i];
-    if(VRatmax[i]) fgen[idx+8] = VR - VRMAX[i];
+    if (VRatmax[i]) fgen[idx+8] = VR - VRMAX[i];
     else if(VRatmin[i]) fgen[idx+8] = VRMIN[i] - VR;
     else fgen[idx+8] = (-VR + KA[i]*RF - KA[i]*KF[i]*Efd/TF[i] + KA[i]*(Vref[i] - Vm))/TA[i];
 
@@ -539,8 +532,8 @@ PetscErrorCode ResidualFunction(Vec X, Vec F, Userctx *user)
   }
   ierr = VecRestoreArray(user->V0,&v0);CHKERRQ(ierr);
 
-  ierr = VecRestoreArray(Xgen,&xgen);CHKERRQ(ierr);
-  ierr = VecRestoreArray(Xnet,&xnet);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(Xgen,&xgen);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(Xnet,&xnet);CHKERRQ(ierr);
   ierr = VecRestoreArray(Fgen,&fgen);CHKERRQ(ierr);
   ierr = VecRestoreArray(Fnet,&fnet);CHKERRQ(ierr);
 
@@ -569,15 +562,16 @@ PetscErrorCode RHSFunction(TS ts,PetscReal t, Vec X, Vec F, void *ctx)
  */
 PetscErrorCode IFunction(TS ts,PetscReal t, Vec X, Vec Xdot, Vec F, void *ctx)
 {
-  PetscErrorCode ierr;
-  PetscScalar    *f,*xdot;
-  PetscInt       i;
+  PetscErrorCode    ierr;
+  PetscScalar       *f;
+  const PetscScalar *xdot;
+  PetscInt          i;
 
   PetscFunctionBegin;
 
   ierr = RHSFunction(ts,t,X,F,ctx);CHKERRQ(ierr);
   ierr = VecGetArray(F,&f);CHKERRQ(ierr);
-  ierr = VecGetArray(Xdot,&xdot);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(Xdot,&xdot);CHKERRQ(ierr);
   for (i=0;i < ngen;i++) {
     f[9*i]   -= xdot[9*i];
     f[9*i+1] -= xdot[9*i+1];
@@ -588,7 +582,7 @@ PetscErrorCode IFunction(TS ts,PetscReal t, Vec X, Vec Xdot, Vec F, void *ctx)
     f[9*i+8] -= xdot[9*i+8];
   }
   ierr = VecRestoreArray(F,&f);CHKERRQ(ierr);
-  ierr = VecRestoreArray(Xdot,&xdot);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(Xdot,&xdot);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -685,7 +679,6 @@ PetscErrorCode PreallocateJacobian(Mat J, Userctx *user)
   }
 
   ierr = MatSeqAIJSetPreallocation(J,0,d_nnz);CHKERRQ(ierr);
-
   ierr = PetscFree(d_nnz);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -696,31 +689,31 @@ PetscErrorCode PreallocateJacobian(Mat J, Userctx *user)
 */
 PetscErrorCode ResidualJacobian(Vec X,Mat J,Mat B,void *ctx)
 {
-  PetscErrorCode ierr;
-  Userctx        *user=(Userctx*)ctx;
-  Vec            Xgen,Xnet;
-  PetscScalar    *xgen,*xnet;
-  PetscInt       i,idx=0;
-  PetscScalar    Vr,Vi,Vm,Vm2;
-  PetscScalar    Eqp,Edp,delta; /* Generator variables */
-  PetscScalar    Efd;
-  PetscScalar    Id,Iq;  /* Generator dq axis currents */
-  PetscScalar    Vd,Vq;
-  PetscScalar    val[10];
-  PetscInt       row[2],col[10];
-  PetscInt       net_start=user->neqs_gen;
-  PetscScalar    Zdq_inv[4],det;
-  PetscScalar    dVd_dVr,dVd_dVi,dVq_dVr,dVq_dVi,dVd_ddelta,dVq_ddelta;
-  PetscScalar    dIGr_ddelta,dIGi_ddelta,dIGr_dId,dIGr_dIq,dIGi_dId,dIGi_dIq;
-  PetscScalar    dSE_dEfd;
-  PetscScalar    dVm_dVd,dVm_dVq,dVm_dVr,dVm_dVi;
+  PetscErrorCode    ierr;
+  Userctx           *user=(Userctx*)ctx;
+  Vec               Xgen,Xnet;
+  PetscScalar       *xgen,*xnet;
+  PetscInt          i,idx=0;
+  PetscScalar       Vr,Vi,Vm,Vm2;
+  PetscScalar       Eqp,Edp,delta; /* Generator variables */
+  PetscScalar       Efd;
+  PetscScalar       Id,Iq;  /* Generator dq axis currents */
+  PetscScalar       Vd,Vq;
+  PetscScalar       val[10];
+  PetscInt          row[2],col[10];
+  PetscInt          net_start=user->neqs_gen;
+  PetscScalar       Zdq_inv[4],det;
+  PetscScalar       dVd_dVr,dVd_dVi,dVq_dVr,dVq_dVi,dVd_ddelta,dVq_ddelta;
+  PetscScalar       dIGr_ddelta,dIGi_ddelta,dIGr_dId,dIGr_dIq,dIGi_dId,dIGi_dIq;
+  PetscScalar       dSE_dEfd;
+  PetscScalar       dVm_dVd,dVm_dVq,dVm_dVr,dVm_dVi;
   PetscInt          ncols;
   const PetscInt    *cols;
   const PetscScalar *yvals;
   PetscInt          k;
-  PetscScalar PD,QD,Vm0,*v0,Vm4;
-  PetscScalar dPD_dVr,dPD_dVi,dQD_dVr,dQD_dVi;
-  PetscScalar dIDr_dVr,dIDr_dVi,dIDi_dVr,dIDi_dVi;
+  PetscScalar       PD,QD,Vm0,*v0,Vm4;
+  PetscScalar       dPD_dVr,dPD_dVi,dQD_dVr,dQD_dVi;
+  PetscScalar       dIDr_dVr,dIDr_dVi,dIDi_dVr,dIDi_dVi;
 
 
   PetscFunctionBegin;
@@ -962,9 +955,7 @@ PetscErrorCode RHSJacobian(TS ts,PetscReal t,Vec X,Mat A,Mat B,void *ctx)
 
   PetscFunctionBegin;
   user->t = t;
-
   ierr = ResidualJacobian(X,A,B,user);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -982,7 +973,6 @@ PetscErrorCode IJacobian(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat A,Mat 
   PetscFunctionBegin;
   user->t = t;
   atmp *= -1;
-
   ierr = RHSJacobian(ts,t,X,A,B,user);CHKERRQ(ierr);
   for (i=0;i < ngen;i++) {
     row = 9*i;
@@ -1025,7 +1015,6 @@ int main(int argc,char **argv)
   const PetscInt    *idx3;
   PetscScalar       *vatoli;
   PetscInt          k;
-
 
   ierr = PetscInitialize(&argc,&argv,"petscoptions",help);if (ierr) return ierr;
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
