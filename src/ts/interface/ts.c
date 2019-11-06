@@ -3295,7 +3295,7 @@ $ func (TS ts);
   Notes:
   The function set by TSSetPostStep() is called after each successful step. The solution vector X
   obtained by TSGetSolution() may be different than that computed at the step end if the event handler
-  locates an event and TSPostEvent() modifies it. Use TSSetPostEvaluate() if an unmodified solution is needed instead.
+  locates an event and TSEventHandle() modifies it. Use TSSetPostEvaluate() if an unmodified solution is needed instead.
 
   Level: intermediate
 
@@ -3781,7 +3781,7 @@ PetscErrorCode TSSolve(TS ts,Vec u)
         ierr = TSForwardStep(ts);CHKERRQ(ierr);
       }
       ierr = TSPostEvaluate(ts);CHKERRQ(ierr);
-      ierr = TSEventHandler(ts);CHKERRQ(ierr); /* The right-hand side may be changed due to event. Be careful with Any computation using the RHS information after this point. */
+      ierr = TSEventDetector(ts);CHKERRQ(ierr); /* The right-hand side may be changed due to event. Be careful with Any computation using the RHS information after this point. */
       if (ts->steprollback) {
         ierr = TSPostEvaluate(ts);CHKERRQ(ierr);
       }

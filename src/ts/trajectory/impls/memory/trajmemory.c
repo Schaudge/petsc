@@ -507,7 +507,7 @@ static PetscErrorCode ReCompute(TS ts,TJScheduler *tjsch,PetscInt stepnumbegin,P
       /* don't use the public interface as it will update the TSHistory: this need a better fix */
       ierr = TSTrajectorySet_Memory(ts->trajectory,ts,ts->steps,ts->ptime,ts->vec_sol);CHKERRQ(ierr);
     }
-    ierr = TSEventHandler(ts);CHKERRQ(ierr);
+    ierr = TSEventDetector(ts);CHKERRQ(ierr);
     if (!ts->steprollback) {
       ierr = TSPostStep(ts);CHKERRQ(ierr);
     }

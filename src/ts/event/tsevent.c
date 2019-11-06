@@ -278,7 +278,7 @@ static PetscErrorCode TSEventRecorderResize(TSEvent event)
 /*
    Helper routine to manage user handler and recording
 */
-static PetscErrorCode TSPostEvent(TS ts,PetscReal t,Vec U)
+static PetscErrorCode TSEventHandle(TS ts,PetscReal t,Vec U)
 {
   PetscErrorCode ierr;
   TSEvent        event = ts->event;
@@ -351,7 +351,7 @@ PETSC_STATIC_INLINE PetscReal TSEventComputeStepSize(PetscReal tleft,PetscReal t
 }
 
 /*
-    TSEventHandler - Manages events for TS
+    TSEventDetector - Manages events for TS
 
      The behavior depends on event->status
 
@@ -361,7 +361,7 @@ PETSC_STATIC_INLINE PetscReal TSEventComputeStepSize(PetscReal tleft,PetscReal t
          TSEVENT_NONE -> TSEVENT_LOCATED_INTERVAL -> TSEVENT_PROCESSING
 
 */
-PetscErrorCode TSEventHandler(TS ts)
+PetscErrorCode TSEventDetector(TS ts)
 {
   PetscErrorCode ierr;
   TSEvent        event;
@@ -441,7 +441,7 @@ PetscErrorCode TSEventHandler(TS ts)
   /*  remove the zero crossing detected */
   ierr = MPI_Allreduce(&event->nevents_zero,&anyeventsfound,1,MPIU_INT,MPIU_MAX,PetscObjectComm((PetscObject)ts));CHKERRQ(ierr);
   if (anyeventsfound) {
-    ierr = TSPostEvent(ts,t,U);CHKERRQ(ierr);
+    ierr = TSEventHandle(ts,t,U);CHKERRQ(ierr);
     dt   = event->postevent_dt == PETSC_DECIDE ? event->prev_dt : PetscMin(event->postevent_dt,event->prev_dt);
     dt   = event->postevent_dtscale*dt;
     if (event->monitor) {

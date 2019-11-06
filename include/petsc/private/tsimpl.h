@@ -434,7 +434,7 @@ struct _n_TSEvent {
 
 PETSC_EXTERN PetscErrorCode TSEventInitialize(TSEvent,TS,PetscReal,Vec);
 PETSC_EXTERN PetscErrorCode TSEventDestroy(TSEvent*);
-PETSC_EXTERN PetscErrorCode TSEventHandler(TS);
+PETSC_EXTERN PetscErrorCode TSEventDetector(TS);
 PETSC_EXTERN PetscErrorCode TSAdjointEventHandler(TS);
 
 PETSC_EXTERN PetscLogEvent TS_AdjointStep;
