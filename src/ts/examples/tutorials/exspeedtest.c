@@ -417,8 +417,8 @@ int main(int argc, char **argv)
      is that there should be twice as many local coords as local vertices!	*/
 
     ierr = PetscPrintf(comm,"%s Coords %s\n", bar, bar);CHKERRQ(ierr);
-    for(i=0; i < nCoords/2; i++) {
-      ierr = PetscPrintf(comm,"(%.2f,%.2f)\n", coords[2*i], coords[(2*i)+1]);CHKERRQ(ierr);
+    for(i = 0; i < nCoords/dim; i++) {
+      ierr = PetscPrintf(comm,"(%.2f,%.2f)\n", coords[dim*i], coords[(dim*i)+1]);CHKERRQ(ierr);
     }
     ierr = PetscPrintf(comm,"%d Number of LOCAL coordinates\n",i);CHKERRQ(ierr);
     ierr = PetscPrintf(comm,"%s Coords End %s\n", bar, bar);CHKERRQ(ierr);
