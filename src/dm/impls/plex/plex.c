@@ -1078,11 +1078,11 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
 
     for (i = 0; i <= depth; ++i) {
+      PetscInt	max = 0, tempi = i;
       if (interpolated != DMPLEX_INTERPOLATED_FULL && (i != 0)) { i = 3;}
       /* In case that dm is not interpolated, will only have cell-vertex mesh */
-      if ((dim == 2) && (i == depth)) { i = 3;}
-      /* For 2D calls the faces "cells"       */
-      PetscInt	max = 0, tempi = i;
+      if ((dim == 2) && (i == depth)) { i = 3; tempi = depth;}
+      /* For 2D calls the faces "cells", make i = 3 to jump to cell, but use tempi to work at actual cell depth */
       switch (i)
       {
       case 0:
@@ -1167,8 +1167,8 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
 
     /* Mesh Information     */
     ierr = PetscViewerASCIIPrintf(viewer, "Distributed DM:%s>%s\n", bar, dmDistributed ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "Interpolated DM:%s>%s\n", bar + 1, interpolationStatus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "Overlapped DM:%s%s>%s\n", bar, bar + 14, dmOverlapped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "DM Interpolation Flag:%s>%s\n", bar + 7, interpolationStatus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Overlapped DM:%s%s>%s\n", bar, bar + 16, dmOverlapped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     if (dmOverlapped) {
     ierr = PetscViewerASCIIPrintf(viewer, "Maximum Overlap in DM:%s>%d\n", bar + 7, maxOverlap);CHKERRQ(ierr);
     }

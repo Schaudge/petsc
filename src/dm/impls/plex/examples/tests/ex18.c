@@ -194,6 +194,7 @@ typedef struct {
   PetscInt   dim;                          /* The topological mesh dimension */
   PetscBool  cellSimplex;                  /* Use simplices or hexes */
   PetscBool  distribute;                   /* Distribute the mesh */
+  PetscInt   overlap;			   /* Overlap the mesh */
   InterpType interpolate;                  /* Interpolate the mesh before or after DMPlexDistribute() */
   PetscBool  useGenerator;                 /* Construct mesh with a mesh generator */
   PetscBool  testOrientIF;                 /* Test for different original interface orientations */
@@ -252,6 +253,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->cellSimplex  = PETSC_TRUE;
   options->distribute   = PETSC_FALSE;
   options->interpolate  = NONE;
+  options->overlap	= 0;
   options->useGenerator = PETSC_FALSE;
   options->testOrientIF = PETSC_FALSE;
   options->testHeavy    = PETSC_TRUE;
@@ -270,6 +272,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBoundedInt("-testnum", "The mesh to create", "ex18.c", options->testNum, &options->testNum, NULL,0);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-cell_simplex", "Generate simplices if true, otherwise hexes", "ex18.c", options->cellSimplex, &options->cellSimplex, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-distribute", "Distribute the mesh", "ex18.c", options->distribute, &options->distribute, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBoundedInt("-overlap", "Overlap the mesh", "ex18.c", options->overlap,  &options->overlap, NULL,0);CHKERRQ(ierr);
   ierr = PetscOptionsEList("-interpolate", "Type of mesh interpolation, e.g. none, serial, parallel", "ex18.c", interpTypes, 3, interpTypes[options->interpolate], &interp, NULL);CHKERRQ(ierr);
   options->interpolate = (InterpType) interp;
   if (!options->distribute && options->interpolate == PARALLEL) SETERRQ(comm, PETSC_ERR_SUP, "-interpolate parallel  needs  -distribute 1");
@@ -767,7 +770,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     DM               pdm = NULL;
 
     /* Redistribute mesh over processes using that partitioner */
-    ierr = DMPlexDistribute(*dm, 0, NULL, &pdm);CHKERRQ(ierr);
+    ierr = DMPlexDistribute(*dm, user->overlap, NULL, &pdm);CHKERRQ(ierr);
     if (pdm) {
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm  = pdm;
@@ -1884,7 +1887,7 @@ int main(int argc, char **argv)
 
   testset:
     suffix: 10
-    args: -use_generator -cell_simplex 0 -dm_view ascii::ascii_info_concise
+    args: -use_generator -cell_simplex 0 -dm_view ascii::ascii_info_concise -dm_plex_check_all
     test:
       suffix: 2D_dmplex_view_concise_seq_noninterp
       nsize: 1
@@ -1906,15 +1909,31 @@ int main(int argc, char **argv)
       nsize: 2
       args: -distribute -interpolate none -dim 2 -faces 2,2
     test:
+      suffix: 2D_dmplex_view_concise_par_noninterp_overlap
+      nsize: 2
+      args: -distribute -interpolate none -dim 2 -faces 2,2 -overlap 1
+    test:
       suffix: 2D_dmplex_view_concise_par_interp
       nsize: 2
       args: -distribute -interpolate serial -dim 2 -faces 2,2
+    test:
+      suffix: 2D_dmplex_view_concise_par_interp_overlap
+      nsize: 2
+      args: -distribute -interpolate serial -dim 2 -faces 2,2 -overlap 1
     test:
       suffix: 3D_dmplex_view_concise_par_noninterp
       nsize: 2
       args: -distribute -interpolate none -dim 3 -faces 2,2,2
     test:
+      suffix: 3D_dmplex_view_concise_par_noninterp_overlap
+      nsize: 2
+      args: -distribute -interpolate none -dim 3 -faces 2,2,2 -overlap 1
+    test:
       suffix: 3D_dmplex_view_concise_par_interp
       nsize: 2
       args: -distribute -interpolate serial -dim 3 -faces 2,2,2
+    test:
+      suffix: 3D_dmplex_view_concise_par_interp_overlap
+      nsize: 2
+      args: -distribute -interpolate serial -dim 3 -faces 2,2,2 -overlap 1
 TEST*/
