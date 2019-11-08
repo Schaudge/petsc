@@ -33,6 +33,18 @@ extern PetscErrorCode FormIFunctionLocal(DMDALocalInfo*,PetscReal,Field**,Field*
 
 /* hooks */
 
+static PetscErrorCode CoefficientCoarsenHook(DM,DM,void *ctx);
+static PetscErrorCode CoefficientCoarsenHookRemove(DM dm,void *ctx)
+{
+  PetscErrorCode ierr;
+  DM             dmc = (DM)ctx;
+
+  PetscFunctionBegin;
+  ierr = DMCoarsenHookRemove(dmc,CoefficientCoarsenHook,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmc);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode CoefficientCoarsenHook(DM dm, DM dmc,void *ctx)
 {
   Vec            c,cc,ccl;
@@ -67,7 +79,8 @@ static PetscErrorCode CoefficientCoarsenHook(DM dm, DM dmc,void *ctx)
   ierr = DMRestoreNamedGlobalVector(cdmc,"coefficient",&cc);CHKERRQ(ierr);
   ierr = DMRestoreNamedLocalVector(cdmc,"coefficient",&ccl);CHKERRQ(ierr);
 
-  ierr = DMCoarsenHookAdd(dmc,CoefficientCoarsenHook,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dmc,CoefficientCoarsenHook,NULL,NULL,dm,CoefficientCoarsenHookRemove,dmc);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)dmc);
   ierr = DMDestroy(&cdmc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -152,8 +165,8 @@ int main(int argc,char **argv)
   ierr = DMRestoreNamedLocalVector(cda,"coefficient",&clocal);CHKERRQ(ierr);
   ierr = DMRestoreNamedGlobalVector(cda,"coefficient",&c);CHKERRQ(ierr);
 
-  ierr = DMCoarsenHookAdd(da,CoefficientCoarsenHook,NULL,NULL);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(da,CoefficientSubDomainRestrictHook,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(da,CoefficientCoarsenHook,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(da,CoefficientSubDomainRestrictHook,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
 
   ierr = TSSetMaxSteps(ts,10000);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,10000.0);CHKERRQ(ierr);

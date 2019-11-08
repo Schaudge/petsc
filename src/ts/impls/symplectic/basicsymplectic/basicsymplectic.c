@@ -292,8 +292,8 @@ static PetscErrorCode TSSetUp_BasicSymplectic(TS ts)
   ierr = TSAdaptCandidatesClear(ts->adapt);CHKERRQ(ierr); /* make sure to use fixed time stepping */
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
   if (dm) {
-    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_BasicSymplectic,DMRestrictHook_BasicSymplectic,ts);CHKERRQ(ierr);
-    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_BasicSymplectic,DMSubDomainRestrictHook_BasicSymplectic,ts);CHKERRQ(ierr);
+    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_BasicSymplectic,DMRestrictHook_BasicSymplectic,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_BasicSymplectic,DMSubDomainRestrictHook_BasicSymplectic,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

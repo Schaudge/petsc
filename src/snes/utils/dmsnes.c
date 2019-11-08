@@ -206,9 +206,9 @@ PetscErrorCode DMGetDMSNES(DM dm,DMSNES *snesdm)
 
     dm->dmsnes            = (PetscObject) *snesdm;
     (*snesdm)->originaldm = dm;
-    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_DMSNES,DMRestrictHook_DMSNES,NULL);CHKERRQ(ierr);
-    ierr = DMRefineHookAdd(dm,DMRefineHook_DMSNES,DMInterpolateHook_DMSNES,NULL);CHKERRQ(ierr);
-    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_DMSNES,DMSubDomainRestrictHook_DMSNES,NULL);CHKERRQ(ierr);
+    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_DMSNES,DMRestrictHook_DMSNES,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+    ierr = DMRefineHookAdd(dm,DMRefineHook_DMSNES,DMInterpolateHook_DMSNES,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_DMSNES,DMSubDomainRestrictHook_DMSNES,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -275,9 +275,9 @@ PetscErrorCode DMCopyDMSNES(DM dmsrc,DM dmdest)
   PetscValidHeaderSpecific(dmdest,DM_CLASSID,2);
   if (!dmdest->dmsnes) {ierr = DMSNESCreate(PetscObjectComm((PetscObject) dmdest), (DMSNES *) &dmdest->dmsnes);CHKERRQ(ierr);}
   ierr = DMSNESCopy((DMSNES) dmsrc->dmsnes, (DMSNES) dmdest->dmsnes);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMSNES,NULL,NULL);CHKERRQ(ierr);
-  ierr = DMRefineHookAdd(dmdest,DMRefineHook_DMSNES,NULL,NULL);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dmdest,DMSubDomainHook_DMSNES,DMSubDomainRestrictHook_DMSNES,NULL);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMSNES,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMRefineHookAdd(dmdest,DMRefineHook_DMSNES,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dmdest,DMSubDomainHook_DMSNES,DMSubDomainRestrictHook_DMSNES,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

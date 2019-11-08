@@ -82,10 +82,18 @@ PETSC_EXTERN PetscErrorCode DMLocalizeCoordinate_Internal(DM, PetscInt, const Pe
 PETSC_EXTERN PetscErrorCode DMLocalizeCoordinateReal_Internal(DM, PetscInt, const PetscReal[], const PetscReal[], PetscReal[]);
 PETSC_EXTERN PetscErrorCode DMLocalizeAddCoordinate_Internal(DM, PetscInt, const PetscScalar[], const PetscScalar[], PetscScalar[]);
 
+typedef struct _DMDestroyHookLink *DMDestroyHookLink;
+struct _DMDestroyHookLink {
+  PetscErrorCode (*destroyhook)(DM,void*);
+  void *ctx;
+  DMDestroyHookLink next;
+};
+
 typedef struct _DMCoarsenHookLink *DMCoarsenHookLink;
 struct _DMCoarsenHookLink {
   PetscErrorCode (*coarsenhook)(DM,DM,void*);              /* Run once, when coarse DM is created */
   PetscErrorCode (*restricthook)(DM,Mat,Vec,Mat,DM,void*); /* Run each time a new problem is restricted to a coarse grid */
+  DMDestroyHookLink destroyhook;
   void *ctx;
   DMCoarsenHookLink next;
 };
@@ -94,6 +102,7 @@ typedef struct _DMRefineHookLink *DMRefineHookLink;
 struct _DMRefineHookLink {
   PetscErrorCode (*refinehook)(DM,DM,void*);     /* Run once, when a fine DM is created */
   PetscErrorCode (*interphook)(DM,Mat,DM,void*); /* Run each time a new problem is interpolated to a fine grid */
+  DMDestroyHookLink destroyhook;
   void *ctx;
   DMRefineHookLink next;
 };
@@ -102,6 +111,7 @@ typedef struct _DMSubDomainHookLink *DMSubDomainHookLink;
 struct _DMSubDomainHookLink {
   PetscErrorCode (*ddhook)(DM,DM,void*);
   PetscErrorCode (*restricthook)(DM,VecScatter,VecScatter,DM,void*);
+  DMDestroyHookLink destroyhook;
   void *ctx;
   DMSubDomainHookLink next;
 };

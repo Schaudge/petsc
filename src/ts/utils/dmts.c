@@ -226,8 +226,8 @@ PetscErrorCode DMGetDMTS(DM dm,DMTS *tsdm)
     ierr = DMTSCreate(PetscObjectComm((PetscObject)dm),tsdm);CHKERRQ(ierr);
     dm->dmts = (PetscObject) *tsdm;
     (*tsdm)->originaldm = dm;
-    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_DMTS,DMRestrictHook_DMTS,NULL);CHKERRQ(ierr);
-    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_DMTS,DMSubDomainRestrictHook_DMTS,NULL);CHKERRQ(ierr);
+    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_DMTS,DMRestrictHook_DMTS,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+    ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_DMTS,DMSubDomainRestrictHook_DMTS,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -295,8 +295,8 @@ PetscErrorCode DMCopyDMTS(DM dmsrc,DM dmdest)
   ierr         = DMTSDestroy((DMTS*)&dmdest->dmts);CHKERRQ(ierr);
   dmdest->dmts = dmsrc->dmts;
   ierr         = PetscObjectReference(dmdest->dmts);CHKERRQ(ierr);
-  ierr         = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMTS,DMRestrictHook_DMTS,NULL);CHKERRQ(ierr);
-  ierr         = DMSubDomainHookAdd(dmdest,DMSubDomainHook_DMTS,DMSubDomainRestrictHook_DMTS,NULL);CHKERRQ(ierr);
+  ierr         = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMTS,DMRestrictHook_DMTS,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr         = DMSubDomainHookAdd(dmdest,DMSubDomainHook_DMTS,DMSubDomainRestrictHook_DMTS,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

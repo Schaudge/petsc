@@ -416,7 +416,7 @@ static PetscErrorCode TSSetUp_BDF(TS ts)
   ierr = VecDuplicate(ts->vec_sol,&bdf->vec_wrk);CHKERRQ(ierr);
   ierr = VecDuplicate(ts->vec_sol,&bdf->vec_lte);CHKERRQ(ierr);
   ierr = TSGetDM(ts,&ts->dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(ts->dm,DMCoarsenHook_TSBDF,DMRestrictHook_TSBDF,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(ts->dm,DMCoarsenHook_TSBDF,DMRestrictHook_TSBDF,ts,NULL,NULL,NULL);CHKERRQ(ierr);
 
   ierr = TSGetAdapt(ts,&ts->adapt);CHKERRQ(ierr);
   ierr = TSAdaptCandidatesClear(ts->adapt);CHKERRQ(ierr);

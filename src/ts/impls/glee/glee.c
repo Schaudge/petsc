@@ -859,8 +859,8 @@ static PetscErrorCode TSSetUp_GLEE(TS ts)
   ierr = VecDuplicate(ts->vec_sol,&glee->W);CHKERRQ(ierr);
   ierr = PetscMalloc2(s,&glee->swork,r,&glee->rwork);CHKERRQ(ierr);
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSGLEE,DMRestrictHook_TSGLEE,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSGLEE,DMSubDomainRestrictHook_TSGLEE,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSGLEE,DMRestrictHook_TSGLEE,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSGLEE,DMSubDomainRestrictHook_TSGLEE,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -1109,8 +1109,8 @@ static PetscErrorCode TSSetUp_MPRK(TS ts)
   ierr = TSCheckImplicitTerm(ts);CHKERRQ(ierr);
   ierr = TSMPRKTableauSetUp(ts);CHKERRQ(ierr);
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSMPRK,DMRestrictHook_TSMPRK,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSMPRK,DMSubDomainRestrictHook_TSMPRK,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSMPRK,DMRestrictHook_TSMPRK,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSMPRK,DMSubDomainRestrictHook_TSMPRK,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   if (ts->use_splitrhsfunction) {
     ts->ops->step         = TSStep_MPRKSPLIT;
     ts->ops->evaluatestep = TSEvaluateStep_MPRKSPLIT;

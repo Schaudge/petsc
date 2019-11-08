@@ -1139,8 +1139,8 @@ static PetscErrorCode TSSetUp_ARKIMEX(TS ts)
   ierr = VecDuplicate(ts->vec_sol,&ark->Ydot0);CHKERRQ(ierr);
   ierr = VecDuplicate(ts->vec_sol,&ark->Z);CHKERRQ(ierr);
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSARKIMEX,DMRestrictHook_TSARKIMEX,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSARKIMEX,DMSubDomainRestrictHook_TSARKIMEX,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSARKIMEX,DMRestrictHook_TSARKIMEX,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSARKIMEX,DMSubDomainRestrictHook_TSARKIMEX,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

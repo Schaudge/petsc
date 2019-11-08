@@ -1039,8 +1039,8 @@ static PetscErrorCode TSSetUp_Theta(TS ts)
   th->shift = 1/(th->Theta*ts->time_step);
 
   ierr = TSGetDM(ts,&ts->dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(ts->dm,DMCoarsenHook_TSTheta,DMRestrictHook_TSTheta,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(ts->dm,DMSubDomainHook_TSTheta,DMSubDomainRestrictHook_TSTheta,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(ts->dm,DMCoarsenHook_TSTheta,DMRestrictHook_TSTheta,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(ts->dm,DMSubDomainHook_TSTheta,DMSubDomainRestrictHook_TSTheta,ts,NULL,NULL,NULL);CHKERRQ(ierr);
 
   ierr = TSGetAdapt(ts,&ts->adapt);CHKERRQ(ierr);
   ierr = TSAdaptCandidatesClear(ts->adapt);CHKERRQ(ierr);

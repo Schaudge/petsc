@@ -1124,8 +1124,8 @@ static PetscErrorCode TSSetUp_RK(TS ts)
     ierr = TSGetRHSJacobian(quadts,&Jquad,NULL,NULL,NULL);CHKERRQ(ierr);
   }
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSRK,DMRestrictHook_TSRK,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSRK,DMSubDomainRestrictHook_TSRK,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSRK,DMRestrictHook_TSRK,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSRK,DMSubDomainRestrictHook_TSRK,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   if (ts->use_splitrhsfunction) {
     ierr = PetscTryMethod(ts,"TSSetUp_RK_MultirateSplit_C",(TS),(ts));CHKERRQ(ierr);
   } else {

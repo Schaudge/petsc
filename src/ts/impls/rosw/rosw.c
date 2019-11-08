@@ -1340,8 +1340,8 @@ static PetscErrorCode TSSetUp_RosW(TS ts)
   ierr = VecDuplicate(ts->vec_sol,&ros->Zstage);CHKERRQ(ierr);
   ierr = VecDuplicate(ts->vec_sol,&ros->vec_sol_prev);CHKERRQ(ierr);
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSRosW,DMRestrictHook_TSRosW,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSRosW,DMSubDomainRestrictHook_TSRosW,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSRosW,DMRestrictHook_TSRosW,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSRosW,DMSubDomainRestrictHook_TSRosW,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   /* Rosenbrock methods are linearly implicit, so set that unless the user has specifically asked for something else */
   ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
   if (!((PetscObject)snes)->type_name) {

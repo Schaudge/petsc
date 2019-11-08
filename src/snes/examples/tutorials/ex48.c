@@ -628,7 +628,7 @@ static PetscErrorCode DMCoarsenHook_THI(DM dmf,DM dmc,void *ctx)
   ierr = DMGetRefineLevel(dmc,&rlevel);CHKERRQ(ierr);
   ierr = DMGetCoarsenLevel(dmc,&clevel);CHKERRQ(ierr);
   if (rlevel-clevel == 0) {ierr = DMSetMatType(dmc,MATAIJ);CHKERRQ(ierr);}
-  ierr = DMCoarsenHookAdd(dmc,DMCoarsenHook_THI,NULL,thi);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dmc,DMCoarsenHook_THI,NULL,thi,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -640,9 +640,9 @@ static PetscErrorCode DMRefineHook_THI(DM dmc,DM dmf,void *ctx)
   PetscFunctionBeginUser;
   ierr = THISetUpDM(thi,dmf);CHKERRQ(ierr);
   ierr = DMSetMatType(dmf,thi->mattype);CHKERRQ(ierr);
-  ierr = DMRefineHookAdd(dmf,DMRefineHook_THI,NULL,thi);CHKERRQ(ierr);
+  ierr = DMRefineHookAdd(dmf,DMRefineHook_THI,NULL,thi,NULL,NULL,NULL);CHKERRQ(ierr);
   /* With grid sequencing, a formerly-refined DM will later be coarsened by PCSetUp_MG */
-  ierr = DMCoarsenHookAdd(dmf,DMCoarsenHook_THI,NULL,thi);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dmf,DMCoarsenHook_THI,NULL,thi,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1520,8 +1520,8 @@ int main(int argc,char *argv[])
   } else {
     ierr = DMDASNESSetJacobianLocal(da,(DMDASNESJacobian)THIJacobianLocal_3D_Full,thi);CHKERRQ(ierr);
   }
-  ierr = DMCoarsenHookAdd(da,DMCoarsenHook_THI,NULL,thi);CHKERRQ(ierr);
-  ierr = DMRefineHookAdd(da,DMRefineHook_THI,NULL,thi);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(da,DMCoarsenHook_THI,NULL,thi,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMRefineHookAdd(da,DMRefineHook_THI,NULL,thi,NULL,NULL,NULL);CHKERRQ(ierr);
 
   ierr = DMSetApplicationContext(da,thi);CHKERRQ(ierr);
 

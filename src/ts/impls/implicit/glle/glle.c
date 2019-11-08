@@ -1124,8 +1124,8 @@ static PetscErrorCode TSSetUp_GLLE(TS ts)
     gl->current_scheme = i;
   }
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
-  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSGLLE,DMRestrictHook_TSGLLE,ts);CHKERRQ(ierr);
-  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSGLLE,DMSubDomainRestrictHook_TSGLLE,ts);CHKERRQ(ierr);
+  ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSGLLE,DMRestrictHook_TSGLLE,ts,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMSubDomainHookAdd(dm,DMSubDomainHook_TSGLLE,DMSubDomainRestrictHook_TSGLLE,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 /*------------------------------------------------------------*/

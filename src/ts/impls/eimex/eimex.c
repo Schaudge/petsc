@@ -387,7 +387,7 @@ static PetscErrorCode TSSetUp_EIMEX(TS ts)
   ierr = VecDuplicate(ts->vec_sol,&ext->Z);CHKERRQ(ierr);
   ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
   if (dm) {
-    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSEIMEX,DMRestrictHook_TSEIMEX,ts);CHKERRQ(ierr);
+    ierr = DMCoarsenHookAdd(dm,DMCoarsenHook_TSEIMEX,DMRestrictHook_TSEIMEX,ts,NULL,NULL,NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

@@ -88,9 +88,9 @@ PETSC_EXTERN PetscErrorCode DMGetFineDM(DM,DM*);
 PETSC_EXTERN PetscErrorCode DMSetFineDM(DM,DM);
 PETSC_EXTERN PetscErrorCode DMRefineHierarchy(DM,PetscInt,DM[]);
 PETSC_EXTERN PetscErrorCode DMCoarsenHierarchy(DM,PetscInt,DM[]);
-PETSC_EXTERN PetscErrorCode DMCoarsenHookAdd(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,Mat,Vec,Mat,DM,void*),void*);
+PETSC_EXTERN PetscErrorCode DMCoarsenHookAdd(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,Mat,Vec,Mat,DM,void*),void*,DM,PetscErrorCode (*)(DM,void*),void*);
 PETSC_EXTERN PetscErrorCode DMCoarsenHookRemove(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,Mat,Vec,Mat,DM,void*),void*);
-PETSC_EXTERN PetscErrorCode DMRefineHookAdd(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,Mat,DM,void*),void*);
+PETSC_EXTERN PetscErrorCode DMRefineHookAdd(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,Mat,DM,void*),void*,DM,PetscErrorCode (*)(DM,void*),void*);
 PETSC_EXTERN PetscErrorCode DMRefineHookRemove(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,Mat,DM,void*),void*);
 PETSC_EXTERN PetscErrorCode DMRestrict(DM,Mat,Vec,Mat,DM);
 PETSC_EXTERN PetscErrorCode DMInterpolate(DM,Mat,DM);
@@ -150,7 +150,7 @@ PETSC_EXTERN PetscErrorCode DMGetBoundingBox(DM,PetscReal[],PetscReal[]);
 PETSC_EXTERN PetscErrorCode DMGetLocalBoundingBox(DM,PetscReal[],PetscReal[]);
 
 /* block hook interface */
-PETSC_EXTERN PetscErrorCode DMSubDomainHookAdd(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,VecScatter,VecScatter,DM,void*),void*);
+PETSC_EXTERN PetscErrorCode DMSubDomainHookAdd(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,VecScatter,VecScatter,DM,void*),void*,DM,PetscErrorCode (*)(DM,void*),void*);
 PETSC_EXTERN PetscErrorCode DMSubDomainHookRemove(DM,PetscErrorCode (*)(DM,DM,void*),PetscErrorCode (*)(DM,VecScatter,VecScatter,DM,void*),void*);
 PETSC_EXTERN PetscErrorCode DMSubDomainRestrict(DM,VecScatter,VecScatter,DM);
 
