@@ -131,6 +131,10 @@
       <h4>DM/DA:</h4>
         <ul>
           <li>DMCopyLabels(): Add two additional input flags</li>
+          <li>DMCoarsenHookAdd(),DMRefineHookAdd(),DMSubDomainHookAdd(): Add (optional) registration of destructors
+          for hooks (in case the DM responsible for removal is
+            different from the one we're adding the hook to).
+          </li>
         </ul>
       <h4>DMPlex:</h4>
         <ul>
