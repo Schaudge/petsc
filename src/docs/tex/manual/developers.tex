@@ -1264,8 +1264,8 @@ PetscErrorCode DMGetDMKSP(DM dm,DMKSP *kspdm)
     ierr      = DMKSPCreate(PetscObjectComm((PetscObject)dm),kspdm);CHKERRQ(ierr);
     dm->dmksp = (PetscObject) *kspdm;
     (*kspdm)->originaldm = dm;
-    ierr      = DMCoarsenHookAdd(dm,DMCoarsenHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
-    ierr      = DMRefineHookAdd(dm,DMRefineHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
+    ierr      = DMCoarsenHookAdd(dm,DMCoarsenHook_DMKSP,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+    ierr      = DMRefineHookAdd(dm,DMRefineHook_DMKSP,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1294,8 +1294,8 @@ PetscErrorCode DMCopyDMKSP(DM dmsrc,DM dmdest)
   ierr          = DMKSPDestroy((DMKSP*)&dmdest->dmksp);CHKERRQ(ierr);
   dmdest->dmksp = dmsrc->dmksp;
   ierr          = PetscObjectReference(dmdest->dmksp);CHKERRQ(ierr);
-  ierr          = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
-  ierr          = DMRefineHookAdd(dmdest,DMRefineHook_DMKSP,NULL,NULL);CHKERRQ(ierr);
+  ierr          = DMCoarsenHookAdd(dmdest,DMCoarsenHook_DMKSP,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr          = DMRefineHookAdd(dmdest,DMRefineHook_DMKSP,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 \end{lstlisting}
