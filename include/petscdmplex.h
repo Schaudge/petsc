@@ -426,4 +426,15 @@ PETSC_EXTERN PetscErrorCode DMPlexAdapt(DM, Vec, const char [], DM *);
 PETSC_EXTERN PetscErrorCode DMPlexGlobalToLocalBasis(DM, Vec);
 PETSC_EXTERN PetscErrorCode DMPlexLocalToGlobalBasis(DM, Vec);
 PETSC_EXTERN PetscErrorCode DMPlexCreateBasisRotation(DM, PetscReal, PetscReal, PetscReal);
+
+PETSC_EXTERN PetscErrorCode DMPlexOrientationCreate(DMPlexOrientation *);
+PETSC_EXTERN PetscErrorCode DMPlexOrientationDestroy(DMPlexOrientation *);
+
+PETSC_EXTERN PetscErrorCode DMPlexOrientationCompose(DMPlexOrientation,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexOrientationInvert(DMPlexOrientation,PetscInt,PetscInt,PetscInt,PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexOrientationIdentity(DMPlexOrientation,PetscInt,PetscInt,PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexOrientationPositive(DMPlexOrientation,PetscInt,PetscInt,PetscInt,PetscBool *);
+
+PETSC_EXTERN PetscErrorCode DMPlexOrientationGetConeSingle(DMPlexOrientation,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt *,PetscInt *);
+PETSC_EXTERN PetscErrorCode DMPlexOrientationGetCone(DMPlexOrientation,PetscInt,PetscInt,PetscInt,PetscInt []);
 #endif

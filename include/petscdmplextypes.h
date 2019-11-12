@@ -15,4 +15,14 @@
 E*/
 typedef enum {DM_PLEX_CELLTYPE_SIMPLEX, DM_PLEX_CELLTYPE_TENSOR, DM_PLEX_CELLTYPE_UNKNOWN} DMPlexCellType;
 
+
+/*S
+  DMPlexOrientation - Object describing the interrelation between cone orientations
+
+  Level: developer
+
+.seealso:  DM, DMPlexCreate(), DMPlexInsertConeOrientation(), DMPlexGetConeOrientation()
+S*/
+typedef struct _n_pMPlexOrientation *DMPlexOrientation;
+
 #endif

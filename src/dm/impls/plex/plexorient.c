@@ -647,3 +647,33 @@ PetscErrorCode DMPlexOrient(DM dm)
   ierr = PetscFree3(faceFIFO, cellComp, faceComp);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode DMPlexOrientationCompose(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt a, PetscInt b, PetscInt *ab)
+{
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexOrientationInvert(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt a, PetscInt *inva)
+{
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexOrientationIdentity(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt *d)
+{
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexOrientationPositive(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt o, PetscBool *positive)
+{
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexOrientationGetConeSingle(DMPlexOrientation po, PetscInt depth, PetscInt conesize, PetscInt o, PetscInt i, PetscInt *c, PetscInt *co)
+{
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexOrientationGetCone(DMPlexOrientation po, PetscInt depth, PetscInt conesize, PetscInt o, PetscInt cone[])
+{
+  PetscFunctionReturn(0);
+}

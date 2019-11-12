@@ -176,6 +176,7 @@ typedef struct {
   PetscInt             ghostCellStart;    /* The first ghost cell (for FV BC) or -1 */
   DMPlexInterpolatedFlag interpolated;
   DMPlexInterpolatedFlag interpolatedCollective;
+  DMPlexOrientation    orientation;
 
   PetscInt            *facesTmp;          /* Work space for faces operation */
 
@@ -356,6 +357,72 @@ PETSC_STATIC_INLINE PetscInt DihedralCompose(PetscInt N, PetscInt a, PetscInt b)
 PETSC_STATIC_INLINE PetscInt DihedralSwap(PetscInt N, PetscInt a, PetscInt b)
 {
   return DihedralCompose(N,DihedralInvert(N,a),b);
+}
+
+PETSC_STATIC_INLINE PetscErrorCode DMPlexOrientationCompose_Bypass(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt a, PetscInt b, PetscInt *ba)
+{
+  if (!po) {
+    *ba = DihedralCompose(coneSize, a, b);
+    return 0;
+  } else {
+    return DMPlexOrientationCompose(po, depth, coneSize, a, b, ba);
+  }
+}
+
+PETSC_STATIC_INLINE PetscErrorCode DMPlexOrientationInvert_Bypass(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt a, PetscInt *inva)
+{
+  if (!po) {
+    *inva = DihedralInvert(coneSize, a);
+    return 0;
+  } else {
+    return DMPlexOrientationInvert(po, depth, coneSize, a, inva);
+  }
+}
+
+PETSC_STATIC_INLINE PetscErrorCode DMPlexOrientationIdentity_Bypass(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt *id)
+{
+  if (!po) {
+    *id = 0;
+    return 0;
+  } else {
+    return DMPlexOrientationIdentity(po, depth, coneSize, id);
+  }
+}
+
+PETSC_STATIC_INLINE PetscErrorCode DMPlexOrientationPositive_Bypass(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt o, PetscBool *positive)
+{
+  if (!po) {
+    *positive = (PetscBool) (o >= 0);
+    return 0;
+  } else {
+    return DMPlexOrientationPositive(po, depth, coneSize, o, positive);
+  }
+}
+
+PETSC_STATIC_INLINE PetscErrorCode DMPlexOrientationGetConeSingle_Bypass(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt o, PetscInt i, PetscInt *c, PetscInt *co)
+{
+  if (!po) {
+    *c = (o >= 0) ? ((o + i) % coneSize) : ((-(o + 1) + coneSize - i) % coneSize);
+    *co = (o >= 0) ? 0 : -2;
+    return 0;
+  } else {
+    return DMPlexOrientationGetConeSingle(po, depth, coneSize, o, i, c, co);
+  }
+}
+
+PETSC_STATIC_INLINE PetscErrorCode DMPlexOrientationGetCone_Bypass(DMPlexOrientation po, PetscInt depth, PetscInt coneSize, PetscInt o, PetscInt *cone)
+{
+  if (!po) {
+    PetscInt i;
+
+    for (i = 0; i < coneSize; i++) {
+      cone[2*i + 0] = (o >= 0) ? ((o + i) % coneSize) : ((-(o + 1) + coneSize - i) % coneSize);
+      cone[2*i + 1] = (o >= 0) ? 0 : -2;
+    }
+    return 0;
+  } else {
+    return DMPlexOrientationGetCone(po, depth, coneSize, o, cone);
+  }
 }
 
 PETSC_EXTERN PetscErrorCode DMPlexComputeResidual_Internal(DM, IS , PetscReal, Vec, Vec, PetscReal, Vec, void *);
