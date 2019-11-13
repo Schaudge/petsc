@@ -87,6 +87,81 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, char *bar, PetscViewer genViewer)
 }
 
 /* KSP */
+static PetscErrorCode ComputeLaplacianOperator(Mat *Op, void *ctx)
+{
+  AppCtx         	*user = (AppCtx*)ctx;
+  PetscErrorCode	ierr;
+  PetscInt		m = user->meshSize, n = user->meshSize, Istart, Iend, J, i, j, Ii;
+  PetscScalar		v;
+
+  PetscFunctionBeginUser;
+
+  ierr = MatCreate(PETSC_COMM_WORLD, Op);CHKERRQ(ierr);
+  ierr = MatSetSizes(*Op, PETSC_DECIDE, PETSC_DECIDE, m*n, m*n);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(*Op);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(*Op, 5, NULL, 5, NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(*Op, 5, NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(*Op);CHKERRQ(ierr);
+
+  ierr = MatGetOwnershipRange(*Op, &Istart, &Iend);CHKERRQ(ierr);
+
+  for (Ii = Istart; Ii < Iend; ++Ii) {
+    v = -1.0; i = Ii/n; j = Ii - i*n;
+    if (i)   {J = Ii - n; ierr = MatSetValues(*Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    if (i < m-1) {J = Ii + n; ierr = MatSetValues(*Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    if (j)   {J = Ii - 1; ierr = MatSetValues(*Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    if (j<n-1) {J = Ii + 1; ierr = MatSetValues(*Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    v = 4.0; ierr = MatSetValues(*Op, 1, &Ii, 1, &Ii, &v, INSERT_VALUES);CHKERRQ(ierr);
+  }
+
+  ierr = MatAssemblyBegin(*Op, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(*Op, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatSetOption(*Op, MAT_SYMMETRIC, PETSC_TRUE);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode ComputeLaplacianOperatorWithKSP(KSP ksp, Mat jac, Mat Op, void *ctx)
+{
+  AppCtx         	*user = (AppCtx*)ctx;
+  PetscErrorCode	ierr;
+  PetscInt		m = user->meshSize, n = user->meshSize, Istart, Iend, J, i, j, Ii;
+  PetscScalar		v;
+  DM			dm, cdm;
+  MatNullSpace		nullspace;
+
+  PetscFunctionBeginUser;
+
+  ierr = KSPGetDM(ksp, &dm);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(dm, &Op);CHKERRQ(ierr);
+  MatView(Op, 0);
+  ierr = MatSetUp(jac);CHKERRQ(ierr);
+  ierr = MatSetUp(Op);CHKERRQ(ierr);
+
+  ierr = MatGetOwnershipRange(Op, &Istart, &Iend);CHKERRQ(ierr);
+
+  for (Ii = Istart; Ii < Iend; ++Ii) {
+    v = -1.0; i = Ii/n; j = Ii - i*n;
+    if (i)   {J = Ii - n; ierr = MatSetValues(Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    if (i < m-1) {J = Ii + n; ierr = MatSetValues(Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    if (j)   {J = Ii - 1; ierr = MatSetValues(Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    if (j<n-1) {J = Ii + 1; ierr = MatSetValues(Op,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr);}
+    v = 4.0; ierr = MatSetValues(Op, 1, &Ii, 1, &Ii, &v, INSERT_VALUES);CHKERRQ(ierr);
+  }
+
+  ierr = MatAssemblyBegin(Op, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Op, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatSetOption(Op, MAT_SYMMETRIC, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = MatNullSpaceCreate(PETSC_COMM_WORLD, PETSC_TRUE, 0, 0, &nullspace);CHKERRQ(ierr);
+  ierr = MatSetNullSpace(Op, nullspace);CHKERRQ(ierr);
+  ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode ComputeLaplacianJacobian(KSP ksp, Mat J, Mat jac, void *ctx)
 {
   PetscErrorCode ierr;
@@ -104,8 +179,8 @@ PetscErrorCode ComputeLaplacianJacobian(KSP ksp, Mat J, Mat jac, void *ctx)
     N = user->meshSize;
     xs = 0;
     ys = 0;
-    xm = xs + user->meshSize;
-    ym = ys + user->meshSize;
+    xm = xs + M;
+    ym = ys + N;
   } else {
     PetscFunctionReturn(0);
   }
@@ -113,10 +188,10 @@ PetscErrorCode ComputeLaplacianJacobian(KSP ksp, Mat J, Mat jac, void *ctx)
   Hy    = 1.0 / (PetscReal)(N);
   HxdHy = Hx/Hy;
   HydHx = Hy/Hx;
+  printf("%f %f %f %f %d %d\n", Hx, Hy, HxdHy, HydHx, M, N);
   for (j=ys; j<ys+ym; j++) {
     for (i=xs; i<xs+xm; i++) {
       row.i = i; row.j = j;
-
       if (i==0 || j==0 || i==M-1 || j==N-1) {
         num=0; numi=0; numj=0;
         if (j!=0) {
@@ -135,9 +210,11 @@ PetscErrorCode ComputeLaplacianJacobian(KSP ksp, Mat J, Mat jac, void *ctx)
           v[num] = -HxdHy;              col[num].i = i;   col[num].j = j+1;
           num++; numj++;
         }
-        v[num] = ((PetscReal)(numj)*HxdHy + (PetscReal)(numi)*HydHx); col[num].i = i;   col[num].j = j;
+        v[num] = ((PetscReal)(numj)*HxdHy + (PetscReal)(numi)*HydHx);
+        col[num].i = i;
+        col[num].j = j;
         num++;
-        ierr = MatSetValuesStencil(jac,1,&row,num,col,v,INSERT_VALUES);CHKERRQ(ierr);
+        ierr = MatSetValuesStencil(jac, 1, &row, num, col, v, INSERT_VALUES);CHKERRQ(ierr);
       } else {
         v[0] = -HxdHy;              col[0].i = i;   col[0].j = j-1;
         v[1] = -HydHx;              col[1].i = i-1; col[1].j = j;
@@ -150,10 +227,74 @@ PetscErrorCode ComputeLaplacianJacobian(KSP ksp, Mat J, Mat jac, void *ctx)
   }
   ierr = MatAssemblyBegin(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(jac, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
+  MatView(jac, 0);
   ierr = MatNullSpaceCreate(PETSC_COMM_WORLD, PETSC_TRUE, 0, 0, &nullspace);CHKERRQ(ierr);
   ierr = MatSetNullSpace(J, nullspace);CHKERRQ(ierr);
   ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ComputeRHS(KSP ksp, Vec b, void *ctx)
+{
+  AppCtx	*user = (AppCtx*)ctx;
+  PetscErrorCode ierr;
+  PetscInt       i,M,N,dim;
+  PetscScalar    *array;
+  const PetscScalar *coordArray;
+  DM		 dm;
+  Vec		 coordVec;
+  MatNullSpace   nullspace;
+
+  PetscFunctionBeginUser;
+  ierr = KSPGetDM(ksp, &dm);CHKERRQ(ierr);
+  if (!user->fileflg) {
+    M = user->meshSize;
+    N = user->meshSize;
+  } else {
+    PetscFunctionReturn(0);
+  }
+  dim  = user->dim;
+
+  ierr = DMGetCoordinatesLocal(dm, &coordVec);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(coordVec, &coordArray);CHKERRQ(ierr);
+  ierr = VecGetArray(b, &array);CHKERRQ(ierr);
+  for (i = 0; i < M*N; ++i) {
+    array[i] = -2.0*PetscCosScalar(coordArray[dim*i+1])*PetscSinScalar(coordArray[dim*i]);
+    /* Exact Solution laplace(sin(x)*cos(y)) = -2cos(y)*sin(x) */
+  }
+  ierr = VecRestoreArray(b, &array);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(coordVec, &coordArray);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(b);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(b);CHKERRQ(ierr);
+
+  /* force right hand side to be consistent for singular matrix */
+  /* note this is really a hack, normally the model would provide you with a consistent right handside */
+  ierr = MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,0,&nullspace);CHKERRQ(ierr);
+  ierr = MatNullSpaceRemove(nullspace,b);CHKERRQ(ierr);
+  ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode InitialConds(DM dm, Vec *x, AppCtx *user)
+{
+  PetscErrorCode	ierr;
+  Vec			coordVec;
+  PetscScalar		*array;
+  const PetscScalar	*coordArray;
+  PetscInt		i, dim = user->dim, M = user->meshSize, N = user->meshSize;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetCoordinatesLocal(dm, &coordVec);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(coordVec, &coordArray);CHKERRQ(ierr);
+  ierr = VecGetArray(*x, &array);CHKERRQ(ierr);
+  for (i = 0; i < M*N; ++i) {
+    array[i] = PetscSinScalar(coordArray[dim*i])*PetscCosScalar(coordArray[dim*i+1]);
+    /* Initial conditions u = sin(x)*cos(y) */
+  }
+  ierr = VecRestoreArray(*x, &array);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(coordVec, &coordArray);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(*x);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(*x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -172,7 +313,7 @@ static void f1_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[
 
 static PetscErrorCode xytrig_u_2d(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
-  *u = PetscSinReal(2.0*PETSC_PI*x[0])*PetscSinReal(2.0*PETSC_PI*x[1]);
+  *u = PetscSinReal(x[0])*PetscCosReal(x[1]);
   return 0;
 }
 
@@ -216,7 +357,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->filename[0]		= '\0';
   options->bcType		= DIRICHLET;
   options->fieldBC		= PETSC_FALSE;
-  options->meshSize		= 3;
+  options->meshSize		= 2;
   options->dim			= 2;
   options->numFields		= 1;
   options->overlap		= 0;
@@ -318,7 +459,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     DM		dmf;
     PetscInt 	level = user->level;
     PetscScalar refinementLimit = user->refinementLimit;
-
     if (level || refinementLimit) {
       PetscPartitioner	part;
 
@@ -374,7 +514,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       user->dmRefine = PETSC_TRUE;
     }
   }
-
   ierr = DMPlexDistribute(*dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
   if (dmDist) {
     const char	*name;
@@ -384,12 +523,10 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     *dm = dmDist;
     user->distribute = PETSC_TRUE;
   }
-
   if (!user->distribute && user->isView) {
     ierr = PetscPrintf(comm, "%s Label View %s\n", user->bar, user->bar);CHKERRQ(ierr);
     ierr = ViewISInfo(comm, *dm);CHKERRQ(ierr);
   }
-
   if (user->interpolate) {
     DM	dmInterp;
     ierr = DMPlexInterpolate(*dm, &dmInterp);CHKERRQ(ierr);
@@ -398,17 +535,25 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       *dm = dmInterp;
       user->interpolate = PETSC_TRUE;
     }
-    ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
-    if (!hasLabel) {
-      DMLabel	label;
-      ierr = DMCreateLabel(*dm, "marker");CHKERRQ(ierr);
-      ierr = DMGetLabel(*dm, "marker", &label);CHKERRQ(ierr);
-      ierr = DMPlexMarkBoundaryFaces(*dm, 1, label);CHKERRQ(ierr);
-      ierr = DMPlexLabelComplete(*dm, label);CHKERRQ(ierr);
+    if (user->bcType == NEUMANN) {
+      DMLabel   label;
+      DMCreateLabel(*dm, "boundary");
+      DMGetLabel(*dm, "boundary", &label);
+      DMPlexMarkBoundaryFaces(*dm, 1, label);
+    } else if (user->bcType == DIRICHLET) {
+      ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
+      if (!hasLabel) {
+        DMLabel	label;
+        ierr = DMCreateLabel(*dm, "marker");CHKERRQ(ierr);
+        ierr = DMGetLabel(*dm, "marker", &label);CHKERRQ(ierr);
+        ierr = DMPlexMarkBoundaryFaces(*dm, 1, label);CHKERRQ(ierr);
+        ierr = DMPlexLabelComplete(*dm, label);CHKERRQ(ierr);
+      }
     }
   }
   ierr = DMLocalizeCoordinates(*dm);CHKERRQ(ierr);
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
+  ierr = DMSetUp(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -457,11 +602,13 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user)
 
   PetscFunctionBeginUser;
   ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
-  ierr = PetscDSSetResidual(ds, 0, f0_xytrig_u, f1_u);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(ds, 0, 0, NULL, NULL, NULL, g3_uu);CHKERRQ(ierr);
-  user->exactFuncs[0] = xytrig_u_2d;
-  ierr = PetscDSAddBoundary(ds, user->bcType == DIRICHLET ? (user->fieldBC ? DM_BC_ESSENTIAL_FIELD : DM_BC_ESSENTIAL) : DM_BC_NATURAL, "wall", user->bcType == DIRICHLET ? "marker" : "boundary", 0, 0, NULL, user->fieldBC ? (void (*)(void)) user->exactFields[0] : (void (*)(void)) user->exactFuncs[0], 1, &id, user);CHKERRQ(ierr);
-  ierr = PetscDSSetExactSolution(ds, 0, user->exactFuncs[0], user);CHKERRQ(ierr);
+  if (!user->useKSP) {
+    ierr = PetscDSSetResidual(ds, 0, f0_xytrig_u, f1_u);CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(ds, 0, 0, NULL, NULL, NULL, g3_uu);CHKERRQ(ierr);
+    user->exactFuncs[0] = xytrig_u_2d;
+    ierr = PetscDSAddBoundary(ds, user->bcType == DIRICHLET ? (user->fieldBC ? DM_BC_ESSENTIAL_FIELD : DM_BC_ESSENTIAL) : DM_BC_NATURAL, "wall", user->bcType == DIRICHLET ? "marker" : "boundary", 0, 0, NULL, user->fieldBC ? (void (*)(void)) user->exactFields[0] : (void (*)(void)) user->exactFuncs[0], 1, &id, user);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(ds, 0, user->exactFuncs[0], user);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -495,17 +642,33 @@ int main(int argc, char **argv)
   ierr = ProcessOpts(comm, &user);CHKERRQ(ierr);
   ierr = ProcessMesh(comm, &user, &dm);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &user);
-  //ierr = SetupDiscretization(dm, &user);CHKERRQ(ierr);
+  ierr = SetupDiscretization(dm, &user);CHKERRQ(ierr);
   if (user.useKSP) {
-    Vec	kspSoln;
+    Vec	u;
+    Mat laplacian;
+
     ierr = KSPCreate(comm, &ksp);CHKERRQ(ierr);
-    ierr = KSPSetDM(ksp, dm);CHKERRQ(ierr);
-    ierr = KSPSetComputeOperators(ksp, ComputeLaplacianJacobian, &user);CHKERRQ(ierr);
+    ierr = KSPSetDM(ksp,(DM) dm);CHKERRQ(ierr);
+    ierr = KSPSetDMActive(ksp, PETSC_FALSE);CHKERRQ(ierr);
+    if (user.fileflg) {
+      ierr = KSPSetComputeOperators(ksp, ComputeLaplacianOperatorWithKSP, &user);CHKERRQ(ierr);
+    } else {
+      ierr = ComputeLaplacianOperator(&laplacian, &user);CHKERRQ(ierr);
+      ierr = KSPSetOperators(ksp, laplacian, laplacian);CHKERRQ(ierr);
+    }
+    ierr = KSPSetComputeRHS(ksp, ComputeRHS, &user);CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
-    ierr = KSPSolve(ksp,NULL,NULL);CHKERRQ(ierr);
-    ierr = KSPGetSolution(ksp, &kspSoln);CHKERRQ(ierr);
-    ierr = VecViewFromOptions(kspSoln, NULL, "-vec_view");CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) u, "Solution vector");CHKERRQ(ierr);
+    ierr = InitialConds(dm, &u, &user);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_FALSE);CHKERRQ(ierr);
+    ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+    ierr = KSPSolve(ksp, u, u);CHKERRQ(ierr);
+    ierr = KSPGetSolution(ksp, &u);CHKERRQ(ierr);
+    ierr = VecViewFromOptions(u, NULL, "-vec_view");CHKERRQ(ierr);
+    ierr = KSPReasonViewFromOptions(ksp);CHKERRQ(ierr);
     ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
+    ierr = MatDestroy(&laplacian);CHKERRQ(ierr);
   } else {
     PetscErrorCode (*initialGuess[1])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx) = {zero};
     ierr = SNESCreate(comm, &snes);CHKERRQ(ierr);
