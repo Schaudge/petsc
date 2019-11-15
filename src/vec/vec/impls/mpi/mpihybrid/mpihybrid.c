@@ -167,7 +167,7 @@ static PetscErrorCode VecPinToCPU_MPIHybrid(Vec V,PetscBool pin)
   V->pinnedtocpu = pin;
   if (pin) {
     ierr = VecCUDACopyFromGPU(V);CHKERRQ(ierr);
-    V->valid_GPU_array = PETSC_OFFLOAD_CPU; /* since the CPU code will likely change values in the vector */
+    V->offloadmask = PETSC_OFFLOAD_CPU; /* since the CPU code will likely change values in the vector */
     V->ops->dotnorm2               = NULL;
     V->ops->waxpy                  = VecWAXPY_Seq;
     V->ops->dot                    = VecDot_MPI;
@@ -243,7 +243,7 @@ PETSC_EXTERN PetscErrorCode VecCreate_MPIHybrid(Vec vv)
   ierr = VecPinToCPU_MPIHybrid(vv,PETSC_FALSE);CHKERRQ(ierr);
   vv->ops->pintocpu = VecPinToCPU_MPIHybrid;
   ierr = VecHybridAllocateCheck(vv);CHKERRQ(ierr);
-  vv->valid_GPU_array = PETSC_OFFLOAD_GPU;
+  vv->offloadmask = PETSC_OFFLOAD_GPU;
   ierr = VecSet(vv,0.0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
