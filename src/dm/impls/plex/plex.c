@@ -1051,7 +1051,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     PetscInt	i, depth, dim, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
     PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
     PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
-    PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, facesOK = PETSC_FALSE;
+    PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, facesOK = PETSC_FALSE, pointsfOK = PETSC_FALSE;
     PetscBool	CA[2] = { PETSC_FALSE }, CF[2] = { PETSC_FALSE }, CS[2] = { PETSC_FALSE }, CMrSkeltal[2] = { PETSC_FALSE }, CPSF[2] = { PETSC_FALSE }, CG[2] = { PETSC_FALSE }, CIC[2] = { PETSC_FALSE };
     char	bar[19] = "-----------------\0", *interpolationStatus;
     DMPlexInterpolatedFlag interpolated;
@@ -1072,6 +1072,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     /* Global and Local Sizing	*/
     ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
     if (dim > 3) {
+      ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
       SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Only available for meshes of dimension 3 or lower, not for mesh with dimension %d", dim);
     }
     ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
@@ -1123,7 +1124,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
       }
     }
 
-    /* Various Diagnostic DMPlex Checks     */
+    /* Various Diagnostic DMPlex Checks */
     ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_all", &CA[0], &CA[1]);CHKERRQ(ierr);
     if (CA[0] && CA[1]) {
       CF[0] = PETSC_TRUE; 	  CF[1] = PETSC_TRUE;
@@ -1141,7 +1142,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_geometry", &CG[0], &CG[1]);CHKERRQ(ierr);
     ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_check_interface_cones", &CIC[0], &CIC[1]);CHKERRQ(ierr);
 
-    meshdiagnostics:
+meshdiagnostics:
     if (CF[0] && CF[1]) {
       if (interpolated == DMPLEX_INTERPOLATED_FULL) {
         ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr);
@@ -1152,16 +1153,23 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     }
     if (CS[0] && CS[1]) ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr);
     if (CMrSkeltal[0] && CMrSkeltal[1]) ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr);
-    if (CPSF[0] && CPSF[1]) ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr);
+    if (CPSF[0] && CPSF[1]) {
+      if (!dmOverlapped) {
+        ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr);
+        pointsfOK = PETSC_TRUE;
+      } else {
+        ierr = PetscInfo(dm, "WARNING: DMPlexCheckPointSF() only supports non-overlapped meshes currently\n");CHKERRQ(ierr);
+      }
+    }
     if (CG[0] && CG[1]) ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);
     if (CIC[0] && CIC[1]) ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr);
 
     /* Printing     */
     /* Autotest Output      */
-    if (CF[0] && CF[1]) ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "SKIPPED");CHKERRQ(ierr);
+    if (CF[0] && CF[1]) ierr = PetscViewerASCIIPrintf(viewer, "Face Orientation OK:%s>%s\n", bar + 5, facesOK ? "PETSC_TRUE *" : "SKIPPED (Mesh Not Interpolated)");CHKERRQ(ierr);
     if (CS[0] && CS[1]) ierr = PetscViewerASCIIPrintf(viewer, "Adjacency Symmetry OK:%s>%s\n", bar + 7, "PETSC_TRUE *");CHKERRQ(ierr);
     if (CMrSkeltal[0] && CMrSkeltal[1]) ierr = PetscViewerASCIIPrintf(viewer, "Cells Vertex Count OK:%s>%s\n", bar + 7, "PETSC_TRUE *");CHKERRQ(ierr);
-    if (CPSF[0] && CPSF[1]) ierr = PetscViewerASCIIPrintf(viewer, "Point SF OK:%s%s>%s\n", bar, bar + 14, "PETSC_TRUE *");CHKERRQ(ierr);
+    if (CPSF[0] && CPSF[1]) ierr = PetscViewerASCIIPrintf(viewer, "Point SF OK:%s%s>%s\n", bar, bar + 14, pointsfOK ? "PETSC_TRUE *" : "SKIPPED (No Support For Mesh Overlap)");CHKERRQ(ierr);
     if (CG[0] && CG[1]) ierr = PetscViewerASCIIPrintf(viewer, "Geometry OK:%s%s>%s\n", bar, bar + 14, "PETSC_TRUE *");CHKERRQ(ierr);
     if (CIC[0] && CIC[1]) ierr = PetscViewerASCIIPrintf(viewer, "Cone Interfaces Conform OK:%s>%s\n\n", bar + 12, "PETSC_TRUE *");CHKERRQ(ierr);
 
@@ -1217,6 +1225,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     }
     ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
     ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
+    ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   } else {
     MPI_Comm    comm;
     PetscInt   *sizes, *hybsizes, *ghostsizes;
@@ -7700,7 +7709,7 @@ PetscErrorCode DMPlexCheckPointSF(DM dm)
   if (!distributed) PetscFunctionReturn(0);
   ierr = DMPlexGetOverlap(dm, &overlap);CHKERRQ(ierr);
   if (overlap) {
-    ierr = PetscPrintf(PetscObjectComm((PetscObject)dm), "Warning: DMPlexCheckPointSF() is currently not implemented for meshes with partition overlapping");
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)dm), "Warning: DMPlexCheckPointSF() is currently not implemented for meshes with partition overlapping\n");CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
   if (!pointSF) SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONGSTATE, "This DMPlex is distributed but does not have PointSF attached");
