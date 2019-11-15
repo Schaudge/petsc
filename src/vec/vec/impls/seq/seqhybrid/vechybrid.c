@@ -36,8 +36,8 @@ PetscErrorCode VecHybridAllocateCheckHost(Vec v)
     ierr = PetscLogObjectMemory((PetscObject)v,n*sizeof(PetscScalar));CHKERRQ(ierr);
     s->array           = array;
     s->array_allocated = array;
-    if (v->valid_GPU_array == PETSC_OFFLOAD_UNALLOCATED) {
-      v->valid_GPU_array = PETSC_OFFLOAD_CPU;
+    if (v->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
+      v->offloadmask = PETSC_OFFLOAD_CPU;
     }
   }
   PetscFunctionReturn(0);
@@ -71,7 +71,7 @@ PetscErrorCode VecResetArray_SeqHybrid(Vec vin)
   ierr = VecHybridCopyFromGPU(vin);CHKERRQ(ierr);
   v->array         = v->unplacedarray;
   v->unplacedarray = 0;
-  vin->valid_GPU_array = PETSC_OFFLOAD_CPU;
+  vin->offloadmask = PETSC_OFFLOAD_CPU;
   PetscFunctionReturn(0);
 }
 
@@ -82,7 +82,7 @@ PetscErrorCode VecPlaceArray_SeqHybrid(Vec vin,const PetscScalar *a)
   PetscFunctionBegin;
   ierr = VecHybridCopyFromGPU(vin);CHKERRQ(ierr);
   ierr = VecPlaceArray_Seq(vin,a);CHKERRQ(ierr);
-  vin->valid_GPU_array = PETSC_OFFLOAD_CPU;
+  vin->offloadmask = PETSC_OFFLOAD_CPU;
   PetscFunctionReturn(0);
 }
 
@@ -93,7 +93,7 @@ PetscErrorCode VecReplaceArray_SeqHybrid(Vec vin,const PetscScalar *a)
   PetscFunctionBegin;
   ierr = VecHybridCopyFromGPU(vin);CHKERRQ(ierr);
   ierr = VecReplaceArray_Seq(vin,a);CHKERRQ(ierr);
-  vin->valid_GPU_array = PETSC_OFFLOAD_CPU;
+  vin->offloadmask = PETSC_OFFLOAD_CPU;
   PetscFunctionReturn(0);
 }
 
@@ -220,7 +220,7 @@ PetscErrorCode VecCreate_SeqHybrid(Vec V)
 
   PetscFunctionBegin;
   ierr = PetscLayoutSetUp(V->map);CHKERRQ(ierr);
-  V->valid_GPU_array = PETSC_OFFLOAD_GPU;
+  V->offloadmask = PETSC_OFFLOAD_GPU;
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)V),&size);CHKERRQ(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQHYBRID on more than one process");
   ierr = VecCreate_Seq_Private(V,0);CHKERRQ(ierr);

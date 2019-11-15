@@ -44,12 +44,12 @@ PetscErrorCode VecHybridCopyToGPU(Vec v)
   PetscFunctionBegin;
   PetscCheckTypeNames(v,VECSEQHYBRID,VECMPIHYBRID);
   ierr = VecHybridAllocateCheck(v);CHKERRQ(ierr);
-  if (v->valid_GPU_array == PETSC_OFFLOAD_CPU) {
+  if (v->offloadmask == PETSC_OFFLOAD_CPU) {
     ierr = PetscLogEventBegin(VEC_HybridCopyToGPU,v,0,0,0);CHKERRQ(ierr);
     ierr = axbVecSetValues(vechybrid->vec,((Vec_Seq*)v->data)->array,AXB_REAL_DOUBLE);CHKERRQ(ierr);
     ierr = PetscLogCpuToGpu((v->map->n)*sizeof(PetscScalar));CHKERRQ(ierr);
     ierr = PetscLogEventEnd(VEC_HybridCopyToGPU,v,0,0,0);CHKERRQ(ierr);
-    v->valid_GPU_array = PETSC_OFFLOAD_BOTH;
+    v->offloadmask = PETSC_OFFLOAD_BOTH;
   }
   PetscFunctionReturn(0);
 }
@@ -66,13 +66,13 @@ PetscErrorCode VecHybridCopyFromGPU(Vec v)
   PetscFunctionBegin;
   PetscCheckTypeNames(v,VECSEQHYBRID,VECMPIHYBRID);
   ierr = VecHybridAllocateCheckHost(v);CHKERRQ(ierr);
-  if (v->valid_GPU_array == PETSC_OFFLOAD_GPU) {
+  if (v->offloadmask == PETSC_OFFLOAD_GPU) {
     ierr               = PetscLogEventBegin(VEC_HybridCopyFromGPU,v,0,0,0);CHKERRQ(ierr);
     vechybrid          = (Vec_Hybrid*)v->spptr;
     ierr               = axbVecGetValues(vechybrid->vec,((Vec_Seq*)v->data)->array,AXB_REAL_DOUBLE);CHKERRQ(ierr);
     ierr               = PetscLogGpuToCpu((v->map->n)*sizeof(PetscScalar));CHKERRQ(ierr);
     ierr               = PetscLogEventEnd(VEC_HybridCopyFromGPU,v,0,0,0);CHKERRQ(ierr);
-    v->valid_GPU_array = PETSC_OFFLOAD_BOTH;
+    v->offloadmask = PETSC_OFFLOAD_BOTH;
   }
   PetscFunctionReturn(0);
 }
@@ -364,9 +364,9 @@ PetscErrorCode VecCopy_SeqHybrid(Vec xin,Vec yin)
 
   PetscFunctionBegin;
   if (xin != yin) {
-    if (xin->valid_GPU_array == PETSC_OFFLOAD_GPU) copy_on_gpu = PETSC_TRUE;
-    else if (xin->valid_GPU_array == PETSC_OFFLOAD_BOTH) {
-      if (yin->valid_GPU_array == PETSC_OFFLOAD_GPU || yin->valid_GPU_array == PETSC_OFFLOAD_BOTH) copy_on_gpu = PETSC_TRUE;
+    if (xin->offloadmask == PETSC_OFFLOAD_GPU) copy_on_gpu = PETSC_TRUE;
+    else if (xin->offloadmask == PETSC_OFFLOAD_BOTH) {
+      if (yin->offloadmask == PETSC_OFFLOAD_GPU || yin->offloadmask == PETSC_OFFLOAD_BOTH) copy_on_gpu = PETSC_TRUE;
     } 
 
     if (copy_on_gpu) {
@@ -636,7 +636,7 @@ PETSC_EXTERN PetscErrorCode VecHybridRestoreArray(Vec v, struct axbVec_s **a)
 
   PetscFunctionBegin;
   PetscCheckTypeNames(v,VECSEQHYBRID,VECMPIHYBRID);
-  v->valid_GPU_array = PETSC_OFFLOAD_GPU;
+  v->offloadmask = PETSC_OFFLOAD_GPU;
 
   ierr = PetscObjectStateIncrease((PetscObject)v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -779,7 +779,7 @@ PETSC_EXTERN PetscErrorCode VecHybridRestoreArrayWrite(Vec v, struct axbVec_s **
 
   PetscFunctionBegin;
   PetscCheckTypeNames(v,VECSEQHYBRID,VECMPIHYBRID);
-  v->valid_GPU_array = PETSC_OFFLOAD_GPU;
+  v->offloadmask = PETSC_OFFLOAD_GPU;
 
   ierr = PetscObjectStateIncrease((PetscObject)v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
