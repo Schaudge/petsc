@@ -128,9 +128,9 @@ static PetscErrorCode FormRHSJacobianLocal_J11(User user,DMDALocalInfo *info,con
       PetscScalar vals[] = {-2.0*eddydiff1/(hx1*hx1),eddydiff1/(hx1*hx1)};
       ierr = MatSetValuesLocal(J11,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else if (i == info->mx-1) {
-      PetscInt    cols[] = {row-1,row};
-      PetscScalar vals[] = {-2.0*diff1/hx1/(rho1*c1*hx1+rho2*c2*hx2),2.0*(diff1/hx1+diff2/hx2)/(rho1*c1*hx1+rho2*c2*hx2)};
-      ierr = MatSetValuesLocal(J11,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+      PetscInt    cols[] = {row-1,row,row+1};
+      PetscScalar vals[] = {-2.0*diff1/hx1/(rho1*c1*hx1+rho2*c2*hx2),2.0*(diff1/hx1+diff2/hx2)/(rho1*c1*hx1+rho2*c2*hx2),-2.0*diff2/hx2/(rho1*c1*hx1+rho2*c2*hx2)};
+      ierr = MatSetValuesLocal(J11,1,&row,3,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else {
       PetscInt    cols[] = {row-1,row,row+1};
       PetscScalar vals[] = {eddydiff1/(hx1*hx1),-2.0*eddydiff1/(hx1*hx1),eddydiff1/(hx1*hx1)};
@@ -150,9 +150,9 @@ static PetscErrorCode FormRHSJacobianLocal_J22(User user,DMDALocalInfo *info,con
   for (i=info->xs; i<info->xs+info->xm; i++) {
     PetscInt    row = i-info->gxs;
     if (i == 0) {
-      PetscInt    cols[] = {row,row+1};
-      PetscScalar vals[] = {-2.0*eddydiff2/(hx2*hx2),eddydiff2/(hx2*hx2)};
-      ierr = MatSetValuesLocal(J22,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+      PetscInt    cols[] = {row-1,row,row+1};
+      PetscScalar vals[] = {eddydiff2/(hx2*hx2),-2.0*eddydiff2/(hx2*hx2),eddydiff2/(hx2*hx2)};
+      ierr = MatSetValuesLocal(J22,1,&row,3,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else if (i == info->mx-1) {
       PetscInt    cols[] = {row-1,row};
       PetscScalar vals[] = {eddydiff2/(hx2*hx2),-2.0*eddydiff2/(hx2*hx2)};
@@ -202,6 +202,48 @@ static PetscErrorCode FormRHSJacobianLocal_J21(User user,DMDALocalInfo *info2,DM
     PetscInt    row = info2->xs-info2->gxs,col = info1->gxm;
     PetscScalar val = eddydiff2/(hx2*hx2);
     ierr = MatSetValuesLocal(J21,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode ModifySubMatrixL2G_J11(User user,DMDALocalInfo info1,Mat J11)
+{
+  IS                     *is;
+  ISLocalToGlobalMapping rl2g,cl2g,newcl2g;
+  PetscInt               *idx;
+  PetscInt               i,nlocal;
+  PetscErrorCode         ierr;
+
+  PetscFunctionBeginUser;
+  if (info1.xs+info1.xm == info1.mx) {
+    ierr = MatGetLocalToGlobalMapping(J11,&rl2g,&cl2g);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingView(cl2g,NULL);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetSize(cl2g,&nlocal);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetIndices(cl2g,(const PetscInt **)&idx);CHKERRQ(ierr);
+    idx[nlocal-1] = user->m1;
+    ierr = ISLocalToGlobalMappingRestoreIndices(cl2g,&idx);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingView(cl2g,NULL);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode ModifySubMatrixL2G_J22(User user,DMDALocalInfo info2,Mat J22)
+{
+  IS                     *is;
+  ISLocalToGlobalMapping rl2g,cl2g,newcl2g;
+  PetscInt               *idx;
+  PetscInt               i,nlocal;
+  PetscErrorCode         ierr;
+
+  PetscFunctionBeginUser;
+  if (info2.xs == 0) {
+    ierr = MatGetLocalToGlobalMapping(J22,&rl2g,&cl2g);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingView(cl2g,NULL);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetSize(cl2g,&nlocal);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetIndices(cl2g,&idx);CHKERRQ(ierr);
+    idx[0] = user->m1-1;
+    ierr = ISLocalToGlobalMappingRestoreIndices(cl2g,(const PetscInt **)&idx);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingView(cl2g,NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -282,6 +324,8 @@ static PetscErrorCode FormRHSJacobian_All(TS ts,PetscReal t,Vec X,Mat J,Mat JP,v
   ierr = MatGetLocalSubMatrix(JP,is[0],is[1],&J12);CHKERRQ(ierr);
   ierr = MatGetLocalSubMatrix(JP,is[1],is[0],&J21);CHKERRQ(ierr);
   ierr = MatGetLocalSubMatrix(JP,is[1],is[1],&J22);CHKERRQ(ierr);
+  ierr = ModifySubMatrixL2G_J11(user,info1,J11);CHKERRQ(ierr);
+  ierr = ModifySubMatrixL2G_J22(user,info2,J22);CHKERRQ(ierr);
   ierr = FormRHSJacobianLocal_J11(user,&info1,u1,J11);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)JP,MATNEST,&nest);CHKERRQ(ierr);
   if (!nest) {
@@ -291,8 +335,8 @@ static PetscErrorCode FormRHSJacobian_All(TS ts,PetscReal t,Vec X,Mat J,Mat JP,v
        changed Mat_Nest() from returning NULL pointers for these submatrices to dummy matrices because PCFIELDSPLIT could not
        handle the returned null matrices.
     */
-    ierr = FormRHSJacobianLocal_J12(user,&info1,&info2,u1,J12);CHKERRQ(ierr);
-    ierr = FormRHSJacobianLocal_J21(user,&info2,&info1,u2,J21);CHKERRQ(ierr);
+    //ierr = FormRHSJacobianLocal_J12(user,&info1,&info2,u1,J12);CHKERRQ(ierr);
+    //ierr = FormRHSJacobianLocal_J21(user,&info2,&info1,u2,J21);CHKERRQ(ierr);
   }
   ierr = FormRHSJacobianLocal_J22(user,&info2,u2,J22);CHKERRQ(ierr);
   ierr = MatRestoreLocalSubMatrix(JP,is[0],is[0],&J11);CHKERRQ(ierr);
@@ -438,7 +482,7 @@ int main(int argc,char **argv)
 
   ierr = DMCreateMatrix(user.pack,&JP);CHKERRQ(ierr);
 
-  ierr = ModifyCouplingSubMatrixL2G(&user,JP);CHKERRQ(ierr);
+  //ierr = ModifyCouplingSubMatrixL2G(&user,JP);CHKERRQ(ierr);
 
   /* This example does not correctly allocate off-diagonal blocks. These options allows new nonzeros (slow). */
   ierr = MatSetOption(JP,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
