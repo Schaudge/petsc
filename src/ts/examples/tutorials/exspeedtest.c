@@ -364,7 +364,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   const char    	*bcTypes[3]  = {"neumann", "dirichlet", "none"};
   PetscErrorCode 	ierr;
   PetscInt		bd, bc;
-  PetscBool		snesReq = PETSC_FALSE;
+  PetscBool		kspReq = PETSC_FALSE, spaceDegreeSet = PETSC_FALSE;
 
   PetscFunctionBeginUser;
   options->simplex		= PETSC_FALSE;
@@ -399,10 +399,11 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   ierr = PetscStrncpy(options->bar, "-----------------\0", 19);CHKERRQ(ierr);
 
   ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
+
     ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", options->perfTest, &options->perfTest, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-interpolate", "Interpolate the mesh", "", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-use_ksp", "Use ksp isntead of snes", "", options->useKSP, &options->useKSP, &snesReq);CHKERRQ(ierr);
-    if (snesReq && options->useKSP) options->useKSP = PETSC_FALSE;
+    ierr = PetscOptionsBool("-use_ksp", "Use ksp isntead of snes", "", options->useKSP, &options->useKSP, &kspReq);CHKERRQ(ierr);
+    if (kspReq && options->useKSP) options->useKSP = PETSC_TRUE;
     ierr = PetscOptionsBool("-vtkout", "enable mesh distribution visualization", "", options->VTKdisp, &options->VTKdisp, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-all_view", "Turn on all displays", "", options->dispFlag, &options->dispFlag, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-is_view_custom", "Turn on ISView for single threaded", "", options->isView, &options->isView, NULL);CHKERRQ(ierr);
@@ -434,6 +435,12 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetInt(NULL, NULL, "-refine_dm_level", &options->level, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetScalar(NULL, NULL, "-refine_limit", &options->refinementLimit, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-max_com", &options->commax, NULL);CHKERRQ(ierr);
+    /* Required for the SNES FEM solver, putting it here so it can be overriden later */
+    ierr = PetscOptionsUsed(NULL, "-petscspace_degree", &spaceDegreeSet);CHKERRQ(ierr);
+    if (!spaceDegreeSet && !options->useKSP) {
+      ierr = PetscOptionsSetValue(NULL, "-petscspace_degree", "1");CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "SETTING DEFAULT -petscscape_degree = 1\n");CHKERRQ(ierr);
+    }
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
