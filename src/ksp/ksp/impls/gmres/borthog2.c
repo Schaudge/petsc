@@ -39,7 +39,9 @@ PetscErrorCode  KSPGMRESClassicalGramSchmidtOrthogonalization(KSP ksp,PetscInt i
   PetscInt       j;
   PetscScalar    *hh,*hes,*lhh;
   PetscReal      hnrm, wnrm;
-  PetscBool      refine = (PetscBool)(gmres->cgstype == KSP_GMRES_CGS_REFINE_ALWAYS);
+  PetscBool      refine = (PetscBool)(gmres->cgstype == KSP_GMRES_CGS_REFINE_ALWAYS),use_densemats = gmres->preallocate_densemats;
+  Vec            lhhvec = NULL;
+  MPI_Comm       comm;
 
   PetscFunctionBegin;
   ierr = PetscLogEventBegin(KSP_GMRESOrthogonalization,ksp,0,0,0);CHKERRQ(ierr);
@@ -58,11 +60,19 @@ PetscErrorCode  KSPGMRESClassicalGramSchmidtOrthogonalization(KSP ksp,PetscInt i
     hes[j] = 0.0;
   }
 
-  /*
-     This is really a matrix-vector product, with the matrix stored
-     as pointer to rows
-  */
-  ierr = VecMDot(VEC_VV(it+1),it+1,&(VEC_VV(0)),lhh);CHKERRQ(ierr); /* <v,vnew> */
+  if (use_densemats) {
+    ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,it+1,lhh,&lhhvec);CHKERRQ(ierr);
+    ierr = PetscObjectGetComm((PetscObject)VEC_VV(0),&comm);CHKERRQ(ierr);
+  }
+
+  /* This is really a matrix-vector product */
+  if (use_densemats) {
+    ierr = VecGetLocalVectorRead(VEC_VV(it+1),gmres->lvec);CHKERRQ(ierr);
+    ierr = MatMultHermitianTranspose(gmres->densemats[it],gmres->lvec,lhhvec);CHKERRQ(ierr);
+    ierr = MPIU_Allreduce(MPI_IN_PLACE,lhh,it+1,MPIU_SCALAR,MPIU_SUM,comm);CHKERRQ(ierr);
+    ierr = VecRestoreLocalVector(VEC_VV(it+1),gmres->lvec);CHKERRQ(ierr);
+  } else {ierr = VecMDot(VEC_VV(it+1),it+1,&(VEC_VV(0)),lhh);CHKERRQ(ierr);} /* <v,vnew> */
+
   for (j=0; j<=it; j++) {
     KSPCheckDot(ksp,lhh[j]);
     lhh[j] = -lhh[j];
@@ -72,7 +82,12 @@ PetscErrorCode  KSPGMRESClassicalGramSchmidtOrthogonalization(KSP ksp,PetscInt i
          This is really a matrix vector product:
          [h[0],h[1],...]*[ v[0]; v[1]; ...] subtracted from v[it+1].
   */
-  ierr = VecMAXPY(VEC_VV(it+1),it+1,lhh,&VEC_VV(0));CHKERRQ(ierr);
+  if (use_densemats) {
+    ierr = VecGetLocalVector(VEC_VV(it+1),gmres->lvec);CHKERRQ(ierr);
+    ierr = MatMultAdd(gmres->densemats[it],lhhvec,gmres->lvec,gmres->lvec);CHKERRQ(ierr);
+    ierr = VecRestoreLocalVector(VEC_VV(it+1),gmres->lvec);CHKERRQ(ierr);
+  } else {ierr = VecMAXPY(VEC_VV(it+1),it+1,lhh,&VEC_VV(0));CHKERRQ(ierr);}
+
   /* note lhh[j] is -<v,vnew> , hence the subtraction */
   for (j=0; j<=it; j++) {
     hh[j]  -= lhh[j];     /* hh += <v,vnew> */
@@ -96,15 +111,27 @@ PetscErrorCode  KSPGMRESClassicalGramSchmidtOrthogonalization(KSP ksp,PetscInt i
   }
 
   if (refine) {
-    ierr = VecMDot(VEC_VV(it+1),it+1,&(VEC_VV(0)),lhh);CHKERRQ(ierr); /* <v,vnew> */
-    for (j=0; j<=it; j++) lhh[j] = -lhh[j];
-    ierr = VecMAXPY(VEC_VV(it+1),it+1,lhh,&VEC_VV(0));CHKERRQ(ierr);
+    if (use_densemats) {
+      ierr = VecGetLocalVector(VEC_VV(it+1),gmres->lvec);CHKERRQ(ierr);
+      ierr = MatMultHermitianTranspose(gmres->densemats[it],gmres->lvec,lhhvec);CHKERRQ(ierr);
+      ierr = MPIU_Allreduce(MPI_IN_PLACE,lhh,it+1,MPIU_SCALAR,MPIU_SUM,comm);CHKERRQ(ierr);
+      for (j=0; j<=it; j++) lhh[j] = -lhh[j];
+      ierr = MatMultAdd(gmres->densemats[it],lhhvec,gmres->lvec,gmres->lvec);CHKERRQ(ierr);
+      ierr = VecRestoreLocalVector(VEC_VV(it+1),gmres->lvec);CHKERRQ(ierr);
+    } else {
+      ierr = VecMDot(VEC_VV(it+1),it+1,&(VEC_VV(0)),lhh);CHKERRQ(ierr); /* <v,vnew> */
+      for (j=0; j<=it; j++) lhh[j] = -lhh[j];
+      ierr = VecMAXPY(VEC_VV(it+1),it+1,lhh,&VEC_VV(0));CHKERRQ(ierr);
+    }
+
     /* note lhh[j] is -<v,vnew> , hence the subtraction */
     for (j=0; j<=it; j++) {
       hh[j]  -= lhh[j];     /* hh += <v,vnew> */
       hes[j] -= lhh[j];     /* hes += <v,vnew> */
     }
   }
+
+  if (use_densemats) {ierr = VecDestroy(&lhhvec);CHKERRQ(ierr);}
   ierr = PetscLogEventEnd(KSP_GMRESOrthogonalization,ksp,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -41,6 +41,10 @@
   Vec      **user_work;                                              \
   PetscInt *mwork_alloc;       /* Number of work vectors allocated as part of  a work-vector chunck */ \
   PetscInt nwork_alloc;        /* Number of work vector chunks allocated */ \
+  PetscBool   preallocate_densemats;   /* If true, put preallocated work vectors into MATSEQDENSE matrices to promote vec ops from BLAS1 to BLAS2. It implies q_preallocate must be true */ \
+  Mat         *densemats;              /* The work dense matrices, which share the same memroy */ \
+  PetscScalar *matarray;               /* Element array of dense matrices */ \
+  Vec         lvec;                    /* Local vector of a work vector */ \
                                                                         \
   /* Information for building solution */                               \
   PetscInt    it;              /* Current iteration: inside restart */  \

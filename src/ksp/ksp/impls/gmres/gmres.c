@@ -70,8 +70,33 @@ PetscErrorCode    KSPSetUp_GMRES(KSP ksp)
 
   if (gmres->q_preallocate) {
     gmres->vv_allocated = VEC_OFFSET + 2 + max_k;
+    if (gmres->preallocate_densemats) { /* Put work vectors in dense matrices */
+      Vec         *tmpvecs;
+      PetscInt    n,N;
+      MPI_Comm    comm;
 
-    ierr = KSPCreateVecs(ksp,gmres->vv_allocated,&gmres->user_work[0],0,NULL);CHKERRQ(ierr);
+      /* gmres->user_work[0] points to an array of work vectors */
+      ierr = PetscMalloc1(gmres->vv_allocated,&gmres->user_work[0]);CHKERRQ(ierr);
+
+      /* Allocate the first VEC_OFFSET work vectors */
+      ierr = KSPCreateVecs(ksp,VEC_OFFSET,&tmpvecs,0,NULL);CHKERRQ(ierr);
+      for (k=0; k<VEC_OFFSET; k++) gmres->user_work[0][k] = tmpvecs[k];
+      ierr = VecGetLocalSize(tmpvecs[0],&n);CHKERRQ(ierr); /* Other vectors are templated from the first one */
+      ierr = VecGetSize(tmpvecs[0],&N);CHKERRQ(ierr);
+      ierr = PetscObjectGetComm((PetscObject)tmpvecs[0],&comm);CHKERRQ(ierr);
+      ierr = PetscFree(tmpvecs);CHKERRQ(ierr);
+
+      /* Allocate the remaining 2+max_k work vectors, which share memory with 2+max_k dense matrices */
+      ierr = PetscMalloc2(n*(2+max_k),&gmres->matarray,2+max_k,&gmres->densemats);CHKERRQ(ierr);
+      for (k=0; k<2+max_k; k++) {
+        ierr = MatCreateSeqDense(PETSC_COMM_SELF,n,k+1,gmres->matarray,&gmres->densemats[k]);CHKERRQ(ierr);
+        ierr = VecCreateMPIWithArray(comm,1,n,N,&gmres->matarray[k*n],&gmres->user_work[0][VEC_OFFSET+k]);CHKERRQ(ierr);
+      }
+      /* Allocate a local vec, which will be used in VecGetLocalVector on work vectors */
+      ierr = VecCreateSeq(PETSC_COMM_SELF,n,&gmres->lvec);CHKERRQ(ierr);
+    } else {
+      ierr = KSPCreateVecs(ksp,gmres->vv_allocated,&gmres->user_work[0],0,NULL);CHKERRQ(ierr);
+    }
     ierr = PetscLogObjectParents(ksp,gmres->vv_allocated,gmres->user_work[0]);CHKERRQ(ierr);
 
     gmres->mwork_alloc[0] = gmres->vv_allocated;
@@ -283,6 +308,12 @@ PetscErrorCode KSPReset_GMRES(KSP ksp)
     ierr = VecDestroyVecs(gmres->max_k+1,&gmres->vecb);CHKERRQ(ierr);
   }
 
+  if (gmres->preallocate_densemats) {
+    if (gmres->densemats) for (i=0; i<2+gmres->max_k; i++) {ierr = MatDestroy(&gmres->densemats[i]);CHKERRQ(ierr);}
+    ierr = PetscFree2(gmres->matarray,gmres->densemats);CHKERRQ(ierr);
+    ierr = VecDestroy(&gmres->lvec);CHKERRQ(ierr);
+  }
+
   ierr = PetscFree(gmres->user_work);CHKERRQ(ierr);
   ierr = PetscFree(gmres->mwork_alloc);CHKERRQ(ierr);
   ierr = PetscFree(gmres->nrs);CHKERRQ(ierr);
@@ -368,8 +399,17 @@ static PetscErrorCode KSPGMRESBuildSoln(PetscScalar *nrs,Vec vs,Vec vdest,KSP ks
   }
 
   /* Accumulate the correction to the solution of the preconditioned problem in TEMP */
-  ierr = VecSet(VEC_TEMP,0.0);CHKERRQ(ierr);
-  ierr = VecMAXPY(VEC_TEMP,it+1,nrs,&VEC_VV(0));CHKERRQ(ierr);
+    ierr = VecSet(VEC_TEMP,0.0);CHKERRQ(ierr);
+  if (gmres->preallocate_densemats) {
+    Vec  tmpv;
+    ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,it+1,nrs,&tmpv);CHKERRQ(ierr);
+    ierr = VecGetLocalVector(VEC_TEMP,gmres->lvec);CHKERRQ(ierr);
+    ierr = MatMultAdd(gmres->densemats[it],tmpv,gmres->lvec,gmres->lvec);CHKERRQ(ierr);
+    ierr = VecRestoreLocalVector(VEC_TEMP,gmres->lvec);CHKERRQ(ierr);
+    ierr = VecDestroy(&tmpv);
+  } else {
+    ierr = VecMAXPY(VEC_TEMP,it+1,nrs,&VEC_VV(0));CHKERRQ(ierr);
+  }
 
   ierr = KSPUnwindPreconditioner(ksp,VEC_TEMP,VEC_TEMP_MATOP);CHKERRQ(ierr);
   /* add solution to previous solution */
@@ -575,7 +615,7 @@ PetscErrorCode KSPSetFromOptions_GMRES(PetscOptionItems *PetscOptionsObject,KSP 
   PetscInt       restart;
   PetscReal      haptol;
   KSP_GMRES      *gmres = (KSP_GMRES*)ksp->data;
-  PetscBool      flg;
+  PetscBool      flg,set;
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead(PetscOptionsObject,"KSP GMRES Options");CHKERRQ(ierr);
@@ -584,8 +624,16 @@ PetscErrorCode KSPSetFromOptions_GMRES(PetscOptionItems *PetscOptionsObject,KSP 
   ierr = PetscOptionsReal("-ksp_gmres_haptol","Tolerance for exact convergence (happy ending)","KSPGMRESSetHapTol",gmres->haptol,&haptol,&flg);CHKERRQ(ierr);
   if (flg) { ierr = KSPGMRESSetHapTol(ksp,haptol);CHKERRQ(ierr); }
   flg  = PETSC_FALSE;
-  ierr = PetscOptionsBool("-ksp_gmres_preallocate","Preallocate Krylov vectors","KSPGMRESSetPreAllocateVectors",flg,&flg,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-ksp_gmres_preallocate","Preallocate Krylov vectors","KSPGMRESSetPreAllocateVectors",flg,&flg,&set);CHKERRQ(ierr);
+
+  gmres->preallocate_densemats = PETSC_TRUE;
+  ierr = PetscOptionsBool("-ksp_gmres_preallocate_densemats","Preallocate Krylov vectors as dense matrices",NULL,gmres->preallocate_densemats,&gmres->preallocate_densemats,NULL);CHKERRQ(ierr);
+  if (gmres->preallocate_densemats) {
+    if (set && !flg) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_ARG_INCOMP,"-ksp_gmres_preallocate_densemats implies -ksp_gmres_preallocate. You can not set the former true while the latter false");
+    else flg = PETSC_TRUE;
+  }
   if (flg) {ierr = KSPGMRESSetPreAllocateVectors(ksp);CHKERRQ(ierr);}
+
   ierr = PetscOptionsBoolGroupBegin("-ksp_gmres_classicalgramschmidt","Classical (unmodified) Gram-Schmidt (fast)","KSPGMRESSetOrthogonalization",&flg);CHKERRQ(ierr);
   if (flg) {ierr = KSPGMRESSetOrthogonalization(ksp,KSPGMRESClassicalGramSchmidtOrthogonalization);CHKERRQ(ierr);}
   ierr = PetscOptionsBoolGroupEnd("-ksp_gmres_modifiedgramschmidt","Modified Gram-Schmidt (slow,more stable)","KSPGMRESSetOrthogonalization",&flg);CHKERRQ(ierr);
@@ -837,6 +885,7 @@ PetscErrorCode  KSPGMRESSetHapTol(KSP ksp,PetscReal tol)
 .   -ksp_gmres_haptol <tol> - sets the tolerance for "happy ending" (exact convergence)
 .   -ksp_gmres_preallocate - preallocate all the Krylov search directions initially (otherwise groups of
                              vectors are allocated as needed)
+.   -ksp_gmres_preallocate_densemats - preallocate the Krylov search directions as dense matrices. It implies ksp_gmres_preallocate is also true.
 .   -ksp_gmres_classicalgramschmidt - use classical (unmodified) Gram-Schmidt to orthogonalize against the Krylov space (fast) (the default)
 .   -ksp_gmres_modifiedgramschmidt - use modified Gram-Schmidt in the orthogonalization (more stable, but slower)
 .   -ksp_gmres_cgs_refinement_type <refine_never,refine_ifneeded,refine_always> - determine if iterative refinement is used to increase the

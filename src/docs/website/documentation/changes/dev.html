@@ -125,6 +125,9 @@
         </ul>
       <h4>PC:</h4>
       <h4>KSP:</h4>
+        <ul>
+          <li>Add an option -ksp_gmres_preallocate_densemats to preallocate Krylov vectors as dense matrices so that opeations VecMDot, VecMAXPY can be promoted from BLAS1 to BLAS2. Default is false.</li>
+        </ul>
       <h4>SNES:</h4>
       <h4>SNESLineSearch:</h4>
       <h4>TS:</h4>
