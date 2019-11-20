@@ -553,6 +553,8 @@ PetscErrorCode DMPlexOrientInterface_Internal(DM dm)
 
   PetscFunctionBegin;
   ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, &Nc, NULL, NULL, NULL);CHKERRQ(ierr);
+  if (Nc < 0) PetscFunctionReturn(0);
   ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
   ierr = DMPlexGetConeSection(dm, &s);CHKERRQ(ierr);
   ierr = DMPlexGetCones(dm, &cones);CHKERRQ(ierr);
