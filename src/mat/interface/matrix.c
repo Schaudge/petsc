@@ -2446,7 +2446,7 @@ PetscErrorCode MatMultHermitianTranspose(Mat mat,Vec x,Vec y)
 #endif
   MatCheckPreallocated(mat,1);
 
-  ierr = PetscLogEventBegin(MAT_MultHermitianTranspose,mat,x,y,0);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(MAT_MultTranspose,mat,x,y,0);CHKERRQ(ierr); /* Treat it as MatMultTranspose in -log_view */
   if (mat->ops->multhermitiantranspose) {
     ierr = VecLockReadPush(x);CHKERRQ(ierr);
     ierr = (*mat->ops->multhermitiantranspose)(mat,x,y);CHKERRQ(ierr);
@@ -2459,7 +2459,7 @@ PetscErrorCode MatMultHermitianTranspose(Mat mat,Vec x,Vec y)
     ierr = VecDestroy(&w);CHKERRQ(ierr);
     ierr = VecConjugate(y);CHKERRQ(ierr);
   }
-  ierr = PetscLogEventEnd(MAT_MultHermitianTranspose,mat,x,y,0);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(MAT_MultTranspose,mat,x,y,0);CHKERRQ(ierr);
   ierr = PetscObjectStateIncrease((PetscObject)y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
