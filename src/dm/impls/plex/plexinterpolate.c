@@ -19,6 +19,36 @@ typedef struct _PetscHashIJKLKey { PetscInt i, j, k, l; } PetscHashIJKLKey;
 
 PETSC_HASH_MAP(HashIJKL, PetscHashIJKLKey, PetscInt, PetscHashIJKLKeyHash, PetscHashIJKLKeyEqual, -1)
 
+static PetscSFNode _PetscInvalidSFNode = {-1, -1};
+
+typedef struct _PetscHashIJKLRemoteKey { PetscSFNode i, j, k, l; } PetscHashIJKLRemoteKey;
+
+#define PetscHashIJKLRemoteKeyHash(key) \
+  PetscHashCombine(PetscHashCombine(PetscHashInt((key).i.rank + (key).i.index),PetscHashInt((key).j.rank + (key).j.index)), \
+                   PetscHashCombine(PetscHashInt((key).k.rank + (key).k.index),PetscHashInt((key).l.rank + (key).l.index)))
+
+#define PetscHashIJKLRemoteKeyEqual(k1,k2) \
+  (((k1).i.rank==(k2).i.rank) ? ((k1).i.index==(k2).i.index) ? ((k1).j.rank==(k2).j.rank) ? ((k1).j.index==(k2).j.index) ? ((k1).k.rank==(k2).k.rank) ? ((k1).k.index==(k2).k.index) ? ((k1).l.rank==(k2).l.rank) ? ((k1).l.index==(k2).l.index) : 0 : 0 : 0 : 0 : 0 : 0 : 0)
+
+PETSC_HASH_MAP(HashIJKLRemote, PetscHashIJKLRemoteKey, PetscSFNode, PetscHashIJKLRemoteKeyHash, PetscHashIJKLRemoteKeyEqual, _PetscInvalidSFNode)
+
+static PetscErrorCode PetscSortSFNode(PetscInt n, PetscSFNode A[])
+{
+  PetscInt i;
+
+  PetscFunctionBegin;
+  for (i = 1; i < n; ++i) {
+    PetscSFNode x = A[i];
+    PetscInt    j;
+
+    for (j = i-1; j >= 0; --j) {
+      if ((A[j].rank > x.rank) || (A[j].rank == x.rank && A[j].index > x.index)) break;
+      A[j+1] = A[j];
+    }
+    A[j+1] = x;
+  }
+  PetscFunctionReturn(0);
+}
 
 /*
   DMPlexGetFaces_Internal - Gets groups of vertices that correspond to faces for the given cell
@@ -748,24 +778,57 @@ static PetscErrorCode SFNodeArrayViewFromOptions(MPI_Comm comm, const char opt[]
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMPlexMapToLocalPoint(PetscHMapIJ roothash, const PetscInt localPoints[], PetscMPIInt rank, PetscSFNode remotePoint, PetscInt *localPoint)
+static PetscErrorCode DMPlexMapToLocalPoint(DM dm, PetscHMapIJ remotehash, PetscSFNode remotePoint, PetscInt *localPoint)
 {
-  PetscErrorCode ierr;
+  PetscSF         sf;
+  const PetscInt *locals;
+  PetscMPIInt     rank;
+  PetscErrorCode  ierr;
 
   PetscFunctionBegin;
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
+  ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, NULL, NULL, &locals, NULL);CHKERRQ(ierr);
   if (remotePoint.rank == rank) {
     *localPoint = remotePoint.index;
   } else {
     PetscHashIJKey key;
-    PetscInt       root;
+    PetscInt       l;
 
     key.i = remotePoint.index;
     key.j = remotePoint.rank;
-    ierr = PetscHMapIJGet(roothash, key, &root);CHKERRQ(ierr);
-    if (root >= 0) {
-      *localPoint = localPoints[root];
+    ierr = PetscHMapIJGet(remotehash, key, &l);CHKERRQ(ierr);
+    if (l >= 0) {
+      *localPoint = locals[l];
     } else PetscFunctionReturn(1);
   }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexMapToGlobalPoint(DM dm, PetscInt localPoint, PetscSFNode *remotePoint)
+{
+  PetscSF            sf;
+  const PetscInt    *locals, *rootdegree;
+  const PetscSFNode *remotes;
+  PetscInt           Nl, l;
+  PetscMPIInt        rank;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
+  ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, NULL, &Nl, &locals, &remotes);CHKERRQ(ierr);
+  if (Nl < 0) goto owned;
+  ierr = PetscSFComputeDegreeBegin(sf, &rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeEnd(sf, &rootdegree);CHKERRQ(ierr);
+  if (rootdegree[localPoint]) goto owned;
+  ierr = PetscFindInt(localPoint, Nl, locals, &l);CHKERRQ(ierr);
+  if (l < 0) PetscFunctionReturn(1);
+  *remotePoint = remotes[l];
+  PetscFunctionReturn(0);
+  owned:
+  remotePoint->rank  = rank;
+  remotePoint->index = localPoint;
   PetscFunctionReturn(0);
 }
 
@@ -948,6 +1011,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
     }
     if (debug) {ierr = PetscSynchronizedFlush(PetscObjectComm((PetscObject) dm), NULL);CHKERRQ(ierr);}
     ierr = PetscHMapIJDestroy(&facehash);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) candidateSection, "Candidate Section");CHKERRQ(ierr);
     ierr = PetscObjectViewFromOptions((PetscObject) candidateSection, NULL, "-petscsection_interp_candidate_view");CHKERRQ(ierr);
     ierr = SFNodeArrayViewFromOptions(PetscObjectComm((PetscObject) dm), "-petscsection_interp_candidate_view", "Candidates", NULL, candidatesSize, candidates);CHKERRQ(ierr);
   }
@@ -970,6 +1034,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
     ierr = PetscSFDestroy(&sfCandidates);CHKERRQ(ierr);
     ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
 
+    ierr = PetscObjectSetName((PetscObject) candidateSectionRemote, "Remote Candidate Section");CHKERRQ(ierr);
     ierr = PetscObjectViewFromOptions((PetscObject) candidateSectionRemote, NULL, "-petscsection_interp_candidate_remote_view");CHKERRQ(ierr);
     ierr = SFNodeArrayViewFromOptions(PetscObjectComm((PetscObject) dm), "-petscsection_interp_candidate_remote_view", "Remote Candidates", NULL, candidatesRemoteSize, candidatesRemote);CHKERRQ(ierr);
   }
@@ -992,7 +1057,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
 
           points[0] = r;
           for (p = 0; p < numPoints; ++p) {
-            ierr = DMPlexMapToLocalPoint(roothash, localPoints, rank, candidatesRemote[offset+(++d)], &points[p+1]);
+            ierr = DMPlexMapToLocalPoint(dm, roothash, candidatesRemote[offset+(++d)], &points[p+1]);
             if (ierr) {d += numPoints-1 - p; break;} /* We got a point not in our overlap */
             if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Checking local candidate %D\n", rank, points[p+1]);CHKERRQ(ierr);}
           }
@@ -1015,7 +1080,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
     PetscSFNode    *remotePointsNew;
     PetscHMapI      claimshash;
     PetscInt       *remoteOffsets, *localPointsNew;
-    PetscInt        claimsSize, pStart, pEnd, root, numLocalNew, p, d;
+    PetscInt        claimsSize, pStart, pEnd, numLocalNew, p, d;
 
     ierr = PetscSFGetMultiSF(pointSF, &sfMulti);CHKERRQ(ierr);
     ierr = PetscSectionCreate(PetscObjectComm((PetscObject) dm), &claimSection);CHKERRQ(ierr);
@@ -1027,6 +1092,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
     ierr = PetscSFBcastEnd(sfClaims, MPIU_2INT, candidatesRemote, claims);CHKERRQ(ierr);
     ierr = PetscSFDestroy(&sfClaims);CHKERRQ(ierr);
     ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) claimSection, "Claim Section");CHKERRQ(ierr);
     ierr = PetscObjectViewFromOptions((PetscObject) claimSection, NULL, "-petscsection_interp_claim_view");CHKERRQ(ierr);
     ierr = SFNodeArrayViewFromOptions(PetscObjectComm((PetscObject) dm), "-petscsection_interp_claim_view", "Claims", NULL, claimsSize, claims);CHKERRQ(ierr);
     /* Walk the original section of local supports and add an SF entry for each updated item */
@@ -1042,7 +1108,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
           const PetscInt  faceInd   = offset+d;
           const PetscInt  numPoints = candidates[faceInd].index;
           const PetscInt *join      = NULL;
-          PetscInt        joinSize, points[1024], c;
+          PetscInt        joinSize, points[1024], c, l;
 
           if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]    Found claim for remote point (%D, %D)\n", rank, claims[faceInd].rank, claims[faceInd].index);CHKERRQ(ierr);}
           points[0] = p;
@@ -1050,8 +1116,8 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
           for (c = 0, ++d; c < numPoints; ++c, ++d) {
             key.i = candidates[offset+d].index;
             key.j = candidates[offset+d].rank;
-            ierr = PetscHMapIJGet(roothash, key, &root);CHKERRQ(ierr);
-            points[c+1] = localPoints[root];
+            ierr = PetscHMapIJGet(roothash, key, &l);CHKERRQ(ierr);
+            points[c+1] = localPoints[l];
             if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]      point %D\n", rank, points[c+1]);CHKERRQ(ierr);}
           }
           ierr = DMPlexGetJoin(dm, numPoints+1, points, &joinSize, &join);CHKERRQ(ierr);
@@ -1092,6 +1158,829 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
   ierr = PetscHMapIJDestroy(&roothash);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&candidateSection);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&candidateSectionRemote);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&claimSection);CHKERRQ(ierr);
+  ierr = PetscFree(candidates);CHKERRQ(ierr);
+  ierr = PetscFree(candidatesRemote);CHKERRQ(ierr);
+  ierr = PetscFree(claims);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(DMPLEX_InterpolateSF,dm,0,0,0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexPointIsShared(DM dm, PetscInt p, PetscBool *isShared)
+{
+  PetscSF         sf;
+  const PetscInt *locals, *rootdegree;
+  PetscInt        Nl, idx;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  *isShared = PETSC_FALSE;
+  ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, NULL, &Nl, &locals, NULL);CHKERRQ(ierr);
+  if (Nl < 0) PetscFunctionReturn(0);
+  ierr = PetscFindInt(p, Nl, locals, &idx);CHKERRQ(ierr);
+  if (idx >= 0) {*isShared = PETSC_TRUE; PetscFunctionReturn(0);}
+  ierr = PetscSFComputeDegreeBegin(sf, &rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeEnd(sf, &rootdegree);CHKERRQ(ierr);
+  if (rootdegree[p] > 0) *isShared = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexConeIsShared(DM dm, PetscInt p, PetscBool *isShared)
+{
+  const PetscInt *cone;
+  PetscInt        coneSize, c;
+  PetscBool       cShared = PETSC_TRUE;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = DMPlexGetConeSize(dm, p, &coneSize);CHKERRQ(ierr);
+  ierr = DMPlexGetCone(dm, p, &cone);CHKERRQ(ierr);
+  for (c = 0; c < coneSize; ++c) {
+    PetscBool pointShared;
+
+    ierr = DMPlexPointIsShared(dm, cone[c], &pointShared);CHKERRQ(ierr);
+    cShared = cShared && pointShared;
+  }
+  *isShared = coneSize ? cShared : PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexGetConeMinimum(DM dm, PetscInt p, PetscSFNode *cpmin)
+{
+  const PetscInt *cone;
+  PetscInt        coneSize, c;
+  PetscSFNode     cmin = {PETSC_MAX_INT, PETSC_MAX_INT}, missing = {-1, -1};
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = DMPlexGetConeSize(dm, p, &coneSize);CHKERRQ(ierr);
+  ierr = DMPlexGetCone(dm, p, &cone);CHKERRQ(ierr);
+  for (c = 0; c < coneSize; ++c) {
+    PetscSFNode rcp;
+
+    ierr = DMPlexMapToGlobalPoint(dm, cone[c], &rcp);
+    if (ierr) {
+      cmin = missing;
+    } else {
+      cmin = (rcp.rank < cmin.rank) || (rcp.rank == cmin.rank && rcp.index < cmin.index) ? rcp : cmin;
+    }
+  }
+  *cpmin = coneSize ? cmin : missing;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexCheckSharedFaces(DM dm)
+{
+  PetscInt       fStart, fEnd, f;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);CHKERRQ(ierr);
+  for (f = fStart; f < fEnd; ++f) {
+    const PetscInt *cone;
+    PetscInt        coneSize, c;
+    PetscBool       faceShared, shouldShare = PETSC_TRUE;
+
+    ierr = DMPlexGetConeSize(dm, f, &coneSize);CHKERRQ(ierr);
+    ierr = DMPlexGetCone(dm, f, &cone);CHKERRQ(ierr);
+    for (c = 0; c < coneSize; ++c) {
+      PetscBool pointShared;
+
+      ierr = DMPlexPointIsShared(dm, cone[c], &pointShared);CHKERRQ(ierr);
+      shouldShare = shouldShare && pointShared;
+    }
+    ierr = DMPlexPointIsShared(dm, f, &faceShared);CHKERRQ(ierr);
+    if (faceShared && !shouldShare) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Face %D is shared, but its cone is not completely shared", f);
+    if (!faceShared && shouldShare) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Face %D is not shared, but its cone is completely shared", f);
+  }
+  PetscFunctionReturn(0);
+}
+
+/*
+  Each shared face has an entry in the candidates array:
+    (-1, coneSize-1), {(global cone point)}
+  where the set is missing the point p which we use as the key for the face
+*/
+static PetscErrorCode DMPlexAddSharedFace_Private(DM dm, PetscSection candidateSection, PetscSFNode candidates[], PetscHMapIJ faceHash, PetscInt p, PetscBool debug)
+{
+  MPI_Comm        comm;
+  const PetscInt *support;
+  PetscInt        supportSize, s, off = 0, idx = 0;
+  PetscMPIInt     rank;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = DMPlexGetSupportSize(dm, p, &supportSize);CHKERRQ(ierr);
+  ierr = DMPlexGetSupport(dm, p, &support);CHKERRQ(ierr);
+  if (candidates) {ierr = PetscSectionGetOffset(candidateSection, p, &off);CHKERRQ(ierr);}
+  for (s = 0; s < supportSize; ++s) {
+    const PetscInt  face = support[s];
+    const PetscInt *cone;
+    PetscInt        coneSize, c, f;
+    PetscBool       isShared;
+    PetscHashIJKey  key;
+
+
+    /* Only add point once */
+    if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Support face %D\n", rank, face);CHKERRQ(ierr);}
+    key.i = p;
+    key.j = face;
+    ierr = PetscHMapIJGet(faceHash, key, &f);CHKERRQ(ierr);
+    if (f >= 0) continue;
+    ierr = DMPlexConeIsShared(dm, face, &isShared);CHKERRQ(ierr);
+    if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]      Face point %D is shared: %d\n", rank, face, (int) isShared);CHKERRQ(ierr);}
+    if (isShared) {
+      /* TODO: I changed 'l' here to 'p' since we also go over roots */
+      ierr = PetscHMapIJSet(faceHash, key, p);CHKERRQ(ierr);
+      if (candidates) {
+        if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Adding shared face %D at idx %D\n[%d]     ", rank, face, idx, rank);CHKERRQ(ierr);}
+        ierr = DMPlexGetConeSize(dm, face, &coneSize);CHKERRQ(ierr);
+        ierr = DMPlexGetCone(dm, face, &cone);CHKERRQ(ierr);
+        candidates[off+idx].rank    = -1;
+        candidates[off+idx++].index = coneSize-1;
+        for (c = 0; c < coneSize; ++c) {
+          const PetscInt cp = cone[c];
+
+          if (cp == p) continue;
+          ierr = DMPlexMapToGlobalPoint(dm, cp, &candidates[off+idx]);CHKERRQ(ierr);
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, " (%D,%D)", candidates[off+idx].rank, candidates[off+idx].index);CHKERRQ(ierr);}
+          ++idx;
+        }
+        if (debug) {ierr = PetscSynchronizedPrintf(comm, "\n");CHKERRQ(ierr);}
+      } else {
+        /* Add cone size to section */
+        ierr = DMPlexGetConeSize(dm, face, &coneSize);CHKERRQ(ierr);
+        ierr = PetscHMapIJSet(faceHash, key, p);CHKERRQ(ierr);
+        ierr = PetscSectionAddDof(candidateSection, p, coneSize);CHKERRQ(ierr);
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+/*
+  Each shared face has an entry in the candidates array:
+    (-1, coneSize-1), {(global cone point)}
+  where the set is missing the point p which we use as the key for the face
+*/
+static PetscErrorCode DMPlexAddSharedFace3_Private(DM dm, PetscSection candidateSection, PetscSFNode candidates[], PetscHMapIJ faceHash, PetscInt p, PetscBool debug)
+{
+  MPI_Comm        comm;
+  const PetscInt *support;
+  PetscInt        supportSize, s, off = 0, idx = 0;
+  PetscMPIInt     rank;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = DMPlexGetSupportSize(dm, p, &supportSize);CHKERRQ(ierr);
+  ierr = DMPlexGetSupport(dm, p, &support);CHKERRQ(ierr);
+  if (candidates) {ierr = PetscSectionGetOffset(candidateSection, p, &off);CHKERRQ(ierr);}
+  for (s = 0; s < supportSize; ++s) {
+    const PetscInt  face = support[s];
+    const PetscInt *cone;
+    PetscSFNode     cpmin, rp;
+    PetscInt        coneSize, c, f;
+    PetscBool       isShared;
+    PetscHashIJKey  key;
+
+    /* Only add point once */
+    if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Support face %D\n", rank, face);CHKERRQ(ierr);}
+    key.i = p;
+    key.j = face;
+    ierr = PetscHMapIJGet(faceHash, key, &f);CHKERRQ(ierr);
+    if (f >= 0) continue;
+    ierr = DMPlexConeIsShared(dm, face, &isShared);CHKERRQ(ierr);
+    ierr = DMPlexGetConeMinimum(dm, face, &cpmin);CHKERRQ(ierr);
+    ierr = DMPlexMapToGlobalPoint(dm, p, &rp);CHKERRQ(ierr);
+    if (debug) {
+      ierr = PetscSynchronizedPrintf(comm, "[%d]      Face point %D is shared: %d\n", rank, face, (int) isShared);CHKERRQ(ierr);
+      ierr = PetscSynchronizedPrintf(comm, "[%d]      Global point (%D, %D) Min Cone Point (%D, %D)\n", rank, rp.rank, rp.index, cpmin.rank, cpmin.index);CHKERRQ(ierr);
+    }
+    if (isShared && (rp.rank == cpmin.rank && rp.index == cpmin.index)) {
+      ierr = PetscHMapIJSet(faceHash, key, p);CHKERRQ(ierr);
+      if (candidates) {
+        if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Adding shared face %D at idx %D\n[%d]     ", rank, face, idx, rank);CHKERRQ(ierr);}
+        ierr = DMPlexGetConeSize(dm, face, &coneSize);CHKERRQ(ierr);
+        ierr = DMPlexGetCone(dm, face, &cone);CHKERRQ(ierr);
+        candidates[off+idx].rank    = -1;
+        candidates[off+idx++].index = coneSize-1;
+        candidates[off+idx].rank    = rank;
+        candidates[off+idx++].index = face;
+        for (c = 0; c < coneSize; ++c) {
+          const PetscInt cp = cone[c];
+
+          if (cp == p) continue;
+          ierr = DMPlexMapToGlobalPoint(dm, cp, &candidates[off+idx]);CHKERRQ(ierr);
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, " (%D,%D)", candidates[off+idx].rank, candidates[off+idx].index);CHKERRQ(ierr);}
+          ++idx;
+        }
+        if (debug) {ierr = PetscSynchronizedPrintf(comm, "\n");CHKERRQ(ierr);}
+      } else {
+        /* Add cone size to section */
+        if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Scheduling shared face %D\n", rank, face);CHKERRQ(ierr);}
+        ierr = DMPlexGetConeSize(dm, face, &coneSize);CHKERRQ(ierr);
+        ierr = PetscHMapIJSet(faceHash, key, p);CHKERRQ(ierr);
+        ierr = PetscSectionAddDof(candidateSection, p, coneSize+1);CHKERRQ(ierr);
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+/*
+  DMPlexInterpolatePointSF2 - Insert interpolated points in the overlap into the PointSF in parallel, following local interpolation
+
+  Collective on dm
+
+  Input Parameters:
++ dm        - The interpolated DM
+- pointSF   - The initial SF without interpolated points
+
+  Output Parameter:
+. pointSF   - The SF including interpolated points
+
+  Level: developer
+
+   Note: All debugging for this process can be turned on with the options: -dm_interp_pre_view -petscsf_interp_pre_view -petscsection_interp_candidate_view -petscsection_interp_candidate_remote_view -petscsection_interp_claim_view -petscsf_interp_pre_view -dmplex_interp_debug
+
+.seealso: DMPlexInterpolate(), DMPlexUninterpolate()
+*/
+PetscErrorCode DMPlexInterpolatePointSF2(DM dm, PetscSF pointSF)
+{
+  MPI_Comm           comm;
+  PetscHMapIJ        remoteHash;
+  PetscHMapI         claimshash;
+  PetscSection       candidateSection, candidateRemoteSection, claimSection;
+  PetscSFNode       *candidates, *candidatesRemote, *claims;
+  const PetscInt    *localPoints, *rootdegree;
+  const PetscSFNode *remotePoints;
+  PetscInt           ov, Nr, Nl, l;
+  PetscInt           candidatesSize, candidatesRemoteSize, claimsSize;
+  PetscBool          flg, debug = PETSC_FALSE;
+  PetscMPIInt        rank;
+  PetscErrorCode     ierr;
+
+  /* Overall algorithm:
+    First Principle: Shared faces have completely shared cones
+
+    Likely bug: When checking for face on root, need to check _shared_ cone points
+
+    1) Identify shared faces
+
+       If any point in the cone of a face is not shared, then the face is not shared.
+
+    2) Gather all candidate cones associated with a given shared point (its a face of that candidate) onto the root
+
+    3) Check whether the candidate cone forms a face on this process. If so, replace the array entry with that face (claim)
+
+    4)
+
+    5) Create a new SF from the hash table mapping the new face to its offset in the list of remote points
+  */
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(pointSF, PETSCSF_CLASSID, 3);
+  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
+  if (!flg) PetscFunctionReturn(0);
+  /* Set initial SF so that lower level queries work */
+  ierr = DMSetPointSF(dm, pointSF);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = DMPlexGetOverlap(dm, &ov);CHKERRQ(ierr);
+  if (ov) SETERRQ(comm, PETSC_ERR_SUP, "Interpolation of overlapped DMPlex not implemented yet");
+  ierr = PetscOptionsHasName(NULL, ((PetscObject) dm)->prefix, "-dmplex_interp_debug", &debug);CHKERRQ(ierr);
+  ierr = PetscObjectViewFromOptions((PetscObject) dm, NULL, "-dm_interp_pre_view");CHKERRQ(ierr);
+  ierr = PetscObjectViewFromOptions((PetscObject) pointSF, NULL, "-petscsf_interp_pre_view");CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(DMPLEX_InterpolateSF,dm,0,0,0);CHKERRQ(ierr);
+  /* Step 0: Precalculations */
+  ierr = PetscSFGetGraph(pointSF, &Nr, &Nl, &localPoints, &remotePoints);CHKERRQ(ierr);
+  if (Nr < 0) SETERRQ(comm, PETSC_ERR_ARG_WRONGSTATE, "This DMPlex is distributed but input PointSF has no graph set");
+  ierr = PetscHMapIJCreate(&remoteHash);CHKERRQ(ierr);
+  for (l = 0; l < Nl; ++l) {
+    PetscHashIJKey key;
+    key.i = remotePoints[l].index;
+    key.j = remotePoints[l].rank;
+    ierr = PetscHMapIJSet(remoteHash, key, l);CHKERRQ(ierr);
+  }
+  /*   Compute root degree to identify shared points */
+  ierr = PetscSFComputeDegreeBegin(pointSF, &rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeEnd(pointSF, &rootdegree);CHKERRQ(ierr);
+  ierr = IntArrayViewFromOptions(comm, "-interp_root_degree_view", "Root degree", "point", "degree", Nr, rootdegree);CHKERRQ(ierr);
+  /* Step 1: Construct section+SFNode array
+       The section has entries for all shared faces for which we have a leaf point in the cone
+       The array holds candidate shared faces, each face is refered to by the leaf point */
+  ierr = PetscSectionCreate(comm, &candidateSection);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(candidateSection, 0, Nr);CHKERRQ(ierr);
+  {
+    PetscHMapIJ faceHash;
+
+    /* TODO Only consider vertices in this loop */
+    ierr = PetscHMapIJCreate(&faceHash);CHKERRQ(ierr);
+    for (l = 0; l < Nl; ++l) {
+      const PetscInt p = localPoints[l];
+
+      if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Checking leaf point %D\n", rank, p);CHKERRQ(ierr);}
+      ierr = DMPlexAddSharedFace_Private(dm, candidateSection, NULL, faceHash, p, debug);CHKERRQ(ierr);
+    }
+    ierr = PetscHMapIJClear(faceHash);CHKERRQ(ierr);
+    ierr = PetscSectionSetUp(candidateSection);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(candidateSection, &candidatesSize);CHKERRQ(ierr);
+    ierr = PetscMalloc1(candidatesSize, &candidates);CHKERRQ(ierr);
+    for (l = 0; l < Nl; ++l) {
+      const PetscInt p = localPoints[l];
+
+      if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Entering leaf point %D\n", rank, p);CHKERRQ(ierr);}
+      ierr = DMPlexAddSharedFace_Private(dm, candidateSection, candidates, faceHash, p, debug);CHKERRQ(ierr);
+    }
+    ierr = PetscHMapIJDestroy(&faceHash);CHKERRQ(ierr);
+    if (debug) {ierr = PetscSynchronizedFlush(comm, NULL);CHKERRQ(ierr);}
+  }
+  ierr = PetscObjectSetName((PetscObject) candidateSection, "Candidate Section");CHKERRQ(ierr);
+  ierr = PetscObjectViewFromOptions((PetscObject) candidateSection, NULL, "-petscsection_interp_candidate_view");CHKERRQ(ierr);
+  ierr = SFNodeArrayViewFromOptions(comm, "-petscsection_interp_candidate_view", "Candidates", NULL, candidatesSize, candidates);CHKERRQ(ierr);
+  /* 2) Gather candidate section / array pair into the root partition via inverse(multi(pointSF)). */
+  /*   Note that this section is indexed by offsets into leaves, not by point number */
+  {
+    PetscSF   sfMulti, sfInverse, sfCandidates;
+    PetscInt *remoteOffsets;
+
+    ierr = PetscSFGetMultiSF(pointSF, &sfMulti);CHKERRQ(ierr);
+    ierr = PetscSFCreateInverseSF(sfMulti, &sfInverse);CHKERRQ(ierr);
+    ierr = PetscSectionCreate(comm, &candidateRemoteSection);CHKERRQ(ierr);
+    ierr = PetscSFDistributeSection(sfInverse, candidateSection, &remoteOffsets, candidateRemoteSection);CHKERRQ(ierr);
+    ierr = PetscSFCreateSectionSF(sfInverse, candidateSection, remoteOffsets, candidateRemoteSection, &sfCandidates);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(candidateRemoteSection, &candidatesRemoteSize);CHKERRQ(ierr);
+    ierr = PetscMalloc1(candidatesRemoteSize, &candidatesRemote);CHKERRQ(ierr);
+    ierr = PetscSFBcastBegin(sfCandidates, MPIU_2INT, candidates, candidatesRemote);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(sfCandidates, MPIU_2INT, candidates, candidatesRemote);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfInverse);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfCandidates);CHKERRQ(ierr);
+    ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
+
+    ierr = PetscObjectSetName((PetscObject) candidateRemoteSection, "Remote Candidate Section");CHKERRQ(ierr);
+    ierr = PetscObjectViewFromOptions((PetscObject) candidateRemoteSection, NULL, "-petscsection_interp_candidate_remote_view");CHKERRQ(ierr);
+    ierr = SFNodeArrayViewFromOptions(comm, "-petscsection_interp_candidate_remote_view", "Remote Candidates", NULL, candidatesRemoteSize, candidatesRemote);CHKERRQ(ierr);
+  }
+  /* 3) Run over all the candidate cones and check if they have a corresponding join on this processes, if so plug that point (claim) back into candidatesRemote[] */
+  {
+    PetscInt r, idx = 0; /* Index into multiSF section (instead of points), there is a section point for every leaf attached to a given root point */
+
+    for (r = 0; r < Nr; ++r) {
+      PetscInt deg;
+
+      for (deg = 0; deg < rootdegree[r]; ++deg, ++idx) {
+        PetscInt dof, off, d;
+
+        ierr = PetscSectionGetDof(candidateRemoteSection, idx, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetOffset(candidateRemoteSection, idx, &off);CHKERRQ(ierr);
+        for (d = 0; d < dof; ++d) {
+          const PetscInt  sizeInd = off+d;
+          const PetscInt  Np      = candidatesRemote[sizeInd].index;
+          const PetscInt *join    = NULL;
+          PetscInt        points[1024], p, joinSize;
+
+          points[0] = r;
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Starting candidate check for point %D at idx %D off %D\n", rank, points[0], idx, off);CHKERRQ(ierr);}
+          for (p = 0; p < Np; ++p) {
+            ierr = DMPlexMapToLocalPoint(dm, remoteHash, candidatesRemote[off+(++d)], &points[p+1]);
+            if (ierr) {
+              /* We got a point not in our overlap */
+              if (debug) {
+                  ierr = PetscSynchronizedPrintf(comm, "[%d]    Ignoring remote candidate (%D,%D) since its not present on this proc\n[%d]  Ending face check\n",
+                                                 rank, candidatesRemote[off+d].rank, candidatesRemote[off+d].index, rank);CHKERRQ(ierr);
+                }
+              d += Np-1 - p;
+              break;
+            }
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Checking local candidate %D\n", rank, points[p+1]);CHKERRQ(ierr);}
+          }
+          if (ierr) continue;
+          ierr = DMPlexGetJoin(dm, Np+1, points, &joinSize, &join);CHKERRQ(ierr);
+          if (joinSize == 1) {
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Adding face %D at idx %D\n", rank, join[0], sizeInd);CHKERRQ(ierr);}
+            candidatesRemote[sizeInd].rank  = rank;
+            candidatesRemote[sizeInd].index = join[0];
+          } else {
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    No face found in join\n", rank);CHKERRQ(ierr);}
+          }
+          ierr = DMPlexRestoreJoin(dm, Np+1, points, &joinSize, &join);CHKERRQ(ierr);
+        }
+      }
+    }
+    if (debug) {ierr = PetscSynchronizedFlush(comm, NULL);CHKERRQ(ierr);}
+  }
+  {
+    PetscSF      sfMulti, sfClaims, sfPointNew;
+    PetscSFNode *remotePointsNew;
+    PetscInt    *remoteOffsets, *localPointsNew;
+    PetscInt     pStart, pEnd, r, NlNew, p;
+
+    /* 4) Push claims back to receiver via the MultiSF and derive new pointSF mapping on receiver */
+    ierr = PetscSFGetMultiSF(pointSF, &sfMulti);CHKERRQ(ierr);
+    ierr = PetscSectionCreate(comm, &claimSection);CHKERRQ(ierr);
+    ierr = PetscSFDistributeSection(sfMulti, candidateRemoteSection, &remoteOffsets, claimSection);CHKERRQ(ierr);
+    ierr = PetscSFCreateSectionSF(sfMulti, candidateRemoteSection, remoteOffsets, claimSection, &sfClaims);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(claimSection, &claimsSize);CHKERRQ(ierr);
+    ierr = PetscMalloc1(claimsSize, &claims);CHKERRQ(ierr);
+    for (p = 0; p < claimsSize; ++p) claims[p].rank = -1;
+    ierr = PetscSFBcastBegin(sfClaims, MPIU_2INT, candidatesRemote, claims);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(sfClaims, MPIU_2INT, candidatesRemote, claims);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfClaims);CHKERRQ(ierr);
+    ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) claimSection, "Claim Section");CHKERRQ(ierr);
+    ierr = PetscObjectViewFromOptions((PetscObject) claimSection, NULL, "-petscsection_interp_claim_view");CHKERRQ(ierr);
+    ierr = SFNodeArrayViewFromOptions(comm, "-petscsection_interp_claim_view", "Claims", NULL, claimsSize, claims);CHKERRQ(ierr);
+    /* Walk the original section of local supports and add an SF entry for each updated item */
+    ierr = PetscHMapICreate(&claimshash);CHKERRQ(ierr);
+    for (r = 0; r < Nr; ++r) {
+      PetscInt dof, off, d;
+
+      if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Checking root for claims %D\n", rank, r);CHKERRQ(ierr);}
+      ierr = PetscSectionGetDof(candidateSection, r, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(candidateSection, r, &off);CHKERRQ(ierr);
+      for (d = 0; d < dof;) {
+        if (claims[off+d].rank >= 0) {
+          const PetscInt  faceInd = off+d;
+          const PetscInt  Np      = candidates[off+d].index;
+          const PetscInt *join    = NULL;
+          PetscInt        joinSize, points[1024], c;
+
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Found claim for remote point (%D, %D)\n", rank, claims[faceInd].rank, claims[faceInd].index);CHKERRQ(ierr);}
+          points[0] = r;
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]      point %D\n", rank, points[0]);CHKERRQ(ierr);}
+          for (c = 0, ++d; c < Np; ++c, ++d) {
+            ierr = DMPlexMapToLocalPoint(dm, remoteHash, candidates[off+d], &points[c+1]);CHKERRQ(ierr);
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]      point %D\n", rank, points[c+1]);CHKERRQ(ierr);}
+          }
+          ierr = DMPlexGetJoin(dm, Np+1, points, &joinSize, &join);CHKERRQ(ierr);
+          if (joinSize == 1) {
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Found local face %D\n", rank, join[0]);CHKERRQ(ierr);}
+            ierr = PetscHMapISet(claimshash, join[0], faceInd);CHKERRQ(ierr);
+          } else {
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Failed to find face\n", rank);CHKERRQ(ierr);}
+          }
+          ierr = DMPlexRestoreJoin(dm, Np+1, points, &joinSize, &join);CHKERRQ(ierr);
+        } else {
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    No claim for point %D\n", rank, r);CHKERRQ(ierr);}
+          d += claims[off+d].index+1;
+        }
+      }
+    }
+    if (debug) {ierr = PetscSynchronizedFlush(comm, NULL);CHKERRQ(ierr);}
+    /* 5) Create new pointSF from hashed claims */
+    ierr = PetscHMapIGetSize(claimshash, &NlNew);CHKERRQ(ierr);
+    ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(Nl + NlNew, &localPointsNew);CHKERRQ(ierr);
+    ierr = PetscMalloc1(Nl + NlNew, &remotePointsNew);CHKERRQ(ierr);
+    for (l = 0; l < Nl; ++l) {
+      localPointsNew[l] = localPoints[l];
+      remotePointsNew[l].index = remotePoints[l].index;
+      remotePointsNew[l].rank  = remotePoints[l].rank;
+    }
+    p = Nl;
+    ierr = PetscHMapIGetKeys(claimshash, &p, localPointsNew);CHKERRQ(ierr);
+    ierr = PetscSortInt(NlNew, &localPointsNew[Nl]);CHKERRQ(ierr);
+    for (p = Nl; p < Nl + NlNew; ++p) {
+      PetscInt off;
+      ierr = PetscHMapIGet(claimshash, localPointsNew[p], &off);CHKERRQ(ierr);
+      remotePointsNew[p] = claims[off];
+    }
+    ierr = PetscSFCreate(comm, &sfPointNew);CHKERRQ(ierr);
+    ierr = PetscSFSetGraph(sfPointNew, pEnd-pStart, Nl+NlNew, localPointsNew, PETSC_OWN_POINTER, remotePointsNew, PETSC_OWN_POINTER);CHKERRQ(ierr);
+    ierr = DMSetPointSF(dm, sfPointNew);CHKERRQ(ierr);
+    ierr = PetscObjectViewFromOptions((PetscObject) sfPointNew, NULL, "-petscsf_interp_view");CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfPointNew);CHKERRQ(ierr);
+    ierr = PetscHMapIDestroy(&claimshash);CHKERRQ(ierr);
+  }
+  ierr = PetscHMapIJDestroy(&remoteHash);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&candidateSection);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&candidateRemoteSection);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&claimSection);CHKERRQ(ierr);
+  ierr = PetscFree(candidates);CHKERRQ(ierr);
+  ierr = PetscFree(candidatesRemote);CHKERRQ(ierr);
+  ierr = PetscFree(claims);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(DMPLEX_InterpolateSF,dm,0,0,0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexInterpolatePointSF3(DM dm, PetscSF pointSF)
+{
+  MPI_Comm           comm;
+  PetscHMapIJ        remoteHash;
+  PetscHMapI         claimshash;
+  PetscSection       candidateSection, candidateRemoteSection, claimSection;
+  PetscSFNode       *candidates, *candidatesRemote, *claims;
+  const PetscInt    *localPoints, *rootdegree;
+  const PetscSFNode *remotePoints;
+  PetscInt           ov, Nr, r, Nl, l;
+  PetscInt           candidatesSize, candidatesRemoteSize, claimsSize;
+  PetscBool          flg, debug = PETSC_FALSE;
+  PetscMPIInt        rank;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(pointSF, PETSCSF_CLASSID, 3);
+  ierr = DMPlexIsDistributed(dm, &flg);CHKERRQ(ierr);
+  if (!flg) PetscFunctionReturn(0);
+  /* Set initial SF so that lower level queries work */
+  ierr = DMSetPointSF(dm, pointSF);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = DMPlexGetOverlap(dm, &ov);CHKERRQ(ierr);
+  if (ov) SETERRQ(comm, PETSC_ERR_SUP, "Interpolation of overlapped DMPlex not implemented yet");
+  ierr = PetscOptionsHasName(NULL, ((PetscObject) dm)->prefix, "-dmplex_interp_debug", &debug);CHKERRQ(ierr);
+  ierr = PetscObjectViewFromOptions((PetscObject) dm, NULL, "-dm_interp_pre_view");CHKERRQ(ierr);
+  ierr = PetscObjectViewFromOptions((PetscObject) pointSF, NULL, "-petscsf_interp_pre_view");CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(DMPLEX_InterpolateSF,dm,0,0,0);CHKERRQ(ierr);
+  /* Step 0: Precalculations */
+  ierr = PetscSFGetGraph(pointSF, &Nr, &Nl, &localPoints, &remotePoints);CHKERRQ(ierr);
+  if (Nr < 0) SETERRQ(comm, PETSC_ERR_ARG_WRONGSTATE, "This DMPlex is distributed but input PointSF has no graph set");
+  ierr = PetscHMapIJCreate(&remoteHash);CHKERRQ(ierr);
+  for (l = 0; l < Nl; ++l) {
+    PetscHashIJKey key;
+    key.i = remotePoints[l].index;
+    key.j = remotePoints[l].rank;
+    ierr = PetscHMapIJSet(remoteHash, key, l);CHKERRQ(ierr);
+  }
+  /*   Compute root degree to identify shared points */
+  ierr = PetscSFComputeDegreeBegin(pointSF, &rootdegree);CHKERRQ(ierr);
+  ierr = PetscSFComputeDegreeEnd(pointSF, &rootdegree);CHKERRQ(ierr);
+  ierr = IntArrayViewFromOptions(comm, "-interp_root_degree_view", "Root degree", "point", "degree", Nr, rootdegree);CHKERRQ(ierr);
+  /*
+  1) Loop over each leaf point $p$ at depth $d$ in the SF
+  \item Get set $F(p)$ of faces $f$ in the support of $p$ for which
+  \begin{itemize}
+    \item all cone points of $f$ are shared
+    \item $p$ is the cone point with smallest canonical number
+  \end{itemize}
+  \item Send $F(p)$ and the cone of each face to the active root point $r(p)$
+  \item At the root, if at least two faces with a given cone are present, including a local face, mark the face as shared \label{alg:rootStep} and choose the root face
+  \item Send the root face from the root back to all leaf process
+  \item Leaf processes add the shared face to the SF
+  */
+  /* Step 1: Construct section+SFNode array
+       The section has entries for all shared faces for which we have a leaf point in the cone
+       The array holds candidate shared faces, each face is refered to by the leaf point */
+  ierr = PetscSectionCreate(comm, &candidateSection);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(candidateSection, 0, Nr);CHKERRQ(ierr);
+  {
+    PetscHMapIJ faceHash;
+
+    ierr = PetscHMapIJCreate(&faceHash);CHKERRQ(ierr);
+    for (l = 0; l < Nl; ++l) {
+      const PetscInt p = localPoints[l];
+
+      if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  First pass leaf point %D\n", rank, p);CHKERRQ(ierr);}
+      ierr = DMPlexAddSharedFace3_Private(dm, candidateSection, NULL, faceHash, p, debug);CHKERRQ(ierr);
+    }
+    ierr = PetscHMapIJClear(faceHash);CHKERRQ(ierr);
+    ierr = PetscSectionSetUp(candidateSection);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(candidateSection, &candidatesSize);CHKERRQ(ierr);
+    ierr = PetscMalloc1(candidatesSize, &candidates);CHKERRQ(ierr);
+    for (l = 0; l < Nl; ++l) {
+      const PetscInt p = localPoints[l];
+
+      if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Second pass leaf point %D\n", rank, p);CHKERRQ(ierr);}
+      ierr = DMPlexAddSharedFace3_Private(dm, candidateSection, candidates, faceHash, p, debug);CHKERRQ(ierr);
+    }
+    ierr = PetscHMapIJDestroy(&faceHash);CHKERRQ(ierr);
+    if (debug) {ierr = PetscSynchronizedFlush(comm, NULL);CHKERRQ(ierr);}
+  }
+  ierr = PetscObjectSetName((PetscObject) candidateSection, "Candidate Section");CHKERRQ(ierr);
+  ierr = PetscObjectViewFromOptions((PetscObject) candidateSection, NULL, "-petscsection_interp_candidate_view");CHKERRQ(ierr);
+  ierr = SFNodeArrayViewFromOptions(comm, "-petscsection_interp_candidate_view", "Candidates", NULL, candidatesSize, candidates);CHKERRQ(ierr);
+  /* Step 2: Gather candidate section / array pair into the root partition via inverse(multi(pointSF)). */
+  /*   Note that this section is indexed by offsets into leaves, not by point number */
+  {
+    PetscSF   sfMulti, sfInverse, sfCandidates;
+    PetscInt *remoteOffsets;
+
+    ierr = PetscSFGetMultiSF(pointSF, &sfMulti);CHKERRQ(ierr);
+    ierr = PetscSFCreateInverseSF(sfMulti, &sfInverse);CHKERRQ(ierr);
+    ierr = PetscSectionCreate(comm, &candidateRemoteSection);CHKERRQ(ierr);
+    ierr = PetscSFDistributeSection(sfInverse, candidateSection, &remoteOffsets, candidateRemoteSection);CHKERRQ(ierr);
+    ierr = PetscSFCreateSectionSF(sfInverse, candidateSection, remoteOffsets, candidateRemoteSection, &sfCandidates);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(candidateRemoteSection, &candidatesRemoteSize);CHKERRQ(ierr);
+    ierr = PetscMalloc1(candidatesRemoteSize, &candidatesRemote);CHKERRQ(ierr);
+    ierr = PetscSFBcastBegin(sfCandidates, MPIU_2INT, candidates, candidatesRemote);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(sfCandidates, MPIU_2INT, candidates, candidatesRemote);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfInverse);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfCandidates);CHKERRQ(ierr);
+    ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
+
+    ierr = PetscObjectSetName((PetscObject) candidateRemoteSection, "Remote Candidate Section");CHKERRQ(ierr);
+    ierr = PetscObjectViewFromOptions((PetscObject) candidateRemoteSection, NULL, "-petscsection_interp_candidate_remote_view");CHKERRQ(ierr);
+    ierr = SFNodeArrayViewFromOptions(comm, "-petscsection_interp_candidate_remote_view", "Remote Candidates", NULL, candidatesRemoteSize, candidatesRemote);CHKERRQ(ierr);
+  }
+  /* Step 3: At the root, if at least two faces with a given cone are present, including a local face, mark the face as shared and choose the root face */
+  {
+    PetscHashIJKLRemote faceTable;
+    PetscInt            idx, idx2;
+
+    ierr = PetscHashIJKLRemoteCreate(&faceTable);CHKERRQ(ierr);
+    /* There is a section point for every leaf attached to a given root point */
+    for (r = 0, idx = 0, idx2 = 0; r < Nr; ++r) {
+      PetscInt deg;
+
+      for (deg = 0; deg < rootdegree[r]; ++deg, ++idx) {
+        PetscInt offset, dof, d;
+
+        ierr = PetscSectionGetDof(candidateRemoteSection, idx, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetOffset(candidateRemoteSection, idx, &offset);CHKERRQ(ierr);
+        /* dof may include many faces from the remote process */
+        for (d = 0; d < dof; ++d) {
+          const PetscInt         hidx  = offset+d;
+          const PetscInt         Np    = candidatesRemote[hidx].index+1;
+          const PetscSFNode      rface = candidatesRemote[hidx+1];
+          const PetscSFNode     *fcone = &candidatesRemote[hidx+2];
+          const PetscSFNode      fcp0  = {rank, r};
+          const PetscSFNode      pmax  = {PETSC_MAX_INT, PETSC_MAX_INT};
+          const PetscInt        *join  = NULL;
+          PetscHashIJKLRemoteKey key;
+          PetscHashIter          iter;
+          PetscBool              missing;
+          PetscInt               points[1024], p, joinSize;
+
+          if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Checking face (%D, %D) at (%D, %D, %D) with cone size %D\n", rank, rface.index, rface.rank, r, idx, d, Np);CHKERRQ(ierr);}
+          if (Np > 4) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot handle faces with %D cone points", Np);
+          d += Np;
+          /* Put remote face in hash table */
+          key.i = fcp0;
+          key.j = fcone[0];
+          key.k = Np > 2 ? fcone[1] : pmax;
+          key.l = Np > 3 ? fcone[2] : pmax;
+          ierr = PetscSortSFNode(Np, (PetscSFNode *) &key);CHKERRQ(ierr);
+          ierr = PetscHashIJKLRemotePut(faceTable, key, &iter, &missing);CHKERRQ(ierr);
+          if (missing) {
+            if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Setting remote face (%D, %D)\n", rank, rface.index, rface.rank);CHKERRQ(ierr);}
+            ierr = PetscHashIJKLRemoteIterSet(faceTable, iter, rface);CHKERRQ(ierr);
+          } else {
+            PetscSFNode oface;
+
+            ierr = PetscHashIJKLRemoteIterGet(faceTable, iter, &oface);CHKERRQ(ierr);
+            if ((rface.rank < oface.rank) || (rface.rank == oface.rank && rface.index < oface.index)) {
+              if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Replacing with remote face (%D, %D)\n", rank, rface.index, rface.rank);CHKERRQ(ierr);}
+              ierr = PetscHashIJKLRemoteIterSet(faceTable, iter, rface);CHKERRQ(ierr);
+            }
+          }
+          /* Check for local face */
+          points[0] = r;
+          for (p = 1; p < Np; ++p) {
+            ierr = DMPlexMapToLocalPoint(dm, remoteHash, fcone[p-1], &points[p]);
+            if (ierr) break; /* We got a point not in our overlap */
+            if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Checking local candidate %D\n", rank, points[p]);CHKERRQ(ierr);}
+          }
+          if (ierr) continue;
+          ierr = DMPlexGetJoin(dm, Np, points, &joinSize, &join);CHKERRQ(ierr);
+          if (joinSize == 1) {
+            const PetscSFNode lface = {rank, join[0]};
+            PetscSFNode oface;
+
+            /* Always replace with local face */
+            ierr = PetscHashIJKLRemoteIterGet(faceTable, iter, &oface);CHKERRQ(ierr);
+            if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Replacing (%D, %D) with local face (%D, %D)\n", rank, oface.index, oface.rank, lface.index, lface.rank);CHKERRQ(ierr);}
+            ierr = PetscHashIJKLRemoteIterSet(faceTable, iter, lface);CHKERRQ(ierr);
+          }
+          ierr = DMPlexRestoreJoin(dm, Np, points, &joinSize, &join);CHKERRQ(ierr);
+        }
+      }
+      /* Put back faces for this root */
+      for (deg = 0; deg < rootdegree[r]; ++deg, ++idx2) {
+        PetscInt offset, dof, d;
+
+        ierr = PetscSectionGetDof(candidateRemoteSection, idx2, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetOffset(candidateRemoteSection, idx2, &offset);CHKERRQ(ierr);
+        /* dof may include many faces from the remote process */
+        for (d = 0; d < dof; ++d) {
+          const PetscInt         hidx  = offset+d;
+          const PetscInt         Np    = candidatesRemote[hidx].index+1;
+          const PetscSFNode     *fcone = &candidatesRemote[hidx+2];
+          const PetscSFNode      fcp0  = {rank, r};
+          const PetscSFNode      pmax  = {PETSC_MAX_INT, PETSC_MAX_INT};
+          PetscHashIJKLRemoteKey key;
+          PetscHashIter          iter;
+          PetscBool              missing;
+
+          if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]  Entering face at (%D, %D)\n", rank, r, idx);CHKERRQ(ierr);}
+          if (Np > 4) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot handle faces with %D cone points", Np);
+          d += Np;
+          /* Find remote face in hash table */
+          key.i = fcp0;
+          key.j = fcone[0];
+          key.k = Np > 2 ? fcone[1] : pmax;
+          key.l = Np > 3 ? fcone[2] : pmax;
+          ierr = PetscSortSFNode(Np, (PetscSFNode *) &key);CHKERRQ(ierr);
+          if (debug) {ierr = PetscSynchronizedPrintf(PetscObjectComm((PetscObject) dm), "[%d]    key (%D, %D) (%D, %D) (%D, %D) (%D, %D)\n", rank, key.i.rank, key.i.index, key.j.rank, key.j.index, key.k.rank, key.k.index, key.l.rank, key.l.index);CHKERRQ(ierr);}
+          ierr = PetscHashIJKLRemotePut(faceTable, key, &iter, &missing);CHKERRQ(ierr);
+          if (missing) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Root %D Idx %D ought to have an assoicated face", r, idx2);
+          else        {ierr = PetscHashIJKLRemoteIterGet(faceTable, iter, &candidatesRemote[hidx]);CHKERRQ(ierr);}
+        }
+      }
+    }
+    if (debug) {ierr = PetscSynchronizedFlush(PetscObjectComm((PetscObject) dm), NULL);CHKERRQ(ierr);}
+    ierr = PetscHashIJKLRemoteDestroy(&faceTable);CHKERRQ(ierr);
+  }
+  /* Step 4: Push back owned faces */
+  {
+    PetscSF      sfMulti, sfClaims, sfPointNew;
+    PetscSFNode *remotePointsNew;
+    PetscInt    *remoteOffsets, *localPointsNew;
+    PetscInt     pStart, pEnd, r, NlNew, p;
+
+    /* 4) Push claims back to receiver via the MultiSF and derive new pointSF mapping on receiver */
+    ierr = PetscSFGetMultiSF(pointSF, &sfMulti);CHKERRQ(ierr);
+    ierr = PetscSectionCreate(comm, &claimSection);CHKERRQ(ierr);
+    ierr = PetscSFDistributeSection(sfMulti, candidateRemoteSection, &remoteOffsets, claimSection);CHKERRQ(ierr);
+    ierr = PetscSFCreateSectionSF(sfMulti, candidateRemoteSection, remoteOffsets, claimSection, &sfClaims);CHKERRQ(ierr);
+    ierr = PetscSectionGetStorageSize(claimSection, &claimsSize);CHKERRQ(ierr);
+    ierr = PetscMalloc1(claimsSize, &claims);CHKERRQ(ierr);
+    for (p = 0; p < claimsSize; ++p) claims[p].rank = -1;
+    ierr = PetscSFBcastBegin(sfClaims, MPIU_2INT, candidatesRemote, claims);CHKERRQ(ierr);
+    ierr = PetscSFBcastEnd(sfClaims, MPIU_2INT, candidatesRemote, claims);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfClaims);CHKERRQ(ierr);
+    ierr = PetscFree(remoteOffsets);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) claimSection, "Claim Section");CHKERRQ(ierr);
+    ierr = PetscObjectViewFromOptions((PetscObject) claimSection, NULL, "-petscsection_interp_claim_view");CHKERRQ(ierr);
+    ierr = SFNodeArrayViewFromOptions(comm, "-petscsection_interp_claim_view", "Claims", NULL, claimsSize, claims);CHKERRQ(ierr);
+    /* Step 5) Walk the original section of local supports and add an SF entry for each updated item */
+    /* TODO I should not have to do a join here since I already put the face and its cone in the candidate section */
+    ierr = PetscHMapICreate(&claimshash);CHKERRQ(ierr);
+    for (r = 0; r < Nr; ++r) {
+      PetscInt dof, off, d;
+
+      if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Checking root for claims %D\n", rank, r);CHKERRQ(ierr);}
+      ierr = PetscSectionGetDof(candidateSection, r, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(candidateSection, r, &off);CHKERRQ(ierr);
+      for (d = 0; d < dof;) {
+        if (claims[off+d].rank >= 0) {
+          const PetscInt  faceInd = off+d;
+          const PetscInt  Np      = candidates[off+d].index;
+          const PetscInt *join    = NULL;
+          PetscInt        joinSize, points[1024], c;
+
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Found claim for remote point (%D, %D)\n", rank, claims[faceInd].rank, claims[faceInd].index);CHKERRQ(ierr);}
+          points[0] = r;
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]      point %D\n", rank, points[0]);CHKERRQ(ierr);}
+          for (c = 0, d += 2; c < Np; ++c, ++d) {
+            ierr = DMPlexMapToLocalPoint(dm, remoteHash, candidates[off+d], &points[c+1]);CHKERRQ(ierr);
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]      point %D\n", rank, points[c+1]);CHKERRQ(ierr);}
+          }
+          ierr = DMPlexGetJoin(dm, Np+1, points, &joinSize, &join);CHKERRQ(ierr);
+          if (joinSize == 1) {
+            if (claims[faceInd].rank == rank) {
+              if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Ignoring local face %D for non-remote partner\n", rank, join[0]);CHKERRQ(ierr);}
+            } else {
+              if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Found local face %D\n", rank, join[0]);CHKERRQ(ierr);}
+              ierr = PetscHMapISet(claimshash, join[0], faceInd);CHKERRQ(ierr);
+            }
+          } else {
+            if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Failed to find face\n", rank);CHKERRQ(ierr);}
+          }
+          ierr = DMPlexRestoreJoin(dm, Np+1, points, &joinSize, &join);CHKERRQ(ierr);
+        } else {
+          if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    No claim for point %D\n", rank, r);CHKERRQ(ierr);}
+          d += claims[off+d].index+1;
+        }
+      }
+    }
+    if (debug) {ierr = PetscSynchronizedFlush(comm, NULL);CHKERRQ(ierr);}
+    /* Step 6) Create new pointSF from hashed claims */
+    ierr = PetscHMapIGetSize(claimshash, &NlNew);CHKERRQ(ierr);
+    ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(Nl + NlNew, &localPointsNew);CHKERRQ(ierr);
+    ierr = PetscMalloc1(Nl + NlNew, &remotePointsNew);CHKERRQ(ierr);
+    for (l = 0; l < Nl; ++l) {
+      localPointsNew[l] = localPoints[l];
+      remotePointsNew[l].index = remotePoints[l].index;
+      remotePointsNew[l].rank  = remotePoints[l].rank;
+    }
+    p = Nl;
+    ierr = PetscHMapIGetKeys(claimshash, &p, localPointsNew);CHKERRQ(ierr);
+    /* We sort new points, and assume they are numbered after all existing points */
+    ierr = PetscSortInt(NlNew, &localPointsNew[Nl]);CHKERRQ(ierr);
+    for (p = Nl; p < Nl + NlNew; ++p) {
+      PetscInt off;
+      ierr = PetscHMapIGet(claimshash, localPointsNew[p], &off);CHKERRQ(ierr);
+      if (claims[off].rank < 0 || claims[off].index < 0) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Invalid claim for local point %D, (%D, %D)", localPointsNew[p], claims[off].rank, claims[off].index);
+      remotePointsNew[p] = claims[off];
+    }
+    ierr = PetscSFCreate(comm, &sfPointNew);CHKERRQ(ierr);
+    ierr = PetscSFSetGraph(sfPointNew, pEnd-pStart, Nl+NlNew, localPointsNew, PETSC_OWN_POINTER, remotePointsNew, PETSC_OWN_POINTER);CHKERRQ(ierr);
+    ierr = PetscSFSetUp(sfPointNew);CHKERRQ(ierr);
+    ierr = DMSetPointSF(dm, sfPointNew);CHKERRQ(ierr);
+    ierr = PetscObjectViewFromOptions((PetscObject) sfPointNew, NULL, "-petscsf_interp_view");CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&sfPointNew);CHKERRQ(ierr);
+    ierr = PetscHMapIDestroy(&claimshash);CHKERRQ(ierr);
+  }
+  ierr = PetscHMapIJDestroy(&remoteHash);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&candidateSection);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&candidateRemoteSection);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&claimSection);CHKERRQ(ierr);
   ierr = PetscFree(candidates);CHKERRQ(ierr);
   ierr = PetscFree(candidatesRemote);CHKERRQ(ierr);
@@ -1149,11 +2038,7 @@ PetscErrorCode DMPlexInterpolate(DM dm, DM *dmInt)
       if (depth > 0) {
         ierr = DMPlexInterpolateFaces_Internal(odm, 1, idm);CHKERRQ(ierr);
         ierr = DMGetPointSF(odm, &sfPoint);CHKERRQ(ierr);
-        {
-          PetscInt nroots;
-          ierr = PetscSFGetGraph(sfPoint, &nroots, NULL, NULL, NULL);CHKERRQ(ierr);
-          if (nroots >= 0) {ierr = DMPlexInterpolatePointSF(idm, sfPoint);CHKERRQ(ierr);}
-        }
+        ierr = DMPlexInterpolatePointSF3(idm, sfPoint);CHKERRQ(ierr);
       }
       if (odm != dm) {ierr = DMDestroy(&odm);CHKERRQ(ierr);}
       odm = idm;
