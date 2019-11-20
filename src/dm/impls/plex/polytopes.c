@@ -728,14 +728,205 @@ static PetscErrorCode PetscPolytopeSetComputeSigns(PetscPolytopeSet pset, PetscP
   PetscFunctionReturn(0);
 }
 
-typedef struct _n_PetscPolytopeSymLink *PetscPolytopeSymLink;
-
-struct _n_PetscPolytopeSymLink
+static PetscErrorCode PetscPolytopeSetAddSymmetry(PetscPolytopeSet pset, PetscPolytopeData pData, const PetscPolytopeCone *perm, const PetscPolytopeCone *permInv, PetscBT permOrient)
 {
-  PetscPolytopeSymLink next;
-  PetscPolytopeSymLink inverse;
-};
+  PetscInt       numFacets, maxS;
+  PetscInt       image0, orient0;
+  PetscInt       invimage0, invorient0;
+  PetscInt       q;
+  PetscInt       foStart, foEnd, numFOs, id, invid, i, p;
+  PetscInt       orientEndOrig;
+  PetscPolytopeData fData;
+  PetscErrorCode ierr;
 
+  PetscFunctionBegin;
+  numFacets = pData->numFacets;
+  maxS      = pData->maxFacetSymmetry;
+  if (!numFacets) PetscFunctionReturn(0);
+  fData   = pset->polytopes[pData->facets[0]];
+  foStart = fData->orientStart;
+  foEnd   = fData->orientEnd;
+  numFOs  = foEnd - foStart;
+
+  q = orientEndOrig = pData->orientEnd;
+
+  image0  = perm[0].index;
+  orient0 = perm[0].orientation;
+  id = image0 * numFOs + (orient0 - foStart);
+  if (PetscBTLookup(permOrient, id)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "A previously seen permutation slipped through the cracks");
+  ierr = PetscBTSet(permOrient, id);CHKERRQ(ierr);
+  for (i = 0; i < numFacets; i++) {
+    PetscPolytopeData iData;
+    if (perm[i].index < 0 || perm[i].index) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad index");
+    if (pData->facets[i] != pData->facets[perm[i].index]) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation maps incompatible facets");
+    iData = pset->polytopes[pData->facets[i]];
+    if (perm[i].orientation < iData->orientStart || perm[i].orientation >= iData->orientEnd) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad orientation");
+    pData->orientsToFacetOrders[pData->orientEnd * numFacets + i] = perm[i];
+  }
+  pData->orientEnd++;
+
+  invimage0  = permInv[0].index;
+  invorient0 = perm[0].orientation;
+  invid = invimage0 * numFOs + (invorient0 - foStart);
+  if (invid != id) {
+    if (PetscBTLookup(permOrient, invid)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "A previously seen inverse permutation slipped through the cracks");
+    ierr = PetscBTSet(permOrient, invid);CHKERRQ(ierr);
+    for (i = 0; i < numFacets; i++) {
+      PetscPolytopeData iData;
+      if (permInv[i].index < 0 || permInv[i].index) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation inverse has bad index");
+      if (pData->facets[i] != pData->facets[permInv[i].index]) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation maps incompatible facets");
+      iData = pset->polytopes[pData->facets[i]];
+      if (permInv[i].orientation < iData->orientStart || permInv[i].orientation >= iData->orientEnd) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad orientation");
+      pData->orientsToFacetOrders[pData->orientEnd * numFacets + i] = permInv[i];
+    }
+    pData->orientEnd++;
+  }
+
+  for (i = 0; i < numFacets; i++) {
+    PetscPolytopeData iData;
+    PetscInt o, oInvInv;
+    if (perm[permInv[i].index].index != i) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "incorrect permutation inverse");
+    iData = pset->polytopes[pData->facets[i]];
+    oInvInv = iData->orientInverses[permInv[i].orientation];
+    o = perm[permInv[i].index].orientation;
+    if (o != oInvInv) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "incorrect permutation inverse orientations");
+  }
+
+  while (q < pData->orientEnd) {
+    const PetscPolytopeCone *permNew = &pData->orientsToFacetOrders[q*numFacets];
+    for (p = 0; p < q; p++) {
+      const PetscPolytopeCone *permOld = &pData->orientsToFacetOrders[p*numFacets];
+      PetscInt fComp = permOld[permNew[0].index].index;
+      PetscInt oNew = permNew[0].orientation;
+      PetscInt oOld = permOld[permNew[0].index].orientation;
+      PetscInt oComp;
+      PetscInt id;
+      PetscInt prodIdx;
+      PetscPolytopeCone *prod;
+
+      if (permOld[0].index == 0 && permOld[0].orientation == 0-foStart) continue; /* permOld is the identity */
+      ierr = PetscPolytopeSetOrientationCompose(pset, pData->facets[0], oNew, oOld, &oComp);CHKERRQ(ierr);
+      prodIdx = pData->facetOrientations[maxS*fComp + oComp-foStart];
+      if (prodIdx >= 0 && prodIdx < orientEndOrig) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation is new but product of existing permutations");
+      if (fComp == 0 && oComp == 0-foStart) { /* permNew is the inverse of permOld */
+        pData->orientInverses[p] = q;
+        pData->orientInverses[q] = p;
+      }
+      if (prodIdx >= 0) continue; /* this product has been found before */
+      id = fComp*numFOs + oComp;
+      if (PetscBTLookup(permOrient, id)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "New product has been seen");
+      ierr = PetscBTSet(permOrient, id);CHKERRQ(ierr);
+      /* compute the full product */
+      prod = &pData->orientsToFacetOrders[pData->orientEnd * numFacets];
+      prod[0].index = fComp;
+      prod[0].orientation = oComp;
+      for (i = 1; i < numFacets; i++) {
+        fComp = permOld[permNew[i].index].index;
+        oNew  = permNew[i].orientation;
+        oOld  = permOld[permNew[i].index].orientation;
+
+        ierr = PetscPolytopeSetOrientationCompose(pset, pData->facets[i], oNew, oOld, &oComp);CHKERRQ(ierr);
+        prod[i].index = fComp;
+        prod[i].orientation = oComp;
+      }
+      /* update orbit projectors and facetOrientations */
+      for (i = 0; i < numFacets; i++) {
+        PetscInt representer;
+        PetscInt f, o;
+        PetscInt proj;
+
+        f = prod[i].index;
+        o = prod[i].orientation;
+        proj = pData->orbitProjectors[f];
+        representer = pData->orientsToFacetOrders[proj * numFacets + f].index;
+        if (i <= representer) {
+          PetscInt ioStart;
+          PetscPolytopeData iData;
+
+          iData = pset->polytopes[pData->facets[i]];
+          ioStart = iData->orientStart;
+
+          if (i < representer) { /* reset facetOrientations to get rid of data of previous representer */
+            PetscInt j;
+            pData->orbitProjectors[f] = pData->orientEnd;
+
+            for (j = 0; j < maxS; j++) pData->facetOrientations[f*maxS + j] = PETSC_MIN_INT;
+          }
+          pData->facetOrientations[f*maxS + (o-ioStart)] = pData->orientEnd;
+        }
+      }
+      pData->orientEnd++;
+    }
+  }
+
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscPolytopeSetSignSymmetries(PetscPolytopeSet pset, PetscPolytopeData pData)
+{
+  PetscInt       o, f, numSyms, numFacets;
+  PetscInt       maxS;
+  PetscBool      *negative;
+  PetscInt       *newIds, *newIdsInv;
+  PetscInt       numNegative, count;
+  PetscPolytopeCone *orientsToFacetOrders;
+  PetscInt       *orientInverses;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  numFacets = pData->numFacets;
+  if (!numFacets) PetscFunctionReturn(0);
+  numSyms = pData->orientEnd;
+  ierr = PetscCalloc1(numSyms, &negative);CHKERRQ(ierr);
+  for (o = 0, numNegative = 0; o < pData->orientEnd; o++) {
+    PetscInt f = pData->orientsToFacetOrders[o*numFacets].index;
+    PetscInt fo = pData->orientsToFacetOrders[o*numFacets].orientation;
+
+    negative[o] = (PetscBool) ((fo < 0) ^ (pData->facetsInward[0] == pData->facetsInward[f]));
+    if (negative[o]) numNegative++;
+  }
+  if (!numNegative) {
+    ierr = PetscFree(negative);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+  pData->orientStart = -numNegative;
+  pData->orientEnd = numSyms + pData->orientStart;
+  ierr = PetscMalloc2(numSyms, &newIds, numSyms, &newIdsInv);CHKERRQ(ierr);
+  for (o = 0, count = 0; o < numSyms; o++) {
+    PetscInt newId = negative[o] ? (-numNegative + count++) : (o - count);
+
+    newIds[o] = newId;
+    newIdsInv[newId + numNegative] = o;
+  }
+  ierr = PetscMalloc1(numSyms * numFacets, &orientsToFacetOrders);CHKERRQ(ierr);
+  for (o = 0; o < numSyms; o++) {
+    for (f = 0; f < numFacets; f++) {
+      orientsToFacetOrders[o * numFacets + f] = pData->orientsToFacetOrders[newIdsInv[o] * numFacets + f];
+    }
+  }
+  ierr = PetscFree(pData->orientsToFacetOrders);CHKERRQ(ierr);
+  pData->orientsToFacetOrders = orientsToFacetOrders;
+  ierr = PetscMalloc1(numSyms, &orientInverses);CHKERRQ(ierr);
+  for (o = 0; o < numSyms; o++) {
+    orientInverses[o] = newIds[pData->orientInverses[newIdsInv[o]]];
+  }
+  ierr = PetscFree(pData->orientInverses);CHKERRQ(ierr);
+  pData->orientInverses = orientInverses;
+  maxS = pData->maxFacetSymmetry;
+  for (f = 0; f < numFacets; f++) {
+    pData->orbitProjectors[f] = newIds[pData->orbitProjectors[f]];
+    for (o = 0; o < maxS; o++) {
+      PetscInt ov = pData->facetOrientations[f*maxS+o];
+
+      if (ov >= 0) {
+        pData->facetOrientations[f*maxS+o] = newIds[ov];
+      }
+    }
+  }
+  ierr = PetscFree2(newIds, newIdsInv);CHKERRQ(ierr);
+  ierr = PetscFree(negative);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, PetscPolytopeData pData)
 {
@@ -753,28 +944,42 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
   PetscFunctionBegin;
   numFacets = pData->numFacets;
   numVertices = pData->numVertices;
+  /* every facet starts out with the identity */
+  pData->orientStart = 0;
+  pData->orientEnd   = 1;
+  for (i = 0, maxS = 0; i < numFacets; i++) {
+    fData = pset->polytopes[pData->facets[i]];
+    maxS = PetscMax(maxS, fData->orientEnd - fData->orientEnd);
+  }
+  pData->maxFacetSymmetry = maxS;
+  ierr = PetscMalloc1(numFacets * PetscMax(1, maxS), &(pData->orientsToFacetOrders));CHKERRQ(ierr);
+  for (i = 0; i < numFacets; i++) {
+    pData->orientsToFacetOrders[i].index       = i;
+    pData->orientsToFacetOrders[i].orientation = 0;
+  }
+  ierr = PetscMalloc1(PetscMax(1, numFacets * maxS), &(pData->orientInverses));CHKERRQ(ierr);
+  pData->orientInverses[0] = 0;
+  ierr = PetscMalloc1(numFacets, &(pData->orbitProjectors));CHKERRQ(ierr);
+  /* with just the identity, each facet is in its own orbit, so the identity is the projector
+   * onto the orbit representer */
+  for (i = 0; i < numFacets; i++) pData->orbitProjectors[i] = 0;
+  ierr = PetscMalloc1(numFacets * maxS, &(pData->facetOrientations));CHKERRQ(ierr);
+  /* with just the identity, a (facet, orientation) pair is valid only if the orientation is the
+   * identity for that facets group, and it is always the identity */
+  for (i = 0; i < numFacets; i++) {
+    PetscPolytopeData iData = pset->polytopes[pData->facets[i]];
+    PetscInt ioStart = iData->orientStart;
+    PetscInt ioEnd = iData->orientEnd;
+    PetscInt j;
+
+    for (j = 0; j < ioEnd - ioStart; j++) {
+      pData->facetOrientations[i * maxS + j] = (j == 0-ioStart) ? 0 : PETSC_MIN_INT;
+    }
+  }
   if (numFacets == 0 || numFacets == 1) {
     /* only identity */
-    pData->orientStart = 0;
-    pData->orientEnd   = 1;
     ierr = PetscMalloc1(numVertices, &(pData->orientsToVertexOrders));CHKERRQ(ierr);
     for (i = 0; i < numVertices; i++) pData->orientsToVertexOrders[i] = i;
-    ierr = PetscMalloc1(numFacets, &(pData->orientsToFacetOrders));CHKERRQ(ierr);
-    for (i = 0; i < numFacets; i++) {
-      pData->orientsToFacetOrders[i].index       = i;
-      pData->orientsToFacetOrders[i].orientation = 0;
-    }
-    ierr = PetscMalloc1(1, &(pData->orientInverses));CHKERRQ(ierr);
-    pData->orientInverses[0] = 0;
-    ierr = PetscMalloc1(numFacets, &(pData->orbitProjectors));CHKERRQ(ierr);
-    for (i = 0; i < numFacets; i++) pData->orbitProjectors[i] = 0;
-    for (i = 0, maxS = 0; i < numFacets; i++) {
-      fData = pset->polytopes[pData->facets[i]];
-      maxS = PetscMax(maxS, fData->orientEnd - fData->orientEnd);
-    }
-    pData->maxFacetSymmetry = maxS;
-    ierr = PetscMalloc1(numFacets * maxS, &(pData->facetOrientations));CHKERRQ(ierr);
-    for (i = 0; i < numFacets * maxS; i++) pData->facetOrientations[i] = 0;
     PetscFunctionReturn(0);
   }
   fData   = pset->polytopes[pData->facets[0]];
@@ -783,18 +988,13 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
   numFOs  = foEnd - foStart;
   ierr = PetscBTCreate(numFacets * numFOs, &permOrient);CHKERRQ(ierr);
   ierr = PetscBTMemzero(numFacets * numFOs, permOrient);CHKERRQ(ierr);
-  ierr = PetscBTDestroy(&permOrient);CHKERRQ(ierr);
+  /* we have already seen the identity */
+  ierr = PetscBTSet(permOrient,0-foStart);CHKERRQ(ierr);
   for (f = 0, maxR = 0; f < numFacets; f++) maxR = PetscMax(maxR,pData->ridgeOffsets[f+1] - pData->ridgeOffsets[f]);
-  for (f = 0, maxS = 0; f < numFacets; f++) {
-    fData = pset->polytopes[pData->facets[f]];
-    maxS = PetscMax(maxS, fData->orientEnd - fData->orientEnd);
-  }
-  pData->maxFacetSymmetry = maxS;
   ierr = PetscMalloc1(maxR, &fCone);CHKERRQ(ierr);
   ierr = PetscMalloc1(numFacets, &originSeen);CHKERRQ(ierr);
   ierr = PetscMalloc1(numFacets, &originQueue);CHKERRQ(ierr);
   ierr = PetscMalloc2(numFacets, &perm, numFacets, &permInv);CHKERRQ(ierr);
-  ierr = PetscMalloc1(maxS * numFacets, &pData->facetOrientations);CHKERRQ(ierr);
   ierr = PetscMalloc1(numFacets, &pData->orbitProjectors);CHKERRQ(ierr);
   for (f = 0; f < maxS * numFacets; f++) pData->facetOrientations[f] = PETSC_MIN_INT;
   for (f = 0; f < numFacets; f++) pData->orbitProjectors[f] = PETSC_MIN_INT;
@@ -908,13 +1108,15 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
         if (r < numFR) break;
       }
       if (q < numFacets) continue;
-      /* TODO: insert perm and permInv */
+      ierr = PetscPolytopeSetAddSymmetry(pset, pData, perm, permInv, permOrient);CHKERRQ(ierr);
     }
   }
+  ierr = PetscPolytopeSetSignSymmetries(pset, pData);CHKERRQ(ierr);
   ierr = PetscFree2(perm,permInv);CHKERRQ(ierr);
   ierr = PetscFree(originQueue);CHKERRQ(ierr);
   ierr = PetscFree(originSeen);CHKERRQ(ierr);
   ierr = PetscFree(fCone);CHKERRQ(ierr);
+  ierr = PetscBTDestroy(&permOrient);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1016,9 +1218,12 @@ static PetscErrorCode PetscPolytopeSetInsert(PetscPolytopeSet pset, const char n
     if (!inOrder) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Polytope vertices not in closure order: suggested reordering [%s]\n", suggestion);
   }
   ierr = PetscPolytopeDataCreate(dim, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, firstFacetInward, &pData);CHKERRQ(ierr);
+  /* I want an incorrectly specified polytope to be recoverable, so I try to tear down the partially created polytope
+   * if these two routines fail */
   ierr = PetscPolytopeSetComputeRidges(pset, pData);CHKPOLYTOPEERRQ(pData,ierr);
   ierr = PetscPolytopeSetComputeSigns(pset, pData);CHKPOLYTOPEERRQ(pData,ierr);
-
+  /* Any failure in compute symmetries should be a PLIB failure and not recoverable */
+  ierr = PetscPolytopeSetComputeSymmetries(pset, pData);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
