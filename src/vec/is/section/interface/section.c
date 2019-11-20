@@ -2545,7 +2545,7 @@ PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, 
     ierr = PetscLayoutDestroy(&layout);CHKERRQ(ierr);
     ierr = PetscMalloc1(rpEnd-rpStart, &offsets);CHKERRQ(ierr);
     ierr = PetscArraycpy(offsets, rootSection->atlasOff, rpEnd-rpStart);CHKERRQ(ierr);
-    for (p = 0; p < rpEnd-rpStart; ++p) if (offsets[0] >= 0) offsets[p] -= gStart;
+    for (p = 0; p < rpEnd-rpStart; ++p) if (offsets[p] >= 0) offsets[p] -= gStart;
   } else {
     offsets = rootSection->atlasOff;
   }
