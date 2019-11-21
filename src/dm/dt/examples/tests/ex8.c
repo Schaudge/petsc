@@ -41,7 +41,7 @@ static PetscErrorCode PetscPolytopeInsertCheck(const char name[], PetscInt numFa
 
 int main(int argc, char **argv)
 {
-  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent;
+  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent, wedge;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -239,6 +239,34 @@ int main(int argc, char **argv)
         facetsInward[5] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "hexahedron does not have outward facets");
     ierr = PetscPolytopeGetOrientationRange(hex, &oStart, &oEnd);CHKERRQ(ierr);
     if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of hexahedron");
+  }
+
+  { /* wedge */
+    PetscPolytope facets[5];
+    PetscInt      vertexOffsets[6] = {0,3,6,10,14,18};
+    PetscInt      facetsToVertices[18] = {
+                                           0,1,2,
+                                           3,4,5,
+                                           0,3,5,1,
+                                           2,4,3,0,
+                                           1,5,4,2,
+                                         };
+    const PetscBool *facetsInward;
+
+    facets[0] = tri;
+    facets[1] = tri;
+    facets[2] = quad;
+    facets[3] = quad;
+    facets[4] = quad;
+
+    ierr = PetscPolytopeInsertCheck("triangular-prism", 5, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &wedge);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(wedge, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    if (facetsInward[1] != PETSC_FALSE ||
+        facetsInward[2] != PETSC_FALSE ||
+        facetsInward[3] != PETSC_FALSE ||
+        facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "triangular prism does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(wedge, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -6 || oEnd != 6) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of triangular prism");
   }
 
   ierr = PetscFinalize();

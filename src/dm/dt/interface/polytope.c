@@ -1039,6 +1039,9 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
     for (j = 0; j < ioEnd - ioStart; j++) {
       pData->facetOrientations[i * maxS + j] = (j == 0-ioStart) ? 0 : PETSC_MIN_INT;
     }
+    for (j = ioEnd - ioStart; j < maxS; j++) {
+      pData->facetOrientations[i * maxS + j] = PETSC_MIN_INT;
+    }
   }
   if (numFacets == 0 || numFacets == 1) {
     /* only identity */
