@@ -60,4 +60,17 @@ PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementAdvectionDestroy(Pet
 PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt, PetscReal *, PetscReal *, PetscReal ***);
 PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementMassDestroy(PetscInt, PetscReal *, PetscReal *, PetscReal ***);
 
+typedef PetscInt PetscPolytope;
+#define PETSCPOLYTOPE_NONE -1
+PETSC_EXTERN PetscErrorCode PetscPolytopeInsert(const char[], PetscInt, PetscInt, const PetscPolytope[], const PetscInt[], const PetscInt[], PetscBool, PetscPolytope*);
+PETSC_EXTERN PetscErrorCode PetscPolytopeGetByName(const char[], PetscPolytope*);
+PETSC_EXTERN PetscErrorCode PetscPolytopeGetData(PetscPolytope, PetscInt *, PetscInt *, const PetscPolytope *[], const PetscInt *[], const PetscInt *[], const PetscBool *[]);
+PETSC_EXTERN PetscErrorCode PetscPolytopeGetOrientationRange(PetscPolytope, PetscInt *, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscPolytopeOrientVertices(PetscPolytope, PetscInt, PetscInt[]);
+PETSC_EXTERN PetscErrorCode PetscPolytopeOrientFacets(PetscPolytope, PetscInt, PetscInt[], PetscInt[]);
+PETSC_EXTERN PetscErrorCode PetscPolytopeOrientationInverse(PetscPolytope, PetscInt, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscPolytopeOrientationCompose(PetscPolytope, PetscInt, PetscInt, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscPolytopeOrientationFromVertices(PetscPolytope, const PetscInt[], PetscBool *, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscPolytopeOrientationFromFacet(PetscPolytope, PetscInt, PetscInt, PetscInt, PetscBool *, PetscInt *);
+
 #endif

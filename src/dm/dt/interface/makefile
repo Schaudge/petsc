@@ -3,7 +3,7 @@ ALL: lib
 
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = dt.c dtds.c
+SOURCEC  = dt.c dtds.c polytope.c
 SOURCEF  =
 SOURCEH  =
 LIBBASE  = libpetscdm
