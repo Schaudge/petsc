@@ -893,19 +893,27 @@ static PetscErrorCode PetscPolytopeSetAddSymmetry(PetscPolytopeSet pset, PetscPo
       PetscInt fComp = permOld[permNew[0].index].index;
       PetscInt oNew = permNew[0].orientation;
       PetscInt oOld = permOld[permNew[0].index].orientation;
-      PetscInt oComp;
+      PetscInt oComp, proj, representer;
       PetscInt prodIdx;
       PetscPolytopeCone *prod;
 
       if (permOld[0].index == 0 && permOld[0].orientation == 0) continue; /* permOld is the identity */
       ierr = PetscPolytopeSetOrientationCompose(pset, pData->facets[0], oNew, oOld, &oComp);CHKERRQ(ierr);
-      prodIdx = pData->facetOrientations[maxS*fComp + oComp-foStart];
-      if (p < orientEndOrig && prodIdx >= 0 && prodIdx < orientEndOrig) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation is new but product of existing permutations");
-      if (fComp == 0 && oComp == 0) { /* permNew is the inverse of permOld */
-        pData->orientInverses[p] = q;
-        pData->orientInverses[q] = p;
+      proj = pData->orbitProjectors[fComp];
+      if (proj >= 0) {
+        representer = pData->orientsToFacetOrders[numFacets*proj + fComp].index;
+      } else {
+        representer = -(proj+1);
       }
-      if (prodIdx >= 0) continue; /* this product has been found before */
+      if (representer == 0) { /* there is a chance that this product, sending 0 to fComp, has been seen before */
+        prodIdx = pData->facetOrientations[maxS*fComp + oComp-foStart];
+        if (p < orientEndOrig && prodIdx >= 0 && prodIdx < orientEndOrig) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation is new but product of existing permutations");
+        if (fComp == 0 && oComp == 0) { /* permNew is the inverse of permOld */
+          pData->orientInverses[p] = q;
+          pData->orientInverses[q] = p;
+        }
+        if (prodIdx >= 0) continue; /* this product has been found before */
+      }
       /* compute the full product */
       prod = &pData->orientsToFacetOrders[pData->orientEnd * numFacets];
       prod[0].index = fComp;
