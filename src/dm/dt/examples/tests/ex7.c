@@ -41,7 +41,7 @@ static PetscErrorCode PetscPolytopeInsertCheck(const char name[], PetscInt numFa
 
 int main(int argc, char **argv)
 {
-  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent, wedge, pyr, dodec;
+  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent, wedge, pyr, dodec, oct, rhomb;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -324,6 +324,60 @@ int main(int argc, char **argv)
     for (f = 0; f < 12; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dodecahedron does not have outward facets");
     ierr = PetscPolytopeGetOrientationRange(dodec, &oStart, &oEnd);CHKERRQ(ierr);
     if (oStart != -60 || oEnd != 60) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of dodecahedron");
+  }
+
+  { /* octahedron */
+    PetscPolytope facets[8];
+    PetscInt      f;
+    PetscInt      vertexOffsets[9] = {0,3,6,9,12,15,18,21,24};
+    PetscInt      facetsToVertices[24] = {
+                                           0,1,2,
+                                           1,0,3,
+                                           2,1,4,
+                                           0,2,5,
+                                           1,3,4,
+                                           2,4,5,
+                                           0,5,3,
+                                           5,4,3,
+                                         };
+    const PetscBool *facetsInward;
+
+    for (f = 0; f < 8; f++) facets[f] = tri;
+
+    ierr = PetscPolytopeInsertCheck("octahedron", 8, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &oct);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(oct, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    for (f = 0; f < 8; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "octahedron does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(oct, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of octahedron");
+  }
+
+  { /* rhombic dodecahedron */
+    PetscPolytope facets[12];
+    PetscInt      f;
+    PetscInt      vertexOffsets[13] = {0,4,8,12,16,20,24,28,32,36,40,44,48};
+    PetscInt      facetsToVertices[48] = {
+                                            0,  1,  2,  3,
+                                            1,  0,  4,  5,
+                                            2,  1,  5,  6,
+                                            3,  2,  7,  8,
+                                            0,  3,  8,  9,
+                                            4,  0,  9, 10,
+                                            7,  2,  6, 11,
+                                            5,  4, 10, 12,
+                                           11,  6,  5, 12,
+                                            8,  7, 11, 13,
+                                           10,  9,  8, 13,
+                                           10, 13, 11, 12,
+                                         };
+    const PetscBool *facetsInward;
+
+    for (f = 0; f < 12; f++) facets[f] = quad;
+
+    ierr = PetscPolytopeInsertCheck("rhombic-dodecahedron", 12, 14, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &rhomb);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(rhomb, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    for (f = 0; f < 12; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "rhombic dodecahedron does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(rhomb, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of rhombic dodecahedron");
   }
 
   ierr = PetscFinalize();
