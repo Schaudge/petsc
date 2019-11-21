@@ -43,16 +43,33 @@ static PetscErrorCode PetscPolytopeInsertCheckSignsSymmetry(const char name[], P
                                                             const PetscInt vertexOffsets[], const PetscInt facetsToVertices[], PetscBool firstFacetInward,
                                                             const PetscBool signs[], PetscInt oStart, PetscInt oEnd, PetscPolytope *polytope)
 {
-  PetscInt f, coStart, coEnd;
+  PetscInt f, coStart, coEnd, o, w, wo, v;
   const PetscBool *facetsInward;
+  PetscInt       *ov, *wv, *wov;
+  PetscInt       *of, *wf, *wof;
+  PetscPolytope  p;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscPolytopeInsertCheck(name, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, firstFacetInward, polytope);CHKERRQ(ierr);
-  ierr = PetscPolytopeGetData(*polytope, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+  ierr = PetscPolytopeInsertCheck(name, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, firstFacetInward, &p);CHKERRQ(ierr);
+  ierr = PetscPolytopeGetData(p, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
   for (f = 0; f < numFacets; f++) if (facetsInward[f] != (signs ? signs[f] : PETSC_FALSE)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s does not have correct facet signs\n", name);
-  ierr = PetscPolytopeGetOrientationRange(*polytope, &coStart, &coEnd);CHKERRQ(ierr);
+  ierr = PetscPolytopeGetOrientationRange(p, &coStart, &coEnd);CHKERRQ(ierr);
   if (coStart != oStart || coEnd != oEnd) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of %s\n", name);
+  ierr = PetscMalloc3(numVertices, &ov, numVertices, &wv, numVertices, &wov);CHKERRQ(ierr);
+  for (o = oStart; o < oEnd; o++) {
+    ierr = PetscPolytopeOrientVertices(p, o, ov);CHKERRQ(ierr);
+    for (w = oStart; w < oEnd; w++) {
+      ierr = PetscPolytopeOrientationCompose(p, w, o, &wo);CHKERRQ(ierr);
+      ierr = PetscPolytopeOrientVertices(p, w, wv);CHKERRQ(ierr);
+      ierr = PetscPolytopeOrientVertices(p, wo, wov);CHKERRQ(ierr);
+      for (v = 0; v < numVertices; v++) {
+        if (ov[wv[v]] != wov[v]) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s vertex permutation composition incompatibility", name);
+      }
+    }
+  }
+  ierr = PetscFree3(ov, wv, wov);CHKERRQ(ierr);
+  *polytope = p;
   PetscFunctionReturn(0);
 }
 

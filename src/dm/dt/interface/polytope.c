@@ -266,8 +266,8 @@ static PetscErrorCode PetscPolytopeSetOrientationFromFacet(PetscPolytopeSet pset
   }
   oBaseOrigin = p->orientsToFacetOrders[p->numFacets * (originSect - p->orientStart) + baseFacet].orientation;
   oImageBase  = p->orientsToFacetOrders[p->numFacets * (imageProj - p->orientStart) + facetImage].orientation;
-  ierr = PetscPolytopeSetOrientationCompose(pset, f, imageOrientation, oBaseOrigin, &oComp);CHKERRQ(ierr);
-  ierr = PetscPolytopeSetOrientationCompose(pset, f, oImageBase, oComp, &oComp);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationCompose(pset, f, oBaseOrigin, imageOrientation, &oComp);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationCompose(pset, f, oComp, oImageBase, &oComp);CHKERRQ(ierr);
   /* imageProj o orientation o originSec = oBase , if orientation exists, maps baseFacet to itself with orientation oComp */
   b = pset->polytopes[f];
   oBase = p->facetOrientations[baseFacet*p->maxFacetSymmetry + (oComp-b->orientStart)];
@@ -277,8 +277,8 @@ static PetscErrorCode PetscPolytopeSetOrientationFromFacet(PetscPolytopeSet pset
     PetscFunctionReturn(0);
   }
   /* orientation is imageSec o oBase o originProj */
-  ierr = PetscPolytopeSetOrientationCompose(pset, polytope, oBase, originProj, &oComp);CHKERRQ(ierr);
-  ierr = PetscPolytopeSetOrientationCompose(pset, polytope, imageSect, oComp, orientation);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationCompose(pset, polytope, originProj, oBase, &oComp);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationCompose(pset, polytope, oComp, imageSect, orientation);CHKERRQ(ierr);
   *isOrient = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -1157,10 +1157,10 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
           oAction = fCone[r].orientation;
           ierr = PetscPolytopeDataOrientationInverse(rData, oOrigin, &oOriginInv);CHKERRQ(ierr);
           ierr = PetscPolytopeDataOrientationInverse(rData, oM, &oMinv);CHKERRQ(ierr);
-          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oOriginInv, oN, &oComp);CHKERRQ(ierr);
-          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oAction, oComp, &oComp);CHKERRQ(ierr);
-          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oTarget, oComp, &oComp);CHKERRQ(ierr);
-          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oMinv, oComp, &oComp);CHKERRQ(ierr);
+          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oN, oOriginInv, &oComp);CHKERRQ(ierr);
+          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oComp, oAction, &oComp);CHKERRQ(ierr);
+          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oComp, oTarget, &oComp);CHKERRQ(ierr);
+          ierr = PetscPolytopeSetOrientationCompose(pset, rtope, oComp, oMinv, &oComp);CHKERRQ(ierr);
           ierr = PetscPolytopeSetOrientationFromFacet(pset, pData->facets[n], nConeNum, mConeNum, oComp, &isOrient, &oNM);CHKERRQ(ierr);
           if (!isOrient) break; /* TODO: can this happen ? */
           if (!originSeen[n]) {
@@ -1401,6 +1401,16 @@ static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet pset, Pets
   if (polytope > pset->numPolytopes) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "No polytope with id %D\n", polytope);
   pData = pset->polytopes[polytope];
   if (orientation < pData->orientStart || orientation >= pData->orientEnd) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Orientation %D not in range [%D, %D)\n", orientation, pData->orientStart, pData->orientEnd);
+  if (pData->dim == 1) {
+    if (orientation == -1) {
+      vertices[0] = 1;
+      vertices[1] = 0;
+    } else {
+      vertices[0] = 0;
+      vertices[1] = 1;
+    }
+    PetscFunctionReturn(0);
+  }
   if (pData->orientsToVertexOrders) {
     for (i = 0; i < pData->numVertices; i++) {
       vertices[i] = pData->orientsToVertexOrders[(orientation - pData->orientStart) * pData->numVertices + i];
@@ -1408,7 +1418,7 @@ static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet pset, Pets
   } else {
     PetscInt *facetVertices;
 
-    ierr = PetscMalloc(pData->numVertices, &facetVertices);CHKERRQ(ierr);
+    ierr = PetscMalloc1(pData->numVertices, &facetVertices);CHKERRQ(ierr);
     for (i = 0; i < pData->numFacets; i++) {
       PetscInt f = pData->orientsToFacetOrders[(orientation - pData->orientStart) * pData->numFacets + i].index;
       PetscInt o = pData->orientsToFacetOrders[(orientation - pData->orientStart) * pData->numFacets + i].orientation;
@@ -1417,7 +1427,7 @@ static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet pset, Pets
       PetscInt foffset = pData->vertexOffsets[f];
 
       ierr = PetscPolytopeSetOrientVertices(pset, pData->facets[i], o, facetVertices);CHKERRQ(ierr);
-      for (j = 0; j < vcount; i++) {
+      for (j = 0; j < vcount; j++) {
         vertices[pData->facetsToVertices[ioffset + j]] = pData->facetsToVertices[foffset + facetVertices[j]];
       }
     }
