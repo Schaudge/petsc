@@ -59,7 +59,7 @@ static PetscErrorCode PetscPolytopeInsertCheckSignsSymmetry(const char name[], P
 int main(int argc, char **argv)
 {
   PetscPolytope  null, no_point, vertex, edge, tri, noncyctri, quad, noncycquad,
-                 tet, hex, pent, wedge, pyr, dodec, oct, rhomb;
+                 tet, noncyctet, hex, pent, wedge, pyr, dodec, oct, rhomb, icos, pchor;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -97,21 +97,23 @@ int main(int argc, char **argv)
     if (inv_edge == edge) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inverted edge the same as edge");
   }
 
-#if 0
   { /* try and fail to create a mixed dimension polytope */
     PetscPolytope facets[2];
     PetscInt      vertexOffsets[3] = {0,1,3};
-    PetscInt      facetsToVertices[2] = {0,1,2};
-    const PetscBool *facetsInward;
-    PetscPolytope inv_edge;
+    PetscInt      facetsToVertices[3] = {0,1,2};
+    PetscLogDouble mempre, mempost;
 
     facets[0] = vertex;
     facets[1] = edge;
 
+    ierr = PetscMemoryGetCurrentUsage(&mempre);CHKERRQ(ierr);
+    ierr = PetscPushErrorHandler(PetscReturnErrorHandler,NULL);CHKERRQ(ierr);
     testerr = PetscPolytopeInsert("mixed-triangle", 2, 3, facets, vertexOffsets, facetsToVertices, PETSC_TRUE, &edge);
+    ierr = PetscPopErrorHandler();
     if (testerr != PETSC_ERR_ARG_WRONG) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Did not catch mixed dimension polytope");
+    ierr = PetscMemoryGetCurrentUsage(&mempost);CHKERRQ(ierr);
+    if (mempre != mempost) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Recoverable error not memory neutral");
   }
-#endif
 
   { /* cyclic triangle */
     PetscPolytope facets[3];
@@ -152,7 +154,6 @@ int main(int argc, char **argv)
     PetscInt      vertexOffsets[5] = {0,2,4,6,8};
     PetscInt      facetsToVertices[8] = {0,1, 2,3, 0,2, 1,3};
     PetscBool     signs[4] = {PETSC_FALSE, PETSC_TRUE, PETSC_TRUE, PETSC_FALSE};
-    const PetscBool *facetsInward;
 
     facets[0] = facets[1] = facets[2] = facets[3] = edge;
 
@@ -177,6 +178,17 @@ int main(int argc, char **argv)
     facets[0] = facets[1] = facets[2] = facets[3] = tri;
 
     ierr = PetscPolytopeInsertCheckSignsSymmetry("tetrahedron", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -12, 12, &tet);CHKERRQ(ierr);
+  }
+
+  { /* non-cyclic tetrahedron */
+    PetscPolytope facets[4];
+    PetscInt      vertexOffsets[5] = {0,3,6,9,12};
+    PetscInt      facetsToVertices[12] = {0,1,2, 0,1,3, 0,2,3, 1,2,3};
+    PetscBool     signs[4] = {PETSC_TRUE, PETSC_FALSE, PETSC_TRUE, PETSC_FALSE};
+
+    facets[0] = facets[1] = facets[2] = facets[3] = noncyctri;
+
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("non-cyclic tetrahedron", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_TRUE, signs, -12, 12, &noncyctet);CHKERRQ(ierr);
   }
 
   { /* hexahedron */
@@ -291,6 +303,54 @@ int main(int argc, char **argv)
     ierr = PetscPolytopeInsertCheckSignsSymmetry("rhombic-dodecahedron", 12, 14, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -24, 24, &rhomb);CHKERRQ(ierr);
   }
 
+  { /* icosahedron */
+    PetscPolytope facets[20];
+    PetscInt      f;
+    PetscInt      vertexOffsets[21] = { 0, 3, 6, 9,12,15,18,21,24,27,30,
+                                          33,36,39,42,45,48,51,54,57,60};
+    PetscInt      facetsToVertices[60] = {
+                                            0,  1,  2,
+                                            1,  0,  3,
+                                            2,  1,  4,
+                                            0,  2,  5,
+                                            3,  0,  6,
+                                            1,  3,  7,
+                                            4,  1,  7,
+                                            2,  4,  8,
+                                            5,  2,  8,
+                                            0,  5,  6,
+                                            3,  6,  9,
+                                            7,  3,  9,
+                                            4,  7, 10,
+                                            8,  4, 10,
+                                            5,  8, 11,
+                                            6,  5, 11,
+                                            9,  6, 11,
+                                            7,  9, 10,
+                                            8, 10, 11,
+                                           11, 10,  9,
+                                         };
+
+    for (f = 0; f < 20; f++) facets[f] = tri;
+
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("icosahedron", 20, 12, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -60, 60, &icos);CHKERRQ(ierr);
+  }
+
+  { /* pentachoron (4-simplex) */
+    PetscPolytope facets[5];
+    PetscInt      f;
+    PetscInt      vertexOffsets[6] = {0, 4, 8, 12, 16, 20};
+    PetscInt      facetsToVertices[20] = {
+                                           0,1,2,3,
+                                           0,1,4,2,
+                                           0,1,3,4,
+                                           0,2,4,3,
+                                           1,2,3,4,
+                                         };
+
+    for (f = 0; f < 5; f++) facets[f] = tet;
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("pentachoron", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -60, 60, &pchor);CHKERRQ(ierr);
+  }
   ierr = PetscFinalize();
   return ierr;
 }
