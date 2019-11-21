@@ -41,7 +41,7 @@ static PetscErrorCode PetscPolytopeInsertCheck(const char name[], PetscInt numFa
 
 int main(int argc, char **argv)
 {
-  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent, wedge;
+  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent, wedge, pyr, dodec;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -267,6 +267,63 @@ int main(int argc, char **argv)
         facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "triangular prism does not have outward facets");
     ierr = PetscPolytopeGetOrientationRange(wedge, &oStart, &oEnd);CHKERRQ(ierr);
     if (oStart != -6 || oEnd != 6) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of triangular prism");
+  }
+
+  { /* pyramid */
+    PetscPolytope facets[5];
+    PetscInt      vertexOffsets[6] = {0,4,7,10,13,16};
+    PetscInt      facetsToVertices[16] = {
+                                           0,1,2,3,
+                                           0,3,4,
+                                           3,2,4,
+                                           2,1,4,
+                                           1,0,4,
+                                         };
+    const PetscBool *facetsInward;
+
+    facets[0] = quad;
+    facets[1] = tri;
+    facets[2] = tri;
+    facets[3] = tri;
+    facets[4] = tri;
+
+    ierr = PetscPolytopeInsertCheck("pyramid", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &pyr);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(pyr, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    if (facetsInward[1] != PETSC_FALSE ||
+        facetsInward[2] != PETSC_FALSE ||
+        facetsInward[3] != PETSC_FALSE ||
+        facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "pyramid does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(pyr, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -4 || oEnd != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of pyramid");
+  }
+
+  { /* dodecahedron */
+    PetscPolytope facets[12];
+    PetscInt      f;
+    PetscInt      vertexOffsets[13] = {0,5,10,15,20,25,30,35,40,45,50,55,60};
+    PetscInt      facetsToVertices[60] = {
+                                            0,  1,  2,  3,  4,
+                                            1,  0,  5,  6,  7,
+                                            2,  1,  7,  8,  9,
+                                            3,  2,  9, 10, 11,
+                                            4,  3, 11, 12, 13,
+                                            0,  4, 13, 14,  5,
+                                            6,  5, 14, 15, 16,
+                                            8,  7,  6, 16, 17,
+                                           10,  9,  8, 17, 18,
+                                           12, 11, 10, 18, 19,
+                                           14, 13, 12, 19, 15,
+                                           19, 18, 17, 16, 15,
+                                         };
+    const PetscBool *facetsInward;
+
+    for (f = 0; f < 12; f++) facets[f] = pent;
+
+    ierr = PetscPolytopeInsertCheck("dodecahedron", 12, 20, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &dodec);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(dodec, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    for (f = 0; f < 12; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dodecahedron does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(dodec, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -60 || oEnd != 60) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of dodecahedron");
   }
 
   ierr = PetscFinalize();
