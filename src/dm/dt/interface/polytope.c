@@ -597,7 +597,7 @@ static PetscErrorCode PetscPolytopeSetComputeRidges(PetscPolytopeSet pset, Petsc
 
       ridgeData = &rtf[2 * ridge];
       /* only compute symmetries from first side */
-      if (ridgeData[0].index != r) continue;
+      if (ridgeData[0].index != i) continue;
       oppFacet = ridgeData[1].index;
       oppCone  = ridgeData[1].coneNumber;
       oppData  = pset->polytopes[oppFacet];
@@ -754,6 +754,90 @@ static PetscErrorCode PetscPolytopeSetComputeSigns(PetscPolytopeSet pset, PetscP
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscPolytopeSetAddSymmetry_Insert(PetscPolytopeSet pset, PetscPolytopeData pData, const PetscPolytopeCone perm[], PetscBT permOrient)
+{
+  PetscInt       id, i, numFacets, foStart, numFOs, maxS;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  maxS = pData->maxFacetSymmetry;
+  numFacets = pData->numFacets;
+  foStart = pset->polytopes[pData->facets[0]]->orientStart;
+  numFOs = pset->polytopes[pData->facets[0]]->orientEnd - foStart;
+  id = perm[0].index * numFOs + (perm[0].orientation - foStart);
+  if (PetscBTLookup(permOrient, id)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "A previously seen permutation slipped through the cracks");
+  ierr = PetscBTSet(permOrient, id);CHKERRQ(ierr);
+  for (i = 0; i < numFacets; i++) {
+    PetscPolytopeData iData;
+    if (perm[i].index < 0 || perm[i].index >= numFacets) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad index");
+    if (pData->facets[i] != pData->facets[perm[i].index]) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation maps incompatible facets");
+    iData = pset->polytopes[pData->facets[i]];
+    if (perm[i].orientation < iData->orientStart || perm[i].orientation >= iData->orientEnd) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad orientation");
+  }
+  for (i = 0; i < numFacets; i++) { /* update representers */
+    PetscInt representer;
+    PetscInt f;
+    PetscInt proj;
+
+    f = perm[i].index;
+    proj = pData->orbitProjectors[f];
+    if (proj >= 0) {
+      representer = pData->orientsToFacetOrders[proj * numFacets + f].index;
+    } else {
+      representer = -(proj+1);
+    }
+    if (i < representer) { /* reset the projector and lookup data for f */
+      PetscInt j;
+
+      pData->orbitProjectors[f] = -(i+1);
+      for (j = 0; j < maxS; j++) pData->facetOrientations[f*maxS + j] = PETSC_MIN_INT;
+    }
+    proj = pData->orbitProjectors[i];
+    if (proj >= 0) {
+      representer = pData->orientsToFacetOrders[proj * numFacets + i].index;
+    } else {
+      representer = -(proj+1);
+    }
+    if (f < representer) { /* reset the projector and lookup data for i */
+      PetscInt j;
+
+      pData->orbitProjectors[i] = -(f+1);
+      for (j = 0; j < maxS; j++) pData->facetOrientations[i*maxS + j] = PETSC_MIN_INT;
+    }
+  }
+  for (i = 0; i < numFacets; i++) { /* update inverses and projectors */
+    PetscInt representer;
+    PetscInt f, o;
+    PetscInt proj;
+
+    f = perm[i].index;
+    o = perm[i].orientation;
+    proj = pData->orbitProjectors[f];
+    if (proj >= 0) {
+      representer = pData->orientsToFacetOrders[proj * numFacets + f].index;
+    } else {
+      representer = -(proj+1);
+    }
+    if (i == representer) {
+      PetscInt ioStart;
+      PetscPolytopeData iData;
+
+      iData = pset->polytopes[pData->facets[i]];
+      ioStart = iData->orientStart;
+      pData->facetOrientations[f*maxS + (o-ioStart)] = pData->orientEnd;
+    }
+    proj = pData->orbitProjectors[i];
+    if (proj >= 0) {
+      representer = pData->orientsToFacetOrders[proj * numFacets + i].index;
+    } else {
+      representer = -(proj+1);
+    }
+    if (f == representer && proj < 0) pData->orbitProjectors[i] = pData->orientEnd;
+  }
+  pData->orientEnd++;
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscPolytopeSetAddSymmetry(PetscPolytopeSet pset, PetscPolytopeData pData, const PetscPolytopeCone *perm, const PetscPolytopeCone *permInv, PetscBT permOrient)
 {
   PetscInt       numFacets, maxS;
@@ -779,33 +863,15 @@ static PetscErrorCode PetscPolytopeSetAddSymmetry(PetscPolytopeSet pset, PetscPo
   image0  = perm[0].index;
   orient0 = perm[0].orientation;
   id = image0 * numFOs + (orient0 - foStart);
-  if (PetscBTLookup(permOrient, id)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "A previously seen permutation slipped through the cracks");
-  ierr = PetscBTSet(permOrient, id);CHKERRQ(ierr);
-  for (i = 0; i < numFacets; i++) {
-    PetscPolytopeData iData;
-    if (perm[i].index < 0 || perm[i].index >= numFacets) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad index");
-    if (pData->facets[i] != pData->facets[perm[i].index]) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation maps incompatible facets");
-    iData = pset->polytopes[pData->facets[i]];
-    if (perm[i].orientation < iData->orientStart || perm[i].orientation >= iData->orientEnd) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad orientation");
-    pData->orientsToFacetOrders[pData->orientEnd * numFacets + i] = perm[i];
-  }
-  pData->orientEnd++;
+  for (i = 0; i < numFacets; i++) pData->orientsToFacetOrders[pData->orientEnd * numFacets + i] = perm[i];
+  ierr = PetscPolytopeSetAddSymmetry_Insert(pset, pData, perm, permOrient);CHKERRQ(ierr);
 
   invimage0  = permInv[0].index;
   invorient0 = permInv[0].orientation;
   invid = invimage0 * numFOs + (invorient0 - foStart);
   if (invid != id) {
-    if (PetscBTLookup(permOrient, invid)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "A previously seen inverse permutation slipped through the cracks");
-    ierr = PetscBTSet(permOrient, invid);CHKERRQ(ierr);
-    for (i = 0; i < numFacets; i++) {
-      PetscPolytopeData iData;
-      if (permInv[i].index < 0 || permInv[i].index) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation inverse has bad index");
-      if (pData->facets[i] != pData->facets[permInv[i].index]) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation maps incompatible facets");
-      iData = pset->polytopes[pData->facets[i]];
-      if (permInv[i].orientation < iData->orientStart || permInv[i].orientation >= iData->orientEnd) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation has bad orientation");
-      pData->orientsToFacetOrders[pData->orientEnd * numFacets + i] = permInv[i];
-    }
-    pData->orientEnd++;
+    for (i = 0; i < numFacets; i++) pData->orientsToFacetOrders[pData->orientEnd * numFacets + i] = permInv[i];
+    ierr = PetscPolytopeSetAddSymmetry_Insert(pset, pData, permInv, permOrient);CHKERRQ(ierr);
   }
 
   for (i = 0; i < numFacets; i++) {
@@ -826,22 +892,18 @@ static PetscErrorCode PetscPolytopeSetAddSymmetry(PetscPolytopeSet pset, PetscPo
       PetscInt oNew = permNew[0].orientation;
       PetscInt oOld = permOld[permNew[0].index].orientation;
       PetscInt oComp;
-      PetscInt id;
       PetscInt prodIdx;
       PetscPolytopeCone *prod;
 
-      if (permOld[0].index == 0 && permOld[0].orientation == 0-foStart) continue; /* permOld is the identity */
+      if (permOld[0].index == 0 && permOld[0].orientation == 0) continue; /* permOld is the identity */
       ierr = PetscPolytopeSetOrientationCompose(pset, pData->facets[0], oNew, oOld, &oComp);CHKERRQ(ierr);
       prodIdx = pData->facetOrientations[maxS*fComp + oComp-foStart];
-      if (p < q && prodIdx >= 0 && prodIdx < orientEndOrig) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation is new but product of existing permutations");
-      if (fComp == 0 && oComp == 0-foStart) { /* permNew is the inverse of permOld */
+      if (p < orientEndOrig && prodIdx >= 0 && prodIdx < orientEndOrig) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "permutation is new but product of existing permutations");
+      if (fComp == 0 && oComp == 0) { /* permNew is the inverse of permOld */
         pData->orientInverses[p] = q;
         pData->orientInverses[q] = p;
       }
       if (prodIdx >= 0) continue; /* this product has been found before */
-      id = fComp*numFOs + oComp;
-      if (PetscBTLookup(permOrient, id)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "New product has been seen");
-      ierr = PetscBTSet(permOrient, id);CHKERRQ(ierr);
       /* compute the full product */
       prod = &pData->orientsToFacetOrders[pData->orientEnd * numFacets];
       prod[0].index = fComp;
@@ -855,33 +917,7 @@ static PetscErrorCode PetscPolytopeSetAddSymmetry(PetscPolytopeSet pset, PetscPo
         prod[i].index = fComp;
         prod[i].orientation = oComp;
       }
-      /* update orbit projectors and facetOrientations */
-      for (i = 0; i < numFacets; i++) {
-        PetscInt representer;
-        PetscInt f, o;
-        PetscInt proj;
-
-        f = prod[i].index;
-        o = prod[i].orientation;
-        proj = pData->orbitProjectors[f];
-        representer = pData->orientsToFacetOrders[proj * numFacets + f].index;
-        if (i <= representer) {
-          PetscInt ioStart;
-          PetscPolytopeData iData;
-
-          iData = pset->polytopes[pData->facets[i]];
-          ioStart = iData->orientStart;
-
-          if (i < representer) { /* reset facetOrientations to get rid of data of previous representer */
-            PetscInt j;
-            pData->orbitProjectors[f] = pData->orientEnd;
-
-            for (j = 0; j < maxS; j++) pData->facetOrientations[f*maxS + j] = PETSC_MIN_INT;
-          }
-          pData->facetOrientations[f*maxS + (o-ioStart)] = pData->orientEnd;
-        }
-      }
-      pData->orientEnd++;
+      ierr = PetscPolytopeSetAddSymmetry_Insert(pset, pData, prod, permOrient);CHKERRQ(ierr);
     }
   }
 
@@ -1134,6 +1170,7 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
       ierr = PetscPolytopeSetAddSymmetry(pset, pData, perm, permInv, permOrient);CHKERRQ(ierr);
     }
   }
+  for (i = 0; i < numFacets; i++) if (pData->orbitProjectors[i] < 0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "failed to find orbit projector");
   ierr = PetscPolytopeSetSignSymmetries(pset, pData);CHKERRQ(ierr);
   ierr = PetscFree2(perm,permInv);CHKERRQ(ierr);
   ierr = PetscFree(originQueue);CHKERRQ(ierr);
