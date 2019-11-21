@@ -41,7 +41,7 @@ static PetscErrorCode PetscPolytopeInsertCheck(const char name[], PetscInt numFa
 
 int main(int argc, char **argv)
 {
-  PetscPolytope  null, no_point, vertex, edge, triangle, quad, pent;
+  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -113,10 +113,10 @@ int main(int argc, char **argv)
     facets[1] = edge;
     facets[2] = edge;
 
-    ierr = PetscPolytopeInsertCheck("triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &triangle);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(triangle, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheck("triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &tri);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(tri, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
     if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "triangle does not have outward edges");
-    ierr = PetscPolytopeGetOrientationRange(triangle, &oStart, &oEnd);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetOrientationRange(tri, &oStart, &oEnd);CHKERRQ(ierr);
     if (oStart != -3 || oEnd != 3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of triangle");
   }
 
@@ -190,6 +190,24 @@ int main(int argc, char **argv)
     if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE || facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "pentagon does not have outward edges");
     ierr = PetscPolytopeGetOrientationRange(pent, &oStart, &oEnd);CHKERRQ(ierr);
     if (oStart != -5 || oEnd != 5) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of pentagon");
+  }
+
+  { /* tetrahedron */
+    PetscPolytope facets[4], noncycquad;
+    PetscInt      vertexOffsets[5] = {0,3,6,9,12};
+    PetscInt      facetsToVertices[12] = {0,1,2,0,3,1,0,2,3,2,1,3};
+    const PetscBool *facetsInward;
+
+    facets[0] = tri;
+    facets[1] = tri;
+    facets[2] = tri;
+    facets[3] = tri;
+
+    ierr = PetscPolytopeInsertCheck("tetrahedron", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &tet);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(tet, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "tetrahedron does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(tet, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -12 || oEnd != 12) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of tetrahedron");
   }
 
   ierr = PetscFinalize();

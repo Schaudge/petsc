@@ -203,7 +203,7 @@ static PetscErrorCode PetscPolytopeSetDestroy(PetscPolytopeSet *pset)
 
 static PetscErrorCode PetscPolytopeSetOrientationCompose(PetscPolytopeSet pset, PetscPolytope polytope, PetscInt a, PetscInt b, PetscInt *aafterb)
 {
-  PetscPolytopeData p;
+  PetscPolytopeData p, fData;
   PetscInt f0, o0, f1, o1, oComp;
   PetscErrorCode ierr;
 
@@ -220,20 +220,21 @@ static PetscErrorCode PetscPolytopeSetOrientationCompose(PetscPolytopeSet pset, 
   p = pset->polytopes[polytope];
   if (a < p->orientStart || a >= p->orientEnd) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Orientation %D is not in [%D, %D)\n", a, p->orientStart, p->orientEnd);
   if (b < p->orientStart || b >= p->orientEnd) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Orientation %D is not in [%D, %D)\n", b, p->orientStart, p->orientEnd);
-  f0 = p->orientsToFacetOrders[p->numFacets * (b - p->orientStart)].index;
-  o0 = p->orientsToFacetOrders[p->numFacets * (b - p->orientStart)].orientation;
-  f1 = p->orientsToFacetOrders[p->numFacets * (a - p->orientStart) + f0].index;
-  o1 = p->orientsToFacetOrders[p->numFacets * (a - p->orientStart) + f0].orientation;
-  ierr = PetscPolytopeSetOrientationCompose(pset, p->facets[0], o1, o0, &oComp);CHKERRQ(ierr);
+  f0 = p->orientsToFacetOrders[p->numFacets * (a - p->orientStart)].index;
+  o0 = p->orientsToFacetOrders[p->numFacets * (a - p->orientStart)].orientation;
+  f1 = p->orientsToFacetOrders[p->numFacets * (b - p->orientStart) + f0].index;
+  o1 = p->orientsToFacetOrders[p->numFacets * (b - p->orientStart) + f0].orientation;
+  ierr = PetscPolytopeSetOrientationCompose(pset, p->facets[0], o0, o1, &oComp);CHKERRQ(ierr);
   /* find (oComp, f1) */
-  *aafterb = p->facetOrientations[f1*p->maxFacetSymmetry + oComp];
+  fData = pset->polytopes[p->facets[0]];
+  *aafterb = p->facetOrientations[f1*p->maxFacetSymmetry + (oComp-fData->orientStart)];
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode PetscPolytopeSetOrientationFromFacet(PetscPolytopeSet pset, PetscPolytope polytope, PetscInt facetOrigin, PetscInt facetImage, PetscInt imageOrientation,
                                                            PetscBool *isOrient, PetscInt *orientation)
 {
-  PetscPolytopeData p;
+  PetscPolytopeData p, b;
   PetscPolytope  f;
   PetscInt       originProj, originSect, imageProj, imageSect;
   PetscInt       oBaseOrigin, oImageBase, oComp;
@@ -268,8 +269,9 @@ static PetscErrorCode PetscPolytopeSetOrientationFromFacet(PetscPolytopeSet pset
   ierr = PetscPolytopeSetOrientationCompose(pset, f, imageOrientation, oBaseOrigin, &oComp);CHKERRQ(ierr);
   ierr = PetscPolytopeSetOrientationCompose(pset, f, oImageBase, oComp, &oComp);CHKERRQ(ierr);
   /* imageProj o orientation o originSec = oBase , if orientation exists, maps baseFacet to itself with orientation oComp */
-  oBase = p->facetOrientations[baseFacet*p->maxFacetSymmetry + oComp];
-  if (oBase < p->orientStart) {
+  b = pset->polytopes[f];
+  oBase = p->facetOrientations[baseFacet*p->maxFacetSymmetry + (oComp-b->orientStart)];
+  if (oBase < p->orientStart || oBase >= p->orientEnd) {
     *isOrient = PETSC_FALSE;
     *orientation = PETSC_MIN_INT;
     PetscFunctionReturn(0);
@@ -600,7 +602,7 @@ static PetscErrorCode PetscPolytopeSetComputeRidges(PetscPolytopeSet pset, Petsc
       if (ridgeData[0].index != i) continue;
       oppFacet = ridgeData[1].index;
       oppCone  = ridgeData[1].coneNumber;
-      oppData  = pset->polytopes[oppFacet];
+      oppData  = pset->polytopes[pData->facets[oppFacet]];
       oppFacetOffset = vertexOffsets[oppFacet];
       oppRidgeOffset = oppData->vertexOffsets[oppCone];
       ftr[r].orientation = 0; /* the orientation from the first facet is defined to be the identity */
