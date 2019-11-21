@@ -39,9 +39,27 @@ static PetscErrorCode PetscPolytopeInsertCheck(const char name[], PetscInt numFa
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscPolytopeInsertCheckSignsSymmetry(const char name[], PetscInt numFacets, PetscInt numVertices, const PetscPolytope facets[],
+                                                            const PetscInt vertexOffsets[], const PetscInt facetsToVertices[], PetscBool firstFacetInward,
+                                                            const PetscBool signs[], PetscInt oStart, PetscInt oEnd, PetscPolytope *polytope)
+{
+  PetscInt f, coStart, coEnd;
+  const PetscBool *facetsInward;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscPolytopeInsertCheck(name, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, firstFacetInward, polytope);CHKERRQ(ierr);
+  ierr = PetscPolytopeGetData(*polytope, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+  for (f = 0; f < numFacets; f++) if (facetsInward[f] != (signs ? signs[f] : PETSC_FALSE)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s does not have correct facet signs\n", name);
+  ierr = PetscPolytopeGetOrientationRange(*polytope, &coStart, &coEnd);CHKERRQ(ierr);
+  if (coStart != oStart || coEnd != oEnd) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of %s\n", name);
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
-  PetscPolytope  null, no_point, vertex, edge, tri, quad, tet, hex, pent, wedge, pyr, dodec, oct, rhomb;
+  PetscPolytope  null, no_point, vertex, edge, tri, noncyctri, quad, noncycquad,
+                 tet, hex, pent, wedge, pyr, dodec, oct, rhomb;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -56,35 +74,27 @@ int main(int argc, char **argv)
   {
     PetscInt vertexOffsets[2] = {0,0};
     PetscPolytope inv_vertex;
+    PetscBool signs[1] = {PETSC_FALSE};
+    PetscBool inv_signs[1] = {PETSC_TRUE};
 
-    ierr = PetscPolytopeInsertCheck("vertex", 1, 0, &null, vertexOffsets, NULL, PETSC_FALSE, &vertex);CHKERRQ(ierr);
-    ierr = PetscPolytopeInsertCheck("vertex-inverted", 1, 0, &null, vertexOffsets, NULL, PETSC_TRUE, &inv_vertex);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("vertex", 1, 0, &null, vertexOffsets, NULL, PETSC_FALSE, signs, 0, 1, &vertex);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("vertex-inverted", 1, 0, &null, vertexOffsets, NULL, PETSC_TRUE, inv_signs, 0, 1, &inv_vertex);CHKERRQ(ierr);
     if (inv_vertex == vertex) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inverted vertex the same as vertex");CHKERRQ(ierr);
-    ierr = PetscPolytopeGetOrientationRange(vertex, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != 0 || oEnd != 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of vertex");
   }
 
   {
     PetscPolytope facets[2];
     PetscInt      vertexOffsets[3] = {0,1,2};
-    PetscInt      facetsToVertices[2] = {0,1};
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[2] = {0, 1};
+    PetscBool     signs[2] = {PETSC_TRUE, PETSC_FALSE};
+    PetscBool     inv_signs[2] = {PETSC_FALSE, PETSC_TRUE};
     PetscPolytope inv_edge;
 
-    facets[0] = vertex;
-    facets[1] = vertex;
+    facets[0] = facets[1] = vertex;
 
-    ierr = PetscPolytopeInsertCheck("edge", 2, 2, facets, vertexOffsets, facetsToVertices, PETSC_TRUE, &edge);CHKERRQ(ierr);
-    ierr = PetscPolytopeInsertCheck("edge-inverted", 2, 2, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &inv_edge);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("edge", 2, 2, facets, vertexOffsets, facetsToVertices, PETSC_TRUE, signs, -1, 1, &edge);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("edge-inverted", 2, 2, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, inv_signs, -1, 1, &inv_edge);CHKERRQ(ierr);
     if (inv_edge == edge) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Inverted edge the same as edge");
-    ierr = PetscPolytopeGetData(edge, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "edge does not have oppositely signed vertices");
-    ierr = PetscPolytopeGetData(inv_edge, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_TRUE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "edge does not have oppositely signed vertices");
-    ierr = PetscPolytopeGetOrientationRange(edge, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -1 || oEnd != 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of edge");
-    ierr = PetscPolytopeGetOrientationRange(inv_edge, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -1 || oEnd != 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of edge");
   }
 
 #if 0
@@ -106,139 +116,77 @@ int main(int argc, char **argv)
   { /* cyclic triangle */
     PetscPolytope facets[3];
     PetscInt      vertexOffsets[4] = {0,2,4,6};
-    PetscInt      facetsToVertices[6] = {0,1,1,2,2,0};
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[6] = {0,1, 1,2, 2,0};
 
-    facets[0] = edge;
-    facets[1] = edge;
-    facets[2] = edge;
+    facets[0] = facets[1] = facets[2] = edge;
 
-    ierr = PetscPolytopeInsertCheck("triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &tri);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(tri, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "triangle does not have outward edges");
-    ierr = PetscPolytopeGetOrientationRange(tri, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -3 || oEnd != 3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of triangle");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -3, 3, &tri);CHKERRQ(ierr);
   }
 
   { /* non-cyclic triangle */
-    PetscPolytope facets[3], noncyctri;
+    PetscPolytope facets[3];
     PetscInt      vertexOffsets[4] = {0,2,4,6};
-    PetscInt      facetsToVertices[6] = {0,1,0,2,1,2};
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[6] = {0,1, 0,2, 1,2};
+    PetscBool     signs[3] = {PETSC_FALSE, PETSC_TRUE, PETSC_FALSE};
 
-    facets[0] = edge;
-    facets[1] = edge;
-    facets[2] = edge;
+    facets[0] = facets[1] = facets[2] = edge;
 
-    ierr = PetscPolytopeInsertCheck("non-cyclic-triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &noncyctri);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(noncyctri, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_TRUE || facetsInward[2] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "non-cyclic triangle does not have correct outward/inward edges");
-    ierr = PetscPolytopeGetOrientationRange(noncyctri, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -3 || oEnd != 3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of non-cyclic triangle");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("non-cyclic-triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, signs, -3, 3, &noncyctri);CHKERRQ(ierr);
   }
 
   { /* cyclic quadrilateral */
     PetscPolytope facets[4];
     PetscInt      vertexOffsets[5] = {0,2,4,6,8};
-    PetscInt      facetsToVertices[8] = {0,1,1,2,2,3,3,0};
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[8] = {0,1, 1,2, 2,3, 3,0};
 
     facets[0] = edge;
     facets[1] = edge;
     facets[2] = edge;
     facets[3] = edge;
 
-    ierr = PetscPolytopeInsertCheck("quadrilateral", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &quad);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(quad, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "quadrilateral does not have outward edges");
-    ierr = PetscPolytopeGetOrientationRange(quad, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -4 || oEnd != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of quadrilateral");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("quadrilateral", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -4, 4, &quad);CHKERRQ(ierr);
   }
 
   { /* non-cyclic quadrilateral */
-    PetscPolytope facets[4], noncycquad;
+    PetscPolytope facets[4];
     PetscInt      vertexOffsets[5] = {0,2,4,6,8};
-    PetscInt      facetsToVertices[8] = {0,1,2,3,0,2,1,3};
+    PetscInt      facetsToVertices[8] = {0,1, 2,3, 0,2, 1,3};
+    PetscBool     signs[4] = {PETSC_FALSE, PETSC_TRUE, PETSC_TRUE, PETSC_FALSE};
     const PetscBool *facetsInward;
 
-    facets[0] = edge;
-    facets[1] = edge;
-    facets[2] = edge;
-    facets[3] = edge;
+    facets[0] = facets[1] = facets[2] = facets[3] = edge;
 
-    ierr = PetscPolytopeInsertCheck("non-cyclic-quadrilateral", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &noncycquad);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(noncycquad, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_TRUE || facetsInward[2] != PETSC_TRUE || facetsInward[3] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "non-cyclic quadrilateral does not have correct outward/inward edges");
-    ierr = PetscPolytopeGetOrientationRange(noncycquad, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -4 || oEnd != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of non-cyclic quadrilateral");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("non-cyclic-quadrilateral", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, signs, -4, 4, &noncycquad);CHKERRQ(ierr);
   }
 
   { /* cyclic pentagon */
     PetscPolytope facets[5];
     PetscInt      vertexOffsets[6] = {0,2,4,6,8,10};
-    PetscInt      facetsToVertices[10] = {0,1,1,2,2,3,3,4,4,0};
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[10] = {0,1, 1,2, 2,3, 3,4, 4,0};
 
-    facets[0] = edge;
-    facets[1] = edge;
-    facets[2] = edge;
-    facets[3] = edge;
-    facets[4] = edge;
+    facets[0] = facets[1] = facets[2] = facets[3] = facets[4] = edge;
 
-    ierr = PetscPolytopeInsertCheck("pentagon", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &pent);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(pent, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE || facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "pentagon does not have outward edges");
-    ierr = PetscPolytopeGetOrientationRange(pent, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -5 || oEnd != 5) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of pentagon");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("pentagon", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -5, 5, &pent);CHKERRQ(ierr);
   }
 
   { /* tetrahedron */
     PetscPolytope facets[4];
     PetscInt      vertexOffsets[5] = {0,3,6,9,12};
-    PetscInt      facetsToVertices[12] = {0,1,2,0,3,1,0,2,3,2,1,3};
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[12] = {0,1,2, 0,3,1, 0,2,3, 2,1,3};
 
-    facets[0] = tri;
-    facets[1] = tri;
-    facets[2] = tri;
-    facets[3] = tri;
+    facets[0] = facets[1] = facets[2] = facets[3] = tri;
 
-    ierr = PetscPolytopeInsertCheck("tetrahedron", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &tet);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(tet, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "tetrahedron does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(tet, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -12 || oEnd != 12) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of tetrahedron");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("tetrahedron", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -12, 12, &tet);CHKERRQ(ierr);
   }
 
   { /* hexahedron */
     PetscPolytope facets[6];
     PetscInt      vertexOffsets[7] = {0,4,8,12,16,20,24};
-    PetscInt      facetsToVertices[24] = {
-                                           0,1,2,3,
-                                           4,5,6,7,
-                                           0,3,5,4,
-                                           2,1,7,6,
-                                           3,2,6,5,
-                                           0,4,7,1,
-                                         };
-    const PetscBool *facetsInward;
+    PetscInt      facetsToVertices[24] = {0,1,2,3, 4,5,6,7, 0,3,5,4, 2,1,7,6, 3,2,6,5, 0,4,7,1};
 
-    facets[0] = quad;
-    facets[1] = quad;
-    facets[2] = quad;
-    facets[3] = quad;
-    facets[4] = quad;
-    facets[5] = quad;
+    facets[0] = facets[1] = facets[2] = facets[3] = facets[4] = facets[5] = quad;
 
-    ierr = PetscPolytopeInsertCheck("hexahedron", 6, 8, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &hex);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(hex, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE ||
-        facetsInward[2] != PETSC_FALSE ||
-        facetsInward[3] != PETSC_FALSE ||
-        facetsInward[4] != PETSC_FALSE ||
-        facetsInward[5] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "hexahedron does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(hex, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of hexahedron");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("hexahedron", 6, 8, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -24, 24, &hex);CHKERRQ(ierr);
   }
 
   { /* wedge */
@@ -251,22 +199,11 @@ int main(int argc, char **argv)
                                            2,4,3,0,
                                            1,5,4,2,
                                          };
-    const PetscBool *facetsInward;
 
-    facets[0] = tri;
-    facets[1] = tri;
-    facets[2] = quad;
-    facets[3] = quad;
-    facets[4] = quad;
+    facets[0] = facets[1] = tri;
+    facets[2] = facets[3] = facets[4] = quad;
 
-    ierr = PetscPolytopeInsertCheck("triangular-prism", 5, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &wedge);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(wedge, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE ||
-        facetsInward[2] != PETSC_FALSE ||
-        facetsInward[3] != PETSC_FALSE ||
-        facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "triangular prism does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(wedge, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -6 || oEnd != 6) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of triangular prism");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("triangular-prism", 5, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -6, 6, &wedge);CHKERRQ(ierr);
   }
 
   { /* pyramid */
@@ -279,22 +216,11 @@ int main(int argc, char **argv)
                                            2,1,4,
                                            1,0,4,
                                          };
-    const PetscBool *facetsInward;
 
     facets[0] = quad;
-    facets[1] = tri;
-    facets[2] = tri;
-    facets[3] = tri;
-    facets[4] = tri;
+    facets[1] = facets[2] = facets[3] = facets[4] = tri;
 
-    ierr = PetscPolytopeInsertCheck("pyramid", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &pyr);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(pyr, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    if (facetsInward[1] != PETSC_FALSE ||
-        facetsInward[2] != PETSC_FALSE ||
-        facetsInward[3] != PETSC_FALSE ||
-        facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "pyramid does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(pyr, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -4 || oEnd != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of pyramid");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("pyramid", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -4, 4, &pyr);CHKERRQ(ierr);
   }
 
   { /* dodecahedron */
@@ -315,15 +241,10 @@ int main(int argc, char **argv)
                                            14, 13, 12, 19, 15,
                                            19, 18, 17, 16, 15,
                                          };
-    const PetscBool *facetsInward;
 
     for (f = 0; f < 12; f++) facets[f] = pent;
 
-    ierr = PetscPolytopeInsertCheck("dodecahedron", 12, 20, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &dodec);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(dodec, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    for (f = 0; f < 12; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dodecahedron does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(dodec, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -60 || oEnd != 60) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of dodecahedron");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("dodecahedron", 12, 20, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -60, 60, &dodec);CHKERRQ(ierr);
   }
 
   { /* octahedron */
@@ -340,15 +261,10 @@ int main(int argc, char **argv)
                                            0,5,3,
                                            5,4,3,
                                          };
-    const PetscBool *facetsInward;
 
     for (f = 0; f < 8; f++) facets[f] = tri;
 
-    ierr = PetscPolytopeInsertCheck("octahedron", 8, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &oct);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(oct, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    for (f = 0; f < 8; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "octahedron does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(oct, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of octahedron");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("octahedron", 8, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -24, 24, &oct);CHKERRQ(ierr);
   }
 
   { /* rhombic dodecahedron */
@@ -369,15 +285,10 @@ int main(int argc, char **argv)
                                            10,  9,  8, 13,
                                            10, 13, 11, 12,
                                          };
-    const PetscBool *facetsInward;
 
     for (f = 0; f < 12; f++) facets[f] = quad;
 
-    ierr = PetscPolytopeInsertCheck("rhombic-dodecahedron", 12, 14, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &rhomb);CHKERRQ(ierr);
-    ierr = PetscPolytopeGetData(rhomb, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
-    for (f = 0; f < 12; f++) if (facetsInward[f] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "rhombic dodecahedron does not have outward facets");
-    ierr = PetscPolytopeGetOrientationRange(rhomb, &oStart, &oEnd);CHKERRQ(ierr);
-    if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of rhombic dodecahedron");
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("rhombic-dodecahedron", 12, 14, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -24, 24, &rhomb);CHKERRQ(ierr);
   }
 
   ierr = PetscFinalize();
