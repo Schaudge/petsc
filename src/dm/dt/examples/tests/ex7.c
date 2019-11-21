@@ -47,6 +47,7 @@ static PetscErrorCode PetscPolytopeInsertCheckSignsSymmetry(const char name[], P
   const PetscBool *facetsInward;
   PetscInt       *ov, *wv, *wov;
   PetscInt       *of, *wf, *wof;
+  PetscInt       *ofo, *wfo, *wofo;
   PetscPolytope  p;
   PetscErrorCode ierr;
 
@@ -57,17 +58,48 @@ static PetscErrorCode PetscPolytopeInsertCheckSignsSymmetry(const char name[], P
   ierr = PetscPolytopeGetOrientationRange(p, &coStart, &coEnd);CHKERRQ(ierr);
   if (coStart != oStart || coEnd != oEnd) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of %s\n", name);
   ierr = PetscMalloc3(numVertices, &ov, numVertices, &wv, numVertices, &wov);CHKERRQ(ierr);
+  ierr = PetscMalloc3(numFacets, &of, numFacets, &wf, numFacets, &wof);CHKERRQ(ierr);
+  ierr = PetscMalloc3(numFacets, &ofo, numFacets, &wfo, numFacets, &wofo);CHKERRQ(ierr);
   for (o = oStart; o < oEnd; o++) {
+    PetscBool isOrient;
+    PetscInt  ocheck, oinv;
+
+    ierr = PetscPolytopeOrientationInverse(p, o, &oinv);CHKERRQ(ierr);
+    ierr = PetscPolytopeOrientationInverse(p, oinv, &ocheck);CHKERRQ(ierr);
+    if (ocheck != o) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s orientation inverse failure", name);
+
     ierr = PetscPolytopeOrientVertices(p, o, ov);CHKERRQ(ierr);
+    ierr = PetscPolytopeOrientationFromVertices(p, ov, &isOrient, &ocheck);CHKERRQ(ierr);
+    if (!isOrient || ocheck != o) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s orient -> vertex -> orient failure", name);
+
+    ierr = PetscPolytopeOrientFacets(p, o, of, ofo);CHKERRQ(ierr);
+    for (f = 0; f < numFacets; f++) {
+      ierr = PetscPolytopeOrientationFromFacet(p, f, of[f], ofo[f], &isOrient, &ocheck);CHKERRQ(ierr);
+      if (!isOrient || ocheck != o) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s orient -> (facet, o) -> orient failure", name);
+    }
     for (w = oStart; w < oEnd; w++) {
       ierr = PetscPolytopeOrientationCompose(p, w, o, &wo);CHKERRQ(ierr);
+
       ierr = PetscPolytopeOrientVertices(p, w, wv);CHKERRQ(ierr);
       ierr = PetscPolytopeOrientVertices(p, wo, wov);CHKERRQ(ierr);
       for (v = 0; v < numVertices; v++) {
         if (ov[wv[v]] != wov[v]) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s vertex permutation composition incompatibility", name);
       }
+
+      ierr = PetscPolytopeOrientFacets(p, w, wf, wfo);CHKERRQ(ierr);
+      ierr = PetscPolytopeOrientFacets(p, wo, wof, wofo);CHKERRQ(ierr);
+
+      for (f = 0; f < numFacets; f++) {
+        PetscInt wofocheck;
+
+        if (of[wf[f]] != wof[f]) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s facet permutation composition incompatibility", name);
+        ierr = PetscPolytopeOrientationCompose(facets[f], wfo[f], ofo[wf[f]], &wofocheck);CHKERRQ(ierr);
+        if (wofocheck != wofo[f]) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "%s facet orientation composition incompatibility", name);
+      }
     }
   }
+  ierr = PetscFree3(ofo, wfo, wofo);CHKERRQ(ierr);
+  ierr = PetscFree3(of, wf, wof);CHKERRQ(ierr);
   ierr = PetscFree3(ov, wv, wov);CHKERRQ(ierr);
   *polytope = p;
   PetscFunctionReturn(0);
