@@ -193,7 +193,7 @@ int main(int argc, char **argv)
   }
 
   { /* tetrahedron */
-    PetscPolytope facets[4], noncycquad;
+    PetscPolytope facets[4];
     PetscInt      vertexOffsets[5] = {0,3,6,9,12};
     PetscInt      facetsToVertices[12] = {0,1,2,0,3,1,0,2,3,2,1,3};
     const PetscBool *facetsInward;
@@ -208,6 +208,37 @@ int main(int argc, char **argv)
     if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "tetrahedron does not have outward facets");
     ierr = PetscPolytopeGetOrientationRange(tet, &oStart, &oEnd);CHKERRQ(ierr);
     if (oStart != -12 || oEnd != 12) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of tetrahedron");
+  }
+
+  { /* hexahedron */
+    PetscPolytope facets[6];
+    PetscInt      vertexOffsets[7] = {0,4,8,12,16,20,24};
+    PetscInt      facetsToVertices[24] = {
+                                           0,1,2,3,
+                                           4,5,6,7,
+                                           0,3,5,4,
+                                           2,1,7,6,
+                                           3,2,6,5,
+                                           0,4,7,1,
+                                         };
+    const PetscBool *facetsInward;
+
+    facets[0] = quad;
+    facets[1] = quad;
+    facets[2] = quad;
+    facets[3] = quad;
+    facets[4] = quad;
+    facets[5] = quad;
+
+    ierr = PetscPolytopeInsertCheck("hexahedron", 6, 8, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &hex);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(hex, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    if (facetsInward[1] != PETSC_FALSE ||
+        facetsInward[2] != PETSC_FALSE ||
+        facetsInward[3] != PETSC_FALSE ||
+        facetsInward[4] != PETSC_FALSE ||
+        facetsInward[5] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "hexahedron does not have outward facets");
+    ierr = PetscPolytopeGetOrientationRange(hex, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -24 || oEnd != 24) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of hexahedron");
   }
 
   ierr = PetscFinalize();
