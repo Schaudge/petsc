@@ -173,6 +173,25 @@ int main(int argc, char **argv)
     if (oStart != -4 || oEnd != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of non-cyclic quadrilateral");
   }
 
+  { /* cyclic pentagon */
+    PetscPolytope facets[5];
+    PetscInt      vertexOffsets[6] = {0,2,4,6,8,10};
+    PetscInt      facetsToVertices[10] = {0,1,1,2,2,3,3,4,4,0};
+    const PetscBool *facetsInward;
+
+    facets[0] = edge;
+    facets[1] = edge;
+    facets[2] = edge;
+    facets[3] = edge;
+    facets[4] = edge;
+
+    ierr = PetscPolytopeInsertCheck("pentagon", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &pent);CHKERRQ(ierr);
+    ierr = PetscPolytopeGetData(pent, NULL, NULL, NULL, NULL, NULL, &facetsInward);CHKERRQ(ierr);
+    if (facetsInward[1] != PETSC_FALSE || facetsInward[2] != PETSC_FALSE || facetsInward[3] != PETSC_FALSE || facetsInward[4] != PETSC_FALSE) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "pentagon does not have outward edges");
+    ierr = PetscPolytopeGetOrientationRange(pent, &oStart, &oEnd);CHKERRQ(ierr);
+    if (oStart != -5 || oEnd != 5) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect symmetry group of pentagon");
+  }
+
   ierr = PetscFinalize();
   return ierr;
 }
