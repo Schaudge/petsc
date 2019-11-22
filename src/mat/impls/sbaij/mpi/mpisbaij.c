@@ -1746,30 +1746,26 @@ PetscErrorCode MatSetOption_MPISBAIJ(Mat A,MatOption op,PetscBool flg)
     MatCheckPreallocated(A,1);
     ierr = MatSetOption(a->A,op,flg);CHKERRQ(ierr);
 #if defined(PETSC_USE_COMPLEX)
-    A->ops->mult             = MatMult_MPISBAIJ_Hermitian;
-    A->ops->multadd          = MatMultAdd_MPISBAIJ_Hermitian;
-    A->ops->multtranspose    = NULL;
-    A->ops->multtransposeadd = NULL;
+    if (flg) { /* need different mat-vec ops */
+      A->ops->mult             = MatMult_MPISBAIJ_Hermitian;
+      A->ops->multadd          = MatMultAdd_MPISBAIJ_Hermitian;
+      A->ops->multtranspose    = NULL;
+      A->ops->multtransposeadd = NULL;
+      A->symmetric = PETSC_FALSE;
+    }
 #endif
     break;
   case MAT_SPD:
-    A->spd_set = PETSC_TRUE;
-    A->spd     = flg;
-    if (flg) {
-      A->symmetric                  = PETSC_TRUE;
-      A->structurally_symmetric     = PETSC_TRUE;
-      A->symmetric_set              = PETSC_TRUE;
-      A->structurally_symmetric_set = PETSC_TRUE;
-    }
-    break;
   case MAT_SYMMETRIC:
     MatCheckPreallocated(A,1);
     ierr = MatSetOption(a->A,op,flg);CHKERRQ(ierr);
 #if defined(PETSC_USE_COMPLEX)
-    A->ops->mult             = MatMult_MPISBAIJ;
-    A->ops->multadd          = MatMultAdd_MPISBAIJ;
-    A->ops->multtranspose    = MatMult_MPISBAIJ;
-    A->ops->multtransposeadd = MatMultAdd_MPISBAIJ;
+    if (flg) { /* restore to use default mat-vec ops */
+      A->ops->mult             = MatMult_MPISBAIJ;
+      A->ops->multadd          = MatMultAdd_MPISBAIJ;
+      A->ops->multtranspose    = MatMult_MPISBAIJ;
+      A->ops->multtransposeadd = MatMultAdd_MPISBAIJ;
+    }
 #endif
     break;
   case MAT_STRUCTURALLY_SYMMETRIC:
