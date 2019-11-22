@@ -34,7 +34,7 @@ class Configure(config.package.Package):
     self.cuda       = framework.require('config.packages.cuda',self)
     self.openmp     = framework.require('config.packages.openmp',self)
     self.metis      = framework.require('config.packages.metis',self)
-    self.odeps      = [self.openmp,self.cuda]
+    self.odeps      = [self.openmp,self.cuda,self.metis]
     return
 
   def Install(self):
