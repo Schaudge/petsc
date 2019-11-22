@@ -1416,9 +1416,10 @@ static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet pset, Pets
       vertices[i] = pData->orientsToVertexOrders[(orientation - pData->orientStart) * pData->numVertices + i];
     }
   } else {
-    PetscInt *facetVertices;
+    PetscInt vertArray[32];
+    PetscInt *facetVertices = &vertArray[0];
 
-    ierr = PetscMalloc1(pData->numVertices, &facetVertices);CHKERRQ(ierr);
+    if (pData->numVertices > 32) {ierr = PetscMalloc1(pData->numVertices, &facetVertices);CHKERRQ(ierr);}
     for (i = 0; i < pData->numFacets; i++) {
       PetscInt f = pData->orientsToFacetOrders[(orientation - pData->orientStart) * pData->numFacets + i].index;
       PetscInt o = pData->orientsToFacetOrders[(orientation - pData->orientStart) * pData->numFacets + i].orientation;
@@ -1431,7 +1432,7 @@ static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet pset, Pets
         vertices[pData->facetsToVertices[ioffset + j]] = pData->facetsToVertices[foffset + facetVertices[j]];
       }
     }
-    ierr = PetscFree(facetVertices);CHKERRQ(ierr);
+    if (pData->numVertices > 32) {ierr = PetscFree(facetVertices);CHKERRQ(ierr);}
   }
   PetscFunctionReturn(0);
 }

@@ -108,7 +108,7 @@ static PetscErrorCode PetscPolytopeInsertCheckSignsSymmetry(const char name[], P
 int main(int argc, char **argv)
 {
   PetscPolytope  null, no_point, vertex, edge, tri, noncyctri, quad, noncycquad,
-                 tet, noncyctet, hex, pent, wedge, pyr, dodec, oct, rhomb, icos, pchor;
+                 tet, noncyctet, hex, pent, wedge, pyr, dodec, oct, rhomb, icos, pchor, tess, ortho, oplex;
   PetscInt       oStart, oEnd;
   PetscErrorCode ierr, testerr;
 
@@ -400,6 +400,92 @@ int main(int argc, char **argv)
     for (f = 0; f < 5; f++) facets[f] = tet;
     ierr = PetscPolytopeInsertCheckSignsSymmetry("pentachoron", 5, 5, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -60, 60, &pchor);CHKERRQ(ierr);
   }
+
+  { /* tesseract (4-cube) */
+    PetscPolytope facets[8];
+    PetscInt      f;
+    PetscInt      vertexOffsets[9];
+    PetscInt      facetsToVertices[64] = {
+                                            0,  1,  2,  3,  4,  5,  6,  7,
+                                            8,  9, 10, 11,  0,  3,  2,  1,
+                                            4,  7,  6,  5, 12, 13, 14, 15,
+                                            8,  0,  3, 11, 12, 13,  5,  4,
+                                            1,  9, 10,  2,  7,  6, 14, 15,
+                                            3,  2, 10, 11,  5, 13, 14,  6,
+                                            8,  9,  1,  0, 12,  4,  7, 15,
+                                            8, 11, 10,  9, 12, 15, 14, 13,
+                                         };
+
+    for (f = 0; f < 8; f++)  facets[f] = hex;
+    for (f = 0; f <= 8; f++) vertexOffsets[f] = f*8;
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("tesseract", 8, 16, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -192, 192, &tess);CHKERRQ(ierr);
+  }
+
+  { /* hyperoctahedron (4-orthoplex) */
+    PetscPolytope facets[16];
+    PetscInt      f;
+    PetscInt      vertexOffsets[17];
+    PetscInt      facetsToVertices[64] = {
+                                            0,  1,  2,  3,
+                                            1,  4,  2,  3,
+                                            5,  0,  2,  3,
+                                            4,  5,  2,  3,
+                                            1,  0,  6,  3,
+                                            4,  1,  6,  3,
+                                            0,  5,  6,  3,
+                                            5,  4,  6,  3,
+                                            1,  0,  2,  7,
+                                            4,  1,  2,  7,
+                                            0,  5,  2,  7,
+                                            5,  4,  2,  7,
+                                            0,  1,  6,  7,
+                                            1,  4,  6,  7,
+                                            5,  0,  6,  7,
+                                            4,  5,  6,  7,
+                                         };
+
+    for (f = 0; f < 16; f++)  facets[f] = tet;
+    for (f = 0; f <= 16; f++) vertexOffsets[f] = f*4;
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("hyperoctahedron", 16, 8, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -192, 192, &ortho);CHKERRQ(ierr);
+  }
+
+#if 0
+  { /* 24-cell (octaplex) */
+    PetscPolytope facets[24];
+    PetscInt      f;
+    PetscInt      vertexOffsets[25];
+    PetscReal     vertices[96] = {
+                                   -1., -1.,  0.,  0.,
+                                   -1.,  1.,  0.,  0.,
+                                   -1.,  0., -1.,  0.,
+                                   -1.,  0.,  1.,  0.,
+                                   -1.,  0.,  0., -1.,
+                                   -1.,  0.,  0.,  1.,
+                                    1., -1.,  0.,  0.,
+                                    1.,  1.,  0.,  0.,
+                                    1.,  0., -1.,  0.,
+                                    1.,  0.,  1.,  0.,
+                                    1.,  0.,  0., -1.,
+                                    1.,  0.,  0.,  1.,
+                                    0., -1., -1.,  0.,
+                                    0., -1.,  1.,  0.,
+                                    0., -1.,  0., -1.,
+                                    0., -1.,  0.,  1.,
+                                    0.,  1., -1.,  0.,
+                                    0.,  1.,  1.,  0.,
+                                    0.,  1.,  0., -1.,
+                                    0.,  1.,  0.,  1.,
+                                    0.,  0., -1., -1.,
+                                    0.,  0., -1.,  1.,
+                                    0.,  0.,  1., -1.,
+                                    0.,  0.,  1.,  1.,
+                                 };
+
+    for (f = 0; f < 24; f++)  facets[f] = oct;
+    for (f = 0; f <= 24; f++) vertexOffsets[f] = f * 6;
+  }
+#endif
+
   ierr = PetscFinalize();
   return ierr;
 }
