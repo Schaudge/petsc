@@ -14,8 +14,8 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 typedef enum {NEUMANN, DIRICHLET, NONE} BCType;
 
 typedef struct {
-  PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD;
-  PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD;
+  PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS;
+  PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS;
   PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, usePetscFE, useKSP, vtkSoln, solver;
   /* Domain and mesh definition */
   PetscInt       dim, meshSize, numFields, overlap, qorder, level, commax;
@@ -546,32 +546,24 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
 
   PetscFunctionBeginUser;
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = PetscLogStageRegister("CommStagePETSCFE", &user->stagePETSCFE);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("CommPETSCFE", 0, &user->eventPETSCFE);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user->stagePETSCFE);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user->eventPETSCFE, 0, 0, 0, 0);CHKERRQ(ierr);
+
   ierr = PetscFECreateDefault(comm, user->dim, user->numFields, user->simplex, NULL, user->qorder, &fe);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(user->eventPETSCFE, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe, "LaplaceFE");CHKERRQ(ierr);
   ierr = DMSetField(dm, 0, NULL, (PetscObject) fe);CHKERRQ(ierr);
+
+  ierr = PetscLogStageRegister("CommStageCREATEDS", &user->stageCREATEDS);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("CommCREATEDS", 0, &user->eventCREATEDS);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user->stageCREATEDS);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user->eventCREATEDS, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
-  if (user->solver ) {
-    if (!user->useKSP) {
-      ierr = SetupProblem(dm, user);CHKERRQ(ierr);
-    }
-    while (cdm) {
-      ierr = DMCopyDisc(dm, cdm);CHKERRQ(ierr);
-      if (user->bcType == DIRICHLET && user->interpolate) {
-        PetscBool hasLabel;
-
-        ierr = DMHasLabel(cdm, "marker", &hasLabel);CHKERRQ(ierr);
-        if (!hasLabel) {
-          DMLabel label;
-
-          ierr = DMCreateLabel(cdm, "marker");CHKERRQ(ierr);
-          ierr = DMGetLabel(cdm, "marker", &label);CHKERRQ(ierr);
-          ierr = DMPlexMarkBoundaryFaces(cdm, 1, label);CHKERRQ(ierr);
-          ierr = DMPlexLabelComplete(cdm, label);CHKERRQ(ierr);
-        }
-      }
-      ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
-    }
-  }
+  ierr = PetscLogEventEnd(user->eventCREATEDS, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
