@@ -5,6 +5,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # include <petscsnes.h>
 # include <petscds.h>
 # include <petscksp.h>
+# include <petscdmlabel.h>
 
 # define PETSCVIEWERVTK          "vtk"
 # define PETSCVIEWERASCII        "ascii"
@@ -15,12 +16,13 @@ typedef enum {NEUMANN, DIRICHLET, NONE} BCType;
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, usePetscFE, useKSP, vtkSoln;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, usePetscFE, useKSP, vtkSoln, solver;
   /* Domain and mesh definition */
   PetscInt       dim, meshSize, numFields, overlap, qorder, level, commax;
   PetscScalar    refinementLimit;
   char           filename[2048];    /* The optional mesh file */
   char           bar[19];
+  VecType	 ctype;
   /* Problem definition */
   BCType         bcType;
   DMBoundaryType periodicity[3];
@@ -34,15 +36,15 @@ static PetscErrorCode SetupProblem(DM, AppCtx*);
 /* ADDITIONAL FUNCTIONS */
 PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
 {
-  PetscErrorCode        ierr;
-  const char            *string;
+  PetscErrorCode ierr;
+  const char    *string;
 
+
+  PetscFunctionBeginUser;
   ierr = PetscViewerStringSPrintf(genViewer, "Dimension of mesh:%s>%d\n", user.bar + 3, user.dim);CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Number of Fields:%s>%d", user.bar + 2, user.numFields);CHKERRQ(ierr);
   if (user.numFields == 100) {
     ierr = PetscViewerStringSPrintf(genViewer, "(default)");CHKERRQ(ierr);
-  } else if (user.numFields == 1) {
-    ierr = PetscViewerStringSPrintf(genViewer, "(default PetscFE)");CHKERRQ(ierr);
   }
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Ghost point overlap:%s>%d\n", user.bar + 5, user.overlap);CHKERRQ(ierr);
@@ -61,7 +63,8 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   if (user.usePetscFE) {
     ierr = PetscViewerStringSPrintf(genViewer, "┗ Quadrature order:%s>%d\n", user.bar + 4 , user.qorder);CHKERRQ(ierr);
   }
-  ierr = PetscViewerStringSPrintf(genViewer, "Solver Package Used:%s>%s\n", user.bar + 5, user.useKSP ? "KSP" : "SNES");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Solver Package Used:%s>%s\n", user.bar + 5, user.useKSP ? "KSP *" : user.solver ? "SNES *" : "NONE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "DM Vec Type Used:%s>%s\n", user.bar + 2, user.ctype);CHKERRQ(ierr);
 
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
 
@@ -71,8 +74,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   ierr = PetscViewerStringGetStringRead(genViewer, &string, NULL);CHKERRQ(ierr);
   ierr = PetscPrintf(comm, string);CHKERRQ(ierr);
   ierr = PetscPrintf(comm, "%s End General Info %s\n", user.bar + 2, user.bar + 5);CHKERRQ(ierr);
-
-  return ierr;
+  PetscFunctionReturn(0);
 }
 
 /* KSP */
@@ -284,6 +286,7 @@ PetscErrorCode AnalyticalSoln(DM dm, Vec *x, AppCtx *user)
 }
 
 /* SNES */
+
 static void f0_xytrig_u(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
   f0[0] = -2.0*PetscCosScalar(x[1])*PetscSinScalar(x[0]);
@@ -311,6 +314,7 @@ static PetscErrorCode AnalyticalSoln2D(PetscInt dim, PetscReal time, const Petsc
   return 0;
 }
 
+
 /* GENERAL PREPROCESSING */
 static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 {
@@ -330,6 +334,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->usePetscFE           = PETSC_FALSE;
   options->useKSP               = PETSC_FALSE;
   options->vtkSoln              = PETSC_FALSE;
+  options->solver		= PETSC_FALSE;
   options->periodicity[0]       = DM_BOUNDARY_GHOSTED;
   options->periodicity[1]       = DM_BOUNDARY_GHOSTED;
   options->periodicity[2]       = DM_BOUNDARY_GHOSTED;
@@ -347,7 +352,6 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   ierr = PetscStrncpy(options->bar, "-----------------\0", 19);CHKERRQ(ierr);
 
   ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
-
     ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", options->perfTest, &options->perfTest, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-interpolate", "Interpolate the mesh", "", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-use_ksp", "Use ksp isntead of snes", "", options->useKSP, &options->useKSP, &kspReq);CHKERRQ(ierr);
@@ -378,9 +382,10 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetInt(NULL, NULL, "-refine_dm_level", &options->level, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetScalar(NULL, NULL, "-refine_limit", &options->refinementLimit, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-max_com", &options->commax, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-use_solver", "Use a solver", "", options->solver, &options->solver, NULL);CHKERRQ(ierr);
     /* Required for the SNES FEM solver, putting it here so it can be overriden later */
     ierr = PetscOptionsUsed(NULL, "-petscspace_degree", &spaceDegreeSet);CHKERRQ(ierr);
-    if (!spaceDegreeSet && !options->useKSP) {
+    if (!spaceDegreeSet && !options->useKSP && options->solver) {
       ierr = PetscOptionsSetValue(NULL, "-petscspace_degree", "1");CHKERRQ(ierr);
       ierr = PetscPrintf(comm, "SETTING DEFAULT -petscspace_degree = 1\n");CHKERRQ(ierr);
     }
@@ -523,6 +528,9 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     }
   }
   ierr = DMLocalizeCoordinates(*dm);CHKERRQ(ierr);
+# if defined(PETSC_HAVE_CUDA)
+  ierr = DMSetVecType(*dm, VECCUDA);CHKERRQ(ierr);
+# endif
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMSetUp(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
@@ -542,25 +550,27 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
   ierr = PetscObjectSetName((PetscObject) fe, "LaplaceFE");CHKERRQ(ierr);
   ierr = DMSetField(dm, 0, NULL, (PetscObject) fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
-  if (!user->useKSP) {
-    ierr = SetupProblem(dm, user);CHKERRQ(ierr);
-  }
-  while (cdm) {
-    ierr = DMCopyDisc(dm, cdm);CHKERRQ(ierr);
-    if (user->bcType == DIRICHLET && user->interpolate) {
-      PetscBool hasLabel;
-
-      ierr = DMHasLabel(cdm, "marker", &hasLabel);CHKERRQ(ierr);
-      if (!hasLabel) {
-        DMLabel label;
-
-        ierr = DMCreateLabel(cdm, "marker");CHKERRQ(ierr);
-        ierr = DMGetLabel(cdm, "marker", &label);CHKERRQ(ierr);
-        ierr = DMPlexMarkBoundaryFaces(cdm, 1, label);CHKERRQ(ierr);
-        ierr = DMPlexLabelComplete(cdm, label);CHKERRQ(ierr);
-      }
+  if (user->solver ) {
+    if (!user->useKSP) {
+      ierr = SetupProblem(dm, user);CHKERRQ(ierr);
     }
-    ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
+    while (cdm) {
+      ierr = DMCopyDisc(dm, cdm);CHKERRQ(ierr);
+      if (user->bcType == DIRICHLET && user->interpolate) {
+        PetscBool hasLabel;
+
+        ierr = DMHasLabel(cdm, "marker", &hasLabel);CHKERRQ(ierr);
+        if (!hasLabel) {
+          DMLabel label;
+
+          ierr = DMCreateLabel(cdm, "marker");CHKERRQ(ierr);
+          ierr = DMGetLabel(cdm, "marker", &label);CHKERRQ(ierr);
+          ierr = DMPlexMarkBoundaryFaces(cdm, 1, label);CHKERRQ(ierr);
+          ierr = DMPlexLabelComplete(cdm, label);CHKERRQ(ierr);
+        }
+      }
+      ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
+    }
   }
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -592,14 +602,10 @@ int main(int argc, char **argv)
   PetscPartitioner      partitioner;
   PetscPartitionerType  partitionername;
   DM                    dm;
-  SNES                  snes;
-  KSP                   ksp;
-  Mat                   A, J;
-  MatNullSpace          nullspace = NULL;
   IS                    globalCellNumIS, globalVertNumIS;
-  Vec                   solVecLocal, solVecGlobal, VDot, u, b, AnalyticalSolnVec, resVec;
+  Vec                   solVecLocal, solVecGlobal, VDot, dummyVecGlobal, dummyVecLocal;
   PetscInt              globalVertSize, globalCellSize, commiter;
-  PetscScalar           VDotResult, res;
+  PetscScalar           VDotResult;
   char                  genInfo[PETSC_MAX_PATH_LEN];
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
@@ -609,125 +615,132 @@ int main(int argc, char **argv)
   ierr = ProcessOpts(comm, &user);CHKERRQ(ierr);
   ierr = ProcessMesh(comm, &user, &dm);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &user);
-  ierr = PetscMalloc2(1, &user.exactFuncs, 1, &user.exactFields);CHKERRQ(ierr);
   ierr = SetupDiscretization(dm, &user);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
-  ierr = VecSet(u, 1.0);CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &b);CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &AnalyticalSolnVec);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) u, "Solution vector");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) b, "RHS vector");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) AnalyticalSolnVec, "Analytical Solution");CHKERRQ(ierr);
-  //ierr = AnalyticalSoln(dm, &AnalyticalSolnVec, &user);CHKERRQ(ierr);
-  if (user.useKSP) {
-    Mat laplacian;
+  if (user.solver) {
+    Vec	u, b, AnalyticalSolnVec, resVec;
+    Mat A, J;
+    MatNullSpace nullspace = NULL;
+    PetscScalar  res;
 
-    ierr = KSPCreate(comm, &ksp);CHKERRQ(ierr);
-    ierr = KSPSetDM(ksp,(DM) dm);CHKERRQ(ierr);
-    ierr = KSPSetDMActive(ksp, PETSC_FALSE);CHKERRQ(ierr);
-    if (user.fileflg) {
-      ierr = KSPSetComputeOperators(ksp, ComputeLaplacianOperatorWithKSP, &user);CHKERRQ(ierr);
+    ierr = PetscMalloc2(1, &user.exactFuncs, 1, &user.exactFields);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
+    ierr = VecSet(u, 1.0);CHKERRQ(ierr);
+    ierr = VecDuplicate(u, &b);CHKERRQ(ierr);
+    ierr = VecDuplicate(u, &AnalyticalSolnVec);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) u, "Solution vector");CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) b, "RHS vector");CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) AnalyticalSolnVec, "Analytical Solution");CHKERRQ(ierr);
+    //ierr = AnalyticalSoln(dm, &AnalyticalSolnVec, &user);CHKERRQ(ierr);
+    if (user.useKSP) {
+      KSP ksp;
+      Mat laplacian;
+
+      ierr = KSPCreate(comm, &ksp);CHKERRQ(ierr);
+      ierr = KSPSetDM(ksp,(DM) dm);CHKERRQ(ierr);
+      ierr = KSPSetDMActive(ksp, PETSC_FALSE);CHKERRQ(ierr);
+      if (user.fileflg) {
+        ierr = KSPSetComputeOperators(ksp, ComputeLaplacianOperatorWithKSP, &user);CHKERRQ(ierr);
+      } else {
+        ierr = ComputeLaplacianOperator(&laplacian, &user);CHKERRQ(ierr);
+        ierr = KSPSetOperators(ksp, laplacian, laplacian);CHKERRQ(ierr);
+      }
+      ierr = KSPSetComputeRHS(ksp, ComputeRHS, &user);CHKERRQ(ierr);
+      ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+
+      ierr = ComputeRHS(ksp, b, &user);CHKERRQ(ierr);
+      //ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);CHKERRQ(ierr);
+      //ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+      ierr = KSPSolve(ksp, b, u);CHKERRQ(ierr);
+      ierr = KSPGetSolution(ksp, &u);CHKERRQ(ierr);
+      ierr = KSPGetRhs(ksp, &b);CHKERRQ(ierr);
+      ierr = VecViewFromOptions(u, NULL, "-vec_view_u");CHKERRQ(ierr);
+      ierr = VecViewFromOptions(b, NULL, "-vec_view_b");CHKERRQ(ierr);
+      ierr = VecViewFromOptions(AnalyticalSolnVec, NULL, "-vec_view_soln");CHKERRQ(ierr);
+      ierr = KSPReasonViewFromOptions(ksp);CHKERRQ(ierr);
+      ierr = KSPGetResidualNorm(ksp, &res);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "KSP RESIDUAL: %f\n", res);CHKERRQ(ierr);
+      ierr = VecAXPY(u, -1.0, AnalyticalSolnVec);CHKERRQ(ierr);
+      ierr = VecNorm(u, NORM_2, &res);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "CALCULATED ERROR: %f\n", res);CHKERRQ(ierr);
+      ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
+      ierr = MatDestroy(&laplacian);CHKERRQ(ierr);
     } else {
-      ierr = ComputeLaplacianOperator(&laplacian, &user);CHKERRQ(ierr);
-      ierr = KSPSetOperators(ksp, laplacian, laplacian);CHKERRQ(ierr);
-    }
-    ierr = KSPSetComputeRHS(ksp, ComputeRHS, &user);CHKERRQ(ierr);
-    ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+      SNES snes;
 
-    ierr = ComputeRHS(ksp, b, &user);CHKERRQ(ierr);
-    //ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);CHKERRQ(ierr);
-    //ierr = KSPSetUp(ksp);CHKERRQ(ierr);
-    ierr = KSPSolve(ksp, b, u);CHKERRQ(ierr);
-    ierr = KSPGetSolution(ksp, &u);CHKERRQ(ierr);
-    ierr = KSPGetRhs(ksp, &b);CHKERRQ(ierr);
-    ierr = VecViewFromOptions(u, NULL, "-vec_view_u");CHKERRQ(ierr);
-    ierr = VecViewFromOptions(b, NULL, "-vec_view_b");CHKERRQ(ierr);
-    ierr = VecViewFromOptions(AnalyticalSolnVec, NULL, "-vec_view_soln");CHKERRQ(ierr);
-    ierr = KSPReasonViewFromOptions(ksp);CHKERRQ(ierr);
-    ierr = KSPGetResidualNorm(ksp, &res);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm, "KSP RESIDUAL: %f\n", res);CHKERRQ(ierr);
-    ierr = VecAXPY(u, -1.0, AnalyticalSolnVec);CHKERRQ(ierr);
-    ierr = VecNorm(u, NORM_2, &res);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm, "CALCULATED ERROR: %f\n", res);CHKERRQ(ierr);
-    ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
-    ierr = MatDestroy(&laplacian);CHKERRQ(ierr);
-  } else {
-    ierr = SNESCreate(comm, &snes);CHKERRQ(ierr);
-    ierr = SNESSetDM(snes, dm);CHKERRQ(ierr);
-
-    ierr = DMCreateMatrix(dm, &J);CHKERRQ(ierr);
-    A = J;
-    if (user.bcType != DIRICHLET) {
-      ierr = MatNullSpaceCreate(PetscObjectComm((PetscObject) dm), PETSC_TRUE, 0, NULL, &nullspace);CHKERRQ(ierr);
-      ierr = MatSetNullSpace(A, nullspace);CHKERRQ(ierr);
+      ierr = SNESCreate(comm, &snes);CHKERRQ(ierr);
+      ierr = SNESSetDM(snes, dm);CHKERRQ(ierr);
+      ierr = DMCreateMatrix(dm, &J);CHKERRQ(ierr);
+      A = J;
+      if (user.bcType != DIRICHLET) {
+        ierr = MatNullSpaceCreate(PetscObjectComm((PetscObject) dm), PETSC_TRUE, 0, NULL, &nullspace);CHKERRQ(ierr);
+        ierr = MatSetNullSpace(A, nullspace);CHKERRQ(ierr);
+      }
+      ierr = DMPlexSetSNESLocalFEM(dm, &user, &user, &user);CHKERRQ(ierr);
+      ierr = SNESSetJacobian(snes, A, J, NULL, NULL);CHKERRQ(ierr);
+      ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
+      if (user.fieldBC) {
+        ierr = DMProjectField(dm, 0.0, u, user.exactFields, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
+      } else {
+        ierr = DMProjectFunction(dm, 0.0, user.exactFuncs, NULL, INSERT_ALL_VALUES, b);CHKERRQ(ierr);
+      }
+      ierr = SNESSolve(snes, b, u);CHKERRQ(ierr);
+      ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
+      ierr = SNESGetRhs(snes, &b);CHKERRQ(ierr);
+      //ierr = SNESGetDM(snes, &dm);CHKERRQ(ierr);
+      ierr = VecChop(u, 3.0e-9);CHKERRQ(ierr);
+      ierr = VecViewFromOptions(u, NULL, "-vec_view_u");CHKERRQ(ierr);
+      ierr = VecViewFromOptions(b, NULL, "-vec_view_b");CHKERRQ(ierr);
+      ierr = VecViewFromOptions(AnalyticalSolnVec, NULL, "-vec_view_soln");CHKERRQ(ierr);
+      ierr = SNESGetFunction(snes, &resVec, NULL, NULL);CHKERRQ(ierr);
+      ierr = SNESComputeFunction(snes, u, resVec);CHKERRQ(ierr);
+      ierr = VecNorm(resVec, NORM_2, &res);CHKERRQ(ierr);
+      ierr = PetscPrintf(comm, "RESIDUAL VEC NORM: %f\n", res);CHKERRQ(ierr);
+      ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
+      if (A!=J) ierr = MatDestroy(&A);CHKERRQ(ierr);
+      ierr = MatDestroy(&J);CHKERRQ(ierr);
+      ierr = VecDestroy(&u);CHKERRQ(ierr);
+      ierr = PetscFree2(user.exactFuncs, user.exactFields);CHKERRQ(ierr);
+      ierr = SNESDestroy(&snes);CHKERRQ(ierr);
     }
-    ierr = DMPlexSetSNESLocalFEM(dm, &user, &user, &user);CHKERRQ(ierr);
-    ierr = SNESSetJacobian(snes, A, J, NULL, NULL);CHKERRQ(ierr);
-    ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
-    if (user.fieldBC) {
-      ierr = DMProjectField(dm, 0.0, u, user.exactFields, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
-    } else {
-      ierr = DMProjectFunction(dm, 0.0, user.exactFuncs, NULL, INSERT_ALL_VALUES, b);CHKERRQ(ierr);
-    }
-    ierr = SNESSolve(snes, b, u);CHKERRQ(ierr);
-    ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
-    ierr = SNESGetRhs(snes, &b);CHKERRQ(ierr);
-    //ierr = SNESGetDM(snes, &dm);CHKERRQ(ierr);
-    ierr = VecChop(u, 3.0e-9);CHKERRQ(ierr);
-    ierr = VecViewFromOptions(u, NULL, "-vec_view_u");CHKERRQ(ierr);
-    ierr = VecViewFromOptions(b, NULL, "-vec_view_b");CHKERRQ(ierr);
-    ierr = VecViewFromOptions(AnalyticalSolnVec, NULL, "-vec_view_soln");CHKERRQ(ierr);
-    ierr = SNESGetFunction(snes, &resVec, NULL, NULL);CHKERRQ(ierr);
-    ierr = SNESComputeFunction(snes, u, resVec);CHKERRQ(ierr);
-    ierr = VecNorm(resVec, NORM_2, &res);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm, "RESIDUAL VEC NORM: %f\n", res);CHKERRQ(ierr);
-    ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
-    if (A!=J) ierr = MatDestroy(&A);CHKERRQ(ierr);
-    ierr = MatDestroy(&J);CHKERRQ(ierr);
-    ierr = VecDestroy(&u);CHKERRQ(ierr);
-    ierr = PetscFree2(user.exactFuncs, user.exactFields);CHKERRQ(ierr);
-    ierr = SNESDestroy(&snes);CHKERRQ(ierr);
+    ierr = VecDestroy(&AnalyticalSolnVec);CHKERRQ(ierr);
   }
-
   /*    Set up DM and initialize fields OLD
-  {
-    PetscInt    numDOF[numFields*(dim+1)], numComp[numFields];
-    //  Init number of Field Components
-    for (k = 0; k < numFields; k++){numComp[k] = 1;}
-    //  Init numDOF[field componentID] = Not Used
-    for (k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
-    //  numDOF[field componentID] = Used
-    numDOF[0] = 1;
-    //  bcField[boundary conditionID] = Dirichtlet Val
-    bcField[0] = 0;
+   {
+   PetscInt    numDOF[numFields*(dim+1)], numComp[numFields];
+   //  Init number of Field Components
+   for (k = 0; k < numFields; k++){numComp[k] = 1;}
+   //  Init numDOF[field componentID] = Not Used
+   for (k = 0; k < numFields*(dim+1); ++k){numDOF[k] = 0;}
+   //  numDOF[field componentID] = Used
+   numDOF[0] = 1;
+   //  bcField[boundary conditionID] = Dirichtlet Val
+   bcField[0] = 0;
 
-    //  Assign BC using IS of LOCAL boundaries
-    ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
-    ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
-    ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldName(section, 0, "Default_Field");CHKERRQ(ierr);
-    ierr = DMSetSection(dm, section);CHKERRQ(ierr);
-    if (sectionDisp) {
-      ierr = PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);CHKERRQ(ierr);
-      ierr = PetscSectionView(section, 0);CHKERRQ(ierr);
-      ierr = PetscPrintf(comm,"%s End Petsc Section View %s\n",bar, bar);CHKERRQ(ierr);
-    }
-    ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
-    ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
-    */
-
-  /*    Create PetscFE OLD
-  if (usePetscFE) {
-    PetscFE     defaultFE;
-    ierr = PetscFECreateDefault(comm, dim, dim, simplex, NULL, qorder, &defaultFE);CHKERRQ(ierr);
-    ierr = PetscFESetName(defaultFE, "Default_FE");CHKERRQ(ierr);
-    ierr = DMSetField(dm, 0, NULL, (PetscObject) defaultFE);CHKERRQ(ierr);
-    ierr = DMCreateDS(dm);CHKERRQ(ierr);
-    ierr = PetscFEDestroy(&defaultFE);CHKERRQ(ierr);
-  }
+   //  Assign BC using IS of LOCAL boundaries
+   ierr = DMGetStratumIS(dm, "depth", dim, &bcPointsIS);CHKERRQ(ierr);
+   ierr = DMSetNumFields(dm, numFields);CHKERRQ(ierr);
+   ierr = DMPlexCreateSection(dm, NULL, numComp, numDOF, numBC, bcField, NULL, &bcPointsIS, NULL, &section);CHKERRQ(ierr);
+   ierr = PetscSectionSetFieldName(section, 0, "Default_Field");CHKERRQ(ierr);
+   ierr = DMSetSection(dm, section);CHKERRQ(ierr);
+   if (sectionDisp) {
+   ierr = PetscPrintf(comm,"%s Petsc Section View %s\n", bar, bar);CHKERRQ(ierr);
+   ierr = PetscSectionView(section, 0);CHKERRQ(ierr);
+   ierr = PetscPrintf(comm,"%s End Petsc Section View %s\n",bar, bar);CHKERRQ(ierr);
+   }
+   ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
+   ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
    */
 
-  /*    Create Vector for per process function evaluation       */
+  /*    Create PetscFE OLD
+   if (usePetscFE) {
+   PetscFE     defaultFE;
+   ierr = PetscFECreateDefault(comm, dim, dim, simplex, NULL, qorder, &defaultFE);CHKERRQ(ierr);
+   ierr = PetscFESetName(defaultFE, "Default_FE");CHKERRQ(ierr);
+   ierr = DMSetField(dm, 0, NULL, (PetscObject) defaultFE);CHKERRQ(ierr);
+   ierr = DMCreateDS(dm);CHKERRQ(ierr);
+   ierr = PetscFEDestroy(&defaultFE);CHKERRQ(ierr);
+   }
+   */
 
   /* Display Mesh Partition and write mesh to vtk output file */
   if (user.VTKdisp) {
@@ -782,10 +795,18 @@ int main(int argc, char **argv)
   /*    Perform setup before timing     */
   ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+  ierr = VecDuplicate(solVecGlobal, &dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDuplicate(solVecLocal, &dummyVecLocal);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal, 0.0);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecLocal, 0.0);CHKERRQ(ierr);
+  ierr = VecAXPY(solVecGlobal, 0.0, dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecAXPY(solVecLocal, 0.0, dummyVecLocal);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecLocal);CHKERRQ(ierr);
 
   /*    Init INSERT_VALUES timing only log      */
   ierr = PetscLogStageRegister("CommStageINSERT", &user.stageINSERT);CHKERRQ(ierr);
@@ -872,10 +893,10 @@ int main(int argc, char **argv)
   ierr = PetscViewerStringSPrintf(genViewer, "Partitioner Used:%s>%s\n", user.bar + 2, partitionername);CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Global Node Num:%s>%d\n", user.bar + 1, globalVertSize);CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Global Cell Num:%s>%d\n", user.bar + 1, globalCellSize);CHKERRQ(ierr);
+  ierr = DMGetVecType(dm, &user.ctype);CHKERRQ(ierr);
 
   ierr = GeneralInfo(comm, user, genViewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&genViewer);CHKERRQ(ierr);
-  ierr = VecDestroy(&AnalyticalSolnVec);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
   return ierr;
