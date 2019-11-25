@@ -546,7 +546,7 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
 
   PetscFunctionBeginUser;
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(comm, user->dim, 1, user->simplex, NULL, user->qorder, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, user->dim, user->numFields, user->simplex, NULL, user->qorder, &fe);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe, "LaplaceFE");CHKERRQ(ierr);
   ierr = DMSetField(dm, 0, NULL, (PetscObject) fe);CHKERRQ(ierr);
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
@@ -731,16 +731,6 @@ int main(int argc, char **argv)
    ierr = ISDestroy(&bcPointsIS);CHKERRQ(ierr);
    */
 
-  /*    Create PetscFE OLD
-   if (usePetscFE) {
-   PetscFE     defaultFE;
-   ierr = PetscFECreateDefault(comm, dim, dim, simplex, NULL, qorder, &defaultFE);CHKERRQ(ierr);
-   ierr = PetscFESetName(defaultFE, "Default_FE");CHKERRQ(ierr);
-   ierr = DMSetField(dm, 0, NULL, (PetscObject) defaultFE);CHKERRQ(ierr);
-   ierr = DMCreateDS(dm);CHKERRQ(ierr);
-   ierr = PetscFEDestroy(&defaultFE);CHKERRQ(ierr);
-   }
-   */
 
   /* Display Mesh Partition and write mesh to vtk output file */
   if (user.VTKdisp) {
