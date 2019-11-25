@@ -53,11 +53,8 @@ class Configure(config.package.Package):
     self.setCompilers.pushLanguage('C')
     args.append('CC="'+self.setCompilers.getCompiler()+'"')
     cflags=self.removeWarningFlags(self.setCompilers.getCompilerFlags())
-    ldflags=self.setCompilers.LDFLAGS
-    # ldflags are specified as mpicc $LDFLAGS ... -> this fails with mpicc, if we pass -lgcov with LDFLAGS
-    # instead, it links successfully with --coverage
-    if self.argDB['with-gcov']:
-      ldflags+=' --coverage'
+    ldflags=self.setCompilers.getDynamicLinkerFlags()
+    ldflags+=self.setCompilers.LDFLAGS
     # SuiteSparse 5.6.0 makefile has a bug in how it treats LDFLAGS (not using the override directive)
     ldflags+=" -L\$(INSTALL_LIB)"
     self.setCompilers.popLanguage()
