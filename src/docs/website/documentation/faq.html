@@ -133,7 +133,7 @@ See https://www.mcs.anl.gov/petsc/documentation/faq.html
         <li><a href="#customnormforksp">I would like to compute a custom norm for KSP to use as a convergence test or for monitoring?</a></li>
         <li><a href="#parallelsolvesequentialcode">If I have a sequential program can I use a parallel direct solver?</a></li>
         <li><a href="#infeasible">TS or SNES produces infeasible (out of domain) solutions or states, how can I prevent this?</a></li>
-        <li><a href="#hermitian">Can PETSc work with Hermitain matrices?</a></li>
+        <li><a href="#hermitian">Can PETSc work with Hermitian matrices?</a></li>
       </ul>
 
       <h4><a href="#Execution">Execution</a></h4>
@@ -1276,11 +1276,11 @@ PETSC_COMM_WORLD = NewComm;
       </p>
 
 
-     <h3><a name="hermitian">Can PETSc work with Hermitain matrices?</a></h3>
+     <h3><a name="hermitian">Can PETSc work with Hermitian matrices?</a></h3>
 
-     <p> PETSc's support of Hermitian matrices is very limited. Many of the operations and solvers work for symmetric (MATSBAIJ( matrices and operations on transpose
-       matrices but little direct support for Hermitian matrices and Hermitian transpose (complex conjugate transpose) operations. There is KSPSolveTranspose() for
-       solving the transpose of a linear system but no KSPSolveHermitian().
+     <p> PETSc's support of Hermitian matrices is very limited. Many operations and solvers work for symmetric (MATSBAIJ) matrices and operations on transpose
+       matrices but there is little direct support for Hermitian matrices and Hermitian transpose (complex conjugate transpose) operations. There is KSPSolveTranspose() for
+       solving the transpose of a linear system but no KSPSolveHermitian(). Relevant functions include:
       </p>
 
     <ol>
@@ -1288,7 +1288,7 @@ PETSC_COMM_WORLD = NewComm;
           MatIsHermitian(), MatIsHermitianKnown(), MatIsStructurallySymmetric(), MatSetOption(Mat,MAT_SYMMETRIC or MAT_HERMITIAN, PetscBool), MatIsSymmetricKnown(), MatIsSymmetric()
         </li>
         <li>
-          MatMultHermitianTranspose(), MatMultHermitianTransposeAdd() very limited support
+          MatMultHermitianTranspose(), MatMultHermitianTransposeAdd() (very limited support)
         </li>
         <li>
           MatCreateNormalHermitian(), MatCreateHermitianTranspose()
@@ -1296,7 +1296,7 @@ PETSC_COMM_WORLD = NewComm;
     </ol>
 
      <p> Developer Note: It is not clear how to handle Hermitian matrices in the API. Do we really want additional solvers and operation methods for Hermitian or can each matrix
-         be marked to indice we want the Hermitian transpose when the Transpose call is made?
+         be marked to indicate that we want the Hermitian transpose when the Transpose call is made?
     </p>
 
       <hr>
