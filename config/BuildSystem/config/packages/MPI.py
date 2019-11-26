@@ -367,6 +367,7 @@ to remove this warning message *****')
   def alternateConfigureLibrary(self):
     '''Setup MPIUNI, our uniprocessor version of MPI'''
     self.addDefine('HAVE_MPIUNI', 1)
+    self.delDefine('HAVE_MPI')
     self.addMakeMacro('MPI_IS_MPIUNI', 1)
     self.framework.packages.append(self)
     self.mpiexec = '${PETSC_DIR}/lib/petsc/bin/petsc-mpiexec.uni'
