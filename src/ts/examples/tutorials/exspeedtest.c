@@ -221,7 +221,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 # endif
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMSetUp(*dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -279,7 +278,7 @@ int main(int argc, char **argv)
   ierr = ProcessMesh(comm, &user, &dm);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &user);
   ierr = SetupDiscretization(dm, &user);CHKERRQ(ierr);
-
+  ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
   /* Display Mesh Partition and write mesh to vtk output file */
   if (user.VTKdisp) {
     PetscViewer vtkviewerpart;

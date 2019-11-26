@@ -1232,8 +1232,72 @@ meshdiagnostics:
         ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", cellsPerProcess[i], binnedCells[i]);CHKERRQ(ierr);
       }
     }
-    ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
+
+    /* VECTOR INFORMATION */
+    Vec	        globalVec, localVec, vecPerProcess;
+    PetscMPIInt localSize;
+    PetscMPIInt *offProcLocSizes;
+    PetscInt	globalSize;
+
+    ierr = DMGetGlobalVector(dm, &globalVec);CHKERRQ(ierr);
+    ierr = DMGetLocalVector(dm, &localVec);CHKERRQ(ierr);
+    ierr = VecGetSize(globalVec, &globalSize);CHKERRQ(ierr);
+    ierr = VecGetSize(localVec, &localSize);CHKERRQ(ierr);
+    ierr = DMRestoreGlobalVector(dm, &globalVec);CHKERRQ(ierr);
+    if (!rank) {
+      ierr = PetscMalloc1(size, &offProcLocSizes);CHKERRQ(ierr);
+    }
+    ierr = MPI_Gather(&localSize, 1, MPIU_INT, offProcLocSizes, 1, MPIU_INT, 0, comm);CHKERRQ(ierr);
+    ierr = DMRestoreLocalVector(dm, &localVec);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "\nGlobal Vector Size: %d\n", globalSize);CHKERRQ(ierr);
+    if (!rank) {
+      /* Bin it bruuuuuuuther */
+      PetscInt	idx[size], *binnedProcesses;
+      PetscInt	numBins;
+      PetscScalar   *numPerProcess, offProcScalar[size];
+      VecTagger tagger;
+      VecTaggerBox *box;
+      IS	PerProcessTaggedIS;
+
+      ierr = PetscSortInt(size, offProcLocSizes);CHKERRQ(ierr);
+      for (i = 0; i < size; ++i) {
+        offProcScalar[i] = (PetscScalar)offProcLocSizes[i];
+        idx[i] = i;
+      }
+      ierr = VecCreateSeq(PETSC_COMM_SELF, size, &vecPerProcess);CHKERRQ(ierr);
+      ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
+      ierr = VecSetValues(vecPerProcess, size,(const PetscInt*) idx, (const PetscScalar*) offProcScalar, INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
+      ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
+      ierr = VecUniqueEntries(vecPerProcess, &numBins, &numPerProcess);CHKERRQ(ierr);
+      ierr = PetscCalloc1(numBins, &binnedProcesses);CHKERRQ(ierr);
+      for (i = 0; i < numBins; ++i) {
+        ierr = VecTaggerCreate(PETSC_COMM_SELF, &tagger);CHKERRQ(ierr);
+        ierr = VecTaggerSetType(tagger, VECTAGGERABSOLUTE);CHKERRQ(ierr);
+        ierr = PetscMalloc1(1, &box);CHKERRQ(ierr);
+        box->min = numPerProcess[i]-0.5;
+        box->max = numPerProcess[i]+0.5;
+        ierr = VecTaggerAbsoluteSetBox(tagger, box);CHKERRQ(ierr);
+        ierr = PetscFree(box);CHKERRQ(ierr);
+        ierr = VecTaggerSetUp(tagger);CHKERRQ(ierr);
+        ierr = VecTaggerComputeIS(tagger, vecPerProcess, &PerProcessTaggedIS);CHKERRQ(ierr);
+        ierr = ISGetSize(PerProcessTaggedIS, &binnedProcesses[i]);CHKERRQ(ierr);
+        ierr = ISDestroy(&PerProcessTaggedIS);CHKERRQ(ierr);
+        ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
+      }
+      ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %d - %d\n", offProcLocSizes[0], offProcLocSizes[size-1]);CHKERRQ(ierr);
+      for (i = 0; i < numBins; i++) {
+        if (!i) {
+          ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
+        }
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", numPerProcess[i], binnedProcesses[i]);CHKERRQ(ierr);
+      }
+      ierr = PetscFree(offProcLocSizes);CHKERRQ(ierr);
+      ierr = PetscFree(binnedProcesses);CHKERRQ(ierr);
+    }
     ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
     ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   } else {
     MPI_Comm    comm;
