@@ -11,21 +11,16 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # define PETSCVIEWERASCII        "ascii"
 # define VECSTANDARD             "standard"
 
-typedef enum {NEUMANN, DIRICHLET, NONE} BCType;
-
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS;
   PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax;
-  PetscInt	 meshSize[3];
   PetscScalar    refinementLimit;
   char           filename[2048];    /* The optional mesh file */
   char           bar[19];
   VecType	 ctype;
-  /* Problem definition */
-  BCType         bcType;
 } AppCtx;
 
 /* ADDITIONAL FUNCTIONS */
@@ -68,9 +63,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
 /* GENERAL PREPROCESSING */
 static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 {
-  const char            *bcTypes[3]  = {"neumann", "dirichlet", "none"};
   PetscErrorCode        ierr;
-  PetscInt              bc, nmax;
 
   PetscFunctionBeginUser;
   options->simplex              = PETSC_FALSE;
@@ -83,11 +76,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->vtkSoln              = PETSC_FALSE;
   options->meshout		= PETSC_FALSE;
   options->filename[0]          = '\0';
-  options->bcType               = DIRICHLET;
   options->dim                  = 2;
-  options->meshSize[0]		= 2;
-  options->meshSize[1]		= 2;
-  options->meshSize[2]		= 2;
   options->numFields            = 1;
   options->overlap              = 0;
   options->qorder               = -1;
@@ -104,11 +93,6 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsBool("-mesh_out","Output mesh in vtk format", "", options->meshout, &options->meshout, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetString(NULL, NULL, "-f", options->filename, PETSC_MAX_PATH_LEN, &options->fileflg); CHKERRQ(ierr);
 
-    bc   = options->bcType;
-    ierr = PetscOptionsEList("-bc_type", "Type of boundary condition", "ex12.c", bcTypes, 3, bcTypes[options->bcType], &bc, NULL);CHKERRQ(ierr);
-    options->bcType = (BCType) bc;
-
-    ierr = PetscOptionsIntArray("-n", "Num faces per edge", "", options->meshSize, &nmax, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &options->dim, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-num_field", &options->numFields, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &options->overlap, NULL);CHKERRQ(ierr);
@@ -118,9 +102,6 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetInt(NULL, NULL, "-max_com", &options->commax, NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  if (nmax > options->dim) {
-    SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "nmax %d greater than dim %d", nmax, options->dim);CHKERRQ(ierr);
-  }
   PetscFunctionReturn(0);
 }
 
@@ -129,8 +110,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscErrorCode        ierr;
   DM                    dmDist;
   const char            *filename = user->filename;
-  PetscInt              dim = user->dim, overlap = user->overlap, i, faces[dim];
-  PetscBool             hasLabel = PETSC_FALSE;
+  PetscInt              dim = user->dim, overlap = user->overlap, i;
 
   PetscFunctionBeginUser;
   if (user->fileflg) {
@@ -146,15 +126,11 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, user->filename);CHKERRQ(ierr);
   } else {
-    for (i = 0; i < dim; i++){
-      /* Make the default box mesh creation with CLI options    */
-      faces[i] = user->meshSize[i];
-    }
     ierr = PetscLogStageRegister("CREATE Box Mesh Stage", &user->stageCREATE);CHKERRQ(ierr);
     ierr = PetscLogEventRegister("CREATE Box Mesh", 0, &user->eventCREATE);CHKERRQ(ierr);
     ierr = PetscLogStagePush(user->stageCREATE);CHKERRQ(ierr);
     ierr = PetscLogEventBegin(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
-    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, faces, NULL, NULL, NULL, user->interpolate, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL, NULL, user->interpolate, dm);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, "Generated_Box_Mesh");CHKERRQ(ierr);
