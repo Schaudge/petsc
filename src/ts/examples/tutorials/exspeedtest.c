@@ -238,21 +238,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       *dm = dmInterp;
       user->interpolate = PETSC_TRUE;
     }
-    if (user->bcType == NEUMANN) {
-      DMLabel   label;
-      ierr = DMCreateLabel(*dm, "boundary");CHKERRQ(ierr);
-      ierr = DMGetLabel(*dm, "boundary", &label);CHKERRQ(ierr);
-      ierr = DMPlexMarkBoundaryFaces(*dm, 1, label);CHKERRQ(ierr);
-    } else if (user->bcType == DIRICHLET) {
-      ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
-      if (!hasLabel) {
-        DMLabel label;
-        ierr = DMCreateLabel(*dm, "marker");CHKERRQ(ierr);
-        ierr = DMGetLabel(*dm, "marker", &label);CHKERRQ(ierr);
-        ierr = DMPlexMarkBoundaryFaces(*dm, 1, label);CHKERRQ(ierr);
-        ierr = DMPlexLabelComplete(*dm, label);CHKERRQ(ierr);
-      }
-    }
   }
   ierr = DMLocalizeCoordinates(*dm);CHKERRQ(ierr);
 # if defined(PETSC_HAVE_CUDA)
