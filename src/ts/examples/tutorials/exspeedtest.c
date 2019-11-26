@@ -16,7 +16,7 @@ typedef enum {NEUMANN, DIRICHLET, NONE} BCType;
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax;
   PetscInt	 meshSize[3];
@@ -53,10 +53,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   ierr = PetscViewerStringSPrintf(genViewer, "Distributed dm:%s>%s\n", user.bar, user.distribute ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Interpolated dm:%s>%s\n", user.bar + 1, user.interpolate ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", user.bar + 7, user.perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "PETScFE enabled mode:%s>%s\n", user.bar + 6, user.usePetscFE ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-  if (user.usePetscFE) {
-    ierr = PetscViewerStringSPrintf(genViewer, "┗ Quadrature order:%s>%d\n", user.bar + 4 , user.qorder);CHKERRQ(ierr);
-  }
+
   ierr = PetscViewerStringSPrintf(genViewer, "DM Vec Type Used:%s>%s\n", user.bar + 2, user.ctype);CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "VTKoutput mode:%s>%s\n", user.bar, user.VTKdisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
@@ -83,9 +80,8 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->interpolate          = PETSC_TRUE;
   options->dmRefine             = PETSC_FALSE;
   options->VTKdisp              = PETSC_FALSE;
-  options->usePetscFE           = PETSC_FALSE;
-  options->useKSP               = PETSC_FALSE;
   options->vtkSoln              = PETSC_FALSE;
+  options->meshout		= PETSC_FALSE;
   options->filename[0]          = '\0';
   options->bcType               = DIRICHLET;
   options->dim                  = 2;
@@ -105,6 +101,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsBool("-interpolate", "Interpolate the mesh", "", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-vtkout", "enable mesh distribution visualization", "", options->VTKdisp, &options->VTKdisp, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-vtk_soln","Get solution vector in VTK output", "", options->vtkSoln, &options->vtkSoln, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-mesh_out","Output mesh in vtk format", "", options->meshout, &options->meshout, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetString(NULL, NULL, "-f", options->filename, PETSC_MAX_PATH_LEN, &options->fileflg); CHKERRQ(ierr);
 
     bc   = options->bcType;
@@ -115,16 +112,12 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &options->dim, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-num_field", &options->numFields, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &options->overlap, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-petscfe", "Enable only making a petscFE", "", options->usePetscFE, &options->usePetscFE, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-qorder", &options->qorder, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-refine_dm_level", &options->level, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetScalar(NULL, NULL, "-refine_limit", &options->refinementLimit, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-max_com", &options->commax, NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  if (options->usePetscFE) {
-    options->numFields = 1;
-  }
   if (nmax > options->dim) {
     SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "nmax %d greater than dim %d", nmax, options->dim);CHKERRQ(ierr);
   }
@@ -328,20 +321,29 @@ int main(int argc, char **argv)
 
   /* Display Mesh Partition and write mesh to vtk output file */
   if (user.VTKdisp) {
-    PetscViewer vtkviewerpart, vtkviewermesh;
+    PetscViewer vtkviewerpart;
     Vec         partition;
-    char        meshName[PETSC_MAX_PATH_LEN];
+    char        dateStr[PETSC_MAX_PATH_LEN] = {"partition-map-generated-"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"}, meshName[PETSC_MAX_PATH_LEN] = {"\0"};;
+    size_t      stringlen;
 
+    ierr = PetscStrlen(dateStr, &stringlen);CHKERRQ(ierr);
+    ierr = PetscGetDate(rawdate, 20);CHKERRQ(ierr);
+    ierr = PetscStrcat(dateStr, rawdate+11);CHKERRQ(ierr);
+    ierr = PetscStrcat(meshName, dateStr);CHKERRQ(ierr);
+    ierr = PetscStrcat(meshName, ".vtu");CHKERRQ(ierr);
     ierr = DMPlexCreateRankField(dm, &partition);CHKERRQ(ierr);
     ierr = PetscViewerCreate(comm, &vtkviewerpart);CHKERRQ(ierr);
     ierr = PetscViewerSetType(vtkviewerpart,PETSCVIEWERVTK);CHKERRQ(ierr);
     ierr = PetscViewerPushFormat(vtkviewerpart,PETSC_VIEWER_VTK_VTU);CHKERRQ(ierr);
-    ierr = PetscViewerFileSetName(vtkviewerpart, "partition-map.vtk");CHKERRQ(ierr);
+    ierr = PetscViewerFileSetName(vtkviewerpart, meshName);CHKERRQ(ierr);
     ierr = PetscViewerFileSetMode(vtkviewerpart,FILE_MODE_WRITE);CHKERRQ(ierr);
     ierr = VecView(partition, vtkviewerpart);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&vtkviewerpart);CHKERRQ(ierr);
     ierr = VecDestroy(&partition);CHKERRQ(ierr);
 
+  } else if (user.meshout) {
+    PetscViewer vtkviewermesh;
+    char        meshName[PETSC_MAX_PATH_LEN] = {"\0"};
     if (user.fileflg) {
       char      *fileEnding, *fixedFile = 0;
       size_t    lenTotal, lenEnding;
@@ -358,11 +360,12 @@ int main(int argc, char **argv)
       ierr = PetscStrcat(meshName, fixedFile);CHKERRQ(ierr);
       ierr = PetscFree(fixedFile);CHKERRQ(ierr);
     } else {
-      char      dateStr[PETSC_MAX_PATH_LEN] = {"generated-"};
+      char      dateStr[PETSC_MAX_PATH_LEN] = {"generated-"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"};
       size_t    stringlen;
 
       ierr = PetscStrlen(dateStr, &stringlen);CHKERRQ(ierr);
-      ierr = PetscGetDate(dateStr+stringlen, 20);CHKERRQ(ierr);
+      ierr = PetscGetDate(rawdate, 20);CHKERRQ(ierr);
+      ierr = PetscStrcat(dateStr, rawdate+11);CHKERRQ(ierr);
       ierr = PetscStrcat(meshName, dateStr);CHKERRQ(ierr);
     }
     ierr = PetscStrcat(meshName, "-mesh.vtu");CHKERRQ(ierr);
