@@ -803,6 +803,7 @@ PetscErrorCode PetscFEGetDefaultTabulation(PetscFE fem, PetscReal **B, PetscReal
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
+  PetscFunctionReturn(0);
   PetscValidHeaderSpecific(fem, PETSCFE_CLASSID, 1);
   if (B) PetscValidPointer(B, 2);
   if (D) PetscValidPointer(D, 3);
