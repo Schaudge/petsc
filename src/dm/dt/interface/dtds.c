@@ -393,8 +393,8 @@ PetscErrorCode PetscDSSetUp(PetscDS prob)
       ierr = PetscFEGetQuadrature(fe, &q);CHKERRQ(ierr);
       ierr = PetscFEGetDimension(fe, &Nb);CHKERRQ(ierr);
       ierr = PetscFEGetNumComponents(fe, &Nc);CHKERRQ(ierr);
-      ierr = PetscFEGetDefaultTabulation(fe, &prob->basis[f], &prob->basisDer[f], NULL);CHKERRQ(ierr);
-      ierr = PetscFEGetFaceTabulation(fe, &prob->basisFace[f], &prob->basisDerFace[f], NULL);CHKERRQ(ierr);
+      //ierr = PetscFEGetDefaultTabulation(fe, &prob->basis[f], &prob->basisDer[f], NULL);CHKERRQ(ierr);
+      //ierr = PetscFEGetFaceTabulation(fe, &prob->basisFace[f], &prob->basisDerFace[f], NULL);CHKERRQ(ierr);
     } else if (id == PETSCFV_CLASSID) {
       PetscFV fv = (PetscFV) obj;
 
