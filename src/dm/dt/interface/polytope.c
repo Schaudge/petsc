@@ -31,6 +31,8 @@ struct _n_PetscPolytopeData
   PetscPolytopeCone  *facetsToRidges;
   PetscPolytopeSupp  *ridgesToFacets;
   PetscInt            orientStart, orientEnd, maxFacetSymmetry;
+  PetscInt           *vertexPerms;
+  PetscInt           *vertexPermsToOrients;
   PetscInt           *orientsToVertexOrders;
   PetscPolytopeCone  *orientsToFacetOrders;
   PetscInt           *orientInverses;
@@ -53,6 +55,8 @@ static PetscErrorCode PetscPolytopeDataDestroy(PetscPolytopeData *pdata)
   ierr = PetscFree((*pdata)->ridgeOffsets);CHKERRQ(ierr);
   ierr = PetscFree((*pdata)->facetsToRidges);CHKERRQ(ierr);
   ierr = PetscFree((*pdata)->ridgesToFacets);CHKERRQ(ierr);
+  ierr = PetscFree((*pdata)->vertexPerms);CHKERRQ(ierr);
+  ierr = PetscFree((*pdata)->vertexPermsToOrients);CHKERRQ(ierr);
   ierr = PetscFree((*pdata)->orientsToVertexOrders);CHKERRQ(ierr);
   ierr = PetscFree((*pdata)->orientsToFacetOrders);CHKERRQ(ierr);
   ierr = PetscFree((*pdata)->orientInverses);CHKERRQ(ierr);
@@ -283,6 +287,20 @@ static PetscErrorCode PetscPolytopeSetOrientationFromFacet(PetscPolytopeSet pset
   PetscFunctionReturn(0);
 }
 
+static PetscInt permToID(PetscInt n, const PetscInt perm[], PetscInt work[])
+{
+  PetscInt j, p = perm[0], subID;
+
+  for (j = 0; j < n; j++) if (work[j] == p) break;
+  work[j] = work[0];
+  work[0] = p;
+  if (n > 2) {
+    subID = permToID(n - 1, &perm[1], &work[1]);
+    j = n * subID + j;
+  }
+  return j;
+}
+
 static PetscErrorCode PetscPolytopeSetOrientationFromVertices(PetscPolytopeSet pset, PetscPolytope polytope, const PetscInt vertices[], PetscBool *isOrientation, PetscInt *orientation)
 {
   PetscInt       numVertices;
@@ -300,22 +318,22 @@ static PetscErrorCode PetscPolytopeSetOrientationFromVertices(PetscPolytopeSet p
   }
   numVertices = data->numVertices;
   otov        = data->orientsToVertexOrders;
-  if (otov) { /* directly compare each vertex order with the order given */
-    PetscInt o, oStart, oEnd;
+  if (otov && numVertices <= 12) { /* directly compare each vertex order with the order given */
+    PetscInt work[12];
+    PetscInt oStart, oEnd;
+    PetscInt id, v, idx;
 
+    for (v = 0; v < numVertices; v++) work[v] = v;
+    id = permToID(numVertices, vertices, work);
     oStart = data->orientStart;
-    oEnd   = data->orientEnd;
-    for (o = oStart; o < oEnd; o++) {
-      PetscInt v;
-
-      for (v = 0; v < numVertices; v++) if (otov[numVertices * (o - oStart) + v] != vertices[v]) break;
-      if (v == numVertices) {
-        *isOrientation = PETSC_TRUE;
-        *orientation   = o;
-      }
+    oEnd = data->orientEnd;
+    ierr = PetscFindInt(id, oEnd - oStart, data->vertexPerms, &idx);CHKERRQ(ierr);
+    if (idx < 0) {
+      *isOrientation = PETSC_FALSE;
+      *orientation = PETSC_MIN_INT;
     }
-    *isOrientation = PETSC_FALSE;
-    *orientation   = PETSC_MIN_INT;
+    *isOrientation = PETSC_TRUE;
+    *orientation = data->vertexPermsToOrients[idx];
   } else {
     PetscInt *vwork, *owork, *order;
     PetscInt i, j, n = data->vertexOffsets[1] - data->vertexOffsets[0];
@@ -1055,6 +1073,8 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
     /* only identity */
     ierr = PetscMalloc1(numVertices, &(pData->orientsToVertexOrders));CHKERRQ(ierr);
     for (i = 0; i < numVertices; i++) pData->orientsToVertexOrders[i] = i;
+    ierr = PetscCalloc1(1, &(pData->vertexPerms));CHKERRQ(ierr);
+    ierr = PetscCalloc1(1, &(pData->vertexPermsToOrients));CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
   fData   = pset->polytopes[pData->facets[0]];
@@ -1193,6 +1213,44 @@ static PetscErrorCode PetscPolytopeSetComputeSymmetries(PetscPolytopeSet pset, P
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet, PetscPolytope, PetscInt, PetscInt[]);
+
+static PetscErrorCode PetscPolytopeSetComputeVertexOrders(PetscPolytopeSet pset, PetscPolytope polytope)
+{
+  PetscInt          i, vfac, oStart, oEnd, numOrients, numVertices,  o;
+  PetscInt          *vertexPerms, *vertexPermsToOrients, *orientsToVertexOrders, work[12], perm[12];
+  PetscPolytopeData pdata;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  pdata = pset->polytopes[polytope];
+  if (pdata->orientsToVertexOrders || pdata->numVertices == 0 || pdata->numVertices > 12) PetscFunctionReturn(0);
+  vfac = 1;
+  oStart = pdata->orientStart;
+  oEnd   = pdata->orientEnd;
+  numOrients = oEnd - oStart;
+  numVertices = pdata->numVertices;
+  for (i = 0; i < pdata->numVertices; i++) vfac *= i;
+  ierr = PetscMalloc1(numOrients, &vertexPerms);CHKERRQ(ierr);
+  ierr = PetscMalloc1(numOrients, &vertexPermsToOrients);CHKERRQ(ierr);
+  ierr = PetscMalloc1(numOrients * numVertices, &orientsToVertexOrders);CHKERRQ(ierr);
+  for (o = oStart; o < oEnd; o++) {
+    PetscInt id;
+
+    ierr = PetscPolytopeSetOrientVertices(pset, polytope, o, &orientsToVertexOrders[(o-oStart)*numVertices]);CHKERRQ(ierr);
+    ierr = PetscArraycpy(perm, &orientsToVertexOrders[(o-oStart)*numVertices], numVertices);CHKERRQ(ierr);
+    for (i = 0; i < numVertices; i++) work[i] = i;
+    id = permToID(numVertices, perm, work);
+    vertexPerms[o - oStart] = id;
+    vertexPermsToOrients[o - oStart] = o;
+  }
+  ierr = PetscSortIntWithArray(numOrients, vertexPerms, vertexPermsToOrients);CHKERRQ(ierr);
+  pdata->vertexPerms = vertexPerms;
+  pdata->vertexPermsToOrients = vertexPermsToOrients;
+  pdata->orientsToVertexOrders = orientsToVertexOrders;
+  PetscFunctionReturn(0);
+}
+
 #define CHKPOLYTOPEERRQ(pData,ierr) if (ierr) {PetscErrorCode _ierr = PetscPolytopeDataDestroy(&(pData));CHKERRQ(_ierr);CHKERRQ(ierr);}
 
 static PetscErrorCode PetscPolytopeSetInsert(PetscPolytopeSet pset, const char name[], PetscInt numFacets, PetscInt numVertices, const PetscPolytope facets[], const PetscInt vertexOffsets[], const PetscInt facetsToVertices[], PetscBool firstFacetInward, PetscPolytope *polytope)
@@ -1299,6 +1357,9 @@ static PetscErrorCode PetscPolytopeSetInsert(PetscPolytopeSet pset, const char n
   ierr = PetscPolytopeSetComputeSymmetries(pset, pData);CHKERRQ(ierr);
   ierr = PetscPolytopeSetInsertPolytope(pset, pData, polytope);CHKERRQ(ierr);
   ierr = PetscPolytopeSetInsertName(pset, name, *polytope);CHKERRQ(ierr);
+  if (numVertices <= 12) {
+    ierr = PetscPolytopeSetComputeVertexOrders(pset, *polytope);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
