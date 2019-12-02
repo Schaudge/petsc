@@ -314,18 +314,19 @@ int main(int argc, char **argv)
     PetscInt      vertexOffsets[9] = {0,3,6,9,12,15,18,21,24};
     PetscInt      facetsToVertices[24] = {
                                            0,1,2,
-                                           1,0,3,
-                                           2,1,4,
-                                           0,2,5,
-                                           1,3,4,
-                                           2,4,5,
-                                           0,5,3,
+                                           0,1,3,
+                                           0,4,2,
+                                           0,4,3,
+                                           5,1,2,
+                                           5,1,3,
+                                           5,4,2,
                                            5,4,3,
                                          };
+    PetscBool     signs[8] = {PETSC_FALSE, PETSC_TRUE, PETSC_TRUE, PETSC_FALSE, PETSC_TRUE, PETSC_FALSE, PETSC_FALSE, PETSC_TRUE};
 
     for (f = 0; f < 8; f++) facets[f] = tri;
 
-    ierr = PetscPolytopeInsertCheckSignsSymmetry("octahedron", 8, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -24, 24, &oct);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("octahedron", 8, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, signs, -24, 24, &oct);CHKERRQ(ierr);
   }
 
   { /* rhombic dodecahedron */
@@ -427,64 +428,180 @@ int main(int argc, char **argv)
     PetscInt      vertexOffsets[17];
     PetscInt      facetsToVertices[64] = {
                                             0,  1,  2,  3,
-                                            1,  4,  2,  3,
-                                            5,  0,  2,  3,
-                                            4,  5,  2,  3,
-                                            1,  0,  6,  3,
-                                            4,  1,  6,  3,
-                                            0,  5,  6,  3,
-                                            5,  4,  6,  3,
-                                            1,  0,  2,  7,
-                                            4,  1,  2,  7,
-                                            0,  5,  2,  7,
-                                            5,  4,  2,  7,
-                                            0,  1,  6,  7,
-                                            1,  4,  6,  7,
-                                            5,  0,  6,  7,
-                                            4,  5,  6,  7,
+                                            0,  1,  2,  4,
+                                            0,  1,  5,  3,
+                                            0,  1,  5,  4,
+                                            0,  6,  2,  3,
+                                            0,  6,  2,  4,
+                                            0,  6,  5,  3,
+                                            0,  6,  5,  4,
+                                            7,  1,  2,  3,
+                                            7,  1,  2,  4,
+                                            7,  1,  5,  3,
+                                            7,  1,  5,  4,
+                                            7,  6,  2,  3,
+                                            7,  6,  2,  4,
+                                            7,  6,  5,  3,
+                                            7,  6,  5,  4,
                                          };
+    PetscBool     signs[16] = {PETSC_TRUE,  PETSC_FALSE, PETSC_FALSE, PETSC_TRUE,  PETSC_FALSE, PETSC_TRUE,  PETSC_TRUE,  PETSC_FALSE,
+                               PETSC_FALSE, PETSC_TRUE,  PETSC_TRUE,  PETSC_FALSE, PETSC_TRUE,  PETSC_FALSE, PETSC_FALSE, PETSC_TRUE};
 
     for (f = 0; f < 16; f++)  facets[f] = tet;
     for (f = 0; f <= 16; f++) vertexOffsets[f] = f*4;
-    ierr = PetscPolytopeInsertCheckSignsSymmetry("hyperoctahedron", 16, 8, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, NULL, -192, 192, &ortho);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("hyperoctahedron", 16, 8, facets, vertexOffsets, facetsToVertices, PETSC_TRUE, signs, -192, 192, &ortho);CHKERRQ(ierr);
   }
 
-#if 0
   { /* 24-cell (octaplex) */
     PetscPolytope facets[24];
-    PetscInt      f;
+    PetscInt      f, v;
     PetscInt      vertexOffsets[25];
-    PetscReal     vertices[96] = {
-                                   -1., -1.,  0.,  0.,
-                                   -1.,  1.,  0.,  0.,
-                                   -1.,  0., -1.,  0.,
-                                   -1.,  0.,  1.,  0.,
-                                   -1.,  0.,  0., -1.,
-                                   -1.,  0.,  0.,  1.,
-                                    1., -1.,  0.,  0.,
-                                    1.,  1.,  0.,  0.,
-                                    1.,  0., -1.,  0.,
-                                    1.,  0.,  1.,  0.,
-                                    1.,  0.,  0., -1.,
-                                    1.,  0.,  0.,  1.,
-                                    0., -1., -1.,  0.,
-                                    0., -1.,  1.,  0.,
-                                    0., -1.,  0., -1.,
-                                    0., -1.,  0.,  1.,
-                                    0.,  1., -1.,  0.,
-                                    0.,  1.,  1.,  0.,
-                                    0.,  1.,  0., -1.,
-                                    0.,  1.,  0.,  1.,
-                                    0.,  0., -1., -1.,
-                                    0.,  0., -1.,  1.,
-                                    0.,  0.,  1., -1.,
-                                    0.,  0.,  1.,  1.,
-                                 };
+    PetscInt      coords[96] = {
+                                 -1, -1,  0,  0,
+                                 -1,  1,  0,  0,
+                                  1, -1,  0,  0,
+                                  1,  1,  0,  0,
+                                 -1,  0, -1,  0,
+                                 -1,  0,  1,  0,
+                                  1,  0, -1,  0,
+                                  1,  0,  1,  0,
+                                 -1,  0,  0, -1,
+                                 -1,  0,  0,  1,
+                                  1,  0,  0, -1,
+                                  1,  0,  0,  1,
+                                  0, -1, -1,  0,
+                                  0, -1,  1,  0,
+                                  0,  1, -1,  0,
+                                  0,  1,  1,  0,
+                                  0, -1,  0, -1,
+                                  0, -1,  0,  1,
+                                  0,  1,  0, -1,
+                                  0,  1,  0,  1,
+                                  0,  0, -1, -1,
+                                  0,  0, -1,  1,
+                                  0,  0,  1, -1,
+                                  0,  0,  1,  1,
+                               };
+    PetscInt     vertices[144];
+    PetscInt     vertid[24], vcount, fcount;
 
     for (f = 0; f < 24; f++)  facets[f] = oct;
     for (f = 0; f <= 24; f++) vertexOffsets[f] = f * 6;
+    for (v = 0; v < 144; v++) vertices[v] = -1;
+    for (v = 0; v < 24; v++) vertid[v] = -1;
+    for (vcount = 0, fcount = 0, v = 0; v < 24; v++) {
+      PetscInt w;
+
+      for (w = v+1; w < 24; w++) {
+        PetscInt diff, j, k, x[3], xcount;
+
+        for (diff = 0, j = 0; j < 4; j++) diff += PetscSqr(coords[4 * w + j] - coords[4 * v + j]);
+        if (diff != 2) continue;
+        for (xcount = 0, k = 0; k < 24; k++) {
+          for (diff = 0, j = 0; j < 4; j++) diff += PetscSqr(coords[4 * k + j] - coords[4 * v + j]);
+          if (diff != 2) continue;
+          for (diff = 0, j = 0; j < 4; j++) diff += PetscSqr(coords[4 * k + j] - coords[4 * w + j]);
+          if (diff != 2) continue;
+          if (xcount == 3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Too many faces around an edge");
+          x[xcount++] = k;
+        }
+        if (xcount != 3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Too few faces around an edge");
+        for (k = 0; k < 3; k++) {
+          PetscInt z, y, l;
+          PetscReal mid[4];
+          PetscReal dispv[4];
+          PetscReal dispw[4];
+          PetscInt  oppvc[4];
+          PetscInt  oppwc[4];
+          PetscInt  oppv, oppw;
+          PetscInt  octohedron[6];
+          PetscInt  mat[4][4];
+          PetscInt  det;
+
+          z = x[k];
+          y = x[(k+1)%3];
+          if (y < z) {
+            PetscInt swap = y;
+            y = z;
+            z = swap;
+          }
+          if (z < w) continue;
+          for (diff = 0, j = 0; j < 4; j++) diff += PetscSqr(coords[4 * z + j] - coords[4 * y + j]);
+          if (diff != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incorrect geometry");
+          for (j = 0; j < 4; j++) mid[j] = coords[4 * z + j] + ((PetscReal) coords[4 * y + j] - coords[4 * z + j]) / 2.;
+          for (j = 0; j < 4; j++) dispv[j] = ((PetscReal) coords[4 * v + j] - mid[j]);
+          for (j = 0; j < 4; j++) dispw[j] = ((PetscReal) coords[4 * w + j] - mid[j]);
+          for (j = 0; j < 4; j++) oppvc[j] = mid[j] - dispv[j];
+          for (j = 0; j < 4; j++) oppwc[j] = mid[j] - dispw[j];
+          for (l = 0; l < 24; l++) {
+            for (j = 0; j < 4; j++) if (oppvc[j] != coords[4 * l + j]) break;
+            if (j == 4) {
+              oppv = l;
+              break;
+            }
+          }
+          for (l = 0; l < 24; l++) {
+            for (j = 0; j < 4; j++) if (oppwc[j] != coords[4 * l + j]) break;
+            if (j == 4) {
+              oppw = l;
+              break;
+            }
+          }
+          if (oppv < v || oppw < w) continue;
+          octohedron[0] = v;
+          octohedron[1] = w;
+          octohedron[2] = z;
+          octohedron[3] = y;
+          octohedron[4] = oppw;
+          octohedron[5] = oppv;
+          for (l = 0; l < 4; l++) for (j = 0; j < 4; j++) mat[l][j] = coords[octohedron[l] * 4 + j];
+          for (det = 0, l = 0; l < 24; l++) {
+            PetscInt perm[4] = {0, 1, 2, 3};
+            PetscInt odd = 0, swap, sign;
+            PetscInt p = l;
+
+            j = p % 4;
+            p = p / 4;
+            if (j != 0) odd ^= 1;
+            swap = perm[j];
+            perm[j] = perm[0];
+            perm[0] = swap;
+
+            j = p % 3;
+            p = p / 3;
+            if (j != 0) odd ^= 1;
+            swap = perm[j+1];
+            perm[j+1] = perm[1];
+            perm[1] = swap;
+
+            j = p % 2;
+            p = p / 2;
+            if (j != 0) odd ^= 1;
+            swap = perm[j+1];
+            perm[j+1] = perm[1];
+            perm[1] = swap;
+
+            sign = (odd) ? -1 : 1;
+            det += sign * mat[0][perm[0]] * mat[1][perm[1]] * mat[2][perm[2]] * mat[3][perm[3]];
+          }
+          if (det == 0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "degenerate tetrahedron");
+          if (det < 0) {
+            PetscInt swap;
+
+            swap = octohedron[2];
+            octohedron[2] = octohedron[3];
+            octohedron[3] = swap;
+          }
+          for (l = 0; l < 6; l++) {
+            if (vertid[octohedron[l]] == -1) vertid[octohedron[l]] = vcount++;
+            vertices[6 * fcount + l] = vertid[octohedron[l]];
+          }
+          fcount++;
+        }
+      }
+    }
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("octoplex", 24, 24, facets, vertexOffsets, vertices, PETSC_FALSE, NULL, -576, 576, &ortho);CHKERRQ(ierr);
   }
-#endif
 
   ierr = PetscFinalize();
   return ierr;
