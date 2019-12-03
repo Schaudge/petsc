@@ -121,10 +121,7 @@ template<typename Type> struct Maxloc {
   With bs>1 and a unit > 64 bits, the current element-wise atomic approach can not guarantee the whole
   insertion is atomic. Hope no user codes rely on that.
 */
-
-#if defined(PETSC_USE_REAL_DOUBLE)
 __device__ static double atomicExch(double* address,double val) {return __longlong_as_double(atomicExch((unsigned long long int*)address,__double_as_longlong(val)));}
-#endif
 
 #if defined(PETSC_USE_64BIT_INDICES)
 __device__ static PetscInt atomicExch(PetscInt* address,PetscInt val) {return (PetscInt)(atomicExch((unsigned long long int*)address,(unsigned long long int)val));}
@@ -215,7 +212,6 @@ template<> struct AtomicAdd<PetscComplex> {
 
   CUDA has no atomicMult at all, so we build our own with atomicCAS
  */
-#if defined(PETSC_USE_REAL_DOUBLE)
 __device__ static double atomicMult(double* address, double val)
 {
   unsigned long long int *address_as_ull = (unsigned long long int*)(address);
@@ -227,7 +223,7 @@ __device__ static double atomicMult(double* address, double val)
   } while (assumed != old);
   return __longlong_as_double(old);
 }
-#elif defined(PETSC_USE_REAL_SINGLE)
+
 __device__ static float atomicMult(float* address,float val)
 {
   int *address_as_int = (int*)(address);
@@ -238,7 +234,6 @@ __device__ static float atomicMult(float* address,float val)
   } while (assumed != old);
   return __int_as_float(old);
 }
-#endif
 
 __device__ static int atomicMult(int* address,int val)
 {
@@ -283,8 +278,6 @@ template<typename Type> struct AtomicMult {__device__ Type operator() (Type& x,T
 
   atomicMax() is similar.
  */
-
-#if defined(PETSC_USE_REAL_DOUBLE)
 __device__ static double atomicMin(double* address, double val)
 {
   unsigned long long int *address_as_ull = (unsigned long long int*)(address);
@@ -306,7 +299,7 @@ __device__ static double atomicMax(double* address, double val)
   } while (assumed != old);
   return __longlong_as_double(old);
 }
-#elif defined(PETSC_USE_REAL_SINGLE)
+
 __device__ static float atomicMin(float* address,float val)
 {
   int *address_as_int = (int*)(address);
@@ -328,7 +321,6 @@ __device__ static float atomicMax(float* address,float val)
   } while (assumed != old);
   return __int_as_float(old);
 }
-#endif
 
 #if defined(PETSC_USE_64BIT_INDICES)
 __device__ static PetscInt atomicMin(PetscInt* address,PetscInt val)
@@ -672,6 +664,12 @@ PetscErrorCode PetscSFPackSetUp_Device(PetscSF sf,PetscSFPack link,MPI_Datatype 
   cudaError_t    err;
   PetscInt       nSignedChar=0,nUnsignedChar=0,nInt=0,nPetscInt=0,nPetscReal=0;
   PetscBool      is2Int,is2PetscInt;
+#if !defined(PETSC_USE_REAL_DOUBLE)
+  PetscInt       nDouble=0;
+#endif
+#if !defined(PETSC_USE_REAL_SINGLE)
+  PetscInt       nFloat=0;
+#endif
 #if defined(PETSC_HAVE_COMPLEX)
   PetscInt       nPetscComplex=0;
 #endif
@@ -684,6 +682,12 @@ PetscErrorCode PetscSFPackSetUp_Device(PetscSF sf,PetscSFPack link,MPI_Datatype 
   ierr = MPIPetsc_Type_compare_contig(unit,MPI_INT,  &nInt);CHKERRQ(ierr);
   ierr = MPIPetsc_Type_compare_contig(unit,MPIU_INT, &nPetscInt);CHKERRQ(ierr);
   ierr = MPIPetsc_Type_compare_contig(unit,MPIU_REAL,&nPetscReal);CHKERRQ(ierr);
+#if !defined(PETSC_USE_REAL_DOUBLE)
+  ierr = MPIPetsc_Type_compare_contig(unit,MPI_DOUBLE,&nDouble);CHKERRQ(ierr);
+#endif
+#if !defined(PETSC_USE_REAL_SINGLE)
+  ierr = MPIPetsc_Type_compare_contig(unit,MPI_FLOAT,&nFloat);CHKERRQ(ierr);
+#endif
 #if defined(PETSC_HAVE_COMPLEX)
   ierr = MPIPetsc_Type_compare_contig(unit,MPIU_COMPLEX,&nPetscComplex);CHKERRQ(ierr);
 #endif
@@ -692,13 +696,27 @@ PetscErrorCode PetscSFPackSetUp_Device(PetscSF sf,PetscSFPack link,MPI_Datatype 
 
   if (is2Int) {
     PackInit_PairType<PairInt>(link);
-  } else if (is2PetscInt) { /* TODO: when is2PetscInt and nPetscInt=2, we don't know which path to take. The two paths support different ops. */
+  } else if (is2PetscInt) {
     PackInit_PairType<PairPetscInt>(link);
   } else if (nPetscReal) {
     if      (nPetscReal == 8) PackInit_RealType<PetscReal,8,1>(link); else if (nPetscReal%8 == 0) PackInit_RealType<PetscReal,8,0>(link);
     else if (nPetscReal == 4) PackInit_RealType<PetscReal,4,1>(link); else if (nPetscReal%4 == 0) PackInit_RealType<PetscReal,4,0>(link);
     else if (nPetscReal == 2) PackInit_RealType<PetscReal,2,1>(link); else if (nPetscReal%2 == 0) PackInit_RealType<PetscReal,2,0>(link);
     else if (nPetscReal == 1) PackInit_RealType<PetscReal,1,1>(link); else if (nPetscReal%1 == 0) PackInit_RealType<PetscReal,1,0>(link);
+#if !defined(PETSC_USE_REAL_DOUBLE)
+  } else if (nDouble) {
+    if      (nDouble == 8) PackInit_RealType<double,8,1>(link); else if (nDouble%8 == 0) PackInit_RealType<double,8,0>(link);
+    else if (nDouble == 4) PackInit_RealType<double,4,1>(link); else if (nDouble%4 == 0) PackInit_RealType<double,4,0>(link);
+    else if (nDouble == 2) PackInit_RealType<double,2,1>(link); else if (nDouble%2 == 0) PackInit_RealType<double,2,0>(link);
+    else if (nDouble == 1) PackInit_RealType<double,1,1>(link); else if (nDouble%1 == 0) PackInit_RealType<double,1,0>(link);
+#endif
+#if !defined(PETSC_USE_REAL_SINGLE)
+  } else if (nFloat) {
+    if      (nFloat == 8) PackInit_RealType<float,8,1>(link); else if (nFloat%8 == 0) PackInit_RealType<float,8,0>(link);
+    else if (nFloat == 4) PackInit_RealType<float,4,1>(link); else if (nFloat%4 == 0) PackInit_RealType<float,4,0>(link);
+    else if (nFloat == 2) PackInit_RealType<float,2,1>(link); else if (nFloat%2 == 0) PackInit_RealType<float,2,0>(link);
+    else if (nFloat == 1) PackInit_RealType<float,1,1>(link); else if (nFloat%1 == 0) PackInit_RealType<float,1,0>(link);
+#endif
   } else if (nPetscInt) {
     if      (nPetscInt == 8) PackInit_IntegerType<PetscInt,8,1>(link); else if (nPetscInt%8 == 0) PackInit_IntegerType<PetscInt,8,0>(link);
     else if (nPetscInt == 4) PackInit_IntegerType<PetscInt,4,1>(link); else if (nPetscInt%4 == 0) PackInit_IntegerType<PetscInt,4,0>(link);

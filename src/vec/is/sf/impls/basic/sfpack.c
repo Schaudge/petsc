@@ -463,6 +463,28 @@ DEF_RealType(PetscReal,2,0)
 DEF_RealType(PetscReal,4,0)
 DEF_RealType(PetscReal,8,0)
 
+#if !defined(PETSC_USE_REAL_DOUBLE)
+DEF_RealType(double,1,1)
+DEF_RealType(double,2,1)
+DEF_RealType(double,4,1)
+DEF_RealType(double,8,1)
+DEF_RealType(double,1,0)
+DEF_RealType(double,2,0)
+DEF_RealType(double,4,0)
+DEF_RealType(double,8,0)
+#endif
+
+#if !defined(PETSC_USE_REAL_SINGLE)
+DEF_RealType(float,1,1)
+DEF_RealType(float,2,1)
+DEF_RealType(float,4,1)
+DEF_RealType(float,8,1)
+DEF_RealType(float,1,0)
+DEF_RealType(float,2,0)
+DEF_RealType(float,4,0)
+DEF_RealType(float,8,0)
+#endif
+
 #if defined(PETSC_HAVE_COMPLEX)
 DEF_ComplexType(PetscComplex,1,1)
 DEF_ComplexType(PetscComplex,2,1)
@@ -609,6 +631,12 @@ PetscErrorCode PetscSFPackSetUp_Host(PetscSF sf,PetscSFPack link,MPI_Datatype un
   PetscInt       nSignedChar=0,nUnsignedChar=0,nInt=0,nPetscInt=0,nPetscReal=0;
   PetscBool      is2Int,is2PetscInt;
   PetscMPIInt    ni,na,nd,combiner;
+#if !defined(PETSC_USE_REAL_DOUBLE)
+  PetscInt       nDouble=0;
+#endif
+#if !defined(PETSC_USE_REAL_SINGLE)
+  PetscInt       nFloat=0;
+#endif
 #if defined(PETSC_HAVE_COMPLEX)
   PetscInt       nPetscComplex=0;
 #endif
@@ -620,9 +648,16 @@ PetscErrorCode PetscSFPackSetUp_Host(PetscSF sf,PetscSFPack link,MPI_Datatype un
   ierr = MPIPetsc_Type_compare_contig(unit,MPI_INT,  &nInt);CHKERRQ(ierr);
   ierr = MPIPetsc_Type_compare_contig(unit,MPIU_INT, &nPetscInt);CHKERRQ(ierr);
   ierr = MPIPetsc_Type_compare_contig(unit,MPIU_REAL,&nPetscReal);CHKERRQ(ierr);
+#if !defined(PETSC_USE_REAL_DOUBLE)
+  ierr = MPIPetsc_Type_compare_contig(unit,MPI_DOUBLE,&nDouble);CHKERRQ(ierr);
+#endif
+#if !defined(PETSC_USE_REAL_SINGLE)
+  ierr = MPIPetsc_Type_compare_contig(unit,MPI_FLOAT,&nFloat);CHKERRQ(ierr);
+#endif
 #if defined(PETSC_HAVE_COMPLEX)
   ierr = MPIPetsc_Type_compare_contig(unit,MPIU_COMPLEX,&nPetscComplex);CHKERRQ(ierr);
 #endif
+
   ierr = MPIPetsc_Type_compare(unit,MPI_2INT,&is2Int);CHKERRQ(ierr);
   ierr = MPIPetsc_Type_compare(unit,MPIU_2INT,&is2PetscInt);CHKERRQ(ierr);
   /* TODO: shaell we also handle Fortran MPI_2REAL? */
@@ -637,7 +672,7 @@ PetscErrorCode PetscSFPackSetUp_Host(PetscSF sf,PetscSFPack link,MPI_Datatype un
     link->isbuiltin = PETSC_TRUE; /* unit is PETSc builtin */
     link->basicunit = MPI_2INT;
     link->unit      = MPI_2INT;
-  } else if (is2PetscInt) { /* TODO: when is2PetscInt and nPetscInt=2, we don't know which path to take. The two paths support different ops. */
+  } else if (is2PetscInt) {
     PackInit_PairType_PetscInt_PetscInt(link);
     link->bs        = 1;
     link->unitbytes = 2*sizeof(PetscInt);
@@ -653,6 +688,28 @@ PetscErrorCode PetscSFPackSetUp_Host(PetscSF sf,PetscSFPack link,MPI_Datatype un
     link->unitbytes = nPetscReal*sizeof(PetscReal);
     link->basicunit = MPIU_REAL;
     if (link->bs == 1) {link->isbuiltin = PETSC_TRUE; link->unit = MPIU_REAL;}
+#if !defined(PETSC_USE_REAL_DOUBLE)
+  } else if (nDouble) {
+    if      (nDouble == 8) PackInit_RealType_double_8_1(link); else if (nDouble%8 == 0) PackInit_RealType_double_8_0(link);
+    else if (nDouble == 4) PackInit_RealType_double_4_1(link); else if (nDouble%4 == 0) PackInit_RealType_double_4_0(link);
+    else if (nDouble == 2) PackInit_RealType_double_2_1(link); else if (nDouble%2 == 0) PackInit_RealType_double_2_0(link);
+    else if (nDouble == 1) PackInit_RealType_double_1_1(link); else if (nDouble%1 == 0) PackInit_RealType_double_1_0(link);
+    link->bs        = nDouble;
+    link->unitbytes = nDouble*sizeof(double);
+    link->basicunit = MPI_DOUBLE;
+    if (link->bs == 1) {link->isbuiltin = PETSC_TRUE; link->unit = MPI_DOUBLE;}
+#endif
+#if !defined(PETSC_USE_REAL_SINGLE)
+  } else if (nFloat) {
+    if      (nFloat == 8) PackInit_RealType_float_8_1(link); else if (nFloat%8 == 0) PackInit_RealType_float_8_0(link);
+    else if (nFloat == 4) PackInit_RealType_float_4_1(link); else if (nFloat%4 == 0) PackInit_RealType_float_4_0(link);
+    else if (nFloat == 2) PackInit_RealType_float_2_1(link); else if (nFloat%2 == 0) PackInit_RealType_float_2_0(link);
+    else if (nFloat == 1) PackInit_RealType_float_1_1(link); else if (nFloat%1 == 0) PackInit_RealType_float_1_0(link);
+    link->bs        = nFloat;
+    link->unitbytes = nFloat*sizeof(float);
+    link->basicunit = MPI_FLOAT;
+    if (link->bs == 1) {link->isbuiltin = PETSC_TRUE; link->unit = MPI_FLOAT;}
+#endif
   } else if (nPetscInt) {
     if      (nPetscInt == 8) PackInit_IntegerType_PetscInt_8_1(link); else if (nPetscInt%8 == 0) PackInit_IntegerType_PetscInt_8_0(link);
     else if (nPetscInt == 4) PackInit_IntegerType_PetscInt_4_1(link); else if (nPetscInt%4 == 0) PackInit_IntegerType_PetscInt_4_0(link);

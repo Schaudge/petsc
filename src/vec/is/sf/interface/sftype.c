@@ -14,6 +14,19 @@
 #  define MPI_COMBINER_CONTIGUOUS -1
 #endif
 
+/* Check if <a> is a petsc builtin MPI type */
+PETSC_STATIC_INLINE PetscErrorCode MPIPetsc_Type_builtin(MPI_Datatype a,PetscBool *builtin)
+{
+  PetscFunctionBegin;
+  *builtin = PETSC_FALSE;
+  if (a == MPIU_INT || a == MPIU_2INT || a == MPIU_REAL || a == MPIU_SCALAR
+#if defined(PETSC_HAVE_COMPLEX)
+      || a == MPIU_COMPLEX
+#endif
+  ) *builtin = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode MPIPetsc_Type_free(MPI_Datatype *a)
 {
   PetscMPIInt    nints,naddrs,ntypes,combiner;
@@ -45,11 +58,13 @@ PetscErrorCode MPIPetsc_Type_unwrap(MPI_Datatype a,MPI_Datatype *atype,PetscBool
   PetscErrorCode ierr;
   PetscMPIInt    nints,naddrs,ntypes,combiner,ints[1];
   MPI_Datatype   types[1];
+  PetscBool      builtin;
 
   PetscFunctionBegin;
   *flg = PETSC_FALSE;
   *atype = a;
-  if (a == MPIU_INT || a == MPIU_REAL || a == MPIU_SCALAR) PetscFunctionReturn(0);
+  ierr = MPIPetsc_Type_builtin(a,&builtin);CHKERRQ(ierr);
+  if (builtin) PetscFunctionReturn(0); /* No need to unwrap builtin types */
   ierr = MPI_Type_get_envelope(a,&nints,&naddrs,&ntypes,&combiner);CHKERRQ(ierr);
   if (combiner == MPI_COMBINER_DUP) {
     if (nints != 0 || naddrs != 0 || ntypes != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Unexpected returns from MPI_Type_get_envelope()");
@@ -84,7 +99,7 @@ PetscErrorCode MPIPetsc_Type_compare(MPI_Datatype a,MPI_Datatype b,PetscBool *ma
   MPI_Datatype   atype,btype;
   PetscMPIInt    aintcount,aaddrcount,atypecount,acombiner;
   PetscMPIInt    bintcount,baddrcount,btypecount,bcombiner;
-  PetscBool      freeatype, freebtype;
+  PetscBool      freeatype,freebtype,builtin;
 
   PetscFunctionBegin;
   if (a == b) { /* this is common when using MPI builtin datatypes */
@@ -97,6 +112,12 @@ PetscErrorCode MPIPetsc_Type_compare(MPI_Datatype a,MPI_Datatype b,PetscBool *ma
   if (atype == btype) {
     *match = PETSC_TRUE;
     goto free_types;
+  } else {
+     /* If either atype or btype is builtin and atype != btype, then they do not match. We do not need to decode them further. */
+    ierr = MPIPetsc_Type_builtin(atype,&builtin);CHKERRQ(ierr);
+    if (builtin) goto free_types;
+    ierr = MPIPetsc_Type_builtin(btype,&builtin);CHKERRQ(ierr);
+    if (builtin) goto free_types;
   }
   ierr = MPI_Type_get_envelope(atype,&aintcount,&aaddrcount,&atypecount,&acombiner);CHKERRQ(ierr);
   ierr = MPI_Type_get_envelope(btype,&bintcount,&baddrcount,&btypecount,&bcombiner);CHKERRQ(ierr);
@@ -150,13 +171,16 @@ PetscErrorCode MPIPetsc_Type_compare_contig(MPI_Datatype a,MPI_Datatype b,PetscI
   PetscErrorCode ierr;
   MPI_Datatype   atype,btype;
   PetscMPIInt    aintcount,aaddrcount,atypecount,acombiner;
-  PetscBool      freeatype,freebtype;
+  PetscBool      freeatype,freebtype,builtin;
 
   PetscFunctionBegin;
   if (a == b) {*n = 1; PetscFunctionReturn(0);}
   *n = 0;
   ierr = MPIPetsc_Type_unwrap(a,&atype,&freeatype);CHKERRQ(ierr);
   ierr = MPIPetsc_Type_unwrap(b,&btype,&freebtype);CHKERRQ(ierr);
+  ierr = MPIPetsc_Type_builtin(atype,&builtin);CHKERRQ(ierr);
+  if (builtin) goto free_types; /* Do not try to decode PETSc builtin types, which act as MPI predefined types in the PETSc library */
+
   ierr = MPI_Type_get_envelope(atype,&aintcount,&aaddrcount,&atypecount,&acombiner);CHKERRQ(ierr);
   if (acombiner == MPI_COMBINER_CONTIGUOUS && aintcount >= 1) {
     PetscMPIInt  *aints;
@@ -179,7 +203,7 @@ PetscErrorCode MPIPetsc_Type_compare_contig(MPI_Datatype a,MPI_Datatype b,PetscI
     }
     ierr = PetscFree3(aints,aaddrs,atypes);CHKERRQ(ierr);
   }
-
+free_types:
   if (freeatype) {
     ierr = MPIPetsc_Type_free(&atype);CHKERRQ(ierr);
   }
