@@ -42,6 +42,7 @@ CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt";
 Overlap="./${dirname}/overlap_${LSB_JOBID}.txt";
 Order="./${dirname}/feorder_${LSB_JOBID}.txt";
 CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
+GVS="./${dirname}globvecsize_${LSB_JOBID}.txt"
 runError="./${dirname}/runError_${LSB_JOBID}.txt";
 
 echo "Resetting full log and filtered outputs...";
@@ -59,6 +60,7 @@ echo "Resetting full log and filtered outputs...";
 >./$Overlap;
 >./$Order;
 >./$CompNum;
+>./$GVS;
 >./$runError;
 echo "done";
 
@@ -117,5 +119,6 @@ function finish {
     grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap;
     grep "petscspace_degree" --line-buffered ./$rawlog | awk '{print $2}' >> $Order;
     grep "num_fields" --line-buffered ./$rawlog | awk '{print $2}' >> $CompNum;
+    grep "Global Vector Size" --line-buffered./$rawlog | awk '{print $4}' >> $GVS;
     echo "done";
 }
