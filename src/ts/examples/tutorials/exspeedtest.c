@@ -361,16 +361,14 @@ int main(int argc, char **argv)
   ierr = PetscLogStagePush(user.stageINSERT);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(user.eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
   for (commiter = 0; commiter < user.commax; commiter++) {
-    ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
-    ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
     ierr = DMGlobalToLocalBegin(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
   }
   /*    Push LocalToGlobal time to log  */
-  ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(user.eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = PetscLogStagePop();CHKERRQ(ierr);
+  ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
 
   /*    Perform setup before timing     */
   ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
@@ -389,10 +387,10 @@ int main(int argc, char **argv)
     /*  Global to Local aren't implemented      */
   }
   /*    Push time to log        */
-  ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(user.eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = PetscLogStagePop();CHKERRQ(ierr);
+  ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
 
   /*    Perform setup before timing     */
   ierr = DMCreateGlobalVector(dm, &VDot);CHKERRQ(ierr);
@@ -410,9 +408,9 @@ int main(int argc, char **argv)
     ierr = VecDotEnd(VDot, VDot, &VDotResult);CHKERRQ(ierr);
   }
   /*    Push time to log        */
-  ierr = VecDestroy(&VDot);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(user.eventGVD, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = PetscLogStagePop();CHKERRQ(ierr);
+  ierr = VecDestroy(&VDot);CHKERRQ(ierr);
 
   /*    Output vtk of global solution vector    */
   if (user.vtkSoln) {
