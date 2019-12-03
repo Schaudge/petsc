@@ -2,22 +2,24 @@
 
 filename=$(basename -- "$1");
 filepath=$(dirname -- "$1");
+ID=$2;
 echo "$filename";
 echo "$filepath";
 echo "$1";
-if [ "$filename" = "rawlog.txt" ]; then
-    filtINSERT="${filepath}/filtoutINSERT.txt";
-    filtADDVAL="${filepath}/filtoutADDVAL.txt";
-    nprocess="${filepath}/nprocess.txt";
-    packsizeINSERT="${filepath}/packsizeINSERT.txt";
-    packsizeADDVAL="${filepath}/packsizeADDVAL.txt";
-    VecDotTime="${filepath}/vecdottime.txt";
-    VecDotFlops="${filepath}/vecdotflops.txt";
-    NodeNum="${filepath}/nodenum.txt";
-    CellNum="${filepath}/cellnum.txt";
-    Overlap="${filepath}/overlap.txt";
-    Order="${filepath}/feorder.txt";
-    CompNum="${filepath}/compnum.txt";
+if [ "$filename" = "rawlog_${ID}.txt" ]; then
+    filtINSERT="${filepath}/filtoutINSERT_${ID}.txt";
+    filtADDVAL="${filepath}/filtoutADDVAL_${ID}.txt";
+    nprocess="${filepath}/nprocess_${ID}.txt";
+    packsizeINSERT="${filepath}/packsizeINSERT_${ID}.txt";
+    packsizeADDVAL="${filepath}/packsizeADDVAL_${ID}.txt";
+    VecDotTime="${filepath}/vecdottime_${ID}.txt";
+    VecDotFlops="${filepath}/vecdotflops_${ID}.txt";
+    NodeNum="${filepath}/nodenum_${ID}.txt";
+    CellNum="${filepath}/cellnum_${ID}.txt";
+    Overlap="${filepath}/overlap_${ID}.txt";
+    Order="${filepath}/feorder_${ID}.txt";
+    CompNum="${filepath}/compnum_${ID}.txt";
+    GVS="${filepath}/globvecsize_${ID}.txt";
     echo "Do you wish to overwrite?";
     select yne in "Yes" "No" "Exit"; do
         case $yne in
@@ -33,6 +35,7 @@ if [ "$filename" = "rawlog.txt" ]; then
                 > $Overlap;
                 > $Order;
                 > $CompNum;
+                > $GVS;
                 break;;
             No ) "GREPPED">> $filtINSERT;
                 "GREPPED">> $filtADDVAL;
@@ -46,6 +49,7 @@ if [ "$filename" = "rawlog.txt" ]; then
                 "GREPPED">> $Overlap;
                 "GREPPED">> $Order;
                 "GREPPED">> $CompNum;
+                "GREPPED">> $GVS;
                 break;;
             Exit ) exit;;
         esac
@@ -68,4 +72,5 @@ grep "Global Cell Num" --line-buffered $1 | sed 's:.*>::' >> $CellNum;
 grep "overlap" --line-buffered $1 | sed 's:.*>::' >> $Overlap;
 grep "petscspace_degree" --line-buffered $1 | awk '{print $2}' >> $Order;
 grep "num_fields" --line-buffered $1 | awk '{print $2}' >> $CompNum;
+grep "Global Vector Size" --line-buffered $1 | awk '{print $4}' >> $GVS;
 echo "done";
