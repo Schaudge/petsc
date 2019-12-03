@@ -600,7 +600,7 @@ int main(int argc, char **argv)
         }
       }
     }
-    ierr = PetscPolytopeInsertCheckSignsSymmetry("octoplex", 24, 24, facets, vertexOffsets, vertices, PETSC_FALSE, NULL, -576, 576, &ortho);CHKERRQ(ierr);
+    ierr = PetscPolytopeInsertCheckSignsSymmetry("octoplex", 24, 24, facets, vertexOffsets, vertices, PETSC_FALSE, NULL, -576, 576, &oplex);CHKERRQ(ierr);
   }
 
   ierr = PetscFinalize();

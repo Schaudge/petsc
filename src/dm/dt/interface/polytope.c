@@ -1414,7 +1414,7 @@ static PetscErrorCode PetscPolytopesDestroy(void)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscPolytopeInsert(const char name[], PetscInt numFacets, PetscInt numVertices, const PetscPolytope facets[], const PetscInt vertexOffsets[], const PetscInt facetsToVertices[], PetscBool firstFacetInward, PetscPolytope *polytope)
+static PetscErrorCode PetscPolytopesGet(PetscPolytopeSet *pset)
 {
   PetscErrorCode ierr;
 
@@ -1423,20 +1423,29 @@ PetscErrorCode PetscPolytopeInsert(const char name[], PetscInt numFacets, PetscI
     ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
     ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
   }
-  ierr = PetscPolytopeSetInsert(PetscPolytopes, name, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, firstFacetInward, polytope);CHKERRQ(ierr);
+  *pset = PetscPolytopes;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscPolytopeInsert(const char name[], PetscInt numFacets, PetscInt numVertices, const PetscPolytope facets[], const PetscInt vertexOffsets[], const PetscInt facetsToVertices[], PetscBool firstFacetInward, PetscPolytope *polytope)
+{
+  PetscPolytopeSet pset;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetInsert(pset, name, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, firstFacetInward, polytope);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode PetscPolytopeGetByName(const char name[], PetscPolytope *polytope)
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetGetPolytope(PetscPolytopes, name, polytope);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetGetPolytope(pset, name, polytope);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1458,14 +1467,12 @@ static PetscErrorCode PetscPolytopeSetGetData(PetscPolytopeSet pset, PetscPolyto
 
 PetscErrorCode PetscPolytopeGetData(PetscPolytope polytope, PetscInt *numFacets, PetscInt *numVertices, const PetscPolytope *facets[], const PetscInt *vertexOffsets[], const PetscInt *facetsToVertices[], const PetscBool *facetsInward[])
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetGetData(PetscPolytopes, polytope, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, facetsInward);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetGetData(pset, polytope, numFacets, numVertices, facets, vertexOffsets, facetsToVertices, facetsInward);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1483,14 +1490,12 @@ static PetscErrorCode PetscPolytopeSetGetOrientationRange(PetscPolytopeSet pset,
 
 PetscErrorCode PetscPolytopeGetOrientationRange(PetscPolytope polytope, PetscInt *orientStart, PetscInt *orientEnd)
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetGetOrientationRange(PetscPolytopes, polytope, orientStart, orientEnd);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetGetOrientationRange(pset, polytope, orientStart, orientEnd);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1542,14 +1547,12 @@ static PetscErrorCode PetscPolytopeSetOrientVertices(PetscPolytopeSet pset, Pets
 
 PetscErrorCode PetscPolytopeOrientVertices(PetscPolytope polytope, PetscInt orientation, PetscInt vertices[])
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetOrientVertices(PetscPolytopes, polytope, orientation, vertices);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientVertices(pset, polytope, orientation, vertices);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1571,14 +1574,12 @@ static PetscErrorCode PetscPolytopeSetOrientFacets(PetscPolytopeSet pset, PetscP
 
 PetscErrorCode PetscPolytopeOrientFacets(PetscPolytope polytope, PetscInt orientation, PetscInt facets[], PetscInt facetOrientations[])
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetOrientFacets(PetscPolytopes, polytope, orientation, facets, facetOrientations);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientFacets(pset, polytope, orientation, facets, facetOrientations);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1596,52 +1597,44 @@ static PetscErrorCode PetscPolytopeSetOrientationInverse(PetscPolytopeSet pset, 
 
 PetscErrorCode PetscPolytopeOrientationInverse(PetscPolytope polytope, PetscInt orientation, PetscInt *inverse)
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetOrientationInverse(PetscPolytopes, polytope, orientation, inverse);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationInverse(pset, polytope, orientation, inverse);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode PetscPolytopeOrientationCompose(PetscPolytope polytope, PetscInt a, PetscInt b, PetscInt *aafterb)
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetOrientationCompose(PetscPolytopes, polytope, a, b, aafterb);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationCompose(pset, polytope, a, b, aafterb);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode PetscPolytopeOrientationFromVertices(PetscPolytope polytope, const PetscInt vertices[], PetscBool *isOrientation, PetscInt *orientation)
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetOrientationFromVertices(PetscPolytopes, polytope, vertices, isOrientation, orientation);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationFromVertices(pset, polytope, vertices, isOrientation, orientation);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode PetscPolytopeOrientationFromFacet(PetscPolytope polytope, PetscInt facet, PetscInt facetImage, PetscInt facetOrientation, PetscBool *isOrientation, PetscInt *orientation)
 {
+  PetscPolytopeSet pset;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!PetscPolytopes) {
-    ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
-  }
-  ierr = PetscPolytopeSetOrientationFromFacet(PetscPolytopes, polytope, facet, facetImage, facetOrientation, isOrientation, orientation);CHKERRQ(ierr);
+  ierr = PetscPolytopesGet(&pset);CHKERRQ(ierr);
+  ierr = PetscPolytopeSetOrientationFromFacet(pset, polytope, facet, facetImage, facetOrientation, isOrientation, orientation);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
