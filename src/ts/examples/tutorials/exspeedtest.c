@@ -94,7 +94,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetString(NULL, NULL, "-f", options->filename, PETSC_MAX_PATH_LEN, &options->fileflg); CHKERRQ(ierr);
 
     ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &options->dim, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-num_field", &options->numFields, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-num_fields", &options->numFields, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-overlap", &options->overlap, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-qorder", &options->qorder, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-refine_dm_level", &options->level, NULL);CHKERRQ(ierr);

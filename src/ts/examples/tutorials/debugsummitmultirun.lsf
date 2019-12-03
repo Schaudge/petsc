@@ -37,7 +37,7 @@ packsizeINSERT="./${dirname}/packsizeINSERT_${LSB_JOBID}.txt";
 packsizeADDVAL="./${dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
 VecDotTime="./${dirname}/vecdottime_${LSB_JOBID}.txt";
 VecDotFlops="./${dirname}/vecdotflops_${LSB_JOBID}.txt";
-NodeNum="./${dirname}/nodenum_${LSB_JOBID}.txt";
+VertNum="./${dirname}/vertnum_${LSB_JOBID}.txt";
 CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt";
 Overlap="./${dirname}/overlap_${LSB_JOBID}.txt";
 Order="./${dirname}/feorder_${LSB_JOBID}.txt";
@@ -54,7 +54,7 @@ echo "Resetting full log and filtered outputs...";
 >./$packsizeADDVAL;
 >./$VecDotTime;
 >./$VecDotFlops;
->./$NodeNum;
+>./$VertNum;
 >./$CellNum;
 >./$Overlap;
 >./$Order;
@@ -65,7 +65,7 @@ echo "done";
 runcount=0;
 echo "looping...";
 echo "-----------";
-for NC in 1 5
+for NC in 1 3
 do
     echo "--------------------------- Num Comp: ${NC} ---------------------------">>./$rawlog;
     for deg in 1 2 4 8 16
@@ -112,7 +112,7 @@ function finish {
     grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL;
     grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> ./$VecDotTime;
     grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> ./$VecDotFlops;
-    grep "Global Node Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$NodeNum;
+    grep "Global Vertex Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$VertNum;
     grep "Global Cell Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$CellNum;
     grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap;
     grep "petscspace_degree" --line-buffered ./$rawlog | awk '{print $2}' >> $Order;
