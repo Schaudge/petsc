@@ -5,108 +5,117 @@
 #BSUB -alloc_flags gpumps
 #BSUB -J petsc_comm_ops
 
-echo "Start"
-echo "-n Number of resource sets"
-echo "-c Number of CPUs per resource set"
-echo "-g Number of GPUs per resource set"
-echo "-a Number of MPI ranks per resource set"
-echo "-d How tasks are started on resource sets"
-echo "-b Binding of tasks within a resource set"
+echo "Start";
+echo "-n Number of resource sets";
+echo "-c Number of CPUs per resource set";
+echo "-g Number of GPUs per resource set";
+echo "-a Number of MPI ranks per resource set";
+echo "-d How tasks are started on resource sets";
+echo "-b Binding of tasks within a resource set";
 
-echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-echo "+++                     DEBUG VERSION                     +++"
-echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
+echo "+++                     DEBUG VERSION                     +++";
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
 
-CLn=6
-CLc=7
-CLg=1
-CLa=1
+CLn=6;
+CLc=7;
+CLg=1;
+CLa=1;
+procpernode=42;
+nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
 
-echo "Creating Directories"
-now=$(date +"%m_%d_%Y_%H_%M_%S")
-dirname="DEBUG_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now"
-mkdir -p ./$dirname
-filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt"
-filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt"
-nprocess="./${dirname}/nprocess_${LSB_JOBID}.txt"
-rawlog="./${dirname}/rawlog_${LSB_JOBID}.txt"
-cellprank="./${dirname}/cellprank_${LSB_JOBID}.txt"
-packsizeINSERT="./${dirname}/packsizeINSERT_${LSB_JOBID}.txt"
-packsizeADDVAL="./${dirname}/packsizeADDVAL_${LSB_JOBID}.txt"
-VecDotTime="./${dirname}/vecdottime_${LSB_JOBID}.txt"
-VecDotFlops="./${dirname}/vecdotflops_${LSB_JOBID}.txt"
-NodeNum="./${dirname}/nodenum_${LSB_JOBID}.txt"
-CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt"
-Fields="./${dirname}/fields_${LSB_JOBID}.txt"
-Overlap="./${dirname}/overlap_${LSB_JOBID}.txt"
-runError="./${dirname}/runError_${LSB_JOBID}.txt"
+echo "Creating Directories";
+now=$(date +"%F_%H_%M_%S");
+dirname="DEBUG_${nodesReq}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+mkdir -p ./$dirname;
+filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt";
+filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
+nprocess="./${dirname}/nprocess_${LSB_JOBID}.txt";
+rawlog="./${dirname}/rawlog_${LSB_JOBID}.txt";
+cellprank="./${dirname}/cellprank_${LSB_JOBID}.txt";
+packsizeINSERT="./${dirname}/packsizeINSERT_${LSB_JOBID}.txt";
+packsizeADDVAL="./${dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
+VecDotTime="./${dirname}/vecdottime_${LSB_JOBID}.txt";
+VecDotFlops="./${dirname}/vecdotflops_${LSB_JOBID}.txt";
+NodeNum="./${dirname}/nodenum_${LSB_JOBID}.txt";
+CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt";
+Overlap="./${dirname}/overlap_${LSB_JOBID}.txt";
+Order="./${dirname}/feorder_${LSB_JOBID}.txt";
+CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
+runError="./${dirname}/runError_${LSB_JOBID}.txt";
 
-echo "Resetting full log and filtered outputs..."
->./$filtINSERT
->./$filtADDVAL
->./$nprocess
->./$rawlog
->./$cellprank
->./$packsizeINSERT
->./$packsizeADDVAL
->./$VecDotTime
->./$VecDotFlops
->./$NodeNum
->./$CellNum
->./$Fields
->./$Overlap
->./$runError
-echo "done"
+echo "Resetting full log and filtered outputs...";
+>./$filtINSERT;
+>./$filtADDVAL;
+>./$nprocess;
+>./$rawlog;
+>./$cellprank;
+>./$packsizeINSERT;
+>./$packsizeADDVAL;
+>./$VecDotTime;
+>./$VecDotFlops;
+>./$NodeNum;
+>./$CellNum;
+>./$Overlap;
+>./$Order;
+>./$CompNum;
+>./$runError;
+echo "done";
 
-dim=3
-nfaces=48,64,64
-runcount=0
-counter=0
-cells=196608
-ranks=$(($CLa*$CLn))
-echo "looping..."
-echo "-----------"
-cellprankval=$(bc <<< "scale=3; $cells/$ranks")
+runcount=0;
+echo "looping...";
+echo "-----------";
 for NC in 1 5
 do
-    echo "--------------------------- Num Comp: ${NC} ---------------------------">>./$rawlog
+    echo "--------------------------- Num Comp: ${NC} ---------------------------">>./$rawlog;
     for deg in 1 2 4 8 16
     do
-        echo "counter:			   		$counter"
-        echo "run count:				$runcount"
-        echo "current number of MPI ranks:		$ranks"
-        echo "cell number:				$cells"
-        echo "approx cells/rank:			$cellprankval"
-        echo "current num components:			$NC"
-        echo "current petsc space degree:		$deg"
-        echo "start time:				$(date -u)"
+        dim=3;
+        nfx=48;
+        nfy=64;
+        nfz=64;
+        nfaces=$nfx,$nfy,$nfz;
+        cells=$(($nfx*$nfy*$nfz));
+        ranks=$(($nodesReq*$CLa*$CLn));
+        cellprankval=$(bc <<< "scale=3; $cells/$ranks");
+        echo "run count:                     $runcount";
+        echo "number of nodes requested:     $nodesReq";
+        echo "current number of MPI ranks:   $ranks";
+        echo "cell number:                   $cells";
+        echo "approx cells/rank:             $cellprankval";
+        echo "current num components:        $NC";
+        echo "current petsc space degree:    $deg";
+        echo "start time:                    $(date -u)";
         SECONDS=0
-        jsrun -n $CLn -c $CLc -g $CLg -a $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -log_view -dm_view ::ascii_info_concise
+        set -x
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -log_view -dm_view ::ascii_info_concise
+        set +x
         duration=$SECONDS
-        echo "end time:				$(date -u)"
-        echo "runtime:                         	$(($duration / 60)) minutes and $(($duration % 60)) seconds"
-        echo "-----------"
-        ((runcount++))
+        echo "end time:                      $(date -u)";
+        echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds";
+        echo "-----------";
+        ((runcount++));
     done
 done
-echo "--------------------------- Successful exit! ---------------------------">>./$rawlog
+echo "--------------------------- Successful exit! ---------------------------">>./$rawlog;
 trap finish EXIT
 function finish {
-    echo "moving things"
-    mv ./resources.${LSB_JOBID} ./${dirname}
-    mv ./petsc_comm_ops.${LSB_JOBID} ./${dirname}
-    echo "done"
-    echo "grepping..."
-    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT
-    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtADDVAL
-    grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess
-    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT
-    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL
-    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> ./$VecDotTime
-    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> ./$VecDotFlops
-    grep "Global Node Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$NodeNum
-    grep "Global Cell Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$CellNum
-    grep "Fields" --line-buffered ./$rawlog | sed 's:.*>::' | sed 's:(.*::' >> ./$Fields
-    grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap
-    echo "done"
+    echo "moving things";
+    mv ./resources.${LSB_JOBID} ./${dirname};
+    mv ./petsc_comm_ops.${LSB_JOBID} ./${dirname};
+    echo "done";
+    echo "grepping...";
+    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT;
+    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtADDVAL;
+    grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess;
+    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT;
+    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL;
+    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> ./$VecDotTime;
+    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> ./$VecDotFlops;
+    grep "Global Node Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$NodeNum;
+    grep "Global Cell Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$CellNum;
+    grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap;
+    grep "petscspace_degree" --line-buffered ./$rawlog | awk '{print $2}' >> $Order;
+    grep "num_fields" --line-buffered ./$rawlog | awk '{print $2}' >> $CompNum;
+    echo "done";
 }
