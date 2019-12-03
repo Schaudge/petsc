@@ -1420,9 +1420,105 @@ static PetscErrorCode PetscPolytopesGet(PetscPolytopeSet *pset)
 
   PetscFunctionBegin;
   if (!PetscPolytopes) {
+    PetscPolytope null, vertex, edge, tri, quad, hyquad, tet, hex, prism;
+
     ierr = PetscPolytopeSetCreate(&PetscPolytopes);CHKERRQ(ierr);
     ierr = PetscRegisterFinalize(PetscPolytopesDestroy);CHKERRQ(ierr);
+    ierr = PetscPolytopeSetInsert(PetscPolytopes, "dmplex-null", 0, 0, NULL, NULL, NULL, PETSC_FALSE, &null);CHKERRQ(ierr);
+    if (null != 0) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-null != 0");
+
+    {
+      PetscInt vertexOffsets[2] = {0,0};
+
+      ierr = PetscPolytopeInsert("dmplex-vertex", 1, 0, &null, vertexOffsets, NULL, PETSC_FALSE, &vertex);CHKERRQ(ierr);
+    }
+    if (vertex != 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-vertex != 1");
+
+    {
+      PetscPolytope facets[2];
+      PetscInt      vertexOffsets[3] = {0,1,2};
+      PetscInt      facetsToVertices[2] = {0, 1};
+
+      facets[0] = facets[1] = vertex;
+
+      ierr = PetscPolytopeInsert("dmplex-edge", 2, 2, facets, vertexOffsets, facetsToVertices, PETSC_TRUE, &edge);CHKERRQ(ierr);
+    }
+    if (edge != 2) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-edge != 2");
+
+    {
+      PetscPolytope facets[3];
+      PetscInt      vertexOffsets[4] = {0,2,4,6};
+      PetscInt      facetsToVertices[6] = {0,1, 1,2, 2,0};
+
+      facets[0] = facets[1] = facets[2] = edge;
+
+      ierr = PetscPolytopeInsert("dmplex-triangle", 3, 3, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &tri);CHKERRQ(ierr);
+    }
+    if (tri != 3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-triangle != 3");
+
+    {
+      PetscPolytope facets[4];
+      PetscInt      vertexOffsets[5] = {0,2,4,6,8};
+      PetscInt      facetsToVertices[8] = {0,1, 1,2, 2,3, 3,0};
+
+      facets[0] = facets[1] = facets[2] = facets[3] = edge;
+
+      ierr = PetscPolytopeInsert("dmplex-quadrilateral", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &quad);CHKERRQ(ierr);
+    }
+    if (quad != 4) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-quadrilateral != 4");
+
+    {
+      PetscPolytope facets[4];
+      PetscInt      vertexOffsets[5] = {0,3,6,9,12};
+      PetscInt      facetsToVertices[12] = {0,1,2, 0,3,1, 0,2,3, 2,1,3};
+
+      facets[0] = facets[1] = facets[2] = facets[3] = tri;
+
+      ierr = PetscPolytopeInsert("dmplex-tetrahedron", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &tet);CHKERRQ(ierr);
+    }
+    if (tet != 5) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-tetrahedron != 5");
+
+    {
+      PetscPolytope facets[6];
+      PetscInt      vertexOffsets[7] = {0,4,8,12,16,20,24};
+      PetscInt      facetsToVertices[24] = {0,1,2,3, 4,5,6,7, 0,3,5,4, 2,1,7,6, 3,2,6,5, 0,4,7,1};
+
+      facets[0] = facets[1] = facets[2] = facets[3] = facets[4] = facets[5] = quad;
+
+      ierr = PetscPolytopeInsert("dmplex-hexahedron", 6, 8, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &hex);CHKERRQ(ierr);
+    }
+    if (hex != 6) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-hexahedron != 6");
+
+    {
+      PetscPolytope facets[4];
+      PetscInt      vertexOffsets[5] = {0,2,4,6,8};
+      PetscInt      facetsToVertices[8] = {0,1, 2,3, 0,2, 1,3};
+
+      facets[0] = facets[1] = facets[2] = facets[3] = edge;
+
+      ierr = PetscPolytopeInsert("dmplex-hybrid-quadrilateral", 4, 4, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &hyquad);CHKERRQ(ierr);
+    }
+    if (hyquad != 7) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-hybrid-quadrilateral != 7");
+
+    {
+      PetscPolytope facets[5];
+      PetscInt      vertexOffsets[6] = {0,3,6,10,14,18};
+      PetscInt      facetsToVertices[18] = {
+                                           0,1,2,
+                                           3,4,5,
+                                           0,1,3,4,
+                                           1,2,4,5,
+                                           2,0,5,3,
+      };
+
+      facets[0] = facets[1] = tri;
+      facets[2] = facets[3] = facets[4] = hyquad;
+
+      ierr = PetscPolytopeInsert("dmplex-hybrid-prism", 5, 6, facets, vertexOffsets, facetsToVertices, PETSC_FALSE, &prism);CHKERRQ(ierr);
+    }
+    if (prism != 8) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "dmplex-hybrid-prism != 8");
   }
+
   *pset = PetscPolytopes;
   PetscFunctionReturn(0);
 }
