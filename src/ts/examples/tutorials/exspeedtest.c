@@ -368,10 +368,6 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&dummyVecLocal);CHKERRQ(ierr);
 
   /*	AXPY to flush kernels	*/
-  ierr = PetscLogStageRegister("DVStagePreINSERT", &user.stageDPI);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("DVEventPreINSERT", 0, &user.eventDPI);CHKERRQ(ierr);
-  ierr = PetscLogStagePush(user.stageDPI);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(user.eventDPI, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
@@ -381,13 +377,12 @@ int main(int argc, char **argv)
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(user.eventDPI, 0, 0, 0, 0);CHKERRQ(ierr);
-  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*    Init INSERT_VALUES timing only log      */
   ierr = PetscLogStageRegister("CommStageINSERT", &user.stageINSERT);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommINSERT", 0, &user.eventINSERT);CHKERRQ(ierr);
   ierr = PetscLogStagePush(user.stageINSERT);CHKERRQ(ierr);
+  ierr = MPI_Barrier(comm);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(user.eventINSERT, 0, 0, 0, 0);CHKERRQ(ierr);
   for (commiter = 0; commiter < user.commax; commiter++) {
     ierr = DMGlobalToLocalBegin(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
@@ -406,10 +401,6 @@ int main(int argc, char **argv)
   ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
 
   /*	AXPY to flush kernels	*/
-  ierr = PetscLogStageRegister("DVStagePreADD", &user.stageDPA);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("DVEventPreADD", 0, &user.eventDPA);CHKERRQ(ierr);
-  ierr = PetscLogStagePush(user.stageDPA);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(user.eventDPA, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
@@ -419,13 +410,12 @@ int main(int argc, char **argv)
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(user.eventDPA, 0, 0, 0, 0);CHKERRQ(ierr);
-  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*    Init ADD_VALUES Log     */
   ierr = PetscLogStageRegister("CommStageADDVAL", &user.stageADD);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommADDVAL", 0, &user.eventADD);CHKERRQ(ierr);
   ierr = PetscLogStagePush(user.stageADD);CHKERRQ(ierr);
+  ierr = MPI_Barrier(comm);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(user.eventADD, 0, 0, 0, 0);CHKERRQ(ierr);
   for (commiter = 0; commiter < user.commax; commiter++) {
     ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
@@ -445,10 +435,6 @@ int main(int argc, char **argv)
   ierr = VecDotEnd(VDot, VDot, &VDotResult);CHKERRQ(ierr);
 
   /*	AXPY to flush kernels	*/
-  ierr = PetscLogStageRegister("DVStagePreVD", &user.stageDPVD);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("DVEventPreVD", 0, &user.eventDPVD);CHKERRQ(ierr);
-  ierr = PetscLogStagePush(user.stageDPVD);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(user.eventDPVD, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
@@ -458,13 +444,12 @@ int main(int argc, char **argv)
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(user.eventDPVD, 0, 0, 0, 0);CHKERRQ(ierr);
-  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*    Init VecDot Log */
   ierr = PetscLogStageRegister("CommStageGlblVecDot", &user.stageGVD);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommGlblVecDot", 0, &user.eventGVD);CHKERRQ(ierr);
   ierr = PetscLogStagePush(user.stageGVD);CHKERRQ(ierr);
+  ierr = MPI_Barrier(comm);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(user.eventGVD, 0, 0, 0, 0);CHKERRQ(ierr);
   for (commiter = 0; commiter < user.commax; commiter++) {
     ierr = VecDotBegin(VDot, VDot, &VDotResult);CHKERRQ(ierr);
@@ -483,10 +468,6 @@ int main(int argc, char **argv)
   ierr = VecDotEnd(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
 
   /*	AXPY to flush kernels	*/
-  ierr = PetscLogStageRegister("DVStagePreZEROVD", &user.stageDPZEROVD);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("DVEventPreZEROVD", 0, &user.eventDPZEROVD);CHKERRQ(ierr);
-  ierr = PetscLogStagePush(user.stageDPZEROVD);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(user.eventDPZEROVD, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
@@ -496,13 +477,12 @@ int main(int argc, char **argv)
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(user.eventDPZEROVD, 0, 0, 0, 0);CHKERRQ(ierr);
-  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*    Init VecDot Zero Size Log */
   ierr = PetscLogStageRegister("CommStageZEROVecDot", &user.stageZEROGVD);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommZEROVecDot", 0, &user.eventZEROGVD);CHKERRQ(ierr);
   ierr = PetscLogStagePush(user.stageZEROGVD);CHKERRQ(ierr);
+  ierr = MPI_Barrier(comm);CHKERRQ(ierr);
   ierr = PetscLogEventBegin(user.eventZEROGVD, 0, 0, 0, 0);CHKERRQ(ierr);
   for (commiter = 0; commiter < user.commax; commiter++) {
     ierr = VecDotBegin(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
