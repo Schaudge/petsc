@@ -1237,12 +1237,13 @@ meshdiagnostics:
     Vec	        globalVec, localVec, vecPerProcess;
     PetscMPIInt localSize;
     PetscMPIInt *offProcLocSizes;
-    PetscInt	globalSize;
+    PetscInt	globalSize, localSize64;
 
     ierr = DMGetGlobalVector(dm, &globalVec);CHKERRQ(ierr);
     ierr = DMGetLocalVector(dm, &localVec);CHKERRQ(ierr);
     ierr = VecGetSize(globalVec, &globalSize);CHKERRQ(ierr);
-    ierr = VecGetSize(localVec, &localSize);CHKERRQ(ierr);
+    ierr = VecGetSize(localVec, &localSize64);CHKERRQ(ierr);
+    ierr = PetscMPIIntCast(localSize64, &localSize);CHKERRQ(ierr);
     ierr = DMRestoreGlobalVector(dm, &globalVec);CHKERRQ(ierr);
     if (!rank) {
       ierr = PetscMalloc1(size, &offProcLocSizes);CHKERRQ(ierr);
@@ -1253,18 +1254,19 @@ meshdiagnostics:
     if (!rank) {
       /* Bin it bruuuuuuuther */
       PetscInt	idx[size], *binnedProcesses;
-      PetscInt	numBins;
+      PetscInt	numBins, size32;
       PetscScalar   *numPerProcess, offProcScalar[size];
       VecTagger tagger;
       VecTaggerBox *box;
       IS	PerProcessTaggedIS;
 
-      ierr = PetscSortInt(size, offProcLocSizes);CHKERRQ(ierr);
+      ierr = PetscSortInt(size, (PetscInt *) offProcLocSizes);CHKERRQ(ierr);
       for (i = 0; i < size; ++i) {
         offProcScalar[i] = (PetscScalar)offProcLocSizes[i];
         idx[i] = i;
       }
-      ierr = VecCreateSeq(PETSC_COMM_SELF, size, &vecPerProcess);CHKERRQ(ierr);
+      ierr = PetscIntCast(size, &size32);CHKERRQ(ierr);
+      ierr = VecCreateSeq(PETSC_COMM_SELF, size32, &vecPerProcess);CHKERRQ(ierr);
       ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
       ierr = VecSetValues(vecPerProcess, size,(const PetscInt*) idx, (const PetscScalar*) offProcScalar, INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
@@ -1286,7 +1288,7 @@ meshdiagnostics:
         ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
       }
       ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %d - %d\n", offProcLocSizes[0], offProcLocSizes[size-1]);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %d - %d\n", offProcLocSizes[0], offProcLocSizes[size32-1]);CHKERRQ(ierr);
       for (i = 0; i < numBins; i++) {
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
@@ -8376,8 +8378,8 @@ static PetscErrorCode DMPlexGetBinnedPointPerProcess(DM dm, PetscInt depth, Pets
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
-  ierr = VecCreateMPI(comm, 1, size, &vecPerProcess);CHKERRQ(ierr);
-  ierr = ISLocalToGlobalMappingCreate(comm, 1, 1, &rank, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
+  ierr = VecCreateMPI(comm, 1, PETSC_DETERMINE, &vecPerProcess);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingCreate(comm, 1, 1,(const PetscInt *) &rank, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
   ierr = VecSetLocalToGlobalMapping(vecPerProcess, ltog);CHKERRQ(ierr);
   ierr = ISLocalToGlobalMappingDestroy(&ltog);CHKERRQ(ierr);
   ierr = DMPlexGetDepthStratum(dm, depth, &cstart, &cend);CHKERRQ(ierr);
