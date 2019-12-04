@@ -12,11 +12,11 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # define VECSTANDARD             "standard"
 
 typedef struct {
-  PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS;
-  PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS;
+  PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageDPI, stageDPA, stageDPVD, stageDPZEROVD, stageZEROGVD;
+  PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventDPI, eventDPA, eventDPVD, eventDPZEROVD, eventZEROGVD;
   PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout;
   /* Domain and mesh definition */
-  PetscInt       dim, numFields, overlap, qorder, level, commax;
+  PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;
   PetscScalar    refinementLimit;
   char           filename[2048];    /* The optional mesh file */
   char           bar[19];
@@ -83,6 +83,8 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->level                = 0;
   options->refinementLimit      = 0.0;
   options->commax               = 100;
+  options->VSL                  = 0;
+  options->VSG                  = 0;
   ierr = PetscStrncpy(options->bar, "-----------------\0", 19);CHKERRQ(ierr);
 
   ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
@@ -100,8 +102,15 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetInt(NULL, NULL, "-refine_dm_level", &options->level, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetScalar(NULL, NULL, "-refine_limit", &options->refinementLimit, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-max_com", &options->commax, NULL);CHKERRQ(ierr);
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-vec_size_local", &options->VSL, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-vec_size_global", &options->VSG, NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  if (!options->VSG) {
+    options->VSG = PETSC_DETERMINE;
+    ierr = PetscPrintf(comm, "DUMMY VEC GLOBAL SIZE PETSC_DETERMINE\n");CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -258,6 +267,7 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
 int main(int argc, char **argv)
 {
   MPI_Comm              comm;
+  PetscMPIInt		size;
   AppCtx                user;
   PetscErrorCode        ierr;
   PetscViewer           genViewer;
@@ -265,13 +275,14 @@ int main(int argc, char **argv)
   PetscPartitionerType  partitionername;
   DM                    dm;
   IS                    globalCellNumIS, globalVertNumIS;
-  Vec                   solVecLocal, solVecGlobal, VDot, dummyVecGlobal, dummyVecLocal;
+  Vec                   solVecLocal, solVecGlobal, VDot, VDotZERO, dummyVecGlobal, dummyVecGlobal2, dummyVecLocal;
   PetscInt              globalVertSize, globalCellSize, commiter;
   PetscScalar           VDotResult;
   char                  genInfo[PETSC_MAX_PATH_LEN];
 
   ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
   comm = PETSC_COMM_WORLD;
+  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
   ierr = PetscViewerStringOpen(comm, genInfo, sizeof(genInfo), &genViewer);CHKERRQ(ierr);
 
   ierr = ProcessOpts(comm, &user);CHKERRQ(ierr);
@@ -355,6 +366,23 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecLocal);CHKERRQ(ierr);
 
+  /*	AXPY to flush kernels	*/
+  ierr = PetscLogStageRegister("DVStagePreINSERT", &user.stageDPI);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("DVEventPreINSERT", 0, &user.eventDPI);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user.stageDPI);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user.eventDPI, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
+  ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(user.eventDPI, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
+
   /*    Init INSERT_VALUES timing only log      */
   ierr = PetscLogStageRegister("CommStageINSERT", &user.stageINSERT);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommINSERT", 0, &user.eventINSERT);CHKERRQ(ierr);
@@ -375,6 +403,23 @@ int main(int argc, char **argv)
   ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
+
+  /*	AXPY to flush kernels	*/
+  ierr = PetscLogStageRegister("DVStagePreADD", &user.stageDPA);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("DVEventPreADD", 0, &user.eventDPA);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user.stageDPA);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user.eventDPA, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
+  ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(user.eventDPA, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*    Init ADD_VALUES Log     */
   ierr = PetscLogStageRegister("CommStageADDVAL", &user.stageADD);CHKERRQ(ierr);
@@ -398,6 +443,23 @@ int main(int argc, char **argv)
   ierr = VecDotBegin(VDot, VDot, &VDotResult);CHKERRQ(ierr);
   ierr = VecDotEnd(VDot, VDot, &VDotResult);CHKERRQ(ierr);
 
+  /*	AXPY to flush kernels	*/
+  ierr = PetscLogStageRegister("DVStagePreVD", &user.stageDPVD);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("DVEventPreVD", 0, &user.eventDPVD);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user.stageDPVD);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user.eventDPVD, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
+  ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(user.eventDPVD, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
+
   /*    Init VecDot Log */
   ierr = PetscLogStageRegister("CommStageGlblVecDot", &user.stageGVD);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommGlblVecDot", 0, &user.eventGVD);CHKERRQ(ierr);
@@ -411,6 +473,44 @@ int main(int argc, char **argv)
   ierr = PetscLogEventEnd(user.eventGVD, 0, 0, 0, 0);CHKERRQ(ierr);
   ierr = PetscLogStagePop();CHKERRQ(ierr);
   ierr = VecDestroy(&VDot);CHKERRQ(ierr);
+
+  /*    Perform setup before timing     */
+  ierr = VecCreate(comm, &VDotZERO);CHKERRQ(ierr);
+  ierr = VecSetSizes(VDotZERO, 0, 0);CHKERRQ(ierr);
+  ierr = VecSetUp(VDotZERO);CHKERRQ(ierr);
+  ierr = VecDotBegin(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
+  ierr = VecDotEnd(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
+
+  /*	AXPY to flush kernels	*/
+  ierr = PetscLogStageRegister("DVStagePreZEROVD", &user.stageDPZEROVD);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("DVEventPreZEROVD", 0, &user.eventDPZEROVD);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user.stageDPZEROVD);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user.eventDPZEROVD, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
+  ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
+  ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(user.eventDPZEROVD, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
+
+  /*    Init VecDot Zero Size Log */
+  ierr = PetscLogStageRegister("CommStageZEROVecDot", &user.stageZEROGVD);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("CommZEROVecDot", 0, &user.eventZEROGVD);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(user.stageZEROGVD);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(user.eventZEROGVD, 0, 0, 0, 0);CHKERRQ(ierr);
+  for (commiter = 0; commiter < user.commax; commiter++) {
+    ierr = VecDotBegin(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
+    ierr = VecDotEnd(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
+  }
+  /*    Push time to log        */
+  ierr = PetscLogEventEnd(user.eventZEROGVD, 0, 0, 0, 0);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
+  ierr = VecDestroy(&VDotZERO);CHKERRQ(ierr);
 
   /*    Output vtk of global solution vector    */
   if (user.vtkSoln) {
