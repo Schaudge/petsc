@@ -93,6 +93,7 @@ PETSC_EXTERN PetscErrorCode PetscGaussLobattoLegendreElementMassDestroy(PetscInt
 typedef PetscInt PetscPolytope;
 #define PETSCPOLYTOPE_NONE -1
 PETSC_EXTERN PetscErrorCode PetscPolytopeInsert(const char[], PetscInt, PetscInt, const PetscPolytope[], const PetscInt[], const PetscInt[], PetscBool, PetscPolytope*);
+PETSC_EXTERN PetscErrorCode PetscPolytopeInsertRefinement(const char[], PetscInt, PetscInt, const PetscPolytope[], const PetscInt[], const PetscInt[], PetscPolytope*);
 PETSC_EXTERN PetscErrorCode PetscPolytopeGetByName(const char[], PetscPolytope*);
 PETSC_EXTERN PetscErrorCode PetscPolytopeGetData(PetscPolytope, PetscInt *, PetscInt *, const PetscPolytope *[], const PetscInt *[], const PetscInt *[], const PetscBool *[]);
 PETSC_EXTERN PetscErrorCode PetscPolytopeGetOrientationRange(PetscPolytope, PetscInt *, PetscInt *);
