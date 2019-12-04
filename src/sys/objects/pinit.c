@@ -956,10 +956,10 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
   ierr = MPI_Op_create(MPIU_MaxSum_Local,1,&MPIU_MAXSUM_OP);CHKERRQ(ierr);
 
 #if defined(PETSC_USE_REAL___FLOAT128)
-  ierr = MPI_Type_contiguous(2,MPI_DOUBLE,&MPIU___FLOAT128);CHKERRQ(ierr);
+  ierr = MPI_Type_contiguous(16,MPI_BYTE,&MPIU___FLOAT128);CHKERRQ(ierr);
   ierr = MPI_Type_commit(&MPIU___FLOAT128);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_COMPLEX)
-  ierr = MPI_Type_contiguous(4,MPI_DOUBLE,&MPIU___COMPLEX128);CHKERRQ(ierr);
+  ierr = MPI_Type_contiguous(32,MPI_BYTE,&MPIU___COMPLEX128);CHKERRQ(ierr);
   ierr = MPI_Type_commit(&MPIU___COMPLEX128);CHKERRQ(ierr);
 #endif
   ierr = MPI_Op_create(PetscMax_Local,1,&MPIU_MAX);CHKERRQ(ierr);

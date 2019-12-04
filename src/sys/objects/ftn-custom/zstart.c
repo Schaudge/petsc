@@ -388,12 +388,12 @@ static void petscinitialize_internal(char* filename, PetscInt len, PetscBool rea
 #endif
 
 #if defined(PETSC_USE_REAL___FLOAT128)
-  *ierr = MPI_Type_contiguous(2,MPI_DOUBLE,&MPIU___FLOAT128);
+  *ierr = MPI_Type_contiguous(16,MPI_BYTE,&MPIU___FLOAT128);
   if (*ierr) {(*PetscErrorPrintf)("PetscInitialize:Creating MPI types\n");return;}
   *ierr = MPI_Type_commit(&MPIU___FLOAT128);
   if (*ierr) {(*PetscErrorPrintf)("PetscInitialize:Creating MPI types\n");return;}
 #if defined(PETSC_HAVE_COMPLEX)
-  *ierr = MPI_Type_contiguous(4,MPI_DOUBLE,&MPIU___COMPLEX128);
+  *ierr = MPI_Type_contiguous(32,MPI_BYTE,&MPIU___COMPLEX128);
   if (*ierr) {(*PetscErrorPrintf)("PetscInitialize:Creating MPI types\n");return;}
   *ierr = MPI_Type_commit(&MPIU___COMPLEX128);
   if (*ierr) {(*PetscErrorPrintf)("PetscInitialize:Creating MPI types\n");return;}
