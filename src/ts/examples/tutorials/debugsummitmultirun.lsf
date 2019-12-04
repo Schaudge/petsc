@@ -76,6 +76,7 @@ do
         nfx=48;
         nfy=64;
         nfz=64;
+        localVSize=750000;
         nfaces=$nfx,$nfy,$nfz;
         cells=$(($nfx*$nfy*$nfz));
         ranks=$(($nodesReq*$CLa*$CLn));
@@ -87,10 +88,11 @@ do
         echo "approx cells/rank:             $cellprankval";
         echo "current num components:        $NC";
         echo "current petsc space degree:    $deg";
+        echo "local cache clear vec size:    $localVSize";
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -log_view -dm_view ::ascii_info_concise
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -log_view -dm_view ::ascii_info_concise
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
