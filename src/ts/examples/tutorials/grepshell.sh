@@ -10,6 +10,7 @@ if [ "$filename" = "rawlog_${ID}.txt" ]; then
     filtINSERT="${filepath}/filtoutINSERT_${ID}.txt";
     filtADDVAL="${filepath}/filtoutADDVAL_${ID}.txt";
     nprocess="${filepath}/nprocess_${ID}.txt";
+    cellprank="${filepath}/cellprank_${ID}.txt"
     packsizeINSERT="${filepath}/packsizeINSERT_${ID}.txt";
     packsizeADDVAL="${filepath}/packsizeADDVAL_${ID}.txt";
     VecDotTime="${filepath}/vecdottime_${ID}.txt";
@@ -24,32 +25,34 @@ if [ "$filename" = "rawlog_${ID}.txt" ]; then
     select yne in "Yes" "No" "Exit"; do
         case $yne in
             Yes ) > $filtINSERT;
-                > $filtADDVAL;
-                > $packsizeINSERT;
-                > $packsizeADDVAL;
-                > $nprocess;
-                > $VecDotTime;
-                > $VecDotFlops;
-                > $NodeNum;
-                > $CellNum;
-                > $Overlap;
-                > $Order;
-                > $CompNum;
-                > $GVS;
-                break;;
+                  > $filtADDVAL;
+                  > $cellprank;
+                  > $packsizeINSERT;
+                  > $packsizeADDVAL;
+                  > $nprocess;
+                  > $VecDotTime;
+                  > $VecDotFlops;
+                  > $NodeNum;
+                  > $CellNum;
+                  > $Overlap;
+                  > $Order;
+                  > $CompNum;
+                  > $GVS;
+                  break;;
             No ) "GREPPED">> $filtINSERT;
-                "GREPPED">> $filtADDVAL;
-                "GREPPED">> $packsizeINSERT;
-                "GREPPED">> $packsizeADDVAL;
-                "GREPPED">> $nprocess;
-                "GREPPED">> $VecDotTime;
-                "GREPPED">> $VecDotFlops;
-                "GREPPED">> $NodeNum;
-                "GREPPED">> $CellNum;
-                "GREPPED">> $Overlap;
-                "GREPPED">> $Order;
-                "GREPPED">> $CompNum;
-                "GREPPED">> $GVS;
+                 "GREPPED">> $filtADDVAL;
+                 "GREPPED">> $cellprank;
+                 "GREPPED">> $packsizeINSERT;
+                 "GREPPED">> $packsizeADDVAL;
+                 "GREPPED">> $nprocess;
+                 "GREPPED">> $VecDotTime;
+                 "GREPPED">> $VecDotFlops;
+                 "GREPPED">> $NodeNum;
+                 "GREPPED">> $CellNum;
+                 "GREPPED">> $Overlap;
+                 "GREPPED">> $Order;
+                 "GREPPED">> $CompNum;
+                 "GREPPED">> $GVS;
                 break;;
             Exit ) exit;;
         esac
