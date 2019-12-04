@@ -12,8 +12,8 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # define VECSTANDARD             "standard"
 
 typedef struct {
-  PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageDPI, stageDPA, stageDPVD, stageDPZEROVD, stageZEROGVD;
-  PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventDPI, eventDPA, eventDPVD, eventDPZEROVD, eventZEROGVD;
+  PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageZEROGVD;
+  PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventZEROGVD;
   PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;

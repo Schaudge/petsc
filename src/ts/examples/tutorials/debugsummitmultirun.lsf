@@ -25,11 +25,12 @@ CLg=1;
 CLa=1;
 procpernode=42;
 localVSize=750000;
+maxcom=1;
 nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
 
 echo "Creating Directories";
 now=$(date +"%F_%H_%M_%S");
-dirname="DEBUG_${nodesReq}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+dirname="DEBUG_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
 mkdir -p ./$dirname;
 filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt";
 filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
@@ -82,7 +83,6 @@ do
         nfaces=$nfx,$nfy,$nfz;
         cells=$(($nfx*$nfy*$nfz));
         ranks=$(($nodesReq*$CLa*$CLn));
-        maxcom=100;
         cellprankval=$(bc <<< "scale=3; $cells/$ranks");
         echo "run count:                     $runcount";
         echo "number of nodes requested:     $nodesReq";
