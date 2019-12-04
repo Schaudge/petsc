@@ -50,6 +50,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", user.bar + 7, user.perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 
   ierr = PetscViewerStringSPrintf(genViewer, "DM Vec Type Used:%s>%s\n", user.bar + 2, user.ctype);CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Comm Loop Bound:%s>%d\n", user.bar + 1, user.commax);CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "VTKoutput mode:%s>%s\n", user.bar, user.VTKdisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 

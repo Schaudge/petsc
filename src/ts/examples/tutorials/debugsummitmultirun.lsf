@@ -5,6 +5,8 @@
 #BSUB -alloc_flags gpumps
 #BSUB -J petsc_comm_ops
 
+export PETSC_ARCH=32-arch-olcf-summit-opt;
+echo "PETSC_ARCH=${PETSC_ARCH}";
 echo "Start";
 echo "-n Number of resource sets";
 echo "-c Number of CPUs per resource set";
@@ -22,6 +24,7 @@ CLc=7;
 CLg=1;
 CLa=1;
 procpernode=42;
+localVSize=750000;
 nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
 
 echo "Creating Directories";
@@ -42,7 +45,7 @@ CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt";
 Overlap="./${dirname}/overlap_${LSB_JOBID}.txt";
 Order="./${dirname}/feorder_${LSB_JOBID}.txt";
 CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
-GVS="./${dirname}globvecsize_${LSB_JOBID}.txt"
+GVS="./${dirname}/globvecsize_${LSB_JOBID}.txt"
 runError="./${dirname}/runError_${LSB_JOBID}.txt";
 
 echo "Resetting full log and filtered outputs...";
@@ -76,10 +79,10 @@ do
         nfx=48;
         nfy=64;
         nfz=64;
-        localVSize=750000;
         nfaces=$nfx,$nfy,$nfz;
         cells=$(($nfx*$nfy*$nfz));
         ranks=$(($nodesReq*$CLa*$CLn));
+        maxcom=1;
         cellprankval=$(bc <<< "scale=3; $cells/$ranks");
         echo "run count:                     $runcount";
         echo "number of nodes requested:     $nodesReq";
@@ -89,10 +92,11 @@ do
         echo "current num components:        $NC";
         echo "current petsc space degree:    $deg";
         echo "local cache clear vec size:    $localVSize";
+        echo "number of communications:      $maxcom";
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -log_view -dm_view ::ascii_info_concise
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
