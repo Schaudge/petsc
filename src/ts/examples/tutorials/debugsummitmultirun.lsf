@@ -82,7 +82,7 @@ do
         nfaces=$nfx,$nfy,$nfz;
         cells=$(($nfx*$nfy*$nfz));
         ranks=$(($nodesReq*$CLa*$CLn));
-        maxcom=1;
+        maxcom=100;
         cellprankval=$(bc <<< "scale=3; $cells/$ranks");
         echo "run count:                     $runcount";
         echo "number of nodes requested:     $nodesReq";
@@ -125,6 +125,6 @@ function finish {
     grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap;
     grep "petscspace_degree" --line-buffered ./$rawlog | awk '{print $2}' >> $Order;
     grep "num_fields" --line-buffered ./$rawlog | awk '{print $2}' >> $CompNum;
-    grep "Global Vector Size" --line-buffered./$rawlog | awk '{print $4}' >> $GVS;
+    grep "Global Vector Size" --line-buffered ./$rawlog | awk '{print $4}' >> $GVS;
     echo "done";
 }
