@@ -18,6 +18,9 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Allgather(PetscSF sf,MPI_Datatype u
   PetscMemType          rootmtype_mpi,leafmtype_mpi;
 
   PetscFunctionBegin;
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   ierr = PetscSFPackGet_Allgather(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
   ierr = PetscMPIIntCast(sf->nroots,&sendcount);CHKERRQ(ierr);
@@ -46,6 +49,9 @@ static PetscErrorCode PetscSFReduceBegin_Allgather(PetscSF sf,MPI_Datatype unit,
     ierr = PetscLayoutGetRange(sf->map,&rstart,NULL);CHKERRQ(ierr);
     ierr = PetscMemcpyWithMemType(rootmtype,leafmtype,rootdata,(const char*)leafdata+(size_t)rstart*link->unitbytes,(size_t)sf->nroots*link->unitbytes);CHKERRQ(ierr);
   } else {
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+    if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
     ierr = PetscMPIIntCast(sf->nroots,&sendcount);CHKERRQ(ierr);
     ierr = PetscSFReducePrepareMPIBuffers_Allgatherv(sf,link,op,&rootmtype_mpi,&rootbuf_mpi,&leafmtype_mpi,&leafbuf_mpi);CHKERRQ(ierr);
     ierr = MPIU_Iscatter(leafbuf_mpi,sendcount,unit,rootbuf_mpi,sendcount,unit,0/*rank 0*/,comm,link->rootreqs[PETSCSF_LEAF2ROOT_REDUCE][rootmtype_mpi]);CHKERRQ(ierr);

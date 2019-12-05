@@ -202,6 +202,9 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Allgatherv(PetscSF sf,MPI_Datatype 
 
   PetscFunctionBegin;
   ierr = PetscSFPackGet_Allgatherv(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
   ierr = PetscMPIIntCast(sf->nroots,&sendcount);CHKERRQ(ierr);
   ierr = PetscSFBcastPrepareMPIBuffers_Allgatherv(sf,link,op,&rootmtype_mpi,&rootbuf_mpi,&leafmtype_mpi,&leafbuf_mpi);CHKERRQ(ierr);
@@ -301,6 +304,9 @@ static PetscErrorCode PetscSFReduceBegin_Allgatherv(PetscSF sf,MPI_Datatype unit
     ierr = PetscLayoutGetRange(sf->map,&rstart,NULL);CHKERRQ(ierr);
     ierr = PetscMemcpyWithMemType(rootmtype,leafmtype,rootdata,(const char*)leafdata+(size_t)rstart*link->unitbytes,(size_t)sf->nroots*link->unitbytes);CHKERRQ(ierr);
   } else {
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+    if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
     ierr = PetscMPIIntCast(sf->nroots,&recvcount);CHKERRQ(ierr);
     ierr = PetscSFReducePrepareMPIBuffers_Allgatherv(sf,link,op,&rootmtype_mpi,&rootbuf_mpi,&leafmtype_mpi,&leafbuf_mpi);CHKERRQ(ierr);
     ierr = MPIU_Iscatterv(leafbuf_mpi,dat->recvcounts,dat->displs,unit,rootbuf_mpi,recvcount,unit,0,comm,link->rootreqs[PETSCSF_LEAF2ROOT_REDUCE][rootmtype_mpi]);CHKERRQ(ierr);
@@ -413,6 +419,9 @@ PETSC_INTERN PetscErrorCode PetscSFFetchAndOpBegin_Allgatherv(PetscSF sf,MPI_Dat
 
   PetscFunctionBegin;
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   if (!use_gpu_aware_mpi && (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE)) SETERRQ(comm,PETSC_ERR_SUP,"No support for FetchAndOp"); /* No known uses */
   /* Copy leafdata to leafupdate */
   ierr = PetscSFPackGet_Allgatherv(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);

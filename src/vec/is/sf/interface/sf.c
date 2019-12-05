@@ -1319,16 +1319,6 @@ PetscErrorCode PetscSFBcastAndOpBegin(PetscSF sf,MPI_Datatype unit,const void *r
   ierr = PetscLogEventBegin(PETSCSF_BcastAndOpBegin,sf,0,0,0);CHKERRQ(ierr);
   ierr = PetscGetMemType(rootdata,&rootmtype);CHKERRQ(ierr);
   ierr = PetscGetMemType(leafdata,&leafmtype);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
-  /*  Shall we assume rootdata, leafdata are ready to use (instead of being computed by some asynchronous kernels)?
-    To be similar to MPI, I'd like to have this assumption, since MPI does not have a concept of stream.
-    But currently this assumption is not enforecd in Petsc. To be safe, I do synchronization here. Otherwise, if
-    we do not sync now and call the Pack kernel directly on the default NULL stream (assume petsc objects are also
-    computed on it), we have to sync the NULL stream before calling MPI routines. So, it looks a cudaDeviceSynchronize
-    is inevitable. We do it now and put pack/unpack kernels to non-NULL streams.
-   */
-  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
-#endif
   ierr = (*sf->ops->BcastAndOpBegin)(sf,unit,rootmtype,rootdata,leafmtype,leafdata,op);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(PETSCSF_BcastAndOpBegin,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1397,9 +1387,6 @@ PetscErrorCode PetscSFReduceBegin(PetscSF sf,MPI_Datatype unit,const void *leafd
   ierr = PetscLogEventBegin(PETSCSF_ReduceBegin,sf,0,0,0);CHKERRQ(ierr);
   ierr = PetscGetMemType(rootdata,&rootmtype);CHKERRQ(ierr);
   ierr = PetscGetMemType(leafdata,&leafmtype);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
-  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
-#endif
   ierr = (sf->ops->ReduceBegin)(sf,unit,leafmtype,leafdata,rootmtype,rootdata,op);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(PETSCSF_ReduceBegin,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1477,9 +1464,6 @@ PetscErrorCode PetscSFFetchAndOpBegin(PetscSF sf,MPI_Datatype unit,void *rootdat
   ierr = PetscGetMemType(leafdata,&leafmtype);CHKERRQ(ierr);
   ierr = PetscGetMemType(leafupdate,&leafupdatemtype);CHKERRQ(ierr);
   if (leafmtype != leafupdatemtype) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support for leafdata and leafupdate in different memory types");
-#if defined(PETSC_HAVE_CUDA)
-  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
-#endif
   ierr = (*sf->ops->FetchAndOpBegin)(sf,unit,rootmtype,rootdata,leafmtype,leafdata,leafupdate,op);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(PETSCSF_FetchAndOpBegin,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
