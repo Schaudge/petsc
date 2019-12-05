@@ -1057,7 +1057,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     MPI_Comm	comm;
     PetscMPIInt	rank = 0, size = 0;
     IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
-    PetscInt	i, depth, dim, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
+    PetscInt	i, depth, dim, maxOverlap, cellHeight, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses, globalVertexSize, globalEdgeSize, globalFaceSize, globalCellSize;
     PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
     PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
     PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, facesOK = PETSC_FALSE, pointsfOK = PETSC_FALSE;
@@ -1088,7 +1088,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
 
     for (i = 0; i <= depth; ++i) {
-      PetscInt	max = 0, tempi = i;
+      PetscInt	  max = 0, tempi = i;
       if (interpolated != DMPLEX_INTERPOLATED_FULL && (i != 0)) { i = 3;}
       /* In case that dm is not interpolated, will only have cell-vertex mesh */
       if ((dim == 2) && (i == depth)) { i = 3; tempi = depth;}
@@ -1101,7 +1101,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
         break;
       case 1:
         ierr = DMPlexGetEdgeNumbering(dm, &edgeIS);CHKERRQ(ierr);
@@ -1109,7 +1109,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
         break;
       case 2:
         ierr = DMPlexGetFaceNumbering(dm, &faceIS);CHKERRQ(ierr);
@@ -1117,7 +1117,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         max = PetscAbsInt(max);
         max += 1;
         ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
-        ierr = DMPlexGetBinnedPointPerProcess(dm, i, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
+        ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
         break;
       case 3:
         ierr = DMPlexGetCellNumbering(dm, &cellIS);CHKERRQ(ierr);
@@ -1190,10 +1190,10 @@ meshdiagnostics:
     ierr = PetscViewerASCIIPrintf(viewer, "Maximum Overlap in DM:%s>%d\n", bar + 7, maxOverlap);CHKERRQ(ierr);
     }
     ierr = PetscViewerASCIIPrintf(viewer, "Dimension of mesh:%s>%d\n", bar + 3, dim);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%d\n", bar + 3, globalVertexSize);CHKERRQ(ierr);
-    if (globalEdgeSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%d\n", bar + 1, globalEdgeSize);CHKERRQ(ierr);}
-    if (globalFaceSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%d\n", bar + 1, globalFaceSize);CHKERRQ(ierr);}
-    ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%d\n", bar + 1, globalCellSize);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%d\n", bar + 3, (PetscInt) globalVertexSize);CHKERRQ(ierr);
+    if (globalEdgeSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%d\n", bar + 1, (PetscInt) globalEdgeSize);CHKERRQ(ierr);}
+    if (globalFaceSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%d\n", bar + 1, (PetscInt) globalFaceSize);CHKERRQ(ierr);}
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%d\n", bar + 1, (PetscInt) globalCellSize);CHKERRQ(ierr);
 
     /* Parallel Information */
     if (binnedVertices) {
@@ -1235,40 +1235,35 @@ meshdiagnostics:
 
     /* VECTOR INFORMATION */
     Vec	        globalVec, localVec, vecPerProcess;
-    PetscMPIInt localSize;
-    PetscMPIInt *offProcLocSizes;
-    PetscInt	globalSize, localSize64;
+    PetscInt    *offProcLocSizes;
+    PetscInt	globalSize, localSize;
 
     ierr = DMGetGlobalVector(dm, &globalVec);CHKERRQ(ierr);
     ierr = DMGetLocalVector(dm, &localVec);CHKERRQ(ierr);
     ierr = VecGetSize(globalVec, &globalSize);CHKERRQ(ierr);
-    ierr = VecGetSize(localVec, &localSize64);CHKERRQ(ierr);
-    ierr = PetscMPIIntCast(localSize64, &localSize);CHKERRQ(ierr);
+    ierr = VecGetSize(localVec, &localSize);CHKERRQ(ierr);
     ierr = DMRestoreGlobalVector(dm, &globalVec);CHKERRQ(ierr);
-    if (!rank) {
-      ierr = PetscMalloc1(size, &offProcLocSizes);CHKERRQ(ierr);
-    }
-    ierr = MPI_Gather(&localSize, 1, MPIU_INT, offProcLocSizes, 1, MPIU_INT, 0, comm);CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dm, &localVec);CHKERRQ(ierr);
+    ierr = PetscMalloc1(size, &offProcLocSizes);CHKERRQ(ierr);
+    ierr = MPI_Gather(&localSize, 1, MPIU_INT, offProcLocSizes, 1, MPIU_INT, 0, comm);CHKERRQ(ierr);
+
     ierr = PetscViewerASCIIPrintf(viewer, "\nGlobal Vector Size: %d\n", globalSize);CHKERRQ(ierr);
-    if (!rank) {
+    if (rank == 0) {
       /* Bin it bruuuuuuuther */
-      PetscInt	idx[size], *binnedProcesses;
-      PetscInt	numBins, size32;
-      PetscScalar   *numPerProcess, offProcScalar[size];
+      PetscInt	*binnedProcesses;
+      PetscInt	numBins;
+      PetscScalar   *numPerProcess, *offProcScalar;
       VecTagger tagger;
       VecTaggerBox *box;
       IS	PerProcessTaggedIS;
 
-      ierr = PetscSortInt(size, (PetscInt *) offProcLocSizes);CHKERRQ(ierr);
+      ierr = PetscSortInt(size, offProcLocSizes);CHKERRQ(ierr);
+      ierr = PetscMalloc1(size, &offProcScalar);CHKERRQ(ierr);
       for (i = 0; i < size; ++i) {
         offProcScalar[i] = (PetscScalar)offProcLocSizes[i];
-        idx[i] = i;
       }
-      ierr = PetscIntCast(size, &size32);CHKERRQ(ierr);
-      ierr = VecCreateSeq(PETSC_COMM_SELF, size32, &vecPerProcess);CHKERRQ(ierr);
+      ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, size, offProcScalar, &vecPerProcess);CHKERRQ(ierr);
       ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
-      ierr = VecSetValues(vecPerProcess, size,(const PetscInt*) idx, (const PetscScalar*) offProcScalar, INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
       ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
       ierr = VecUniqueEntries(vecPerProcess, &numBins, &numPerProcess);CHKERRQ(ierr);
@@ -1288,16 +1283,16 @@ meshdiagnostics:
         ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
       }
       ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %d - %d\n", offProcLocSizes[0], offProcLocSizes[size32-1]);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %d - %d\n", offProcLocSizes[0], offProcLocSizes[size-1]);CHKERRQ(ierr);
       for (i = 0; i < numBins; i++) {
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
         ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", numPerProcess[i], binnedProcesses[i]);CHKERRQ(ierr);
       }
-      ierr = PetscFree(offProcLocSizes);CHKERRQ(ierr);
       ierr = PetscFree(binnedProcesses);CHKERRQ(ierr);
     }
+    ierr = PetscFree(offProcLocSizes);CHKERRQ(ierr);
     ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "%s End General Info %s\n", bar + 2, bar + 5);CHKERRQ(ierr);
     ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -8328,18 +8323,23 @@ static PetscErrorCode DMPlexGetBinnedPointPerProcess(DM dm, PetscInt depth, Pets
   VecTaggerBox            *box;
   PetscInt                i, cstart, cend, numBins_;
   PetscInt                *binnedProcesses_;
+
   PetscScalar             *numPerProcess_;
 
   PetscFunctionBegin;
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject) dm), &size);CHKERRQ(ierr);
-  ierr = VecCreateMPI(comm, 1, PETSC_DETERMINE, &vecPerProcess);CHKERRQ(ierr);
-  ierr = ISLocalToGlobalMappingCreate(comm, 1, 1,(const PetscInt *) &rank, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
+  const PetscInt          rankarr[1] = {rank};
+  ierr = VecCreateMPI(comm, 1, size, &vecPerProcess);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingCreate(comm, 1, 1, rankarr, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
   ierr = VecSetLocalToGlobalMapping(vecPerProcess, ltog);CHKERRQ(ierr);
   ierr = ISLocalToGlobalMappingDestroy(&ltog);CHKERRQ(ierr);
   ierr = DMPlexGetDepthStratum(dm, depth, &cstart, &cend);CHKERRQ(ierr);
-  ierr = VecSetValueLocal(vecPerProcess, 0, cend-cstart, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecSetValueLocal(vecPerProcess, 0,(PetscScalar) cend-cstart, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
   ierr = VecUniqueEntries(vecPerProcess, &numBins_, &numPerProcess_);CHKERRQ(ierr);
   ierr = PetscCalloc1(numBins_, &binnedProcesses_);CHKERRQ(ierr);
   for (i = 0; i < numBins_; i++) {
