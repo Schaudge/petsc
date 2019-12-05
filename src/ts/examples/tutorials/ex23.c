@@ -2,6 +2,7 @@
 #include <petscdm.h>
 #include <petscdmda.h>
 #include <petscdmcomposite.h>
+#include <petscsf.h>
 
 typedef struct _UserCtx *User;
 struct _UserCtx {
@@ -10,6 +11,8 @@ struct _UserCtx {
   PetscReal eddydiff1,eddydiff2;
   PetscReal diff1,diff2,rho1,c1,rho2,c2,hx1,hx2;
   PetscInt  m1,m2;
+  PetscInt  *gidx_table1; /* array of the global indices of the interface nodes in da1 */
+  PetscInt  *gidx_table2; /* array of the global indices of the interface nodes in da2 */
 };
 
 static PetscErrorCode FormRHSFunctionLocal1(User user,DMDALocalInfo *info,const PetscScalar u1[],PetscScalar f1[])
@@ -49,11 +52,11 @@ static PetscErrorCode FormRHSFunction_All(TS ts,PetscReal t,Vec X,Vec F,void *ct
   DM             da1,da2;
   DMDALocalInfo  info1,info2;
   VecScatter     scatter1,scatter2;
-  IS             isin1to2,isout1to2,isin2to1,isout2to1;
+  IS             isin,isout;
   PetscScalar    *u1loc,*u2loc;
   PetscScalar    *f1,*f2;
   Vec            U1,U2,U1loc,U2loc,F1,F2;
-  PetscInt       isize1,isize2,idx1[1],idx2[1];
+  PetscInt       isizein,isizeout,idxin[1],idxout[1];
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -69,39 +72,38 @@ static PetscErrorCode FormRHSFunction_All(TS ts,PetscReal t,Vec X,Vec F,void *ct
   ierr = DMDAVecGetArray(da1,F1,&f1);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(da2,F2,&f2);CHKERRQ(ierr);
 
-  /* scatter from U1 interface to U2local boundary */
-  isize1 = 0;
-  isize2 = 0;
+  /* scatter to U2local ghost boundary */
+  isizein  = 0;
+  isizeout = 0;
   if (info2.xs == 0) { /* first rank on DM 2 */
-    idx2[isize2++] = info2.xs-info2.gxs-1; /* ghost boundary on DM 2, local index */
-    idx1[isize1++] = info1.mx-1; /* interface node on DM 1, global index */
+    idxout[isizeout++] = info2.xs-info2.gxs-1; /* ghost boundary on DM 2, local index */
+    idxin[isizein++]   = user->gidx_table1[0]; /* interface node on DM 1, global index */
   }
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD,isize1,idx1,PETSC_COPY_VALUES,&isin1to2);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_SELF,isize2,idx2,PETSC_COPY_VALUES,&isout1to2);CHKERRQ(ierr);
-  ierr = VecScatterCreate(U1,isin1to2,U2loc,isout1to2,&scatter1);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,isizein,idxin,PETSC_COPY_VALUES,&isin);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_SELF,isizeout,idxout,PETSC_COPY_VALUES,&isout);CHKERRQ(ierr);
+  ierr = VecScatterCreate(X,isin,U2loc,isout,&scatter1);CHKERRQ(ierr);
+  ierr = VecScatterBegin(scatter1,X,U2loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = VecScatterEnd(scatter1,X,U2loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = ISDestroy(&isin);CHKERRQ(ierr);
+  ierr = ISDestroy(&isout);CHKERRQ(ierr);
 
-  /* scatter from U2 interface to U1local ghost boundary */
-  isize1 = 0;
-  isize2 = 0;
+  /* scatter to U1local ghost boundary */
+  isizein  = 0;
+  isizeout = 0;
   if (info1.xs+info1.xm == info1.mx) { /* last rank on DM 1 */
-    idx1[isize1++] = info1.xm+info1.xs-info1.gxs; /* ghost boundary on DM 1, local index */
-    idx2[isize2++] = 0; /* interface node on DM2, global index */
+    idxout[isizeout++] = info1.xm+info1.xs-info1.gxs; /* ghost boundary on DM 1, local index */
+    idxin[isizein++]   = user->gidx_table2[0]; /* interface node on DM2, global index */
   }
-  ierr = ISCreateGeneral(PETSC_COMM_SELF,isize1,idx1,PETSC_COPY_VALUES,&isout2to1);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD,isize2,idx2,PETSC_COPY_VALUES,&isin2to1);CHKERRQ(ierr);
-  ierr = VecScatterCreate(U2,isin2to1,U1loc,isout2to1,&scatter2);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,isizein,idxin,PETSC_COPY_VALUES,&isin);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_SELF,isizeout,idxout,PETSC_COPY_VALUES,&isout);CHKERRQ(ierr);
+  ierr = VecScatterCreate(X,isin,U1loc,isout,&scatter2);CHKERRQ(ierr);
+  ierr = VecScatterBegin(scatter2,X,U1loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = VecScatterEnd(scatter2,X,U1loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = ISDestroy(&isin);CHKERRQ(ierr);
+  ierr = ISDestroy(&isout);CHKERRQ(ierr);
 
-  ierr = VecScatterBegin(scatter1,U1,U2loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterEnd(scatter1,U1,U2loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-
-  ierr = VecScatterBegin(scatter2,U2,U1loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterEnd(scatter2,U2,U1loc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&scatter1);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&scatter2);CHKERRQ(ierr);
-  ierr = ISDestroy(&isin1to2);CHKERRQ(ierr);
-  ierr = ISDestroy(&isout1to2);CHKERRQ(ierr);
-  ierr = ISDestroy(&isin2to1);CHKERRQ(ierr);
-  ierr = ISDestroy(&isout2to1);CHKERRQ(ierr);
 
   ierr = FormRHSFunctionLocal1(user,&info1,u1loc,f1);CHKERRQ(ierr);
   ierr = FormRHSFunctionLocal2(user,&info2,u2loc,f2);CHKERRQ(ierr);
@@ -128,9 +130,14 @@ static PetscErrorCode FormRHSJacobianLocal_J11(User user,DMDALocalInfo *info,con
       PetscScalar vals[] = {-2.0*eddydiff1/(hx1*hx1),eddydiff1/(hx1*hx1)};
       ierr = MatSetValuesLocal(J11,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else if (i == info->mx-1) {
+      /*
       PetscInt    cols[] = {row-1,row,row+1};
       PetscScalar vals[] = {-2.0*diff1/hx1/(rho1*c1*hx1+rho2*c2*hx2),2.0*(diff1/hx1+diff2/hx2)/(rho1*c1*hx1+rho2*c2*hx2),-2.0*diff2/hx2/(rho1*c1*hx1+rho2*c2*hx2)};
       ierr = MatSetValuesLocal(J11,1,&row,3,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+      */
+      PetscInt    cols[] = {row-1,row};
+      PetscScalar vals[] = {-2.0*diff1/hx1/(rho1*c1*hx1+rho2*c2*hx2),2.0*(diff1/hx1+diff2/hx2)/(rho1*c1*hx1+rho2*c2*hx2)};
+      ierr = MatSetValuesLocal(J11,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else {
       PetscInt    cols[] = {row-1,row,row+1};
       PetscScalar vals[] = {eddydiff1/(hx1*hx1),-2.0*eddydiff1/(hx1*hx1),eddydiff1/(hx1*hx1)};
@@ -150,9 +157,14 @@ static PetscErrorCode FormRHSJacobianLocal_J22(User user,DMDALocalInfo *info,con
   for (i=info->xs; i<info->xs+info->xm; i++) {
     PetscInt    row = i-info->gxs;
     if (i == 0) {
+      /*
       PetscInt    cols[] = {row-1,row,row+1};
       PetscScalar vals[] = {eddydiff2/(hx2*hx2),-2.0*eddydiff2/(hx2*hx2),eddydiff2/(hx2*hx2)};
       ierr = MatSetValuesLocal(J22,1,&row,3,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+      */
+      PetscInt    cols[] = {row,row+1};
+      PetscScalar vals[] = {-2.0*eddydiff2/(hx2*hx2),eddydiff2/(hx2*hx2)};
+      ierr = MatSetValuesLocal(J22,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
     } else if (i == info->mx-1) {
       PetscInt    cols[] = {row-1,row};
       PetscScalar vals[] = {eddydiff2/(hx2*hx2),-2.0*eddydiff2/(hx2*hx2)};
@@ -167,51 +179,52 @@ static PetscErrorCode FormRHSJacobianLocal_J22(User user,DMDALocalInfo *info,con
 }
 
 /*
-  info1: row DM
-  info2: column DM
+  Set up the off-diagonal matrices using global indices.
 */
-static PetscErrorCode FormRHSJacobianLocal_J12(User user,DMDALocalInfo *info1,DMDALocalInfo *info2,const PetscScalar u1[],Mat J12)
+static PetscErrorCode FormRHSJacobian_J12(User user,DMDALocalInfo *info1,DMDALocalInfo *info2,const PetscScalar u1[],Mat J)
 {
-  PetscReal      hx1 = user->hx1,hx2 = user->hx2,rho1 = user->rho1,rho2 = user->rho2,c1 = user->c1,c2 = user->c2,diff2 = user->diff2;
-  PetscErrorCode ierr;
+  ISLocalToGlobalMapping rl2g;
+  PetscReal              hx1 = user->hx1,hx2 = user->hx2,rho1 = user->rho1,rho2 = user->rho2,c1 = user->c1,c2 = user->c2,diff2 = user->diff2;
+  PetscErrorCode         ierr;
 
   PetscFunctionBeginUser;
-  if (!J12) PetscFunctionReturn(0); /* Not assembling this block */
-
   if (info1->xs+info1->xm == info1->mx) {
-    PetscInt    row = info1->mx-1-info1->gxs,col = info2->gxm;
+    PetscInt    row = info1->mx-1-info1->gxs,col = user->gidx_table2[0];
     PetscScalar val = -2.0*diff2/hx2/(rho1*c1*hx1+rho2*c2*hx2);
-    ierr = MatSetValuesLocal(J12,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
+
+    ierr = MatGetLocalToGlobalMapping(J,&rl2g,NULL);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingApply(rl2g,1,&row,&row);CHKERRQ(ierr);
+    ierr = MatSetValues(J,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
 /*
-  info2: row DM
-  info1: column DM
+  Set up the off-diagonal matrices using global indices.
 */
-static PetscErrorCode FormRHSJacobianLocal_J21(User user,DMDALocalInfo *info2,DMDALocalInfo *info1,const PetscScalar u2[],Mat J21)
+static PetscErrorCode FormRHSJacobian_J21(User user,DMDALocalInfo *info1,DMDALocalInfo *info2,const PetscScalar u2[],Mat J)
 {
-  PetscReal      hx2 = user->hx2,eddydiff2 = user->eddydiff2;
-  PetscErrorCode ierr;
+  ISLocalToGlobalMapping rl2g;
+  PetscReal              hx2 = user->hx2,eddydiff2 = user->eddydiff2;
+  PetscErrorCode         ierr;
 
   PetscFunctionBeginUser;
-  if (!J21) PetscFunctionReturn(0); /* Not assembling this block */
-
   if (info2->xs == 0) {
-    PetscInt    row = info2->xs-info2->gxs,col = info1->gxm;
+    PetscInt    row = info2->xs-info2->gxs+info1->gxm,col = user->gidx_table1[0];
     PetscScalar val = eddydiff2/(hx2*hx2);
-    ierr = MatSetValuesLocal(J21,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
+
+    ierr = MatGetLocalToGlobalMapping(J,&rl2g,NULL);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingApply(rl2g,1,&row,&row);CHKERRQ(ierr);
+    ierr = MatSetValues(J,1,&row,1,&col,&val,INSERT_VALUES);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode ModifySubMatrixL2G_J11(User user,DMDALocalInfo info1,Mat J11)
 {
-  IS                     *is;
-  ISLocalToGlobalMapping rl2g,cl2g,newcl2g;
+  ISLocalToGlobalMapping rl2g,cl2g;
   PetscInt               *idx;
-  PetscInt               i,nlocal;
+  PetscInt               nlocal;
   PetscErrorCode         ierr;
 
   PetscFunctionBeginUser;
@@ -227,12 +240,120 @@ static PetscErrorCode ModifySubMatrixL2G_J11(User user,DMDALocalInfo info1,Mat J
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode SetInterfaceIndex(User user)
+{
+  DM                     da1,da2;
+  DMDALocalInfo          info1,info2;
+  ISLocalToGlobalMapping l2g,l2g1,l2g2;
+  PetscInt               nlocal1,nlocal2,nnodes1,nnodes2,nroots = 0,nleaves = 0,nleavesalloc,*leafdata = NULL,*idx,*gidx_table;
+  PetscSF                sf;
+  PetscSFNode            *remote = NULL;
+  PetscMPIInt            rank;
+  PetscErrorCode         ierr;
+
+  PetscFunctionBeginUser;
+  /* number of interface nodes */
+  nnodes1 = 1;
+  nnodes2 = 1;
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  if (!rank) { /* allocate root data */
+    nroots = nnodes1 + nnodes2;
+    ierr   = PetscMalloc1(nroots,&gidx_table);CHKERRQ(ierr);
+  }
+  ierr = DMCompositeGetEntries(user->pack,&da1,&da2);CHKERRQ(ierr);
+  ierr = DMDAGetLocalInfo(da1,&info1);CHKERRQ(ierr);
+  ierr = DMDAGetLocalInfo(da2,&info2);CHKERRQ(ierr);
+  ierr = DMGetLocalToGlobalMapping(da1,&l2g1);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingView(l2g1,NULL);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingGetSize(l2g1,&nlocal1);CHKERRQ(ierr);
+  ierr = DMGetLocalToGlobalMapping(da2,&l2g2);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingView(l2g2,NULL);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingGetSize(l2g2,&nlocal2);CHKERRQ(ierr);
+
+  ierr = DMGetLocalToGlobalMapping(user->pack,&l2g);CHKERRQ(ierr);
+  if (info1.xs+info1.xm == info1.mx) { /* prepare the leaf data from da1 */
+    nleaves         = 1;
+    nleavesalloc    = 1;
+    ierr            = PetscMalloc1(nleaves,&remote);CHKERRQ(ierr);
+    remote[0].rank  = 0;
+    remote[0].index = 0;
+    ierr            = PetscMalloc1(nleavesalloc,&leafdata);CHKERRQ(ierr);
+
+    ierr = ISLocalToGlobalMappingGetIndices(l2g,(const PetscInt **)&idx);CHKERRQ(ierr);
+    leafdata[0] = idx[nlocal1-2]; /* global index of the last node (interface node) in da1*/
+    printf("r%d: %d %d\n",rank,leafdata[0],nlocal1);
+    ierr = ISLocalToGlobalMappingRestoreIndices(l2g,(const PetscInt **)&idx);CHKERRQ(ierr);
+  }
+  if (info2.xs == 0) { /* prepare the leaf data from da2 */
+    nleaves         = 1;
+    nleavesalloc    = 1;
+    ierr            = PetscMalloc1(nleaves,&remote);CHKERRQ(ierr);
+    remote[0].rank  = 0;
+    remote[0].index = 1;
+    ierr            = PetscMalloc1(nleavesalloc,&leafdata);CHKERRQ(ierr);
+
+    ierr = ISLocalToGlobalMappingGetIndices(l2g,(const PetscInt **)&idx);CHKERRQ(ierr);
+    leafdata[0] = idx[nlocal1+1]; /* global index of the first node (interface node) in da2*/
+    printf("r%d: %d %d\n",rank,leafdata[0],nlocal1);
+    ierr = ISLocalToGlobalMappingRestoreIndices(l2g,(const PetscInt **)&idx);CHKERRQ(ierr);
+  }
+
+  /* upload indices to rank 0 */
+  ierr = PetscSFCreate(PETSC_COMM_WORLD,&sf);CHKERRQ(ierr);
+  ierr = PetscSFSetGraph(sf,nroots,nleaves,NULL,PETSC_USE_POINTER,remote,PETSC_USE_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(sf);CHKERRQ(ierr);
+  ierr = PetscSFReduceBegin(sf,MPIU_INT,leafdata,gidx_table,MPIU_REPLACE);CHKERRQ(ierr);
+  ierr = PetscSFReduceEnd(sf,MPIU_INT,leafdata,gidx_table,MPIU_REPLACE);CHKERRQ(ierr);
+  ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
+  ierr = PetscFree(remote);CHKERRQ(ierr);
+  ierr = PetscFree(leafdata);CHKERRQ(ierr);
+
+  if (!rank) nroots = nnodes2;
+  nleaves = 0;
+  if (info1.xs+info1.xm == info1.mx) { /* prepare the leaf data from da1 */
+    nleaves         = nnodes2;
+    ierr            = PetscMalloc1(nleaves,&remote);CHKERRQ(ierr);
+    remote[0].rank  = 0;
+    remote[0].index = nnodes1;
+    ierr            = PetscMalloc1(nleaves,&user->gidx_table2);CHKERRQ(ierr);
+  }
+  /* download indices from rank 0 for da2 */
+  ierr = PetscSFCreate(PETSC_COMM_WORLD,&sf);CHKERRQ(ierr);
+  ierr = PetscSFSetGraph(sf,nroots,nleaves,NULL,PETSC_USE_POINTER,remote,PETSC_USE_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(sf);CHKERRQ(ierr);
+  ierr = PetscSFBcastBegin(sf,MPIU_INT,gidx_table,user->gidx_table2);CHKERRQ(ierr);
+  ierr = PetscSFBcastEnd(sf,MPIU_INT,gidx_table,user->gidx_table2);CHKERRQ(ierr);
+  ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
+  ierr = PetscFree(remote);CHKERRQ(ierr);
+
+  if (!rank) nroots = nnodes1;
+  nleaves = 0;
+  if (info2.xs == 0) { /* prepare the leaf data from da2 */
+    nleaves         = nnodes1;
+    ierr            = PetscMalloc1(nleaves,&remote);CHKERRQ(ierr);
+    remote[0].rank  = 0;
+    remote[0].index = 0;
+    ierr            = PetscMalloc1(nleaves,&user->gidx_table1);CHKERRQ(ierr);
+  }
+  /* download indices from rank 0 for da1 */
+  ierr = PetscSFCreate(PETSC_COMM_WORLD,&sf);CHKERRQ(ierr);
+  ierr = PetscSFSetGraph(sf,nroots,nleaves,NULL,PETSC_USE_POINTER,remote,PETSC_USE_POINTER);CHKERRQ(ierr);
+  ierr = PetscSFSetUp(sf);CHKERRQ(ierr);
+  ierr = PetscSFBcastBegin(sf,MPIU_INT,gidx_table,user->gidx_table1);CHKERRQ(ierr);
+  ierr = PetscSFBcastEnd(sf,MPIU_INT,gidx_table,user->gidx_table1);CHKERRQ(ierr);
+  ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
+  ierr = PetscFree(remote);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = PetscFree(gidx_table);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode ModifySubMatrixL2G_J22(User user,DMDALocalInfo info2,Mat J22)
 {
-  IS                     *is;
-  ISLocalToGlobalMapping rl2g,cl2g,newcl2g;
+  ISLocalToGlobalMapping rl2g,cl2g;
   PetscInt               *idx;
-  PetscInt               i,nlocal;
+  PetscInt               nlocal;
   PetscErrorCode         ierr;
 
   PetscFunctionBeginUser;
@@ -248,6 +369,10 @@ static PetscErrorCode ModifySubMatrixL2G_J22(User user,DMDALocalInfo info2,Mat J
   PetscFunctionReturn(0);
 }
 
+/*
+  Trying to modify the l2g once for all
+  This approach would not work because the l2g mappings of the submatrices and the l2g mapping of the combined matrix are in different spaces.
+*/
 static PetscErrorCode ModifyCouplingSubMatrixL2G(User user,Mat J)
 {
   DM                     da1,da2;
@@ -307,7 +432,7 @@ static PetscErrorCode FormRHSJacobian_All(TS ts,PetscReal t,Vec X,Mat J,Mat JP,v
   PetscBool      nest;
   IS             *is;
   Vec            U1loc,U2loc;
-  Mat            J11,J12,J21,J22;
+  Mat            J11,J22;
   PetscScalar    *u1,*u2;
   PetscErrorCode ierr;
 
@@ -321,11 +446,9 @@ static PetscErrorCode FormRHSJacobian_All(TS ts,PetscReal t,Vec X,Mat J,Mat JP,v
   ierr = DMDAVecGetArray(da2,U2loc,&u2);CHKERRQ(ierr);
   ierr = DMCompositeGetLocalISs(user->pack,&is);CHKERRQ(ierr);
   ierr = MatGetLocalSubMatrix(JP,is[0],is[0],&J11);CHKERRQ(ierr);
-  ierr = MatGetLocalSubMatrix(JP,is[0],is[1],&J12);CHKERRQ(ierr);
-  ierr = MatGetLocalSubMatrix(JP,is[1],is[0],&J21);CHKERRQ(ierr);
   ierr = MatGetLocalSubMatrix(JP,is[1],is[1],&J22);CHKERRQ(ierr);
-  ierr = ModifySubMatrixL2G_J11(user,info1,J11);CHKERRQ(ierr);
-  ierr = ModifySubMatrixL2G_J22(user,info2,J22);CHKERRQ(ierr);
+  //ierr = ModifySubMatrixL2G_J11(user,info1,J11);CHKERRQ(ierr);
+  //ierr = ModifySubMatrixL2G_J22(user,info2,J22);CHKERRQ(ierr);
   ierr = FormRHSJacobianLocal_J11(user,&info1,u1,J11);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)JP,MATNEST,&nest);CHKERRQ(ierr);
   if (!nest) {
@@ -335,13 +458,11 @@ static PetscErrorCode FormRHSJacobian_All(TS ts,PetscReal t,Vec X,Mat J,Mat JP,v
        changed Mat_Nest() from returning NULL pointers for these submatrices to dummy matrices because PCFIELDSPLIT could not
        handle the returned null matrices.
     */
-    //ierr = FormRHSJacobianLocal_J12(user,&info1,&info2,u1,J12);CHKERRQ(ierr);
-    //ierr = FormRHSJacobianLocal_J21(user,&info2,&info1,u2,J21);CHKERRQ(ierr);
+    ierr = FormRHSJacobian_J12(user,&info1,&info2,u1,J);CHKERRQ(ierr);
+    ierr = FormRHSJacobian_J21(user,&info1,&info2,u2,J);CHKERRQ(ierr);
   }
   ierr = FormRHSJacobianLocal_J22(user,&info2,u2,J22);CHKERRQ(ierr);
   ierr = MatRestoreLocalSubMatrix(JP,is[0],is[0],&J11);CHKERRQ(ierr);
-  ierr = MatRestoreLocalSubMatrix(JP,is[0],is[1],&J12);CHKERRQ(ierr);
-  ierr = MatRestoreLocalSubMatrix(JP,is[1],is[0],&J21);CHKERRQ(ierr);
   ierr = MatRestoreLocalSubMatrix(JP,is[1],is[1],&J22);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(da1,U1loc,&u1);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(da2,U2loc,&u2);CHKERRQ(ierr);
@@ -431,6 +552,8 @@ int main(int argc,char **argv)
   user.diff2     = 1.0;
   user.eddydiff1 = user.diff1/(user.rho1*user.c1);
   user.eddydiff2 = user.diff2/(user.rho2*user.c2);
+  user.gidx_table1 = NULL;
+  user.gidx_table2 = NULL;
 
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Solving a coupling problem, number of processors = %d\n",size);CHKERRQ(ierr);
@@ -483,6 +606,7 @@ int main(int argc,char **argv)
   ierr = DMCreateMatrix(user.pack,&JP);CHKERRQ(ierr);
 
   //ierr = ModifyCouplingSubMatrixL2G(&user,JP);CHKERRQ(ierr);
+  ierr = SetInterfaceIndex(&user);CHKERRQ(ierr);
 
   /* This example does not correctly allocate off-diagonal blocks. These options allows new nonzeros (slow). */
   ierr = MatSetOption(JP,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
