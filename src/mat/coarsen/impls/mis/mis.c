@@ -284,9 +284,13 @@ static PetscErrorCode MatCoarsenApply_MIS(MatCoarsen coarse)
     ierr = ISDestroy(&perm);CHKERRQ(ierr);
   } else {
 #if defined(PETSC_HAVE_CUDA)
-    ierr = maxIndSetAggCUDA(coarse->perm,mat,coarse->strict_aggs,&coarse->agg_lists);CHKERRQ(ierr);
+    if (coarse->no_gpu) {
+      ierr = maxIndSetAgg(coarse->perm,mat,coarse->strict_aggs,&coarse->agg_lists);CHKERRQ(ierr);
+    } else {
+      ierr = maxIndSetAggCUDA(coarse->perm,mat,coarse->strict_aggs,&coarse->agg_lists);CHKERRQ(ierr);
+    }
 #else
-    ierr = maxIndSetAgg(coarse->perm, mat, coarse->strict_aggs,  &coarse->agg_lists);CHKERRQ(ierr);
+    ierr = maxIndSetAgg(coarse->perm,mat,coarse->strict_aggs,&coarse->agg_lists);CHKERRQ(ierr);
 #endif
   }
   PetscFunctionReturn(0);

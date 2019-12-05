@@ -430,7 +430,8 @@ PetscErrorCode MatCoarsenSetFromOptions(MatCoarsen coarser)
   if (!((PetscObject)coarser)->type_name) {
     ierr = MatCoarsenSetType(coarser,def);CHKERRQ(ierr);
   }
-
+  /* This option allows for switching from the GPU version to the CPU version */ 
+  ierr = PetscOptionsBool("-mat_coarsen_no_gpu","Do not use the GPU implementation of MIS even when it is possible","MatCoarsenSetNoGPU",coarser->no_gpu,&coarser->no_gpu,NULL);CHKERRQ(ierr);
   if (coarser->ops->setfromoptions) {
     ierr = (*coarser->ops->setfromoptions)(PetscOptionsObject,coarser);CHKERRQ(ierr);
   }

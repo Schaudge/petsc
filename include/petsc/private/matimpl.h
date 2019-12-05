@@ -484,6 +484,7 @@ struct _p_MatCoarsen {
   PetscInt         setupcalled;
   void             *subctx;
   /* */
+  PetscBool        no_gpu;
   PetscBool        strict_aggs;
   IS               perm;
   PetscCoarsenData *agg_lists;
