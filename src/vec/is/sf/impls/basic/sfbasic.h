@@ -109,15 +109,15 @@ typedef struct _n_PackInfo {
   Input Arguments:
   + sf       - The SF this packing works on.
   . link     - The PetscSFPack, which gives the memtype of the roots and also provides root buffer.
-  . rootloc  - Indices of the roots, only meaningful if the root space is sparse
   . rootdata - Where to read the roots.
   - sparse   - Is the root space sparse (for SFBasic, SFNeighbor)  or dense (for SFAllgatherv etc)
  */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack link,const PetscInt *rootloc,const void *rootdata,PetscBool sparse)
+PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack link,const void *rootdata,PetscBool sparse)
 {
   PetscErrorCode ierr;
   PetscSF_Basic  *bas = (PetscSF_Basic*)sf->data;
   PetscInt       i;
+  const PetscInt *rootloc = NULL;
   PetscErrorCode (*Pack)(PetscInt,const PetscInt*,PetscSFPack,PetscSFPackOpt,const void*,void*);
   PackInfo       p[2];
 
@@ -136,29 +136,39 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack li
   if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (link->selfbuflen || link->rootbuflen)) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
 #endif
   if (sparse) {
-    /* For SFBasic and SFNeighbor, whose root space is sparse and have separate buffers for self and remote. */
-    p[0].count  = link->selfbuflen;
-    p[0].idx    = rootloc;
-    p[0].opt    = bas->selfrootpackopt;
-    p[0].buf    = link->selfbuf[link->rootmtype];
-    p[0].atomic = PETSC_FALSE;
-    p[0].data   = rootdata;
-    if (p[0].opt && p[0].opt->all_contiguous) { /* Adjust data/idx if indices are contiguous */
-      p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
-      p[0].idx  = NULL; /* NULL means indices [0,count). We shifted rootdata above to access rootdata starting from p[0].data[0]. */
-      p[0].opt  = NULL;
+    p[0].count  = link->selfbuflen; /* Set count/opt early so that we have shorter names to reference */
+    p[0].opt    = bas->selfrootpackopt; /* NULL opt means we have no optimizations for the indices */
+
+    p[1].count  = link->rootbuflen; /* For remote ranks */
+    p[1].opt    = bas->rootpackopt;
+
+    /* If either self or remote has non-contiguous indices, then we need to get the indices. On CPU, it is trival. On GPU, we
+       have to copy the indices from CPU to GPU at the first time. So we only get the indices when we really need them.
+     */
+    if ((p[0].count && (!p[0].opt || !p[0].opt->all_contiguous)) || (p[1].count && (!p[1].opt || !p[1].opt->all_contiguous))) {
+      ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,link->rootmtype,&rootloc);CHKERRQ(ierr);
     }
 
-    p[1].count  = link->rootbuflen;
+    /* For SFBasic and SFNeighbor, whose root space is sparse and have separate buffers for self and remote. */
+    p[0].buf    = link->selfbuf[link->rootmtype];
+    p[0].atomic = PETSC_FALSE;
+    if (p[0].opt && p[0].opt->all_contiguous) { /* If indices are contiguous */
+      p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
+      p[0].idx  = NULL; /* NULL means indices [0,count). We shifted rootdata above to access rootdata starting from p[0].data[0]. */
+    } else {
+      p[0].data = rootdata;
+      p[0].idx  = rootloc;
+    }
+
     p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
-    p[1].opt    = bas->rootpackopt;
     p[1].buf    = link->rootbuf[link->rootmtype];
     p[1].atomic = PETSC_FALSE;
-    p[1].data   = rootdata;
     if (p[1].opt && p[1].opt->all_contiguous) {
       p[1].data = (const char*)rootdata + p[1].opt->start_index*link->unitbytes;
       p[1].idx  = NULL;
-      p[1].opt  = NULL;
+    } else {
+      p[1].data = rootdata;
+      p[1].idx  = rootloc+bas->ioffset[bas->ndiranks];
     }
   } else SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_PLIB,"SFAllgather etc should directly use rootdata instead of packing it");
 
@@ -184,10 +194,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack li
 }
 
 /* Utility routine to pack selected entries of leafdata into leaf buffer */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack link,const PetscInt *leafloc,const void *leafdata,PetscBool sparse)
+PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack link,const void *leafdata,PetscBool sparse)
 {
   PetscErrorCode ierr;
   PetscInt       i;
+  const PetscInt *leafloc = NULL;
   PetscErrorCode (*Pack)(PetscInt,const PetscInt*,PetscSFPack,PetscSFPackOpt,const void*,void*);
   PackInfo       p[2];
 
@@ -198,27 +209,33 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack li
 #endif
   if (sparse) {
     p[0].count  = link->selfbuflen;
-    p[0].idx    = leafloc;
     p[0].opt    = sf->selfleafpackopt;
+
+    p[1].count  = link->leafbuflen;
+    p[1].opt    = sf->leafpackopt;
+
+    if ((p[0].count && (!p[0].opt || !p[0].opt->all_contiguous)) || (p[1].count && (!p[1].opt || !p[1].opt->all_contiguous))) {
+      ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,link->leafmtype,&leafloc);CHKERRQ(ierr);
+    }
+
     p[0].buf    = link->selfbuf[link->leafmtype];
     p[0].atomic = PETSC_FALSE;
-    p[0].data   = leafdata;
     if (p[0].opt && p[0].opt->all_contiguous) {
       p[0].data = (const char*)leafdata + p[0].opt->start_index*link->unitbytes;
       p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift leafdata above. */
-      p[0].opt  = NULL;
+    } else {
+      p[0].data = leafdata;
+      p[0].idx  = leafloc;
     }
 
-    p[1].count  = link->leafbuflen;
-    p[1].idx    = leafloc+sf->roffset[sf->ndranks];
-    p[1].opt    = sf->leafpackopt;
     p[1].buf    = link->leafbuf[link->leafmtype];
     p[1].atomic = PETSC_FALSE;
-    p[1].data   = leafdata;
     if (p[1].opt && p[1].opt->all_contiguous) {
       p[1].data = (const char*)leafdata + p[1].opt->start_index*link->unitbytes;
       p[1].idx  = NULL;
-      p[1].opt  = NULL;
+    } else {
+      p[1].data = leafdata;
+      p[1].idx  = leafloc+sf->roffset[sf->ndranks];
     }
   } else SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_PLIB,"SFAllgather etc should directly use leafdata instead of packing it");
 
@@ -239,10 +256,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack li
 }
 
 /* Utility routine to unpack data from root buffer and Op it into selected entries of rootdata */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSFPack link,const PetscInt *rootloc,void *rootdata,MPI_Op op,PetscBool sparse)
+PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSFPack link,void *rootdata,MPI_Op op,PetscBool sparse)
 {
   PetscErrorCode ierr;
   PetscInt       i;
+  const PetscInt *rootloc = NULL;
   PetscSF_Basic  *bas = (PetscSF_Basic*)sf->data;
   PetscErrorCode (*UnpackAndOp)(PetscInt,const PetscInt*,PetscSFPack,PetscSFPackOpt,void*,const void*);
   PackInfo       p[2];
@@ -260,27 +278,33 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
 
   if (sparse) {
     p[0].count  = link->selfbuflen;
-    p[0].idx    = rootloc;
     p[0].opt    = bas->selfrootpackopt;
+
+    p[1].count  = link->rootbuflen;
+    p[1].opt    = bas->rootpackopt;
+
+    if ((p[0].count && (!p[0].opt || !p[0].opt->all_contiguous)) || (p[1].count && (!p[1].opt || !p[1].opt->all_contiguous))) {
+      ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,link->rootmtype,&rootloc);CHKERRQ(ierr);
+    }
+
     p[0].buf    = link->selfbuf[link->rootmtype];
     p[0].atomic = bas->selfrootdups;
-    p[0].data   = rootdata;
     if (p[0].opt && p[0].opt->all_contiguous) {
       p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
       p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift rootdata above. */
-      p[0].opt  = NULL;
+    } else {
+      p[0].data = rootdata;
+      p[0].idx  = rootloc;
     }
 
-    p[1].count  = link->rootbuflen;
-    p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
-    p[1].opt    = bas->rootpackopt;
     p[1].buf    = link->rootbuf[link->rootmtype];
     p[1].atomic = bas->remoterootdups;
-    p[1].data   = rootdata;
     if (p[1].opt && p[1].opt->all_contiguous) {
       p[1].data = (const char*)rootdata + p[1].opt->start_index*link->unitbytes;
       p[1].idx  = NULL;
-      p[1].opt  = NULL;
+    } else {
+      p[1].data = rootdata;
+      p[1].idx  = rootloc+bas->ioffset[bas->ndiranks];
     }
   } else {
     p[0].count  = 0;
@@ -332,10 +356,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
 }
 
 /* Utility routine to unpack data from leaf buffer and Op it into selected entries of leafdata */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSFPack link,const PetscInt *leafloc,void *leafdata,MPI_Op op,PetscBool sparse)
+PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSFPack link,void *leafdata,MPI_Op op,PetscBool sparse)
 {
   PetscErrorCode ierr;
   PetscInt       i;
+  const PetscInt *leafloc = NULL;
   PetscErrorCode (*UnpackAndOp)(PetscInt,const PetscInt*,PetscSFPack,PetscSFPackOpt,void*,const void*);
   PackInfo       p[2];
 
@@ -352,27 +377,33 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
 
   if (sparse) {
     p[0].count  = link->selfbuflen;
-    p[0].idx    = leafloc;
     p[0].opt    = sf->selfleafpackopt;
+
+    p[1].count  = link->leafbuflen;
+    p[1].opt    = sf->leafpackopt;
+
+    if ((p[0].count && (!p[0].opt || !p[0].opt->all_contiguous)) || (p[1].count && (!p[1].opt || !p[1].opt->all_contiguous))) {
+      ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,link->leafmtype,&leafloc);CHKERRQ(ierr);
+    }
+
     p[0].buf    = link->selfbuf[link->leafmtype];
     p[0].atomic = sf->selfleafdups;
-    p[0].data   = leafdata;
     if (p[0].opt && p[0].opt->all_contiguous) {
       p[0].data = (const char*)leafdata + p[0].opt->start_index*link->unitbytes;
       p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift leafdata above. */
-      p[0].opt  = NULL;
+    } else {
+      p[0].data = leafdata;
+      p[0].idx  = leafloc;
     }
 
-    p[1].count  = link->leafbuflen;
-    p[1].idx    = leafloc+sf->roffset[sf->ndranks];
-    p[1].opt    = sf->leafpackopt;
     p[1].buf    = link->leafbuf[link->leafmtype];
     p[1].atomic = sf->remoteleafdups;
-    p[1].data   = leafdata;
     if (p[1].opt && p[1].opt->all_contiguous) {
       p[1].data = (const char*)leafdata + p[1].opt->start_index*link->unitbytes;
       p[1].idx  = NULL;
-      p[1].opt  = NULL;
+    } else {
+      p[1].data = leafdata;
+      p[1].idx  = leafloc+sf->roffset[sf->ndranks];
     }
   } else {
     p[0].count  = 0;
@@ -420,10 +451,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
 }
 
 /* Utility routine to fetch and Op selected entries of rootdata */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFPack link,const PetscInt *rootloc,void *rootdata,MPI_Op op,PetscBool sparse)
+PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFPack link,void *rootdata,MPI_Op op,PetscBool sparse)
 {
   PetscErrorCode ierr;
   PetscInt       i;
+  const PetscInt *rootloc = NULL;
   PetscSF_Basic  *bas = (PetscSF_Basic*)sf->data;
   PetscErrorCode (*FetchAndOp)(PetscInt,const PetscInt*,PetscSFPack,PetscSFPackOpt,void*,void*);
   PackInfo       p[2];
@@ -442,27 +474,33 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFP
   if (sparse) {
     /* For SFBasic and SFNeighbor, whose root space is sparse and have separate buffers for self and remote. */
     p[0].count  = link->selfbuflen;
-    p[0].idx    = rootloc;
     p[0].opt    = bas->selfrootpackopt;
+
+    p[1].count  = link->rootbuflen;
+    p[1].opt    = bas->rootpackopt;
+
+    if ((p[0].count && (!p[0].opt || !p[0].opt->all_contiguous)) || (p[1].count && (!p[1].opt || !p[1].opt->all_contiguous))) {
+      ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,link->rootmtype,&rootloc);CHKERRQ(ierr);
+    }
+
     p[0].buf    = link->selfbuf[link->rootmtype];
     p[0].atomic = bas->selfrootdups;
-    p[0].data   = rootdata;
     if (p[0].opt && p[0].opt->all_contiguous) {
       p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
       p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift rootdata above. */
-      p[0].opt  = NULL;
+    } else {
+      p[0].data = rootdata;
+      p[0].idx  = rootloc;
     }
 
-    p[1].count  = link->rootbuflen;
-    p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
-    p[1].opt    = bas->rootpackopt;
     p[1].buf    = link->rootbuf[link->rootmtype];
     p[1].atomic = bas->remoterootdups;
-    p[1].data   = rootdata;
     if (p[1].opt && p[1].opt->all_contiguous) {
       p[1].data = (const char*)rootdata + p[1].opt->start_index*link->unitbytes;
       p[1].idx  = NULL;
-      p[1].opt  = NULL;
+    } else {
+      p[1].data = rootdata;
+      p[1].idx  = rootloc+bas->ioffset[bas->ndiranks];
     }
   } else {
     p[0].count  = 0;
