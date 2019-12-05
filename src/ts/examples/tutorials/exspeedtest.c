@@ -2,9 +2,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 
 # include <petscdmplex.h>
 # include <petscviewer.h>
-# include <petscsnes.h>
 # include <petscds.h>
-# include <petscksp.h>
 # include <petscdmlabel.h>
 
 # define PETSCVIEWERVTK          "vtk"
@@ -123,6 +121,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscInt              dim = user->dim, overlap = user->overlap, i;
 
   PetscFunctionBeginUser;
+  //ierr = MatPartitioningRegisterAll();CHKERRQ(ierr);
   if (user->fileflg) {
     char        *dup, filenameAlt[PETSC_MAX_PATH_LEN];
     sprintf(filenameAlt, "%s%s", "./meshes/", (dup = strdup(filename)));
