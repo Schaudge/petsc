@@ -303,19 +303,16 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Basic(PetscSF sf,MPI_Datatype unit,
 {
   PetscErrorCode    ierr;
   PetscSFPack       link;
-  const PetscInt    *rootloc = NULL;
   MPI_Request       *rootreqs,*leafreqs;
 
   PetscFunctionBegin;
   ierr = PetscSFPackGet_Basic(sf,unit,rootmtype,rootdata,leafmtype,leafdata,PETSCSF_ROOT2LEAF_BCAST,&link);CHKERRQ(ierr);
-  ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,rootmtype,&rootloc);CHKERRQ(ierr);
-
   ierr = PetscSFPackGetReqs_Basic(sf,link,PETSCSF_ROOT2LEAF_BCAST,&rootreqs,&leafreqs);CHKERRQ(ierr);
   /* Post Irecv. Note distinguished ranks receive data via shared memory (i.e., not via MPI) */
   ierr = MPI_Startall_irecv(link->leafbuflen,unit,link->nleafreqs,leafreqs);CHKERRQ(ierr);
 
   /* Do Isend */
-  ierr = PetscSFPackRootData(sf,link,rootloc,rootdata,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFPackRootData(sf,link,rootdata,PETSC_TRUE);CHKERRQ(ierr);
   ierr = MPI_Startall_isend(link->rootbuflen,unit,link->nrootreqs,rootreqs);CHKERRQ(ierr);
 
   /* Do self to self communication via memcpy only when rootdata and leafdata are in different memory */
@@ -327,13 +324,11 @@ PETSC_INTERN PetscErrorCode PetscSFBcastAndOpEnd_Basic(PetscSF sf,MPI_Datatype u
 {
   PetscErrorCode    ierr;
   PetscSFPack       link;
-  const PetscInt    *leafloc = NULL;
 
   PetscFunctionBegin;
   ierr = PetscSFPackGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
   ierr = PetscSFPackWaitall(link,PETSCSF_ROOT2LEAF_BCAST);CHKERRQ(ierr);
-  ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,leafmtype,&leafloc);CHKERRQ(ierr);
-  ierr = PetscSFUnpackAndOpLeafData(sf,link,leafloc,leafdata,op,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFUnpackAndOpLeafData(sf,link,leafdata,op,PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscSFPackReclaim(sf,&link);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -343,19 +338,16 @@ static PetscErrorCode PetscSFReduceBegin_Basic(PetscSF sf,MPI_Datatype unit,Pets
 {
   PetscErrorCode    ierr;
   PetscSFPack       link;
-  const PetscInt    *leafloc = NULL;
   MPI_Request       *rootreqs = NULL,*leafreqs = NULL; /* dummy values for compiler warnings about uninitialized value */
 
   PetscFunctionBegin;
-  ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,leafmtype,&leafloc);
-
   ierr = PetscSFPackGet_Basic(sf,unit,rootmtype,rootdata,leafmtype,leafdata,PETSCSF_LEAF2ROOT_REDUCE,&link);CHKERRQ(ierr);
   ierr = PetscSFPackGetReqs_Basic(sf,link,PETSCSF_LEAF2ROOT_REDUCE,&rootreqs,&leafreqs);CHKERRQ(ierr);
   /* Eagerly post root receives for non-distinguished ranks */
   ierr = MPI_Startall_irecv(link->rootbuflen,unit,link->nrootreqs,rootreqs);CHKERRQ(ierr);
 
   /* Pack and send leaf data */
-  ierr = PetscSFPackLeafData(sf,link,leafloc,leafdata,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFPackLeafData(sf,link,leafdata,PETSC_TRUE);CHKERRQ(ierr);
   ierr = MPI_Startall_isend(link->leafbuflen,unit,link->nleafreqs,leafreqs);CHKERRQ(ierr);
 
   if (rootmtype != leafmtype) {ierr = PetscMemcpyWithMemType(rootmtype,leafmtype,link->selfbuf[rootmtype],link->selfbuf[leafmtype],link->selfbuflen*link->unitbytes);CHKERRQ(ierr);}
@@ -366,13 +358,11 @@ PETSC_INTERN PetscErrorCode PetscSFReduceEnd_Basic(PetscSF sf,MPI_Datatype unit,
 {
   PetscErrorCode    ierr;
   PetscSFPack       link;
-  const PetscInt    *rootloc = NULL;
 
   PetscFunctionBegin;
-  ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,rootmtype,&rootloc);CHKERRQ(ierr);
   ierr = PetscSFPackGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
   ierr = PetscSFPackWaitall(link,PETSCSF_LEAF2ROOT_REDUCE);CHKERRQ(ierr);
-  ierr = PetscSFUnpackAndOpRootData(sf,link,rootloc,rootdata,op,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFUnpackAndOpRootData(sf,link,rootdata,op,PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscSFPackReclaim(sf,&link);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -390,12 +380,9 @@ static PetscErrorCode PetscSFFetchAndOpEnd_Basic(PetscSF sf,MPI_Datatype unit,Pe
 {
   PetscErrorCode    ierr;
   PetscSFPack       link;
-  const PetscInt    *rootloc = NULL,*leafloc = NULL;
   MPI_Request       *rootreqs,*leafreqs;
 
   PetscFunctionBegin;
-  ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,rootmtype,&rootloc);CHKERRQ(ierr);
-  ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,leafmtype,&leafloc);CHKERRQ(ierr);
   ierr = PetscSFPackGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
   /* This implementation could be changed to unpack as receives arrive, at the cost of non-determinism */
   ierr = PetscSFPackWaitall(link,PETSCSF_LEAF2ROOT_REDUCE);CHKERRQ(ierr);
@@ -405,13 +392,13 @@ static PetscErrorCode PetscSFFetchAndOpEnd_Basic(PetscSF sf,MPI_Datatype unit,Pe
   ierr = MPI_Startall_irecv(link->leafbuflen,unit,link->nleafreqs,leafreqs);CHKERRQ(ierr);
 
   /* Process local fetch-and-op, post root sends */
-  ierr = PetscSFFetchAndOpRootData(sf,link,rootloc,rootdata,op,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFFetchAndOpRootData(sf,link,rootdata,op,PETSC_TRUE);CHKERRQ(ierr);
   ierr = MPI_Startall_isend(link->rootbuflen,unit,link->nrootreqs,rootreqs);CHKERRQ(ierr);
   if (rootmtype != leafmtype) {ierr = PetscMemcpyWithMemType(leafmtype,rootmtype,link->selfbuf[leafmtype],link->selfbuf[rootmtype],link->selfbuflen*link->unitbytes);CHKERRQ(ierr);}
 
   /* Unpack and insert fetched data into leaves */
   ierr = PetscSFPackWaitall(link,PETSCSF_ROOT2LEAF_BCAST);CHKERRQ(ierr);
-  ierr = PetscSFUnpackAndOpLeafData(sf,link,leafloc,leafupdate,MPIU_REPLACE,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFUnpackAndOpLeafData(sf,link,leafupdate,MPIU_REPLACE,PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscSFPackReclaim(sf,&link);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -119,15 +119,13 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Neighbor(PetscSF sf,MPI_Datatype un
 {
   PetscErrorCode       ierr;
   PetscSFPack          link;
-  const PetscInt       *rootloc = NULL;
   PetscSF_Neighbor     *dat = (PetscSF_Neighbor*)sf->data;
   MPI_Comm             distcomm;
   PetscMemType         rootmtype_mpi,leafmtype_mpi; /* memtypes seen by MPI */
 
   PetscFunctionBegin;
   ierr = PetscSFPackGet_Neighbor(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
-  ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,rootmtype,&rootloc);CHKERRQ(ierr);
-  ierr = PetscSFPackRootData(sf,link,rootloc,rootdata,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFPackRootData(sf,link,rootdata,PETSC_TRUE);CHKERRQ(ierr);
 
   /* Do neighborhood alltoallv for non-distinguished ranks */
   ierr = PetscSFGetDistComm_Neighbor(sf,PETSCSF_ROOT2LEAF_BCAST,&distcomm);CHKERRQ(ierr);
@@ -146,16 +144,14 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Neighbor(PetscSF sf,MPI_Datatype un
 static PetscErrorCode PetscSFReduceBegin_Neighbor(PetscSF sf,MPI_Datatype unit,PetscMemType leafmtype,const void *leafdata,PetscMemType rootmtype,void *rootdata,MPI_Op op)
 {
   PetscErrorCode       ierr;
-  const PetscInt       *leafloc = NULL;
   PetscSFPack          link;
   PetscSF_Neighbor     *dat = (PetscSF_Neighbor*)sf->data;
   MPI_Comm             distcomm;
   PetscMemType         rootmtype_mpi,leafmtype_mpi; /* memtypes seen by MPI */
 
   PetscFunctionBegin;
-  ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,leafmtype,&leafloc);CHKERRQ(ierr);
   ierr = PetscSFPackGet_Neighbor(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
-  ierr = PetscSFPackLeafData(sf,link,leafloc,leafdata,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFPackLeafData(sf,link,leafdata,PETSC_TRUE);CHKERRQ(ierr);
 
   /* Do neighborhood alltoallv for non-distinguished ranks */
   ierr = PetscSFGetDistComm_Neighbor(sf,PETSCSF_LEAF2ROOT_REDUCE,&distcomm);CHKERRQ(ierr);
@@ -175,7 +171,6 @@ static PetscErrorCode PetscSFFetchAndOpEnd_Neighbor(PetscSF sf,MPI_Datatype unit
 {
   PetscErrorCode    ierr;
   PetscSFPack       link;
-  const PetscInt    *rootloc = NULL,*leafloc = NULL;
   MPI_Comm          comm;
   PetscSF_Neighbor  *dat = (PetscSF_Neighbor*)sf->data;
   PetscMemType      rootmtype_mpi,leafmtype_mpi; /* memtypes seen by MPI */
@@ -183,10 +178,8 @@ static PetscErrorCode PetscSFFetchAndOpEnd_Neighbor(PetscSF sf,MPI_Datatype unit
   PetscFunctionBegin;
   ierr = PetscSFPackGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
   ierr = PetscSFPackWaitall(link,PETSCSF_LEAF2ROOT_REDUCE);CHKERRQ(ierr);
-  ierr = PetscSFGetRootIndicesWithMemType_Basic(sf,rootmtype,&rootloc);CHKERRQ(ierr);
-  ierr = PetscSFGetLeafIndicesWithMemType_Basic(sf,leafmtype,&leafloc);CHKERRQ(ierr);
   /* Process local fetch-and-op */
-  ierr = PetscSFFetchAndOpRootData(sf,link,rootloc,rootdata,op,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFFetchAndOpRootData(sf,link,rootdata,op,PETSC_TRUE);CHKERRQ(ierr);
 
   /* Bcast the updated rootbuf back to leaves */
   ierr = PetscSFGetDistComm_Neighbor(sf,PETSCSF_ROOT2LEAF_BCAST,&comm);CHKERRQ(ierr);
@@ -199,7 +192,7 @@ static PetscErrorCode PetscSFFetchAndOpEnd_Neighbor(PetscSF sf,MPI_Datatype unit
   }
   ierr = MPI_Start_neighbor_alltoallv(dat->rootdegree,dat->leafdegree,link->rootbuf[rootmtype_mpi],dat->rootcounts,dat->rootdispls,unit,link->leafbuf[leafmtype_mpi],dat->leafcounts,dat->leafdispls,unit,comm);CHKERRQ(ierr);
   if (rootmtype != leafmtype) {ierr = PetscMemcpyWithMemType(leafmtype,rootmtype,link->selfbuf[leafmtype],link->selfbuf[rootmtype],link->selfbuflen*link->unitbytes);CHKERRQ(ierr);}
-  ierr = PetscSFUnpackAndOpLeafData(sf,link,leafloc,leafupdate,MPIU_REPLACE,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = PetscSFUnpackAndOpLeafData(sf,link,leafupdate,MPIU_REPLACE,PETSC_TRUE);CHKERRQ(ierr);
   ierr = PetscSFPackReclaim(sf,&link);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
