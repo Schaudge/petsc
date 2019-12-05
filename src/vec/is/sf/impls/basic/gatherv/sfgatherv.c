@@ -20,6 +20,9 @@ PETSC_INTERN PetscErrorCode PetscSFBcastAndOpBegin_Gatherv(PetscSF sf,MPI_Dataty
   PetscMemType         rootmtype_mpi,leafmtype_mpi;
 
   PetscFunctionBegin;
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   ierr = PetscSFPackGet_Gatherv(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
   ierr = PetscMPIIntCast(sf->nroots,&sendcount);CHKERRQ(ierr);
@@ -89,6 +92,9 @@ static PetscErrorCode PetscSFReduceBegin_Gatherv(PetscSF sf,MPI_Datatype unit,Pe
   PetscMemType         leafmtype_mpi,rootmtype_mpi;
 
   PetscFunctionBegin;
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   ierr = PetscSFPackGet_Gatherv(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
   ierr = PetscMPIIntCast(sf->nroots,&recvcount);CHKERRQ(ierr);
