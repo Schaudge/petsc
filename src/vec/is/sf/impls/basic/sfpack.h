@@ -17,6 +17,9 @@ typedef enum {PETSCSF_PACKOPT_NONE=0, PETSCSF_PACKOPT_MULTICOPY, PETSCSF_PACKOPT
 
 struct _n_PetscSFPackOpt {
   PetscInt           n;             /* Number of destination ranks */
+  PetscInt           start_index;   /* Record of idx[0], used together with all_contiguous */
+  PetscBool          all_contiguous;/* This is a shortcut optimization flag for whole indices. True means all indices in idx[] are contiguous(i.e., idx[i+1] = idx[i]+1),
+                                       and one should not access per-rank optimizations. Otherwise, remaining fields give per-rank optimizations */
   PetscSFPackOptType *type;         /* [n] Optimization types for the n ranks */
   PetscInt           *offset;       /* [n+1] Indices for i-th rank are in [offset[i],offset[i+1]) of idx[] */
   PetscInt           *copy_offset;  /* [n+1] If type[i] = PETSCSF_PACKOPT_MULTICOPY, packing for i-th rank is optimized into copies numbered between [copy_offset[i],copy_offset[i+1]) */
