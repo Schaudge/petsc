@@ -19,6 +19,8 @@ do
         packsizeADDVAL="${filepath}/packsizeADDVAL_${ID}.txt";
         VecDotTime="${filepath}/vecdottime_${ID}.txt";
         VecDotFlops="${filepath}/vecdotflops_${ID}.txt";
+        ZeroVecDotTime="${filepath}/zero_vecdottime_${ID}.txt"
+        ZeroVecDotFlops="${filepath}/zero_vecdotflops_${ID}.txt";
         NodeNum="${filepath}/nodenum_${ID}.txt";
         CellNum="${filepath}/cellnum_${ID}.txt";
         Overlap="${filepath}/overlap_${ID}.txt";
@@ -36,6 +38,8 @@ do
                       > $nprocess;
                       > $VecDotTime;
                       > $VecDotFlops;
+                      > $ZeroVecDotTime;
+                      > $ZeroVecDotFlops;
                       > $NodeNum;
                       > $CellNum;
                       > $Overlap;
@@ -51,6 +55,8 @@ do
                      "GREPPED">> $nprocess;
                      "GREPPED">> $VecDotTime;
                      "GREPPED">> $VecDotFlops;
+                     "GREPPED">> $ZeroVecDotTime;
+                     "GREPPED">> $ZeroVecDotFlops;
                      "GREPPED">> $NodeNum;
                      "GREPPED">> $CellNum;
                      "GREPPED">> $Overlap;
@@ -74,6 +80,8 @@ do
     grep "CommADDVAL" --line-buffered $logfile | awk '{print $9}' >> $packsizeADDVAL;
     grep "CommGlblVecDot" --line-buffered $logfile | awk '{print $4}' >> $VecDotTime;
     grep "CommGlblVecDot" --line-buffered $logfile | awk '{print $6}' >> $VecDotFlops;
+    grep "CommZEROVecDot" --line-buffered $logfile | awk '{print $4}' >> $ZeroVecDotTime;
+    grep "CommZEROVecDot" --line-buffered $logfile | awk '{print $6}' >> $ZeroVecDotFlops;
     grep "Global Node Num" --line-buffered $logfile | sed 's:.*>::' >> $NodeNum;
     grep "Global Cell Num" --line-buffered $logfile | sed 's:.*>::' >> $CellNum;
     grep "overlap" --line-buffered $logfile | sed 's:.*>::' >> $Overlap;
