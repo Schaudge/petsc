@@ -867,11 +867,22 @@ PetscErrorCode PetscSFPackOptCreate(PetscInt n,const PetscInt *offset,const Pets
   }
 
   ierr = PetscCalloc1(1,&opt);CHKERRQ(ierr);
+  opt->n = n;
+  /* See if we are so lucky that all indices are contiguous and we can skip further analysis. */
+  opt->all_contiguous = PETSC_TRUE;
+  for (i=offset[0]; i<offset[n]-1; i++) {
+    if (idx[i+1] != idx[i]+1) {opt->all_contiguous = PETSC_FALSE; break;}
+  }
+  if (opt->all_contiguous) {
+    opt->start_index = idx[offset[0]];
+    *out             = opt;
+    PetscFunctionReturn(0);
+  }
+
   ierr = PetscCalloc3(n,&opt->type,n+1,&opt->offset,n+1,&opt->copy_offset);CHKERRQ(ierr);
   ierr = PetscArraycpy(opt->offset,offset,n+1);CHKERRQ(ierr);
-  if (offset[0]) {for (i=0; i<n+1; i++) opt->offset[i] -= offset[0];} /* Zero-base offset[]. Note the packing routine is Pack(count, idx[], ...*/
-
-  opt->n = n;
+  /* Make opt->offset[] zero-based. If one calls this routine with non-zero offset[0], one should use packing routine in this way, Pack(count,idx+offset[0],packopt,...) */
+  if (offset[0]) {for (i=0; i<n+1; i++) opt->offset[i] -= offset[0];}
 
   /* Check if the indices are piece-wise contiguous (if yes, we can optimize a packing with multiple memcpy's ) */
   for (i=0; i<n; i++) { /* for each target processor */
