@@ -98,10 +98,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFGetLeafIndicesWithMemType_Basic(PetscS
 /* A convenience struct to provide info to the following (un)packing routines so that we can treat packings to self and to remote in one loop. */
 typedef struct _n_PackInfo {
   PetscInt       count;  /* Number of entries to pack, unpack etc. */
-  const PetscInt *idx;   /* Indices of the entries. NULL for contiguous indices [0,count-1) */
+  const PetscInt *idx;   /* Indices of the entries. NULL means contiguous indices [0,count) */
   PetscSFPackOpt opt;    /* Pack optimizations */
   char           *buf;   /* The contiguous buffer where we pack to or unpack from */
   PetscBool      atomic; /* Whether the unpack routine needs to use atomics */
+  const void     *data;  /* Pointer to root/leafdata. Using pack as an example, we will copy data[idx[i]] to buf[i]. */
 } PackInfo;
 
 /* Utility routine to pack selected entries of rootdata into root buffer.
@@ -121,21 +122,52 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack li
   PackInfo       p[2];
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
+  /*  Shall we assume rootdata ready to use (instead of being computed by some asynchronous kernels)?
+    Currently this assumption is not enforced in PETSc. MPI does not have a concept of stream. To be safe,
+    I do synchronization here. Otherwise, if we do not sync now and call the Pack kernel directly on the
+    default NULL stream (assume petsc objects are also computed on it), we have to sync the NULL stream
+    before calling MPI routines. So, it looks a synchronization is inevitable. We do it now and put
+    pack/unpack kernels to non-NULL streams.
+   */
+
+  /* When either self or remote has something to pack, we have to sync */
+  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (link->selfbuflen || link->rootbuflen)) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   if (sparse) {
     /* For SFBasic and SFNeighbor, whose root space is sparse and have separate buffers for self and remote. */
-    p[0].count  = link->selfbuflen;               p[1].count  = link->rootbuflen;
-    p[0].idx    = rootloc;                        p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
-    p[0].opt    = bas->selfrootpackopt;           p[1].opt    = bas->rootpackopt;
-    p[0].buf    = link->selfbuf[link->rootmtype]; p[1].buf    = link->rootbuf[link->rootmtype];
-    p[0].atomic = PETSC_FALSE;                    p[1].atomic = PETSC_FALSE;
+    p[0].count  = link->selfbuflen;
+    p[0].idx    = rootloc;
+    p[0].opt    = bas->selfrootpackopt;
+    p[0].buf    = link->selfbuf[link->rootmtype];
+    p[0].atomic = PETSC_FALSE;
+    p[0].data   = rootdata;
+    if (p[0].opt && p[0].opt->all_contiguous) { /* Adjust data/idx if indices are contiguous */
+      p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
+      p[0].idx  = NULL; /* NULL means indices [0,count). We shifted rootdata above to access rootdata starting from p[0].data[0]. */
+      p[0].opt  = NULL;
+    }
+
+    p[1].count  = link->rootbuflen;
+    p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
+    p[1].opt    = bas->rootpackopt;
+    p[1].buf    = link->rootbuf[link->rootmtype];
+    p[1].atomic = PETSC_FALSE;
+    p[1].data   = rootdata;
+    if (p[1].opt && p[1].opt->all_contiguous) {
+      p[1].data = (const char*)rootdata + p[1].opt->start_index*link->unitbytes;
+      p[1].idx  = NULL;
+      p[1].opt  = NULL;
+    }
   } else SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_PLIB,"SFAllgather etc should directly use rootdata instead of packing it");
 
   ierr = PetscSFPackGetPack(link,link->rootmtype,&Pack);CHKERRQ(ierr);
   /* Only do packing when count != 0 so that we can avoid invoking empty CUDA kernels */
-  for (i=0; i<2; i++) {if (p[i].count) {ierr = (*Pack)(p[i].count,p[i].idx,link,p[i].opt,rootdata,p[i].buf);CHKERRQ(ierr);}}
+  for (i=0; i<2; i++) {if (p[i].count) {ierr = (*Pack)(p[i].count,p[i].idx,link,p[i].opt,p[i].data,p[i].buf);CHKERRQ(ierr);}}
 
 #if defined(PETSC_HAVE_CUDA)
-  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && p[1].count) { /* We only care p[1], which is for remote and involves MPI */
+  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && link->rootbuflen) { /* We only care about remote, which involves MPI */
     /* Without use_gpu_aware_mpi, we need to copy rootbuf on device to rootbuf on host. The cudaStreamSynchronize()
        is to make sure rootbuf is ready before MPI communicatioin starts.
     */
@@ -144,9 +176,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack li
       err  = cudaMemcpyAsync(link->rootbuf[PETSC_MEMTYPE_HOST],link->rootbuf[PETSC_MEMTYPE_DEVICE],link->rootbuflen*link->unitbytes,cudaMemcpyDeviceToHost,link->stream);CHKERRCUDA(err);
       ierr = PetscLogGpuToCpu(link->rootbuflen*link->unitbytes);CHKERRQ(ierr);
     }
-    err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);
+    err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err); /* Make it ready to call MPI */
   }
 #endif
+  ierr = PetscLogEventEnd(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -159,18 +192,40 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack li
   PackInfo       p[2];
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
+  if (link->leafmtype == PETSC_MEMTYPE_DEVICE && (link->selfbuflen || link->leafbuflen)) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   if (sparse) {
-    p[0].count  = link->selfbuflen;               p[1].count  = link->leafbuflen;
-    p[0].idx    = leafloc;                        p[1].idx    = leafloc+sf->roffset[sf->ndranks];
-    p[0].opt    = sf->selfleafpackopt;            p[1].opt    = sf->leafpackopt;
-    p[0].buf    = link->selfbuf[link->leafmtype]; p[1].buf    = link->leafbuf[link->leafmtype];
-    p[0].atomic = PETSC_FALSE;                    p[1].atomic = PETSC_FALSE;
+    p[0].count  = link->selfbuflen;
+    p[0].idx    = leafloc;
+    p[0].opt    = sf->selfleafpackopt;
+    p[0].buf    = link->selfbuf[link->leafmtype];
+    p[0].atomic = PETSC_FALSE;
+    p[0].data   = leafdata;
+    if (p[0].opt && p[0].opt->all_contiguous) {
+      p[0].data = (const char*)leafdata + p[0].opt->start_index*link->unitbytes;
+      p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift leafdata above. */
+      p[0].opt  = NULL;
+    }
+
+    p[1].count  = link->leafbuflen;
+    p[1].idx    = leafloc+sf->roffset[sf->ndranks];
+    p[1].opt    = sf->leafpackopt;
+    p[1].buf    = link->leafbuf[link->leafmtype];
+    p[1].atomic = PETSC_FALSE;
+    p[1].data   = leafdata;
+    if (p[1].opt && p[1].opt->all_contiguous) {
+      p[1].data = (const char*)leafdata + p[1].opt->start_index*link->unitbytes;
+      p[1].idx  = NULL;
+      p[1].opt  = NULL;
+    }
   } else SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_PLIB,"SFAllgather etc should directly use leafdata instead of packing it");
 
   ierr = PetscSFPackGetPack(link,link->leafmtype,&Pack);CHKERRQ(ierr);
-  for (i=0; i<2; i++) {if (p[i].count) {ierr = (*Pack)(p[i].count,p[i].idx,link,p[i].opt,leafdata,p[i].buf);CHKERRQ(ierr);}}
+  for (i=0; i<2; i++) {if (p[i].count) {ierr = (*Pack)(p[i].count,p[i].idx,link,p[i].opt,p[i].data,p[i].buf);CHKERRQ(ierr);}}
 #if defined(PETSC_HAVE_CUDA)
-  if (link->leafmtype == PETSC_MEMTYPE_DEVICE && p[1].count) {
+  if (link->leafmtype == PETSC_MEMTYPE_DEVICE && link->leafbuflen) {
     cudaError_t err;
     if (!use_gpu_aware_mpi) {
       err  = cudaMemcpyAsync(link->leafbuf[PETSC_MEMTYPE_HOST],link->leafbuf[PETSC_MEMTYPE_DEVICE],link->leafbuflen*link->unitbytes,cudaMemcpyDeviceToHost,link->stream);CHKERRCUDA(err);
@@ -179,6 +234,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack li
     err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);
   }
 #endif
+  ierr = PetscLogEventEnd(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -192,6 +248,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
   PackInfo       p[2];
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_CUDA)
   if (!use_gpu_aware_mpi && link->rootmtype == PETSC_MEMTYPE_DEVICE) { /* Copy roots from host to device when needed */
     cudaError_t err;
@@ -202,11 +259,29 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
 #endif
 
   if (sparse) {
-    p[0].count  = link->selfbuflen;               p[1].count  = link->rootbuflen;
-    p[0].idx    = rootloc;                        p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
-    p[0].opt    = bas->selfrootpackopt;           p[1].opt    = bas->rootpackopt;
-    p[0].buf    = link->selfbuf[link->rootmtype]; p[1].buf    = link->rootbuf[link->rootmtype];
-    p[0].atomic = bas->selfrootdups;              p[1].atomic = bas->remoterootdups;
+    p[0].count  = link->selfbuflen;
+    p[0].idx    = rootloc;
+    p[0].opt    = bas->selfrootpackopt;
+    p[0].buf    = link->selfbuf[link->rootmtype];
+    p[0].atomic = bas->selfrootdups;
+    p[0].data   = rootdata;
+    if (p[0].opt && p[0].opt->all_contiguous) {
+      p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
+      p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift rootdata above. */
+      p[0].opt  = NULL;
+    }
+
+    p[1].count  = link->rootbuflen;
+    p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
+    p[1].opt    = bas->rootpackopt;
+    p[1].buf    = link->rootbuf[link->rootmtype];
+    p[1].atomic = bas->remoterootdups;
+    p[1].data   = rootdata;
+    if (p[1].opt && p[1].opt->all_contiguous) {
+      p[1].data = (const char*)rootdata + p[1].opt->start_index*link->unitbytes;
+      p[1].idx  = NULL;
+      p[1].opt  = NULL;
+    }
   } else {
     p[0].count  = 0;
     p[1].count  = sf->nroots;
@@ -214,12 +289,13 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
     p[1].opt    = NULL;
     p[1].buf    = link->rootbuf[link->rootmtype]; /* Might just allocated by PetscMallocWithMemType() above */
     p[1].atomic = PETSC_FALSE;
+    p[1].data   = rootdata;
   }
 
   for (i=0; i<2; i++) {
     if (p[i].count) {
       ierr = PetscSFPackGetUnpackAndOp(link,link->rootmtype,op,p[i].atomic,&UnpackAndOp);CHKERRQ(ierr);
-      if (UnpackAndOp) {ierr = (*UnpackAndOp)(p[i].count,p[i].idx,link,p[i].opt,rootdata,p[i].buf);CHKERRQ(ierr);}
+      if (UnpackAndOp) {ierr = (*UnpackAndOp)(p[i].count,p[i].idx,link,p[i].opt,(void*)p[i].data,p[i].buf);CHKERRQ(ierr);}
 #if defined(PETSC_HAVE_MPI_REDUCE_LOCAL)
       else {
         PetscInt    j;
@@ -228,10 +304,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
           /* Note if done on GPU, this can be very slow due to the huge number of kernel calls. The op is likely user-defined. We must
              use link->unit (instead of link->basicunit) as the datatype and 1 (instead of link->bs) as the count in MPI_Reduce_local.
            */
-          for (j=0; j<p[i].count; j++) {ierr = MPI_Reduce_local(p[i].buf+j*link->unitbytes,(char *)rootdata+p[i].idx[j]*link->unitbytes,1,link->unit,op);CHKERRQ(ierr);}
+          for (j=0; j<p[i].count; j++) {ierr = MPI_Reduce_local(p[i].buf+j*link->unitbytes,(char *)p[i].data+p[i].idx[j]*link->unitbytes,1,link->unit,op);CHKERRQ(ierr);}
         } else {
           ierr = PetscMPIIntCast(p[i].count,&n);CHKERRQ(ierr);
-          ierr = MPI_Reduce_local(p[i].buf,rootdata,n,link->unit,op);CHKERRQ(ierr);
+          ierr = MPI_Reduce_local(p[i].buf,(void*)p[i].data,n,link->unit,op);CHKERRQ(ierr);
         }
       }
 #else
@@ -240,9 +316,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
     }
   }
 #if defined(PETSC_HAVE_CUDA)
-  /* Make sure rootdata is ready to use by SF client */
-  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && p[1].count) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
+  /* Make sure rootdata is ready to use by SF client. If either self or remote has something done on the stream, we have to sync */
+  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (p[0].count || p[1].count)) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
 #endif
+  ierr = PetscLogEventEnd(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -255,6 +332,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
   PackInfo       p[2];
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_CUDA)
   if (!use_gpu_aware_mpi && link->leafmtype == PETSC_MEMTYPE_DEVICE) {
     cudaError_t err;
@@ -265,11 +343,29 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
 #endif
 
   if (sparse) {
-    p[0].count  = link->selfbuflen;               p[1].count  = link->leafbuflen;
-    p[0].idx    = leafloc;                        p[1].idx    = leafloc+sf->roffset[sf->ndranks];
-    p[0].opt    = sf->selfleafpackopt;            p[1].opt    = sf->leafpackopt;
-    p[0].buf    = link->selfbuf[link->leafmtype]; p[1].buf    = link->leafbuf[link->leafmtype];
-    p[0].atomic = sf->selfleafdups;               p[1].atomic = sf->remoteleafdups;
+    p[0].count  = link->selfbuflen;
+    p[0].idx    = leafloc;
+    p[0].opt    = sf->selfleafpackopt;
+    p[0].buf    = link->selfbuf[link->leafmtype];
+    p[0].atomic = sf->selfleafdups;
+    p[0].data   = leafdata;
+    if (p[0].opt && p[0].opt->all_contiguous) {
+      p[0].data = (const char*)leafdata + p[0].opt->start_index*link->unitbytes;
+      p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift leafdata above. */
+      p[0].opt  = NULL;
+    }
+
+    p[1].count  = link->leafbuflen;
+    p[1].idx    = leafloc+sf->roffset[sf->ndranks];
+    p[1].opt    = sf->leafpackopt;
+    p[1].buf    = link->leafbuf[link->leafmtype];
+    p[1].atomic = sf->remoteleafdups;
+    p[1].data   = leafdata;
+    if (p[1].opt && p[1].opt->all_contiguous) {
+      p[1].data = (const char*)leafdata + p[1].opt->start_index*link->unitbytes;
+      p[1].idx  = NULL;
+      p[1].opt  = NULL;
+    }
   } else {
     p[0].count  = 0;
     p[1].count  = sf->nleaves;
@@ -277,21 +373,22 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
     p[1].opt    = NULL;
     p[1].buf    = link->leafbuf[link->leafmtype];
     p[1].atomic = PETSC_FALSE;
+    p[1].data   = leafdata;
   }
 
   for (i=0; i<2; i++) {
     if (p[i].count) {
       ierr = PetscSFPackGetUnpackAndOp(link,link->leafmtype,op,p[i].atomic,&UnpackAndOp);CHKERRQ(ierr);
-      if (UnpackAndOp) {ierr = (*UnpackAndOp)(p[i].count,p[i].idx,link,p[i].opt,leafdata,p[i].buf);CHKERRQ(ierr);}
+      if (UnpackAndOp) {ierr = (*UnpackAndOp)(p[i].count,p[i].idx,link,p[i].opt,(void*)p[i].data,p[i].buf);CHKERRQ(ierr);}
 #if defined(PETSC_HAVE_MPI_REDUCE_LOCAL)
       else {
         PetscInt    j;
         PetscMPIInt n;
         if (p[i].idx) {
-          for (j=0; j<p[i].count; j++) {ierr = MPI_Reduce_local(p[i].buf+j*link->unitbytes,(char *)leafdata+p[i].idx[j]*link->unitbytes,1,link->unit,op);CHKERRQ(ierr);}
+          for (j=0; j<p[i].count; j++) {ierr = MPI_Reduce_local(p[i].buf+j*link->unitbytes,(char *)p[i].data+p[i].idx[j]*link->unitbytes,1,link->unit,op);CHKERRQ(ierr);}
         } else {
           ierr = PetscMPIIntCast(p[i].count,&n);CHKERRQ(ierr);
-          ierr = MPI_Reduce_local(p[i].buf,leafdata,n,link->unit,op);CHKERRQ(ierr);
+          ierr = MPI_Reduce_local(p[i].buf,(void*)p[i].data,n,link->unit,op);CHKERRQ(ierr);
         }
       }
 #else
@@ -300,8 +397,9 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
     }
   }
 #if defined(PETSC_HAVE_CUDA)
-  if (link->leafmtype == PETSC_MEMTYPE_DEVICE && p[1].count) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
+  if (link->leafmtype == PETSC_MEMTYPE_DEVICE && (p[0].count || p[1].count)) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
 #endif
+  ierr = PetscLogEventEnd(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -315,6 +413,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFP
   PackInfo       p[2];
 
   PetscFunctionBegin;
+  ierr = PetscLogEventBegin(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr); /* For simplicity, let's deem the rarely used FetchAndOp as Unpack */
 #if defined(PETSC_HAVE_CUDA)
   if (!use_gpu_aware_mpi && link->rootmtype == PETSC_MEMTYPE_DEVICE) {
     cudaError_t err;
@@ -326,11 +425,29 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFP
 
   if (sparse) {
     /* For SFBasic and SFNeighbor, whose root space is sparse and have separate buffers for self and remote. */
-    p[0].count  = link->selfbuflen;               p[1].count  = link->rootbuflen;
-    p[0].idx    = rootloc;                        p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
-    p[0].opt    = bas->selfrootpackopt;           p[1].opt    = bas->rootpackopt;
-    p[0].buf    = link->selfbuf[link->rootmtype]; p[1].buf    = link->rootbuf[link->rootmtype];
-    p[0].atomic = bas->selfrootdups;              p[1].atomic = bas->remoterootdups;
+    p[0].count  = link->selfbuflen;
+    p[0].idx    = rootloc;
+    p[0].opt    = bas->selfrootpackopt;
+    p[0].buf    = link->selfbuf[link->rootmtype];
+    p[0].atomic = bas->selfrootdups;
+    p[0].data   = rootdata;
+    if (p[0].opt && p[0].opt->all_contiguous) {
+      p[0].data = (const char*)rootdata + p[0].opt->start_index*link->unitbytes;
+      p[0].idx  = NULL; /* NULL means indices [0,count). That's why we need to shift rootdata above. */
+      p[0].opt  = NULL;
+    }
+
+    p[1].count  = link->rootbuflen;
+    p[1].idx    = rootloc+bas->ioffset[bas->ndiranks];
+    p[1].opt    = bas->rootpackopt;
+    p[1].buf    = link->rootbuf[link->rootmtype];
+    p[1].atomic = bas->remoterootdups;
+    p[1].data   = rootdata;
+    if (p[1].opt && p[1].opt->all_contiguous) {
+      p[1].data = (const char*)rootdata + p[1].opt->start_index*link->unitbytes;
+      p[1].idx  = NULL;
+      p[1].opt  = NULL;
+    }
   } else {
     p[0].count  = 0;
     p[1].count  = sf->nroots;
@@ -343,12 +460,13 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFP
   for (i=0; i<2; i++) {
     if (p[i].count) {
       ierr = PetscSFPackGetFetchAndOp(link,link->rootmtype,op,p[i].atomic,&FetchAndOp);CHKERRQ(ierr);
-      ierr = (*FetchAndOp)(p[i].count,p[i].idx,link,p[i].opt,rootdata,p[i].buf);CHKERRQ(ierr);
+      ierr = (*FetchAndOp)(p[i].count,p[i].idx,link,p[i].opt,(void*)p[i].data,p[i].buf);CHKERRQ(ierr);
     }
   }
 #if defined(PETSC_HAVE_CUDA)
-  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && p[1].count) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
+  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (p[0].count || p[1].count)) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
 #endif
+  ierr = PetscLogEventEnd(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

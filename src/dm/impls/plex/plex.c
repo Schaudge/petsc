@@ -1171,7 +1171,7 @@ meshdiagnostics:
       }
     }
     if (CG[0] && CG[1]) ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);
-    if (CIC[0] && CIC[1]) ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr);
+    if (CIC[0] && CIC[1]) ierr = DMPlexCheckInterfaceCones(dm);CHKERRQ(ierr);
 
     /* Printing     */
     /* Autotest Output      */

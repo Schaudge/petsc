@@ -43,6 +43,9 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Alltoall(PetscSF sf,MPI_Datatype un
   PetscMemType         rootmtype_mpi,leafmtype_mpi;
 
   PetscFunctionBegin;
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   ierr = PetscSFPackGet_Alltoall(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
   ierr = PetscSFBcastPrepareMPIBuffers_Allgatherv(sf,link,op,&rootmtype_mpi,&rootbuf_mpi,&leafmtype_mpi,&leafbuf_mpi);CHKERRQ(ierr);
@@ -58,6 +61,9 @@ static PetscErrorCode PetscSFReduceBegin_Alltoall(PetscSF sf,MPI_Datatype unit,P
   void                 *recvbuf;
 
   PetscFunctionBegin;
+#if defined(PETSC_HAVE_CUDA) /* Make sure data on GPU is ready for MPI */
+  if (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE) {cudaError_t err = cudaDeviceSynchronize();CHKERRCUDA(err);}
+#endif
   ierr = PetscObjectGetComm((PetscObject)sf,&comm);CHKERRQ(ierr);
   if (!use_gpu_aware_mpi && (rootmtype == PETSC_MEMTYPE_DEVICE || leafmtype == PETSC_MEMTYPE_DEVICE)) SETERRQ(comm,PETSC_ERR_SUP,"No support for PetscSFReduce"); /* No known uses */
   ierr = PetscSFPackGet_Alltoall(sf,unit,rootmtype,rootdata,leafmtype,leafdata,&link);CHKERRQ(ierr);
