@@ -13,8 +13,8 @@
 #define MIS_FINE -1
 
 __global__ void pmis_init_random(PetscInt *perm_ix,
-                                  PetscInt *lid_random,
-                                  PetscInt size)
+                                 PetscInt *lid_random,
+                                 PetscInt size)
 {
   PetscInt lid,i;
   PetscInt global_id   = blockDim.x*blockIdx.x+threadIdx.x;
@@ -29,9 +29,9 @@ __global__ void pmis_init_random(PetscInt *perm_ix,
 }
 
 __global__ void pmis_init_workdata(PetscInt       *lid_state,
-                                    PetscInt       *lid_index,
-                                    PetscInt const *point_type,
-                                    PetscInt       size)
+                                   PetscInt       *lid_index,
+                                   PetscInt const *point_type,
+                                   PetscInt       size)
 {
   PetscInt i;
   PetscInt global_id   = blockDim.x*blockIdx.x+threadIdx.x;
@@ -56,20 +56,20 @@ __global__ void pmis_init_workdata(PetscInt       *lid_state,
 }
 
 __global__ void pmis_max_neighborhood(PetscInt const *lid_cprowID,
-                                       PetscInt const *lid_state,
-                                       PetscInt const *lid_random,
-                                       PetscInt const *lid_index,
-                                       PetscInt const *lid_state_ghosts,
-                                       PetscInt const *lid_random_ghosts,
-                                       PetscInt const *lid_index_ghosts,
-                                       PetscInt       *lid_state2,
-                                       PetscInt       *lid_random2,
-                                       PetscInt       *lid_index2,
-                                       PetscInt const *ii,
-                                       PetscInt const *jj,
-                                       PetscInt const *ii_ghosts,
-                                       PetscInt const *jj_ghosts,
-                                       PetscInt size)
+                                      PetscInt const *lid_state,
+                                      PetscInt const *lid_random,
+                                      PetscInt const *lid_index,
+                                      PetscInt const *lid_state_ghosts,
+                                      PetscInt const *lid_random_ghosts,
+                                      PetscInt const *lid_index_ghosts,
+                                      PetscInt       *lid_state2,
+                                      PetscInt       *lid_random2,
+                                      PetscInt       *lid_index2,
+                                      PetscInt const *ii,
+                                      PetscInt const *jj,
+                                      PetscInt const *ii_ghosts,
+                                      PetscInt const *jj_ghosts,
+                                      PetscInt size)
 {
   PetscInt global_id   = blockDim.x*blockIdx.x+threadIdx.x;
   PetscInt global_size = gridDim.x*blockDim.x;
@@ -130,11 +130,11 @@ __global__ void pmis_max_neighborhood(PetscInt const *lid_cprowID,
   }
 }
 
- __global__ void pmis_mark_mis_nodes(PetscInt const *lid_state,
-                                      PetscInt const *lid_index,
-                                      PetscInt       *lid_type,
-                                      PetscInt       *undecided_buffer,
-                                      PetscInt       size)
+__global__ void pmis_mark_mis_nodes(PetscInt const *lid_state,
+                                    PetscInt const *lid_index,
+                                    PetscInt       *lid_type,
+                                    PetscInt       *undecided_buffer,
+                                    PetscInt       size)
 {
   PetscInt global_id   = blockDim.x*blockIdx.x+threadIdx.x;
   PetscInt global_size = gridDim.x*blockDim.x;
@@ -270,10 +270,10 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     iter++;
 
     pmis_init_workdata<<<128, 128>>>(dev_lid_state,
-                                      dev_lid_index,
-                                      dev_lid_type,
-                                      nloc
-                                     );
+                                     dev_lid_index,
+                                     dev_lid_type,
+                                     nloc
+                                    );
 
     if (mpimat) {
       ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
@@ -286,21 +286,21 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     for (r=0; r<1; r++) { /* only work for MIS(1)*/
       /* max operation over neighborhood */
       pmis_max_neighborhood<<<128, 128>>>(dev_lid_cprowID,
-                                           dev_lid_state,
-                                           dev_lid_random,
-                                           dev_lid_index,
-                                           dev_lid_state_ghosts,
-                                           dev_lid_random_ghosts,
-                                           dev_lid_index_ghosts,
-                                           dev_lid_state2,
-                                           dev_lid_random2,
-                                           dev_lid_index2,
-                                           dev_matAi,
-                                           dev_matAj,
-                                           dev_matBi,
-                                           dev_matBj,
-                                           nloc
-                                          );
+                                          dev_lid_state,
+                                          dev_lid_random,
+                                          dev_lid_index,
+                                          dev_lid_state_ghosts,
+                                          dev_lid_random_ghosts,
+                                          dev_lid_index_ghosts,
+                                          dev_lid_state2,
+                                          dev_lid_random2,
+                                          dev_lid_index2,
+                                          dev_matAi,
+                                          dev_matAj,
+                                          dev_matBi,
+                                          dev_matBj,
+                                          nloc
+                                         );
 
       /* copy work array (can be fused into a single kernel if needed. Previous kernel is in most cases sufficiently heavy) */
       dev_tmp = dev_lid_state; dev_lid_state  = dev_lid_state2; dev_lid_state2 = dev_tmp;
@@ -309,15 +309,15 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     }
 
     pmis_mark_mis_nodes<<<128, 128>>>(dev_lid_state,
-                                       dev_lid_index,
-                                       dev_lid_type,
-                                       dev_undecided_buffer,
-                                       nloc
-                                      );
+                                      dev_lid_index,
+                                      dev_lid_type,
+                                      dev_undecided_buffer,
+                                      nloc
+                                     );
 
     cerr = cudaMemcpy(undecided_buffer,dev_undecided_buffer,256*sizeof(PetscInt),cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
 
-    /* reduction among all blocks */ 
+    /* reduction among all blocks */
     num_undecided = 0;
     for (i=0; i<256; i++) {
       num_undecided += undecided_buffer[i];
