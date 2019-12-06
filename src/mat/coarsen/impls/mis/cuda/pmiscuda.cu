@@ -51,7 +51,7 @@ __global__ void pmis_init_workdata(PetscInt       *lid_state,
       default:
         break;
     }
-    lid_index[i] = i;
+    lid_index[i] = i; /* local-to-process index */
   }
 }
 
@@ -334,7 +334,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   for (i=0; i<nloc; i++) {
     if (lid_type[i] == MIS_COARSE) {
       nselected++;
-      ierr = PetscCDAppendID(agg_lists, i, i);CHKERRQ(ierr);
+      ierr = PetscCDAppendID(agg_lists,i,i+my0);CHKERRQ(ierr);
     }
   }
 
