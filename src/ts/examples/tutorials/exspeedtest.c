@@ -4,6 +4,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # include <petscviewer.h>
 # include <petscds.h>
 # include <petscdmlabel.h>
+# include <petsc/private/matimpl.h>
 
 # define PETSCVIEWERVTK          "vtk"
 # define PETSCVIEWERASCII        "ascii"
@@ -57,6 +58,41 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   ierr = PetscPrintf(comm, string);CHKERRQ(ierr);
   ierr = PetscPrintf(comm, "%s End General Info %s\n", user.bar + 2, user.bar + 5);CHKERRQ(ierr);
   PetscFunctionReturn(0);
+}
+
+/* PARTITIONING */
+static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partitioning)
+{
+  PetscErrorCode ierr;
+  PetscInt       cell,n,N,p,rstart,rend,*color;
+  PetscMPIInt    size;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)part),&size);CHKERRQ(ierr);
+  if (part->n != size) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Currently only supports one domain per processor");
+  p = (PetscInt)PetscSqrtReal((PetscReal)part->n);
+  if (p*p != part->n) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires \"perfect square\" number of domains");
+
+  ierr = MatGetSize(part->adj,&N,NULL);CHKERRQ(ierr);
+  n    = (PetscInt)PetscSqrtReal((PetscReal)N);
+  if (n*n != N) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires square domain");
+  if (n%p != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Square partitioning requires p to divide n");
+  ierr = MatGetOwnershipRange(part->adj,&rstart,&rend);CHKERRQ(ierr);
+  ierr = PetscMalloc1(rend-rstart,&color);CHKERRQ(ierr);
+  /* for (int cell=rstart; cell<rend; cell++) { color[cell-rstart] = ((cell%n) < (n/2)) + 2 * ((cell/n) < (n/2)); } */
+  for (cell=rstart; cell<rend; cell++) {
+    color[cell-rstart] = ((cell%n) / (n/p)) + p * ((cell/n) / (n/p));
+  }
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject)part),rend-rstart,color,PETSC_OWN_POINTER,partitioning);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MatPartitioningCreate_Perfect(MatPartitioning part)
+{
+  part->ops->apply   = MatPartitioningApply_Cube;
+  part->ops->view    = 0;
+  part->ops->destroy = 0;
+  return(0);
 }
 
 /* GENERAL PREPROCESSING */
