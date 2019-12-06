@@ -319,6 +319,14 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
   /* Make sure rootdata is ready to use by SF client. If either self or remote has something done on the stream, we have to sync */
   if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (p[0].count || p[1].count)) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
 #endif
+
+  if (op != MPIU_REPLACE && link->basicunit == MPIU_SCALAR) { /* op is a reduction on PetscScalars */
+    PetscLogDouble flops = (p[0].count + p[1].count)*link->bs; /* # of roots in buffer x # of scalars in unit */
+#if defined(PETSC_HAVE_CUDA)
+    if (link->rootmtype == PETSC_MEMTYPE_DEVICE) {ierr = PetscLogGpuFlops(flops);CHKERRQ(ierr);} else
+#endif
+    {ierr = PetscLogFlops(flops);CHKERRQ(ierr);}
+  }
   ierr = PetscLogEventEnd(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -399,6 +407,14 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
 #if defined(PETSC_HAVE_CUDA)
   if (link->leafmtype == PETSC_MEMTYPE_DEVICE && (p[0].count || p[1].count)) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
 #endif
+
+  if (op != MPIU_REPLACE && link->basicunit == MPIU_SCALAR) { /* op is a reduction on PetscScalars */
+    PetscLogDouble flops = (p[0].count + p[1].count)*link->bs; /* # of roots in buffer x # of scalars in unit */
+#if defined(PETSC_HAVE_CUDA)
+    if (link->rootmtype == PETSC_MEMTYPE_DEVICE) {ierr = PetscLogGpuFlops(flops);CHKERRQ(ierr);} else
+#endif
+    {ierr = PetscLogFlops(flops);CHKERRQ(ierr);}
+  }
   ierr = PetscLogEventEnd(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -466,6 +482,13 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFP
 #if defined(PETSC_HAVE_CUDA)
   if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (p[0].count || p[1].count)) {cudaError_t err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);}
 #endif
+  if (op != MPIU_REPLACE && link->basicunit == MPIU_SCALAR) { /* op is a reduction on PetscScalars */
+    PetscLogDouble flops = (p[0].count + p[1].count)*link->bs; /* # of roots in buffer x # of scalars in unit */
+#if defined(PETSC_HAVE_CUDA)
+    if (link->rootmtype == PETSC_MEMTYPE_DEVICE) {ierr = PetscLogGpuFlops(flops);CHKERRQ(ierr);} else
+#endif
+    {ierr = PetscLogFlops(flops);CHKERRQ(ierr);}
+  }
   ierr = PetscLogEventEnd(PETSCSF_Unpack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
