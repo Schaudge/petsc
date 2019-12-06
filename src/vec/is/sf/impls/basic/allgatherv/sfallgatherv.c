@@ -222,7 +222,7 @@ PETSC_INTERN PetscErrorCode PetscSFBcastAndOpEnd_Allgatherv(PetscSF sf,MPI_Datat
   ierr = PetscSFPackWaitall(link,PETSCSF_ROOT2LEAF_BCAST);CHKERRQ(ierr);
   if (op != MPIU_REPLACE) {
     /* Have a leaf buffer aside leafdata to do Op */
-    ierr = PetscSFUnpackAndOpLeafData(sf,link,NULL,leafdata,op,PETSC_FALSE);CHKERRQ(ierr);
+    ierr = PetscSFUnpackAndOpLeafData(sf,link,leafdata,op,PETSC_FALSE);CHKERRQ(ierr);
   } else if (leafmtype == PETSC_MEMTYPE_DEVICE && !use_gpu_aware_mpi) {
     /* Just need to copy data in leafbuf on host to leafdata on device */
     ierr = PetscMemcpyWithMemType(PETSC_MEMTYPE_DEVICE,PETSC_MEMTYPE_HOST,leafdata,link->leafbuf[PETSC_MEMTYPE_HOST],link->leafbuflen*link->unitbytes);CHKERRQ(ierr);
@@ -323,7 +323,7 @@ PETSC_INTERN PetscErrorCode PetscSFReduceEnd_Allgatherv(PetscSF sf,MPI_Datatype 
   ierr = PetscSFPackGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
   ierr = PetscSFPackWaitall(link,PETSCSF_LEAF2ROOT_REDUCE);CHKERRQ(ierr);
   if (op != MPIU_REPLACE) {
-    ierr = PetscSFUnpackAndOpRootData(sf,link,NULL,rootdata,op,PETSC_FALSE);CHKERRQ(ierr);
+    ierr = PetscSFUnpackAndOpRootData(sf,link,rootdata,op,PETSC_FALSE);CHKERRQ(ierr);
   } else if (rootmtype == PETSC_MEMTYPE_DEVICE && !use_gpu_aware_mpi) {
     ierr = PetscMemcpyWithMemType(PETSC_MEMTYPE_DEVICE,PETSC_MEMTYPE_HOST,rootdata,link->rootbuf[PETSC_MEMTYPE_HOST],link->rootbuflen*link->unitbytes);CHKERRQ(ierr);
   }
