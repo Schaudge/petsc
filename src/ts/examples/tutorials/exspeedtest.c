@@ -3,8 +3,8 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 # include <petscdmplex.h>
 # include <petscviewer.h>
 # include <petscds.h>
-# include <petscdmlabel.h>
 # include <petsc/private/matimpl.h>
+# include <petscsf.h>
 
 # define PETSCVIEWERVTK          "vtk"
 # define PETSCVIEWERASCII        "ascii"
@@ -13,7 +13,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageZEROGVD;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventZEROGVD;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout, balance;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;
   PetscScalar    refinementLimit;
@@ -36,6 +36,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   }
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Ghost point overlap:%s>%d\n", user.bar + 5, user.overlap);CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "DM Partition Balance?:%s>%s\n", user.bar + 7, user.balance ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "\nFile read mode:%s>%s\n", user.bar, user.fileflg ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   if (user.fileflg) {
     ierr = PetscViewerStringSPrintf(genViewer, "┗ File read name:%s>%s\n", user.bar + 2, user.filename);CHKERRQ(ierr);
@@ -60,6 +61,67 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode ThrowItInTheBin(MPI_Comm comm, PetscScalar local, PetscInt root, const char header[])
+{
+  PetscMPIInt     rank, size;
+  PetscScalar     *rootArray, *binnedArray;
+  PetscInt        i, numBins;
+  PetscInt        *bins;
+  Vec             vecPerProcess;
+  VecTagger       tagger;
+  VecTaggerBox    *box;
+  IS              PerProcessTaggedIS;
+  char            completedHeader[PETSC_MAX_PATH_LEN] = {'\0'};
+  size_t          len;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  PetscValidCharPointer(header, 4);
+  ierr = PetscStrlen(header, &len);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = PetscMalloc1(size, &rootArray);CHKERRQ(ierr);
+  }
+  ierr = MPI_Gather(&local, 1, MPIU_SCALAR, rootArray, 1, MPIU_SCALAR, root, comm);CHKERRQ(ierr);
+  if (rank) PetscFunctionReturn(0);
+  ierr = PetscSortReal(size, rootArray);CHKERRQ(ierr);
+  ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, size, rootArray, &vecPerProcess);CHKERRQ(ierr);
+  ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecUniqueEntries(vecPerProcess, &numBins, &binnedArray);CHKERRQ(ierr);
+  ierr = PetscCalloc1(numBins, &bins);CHKERRQ(ierr);
+  for (i = 0; i < numBins; ++i) {
+    ierr = VecTaggerCreate(PETSC_COMM_SELF, &tagger);CHKERRQ(ierr);
+    ierr = VecTaggerSetType(tagger, VECTAGGERABSOLUTE);CHKERRQ(ierr);
+    ierr = PetscMalloc1(1, &box);CHKERRQ(ierr);
+    box->min = binnedArray[i]-0.5;
+    box->max = binnedArray[i]+0.5;
+    ierr = VecTaggerAbsoluteSetBox(tagger, box);CHKERRQ(ierr);
+    ierr = VecTaggerSetUp(tagger);CHKERRQ(ierr);
+    ierr = PetscFree(box);CHKERRQ(ierr);
+    ierr = VecTaggerComputeIS(tagger, vecPerProcess, &PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = ISGetSize(PerProcessTaggedIS, &bins[i]);CHKERRQ(ierr);
+    ierr = ISDestroy(&PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
+  }
+  ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
+  ierr = PetscStrcpy(completedHeader, header);CHKERRQ(ierr);
+  ierr = PetscStrcat(completedHeader, " Per Process Range: %.0f - %.0f\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(comm, completedHeader, binnedArray[0], binnedArray[numBins-1]);CHKERRQ(ierr);
+  for (i = 0; i < numBins; i++) {
+    if (!i) {
+      ierr = PetscPrintf(comm, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(comm, "\t%5.0f - %d\n", binnedArray[i], bins[i]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree(rootArray);CHKERRQ(ierr);
+  ierr = PetscFree(binnedArray);CHKERRQ(ierr);
+  ierr = PetscFree(bins);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /* PARTITIONING */
 static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partitioning)
 {
@@ -70,12 +132,12 @@ static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partiti
   PetscFunctionBegin;
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)part),&size);CHKERRQ(ierr);
   if (part->n != size) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Currently only supports one domain per processor");
-  p = (PetscInt)PetscSqrtReal((PetscReal)part->n);
-  if (p*p != part->n) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires \"perfect square\" number of domains");
+  p = (PetscInt)PetscCbrtReal((PetscReal)part->n);
+  if (p*p*p != part->n) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires \"perfect square\" number of domains");
 
   ierr = MatGetSize(part->adj,&N,NULL);CHKERRQ(ierr);
-  n    = (PetscInt)PetscSqrtReal((PetscReal)N);
-  if (n*n != N) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires square domain");
+  n    = (PetscInt)PetscCbrtReal((PetscReal)N);
+  if (n*n*n != N) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires square domain");
   if (n%p != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Square partitioning requires p to divide n");
   ierr = MatGetOwnershipRange(part->adj,&rstart,&rend);CHKERRQ(ierr);
   ierr = PetscMalloc1(rend-rstart,&color);CHKERRQ(ierr);
@@ -87,7 +149,7 @@ static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partiti
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatPartitioningCreate_Perfect(MatPartitioning part)
+PetscErrorCode MatPartitioningCreate_Cube(MatPartitioning part)
 {
   part->ops->apply   = MatPartitioningApply_Cube;
   part->ops->view    = 0;
@@ -110,6 +172,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->VTKdisp              = PETSC_FALSE;
   options->vtkSoln              = PETSC_FALSE;
   options->meshout		= PETSC_FALSE;
+  options->balance              = PETSC_FALSE;
   options->filename[0]          = '\0';
   options->dim                  = 2;
   options->numFields            = 1;
@@ -125,7 +188,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
     ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", options->perfTest, &options->perfTest, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-interpolate", "Interpolate the mesh", "", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-vtkout", "enable mesh distribution visualization", "", options->VTKdisp, &options->VTKdisp, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-vtk_partition", "enable mesh distribution visualization", "", options->VTKdisp, &options->VTKdisp, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-vtk_soln","Get solution vector in VTK output", "", options->vtkSoln, &options->vtkSoln, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-mesh_out","Output mesh in vtk format", "", options->meshout, &options->meshout, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetString(NULL, NULL, "-f", options->filename, PETSC_MAX_PATH_LEN, &options->fileflg); CHKERRQ(ierr);
@@ -151,13 +214,13 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 
 static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
-  PetscErrorCode        ierr;
-  DM                    dmDist;
-  const char            *filename = user->filename;
-  PetscInt              dim = user->dim, overlap = user->overlap, i;
+  PetscErrorCode  ierr;
+  DM              dmDist;
+  const char      *filename = user->filename;
+  PetscInt        dim = user->dim, overlap = user->overlap, i;
 
   PetscFunctionBeginUser;
-  //ierr = MatPartitioningRegisterAll();CHKERRQ(ierr);
+  ierr = MatPartitioningRegister("cube", MatPartitioningCreate_Cube);CHKERRQ(ierr);
   if (user->fileflg) {
     char        *dup, filenameAlt[PETSC_MAX_PATH_LEN];
     sprintf(filenameAlt, "%s%s", "./meshes/", (dup = strdup(filename)));
@@ -180,7 +243,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, "Generated_Box_Mesh");CHKERRQ(ierr);
   }
-
+  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMGetDimension(*dm, &user->dim);CHKERRQ(ierr);
   dim = user->dim;
   if (!user->fileflg) {
@@ -242,6 +305,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       user->dmRefine = PETSC_TRUE;
     }
   }
+
   ierr = DMPlexDistribute(*dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
   if (dmDist) {
     const char  *name;
@@ -264,7 +328,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 # if defined(PETSC_HAVE_CUDA)
   ierr = DMSetVecType(*dm, VECCUDA);CHKERRQ(ierr);
 # endif
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMSetUp(*dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -303,7 +366,7 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx *user)
 int main(int argc, char **argv)
 {
   MPI_Comm              comm;
-  PetscMPIInt		size;
+  PetscMPIInt		rank, size;
   AppCtx                user;
   PetscErrorCode        ierr;
   PetscViewer           genViewer;
@@ -319,6 +382,7 @@ int main(int argc, char **argv)
   ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
   comm = PETSC_COMM_WORLD;
   ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
   ierr = PetscViewerStringOpen(comm, genInfo, sizeof(genInfo), &genViewer);CHKERRQ(ierr);
 
   ierr = ProcessOpts(comm, &user);CHKERRQ(ierr);
@@ -326,11 +390,45 @@ int main(int argc, char **argv)
   ierr = DMSetApplicationContext(dm, &user);
   ierr = SetupDiscretization(dm, &user);CHKERRQ(ierr);
   ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
+  if (user.distribute) {
+    MPI_Group             in, out;
+    PetscSF               pointSF, processSF, sectionSF;
+    IS                    processRanks;
+    const PetscMPIInt     *RootRanks, *LeafRanks;
+    PetscMPIInt           size_in, size_out, size_total;
+    PetscInt              nRanks, nRootRanks, nLeafRanks;
+
+    ierr = DMGetPointSF(dm, &pointSF);CHKERRQ(ierr);
+    ierr = DMGetSectionSF(dm, &sectionSF);CHKERRQ(ierr);
+    ierr = PetscSFSetUp(sectionSF);CHKERRQ(ierr);
+    ierr = DMPlexCreateProcessSF(dm, pointSF, &processRanks, &processSF);CHKERRQ(ierr);
+    ierr = PetscSFSetUp(processSF);CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(processSF, NULL, "-petscsf_processsf_view");CHKERRQ(ierr);
+    ierr = ISViewFromOptions(processRanks, NULL, "-is_process_view");CHKERRQ(ierr);
+    ierr = PetscSFGetRootRanks(processSF, &nRootRanks, &RootRanks, NULL, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscSFGetLeafRanks(processSF, &nLeafRanks, &LeafRanks, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscSFGetGroups(pointSF, &in, &out);CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(pointSF, NULL, "-petscsf_processgroup_view");CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(sectionSF, NULL, "-petscsf_section_view");CHKERRQ(ierr);
+    ierr = MPI_Group_size(in, &size_in);CHKERRQ(ierr);
+    ierr = MPI_Group_size(out, &size_out);CHKERRQ(ierr);
+    size_total = size_in + size_out;
+    nRanks = nRootRanks + nLeafRanks;
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) nRanks, 0, "PetscSF Neighbors FROM RANKS");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) size_total, 0, "PetscSF Neighbors FROM GROUPS");CHKERRQ(ierr);
+    ierr = PetscSFGetRootRanks(sectionSF, &nRootRanks, &RootRanks, NULL, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscSFGetLeafRanks(sectionSF, &nLeafRanks, &LeafRanks, NULL, NULL);CHKERRQ(ierr);
+    nRanks = nRootRanks + nLeafRanks;
+    ierr = ThrowItInTheBin(comm,(PetscScalar) nRanks, 0, "PetscSF Neighbors FROM SECTION");CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&processSF);CHKERRQ(ierr);
+    ierr = ISDestroy(&processRanks);CHKERRQ(ierr);
+  }
   /* Display Mesh Partition and write mesh to vtk output file */
   if (user.VTKdisp) {
     PetscViewer vtkviewerpart;
     Vec         partition;
-    char        dateStr[PETSC_MAX_PATH_LEN] = {"partition-map-generated-"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"}, meshName[PETSC_MAX_PATH_LEN] = {"\0"};;
+    char        dateStr[PETSC_MAX_PATH_LEN] = {"partition-map-generated-"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"}, meshName[PETSC_MAX_PATH_LEN] = {"\0"};
     size_t      stringlen;
 
     ierr = PetscStrlen(dateStr, &stringlen);CHKERRQ(ierr);
@@ -549,6 +647,7 @@ int main(int argc, char **argv)
   ierr = ISGetSize(globalCellNumIS, &globalCellSize);CHKERRQ(ierr);
   ierr = DMPlexGetPartitioner(dm, &partitioner);CHKERRQ(ierr);CHKERRQ(ierr);
   ierr = PetscPartitionerGetType(partitioner, &partitionername);CHKERRQ(ierr);
+  ierr = DMPlexGetPartitionBalance(dm, &user.balance);CHKERRQ(ierr);
 
   /*    Aggregate all of the information for printing   */
   ierr = PetscViewerStringSPrintf(genViewer, "Partitioner Used:%s>%s\n", user.bar + 2, partitionername);CHKERRQ(ierr);

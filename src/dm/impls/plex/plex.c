@@ -1082,7 +1082,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
     if (dim > 3) {
       ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
-      SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Only available for meshes of dimension 3 or lower, not for mesh with dimension %d", dim);
+      SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Only available for meshes of dimension 3 or lower, not for mesh with dimension %D", dim);
     }
     ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
     ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
@@ -1128,7 +1128,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
         break;
       default:
-        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Depth of %d is not supported!\n", i);
+        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Depth of %D is not supported!\n", i);
         break;
       }
     }
@@ -1187,13 +1187,13 @@ meshdiagnostics:
     ierr = PetscViewerASCIIPrintf(viewer, "DM Interpolation Flag:%s>%s\n", bar + 7, interpolationStatus);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, "Overlapped DM:%s%s>%s\n", bar, bar + 16, dmOverlapped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     if (dmOverlapped) {
-    ierr = PetscViewerASCIIPrintf(viewer, "Maximum Overlap in DM:%s>%d\n", bar + 7, maxOverlap);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Maximum Overlap in DM:%s>%D\n", bar + 7, maxOverlap);CHKERRQ(ierr);
     }
-    ierr = PetscViewerASCIIPrintf(viewer, "Dimension of mesh:%s>%d\n", bar + 3, dim);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%d\n", bar + 3, (PetscInt) globalVertexSize);CHKERRQ(ierr);
-    if (globalEdgeSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%d\n", bar + 1, (PetscInt) globalEdgeSize);CHKERRQ(ierr);}
-    if (globalFaceSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%d\n", bar + 1, (PetscInt) globalFaceSize);CHKERRQ(ierr);}
-    ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%d\n", bar + 1, (PetscInt) globalCellSize);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Dimension of mesh:%s>%D\n", bar + 3, dim);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Vertex Num:%s>%D\n", bar + 3, (PetscInt) globalVertexSize);CHKERRQ(ierr);
+    if (globalEdgeSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Edge Num:%s>%D\n", bar + 1, (PetscInt) globalEdgeSize);CHKERRQ(ierr);}
+    if (globalFaceSize) { ierr = PetscViewerASCIIPrintf(viewer, "Global Face Num:%s>%D\n", bar + 1, (PetscInt) globalFaceSize);CHKERRQ(ierr);}
+    ierr = PetscViewerASCIIPrintf(viewer, "Global Cell Num:%s>%D\n", bar + 1, (PetscInt) globalCellSize);CHKERRQ(ierr);
 
     /* Parallel Information */
     if (binnedVertices) {
@@ -1202,7 +1202,7 @@ meshdiagnostics:
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", verticesPerProcess[i], binnedVertices[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %D\n", verticesPerProcess[i], binnedVertices[i]);CHKERRQ(ierr);
       }
     }
     if (binnedEdges) {
@@ -1211,7 +1211,7 @@ meshdiagnostics:
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", edgesPerProcess[i], binnedEdges[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %D\n", edgesPerProcess[i], binnedEdges[i]);CHKERRQ(ierr);
       }
     }
     if (binnedFaces) {
@@ -1220,7 +1220,7 @@ meshdiagnostics:
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", facesPerProcess[i], binnedFaces[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %D\n", facesPerProcess[i], binnedFaces[i]);CHKERRQ(ierr);
       }
     }
     if (binnedCells) {
@@ -1229,7 +1229,7 @@ meshdiagnostics:
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", cellsPerProcess[i], binnedCells[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %D\n", cellsPerProcess[i], binnedCells[i]);CHKERRQ(ierr);
       }
     }
 
@@ -1247,7 +1247,7 @@ meshdiagnostics:
     ierr = PetscMalloc1(size, &offProcLocSizes);CHKERRQ(ierr);
     ierr = MPI_Gather(&localSize, 1, MPIU_INT, offProcLocSizes, 1, MPIU_INT, 0, comm);CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIPrintf(viewer, "\nGlobal Vector Size: %d\n", globalSize);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "\nGlobal Vector Size: %D\n", globalSize);CHKERRQ(ierr);
     if (rank == 0) {
       /* Bin it bruuuuuuuther */
       PetscInt	*binnedProcesses;
@@ -1283,14 +1283,16 @@ meshdiagnostics:
         ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
       }
       ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %d - %d\n", offProcLocSizes[0], offProcLocSizes[size-1]);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "Vec Sizes Per Process Range: %D - %D\n", offProcLocSizes[0], offProcLocSizes[size-1]);CHKERRQ(ierr);
       for (i = 0; i < numBins; i++) {
         if (!i) {
           ierr = PetscViewerASCIIPrintf(viewer, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
         }
-        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %d\n", numPerProcess[i], binnedProcesses[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer, "\t%5.0f - %D\n", numPerProcess[i], binnedProcesses[i]);CHKERRQ(ierr);
       }
+      ierr = PetscFree(offProcScalar);CHKERRQ(ierr);
       ierr = PetscFree(binnedProcesses);CHKERRQ(ierr);
+      ierr = PetscFree(numPerProcess);CHKERRQ(ierr);
     }
     ierr = PetscFree(offProcLocSizes);CHKERRQ(ierr);
     ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
