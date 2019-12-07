@@ -272,7 +272,7 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
   PetscFunctionBegin;
 #if defined(PETSC_USE_COMPLEX)
   ierr = PetscMalloc2(m*n, &Js, m*n, &Jinvs);CHKERRQ(ierr);
-  for (i = 0; i < m*n; j++) Js[i] = J[i];
+  for (i = 0; i < m*n; i++) Js[i] = J[i];
 #else
   Js = (PetscReal *) J;
   Jinvs = Jinv;
@@ -348,7 +348,7 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
     ierr = PetscFree(JTJ);CHKERRQ(ierr);
   }
 #if defined(PETSC_USE_COMPLEX)
-  for (i = 0; i < m*n; j++) Jinv[i] = PetscRealPart(Jinvs[i]);
+  for (i = 0; i < m*n; i++) Jinv[i] = PetscRealPart(Jinvs[i]);
   ierr = PetscFree2(Js, Jinvs);CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
