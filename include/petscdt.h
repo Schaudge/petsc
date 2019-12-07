@@ -287,6 +287,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTPermIndex(PetscInt n, const PetscInt *
   PetscInt  iwork[PETSC_FACTORIAL_MAX];
 
   PetscFunctionBeginHot;
+  *k = -1;
+  if (isOdd) *isOdd = PETSC_FALSE;
   if (n < 0 || n > PETSC_FACTORIAL_MAX) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Number of elements %D is not in supported range [0,%D]\n",n,PETSC_FACTORIAL_MAX);
   for (i = 0; i < n; i++) work[i] = i;  /* partial permutation */
   for (i = 0; i < n; i++) iwork[i] = i; /* partial permutation inverse */
