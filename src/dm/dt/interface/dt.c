@@ -388,9 +388,9 @@ PetscErrorCode PetscQuadraturePushForward(PetscQuadrature q, PetscInt imageDim, 
   PetscValidHeaderSpecific(q, PETSC_OBJECT_CLASSID, 1);
   if (imageDim < PetscAbsInt(formIndex)) SETERRQ2(PetscObjectComm((PetscObject)q), PETSC_ERR_ARG_INCOMP, "Cannot represent a %D form in %D dimensions", PetscAbsInt(formIndex), imageDim);
   ierr = PetscQuadratureGetData(q, &dim, &Nc, &Npoints, &points, &weights);CHKERRQ(ierr);
+  ierr = PetscDTBinomialInt(dim, PetscAbsInt(formIndex), &formSize);CHKERRQ(ierr);
   if (Nc % formSize) SETERRQ2(PetscObjectComm((PetscObject)q), PETSC_ERR_ARG_INCOMP, "Number of components %D is not a multiple of formSize %D\n", Nc, formSize);
   Ncopies = Nc / formSize;
-  ierr = PetscDTBinomialInt(dim, PetscAbsInt(formIndex), &formSize);CHKERRQ(ierr);
   ierr = PetscDTBinomialInt(imageDim, PetscAbsInt(formIndex), &imageFormSize);CHKERRQ(ierr);
   imageNc = Ncopies * imageFormSize;
   ierr = PetscMalloc1(Npoints * imageDim, &imagePoints);CHKERRQ(ierr);

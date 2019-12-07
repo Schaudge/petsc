@@ -1,5 +1,5 @@
 #include <petsc/private/petscimpl.h>
-#include <petsc/private/dtimpl.h>
+#include <petsc/private/dtimpl.h> /*I "petscdt.h" I*/
 
 /*@
    PetscDTAltVApply - Apply a k-form to a set of k N-dimensional vectors
@@ -472,19 +472,19 @@ PetscErrorCode PetscDTAltVPullbackMatrix(PetscInt N, PetscInt M, const PetscReal
 
       ierr = PetscDTEnumSplit(M, k, i, subsetw, &iOdd);CHKERRQ(ierr);
       iidx = negative ? Mk - 1 - i : i;
-      iOdd = negative ? iOdd ^ ((k * (M-k)) & 1) : PETSC_FALSE;
+      iOdd = negative ? (PetscBool) (iOdd ^ ((k * (M-k)) & 1)) : PETSC_FALSE;
       for (j = 0; j < Nk; j++) {
         PetscBool jOdd;
 
         ierr = PetscDTEnumSplit(N, k, j, subsetv, &jOdd);CHKERRQ(ierr);
         jidx = negative ? Nk - 1 - j : j;
-        jOdd = negative ? iOdd ^ jOdd ^ ((k * (N-k)) & 1) : PETSC_FALSE;
+        jOdd = negative ? (PetscBool) (iOdd ^ jOdd ^ ((k * (N-k)) & 1)) : PETSC_FALSE;
         for (p = 0; p < Nf; p++) {
           PetscReal prod;
           PetscBool isOdd;
 
           ierr = PetscDTEnumPerm(k, p, perm, &isOdd);CHKERRQ(ierr);
-          isOdd ^= jOdd;
+          isOdd = (PetscBool) (isOdd ^ jOdd);
           prod = isOdd ? -1. : 1.;
           for (l = 0; l < k; l++) {
             prod *= L[subsetw[perm[l]] * N + subsetv[l]];
@@ -553,7 +553,7 @@ PetscErrorCode PetscDTAltVInterior(PetscInt N, PetscInt k, const PetscReal *w, c
       ierr = PetscDTEnumSubset(N, k, i, subset);CHKERRQ(ierr);
       for (j = 0; j < k; j++) {
         PetscInt  idx;
-        PetscBool flip = (j & 1);
+        PetscBool flip = (PetscBool) (j & 1);
 
         for (l = 0, m = 0; l < k; l++) {
           if (l != j) work[m++] = subset[l];
@@ -614,7 +614,7 @@ PetscErrorCode PetscDTAltVInteriorMatrix(PetscInt N, PetscInt k, const PetscReal
       ierr = PetscDTEnumSubset(N, k, i, subset);CHKERRQ(ierr);
       for (j = 0; j < k; j++) {
         PetscInt  idx;
-        PetscBool flip = (j & 1);
+        PetscBool flip = (PetscBool) (j & 1);
 
         for (l = 0, m = 0; l < k; l++) {
           if (l != j) work[m++] = subset[l];
@@ -687,7 +687,7 @@ PetscErrorCode PetscDTAltVInteriorPattern(PetscInt N, PetscInt k, PetscInt (*ind
       ierr = PetscDTEnumSubset(N, k, i, subset);CHKERRQ(ierr);
       for (j = 0; j < k; j++) {
         PetscInt  idx;
-        PetscBool flip = (j & 1);
+        PetscBool flip = (PetscBool) (j & 1);
 
         for (l = 0, m = 0; l < k; l++) {
           if (l != j) work[m++] = subset[l];
