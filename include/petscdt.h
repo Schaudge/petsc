@@ -123,7 +123,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTFactorialInt(PetscInt n, PetscInt *fac
 {
   PetscInt facLookup[13] = {1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800, 479001600};
 
-  PetscFunctionBeginHot;
+  PetscFunctionBegin;
+  *factorial = -1;
   if (n < 0 || n > PETSC_FACTORIAL_MAX) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Number of elements %D is not in supported range [0,%D]\n",n,PETSC_FACTORIAL_MAX);
   if (n <= 12) {
     *factorial = facLookup[n];
@@ -188,21 +189,25 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomial(PetscInt n, PetscInt k, Petsc
 M*/
 PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomialInt(PetscInt n, PetscInt k, PetscInt *binomial)
 {
-  PetscFunctionBeginHot;
+  PetscInt bin;
+
+  PetscFunctionBegin;
+  *binomial = -1;
   if (n < 0 || k < 0 || k > n) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Binomial arguments (%D %D) must be non-negative, k <= n\n", n, k);
   if (n > PETSC_BINOMIAL_MAX) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Binomial elements %D is larger than max for PetscInt, %D\n", n, PETSC_BINOMIAL_MAX);
   if (n <= 3) {
     PetscInt binomLookup[4][4] = {{1, 0, 0, 0}, {1, 1, 0, 0}, {1, 2, 1, 0}, {1, 3, 3, 1}};
 
-    *binomial = binomLookup[n][k];
+    bin = binomLookup[n][k];
   } else {
     PetscInt  binom = 1;
     PetscInt  i;
 
     k = PetscMin(k, n - k);
     for (i = 0; i < k; i++) binom = (binom * (n - i)) / (i + 1);
-    *binomial = binom;
+    bin = binom;
   }
+  *binomial = bin;
   PetscFunctionReturn(0);
 }
 
@@ -236,7 +241,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumPerm(PetscInt n, PetscInt k, Petsc
   PetscInt  work[PETSC_FACTORIAL_MAX];
   PetscInt *w;
 
-  PetscFunctionBeginHot;
+  PetscFunctionBegin;
+  if (isOdd) *isOdd = PETSC_FALSE;
   if (n < 0 || n > PETSC_FACTORIAL_MAX) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Number of elements %D is not in supported range [0,%D]\n",n,PETSC_FACTORIAL_MAX);
   w = &work[n - 2];
   for (i = 2; i <= n; i++) {
@@ -369,7 +375,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTSubsetIndex(PetscInt n, PetscInt k, co
   PetscInt       i, j = 0, l, Nk;
   PetscErrorCode ierr;
 
-  PetscFunctionBeginHot;
+  PetscFunctionBegin;
+  *index = -1;
   ierr = PetscDTBinomialInt(n, k, &Nk);CHKERRQ(ierr);
   for (i = 0, l = 0; i < n && l < k; i++) {
     PetscInt Nminuskminus = (Nk * (k - l)) / (n - i);
@@ -414,7 +421,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumSplit(PetscInt n, PetscInt k, Pets
   PetscInt       odd;
   PetscErrorCode ierr;
 
-  PetscFunctionBeginHot;
+  PetscFunctionBegin;
+  if (isOdd) *isOdd = PETSC_FALSE;
   ierr = PetscDTBinomialInt(n, k, &Nk);CHKERRQ(ierr);
   odd = 0;
   subcomp = &perm[k];
