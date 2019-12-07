@@ -1,6 +1,22 @@
 #include <petsc/private/petscimpl.h>
 #include <petsc/private/dtimpl.h>
 
+/*@
+   PetscDTAltVApply - Apply a k-form to a set of k N-dimensional vectors
+
+   Input Arguments:
++  N - the dimension of the space
+.  k - the index of the alternating form
+.  w - the alternating form
+-  v - the set of k vectors of size N, size [k x N], row-major
+
+   Output Arguments:
+.  wv - w[v[0],...,v[k-1]]
+
+   Level: intermediate
+
+.seealso: PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVApply(PetscInt N, PetscInt k, const PetscReal *w, const PetscReal *v, PetscReal *wv)
 {
   PetscErrorCode ierr;
@@ -61,6 +77,23 @@ PetscErrorCode PetscDTAltVApply(PetscInt N, PetscInt k, const PetscReal *w, cons
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVWedge - Compute the wedge product of two alternating forms
+
+   Input Arguments:
++  N - the dimension of the space
+.  j - the index of the form a
+.  k - the index of the form b
+.  a - the j-form
+-  b - the k-form
+
+   Output Arguments:
+.  awedgeb - a wedge b, a (j+k)-form
+
+   Level: intermediate
+
+.seealso: PetscDTAltVWedgeMatrix(), PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVWedge(PetscInt N, PetscInt j, PetscInt k, const PetscReal *a, const PetscReal *b, PetscReal *awedgeb)
 {
   PetscInt       i;
@@ -124,6 +157,22 @@ PetscErrorCode PetscDTAltVWedge(PetscInt N, PetscInt j, PetscInt k, const PetscR
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVWedgeMatrix - Compute the matrix defined by the wedge product with an alternating form
+
+   Input Arguments:
++  N - the dimension of the space
+.  j - the index of the form a
+.  k - the index of the form that (a wedge) will be applied to
+-  a - the j-form
+
+   Output Arguments:
+.  awedge - a wedge, an [(N choose j+k) x (N choose k)] matrix in row-major order, such that (a wedge) * b = a wedge b
+
+   Level: intermediate
+
+.seealso: PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVWedgeMatrix(PetscInt N, PetscInt j, PetscInt k, const PetscReal *a, PetscReal *awedgeMat)
 {
   PetscInt       i;
@@ -191,7 +240,27 @@ PetscErrorCode PetscDTAltVWedgeMatrix(PetscInt N, PetscInt j, PetscInt k, const 
   PetscFunctionReturn(0);
 }
 
-/* L: V -> W [|W| by |V| array], L*: altW -> altV */
+/*@
+   PetscDTAltVPullback - Compute the pullback of an alternating form under a linear transformation
+
+   Input Arguments:
++  N - the dimension of the origin space
+.  M - the dimension of the image space
+.  L - the linear transformation, an [M x N] matrix in row-major format
+.  k - the index of the form.  A negative form degree indicates that Pullback should be conjugated by the Hodge star operator (see note)
+-  w - the k-form in the image space
+
+   Output Arguments:
+.  Lstarw - the pullback of w to a k-form in the origin space
+
+   Level: intermediate
+
+   Note: negative form degrees accomodate, e.g., H-div conforming vector fields.  An H-div conforming vector field stores its degrees of freedom as (dx, dy, dz), like a 1-form,
+   but its normal trace is integrated on faces, like a 2-form.  The correct pullback then is to apply the Hodge star transformation from 1-form to 2-form, pullback as a 2-form,
+   then the inverse Hodge star transformation.
+
+.seealso: PetscDTAltVPullbackMatrix(), PetscDTAltVStar()
+@*/
 PetscErrorCode PetscDTAltVPullback(PetscInt N, PetscInt M, const PetscReal *L, PetscInt k, const PetscReal *w, PetscReal *Lstarw)
 {
   PetscInt         i, j, Nk, Mk;
@@ -313,6 +382,22 @@ PetscErrorCode PetscDTAltVPullback(PetscInt N, PetscInt M, const PetscReal *L, P
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVPullbackMatrix - Compute the pullback matrix for k-forms under a linear transformation
+
+   Input Arguments:
++  N - the dimension of the origin space
+.  M - the dimension of the image space
+.  L - the linear transformation, an [M x N] matrix in row-major format
+-  k - the index of the alternating forms.  A negative form degree indicates that the pullback should be conjugated by the Hodge star operator (see note in PetscDTAltvPullback())
+
+   Output Arguments:
+.  Lstar - the pullback matrix, an [(N choose k) x (M choose k)] matrix in row-major format such that Lstar * w = L^* w
+
+   Level: intermediate
+
+.seealso: PetscDTAltVPullback(), PetscDTAltVStar()
+@*/
 PetscErrorCode PetscDTAltVPullbackMatrix(PetscInt N, PetscInt M, const PetscReal *L, PetscInt k, PetscReal *Lstar)
 {
   PetscInt        Nk, Mk, Nf, i, j, l, p;
@@ -413,6 +498,22 @@ PetscErrorCode PetscDTAltVPullbackMatrix(PetscInt N, PetscInt M, const PetscReal
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVInterior - Compute the interior product of an alternating form with a vector
+
+   Input Arguments:
++  N - the dimension of the origin space
+.  k - the index of the alternating forms
+.  w - the k-form
+-  v - the N dimensional vector
+
+   Output Arguments:
+.  wIntv - the (k-1) form (w int v).
+
+   Level: intermediate
+
+.seealso: PetscDTAltVInteriorMatrix(), PetscDTAltVInteriorPattern(), PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVInterior(PetscInt N, PetscInt k, const PetscReal *w, const PetscReal *v, PetscReal *wIntv)
 {
   PetscInt        i, Nk, Nkm;
@@ -466,6 +567,21 @@ PetscErrorCode PetscDTAltVInterior(PetscInt N, PetscInt k, const PetscReal *w, c
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVInteriorMatrix - Compute the matrix of the linear transformation induced on an alternating form by the interior product with a vector
+
+   Input Arguments:
++  N - the dimension of the origin space
+.  k - the index of the alternating forms
+-  v - the N dimensional vector
+
+   Output Arguments:
+.  intvMat - an [(N choose (k-1)) x (N choose k)] matrix, row-major: (intvMat) * w = (w int v)
+
+   Level: intermediate
+
+.seealso: PetscDTAltVInterior(), PetscDTAltVInteriorPattern(), PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVInteriorMatrix(PetscInt N, PetscInt k, const PetscReal *v, PetscReal *intvMat)
 {
   PetscInt        i, Nk, Nkm;
@@ -512,6 +628,23 @@ PetscErrorCode PetscDTAltVInteriorMatrix(PetscInt N, PetscInt k, const PetscReal
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVInteriorPattern - compute the sparsity and sign pattern of the interior product matrix computed in PetscDTAltVInteriorMatrix()
+
+   Input Arguments:
++  N - the dimension of the origin space
+-  k - the index of the alternating forms
+
+   Output Arguments:
+.  indices - The interior product matrix has (N choose k) * k non-zeros.  indices[i][0] and indices[i][1] are the row and column of a non-zero,
+   and its value is equal to the vector coordinate v[j] if indices[i][2] = j, or -v[j] if indices[i][2] = -(j+1)
+
+   Level: intermediate
+
+   Note: this form is useful when the interior product needs to be computed at multiple locations, as when computing the Koszul differential
+
+.seealso: PetscDTAltVInterior(), PetscDTAltVInteriorMatrix(), PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVInteriorPattern(PetscInt N, PetscInt k, PetscInt (*indices)[3])
 {
   PetscInt        i, Nk, Nkm;
@@ -570,6 +703,22 @@ PetscErrorCode PetscDTAltVInteriorPattern(PetscInt N, PetscInt k, PetscInt (*ind
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDTAltVStar - Apply a power of the Hodge star transformation to an alternating form
+
+   Input Arguments:
++  N - the dimension of the space
+.  k - the index of the alternating form
+.  pow - the number of times to apply the Hodge star operator
+-  w - the alternating form
+
+   Output Arguments:
+.  starw = (star)^pow w
+
+   Level: intermediate
+
+.seealso: PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
+@*/
 PetscErrorCode PetscDTAltVStar(PetscInt N, PetscInt k, PetscInt pow, const PetscReal *w, PetscReal *starw)
 {
   PetscInt        Nk, i;
