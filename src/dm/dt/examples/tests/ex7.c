@@ -11,7 +11,7 @@ static PetscErrorCode CheckPullback(PetscInt N, PetscInt M, const PetscReal *L, 
   PetscReal       diff, diffMat, normMat;
   PetscReal       *walloc = NULL;
   const PetscReal *ww = NULL;
-  PetscBool       negative = (k < 0);
+  PetscBool       negative = (PetscBool) (k < 0);
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
@@ -473,7 +473,7 @@ int main(int argc, char **argv)
         PetscBool isOdd;
         PetscInt l;
 
-        isOdd = ((k * (N - k)) & 1);
+        isOdd = (PetscBool) ((k * (N - k)) & 1);
         ierr = PetscMalloc3(Nk, &u, Nk, &starw, Nk, &starstarw);CHKERRQ(ierr);
         ierr = PetscDTAltVStar(N, k, 1, w, starw);CHKERRQ(ierr);
         ierr = PetscDTAltVStar(N, N-k, 1, starw, starstarw);CHKERRQ(ierr);
