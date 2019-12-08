@@ -267,9 +267,12 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
 {
   PetscScalar    *Js, *Jinvs;
   PetscInt       i, j, k;
+  PetscBLASInt   bm, bn, info;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscBLASIntCast(m, &bm);CHKERRQ(ierr);
+  ierr = PetscBLASIntCast(n, &bn);CHKERRQ(ierr);
 #if defined(PETSC_USE_COMPLEX)
   ierr = PetscMalloc2(m*n, &Js, m*n, &Jinvs);CHKERRQ(ierr);
   for (i = 0; i < m*n; i++) Js[i] = J[i];
@@ -278,21 +281,21 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
   Jinvs = Jinv;
 #endif
   if (m == n) {
-    PetscInt *pivots;
+    PetscBLASInt *pivots;
     PetscScalar *W;
-    PetscBool zeropivot;
 
     ierr = PetscMalloc2(m, &pivots, m, &W);CHKERRQ(ierr);
 
     ierr = PetscArraycpy(Jinvs, Js, m * m);CHKERRQ(ierr);
-    ierr = PetscKernel_A_gets_inverse_A(m,Jinvs,pivots,W,PETSC_FALSE,&zeropivot);CHKERRQ(ierr);
-    if (zeropivot) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_MAT_LU_ZRPVT, "Non-invertible Jacobian");CHKERRQ(ierr);
+    PetscStackCallBLAS("LAPACKgetrf", LAPACKgetrf_(&bm, &bm, Jinvs, &bm, pivots, &info));
+    if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetrf %D",(PetscInt)info);
+    PetscStackCallBLAS("LAPACKgetri", LAPACKgetri_(&bm, Jinvs, &bm, pivots, W, &bm, &info));
+    if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetri %D",(PetscInt)info);
     ierr = PetscFree2(pivots, W);CHKERRQ(ierr);
   } else if (m < n) {
     PetscScalar *JJT;
-    PetscInt *pivots;
+    PetscBLASInt *pivots;
     PetscScalar *W;
-    PetscBool zeropivot;
 
     ierr = PetscMalloc1(m*m, &JJT);CHKERRQ(ierr);
     ierr = PetscMalloc2(m, &pivots, m, &W);CHKERRQ(ierr);
@@ -305,8 +308,10 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
       }
     }
 
-    ierr = PetscKernel_A_gets_inverse_A(m,JJT,pivots,W,PETSC_FALSE,&zeropivot);CHKERRQ(ierr);
-    if (zeropivot) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_MAT_LU_ZRPVT, "Non-invertible Jacobian");CHKERRQ(ierr);
+    PetscStackCallBLAS("LAPACKgetrf", LAPACKgetrf_(&bm, &bm, JJT, &bm, pivots, &info));
+    if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetrf %D",(PetscInt)info);
+    PetscStackCallBLAS("LAPACKgetri", LAPACKgetri_(&bm, JJT, &bm, pivots, W, &bm, &info));
+    if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetri %D",(PetscInt)info);
     for (i = 0; i < n; i++) {
       for (j = 0; j < m; j++) {
         PetscScalar val = 0.;
@@ -319,9 +324,8 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
     ierr = PetscFree(JJT);CHKERRQ(ierr);
   } else {
     PetscScalar *JTJ;
-    PetscInt *pivots;
+    PetscBLASInt *pivots;
     PetscScalar *W;
-    PetscBool zeropivot;
 
     ierr = PetscMalloc1(n*n, &JTJ);CHKERRQ(ierr);
     ierr = PetscMalloc2(n, &pivots, n, &W);CHKERRQ(ierr);
@@ -334,8 +338,10 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
       }
     }
 
-    ierr = PetscKernel_A_gets_inverse_A(n,JTJ,pivots,W,PETSC_FALSE,&zeropivot);CHKERRQ(ierr);
-    if (zeropivot) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_MAT_LU_ZRPVT, "Non-invertible Jacobian");CHKERRQ(ierr);
+    PetscStackCallBLAS("LAPACKgetrf", LAPACKgetrf_(&bn, &bn, JTJ, &bm, pivots, &info));
+    if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetrf %D",(PetscInt)info);
+    PetscStackCallBLAS("LAPACKgetri", LAPACKgetri_(&bn, JTJ, &bn, pivots, W, &bn, &info));
+    if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error returned from LAPACKgetri %D",(PetscInt)info);
     for (i = 0; i < n; i++) {
       for (j = 0; j < m; j++) {
         PetscScalar val = 0.;
