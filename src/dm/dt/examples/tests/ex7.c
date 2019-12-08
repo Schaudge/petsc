@@ -1,4 +1,4 @@
-static char help[] = "Tests exterior algebra.\n\n";
+static char help[] = "Test the PetscDTAltV interface for k-forms (alternating k-linear maps).\n\n";
 
 #include <petscviewer.h>
 #include <petscdt.h>

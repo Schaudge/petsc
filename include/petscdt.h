@@ -84,11 +84,9 @@ PETSC_EXTERN PetscErrorCode PetscDTAltVStar(PetscInt, PetscInt, PetscInt, const 
    PetscDTFactorial - Approximate n! as a real number
 
    Input Arguments:
-
 .  n - a non-negative integer
 
-   Output Arguments;
-
+   Output Arguments:
 .  factorial - n!
 
    Level: beginner
@@ -108,11 +106,9 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTFactorial(PetscInt n, PetscReal *facto
    PetscDTFactorialInt - Compute n! as an integer
 
    Input Arguments:
-
 .  n - a non-negative integer
 
-   Output Arguments;
-
+   Output Arguments:
 .  factorial - n!
 
    Level: beginner
@@ -142,12 +138,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTFactorialInt(PetscInt n, PetscInt *fac
    PetscDTBinomial - Approximate the binomial coefficient "n choose k"
 
    Input Arguments:
-
 +  n - a non-negative integer
 -  k - an integer between 0 and n, inclusive
 
-   Output Arguments;
-
+   Output Arguments:
 .  binomial - approximation of the binomial coefficient n choose k
 
    Level: beginner
@@ -175,12 +169,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomial(PetscInt n, PetscInt k, Petsc
    PetscDTBinomialInt - Compute the binomial coefficient "n choose k"
 
    Input Arguments:
-
 +  n - a non-negative integer
 -  k - an integer between 0 and n, inclusive
 
-   Output Arguments;
-
+   Output Arguments:
 .  binomial - the binomial coefficient n choose k
 
    Note: this is limited by integers that can be represented by PetscInt
@@ -216,17 +208,15 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomialInt(PetscInt n, PetscInt k, Pe
 
    A permutation can be described by the operations that convert the lists [0, 1, ..., n-1] into the permutation,
    by a sequence of swaps, where the ith step swaps whatever number is in ith position with a number that is in
-   some position j >= i.  We encode this swap as the difference (j - i).  The difference d_i at step i is less than
-   (n - i).  We encode this sequence of n-1 differences [d_0, ..., d_{n-2}] as the number
+   some position j >= i.  This swap is encoded as the difference (j - i).  The difference d_i at step i is less than
+   (n - i).  This sequence of n-1 differences [d_0, ..., d_{n-2}] is encoded as the number
    (n-1)! * d_0 + (n-2)! * d_1 + ... + 1! * d_{n-2}.
 
    Input Arguments:
-
 +  n - a non-negative integer (see note about limits below)
 -  k - an integer in [0, n!)
 
    Output Arguments:
-
 +  perm - the permuted list of the integers [0, ..., n-1]
 -  isOdd - if not NULL, returns wether the permutation used an even or odd number of swaps.
 
@@ -266,12 +256,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumPerm(PetscInt n, PetscInt k, Petsc
    PetscDTPermIndex - Encode a permutation of n into an integer in [0, n!).  This inverts PetscDTEnumPerm.
 
    Input Arguments:
-
 +  n - a non-negative integer (see note about limits below)
 -  perm - the permuted list of the integers [0, ..., n-1]
 
    Output Arguments:
-
 +  k - an integer in [0, n!)
 .  isOdd - if not NULL, returns wether the permutation used an even or odd number of swaps.
 
@@ -316,13 +304,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTPermIndex(PetscInt n, const PetscInt *
    The encoding is in lexicographic order.
 
    Input Arguments:
-
 +  n - a non-negative integer (see note about limits below)
 .  k - an integer in [0, n]
 -  j - an index in [0, n choose k)
 
    Output Arguments:
-
 .  subset - the jth subset of size k of the integers [0, ..., n - 1]
 
    Note: this is limited by arguments such that n choose k can be represented by PetscInt
@@ -357,13 +343,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumSubset(PetscInt n, PetscInt k, Pet
    PetscDTSubsetIndex - Convert an ordered subset of k integers from the set [0, ..., n - 1] to its encoding as an integers in [0, n choose k) in lexicographic order.  This is the inverse of PetscDTEnumSubset.
 
    Input Arguments:
-
 +  n - a non-negative integer (see note about limits below)
 .  k - an integer in [0, n]
 -  subset - an ordered subset of the integers [0, ..., n - 1]
 
    Output Arguments:
-
 .  index - the rank of the subset in lexicographic order
 
    Note: this is limited by arguments such that n choose k can be represented by PetscInt
@@ -396,20 +380,17 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTSubsetIndex(PetscInt n, PetscInt k, co
   PetscFunctionReturn(0);
 }
 
-
 /*MC
-   PetscDTEnumSubset - Split the integers [0, ..., n - 1] into two complementary ordered subsets, the first of size k and beingthe jth in lexicographic order.
+   PetscDTEnumSubset - Split the integers [0, ..., n - 1] into two complementary ordered subsets, the first subset of size k and being the jth subset of that size in lexicographic order.
 
    Input Arguments:
-
 +  n - a non-negative integer (see note about limits below)
 .  k - an integer in [0, n]
 -  j - an index in [0, n choose k)
 
    Output Arguments:
-
 +  perm - the jth subset of size k of the integers [0, ..., n - 1], followed by its complementary set.
--  isOdd - if not NULL, return whether the permutation is even or odd.
+-  isOdd - if not NULL, return whether perm is an even or odd permutation.
 
    Note: this is limited by arguments such that n choose k can be represented by PetscInt
 
