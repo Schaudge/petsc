@@ -165,7 +165,7 @@ PetscErrorCode PetscDTAltVWedge(PetscInt N, PetscInt j, PetscInt k, const PetscR
 +  N - the dimension of the vector space, N >= 0
 .  j - the degree j of the j-form a, 0 <= j <= N
 .  k - the degree k of the k-forms that (a wedge) will be applied to, 0 <= k <= N and 0 <= j+k <= N
--  a - the j-form
+-  a - a j-form, size [N choose j]
 
    Output Arguments:
 .  awedge - (a wedge), an [(N choose j+k) x (N choose k)] matrix in row-major order, such that (a wedge) * b = a wedge b
@@ -247,12 +247,12 @@ PetscErrorCode PetscDTAltVWedgeMatrix(PetscInt N, PetscInt j, PetscInt k, const 
    Input Arguments:
 +  N - the dimension of the origin vector space of the linear transformation, M >= 0
 .  M - the dimension of the image vector space of the linear transformation, N >= 0
-.  L - the linear transformation, an [M x N] matrix in row-major format
-.  k - the *signed* degree k of the |k|-form w, -(min(M,N)) <= k <= min(M,N).  A negative form degree indicates that Pullback should be conjugated by the Hodge star operator (see note).
--  w - the |k|-form in the image space, size [M choose |k|]
+.  L - a linear transformation, an [M x N] matrix in row-major format
+.  k - the *signed* degree k of the |k|-form w, -(min(M,N)) <= k <= min(M,N).  A negative form degree indicates that the pullback should be conjugated by the Hodge star operator (see note).
+-  w - a |k|-form in the image space, size [M choose |k|]
 
    Output Arguments:
-.  Lstarw - the pullback of w to a k-form in the origin space, size [N choose |k|]: (Lstarw)(v_1,...v_k) = w(L*v_1,...,L*v_k).
+.  Lstarw - the pullback of w to a |k|-form in the origin space, size [N choose |k|]: (Lstarw)(v_1,...v_k) = w(L*v_1,...,L*v_k).
 
    Level: intermediate
 
@@ -389,7 +389,7 @@ PetscErrorCode PetscDTAltVPullback(PetscInt N, PetscInt M, const PetscReal *L, P
    Input Arguments:
 +  N - the dimension of the origin vector space of the linear transformation, N >= 0
 .  M - the dimension of the image vector space of the linear transformation, M >= 0
-.  L - the linear transformation, an [M x N] matrix in row-major format
+.  L - a linear transformation, an [M x N] matrix in row-major format
 -  k - the *signed* degree k of the |k|-forms on which Lstar acts, -(min(M,N)) <= k <= min(M,N).  A negative form degree indicates that the pullback should be conjugated by the Hodge star operator (see note in PetscDTAltvPullback())
 
    Output Arguments:
@@ -505,8 +505,8 @@ PetscErrorCode PetscDTAltVPullbackMatrix(PetscInt N, PetscInt M, const PetscReal
    Input Arguments:
 +  N - the dimension of the vector space, N >= 0
 .  k - the degree k of the k-form w, 0 <= k <= N
-.  w - the k-form, size [N choose k]
--  v - the N dimensional vector
+.  w - a k-form, size [N choose k]
+-  v - an N dimensional vector
 
    Output Arguments:
 .  wIntv - the (k-1)-form (w int v), size [N choose (k-1)]: (w int v) is defined by its action on (k-1) vectors {v_1, ..., v_{k-1}} as (w inv v)(v_1, ..., v_{k-1}) = w(v, v_1, ..., v_{k-1}).
@@ -574,7 +574,7 @@ PetscErrorCode PetscDTAltVInterior(PetscInt N, PetscInt k, const PetscReal *w, c
    Input Arguments:
 +  N - the dimension of the vector space, N >= 0
 .  k - the degree k of the k-forms on which intvMat acts, 0 <= k <= N
--  v - the N dimensional vector
+-  v - an N dimensional vector
 
    Output Arguments:
 .  intvMat - an [(N choose (k-1)) x (N choose k)] matrix, row-major: (intvMat) * w = (w int v)
@@ -712,7 +712,7 @@ PetscErrorCode PetscDTAltVInteriorPattern(PetscInt N, PetscInt k, PetscInt (*ind
 +  N - the dimension of the vector space, N >= 0
 .  k - the degree k of the k-form w, 0 <= k <= N
 .  pow - the number of times to apply the Hodge star operator: pow < 0 indicates that the inverse of the Hodge star operator should be applied |pow| times.
--  w - the k-form, size [N choose k]
+-  w - a k-form, size [N choose k]
 
    Output Arguments:
 .  starw = (star)^pow w.  Each degree of freedom of a k-form is associated with a subset S of k coordinates of the N dimensional vector space: the Hodge start operator (star) maps that degree of freedom to the degree of freedom associated with S', the complement of S, with a sign change if the permutation of coordinates {S[0], ... S[k-1], S'[0], ... S'[N-k- 1]} is an odd permutation.  This implies (star)^2 w = (-1)^{k(N-k)} w, and (star)^4 w = w.
