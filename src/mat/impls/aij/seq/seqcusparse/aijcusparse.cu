@@ -1600,6 +1600,7 @@ static PetscErrorCode MatAssemblyEnd_SeqAIJCUSPARSE(Mat A,MatAssemblyType mode)
   ierr = MatAssemblyEnd_SeqAIJ(A,mode);CHKERRQ(ierr);
   if (mode == MAT_FLUSH_ASSEMBLY) PetscFunctionReturn(0);
   if (A->factortype == MAT_FACTOR_NONE) {
+    A->offloadmask = PETSC_OFFLOAD_CPU; /* Set this to ensure that the call below will actually copy to the GPU. */
     ierr = MatSeqAIJCUSPARSECopyToGPU(A);CHKERRQ(ierr);
   }
   A->ops->mult             = MatMult_SeqAIJCUSPARSE;
