@@ -1,8 +1,10 @@
 #
+#  rm -fr build
 #  mkdir build
 #  cd build
 #  cmake ..
 #  make
+#  ./ex1
 #
 #  Tests using the PkgConfig information for PETSc from CMAKE
 #  Gets both the compiler information and the library information from PETSc
