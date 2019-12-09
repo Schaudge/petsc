@@ -7,7 +7,6 @@
 #include <petscviewer.h>
 #include <petscdmplex.h>
 #include <petscdmshell.h>
-#include <petsc/private/kernels/blockinvert.h>
 
 #if defined(PETSC_HAVE_MPFR)
 #include <mpfr.h>
