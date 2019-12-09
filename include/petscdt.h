@@ -97,6 +97,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTFactorial(PetscInt n, PetscReal *facto
   PetscInt  i;
 
   PetscFunctionBegin;
+  *factorial = -1.;
+  if (n < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Factorial called with negative number %D\n", n);
   for (i = 1; i < n+1; ++i) f *= i;
   *factorial = f;
   PetscFunctionReturn(0);
