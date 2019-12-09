@@ -126,26 +126,43 @@ PetscErrorCode ThrowItInTheBin(MPI_Comm comm, PetscScalar local, PetscInt root, 
 static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partitioning)
 {
   PetscErrorCode ierr;
-  PetscInt       cell,n,N,p,rstart,rend,*color;
-  PetscMPIInt    size;
+  PetscInt       n,N,p,rstart,rend,*color,col,x,y,z,i,subcubes;
+  PetscMPIInt    size, rank;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)part),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)part),&rank);CHKERRQ(ierr);
   if (part->n != size) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Currently only supports one domain per processor");
   p = (PetscInt)PetscCbrtReal((PetscReal)part->n);
-  if (p*p*p != part->n) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires \"perfect square\" number of domains");
+  if (p*p*p != part->n) SETERRQ2(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires \"perfect square\" number of domains. p = %D n = %D", p, part->n);
 
   ierr = MatGetSize(part->adj,&N,NULL);CHKERRQ(ierr);
-  n    = (PetscInt)PetscCbrtReal((PetscReal)N);
+  n = (PetscInt)PetscCbrtReal((PetscReal)N);
   if (n*n*n != N) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires square domain");
   if (n%p != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Square partitioning requires p to divide n");
+
   ierr = MatGetOwnershipRange(part->adj,&rstart,&rend);CHKERRQ(ierr);
-  ierr = PetscMalloc1(rend-rstart,&color);CHKERRQ(ierr);
-  /* for (int cell=rstart; cell<rend; cell++) { color[cell-rstart] = ((cell%n) < (n/2)) + 2 * ((cell/n) < (n/2)); } */
-  for (cell=rstart; cell<rend; cell++) {
-    color[cell-rstart] = ((cell%n) / (n/p)) + p * ((cell/n) / (n/p));
+  PetscPrintf(PETSC_COMM_WORLD, "RSTART %D REND %D\nn %D p %D N %D\n", rstart, rend, n, p, N);
+  ierr = PetscMalloc1(rend-rstart, &color);CHKERRQ(ierr);
+  /* for (int cell=rstart; cell<rend; cell++) { color[cell-rstart] = ((cell%n) < (n/2)) + 2 * ((cell/n) <x (n/2)); } */
+  col = n/p;
+  subcubes = p/2;
+  i = 0;
+  if (rank) {
+    n = 0;
+  }
+  for (z = 0; z < n; ++z) {
+    for (y = 0; y < n; ++y) {
+      for (x = 0; x < n; ++x) {
+        PetscPrintf(PETSC_COMM_WORLD, "x %3D y %3D z %3D i %3D -> ", x, y, z, i);
+        color[i] = (x/col) + (p*(y/col)) + (p*p*(z/col));
+        ++i;
+        PetscPrintf(PETSC_COMM_WORLD, "%3D COLOR SUBCUBE %2D [EQ1: %3D EQ2: %3D EQ3 %3D]\n", color[i-1], subcubes, x/col, p*(y/col), p*p*(z/col));
+       }
+    }
   }
   ierr = ISCreateGeneral(PetscObjectComm((PetscObject)part),rend-rstart,color,PETSC_OWN_POINTER,partitioning);CHKERRQ(ierr);
+  CHKMEMQ;
   PetscFunctionReturn(0);
 }
 
@@ -399,27 +416,23 @@ int main(int argc, char **argv)
     PetscInt              nRanks, nRootRanks, nLeafRanks;
 
     ierr = DMGetPointSF(dm, &pointSF);CHKERRQ(ierr);
-    ierr = DMGetSectionSF(dm, &sectionSF);CHKERRQ(ierr);
-    ierr = PetscSFSetUp(sectionSF);CHKERRQ(ierr);
     ierr = DMPlexCreateProcessSF(dm, pointSF, &processRanks, &processSF);CHKERRQ(ierr);
     ierr = PetscSFSetUp(processSF);CHKERRQ(ierr);
+    ierr = DMGetSectionSF(dm, &sectionSF);CHKERRQ(ierr);
+    ierr = PetscSFSetUp(sectionSF);CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(pointSF, NULL, "-petscsf_point_view");CHKERRQ(ierr);
     ierr = PetscSFViewFromOptions(processSF, NULL, "-petscsf_processsf_view");CHKERRQ(ierr);
     ierr = ISViewFromOptions(processRanks, NULL, "-is_process_view");CHKERRQ(ierr);
-    ierr = PetscSFGetRootRanks(processSF, &nRootRanks, &RootRanks, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = PetscSFGetLeafRanks(processSF, &nLeafRanks, &LeafRanks, NULL, NULL);CHKERRQ(ierr);
-    ierr = PetscSFGetGroups(pointSF, &in, &out);CHKERRQ(ierr);
-    ierr = PetscSFViewFromOptions(pointSF, NULL, "-petscsf_processgroup_view");CHKERRQ(ierr);
     ierr = PetscSFViewFromOptions(sectionSF, NULL, "-petscsf_section_view");CHKERRQ(ierr);
+    ierr = PetscSFGetGroups(processSF, &in, &out);CHKERRQ(ierr);
     ierr = MPI_Group_size(in, &size_in);CHKERRQ(ierr);
     ierr = MPI_Group_size(out, &size_out);CHKERRQ(ierr);
     size_total = size_in + size_out;
-    nRanks = nRootRanks + nLeafRanks;
-    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
-    ierr = ThrowItInTheBin(comm,(PetscScalar) nRanks, 0, "PetscSF Neighbors FROM RANKS");CHKERRQ(ierr);
-    ierr = ThrowItInTheBin(comm,(PetscScalar) size_total, 0, "PetscSF Neighbors FROM GROUPS");CHKERRQ(ierr);
     ierr = PetscSFGetRootRanks(sectionSF, &nRootRanks, &RootRanks, NULL, NULL, NULL);CHKERRQ(ierr);
     ierr = PetscSFGetLeafRanks(sectionSF, &nLeafRanks, &LeafRanks, NULL, NULL);CHKERRQ(ierr);
     nRanks = nRootRanks + nLeafRanks;
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) size_total, 0, "PetscSF Neighbors FROM GROUPS");CHKERRQ(ierr);
     ierr = ThrowItInTheBin(comm,(PetscScalar) nRanks, 0, "PetscSF Neighbors FROM SECTION");CHKERRQ(ierr);
     ierr = PetscSFDestroy(&processSF);CHKERRQ(ierr);
     ierr = ISDestroy(&processRanks);CHKERRQ(ierr);
