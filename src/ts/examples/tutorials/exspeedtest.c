@@ -13,7 +13,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageZEROGVD;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventZEROGVD;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout, balance;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout, balance, periodic;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;
   PetscScalar    refinementLimit;
@@ -45,8 +45,9 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   if (user.dmRefine) {
     ierr = PetscViewerStringSPrintf(genViewer, "┗ Refinement level:%s>%d\n", user.bar + 4, user.level);CHKERRQ(ierr);
   }
-  ierr = PetscViewerStringSPrintf(genViewer, "Distributed dm:%s>%s\n", user.bar, user.distribute ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "\nDistributed dm:%s>%s\n", user.bar, user.distribute ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Interpolated dm:%s>%s\n", user.bar + 1, user.interpolate ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Periodic Mesh?:%s>%s\n", user.bar, user.periodic ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", user.bar + 7, user.perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 
   ierr = PetscViewerStringSPrintf(genViewer, "DM Vec Type Used:%s>%s\n", user.bar + 2, user.ctype);CHKERRQ(ierr);
@@ -188,6 +189,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->vtkSoln              = PETSC_FALSE;
   options->meshout		= PETSC_FALSE;
   options->balance              = PETSC_FALSE;
+  options->periodic             = PETSC_FALSE;
   options->filename[0]          = '\0';
   options->dim                  = 2;
   options->numFields            = 1;
@@ -218,6 +220,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 
     ierr = PetscOptionsGetInt(NULL, NULL, "-vec_size_local", &options->VSL, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-vec_size_global", &options->VSG, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-periodic", "Periodic Boundary Conditions", "", options->periodic, &options->periodic, NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   if (!options->VSG) {
@@ -233,6 +236,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   DM              dmDist;
   const char      *filename = user->filename;
   PetscInt        dim = user->dim, overlap = user->overlap, i;
+  const DMBoundaryType  btype[3] = {DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC};
 
   PetscFunctionBeginUser;
   ierr = MatPartitioningRegister("cube", MatPartitioningCreate_Cube);CHKERRQ(ierr);
@@ -253,7 +257,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogEventRegister("CREATE Box Mesh", 0, &user->eventCREATE);CHKERRQ(ierr);
     ierr = PetscLogStagePush(user->stageCREATE);CHKERRQ(ierr);
     ierr = PetscLogEventBegin(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
-    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL, NULL, user->interpolate, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL, user->periodic ? btype : NULL, user->interpolate, dm);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, "Generated_Box_Mesh");CHKERRQ(ierr);
