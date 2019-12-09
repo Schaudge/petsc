@@ -425,7 +425,7 @@ class generateExamples(Petsc):
       Str=subst['regexes'][subkey].sub(lambda x: subst[subkey],Str)
     return Str
 
-  def getCmds(self,subst,i):
+  def getCmds(self,subst,i,root):
     """
       Generate bash script using template found next to this file.
       This file is read in at constructor time to avoid file I/O
@@ -433,6 +433,12 @@ class generateExamples(Petsc):
     nindnt=i # the start and has to be consistent with below
     cmdindnt=self.indent*nindnt
     cmdLines=""
+
+    # testscript  -- all commands just come from this
+    if subst['testscript']:
+      fh=open(os.path.join(root,subst['testscript']),"r")
+      cmdLines=fh.read()
+      return cmdLines
 
     # MPI is the default -- but we have a few odd commands
     if not subst['command']:
@@ -533,10 +539,10 @@ class generateExamples(Petsc):
     rpath=self.srcrelpath(root)
     runscript_dir=os.path.join(self.testroot_dir,rpath)
     if not os.path.isdir(runscript_dir): os.makedirs(runscript_dir)
-    fh=open(os.path.join(runscript_dir,testname+".sh"),"w")
 
     # Get variables to go into shell scripts.  last time testDict used
     subst=self.getSubstVars(testDict,rpath,testname)
+
     loopVars = self._getLoopVars(subst,testname)  # Alters subst as well
     if 'subtests' in testDict:
       # The subtests inherit inDict, so we don't need top-level loops.
@@ -552,6 +558,10 @@ class generateExamples(Petsc):
         install_files(os.path.join(root, lfile),
                       os.path.join(runscript_dir, os.path.dirname(lfile)))
 
+
+    # Now generate script
+    scriptname=testname+".sh"
+    fh=open(os.path.join(runscript_dir,scriptname),"w")
     # Now substitute the key variables into the header and footer
     header=self._substVars(subst,example_template.header)
     # The header is done twice to enable @...@ in header
@@ -587,12 +597,12 @@ class generateExamples(Petsc):
           (sLoopHead,j) = self.getLoopVarsHead(sLoopVars,j,allLoopVars)
           allLoopVars+=list(sLoopVars.keys())
           fh.write(sLoopHead+"\n")
-        fh.write(self.getCmds(subst,j)+"\n")
+        fh.write(self.getCmds(subst,j,root)+"\n")
         if sLoopVars:
           (sLoopFoot,j) = self.getLoopVarsFoot(sLoopVars,j)
           fh.write(sLoopFoot+"\n")
     else:
-      fh.write(self.getCmds(subst,j)+"\n")
+      fh.write(self.getCmds(subst,j,root)+"\n")
 
     if loopVars:
       (loopFoot,j) = self.getLoopVarsFoot(loopVars,j)
@@ -600,8 +610,7 @@ class generateExamples(Petsc):
 
     fh.write(footer+"\n")
     fh.close()
-    os.chmod(os.path.join(runscript_dir,testname+".sh"),0o755)
-    #if '10_9' in testname: sys.exit()
+    os.chmod(os.path.join(runscript_dir,scriptname),0o755)
     return
 
   def  genScriptsAndInfo(self,exfile,root,srcDict):

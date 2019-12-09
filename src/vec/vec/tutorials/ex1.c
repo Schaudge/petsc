@@ -176,6 +176,12 @@ int main(int argc,char **argv)
       output_file: output/ex1_1.out
 
    test:
+      suffix: cmake_build
+      localrunfiles: CMakeLists.txt ex1.c
+      testscript: cmake_build.sh.in
+      output_file: output/ex1_1.out
+
+   test:
       suffix: 2_cuda
       nsize: 2
       args: -vec_type cuda
