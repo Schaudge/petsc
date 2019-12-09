@@ -138,12 +138,11 @@ static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partiti
 
   ierr = MatGetSize(part->adj,&N,NULL);CHKERRQ(ierr);
   n = (PetscInt)PetscCbrtReal((PetscReal)N);
-  if (n*n*n != N) SETERRQ(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires square domain");
+  if (n*n*n != N) SETERRQ1(PetscObjectComm((PetscObject)part),PETSC_ERR_SUP,"Square partitioning requires square domain n = %D", n);
   if (n%p != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Square partitioning requires p to divide n");
 
   ierr = MatGetOwnershipRange(part->adj,&rstart,&rend);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD, "RSTART %D REND %D\nn %D p %D N %D\n", rstart, rend, n, p, N);
-  ierr = PetscMalloc1(rend-rstart, &color);CHKERRQ(ierr);
+    ierr = PetscMalloc1(rend-rstart, &color);CHKERRQ(ierr);
   /* for (int cell=rstart; cell<rend; cell++) { color[cell-rstart] = ((cell%n) < (n/2)) + 2 * ((cell/n) <x (n/2)); } */
   col = n/p;
   subcubes = p/2;
@@ -154,10 +153,10 @@ static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partiti
   for (z = 0; z < n; ++z) {
     for (y = 0; y < n; ++y) {
       for (x = 0; x < n; ++x) {
-        PetscPrintf(PETSC_COMM_WORLD, "x %3D y %3D z %3D i %3D -> ", x, y, z, i);
+        //PetscPrintf(PETSC_COMM_WORLD, "x %3D y %3D z %3D i %3D -> ", x, y, z, i);
         color[i] = (x/col) + (p*(y/col)) + (p*p*(z/col));
         ++i;
-        PetscPrintf(PETSC_COMM_WORLD, "%3D COLOR SUBCUBE %2D [EQ1: %3D EQ2: %3D EQ3 %3D]\n", color[i-1], subcubes, x/col, p*(y/col), p*p*(z/col));
+        //PetscPrintf(PETSC_COMM_WORLD, "%3D COLOR SUBCUBE %2D [EQ1: %3D EQ2: %3D EQ3 %3D]\n", color[i-1], subcubes, x/col, p*(y/col), p*p*(z/col));
        }
     }
   }
@@ -330,7 +329,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscObjectSetName((PetscObject) dmDist, name);CHKERRQ(ierr);
     ierr = DMDestroy(dm);CHKERRQ(ierr);
     *dm = dmDist;
-    user->distribute = PETSC_TRUE;
+    ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
   }
   if (user->interpolate) {
     DM  dmInterp;
@@ -345,6 +344,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 # if defined(PETSC_HAVE_CUDA)
   ierr = DMSetVecType(*dm, VECCUDA);CHKERRQ(ierr);
 # endif
+  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMSetUp(*dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -392,7 +392,7 @@ int main(int argc, char **argv)
   DM                    dm;
   IS                    globalCellNumIS, globalVertNumIS;
   Vec                   solVecLocal, solVecGlobal, VDot, VDotZERO, dummyVecGlobal, dummyVecGlobal2, dummyVecLocal;
-  PetscInt              globalVertSize, globalCellSize, commiter;
+  PetscInt              globalVertSize, globalCellSize, commiter, i, globalSize, localSize, globalLocalSize;
   PetscScalar           VDotResult;
   char                  genInfo[PETSC_MAX_PATH_LEN];
 
@@ -407,36 +407,7 @@ int main(int argc, char **argv)
   ierr = DMSetApplicationContext(dm, &user);
   ierr = SetupDiscretization(dm, &user);CHKERRQ(ierr);
   ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
-  if (user.distribute) {
-    MPI_Group             in, out;
-    PetscSF               pointSF, processSF, sectionSF;
-    IS                    processRanks;
-    const PetscMPIInt     *RootRanks, *LeafRanks;
-    PetscMPIInt           size_in, size_out, size_total;
-    PetscInt              nRanks, nRootRanks, nLeafRanks;
 
-    ierr = DMGetPointSF(dm, &pointSF);CHKERRQ(ierr);
-    ierr = DMPlexCreateProcessSF(dm, pointSF, &processRanks, &processSF);CHKERRQ(ierr);
-    ierr = PetscSFSetUp(processSF);CHKERRQ(ierr);
-    ierr = DMGetSectionSF(dm, &sectionSF);CHKERRQ(ierr);
-    ierr = PetscSFSetUp(sectionSF);CHKERRQ(ierr);
-    ierr = PetscSFViewFromOptions(pointSF, NULL, "-petscsf_point_view");CHKERRQ(ierr);
-    ierr = PetscSFViewFromOptions(processSF, NULL, "-petscsf_processsf_view");CHKERRQ(ierr);
-    ierr = ISViewFromOptions(processRanks, NULL, "-is_process_view");CHKERRQ(ierr);
-    ierr = PetscSFViewFromOptions(sectionSF, NULL, "-petscsf_section_view");CHKERRQ(ierr);
-    ierr = PetscSFGetGroups(processSF, &in, &out);CHKERRQ(ierr);
-    ierr = MPI_Group_size(in, &size_in);CHKERRQ(ierr);
-    ierr = MPI_Group_size(out, &size_out);CHKERRQ(ierr);
-    size_total = size_in + size_out;
-    ierr = PetscSFGetRootRanks(sectionSF, &nRootRanks, &RootRanks, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = PetscSFGetLeafRanks(sectionSF, &nLeafRanks, &LeafRanks, NULL, NULL);CHKERRQ(ierr);
-    nRanks = nRootRanks + nLeafRanks;
-    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
-    ierr = ThrowItInTheBin(comm,(PetscScalar) size_total, 0, "PetscSF Neighbors FROM GROUPS");CHKERRQ(ierr);
-    ierr = ThrowItInTheBin(comm,(PetscScalar) nRanks, 0, "PetscSF Neighbors FROM SECTION");CHKERRQ(ierr);
-    ierr = PetscSFDestroy(&processSF);CHKERRQ(ierr);
-    ierr = ISDestroy(&processRanks);CHKERRQ(ierr);
-  }
   /* Display Mesh Partition and write mesh to vtk output file */
   if (user.VTKdisp) {
     PetscViewer vtkviewerpart;
@@ -512,6 +483,7 @@ int main(int argc, char **argv)
   ierr = DMGlobalToLocalEnd(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecLocal);CHKERRQ(ierr);
+
 
   /*	AXPY to flush kernels	*/
   ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
@@ -652,6 +624,85 @@ int main(int argc, char **argv)
     ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&vtkviewersoln);CHKERRQ(ierr);
   }
+
+  /*	PetscSF Printing	*/
+  if (user.distribute) {
+    MPI_Group             in, out;
+    PetscSF               pointSF, processSF, sectionSF;
+    IS                    processRanks;
+    const PetscMPIInt     *RootRanks, *LeafRanks;
+    PetscMPIInt           size_in, size_out, size_total;
+    PetscInt              nRanks, nRootRanks, nLeafRanks, iMin = PETSC_MAX_INT, rMin = PETSC_MAX_INT, iMax = 0, rMax = 0, iMinRank;
+    const PetscInt        *ioffset, *roffset;
+    PetscInt              *iDiffs, *rDiffs;
+
+    ierr = DMGetPointSF(dm, &pointSF);CHKERRQ(ierr);
+    ierr = DMPlexCreateProcessSF(dm, pointSF, &processRanks, &processSF);CHKERRQ(ierr);
+    ierr = PetscSFSetUp(processSF);CHKERRQ(ierr);
+    ierr = DMGetSectionSF(dm, &sectionSF);CHKERRQ(ierr);
+    ierr = PetscSFSetUp(sectionSF);CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(pointSF, NULL, "-petscsf_point_view");CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(processSF, NULL, "-petscsf_process_view");CHKERRQ(ierr);
+    ierr = ISViewFromOptions(processRanks, NULL, "-is_process_view");CHKERRQ(ierr);
+    ierr = PetscSFViewFromOptions(sectionSF, NULL, "-petscsf_section_view");CHKERRQ(ierr);
+    ierr = PetscSFGetGroups(processSF, &in, &out);CHKERRQ(ierr);
+    ierr = MPI_Group_size(in, &size_in);CHKERRQ(ierr);
+    ierr = MPI_Group_size(out, &size_out);CHKERRQ(ierr);
+    size_total = size_in + size_out;
+    ierr = PetscSFGetRootRanks(sectionSF, &nRootRanks, &RootRanks, &roffset, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscSFGetLeafRanks(sectionSF, &nLeafRanks, &LeafRanks, &ioffset, NULL);CHKERRQ(ierr);
+    nRanks = nRootRanks + nLeafRanks;
+    ierr = PetscMalloc2(nRootRanks, &rDiffs, nLeafRanks, &iDiffs);CHKERRQ(ierr);
+    for (i = 0; i < nRootRanks; ++i) {
+      rDiffs[i] = PetscAbsInt(roffset[i+1] - roffset[i]);
+      rMin = PetscMin(rMin, rDiffs[i]);
+      rMax = PetscMax(rMax, rDiffs[i]);
+    }
+    for (i = 0; i < nLeafRanks; ++i) {
+      iDiffs[i] = PetscAbsInt(ioffset[i+1] - ioffset[i]);
+      iMin = PetscMin(iMin, iDiffs[i]);
+      iMax = PetscMax(iMax, iDiffs[i]);
+    }
+    ierr = PetscPrintf(comm, "BEGIN NEIGHBOR ROOT RANKS\n");CHKERRQ(ierr);
+    ierr = PetscIntView(nRootRanks, RootRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "END NEIGHBOR ROOT RANKS\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "BEGIN NEIGHBOR LEAF RANKS\n");CHKERRQ(ierr);
+    ierr = PetscIntView(nLeafRanks, LeafRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "END NEIGHBOR LEAF RANKS\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "BEGIN DIFF ROOT RANKS\n");CHKERRQ(ierr);
+    ierr = PetscIntView(nRootRanks, rDiffs, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "END DIFF ROOT RANKS\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "BEGIN DIFF LEAF RANKS\n");CHKERRQ(ierr);
+    ierr = PetscIntView(nLeafRanks, iDiffs, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "END DIFF LEAF RANKS\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) size_total, 0, "PetscSF Neighbors FROM GROUPS");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) nRanks, 0, "PetscSF Neighbors FROM SECTION");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) iMin, 0, "MIN IOFFSET NUM MESSAGES");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) iMax, 0, "MAX IOFFSET NUM MESSAGES");CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) rMin, 0, "MIN ROFFSET NUM MESSAGES");CHKERRQ(ierr);
+    ierr = ThrowItInTheBin(comm,(PetscScalar) rMax, 0, "MAX ROFFSET NUM MESSAGES");CHKERRQ(ierr);
+    ierr = PetscFree2(rDiffs, iDiffs);CHKERRQ(ierr);
+    ierr = PetscSFDestroy(&processSF);CHKERRQ(ierr);
+    ierr = ISDestroy(&processRanks);CHKERRQ(ierr);
+  }
+
+  /*	Vec INFO	*/
+  ierr = PetscPrintf(comm, "\n%s Vec Info %s\n", user.bar, user.bar);CHKERRQ(ierr);
+  ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+  ierr = VecGetSize(solVecGlobal, &globalSize);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(solVecGlobal, &globalLocalSize);CHKERRQ(ierr);
+  ierr = VecGetLocalSize(solVecLocal, &localSize);CHKERRQ(ierr);
+  ierr = DMRestoreGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm, "GLOBAL Vector GLOBAL Size: %D\n", globalSize);CHKERRQ(ierr);
+  ierr = ThrowItInTheBin(comm, (PetscScalar) localSize, 0, "LOCAL Vector LOCAL Sizes");CHKERRQ(ierr);
+  ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
+  ierr = ThrowItInTheBin(comm, (PetscScalar) globalLocalSize, 0, "GLOBAL Vector LOCAL Sizes");CHKERRQ(ierr);
 
   /*    Get Some additional data about the mesh mainly for printing */
   ierr = DMPlexGetVertexNumbering(dm, &globalVertNumIS);CHKERRQ(ierr);
