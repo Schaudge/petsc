@@ -5,9 +5,12 @@ export PETSC_DIR=$petsc_dir
 export PETSC_ARCH=$petsc_arch
 rm -rf build
 mkdir build
+cd build
 
-petsc_testrun 'cmake ..' cmake_config.out cmake_config.err "${label}" ""
+petsc_testrun 'cmake ..' cmake_config.out cmake_config.err "config-${label}" ""
 
-petsc_testrun 'make'  cmake_make.out cmake_make.err "${label}_make" ""
+petsc_testrun 'make'  cmake_make.out cmake_make.err "make-${label}" ""
+
+petsc_testrun "${mpiexec} -n ${nsize} ex1 ${args}" ${testname}.out ${testname}.err "${label}" ""
 
 # Below this line will be/is added lines from config/example_template.py
