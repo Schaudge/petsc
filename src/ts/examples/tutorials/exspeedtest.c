@@ -126,7 +126,7 @@ PetscErrorCode ThrowItInTheBin(MPI_Comm comm, PetscScalar local, PetscInt root, 
 static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partitioning)
 {
   PetscErrorCode ierr;
-  PetscInt       n,N,p,rstart,rend,*color,col,x,y,z,i,subcubes;
+  PetscInt       n,N,p,rstart,rend,*color,col,x,y,z,i;
   PetscMPIInt    size, rank;
 
   PetscFunctionBegin;
@@ -145,7 +145,6 @@ static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partiti
     ierr = PetscMalloc1(rend-rstart, &color);CHKERRQ(ierr);
   /* for (int cell=rstart; cell<rend; cell++) { color[cell-rstart] = ((cell%n) < (n/2)) + 2 * ((cell/n) <x (n/2)); } */
   col = n/p;
-  subcubes = p/2;
   i = 0;
   if (rank) {
     n = 0;
@@ -632,7 +631,7 @@ int main(int argc, char **argv)
     IS                    processRanks;
     const PetscMPIInt     *RootRanks, *LeafRanks;
     PetscMPIInt           size_in, size_out, size_total;
-    PetscInt              nRanks, nRootRanks, nLeafRanks, iMin = PETSC_MAX_INT, rMin = PETSC_MAX_INT, iMax = 0, rMax = 0, iMinRank;
+    PetscInt              nRanks, nRootRanks, nLeafRanks, iMin = PETSC_MAX_INT, rMin = PETSC_MAX_INT, iMax = 0, rMax = 0;
     const PetscInt        *ioffset, *roffset;
     PetscInt              *iDiffs, *rDiffs;
 
@@ -664,10 +663,10 @@ int main(int argc, char **argv)
       iMax = PetscMax(iMax, iDiffs[i]);
     }
     ierr = PetscPrintf(comm, "BEGIN NEIGHBOR ROOT RANKS\n");CHKERRQ(ierr);
-    ierr = PetscIntView(nRootRanks, RootRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscIntView(nRootRanks,(const PetscInt *) RootRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "END NEIGHBOR ROOT RANKS\n");CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "BEGIN NEIGHBOR LEAF RANKS\n");CHKERRQ(ierr);
-    ierr = PetscIntView(nLeafRanks, LeafRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscIntView(nLeafRanks,(const PetscInt *) LeafRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "END NEIGHBOR LEAF RANKS\n");CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "BEGIN DIFF ROOT RANKS\n");CHKERRQ(ierr);
