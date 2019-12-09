@@ -3,9 +3,9 @@
 #BSUB -P CSC314
 #BSUB -W 1:00
 #BSUB -alloc_flags gpumps
-#BSUB -J petsc_comm_ops_cube_64
+#BSUB -J petsc_comm_ops_32
 
-export PETSC_ARCH=64-arch-olcf-summit-opt;
+export PETSC_ARCH=32-arch-olcf-summit-opt;
 echo "PETSC_ARCH=${PETSC_ARCH}";
 echo "Start";
 echo "-n Number of resource sets";
@@ -19,7 +19,7 @@ echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
 echo "+++                     DEBUG VERSION                     +++";
 echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
 
-CLn=1;
+CLn=6;
 CLc=7;
 CLg=1;
 CLa=1;
@@ -30,7 +30,7 @@ nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
 
 echo "Creating Directories";
 now=$(date +"%F_%H_%M_%S");
-dirname="DEBUG_cube_64_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+dirname="DEBUG_32_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
 mkdir -p ./$dirname;
 filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt";
 filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
@@ -81,9 +81,9 @@ do
     for deg in 1 2 4 8 16
     do
         dim=3;
-        nfx=$((16*$nodesReq));
-        nfy=$((16*$nodesReq));
-        nfz=$((16*$nodesReq));
+        nfx=48;
+        nfy=64;
+        nfz=64;
         nfaces=$nfx,$nfy,$nfz;
         cells=$(($nfx*$nfy*$nfz));
         ranks=$(($nodesReq*$CLa*$CLn));
@@ -100,7 +100,7 @@ do
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources_cube_64.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest64 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -petscpartitioner_type matpartitioning -mat_partitioning_type cube -periodic
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources_32.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest32 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
@@ -113,8 +113,8 @@ echo "--------------------------- Successful exit! ---------------------------">
 trap finish EXIT
 function finish {
     echo "moving things";
-    mv ./resources_cube_64.${LSB_JOBID} ./${dirname};
-    mv ./petsc_comm_ops_cube_64.${LSB_JOBID} ./${dirname};
+    mv ./resources.${LSB_JOBID} ./${dirname};
+    mv ./petsc_comm_ops.${LSB_JOBID} ./${dirname};
     echo "done";
     echo "grepping...";
     grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT;
