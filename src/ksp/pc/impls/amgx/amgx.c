@@ -25,12 +25,11 @@ static PetscInt s_count = 0;
 PetscErrorCode PCReset_AMGX(PC pc)
 {
   PC_AMGX        *amgx = (PC_AMGX*)pc->data;
-
   PetscFunctionBegin;
-  AMGX_solver_destroy(amgx->AmgXsolver);
-  AMGX_matrix_destroy(amgx->AmgXA);
-  AMGX_vector_destroy(amgx->AmgXP);
-  AMGX_vector_destroy(amgx->AmgXRHS);
+  err = AMGX_solver_destroy(amgx->AmgXsolver);
+  err = AMGX_matrix_destroy(amgx->AmgXA);
+  err = AMGX_vector_destroy(amgx->AmgXP);
+  err = AMGX_vector_destroy(amgx->AmgXRHS);
   PetscFunctionReturn(0);
 }
 
