@@ -176,6 +176,7 @@ int main(int argc,char **argv)
       output_file: output/ex1_1.out
 
    test:
+      requires: cmake
       suffix: cmake_build
       localrunfiles: CMakeLists.txt ex1.c
       testscript: cmake_build.sh.in
