@@ -20,6 +20,7 @@ typedef struct {
   char           filename[2048];    /* The optional mesh file */
   char           bar[19];
   VecType	 ctype;
+  DMBoundaryType periodicity[3];
 } AppCtx;
 
 /* ADDITIONAL FUNCTIONS */
@@ -176,7 +177,8 @@ PetscErrorCode MatPartitioningCreate_Cube(MatPartitioning part)
 /* GENERAL PREPROCESSING */
 static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 {
-  PetscErrorCode        ierr;
+  PetscInt        bd;
+  PetscErrorCode  ierr;
 
   PetscFunctionBeginUser;
   options->simplex              = PETSC_FALSE;
@@ -190,6 +192,9 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->meshout		= PETSC_FALSE;
   options->balance              = PETSC_FALSE;
   options->periodic             = PETSC_FALSE;
+  options->periodicity[0]       = DM_BOUNDARY_NONE;
+  options->periodicity[1]       = DM_BOUNDARY_NONE;
+  options->periodicity[2]       = DM_BOUNDARY_NONE;
   options->filename[0]          = '\0';
   options->dim                  = 2;
   options->numFields            = 1;
@@ -221,8 +226,22 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsGetInt(NULL, NULL, "-vec_size_local", &options->VSL, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetInt(NULL, NULL, "-vec_size_global", &options->VSG, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-periodic", "Periodic Boundary Conditions", "", options->periodic, &options->periodic, NULL);CHKERRQ(ierr);
+    bd = options->periodicity[0];
+    ierr = PetscOptionsEList("-x_periodic", "Periodic Boundary Conditions X", "", DMBoundaryTypes, 5, DMBoundaryTypes[options->periodicity[0]], &bd, NULL);CHKERRQ(ierr);
+    options->periodicity[0] = (DMBoundaryType) bd;
+    bd = options->periodicity[1];
+    ierr = PetscOptionsEList("-y_periodic", "Periodic Boundary Conditions Y", "", DMBoundaryTypes, 5, DMBoundaryTypes[options->periodicity[1]], &bd, NULL);CHKERRQ(ierr);
+    options->periodicity[1] = (DMBoundaryType) bd;
+    bd = options->periodicity[2];
+    ierr = PetscOptionsEList("-z_periodic", "Periodic Boundary Conditions Z", "", DMBoundaryTypes, 5, DMBoundaryTypes[options->periodicity[2]], &bd, NULL);CHKERRQ(ierr);
+    options->periodicity[2] = (DMBoundaryType) bd;
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  if (options->periodic) {
+    options->periodicity[0] = (DMBoundaryType) DM_BOUNDARY_PERIODIC;
+    options->periodicity[1] = (DMBoundaryType) DM_BOUNDARY_PERIODIC;
+    options->periodicity[2] = (DMBoundaryType) DM_BOUNDARY_PERIODIC;
+  }
   if (!options->VSG) {
     options->VSG = PETSC_DETERMINE;
     ierr = PetscPrintf(comm, "DUMMY VEC GLOBAL SIZE PETSC_DETERMINE\n");CHKERRQ(ierr);
@@ -232,11 +251,11 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 
 static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
-  PetscErrorCode  ierr;
-  DM              dmDist;
-  const char      *filename = user->filename;
-  PetscInt        dim = user->dim, overlap = user->overlap, i;
-  const DMBoundaryType  btype[3] = {DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC};
+  PetscErrorCode    ierr;
+  DM                dmDist = NULL;
+  const char        *filename = user->filename;
+  PetscInt          dim = user->dim, overlap = user->overlap, i;
+  PetscPartitioner  part;
 
   PetscFunctionBeginUser;
   ierr = MatPartitioningRegister("cube", MatPartitioningCreate_Cube);CHKERRQ(ierr);
@@ -257,14 +276,16 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogEventRegister("CREATE Box Mesh", 0, &user->eventCREATE);CHKERRQ(ierr);
     ierr = PetscLogStagePush(user->stageCREATE);CHKERRQ(ierr);
     ierr = PetscLogEventBegin(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
-    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL, user->periodic ? btype : NULL, user->interpolate, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL,(const DMBoundaryType *) user->periodicity, user->interpolate, dm);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, "Generated_Box_Mesh");CHKERRQ(ierr);
   }
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMGetDimension(*dm, &user->dim);CHKERRQ(ierr);
   dim = user->dim;
+  ierr = DMPlexGetPartitioner(*dm, &part);CHKERRQ(ierr);
+  ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
+  ierr = DMPlexSetPartitioner(*dm, part);CHKERRQ(ierr);
   if (!user->fileflg) {
     DM          dmf;
     PetscInt    level = user->level;
@@ -335,7 +356,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
   }
   if (user->interpolate) {
-    DM  dmInterp;
+    DM  dmInterp = NULL;
     ierr = DMPlexInterpolate(*dm, &dmInterp);CHKERRQ(ierr);
     if (dmInterp) {
       ierr = DMDestroy(dm);CHKERRQ(ierr);
@@ -637,7 +658,7 @@ int main(int argc, char **argv)
     PetscMPIInt           size_in, size_out, size_total;
     PetscInt              nRanks, nRootRanks, nLeafRanks, iMin = PETSC_MAX_INT, rMin = PETSC_MAX_INT, iMax = 0, rMax = 0;
     const PetscInt        *ioffset, *roffset;
-    PetscInt              *iDiffs, *rDiffs;
+    PetscInt              *iDiffs, *rDiffs, *RootRanks64, *LeafRanks64;
 
     ierr = DMGetPointSF(dm, &pointSF);CHKERRQ(ierr);
     ierr = DMPlexCreateProcessSF(dm, pointSF, &processRanks, &processSF);CHKERRQ(ierr);
@@ -656,21 +677,24 @@ int main(int argc, char **argv)
     ierr = PetscSFGetLeafRanks(sectionSF, &nLeafRanks, &LeafRanks, &ioffset, NULL);CHKERRQ(ierr);
     nRanks = nRootRanks + nLeafRanks;
     ierr = PetscMalloc2(nRootRanks, &rDiffs, nLeafRanks, &iDiffs);CHKERRQ(ierr);
+    ierr = PetscMalloc2(nRootRanks, &RootRanks64, nLeafRanks, &LeafRanks64);CHKERRQ(ierr);
     for (i = 0; i < nRootRanks; ++i) {
       rDiffs[i] = PetscAbsInt(roffset[i+1] - roffset[i]);
       rMin = PetscMin(rMin, rDiffs[i]);
       rMax = PetscMax(rMax, rDiffs[i]);
+      RootRanks64[i] = (PetscInt) RootRanks[i];
     }
     for (i = 0; i < nLeafRanks; ++i) {
       iDiffs[i] = PetscAbsInt(ioffset[i+1] - ioffset[i]);
       iMin = PetscMin(iMin, iDiffs[i]);
       iMax = PetscMax(iMax, iDiffs[i]);
+      LeafRanks64[i] = (PetscInt) LeafRanks[i];
     }
     ierr = PetscPrintf(comm, "BEGIN NEIGHBOR ROOT RANKS\n");CHKERRQ(ierr);
-    ierr = PetscIntView(nRootRanks,(const PetscInt *) RootRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscIntView(nRootRanks, RootRanks64, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "END NEIGHBOR ROOT RANKS\n");CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "BEGIN NEIGHBOR LEAF RANKS\n");CHKERRQ(ierr);
-    ierr = PetscIntView(nLeafRanks,(const PetscInt *) LeafRanks, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscIntView(nLeafRanks, LeafRanks64, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "END NEIGHBOR LEAF RANKS\n");CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "\n");CHKERRQ(ierr);
     ierr = PetscPrintf(comm, "BEGIN DIFF ROOT RANKS\n");CHKERRQ(ierr);
@@ -689,6 +713,7 @@ int main(int argc, char **argv)
     ierr = ThrowItInTheBin(comm,(PetscScalar) rMin, 0, "MIN ROFFSET NUM MESSAGES");CHKERRQ(ierr);
     ierr = ThrowItInTheBin(comm,(PetscScalar) rMax, 0, "MAX ROFFSET NUM MESSAGES");CHKERRQ(ierr);
     ierr = PetscFree2(rDiffs, iDiffs);CHKERRQ(ierr);
+    ierr = PetscFree2(RootRanks64, LeafRanks64);CHKERRQ(ierr);
     ierr = PetscSFDestroy(&processSF);CHKERRQ(ierr);
     ierr = ISDestroy(&processRanks);CHKERRQ(ierr);
   }
