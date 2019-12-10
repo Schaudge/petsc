@@ -5,11 +5,16 @@ clc ;
 datadir = '~/OLCF_RUN_DATA/';
 origdir = cd(datadir);
 folders = dir;
-[~, reindex] = sort(str2double(regexp({folders.name},'\d+','match','once')));
-folders = folders(reindex);
 numfolder = length(folders);
+i = 1;
 
-for k=1:numfolder-4
+for k=1:numfolder
+    if (folders(k).name(1) == '.')
+        continue
+    end
+    if (~(folders(k).name(1:5) == 'DEBUG'))
+        continue
+    end
     curdirname = folders(k).name;
     cd(curdirname);
     foAF = dir('filtoutADDVAL*');
@@ -17,9 +22,8 @@ for k=1:numfolder-4
     npF  = dir('nprocess*');
     psAF = dir('packsizeADDVAL*');
     psIF = dir('packsizeINSERT*');
-    cprF = dir('cellprank*');
-    vnF  = dir('vertnum*');
     cnF  = dir('cellnum*');
+    nnF  = dir('nodenum*');
     oF   = dir('overlap*');
     vdTF = dir('vecdottime*');
     vdFF = dir('vecdotflops*');
@@ -29,81 +33,93 @@ for k=1:numfolder-4
     
     filtoutADDDat(k) = fopen(fullfile(foAF.name),'r');
     formatspec = '%f';
-    commADDTime(k,:) = cell2mat(textscan(filtoutADDDat(k), formatspec));
+    commADDTime(i,:) = cell2mat(textscan(filtoutADDDat(k), formatspec));
     fclose(filtoutADDDat(k));
     
     filtoutINSERTDat(k) = fopen(fullfile(foIF.name),'r');
     %formatspec = '%10s %*s';
     formatspec = '%f';
-    commINSERTTime(k,:) = cell2mat(textscan(filtoutINSERTDat(k), formatspec));
+    commINSERTTime(i,:) = cell2mat(textscan(filtoutINSERTDat(k), formatspec));
     fclose(filtoutINSERTDat(k));
     
     nProcessDat(k) = fopen(fullfile(npF.name),'r');
     formatspec = '%f';
-    NRanks(k,:) = cell2mat(textscan(nProcessDat(k), formatspec));
+    NRanks(i,:) = cell2mat(textscan(nProcessDat(k), formatspec));
     fclose(nProcessDat(k));
     
     packSizeADDDat(k) = fopen(fullfile(psAF.name),'r');
     formatspec = '%f';
-    MPIPackSizeADD(k,:) = cell2mat(textscan(packSizeADDDat(k), formatspec));
+    MPIPackSizeADD(i,:) = cell2mat(textscan(packSizeADDDat(k), formatspec));
     fclose(packSizeADDDat(k));
     
     packSizeINSERTDat(k) = fopen(fullfile(psIF.name),'r');
     formatspec = '%f';
-    MPIPackSizeINSERT(k,:) = cell2mat(textscan(packSizeINSERTDat(k), formatspec));
+    MPIPackSizeINSERT(i,:) = cell2mat(textscan(packSizeINSERTDat(k), formatspec));
     fclose(packSizeINSERTDat(k));
     
-    cellPrankDat(k) = fopen(fullfile(cprF.name),'r');
+    NodeNumDat(k) = fopen(fullfile(nnF.name),'r');
     formatspec = '%f';
-    CellPRank(k,:) = cell2mat(textscan(cellPrankDat(k), formatspec));
-    fclose(cellPrankDat(k));
-    
-    VertNumDat(k) = fopen(fullfile(vnF.name),'r');
-    formatspec = '%f';
-    VertNum(k,:) = cell2mat(textscan(VertNumDat(k), formatspec));
-    fclose(VertNumDat(k));
+    NodeNum(i,:) = cell2mat(textscan(NodeNumDat(k), formatspec));
+    fclose(NodeNumDat(k));
     
     CellNumDat(k) = fopen(fullfile(cnF.name),'r');
     formatspec = '%f';
-    CellNum(k,:) = cell2mat(textscan(CellNumDat(k), formatspec));
+    CellNum(i,:) = cell2mat(textscan(CellNumDat(k), formatspec));
     fclose(CellNumDat(k));
     
     OverlapDat(k) = fopen(fullfile(oF.name),'r');
     formatspec = '%f';
-    Overlap(k,:) = cell2mat(textscan(OverlapDat(k), formatspec));
+    Overlap(i,:) = cell2mat(textscan(OverlapDat(k), formatspec));
     fclose(OverlapDat(k));
     
     VecDotTDat(k) = fopen(fullfile(vdTF.name),'r');
     formatspec = '%f';
-    VecDotT(k,:) = cell2mat(textscan(VecDotTDat(k), formatspec));
+    VecDotT(i,:) = cell2mat(textscan(VecDotTDat(k), formatspec));
     fclose(VecDotTDat(k));
     
     VecDotFlopsDat(k) = fopen(fullfile(vdFF.name),'r');
     formatspec = '%f';
-    VecDotFlops(k,:) = cell2mat(textscan(VecDotFlopsDat(k), formatspec));
+    VecDotFlops(i,:) = cell2mat(textscan(VecDotFlopsDat(k), formatspec));
     fclose(VecDotFlopsDat(k));
     
     FEOrderDat(k) = fopen(fullfile(feoF.name),'r');
     formatspec = '%f';
-    FEOrder(k,:) = cell2mat(textscan(FEOrderDat(k), formatspec));
+    FEOrder(i,:) = cell2mat(textscan(FEOrderDat(k), formatspec));
     fclose(FEOrderDat(k));
     
     NumCompDat(k) = fopen(fullfile(cpF.name),'r');
     formatspec = '%f';
-    NumComp(k,:) = cell2mat(textscan(NumCompDat(k), formatspec));
+    NumComp(i,:) = cell2mat(textscan(NumCompDat(k), formatspec));
     fclose(NumCompDat(k));
     
     GVSDat(k) = fopen(fullfile(gvsF.name),'r');
     formatspec = '%f';
-    GVS(k,:) = cell2mat(textscan(GVSDat(k), formatspec));
+    GVS(i,:) = cell2mat(textscan(GVSDat(k), formatspec));
     fclose(GVSDat(k));
     
-    cd(folders(k).folder);
+    i = i + 1;
+    cd(folders(i).folder);
 end
 clear filtoutADDDAt filtoutINSERTDat nProcessDat packSizeADDDat packSizeINSERTDat
 clear cellPrankDat VertNumDat CellNumDat OverlapDat VecDotTDat VecDotFlopsDat
 clear FEOrderDat NumCompDat GVSDat foAF foIF npF psAF psIF cprF vnF cnF oF vdTF
 clear vdFF feoF cpF gvsF formatspec reindex numfoler datadir rawADDTimings rawINSERTTimings
+
+[~, idx] = sort(NRanks(:,1));
+
+commADDTime = commADDTime(idx,:);
+commINSERTTime = commINSERTTime(idx,:);
+NRanks = NRanks(idx,:);
+MPIPackSizeADD = MPIPackSizeADD(idx,:);
+MPIPackSizeINSERT = MPIPackSizeINSERT(idx,:);
+NodeNum = NodeNum(idx,:);
+CellNum = CellNum(idx,:);
+Overlap = Overlap(idx,:);
+VecDotT = VecDotT(idx,:);
+VecDotFlops = VecDotFlops(idx,:);
+FEOrder = FEOrder(idx,:);
+NumComp = NumComp(idx,:);
+GVS = GVS(idx,:);
 
 [numarr, arrlengths] = size(commADDTime);
 commADDTime = commADDTime/100;
@@ -111,7 +127,7 @@ commINSERTTime = commINSERTTime/100;
 VecDotT = VecDotT/100;
 MPIPackSizeADD = MPIPackSizeADD/100;
 MPIPackSizeINSERT = MPIPackSizeINSERT/100;
-Psize = VertNum(1)*NumComp(1);
+Psize = NodeNum(1)*NumComp(1);
 
 
 
@@ -146,7 +162,7 @@ axbot = gca;
 set(axtop,'linewidth',1.2);
 %set(axbot,'yscale','log');
 set(axbot,'linewidth',1.2);
-for entry=6:numarr+2
+for entry=1:numarr
     axes(axtop);
     hold on;
 %     plot(FEOrder(entry,1:5),commADDTime(entry,1:5)./(double(GVS(entry,1:5))), 'x-',...
@@ -169,9 +185,9 @@ plot(NRanks(:,1),(commADDTime(:,entry).*NRanks(:,1))./MPIPackSizeADD(:,entry), '
 %         'MarkerSize', 10, 'DisplayName',...
 %         ['ADD RANKS = ', num2str(6*(2^(entry-1)))],...
 %         'Color', cmap(entry,:));
-plot(NRanks(:,1),(commADDTime(:,entry-5).*NRanks(:,1))./MPIPackSizeADD(:,entry-5), 'x-',...
+plot(NRanks(:,1),(commADDTime(:,entry).*NRanks(:,1))./MPIPackSizeADD(:,entry), 'x-',...
     'MarkerSize', 10, 'DisplayName',...
-    ['ADD RANKS = ', num2str(6*(2^(entry-1-5)))]);
+    ['ADD RANKS = ', num2str(6*(2^(entry-1+5)))]);
 %     plot(FEOrder(entry,1:5),commINSERTTime(entry,1:5)./(double(GVS(entry,1:5))), '.-',...
 %         'MarkerSize', 10, 'DisplayName',...
 %         ['INS RANKS = ' , num2str(6*(2^(entry-1)))],...

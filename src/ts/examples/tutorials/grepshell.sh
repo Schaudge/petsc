@@ -14,7 +14,6 @@ do
         filtINSERT="${filepath}/filtoutINSERT_${ID}.txt";
         filtADDVAL="${filepath}/filtoutADDVAL_${ID}.txt";
         nprocess="${filepath}/nprocess_${ID}.txt";
-        cellprank="${filepath}/cellprank_${ID}.txt"
         packsizeINSERT="${filepath}/packsizeINSERT_${ID}.txt";
         packsizeADDVAL="${filepath}/packsizeADDVAL_${ID}.txt";
         VecDotTime="${filepath}/vecdottime_${ID}.txt";
@@ -32,7 +31,6 @@ do
             case $yne in
                 Yes ) > $filtINSERT;
                       > $filtADDVAL;
-                      > $cellprank;
                       > $packsizeINSERT;
                       > $packsizeADDVAL;
                       > $nprocess;
@@ -49,7 +47,6 @@ do
                       break;;
                 No ) "GREPPED">> $filtINSERT;
                      "GREPPED">> $filtADDVAL;
-                     "GREPPED">> $cellprank;
                      "GREPPED">> $packsizeINSERT;
                      "GREPPED">> $packsizeADDVAL;
                      "GREPPED">> $nprocess;
@@ -75,7 +72,7 @@ do
     echo "grepping...";
     grep "CommINSERT" --line-buffered $logfile | awk '{print $4}' >> $filtINSERT;
     grep "CommADDVAL" --line-buffered $logfile | awk '{print $4}' >> $filtADDVAL;
-    grep "./exspeedtest on a" --line-buffered $logfile | awk '{print $8}' >> $nprocess;
+    grep "/exspeedtest" --line-buffered $logfile | awk '{print $8}' >> $nprocess;
     grep "CommINSERT" --line-buffered $logfile | awk '{print $9}' >> $packsizeINSERT;
     grep "CommADDVAL" --line-buffered $logfile | awk '{print $9}' >> $packsizeADDVAL;
     grep "CommGlblVecDot" --line-buffered $logfile | awk '{print $4}' >> $VecDotTime;
@@ -87,6 +84,6 @@ do
     grep "overlap" --line-buffered $logfile | sed 's:.*>::' >> $Overlap;
     grep "petscspace_degree" --line-buffered $logfile | awk '{print $2}' >> $Order;
     grep "num_fields" --line-buffered $logfile | awk '{print $2}' >> $CompNum;
-    grep "Global Vector Size" --line-buffered $logfile | awk '{print $4}' >> $GVS;
+    grep "GLOBAL Vector GLOBAL Size" --line-buffered $logfile | awk '{print $5}' >> $GVS;
     echo "done";
 done
