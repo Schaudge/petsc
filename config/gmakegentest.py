@@ -436,8 +436,19 @@ class generateExamples(Petsc):
 
     # testscript  -- all commands just come from this
     if subst['testscript']:
-      fh=open(os.path.join(root,subst['testscript']),"r")
-      cmdLines=fh.read()
+      cmdLines='' 
+      for cmdinfile in subst['testscript']:
+        if cmdinfile.startswith('tap:'):
+          cmd=cmdinfile.lstrip('tap:').strip()
+          cmdsubst=subst.copy()
+          cmdsubst['command']=cmd
+          if not 'mpi' in cmd:
+            lbl=cmd.strip().split()[0]
+            cmdsubst['label_suffix']='-'+lbl
+            cmdsubst['redirect_file']=lbl+'-'+subst['redirect_file']
+          cmdLines += '\n'+cmdindnt+self._substVars(cmdsubst,example_template.commandtest)+'\n'
+        else:
+          cmdLines += cmdindnt+cmdinfile+'\n'
       return cmdLines
 
     # MPI is the default -- but we have a few odd commands

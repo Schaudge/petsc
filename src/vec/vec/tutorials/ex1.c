@@ -179,8 +179,16 @@ int main(int argc,char **argv)
       requires: cmake
       suffix: cmake_build
       localrunfiles: CMakeLists.txt ex1.c
-      testscript: cmake_build.sh.in
       output_file: output/ex1_1.out
+      testscript: 
+      - export PETSC_DIR=$petsc_dir
+      - export PETSC_ARCH=$petsc_arch
+      - rm -rf build
+      - mkdir build
+      - cd build
+      - tap: cmake ..
+      - tap: make 
+      - tap: ${mpiexec} -n ${nsize} ex1 ${args}
 
    test:
       suffix: 2_cuda

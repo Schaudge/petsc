@@ -351,8 +351,15 @@ def parseTest(testStr,srcfile,verbosity):
     comment=("" if len(ln.split("#"))>0 else " ".join(ln.split("#")[1:]).strip())
     if comment: comments.append(comment)
     if not line.strip(): continue
+    if line.startswith('-'):
+        val=line.lstrip('-').strip()
+        if isinstance(subdict[var],list):
+          subdict[var].append(val)
+        else:
+          subdict[var]=[val]
+        continue
     lsplit=line.split(':')
-    if len(lsplit)==0: raise Exception("Missing : in line: "+line)
+    if len(lsplit)==1: raise Exception("Missing : in line: "+line)
     indentcount=lsplit[0].count(" ")
     var=lsplit[0].strip()
     val=line[line.find(':')+1:].strip()
@@ -504,6 +511,7 @@ def printExParseDict(rDict):
   This is useful for debugging
   """
   indent="   "
+  print(rDict)
   for sfile in rDict:
     print(sfile)
     sortkeys=list(rDict[sfile].keys())
@@ -517,7 +525,7 @@ def printExParseDict(rDict):
         print(indent*2+rDict[sfile][runex])
       else:
         for var in rDict[sfile][runex]:
-          if var.startswith("test"): continue
+          if var.startswith("test") and not var=='testscript': continue
           print(indent*2+var+": "+str(rDict[sfile][runex][var]))
         if 'subtests' in rDict[sfile][runex]:
           for var in rDict[sfile][runex]['subtests']:
