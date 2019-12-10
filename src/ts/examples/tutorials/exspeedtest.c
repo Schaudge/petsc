@@ -276,7 +276,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogEventRegister("CREATE Box Mesh", 0, &user->eventCREATE);CHKERRQ(ierr);
     ierr = PetscLogStagePush(user->stageCREATE);CHKERRQ(ierr);
     ierr = PetscLogEventBegin(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
-    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL,(const DMBoundaryType *) user->periodicity, user->interpolate, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL, user->periodicity, user->interpolate, dm);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, "Generated_Box_Mesh");CHKERRQ(ierr);
@@ -679,13 +679,13 @@ int main(int argc, char **argv)
     ierr = PetscMalloc2(nRootRanks, &rDiffs, nLeafRanks, &iDiffs);CHKERRQ(ierr);
     ierr = PetscMalloc2(nRootRanks, &RootRanks64, nLeafRanks, &LeafRanks64);CHKERRQ(ierr);
     for (i = 0; i < nRootRanks; ++i) {
-      rDiffs[i] = PetscAbsInt(roffset[i+1] - roffset[i]);
+      rDiffs[i] = roffset[i+1] - roffset[i];
       rMin = PetscMin(rMin, rDiffs[i]);
       rMax = PetscMax(rMax, rDiffs[i]);
       RootRanks64[i] = (PetscInt) RootRanks[i];
     }
     for (i = 0; i < nLeafRanks; ++i) {
-      iDiffs[i] = PetscAbsInt(ioffset[i+1] - ioffset[i]);
+      iDiffs[i] = ioffset[i+1] - ioffset[i];
       iMin = PetscMin(iMin, iDiffs[i]);
       iMax = PetscMax(iMax, iDiffs[i]);
       LeafRanks64[i] = (PetscInt) LeafRanks[i];

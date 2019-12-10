@@ -50,6 +50,7 @@ Order="./${dirname}/feorder_${LSB_JOBID}.txt";
 CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
 GVS="./${dirname}/globvecsize_${LSB_JOBID}.txt"
 runError="./${dirname}/runError_${LSB_JOBID}.txt";
+jsrunMapping="./${dirname}/jsrunMapping_${LSB_JOBID}.txt";
 
 echo "Resetting full log and filtered outputs...";
 >./$filtINSERT;
@@ -70,10 +71,17 @@ echo "Resetting full log and filtered outputs...";
 >./$CompNum;
 >./$GVS;
 >./$runError;
-echo "done";
+>./$jsrunMapping;
+echo "Done";
+
+echo "Running jsrun mapping generator";
+set -x
+jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -e collected ./hello_jsrun | sort -o ${jsrunMapping}
+set +x
+echo "Done";
 
 runcount=0;
-echo "looping...";
+echo "Looping...";
 echo "-----------";
 for NC in 1 3
 do
@@ -113,8 +121,8 @@ echo "--------------------------- Successful exit! ---------------------------">
 trap finish EXIT
 function finish {
     echo "moving things";
-    mv ./resources.${LSB_JOBID} ./${dirname};
-    mv ./petsc_comm_ops.${LSB_JOBID} ./${dirname};
+    mv ./resources_32.${LSB_JOBID} ./${dirname};
+    mv ./petsc_comm_ops_32.${LSB_JOBID} ./${dirname};
     echo "done";
     echo "grepping...";
     grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT;
