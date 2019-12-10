@@ -26,10 +26,10 @@ PetscErrorCode PCReset_AMGX(PC pc)
 {
   PC_AMGX        *amgx = (PC_AMGX*)pc->data;
   PetscFunctionBegin;
-  err = AMGX_solver_destroy(amgx->AmgXsolver);
-  err = AMGX_matrix_destroy(amgx->AmgXA);
-  err = AMGX_vector_destroy(amgx->AmgXP);
-  err = AMGX_vector_destroy(amgx->AmgXRHS);
+  AMGX_solver_destroy(amgx->AmgXsolver);
+  AMGX_matrix_destroy(amgx->AmgXA);
+  AMGX_vector_destroy(amgx->AmgXP);
+  AMGX_vector_destroy(amgx->AmgXRHS);
   PetscFunctionReturn(0);
 }
 
@@ -129,8 +129,9 @@ static PetscErrorCode PCSetUp_AMGX(PC pc)
     PetscScalar  *data;
     AMGX_distribution_handle dist;
     /* to calculate the partition offsets and pass those into the API call instead of creating a full partition vector. */
-    PetscInt                *partition_offsets;
-    int                      nglobal32,i,n32=nLocalRows,bs32=bs;
+    int64_t    *partition_offsets64;
+    PetscInt   *partition_offsets;
+    int         nglobal32,i,n32=nLocalRows,bs32=bs;
     /* get raw matrix data */
     {
       Mat            localA = 0;
@@ -167,21 +168,23 @@ static PetscErrorCode PCSetUp_AMGX(PC pc)
     /* AMGX_SAFE_CALL(AMGX_pin_memory(rows, (n32 + 1)*sizeof(int))); */
     /* AMGX_SAFE_CALL(AMGX_pin_memory(data, nnz * sizeof(PetscScalar))); */ /* check that this has bs^2 */
     /* get offsets and upload */
-    ierr = PetscMalloc1(nranks+1,&partition_offsets);CHKERRQ(ierr);
+    ierr = PetscMalloc2(nranks+1,&partition_offsets,nranks+1,&partition_offsets64);CHKERRQ(ierr);
     partition_offsets[0] = 0; /* could use PetscLayoutGetRanges */
     ierr = MPI_Allgather(&nLocalRows,1,MPIU_INT,&partition_offsets[1],1,MPIU_INT,wcomm);CHKERRQ(ierr);
     for (i = 2; i <= nranks; i++) {
       partition_offsets[i] += partition_offsets[i-1];
+      partition_offsets64[i] = partition_offsets[i]; 
     }
+    partition_offsets64[0] = 0; partition_offsets64[1] = partition_offsets[1]; 
     nglobal32 = partition_offsets[nranks]; // last element always has global number of rows
     /* upload - this takes an int for nglobal (does it work for large sysetms ??) */
     AMGX_distribution_create(&dist, amgx->cfg);
-    AMGX_distribution_set_partition_data(dist, AMGX_DIST_PARTITION_OFFSETS, partition_offsets);
+    AMGX_distribution_set_partition_data(dist, AMGX_DIST_PARTITION_OFFSETS, partition_offsets64);
     AMGX_matrix_upload_distributed(amgx->AmgXA, nglobal32, n32, nnz,
                                    bs32, bs32, rows, cols, data,
                                    NULL, dist);
     AMGX_distribution_destroy(dist);
-    PetscFree(partition_offsets);
+    PetscFree2(partition_offsets,partition_offsets64);
     ierr = PetscFree3(cols, data, rows);CHKERRQ(ierr);
   }
   /* bind the matrix A to the solver */
