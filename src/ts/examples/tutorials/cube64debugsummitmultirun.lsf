@@ -50,6 +50,7 @@ Order="./${dirname}/feorder_${LSB_JOBID}.txt";
 CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
 GVS="./${dirname}/globvecsize_${LSB_JOBID}.txt"
 runError="./${dirname}/runError_${LSB_JOBID}.txt";
+jsrunMapping="./${dirname}/jsrunMapping_${LSB_JOBID}.txt";
 
 echo "Resetting full log and filtered outputs...";
 >./$filtINSERT;
@@ -70,6 +71,7 @@ echo "Resetting full log and filtered outputs...";
 >./$CompNum;
 >./$GVS;
 >./$runError;
+>./$jsrunMapping;
 echo "done";
 
 runcount=0;
@@ -97,6 +99,11 @@ do
         echo "current petsc space degree:    $deg";
         echo "local cache clear vec size:    $localVSize";
         echo "number of communications:      $maxcom";
+        echo "Running jsrun mapping generator";
+        set -x
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -e collected ./hello_jsrun | sort -o ${jsrunMapping} & sleep 2
+        set +x
+        echo "Done";
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
