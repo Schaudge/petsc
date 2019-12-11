@@ -188,8 +188,10 @@ int main(int argc,char **argv)
       - mkdir build
       - cd build
       - tap: cmake ..
-      - tap: make 
+      - tap: make VERBOSE=1
       - tap: ${mpiexec} -n ${nsize} ex1 ${args}
+      - cp -f *.err *.out ..
+      - cd ..
 
    test:
       suffix: 2_cuda
