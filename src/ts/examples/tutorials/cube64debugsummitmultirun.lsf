@@ -1,9 +1,13 @@
 #! /bin/bash
 
+suffix="_cube_64";
+resourcefile="resources${suffix}";
+stdoutfile="petsc_comm_ops${suffix}";
+
 #BSUB -P CSC314
 #BSUB -W 1:00
 #BSUB -alloc_flags gpumps
-#BSUB -J petsc_comm_ops_cube_64
+#BSUB -J ${stdoutfile}
 
 export PETSC_ARCH=64-arch-olcf-summit-opt;
 echo "PETSC_ARCH=${PETSC_ARCH}";
@@ -30,13 +34,12 @@ nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
 
 echo "Creating Directories";
 now=$(date +"%F_%H_%M_%S");
-dirname="DEBUG_cube_64_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+dirname="DEBUG${suffix}_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
 mkdir -p ./$dirname;
 filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt";
 filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
 nprocess="./${dirname}/nprocess_${LSB_JOBID}.txt";
 rawlog="./${dirname}/rawlog_${LSB_JOBID}.txt";
-cellprank="./${dirname}/cellprank_${LSB_JOBID}.txt";
 packsizeINSERT="./${dirname}/packsizeINSERT_${LSB_JOBID}.txt";
 packsizeADDVAL="./${dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
 VecDotTime="./${dirname}/vecdottime_${LSB_JOBID}.txt";
@@ -57,7 +60,6 @@ echo "Resetting full log and filtered outputs...";
 >./$filtADDVAL;
 >./$nprocess;
 >./$rawlog;
->./$cellprank;
 >./$packsizeINSERT;
 >./$packsizeADDVAL;
 >./$VecDotTime;
@@ -107,7 +109,7 @@ do
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S resources_cube_64.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest64 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -petscpartitioner_type matpartitioning -mat_partitioning_type cube -periodic
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest64 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -petscpartitioner_type matpartitioning -mat_partitioning_type cube -periodic
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
@@ -119,25 +121,10 @@ done
 echo "--------------------------- Successful exit! ---------------------------">>./$rawlog;
 trap finish EXIT
 function finish {
-    echo "moving things";
-    mv ./resources_cube_64.${LSB_JOBID} ./${dirname};
-    mv ./petsc_comm_ops_cube_64.${LSB_JOBID} ./${dirname};
+    echo "Moving ${resourcefile}.${LSB_JOBID}";
+    mv ./${resourcefile}.${LSB_JOBID} ./${dirname};
+    echo "Moving ${stdoutfile}.${LSB_JOBID}";
+    mv ./${stdoutfile}.${LSB_JOBID} ./${dirname};
     echo "done";
-    echo "grepping...";
-    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtINSERT;
-    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $4}' >> ./$filtADDVAL;
-    grep "./exspeedtest on a" --line-buffered ./$rawlog | awk '{print $8}' >> ./$nprocess;
-    grep "CommINSERT" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeINSERT;
-    grep "CommADDVAL" --line-buffered ./$rawlog | awk '{print $9}' >> ./$packsizeADDVAL;
-    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> ./$VecDotTime;
-    grep "CommGlblVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> ./$VecDotFlops;
-    grep "CommZEROVecDot" --line-buffered ./$rawlog | awk '{print $4}' >> $ZeroVecDotTime;
-    grep "CommZEROVecDot" --line-buffered ./$rawlog | awk '{print $6}' >> $ZeroVecDotFlops;
-    grep "Global Vertex Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$VertNum;
-    grep "Global Cell Num" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$CellNum;
-    grep "overlap" --line-buffered ./$rawlog | sed 's:.*>::' >> ./$Overlap;
-    grep "petscspace_degree" --line-buffered ./$rawlog | awk '{print $2}' >> $Order;
-    grep "num_fields" --line-buffered ./$rawlog | awk '{print $2}' >> $CompNum;
-    grep "Global Vector Size" --line-buffered ./$rawlog | awk '{print $4}' >> $GVS;
-    echo "done";
+    /bin/bash grepshell.sh -a ${rawlog};
 }
