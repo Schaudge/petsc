@@ -16,6 +16,10 @@ clear_files() {
     > $Order;
     > $CompNum;
     > $GVS;
+    > $SFPackINSERT;
+    > $SFUnPackINSERT;
+    > $SFPackADDVAL;
+    > $SFUnPackADDVAL;
 }
 
 append_files() {
@@ -34,6 +38,10 @@ append_files() {
     "GREPPED">> $Order;
     "GREPPED">> $CompNum;
     "GREPPED">> $GVS;
+    "GREPPED">> $SFPackINSERT;
+    "GREPPED">> $SFUnPackINSERT;
+    "GREPPED">> $SFPackADDVAL;
+    "GREPPED">> $SFUnPackADDVAL;
 }
 
 auto_flag=0;
@@ -75,6 +83,10 @@ do
         Order="${filepath}/feorder_${ID}.txt";
         CompNum="${filepath}/compnum_${ID}.txt";
         GVS="${filepath}/globvecsize_${ID}.txt";
+        SFPackINSERT="${filepath}/sfpackINSERT_${ID}.txt";
+        SFUnPackINSERT="${filepath}/sfunpackINSERT_${ID}.txt";
+        SFPackADDVAL="${filepath}/sfpackADDVAL_${ID}.txt";
+        SFUnPackADDVAL="${filepath}/sfunpackADDVAL_${ID}.txt";
         if [ "$auto_flag" -eq "0" ]; then
             echo "Do you wish to overwrite?";
             select yne in "Yes" "No" "Exit"; do
@@ -124,5 +136,13 @@ do
     grep "num_fields" --line-buffered $logfile | awk '{print $2}' >> $CompNum;
     echo "Populating ${GVS}";
     grep "GLOBAL Vector GLOBAL Size" --line-buffered $logfile | awk '{print $5}' >> $GVS;
+    echo "Populating ${SFPackINSERT}";
+    grep "CommINSERT" -B 5 --line-buffered $logfile | grep "SFPack" --line-buffered | awk '{printf ("%s\n",$4)}' >> $SFPackINSERT;
+    echo "Populating ${SFUnPackINSERT}";
+    grep "CommINSERT" -B 5 --line-buffered $logfile | grep "SFUnpack" --line-buffered | awk '{printf ("%s\n",$4)}' >> $SFUnPackINSERT;
+    echo "Populating ${SFPackADDVAL}";
+    grep "CommADDVAL" -B 5 --line-buffered $logfile | grep "SFPack" --line-buffered | awk '{printf ("%s\n",$4)}' >> $SFPackADDVAL;
+    echo "Populating ${SFUnPackADDVAL}";
+    grep "CommADDVAL" -B 5 --line-buffered $logfile | grep "SFUnpack" --line-buffered | awk '{printf ("%s\n",$4)}' >> $SFUnPackADDVAL;
     echo "=== Done ===";
 done
