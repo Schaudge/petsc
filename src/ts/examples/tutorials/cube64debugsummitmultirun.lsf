@@ -1,5 +1,9 @@
-
 #! /bin/bash
+
+#BSUB -P CSC314
+#BSUB -W 1:00
+#BSUB -alloc_flags gpumps
+#BSUB -J petsc_comm_ops_cube_64
 
 origdir=`pwd`;
 scratchdir=${MEMBERWORK}/csc314;
@@ -10,11 +14,6 @@ echo "Scratch Directory:  $scratchdir";
 suffix="_cube_64";
 resourcefile="resources${suffix}";
 stdoutfile="petsc_comm_ops${suffix}";
-
-#BSUB -P CSC314
-#BSUB -W 1:00
-#BSUB -alloc_flags gpumps
-#BSUB -J ${stdoutfile}
 
 export PETSC_ARCH=64-arch-olcf-summit-opt;
 echo "PETSC_ARCH=${PETSC_ARCH}";

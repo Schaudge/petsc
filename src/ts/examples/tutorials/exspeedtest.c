@@ -436,11 +436,13 @@ int main(int argc, char **argv)
   if (user.VTKdisp) {
     PetscViewer vtkviewerpart;
     Vec         partition;
-    char        dateStr[PETSC_MAX_PATH_LEN] = {"partition-map-generated-"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"}, meshName[PETSC_MAX_PATH_LEN] = {"\0"};
+    char        dateStr[PETSC_MAX_PATH_LEN] = {"partition_map_generated"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"}, meshName[PETSC_MAX_PATH_LEN] = {"\0"}, comm_size_string[PETSC_MAX_PATH_LEN] = {"\0"};
     size_t      stringlen;
 
+    ierr = PetscSNPrintf(comm_size_string, PETSC_MAX_PATH_LEN, "_%D_",(PetscInt) size);CHKERRQ(ierr);
     ierr = PetscStrlen(dateStr, &stringlen);CHKERRQ(ierr);
     ierr = PetscGetDate(rawdate, 20);CHKERRQ(ierr);
+    ierr = PetscStrcat(dateStr, comm_size_string);CHKERRQ(ierr);
     ierr = PetscStrcat(dateStr, rawdate+11);CHKERRQ(ierr);
     ierr = PetscStrcat(meshName, dateStr);CHKERRQ(ierr);
     ierr = PetscStrcat(meshName, ".vtu");CHKERRQ(ierr);
@@ -454,7 +456,8 @@ int main(int argc, char **argv)
     ierr = PetscViewerDestroy(&vtkviewerpart);CHKERRQ(ierr);
     ierr = VecDestroy(&partition);CHKERRQ(ierr);
 
-  } else if (user.meshout) {
+  }
+  if (user.meshout) {
     PetscViewer vtkviewermesh;
     char        meshName[PETSC_MAX_PATH_LEN] = {"\0"};
     if (user.fileflg) {
