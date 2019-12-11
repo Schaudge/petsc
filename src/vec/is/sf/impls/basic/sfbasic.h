@@ -171,7 +171,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack li
       p[1].idx  = rootloc+bas->ioffset[bas->ndiranks];
     }
   } else SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_PLIB,"SFAllgather etc should directly use rootdata instead of packing it");
-
+  p[0].count  = 0;
   ierr = PetscSFPackGetPack(link,link->rootmtype,&Pack);CHKERRQ(ierr);
   /* Only do packing when count != 0 so that we can avoid invoking empty CUDA kernels */
   for (i=0; i<2; i++) {if (p[i].count) {ierr = (*Pack)(p[i].count,p[i].idx,link,p[i].opt,p[i].data,p[i].buf);CHKERRQ(ierr);}}
@@ -238,7 +238,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack li
       p[1].idx  = leafloc+sf->roffset[sf->ndranks];
     }
   } else SETERRQ(PetscObjectComm((PetscObject)sf),PETSC_ERR_PLIB,"SFAllgather etc should directly use leafdata instead of packing it");
-
+  p[0].count  = 0;
   ierr = PetscSFPackGetPack(link,link->leafmtype,&Pack);CHKERRQ(ierr);
   for (i=0; i<2; i++) {if (p[i].count) {ierr = (*Pack)(p[i].count,p[i].idx,link,p[i].opt,p[i].data,p[i].buf);CHKERRQ(ierr);}}
 #if defined(PETSC_HAVE_CUDA)
@@ -315,7 +315,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpRootData(PetscSF sf,PetscSF
     p[1].atomic = PETSC_FALSE;
     p[1].data   = rootdata;
   }
-
+  p[0].count  = 0;
   for (i=0; i<2; i++) {
     if (p[i].count) {
       ierr = PetscSFPackGetUnpackAndOp(link,link->rootmtype,op,p[i].atomic,&UnpackAndOp);CHKERRQ(ierr);
@@ -414,7 +414,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFUnpackAndOpLeafData(PetscSF sf,PetscSF
     p[1].atomic = PETSC_FALSE;
     p[1].data   = leafdata;
   }
-
+  p[0].count  = 0;
   for (i=0; i<2; i++) {
     if (p[i].count) {
       ierr = PetscSFPackGetUnpackAndOp(link,link->leafmtype,op,p[i].atomic,&UnpackAndOp);CHKERRQ(ierr);
@@ -510,7 +510,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFFetchAndOpRootData(PetscSF sf,PetscSFP
     p[1].buf    = link->rootbuf[link->rootmtype];
     p[1].atomic = PETSC_FALSE;
   }
-
+  p[0].count  = 0;
   for (i=0; i<2; i++) {
     if (p[i].count) {
       ierr = PetscSFPackGetFetchAndOp(link,link->rootmtype,op,p[i].atomic,&FetchAndOp);CHKERRQ(ierr);
