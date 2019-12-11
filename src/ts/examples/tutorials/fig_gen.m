@@ -30,6 +30,10 @@ for k=1:numfolder
     feoF = dir('feorder*');
     cpF  = dir('compnum*');
     gvsF = dir('globvecsize*');
+    sfpIF = dir('sfpackINSERT*');
+    sfupIF = dir('sfunpackINSERT*');
+    sfpAF = dir('sfpackADDVAL*');
+    sfupAF = dir('sfunpackADDVAL*');
     
     filtoutADDDat(k) = fopen(fullfile(foAF.name),'r');
     formatspec = '%f';
@@ -97,6 +101,26 @@ for k=1:numfolder
     GVS(i,:) = cell2mat(textscan(GVSDat(k), formatspec));
     fclose(GVSDat(k));
     
+    SFPINSERTDat(k) = fopen(fullfile(sfpIF.name),'r');
+    formatspec = '%f';
+    SFPINSERT(i,:) = cell2mat(textscan(SFPINSERTDat(k), formatspec));
+    fclose(SFPINSERTDat(k));
+    
+    SFUPINSERTDat(k) = fopen(fullfile(sfupIF.name),'r');
+    formatspec = '%f';
+    SFUPINSERT(i,:) = cell2mat(textscan(SFUPINSERTDat(k), formatspec));
+    fclose(SFUPINSERTDat(k));
+    
+    SFPADDVALDat(k) = fopen(fullfile(sfpAF.name),'r');
+    formatspec = '%f';
+    SFPADDVALL(i,:) = cell2mat(textscan(SFPADDVALDat(k), formatspec));
+    fclose(SFPADDVALDat(k));
+    
+    SFUPADDVALDat(k) = fopen(fullfile(sfupAF.name),'r');
+    formatspec = '%f';
+    SFUPADDVALL(i,:) = cell2mat(textscan(SFUPADDVALDat(k), formatspec));
+    fclose(SFUPADDVALDat(k));
+    
     i = i + 1;
     cd(folders(i).folder);
 end
@@ -104,6 +128,7 @@ clear filtoutADDDAt filtoutINSERTDat nProcessDat packSizeADDDat packSizeINSERTDa
 clear cellPrankDat VertNumDat CellNumDat OverlapDat VecDotTDat VecDotFlopsDat
 clear FEOrderDat NumCompDat GVSDat foAF foIF npF psAF psIF cprF vnF cnF oF vdTF
 clear vdFF feoF cpF gvsF formatspec reindex numfoler datadir rawADDTimings rawINSERTTimings
+clear SFPINSERTDat SFUPINSERTDat SFPADDVALDat SFUPADDVALDat sfpIF sfupIf sfpAF sfupAF
 
 [~, idx] = sort(NRanks(:,1));
 
