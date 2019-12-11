@@ -520,6 +520,10 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
 
+  /*	Set Option Value for the PetscSF stuff	*/
+  ierr = PetscOptionsSetValue(NULL, "-sf_switch", "true");CHKERRQ(ierr);
+  ierr = MPI_Barrier(comm);CHKERRQ(ierr);
+
   /*    Init INSERT_VALUES timing only log      */
   ierr = PetscLogStageRegister("CommStageINSERT", &user.stageINSERT);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommINSERT", 0, &user.eventINSERT);CHKERRQ(ierr);
