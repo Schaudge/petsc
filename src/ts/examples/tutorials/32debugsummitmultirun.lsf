@@ -1,5 +1,10 @@
 #! /bin/bash
 
+#BSUB -P CSC314
+#BSUB -W 2:00
+#BSUB -alloc_flags gpumps
+#BSUB -J petsc_comm_ops_32
+
 origdir=`pwd`;
 scratchdir=${MEMBERWORK}/csc314;
 cd ${scratchdir};
@@ -9,11 +14,6 @@ echo "Scratch Directory:  $scratchdir";
 suffix="_32";
 resourcefile="resources${suffix}";
 stdoutfile="petsc_comm_ops${suffix}";
-
-#BSUB -P CSC314
-#BSUB -W 1:00
-#BSUB -alloc_flags gpumps
-#BSUB -J ${stdoutfile}
 
 export PETSC_ARCH=32-arch-olcf-summit-opt;
 echo "PETSC_ARCH=${PETSC_ARCH}";
@@ -114,7 +114,7 @@ do
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest32 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
+        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest32 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -vtk_partition
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
