@@ -1,5 +1,11 @@
 #! /bin/bash
 
+origdir=`pwd`;
+scratchdir=${MEMBERWORK}/csc314;
+cd ${scratchdir};
+echo "Original Directory: $origdir";
+echo "Scratch Directory:  $scratchdir";
+
 suffix="_64";
 resourcefile="resources${suffix}";
 stdoutfile="petsc_comm_ops${suffix}";
@@ -34,26 +40,25 @@ nodesReq=$(((($LSB_MAX_NUM_PROCESSORS-1))/$procpernode));
 
 echo "Creating Directories";
 now=$(date +"%F_%H_%M_%S");
-dirname="DEBUG${suffix}_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
-mkdir -p ./$dirname;
-filtINSERT="./${dirname}/filtoutINSERT_${LSB_JOBID}.txt";
-filtADDVAL="./${dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
-nprocess="./${dirname}/nprocess_${LSB_JOBID}.txt";
-rawlog="./${dirname}/rawlog_${LSB_JOBID}.txt";
-packsizeINSERT="./${dirname}/packsizeINSERT_${LSB_JOBID}.txt";
-packsizeADDVAL="./${dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
-VecDotTime="./${dirname}/vecdottime_${LSB_JOBID}.txt";
-VecDotFlops="./${dirname}/vecdotflops_${LSB_JOBID}.txt";
-ZeroVecDotTime="./${dirname}/zero_vecdottime_${LSB_JOBID}.txt"
-ZeroVecDotFlops="./${dirname}/zero_vecdotflops_${LSB_JOBID}.txt";
-VertNum="./${dirname}/vertnum_${LSB_JOBID}.txt";
-CellNum="./${dirname}/cellnum_${LSB_JOBID}.txt";
-Overlap="./${dirname}/overlap_${LSB_JOBID}.txt";
-Order="./${dirname}/feorder_${LSB_JOBID}.txt";
-CompNum="./${dirname}/compnum_${LSB_JOBID}.txt";
-GVS="./${dirname}/globvecsize_${LSB_JOBID}.txt"
-runError="./${dirname}/runError_${LSB_JOBID}.txt";
-jsrunMapping="./${dirname}/jsrunMapping_${LSB_JOBID}.txt";
+run_scratch_dirname="DEBUG${suffix}_${nodesReq}_mc${maxcom}_n${CLn}c${CLc}g${CLg}a${CLa}_${LSB_JOBID}_$now";
+mkdir -p ./$run_scratch_dirname;
+filtINSERT="./${run_scratch_dirname}/filtoutINSERT_${LSB_JOBID}.txt";
+filtADDVAL="./${run_scratch_dirname}/filtoutADDVAL_${LSB_JOBID}.txt";
+nprocess="./${run_scratch_dirname}/nprocess_${LSB_JOBID}.txt";
+rawlog="./${run_scratch_dirname}/rawlog_${LSB_JOBID}.txt";
+packsizeINSERT="./${run_scratch_dirname}/packsizeINSERT_${LSB_JOBID}.txt";
+packsizeADDVAL="./${run_scratch_dirname}/packsizeADDVAL_${LSB_JOBID}.txt";
+VecDotTime="./${run_scratch_dirname}/vecdottime_${LSB_JOBID}.txt";
+VecDotFlops="./${run_scratch_dirname}/vecdotflops_${LSB_JOBID}.txt";
+ZeroVecDotTime="./${run_scratch_dirname}/zero_vecdottime_${LSB_JOBID}.txt"
+ZeroVecDotFlops="./${run_scratch_dirname}/zero_vecdotflops_${LSB_JOBID}.txt";
+CellNum="./${run_scratch_dirname}/cellnum_${LSB_JOBID}.txt";
+Overlap="./${run_scratch_dirname}/overlap_${LSB_JOBID}.txt";
+Order="./${run_scratch_dirname}/feorder_${LSB_JOBID}.txt";
+CompNum="./${run_scratch_dirname}/compnum_${LSB_JOBID}.txt";
+GVS="./${run_scratch_dirname}/globvecsize_${LSB_JOBID}.txt"
+runError="./${run_scratch_dirname}/runError_${LSB_JOBID}.txt";
+jsrunMapping="./${run_scratch_dirname}/jsrunMapping_${LSB_JOBID}.txt";
 
 echo "Resetting full log and filtered outputs...";
 >./$filtINSERT;
@@ -66,7 +71,6 @@ echo "Resetting full log and filtered outputs...";
 >./$VecDotFlops;
 >./$ZeroVecDotTime;
 >./$ZeroVecDotFlops;
->./$VertNum;
 >./$CellNum;
 >./$Overlap;
 >./$Order;
@@ -78,7 +82,7 @@ echo "Done";
 
 echo "Running jsrun mapping generator";
 set -x
-jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -e collected ./hello_jsrun | sort -o ${jsrunMapping}
+jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -e collected ${origdir}/hello_jsrun | sort -o ${jsrunMapping}
 set +x
 echo "Done";
 
@@ -116,16 +120,24 @@ do
         echo "end time:                      $(date -u)";
         echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds";
         echo "-----------";
+        sleep 1;
         ((runcount++));
     done
 done
 echo "--------------------------- Successful exit! ---------------------------">>./$rawlog;
 trap finish EXIT
 function finish {
-    echo "Moving ${resourcefile}.${LSB_JOBID}";
-    mv ./${resourcefile}.${LSB_JOBID} ./${dirname};
-    echo "Moving ${stdoutfile}.${LSB_JOBID}";
-    mv ./${stdoutfile}.${LSB_JOBID} ./${dirname};
-    echo "done";
+    echo "=== mv ===";
+    echo "Moving ${resourcefile}.${LSB_JOBID} to ${scratchdir}";
+    mv ./${resourcefile}.${LSB_JOBID} ./${run_scratch_dirname};
+    echo "Moving ${stdoutfile}.${LSB_JOBID} to ${scratchdir}";
+    mv ./${stdoutfile}.${LSB_JOBID} ./${run_scratch_dirname};
+    echo "Moving partition-maps to ${scratchdir}";
+    mv ./partition-map* ./${run_scratch_dirname};
+    echo "Moving ${run_scratch_dirname} from ${scratchdir} to ${origdir}";
+    mv ./${run_scratch_dirname} ${origdir};
+    echo "=== Done ===";
+    cd ${origdir};
+    echo "=== Post Processing ===";
     /bin/bash grepshell.sh -a ${rawlog};
 }
