@@ -5,7 +5,7 @@ class Configure(config.package.Package):
     config.package.Package.__init__(self, framework)
     self.gitcommit              = 'c19003201' #master sep-29-2019 + disable petsc-release/slepc-dev version check
     self.gitcommitmaster        = 'origin/master'
-    self.download               = ['git://https://bitbucket.com/slepc/slepc.git']
+    self.download               = ['git://https://bitbucket.com/slepc/slepc-pre-gitlab.git']
     self.functions              = []
     self.includes               = []
     self.skippackagewithoptions = 1
