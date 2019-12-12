@@ -105,7 +105,7 @@ int main(int argc,char **args)
       ierr = PetscCDGetNextPos(agg_lists,i,&pos);CHKERRQ(ierr);
     }
   }
-
+  ierr = PetscCDDestroy(agg_lists);CHKERRQ(ierr);
   ierr = ISDestroy(&perm);CHKERRQ(ierr);
   ierr = PetscFree(permute);CHKERRQ(ierr);
   ierr = PetscFree(ia);CHKERRQ(ierr);
