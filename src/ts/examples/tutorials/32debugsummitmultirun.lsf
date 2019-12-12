@@ -10,6 +10,8 @@ scratchdir=${MEMBERWORK}/csc314;
 cd ${scratchdir};
 echo "Original Directory: $origdir";
 echo "Scratch Directory:  $scratchdir";
+mkdir -p ./${LSB_JOBID};
+cd ${LSB_JOBID};
 
 suffix="_32";
 resourcefile="resources${suffix}";
@@ -114,7 +116,7 @@ do
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest32 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -vtk_partition
+        jsrun --smpiargs="-gpu" --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} /ccs/home/jfaibussow/petsc/src/ts/examples/tutorials/exspeedtest32 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -vtk_partition
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
@@ -128,16 +130,19 @@ echo "--------------------------- Successful exit! ---------------------------">
 trap finish EXIT
 function finish {
     echo "=== mv ===";
-    echo "Moving ${resourcefile}.${LSB_JOBID} to ${scratchdir}";
+    echo "Moving ${resourcefile}.${LSB_JOBID} to ${run_scratch_dirname}";
     mv ./${resourcefile}.${LSB_JOBID} ./${run_scratch_dirname};
-    echo "Moving ${stdoutfile}.${LSB_JOBID} to ${scratchdir}";
+    echo "Moving ${stdoutfile}.${LSB_JOBID} to ${run_scratch_dirname}";
     mv ./${stdoutfile}.${LSB_JOBID} ./${run_scratch_dirname};
-    echo "Moving partition-maps to ${scratchdir}";
-    mv ./partition-map* ./${run_scratch_dirname};
+    echo "Moving partition_maps to ${run_scratch_dirname}";
+    mv ./partition_map* ./${run_scratch_dirname};
     echo "Moving ${run_scratch_dirname} from ${scratchdir} to ${origdir}";
     mv ./${run_scratch_dirname} ${origdir};
-    echo "=== Done ===";
+    cd ..;
+    rm -rf ${LSB_JOBID};
     cd ${origdir};
+    mv ./${stdoutfile} ./${run_scratch_dirname};
+    echo "=== Done ==="
     echo "=== Post Processing ===";
     /bin/bash grepshell.sh -a ${rawlog};
 }
