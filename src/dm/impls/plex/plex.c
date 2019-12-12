@@ -1100,7 +1100,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         ierr = ISGetMinMax(vertexIS, NULL, &max);CHKERRQ(ierr);
         max = PetscAbsInt(max);
         max += 1;
-        ierr = MPI_Reduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = MPI_Allreduce(&max, &globalVertexSize, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
         ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedVertexProcesses, &verticesPerProcess, &binnedVertices);CHKERRQ(ierr);
         break;
       case 1:
@@ -1108,7 +1108,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         ierr = ISGetMinMax(edgeIS, NULL, &max);CHKERRQ(ierr);
         max = PetscAbsInt(max);
         max += 1;
-        ierr = MPI_Reduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = MPI_Allreduce(&max, &globalEdgeSize, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
         ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedEdgeProcesses, &edgesPerProcess, &binnedEdges);CHKERRQ(ierr);
         break;
       case 2:
@@ -1116,7 +1116,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         ierr = ISGetMinMax(faceIS, NULL, &max);CHKERRQ(ierr);
         max = PetscAbsInt(max);
         max += 1;
-        ierr = MPI_Reduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = MPI_Allreduce(&max, &globalFaceSize, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
         ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedFaceProcesses, &facesPerProcess, &binnedFaces);CHKERRQ(ierr);
         break;
       case 3:
@@ -1124,7 +1124,7 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
         ierr = ISGetMinMax(cellIS, NULL, &max);CHKERRQ(ierr);
         max = PetscAbsInt(max);
         max += 1;
-        ierr = MPI_Reduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, 0, comm);CHKERRQ(ierr);
+        ierr = MPI_Allreduce(&max, &globalCellSize, 1, MPIU_INT, MPI_MAX, comm);CHKERRQ(ierr);
         ierr = DMPlexGetBinnedPointPerProcess(dm, tempi, &numBinnedCellProcesses, &cellsPerProcess, &binnedCells);CHKERRQ(ierr);
         break;
       default:
