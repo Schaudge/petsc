@@ -13,7 +13,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageZEROGVD;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventZEROGVD;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, vtkPartitionOut, vtkSoln, vtkMeshout, balance, periodic, gpuAwareMPI;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, vtkPartitionOut, vtkSoln, vtkMeshout, balance, periodic, gpuAwareMPI, distributeDuringRefine;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;
   PetscScalar    refinementLimit;
@@ -148,7 +148,7 @@ static PetscErrorCode MatPartitioningApply_Cube(MatPartitioning part,IS *partiti
   if (n%p != 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Square partitioning requires p to divide n");
 
   ierr = MatGetOwnershipRange(part->adj,&rstart,&rend);CHKERRQ(ierr);
-    ierr = PetscMalloc1(rend-rstart, &color);CHKERRQ(ierr);
+  ierr = PetscMalloc1(rend-rstart, &color);CHKERRQ(ierr);
   /* for (int cell=rstart; cell<rend; cell++) { color[cell-rstart] = ((cell%n) < (n/2)) + 2 * ((cell/n) <x (n/2)); } */
   col = n/p;
   i = 0;
@@ -185,34 +185,34 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   PetscErrorCode  ierr;
 
   PetscFunctionBeginUser;
-  options->simplex              = PETSC_FALSE;
-  options->perfTest             = PETSC_FALSE;
-  options->fileflg              = PETSC_FALSE;
-  options->distribute           = PETSC_FALSE;
-  options->interpolate          = PETSC_TRUE;
-  options->dmRefine             = PETSC_FALSE;
-  options->vtkPartitionOut      = PETSC_FALSE;
-  options->vtkSoln              = PETSC_FALSE;
-  options->vtkMeshout		= PETSC_FALSE;
-  options->balance              = PETSC_FALSE;
-  options->periodic             = PETSC_FALSE;
-  options->gpuAwareMPI          = PETSC_FALSE;
-  options->periodicity[0]       = DM_BOUNDARY_NONE;
-  options->periodicity[1]       = DM_BOUNDARY_NONE;
-  options->periodicity[2]       = DM_BOUNDARY_NONE;
-  options->filename[0]          = '\0';
-  options->dim                  = 2;
-  options->numFields            = 1;
-  options->overlap              = 0;
-  options->qorder               = -1;
-  options->level                = 0;
-  options->refinementLimit      = 0.0;
-  options->commax               = 100;
-  options->VSL                  = 0;
-  options->VSG                  = 0;
+  options->simplex                 = PETSC_FALSE;
+  options->perfTest                = PETSC_FALSE;
+  options->fileflg                 = PETSC_FALSE;
+  options->distribute              = PETSC_FALSE;
+  options->interpolate             = PETSC_TRUE;
+  options->dmRefine                = PETSC_FALSE;
+  options->vtkPartitionOut         = PETSC_FALSE;
+  options->vtkSoln                 = PETSC_FALSE;
+  options->vtkMeshout		   = PETSC_FALSE;
+  options->balance                 = PETSC_FALSE;
+  options->periodic                = PETSC_FALSE;
+  options->gpuAwareMPI             = PETSC_FALSE;
+  options->distributeDuringRefine  = PETSC_FALSE;
+  options->periodicity[0]          = DM_BOUNDARY_NONE;
+  options->periodicity[1]          = DM_BOUNDARY_NONE;
+  options->periodicity[2]          = DM_BOUNDARY_NONE;
+  options->filename[0]             = '\0';
+  options->dim                     = 2;
+  options->numFields               = 1;
+  options->overlap                 = 0;
+  options->qorder                  = -1;
+  options->level                   = 0;
+  options->refinementLimit         = 0.0;
+  options->commax                  = 100;
+  options->VSL                     = 0;
+  options->VSG                     = 0;
   ierr = PetscStrncpy(options->bar, "-----------------\0", 19);CHKERRQ(ierr);
 
-  ierr = PetscOptionsSetValue(NULL, "-use_gpu_aware_mpi", "true");CHKERRQ(ierr);
   ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
     ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", options->perfTest, &options->perfTest, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-interpolate", "Interpolate the mesh", "", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
@@ -242,6 +242,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     ierr = PetscOptionsEList("-z_periodic", "Periodic Boundary Conditions Z", "", DMBoundaryTypes, 5, DMBoundaryTypes[options->periodicity[2]], &bd, NULL);CHKERRQ(ierr);
     options->periodicity[2] = (DMBoundaryType) bd;
     ierr = PetscOptionsBool("-use_gpu_aware_mpi", "GPU Aware MPI", "", options->gpuAwareMPI, &options->gpuAwareMPI, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-distribute_during_refine", "Distribute during refine stage", "", options->distributeDuringRefine, &options->distributeDuringRefine, NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   if (options->periodic) {
@@ -259,22 +260,19 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
 static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
   PetscErrorCode    ierr;
-  DM                dmDist = NULL;
-  const char        *filename = user->filename;
-  PetscInt          dim = user->dim, overlap = user->overlap, i;
+  DM                dmDist = NULL, dmf = NULL;
+  PetscInt          i;
+  PetscBool         isDistributed = PETSC_FALSE;
   PetscPartitioner  part;
 
   PetscFunctionBeginUser;
   ierr = MatPartitioningRegister("cube", MatPartitioningCreate_Cube);CHKERRQ(ierr);
   if (user->fileflg) {
-    char        *dup, filenameAlt[PETSC_MAX_PATH_LEN];
-    sprintf(filenameAlt, "%s%s", "./meshes/", (dup = strdup(filename)));
-    free(dup);
     ierr = PetscLogStageRegister("READ Mesh Stage", &user->stageREAD);CHKERRQ(ierr);
     ierr = PetscLogEventRegister("READ Mesh", 0, &user->eventREAD);CHKERRQ(ierr);
     ierr = PetscLogStagePush(user->stageREAD);CHKERRQ(ierr);
     ierr = PetscLogEventBegin(user->eventREAD, 0, 0, 0, 0);CHKERRQ(ierr);
-    ierr = DMPlexCreateFromFile(comm, filenameAlt, user->interpolate, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateFromFile(comm, user->filename, user->interpolate, dm);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(user->eventREAD, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, user->filename);CHKERRQ(ierr);
@@ -283,77 +281,75 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogEventRegister("CREATE Box Mesh", 0, &user->eventCREATE);CHKERRQ(ierr);
     ierr = PetscLogStagePush(user->stageCREATE);CHKERRQ(ierr);
     ierr = PetscLogEventBegin(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
-    ierr = DMPlexCreateBoxMesh(comm, dim, user->simplex, NULL, NULL, NULL, user->periodicity, user->interpolate, dm);CHKERRQ(ierr);
+    ierr = DMPlexCreateBoxMesh(comm, user->dim, user->simplex, NULL, NULL, NULL, user->periodicity, user->interpolate, dm);CHKERRQ(ierr);
     ierr = PetscLogEventEnd(user->eventCREATE, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) *dm, "Generated_Box_Mesh");CHKERRQ(ierr);
   }
   ierr = DMGetDimension(*dm, &user->dim);CHKERRQ(ierr);
-  dim = user->dim;
   ierr = DMPlexGetPartitioner(*dm, &part);CHKERRQ(ierr);
   ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
   ierr = DMPlexSetPartitioner(*dm, part);CHKERRQ(ierr);
-  if (!user->fileflg) {
-    DM          dmf;
-    PetscInt    level = user->level;
-    PetscScalar refinementLimit = user->refinementLimit;
-    if (level || refinementLimit) {
-      PetscPartitioner  part;
-
-      ierr = PetscLogStageRegister("REFINE Mesh Stage", &user->stageREFINE);CHKERRQ(ierr);
-      ierr = PetscLogEventRegister("REFINE Mesh", 0, &user->eventREFINE);CHKERRQ(ierr);
-      ierr = PetscLogStagePush(user->stageREFINE);CHKERRQ(ierr);
-      ierr = PetscLogEventBegin(user->eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
-      ierr = DMPlexGetPartitioner(*dm, &part);CHKERRQ(ierr);
-      ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
-      if (level) {
-        for (i = 0; i < level; i++) {
-          ierr = DMRefine(*dm, comm, &dmf);CHKERRQ(ierr);
-          if (dmf) {
-            const char  *name;
-            ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
-            ierr = PetscObjectSetName((PetscObject) dmf, name);CHKERRQ(ierr);
-            ierr = DMDestroy(dm);CHKERRQ(ierr);
-            *dm = dmf;
-          }
-          ierr = DMPlexDistribute(*dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+  if (user->level || user->refinementLimit) {
+    ierr = PetscLogStageRegister("REFINE Mesh Stage", &user->stageREFINE);CHKERRQ(ierr);
+    ierr = PetscLogEventRegister("REFINE Mesh", 0, &user->eventREFINE);CHKERRQ(ierr);
+    ierr = PetscLogStagePush(user->stageREFINE);CHKERRQ(ierr);
+    ierr = PetscLogEventBegin(user->eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+    if (user->level) {
+      ierr = DMPlexSetRefinementUniform(*dm, PETSC_TRUE);CHKERRQ(ierr);
+      for (i = 0; i < user->level; i++) {
+        ierr = DMRefine(*dm, comm, &dmf);CHKERRQ(ierr);
+        if (dmf) {
+          const char  *name;
+          ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
+          ierr = PetscObjectSetName((PetscObject) dmf, name);CHKERRQ(ierr);
+          ierr = DMDestroy(dm);CHKERRQ(ierr);
+          *dm = dmf;
+        }
+        if (user->distributeDuringRefine) {
+          ierr = DMPlexDistribute(*dm, user->overlap, NULL, &dmDist);CHKERRQ(ierr);
           if (dmDist) {
             const char  *name;
             ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
             ierr = PetscObjectSetName((PetscObject) dmDist, name);CHKERRQ(ierr);
             ierr = DMDestroy(dm);CHKERRQ(ierr);
             *dm = dmDist;
-            user->distribute = PETSC_TRUE;
+            ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
           }
         }
-      } else {
-        ierr = DMPlexSetRefinementLimit(*dm, refinementLimit);CHKERRQ(ierr);
-        ierr = DMRefine(*dm, comm, &dmf);CHKERRQ(ierr);
-        if (dmf) {
-          const char *name;
-
-          ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
-          ierr = PetscObjectSetName((PetscObject) dmf, name);CHKERRQ(ierr);
-          ierr = DMDestroy(dm);CHKERRQ(ierr);
-          *dm  = dmf;
-        }
+      }
+    } else {
+      ierr = DMPlexSetRefinementLimit(*dm, user->refinementLimit);CHKERRQ(ierr);
+      ierr = DMRefine(*dm, comm, &dmf);CHKERRQ(ierr);
+      if (dmf) {
+        const char *name;
+        ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
+        ierr = PetscObjectSetName((PetscObject) dmf, name);CHKERRQ(ierr);
+        ierr = DMDestroy(dm);CHKERRQ(ierr);
+        *dm  = dmf;
+      }
+      if (user->distributeDuringRefine) {
         /* Distribute mesh over processes */
-        ierr = DMPlexDistribute(*dm, 0, NULL, &dmDist);CHKERRQ(ierr);
+        ierr = DMPlexDistribute(*dm, user->overlap, NULL, &dmDist);CHKERRQ(ierr);
         if (dmDist) {
           const char    *name;
           ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
           ierr = PetscObjectSetName((PetscObject) dmDist, name);CHKERRQ(ierr);
           ierr = DMDestroy(dm);CHKERRQ(ierr);
           *dm  = dmDist;
+          ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
         }
       }
-      ierr = PetscLogEventEnd(user->eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
-      ierr = PetscLogStagePop();CHKERRQ(ierr);
-      user->dmRefine = PETSC_TRUE;
     }
+    ierr = PetscLogEventEnd(user->eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
+    ierr = PetscLogStagePop();CHKERRQ(ierr);
+    user->dmRefine = PETSC_TRUE;
   }
 
-  ierr = DMPlexDistribute(*dm, overlap, NULL, &dmDist);CHKERRQ(ierr);
+  ierr = DMPlexIsDistributed(*dm, &isDistributed);CHKERRQ(ierr);
+  if (!isDistributed) {
+    ierr = DMPlexDistribute(*dm, user->overlap, NULL, &dmDist);CHKERRQ(ierr);
+  }
   if (dmDist) {
     const char  *name;
     ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
@@ -362,6 +358,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     *dm = dmDist;
     ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
   }
+
   if (user->interpolate) {
     DM  dmInterp = NULL;
     ierr = DMPlexInterpolate(*dm, &dmInterp);CHKERRQ(ierr);
@@ -371,6 +368,7 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       user->interpolate = PETSC_TRUE;
     }
   }
+
   ierr = DMLocalizeCoordinates(*dm);CHKERRQ(ierr);
 # if defined(PETSC_HAVE_CUDA)
   ierr = DMSetVecType(*dm, VECCUDA);CHKERRQ(ierr);
@@ -427,6 +425,7 @@ int main(int argc, char **argv)
   PetscScalar           VDotResult;
   char                  genInfo[PETSC_MAX_PATH_LEN];
 
+  ierr = PetscOptionsSetValue(NULL, "-use_gpu_aware_mpi", "true");CHKERRQ(ierr);
   ierr = PetscInitialize(&argc, &argv,(char *) 0, help);if(ierr){ return ierr;}
   comm = PETSC_COMM_WORLD;
   ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
