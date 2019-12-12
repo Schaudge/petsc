@@ -57,14 +57,20 @@ while getopts ":a" opt; do
             break;;
     esac
 done
-for logfile in "$@"
+for folder in "$@"
 do
+    basedir=$(dirname -- "$folder");
+    rundir=$(basename -- "$folder");
+    if [[ "$rundir" != "DEBUG"* ]]; then
+        continue;
+    fi
+    logfile=$(ls ${basedir}"/"${rundir}"/rawlog"*);
     filename=$(basename -- "$logfile");
     filepath=$(dirname -- "$logfile");
     ID=${filename#*_};
     ID=${ID%.*};
-    echo "File:             ${logfile}";
-    echo "Logfile dir name: ${filepath}";
+    echo "Base dir name:    ${basedir}";
+    echo "Run dir name:     ${rundir}";
     echo "Logfile name:     ${filename}";
     echo "Logfile ID:       ${ID}"
     if [ "$filename" = "rawlog_${ID}.txt" ]; then
