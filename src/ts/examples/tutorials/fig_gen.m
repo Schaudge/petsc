@@ -147,11 +147,11 @@ NumComp = NumComp(idx,:);
 GVS = GVS(idx,:);
 
 [numarr, arrlengths] = size(commADDTime);
-commADDTime = commADDTime/100;
-commINSERTTime = commINSERTTime/100;
-VecDotT = VecDotT/100;
-MPIPackSizeADD = MPIPackSizeADD/100;
-MPIPackSizeINSERT = MPIPackSizeINSERT/100;
+%commADDTime = commADDTime/100;
+%commINSERTTime = commINSERTTime/100;
+%VecDotT = VecDotT/100;
+%MPIPackSizeADD = MPIPackSizeADD/100;
+%MPIPackSizeINSERT = MPIPackSizeINSERT/100;
 Psize = NodeNum(1)*NumComp(1);
 
 
