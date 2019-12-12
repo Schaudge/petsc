@@ -13,7 +13,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageZEROGVD;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventZEROGVD;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, VTKdisp, vtkSoln, meshout, balance, periodic;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, vtkPartitionOut, vtkSoln, vtkMeshout, balance, periodic, gpuAwareMPI;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;
   PetscScalar    refinementLimit;
@@ -37,7 +37,8 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   }
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Ghost point overlap:%s>%d\n", user.bar + 5, user.overlap);CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "DM Partition Balance?:%s>%s\n", user.bar + 7, user.balance ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Comm Loop Bound:%s>%d\n", user.bar + 1, user.commax);CHKERRQ(ierr);
+
   ierr = PetscViewerStringSPrintf(genViewer, "\nFile read mode:%s>%s\n", user.bar, user.fileflg ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   if (user.fileflg) {
     ierr = PetscViewerStringSPrintf(genViewer, "┗ File read name:%s>%s\n", user.bar + 2, user.filename);CHKERRQ(ierr);
@@ -48,13 +49,16 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   }
   ierr = PetscViewerStringSPrintf(genViewer, "\nDistributed dm:%s>%s\n", user.bar, user.distribute ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Interpolated dm:%s>%s\n", user.bar + 1, user.interpolate ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "Periodic Mesh?:%s>%s\n", user.bar, user.periodic ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Periodic BD Mesh:%s>%s\n", user.bar + 2, user.periodic ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "DM Partition Balance:%s>%s\n", user.bar + 6, user.balance ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Performance test mode:%s>%s\n", user.bar + 7, user.perfTest ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
-
+  ierr = PetscViewerStringSPrintf(genViewer, "GPU Aware MPI:%s%s>%s\n", user.bar, user.bar + 16, user.gpuAwareMPI ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "DM Vec Type Used:%s>%s\n", user.bar + 2, user.ctype);CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "Comm Loop Bound:%s>%d\n", user.bar + 1, user.commax);CHKERRQ(ierr);
+
   ierr = PetscViewerStringSPrintf(genViewer, "\n");CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "VTKoutput mode:%s>%s\n", user.bar, user.VTKdisp ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Soln Output mode:%s>%s\n", user.bar + 2 , user.vtkSoln ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Partition Output mode:%s>%s\n", user.bar + 7, user.vtkPartitionOut ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Mesh Output mode:%s>%s\n", user.bar + 2, user.vtkMeshout ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
 
   ierr = PetscPrintf(comm, "%s General Info %s\n", user.bar + 2, user.bar + 2);CHKERRQ(ierr);
   ierr = PetscViewerStringGetStringRead(genViewer, &string, NULL);CHKERRQ(ierr);
@@ -187,11 +191,12 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->distribute           = PETSC_FALSE;
   options->interpolate          = PETSC_TRUE;
   options->dmRefine             = PETSC_FALSE;
-  options->VTKdisp              = PETSC_FALSE;
+  options->vtkPartitionOut      = PETSC_FALSE;
   options->vtkSoln              = PETSC_FALSE;
-  options->meshout		= PETSC_FALSE;
+  options->vtkMeshout		= PETSC_FALSE;
   options->balance              = PETSC_FALSE;
   options->periodic             = PETSC_FALSE;
+  options->gpuAwareMPI          = PETSC_FALSE;
   options->periodicity[0]       = DM_BOUNDARY_NONE;
   options->periodicity[1]       = DM_BOUNDARY_NONE;
   options->periodicity[2]       = DM_BOUNDARY_NONE;
@@ -207,12 +212,13 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->VSG                  = 0;
   ierr = PetscStrncpy(options->bar, "-----------------\0", 19);CHKERRQ(ierr);
 
+  ierr = PetscOptionsSetValue(NULL, "-use_gpu_aware_mpi", "true");CHKERRQ(ierr);
   ierr = PetscOptionsBegin(comm, NULL, "Speedtest Options", "");CHKERRQ(ierr); {
     ierr = PetscOptionsBool("-speed", "Streamline program to only perform necessary operations for performance testing", "", options->perfTest, &options->perfTest, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-interpolate", "Interpolate the mesh", "", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-vtk_partition", "enable mesh distribution visualization", "", options->VTKdisp, &options->VTKdisp, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-vtk_partition", "enable mesh distribution visualization", "", options->vtkPartitionOut, &options->vtkPartitionOut, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-vtk_soln","Get solution vector in VTK output", "", options->vtkSoln, &options->vtkSoln, NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-mesh_out","Output mesh in vtk format", "", options->meshout, &options->meshout, NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-mesh_out","Output mesh in vtk format", "", options->vtkMeshout, &options->vtkMeshout, NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetString(NULL, NULL, "-f", options->filename, PETSC_MAX_PATH_LEN, &options->fileflg); CHKERRQ(ierr);
 
     ierr = PetscOptionsGetInt(NULL, NULL, "-dim", &options->dim, NULL);CHKERRQ(ierr);
@@ -235,6 +241,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
     bd = options->periodicity[2];
     ierr = PetscOptionsEList("-z_periodic", "Periodic Boundary Conditions Z", "", DMBoundaryTypes, 5, DMBoundaryTypes[options->periodicity[2]], &bd, NULL);CHKERRQ(ierr);
     options->periodicity[2] = (DMBoundaryType) bd;
+    ierr = PetscOptionsBool("-use_gpu_aware_mpi", "GPU Aware MPI", "", options->gpuAwareMPI, &options->gpuAwareMPI, NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   if (options->periodic) {
@@ -433,7 +440,7 @@ int main(int argc, char **argv)
   ierr = DMViewFromOptions(dm, NULL, "-dm_view");CHKERRQ(ierr);
 
   /* Display Mesh Partition and write mesh to vtk output file */
-  if (user.VTKdisp) {
+  if (user.vtkPartitionOut) {
     PetscViewer vtkviewerpart;
     Vec         partition;
     char        dateStr[PETSC_MAX_PATH_LEN] = {"partition_map_generated"}, rawdate[PETSC_MAX_PATH_LEN] = {"\0"}, meshName[PETSC_MAX_PATH_LEN] = {"\0"}, comm_size_string[PETSC_MAX_PATH_LEN] = {"\0"};
@@ -457,7 +464,7 @@ int main(int argc, char **argv)
     ierr = VecDestroy(&partition);CHKERRQ(ierr);
 
   }
-  if (user.meshout) {
+  if (user.vtkMeshout) {
     PetscViewer vtkviewermesh;
     char        meshName[PETSC_MAX_PATH_LEN] = {"\0"};
     if (user.fileflg) {
