@@ -192,9 +192,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackRootData(PetscSF sf,PetscSFPack li
     }
     err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err); /* Make it ready to call MPI */
   }
-  PetscBool gpuAware = PETSC_FALSE;
-  ierr = PetscOptionsGetBool(NULL, NULL, "-use_gpu_aware_mpi", &gpuAware, NULL);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "======= GPU PACK ROOT DATA %s =========\n", gpuAware ? "GPU AWARE TRUE" : "GPU AWARE FALSE");CHKERRQ(ierr);
 #endif
   ierr = PetscLogEventEnd(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -261,9 +258,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFPackLeafData(PetscSF sf,PetscSFPack li
     }
     err = cudaStreamSynchronize(link->stream);CHKERRCUDA(err);
   }
-  PetscBool gpuAware = PETSC_FALSE;
-  ierr = PetscOptionsGetBool(NULL, NULL, "-use_gpu_aware_mpi", &gpuAware, NULL);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "======= GPU PACK LEAF DATA %s =========\n", gpuAware ? "GPU AWARE TRUE" : "GPU AWARE FALSE");CHKERRQ(ierr);
 #endif
   ierr = PetscLogEventEnd(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
