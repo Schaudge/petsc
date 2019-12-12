@@ -34,99 +34,33 @@ for k=1:numfolder
     sfupIF = dir('sfunpackINSERT*');
     sfpAF = dir('sfpackADDVAL*');
     sfupAF = dir('sfunpackADDVAL*');
+    sfmAF  = dir('sfmessADDVAL*');
+    sfmIF  = dir('sfmessINSERT*');
     
-    filtoutADDDat(k) = fopen(fullfile(foAF.name),'r');
-    formatspec = '%f';
-    commADDTime(i,:) = cell2mat(textscan(filtoutADDDat(k), formatspec));
-    fclose(filtoutADDDat(k));
-    
-    filtoutINSERTDat(k) = fopen(fullfile(foIF.name),'r');
-    %formatspec = '%10s %*s';
-    formatspec = '%f';
-    commINSERTTime(i,:) = cell2mat(textscan(filtoutINSERTDat(k), formatspec));
-    fclose(filtoutINSERTDat(k));
-    
-    nProcessDat(k) = fopen(fullfile(npF.name),'r');
-    formatspec = '%f';
-    NRanks(i,:) = cell2mat(textscan(nProcessDat(k), formatspec));
-    fclose(nProcessDat(k));
-    
-    packSizeADDDat(k) = fopen(fullfile(psAF.name),'r');
-    formatspec = '%f';
-    MPIPackSizeADD(i,:) = cell2mat(textscan(packSizeADDDat(k), formatspec));
-    fclose(packSizeADDDat(k));
-    
-    packSizeINSERTDat(k) = fopen(fullfile(psIF.name),'r');
-    formatspec = '%f';
-    MPIPackSizeINSERT(i,:) = cell2mat(textscan(packSizeINSERTDat(k), formatspec));
-    fclose(packSizeINSERTDat(k));
-    
-    NodeNumDat(k) = fopen(fullfile(nnF.name),'r');
-    formatspec = '%f';
-    NodeNum(i,:) = cell2mat(textscan(NodeNumDat(k), formatspec));
-    fclose(NodeNumDat(k));
-    
-    CellNumDat(k) = fopen(fullfile(cnF.name),'r');
-    formatspec = '%f';
-    CellNum(i,:) = cell2mat(textscan(CellNumDat(k), formatspec));
-    fclose(CellNumDat(k));
-    
-    OverlapDat(k) = fopen(fullfile(oF.name),'r');
-    formatspec = '%f';
-    Overlap(i,:) = cell2mat(textscan(OverlapDat(k), formatspec));
-    fclose(OverlapDat(k));
-    
-    VecDotTDat(k) = fopen(fullfile(vdTF.name),'r');
-    formatspec = '%f';
-    VecDotT(i,:) = cell2mat(textscan(VecDotTDat(k), formatspec));
-    fclose(VecDotTDat(k));
-    
-    VecDotFlopsDat(k) = fopen(fullfile(vdFF.name),'r');
-    formatspec = '%f';
-    VecDotFlops(i,:) = cell2mat(textscan(VecDotFlopsDat(k), formatspec));
-    fclose(VecDotFlopsDat(k));
-    
-    FEOrderDat(k) = fopen(fullfile(feoF.name),'r');
-    formatspec = '%f';
-    FEOrder(i,:) = cell2mat(textscan(FEOrderDat(k), formatspec));
-    fclose(FEOrderDat(k));
-    
-    NumCompDat(k) = fopen(fullfile(cpF.name),'r');
-    formatspec = '%f';
-    NumComp(i,:) = cell2mat(textscan(NumCompDat(k), formatspec));
-    fclose(NumCompDat(k));
-    
-    GVSDat(k) = fopen(fullfile(gvsF.name),'r');
-    formatspec = '%f';
-    GVS(i,:) = cell2mat(textscan(GVSDat(k), formatspec));
-    fclose(GVSDat(k));
-    
-    SFPINSERTDat(k) = fopen(fullfile(sfpIF.name),'r');
-    formatspec = '%f';
-    SFPINSERT(i,:) = cell2mat(textscan(SFPINSERTDat(k), formatspec));
-    fclose(SFPINSERTDat(k));
-    
-    SFUPINSERTDat(k) = fopen(fullfile(sfupIF.name),'r');
-    formatspec = '%f';
-    SFUPINSERT(i,:) = cell2mat(textscan(SFUPINSERTDat(k), formatspec));
-    fclose(SFUPINSERTDat(k));
-    
-    SFPADDVALDat(k) = fopen(fullfile(sfpAF.name),'r');
-    formatspec = '%f';
-    SFPADDVALL(i,:) = cell2mat(textscan(SFPADDVALDat(k), formatspec));
-    fclose(SFPADDVALDat(k));
-    
-    SFUPADDVALDat(k) = fopen(fullfile(sfupAF.name),'r');
-    formatspec = '%f';
-    SFUPADDVALL(i,:) = cell2mat(textscan(SFUPADDVALDat(k), formatspec));
-    fclose(SFUPADDVALDat(k));
+    commADDTime(i,:) = transpose(load(foAF.name));
+    commINSERTTime(i,:) = transpose(load(foIF.name));
+    NRanks(i,:) = transpose(load(npF.name));
+    MPIPackSizeADD(i,:) = transpose(load(psAF.name));
+    MPIPackSizeINSERT(i,:) =transpose(load(psIF.name));
+    NodeNum(i,:) = transpose(load(psIF.name));
+    CellNum(i,:) = transpose(load(cnF.name));
+    Overlap(i,:) = transpose(load(oF.name));
+    VecDotT(i,:) = transpose(load(vdTF.name));
+    VecDotFlops(i,:) = transpose(load(vdFF.name));
+    FEOrder(i,:) = transpose(load(feoF.name));
+    NumComp(i,:) =transpose(load(cpF.name)); 
+    GVS(i,:) = transpose(load(gvsF.name));
+    SFPINSERT(i,:) = transpose(load(sfpIF.name));
+    SFUPINSERT(i,:) = transpose(load(sfupIF.name));
+    SFPADDVAL(i,:) = transpose(load(sfpAF.name));
+    SFUPADDVAL(i,:) = transpose(load(sfupAF.name));
+    SFMESSADDVAL(i,:) = transpose(load(sfmAF.name));
+    SFMESSINSERT(i,:) = transpose(load(sfmIF.name));
     
     i = i + 1;
     cd(folders(i).folder);
 end
-clear filtoutADDDAt filtoutINSERTDat nProcessDat packSizeADDDat packSizeINSERTDat
-clear cellPrankDat VertNumDat CellNumDat OverlapDat VecDotTDat VecDotFlopsDat
-clear FEOrderDat NumCompDat GVSDat foAF foIF npF psAF psIF cprF vnF cnF oF vdTF
+clear foAF foIF npF psAF psIF cprF vnF cnF oF vdTF sfmAF sfmIF
 clear vdFF feoF cpF gvsF formatspec reindex numfoler datadir rawADDTimings rawINSERTTimings
 clear SFPINSERTDat SFUPINSERTDat SFPADDVALDat SFUPADDVALDat sfpIF sfupIf sfpAF sfupAF
 
@@ -145,6 +79,12 @@ VecDotFlops = VecDotFlops(idx,:);
 FEOrder = FEOrder(idx,:);
 NumComp = NumComp(idx,:);
 GVS = GVS(idx,:);
+SFPINSERT = SFPINSERT(idx,:);
+SFUPINSERT = SFUPINSERT(idx,:);
+SFPADDVAL = SFPADDVAL(idx,:);
+SFUPADDVAL = SFUPADDVAL(idx,:);
+SFMESSADDVAL = SFMESSADDVAL(idx,:);
+SFMESSINSERT = SFMESSINSERT(idx,:);
 
 [numarr, arrlengths] = size(commADDTime);
 %commADDTime = commADDTime/100;
@@ -153,8 +93,6 @@ GVS = GVS(idx,:);
 %MPIPackSizeADD = MPIPackSizeADD/100;
 %MPIPackSizeINSERT = MPIPackSizeINSERT/100;
 Psize = NodeNum(1)*NumComp(1);
-
-
 
 % n = 1; % average every n values, then average vectors
 % commADDTime = arrayfun(@(i) mean(commADDTime(i:i+n-1)),1:n:length(commADDTime)-n+1)';
