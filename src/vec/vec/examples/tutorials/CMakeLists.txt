@@ -40,6 +40,8 @@ find_package(PkgConfig REQUIRED)
 pkg_search_module(PETSC REQUIRED PETSc)
 include_directories(${PETSC_INCLUDE_DIRS})
 target_link_libraries(ex1 ${PETSC_LDFLAGS})
+# Dependencies don't necessarily have this set correctly so explicitly add it
+target_link_libraries(ex1 -lm)
 
 
 
