@@ -116,19 +116,20 @@ do
         echo "start time:                    $(date -u)";
         SECONDS=0
         set -x
-        jsrun  --smpiargs="-gpu" --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/examples/tutorials/exspeedtest64 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise -vtk_partition
+        jsrun  --smpiargs="-gpu" --nrs $(($CLn*$nodesReq*$CLa)) --rs_per_host $CLn --cpu_per_rs $CLc --gpu_per_rs $CLg --tasks_per_rs $CLa -S ${resourcefile}.${LSB_JOBID} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/examples/tutorials/exspeedtest64 -speed -dim ${dim} -dm_plex_box_faces ${nfaces} -num_fields ${NC} -petscspace_degree ${deg} -vec_type cuda -vec_size_local ${localVSize} -max_com ${maxcom} -log_view -dm_view ::ascii_info_concise
         set +x
         duration=$SECONDS
         echo "end time:                      $(date -u)";
         echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds";
         echo "-----------";
-        sleep 1;
+        sleep 5;
         ((runcount++));
     done
 done
 echo "--------------------------- Successful exit! ---------------------------">>./$rawlog;
 trap finish EXIT
 function finish {
+    sleep 30;
     echo "=== mv ===";
     echo "Moving ${resourcefile}.${LSB_JOBID} to ${run_scratch_dirname}";
     mv ./${resourcefile}.${LSB_JOBID} ./${run_scratch_dirname};
@@ -144,5 +145,6 @@ function finish {
     mv ./${stdoutfile} ./${run_scratch_dirname};
     echo "=== Done ===";
     echo "=== Post Processing ===";
-    /bin/bash ./grepshell.sh -a ${rawlog};
+    sleep 5;
+    /bin/bash ./grepshell.sh -a ${origdir}/*;
 }
