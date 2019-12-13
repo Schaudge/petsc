@@ -122,13 +122,14 @@ do
         echo "end time:                      $(date -u)";
         echo "runtime:                       $(($duration / 60)) minutes and $(($duration % 60)) seconds";
         echo "-----------";
-        sleep 1;
+        sleep 5;
         ((runcount++));
     done
 done
 echo "--------------------------- Successful exit! ---------------------------">>./$rawlog;
 trap finish EXIT
 function finish {
+    sleep 30;
     echo "=== mv ===";
     echo "Moving ${resourcefile}.${LSB_JOBID} to ${run_scratch_dirname}";
     mv ./${resourcefile}.${LSB_JOBID} ./${run_scratch_dirname};
@@ -143,6 +144,7 @@ function finish {
     cd ${origdir};
     mv ./${stdoutfile} ./${run_scratch_dirname};
     echo "=== Done ==="
+    sleep 5;
     echo "=== Post Processing ===";
-    /bin/bash grepshell.sh -a ${rawlog};
+    /bin/bash ./grepshell.sh -a ${origdir}/*;
 }

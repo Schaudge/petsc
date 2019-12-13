@@ -121,7 +121,7 @@ PetscErrorCode ThrowItInTheBin(MPI_Comm comm, PetscScalar local, PetscInt root, 
     if (!i) {
       ierr = PetscPrintf(comm, "Num Per Proc. - Num Proc.\n");CHKERRQ(ierr);
     }
-    ierr = PetscPrintf(comm, "\t%5.0f - %d\n", binnedArray[i], bins[i]);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm, "\t%5.0f - %D\n", binnedArray[i], bins[i]);CHKERRQ(ierr);
   }
   ierr = PetscFree(rootArray);CHKERRQ(ierr);
   ierr = PetscFree(binnedArray);CHKERRQ(ierr);
