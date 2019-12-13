@@ -57,14 +57,20 @@ while getopts ":a" opt; do
             break;;
     esac
 done
-for logfile in "$@"
+for folder in "$@"
 do
+    basedir=$(dirname -- "$folder");
+    rundir=$(basename -- "$folder");
+    if [[ "$rundir" != "DEBUG"* ]]; then
+        continue;
+    fi
+    logfile=$(ls ${basedir}"/"${rundir}"/rawlog"*);
     filename=$(basename -- "$logfile");
     filepath=$(dirname -- "$logfile");
     ID=${filename#*_};
     ID=${ID%.*};
-    echo "File:             ${logfile}";
-    echo "Logfile dir name: ${filepath}";
+    echo "Base dir name:    ${basedir}";
+    echo "Run dir name:     ${rundir}";
     echo "Logfile name:     ${filename}";
     echo "Logfile ID:       ${ID}"
     if [ "$filename" = "rawlog_${ID}.txt" ]; then
@@ -87,6 +93,8 @@ do
         SFUnPackINSERT="${filepath}/sfunpackINSERT_${ID}.txt";
         SFPackADDVAL="${filepath}/sfpackADDVAL_${ID}.txt";
         SFUnPackADDVAL="${filepath}/sfunpackADDVAL_${ID}.txt";
+        SFMessADDVAL="${filepath}/sfmessADDVAL_${ID}.txt";
+        SFMessINSERT="${filepath}/sfmessINSERT_${ID}.txt";
         if [ "$auto_flag" -eq "0" ]; then
             echo "Do you wish to overwrite?";
             select yne in "Yes" "No" "Exit"; do
@@ -144,5 +152,9 @@ do
     grep "CommADDVAL" -B 5 --line-buffered $logfile | grep "SFPack" --line-buffered | awk '{printf ("%s\n",$4)}' >> $SFPackADDVAL;
     echo "Populating ${SFUnPackADDVAL}";
     grep "CommADDVAL" -B 5 --line-buffered $logfile | grep "SFUnpack" --line-buffered | awk '{printf ("%s\n",$4)}' >> $SFUnPackADDVAL;
+    echo "Populating ${SFMessADDVAL}";
+    grep "CommINSERT" --line-buffered $logfile | awk '{print $8}' >> $SFMessINSERT;
+    echo "Populating ${SFMessINSERT}";
+    grep "CommADDVAL" --line-buffered $logfile | awk '{print $8}' >> $SFMessADDVAL;
     echo "=== Done ===";
 done
