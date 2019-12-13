@@ -377,6 +377,7 @@ class generateExamples(Petsc):
     subst['grep']=self.conf['GREP']
     subst['petsc_lib_dir']=self.conf['PETSC_LIB_DIR']
     subst['wpetsc_dir']=self.conf['wPETSC_DIR']
+    subst['prefixdir']=self.conf['PREFIXDIR']
 
     # Output file is special because of subtests override
     defroot = testparse.getDefaultOutputFileRoot(testname)
@@ -443,7 +444,7 @@ class generateExamples(Petsc):
           cmdsubst=subst.copy()
           cmdsubst['command']=cmd
           if not 'mpi' in cmd:
-            lbl=cmd.strip().split()[0]
+            lbl=os.path.basename(cmd.strip().split()[0])
             cmdsubst['label_suffix']='-'+lbl
             cmdsubst['redirect_file']=lbl+'-'+subst['redirect_file']
           cmdLines += '\n'+cmdindnt+self._substVars(cmdsubst,example_template.commandtest)+'\n'

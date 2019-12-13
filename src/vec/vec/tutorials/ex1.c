@@ -183,7 +183,6 @@ int main(int argc,char **argv)
       testscript: 
       - export PETSC_DIR=$petsc_dir
       - export PETSC_ARCH=$petsc_arch
-      - export PATH=$petsc_dir/$petsc_arch/bin:${PATH}
       - rm -rf build
       - mkdir build
       - cd build

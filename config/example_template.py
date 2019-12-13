@@ -6,6 +6,7 @@ header="""#!/usr/bin/env bash
 
 # PATH for DLLs on windows
 PATH="$PATH":@PETSC_LIB_DIR@
+PATH="$PATH:@PREFIXDIR@/bin"
 exec='@EXEC@'
 testname='@TESTNAME@'
 label='@LABEL@'
