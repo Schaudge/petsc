@@ -7287,6 +7287,40 @@ PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
 }
 
 /*@
+  DMPlexCreatePointNumbering - Create a global numbering for all points on this process
+
+  Input Parameter:
+. dm   - The DMPlex object
+
+  Output Parameter:
+. globalPointNumbers - Global numbers for all points on this process
+
+  Level: developer
+
+.seealso DMPlexGetCellNumbering()
+@*/
+PetscErrorCode DMPlexGetStratumGlobalNumbering(DM dm, PetscInt depth, IS *globalNumbers)
+{
+  PetscInt  maxDepth;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidIntPointer(depth, 2);
+  ierr = DMPlexGetDepth(dm, &maxDepth);CHKERRQ(ierr);
+  if (maxDepth > depth) {
+    SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Depth %D given greater than maximum depth %D in mesh", depth, maxDepth);
+  }
+  switch(depth) {
+  case 0: ierr = DMPlexGetVertexNumbering(dm, globalNumbers);CHKERRQ(ierr); break;
+  case 1: ierr = DMPlexGetEdgeNumbering(dm, globalNumbers);CHKERRQ(ierr);   break;
+  case 2: ierr = DMPlexGetFaceNumbering(dm, globalNumbers);CHKERRQ(ierr);   break;
+  case 3: ierr = DMPlexGetCellNumbering(dm, globalNumbers);CHKERRQ(ierr);   break;
+  default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Depth %D not supported", depth); break;
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@
   DMPlexCreateRankField - Create a cell field whose value is the rank of the owner
 
   Input Parameter:
