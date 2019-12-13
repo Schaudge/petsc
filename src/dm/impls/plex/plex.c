@@ -1045,16 +1045,16 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     ierr  = PetscFree(adjacency);CHKERRQ(ierr);
     ierr  = VecDestroy(&acown);CHKERRQ(ierr);
   } else if (format == PETSC_VIEWER_ASCII_INFO_CONCISE) {
-    MPI_Comm	comm;
-    PetscMPIInt	rank = 0, size = 0;
-    IS		vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
-    PetscInt	i, depth, dim, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
-    PetscInt	*binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
-    PetscScalar	*verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
-    PetscBool	dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, facesOK = PETSC_FALSE, pointsfOK = PETSC_FALSE;
-    PetscBool	CA[2] = { PETSC_FALSE }, CF[2] = { PETSC_FALSE }, CS[2] = { PETSC_FALSE }, CMrSkeltal[2] = { PETSC_FALSE }, CPSF[2] = { PETSC_FALSE }, CG[2] = { PETSC_FALSE }, CIC[2] = { PETSC_FALSE };
-    char	bar[19] = "-----------------\0", *interpolationStatus;
-    DMPlexInterpolatedFlag interpolated;
+    MPI_Comm	            comm;
+    PetscMPIInt	            rank = 0, size = 0;
+    IS		            vertexIS = NULL, edgeIS = NULL, faceIS = NULL, cellIS = NULL;
+    PetscInt                i, depth, dim, maxOverlap, cellHeight, globalVertexSize = 0, globalEdgeSize = 0, globalFaceSize = 0, globalCellSize = 0, numBinnedVertexProcesses, numBinnedEdgeProcesses, numBinnedFaceProcesses, numBinnedCellProcesses;
+    PetscInt	            *binnedVertices = NULL, *binnedEdges = NULL, *binnedFaces = NULL, *binnedCells = NULL;
+    PetscScalar	            *verticesPerProcess = NULL, *edgesPerProcess = NULL, *facesPerProcess = NULL, *cellsPerProcess = NULL;
+    PetscBool	            dmOverlapped =  PETSC_FALSE, dmDistributed = PETSC_FALSE, facesOK = PETSC_FALSE, pointsfOK = PETSC_FALSE;
+    PetscBool	            CA[2] = { PETSC_FALSE }, CF[2] = { PETSC_FALSE }, CS[2] = { PETSC_FALSE }, CMrSkeltal[2] = { PETSC_FALSE }, CPSF[2] = { PETSC_FALSE }, CG[2] = { PETSC_FALSE }, CIC[2] = { PETSC_FALSE };
+    char                    bar[19] = "-----------------\0", *interpolationStatus;
+    DMPlexInterpolatedFlag  interpolated;
 
     ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
     ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
@@ -1081,9 +1081,9 @@ static PetscErrorCode DMPlexView_Ascii(DM dm, PetscViewer viewer)
     for (i = 0; i <= depth; ++i) {
       PetscInt	max = 0, tempi = i;
       if (interpolated != DMPLEX_INTERPOLATED_FULL && (i != 0)) { i = 3;}
-      /* In case that dm is not interpolated, will only have cell-vertex mesh */
+      //In case that dm is not interpolated, will only have cell-vertex mesh
       if ((dim == 2) && (i == depth)) { i = 3; tempi = depth;}
-      /* For 2D calls the faces "cells", make i = 3 to jump to cell, but use tempi to work at actual cell depth */
+      //For 2D calls the faces "cells", make i = 3 to jump to cell, but use tempi to work at actual cell depth
       switch (i)
       {
       case 0:
@@ -1162,7 +1162,7 @@ meshdiagnostics:
       }
     }
     if (CG[0] && CG[1]) ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);
-    if (CIC[0] && CIC[1]) ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr);
+    if (CIC[0] && CIC[1]) ierr = DMPlexCheckInterfaceCones(dm);CHKERRQ(ierr);
 
     /* Printing     */
     /* Autotest Output      */
@@ -7104,10 +7104,10 @@ PetscErrorCode DMPlexCreateFaceNumbering_Internal(DM dm, PetscBool includeHybrid
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  ierr = DMPlexGetDepthStratum(dm, 2, &fStart, &fEnd);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);CHKERRQ(ierr);
   ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &fMax);CHKERRQ(ierr);
   if (fMax >= 0 && !includeHybrid) fEnd = PetscMin(fEnd, fMax);
-  ierr = DMPlexCreateNumbering_Internal(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
+  ierr = DMPlexCreateNumbering_Plex(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -7156,7 +7156,7 @@ PetscErrorCode DMPlexCreateEdgeNumbering_Internal(DM dm, PetscBool includeHybrid
   ierr = DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd);CHKERRQ(ierr);
   ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &eMax);CHKERRQ(ierr);
   if (eMax >= 0 && !includeHybrid) eEnd = PetscMin(eEnd, eMax);
-  ierr = DMPlexCreateNumbering_Internal(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
+  ierr = DMPlexCreateNumbering_Plex(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -7238,10 +7238,11 @@ PetscErrorCode DMPlexGetVertexNumbering(DM dm, IS *globalVertexNumbers)
 }
 
 /*@
-  DMPlexCreatePointNumbering - Create a global numbering for all points on this process
+  DMPlexGetStratumGlobalNumbering - Create a global numbering at a certain depth for all points on this process
 
   Input Parameter:
-. dm   - The DMPlex object
++ dm   - The DMPlex object
+- depth - The depth at which to create the numbering
 
   Output Parameter:
 . globalPointNumbers - Global numbers for all points on this process
@@ -7301,14 +7302,15 @@ PetscErrorCode DMPlexCreatePointNumbering(DM dm, IS *globalPointNumbers)
 @*/
 PetscErrorCode DMPlexGetStratumGlobalNumbering(DM dm, PetscInt depth, IS *globalNumbers)
 {
-  PetscInt  maxDepth;
+  PetscErrorCode  ierr;
+  PetscInt        maxDepth, maxHeight;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidIntPointer(depth, 2);
   ierr = DMPlexGetDepth(dm, &maxDepth);CHKERRQ(ierr);
+  ierr = DMPlexGetVTKCellHeight(dm, &maxHeight);CHKERRQ(ierr);
   if (maxDepth > depth) {
-    SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Depth %D given greater than maximum depth %D in mesh", depth, maxDepth);
+    SETERRQ2(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Depth %D given greater than maximum depth %D in mesh", depth, maxDepth);
   }
   switch(depth) {
   case 0: ierr = DMPlexGetVertexNumbering(dm, globalNumbers);CHKERRQ(ierr); break;
