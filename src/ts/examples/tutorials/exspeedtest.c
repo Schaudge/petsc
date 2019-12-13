@@ -93,7 +93,6 @@ PetscErrorCode ThrowItInTheBin(MPI_Comm comm, PetscScalar local, PetscInt root, 
   if (rank) PetscFunctionReturn(0);
   ierr = PetscSortReal(size, rootArray);CHKERRQ(ierr);
   ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, size, rootArray, &vecPerProcess);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(vecPerProcess);CHKERRQ(ierr);
   ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
