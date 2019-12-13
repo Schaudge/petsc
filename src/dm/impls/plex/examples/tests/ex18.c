@@ -346,22 +346,20 @@ static PetscErrorCode CreateMesh_1D(MPI_Comm comm, PetscBool interpolate, AppCtx
     {
       numCells    = 2;
       numVertices = numCells;
-      ierr = PetscMalloc2(2*numCells,&cells,2*numCells,&coords);CHKERRQ(ierr);
+      ierr = PetscMalloc2(2*numCells, &cells, 2*numVertices, &coords);CHKERRQ(ierr);
       cells[0] = 0; cells[1] = 1;
       cells[2] = 1; cells[3] = 2;
-      coords[0] = 0.; coords[1] = 1.;
-      coords[2] = 1.; coords[3] = 2.;
+      coords[0] = 0.; coords[1] = 0.;
+      coords[2] = 1.; coords[3] = 1.;
     }
     break;
     case 1:
     {
       numCells    -= 2;
       numVertices = numCells + 1;
-      ierr = PetscMalloc2(2*numCells,&cells,2*numCells,&coords);CHKERRQ(ierr);
-      for (i=0; i<numCells; i++) {
-        cells[2*i] = 2+i; cells[2*i+1] = 2 + i + 1;
-        coords[2*i] = 2+i; coords[2*i+1] = 2 + i + 1;
-      }
+      ierr = PetscMalloc2(2*numCells, &cells, 2*numVertices, &coords);CHKERRQ(ierr);
+      for (i = 0; i < numCells; ++i)    cells[2*i]  = i+2; cells[2*i+1]  = i+3;
+      for (i = 0; i < numVertices; ++i) coords[2*i] = i+2; coords[2*i+1] = i+2;
     }
     break;
     default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh for rank %d", rank);
@@ -373,23 +371,27 @@ static PetscErrorCode CreateMesh_1D(MPI_Comm comm, PetscBool interpolate, AppCtx
     {
       numCells    = 2;
       numVertices = 3;
-      ierr = PetscMalloc2(2*numCells,&cells,2*numCells,&coords);CHKERRQ(ierr);
+      ierr = PetscMalloc2(2*numCells, &cells, 2*numVertices, &coords);CHKERRQ(ierr);
       cells[0] = 0; cells[1] = 3;
       cells[2] = 3; cells[3] = 1;
+      coords[0] = -1.; coords[1] =  1.;
+      coords[2] = -1.; coords[3] = -1.;
+      coords[4] =  1.; coords[5] =  0.;
     }
     break;
     case 1:
     {
       numCells    = 1;
       numVertices = 1;
-      ierr = PetscMalloc2(2*numCells,&cells,2*numCells,&coords);CHKERRQ(ierr);
+      ierr = PetscMalloc2(2*numCells, &cells, 2*numVertices, &coords);CHKERRQ(ierr);
       cells[0] = 3; cells[1] = 2;
+      coords[0] = 0.; coords[1] = 0.;
     }
     break;
     default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "No test mesh for rank %d", rank);
     }
   }
-  ierr = DMPlexCreateFromCellListParallel(comm, user->dim, numCells, numVertices, numCorners, PETSC_FALSE, cells, user->dim, coords, NULL, dm);CHKERRQ(ierr);
+  ierr = DMPlexCreateFromCellListParallel(comm, user->dim, numCells, numVertices, numCorners, PETSC_FALSE, cells, 2, coords, NULL, dm);CHKERRQ(ierr);
   ierr = PetscFree2(cells,coords);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1577,7 +1579,7 @@ int main(int argc, char **argv)
     args: -dm_plex_check_all
     test:
       suffix: 2
-      args: -dm_view ascii::ascii_info_detail 
+      args: -dm_view ascii::ascii_info_detail
     test:
       suffix: 2a
       args: -dm_plex_check_cones_conform_on_interfaces_verbose
