@@ -93,6 +93,7 @@ PetscErrorCode ThrowItInTheBin(MPI_Comm comm, PetscScalar local, PetscInt root, 
   if (rank) PetscFunctionReturn(0);
   ierr = PetscSortReal(size, rootArray);CHKERRQ(ierr);
   ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, size, rootArray, &vecPerProcess);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(vecPerProcess);CHKERRQ(ierr);
   ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
@@ -504,14 +505,19 @@ int main(int argc, char **argv)
   /*    Perform setup before timing     */
   ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+  ierr = VecSet(solVecLocal,0);CHKERRQ(ierr);
+  ierr = VecSet(solVecGlobal,0);CHKERRQ(ierr);
+
   ierr = VecDuplicate(solVecGlobal, &dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDuplicate(solVecLocal, &dummyVecLocal);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecLocal);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal, 0.0);CHKERRQ(ierr);
   ierr = VecSet(dummyVecLocal, 0.0);CHKERRQ(ierr);
   ierr = VecAXPY(solVecGlobal, 0.0, dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecAXPY(solVecLocal, 0.0, dummyVecLocal);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(dm, solVecLocal, INSERT_VALUES, solVecGlobal);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
@@ -523,6 +529,7 @@ int main(int argc, char **argv)
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
@@ -552,6 +559,8 @@ int main(int argc, char **argv)
   /*    Perform setup before timing     */
   ierr = DMGetGlobalVector(dm, &solVecGlobal);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm, &solVecLocal);CHKERRQ(ierr);
+  ierr = VecSet(solVecLocal,0);CHKERRQ(ierr);
+  ierr = VecSet(solVecGlobal,0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dm, solVecLocal, ADD_VALUES, solVecGlobal);CHKERRQ(ierr);
 
@@ -560,6 +569,7 @@ int main(int argc, char **argv)
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
@@ -567,6 +577,8 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&dummyVecGlobal2);CHKERRQ(ierr);
 
   /*    Init ADD_VALUES Log     */
+  ierr = VecSet(solVecLocal,0);CHKERRQ(ierr);
+  ierr = VecSet(solVecGlobal,0);CHKERRQ(ierr);
   ierr = PetscLogStageRegister("CommStageADDVAL", &user.stageADD);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("CommADDVAL", 0, &user.eventADD);CHKERRQ(ierr);
   ierr = PetscLogStagePush(user.stageADD);CHKERRQ(ierr);
@@ -594,6 +606,7 @@ int main(int argc, char **argv)
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
@@ -617,6 +630,7 @@ int main(int argc, char **argv)
 
   /*    Perform setup before timing     */
   ierr = VecCreate(comm, &VDotZERO);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(VDotZERO);CHKERRQ(ierr);
   ierr = VecSetSizes(VDotZERO, 0, 0);CHKERRQ(ierr);
   ierr = VecSetUp(VDotZERO);CHKERRQ(ierr);
   ierr = VecDotBegin(VDotZERO, VDotZERO, &VDotResult);CHKERRQ(ierr);
@@ -627,6 +641,7 @@ int main(int argc, char **argv)
   ierr = VecSetSizes(dummyVecGlobal, user.VSL, user.VSG);CHKERRQ(ierr);
   ierr = VecSetFromOptions(dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDuplicate(dummyVecGlobal, &dummyVecGlobal2);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(dummyVecGlobal2);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal, 1.0);CHKERRQ(ierr);
   ierr = VecSet(dummyVecGlobal2, 1.0);CHKERRQ(ierr);
   ierr = VecAXPY(dummyVecGlobal, 1.0, dummyVecGlobal2);CHKERRQ(ierr);
