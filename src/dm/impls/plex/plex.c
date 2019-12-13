@@ -1171,7 +1171,7 @@ meshdiagnostics:
       }
     }
     if (CG[0] && CG[1]) ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);
-    if (CIC[0] && CIC[1]) ierr = DMPlexCheckConesConformOnInterfaces(dm);CHKERRQ(ierr);
+    if (CIC[0] && CIC[1]) ierr = DMPlexCheckInterfaceCones(dm);CHKERRQ(ierr);
 
     /* Printing     */
     /* Autotest Output      */
@@ -6929,7 +6929,7 @@ PetscErrorCode DMPlexCreateFaceNumbering_Internal(DM dm, PetscBool includeHybrid
   ierr = DMPlexGetDepthStratum(dm, 2, &fStart, &fEnd);CHKERRQ(ierr);
   ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &fMax);CHKERRQ(ierr);
   if (fMax >= 0 && !includeHybrid) fEnd = PetscMin(fEnd, fMax);
-  ierr = DMPlexCreateNumbering_Internal(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
+  ierr = DMPlexCreateNumbering_Plex(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -6978,7 +6978,7 @@ PetscErrorCode DMPlexCreateEdgeNumbering_Internal(DM dm, PetscBool includeHybrid
   ierr = DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd);CHKERRQ(ierr);
   ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &eMax);CHKERRQ(ierr);
   if (eMax >= 0 && !includeHybrid) eEnd = PetscMin(eEnd, eMax);
-  ierr = DMPlexCreateNumbering_Internal(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
+  ierr = DMPlexCreateNumbering_Plex(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
