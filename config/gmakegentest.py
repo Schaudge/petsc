@@ -445,6 +445,8 @@ class generateExamples(Petsc):
           cmdsubst['command']=cmd
           if not 'mpi' in cmd:
             lbl=os.path.basename(cmd.strip().split()[0])
+            if '$' in lbl:
+              lbl=lbl.replace('$','').replace('{','').replace('}','')
             cmdsubst['label_suffix']='-'+lbl
             cmdsubst['redirect_file']=lbl+'-'+subst['redirect_file']
           cmdLines += '\n'+cmdindnt+self._substVars(cmdsubst,example_template.commandtest)+'\n'
