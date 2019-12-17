@@ -3,7 +3,7 @@
 % sampleName: the type and name to specify a sample object, not case-sensitive
 % Ny*Nx:    Sample object size
 % WGT:      Sample object ground truth
-sampleName = 'Phantom'; % choose from {'Phantom', 'Brain', ''Golosio', 'circle', 'checkboard', 'fakeRod'}; not case-sensitive
+sampleName = 'Brain'; % choose from {'Phantom', 'Brain', ''Golosio', 'circle', 'checkboard', 'fakeRod'}; not case-sensitive
 Nx = 50; Ny = Nx; WSz = [Ny, Nx]; %  XH: Ny = 100 -> 10 or 50 for debug.  currently assume object shape is square not general rectangle
 WGT = createObject(sampleName, WSz);
 
@@ -105,16 +105,26 @@ if testPetscBinaryWriteAndRead_jointsparsity1
 end
 % xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT)/norm(xGT) 
 
-%% Generate data for jointsparsity1:  mideum size example
+%% Generate data for jointsparsity1:  medium size example.  
+% NOTE: Isn't this makes no sense when N*nnzRatio<M? as after solving with L1, just do thresholding to find non-zero idx, and debias to solve the well-conditioned least square As\b, where As = A(:, idx)?
 testPetscBinaryWriteAndRead_jointsparsity1 = 1;
+isAddNoise = 0; % 0/1
 if testPetscBinaryWriteAndRead_jointsparsity1
-    M=50; N=100; L=4; rng(0); A = rand(M, N); A = round(A*100)/100; % generate A below
-    rng(0); xGT =  rand(N,1); xGT(xGT<0.9)=0; 
-    rng(0); xGT= bsxfun(@times, xGT, rand(1,L)); %ones(1,L);
+    M=50; N=100; L=2;  nnzRatio = 0.2;
+    rng(0); A = rand(M, N); A = round(A*100)/100; % generate A below    
+    % pickup the non-zero indices. Two ways: (I) random,  (II) put all nonzeros as first rows
+    %rng(0); idx = rand(N,1) < nnzRatio*1;  % (I) random
+    idx = false(N,1); idx(1:round(N*nnzRatio)) = true; %(II) nonzeros as first rows
+    rng(0); xGT= bsxfun(@times, rand(N,L), idx); 
     %xGT =  [[0;0;1;0;0] [0;0;0;1;0]];
     L = size(xGT,2);
     b = A*xGT; % [0.28; 0.55; 0.96];
-    bNoisy = b + normrnd(0, 0.05*std(b(:)), size(b)); b = bNoisy;% add noise
+    if isAddNoise
+        % add noise
+        bNoisy = b + normrnd(0, 0.05*std(b(:)), size(b)); 
+        %20*log10(norm(b(:))/norm(b(:)-bNoisy(:))), norm(b(:))/norm(b(:)-bNoisy(:))
+        b = bNoisy;
+    end
     % in PetscBinaryWrite, the code "for l=1:nargin-1" will write 'precision' and 'float64' as two double vectors
     PetscBinaryWrite('jointsparsity1Data_A_b_xGT_L', A, b(:), xGT(:), L, 'precision', 'float64'); %   
     [A2, b2, xGT2, L2, dummy] = PetscBinaryRead('jointsparsity1Data_A_b_xGT_L'); %cs1Data_A_b_xGT or jointsparsity1Data_A_b_xGT    
@@ -125,9 +135,21 @@ if testPetscBinaryWriteAndRead_jointsparsity1
 %         0 0 -1 1 0;
 %         0 0 0 -1 1];
 end
+
+%% Generate data for jointsparsity:  Hyperspectral Unmixing
+[A, b, xGT, L, dummy]  = PetscBinaryRead('jointsparsity_HyperspectralData_A_b_xGT_L'); %155 MB, xGT is just all zero
+xRecBRGN = PetscBinaryRead('jointsparsityResult_x');
+%%
+
+
+
+
 %%
 xRecBRGN = PetscBinaryRead('jointsparsityResult_x');  norm(xRecBRGN-xGT(:))/norm(xGT(:));
-figure, plot(xGT(:), 'r'); hold on; plot(xRecBRGN, 'b');
+figure(99), clf;
+subplot(121); plot(xGT(:), 'r'); hold on; plot(xRecBRGN, 'b'); legend('GT', 'Recovered');
+xGT2 = xGT'; xRecBRGN2 = transpose(reshape(xRecBRGN, N, L)); % tranpose version, so that row elements are togethor, best when xGT has (II) put all nonzeros as first row
+subplot(122); plot(xGT2(:), 'r'); hold on; plot(xRecBRGN2(:), 'b');legend('GT', 'Recovered');
 
 % make ./jointsparsity1; ./jointsparsity1 -tao_monitor -tao_max_it 100 -tao_brgn_regularization_type user -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
 % relative reconstruction error: ||x-xGT||/||xGT|| = 1.5208e-02. L=1
