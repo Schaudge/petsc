@@ -176,6 +176,19 @@ int main(int argc,char **argv)
       output_file: output/ex1_1.out
 
    test:
+      suffix: 2_cuda
+      nsize: 2
+      args: -vec_type cuda
+      output_file: output/ex1_1.out
+      requires: cuda
+
+   test:
+      suffix: cuda
+      args: -vec_type cuda
+      output_file: output/ex1_1.out
+      requires: cuda
+
+   test:
       requires: cmake
       suffix: cmake_build
       localrunfiles: CMakeLists.txt ex1.c
@@ -197,16 +210,18 @@ int main(int argc,char **argv)
       - fi
 
    test:
-      suffix: 2_cuda
-      nsize: 2
-      args: -vec_type cuda
+      TODO: Need to debug
+      suffix: makefileuser_build
+      localrunfiles: ex1.c
       output_file: output/ex1_1.out
-      requires: cuda
-
-   test:
-      suffix: cuda
-      args: -vec_type cuda
-      output_file: output/ex1_1.out
-      requires: cuda
+      testscript: 
+      - export PETSC_DIR=$petsc_dir
+      - export PETSC_ARCH=$petsc_arch
+      - if command -v pkg-config 1>/dev/null 2>&1; then
+      - tap: ${make} -f $PETSC_DIR/share/petsc/Makefile.user ex1
+      - tap: ${mpiexec} -n ${nsize} ex1 ${args}
+      - else
+      - echo "ok ${label}"
+      - fi
 
 TEST*/
