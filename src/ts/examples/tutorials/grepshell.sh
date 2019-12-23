@@ -20,6 +20,8 @@ clear_files() {
     > $SFUnPackINSERT;
     > $SFPackADDVAL;
     > $SFUnPackADDVAL;
+    > $SFMessADDVAL;
+    > $SFMessINSERT;
 }
 
 append_files() {
@@ -42,6 +44,8 @@ append_files() {
     "GREPPED">> $SFUnPackINSERT;
     "GREPPED">> $SFPackADDVAL;
     "GREPPED">> $SFUnPackADDVAL;
+    "GREPPED">> $SFMessADDVAL;
+    "GREPPED">> $SFMessINSERT;
 }
 
 auto_flag=0;

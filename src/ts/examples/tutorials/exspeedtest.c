@@ -13,7 +13,7 @@ static char help[33] = "Test Unstructured Mesh Handling\n";
 typedef struct {
   PetscLogStage  stageREAD, stageCREATE, stageREFINE, stageINSERT, stageADD, stageGVD, stagePETSCFE, stageCREATEDS, stageZEROGVD;
   PetscLogEvent  eventREAD, eventCREATE, eventREFINE, eventINSERT, eventADD, eventGVD, eventPETSCFE, eventCREATEDS, eventZEROGVD;
-  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, vtkPartitionOut, vtkSoln, vtkMeshout, balance, periodic, gpuAwareMPI, distributeDuringRefine;
+  PetscBool      simplex, perfTest, fileflg, distribute, interpolate, dmRefine, vtkPartitionOut, vtkSoln, vtkMeshout, balance, periodic, gpuAwareMPI, distributeDuringRefine, regularRefinement;
   /* Domain and mesh definition */
   PetscInt       dim, numFields, overlap, qorder, level, commax, VSL, VSG;
   PetscScalar    refinementLimit;
@@ -31,7 +31,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
 
   PetscFunctionBeginUser;
   ierr = PetscViewerStringSPrintf(genViewer, "Dimension of mesh:%s>%d\n", user.bar + 3, user.dim);CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "Number of Fields:%s>%d", user.bar + 2, user.numFields);CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "PetscSpace Degree:%s>%d", user.bar + 3, user.numFields);CHKERRQ(ierr);
   if (user.numFields == 100) {
     ierr = PetscViewerStringSPrintf(genViewer, "(default)");CHKERRQ(ierr);
   }
@@ -45,6 +45,7 @@ PetscErrorCode GeneralInfo(MPI_Comm comm, AppCtx user, PetscViewer genViewer)
   }
   ierr = PetscViewerStringSPrintf(genViewer, "Mesh refinement:%s>%s\n", user.bar + 1, user.dmRefine ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
   if (user.dmRefine) {
+    ierr = PetscViewerStringSPrintf(genViewer, "┗ Regular Refinement:%s>%s\n", user.bar + 6, user.regularRefinement ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
     ierr = PetscViewerStringSPrintf(genViewer, "┗ Refinement level:%s>%d\n", user.bar + 4, user.level);CHKERRQ(ierr);
   }
   ierr = PetscViewerStringSPrintf(genViewer, "\nDistributed dm:%s>%s\n", user.bar, user.distribute ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
@@ -198,6 +199,7 @@ static PetscErrorCode ProcessOpts(MPI_Comm comm, AppCtx *options)
   options->periodic                = PETSC_FALSE;
   options->gpuAwareMPI             = PETSC_FALSE;
   options->distributeDuringRefine  = PETSC_FALSE;
+  options->regularRefinement       = PETSC_FALSE;
   options->periodicity[0]          = DM_BOUNDARY_NONE;
   options->periodicity[1]          = DM_BOUNDARY_NONE;
   options->periodicity[2]          = DM_BOUNDARY_NONE;
@@ -262,7 +264,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscErrorCode    ierr;
   DM                dmDist = NULL, dmf = NULL;
   PetscInt          i;
-  PetscBool         isDistributed = PETSC_FALSE;
   PetscPartitioner  part;
 
   PetscFunctionBeginUser;
@@ -290,6 +291,17 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   ierr = DMPlexGetPartitioner(*dm, &part);CHKERRQ(ierr);
   ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
   ierr = DMPlexSetPartitioner(*dm, part);CHKERRQ(ierr);
+
+  ierr = DMPlexDistribute(*dm, user->overlap, NULL, &dmDist);CHKERRQ(ierr);
+  if (dmDist) {
+    const char  *name;
+    ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) dmDist, name);CHKERRQ(ierr);
+    ierr = DMDestroy(dm);CHKERRQ(ierr);
+    *dm = dmDist;
+    ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
+  }
+
   if (user->level || user->refinementLimit) {
     ierr = PetscLogStageRegister("REFINE Mesh Stage", &user->stageREFINE);CHKERRQ(ierr);
     ierr = PetscLogEventRegister("REFINE Mesh", 0, &user->eventREFINE);CHKERRQ(ierr);
@@ -344,19 +356,6 @@ static PetscErrorCode ProcessMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = PetscLogEventEnd(user->eventREFINE, 0, 0, 0, 0);CHKERRQ(ierr);
     ierr = PetscLogStagePop();CHKERRQ(ierr);
     user->dmRefine = PETSC_TRUE;
-  }
-
-  ierr = DMPlexIsDistributed(*dm, &isDistributed);CHKERRQ(ierr);
-  if (!isDistributed) {
-    ierr = DMPlexDistribute(*dm, user->overlap, NULL, &dmDist);CHKERRQ(ierr);
-  }
-  if (dmDist) {
-    const char  *name;
-    ierr = PetscObjectGetName((PetscObject) *dm, &name);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) dmDist, name);CHKERRQ(ierr);
-    ierr = DMDestroy(dm);CHKERRQ(ierr);
-    *dm = dmDist;
-    ierr = DMPlexIsDistributed(*dm, &user->distribute);CHKERRQ(ierr);
   }
 
   if (user->interpolate) {
@@ -521,7 +520,6 @@ int main(int argc, char **argv)
   ierr = DMGlobalToLocalEnd(dm, solVecGlobal, INSERT_VALUES, solVecLocal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecGlobal);CHKERRQ(ierr);
   ierr = VecDestroy(&dummyVecLocal);CHKERRQ(ierr);
-
 
   /*	AXPY to flush kernels	*/
   ierr = VecCreate(PETSC_COMM_SELF, &dummyVecGlobal);CHKERRQ(ierr);
@@ -767,10 +765,11 @@ int main(int argc, char **argv)
   ierr = DMPlexGetPartitioner(dm, &partitioner);CHKERRQ(ierr);CHKERRQ(ierr);
   ierr = PetscPartitionerGetType(partitioner, &partitionername);CHKERRQ(ierr);
   ierr = DMPlexGetPartitionBalance(dm, &user.balance);CHKERRQ(ierr);
+  ierr = DMPlexGetRefinementUniform(dm, &user.regularRefinement);CHKERRQ(ierr);
 
   /*    Aggregate all of the information for printing   */
   ierr = PetscViewerStringSPrintf(genViewer, "Partitioner Used:%s>%s\n", user.bar + 2, partitionername);CHKERRQ(ierr);
-  ierr = PetscViewerStringSPrintf(genViewer, "Global Node Num:%s>%d\n", user.bar + 1, globalVertSize);CHKERRQ(ierr);
+  ierr = PetscViewerStringSPrintf(genViewer, "Global Vertex Num:%s>%d\n", user.bar + 3, globalVertSize);CHKERRQ(ierr);
   ierr = PetscViewerStringSPrintf(genViewer, "Global Cell Num:%s>%d\n", user.bar + 1, globalCellSize);CHKERRQ(ierr);
   ierr = DMGetVecType(dm, &user.ctype);CHKERRQ(ierr);
 
