@@ -65,14 +65,14 @@ int main(int argc,char **argv)
    test:
       suffix: cuda1
       requires: cuda
-      args: -dm_vec_type cuda -nox
+      args: -dm_vec_type standard:cuda -nox
       filter: grep -v -i Object
 
    test:
       suffix: cuda2
       nsize: 2
       requires: cuda
-      args: -dm_vec_type cuda -nox
+      args: -dm_vec_type standard:cuda -nox
       filter: grep -v -i Object
 
 TEST*/

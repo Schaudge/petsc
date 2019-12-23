@@ -812,7 +812,7 @@ PetscErrorCode NonlinearGS(SNES snes, Vec X, Vec B, void *ctx)
    test:
       suffix: cuda
       requires: cuda !single
-      args: -dm_vec_type cuda -dm_mat_type aijcusparse -pc_type none -ksp_type fgmres -snes_monitor_short -snes_rtol 1.e-5
+      args: -dm_vec_type standard:cuda -dm_mat_type aijcusparse -pc_type none -ksp_type fgmres -snes_monitor_short -snes_rtol 1.e-5
 
    test:
       suffix: draw
@@ -1097,14 +1097,14 @@ PetscErrorCode NonlinearGS(SNES snes, Vec X, Vec B, void *ctx)
       suffix: cuda_1
       nsize: 1
       requires: cuda
-      args: -snes_monitor -dm_mat_type seqaijcusparse -dm_vec_type seqcuda -pc_type gamg -ksp_monitor -mg_levels_ksp_max_it 3
+      args: -snes_monitor -dm_mat_type seqaijcusparse -dm_vec_type seq:cuda -pc_type gamg -ksp_monitor -mg_levels_ksp_max_it 3
 
 
    test:
       suffix: cuda_2
       nsize: 3
       requires: cuda !single
-      args: -snes_monitor -dm_mat_type mpiaijcusparse -dm_vec_type mpicuda -pc_type gamg -ksp_monitor  -mg_levels_ksp_max_it 3
+      args: -snes_monitor -dm_mat_type mpiaijcusparse -dm_vec_type mpi:cuda -pc_type gamg -ksp_monitor  -mg_levels_ksp_max_it 3
 
    test:
       suffix: seqbaijmkl

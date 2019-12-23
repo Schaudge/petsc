@@ -23,9 +23,12 @@
 #define VECMPI 'mpi'
 #define VECSTANDARD 'standard'
 #define VECSHARED 'shared'
-#define VECSEQVIENNACL 'seqviennacl'
-#define VECMPIVIENNACL 'mpiviennacl'
-#define VECVIENNACL    'viennacl'
+#define VECSEQCUDA 'seq:cuda'
+#define VECMPICUDA 'mpi:cuda'
+#define VECCUDA    'standard:cuda'
+#define VECSEQVIENNACL 'seq:viennacl'
+#define VECMPIVIENNACL 'mpi:viennacl'
+#define VECVIENNACL 'standard:viennacl'
 #define VECNEST 'nest'
 
 #define VecScatterType character*(80)

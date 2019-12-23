@@ -189,6 +189,6 @@ PetscErrorCode ComputeJacobian(SNES snes,Vec x,Mat J,Mat B,void *ctx)
       requires: cuda
 
    test:
-      args: -snes_monitor_short -dm_vec_type cuda
+      args: -snes_monitor_short -dm_vec_type standard:cuda
 
 TEST*/

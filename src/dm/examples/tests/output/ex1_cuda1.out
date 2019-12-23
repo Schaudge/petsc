@@ -1,4 +1,4 @@
-  type: seqcuda
+  type: seq:cuda
 -6.
 -6.
 -6.

@@ -178,13 +178,13 @@ int main(int argc,char **argv)
    test:
       suffix: 2_cuda
       nsize: 2
-      args: -vec_type cuda
+      args: -vec_type standard:cuda
       output_file: output/ex1_1.out
       requires: cuda
 
    test:
       suffix: cuda
-      args: -vec_type cuda
+      args: -vec_type standard:cuda
       output_file: output/ex1_1.out
       requires: cuda
 

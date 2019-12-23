@@ -189,7 +189,7 @@ int main(int argc,char **args)
 
    test:
       suffix: 2_aijcusparse_1
-      args: -mat_type mpiaijcusparse -vec_type cuda
+      args: -mat_type mpiaijcusparse -vec_type standard:cuda
       filter: grep -v type
       output_file: output/ex5_21.out
       requires: cuda
@@ -199,7 +199,7 @@ int main(int argc,char **args)
       nsize: 3
       suffix: 2_aijcusparse_2
       filter: grep -v type
-      args: -mat_type mpiaijcusparse -vec_type cuda
+      args: -mat_type mpiaijcusparse -vec_type standard:cuda
       args: -sf_type {{basic neighbor}} -vecscatter_packongpu {{0 1}} -sf_use_pinned_buffer {{0 1}}
       output_file: output/ex5_23.out
       requires: cuda
@@ -208,7 +208,7 @@ int main(int argc,char **args)
       nsize: 3
       suffix: 2_aijcusparse_3
       filter: grep -v type
-      args: -mat_type mpiaijcusparse -vec_type cuda
+      args: -mat_type mpiaijcusparse -vec_type standard:cuda
       args: -sf_type {{basic neighbor}}  -use_gpu_aware_mpi
       output_file: output/ex5_23.out
       requires: cuda define(PETSC_HAVE_MPI_GPU_AWARE)
@@ -237,7 +237,7 @@ int main(int argc,char **args)
 
    test:
       suffix: 3_aijcusparse_1
-      args: -mat_type mpiaijcusparse -vec_type cuda -test_diagonalscale
+      args: -mat_type mpiaijcusparse -vec_type standard:cuda -test_diagonalscale
       filter: grep -v type
       output_file: output/ex5_31.out
       requires: cuda
@@ -245,21 +245,21 @@ int main(int argc,char **args)
    test:
       suffix: 3_aijcusparse_2
       nsize: 3
-      args: -mat_type mpiaijcusparse -vec_type cuda -test_diagonalscale
+      args: -mat_type mpiaijcusparse -vec_type standard:cuda -test_diagonalscale
       filter: grep -v type
       output_file: output/ex5_33.out
       requires: cuda
 
    test:
       suffix: aijcusparse_1
-      args: -mat_type seqaijcusparse -vec_type cuda -rectA
+      args: -mat_type seqaijcusparse -vec_type standard:cuda -rectA
       filter: grep -v type
       output_file: output/ex5_11_A.out
       requires: cuda
 
    test:
       suffix: aijcusparse_2
-      args: -mat_type seqaijcusparse -vec_type cuda -rectB
+      args: -mat_type seqaijcusparse -vec_type standard:cuda -rectB
       filter: grep -v type
       output_file: output/ex5_11_B.out
       requires: cuda

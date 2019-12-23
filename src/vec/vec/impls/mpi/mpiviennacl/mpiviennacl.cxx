@@ -97,10 +97,10 @@ PetscErrorCode VecMDot_MPIViennaCL(Vec xin,PetscInt nv,const Vec y[],PetscScalar
 }
 
 /*MC
-   VECMPIVIENNACL - VECMPIVIENNACL = "mpiviennacl" - The basic parallel vector, modified to use ViennaCL
+   VECMPIVIENNACL - VECMPIVIENNACL = "mpi:viennacl" - The basic parallel vector, modified to use ViennaCL
 
    Options Database Keys:
-. -vec_type mpiviennacl - sets the vector type to VECMPIVIENNACL during a call to VecSetFromOptions()
+. -vec_type mpi:viennacl - sets the vector type to VECMPIVIENNACL during a call to VecSetFromOptions()
 
   Level: beginner
 

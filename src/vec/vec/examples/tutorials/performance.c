@@ -68,7 +68,7 @@ int main(int argc, char **argv)
    test:
       suffix: cuda
       nsize: 2
-      args: -vec_type mpicuda
+      args: -vec_type mpi:cuda
       requires: cuda
 
 TEST*/

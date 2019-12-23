@@ -168,11 +168,11 @@ int main(int argc,char **argv)
         suffix: standard
       test:
         requires: cuda
-        args: -vec_type cuda
+        args: -vec_type standard:cuda
         suffix: cuda
       test:
         requires: viennacl
-        args: -vec_type viennacl
+        args: -vec_type standard:viennacl
         suffix: viennacl
 
 TEST*/

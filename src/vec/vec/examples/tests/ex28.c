@@ -170,14 +170,14 @@ int main(int argc,char **argv)
    test:
       suffix: 2_cuda
       nsize: 3
-      args: -splitreduction_async -vec_type cuda
+      args: -splitreduction_async -vec_type standard:cuda
       requires: cuda
       output_file: output/ex28_1.out
 
    test:
       suffix: cuda
       nsize: 3
-      args: -vec_type cuda
+      args: -vec_type standard:cuda
       requires: cuda
       output_file: output/ex28_1.out
  

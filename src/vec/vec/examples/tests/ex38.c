@@ -71,10 +71,10 @@ int main(int argc, char *argv[])
       test:
         requires: cuda
         suffix: cuda
-        args: -vec_type cuda
+        args: -vec_type standard:cuda
       test:
         requires: viennacl
         suffix:  viennacl
-        args: -vec_type viennacl
+        args: -vec_type standard:viennacl
 
 TEST*/

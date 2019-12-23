@@ -202,7 +202,7 @@ int main(int argc,char **argv)
 
    testset:
       requires: cuda
-      args: -dm_mat_type aijcusparse -dm_vec_type cuda -random_exact_sol
+      args: -dm_mat_type aijcusparse -dm_vec_type standard:cuda -random_exact_sol
       output_file: output/ex46_aijcusparse.out
 
       test:
@@ -214,7 +214,7 @@ int main(int argc,char **argv)
 
    testset:
       requires: cuda
-      args: -dm_mat_type aijcusparse -dm_vec_type cuda -random_exact_sol -pc_type ilu -pc_factor_mat_solver_type cusparse
+      args: -dm_mat_type aijcusparse -dm_vec_type standard:cuda -random_exact_sol -pc_type ilu -pc_factor_mat_solver_type cusparse
       output_file: output/ex46_aijcusparse_2.out
       test:
         suffix: aijcusparse_2

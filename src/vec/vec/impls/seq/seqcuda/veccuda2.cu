@@ -183,7 +183,7 @@ PetscErrorCode VecCUDACopyFromGPUSome(Vec v, PetscCUDAIndices ci,ScatterMode mod
    VECSEQCUDA - VECSEQCUDA = "seqcuda" - The basic sequential vector, modified to use CUDA
 
    Options Database Keys:
-. -vec_type seqcuda - sets the vector type to VECSEQCUDA during a call to VecSetFromOptions()
+. -vec_type seq:cuda - sets the vector type to VECSEQCUDA during a call to VecSetFromOptions()
 
   Level: beginner
 

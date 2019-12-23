@@ -93,12 +93,12 @@ typedef const char* VecType;
 #define VECMPI         "mpi"
 #define VECSTANDARD    "standard"   /* seq on one process and mpi on several */
 #define VECSHARED      "shared"
-#define VECSEQVIENNACL "seqviennacl"
-#define VECMPIVIENNACL "mpiviennacl"
-#define VECVIENNACL    "viennacl"   /* seqviennacl on one process and mpiviennacl on several */
-#define VECSEQCUDA     "seqcuda"
-#define VECMPICUDA     "mpicuda"
-#define VECCUDA        "cuda"       /* seqcuda on one process and mpicuda on several */
+#define VECSEQVIENNACL "seq:viennacl"
+#define VECMPIVIENNACL "mpi:viennacl"
+#define VECVIENNACL    "standard:viennacl"   /* seqviennacl on one process and mpiviennacl on several */
+#define VECSEQCUDA     "seq:cuda"
+#define VECMPICUDA     "mpi:cuda"
+#define VECCUDA        "standard:cuda"       /* seqcuda on one process and mpicuda on several */
 #define VECNEST        "nest"
 #define VECNODE        "node"       /* use on-node shared memory */
 

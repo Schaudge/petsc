@@ -1,4 +1,4 @@
-  type: mpicuda
+  type: mpi:cuda
 Process [0]
 -6.
 -6.

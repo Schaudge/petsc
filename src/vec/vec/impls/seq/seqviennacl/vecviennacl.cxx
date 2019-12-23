@@ -349,10 +349,10 @@ static PetscErrorCode VecResetArray_SeqViennaCL_Private(Vec vin)
 
 
 /*MC
-   VECSEQVIENNACL - VECSEQVIENNACL = "seqviennacl" - The basic sequential vector, modified to use ViennaCL
+   VECSEQVIENNACL - VECSEQVIENNACL = "seq:viennacl" - The basic sequential vector, modified to use ViennaCL
 
    Options Database Keys:
-. -vec_type seqviennacl - sets the vector type to VECSEQVIENNACL during a call to VecSetFromOptions()
+. -vec_type seq:viennacl - sets the vector type to VECSEQVIENNACL during a call to VecSetFromOptions()
 
   Level: beginner
 

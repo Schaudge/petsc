@@ -142,7 +142,7 @@ int main(int argc, char * argv[]) {
 
    test:
       suffix: cuda
-      args: -vec_type cuda
+      args: -vec_type standard:cuda
       requires: cuda
 
 TEST*/

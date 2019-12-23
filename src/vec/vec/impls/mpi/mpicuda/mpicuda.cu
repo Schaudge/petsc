@@ -103,10 +103,10 @@ PetscErrorCode VecMDot_MPICUDA(Vec xin,PetscInt nv,const Vec y[],PetscScalar *z)
 }
 
 /*MC
-   VECMPICUDA - VECMPICUDA = "mpicuda" - The basic parallel vector, modified to use CUDA
+   VECMPICUDA - VECMPICUDA = "mpi:cuda" - The basic parallel vector, modified to use CUDA
 
    Options Database Keys:
-. -vec_type mpicuda - sets the vector type to VECMPICUDA during a call to VecSetFromOptions()
+. -vec_type mpi:cuda - sets the vector type to VECMPICUDA during a call to VecSetFromOptions()
 
   Level: beginner
 

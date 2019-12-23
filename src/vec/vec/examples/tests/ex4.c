@@ -56,7 +56,7 @@ int main(int argc,char **argv)
 
    test:
       suffix: cuda
-      args: -vec_type cuda
+      args: -vec_type standard:cuda
       output_file: output/ex4_1.out
       filter: grep -v type
       requires: cuda
@@ -64,7 +64,7 @@ int main(int argc,char **argv)
    test:
       suffix: cuda2
       nsize: 2
-      args: -vec_type cuda
+      args: -vec_type standard:cuda
       output_file: output/ex4_1.out
       filter: grep -v type
       requires: cuda

@@ -79,27 +79,27 @@ int main(int argc,char **argv)
 
    test:
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/cfd.2.10 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format ell -vec_type cuda -pc_type ilu
+      args: -f ${DATAFILESPATH}/matrices/cfd.2.10 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format ell -vec_type standard:cuda -pc_type ilu
 
    test:
       suffix: 2
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format hyb -vec_type cuda -ksp_type cg -pc_type icc
+      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format hyb -vec_type standard:cuda -ksp_type cg -pc_type icc
 
    test:
       suffix: 3
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/cfd.2.10 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format csr -vec_type cuda -ksp_type bicg -pc_type ilu
+      args: -f ${DATAFILESPATH}/matrices/cfd.2.10 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format csr -vec_type standard:cuda -ksp_type bicg -pc_type ilu
 
    test:
       suffix: 4
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/cfd.2.10 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format csr -vec_type cuda -ksp_type bicg -pc_type ilu -pc_factor_mat_ordering_type nd
+      args: -f ${DATAFILESPATH}/matrices/cfd.2.10 -mat_type seqaijcusparse -pc_factor_mat_solver_type cusparse -mat_cusparse_storage_format csr -vec_type standard:cuda -ksp_type bicg -pc_type ilu -pc_factor_mat_ordering_type nd
 
    testset:
       nsize: 2
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type mpiaijcusparse -mat_cusparse_mult_diag_storage_format hyb -pc_type none -vec_type cuda
+      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type mpiaijcusparse -mat_cusparse_mult_diag_storage_format hyb -pc_type none -vec_type standard:cuda
       test:
         suffix: 5
       test:
@@ -111,12 +111,12 @@ int main(int argc,char **argv)
    test:
       suffix: 6
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type seqaijcusparse -pc_type none -vec_type cuda
+      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type seqaijcusparse -pc_type none -vec_type standard:cuda
 
    testset:
       nsize: 2
       requires: cuda datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type mpiaijcusparse -pc_type none -vec_type cuda
+      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type mpiaijcusparse -pc_type none -vec_type standard:cuda
 
       test:
         suffix: 7
@@ -129,14 +129,14 @@ int main(int argc,char **argv)
    test:
       suffix: 8
       requires: viennacl datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type seqaijviennacl -pc_type none -vec_type viennacl
+      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type seqaijviennacl -pc_type none -vec_type standard:viennacl
       output_file: output/ex43_6.out
 
    test:
       suffix: 9
       nsize: 2
       requires: viennacl datafilespath double !complex !define(PETSC_USE_64BIT_INDICES)
-      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type mpiaijviennacl -pc_type none -vec_type viennacl
+      args: -f ${DATAFILESPATH}/matrices/shallow_water1 -mat_type mpiaijviennacl -pc_type none -vec_type standard:viennacl
       output_file: output/ex43_7.out
 
 TEST*/
