@@ -22,6 +22,7 @@ cd ${rundir}
 
 # Grab some useful variables from petscvariables here
 make=`grep ^MAKE\  ${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables | cut -d= -f2`
+cmake=`grep ^CMAKE\  ${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables | cut -d= -f2`
 
 #
 # Method to print out general and script specific options

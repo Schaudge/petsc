@@ -200,7 +200,7 @@ int main(int argc,char **argv)
       - if command -v pkg-config 1>/dev/null 2>&1; then
       - mkdir build
       - cd build
-      - tap: cmake ..
+      - tap: ${cmake} ..
       - tap: ${make} VERBOSE=1
       - tap: ${mpiexec} -n ${nsize} ex1 ${args}
       - cp -f *.err *.out ..
@@ -210,7 +210,6 @@ int main(int argc,char **argv)
       - fi
 
    test:
-      TODO: Need to debug
       suffix: makefileuser_build
       localrunfiles: ex1.c
       output_file: output/ex1_1.out
