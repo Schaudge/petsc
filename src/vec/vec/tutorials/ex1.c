@@ -193,16 +193,17 @@ int main(int argc,char **argv)
       suffix: cmake_build
       localrunfiles: CMakeLists.txt ex1.c
       output_file: output/ex1_1.out
-      testscript: 
+      testscript:
       - export PETSC_DIR=$petsc_dir
       - export PETSC_ARCH=$petsc_arch
+      - cmake=$(awk '/^CMAKE =/ {print $3}' "${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables")
       - rm -rf build
       - if command -v pkg-config 1>/dev/null 2>&1; then
       - mkdir build
       - cd build
       - tap: ${cmake} ..
       - tap: ${make} VERBOSE=1
-      - tap: ${mpiexec} -n ${nsize} ex1 ${args}
+      - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
       - cp -f *.err *.out ..
       - cd ..
       - else
@@ -213,7 +214,7 @@ int main(int argc,char **argv)
       suffix: makefileuser_build
       localrunfiles: ex1.c
       output_file: output/ex1_1.out
-      testscript: 
+      testscript:
       - export PETSC_DIR=$petsc_dir
       - export PETSC_ARCH=$petsc_arch
       - if command -v pkg-config 1>/dev/null 2>&1; then
