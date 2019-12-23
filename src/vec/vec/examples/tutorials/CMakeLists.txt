@@ -10,7 +10,7 @@
 #  Gets both the compiler information and the library information from PETSc
 #    Remove the lines below Determine PETSc compilers if the compilers are to be provided externally
 #
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.1.0)
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
