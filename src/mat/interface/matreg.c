@@ -176,7 +176,7 @@ MatRootName MatRootNameList = 0;
   Notes: The matrix rootname should not be confused with the base type of the function PetscObjectBaseTypeCompare()
 
   Developer Notes: PETSc vectors have a similar rootname that indicates PETSc should automatically select the appropriate VecType based on the
-      size of the communicator but it is implemented by simply having additional VecCreate_RootName() registerer routines that dispatch to the
+      size of the communicator but it is not implemented by simply having additional VecCreate_RootName() registerer routines that dispatch to the
       appropriate creation routine. Why have two different ways of implementing the same functionality for different types of objects? It is
       confusing.
 

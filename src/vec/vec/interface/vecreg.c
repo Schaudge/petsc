@@ -24,7 +24,11 @@ PetscBool         VecRegisterAllCalled = PETSC_FALSE;
 
   Level: intermediate
 
-.seealso: VecGetType(), VecCreate()
+ Developer Notes:
+   If VecSetSetSizes() has already been called then this will call the VecCreate_XXX() method for the vector, otherwise
+   the function for setting up the vector is kept
+
+.seealso: VecGetType(), VecCreate(), VecSetSizes()
 @*/
 PetscErrorCode VecSetType(Vec vec, VecType method)
 {

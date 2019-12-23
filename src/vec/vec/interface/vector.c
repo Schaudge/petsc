@@ -1306,6 +1306,10 @@ PetscErrorCode  VecSetFromOptions(Vec vec)
 
   Level: intermediate
 
+  Developer Notes:
+   If VecSetType() has already been called then this will call the VecCreate_XXX() method for the vector that was 
+   set in the call to VecSetType(), otherwise the sizes are only set.
+
 .seealso: VecGetSize(), PetscSplitOwnership()
 @*/
 PetscErrorCode  VecSetSizes(Vec v, PetscInt n, PetscInt N)
