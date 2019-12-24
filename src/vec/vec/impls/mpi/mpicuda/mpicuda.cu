@@ -123,6 +123,8 @@ PetscErrorCode VecDuplicate_MPICUDA(Vec win,Vec *v)
   PetscFunctionBegin;
   ierr = VecCreate(PetscObjectComm((PetscObject)win),v);CHKERRQ(ierr);
   ierr = PetscLayoutReference(win->map,&(*v)->map);CHKERRQ(ierr);
+  ierr = VecSetType(*v,VECMPI);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)*v,VECMPICUDA);CHKERRQ(ierr);
 
   ierr = VecCreate_MPICUDA_Private(*v,PETSC_TRUE,w->nghost,0);CHKERRQ(ierr);
   vw   = (Vec_MPI*)(*v)->data;
@@ -174,7 +176,8 @@ PetscErrorCode VecCreate_MPICUDA(Vec vv)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscLayoutSetUp(vv->map);CHKERRQ(ierr);
+  ierr = VecSetType(vv,VECMPI);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)vv,VECMPICUDA);CHKERRQ(ierr);
   ierr = VecCUDAAllocateCheck(vv);CHKERRQ(ierr);
   ierr = VecCreate_MPICUDA_Private(vv,PETSC_FALSE,0,((Vec_CUDA*)vv->spptr)->GPUarray_allocated);CHKERRQ(ierr);
   ierr = VecCUDAAllocateCheckHost(vv);CHKERRQ(ierr);
@@ -238,10 +241,11 @@ PetscErrorCode  VecCreateMPICUDAWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,P
 
   PetscFunctionBegin;
   if (n == PETSC_DECIDE) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Must set local size of vector");
-  ierr = PetscSplitOwnership(comm,&n,&N);CHKERRQ(ierr);
   ierr = VecCreate(comm,vv);CHKERRQ(ierr);
   ierr = VecSetSizes(*vv,n,N);CHKERRQ(ierr);
   ierr = VecSetBlockSize(*vv,bs);CHKERRQ(ierr);
+  ierr = VecSetType(*vv,VECMPI);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)*vv,VECMPICUDA);CHKERRQ(ierr);
   ierr = VecCreate_MPICUDA_Private(*vv,PETSC_FALSE,0,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -330,9 +334,6 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
   Vec_CUDA       *veccuda;
 
   PetscFunctionBegin;
-  ierr = VecCreate_MPI_Private(vv,PETSC_FALSE,0,0);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)vv,VECMPICUDA);CHKERRQ(ierr);
-
   ierr = VecPinToCPU_MPICUDA(vv,PETSC_FALSE);CHKERRQ(ierr);
   vv->ops->pintocpu = VecPinToCPU_MPICUDA;
 

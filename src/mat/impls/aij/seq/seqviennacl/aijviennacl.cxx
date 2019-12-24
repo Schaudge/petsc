@@ -467,7 +467,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJViennaCL(Mat A,MatType type,
 
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQAIJVIENNACL);CHKERRQ(ierr);
   ierr = PetscFree(B->defaultvectype);CHKERRQ(ierr);
-  ierr = PetscStrallocpy(VECVIENNACL,&B->defaultvectype);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(VECSEQVIENNACL,&B->defaultvectype);CHKERRQ(ierr);
 
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatConvert_seqaij_seqaijviennacl_C",MatConvert_SeqAIJ_SeqAIJViennaCL);CHKERRQ(ierr);
 

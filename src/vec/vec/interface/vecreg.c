@@ -47,10 +47,12 @@ PetscErrorCode VecSetType(Vec vec, VecType method)
     ierr = (*vec->ops->destroy)(vec);CHKERRQ(ierr);
     vec->ops->destroy = NULL;
   }
+  ierr = PetscFree(((PetscObject)vec)->type_name);CHKERRQ(ierr);
   if (vec->map->n < 0 && vec->map->N < 0) {
     vec->ops->create = r;
     vec->ops->load   = VecLoad_Default;
   } else {
+    ierr = PetscLayoutSetUp(vec->map);CHKERRQ(ierr);
     ierr = (*r)(vec);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);

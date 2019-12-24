@@ -245,7 +245,8 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscLayoutSetUp(V->map);CHKERRQ(ierr);
+  ierr = VecSetType(V,VECSEQ);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQCUDA);CHKERRQ(ierr);
   ierr = VecCUDAAllocateCheck(V);CHKERRQ(ierr);
   ierr = VecCreate_SeqCUDA_Private(V,((Vec_CUDA*)V->spptr)->GPUarray_allocated);CHKERRQ(ierr);
   ierr = VecCUDAAllocateCheckHost(V);CHKERRQ(ierr);
@@ -290,14 +291,13 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
 PetscErrorCode  VecCreateSeqCUDAWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,const PetscScalar array[],Vec *V)
 {
   PetscErrorCode ierr;
-  PetscMPIInt    size;
 
   PetscFunctionBegin;
   ierr = VecCreate(comm,V);CHKERRQ(ierr);
   ierr = VecSetSizes(*V,n,n);CHKERRQ(ierr);
   ierr = VecSetBlockSize(*V,bs);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQ on more than one process");
+  ierr = VecSetType(*V,VECSEQ);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQCUDA);CHKERRQ(ierr);
   ierr = VecCreate_SeqCUDA_Private(*V,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -398,13 +398,8 @@ PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
 {
   PetscErrorCode ierr;
   Vec_CUDA       *veccuda;
-  PetscMPIInt    size;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)V),&size);CHKERRQ(ierr);
-  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQCUDA on more than one process");
-  ierr = VecCreate_Seq_Private(V,0);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQCUDA);CHKERRQ(ierr);
   ierr = VecPinToCPU_SeqCUDA(V,PETSC_FALSE);CHKERRQ(ierr);
   V->ops->pintocpu = VecPinToCPU_SeqCUDA;
 

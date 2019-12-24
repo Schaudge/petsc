@@ -1324,6 +1324,7 @@ PetscErrorCode  VecSetSizes(Vec v, PetscInt n, PetscInt N)
   v->map->n = n;
   v->map->N = N;
   if (v->ops->create) {
+    ierr = PetscLayoutSetUp(v->map);CHKERRQ(ierr);
     ierr = (*v->ops->create)(v);CHKERRQ(ierr);
     v->ops->create = 0;
   }

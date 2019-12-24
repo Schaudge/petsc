@@ -3,7 +3,7 @@ ALL: lib
 
 CFLAGS   = ${MATLAB_INCLUDE}
 FFLAGS   =
-SOURCEC  = bvec2.c bvec1.c dvec2.c vseqcr.c bvec3.c
+SOURCEC  = bvec2.c bvec1.c dvec2.c vseqcr.c
 SOURCEF  =
 SOURCEH  =
 LIBBASE  = libpetscvec

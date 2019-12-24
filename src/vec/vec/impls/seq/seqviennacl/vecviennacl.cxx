@@ -1162,12 +1162,9 @@ static PetscErrorCode VecPinToCPU_SeqAIJViennaCL(Vec V,PetscBool flg)
 PETSC_EXTERN PetscErrorCode VecCreate_SeqViennaCL(Vec V)
 {
   PetscErrorCode ierr;
-  PetscMPIInt    size;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)V),&size);CHKERRQ(ierr);
-  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQVIENNACL on more than one process");
-  ierr = VecCreate_Seq_Private(V,0);CHKERRQ(ierr);
+  ierr = VecSetType(V,VECSEQ);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQVIENNACL);CHKERRQ(ierr);
 
   ierr = VecPinToCPU_SeqAIJViennaCL(V,PETSC_FALSE);CHKERRQ(ierr);

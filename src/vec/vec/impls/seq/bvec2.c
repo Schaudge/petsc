@@ -749,6 +749,121 @@ PetscErrorCode VecSetValues_Seq(Vec xin,PetscInt ni,const PetscInt ix[],const Pe
   PetscFunctionReturn(0);
 }
 
+
+static struct _VecOps DvOps = {VecDuplicate_Seq, /* 1 */
+                               VecDuplicateVecs_Default,
+                               VecDestroyVecs_Default,
+                               VecDot_Seq,
+                               VecMDot_Seq,
+                               VecNorm_Seq,
+                               VecTDot_Seq,
+                               VecMTDot_Seq,
+                               VecScale_Seq,
+                               VecCopy_Seq, /* 10 */
+                               VecSet_Seq,
+                               VecSwap_Seq,
+                               VecAXPY_Seq,
+                               VecAXPBY_Seq,
+                               VecMAXPY_Seq,
+                               VecAYPX_Seq,
+                               VecWAXPY_Seq,
+                               VecAXPBYPCZ_Seq,
+                               VecPointwiseMult_Seq,
+                               VecPointwiseDivide_Seq,
+                               VecSetValues_Seq, /* 20 */
+                               0,0,
+                               0,
+                               VecGetSize_Seq,
+                               VecGetSize_Seq,
+                               0,
+                               VecMax_Seq,
+                               VecMin_Seq,
+                               VecSetRandom_Seq,
+                               VecSetOption_Seq, /* 30 */
+                               VecSetValuesBlocked_Seq,
+                               VecDestroy_Seq,
+                               VecView_Seq,
+                               VecPlaceArray_Seq,
+                               VecReplaceArray_Seq,
+                               VecDot_Seq,
+                               VecTDot_Seq,
+                               VecNorm_Seq,
+                               VecMDot_Seq,
+                               VecMTDot_Seq, /* 40 */
+                               VecLoad_Default,
+                               VecReciprocal_Default,
+                               VecConjugate_Seq,
+                               0,
+                               0,
+                               VecResetArray_Seq,
+                               0,
+                               VecMaxPointwiseDivide_Seq,
+                               VecPointwiseMax_Seq,
+                               VecPointwiseMaxAbs_Seq,
+                               VecPointwiseMin_Seq,
+                               VecGetValues_Seq,
+                               0,
+                               0,
+                               0,
+                               0,
+                               0,
+                               0,
+                               VecStrideGather_Default,
+                               VecStrideScatter_Default,
+                               0,
+                               0,
+                               0,
+                               0,
+                               0,
+                               VecStrideSubSetGather_Default,
+                               VecStrideSubSetScatter_Default,
+                               0,
+                               0
+};
+
+/*MC
+   VECSEQ - VECSEQ = "seq" - The basic sequential vector
+
+   Options Database Keys:
+. -vec_type seq - sets the vector type to VECSEQ during a call to VecSetFromOptions()
+
+  Level: beginner
+
+.seealso: VecCreate(), VecSetType(), VecSetFromOptions(), VecCreateSeqWithArray(), VECMPI, VecType, VecCreateMPI(), VecCreateSeq()
+M*/
+
+PETSC_EXTERN PetscErrorCode VecCreate_Seq(Vec V)
+{
+  Vec_Seq        *s;
+  PetscScalar    *array;
+  PetscErrorCode ierr;
+  PetscInt       n = PetscMax(V->map->n,V->map->N);
+  PetscMPIInt    size;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)V),&size);CHKERRQ(ierr);
+  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQ on more than one process");
+  ierr = PetscNewLog(V,&s);CHKERRQ(ierr);
+  ierr = PetscMemcpy(V->ops,&DvOps,sizeof(DvOps));CHKERRQ(ierr);
+
+  V->data            = (void*)s;
+  V->petscnative     = PETSC_TRUE;
+
+  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQ);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_MATLAB_ENGINE)
+  ierr = PetscObjectComposeFunction((PetscObject)V,"PetscMatlabEnginePut_C",VecMatlabEnginePut_Default);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)V,"PetscMatlabEngineGet_C",VecMatlabEngineGet_Default);CHKERRQ(ierr);
+#endif
+
+  ierr = PetscMalloc1(n,&array);CHKERRQ(ierr);
+  ierr = PetscLogObjectMemory((PetscObject)V, n*sizeof(PetscScalar));CHKERRQ(ierr);
+  s->array           = (PetscScalar*)array;
+  s->array_allocated = array;
+
+  ierr = VecSet(V,0.0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode VecSetValuesBlocked_Seq(Vec xin,PetscInt ni,const PetscInt ix[],const PetscScalar yin[],InsertMode m)
 {
   PetscScalar    *xx,*y = (PetscScalar*)yin;
@@ -822,104 +937,6 @@ PetscErrorCode VecDuplicate_Seq(Vec win,Vec *V)
   PetscFunctionReturn(0);
 }
 
-static struct _VecOps DvOps = {VecDuplicate_Seq, /* 1 */
-                               VecDuplicateVecs_Default,
-                               VecDestroyVecs_Default,
-                               VecDot_Seq,
-                               VecMDot_Seq,
-                               VecNorm_Seq,
-                               VecTDot_Seq,
-                               VecMTDot_Seq,
-                               VecScale_Seq,
-                               VecCopy_Seq, /* 10 */
-                               VecSet_Seq,
-                               VecSwap_Seq,
-                               VecAXPY_Seq,
-                               VecAXPBY_Seq,
-                               VecMAXPY_Seq,
-                               VecAYPX_Seq,
-                               VecWAXPY_Seq,
-                               VecAXPBYPCZ_Seq,
-                               VecPointwiseMult_Seq,
-                               VecPointwiseDivide_Seq,
-                               VecSetValues_Seq, /* 20 */
-                               0,0,
-                               0,
-                               VecGetSize_Seq,
-                               VecGetSize_Seq,
-                               0,
-                               VecMax_Seq,
-                               VecMin_Seq,
-                               VecSetRandom_Seq,
-                               VecSetOption_Seq, /* 30 */
-                               VecSetValuesBlocked_Seq,
-                               VecDestroy_Seq,
-                               VecView_Seq,
-                               VecPlaceArray_Seq,
-                               VecReplaceArray_Seq,
-                               VecDot_Seq,
-                               VecTDot_Seq,
-                               VecNorm_Seq,
-                               VecMDot_Seq,
-                               VecMTDot_Seq, /* 40 */
-                               VecLoad_Default,
-                               VecReciprocal_Default,
-                               VecConjugate_Seq,
-                               0,
-                               0,
-                               VecResetArray_Seq,
-                               0,
-                               VecMaxPointwiseDivide_Seq,
-                               VecPointwiseMax_Seq,
-                               VecPointwiseMaxAbs_Seq,
-                               VecPointwiseMin_Seq,
-                               VecGetValues_Seq,
-                               0,
-                               0,
-                               0,
-                               0,
-                               0,
-                               0,
-                               VecStrideGather_Default,
-                               VecStrideScatter_Default,
-                               0,
-                               0,
-                               0,
-                               0,
-                               0,
-                               VecStrideSubSetGather_Default,
-                               VecStrideSubSetScatter_Default,
-                               0,
-                               0
-};
-
-
-/*
-      This is called by VecCreate_Seq() (i.e. VecCreateSeq()) and VecCreateSeqWithArray()
-*/
-PetscErrorCode VecCreate_Seq_Private(Vec v,const PetscScalar array[])
-{
-  Vec_Seq        *s;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscNewLog(v,&s);CHKERRQ(ierr);
-  ierr = PetscMemcpy(v->ops,&DvOps,sizeof(DvOps));CHKERRQ(ierr);
-
-  v->data            = (void*)s;
-  v->petscnative     = PETSC_TRUE;
-  s->array           = (PetscScalar*)array;
-  s->array_allocated = 0;
-
-  ierr = PetscLayoutSetUp(v->map);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)v,VECSEQ);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_MATLAB_ENGINE)
-  ierr = PetscObjectComposeFunction((PetscObject)v,"PetscMatlabEnginePut_C",VecMatlabEnginePut_Default);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)v,"PetscMatlabEngineGet_C",VecMatlabEngineGet_Default);CHKERRQ(ierr);
-#endif
-  PetscFunctionReturn(0);
-}
-
 /*@C
    VecCreateSeqWithArray - Creates a standard,sequential array-style vector,
    where the user provides the array space to store the vector values.
@@ -953,14 +970,16 @@ PetscErrorCode VecCreate_Seq_Private(Vec v,const PetscScalar array[])
 PetscErrorCode  VecCreateSeqWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,const PetscScalar array[],Vec *V)
 {
   PetscErrorCode ierr;
-  PetscMPIInt    size;
+  Vec_Seq        *s;
 
   PetscFunctionBegin;
   ierr = VecCreate(comm,V);CHKERRQ(ierr);
   ierr = VecSetSizes(*V,n,n);CHKERRQ(ierr);
   ierr = VecSetBlockSize(*V,bs);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQ on more than one process");
-  ierr = VecCreate_Seq_Private(*V,array);CHKERRQ(ierr);
+  ierr = VecSetType(*V,VECSEQ);CHKERRQ(ierr);
+
+  s        = (Vec_Seq*)(*V)->data;
+  ierr     = PetscFree(s->array_allocated);CHKERRQ(ierr);
+  s->array = (PetscScalar*)array;
   PetscFunctionReturn(0);
 }

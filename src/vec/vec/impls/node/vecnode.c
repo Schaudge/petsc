@@ -335,8 +335,6 @@ PETSC_EXTERN PetscErrorCode VecCreate_Node(Vec v)
   ierr           = PetscMemcpy(v->ops,&DvOps,sizeof(DvOps));CHKERRQ(ierr);
   v->petscnative = PETSC_FALSE;
 
-  ierr = PetscLayoutSetUp(v->map);CHKERRQ(ierr);
-
   s->array           = (PetscScalar*)array;
   s->array_allocated = 0;
 
