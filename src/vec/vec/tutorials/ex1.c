@@ -202,7 +202,7 @@ int main(int argc,char **argv)
       - mkdir build
       - cd build
       - tap: ${cmake} ..
-      - tap: ${make} VERBOSE=1
+      - tap: ${cmake} --build . --verbose
       - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
       - cp -f *.err *.out ..
       - cd ..
