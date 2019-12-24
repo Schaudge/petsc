@@ -219,7 +219,7 @@ int main(int argc,char **argv)
       - export PETSC_ARCH=$petsc_arch
       - if command -v pkg-config 1>/dev/null 2>&1; then
       - tap: ${make} -f $PETSC_DIR/share/petsc/Makefile.user ex1
-      - tap: ${mpiexec} -n ${nsize} ex1 ${args}
+      - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
       - else
       - echo "ok ${label}"
       - fi
