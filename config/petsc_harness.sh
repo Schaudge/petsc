@@ -20,9 +20,6 @@ if test -n "${runfiles}"; then
 fi
 cd ${rundir}
 
-# Grab some useful variables from petscvariables here
-make=$(awk '/^MAKE =/ {print $3}' "${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables")
-
 #
 # Method to print out general and script specific options
 #

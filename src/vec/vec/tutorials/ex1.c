@@ -218,6 +218,7 @@ int main(int argc,char **argv)
       testscript:
       - export PETSC_DIR=$petsc_dir
       - export PETSC_ARCH=$petsc_arch
+      - make=$(awk '/^MAKE =/ {print $3}' "${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables")
       - if command -v pkg-config 1>/dev/null 2>&1; then
       - tap: ${make} -f $PETSC_DIR/share/petsc/Makefile.user ex1
       - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
