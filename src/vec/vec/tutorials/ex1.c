@@ -189,7 +189,7 @@ int main(int argc,char **argv)
       requires: cuda
 
    test:
-      requires: cmake
+      requires: cmake !__float128
       suffix: cmake_build
       localrunfiles: CMakeLists.txt ex1.c
       output_file: output/ex1_1.out
@@ -211,6 +211,7 @@ int main(int argc,char **argv)
       - fi
 
    test:
+      requires: !__float128
       suffix: makefileuser_build
       localrunfiles: ex1.c
       output_file: output/ex1_1.out

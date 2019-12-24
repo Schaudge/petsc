@@ -27,7 +27,8 @@ FFLAGS := $(shell pkg-config --variable=fflags_extra $(PACKAGES))
 CPPFLAGS := $(shell pkg-config --cflags-only-I $(PACKAGES))
 LDFLAGS := $(shell pkg-config --libs-only-L --libs-only-other $(PACKAGES))
 LDFLAGS += $(patsubst -L%, $(shell pkg-config --variable=ldflag_rpath $(PACKAGES))%, $(shell pkg-config --libs-only-L $(PACKAGES)))
-LDLIBS := $(shell pkg-config --libs-only-l $(PACKAGES)) -lm
+LDLIBS_EXTRA := -lm # Or -lquadmath for __float128; only required (with shared libs) when calling math functions directly
+LDLIBS := $(shell pkg-config --libs-only-l $(PACKAGES)) $(LDLIBS_EXTRA)
 
 print:
 	@echo CC=$(CC)
