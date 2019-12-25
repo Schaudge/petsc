@@ -113,7 +113,7 @@ PetscErrorCode MatSeqDenseCUDACopyToGPU(Mat A)
   if (!dA->d_v) {
     cerr = cudaMalloc((void**)&dA->d_v,cA->lda*cA->Nmax*sizeof(PetscScalar));CHKERRCUDA(cerr);
   }
-  copy = (PetscBool)(A->offloadmask == PETSC_OFFLOAD_CPU || A->offloadmask == PETSC_OFFLOAD_UNALLOCATED);
+  copy = (PetscBool)(A->offloadmask == PETSC_OFFLOAD_CPU || A->offloadmask == PETSC_OFFLOAD_NONE);
   ierr = PetscInfo3(A,"%s matrix %d x %d\n",copy ? "Copy" : "Reusing",A->rmap->n,A->cmap->n);CHKERRQ(ierr);
   if (copy) {
     ierr = PetscLogEventBegin(MAT_DenseCopyToGPU,A,0,0,0);CHKERRQ(ierr);
@@ -968,7 +968,7 @@ PetscErrorCode MatConvert_SeqDense_SeqDenseCUDA(Mat M,MatType type,MatReuse reus
   ierr     = PetscNewLog(B,&dB);CHKERRQ(ierr);
   B->spptr = dB;
 
-  B->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+  B->offloadmask = PETSC_OFFLOAD_NONE;
 
   ierr = MatPinToCPU_SeqDenseCUDA(B,PETSC_FALSE);CHKERRQ(ierr);
   B->ops->pintocpu = MatPinToCPU_SeqDenseCUDA;

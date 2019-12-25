@@ -46,7 +46,7 @@ static PetscErrorCode VecPlaceArray_MPI(Vec vin,const PetscScalar *a)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode VecDuplicate_MPI(Vec win,Vec *v)
+PetscErrorCode VecDuplicate_MPI(Vec win,Vec *v)
 {
   PetscErrorCode ierr;
   Vec_MPI        *vw,*w = (Vec_MPI*)win->data;

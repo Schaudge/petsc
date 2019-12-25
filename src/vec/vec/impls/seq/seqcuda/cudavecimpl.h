@@ -8,9 +8,9 @@
 #include <cublas_v2.h>
 
 typedef struct {
-  PetscScalar  *GPUarray;           /* this always holds the GPU data */
-  PetscScalar  *GPUarray_allocated; /* if the array was allocated by PETSc this is its pointer */
-  cudaStream_t stream;              /* A stream for doing asynchronous data transfers */
+  PetscScalar  *array;           /* this always holds the GPU data */
+  PetscScalar  *array_allocated; /* if the array was allocated by PETSc this is its pointer */
+  cudaStream_t stream;           /* A stream for doing asynchronous data transfers */
   PetscBool    hostDataRegisteredAsPageLocked;
 } Vec_CUDA;
 
@@ -40,7 +40,6 @@ PETSC_INTERN PetscErrorCode VecNorm_SeqCUDA(Vec,NormType,PetscReal*);
 PETSC_INTERN PetscErrorCode VecCUDACopyToGPU(Vec);
 PETSC_INTERN PetscErrorCode VecCUDAAllocateCheck(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_SeqCUDA(Vec);
-PETSC_INTERN PetscErrorCode VecCreate_SeqCUDA_Private(Vec,const PetscScalar*);
 PETSC_INTERN PetscErrorCode VecCreate_MPICUDA(Vec);
 PETSC_INTERN PetscErrorCode VecCreate_MPICUDA_Private(Vec,PetscBool,PetscInt,const PetscScalar*);
 PETSC_INTERN PetscErrorCode VecCreate_CUDA(Vec);

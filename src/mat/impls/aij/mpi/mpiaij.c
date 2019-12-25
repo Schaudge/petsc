@@ -858,7 +858,7 @@ PetscErrorCode MatAssemblyEnd_MPIAIJ(Mat mat,MatAssemblyType mode)
   }
   ierr = MatSetOption(aij->B,MAT_USE_INODES,PETSC_FALSE);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
-  if (mat->offloadmask == PETSC_OFFLOAD_CPU && aij->B->offloadmask != PETSC_OFFLOAD_UNALLOCATED) aij->B->offloadmask = PETSC_OFFLOAD_CPU;
+  if (mat->offloadmask == PETSC_OFFLOAD_CPU && aij->B->offloadmask != PETSC_OFFLOAD_NONE) aij->B->offloadmask = PETSC_OFFLOAD_CPU;
 #endif
   ierr = MatAssemblyBegin(aij->B,mode);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(aij->B,mode);CHKERRQ(ierr);
@@ -2276,7 +2276,7 @@ PetscErrorCode MatAXPY_MPIAIJ(Mat Y,PetscScalar a,Mat X,MatStructure str)
     /* the MatAXPY_Basic* subroutines calls MatAssembly, so the matrix on the GPU
        will be updated */
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
-    if (Y->offloadmask != PETSC_OFFLOAD_UNALLOCATED) {
+    if (Y->offloadmask != PETSC_OFFLOAD_NONE) {
       Y->offloadmask = PETSC_OFFLOAD_CPU;
     }
 #endif

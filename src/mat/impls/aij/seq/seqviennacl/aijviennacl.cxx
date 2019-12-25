@@ -33,7 +33,7 @@ PetscErrorCode MatViennaCLCopyToGPU(Mat A)
 
   PetscFunctionBegin;
   if (A->rmap->n > 0 && A->cmap->n > 0 && a->nz) { //some OpenCL SDKs have issues with buffers of size 0
-    if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED || A->offloadmask == PETSC_OFFLOAD_CPU) {
+    if (A->offloadmask == PETSC_OFFLOAD_NONE || A->offloadmask == PETSC_OFFLOAD_CPU) {
       ierr = PetscLogEventBegin(MAT_ViennaCLCopyToGPU,A,0,0,0);CHKERRQ(ierr);
 
       try {
@@ -108,7 +108,7 @@ PetscErrorCode MatViennaCLCopyFromGPU(Mat A, const ViennaCLAIJMatrix *Agpu)
 
   PetscFunctionBegin;
   if (A->offloadmask == PETSC_OFFLOAD_BOTH) PetscFunctionReturn(0);
-  if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED && Agpu) {
+  if (A->offloadmask == PETSC_OFFLOAD_NONE && Agpu) {
     try {
       if (a->compressedrow.use) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, "ViennaCL: Cannot handle row compression for GPU matrices");
       else {
@@ -163,7 +163,7 @@ PetscErrorCode MatViennaCLCopyFromGPU(Mat A, const ViennaCLAIJMatrix *Agpu)
     } catch(std::exception const & ex) {
       SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_LIB, "ViennaCL error: %s", ex.what());
     }
-  } else if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
+  } else if (A->offloadmask == PETSC_OFFLOAD_NONE) {
     PetscFunctionReturn(0);
   } else {
     if (!Agpu && A->offloadmask != PETSC_OFFLOAD_GPU) PetscFunctionReturn(0);
@@ -334,7 +334,7 @@ PetscErrorCode MatDestroy_SeqAIJViennaCL(Mat A)
       delete viennaclcontainer->compressed_mat;
       delete viennaclcontainer;
     }
-    A->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+    A->offloadmask = PETSC_OFFLOAD_NONE;
   } catch(std::exception const & ex) {
     SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"ViennaCL error: %s", ex.what());
   }
@@ -378,7 +378,7 @@ static PetscErrorCode MatDuplicate_SeqAIJViennaCL(Mat A,MatDuplicateOption cpval
 
   ierr = PetscObjectChangeTypeName((PetscObject)C,MATSEQAIJVIENNACL);CHKERRQ(ierr);
 
-  C->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+  C->offloadmask = PETSC_OFFLOAD_NONE;
 
   /* If the source matrix is already assembled, copy the destination matrix to the GPU */
   if (C->assembled) {
@@ -471,7 +471,7 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJViennaCL(Mat A,MatType type,
 
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatConvert_seqaij_seqaijviennacl_C",MatConvert_SeqAIJ_SeqAIJViennaCL);CHKERRQ(ierr);
 
-  B->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+  B->offloadmask = PETSC_OFFLOAD_NONE;
 
   /* If the source matrix is already assembled, copy the destination matrix to the GPU */
   if (B->assembled) {

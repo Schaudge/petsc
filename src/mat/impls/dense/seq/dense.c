@@ -1033,7 +1033,7 @@ static PetscErrorCode MatSetValues_SeqDense(Mat A,PetscInt m,const PetscInt inde
 #endif
   ierr = MatDenseRestoreArray(A,&av);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_CUDA)
-  A->offloadmask = (oldf == PETSC_OFFLOAD_UNALLOCATED ? PETSC_OFFLOAD_UNALLOCATED : PETSC_OFFLOAD_CPU);
+  A->offloadmask = (oldf == PETSC_OFFLOAD_NONE ? PETSC_OFFLOAD_NONE : PETSC_OFFLOAD_CPU);
 #endif
   PetscFunctionReturn(0);
 }

@@ -818,14 +818,17 @@ typedef struct {
 /*E
     PetscOffloadMask - indicates which memory (CPU, GPU, or none) contains valid data
 
-   PETSC_OFFLOAD_UNALLOCATED  - no memory contains valid matrix entries; NEVER used for vectors
+   PETSC_OFFLOAD_NONE  - no memory contains valid matrix entries
    PETSC_OFFLOAD_GPU - GPU has valid vector/matrix entries
    PETSC_OFFLOAD_CPU - CPU has valid vector/matrix entries
-   PETSC_OFFLOAD_BOTH - Both GPU and CPU have valid vector/matrix entries and they match
+   PETSC_OFFLOAD_BOTH - Both GPU and CPU have valid vector/matrix entries and they match = PETSC_OFFLOAD_CPU | PETSC_OFFLOAD_GPU
+
+   Notes:
+     Either, both or neither of the CPU/GPU may have memory allocated, that is a seperate issue from this flag
 
    Level: developer
 E*/
-typedef enum {PETSC_OFFLOAD_UNALLOCATED=0x0,PETSC_OFFLOAD_CPU=0x1,PETSC_OFFLOAD_GPU=0x2,PETSC_OFFLOAD_BOTH=0x3} PetscOffloadMask;
+typedef enum {PETSC_OFFLOAD_NONE=0x0,PETSC_OFFLOAD_CPU=0x1,PETSC_OFFLOAD_GPU=0x2,PETSC_OFFLOAD_BOTH=0x3} PetscOffloadMask;
 
 typedef enum {STATE_BEGIN, STATE_PENDING, STATE_END} SRState;
 

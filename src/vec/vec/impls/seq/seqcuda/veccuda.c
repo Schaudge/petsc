@@ -26,16 +26,12 @@ PetscErrorCode VecCUDAAllocateCheckHost(Vec v)
   PetscInt       n = v->map->n;
 
   PetscFunctionBegin;
-  if (!s) {
-    ierr = PetscNewLog((PetscObject)v,&s);CHKERRQ(ierr);
-    v->data = s;
-  }
   if (!s->array) {
     ierr = PetscMalloc1(n,&array);CHKERRQ(ierr);
     ierr = PetscLogObjectMemory((PetscObject)v,n*sizeof(PetscScalar));CHKERRQ(ierr);
     s->array           = array;
     s->array_allocated = array;
-    if (v->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
+    if (v->offloadmask == PETSC_OFFLOAD_NONE) {
       v->offloadmask = PETSC_OFFLOAD_CPU;
     }
   }
@@ -71,23 +67,6 @@ PetscErrorCode VecSetRandom_SeqCUDA_Private(Vec xin,PetscRandom r)
   ierr = VecGetArray(xin,&xx);CHKERRQ(ierr);
   for (i=0; i<n; i++) { ierr = PetscRandomGetValue(r,&xx[i]);CHKERRQ(ierr); }
   ierr = VecRestoreArray(xin,&xx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode VecDestroy_SeqCUDA_Private(Vec v)
-{
-  Vec_Seq        *vs = (Vec_Seq*)v->data;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscObjectSAWsViewOff(v);CHKERRQ(ierr);
-#if defined(PETSC_USE_LOG)
-  PetscLogObjectState((PetscObject)v,"Length=%D",v->map->n);
-#endif
-  if (vs) {
-    if (vs->array_allocated) { ierr = PetscFree(vs->array_allocated);CHKERRQ(ierr); }
-    ierr = PetscFree(vs);CHKERRQ(ierr);
-  }
   PetscFunctionReturn(0);
 }
 
@@ -227,78 +206,15 @@ PetscErrorCode VecCreateSeqCUDA(MPI_Comm comm,PetscInt n,Vec *v)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecDuplicate_Seq(Vec,Vec *);
+
 PetscErrorCode VecDuplicate_SeqCUDA(Vec win,Vec *V)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecCreateSeqCUDA(PetscObjectComm((PetscObject)win),win->map->n,V);CHKERRQ(ierr);
-  ierr = PetscLayoutReference(win->map,&(*V)->map);CHKERRQ(ierr);
-  ierr = PetscObjectListDuplicate(((PetscObject)win)->olist,&((PetscObject)(*V))->olist);CHKERRQ(ierr);
-  ierr = PetscFunctionListDuplicate(((PetscObject)win)->qlist,&((PetscObject)(*V))->qlist);CHKERRQ(ierr);
-  (*V)->stash.ignorenegidx = win->stash.ignorenegidx;
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode VecCreate_SeqCUDA(Vec V)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecSetType(V,VECSEQ);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQCUDA);CHKERRQ(ierr);
-  ierr = VecCUDAAllocateCheck(V);CHKERRQ(ierr);
-  ierr = VecCreate_SeqCUDA_Private(V,((Vec_CUDA*)V->spptr)->GPUarray_allocated);CHKERRQ(ierr);
-  ierr = VecCUDAAllocateCheckHost(V);CHKERRQ(ierr);
-  ierr = VecSet(V,0.0);CHKERRQ(ierr);
-  ierr = VecSet_Seq(V,0.0);CHKERRQ(ierr);
-  V->offloadmask = PETSC_OFFLOAD_BOTH;
-  PetscFunctionReturn(0);
-}
-
-/*@C
-   VecCreateSeqCUDAWithArray - Creates a CUDA sequential array-style vector,
-   where the user provides the array space to store the vector values. The array
-   provided must be a GPU array.
-
-   Collective
-
-   Input Parameter:
-+  comm - the communicator, should be PETSC_COMM_SELF
-.  bs - the block size
-.  n - the vector length
--  array - GPU memory where the vector elements are to be stored.
-
-   Output Parameter:
-.  V - the vector
-
-   Notes:
-   Use VecDuplicate() or VecDuplicateVecs() to form additional vectors of the
-   same type as an existing vector.
-
-   If the user-provided array is NULL, then VecCUDAPlaceArray() can be used
-   at a later stage to SET the array for storing the vector values.
-
-   PETSc does NOT free the array when the vector is destroyed via VecDestroy().
-   The user should not free the array until the vector is destroyed.
-
-   Level: intermediate
-
-.seealso: VecCreateMPICUDAWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(),
-          VecCreateGhost(), VecCreateSeq(), VecCUDAPlaceArray(), VecCreateSeqWithArray(),
-          VecCreateMPIWithArray()
-@*/
-PetscErrorCode  VecCreateSeqCUDAWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,const PetscScalar array[],Vec *V)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecCreate(comm,V);CHKERRQ(ierr);
-  ierr = VecSetSizes(*V,n,n);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*V,bs);CHKERRQ(ierr);
-  ierr = VecSetType(*V,VECSEQ);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQCUDA);CHKERRQ(ierr);
-  ierr = VecCreate_SeqCUDA_Private(*V,array);CHKERRQ(ierr);
+  ierr = VecDuplicate_Seq(win,V);CHKERRQ(ierr);
+  ierr = VecSetType(*V,VECSEQCUDA);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -394,28 +310,82 @@ PetscErrorCode VecPinToCPU_SeqCUDA(Vec V,PetscBool pin)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
+PetscErrorCode VecCreate_SeqCUDA(Vec V)
 {
   PetscErrorCode ierr;
+  cudaError_t    err;
   Vec_CUDA       *veccuda;
 
   PetscFunctionBegin;
+  if (!V->data) {ierr = VecSetType(V,VECSEQ);CHKERRQ(ierr);}
+
+  ierr = PetscNewLog(V,&veccuda);CHKERRQ(ierr);
+  V->spptr = (void*)veccuda;
+  veccuda->stream = 0;  /* using default stream */
+  veccuda->hostDataRegisteredAsPageLocked = PETSC_FALSE;
   ierr = VecPinToCPU_SeqCUDA(V,PETSC_FALSE);CHKERRQ(ierr);
   V->ops->pintocpu = VecPinToCPU_SeqCUDA;
+  ierr = PetscObjectChangeTypeName((PetscObject)V,VECSEQCUDA);CHKERRQ(ierr);
 
-  /* Later, functions check for the Vec_CUDA structure existence, so do not create it without array */
-  if (array) {
-    if (!V->spptr) {
-      ierr = PetscMalloc(sizeof(Vec_CUDA),&V->spptr);CHKERRQ(ierr);
-      veccuda = (Vec_CUDA*)V->spptr;
-      veccuda->stream = 0; /* using default stream */
-      veccuda->GPUarray_allocated = 0;
-      veccuda->hostDataRegisteredAsPageLocked = PETSC_FALSE;
-      V->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
-    }
-    veccuda = (Vec_CUDA*)V->spptr;
-    veccuda->GPUarray = (PetscScalar*)array;
-  }
-
+  err = cudaMalloc((void**)&veccuda->array_allocated,sizeof(PetscScalar)*((PetscBLASInt)V->map->n));CHKERRCUDA(err);
+  veccuda->array = veccuda->array_allocated;
+  ierr = VecSet(V,0.0);CHKERRQ(ierr);
+  V->offloadmask = (PetscOffloadMask)(V->offloadmask | PETSC_OFFLOAD_GPU);
   PetscFunctionReturn(0);
 }
+
+/*@C
+   VecCreateSeqCUDAWithArray - Creates a CUDA sequential array-style vector,
+   where the user provides the array space to store the vector values. The array
+   provided must be a GPU array.
+
+   Collective
+
+   Input Parameter:
++  comm - the communicator, should be PETSC_COMM_SELF
+.  bs - the block size
+.  n - the vector length
+-  array - GPU memory where the vector elements are to be stored. It should be NULL or contain valid values
+
+   Output Parameter:
+.  V - the vector
+
+   Notes:
+   Use VecDuplicate() or VecDuplicateVecs() to form additional vectors of the
+   same type as an existing vector.
+
+   If the user-provided array is NULL, then VecCUDAPlaceArray() can be used
+   at a later stage to SET the array for storing the vector values.
+
+   PETSc does NOT free the array when the vector is destroyed via VecDestroy().
+   The user should not free the array until the vector is destroyed.
+
+   Level: intermediate
+
+.seealso: VecCreateMPICUDAWithArray(), VecCreate(), VecDuplicate(), VecDuplicateVecs(),
+          VecCreateGhost(), VecCreateSeq(), VecCUDAPlaceArray(), VecCreateSeqWithArray(),
+          VecCreateMPIWithArray()
+@*/
+PetscErrorCode  VecCreateSeqCUDAWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,const PetscScalar array[],Vec *V)
+{
+  PetscErrorCode ierr;
+  cudaError_t    err;
+  Vec_CUDA       *veccuda;
+
+  PetscFunctionBegin;
+  ierr = VecCreate(comm,V);CHKERRQ(ierr);
+  ierr = VecSetSizes(*V,n,n);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(*V,bs);CHKERRQ(ierr);
+  ierr = VecSetType(*V,VECSEQCUDA);CHKERRQ(ierr);
+
+  veccuda = (Vec_CUDA*)(*V)->spptr;
+  if (veccuda->array_allocated) {
+    err = cudaFree(veccuda->array_allocated);CHKERRCUDA(err);
+    veccuda->array_allocated = NULL;
+  }
+  veccuda->array = (PetscScalar*)array;
+  if (array) (*V)->offloadmask = PETSC_OFFLOAD_GPU;
+  /* TODO: turn off GPU flag */
+  PetscFunctionReturn(0);
+}
+

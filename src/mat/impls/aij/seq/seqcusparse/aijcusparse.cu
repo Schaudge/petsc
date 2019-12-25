@@ -249,7 +249,7 @@ static PetscErrorCode MatSeqAIJCUSPARSEBuildILULowerTriMatrix(Mat A)
 
   PetscFunctionBegin;
   if (!n) PetscFunctionReturn(0);
-  if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED || A->offloadmask == PETSC_OFFLOAD_CPU) {
+  if (A->offloadmask == PETSC_OFFLOAD_NONE || A->offloadmask == PETSC_OFFLOAD_CPU) {
     try {
       /* first figure out the number of nonzeros in the lower triangular matrix including 1's on the diagonal. */
       nzLower=n+ai[n]-ai[1];
@@ -354,7 +354,7 @@ static PetscErrorCode MatSeqAIJCUSPARSEBuildILUUpperTriMatrix(Mat A)
 
   PetscFunctionBegin;
   if (!n) PetscFunctionReturn(0);
-  if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED || A->offloadmask == PETSC_OFFLOAD_CPU) {
+  if (A->offloadmask == PETSC_OFFLOAD_NONE || A->offloadmask == PETSC_OFFLOAD_CPU) {
     try {
       /* next, figure out the number of nonzeros in the upper triangular matrix. */
       nzUpper = adiag[0]-adiag[n];
@@ -504,7 +504,7 @@ static PetscErrorCode MatSeqAIJCUSPARSEBuildICCTriMatrices(Mat A)
 
   PetscFunctionBegin;
   if (!n) PetscFunctionReturn(0);
-  if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED || A->offloadmask == PETSC_OFFLOAD_CPU) {
+  if (A->offloadmask == PETSC_OFFLOAD_NONE || A->offloadmask == PETSC_OFFLOAD_CPU) {
     try {
       /* Allocate Space for the upper triangular matrix */
       cerr = cudaMallocHost((void**) &AiUp, (n+1)*sizeof(PetscInt));CHKERRCUDA(cerr);
@@ -1241,7 +1241,7 @@ static PetscErrorCode MatSeqAIJCUSPARSECopyToGPU(Mat A)
   cudaError_t                  err;
 
   PetscFunctionBegin;
-  if (A->offloadmask == PETSC_OFFLOAD_UNALLOCATED || A->offloadmask == PETSC_OFFLOAD_CPU) {
+  if (A->offloadmask == PETSC_OFFLOAD_NONE || A->offloadmask == PETSC_OFFLOAD_CPU) {
     ierr = PetscLogEventBegin(MAT_CUSPARSECopyToGPU,A,0,0,0);CHKERRQ(ierr);
     if (A->assembled && A->nonzerostate == cusparsestruct->nonzerostate && cusparsestruct->format == MAT_CUSPARSE_CSR) {
       CsrMatrix *matrix = (CsrMatrix*)matstruct->mat;
@@ -1685,7 +1685,7 @@ static PetscErrorCode MatDestroy_SeqAIJCUSPARSE(Mat A)
 
   PetscFunctionBegin;
   if (A->factortype==MAT_FACTOR_NONE) {
-    if (A->offloadmask != PETSC_OFFLOAD_UNALLOCATED) {
+    if (A->offloadmask != PETSC_OFFLOAD_NONE) {
       ierr = MatSeqAIJCUSPARSE_Destroy((Mat_SeqAIJCUSPARSE**)&A->spptr);CHKERRQ(ierr);
     }
   } else {
@@ -1748,7 +1748,7 @@ static PetscErrorCode MatDuplicate_SeqAIJCUSPARSE(Mat A,MatDuplicateOption cpval
 
   ierr = PetscObjectChangeTypeName((PetscObject)C,MATSEQAIJCUSPARSE);CHKERRQ(ierr);
 
-  C->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+  C->offloadmask = PETSC_OFFLOAD_NONE;
 
   ierr = PetscObjectComposeFunction((PetscObject)C, "MatCUSPARSESetFormat_C", MatCUSPARSESetFormat_SeqAIJCUSPARSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1802,7 +1802,7 @@ PETSC_EXTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat B)
 
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQAIJCUSPARSE);CHKERRQ(ierr);
 
-  B->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+  B->offloadmask = PETSC_OFFLOAD_NONE;
 
   ierr = PetscObjectComposeFunction((PetscObject)B, "MatCUSPARSESetFormat_C", MatCUSPARSESetFormat_SeqAIJCUSPARSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);

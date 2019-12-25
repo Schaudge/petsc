@@ -1,6 +1,6 @@
 
 /*
-   This file contains routines for Parallel vector operations.
+   This file contains routines for parallel CUDA vector operations.
  */
 #define PETSC_SKIP_SPINLOCK
 #define PETSC_SKIP_CXX_COMPLEX_FIX
@@ -15,16 +15,14 @@ PetscErrorCode VecDestroy_MPICUDA(Vec v)
   cudaError_t    err;
 
   PetscFunctionBegin;
-  if (v->spptr) {
-    if (((Vec_CUDA*)v->spptr)->GPUarray_allocated) {
-      err = cudaFree(((Vec_CUDA*)v->spptr)->GPUarray_allocated);CHKERRCUDA(err);
-      ((Vec_CUDA*)v->spptr)->GPUarray_allocated = NULL;
-    }
-    if (((Vec_CUDA*)v->spptr)->stream) {
-      err = cudaStreamDestroy(((Vec_CUDA*)v->spptr)->stream);CHKERRCUDA(err);
-    }
-    ierr = PetscFree(v->spptr);CHKERRQ(ierr);
+  if (((Vec_CUDA*)v->spptr)->array_allocated) {
+    err = cudaFree(((Vec_CUDA*)v->spptr)->array_allocated);CHKERRCUDA(err);
+    ((Vec_CUDA*)v->spptr)->array_allocated = NULL;
   }
+  if (((Vec_CUDA*)v->spptr)->stream) {
+    err = cudaStreamDestroy(((Vec_CUDA*)v->spptr)->stream);CHKERRCUDA(err);
+  }
+  ierr = PetscFree(v->spptr);CHKERRQ(ierr);
   ierr = VecDestroy_MPI(v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -114,47 +112,15 @@ PetscErrorCode VecMDot_MPICUDA(Vec xin,PetscInt nv,const Vec y[],PetscScalar *z)
 M*/
 
 
+PETSC_EXTERN PetscErrorCode VecDuplicate_MPI(Vec,Vec*);
+
 PetscErrorCode VecDuplicate_MPICUDA(Vec win,Vec *v)
 {
   PetscErrorCode ierr;
-  Vec_MPI        *vw,*w = (Vec_MPI*)win->data;
-  PetscScalar    *array;
 
   PetscFunctionBegin;
-  ierr = VecCreate(PetscObjectComm((PetscObject)win),v);CHKERRQ(ierr);
-  ierr = PetscLayoutReference(win->map,&(*v)->map);CHKERRQ(ierr);
-  ierr = VecSetType(*v,VECMPI);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)*v,VECMPICUDA);CHKERRQ(ierr);
-
-  ierr = VecCreate_MPICUDA_Private(*v,PETSC_TRUE,w->nghost,0);CHKERRQ(ierr);
-  vw   = (Vec_MPI*)(*v)->data;
-  ierr = PetscMemcpy((*v)->ops,win->ops,sizeof(struct _VecOps));CHKERRQ(ierr);
-
-  /* save local representation of the parallel vector (and scatter) if it exists */
-  if (w->localrep) {
-    ierr = VecGetArray(*v,&array);CHKERRQ(ierr);
-    ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,win->map->n+w->nghost,array,&vw->localrep);CHKERRQ(ierr);
-    ierr = PetscMemcpy(vw->localrep->ops,w->localrep->ops,sizeof(struct _VecOps));CHKERRQ(ierr);
-    ierr = VecRestoreArray(*v,&array);CHKERRQ(ierr);
-    ierr = PetscLogObjectParent((PetscObject)*v,(PetscObject)vw->localrep);CHKERRQ(ierr);
-    vw->localupdate = w->localupdate;
-    if (vw->localupdate) {
-      ierr = PetscObjectReference((PetscObject)vw->localupdate);CHKERRQ(ierr);
-    }
-  }
-
-  /* New vector should inherit stashing property of parent */
-  (*v)->stash.donotstash   = win->stash.donotstash;
-  (*v)->stash.ignorenegidx = win->stash.ignorenegidx;
-
-  /* change type_name appropriately */
-  ierr = VecCUDAAllocateCheck(*v);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)(*v),VECMPICUDA);CHKERRQ(ierr);
-
-  ierr = PetscObjectListDuplicate(((PetscObject)win)->olist,&((PetscObject)(*v))->olist);CHKERRQ(ierr);
-  ierr = PetscFunctionListDuplicate(((PetscObject)win)->qlist,&((PetscObject)(*v))->qlist);CHKERRQ(ierr);
-  (*v)->map->bs   = PetscAbs(win->map->bs);
-  (*v)->bstash.bs = win->bstash.bs;
+  ierr = VecDuplicate_MPI(win,v);CHKERRQ(ierr);
+  ierr = VecSetType(*v,VECMPICUDA);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -168,85 +134,6 @@ PetscErrorCode VecDotNorm2_MPICUDA(Vec s,Vec t,PetscScalar *dp,PetscScalar *nm)
   ierr = MPIU_Allreduce(&work,&sum,2,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)s));CHKERRQ(ierr);
   *dp  = sum[0];
   *nm  = sum[1];
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode VecCreate_MPICUDA(Vec vv)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecSetType(vv,VECMPI);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)vv,VECMPICUDA);CHKERRQ(ierr);
-  ierr = VecCUDAAllocateCheck(vv);CHKERRQ(ierr);
-  ierr = VecCreate_MPICUDA_Private(vv,PETSC_FALSE,0,((Vec_CUDA*)vv->spptr)->GPUarray_allocated);CHKERRQ(ierr);
-  ierr = VecCUDAAllocateCheckHost(vv);CHKERRQ(ierr);
-  ierr = VecSet(vv,0.0);CHKERRQ(ierr);
-  ierr = VecSet_Seq(vv,0.0);CHKERRQ(ierr);
-  vv->offloadmask = PETSC_OFFLOAD_BOTH;
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode VecCreate_CUDA(Vec v)
-{
-  PetscErrorCode ierr;
-  PetscMPIInt    size;
-
-  PetscFunctionBegin;
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)v),&size);CHKERRQ(ierr);
-  if (size == 1) {
-    ierr = VecSetType(v,VECSEQCUDA);CHKERRQ(ierr);
-  } else {
-    ierr = VecSetType(v,VECMPICUDA);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-/*@C
-   VecCreateMPICUDAWithArray - Creates a parallel, array-style vector,
-   where the user provides the GPU array space to store the vector values.
-
-   Collective
-
-   Input Parameters:
-+  comm  - the MPI communicator to use
-.  bs    - block size, same meaning as VecSetBlockSize()
-.  n     - local vector length, cannot be PETSC_DECIDE
-.  N     - global vector length (or PETSC_DECIDE to have calculated)
--  array - the user provided GPU array to store the vector values
-
-   Output Parameter:
-.  vv - the vector
-
-   Notes:
-   Use VecDuplicate() or VecDuplicateVecs() to form additional vectors of the
-   same type as an existing vector.
-
-   If the user-provided array is NULL, then VecCUDAPlaceArray() can be used
-   at a later stage to SET the array for storing the vector values.
-
-   PETSc does NOT free the array when the vector is destroyed via VecDestroy().
-   The user should not free the array until the vector is destroyed.
-
-   Level: intermediate
-
-.seealso: VecCreateSeqCUDAWithArray(), VecCreateMPIWithArray(), VecCreateSeqWithArray(),
-          VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
-          VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray()
-
-@*/
-PetscErrorCode  VecCreateMPICUDAWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,PetscInt N,const PetscScalar array[],Vec *vv)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (n == PETSC_DECIDE) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Must set local size of vector");
-  ierr = VecCreate(comm,vv);CHKERRQ(ierr);
-  ierr = VecSetSizes(*vv,n,N);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*vv,bs);CHKERRQ(ierr);
-  ierr = VecSetType(*vv,VECMPI);CHKERRQ(ierr);
-  ierr = PetscObjectChangeTypeName((PetscObject)*vv,VECMPICUDA);CHKERRQ(ierr);
-  ierr = VecCreate_MPICUDA_Private(*vv,PETSC_FALSE,0,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -328,36 +215,99 @@ PetscErrorCode VecPinToCPU_MPICUDA(Vec V,PetscBool pin)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,const PetscScalar array[])
+PetscErrorCode VecCreate_MPICUDA(Vec vv)
 {
   PetscErrorCode ierr;
+  cudaError_t    err;
   Vec_CUDA       *veccuda;
 
   PetscFunctionBegin;
+  if (!vv->data) {ierr = VecSetType(vv,VECMPI);CHKERRQ(ierr);}
+
+  ierr = PetscNewLog(vv,&veccuda);CHKERRQ(ierr);
+  vv->spptr = (void*)veccuda;
+  veccuda->stream = 0;  /* using default stream */
+  veccuda->hostDataRegisteredAsPageLocked = PETSC_FALSE;
   ierr = VecPinToCPU_MPICUDA(vv,PETSC_FALSE);CHKERRQ(ierr);
   vv->ops->pintocpu = VecPinToCPU_MPICUDA;
+  ierr = PetscObjectChangeTypeName((PetscObject)vv,VECMPICUDA);CHKERRQ(ierr);
 
-  /* Later, functions check for the Vec_CUDA structure existence, so do not create it without array */
-  if (alloc && !array) {
-    ierr = VecCUDAAllocateCheck(vv);CHKERRQ(ierr);
-    ierr = VecCUDAAllocateCheckHost(vv);CHKERRQ(ierr);
-    ierr = VecSet(vv,0.0);CHKERRQ(ierr);
-    ierr = VecSet_Seq(vv,0.0);CHKERRQ(ierr);
-    vv->offloadmask = PETSC_OFFLOAD_BOTH;
-  }
-  if (array) {
-    if (!vv->spptr) {
-      /* Cannot use PetscNew() here because spptr is void* */
-      ierr = PetscMalloc(sizeof(Vec_CUDA),&vv->spptr);CHKERRQ(ierr);
-      veccuda = (Vec_CUDA*)vv->spptr;
-      veccuda->stream = 0; /* using default stream */
-      veccuda->GPUarray_allocated = 0;
-      veccuda->hostDataRegisteredAsPageLocked = PETSC_FALSE;
-      vv->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
-    }
-    veccuda = (Vec_CUDA*)vv->spptr;
-    veccuda->GPUarray = (PetscScalar*)array;
-  }
-
+  err = cudaMalloc((void**)&veccuda->array_allocated,sizeof(PetscScalar)*((PetscBLASInt)vv->map->n));CHKERRCUDA(err);
+  veccuda->array = veccuda->array_allocated;
+  ierr = VecSet(vv,0.0);CHKERRQ(ierr);
+  vv->offloadmask = (PetscOffloadMask)(vv->offloadmask | PETSC_OFFLOAD_GPU);
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode VecCreate_CUDA(Vec v)
+{
+  PetscErrorCode ierr;
+  PetscMPIInt    size;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)v),&size);CHKERRQ(ierr);
+  if (size == 1) {
+    ierr = VecSetType(v,VECSEQCUDA);CHKERRQ(ierr);
+  } else {
+    ierr = VecSetType(v,VECMPICUDA);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecCreateMPICUDAWithArray - Creates a parallel, array-style vector,
+   where the user provides the GPU array space to store the vector values.
+
+   Collective
+
+   Input Parameters:
++  comm  - the MPI communicator to use
+.  bs    - block size, same meaning as VecSetBlockSize()
+.  n     - local vector length, cannot be PETSC_DECIDE
+.  N     - global vector length (or PETSC_DECIDE to have calculated)
+-  array - the user provided GPU array to store the vector values, must be NULL or contain valid values
+
+   Output Parameter:
+.  vv - the vector
+
+   Notes:
+   Use VecDuplicate() or VecDuplicateVecs() to form additional vectors of the
+   same type as an existing vector.
+
+   If the user-provided array is NULL, then VecCUDAPlaceArray() can be used
+   at a later stage to SET the array for storing the vector values.
+
+   PETSc does NOT free the array when the vector is destroyed via VecDestroy().
+   The user should not free the array until the vector is destroyed.
+
+   Level: intermediate
+
+.seealso: VecCreateSeqCUDAWithArray(), VecCreateMPIWithArray(), VecCreateSeqWithArray(),
+          VecCreate(), VecDuplicate(), VecDuplicateVecs(), VecCreateGhost(),
+          VecCreateMPI(), VecCreateGhostWithArray(), VecPlaceArray()
+
+@*/
+PetscErrorCode  VecCreateMPICUDAWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,PetscInt N,const PetscScalar array[],Vec *vv)
+{
+  PetscErrorCode ierr;
+  cudaError_t    err;
+  Vec_CUDA       *veccuda;
+
+  PetscFunctionBegin;
+  if (n == PETSC_DECIDE) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Must set local size of vector");
+  ierr = VecCreate(comm,vv);CHKERRQ(ierr);
+  ierr = VecSetSizes(*vv,n,N);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(*vv,bs);CHKERRQ(ierr);
+  ierr = VecSetType(*vv,VECMPICUDA);CHKERRQ(ierr);
+
+  veccuda = (Vec_CUDA*)(*vv)->spptr;
+  if (veccuda->array_allocated) {
+    err = cudaFree(veccuda->array_allocated);CHKERRCUDA(err);
+    veccuda->array_allocated = NULL;
+  }
+  veccuda->array = (PetscScalar*)array;
+  if (array) (*vv)->offloadmask = PETSC_OFFLOAD_GPU;
+  /* TODO: turn off GPU flag */
+  PetscFunctionReturn(0);
+}
+

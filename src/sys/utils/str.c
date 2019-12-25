@@ -84,6 +84,7 @@ PetscErrorCode  PetscStrToArray(const char s[],char sp,int *argc,char ***args)
   (*args)[*argc] = 0;
 
   *argc = 0;
+  flg   = PETSC_FALSE;
   for (i=0; i<n; i++) {
     if (s[i] != sp) break;
   }
