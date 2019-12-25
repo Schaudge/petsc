@@ -221,7 +221,7 @@ PetscErrorCode VecCreate_MPICUDA(Vec vv)
   Vec_CUDA       *veccuda;
 
   PetscFunctionBegin;
-  if (!vv->data) {ierr = VecSetType(vv,VECMPI);CHKERRQ(ierr);}
+  if (!vv->data) {ierr = VecSetType(vv,VECMPI ":~");CHKERRQ(ierr);}
 
   ierr = PetscNewLog(vv,&veccuda);CHKERRQ(ierr);
   vv->spptr = (void*)veccuda;

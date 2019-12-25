@@ -317,7 +317,7 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
   Vec_CUDA       *veccuda;
 
   PetscFunctionBegin;
-  if (!V->data) {ierr = VecSetType(V,VECSEQ);CHKERRQ(ierr);}
+  if (!V->data) {ierr = VecSetType(V,VECSEQ ":~");CHKERRQ(ierr);}
 
   ierr = PetscNewLog(V,&veccuda);CHKERRQ(ierr);
   V->spptr = (void*)veccuda;

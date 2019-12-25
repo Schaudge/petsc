@@ -6,8 +6,6 @@ static char help[] = "Basic vector routines.\n\n";
    Processors: n
 T*/
 
-
-
 /*
   Include "petscvec.h" so that we can use vectors.  Note that this file
   automatically includes:
@@ -51,6 +49,8 @@ int main(int argc,char **argv)
   ierr = VecCreate(PETSC_COMM_WORLD,&x);CHKERRQ(ierr);
   ierr = VecSetSizes(x,PETSC_DECIDE,n);CHKERRQ(ierr);
   ierr = VecSetFromOptions(x);CHKERRQ(ierr);
+  ierr = VecViewFromOptions(x,NULL,"-vec_view");CHKERRQ(ierr);
+
   /*
      Duplicate some work vectors (of the same format and
      partitioning as the initial vector).

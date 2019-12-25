@@ -88,33 +88,44 @@ PETSC_EXTERN PetscErrorCode VecViennaCLRestoreArrayWrite(Vec v, ViennaCLVector *
   PetscFunctionReturn(0);
 }
 
+PETSC_EXTERN PetscErrorCode PetscViennaCLSetBackend(char *string)
+{
+  PetscErrorCode       ierr;
+  PetscBool            flg_cuda,flg_opencl,flg_openmp;
+
+  PetscFunctionBegin;
+  /* ViennaCL backend selection: CUDA, OpenCL, or OpenMP */
+  try {
+    ierr = PetscStrcasecmp(string,"cuda",&flg_cuda);CHKERRQ(ierr);
+    ierr = PetscStrcasecmp(string,"opencl",&flg_opencl);CHKERRQ(ierr);
+    ierr = PetscStrcasecmp(string,"openmp",&flg_openmp);CHKERRQ(ierr);
+
+    /* A default (sequential) CPU backend is always available - even if OpenMP is not enabled. */
+    if (flg_openmp) viennacl::backend::default_memory_type(viennacl::MAIN_MEMORY);
+#if defined(PETSC_HAVE_CUDA)
+    else if (flg_cuda) viennacl::backend::default_memory_type(viennacl::CUDA_MEMORY);
+#endif
+#if defined(PETSC_HAVE_OPENCL)
+    else if (flg_opencl) viennacl::backend::default_memory_type(viennacl::OPENCL_MEMORY);
+#endif
+    else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"ViennaCL error: Backend not recognized or available: %s.\n Pass -viennacl_view to see available backends for ViennaCL.\n", string);
+  } catch (std::exception const & ex) {
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"ViennaCL error: %s", ex.what());
+  }
+  PetscFunctionReturn(0);
+}
+
 PETSC_EXTERN PetscErrorCode PetscViennaCLInit()
 {
   PetscErrorCode       ierr;
   char                 string[20];
-  PetscBool            flg,flg_cuda,flg_opencl,flg_openmp;
+  PetscBool            flg;
 
   PetscFunctionBegin;
   /* ViennaCL backend selection: CUDA, OpenCL, or OpenMP */
   ierr = PetscOptionsGetString(NULL,NULL,"-viennacl_backend",string,12,&flg);CHKERRQ(ierr);
   if (flg) {
-    try {
-      ierr = PetscStrcasecmp(string,"cuda",&flg_cuda);CHKERRQ(ierr);
-      ierr = PetscStrcasecmp(string,"opencl",&flg_opencl);CHKERRQ(ierr);
-      ierr = PetscStrcasecmp(string,"openmp",&flg_openmp);CHKERRQ(ierr);
-
-      /* A default (sequential) CPU backend is always available - even if OpenMP is not enabled. */
-      if (flg_openmp) viennacl::backend::default_memory_type(viennacl::MAIN_MEMORY);
-#if defined(PETSC_HAVE_CUDA)
-      else if (flg_cuda) viennacl::backend::default_memory_type(viennacl::CUDA_MEMORY);
-#endif
-#if defined(PETSC_HAVE_OPENCL)
-      else if (flg_opencl) viennacl::backend::default_memory_type(viennacl::OPENCL_MEMORY);
-#endif
-      else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"ViennaCL error: Backend not recognized or available: %s.\n Pass -viennacl_view to see available backends for ViennaCL.\n", string);
-    } catch (std::exception const & ex) {
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"ViennaCL error: %s", ex.what());
-    }
+    ierr = PetscViennaCLSetBackend(string);CHKERRQ(ierr);
   }
 
 #if defined(PETSC_HAVE_OPENCL)
@@ -1057,7 +1068,7 @@ PETSC_EXTERN PetscErrorCode VecCreate_SeqViennaCL(Vec V)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!V->data) {ierr = VecSetType(V,VECSEQ);CHKERRQ(ierr);}
+  if (!V->data) {ierr = VecSetType(V,VECSEQ ":~");CHKERRQ(ierr);}
 
   try {
     V->spptr = new Vec_ViennaCL;

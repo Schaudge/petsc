@@ -4,6 +4,11 @@
 PetscFunctionList VecList              = NULL;
 PetscBool         VecRegisterAllCalled = PETSC_FALSE;
 
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+extern char      PetscCEName[64];
+extern PetscBool PetscUsingCE;
+#endif
+
 /*@C
   VecSetType - Builds a vector, for a particular vector implementation.
 
@@ -14,7 +19,8 @@ PetscBool         VecRegisterAllCalled = PETSC_FALSE;
 - method - The name of the vector type, this may be appended by :ce where ce represents a compute engine such as CUDA
 
   Options Database Key:
-. -vec_type <type> - Sets the vector type; use -help for a list of available types
++ -vec_type <type> - Sets the vector type; use -help for a list of available types
+- -petsc_ce <cetype> - sets the compute engine, only used if the method does not already contain compute engine (i.e. :ce at end)
 
   Notes:
   See "petsc/include/petscvec.h" for available vector types (for instance, VECSEQ, VECMPI, or VECSHARED).
@@ -36,9 +42,30 @@ PetscErrorCode VecSetType(Vec vec, VecType method)
   PetscErrorCode ierr;
   PetscInt       n;
   char           **methods,fullmethod[64];
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+  char           newmethod[64];
+#endif
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(vec, VEC_CLASSID,1);
+
+  /* this will eventually be moved out for use with all PetscObjects, not just Vec and use a different mechanism */
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+  if (PetscUsingCE) {
+    char *given;
+    ierr = PetscStrchr(method,':',&given);CHKERRQ(ierr);
+    if (!given) {
+      ierr = PetscStrncpy(newmethod,method,sizeof(newmethod));CHKERRQ(ierr);
+      ierr = PetscStrlcat(newmethod,":",sizeof(newmethod));CHKERRQ(ierr);
+      ierr = PetscStrlcat(newmethod,PetscCEName,sizeof(newmethod));CHKERRQ(ierr);
+      method = newmethod;
+    } else if (given[1] == '~') {
+      ierr = PetscStrncpy(newmethod,method,1 + given-method);CHKERRQ(ierr);
+      method = newmethod;
+    }
+  }
+#endif
+
   ierr = PetscObjectTypeCompare((PetscObject) vec, method, &match);CHKERRQ(ierr);
   if (match) PetscFunctionReturn(0);
 

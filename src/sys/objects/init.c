@@ -27,6 +27,7 @@ PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
 
 #if defined(PETSC_HAVE_VIENNACL)
 PETSC_EXTERN PetscErrorCode PetscViennaCLInit();
+PETSC_EXTERN PetscErrorCode PetscViennaCLSetBackend(char *);
 #endif
 
 /* ------------------------Nasty global variables -------------------------------*/
@@ -95,6 +96,9 @@ PetscErrorCode (*PetscVFPrintf)(FILE*,const char[],va_list)    = PetscVFPrintfDe
 */
 PetscBool PetscViennaCLSynchronize = PETSC_FALSE;
 PetscBool PetscCUDASynchronize = PETSC_FALSE;
+
+char      PetscCEName[64];
+PetscBool PetscUsingCE = PETSC_FALSE;
 
 /* ------------------------------------------------------------------------------*/
 /*
@@ -733,6 +737,44 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   ierr = PetscOptionsGetBool(NULL,NULL,"-viennacl_synchronize",&flg3,NULL);CHKERRQ(ierr);
   PetscViennaCLSynchronize = flg3;
   ierr = PetscViennaCLInit();CHKERRQ(ierr);
+#endif
+
+/*
+    Eventually replace this with a register mechanism
+*/
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+  {
+    PetscBool ce = PETSC_FALSE, v = PETSC_FALSE, c = PETSC_FALSE;
+
+    ierr = PetscOptionsGetString(NULL,NULL,"-petsc_ce",PetscCEName,sizeof(PetscCEName),&ce);CHKERRQ(ierr);
+    if (ce) {
+#if defined(PETSC_HAVE_VIENNACL)
+      ierr = PetscStrbeginswith(PetscCEName,"viennacl",&v);CHKERRQ(ierr);
+      if (v) {
+        PetscInt n;
+        char     **array;
+        ierr = PetscStrToArray(PetscCEName,':',&n,&array);CHKERRQ(ierr);
+        if (n == 1) {
+          ierr = PetscInfo(NULL,"Using ViennaCL compute engine\n");CHKERRQ(ierr);
+        } else if (n == 2) {
+          ierr = PetscViennaCLSetBackend(array[1]);CHKERRQ(ierr);
+          ierr = PetscStrcpy(PetscCEName,"viennacl");CHKERRQ(ierr);
+          ierr = PetscInfo1(NULL,"Using ViennaCL %s compute engine\n",array[1]);CHKERRQ(ierr);
+        } else SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"More than 2 arguments not allowed for -petsc_ce viennacl:type");
+        ierr = PetscStrToArrayDestroy(n,array);CHKERRQ(ierr);
+        PetscUsingCE = PETSC_TRUE;
+      }
+#endif
+#if defined(PETSC_HAVE_CUDA)
+      ierr = PetscStrcmp("cuda",PetscCEName,&c);CHKERRQ(ierr);
+      if (c) {
+        ierr = PetscInfo(NULL,"Using CUDA compute engine\n");CHKERRQ(ierr);
+        PetscUsingCE = PETSC_TRUE;
+      }
+#endif
+      if (!c && !v) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,"PETSc installed without compute engine %s",PetscCEName);
+    }
+  }
 #endif
 
   /*

@@ -137,7 +137,7 @@ PETSC_EXTERN PetscErrorCode VecCreate_MPIViennaCL(Vec vv)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!vv->data) {ierr = VecSetType(vv,VECMPI);CHKERRQ(ierr);}
+  if (!vv->data) {ierr = VecSetType(vv,VECMPI ":~");CHKERRQ(ierr);}
 
   try {
     vv->spptr = new Vec_ViennaCL;
