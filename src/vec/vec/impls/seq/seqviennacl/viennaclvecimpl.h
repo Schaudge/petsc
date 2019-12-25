@@ -44,13 +44,12 @@ PETSC_EXTERN PetscErrorCode VecCreate_SeqViennaCL(Vec);
 PETSC_EXTERN PetscErrorCode VecView_Seq(Vec,PetscViewer);
 PETSC_INTERN PetscErrorCode VecDestroy_SeqViennaCL(Vec);
 PETSC_INTERN PetscErrorCode VecAYPX_SeqViennaCL(Vec,PetscScalar,Vec);
-PETSC_INTERN PetscErrorCode VecSetRandom_SeqViennaCL(Vec,PetscRandom);
 
 PETSC_INTERN PetscErrorCode VecViennaCLCopyToGPU_Public(Vec);
 PETSC_INTERN PetscErrorCode VecViennaCLAllocateCheck_Public(Vec);
 
 struct Vec_ViennaCL {
-  viennacl::vector<PetscScalar> *GPUarray;        // this always holds the GPU data
+  viennacl::vector<PetscScalar> *array;        // this always holds the GPU data
 };
 
 

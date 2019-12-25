@@ -111,7 +111,6 @@ PetscErrorCode VecMDot_MPICUDA(Vec xin,PetscInt nv,const Vec y[],PetscScalar *z)
 .seealso: VecCreate(), VecSetType(), VecSetFromOptions(), VecCreateMPIWithArray(), VECMPI, VecType, VecCreateMPI()
 M*/
 
-
 PETSC_EXTERN PetscErrorCode VecDuplicate_MPI(Vec,Vec*);
 
 PetscErrorCode VecDuplicate_MPICUDA(Vec win,Vec *v)
