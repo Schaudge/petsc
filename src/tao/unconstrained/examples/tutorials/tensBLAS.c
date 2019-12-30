@@ -21,6 +21,7 @@ static char help[] = "Implements a simple tensor contraction over 3D fields with
 
   ------------------------------------------------------------------------- */
 
+#include <petscdmda.h>
 #include <stdio.h>
 #include <petscblaslapack.h>
 
@@ -170,12 +171,13 @@ int main(int argc, char **argv)
 
   alpha = 1.0;
   beta = 0.0;
+  FILE *fp;
   fp = fopen("arrays.m", "w");
   fprintf(fp, "N=%d;\n", Nl);
   fclose(fp);
 
   srand(time(NULL));
-  FILE *fp;
+ 
 
   for (jx = 0; jx < Nl; jx++)
   {
@@ -183,7 +185,6 @@ int main(int argc, char **argv)
     {
       for (jz = 0; jz < Nl; jz++)
       {
-
         ulb[jx][jy][jz] = (double)rand() / RAND_MAX * 2.0 - 1.0;
       }
       A[jx][jy] = (double)rand() / RAND_MAX * 2.0 - 1.0;
