@@ -254,7 +254,7 @@ int main(int argc, char **argv)
       }
     }
   }
-
+  //ANNOYING, the local coors are only read :(
   DMDAVecRestoreArray(appctx.da, loc, &bmass);
   CHKERRQ(ierr);
   DMLocalToGlobalBegin(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
