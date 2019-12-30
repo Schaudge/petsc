@@ -36,7 +36,7 @@ extern PetscErrorCode PetscAllocateEl3d(PetscReal ****, AppCtx *);
 extern PetscErrorCode PetscDestroyEl3d(PetscReal ****, AppCtx *);
 extern PetscErrorCode PetscAllocateEl2d(PetscReal ***, AppCtx *);
 extern PetscErrorCode PetscDestroyEl2d(PetscReal ***, AppCtx *);
-extern PetscErrorCode PetscTens3dSEM(PetscReal ***, PetscReal ***, PetscReal ***, PetscReal ****, PetscReal ****, PetscReal **,AppCtx *appctx);
+extern PetscErrorCode PetscTens3dSEM(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ****, PetscScalar **,AppCtx *appctx);
 
 PetscErrorCode PetscAllocateEl3d(PetscReal ****AA, AppCtx *appctx)
 {
@@ -119,7 +119,7 @@ PetscErrorCode PetscDestroyEl2d(PetscReal ***AA, AppCtx *appctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscTens3dSEM(PetscReal ***A, PetscReal ***B, PetscReal ***C, PetscReal ****ulb, PetscReal ****out, PetscReal **alphavec, AppCtx *appctx)
+PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ****out, PetscScalar **alphavec, AppCtx *appctx)
 {
   PetscErrorCode ierr;
   PetscInt Nl, Nl2;
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
   PetscInt jx, jy, jz;
   PetscInt Nl, Nl2;
   PetscScalar beta;
-  PetscReal *alphavec;
+  PetscScalar *alphavec;
 
   PetscFunctionBegin;
 
