@@ -12,11 +12,10 @@ static PetscErrorCode Tao_mcstep(TaoLineSearch ls,PetscReal *stx,PetscReal *fx,P
 static PetscErrorCode TaoLineSearchDestroy_MT(TaoLineSearch ls)
 {
   PetscErrorCode   ierr;
-  TaoLineSearch_MT *mt;
+  TaoLineSearch_MT *mt  = (TaoLineSearch_MT*)(ls->data);;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls,TAOLINESEARCH_CLASSID,1);
-  mt = (TaoLineSearch_MT*)(ls->data);
   if (mt->x) {
     ierr = PetscObjectDereference((PetscObject)mt->x);CHKERRQ(ierr);
   }
@@ -292,7 +291,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscFunctionReturn(0);
 }
 
-/*MC 
+/*MC
    TAOLINESEARCHMT - Line-search type with cubic interpolation that satisfies both the sufficient decrease and 
    curvature conditions. This method can take step lengths greater than 1.
 
@@ -303,6 +302,11 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
           ACM Trans. Math. Software 20, no. 3 (1994): 286-307.
 
    Level: developer
+
+   Notes:
+   The values printed in the line search monitor are
+      stx, fx, dgx - the step, function, and derivative at the best step
+      sty, fy, dgy - the step, function, and derivative at the other endpoint of the interval of uncertainty
 
 .seealso: TaoLineSearchCreate(), TaoLineSearchSetType(), TaoLineSearchApply()
 
@@ -315,17 +319,18 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_MT(TaoLineSearch ls)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls,TAOLINESEARCH_CLASSID,1);
-  ierr = PetscNewLog(ls,&ctx);CHKERRQ(ierr);
-  ctx->bracket=0;
-  ctx->infoc=1;
-  ls->data = (void*)ctx;
-  ls->initstep = 1.0;
-  ls->ops->setup=0;
-  ls->ops->reset=0;
-  ls->ops->apply=TaoLineSearchApply_MT;
-  ls->ops->destroy=TaoLineSearchDestroy_MT;
-  ls->ops->setfromoptions=TaoLineSearchSetFromOptions_MT;
-  ls->ops->monitor=TaoLineSearchMonitor_MT;
+
+  ierr                    =  PetscNewLog(ls,&ctx);CHKERRQ(ierr);
+  ctx->bracket            = 0;
+  ctx->infoc              = 1;
+  ls->data                =  (void*)ctx;
+  ls->initstep            =  1.0;
+  ls->ops->setup          = 0;
+  ls->ops->reset          = 0;
+  ls->ops->apply          = TaoLineSearchApply_MT;
+  ls->ops->destroy        = TaoLineSearchDestroy_MT;
+  ls->ops->setfromoptions = TaoLineSearchSetFromOptions_MT;
+  ls->ops->monitor        = TaoLineSearchMonitor_MT;
   PetscFunctionReturn(0);
 }
 
@@ -400,7 +405,7 @@ static PetscErrorCode Tao_mcstep(TaoLineSearch ls,PetscReal *stx,PetscReal *fx,P
   PetscFunctionBegin;
   /* Check the input parameters for errors */
   mtP->infoc = 0;
-  if (mtP->bracket && (*stp <= PetscMin(*stx,*sty) || (*stp >= PetscMax(*stx,*sty)))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"bad stp in bracket");
+  if (mtP->bracket && (*stp <= PetscMin(*stx,*sty) || (*stp >= PetscMax(*stx,*sty)))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Bad stp in bracket");
   if (*dx * (*stp-*stx) >= 0.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"dx * (stp-stx) >= 0.0");
   if (ls->stepmax < ls->stepmin) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"stepmax > stepmin");
 

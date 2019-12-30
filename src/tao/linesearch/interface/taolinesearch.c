@@ -539,6 +539,7 @@ PetscErrorCode TaoLineSearchMonitor(TaoLineSearch ls, PetscInt its, PetscReal f,
 . -tao_ls_stepmin <step> - minimum steplength allowed
 . -tao_ls_stepmax <step> - maximum steplength allowed
 . -tao_ls_max_funcs <n> - maximum number of function evaluations allowed
+. -tao_ls_monitor - print information about linesearch behavior at each iteration
 - -tao_ls_view - display line-search results to standard output
 
   Level: beginner

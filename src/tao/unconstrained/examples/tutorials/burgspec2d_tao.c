@@ -1574,7 +1574,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);
 
   //counter++; // this was for storing the error accross line searches, we don't use it anymore
-  PetscPrintf(PETSC_COMM_WORLD, "iteration=%D\t cost function (TAO)=%g, cost function (L2 %g), ic error %g\n", its, (double)ff, *f, errex);
+  //  PetscPrintf(PETSC_COMM_WORLD, "iteration=%D\t cost function (TAO)=%g, cost function (L2 %g), ic error %g\n", its, (double)ff, *f, errex);
   PetscSNPrintf(filename, sizeof(filename), "PDEadjoint/optimize%02d.m", its);
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename, &viewfile);
   CHKERRQ(ierr);

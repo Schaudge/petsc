@@ -383,6 +383,8 @@ PetscErrorCode TaoDestroy(Tao *tao)
 . -tao_fd_gradient - use gradient computed with finite differences
 . -tao_fd_hessian - use hessian computed with finite differences
 . -tao_mf_hessian - use matrix-free hessian computed with finite differences
+. -tao_test_gradient - compares the user provided gradient with one computed via finite differences to detect bugs in the user code
+. -tao_test_hessian - compares the user provided Hessian with one computed via finite differences to detect bugs in the user code
 . -tao_cancelmonitors - cancels all monitors (except those set with command line)
 . -tao_view - prints information about the Tao after solving
 - -tao_converged_reason - prints the reason TAO stopped iterating
