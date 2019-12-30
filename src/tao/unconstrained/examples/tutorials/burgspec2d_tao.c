@@ -374,8 +374,6 @@ int main(int argc, char **argv)
   ierr = InitialConditions(appctx.dat.ic, &appctx);
   CHKERRQ(ierr);
    
-  ierr = VecDuplicate(appctx.dat.ic, &appctx.dat.curr_sol);
-  CHKERRQ(ierr);
   ierr = VecCopy(appctx.dat.ic, appctx.dat.curr_sol);
   CHKERRQ(ierr);
   ierr = TSSolve(appctx.ts, appctx.dat.curr_sol);
@@ -435,6 +433,7 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&appctx.SEMop.mass);
   CHKERRQ(ierr);
   ierr = VecDestroy(&appctx.dat.curr_sol);
+  ierr = VecDestroy(&appctx.dat.pass_sol);
   VecDestroy(&loc);
   CHKERRQ(ierr);
   ierr = DMDestroy(&appctx.da);
@@ -442,6 +441,7 @@ int main(int argc, char **argv)
   ierr = TSDestroy(&appctx.ts);
   CHKERRQ(ierr);
 
+  ierr = MatDestroy(&H_shell);
   ierr = MatDestroy(&appctx.SEMop.stiff);
   CHKERRQ(ierr);
   ierr = MatDestroy(&appctx.SEMop.grad);
@@ -515,7 +515,7 @@ PetscErrorCode InitialConditions(Vec u, AppCtx *appctx)
 
   ierr = DMDAVecRestoreArray(appctx->da, u, &s);
   CHKERRQ(ierr);
-
+  DMDAVecRestoreArray(cda, global, &coors);
   return 0;
 }
 
@@ -598,6 +598,7 @@ PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
     }
   }
 
+  DMDAVecRestoreArray(cda, global, &coors);
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);
   CHKERRQ(ierr);
 
@@ -836,6 +837,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);
   CHKERRQ(ierr);
 
+  DMDAVecRestoreArray(cda, global, &coors);
   PetscDestroyEl2d(&ulb, appctx);
   PetscDestroyEl2d(&vlb, appctx);
   PetscDestroyEl2d(&wrk1, appctx);
@@ -846,6 +848,8 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   PetscDestroyEl2d(&wrk6, appctx);
   PetscDestroyEl2d(&wrk7, appctx);
 
+  VecDestroy(&outloc);
+  VecDestroy(&uloc);
   PetscFunctionReturn(0);
 }
 
@@ -1095,9 +1099,9 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
  
   ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);
   CHKERRQ(ierr);
-  DMDAVecRestoreArrayRead(appctx->da, uloc,ul);
+  DMDAVecRestoreArrayRead(appctx->da, uloc,&ul);
   CHKERRQ(ierr);
-  DMDAVecRestoreArrayRead(appctx->da, ujloc, uj);
+  DMDAVecRestoreArrayRead(appctx->da, ujloc, &uj);
   CHKERRQ(ierr);
 
   VecSet(out, 0.0);
@@ -1384,9 +1388,9 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
   ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);
   CHKERRQ(ierr);
-  DMDAVecRestoreArrayRead(appctx->da, uloc, ul);
+  DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);
   CHKERRQ(ierr);
-  DMDAVecRestoreArrayRead(appctx->da, ujloc, uj);
+  DMDAVecRestoreArrayRead(appctx->da, ujloc, &uj);
   CHKERRQ(ierr);
 
   DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, out);
@@ -1404,6 +1408,8 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
   PetscDestroyEl2d(&ulb, appctx);
   PetscDestroyEl2d(&vlb, appctx);
+  PetscDestroyEl2d(&ujb, appctx);
+  PetscDestroyEl2d(&vjb, appctx);
   PetscDestroyEl2d(&wrk1, appctx);
   PetscDestroyEl2d(&wrk2, appctx);
   PetscDestroyEl2d(&wrk3, appctx);
@@ -1414,7 +1420,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   VecDestroy(&uloc);
   VecDestroy(&outloc);
   VecDestroy(&ujloc);
-
+  VecDestroy(&incopy);
   return (0);
 }
 
@@ -1602,6 +1608,8 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = PetscViewerDestroy(&viewfile);
   CHKERRQ(ierr);
 
+  VecDestroy(&bsol);
+  VecDestroy(&adj);
   PetscFunctionReturn(0);
 }
 
