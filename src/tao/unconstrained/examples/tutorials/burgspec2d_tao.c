@@ -20,6 +20,10 @@ static char help[] = "Solves a simple PDE inverse problem with two dimensional B
 
    The operators are discretized with the spectral element method
 
+   The initial guess for the TAO optimization is the continuum solution at time 0
+   The objective function is two norm of the difference between the continuum solution at Tadj >= Tend and the value produced by TS solve
+   Hence the continuum solution to the optimization problem is the PDE solution at time Tadj - Tend
+
   ------------------------------------------------------------------------- */
 
 #include <petsctao.h>
@@ -107,7 +111,7 @@ extern PetscErrorCode MyMatMult(Mat, Vec, Vec);
 extern PetscErrorCode MyMatMultTransp(Mat, Vec, Vec);
 extern PetscErrorCode PetscAllocateEl2d(PetscReal ***, AppCtx *);
 extern PetscErrorCode PetscDestroyEl2d(PetscReal ***, AppCtx *);
-extern PetscErrorCode PetscPointWiseMult(PetscInt, PetscScalar *, PetscScalar *, PetscScalar *);
+extern PetscErrorCode PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
 
 int main(int argc, char **argv)
 {
@@ -130,43 +134,33 @@ int main(int argc, char **argv)
      Initialize program and set problem parameters
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   PetscFunctionBegin;
-
-  ierr = PetscInitialize(&argc, &argv, (char *)0, help);
-  if (ierr)
-    return ierr;
+  ierr = PetscInitialize(&argc, &argv, (char *)0, help);if (ierr) return ierr;
 
   /*initialize parameters */
-  appctx.param.N = 8;      /* order of the spectral element */
-  appctx.param.Ex = 6;     /* number of elements */
-  appctx.param.Ey = 6;     /* number of elements */
-  appctx.param.Lx = 4.0;   /* length of the domain */
-  appctx.param.Ly = 4.0;   /* length of the domain */
-  appctx.param.mu = 0.005; /* diffusion coefficient */
-  appctx.initial_dt = 5e-3;
+  appctx.param.N     = 8;      /* order of the spectral element */
+  appctx.param.Ex    = 6;      /* number of elements */
+  appctx.param.Ey    = 6;      /* number of elements */
+  appctx.param.Lx    = 4.0;    /* length of the domain */
+  appctx.param.Ly    = 4.0;    /* length of the domain */
+  appctx.param.mu    = 0.005;  /* diffusion coefficient */
+  appctx.initial_dt  = 5e-3;
   appctx.param.steps = PETSC_MAX_INT;
-  appctx.param.Tend = 0.2;
+  appctx.param.Tend  = 0.2;
   appctx.param.Tadj  = 1.0;
- 
-  ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);
-  CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);
-  CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);
-  CHKERRQ(ierr);
-  ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);
-  CHKERRQ(ierr);
-  ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);
-  CHKERRQ(ierr);
+
+  ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
   appctx.param.Ley = appctx.param.Ly / appctx.param.Ey;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create GLL data structures
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = PetscMalloc2(appctx.param.N, &appctx.SEMop.gll.nodes, appctx.param.N, &appctx.SEMop.gll.weights);
-  CHKERRQ(ierr);
-  ierr = PetscDTGaussLobattoLegendreQuadrature(appctx.param.N, PETSCGAUSSLOBATTOLEGENDRE_VIA_LINEAR_ALGEBRA, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);
-  CHKERRQ(ierr);
+  ierr = PetscMalloc2(appctx.param.N, &appctx.SEMop.gll.nodes, appctx.param.N, &appctx.SEMop.gll.weights);CHKERRQ(ierr);
+  ierr = PetscDTGaussLobattoLegendreQuadrature(appctx.param.N, PETSCGAUSSLOBATTOLEGENDRE_VIA_LINEAR_ALGEBRA, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr);
   appctx.SEMop.gll.n = appctx.param.N;
   appctx.param.lenx = appctx.param.Ex * (appctx.param.N - 1);
   appctx.param.leny = appctx.param.Ey * (appctx.param.N - 1);
@@ -360,9 +354,10 @@ int main(int argc, char **argv)
   ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);
   CHKERRQ(ierr);
 
+  /*
+     Use the initial condition of the PDE evaluated the grid points as the initial guess for the optimization problem 
+  */
   ierr = ContinuumSolution(0.0,appctx.dat.ic, &appctx);CHKERRQ(ierr);
-  ierr = VecCopy(appctx.dat.ic, appctx.dat.curr_sol);CHKERRQ(ierr);
-  ierr = TSSolve(appctx.ts, appctx.dat.curr_sol);CHKERRQ(ierr);
 
   /* Additional test, not needed
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"sol2d.m",&viewfile);CHKERRQ(ierr);
@@ -376,82 +371,54 @@ int main(int argc, char **argv)
   ierr = TSSetSaveTrajectory(appctx.ts);
   CHKERRQ(ierr);
 
-  /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
-  ierr = ContinuumSolution(appctx.param.Tadj, appctx.dat.obj, &appctx);
-  CHKERRQ(ierr);
-  // what follows is a hack of computing the true solution as end of objective minus time horizon of PDE, 
-  // only done cause we check various horizons and didn't want to have to change the true_sol as well
-  ierr = ContinuumSolution(appctx.param.Tadj-appctx.param.Tend, appctx.dat.true_solution, &appctx);
-  CHKERRQ(ierr);
- 
+  /* The TAO objective function is the PDE solution evaluation on the grid points at time Tadj */
+  ierr = ContinuumSolution(appctx.param.Tadj, appctx.dat.obj, &appctx);CHKERRQ(ierr);
+
+  /* The solution to the continous PDE optimization problem evaluted at the discrete grid points */
+  /* In the limit as one refines the mesh one hopes the TAO solution converges to this value */
+  ierr = ContinuumSolution(appctx.param.Tadj-appctx.param.Tend, appctx.dat.true_solution, &appctx);CHKERRQ(ierr);
+
   /* Create TAO solver and set desired solution method  */
-  ierr = TaoCreate(PETSC_COMM_WORLD, &tao);
-  CHKERRQ(ierr);
-  ierr = TaoSetMonitor(tao, MonitorError, &appctx, NULL);
-  CHKERRQ(ierr);
-  ierr = TaoSetType(tao, TAOBLMVM);
-  CHKERRQ(ierr);
-  ierr = TaoSetInitialVector(tao, appctx.dat.ic);
-  CHKERRQ(ierr);
+  ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
+  ierr = TaoSetMonitor(tao, MonitorError, &appctx, NULL);CHKERRQ(ierr);
+  ierr = TaoSetType(tao, TAOBLMVM);CHKERRQ(ierr);
+  ierr = TaoSetInitialVector(tao, appctx.dat.ic);CHKERRQ(ierr);
+
   /* Set routine for function and gradient evaluation  */
-  ierr = TaoSetObjectiveAndGradientRoutine(tao, FormFunctionGradient, (void *)&appctx);
-  CHKERRQ(ierr);
+  ierr = TaoSetObjectiveAndGradientRoutine(tao, FormFunctionGradient, (void *)&appctx);CHKERRQ(ierr);
+
   /* Check for any TAO command line options  */
-  ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);
-  CHKERRQ(ierr);
-  ierr = TaoSetFromOptions(tao);
-  CHKERRQ(ierr);
-  ierr = TaoSolve(tao);
-  CHKERRQ(ierr);
+  ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
+  ierr = TaoSolve(tao);CHKERRQ(ierr);
 
-  ierr = TaoDestroy(&tao);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&u);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.ic);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.true_solution);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.obj);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.SEMop.mass);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.curr_sol);
-  ierr = VecDestroy(&appctx.dat.pass_sol);
-  VecDestroy(&loc);
-  CHKERRQ(ierr);
-  ierr = DMDestroy(&appctx.da);
-  CHKERRQ(ierr);
-  ierr = TSDestroy(&appctx.ts);
-  CHKERRQ(ierr);
-
-  ierr = MatDestroy(&H_shell);
-  ierr = MatDestroy(&appctx.SEMop.stiff);
-  CHKERRQ(ierr);
-  ierr = MatDestroy(&appctx.SEMop.grad);
-  CHKERRQ(ierr);
-  ierr = MatDestroy(&appctx.SEMop.opadd);
+  ierr = TaoDestroy(&tao);CHKERRQ(ierr);
+  ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.ic);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.true_solution);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.obj);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.SEMop.mass);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.curr_sol);ierr = VecDestroy(&appctx.dat.pass_sol);
+  ierr = VecDestroy(&loc);CHKERRQ(ierr);
+  ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
+  ierr = TSDestroy(&appctx.ts);CHKERRQ(ierr);
+  ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
+  ierr = MatDestroy(&appctx.SEMop.stiff);CHKERRQ(ierr);
+  ierr = MatDestroy(&appctx.SEMop.grad);CHKERRQ(ierr);
+  ierr = MatDestroy(&appctx.SEMop.opadd);CHKERRQ(ierr);
 
   ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr); 
-  /*
-     Always call PetscFinalize() before exiting a program.  This routine
-       - finalizes the PETSc libraries as well as MPI
-       - provides summary and diagnostic information if certain runtime
-         options are chosen (e.g., -log_summary).
-  */
   ierr = PetscFinalize();
   return ierr;
 }
 
-PetscErrorCode PetscPointWiseMult(PetscInt Nl, PetscScalar *A, PetscScalar *B, PetscScalar *out)
+PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const PetscScalar *B, PetscScalar *out)
 {
   PetscInt i;
 
-  for (i = 0; i < Nl; i++)
-  {
+  for (i = 0; i < Nl; i++) {
     out[i] = A[i] * B[i];
   }
-
   PetscFunctionReturn(0);
 }
 
@@ -1345,28 +1312,23 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
 */
 PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *ctx)
 {
-  AppCtx *appctx = (AppCtx *)ctx; /* user-defined application context */
-  PetscErrorCode ierr;
-  Vec temp, bsol, adj;
-  PetscInt its;
-  PetscReal ff, gnorm, cnorm, xdiff, errex;
+  AppCtx             *appctx = (AppCtx *)ctx; /* user-defined application context */
+  PetscErrorCode     ierr;
+  Vec                temp, bsol, adj;
+  PetscInt           its;
+  PetscReal          ff, gnorm, cnorm, xdiff, errex;
   TaoConvergedReason reason;
-  PetscViewer viewfile;
+  PetscViewer        viewfile;
   //static int counter=0; it was considered for storing line search error
-  char filename[24];
-  char data[80];
+  char               filename[24];
+  char               data[80];
 
-  ierr = TSSetTime(appctx->ts, 0.0);
-  CHKERRQ(ierr);
-  ierr = TSSetStepNumber(appctx->ts, 0);
-  CHKERRQ(ierr);
-  ierr = TSSetTimeStep(appctx->ts, appctx->initial_dt);
-  CHKERRQ(ierr);
-  ierr = VecCopy(IC, appctx->dat.curr_sol);
-  CHKERRQ(ierr);
+  ierr = TSSetTime(appctx->ts, 0.0);CHKERRQ(ierr);
+  ierr = TSSetStepNumber(appctx->ts, 0);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(appctx->ts, appctx->initial_dt);CHKERRQ(ierr);
+  ierr = VecCopy(IC, appctx->dat.curr_sol);CHKERRQ(ierr);
 
-  ierr = TSSolve(appctx->ts, appctx->dat.curr_sol);
-  CHKERRQ(ierr);
+  ierr = TSSolve(appctx->ts, appctx->dat.curr_sol);CHKERRQ(ierr);
   //counter++; // this was for storing the error accross line searches
   /*
   PetscSNPrintf(filename,sizeof(filename),"inside.m",its);
@@ -1380,64 +1342,41 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   /*
   Store current solution for comparison
   */
-  ierr = VecDuplicate(appctx->dat.curr_sol, &bsol);
-  CHKERRQ(ierr);
-  ierr = VecCopy(appctx->dat.curr_sol, bsol);
-  CHKERRQ(ierr);
-
-  ierr = VecWAXPY(G, -1.0, appctx->dat.curr_sol, appctx->dat.obj);
-  CHKERRQ(ierr);
+  ierr = VecDuplicate(appctx->dat.curr_sol, &bsol);CHKERRQ(ierr);
+  ierr = VecCopy(appctx->dat.curr_sol, bsol);CHKERRQ(ierr);
+  ierr = VecWAXPY(G, -1.0, appctx->dat.curr_sol, appctx->dat.obj);CHKERRQ(ierr);
 
   /*
      Compute the L2-norm of the objective function, cost function is f
   */
-  ierr = VecDuplicate(G, &temp);
-  CHKERRQ(ierr);
-  ierr = VecPointwiseMult(temp, G, G);
-  CHKERRQ(ierr);
-  ierr = VecDot(temp, appctx->SEMop.mass, f);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&temp);
-  CHKERRQ(ierr);
+  ierr = VecDuplicate(G, &temp);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(temp, G, G);CHKERRQ(ierr);
+  ierr = VecDot(temp, appctx->SEMop.mass, f);CHKERRQ(ierr);
+  ierr = VecDestroy(&temp);CHKERRQ(ierr);
 
-  //local error evaluation
-  //  ierr = VecDuplicate(G, &temp);
-  CHKERRQ(ierr);
-  ierr = VecDuplicate(appctx->dat.ic, &temp);
-  CHKERRQ(ierr);
-  ierr = VecWAXPY(temp, -1.0, appctx->dat.ic, appctx->dat.true_solution);
-  CHKERRQ(ierr);
-  ierr = VecPointwiseMult(temp, temp, temp);
-  CHKERRQ(ierr);
-  //for error evaluation
-  ierr = VecDot(temp, appctx->SEMop.mass, &errex);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&temp);
-  CHKERRQ(ierr);
+  /* local error evaluation; TODO: remove this since Monitor displays the same information ? */
+  ierr = VecDuplicate(appctx->dat.ic, &temp);CHKERRQ(ierr);
+  ierr = VecWAXPY(temp, -1.0, appctx->dat.ic, appctx->dat.true_solution);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(temp, temp, temp);CHKERRQ(ierr);
+  ierr = VecDot(temp, appctx->SEMop.mass, &errex);CHKERRQ(ierr);
+  ierr = VecDestroy(&temp);CHKERRQ(ierr);
   errex = PetscSqrtReal(errex);
 
   /*
      Compute initial conditions for the adjoint integration. See Notes above
   */
+  ierr = VecScale(G, -2.0);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
+  ierr = TSSetCostGradients(appctx->ts, 1, &G, NULL);CHKERRQ(ierr);
 
-  ierr = VecScale(G, -2.0);
-  CHKERRQ(ierr);
-  //VecView(G,0);
-  ierr = VecPointwiseMult(G, G, appctx->SEMop.mass);
-  CHKERRQ(ierr);
-  ierr = TSSetCostGradients(appctx->ts, 1, &G, NULL);
-  CHKERRQ(ierr);
-  ierr = VecDuplicate(G, &adj);
-  CHKERRQ(ierr);
-  ierr = VecCopy(G, adj);
-  CHKERRQ(ierr);
+  ierr = VecDuplicate(G, &adj);CHKERRQ(ierr);
+  ierr = VecCopy(G, adj);CHKERRQ(ierr);
 
-  ierr = TSAdjointSolve(appctx->ts);
-  CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);
-  CHKERRQ(ierr);
+  ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
 
-  ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);
+  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
+
+  ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
 
   //counter++; // this was for storing the error accross line searches, we don't use it anymore
   //  PetscPrintf(PETSC_COMM_WORLD, "iteration=%D\t cost function (TAO)=%g, cost function (L2 %g), ic error %g\n", its, (double)ff, *f, errex);
@@ -1481,25 +1420,19 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
 PetscErrorCode MonitorError(Tao tao, void *ctx)
 {
-  AppCtx *appctx = (AppCtx *)ctx;
-  Vec temp;
-  PetscReal nrm;
+  AppCtx         *appctx = (AppCtx *)ctx;
+  Vec            temp;
+  PetscReal      nrm;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecDuplicate(appctx->dat.ic, &temp);
-  CHKERRQ(ierr);
-  ierr = VecWAXPY(temp, -1.0, appctx->dat.ic, appctx->dat.true_solution);
-  CHKERRQ(ierr);
-  ierr = VecPointwiseMult(temp, temp, temp);
-  CHKERRQ(ierr);
-  ierr = VecDot(temp, appctx->SEMop.mass, &nrm);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&temp);
-  CHKERRQ(ierr);
+  ierr = VecDuplicate(appctx->dat.ic, &temp);CHKERRQ(ierr);
+  ierr = VecWAXPY(temp, -1.0, appctx->dat.ic, appctx->dat.true_solution);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(temp, temp, temp);CHKERRQ(ierr);
+  ierr = VecDot(temp, appctx->SEMop.mass, &nrm);CHKERRQ(ierr);
+  ierr = VecDestroy(&temp);CHKERRQ(ierr);
   nrm = PetscSqrtReal(nrm);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "Error for initial conditions %g\n", (double)nrm);
-  CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "    Error of PDE continuum optimization solution %g\n", (double)nrm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
