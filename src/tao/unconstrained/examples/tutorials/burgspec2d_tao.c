@@ -225,7 +225,6 @@ int main(int argc, char **argv)
   ys = ys / (appctx.param.N - 1);
   ym = ym / (appctx.param.N - 1);
 
-  VecSet(appctx.SEMop.mass, 0.0);
 
   DMCreateLocalVector(appctx.da, &loc);
   ierr = DMDAVecGetArray(appctx.da, loc, &bmass);
@@ -244,8 +243,6 @@ int main(int argc, char **argv)
       {
         for (jy = 0; jy < appctx.param.N; jy++)
         {
-          x = (appctx.param.Lex / 2.0) * (appctx.SEMop.gll.nodes[jx] + 1.0) + appctx.param.Lex * ix;
-          y = (appctx.param.Ley / 2.0) * (appctx.SEMop.gll.nodes[jy] + 1.0) + appctx.param.Ley * iy;
           indx = ix * (appctx.param.N - 1) + jx;
           indy = iy * (appctx.param.N - 1) + jy;
           bmass[indy][indx].u += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * .25 * appctx.param.Ley * appctx.param.Lex;
@@ -257,6 +254,7 @@ int main(int argc, char **argv)
   //ANNOYING, the local coors are only read :(
   DMDAVecRestoreArray(appctx.da, loc, &bmass);
   CHKERRQ(ierr);
+  VecSet(appctx.SEMop.mass, 0.0);
   DMLocalToGlobalBegin(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
   DMLocalToGlobalEnd(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
 
@@ -292,7 +290,6 @@ int main(int argc, char **argv)
   ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);
   CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)global, "grid");
-  ierr = VecView(global, viewfile);
   CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)appctx.SEMop.mass, "mass");
   ierr = VecView(appctx.SEMop.mass, viewfile);
@@ -493,14 +490,14 @@ PetscErrorCode InitialConditions(Vec u, AppCtx *appctx)
   PetscInt i, j;
   DM cda;
   Vec global;
-  DMDACoor2d **coors;
+  const DMDACoor2d **coors;
 
   ierr = DMDAVecGetArray(appctx->da, u, &s);
   CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
+  DMDAVecGetArrayRead(cda, global, &coors);
 
   tt = 0.0;
   for (i = 0; i < appctx->param.lenx; i++)
@@ -515,7 +512,7 @@ PetscErrorCode InitialConditions(Vec u, AppCtx *appctx)
 
   ierr = DMDAVecRestoreArray(appctx->da, u, &s);
   CHKERRQ(ierr);
-  DMDAVecRestoreArray(cda, global, &coors);
+  DMDAVecRestoreArrayRead(cda, global, &coors);
   return 0;
 }
 
@@ -539,14 +536,14 @@ PetscErrorCode TrueSolution(Vec u, AppCtx *appctx)
   PetscInt i, j;
   DM cda;
   Vec global;
-  DMDACoor2d **coors;
+  const DMDACoor2d **coors;
 
   ierr = DMDAVecGetArray(appctx->da, u, &s);
   CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
+  DMDAVecGetArrayRead(cda, global, &coors);
 
   tt = 4.0 - appctx->param.Tend;
   for (i = 0; i < appctx->param.lenx; i++)
@@ -559,6 +556,7 @@ PetscErrorCode TrueSolution(Vec u, AppCtx *appctx)
   }
 
   ierr = DMDAVecRestoreArray(appctx->da, u, &s);
+  DMDAVecRestoreArrayRead(cda, global, &coors);
   CHKERRQ(ierr);
   /* make sure initial conditions do not contain the constant functions, since with periodic boundary conditions the constant functions introduce a null space */
   return 0;
@@ -580,14 +578,14 @@ PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
   PetscInt i, j;
   DM cda;
   Vec global;
-  DMDACoor2d **coors;
+  const DMDACoor2d **coors;
   
   ierr = DMDAVecGetArray(appctx->da, obj, &s);
   CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
+  DMDAVecGetArrayRead(cda, global, &coors);
 
   for (i = 0; i < appctx->param.lenx; i++)
   {
@@ -598,7 +596,7 @@ PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
     }
   }
 
-  DMDAVecRestoreArray(cda, global, &coors);
+  DMDAVecRestoreArrayRead(cda, global, &coors);
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);
   CHKERRQ(ierr);
 
@@ -655,9 +653,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   PetscInt ix, iy, jx, jy, indx, indy;
   PetscInt xs, xm, ys, ym, Nl, Nl2;
   //PetscViewer viewfile;
-  DM cda;
-  Vec uloc, outloc, global;
-  DMDACoor2d **coors;
+  Vec uloc, outloc;
   PetscScalar alpha, beta;
   PetscInt inc;
   //static int its = 0;
@@ -732,8 +728,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         for (jy = 0; jy < appctx->param.N; jy++)
 
         {
-          ulb[jy][jx] = 0.0;
-          vlb[jy][jx] = 0.0;
           indx = ix * (appctx->param.N - 1) + jx;
           indy = iy * (appctx->param.N - 1) + jy;
           ulb[jy][jx] = ul[indy][indx].u;
@@ -826,10 +820,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);
   CHKERRQ(ierr);
 
-  DMGetCoordinateDM(appctx->da, &cda);
-  DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
-
   ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);
   CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);
@@ -837,7 +827,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);
   CHKERRQ(ierr);
 
-  DMDAVecRestoreArray(cda, global, &coors);
   PetscDestroyEl2d(&ulb, appctx);
   PetscDestroyEl2d(&vlb, appctx);
   PetscDestroyEl2d(&wrk1, appctx);
@@ -948,10 +937,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         for (jy = 0; jy < appctx->param.N; jy++)
 
         {
-          ulb[jy][jx] = 0.0;
-          ujb[jy][jx] = 0.0;
-          vlb[jy][jx] = 0.0;
-          vjb[jy][jx] = 0.0;
           indx = ix * (appctx->param.N - 1) + jx;
           indy = iy * (appctx->param.N - 1) + jy;
           ujb[jy][jx] = uj[indy][indx].u;
@@ -1237,10 +1222,6 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
         for (jy = 0; jy < appctx->param.N; jy++)
 
         {
-          ulb[jy][jx] = 0.0;
-          ujb[jy][jx] = 0.0;
-          vlb[jy][jx] = 0.0;
-          vjb[jy][jx] = 0.0;
           indx = ix * (appctx->param.N - 1) + jx;
           indy = iy * (appctx->param.N - 1) + jy;
           ujb[jy][jx] = uj[indy][indx].u;
@@ -1436,8 +1417,6 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 
   ierr=VecCopy(globalin, appctx->dat.pass_sol);CHKERRQ(ierr);
-
-
   PetscFunctionReturn(0);
 }
 
