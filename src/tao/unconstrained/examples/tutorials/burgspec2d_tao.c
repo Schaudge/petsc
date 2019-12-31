@@ -1,11 +1,6 @@
 
-static char help[] = "Solves a simple data assimilation problem with one dimensional advection diffusion equation using TSAdjoint\n\n";
+static char help[] = "Solves a simple PDE inverse problem with two dimensional Burgers equation using TSAdjoint\n\n";
 
-/*
--tao_type test -tao_test_gradient
-    Not yet tested in parallel
-
-*/
 /*
    Concepts: TS^time-dependent linear problems
    Concepts: TS^heat equation
@@ -16,9 +11,9 @@ static char help[] = "Solves a simple data assimilation problem with one dimensi
 
 /* ------------------------------------------------------------------------
 
-   This program uses the one-dimensional advection-diffusion equation),
-       u_t = mu*u_xx - a u_x,
-   on the domain 0 <= x <= 1, with periodic boundary conditions
+   This program uses the two-dimensional Burgers equation),
+
+   on the domain 0 <= x,y <= 1, with periodic boundary conditions
 
    to demonstrate solving a data assimilation problem of finding the initial conditions
    to produce a given solution at a fixed time.
@@ -40,26 +35,26 @@ static char help[] = "Solves a simple data assimilation problem with one dimensi
 */
 typedef struct
 {
-  PetscInt n;         /* number of nodes */
+  PetscInt  n;        /* number of nodes */
   PetscReal *nodes;   /* GLL nodes */
   PetscReal *weights; /* GLL weights */
 } PetscGLL;
 
 typedef struct
 {
-  PetscInt N;                /* grid points per elements*/
-  PetscInt Ex;               /* number of elements */
-  PetscInt Ey;               /* number of elements */
-  PetscReal tol_L2, tol_max; /* error norms */
-  PetscInt steps;            /* number of timesteps */
-  PetscReal Tend;            /* endtime */
-  PetscReal mu;              /* viscosity */
-  PetscReal Lx;              /* total length of domain */
-  PetscReal Ly;              /* total length of domain */
+  PetscInt  N;                /* grid points per elements*/
+  PetscInt  Ex;               /* number of elements */
+  PetscInt  Ey;               /* number of elements */
+  PetscReal tol_L2, tol_max;  /* error norms */
+  PetscInt  steps;            /* number of timesteps */
+  PetscReal Tend;             /* endtime */
+  PetscReal mu;               /* viscosity */
+  PetscReal Lx;               /* total length of domain */
+  PetscReal Ly;               /* total length of domain */
   PetscReal Lex;
   PetscReal Ley;
-  PetscInt lenx;
-  PetscInt leny;
+  PetscInt  lenx;
+  PetscInt  leny;
   PetscReal Tadj;
 } PetscParam;
 
@@ -70,10 +65,10 @@ typedef struct
 
 typedef struct
 {
-  Vec obj;  /* desired end state */
-  Vec grid; /* total grid */
+  Vec obj;           /* desired end state, that is the solution to the PDE at TEND */
+  Vec grid;
   Vec grad;
-  Vec ic;
+  Vec ic;            /* this contains the intial conditions for the optimization and then thd solution for the optimization at each optimization iteration */
   Vec curr_sol;
   Vec pass_sol;
   Vec true_solution; /* actual initial conditions for the final solution */
@@ -81,23 +76,23 @@ typedef struct
 
 typedef struct
 {
-  Vec grid;  /* total grid */
-  Vec mass;  /* mass matrix for total integration */
-  Mat stiff; /* stifness matrix */
-  Mat keptstiff;
-  Mat grad;
-  Mat opadd;
+  Vec      grid;
+  Vec      mass;         /* mass matrix for total integration */
+  Mat      stiff;        /* stifness matrix */
+  Mat      keptstiff;
+  Mat      grad;
+  Mat      opadd;
   PetscGLL gll;
 } PetscSEMOperators;
 
 typedef struct
 {
-  DM da; /* distributed array data structure */
+  DM                da; /* distributed array data structure */
   PetscSEMOperators SEMop;
-  PetscParam param;
-  PetscData dat;
-  TS ts;
-  PetscReal initial_dt;
+  PetscParam        param;
+  PetscData         dat;
+  TS                ts;
+  PetscReal         initial_dt;
 } AppCtx;
 
 /*
@@ -118,21 +113,20 @@ extern PetscErrorCode PetscPointWiseMult(PetscInt, PetscScalar *, PetscScalar *,
 
 int main(int argc, char **argv)
 {
-  AppCtx appctx; /* user-defined application context */
-  Tao tao;
-  Vec u; /* approximate solution vector */
+  AppCtx         appctx; /* user-defined application context */
+  Tao            tao;
+  Vec            u; /* approximate solution vector */
   PetscErrorCode ierr;
-  PetscInt xs, xm, ys, ym, ix, iy;
-  PetscInt indx, indy, m, nn;
-  PetscReal x, y;
-  Field **bmass;
-  DMDACoor2d **coors;
-  Vec global, loc;
-  DM cda;
-  PetscInt jx, jy;
-  PetscViewer viewfile;
-  Mat H_shell;
-  
+  PetscInt       xs, xm, ys, ym, ix, iy;
+  PetscInt       indx, indy, m, nn;
+  PetscReal      x, y;
+  Field          **bmass;
+  DMDACoor2d     **coors;
+  Vec            global, loc;
+  DM             cda;
+  PetscInt       jx, jy;
+  PetscViewer    viewfile;
+  Mat            H_shell;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program and set problem parameters
