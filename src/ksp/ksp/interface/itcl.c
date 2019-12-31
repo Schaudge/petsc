@@ -301,7 +301,8 @@ PetscErrorCode  KSPMonitorSetFromOptions(KSP ksp,const char name[],const char he
 .   -ksp_monitor <optional filename> - print residual norm at each iteration
 .   -ksp_monitor_lg_residualnorm - plot residual norm at each iteration
 .   -ksp_monitor_solution [ascii binary or draw][:filename][:format option] - plot solution at each iteration
--   -ksp_monitor_singular_value - monitor extreme singular values at each iteration
+.   -ksp_error_if_not_converged - immediately stop with an error if failure to converge for linear solver
++   -ksp_monitor_singular_value - monitor extreme singular values at each iteration
 
    Notes:
    To see all options, run your program with the -help option

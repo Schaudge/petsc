@@ -876,6 +876,7 @@ PetscErrorCode  SNESMonitorSetFromOptions(SNES snes,const char name[],const char
 .  -snes_fd_color - use finite differences with coloring to compute Jacobian
 .  -snes_mf_ksp_monitor - if using matrix-free multiply then print h at each KSP iteration
 .  -snes_converged_reason - print the reason for convergence/divergence after each solve
+.  -snes_error_if_not_converged - immediately stop with an error if failure to converge for nonlinear solver
 -  -npc_snes_type <type> - the SNES type to use as a nonlinear preconditioner
 
     Options Database for Eisenstat-Walker method:

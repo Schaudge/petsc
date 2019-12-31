@@ -484,7 +484,7 @@ PetscErrorCode TaoLineSearchSetType(TaoLineSearch ls, TaoLineSearchType type)
 }
 
 /*@C
-  TaoLineSearchMonitor - Monitor the line search steps. This routine will otuput the
+  TaoLineSearchMonitor - Monitor the line search steps. This routine outputs the
   iteration number, step length, and function value before calling the implementation 
   specific monitor.
 
@@ -510,9 +510,14 @@ PetscErrorCode TaoLineSearchMonitor(TaoLineSearch ls, PetscInt its, PetscReal f,
   if (ls->usemonitor) {
     ierr = PetscViewerASCIIGetTab(ls->viewer, &tabs);CHKERRQ(ierr);
     ierr = PetscViewerASCIISetTab(ls->viewer, ((PetscObject)ls)->tablevel);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(ls->viewer, "%3D LS", its);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(ls->viewer, "  Function value: %g,", (double)f);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(ls->viewer, "  Step length: %g\n", (double)step);CHKERRQ(ierr);
+    if (!its) {
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "  Tao linesearch value on entrance\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "    Previous function value: %g\n", (double)f);CHKERRQ(ierr);
+    } else {
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "%3D Tao linesearch iteration\n", its);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "    Function value: %g,", (double)f);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "    Step length: %g\n", (double)step);CHKERRQ(ierr);
+    }
     if (ls->ops->monitor && its > 0) {
       ierr = PetscViewerASCIISetTab(ls->viewer, ((PetscObject)ls)->tablevel + 3);CHKERRQ(ierr);
       ierr = (*ls->ops->monitor)(ls);CHKERRQ(ierr);
