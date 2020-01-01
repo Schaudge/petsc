@@ -152,6 +152,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL, NULL, "-Tadj", &appctx.param.Tadj, NULL);CHKERRQ(ierr);  
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
   appctx.param.Ley = appctx.param.Ly / appctx.param.Ey;
@@ -213,22 +214,17 @@ int main(int argc, char **argv)
 
 
   DMCreateLocalVector(appctx.da, &loc);
-  ierr = DMDAVecGetArray(appctx.da, loc, &bmass);
-  CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(appctx.da, loc, &bmass);CHKERRQ(ierr);
 
   /*
-     Build mass over entire mesh (multi-elemental) 
+     Build mass over entire mesh
 
   */
 
-  for (ix = xs; ix < xs + xm; ix++)
-  {
-    for (jx = 0; jx < appctx.param.N; jx++)
-    {
-      for (iy = ys; iy < ys + ym; iy++)
-      {
-        for (jy = 0; jy < appctx.param.N; jy++)
-        {
+  for (ix = xs; ix < xs + xm; ix++) {
+    for (jx = 0; jx < appctx.param.N; jx++) {
+      for (iy = ys; iy < ys + ym; iy++) {
+        for (jy = 0; jy < appctx.param.N; jy++) {
           indx = ix * (appctx.param.N - 1) + jx;
           indy = iy * (appctx.param.N - 1) + jy;
           bmass[indy][indx].u += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * .25 * appctx.param.Ley * appctx.param.Lex;
@@ -237,9 +233,7 @@ int main(int argc, char **argv)
       }
     }
   }
-  //ANNOYING, the local coors are only read :(
-  DMDAVecRestoreArray(appctx.da, loc, &bmass);
-  CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(appctx.da, loc, &bmass);CHKERRQ(ierr);
   VecSet(appctx.SEMop.mass, 0.0);
   DMLocalToGlobalBegin(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
   DMLocalToGlobalEnd(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
@@ -416,6 +410,7 @@ PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const Petsc
 {
   PetscInt i;
 
+  PetscFunctionBegin;
   for (i = 0; i < Nl; i++) {
     out[i] = A[i] * B[i];
   }
@@ -440,6 +435,7 @@ PetscErrorCode ContinuumSolution(PetscReal t, Vec obj, AppCtx *appctx)
   Vec              global;
   const DMDACoor2d **coors;
 
+  PetscFunctionBegin;
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
   DMDAVecGetArrayRead(cda, global, &coors);
@@ -454,7 +450,7 @@ PetscErrorCode ContinuumSolution(PetscReal t, Vec obj, AppCtx *appctx)
 
   DMDAVecRestoreArrayRead(cda, global, &coors);
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);CHKERRQ(ierr);
-  return 0;
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode PetscAllocateEl2d(PetscReal ***AA, AppCtx *appctx)
@@ -514,7 +510,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   //char var[12];
 
   PetscFunctionBegin;
-
   ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);
   CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);
@@ -660,10 +655,8 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
       }
     }
   }
-  ierr = DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);
-  CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);
-  CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
 
   VecSet(globalout, 0.0);
   DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, globalout);
@@ -671,15 +664,11 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
 
   VecScale(globalout, -1.0);
 
-  ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);
-  CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);CHKERRQ(ierr);
 
-  ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);
-  CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);
-  CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);
-  CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
 
   PetscDestroyEl2d(&ulb, appctx);
   PetscDestroyEl2d(&vlb, appctx);
@@ -714,6 +703,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   Vec uloc, outloc, ujloc;
   PetscScalar alpha, beta;
  
+  PetscFunctionBegin;
   MatShellGetContext(H, &appctx);
 
   ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);
@@ -749,7 +739,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   /* unwrap local vector for the output solution */
   DMCreateLocalVector(appctx->da, &outloc);
-  VecSet(outloc, 0.0);
 
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl);
   CHKERRQ(ierr);
@@ -961,6 +950,8 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   PetscDestroyEl2d(&ulb, appctx);
   PetscDestroyEl2d(&vlb, appctx);
+  PetscDestroyEl2d(&ujb, appctx);
+  PetscDestroyEl2d(&vjb, appctx);
   PetscDestroyEl2d(&wrk1, appctx);
   PetscDestroyEl2d(&wrk2, appctx);
   PetscDestroyEl2d(&wrk3, appctx);
@@ -972,7 +963,9 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   VecDestroy(&uloc);
   VecDestroy(&outloc);
   VecDestroy(&ujloc);
-  return (0);
+  //VecView(in,0);
+  //  VecView(out,0);
+  PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
@@ -993,6 +986,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   Vec uloc, outloc, ujloc, incopy;
   PetscScalar alpha, beta;
   
+  PetscFunctionBegin;
   MatShellGetContext(H, &appctx);
 
   ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);
@@ -1004,6 +998,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
   VecDuplicate(in, &incopy);
   VecCopy(in, incopy);
+
   ierr = VecPointwiseDivide(incopy, in, appctx->SEMop.mass);
   CHKERRQ(ierr);
 
@@ -1228,9 +1223,12 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   DMDAVecRestoreArrayRead(appctx->da, ujloc, &uj);
   CHKERRQ(ierr);
 
+  //  VecView(outloc,0);
+  VecSet(out,0.0); // just added this cause seemed missing
   DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, out);
   DMLocalToGlobalEnd(appctx->da, outloc, ADD_VALUES, out);
 
+  // Removing this because for a single time step -tao_test_gradient is wrong by a sign
   VecScale(out, -1.0);
   //ierr = VecPointwiseDivide(out,out,appctx->SEMop.mass);CHKERRQ(ierr);
 
@@ -1256,7 +1254,9 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   VecDestroy(&outloc);
   VecDestroy(&ujloc);
   VecDestroy(&incopy);
-  return (0);
+  //    VecView(in,0);
+  //  VecView(out,0);
+  PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
@@ -1264,12 +1264,11 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void *ctx)
 {
   PetscErrorCode ierr;
-  AppCtx *appctx = (AppCtx *)ctx;
-  PetscFunctionBegin;
+  AppCtx         *appctx = (AppCtx *)ctx;
 
+  PetscFunctionBegin;
   MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-
   ierr=VecCopy(globalin, appctx->dat.pass_sol);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1323,6 +1322,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   char               filename[24];
   char               data[80];
 
+  PetscFunctionBegin;
   ierr = TSSetTime(appctx->ts, 0.0);CHKERRQ(ierr);
   ierr = TSSetStepNumber(appctx->ts, 0);CHKERRQ(ierr);
   ierr = TSSetTimeStep(appctx->ts, appctx->initial_dt);CHKERRQ(ierr);
@@ -1374,7 +1374,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
 
-  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
+  //  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
 
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
 
