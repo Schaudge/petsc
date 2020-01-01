@@ -724,25 +724,27 @@ static void qAndLEvaluation(PetscInt n, PetscReal x, PetscReal *q, PetscReal *qp
   PetscReal Lnm1, Lnm1p;
   PetscReal Lnm2, Lnm2p;
 
-  Lnm1  = 1.0;
+  Lnm1  = 1;
   *Ln   = x;
-  Lnm1p = 0.0;
-  Lnp   = 1.0;
+  Lnm1p = 0;
+  Lnp   = 1;
 
   for (k=2; k<=n; ++k) {
     Lnm2  = Lnm1;
     Lnm1  = *Ln;
     Lnm2p = Lnm1p;
     Lnm1p = Lnp;
-    *Ln   = (2.*((PetscReal)k)-1.)/(1.0*((PetscReal)k))*x*Lnm1 - (((PetscReal)k)-1.)/((PetscReal)k)*Lnm2;
-    Lnp   = Lnm2p + (2.0*((PetscReal)k)-1.)*Lnm1;
+    *Ln   = (2*((PetscReal)k)-1)/(1*((PetscReal)k))*x*Lnm1 - (((PetscReal)k)-1)/((PetscReal)k)*Lnm2;
+    Lnp   = Lnm2p + (2*((PetscReal)k)-1)*Lnm1;
   }
   k     = n+1;
-  Lnp1  = (2.*((PetscReal)k)-1.)/(((PetscReal)k))*x*(*Ln) - (((PetscReal)k)-1.)/((PetscReal)k)*Lnm1;
-  Lnp1p = Lnm1p + (2.0*((PetscReal)k)-1.)*(*Ln);
+  Lnp1  = (2*((PetscReal)k)-1)/(((PetscReal)k))*x*(*Ln) - (((PetscReal)k)-1)/((PetscReal)k)*Lnm1;
+  Lnp1p = Lnm1p + (2*((PetscReal)k)-1)*(*Ln);
   *q    = Lnp1 - Lnm1;
   *qp   = Lnp1p - Lnm1p;
 }
+
+#define RC PetscRealConstant
 
 /*@C
    PetscDTGaussLobattoLegendreQuadrature - creates a set of the locations and weights of the Gauss-Lobatto-Legendre
@@ -784,13 +786,13 @@ PetscErrorCode PetscDTGaussLobattoLegendreQuadrature(PetscInt npoints,PetscGauss
     PetscReal      x0,z0,z1,z2;
     PetscInt       i,p = npoints - 1,nn;
 
-    x[0]   =-1.0;
-    x[npoints-1] = 1.0;
+    x[0] = -1;
+    x[npoints-1] = 1;
     if (npoints-2 > 0){
       ierr = PetscMalloc1(npoints-1,&M);CHKERRQ(ierr);
       for (i=0; i<npoints-2; i++) {
-        si  = ((PetscReal)i)+1.0;
-        M[i]=0.5*PetscSqrtReal(si*(si+2.0)/((si+0.5)*(si+1.5)));
+        si  = ((PetscReal)i)+1;
+        M[i]=RC(0.5)*PetscSqrtReal(si*(si+2)/((si+RC(0.5))*(si+RC(1.5))));
       }
       ierr = PetscBLASIntCast(npoints-2,&bn);CHKERRQ(ierr);
       ierr = PetscArrayzero(&x[1],bn);CHKERRQ(ierr);
@@ -802,21 +804,21 @@ PetscErrorCode PetscDTGaussLobattoLegendreQuadrature(PetscInt npoints,PetscGauss
       ierr = PetscFree(M);CHKERRQ(ierr);
     }
     if ((npoints-1)%2==0) {
-      x[(npoints-1)/2]   = 0.0; /* hard wire to exactly 0.0 since linear algebra produces nonzero */
+      x[(npoints-1)/2]   = 0; /* hard wire to exactly 0 since linear algebra produces nonzero */
     }
 
-    w[0] = w[p] = 2.0/(((PetscReal)(p))*(((PetscReal)p)+1.0));
+    w[0] = w[p] = 2/(((PetscReal)(p))*(((PetscReal)p)+1));
     z2 = -1.;                      /* Dummy value to avoid -Wmaybe-initialized */
     for (i=1; i<p; i++) {
       x0  = x[i];
-      z0 = 1.0;
+      z0 = 1;
       z1 = x0;
       for (nn=1; nn<p; nn++) {
-        z2 = x0*z1*(2.0*((PetscReal)nn)+1.0)/(((PetscReal)nn)+1.0)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1.0));
+        z2 = x0*z1*(2*((PetscReal)nn)+1)/(((PetscReal)nn)+1)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1));
         z0 = z1;
         z1 = z2;
       }
-      w[i]=2.0/(((PetscReal)p)*(((PetscReal)p)+1.0)*z2*z2);
+      w[i]=2/(((PetscReal)p)*(((PetscReal)p)+1)*z2*z2);
     }
   } else {
     PetscInt  j,m;
@@ -825,37 +827,38 @@ PetscErrorCode PetscDTGaussLobattoLegendreQuadrature(PetscInt npoints,PetscGauss
     ierr = PetscMalloc1(npoints,&pt);CHKERRQ(ierr);
 
     if (npoints > 30) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"PETSCGAUSSLOBATTOLEGENDRE_VIA_NEWTON produces incorrect answers for n > 30");
-    x[0]     = -1.0;
-    x[npoints-1]   = 1.0;
-    w[0]   = w[npoints-1] = 2./(((PetscReal)npoints)*(((PetscReal)npoints)-1.0));
+    x[0]     = -1;
+    x[npoints-1]   = 1;
+    w[0]   = w[npoints-1] = 2./(((PetscReal)npoints)*(((PetscReal)npoints)-1));
     m  = (npoints-1)/2; /* The roots are symmetric, so we only find half of them. */
     for (j=1; j<=m; j++) { /* Loop over the desired roots. */
-      z = -1.0*PetscCosReal((PETSC_PI*((PetscReal)j)+0.25)/(((PetscReal)npoints)-1.0))-(3.0/(8.0*(((PetscReal)npoints)-1.0)*PETSC_PI))*(1.0/(((PetscReal)j)+0.25));
+      z = -1*PetscCosReal((PETSC_PI*((PetscReal)j)+RC(0.25))/(((PetscReal)npoints)-1))-(3/(8*(((PetscReal)npoints)-1)*PETSC_PI))*(1/(((PetscReal)j)+RC(0.25)));
       /* Starting with the above approximation to the ith root, we enter */
       /* the main loop of refinement by Newton's method.                 */
       do {
         qAndLEvaluation(npoints-1,z,&q,&qp,&Ln);
         z1 = z;
         z  = z1-q/qp; /* Newton's method. */
-      } while (PetscAbs(z-z1) > 10.*PETSC_MACHINE_EPSILON);
+      } while (PetscAbs(z-z1) > 10*PETSC_MACHINE_EPSILON);
       qAndLEvaluation(npoints-1,z,&q,&qp,&Ln);
 
       x[j]       = z;
       x[npoints-1-j]   = -z;      /* and put in its symmetric counterpart.   */
-      w[j]     = 2.0/(((PetscReal)npoints)*(((PetscReal)npoints)-1.)*Ln*Ln);  /* Compute the weight */
+      w[j]     = 2/(((PetscReal)npoints)*(((PetscReal)npoints)-1)*Ln*Ln);  /* Compute the weight */
       w[npoints-1-j] = w[j];                 /* and its symmetric counterpart. */
       pt[j]=qp;
     }
 
     if ((npoints-1)%2==0) {
-      qAndLEvaluation(npoints-1,0.0,&q,&qp,&Ln);
-      x[(npoints-1)/2]   = 0.0;
-      w[(npoints-1)/2] = 2.0/(((PetscReal)npoints)*(((PetscReal)npoints)-1.)*Ln*Ln);
+      qAndLEvaluation(npoints-1,0,&q,&qp,&Ln);
+      x[(npoints-1)/2] = 0;
+      w[(npoints-1)/2] = 2/(((PetscReal)npoints)*(((PetscReal)npoints)-1)*Ln*Ln);
     }
     ierr = PetscFree(pt);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
+#undef RC
 
 /*@
   PetscDTGaussTensorQuadrature - creates a tensor-product Gauss quadrature
@@ -1565,6 +1568,8 @@ PetscErrorCode PetscGaussLobattoLegendreIntegrate(PetscInt n,PetscReal *nodes,Pe
   PetscFunctionReturn(0);
 }
 
+#define RC PetscRealConstant
+
 /*@C
    PetscGaussLobattoLegendreElementLaplacianCreate - computes the Laplacian for a single 1d GLL element
 
@@ -1604,59 +1609,59 @@ PetscErrorCode PetscGaussLobattoLegendreElementLaplacianCreate(PetscInt n,PetscR
 
   for (j=1; j<p; j++) {
     x  = gllnodes[j];
-    z0 = 1.;
+    z0 = 1;
     z1 = x;
     for (nn=1; nn<p; nn++) {
-      z2 = x*z1*(2.*((PetscReal)nn)+1.)/(((PetscReal)nn)+1.)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1.));
+      z2 = x*z1*(2*((PetscReal)nn)+1)/(((PetscReal)nn)+1)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1));
       z0 = z1;
       z1 = z2;
     }
     Lpj=z2;
     for (r=1; r<p; r++) {
       if (r == j) {
-        A[j][j]=2./(3.*(1.-gllnodes[j]*gllnodes[j])*Lpj*Lpj);
+        A[j][j]=2/(3*(1-gllnodes[j]*gllnodes[j])*Lpj*Lpj);
       } else {
         x  = gllnodes[r];
-        z0 = 1.;
+        z0 = 1;
         z1 = x;
         for (nn=1; nn<p; nn++) {
-          z2 = x*z1*(2.*((PetscReal)nn)+1.)/(((PetscReal)nn)+1.)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1.));
+          z2 = x*z1*(2*((PetscReal)nn)+1)/(((PetscReal)nn)+1)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1));
           z0 = z1;
           z1 = z2;
         }
         Lpr     = z2;
-        A[r][j] = 4./(((PetscReal)p)*(((PetscReal)p)+1.)*Lpj*Lpr*(gllnodes[j]-gllnodes[r])*(gllnodes[j]-gllnodes[r]));
+        A[r][j] = 4/(((PetscReal)p)*(((PetscReal)p)+1)*Lpj*Lpr*(gllnodes[j]-gllnodes[r])*(gllnodes[j]-gllnodes[r]));
       }
     }
   }
   for (j=1; j<p+1; j++) {
     x  = gllnodes[j];
-    z0 = 1.;
+    z0 = 1;
     z1 = x;
     for (nn=1; nn<p; nn++) {
-      z2 = x*z1*(2.*((PetscReal)nn)+1.)/(((PetscReal)nn)+1.)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1.));
+      z2 = x*z1*(2*((PetscReal)nn)+1)/(((PetscReal)nn)+1)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1));
       z0 = z1;
       z1 = z2;
     }
     Lpj     = z2;
-    A[j][0] = 4.*PetscPowRealInt(-1.,p)/(((PetscReal)p)*(((PetscReal)p)+1.)*Lpj*(1.+gllnodes[j])*(1.+gllnodes[j]));
+    A[j][0] = 4*PetscPowRealInt(-1,p)/(((PetscReal)p)*(((PetscReal)p)+1)*Lpj*(1+gllnodes[j])*(1+gllnodes[j]));
     A[0][j] = A[j][0];
   }
   for (j=0; j<p; j++) {
     x  = gllnodes[j];
-    z0 = 1.;
+    z0 = 1;
     z1 = x;
     for (nn=1; nn<p; nn++) {
-      z2 = x*z1*(2.*((PetscReal)nn)+1.)/(((PetscReal)nn)+1.)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1.));
+      z2 = x*z1*(2*((PetscReal)nn)+1)/(((PetscReal)nn)+1)-z0*(((PetscReal)nn)/(((PetscReal)nn)+1));
       z0 = z1;
       z1 = z2;
     }
     Lpj=z2;
 
-    A[p][j] = 4./(((PetscReal)p)*(((PetscReal)p)+1.)*Lpj*(1.-gllnodes[j])*(1.-gllnodes[j]));
+    A[p][j] = 4/(((PetscReal)p)*(((PetscReal)p)+1)*Lpj*(1-gllnodes[j])*(1-gllnodes[j]));
     A[j][p] = A[p][j];
   }
-  A[0][0]=0.5+(((PetscReal)p)*(((PetscReal)p)+1.)-2.)/6.;
+  A[0][0]=RC(0.5)+(((PetscReal)p)*(((PetscReal)p)+1)-2)/6;
   A[p][p]=A[0][0];
   *AA = A;
   PetscFunctionReturn(0);
@@ -1733,11 +1738,11 @@ PetscErrorCode PetscGaussLobattoLegendreElementGradientCreate(PetscInt n,PetscRe
     for (i=1; i<n; i++) AT[i] = AT[i-1]+n;
   }
 
-  if (n==1) {A[0][0] = 0.;}
-  d0 = (PetscReal)p*((PetscReal)p+1.)/4.;
+  if (n==1) {A[0][0] = 0;}
+  d0 = (PetscReal)p*((PetscReal)p+1)/4;
   for  (i=0; i<n; i++) {
     for  (j=0; j<n; j++) {
-      A[i][j] = 0.;
+      A[i][j] = 0;
       qAndLEvaluation(p,gllnodes[i],&q,&qp,&Li);
       qAndLEvaluation(p,gllnodes[j],&q,&qp,&Lj);
       if (i!=j)             A[i][j] = Li/(Lj*(gllnodes[i]-gllnodes[j]));
@@ -1813,9 +1818,9 @@ PetscErrorCode PetscGaussLobattoLegendreElementAdvectionCreate(PetscInt n,PetscR
 {
   PetscReal       **D;
   PetscErrorCode  ierr;
-  const PetscReal  *gllweights = weights;
-  const PetscInt   glln = n;
-  PetscInt         i,j;
+  const PetscReal *gllweights = weights;
+  const PetscInt  glln = n;
+  PetscInt        i,j;
 
   PetscFunctionBegin;
   ierr = PetscGaussLobattoLegendreElementGradientCreate(n,nodes,weights,&D,NULL);CHKERRQ(ierr);
@@ -1858,7 +1863,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementAdvectionDestroy(PetscInt n,Petsc
 PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
 {
   PetscReal        **A;
-  PetscErrorCode  ierr;
+  PetscErrorCode   ierr;
   const PetscReal  *gllweights = weights;
   const PetscInt   glln = n;
   PetscInt         i,j;
@@ -1867,11 +1872,11 @@ PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt n,PetscReal *
   ierr = PetscMalloc1(glln,&A);CHKERRQ(ierr);
   ierr = PetscMalloc1(glln*glln,&A[0]);CHKERRQ(ierr);
   for (i=1; i<glln; i++) A[i] = A[i-1]+glln;
-  if (glln==1) {A[0][0] = 0.;}
+  if (glln==1) {A[0][0] = 0;}
   for  (i=0; i<glln; i++) {
     for  (j=0; j<glln; j++) {
-      A[i][j] = 0.;
-      if (j==i)     A[i][j] = gllweights[i];
+      A[i][j] = 0;
+      if (j==i) A[i][j] = gllweights[i];
     }
   }
   *AA  = A;

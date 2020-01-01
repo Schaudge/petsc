@@ -55,7 +55,7 @@ PetscErrorCode TaoDefaultComputeGradient(Tao tao,Vec Xin,Vec G,void *dummy)
   PetscErrorCode ierr;
   PetscInt       low,high,N,i;
   PetscBool      flg;
-  PetscReal      h=.5*PETSC_SQRT_MACHINE_EPSILON;
+  PetscReal      h=PETSC_SQRT_MACHINE_EPSILON/2;
 
   PetscFunctionBegin;
   ierr = PetscOptionsGetReal(((PetscObject)tao)->options,((PetscObject)tao)->prefix,"-tao_fd_delta",&h,&flg);CHKERRQ(ierr);
@@ -70,7 +70,7 @@ PetscErrorCode TaoDefaultComputeGradient(Tao tao,Vec Xin,Vec G,void *dummy)
     ierr = VecAssemblyBegin(X);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(X);CHKERRQ(ierr);
     ierr = TaoComputeObjective(tao,X,&f);CHKERRQ(ierr);
-    ierr = VecSetValue(X,i,2.0*h,ADD_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(X,i,2*h,ADD_VALUES);CHKERRQ(ierr);
     ierr = VecAssemblyBegin(X);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(X);CHKERRQ(ierr);
     ierr = TaoComputeObjective(tao,X,&f2);CHKERRQ(ierr);
@@ -78,11 +78,15 @@ PetscErrorCode TaoDefaultComputeGradient(Tao tao,Vec Xin,Vec G,void *dummy)
     ierr = VecAssemblyBegin(X);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(X);CHKERRQ(ierr);
     if (i>=low && i<high) {
-      g[i-low]=(f2-f)/(2.0*h);
+      g[i-low]=(f2-f)/(2*h);
     }
   }
   ierr = VecRestoreArray(G,&g);CHKERRQ(ierr);
   ierr = VecDestroy(&X);CHKERRQ(ierr);
+  /*  PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
+  VecView(Xin,0);
+  VecView(G,0);
+   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); */
   PetscFunctionReturn(0);
 }
 

@@ -840,7 +840,7 @@ static PetscErrorCode TSAdjointStep_RK(TS ts)
       /* VecsDeltaLam[nadj*s+s-1] are initialized with zeros and the values never change.*/
       continue;
     }
-    rk->stage_time = t + h*(1.0-c[i]);
+    rk->stage_time = t + h*(1-c[i]);
     ierr = TSComputeSNESJacobian(ts,Y[i],J,Jpre);CHKERRQ(ierr);
     if (quadts) {
       ierr = TSComputeRHSJacobian(quadts,rk->stage_time,Y[i],Jquad,Jquad);CHKERRQ(ierr); /* get r_u^T */
@@ -896,7 +896,7 @@ static PetscErrorCode TSAdjointStep_RK(TS ts)
         } else {
           ierr = VecScale(VecDeltaMu,-h);CHKERRQ(ierr);
         }
-        ierr = VecAXPY(ts->vecs_sensip[nadj],1.,VecDeltaMu);CHKERRQ(ierr); /* update sensip for each stage */
+        ierr = VecAXPY(ts->vecs_sensip[nadj],1,VecDeltaMu);CHKERRQ(ierr); /* update sensip for each stage */
       }
     }
 
@@ -973,13 +973,15 @@ static PetscErrorCode TSAdjointStep_RK(TS ts)
     }
   }
 
-  for (j=0; j<s; j++) w[j] = 1.0;
+  for (j=0; j<s; j++) w[j] = 1;
+  //  VecView(VecsDeltaLam[0],0);
   for (nadj=0; nadj<ts->numcost; nadj++) { /* no need to do this for mu's */
     ierr = VecMAXPY(ts->vecs_sensi[nadj],s,w,&VecsDeltaLam[nadj*s]);CHKERRQ(ierr);
     if (ts->vecs_sensi2) {
       ierr = VecMAXPY(ts->vecs_sensi2[nadj],s,w,&VecsDeltaLam2[nadj*s]);CHKERRQ(ierr);
     }
   }
+  //  VecView(ts->vecs_sensi[0],0);
   rk->status = TS_STEP_COMPLETE;
   PetscFunctionReturn(0);
 }
