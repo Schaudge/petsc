@@ -171,7 +171,20 @@ int main(int argc, char **argv)
   ierr = VecDuplicate(u, &appctx.SEMop.mass);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.curr_sol);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.pass_sol);CHKERRQ(ierr);
+  
+  InitializeSpectral(&appctx);  
+  ierr = DMGetCoordinates(appctx.da, &global);CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "meshout.m", &viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)global, "grid");CHKERRQ(ierr);
+  ierr = VecView(global, viewfile);
+  ierr = PetscObjectSetName((PetscObject)appctx.SEMop.mass, "mass");CHKERRQ(ierr);
+  ierr = VecView(appctx.SEMop.mass, viewfile);
+  ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
+
+  exit(1);
   ierr = DMDAGetCorners(appctx.da, &xs, &ys, NULL, &xm, &ym, NULL);CHKERRQ(ierr);
   /* Compute function over the locally owned part of the grid */
   xs = xs / (appctx.param.N - 1);
