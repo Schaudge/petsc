@@ -694,8 +694,8 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         for (jy = 0; jy < appctx->param.N; jy++) {
           indx = ix * (appctx->param.N - 1) + jx;
           indy = iy * (appctx->param.N - 1) + jy;
-          outl[indy][indx].u += appctx->param.mu * (wrk2[jy][jx]);// + vlb[jy][jx] * wrk5[jy][jx] + ulb[jy][jx] * wrk4[jy][jx];
-          outl[indy][indx].v += appctx->param.mu * (wrk3[jy][jx]);// + ulb[jy][jx] * wrk6[jy][jx] + vlb[jy][jx] * wrk7[jy][jx];
+          outl[indy][indx].u += appctx->param.mu * (wrk2[jy][jx]) + vlb[jy][jx] * wrk5[jy][jx] + ulb[jy][jx] * wrk4[jy][jx];
+          outl[indy][indx].v += appctx->param.mu * (wrk3[jy][jx]) + ulb[jy][jx] * wrk6[jy][jx] + vlb[jy][jx] * wrk7[jy][jx];
         }
       }
     }
@@ -941,8 +941,8 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         for (jy = 0; jy < appctx->param.N; jy++) {
           indx = ix * (appctx->param.N - 1) + jx;
           indy = iy * (appctx->param.N - 1) + jy;
-          outl[indy][indx].u += appctx->param.mu * (wrk2[jy][jx]);// + wrk4[jy][jx];
-          outl[indy][indx].v += appctx->param.mu * (wrk3[jy][jx]);// + wrk5[jy][jx];
+          outl[indy][indx].u += appctx->param.mu * (wrk2[jy][jx]) + wrk4[jy][jx];
+          outl[indy][indx].v += appctx->param.mu * (wrk3[jy][jx]) + wrk5[jy][jx];
         }
       }
     }
