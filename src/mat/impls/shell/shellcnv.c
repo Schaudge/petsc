@@ -45,13 +45,13 @@ PetscErrorCode MatConvert_Shell(Mat oldmat, MatType newtype,MatReuse reuse,Mat *
     PetscInt j;
 
     ierr = VecZeroEntries(in);CHKERRQ(ierr);
-    ierr = VecSetValue(in,i,1.,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(in,i,1,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecAssemblyBegin(in);CHKERRQ(ierr);
     ierr = VecAssemblyEnd(in);CHKERRQ(ierr);
     ierr = MatMult(oldmat,in,out);CHKERRQ(ierr);
     ierr = VecGetArray(out,&array);CHKERRQ(ierr);
     for (j=0, im = 0; j<m; j++) {
-      if (PetscAbsScalar(array[j]) == 0.0) continue;
+      if (PetscAbsScalar(array[j]) == 0) continue;
       rows[im]  = j+start;
       array[im] = array[j];
       im++;
