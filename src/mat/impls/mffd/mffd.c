@@ -348,7 +348,7 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
   }
   ierr = (*ctx->ops->compute)(ctx,U,a,&h,&zeroa);CHKERRQ(ierr);
   if (zeroa) {
-    ierr = VecSet(y,0.0);CHKERRQ(ierr);
+    ierr = VecSet(y,0);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
 
@@ -387,12 +387,12 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
     ierr = VecImaginaryPart(y);CHKERRQ(ierr);
     h    = PetscImaginaryPart(h);
   } else {
-    ierr = VecAXPY(y,-1.0,F);CHKERRQ(ierr);
+    ierr = VecAXPY(y,-1,F);CHKERRQ(ierr);
   }
 #else
-  ierr = VecAXPY(y,-1.0,F);CHKERRQ(ierr);
+  ierr = VecAXPY(y,-1,F);CHKERRQ(ierr);
 #endif
-  ierr = VecScale(y,1.0/h);CHKERRQ(ierr);
+  ierr = VecScale(y,1/h);CHKERRQ(ierr);
   if (mat->nullsp) {ierr = MatNullSpaceRemove(mat->nullsp,y);CHKERRQ(ierr);}
 
   ierr = PetscLogEventEnd(MATMFFD_Mult,a,y,0,0);CHKERRQ(ierr);
@@ -411,7 +411,7 @@ PetscErrorCode MatGetDiagonal_MFFD(Mat mat,Vec a)
 {
   MatMFFD        ctx;
   PetscScalar    h,*aa,*ww,v;
-  PetscReal      epsilon = PETSC_SQRT_MACHINE_EPSILON,umin = 100.0*PETSC_SQRT_MACHINE_EPSILON;
+  PetscReal      epsilon = PETSC_SQRT_MACHINE_EPSILON,umin = 100*PETSC_SQRT_MACHINE_EPSILON;
   Vec            w,U;
   PetscErrorCode ierr;
   PetscInt       i,rstart,rend;
@@ -433,9 +433,9 @@ PetscErrorCode MatGetDiagonal_MFFD(Mat mat,Vec a)
   for (i=rstart; i<rend; i++) {
     ierr = VecGetArray(w,&ww);CHKERRQ(ierr);
     h    = ww[i-rstart];
-    if (h == 0.0) h = 1.0;
-    if (PetscAbsScalar(h) < umin && PetscRealPart(h) >= 0.0)     h = umin;
-    else if (PetscRealPart(h) < 0.0 && PetscAbsScalar(h) < umin) h = -umin;
+    if (h == 0) h = 1;
+    if (PetscAbsScalar(h) < umin && PetscRealPart(h) >= 0)     h = umin;
+    else if (PetscRealPart(h) < 0 && PetscAbsScalar(h) < umin) h = -umin;
     h *= epsilon;
 
     ww[i-rstart] += h;
@@ -635,7 +635,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MFFD(Mat A)
   mfctx->error_rel                = PETSC_SQRT_MACHINE_EPSILON;
   mfctx->recomputeperiod          = 1;
   mfctx->count                    = 0;
-  mfctx->currenth                 = 0.0;
+  mfctx->currenth                 = 0;
   mfctx->historyh                 = NULL;
   mfctx->ncurrenth                = 0;
   mfctx->maxcurrenth              = 0;
@@ -1121,7 +1121,7 @@ PetscErrorCode  MatMFFDCheckPositivity(void *dummy,Vec U,Vec a,PetscScalar *h)
   ierr   = VecGetLocalSize(U,&n);CHKERRQ(ierr);
   minval = PetscAbsScalar(*h)*PetscRealConstant(1.01);
   for (i=0; i<n; i++) {
-    if (PetscRealPart(u_vec[i] + *h*a_vec[i]) <= 0.0) {
+    if (PetscRealPart(u_vec[i] + *h*a_vec[i]) <= 0) {
       val = PetscAbsScalar(u_vec[i]/a_vec[i]);
       if (val < minval) minval = val;
     }
@@ -1131,8 +1131,8 @@ PetscErrorCode  MatMFFDCheckPositivity(void *dummy,Vec U,Vec a,PetscScalar *h)
   ierr = MPIU_Allreduce(&minval,&val,1,MPIU_REAL,MPIU_MIN,comm);CHKERRQ(ierr);
   if (val <= PetscAbsScalar(*h)) {
     ierr = PetscInfo2(U,"Scaling back h from %g to %g\n",(double)PetscRealPart(*h),(double)(.99*val));CHKERRQ(ierr);
-    if (PetscRealPart(*h) > 0.0) *h =  0.99*val;
-    else                         *h = -0.99*val;
+    if (PetscRealPart(*h) > 0) *h =  PetscRealConstant(0.99)*val;
+    else                         *h = PetscRealConstant(-0.99)*val;
   }
   PetscFunctionReturn(0);
 }

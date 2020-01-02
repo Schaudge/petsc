@@ -1479,7 +1479,7 @@ PetscErrorCode  MatShellTestMultTranspose(Mat mat,PetscErrorCode (*f)(void*,Vec,
   ierr = MatComputeOperatorTranspose(mat,MATAIJ,&Dmat);CHKERRQ(ierr);
 
   ierr = MatDuplicate(Dmat,MAT_COPY_VALUES,&Ddiff);CHKERRQ(ierr);
-  ierr = MatAXPY(Ddiff,-1.0,Dmf,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(Ddiff,-1,Dmf,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatNorm(Ddiff,NORM_FROBENIUS,&Diffnorm);CHKERRQ(ierr);
   ierr = MatNorm(Dmf,NORM_FROBENIUS,&Dmfnorm);CHKERRQ(ierr);
   if (Diffnorm/Dmfnorm > 10*PETSC_SQRT_MACHINE_EPSILON) {

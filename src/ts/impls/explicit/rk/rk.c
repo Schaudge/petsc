@@ -557,7 +557,7 @@ static PetscErrorCode TSAdjointCostIntegral_RK(TS ts)
   PetscFunctionBegin;
   for (i=s-1; i>=0; i--) {
     /* Evolve quadrature TS solution to compute integrals */
-    ierr = TSComputeRHSFunction(quadts,ts->ptime+ts->time_step*(1.0-c[i]),Y[i],ts->vec_costintegrand);CHKERRQ(ierr);
+    ierr = TSComputeRHSFunction(quadts,ts->ptime+ts->time_step*(1-c[i]),Y[i],ts->vec_costintegrand);CHKERRQ(ierr);
     ierr = VecAXPY(quadts->vec_sol,-ts->time_step*b[i],ts->vec_costintegrand);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);

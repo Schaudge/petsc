@@ -69,10 +69,10 @@ static PetscErrorCode MatMFFDCompute_WP(MatMFFD ctx,Vec U,Vec a,PetscScalar *h,P
   if (!(ctx->count % ctx->recomputeperiod)) {
     if (hctx->computenormU || !ctx->ncurrenth) {
       ierr            = VecNorm(U,NORM_2,&normU);CHKERRQ(ierr);
-      hctx->normUfact = PetscSqrtReal(1.0+normU);
+      hctx->normUfact = PetscSqrtReal(1+normU);
     }
     ierr = VecNorm(a,NORM_2,&norma);CHKERRQ(ierr);
-    if (norma == 0.0) {
+    if (norma == 0) {
       *zeroa = PETSC_TRUE;
       PetscFunctionReturn(0);
     }

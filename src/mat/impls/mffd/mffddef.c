@@ -81,7 +81,7 @@ static PetscErrorCode MatMFFDCompute_DS(MatMFFD ctx,Vec U,Vec a,PetscScalar *h,P
     ierr = VecNormEnd(a,NORM_1,&sum);CHKERRQ(ierr);
     ierr = VecNormEnd(a,NORM_2,&nrm);CHKERRQ(ierr);
 
-    if (nrm == 0.0) {
+    if (nrm == 0) {
       *zeroa = PETSC_TRUE;
       PetscFunctionReturn(0);
     }
@@ -90,8 +90,8 @@ static PetscErrorCode MatMFFDCompute_DS(MatMFFD ctx,Vec U,Vec a,PetscScalar *h,P
     /*
       Safeguard for step sizes that are "too small"
     */
-    if (PetscAbsScalar(dot) < umin*sum && PetscRealPart(dot) >= 0.0) dot = umin*sum;
-    else if (PetscAbsScalar(dot) < 0.0 && PetscRealPart(dot) > -umin*sum) dot = -umin*sum;
+    if (PetscAbsScalar(dot) < umin*sum && PetscRealPart(dot) >= 0) dot = umin*sum;
+    else if (PetscAbsScalar(dot) < 0 && PetscRealPart(dot) > -umin*sum) dot = -umin*sum;
     *h = ctx->error_rel*dot/(nrm*nrm);
     if (PetscIsInfOrNanScalar(*h)) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Differencing parameter is not a number sum = %g dot = %g norm = %g",(double)sum,(double)PetscRealPart(dot),(double)nrm);
   } else {

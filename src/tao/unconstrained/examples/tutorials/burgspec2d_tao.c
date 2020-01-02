@@ -545,6 +545,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
       alpha = 1;
       BLASaxpy_(&Nl2, &alpha, &wrk4[0][0], &inc, &wrk3[0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
 
+#ifdef foo      
       //now the gradient operator for u
       // first (D_x x B) u =W4 this multiples u
       alpha = appctx->param.Lex / 2;
@@ -570,7 +571,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
       BLASgemm_("N", "N", &Nl, &Nl, &Nl, &alpha, &grad[0][0], &Nl, &vlb[0][0], &Nl, &beta, &wrk1[0][0], &Nl);
       alpha = appctx->param.Ley / 2;
       BLASgemm_("N", "T", &Nl, &Nl, &Nl, &alpha, &wrk1[0][0], &Nl, &mass[0][0], &Nl, &beta, &wrk7[0][0], &Nl);
-
+#endif
       for (jx = 0; jx < appctx->param.N; jx++) {
         for (jy = 0; jy < appctx->param.N; jy++) {
           indx = ix * (appctx->param.N - 1) + jx;
@@ -899,8 +900,8 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   VecDuplicate(in, &incopy);
   VecCopy(in, incopy);
 
-  ierr = VecPointwiseDivide(incopy, in, appctx->SEMop.mass);CHKERRQ(ierr);
-  VecScale(incopy, -1);
+  //  ierr = VecPointwiseDivide(incopy, in, appctx->SEMop.mass);CHKERRQ(ierr);
+  // VecScale(incopy, -1);
 
   /* ul contains local array of input, the vector the transpose is applied to */
   DMCreateLocalVector(appctx->da, &uloc);
@@ -990,7 +991,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#ifdef foo      
       //now the gradient operator for u
       // first (D_x x B) wu the term (D_x x B) wu.ujb
 
@@ -1076,7 +1077,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
       alpha = 1;
       BLASaxpy_(&Nl2, &alpha, &wrk6[0][0], &inc, &wrk5[0][0], &inc); // saving in wrk5
-
+#endif
       for (jx = 0; jx < appctx->param.N; jx++) {
         for (jy = 0; jy < appctx->param.N; jy++) {
           indx = ix * (appctx->param.N - 1) + jx;
@@ -1098,7 +1099,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
 
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); 
+   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);  
 
   ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
