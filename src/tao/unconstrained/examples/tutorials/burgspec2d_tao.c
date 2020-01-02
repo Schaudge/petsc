@@ -1249,6 +1249,8 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
   AppCtx         *appctx = (AppCtx *)ctx;
 
   PetscFunctionBegin;
+  ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = VecCopy(globalin, appctx->dat.pass_sol);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1286,6 +1288,8 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
           below (instead of -2(u(T) - u_d) and why the result is
               G = G/appctx->SEMop.mass (that is G = M^{-1}w)
           below (instead of just the result of the "adjoint solve").
+
+        I do not know if the logic above is correct! BS
 
 
 */
@@ -1352,6 +1356,9 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   /* solve gthe adjoint system for the gradient */
   ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
+
+  //  Using the divide here produces incorrect results  with
+  //  ./burgspec2d_tao -tao_monitor -ts_adapt_type none -Ex 3 -Ey 3 -N 2 -Tend 5e-3 -Tadj 5e-3 -ts_rk_type 1fe -tao_test_gradient
   //  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
 
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
