@@ -37,6 +37,7 @@ extern PetscErrorCode PetscDestroyEl3d(PetscReal ****, AppCtx *);
 extern PetscErrorCode PetscAllocateEl2d(PetscReal ***, AppCtx *);
 extern PetscErrorCode PetscDestroyEl2d(PetscReal ***, AppCtx *);
 extern PetscErrorCode PetscTens3dSEM(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ****, PetscScalar **,AppCtx *appctx);
+extern PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ****, PetscScalar **,AppCtx *appctx);
 
 PetscErrorCode PetscAllocateEl3d(PetscReal ****AA, AppCtx *appctx)
 {
@@ -121,7 +122,6 @@ PetscErrorCode PetscDestroyEl2d(PetscReal ***AA, AppCtx *appctx)
 
 PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ****out, PetscScalar **alphavec, AppCtx *appctx)
 {
-  PetscErrorCode ierr;
   PetscInt Nl, Nl2;
   PetscInt jx;
   PetscScalar *temp1, *temp2;
@@ -153,11 +153,45 @@ PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar ***B, PetscScalar **
 
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ****out, PetscScalar **alphavec, AppCtx *appctx)
+{
+  PetscInt Nl, Nl2;
+  PetscInt jx;
+  PetscScalar *temp1, *temp2;
+  PetscScalar ***wrk1, ***wrk2, ***wrk3;
+  PetscReal beta;
+ 
+  PetscFunctionBegin;
+  Nl = appctx->N;
+  Nl2 = Nl * Nl;
+  
+  beta=0.0;
+  
+  PetscAllocateEl3d(&wrk1, appctx);
+  PetscAllocateEl3d(&wrk2, appctx);
+  PetscAllocateEl3d(&wrk3, appctx);
+
+  BLASgemm_("N", "N", &Nl, &Nl2, &Nl, alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
+  for (jx = 0; jx < Nl; jx++)
+  {
+    temp1 = &wrk1[0][0][0] + jx * Nl2;
+    temp2 = &wrk2[0][0][0] + jx * Nl2;
+
+    BLASgemm_("N", "T", &Nl, &Nl, &Nl, alphavec[0]+1, temp1, &Nl, B[0][0], &Nl, &beta, temp2, &Nl);
+  }
+
+  BLASgemm_("N", "T", &Nl2, &Nl, &Nl, alphavec[0]+2, &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
+
+  *out = wrk3;
+
+  PetscFunctionReturn(0);
+}
 int main(int argc, char **argv)
 {
   PetscErrorCode ierr;
   AppCtx appctx; /* user-defined application context */
-  PetscScalar ***wrk1, ***wrk2, ***wrk3, ***outfun;
+  PetscScalar ***wrk1, ***wrk2, ***wrk3, ***outfun, ***outtransp;
   PetscScalar **A, **B, **C;
   PetscScalar ***ulb;
   PetscScalar *temp1, *temp2;
@@ -185,6 +219,7 @@ int main(int argc, char **argv)
   PetscAllocateEl3d(&wrk2, &appctx);
   PetscAllocateEl3d(&wrk3, &appctx);
   PetscAllocateEl3d(&outfun, &appctx);
+  PetscAllocateEl3d(&outtransp, &appctx);
   PetscAllocateEl2d(&A, &appctx);
   PetscAllocateEl2d(&B, &appctx);
   PetscAllocateEl2d(&C, &appctx);
@@ -200,11 +235,11 @@ int main(int argc, char **argv)
       for (jz = 0; jz < Nl; jz++)
       {
 
-        ulb[jx][jy][jz] = (double)rand() / RAND_MAX * 2.0 - 1.0;
+        ulb[jz][jy][jx] = (double)rand() / RAND_MAX * 2.0 - 1.0;
       }
-      A[jx][jy] = (double)rand() / RAND_MAX * 2.0 - 1.0;
-      B[jx][jy] = (double)rand() / RAND_MAX * 2.0 - 1.0;
-      C[jx][jy] = (double)rand() / RAND_MAX * 2.0 - 1.0;
+      A[jy][jx] = (double)rand() / RAND_MAX * 2.0 - 1.0;
+      B[jy][jx] = (double)rand() / RAND_MAX * 2.0 - 1.0;
+      C[jy][jx] = (double)rand() / RAND_MAX * 2.0 - 1.0;
     }
   }
   
@@ -225,7 +260,8 @@ int main(int argc, char **argv)
   BLASgemm_("N", "N", &Nl2, &Nl, &Nl, &alphavec[2], &wrk2[0][0][0], &Nl2, &C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
 
   PetscTens3dSEM(&A, &B, &C, &ulb, &outfun, &alphavec, &appctx);
-  
+  PetscTens3dSEMTranspose(&A, &B, &C, &ulb, &outtransp, &alphavec, &appctx);
+
   FILE *fp;
   fp = fopen("arrays.m", "w");
   fprintf(fp, "N=%d;\n", Nl);
@@ -242,6 +278,7 @@ int main(int argc, char **argv)
         fprintf(fp, "wrk2(%d,%d,%d)=%.10f;", jx + 1, jy + 1, jz + 1, wrk2[jx][jy][jz]);
         fprintf(fp, "wrk3(%d,%d,%d)=%.10f;", jx + 1, jy + 1, jz + 1, wrk3[jx][jy][jz]);
         fprintf(fp, "outfun(%d,%d,%d)=%.10f;", jx + 1, jy + 1, jz + 1, outfun[jx][jy][jz]);
+        fprintf(fp, "outtransp(%d,%d,%d)=%.10f;", jx + 1, jy + 1, jz + 1, outtransp[jx][jy][jz]);
         //fprintf(fp, "temp2(%d,%d)=%.10f;", jy + 1, jz + 1, temp2[jy * Nl + jz]);
         fprintf(fp, "A(%d,%d)=%.10f;", jy + 1, jz + 1, A[jy][jz]);
         fprintf(fp, "B(%d,%d)=%.10f;", jy + 1, jz + 1, B[jy][jz]);
