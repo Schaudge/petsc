@@ -128,22 +128,22 @@ int main(int argc, char **argv)
 
   /*initialize parameters */
   appctx.param.N     = 8;       /* order of the spectral element */
-  appctx.param.Ex    = 6;       /* number of elements */
+  appctx.param.Ex    = 4;       /* number of elements */
   appctx.param.Ey    = 6;       /* number of elements */
   appctx.param.Lx    = 4;       /* length of the domain */
   appctx.param.Ly    = 4;       /* length of the domain */
-  appctx.param.mu    = 0.005Q;  /* diffusion coefficient */
-  appctx.initial_dt  = 5e-3Q;
+  appctx.param.mu    = PetscRealConstant(0.005);  /* diffusion coefficient */
+  appctx.initial_dt  = PetscRealConstant(5e-3);
   appctx.param.steps = PETSC_MAX_INT;
-  appctx.param.Tend  = 1;//0.2;
+  appctx.param.Tend  = 1e-3Q;//0.2;
   appctx.param.Tinit = 0;//1.0;
-  appctx.param.Tadj  = 2;//1.0;
-
+  appctx.param.Tadj  = 5e-3Q;//1.0;
 
   ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL, NULL, "-dt", &appctx.initial_dt, NULL);CHKERRQ(ierr);  
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tadj", &appctx.param.Tadj, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
@@ -507,6 +507,7 @@ PetscErrorCode TrueSolution(PetscReal tt, Vec u, AppCtx *appctx)
   PetscFunctionBegin;
   ierr = DMDAVecGetArray(appctx->da, u, &s);
   CHKERRQ(ierr);
+
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
   DMDAVecGetArray(cda, global, &coors);
@@ -573,7 +574,6 @@ PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const Petsc
   }
   PetscFunctionReturn(0);
 }
-
 
 /*
    This uses the explicit formula for the PDE solution to compute the solution at the grid points for any given time
@@ -1257,44 +1257,34 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   /* solve gthe adjoint system for the gradient */
   ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
-  //  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
+
+  //ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
 
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
 
   //counter++; // this was for storing the error accross line searches, we don't use it anymore
   //  PetscPrintf(PETSC_COMM_WORLD, "iteration=%D\t cost function (TAO)=%g, cost function (L2 %g), ic error %g\n", its, (double)ff, *f, errex);
   PetscSNPrintf(filename, sizeof(filename), "PDEadjoint/optimize%02d.m", its);
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename, &viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);
-  CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename, &viewfile);   CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);  CHKERRQ(ierr);
   PetscSNPrintf(data, sizeof(data), "TAO(%D)=%g; L2(%D)= %g ; Err(%D)=%g\n", its + 1, (double)ff, its + 1, *f, its + 1, errex);
   PetscViewerASCIIPrintf(viewfile, data);
   ierr = PetscObjectSetName((PetscObject)appctx->dat.obj, "obj");
-  ierr = VecView(appctx->dat.obj, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)G, "Init_adj");
-  ierr = VecView(G, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)adj, "adj");
-  ierr = VecView(adj, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)IC, "Init_ts");
-  ierr = VecView(IC, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)bsol, "fwd");
-  ierr = VecView(bsol, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)appctx->dat.curr_sol, "Curr_sol");
-  ierr = VecView(appctx->dat.curr_sol, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)appctx->dat.true_solution, "exact");
-  ierr = VecView(appctx->dat.true_solution, viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewfile);
-  CHKERRQ(ierr);
+  ierr = VecView(appctx->dat.obj, viewfile); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)G, "Init_adj"); CHKERRQ(ierr);
+  ierr = VecView(G, viewfile); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)adj, "adj"); CHKERRQ(ierr);
+  ierr = VecView(adj, viewfile);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)IC, "Init_ts"); CHKERRQ(ierr);
+  ierr = VecView(IC, viewfile); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)bsol, "fwd"); CHKERRQ(ierr);
+  ierr = VecView(bsol, viewfile); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)appctx->dat.curr_sol, "Curr_sol"); CHKERRQ(ierr);
+  ierr = VecView(appctx->dat.curr_sol, viewfile);  CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)appctx->dat.true_solution, "exact"); CHKERRQ(ierr);
+  ierr = VecView(appctx->dat.true_solution, viewfile);  CHKERRQ(ierr);
+  ierr = PetscViewerPopFormat(viewfile); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewfile);  CHKERRQ(ierr);
 
   VecDestroy(&bsol);
   VecDestroy(&adj);

@@ -53,9 +53,7 @@ typedef struct
 } Field;
 
 typedef struct
-{
-  Vec obj;           /* desired end state, that is the solution to the PDE at TEND */
-  Vec grad;
+{ Vec grad;
   Vec ic;            /* this contains the intial conditions for the optimization and then the solution for the optimization at each optimization iteration */
   Vec curr_sol;
   Vec pass_sol;      /* this is the base for the Jacobian */
@@ -261,7 +259,6 @@ int main(int argc, char **argv)
     ierr = PetscViewerPopFormat(viewfile);
     //printf("test i %d length %d\n",its, appctx.param.lenx*appctx.param.leny);
     } 
-//exit(1);
 
   //ierr = VecDuplicate(appctx.dat.ic,&uu);CHKERRQ(ierr);
   //ierr = VecCopy(appctx.dat.ic,uu);CHKERRQ(ierr);
