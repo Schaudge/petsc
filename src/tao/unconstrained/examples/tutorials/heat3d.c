@@ -64,7 +64,7 @@ typedef struct
   PetscInt lenx;
   PetscInt leny;
   PetscInt lenz;
-  PetscReal Tadj;
+  PetscReal Tinit;
 } PetscParam;
 
 typedef struct
@@ -73,9 +73,7 @@ typedef struct
 } Field;
 
 typedef struct
-{
-  Vec obj;  /* desired end state */
-  Vec grid; /* total grid */
+{ Vec grid; /* total grid */
   Vec grad;
   Vec ic;
   Vec curr_sol;
@@ -96,21 +94,19 @@ typedef struct
 
 typedef struct
 {
-  DM da; /* distributed array data structure */
+  DM                da; /* distributed array data structure */
   PetscSEMOperators SEMop;
-  PetscParam param;
-  PetscData dat;
-  TS ts;
-  PetscReal initial_dt;
-  PetscReal *solutioncoefficients;
-  PetscInt ncoeff;
+  PetscParam        param;
+  PetscData         dat;
+  TS                ts;
+  PetscReal         initial_dt;
 } AppCtx;
 
 /*
    User-defined routines
 */
-extern PetscErrorCode InitialConditions(Vec, AppCtx *);
-extern PetscErrorCode TrueSolution(Vec, AppCtx *);
+extern PetscErrorCode InitialConditions(PetscReal, Vec, AppCtx *);
+extern PetscErrorCode TrueSolution(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode RHSFunction(TS, PetscReal, Vec, Vec, void *);
 extern PetscErrorCode RHSJacobian(TS, PetscReal, Vec, Mat, Mat, void *);
 extern PetscErrorCode MyMatMult(Mat, Vec, Vec);
@@ -118,11 +114,12 @@ extern PetscErrorCode PetscAllocateEl3d(PetscReal ****, AppCtx *);
 extern PetscErrorCode PetscDestroyEl3d(PetscReal ****, AppCtx *);
 extern PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
 extern PetscErrorCode PetscTens3dSEM(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ****, PetscScalar **,AppCtx *appctx);
+extern PetscErrorCode InitializeSpectral(AppCtx *);
 
 int main(int argc, char **argv)
 {
-  AppCtx appctx; /* user-defined application context */
-  Vec u; /* approximate solution vector */
+  AppCtx         appctx; /* user-defined application context */
+  Vec            u; /* approximate solution vector */
   PetscErrorCode ierr;
   PetscInt xs, xm, ys, ym, zs, zm, ix, iy, iz;
   PetscInt indx, indy, indz, m, nn;
@@ -134,7 +131,7 @@ int main(int argc, char **argv)
   PetscInt jx, jy, jz;
   PetscViewer viewfile;
   Mat H_shell;
-  MatNullSpace nsp;
+
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program and set problem parameters
@@ -157,14 +154,12 @@ int main(int argc, char **argv)
   appctx.initial_dt = 5e-3;
   appctx.param.steps = PETSC_MAX_INT;
   appctx.param.Tend = 0.2;
-  appctx.param.Tadj = 0.4;
-  appctx.ncoeff = 2;
+  appctx.param.Tinit = 0;
 
   ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);   CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ez", &appctx.param.Ey, NULL);  CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL, NULL, "-ncoeff", &appctx.ncoeff, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);  CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
@@ -203,168 +198,56 @@ int main(int argc, char **argv)
      have the same types.
   */
 
-  ierr = DMCreateGlobalVector(appctx.da, &u);  CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &appctx.dat.ic);  CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &appctx.dat.true_solution);  CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &appctx.dat.obj);  CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &appctx.SEMop.mass);  CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &appctx.dat.curr_sol);  CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &appctx.dat.pass_sol);  CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(appctx.da, &u);CHKERRQ(ierr);
+  ierr = VecDuplicate(u, &appctx.dat.ic);CHKERRQ(ierr);
+  ierr = VecDuplicate(u, &appctx.dat.true_solution);CHKERRQ(ierr);
+  ierr = VecDuplicate(u, &appctx.SEMop.mass);CHKERRQ(ierr);
+  ierr = VecDuplicate(u, &appctx.dat.curr_sol);CHKERRQ(ierr);
+  ierr = VecDuplicate(u, &appctx.dat.pass_sol);CHKERRQ(ierr);
+  
+  ierr = InitializeSpectral(&appctx);  CHKERRQ(ierr);
+  ierr = DMGetCoordinates(appctx.da, &global);CHKERRQ(ierr);
 
-  ierr = DMDAGetCorners(appctx.da, &xs, &ys, &zs, &xm, &ym, &zm);   CHKERRQ(ierr);
-  /* Compute function over the locally owned part of the grid */
-  xs = xs / (appctx.param.N - 1);
-  xm = xm / (appctx.param.N - 1);
-  ys = ys / (appctx.param.N - 1);
-  ym = ym / (appctx.param.N - 1);
-  zs = zs / (appctx.param.N - 1);
-  zm = zm / (appctx.param.N - 1);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "meshout.m", &viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)global, "grid");CHKERRQ(ierr);
+  ierr = VecView(global, viewfile);
+  ierr = PetscObjectSetName((PetscObject)appctx.SEMop.mass, "mass");CHKERRQ(ierr);
+  ierr = VecView(appctx.SEMop.mass, viewfile);
+  ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
 
-  VecSet(appctx.SEMop.mass, 0.0);
+  //ierr = DMSetMatrixPreallocateOnly(appctx.da, PETSC_TRUE);   CHKERRQ(ierr);
+  //ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.stiff);  CHKERRQ(ierr);
 
-  DMCreateLocalVector(appctx.da, &loc);
-  ierr = DMDAVecGetArray(appctx.da, loc, &bmass);   CHKERRQ(ierr);
-
-  /*
-     Build mass over entire mesh (multi-elemental) 
-
-  */
-
-  for (ix = xs; ix < xs + xm; ix++)
-  {
-    for (jx = 0; jx < appctx.param.N; jx++)
-    {
-      for (iy = ys; iy < ys + ym; iy++)
-      {
-        for (jy = 0; jy < appctx.param.N; jy++)
-        {
-          for (iz = zs; iz < zs + zm; iz++)
-          {
-            for (jz = 0; jz < appctx.param.N; jz++)
-            {
-              x = (appctx.param.Lex / 2.0) * (appctx.SEMop.gll.nodes[jx] + 1.0) + appctx.param.Lex * ix;
-              y = (appctx.param.Ley / 2.0) * (appctx.SEMop.gll.nodes[jy] + 1.0) + appctx.param.Ley * iy;
-              z = (appctx.param.Lez / 2.0) * (appctx.SEMop.gll.nodes[jz] + 1.0) + appctx.param.Lez * iz;
-              indx = ix * (appctx.param.N - 1) + jx;
-              indy = iy * (appctx.param.N - 1) + jy;
-              indz = iz * (appctx.param.N - 1) + jz;
-              bmass[indz][indy][indx].u += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * appctx.SEMop.gll.weights[jz] *
-                                           0.125 * appctx.param.Lez * appctx.param.Ley * appctx.param.Lex;
-              bmass[indz][indy][indx].v += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * appctx.SEMop.gll.weights[jz] *
-                                           0.125 * appctx.param.Lez * appctx.param.Ley * appctx.param.Lex;
-              bmass[indz][indy][indx].w += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * appctx.SEMop.gll.weights[jz] *
-                                           0.125 * appctx.param.Lez * appctx.param.Ley * appctx.param.Lex;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  DMDAVecRestoreArray(appctx.da, loc, &bmass);
-  CHKERRQ(ierr);
-  DMLocalToGlobalBegin(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
-  DMLocalToGlobalEnd(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);
-
-  DMDASetUniformCoordinates(appctx.da, 0.0, appctx.param.Lx, 0.0, appctx.param.Ly, 0.0, appctx.param.Lz);
-  DMGetCoordinateDM(appctx.da, &cda);
-
-  DMGetCoordinates(appctx.da, &global);
-  VecSet(global, 0.0);
-  DMDAVecGetArray(cda, global, &coors);
-
-  for (ix = xs; ix < xs + xm; ix++)
-  {
-    for (jx = 0; jx < appctx.param.N - 1; jx++)
-    {
-      for (iy = ys; iy < ys + ym; iy++)
-      {
-        for (jy = 0; jy < appctx.param.N - 1; jy++)
-        {
-          for (iz = zs; iz < zs + zm; iz++)
-          {
-            for (jz = 0; jz < appctx.param.N - 1; jz++)
-            {
-              x = (appctx.param.Lex / 2.0) * (appctx.SEMop.gll.nodes[jx] + 1.0) + appctx.param.Lex * ix - 2.0;
-              y = (appctx.param.Ley / 2.0) * (appctx.SEMop.gll.nodes[jy] + 1.0) + appctx.param.Ley * iy - 2.0;
-              z = (appctx.param.Lez / 2.0) * (appctx.SEMop.gll.nodes[jz] + 1.0) + appctx.param.Lez * iz - 2.0;
-              indx = ix * (appctx.param.N - 1) + jx;
-              indy = iy * (appctx.param.N - 1) + jy;
-              indz = iz * (appctx.param.N - 1) + jz;
-              coors[indz][indy][indx].x = x;
-              coors[indz][indy][indx].y = y;
-              coors[indz][indy][indx].z = z;
-            }
-          }
-        }
-      }
-    }
-  }
-  DMDAVecRestoreArray(cda, global, &coors);
-
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "tomesh.m", &viewfile);
-  CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);
-  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)global, "grid");
-  ierr = VecView(global, viewfile);  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)appctx.SEMop.mass, "mass");
-  ierr = VecView(appctx.SEMop.mass, viewfile);   CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);
-  ierr = PetscViewerDestroy(&viewfile);  CHKERRQ(ierr);
-
-  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   Create matrix data structure; set matrix evaluation routine.
-   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMSetMatrixPreallocateOnly(appctx.da, PETSC_TRUE);   CHKERRQ(ierr);
-  ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.stiff);  CHKERRQ(ierr);
-  ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.grad);  CHKERRQ(ierr);
-  ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.opadd);  CHKERRQ(ierr);
-
-  /*
-       For linear problems with a time-dependent f(u,t) in the equation
-       u_t = f(u,t), the user provides the discretized right-hand-side
-       as a time-dependent matrix.
-    */
 
   /* Create the TS solver that solves the ODE and its adjoint; set its options */
-  ierr = TSCreate(PETSC_COMM_WORLD, &appctx.ts);   CHKERRQ(ierr);
-  ierr = TSSetProblemType(appctx.ts, TS_NONLINEAR);  CHKERRQ(ierr);
-  ierr = TSSetType(appctx.ts, TSRK);  CHKERRQ(ierr);
-  ierr = TSSetDM(appctx.ts, appctx.da);  CHKERRQ(ierr);
-  ierr = TSSetTime(appctx.ts, 0.0);  CHKERRQ(ierr);
-  ierr = TSSetTimeStep(appctx.ts, appctx.initial_dt);  CHKERRQ(ierr);
-  ierr = TSSetMaxSteps(appctx.ts, appctx.param.steps);  CHKERRQ(ierr);
-  ierr = TSSetMaxTime(appctx.ts, appctx.param.Tend);  CHKERRQ(ierr);
-  ierr = TSSetExactFinalTime(appctx.ts, TS_EXACTFINALTIME_MATCHSTEP);   CHKERRQ(ierr);
-
-  VecGetLocalSize(u, &m);
-  VecGetSize(u, &nn);
-
-  MatCreateShell(PETSC_COMM_WORLD, m, m, nn, nn, &appctx, &H_shell);
-  MatShellSetOperation(H_shell, MATOP_MULT, (void (*)(void))MyMatMult);
-  //MatShellSetOperation(H_shell, MATOP_MULT_TRANSPOSE, (void (*)(void))MyMatMultTransp);
-
-  /* attach the null space to the matrix, this probably is not needed but does no harm */
-
-  /*
-  ierr = MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,NULL,&nsp);CHKERRQ(ierr);
-  ierr = MatSetNullSpace(H_shell,nsp);CHKERRQ(ierr);
-  ierr = MatNullSpaceTest(nsp,H_shell,NULL);CHKERRQ(ierr);
-  ierr = MatNullSpaceDestroy(&nsp);CHKERRQ(ierr);
-  */
-
-  ierr = TSSetTolerances(appctx.ts, 1e-7, NULL, 1e-7, NULL);   CHKERRQ(ierr);
-  ierr = TSSetFromOptions(appctx.ts);   CHKERRQ(ierr);
+  ierr = TSCreate(PETSC_COMM_WORLD, &appctx.ts);CHKERRQ(ierr);
+  ierr = TSSetProblemType(appctx.ts, TS_NONLINEAR);CHKERRQ(ierr);
+  ierr = TSSetType(appctx.ts, TSRK);CHKERRQ(ierr);
+  ierr = TSSetDM(appctx.ts, appctx.da);CHKERRQ(ierr);
+  ierr = TSSetTime(appctx.ts, 0);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(appctx.ts, appctx.initial_dt);CHKERRQ(ierr);
+  ierr = TSSetMaxSteps(appctx.ts, appctx.param.steps);CHKERRQ(ierr);
+  ierr = TSSetMaxTime(appctx.ts, appctx.param.Tend);CHKERRQ(ierr);
+  ierr = TSSetExactFinalTime(appctx.ts, TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+  ierr = TSSetTolerances(appctx.ts, 1e-7, NULL, 1e-7, NULL);CHKERRQ(ierr);
+  ierr = TSSetFromOptions(appctx.ts);CHKERRQ(ierr);
   /* Need to save initial timestep user may have set with -ts_dt so it can be reset for each new TSSolve() */
-  ierr = TSGetTimeStep(appctx.ts, &appctx.initial_dt);   CHKERRQ(ierr);
-  //ierr = TSSetRHSFunction(appctx.ts,NULL,TSComputeRHSFunctionLinear,&appctx);CHKERRQ(ierr);
-  ierr = TSSetRHSJacobian(appctx.ts,H_shell,H_shell,TSComputeRHSJacobianConstant,&appctx);CHKERRQ(ierr);
-  //ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);   CHKERRQ(ierr);
-  ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);   CHKERRQ(ierr);
+  ierr = TSGetTimeStep(appctx.ts, &appctx.initial_dt);CHKERRQ(ierr);
 
-  ierr = InitialConditions(appctx.dat.ic, &appctx);   CHKERRQ(ierr);
-  
+
+  ierr = InitialConditions(appctx.param.Tinit, appctx.dat.ic, &appctx);CHKERRQ(ierr);
+  ierr = VecCopy(appctx.dat.ic,appctx.dat.curr_sol);CHKERRQ(ierr);
+  /* Create matrix-free matrices for applying Jacobian of RHS function */
+  ierr = VecGetLocalSize(u, &m);CHKERRQ(ierr);
+  ierr = VecGetSize(u, &nn);CHKERRQ(ierr);
+  ierr = MatCreateShell(PETSC_COMM_WORLD, m, m, nn, nn, &appctx, &H_shell);CHKERRQ(ierr);
+  ierr = MatShellSetOperation(H_shell, MATOP_MULT, (void (*)(void))MyMatMult);CHKERRQ(ierr);
+  ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
+  ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);CHKERRQ(ierr);
+  //ierr = TSSetRHSJacobian(appctx.ts,H_shell,H_shell,TSComputeRHSJacobianConstant,&appctx);CHKERRQ(ierr);
+ 
   ierr = VecCopy(appctx.dat.ic, appctx.dat.pass_sol);  CHKERRQ(ierr);
   //VecSet(appctx.dat.pass_sol,1.0);
   Vec ref;
@@ -424,7 +307,6 @@ int main(int argc, char **argv)
     ierr = PetscViewerPopFormat(viewfile);
     //printf("test i %d length %d\n",its, appctx.param.lenx*appctx.param.leny);
     } 
-exit(1);
   //ierr = VecDuplicate(appctx.dat.ic,&uu);CHKERRQ(ierr);
   //ierr = VecCopy(appctx.dat.ic,uu);CHKERRQ(ierr);
   //MatView(H_shell,0);
@@ -444,36 +326,37 @@ exit(1);
     //exit(1);
   //}
 */
-  ierr = TSSetSaveTrajectory(appctx.ts);
-  CHKERRQ(ierr);
 
-  /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
-
-  //ierr = TrueSolution(appctx.dat.true_solution,&appctx);CHKERRQ(ierr);
-  
-  CHKERRQ(ierr);
-  ierr = PetscFree(appctx.solutioncoefficients);
-  CHKERRQ(ierr);
-  //ierr = MatDestroy(&appctx.SEMop.stiff);CHKERRQ(ierr);
-  //ierr = MatDestroy(&appctx.SEMop.keptstiff);CHKERRQ(ierr);
-  ierr = VecDestroy(&u);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.ic);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.true_solution);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.obj);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.SEMop.mass);
-  CHKERRQ(ierr);
-  ierr = VecDestroy(&appctx.dat.curr_sol);
-  CHKERRQ(ierr);
-  ierr = DMDestroy(&appctx.da);
-  CHKERRQ(ierr);
-  ierr = TSDestroy(&appctx.ts);
-  CHKERRQ(ierr);
+  /* attach the null space to the matrix, this is not needed for periodic BCs as here */
 
   /*
+  MatNullSpace nsp;
+
+  ierr = MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,NULL,&nsp);CHKERRQ(ierr);
+  ierr = MatSetNullSpace(H_shell,nsp);CHKERRQ(ierr);
+  ierr = MatNullSpaceTest(nsp,H_shell,NULL);CHKERRQ(ierr);
+  ierr = MatNullSpaceDestroy(&nsp);CHKERRQ(ierr);
+  */
+  ierr = TSSetSaveTrajectory(appctx.ts);   CHKERRQ(ierr);
+
+  /* The solution to the continous PDE optimization problem evaluted at the discrete grid points */
+  /* In the limit as one refines the mesh one hopes the TAO solution converges to this value */
+  ierr = TrueSolution(appctx.param.Tend, appctx.dat.true_solution, &appctx);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.ic);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.true_solution);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.SEMop.mass);CHKERRQ(ierr);
+  ierr = VecDestroy(&appctx.dat.curr_sol);
+  ierr = VecDestroy(&appctx.dat.pass_sol);
+  ierr = VecDestroy(&loc);CHKERRQ(ierr);
+  ierr = TSDestroy(&appctx.ts);CHKERRQ(ierr);
+  ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
+  ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
+  ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr); 
+
+
+/*
      Always call PetscFinalize() before exiting a program.  This routine
        - finalizes the PETSc libraries as well as MPI
        - provides summary and diagnostic information if certain runtime
@@ -482,6 +365,122 @@ exit(1);
   ierr = PetscFinalize();
   return ierr;
 }
+
+/*
+Initialize Spectral grid and mass matrix
+*/
+PetscErrorCode InitializeSpectral(AppCtx *appctx)
+{
+  PetscErrorCode ierr;
+  DM             cda;
+  PetscInt       xs, xm, ys, ym, zs, zm, ix, iy, iz, jx, jy, jz;
+  PetscInt       indx, indy, indz;
+  PetscReal      x, y, z;
+  Field          ***bmass;
+  DMDACoor3d     ***coors;
+  Vec            global, loc;
+      
+  PetscFunctionBegin;
+  
+  /*
+     Extract global and local vectors from DMDA; we use these to store the
+     approximate solution.  Then duplicate these for remaining vectors that
+     have the same types.
+  */
+ ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);   CHKERRQ(ierr);
+  /* Compute function over the locally owned part of the grid */
+  xs = xs / (appctx->param.N - 1);
+  xm = xm / (appctx->param.N - 1);
+  ys = ys / (appctx->param.N - 1);
+  ym = ym / (appctx->param.N - 1);
+  zs = zs / (appctx->param.N - 1);
+  zm = zm / (appctx->param.N - 1);
+
+  VecSet(appctx->SEMop.mass, 0.0);
+
+  DMCreateLocalVector(appctx->da, &loc);
+  ierr = DMDAVecGetArray(appctx->da, loc, &bmass);   CHKERRQ(ierr);
+
+  /*
+     Build mass over entire mesh (multi-elemental) 
+
+  */
+
+  for (ix = xs; ix < xs + xm; ix++)
+  {
+    for (jx = 0; jx < appctx->param.N; jx++)
+    {
+      for (iy = ys; iy < ys + ym; iy++)
+      {
+        for (jy = 0; jy < appctx->param.N; jy++)
+        {
+          for (iz = zs; iz < zs + zm; iz++)
+          {
+            for (jz = 0; jz < appctx->param.N; jz++)
+            {
+              x = (appctx->param.Lex / 2.0) * (appctx->SEMop.gll.nodes[jx] + 1.0) + appctx->param.Lex * ix;
+              y = (appctx->param.Ley / 2.0) * (appctx->SEMop.gll.nodes[jy] + 1.0) + appctx->param.Ley * iy;
+              z = (appctx->param.Lez / 2.0) * (appctx->SEMop.gll.nodes[jz] + 1.0) + appctx->param.Lez * iz;
+              indx = ix * (appctx->param.N - 1) + jx;
+              indy = iy * (appctx->param.N - 1) + jy;
+              indz = iz * (appctx->param.N - 1) + jz;
+              bmass[indz][indy][indx].u += appctx->SEMop.gll.weights[jx] * appctx->SEMop.gll.weights[jy] * appctx->SEMop.gll.weights[jz] *
+                                           0.125 * appctx->param.Lez * appctx->param.Ley * appctx->param.Lex;
+              bmass[indz][indy][indx].v += appctx->SEMop.gll.weights[jx] * appctx->SEMop.gll.weights[jy] * appctx->SEMop.gll.weights[jz] *
+                                           0.125 * appctx->param.Lez * appctx->param.Ley * appctx->param.Lex;
+              bmass[indz][indy][indx].w += appctx->SEMop.gll.weights[jx] * appctx->SEMop.gll.weights[jy] * appctx->SEMop.gll.weights[jz] *
+                                           0.125 * appctx->param.Lez * appctx->param.Ley * appctx->param.Lex;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  DMDAVecRestoreArray(appctx->da, loc, &bmass);
+  CHKERRQ(ierr);
+  DMLocalToGlobalBegin(appctx->da, loc, ADD_VALUES, appctx->SEMop.mass);
+  DMLocalToGlobalEnd(appctx->da, loc, ADD_VALUES, appctx->SEMop.mass);
+
+  DMDASetUniformCoordinates(appctx->da, 0.0, appctx->param.Lx, 0.0, appctx->param.Ly, 0.0, appctx->param.Lz);
+  DMGetCoordinateDM(appctx->da, &cda);
+
+  DMGetCoordinates(appctx->da, &global);
+  VecSet(global, 0.0);
+  DMDAVecGetArray(cda, global, &coors);
+
+  for (ix = xs; ix < xs + xm; ix++)
+  {
+    for (jx = 0; jx < appctx->param.N - 1; jx++)
+    {
+      for (iy = ys; iy < ys + ym; iy++)
+      {
+        for (jy = 0; jy < appctx->param.N - 1; jy++)
+        {
+          for (iz = zs; iz < zs + zm; iz++)
+          {
+            for (jz = 0; jz < appctx->param.N - 1; jz++)
+            {
+              x = (appctx->param.Lex / 2.0) * (appctx->SEMop.gll.nodes[jx] + 1.0) + appctx->param.Lex * ix - 2.0;
+              y = (appctx->param.Ley / 2.0) * (appctx->SEMop.gll.nodes[jy] + 1.0) + appctx->param.Ley * iy - 2.0;
+              z = (appctx->param.Lez / 2.0) * (appctx->SEMop.gll.nodes[jz] + 1.0) + appctx->param.Lez * iz - 2.0;
+              indx = ix * (appctx->param.N - 1) + jx;
+              indy = iy * (appctx->param.N - 1) + jy;
+              indz = iz * (appctx->param.N - 1) + jz;
+              coors[indz][indy][indx].x = x;
+              coors[indz][indy][indx].y = y;
+              coors[indz][indy][indx].z = z;
+            }
+          }
+        }
+      }
+    }
+  }
+  DMDAVecRestoreArray(cda, global, &coors);
+  
+  PetscFunctionReturn(0);
+}
+
 
 PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const PetscScalar *B, PetscScalar *out)
 {
@@ -508,18 +507,16 @@ PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const Petsc
    Output Parameter:
    u - vector with solution at initial time (global)
 */
-PetscErrorCode InitialConditions(Vec u, AppCtx *appctx)
-{
-  PetscScalar tt;
-  Field ***s;
+PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
+{ Field ***s;
   PetscErrorCode ierr;
   PetscInt i, j, k;
   DM cda;
   Vec global;
   DMDACoor3d ***coors;
 
-  ierr = DMDAVecGetArray(appctx->da, u, &s);
-  CHKERRQ(ierr);
+  PetscFunctionBegin; 
+  ierr = DMDAVecGetArray(appctx->da, u, &s);   CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
@@ -539,10 +536,9 @@ PetscErrorCode InitialConditions(Vec u, AppCtx *appctx)
     }
   }
 
-  ierr = DMDAVecRestoreArray(appctx->da, u, &s);
-  CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(appctx->da, u, &s);   CHKERRQ(ierr);
 
-  return 0;
+  PetscFunctionReturn(0);
 }
 
 /*
@@ -557,9 +553,8 @@ PetscErrorCode InitialConditions(Vec u, AppCtx *appctx)
    Output Parameter:
    u - vector with solution at initial time (global)
 */
-PetscErrorCode TrueSolution(Vec u, AppCtx *appctx)
+PetscErrorCode TrueSolution(PetscReal tt, Vec u, AppCtx *appctx)
 {
-  PetscScalar tt;
   Field ***s;
   PetscErrorCode ierr;
   PetscInt i, j, k;
@@ -567,14 +562,13 @@ PetscErrorCode TrueSolution(Vec u, AppCtx *appctx)
   Vec global;
   DMDACoor3d ***coors;
 
-  ierr = DMDAVecGetArray(appctx->da, u, &s);
-  CHKERRQ(ierr);
+  PetscFunctionBegin;
+  ierr = DMDAVecGetArray(appctx->da, u, &s);   CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
   DMDAVecGetArray(cda, global, &coors);
 
-  tt = 4.0 - appctx->param.Tend;
   for (i = 0; i < appctx->param.lenx; i++)
   {
     for (j = 0; j < appctx->param.leny; j++)
@@ -588,16 +582,14 @@ PetscErrorCode TrueSolution(Vec u, AppCtx *appctx)
     }
   }
 
-  ierr = DMDAVecRestoreArray(appctx->da, u, &s);
-  CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(appctx->da, u, &s);   CHKERRQ(ierr);
   /* make sure initial conditions do not contain the constant functions, since with periodic boundary conditions the constant functions introduce a null space */
-  return 0;
+  PetscFunctionReturn(0);
 }
 /* --------------------------------------------------------------------- */
 
 PetscErrorCode PetscTens3dSEM(PetscReal ***A, PetscReal ***B, PetscReal ***C, PetscReal ****ulb, PetscReal ****out, PetscReal **alphavec, AppCtx *appctx)
 {
-  PetscErrorCode ierr;
   PetscInt Nl, Nl2;
   PetscInt jx;
   PetscScalar *temp1, *temp2;
