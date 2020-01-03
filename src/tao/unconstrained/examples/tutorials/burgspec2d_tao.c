@@ -133,16 +133,17 @@ int main(int argc, char **argv)
   appctx.param.Ey    = 6;       /* number of elements */
   appctx.param.Lx    = 4;       /* length of the domain */
   appctx.param.Ly    = 4;       /* length of the domain */
-  appctx.param.mu    = 0.005Q;  /* diffusion coefficient */
-  appctx.initial_dt  = 5e-3Q;
+  appctx.param.mu    = PetscRealConstant(0.005);  /* diffusion coefficient */
+  appctx.initial_dt  = PetscRealConstant(5e-3);
   appctx.param.steps = PETSC_MAX_INT;
-  appctx.param.Tend  = 1e-3Q;//0.2;
-  appctx.param.Tadj  = 5e-3Q;//1.0;
+  appctx.param.Tend  = PetscRealConstant(0.2);
+  appctx.param.Tadj  = 1;
 
   ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL, NULL, "-dt", &appctx.initial_dt, NULL);CHKERRQ(ierr);  
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tadj", &appctx.param.Tadj, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
