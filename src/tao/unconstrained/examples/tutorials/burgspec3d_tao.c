@@ -259,109 +259,13 @@ int main(int argc, char **argv)
   ierr = MatShellSetOperation(H_shell, MATOP_MULT_TRANSPOSE, (void (*)(void))MyMatMultTransp);CHKERRQ(ierr);
   ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
   ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);CHKERRQ(ierr);
-  //ierr = TSSetRHSJacobian(appctx.ts,H_shell,H_shell,TSComputeRHSJacobianConstant,&appctx);CHKERRQ(ierr);
- 
-  ierr = VecCopy(appctx.dat.ic, appctx.dat.pass_sol);  CHKERRQ(ierr);
-  //VecSet(appctx.dat.pass_sol,1.0);
-  Vec ref;
-  ierr = VecDuplicate(appctx.dat.ic, &ref);   CHKERRQ(ierr);
-  VecSet(ref,0);
-  //RHSFunction(appctx.ts, 0.0, appctx.dat.ic, ref, &appctx);
-  //ierr = TSSolve(appctx.ts, appctx.dat.curr_sol);
-
-  ierr = ComputeObjective(appctx.param.Tadj, appctx.dat.obj, &appctx); CHKERRQ(ierr);
-  /*
-  Vec wrk_vec, jac, vec_jac, vec_rhs, temp, vec_trans;
-  Field ***s;
-  PetscScalar vareps;
-  PetscInt i;
-  PetscInt its = 0;
-  char var[15];
-
-  ierr = VecDuplicate(appctx.dat.ic, &wrk_vec);   CHKERRQ(ierr);
-  //ierr = VecDuplicate(appctx.dat.ic,&temp);CHKERRQ(ierr);
-  ierr = VecDuplicate(appctx.dat.ic, &vec_jac);  CHKERRQ(ierr);
-  ierr = VecDuplicate(appctx.dat.ic, &vec_rhs);  CHKERRQ(ierr);
-  ierr = VecDuplicate(appctx.dat.ic, &vec_trans);  CHKERRQ(ierr);
-  ierr = VecDuplicate(appctx.dat.ic, &ref);  CHKERRQ(ierr);
-  ierr = VecDuplicate(appctx.dat.ic, &jac);  CHKERRQ(ierr);
-
-  ierr = VecCopy(appctx.dat.ic, appctx.dat.pass_sol);
-  CHKERRQ(ierr);
-  //VecSet(appctx.dat.pass_sol,1.0);
-
-  RHSFunction(appctx.ts, 0.0, appctx.dat.ic, ref, &appctx);
- 
-  //ierr = FormFunctionGradient(tao,wrk_vec,&wrk1,wrk2_vec,&appctx);CHKERRQ(ierr);
-  // Note computed gradient is in wrk2_vec, original cost is in wrk1 
-  ierr = VecZeroEntries(vec_jac);
-  ierr = VecZeroEntries(vec_rhs); 
-  vareps = 1e-05;
-    for (i=0; i<2*(appctx.param.lenx*appctx.param.leny); i++) 
-    //for (i=0; i<6; i++) 
-     {
-      its=its+1;
-      ierr = VecCopy(appctx.dat.ic,wrk_vec); CHKERRQ(ierr); //reset J(eps) for each point
-      ierr = VecZeroEntries(jac);
-      VecSetValue(wrk_vec,i, vareps,ADD_VALUES);
-      VecSetValue(jac,i,1.0,ADD_VALUES);
-      RHSFunction(appctx.ts,0.0,wrk_vec,vec_rhs,&appctx);
-      VecAXPY(vec_rhs,-1.0,ref);
-      VecScale(vec_rhs, 1.0/vareps);
-      MyMatMult(H_shell,jac,vec_jac);
-      //VecView(jac,0);
-      MyMatMultTransp(H_shell,jac,vec_trans);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"testjac.m",&viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-    PetscSNPrintf(var,sizeof(var),"jac(:,%d)",its);
-    ierr = PetscObjectSetName((PetscObject)vec_jac,var);
-    ierr = VecView(vec_jac,viewfile);CHKERRQ(ierr);
-    PetscSNPrintf(var,sizeof(var),"rhs(:,%d)",its);
-    ierr = PetscObjectSetName((PetscObject)vec_rhs,var);
-    ierr = VecView(vec_rhs,viewfile);CHKERRQ(ierr);
-    PetscSNPrintf(var,sizeof(var),"trans(:,%d)",its);
-    ierr = PetscObjectSetName((PetscObject)vec_trans,var);
-    ierr = VecView(vec_trans,viewfile);CHKERRQ(ierr);
-    //ierr = PetscObjectSetName((PetscObject)ref,"ref");
-    //ierr = VecView(ref,viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPopFormat(viewfile);
-    //printf("test i %d length %d\n",its, appctx.param.lenx*appctx.param.leny);
-    } 
-exit(1);
-  //ierr = VecDuplicate(appctx.dat.ic,&uu);CHKERRQ(ierr);
-  //ierr = VecCopy(appctx.dat.ic,uu);CHKERRQ(ierr);
-  //MatView(H_shell,0);
   
-   //ierr = VecDuplicate(appctx.dat.ic,&appctx.dat.curr_sol);CHKERRQ(ierr);
-   //ierr = VecCopy(appctx.dat.ic,appctx.dat.curr_sol);CHKERRQ(ierr);
-   //ierr = TSSolve(appctx.ts,appctx.dat.curr_sol);CHKERRQ(ierr);
-
- //if (appctx.output_matlab) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"sol2d.m",&viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)appctx.dat.obj,"sol");
-    ierr = VecView(appctx.dat.obj,viewfile);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)appctx.dat.ic,"ic");
-    ierr = VecView(appctx.dat.ic,viewfile);CHKERRQ(ierr);
-    ierr = PetscViewerPopFormat(viewfile);
-    //exit(1);
-  //}
-*/
-
-/* attach the null space to the matrix, this is not needed for periodic BCs as here */
-
-  /*
-  MatNullSpace nsp;
-
-  ierr = MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,NULL,&nsp);CHKERRQ(ierr);
-  ierr = MatSetNullSpace(H_shell,nsp);CHKERRQ(ierr);
-  ierr = MatNullSpaceTest(nsp,H_shell,NULL);CHKERRQ(ierr);
-  ierr = MatNullSpaceDestroy(&nsp);CHKERRQ(ierr);
-  */
+  ierr = VecCopy(appctx.dat.ic, appctx.dat.pass_sol);  CHKERRQ(ierr);
+  
   /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
 
   ierr = TSSetSaveTrajectory(appctx.ts);   CHKERRQ(ierr);
-
+  ierr = ComputeObjective(appctx.param.Tadj, appctx.dat.obj, &appctx); CHKERRQ(ierr);
   /* Create TAO solver and set desired solution method  */
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao); CHKERRQ(ierr);
   ierr = TaoSetMonitor(tao, MonitorError, &appctx, NULL); CHKERRQ(ierr);
@@ -373,9 +277,6 @@ exit(1);
   ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   ierr = TaoSolve(tao); CHKERRQ(ierr);
-
-  //ierr = MatDestroy(&appctx.SEMop.stiff);CHKERRQ(ierr);
-  //ierr = MatDestroy(&appctx.SEMop.keptstiff);CHKERRQ(ierr);
 
   ierr = TaoDestroy(&tao);CHKERRQ(ierr); 
   ierr = VecDestroy(&u);CHKERRQ(ierr);
@@ -803,20 +704,12 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   PetscScalar alpha;
   PetscReal *alphavec;
   PetscInt inc;
-  PetscViewer viewfile;
-  static int its = 0;
-  char var[12];
-
+  
   PetscFunctionBegin;
 
   ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementMassCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-
-  /* unwrap local vector for the input solution */
-  /* globalin, the global array
-     uloc, the local array
-     ul, the pointer to uloc*/
 
   DMCreateLocalVector(appctx->da, &uloc);
 
@@ -1018,19 +911,6 @@ ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, app
 ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
 ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
 
-/*
-its = 1;
-ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "rhsB.m", &viewfile); CHKERRQ(ierr);
-ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-PetscSNPrintf(var, sizeof(var), "inr(:,%d)", its); 
-ierr = PetscObjectSetName((PetscObject)globalin, var);
-ierr = VecView(globalin, viewfile); CHKERRQ(ierr);
-PetscSNPrintf(var, sizeof(var), "outr(:,%d)", its);
-ierr = PetscObjectSetName((PetscObject)globalout, var);
-ierr = VecView(globalout, viewfile); CHKERRQ(ierr);
-ierr = PetscViewerPopFormat(viewfile);
-*/
-
 PetscDestroyEl3d(&ulb, appctx);
 PetscDestroyEl3d(&vlb, appctx);
 PetscDestroyEl3d(&wlb, appctx);
@@ -1068,20 +948,12 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   PetscScalar alpha;
   PetscReal *alphavec;
   PetscInt inc;
-  PetscViewer viewfile;
-  static int its = 0;
-  char var[12];
-
+  
   PetscFunctionBegin;
   ierr = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementMassCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-
-  /* unwrap local vector for the input solution */
-  /* globalin, the global array
-     uloc, the local array
-     ul, the pointer to uloc*/
 
   DMCreateLocalVector(appctx->da, &uloc);
   DMGlobalToLocalBegin(appctx->da, in, INSERT_VALUES, uloc);
@@ -1301,17 +1173,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
 
-  its = 1;
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "rhsJac.m", &viewfile); CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  PetscSNPrintf(var, sizeof(var), "inr(:,%d)", its); 
-  ierr = PetscObjectSetName((PetscObject)in, var);
-  ierr = VecView(in, viewfile); CHKERRQ(ierr);
-  PetscSNPrintf(var, sizeof(var), "outr(:,%d)", its);
-  ierr = PetscObjectSetName((PetscObject)out, var);
-  ierr = VecView(out, viewfile); CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);
-
   PetscDestroyEl3d(&ulb, appctx);
   PetscDestroyEl3d(&vlb, appctx);
   PetscDestroyEl3d(&wlb, appctx);
@@ -1356,10 +1217,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   PetscScalar alpha;
   PetscReal *alphavec;
   PetscInt inc;
-  PetscViewer viewfile;
-  static int its = 0;
-  char var[12];
-
+  
   PetscFunctionBegin;
   ierr = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
@@ -1583,18 +1441,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-  /*
-  its = 1;
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "rhsJac.m", &viewfile); CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  PetscSNPrintf(var, sizeof(var), "inr(:,%d)", its); 
-  ierr = PetscObjectSetName((PetscObject)in, var);
-  ierr = VecView(in, viewfile); CHKERRQ(ierr);
-  PetscSNPrintf(var, sizeof(var), "outr(:,%d)", its);
-  ierr = PetscObjectSetName((PetscObject)out, var);
-  ierr = VecView(out, viewfile); CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);
-  */
+  
   PetscDestroyEl3d(&ulb, appctx);
   PetscDestroyEl3d(&vlb, appctx);
   PetscDestroyEl3d(&wlb, appctx);
@@ -1692,15 +1539,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = VecCopy(IC, appctx->dat.curr_sol);CHKERRQ(ierr);
 
   ierr = TSSolve(appctx->ts, appctx->dat.curr_sol);CHKERRQ(ierr);
-  //counter++; // this was for storing the error accross line searches
-  /*
-  PetscSNPrintf(filename,sizeof(filename),"inside.m",its);
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,filename,&viewfile);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)appctx->dat.curr_sol,"fwd");
-  ierr = VecView(appctx->dat.curr_sol,viewfile);CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-  */
+  
   /*
   Store current solution for comparison
   */
@@ -1723,14 +1562,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = VecDot(temp, appctx->SEMop.mass, &errex);CHKERRQ(ierr);
   ierr = VecDestroy(&temp);CHKERRQ(ierr);
   errex = PetscSqrtReal(errex);
-  /*
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,filename,&viewfile);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)G,"inb");
-  ierr = VecView(G,viewfile);CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
-*/
-
+  
   /*
      Compute initial conditions for the adjoint integration. See Notes above
   */
@@ -1743,7 +1575,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   /* solve gthe adjoint system for the gradient */
   ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
-  //  ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
+  //ierr = VecPointwiseDivide(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
 
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
 
