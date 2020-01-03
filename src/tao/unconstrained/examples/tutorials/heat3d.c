@@ -121,14 +121,8 @@ int main(int argc, char **argv)
   AppCtx         appctx; /* user-defined application context */
   Vec            u; /* approximate solution vector */
   PetscErrorCode ierr;
-  PetscInt xs, xm, ys, ym, zs, zm, ix, iy, iz;
-  PetscInt indx, indy, indz, m, nn;
-  PetscReal x, y, z;
-  Field ***bmass;
-  DMDACoor3d ***coors;
-  Vec global, loc;
-  DM cda;
-  PetscInt jx, jy, jz;
+  PetscInt m, nn;
+  Vec global;
   PetscViewer viewfile;
   Mat H_shell;
 
@@ -349,7 +343,6 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&appctx.SEMop.mass);CHKERRQ(ierr);
   ierr = VecDestroy(&appctx.dat.curr_sol);
   ierr = VecDestroy(&appctx.dat.pass_sol);
-  ierr = VecDestroy(&loc);CHKERRQ(ierr);
   ierr = TSDestroy(&appctx.ts);CHKERRQ(ierr);
   ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
   ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
@@ -776,14 +769,14 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
           {
             for (jz = 0; jz < Nl; jz++)
             {
-	      indx = ix * (appctx->param.N - 1) + jx;
+	            indx = ix * (appctx->param.N - 1) + jx;
               indy = iy * (appctx->param.N - 1) + jy;
               indz = iz * (appctx->param.N - 1) + jz;
              
-              ulb[jx][jy][jz] = ul[indx][indy][indz].u;
-              vlb[jx][jy][jz] = ul[indx][indy][indz].v;
-              wlb[jx][jy][jz] = ul[indx][indy][indz].w;
-	      //ulb[jx][jy][jz] = (double)rand()/RAND_MAX*2.0-1.0;
+              ulb[jz][jy][jx] = ul[indz][indy][indx].u;
+              vlb[jz][jy][jx] = ul[indz][indy][indx].v;
+              wlb[jz][jy][jx] = ul[indz][indy][indx].w;
+	            //ulb[jx][jy][jz] = (double)rand()/RAND_MAX*2.0-1.0;
             }
           }
         }
@@ -840,9 +833,9 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
             indy = iy * (appctx->param.N - 1) + jy;
             indz = iz * (appctx->param.N - 1) + jz;
 
-            outl[indx][indy][indz].u += appctx->param.mu *wrk1[jz][jy][jx];
-            outl[indx][indy][indz].v += appctx->param.mu *wrk2[jz][jy][jx];
-            outl[indx][indy][indz].w += appctx->param.mu *wrk3[jz][jy][jx];
+            outl[indz][indy][indx].u += appctx->param.mu *wrk1[jz][jy][jx];
+            outl[indz][indy][indx].v += appctx->param.mu *wrk2[jz][jy][jx];
+            outl[indz][indy][indx].w += appctx->param.mu *wrk3[jz][jy][jx];
           }
         }
       }
@@ -1008,17 +1001,17 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
           {
             for (jz = 0; jz < Nl; jz++)
             {
-	      indx = ix * (appctx->param.N - 1) + jx;
+	            indx = ix * (appctx->param.N - 1) + jx;
               indy = iy * (appctx->param.N - 1) + jy;
               indz = iz * (appctx->param.N - 1) + jz;
 
-              ujb[jx][jy][jz] = uj[indx][indy][indz].u;
-              vjb[jx][jy][jz] = uj[indx][indy][indz].v;
-              wjb[jx][jy][jz] = uj[indx][indy][indz].w;
+              ujb[jz][jy][jx] = uj[indz][indy][indx].u;
+              vjb[jz][jy][jx] = uj[indz][indy][indx].v;
+              wjb[jz][jy][jx] = uj[indz][indy][indx].w;
 
-              ulb[jx][jy][jz] = uj[indx][indy][indz].u;
-              vlb[jx][jy][jz] = uj[indx][indy][indz].v;
-              wlb[jx][jy][jz] = uj[indx][indy][indz].w;
+              ulb[jz][jy][jx] = uj[indz][indy][indz].u;
+              vlb[jz][jy][jx] = uj[indz][indy][indx].v;
+              wlb[jz][jy][jx] = uj[indz][indy][indx].w;
 	      //ulb[jx][jy][jz] = (double)rand()/RAND_MAX*2.0-1.0;
             }
           }
@@ -1076,9 +1069,9 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
             indy = iy * (appctx->param.N - 1) + jy;
             indz = iz * (appctx->param.N - 1) + jz;
 
-            outl[indx][indy][indz].u += appctx->param.mu *wrk1[jz][jy][jx];
-            outl[indx][indy][indz].v += appctx->param.mu *wrk2[jz][jy][jx];
-            outl[indx][indy][indz].w += appctx->param.mu *wrk3[jz][jy][jx];
+            outl[indz][indy][indx].u += appctx->param.mu *wrk1[jz][jy][jx];
+            outl[indz][indy][indx].v += appctx->param.mu *wrk2[jz][jy][jx];
+            outl[indz][indy][indx].w += appctx->param.mu *wrk3[jz][jy][jx];
           }
         }
       }
