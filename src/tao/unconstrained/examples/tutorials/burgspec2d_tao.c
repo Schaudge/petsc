@@ -44,6 +44,7 @@ typedef struct
   PetscReal tol_L2, tol_max;  /* error norms */
   PetscInt  steps;            /* number of timesteps */
   PetscReal Tend;             /* endtime */
+  PetscReal Tinit;            /* initial time */
   PetscReal mu;               /* viscosity */
   PetscReal Lx;               /* total length of domain */
   PetscReal Ly;               /* total length of domain */
@@ -107,6 +108,7 @@ extern PetscErrorCode MyMatMultTransp(Mat, Vec, Vec);
 extern PetscErrorCode PetscAllocateEl2d(PetscReal ***, AppCtx *);
 extern PetscErrorCode PetscDestroyEl2d(PetscReal ***, AppCtx *);
 extern PetscErrorCode PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
+extern PetscErrorCode InitializeSpectral(AppCtx *);
 
 int main(int argc, char **argv)
 {
@@ -114,14 +116,8 @@ int main(int argc, char **argv)
   Tao            tao;
   Vec            u; /* approximate solution vector */
   PetscErrorCode ierr;
-  PetscInt       xs, xm, ys, ym, ix, iy;
-  PetscInt       indx, indy, m, nn;
-  PetscReal      x, y;
-  Field          **bmass;
-  DMDACoor2d     **coors;
+  PetscInt       m, nn;
   Vec            global, loc;
-  DM             cda;
-  PetscInt       jx, jy;
   PetscViewer    viewfile;
   Mat            H_shell;
 
@@ -186,63 +182,11 @@ int main(int argc, char **argv)
   ierr = VecDuplicate(u, &appctx.SEMop.mass);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.curr_sol);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.pass_sol);CHKERRQ(ierr);
-
-  ierr = DMDAGetCorners(appctx.da, &xs, &ys, NULL, &xm, &ym, NULL);CHKERRQ(ierr);
-  /* Compute function over the locally owned part of the grid */
-  xs = xs / (appctx.param.N - 1);
-  xm = xm / (appctx.param.N - 1);
-  ys = ys / (appctx.param.N - 1);
-  ym = ym / (appctx.param.N - 1);
-
-
-  ierr = DMCreateLocalVector(appctx.da, &loc);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(appctx.da, loc, &bmass);CHKERRQ(ierr);
-
-  /*
-     Build mass over entire mesh
-
-  */
-
-  for (ix = xs; ix < xs + xm; ix++) {
-    for (jx = 0; jx < appctx.param.N; jx++) {
-      for (iy = ys; iy < ys + ym; iy++) {
-        for (jy = 0; jy < appctx.param.N; jy++) {
-          indx = ix * (appctx.param.N - 1) + jx;
-          indy = iy * (appctx.param.N - 1) + jy;
-          bmass[indy][indx].u += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * appctx.param.Ley * appctx.param.Lex/4;
-          bmass[indy][indx].v += appctx.SEMop.gll.weights[jx] * appctx.SEMop.gll.weights[jy] * appctx.param.Ley * appctx.param.Lex/4;
-        }
-      }
-    }
-  }
-  ierr = DMDAVecRestoreArray(appctx.da, loc, &bmass);CHKERRQ(ierr);
-  ierr = VecSet(appctx.SEMop.mass, 0);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(appctx.da, loc, ADD_VALUES, appctx.SEMop.mass);CHKERRQ(ierr);
-
-  ierr = DMDASetUniformCoordinates(appctx.da, 0, appctx.param.Lx, 0, appctx.param.Ly, 0, 0);CHKERRQ(ierr);
-  ierr = DMGetCoordinateDM(appctx.da, &cda);CHKERRQ(ierr);
+  
+  ierr = InitializeSpectral(&appctx);  CHKERRQ(ierr);
   ierr = DMGetCoordinates(appctx.da, &global);CHKERRQ(ierr);
-  ierr = VecSet(global, 0);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(cda, global, &coors);CHKERRQ(ierr);
 
-  for (ix = xs; ix < xs + xm; ix++) {
-    for (jx = 0; jx < appctx.param.N - 1; jx++) {
-      for (iy = ys; iy < ys + ym; iy++) {
-        for (jy = 0; jy < appctx.param.N - 1; jy++) {
-          x = (appctx.param.Lex / 2) * (appctx.SEMop.gll.nodes[jx] + 1) + appctx.param.Lex * ix - 2;
-          y = (appctx.param.Ley / 2) * (appctx.SEMop.gll.nodes[jy] + 1) + appctx.param.Ley * iy - 2;
-          indx = ix * (appctx.param.N - 1) + jx;
-          indy = iy * (appctx.param.N - 1) + jy;
-          coors[indy][indx].x = x;
-          coors[indy][indx].y = y;
-        }
-      }
-    }
-  }
-  DMDAVecRestoreArray(cda, global, &coors);
-
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "tomesh.m", &viewfile);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "meshout.m", &viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)global, "grid");CHKERRQ(ierr);
   ierr = VecView(global, viewfile);
@@ -350,6 +294,83 @@ int main(int argc, char **argv)
   ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr); 
   ierr = PetscFinalize();
   return ierr;
+}
+/*
+Initialize Spectral grid and mass matrix
+*/
+PetscErrorCode InitializeSpectral(AppCtx *appctx)
+{
+  PetscErrorCode ierr;
+  DM cda;
+  DMDACoor2d **coors;
+  PetscInt       xs, xm, ys, ym, ix, iy, jx, jy;
+  PetscInt       indx, indy;
+  PetscReal      x, y;
+  Field          **bmass;
+  Vec            global, loc;
+  
+  PetscFunctionBegin;
+  
+  /*
+     Extract global and local vectors from DMDA; we use these to store the
+     approximate solution.  Then duplicate these for remaining vectors that
+     have the same types.
+  */
+
+  ierr = DMDAGetCorners(appctx->da, &xs, &ys, NULL, &xm, &ym, NULL);CHKERRQ(ierr);
+  /* Compute function over the locally owned part of the grid */
+  xs = xs / (appctx->param.N - 1);
+  xm = xm / (appctx->param.N - 1);
+  ys = ys / (appctx->param.N - 1);
+  ym = ym / (appctx->param.N - 1);
+
+  ierr = DMCreateLocalVector(appctx->da, &loc);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(appctx->da, loc, &bmass);CHKERRQ(ierr);
+
+  /*
+     Build mass over entire mesh
+  */
+
+  for (ix = xs; ix < xs + xm; ix++) {
+    for (jx = 0; jx < appctx->param.N; jx++) {
+      for (iy = ys; iy < ys + ym; iy++) {
+        for (jy = 0; jy < appctx->param.N; jy++) {
+          indx = ix * (appctx->param.N - 1) + jx;
+          indy = iy * (appctx->param.N - 1) + jy;
+          bmass[indy][indx].u += appctx->SEMop.gll.weights[jx] * appctx->SEMop.gll.weights[jy] * appctx->param.Ley * appctx->param.Lex/4;
+          bmass[indy][indx].v += appctx->SEMop.gll.weights[jx] * appctx->SEMop.gll.weights[jy] * appctx->param.Ley * appctx->param.Lex/4;
+        }
+      }
+    }
+  }
+  ierr = DMDAVecRestoreArray(appctx->da, loc, &bmass);CHKERRQ(ierr);
+  ierr = VecSet(appctx->SEMop.mass, 0);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(appctx->da, loc, ADD_VALUES, appctx->SEMop.mass);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(appctx->da, loc, ADD_VALUES, appctx->SEMop.mass);CHKERRQ(ierr);
+
+  ierr = DMDASetUniformCoordinates(appctx->da, 0, appctx->param.Lx, 0, appctx->param.Ly, 0, 0);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(appctx->da, &cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
+  ierr = VecSet(global, 0);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(cda, global, &coors);CHKERRQ(ierr);
+
+  for (ix = xs; ix < xs + xm; ix++) {
+    for (jx = 0; jx < appctx->param.N - 1; jx++) {
+      for (iy = ys; iy < ys + ym; iy++) {
+        for (jy = 0; jy < appctx->param.N - 1; jy++) {
+          x = (appctx->param.Lex / 2) * (appctx->SEMop.gll.nodes[jx] + 1) + appctx->param.Lex * ix - 2;
+          y = (appctx->param.Ley / 2) * (appctx->SEMop.gll.nodes[jy] + 1) + appctx->param.Ley * iy - 2;
+          indx = ix * (appctx->param.N - 1) + jx;
+          indy = iy * (appctx->param.N - 1) + jy;
+          coors[indy][indx].x = x;
+          coors[indy][indx].y = y;
+        }
+      }
+    }
+  }
+  DMDAVecRestoreArray(cda, global, &coors);
+
+  PetscFunctionReturn(0);
 }
 /*
    InitialConditions - Computes the initial conditions for the Tao optimization solve (these are also initial conditions for the first TSSolve()
