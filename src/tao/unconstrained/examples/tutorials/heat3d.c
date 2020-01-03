@@ -247,9 +247,8 @@ int main(int argc, char **argv)
   Vec ref;
   ierr = VecDuplicate(appctx.dat.ic, &ref);   CHKERRQ(ierr);
   VecSet(ref,0);
-  RHSFunction(appctx.ts, 0.0, appctx.dat.ic, ref, &appctx);
-  exit(1);
-  ierr = TSSolve(appctx.ts, appctx.dat.ic);
+  //RHSFunction(appctx.ts, 0.0, appctx.dat.ic, ref, &appctx);
+  ierr = TSSolve(appctx.ts, appctx.dat.curr_sol);
   /*
    
   Vec wrk_vec, jac, vec_jac, vec_rhs, temp, vec_trans;
@@ -308,18 +307,17 @@ int main(int argc, char **argv)
    //ierr = VecDuplicate(appctx.dat.ic,&appctx.dat.curr_sol);CHKERRQ(ierr);
    //ierr = VecCopy(appctx.dat.ic,appctx.dat.curr_sol);CHKERRQ(ierr);
    //ierr = TSSolve(appctx.ts,appctx.dat.curr_sol);CHKERRQ(ierr);
+*/
 
- //if (appctx.output_matlab) {
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,"sol2d.m",&viewfile);CHKERRQ(ierr);
     ierr = PetscViewerPushFormat(viewfile,PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)appctx.dat.obj,"sol");
-    ierr = VecView(appctx.dat.obj,viewfile);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject)appctx.dat.curr_sol,"sol");
+    ierr = VecView(appctx.dat.curr_sol,viewfile);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject)appctx.dat.ic,"ic");
     ierr = VecView(appctx.dat.ic,viewfile);CHKERRQ(ierr);
     ierr = PetscViewerPopFormat(viewfile);
     //exit(1);
-  //}
-*/
+  
 
   /* attach the null space to the matrix, this is not needed for periodic BCs as here */
 
@@ -867,6 +865,7 @@ CHKERRQ(ierr);
 ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);
 CHKERRQ(ierr);
 
+/*
 its = 1;
 ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "rhsB.m", &viewfile); CHKERRQ(ierr);
 ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
@@ -877,6 +876,7 @@ PetscSNPrintf(var, sizeof(var), "outr(:,%d)", its);
 ierr = PetscObjectSetName((PetscObject)globalout, var);
 ierr = VecView(globalout, viewfile); CHKERRQ(ierr);
 ierr = PetscViewerPopFormat(viewfile);
+*/
 
 PetscDestroyEl3d(&ulb, appctx);
 PetscDestroyEl3d(&vlb, appctx);
