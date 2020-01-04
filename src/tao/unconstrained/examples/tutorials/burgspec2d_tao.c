@@ -524,19 +524,20 @@ PetscErrorCode ContinuumSolution(PetscReal t, Vec obj, AppCtx *appctx)
 {
   Field            **s;
   PetscErrorCode   ierr;
-  PetscInt         i, j;
+  PetscInt         i, j, xs, ys, xm, ym;
   DM               cda;
   Vec              global;
   const DMDACoor2d **coors;
 
   PetscFunctionBegin;
-  DMGetCoordinateDM(appctx->da, &cda);
-  DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArrayRead(cda, global, &coors);
+  ierr = DMGetCoordinateDM(appctx->da, &cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(cda, global, &coors);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, obj, &s);CHKERRQ(ierr);
 
-  for (i = 0; i < appctx->param.lenx; i++) {
-    for (j = 0; j < appctx->param.leny; j++) {
+  ierr = DMDAGetCorners(appctx->da,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
+  for (j = ys; j < ys + ym; j++) {
+    for (i = xs; i < xs + xm; i++) {
       s[j][i].u = PetscExpScalar(-appctx->param.mu * t) * (PetscCosScalar(PETSC_PI * coors[j][i].x/2) + PetscSinScalar(0.5 * PETSC_PI * coors[j][i].y)) / 10;
       s[j][i].v = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(PETSC_PI * coors[j][i].x/2) + PetscCosScalar(0.5 * PETSC_PI * coors[j][i].y)) / 10;
     }
@@ -544,6 +545,7 @@ PetscErrorCode ContinuumSolution(PetscReal t, Vec obj, AppCtx *appctx)
 
   ierr = DMDAVecRestoreArrayRead(cda, global, &coors);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);CHKERRQ(ierr);
+  /* VecView(obj,PETSC_VIEWER_DRAW_WORLD); */
   PetscFunctionReturn(0);
 }
 

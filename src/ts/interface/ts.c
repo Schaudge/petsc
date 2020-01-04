@@ -7473,7 +7473,7 @@ PetscErrorCode  TSRHSJacobianTest(TS ts,PetscBool *flg)
 
   PetscFunctionBegin;
   ierr = TSGetRHSJacobian(ts,&J,&B,&func,&ctx);CHKERRQ(ierr);
-  ierr = (*func)(ts,0.0,ts->vec_sol,J,B,ctx);CHKERRQ(ierr);
+  ierr = (*func)(ts,0,ts->vec_sol,J,B,ctx);CHKERRQ(ierr);
   ierr = MatShellTestMult(J,RHSWrapperFunction_TSRHSJacobianTest,ts->vec_sol,ts,flg);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -7508,7 +7508,7 @@ PetscErrorCode  TSRHSJacobianTestTranspose(TS ts,PetscBool *flg)
 
   PetscFunctionBegin;
   ierr = TSGetRHSJacobian(ts,&J,&B,&func,&ctx);CHKERRQ(ierr);
-  ierr = (*func)(ts,0.0,ts->vec_sol,J,B,ctx);CHKERRQ(ierr);
+  ierr = (*func)(ts,0,ts->vec_sol,J,B,ctx);CHKERRQ(ierr);
   ierr = MatShellTestMultTranspose(J,RHSWrapperFunction_TSRHSJacobianTest,ts->vec_sol,ts,flg);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

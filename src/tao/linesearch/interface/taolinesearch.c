@@ -110,14 +110,8 @@ PetscErrorCode TaoLineSearchView(TaoLineSearch ls, PetscViewer viewer)
   Output Parameter:
 . newls - the new TaoLineSearch context
 
-  Available methods include:
-+ more-thuente
-. gpcg
-- unit - Do not perform any line search
-
-
    Options Database Keys:
-.   -tao_ls_type - select which method TAO should use
+.   -tao_ls_type - select which method TAO should use, unit, mt, gpcg, armijo, owarmijo
 
    Level: beginner
 
