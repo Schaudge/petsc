@@ -111,7 +111,7 @@ PetscErrorCode TaoLineSearchView(TaoLineSearch ls, PetscViewer viewer)
 . newls - the new TaoLineSearch context
 
    Options Database Keys:
-.   -tao_ls_type - select which method TAO should use, unit, mt, gpcg, armijo, owarmijo
+.   -tao_ls_type - select which method TAO should use, unit, more-thuente, gpcg, armijo, owarmijo
 
    Level: beginner
 
@@ -1370,7 +1370,7 @@ PetscErrorCode TaoLineSearchGetOptionsPrefix(TaoLineSearch ls, const char *p[])
 
    This would enable use of different options for each system, such as
 .vb
-      -sys1_tao_ls_type mt
+      -sys1_tao_ls_type more-thuente
       -sys2_tao_ls_type armijo
 .ve
 

@@ -115,7 +115,7 @@ int main(int argc, char **argv)
   Tao            tao;
   Vec            u; /* approximate solution vector */
   PetscErrorCode ierr;
-  PetscInt       m, nn;
+  PetscInt       m, nn,mp,np;
   Vec            global, loc;
   PetscViewer    viewfile;
   Mat            H_shell;
@@ -167,6 +167,9 @@ int main(int argc, char **argv)
   ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DMDA_STENCIL_BOX, appctx.param.lenx, appctx.param.leny, PETSC_DECIDE, PETSC_DECIDE, 2, 1, NULL, NULL, &appctx.da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(appctx.da);CHKERRQ(ierr);
   ierr = DMSetUp(appctx.da);CHKERRQ(ierr);
+  ierr = DMDAGetInfo(appctx.da,NULL,NULL,NULL,NULL,&mp,&np,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  if (appctx.param.Ex % mp) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Elements in x direction %D must be divisible by processors in x direction %D",appctx.param.Ex,mp);
+  if (appctx.param.Ey % np) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Elements in y direction %D must be divisible by processors in y direction %D",appctx.param.Ey,np);
   ierr = DMDASetFieldName(appctx.da, 0, "u");CHKERRQ(ierr);
   ierr = DMDASetFieldName(appctx.da, 1, "v");CHKERRQ(ierr);
 
@@ -302,16 +305,15 @@ Initialize Spectral grid and mass matrix
 PetscErrorCode InitializeSpectral(AppCtx *appctx)
 {
   PetscErrorCode ierr;
-  DM cda;
-  DMDACoor2d **coors;
+  DM             cda;
+  DMDACoor2d     **coors;
   PetscInt       xs, xm, ys, ym, ix, iy, jx, jy;
   PetscInt       indx, indy;
   PetscReal      x, y;
   Field          **bmass;
   Vec            global, loc;
-  
+
   PetscFunctionBegin;
-  
   /*
      Extract global and local vectors from DMDA; we use these to store the
      approximate solution.  Then duplicate these for remaining vectors that
@@ -348,7 +350,7 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
   ierr = VecSet(appctx->SEMop.mass, 0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(appctx->da, loc, ADD_VALUES, appctx->SEMop.mass);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(appctx->da, loc, ADD_VALUES, appctx->SEMop.mass);CHKERRQ(ierr);
-
+  ierr = VecDestroy(&loc);CHKERRQ(ierr);
   ierr = DMDASetUniformCoordinates(appctx->da, 0, appctx->param.Lx, 0, appctx->param.Ly, 0, 0);CHKERRQ(ierr);
   ierr = DMGetCoordinateDM(appctx->da, &cda);CHKERRQ(ierr);
   ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
@@ -370,7 +372,6 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
     }
   }
   DMDAVecRestoreArray(cda, global, &coors);
-
   PetscFunctionReturn(0);
 }
 /*
