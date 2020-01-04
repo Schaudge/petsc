@@ -119,9 +119,9 @@ extern PetscErrorCode MyMatMult(Mat, Vec, Vec);
 extern PetscErrorCode MyMatMultTransp(Mat, Vec, Vec);
 extern PetscErrorCode PetscAllocateEl3d(PetscReal ****, AppCtx *);
 extern PetscErrorCode PetscDestroyEl3d(PetscReal ****, AppCtx *);
-extern PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
-extern PetscErrorCode PetscTens3dSEM(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ****, PetscScalar **,AppCtx *appctx);
-extern PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ****, PetscScalar **,AppCtx *appctx);
+extern PetscErrorCode PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
+extern PetscErrorCode PetscTens3dSEM(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ***, PetscScalar **,AppCtx *appctx);
+extern PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ***, PetscScalar **,AppCtx *appctx);
 extern PetscErrorCode InitializeSpectral(AppCtx *);
 
 int main(int argc, char **argv)
@@ -563,16 +563,16 @@ PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
   }
 
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);CHKERRQ(ierr);
-
+  ierr = DMDAVecRestoreArray(cda, global, &coors);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscTens3dSEM(PetscReal ***A, PetscReal ***B, PetscReal ***C, PetscReal ****ulb, PetscReal ****out, PetscReal **alphavec, AppCtx *appctx)
+PetscErrorCode PetscTens3dSEM(PetscReal ***A, PetscReal ***B, PetscReal ***C, PetscReal ****ulb, PetscReal ***out, PetscReal **alphavec, AppCtx *appctx)
 {
   PetscInt Nl, Nl2;
   PetscInt jx;
   PetscScalar *temp1, *temp2;
-  PetscScalar ***wrk1, ***wrk2, ***wrk3;
+  PetscScalar ***wrk1, ***wrk2, ***wrk3 = out;
   PetscReal beta;
  
   PetscFunctionBegin;
@@ -583,7 +583,6 @@ PetscErrorCode PetscTens3dSEM(PetscReal ***A, PetscReal ***B, PetscReal ***C, Pe
   
   PetscAllocateEl3d(&wrk1, appctx);
   PetscAllocateEl3d(&wrk2, appctx);
-  PetscAllocateEl3d(&wrk3, appctx);
 
   BLASgemm_("T", "N", &Nl, &Nl2, &Nl, alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
   for (jx = 0; jx < Nl; jx++)
@@ -596,18 +595,18 @@ PetscErrorCode PetscTens3dSEM(PetscReal ***A, PetscReal ***B, PetscReal ***C, Pe
 
   BLASgemm_("N", "N", &Nl2, &Nl, &Nl, alphavec[0]+2, &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
 
-  *out = wrk3;
-
+  PetscDestroyEl3d(&wrk1, appctx);
+  PetscDestroyEl3d(&wrk2, appctx);
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ****out, PetscScalar **alphavec, AppCtx *appctx)
+PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ***out, PetscScalar **alphavec, AppCtx *appctx)
 {
   PetscInt Nl, Nl2;
   PetscInt jx;
   PetscScalar *temp1, *temp2;
-  PetscScalar ***wrk1, ***wrk2, ***wrk3;
+  PetscScalar ***wrk1, ***wrk2, ***wrk3 = out;
   PetscReal beta;
  
   PetscFunctionBegin;
@@ -618,7 +617,6 @@ PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, Petsc
   
   PetscAllocateEl3d(&wrk1, appctx);
   PetscAllocateEl3d(&wrk2, appctx);
-  PetscAllocateEl3d(&wrk3, appctx);
 
   BLASgemm_("N", "N", &Nl, &Nl2, &Nl, alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
   for (jx = 0; jx < Nl; jx++)
@@ -631,8 +629,8 @@ PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, Petsc
 
   BLASgemm_("N", "T", &Nl2, &Nl, &Nl, alphavec[0]+2, &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
 
-  *out = wrk3;
-
+  PetscDestroyEl3d(&wrk1, appctx);
+  PetscDestroyEl3d(&wrk2, appctx);
   PetscFunctionReturn(0);
 }
 
@@ -782,39 +780,39 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //here the stifness matrix in 3d
         //the term (B x B x K_zz)u=W1 (u_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEM(&mass, &mass, &stiff, &ulb, &wrk1, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &stiff, &ulb, wrk1, &alphavec, appctx);
         //the term (B x K_yy x B)u=W1 (u_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &stiff, &mass, &ulb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &stiff, &mass, &ulb, wrk2, &alphavec, appctx);
         //the term (K_xx x B x B)u=W1 (u_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&stiff, &mass, &mass, &ulb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&stiff, &mass, &mass, &ulb, wrk3, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
         BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); //I freed wrk2 and saved the laplacian in wrk1
 
         //the term (B x B x K_zz)v=W2 (v_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEM(&mass, &mass, &stiff, &vlb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &stiff, &vlb, wrk2, &alphavec, appctx);
         //the term (B x K_yy x B)v=W2 (v_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &stiff, &mass, &vlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &stiff, &mass, &vlb, wrk3, &alphavec, appctx);
         //the term (K_xx x B x B)v=W2 (v_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&stiff, &mass, &mass, &vlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&stiff, &mass, &mass, &vlb, wrk4, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
  
         //the term (B x B x K_zz)w=W3 (w_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEM(&mass, &mass, &stiff, &wlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &stiff, &wlb, wrk3, &alphavec, appctx);
         //the term (B x K_yy x B)w=W3 (w_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &stiff, &mass, &wlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &stiff, &mass, &wlb, wrk4, &alphavec, appctx);
         //the term (K_xx x B x B)w=W3 (w_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&stiff, &mass, &mass, &wlb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEM(&stiff, &mass, &mass, &wlb, wrk5, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
@@ -823,13 +821,13 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //now the gradient operator for u
         //the term (B x B x D_z)u=W4 (u_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &ulb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &grad, &ulb, wrk4, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (u_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &grad, &mass, &ulb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &grad, &mass, &ulb, wrk5, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (u_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&grad, &mass, &mass, &ulb, &wrk6, &alphavec, appctx);
+        PetscTens3dSEM(&grad, &mass, &mass, &ulb, wrk6, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); //u.*u_x goes in w9, w6 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk8[0][0][0]); //v.*u_y goes in w8, w5 free
@@ -841,13 +839,13 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //now the gradient operator for v
         //the term (B x B x D_z)u=W4 (v_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &vlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk4, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (v_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &grad, &mass, &vlb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &grad, &mass, &vlb, wrk5, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (v_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&grad, &mass, &mass, &vlb, &wrk6, &alphavec, appctx);
+        PetscTens3dSEM(&grad, &mass, &mass, &vlb, wrk6, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk10[0][0][0]); //u.*u_x goes in w10, w6 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*u_y goes in w9, w5 free
@@ -859,13 +857,13 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //now the gradient operator for w
         //the term (B x B x D_z)u=W4 (w_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &wlb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &grad, &wlb, wrk2, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (w_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &grad, &mass, &wlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &grad, &mass, &wlb, wrk3, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (w_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&grad, &mass, &mass, &wlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&grad, &mass, &mass, &wlb, wrk4, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk11[0][0][0]); //u.*u_x goes in w9, w4 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*u_y goes in w8, w3 free
@@ -927,7 +925,8 @@ PetscDestroyEl3d(&wrk10, appctx);
 PetscDestroyEl3d(&wrk11, appctx);
 
 ierr = VecDestroy(&outloc);CHKERRQ(ierr);
-
+ierr = VecDestroy(&uloc);CHKERRQ(ierr);
+ierr = PetscFree(alphavec);CHKERRQ(ierr);
 PetscFunctionReturn(0);
 }
 
@@ -1038,39 +1037,39 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         //here the stifness matrix in 3d
         //the term (B x B x K_zz)u=W1 (u_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEM(&mass, &mass, &stiff, &ulb, &wrk1, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &stiff, &ulb, wrk1, &alphavec, appctx);
         //the term (B x K_yy x B)u=W1 (u_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &stiff, &mass, &ulb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &stiff, &mass, &ulb, wrk2, &alphavec, appctx);
         //the term (K_xx x B x B)u=W1 (u_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&stiff, &mass, &mass, &ulb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&stiff, &mass, &mass, &ulb, wrk3, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
         BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); //I freed wrk2 and saved the laplacian in wrk1
 
       	//the term (B x B x K_zz)v=W2 (v_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEM(&mass, &mass, &stiff, &vlb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &stiff, &vlb, wrk2, &alphavec, appctx);
         //the term (B x K_yy x B)v=W2 (v_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &stiff, &mass, &vlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &stiff, &mass, &vlb, wrk3, &alphavec, appctx);
         //the term (K_xx x B x B)v=W2 (v_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&stiff, &mass, &mass, &vlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&stiff, &mass, &mass, &vlb, wrk4, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
  
         //the term (B x B x K_zz)w=W3 (w_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEM(&mass, &mass, &stiff, &wlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &stiff, &wlb, wrk3, &alphavec, appctx);
         //the term (B x K_yy x B)w=W3 (w_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &stiff, &mass, &wlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &stiff, &mass, &wlb, wrk4, &alphavec, appctx);
         //the term (K_xx x B x B)w=W3 (w_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&stiff, &mass, &mass, &wlb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEM(&stiff, &mass, &mass, &wlb, wrk5, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
@@ -1079,13 +1078,13 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         //now the gradient operator for u
         //the term (B x B x D_z)u=W4 (u_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &ulb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &grad, &ulb, wrk4, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (u_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &grad, &mass, &ulb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &grad, &mass, &ulb, wrk5, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (u_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&grad, &mass, &mass, &ulb, &wrk6, &alphavec, appctx);
+        PetscTens3dSEM(&grad, &mass, &mass, &ulb, wrk6, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); //u.*u_x goes in w9, w6 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk8[0][0][0]); //v.*u_y goes in w8, w5 free
@@ -1097,13 +1096,13 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         //now the gradient operator for v
         //the term (B x B x D_z)u=W4 (v_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &vlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk4, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (v_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &grad, &mass, &vlb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &grad, &mass, &vlb, wrk5, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (v_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&grad, &mass, &mass, &vlb, &wrk6, &alphavec, appctx);
+        PetscTens3dSEM(&grad, &mass, &mass, &vlb, wrk6, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk10[0][0][0]); //u.*u_x goes in w10, w6 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*u_y goes in w9, w5 free
@@ -1115,13 +1114,13 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         //now the gradient operator for w
         //the term (B x B x D_z)u=W4 (w_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &wlb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &mass, &grad, &wlb, wrk2, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (w_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&mass, &grad, &mass, &wlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEM(&mass, &grad, &mass, &wlb, wrk3, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (w_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEM(&grad, &mass, &mass, &wlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEM(&grad, &mass, &mass, &wlb, wrk4, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk11[0][0][0]); //u.*u_x goes in w9, w4 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*u_y goes in w8, w3 free
@@ -1196,7 +1195,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   VecDestroy(&uloc);
   VecDestroy(&outloc);
   VecDestroy(&ujloc);
-
+  ierr = PetscFree(alphavec);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1314,39 +1313,39 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
         //here the stifness matrix in 3d
         //the term (B x B x K_zz)u=W1 (u_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEMTranspose(&mass, &mass, &stiff, &ulb, &wrk1, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &mass, &stiff, &ulb, wrk1, &alphavec, appctx);
         //the term (B x K_yy x B)u=W1 (u_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&mass, &stiff, &mass, &ulb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &stiff, &mass, &ulb, wrk2, &alphavec, appctx);
         //the term (K_xx x B x B)u=W1 (u_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&stiff, &mass, &mass, &ulb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&stiff, &mass, &mass, &ulb, wrk3, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
         BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); //I freed wrk2 and saved the laplacian in wrk1
 
         	//the term (B x B x K_zz)v=W2 (v_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEMTranspose(&mass, &mass, &stiff, &vlb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &mass, &stiff, &vlb, wrk2, &alphavec, appctx);
         //the term (B x K_yy x B)v=W2 (v_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&mass, &stiff, &mass, &vlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &stiff, &mass, &vlb, wrk3, &alphavec, appctx);
         //the term (K_xx x B x B)v=W2 (v_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&stiff, &mass, &mass, &vlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&stiff, &mass, &mass, &vlb, wrk4, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
  
         //the term (B x B x K_zz)w=W3 (w_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
-        PetscTens3dSEMTranspose(&mass, &mass, &stiff, &wlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &mass, &stiff, &wlb, wrk3, &alphavec, appctx);
         //the term (B x K_yy x B)w=W3 (w_yy)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&mass, &stiff, &mass, &wlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &stiff, &mass, &wlb, wrk4, &alphavec, appctx);
         //the term (K_xx x B x B)w=W3 (w_xx)         
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&stiff, &mass, &mass, &wlb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&stiff, &mass, &mass, &wlb, wrk5, &alphavec, appctx);
 
         BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
@@ -1355,13 +1354,13 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
         //now the gradient operator for u
         //the term (B x B x D_z)u=W4 (u_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEMTranspose(&mass, &mass, &grad, &ulb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &mass, &grad, &ulb, wrk4, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (u_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&mass, &grad, &mass, &ulb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &grad, &mass, &ulb, wrk5, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (u_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&grad, &mass, &mass, &ulb, &wrk6, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&grad, &mass, &mass, &ulb, wrk6, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); //u.*u_x goes in w9, w6 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk8[0][0][0]); //v.*u_y goes in w8, w5 free
@@ -1373,13 +1372,13 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
         //now the gradient operator for v
         //the term (B x B x D_z)u=W4 (v_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEMTranspose(&mass, &mass, &grad, &vlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &mass, &grad, &vlb, wrk4, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (v_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&mass, &grad, &mass, &vlb, &wrk5, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &grad, &mass, &vlb, wrk5, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (v_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&grad, &mass, &mass, &vlb, &wrk6, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&grad, &mass, &mass, &vlb, wrk6, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk10[0][0][0]); //u.*u_x goes in w10, w6 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*u_y goes in w9, w5 free
@@ -1391,13 +1390,13 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
         //now the gradient operator for w
         //the term (B x B x D_z)u=W4 (w_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEMTranspose(&mass, &mass, &grad, &wlb, &wrk2, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &mass, &grad, &wlb, wrk2, &alphavec, appctx);
         //the term (B x D_y x B)u=W4 (w_y)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&mass, &grad, &mass, &wlb, &wrk3, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&mass, &grad, &mass, &wlb, wrk3, &alphavec, appctx);
         //the term (D_x x B x B)u=W4 (w_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
-        PetscTens3dSEMTranspose(&grad, &mass, &mass, &wlb, &wrk4, &alphavec, appctx);
+        PetscTens3dSEMTranspose(&grad, &mass, &mass, &wlb, wrk4, &alphavec, appctx);
  
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &ulb[0][0][0], &wrk11[0][0][0]); //u.*u_x goes in w9, w4 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*u_y goes in w8, w3 free
@@ -1466,7 +1465,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   VecDestroy(&outloc);
   VecDestroy(&ujloc);
   VecDestroy(&incopy);
-
+  PetscFree(alphavec);
   PetscFunctionReturn(0);
 }
 
