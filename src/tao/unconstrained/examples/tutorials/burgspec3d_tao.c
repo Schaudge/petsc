@@ -412,7 +412,7 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
     }
   }
   DMDAVecRestoreArray(cda, global, &coors);
-  
+  ierr = VecDestroy(&loc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -473,7 +473,7 @@ PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
   }
 
   ierr = DMDAVecRestoreArray(appctx->da, u, &s);   CHKERRQ(ierr);
-
+  DMDAVecRestoreArray(cda, global, &coors);
   PetscFunctionReturn(0);
 }
 
@@ -925,6 +925,8 @@ PetscDestroyEl3d(&wrk8, appctx);
 PetscDestroyEl3d(&wrk9, appctx);
 PetscDestroyEl3d(&wrk10, appctx);
 PetscDestroyEl3d(&wrk11, appctx);
+
+ierr = VecDestroy(&outloc);CHKERRQ(ierr);
 
 PetscFunctionReturn(0);
 }
