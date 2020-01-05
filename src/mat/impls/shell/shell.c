@@ -1394,7 +1394,7 @@ PetscErrorCode  MatShellTestMult(Mat mat,PetscErrorCode (*f)(void*,Vec,Vec),Vec 
   PetscErrorCode ierr;
   PetscInt       m,n;
   Mat            mf,Dmf,Dmat,Ddiff;
-  PetscReal      Diffnorm,Dmfnorm;
+  PetscReal      Diffnorm,Dmfnorm,Dmatnorm;
   PetscBool      v = PETSC_FALSE, flag = PETSC_TRUE;
 
   PetscFunctionBegin;
@@ -1412,10 +1412,11 @@ PetscErrorCode  MatShellTestMult(Mat mat,PetscErrorCode (*f)(void*,Vec,Vec),Vec 
   ierr = MatAXPY(Ddiff,-1.0,Dmf,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatNorm(Ddiff,NORM_FROBENIUS,&Diffnorm);CHKERRQ(ierr);
   ierr = MatNorm(Dmf,NORM_FROBENIUS,&Dmfnorm);CHKERRQ(ierr);
-  if (Diffnorm/Dmfnorm > 10*PETSC_SQRT_MACHINE_EPSILON) {
+  ierr = MatNorm(Dmat,NORM_FROBENIUS,&Dmatnorm);CHKERRQ(ierr);
+  if (Diffnorm/PetscMax(Dmfnorm,Dmatnorm) > 10*PETSC_SQRT_MACHINE_EPSILON) {
     flag = PETSC_FALSE;
     if (v) {
-      ierr = PetscPrintf(PetscObjectComm((PetscObject)mat),"MATSHELL and matrix free multiple appear to produce different results.\n Norm Ratio %g Difference results followed by finite difference one\n",(double)(Diffnorm/Dmfnorm));CHKERRQ(ierr);
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)mat),"MATSHELL and matrix free multiple appear to produce different results.\n Norm Ratio %g Difference results, followed by finite difference one, followed by shell\n",(double)(Diffnorm/PetscMax(Dmfnorm,Dmatnorm)));CHKERRQ(ierr);
       ierr = MatViewFromOptions(Ddiff,(PetscObject)mat,"-mat_shell_test_mult_view");CHKERRQ(ierr);
       ierr = MatViewFromOptions(Dmf,(PetscObject)mat,"-mat_shell_test_mult_view");CHKERRQ(ierr);
       ierr = MatViewFromOptions(Dmat,(PetscObject)mat,"-mat_shell_test_mult_view");CHKERRQ(ierr);

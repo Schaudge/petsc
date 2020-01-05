@@ -99,7 +99,6 @@ extern PetscErrorCode InitialConditions(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode TrueSolution(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode ComputeObjective(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode ContinuumSolution(PetscReal, Vec, AppCtx *);
-extern PetscErrorCode MonitorError(Tao, void *);
 extern PetscErrorCode RHSFunction(TS, PetscReal, Vec, Vec, void *);
 extern PetscErrorCode RHSJacobian(TS, PetscReal, Vec, Mat, Mat, void *);
 extern PetscErrorCode MyMatMult(Mat, Vec, Vec);
@@ -117,7 +116,6 @@ int main(int argc, char **argv)
   PetscErrorCode ierr;
   PetscInt       m, nn,mp,np;
   Vec            global;
-  PetscViewer    viewfile;
   Mat            H_shell;
   TSTrajectory   traj;
 
@@ -274,7 +272,6 @@ int main(int argc, char **argv)
 
   /* Create TAO solver and set desired solution method  */
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
-  ierr = TaoSetMonitor(tao, MonitorError, &appctx, NULL);CHKERRQ(ierr);
   ierr = TaoSetType(tao, TAOBLMVM);CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao, appctx.dat.ic);CHKERRQ(ierr);
 
@@ -718,8 +715,8 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         for (jy = 0; jy < appctx->param.N; jy++) {
           indx = ix * (appctx->param.N - 1) + jx;
           indy = iy * (appctx->param.N - 1) + jy;
-          outl[indy][indx].u += appctx->param.mu * (wrk2[jy][jx]) + vlb[jy][jx] * wrk5[jy][jx] + ulb[jy][jx] * wrk4[jy][jx];
-          outl[indy][indx].v += appctx->param.mu * (wrk3[jy][jx]) + ulb[jy][jx] * wrk6[jy][jx] + vlb[jy][jx] * wrk7[jy][jx];
+          outl[indy][indx].u += appctx->param.mu * (wrk2[jy][jx])  + vlb[jy][jx] * wrk5[jy][jx] + ulb[jy][jx] * wrk4[jy][jx];
+          outl[indy][indx].v += appctx->param.mu * (wrk3[jy][jx])  + ulb[jy][jx] * wrk6[jy][jx] + vlb[jy][jx] * wrk7[jy][jx];
         }
       }
     }
@@ -734,7 +731,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   ierr = VecScale(globalout, -1);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);CHKERRQ(ierr);
 
-  /*  printf("RHSFunction\n");
+  /* printf("RHSFunction\n");
   PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
   VecView(globalin,PETSC_VIEWER_STDOUT_WORLD);VecView(uloc,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(globalout,PETSC_VIEWER_STDOUT_WORLD);
    PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); */
@@ -983,10 +980,10 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   ierr = VecScale(out, -1);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(out, out, appctx->SEMop.mass);CHKERRQ(ierr);
 
-  /*  printf("RHSJacobian\n");
+  /* printf("RHSJacobian\n");
   PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(uloc,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);  */
+   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);   */
 
   ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
@@ -1273,6 +1270,7 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
   AppCtx         *appctx = (AppCtx *)ctx;
 
   PetscFunctionBegin;
+  /* this removes any shifts and scales the TS solver may have set into the matrix */
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = VecCopy(globalin, appctx->dat.pass_sol);CHKERRQ(ierr);
@@ -1325,9 +1323,6 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   PetscInt           its;
   PetscReal          ff, gnorm, cnorm, xdiff, errex;
   TaoConvergedReason reason;
-  PetscViewer        viewfile;
-  char               filename[24];
-  char               data[80];
 
   PetscFunctionBegin;
   ierr = TSSetTime(appctx->ts, 0);CHKERRQ(ierr);
@@ -1420,36 +1415,41 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MonitorError(Tao tao, void *ctx)
-{
-  AppCtx         *appctx = (AppCtx *)ctx;
-  Vec            temp;
-  PetscReal      nrm;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecDuplicate(appctx->dat.ic, &temp);CHKERRQ(ierr);
-  ierr = VecWAXPY(temp, -1, appctx->dat.ic, appctx->dat.true_solution);CHKERRQ(ierr);
-  ierr = VecPointwiseMult(temp, temp, temp);CHKERRQ(ierr);
-  ierr = VecDot(temp, appctx->SEMop.mass, &nrm);CHKERRQ(ierr);
-  ierr = VecDestroy(&temp);CHKERRQ(ierr);
-  nrm = PetscSqrtReal(nrm);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "    Error of PDE continuum optimization solution %g\n", (double)nrm);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
 
 /*TEST
 
-   build:
-     requires: !complex
-
    test:
      requires: !single
-     args: -tao_monitor  -ts_adapt_dt_max 3.e-3 -E 10 -N 8 -ncoeff 5 
+     args: -tao_monitor  -ts_adapt_dt_max 3.e-3 -Ex 2 -Ey 2  -N 8 -tao_converged_reason -tao_gttol 1.e-4
+
+   test:
+     suffix: p
+     nsize: 2
+     timeoutfactor: 3
+     requires: !single
+     args: -tao_monitor  -ts_adapt_type none -Ex 2 -Ey 2  -N 8 -tao_converged_reason -tao_gttol 1.e-4
+
+   test:
+     suffix: 3
+     timeoutfactor: 3
+     requires: !single
+     args: -tao_monitor  -ts_rhs_jacobian_test_mult -ts_adapt_type none -Ex 2 -Ey 2  -N 8 -tao_converged_reason -tao_gttol 1.e-4
 
    test:
      suffix: cn
      requires: !single
-     args: -tao_monitor -ts_type cn -ts_dt .003 -pc_type lu -E 10 -N 8 -ncoeff 5 
+     args: -tao_monitor -ts_type cn -pc_type none  -tao_converged_reason -tao_gttol 1.e-3
+
+   test:
+     suffix: cn_fd
+     timeoutfactor: 3
+     requires: !single
+     args: -tao_monitor -ts_type cn -pc_type none  -Ex 2 -Ey 2 -N 4 -tao_converged_reason -tao_gttol 1.e-2 -tao_test_gradient
+
+   test:
+     suffix: cn_rhs_fd
+     timeoutfactor: 3
+     requires: !single
+     args: -tao_monitor -ts_type cn -pc_type none  -Ex 2 -Ey 2 -N 4 -tao_converged_reason -tao_gttol 1.e-2 -ts_rhs_jacobian_test_mult
 
 TEST*/

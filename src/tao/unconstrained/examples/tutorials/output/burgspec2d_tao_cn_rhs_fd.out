@@ -1,0 +1,8 @@
+  0 TAO,  Function value: 0.000298478,  Residual: 0.0255033 
+  1 TAO,  Function value: 4.3792e-05,  Residual: 0.00817261 
+  2 TAO,  Function value: 1.41357e-05,  Residual: 0.00355561 
+  3 TAO,  Function value: 2.58007e-06,  Residual: 0.00119044 
+  4 TAO,  Function value: 8.99145e-07,  Residual: 0.000687312 
+  5 TAO,  Function value: 1.39371e-07,  Residual: 0.000589116 
+  6 TAO,  Function value: 1.19405e-08,  Residual: 9.52214e-05 
+TAO solve converged due to CONVERGED_GTTOL iterations 6
