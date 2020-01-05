@@ -136,9 +136,9 @@ int main(int argc, char **argv)
   appctx.param.mu    = PetscRealConstant(0.005);  /* diffusion coefficient */
   appctx.initial_dt  = PetscRealConstant(5e-3);
   appctx.param.steps = PETSC_MAX_INT;
-  appctx.param.Tend  = 1e-3Q;//0.2;
+  appctx.param.Tend  = PetscRealConstant(.2);
   appctx.param.Tinit = 0;//1.0;
-  appctx.param.Tadj  = 5e-3Q;//1.0;
+  appctx.param.Tadj  = 1;
 
   ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);CHKERRQ(ierr);

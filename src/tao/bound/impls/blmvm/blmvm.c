@@ -248,20 +248,20 @@ PETSC_EXTERN PetscErrorCode TaoCreate_BLMVM(Tao tao)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  tao->ops->setup = TaoSetup_BLMVM;
-  tao->ops->solve = TaoSolve_BLMVM;
-  tao->ops->view = TaoView_BLMVM;
+  tao->ops->setup          = TaoSetup_BLMVM;
+  tao->ops->solve          = TaoSolve_BLMVM;
+  tao->ops->view           = TaoView_BLMVM;
   tao->ops->setfromoptions = TaoSetFromOptions_BLMVM;
-  tao->ops->destroy = TaoDestroy_BLMVM;
-  tao->ops->computedual = TaoComputeDual_BLMVM;
+  tao->ops->destroy        = TaoDestroy_BLMVM;
+  tao->ops->computedual    = TaoComputeDual_BLMVM;
 
   ierr = PetscNewLog(tao,&blmP);CHKERRQ(ierr);
-  blmP->H0 = NULL;
+  blmP->H0      = NULL;
   blmP->recycle = PETSC_FALSE;
-  tao->data = (void*)blmP;
+  tao->data     = (void*)blmP;
 
   /* Override default settings (unless already changed) */
-  if (!tao->max_it_changed) tao->max_it = 2000;
+  if (!tao->max_it_changed)    tao->max_it    = 2000;
   if (!tao->max_funcs_changed) tao->max_funcs = 4000;
 
   ierr = TaoLineSearchCreate(((PetscObject)tao)->comm, &tao->linesearch);CHKERRQ(ierr);
@@ -269,7 +269,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_BLMVM(Tao tao)
   ierr = TaoLineSearchSetType(tao->linesearch, morethuente_type);CHKERRQ(ierr);
   ierr = TaoLineSearchUseTaoRoutines(tao->linesearch,tao);CHKERRQ(ierr);
   ierr = TaoLineSearchSetOptionsPrefix(tao->linesearch,tao->hdr.prefix);CHKERRQ(ierr);
-  
+
   ierr = KSPInitializePackage();CHKERRQ(ierr);
   ierr = MatCreate(((PetscObject)tao)->comm, &blmP->M);CHKERRQ(ierr);
   ierr = MatSetType(blmP->M, MATLMVMBFGS);CHKERRQ(ierr);
