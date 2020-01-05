@@ -44,6 +44,9 @@ typedef struct
   PetscInt n;         /* number of nodes */
   PetscReal *nodes;   /* GLL nodes */
   PetscReal *weights; /* GLL weights */
+  PetscReal    **stiff;
+  PetscReal    **mass;
+  PetscReal    **grad;
 } PetscGLL;
 
 typedef struct
@@ -88,10 +91,6 @@ typedef struct
 {
   Vec grid;  /* total grid */
   Vec mass;  /* mass matrix for total integration */
-  Mat stiff; /* stifness matrix */
-  Mat keptstiff;
-  Mat grad;
-  Mat opadd;
   PetscGLL gll;
 } PetscSEMOperators;
 
@@ -193,6 +192,10 @@ int main(int argc, char **argv)
   ierr = DMDASetFieldName(appctx.da, 0, "u");  CHKERRQ(ierr);
   ierr = DMDASetFieldName(appctx.da, 1, "v");  CHKERRQ(ierr);
   ierr = DMDASetFieldName(appctx.da, 2, "w");  CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.stiff);CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights,  &appctx.SEMop.gll.grad);CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementMassCreate(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights,  &appctx.SEMop.gll.mass);CHKERRQ(ierr);
+
 
   /*
      Extract global and local vectors from DMDA; we use these to store the
@@ -275,6 +278,7 @@ int main(int argc, char **argv)
   /* Check for any TAO command line options  */
   ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
+  TaoSetMaximumIterations(tao,1);
   ierr = TaoSolve(tao); CHKERRQ(ierr);
 
   ierr = TaoDestroy(&tao);CHKERRQ(ierr); 
@@ -289,6 +293,11 @@ int main(int argc, char **argv)
   ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
   ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
   ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr); 
+
+  ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.stiff);CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.grad);CHKERRQ(ierr);
+  ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.mass);CHKERRQ(ierr);
+  
 
   /*
      Always call PetscFinalize() before exiting a program.  This routine
@@ -691,7 +700,9 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   AppCtx *appctx = (AppCtx *)ctx;
   PetscScalar ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
   PetscScalar ***wrk8, ***wrk9, ***wrk10, ***wrk11;
-  PetscScalar **stiff, **mass, **grad;
+  PetscScalar **stiff=appctx->SEMop.gll.stiff;
+  PetscScalar **mass=appctx->SEMop.gll.mass;
+  PetscScalar **grad=appctx->SEMop.gll.grad;
   PetscScalar ***ulb, ***vlb, ***wlb;
   const Field ***ul;
   Field ***outl;
@@ -703,10 +714,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   PetscInt inc;
   
   PetscFunctionBegin;
-
-  ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementMassCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
 
   DMCreateLocalVector(appctx->da, &uloc);
 
@@ -904,10 +911,6 @@ VecScale(globalout, -1.0);
 ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);
 CHKERRQ(ierr);
 
-ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
-ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
-ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-
 PetscDestroyEl3d(&ulb, appctx);
 PetscDestroyEl3d(&vlb, appctx);
 PetscDestroyEl3d(&wlb, appctx);
@@ -937,7 +940,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   AppCtx         *appctx;
   PetscScalar ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
   PetscScalar ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
-  PetscScalar **stiff, **mass, **grad;
   PetscScalar ***ulb, ***vlb, ***wlb;
   PetscScalar ***ujb, ***vjb, ***wjb;
   const Field ***ul, ***uj;
@@ -951,10 +953,10 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   
   PetscFunctionBegin;
   ierr = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementMassCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-
+  PetscScalar **stiff=appctx->SEMop.gll.stiff;
+  PetscScalar **mass=appctx->SEMop.gll.mass;
+  PetscScalar **grad=appctx->SEMop.gll.grad;
+  
   DMCreateLocalVector(appctx->da, &uloc);
   DMGlobalToLocalBegin(appctx->da, in, INSERT_VALUES, uloc);
   DMGlobalToLocalEnd(appctx->da, in, INSERT_VALUES, uloc);
@@ -1237,10 +1239,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(uloc,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
    PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);  */
 
-  ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-
   PetscDestroyEl3d(&ulb, appctx);
   PetscDestroyEl3d(&vlb, appctx);
   PetscDestroyEl3d(&wlb, appctx);
@@ -1275,7 +1273,6 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   PetscErrorCode ierr;
   PetscScalar ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
   PetscScalar ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
-  PetscScalar **stiff, **mass, **grad;
   PetscScalar ***ulb, ***vlb, ***wlb;
   PetscScalar ***ujb, ***vjb, ***wjb;
   const Field ***ul, ***uj;
@@ -1289,9 +1286,9 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   
   PetscFunctionBegin;
   ierr = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementLaplacianCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementMassCreate(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
+  PetscScalar **stiff=appctx->SEMop.gll.stiff;
+  PetscScalar **mass=appctx->SEMop.gll.mass;
+  PetscScalar **grad=appctx->SEMop.gll.grad;
 
   ierr = VecDuplicate(in, &incopy);CHKERRQ(ierr);
   ierr = VecCopy(in, incopy);CHKERRQ(ierr);
@@ -1575,10 +1572,6 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
    PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);   */
 
-  ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &stiff);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &grad);CHKERRQ(ierr);
-  ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx->SEMop.gll.n, appctx->SEMop.gll.nodes, appctx->SEMop.gll.weights, &mass);CHKERRQ(ierr);
-  
   PetscDestroyEl3d(&ulb, appctx);
   PetscDestroyEl3d(&vlb, appctx);
   PetscDestroyEl3d(&wlb, appctx);
