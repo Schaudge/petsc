@@ -116,9 +116,10 @@ int main(int argc, char **argv)
   Vec            u; /* approximate solution vector */
   PetscErrorCode ierr;
   PetscInt       m, nn,mp,np;
-  Vec            global, loc;
+  Vec            global;
   PetscViewer    viewfile;
   Mat            H_shell;
+  TSTrajectory   traj;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program and set problem parameters
@@ -190,6 +191,7 @@ int main(int argc, char **argv)
   ierr = InitializeSpectral(&appctx);  CHKERRQ(ierr);
   ierr = DMGetCoordinates(appctx.da, &global);CHKERRQ(ierr);
 
+#ifdef foo
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "meshout.m", &viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)global, "grid");CHKERRQ(ierr);
@@ -198,7 +200,7 @@ int main(int argc, char **argv)
   ierr = VecView(appctx.SEMop.mass, viewfile);
   ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
-
+#endif
 
   /* Create the TS solver that solves the ODE and its adjoint; set its options */
   ierr = TSCreate(PETSC_COMM_WORLD, &appctx.ts);CHKERRQ(ierr);
@@ -260,6 +262,8 @@ int main(int argc, char **argv)
     ierr = PetscViewerPopFormat(viewfile);
  */
   ierr = TSSetSaveTrajectory(appctx.ts);CHKERRQ(ierr);
+  ierr = TSGetTrajectory(appctx.ts,&traj);CHKERRQ(ierr);
+  ierr = TSTrajectorySetFromOptions(traj,appctx.ts);CHKERRQ(ierr);
 
   /* The TAO objective function is the PDE solution evaluation on the grid points at time Tadj */
   ierr = ContinuumSolution(appctx.param.Tadj, appctx.dat.obj, &appctx);CHKERRQ(ierr);
@@ -290,7 +294,6 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&appctx.SEMop.mass);CHKERRQ(ierr);
   ierr = VecDestroy(&appctx.dat.curr_sol);
   ierr = VecDestroy(&appctx.dat.pass_sol);
-  ierr = VecDestroy(&loc);CHKERRQ(ierr);
   ierr = TSDestroy(&appctx.ts);CHKERRQ(ierr);
   ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
   ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
@@ -1382,6 +1385,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
 
+#ifdef foo
   //counter++; // this was for storing the error accross line searches, we don't use it anymore
   //  PetscPrintf(PETSC_COMM_WORLD, "iteration=%D\t cost function (TAO)=%g, cost function (L2 %g), ic error %g\n", its, (double)ff, *f, errex);
   PetscSNPrintf(filename, sizeof(filename), "PDEadjoint/optimize%02d.m", its);
@@ -1405,6 +1409,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = VecView(appctx->dat.true_solution, viewfile);  CHKERRQ(ierr);
   ierr = PetscViewerPopFormat(viewfile); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewfile);  CHKERRQ(ierr);
+#endif
 
   VecDestroy(&bsol);
   VecDestroy(&adj);
