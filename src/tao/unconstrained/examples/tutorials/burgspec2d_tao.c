@@ -1394,7 +1394,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
    test:
      suffix: 3
-     timeoutfactor: 3
+     timeoutfactor: 6
      requires: !single
      args: -tao_monitor  -ts_rhs_jacobian_test_mult -ts_adapt_type none -Ex 2 -Ey 2  -N 8 -tao_converged_reason -tao_gttol 1.e-4
 
@@ -1405,13 +1405,13 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
    test:
      suffix: cn_fd
-     timeoutfactor: 3
+     timeoutfactor: 6
      requires: !single
      args: -tao_monitor -ts_type cn -pc_type none  -Ex 2 -Ey 2 -N 4 -tao_converged_reason -tao_gttol 1.e-2 -tao_test_gradient
 
    test:
      suffix: cn_rhs_fd
-     timeoutfactor: 3
+     timeoutfactor: 6
      requires: !single
      args: -tao_monitor -ts_type cn -pc_type none  -Ex 2 -Ey 2 -N 4 -tao_converged_reason -tao_gttol 1.e-2 -ts_rhs_jacobian_test_mult
 
