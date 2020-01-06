@@ -84,6 +84,7 @@ typedef struct
   Vec ic;
   Vec curr_sol;
   Vec pass_sol;
+  Vec pass_sol_local;
   Vec true_solution; /* actual initial conditions for the final solution */
 } PetscData;
 
@@ -211,6 +212,7 @@ int main(int argc, char **argv)
   ierr = VecDuplicate(u, &appctx.SEMop.mass);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.curr_sol);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.pass_sol);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(appctx.da,&appctx.dat.pass_sol_local);CHKERRQ(ierr);
   ierr = VecDuplicate(u, &appctx.dat.obj); CHKERRQ(ierr);
   ierr = InitializeSpectral(&appctx);  CHKERRQ(ierr);
   ierr = DMGetCoordinates(appctx.da, &global);CHKERRQ(ierr);
@@ -265,9 +267,11 @@ int main(int argc, char **argv)
   ierr = MatShellSetOperation(H_shell, MATOP_MULT_TRANSPOSE, (void (*)(void))MyMatMultTransp);CHKERRQ(ierr);
   ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
   ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);CHKERRQ(ierr);
-  
+
   ierr = VecCopy(appctx.dat.ic, appctx.dat.pass_sol);  CHKERRQ(ierr);
-  
+  ierr = DMGlobalToLocalBegin(appctx.da,appctx.dat.pass_sol,INSERT_VALUES,appctx.dat.pass_sol_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(appctx.da,appctx.dat.pass_sol,INSERT_VALUES,appctx.dat.pass_sol_local);CHKERRQ(ierr);
+
   /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
 
   ierr = TSSetSaveTrajectory(appctx.ts);   CHKERRQ(ierr);
@@ -280,7 +284,7 @@ int main(int argc, char **argv)
   ierr = TaoSetObjectiveAndGradientRoutine(tao, FormFunctionGradient, (void *)&appctx);CHKERRQ(ierr);
   /* Check for any TAO command line options  */
   ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
-  TaoSetMaximumIterations(tao,1);
+  //TaoSetMaximumIterations(tao,1);
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   ierr = TaoSolve(tao); CHKERRQ(ierr);
 
@@ -291,6 +295,7 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&appctx.SEMop.mass);CHKERRQ(ierr);
   ierr = VecDestroy(&appctx.dat.curr_sol);
   ierr = VecDestroy(&appctx.dat.pass_sol);
+  ierr = VecDestroy(&appctx.dat.pass_sol_local);
   ierr = VecDestroy(&appctx.dat.obj);CHKERRQ(ierr);
   ierr = TSDestroy(&appctx.ts);CHKERRQ(ierr);
   ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
@@ -899,7 +904,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   Field ***outl;
   PetscInt ix, iy, iz, jx, jy, jz, indx, indy, indz;
   PetscInt xs, xm, ys, ym, zs, zm, Nl, Nl3;
-  Vec uloc, outloc, ujloc;
+  Vec uloc, outloc;
   PetscScalar alpha;
   PetscReal *alphavec;
   PetscInt inc;
@@ -916,10 +921,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   DMDAVecGetArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
 
   /*  uj contains the base Jacobian vector (the point the Jacobian is evaluated) as a local array */
-  DMCreateLocalVector(appctx->da, &ujloc);
-  DMGlobalToLocalBegin(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, ujloc);
-  DMGlobalToLocalEnd(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, ujloc);
-  DMDAVecGetArrayRead(appctx->da, ujloc, &uj);CHKERRQ(ierr);
+  DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
 
   /* outl contains the output vector as a local array */
   DMCreateLocalVector(appctx->da, &outloc);
@@ -1175,7 +1177,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   ierr = DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArrayRead(appctx->da, ujloc, &uj);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
 
   ierr = VecSet(out,0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, out);CHKERRQ(ierr);
@@ -1210,7 +1212,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   VecDestroy(&uloc);
   VecDestroy(&outloc);
-  VecDestroy(&ujloc);
   ierr = PetscFree(alphavec);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1229,7 +1230,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   Field ***outl;
   PetscInt ix, iy, iz, jx, jy, jz, indx, indy, indz;
   PetscInt xs, xm, ys, ym, zs, zm, Nl, Nl3;
-  Vec uloc, outloc, ujloc, incopy;
+  Vec uloc, outloc, incopy;
   PetscScalar alpha;
   PetscReal *alphavec;
   PetscInt inc;
@@ -1253,10 +1254,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   ierr = DMDAVecGetArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);CHKERRQ(ierr);
 
   /* uj contains local array of Jacobian base vector, the location the Jacobian is evaluated at */
-  ierr = DMCreateLocalVector(appctx->da, &ujloc);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, ujloc);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, ujloc);CHKERRQ(ierr);
-  ierr = DMDAVecGetArrayRead(appctx->da, ujloc, &uj);CHKERRQ(ierr);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);CHKERRQ(ierr);
 
   /* outl contains local array of output vector (the transpose product) */
   ierr = DMCreateLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
@@ -1512,7 +1510,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
   ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArrayRead(appctx->da, uloc,&ul);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArrayRead(appctx->da, ujloc, &uj);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
 
   ierr = VecSet(out,0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, out);CHKERRQ(ierr);
@@ -1543,7 +1541,6 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
   VecDestroy(&uloc);
   VecDestroy(&outloc);
-  VecDestroy(&ujloc);
   VecDestroy(&incopy);
   PetscFree(alphavec);
   PetscFunctionReturn(0);
@@ -1561,6 +1558,10 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 
   ierr = VecCopy(globalin, appctx->dat.pass_sol); CHKERRQ(ierr);
+
+  /* keep local copy of Jacobian base vector so do not need to do the GlobalToLocal() every time in the MatMult or MatMultTranspose */
+  ierr = DMGlobalToLocalBegin(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
