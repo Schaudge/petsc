@@ -109,9 +109,7 @@ typedef struct
 */
 extern PetscErrorCode FormFunctionGradient(Tao, Vec, PetscReal *, Vec, void *);
 extern PetscErrorCode InitialConditions(PetscReal, Vec, AppCtx *);
-extern PetscErrorCode TrueSolution(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode ComputeObjective(PetscReal, Vec, AppCtx *);
-extern PetscErrorCode MonitorError(Tao, void *);
 extern PetscErrorCode RHSFunction(TS, PetscReal, Vec, Vec, void *);
 extern PetscErrorCode RHSJacobian(TS, PetscReal, Vec, Mat, Mat, void *);
 extern PetscErrorCode MyMatMult(Mat, Vec, Vec);
@@ -131,7 +129,6 @@ int main(int argc, char **argv)
   PetscErrorCode ierr;
   PetscInt m, nn;
   Vec global;
-  PetscViewer viewfile;
   Mat H_shell;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -163,6 +160,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ez", &appctx.param.Ey, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);  CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL, NULL, "-Tadj", &appctx.param.Tadj, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);  CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
   appctx.param.Ley = appctx.param.Ly / appctx.param.Ey;
@@ -213,6 +211,7 @@ int main(int argc, char **argv)
   ierr = InitializeSpectral(&appctx);  CHKERRQ(ierr);
   ierr = DMGetCoordinates(appctx.da, &global);CHKERRQ(ierr);
 
+#if defined(foo)  
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, "meshout.m", &viewfile);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewfile, PETSC_VIEWER_ASCII_MATLAB);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)global, "grid");CHKERRQ(ierr);
@@ -223,6 +222,7 @@ int main(int argc, char **argv)
   ierr = VecView(appctx.SEMop.mass, viewfile); CHKERRQ(ierr);
   ierr = PetscViewerPopFormat(viewfile);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewfile); CHKERRQ(ierr);
+#endif
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    Create matrix data structure; set matrix evaluation routine.
@@ -270,15 +270,14 @@ int main(int argc, char **argv)
   ierr = ComputeObjective(appctx.param.Tadj, appctx.dat.obj, &appctx); CHKERRQ(ierr);
   /* Create TAO solver and set desired solution method  */
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao); CHKERRQ(ierr);
-  ierr = TaoSetMonitor(tao, MonitorError, &appctx, NULL); CHKERRQ(ierr);
   ierr = TaoSetType(tao, TAOBLMVM); CHKERRQ(ierr);
   ierr = TaoSetInitialVector(tao, appctx.dat.ic); CHKERRQ(ierr);
   /* Set routine for function and gradient evaluation  */
   ierr = TaoSetObjectiveAndGradientRoutine(tao, FormFunctionGradient, (void *)&appctx);CHKERRQ(ierr);
   /* Check for any TAO command line options  */
   ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
-  ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   TaoSetMaximumIterations(tao,1);
+  ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   ierr = TaoSolve(tao); CHKERRQ(ierr);
 
   ierr = TaoDestroy(&tao);CHKERRQ(ierr); 
@@ -442,7 +441,6 @@ PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const Petsc
 /*
    InitialConditions - Computes the initial conditions for the Tao optimization solve (these are also initial conditions for the first TSSolve()
 
-                       The routine TrueSolution() computes the true solution for the Tao optimization solve which means they are the initial conditions for the objective function
 
    Input Parameter:
    u - uninitialized solution vector (global)
@@ -452,27 +450,25 @@ PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const Petsc
    u - vector with solution at initial time (global)
 */
 PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
-{ Field ***s;
+{ Field          ***s;
   PetscErrorCode ierr;
-  PetscInt i, j, k;
-  DM cda;
-  Vec global;
-  DMDACoor3d ***coors;
+  PetscInt       i, j, k, xs, ys, zs, xm, ym, zm;
+  DM             cda;
+  Vec            global;
+  DMDACoor3d     ***coors;
 
-  PetscFunctionBegin; 
+  PetscFunctionBegin;
   ierr = DMDAVecGetArray(appctx->da, u, &s);   CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
   DMDAVecGetArray(cda, global, &coors);
+  ierr = DMDAGetCorners(appctx->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
 
   tt = 0.0;
-  for (i = 0; i < appctx->param.lenx; i++)
-  {
-    for (j = 0; j < appctx->param.leny; j++)
-    {
-      for (k = 0; k < appctx->param.lenz; k++)
-      {
+  for (k = zs; k < zs + zm; k++) {
+    for (j = ys; j < ys + ym; j++) {
+    for (i = xs; i < xs + xm; i++) {
         s[k][j][i].u = PetscExpScalar(-appctx->param.mu * tt) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
         s[k][j][i].v = PetscExpScalar(-appctx->param.mu * tt) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
         s[k][j][i].w = PetscExpScalar(-appctx->param.mu * tt) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
@@ -485,51 +481,6 @@ PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
   PetscFunctionReturn(0);
 }
 
-/*
-   TrueSolution() computes the true solution for the Tao optimization solve which means they are the initial conditions for the objective function. 
-
-             InitialConditions() computes the initial conditions for the begining of the Tao iterations
-
-   Input Parameter:
-   u - uninitialized solution vector (global)
-   appctx - user-defined application context
-
-   Output Parameter:
-   u - vector with solution at initial time (global)
-*/
-PetscErrorCode TrueSolution(PetscReal tt, Vec u, AppCtx *appctx)
-{
-  Field ***s;
-  PetscErrorCode ierr;
-  PetscInt i, j, k;
-  DM cda;
-  Vec global;
-  DMDACoor3d ***coors;
-
-  PetscFunctionBegin;
-  ierr = DMDAVecGetArray(appctx->da, u, &s);   CHKERRQ(ierr);
-
-  DMGetCoordinateDM(appctx->da, &cda);
-  DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
-
-  for (i = 0; i < appctx->param.lenx; i++)
-  {
-    for (j = 0; j < appctx->param.leny; j++)
-    {
-      for (k = 0; k < appctx->param.lenz; k++)
-      {
-        s[k][j][i].u = PetscExpScalar(-appctx->param.mu * tt) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
-        s[k][j][i].v = PetscExpScalar(-appctx->param.mu * tt) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
-        s[k][j][i].w = PetscExpScalar(-appctx->param.mu * tt) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
-      }
-    }
-  }
-
-  ierr = DMDAVecRestoreArray(appctx->da, u, &s); CHKERRQ(ierr);
-  /* make sure initial conditions do not contain the constant functions, since with periodic boundary conditions the constant functions introduce a null space */
-  PetscFunctionReturn(0);
-}
 /* --------------------------------------------------------------------- */
 /*
    Sets the desired profile for the final end time
@@ -542,27 +493,25 @@ PetscErrorCode TrueSolution(PetscReal tt, Vec u, AppCtx *appctx)
 */
 PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
 {
-  Field ***s;
+  Field          ***s;
   PetscErrorCode ierr;
-  PetscInt i, j, k;
-  DM cda;
-  Vec global;
-  DMDACoor3d ***coors;
+  PetscInt       i, j, k, xs, ys, zs, xm, ym, zm;
+  DM             cda;
+  Vec            global;
+  DMDACoor3d     ***coors;
 
   PetscFunctionBegin;
-  ierr = DMDAVecGetArray(appctx->da, obj, &s);
-  CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(appctx->da, obj, &s);CHKERRQ(ierr);
 
   DMGetCoordinateDM(appctx->da, &cda);
   DMGetCoordinates(appctx->da, &global);
   DMDAVecGetArray(cda, global, &coors);
 
-  for (i = 0; i < appctx->param.lenx; i++)
-  {
-    for (j = 0; j < appctx->param.leny; j++)
-    {
-      for (k = 0; k < appctx->param.lenz; k++)
-      {
+  ierr = DMDAGetCorners(appctx->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
+
+  for (k = zs; k < zs + zm; k++) {
+    for (j = ys; j < ys + ym; j++) {
+      for (i = xs; i < xs + xm; i++) {
       	s[k][j][i].u = PetscExpScalar(-appctx->param.mu * t) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
       	s[k][j][i].v = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
         s[k][j][i].w = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
@@ -1659,9 +1608,6 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   PetscInt           its;
   PetscReal          ff, gnorm, cnorm, xdiff, errex;
   TaoConvergedReason reason;
-  PetscViewer        viewfile;
-  char               filename[24];
-  char               data[80];
 
   PetscFunctionBegin;
   ierr = TSSetTime(appctx->ts, 0);CHKERRQ(ierr);
@@ -1710,6 +1656,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   ierr = TaoGetSolutionStatus(tao, &its, &ff, &gnorm, &cnorm, &xdiff, &reason);CHKERRQ(ierr);
 
+#if defined(foo)  
   //counter++; // this was for storing the error accross line searches, we don't use it anymore
   //  PetscPrintf(PETSC_COMM_WORLD, "iteration=%D\t cost function (TAO)=%g, cost function (L2 %g), ic error %g\n", its, (double)ff, *f, errex);
   PetscSNPrintf(filename, sizeof(filename), "PDEadjoint/optimize%02d.m", its);
@@ -1733,7 +1680,8 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = VecView(appctx->dat.true_solution, viewfile);  CHKERRQ(ierr);
   ierr = PetscViewerPopFormat(viewfile); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewfile);  CHKERRQ(ierr);
-
+#endif
+  
   VecDestroy(&bsol);
   VecDestroy(&adj);
   /*   PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
@@ -1743,36 +1691,39 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MonitorError(Tao tao, void *ctx)
-{
-  AppCtx         *appctx = (AppCtx *)ctx;
-  Vec            temp;
-  PetscReal      nrm;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = VecDuplicate(appctx->dat.ic, &temp);CHKERRQ(ierr);
-  ierr = VecWAXPY(temp, -1, appctx->dat.ic, appctx->dat.true_solution);CHKERRQ(ierr);
-  ierr = VecPointwiseMult(temp, temp, temp);CHKERRQ(ierr);
-  ierr = VecDot(temp, appctx->SEMop.mass, &nrm);CHKERRQ(ierr);
-  ierr = VecDestroy(&temp);CHKERRQ(ierr);
-  nrm = PetscSqrtReal(nrm);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "    Error of PDE continuum optimization solution %g\n", (double)nrm);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 /*TEST
 
    build:
      requires: !complex
 
    test:
-     requires: !single
-     args: -tao_monitor  -ts_adapt_dt_max 3.e-3 -E 10 -N 8 -ncoeff 5 
+     args: -tao_view -tao_monitor -tao_gttol 1.e-3 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .8 -Tadj 1.2 -tao_converged_reason -tao_max_it 30  -ts_adapt_type none
 
+   test:
+     suffix: p
+     nsize: 2
+     args: -tao_view -tao_monitor -tao_gttol 1.e-3 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .8 -Tadj 1.2 -tao_converged_reason -tao_max_it 30 -ts_adapt_type none
+
+   test:
+     suffix: fd
+     requires: !single
+     timeoutfactor: 10
+     args: -tao_view -tao_monitor -tao_gttol 1.e-1 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .2 -Tadj .3 -tao_converged_reason -tao_max_it 30 -ts_adapt_type none -tao_test_gradient
+
+   test:
+     suffix: rhs_fd
+     requires: !single
+     timeoutfactor: 8
+     args: -tao_view -tao_monitor -tao_gttol 1.e-2 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .4 -Tadj .7 -tao_converged_reason -tao_max_it 30  -ts_adapt_type none -ts_rhs_jacobian_test_mult_transpose
+
+
+TEST*/
+
+/*
+
+  
    test:
      suffix: cn
      requires: !single
      args: -tao_monitor -ts_type cn -ts_dt .003 -pc_type lu -E 10 -N 8 -ncoeff 5 
-
-TEST*/
+ */

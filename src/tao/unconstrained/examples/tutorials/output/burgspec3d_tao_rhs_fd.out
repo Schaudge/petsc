@@ -1,0 +1,51 @@
+  0 TAO,  Function value: 1.2772,  Residual: 1.8689 
+  1 TAO,  Function value: 0.3229,  Residual: 1.01074 
+  2 TAO,  Function value: 0.0737084,  Residual: 0.301808 
+  3 TAO,  Function value: 0.0262896,  Residual: 0.160032 
+  4 TAO,  Function value: 0.00630107,  Residual: 0.0897479 
+  5 TAO,  Function value: 0.00385041,  Residual: 0.12419 
+  6 TAO,  Function value: 0.000603515,  Residual: 0.0230045 
+  7 TAO,  Function value: 0.000294479,  Residual: 0.0152484 
+Tao Object: 1 MPI processes
+  type: blmvm
+  Gradient steps: 0
+  Mat Object: (tao_blmvm_) 1 MPI processes
+    type: lmvmbfgs
+    rows=384, cols=384
+      Scale type: diagonal
+      Scale history: 1
+      Scale params: alpha=1., beta=0.5, rho=1.
+      Convex factors: phi=0., theta=0.125
+      Max. storage: 5
+      Used storage: 5
+      Number of updates: 6
+      Number of rejects: 0
+      Number of resets: 1
+      Mat Object: (J0_) 1 MPI processes
+        type: lmvmdiagbrdn
+        rows=384, cols=384
+          Scale history: 1
+          Scale params: alpha=1., beta=0.5, rho=1.
+          Convex factor: theta=0.125
+          Max. storage: 1
+          Used storage: 1
+          Number of updates: 6
+          Number of rejects: 0
+          Number of resets: 1
+  TaoLineSearch Object: 1 MPI processes
+    type: more-thuente
+    maximum function evaluations=30
+    tolerances: ftol=0.0001, rtol=1e-10, gtol=0.9
+    total number of function evaluations=0
+    total number of gradient evaluations=0
+    total number of function/gradient evaluations=1
+    using variable bounds
+    Termination reason: 1
+  Active Set subset type: subvec
+  convergence tolerances: gatol=1e-08,   steptol=0.,   gttol=0.01
+  Residual in Function/Gradient:=0.0152484
+  Objective value=0.000294479
+  total number of iterations=7,                          (max: 30)
+  total number of function/gradient evaluations=8,      (max: 4000)
+  Solution converged:    ||g(X)||/||g(X0)|| <= gttol
+TAO solve converged due to CONVERGED_GTTOL iterations 7

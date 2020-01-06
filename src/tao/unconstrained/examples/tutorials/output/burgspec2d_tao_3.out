@@ -20,7 +20,8 @@
  19 TAO,  Function value: 2.25304e-09,  Residual: 1.22113e-05 
  20 TAO,  Function value: 8.74326e-10,  Residual: 1.15581e-05 
  21 TAO,  Function value: 4.41653e-10,  Residual: 8.67437e-06 
- 22 TAO,  Function value: 2.21605e-10,  Residual: 3.50138e-06 
+Broken pipe
+nction value: 2.21605e-10,  Residual: 3.50138e-06 
  23 TAO,  Function value: 1.45091e-10,  Residual: 2.33798e-06 
  24 TAO,  Function value: 8.83796e-11,  Residual: 2.40421e-06 
  25 TAO,  Function value: 5.66826e-11,  Residual: 2.62167e-06 

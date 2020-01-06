@@ -96,7 +96,6 @@ typedef struct
 */
 extern PetscErrorCode FormFunctionGradient(Tao, Vec, PetscReal *, Vec, void *);
 extern PetscErrorCode InitialConditions(PetscReal, Vec, AppCtx *);
-extern PetscErrorCode TrueSolution(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode ComputeObjective(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode ContinuumSolution(PetscReal, Vec, AppCtx *);
 extern PetscErrorCode RHSFunction(TS, PetscReal, Vec, Vec, void *);
@@ -377,7 +376,8 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
 /*
    InitialConditions - Computes the initial conditions for the Tao optimization solve (these are also initial conditions for the first TSSolve()
 
-                       The routine TrueSolution() computes the true solution for the Tao optimization solve which means they are the initial conditions for the objective function
+
+   This is currenlty not used ContinuumSolution is used 
 
    Input Parameter:
    u - uninitialized solution vector (global)
@@ -419,48 +419,6 @@ PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
   PetscFunctionReturn(0);
 }
 
-/*
-   TrueSolution() computes the true solution for the Tao optimization solve which means they are the initial conditions for the objective function. 
-
-             InitialConditions() computes the initial conditions for the begining of the Tao iterations
-
-   Input Parameter:
-   u - uninitialized solution vector (global)
-   appctx - user-defined application context
-
-   Output Parameter:
-   u - vector with solution at initial time (global)
-*/
-PetscErrorCode TrueSolution(PetscReal tt, Vec u, AppCtx *appctx)
-{
-  Field **s;
-  PetscErrorCode ierr;
-  PetscInt i, j;
-  DM cda;
-  Vec global;
-  DMDACoor2d **coors;
-
-  PetscFunctionBegin;
-  ierr = DMDAVecGetArray(appctx->da, u, &s);
-  CHKERRQ(ierr);
-
-  DMGetCoordinateDM(appctx->da, &cda);
-  DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
-
-  for (i = 0; i < appctx->param.lenx; i++)
-  {
-    for (j = 0; j < appctx->param.leny; j++)
-    {
-      s[j][i].u = PetscExpScalar(-appctx->param.mu * tt) * (PetscCosScalar(0.5 * PETSC_PI * coors[j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[j][i].y)) / 10.0;
-      s[j][i].v = PetscExpScalar(-appctx->param.mu * tt) * (PetscSinScalar(0.5 * PETSC_PI * coors[j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[j][i].y)) / 10.0;
-    }
-  }
-
-  ierr = DMDAVecRestoreArray(appctx->da, u, &s);   CHKERRQ(ierr);
-  /* make sure initial conditions do not contain the constant functions, since with periodic boundary conditions the constant functions introduce a null space */
-  PetscFunctionReturn(0);
-}
 /* --------------------------------------------------------------------- */
 /*
    Sets the desired profile for the final end time
@@ -469,6 +427,8 @@ PetscErrorCode TrueSolution(PetscReal tt, Vec u, AppCtx *appctx)
    t - final time
    obj - vector storing the desired profile
    appctx - user-defined application context
+
+   This is currently not used; ContinuumSolution() is used
 
 */
 PetscErrorCode ComputeObjective(PetscReal tt, Vec obj, AppCtx *appctx)
@@ -1417,6 +1377,9 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
 
 /*TEST
+
+   build:
+     requires: !complex
 
    test:
      requires: !single
