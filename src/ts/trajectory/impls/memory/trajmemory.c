@@ -8,6 +8,8 @@ PetscLogEvent TSTrajectory_DiskWrite, TSTrajectory_DiskRead;
 static PetscErrorCode TSTrajectorySet_Memory(TSTrajectory,TS,PetscInt,PetscReal,Vec);
 
 typedef enum {NONE,TWO_LEVEL_NOREVOLVE,TWO_LEVEL_REVOLVE,TWO_LEVEL_TWO_REVOLVE,REVOLVE_OFFLINE,REVOLVE_ONLINE,REVOLVE_MULTISTAGE} SchedulerType;
+const char *const SchedulerTypes[] = {"none","two_level_no_revolve","two_level_revolve","two_level_two_revolve","revolve_offline","revolve_online","revolve_multistage","SchedulerType","Sceduler",0};
+
 
 typedef struct _StackElement {
   PetscInt  stepnum;
@@ -1819,6 +1821,56 @@ static PetscErrorCode TSTrajectoryDestroy_Memory(TSTrajectory tj)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode  TSTrajectoryView_Memory(TSTrajectory tj,PetscViewer viewer)
+{
+  TJScheduler    *tjsch = (TJScheduler *)tj->data;
+  PetscErrorCode ierr;
+  PetscBool      iascii;
+
+  PetscFunctionBegin;
+
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  if (iascii) {
+
+#if defined(foo)    
+    typedef struct _TJScheduler {
+  SchedulerType stype;
+#if defined(PETSC_HAVE_REVOLVE)
+  RevolveCTX    *rctx,*rctx2;
+  PetscBool     use_online;
+  PetscInt      store_stride;
+#endif
+  PetscBool     recompute;
+  PetscBool     skip_trajectory;
+  PetscBool     save_stack;
+  PetscInt      max_cps_ram;  /* maximum checkpoints in RAM */
+  PetscInt      max_cps_disk; /* maximum checkpoints on disk */
+  PetscInt      stride;
+  PetscInt      total_steps;  /* total number of steps */
+  Stack         stack;
+  DiskStack     diskstack;
+  PetscViewer   viewer;
+} TJScheduler;
+#endif
+
+    ierr = PetscViewerASCIIPrintf(viewer,"Memory trajectory\n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  SchedulerType type %s\n",SchedulerTypes[tjsch->stype]);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_REVOLVE)
+    ierr = PetscViewerASCIIPrintf(viewer,"  Use online %s\n",tjsch->use_online ? "true" : "false");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Store stride %D\n",tjsch->store_stride);CHKERRQ(ierr);
+#endif
+    ierr = PetscViewerASCIIPrintf(viewer,"  Recompute %s\n",tjsch->recompute ? "true" : "false");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Skip trajectory %s\n",tjsch->skip_trajectory ? "true" : "false");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Save stack %s\n",tjsch->save_stack ? "true" : "false");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Maximum checkpoints in RAM %D\n",tjsch->max_cps_ram);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Maximum checkpoints on disk %D\n",tjsch->max_cps_disk);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Stride %D\n",tjsch->stride);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Total steps %D\n",tjsch->total_steps);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+
 /*MC
       TSTRAJECTORYMEMORY - Stores each solution of the ODE/ADE in memory
 
@@ -1839,6 +1891,7 @@ PETSC_EXTERN PetscErrorCode TSTrajectoryCreate_Memory(TSTrajectory tj,TS ts)
   tj->ops->setfromoptions = TSTrajectorySetFromOptions_Memory;
   tj->ops->reset          = TSTrajectoryReset_Memory;
   tj->ops->destroy        = TSTrajectoryDestroy_Memory;
+  tj->ops->view           = TSTrajectoryView_Memory;
 
   ierr = PetscNew(&tjsch);CHKERRQ(ierr);
   tjsch->stype        = NONE;

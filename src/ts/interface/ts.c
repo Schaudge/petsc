@@ -2063,6 +2063,11 @@ PetscErrorCode  TSView(TS ts,PetscViewer viewer)
     }
 #endif
   }
+  if (ts->trajectory) {
+    ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
+    ierr = TSTrajectoryView(ts->trajectory,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
+  }
   if (ts->snes && ts->usessnes)  {
     ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
     ierr = SNESView(ts->snes,viewer);CHKERRQ(ierr);

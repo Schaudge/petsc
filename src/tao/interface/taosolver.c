@@ -752,6 +752,13 @@ PetscErrorCode TaoView(Tao tao, PetscViewer viewer)
     ierr = TaoGetType(tao,&type);CHKERRQ(ierr);
     ierr = PetscViewerStringSPrintf(viewer," %-3.3s",type);CHKERRQ(ierr);
   }
+  {
+    PetscObject obj;
+    ierr = PetscObjectQuery((PetscObject)tao,"TS",&obj);CHKERRQ(ierr);
+    if (obj) {
+      ierr = PetscObjectView(obj,viewer);CHKERRQ(ierr);
+    }
+  }
   PetscFunctionReturn(0);
 }
 
