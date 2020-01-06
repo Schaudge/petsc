@@ -1,0 +1,74 @@
+  0 TAO,  Function value: 1.28557,  Residual: 0.471866 
+  1 TAO,  Function value: 0.234217,  Residual: 0.203158 
+  2 TAO,  Function value: 0.0740752,  Residual: 0.0817422 
+  3 TAO,  Function value: 0.0380572,  Residual: 0.0452714 
+  4 TAO,  Function value: 0.0227429,  Residual: 0.0289026 
+  5 TAO,  Function value: 0.0127785,  Residual: 0.0209544 
+  6 TAO,  Function value: 0.00875057,  Residual: 0.0234012 
+  7 TAO,  Function value: 0.00594244,  Residual: 0.0124436 
+  8 TAO,  Function value: 0.00403865,  Residual: 0.00936596 
+  9 TAO,  Function value: 0.00281236,  Residual: 0.00953768 
+ 10 TAO,  Function value: 0.00201504,  Residual: 0.0112967 
+ 11 TAO,  Function value: 0.00137328,  Residual: 0.00507527 
+ 12 TAO,  Function value: 0.00106221,  Residual: 0.0041853 
+ 13 TAO,  Function value: 0.000777968,  Residual: 0.00391761 
+ 14 TAO,  Function value: 0.000707159,  Residual: 0.00862913 
+ 15 TAO,  Function value: 0.000457659,  Residual: 0.00237757 
+ 16 TAO,  Function value: 0.000399695,  Residual: 0.00181314 
+ 17 TAO,  Function value: 0.000316471,  Residual: 0.00201978 
+ 18 TAO,  Function value: 0.000270044,  Residual: 0.00396667 
+ 19 TAO,  Function value: 0.000210465,  Residual: 0.00144387 
+ 20 TAO,  Function value: 0.000190395,  Residual: 0.00104217 
+ 21 TAO,  Function value: 0.000167378,  Residual: 0.0011673 
+ 22 TAO,  Function value: 0.000144146,  Residual: 0.00184571 
+ 23 TAO,  Function value: 0.000123037,  Residual: 0.000954587 
+ 24 TAO,  Function value: 0.000111101,  Residual: 0.000782103 
+ 25 TAO,  Function value: 9.37428e-05,  Residual: 0.00099929 
+ 26 TAO,  Function value: 8.77908e-05,  Residual: 0.00197523 
+ 27 TAO,  Function value: 7.41821e-05,  Residual: 0.000802923 
+ 28 TAO,  Function value: 6.6032e-05,  Residual: 0.000575878 
+ 29 TAO,  Function value: 5.88634e-05,  Residual: 0.000675459 
+ 30 TAO,  Function value: 4.82001e-05,  Residual: 0.000939233 
+Tao Object: 3 MPI processes
+  type: blmvm
+  Gradient steps: 0
+  Mat Object: (tao_blmvm_) 3 MPI processes
+    type: lmvmbfgs
+    rows=6750, cols=6750
+      Scale type: diagonal
+      Scale history: 1
+      Scale params: alpha=1., beta=0.5, rho=1.
+      Convex factors: phi=0., theta=0.125
+      Max. storage: 5
+      Used storage: 5
+      Number of updates: 29
+      Number of rejects: 0
+      Number of resets: 1
+      Mat Object: (J0_) 3 MPI processes
+        type: lmvmdiagbrdn
+        rows=6750, cols=6750
+          Scale history: 1
+          Scale params: alpha=1., beta=0.5, rho=1.
+          Convex factor: theta=0.125
+          Max. storage: 1
+          Used storage: 1
+          Number of updates: 29
+          Number of rejects: 0
+          Number of resets: 1
+  TaoLineSearch Object: 3 MPI processes
+    type: more-thuente
+    maximum function evaluations=30
+    tolerances: ftol=0.0001, rtol=1e-10, gtol=0.9
+    total number of function evaluations=0
+    total number of gradient evaluations=0
+    total number of function/gradient evaluations=1
+    using variable bounds
+    Termination reason: 1
+  Active Set subset type: subvec
+  convergence tolerances: gatol=1e-08,   steptol=0.,   gttol=0.001
+  Residual in Function/Gradient:=0.000939233
+  Objective value=4.82001e-05
+  total number of iterations=30,                          (max: 30)
+  total number of function/gradient evaluations=31,      (max: 4000)
+  Solver terminated: -2   Maximum Iterations
+TAO solve did not converge due to DIVERGED_MAXITS iteration 30

@@ -127,7 +127,7 @@ int main(int argc, char **argv)
   Vec            u; /* approximate solution vector */
   Tao		 tao;
   PetscErrorCode ierr;
-  PetscInt m, nn;
+  PetscInt m, nn,mp,np,pp;
   Vec global;
   Mat H_shell;
 
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);   CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ey", &appctx.param.Ey, NULL);  CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL, NULL, "-Ez", &appctx.param.Ey, NULL);  CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL, NULL, "-Ez", &appctx.param.Ez, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tadj", &appctx.param.Tadj, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);  CHKERRQ(ierr);
@@ -187,6 +187,10 @@ int main(int argc, char **argv)
                       appctx.param.lenz, PETSC_DECIDE, PETSC_DECIDE, PETSC_DECIDE, 3, 1, NULL, NULL, NULL, &appctx.da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(appctx.da);   CHKERRQ(ierr);
   ierr = DMSetUp(appctx.da);  CHKERRQ(ierr);
+  ierr = DMDAGetInfo(appctx.da,NULL,NULL,NULL,NULL,&mp,&np,&pp,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  if (appctx.param.Ex % mp) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Elements in x direction %D must be divisible by processors in x direction %D",appctx.param.Ex,mp);
+  if (appctx.param.Ey % np) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Elements in y direction %D must be divisible by processors in y direction %D",appctx.param.Ey,np);
+  if (appctx.param.Ez % pp) SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_SUP,"Elements in z direction %D must be divisible by processors in z direction %D",appctx.param.Ez,pp);
   ierr = DMDASetFieldName(appctx.da, 0, "u");  CHKERRQ(ierr);
   ierr = DMDASetFieldName(appctx.da, 1, "v");  CHKERRQ(ierr);
   ierr = DMDASetFieldName(appctx.da, 2, "w");  CHKERRQ(ierr);
@@ -1171,9 +1175,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   ierr = DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
-
-  ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArrayRead(appctx->da, uloc,&ul);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArrayRead(appctx->da, ujloc, &uj);CHKERRQ(ierr);
 
   ierr = VecSet(out,0);CHKERRQ(ierr);
@@ -1716,14 +1717,18 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
      timeoutfactor: 8
      args: -tao_view -tao_monitor -tao_gttol 1.e-2 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .4 -Tadj .7 -tao_converged_reason -tao_max_it 30  -ts_adapt_type none -ts_rhs_jacobian_test_mult_transpose
 
+   test:
+     suffix: cn_p
+     nsize: 3
+     timeoutfactor: 3
+     requires: !single
+     args: -tao_view -tao_monitor  -Ex 2 -Ey 3 -Ez 3 -N 6 -Tend .8 -Tadj 1.0 -tao_converged_reason -tao_max_it 30 -tao_gttol 1.e-3 -ts_type cn -pc_type none
+
+   test:
+     suffix: cn_fd
+     timeoutfactor: 8
+     requires: !single
+     args: -tao_view -tao_monitor  -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .1 -Tadj .12 -tao_converged_reason -tao_max_it 30 -tao_gttol 1.e-1 -ts_type cn -pc_type none  -tao_test_gradient
 
 TEST*/
 
-/*
-
-  
-   test:
-     suffix: cn
-     requires: !single
-     args: -tao_monitor -ts_type cn -ts_dt .003 -pc_type lu -E 10 -N 8 -ncoeff 5 
- */

@@ -3,25 +3,25 @@
     of hand-coded and finite difference gradient entries greater than <threshold>.
   Testing hand-coded Gradient, if (for double precision runs) ||G - Gfd||_F/||G||_F is
     O(1.e-8), the hand-coded Gradient is probably correct.
-  ||Gfd|| 2.64318, ||G|| = 2.64318, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
-  2-norm ||G - Gfd||/||G|| = 4.75602e-08, ||G - Gfd|| = 1.2571e-07
-  max-norm ||G - Gfd||/||G|| = 2.77222e-08, ||G - Gfd|| = 2.64518e-08
-  0 TAO,  Function value: 1.27702,  Residual: 2.64318 
+  ||Gfd|| 2.64593, ||G|| = 2.64593, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 5.03781e-06, ||G - Gfd|| = 1.33297e-05
+  max-norm ||G - Gfd||/||G|| = 2.63864e-06, ||G - Gfd|| = 2.5099e-06
+  0 TAO,  Function value: 1.27822,  Residual: 2.64593 
   ---------- Testing Gradient -------------
-  ||Gfd|| 1.47179, ||G|| = 1.47179, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
-  2-norm ||G - Gfd||/||G|| = 4.73544e-08, ||G - Gfd|| = 6.9696e-08
-  max-norm ||G - Gfd||/||G|| = 2.06496e-08, ||G - Gfd|| = 1.42077e-08
-  1 TAO,  Function value: 0.330252,  Residual: 1.47179 
+  ||Gfd|| 1.47778, ||G|| = 1.47778, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 3.13248e-06, ||G - Gfd|| = 4.62912e-06
+  max-norm ||G - Gfd||/||G|| = 1.29732e-06, ||G - Gfd|| = 8.94245e-07
+  1 TAO,  Function value: 0.331028,  Residual: 1.47778 
   ---------- Testing Gradient -------------
-  ||Gfd|| 0.409336, ||G|| = 0.409336, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
-  2-norm ||G - Gfd||/||G|| = 2.85014e-08, ||G - Gfd|| = 1.16667e-08
-  max-norm ||G - Gfd||/||G|| = 2.41325e-08, ||G - Gfd|| = 2.38085e-09
-  2 TAO,  Function value: 0.0696391,  Residual: 0.409336 
+  ||Gfd|| 0.408385, ||G|| = 0.408385, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 6.15066e-06, ||G - Gfd|| = 2.51184e-06
+  max-norm ||G - Gfd||/||G|| = 6.83282e-06, ||G - Gfd|| = 6.59802e-07
+  2 TAO,  Function value: 0.0694196,  Residual: 0.408385 
   ---------- Testing Gradient -------------
-  ||Gfd|| 0.218849, ||G|| = 0.218849, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
-  2-norm ||G - Gfd||/||G|| = 2.63595e-08, ||G - Gfd|| = 5.76874e-09
-  max-norm ||G - Gfd||/||G|| = 2.9344e-08, ||G - Gfd|| = 1.76126e-09
-  3 TAO,  Function value: 0.0237352,  Residual: 0.218849 
+  ||Gfd|| 0.219221, ||G|| = 0.219221, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 7.97352e-06, ||G - Gfd|| = 1.74796e-06
+  max-norm ||G - Gfd||/||G|| = 6.74063e-06, ||G - Gfd|| = 4.03568e-07
+  3 TAO,  Function value: 0.0236602,  Residual: 0.219221 
 Tao Object: 1 MPI processes
   type: blmvm
   Gradient steps: 0
@@ -59,8 +59,8 @@ Tao Object: 1 MPI processes
     Termination reason: 1
   Active Set subset type: subvec
   convergence tolerances: gatol=1e-08,   steptol=0.,   gttol=0.1
-  Residual in Function/Gradient:=0.218849
-  Objective value=0.0237352
+  Residual in Function/Gradient:=0.219221
+  Objective value=0.0236602
   total number of iterations=3,                          (max: 30)
   total number of function/gradient evaluations=1540,      (max: 4000)
   Solution converged:    ||g(X)||/||g(X0)|| <= gttol

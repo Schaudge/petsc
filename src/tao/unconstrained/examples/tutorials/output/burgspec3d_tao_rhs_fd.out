@@ -1,17 +1,17 @@
-  0 TAO,  Function value: 1.2772,  Residual: 1.8689 
-  1 TAO,  Function value: 0.3229,  Residual: 1.01074 
-  2 TAO,  Function value: 0.0737084,  Residual: 0.301808 
-  3 TAO,  Function value: 0.0262896,  Residual: 0.160032 
-  4 TAO,  Function value: 0.00630107,  Residual: 0.0897479 
-  5 TAO,  Function value: 0.00385041,  Residual: 0.12419 
-  6 TAO,  Function value: 0.000603515,  Residual: 0.0230045 
-  7 TAO,  Function value: 0.000294479,  Residual: 0.0152484 
+  0 TAO,  Function value: 1.2772,  Residual: 2.64303 
+  1 TAO,  Function value: 0.330915,  Residual: 1.46709 
+  2 TAO,  Function value: 0.070821,  Residual: 0.415107 
+  3 TAO,  Function value: 0.0243272,  Residual: 0.22053 
+  4 TAO,  Function value: 0.00519747,  Residual: 0.127916 
+  5 TAO,  Function value: 0.00232737,  Residual: 0.0889181 
+  6 TAO,  Function value: 0.00072675,  Residual: 0.037127 
+  7 TAO,  Function value: 0.000105155,  Residual: 0.0198963 
 Tao Object: 1 MPI processes
   type: blmvm
   Gradient steps: 0
   Mat Object: (tao_blmvm_) 1 MPI processes
     type: lmvmbfgs
-    rows=384, cols=384
+    rows=192, cols=192
       Scale type: diagonal
       Scale history: 1
       Scale params: alpha=1., beta=0.5, rho=1.
@@ -23,7 +23,7 @@ Tao Object: 1 MPI processes
       Number of resets: 1
       Mat Object: (J0_) 1 MPI processes
         type: lmvmdiagbrdn
-        rows=384, cols=384
+        rows=192, cols=192
           Scale history: 1
           Scale params: alpha=1., beta=0.5, rho=1.
           Convex factor: theta=0.125
@@ -43,9 +43,9 @@ Tao Object: 1 MPI processes
     Termination reason: 1
   Active Set subset type: subvec
   convergence tolerances: gatol=1e-08,   steptol=0.,   gttol=0.01
-  Residual in Function/Gradient:=0.0152484
-  Objective value=0.000294479
+  Residual in Function/Gradient:=0.0198963
+  Objective value=0.000105155
   total number of iterations=7,                          (max: 30)
-  total number of function/gradient evaluations=8,      (max: 4000)
+  total number of function/gradient evaluations=9,      (max: 4000)
   Solution converged:    ||g(X)||/||g(X0)|| <= gttol
 TAO solve converged due to CONVERGED_GTTOL iterations 7
