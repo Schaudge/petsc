@@ -269,15 +269,15 @@ PetscErrorCode PetscMemoryTrace(const char label[])
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_MEMKIND)
 static PetscErrorCode (*PetscTrMallocOld)(size_t,PetscBool,int,const char[],const char[],void**) = PetscMallocAlign;
 static PetscErrorCode (*PetscTrReallocOld)(size_t,int,const char[],const char[],void**)          = PetscReallocAlign;
 static PetscErrorCode (*PetscTrFreeOld)(void*,int,const char[],const char[])                     = PetscFreeAlign;
+#endif
 
 /*@C
    PetscMallocSetDRAM - Set PetscMalloc to use DRAM.
-     If memkind is available, change the memkind type. Otherwise, switch the
-     current malloc and free routines to the PetscMallocAlign and
-     PetscFreeAlign (PETSc default).
+     If memkind is available, change the memkind type. 
 
    Not Collective
 
@@ -285,27 +285,25 @@ static PetscErrorCode (*PetscTrFreeOld)(void*,int,const char[],const char[])    
 
    Notes:
      This provides a way to do the allocation on DRAM temporarily. One
-     can switch back to the previous choice by calling PetscMallocReset().
+     can switch back to the previous choice by calling PetscMallocResetDRAM().
 
 .seealso: PetscMallocReset()
 @*/
 PetscErrorCode PetscMallocSetDRAM(void)
 {
   PetscFunctionBegin;
-  if (PetscTrMalloc == PetscMallocAlign) {
 #if defined(PETSC_HAVE_MEMKIND)
-    previousmktype = currentmktype;
-    currentmktype  = PETSC_MK_DEFAULT;
+  /* Save the previous choice */
+  PetscTrMallocOld  = PetscTrMalloc;
+  PetscTrReallocOld = PetscTrRealloc;
+  PetscTrFreeOld    = PetscTrFree;
+  /* switch to the code that supports MEMKIND */
+  PetscTrMalloc     = PetscMallocAlign;
+  PetscTrFree       = PetscFreeAlign;
+  PetscTrRealloc    = PetscReallocAlign;
+  previousmktype    = currentmktype;
+  currentmktype     = PETSC_MK_DEFAULT;
 #endif
-  } else {
-    /* Save the previous choice */
-    PetscTrMallocOld  = PetscTrMalloc;
-    PetscTrReallocOld = PetscTrRealloc;
-    PetscTrFreeOld    = PetscTrFree;
-    PetscTrMalloc     = PetscMallocAlign;
-    PetscTrFree       = PetscFreeAlign;
-    PetscTrRealloc    = PetscReallocAlign;
-  }
   PetscFunctionReturn(0);
 }
 
@@ -321,16 +319,13 @@ PetscErrorCode PetscMallocSetDRAM(void)
 PetscErrorCode PetscMallocResetDRAM(void)
 {
   PetscFunctionBegin;
-  if (PetscTrMalloc == PetscMallocAlign) {
 #if defined(PETSC_HAVE_MEMKIND)
-    currentmktype = previousmktype;
+  /* Reset to the previous choice */
+  PetscTrMalloc  = PetscTrMallocOld;
+  PetscTrRealloc = PetscTrReallocOld;
+  PetscTrFree    = PetscTrFreeOld;
+  currentmktype  = previousmktype;
 #endif
-  } else {
-    /* Reset to the previous choice */
-    PetscTrMalloc  = PetscTrMallocOld;
-    PetscTrRealloc = PetscTrReallocOld;
-    PetscTrFree    = PetscTrFreeOld;
-  }
   PetscFunctionReturn(0);
 }
 

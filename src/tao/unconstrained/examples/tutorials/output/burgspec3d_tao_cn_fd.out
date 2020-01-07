@@ -64,4 +64,51 @@ Tao Object: 1 MPI processes
   total number of iterations=3,                          (max: 30)
   total number of function/gradient evaluations=1540,      (max: 4000)
   Solution converged:    ||g(X)||/||g(X0)|| <= gttol
+TS Object: 1 MPI processes
+  type: cn
+  maximum time=0.1
+  total number of nonlinear solver iterations=0
+  total number of linear solver iterations=0
+  total number of nonlinear solve failures=0
+  total number of rejected steps=0
+  using relative error tolerance of 1e-07,   using absolute error tolerance of 1e-07
+  TSAdapt Object: 1 MPI processes
+    type: none
+  TSTrajectory Object: 1 MPI processes
+    type: basic
+    total number of recomputations for adjoint calculation = 0
+    disk checkpoint reads = 0
+    disk checkpoint writes = 0
+  SNES Object: 1 MPI processes
+    type: newtonls
+    maximum iterations=50, maximum function evaluations=10000
+    tolerances: relative=1e-08, absolute=1e-50, solution=1e-08
+    total number of linear solver iterations=4
+    total number of function evaluations=3
+    norm schedule ALWAYS
+    SNESLineSearch Object: 1 MPI processes
+      type: bt
+        interpolation: cubic
+        alpha=1.000000e-04
+      maxstep=1.000000e+08, minlambda=1.000000e-12
+      tolerances: relative=1.000000e-08, absolute=1.000000e-15, lambda=1.000000e-08
+      maximum iterations=40
+    KSP Object: 1 MPI processes
+      type: gmres
+        restart=30, using Classical (unmodified) Gram-Schmidt Orthogonalization with no iterative refinement
+        happy breakdown tolerance 1e-30
+      maximum iterations=10000, initial guess is zero
+      tolerances:  relative=1e-05, absolute=1e-50, divergence=10000.
+      left preconditioning
+      using PRECONDITIONED norm type for convergence test
+    PC Object: 1 MPI processes
+      type: none
+      linear system matrix = precond matrix:
+      Mat Object: 1 MPI processes
+        type: shell
+        rows=192, cols=192
 TAO solve converged due to CONVERGED_GTTOL iterations 3
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There is one unused database option. It is:
+Option left: name:-ts_trjactory_type value: memory

@@ -53,4 +53,24 @@ Tao Object: 1 MPI processes
   total number of iterations=12,                          (max: 30)
   total number of function/gradient evaluations=14,      (max: 4000)
   Solution converged:    ||g(X)||/||g(X0)|| <= gttol
+TS Object: 1 MPI processes
+  type: rk
+    RK type 3bs
+    Order: 3
+    FSAL property: yes
+    Abscissa c =  0.000000  0.500000  0.750000  1.000000 
+  maximum time=0.8
+  total number of rejected steps=0
+  using relative error tolerance of 1e-07,   using absolute error tolerance of 1e-07
+  TSAdapt Object: 1 MPI processes
+    type: none
+  TSTrajectory Object: 1 MPI processes
+    type: basic
+    total number of recomputations for adjoint calculation = 0
+    disk checkpoint reads = 0
+    disk checkpoint writes = 0
 TAO solve converged due to CONVERGED_GTTOL iterations 12
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There is one unused database option. It is:
+Option left: name:-ts_trjactory_type value: memory
