@@ -8,5 +8,87 @@
   max-norm ||G - Gfd||/||G|| = 2.77222e-08, ||G - Gfd|| = 2.64518e-08
   0 TAO,  Function value: 1.27702,  Residual: 2.64318 
   ---------- Testing Gradient -------------
-[mpiexec@Barrys-MacBook-Pro-2.local] Sending Ctrl-C to processes as requested
-[mpiexec@Barrys-MacBook-Pro-2.local] Press Ctrl-C again to force abort
+  ||Gfd|| 1.47179, ||G|| = 1.47179, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 4.73544e-08, ||G - Gfd|| = 6.9696e-08
+  max-norm ||G - Gfd||/||G|| = 2.06496e-08, ||G - Gfd|| = 1.42077e-08
+  1 TAO,  Function value: 0.330252,  Residual: 1.47179 
+  ---------- Testing Gradient -------------
+  ||Gfd|| 0.409336, ||G|| = 0.409336, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 2.85014e-08, ||G - Gfd|| = 1.16667e-08
+  max-norm ||G - Gfd||/||G|| = 2.41325e-08, ||G - Gfd|| = 2.38085e-09
+  2 TAO,  Function value: 0.0696391,  Residual: 0.409336 
+  ---------- Testing Gradient -------------
+  ||Gfd|| 0.218849, ||G|| = 0.218849, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
+  2-norm ||G - Gfd||/||G|| = 2.63595e-08, ||G - Gfd|| = 5.76874e-09
+  max-norm ||G - Gfd||/||G|| = 2.9344e-08, ||G - Gfd|| = 1.76126e-09
+  3 TAO,  Function value: 0.0237352,  Residual: 0.218849 
+Tao Object: 1 MPI processes
+  type: blmvm
+  Gradient steps: 0
+  Mat Object: (tao_blmvm_) 1 MPI processes
+    type: lmvmbfgs
+    rows=192, cols=192
+      Scale type: diagonal
+      Scale history: 1
+      Scale params: alpha=1., beta=0.5, rho=1.
+      Convex factors: phi=0., theta=0.125
+      Max. storage: 5
+      Used storage: 2
+      Number of updates: 2
+      Number of rejects: 0
+      Number of resets: 1
+      Mat Object: (J0_) 1 MPI processes
+        type: lmvmdiagbrdn
+        rows=192, cols=192
+          Scale history: 1
+          Scale params: alpha=1., beta=0.5, rho=1.
+          Convex factor: theta=0.125
+          Max. storage: 1
+          Used storage: 1
+          Number of updates: 2
+          Number of rejects: 0
+          Number of resets: 1
+  TaoLineSearch Object: 1 MPI processes
+    type: more-thuente
+    maximum function evaluations=30
+    tolerances: ftol=0.0001, rtol=1e-10, gtol=0.9
+    total number of function evaluations=0
+    total number of gradient evaluations=0
+    total number of function/gradient evaluations=1
+    using variable bounds
+    Termination reason: 1
+  Active Set subset type: subvec
+  convergence tolerances: gatol=1e-08,   steptol=0.,   gttol=0.1
+  Residual in Function/Gradient:=0.218849
+  Objective value=0.0237352
+  total number of iterations=3,                          (max: 30)
+  total number of function/gradient evaluations=1540,      (max: 4000)
+  Solution converged:    ||g(X)||/||g(X0)|| <= gttol
+TS Object: 1 MPI processes
+  type: rk
+    RK type 3bs
+    Order: 3
+    FSAL property: yes
+    Abscissa c =  0.000000  0.500000  0.750000  1.000000 
+  maximum time=0.2
+  total number of rejected steps=0
+  using relative error tolerance of 1e-07,   using absolute error tolerance of 1e-07
+  TSAdapt Object: 1 MPI processes
+    type: none
+  TSTrajectory Object: 1 MPI processes
+    type: memory
+    total number of recomputations for adjoint calculation = 0
+    disk checkpoint reads = 0
+    disk checkpoint writes = 0
+    Memory trajectory
+      SchedulerType type none
+      Use online false
+      Store stride 0
+      Recompute false
+      Skip trajectory false
+      Save stack true
+      Maximum checkpoints in RAM -1
+      Maximum checkpoints on disk -1
+      Stride 0
+      Total steps 40
+TAO solve converged due to CONVERGED_GTTOL iterations 3

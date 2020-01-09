@@ -71,4 +71,58 @@ Tao Object: 3 MPI processes
   total number of iterations=30,                          (max: 30)
   total number of function/gradient evaluations=31,      (max: 4000)
   Solver terminated: -2   Maximum Iterations
+TS Object: 3 MPI processes
+  type: cn
+  maximum time=0.8
+  total number of nonlinear solver iterations=0
+  total number of linear solver iterations=0
+  total number of nonlinear solve failures=0
+  total number of rejected steps=0
+  using relative error tolerance of 1e-07,   using absolute error tolerance of 1e-07
+  TSAdapt Object: 3 MPI processes
+    type: none
+  TSTrajectory Object: 3 MPI processes
+    type: memory
+    total number of recomputations for adjoint calculation = 0
+    disk checkpoint reads = 0
+    disk checkpoint writes = 0
+    Memory trajectory
+      SchedulerType type none
+      Use online false
+      Store stride 0
+      Recompute false
+      Skip trajectory false
+      Save stack true
+      Maximum checkpoints in RAM -1
+      Maximum checkpoints on disk -1
+      Stride 0
+      Total steps 160
+  SNES Object: 3 MPI processes
+    type: newtonls
+    maximum iterations=50, maximum function evaluations=10000
+    tolerances: relative=1e-08, absolute=1e-50, solution=1e-08
+    total number of linear solver iterations=5
+    total number of function evaluations=3
+    norm schedule ALWAYS
+    SNESLineSearch Object: 3 MPI processes
+      type: bt
+        interpolation: cubic
+        alpha=1.000000e-04
+      maxstep=1.000000e+08, minlambda=1.000000e-12
+      tolerances: relative=1.000000e-08, absolute=1.000000e-15, lambda=1.000000e-08
+      maximum iterations=40
+    KSP Object: 3 MPI processes
+      type: gmres
+        restart=30, using Classical (unmodified) Gram-Schmidt Orthogonalization with no iterative refinement
+        happy breakdown tolerance 1e-30
+      maximum iterations=10000, initial guess is zero
+      tolerances:  relative=1e-05, absolute=1e-50, divergence=10000.
+      left preconditioning
+      using PRECONDITIONED norm type for convergence test
+    PC Object: 3 MPI processes
+      type: none
+      linear system matrix = precond matrix:
+      Mat Object: 3 MPI processes
+        type: shell
+        rows=6750, cols=6750
 TAO solve did not converge due to DIVERGED_MAXITS iteration 30

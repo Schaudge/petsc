@@ -5,17 +5,28 @@
 
 #include <petsc/private/dmdaimpl.h>    /*I   "petscdmda.h"   I*/
 
+PETSC_EXTERN PetscErrorCode VecDuplicate_Seq(Vec,Vec*);
+PETSC_EXTERN PetscErrorCode VecDuplicate_MPI(Vec,Vec*);
+
 PetscErrorCode  VecDuplicate_MPI_DA(Vec g,Vec *gg)
 {
   PetscErrorCode ierr;
   DM             da;
-  PetscLayout    map;
+  PetscBool      isseq;
 
   PetscFunctionBegin;
-  ierr = VecGetDM(g, &da);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(da,gg);CHKERRQ(ierr);
-  ierr = VecGetLayout(g,&map);CHKERRQ(ierr);
-  ierr = VecSetLayout(*gg,map);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)g,VECSEQ,&isseq);CHKERRQ(ierr);
+  if (isseq) {
+    ierr = VecDuplicate_Seq(g,gg);CHKERRQ(ierr);
+  } else {
+    ierr = VecDuplicate_MPI(g,gg);CHKERRQ(ierr);
+  }
+  ierr = VecGetDM(g,&da);CHKERRQ(ierr);
+  ierr = VecSetDM(*gg, da);CHKERRQ(ierr);
+  ierr = VecSetLocalToGlobalMapping(*gg,da->ltogmap);CHKERRQ(ierr);
+  ierr = VecSetOperation(*gg,VECOP_VIEW,(void (*)(void))VecView_MPI_DA);CHKERRQ(ierr);
+  ierr = VecSetOperation(*gg,VECOP_LOAD,(void (*)(void))VecLoad_Default_DA);CHKERRQ(ierr);
+  ierr = VecSetOperation(*gg,VECOP_DUPLICATE,(void (*)(void))VecDuplicate_MPI_DA);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

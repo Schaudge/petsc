@@ -65,12 +65,19 @@ TS Object: 1 MPI processes
   TSAdapt Object: 1 MPI processes
     type: none
   TSTrajectory Object: 1 MPI processes
-    type: basic
+    type: memory
     total number of recomputations for adjoint calculation = 0
     disk checkpoint reads = 0
     disk checkpoint writes = 0
+    Memory trajectory
+      SchedulerType type none
+      Use online false
+      Store stride 0
+      Recompute false
+      Skip trajectory false
+      Save stack true
+      Maximum checkpoints in RAM -1
+      Maximum checkpoints on disk -1
+      Stride 0
+      Total steps 160
 TAO solve converged due to CONVERGED_GTTOL iterations 12
-WARNING! There are options you set that were not used!
-WARNING! could be spelling mistake, etc!
-There is one unused database option. It is:
-Option left: name:-ts_trjactory_type value: memory

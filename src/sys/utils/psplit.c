@@ -66,6 +66,9 @@ PetscErrorCode  PetscSplitOwnershipBlock(MPI_Comm comm,PetscInt bs,PetscInt *n,P
      must. Otherwise, an error is thrown in debug mode while the program will hang
      in optimized (i.e. configured --with-debugging=0) mode.
 
+  Developer Notes:
+    If both n and N are greater than or equal zero then this only calls MPI_Allreduce() in debug mode for error checking.
+
 .seealso: PetscSplitOwnershipBlock()
 
 @*/
