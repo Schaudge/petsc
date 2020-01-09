@@ -281,10 +281,11 @@ int main(int argc,char **argv)
   ierr = GenerateOBs(appctx.ts,appctx.U,&appctx);CHKERRQ(ierr);
 
   if (!forwardonly) {
-    Tao tao;
-    Vec P;
-    Vec lambda[1];
+    Tao           tao;
+    Vec           P;
+    Vec           lambda[1];
     PetscLogStage opt_stage;
+    TSTrajectory  tj;
 
     ierr = PetscLogStageRegister("Optimization",&opt_stage);CHKERRQ(ierr);
     ierr = PetscLogStagePush(opt_stage);CHKERRQ(ierr);
@@ -301,6 +302,8 @@ int main(int argc,char **argv)
 
     /* Have the TS save its trajectory needed by TSAdjointSolve() */
     ierr = TSSetSaveTrajectory(appctx.ts);CHKERRQ(ierr);
+    ierr = TSGetTrajectory(appctx.ts,&tj);CHKERRQ(ierr);
+    ierr = TSTrajectorySetFromOptions(tj,appctx.ts);CHKERRQ(ierr);
 
     /* Create TAO solver and set desired solution method */
     ierr = TaoCreate(PETSC_COMM_WORLD,&tao);CHKERRQ(ierr);
