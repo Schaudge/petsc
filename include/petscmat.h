@@ -92,6 +92,9 @@ typedef const char* MatType;
 #define MATSELL            "sell"
 #define MATSEQSELL         "seqsell"
 #define MATMPISELL         "mpisell"
+#define MATSELLCUDA        "sellcuda"
+#define MATSEQSELLCUDA     "seqsellcuda"
+#define MATMPISELLCUDA     "mpisellcuda"
 #define MATDUMMY           "dummy"
 #define MATLMVM            "lmvm"
 #define MATLMVMDFP         "lmvmdfp"
@@ -1883,6 +1886,9 @@ typedef enum {MAT_CUSPARSE_MULT_DIAG, MAT_CUSPARSE_MULT_OFFDIAG, MAT_CUSPARSE_MU
 PETSC_EXTERN PetscErrorCode MatCreateSeqAIJCUSPARSE(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateAIJCUSPARSE(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
 PETSC_EXTERN PetscErrorCode MatCUSPARSESetFormat(Mat,MatCUSPARSEFormatOperation,MatCUSPARSEStorageFormat);
+
+PETSC_EXTERN PetscErrorCode MatCreateSeqSELLCUDA(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateSELLCUDA(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
 #endif
 
 #if defined(PETSC_HAVE_VIENNACL)

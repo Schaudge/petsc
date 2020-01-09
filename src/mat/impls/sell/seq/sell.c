@@ -994,6 +994,9 @@ PetscErrorCode MatDiagonalScale_SeqSELL(Mat A,Vec ll,Vec rr)
     ierr = PetscLogFlops(a->nz);CHKERRQ(ierr);
   }
   ierr = MatSeqSELLInvalidateDiagonal(A);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
+  if (A->offloadmask != PETSC_OFFLOAD_UNALLOCATED) A->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -1472,6 +1475,9 @@ PetscErrorCode MatSetValues_SeqSELL(Mat A,PetscInt m,const PetscInt im[],PetscIn
   PetscInt       *cp,nonew=a->nonew,lastcol=-1;
   MatScalar      *vp,value;
   PetscErrorCode ierr;
+#if defined(PETSC_HAVE_CUDA)
+  PetscBool      inserted = PETSC_FALSE;
+#endif
 
   PetscFunctionBegin;
   for (k=0; k<m; k++) { /* loop over added rows */
@@ -1510,6 +1516,9 @@ PetscErrorCode MatSetValues_SeqSELL(Mat A,PetscInt m,const PetscInt im[],PetscIn
         if (*(cp+i*8) == col) {
           if (is == ADD_VALUES) *(vp+i*8) += value;
           else *(vp+i*8) = value;
+#if defined(PETSC_HAVE_CUDA)
+          inserted = PETSC_TRUE;
+#endif
           low = i + 1;
           goto noinsert;
         }
@@ -1529,11 +1538,17 @@ PetscErrorCode MatSetValues_SeqSELL(Mat A,PetscInt m,const PetscInt im[],PetscIn
       *(vp+i*8) = value;
       a->nz++;
       A->nonzerostate++;
+#if defined(PETSC_HAVE_CUDA)
+      inserted = PETSC_TRUE;
+#endif
       low = i+1; high++; nrow++;
 noinsert:;
     }
     a->rlen[row] = nrow;
   }
+#if defined(PETSC_HAVE_CUDA)
+  if (A->offloadmask != PETSC_OFFLOAD_UNALLOCATED && inserted) A->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -1587,6 +1602,9 @@ PetscErrorCode MatRealPart_SeqSELL(Mat A)
 
   PetscFunctionBegin;
   for (i=0; i<a->sliidx[a->totalslices]; i++) aval[i]=PetscRealPart(aval[i]);
+#if defined(PETSC_HAVE_CUDA)
+  if (A->offloadmask != PETSC_OFFLOAD_UNALLOCATED) A->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -1600,6 +1618,9 @@ PetscErrorCode MatImaginaryPart_SeqSELL(Mat A)
   PetscFunctionBegin;
   for (i=0; i<a->sliidx[a->totalslices]; i++) aval[i] = PetscImaginaryPart(aval[i]);
   ierr = MatSeqSELLInvalidateDiagonal(A);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
+  if (A->offloadmask != PETSC_OFFLOAD_UNALLOCATED) A->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -1616,6 +1637,9 @@ PetscErrorCode MatScale_SeqSELL(Mat inA,PetscScalar alpha)
   PetscStackCallBLAS("BLASscal",BLASscal_(&size,&oalpha,aval,&one));
   ierr = PetscLogFlops(a->nz);CHKERRQ(ierr);
   ierr = MatSeqSELLInvalidateDiagonal(inA);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
+  if (inA->offloadmask != PETSC_OFFLOAD_UNALLOCATED) inA->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -2162,6 +2186,9 @@ PetscErrorCode MatConjugate_SeqSELL(Mat A)
   for (i=0; i<a->sliidx[a->totalslices]; i++) {
     val[i] = PetscConj(val[i]);
   }
+#if defined(PETSC_HAVE_CUDA)
+  if (A->offloadmask != PETSC_OFFLOAD_UNALLOCATED) A->offloadmask = PETSC_OFFLOAD_CPU;
+#endif
 #else
   PetscFunctionBegin;
 #endif
