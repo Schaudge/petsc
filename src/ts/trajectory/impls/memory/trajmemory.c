@@ -1831,28 +1831,6 @@ static PetscErrorCode  TSTrajectoryView_Memory(TSTrajectory tj,PetscViewer viewe
 
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
-
-#if defined(foo)    
-    typedef struct _TJScheduler {
-  SchedulerType stype;
-#if defined(PETSC_HAVE_REVOLVE)
-  RevolveCTX    *rctx,*rctx2;
-  PetscBool     use_online;
-  PetscInt      store_stride;
-#endif
-  PetscBool     recompute;
-  PetscBool     skip_trajectory;
-  PetscBool     save_stack;
-  PetscInt      max_cps_ram;  /* maximum checkpoints in RAM */
-  PetscInt      max_cps_disk; /* maximum checkpoints on disk */
-  PetscInt      stride;
-  PetscInt      total_steps;  /* total number of steps */
-  Stack         stack;
-  DiskStack     diskstack;
-  PetscViewer   viewer;
-} TJScheduler;
-#endif
-
     ierr = PetscViewerASCIIPrintf(viewer,"Memory trajectory\n");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  SchedulerType type %s\n",SchedulerTypes[tjsch->stype]);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_REVOLVE)
