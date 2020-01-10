@@ -97,12 +97,14 @@ typedef struct
 
 typedef struct
 {
-  DM                da; /* distributed array data structure */
+  DM                da;                  /* distributed array data structure */
   PetscSEMOperators SEMop;
   PetscParam        param;
   PetscData         dat;
   TS                ts;
   PetscReal         initial_dt;
+  Mat               H_shell,A_full;     /* matrix free operator for Jacobian, AIJ sparse representation of H_shell */
+  PetscBool         formexplicitmatrix;  /* matrix is stored in A_full; for comparison only  */
 } AppCtx;
 
 /*
@@ -128,9 +130,9 @@ int main(int argc, char **argv)
   Vec            u; /* approximate solution vector */
   Tao		 tao;
   PetscErrorCode ierr;
-  PetscInt m, nn,mp,np,pp;
-  Vec global;
-  Mat H_shell;
+  PetscInt       m, nn,mp,np,pp;
+  Vec            global;
+  Mat            H_shell;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program and set problem parameters
@@ -163,6 +165,7 @@ int main(int argc, char **argv)
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tend", &appctx.param.Tend, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-Tadj", &appctx.param.Tadj, NULL);  CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL, NULL, "-mu", &appctx.param.mu, NULL);  CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL, NULL, "-formexplicitmatrix", &appctx.formexplicitmatrix, NULL);CHKERRQ(ierr);
   appctx.param.Lex = appctx.param.Lx / appctx.param.Ex;
   appctx.param.Ley = appctx.param.Ly / appctx.param.Ey;
   appctx.param.Lez = appctx.param.Lz / appctx.param.Ez;
@@ -266,7 +269,13 @@ int main(int argc, char **argv)
   ierr = MatCreateShell(PETSC_COMM_WORLD, m, m, nn, nn, &appctx, &H_shell);CHKERRQ(ierr);
   ierr = MatShellSetOperation(H_shell, MATOP_MULT, (void (*)(void))MyMatMult);CHKERRQ(ierr);
   ierr = MatShellSetOperation(H_shell, MATOP_MULT_TRANSPOSE, (void (*)(void))MyMatMultTransp);CHKERRQ(ierr);
-  ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
+  appctx.H_shell = H_shell;
+  if (!appctx.formexplicitmatrix) {
+    ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
+  } else {
+    ierr = MatCreateAIJ(PETSC_COMM_WORLD,m,m,nn,nn,nn,NULL,nn,NULL,&appctx.A_full);CHKERRQ(ierr);
+    ierr = TSSetRHSJacobian(appctx.ts, appctx.A_full, appctx.A_full, RHSJacobian, &appctx);CHKERRQ(ierr);
+  }
   ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);CHKERRQ(ierr);
 
   ierr = VecCopy(appctx.dat.ic, appctx.dat.pass_sol);  CHKERRQ(ierr);
@@ -301,6 +310,7 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&appctx.dat.obj);CHKERRQ(ierr);
   ierr = TSDestroy(&appctx.ts);CHKERRQ(ierr);
   ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
+  ierr = MatDestroy(&appctx.A_full);CHKERRQ(ierr);
   ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
   ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr); 
 
@@ -1553,18 +1563,22 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void *ctx)
 {
   PetscErrorCode ierr;
-  AppCtx *appctx = (AppCtx *)ctx;
+  AppCtx         *appctx = (AppCtx *)ctx;
+
   PetscFunctionBegin;
 
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-
+  /* save current Jacobian base vector that defines where it is applied */
   ierr = VecCopy(globalin, appctx->dat.pass_sol); CHKERRQ(ierr);
-
-  /* keep local copy of Jacobian base vector so do not need to do the GlobalToLocal() every time in the MatMult or MatMultTranspose */
+  /* save local copy of Jacobian base vector so do not need to do the GlobalToLocal() every time in the MatMult or MatMultTranspose */
   ierr = DMGlobalToLocalBegin(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
 
+  if (appctx->formexplicitmatrix) {
+    ierr = MatCopy(appctx->H_shell,A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  } else {
+    ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
