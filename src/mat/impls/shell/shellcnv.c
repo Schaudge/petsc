@@ -21,26 +21,30 @@ PetscErrorCode MatConvert_Shell(Mat oldmat, MatType newtype,MatReuse reuse,Mat *
   ierr = MatGetSize(oldmat,&M,&N);CHKERRQ(ierr);
   ierr = PetscMalloc1(m,&rows);CHKERRQ(ierr);
 
-  ierr = MatCreate(comm,&mat);CHKERRQ(ierr);
-  ierr = MatSetSizes(mat,m,n,M,N);CHKERRQ(ierr);
-  ierr = MatSetType(mat,newtype);CHKERRQ(ierr);
-  ierr = MatSetBlockSizesFromMats(mat,oldmat,oldmat);CHKERRQ(ierr);
-  ierr = MatGetBlockSizes(mat,&rbs,&cbs);CHKERRQ(ierr);
-  mbs  = m/rbs;
-  nbs  = n/cbs;
-  Nbs  = N/cbs;
-  cst  = cst/cbs;
-  ierr = PetscMalloc4(mbs,&dnnz,mbs,&onnz,mbs,&dnnzu,mbs,&onnzu);CHKERRQ(ierr);
-  for (i=0; i<mbs; i++) {
-    dnnz[i]  = nbs;
-    onnz[i]  = Nbs - nbs;
-    dnnzu[i] = PetscMax(nbs - i,0);
-    onnzu[i] = PetscMax(Nbs - (cst + nbs),0);
+  if (reuse == MAT_REUSE_MATRIX) {
+    mat = *newmat;
+  } else {
+    ierr = MatCreate(comm,&mat);CHKERRQ(ierr);
+    ierr = MatSetSizes(mat,m,n,M,N);CHKERRQ(ierr);
+    ierr = MatSetType(mat,newtype);CHKERRQ(ierr);
+    ierr = MatSetBlockSizesFromMats(mat,oldmat,oldmat);CHKERRQ(ierr);
+    ierr = MatGetBlockSizes(mat,&rbs,&cbs);CHKERRQ(ierr);
+    mbs  = m/rbs;
+    nbs  = n/cbs;
+    Nbs  = N/cbs;
+    cst  = cst/cbs;
+    ierr = PetscMalloc4(mbs,&dnnz,mbs,&onnz,mbs,&dnnzu,mbs,&onnzu);CHKERRQ(ierr);
+    for (i=0; i<mbs; i++) {
+      dnnz[i]  = nbs;
+      onnz[i]  = Nbs - nbs;
+      dnnzu[i] = PetscMax(nbs - i,0);
+      onnzu[i] = PetscMax(Nbs - (cst + nbs),0);
+    }
+    ierr = MatXAIJSetPreallocation(mat,PETSC_DECIDE,dnnz,onnz,dnnzu,onnzu);CHKERRQ(ierr);
+    ierr = PetscFree4(dnnz,onnz,dnnzu,onnzu);CHKERRQ(ierr);
+    ierr = MatSetUp(mat);CHKERRQ(ierr);
   }
-  ierr = MatXAIJSetPreallocation(mat,PETSC_DECIDE,dnnz,onnz,dnnzu,onnzu);CHKERRQ(ierr);
-  ierr = PetscFree4(dnnz,onnz,dnnzu,onnzu);CHKERRQ(ierr);
   ierr = VecSetOption(in,VEC_IGNORE_OFF_PROC_ENTRIES,PETSC_TRUE);CHKERRQ(ierr);
-  ierr = MatSetUp(mat);CHKERRQ(ierr);
   for (i=0; i<N; i++) {
     PetscInt j;
 
@@ -66,7 +70,7 @@ PetscErrorCode MatConvert_Shell(Mat oldmat, MatType newtype,MatReuse reuse,Mat *
   ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   if (reuse == MAT_INPLACE_MATRIX) {
     ierr = MatHeaderReplace(oldmat,&mat);CHKERRQ(ierr);
-  } else {
+  } else if (reuse != MAT_REUSE_MATRIX) {
     *newmat = mat;
   }
   PetscFunctionReturn(0);

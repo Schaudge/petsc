@@ -1574,7 +1574,7 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
   ierr = DMGlobalToLocalEnd(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
 
   if (appctx->formexplicitmatrix) {
-    ierr = MatCopy(appctx->H_shell,A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatConvert(appctx->H_shell,MATAIJ, MAT_REUSE_MATRIX,&appctx->A_full);CHKERRQ(ierr);
   } else {
     ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
