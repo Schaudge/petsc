@@ -134,6 +134,7 @@ int main(int argc, char **argv)
   appctx.param.Tend = 0.1;
   appctx.param.Tadj = 0.2;
   appctx.param.Tinit = 0;
+  appctx.formexplicitmatrix = PETSC_FALSE;
 
   ierr = PetscOptionsGetInt(NULL, NULL, "-N", &appctx.param.N, NULL);   CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL, NULL, "-Ex", &appctx.param.Ex, NULL);  CHKERRQ(ierr);
@@ -249,8 +250,10 @@ int main(int argc, char **argv)
   appctx.H_shell = H_shell;
   if (!appctx.formexplicitmatrix) {
     ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
+    appctx.A_full = NULL;
   } else {
-    ierr = MatCreateAIJ(PETSC_COMM_WORLD,m,m,nn,nn,nn,NULL,nn,NULL,&appctx.A_full);CHKERRQ(ierr);
+    PetscInt Nd = 3*appctx.param.lenx*appctx.param.leny*appctx.param.lenz;
+    ierr = MatCreateAIJ(PETSC_COMM_WORLD,m,m,nn,nn,Nd,NULL,Nd,NULL,&appctx.A_full);CHKERRQ(ierr);
     ierr = TSSetRHSJacobian(appctx.ts, appctx.A_full, appctx.A_full, RHSJacobian, &appctx);CHKERRQ(ierr);
   }
   ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);CHKERRQ(ierr);
