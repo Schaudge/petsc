@@ -1,29 +1,10 @@
 
-static char help[] = "Solves a simple data assimilation problem with one dimensional advection diffusion equation using TSAdjoint\n\n";
+static char help[] = "Solves a 3d Burgers PDE constrained optimization algorithm with TSAdjoint and TAO\n\n";
 
-/*
--tao_type test -tao_test_gradient
-    Not yet tested in parallel
-
-*/
-/*
-   Concepts: TS^time-dependent linear problems
-   Concepts: TS^heat equation
-   Concepts: TS^diffusion equation
-   Concepts: adjoints
-   Processors: n
-*/
 
 /* ------------------------------------------------------------------------
 
-   This program uses the one-dimensional advection-diffusion equation),
-       u_t = mu*u_xx - a u_x,
-   on the domain 0 <= x <= 1, with periodic boundary conditions
-
-   to demonstrate solving a data assimilation problem of finding the initial conditions
-   to produce a given solution at a fixed time.
-
-   The operators are discretized with the spectral element method
+   The operators are discretized with the spectral element method on GLL points
 
   ------------------------------------------------------------------------- */
 
@@ -41,22 +22,21 @@ static char help[] = "Solves a simple data assimilation problem with one dimensi
 */
 typedef struct
 {
-  PetscInt n;         /* number of nodes */
-  PetscReal *nodes;   /* GLL nodes */
-  PetscReal *weights; /* GLL weights */
-  PetscReal    **stiff;
-  PetscReal    **mass;
-  PetscReal    **grad;
+  PetscInt  n;         /* number of nodes */
+  PetscReal *nodes;    /* GLL nodes */
+  PetscReal *weights;  /* GLL weights */
+  PetscReal **stiff;
+  PetscReal **mass;
+  PetscReal **grad;
 } PetscGLL;
 
 typedef struct
 {
-  PetscInt N;                /* grid points per elements*/
-  PetscInt Ex;               /* number of elements */
-  PetscInt Ey;               /* number of elements */
-  PetscInt Ez;               /* number of elements */
-  PetscReal tol_L2, tol_max; /* error norms */
-  PetscInt steps;            /* number of timesteps */
+  PetscInt  N;               /* grid points per elements*/
+  PetscInt  Ex;              /* number of elements */
+  PetscInt  Ey;              /* number of elements */
+  PetscInt  Ez;              /* number of elements */
+  PetscInt  steps;           /* number of timesteps */
   PetscReal Tend;            /* endtime */
   PetscReal mu;              /* viscosity */
   PetscReal Lx;              /* total length of domain */
@@ -65,16 +45,16 @@ typedef struct
   PetscReal Lex;
   PetscReal Ley;
   PetscReal Lez;
-  PetscInt lenx;
-  PetscInt leny;
-  PetscInt lenz;
+  PetscInt  lenx;
+  PetscInt  leny;
+  PetscInt  lenz;
   PetscReal Tadj;
   PetscReal Tinit;
 } PetscParam;
 
 typedef struct
 {
-  PetscScalar u, v, w; /* wind speed */
+  PetscScalar u, v, w;
 } Field;
 
 typedef struct
@@ -90,8 +70,7 @@ typedef struct
 
 typedef struct
 {
-  Vec grid;  /* total grid */
-  Vec mass;  /* mass matrix for total integration */
+  Vec      mass;  /* mass matrix for total integration */
   PetscGLL gll;
 } PetscSEMOperators;
 
@@ -120,8 +99,6 @@ extern PetscErrorCode MyMatMultTransp(Mat, Vec, Vec);
 extern PetscErrorCode PetscAllocateEl3d(PetscScalar ****, AppCtx *);
 extern PetscErrorCode PetscDestroyEl3d(PetscScalar ****, AppCtx *);
 extern PetscErrorCode PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
-extern PetscErrorCode PetscTens3dSEM(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ***, PetscScalar **,AppCtx *appctx);
-extern PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***, PetscScalar ***, PetscScalar ***, PetscScalar ****, PetscScalar ***, PetscScalar **,AppCtx *appctx);
 extern PetscErrorCode InitializeSpectral(AppCtx *);
 
 int main(int argc, char **argv)
@@ -312,12 +289,11 @@ int main(int argc, char **argv)
   ierr = MatDestroy(&H_shell);CHKERRQ(ierr);
   ierr = MatDestroy(&appctx.A_full);CHKERRQ(ierr);
   ierr = DMDestroy(&appctx.da);CHKERRQ(ierr);
-  ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr); 
+  ierr = PetscFree2(appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr);
 
   ierr = PetscGaussLobattoLegendreElementLaplacianDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.stiff);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.grad);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.mass);CHKERRQ(ierr);
-  
 
   /*
      Always call PetscFinalize() before exiting a program.  This routine
@@ -470,41 +446,40 @@ PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const Petsc
    Output Parameter:
    u - vector with solution at initial time (global)
 */
-PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
-{ Field          ***s;
-  PetscErrorCode ierr;
-  PetscInt       i, j, k, xs, ys, zs, xm, ym, zm;
-  DM             cda;
-  Vec            global;
-  DMDACoor3d     ***coors;
+PetscErrorCode InitialConditions(PetscReal t, Vec u, AppCtx *appctx)
+{
+  Field            ***s;
+  PetscErrorCode   ierr;
+  PetscInt         i, j, k, xs, ys, zs, xm, ym, zm;
+  DM               cda;
+  Vec              global;
+  const DMDACoor3d ***coors;
 
   PetscFunctionBegin;
-  ierr = DMDAVecGetArray(appctx->da, u, &s);   CHKERRQ(ierr);
-
-  DMGetCoordinateDM(appctx->da, &cda);
-  DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
+  ierr = DMDAVecGetArray(appctx->da, u, &s);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(appctx->da, &cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(cda, global, &coors);CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
 
-  tt = 0.0;
   for (k = zs; k < zs + zm; k++) {
     for (j = ys; j < ys + ym; j++) {
-    for (i = xs; i < xs + xm; i++) {
-        s[k][j][i].u = PetscExpScalar(-appctx->param.mu * tt) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
-        s[k][j][i].v = PetscExpScalar(-appctx->param.mu * tt) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
-        s[k][j][i].w = PetscExpScalar(-appctx->param.mu * tt) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
+      for (i = xs; i < xs + xm; i++) {
+        s[k][j][i].u = PetscExpScalar(-appctx->param.mu * t) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
+        s[k][j][i].v = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
+        s[k][j][i].w = PetscExpScalar(-appctx->param.mu * t) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
       }
     }
   }
 
-  ierr = DMDAVecRestoreArray(appctx->da, u, &s);   CHKERRQ(ierr);
-  DMDAVecRestoreArray(cda, global, &coors);
+  ierr = DMDAVecRestoreArray(appctx->da, u, &s);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(cda, global, &coors);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 /* --------------------------------------------------------------------- */
 /*
-   Sets the desired profile for the final end time
+   Sets the desired profile for the final end time; 
 
    Input Parameters:
    t - final time
@@ -514,136 +489,108 @@ PetscErrorCode InitialConditions(PetscReal tt, Vec u, AppCtx *appctx)
 */
 PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
 {
-  Field          ***s;
-  PetscErrorCode ierr;
-  PetscInt       i, j, k, xs, ys, zs, xm, ym, zm;
-  DM             cda;
-  Vec            global;
-  DMDACoor3d     ***coors;
+  Field           ***s;
+  PetscErrorCode  ierr;
+  PetscInt        i, j, k, xs, ys, zs, xm, ym, zm;
+  DM              cda;
+  Vec             global;
+  const DMDACoor3d ***coors;
 
   PetscFunctionBegin;
   ierr = DMDAVecGetArray(appctx->da, obj, &s);CHKERRQ(ierr);
-
-  DMGetCoordinateDM(appctx->da, &cda);
-  DMGetCoordinates(appctx->da, &global);
-  DMDAVecGetArray(cda, global, &coors);
+  ierr = DMGetCoordinateDM(appctx->da, &cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(cda, global, &coors);CHKERRQ(ierr);
 
   ierr = DMDAGetCorners(appctx->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
 
   for (k = zs; k < zs + zm; k++) {
     for (j = ys; j < ys + ym; j++) {
       for (i = xs; i < xs + xm; i++) {
-      	s[k][j][i].u = PetscExpScalar(-appctx->param.mu * t) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
-      	s[k][j][i].v = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
+        s[k][j][i].u = PetscExpScalar(-appctx->param.mu * t) * (PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
+        s[k][j][i].v = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
         s[k][j][i].w = PetscExpScalar(-appctx->param.mu * t) * (PetscSinScalar(0.5 * PETSC_PI * coors[k][j][i].x) + PetscCosScalar(0.5 * PETSC_PI * coors[k][j][i].y)) / 10.0;
       }
     }
   }
 
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(cda, global, &coors);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(cda, global, &coors);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ***out, PetscScalar **alphavec, AppCtx *appctx)
+PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ***out, PetscScalar **alphavec, AppCtx *appctx)
 {
-  PetscInt Nl, Nl2;
-  PetscInt jx;
-  PetscScalar *temp1, *temp2;
-  PetscScalar ***wrk1, ***wrk2, ***wrk3 = out;
-  PetscReal beta;
- 
+  const PetscBLASInt Nl = (PetscBLASInt)appctx->param.N, Nl2 = Nl * Nl;
+  PetscInt           jx;
+  PetscScalar        *temp1, *temp2;
+  PetscScalar        ***wrk1, ***wrk2, ***wrk3 = out;
+  const PetscReal    beta = 0;
+  PetscErrorCode     ierr;
+
   PetscFunctionBegin;
-  Nl = appctx->param.N;
-  Nl2 = Nl * Nl;
-  
-  beta=0.0;
-  
-  PetscAllocateEl3d(&wrk1, appctx);
-  PetscAllocateEl3d(&wrk2, appctx);
+  ierr = PetscAllocateEl3d(&wrk1, appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&wrk2, appctx);CHKERRQ(ierr);
 
   BLASgemm_("T", "N", &Nl, &Nl2, &Nl, alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
-  for (jx = 0; jx < Nl; jx++)
-  {
+  for (jx = 0; jx < Nl; jx++) {
     temp1 = &wrk1[0][0][0] + jx * Nl2;
     temp2 = &wrk2[0][0][0] + jx * Nl2;
-
     BLASgemm_("N", "N", &Nl, &Nl, &Nl, alphavec[0]+1, temp1, &Nl, B[0][0], &Nl, &beta, temp2, &Nl);
   }
-
   BLASgemm_("N", "N", &Nl2, &Nl, &Nl, alphavec[0]+2, &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
 
-  PetscDestroyEl3d(&wrk1, appctx);
-  PetscDestroyEl3d(&wrk2, appctx);
+  ierr = PetscDestroyEl3d(&wrk1, appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&wrk2, appctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ***out, PetscScalar **alphavec, AppCtx *appctx)
+PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, PetscScalar ***B, PetscScalar ***C, PetscScalar ****ulb, PetscScalar ***out, PetscScalar **alphavec, AppCtx *appctx)
 {
-  PetscInt Nl, Nl2;
-  PetscInt jx;
-  PetscScalar *temp1, *temp2;
-  PetscScalar ***wrk1, ***wrk2, ***wrk3 = out;
-  PetscReal beta;
- 
+  const PetscBLASInt Nl = (PetscBLASInt)appctx->param.N, Nl2 = Nl * Nl;
+  PetscInt           jx;
+  PetscScalar        *temp1, *temp2;
+  PetscScalar        ***wrk1, ***wrk2, ***wrk3 = out;
+  const PetscReal    beta = 0;
+  PetscErrorCode     ierr;
+
   PetscFunctionBegin;
-  Nl = appctx->param.N;
-  Nl2 = Nl * Nl;
-  
-  beta=0.0;
-  
-  PetscAllocateEl3d(&wrk1, appctx);
-  PetscAllocateEl3d(&wrk2, appctx);
+  ierr = PetscAllocateEl3d(&wrk1, appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&wrk2, appctx);CHKERRQ(ierr);
 
   BLASgemm_("N", "N", &Nl, &Nl2, &Nl, alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
-  for (jx = 0; jx < Nl; jx++)
-  {
+  for (jx = 0; jx < Nl; jx++) {
     temp1 = &wrk1[0][0][0] + jx * Nl2;
     temp2 = &wrk2[0][0][0] + jx * Nl2;
-
     BLASgemm_("N", "T", &Nl, &Nl, &Nl, alphavec[0]+1, temp1, &Nl, B[0][0], &Nl, &beta, temp2, &Nl);
   }
-
   BLASgemm_("N", "T", &Nl2, &Nl, &Nl, alphavec[0]+2, &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
 
-  PetscDestroyEl3d(&wrk1, appctx);
-  PetscDestroyEl3d(&wrk2, appctx);
+  ierr = PetscDestroyEl3d(&wrk1, appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&wrk2, appctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode PetscAllocateEl3d(PetscScalar ****AA, AppCtx *appctx)
 {
-  PetscScalar ***A, **B, *C;
+  PetscScalar    ***A, **B, *C;
   PetscErrorCode ierr;
-  PetscInt Nl, Nl2, Nl3;
-  PetscInt ix, iy;
+  PetscInt       Nl = appctx->param.N, Nl2 = Nl*Nl, Nl3 = Nl2*Nl;
+  PetscInt       ix, iy;
 
   PetscFunctionBegin;
-  Nl = appctx->param.N;
-  Nl2 = appctx->param.N * appctx->param.N;
-  Nl3 = appctx->param.N * appctx->param.N * appctx->param.N;
-
   ierr = PetscMalloc1(Nl, &A);CHKERRQ(ierr);
   ierr = PetscMalloc1(Nl2, &B);CHKERRQ(ierr);
   ierr = PetscMalloc1(Nl3, &C);CHKERRQ(ierr);
 
-  for (ix = 0; ix < Nl; ix++)
-  {
+  for (ix = 0; ix < Nl; ix++) {
     A[ix] = B + ix * Nl;
   }
-  for (ix = 0; ix < Nl; ix++)
-  {
-    for (iy = 0; iy < Nl; iy++)
-    {
+  for (ix = 0; ix < Nl; ix++) {
+    for (iy = 0; iy < Nl; iy++) {
       A[ix][iy] = C + ix * Nl * Nl + iy * Nl;
     }
-  }
-
-  /* Fill up the 3d array as a 1d array */
-  for (ix = 0; ix < Nl3; ix++)
-  {
-    C[ix] = ix;
   }
   *AA = A;
   PetscFunctionReturn(0);
@@ -653,12 +600,9 @@ PetscErrorCode PetscDestroyEl3d(PetscScalar ****AA, AppCtx *appctx)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFree((*AA)[0][0]);   CHKERRQ(ierr);
-  ierr = PetscFree((*AA)[0]);  CHKERRQ(ierr);
-  ierr = PetscFree(*AA);  CHKERRQ(ierr);
-
-  *AA = NULL;
-
+  ierr = PetscFree((*AA)[0][0]);CHKERRQ(ierr);
+  ierr = PetscFree((*AA)[0]);CHKERRQ(ierr);
+  ierr = PetscFree(*AA);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -667,40 +611,31 @@ PetscErrorCode PetscDestroyEl3d(PetscScalar ****AA, AppCtx *appctx)
 PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void *ctx)
 {
   PetscErrorCode ierr;
-  AppCtx *appctx = (AppCtx *)ctx;
-  PetscScalar ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
-  PetscScalar ***wrk8, ***wrk9, ***wrk10, ***wrk11;
-  PetscScalar **stiff=appctx->SEMop.gll.stiff;
-  PetscScalar **mass=appctx->SEMop.gll.mass;
-  PetscScalar **grad=appctx->SEMop.gll.grad;
-  PetscScalar ***ulb, ***vlb, ***wlb;
-  const Field ***ul;
-  Field ***outl;
-  PetscInt ix, iy, iz, jx, jy, jz, indx, indy, indz;
-  PetscInt xs, xm, ys, ym, zs, zm, Nl, Nl3;
-    Vec uloc, outloc;
-  PetscScalar alpha;
-  PetscReal *alphavec;
-  PetscInt inc;
-  
+  AppCtx         *appctx = (AppCtx *)ctx;
+  PetscScalar    ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
+  PetscScalar    ***wrk8, ***wrk9, ***wrk10, ***wrk11;
+  PetscScalar    **stiff=appctx->SEMop.gll.stiff;
+  PetscScalar    **mass=appctx->SEMop.gll.mass;
+  PetscScalar    **grad=appctx->SEMop.gll.grad;
+  PetscScalar    ***ulb, ***vlb, ***wlb;
+  const Field    ***ul;
+  Field          ***outl;
+  PetscInt       ix, iy, iz, jx, jy, jz, indx, indy, indz;
+  PetscInt       xs, xm, ys, ym, zs, zm;
+  Vec            uloc, outloc;
+  PetscScalar    alpha;
+  PetscReal      *alphavec;
+  PetscBLASInt   inc = 1,Nl = appctx->param.N, Nl3 = Nl*Nl*Nl;
+
   PetscFunctionBegin;
-
-  DMCreateLocalVector(appctx->da, &uloc);
-
-  DMGlobalToLocalBegin(appctx->da, globalin, INSERT_VALUES, uloc);
-  DMGlobalToLocalEnd(appctx->da, globalin, INSERT_VALUES, uloc);
-
+  ierr = DMCreateLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(appctx->da, globalin, INSERT_VALUES, uloc);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(appctx->da, globalin, INSERT_VALUES, uloc);CHKERRQ(ierr);
   ierr = DMDAVecGetArrayRead(appctx->da, uloc, &ul); CHKERRQ(ierr);
 
-  /* unwrap local vector for the output solution */
-  DMCreateLocalVector(appctx->da, &outloc);
-
+  ierr = DMCreateLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl); CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
-
-  Nl = appctx->param.N;
-  Nl3 = appctx->param.N * appctx->param.N * appctx->param.N;
-
   xs = xs / (Nl - 1);
   xm = xm / (Nl - 1);
   ys = ys / (Nl - 1);
@@ -708,7 +643,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   zs = zs / (Nl - 1);
   zm = zm / (Nl - 1);
 
-  inc = 1;
   /*
      Initialize work arrays
   */
@@ -728,27 +662,19 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   PetscAllocateEl3d(&wrk11, appctx);
 
   ierr = PetscMalloc1(3, &alphavec);
-  for (ix = xs; ix < xs + xm; ix++)
-  {
-    for (iy = ys; iy < ys + ym; iy++)
-    {
-      for (iz = zs; iz < zs + zm; iz++)
-
-      {
-        for (jx = 0; jx < Nl; jx++)
-        {
-          for (jy = 0; jy < Nl; jy++)
-          {
-            for (jz = 0; jz < Nl; jz++)
-            {
-	            indx = ix * (appctx->param.N - 1) + jx;
+  for (ix = xs; ix < xs + xm; ix++) {
+    for (iy = ys; iy < ys + ym; iy++) {
+      for (iz = zs; iz < zs + zm; iz++) {
+        for (jx = 0; jx < Nl; jx++) {
+          for (jy = 0; jy < Nl; jy++) {
+            for (jz = 0; jz < Nl; jz++) {
+              indx = ix * (appctx->param.N - 1) + jx;
               indy = iy * (appctx->param.N - 1) + jy;
               indz = iz * (appctx->param.N - 1) + jz;
-             
               ulb[jz][jy][jx] = ul[indz][indy][indx].u;
               vlb[jz][jy][jx] = ul[indz][indy][indx].v;
               wlb[jz][jy][jx] = ul[indz][indy][indx].w;
-	          }
+            }
           }
         }
 
@@ -779,7 +705,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
 
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
         BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
- 
+
         //the term (B x B x K_zz)w=W3 (w_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &wlb, wrk3, &alphavec, appctx);
@@ -793,7 +719,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
         BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
         // I save w1, w2, w3
-               
+
         //now the gradient operator for u
          //the term (D_x x B x B)u=W4 (u_x)         
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
@@ -804,7 +730,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //the term (B x B x D_z)u=W4 (u_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &ulb, wrk6, &alphavec, appctx);
-        
+
         PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk7[0][0][0]); //u.*u_x goes in w7, w4 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk8[0][0][0]); //v.*u_y goes in w8, w5 free
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk9[0][0][0]); //w.*u_z goes in w9, w6 free
@@ -822,7 +748,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //the term (B x B x D_z)u=W4 (v_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk6, &alphavec, appctx);        
- 
+
         PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); //u.*v_x goes in w10, w4 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*v_y goes in w9, w5 free
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);//w.*v_z goes in w8, w6 free
@@ -840,7 +766,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         //the term (B x B x D_z)u=W4 (w_z)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &wlb, wrk6, &alphavec, appctx);
- 
+
         PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk11[0][0][0]); //u.*w_x goes in w11, w4 free
         PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*w_y goes in w10, w5 free
         PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk9[0][0][0]);  //w.*w_z goes in w9, w6 free
@@ -848,58 +774,50 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk11 and saved the laplacian in wrk10
         BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the laplacian in wrk9
 
-        //I saved w7 w8 w9
-        
-         for (jx = 0; jx < appctx->param.N; jx++)
-          {
-           for (jy = 0; jy < appctx->param.N; jy++)
-             {
-             for (jz = 0; jz < appctx->param.N; jz++)
-               {
-                 indx = ix * (appctx->param.N - 1) + jx;
-                 indy = iy * (appctx->param.N - 1) + jy;
-                 indz = iz * (appctx->param.N - 1) + jz;
-
-                 outl[indz][indy][indx].u += appctx->param.mu *wrk1[jz][jy][jx]+wrk7[jz][jy][jx];
-                 outl[indz][indy][indx].v += appctx->param.mu *wrk2[jz][jy][jx]+wrk8[jz][jy][jx];
-                 outl[indz][indy][indx].w += appctx->param.mu *wrk3[jz][jy][jx]+wrk9[jz][jy][jx];
-                }
-              }
+        /* I saved w7 w8 w9 */
+        for (jx = 0; jx < appctx->param.N; jx++) {
+          for (jy = 0; jy < appctx->param.N; jy++) {
+            for (jz = 0; jz < appctx->param.N; jz++) {
+              indx = ix * (appctx->param.N - 1) + jx;
+              indy = iy * (appctx->param.N - 1) + jy;
+              indz = iz * (appctx->param.N - 1) + jz;
+              outl[indz][indy][indx].u += appctx->param.mu *wrk1[jz][jy][jx]+wrk7[jz][jy][jx];
+              outl[indz][indy][indx].v += appctx->param.mu *wrk2[jz][jy][jx]+wrk8[jz][jy][jx];
+              outl[indz][indy][indx].w += appctx->param.mu *wrk3[jz][jy][jx]+wrk9[jz][jy][jx];
             }
+          }
+        }
+      }
     }
   }
-}
-ierr = DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
-ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
 
-VecSet(globalout, 0.0);
-DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, globalout);
-DMLocalToGlobalEnd(appctx->da, outloc, ADD_VALUES, globalout);
+  ierr = VecSet(globalout, 0.0);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, globalout);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(appctx->da, outloc, ADD_VALUES, globalout);CHKERRQ(ierr);
+  ierr = VecScale(globalout, -1.0);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);CHKERRQ(ierr);
 
-VecScale(globalout, -1.0);
+  PetscDestroyEl3d(&ulb, appctx);
+  PetscDestroyEl3d(&vlb, appctx);
+  PetscDestroyEl3d(&wlb, appctx);
+  PetscDestroyEl3d(&wrk1, appctx);
+  PetscDestroyEl3d(&wrk2, appctx);
+  PetscDestroyEl3d(&wrk3, appctx);
+  PetscDestroyEl3d(&wrk4, appctx);
+  PetscDestroyEl3d(&wrk5, appctx);
+  PetscDestroyEl3d(&wrk6, appctx);
+  PetscDestroyEl3d(&wrk7, appctx);
+  PetscDestroyEl3d(&wrk8, appctx);
+  PetscDestroyEl3d(&wrk9, appctx);
+  PetscDestroyEl3d(&wrk10, appctx);
+  PetscDestroyEl3d(&wrk11, appctx);
 
-ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);
-CHKERRQ(ierr);
-
-PetscDestroyEl3d(&ulb, appctx);
-PetscDestroyEl3d(&vlb, appctx);
-PetscDestroyEl3d(&wlb, appctx);
-PetscDestroyEl3d(&wrk1, appctx);
-PetscDestroyEl3d(&wrk2, appctx);
-PetscDestroyEl3d(&wrk3, appctx);
-PetscDestroyEl3d(&wrk4, appctx);
-PetscDestroyEl3d(&wrk5, appctx);
-PetscDestroyEl3d(&wrk6, appctx);
-PetscDestroyEl3d(&wrk7, appctx);
-PetscDestroyEl3d(&wrk8, appctx);
-PetscDestroyEl3d(&wrk9, appctx);
-PetscDestroyEl3d(&wrk10, appctx);
-PetscDestroyEl3d(&wrk11, appctx);
-
-ierr = VecDestroy(&outloc);CHKERRQ(ierr);
-ierr = VecDestroy(&uloc);CHKERRQ(ierr);
-ierr = PetscFree(alphavec);CHKERRQ(ierr);
-PetscFunctionReturn(0);
+  ierr = VecDestroy(&outloc);CHKERRQ(ierr);
+  ierr = VecDestroy(&uloc);CHKERRQ(ierr);
+  ierr = PetscFree(alphavec);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
