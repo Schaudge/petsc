@@ -84,6 +84,7 @@ typedef struct
   PetscReal         initial_dt;
   Mat               H_shell,A_full;     /* matrix free operator for Jacobian, AIJ sparse representation of H_shell */
   PetscBool         formexplicitmatrix;  /* matrix is stored in A_full; for comparison only  */
+  PetscScalar       ***tenswrk1, ***tenswrk2;
 } AppCtx;
 
 /*
@@ -211,6 +212,10 @@ int main(int argc, char **argv)
   ierr = PetscViewerDestroy(&viewfile); CHKERRQ(ierr);
 #endif
 
+  /* allocate work space needed by tensor products */
+  ierr = PetscAllocateEl3d(&appctx.tenswrk1, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.tenswrk2, &appctx);CHKERRQ(ierr);
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    Create matrix data structure; set matrix evaluation routine.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -238,7 +243,6 @@ int main(int argc, char **argv)
   /* Need to save initial timestep user may have set with -ts_dt so it can be reset for each new TSSolve() */
   ierr = TSGetTimeStep(appctx.ts, &appctx.initial_dt);CHKERRQ(ierr);
 
-
   ierr = InitialConditions(appctx.param.Tinit, appctx.dat.ic, &appctx);CHKERRQ(ierr);
   ierr = VecCopy(appctx.dat.ic,appctx.dat.curr_sol);CHKERRQ(ierr);
   /* Create matrix-free matrices for applying Jacobian of RHS function */
@@ -263,7 +267,6 @@ int main(int argc, char **argv)
   ierr = DMGlobalToLocalEnd(appctx.da,appctx.dat.pass_sol,INSERT_VALUES,appctx.dat.pass_sol_local);CHKERRQ(ierr);
 
   /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
-
   
   ierr = ComputeObjective(appctx.param.Tadj, appctx.dat.obj, &appctx); CHKERRQ(ierr);
   /* Create TAO solver and set desired solution method  */
@@ -298,12 +301,9 @@ int main(int argc, char **argv)
   ierr = PetscGaussLobattoLegendreElementAdvectionDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.grad);CHKERRQ(ierr);
   ierr = PetscGaussLobattoLegendreElementMassDestroy(appctx.SEMop.gll.n, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights, &appctx.SEMop.gll.mass);CHKERRQ(ierr);
 
-  /*
-     Always call PetscFinalize() before exiting a program.  This routine
-       - finalizes the PETSc libraries as well as MPI
-       - provides summary and diagnostic information if certain runtime
-         options are chosen (e.g., -log_summary).
-  */
+  ierr = PetscDestroyEl3d(&appctx.tenswrk1, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.tenswrk2, &appctx);CHKERRQ(ierr);
+
   ierr = PetscFinalize();
   return ierr;
 }
@@ -527,14 +527,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar 
   const PetscBLASInt Nl = (PetscBLASInt)appctx->param.N, Nl2 = Nl * Nl;
   PetscInt           jx;
   PetscScalar        *temp1, *temp2;
-  PetscScalar        ***wrk1, ***wrk2, ***wrk3 = out;
+  PetscScalar        ***wrk1 = appctx->tenswrk1, ***wrk2  = appctx->tenswrk2, ***wrk3 = out;
   const PetscReal    beta = 0;
-  PetscErrorCode     ierr;
 
   PetscFunctionBegin;
-  ierr = PetscAllocateEl3d(&wrk1, appctx);CHKERRQ(ierr);
-  ierr = PetscAllocateEl3d(&wrk2, appctx);CHKERRQ(ierr);
-
   BLASgemm_("T", "N", &Nl, &Nl2, &Nl, &alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
   for (jx = 0; jx < Nl; jx++) {
     temp1 = &wrk1[0][0][0] + jx * Nl2;
@@ -542,9 +538,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar 
     BLASgemm_("N", "N", &Nl, &Nl, &Nl, &alphavec[1], temp1, &Nl, B[0][0], &Nl, &beta, temp2, &Nl);
   }
   BLASgemm_("N", "N", &Nl2, &Nl, &Nl, &alphavec[2], &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
-
-  ierr = PetscDestroyEl3d(&wrk1, appctx);CHKERRQ(ierr);
-  ierr = PetscDestroyEl3d(&wrk2, appctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -554,14 +547,10 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, Pet
   const PetscBLASInt Nl = (PetscBLASInt)appctx->param.N, Nl2 = Nl * Nl;
   PetscInt           jx;
   PetscScalar        *temp1, *temp2;
-  PetscScalar        ***wrk1, ***wrk2, ***wrk3 = out;
+  PetscScalar        ***wrk1 = appctx->tenswrk1, ***wrk2  = appctx->tenswrk2, ***wrk3 = out;
   const PetscReal    beta = 0;
-  PetscErrorCode     ierr;
 
   PetscFunctionBegin;
-  ierr = PetscAllocateEl3d(&wrk1, appctx);CHKERRQ(ierr);
-  ierr = PetscAllocateEl3d(&wrk2, appctx);CHKERRQ(ierr);
-
   BLASgemm_("N", "N", &Nl, &Nl2, &Nl, &alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
   for (jx = 0; jx < Nl; jx++) {
     temp1 = &wrk1[0][0][0] + jx * Nl2;
@@ -569,9 +558,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, Pet
     BLASgemm_("N", "T", &Nl, &Nl, &Nl, &alphavec[1], temp1, &Nl, B[0][0], &Nl, &beta, temp2, &Nl);
   }
   BLASgemm_("N", "T", &Nl2, &Nl, &Nl, &alphavec[2], &wrk2[0][0][0], &Nl2, C[0][0], &Nl, &beta, &wrk3[0][0][0], &Nl2);
-
-  ierr = PetscDestroyEl3d(&wrk1, appctx);CHKERRQ(ierr);
-  ierr = PetscDestroyEl3d(&wrk2, appctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
