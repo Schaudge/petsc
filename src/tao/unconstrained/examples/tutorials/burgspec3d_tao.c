@@ -85,6 +85,24 @@ typedef struct
   Mat               H_shell,A_full;     /* matrix free operator for Jacobian, AIJ sparse representation of H_shell */
   PetscBool         formexplicitmatrix;  /* matrix is stored in A_full; for comparison only  */
   PetscScalar       ***tenswrk1, ***tenswrk2;
+  PetscScalar       ***ulb;
+  PetscScalar       ***vlb;
+  PetscScalar       ***wlb;
+  PetscScalar       ***ujb;
+  PetscScalar       ***vjb;
+  PetscScalar       ***wjb;
+  PetscScalar       ***wrk1;
+  PetscScalar       ***wrk2;
+  PetscScalar       ***wrk3;
+  PetscScalar       ***wrk4;
+  PetscScalar       ***wrk5;
+  PetscScalar       ***wrk6;
+  PetscScalar       ***wrk7;
+  PetscScalar       ***wrk8;
+  PetscScalar       ***wrk9;
+  PetscScalar       ***wrk10;
+  PetscScalar       ***wrk11;
+  PetscScalar       ***wrk12;
 } AppCtx;
 
 /*
@@ -99,7 +117,6 @@ extern PetscErrorCode MyMatMult(Mat, Vec, Vec);
 extern PetscErrorCode MyMatMultTransp(Mat, Vec, Vec);
 extern PetscErrorCode PetscAllocateEl3d(PetscScalar ****, AppCtx *);
 extern PetscErrorCode PetscDestroyEl3d(PetscScalar ****, AppCtx *);
-extern PetscErrorCode PetscPointWiseMult(PetscInt, const PetscScalar *, const PetscScalar *, PetscScalar *);
 extern PetscErrorCode InitializeSpectral(AppCtx *);
 
 int main(int argc, char **argv)
@@ -215,17 +232,24 @@ int main(int argc, char **argv)
   /* allocate work space needed by tensor products */
   ierr = PetscAllocateEl3d(&appctx.tenswrk1, &appctx);CHKERRQ(ierr);
   ierr = PetscAllocateEl3d(&appctx.tenswrk2, &appctx);CHKERRQ(ierr);
-
-  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   Create matrix data structure; set matrix evaluation routine.
-   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-  /*
-  ierr = DMSetMatrixPreallocateOnly(appctx.da, PETSC_TRUE);   CHKERRQ(ierr);
-  ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.stiff); CHKERRQ(ierr);
-  ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.grad);  CHKERRQ(ierr);
-  ierr = DMCreateMatrix(appctx.da, &appctx.SEMop.opadd); CHKERRQ(ierr);
-  */
+  PetscAllocateEl3d(&appctx.ulb, &appctx);
+  PetscAllocateEl3d(&appctx.vlb, &appctx);
+  PetscAllocateEl3d(&appctx.wlb, &appctx);
+  PetscAllocateEl3d(&appctx.ujb, &appctx);
+  PetscAllocateEl3d(&appctx.vjb, &appctx);
+  PetscAllocateEl3d(&appctx.wjb, &appctx);
+  PetscAllocateEl3d(&appctx.wrk1, &appctx);
+  PetscAllocateEl3d(&appctx.wrk2, &appctx);
+  PetscAllocateEl3d(&appctx.wrk3, &appctx);
+  PetscAllocateEl3d(&appctx.wrk4, &appctx);
+  PetscAllocateEl3d(&appctx.wrk5, &appctx);
+  PetscAllocateEl3d(&appctx.wrk6, &appctx);
+  PetscAllocateEl3d(&appctx.wrk7, &appctx);
+  PetscAllocateEl3d(&appctx.wrk8, &appctx);
+  PetscAllocateEl3d(&appctx.wrk9, &appctx);
+  PetscAllocateEl3d(&appctx.wrk10, &appctx);
+  PetscAllocateEl3d(&appctx.wrk11, &appctx);
+  PetscAllocateEl3d(&appctx.wrk12, &appctx);  
  
   /* Create the TS solver that solves the ODE and its adjoint; set its options */
   ierr = TSCreate(PETSC_COMM_WORLD, &appctx.ts);CHKERRQ(ierr);
@@ -303,6 +327,24 @@ int main(int argc, char **argv)
 
   ierr = PetscDestroyEl3d(&appctx.tenswrk1, &appctx);CHKERRQ(ierr);
   ierr = PetscDestroyEl3d(&appctx.tenswrk2, &appctx);CHKERRQ(ierr);
+  PetscDestroyEl3d(&appctx.ulb, &appctx);
+  PetscDestroyEl3d(&appctx.vlb, &appctx);
+  PetscDestroyEl3d(&appctx.wlb, &appctx);
+  PetscDestroyEl3d(&appctx.ujb, &appctx);
+  PetscDestroyEl3d(&appctx.vjb, &appctx);
+  PetscDestroyEl3d(&appctx.wjb, &appctx);
+  PetscDestroyEl3d(&appctx.wrk1, &appctx);
+  PetscDestroyEl3d(&appctx.wrk2, &appctx);
+  PetscDestroyEl3d(&appctx.wrk3, &appctx);
+  PetscDestroyEl3d(&appctx.wrk4, &appctx);
+  PetscDestroyEl3d(&appctx.wrk5, &appctx);
+  PetscDestroyEl3d(&appctx.wrk6, &appctx);
+  PetscDestroyEl3d(&appctx.wrk7, &appctx);
+  PetscDestroyEl3d(&appctx.wrk8, &appctx);
+  PetscDestroyEl3d(&appctx.wrk9, &appctx);
+  PetscDestroyEl3d(&appctx.wrk10, &appctx);
+  PetscDestroyEl3d(&appctx.wrk11, &appctx);
+  PetscDestroyEl3d(&appctx.wrk12, &appctx);
 
   ierr = PetscFinalize();
   return ierr;
@@ -424,13 +466,12 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
 }
 
 
-PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const PetscScalar *B, PetscScalar *out)
+PETSC_STATIC_INLINE PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const PetscScalar *B, PetscScalar *out)
 {
   PetscInt i;
 
   PetscFunctionBegin;
-  for (i = 0; i < Nl; i++) 
-  {
+  for (i = 0; i < Nl; i++) {
     out[i] = A[i] * B[i];
   }
   PetscFunctionReturn(0);
@@ -1110,24 +1151,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(uloc,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
    PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);  */
 
-  PetscDestroyEl3d(&ulb, appctx);
-  PetscDestroyEl3d(&vlb, appctx);
-  PetscDestroyEl3d(&wlb, appctx);
-  PetscDestroyEl3d(&ujb, appctx);
-  PetscDestroyEl3d(&vjb, appctx);
-  PetscDestroyEl3d(&wjb, appctx);
-  PetscDestroyEl3d(&wrk1, appctx);
-  PetscDestroyEl3d(&wrk2, appctx);
-  PetscDestroyEl3d(&wrk3, appctx);
-  PetscDestroyEl3d(&wrk4, appctx);
-  PetscDestroyEl3d(&wrk5, appctx);
-  PetscDestroyEl3d(&wrk6, appctx);
-  PetscDestroyEl3d(&wrk7, appctx);
-  PetscDestroyEl3d(&wrk8, appctx);
-  PetscDestroyEl3d(&wrk9, appctx);
-  PetscDestroyEl3d(&wrk10, appctx);
-  PetscDestroyEl3d(&wrk11, appctx);
-  PetscDestroyEl3d(&wrk12, appctx);
 
   DMRestoreLocalVector(appctx->da, &uloc);
   DMRestoreLocalVector(appctx->da, &outloc);
@@ -1138,29 +1161,47 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 #define __FUNCT__ "MyMatMultTransp"
 PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 {
-  AppCtx         *appctx;
-  PetscErrorCode ierr;
-  PetscScalar ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
-  PetscScalar ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
-  PetscScalar ***ulb, ***vlb, ***wlb;
-  PetscScalar ***ujb, ***vjb, ***wjb;
-  const Field ***ul, ***uj;
-  Field ***outl;
-  PetscInt ix, iy, iz, jx, jy, jz, indx, indy, indz;
-  PetscInt xs, xm, ys, ym, zs, zm, Nl, Nl3;
-  Vec uloc, outloc, incopy;
-  PetscScalar alpha;
-  PetscReal alphavec[3];
-  PetscInt inc;
-  PetscScalar **stiff;
-  PetscScalar **mass;
-  PetscScalar **grad;
-  
+  AppCtx            *appctx;
+  PetscErrorCode    ierr;
+  PetscScalar       ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
+  PetscScalar       ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
+  PetscScalar       ***ulb, ***vlb, ***wlb;
+  PetscScalar       ***ujb, ***vjb, ***wjb;
+  const Field       ***ul, ***uj;
+  Field             ***outl;
+  PetscInt          ix, iy, iz, jx, jy, jz, indx, indy, indz;
+  PetscInt          xs, xm, ys, ym, zs, zm, Nl, Nl3;
+  Vec               uloc, outloc, incopy;
+  PetscReal         alphavec[3];
+  PetscScalar       **stiff;
+  PetscScalar       **mass;
+  PetscScalar       **grad;
+  const PetscInt    inc = 1;
+  const PetscScalar alpha=1.0;
+
   PetscFunctionBegin;
   ierr  = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
   stiff = appctx->SEMop.gll.stiff;
   mass  = appctx->SEMop.gll.mass;
   grad  = appctx->SEMop.gll.grad;
+  ulb  = appctx->ulb;
+  vlb  = appctx->vlb;
+  wlb  = appctx->wlb;
+  ujb  = appctx->ujb;
+  vjb  = appctx->vjb;
+  wjb  = appctx->wjb;
+  wrk1  = appctx->wrk1;
+  wrk2  = appctx->wrk2;
+  wrk3  = appctx->wrk3;
+  wrk4  = appctx->wrk4;
+  wrk5  = appctx->wrk5;
+  wrk6  = appctx->wrk6;
+  wrk7  = appctx->wrk7;
+  wrk8  = appctx->wrk8;
+  wrk9  = appctx->wrk9;
+  wrk10  = appctx->wrk10;
+  wrk11  = appctx->wrk11;
+  wrk12  = appctx->wrk12;
 
   ierr = DMGetGlobalVector(appctx->da, &incopy);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(incopy, in, appctx->SEMop.mass);CHKERRQ(ierr);
@@ -1176,14 +1217,13 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   ierr = DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);CHKERRQ(ierr);
 
   /* outl contains local array of output vector (the transpose product) */
-  ierr = DMCreateLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
+  ierr = VecSet(outloc,0);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
 
   ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
-
   Nl = appctx->param.N;
   Nl3 = appctx->param.N * appctx->param.N * appctx->param.N;
-
   xs = xs / (Nl - 1);
   xm = xm / (Nl - 1);
   ys = ys / (Nl - 1);
@@ -1191,44 +1231,20 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   zs = zs / (Nl - 1);
   zm = zm / (Nl - 1);
 
-  inc = 1;
   /*
      Initialize work arrays
   */
-  PetscAllocateEl3d(&ulb, appctx);
-  PetscAllocateEl3d(&vlb, appctx);
-  PetscAllocateEl3d(&wlb, appctx);
-  PetscAllocateEl3d(&ujb, appctx);
-  PetscAllocateEl3d(&vjb, appctx);
-  PetscAllocateEl3d(&wjb, appctx);
-  PetscAllocateEl3d(&wrk1, appctx);
-  PetscAllocateEl3d(&wrk2, appctx);
-  PetscAllocateEl3d(&wrk3, appctx);
-  PetscAllocateEl3d(&wrk4, appctx);
-  PetscAllocateEl3d(&wrk5, appctx);
-  PetscAllocateEl3d(&wrk6, appctx);
-  PetscAllocateEl3d(&wrk7, appctx);
-  PetscAllocateEl3d(&wrk8, appctx);
-  PetscAllocateEl3d(&wrk9, appctx);
-  PetscAllocateEl3d(&wrk10, appctx);
-  PetscAllocateEl3d(&wrk11, appctx);
-  PetscAllocateEl3d(&wrk12, appctx);  
 
-  for (ix = xs; ix < xs + xm; ix++)
-  {
-    for (iy = ys; iy < ys + ym; iy++)
-    {
-      for (iz = zs; iz < zs + zm; iz++)
-      {
-        for (jx = 0; jx < Nl; jx++)
-        {
-          for (jy = 0; jy < Nl; jy++)
-          {
-            for (jz = 0; jz < Nl; jz++)
-            {
-	            indx = ix * (appctx->param.N - 1) + jx;
-              indy = iy * (appctx->param.N - 1) + jy;
-              indz = iz * (appctx->param.N - 1) + jz;
+
+  for (ix = xs; ix < xs + xm; ix++) {
+    for (iy = ys; iy < ys + ym; iy++) {
+      for (iz = zs; iz < zs + zm; iz++) {
+        for (jx = 0; jx < Nl; jx++) {
+          for (jy = 0; jy < Nl; jy++) {
+            for (jz = 0; jz < Nl; jz++) {
+              indx = ix * (Nl - 1) + jx;
+              indy = iy * (Nl - 1) + jy;
+              indz = iz * (Nl - 1) + jz;
 
               ujb[jz][jy][jx] = uj[indz][indy][indx].u;
               vjb[jz][jy][jx] = uj[indz][indy][indx].v;
@@ -1237,11 +1253,10 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
               ulb[jz][jy][jx] = ul[indz][indy][indx].u;
               vlb[jz][jy][jx] = ul[indz][indy][indx].v;
               wlb[jz][jy][jx] = ul[indz][indy][indx].w;
-	          }
+            }
           }
         }
 
-        alpha=1.0;
         //here the stifness matrix in 3d
         //the term (B x B x K_zz)u=W1 (u_zz)         
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
@@ -1403,25 +1418,20 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 
         //sum  u.*(D w_v)[w9]+w.*(D v)[w10]
         BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
-        
-        //I saved w7 w8 w9
-                      
-        for (jx = 0; jx < appctx->param.N; jx++)
-         {
-          for (jy = 0; jy < appctx->param.N; jy++)
-          {
-            for (jz = 0; jz < appctx->param.N; jz++)
-            {
-              indx = ix * (appctx->param.N - 1) + jx;
-              indy = iy * (appctx->param.N - 1) + jy;
-              indz = iz * (appctx->param.N - 1) + jz;
 
+        //I saved w7 w8 w9
+        for (jx = 0; jx < Nl; jx++) {
+          for (jy = 0; jy < Nl; jy++) {
+            for (jz = 0; jz < Nl; jz++) {
+              indx = ix * (Nl - 1) + jx;
+              indy = iy * (Nl - 1) + jy;
+              indz = iz * (Nl - 1) + jz;
               outl[indz][indy][indx].u += appctx->param.mu *wrk1[jz][jy][jx]+wrk7[jz][jy][jx];
               outl[indz][indy][indx].v += appctx->param.mu *wrk2[jz][jy][jx]+wrk8[jz][jy][jx];
               outl[indz][indy][indx].w += appctx->param.mu *wrk3[jz][jy][jx]+wrk9[jz][jy][jx];
             }
           }
-        }             
+        }
       }
     }
   }
@@ -1438,28 +1448,10 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
    PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);   */
 
-  PetscDestroyEl3d(&ulb, appctx);
-  PetscDestroyEl3d(&vlb, appctx);
-  PetscDestroyEl3d(&wlb, appctx);
-  PetscDestroyEl3d(&ujb, appctx);
-  PetscDestroyEl3d(&vjb, appctx);
-  PetscDestroyEl3d(&wjb, appctx);
-  PetscDestroyEl3d(&wrk1, appctx);
-  PetscDestroyEl3d(&wrk2, appctx);
-  PetscDestroyEl3d(&wrk3, appctx);
-  PetscDestroyEl3d(&wrk4, appctx);
-  PetscDestroyEl3d(&wrk5, appctx);
-  PetscDestroyEl3d(&wrk6, appctx);
-  PetscDestroyEl3d(&wrk7, appctx);
-  PetscDestroyEl3d(&wrk8, appctx);
-  PetscDestroyEl3d(&wrk9, appctx);
-  PetscDestroyEl3d(&wrk10, appctx);
-  PetscDestroyEl3d(&wrk11, appctx);
-  PetscDestroyEl3d(&wrk12, appctx);
 
   ierr = DMRestoreGlobalVector(appctx->da, &incopy);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
-  VecDestroy(&outloc);
+  ierr = DMRestoreLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
