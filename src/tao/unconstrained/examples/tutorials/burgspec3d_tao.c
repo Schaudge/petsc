@@ -280,8 +280,11 @@ int main(int argc, char **argv)
     ierr = TSSetRHSJacobian(appctx.ts, H_shell, H_shell, RHSJacobian, &appctx);CHKERRQ(ierr);
     appctx.A_full = NULL;
   } else {
-    PetscInt Nd = 3*appctx.param.lenx*appctx.param.leny*appctx.param.lenz;
+    PetscInt xm,ym,zm,Nd;
+    ierr = DMDAGetCorners(appctx.da,NULL,NULL,NULL,&xm,&ym,&zm);CHKERRQ(ierr);
+    Nd   = nn;
     ierr = MatCreateAIJ(PETSC_COMM_WORLD,m,m,nn,nn,Nd,NULL,Nd,NULL,&appctx.A_full);CHKERRQ(ierr);
+    ierr = MatSetOption(appctx.A_full,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
     ierr = TSSetRHSJacobian(appctx.ts, appctx.A_full, appctx.A_full, RHSJacobian, &appctx);CHKERRQ(ierr);
   }
   ierr = TSSetRHSFunction(appctx.ts, NULL, RHSFunction, &appctx);CHKERRQ(ierr);
@@ -885,7 +888,8 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
 
   /* outl contains the output vector as a local array */
-  DMGetLocalVector(appctx->da, &outloc);
+  ierr = DMGetLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
+  ierr = VecSet(outloc,0);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
 
@@ -1435,6 +1439,8 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
       }
     }
   }
+  /*                          pointwise   axpy             tens                                             outl */
+  ierr = PetscLogFlops(xm*ym*zm*(18*Nl3 + 2*21*Nl3 + 27*(2*Nl*Nl*Nl*Nl + 2*Nl*Nl*Nl*Nl + 2*Nl*Nl*Nl*Nl) + 3*Nl*Nl*Nl));
 
   ierr = DMDAVecRestoreArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArrayRead(appctx->da, uloc,&ul);CHKERRQ(ierr);
@@ -1470,11 +1476,10 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec globalin, Mat A, Mat B, void 
   ierr = DMGlobalToLocalBegin(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(appctx->da, appctx->dat.pass_sol, INSERT_VALUES, appctx->dat.pass_sol_local);CHKERRQ(ierr);
 
+  ierr = MatAssemblyBegin(appctx->H_shell, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(appctx->H_shell, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   if (appctx->formexplicitmatrix) {
     ierr = MatConvert(appctx->H_shell,MATAIJ, MAT_REUSE_MATRIX,&appctx->A_full);CHKERRQ(ierr);
-  } else {
-    ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

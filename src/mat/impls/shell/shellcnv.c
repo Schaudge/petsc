@@ -23,6 +23,7 @@ PetscErrorCode MatConvert_Shell(Mat oldmat, MatType newtype,MatReuse reuse,Mat *
 
   if (reuse == MAT_REUSE_MATRIX) {
     mat = *newmat;
+    ierr = MatZeroEntries(mat);CHKERRQ(ierr);
   } else {
     ierr = MatCreate(comm,&mat);CHKERRQ(ierr);
     ierr = MatSetSizes(mat,m,n,M,N);CHKERRQ(ierr);
