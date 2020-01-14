@@ -858,7 +858,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
 
   /* outl contains the output vector as a local array */
-  DMCreateLocalVector(appctx->da, &outloc);
+  DMGetLocalVector(appctx->da, &outloc);
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
 
@@ -1177,13 +1177,11 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   grad  = appctx->SEMop.gll.grad;
 
   ierr = DMGetGlobalVector(appctx->da, &incopy);CHKERRQ(ierr);
-  ierr = VecCopy(in, incopy);CHKERRQ(ierr);CHKERRQ(ierr);
-
   ierr = VecPointwiseDivide(incopy, in, appctx->SEMop.mass);CHKERRQ(ierr);
   ierr = VecScale(incopy, -1);CHKERRQ(ierr);
 
   /* ul contains local array of input, the vector the transpose is applied to */
-  ierr = DMCreateLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(appctx->da, incopy, INSERT_VALUES, uloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(appctx->da, incopy, INSERT_VALUES, uloc);CHKERRQ(ierr);
   ierr = DMDAVecGetArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);CHKERRQ(ierr);
@@ -1474,7 +1472,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   PetscDestroyEl3d(&wrk12, appctx);
 
   ierr = DMRestoreGlobalVector(appctx->da, &incopy);CHKERRQ(ierr);
-  VecDestroy(&uloc);
+  ierr = DMRestoreLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
   VecDestroy(&outloc);
   PetscFunctionReturn(0);
 }
