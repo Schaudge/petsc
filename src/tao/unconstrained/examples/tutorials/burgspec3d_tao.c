@@ -1155,6 +1155,24 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(uloc,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
    PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);  */
 
+  PetscDestroyEl3d(&ulb, appctx);
+  PetscDestroyEl3d(&vlb, appctx);
+  PetscDestroyEl3d(&wlb, appctx);
+  PetscDestroyEl3d(&ujb, appctx);
+  PetscDestroyEl3d(&vjb, appctx);
+  PetscDestroyEl3d(&wjb, appctx);
+  PetscDestroyEl3d(&wrk1, appctx);
+  PetscDestroyEl3d(&wrk2, appctx);
+  PetscDestroyEl3d(&wrk3, appctx);
+  PetscDestroyEl3d(&wrk4, appctx);
+  PetscDestroyEl3d(&wrk5, appctx);
+  PetscDestroyEl3d(&wrk6, appctx);
+  PetscDestroyEl3d(&wrk7, appctx);
+  PetscDestroyEl3d(&wrk8, appctx);
+  PetscDestroyEl3d(&wrk9, appctx);
+  PetscDestroyEl3d(&wrk10, appctx);
+  PetscDestroyEl3d(&wrk11, appctx);
+  PetscDestroyEl3d(&wrk12, appctx);
 
   DMRestoreLocalVector(appctx->da, &uloc);
   DMRestoreLocalVector(appctx->da, &outloc);
