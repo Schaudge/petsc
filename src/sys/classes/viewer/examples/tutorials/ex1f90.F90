@@ -13,8 +13,9 @@
          print*,'Unable to initialize PETSc'
          stop
       endif
-      call PetscViewerBinaryOpen(PETSC_COMM_WORLD,'binaryoutput',FILE_MODE_READ,viewer,ierr);CHKERRA(ierr)
-      call PetscViewerDestroy(viewer,ierr);CHKERRA(ierr)
+      call PetscViewerBinaryOpen(PETSC_COMM_WORLD,'binaryoutput',FILE_MODE_READ,viewer,ierr)
+      call PetscViewerDestroy(viewer,ierr)
+      CHKERRA(ierr)
       call PetscFinalize(ierr)
       end
 

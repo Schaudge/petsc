@@ -34,6 +34,8 @@
       PetscReal onereal,tenreal
       parameter (onereal = 1.0, tenreal = 10.0)
       PetscInt n
+      PetscClassId idz
+      parameter ( idz = 0)
 !
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !                 Beginning of program
@@ -53,15 +55,15 @@
 !      - The user can also optionally log floating point operations
 !        with the routine PetscLogFlops().
 !
-      call PetscLogEventRegister('Event 1',0,USER_EVENT1,ierr)
-      call PetscLogEventRegister('Event 2',0,USER_EVENT2,ierr)
-      call PetscLogEventRegister('Event 3',0,USER_EVENT3,ierr)
-      call PetscLogEventRegister('Event 4',0,USER_EVENT4,ierr)
-      call PetscLogEventRegister('Event 5',0,USER_EVENT5,ierr)
-      call PetscLogEventRegister('Event 6',0,USER_EVENT6,ierr)
-      call PetscLogEventRegister('Event 7',0,USER_EVENT7,ierr)
-      call PetscLogEventRegister('Event 8',0,USER_EVENT8,ierr)
-      call PetscLogEventRegister('Event 9',0,USER_EVENT9,ierr)
+      call PetscLogEventRegister('Event 1',idz,USER_EVENT1,ierr)
+      call PetscLogEventRegister('Event 2',idz,USER_EVENT2,ierr)
+      call PetscLogEventRegister('Event 3',idz,USER_EVENT3,ierr)
+      call PetscLogEventRegister('Event 4',idz,USER_EVENT4,ierr)
+      call PetscLogEventRegister('Event 5',idz,USER_EVENT5,ierr)
+      call PetscLogEventRegister('Event 6',idz,USER_EVENT6,ierr)
+      call PetscLogEventRegister('Event 7',idz,USER_EVENT7,ierr)
+      call PetscLogEventRegister('Event 8',idz,USER_EVENT8,ierr)
+      call PetscLogEventRegister('Event 9',idz,USER_EVENT9,ierr)
       call PetscLogEventBegin(USER_EVENT1,ierr)
       call PetscLogFlops(imax*onefp,ierr)
       call PetscSleep(onereal,ierr)
