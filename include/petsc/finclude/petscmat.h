@@ -102,6 +102,7 @@
 #define MATBAIJMKL         'baijmkl'
 #define MATSEQBAIJMKL      'seqbaijmkl'
 #define MATMPIBAIJMKL      'mpibaijmkl'
+#define MATSEQAIJZ         'seqaijz'
 #define MATSHELL           'shell'
 #define MATDENSE           'dense'
 #define MATSEQDENSE        'seqdense'
