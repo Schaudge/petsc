@@ -39,11 +39,17 @@ static PetscErrorCode MatSeqAIJZ_update(Mat A)
   PetscErrorCode ierr;
   Mat_SeqAIJ     *aij  = (Mat_SeqAIJ*)A->data;
   Mat_SeqAIJZ    *aijz = (Mat_SeqAIJZ*)A->spptr;
+  PetscInt       i,j,m = A->rmap->n;
+  const PetscInt *ai = aij->i;
 
   PetscFunctionBegin;
   ierr = PetscFree(aijz->colindices);CHKERRQ(ierr);
   ierr = PetscMalloc1(aij->nz,&aijz->colindices);CHKERRQ(ierr);
-  ierr = PetscArraycpy(aijz->colindices,aij->j,aij->nz);CHKERRQ(ierr);
+  for (i=0; i<m; i++) {
+    for (j=ai[i]; j<ai[i+1]; j++) {
+      aijz->colindices[j] = aij->j[j] - i;
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -95,7 +101,7 @@ static PetscErrorCode MatMult_SeqAIJZ(Mat A,Vec xx,Vec yy)
   for (i=0; i<m; i++) {
     PetscScalar sum = 0;
     for (j=ai[i]; j<ai[i+1]; j++) {
-      sum += aa[j] * x[aj[j]];
+      sum += aa[j] * x[i+aj[j]];
     }
     y[i] = sum;
   }
