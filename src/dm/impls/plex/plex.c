@@ -7105,7 +7105,7 @@ PetscErrorCode DMPlexCreateFaceNumbering_Internal(DM dm, PetscBool includeHybrid
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &fMax);CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, NULL, &fMax, NULL, NULL);CHKERRQ(ierr);
   if (fMax >= 0 && !includeHybrid) fEnd = PetscMin(fEnd, fMax);
   ierr = DMPlexCreateNumbering_Plex(dm, fStart, fEnd, 0, NULL, dm->sf, globalFaceNumbers);CHKERRQ(ierr);
   PetscFunctionReturn(0);
