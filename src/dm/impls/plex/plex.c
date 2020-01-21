@@ -7154,7 +7154,7 @@ PetscErrorCode DMPlexCreateEdgeNumbering_Internal(DM dm, PetscBool includeHybrid
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = DMPlexGetDepthStratum(dm, 1, &eStart, &eEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, NULL, &eMax);CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, NULL, NULL, &eMax, NULL);CHKERRQ(ierr);
   if (eMax >= 0 && !includeHybrid) eEnd = PetscMin(eEnd, eMax);
   ierr = DMPlexCreateNumbering_Plex(dm, eStart, eEnd, 0, NULL, dm->sf, globalEdgeNumbers);CHKERRQ(ierr);
   PetscFunctionReturn(0);
