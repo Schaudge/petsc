@@ -211,7 +211,8 @@ int main(int argc,char **argv)
       - fi
 
    test:
-      requires: !__float128
+      #  Does not work when clanguage is C++ and using complex when C complex is broken since uses C compiler
+      requires: !__float128 !define(PETSC_CLANGUAGE_CXX)
       suffix: makefileuser_build
       localrunfiles: ex1.c
       output_file: output/ex1_1.out

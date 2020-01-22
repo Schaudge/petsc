@@ -865,11 +865,13 @@ PETSC_STATIC_INLINE PetscScalar PetscPowScalarInt(PetscScalar base,PetscInt powe
   return result;
 }
 
+#if (!defined(__cplusplus) && defined(PETSC_HAVE_C99_COMPLEX)) || (defined(__cplusplus) && defined(PETSC_HAVE_CXX_COMPLEX))
 PETSC_STATIC_INLINE PetscScalar PetscPowScalarReal(PetscScalar base,PetscReal power)
 {
   PetscScalar cpower = power;
   return PetscPowScalar(base,cpower);
 }
+#endif
 
 PETSC_EXTERN PetscErrorCode PetscLinearRegression(PetscInt,const PetscReal[],const PetscReal[],PetscReal*,PetscReal*);
 #endif

@@ -86,9 +86,26 @@ class Configure(config.base.Configure):
     body     = 'double _Complex x;\n x = I;\n'
     if not self.checkCompile(includes, body): return    # checkLink can succeed even if checkCompile fails
     if self.checkLink(includes, body):
-      self.addDefine('HAVE_C99_COMPLEX', 1)
       self.c99_complex = 1
-    return
+      includes = '#include <complex.h>\n'
+      body     = 'double _Complex x = 1.0, y = 2.0;\n x = cpow(x,y);\n'
+      if not self.checkLink(includes, body):
+        self.c99_complex = 0
+      includes = '#include <complex.h>\n'
+      body     = 'float _Complex y = 2.0; float _Complex x = 1.0;\n x = cpowf(x,y);\n'
+      if not self.checkLink(includes, body):
+        self.c99_complex = 0
+      includes = '#include <complex.h>\n'
+      body     = 'double _Complex x = 1.0;\n x = clog(x);\n'
+      if not self.checkLink(includes, body):
+        self.c99_complex = 0
+      includes = '#include <complex.h>\n'
+      body     = 'float _Complex x = 1.0;\n x = clogf(x);\n'
+      if not self.checkLink(includes, body):
+        self.c99_complex = 0
+      if self.c99_complex:
+        self.addDefine('HAVE_C99_COMPLEX', 1)
+      return
 
   def checkCxxComplex(self):
     '''Check for complex numbers in namespace std'''
