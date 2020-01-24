@@ -110,14 +110,8 @@ PetscErrorCode TaoLineSearchView(TaoLineSearch ls, PetscViewer viewer)
   Output Parameter:
 . newls - the new TaoLineSearch context
 
-  Available methods include:
-+ more-thuente
-. gpcg
-- unit - Do not perform any line search
-
-
    Options Database Keys:
-.   -tao_ls_type - select which method TAO should use
+.   -tao_ls_type - select which method TAO should use, unit, more-thuente, gpcg, armijo, owarmijo
 
    Level: beginner
 
@@ -484,7 +478,7 @@ PetscErrorCode TaoLineSearchSetType(TaoLineSearch ls, TaoLineSearchType type)
 }
 
 /*@C
-  TaoLineSearchMonitor - Monitor the line search steps. This routine will otuput the
+  TaoLineSearchMonitor - Monitor the line search steps. This routine outputs the
   iteration number, step length, and function value before calling the implementation 
   specific monitor.
 
@@ -510,9 +504,14 @@ PetscErrorCode TaoLineSearchMonitor(TaoLineSearch ls, PetscInt its, PetscReal f,
   if (ls->usemonitor) {
     ierr = PetscViewerASCIIGetTab(ls->viewer, &tabs);CHKERRQ(ierr);
     ierr = PetscViewerASCIISetTab(ls->viewer, ((PetscObject)ls)->tablevel);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(ls->viewer, "%3D LS", its);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(ls->viewer, "  Function value: %g,", (double)f);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(ls->viewer, "  Step length: %g\n", (double)step);CHKERRQ(ierr);
+    if (!its) {
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "  Tao linesearch value on entrance\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "    Previous function value: %g\n", (double)f);CHKERRQ(ierr);
+    } else {
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "%3D Tao linesearch iteration\n", its);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "    Function value: %g,", (double)f);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(ls->viewer, "    Step length: %g\n", (double)step);CHKERRQ(ierr);
+    }
     if (ls->ops->monitor && its > 0) {
       ierr = PetscViewerASCIISetTab(ls->viewer, ((PetscObject)ls)->tablevel + 3);CHKERRQ(ierr);
       ierr = (*ls->ops->monitor)(ls);CHKERRQ(ierr);
@@ -539,6 +538,7 @@ PetscErrorCode TaoLineSearchMonitor(TaoLineSearch ls, PetscInt its, PetscReal f,
 . -tao_ls_stepmin <step> - minimum steplength allowed
 . -tao_ls_stepmax <step> - maximum steplength allowed
 . -tao_ls_max_funcs <n> - maximum number of function evaluations allowed
+. -tao_ls_monitor - print information about linesearch behavior at each iteration
 - -tao_ls_view - display line-search results to standard output
 
   Level: beginner
@@ -1370,7 +1370,7 @@ PetscErrorCode TaoLineSearchGetOptionsPrefix(TaoLineSearch ls, const char *p[])
 
    This would enable use of different options for each system, such as
 .vb
-      -sys1_tao_ls_type mt
+      -sys1_tao_ls_type more-thuente
       -sys2_tao_ls_type armijo
 .ve
 

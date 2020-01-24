@@ -12,16 +12,19 @@ static PetscErrorCode Tao_mcstep(TaoLineSearch ls,PetscReal *stx,PetscReal *fx,P
 static PetscErrorCode TaoLineSearchDestroy_MT(TaoLineSearch ls)
 {
   PetscErrorCode   ierr;
-  TaoLineSearch_MT *mt;
+  TaoLineSearch_MT *mt  = (TaoLineSearch_MT*)(ls->data);;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls,TAOLINESEARCH_CLASSID,1);
-  mt = (TaoLineSearch_MT*)(ls->data);
   if (mt->x) {
     ierr = PetscObjectDereference((PetscObject)mt->x);CHKERRQ(ierr);
   }
   ierr = VecDestroy(&mt->work);CHKERRQ(ierr);
   ierr = PetscFree(ls->data);CHKERRQ(ierr);
+  if (ls->usemonitor) {
+    ierr = PetscViewerDestroy(&ls->viewer);CHKERRQ(ierr);
+  }
+  ls->ops->monitor = NULL;
   PetscFunctionReturn(0);
 }
 
@@ -36,7 +39,7 @@ static PetscErrorCode TaoLineSearchMonitor_MT(TaoLineSearch ls)
 {
   TaoLineSearch_MT *mt = (TaoLineSearch_MT*)ls->data;
   PetscErrorCode   ierr;
-  
+
   PetscFunctionBegin;
   ierr = PetscViewerASCIIPrintf(ls->viewer, "stx: %g, fx: %g, dgx: %g\n", (double)mt->stx, (double)mt->fx, (double)mt->dgx);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(ls->viewer, "sty: %g, fy: %g, dgy: %g\n", (double)mt->sty, (double)mt->fy, (double)mt->dgy);CHKERRQ(ierr);
@@ -46,8 +49,7 @@ static PetscErrorCode TaoLineSearchMonitor_MT(TaoLineSearch ls)
 static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *f, Vec g, Vec s)
 {
   PetscErrorCode   ierr;
-  TaoLineSearch_MT *mt;
-
+  TaoLineSearch_MT *mt = (TaoLineSearch_MT*)(ls->data);
   PetscReal        xtrapf = 4.0;
   PetscReal        finit, width, width1, dginit, fm, fxm, fym, dgm, dgxm, dgym;
   PetscReal        dgx, dgy, dg, dg2, fx, fy, stx, sty, dgtest;
@@ -62,11 +64,8 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscValidScalarPointer(f,3);
   PetscValidHeaderSpecific(g,VEC_CLASSID,4);
   PetscValidHeaderSpecific(s,VEC_CLASSID,5);
-  
-  ierr = TaoLineSearchMonitor(ls, 0, *f, 0.0);CHKERRQ(ierr);
 
-  /* comm,type,size checks are done in interface TaoLineSearchApply */
-  mt = (TaoLineSearch_MT*)(ls->data);
+  ierr = TaoLineSearchMonitor(ls, 0, *f, 0.0);CHKERRQ(ierr);
   ls->reason = TAOLINESEARCH_CONTINUE_ITERATING;
 
   /* Check work vector */
@@ -84,8 +83,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
 
   if (ls->bounded) {
     /* Compute step length needed to make all variables equal a bound */
-    /* Compute the smallest steplength that will make one nonbinding variable
-     equal the bound */
+    /* Compute the smallest steplength that will make one nonbinding variable equal the bound */
     ierr = VecGetLocalSize(ls->upper,&n1);CHKERRQ(ierr);
     ierr = VecGetLocalSize(mt->x, &n2);CHKERRQ(ierr);
     ierr = VecGetSize(ls->upper,&nn1);CHKERRQ(ierr);
@@ -173,7 +171,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
         ierr = VecDot(g,s,&dg);CHKERRQ(ierr);
       }
     }
-    
+
     /* update bracketing parameters in the MT context for printouts in monitor */
     mt->stx = stx;
     mt->fx = fx;
@@ -281,7 +279,6 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
     ls->reason = TAOLINESEARCH_HALTED_MAXFCN;
   }
 
-  /* Finish computations */
   ierr = PetscInfo2(ls,"%D function evals in line search, step = %g\n",(ls->nfeval+ls->nfgeval),(double)ls->step);CHKERRQ(ierr);
 
   /* Set new solution vector and compute gradient if needed */
@@ -292,7 +289,7 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
   PetscFunctionReturn(0);
 }
 
-/*MC 
+/*MC
    TAOLINESEARCHMT - Line-search type with cubic interpolation that satisfies both the sufficient decrease and 
    curvature conditions. This method can take step lengths greater than 1.
 
@@ -303,6 +300,11 @@ static PetscErrorCode TaoLineSearchApply_MT(TaoLineSearch ls, Vec x, PetscReal *
           ACM Trans. Math. Software 20, no. 3 (1994): 286-307.
 
    Level: developer
+
+   Notes:
+   The values printed in the line search monitor are
+      stx, fx, dgx - the step, function, and derivative at the best step
+      sty, fy, dgy - the step, function, and derivative at the other endpoint of the interval of uncertainty
 
 .seealso: TaoLineSearchCreate(), TaoLineSearchSetType(), TaoLineSearchApply()
 
@@ -315,17 +317,18 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_MT(TaoLineSearch ls)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ls,TAOLINESEARCH_CLASSID,1);
-  ierr = PetscNewLog(ls,&ctx);CHKERRQ(ierr);
-  ctx->bracket=0;
-  ctx->infoc=1;
-  ls->data = (void*)ctx;
-  ls->initstep = 1.0;
-  ls->ops->setup=0;
-  ls->ops->reset=0;
-  ls->ops->apply=TaoLineSearchApply_MT;
-  ls->ops->destroy=TaoLineSearchDestroy_MT;
-  ls->ops->setfromoptions=TaoLineSearchSetFromOptions_MT;
-  ls->ops->monitor=TaoLineSearchMonitor_MT;
+
+  ierr                    =  PetscNewLog(ls,&ctx);CHKERRQ(ierr);
+  ctx->bracket            = 0;
+  ctx->infoc              = 1;
+  ls->data                =  (void*)ctx;
+  ls->initstep            =  1.0;
+  ls->ops->setup          = 0;
+  ls->ops->reset          = 0;
+  ls->ops->apply          = TaoLineSearchApply_MT;
+  ls->ops->destroy        = TaoLineSearchDestroy_MT;
+  ls->ops->setfromoptions = TaoLineSearchSetFromOptions_MT;
+  ls->ops->monitor        = TaoLineSearchMonitor_MT;
   PetscFunctionReturn(0);
 }
 
@@ -400,7 +403,7 @@ static PetscErrorCode Tao_mcstep(TaoLineSearch ls,PetscReal *stx,PetscReal *fx,P
   PetscFunctionBegin;
   /* Check the input parameters for errors */
   mtP->infoc = 0;
-  if (mtP->bracket && (*stp <= PetscMin(*stx,*sty) || (*stp >= PetscMax(*stx,*sty)))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"bad stp in bracket");
+  if (mtP->bracket && (*stp <= PetscMin(*stx,*sty) || (*stp >= PetscMax(*stx,*sty)))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Bad stp in bracket");
   if (*dx * (*stp-*stx) >= 0.0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"dx * (stp-stx) >= 0.0");
   if (ls->stepmax < ls->stepmin) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"stepmax > stepmin");
 
