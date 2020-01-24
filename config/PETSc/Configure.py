@@ -142,6 +142,57 @@ class Configure(config.base.Configure):
       self.libraries.libraries.extend(librariessock)
     return
 
+  def checkMathShared(self):
+    '''Checks if -lm is needed for examples that use math symbols even if shared library'''
+    '''was built with -lm, i.e. linux/gcc'''
+    #  make library that uses sqrt()
+    lib1Name = os.path.join(self.tmpDir, 'lib1.'+self.setCompilers.sharedLibraryExt)
+    codeBegin = '''
+#ifdef __cplusplus
+extern "C"
+#endif
+#include <math.h>
+void init(void) {
+'''
+    body      = '''
+double x = 0.0;
+x = sqrt(x);
+'''
+    codeEnd   = '\n}\n'
+    configObj = self
+    oldFlags = self.setCompilers.LIBS
+    if not self.checkLink('', body, cleanup = 0, codeBegin = codeBegin, codeEnd = codeEnd, shared = 1):
+      if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
+      self.setCompilers.LIBS = oldFlags
+      raise RuntimeError('Unable to make shared library')
+    if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
+    os.rename(configObj.linkerObj, lib1Name)
+    self.setCompilers.LIBS = oldFlags
+
+    # make main program that links to library but also calls sqrt
+    codeBegin = '''
+#ifdef __cplusplus
+extern "C"
+#endif
+include <math.h>
+void init(void);
+int main(int argc,char **args)
+'''
+    body      = '''
+double x = 0.0;
+init();
+x = sqrt(x);
+'''
+    codeEnd   = '\n}\n'
+    oldFlags = self.setCompilers.LIBS
+    if not self.checkLink('', body, cleanup = 0, codeBegin = codeBegin, codeEnd = codeEnd, libs = lib1Name):
+      if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
+      self.setCompilers.LIBS = oldFlags
+      return 1
+    if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
+    self.setCompilers.LIBS = oldFlags
+    return 0
+
   def DumpPkgconfig(self):
     ''' Create a pkg-config file '''
     if not os.path.exists(os.path.join(self.petscdir.dir,self.arch.arch,'lib','pkgconfig')):
@@ -179,7 +230,13 @@ class Configure(config.base.Configure):
     fd.write('Description: Library to solve ODEs and algebraic equations\n')
     fd.write('Version: %s\n' % self.petscdir.version)
     fd.write('Cflags: ' + ' '.join([self.setCompilers.CPPFLAGS] + cflags_inc) + '\n')
-    fd.write('Libs: '+self.libraries.toStringNoDupes(['-L${libdir}', self.petsclib], with_rpath=False)+'\n')
+    #  Check if -lm may be needed to link examples that use math symbols directly (i.e. linux gcc)
+    math = ''
+    if self.sharedlibraries.useShared:
+      if self.checkMathShared():
+        math = ' -lm'
+        self.log.write('Adding -lm to PETSc.pc library list')
+    fd.write('Libs: '+self.libraries.toStringNoDupes(['-L${libdir}', self.petsclib+math], with_rpath=False)+'\n')
     # Remove RPATH flags from library list.  User can add them using
     # pkg-config --variable=ldflag_rpath and pkg-config --libs-only-L
     fd.write('Libs.private: '+self.libraries.toStringNoDupes([f for f in self.packagelibs+self.complibs if not f.startswith(self.setCompilers.CSharedLinkerFlag)], with_rpath=False)+'\n')
