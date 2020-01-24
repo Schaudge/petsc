@@ -1045,6 +1045,13 @@ class Configure(config.base.Configure):
       return 1
     return 0
 
+  def removeCompilerFlag(self, flag):
+    '''Removes a compiler flag'''
+    flagsArg = self.getCompilerFlagsArg(0)
+    oldFlags = getattr(self, flagsArg).split(' ')
+    newflags = [x for x in oldFlags if not x == flag]
+    setattr(self, flagsArg, ' '.join(newflags))
+
   def checkCompilerFlag(self, flag, includes = '', body = '', compilerOnly = 0):
     '''Determine whether the compiler accepts the given flag'''
     flagsArg = self.getCompilerFlagsArg(compilerOnly)

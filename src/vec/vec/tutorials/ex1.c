@@ -189,7 +189,7 @@ int main(int argc,char **argv)
       requires: cuda
 
    test:
-      requires: cmake !__float128
+      requires: cmake !__float128 !define(PETSC_HAVE_WINDOWS_COMPILERS)
       suffix: cmake_build
       localrunfiles: CMakeLists.txt ex1.c
       output_file: output/ex1_1.out
@@ -202,7 +202,7 @@ int main(int argc,char **argv)
       - mkdir build
       - cd build
       - tap: ${cmake} ..
-      - tap: ${cmake} --build . --verbose
+      - tap: ${cmake} --build .
       - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
       - cp -f *.err *.out ..
       - cd ..
@@ -219,9 +219,10 @@ int main(int argc,char **argv)
       testscript:
       - export PETSC_DIR=$petsc_dir
       - export PETSC_ARCH=$petsc_arch
+      - if [ "${BUILDSHARED}" = "no" ] ; then export STATIC="STATIC=--static" ; fi
       - make=$(awk '/^MAKE =/ {print $3}' "${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables")
       - if command -v pkg-config 1>/dev/null 2>&1; then
-      - tap: ${make} -f $PETSC_DIR/share/petsc/Makefile.user ex1
+      - tap: ${make} -f $PETSC_DIR/share/petsc/Makefile.user ${STATIC} ex1
       - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
       - else
       - echo "ok ${label}"
