@@ -865,7 +865,7 @@ PETSC_STATIC_INLINE PetscScalar PetscPowScalarInt(PetscScalar base,PetscInt powe
   return result;
 }
 
-#if (!defined(__cplusplus) && defined(PETSC_HAVE_C99_COMPLEX)) || (defined(__cplusplus) && defined(PETSC_HAVE_CXX_COMPLEX))
+#if (!defined(__cplusplus) && defined(PETSC_HAVE_C99_COMPLEX)) || (defined(__cplusplus) && defined(PETSC_HAVE_CXX_COMPLEX)) || !defined(PETSC_USE_COMPLEX)
 PETSC_STATIC_INLINE PetscScalar PetscPowScalarReal(PetscScalar base,PetscReal power)
 {
   PetscScalar cpower = power;
