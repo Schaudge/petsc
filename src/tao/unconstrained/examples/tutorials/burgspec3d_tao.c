@@ -854,13 +854,13 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   mass  = appctx->SEMop.gll.mass;
   grad  = appctx->SEMop.gll.grad;
   
-  DMGetLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
-  DMGlobalToLocalBegin(appctx->da, in, INSERT_VALUES, uloc);CHKERRQ(ierr);
-  DMGlobalToLocalEnd(appctx->da, in, INSERT_VALUES, uloc);CHKERRQ(ierr);
-  DMDAVecGetArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(appctx->da, in, INSERT_VALUES, uloc);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(appctx->da, in, INSERT_VALUES, uloc);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
 
   /*  uj contains the base Jacobian vector (the point the Jacobian is evaluated) as a local array */
-  DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(appctx->da, appctx->dat.pass_sol_local, &uj);CHKERRQ(ierr);
 
   /* outl contains the output vector as a local array */
   ierr = DMGetLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
@@ -1139,8 +1139,8 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   PetscDestroyEl3d(&wrk11, appctx);
   PetscDestroyEl3d(&wrk12, appctx);
 
-  DMRestoreLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
-  DMRestoreLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
