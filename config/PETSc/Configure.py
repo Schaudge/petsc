@@ -145,29 +145,34 @@ class Configure(config.base.Configure):
   def checkMathShared(self):
     '''Checks if -lm is needed for examples that use math symbols even if shared library'''
     '''was built with -lm, i.e. linux/gcc'''
-    self.log.write('checkMathShared')
+    self.log.write('checkMathShared\n')
     #  make library that uses sqrt()
     lib1Name = os.path.join(self.tmpDir, 'lib1.'+self.setCompilers.sharedLibraryExt)
     codeBegin = '''
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include <stdio.h>
 #include <math.h>
 void init(void) {
 '''
     body      = '''
-double x = 0.0;
+double y = 0.0,x = 0.0;
 x = sqrt(x);
+scanf("%lf",&x); y = sin(x); printf("%f",y);
+scanf("%lf",&x); y = floor(x); printf("%f",y);
+scanf("%lf",&x); y = log10(x); printf("%f",y);
+scanf("%lf",&x); y = pow(x,x); printf("%f",y);
 '''
     codeEnd = '''
 \n}\n
 #ifdef __cplusplus
 }
-#endif'''
+#endif\n'''
     configObj = self
     oldFlags = self.setCompilers.LIBS
     self.setCompilers.removeCompilerFlag('-fvisibility=hidden')
-    if not self.checkLink('', body, cleanup = 0, codeBegin = codeBegin, codeEnd = codeEnd, shared = 1):
+    if not self.checkLink('', body, cleanup = 0, codeBegin = codeBegin, codeEnd = codeEnd, shared = 1, libs = ' '.join(self.libraries.getLibArgumentList(' '.join(self.libraries.math)))):
       raise RuntimeError('Unable to make shared library')
     if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
     os.rename(configObj.linkerObj, lib1Name)
@@ -186,23 +191,24 @@ int main(int argc,char **args) {
 double x = 0.0;
 init();
 x = sqrt(x);
+return 0;
 '''
     codeEnd = '''
 \n}\n
 #ifdef __cplusplus
 }
-#endif'''
+#endif\n'''
     oldFlags = self.setCompilers.LIBS
     if not self.checkLink('', body, cleanup = 0, codeBegin = codeBegin, codeEnd = codeEnd, libs = lib1Name):
       (output,error,status) = self.executeShellCommand('nm -o '+lib1Name)
       print(output + error)
       if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
       self.setCompilers.LIBS = oldFlags
-      self.log.write('checkMathShared: requires -lm to link against code that uses math libraries')
+      self.log.write('checkMathShared: requires -lm to link against code that uses math libraries\n')
       return 1
     if os.path.isfile(configObj.compilerObj): os.remove(configObj.compilerObj)
     self.setCompilers.LIBS = oldFlags
-    self.log.write('checkMathShared: does not requires to link against code that uses math libraries')
+    self.log.write('checkMathShared: does not requires to link against code that uses math libraries\n')
     return 0
 
   def DumpPkgconfig(self):
