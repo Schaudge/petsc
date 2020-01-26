@@ -336,6 +336,8 @@ class Configure(config.package.Package):
       yield ('User specified MKL Max-em64t installation root', None, [os.path.join(dir,'Libraries','32','libmkl_lapack.a'),'libmkl_intel'+ILP64+'.a', 'guide'],'32','no')
       yield ('User specified MKL Max-em64t installation root', None, [os.path.join(dir,'lib','32','libmkl_lapack.a'),'libmkl_intel'+ILP64+'.a', 'guide'],'32','no')
       # Check MKL on windows
+      mkldir = os.path.join(dir, 'lib','intel64')
+      yield ('User specified MKL Windows installation root', None, [os.path.join(mkldir, 'mkl_intel'+ILP64+'_dll.lib'),'mkl_intel_thread_dll.lib','mkl_core_dll.lib'],known,ompthread)
       yield ('User specified MKL Windows lib dir', None, [os.path.join(dir, 'mkl_c_dll.lib')],'32','no')
       yield ('User specified stdcall MKL Windows lib dir', None, [os.path.join(dir, 'mkl_s_dll.lib')],'32','no')
       yield ('User specified ia64/em64t MKL Windows lib dir', None, [os.path.join(dir, 'mkl_dll.lib')],'32','no')

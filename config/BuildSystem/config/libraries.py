@@ -23,6 +23,7 @@ class Configure(config.base.Configure):
       - If the path is empty, return it unchanged
       - If starts with - then return unchanged
       - If the path ends in ".lib" return it unchanged
+      - If the path ends in ".dll" change it to .lib
       - If the path is absolute and the filename is "lib"<name>, return -L<dir> -l<name> (optionally including rpath flag)
       - If the filename is "lib"<name>, return -l<name>
       - If the path ends in ".so" return it unchanged
@@ -37,6 +38,7 @@ class Configure(config.base.Configure):
       return [library] if with_rpath else []
     if library.lstrip()[0] == '-':
       return [library]
+    if len(library) > 3 and library[-4:] == '.dll': return [library[0:-4]+'.lib']
     if len(library) > 3 and library[-4:] == '.lib':
       return [library.replace('\\ ',' ').replace(' ', '\\ ').replace('\\(','(').replace('(', '\\(').replace('\\)',')').replace(')', '\\)')]
     if os.path.basename(library).startswith('lib'):
