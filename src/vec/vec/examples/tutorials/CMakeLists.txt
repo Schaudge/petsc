@@ -38,4 +38,4 @@ add_executable(ex1 ex1.c)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
-target_link_libraries(ex1 PkgConfig::PETSC m)
+target_link_libraries(ex1 PkgConfig::PETSC)
