@@ -378,7 +378,6 @@ PetscErrorCode VecDot_SeqCUDA(Vec xin,Vec yin,PetscScalar *z)
   /* arguments y, x are reversed because BLAS complex conjugates the first argument, PETSc the second */
   ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
   cberr = cublasXdot(cublasv2handle,bn,yarray,one,xarray,one,z);CHKERRCUBLAS(cberr);
-  ierr = WaitForGPU();CHKERRCUDA(ierr);
   ierr = PetscLogGpuTimeEnd();CHKERRQ(ierr);
   if (xin->map->n >0) {
     ierr = PetscLogGpuFlops(2.0*xin->map->n-1);CHKERRQ(ierr);
