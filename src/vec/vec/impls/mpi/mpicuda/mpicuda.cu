@@ -11,7 +11,7 @@
 
 PetscErrorCode VecDestroy_MPICUDA(Vec v)
 {
-  Vec_Seq        *vecmpi = (Vec_MPI*)v->data;
+  Vec_MPI        *vecmpi = (Vec_MPI*)v->data;
   Vec_CUDA       *veccuda;
   PetscErrorCode ierr;
   cudaError_t    err;
@@ -21,7 +21,7 @@ PetscErrorCode VecDestroy_MPICUDA(Vec v)
     veccuda = (Vec_CUDA*)v->spptr;
     if (veccuda->GPUarray_allocated) {
       err = cudaFree(((Vec_CUDA*)v->spptr)->GPUarray_allocated);CHKERRCUDA(err);
-      (veccuda->GPUarray_allocated = NULL;
+      veccuda->GPUarray_allocated = NULL;
     }
     if (veccuda->stream) {
       err = cudaStreamDestroy(((Vec_CUDA*)v->spptr)->stream);CHKERRCUDA(err);
