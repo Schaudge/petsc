@@ -356,7 +356,7 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
       veccuda->minimum_bytes_pinned_memory = 0;
 
       /* Need to parse command line for minimum size to use for pinned memory allocations on host here. */
-      ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)V),((PetscObject)V)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
+      ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)vv),((PetscObject)vv)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
       ierr = PetscOptionsInt("-vec_cuda_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecCUDASetPinnedMemoryMin",veccuda->minimum_bytes_pinned_memory,&veccuda->minimum_bytes_pinned_memory,NULL);CHKERRQ(ierr);
       ierr = PetscOptionsEnd();CHKERRQ(ierr);
     }
