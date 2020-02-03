@@ -1,3 +1,5 @@
+#if defined(PETSC_HAVE_CUDA)
+
 #include <petscsys.h>             /*I   "petscsys.h"   I*/
 #include <petsccublas.h>          /* Needed to provide CHKERRCUDA() */
 
@@ -65,3 +67,5 @@ PetscErrorCode PetscMallocResetCUDAHost(void)
   PetscTrFree   = PetscFreeOld;
   PetscFunctionReturn(0);
 }
+
+#endif /* PETSC_HAVE_CUDA */
