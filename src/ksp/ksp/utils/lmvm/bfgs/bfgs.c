@@ -418,6 +418,7 @@ PetscErrorCode MatCreate_LMVMBFGS(Mat B)
   lmvm->ops->reset    = MatReset_LMVMBFGS;
   lmvm->ops->update   = MatUpdate_LMVMBFGS;
   lmvm->ops->mult     = MatMult_LMVMBFGS;
+  lmvm->ops->solve    = MatSolve_LMVMBFGS;
   lmvm->ops->copy     = MatCopy_LMVMBFGS;
 
   lbfgs        = (Mat_SymBrdn *)lmvm->ctx;
