@@ -43,7 +43,6 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
-  
   /* Copy the function into the work vector for the first loop */
   ierr = VecCopy(F, lbfgs->work);CHKERRQ(ierr);
   
@@ -472,6 +471,7 @@ PetscErrorCode MatCreate_LMVMBFGS(Mat B)
   lmvm->ops->reset = MatReset_LMVMBFGS;
   lmvm->ops->update = MatUpdate_LMVMBFGS;
   lmvm->ops->mult = MatMult_LMVMBFGS;
+  lmvm->ops->solve = MatSolve_LMVMBFGS;
   lmvm->ops->copy = MatCopy_LMVMBFGS;
 
   ierr = PetscNewLog(B, &lbfgs);CHKERRQ(ierr);

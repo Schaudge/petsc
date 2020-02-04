@@ -1,9 +1,8 @@
 #if !defined(__LMVM_H)
 #define __LMVM_H
 #include <petscksp.h>
-#include <petsc/private/matimpl.h>
 #include <petsc/private/vecimpl.h>
-
+#include <petsc/private/matimpl.h>
 
 /*
   MATLMVM format - a base matrix-type that represents Limited-Memory 
@@ -22,6 +21,7 @@ struct _MatOps_LMVM {
   PetscErrorCode (*allocate)(Mat,Vec,Vec);
   PetscErrorCode (*reset)(Mat,PetscBool);
   PetscErrorCode (*mult)(Mat,Vec,Vec);
+  PetscErrorCode (*solve)(Mat,Vec,Vec);
   PetscErrorCode (*copy)(Mat,Mat,MatStructure);
 };
 

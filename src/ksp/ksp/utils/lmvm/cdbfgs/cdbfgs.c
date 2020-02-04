@@ -47,7 +47,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
-
   /* Start with the H0 term */
   ierr = MatCDBFGSApplyJ0Inv(B, F, dX);CHKERRQ(ierr);
   if (lmvm->k == -1) {
@@ -83,7 +82,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   /* Calculate dX += S rwork3 */
   /* This concludes operations with bottom half of M */
   ierr = MatMultTransposeAdd(lbfgs->ST, lbfgs->rwork3, dX, dX);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -560,7 +558,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   B->ops->view = MatView_LMVMCDBFGS;
   B->ops->setup = MatSetUp_LMVMCDBFGS;
   B->ops->destroy = MatDestroy_LMVMCDBFGS;
-  B->ops->solve = MatSolve_LMVMCDBFGS;
   
   lmvm = (Mat_LMVM*)B->data;
   lmvm->square = PETSC_TRUE;
@@ -568,6 +565,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lmvm->ops->reset = MatReset_LMVMCDBFGS;
   lmvm->ops->update = MatUpdate_LMVMCDBFGS;
   lmvm->ops->mult = MatMult_LMVMCDBFGS;
+  lmvm->ops->solve = MatSolve_LMVMCDBFGS;
   lmvm->ops->copy = MatCopy_LMVMCDBFGS;
   
   ierr = PetscNewLog(B, &lbfgs);CHKERRQ(ierr);

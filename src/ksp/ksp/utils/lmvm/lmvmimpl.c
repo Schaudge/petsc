@@ -160,6 +160,25 @@ static PetscErrorCode MatMult_LMVM(Mat B, Vec X, Vec Y)
 
 /*------------------------------------------------------------*/
 
+static PetscErrorCode MatSolve_LMVM(Mat B, Vec F, Vec dX)
+{
+  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  VecCheckSameSize(F, 2, dX, 3);
+  VecCheckMatCompatible(B, F, 2, dX, 3);
+  if (!lmvm->allocated) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ORDER, "LMVM matrix must be allocated first");
+  if (*lmvm->ops->solve) {
+    ierr = (*lmvm->ops->solve)(B, F, dX);CHKERRQ(ierr);
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "LMVM matrix does not have a solution or inversion implementation");
+  }
+  PetscFunctionReturn(0);
+}
+
+/*------------------------------------------------------------*/
+
 static PetscErrorCode MatCopy_LMVM(Mat B, Mat M, MatStructure str)
 {
   Mat_LMVM          *bctx = (Mat_LMVM*)B->data;
@@ -403,6 +422,7 @@ PetscErrorCode MatCreate_LMVM(Mat B)
   B->ops->duplicate = MatDuplicate_LMVM;
   B->ops->mult = MatMult_LMVM;
   B->ops->multadd = MatMultAdd_LMVM;
+  B->ops->solve = MatSolve_LMVM;
   B->ops->copy = MatCopy_LMVM;
   
   lmvm->ops->update = MatUpdate_LMVM;
