@@ -61,7 +61,7 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
 
   /* Calculate dX = HY R^{-T) rwork2 */
   /* This concludes operations with top half of M */
-  ierr = MatSolveTranspose(lbfgs->Rinv, lbfgs->rwork2, lbfgs->rwork3);CHKERRQ(ierr);
+  ierr = MatSolve(lbfgs->Rinv, lbfgs->rwork2, lbfgs->rwork3);CHKERRQ(ierr);
   ierr = VecScale(lbfgs->rwork3, -1.0);CHKERRQ(ierr);
   ierr = MatMultTranspose(lbfgs->YT, lbfgs->rwork3, lbfgs->lwork1);CHKERRQ(ierr);
   ierr = MatCDBFGSApplyJ0Inv(B, lbfgs->lwork1, lbfgs->lwork2);CHKERRQ(ierr);
