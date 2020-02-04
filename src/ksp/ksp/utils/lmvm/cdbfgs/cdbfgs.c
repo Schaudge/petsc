@@ -46,7 +46,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   PetscFunctionBegin;
   VecCheckSameSize(F, 2, dX, 3);
   VecCheckMatCompatible(B, dX, 3, F, 2);
-
   /* Start with the H0 term */
   ierr = MatCDBFGSApplyJ0Inv(B, F, dX);CHKERRQ(ierr);
   if (lmvm->k == -1) {
@@ -82,7 +81,6 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
   /* Calculate dX += S rwork3 */
   /* This concludes operations with bottom half of M */
   ierr = MatMultTransposeAdd(lbfgs->ST, lbfgs->rwork3, dX, dX);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -219,19 +217,10 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       ierr = VecRestoreArrayRead(lmvm->Xprev, &ff);CHKERRQ(ierr);
       /* Clean up unnecessary arrays */
       ierr = PetscFree2(lbfgs->idx_rows, lbfgs->idx_cols);CHKERRQ(ierr);
-      /* Create and fill the intermediate matrices */
+      /* Factor StY = L + D + R */
       ierr = MatDestroy(&lbfgs->StYfull);CHKERRQ(ierr);
       ierr = MatMatTransposeMult(lbfgs->STfull, lbfgs->YTfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull);CHKERRQ(ierr);
       ierr = MatConvert(lbfgs->StYfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->StYfull);CHKERRQ(ierr);
-      ierr = MatDestroy(&lbfgs->Lfull);CHKERRQ(ierr);
-      ierr = MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Lfull);CHKERRQ(ierr);
-      ierr = MatZeroEntries(lbfgs->Lfull);CHKERRQ(ierr);
-      ierr = MatDestroy(&lbfgs->Dfull);CHKERRQ(ierr);
-      ierr = MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Dfull);CHKERRQ(ierr);
-      ierr = MatZeroEntries(lbfgs->Dfull);CHKERRQ(ierr);
-      ierr = MatDestroy(&lbfgs->Rfull);CHKERRQ(ierr);
-      ierr = MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Rfull);CHKERRQ(ierr);
-      ierr = MatZeroEntries(lbfgs->Rfull);CHKERRQ(ierr);
       for (i=0; i<lmvm->m; i++) {
         ierr = MatGetRow(lbfgs->StYfull, i, &n, NULL, &vals);CHKERRQ(ierr);
         for (j=0; j<n; j++) {
@@ -263,31 +252,15 @@ static PetscErrorCode MatUpdate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       ierr = VecDestroy(&lbfgs->rwork2);CHKERRQ(ierr);
       ierr = VecDestroy(&lbfgs->rwork3);CHKERRQ(ierr);
       ierr = VecDestroy(&lbfgs->rwork4);CHKERRQ(ierr);
-      if (lmvm->k == lmvm->m-1) {
-        /* At maximum storage so the submatrices are equal to the full matrices */
-        lbfgs->ST = lbfgs->STfull;
-        ierr = PetscObjectReference((PetscObject)lbfgs->STfull);CHKERRQ(ierr);
-        lbfgs->YT = lbfgs->YTfull;
-        ierr = PetscObjectReference((PetscObject)lbfgs->YTfull);CHKERRQ(ierr);
-        lbfgs->StY = lbfgs->StYfull;
-        ierr = PetscObjectReference((PetscObject)lbfgs->StYfull);CHKERRQ(ierr);
-        lbfgs->L = lbfgs->Lfull;
-        ierr = PetscObjectReference((PetscObject)lbfgs->Lfull);CHKERRQ(ierr);
-        lbfgs->D = lbfgs->Dfull;
-        ierr = PetscObjectReference((PetscObject)lbfgs->Dfull);CHKERRQ(ierr);
-        lbfgs->R = lbfgs->Rfull;
-        ierr = PetscObjectReference((PetscObject)lbfgs->Rfull);CHKERRQ(ierr);
-      } else {
-        /* There's unstored rows of ST and YT so we have to generate submatrices */
-        ierr = ISCreateStride(comm, lmvm->k+1, 0, 1, &active_rows);CHKERRQ(ierr);
-        ierr = MatCreateSubMatrix(lbfgs->STfull, active_rows, NULL, MAT_INITIAL_MATRIX, &lbfgs->ST);CHKERRQ(ierr);
-        ierr = MatCreateSubMatrix(lbfgs->YTfull, active_rows, NULL, MAT_INITIAL_MATRIX, &lbfgs->YT);CHKERRQ(ierr);
-        ierr = MatCreateSubMatrix(lbfgs->StYfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->StY);CHKERRQ(ierr);
-        ierr = MatCreateSubMatrix(lbfgs->Lfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->L);CHKERRQ(ierr);
-        ierr = MatCreateSubMatrix(lbfgs->Dfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->D);CHKERRQ(ierr);
-        ierr = MatCreateSubMatrix(lbfgs->Rfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->R);CHKERRQ(ierr);
-        ierr = ISDestroy(&active_rows);CHKERRQ(ierr);
-      }
+      /* Generate submatrices that span only the stored iterates */
+      ierr = ISCreateStride(comm, lmvm->k+1, 0, 1, &active_rows);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(lbfgs->STfull, active_rows, NULL, MAT_INITIAL_MATRIX, &lbfgs->ST);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(lbfgs->YTfull, active_rows, NULL, MAT_INITIAL_MATRIX, &lbfgs->YT);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(lbfgs->StYfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->StY);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(lbfgs->Lfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->L);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(lbfgs->Dfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->D);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(lbfgs->Rfull, active_rows, active_rows, MAT_INITIAL_MATRIX, &lbfgs->R);CHKERRQ(ierr);
+      ierr = ISDestroy(&active_rows);CHKERRQ(ierr);
       /* Generate the work vectors from the submatrices */
       ierr = MatCreateVecs(lbfgs->R, &lbfgs->rwork1, &lbfgs->rwork2);CHKERRQ(ierr);
       ierr = MatCreateVecs(lbfgs->R, &lbfgs->rwork3, &lbfgs->rwork4);CHKERRQ(ierr);
@@ -367,12 +340,6 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     ierr = MatLMVMReset(lbfgs->diag_bfgs, destructive);CHKERRQ(ierr);
   }
   if (lbfgs->allocated && destructive) {
-    ierr = MatDestroy(&lbfgs->STfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->YTfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->StYfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->Lfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->Dfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->Rfull);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->ST);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->YT);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->StY);CHKERRQ(ierr);
@@ -380,6 +347,12 @@ static PetscErrorCode MatReset_LMVMCDBFGS(Mat B, PetscBool destructive)
     ierr = MatDestroy(&lbfgs->D);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->R);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->Rinv);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->STfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->YTfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->StYfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->Lfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->Dfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->Rfull);CHKERRQ(ierr);
     ierr = VecDestroy(&lbfgs->rwork1);CHKERRQ(ierr);
     ierr = VecDestroy(&lbfgs->rwork2);CHKERRQ(ierr);
     ierr = VecDestroy(&lbfgs->rwork3);CHKERRQ(ierr);
@@ -431,6 +404,7 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
     ierr = VecDuplicate(X, &lmvm->Xprev);CHKERRQ(ierr);
     ierr = VecDuplicate(F, &lmvm->Fprev);CHKERRQ(ierr);
     if (lmvm->m > 0) {
+      /* Create iteration storage matrices */	    
       ierr = PetscObjectBaseTypeCompare((PetscObject)X, VECCUDA, &same);CHKERRQ(ierr);
       if (same) {
         lbfgs->dense_type = MATSEQDENSECUDA;
@@ -441,6 +415,9 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
         ierr = MatCreateAIJ(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->STfull);CHKERRQ(ierr);
         ierr = MatCreateAIJ(PetscObjectComm((PetscObject)B), lmvm->m, n, lmvm->m, N, n, NULL, N, NULL, &lbfgs->YTfull);CHKERRQ(ierr);
       }
+      /* Populate the iteration storage with values to fake a dense storage */
+      /* It is inefficient to use a sparse format for dense data but there is no parallel dense format for CUDA */
+      /* Dense formats also do not fully support some of the Mat tools being used in this implementation */
       for (i=0; i<lmvm->m; i++) {
         for (j=0; j<N; j++) {
           ierr = MatSetValue(lbfgs->STfull, i, j, 1.0, INSERT_VALUES);CHKERRQ(ierr);
@@ -451,6 +428,21 @@ static PetscErrorCode MatAllocate_LMVMCDBFGS(Mat B, Vec X, Vec F)
       ierr = MatAssemblyEnd(lbfgs->STfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyBegin(lbfgs->YTfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
       ierr = MatAssemblyEnd(lbfgs->YTfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      /* Create intermediate (sequential and small) matrices */
+      ierr = MatMatTransposeMult(lbfgs->STfull, lbfgs->YTfull, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &lbfgs->StYfull);CHKERRQ(ierr);
+      ierr = MatConvert(lbfgs->StYfull, lbfgs->dense_type, MAT_INPLACE_MATRIX, &lbfgs->StYfull);CHKERRQ(ierr);
+      ierr = MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Lfull);CHKERRQ(ierr);
+      ierr = MatZeroEntries(lbfgs->Lfull);CHKERRQ(ierr);
+      ierr = MatAssemblyBegin(lbfgs->Lfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatAssemblyEnd(lbfgs->Lfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Dfull);CHKERRQ(ierr);
+      ierr = MatZeroEntries(lbfgs->Dfull);CHKERRQ(ierr);
+      ierr = MatAssemblyBegin(lbfgs->Dfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatAssemblyEnd(lbfgs->Dfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatDuplicate(lbfgs->StYfull, MAT_DO_NOT_COPY_VALUES, &lbfgs->Rfull);CHKERRQ(ierr);
+      ierr = MatZeroEntries(lbfgs->Rfull);CHKERRQ(ierr);
+      ierr = MatAssemblyBegin(lbfgs->Rfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatAssemblyEnd(lbfgs->Rfull, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     }
     ierr = VecDuplicate(lmvm->Xprev, &lbfgs->lwork1);
     ierr = VecDuplicate(lmvm->Xprev, &lbfgs->lwork2);
@@ -474,12 +466,6 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
 
   PetscFunctionBegin;
   if (lbfgs->allocated) {
-    ierr = MatDestroy(&lbfgs->STfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->YTfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->StYfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->Lfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->Dfull);CHKERRQ(ierr);
-    ierr = MatDestroy(&lbfgs->Rfull);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->ST);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->YT);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->StY);CHKERRQ(ierr);
@@ -487,6 +473,12 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     ierr = MatDestroy(&lbfgs->D);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->R);CHKERRQ(ierr);
     ierr = MatDestroy(&lbfgs->Rinv);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->STfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->YTfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->StYfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->Lfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->Dfull);CHKERRQ(ierr);
+    ierr = MatDestroy(&lbfgs->Rfull);CHKERRQ(ierr);
     ierr = VecDestroy(&lbfgs->rwork1);CHKERRQ(ierr);
     ierr = VecDestroy(&lbfgs->rwork2);CHKERRQ(ierr);
     ierr = VecDestroy(&lbfgs->rwork3);CHKERRQ(ierr);
@@ -495,7 +487,7 @@ static PetscErrorCode MatDestroy_LMVMCDBFGS(Mat B)
     ierr = VecDestroy(&lbfgs->lwork2);CHKERRQ(ierr);
     lbfgs->allocated = PETSC_FALSE;
   }
-  ierr = MatDestroy(&lbfgs->D);CHKERRQ(ierr);
+  ierr = MatDestroy(&lbfgs->diag_bfgs);CHKERRQ(ierr);
   ierr = PetscFree(lmvm->ctx);CHKERRQ(ierr);
   ierr = MatDestroy_LMVM(B);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -565,7 +557,6 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   B->ops->view = MatView_LMVMCDBFGS;
   B->ops->setup = MatSetUp_LMVMCDBFGS;
   B->ops->destroy = MatDestroy_LMVMCDBFGS;
-  B->ops->solve = MatSolve_LMVMCDBFGS;
   
   lmvm = (Mat_LMVM*)B->data;
   lmvm->square = PETSC_TRUE;
@@ -573,6 +564,7 @@ PetscErrorCode MatCreate_LMVMCDBFGS(Mat B)
   lmvm->ops->reset = MatReset_LMVMCDBFGS;
   lmvm->ops->update = MatUpdate_LMVMCDBFGS;
   lmvm->ops->mult = MatMult_LMVMCDBFGS;
+  lmvm->ops->solve = MatSolve_LMVMCDBFGS;
   lmvm->ops->copy = MatCopy_LMVMCDBFGS;
   
   ierr = PetscNewLog(B, &lbfgs);CHKERRQ(ierr);
