@@ -48,6 +48,7 @@ PetscErrorCode VecCUDAAllocateCheck(Vec v)
        Note: This same code duplicated in VecCreate_SeqCUDA_Private() and VecCreate_MPICUDA_Private(). Is there a good way to avoid this? */
     ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)v),((PetscObject)v)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
     ierr = PetscOptionsInt("-vec_cuda_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecCUDASetPinnedMemoryMin",veccuda->minimum_bytes_pinned_memory,&veccuda->minimum_bytes_pinned_memory,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsInt("-vec_cuda_min_size_for_gpu","Minimum size (in vector entries) for the GPU to be used",NULL,veccuda->minimum_size_for_gpu,&veccuda->minimum_size_for_gpu,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsEnd();CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
