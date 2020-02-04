@@ -13,6 +13,7 @@ typedef struct {
   cudaStream_t stream;              /* A stream for doing asynchronous data transfers */
   PetscBool    hostDataRegisteredAsPageLocked;
   PetscInt     minimum_bytes_pinned_memory;     /* minimum data size in bytes for which pinned memory will be allocated */
+  PetscInt     minimum_size_for_gpu; /* Minimum number of vector entries to use GPU */
 } Vec_CUDA;
 
 #include <cuda_runtime.h>

@@ -477,16 +477,25 @@ PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
       veccuda->GPUarray_allocated = 0;
       veccuda->hostDataRegisteredAsPageLocked = PETSC_FALSE;
       veccuda->minimum_bytes_pinned_memory = 0;
+      veccuda->minimum_size_for_gpu = 0;
       V->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
 
       /* Need to parse command line for minimum size to use for pinned memory allocations on host here.
          Note: This same code duplicated in VecCUDAAllocateCheck() and VecCreate_MPICUDA_Private(). Is there a good way to avoid this? */
       ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)V),((PetscObject)V)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
       ierr = PetscOptionsInt("-vec_cuda_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecCUDASetPinnedMemoryMin",veccuda->minimum_bytes_pinned_memory,&veccuda->minimum_bytes_pinned_memory,NULL);CHKERRQ(ierr);
+      ierr = PetscOptionsInt("-vec_cuda_min_size_for_gpu","Minimum size (in vector entries) for the GPU to be used",NULL,veccuda->minimum_size_for_gpu,&veccuda->minimum_size_for_gpu,NULL);CHKERRQ(ierr);
       ierr = PetscOptionsEnd();CHKERRQ(ierr);
     }
     veccuda = (Vec_CUDA*)V->spptr;
     veccuda->GPUarray = (PetscScalar*)array;
+  }
+
+  if (V->spptr) {
+    veccuda = (Vec_CUDA*)V->spptr;
+    if (V->map->n < veccuda->minimum_size_for_gpu) {
+      ierr = VecPinToCPU_SeqCUDA(V,PETSC_TRUE);CHKERRQ(ierr);
+    }
   }
 
   PetscFunctionReturn(0);
