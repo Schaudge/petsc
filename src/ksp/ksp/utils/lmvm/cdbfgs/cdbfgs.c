@@ -90,10 +90,47 @@ static PetscErrorCode MatSolve_LMVMCDBFGS(Mat B, Vec F, Vec dX)
 
 static PetscErrorCode MatMult_LMVMCDBFGS(Mat B, Vec X, Vec Z)
 {
+  Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
+  Mat_CDBFGS        *lbfgs = (Mat_CDBFGS*)lmvm->ctx;
+  PetscErrorCode    ierr;
+
   PetscFunctionBegin;
   VecCheckSameSize(X, 2, Z, 3);
   VecCheckMatCompatible(B, X, 2, Z, 3);
-  SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_WRONGSTATE, "Forward product not yet implemented");
+
+  /* Start with the B0 term */
+  ierr = MatCDBFGSApplyJ0Fwd(B, X, Z);CHKERRQ(ierr);
+  if (lmvm->k == -1) {
+    PetscFunctionReturn(0); /* No updates stored yet */
+  }
+
+  /* Negate the Z vector so that we can do summations and negate again at the end */
+  ierr = VecScale(Z, -1.0);CHKERRQ(ierr);
+
+  /* Apply Phi^T = [S^TB; Y^t] to incoming vector X */
+  /* The result is stored in two halves, (rwork1 = S^T B X) and (rwork2 = Y^T X) */
+  ierr = MatCDBFGSApplyJ0Fwd(B, X, lbfgs->lwork1);CHKERRQ(ierr);
+  ierr = MatMult(lbfgs->ST, lbfgs->lwork1, lbfgs->rwork1);CHKERRQ(ierr);
+  ierr = MatMult(lbfgs->YT, X, lbfgs->rwork2);CHKERRQ(ierr);
+
+  /* Start with the upper half of M */
+  ierr = MatMultTranspose(lbfgs->ST, lbfgs->rwork1, lbfgs->lwork1);CHKERRQ(ierr);
+  ierr = MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2);CHKERRQ(ierr);
+  ierr = MatMult(lbfgs->ST, lbfgs->lwork2, lbfgs->rwork3);CHKERRQ(ierr);
+  ierr = MatMultTransposeAdd(lbfgs->L, lbfgs->rwork2, lbfgs->rwork3, lbfgs->rwork3);CHKERRQ(ierr);
+  ierr = MatMultTranspose(lbfgs->ST, lbfgs->rwork3, lbfgs->lwork1);CHKERRQ(ierr);
+  ierr = MatCDBFGSApplyJ0Fwd(B, lbfgs->lwork1, lbfgs->lwork2);CHKERRQ(ierr);
+  ierr = VecAXPY(Z, 1.0, lbfgs->lwork2);CHKERRQ(ierr);
+
+  /* Now bottom half of M */
+  ierr = MatMult(lbfgs->D, lbfgs->rwork2, lbfgs->rwork4);CHKERRQ(ierr);
+  ierr = VecScale(lbfgs->rwork4, -1.0);CHKERRQ(ierr);
+  ierr = MatMultAdd(lbfgs->L, lbfgs->rwork1, lbfgs->rwork4, lbfgs->rwork4);CHKERRQ(ierr);
+  ierr = MatMultTransposeAdd(lbfgs->YT, lbfgs->rwork4, Z, Z);CHKERRQ(ierr);
+
+  /* Negate the output vector again for final result */
+  ierr = VecScale(Z, -1.0);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
