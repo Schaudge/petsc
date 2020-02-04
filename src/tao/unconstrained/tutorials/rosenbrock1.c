@@ -2,6 +2,7 @@
 
 /*  Include "petsctao.h" so we can use TAO solvers.  */
 #include <petsctao.h>
+#include <petscvec.h>
 
 static char help[] = "This example demonstrates use of the TAO package to \n\
 solve an unconstrained minimization problem on a single processor.  We \n\
@@ -31,7 +32,7 @@ int main(int argc, char **argv)
   Vec         x; /* solution vector */
   Mat         H;
   Tao         tao; /* Tao solver context */
-  PetscBool   flg, test_lmvm = PETSC_FALSE;
+  PetscBool   flg, cuda = PETSC_FALSE, test_lmvm = PETSC_FALSE;
   PetscMPIInt size; /* number of processes running */
   AppCtx      user; /* user-defined application context */
   KSP         ksp;
@@ -55,11 +56,16 @@ int main(int argc, char **argv)
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &user.alpha, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-chained", &user.chained, &flg));
   PetscCall(PetscOptionsGetBool(NULL, NULL, "-test_lmvm", &test_lmvm, &flg));
+  PetscCall(PetscOptionsGetBool(NULL, NULL, "-cuda", &cuda, &flg));
 
   /* Allocate vectors for the solution and gradient */
-  PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
-  PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
-
+  if (cuda){
+    PetscCall(VecCreateSeqCUDA(PETSC_COMM_SELF, user.n, &x));
+    PetscCall(MatCreateDenseMatchingVec(x, user.n, user.n, PETSC_DECIDE, PETSC_DECIDE, NULL, &H));
+  } else {
+    PetscCall(VecCreateSeq(PETSC_COMM_SELF, user.n, &x));
+    PetscCall(MatCreateSeqBAIJ(PETSC_COMM_SELF, 2, user.n, user.n, 1, NULL, &H));
+  }
   /* The TAO code begins here */
 
   /* Create TAO solver with desired solution method */
@@ -88,6 +94,11 @@ int main(int argc, char **argv)
     PetscCall(TaoGetKSP(tao, &ksp));
     PetscCall(KSPGetPC(ksp, &pc));
     PetscCall(PCLMVMGetMatLMVM(pc, &M));
+
+    PetscCall(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_DENSE));
+    PetscCall(MatView(M, PETSC_VIEWER_STDOUT_WORLD));
+    PetscCall(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
+
     PetscCall(VecDuplicate(x, &in));
     PetscCall(VecDuplicate(x, &out));
     PetscCall(VecDuplicate(x, &out2));
@@ -357,6 +368,14 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      suffix: 28
      args: -tao_fmin 10 -tao_converged_reason
 
+   test:  
+     suffix: 29
+     args: -test_lmvm -tao_max_it 10 -tao_bqnk_mat_type lmvmcdbfgs
+
+   test:
+     suffix: 30
+     args: -tao_type bqnls -tao_bqnls_mat_type lmvmcdbfgs -tao_monitor
+
    test:
      suffix: snes
      args: -snes_monitor ::ascii_info_detail -tao_type snes -snes_type newtontr -snes_atol 1.e-4 -pc_type none -tao_mf_hessian -ksp_type cg
@@ -369,5 +388,4 @@ PetscErrorCode FormHessian(Tao tao, Vec X, Mat H, Mat Hpre, void *ptr)
      suffix: snes_tr_cgnegcurve_kmdc
      args: -snes_monitor ::ascii_info_detail -tao_type snes -snes_type newtontr -snes_atol 1.e-4 -pc_type none  -ksp_type cg -snes_tr_kmdc 0.01 -ksp_converged_neg_curve -ksp_converged_reason
      requires: !single
-
 TEST*/
