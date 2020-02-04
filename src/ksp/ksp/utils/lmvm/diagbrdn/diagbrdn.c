@@ -366,7 +366,7 @@ static PetscErrorCode MatSetFromOptions_DiagBrdn(Mat B, PetscOptionItems *PetscO
 
   PetscFunctionBegin;
   PetscCall(MatSetFromOptions_LMVM(B, PetscOptionsObject));
-  PetscOptionsHeadBegin(PetscOptionsObject, "Restricted Broyden method for approximating SPD Jacobian actions (MATLMVMDIAGBRDN)");
+  PetscOptionsHeadBegin(PetscOptionsObject, "Restricted Broyden method for approximating SPD Jacobian actions (MATLMVMDIAGBROYDEN)");
   PetscCall(PetscOptionsReal("-mat_lmvm_theta", "(developer) convex ratio between BFGS and DFP components of the diagonal J0 scaling", "", ldb->theta, &ldb->theta, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_rho", "(developer) update limiter in the J0 scaling", "", ldb->rho, &ldb->rho, NULL));
   PetscCall(PetscOptionsReal("-mat_lmvm_tol", "(developer) tolerance for bounding rescaling denominator", "", ldb->tol, &ldb->tol, NULL));
@@ -489,7 +489,6 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
   B->ops->setup          = MatSetUp_DiagBrdn;
   B->ops->setfromoptions = MatSetFromOptions_DiagBrdn;
   B->ops->destroy        = MatDestroy_DiagBrdn;
-  B->ops->solve          = MatSolve_DiagBrdn;
   B->ops->view           = MatView_DiagBrdn;
 
   lmvm                = (Mat_LMVM *)B->data;
@@ -498,6 +497,7 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
   lmvm->ops->allocate = MatAllocate_DiagBrdn;
   lmvm->ops->reset    = MatReset_DiagBrdn;
   lmvm->ops->mult     = MatMult_DiagBrdn;
+  lmvm->ops->solve    = MatSolve_DiagBrdn;
   lmvm->ops->update   = MatUpdate_DiagBrdn;
   lmvm->ops->copy     = MatCopy_DiagBrdn;
 
@@ -563,7 +563,7 @@ PetscErrorCode MatCreate_LMVMDiagBrdn(Mat B)
    It is recommended that one use the `MatCreate()`, `MatSetType()` and/or `MatSetFromOptions()`
    paradigm instead of this routine directly.
 
-.seealso: [](ch_ksp), `MatCreate()`, `MATLMVM`, `MATLMVMDIAGBRDN`, `MatCreateLMVMDFP()`, `MatCreateLMVMSR1()`,
+.seealso: [](chapter_ksp), `MatCreate()`, `MATLMVM`, `MATLMVMDIAGBROYDEN`, `MatCreateLMVMDFP()`, `MatCreateLMVMSR1()`,
           `MatCreateLMVMBFGS()`, `MatCreateLMVMBrdn()`, `MatCreateLMVMSymBrdn()`
 @*/
 PetscErrorCode MatCreateLMVMDiagBroyden(MPI_Comm comm, PetscInt n, PetscInt N, Mat *B)
