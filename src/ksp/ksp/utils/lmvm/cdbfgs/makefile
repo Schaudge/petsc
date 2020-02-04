@@ -4,13 +4,13 @@ ALL: lib
 
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = lmvmimpl.c lmvmutils.c
+SOURCEC  = cdbfgs.c
 SOURCEF  =
-SOURCEH  = lmvm.h
+SOURCEH  = cdbfgs.h
 LIBBASE  = libpetscksp
+DIRS     =
 MANSEC   = KSP
-DIRS     = sr1 dfp bfgs cdbfgs symbrdn brdn badbrdn diagbrdn
-LOCDIR   = src/ksp/ksp/utils/lmvm/
+LOCDIR   = src/ksp/ksp/utils/lmvm/cdbfgs/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

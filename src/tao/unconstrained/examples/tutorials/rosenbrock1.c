@@ -47,7 +47,7 @@ int main(int argc,char **argv)
   Vec                x;                     /* solution vector */
   Mat                H;
   Tao                tao;                   /* Tao solver context */
-  PetscBool          flg, test_lmvm = PETSC_FALSE;
+  PetscBool          flg, cuda=PETSC_FALSE, test_lmvm = PETSC_FALSE;
   PetscMPIInt        size;                  /* number of processes running */
   AppCtx             user;                  /* user-defined application context */
   KSP                ksp;
@@ -68,10 +68,16 @@ int main(int argc,char **argv)
   ierr = PetscOptionsGetReal(NULL,NULL,"-alpha",&user.alpha,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-chained",&user.chained,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-test_lmvm",&test_lmvm,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-cuda",&cuda,&flg);CHKERRQ(ierr);
 
   /* Allocate vectors for the solution and gradient */
-  ierr = VecCreateSeq(PETSC_COMM_SELF,user.n,&x);CHKERRQ(ierr);
-  ierr = MatCreateSeqBAIJ(PETSC_COMM_SELF,2,user.n,user.n,1,NULL,&H);CHKERRQ(ierr);
+  if (cuda){
+    ierr = VecCreateSeqCUDA(PETSC_COMM_SELF,user.n,&x);CHKERRQ(ierr);
+  } else {
+    ierr = VecCreateSeq(PETSC_COMM_SELF,user.n,&x);CHKERRQ(ierr);
+    ierr = MatCreateSeqBAIJ(PETSC_COMM_SELF,2,user.n,user.n,1,NULL,&H);CHKERRQ(ierr);
+  }
+  
 
   /* The TAO code begins here */
 

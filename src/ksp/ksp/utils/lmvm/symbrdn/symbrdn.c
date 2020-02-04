@@ -1,4 +1,5 @@
 #include <../src/ksp/ksp/utils/lmvm/symbrdn/symbrdn.h> /*I "petscksp.h" I*/
+#include <../src/ksp/ksp/utils/lmvm/cdbfgs/cdbfgs.h>
 #include <../src/ksp/ksp/utils/lmvm/diagbrdn/diagbrdn.h>
 
 /*------------------------------------------------------------*/
@@ -631,19 +632,37 @@ PetscErrorCode MatCreate_LMVMSymBrdn(Mat B)
 PetscErrorCode MatSymBrdnSetDelta(Mat B, PetscScalar delta)
 {
   Mat_LMVM          *lmvm = (Mat_LMVM*)B->data;
-  Mat_SymBrdn       *lsb = (Mat_SymBrdn*)lmvm->ctx;
+  Mat_SymBrdn       *lsb;
+  Mat_CDBFGS        *lcd;
   PetscErrorCode    ierr;
-  PetscBool         is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn;
+  PetscBool         is_cdbfgs, is_bfgs, is_dfp, is_symbrdn, is_symbadbrdn;
+  PetscReal         del_min, del_max, del_buf;
   
   PetscFunctionBegin;
+  ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMCDBFGS, &is_cdbfgs);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMBFGS, &is_bfgs);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMDFP, &is_dfp);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBRDN, &is_symbrdn);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)B, MATLMVMSYMBADBRDN, &is_symbadbrdn);CHKERRQ(ierr);
-  if (!is_bfgs && !is_dfp && !is_symbrdn && !is_symbadbrdn) SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "diagonal scaling is only available for DFP, BFGS and SymBrdn matrices");
-  lsb->delta = PetscAbsReal(PetscRealPart(delta));
-  lsb->delta = PetscMin(lsb->delta, lsb->delta_max);CHKERRQ(ierr);
-  lsb->delta = PetscMax(lsb->delta, lsb->delta_min);CHKERRQ(ierr);
+  if (is_cdbfgs) {
+    lcd = (Mat_CDBFGS*)lmvm->ctx;
+    del_min = lcd->delta_min;
+    del_max = lcd->delta_max;
+  } else if (is_bfgs || is_dfp || is_symbrdn || is_symbadbrdn) {
+    lsb = (Mat_SymBrdn*)lmvm->ctx;
+    del_min = lsb->delta_min;
+    del_max = lsb->delta_max;
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)B), PETSC_ERR_ARG_INCOMP, "diagonal scaling only available for SymBrdn-derived types (CDBFGS, BFGS, DFP, SymBrdn, SymBadBrdn\n");
+  }
+  del_buf = PetscAbsReal(PetscRealPart(delta));
+  del_buf = PetscMin(del_buf, del_max);
+  del_buf = PetscMax(del_buf, del_min);
+  if (is_cdbfgs) {
+    lcd->delta = del_buf;
+  } else {
+    lsb->delta = del_buf;
+  }
   PetscFunctionReturn(0);
 }
 
