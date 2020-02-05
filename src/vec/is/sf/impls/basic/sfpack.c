@@ -4,6 +4,9 @@
 #if defined(PETSC_HAVE_CUDA)
 #include <cuda_runtime.h>
 #endif
+#if defined(PETSC_HAVE_HIP)
+#include <hip_runtime.h>
+#endif
 /*
  * MPI_Reduce_local is not really useful because it can't handle sparse data and it vectorizes "in the wrong direction",
  * therefore we pack data types manually. This file defines packing routines for the standard data types.
@@ -754,10 +757,16 @@ PetscErrorCode PetscSFLinkDestroy(PetscSF sf,PetscSFLink *avail)
     }
     ierr = PetscFree(link->reqs);CHKERRQ(ierr);
     for (i=PETSCSF_LOCAL; i<=PETSCSF_REMOTE; i++) {
-#if defined(PETSC_HAVE_CUDA)
+/* TODO:  SEK This seems like a mess */
+#if defined(PETSC_HAVE_CUDA) || (PETSC_HAVE_HIP)
       ierr = PetscFreeWithMemType(PETSC_MEMTYPE_DEVICE,link->rootbuf_alloc[i][PETSC_MEMTYPE_DEVICE]);CHKERRQ(ierr);
       ierr = PetscFreeWithMemType(PETSC_MEMTYPE_DEVICE,link->leafbuf_alloc[i][PETSC_MEMTYPE_DEVICE]);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA)
       if (link->stream) {cudaError_t err =  cudaStreamDestroy(link->stream);CHKERRCUDA(err); link->stream = NULL;}
+#endif
+#if defined(PETSC_HAVE_HIP)
+    if (link->stream) {hipError_t err =  hipStreamDestroy(link->stream);CHKERRHIP(err); link->stream = NULL;}
+#endif
 #endif
       ierr = PetscFree(link->rootbuf_alloc[i][PETSC_MEMTYPE_HOST]);CHKERRQ(ierr);
       ierr = PetscFree(link->leafbuf_alloc[i][PETSC_MEMTYPE_HOST]);CHKERRQ(ierr);
@@ -936,7 +945,7 @@ PetscErrorCode PetscSFLinkGetUnpackAndOp(PetscSFLink link,PetscMemType mtype,MPI
     else if (op == MPI_MAXLOC)                *UnpackAndOp = link->h_UnpackAndMaxloc;
     else if (op == MPI_MINLOC)                *UnpackAndOp = link->h_UnpackAndMinloc;
   }
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   else if (mtype == PETSC_MEMTYPE_DEVICE && !atomic) {
     if      (op == MPIU_REPLACE)              *UnpackAndOp = link->d_UnpackAndInsert;
     else if (op == MPI_SUM || op == MPIU_SUM) *UnpackAndOp = link->d_UnpackAndAdd;
@@ -989,7 +998,7 @@ PetscErrorCode PetscSFLinkGetScatterAndOp(PetscSFLink link,PetscMemType mtype,MP
     else if (op == MPI_MAXLOC)                *ScatterAndOp = link->h_ScatterAndMaxloc;
     else if (op == MPI_MINLOC)                *ScatterAndOp = link->h_ScatterAndMinloc;
   }
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   else if (mtype == PETSC_MEMTYPE_DEVICE && !atomic) {
     if      (op == MPIU_REPLACE)              *ScatterAndOp = link->d_ScatterAndInsert;
     else if (op == MPI_SUM || op == MPIU_SUM) *ScatterAndOp = link->d_ScatterAndAdd;

@@ -158,7 +158,9 @@ def get_test_data(directory):
         except IOError:
             stderrlines = []
         try:
-            with open('%s/%s.tmp'%(probdir, probname), 'r') as probstdout:
+            filename='%s/%s.tmp'%(probdir, probname)
+            if not os.path.exists(filename): pass
+            with open(filename, 'r') as probstdout:
                 stdoutlines = probstdout.readlines()
         except IOError:
             stdoutlines = []

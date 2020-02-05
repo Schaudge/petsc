@@ -99,6 +99,9 @@ PetscErrorCode PetscSFReset(PetscSF sf)
   for (i=0; i<2; i++) {if (sf->rmine_d[i]) {cudaError_t err = cudaFree(sf->rmine_d[i]);CHKERRCUDA(err);sf->rmine_d[i]=NULL;}}
   }
 #endif
+#if defined(PETSC_HAVE_HIP)
+  if (sf->rmine_d) {hipError_t err = hipFree(sf->rmine_d);CHKERRHIP(err);sf->rmine_d=NULL;}
+#endif
   sf->degreeknown = PETSC_FALSE;
   ierr = PetscFree(sf->degree);CHKERRQ(ierr);
   if (sf->ingroup  != MPI_GROUP_NULL) {ierr = MPI_Group_free(&sf->ingroup);CHKERRQ(ierr);}

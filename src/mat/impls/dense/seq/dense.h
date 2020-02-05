@@ -88,6 +88,12 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqDenseCUDA_SeqDense(Mat,MatType,MatReus
 PETSC_INTERN PetscErrorCode MatConvert_SeqDense_SeqDenseCUDA(Mat,MatType,MatReuse,Mat*);
 #endif
 
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscErrorCode MatSeqDenseHIPInvertFactors_Private(Mat);
+PETSC_INTERN PetscErrorCode MatConvert_SeqDenseHIP_SeqDense(Mat,MatType,MatReuse,Mat*);
+PETSC_INTERN PetscErrorCode MatConvert_SeqDense_SeqDenseHIP(Mat,MatType,MatReuse,Mat*);
+#endif
+
 PETSC_EXTERN PetscErrorCode MatSeqDenseInvertFactors_Private(Mat);
 
 PETSC_INTERN PetscErrorCode MatCreateMPIMatConcatenateSeqMat_SeqDense(MPI_Comm,Mat,PetscInt,MatReuse,Mat*);

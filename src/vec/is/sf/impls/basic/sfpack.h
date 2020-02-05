@@ -66,9 +66,9 @@ struct _n_PetscSFLink {
   PetscErrorCode (*h_FetchAndAddLocal)(PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,void*,PetscInt,PetscSFPackOpt,const PetscInt*,const void*,void*);
 
   PetscBool      deviceinited;        /* Are device related fields initialized? */
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || (PETSC_HAVE_HIP)
   /* These fields are lazily initialized in a sense that only when device pointers are passed to an SF, the SF
-     will set them, otherwise it just leaves them alone even though PETSC_HAVE_CUDA. Packing routines using
+     will set them, otherwise it just leaves them alone even though PETSC_HAVE_CUDA/HIP. Packing routines using
      regular ops when there are no data race chances.
   */
   PetscErrorCode (*d_Pack)            (PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,const void*,void*);
@@ -135,6 +135,8 @@ struct _n_PetscSFLink {
 
   PetscInt     maxResidentThreadsPerGPU;     /* It is a copy from SF for convenience */
   cudaStream_t stream;                       /* Stream to launch pack/unapck kernels if not using the default stream */
+  /*TODO:  Need to figure out consolidated name */
+  hipStream_t   stream;                      /* Stream to launch pack/unapck kernels if not using the default stream */
 #endif
   PetscMPIInt  tag;                          /* Each link has a tag so we can perform multiple SF ops at the same time */
   MPI_Datatype unit;                         /* The MPI datatype this PetscSFLink is built for */
@@ -182,7 +184,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkGetPack(PetscSFLink link,PetscMemT
 {
   PetscFunctionBegin;
   if (mtype == PETSC_MEMTYPE_HOST) *Pack = link->h_Pack;
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   else *Pack = link->d_Pack;
 #endif
   PetscFunctionReturn(0);
@@ -329,7 +331,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkMemcpy(PetscSF sf,PetscSFLink link
   PetscFunctionBegin;
   if (n) {
     if (dstmtype == PETSC_MEMTYPE_HOST && srcmtype == PETSC_MEMTYPE_HOST) {PetscErrorCode ierr = PetscMemcpy(dst,src,n);CHKERRQ(ierr);}
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     else if (dstmtype == PETSC_MEMTYPE_DEVICE && srcmtype == PETSC_MEMTYPE_HOST)   {
       cudaError_t    err  = cudaMemcpyAsync(dst,src,n,cudaMemcpyHostToDevice,link->stream);CHKERRCUDA(err);
       PetscErrorCode ierr = PetscLogCpuToGpu(n);CHKERRQ(ierr);

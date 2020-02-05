@@ -3423,8 +3423,8 @@ PetscErrorCode  MatCreateMAIJ(Mat A,PetscInt dof,Mat *maij)
   PetscMPIInt    size;
   PetscInt       n;
   Mat            B;
-#if defined(PETSC_HAVE_CUDA)
-  /* hack to prevent conversion to AIJ format for CUDA when used inside a parallel MAIJ */
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+  /* hack to prevent conversion to AIJ format for CUDA/HIP when used inside a parallel MAIJ */
   PetscBool      convert = dof < 0 ? PETSC_FALSE : PETSC_TRUE;
 #endif
 
@@ -3528,6 +3528,9 @@ PetscErrorCode  MatCreateMAIJ(Mat A,PetscInt dof,Mat *maij)
 #if defined(PETSC_HAVE_CUDA)
       ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqmaij_seqaijcusparse_C",MatConvert_SeqMAIJ_SeqAIJ);CHKERRQ(ierr);
 #endif
+#if defined(PETSC_HAVE_HIP)
+      ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqmaij_seqaijhipsparse_C",MatConvert_SeqMAIJ_SeqAIJ);CHKERRQ(ierr);
+#endif
       ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqmaij_seqaij_C",MatConvert_SeqMAIJ_SeqAIJ);CHKERRQ(ierr);
       ierr = PetscObjectComposeFunction((PetscObject)B,"MatProductSetFromOptions_seqaij_seqmaij_C",MatProductSetFromOptions_SeqAIJ_SeqMAIJ);CHKERRQ(ierr);
     } else {
@@ -3577,6 +3580,9 @@ PetscErrorCode  MatCreateMAIJ(Mat A,PetscInt dof,Mat *maij)
 #if defined(PETSC_HAVE_CUDA)
       ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_mpimaij_mpiaijcusparse_C",MatConvert_MPIMAIJ_MPIAIJ);CHKERRQ(ierr);
 #endif
+#if defined(PETSC_HAVE_HIP)
+      ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_mpimaij_mpiaijhipsparse_C",MatConvert_MPIMAIJ_MPIAIJ);CHKERRQ(ierr);
+#endif
       ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_mpimaij_mpiaij_C",MatConvert_MPIMAIJ_MPIAIJ);CHKERRQ(ierr);
       ierr = PetscObjectComposeFunction((PetscObject)B,"MatProductSetFromOptions_mpiaij_mpimaij_C",MatProductSetFromOptions_MPIAIJ_MPIMAIJ);CHKERRQ(ierr);
     }
@@ -3584,8 +3590,8 @@ PetscErrorCode  MatCreateMAIJ(Mat A,PetscInt dof,Mat *maij)
     B->ops->createsubmatrices = MatCreateSubMatrices_MAIJ;
     ierr  = MatSetFromOptions(B);CHKERRQ(ierr);
     ierr  = MatSetUp(B);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
-    /* temporary until we have CUDA implementation of MAIJ */
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+    /* temporary until we have CUDA or HIP implementation of MAIJ */
     {
       PetscBool flg;
       if (convert) {

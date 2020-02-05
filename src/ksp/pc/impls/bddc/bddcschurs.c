@@ -866,7 +866,7 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
     PetscBool         economic,solver_S,S_lower_triangular = PETSC_FALSE;
     PetscBool         schur_has_vertices,factor_workaround;
     PetscBool         use_cholesky;
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     PetscBool         oldpin;
 #endif
 
@@ -932,7 +932,7 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
     }
     size_schur = cum - n_I;
     ierr = ISCreateGeneral(PETSC_COMM_SELF,cum,all_local_idx_N,PETSC_OWN_POINTER,&is_A_all);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)|| defined(PETSC_HAVE_HIP)
     oldpin = sub_schurs->A->boundtocpu;
     ierr = MatBindToCPU(sub_schurs->A,PETSC_TRUE);CHKERRQ(ierr);
 #endif
@@ -942,7 +942,7 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
     } else {
       ierr = MatCreateSubMatrix(sub_schurs->A,is_A_all,is_A_all,MAT_INITIAL_MATRIX,&A);CHKERRQ(ierr);
     }
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)|| defined(PETSC_HAVE_HIP)
     ierr = MatBindToCPU(sub_schurs->A,oldpin);CHKERRQ(ierr);
 #endif
     ierr = MatSetOptionsPrefix(A,sub_schurs->prefix);CHKERRQ(ierr);
@@ -1072,10 +1072,13 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
       /* get explicit Schur Complement computed during numeric factorization */
       ierr = MatFactorGetSchurComplement(F,&S_all,NULL);CHKERRQ(ierr);
       ierr = PetscStrncpy(stype,MATSEQDENSE,sizeof(stype));CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
-      ierr = PetscObjectTypeCompareAny((PetscObject)A,&gpu,MATSEQAIJVIENNACL,MATSEQAIJCUSPARSE,"");CHKERRQ(ierr);
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+      /* TODO: SEK:  I can't remember how CompareAny works off the top of my
+       * head */
+      ierr = PetscObjectTypeCompareAny((PetscObject)A,&gpu,MATSEQAIJVIENNACL,MATSEQAIJCUSPARSE,MATSEQAIJHIPSPARSE,"");CHKERRQ(ierr);
 #endif
       if (gpu) {
+        /* TODO: SEK: Looks like ViennaCL always uses MATSEQDENSECUDA.  * HIP?*/
         ierr = PetscStrncpy(stype,MATSEQDENSECUDA,sizeof(stype));CHKERRQ(ierr);
       }
       ierr = PetscOptionsGetString(NULL,sub_schurs->prefix,"-sub_schurs_schur_mat_type",stype,sizeof(stype),NULL);CHKERRQ(ierr);
@@ -1412,6 +1415,7 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
             ierr = MatSetType(M,Stype);CHKERRQ(ierr);
           }
           ierr = PetscObjectTypeCompare((PetscObject)M,MATSEQDENSE,&isdense);CHKERRQ(ierr);
+          /* TODO:  SEK:  Should probably make this isdensegpu or isdenseaxb */
           ierr = PetscObjectTypeCompare((PetscObject)M,MATSEQDENSECUDA,&isdensecuda);CHKERRQ(ierr);
           if (use_cholesky) {
             ierr = MatCholeskyFactor(M,NULL,NULL);CHKERRQ(ierr);
@@ -1423,6 +1427,11 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
 #if defined(PETSC_HAVE_CUDA)
           } else if (isdensecuda) {
             ierr = MatSeqDenseCUDAInvertFactors_Private(M);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_HIP)
+          /* SEK:  This isn't right */
+          } else if (isdensehip) {
+            ierr = MatSeqDenseHIPInvertFactors_Private(M);CHKERRQ(ierr);
 #endif
           } else SETERRQ1(PetscObjectComm((PetscObject)M),PETSC_ERR_SUP,"Not implemented for type %s",Stype);
           ierr = MatDenseGetArrayRead(M,&vals);CHKERRQ(ierr);
@@ -1461,7 +1470,7 @@ PetscErrorCode PCBDDCSubSchursSetUp(PCBDDCSubSchurs sub_schurs, Mat Ain, Mat Sin
 
     /* may prevent from unneeded copies, since MUMPS or MKL_Pardiso always use CPU memory
        however, preliminary tests indicate using GPUs is still faster in the solve phase */
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     if (reuse_solvers) {
       Mat                  St;
       MatFactorSchurStatus st;

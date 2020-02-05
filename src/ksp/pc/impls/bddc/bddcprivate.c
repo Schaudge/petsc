@@ -4139,7 +4139,7 @@ PetscErrorCode PCBDDCSetUpCorrection(PC pc, PetscScalar **coarse_submat_vals_n)
 
   /* Get submatrices from subdomain matrix */
   if (n_vertices) {
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     PetscBool oldpin;
 #endif
     PetscBool isaij;
@@ -4155,7 +4155,7 @@ PetscErrorCode PCBDDCSetUpCorrection(PC pc, PetscScalar **coarse_submat_vals_n)
     } else {
       ierr = ISComplement(pcbddc->is_R_local,0,pcis->n,&is_aux);CHKERRQ(ierr);
     }
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     oldpin = pcbddc->local_mat->boundtocpu;
 #endif
     ierr = MatBindToCPU(pcbddc->local_mat,PETSC_TRUE);CHKERRQ(ierr);
@@ -4166,7 +4166,7 @@ PetscErrorCode PCBDDCSetUpCorrection(PC pc, PetscScalar **coarse_submat_vals_n)
       ierr = MatConvert(A_VR,MATSEQAIJ,MAT_INPLACE_MATRIX,&A_VR);CHKERRQ(ierr);
     }
     ierr = MatCreateSubMatrix(pcbddc->local_mat,is_aux,is_aux,MAT_INITIAL_MATRIX,&A_VV);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
     ierr = MatBindToCPU(pcbddc->local_mat,oldpin);CHKERRQ(ierr);
 #endif
     ierr = ISDestroy(&is_aux);CHKERRQ(ierr);
@@ -4910,29 +4910,57 @@ PetscErrorCode PCBDDCSetUpCorrection(PC pc, PetscScalar **coarse_submat_vals_n)
     }
     ierr = MatDestroy(&coarse_sub_mat);CHKERRQ(ierr);
   }
-  /* FINAL CUDA support (we cannot currently mix viennacl and cuda vectors */
+  /* FINAL CUDA/HIP support (we cannot currently mix viennacl and cuda/hip vectors */
   {
-    PetscBool gpu;
+    PetscBool iscuda,iship,gpu;
+    gpu = PETSC_FALSE;
 
-    ierr = PetscObjectTypeCompare((PetscObject)pcis->vec1_N,VECSEQCUDA,&gpu);CHKERRQ(ierr);
+    /* SEK: Ugh. Definitely need to generalize  */
+    ierr = PetscObjectTypeCompare((PetscObject)pcis->vec1_N,VECSEQCUDA,&iscuda);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)pcis->vec1_N,VECSEQHIP,&iship);CHKERRQ(ierr);
+    if (iscuda || iship) gpu = PETSC_TRUE;
     if (gpu) {
       if (pcbddc->local_auxmat1) {
+#if defined(PETSC_HAVE_CUDA) 
         ierr = MatConvert(pcbddc->local_auxmat1,MATSEQDENSECUDA,MAT_INPLACE_MATRIX,&pcbddc->local_auxmat1);CHKERRQ(ierr);
+#else
+        ierr = MatConvert(pcbddc->local_auxmat1,MATSEQDENSEHIP,MAT_INPLACE_MATRIX,&pcbddc->local_auxmat1);CHKERRQ(ierr);
+#endif
       }
       if (pcbddc->local_auxmat2) {
+#if defined(PETSC_HAVE_CUDA) 
         ierr = MatConvert(pcbddc->local_auxmat2,MATSEQDENSECUDA,MAT_INPLACE_MATRIX,&pcbddc->local_auxmat2);CHKERRQ(ierr);
+#else
+        ierr = MatConvert(pcbddc->local_auxmat2,MATSEQDENSEHIP,MAT_INPLACE_MATRIX,&pcbddc->local_auxmat2);CHKERRQ(ierr);
+#endif
       }
       if (pcbddc->coarse_phi_B) {
+#if defined(PETSC_HAVE_CUDA) 
         ierr = MatConvert(pcbddc->coarse_phi_B,MATSEQDENSECUDA,MAT_INPLACE_MATRIX,&pcbddc->coarse_phi_B);CHKERRQ(ierr);
+#else
+        ierr = MatConvert(pcbddc->coarse_phi_B,MATSEQDENSEHIP,MAT_INPLACE_MATRIX,&pcbddc->coarse_phi_B);CHKERRQ(ierr);
+#endif
       }
       if (pcbddc->coarse_phi_D) {
+#if defined(PETSC_HAVE_CUDA) 
         ierr = MatConvert(pcbddc->coarse_phi_D,MATSEQDENSECUDA,MAT_INPLACE_MATRIX,&pcbddc->coarse_phi_D);CHKERRQ(ierr);
+#else
+        ierr = MatConvert(pcbddc->coarse_phi_D,MATSEQDENSEHIP,MAT_INPLACE_MATRIX,&pcbddc->coarse_phi_D);CHKERRQ(ierr);
+#endif
       }
       if (pcbddc->coarse_psi_B) {
+#if defined(PETSC_HAVE_CUDA) 
         ierr = MatConvert(pcbddc->coarse_psi_B,MATSEQDENSECUDA,MAT_INPLACE_MATRIX,&pcbddc->coarse_psi_B);CHKERRQ(ierr);
+#else
+        ierr = MatConvert(pcbddc->coarse_psi_B,MATSEQDENSEHIP,MAT_INPLACE_MATRIX,&pcbddc->coarse_psi_B);CHKERRQ(ierr);
+#endif
       }
       if (pcbddc->coarse_psi_D) {
+#if defined(PETSC_HAVE_CUDA) 
         ierr = MatConvert(pcbddc->coarse_psi_D,MATSEQDENSECUDA,MAT_INPLACE_MATRIX,&pcbddc->coarse_psi_D);CHKERRQ(ierr);
+#else
+        ierr = MatConvert(pcbddc->coarse_psi_D,MATSEQDENSEHIP,MAT_INPLACE_MATRIX,&pcbddc->coarse_psi_D);CHKERRQ(ierr);
+#endif
       }
     }
   }

@@ -74,7 +74,7 @@ PETSC_INTERN PetscErrorCode MatConvert_MPISBAIJ_Basic(Mat A, MatType newtype, Ma
     ierr = MatSetBlockSize(B,bs);CHKERRQ(ierr);
     ierr = PetscLayoutSetUp(B->rmap);CHKERRQ(ierr);
     ierr = PetscLayoutSetUp(B->cmap);CHKERRQ(ierr);
-    ierr = PetscObjectTypeCompareAny((PetscObject)B,&isdense,MATSEQDENSE,MATMPIDENSE,MATSEQDENSECUDA,"");CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompareAny((PetscObject)B,&isdense,MATSEQDENSE,MATMPIDENSE,MATSEQDENSECUDA,MATSEQDENSEHIP,"");CHKERRQ(ierr);
     if (!isdense) {
       ierr = MatGetRowUpperTriangular(A);CHKERRQ(ierr);
       ierr = MatPreallocateWithMats_Private(B,1,&A,&symm,PETSC_TRUE);CHKERRQ(ierr);

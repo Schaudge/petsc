@@ -40,6 +40,8 @@ typedef const char* MatType;
 #define MATAIJCUSPARSE     "aijcusparse"
 #define MATSEQAIJCUSPARSE  "seqaijcusparse"
 #define MATMPIAIJCUSPARSE  "mpiaijcusparse"
+#define MATSEQAIJHIPSPARSE "seqaijhipsparse"
+#define MATMPIAIJHIPSPARSE "mpiaijhipsparse"
 #define MATAIJVIENNACL     "aijviennacl"
 #define MATSEQAIJVIENNACL  "seqaijviennacl"
 #define MATMPIAIJVIENNACL  "mpiaijviennacl"
@@ -60,6 +62,7 @@ typedef const char* MatType;
 #define MATDENSECUDA       "densecuda"
 #define MATSEQDENSE        "seqdense"
 #define MATSEQDENSECUDA    "seqdensecuda"
+#define MATSEQDENSEHIP     "seqdensehip"
 #define MATMPIDENSE        "mpidense"
 #define MATMPIDENSECUDA    "mpidensecuda"
 #define MATELEMENTAL       "elemental"
@@ -137,7 +140,9 @@ typedef const char* MatSolverType;
 #define MATSOLVERPETSC            "petsc"
 #define MATSOLVERBAS              "bas"
 #define MATSOLVERCUSPARSE         "cusparse"
+#define MATSOLVERHIPSPARSE        "hipsparse"
 #define MATSOLVERCUDA             "cuda"
+#define MATSOLVERHIP              "hip"
 
 /*E
     MatFactorType - indicates what type of factorization is requested
@@ -1924,6 +1929,51 @@ PETSC_EXTERN PetscErrorCode MatDenseCUDARestoreArray(Mat,PetscScalar**);
 PETSC_EXTERN PetscErrorCode MatDenseCUDAPlaceArray(Mat,const PetscScalar*);
 PETSC_EXTERN PetscErrorCode MatDenseCUDAReplaceArray(Mat,const PetscScalar*);
 PETSC_EXTERN PetscErrorCode MatDenseCUDAResetArray(Mat);
+#endif
+
+#ifdef PETSC_HAVE_HIP
+/*E
+    MatCUSPARSEStorageFormat - indicates the storage format for CUSPARSE (GPU)
+    matrices.
+
+    Not Collective
+
++   MAT_CUSPARSE_CSR - Compressed Sparse Row
+.   MAT_CUSPARSE_ELL - Ellpack
+-   MAT_CUSPARSE_HYB - Hybrid, a combination of Ellpack and Coordinate format
+
+    Level: intermediate
+
+   Any additions/changes here MUST also be made in include/petsc/finclude/petscmat.h
+
+.seealso: MatCUSPARSESetFormat(), MatCUSPARSEFormatOperation
+E*/
+
+typedef enum {MAT_CUSPARSE_CSR, MAT_CUSPARSE_ELL, MAT_CUSPARSE_HYB} MatCUSPARSEStorageFormat;
+
+/* these will be strings associated with enumerated type defined above */
+PETSC_EXTERN const char *const MatCUSPARSEStorageFormats[];
+
+/*E
+    MatCUSPARSEFormatOperation - indicates the operation of CUSPARSE (GPU)
+    matrices whose operation should use a particular storage format.
+
+    Not Collective
+
++   MAT_CUSPARSE_MULT_DIAG - sets the storage format for the diagonal matrix in the parallel MatMult
+.   MAT_CUSPARSE_MULT_OFFDIAG - sets the storage format for the offdiagonal matrix in the parallel MatMult
+.   MAT_CUSPARSE_MULT - sets the storage format for the entire matrix in the serial (single GPU) MatMult
+-   MAT_CUSPARSE_ALL - sets the storage format for all CUSPARSE (GPU) matrices
+
+    Level: intermediate
+
+.seealso: MatCUSPARSESetFormat(), MatCUSPARSEStorageFormat
+E*/
+typedef enum {MAT_CUSPARSE_MULT_DIAG, MAT_CUSPARSE_MULT_OFFDIAG, MAT_CUSPARSE_MULT, MAT_CUSPARSE_ALL} MatCUSPARSEFormatOperation;
+
+PETSC_EXTERN PetscErrorCode MatCreateSeqAIJCUSPARSE(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateAIJCUSPARSE(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+PETSC_EXTERN PetscErrorCode MatCUSPARSESetFormat(Mat,MatCUSPARSEFormatOperation,MatCUSPARSEStorageFormat);
 #endif
 
 #if defined(PETSC_HAVE_VIENNACL)

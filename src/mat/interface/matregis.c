@@ -21,6 +21,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIDense(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_SeqDenseCUDA(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MPIDenseCUDA(Mat);
 #endif
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscErrorCode MatCreate_SeqDenseHIP(Mat);
+#endif
 
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAdj(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_Shell(Mat);
@@ -55,6 +58,11 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISELL(Mat);
 #if defined(PETSC_HAVE_CUDA)
 PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJCUSPARSE(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat);
+#endif
+
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJHIPSPARSE(Mat);
+PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJHIPSPARSE(Mat);
 #endif
 
 #if defined(PETSC_HAVE_VIENNACL)
@@ -156,6 +164,10 @@ PetscErrorCode  MatRegisterAll(void)
   ierr = MatRegister(MATMPIDENSECUDA,   MatCreate_MPIDenseCUDA);CHKERRQ(ierr);
 #endif
 
+#if defined(PETSC_HAVE_HIP)
+  ierr = MatRegister(MATSEQDENSEHIP,   MatCreate_SeqDenseHIP);CHKERRQ(ierr);
+#endif
+
   ierr = MatRegister(MATMPIADJ,         MatCreate_MPIAdj);CHKERRQ(ierr);
   ierr = MatRegister(MATSCATTER,        MatCreate_Scatter);CHKERRQ(ierr);
   ierr = MatRegister(MATBLOCKMAT,       MatCreate_BlockMat);CHKERRQ(ierr);
@@ -169,6 +181,12 @@ PetscErrorCode  MatRegisterAll(void)
   ierr = MatRegisterRootName(MATAIJCUSPARSE,MATSEQAIJCUSPARSE,MATMPIAIJCUSPARSE);CHKERRQ(ierr);
   ierr = MatRegister(MATSEQAIJCUSPARSE, MatCreate_SeqAIJCUSPARSE);CHKERRQ(ierr);
   ierr = MatRegister(MATMPIAIJCUSPARSE, MatCreate_MPIAIJCUSPARSE);CHKERRQ(ierr);
+#endif
+
+#if defined(PETSC_HAVE_HIP)
+  ierr = MatRegisterRootName(MATAIJHIPSPARSE,MATSEQAIJHIPSPARSE,MATMPIAIJHIPSPARSE);CHKERRQ(ierr);
+  ierr = MatRegister(MATSEQAIJHIPSPARSE, MatCreate_SeqAIJHIPSPARSE);CHKERRQ(ierr);
+  ierr = MatRegister(MATMPIAIJHIPSPARSE, MatCreate_MPIAIJHIPSPARSE);CHKERRQ(ierr);
 #endif
 
 #if defined(PETSC_HAVE_VIENNACL)

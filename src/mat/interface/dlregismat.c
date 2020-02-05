@@ -86,6 +86,9 @@ PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_MUMPS(void);
 #if defined(PETSC_HAVE_CUDA)
 PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_CUSPARSE(void);
 #endif
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_HIPSPARSE(void);
+#endif
 #if defined(PETSC_HAVE_VIENNACL)
 PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_ViennaCL(void);
 #endif
@@ -132,6 +135,9 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqsbaij_petsc(Mat,MatFactorType,Mat*);
 PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_petsc(Mat,MatFactorType,Mat*);
 #if defined(PETSC_HAVE_CUDA)
 PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_cuda(Mat,MatFactorType,Mat*);
+#endif
+#if defined(PETSC_HAVE_HIP)
+PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_hip(Mat,MatFactorType,Mat*);
 #endif
 PETSC_INTERN PetscErrorCode MatGetFactor_constantdiagonal_petsc(Mat,MatFactorType,Mat*);
 PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_bas(Mat,MatFactorType,Mat*);
@@ -360,6 +366,12 @@ PetscErrorCode  MatInitializePackage(void)
   ierr = MatSolverTypeRegister(MATSOLVERCUDA, MATSEQDENSECUDA,   MAT_FACTOR_LU,MatGetFactor_seqdense_cuda);CHKERRQ(ierr);
   ierr = MatSolverTypeRegister(MATSOLVERCUDA, MATSEQDENSECUDA,   MAT_FACTOR_CHOLESKY,MatGetFactor_seqdense_cuda);CHKERRQ(ierr);
 #endif
+#if defined(PETSC_HAVE_HIP)
+  ierr = MatSolverTypeRegister(MATSOLVERHIP, MATSEQDENSE,       MAT_FACTOR_LU,MatGetFactor_seqdense_hip);CHKERRQ(ierr);
+  ierr = MatSolverTypeRegister(MATSOLVERHIP, MATSEQDENSE,       MAT_FACTOR_CHOLESKY,MatGetFactor_seqdense_hip);CHKERRQ(ierr);
+  ierr = MatSolverTypeRegister(MATSOLVERHIP, MATSEQDENSEHIP,   MAT_FACTOR_LU,MatGetFactor_seqdense_hip);CHKERRQ(ierr);
+  ierr = MatSolverTypeRegister(MATSOLVERHIP, MATSEQDENSEHIP,   MAT_FACTOR_CHOLESKY,MatGetFactor_seqdense_hip);CHKERRQ(ierr);
+#endif
 
   ierr = MatSolverTypeRegister(MATSOLVERBAS,   MATSEQAIJ,        MAT_FACTOR_ICC,MatGetFactor_seqaij_bas);CHKERRQ(ierr);
 
@@ -372,6 +384,9 @@ PetscErrorCode  MatInitializePackage(void)
 #endif
 #if defined(PETSC_HAVE_CUDA)
   ierr = MatSolverTypeRegister_CUSPARSE();CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_HIP)
+  ierr = MatSolverTypeRegister_HIPSPARSE();CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_VIENNACL)
   ierr = MatSolverTypeRegister_ViennaCL();CHKERRQ(ierr);

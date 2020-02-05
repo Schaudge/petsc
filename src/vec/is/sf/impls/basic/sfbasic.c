@@ -103,6 +103,12 @@ PETSC_INTERN PetscErrorCode PetscSFReset_Basic(PetscSF sf)
   for (i=0; i<2; i++) {if (bas->irootloc_d[i]) {cudaError_t err = cudaFree(bas->irootloc_d[i]);CHKERRCUDA(err);bas->irootloc_d[i]=NULL;}}
   }
 #endif
+#if defined(PETSC_HAVE_HIP)
+  {
+  PetscInt  i;
+  for (i=0; i<2; i++) {if (bas->irootloc_d[i]) {hipError_t err = hipFree(bas->irootloc_d[i]);CHKERRHIP(err);bas->irootloc_d[i]=NULL;}}
+  }
+#endif
   ierr = PetscSFLinkDestroy(sf,&bas->avail);CHKERRQ(ierr);
   ierr = PetscSFResetPackFields(sf);CHKERRQ(ierr);
   PetscFunctionReturn(0);

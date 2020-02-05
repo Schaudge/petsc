@@ -517,7 +517,7 @@ PetscErrorCode  PCBJacobiGetLocalBlocks(PC pc, PetscInt *blocks, const PetscInt 
          and set the options directly on the resulting KSP object (you can access its PC
          KSPGetPC())
 
-     For GPU-based vectors (CUDA, ViennaCL) it is recommended to use exactly one block per MPI process for best
+     For GPU-based vectors (CUDA, HIP, ViennaCL) it is recommended to use exactly one block per MPI process for best
          performance.  Different block partitioning may lead to additional data transfers
          between host and GPU that lead to degraded performance.
 
@@ -737,7 +737,7 @@ static PetscErrorCode PCSetUp_BJacobi_Singleblock(PC pc,Mat mat,Mat pmat)
   KSP                    ksp;
   PC_BJacobi_Singleblock *bjac;
   PetscBool              wasSetup = PETSC_TRUE;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_HIP)
   PetscBool              is_gpumatrix = PETSC_FALSE;
 #endif
 
@@ -790,6 +790,13 @@ static PetscErrorCode PCSetUp_BJacobi_Singleblock(PC pc,Mat mat,Mat pmat)
     if (is_gpumatrix) {
       ierr = VecSetType(bjac->x,VECCUDA);CHKERRQ(ierr);
       ierr = VecSetType(bjac->y,VECCUDA);CHKERRQ(ierr);
+    }
+#endif
+#if defined(PETSC_HAVE_HIP)
+    ierr = PetscObjectTypeCompareAny((PetscObject)pmat,&is_gpumatrix,MATAIJCUSPARSE,MATSEQAIJCUSPARSE,MATMPIAIJCUSPARSE,"");CHKERRQ(ierr);
+    if (is_gpumatrix) {
+      ierr = VecSetType(bjac->x,VECHIP);CHKERRQ(ierr);
+      ierr = VecSetType(bjac->y,VECHIP);CHKERRQ(ierr);
     }
 #endif
 #if defined(PETSC_HAVE_VIENNACL)
@@ -973,7 +980,7 @@ static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC pc,Mat mat,Mat pmat)
   PC                    subpc;
   IS                    is;
   MatReuse              scall;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_HIP)
   PetscBool              is_gpumatrix = PETSC_FALSE;
 #endif
 
@@ -1044,6 +1051,13 @@ static PetscErrorCode PCSetUp_BJacobi_Multiblock(PC pc,Mat mat,Mat pmat)
       if (is_gpumatrix) {
         ierr = VecSetType(x,VECCUDA);CHKERRQ(ierr);
         ierr = VecSetType(y,VECCUDA);CHKERRQ(ierr);
+      }
+#endif
+#if defined(PETSC_HAVE_HIP)
+      ierr = PetscObjectTypeCompareAny((PetscObject)pmat,&is_gpumatrix,MATAIJCUSPARSE,MATSEQAIJCUSPARSE,MATMPIAIJCUSPARSE,"");CHKERRQ(ierr);
+      if (is_gpumatrix) {
+        ierr = VecSetType(x,VECHIP);CHKERRQ(ierr);
+        ierr = VecSetType(y,VECHIP);CHKERRQ(ierr);
       }
 #endif
 #if defined(PETSC_HAVE_VIENNACL)
@@ -1184,7 +1198,7 @@ static PetscErrorCode PCSetUp_BJacobi_Multiproc(PC pc)
   MPI_Comm             comm,subcomm=0;
   const char           *prefix;
   PetscBool            wasSetup = PETSC_TRUE;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_HIP)
   PetscBool              is_gpumatrix = PETSC_FALSE;
 #endif
 
@@ -1245,6 +1259,13 @@ static PetscErrorCode PCSetUp_BJacobi_Multiproc(PC pc)
     if (is_gpumatrix) {
       ierr = VecSetType(mpjac->xsub,VECMPICUDA);CHKERRQ(ierr);
       ierr = VecSetType(mpjac->ysub,VECMPICUDA);CHKERRQ(ierr);
+    }
+#endif
+#if defined(PETSC_HAVE_HIP)
+    ierr = PetscObjectTypeCompareAny((PetscObject)mpjac->submats,&is_gpumatrix,MATAIJCUSPARSE,MATMPIAIJCUSPARSE,"");CHKERRQ(ierr);
+    if (is_gpumatrix) {
+      ierr = VecSetType(mpjac->xsub,VECMPIHIP);CHKERRQ(ierr);
+      ierr = VecSetType(mpjac->ysub,VECMPIHIP);CHKERRQ(ierr);
     }
 #endif
 #if defined(PETSC_HAVE_VIENNACL)

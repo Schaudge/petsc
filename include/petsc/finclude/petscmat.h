@@ -89,6 +89,8 @@
 #define MATAIJCUSPARSE     'aijcusparse'
 #define MATSEQAIJCUSPARSE  'seqaijcusparse'
 #define MATMPIAIJCUSPARSE  'mpiaijcusparse'
+#define MATSEQAIJHIPSPARSE 'seqaijhipsparse'
+#define MATMPIAIJHIPSPARSE 'mpiaijhipsparse'
 #define MATAIJVIENNACL     'aijviennacl'
 #define MATSEQAIJVIENNACL  'seqaijviennacl'
 #define MATMPIAIJVIENNACL  'mpiaijviennacl'
@@ -108,6 +110,7 @@
 #define MATDENSE           'dense'
 #define MATSEQDENSE        'seqdense'
 #define MATSEQDENSECUDA    'seqdensecuda'
+#define MATSEQDENSEHIP     'seqdensehip'
 #define MATMPIDENSE        'mpidense'
 #define MATELEMENTAL       'elemental'
 #define MATBAIJ            'baij'
@@ -182,6 +185,7 @@
 #define MATSOLVERBAS             'bas'
 #define MATSOLVERCUSPARSE        'cusparse'
 #define MATSOLVERCUDA            'cuda'
+#define MATSOLVERHIP             'hip'
 
 !
 ! GPU Storage Formats for CUSPARSE

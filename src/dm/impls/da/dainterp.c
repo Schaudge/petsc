@@ -75,7 +75,7 @@ PetscErrorCode DMCreateInterpolation_DA_1D_Q1(DM dac,DM daf,Mat *A)
 
   /* create interpolation matrix */
   ierr = MatCreate(PetscObjectComm((PetscObject)dac),&mat);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   /*
      Temporary hack: Since the MAIJ matrix must be converted to AIJ before being used by the GPU
      we don't want the original unconverted matrix copied to the GPU
@@ -218,7 +218,7 @@ PetscErrorCode DMCreateInterpolation_DA_1D_Q0(DM dac,DM daf,Mat *A)
 
   /* create interpolation matrix */
   ierr = MatCreate(PetscObjectComm((PetscObject)dac),&mat);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   /*
      Temporary hack: Since the MAIJ matrix must be converted to AIJ before being used by the GPU
      we don't want the original unconverted matrix copied to the GPU
@@ -226,7 +226,7 @@ PetscErrorCode DMCreateInterpolation_DA_1D_Q0(DM dac,DM daf,Mat *A)
   if (dof > 1) {
     ierr = MatBindToCPU(mat,PETSC_TRUE);CHKERRQ(ierr);
   }
-  #endif
+ #endif
   ierr = MatSetSizes(mat,m_f,m_c,mx,Mx);CHKERRQ(ierr);
   ierr = ConvertToAIJ(dac->mattype,&mattype);CHKERRQ(ierr);
   ierr = MatSetType(mat,mattype);CHKERRQ(ierr);
@@ -364,7 +364,7 @@ PetscErrorCode DMCreateInterpolation_DA_2D_Q1(DM dac,DM daf,Mat *A)
     }
   }
   ierr = MatCreate(PetscObjectComm((PetscObject)daf),&mat);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   /*
      Temporary hack: Since the MAIJ matrix must be converted to AIJ before being used by the GPU
      we don't want the original unconverted matrix copied to the GPU
@@ -586,7 +586,7 @@ PetscErrorCode DMCreateInterpolation_DA_2D_Q0(DM dac,DM daf,Mat *A)
     }
   }
   ierr = MatCreate(PetscObjectComm((PetscObject)daf),&mat);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   /*
      Temporary hack: Since the MAIJ matrix must be converted to AIJ before being used by the GPU
      we don't want the original unconverted matrix copied to the GPU
@@ -721,7 +721,7 @@ PetscErrorCode DMCreateInterpolation_DA_3D_Q0(DM dac,DM daf,Mat *A)
     }
   }
   ierr = MatCreate(PetscObjectComm((PetscObject)daf),&mat);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   /*
      Temporary hack: Since the MAIJ matrix must be converted to AIJ before being used by the GPU
      we don't want the original unconverted matrix copied to the GPU
@@ -882,7 +882,7 @@ PetscErrorCode DMCreateInterpolation_DA_3D_Q1(DM dac,DM daf,Mat *A)
     }
   }
   ierr = MatCreate(PetscObjectComm((PetscObject)dac),&mat);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
   /*
      Temporary hack: Since the MAIJ matrix must be converted to AIJ before being used by the GPU
      we don't want the original unconverted matrix copied to the GPU

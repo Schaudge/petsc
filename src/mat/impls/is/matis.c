@@ -2377,6 +2377,7 @@ static PetscErrorCode MatISSetUpScatters_Private(Mat A)
   const PetscInt *garray;
   PetscInt       nr,rbs,nc,cbs;
   PetscBool      iscuda;
+  PetscBool      iship;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -2395,6 +2396,11 @@ static PetscErrorCode MatISSetUpScatters_Private(Mat A)
   if (iscuda) {
     ierr = PetscFree(A->defaultvectype);CHKERRQ(ierr);
     ierr = PetscStrallocpy(VECCUDA,&A->defaultvectype);CHKERRQ(ierr);
+  }
+  ierr = PetscObjectTypeCompare((PetscObject)is->y,VECSEQHIP,&iship);CHKERRQ(ierr);
+  if (iship) {
+    ierr = PetscFree(A->defaultvectype);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(VECHIP,&A->defaultvectype);CHKERRQ(ierr);
   }
   ierr = MatCreateVecs(A,&cglobal,&rglobal);CHKERRQ(ierr);
   ierr = VecBindToCPU(rglobal,PETSC_TRUE);CHKERRQ(ierr);

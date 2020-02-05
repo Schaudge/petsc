@@ -6,6 +6,9 @@
 #if defined(PETSC_HAVE_CUDA)
 #include <../src/vec/vec/impls/seq/seqcuda/cudavecimpl.h>
 #endif
+#if defined(PETSC_HAVE_HIP)
+#include <../src/vec/vec/impls/seq/seqhip/hipvecimpl.h>
+#endif
 
 typedef struct {
   PetscSF           sf;     /* the whole scatter, including local and remote */
@@ -36,6 +39,18 @@ static PetscErrorCode VecScatterBegin_SF(VecScatter vscat,Vec x,Vec y,InsertMode
       if (x->offloadmask == PETSC_OFFLOAD_GPU) {
         if (x->spptr && vscat->spptr) {ierr = VecCUDACopyFromGPUSome_Public(x,(PetscCUDAIndices)vscat->spptr,mode);CHKERRQ(ierr);}
         else {ierr = VecCUDACopyFromGPU(x);CHKERRQ(ierr);}
+      }
+      vscat->xdata = *((PetscScalar**)x->data);
+    } else
+#endif
+#if defined(PETSC_HAVE_HIP)
+    PetscBool is_hiptype = PETSC_FALSE;
+    ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_hiptype,VECSEQHIP,VECMPIHIP,VECHIP,"");CHKERRQ(ierr);
+    if (is_hiptype) {
+      VecHIPAllocateCheckHost(x);
+      if (x->offloadmask == PETSC_OFFLOAD_GPU) {
+        if (x->spptr && vscat->spptr) {ierr = VecHIPCopyFromGPUSome_Public(x,(PetscHIPIndices)vscat->spptr,mode);CHKERRQ(ierr);}
+        else {ierr = VecHIPCopyFromGPU(x);CHKERRQ(ierr);}
       }
       vscat->xdata = *((PetscScalar**)x->data);
     } else
@@ -217,6 +232,10 @@ static PetscErrorCode VecScatterRemap_SF(VecScatter vscat,const PetscInt *tomap,
 #if defined(PETSC_HAVE_CUDA)
   /* Free the irootloc copy on device. We allocate a new copy and get the updated value on demand. See PetscSFLinkGetRootPackOptAndIndices() */
   for (i=0; i<2; i++) {if (bas->irootloc_d[i]) {cudaError_t err = cudaFree(bas->irootloc_d[i]);CHKERRCUDA(err);bas->irootloc_d[i]=NULL;}}
+#endif
+#if defined(PETSC_HAVE_HIP)
+  /* Free the irootloc copy on device. We allocate a new copy and get the updated value on demand. See PetscSFGetRootIndicesWithMemType_Basic() */
+  if (bas->irootloc_d) {hipError_t err = hipFree(bas->irootloc_d);CHKERRHIP(err);bas->irootloc_d=NULL;}
 #endif
   /* Destroy and then rebuild root packing optimizations since indices are changed */
   ierr = PetscSFResetPackFields(sf);CHKERRQ(ierr);

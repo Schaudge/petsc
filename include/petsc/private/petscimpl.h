@@ -21,6 +21,13 @@ PETSC_EXTERN PetscErrorCode PetscVFPrintfSetClosure(int (^)(const char*));
 #include <cublas_v2.h>
 #endif
 
+/* SEK -- I can't do it this way because hip_runtime.h requires a C++ compiler
+#if defined(PETSC_HAVE_HIP)
+#include <hip/hip_runtime.h>
+#include <hipblas.h>
+#endif
+*/
+
 /*
    All major PETSc data structures have a common core; this is defined
    below by PETSCHEADER.

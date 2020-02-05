@@ -498,6 +498,7 @@ PETSC_EXTERN PetscBool PetscInitializeCalled;
 PETSC_EXTERN PetscBool PetscFinalizeCalled;
 PETSC_EXTERN PetscBool PetscViennaCLSynchronize;
 PETSC_EXTERN PetscBool PetscCUDASynchronize;
+PETSC_EXTERN PetscBool PetscHIPSynchronize;
 
 PETSC_EXTERN PetscErrorCode PetscSetHelpVersionFunctions(PetscErrorCode (*)(MPI_Comm),PetscErrorCode (*)(MPI_Comm));
 PETSC_EXTERN PetscErrorCode PetscCommDuplicate(MPI_Comm,MPI_Comm*,int*);
@@ -505,6 +506,9 @@ PETSC_EXTERN PetscErrorCode PetscCommDestroy(MPI_Comm*);
 
 #if defined(PETSC_HAVE_CUDA)
 PETSC_EXTERN PetscErrorCode PetscCUDAInitialize(MPI_Comm);
+#endif
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscErrorCode PetscHIPInitialize(MPI_Comm);
 #endif
 
 /*MC
@@ -1603,6 +1607,7 @@ PETSC_EXTERN PetscErrorCode PetscScalarView(PetscInt,const PetscScalar[],PetscVi
 #include <string.h>             /* for memcpy, memset */
 #include <stdlib.h>
 
+/*SEK:  HIP??? */
 #if defined(PETSC_HAVE_XMMINTRIN_H) && !defined(__CUDACC__)
 #include <xmmintrin.h>
 #endif
