@@ -130,6 +130,7 @@ struct Mat_SeqAIJCUSPARSE {
   MatCUSPARSEStorageFormat     format;   /* the storage format for the matrix on the device */
   cudaStream_t                 stream;   /* a stream for the parallel SpMV ... this is not owned and should not be deleted */
   cusparseHandle_t             handle;   /* a handle to the cusparse library ... this may not be owned (if we're working in parallel i.e. multiGPUs) */
+  PetscInt                     minimum_size_for_gpu; /* GPU will be used if either number of rows or columns >= this threshold */
   PetscObjectState             nonzerostate;
 };
 

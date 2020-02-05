@@ -187,6 +187,10 @@ static PetscErrorCode MatSetFromOptions_SeqAIJCUSPARSE(PetscOptionItems *PetscOp
   if (flg) {
     ierr = MatCUSPARSESetFormat(A,MAT_CUSPARSE_ALL,format);CHKERRQ(ierr);
   }
+  ierr = PetscOptionsInt("-mat_cusparse_min_size_for_gpu","Minimum size (in rows or columns) for the GPU to be used",NULL,cusparsestruct->minimum_size_for_gpu,&cusparsestruct->minimum_size_for_gpu,&flg);CHKERRQ(ierr);
+  if (flg && (A->rmap->n < cusparsestruct->minimum_size_for_gpu) && (A->cmap->n < cusparsestruct->minimum_size_for_gpu)) {
+    ierr = MatPinToCPU(A,PETSC_TRUE);CHKERRQ(ierr);
+  }
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 
@@ -1756,7 +1760,7 @@ static PetscErrorCode MatDuplicate_SeqAIJCUSPARSE(Mat A,MatDuplicateOption cpval
 
 PETSC_EXTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat B)
 {
-  PetscErrorCode ierr;
+  PetscErrorCode   ierr;
   cusparseStatus_t stat;
   cusparseHandle_t handle=0;
 
@@ -1803,6 +1807,8 @@ PETSC_EXTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat B)
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQAIJCUSPARSE);CHKERRQ(ierr);
 
   B->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
+
+  ((Mat_SeqAIJCUSPARSE*)B->spptr)->minimum_size_for_gpu = 0;
 
   ierr = PetscObjectComposeFunction((PetscObject)B, "MatCUSPARSESetFormat_C", MatCUSPARSESetFormat_SeqAIJCUSPARSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
