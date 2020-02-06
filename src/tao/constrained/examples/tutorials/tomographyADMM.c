@@ -19,6 +19,8 @@ typedef struct {
   PetscReal lambda,eps,mumin;
   Mat       A,ATA,H,Hx,D,Hz,DTD,HF;
   Vec       c,xlb,xub,x,b,workM,workN,workN2,workN3,xGT;    /* observation b, ground truth xGT, the lower bound and upper bound of x*/
+  MatType   mat_type;
+  VecType   vec_type;
 } AppCtx;
 
 /*------------------------------------------------------------*/
@@ -196,17 +198,20 @@ PetscErrorCode InitializeUserData(AppCtx *user)
   /* Load the A matrix, b vector, and xGT vector from a binary file. */
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dataFile,FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&user->A);CHKERRQ(ierr);
-  ierr = MatSetType(user->A,MATAIJ);CHKERRQ(ierr);
+  ierr = MatSetType(user->A,user->mat_type);CHKERRQ(ierr);
   ierr = MatLoad(user->A,fd);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_WORLD,&user->b);CHKERRQ(ierr);
+  ierr = VecSetType(user->b,user->vec_type);CHKERRQ(ierr);
   ierr = VecLoad(user->b,fd);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_WORLD,&user->xGT);CHKERRQ(ierr);
+  ierr = VecSetType(user->xGT,user->vec_type);CHKERRQ(ierr);
   ierr = VecLoad(user->xGT,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
   ierr = MatGetSize(user->A,&user->M,&user->N);CHKERRQ(ierr);
 
   ierr = MatCreate(PETSC_COMM_WORLD,&user->D);CHKERRQ(ierr);
+  ierr = MatSetType(user->D,user->mat_type);CHKERRQ(ierr);
   ierr = MatSetSizes(user->D,PETSC_DECIDE,PETSC_DECIDE,user->N,user->N);CHKERRQ(ierr);
   ierr = MatSetFromOptions(user->D);CHKERRQ(ierr);
   ierr = MatSetUp(user->D);CHKERRQ(ierr);
@@ -225,6 +230,7 @@ PetscErrorCode InitializeUserData(AppCtx *user)
   ierr = MatTransposeMatMult(user->D,user->D,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&user->DTD);CHKERRQ(ierr);
 
   ierr = MatCreate(PETSC_COMM_WORLD,&user->Hz);CHKERRQ(ierr);
+  ierr = MatSetType(user->Hz,user->mat_type);CHKERRQ(ierr);
   ierr = MatSetSizes(user->Hz,PETSC_DECIDE,PETSC_DECIDE,user->N,user->N);CHKERRQ(ierr);
   ierr = MatSetFromOptions(user->Hz);CHKERRQ(ierr);
   ierr = MatSetUp(user->Hz);CHKERRQ(ierr);
@@ -235,6 +241,10 @@ PetscErrorCode InitializeUserData(AppCtx *user)
   ierr = VecCreate(PETSC_COMM_WORLD,&(user->workM));CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_WORLD,&(user->workN));CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_WORLD,&(user->workN2));CHKERRQ(ierr);
+  ierr = VecSetType(user->x,user->vec_type);CHKERRQ(ierr);
+  ierr = VecSetType(user->workM,user->vec_type);CHKERRQ(ierr);
+  ierr = VecSetType(user->workN,user->vec_type);CHKERRQ(ierr);
+  ierr = VecSetType(user->workN2,user->vec_type);CHKERRQ(ierr);
   ierr = VecSetSizes(user->x,PETSC_DECIDE,user->N);CHKERRQ(ierr);
   ierr = VecSetSizes(user->workM,PETSC_DECIDE,user->M);CHKERRQ(ierr);
   ierr = VecSetSizes(user->workN,PETSC_DECIDE,user->N);CHKERRQ(ierr);
@@ -311,12 +321,21 @@ int main(int argc,char **argv)
   PetscErrorCode ierr;
   Tao            tao,misfit,reg;
   PetscReal      v1,v2;
+  PetscBool      cuda, flg;
   AppCtx*        user;
   PetscViewer    fd;
   char           resultFile[] = "tomographyResult_x";
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscNew(&user);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,NULL,"-cuda",&cuda,&flg);CHKERRQ(ierr);
+  if (cuda) {
+    user->mat_type = MATAIJCUSPARSE;
+    user->vec_type = VECMPICUDA;
+  } else {
+    user->mat_type = MATMPIAIJ;
+    user->vec_type = VECMPI;
+  }
   ierr = InitializeUserData(user);CHKERRQ(ierr);
 
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
