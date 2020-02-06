@@ -335,7 +335,7 @@ int main(int argc,char **argv)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Running with CUDA\n");CHKERRQ(ierr);
   } else {
     user->mat_type = MATSEQAIJ;
-    user->vec_type = VECSEQ
+    user->vec_type = VECSEQ;
   }
   ierr = InitializeUserData(user);CHKERRQ(ierr);
 
