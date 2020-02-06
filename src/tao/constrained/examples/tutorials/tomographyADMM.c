@@ -325,6 +325,7 @@ int main(int argc,char **argv)
   AppCtx*        user;
   PetscViewer    fd;
   char           resultFile[] = "tomographyResult_x";
+  char           asciiFile[] = "tomographyResult_x_ascii";
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscNew(&user);CHKERRQ(ierr);
@@ -391,6 +392,11 @@ int main(int argc,char **argv)
 
   /* Save x (reconstruction of object) vector to a binary file, which maybe read from Matlab and convert to a 2D image for comparison. */
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,resultFile,FILE_MODE_WRITE,&fd);CHKERRQ(ierr);
+  ierr = VecView(user->x,fd);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
+
+  /* Save result to an ASCII file as well for python processing */
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, asciiFile, &fd);CHKERRQ(ierr);
   ierr = VecView(user->x,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
