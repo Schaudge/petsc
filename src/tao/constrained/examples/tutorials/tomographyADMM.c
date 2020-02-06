@@ -325,7 +325,8 @@ int main(int argc,char **argv)
   AppCtx*        user;
   PetscViewer    fd;
   char           resultFile[] = "tomographyResult_x";
-  char           asciiFile[] = "tomographyResult_x_ascii";
+  char           asciiTruth[] = "tomographyTruth_x_ascii";
+  char           asciiResult[] = "tomographyResult_x_ascii";
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscNew(&user);CHKERRQ(ierr);
@@ -396,8 +397,13 @@ int main(int argc,char **argv)
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
   /* Save result to an ASCII file as well for python processing */
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, asciiFile, &fd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, asciiResult, &fd);CHKERRQ(ierr);
   ierr = VecView(user->x,fd);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
+
+   /* Save ground truth to an ASCII file as well for python processing */
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, asciiTruth, &fd);CHKERRQ(ierr);
+  ierr = VecView(user->xGT,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
   /* compute the error */
