@@ -321,7 +321,7 @@ int main(int argc,char **argv)
   PetscErrorCode ierr;
   Tao            tao,misfit,reg;
   PetscReal      v1,v2;
-  PetscBool      cuda, flg;
+  PetscBool      cuda=PETSC_FALSE, flg;
   AppCtx*        user;
   PetscViewer    fd;
   char           resultFile[] = "tomographyResult_x";
@@ -332,6 +332,7 @@ int main(int argc,char **argv)
   if (cuda) {
     user->mat_type = MATAIJCUSPARSE;
     user->vec_type = VECMPICUDA;
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Running with CUDA\n");CHKERRQ(ierr);
   } else {
     user->mat_type = MATMPIAIJ;
     user->vec_type = VECMPI;
