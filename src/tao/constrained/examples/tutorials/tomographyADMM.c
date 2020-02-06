@@ -330,12 +330,12 @@ int main(int argc,char **argv)
   ierr = PetscNew(&user);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,NULL,"-cuda",&cuda,&flg);CHKERRQ(ierr);
   if (cuda) {
-    user->mat_type = MATAIJCUSPARSE;
-    user->vec_type = VECMPICUDA;
+    user->mat_type = MATSEQAIJCUSPARSE;
+    user->vec_type = VECSEQCUDA;
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Running with CUDA\n");CHKERRQ(ierr);
   } else {
-    user->mat_type = MATMPIAIJ;
-    user->vec_type = VECMPI;
+    user->mat_type = MATSEQAIJ;
+    user->vec_type = VECSEQ
   }
   ierr = InitializeUserData(user);CHKERRQ(ierr);
 
