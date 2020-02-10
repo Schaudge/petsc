@@ -1506,7 +1506,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 {
   AppCtx             *appctx = (AppCtx *)ctx; /* user-defined application context */
   PetscErrorCode     ierr;
-  Vec                temp, bsol, adj;
+  Vec                temp;
 
   PetscFunctionBegin;
   ierr = TSSetTime(appctx->ts, 0);CHKERRQ(ierr);
@@ -1516,21 +1516,15 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   ierr = TSSolve(appctx->ts, appctx->dat.curr_sol);CHKERRQ(ierr);
 
-  /*
-     Store current solution for comparison
-  */
-  //  ierr = VecDuplicate(appctx->dat.curr_sol, &bsol);CHKERRQ(ierr);
-  ierr = DMGetGlobalVector(appctx->da,&bsol);CHKERRQ(ierr);
-  ierr = VecCopy(appctx->dat.curr_sol, bsol);CHKERRQ(ierr);
   ierr = VecWAXPY(G, -1, appctx->dat.curr_sol, appctx->dat.obj);CHKERRQ(ierr);
 
   /*
      Compute the L2-norm of the objective function, cost function is f
   */
-  ierr = VecDuplicate(G, &temp);CHKERRQ(ierr);
+  ierr = DMGetGlobalVector(appctx->da,&temp);CHKERRQ(ierr);
   ierr = VecPointwiseMult(temp, G, G);CHKERRQ(ierr);
   ierr = VecDot(temp, appctx->SEMop.mass, f);CHKERRQ(ierr);
-  ierr = VecDestroy(&temp);CHKERRQ(ierr);
+  ierr = DMRestoreGlobalVector(appctx->da,&temp);CHKERRQ(ierr);
 
   /*
      Compute initial conditions for the adjoint integration. See Notes above
@@ -1539,15 +1533,9 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   ierr = VecPointwiseMult(G, G, appctx->SEMop.mass);CHKERRQ(ierr);
   ierr = TSSetCostGradients(appctx->ts, 1, &G, NULL);CHKERRQ(ierr);
 
-  ierr = VecDuplicate(G, &adj);CHKERRQ(ierr);
-  ierr = VecCopy(G, adj);CHKERRQ(ierr);
-
   /* solve the adjoint system for the gradient */
   ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
 
-  //ierr = VecDestroy(&bsol);CHKERRQ(ierr);
-  ierr = DMRestoreGlobalVector(appctx->da,&bsol);CHKERRQ(ierr);
-  ierr = VecDestroy(&adj);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
