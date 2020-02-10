@@ -71,8 +71,6 @@ TS Object: 2 MPI processes
     disk checkpoint writes = 0
     Memory trajectory
       SchedulerType type none
-      Use online false
-      Store stride 0
       Recompute false
       Skip trajectory false
       Save stack true

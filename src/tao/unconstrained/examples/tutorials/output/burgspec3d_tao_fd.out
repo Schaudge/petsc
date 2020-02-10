@@ -1,7 +1,7 @@
   ---------- Testing Gradient -------------
   Run with -tao_test_gradient_view and optionally -tao_test_gradient <threshold> to show difference
     of hand-coded and finite difference gradient entries greater than <threshold>.
-  Testing hand-coded Gradient, if (for double precision runs) ||G - Gfd||_F/||G||_F is
+  Testing hand-coded Gradient, if (for double precision runs) ||G - Gfd||/||G|| is
     O(1.e-8), the hand-coded Gradient is probably correct.
   ||Gfd|| 2.64318, ||G|| = 2.64318, angle cosine = (Gfd'G)/||Gfd||||G|| = 1.
   2-norm ||G - Gfd||/||G|| = 4.75602e-08, ||G - Gfd|| = 1.2571e-07
@@ -82,8 +82,6 @@ TS Object: 1 MPI processes
     disk checkpoint writes = 0
     Memory trajectory
       SchedulerType type none
-      Use online false
-      Store stride 0
       Recompute false
       Skip trajectory false
       Save stack true
