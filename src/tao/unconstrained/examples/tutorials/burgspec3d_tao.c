@@ -169,8 +169,7 @@ int main(int argc, char **argv)
      Create GLL data structures
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = PetscMalloc2(appctx.param.N, &appctx.SEMop.gll.nodes, appctx.param.N, &appctx.SEMop.gll.weights);CHKERRQ(ierr);
-  ierr = PetscDTGaussLobattoLegendreQuadrature(appctx.param.N, PETSCGAUSSLOBATTOLEGENDRE_VIA_LINEAR_ALGEBRA, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);
-CHKERRQ(ierr);
+  ierr = PetscDTGaussLobattoLegendreQuadrature(appctx.param.N, PETSCGAUSSLOBATTOLEGENDRE_VIA_LINEAR_ALGEBRA, appctx.SEMop.gll.nodes, appctx.SEMop.gll.weights);CHKERRQ(ierr);
   appctx.SEMop.gll.n = appctx.param.N;
   appctx.param.lenx = appctx.param.Ex * (appctx.param.N - 1);
   appctx.param.leny = appctx.param.Ey * (appctx.param.N - 1);
@@ -236,8 +235,8 @@ CHKERRQ(ierr);
   PetscAllocateEl3d(&appctx.wrk9, &appctx);
   PetscAllocateEl3d(&appctx.wrk10, &appctx);
   PetscAllocateEl3d(&appctx.wrk11, &appctx);
-  PetscAllocateEl3d(&appctx.wrk12, &appctx);  
- 
+  PetscAllocateEl3d(&appctx.wrk12, &appctx);
+
   /* Create the TS solver that solves the ODE and its adjoint; set its options */
   ierr = TSCreate(PETSC_COMM_WORLD, &appctx.ts);CHKERRQ(ierr);
   ierr = TSSetProblemType(appctx.ts, TS_NONLINEAR);CHKERRQ(ierr);
@@ -281,7 +280,7 @@ CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(appctx.da,appctx.dat.pass_sol,INSERT_VALUES,appctx.dat.pass_sol_local);CHKERRQ(ierr);
 
   /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
-  
+
   ierr = ComputeObjective(appctx.param.Tadj, appctx.dat.obj, &appctx);CHKERRQ(ierr);
   /* Create TAO solver and set desired solution method  */
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
@@ -292,7 +291,7 @@ CHKERRQ(ierr);
   ierr = TaoSetObjectiveAndGradientRoutine(tao, FormFunctionGradient, (void *)&appctx);CHKERRQ(ierr);
   /* Check for any TAO command line options  */
   ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
-  //TaoSetMaximumIterations(tao,1);
+  /* TaoSetMaximumIterations(tao,1); */
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   ierr = TaoSolve(tao);CHKERRQ(ierr);
 
@@ -685,100 +684,100 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
         }
 
         alpha=1.0;
-        //here the stifness matrix in 3d
-        //the term (B x B x K_zz)u=W1 (u_zz)         
+        /* here the stifness matrix in 3d */
+        /* the term (B x B x K_zz)u=W1 (u_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &ulb, wrk1, alphavec, appctx);
-        //the term (B x K_yy x B)u=W1 (u_yy)         
+        /* the term (B x K_yy x B)u=W1 (u_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &stiff, &mass, &ulb, wrk2, alphavec, appctx);
-        //the term (K_xx x B x B)u=W1 (u_xx)         
+        /* the term (K_xx x B x B)u=W1 (u_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&stiff, &mass, &mass, &ulb, wrk3, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
-        BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); //I freed wrk2 and saved the laplacian in wrk1
+        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); /* I freed wrk3 and saved the laplacian in wrk2 */
+        BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); /* I freed wrk2 and saved the laplacian in wrk1 */
 
-        //the term (B x B x K_zz)v=W2 (v_zz)         
+        /* the term (B x B x K_zz)v=W2 (v_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &vlb, wrk2, alphavec, appctx);
-        //the term (B x K_yy x B)v=W2 (v_yy)         
+        /* the term (B x K_yy x B)v=W2 (v_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &stiff, &mass, &vlb, wrk3, alphavec, appctx);
-        //the term (K_xx x B x B)v=W2 (v_xx)         
+        /* the term (K_xx x B x B)v=W2 (v_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&stiff, &mass, &mass, &vlb, wrk4, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
-        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
+        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); /* I freed wrk4 and saved the laplacian in wrk3 */
+        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); /* I freed wrk3 and saved the laplacian in wrk2 */
 
-        //the term (B x B x K_zz)w=W3 (w_zz)         
+        /* the term (B x B x K_zz)w=W3 (w_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &wlb, wrk3, alphavec, appctx);
-        //the term (B x K_yy x B)w=W3 (w_yy)         
+        /* the term (B x K_yy x B)w=W3 (w_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &stiff, &mass, &wlb, wrk4, alphavec, appctx);
-        //the term (K_xx x B x B)w=W3 (w_xx)         
+        /* the term (K_xx x B x B)w=W3 (w_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&stiff, &mass, &mass, &wlb, wrk5, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
-        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
-        // I save w1, w2, w3
+        BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); /* I freed wrk5 and saved the laplacian in wrk4 */
+        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); /* I freed wrk4 and saved the laplacian in wrk3 */
+        /*  I save w1, w2, w3 */
 
-        //now the gradient operator for u
-         //the term (D_x x B x B)u=W4 (u_x)         
+        /* now the gradient operator for u */
+        /* the term (D_x x B x B)u=W4 (u_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &ulb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (u_y)         
+        /* the term (B x D_y x B)u=W4 (u_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &ulb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (u_z)         
+        /* the term (B x B x D_z)u=W4 (u_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &ulb, wrk6, alphavec, appctx);
 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk7[0][0][0]); //u.*u_x goes in w7, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk8[0][0][0]); //v.*u_y goes in w8, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk9[0][0][0]); //w.*u_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
-        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk7[0][0][0]); /* u.*u_x goes in w7, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk8[0][0][0]); /* v.*u_y goes in w8, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk9[0][0][0]); /* w.*u_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
 
-        //now the gradient operator for v
-        //the term (D_x x B x B)u=W4 (v_x)         
+        /* now the gradient operator for v */
+        /* the term (D_x x B x B)u=W4 (v_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &vlb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (v_y)         
+        /* the term (B x D_y x B)u=W4 (v_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &vlb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (v_z)         
+        /* the term (B x B x D_z)u=W4 (v_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk6, alphavec, appctx);        
+        PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk6, alphavec, appctx);
 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); //u.*v_x goes in w10, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*v_y goes in w9, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);//w.*v_z goes in w8, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the grad in wrk9
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); /* u.*v_x goes in w10, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); /* v.*v_y goes in w9, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);/* w.*v_z goes in w8, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk10 and saved the grad in wrk9 */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
 
-        //now the gradient operator for w
-         //the term (D_x x B x B)u=W4 (w_x)         
+        /* now the gradient operator for w */
+        /* the term (D_x x B x B)u=W4 (w_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &wlb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (w_y)         
+        /* the term (B x D_y x B)u=W4 (w_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &wlb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (w_z)         
+        /* the term (B x B x D_z)u=W4 (w_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &wlb, wrk6, alphavec, appctx);
 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk11[0][0][0]); //u.*w_x goes in w11, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*w_y goes in w10, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk9[0][0][0]);  //w.*w_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk11 and saved the laplacian in wrk10
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the laplacian in wrk9
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk11[0][0][0]); /* u.*w_x goes in w11, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); /* v.*w_y goes in w10, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk9[0][0][0]);  /* w.*w_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk11 and saved the laplacian in wrk10 */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk10 and saved the laplacian in wrk9 */
 
         /* I saved w7 w8 w9 */
         for (jx = 0; jx < appctx->param.N; jx++) {
@@ -831,28 +830,28 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 {
   PetscErrorCode ierr;
   AppCtx         *appctx;
-  PetscScalar ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
-  PetscScalar ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
-  PetscScalar ***ulb, ***vlb, ***wlb;
-  PetscScalar ***ujb, ***vjb, ***wjb;
-  const Field ***ul, ***uj;
-  Field ***outl;
-  PetscInt ix, iy, iz, jx, jy, jz, indx, indy, indz;
-  PetscInt xs, xm, ys, ym, zs, zm, Nl, Nl3;
-  Vec uloc, outloc;
-  PetscScalar alpha;
-  PetscReal alphavec[3];
-  PetscInt inc;
-  PetscScalar **stiff;
-  PetscScalar **mass;
-  PetscScalar **grad;
-  
+  PetscScalar    ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
+  PetscScalar    ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
+  PetscScalar    ***ulb, ***vlb, ***wlb;
+  PetscScalar    ***ujb, ***vjb, ***wjb;
+  const Field    ***ul, ***uj;
+  Field          ***outl;
+  PetscInt       ix, iy, iz, jx, jy, jz, indx, indy, indz;
+  PetscInt       xs, xm, ys, ym, zs, zm, Nl, Nl3;
+  Vec            uloc, outloc;
+  PetscScalar    alpha;
+  PetscReal      alphavec[3];
+  PetscInt       inc;
+  PetscScalar    **stiff;
+  PetscScalar    **mass;
+  PetscScalar    **grad;
+
   PetscFunctionBegin;
   ierr  = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
   stiff = appctx->SEMop.gll.stiff;
   mass  = appctx->SEMop.gll.mass;
   grad  = appctx->SEMop.gll.grad;
-  
+
   ierr = DMGetLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(appctx->da, in, INSERT_VALUES, uloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(appctx->da, in, INSERT_VALUES, uloc);CHKERRQ(ierr);
@@ -922,170 +921,169 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
         }
 
         alpha=1.0;
-        //here the stifness matrix in 3d
-        //the term (B x B x K_zz)u=W1 (u_zz)         
+        /* here the stifness matrix in 3d */
+        /* the term (B x B x K_zz)u=W1 (u_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &ulb, wrk1, alphavec, appctx);
-        //the term (B x K_yy x B)u=W1 (u_yy)         
+        /* the term (B x K_yy x B)u=W1 (u_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &stiff, &mass, &ulb, wrk2, alphavec, appctx);
-        //the term (K_xx x B x B)u=W1 (u_xx)         
+        /* the term (K_xx x B x B)u=W1 (u_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&stiff, &mass, &mass, &ulb, wrk3, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
-        BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); //I freed wrk2 and saved the laplacian in wrk1
+        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); /* I freed wrk3 and saved the laplacian in wrk2 */
+        BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); /* I freed wrk2 and saved the laplacian in wrk1 */
 
-      	//the term (B x B x K_zz)v=W2 (v_zz)         
+        /* the term (B x B x K_zz)v=W2 (v_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &vlb, wrk2, alphavec, appctx);
-        //the term (B x K_yy x B)v=W2 (v_yy)         
+        /* the term (B x K_yy x B)v=W2 (v_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &stiff, &mass, &vlb, wrk3, alphavec, appctx);
-        //the term (K_xx x B x B)v=W2 (v_xx)         
+        /* the term (K_xx x B x B)v=W2 (v_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&stiff, &mass, &mass, &vlb, wrk4, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
-        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
- 
-        //the term (B x B x K_zz)w=W3 (w_zz)         
+        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); /* I freed wrk4 and saved the laplacian in wrk3 */
+        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); /* I freed wrk3 and saved the laplacian in wrk2 */
+
+        /* the term (B x B x K_zz)w=W3 (w_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEM(&mass, &mass, &stiff, &wlb, wrk3, alphavec, appctx);
-        //the term (B x K_yy x B)w=W3 (w_yy)         
+        /* the term (B x K_yy x B)w=W3 (w_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &stiff, &mass, &wlb, wrk4, alphavec, appctx);
-        //the term (K_xx x B x B)w=W3 (w_xx)         
+        /* the term (K_xx x B x B)w=W3 (w_xx)*/
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&stiff, &mass, &mass, &wlb, wrk5, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
-        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
-        // I save w1, w2, w3
-        
-        //now the gradient operator for u
-        //compute u.*(D w_u), i.e. ujb.*(D ulb)
-         //the term (D_x x B x B)u=W4 (u_x)         
+        BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); /* I freed wrk5 and saved the laplacian in wrk4 */
+        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); /* I freed wrk4 and saved the laplacian in wrk3 */
+        /*  I save w1, w2, w3 */
+
+        /* now the gradient operator for u */
+        /* compute u.*(D w_u), i.e. ujb.*(D ulb) */
+        /* the term (D_x x B x B)u=W4 (u_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &ulb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (u_y)         
+        /* the term (B x D_y x B)u=W4 (u_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &ulb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (u_z)         
+        /* the term (B x B x D_z)u=W4 (u_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &ulb, wrk6, alphavec, appctx);
-        
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ujb[0][0][0], &wrk7[0][0][0]); //u.*u_x goes in w7, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vjb[0][0][0], &wrk8[0][0][0]); //v.*u_y goes in w8, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wjb[0][0][0], &wrk9[0][0][0]); //w.*u_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
-        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
 
-        //compute w.*(D u)  i.e. ulb.*(D ujb)   
-        //the term (D_x x B x B)u=W4 (u_x)         
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ujb[0][0][0], &wrk7[0][0][0]); /* u.*u_x goes in w7, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vjb[0][0][0], &wrk8[0][0][0]); /* v.*u_y goes in w8, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wjb[0][0][0], &wrk9[0][0][0]); /* w.*u_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+
+        /* compute w.*(D u)  i.e. ulb.*(D ujb) */
+        /* the term (D_x x B x B)u=W4 (u_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &ujb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (u_y)         
+        /* the term (B x D_y x B)u=W4 (u_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &ujb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (u_z)         
+        /* the term (B x B x D_z)u=W4 (u_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &ujb, wrk6, alphavec, appctx);
-        
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); //u.*u_x goes in w7, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*u_y goes in w8, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]); //w.*u_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
 
-        //sum  u.*(D w_u)[w7]+w.*(D u)[w8]
-        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); /* u.*u_x goes in w7, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); /* v.*u_y goes in w8, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]); /* w.*u_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
 
-        //now the gradient operator for v
-        //compute u.*(D w_v), i.e. ujb.*(D vlb)
-        //the term (D_x x B x B)u=W4 (v_x)         
+        /* sum  u.*(D w_u)[w7]+w.*(D u)[w8] */
+        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+
+        /* now the gradient operator for v */
+        /* compute u.*(D w_v), i.e. ujb.*(D vlb) */
+        /* the term (D_x x B x B)u=W4 (v_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &vlb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (v_y)         
+        /* the term (B x D_y x B)u=W4 (v_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &vlb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (v_z)         
+        /* the term (B x B x D_z)u=W4 (v_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk6, alphavec, appctx);        
- 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ujb[0][0][0], &wrk8[0][0][0]); //u.*v_x goes in w10, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vjb[0][0][0], &wrk9[0][0][0]); //v.*v_y goes in w9, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wjb[0][0][0], &wrk10[0][0][0]);//w.*v_z goes in w8, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the grad in wrk9
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
+        PetscTens3dSEM(&mass, &mass, &grad, &vlb, wrk6, alphavec, appctx);
 
-        //compute w.*(D v), i.e. ulb.*(D vjb)
-        //the term (D_x x B x B)u=W4 (v_x)         
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ujb[0][0][0], &wrk8[0][0][0]); /* u.*v_x goes in w10, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vjb[0][0][0], &wrk9[0][0][0]); /* v.*v_y goes in w9, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wjb[0][0][0], &wrk10[0][0][0]);/* w.*v_z goes in w8, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk10 and saved the grad in wrk9 */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+
+        /* compute w.*(D v), i.e. ulb.*(D vjb) */
+        /* the term (D_x x B x B)u=W4 (v_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &vjb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (v_y)         
+        /* the term (B x D_y x B)u=W4 (v_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &vjb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (v_z)         
+        /* the term (B x B x D_z)u=W4 (v_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEM(&mass, &mass, &grad, &vjb, wrk6, alphavec, appctx);        
- 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); //u.*v_x goes in w10, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*v_y goes in w9, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk11[0][0][0]);//w.*v_z goes in w8, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk10 and saved the grad in wrk9
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
+        PetscTens3dSEM(&mass, &mass, &grad, &vjb, wrk6, alphavec, appctx);
+
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); /* u.*v_x goes in w10, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); /* v.*v_y goes in w9, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk11[0][0][0]);/* w.*v_z goes in w8, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk10 and saved the grad in wrk9 */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
 
 
-        //sum  u.*(D w_v)[w8]+w.*(D v)[w9]
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        /* sum  u.*(D w_v)[w8]+w.*(D v)[w9] */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
 
-        //now the gradient operator for w
-        //compute u.*(D w_w), i.e. ujb.*(D wlb)
-         //the term (D_x x B x B)u=W4 (w_x)         
+        /* now the gradient operator for w */
+        /* compute u.*(D w_w), i.e. ujb.*(D wlb) */
+        /* the term (D_x x B x B)u=W4 (w_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &wlb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (w_y)         
+        /* the term (B x D_y x B)u=W4 (w_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &wlb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (w_z)         
+        /* the term (B x B x D_z)u=W4 (w_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &wlb, wrk6, alphavec, appctx);
- 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ujb[0][0][0], &wrk11[0][0][0]); //u.*w_x goes in w11, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vjb[0][0][0], &wrk10[0][0][0]); //v.*w_y goes in w10, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wjb[0][0][0], &wrk9[0][0][0]);  //w.*w_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk11 and saved the laplacian in wrk10
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the laplacian in wrk9
 
-        //compute w.*(D w), i.e. ulb.*(D wjb)
-        //the term (D_x x B x B)u=W4 (w_x)         
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ujb[0][0][0], &wrk11[0][0][0]); /* u.*w_x goes in w11, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vjb[0][0][0], &wrk10[0][0][0]); /* v.*w_y goes in w10, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wjb[0][0][0], &wrk9[0][0][0]);  /* w.*w_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk11 and saved the laplacian in wrk10 */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk10 and saved the laplacian in wrk9 */
+
+        /* compute w.*(D w), i.e. ulb.*(D wjb) */
+        /* the term (D_x x B x B)u=W4 (w_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &wjb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (w_y)         
+        /* the term (B x D_y x B)u=W4 (w_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &wjb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (w_z)         
+        /* the term (B x B x D_z)u=W4 (w_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &wjb, wrk6, alphavec, appctx);
- 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk12[0][0][0]); //u.*w_x goes in w11, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk11[0][0][0]); //v.*w_y goes in w10, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);  //w.*w_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk12[0][0][0], &inc, &wrk11[0][0][0], &inc); //I freed wrk11 and saved the laplacian in wrk10
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk10 and saved the laplacian in wrk9
 
-        //sum  u.*(D w_v)[w9]+w.*(D v)[w10]
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk12[0][0][0]); /* u.*w_x goes in w11, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk11[0][0][0]); /* v.*w_y goes in w10, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);  /* w.*w_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk12[0][0][0], &inc, &wrk11[0][0][0], &inc); /* I freed wrk11 and saved the laplacian in wrk10 */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk10 and saved the laplacian in wrk9 */
 
-        //I saved w7 w8 w9
-                      
+        /* sum  u.*(D w_v)[w9]+w.*(D v)[w10] */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+        /* I saved w7 w8 w9 */
+
         for (jx = 0; jx < appctx->param.N; jx++){
           for (jy = 0; jy < appctx->param.N; jy++){
             for (jz = 0; jz < appctx->param.N; jz++){
@@ -1099,7 +1097,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
             }
           }
         }
-      } 
+      }
     }
   }
 
@@ -1113,11 +1111,6 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   ierr = VecScale(out, -1);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(out, out, appctx->SEMop.mass);CHKERRQ(ierr);
-
-  /*  printf("RHSJacobian\n");
-  PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
-  VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(uloc,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);  */
 
   PetscDestroyEl3d(&ulb, appctx);
   PetscDestroyEl3d(&vlb, appctx);
@@ -1243,169 +1236,168 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
           }
         }
 
-        //here the stifness matrix in 3d
-        //the term (B x B x K_zz)u=W1 (u_zz)         
+        /* here the stifness matrix in 3d */
+        /* the term (B x B x K_zz)u=W1 (u_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEMTranspose(&mass, &mass, &stiff, &ulb, wrk1, alphavec, appctx);
-        //the term (B x K_yy x B)u=W1 (u_yy)         
+        /* the term (B x K_yy x B)u=W1 (u_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&mass, &stiff, &mass, &ulb, wrk2, alphavec, appctx);
-        //the term (K_xx x B x B)u=W1 (u_xx)         
+        /* the term (K_xx x B x B)u=W1 (u_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&stiff, &mass, &mass, &ulb, wrk3, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
-        BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); //I freed wrk2 and saved the laplacian in wrk1
+        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); /* I freed wrk3 and saved the laplacian in wrk2 */
+        BLASaxpy_(&Nl3, &alpha, &wrk2[0][0][0], &inc, &wrk1[0][0][0], &inc); /* I freed wrk2 and saved the laplacian in wrk1 */
 
-        	//the term (B x B x K_zz)v=W2 (v_zz)         
+        /* the term (B x B x K_zz)v=W2 (v_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEMTranspose(&mass, &mass, &stiff, &vlb, wrk2, alphavec, appctx);
-        //the term (B x K_yy x B)v=W2 (v_yy)         
+        /* the term (B x K_yy x B)v=W2 (v_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&mass, &stiff, &mass, &vlb, wrk3, alphavec, appctx);
-        //the term (K_xx x B x B)v=W2 (v_xx)         
+        /* the term (K_xx x B x B)v=W2 (v_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&stiff, &mass, &mass, &vlb, wrk4, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
-        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); //I freed wrk3 and saved the laplacian in wrk2
- 
-        //the term (B x B x K_zz)w=W3 (w_zz)         
+        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); /* I freed wrk4 and saved the laplacian in wrk3 */
+        BLASaxpy_(&Nl3, &alpha, &wrk3[0][0][0], &inc, &wrk2[0][0][0], &inc); /* I freed wrk3 and saved the laplacian in wrk2 */
+
+        /* the term (B x B x K_zz)w=W3 (w_zz) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=2. / appctx->param.Lez;
         PetscTens3dSEMTranspose(&mass, &mass, &stiff, &wlb, wrk3, alphavec, appctx);
-        //the term (B x K_yy x B)w=W3 (w_yy)         
+        /* the term (B x K_yy x B)w=W3 (w_yy) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=2./appctx->param.Ley;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&mass, &stiff, &mass, &wlb, wrk4, alphavec, appctx);
-        //the term (K_xx x B x B)w=W3 (w_xx)         
+        /* the term (K_xx x B x B)w=W3 (w_xx) */
         alphavec[0]=2./appctx->param.Lex;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&stiff, &mass, &mass, &wlb, wrk5, alphavec, appctx);
 
-        BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); //I freed wrk5 and saved the laplacian in wrk4
-        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); //I freed wrk4 and saved the laplacian in wrk3
-        // I save w1, w2, w3
+        BLASaxpy_(&Nl3, &alpha, &wrk5[0][0][0], &inc, &wrk4[0][0][0], &inc); /* I freed wrk5 and saved the laplacian in wrk4 */
+        BLASaxpy_(&Nl3, &alpha, &wrk4[0][0][0], &inc, &wrk3[0][0][0], &inc); /* I freed wrk4 and saved the laplacian in wrk3 */
+        /*  I save w1, w2, w3 */
 
-        //now the gradient operator for u
-        //compute D^T(u .* w_u), i.e. D^T.*(ujb.* ulb)
+        /* now the gradient operator for u */
+        /* compute D^T(u .* w_u), i.e. D^T.*(ujb.* ulb) */
         PetscPointWiseMult(Nl3, &ulb[0][0][0], &ujb[0][0][0], &wrk4[0][0][0]);
-         //the term (D_x x B x B)u=W4 (u_x)         
+        /* the term (D_x x B x B)u=W4 (u_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&grad, &mass, &mass, &wrk4, wrk7, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (u_y) 
-        PetscPointWiseMult(Nl3, &ulb[0][0][0], &vjb[0][0][0], &wrk4[0][0][0]);       
+        /* the term (B x D_y x B)u=W4 (u_y) */
+        PetscPointWiseMult(Nl3, &ulb[0][0][0], &vjb[0][0][0], &wrk4[0][0][0]);
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&mass, &grad, &mass, &wrk4, wrk8, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (u_z)                
-        PetscPointWiseMult(Nl3, &ulb[0][0][0], &wjb[0][0][0], &wrk4[0][0][0]);     
+        /* the term (B x B x D_z)u=W4 (u_z) */
+        PetscPointWiseMult(Nl3, &ulb[0][0][0], &wjb[0][0][0], &wrk4[0][0][0]);
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEMTranspose(&mass, &mass, &grad, &wrk4, wrk9, alphavec, appctx);
-        
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
-        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
 
-        //compute w.*(D_x u)  i.e. ulb.*(D_x ujb)   
-        //the term (D_x x B x B)u=W4 (u_x)         
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+
+        /* compute w.*(D_x u)  i.e. ulb.*(D_x ujb)*/
+        /* the term (D_x x B x B)u=W4 (u_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &ujb, wrk4, alphavec, appctx);
-        //the term (D_x x B x B)v=W4 (v_x)         
+        /* the term (D_x x B x B)v=W4 (v_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &vjb, wrk5, alphavec, appctx);
-        //the term (D_x x B x B)w=W4 (w_x)         
+        /* the term (D_x x B x B)w=W4 (w_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&grad, &mass, &mass, &wjb, wrk6, alphavec, appctx);
-        
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); //u.*u_x goes in w7, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); //v.*u_y goes in w8, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]); //w.*u_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
 
-        //sum  u.*(D w_u)[w7]+w.*(D u)[w8]
-        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk8[0][0][0]); /* u.*u_x goes in w7, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk9[0][0][0]); /* v.*u_y goes in w8, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]); /* w.*u_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
 
-        //now the gradient operator for v
-        //compute D^T(u .* w_u), i.e. D^T.*(ujb.* vlb)
+        /* sum  u.*(D w_u)[w7]+w.*(D u)[w8] */
+        BLASaxpy_(&Nl3, &alpha, &wrk8[0][0][0], &inc, &wrk7[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+
+        /* now the gradient operator for v */
+        /* compute D^T(u .* w_u), i.e. D^T.*(ujb.* vlb) */
         PetscPointWiseMult(Nl3, &vlb[0][0][0], &ujb[0][0][0], &wrk4[0][0][0]);
-        //the term (D_x x B x B)u=W4 (v_x)         
+        /* the term (D_x x B x B)u=W4 (v_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&grad, &mass, &mass, &wrk4, wrk8, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (v_y)   
+        /* the term (B x D_y x B)u=W4 (v_y) */
         PetscPointWiseMult(Nl3, &vlb[0][0][0], &vjb[0][0][0], &wrk4[0][0][0]);
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&mass, &grad, &mass, &wrk4, wrk9, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (v_z)    
+        /* the term (B x B x D_z)u=W4 (v_z) */
         PetscPointWiseMult(Nl3, &vlb[0][0][0], &wjb[0][0][0], &wrk4[0][0][0]);
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
-        PetscTens3dSEMTranspose(&mass, &mass, &grad, &wrk4, wrk10, alphavec, appctx);        
- 
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the grad in wrk9
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
+        PetscTens3dSEMTranspose(&mass, &mass, &grad, &wrk4, wrk10, alphavec, appctx);
 
-        //compute w.*(D v), i.e. ulb.*(D_y vjb)
-        //the term (B x D_y x B)u=W4 (w_y)         
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk10 and saved the grad in wrk9 */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
+
+        /* compute w.*(D v), i.e. ulb.*(D_y vjb) */
+        /* the term (B x D_y x B)u=W4 (w_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &ujb, wrk4, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (w_y)         
+        /* the term (B x D_y x B)u=W4 (w_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &vjb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (v_z)         
-        //the term (B x D_y x B)u=W4 (w_y)         
+        /* the term (B x B x D_z)u=W4 (v_z) */
+        /* the term (B x D_y x B)u=W4 (w_y) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEM(&mass, &grad, &mass, &wjb, wrk6, alphavec, appctx);
- 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); //u.*v_x goes in w10, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); //v.*v_y goes in w9, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk11[0][0][0]);//w.*v_z goes in w8, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk10 and saved the grad in wrk9
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk9 and saved the grad in wrk8
 
-        //sum  u.*(D w_v)[w8]+w.*(D v)[w9]
-        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk9[0][0][0]); /* u.*v_x goes in w10, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk10[0][0][0]); /* v.*v_y goes in w9, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk11[0][0][0]);/* w.*v_z goes in w8, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk10 and saved the grad in wrk9 */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk9 and saved the grad in wrk8 */
 
-        //now the gradient operator for w
-         //compute D^T(u .* w_u), i.e. D^T.*(ujb.* vlb)
+        /* sum  u.*(D w_v)[w8]+w.*(D v)[w9] */
+        BLASaxpy_(&Nl3, &alpha, &wrk9[0][0][0], &inc, &wrk8[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+
+        /* now the gradient operator for w */
+        /* compute D^T(u .* w_u), i.e. D^T.*(ujb.* vlb) */
         PetscPointWiseMult(Nl3, &wlb[0][0][0], &ujb[0][0][0], &wrk4[0][0][0]);
-         //the term (D_x x B x B)u=W4 (w_x)         
+        /* the term (D_x x B x B)u=W4 (w_x) */
         alphavec[0]=1.0;  alphavec[1]=appctx->param.Ley/2.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&grad, &mass, &mass, &wrk4, wrk9, alphavec, appctx);
-        //the term (B x D_y x B)u=W4 (w_y)    
+        /* the term (B x D_y x B)u=W4 (w_y) */
         PetscPointWiseMult(Nl3, &wlb[0][0][0], &vjb[0][0][0], &wrk4[0][0][0]);
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=1.0;  alphavec[2]=appctx->param.Lez/2.0;
         PetscTens3dSEMTranspose(&mass, &grad, &mass, &wrk4, wrk10, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (w_z)  
+        /* the term (B x B x D_z)u=W4 (w_z) */
         PetscPointWiseMult(Nl3, &wlb[0][0][0], &wjb[0][0][0], &wrk4[0][0][0]);
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEMTranspose(&mass, &mass, &grad, &wrk4, wrk11, alphavec, appctx);
- 
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk11 and saved the laplacian in wrk10
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk10 and saved the laplacian in wrk9
 
-        //compute w.*(D w), i.e. ulb.*(D wjb)
-        //the term (B x B x D_z)u=W4 (w_z)         
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk11 and saved the laplacian in wrk10 */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk10 and saved the laplacian in wrk9 */
+
+        /* compute w.*(D w), i.e. ulb.*(D wjb) */
+        /* the term (B x B x D_z)u=W4 (w_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &ujb, wrk4, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (w_z)         
+        /* the term (B x B x D_z)u=W4 (w_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &vjb, wrk5, alphavec, appctx);
-        //the term (B x B x D_z)u=W4 (w_z)         
+        /* the term (B x B x D_z)u=W4 (w_z) */
         alphavec[0]=appctx->param.Lex / 2.0;  alphavec[1]=appctx->param.Ley / 2.0;  alphavec[2]=1.0;
         PetscTens3dSEM(&mass, &mass, &grad, &wjb, wrk6, alphavec, appctx);
- 
-        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk12[0][0][0]); //u.*w_x goes in w11, w4 free
-        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk11[0][0][0]); //v.*w_y goes in w10, w5 free
-        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);  //w.*w_z goes in w9, w6 free
-        //sum up all contributions
-        BLASaxpy_(&Nl3, &alpha, &wrk12[0][0][0], &inc, &wrk11[0][0][0], &inc); //I freed wrk11 and saved the laplacian in wrk10
-        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); //I freed wrk10 and saved the laplacian in wrk9
 
-        //sum  u.*(D w_v)[w9]+w.*(D v)[w10]
-        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); //I freed wrk8 and saved the grad in wrk7
+        PetscPointWiseMult(Nl3, &wrk4[0][0][0], &ulb[0][0][0], &wrk12[0][0][0]); /* u.*w_x goes in w11, w4 free */
+        PetscPointWiseMult(Nl3, &wrk5[0][0][0], &vlb[0][0][0], &wrk11[0][0][0]); /* v.*w_y goes in w10, w5 free */
+        PetscPointWiseMult(Nl3, &wrk6[0][0][0], &wlb[0][0][0], &wrk10[0][0][0]);  /* w.*w_z goes in w9, w6 free */
+        /* sum up all contributions */
+        BLASaxpy_(&Nl3, &alpha, &wrk12[0][0][0], &inc, &wrk11[0][0][0], &inc); /* I freed wrk11 and saved the laplacian in wrk10 */
+        BLASaxpy_(&Nl3, &alpha, &wrk11[0][0][0], &inc, &wrk10[0][0][0], &inc); /* I freed wrk10 and saved the laplacian in wrk9 */
 
-        //I saved w7 w8 w9
+        /* sum  u.*(D w_v)[w9]+w.*(D v)[w10] */
+        BLASaxpy_(&Nl3, &alpha, &wrk10[0][0][0], &inc, &wrk9[0][0][0], &inc); /* I freed wrk8 and saved the grad in wrk7 */
+        /* I saved w7 w8 w9 */
         for (jx = 0; jx < Nl; jx++) {
           for (jy = 0; jy < Nl; jy++) {
             for (jz = 0; jz < Nl; jz++) {
@@ -1431,11 +1423,6 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   ierr = VecSet(out,0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(appctx->da, outloc, ADD_VALUES, out);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(appctx->da, outloc, ADD_VALUES, out);CHKERRQ(ierr);
-
-  /*  PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_MATLAB);
-  VecView(in,PETSC_VIEWER_STDOUT_WORLD);VecView(outloc,PETSC_VIEWER_STDOUT_WORLD);VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-   PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD);   */
-
 
   ierr = DMRestoreGlobalVector(appctx->da, &incopy);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
