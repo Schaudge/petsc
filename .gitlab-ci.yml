@@ -520,7 +520,7 @@ linux-c-exodus-dbg:
   tags:
     - gpu:nvidia, os:linux
   variables:
-    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -cuda_initialize 0
+    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -cuda_initialize 0 -use_gpu_aware_mpi 0
     TEST_ARCH: arch-ci-linux-c-exodus-dbg
 
 linux-cuda-single:
@@ -530,7 +530,7 @@ linux-cuda-single:
   tags:
     - gpu:nvidia, os:linux
   variables:
-    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -cuda_initialize 0
+    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -cuda_initialize 0 -use_gpu_aware_mpi 0
     TEST_ARCH: arch-ci-linux-cuda-single
 
 linux-viennacl:
