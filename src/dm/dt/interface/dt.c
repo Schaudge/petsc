@@ -1593,7 +1593,7 @@ PetscErrorCode PetscGaussLobattoLegendreIntegrate(PetscInt n,PetscReal *nodes,Pe
 .seealso: PetscDTGaussLobattoLegendreQuadrature(), PetscGaussLobattoLegendreElementLaplacianDestroy()
 
 @*/
-PetscErrorCode PetscGaussLobattoLegendreElementLaplacianCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
+PetscErrorCode PetscGaussLobattoLegendreElementLaplacianCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA)
 {
   PetscReal        **A;
   PetscErrorCode  ierr;
@@ -1683,7 +1683,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementLaplacianCreate(PetscInt n,PetscR
 .seealso: PetscDTGaussLobattoLegendreQuadrature(), PetscGaussLobattoLegendreElementLaplacianCreate()
 
 @*/
-PetscErrorCode PetscGaussLobattoLegendreElementLaplacianDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
+PetscErrorCode PetscGaussLobattoLegendreElementLaplacianDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA)
 {
   PetscErrorCode ierr;
 
@@ -1718,7 +1718,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementLaplacianDestroy(PetscInt n,Petsc
 .seealso: PetscDTGaussLobattoLegendreQuadrature(), PetscGaussLobattoLegendreElementLaplacianDestroy()
 
 @*/
-PetscErrorCode PetscGaussLobattoLegendreElementGradientCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA,PetscReal ***AAT)
+PetscErrorCode PetscGaussLobattoLegendreElementGradientCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA,PetscScalar ***AAT)
 {
   PetscReal        **A, **AT = NULL;
   PetscErrorCode  ierr;
@@ -1773,7 +1773,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementGradientCreate(PetscInt n,PetscRe
 .seealso: PetscDTGaussLobattoLegendreQuadrature(), PetscGaussLobattoLegendreElementLaplacianCreate(), PetscGaussLobattoLegendreElementAdvectionCreate()
 
 @*/
-PetscErrorCode PetscGaussLobattoLegendreElementGradientDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA,PetscReal ***AAT)
+PetscErrorCode PetscGaussLobattoLegendreElementGradientDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA,PetscScalar ***AAT)
 {
   PetscErrorCode ierr;
 
@@ -1814,7 +1814,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementGradientDestroy(PetscInt n,PetscR
 .seealso: PetscDTGaussLobattoLegendreQuadrature(), PetscGaussLobattoLegendreElementLaplacianCreate(), PetscGaussLobattoLegendreElementAdvectionDestroy()
 
 @*/
-PetscErrorCode PetscGaussLobattoLegendreElementAdvectionCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
+PetscErrorCode PetscGaussLobattoLegendreElementAdvectionCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA)
 {
   PetscReal       **D;
   PetscErrorCode  ierr;
@@ -1849,7 +1849,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementAdvectionCreate(PetscInt n,PetscR
 .seealso: PetscDTGaussLobattoLegendreQuadrature(), PetscGaussLobattoLegendreElementAdvectionCreate()
 
 @*/
-PetscErrorCode PetscGaussLobattoLegendreElementAdvectionDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
+PetscErrorCode PetscGaussLobattoLegendreElementAdvectionDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA)
 {
   PetscErrorCode ierr;
 
@@ -1860,7 +1860,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementAdvectionDestroy(PetscInt n,Petsc
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
+PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA)
 {
   PetscReal        **A;
   PetscErrorCode   ierr;
@@ -1883,7 +1883,7 @@ PetscErrorCode PetscGaussLobattoLegendreElementMassCreate(PetscInt n,PetscReal *
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscGaussLobattoLegendreElementMassDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscReal ***AA)
+PetscErrorCode PetscGaussLobattoLegendreElementMassDestroy(PetscInt n,PetscReal *nodes,PetscReal *weights,PetscScalar ***AA)
 {
   PetscErrorCode ierr;
 

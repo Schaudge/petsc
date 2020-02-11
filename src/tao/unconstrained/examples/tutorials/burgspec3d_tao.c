@@ -19,12 +19,12 @@ static char help[] = "Solves a 3d Burgers PDE constrained optimization algorithm
 */
 typedef struct
 {
-  PetscInt  n;         /* number of nodes */
-  PetscReal *nodes;    /* GLL nodes */
-  PetscReal *weights;  /* GLL weights */
-  PetscReal **stiff;
-  PetscReal **mass;
-  PetscReal **grad;
+  PetscInt    n;         /* number of nodes */
+  PetscReal   *nodes;    /* GLL nodes */
+  PetscReal   *weights;  /* GLL weights */
+  PetscScalar **stiff;
+  PetscScalar **mass;
+  PetscScalar **grad;
 } PetscGLL;
 
 /*
@@ -522,7 +522,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEM(PetscScalar ***A, PetscScalar 
   PetscInt           jx;
   PetscScalar        *temp1, *temp2;
   PetscScalar        ***wrk1 = appctx->tenswrk1, ***wrk2  = appctx->tenswrk2, ***wrk3 = out;
-  const PetscReal    beta = 0;
+  const PetscScalar  beta = 0;
 
   PetscFunctionBegin;
   BLASgemm_("T", "N", &Nl, &Nl2, &Nl, &alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
@@ -542,7 +542,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTens3dSEMTranspose(PetscScalar ***A, Pet
   PetscInt           jx;
   PetscScalar        *temp1, *temp2;
   PetscScalar        ***wrk1 = appctx->tenswrk1, ***wrk2  = appctx->tenswrk2, ***wrk3 = out;
-  const PetscReal    beta = 0;
+  const PetscScalar  beta = 0;
 
   PetscFunctionBegin;
   BLASgemm_("N", "N", &Nl, &Nl2, &Nl, &alphavec[0], A[0][0], &Nl, ulb[0][0][0], &Nl, &beta, &wrk1[0][0][0], &Nl);
@@ -608,7 +608,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   PetscInt       xs, xm, ys, ym, zs, zm;
   Vec            uloc, outloc;
   PetscScalar    alpha;
-  PetscReal      alphavec[3];
+  PetscScalar    alphavec[3];
   PetscBLASInt   inc = 1,Nl = appctx->param.N, Nl3 = Nl*Nl*Nl;
 
   PetscFunctionBegin;
@@ -802,7 +802,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
   PetscBLASInt       Nl, Nl3;
   Vec                uloc, outloc;
   PetscScalar        alpha;
-  PetscReal          alphavec[3];
+  PetscScalar        alphavec[3];
   const PetscBLASInt inc = 1;
   PetscScalar        **stiff;
   PetscScalar        **mass;
@@ -1088,7 +1088,7 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   PetscInt           xs, xm, ys, ym, zs, zm;
   PetscBLASInt       Nl, Nl3;
   Vec                uloc, outloc, incopy;
-  PetscReal          alphavec[3];
+  PetscScalar        alphavec[3];
   PetscScalar        **stiff;
   PetscScalar        **mass;
   PetscScalar        **grad;
@@ -1429,6 +1429,7 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   AppCtx             *appctx = (AppCtx *)ctx; /* user-defined application context */
   PetscErrorCode     ierr;
   Vec                temp;
+  PetscScalar        ff;
 
   PetscFunctionBegin;
   ierr = TSSetTime(appctx->ts, 0);CHKERRQ(ierr);
@@ -1445,7 +1446,8 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
   */
   ierr = DMGetGlobalVector(appctx->da,&temp);CHKERRQ(ierr);
   ierr = VecPointwiseMult(temp, G, G);CHKERRQ(ierr);
-  ierr = VecDot(temp, appctx->SEMop.mass, f);CHKERRQ(ierr);
+  ierr = VecDot(temp, appctx->SEMop.mass, &ff);CHKERRQ(ierr);
+  *f   = PetscRealPart(ff);
   ierr = DMRestoreGlobalVector(appctx->da,&temp);CHKERRQ(ierr);
 
   /*
@@ -1462,27 +1464,26 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
 /*TEST
 
-   build:
-     requires: !complex
-
    test:
+     requires: !complex
      args: -tao_view -ts_trajectory_type memory -tao_monitor -tao_gttol 1.e-3 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .8 -Tadj 1.2 -tao_converged_reason -tao_max_it 30  -ts_adapt_type none
 
    test:
      suffix: p
      nsize: 2
+     requires: !complex
      timeoutfactor: 3
      args: -tao_view -ts_trajectory_type memory -tao_monitor -tao_gttol 1.e-3 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .8 -Tadj 1.2 -tao_converged_reason -tao_max_it 30 -ts_adapt_type none
 
    test:
      suffix: fd
-     requires: !single
+     requires: !single !complex
      timeoutfactor: 10
      args: -tao_view -ts_trajectory_type memory -tao_monitor -tao_gttol 1.e-1 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .2 -Tadj .3 -tao_converged_reason -tao_max_it 30 -ts_adapt_type none -tao_test_gradient
 
    test:
      suffix: rhs_fd
-     requires: !single
+     requires: !single !complex
      timeoutfactor: 8
      args: -tao_view -ts_trajectory_type memory -tao_monitor -tao_gttol 1.e-2 -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .4 -Tadj .7 -tao_converged_reason -tao_max_it 30  -ts_adapt_type none -ts_rhs_jacobian_test_mult_transpose
 
@@ -1490,13 +1491,13 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
      suffix: cn_p
      nsize: 3
      timeoutfactor: 3
-     requires: !single
+     requires: !single !complex
      args: -tao_view -ts_trajectory_type memory -tao_monitor  -Ex 2 -Ey 3 -Ez 3 -N 6 -Tend .8 -Tadj 1.0 -tao_converged_reason -tao_max_it 30 -tao_gttol 1.e-3 -ts_type cn -pc_type none
 
    test:
      suffix: cn_fd
      timeoutfactor: 8
-     requires: !single
+     requires: !single !complex
      args: -tao_view -ts_trajectory_type memory -tao_monitor  -Ex 2 -Ey 2 -Ez 2 -N 3 -Tend .1 -Tadj .12 -tao_converged_reason -tao_max_it 30 -tao_gttol 1.e-1 -ts_type cn -pc_type none  -tao_test_gradient
 
 TEST*/
