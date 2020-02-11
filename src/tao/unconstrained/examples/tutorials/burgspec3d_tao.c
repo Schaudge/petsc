@@ -358,7 +358,8 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
   zm = zm / (appctx->param.N - 1);
 
   ierr = VecSet(appctx->SEMop.mass, 0.0);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(appctx->da, &loc);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(appctx->da, &loc);CHKERRQ(ierr);
+  ierr = VecSet(loc,0.0);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, loc, &bmass);CHKERRQ(ierr);
   /*
      Build mass over entire mesh (multi-elemental)
@@ -421,7 +422,7 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
     }
   }
   ierr = DMDAVecRestoreArray(cda, global, &coors);CHKERRQ(ierr);
-  ierr = VecDestroy(&loc);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(appctx->da,&loc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -626,12 +627,13 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   wrk10  = appctx->wrk10;
   wrk11  = appctx->wrk11;
 
-  ierr = DMCreateLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(appctx->da, &uloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(appctx->da, globalin, INSERT_VALUES, uloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(appctx->da, globalin, INSERT_VALUES, uloc);CHKERRQ(ierr);
   ierr = DMDAVecGetArrayRead(appctx->da, uloc, &ul);CHKERRQ(ierr);
 
-  ierr = DMCreateLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
+  ierr = VecSet(outloc,0.0);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
   xs = xs / (Nl - 1);
@@ -778,8 +780,8 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
   ierr = VecScale(globalout, -1.0);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(globalout, globalout, appctx->SEMop.mass);CHKERRQ(ierr);
 
-  ierr = VecDestroy(&outloc);CHKERRQ(ierr);
-  ierr = VecDestroy(&uloc);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(appctx->da,&outloc);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(appctx->da,&uloc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -839,7 +841,7 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 
   /* outl contains the output vector as a local array */
   ierr = DMGetLocalVector(appctx->da, &outloc);CHKERRQ(ierr);
-  ierr = VecSet(outloc,0);CHKERRQ(ierr);
+  ierr = VecSet(outloc,0.0);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, outloc, &outl);CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
 
