@@ -789,23 +789,24 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec globalin, Vec globalout, void
 #define __FUNCT__ "MyMatMult"
 PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 {
-  PetscErrorCode ierr;
-  AppCtx         *appctx;
-  PetscScalar    ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
-  PetscScalar    ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
-  PetscScalar    ***ulb, ***vlb, ***wlb;
-  PetscScalar    ***ujb, ***vjb, ***wjb;
-  const Field    ***ul, ***uj;
-  Field          ***outl;
-  PetscInt       ix, iy, iz, jx, jy, jz, indx, indy, indz;
-  PetscInt       xs, xm, ys, ym, zs, zm, Nl, Nl3;
-  Vec            uloc, outloc;
-  PetscScalar    alpha;
-  PetscReal      alphavec[3];
-  const PetscInt inc = 1;
-  PetscScalar    **stiff;
-  PetscScalar    **mass;
-  PetscScalar    **grad;
+  PetscErrorCode     ierr;
+  AppCtx             *appctx;
+  PetscScalar        ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
+  PetscScalar        ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
+  PetscScalar        ***ulb, ***vlb, ***wlb;
+  PetscScalar        ***ujb, ***vjb, ***wjb;
+  const Field        ***ul, ***uj;
+  Field              ***outl;
+  PetscInt           ix, iy, iz, jx, jy, jz, indx, indy, indz;
+  PetscInt           xs, xm, ys, ym, zs, zm;
+  PetscBLASInt       Nl, Nl3;
+  Vec                uloc, outloc;
+  PetscScalar        alpha;
+  PetscReal          alphavec[3];
+  const PetscBLASInt inc = 1;
+  PetscScalar        **stiff;
+  PetscScalar        **mass;
+  PetscScalar        **grad;
 
   PetscFunctionBegin;
   ierr   = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
@@ -1075,23 +1076,24 @@ PetscErrorCode MyMatMult(Mat H, Vec in, Vec out)
 #define __FUNCT__ "MyMatMultTransp"
 PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
 {
-  AppCtx            *appctx;
-  PetscErrorCode    ierr;
-  PetscScalar       ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
-  PetscScalar       ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
-  PetscScalar       ***ulb, ***vlb, ***wlb;
-  PetscScalar       ***ujb, ***vjb, ***wjb;
-  const Field       ***ul, ***uj;
-  Field             ***outl;
-  PetscInt          ix, iy, iz, jx, jy, jz, indx, indy, indz;
-  PetscInt          xs, xm, ys, ym, zs, zm, Nl, Nl3;
-  Vec               uloc, outloc, incopy;
-  PetscReal         alphavec[3];
-  PetscScalar       **stiff;
-  PetscScalar       **mass;
-  PetscScalar       **grad;
-  const PetscInt    inc = 1;
-  const PetscScalar alpha=1.0;
+  AppCtx             *appctx;
+  PetscErrorCode     ierr;
+  PetscScalar        ***wrk3, ***wrk1, ***wrk2, ***wrk4, ***wrk5, ***wrk6, ***wrk7;
+  PetscScalar        ***wrk8, ***wrk9, ***wrk10, ***wrk11, ***wrk12;
+  PetscScalar        ***ulb, ***vlb, ***wlb;
+  PetscScalar        ***ujb, ***vjb, ***wjb;
+  const Field        ***ul, ***uj;
+  Field              ***outl;
+  PetscInt           ix, iy, iz, jx, jy, jz, indx, indy, indz;
+  PetscInt           xs, xm, ys, ym, zs, zm;
+  PetscBLASInt       Nl, Nl3;
+  Vec                uloc, outloc, incopy;
+  PetscReal          alphavec[3];
+  PetscScalar        **stiff;
+  PetscScalar        **mass;
+  PetscScalar        **grad;
+  const PetscBLASInt inc = 1;
+  const PetscScalar  alpha=1.0;
 
   PetscFunctionBegin;
   ierr   = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
