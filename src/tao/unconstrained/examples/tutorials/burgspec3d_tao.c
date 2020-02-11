@@ -218,24 +218,24 @@ int main(int argc, char **argv)
   /* allocate work space needed by tensor products */
   ierr = PetscAllocateEl3d(&appctx.tenswrk1, &appctx);CHKERRQ(ierr);
   ierr = PetscAllocateEl3d(&appctx.tenswrk2, &appctx);CHKERRQ(ierr);
-  PetscAllocateEl3d(&appctx.ulb, &appctx);
-  PetscAllocateEl3d(&appctx.vlb, &appctx);
-  PetscAllocateEl3d(&appctx.wlb, &appctx);
-  PetscAllocateEl3d(&appctx.ujb, &appctx);
-  PetscAllocateEl3d(&appctx.vjb, &appctx);
-  PetscAllocateEl3d(&appctx.wjb, &appctx);
-  PetscAllocateEl3d(&appctx.wrk1, &appctx);
-  PetscAllocateEl3d(&appctx.wrk2, &appctx);
-  PetscAllocateEl3d(&appctx.wrk3, &appctx);
-  PetscAllocateEl3d(&appctx.wrk4, &appctx);
-  PetscAllocateEl3d(&appctx.wrk5, &appctx);
-  PetscAllocateEl3d(&appctx.wrk6, &appctx);
-  PetscAllocateEl3d(&appctx.wrk7, &appctx);
-  PetscAllocateEl3d(&appctx.wrk8, &appctx);
-  PetscAllocateEl3d(&appctx.wrk9, &appctx);
-  PetscAllocateEl3d(&appctx.wrk10, &appctx);
-  PetscAllocateEl3d(&appctx.wrk11, &appctx);
-  PetscAllocateEl3d(&appctx.wrk12, &appctx);
+  ierr = PetscAllocateEl3d(&appctx.ulb, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.vlb, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wlb, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.ujb, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.vjb, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wjb, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk1, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk2, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk3, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk4, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk5, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk6, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk7, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk8, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk9, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk10, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk11, &appctx);CHKERRQ(ierr);
+  ierr = PetscAllocateEl3d(&appctx.wrk12, &appctx);CHKERRQ(ierr);
 
   /* Create the TS solver that solves the ODE and its adjoint; set its options */
   ierr = TSCreate(PETSC_COMM_WORLD, &appctx.ts);CHKERRQ(ierr);
@@ -282,6 +282,7 @@ int main(int argc, char **argv)
   /* Set Objective and Initial conditions for the problem and compute Objective function (evolution of true_solution to final time */
 
   ierr = ComputeObjective(appctx.param.Tadj, appctx.dat.obj, &appctx);CHKERRQ(ierr);
+  
   /* Create TAO solver and set desired solution method  */
   ierr = TaoCreate(PETSC_COMM_WORLD, &tao);CHKERRQ(ierr);
   ierr = PetscObjectCompose((PetscObject)tao,"TS",(PetscObject)appctx.ts);CHKERRQ(ierr);
@@ -289,13 +290,11 @@ int main(int argc, char **argv)
   ierr = TaoSetInitialVector(tao, appctx.dat.ic);CHKERRQ(ierr);
   /* Set routine for function and gradient evaluation  */
   ierr = TaoSetObjectiveAndGradientRoutine(tao, FormFunctionGradient, (void *)&appctx);CHKERRQ(ierr);
-  /* Check for any TAO command line options  */
   ierr = TaoSetTolerances(tao, 1e-8, PETSC_DEFAULT, PETSC_DEFAULT);CHKERRQ(ierr);
-  /* TaoSetMaximumIterations(tao,1); */
   ierr = TaoSetFromOptions(tao);CHKERRQ(ierr);
   ierr = TaoSolve(tao);CHKERRQ(ierr);
 
-  ierr = TaoDestroy(&tao);CHKERRQ(ierr); 
+  ierr = TaoDestroy(&tao);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = VecDestroy(&appctx.dat.ic);CHKERRQ(ierr);
   ierr = VecDestroy(&appctx.dat.true_solution);CHKERRQ(ierr);
@@ -316,31 +315,31 @@ int main(int argc, char **argv)
 
   ierr = PetscDestroyEl3d(&appctx.tenswrk1, &appctx);CHKERRQ(ierr);
   ierr = PetscDestroyEl3d(&appctx.tenswrk2, &appctx);CHKERRQ(ierr);
-  PetscDestroyEl3d(&appctx.ulb, &appctx);
-  PetscDestroyEl3d(&appctx.vlb, &appctx);
-  PetscDestroyEl3d(&appctx.wlb, &appctx);
-  PetscDestroyEl3d(&appctx.ujb, &appctx);
-  PetscDestroyEl3d(&appctx.vjb, &appctx);
-  PetscDestroyEl3d(&appctx.wjb, &appctx);
-  PetscDestroyEl3d(&appctx.wrk1, &appctx);
-  PetscDestroyEl3d(&appctx.wrk2, &appctx);
-  PetscDestroyEl3d(&appctx.wrk3, &appctx);
-  PetscDestroyEl3d(&appctx.wrk4, &appctx);
-  PetscDestroyEl3d(&appctx.wrk5, &appctx);
-  PetscDestroyEl3d(&appctx.wrk6, &appctx);
-  PetscDestroyEl3d(&appctx.wrk7, &appctx);
-  PetscDestroyEl3d(&appctx.wrk8, &appctx);
-  PetscDestroyEl3d(&appctx.wrk9, &appctx);
-  PetscDestroyEl3d(&appctx.wrk10, &appctx);
-  PetscDestroyEl3d(&appctx.wrk11, &appctx);
-  PetscDestroyEl3d(&appctx.wrk12, &appctx);
+  ierr = PetscDestroyEl3d(&appctx.ulb, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.vlb, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wlb, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.ujb, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.vjb, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wjb, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk1, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk2, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk3, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk4, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk5, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk6, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk7, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk8, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk9, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk10, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk11, &appctx);CHKERRQ(ierr);
+  ierr = PetscDestroyEl3d(&appctx.wrk12, &appctx);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;
 }
 
 /*
-Initialize Spectral grid and mass matrix
+     Initialize spectral grid and mass matrix
 */
 PetscErrorCode InitializeSpectral(AppCtx *appctx)
 {
@@ -352,15 +351,9 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
   Field          ***bmass;
   DMDACoor3d     ***coors;
   Vec            global, loc;
-      
+
   PetscFunctionBegin;
-  
-  /*
-     Extract global and local vectors from DMDA; we use these to store the
-     approximate solution.  Then duplicate these for remaining vectors that
-     have the same types.
-  */
- ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(appctx->da, &xs, &ys, &zs, &xm, &ym, &zm);CHKERRQ(ierr);
   /* Compute function over the locally owned part of the grid */
   xs = xs / (appctx->param.N - 1);
   xm = xm / (appctx->param.N - 1);
@@ -369,16 +362,12 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
   zs = zs / (appctx->param.N - 1);
   zm = zm / (appctx->param.N - 1);
 
-  VecSet(appctx->SEMop.mass, 0.0);
-
+  ierr = VecSet(appctx->SEMop.mass, 0.0);CHKERRQ(ierr);
   ierr = DMCreateLocalVector(appctx->da, &loc);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(appctx->da, loc, &bmass);CHKERRQ(ierr);
-
   /*
-     Build mass over entire mesh (multi-elemental) 
-
+     Build mass over entire mesh (multi-elemental)
   */
-
   for (ix = xs; ix < xs + xm; ix++){
     for (jx = 0; jx < appctx->param.N; jx++){
       for (iy = ys; iy < ys + ym; iy++){
@@ -441,19 +430,6 @@ PetscErrorCode InitializeSpectral(AppCtx *appctx)
   PetscFunctionReturn(0);
 }
 
-
-PETSC_STATIC_INLINE PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const PetscScalar *B, PetscScalar *out)
-{
-  PetscInt i;
-
-  PetscFunctionBegin;
-  for (i = 0; i < Nl; i++) {
-    out[i] = A[i] * B[i];
-  }
-  PetscFunctionReturn(0);
-}
-
-
 /* --------------------------------------------------------------------- */
 /*
    InitialConditions - Computes the initial conditions for the Tao optimization solve (these are also initial conditions for the first TSSolve()
@@ -481,7 +457,6 @@ PetscErrorCode InitialConditions(PetscReal t, Vec u, AppCtx *appctx)
   ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
   ierr = DMDAVecGetArrayRead(cda, global, &coors);CHKERRQ(ierr);
   ierr = DMDAGetCorners(appctx->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-
   for (k = zs; k < zs + zm; k++) {
     for (j = ys; j < ys + ym; j++) {
       for (i = xs; i < xs + xm; i++) {
@@ -491,15 +466,13 @@ PetscErrorCode InitialConditions(PetscReal t, Vec u, AppCtx *appctx)
       }
     }
   }
-
   ierr = DMDAVecRestoreArray(appctx->da, u, &s);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArrayRead(cda, global, &coors);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-/* --------------------------------------------------------------------- */
 /*
-   Sets the desired profile for the final end time; 
+   Sets the desired profile for the final end time;
 
    Input Parameters:
    t - final time
@@ -521,9 +494,7 @@ PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
   ierr = DMGetCoordinateDM(appctx->da, &cda);CHKERRQ(ierr);
   ierr = DMGetCoordinates(appctx->da, &global);CHKERRQ(ierr);
   ierr = DMDAVecGetArrayRead(cda, global, &coors);CHKERRQ(ierr);
-
   ierr = DMDAGetCorners(appctx->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-
   for (k = zs; k < zs + zm; k++) {
     for (j = ys; j < ys + ym; j++) {
       for (i = xs; i < xs + xm; i++) {
@@ -533,9 +504,19 @@ PetscErrorCode ComputeObjective(PetscReal t, Vec obj, AppCtx *appctx)
       }
     }
   }
-
   ierr = DMDAVecRestoreArray(appctx->da, obj, &s);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArrayRead(cda, global, &coors);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PETSC_STATIC_INLINE PetscErrorCode PetscPointWiseMult(PetscInt Nl, const PetscScalar *A, const PetscScalar *B, PetscScalar *out)
+{
+  PetscInt i;
+
+  PetscFunctionBegin;
+  for (i = 0; i < Nl; i++) {
+    out[i] = A[i] * B[i];
+  }
   PetscFunctionReturn(0);
 }
 
@@ -601,6 +582,7 @@ PetscErrorCode PetscAllocateEl3d(PetscScalar ****AA, AppCtx *appctx)
   *AA = A;
   PetscFunctionReturn(0);
 }
+
 PetscErrorCode PetscDestroyEl3d(PetscScalar ****AA, AppCtx *appctx)
 {
   PetscErrorCode ierr;
@@ -1159,25 +1141,25 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   const PetscScalar alpha=1.0;
 
   PetscFunctionBegin;
-  ierr  = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
-  stiff = appctx->SEMop.gll.stiff;
-  mass  = appctx->SEMop.gll.mass;
-  grad  = appctx->SEMop.gll.grad;
-  ulb  = appctx->ulb;
-  vlb  = appctx->vlb;
-  wlb  = appctx->wlb;
-  ujb  = appctx->ujb;
-  vjb  = appctx->vjb;
-  wjb  = appctx->wjb;
-  wrk1  = appctx->wrk1;
-  wrk2  = appctx->wrk2;
-  wrk3  = appctx->wrk3;
-  wrk4  = appctx->wrk4;
-  wrk5  = appctx->wrk5;
-  wrk6  = appctx->wrk6;
-  wrk7  = appctx->wrk7;
-  wrk8  = appctx->wrk8;
-  wrk9  = appctx->wrk9;
+  ierr   = MatShellGetContext(H, &appctx);CHKERRQ(ierr);
+  stiff  = appctx->SEMop.gll.stiff;
+  mass   = appctx->SEMop.gll.mass;
+  grad   = appctx->SEMop.gll.grad;
+  ulb    = appctx->ulb;
+  vlb    = appctx->vlb;
+  wlb    = appctx->wlb;
+  ujb    = appctx->ujb;
+  vjb    = appctx->vjb;
+  wjb    = appctx->wjb;
+  wrk1   = appctx->wrk1;
+  wrk2   = appctx->wrk2;
+  wrk3   = appctx->wrk3;
+  wrk4   = appctx->wrk4;
+  wrk5   = appctx->wrk5;
+  wrk6   = appctx->wrk6;
+  wrk7   = appctx->wrk7;
+  wrk8   = appctx->wrk8;
+  wrk9   = appctx->wrk9;
   wrk10  = appctx->wrk10;
   wrk11  = appctx->wrk11;
   wrk12  = appctx->wrk12;
@@ -1213,8 +1195,6 @@ PetscErrorCode MyMatMultTransp(Mat H, Vec in, Vec out)
   /*
      Initialize work arrays
   */
-
-
   for (ix = xs; ix < xs + xm; ix++) {
     for (iy = ys; iy < ys + ym; iy++) {
       for (iz = zs; iz < zs + zm; iz++) {
@@ -1522,7 +1502,6 @@ PetscErrorCode FormFunctionGradient(Tao tao, Vec IC, PetscReal *f, Vec G, void *
 
   /* solve the adjoint system for the gradient */
   ierr = TSAdjointSolve(appctx->ts);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
