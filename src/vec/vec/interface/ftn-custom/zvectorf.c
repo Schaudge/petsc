@@ -7,6 +7,10 @@
 #define vecsetvalueslocal0_       VECSETVALUESLOCAL0
 #define vecsetvalueslocal11_      VECSETVALUESLOCAL11
 #define vecsetvalueslocal1_       VECSETVALUESLOCAL1
+#define vecgetvalues_             VECGETVALUES
+#define vecgetvalues0_            VECGETVALUES0
+#define vecgetvalues1_            VECGETVALUES1
+#define vecgetvalues11_           VECGETVALUES11
 #define vecsetvalues_             VECSETVALUES
 #define vecsetvalues0_            VECSETVALUES0
 #define vecsetvalues1_            VECSETVALUES1
@@ -42,6 +46,10 @@
 #define vecsetvalueslocal0_       vecsetvalueslocal0
 #define vecsetvalueslocal1_       vecsetvalueslocal1
 #define vecsetvalueslocal11_      vecsetvalueslocal11
+#define vecgetvalues_             vecgetvalues
+#define vecgetvalues0_            vecgetvalues0
+#define vecgetvalues1_            vecgetvalues1
+#define vecgetvalues11_           vecgetvalues11
 #define vecsetvalues_             vecsetvalues
 #define vecsetvalues0_            vecsetvalues0
 #define vecsetvalues1_            vecsetvalues1
@@ -93,6 +101,26 @@ PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal1_(Vec *x,PetscInt *ni, PetscIn
 PETSC_EXTERN void PETSC_STDCALL vecsetvalueslocal11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
 {
   vecsetvalueslocal_(x,ni,ix,y,iora,ierr);
+}
+
+PETSC_EXTERN void PETSC_STDCALL  vecgetvalues_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],int *ierr )
+{
+  *ierr = VecGetValues(*x,*ni,ix,y);
+}
+
+PETSC_EXTERN void PETSC_STDCALL  vecgetvalues0_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],int *ierr )
+{
+  vecgetvalues_(x,ni,ix,y,ierr);
+}
+
+PETSC_EXTERN void PETSC_STDCALL  vecgetvalues1_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],int *ierr )
+{
+  vecgetvalues_(x,ni,ix,y,ierr);
+}
+
+PETSC_EXTERN void PETSC_STDCALL  vecgetvalues11_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],int *ierr )
+{
+  vecgetvalues_(x,ni,ix,y,ierr);
 }
 
 PETSC_EXTERN void PETSC_STDCALL  vecsetvalues_(Vec *x,PetscInt *ni, PetscInt ix[], PetscScalar y[],InsertMode *iora, int *ierr )
