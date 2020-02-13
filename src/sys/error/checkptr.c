@@ -168,7 +168,7 @@ PetscBool PetscCheckPointer(const void *ptr,PETSC_UNUSED PetscDataType dtype)
   return PETSC_TRUE;
 }
 
-PetscBool PetscCheckMpiGpuAwareness()
+PetscBool PetscCheckMpiGpuAwareness(void)
 {
   /* If no setjmp (rare), return true and let users code run (and segfault if they should) */
   return PETSC_TRUE;
