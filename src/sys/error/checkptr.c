@@ -135,7 +135,7 @@ PetscBool PetscCheckPointer(const void *ptr,PetscDataType dtype)
 }
 
 #if defined (PETSC_HAVE_CUDA)
-PetscBool PetscCheckMpiGpuAwareness()
+PetscBool PetscCheckMpiGpuAwareness(void)
 {
   cudaError_t cerr=cudaSuccess;
   int         ierr,hbuf[2]={1,0},*dbuf=NULL;
