@@ -189,7 +189,7 @@ PETSC_INTERN PetscErrorCode PetscFreeMPIResources(void);
 
 PETSC_EXTERN PetscBool PetscCheckPointer(const void*,PetscDataType);
 #if defined(PETSC_HAVE_CUDA)
-PETSC_EXTERN PetscBool PetscCheckMpiGpuAwareness();
+PETSC_EXTERN PetscBool PetscCheckMpiGpuAwareness(void);
 #endif
 /*
     Macros to test if a PETSc object is valid and if pointers are valid
