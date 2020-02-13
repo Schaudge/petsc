@@ -158,7 +158,7 @@ PetscBool PetscCheckMpiGpuAwareness(void)
 }
 #endif
 #else
-void PetscSignalSegvCheckPointerOrMpi() {
+void PetscSignalSegvCheckPointerOrMpi(void) {
   return;
 }
 
