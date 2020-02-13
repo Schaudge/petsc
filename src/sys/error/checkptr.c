@@ -57,7 +57,7 @@ static PetscBool PetscSegvJumpBuf_set;
 
 .seealso: PetscPushSignalHandler()
 @*/
-void PetscSignalSegvCheckPointerOrMpi() {
+void PetscSignalSegvCheckPointerOrMpi(void) {
   if (PetscSegvJumpBuf_set) longjmp(PetscSegvJumpBuf,1);
 }
 
