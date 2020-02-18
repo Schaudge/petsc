@@ -758,11 +758,14 @@ PetscErrorCode PetscSFLinkDestroy(PetscSF sf,PetscSFLink *avail)
 #if defined(PETSC_HAVE_CUDA)
       ierr = PetscFreeWithMemType(PETSC_MEMTYPE_DEVICE,link->rootbuf_alloc[i][PETSC_MEMTYPE_DEVICE]);CHKERRQ(ierr);
       ierr = PetscFreeWithMemType(PETSC_MEMTYPE_DEVICE,link->leafbuf_alloc[i][PETSC_MEMTYPE_DEVICE]);CHKERRQ(ierr);
-      if (link->stream) {cudaError_t err =  cudaStreamDestroy(link->stream);CHKERRCUDA(err); link->stream = NULL;}
+      if (link->stream) {cudaError_t cerr = cudaStreamDestroy(link->stream);CHKERRCUDA(cerr); link->stream = NULL;}
 #endif
       ierr = PetscFree(link->rootbuf_alloc[i][PETSC_MEMTYPE_HOST]);CHKERRQ(ierr);
       ierr = PetscFree(link->leafbuf_alloc[i][PETSC_MEMTYPE_HOST]);CHKERRQ(ierr);
     }
+#if defined(PETSC_HAVE_CUDA)
+    if (link->event) {cudaError_t cerr = cudaEventDestroy(link->event);CHKERRCUDA(cerr); link->event = NULL;}
+#endif
     ierr = PetscFree(link);CHKERRQ(ierr);
   }
   *avail = NULL;
@@ -1051,134 +1054,6 @@ PetscErrorCode PetscSFLinkGetFetchAndOpLocal(PetscSFLink link,PetscMemType mtype
   PetscFunctionReturn(0);
 }
 
-/*=============================================================================
-              A set of helper routines for Pack/Unpack/Scatter on GPUs
- ============================================================================*/
-#if defined(PETSC_HAVE_CUDA)
-/* If SF does not know which stream root/leafdata is being computed on, it has to sync the device to
-   make sure the data is ready for packing.
- */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncDeviceBeforePackData(PetscSF sf,PetscSFLink link)
-{
-  PetscFunctionBegin;
-  if (sf->use_default_stream) PetscFunctionReturn(0);
-  if (link->rootmtype == PETSC_MEMTYPE_DEVICE || link->leafmtype == PETSC_MEMTYPE_DEVICE) {
-    cudaError_t cerr = cudaDeviceSynchronize();CHKERRCUDA(cerr);
-  }
-  PetscFunctionReturn(0);
-}
-
-/* PetscSFLinkSyncStreamAfterPackXxxData routines make sure root/leafbuf for the remote is ready for MPI */
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterPackRootData(PetscSF sf,PetscSFLink link)
-{
-  PetscSF_Basic  *bas = (PetscSF_Basic*)sf->data;
-
-  PetscFunctionBegin;
-  /* Do nothing if we use stream aware mpi || has nothing for remote */
-  if (sf->use_stream_aware_mpi || link->rootmtype != PETSC_MEMTYPE_DEVICE || !bas->rootbuflen[PETSCSF_REMOTE]) PetscFunctionReturn(0);
-  /* If we called a packing kernel || we async-copied rootdata from device to host || No cudaDeviceSynchronize was called (since default stream is assumed) */
-  if (!link->rootdirect[PETSCSF_REMOTE] || !sf->use_gpu_aware_mpi || sf->use_default_stream) {
-    cudaError_t cerr = cudaStreamSynchronize(link->stream);CHKERRCUDA(cerr);
-  }
-  PetscFunctionReturn(0);
-}
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterPackLeafData(PetscSF sf,PetscSFLink link)
-{
-  PetscFunctionBegin;
-  /* See comments above */
-  if (sf->use_stream_aware_mpi || link->leafmtype != PETSC_MEMTYPE_DEVICE || !sf->leafbuflen[PETSCSF_REMOTE]) PetscFunctionReturn(0);
-  if (!link->leafdirect[PETSCSF_REMOTE] || !sf->use_gpu_aware_mpi || sf->use_default_stream) {
-    cudaError_t cerr = cudaStreamSynchronize(link->stream);CHKERRCUDA(cerr);
-  }
-  PetscFunctionReturn(0);
-}
-
-/* PetscSFLinkSyncStreamAfterUnpackXxx routines make sure root/leafdata (local & remote) is ready to use for SF callers, when SF
-   does not know which stream the callers will use.
-*/
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterUnpackRootData(PetscSF sf,PetscSFLink link)
-{
-  PetscSF_Basic  *bas = (PetscSF_Basic*)sf->data;
-
-  PetscFunctionBegin;
-  /* Do nothing if we are expected to put rootdata on default stream */
-  if (sf->use_default_stream || link->rootmtype != PETSC_MEMTYPE_DEVICE) PetscFunctionReturn(0);
-  /* If we have something from local, then we called a scatter kernel (on link->stream), then we must sync it;
-     If we have something from remote and we called unpack kernel, then we must also sycn it.
-   */
-  if (bas->rootbuflen[PETSCSF_LOCAL] || (bas->rootbuflen[PETSCSF_REMOTE] && !link->rootdirect[PETSCSF_REMOTE])) {
-    cudaError_t cerr = cudaStreamSynchronize(link->stream);CHKERRCUDA(cerr);
-  }
-  PetscFunctionReturn(0);
-}
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterUnpackLeafData(PetscSF sf,PetscSFLink link)
-{
-  PetscFunctionBegin;
-  /* See comments above */
-  if (sf->use_default_stream || link->leafmtype != PETSC_MEMTYPE_DEVICE) PetscFunctionReturn(0);
-  if (sf->leafbuflen[PETSCSF_LOCAL] || (sf->leafbuflen[PETSCSF_REMOTE] && !link->leafdirect[PETSCSF_REMOTE])) {
-    cudaError_t cerr = cudaStreamSynchronize(link->stream);CHKERRCUDA(cerr);
-  }
-  PetscFunctionReturn(0);
-}
-
-/* PetscSFLinkCopyXxxxBufferInCaseNotUseGpuAwareMPI routines are simple: if not use_gpu_aware_mpi, we need
-   to copy the buffer from GPU to CPU before MPI calls, and from CPU to GPU after MPI calls.
-*/
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(PetscSF sf,PetscSFLink link,PetscBool device2host)
-{
-  PetscErrorCode ierr;
-  cudaError_t    cerr;
-  PetscSF_Basic  *bas = (PetscSF_Basic*)sf->data;
-
-  PetscFunctionBegin;
-  if (link->rootmtype == PETSC_MEMTYPE_DEVICE && (link->rootmtype_mpi != link->rootmtype) && bas->rootbuflen[PETSCSF_REMOTE]) {
-    void  *h_buf = link->rootbuf[PETSCSF_REMOTE][PETSC_MEMTYPE_HOST];
-    void  *d_buf = link->rootbuf[PETSCSF_REMOTE][PETSC_MEMTYPE_DEVICE];
-    size_t count = bas->rootbuflen[PETSCSF_REMOTE]*link->unitbytes;
-    if (device2host) {
-      cerr = cudaMemcpyAsync(h_buf,d_buf,count,cudaMemcpyDeviceToHost,link->stream);CHKERRCUDA(cerr);
-      ierr = PetscLogGpuToCpu(count);CHKERRQ(ierr);
-    } else {
-      cerr = cudaMemcpyAsync(d_buf,h_buf,count,cudaMemcpyHostToDevice,link->stream);CHKERRCUDA(cerr);
-      ierr = PetscLogCpuToGpu(count);CHKERRQ(ierr);
-    }
-  }
-  PetscFunctionReturn(0);
-}
-
-PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(PetscSF sf,PetscSFLink link,PetscBool device2host)
-{
-  PetscErrorCode ierr;
-  cudaError_t    cerr;
-
-  PetscFunctionBegin;
-  if (link->leafmtype == PETSC_MEMTYPE_DEVICE && (link->leafmtype_mpi != link->leafmtype) && sf->leafbuflen[PETSCSF_REMOTE]) {
-    void  *h_buf = link->leafbuf[PETSCSF_REMOTE][PETSC_MEMTYPE_HOST];
-    void  *d_buf = link->leafbuf[PETSCSF_REMOTE][PETSC_MEMTYPE_DEVICE];
-    size_t count = sf->leafbuflen[PETSCSF_REMOTE]*link->unitbytes;
-    if (device2host) {
-      cerr = cudaMemcpyAsync(h_buf,d_buf,count,cudaMemcpyDeviceToHost,link->stream);CHKERRCUDA(cerr);
-      ierr = PetscLogGpuToCpu(count);CHKERRQ(ierr);
-    } else {
-      cerr = cudaMemcpyAsync(d_buf,h_buf,count,cudaMemcpyHostToDevice,link->stream);CHKERRCUDA(cerr);
-      ierr = PetscLogCpuToGpu(count);CHKERRQ(ierr);
-    }
-  }
-  PetscFunctionReturn(0);
-}
-#else
-
-#define PetscSFLinkSyncDeviceBeforePackData(a,b)                0
-#define PetscSFLinkSyncStreamAfterPackRootData(a,b)             0
-#define PetscSFLinkSyncStreamAfterPackLeafData(a,b)             0
-#define PetscSFLinkSyncStreamAfterUnpackRootData(a,b)           0
-#define PetscSFLinkSyncStreamAfterUnpackLeafData(a,b)           0
-#define PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(a,b,c) 0
-#define PetscSFLinkCopyLeafBufferInCaseNotUseGpuAwareMPI(a,b,c) 0
-
-#endif
-
 PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkLogFlopsAfterUnpackRootData(PetscSF sf,PetscSFLink link,PetscSFScope scope,MPI_Op op)
 {
   PetscErrorCode ierr;
@@ -1308,7 +1183,7 @@ PetscErrorCode PetscSFLinkPackRootData(PetscSF sf,PetscSFLink link,PetscSFScope 
   }
   if (scope == PETSCSF_REMOTE) {
     ierr = PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(sf,link,PETSC_TRUE/*device2host*/);CHKERRQ(ierr);
-    ierr = PetscSFLinkSyncStreamAfterPackRootData(sf,link);CHKERRQ(ierr);
+    //ierr = PetscSFLinkSyncStreamAfterPackRootData(sf,link);CHKERRQ(ierr);
   }
   ierr = PetscLogEventEnd(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);

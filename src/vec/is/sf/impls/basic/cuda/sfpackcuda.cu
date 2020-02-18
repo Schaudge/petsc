@@ -555,6 +555,7 @@ static PetscErrorCode Pack(PetscSFLink link,PetscInt count,PetscInt start,PetscS
   nblocks = PetscMin(nblocks,link->maxResidentThreadsPerGPU/nthreads);
   d_Pack<Type,BS,EQ><<<nblocks,nthreads,0,link->stream>>>(link->bs,count,start,iarray,idx,(const Type*)data,(Type*)buf);
   cerr = cudaGetLastError();CHKERRCUDA(cerr);
+  cerr = cudaEventRecord(link->event,link->stream);CHKERRCUDA(cerr);
   PetscFunctionReturn(0);
 }
 
@@ -900,6 +901,7 @@ PetscErrorCode PetscSFLinkSetUp_Device(PetscSF sf,PetscSFLink link,MPI_Datatype 
     err = cudaGetDeviceProperties(&props,device);CHKERRCUDA(err);
     sf->maxResidentThreadsPerGPU = props.maxThreadsPerMultiProcessor*props.multiProcessorCount;
   }
+  err = cudaEventCreate(&link->event);CHKERRCUDA(err);
   link->maxResidentThreadsPerGPU = sf->maxResidentThreadsPerGPU;
   link->deviceinited             = PETSC_TRUE;
   PetscFunctionReturn(0);
