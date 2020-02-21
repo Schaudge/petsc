@@ -14,6 +14,8 @@ Tao Object: 2 MPI processes
   type: bmrm
   convergence tolerances: gatol=0.001,   steptol=0.,   gttol=0.
   Residual in Function/Gradient:=0.000716629
+  convergence tolerances:   catol=1e-08,   crtol=0.
+  Residual in Constraints:=0.
   Objective value=1.52729
   total number of iterations=7,                          (max: 2000)
   total number of function/gradient evaluations=8,      (max: 4000)

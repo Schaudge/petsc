@@ -127,14 +127,14 @@ PetscErrorCode TaoCreate(MPI_Comm comm, Tao *newtao)
   tao->max_funcs   = 10000;
 #if defined(PETSC_USE_REAL_SINGLE)
   tao->gatol       = 1e-5;
-  tao->grtol       = 1e-5;
+  tao->catol       = 1e-5;
 #else
   tao->gatol       = 1e-8;
-  tao->grtol       = 1e-8;
+  tao->catol       = 1e-8;
 #endif
-  tao->crtol       = 0.0;
-  tao->catol       = 0.0;
+  tao->grtol       = 0.0;
   tao->gttol       = 0.0;
+  tao->crtol       = 0.0;
   tao->steptol     = 0.0;
   tao->trust0      = PETSC_INFINITY;
   tao->fmin        = PETSC_NINFINITY;
@@ -363,8 +363,8 @@ PetscErrorCode TaoDestroy(Tao *tao)
   options Database Keys:
 + -tao_type <type> - The algorithm that TAO uses (lmvm, nls, etc.)
 . -tao_gatol <gatol> - absolute error tolerance for ||gradient||
-. -tao_grtol <grtol> - relative error tolerance for ||gradient||
-. -tao_gttol <gttol> - reduction of ||gradient|| relative to initial gradient
+. -tao_gttol <grtol> - relative error tolerance for ||gradient||
+. -tao_grtol <gttol> - reduction of ||gradient|| relative to initial gradient
 . -tao_max_it <max> - sets maximum number of iterations
 . -tao_max_funcs <max> - sets maximum number of function evaluations
 . -tao_fmin <fmin> - stop if function value reaches fmin
@@ -826,7 +826,7 @@ PetscErrorCode TaoSetTolerances(Tao tao, PetscReal gatol, PetscReal grtol, Petsc
   Input Parameters:
 + tao - the Tao context
 . catol - absolute constraint tolerance, constraint norm must be less than catol for used for gatol convergence criteria
-- crtol - relative contraint tolerance, constraint norm must be less than crtol for used for gatol, gttol convergence criteria
+- crtol - relative contraint tolerance, constraint norm must be less than crtol for used for gatol, grtol convergence criteria
 
   Options Database Keys:
 + -tao_catol <catol> - Sets catol
@@ -1943,7 +1943,7 @@ PetscErrorCode TaoDefaultConvergenceTest(Tao tao,void *dummy)
 {
   PetscInt           niter=tao->niter, nfuncs=PetscMax(tao->nfuncs,tao->nfuncgrads);
   PetscInt           max_funcs=tao->max_funcs;
-  PetscReal          gnorm=tao->residual, gnorm0=tao->gnorm0;
+  PetscReal          gnorm=tao->residual, gnorm0=tao->gnorm0, cnorm0=tao->cnorm0;
   PetscReal          f=tao->fc, steptol=tao->steptol,trradius=tao->step;
   PetscReal          gatol=tao->gatol,grtol=tao->grtol,gttol=tao->gttol;
   PetscReal          catol=tao->catol,crtol=tao->crtol;
@@ -1960,17 +1960,17 @@ PetscErrorCode TaoDefaultConvergenceTest(Tao tao,void *dummy)
   if (PetscIsInfOrNanReal(f)) {
     ierr = PetscInfo(tao,"Failed to converged, function value is Inf or NaN\n");CHKERRQ(ierr);
     reason = TAO_DIVERGED_NAN;
-  } else if (f <= fmin && cnorm <=catol) {
+  } else if (f <= fmin && cnorm <= PetscMax(catol, crtol*cnorm0)) {
     ierr = PetscInfo2(tao,"Converged due to function value %g < minimum function value %g\n", (double)f,(double)fmin);CHKERRQ(ierr);
     reason = TAO_CONVERGED_MINF;
-  } else if (gnorm<= gatol && cnorm <=catol) {
+  } else if (gnorm<= gatol && cnorm <= PetscMax(catol, crtol*cnorm0)) {
     ierr = PetscInfo2(tao,"Converged due to residual norm ||g(X)||=%g < %g\n",(double)gnorm,(double)gatol);CHKERRQ(ierr);
     reason = TAO_CONVERGED_GATOL;
-  } else if ( f!=0 && PetscAbsReal(gnorm/f) <= grtol && cnorm <= crtol) {
-    ierr = PetscInfo2(tao,"Converged due to residual ||g(X)||/|f(X)| =%g < %g\n",(double)(gnorm/f),(double)grtol);CHKERRQ(ierr);
+  } else if ( f!=0 && PetscAbsReal(gnorm/f) <= gttol && cnorm <= PetscMax(catol, crtol*cnorm0)) {
+    ierr = PetscInfo2(tao,"Converged due to residual ||g(X)||/|f(X)| =%g < %g\n",(double)(gnorm/f),(double)gttol);CHKERRQ(ierr);
     reason = TAO_CONVERGED_GRTOL;
-  } else if (gnorm0 != 0 && ((gttol == 0 && gnorm == 0) || gnorm/gnorm0 < gttol) && cnorm <= crtol) {
-    ierr = PetscInfo2(tao,"Converged due to relative residual norm ||g(X)||/||g(X0)|| = %g < %g\n",(double)(gnorm/gnorm0),(double)gttol);CHKERRQ(ierr);
+  } else if (gnorm0 != 0 && ((grtol == 0 && gnorm == 0) || gnorm/gnorm0 < grtol) && cnorm <= PetscMax(catol, crtol*cnorm0)) {
+    ierr = PetscInfo2(tao,"Converged due to relative residual norm ||g(X)||/||g(X0)|| = %g < %g\n",(double)(gnorm/gnorm0),(double)grtol);CHKERRQ(ierr);
     reason = TAO_CONVERGED_GTTOL;
   } else if (nfuncs > max_funcs){
     ierr = PetscInfo2(tao,"Exceeded maximum number of function evaluations: %D > %D\n", nfuncs,max_funcs);CHKERRQ(ierr);

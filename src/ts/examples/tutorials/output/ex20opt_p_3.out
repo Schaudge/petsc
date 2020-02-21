@@ -101,6 +101,8 @@ Tao Object: 1 MPI processes
   Active Set subset type: subvec
   convergence tolerances: gatol=1e-08,   steptol=0.,   gttol=0.
   Residual in Function/Gradient:=8.34439e-09
+  convergence tolerances:   catol=1e-08,   crtol=0.
+  Residual in Constraints:=0.
   Objective value=1.24426e-09
   total number of iterations=19,                          (max: 50)
   total number of function/gradient evaluations=20,      (max: 10000)

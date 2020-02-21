@@ -47,6 +47,8 @@ Tao Object: 3 MPI processes
   Active Set subset type: matrixfree
   convergence tolerances: gatol=1e-05,   steptol=0.,   gttol=0.
   Residual in Function/Gradient:=2.40518e-07
+  convergence tolerances:   catol=1e-08,   crtol=0.
+  Residual in Constraints:=0.
   Objective value=1.46694
   total number of iterations=2,                          (max: 500)
   total number of function/gradient evaluations=1,      (max: 100000)

@@ -548,11 +548,11 @@ static PetscErrorCode MSA_InitialPoint(AppCtx * user, Vec X)
       requires: !complex
 
    test:
-      args: -tao_monitor -tao_view -tao_type ssils -tao_gttol 1.e-5
+      args: -tao_cmonitor -tao_view -tao_type ssils -tao_grtol 1.e-5
       requires: !single
 
    test:
       suffix: 2
-      args: -tao_monitor -tao_view -tao_type ssfls -tao_gttol 1.e-5
+      args: -tao_monitor -tao_view -tao_type ssfls -tao_grtol 1.e-5
 
 TEST*/
