@@ -40,6 +40,7 @@ J*/
 typedef const char *PetscSpaceType;
 #define PETSCSPACEPOLYNOMIAL "poly"
 #define PETSCSPACETENSOR     "tensor"
+#define PETSCSPACESUM        "sum"
 #define PETSCSPACEPOINT      "point"
 #define PETSCSPACESUBSPACE   "subspace"
 
