@@ -66,18 +66,23 @@ PetscErrorCode MatMult_MPIAIJCUSPARSE(Mat A,Vec xx,Vec yy)
      is launched in the original (MatMult) stream to protect
      against race conditions.
   */
-  Mat_MPIAIJ     *a = (Mat_MPIAIJ*)A->data;
-  PetscErrorCode ierr;
-  PetscInt       nt;
+  PetscErrorCode     ierr;
+  cudaError_t        cerr;
+  PetscInt           nt;
+  Mat_MPIAIJ         *a = (Mat_MPIAIJ*)A->data;
+  Mat_MPIAIJCUSPARSE *cusparseStruct = (Mat_MPIAIJCUSPARSE*)a->spptr;
 
   PetscFunctionBegin;
   ierr = VecGetLocalSize(xx,&nt);CHKERRQ(ierr);
   if (nt != A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Incompatible partition of A (%D) and xx (%D)",A->cmap->n,nt);
   ierr = VecScatterInitializeForGPU(a->Mvctx,xx);CHKERRQ(ierr);
-  ierr = (*a->A->ops->mult)(a->A,xx,yy);CHKERRQ(ierr);
   ierr = VecScatterBegin(a->Mvctx,xx,a->lvec,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = (*a->A->ops->mult)(a->A,xx,yy);CHKERRQ(ierr);
   ierr = VecScatterEnd(a->Mvctx,xx,a->lvec,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = (*a->B->ops->multadd)(a->B,a->lvec,yy,yy);CHKERRQ(ierr);
+  ierr = (*a->B->ops->mult)(a->B,a->lvec,a->zz);CHKERRQ(ierr);
+  cerr = cudaEventRecord(cusparseStruct->event,cusparseStruct->streamB);CHKERRCUDA(cerr);
+  cerr = cudaStreamWaitEvent(cusparseStruct->stream,cusparseStruct->event,0);CHKERRCUDA(cerr);
+  ierr = VecAXPY(yy,1.0,a->zz);CHKERRQ(ierr);
   ierr = VecScatterFinalizeForGPU(a->Mvctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -196,14 +201,15 @@ PetscErrorCode MatSetFromOptions_MPIAIJCUSPARSE(PetscOptionItems *PetscOptionsOb
 
 PetscErrorCode MatAssemblyEnd_MPIAIJCUSPARSE(Mat A,MatAssemblyType mode)
 {
-  PetscErrorCode ierr;
-  Mat_MPIAIJ     *mpiaij;
+  PetscErrorCode     ierr;
+  Mat_MPIAIJ         *a              = (Mat_MPIAIJ*)A->data;
+  Mat_MPIAIJCUSPARSE *cusparseStruct = (Mat_MPIAIJCUSPARSE*)a->spptr;
 
   PetscFunctionBegin;
-  mpiaij = (Mat_MPIAIJ*)A->data;
   ierr = MatAssemblyEnd_MPIAIJ(A,mode);CHKERRQ(ierr);
   if (!A->was_assembled && mode == MAT_FINAL_ASSEMBLY) {
-    ierr = VecSetType(mpiaij->lvec,VECSEQCUDA);CHKERRQ(ierr);
+    ierr = VecSetType(a->lvec,VECSEQCUDA);CHKERRQ(ierr);
+    ierr = MatCUSPARSESetStream(a->B,cusparseStruct->streamB);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -221,9 +227,9 @@ PetscErrorCode MatDestroy_MPIAIJCUSPARSE(Mat A)
     ierr = MatCUSPARSEClearHandle(a->A);CHKERRQ(ierr);
     ierr = MatCUSPARSEClearHandle(a->B);CHKERRQ(ierr);
     stat = cusparseDestroy(cusparseStruct->handle);CHKERRCUSPARSE(stat);
-    if (cusparseStruct->stream) {
-      err = cudaStreamDestroy(cusparseStruct->stream);CHKERRCUDA(err);
-    }
+    if (cusparseStruct->stream)  {err = cudaStreamDestroy(cusparseStruct->stream);CHKERRCUDA(err);}
+    if (cusparseStruct->streamB) {err = cudaStreamDestroy(cusparseStruct->streamB);CHKERRCUDA(err);}
+    if (cusparseStruct->event)   {err = cudaEventDestroy(cusparseStruct->event);CHKERRCUDA(err);}
     delete cusparseStruct;
   } catch(char *ex) {
     SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Mat_MPIAIJCUSPARSE error: %s", ex);
@@ -235,6 +241,7 @@ PetscErrorCode MatDestroy_MPIAIJCUSPARSE(Mat A)
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat A)
 {
   PetscErrorCode     ierr;
+  cudaError_t        cerr;
   Mat_MPIAIJ         *a;
   Mat_MPIAIJCUSPARSE * cusparseStruct;
   cusparseStatus_t   stat;
@@ -252,6 +259,8 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat A)
   cusparseStruct->diagGPUMatFormat    = MAT_CUSPARSE_CSR;
   cusparseStruct->offdiagGPUMatFormat = MAT_CUSPARSE_CSR;
   cusparseStruct->stream              = 0;
+  cerr = cudaStreamCreate(&cusparseStruct->streamB);CHKERRCUDA(cerr);
+  cerr = cudaEventCreate(&cusparseStruct->event);CHKERRCUDA(cerr);
   stat = cusparseCreate(&(cusparseStruct->handle));CHKERRCUSPARSE(stat);
 
   A->ops->assemblyend    = MatAssemblyEnd_MPIAIJCUSPARSE;

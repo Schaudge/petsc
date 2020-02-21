@@ -314,6 +314,19 @@ static PetscErrorCode VecScatterRestoreRemoteOrdered_SF(VecScatter vscat,PetscBo
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_CUDA)
+static PetscErrorCode VecScatterSetStream_SF(VecScatter vscat, const cudaStream_t stream)
+{
+  PetscErrorCode    ierr;
+  VecScatter_SF     *data = (VecScatter_SF *)vscat->data;
+  PetscSF           sf = data->sf;
+
+  PetscFunctionBegin;
+  ierr = PetscSFSetWaitStream(sf,stream);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+#endif
+
 typedef enum {IS_INVALID, IS_GENERAL, IS_BLOCK, IS_STRIDE} ISTypeID;
 
 PETSC_STATIC_INLINE PetscErrorCode ISGetTypeID_Private(IS is,ISTypeID *id)
@@ -758,6 +771,9 @@ functionend:
   vscat->ops->getremoteordered     = VecScatterGetRemoteOrdered_SF;
   vscat->ops->restoreremote        = VecScatterRestoreRemote_SF;
   vscat->ops->restoreremoteordered = VecScatterRestoreRemoteOrdered_SF;
+#if defined(PETSC_HAVE_CUDA)
+  vscat->ops->setstream            = VecScatterSetStream_SF;
+#endif
   PetscFunctionReturn(0);
 }
 

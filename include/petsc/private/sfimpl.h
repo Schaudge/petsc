@@ -97,6 +97,7 @@ struct _p_PetscSF {
   PetscBool       use_stream_aware_mpi;/* If true, SF assumes the underlying MPI is cuda-stream aware and we won't sync streams for send/recv buffers passed to MPI */
 #if defined(PETSC_HAVE_CUDA)
   PetscInt        maxResidentThreadsPerGPU;
+  cudaStream_t    waitstream;
 #endif
   void *data;                      /* Pointer to implementation */
 };

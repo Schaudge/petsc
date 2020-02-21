@@ -8,7 +8,8 @@ typedef struct {
   /* The following are used by GPU capabilities to store matrix storage formats on the device */
   MatCUSPARSEStorageFormat diagGPUMatFormat;
   MatCUSPARSEStorageFormat offdiagGPUMatFormat;
-  cudaStream_t             stream;
+  cudaStream_t             stream,streamB;
+  cudaEvent_t              event;
   cusparseHandle_t         handle;
 } Mat_MPIAIJCUSPARSE;
 

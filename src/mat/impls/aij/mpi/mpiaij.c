@@ -1273,6 +1273,7 @@ PetscErrorCode MatDestroy_MPIAIJ(Mat mat)
 #endif
   ierr = PetscFree(aij->garray);CHKERRQ(ierr);
   ierr = VecDestroy(&aij->lvec);CHKERRQ(ierr);
+  ierr = VecDestroy(&aij->zz);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&aij->Mvctx);CHKERRQ(ierr);
   if (aij->Mvctx_mpi1) {ierr = VecScatterDestroy(&aij->Mvctx_mpi1);CHKERRQ(ierr);}
   ierr = PetscFree2(aij->rowvalues,aij->rowindices);CHKERRQ(ierr);

@@ -7,6 +7,10 @@
 #include <petscis.h>
 #include <petscsftypes.h>
 
+#if defined(PETSC_HAVE_CUDA)
+#include <cuda_runtime.h>
+#endif
+
 PETSC_EXTERN PetscClassId PETSCSF_CLASSID;
 
 /*J
@@ -209,5 +213,9 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFBcastBegin(PetscSF sf,MPI_Datatype uni
 PETSC_STATIC_INLINE PetscErrorCode PetscSFBcastEnd(PetscSF sf,MPI_Datatype unit,const void* rootdata,void* leafdata) {
   return PetscSFBcastAndOpEnd(sf,unit,rootdata,leafdata,MPIU_REPLACE);
 }
+
+#if defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN PetscErrorCode PetscSFSetWaitStream(PetscSF,const cudaStream_t);
+#endif
 
 #endif

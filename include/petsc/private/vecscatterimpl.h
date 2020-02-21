@@ -305,6 +305,9 @@ struct _VecScatterOps {
   PetscErrorCode (*getremoteordered)(VecScatter,PetscBool,PetscInt*,const PetscInt**,const PetscInt**,const PetscMPIInt**,PetscInt*);
   PetscErrorCode (*restoreremote)(VecScatter,PetscBool,PetscInt*,const PetscInt**,const PetscInt**,const PetscMPIInt**,PetscInt*);
   PetscErrorCode (*restoreremoteordered)(VecScatter,PetscBool,PetscInt*,const PetscInt**,const PetscInt**,const PetscMPIInt**,PetscInt*);
+#if defined(PETSC_HAVE_CUDA)
+  PetscErrorCode (*setstream)(VecScatter,const cudaStream_t);
+#endif
 };
 
 struct _p_VecScatter {

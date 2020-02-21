@@ -680,4 +680,16 @@ PETSC_EXTERN PetscErrorCode VecScatterFinalizeForGPU(VecScatter inctx)
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN PetscErrorCode VecScatterSetStream(VecScatter ctx,const cudaStream_t stream)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (ctx->ops->setstream) {ierr = (*ctx->ops->setstream)(ctx,stream);CHKERRQ(ierr);}
+  else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support for VecScatterSetStream on this VecScatter type");
+  PetscFunctionReturn(0);
+}
+#endif
+
 #endif

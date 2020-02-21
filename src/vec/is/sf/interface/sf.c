@@ -1981,6 +1981,15 @@ PetscErrorCode PetscSFComposeInverse(PetscSF sfA,PetscSF sfB,PetscSF *sfBA)
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_CUDA)
+PetscErrorCode PetscSFSetWaitStream(PetscSF sf, const cudaStream_t stream)
+{
+  PetscFunctionBegin;
+  sf->waitstream = stream;
+  PetscFunctionReturn(0);
+}
+#endif
+
 /*
   PetscSFCreateLocalSF_Private - Creates a local PetscSF that only has intra-process edges of the global PetscSF
 

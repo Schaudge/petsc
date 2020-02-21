@@ -375,7 +375,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterPackRootData(PetscS
   if (sf->use_stream_aware_mpi || link->rootmtype != PETSC_MEMTYPE_DEVICE || !bas->rootbuflen[PETSCSF_REMOTE]) PetscFunctionReturn(0);
   /* If we called a packing kernel || we async-copied rootdata from device to host || No cudaDeviceSynchronize was called (since default stream is assumed) */
   if (!link->rootdirect[PETSCSF_REMOTE] || !sf->use_gpu_aware_mpi || sf->use_default_stream) {
-    cudaError_t cerr = cudaStreamWaitEvent(link->stream,link->event,0);CHKERRCUDA(cerr);
+    cudaError_t cerr = cudaStreamWaitEvent(sf->waitstream,link->event,0);CHKERRCUDA(cerr);
   }
   PetscFunctionReturn(0);
 }

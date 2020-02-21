@@ -129,6 +129,9 @@ PetscErrorCode MatSetUpMultiply_MPIAIJ(Mat mat)
     ierr = PetscLogObjectMemory((PetscObject)mat,(ec+1)*sizeof(PetscInt));CHKERRQ(ierr);
   }
   aij->garray = garray;
+#if defined(PETSC_HAVE_CUDA)
+  if (!aij->zz) {ierr = MatCreateVecs(mat,NULL,&aij->zz);CHKERRQ(ierr);}
+#endif
 
   ierr = PetscLogObjectParent((PetscObject)mat,(PetscObject)from);CHKERRQ(ierr);
   ierr = PetscLogObjectParent((PetscObject)mat,(PetscObject)to);CHKERRQ(ierr);
