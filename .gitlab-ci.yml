@@ -43,8 +43,6 @@ check-ci-settings:
     - check-ci-settings
   script:
     - lib/petsc/bin/maint/check-ci-settings.sh
-  variables:
-    GIT_STRATEGY: clone
 #
 #  This provides the basic order of operations and options template for cloud based stage 1 tests.
 #  Not all test-short need to follow this template but most will.
