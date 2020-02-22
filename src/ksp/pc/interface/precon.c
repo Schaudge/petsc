@@ -1540,7 +1540,11 @@ PetscErrorCode  PCLoad(PC newdm, PetscViewer viewer)
 .  obj - Optional object
 -  name - command line option
 
+  Notes:
+     See PetscOptionsGetViewer() for the format of the option provided on the command line
+
    Level: intermediate
+
 .seealso:  PC, PCView, PetscObjectViewFromOptions(), PCCreate()
 @*/
 PetscErrorCode  PCViewFromOptions(PC A,PetscObject obj,const char name[])

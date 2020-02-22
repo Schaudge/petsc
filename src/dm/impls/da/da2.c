@@ -47,10 +47,18 @@ static PetscErrorCode DMView_DA_2d(DM da,PetscViewer viewer)
     }
     if (format != PETSC_VIEWER_ASCII_VTK && format != PETSC_VIEWER_ASCII_VTK_CELL && format != PETSC_VIEWER_ASCII_GLVIS) {
       DMDALocalInfo info;
+      char          **names;
       ierr = DMDAGetLocalInfo(da,&info);CHKERRQ(ierr);
+      ierr = DMDAGetFieldNames(da,(const char* const **)&names);CHKERRQ(ierr);
+      if (names && names[0]) {
+        PetscInt i;
+        ierr = PetscViewerASCIIPrintf(viewer,"  Field names:");CHKERRQ(ierr);
+        for (i=0; i<dd->w-1; i++) ierr = PetscViewerASCIIPrintf(viewer," %s,",names[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer," %s\n",names[dd->w-1]);CHKERRQ(ierr);
+      }
       ierr = PetscViewerASCIIPushSynchronized(viewer);CHKERRQ(ierr);
-      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"Processor [%d] M %D N %D m %D n %D w %D s %D\n",rank,dd->M,dd->N,dd->m,dd->n,dd->w,dd->s);CHKERRQ(ierr);
-      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"X range of indices: %D %D, Y range of indices: %D %D\n",info.xs,info.xs+info.xm,info.ys,info.ys+info.ym);CHKERRQ(ierr);
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"  Processor [%d] M %D N %D m %D n %D w %D s %D\n",rank,dd->M,dd->N,dd->m,dd->n,dd->w,dd->s);CHKERRQ(ierr);
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"  X range of indices: %D %D, Y range of indices: %D %D\n",info.xs,info.xs+info.xm,info.ys,info.ys+info.ym);CHKERRQ(ierr);
       ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPopSynchronized(viewer);CHKERRQ(ierr);
     } else if (format == PETSC_VIEWER_ASCII_GLVIS) {

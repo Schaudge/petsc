@@ -556,7 +556,20 @@ destroy:
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscOptionsInsertArgs(PetscOptions options,int argc,char *args[])
+/*@C
+       PetscOptionsInsertArgs - insert options into the Petsc options data base at anytime
+
+       Not collective, but you should insure it is called on all processes that will assume common values in the database
+
+       Input Parameters:
+     +  argc - number of arguments (usually obtained from main())
+     -  args - the arguments
+
+    Level: Advanced
+
+.seealso: PetscInitialize(), PetscOptionsInsertFile(), PetscOptionsInsert(), PetscOptionsView(), PetscOptionsInsertString()
+ @*/
+PetscErrorCode PetscOptionsInsertArgs(PetscOptions options,int argc,char *args[])
 {
   PetscErrorCode ierr;
   int            left    = argc - 1;

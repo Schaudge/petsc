@@ -9,10 +9,12 @@ typedef struct {
   PetscErrorCode (*rhsfunctionlocal)(DMDALocalInfo*,PetscReal,void*,void*,void*);
   PetscErrorCode (*ijacobianlocal)(DMDALocalInfo*,PetscReal,void*,void*,PetscReal,Mat,Mat,void*);
   PetscErrorCode (*rhsjacobianlocal)(DMDALocalInfo*,PetscReal,void*,Mat,Mat,void*);
+  PetscErrorCode (*initialconditionslocal)(DMDALocalInfo*,PetscReal,void*,void*);
   void       *ifunctionlocalctx;
   void       *ijacobianlocalctx;
   void       *rhsfunctionlocalctx;
   void       *rhsjacobianlocalctx;
+  void       *initialconditionslocalctx;
   InsertMode ifunctionlocalimode;
   InsertMode rhsfunctionlocalimode;
 } DMTS_DA;
@@ -223,6 +225,65 @@ static PetscErrorCode TSComputeRHSJacobian_DMDA(TS ts,PetscReal ptime,Vec X,Mat 
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode TSComputeInitialConditions_DMDA(TS ts,PetscReal t,Vec X,void *ctx)
+{
+  PetscErrorCode ierr;
+  DM             dm;
+  DMTS_DA        *dmdats = (DMTS_DA*)ctx;
+  DMDALocalInfo  info;
+  void           *x;
+
+  PetscFunctionBegin;
+  if (!dmdats->initialconditionslocal) SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_PLIB,"Corrupt context");
+  ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
+  ierr = DMDAGetLocalInfo(dm,&info);CHKERRQ(ierr);
+  if (dmdats->initialconditionslocal) {
+    ierr = DMDAVecGetArray(dm,X,&x);CHKERRQ(ierr);
+    CHKMEMQ;
+    ierr = (*dmdats->initialconditionslocal)(&info,t,x,dmdats->initialconditionslocalctx);CHKERRQ(ierr);
+    CHKMEMQ;
+    ierr = DMDAVecRestoreArray(dm,X,&x);CHKERRQ(ierr);
+  } else  SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_ARG_WRONGSTATE,"Need to call TSSetInitialConditionsLocal first");
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   DMDATSSetInitialConditionsLocal - set a local initial conditions evaluation function
+
+   Logically Collective
+
+   Input Arguments:
++  dm - DM to associate callback with
+.  func - local initial conditions evaluation
+-  ctx - optional context for local residual evaluation
+
+   Calling sequence for func:
+
+$ func(DMDALocalInfo info, void *x,void *ctx)
+
++  info - DMDALocalInfo defining the subdomain to evaluate the residual on
+.  x - array of local state information
+-  ctx - optional user context
+
+   Level: beginner
+
+.seealso: DMTSSetRHSFunction(), DMDATSSetRHSJacobianLocal(), DMDASNESSetFunctionLocal()
+@*/
+PetscErrorCode DMDATSSetInitialConditionsLocal(DM dm,DMDATSInitialConditionsLocal func,void *ctx)
+{
+  PetscErrorCode ierr;
+  DMTS           sdm;
+  DMTS_DA        *dmdats;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = DMGetDMTSWrite(dm,&sdm);CHKERRQ(ierr);
+  ierr = DMDATSGetContext(dm,sdm,&dmdats);CHKERRQ(ierr);
+  dmdats->initialconditionslocal      = func;
+  dmdats->initialconditionslocalctx   = ctx;
+  ierr = DMTSSetInitialConditions(dm,TSComputeInitialConditions_DMDA,dmdats);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 /*@C
    DMDATSSetRHSFunctionLocal - set a local residual evaluation function

@@ -526,6 +526,67 @@ PetscErrorCode DMTSSetRHSFunction(DM dm,TSRHSFunction func,void *ctx)
 }
 
 /*@C
+   DMTSSetInitialConditions - set TS function to compute initial conditions
+
+   Not Collective
+
+   Input Arguments:
++  dm - DM to be used with TS
+.  ic - initial conditions evaluation function
+-  ctx - context for evaluation
+
+   Level: advanced
+
+   Note:
+   TSSetInitialConditions() is normally used, but it calls this function internally because the user context is actually
+   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
+   not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
+
+.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian()
+@*/
+PetscErrorCode DMTSSetInitialConditions(DM dm,PetscErrorCode (*ic)(TS,PetscReal,Vec,void*),void *ctx)
+{
+  PetscErrorCode ierr;
+  DMTS           tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  if (ic) tsdm->ops->initialconditions = ic;
+  if (ctx)  tsdm->initialconditionsctx = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   DMTSGetInitialConditions - get TS function to compute initial conditions
+
+   Not Collective
+
+   Input Argument:
+.  dm - DM to be used with TS
+
+   Output Argument:
++  ic - initial conditions evaluation function
+-  ctx - context for evaluation
+
+   Level: advanced
+
+.seealso: DMTSSetContext(), TSSetFunction(), DMTSSetJacobian()
+@*/
+PetscErrorCode DMTSGetInitialConditions(DM dm,PetscErrorCode (**ic)(TS,PetscReal,Vec,void*),void **ctx)
+{
+  PetscErrorCode ierr;
+  DMTS           tsdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = DMGetDMTSWrite(dm,&tsdm);CHKERRQ(ierr);
+  if (ic) *ic = tsdm->ops->initialconditions;
+  if (ctx)  *ctx = tsdm->initialconditionsctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMTSGetSolutionFunction - gets the TS solution evaluation function
 
    Not Collective

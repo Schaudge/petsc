@@ -1894,11 +1894,15 @@ PetscErrorCode  TSLoad(TS ts, PetscViewer viewer)
    Collective on TS
 
    Input Parameters:
-+  A - the application ordering context
-.  obj - Optional object
++  A - the TS object
+.  obj - Optional object that provides the prefix
 -  name - command line option
 
    Level: intermediate
+
+  Notes:
+     See PetscOptionsGetViewer() for the format of the option provided on the command line
+
 .seealso:  TS, TSView, PetscObjectViewFromOptions(), TSCreate()
 @*/
 PetscErrorCode  TSViewFromOptions(TS A,PetscObject obj,const char name[])
@@ -3722,17 +3726,18 @@ PetscErrorCode TSEvaluateStep(TS ts,PetscInt order,Vec U,PetscBool *done)
    Notes:
    The calling sequence for the function is
 $ initCondition(TS ts, Vec u)
-$ ts - The timestepping context
+$ ts - The timestepping contex
+$ t - the current time
 $ u  - The input vector in which the initial condition is stored
 
 .seealso: TSSetComputeInitialCondition(), TSComputeInitialCondition()
 @*/
-PetscErrorCode TSGetComputeInitialCondition(TS ts, PetscErrorCode (**initCondition)(TS, Vec))
+PetscErrorCode TSGetComputeInitialCondition(TS ts, PetscErrorCode (**initCondition)(TS, PetscReal, Vec))
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
   PetscValidPointer(initCondition, 2);
-  *initCondition = ts->ops->initcondition;
+  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"broken");
   PetscFunctionReturn(0);
 }
 
@@ -3749,18 +3754,19 @@ PetscErrorCode TSGetComputeInitialCondition(TS ts, PetscErrorCode (**initConditi
 
   Notes:
   The calling sequence for the function is
-$ initCondition(TS ts, Vec u)
+$ initCondition(TS ts, PetscReal t,Vec u)
 $ ts - The timestepping context
+$ t - the current time
 $ u  - The input vector in which the initial condition is stored
 
 .seealso: TSGetComputeInitialCondition(), TSComputeInitialCondition()
 @*/
-PetscErrorCode TSSetComputeInitialCondition(TS ts, PetscErrorCode (*initCondition)(TS, Vec))
+PetscErrorCode TSSetComputeInitialCondition(TS ts, PetscErrorCode (*initCondition)(TS, PetscReal, Vec))
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
   PetscValidFunction(initCondition, 2);
-  ts->ops->initcondition = initCondition;
+  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"broken");
   PetscFunctionReturn(0);
 }
 
@@ -3773,24 +3779,27 @@ PetscErrorCode TSSetComputeInitialCondition(TS ts, PetscErrorCode (*initConditio
 + ts - time stepping context
 - u  - The Vec to store the condition in which will be used in TSSolve()
 
-  Level: advanced
-
   Notes:
-  The calling sequence for the function is
-$ initCondition(TS ts, Vec u)
-$ ts - The timestepping context
-$ u  - The input vector in which the initial condition is stored
+    The current time is extracted from the TS passed to the routine
+
+  Level: advanced
 
 .seealso: TSGetComputeInitialCondition(), TSSetComputeInitialCondition(), TSSolve()
 @*/
-PetscErrorCode TSComputeInitialCondition(TS ts, Vec u)
+PetscErrorCode TSComputeInitialCondition(TS ts,Vec u)
 {
-  PetscErrorCode ierr;
+  PetscErrorCode ierr,(*ifunction)(TS,PetscReal,Vec,void*);
+  PetscReal      t;
+  void           *ctx;
+  DM             dm;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ts, TS_CLASSID, 1);
   PetscValidHeaderSpecific(u, VEC_CLASSID, 2);
-  if (ts->ops->initcondition) {ierr = (*ts->ops->initcondition)(ts, u);CHKERRQ(ierr);}
+  ierr = TSGetTime(ts,&t);CHKERRQ(ierr);
+  ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
+  ierr = DMTSGetInitialConditions(dm,&ifunction,&ctx);CHKERRQ(ierr);
+  ierr = (*ifunction)(ts,t,u,ctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

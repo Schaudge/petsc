@@ -170,6 +170,8 @@ struct _p_SNES {
 typedef struct _p_DMSNES *DMSNES;
 typedef struct _DMSNESOps *DMSNESOps;
 struct _DMSNESOps {
+  PetscErrorCode (*computeguessfunction)(SNES,Vec,void*);
+
   PetscErrorCode (*computefunction)(SNES,Vec,Vec,void*);
   PetscErrorCode (*computejacobian)(SNES,Vec,Mat,Mat,void*);
 
@@ -190,6 +192,7 @@ struct _DMSNESOps {
 struct _p_DMSNES {
   PETSCHEADER(struct _DMSNESOps);
   void *functionctx;
+  void *guessctx;
   void *gsctx;
   void *pctx;
   void *jacobianctx;

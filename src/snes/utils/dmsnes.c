@@ -316,6 +316,40 @@ PetscErrorCode DMSNESSetFunction(DM dm,PetscErrorCode (*f)(SNES,Vec,Vec,void*),v
 }
 
 /*@C
+   DMSNESSetGuessFunction - set SNES initial guess evaluation function
+
+   Not Collective
+
+   Input Arguments:
++  dm - DM to be used with SNES
+.  f - guess evaluation function; see SNESFunction for details
+-  ctx - context for residual evaluation
+
+   Level: advanced
+
+   Note:
+   SNESSetGuessFunction() is normally used, but it calls this function internally because the user context is actually
+   associated with the DM.  This makes the interface consistent regardless of whether the user interacts with a DM or
+   not. If DM took a more central role at some later date, this could become the primary method of setting the residual.
+
+.seealso: DMSNESSetContext(), SNESSetFunction(), DMSNESSetJacobian(), SNESFunction
+@*/
+PetscErrorCode DMSNESSetGuessFunction(DM dm,PetscErrorCode (*f)(SNES,Vec,void*),void *ctx)
+{
+  PetscErrorCode ierr;
+  DMSNES         sdm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  if (f || ctx) {
+    ierr = DMGetDMSNESWrite(dm,&sdm);CHKERRQ(ierr);
+  }
+  if (f) sdm->ops->computeguessfunction = f;
+  if (ctx) sdm->guessctx = ctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMSNESGetFunction - get SNES residual evaluation function
 
    Not Collective

@@ -4,9 +4,11 @@
 
 /* This structure holds the user-provided DMDA callbacks */
 typedef struct {
+  PetscErrorCode (*guesslocal)(DMDALocalInfo*,void*,void*);
   PetscErrorCode (*residuallocal)(DMDALocalInfo*,void*,void*,void*);
   PetscErrorCode (*jacobianlocal)(DMDALocalInfo*,void*,Mat,Mat,void*);
   PetscErrorCode (*objectivelocal)(DMDALocalInfo*,void*,PetscReal*,void*);
+  void       *guesslocalctx;
   void       *residuallocalctx;
   void       *jacobianlocalctx;
   void       *objectivelocalctx;
@@ -52,6 +54,33 @@ static PetscErrorCode DMDASNESGetContext(DM dm,DMSNES sdm,DMSNES_DA  **dmdasnes)
     sdm->ops->duplicate = DMSNESDuplicate_DMDA;
   }
   *dmdasnes = (DMSNES_DA*)sdm->data;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SNESComputeGuessFunction_DMDA(SNES snes,Vec F,void *ctx)
+{
+  PetscErrorCode ierr;
+  DM             dm;
+  DMSNES_DA      *dmdasnes = (DMSNES_DA*)ctx;
+  DMDALocalInfo  info;
+  void           *f;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  PetscValidHeaderSpecific(F,VEC_CLASSID,3);
+  if (!dmdasnes->guesslocal) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_PLIB,"Corrupt context");
+  ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
+  ierr = DMDAGetLocalInfo(dm,&info);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(dm,F,&f);CHKERRQ(ierr);
+  ierr = PetscLogEventBegin(SNES_FunctionEval,snes,F,0,0);CHKERRQ(ierr);
+  CHKMEMQ;
+  ierr = (*dmdasnes->guesslocal)(&info,f,dmdasnes->guesslocalctx);CHKERRQ(ierr);
+  CHKMEMQ;
+  ierr = PetscLogEventEnd(SNES_FunctionEval,snes,F,0,0);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(dm,F,&f);CHKERRQ(ierr);
+  if (snes->domainerror) {
+    ierr = VecSetInf(F);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -139,7 +168,6 @@ static PetscErrorCode SNESComputeObjective_DMDA(SNES snes,Vec X,PetscReal *ob,vo
   PetscFunctionReturn(0);
 }
 
-
 /* Routine is called by example, hence must be labeled PETSC_EXTERN */
 PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B,void *ctx)
 {
@@ -224,7 +252,8 @@ PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B
 
    Level: beginner
 
-.seealso: DMDASNESSetJacobianLocal(), DMSNESSetFunction(), DMDACreate1d(), DMDACreate2d(), DMDACreate3d()
+.seealso: DMDASNESSetJacobianLocal(), DMSNESSetFunction(), DMDASNESSetGuessFunctionLocal(), DMDACreate1d(), DMDACreate2d(), DMDACreate3d(),
+          DMDASNESGetFunctionLocal()
 @*/
 PetscErrorCode DMDASNESSetFunctionLocal(DM dm,InsertMode imode,PetscErrorCode (*func)(DMDALocalInfo*,void*,void*,void*),void *ctx)
 {
@@ -245,6 +274,85 @@ PetscErrorCode DMDASNESSetFunctionLocal(DM dm,InsertMode imode,PetscErrorCode (*
   if (!sdm->ops->computejacobian) {  /* Call us for the Jacobian too, can be overridden by the user. */
     ierr = DMSNESSetJacobian(dm,SNESComputeJacobian_DMDA,dmdasnes);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   DMDASNESGetFunctionLocal - get a local residual evaluation function
+
+   Logically Collective
+
+   Input Argument:
+.  dm - DM to associate callback with
+
+   Output Arguments:
++  imode - INSERT_VALUES if local function computes owned part, ADD_VALUES if it contributes to ghosted part
+.  func - local residual evaluation
+-  ctx - optional context for local residual evaluation
+
+   Calling sequence:
+   For PetscErrorCode (*func)(DMDALocalInfo *info,void *x, void *f, void *ctx),
++  info - DMDALocalInfo defining the subdomain to evaluate the residual on
+.  x - dimensional pointer to state at which to evaluate residual (e.g. PetscScalar *x or **x or ***x)
+.  f - dimensional pointer to residual, write the residual here (e.g. PetscScalar *f or **f or ***f)
+-  ctx - optional context passed above
+
+   Level: beginner
+
+.seealso: DMDASNESSetJacobianLocal(), DMSNESSetFunction(), DMDASNESSetGuessFunctionLocal(), DMDACreate1d(), DMDACreate2d(), DMDACreate3d()
+@*/
+PetscErrorCode DMDASNESGetFunctionLocal(DM dm,InsertMode *imode,PetscErrorCode (**func)(DMDALocalInfo*,void*,void*,void*),void **ctx)
+{
+  PetscErrorCode ierr;
+  DMSNES         sdm;
+  DMSNES_DA      *dmdasnes;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = DMGetDMSNESWrite(dm,&sdm);CHKERRQ(ierr);
+  ierr = DMDASNESGetContext(dm,sdm,&dmdasnes);CHKERRQ(ierr);
+
+  if (imode) *imode = dmdasnes->residuallocalimode;
+  if (func) *func = dmdasnes->residuallocal;
+  if (ctx) *ctx = dmdasnes->residuallocalctx;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   DMDASNESSetGuessFunctionLocal - set a local initial guess evaluation function
+
+   Logically Collective
+
+   Input Arguments:
++  dm - DM to associate callback with
+.  func - local guess evaluation
+-  ctx - optional context for local guess evaluation
+
+   Calling sequence:
+   For PetscErrorCode (*func)(DMDALocalInfo *info,void *f, void *ctx),
++  info - DMDALocalInfo defining the subdomain to evaluate the residual on
+.  f - dimensional pointer to state on which to evaluate guess (e.g. PetscScalar *x or **x or ***x)
+-  ctx - optional context passed above
+
+   Level: beginner
+
+.seealso: DMDASNESSetJacobianLocal(), DMSNESSetFunction(), DMDASNESSetFunctionLocal(), DMDACreate1d(), DMDACreate2d(), DMDACreate3d()
+@*/
+PetscErrorCode DMDASNESSetGuessFunctionLocal(DM dm,PetscErrorCode (*func)(DMDALocalInfo*,void*,void*),void *ctx)
+{
+  PetscErrorCode ierr;
+  DMSNES         sdm;
+  DMSNES_DA      *dmdasnes;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = DMGetDMSNESWrite(dm,&sdm);CHKERRQ(ierr);
+  ierr = DMDASNESGetContext(dm,sdm,&dmdasnes);CHKERRQ(ierr);
+
+  dmdasnes->guesslocal      = func;
+  dmdasnes->guesslocalctx   = ctx;
+
+  ierr = DMSNESSetGuessFunction(dm,SNESComputeGuessFunction_DMDA,dmdasnes);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

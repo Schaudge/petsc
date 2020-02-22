@@ -51,6 +51,7 @@ PETSC_EXTERN PetscErrorCode PetscOptionsInsertFile(MPI_Comm,PetscOptions,const c
 #if defined(PETSC_HAVE_YAML)
 PETSC_EXTERN PetscErrorCode PetscOptionsInsertFileYAML(MPI_Comm,const char[],PetscBool);
 #endif
+PETSC_EXTERN PetscErrorCode PetscOptionsInsertArgs(PetscOptions,int,char **);
 PETSC_EXTERN PetscErrorCode PetscOptionsInsertString(PetscOptions,const char[]);
 PETSC_EXTERN PetscErrorCode PetscOptionsClear(PetscOptions);
 PETSC_EXTERN PetscErrorCode PetscOptionsPrefixPush(PetscOptions,const char[]);
@@ -161,7 +162,7 @@ M*/
              PetscOptionItems *PetscOptionsObject = &PetscOptionsObjectBase; \
              PetscMemzero(PetscOptionsObject,sizeof(PetscOptionItems)); \
              for (PetscOptionsObject->count=(PetscOptionsPublish?-1:1); PetscOptionsObject->count<2; PetscOptionsObject->count++) {\
-             PetscErrorCode _5_ierr = PetscOptionsBegin_Private(PetscOptionsObject,comm,prefix,mess,sec);CHKERRQ(_5_ierr)
+             PetscOptionsBegin_Private(PetscOptionsObject,comm,prefix,mess,sec);
 
 /*MC
     PetscObjectOptionsBegin - Begins a set of queries on the options database that are related and should be
@@ -222,7 +223,7 @@ M*/
           PetscOptionsFList(), PetscOptionsEList(), PetscObjectOptionsBegin()
 
 M*/
-#define    PetscOptionsEnd() _5_ierr = PetscOptionsEnd_Private(PetscOptionsObject);CHKERRQ(_5_ierr);}} while (0)
+#define    PetscOptionsEnd() PetscOptionsEnd_Private(PetscOptionsObject);}} while (0)
 
 PETSC_EXTERN PetscErrorCode PetscOptionsBegin_Private(PetscOptionItems *,MPI_Comm,const char[],const char[],const char[]);
 PETSC_EXTERN PetscErrorCode PetscObjectOptionsBegin_Private(PetscOptionItems *,PetscObject);

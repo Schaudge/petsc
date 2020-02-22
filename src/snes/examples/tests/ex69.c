@@ -144,8 +144,8 @@ int main(int argc,char **argv)
   ierr = MatDestroy(&J);CHKERRQ(ierr);
   ierr = MatDestroy(&Jmf);CHKERRQ(ierr);
   ierr = VecDestroy(&x);CHKERRQ(ierr);
-  ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = SNESDestroy(&user.snes);CHKERRQ(ierr);
+  ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
 }

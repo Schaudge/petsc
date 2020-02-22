@@ -53,9 +53,17 @@ static PetscErrorCode DMView_DA_3d(DM da,PetscViewer viewer)
     }
     if (format != PETSC_VIEWER_ASCII_VTK && format != PETSC_VIEWER_ASCII_VTK_CELL && format != PETSC_VIEWER_ASCII_GLVIS) {
       DMDALocalInfo info;
+      char          **names;
       ierr = DMDAGetLocalInfo(da,&info);CHKERRQ(ierr);
-      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"Processor [%d] M %D N %D P %D m %D n %D p %D w %D s %D\n",rank,dd->M,dd->N,dd->P,dd->m,dd->n,dd->p,dd->w,dd->s);CHKERRQ(ierr);
-      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"X range of indices: %D %D, Y range of indices: %D %D, Z range of indices: %D %D\n",
+      ierr = DMDAGetFieldNames(da,(const char* const **)&names);CHKERRQ(ierr);
+      if (names && names[0]) {
+        PetscInt i;
+        ierr = PetscViewerASCIIPrintf(viewer,"  Field names:");CHKERRQ(ierr);
+        for (i=0; i<dd->w-1; i++) ierr = PetscViewerASCIIPrintf(viewer," %s,",names[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer," %s\n",names[dd->w-1]);CHKERRQ(ierr);
+      }
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"  Processor [%d] M %D N %D P %D m %D n %D p %D w %D s %D\n",rank,dd->M,dd->N,dd->P,dd->m,dd->n,dd->p,dd->w,dd->s);CHKERRQ(ierr);
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"  X range of indices: %D %D, Y range of indices: %D %D, Z range of indices: %D %D\n",
                                                 info.xs,info.xs+info.xm,info.ys,info.ys+info.ym,info.zs,info.zs+info.zm);CHKERRQ(ierr);
 #if !defined(PETSC_USE_COMPLEX)
       if (da->coordinates) {

@@ -66,10 +66,11 @@ class Retriever(logger.Logger):
       shutil.copytree(dir,os.path.join(root,os.path.basename(dir)))
       return
 
-    if url.startswith('git://'):
+    if url.startswith('git://') or url.endswith('.git'):
       if not hasattr(self.sourceControl, 'git'): return
       import shutil
-      dir = url[6:]
+      if url.startswith('git://'): dir = url[6:]
+      else: dir = url      
       if os.path.isdir(dir):
         if not os.path.isdir(os.path.join(dir,'.git')): raise RuntimeError('Url begins with git:// and is a directory but but does not have a .git subdirectory')
 

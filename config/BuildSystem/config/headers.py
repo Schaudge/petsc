@@ -89,15 +89,14 @@ class Configure(config.base.Configure):
       hfiles = [hfiles]
     self.log.write('Checking for header files ' +str(hfiles)+ ' in '+str(incl)+'\n')
     for hfile in hfiles:
+      if hfile.endswith('.hpp'): self.pushLanguage('Cxx')
       flagsArg = self.getPreprocessorFlagsArg()
       self.logPrint('Checking include with compiler flags var '+flagsArg+' '+str(incl+otherIncludes))
-      #oldFlags = self.compilers.CPPFLAGS
       oldFlags = getattr(self.compilers, flagsArg)
-      #self.compilers.CPPFLAGS += ' '+' '.join([self.getIncludeArgument(inc) for inc in incl+otherIncludes])
       setattr(self.compilers, flagsArg, getattr(self.compilers, flagsArg)+' '+' '.join([self.getIncludeArgument(inc) for inc in incl+otherIncludes]))
       found = self.checkPreprocess('#include <' +hfile+ '>\n', timeout = timeout)
-      #self.compilers.CPPFLAGS = oldFlags
       setattr(self.compilers, flagsArg, oldFlags)
+      if hfile.endswith('.hpp'): self.pushLanguage('Cxx')
       if not found: return 0
     self.log.write('Found header files ' +str(hfiles)+ ' in '+str(incl)+'\n')
     return 1

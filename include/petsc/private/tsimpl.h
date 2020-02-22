@@ -61,7 +61,6 @@ struct _TSOps {
   PetscErrorCode (*gettimeerror)(TS,PetscInt,Vec*);
   PetscErrorCode (*settimeerror)(TS,Vec);
   PetscErrorCode (*startingmethod) (TS);
-  PetscErrorCode (*initcondition)(TS,Vec);
   PetscErrorCode (*exacterror)(TS,Vec,Vec);
 };
 
@@ -342,6 +341,7 @@ struct _p_TSAdapt {
 typedef struct _p_DMTS *DMTS;
 typedef struct _DMTSOps *DMTSOps;
 struct _DMTSOps {
+  PetscErrorCode (*initialconditions)(TS,PetscReal,Vec,void*);
   TSRHSFunction rhsfunction;
   TSRHSJacobian rhsjacobian;
 
@@ -365,6 +365,8 @@ struct _DMTSOps {
 
 struct _p_DMTS {
   PETSCHEADER(struct _DMTSOps);
+  void *initialconditionsctx;
+
   void *rhsfunctionctx;
   void *rhsjacobianctx;
 

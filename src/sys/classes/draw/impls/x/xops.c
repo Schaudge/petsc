@@ -445,7 +445,7 @@ static PetscErrorCode PetscDrawGetMouseButton_X(PetscDraw draw,PetscDrawButton *
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  *button = PETSC_BUTTON_NONE;
+  if (button) *button = PETSC_BUTTON_NONE;
   if (!win->win) PetscFunctionReturn(0);
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
 
@@ -469,18 +469,20 @@ static PetscErrorCode PetscDrawGetMouseButton_X(PetscDraw draw,PetscDrawButton *
   XFreeCursor(win->disp, cursor);
   XSync(win->disp,False);
 
-  switch (report.xbutton.button) {
-  case Button1: *button = PETSC_BUTTON_LEFT; break;
-  case Button2: *button = PETSC_BUTTON_CENTER; break;
-  case Button3: *button = PETSC_BUTTON_RIGHT; break;
-  case Button4: *button = PETSC_BUTTON_WHEEL_UP; break;
-  case Button5: *button = PETSC_BUTTON_WHEEL_DOWN; break;
-  }
-  if (report.xbutton.state & ShiftMask) {
+  if (button) {
     switch (report.xbutton.button) {
-    case Button1: *button = PETSC_BUTTON_LEFT_SHIFT; break;
-    case Button2: *button = PETSC_BUTTON_CENTER_SHIFT; break;
-    case Button3: *button = PETSC_BUTTON_RIGHT_SHIFT; break;
+    case Button1: *button = PETSC_BUTTON_LEFT; break;
+    case Button2: *button = PETSC_BUTTON_CENTER; break;
+    case Button3: *button = PETSC_BUTTON_RIGHT; break;
+    case Button4: *button = PETSC_BUTTON_WHEEL_UP; break;
+    case Button5: *button = PETSC_BUTTON_WHEEL_DOWN; break;
+    }
+    if (report.xbutton.state & ShiftMask) {
+      switch (report.xbutton.button) {
+      case Button1: *button = PETSC_BUTTON_LEFT_SHIFT; break;
+      case Button2: *button = PETSC_BUTTON_CENTER_SHIFT; break;
+      case Button3: *button = PETSC_BUTTON_RIGHT_SHIFT; break;
+      }
     }
   }
   xx = ((PetscReal)px)/w;
@@ -503,11 +505,37 @@ static PetscErrorCode PetscDrawPause_X(PetscDraw draw)
 
   PetscFunctionBegin;
   if (!win->win) PetscFunctionReturn(0);
-  if (draw->pause > 0) PetscSleep(draw->pause);
+  if (draw->pause > 0) {ierr = PetscDrawSleep(draw,draw->pause);CHKERRQ(ierr);}
   else if (draw->pause == -1) {
     PetscDrawButton button = PETSC_BUTTON_NONE;
     ierr = PetscDrawGetMouseButton(draw,&button,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
     if (button == PETSC_BUTTON_CENTER) draw->pause = 0;
+  }
+  PetscFunctionReturn(0);
+}
+
+/*
+    Draws something to the window each .5 seconds so if the user has deleted the window it 
+    generates an X error which causes PETSc to convert the Draw to a DRAWNULL and continue
+    running without the X window.
+*/
+static PetscErrorCode PetscDrawSleep_X(PetscDraw draw,PetscReal time)
+{
+  PetscDraw_X    *win = (PetscDraw_X*)draw->data;
+  PetscErrorCode ierr;
+  PetscMPIInt    rank;
+
+  PetscFunctionBegin;
+  while (time > 0) {
+   ierr = PetscSleep(.5);CHKERRQ(ierr);
+   ierr = PetscDrawCollectiveBegin(draw);CHKERRQ(ierr);
+   XSync(win->disp,False);
+   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
+   if (!rank) {
+     XFillRectangle(win->disp,PetscDrawXiDrawable(win),win->gc.set,1,1,1,1);
+   }
+   ierr = PetscDrawCollectiveEnd(draw);CHKERRQ(ierr);
+   time -= .5;
   }
   PetscFunctionReturn(0);
 }
@@ -563,7 +591,8 @@ static struct _PetscDrawOps DvOps = { PetscDrawSetDoubleBuffer_X,
                                       PetscDrawCoordinateToPixel_X,
                                       PetscDrawPixelToCoordinate_X,
                                       PetscDrawPointPixel_X,
-                                      NULL};
+                                      NULL,
+                                      PetscDrawSleep_X};
 
 
 static PetscErrorCode PetscDrawGetSingleton_X(PetscDraw draw,PetscDraw *sdraw)

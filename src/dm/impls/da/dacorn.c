@@ -90,7 +90,7 @@ PetscErrorCode  DMDASetFieldName(DM da,PetscInt nf,const char name[])
 @*/
 PetscErrorCode  DMDAGetFieldNames(DM da,const char * const **names)
 {
-  DM_DA             *dd = (DM_DA*)da->data;
+  DM_DA *dd = (DM_DA*)da->data;
 
   PetscFunctionBegin;
   *names = (const char * const *) dd->fieldname;

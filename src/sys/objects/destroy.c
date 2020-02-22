@@ -104,7 +104,12 @@ PetscErrorCode  PetscObjectView(PetscObject obj,PetscViewer viewer)
 . bobj  - optional other object that provides prefix (if NULL then the prefix in obj is used)
 - optionname - option to activate viewing
 
+  Notes:
+     See PetscOptionsGetViewer() for the format of the option provided on the command line
+
   Level: intermediate
+
+.seealso: PetscOptionsGetViewer()
 
 @*/
 PetscErrorCode PetscObjectViewFromOptions(PetscObject obj,PetscObject bobj,const char optionname[])

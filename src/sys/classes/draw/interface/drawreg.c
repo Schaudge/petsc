@@ -88,6 +88,31 @@ PetscErrorCode  PetscDrawView(PetscDraw indraw,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+/*@
+   PetscDrawSleep - sleeps for provided time, if the draw is destroyed then the sleep is ended early
+
+   Collective on PetscDraw
+
+   Input Parameters:
++  indraw - the PetscDraw context
+-  time - the time to sleep
+
+   Level: beginner
+
+.seealso: PCView(), PetscViewerASCIIOpen(), PetscSleep()
+@*/
+PetscErrorCode  PetscDrawSleep(PetscDraw indraw,PetscReal time)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(indraw,PETSC_DRAW_CLASSID,1);
+  if (indraw->ops->sleep) {
+    ierr = (*indraw->ops->sleep)(indraw,time);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 /*@C
    PetscDrawViewFromOptions - View from Options
 

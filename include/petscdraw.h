@@ -23,6 +23,7 @@ PETSC_EXTERN PetscErrorCode PetscDrawSetSaveMovie(PetscDraw,const char[]);
 PETSC_EXTERN PetscErrorCode PetscDrawSetSaveFinalImage(PetscDraw,const char[]);
 PETSC_EXTERN PetscErrorCode PetscDrawView(PetscDraw,PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscDrawViewFromOptions(PetscDraw,PetscObject,const char[]);
+PETSC_EXTERN PetscErrorCode PetscDrawSleep(PetscDraw,PetscReal);
 
 /*
    Number of basic colors in the draw routines, the others are used

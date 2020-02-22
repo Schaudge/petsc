@@ -726,7 +726,7 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
       return
 
   def downLoad(self):
-    '''Downloads a package; using hg or ftp; opens it in the with-packages-build-dir directory'''
+    '''Downloads a package; using git or ftp; opens it in the with-packages-build-dir directory'''
     import retrieval
 
     if self.havePETSc:
@@ -742,7 +742,7 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
     download_urls = []
     git_urls      = []
     for url in self.download:
-      if url.startswith("git://"):
+      if url.startswith("git://") or url.endswith('.git'):
         git_urls.append(url)
       else:
         download_urls.append(url)
@@ -760,7 +760,7 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
     # now attempt to download each url until any one succeeds.
     err =''
     for url in download_urls:
-      if url.startswith('git://'):
+      if url.startswith('git://') or url.endswith('.git'):
         if not self.gitcommit: raise RuntimeError(self.PACKAGE+': giturl specified but commit not set')
         if not self.gitPreReqCheck():
           err += 'Git prerequisite check failed for url: '+url+'\n'

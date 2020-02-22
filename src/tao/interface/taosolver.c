@@ -560,11 +560,15 @@ PetscErrorCode TaoSetFromOptions(Tao tao)
    Collective on Tao
 
    Input Parameters:
-+  A - the  Tao context
-.  obj - Optional object
++  A - the  Tao object
+.  obj - Optional object that provides prefix for the option name
 -  name - command line option
 
+  Notes:
+     See PetscOptionsGetViewer() for the format of the option provided on the command line
+
    Level: intermediate
+
 .seealso:  Tao, TaoView, PetscObjectViewFromOptions(), TaoCreate()
 @*/
 PetscErrorCode  TaoViewFromOptions(Tao A,PetscObject obj,const char name[])
@@ -578,7 +582,7 @@ PetscErrorCode  TaoViewFromOptions(Tao A,PetscObject obj,const char name[])
 }
 
 /*@C
-  TaoView - Prints information about the Tao
+  TaoView - Prints information about the Tao object
 
   Collective on Tao
 

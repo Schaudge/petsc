@@ -314,11 +314,15 @@ PetscErrorCode  SNESLoad(SNES snes, PetscViewer viewer)
    Collective on SNES
 
    Input Parameters:
-+  A - the application ordering context
-.  obj - Optional object
++  A - the snes object
+.  obj - Optional object provides the prefix
 -  name - command line option
 
+  Notes:
+     See PetscOptionsGetViewer() for the format of the option provided on the command line
+
    Level: intermediate
+
 .seealso:  SNES, SNESView, PetscObjectViewFromOptions(), SNESCreate()
 @*/
 PetscErrorCode  SNESViewFromOptions(SNES A,PetscObject obj,const char name[])
@@ -535,6 +539,8 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
   if (isdraw) {
     PetscDraw draw;
     ierr = PetscViewerDrawGetDraw(viewer,0,&draw);CHKERRQ(ierr);
+    ierr = PetscDrawFlush(draw);CHKERRQ(ierr);
+    ierr = PetscDrawPause(draw);CHKERRQ(ierr);
     ierr = PetscDrawPopCurrentPoint(draw);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);

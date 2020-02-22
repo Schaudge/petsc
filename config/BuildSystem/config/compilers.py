@@ -462,6 +462,8 @@ class Configure(config.base.Configure):
     elif cxxdialect == 'AUTO':
       TESTCXX14 = 1
       TESTCXX11 = 1
+    elif cxxdialect == 'C++17':
+      TESTCXX17 = 1
     elif cxxdialect == 'C++14':
       TESTCXX14 = 1
     elif cxxdialect == 'C++11':
@@ -490,7 +492,25 @@ class Configure(config.base.Configure):
           """
     self.setCompilers.saveLog()
     self.setCompilers.pushLanguage('Cxx')
-    if TESTCXX14:
+    if TESTCXX17:
+      if self.isGCXX: flags_to_try = ['-std=gnu++17']
+      else: flags_to_try = ['-std=c++17']
+      for flag in flags_to_try:
+        self.logWrite(self.setCompilers.restoreLog())
+        self.logPrint('checkCxxDialect: checking CXX17 with flag: '+flag)
+        self.setCompilers.saveLog()
+        if self.setCompilers.checkCompilerFlag(flag, includes, body+body14):
+          self.setCompilers.CXXPPFLAGS += ' ' + flag
+          self.cxxdialect = 'C++17'
+          self.addDefine('HAVE_CXX_DIALECT_CXX17',1)
+          self.addDefine('HAVE_CXX_DIALECT_CXX14',1)
+          self.addDefine('HAVE_CXX_DIALECT_CXX11',1)
+          break
+
+    if cxxdialect == 'C++17' and self.cxxdialect != 'C++17':
+      self.logWrite(self.setCompilers.restoreLog())
+      raise RuntimeError('Could not determine compiler flag for --with-cxx-dialect=C++17,\nIf you know the flag, set it with CXXFLAGS option')
+    elif not self.cxxdialect and TESTCXX14:
       flags_to_try = ['']
       if self.isGCXX: flags_to_try += ['-std=gnu++14']
       else: flags_to_try += ['-std=c++14']
@@ -507,7 +527,7 @@ class Configure(config.base.Configure):
 
     if cxxdialect == 'C++14' and self.cxxdialect != 'C++14':
       self.logWrite(self.setCompilers.restoreLog())
-      raise RuntimeError('Could not determine compiler flag for with-cxx-dialect=%s,\nIf you know the flag, set it with CXXFLAGS option')
+      raise RuntimeError('Could not determine compiler flag for --with-cxx-dialect=C++14\nIf you know the flag, set it with CXXFLAGS option')
     elif not self.cxxdialect and TESTCXX11:
       flags_to_try = ['']
       if self.isGCXX: flags_to_try += ['-std=gnu++11']
@@ -524,7 +544,7 @@ class Configure(config.base.Configure):
 
     if cxxdialect == 'C++11' and self.cxxdialect != 'C++11':
       self.logWrite(self.setCompilers.restoreLog())
-      raise RuntimeError('Could not determine compiler flag for with-cxx-dialect=%s,\nIf you know the flag, set it with CXXFLAGS option')
+      raise RuntimeError('Could not determine compiler flag for --with-cxx-dialect=C++11,\nIf you know the flag, set it with CXXFLAGS option')
 
     self.setCompilers.popLanguage()
     self.logWrite(self.setCompilers.restoreLog())
