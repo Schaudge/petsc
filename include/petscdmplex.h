@@ -12,6 +12,7 @@
 #include <petscfv.h>
 #include <petscsftypes.h>
 #include <petscdmfield.h>
+#include <petscts.h>
 
 PETSC_EXTERN PetscClassId PETSCPARTITIONER_CLASSID;
 
