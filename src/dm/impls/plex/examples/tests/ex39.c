@@ -531,3 +531,37 @@ int main(int argc,char **argv)
   return ierr;
 }
 
+/*TEST
+  testset:
+    suffix: 2d_bdm
+    requires: triangle
+    args: -dim 2 \
+      - simplex true \
+      -velocity_petscspace_degree 1 \
+      -velocity_petscdualspace_type bdm \
+      -divErr_petscspace_degree 1 \
+      -divErr_petscdualspace_lagrange_continuity false \
+      -dm_refine 0 \
+      -snes_error_if_not_converged \
+      -ksp_rtol 1e-10 \
+      -ksp_error_if_not_converged \
+      -pc_type fieldsplit\
+      -pc_fieldsplit_detect_saddle_point\
+      -pc_fieldsplit_type schur\
+      -pc_fieldsplit_schur_precondition full
+    test:
+      suffix: linear
+      args: -sol_form linear -mesh_transform none
+    test:
+      suffix: sinusoidal
+      args: -sol_form sinusoidal -mesh_transform none
+    test:
+      suffix: sinusoidal_skew
+      args: -sol_form sinusoidal -mesh_transform skew
+    test:
+      suffix: sinusoidal_perturb
+      args: -sol_form sinusoidal -mesh_transform perturb
+    test:
+      suffix: sinusoidal_skew_perturb
+      args: -sol_form sinusoidal -mesh_transform skew_perturb
+TEST*/
