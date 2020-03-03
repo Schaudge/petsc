@@ -315,15 +315,14 @@ class ArgDir(Arg):
   def setValue(self, value):
     '''Set the value. SHOULD MAKE THIS A PROPERTY'''
     import os
-    import commands
     self.checkKey()
     # Should check whether it is a well-formed path
     if not isinstance(value, str):
       raise TypeError('Invalid directory: '+str(value)+' for key '+str(self.key))
     # Handle Windows paths
     if value[0:2] == 'C:':
-      value = commands.getoutput('cygpath -d '+'"'+value+'"')
-      value = commands.getoutput('cygpath '+'"'+value+'"')
+      value = Script.executeShellCommand.getoutput('cygpath -d '+'"'+value+'"')
+      value = Script.executeShellCommand.getoutput('cygpath '+'"'+value+'"')
 
     value = os.path.expanduser(value)
     value = os.path.abspath(value)
