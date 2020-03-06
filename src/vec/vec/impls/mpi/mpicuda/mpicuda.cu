@@ -353,6 +353,8 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
   }
   if (array) {
     if (!vv->spptr) {
+      PetscReal pinned_memory_min;
+      PetscBool flag;
       /* Cannot use PetscNew() here because spptr is void* */
       ierr = PetscMalloc(sizeof(Vec_CUDA),&vv->spptr);CHKERRQ(ierr);
       veccuda = (Vec_CUDA*)vv->spptr;
@@ -365,7 +367,9 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
       /* Need to parse command line for minimum size to use for pinned memory allocations on host here.
          Note: This same code duplicated in VecCreate_SeqCUDA_Private() and VecCUDAAllocateCheck(). Is there a good way to avoid this? */
       ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)vv),((PetscObject)vv)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
-      ierr = PetscOptionsInt("-vec_cuda_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VECMPICUDA",veccuda->minimum_bytes_pinned_memory,&veccuda->minimum_bytes_pinned_memory,NULL);CHKERRQ(ierr);
+      pinned_memory_min = veccuda->minimum_bytes_pinned_memory;
+      ierr = PetscOptionsReal("-vec_cuda_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecCUDASetPinnedMemoryMin",pinned_memory_min,&pinned_memory_min,&flag);CHKERRQ(ierr);
+      if (flag) veccuda->minimum_bytes_pinned_memory = pinned_memory_min;
       ierr = PetscOptionsEnd();CHKERRQ(ierr);
     }
     veccuda = (Vec_CUDA*)vv->spptr;
