@@ -62,8 +62,8 @@ class Package(config.base.Configure):
     self.functionsDefine        = []   # optional functions we wish to check for in the libraries that should generate a PETSC_HAVE_ define
     self.functionsFortran       = 0    # 1 means the symbols in self.functions are Fortran symbols, so name-mangling is done
     self.functionsCxx           = [0, '', ''] # 1 means the symbols in self.functions symbol are C++ symbol, so name-mangling with prototype/call is done
-    self.cxx                    = 0    # 1 means requires C++
-    self.fc                     = 0    # 1 means requires fortran
+    self.cxx                    = 0    # 1 means requires C++ (configure requires c++ compiler to check a c++ library - so its a regular dependency unlike self.fc)
+    self.fc                     = 0    # 1 means requires fortran (build dependency)
     self.noMPIUni               = 0    # 1 means requires a real MPI
     self.libdir                 = 'lib'     # location of libraries in the package directory tree
     self.altlibdir              = 'lib64'   # alternate location of libraries in the package directory tree
@@ -71,8 +71,8 @@ class Package(config.base.Configure):
     self.license                = None # optional license text
     self.excludedDirs           = []   # list of directory names that could be false positives, SuperLU_DIST when looking for SuperLU
     self.downloadonWindows      = 0  # 1 means the --download-package works on Microsoft Windows
-    self.requirescxx14          = 0
-    self.requirescxx11          = 0
+    self.requirescxx14          = 0  # (build dependency)
+    self.requirescxx11          = 0  # (build dependency)
     self.publicInstall          = 1  # Installs the package in the --prefix directory if it was given. Packages that are only used
                                      # during the configuration/installation process such as sowing, make etc should be marked as 0
     self.parallelMake           = 1  # 1 indicates the package supports make -j np option
@@ -952,25 +952,30 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
         raise RuntimeError('Cannot use '+self.name+' with 64 bit BLAS/Lapack indices')
       if self.cxx and not hasattr(self.compilers, 'CXX'):
         raise RuntimeError('Cannot use '+self.name+' without C++, make sure you do NOT have --with-cxx=0')
-      if self.fc and not hasattr(self.compilers, 'FC'):
-        raise RuntimeError('Cannot use '+self.name+' without Fortran, make sure you do NOT have --with-fc=0')
       if self.noMPIUni and self.mpi.usingMPIUni:
         raise RuntimeError('Cannot use '+self.name+' with MPIUNI, you need a real MPI')
-      if self.requirescxx14 and self.compilers.cxxdialect not in ['C++14']:
-        raise RuntimeError('Cannot use '+self.name+' without enabling C++14, see --with-cxx-dialect=C++14')
-      if self.requirescxx11 and self.compilers.cxxdialect not in ['C++11','C++14']:
-        raise RuntimeError('Cannot use '+self.name+' without enabling C++11, see --with-cxx-dialect=C++11')
-      if self.download and self.argDB.get('download-'+self.downloadname.lower()) and not self.downloadonWindows and (self.setCompilers.CC.find('win32fe') >= 0):
-        raise RuntimeError('External package '+self.name+' does not support --download-'+self.downloadname.lower()+' with Microsoft compilers')
       if not self.defaultPrecision.lower() in self.precisions:
         raise RuntimeError('Cannot use '+self.name+' with '+self.defaultPrecision.lower()+', it is not available in this precision')
       if not self.complex and self.defaultScalarType.lower() == 'complex':
         raise RuntimeError('Cannot use '+self.name+' with complex numbers it is not coded for this capability')
       if self.defaultIndexSize == 64 and self.requires32bitint:
         raise RuntimeError('Cannot use '+self.name+' with 64 bit integers, it is not coded for this capability')
-    if not self.download and 'download-'+self.downloadname.lower() in self.argDB and self.argDB['download-'+self.downloadname.lower()]:
-      raise RuntimeError('External package '+self.name+' does not support --download-'+self.downloadname.lower())
     return
+
+  def buildConsistencyChecks(self):
+    if not self.argDB.get('download-'+self.downloadname.lower()):
+      return
+    if self.fc and not hasattr(self.compilers, 'FC'):
+      raise RuntimeError('Cannot build '+self.name+' without Fortran, make sure you do NOT have --with-fc=0')
+    if self.requirescxx14 and self.compilers.cxxdialect not in ['C++14']:
+      raise RuntimeError('Cannot build '+self.name+' without enabling C++14, see --with-cxx-dialect=C++14')
+    if self.requirescxx11 and self.compilers.cxxdialect not in ['C++11','C++14']:
+      raise RuntimeError('Cannot build '+self.name+' without enabling C++11, see --with-cxx-dialect=C++11')
+    if self.download and not self.downloadonWindows and (self.setCompilers.CC.find('win32fe') >= 0):
+      raise RuntimeError('External package '+self.name+' does not support --download-'+self.downloadname.lower()+' with Microsoft compilers')
+    if not self.download:
+      raise RuntimeError('External package '+self.name+' does not support --download-'+self.downloadname.lower())
+
 
   def versionToStandardForm(self,version):
     '''Returns original string'''
@@ -1094,6 +1099,7 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
       self.argDB['with-'+self.package] = 1
 
     self.consistencyChecks()
+    self.buildConsistencyChecks()
     if self.argDB['with-'+self.package]:
       # If clanguage is c++, test external packages with the c++ compiler
       self.libraries.pushLanguage(self.defaultLanguage)

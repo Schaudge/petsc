@@ -1181,8 +1181,6 @@ class Framework(config.base.Configure, script.LanguageProcessor):
           if 'with-'+dep.package+'-dir' in self.framework.clArgDB and self.argDB['with-'+dep.package+'-dir']: found = 1
           if not found: msg += 'Package '+child.package+' requested but dependency '+dep.package+' not requested. Perhaps you want --download-'+dep.package+'\n'
         if msg: raise RuntimeError(msg)
-        if child.cxx and ('with-cxx' in self.framework.clArgDB) and (self.argDB['with-cxx'] == '0'): raise RuntimeError('Package '+child.package+' requested requires C++ but compiler turned off.')
-        if child.fc and ('with-fc' in self.framework.clArgDB) and (self.argDB['with-fc'] == '0'): raise RuntimeError('Package '+child.package+' requested requires Fortran but compiler turned off.')
 
     depGraph = graph.DirectedGraph.topologicalSort(depGraph)
     totaltime = 0
