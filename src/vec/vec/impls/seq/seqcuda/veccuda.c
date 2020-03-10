@@ -444,8 +444,10 @@ PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
       ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)V),((PetscObject)V)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
       ierr = PetscOptionsReal("-vec_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecSetPinnedMemoryMin",pinned_memory_min,&pinned_memory_min,&option_set);CHKERRQ(ierr);
       if (option_set) {
-        if (pinned_memory_min == inf) V->minimum_bytes_pinned_memory = -1;
-        else V->minimum_bytes_pinned_memory = pinned_memory_min;
+        V->minimum_bytes_pinned_memory = pinned_memory_min;
+#if defined(PETSC_HAVE_ISINF)
+        if isinf(pinned_memory_min) V->minimum_bytes_pinned_memory = -1;
+#endif
       }
       ierr = PetscOptionsEnd();CHKERRQ(ierr);
     }

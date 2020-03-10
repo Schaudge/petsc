@@ -51,8 +51,10 @@ PetscErrorCode VecCUDAAllocateCheck(Vec v)
     ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)v),((PetscObject)v)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
     ierr = PetscOptionsReal("-vec_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecCUDASetPinnedMemoryMin",pinned_memory_min,&pinned_memory_min,&option_set);CHKERRQ(ierr);
     if (option_set) {
-      if (pinned_memory_min == inf) v->minimum_bytes_pinned_memory = -1;
-      else v->minimum_bytes_pinned_memory = pinned_memory_min;
+      v->minimum_bytes_pinned_memory = pinned_memory_min;
+#if defined(PETSC_HAVE_ISINF)
+      if isinf(pinned_memory_min) v->minimum_bytes_pinned_memory = -1;
+#endif
     }
     ierr = PetscOptionsEnd();CHKERRQ(ierr);
   }
@@ -199,7 +201,7 @@ PetscErrorCode VecCUDACopyFromGPUSome(Vec v, PetscCUDAIndices ci,ScatterMode mod
 + -vec_type seqcuda - sets the vector type to VECSEQCUDA during a call to VecSetFromOptions()
 - -vec_pinned_memory_min <size> - minimum size (in bytes) for an allocation to use pinned memory on host.
                                   Note that this takes a PetscScalar, to accommodate large values;
-                                  it can also be set to "inf" so that pinned memory is never used.
+                                  if your compiler supports isinf(), it can also be set to "inf" so that pinned memory is never used.
 
   Level: beginner
 
