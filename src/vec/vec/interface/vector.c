@@ -1888,3 +1888,53 @@ PetscErrorCode VecBindToCPU(Vec v,PetscBool flg)
   return 0;
 #endif
 }
+
+/*@C
+  VecSetPinnedMemoryMin - Set the minimum data size for which pinned memory will be used for host (CPU) allocations.
+
+  Logically Collective on Vec
+
+  Input Parameters:
++  v    - the vector
+-  mbytes - minimum data size in bytes
+
+  Level: developer
+
+.seealso: VecGetPinnedMemoryMin()
+@*/
+PetscErrorCode VecSetPinnedMemoryMin(Vec v,size_t mbytes)
+{
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+  PetscFunctionBegin;
+  v->minimum_bytes_pinned_memory = mbytes;
+  PetscFunctionReturn(0);
+#else
+  return 0;
+#endif
+}
+
+/*@C
+  VecGetPinnedMemoryMin - Get the minimum data size for which pinned memory will be used for host (CPU) allocations.
+
+  Logically Collective on Vec
+
+  Input Parameters:
+.  v    - the vector
+
+  Output Parameters:
+.  mbytes - minimum data size in bytes
+
+  Level: developer
+
+.seealso: VecSetPinnedMemoryMin()
+@*/
+PetscErrorCode VecGetPinnedMemoryMin(Vec v,size_t *mbytes)
+{
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+  PetscFunctionBegin;
+  *mbytes = v->minimum_bytes_pinned_memory;
+  PetscFunctionReturn(0);
+#else
+  return 0;
+#endif
+}
