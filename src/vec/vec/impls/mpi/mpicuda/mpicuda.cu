@@ -116,7 +116,9 @@ PetscErrorCode VecMDot_MPICUDA(Vec xin,PetscInt nv,const Vec y[],PetscScalar *z)
 
    Options Database Keys:
 + -vec_type mpicuda - sets the vector type to VECMPICUDA during a call to VecSetFromOptions()
-- -vec_pinned_memory_min <size> - minimum size (in bytes) for an allocation to use pinned memory on host
+- -vec_pinned_memory_min <size> - minimum size (in bytes) for an allocation to use pinned memory on host.
+                                  Note that this takes a PetscScalar, to accommodate large values;
+                                  it can also be set to "inf" so that pinned memory is never used.
 
   Level: beginner
 
@@ -370,7 +372,10 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
       ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)vv),((PetscObject)vv)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
       pinned_memory_min = vv->minimum_bytes_pinned_memory;
       ierr = PetscOptionsReal("-vec_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecCUDASetPinnedMemoryMin",pinned_memory_min,&pinned_memory_min,&flag);CHKERRQ(ierr);
-      if (flag) vv->minimum_bytes_pinned_memory = pinned_memory_min;
+      if (flag) {
+        if (pinned_memory_min == inf) vv->minimum_bytes_pinned_memory = -1;
+        else vv->minimum_bytes_pinned_memory = pinned_memory_min;
+      }
       ierr = PetscOptionsEnd();CHKERRQ(ierr);
     }
     veccuda = (Vec_CUDA*)vv->spptr;
