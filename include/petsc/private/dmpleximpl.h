@@ -700,8 +700,6 @@ typedef struct {
   PetscReal     electronShift; /* for tests */
   /* diagnostics */
   PetscInt      verbose;
-  PetscInt      plotIdx;
-  PetscReal     plotDt;
   PetscLogEvent events[20];
   DM            dmv;
   /* cache */
