@@ -4,9 +4,20 @@
 */
 
 #include <../src/mat/impls/aij/seq/aij.h>
+#include <zstd.h>
+
+typedef struct {
+  size_t compressed_bytes;
+  size_t decompressed_count;
+} BlockInfo;
 
 typedef struct {
   PetscInt  *colindices;
+  char      view_filename[PETSC_MAX_PATH_LEN];
+  char      *compressed;
+  size_t    max_block_size;     /* Number of indices per block */
+  size_t    num_blocks;
+  BlockInfo *blocks;            /* Array of length num_blocks */
 } Mat_SeqAIJZ;
 
 static PetscErrorCode MatDestroy_SeqAIJZ(Mat A)
@@ -20,6 +31,8 @@ static PetscErrorCode MatDestroy_SeqAIJZ(Mat A)
   if (aijz) {
     /* Clean up everything in the Mat_SeqAIJZ data structure, then free A->spptr. */
     ierr = PetscFree(aijz->colindices);CHKERRQ(ierr);
+    ierr = PetscFree(aijz->compressed);CHKERRQ(ierr);
+    ierr = PetscFree(aijz->blocks);CHKERRQ(ierr);
     ierr = PetscFree(A->spptr);CHKERRQ(ierr);
   }
 
@@ -41,6 +54,8 @@ static PetscErrorCode MatSeqAIJZ_update(Mat A)
   Mat_SeqAIJZ    *aijz = (Mat_SeqAIJZ*)A->spptr;
   PetscInt       i,j,m = A->rmap->n;
   const PetscInt *ai = aij->i;
+  PetscSegBuffer seg;
+  size_t         max_compressed_bytes;
 
   PetscFunctionBegin;
   ierr = PetscFree(aijz->colindices);CHKERRQ(ierr);
@@ -49,6 +64,32 @@ static PetscErrorCode MatSeqAIJZ_update(Mat A)
     for (j=ai[i]; j<ai[i+1]; j++) {
       aijz->colindices[j] = aij->j[j] - i;
     }
+  }
+
+  ierr = PetscFree(aijz->compressed);CHKERRQ(ierr);
+  max_compressed_bytes = ZSTD_compressBound(ai[m]*sizeof(aijz->colindices[0]));
+  ierr = PetscMalloc(max_compressed_bytes,&aijz->compressed);CHKERRQ(ierr);
+  ierr = PetscSegBufferCreate(sizeof(BlockInfo),ai[m]/aijz->max_block_size+5,&seg);CHKERRQ(ierr);
+  ZSTD_CCtx *cctx = ZSTD_createCCtx();
+  for (PetscInt i=0,coffset=0; i<ai[m]; ) {
+    BlockInfo *block;
+    size_t count = PetscMin(aijz->max_block_size, ai[m]-i); // TODO: choose good block sizes
+    ierr = PetscSegBufferGet(seg,1,&block);CHKERRQ(ierr);
+    block->decompressed_count = count;
+    block->compressed_bytes = ZSTD_compressCCtx(cctx, aijz->compressed+coffset, max_compressed_bytes-coffset, aijz->colindices+i, count*sizeof(aijz->colindices[0]), 3);
+    i += count;
+    coffset += block->compressed_bytes;
+  }
+  ZSTD_freeCCtx(cctx);
+  ierr = PetscSegBufferGetSize(seg,&aijz->num_blocks);CHKERRQ(ierr);
+  ierr = PetscSegBufferExtractAlloc(seg,&aijz->blocks);CHKERRQ(ierr);
+  ierr = PetscSegBufferDestroy(&seg);CHKERRQ(ierr);
+
+  if (aijz->view_filename[0]) {
+    PetscViewer viewer;
+    ierr = PetscViewerBinaryOpen(PetscObjectComm((PetscObject)A),aijz->view_filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    ierr = PetscIntView(ai[m],aijz->colindices,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -94,8 +135,28 @@ static PetscErrorCode MatMult_SeqAIJZ(Mat A,Vec xx,Vec yy)
   PetscErrorCode    ierr;
   PetscInt          m = A->rmap->n,i,j;
   const PetscInt    *ai = aij->i,*aj = aijz->colindices;
+  const BlockInfo   *blocks = aijz->blocks;
 
   PetscFunctionBegin;
+  if (1) {                      /* Experiment with decompression interface */
+    PetscInt *colidx;
+    ierr = PetscMalloc1(ai[m],&colidx);CHKERRQ(ierr);
+    ZSTD_DCtx *dctx = ZSTD_createDCtx();
+    size_t doffset=0;
+    for (size_t b=0,coffset=0; b<aijz->num_blocks; b++) {
+      ZSTD_decompressDCtx(dctx, colidx+doffset, blocks[b].decompressed_count*sizeof(colidx[0]), aijz->compressed+coffset, blocks[b].compressed_bytes);
+      coffset += blocks[b].compressed_bytes;
+      doffset += blocks[b].decompressed_count;
+    }
+    ZSTD_freeDCtx(dctx);CHKERRQ(ierr);
+    if (doffset != ai[m]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Unexpected decompressed size");
+    PetscBool same;
+    ierr = PetscMemcmp(colidx, aijz->colindices, ai[m]*sizeof(colidx[0]), &same);CHKERRQ(ierr);
+    if (!same) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Decompressed data mismatch");
+    ierr = PetscPrintf(PETSC_COMM_SELF,"Decompressed %D indices in %D blocks\n",ai[m],aijz->num_blocks);CHKERRQ(ierr);
+    ierr = PetscFree(colidx);CHKERRQ(ierr);
+  }
+
   ierr = VecGetArrayRead(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArray(yy,&y);CHKERRQ(ierr);
   for (i=0; i<m; i++) {
@@ -134,6 +195,16 @@ PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJZ(Mat A,MatType type,MatReus
   ierr     = PetscNewLog(B,&aijz);CHKERRQ(ierr);
   b        = (Mat_SeqAIJ*)B->data;
   B->spptr = (void*)aijz;
+
+  /* Maximum number of indices per block */
+  aijz->max_block_size = 4000;
+  {
+    PetscInt bs;
+    ierr = PetscOptionsGetInt(NULL,((PetscObject)A)->prefix,"-mat_aijz_max_block_size",&bs,NULL);CHKERRQ(ierr);
+    if (bs > 0) aijz->max_block_size = bs;
+  }
+  /* To dump binary column indices for debugging */
+  ierr = PetscOptionsGetString(NULL,((PetscObject)A)->prefix,"-mat_aijz_view_colindices",aijz->view_filename,sizeof(aijz->view_filename),NULL);CHKERRQ(ierr);
 
   /* Disable use of the inode routines so that the AIJZ ones will be used instead. */
   b->inode.use = PETSC_FALSE;
