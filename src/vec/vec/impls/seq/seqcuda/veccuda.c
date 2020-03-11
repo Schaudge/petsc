@@ -446,7 +446,7 @@ PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
       if (option_set) {
         V->minimum_bytes_pinned_memory = pinned_memory_min;
 #if defined(PETSC_HAVE_ISINF)
-        if isinf(pinned_memory_min) V->minimum_bytes_pinned_memory = -1;
+        if (isinf(pinned_memory_min)) V->minimum_bytes_pinned_memory = -1;
 #endif
       }
       ierr = PetscOptionsEnd();CHKERRQ(ierr);

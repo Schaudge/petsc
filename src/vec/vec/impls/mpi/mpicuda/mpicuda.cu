@@ -375,7 +375,7 @@ PetscErrorCode VecCreate_MPICUDA_Private(Vec vv,PetscBool alloc,PetscInt nghost,
       if (flag) {
         vv->minimum_bytes_pinned_memory = pinned_memory_min;
 #if defined(PETSC_HAVE_ISINF)
-        if isinf(pinned_memory_min) vv->minimum_bytes_pinned_memory = -1;
+        if (isinf(pinned_memory_min)) vv->minimum_bytes_pinned_memory = (size_t)-1;
 #endif
       }
       ierr = PetscOptionsEnd();CHKERRQ(ierr);
