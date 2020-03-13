@@ -20,7 +20,70 @@ static PetscErrorCode PetscSpaceView_Sum(PetscSpace sp,PetscViewer viewer)
 
 static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
 {
+  PetscSpace_Sum *sum    = (PetscSpace_Sum *) sp->data;
+  PetscInt           Nv, Ns, i;
+  PetscBool          orthogonal = PETSC_TRUE;
+  PetscInt           deg, maxDeg;
+  PetscErrorCode     ierr;
+
   PetscFunctionBegin;
+  if (sum->setupCalled) PetscFunctionReturn(0);
+  ierr = PetscSpaceGetNumVariables(sp, &Nv);CHKERRQ(ierr);
+  ierr = PetscSpaceSumGetNumSubspaces(sp, &Ns);CHKERRQ(ierr);
+  if (Ns == PETSC_DEFAULT) {
+    Ns = Nv;
+    ierr = PetscSpaceSumSetNumSubspaces(sp, Ns);CHKERRQ(ierr);
+  }
+  if (!Ns) {
+    if (Nv) SETERRQ(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Cannot have zero subspaces");
+  } else {
+    PetscSpace s0;
+    /* I don't actually think this is true because of the orthogonal flag.*/
+    if (Nv > 0 && Ns > Nv) SETERRQ2(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Cannot have a sum space with %D subspaces over %D variables\n", Ns, Nv);
+    ierr = PetscSpaceSumGetSubspace(sp, 0, &s0);CHKERRQ(ierr);
+    /* Need to check this one too. */
+    for (i = 1; i < Ns; i++) {
+      PetscSpace si;
+
+      ierr = PetscSpaceSumGetSubspace(sp, i, &si);CHKERRQ(ierr);
+      if (si != s0) {orthogonal = PETSC_FALSE; break;}
+    }
+    if (orthogonal) {
+      PetscInt   Nvs = Nv / Ns;
+
+      if (!s0) {ierr = PetscSpaceSumCreateSubspace(sp, Nvs, &s0);CHKERRQ(ierr);}
+      else     {ierr = PetscObjectReference((PetscObject) s0);CHKERRQ(ierr);}
+      ierr = PetscSpaceSetUp(s0);CHKERRQ(ierr);
+      for (i = 0; i < Ns; i++) {ierr = PetscSpaceSumSetSubspace(sp, i, s0);CHKERRQ(ierr);}
+      ierr = PetscSpaceDestroy(&s0);CHKERRQ(ierr);
+    } else {
+      for (i = 0 ; i < Ns; i++) {
+        PetscSpace si;
+
+        ierr = PetscSpaceSumGetSubspace(sp, i, &si);CHKERRQ(ierr);
+        if (!si) {ierr = PetscSpaceSumCreateSubspace(sp, 1, &si);CHKERRQ(ierr);}
+        else     {ierr = PetscObjectReference((PetscObject) si);CHKERRQ(ierr);}
+        ierr = PetscSpaceSetUp(si);CHKERRQ(ierr);
+        ierr = PetscSpaceSumSetSubspace(sp, i, si);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&si);CHKERRQ(ierr);
+      }
+    }
+  }
+  deg = PETSC_MAX_INT;
+  maxDeg = 0;
+  for (i = 0; i < Ns; i++) {
+    PetscSpace si;
+    PetscInt   iDeg, iMaxDeg;
+
+    ierr = PetscSpaceSumGetSubspace(sp, i, &si);CHKERRQ(ierr);
+    ierr = PetscSpaceGetDegree(si, &iDeg, &iMaxDeg);CHKERRQ(ierr);
+    deg    = PetscMin(deg, iDeg);
+    maxDeg += iMaxDeg;
+  }
+  sp->degree    = deg;
+  sp->maxDegree = maxDeg;
+  sum->orthogonal = orthogonal;
+  sum->setupCalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
