@@ -26,7 +26,19 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
 
 static PetscErrorCode PetscSpaceDestroy_Sum(PetscSpace sp)
 {
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
+  PetscInt       Ns,i;
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  Ns = sum->numSumSpaces;
+  for (i=0; i<Ns; ++i) {ierr = PetscSpaceDestroy(&sum->sumspaces[i]);CHKERRQ(ierr);}
+  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpaceSumSetSubspace_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpaceSumGetSubspace_C", NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpaceSumSetNumSubspaces_C", NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject) sp, "PetscSpaceSumGetNumSubspaces_C", NULL);CHKERRQ(ierr);
+  ierr = PetscFree(sum->sumspaces);CHKERRQ(ierr);
+  ierr = PetscFree(sum);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
