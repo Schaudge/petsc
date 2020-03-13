@@ -60,26 +60,16 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
   if (sum->setupCalled) PetscFunctionReturn(0);
   ierr = PetscSpaceGetNumVariables(sp, &Nv);CHKERRQ(ierr);
   ierr = PetscSpaceSumGetNumSubspaces(sp, &Ns);CHKERRQ(ierr);
-  if (Ns == PETSC_DEFAULT) {
-    Ns = Nv;
-    ierr = PetscSpaceSumSetNumSubspaces(sp, Ns);CHKERRQ(ierr);
-  }
   if (!Ns) {
     if (Nv) SETERRQ(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Cannot have zero subspaces");
   } else {
     PetscSpace s0;
-    /* I don't actually think this is true because of the orthogonal flag.*/
-    if (Nv > 0 && Ns > Nv) SETERRQ2(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Cannot have a sum space with %D subspaces over %D variables\n", Ns, Nv);
     ierr = PetscSpaceSumGetSubspace(sp, 0, &s0);CHKERRQ(ierr);
-    /* Need to check this one too. */
-    for (i = 1; i < Ns; i++) {
-      PetscSpace si;
-
-      ierr = PetscSpaceSumGetSubspace(sp, i, &si);CHKERRQ(ierr);
-      if (si != s0) {orthogonal = PETSC_FALSE; break;}
-    }
     if (orthogonal) {
       PetscInt   Nvs = Nv / Ns;
+
+
+      // Sum components OR verify that it matches what user set
 
       if (!s0) {ierr = PetscSpaceSumCreateSubspace(sp, Nvs, &s0);CHKERRQ(ierr);}
       else     {ierr = PetscObjectReference((PetscObject) s0);CHKERRQ(ierr);}
@@ -146,17 +136,13 @@ static PetscErrorCode PetscSpaceGetDimension_Sum(PetscSpace sp,PetscInt *dim)
   ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
   Ns = sum->numSumSpaces;
   Nc = sp->Nc;
-  d  = 1;
+  d  = 0;
   for (i = 0; i < Ns; i++) {
     PetscInt id;
+
     ierr = PetscSpaceGetDimension(sum->sumspaces[i], &id);CHKERRQ(ierr);
-    if (orthogonal){
-      d += id;  
-    } else {
-      if (id > d) d = id;
-    }
+    d += id;
   }
-  d *= Nc;
   *dim = d;
   PetscFunctionReturn(0);
 }
