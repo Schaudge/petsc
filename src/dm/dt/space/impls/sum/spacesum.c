@@ -32,7 +32,27 @@ static PetscErrorCode PetscSpaceDestroy_Sum(PetscSpace sp)
 
 static PetscErrorCode PetscSpaceGetDimension_Sum(PetscSpace sp,PetscInt *dim)
 {
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
+  PetscInt       i,Ns,Nc,d;
+  PetscBool      orthogonal = sum->orthogonal;
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
+  Ns = sum->numSumSpaces;
+  Nc = sp->Nc;
+  d  = 1;
+  for (i = 0; i < Ns; i++) {
+    PetscInt id;
+    ierr = PetscSpaceGetDimension(sum->sumspaces[i], &id);CHKERRQ(ierr);
+    if (orthogonal){
+      d += id;  
+    } else {
+      if (id > d) d = id;
+    }
+  }
+  d *= Nc;
+  *dim = d;
   PetscFunctionReturn(0);
 }
 
