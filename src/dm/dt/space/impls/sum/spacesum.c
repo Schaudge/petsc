@@ -14,7 +14,12 @@ static PetscErrorCode PetscSpaceSumView_Ascii(PetscSpace sp,PetscViewer v)
 
 static PetscErrorCode PetscSpaceView_Sum(PetscSpace sp,PetscViewer viewer)
 {
+  PetscBool      iascii;
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  if (iascii) {ierr = PetscSpaceSumView_Ascii(sp, viewer);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
