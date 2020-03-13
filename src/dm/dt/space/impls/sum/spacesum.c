@@ -72,9 +72,12 @@ static PetscErrorCode PetscSpaceSumSetNumSubspaces_Sum(PetscSpace space,PetscInt
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSpaceSumGetNumSubspaces_Sum(PetscSpace space,PetscInt *numTensSpaces)
+static PetscErrorCode PetscSpaceSumGetNumSubspaces_Sum(PetscSpace space,PetscInt *numSumSpaces)
 {
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
+
   PetscFunctionBegin;
+  *numSumSpaces = sum->numSumSpaces;
   PetscFunctionReturn(0);
 }
 
