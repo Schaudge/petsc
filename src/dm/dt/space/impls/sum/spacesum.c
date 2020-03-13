@@ -48,9 +48,27 @@ PetscErrorCode PetscSpaceSumSetNumSubspaces(PetscSpace sp,PetscInt numTensSpaces
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscSpaceSumGetNumSubspaces(PetscSpace sp,PetscInt *numTensSpaces)
+/*@
+  PetscSpaceSumGetNumSubspaces - Get the number of spaces in the sum
+
+  Input Parameter:
+. sp  - the function space object
+
+  Output Parameter:
+. numSumSpaces - the number of spaces
+
+  Level: intermediate
+
+.seealso: PetscSpaceSumSetNumSubspaces(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
+@*/
+PetscErrorCode PetscSpaceSumGetNumSubspaces(PetscSpace sp,PetscInt *numSumSpaces)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
+  PetscValidIntPointer(numSumSpaces, 2);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumGetNumSubspaces_C",(PetscSpace,PetscInt*),(sp,numSumSpaces));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
