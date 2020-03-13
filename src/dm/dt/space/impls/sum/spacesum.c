@@ -60,6 +60,20 @@ PetscErrorCode PetscSpaceSumSetSubspace(PetscSpace sp,PetscInt s,PetscSpace subs
   PetscFunctionReturn(0);
 }
 
+/*@
+  PetscSpaceSumGetSubspace - Get a space in the sum 
+
+  Input Parameters:
++ sp - the function space object
+- s  - The space number
+
+  Output Parameter:
+. subsp - the PetscSpace
+
+  Level: intermediate
+
+.seealso: PetscSpaceSumSetSubspace(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
+@*/
 PetscErrorCode PetscSpaceSumGetSubspace(PetscSpace sp,PetscInt s,PetscSpace *subsp)
 {
   PetscErrorCode ierr;
