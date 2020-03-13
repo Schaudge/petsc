@@ -8,8 +8,33 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
 
 static PetscErrorCode PetscSpaceSumView_Ascii(PetscSpace sp,PetscViewer v)
 {
+  PetscSpace_Sum *sum = (PetscSpace_Sum *) sp->data;
+  PetscBool          orthogonal = sum->orthogonal;
+  PetscInt           Ns = sum->numSumSpaces,i;
+  PetscErrorCode     ierr;
+
   PetscFunctionBegin;
+  if (orthogonal) {
+    ierr = PetscViewerASCIIPrintf(v, "Sum space of %D orthogonal\n", Ns);CHKERRQ(ierr);
+  } else {
+    ierr = PetscViewerASCIIPrintf(v, "Sum space of %D subspaces\n", Ns);CHKERRQ(ierr);
+  }
+  for (i = 0; i < Ns; i++) {
+    ierr = PetscViewerASCIIPushTab(v);CHKERRQ(ierr);
+    ierr = PetscSpaceView(sum->sumspaces[i], v);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPopTab(v);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceView_Tensor(PetscSpace sp, PetscViewer viewer)
+{
+  PetscBool      iascii;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  if (iascii) {ierr = PetscSpaceTensorView_Ascii(sp, viewer);CHKERRQ(ierr);}
 }
 
 static PetscErrorCode PetscSpaceView_Sum(PetscSpace sp,PetscViewer viewer)
