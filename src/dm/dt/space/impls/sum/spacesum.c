@@ -66,9 +66,23 @@ PetscErrorCode PetscSpaceSumGetSubspace(PetscSpace sp,PetscInt s,PetscSpace *sub
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSpaceSumSetNumSubspaces_Sum(PetscSpace space,PetscInt numTensSpaces)
+static PetscErrorCode PetscSpaceSumSetNumSubspaces_Sum(PetscSpace space,PetscInt numSumSpaces)
 {
+  PetscSpace_Sum *sum = (PetscSpace_Sum *) space->data;
+  PetscInt           Ns;
+  PetscErrorCode     ierr;
+  
   PetscFunctionBegin;
+  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Cannot change number of subspaces after setup called\n");
+  Ns = sum->numSumSpaces;
+  if (numSumSpaces == Ns) PetscFunctionReturn(0);
+  if (Ns >= 0) {
+    PetscInt s;
+    for (s = 0; s < Ns; s++) {ierr = PetscSpaceDestroy(&sum->sumspaces[s]);CHKERRQ(ierr);}
+    ierr = PetscFree(sum->sumspaces);CHKERRQ(ierr);
+  }
+  Ns = sum->numSumSpaces = numSumSpaces;
+  ierr = PetscCalloc1(Ns, &sum->sumspaces);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
