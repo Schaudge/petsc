@@ -169,58 +169,58 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
   PetscInt       Nv   = sp->Nv;
   PetscInt       Ns;
   PetscReal      *lpoints,*sB = NULL,*sD = NULL,*sH = NULL;
-  PetscInt       c,pdim,d,e,der,der2,i,l,si,p,s,step;
+  PetscInt       c,pdim,pdimfull,d,e,der,der2,i,l,si,p,s,offset,ncoffset;
   PetscBool      orthogonal = sum->orthogonal;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (!sum->setupCalled) {ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);}
   Ns    = sum->numSumSpaces;
-  ierr  = PetscSpaceGetDimension(sp,&pdim);CHKERRQ(ierr);
-  pdim /= Nc;
+  ierr  = PetscSpaceGetDimension(sp,&pdimfull);CHKERRQ(ierr);
+  pdim  = pdimfull / Nc;
   ierr  = DMGetWorkArray(dm,npoints*Nv,MPIU_REAL,&lpoints);CHKERRQ(ierr);
   if (orthogonal) {
   /* If we do an orthogonal sum then these arrays all need an extra Nc elements
    * right? */
   } else {
-    if (B || D || H) {ierr = DMGetWorkArray(dm,npoints*pdim,MPIU_REAL,&sB);CHKERRQ(ierr);}
-    if (D || H) {ierr = DMGetWorkArray(dm,npoints*pdim*Nv,MPIU_REAL,&sD);CHKERRQ(ierr);}
-    if (H) {ierr = DMGetWorkArray(dm,npoints*pdim*Nv*Nv,MPIU_REAL,&sH);CHKERRQ(ierr);}
+    if (B || D || H) {ierr = DMGetWorkArray(dm,npoints*Nc*pdimfull,MPIU_REAL,&sB);CHKERRQ(ierr);}
+    if (D || H) {ierr = DMGetWorkArray(dm,npoints*Nc*pdimfull*Nv,MPIU_REAL,&sD);CHKERRQ(ierr);}
+    if (H) {ierr = DMGetWorkArray(dm,npoints*Nc*pdimfull*Nv*Nv,MPIU_REAL,&sH);CHKERRQ(ierr);}
     if (B) {
-      for (i=0; i<npoints*pdim*Nc*Nc; ++i) B[i] = 0.;
+      for (i=0; i<npoints*Nc*pdimfull; ++i) B[i] = 0.;
     }
     if (D) {
-      for (i=0; i<npoints*pdim*Nc*Nc*Nv; ++i) D[i] = 0.;
+      for (i=0; i<npoints*Nc*pdimfull*Nv; ++i) D[i] = 0.;
     }
     if (H) {
-      for (i=0; i<npoints*pdim*Nc*Nc*Nv*Nv; ++i) H[i] = 0.;
+      for (i=0; i<npoints*Nc*pdimfull*Nv*Nv; ++i) H[i] = 0.;
     }
   }
-  for (s=0,d=0,step=1; s<Ns; ++s){
-    PetscInt sNv,spdim;
+  for (s=0,d=0,offset=0,ncoffset=; s<Ns; ++s) {
+    PetscInt sNv,spdim,sNc;
     PetscInt skip,j,k;
 
     ierr = PetscSpaceGetNumVariables(sum->sumspaces[s],&sNv);CHKERRQ(ierr);
+    // assert sNv == Nv
+    ierr = PetscSpaceGetNumComponents(sum->sumspaces[s],&sNc);CHKERRQ(ierr);
+    // if (!ortho) assert sNc == Nc
     ierr = PetscSpaceGetDimension(sum->sumspaces[s],&spdim);CHKERRQ(ierr);
-    if ((pdim % step) || (pdim % spdim)) SETERRQ6 (PETSC_COMM_SELF,PETSC_ERR_PLIB,"Bad sum loop: Nv %D, Ns %D, pdim %D, s %D, step %D, spdim %D",Nv,Ns,pdim,s,step,spdim);
-    skip = pdim/(step*spdim);
-    for (p=0; p<npoints; ++p) {
-      for (i=0; i<sNv; ++i) {
-        lpoints[p*sNv+i] = points[p*Nv+d+i];
-      }
-    }
-    ierr = PetscSpaceEvaluate(sum->sumspaces[s],npoints,lpoints,sB,sD,sH);CHKERRQ(ierr);
+    // assert offset + spdim <= pdimfull
+    ierr = PetscSpaceEvaluate(sum->sumspaces[s],npoints,points,sB,sD,sH);CHKERRQ(ierr);
     if (B) {
-      for (p=0; p<npoints; ++p) {
-        for (k=0; k<skip; ++k) {
-          for (si=0; si<spdim; ++si) {
-            for (j=0; j<step; ++j) {
-              if (orthogonal){
-                /* Do orthogonal sum. Probably need to setup the arrays differently as well */
-              } else {
-                i = (k*spdim+si)*step+j;
-                B[(pdim*p+i)*Nc*Nc] += sB[spdim*p+si];
-              } 
+      if (!orthogonal) {
+        for (p=0; p<npoints; ++p) {
+          for (c=0; c<sNc; ++c) {
+            for (i=0; i<spdim; ++) {
+              B[p*Nc*pdimfull + c*pdimfull + i+offset] += sB[p*Nc*spdim + c*spdim + i];
+            }
+          }
+        }
+      } else {
+        for (p=0; p<npoints; ++p) {
+          for (c=0; c<sNc; ++c) {
+            for (i=0; i<spdim; ++) {
+              B[p*Nc*pdimfull + (c+ncoffset)*pdimfull + i+offset] += sB[p*Nc*spdim + c*spdim + i];
             }
           }
         }
@@ -294,7 +294,8 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
       }
     }
     d += sNv;
-    step *= spdim;
+    offset += spdim;
+    ncoffset += sNc;
   }
 
   if (H)           {ierr = DMRestoreWorkArray(dm, npoints*pdim*Nv*Nv, MPIU_REAL, &sH);CHKERRQ(ierr);}
