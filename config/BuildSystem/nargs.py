@@ -321,8 +321,9 @@ class ArgDir(Arg):
       raise TypeError('Invalid directory: '+str(value)+' for key '+str(self.key))
     # Handle Windows paths
     if value[0:2] == 'C:':
-      value, err, ret = Script.executeShellCommand(['cygpath -d', value])
-      value, err, ret = Script.executeShellCommand(['cygpath', value])
+      import script
+      value, err, ret = script.Script.executeShellCommand(['cygpath', '-d', value])
+      value, err, ret = script.Script.executeShellCommand(['cygpath', value])
 
     value = os.path.expanduser(value)
     value = os.path.abspath(value)
