@@ -34,6 +34,9 @@ class Configure(config.package.CMakePackage):
     args.append('-DMEDFILE_BUILD_TESTS=OFF')
     args.append('-DMEDFILE_INSTALL_DOC=OFF')
     args.append('-DMEDFILE_BUILD_PYTHON=OFF')
+    for place,item in enumerate(args):
+      if item.find('CMAKE_C_FLAGS') >= 0 or item.find('CMAKE_CXX_FLAGS') >= 0:
+        args[place]=item[:-1]+' -DH5_USE_18_API"'
 
     return args
 

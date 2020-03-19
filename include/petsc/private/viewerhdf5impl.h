@@ -2,6 +2,7 @@
 #ifndef __VIEWERHDF5IMPL_H
 #define __VIEWERHDF5IMPL_H
 
+#define H5_USE_18_API
 #include <petscviewerhdf5.h>
 
 #if defined(PETSC_HAVE_HDF5)
