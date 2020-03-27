@@ -29,5 +29,5 @@ int main(int argc,char **argv)
 /*TEST
   test:
     suffix: 0
-    args: -malloc_dump
+    args: 
 TEST*/

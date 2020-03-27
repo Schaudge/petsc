@@ -44,7 +44,7 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   PetscFunctionBegin;
   ierr = PetscSpaceGetNumVariables(sp,&Nv);CHKERRQ(ierr);
   if (!Nv) PetscFunctionReturn(0);
-  ierr = PetscSpaceGetNumComponents(sp,&Nc);CHKERRQ(ierr);
+  ierr = PetscSpaceGetNumComponents(sp,&Nc);CHKERRQ(ierr); /* ex8 Error here */
   ierr = PetscSpaceSumGetNumSubspaces(sp,&Ns);CHKERRQ(ierr);
   ierr = PetscSpaceGetDegree(sp,&deg,NULL);CHKERRQ(ierr);
   if (Ns > 1) {
