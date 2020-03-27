@@ -44,7 +44,7 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   PetscFunctionBegin;
   ierr = PetscSpaceGetNumVariables(sp,&Nv);CHKERRQ(ierr);
   if (!Nv) PetscFunctionReturn(0);
-  ierr = PetscSpaceGetNumComponents(sp,&Nc);CHKERRQ(ierr); /* ex8 Error here */
+  ierr = PetscSpaceGetNumComponents(sp,&Nc);CHKERRQ(ierr);
   ierr = PetscSpaceSumGetNumSubspaces(sp,&Ns);CHKERRQ(ierr);
   ierr = PetscSpaceGetDegree(sp,&deg,NULL);CHKERRQ(ierr);
   if (Ns > 1) {
@@ -136,10 +136,10 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
     if (Nv) SETERRQ(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Cannot have zero subspaces\n");
   } else {
     /* We need to ensure that the subspaces have been created/setup before we call GetNumComponents, but we also need to be
-     * able to get the number of components to properly setup the space.... */
+     * able to determine how to create the subspaces since the number of subpace components will help us to determine if orthogonal. */
     PetscSpace s0, si;
     ierr = PetscSpaceSumGetSubspace(sp, 0, &s0);CHKERRQ(ierr);
-    ierr = PetscSpaceGetNumComponents(s0, &sNc);CHKERRQ(ierr);
+    ierr = PetscSpaceGetNumComponents(s0, &sNc);CHKERRQ(ierr); /* ex8 Error Here.*/
     if (sNc == Nc) orthogonal = PETSC_FALSE;
     if (orthogonal) {
       sum_Nc = sNc;
