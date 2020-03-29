@@ -153,6 +153,11 @@ class Configure(config.base.Configure):
     else:
       fd.write('prefix='+os.path.join(self.petscdir.dir, self.arch.arch)+'\n')
       cflags_inc.append('-I' + os.path.join(self.petscdir.dir, 'include'))
+    # Windows does not use MPI compiler wrappers so much insure mpi.h is found
+    self.setCompilers.pushLanguage('C')
+    if self.setCompilers.isWindows(self.setCompilers.getCompiler(),self.log):
+      cflags_inc.append('-I' + os.path.join(self.mpi.include, 'include'))
+    self.setCompilers.popLanguage()
     fd.write('exec_prefix=${prefix}\n')
     fd.write('includedir=${prefix}/include\n')
     fd.write('libdir=${prefix}/lib\n')
