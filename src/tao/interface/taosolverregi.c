@@ -32,6 +32,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_ASILS(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_ASFLS(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_IPM(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_PDIPM(Tao);
+PETSC_EXTERN PetscErrorCode TaoCreate_PDAS(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_ADMM(Tao);
 PETSC_EXTERN PetscErrorCode TaoCreate_Shell(Tao);
 
@@ -109,6 +110,7 @@ PetscErrorCode TaoRegisterAll(void)
   ierr = TaoRegister(TAOASFLS,TaoCreate_ASFLS);CHKERRQ(ierr);
   ierr = TaoRegister(TAOIPM,TaoCreate_IPM);CHKERRQ(ierr);
   ierr = TaoRegister(TAOPDIPM,TaoCreate_PDIPM);CHKERRQ(ierr);
+  ierr = TaoRegister(TAOPDAS,TaoCreate_PDAS);CHKERRQ(ierr);
   ierr = TaoRegister(TAOSHELL,TaoCreate_Shell);CHKERRQ(ierr);
   ierr = TaoRegister(TAOADMM,TaoCreate_ADMM);CHKERRQ(ierr);
 #endif

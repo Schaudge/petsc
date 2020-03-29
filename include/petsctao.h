@@ -142,6 +142,7 @@ typedef const char *TaoType;
 #define TAOASFLS    "asfls"
 #define TAOIPM      "ipm"
 #define TAOPDIPM    "pdipm"
+#define TAOPDAS     "pdas"
 #define TAOSHELL    "shell"
 #define TAOADMM     "admm"
 
