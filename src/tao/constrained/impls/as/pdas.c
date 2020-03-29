@@ -667,7 +667,6 @@ PetscErrorCode PDASLineSearch(SNESLineSearch linesearch,void *ctx)
   ierr = VecRestoreArray(X,&Xarr);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(Y,&dXarr);CHKERRQ(ierr);
 
-  VecView(tao->solution,0);
   ierr = VecRestoreArray(pdas->ci,&ci);CHKERRQ(ierr);
   /* Evaluate F at X */
   ierr = SNESComputeFunction(snes,X,F);CHKERRQ(ierr);
