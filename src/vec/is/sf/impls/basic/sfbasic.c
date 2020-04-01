@@ -133,19 +133,17 @@ static PetscErrorCode PetscSFBcastAndOpBegin_Basic(PetscSF sf,MPI_Datatype unit,
 {
   PetscErrorCode    ierr;
   PetscSFLink       link = NULL;
-  MPI_Request       *rootreqs = NULL,*leafreqs = NULL;
-  PetscSF_Basic     *bas = (PetscSF_Basic*)sf->data;
+  MPI_Request       *leafreqs = NULL;
 
   PetscFunctionBegin;
   /* Create a communication link, which provides buffers & MPI requests etc */
   ierr = PetscSFLinkCreate(sf,unit,rootmtype,rootdata,leafmtype,leafdata,op,PETSCSF_BCAST,&link);CHKERRQ(ierr);
   /* Get MPI requests from the link. We do not need buffers explicitly since we use persistent MPI */
-  ierr = PetscSFLinkGetMPIBuffersAndRequests(sf,link,PETSCSF_ROOT2LEAF,NULL,NULL,&rootreqs,&leafreqs);CHKERRQ(ierr);
+  ierr = PetscSFLinkGetMPIBuffersAndRequests(sf,link,PETSCSF_ROOT2LEAF,NULL,NULL,NULL,&leafreqs);CHKERRQ(ierr);
   /* Post Irecv for remote */
   ierr = MPI_Startall_irecv(sf->leafbuflen[PETSCSF_REMOTE],unit,sf->nleafreqs,leafreqs);CHKERRQ(ierr);
   /* Pack rootdata and do Isend for remote */
   ierr = PetscSFLinkPackRootData(sf,link,PETSCSF_REMOTE,rootdata);CHKERRQ(ierr);
-  ierr = MPI_Startall_isend(bas->rootbuflen[PETSCSF_REMOTE],unit,bas->nrootreqs,rootreqs);CHKERRQ(ierr);
   /* Do local BcastAndOp, which overlaps with the irecv/isend above */
   ierr = PetscSFLinkBcastAndOpLocal(sf,link,rootdata,leafdata,op);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -155,10 +153,15 @@ PETSC_INTERN PetscErrorCode PetscSFBcastAndOpEnd_Basic(PetscSF sf,MPI_Datatype u
 {
   PetscErrorCode    ierr;
   PetscSFLink       link = NULL;
+  PetscSF_Basic     *bas = (PetscSF_Basic*)sf->data;
+  MPI_Request       *rootreqs = NULL;
 
   PetscFunctionBegin;
   /* Retrieve the link used in XxxBegin() with root/leafdata as key */
   ierr = PetscSFLinkGetInUse(sf,unit,rootdata,leafdata,PETSC_OWN_POINTER,&link);CHKERRQ(ierr);
+  ierr = PetscSFLinkSyncStreamAfterPackRootData(sf,link);CHKERRQ(ierr);
+  ierr = PetscSFLinkGetMPIBuffersAndRequests(sf,link,PETSCSF_ROOT2LEAF,NULL,NULL,&rootreqs,NULL);CHKERRQ(ierr);
+  ierr = MPI_Startall_isend(bas->rootbuflen[PETSCSF_REMOTE],unit,bas->nrootreqs,rootreqs);CHKERRQ(ierr);
   /* Wait for the completion of mpi */
   ierr = PetscSFLinkMPIWaitall(sf,link,PETSCSF_ROOT2LEAF);CHKERRQ(ierr);
   /* Unpack leafdata and reclaim the link */
