@@ -335,7 +335,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkMemcpy(PetscSF sf,PetscSFLink link
     if (dstmtype == PETSC_MEMTYPE_HOST && srcmtype == PETSC_MEMTYPE_HOST) {PetscErrorCode ierr = PetscMemcpy(dst,src,n);CHKERRQ(ierr);}
 #if defined(PETSC_HAVE_CUDA)
     else if (dstmtype == PETSC_MEMTYPE_DEVICE && srcmtype == PETSC_MEMTYPE_HOST)   {
-      cudaError_t    err  = cudaMemcpyAsync(dst,src,n,cudaMemcpyHostToDevice,link->stream);CHKERRCUDA(err);
+      cudaError_t    err  = cudaMemcpy(dst,src,n,cudaMemcpyHostToDevice);CHKERRCUDA(err);
+      //cudaError_t    err  = cudaMemcpyAsync(dst,src,n,cudaMemcpyHostToDevice,link->stream);CHKERRCUDA(err);
       PetscErrorCode ierr = PetscLogCpuToGpu(n);CHKERRQ(ierr);
     } else if (dstmtype == PETSC_MEMTYPE_HOST && srcmtype == PETSC_MEMTYPE_DEVICE) {
       cudaError_t    err  = cudaMemcpyAsync(dst,src,n,cudaMemcpyDeviceToHost,link->stream);CHKERRCUDA(err);
