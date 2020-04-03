@@ -1,39 +1,5 @@
 #include <petsc/private/petscfeimpl.h> /*I "petscfe.h" I*/
 
-static PetscErrorCode PetscSpaceSumCreateSubspace(PetscSpace space, PetscInt Nv, PetscSpace *subspace)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
-  PetscInt    degree,Ns,Nc,sNc;
-  PetscBool   orthogonal = sum->orthogonal;
-  const char *prefix;
-  PetscErrorCode ierr;
-
-
-  PetscFunctionBegin;
-  ierr = PetscSpaceGetDegree(space, &degree, NULL);CHKERRQ(ierr);
-  ierr = PetscSpaceSumGetNumSubspaces(space,&Ns);CHKERRQ(ierr);
-  ierr = PetscSpaceGetNumComponents(space,&Nc);CHKERRQ(ierr);
-  ierr = PetscObjectGetOptionsPrefix((PetscObject)space, &prefix);CHKERRQ(ierr);
-  ierr = PetscSpaceCreate(PetscObjectComm((PetscObject)space), subspace);CHKERRQ(ierr);
-  ierr = PetscSpaceSetType(*subspace, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
-  ierr = PetscSpaceSetNumVariables(*subspace, Nv);CHKERRQ(ierr);
-  if (orthogonal) {
-    if ((Nc % Ns) == 0) {
-      sNc = Nc/Ns;
-    } else {
-      /* We have to get creative here. */
-      sNc = PETSC_DEFAULT;
-    }
-  } else {
-    sNc = Nc;
-  }
-  ierr = PetscSpaceSetNumComponents(*subspace, sNc);CHKERRQ(ierr);
-  ierr = PetscSpaceSetDegree(*subspace, degree, PETSC_DETERMINE);CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)*subspace, prefix);CHKERRQ(ierr);
-  ierr = PetscObjectAppendOptionsPrefix((PetscObject)*subspace, "subspace_");CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOptionsObject,PetscSpace sp)
 {
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
@@ -65,13 +31,9 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   if (Ns != sum->numSumSpaces) {ierr = PetscSpaceSumSetNumSubspaces(sp,Ns);CHKERRQ(ierr);}
   for (i=0; i<Ns; ++i) {
     PetscSpace subspace;
-
     ierr = PetscSpaceSumGetSubspace(sp,i,&subspace);CHKERRQ(ierr);
     if (!subspace) {
-      char tprefix[128];
-      ierr = PetscSpaceSumCreateSubspace(sp,Nv,&subspace);CHKERRQ(ierr);
-      ierr = PetscSNPrintf(tprefix,128,"%d_",(int)i);CHKERRQ(ierr);
-      ierr = PetscObjectAppendOptionsPrefix((PetscObject)subspace,tprefix);CHKERRQ(ierr);
+      SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Must provide subspaces to be summed.\n");
     } else {
       ierr = PetscObjectReference((PetscObject)subspace);CHKERRQ(ierr);
     }
@@ -164,13 +126,12 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
     PetscSpace si;
     PetscInt   iDeg, iMaxDeg;
 
-    ierr = PetscSpaceSumGetSubspace(sp, i, &si);CHKERRQ(ierr);
-    ierr = PetscSpaceGetDegree(si, &iDeg, &iMaxDeg);CHKERRQ(ierr);
-    deg    = PetscMax(deg, iDeg);
-    /* maxDeg is tricky because the sumspace can end up containing a component that
-     * is of a degree larger than the max degree contained by any of the subspaces. Check with TIsaac at next meeting. I think our example was
-     * something like subspace 1 contains xy^2 and subspace 2 contains x^2y, then the sum (xy^2 + x^2y) is 1 degree higher.*/
-    maxDeg = PetscMax(maxDeg, iMaxDeg); 
+    ierr   = PetscSpaceSumGetSubspace(sp,i,&si);CHKERRQ(ierr);
+    ierr   = PetscSpaceGetDegree(si,&iDeg,&iMaxDeg);CHKERRQ(ierr);
+    /* The summed space could potentially contain a bigger space than any of its components. If this is the case the user will need to set override
+     * the degree using PetscSpaceSetDegree. */
+    deg    = PetscMax(deg,iDeg);
+    maxDeg = PetscMax(maxDeg,iMaxDeg);
   }
   sp->degree    = deg;
   sp->maxDegree = maxDeg;
@@ -292,6 +253,19 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
   if (H)           {ierr = DMRestoreWorkArray(dm, npoints*pdim*Nv*Nv, MPIU_REAL, &sH);CHKERRQ(ierr);}
   if (D || H)      {ierr = DMRestoreWorkArray(dm, npoints*pdim*Nv,    MPIU_REAL, &sD);CHKERRQ(ierr);}
   if (B || D || H) {ierr = DMRestoreWorkArray(dm, npoints*pdim,       MPIU_REAL, &sB);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscSpaceSumSetOrthogonal(PetscSpace sp, PetscBool orthogonal)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum *) sp->data;
+
+  PetscFunctionBegin;
+  if (sum->setupCalled) {
+    SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change orthogonality after setup called.\n");
+  }
+  sum->orthogonal = orthogonal;
+
   PetscFunctionReturn(0);
 }
 
@@ -493,6 +467,32 @@ PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Sum(PetscSpace sp)
 
 PETSC_EXTERN PetscErrorCode PetscSpaceCreateSum(PetscInt numSubspaces,const PetscSpace subspaces[],PetscBool orthogonal,PetscSpace *sumSpace)
 {
+  PetscInt i,Nv,Nc,sNc;
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  if (sumSpace){
+    ierr = PetscSpaceDestroy(sumSpace);CHKERRQ(ierr);
+  }
+  ierr = PetscSpaceCreate(PetscObjectComm((PetscObject)subspaces[0]),sumSpace);CHKERRQ(ierr);
+  ierr = PetscSpaceSetType(*sumSpace,PETSCSPACESUM);CHKERRQ(ierr);
+  ierr = PetscSpaceSumSetNumSubspaces(*sumSpace,numSubspaces);CHKERRQ(ierr);
+  ierr = PetscSpaceSumSetOrthogonal(*sumSpace,orthogonal);CHKERRQ(ierr);
+  Nc = 0;
+  for(i=0; i<numSubspaces; ++i){
+    ierr = PetscSpaceSumSetSubspace(*sumSpace,i,subspaces[i]);CHKERRQ(ierr);
+    ierr = PetscSpaceGetNumComponents(subspaces[i],&sNc);CHKERRQ(ierr);
+    if (orthogonal) 
+    {
+      Nc += sNc;
+    } else {
+      Nc = sNc;
+    }
+  }
+  ierr = PetscSpaceGetNumVariables(subspaces[0],&Nv);CHKERRQ(ierr);
+  ierr = PetscSpaceSetNumComponents(*sumSpace,Nc);CHKERRQ(ierr);
+  ierr = PetscSpaceSetNumVariables(*sumSpace,Nv);CHKERRQ(ierr);
+  ierr = PetscSpaceSetUp(*sumSpace);CHKERRQ(ierr);
+ 
   PetscFunctionReturn(0);
 }
