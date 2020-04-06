@@ -119,6 +119,7 @@ PetscErrorCode PetscQuadratureDuplicate(PetscQuadrature q, PetscQuadrature *r)
 @*/
 PetscErrorCode PetscQuadratureDestroy(PetscQuadrature *q)
 {
+  PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -128,6 +129,10 @@ PetscErrorCode PetscQuadratureDestroy(PetscQuadrature *q)
     *q = NULL;
     PetscFunctionReturn(0);
   }
+  for (i = 0; i < (*q)->numSubquads; i++) {
+    ierr = PetscQuadratureDestroy(&((*q)->subquads[i]));CHKERRQ(ierr);
+  }
+  ierr = PetscFree((*q)->subquads);CHKERRQ(ierr);
   ierr = PetscFree((*q)->points);CHKERRQ(ierr);
   ierr = PetscFree((*q)->weights);CHKERRQ(ierr);
   ierr = PetscHeaderDestroy(q);CHKERRQ(ierr);
@@ -1630,6 +1635,125 @@ PetscErrorCode PetscDTGaussLobattoLegendreQuadrature(PetscInt npoints,PetscGauss
 }
 
 /*@
+  PetscQuadratureCreateTensor - Create the tensor product of multiple quadratures
+
+  Collective on PetscQuadrature
+
+  Input Arguments:
++ numSubquads - the number of quadratures to take the tensor product of
+- subquads - the quadratures, which must all have the same number of components, either 0 or 1
+
+  Output Arguments:
+. tensorQuad - the tensor quadrature
+
+  Level: beginner
+
+  Notes: The dimension of the tensor quadrature is the sum of the sub dimensions; the number of points of the tensor
+  quadrature is the product of the subdimensions; the tensor order is fastest varying in the first argument, slowest
+  in the last.
+
+  The new quadrature will not take ownership of or use the array subquads after creation, so the user is responsible
+  for the array for destroying the subquads afterwards.
+
+.seealso: PetscQuadratureCreate(), PetscQuadratureGetData()
+@*/
+PetscErrorCode PetscQuadratureCreateTensor(PetscInt numSubquads, const PetscQuadrature subquads[], PetscQuadrature *tensorQuad)
+{
+  PetscInt         i, j, d, offset;
+  PetscInt         numquadsTrue;
+  PetscQuadrature *subquadsTrue, q;
+  PetscInt         numPoints;
+  PetscInt         dim;
+  PetscInt         Nc;
+  PetscInt         order;
+  PetscReal       *points;
+  PetscReal       *weights;
+  PetscInt         nprev, nrem;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  if (numSubquads < 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Invalid number of quadrature %D\n", numSubquads);
+  if (!numSubquads) {
+    *tensorQuad = NULL;
+    PetscFunctionReturn(0);
+  }
+  PetscValidHeaderSpecific(subquads[0], PETSCQUADRATURE_CLASSID, 2);
+  if (numSubquads == 1) {
+    ierr = PetscObjectReference((PetscObject)subquads[0]);CHKERRQ(ierr);
+    *tensorQuad = subquads[0];
+    PetscFunctionReturn(0);
+  }
+  Nc = subquads[0]->Nc;
+  if (Nc != 0 && Nc != 1) SETERRQ1(PetscObjectComm((PetscObject)subquads[0]), PETSC_ERR_ARG_OUTOFRANGE, "Can only create tensor quadratures for Nc == 0 or 1, not %D\n", Nc);
+  order = subquads[0]->order;
+  for (i = 1; i < numSubquads; i++) {
+    PetscValidHeaderSpecific(subquads[0], PETSCQUADRATURE_CLASSID, 2);
+    PetscCheckSameComm(subquads[0], 0, subquads[i], i);
+    if (subquads[i]->Nc != Nc) SETERRQ2(PetscObjectComm((PetscObject)subquads[0]), PETSC_ERR_ARG_INCOMP, "Cannot tensor quadratures with different number of components, %D and %D\n", Nc, subquads[i]->Nc);
+    order = PetscMin(order, subquads[i]->order);
+  }
+  /* flatten the tensor product */
+  for (i = 0, numquadsTrue = 0; i < numSubquads; i++) {
+    numquadsTrue += (subquads[i]->numSubquads) ? subquads[i]->numSubquads : 1;
+  }
+  ierr = PetscMalloc1(numquadsTrue, &subquadsTrue);CHKERRQ(ierr);
+  for (i = 0, offset = 0; i < numSubquads; i++) {
+    PetscInt nsub = subquads[i]->numSubquads;
+
+    if (nsub) {
+      for (j = 0; j < nsub; j++) {
+        ierr = PetscObjectReference((PetscObject)(subquads[i]->subquads[j]));CHKERRQ(ierr);
+        subquadsTrue[offset + j] = subquads[i]->subquads[j];
+      }
+      offset += nsub;
+    } else {
+      ierr = PetscObjectReference((PetscObject)(subquads[i]));CHKERRQ(ierr);
+      subquadsTrue[offset++] = subquads[i];
+    }
+  }
+  for (i = 0, dim = 0; i < numSubquads; i++) dim += subquads[i]->dim;
+  for (i = 0, numPoints = 1; i < numSubquads; i++) numPoints *= subquads[i]->numPoints;
+  ierr = PetscMalloc(numPoints * dim, &points);CHKERRQ(ierr);
+  if (Nc) {
+    ierr = PetscMalloc(numPoints, &weights);CHKERRQ(ierr);
+  }
+  for (i = 0, nprev = 1, nrem = numPoints, d = 0; i < numSubquads; i++) {
+    PetscInt Np = subquads[i]->numPoints;
+    PetscInt di = subquads[i]->dim;
+    PetscInt pt, k, l, m;
+    const PetscReal *pi = subquads[i]->points;
+    const PetscReal *wi = subquads[i]->weights;
+
+    nrem /= Np;
+    for (j = 0, pt = 0; j < nrem; j++) {
+      for (k = 0; k < Np; k++) {
+        for (l = 0; l < nprev; l++, pt++) {
+          for (m = 0; m < di; m++) {
+            points[pt * dim + d + m] = pi[k * di + m];
+          }
+        }
+      }
+    }
+    if (Nc) {
+      for (j = 0, pt = 0; j < nrem; j++) {
+        for (k = 0; k < Np; k++) {
+          for (l = 0; l < nprev; l++, pt++) {
+            points[pt] *= wi[k];
+          }
+        }
+      }
+    }
+    nprev *= Np;
+    d += di;
+  }
+  ierr = PetscQuadratureCreate(PetscObjectComm((PetscObject)subquads[0]), &q);CHKERRQ(ierr);
+  ierr = PetscQuadratureSetData(q, dim, Nc, numPoints, points, weights);CHKERRQ(ierr);
+  q->numSubquads = numquadsTrue;
+  q->subquads = subquadsTrue;
+  PetscFunctionReturn(0);
+}
+
+/*@
   PetscDTGaussTensorQuadrature - creates a tensor-product Gauss quadrature
 
   Not Collective
@@ -1638,7 +1762,7 @@ PetscErrorCode PetscDTGaussLobattoLegendreQuadrature(PetscInt npoints,PetscGauss
 + dim     - The spatial dimension
 . Nc      - The number of components
 . npoints - number of points in one dimension
-. a       - left end of interval (often-1)
+. a       - left end of interval (often -1)
 - b       - right end of interval (often +1)
 
   Output Argument:
@@ -1650,63 +1774,27 @@ PetscErrorCode PetscDTGaussLobattoLegendreQuadrature(PetscInt npoints,PetscGauss
 @*/
 PetscErrorCode PetscDTGaussTensorQuadrature(PetscInt dim, PetscInt Nc, PetscInt npoints, PetscReal a, PetscReal b, PetscQuadrature *q)
 {
-  PetscInt       totpoints = dim > 1 ? dim > 2 ? npoints*PetscSqr(npoints) : PetscSqr(npoints) : npoints, i, j, k, c;
-  PetscReal     *x, *w, *xw, *ww;
+  PetscInt       i, j;
+  PetscReal     *x, *w;
+  PetscQuadrature *subquads, subquad;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscMalloc1(totpoints*dim,&x);CHKERRQ(ierr);
-  ierr = PetscMalloc1(totpoints*Nc,&w);CHKERRQ(ierr);
-  /* Set up the Golub-Welsch system */
-  switch (dim) {
-  case 0:
-    ierr = PetscFree(x);CHKERRQ(ierr);
-    ierr = PetscFree(w);CHKERRQ(ierr);
-    ierr = PetscMalloc1(1, &x);CHKERRQ(ierr);
-    ierr = PetscMalloc1(Nc, &w);CHKERRQ(ierr);
-    x[0] = 0.0;
-    for (c = 0; c < Nc; ++c) w[c] = 1.0;
-    break;
-  case 1:
-    ierr = PetscMalloc1(npoints,&ww);CHKERRQ(ierr);
-    ierr = PetscDTGaussQuadrature(npoints, a, b, x, ww);CHKERRQ(ierr);
-    for (i = 0; i < npoints; ++i) for (c = 0; c < Nc; ++c) w[i*Nc+c] = ww[i];
-    ierr = PetscFree(ww);CHKERRQ(ierr);
-    break;
-  case 2:
-    ierr = PetscMalloc2(npoints,&xw,npoints,&ww);CHKERRQ(ierr);
-    ierr = PetscDTGaussQuadrature(npoints, a, b, xw, ww);CHKERRQ(ierr);
-    for (i = 0; i < npoints; ++i) {
-      for (j = 0; j < npoints; ++j) {
-        x[(i*npoints+j)*dim+0] = xw[i];
-        x[(i*npoints+j)*dim+1] = xw[j];
-        for (c = 0; c < Nc; ++c) w[(i*npoints+j)*Nc+c] = ww[i] * ww[j];
-      }
-    }
-    ierr = PetscFree2(xw,ww);CHKERRQ(ierr);
-    break;
-  case 3:
-    ierr = PetscMalloc2(npoints,&xw,npoints,&ww);CHKERRQ(ierr);
-    ierr = PetscDTGaussQuadrature(npoints, a, b, xw, ww);CHKERRQ(ierr);
-    for (i = 0; i < npoints; ++i) {
-      for (j = 0; j < npoints; ++j) {
-        for (k = 0; k < npoints; ++k) {
-          x[((i*npoints+j)*npoints+k)*dim+0] = xw[i];
-          x[((i*npoints+j)*npoints+k)*dim+1] = xw[j];
-          x[((i*npoints+j)*npoints+k)*dim+2] = xw[k];
-          for (c = 0; c < Nc; ++c) w[((i*npoints+j)*npoints+k)*Nc+c] = ww[i] * ww[j] * ww[k];
-        }
-      }
-    }
-    ierr = PetscFree2(xw,ww);CHKERRQ(ierr);
-    break;
-  default:
-    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Cannot construct quadrature rule for dimension %d", dim);
+  ierr = PetscMalloc1(dim, &subquads);CHKERRQ(ierr);
+  ierr = PetscMalloc1(npoints,&x);CHKERRQ(ierr);
+  ierr = PetscMalloc1(npoints*Nc,&w);CHKERRQ(ierr);
+  ierr = PetscDTGaussQuadrature(npoints, a, b, x, &w[(Nc-1)*npoints]);CHKERRQ(ierr);
+  if (Nc > 1) {
+    for (i = 0; i < npoints; i++) for (j = 0; j < Nc; j++) w[i * Nc + j] = w[(Nc-1)*npoints + i];
   }
-  ierr = PetscQuadratureCreate(PETSC_COMM_SELF, q);CHKERRQ(ierr);
-  ierr = PetscQuadratureSetOrder(*q, 2*npoints-1);CHKERRQ(ierr);
-  ierr = PetscQuadratureSetData(*q, dim, Nc, totpoints, x, w);CHKERRQ(ierr);
+  ierr = PetscQuadratureCreate(PETSC_COMM_SELF, &subquad);CHKERRQ(ierr);
+  ierr = PetscQuadratureSetData(subquad, dim, Nc, npoints, x, w);CHKERRQ(ierr);
+  ierr = PetscQuadratureSetOrder(subquad, 2*npoints-1);CHKERRQ(ierr);
+  for (i = 0; i < dim; i++) subquads[i] = subquad;
+  ierr = PetscQuadratureCreateTensor(dim, subquads, q);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)*q,"GaussTensor");CHKERRQ(ierr);
+  ierr = PetscFree(subquads);CHKERRQ(ierr);
+  ierr = PetscQuadratureDestroy(&subquad);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

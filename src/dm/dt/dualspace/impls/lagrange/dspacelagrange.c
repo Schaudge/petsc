@@ -1017,7 +1017,7 @@ static PetscErrorCode PetscDualSpaceCreateEdgeSubspace_Lagrange(PetscDualSpace s
 }
 
 /* just the points, weights aren't handled */
-static PetscErrorCode PetscQuadratureCreateTensor(PetscQuadrature trace, PetscQuadrature fiber, PetscQuadrature *product)
+static PetscErrorCode PetscQuadratureCreateTensor_Lagrange(PetscQuadrature trace, PetscQuadrature fiber, PetscQuadrature *product)
 {
   PetscInt         dimTrace, dimFiber;
   PetscInt         numPointsTrace, numPointsFiber;
@@ -2287,7 +2287,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
       ierr = PetscDualSpaceGetInteriorData(trace, &intNodesTrace, &intMatTrace);CHKERRQ(ierr);
       ierr = PetscDualSpaceGetInteriorData(fiber, &intNodesFiber, &intMatFiber);CHKERRQ(ierr);
       if (intNodesTrace && intNodesFiber) {
-        ierr = PetscQuadratureCreateTensor(intNodesTrace, intNodesFiber, &intNodes);CHKERRQ(ierr);
+        ierr = PetscQuadratureCreateTensor_Lagrange(intNodesTrace, intNodesFiber, &intNodes);CHKERRQ(ierr);
         ierr = MatTensorAltV(intMatTrace, intMatFiber, dim-1, formDegree, 1, 0, &intMat);CHKERRQ(ierr);
         ierr = PetscLagNodeIndicesTensor(tracel->intNodeIndices, dim - 1, formDegree, fiberl->intNodeIndices, 1, 0, &intNodeIndices);CHKERRQ(ierr);
       }
@@ -2316,7 +2316,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
       ierr = PetscDualSpaceGetInteriorData(trace, &intNodesTrace2, &intMatTrace);CHKERRQ(ierr);
       ierr = PetscDualSpaceGetInteriorData(fiber, &intNodesFiber2, &intMatFiber);CHKERRQ(ierr);
       if (intNodesTrace2 && intNodesFiber2) {
-        ierr = PetscQuadratureCreateTensor(intNodesTrace2, intNodesFiber2, &intNodes2);CHKERRQ(ierr);
+        ierr = PetscQuadratureCreateTensor_Lagrange(intNodesTrace2, intNodesFiber2, &intNodes2);CHKERRQ(ierr);
         ierr = MatTensorAltV(intMatTrace, intMatFiber, dim-1, traceDegree, 1, fiberDegree, &intMat2);CHKERRQ(ierr);
         ierr = PetscLagNodeIndicesTensor(tracel->intNodeIndices, dim - 1, traceDegree, fiberl->intNodeIndices, 1, fiberDegree, &intNodeIndices2);CHKERRQ(ierr);
         if (!intMat) {
