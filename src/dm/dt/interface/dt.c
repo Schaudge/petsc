@@ -1713,9 +1713,11 @@ PetscErrorCode PetscQuadratureCreateTensor(PetscInt numSubquads, const PetscQuad
   }
   for (i = 0, dim = 0; i < numSubquads; i++) dim += subquads[i]->dim;
   for (i = 0, numPoints = 1; i < numSubquads; i++) numPoints *= subquads[i]->numPoints;
-  ierr = PetscMalloc(numPoints * dim, &points);CHKERRQ(ierr);
+  ierr = PetscMalloc1(numPoints * dim, &points);CHKERRQ(ierr);
   if (Nc) {
-    ierr = PetscMalloc(numPoints, &weights);CHKERRQ(ierr);
+    ierr = PetscMalloc1(numPoints, &weights);CHKERRQ(ierr);
+  } else {
+    weights = NULL;
   }
   for (i = 0, nprev = 1, nrem = numPoints, d = 0; i < numSubquads; i++) {
     PetscInt Np = subquads[i]->numPoints;
@@ -1738,7 +1740,7 @@ PetscErrorCode PetscQuadratureCreateTensor(PetscInt numSubquads, const PetscQuad
       for (j = 0, pt = 0; j < nrem; j++) {
         for (k = 0; k < Np; k++) {
           for (l = 0; l < nprev; l++, pt++) {
-            points[pt] *= wi[k];
+            weights[pt] *= wi[k];
           }
         }
       }
@@ -1750,6 +1752,7 @@ PetscErrorCode PetscQuadratureCreateTensor(PetscInt numSubquads, const PetscQuad
   ierr = PetscQuadratureSetData(q, dim, Nc, numPoints, points, weights);CHKERRQ(ierr);
   q->numSubquads = numquadsTrue;
   q->subquads = subquadsTrue;
+  *tensorQuad = q;
   PetscFunctionReturn(0);
 }
 

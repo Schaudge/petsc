@@ -1016,35 +1016,6 @@ static PetscErrorCode PetscDualSpaceCreateEdgeSubspace_Lagrange(PetscDualSpace s
   PetscFunctionReturn(0);
 }
 
-/* just the points, weights aren't handled */
-static PetscErrorCode PetscQuadratureCreateTensor_Lagrange(PetscQuadrature trace, PetscQuadrature fiber, PetscQuadrature *product)
-{
-  PetscInt         dimTrace, dimFiber;
-  PetscInt         numPointsTrace, numPointsFiber;
-  PetscInt         dim, numPoints;
-  const PetscReal *pointsTrace;
-  const PetscReal *pointsFiber;
-  PetscReal       *points;
-  PetscInt         i, j, k, p;
-  PetscErrorCode   ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscQuadratureGetData(trace, &dimTrace, NULL, &numPointsTrace, &pointsTrace, NULL);CHKERRQ(ierr);
-  ierr = PetscQuadratureGetData(fiber, &dimFiber, NULL, &numPointsFiber, &pointsFiber, NULL);CHKERRQ(ierr);
-  dim = dimTrace + dimFiber;
-  numPoints = numPointsFiber * numPointsTrace;
-  ierr = PetscMalloc1(numPoints * dim, &points);CHKERRQ(ierr);
-  for (p = 0, j = 0; j < numPointsFiber; j++) {
-    for (i = 0; i < numPointsTrace; i++, p++) {
-      for (k = 0; k < dimTrace; k++) points[p * dim +            k] = pointsTrace[i * dimTrace + k];
-      for (k = 0; k < dimFiber; k++) points[p * dim + dimTrace + k] = pointsFiber[j * dimFiber + k];
-    }
-  }
-  ierr = PetscQuadratureCreate(PETSC_COMM_SELF, product);CHKERRQ(ierr);
-  ierr = PetscQuadratureSetData(*product, dim, 0, numPoints, points, NULL);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 /* Kronecker tensor product where matrix is considered a matrix of k-forms, so that
  * the entries in the product matrix are wedge products of the entries in the original matrices */
 static PetscErrorCode MatTensorAltV(Mat trace, Mat fiber, PetscInt dimTrace, PetscInt kTrace, PetscInt dimFiber, PetscInt kFiber, Mat *product)
@@ -2287,7 +2258,11 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
       ierr = PetscDualSpaceGetInteriorData(trace, &intNodesTrace, &intMatTrace);CHKERRQ(ierr);
       ierr = PetscDualSpaceGetInteriorData(fiber, &intNodesFiber, &intMatFiber);CHKERRQ(ierr);
       if (intNodesTrace && intNodesFiber) {
-        ierr = PetscQuadratureCreateTensor_Lagrange(intNodesTrace, intNodesFiber, &intNodes);CHKERRQ(ierr);
+        PetscQuadrature qlist[2];
+
+        qlist[0] = intNodesTrace;
+        qlist[1] = intNodesFiber;
+        ierr = PetscQuadratureCreateTensor(2, qlist, &intNodes);CHKERRQ(ierr);
         ierr = MatTensorAltV(intMatTrace, intMatFiber, dim-1, formDegree, 1, 0, &intMat);CHKERRQ(ierr);
         ierr = PetscLagNodeIndicesTensor(tracel->intNodeIndices, dim - 1, formDegree, fiberl->intNodeIndices, 1, 0, &intNodeIndices);CHKERRQ(ierr);
       }
@@ -2316,7 +2291,11 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
       ierr = PetscDualSpaceGetInteriorData(trace, &intNodesTrace2, &intMatTrace);CHKERRQ(ierr);
       ierr = PetscDualSpaceGetInteriorData(fiber, &intNodesFiber2, &intMatFiber);CHKERRQ(ierr);
       if (intNodesTrace2 && intNodesFiber2) {
-        ierr = PetscQuadratureCreateTensor_Lagrange(intNodesTrace2, intNodesFiber2, &intNodes2);CHKERRQ(ierr);
+        PetscQuadrature qlist[2];
+
+        qlist[0] = intNodesTrace2;
+        qlist[1] = intNodesFiber2;
+        ierr = PetscQuadratureCreateTensor(2, qlist, &intNodes2);CHKERRQ(ierr);
         ierr = MatTensorAltV(intMatTrace, intMatFiber, dim-1, traceDegree, 1, fiberDegree, &intMat2);CHKERRQ(ierr);
         ierr = PetscLagNodeIndicesTensor(tracel->intNodeIndices, dim - 1, traceDegree, fiberl->intNodeIndices, 1, fiberDegree, &intNodeIndices2);CHKERRQ(ierr);
         if (!intMat) {
