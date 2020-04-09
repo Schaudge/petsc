@@ -35,6 +35,7 @@ make_log_*
 test_log_*
 src/python/*
 *.o
+f90module*.f90
 *.pyc
 *~
 *.orig
