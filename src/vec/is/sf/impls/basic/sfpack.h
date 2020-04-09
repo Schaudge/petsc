@@ -135,6 +135,7 @@ struct _n_PetscSFLink {
 
   PetscInt     maxResidentThreadsPerGPU;     /* It is a copy from SF for convenience */
   cudaStream_t stream;                       /* Stream to launch pack/unapck kernels if not using the default stream */
+  cudaEvent_t  event;                        /* Event to indicate the pack kernel is finished */
 #endif
   PetscMPIInt  tag;                          /* Each link has a tag so we can perform multiple SF ops at the same time */
   MPI_Datatype unit;                         /* The MPI datatype this PetscSFLink is built for */
@@ -371,10 +372,11 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterPackRootData(PetscS
   if (sf->use_stream_aware_mpi || link->rootmtype != PETSC_MEMTYPE_DEVICE || !bas->rootbuflen[PETSCSF_REMOTE]) PetscFunctionReturn(0);
   /* If we called a packing kernel || we async-copied rootdata from device to host || No cudaDeviceSynchronize was called (since default stream is assumed) */
   if (!link->rootdirect[PETSCSF_REMOTE] || !sf->use_gpu_aware_mpi || sf->use_default_stream) {
-    cudaError_t cerr = cudaStreamSynchronize(link->stream);CHKERRCUDA(cerr);
+    cudaError_t cerr = cudaEventSynchronize(link->event);CHKERRCUDA(cerr);
   }
   PetscFunctionReturn(0);
 }
+
 PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterPackLeafData(PetscSF sf,PetscSFLink link)
 {
   PetscFunctionBegin;
@@ -411,6 +413,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterUnpackRootData(Pets
   }
   PetscFunctionReturn(0);
 }
+
 PETSC_STATIC_INLINE PetscErrorCode PetscSFLinkSyncStreamAfterUnpackLeafData(PetscSF sf,PetscSFLink link)
 {
   PetscBool      host2host = (link->rootmtype == PETSC_MEMTYPE_HOST) && (link->leafmtype == PETSC_MEMTYPE_HOST) ? PETSC_TRUE : PETSC_FALSE;

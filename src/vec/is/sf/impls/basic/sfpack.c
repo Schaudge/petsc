@@ -762,6 +762,9 @@ PetscErrorCode PetscSFLinkDestroy(PetscSF sf,PetscSFLink *avail)
       ierr = PetscFree(link->rootbuf_alloc[i][PETSC_MEMTYPE_HOST]);CHKERRQ(ierr);
       ierr = PetscFree(link->leafbuf_alloc[i][PETSC_MEMTYPE_HOST]);CHKERRQ(ierr);
     }
+#if defined(PETSC_HAVE_CUDA)
+    if (link->event) {cudaError_t cerr = cudaEventDestroy(link->event);CHKERRCUDA(cerr); link->event = NULL;}
+#endif
     ierr = PetscFree(link);CHKERRQ(ierr);
   }
   *avail = NULL;
@@ -1085,7 +1088,6 @@ PetscErrorCode PetscSFLinkPackRootData(PetscSF sf,PetscSFLink link,PetscSFScope 
   }
   if (scope == PETSCSF_REMOTE) {
     ierr = PetscSFLinkCopyRootBufferInCaseNotUseGpuAwareMPI(sf,link,PETSC_TRUE/*device2host*/);CHKERRQ(ierr);
-    ierr = PetscSFLinkSyncStreamAfterPackRootData(sf,link);CHKERRQ(ierr);
   }
   ierr = PetscLogEventEnd(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
