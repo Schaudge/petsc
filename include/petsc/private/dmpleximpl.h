@@ -209,6 +209,9 @@ typedef struct {
   PetscObjectState     celltypeState;     /* State of celltype label, so that we can determine if a user changes it */
   IS                   globalVertexNumbers;
   IS                   globalCellNumbers;
+  IS                  *globalDepthNumbers;
+  PetscInt             maxDepthGenerated;
+  PetscInt            *depthNumGenerated;
 
   /* Constraints */
   PetscSection         anchorSection;      /* maps constrained points to anchor points */

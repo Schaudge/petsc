@@ -1337,6 +1337,7 @@ PetscErrorCode DMLoad_Plex(DM dm, PetscViewer viewer)
 PetscErrorCode DMDestroy_Plex(DM dm)
 {
   DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -1358,6 +1359,11 @@ PetscErrorCode DMDestroy_Plex(DM dm)
   ierr = ISDestroy(&mesh->subpointIS);CHKERRQ(ierr);
   ierr = ISDestroy(&mesh->globalVertexNumbers);CHKERRQ(ierr);
   ierr = ISDestroy(&mesh->globalCellNumbers);CHKERRQ(ierr);
+  for(i = 0; i < mesh->maxDepthGenerated; i++) {
+    ierr = ISDestroy(&mesh->globalDepthNumbers[i]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree(mesh->globalDepthNumbers);CHKERRQ(ierr);
+  ierr = PetscFree(mesh->depthNumGenerated);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&mesh->anchorSection);CHKERRQ(ierr);
   ierr = ISDestroy(&mesh->anchorIS);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&mesh->parentSection);CHKERRQ(ierr);
@@ -6818,13 +6824,41 @@ PetscErrorCode DMPlexCreateNumbering_Plex(DM dm, PetscInt pStart, PetscInt pEnd,
   }
   ierr = ISCreateGeneral(PetscObjectComm((PetscObject) dm), pEnd - pStart, numbers, PETSC_OWN_POINTER, numbering);CHKERRQ(ierr);
   if (globalSize) {
-    PetscLayout layout;
-    ierr = PetscSectionGetPointLayout(PetscObjectComm((PetscObject) dm), globalSection, &layout);CHKERRQ(ierr);
-    ierr = PetscLayoutGetSize(layout, globalSize);CHKERRQ(ierr);
-    ierr = PetscLayoutDestroy(&layout);CHKERRQ(ierr);
+    PetscInt  max;
+
+    ierr = ISGetMinMax(*numbering, NULL, &max);CHKERRQ(ierr);
+    max++;
+    ierr = MPI_Allreduce(&max, globalSize, 1, MPIU_INT, MPI_MAX, PetscObjectComm((PetscObject) dm));CHKERRQ(ierr);
   }
   ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&globalSection);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexGetDepthNumbering(DM dm, PetscInt depth, IS *globalDepthNumbers, PetscInt *globalSize)
+{
+  DM_Plex       *mesh = (DM_Plex*) dm->data;
+  PetscInt       maxDepth;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMPlexGetDepth(dm, &maxDepth);CHKERRQ(ierr);
+#if defined(PETSC_USE_DEBUG)
+  if (depth > maxDepth) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Depth requested %D > DM depth %D\n", depth, maxDepth);
+#endif
+  if (!mesh->globalDepthNumbers) {
+    ierr = PetscMalloc1(maxDepth+1, &mesh->globalDepthNumbers);CHKERRQ(ierr);
+    ierr = PetscCalloc1(maxDepth+1, &mesh->depthNumGenerated);CHKERRQ(ierr);
+    mesh->maxDepthGenerated = maxDepth+1;
+  }
+  if (!mesh->depthNumGenerated[depth]) {
+    PetscInt  vStart, vEnd;
+
+    ierr = DMPlexGetDepthStratum(dm, depth, &vStart, &vEnd);CHKERRQ(ierr);
+    ierr = DMPlexCreateNumbering_Plex(dm, vStart, vEnd, 0, globalSize, dm->sf, &mesh->globalDepthNumbers[depth]);CHKERRQ(ierr);
+    mesh->depthNumGenerated[depth] = 1;
+  }
+  *globalDepthNumbers = mesh->globalDepthNumbers[depth];
   PetscFunctionReturn(0);
 }
 
@@ -7630,6 +7664,188 @@ PetscErrorCode DMPlexCheckCellShape(DM dm, PetscBool output, PetscReal condLimit
       ierr = DMPlexCheckCellShape(dmCoarse,output,condLimit);CHKERRQ(ierr);
     }
   }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMPlexCreateBinsOnRoot_Internal(MPI_Comm comm, PetscScalar local, PetscInt root, PetscInt *numBins, PetscInt **bins, PetscScalar **binnedArray)
+{
+  PetscMPIInt     rank, size;
+  PetscScalar     *rootArray;
+  PetscInt        i;
+  Vec             vecPerProcess;
+  VecTagger       tagger;
+  VecTaggerBox    *box;
+  IS              PerProcessTaggedIS;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = PetscMalloc1(size, &rootArray);CHKERRQ(ierr);
+  }
+  ierr = MPI_Gather(&local, 1, MPIU_SCALAR, rootArray, 1, MPIU_SCALAR, root, comm);CHKERRQ(ierr);
+  if (rank) PetscFunctionReturn(0);
+  ierr = PetscSortReal(size, rootArray);CHKERRQ(ierr);
+  ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, size, rootArray, &vecPerProcess);CHKERRQ(ierr);
+  ierr = VecSetUp(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vecPerProcess);CHKERRQ(ierr);
+  ierr = VecUniqueEntries(vecPerProcess, numBins, binnedArray);CHKERRQ(ierr);
+  ierr = PetscCalloc1(*numBins, bins);CHKERRQ(ierr);
+  for (i = 0; i < *numBins; ++i) {
+    ierr = VecTaggerCreate(PETSC_COMM_SELF, &tagger);CHKERRQ(ierr);
+    ierr = VecTaggerSetType(tagger, VECTAGGERABSOLUTE);CHKERRQ(ierr);
+    ierr = PetscMalloc1(1, &box);CHKERRQ(ierr);
+    box->min = (*binnedArray)[i]-0.5;
+    box->max = (*binnedArray)[i]+0.5;
+    ierr = VecTaggerAbsoluteSetBox(tagger, box);CHKERRQ(ierr);
+    ierr = VecTaggerSetUp(tagger);CHKERRQ(ierr);
+    ierr = PetscFree(box);CHKERRQ(ierr);
+    ierr = VecTaggerComputeIS(tagger, vecPerProcess, &PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = ISGetSize(PerProcessTaggedIS, &((*bins)[i]));CHKERRQ(ierr);
+    ierr = ISDestroy(&PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);
+  }
+  ierr = VecDestroy(&vecPerProcess);CHKERRQ(ierr);
+  ierr = PetscFree(rootArray);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexDiagnosticsViewFromOptions(DM dm)
+{
+  MPI_Comm                comm;
+  PetscMPIInt             rank;
+  PetscViewer             viewer;
+  PetscInt                i, j, depth, dim, maxOverlap, cellHeight;
+  PetscInt                *pmax, *pmaxloc, *numBins, **bins;
+  PetscScalar             **binnedArray;
+  PetscBool               flg = PETSC_FALSE, dmOverlapped = PETSC_FALSE, dmDistributed, dmBalanced, dmRefinementUniform;
+  char                    *interpolationStatus;
+  DMPlexInterpolatedFlag  interpolated;
+  PetscPartitioner        part;
+  PetscPartitionerType    ptype;
+  const char              *name;
+  PetscErrorCode          ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscOptionsGetBool(NULL, NULL, "-dm_plex_diagnostic_summary", &flg, NULL);CHKERRQ(ierr);
+  if (!flg) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+
+  /* MPI Comm Information */
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRQ(ierr);
+  ierr = PetscViewerCreate(comm, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);CHKERRQ(ierr);
+  ierr = PetscViewerSetUp(viewer);CHKERRQ(ierr);
+  ierr = PetscObjectPrintClassNamePrefixType((PetscObject)dm, viewer);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "\n");CHKERRQ(ierr);
+
+  /* Get General DMPlex Information */
+  ierr = PetscObjectGetName((PetscObject) dm, &name);CHKERRQ(ierr);
+  ierr = DMPlexIsDistributed(dm, &dmDistributed);CHKERRQ(ierr);
+  ierr = DMPlexGetOverlap(dm, &maxOverlap);CHKERRQ(ierr);
+  if (maxOverlap) dmOverlapped = PETSC_TRUE;
+  ierr = DMPlexIsInterpolatedCollective(dm, &interpolated);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(DMPlexInterpolatedFlags[interpolated], &interpolationStatus);CHKERRQ(ierr);
+  ierr = PetscStrtoupper(interpolationStatus);CHKERRQ(ierr);
+  ierr = DMPlexGetPartitioner(dm, &part);CHKERRQ(ierr);CHKERRQ(ierr);
+  ierr = PetscPartitionerGetType(part, &ptype);CHKERRQ(ierr);
+  ierr = DMPlexGetPartitionBalance(dm, &dmBalanced);CHKERRQ(ierr);
+  ierr = DMPlexGetRefinementUniform(dm, &dmRefinementUniform);CHKERRQ(ierr);
+
+  /* Global and Local Sizing */
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  if (dim > 3) {
+    ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
+    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Only available for meshes of dimension 3 or lower, not for mesh with dimension %d", dim);
+  }
+  ierr = DMPlexGetVTKCellHeight(dm, &cellHeight);CHKERRQ(ierr);
+  ierr = DMPlexGetDepth(dm, &depth);CHKERRQ(ierr);
+  ierr = PetscCalloc5(depth+1, &pmax, depth+1, &pmaxloc, depth+1, &numBins, depth+1, &bins, depth+1, &binnedArray);CHKERRQ(ierr);
+
+  for (i = 0; i <= depth; i++) {
+    IS              gdn;
+    const PetscInt  *idx;
+    PetscInt        j, nidx;
+
+    ierr = DMPlexGetDepthNumbering(dm, i, &gdn, &pmax[i]);CHKERRQ(ierr);
+    ierr = ISGetIndices(gdn, &idx);CHKERRQ(ierr);
+    ierr = ISGetLocalSize(gdn, &nidx);CHKERRQ(ierr);
+    for (j = 0; j < nidx; j++) {
+      if (idx[j] >= 0) pmaxloc[i]++;
+    }
+    ierr = ISRestoreIndices(gdn, &idx);CHKERRQ(ierr);
+    ierr = DMPlexCreateBinsOnRoot_Internal(comm, (PetscScalar) pmaxloc[i], 0, &numBins[i], &bins[i], &binnedArray[i]);CHKERRQ(ierr);
+  }
+
+  /* Mesh Information */
+  ierr = PetscViewerASCIIPrintf(viewer, "Interpolation Flag:       %s\n", interpolationStatus);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "Partitioner:              %s\n", ptype);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "Partition Balanced DM:    %s\n", dmBalanced ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "Regular Refinement DM:    %s\n", dmRefinementUniform ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "Overlapped DM:            %s\n", dmOverlapped ? "PETSC_TRUE *" : "PETSC_FALSE");CHKERRQ(ierr);
+  if (dmOverlapped) {
+    ierr = PetscViewerASCIIPrintf(viewer, "Max Overlap:              %D\n", maxOverlap);CHKERRQ(ierr);
+  }
+  ierr = PetscViewerASCIIPrintf(viewer, "Dim:                      %D\n", dim);CHKERRQ(ierr);
+
+  /* Various Diagnostic DMPlex Checks */
+  {
+    PetscBool  flg2 = PETSC_FALSE, all = PETSC_FALSE;
+    PetscBool  flg[7] = {PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, PETSC_FALSE};
+
+
+    ierr = PetscObjectOptionsBegin((PetscObject) dm);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-dm_plex_check_all", "Perform all checks", NULL, PETSC_FALSE, &all, &flg2);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-dm_plex_check_symmetry", "Check that the adjacency information in the mesh is symmetric", "DMPlexCheckSymmetry", PETSC_FALSE, &flg[0], &flg2);CHKERRQ(ierr);
+    if (all || (flg[0] && flg2)) {ierr = DMPlexCheckSymmetry(dm);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_skeleton", "Check that each cell has the correct number of vertices (only for homogeneous simplex or tensor meshes)", "DMPlexCheckSkeleton", PETSC_FALSE, &flg[1], &flg2);CHKERRQ(ierr);
+    if (all || (flg[1] && flg2)) {ierr = DMPlexCheckSkeleton(dm, cellHeight);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_faces", "Check that the faces of each cell give a vertex order this is consistent with what we expect from the cell type", "DMPlexCheckFaces", PETSC_FALSE, &flg[2], &flg2);CHKERRQ(ierr);
+    if (all || (flg[2] && flg2)) {ierr = DMPlexCheckFaces(dm, cellHeight);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_geometry", "Check that cells have positive volume", "DMPlexCheckGeometry", PETSC_FALSE, &flg[3], &flg2);CHKERRQ(ierr);
+    if (all || (flg[3] && flg2)) {ierr = DMPlexCheckGeometry(dm);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_pointsf", "Check some necessary conditions for PointSF", "DMPlexCheckPointSF", PETSC_FALSE, &flg[4], &flg2);CHKERRQ(ierr);
+    if (all || (flg[4] && flg2)) {ierr = DMPlexCheckPointSF(dm);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_interface_cones", "Check points on inter-partition interfaces have conforming order of cone points", "DMPlexCheckInterfaceCones", PETSC_FALSE, &flg[5], &flg2);CHKERRQ(ierr);
+    if (all || (flg[5] && flg2)) {ierr = DMPlexCheckInterfaceCones(dm);CHKERRQ(ierr);}
+    ierr = PetscOptionsBool("-dm_plex_check_cell_shape", "Check cell shape", "DMPlexCheckCellShape", PETSC_FALSE, &flg[6], &flg2);CHKERRQ(ierr);
+    if (all || (flg[6] && flg2)) {ierr = DMPlexCheckCellShape(dm, flg[6], PETSC_DETERMINE);CHKERRQ(ierr);}
+    ierr = PetscOptionsEnd();CHKERRQ(ierr);
+
+    /* Autotest Output      */
+    ierr = PetscViewerASCIIPrintf(viewer, "\nCheck Symmetry OK:        %s\n", flg[0] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Check Skeleton OK:        %s\n", flg[1] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Check Faces OK:           %s\n", flg[2] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Check Geometry OK:        %s\n", flg[3] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Check PointSF OK:         %s\n", flg[4] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Check Interface Cones OK: %s\n", flg[5] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Check Cell Shape OK:      %s\n", flg[6] || all ? "PETSC_TRUE *" : "SKIPPED_NOT_REQUESTED");CHKERRQ(ierr);
+  }
+
+  /* Parallel Information */
+  if (!rank) {
+    for (i = 0; i <= depth; i++) {
+      ierr = PetscViewerASCIIPrintf(viewer, "\nDepth %D-Points/Rank\n", i);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"total: %D\nmin:   %.0f\nmax:   %.0f\n", pmax[i], binnedArray[i][0], binnedArray[i][numBins[i]-1]);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "points/rank - num ranks\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
+      for (j = 0; j < numBins[i]; j++) {
+        ierr = PetscViewerASCIIPrintf(viewer, "%5.0f - %D\n", binnedArray[i][j], bins[i][j]);CHKERRQ(ierr);
+      }
+      ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
+    }
+  }
+  ierr = PetscFree(numBins);CHKERRQ(ierr);
+  for (i = 0; i < depth+1; i++) {
+    ierr = PetscFree2(bins[i], binnedArray[i]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree4(pmax, pmaxloc, bins, binnedArray);CHKERRQ(ierr);
+  ierr = PetscFree(interpolationStatus);CHKERRQ(ierr);
+  ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
