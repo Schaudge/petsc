@@ -4,7 +4,7 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
 {
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
   PetscInt       Ns,Nc,Nv,deg,i;
-  PetscBool      orthogonal = PETSC_FALSE;
+  PetscBool      orthogonal = PETSC_TRUE;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -13,13 +13,6 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   ierr = PetscSpaceGetNumComponents(sp,&Nc);CHKERRQ(ierr);
   ierr = PetscSpaceSumGetNumSubspaces(sp,&Ns);CHKERRQ(ierr);
   ierr = PetscSpaceGetDegree(sp,&deg,NULL);CHKERRQ(ierr);
-  if (Ns > 1) {
-    PetscSpace s0;
-    PetscInt   sNc;
-    ierr = PetscSpaceSumGetSubspace(sp,0,&s0);CHKERRQ(ierr);
-    ierr = PetscSpaceGetNumComponents(s0,&sNc);CHKERRQ(ierr);
-    if (sNc != Nc) orthogonal = PETSC_TRUE;
-  }
   Ns   = (Ns == PETSC_DEFAULT) ? 1 : Ns;
   ierr = PetscOptionsHead(PetscOptionsObject,"PetscSpace sum options");CHKERRQ(ierr);
   ierr = PetscOptionsBoundedInt("-petscspace_sum_spaces","The number of subspaces","PetscSpaceSumSetNumSubspaces",Ns,&Ns,NULL,

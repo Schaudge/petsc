@@ -3,7 +3,7 @@ static char help[] = "Tests PetscSpace_Sum.\n\n";
 #include <petscfe.h>
 int main(int argc,char **argv)
 {
-  PetscSpace P,S1,S2,*SpArr,P2;
+  PetscSpace P,S1,S2,*SpArr,P2,P3;
   PetscInt Ns = 2;
   PetscInt Nc = 1;
   PetscInt Nv = 1;
@@ -48,7 +48,7 @@ int main(int argc,char **argv)
   PetscSpaceDestroy(&P2);
   PetscSpaceDestroy(&SpArr[1]);
   PetscSpaceDestroy(&SpArr[0]);
-  PetscSpaceDestroy(SpArr); 
+  PetscFree(SpArr); 
   PetscSpaceDestroy(&P);
   PetscSpaceDestroy(&S2);
   PetscSpaceDestroy(&S1);
