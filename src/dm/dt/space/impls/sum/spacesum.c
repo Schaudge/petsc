@@ -5,6 +5,7 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
   PetscInt       Ns,Nc,Nv,deg,i;
   PetscBool      orthogonal = PETSC_TRUE;
+  const char *prefix;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -22,11 +23,18 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   if (Ns < 0 || (Nv > 0 && Ns == 0)) SETERRQ1(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Cannot have a sum space of %D spaces\n",Ns);
   if (Ns != sum->numSumSpaces) {ierr = PetscSpaceSumSetNumSubspaces(sp,Ns);CHKERRQ(ierr);}
+  ierr = PetscObjectGetOptionsPrefix((PetscObject)sp, &prefix);CHKERRQ(ierr);
   for (i=0; i<Ns; ++i) {
     PetscSpace subspace;
     ierr = PetscSpaceSumGetSubspace(sp,i,&subspace);CHKERRQ(ierr);
     if (!subspace) {
-      SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Must provide subspaces to be summed.\n");
+      char subspacePrefix[256];
+      ierr = PetscSpaceCreate(PetscObjectComm((PetscObject)sp),&subspace);CHKERRQ(ierr);
+      ierr = PetscObjectSetOptionsPrefix((PetscObject)subspace, prefix);CHKERRQ(ierr);
+      /* Will break if nSubspaces > 9, need a better length */
+      ierr = PetscSNPrintf(subspacePrefix,256,"subspace%d_",i);CHKERRQ(ierr);
+      ierr = PetscObjectAppendOptionsPrefix((PetscObject)subspace,subspacePrefix);CHKERRQ(ierr);
+/*      SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Must provide subspaces to be summed.\n"); */
     } else {
       ierr = PetscObjectReference((PetscObject)subspace);CHKERRQ(ierr);
     }
@@ -93,8 +101,13 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
     /* We need to ensure that the subspaces have been created/setup before we call GetNumComponents, but we also need to be
      * able to determine how to create the subspaces since the number of subpace components will help us to determine if orthogonal. */
     PetscSpace s0, si;
+    /* Ensure all subspaces have been setup*/
+    for (i=0; i<Ns; ++i){
+      ierr = PetscSpaceSumGetSubspace(sp,i,&si);CHKERRQ(ierr);
+      ierr = PetscSpaceSetUp(si);CHKERRQ(ierr);
+    }
     ierr = PetscSpaceSumGetSubspace(sp, 0, &s0);CHKERRQ(ierr);
-    ierr = PetscSpaceGetNumComponents(s0, &sNc);CHKERRQ(ierr); /* ex8 Error Here.*/
+    ierr = PetscSpaceGetNumComponents(s0, &sNc);CHKERRQ(ierr);
     if (sNc == Nc) orthogonal = PETSC_FALSE;
     if (orthogonal) {
       sum_Nc = sNc;

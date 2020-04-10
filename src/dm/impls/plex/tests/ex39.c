@@ -665,4 +665,52 @@ int main(int argc,char **argv)
     test:
       suffix: sinusoidal_skew_perturb
       args: -sol_form sinusoidal -mesh_transform skew_perturb
+
+  testset:
+    suffix: 2d_sumspace
+    requires: triangle
+    args: -dim 2 \
+      -simplex true \
+      -divErr_petscspace_degree 1 \
+      -divErr_petscdualspace_lagrange_continuity false \
+      -dm_refine 0 \
+      -snes_error_if_not_converged \
+      -ksp_rtol 1e-10 \
+      -ksp_error_if_not_converged \
+      -pc_type fieldsplit\
+      -pc_fieldsplit_detect_saddle_point\
+      -pc_fieldsplit_type schur\
+      -pc_fieldsplit_schur_precondition full
+    test:
+      suffix: linear_1
+      args: -sol_form linear -mesh_transform none\
+        -velocity_petscspace_type sum \
+        -velocity_petscspace_degree 1 \
+        -velocity_petscspace_variables 2 \
+        -velocity_petscspace_components 2 \
+        -velocity_petscspace_sum_spaces 1 \
+        -velocity_petscspace_sum_orthogonal true \
+        -velocity_petscdualspace_type bdm \
+        -velocity_subspace0_petscspace_type poly \
+        -velocity_subspace0_petscspace_degree 1 \
+        -velocity_subspace0_petscspace_variables 2 \
+        -velocity_subspace0_petscspace_components 2 
+    test:
+      suffix: linear_2
+      args: -sol_form linear -mesh_transform none\
+        -velocity_petscspace_type sum \
+        -velocity_petscspace_degree 1 \
+        -velocity_petscspace_variables 2 \
+        -velocity_petscspace_components 2 \
+        -velocity_petscspace_sum_spaces 2 \
+        -velocity_petscspace_sum_orthogonal true \
+        -velocity_petscdualspace_type bdm \
+        -velocity_subspace0_petscspace_type poly \
+        -velocity_subspace0_petscspace_degree 1 \
+        -velocity_subspace0_petscspace_variables 2 \
+        -velocity_subspace0_petscspace_components 1 \
+        -velocity_subspace1_petscspace_type poly \
+        -velocity_subspace1_petscspace_degree 1 \
+        -velocity_subspace1_petscspace_variables 2 \
+        -velocity_subspace1_petscspace_components 1 
 TEST*/
