@@ -238,7 +238,7 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
           for (i=0; i<spdim; ++i) {
             /* Could possibly save a few flops here by pre-computing common parts of the array indices instead of doing
              * all the multiplications on the fly. Micro-optimization?? */
-            if (B) B[(p*Nc + compoffset)*pdimfull + i+offset] += sB[(p*sNc+c)*spdim + i];
+            if (B) B[(p*pdimfull + i+offset)*Nc + compoffset] += sB[(p*spdim +i)*sNc + c];
             if (D || H) {
               for (v=0; v<Nv; ++v){
                 if (D) D[((p*Nc+compoffset)*Nv +v)*pdimfull + i + offset] +=sD[((p*sNc+c)*Nv +v)*spdim + i];
