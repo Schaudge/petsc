@@ -81,7 +81,7 @@
         <li><a href="../../publications/index.html">Applications/Publications</a></li>
         <li><a href="../../miscellaneous/index.html">Miscellaneous</a></li>
         <li><a href="../../miscellaneous/external.html">External Software</a></li>
-        <li><a href="../../developers/index.html">Developers Site</a></li>
+        <li><a href="https://docs.petsc.org/en/latest/developers/index.html">Developers Site</a></li>
       </ul>
     </div>
 
@@ -126,8 +126,14 @@
       <h4>DMPlex:</h4>
         <ul>
           <li>Add DMPlexInsertBoundaryValuesEssentialBdField() to insert boundary values using a field only supported on the boundary</li>
+          <li>Change DMPlexCreateSubpointIS() to DMPlexGetSubpointIS()</li>
         </ul>
       <h4>DT:</h4>
+        <ul>
+          <li>Add PetscDTJacobiNorm() for the weighted L2 norm of Jacobi polynomials</li>
+          <li>Add PetscDTJacobiEvalJet() and PetscDTPKDEvalJet() for evaluating the derivatives of orthogonal polynomials on the segment (Jacobi) and simplex (PKD)</li>
+          <li>Add PetscDTIndexToGradedOrder() and PetscDTGradedOrderToIndex() for indexing multivariate monomials and derivatives in a linear order</li>
+        </ul>
       <h4>PetscViewer:</h4>
       <h4>SYS:</h4>
       <h4>AO:</h4>
