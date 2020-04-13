@@ -3798,6 +3798,111 @@ PetscErrorCode  VecRestoreArray4dRead(Vec x,PetscInt m,PetscInt n,PetscInt p,Pet
   PetscFunctionReturn(0);
 }
 
+/*@
+   VecGhostUpdateBegin - Begins the vector scatter to update the vector from
+   local representation to global or global representation to local.
+
+   Neighbor-wise Collective on Vec
+
+   Input Parameters:
++  g - the vector (obtained with VecCreateGhost() or VecDuplicate())
+.  insertmode - one of ADD_VALUES, MAX_VALUES, MIN_VALUES or INSERT_VALUES
+-  scattermode - one of SCATTER_FORWARD or SCATTER_REVERSE
+
+   Notes:
+   Use the following to update the ghost regions with correct values from the owning process
+.vb
+       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
+       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
+.ve
+
+   Use the following to accumulate the ghost region values onto the owning processors
+.vb
+       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
+       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
+.ve
+
+   To accumulate the ghost region values onto the owning processors and then update
+   the ghost regions correctly, call the later followed by the former, i.e.,
+.vb
+       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
+       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
+       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
+       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
+.ve
+
+   Level: advanced
+
+   TODO: Make this work for compute engine vectors
+
+.seealso: VecCreateGhost(), VecGhostUpdateEnd(), VecGhostGetLocalForm(),
+          VecGhostRestoreLocalForm(),VecCreateGhostWithArray()
+
+@*/
+PetscErrorCode  VecGhostUpdateBegin(Vec g,InsertMode insertmode,ScatterMode scattermode)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
+  if (!x->ops->ghostupdatebegin) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_SUP,"Not supported by this vector type");
+  ierr = (*x->ops->ghostupdatebegin)(g,insertmode,scattermode);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+   VecGhostUpdateEnd - End the vector scatter to update the vector from
+   local representation to global or global representation to local.
+
+   Neighbor-wise Collective on Vec
+
+   Input Parameters:
++  g - the vector (obtained with VecCreateGhost() or VecDuplicate())
+.  insertmode - one of ADD_VALUES, MAX_VALUES, MIN_VALUES or INSERT_VALUES
+-  scattermode - one of SCATTER_FORWARD or SCATTER_REVERSE
+
+   Notes:
+
+   Use the following to update the ghost regions with correct values from the owning process
+.vb
+       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
+       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
+.ve
+
+   Use the following to accumulate the ghost region values onto the owning processors
+.vb
+       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
+       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
+.ve
+
+   To accumulate the ghost region values onto the owning processors and then update
+   the ghost regions correctly, call the later followed by the former, i.e.,
+.vb
+       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
+       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
+       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
+       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
+.ve
+
+   Level: advanced
+
+   TODO: Make this work for compute engine vectors
+
+.seealso: VecCreateGhost(), VecGhostUpdateBegin(), VecGhostGetLocalForm(),
+          VecGhostRestoreLocalForm(),VecCreateGhostWithArray()
+
+@*/
+PetscErrorCode  VecGhostUpdateEnd(Vec g,InsertMode insertmode,ScatterMode scattermode)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
+  if (!x->ops->ghostupdateend) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_SUP,"Not supported by this vector type");
+  ierr = (*x->ops->ghostupdateend)(g,insertmode,scattermode);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 #if defined(PETSC_USE_DEBUG)
 
 /*@

@@ -96,6 +96,8 @@ struct _VecOps {
   PetscErrorCode (*pintocpu)(Vec,PetscBool);
   PetscErrorCode (*getarraywrite)(Vec,PetscScalar**);
   PetscErrorCode (*restorearraywrite)(Vec,PetscScalar**);
+  PetscErrorCode (*ghostupdatebegin)(Vec,InsertMode,ScatterMode);
+  PetscErrorCode (*ghostupdateend)(Vec,InsertMode,ScatterMode);
 };
 
 /*

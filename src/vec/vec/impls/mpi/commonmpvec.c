@@ -162,128 +162,34 @@ PetscErrorCode  VecGhostRestoreLocalForm(Vec g,Vec *l)
   PetscFunctionReturn(0);
 }
 
-/*@
-   VecGhostUpdateBegin - Begins the vector scatter to update the vector from
-   local representation to global or global representation to local.
-
-   Neighbor-wise Collective on Vec
-
-   Input Parameters:
-+  g - the vector (obtained with VecCreateGhost() or VecDuplicate())
-.  insertmode - one of ADD_VALUES, MAX_VALUES, MIN_VALUES or INSERT_VALUES
--  scattermode - one of SCATTER_FORWARD or SCATTER_REVERSE
-
-   Notes:
-   Use the following to update the ghost regions with correct values from the owning process
-.vb
-       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
-       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
-.ve
-
-   Use the following to accumulate the ghost region values onto the owning processors
-.vb
-       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
-       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
-.ve
-
-   To accumulate the ghost region values onto the owning processors and then update
-   the ghost regions correctly, call the later followed by the former, i.e.,
-.vb
-       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
-       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
-       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
-       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
-.ve
-
-   Level: advanced
-
-.seealso: VecCreateGhost(), VecGhostUpdateEnd(), VecGhostGetLocalForm(),
-          VecGhostRestoreLocalForm(),VecCreateGhostWithArray()
-
-@*/
-PetscErrorCode  VecGhostUpdateBegin(Vec g,InsertMode insertmode,ScatterMode scattermode)
+PetscErrorCode  VecGhostUpdateBegin_MPI(Vec g,InsertMode insertmode,ScatterMode scattermode)
 {
-  Vec_MPI        *v;
+  Vec_MPI        *v = (Vec_MPI*)g->data;
   PetscErrorCode ierr;
-  PetscBool      ismpi,isseq;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  ierr = PetscObjectTypeCompare((PetscObject)g,VECMPI,&ismpi);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)g,VECSEQ,&isseq);CHKERRQ(ierr);
-  if (ismpi) {
-    v = (Vec_MPI*)g->data;
-    if (!v->localrep) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
-    if (!v->localupdate) PetscFunctionReturn(0);
-    if (scattermode == SCATTER_REVERSE) {
-      ierr = VecScatterBegin(v->localupdate,v->localrep,g,insertmode,scattermode);CHKERRQ(ierr);
-    } else {
-      ierr = VecScatterBegin(v->localupdate,g,v->localrep,insertmode,scattermode);CHKERRQ(ierr);
-    }
-  } else if (isseq) {
-    /* Do nothing */
-  } else SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
+  if (!v->localrep) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
+  if (!v->localupdate) PetscFunctionReturn(0);
+  if (scattermode == SCATTER_REVERSE) {
+    ierr = VecScatterBegin(v->localupdate,v->localrep,g,insertmode,scattermode);CHKERRQ(ierr);
+  } else {
+    ierr = VecScatterBegin(v->localupdate,g,v->localrep,insertmode,scattermode);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
-/*@
-   VecGhostUpdateEnd - End the vector scatter to update the vector from
-   local representation to global or global representation to local.
-
-   Neighbor-wise Collective on Vec
-
-   Input Parameters:
-+  g - the vector (obtained with VecCreateGhost() or VecDuplicate())
-.  insertmode - one of ADD_VALUES, MAX_VALUES, MIN_VALUES or INSERT_VALUES
--  scattermode - one of SCATTER_FORWARD or SCATTER_REVERSE
-
-   Notes:
-
-   Use the following to update the ghost regions with correct values from the owning process
-.vb
-       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
-       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
-.ve
-
-   Use the following to accumulate the ghost region values onto the owning processors
-.vb
-       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
-       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
-.ve
-
-   To accumulate the ghost region values onto the owning processors and then update
-   the ghost regions correctly, call the later followed by the former, i.e.,
-.vb
-       VecGhostUpdateBegin(v,ADD_VALUES,SCATTER_REVERSE);
-       VecGhostUpdateEnd(v,ADD_VALUES,SCATTER_REVERSE);
-       VecGhostUpdateBegin(v,INSERT_VALUES,SCATTER_FORWARD);
-       VecGhostUpdateEnd(v,INSERT_VALUES,SCATTER_FORWARD);
-.ve
-
-   Level: advanced
-
-.seealso: VecCreateGhost(), VecGhostUpdateBegin(), VecGhostGetLocalForm(),
-          VecGhostRestoreLocalForm(),VecCreateGhostWithArray()
-
-@*/
-PetscErrorCode  VecGhostUpdateEnd(Vec g,InsertMode insertmode,ScatterMode scattermode)
+PetscErrorCode  VecGhostUpdateEnd_MPI(Vec g,InsertMode insertmode,ScatterMode scattermode)
 {
-  Vec_MPI        *v;
+  Vec_MPI        *v = (Vec_MPI*)g->data;
   PetscErrorCode ierr;
-  PetscBool      ismpi;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  ierr = PetscObjectTypeCompare((PetscObject)g,VECMPI,&ismpi);CHKERRQ(ierr);
-  if (ismpi) {
-    v = (Vec_MPI*)g->data;
-    if (!v->localrep) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
-    if (!v->localupdate) PetscFunctionReturn(0);
-    if (scattermode == SCATTER_REVERSE) {
-      ierr = VecScatterEnd(v->localupdate,v->localrep,g,insertmode,scattermode);CHKERRQ(ierr);
-    } else {
-      ierr = VecScatterEnd(v->localupdate,g,v->localrep,insertmode,scattermode);CHKERRQ(ierr);
-    }
+  if (!v->localrep) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Vector is not ghosted");
+  if (!v->localupdate) PetscFunctionReturn(0);
+  if (scattermode == SCATTER_REVERSE) {
+    ierr = VecScatterEnd(v->localupdate,v->localrep,g,insertmode,scattermode);CHKERRQ(ierr);
+  } else {
+    ierr = VecScatterEnd(v->localupdate,g,v->localrep,insertmode,scattermode);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

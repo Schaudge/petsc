@@ -749,6 +749,17 @@ PetscErrorCode VecSetValues_Seq(Vec xin,PetscInt ni,const PetscInt ix[],const Pe
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode  VecGhostUpdateBegin_Seq(Vec g,InsertMode insertmode,ScatterMode scattermode)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode  VecGhostUpdateEnd_Seq(Vec g,InsertMode insertmode,ScatterMode scattermode)
+{
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
 
 static struct _VecOps DvOps = {VecDuplicate_Seq, /* 1 */
                                VecDuplicateVecs_Default,
