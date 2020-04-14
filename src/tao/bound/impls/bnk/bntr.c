@@ -180,6 +180,7 @@ PetscErrorCode TaoSolve_BNTR(Tao tao)
         ierr = VecCopy(bnk->Xold, tao->solution);CHKERRQ(ierr);
         ierr = VecCopy(bnk->Gold, tao->gradient);CHKERRQ(ierr);
         ierr = VecCopy(bnk->unprojected_gradient_old, bnk->unprojected_gradient);CHKERRQ(ierr);
+        ierr = (*bnk->user_trusthook)(tao, prered, actred, bnk->user_trustctx);CHKERRQ(ierr);
         if (oldTrust == tao->trust) {
           /* Can't change the radius anymore so just terminate */
           tao->reason = TAO_DIVERGED_TR_REDUCTION;
@@ -236,5 +237,31 @@ PETSC_EXTERN PetscErrorCode TaoCreate_BNTR(Tao tao)
   
   bnk = (TAO_BNK *)tao->data;
   bnk->update_type = BNK_UPDATE_REDUCTION; /* trust region updates based on predicted/actual reduction */
+  PetscFunctionReturn(0);
+}
+
+/*------------------------------------------------------------*/
+/*@C
+TaoBNTRSetTrustRegionHookRoutine -- Set a user hook that is called when the trust region check rejects an update.
+
+  Input Parameters:
++ tao - Tao solver context
+. func - user callback
+- ctx - user context
+
+Level: advanced
+@*/
+PetscErrorCode TaoBNTRSetTrustRegionHookRoutine(Tao tao, PetscErrorCode (*func)(Tao, PetscReal, PetscReal, void*), void *ctx)
+{
+  TAO_BNK        *bnk = (TAO_BNK *)tao->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (func) {
+    bnk->user_trusthook = func;
+  }
+  if (ctx){
+    bnk->user_trustctx = ctx;
+  }
   PetscFunctionReturn(0);
 }

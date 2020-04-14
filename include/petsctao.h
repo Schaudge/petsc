@@ -340,6 +340,8 @@ typedef struct _n_TaoMonitorDrawCtx* TaoMonitorDrawCtx;
 PETSC_EXTERN PetscErrorCode TaoMonitorDrawCtxCreate(MPI_Comm,const char[],const char[],int,int,int,int,PetscInt,TaoMonitorDrawCtx*);
 PETSC_EXTERN PetscErrorCode TaoMonitorDrawCtxDestroy(TaoMonitorDrawCtx*);
 
+PETSC_EXTERN PetscErrorCode TaoBNTRSetTrustRegionHookRoutine(Tao, PetscErrorCode(*)(Tao,PetscReal,PetscReal,void*), void*);
+
 PETSC_EXTERN PetscErrorCode TaoBRGNGetSubsolver(Tao,Tao *);
 PETSC_EXTERN PetscErrorCode TaoBRGNSetRegularizerObjectiveAndGradientRoutine(Tao,PetscErrorCode (*)(Tao,Vec,PetscReal*,Vec,void*),void*);
 PETSC_EXTERN PetscErrorCode TaoBRGNSetRegularizerHessianRoutine(Tao,Mat,PetscErrorCode (*)(Tao,Vec,Mat,void*),void*);

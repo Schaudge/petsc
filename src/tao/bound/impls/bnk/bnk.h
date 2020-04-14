@@ -14,6 +14,8 @@ typedef struct {
      the application's Hessian */
   PetscErrorCode (*computehessian)(Tao);
   PetscErrorCode (*computestep)(Tao, PetscBool, KSPConvergedReason*, PetscInt*);
+  PetscErrorCode (*user_trusthook)(Tao, PetscReal, PetscReal, void*);
+  void* user_trustctx;
 
   /* Embedded TAOBNCG */
   Tao bncg;
