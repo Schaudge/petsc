@@ -254,7 +254,6 @@ Level: advanced
 PetscErrorCode TaoBNTRSetTrustRegionHookRoutine(Tao tao, PetscErrorCode (*func)(Tao, PetscReal, PetscReal, void*), void *ctx)
 {
   TAO_BNK        *bnk = (TAO_BNK *)tao->data;
-  PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (func) {

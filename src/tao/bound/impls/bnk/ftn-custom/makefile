@@ -3,7 +3,7 @@
 ALL: lib
 CFLAGS=
 FFLAGS=
-SOURCEC=zbnkf.c
+SOURCEC=zbntrf.c
 SOURCEF=
 SOURCEH=
 DIR=
