@@ -5,11 +5,12 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
   PetscInt       Ns,Nc,Nv,deg,i;
   PetscBool      orthogonal = PETSC_TRUE;
-  const char *prefix;
+  const char     *prefix;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = PetscSpaceGetNumVariables(sp,&Nv);CHKERRQ(ierr);
+  /* Here we query whether or not sp->Nv>0. Is this a stand in for asking whether or not PetscSpaceCreate PetscSpaceSetFromOptions have been called?*/
   if (!Nv) PetscFunctionReturn(0);
   ierr = PetscSpaceGetNumComponents(sp,&Nc);CHKERRQ(ierr);
   ierr = PetscSpaceSumGetNumSubspaces(sp,&Ns);CHKERRQ(ierr);
@@ -26,19 +27,20 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
   ierr = PetscObjectGetOptionsPrefix((PetscObject)sp, &prefix);CHKERRQ(ierr);
   for (i=0; i<Ns; ++i) {
     PetscSpace subspace;
+    PetscInt sNv;
     ierr = PetscSpaceSumGetSubspace(sp,i,&subspace);CHKERRQ(ierr);
     if (!subspace) {
       char subspacePrefix[256];
       ierr = PetscSpaceCreate(PetscObjectComm((PetscObject)sp),&subspace);CHKERRQ(ierr);
       ierr = PetscObjectSetOptionsPrefix((PetscObject)subspace, prefix);CHKERRQ(ierr);
-      /* Will break if nSubspaces > 9, need a better length */
       ierr = PetscSNPrintf(subspacePrefix,256,"subspace%d_",i);CHKERRQ(ierr);
       ierr = PetscObjectAppendOptionsPrefix((PetscObject)subspace,subspacePrefix);CHKERRQ(ierr);
-/*      SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Must provide subspaces to be summed.\n"); */
     } else {
       ierr = PetscObjectReference((PetscObject)subspace);CHKERRQ(ierr);
     }
     ierr = PetscSpaceSetFromOptions(subspace);CHKERRQ(ierr);
+    ierr = PetscSpaceGetNumVariables(subspace,&sNv);CHKERRQ(ierr);
+    if (!sNv) SETERRQ1 (PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Subspace %D has not been set properly, number of variables is 0.\n",i);
     ierr = PetscSpaceSumSetSubspace(sp,i,subspace);CHKERRQ(ierr);
     ierr = PetscSpaceDestroy(&subspace);CHKERRQ(ierr);
   }
@@ -80,11 +82,11 @@ static PetscErrorCode PetscSpaceView_Sum(PetscSpace sp,PetscViewer viewer)
 
 static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
 {
-  PetscSpace_Sum *sum    = (PetscSpace_Sum *) sp->data;
-  PetscInt           Nv, Ns, Nc, sNc, sum_Nc, i;
-  PetscBool          orthogonal = PETSC_TRUE;
-  PetscInt           deg, maxDeg;
-  PetscErrorCode     ierr;
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
+  PetscInt       Nv,Ns,Nc,sNc,sum_Nc,i,sNv;
+  PetscBool      orthogonal = PETSC_TRUE;
+  PetscInt       deg,maxDeg;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (sum->setupCalled) PetscFunctionReturn(0);
@@ -98,13 +100,12 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
   if (!Ns) {
     if (Nv) SETERRQ(PetscObjectComm((PetscObject)sp), PETSC_ERR_ARG_OUTOFRANGE, "Cannot have zero subspaces\n");
   } else {
-    /* We need to ensure that the subspaces have been created/setup before we call GetNumComponents, but we also need to be
-     * able to determine how to create the subspaces since the number of subpace components will help us to determine if orthogonal. */
     PetscSpace s0, si;
-    /* Ensure all subspaces have been setup*/
     for (i=0; i<Ns; ++i){
       ierr = PetscSpaceSumGetSubspace(sp,i,&si);CHKERRQ(ierr);
       ierr = PetscSpaceSetUp(si);CHKERRQ(ierr);
+      ierr = PetscSpaceGetNumVariables(si,&sNv);CHKERRQ(ierr);
+      if (sNv != Nv) SETERRQ3(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Subspace %D has %D variables, space has %D.\n",i,sNv,Nv);
     }
     ierr = PetscSpaceSumGetSubspace(sp, 0, &s0);CHKERRQ(ierr);
     ierr = PetscSpaceGetNumComponents(s0, &sNc);CHKERRQ(ierr);
@@ -134,8 +135,6 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
 
     ierr   = PetscSpaceSumGetSubspace(sp,i,&si);CHKERRQ(ierr);
     ierr   = PetscSpaceGetDegree(si,&iDeg,&iMaxDeg);CHKERRQ(ierr);
-    /* The summed space could potentially contain a bigger space than any of its components. If this is the case the user will need to set override
-     * the degree using PetscSpaceSetDegree. */
     deg    = PetscMax(deg,iDeg);
     maxDeg = PetscMax(maxDeg,iMaxDeg);
   }
@@ -174,8 +173,6 @@ static PetscErrorCode PetscSpaceGetDimension_Sum(PetscSpace sp,PetscInt *dim)
   ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
   Ns = sum->numSumSpaces;
   d  = 0;
-  /* This works for both orthogonal and non-orthogonal cases so long as we assume that non-orthogonal
-   * summands have no overlapping basis components.... Good assumption? Probably need a check for this somewhere just to be safe.*/
   for (i = 0; i < Ns; i++) {
     PetscInt id;
 
@@ -189,59 +186,77 @@ static PetscErrorCode PetscSpaceGetDimension_Sum(PetscSpace sp,PetscInt *dim)
 static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,const PetscReal points[],PetscReal B[],PetscReal D[],PetscReal H[])
 {
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
-  DM             dm   = sp->dm;
-  PetscInt       Nc   = sp->Nc;
-  PetscInt       Nv   = sp->Nv;
-  PetscInt       Ns;
-  PetscReal      *sB = NULL,*sD = NULL,*sH = NULL;
-  PetscInt       c,v,v2,pdim,pdimfull,d,i,p,s,offset,ncoffset,compoffset;
   PetscBool      orthogonal = sum->orthogonal;
+  DM             dm = sp->dm;
+  PetscInt       Nc = sp->Nc,Nv = sp->Nv;
+  PetscInt       Ns,pdimfull,numelB,numelD,numelH;
+  PetscReal      *sB = NULL,*sD = NULL,*sH = NULL;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!sum->setupCalled) {ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);}
+  if (!sum->setupCalled) {
+    ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
+  }
   Ns    = sum->numSumSpaces;
   ierr  = PetscSpaceGetDimension(sp,&pdimfull);CHKERRQ(ierr);
-  pdim  = pdimfull / Nc;
-  /*When doing the orthogonal sum, there is the possibility that sNc != Nc. Then we will have allocated more memory than we need for sB,
-   * sD, sH. I don't think this causes any problems in terms of the array access
-   * operations in the evaluation code below but we could be more precise if we allocate the proper size for each subspace. This would also mean
-   * though that in the non-orthogonal case we are re-allocating the same size each time which is also less
-   * efficient. So maybe 6 to one, half-dozen the other?*/
-  if (B || D || H) {ierr = DMGetWorkArray(dm,npoints*Nc*pdimfull,MPIU_REAL,&sB);CHKERRQ(ierr);}
-  if (D || H) {ierr = DMGetWorkArray(dm,npoints*Nc*pdimfull*Nv,MPIU_REAL,&sD);CHKERRQ(ierr);}
-  if (H) {ierr = DMGetWorkArray(dm,npoints*Nc*pdimfull*Nv*Nv,MPIU_REAL,&sH);CHKERRQ(ierr);}
-  /* We assume here that the caller has already allocated B, D, and H to be the proper size, is this a good assumption? */
-  if (B) {
-    for (i=0; i<npoints*Nc*pdimfull; ++i) B[i] = 0.;
+  if (B || D || H) {
+    numelB = npoints*pdimfull*Nc;
+    ierr   = DMGetWorkArray(dm,numelB,MPIU_REAL,&sB);CHKERRQ(ierr);
   }
-  if (D) {
-    for (i=0; i<npoints*Nc*pdimfull*Nv; ++i) D[i] = 0.;
+  if (D || H) {
+    numelD = numelB*Nv;
+    ierr   = DMGetWorkArray(dm,numelD,MPIU_REAL,&sD);CHKERRQ(ierr);
   }
   if (H) {
-    for (i=0; i<npoints*Nc*pdimfull*Nv*Nv; ++i) H[i] = 0.;
+    numelH = numelD*Nv;
+    ierr   = DMGetWorkArray(dm,numelH,MPIU_REAL,&sH);CHKERRQ(ierr);
   }
-  for (s=0,d=0,offset=0,ncoffset=0; s<Ns; ++s) {
+
+  if (B) {
+    for (PetscInt i=0; i<numelB; ++i) B[i] = 0.;
+  }
+  if (D) {
+    for (PetscInt i=0; i<numelD; ++i) D[i] = 0.;
+  }
+  if (H) {
+    for (PetscInt i=0; i<numelH; ++i) H[i] = 0.;
+  }
+
+  for (PetscInt s=0,offset=0,ncoffset=0; s<Ns; ++s) {
     PetscInt sNv,spdim,sNc;
 
     ierr = PetscSpaceGetNumVariables(sum->sumspaces[s],&sNv);CHKERRQ(ierr);
-    if (sNv != Nv) SETERRQ2(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Cannot create sumspace with different number of variables than its summands. Space requires %D variables, subspace has %D.\n",Nv,sNv);
     ierr = PetscSpaceGetNumComponents(sum->sumspaces[s],&sNc);CHKERRQ(ierr);
-    if (!orthogonal && sNc != Nc) SETERRQ2(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Cannot create sumspace with different number of components than its summands. Space has %D components, subspace has %D.\n",Nc,sNc);
     ierr = PetscSpaceGetDimension(sum->sumspaces[s],&spdim);CHKERRQ(ierr);
-    if (offset+spdim > pdimfull) SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE, "Subspace dimensions exceed target space dimension.\n");
+    if (offset + spdim > pdimfull) {
+      SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_OUTOFRANGE,"Subspace dimensions exceed target space dimension.\n");
+    }
     ierr = PetscSpaceEvaluate(sum->sumspaces[s],npoints,points,sB,sD,sH);CHKERRQ(ierr);
     if (B || D || H){
-      for (p=0; p<npoints; ++p) {
-        for (i=0; i<spdim; ++i) {
-          for (c=0; c<sNc; ++c) {
+      for (PetscInt p=0; p<npoints; ++p) {
+        for (PetscInt i=0; i<spdim; ++i) {
+          for (PetscInt c=0; c<sNc; ++c) {
+            PetscInt compoffset,BInd,sBInd;
+
             compoffset = orthogonal ? c+ncoffset : c;
-            if (B) B[(p*pdimfull + i+offset)*Nc + compoffset] += sB[(p*spdim +i)*sNc + c];
+            BInd = (p*pdimfull + i + offset)*Nc + compoffset;
+            sBInd = (p*spdim + i)*sNc + c;
+            if (B) B[BInd] += sB[sBInd];
             if (D || H) {
-              for (v=0; v<Nv; ++v){
-                if (D) D[((p*pdimfull + i+offset)*Nc + compoffset)*Nv + v] +=sD[((p*spdim+i)*sNc + c)*Nv + v];
+              for (PetscInt v=0; v<Nv; ++v){
+                PetscInt DInd,sDInd;
+
+                DInd = BInd*Nv + v;
+                sDInd = sBInd*Nv + v;
+                if (D) D[DInd] +=sD[sDInd];
                 if (H) {
-                  for (v2=0; v2<Nv; ++v2) H[(((p*pdimfull + i+offset)*Nc+compoffset)*Nv+v)*Nv + v2] += sH[(((p*spdim+i)*sNc +c)*Nv+v)*Nv+v2];
+                  for (PetscInt v2=0; v2<Nv; ++v2) {
+                    PetscInt HInd,sHInd;
+
+                    HInd = DInd*Nv + v2;
+                    sHInd = sDInd*Nv + v2;
+                    H[HInd] += sH[sHInd];
+                  }
                 }
               }
             }
@@ -249,27 +264,62 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
         }
       }
     }
-    d += sNv;
     offset += spdim;
     ncoffset += sNc;
   }
 
-  if (H)           {ierr = DMRestoreWorkArray(dm, npoints*pdim*Nv*Nv, MPIU_REAL, &sH);CHKERRQ(ierr);}
-  if (D || H)      {ierr = DMRestoreWorkArray(dm, npoints*pdim*Nv,    MPIU_REAL, &sD);CHKERRQ(ierr);}
-  if (B || D || H) {ierr = DMRestoreWorkArray(dm, npoints*pdim,       MPIU_REAL, &sB);CHKERRQ(ierr);}
+  if (H) {
+    ierr = DMRestoreWorkArray(dm,numelH,MPIU_REAL,&sH);CHKERRQ(ierr);
+  }
+  if (D || H) {
+    ierr = DMRestoreWorkArray(dm,numelD,MPIU_REAL,&sD);CHKERRQ(ierr);
+  }
+  if (B || D || H) {
+    ierr = DMRestoreWorkArray(dm,numelB,MPIU_REAL,&sB);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
+/*@
+  PetscSpaceSumSetOrthogonal - Sets whether or not subspaces form orthogonal components of the space.
+
+  Input Parameters:
+  + sp - the function space object
+  - orthogonal - are subspaces orthogonal components (true) or direct summands (false)
+
+Level: intermediate
+.seealso: PetscSpaceSumGetOrthogonal()
+@*/
 PetscErrorCode PetscSpaceSumSetOrthogonal(PetscSpace sp, PetscBool orthogonal)
 {
-  PetscSpace_Sum *sum = (PetscSpace_Sum *) sp->data;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (sum->setupCalled) {
-    SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change orthogonality after setup called.\n");
-  }
-  sum->orthogonal = orthogonal;
+  PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumSetOrthogonal_C",(PetscSpace,PetscBool),(sp,orthogonal));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
+/*@
+ PetscSpaceSumGetOrthogonal - Get the orthogonality of the subspaces
+
+ Input Parameters:
+ . sp - the function space object
+
+ Output Parameters:
+ . orthogonal - the orthogonality of the subspaces.
+
+Level: intermediate
+
+.seealso: PetscSpaceSumSetOrthogonal()
+@*/
+PetscErrorCode PetscSpaceSumGetOrthogonal(PetscSpace sp, PetscBool *orthogonal)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumGetOrthogonal_C",(PetscSpace,PetscBool*),(sp,orthogonal));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -363,6 +413,27 @@ PetscErrorCode PetscSpaceSumGetSubspace(PetscSpace sp,PetscInt s,PetscSpace *sub
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
   PetscValidPointer(subsp, 3);
   ierr = PetscTryMethod(sp,"PetscSpaceSumGetSubspace_C",(PetscSpace,PetscInt,PetscSpace*),(sp,s,subsp));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumSetOrthogonal_Sum(PetscSpace sp,PetscBool orthogonal)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum *) sp->data;
+
+  PetscFunctionBegin;
+  if (sum->setupCalled) {
+    SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change orthogonality after setup called.\n");
+  }
+  sum->orthogonal = orthogonal;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumGetOrthogonal_Sum(PetscSpace sp,PetscBool* orthogonal)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum *) sp->data;
+
+  PetscFunctionBegin;
+  *orthogonal = sum->orthogonal;
   PetscFunctionReturn(0);
 }
 
@@ -469,6 +540,8 @@ PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Sum(PetscSpace sp)
   PetscFunctionReturn(0);
 }
 
+/* Should we get rid of this function and provide PetscSpaceSumSetSubspaces instead. I do not see an equivalent of this function for other PetscSpace
+ * classes.*/
 PETSC_EXTERN PetscErrorCode PetscSpaceCreateSum(PetscInt numSubspaces,const PetscSpace subspaces[],PetscBool orthogonal,PetscSpace *sumSpace)
 {
   PetscInt i,Nv,Nc,sNc;
