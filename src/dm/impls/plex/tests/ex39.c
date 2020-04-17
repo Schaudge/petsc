@@ -600,7 +600,6 @@ int main(int argc,char **argv)
       args: -sol_form sinusoidal -mesh_transform skew_perturb
 
   testset:
-    TODO: broken
     suffix: 3d_bdm
     requires: ctetgen
     args: -dim 3 \
