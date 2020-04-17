@@ -233,17 +233,15 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
     ierr = PetscSpaceEvaluate(sum->sumspaces[s],npoints,points,sB,sD,sH);CHKERRQ(ierr);
     if (B || D || H){
       for (p=0; p<npoints; ++p) {
-        for (c=0; c<sNc; ++c) {
-          compoffset = orthogonal ? c+ncoffset : c;
-          for (i=0; i<spdim; ++i) {
-            /* Could possibly save a few flops here by pre-computing common parts of the array indices instead of doing
-             * all the multiplications on the fly. Micro-optimization?? */
+        for (i=0; i<spdim; ++i) {
+          for (c=0; c<sNc; ++c) {
+            compoffset = orthogonal ? c+ncoffset : c;
             if (B) B[(p*pdimfull + i+offset)*Nc + compoffset] += sB[(p*spdim +i)*sNc + c];
             if (D || H) {
               for (v=0; v<Nv; ++v){
-                if (D) D[((p*Nc+compoffset)*Nv +v)*pdimfull + i + offset] +=sD[((p*sNc+c)*Nv +v)*spdim + i];
+                if (D) D[((p*pdimfull + i+offset)*Nc + compoffset)*Nv + v] +=sD[((p*spdim+i)*sNc + c)*Nv + v];
                 if (H) {
-                  for (v2=0; v2<Nv; ++v2) H[(((p*Nc + compoffset)*Nv+v)*Nv + v2)*pdimfull + i +offset] += sH[(((p*sNc +c)*Nv+v)*Nv+v2)*spdim + i];
+                  for (v2=0; v2<Nv; ++v2) H[(((p*pdimfull + i+offset)*Nc+compoffset)*Nv+v)*Nv + v2] += sH[(((p*spdim+i)*sNc +c)*Nv+v)*Nv+v2];
                 }
               }
             }
