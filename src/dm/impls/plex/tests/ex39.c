@@ -536,7 +536,8 @@ int main(int argc,char **argv)
     suffix: 2d_bdm
     requires: triangle
     args: -dim 2 \
-      - simplex true \
+      -simplex true \
+      -velocity_petscfe_default_quadrature_order 1 \
       -velocity_petscspace_degree 1 \
       -velocity_petscdualspace_type bdm \
       -divErr_petscspace_degree 1 \
@@ -680,7 +681,8 @@ int main(int argc,char **argv)
       -pc_type fieldsplit\
       -pc_fieldsplit_detect_saddle_point\
       -pc_fieldsplit_type schur\
-      -pc_fieldsplit_schur_precondition full
+      -pc_fieldsplit_schur_precondition full \
+      -velocity_petscfe_default_quadrature_order 1
     test:
       suffix: linear_1
       args: -sol_form linear -mesh_transform none\
@@ -713,4 +715,39 @@ int main(int argc,char **argv)
         -velocity_subspace1_petscspace_degree 1 \
         -velocity_subspace1_petscspace_variables 2 \
         -velocity_subspace1_petscspace_components 1 
+
+  test:
+    suffix: quad_rt_0
+    args: -dim 2 -simplex false -mesh_transform skew \
+          -divErr_petscspace_degree 1 \
+          -divErr_petscdualspace_lagrange_continuity false \
+          -dm_refine 0 \
+          -snes_error_if_not_converged \
+          -ksp_rtol 1e-10 \
+          -ksp_error_if_not_converged \
+          -pc_type fieldsplit\
+          -pc_fieldsplit_detect_saddle_point\
+          -pc_fieldsplit_type schur\
+          -pc_fieldsplit_schur_precondition full \
+          -velocity_petscfe_default_quadrature_order 1 \
+          -velocity_petscspace_type sum \
+          -velocity_petscspace_variables 2 \
+          -velocity_petscspace_components 2 \
+          -velocity_petscspace_sum_spaces 2 \
+          -velocity_petscspace_sum_orthogonal true \
+          -velocity_subspace0_petscspace_variables 2 \
+          -velocity_subspace0_petscspace_type tensor \
+          -velocity_subspace0_petscspace_tensor_spaces 2 \
+          -velocity_subspace0_petscspace_tensor_uniform false \
+          -velocity_subspace0_subspace_0_petscspace_degree 1 \
+          -velocity_subspace0_subspace_1_petscspace_degree 0 \
+          -velocity_subspace1_petscspace_variables 2 \
+          -velocity_subspace1_petscspace_type tensor \
+          -velocity_subspace1_petscspace_tensor_spaces 2 \
+          -velocity_subspace1_petscspace_tensor_uniform false \
+          -velocity_subspace1_subspace_0_petscspace_degree 0 \
+          -velocity_subspace1_subspace_1_petscspace_degree 1 \
+          -velocity_petscdualspace_form_degree -1 \
+          -velocity_petscdualspace_order 1 \
+          -velocity_petscdualspace_lagrange_trimmed true
 TEST*/
