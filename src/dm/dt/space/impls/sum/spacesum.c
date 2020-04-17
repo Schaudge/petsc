@@ -1,4 +1,220 @@
 #include <petsc/private/petscfeimpl.h> /*I "petscfe.h" I*/
+/*@
+  PetscSpaceSumGetNumSubspaces - Get the number of spaces in the sum
+
+  Input Parameter:
+  . sp  - the function space object
+
+  Output Parameter:
+  . numSumSpaces - the number of spaces
+
+Level: intermediate
+
+.seealso: PetscSpaceSumSetNumSubspaces(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
+@*/
+PetscErrorCode PetscSpaceSumGetNumSubspaces(PetscSpace sp,PetscInt *numSumSpaces)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
+  PetscValidIntPointer(numSumSpaces,2);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumGetNumSubspaces_C",(PetscSpace,PetscInt*),(sp,numSumSpaces));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  PetscSpaceSumSetNumSubspaces - Set the number of spaces in the sum
+
+  Input Parameters:
+  + sp  - the function space object
+  - numSumSpaces - the number of spaces
+
+Level: intermediate
+
+.seealso: PetscSpaceSumGetNumSubspaces(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
+@*/
+PetscErrorCode PetscSpaceSumSetNumSubspaces(PetscSpace sp,PetscInt numSumSpaces)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumSetNumSubspaces_C",(PetscSpace,PetscInt),(sp,numSumSpaces));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+ PetscSpaceSumGetOrthogonal - Get the orthogonality of the subspaces
+
+ Input Parameters:
+ . sp - the function space object
+
+ Output Parameters:
+ . orthogonal - the orthogonality of the subspaces.
+
+Level: intermediate
+
+.seealso: PetscSpaceSumSetOrthogonal()
+@*/
+PetscErrorCode PetscSpaceSumGetOrthogonal(PetscSpace sp,PetscBool *orthogonal)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumGetOrthogonal_C",(PetscSpace,PetscBool*),(sp,orthogonal));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  PetscSpaceSumSetOrthogonal - Sets whether or not subspaces form orthogonal components of the space.
+
+  Input Parameters:
+  + sp - the function space object
+  - orthogonal - are subspaces orthogonal components (true) or direct summands (false)
+
+Level: intermediate
+.seealso: PetscSpaceSumGetOrthogonal()
+@*/
+PetscErrorCode PetscSpaceSumSetOrthogonal(PetscSpace sp, PetscBool orthogonal)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumSetOrthogonal_C",(PetscSpace,PetscBool),(sp,orthogonal));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  PetscSpaceSumGetSubspace - Get a space in the sum 
+
+  Input Parameters:
+  + sp - the function space object
+  - s  - The space number
+
+  Output Parameter:
+  . subsp - the PetscSpace
+
+Level: intermediate
+
+.seealso: PetscSpaceSumSetSubspace(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
+@*/
+PetscErrorCode PetscSpaceSumGetSubspace(PetscSpace sp,PetscInt s,PetscSpace *subsp)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
+  PetscValidPointer(subsp,3);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumGetSubspace_C",(PetscSpace,PetscInt,PetscSpace*),(sp,s,subsp));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+  PetscSpaceSumSetSubspace - Set a space in the sum
+
+  Input Parameters:
+  + sp    - the function space object
+  . s     - The space number
+  - subsp - the number of spaces
+
+Level: intermediate
+
+.seealso: PetscSpaceSumGetSubspace(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
+@*/
+PetscErrorCode PetscSpaceSumSetSubspace(PetscSpace sp,PetscInt s,PetscSpace subsp)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
+  if (subsp) PetscValidHeaderSpecific(subsp,PETSCSPACE_CLASSID,3);
+  ierr = PetscTryMethod(sp,"PetscSpaceSumSetSubspace_C",(PetscSpace,PetscInt,PetscSpace),(sp,s,subsp));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumGetNumSubspaces_Sum(PetscSpace space,PetscInt *numSumSpaces)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
+
+  PetscFunctionBegin;
+  *numSumSpaces = sum->numSumSpaces;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumSetNumSubspaces_Sum(PetscSpace space,PetscInt numSumSpaces)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
+  PetscInt       Ns   = sum->numSumSpaces;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Cannot change number of subspaces after setup called\n");
+  if (numSumSpaces == Ns) PetscFunctionReturn(0);
+  if (Ns >= 0) {
+    PetscInt s;
+    for (s=0; s<Ns; ++s) {
+      ierr = PetscSpaceDestroy(&sum->sumspaces[s]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(sum->sumspaces);CHKERRQ(ierr);
+  }
+
+  Ns   = sum->numSumSpaces = numSumSpaces;
+  ierr = PetscCalloc1(Ns,&sum->sumspaces);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumGetOrthogonal_Sum(PetscSpace sp,PetscBool* orthogonal)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
+
+  PetscFunctionBegin;
+  *orthogonal = sum->orthogonal;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumSetOrthogonal_Sum(PetscSpace sp,PetscBool orthogonal)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
+
+  PetscFunctionBegin;
+  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change orthogonality after setup called.\n");
+
+  sum->orthogonal = orthogonal;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumGetSubspace_Sum(PetscSpace space,PetscInt s,PetscSpace *subspace)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
+  PetscInt       Ns = sum->numSumSpaces;
+
+  PetscFunctionBegin;
+  if (Ns < 0) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Must call PetscSpaceSumSetNumSubspaces() first\n");
+  if (s<0 || s>=Ns) SETERRQ1 (PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_OUTOFRANGE,"Invalid subspace number %D\n",subspace);
+
+  *subspace = sum->sumspaces[s];
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceSumSetSubspace_Sum(PetscSpace space,PetscInt s,PetscSpace subspace)
+{
+  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
+  PetscInt       Ns   = sum->numSumSpaces;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Cannot change subspace after setup called\n");
+  if (Ns < 0) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Must call PetscSpaceSumSetNumSubspaces() first\n");
+  if (s < 0 || s >= Ns) SETERRQ1(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_OUTOFRANGE,"Invalid subspace number %D\n",subspace);
+
+  ierr              = PetscObjectReference((PetscObject)subspace);CHKERRQ(ierr);
+  ierr              = PetscSpaceDestroy(&sum->sumspaces[s]);CHKERRQ(ierr);
+  sum->sumspaces[s] = subspace;
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOptionsObject,PetscSpace sp)
 {
@@ -46,40 +262,6 @@ static PetscErrorCode PetscSpaceSetFromOptions_Sum(PetscOptionItems *PetscOption
     if (!sNv) SETERRQ1(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Subspace %D has not been set properly, number of variables is 0.\n",i);
     ierr = PetscSpaceSumSetSubspace(sp,i,subspace);CHKERRQ(ierr);
     ierr = PetscSpaceDestroy(&subspace);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumView_Ascii(PetscSpace sp,PetscViewer v)
-{
-  PetscSpace_Sum *sum       = (PetscSpace_Sum*)sp->data;
-  PetscBool      orthogonal = sum->orthogonal;
-  PetscInt       Ns         = sum->numSumSpaces;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (orthogonal) {
-    ierr = PetscViewerASCIIPrintf(v,"Sum space of %D orthogonal subspaces\n",Ns);CHKERRQ(ierr);
-  } else {
-    ierr = PetscViewerASCIIPrintf(v,"Sum space of %D subspaces\n",Ns);CHKERRQ(ierr);
-  }
-  for (PetscInt i=0; i<Ns; ++i) {
-    ierr = PetscViewerASCIIPushTab(v);CHKERRQ(ierr);
-    ierr = PetscSpaceView(sum->sumspaces[i],v);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPopTab(v);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceView_Sum(PetscSpace sp,PetscViewer viewer)
-{
-  PetscBool      iascii;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  if (iascii) {
-    ierr = PetscSpaceSumView_Ascii(sp,viewer);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -138,6 +320,40 @@ static PetscErrorCode PetscSpaceSetUp_Sum(PetscSpace sp)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscSpaceSumView_Ascii(PetscSpace sp,PetscViewer v)
+{
+  PetscSpace_Sum *sum       = (PetscSpace_Sum*)sp->data;
+  PetscBool      orthogonal = sum->orthogonal;
+  PetscInt       Ns         = sum->numSumSpaces;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (orthogonal) {
+    ierr = PetscViewerASCIIPrintf(v,"Sum space of %D orthogonal subspaces\n",Ns);CHKERRQ(ierr);
+  } else {
+    ierr = PetscViewerASCIIPrintf(v,"Sum space of %D subspaces\n",Ns);CHKERRQ(ierr);
+  }
+  for (PetscInt i=0; i<Ns; ++i) {
+    ierr = PetscViewerASCIIPushTab(v);CHKERRQ(ierr);
+    ierr = PetscSpaceView(sum->sumspaces[i],v);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPopTab(v);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceView_Sum(PetscSpace sp,PetscViewer viewer)
+{
+  PetscBool      iascii;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  if (iascii) {
+    ierr = PetscSpaceSumView_Ascii(sp,viewer);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PetscSpaceDestroy_Sum(PetscSpace sp)
 {
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
@@ -182,8 +398,8 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
   PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
   PetscBool      orthogonal = sum->orthogonal;
   DM             dm = sp->dm;
-  PetscInt       Nc = sp->Nc,Nv = sp->Nv;
-  PetscInt       Ns,pdimfull,numelB,numelD,numelH;
+  PetscInt       Nc = sp->Nc,Nv = sp->Nv,Ns = sum->numSumSpaces;
+  PetscInt       pdimfull,numelB,numelD,numelH;
   PetscReal      *sB = NULL,*sD = NULL,*sH = NULL;
   PetscErrorCode ierr;
 
@@ -191,7 +407,6 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
   if (!sum->setupCalled) {
     ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
   }
-  Ns    = sum->numSumSpaces;
   ierr  = PetscSpaceGetDimension(sp,&pdimfull);CHKERRQ(ierr);
   if (B || D || H) {
     numelB = npoints*pdimfull*Nc;
@@ -268,223 +483,6 @@ static PetscErrorCode PetscSpaceEvaluate_Sum(PetscSpace sp,PetscInt npoints,cons
   if (B || D || H) {
     ierr = DMRestoreWorkArray(dm,numelB,MPIU_REAL,&sB);CHKERRQ(ierr);
   }
-  PetscFunctionReturn(0);
-}
-
-/*@
-  PetscSpaceSumSetOrthogonal - Sets whether or not subspaces form orthogonal components of the space.
-
-  Input Parameters:
-  + sp - the function space object
-  - orthogonal - are subspaces orthogonal components (true) or direct summands (false)
-
-Level: intermediate
-.seealso: PetscSpaceSumGetOrthogonal()
-@*/
-PetscErrorCode PetscSpaceSumSetOrthogonal(PetscSpace sp, PetscBool orthogonal)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
-  ierr = PetscTryMethod(sp,"PetscSpaceSumSetOrthogonal_C",(PetscSpace,PetscBool),(sp,orthogonal));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*@
- PetscSpaceSumGetOrthogonal - Get the orthogonality of the subspaces
-
- Input Parameters:
- . sp - the function space object
-
- Output Parameters:
- . orthogonal - the orthogonality of the subspaces.
-
-Level: intermediate
-
-.seealso: PetscSpaceSumSetOrthogonal()
-@*/
-PetscErrorCode PetscSpaceSumGetOrthogonal(PetscSpace sp,PetscBool *orthogonal)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
-  ierr = PetscTryMethod(sp,"PetscSpaceSumGetOrthogonal_C",(PetscSpace,PetscBool*),(sp,orthogonal));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*@
-  PetscSpaceSumSetNumSubspaces - Set the number of spaces in the sum
-
-  Input Parameters:
-  + sp  - the function space object
-  - numSumSpaces - the number of spaces
-
-Level: intermediate
-
-.seealso: PetscSpaceSumGetNumSubspaces(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
-@*/
-PetscErrorCode PetscSpaceSumSetNumSubspaces(PetscSpace sp,PetscInt numSumSpaces)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
-  ierr = PetscTryMethod(sp,"PetscSpaceSumSetNumSubspaces_C",(PetscSpace,PetscInt),(sp,numSumSpaces));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*@
-  PetscSpaceSumGetNumSubspaces - Get the number of spaces in the sum
-
-  Input Parameter:
-  . sp  - the function space object
-
-  Output Parameter:
-  . numSumSpaces - the number of spaces
-
-Level: intermediate
-
-.seealso: PetscSpaceSumSetNumSubspaces(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
-@*/
-PetscErrorCode PetscSpaceSumGetNumSubspaces(PetscSpace sp,PetscInt *numSumSpaces)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
-  PetscValidIntPointer(numSumSpaces,2);
-  ierr = PetscTryMethod(sp,"PetscSpaceSumGetNumSubspaces_C",(PetscSpace,PetscInt*),(sp,numSumSpaces));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*@
-  PetscSpaceSumSetSubspace - Set a space in the sum
-
-  Input Parameters:
-  + sp    - the function space object
-  . s     - The space number
-  - subsp - the number of spaces
-
-Level: intermediate
-
-.seealso: PetscSpaceSumGetSubspace(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
-@*/
-PetscErrorCode PetscSpaceSumSetSubspace(PetscSpace sp,PetscInt s,PetscSpace subsp)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
-  if (subsp) PetscValidHeaderSpecific(subsp,PETSCSPACE_CLASSID,3);
-  ierr = PetscTryMethod(sp,"PetscSpaceSumSetSubspace_C",(PetscSpace,PetscInt,PetscSpace),(sp,s,subsp));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*@
-  PetscSpaceSumGetSubspace - Get a space in the sum 
-
-  Input Parameters:
-  + sp - the function space object
-  - s  - The space number
-
-  Output Parameter:
-  . subsp - the PetscSpace
-
-Level: intermediate
-
-.seealso: PetscSpaceSumSetSubspace(), PetscSpaceSetDegree(), PetscSpaceSetNumVariables()
-@*/
-PetscErrorCode PetscSpaceSumGetSubspace(PetscSpace sp,PetscInt s,PetscSpace *subsp)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
-  PetscValidPointer(subsp,3);
-  ierr = PetscTryMethod(sp,"PetscSpaceSumGetSubspace_C",(PetscSpace,PetscInt,PetscSpace*),(sp,s,subsp));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumSetOrthogonal_Sum(PetscSpace sp,PetscBool orthogonal)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
-
-  PetscFunctionBegin;
-  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)sp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change orthogonality after setup called.\n");
-
-  sum->orthogonal = orthogonal;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumGetOrthogonal_Sum(PetscSpace sp,PetscBool* orthogonal)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)sp->data;
-
-  PetscFunctionBegin;
-  *orthogonal = sum->orthogonal;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumSetNumSubspaces_Sum(PetscSpace space,PetscInt numSumSpaces)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
-  PetscInt       Ns   = sum->numSumSpaces;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Cannot change number of subspaces after setup called\n");
-  if (numSumSpaces == Ns) PetscFunctionReturn(0);
-  if (Ns >= 0) {
-    PetscInt s;
-    for (s=0; s<Ns; ++s) {
-      ierr = PetscSpaceDestroy(&sum->sumspaces[s]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree(sum->sumspaces);CHKERRQ(ierr);
-  }
-
-  Ns   = sum->numSumSpaces = numSumSpaces;
-  ierr = PetscCalloc1(Ns,&sum->sumspaces);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumGetNumSubspaces_Sum(PetscSpace space,PetscInt *numSumSpaces)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
-
-  PetscFunctionBegin;
-  *numSumSpaces = sum->numSumSpaces;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumSetSubspace_Sum(PetscSpace space,PetscInt s,PetscSpace subspace)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
-  PetscInt       Ns   = sum->numSumSpaces;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (sum->setupCalled) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Cannot change subspace after setup called\n");
-  if (Ns < 0) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Must call PetscSpaceSumSetNumSubspaces() first\n");
-  if (s < 0 || s >= Ns) SETERRQ1(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_OUTOFRANGE,"Invalid subspace number %D\n",subspace);
-
-  ierr              = PetscObjectReference((PetscObject)subspace);CHKERRQ(ierr);
-  ierr              = PetscSpaceDestroy(&sum->sumspaces[s]);CHKERRQ(ierr);
-  sum->sumspaces[s] = subspace;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PetscSpaceSumGetSubspace_Sum(PetscSpace space,PetscInt s,PetscSpace *subspace)
-{
-  PetscSpace_Sum *sum = (PetscSpace_Sum*)space->data;
-  PetscInt       Ns = sum->numSumSpaces;
-
-  PetscFunctionBegin;
-  if (Ns < 0) SETERRQ(PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_WRONGSTATE,"Must call PetscSpaceSumSetNumSubspaces() first\n");
-  if (s<0 || s>=Ns) SETERRQ1 (PetscObjectComm((PetscObject)space),PETSC_ERR_ARG_OUTOFRANGE,"Invalid subspace number %D\n",subspace);
-
-  *subspace = sum->sumspaces[s];
   PetscFunctionReturn(0);
 }
 
