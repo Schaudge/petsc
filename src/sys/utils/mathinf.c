@@ -7,8 +7,8 @@
 .     a - the PetscReal Value
 
      Notes:
-    uses the C99 standard isnormal() on systems where they exist.
-      Uses isnormalq() with __float128
+    uses the C99 standard fpclassify() on systems where they exist, or isnormal().
+      Always returns true with __float128
       Otherwises always returns true
 
      Level: beginner
@@ -17,6 +17,11 @@
 PetscBool PetscIsNormalReal(PetscReal a)
 {
   return PETSC_TRUE;
+}
+#elif defined(PETSC_USE_C99)
+PetscBool PetscIsNormalReal(PetscReal a)
+{
+  return fpclassify(a) == FP_NORMAL ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE_ISNORMAL)
 PetscBool PetscIsNormalReal(PetscReal a)
@@ -37,7 +42,8 @@ PetscBool PetscIsNormalReal(PetscReal a)
 .     a - the floating point number
 
      Notes:
-    uses the C99 standard isinf() on systems where it exists.
+    uses the C99 standard fpclassify() on systems where it exists, or isinf().
+      Uses isinfq() with __float128
       Otherwises uses (a && a/2 == a), note that some optimizing compiles compile
       out this form, thus removing the check.
 
@@ -47,6 +53,11 @@ PetscBool PetscIsNormalReal(PetscReal a)
 PetscBool PetscIsInfReal(PetscReal a)
 {
   return isinfq(a) ? PETSC_TRUE : PETSC_FALSE;
+}
+#elif defined(PETSC_USE_C99)
+PetscBool PetscIsInfReal(PetscReal a)
+{
+  return fpclassify(a) == FP_INFINITE ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE_ISINF)
 PetscBool PetscIsInfReal(PetscReal a)
@@ -78,7 +89,8 @@ PetscBool PetscIsInfReal(PetscReal a)
 .     a - the floating point number
 
      Notes:
-    uses the C99 standard isnan() on systems where it exists.
+    uses the C99 standard fpclassify() on systems where it exists, or isnan().
+      Uses isnanq() with __float128
       Otherwises uses (a != a), note that some optimizing compiles compile
       out this form, thus removing the check.
 
@@ -88,6 +100,11 @@ PetscBool PetscIsInfReal(PetscReal a)
 PetscBool PetscIsNanReal(PetscReal a)
 {
   return isnanq(a) ? PETSC_TRUE : PETSC_FALSE;
+}
+#elif defined(PETSC_USE_C99)
+PetscBool PetscIsNanReal(PetscReal a)
+{
+  return fpclassify(a) == FP_NAN ? PETSC_TRUE : PETSC_FALSE;
 }
 #elif defined(PETSC_HAVE_ISNAN)
 PetscBool PetscIsNanReal(PetscReal a)
