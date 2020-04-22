@@ -612,7 +612,7 @@ PETSC_INTERN PetscErrorCode DMCreateNeumannOverlap_Plex(DM, IS*, Mat*, PetscErro
 
 /* the context */
 #if !defined(FP_MAX_SPECIES)
-#define FP_MAX_SPECIES 2
+#define FP_MAX_SPECIES 3
 #endif
 #if !defined(FP_MAX_NQ)
 #define FP_MAX_NQ 64 /* Q6/Q3 */
@@ -639,7 +639,7 @@ typedef struct {
   PetscInt      nZRefine2;          /* origin refinement after origin AMR refinement */
   PetscInt      maxRefIts;         /* normal AMR - refine from origin */
   PetscInt      postAMRRefine;     /* uniform refinement of AMR */
-  PetscInt      num_species;
+  PetscBool     quarter3DDomain;   /* bilateral symetry, 1/4 x-y domain */
   /* discretization - AMR */
   PetscErrorCode (*errorIndicator)(PetscInt, PetscReal, PetscReal [], PetscInt, const PetscInt[], const PetscScalar[], const PetscScalar[], PetscReal *, void *);
   PetscReal     refineTol[FP_MAX_SPECIES];
@@ -658,6 +658,7 @@ typedef struct {
   PetscReal     k;
   PetscReal     lnLam;
   PetscReal     electronShift; /* for tests */
+  PetscInt      num_species;
   /* diagnostics */
   PetscInt      verbose;
   PetscLogEvent events[20];
@@ -670,6 +671,7 @@ typedef struct {
   /* derived type */
   void         *data;
   PetscBool     aux_bool;  /* helper */
+  /* computing */
   PetscBool     useCUDA;
   PetscInt      subThreadBlockSize;
 } LandCtx;
