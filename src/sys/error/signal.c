@@ -5,6 +5,7 @@
 */
 #include <petsc/private/petscimpl.h>             /*I   "petscsys.h"   I*/
 #include <signal.h>
+#include <stdlib.h> /* for _Exit() */
 
 static PetscClassId SIGNAL_CLASSID = 0;
 
@@ -148,7 +149,10 @@ PetscErrorCode  PetscSignalHandlerDefault(int sig,void *ptr)
     (*PetscErrorPrintf)("to get more information on the crash.\n");
   }
   ierr =  PetscError(PETSC_COMM_SELF,0,"User provided function"," unknown file",PETSC_ERR_SIG,PETSC_ERROR_INITIAL,NULL);
-  PETSCABORT(PETSC_COMM_WORLD,(int)ierr);
+  /* _Exit() instead of MPI_Abort() inside a signal handler.
+     See discussion at https://lists.mpich.org/pipermail/discuss/2020-April/005910.html
+  */
+  _Exit((int)ierr);
   PetscFunctionReturn(0);
 }
 
