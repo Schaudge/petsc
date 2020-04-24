@@ -173,8 +173,8 @@ PETSC_INTERN PetscErrorCode MatMatMultSymbolic_Nest_Dense(Mat A,Mat B,PetscReal 
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
+  ierr = MatGetSize(B,NULL,&N);CHKERRQ(ierr);
   if (!C->assembled) {
-    ierr = MatGetSize(B,NULL,&N);CHKERRQ(ierr);
     ierr = MatGetLocalSize(A,&m,NULL);CHKERRQ(ierr);
     ierr = MatGetSize(A,&M,NULL);CHKERRQ(ierr);
 
@@ -203,7 +203,6 @@ PETSC_INTERN PetscErrorCode MatMatMultSymbolic_Nest_Dense(Mat A,Mat B,PetscReal 
   }
   ierr = PetscMalloc1(maxm*N,&contents->tarray);CHKERRQ(ierr);
   ierr = MatDenseGetLDA(B,&ldb);CHKERRQ(ierr);
-  ierr = MatGetSize(B,NULL,&N);CHKERRQ(ierr);
   ierr = MatDenseGetArrayRead(B,&barray);CHKERRQ(ierr);
   /* loops are permuted compared to MatMatMultNumeric so that viewB is created only once per column of A */
   for (j=0; j<nc; j++) {
@@ -2100,8 +2099,8 @@ PetscErrorCode MatHasOperation_Nest(Mat mat,MatOperation op,PetscBool *has)
   PetscInt       i,j,nr = bA->nr,nc = bA->nc;
   PetscBool      flg;
   PetscErrorCode ierr;
-  PetscFunctionBegin;
 
+  PetscFunctionBegin;
   *has = PETSC_FALSE;
   if (op == MATOP_MULT_TRANSPOSE || op == MATOP_MAT_MULT) {
     for (j=0; j<nc; j++) {

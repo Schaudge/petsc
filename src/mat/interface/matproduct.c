@@ -986,6 +986,13 @@ PetscErrorCode MatProductCreate_Private(Mat A,Mat B,Mat C,Mat D)
   product->api_user  = PETSC_FALSE;
   D->product         = product;
 
+  /* remove previous ownership to avoid recursive reference */
+  ierr = MatProductClear(A);CHKERRQ(ierr);
+  ierr = MatProductClear(B);CHKERRQ(ierr);
+  if (C) {
+    ierr = MatProductClear(C);CHKERRQ(ierr);
+  }
+
   /* take ownership */
   ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr);
