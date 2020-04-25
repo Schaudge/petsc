@@ -219,21 +219,27 @@ PetscErrorCode MatProductReplaceMats(Mat A,Mat B,Mat C,Mat D)
   if (!product) SETERRQ(PetscObjectComm((PetscObject)D),PETSC_ERR_ARG_NULL,"Mat D does not have struct 'product'. Call MatProductReplaceProduct(). \n");
   if (A) {
     if (!product->Areplaced) {
-      ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr); /* take ownership of input */
-      ierr = MatDestroy(&product->A);CHKERRQ(ierr); /* release old reference */
+      if (product->matreference) {
+        ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr); /* take ownership of input */
+        ierr = MatDestroy(&product->A);CHKERRQ(ierr); /* release old reference */
+      }
       product->A = A;
     } else SETERRQ(PetscObjectComm((PetscObject)D),PETSC_ERR_SUP,"Matrix A was changed by a PETSc internal routine, cannot be replaced");
   }
   if (B) {
     if (!product->Breplaced) {
-      ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr); /* take ownership of input */
-      ierr = MatDestroy(&product->B);CHKERRQ(ierr); /* release old reference */
+      if (product->matreference) {
+        ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr); /* take ownership of input */
+        ierr = MatDestroy(&product->B);CHKERRQ(ierr); /* release old reference */
+      }
       product->B = B;
     } else SETERRQ(PetscObjectComm((PetscObject)D),PETSC_ERR_SUP,"Matrix B was changed by a PETSc internal routine, cannot be replaced");
   }
   if (C) {
-    ierr = PetscObjectReference((PetscObject)C);CHKERRQ(ierr); /* take ownership of input */
-    ierr = MatDestroy(&product->C);CHKERRQ(ierr); /* release old reference */
+    if (product->matreference) {
+      ierr = PetscObjectReference((PetscObject)C);CHKERRQ(ierr); /* take ownership of input */
+      ierr = MatDestroy(&product->C);CHKERRQ(ierr); /* release old reference */
+    }
     product->C = C;
   }
   PetscFunctionReturn(0);
@@ -275,14 +281,18 @@ static PetscErrorCode MatProductSetFromOptions_AB(Mat mat)
       if (At_istrans) { /* mat = ATT * B */
         Mat Att = NULL;
         ierr = MatTransposeGetMat(At,&Att);CHKERRQ(ierr);
-        ierr = PetscObjectReference((PetscObject)Att);CHKERRQ(ierr);
-        ierr = MatDestroy(&product->A);CHKERRQ(ierr);
+        if (product->matreference) {
+          ierr = PetscObjectReference((PetscObject)Att);CHKERRQ(ierr);
+          ierr = MatDestroy(&product->A);CHKERRQ(ierr);
+        }
         A                  = Att;
         product->A         = Att; /* use Att for matproduct */
         product->Areplaced = PETSC_TRUE; /* Att = A, but has native matrix type */
       } else { /* !At_istrans: mat = At^T*B */
-        ierr = PetscObjectReference((PetscObject)At);CHKERRQ(ierr);
-        ierr = MatDestroy(&product->A);CHKERRQ(ierr);
+        if (product->matreference) {
+          ierr = PetscObjectReference((PetscObject)At);CHKERRQ(ierr);
+          ierr = MatDestroy(&product->A);CHKERRQ(ierr);
+        }
         A                  = At;
         product->A         = At;
         product->Areplaced = PETSC_TRUE;
@@ -294,15 +304,19 @@ static PetscErrorCode MatProductSetFromOptions_AB(Mat mat)
       if (Bt_istrans) { /* mat = A * BTT */
         Mat Btt = NULL;
         ierr = MatTransposeGetMat(Bt,&Btt);CHKERRQ(ierr);
-        ierr = PetscObjectReference((PetscObject)Btt);CHKERRQ(ierr);
-        ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+        if (product->matreference) {
+          ierr = PetscObjectReference((PetscObject)Btt);CHKERRQ(ierr);
+          ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+        }
         B                  = Btt;
         product->B         = Btt; /* use Btt for matproduct */
         product->Breplaced = PETSC_TRUE;
       } else { /* !Bt_istrans */
         /* mat = A*Bt^T */
-        ierr = PetscObjectReference((PetscObject)Bt);CHKERRQ(ierr);
-        ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+        if (product->matreference) {
+          ierr = PetscObjectReference((PetscObject)Bt);CHKERRQ(ierr);
+          ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+        }
         B                  = Bt;
         product->B         = Bt;
         product->Breplaced = PETSC_TRUE;
@@ -317,10 +331,12 @@ static PetscErrorCode MatProductSetFromOptions_AB(Mat mat)
         Mat Att= NULL,Btt = NULL;
         ierr = MatTransposeGetMat(At,&Att);CHKERRQ(ierr);
         ierr = MatTransposeGetMat(Bt,&Btt);CHKERRQ(ierr);
-        ierr = PetscObjectReference((PetscObject)Att);CHKERRQ(ierr);
-        ierr = PetscObjectReference((PetscObject)Btt);CHKERRQ(ierr);
-        ierr = MatDestroy(&product->A);CHKERRQ(ierr);
-        ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+        if (product->matreference) {
+          ierr = PetscObjectReference((PetscObject)Att);CHKERRQ(ierr);
+          ierr = PetscObjectReference((PetscObject)Btt);CHKERRQ(ierr);
+          ierr = MatDestroy(&product->A);CHKERRQ(ierr);
+          ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+        }
         A             = Att;
         product->A    = Att; product->Areplaced = PETSC_TRUE;
         B             = Btt;
@@ -958,9 +974,11 @@ PetscErrorCode MatProductClear(Mat mat)
   PetscFunctionBegin;
   if (product) {
     /* release reference */
-    ierr = MatDestroy(&product->A);CHKERRQ(ierr);
-    ierr = MatDestroy(&product->B);CHKERRQ(ierr);
-    ierr = MatDestroy(&product->C);CHKERRQ(ierr);
+    if (product->matreference) {
+      ierr = MatDestroy(&product->A);CHKERRQ(ierr);
+      ierr = MatDestroy(&product->B);CHKERRQ(ierr);
+      ierr = MatDestroy(&product->C);CHKERRQ(ierr);
+    }
     ierr = MatDestroy(&product->Dwork);CHKERRQ(ierr);
     ierr = PetscFree(mat->product);CHKERRQ(ierr);
   }
@@ -984,19 +1002,9 @@ PetscErrorCode MatProductCreate_Private(Mat A,Mat B,Mat C,Mat D)
   product->Areplaced = PETSC_FALSE;
   product->Breplaced = PETSC_FALSE;
   product->api_user  = PETSC_FALSE;
+  product->matreference = PETSC_FALSE;
   D->product         = product;
 
-  /* remove previous ownership to avoid recursive reference */
-  ierr = MatProductClear(A);CHKERRQ(ierr);
-  ierr = MatProductClear(B);CHKERRQ(ierr);
-  if (C) {
-    ierr = MatProductClear(C);CHKERRQ(ierr);
-  }
-
-  /* take ownership */
-  ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr);
-  ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr);
-  ierr = PetscObjectReference((PetscObject)C);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1100,5 +1108,11 @@ PetscErrorCode MatProductCreate(Mat A,Mat B,Mat C,Mat *D)
 
   ierr = MatCreate(PetscObjectComm((PetscObject)A),D);CHKERRQ(ierr);
   ierr = MatProductCreate_Private(A,B,C,*D);CHKERRQ(ierr);
+
+  /* take ownership */
+  (*D)->product->matreference = PETSC_TRUE;
+  ierr = PetscObjectReference((PetscObject)A);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr);
+  ierr = PetscObjectReference((PetscObject)C);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
