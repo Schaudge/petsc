@@ -397,7 +397,7 @@ typedef struct { /* used by MatProduct() */
   PetscReal            fill;
   PetscBool            Areplaced,Breplaced; /* if an internal implementation changes user's input A or B, these matrices cannot be called by MatProductReplaceMats(). */
   PetscBool            api_user; /* used by MatProductSetFromOptions_xxx() */
-  PetscBool            matreference;  /* do not add refct when using MatProductCreateWithMat() to void recursive references */
+  PetscBool            matreference; /* do not add refct when using MatProductCreateWithMat() to void recursive references */
 } Mat_Product;
 
 struct _p_Mat {
