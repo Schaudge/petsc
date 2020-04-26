@@ -124,7 +124,7 @@ int main(int argc,char **argv)
   if (!equal) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"D != B*C^T (dense*dense)");
   ierr = MatDestroy(&D);CHKERRQ(ierr);
 
-  /* Test MatProductCreateWithMat() and reue C and B for B = A*C */
+  /* Test MatProductCreateWithMat() and reuse C and B for B = A*C */
   flg = PETSC_FALSE;
   ierr = PetscOptionsHasName(NULL,NULL,"-test_userAPI",&flg);CHKERRQ(ierr);
   if (flg) {
