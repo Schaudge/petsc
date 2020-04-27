@@ -83,7 +83,7 @@ PetscErrorCode PetscCommBuildTwoSidedGetType(MPI_Comm comm,PetscBuildTwoSidedTyp
 static PetscErrorCode PetscCommBuildTwoSided_Ibarrier(MPI_Comm comm,PetscMPIInt count,MPI_Datatype dtype,PetscMPIInt nto,const PetscMPIInt *toranks,const void *todata,PetscMPIInt *nfrom,PetscMPIInt **fromranks,void *fromdata)
 {
   PetscErrorCode ierr;
-  PetscMPIInt    nrecvs,tag,done,i;
+  PetscMPIInt    rank,nrecvs,tag,done,i,mid,cnt;
   MPI_Aint       lb,unitbytes;
   char           *tdata;
   MPI_Request    *sendreqs,barrier;
@@ -92,11 +92,13 @@ static PetscErrorCode PetscCommBuildTwoSided_Ibarrier(MPI_Comm comm,PetscMPIInt 
 
   PetscFunctionBegin;
   ierr = PetscCommDuplicate(comm,&comm,&tag);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = MPI_Type_get_extent(dtype,&lb,&unitbytes);CHKERRQ(ierr);
   if (lb != 0) SETERRQ1(comm,PETSC_ERR_SUP,"Datatype with nonzero lower bound %ld\n",(long)lb);
   tdata = (char*)todata;
   ierr  = PetscMalloc1(nto,&sendreqs);CHKERRQ(ierr);
-  for (i=0; i<nto; i++) {
+  for (i=0,mid=0; i<nto; i++) {if (toranks[i] >= rank) {mid = i; break;}} /* See comments in PetscCommBuildTwoSided_Allreduce */
+  for (i=mid,cnt=0; cnt<nto; i=(i+1)%nto,cnt++) {
     ierr = MPI_Issend((void*)(tdata+count*unitbytes*i),count,dtype,toranks[i],tag,comm,sendreqs+i);CHKERRQ(ierr);
   }
   ierr = PetscSegBufferCreate(sizeof(PetscMPIInt),4,&segrank);CHKERRQ(ierr);
@@ -150,11 +152,11 @@ static PetscErrorCode PetscCommBuildTwoSided_Ibarrier(MPI_Comm comm,PetscMPIInt 
 static PetscErrorCode PetscCommBuildTwoSided_Allreduce(MPI_Comm comm,PetscMPIInt count,MPI_Datatype dtype,PetscMPIInt nto,const PetscMPIInt *toranks,const void *todata,PetscMPIInt *nfrom,PetscMPIInt **fromranks,void *fromdata)
 {
   PetscErrorCode   ierr;
-  PetscMPIInt      size,rank,*iflags,nrecvs,tag,*franks,i,flg;
+  PetscMPIInt      size,rank,*iflags,nrecvs,tag,*franks,i,j,flg,mid,cnt;
   MPI_Aint         lb,unitbytes;
   char             *tdata,*fdata;
-  MPI_Request      *reqs,*sendreqs;
-  MPI_Status       *statuses;
+  MPI_Request      *sreqs,*rreqs;
+  MPI_Status       *stats;
   PetscCommCounter *counter;
 
   PetscFunctionBegin;
@@ -170,25 +172,38 @@ static PetscErrorCode PetscCommBuildTwoSided_Allreduce(MPI_Comm comm,PetscMPIInt
     iflags = counter->iflags;
     ierr   = PetscArrayzero(iflags,size);CHKERRQ(ierr);
   }
-  for (i=0; i<nto; i++) iflags[toranks[i]] = 1;
+  for (i=0,mid=0; i<nto; i++) {
+    iflags[toranks[i]] = 1;
+    /* Assume toranks[] is sorted, which is very likely. Find mid that splits toranks[] in halves
+       with the left smaller than 'rank' and the right bigger than 'rank'. We'll use that to skew
+       communication below. Even the assumption is wrong, it does not affect code correctness.
+     */
+    if (toranks[i] <= rank) mid = i;
+  }
   ierr     = MPIU_Allreduce(MPI_IN_PLACE,iflags,size,MPI_INT,MPI_SUM,comm);CHKERRQ(ierr);
   nrecvs   = iflags[rank];
   ierr     = MPI_Type_get_extent(dtype,&lb,&unitbytes);CHKERRQ(ierr);
   if (lb != 0) SETERRQ1(comm,PETSC_ERR_SUP,"Datatype with nonzero lower bound %ld\n",(long)lb);
   ierr     = PetscMalloc(nrecvs*count*unitbytes,&fdata);CHKERRQ(ierr);
   tdata    = (char*)todata;
-  ierr     = PetscMalloc2(nto+nrecvs,&reqs,nto+nrecvs,&statuses);CHKERRQ(ierr);
-  sendreqs = reqs + nrecvs;
+  ierr     = PetscMalloc3(PetscMin(nto,max_pending_isends),&sreqs,nrecvs,&rreqs,nrecvs,&stats);CHKERRQ(ierr);
   for (i=0; i<nrecvs; i++) {
-    ierr = MPI_Irecv((void*)(fdata+count*unitbytes*i),count,dtype,MPI_ANY_SOURCE,tag,comm,reqs+i);CHKERRQ(ierr);
+    ierr = MPI_Irecv((void*)(fdata+count*unitbytes*i),count,dtype,MPI_ANY_SOURCE,tag,comm,rreqs+i);CHKERRQ(ierr);
   }
-  for (i=0; i<nto; i++) {
-    ierr = MPI_Isend((void*)(tdata+count*unitbytes*i),count,dtype,toranks[i],tag,comm,sendreqs+i);CHKERRQ(ierr);
+  for (i=mid,j=0,cnt=0; cnt<nto; i=(i+1)%nto,cnt++) { /* j: counter of isends in max_pending_isends bunches; cnt: counter of total isends */
+    ierr = MPI_Isend((void*)(tdata+count*unitbytes*i),count,dtype,toranks[i],tag,comm,sreqs+j);CHKERRQ(ierr);
+    j++;
+    if (j == max_pending_isends) {
+      ierr = MPI_Waitall(j,sreqs,MPI_STATUSES_IGNORE);CHKERRQ(ierr);
+      j    = 0;
+    }
   }
-  ierr = MPI_Waitall(nto+nrecvs,reqs,statuses);CHKERRQ(ierr);
+  ierr = MPI_Waitall(j,sreqs,MPI_STATUSES_IGNORE);CHKERRQ(ierr); /* Remainder of nto%max_pending_isends */
+
+  ierr = MPI_Waitall(nrecvs,rreqs,stats);CHKERRQ(ierr);
   ierr = PetscMalloc1(nrecvs,&franks);CHKERRQ(ierr);
-  for (i=0; i<nrecvs; i++) franks[i] = statuses[i].MPI_SOURCE;
-  ierr = PetscFree2(reqs,statuses);CHKERRQ(ierr);
+  for (i=0; i<nrecvs; i++) franks[i] = stats[i].MPI_SOURCE;
+  ierr = PetscFree3(sreqs,rreqs,stats);CHKERRQ(ierr);
   ierr = PetscCommDestroy(&comm);CHKERRQ(ierr);
 
   *nfrom            = nrecvs;
