@@ -108,6 +108,7 @@
       <h4>General:</h4>
         <ul>
           <li>Change the default of -cuda_initialize from yes to no</li>
+          <li>Add an option -max_pending_isends n (default PETSC_MAX_INT, i.e, no control) to control maximal number of pending MPI_Isends to surpress overwhelming traffic in some routines at large scale</li>
         </ul>
       <h4>Configure/Build:</h4>
       <h4>IS:</h4>

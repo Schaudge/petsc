@@ -1,6 +1,6 @@
 
 #include <petscsys.h>        /*I  "petscsys.h"  I*/
-
+#include <petsc/private/petscimpl.h>
 
 /*@C
   PetscGatherNumberOfMessages -  Computes the number of messages a node expects to receive
@@ -92,51 +92,55 @@ PetscErrorCode  PetscGatherNumberOfMessages(MPI_Comm comm,const PetscMPIInt ifla
 PetscErrorCode  PetscGatherMessageLengths(MPI_Comm comm,PetscMPIInt nsends,PetscMPIInt nrecvs,const PetscMPIInt ilengths[],PetscMPIInt **onodes,PetscMPIInt **olengths)
 {
   PetscErrorCode ierr;
-  PetscMPIInt    size,rank,tag,i,j;
-  MPI_Request    *s_waits  = NULL,*r_waits = NULL;
-  MPI_Status     *w_status = NULL;
+  PetscMPIInt    size,rank,tag,i,j,cnt;
+  MPI_Request    *sreqs = NULL,*rreqs = NULL;
+  MPI_Status     *stats = NULL;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = PetscCommGetNewTag(comm,&tag);CHKERRQ(ierr);
-
-  /* cannot use PetscMalloc3() here because in the call to MPI_Waitall() they MUST be contiguous */
-  ierr    = PetscMalloc2(nrecvs+nsends,&r_waits,nrecvs+nsends,&w_status);CHKERRQ(ierr);
-  s_waits = r_waits+nrecvs;
+  ierr = PetscMalloc3(nrecvs,&rreqs,PetscMin(nsends,max_pending_isends),&sreqs,nrecvs,&stats);CHKERRQ(ierr);
 
   /* Post the Irecv to get the message length-info */
   ierr = PetscMalloc1(nrecvs,olengths);CHKERRQ(ierr);
   for (i=0; i<nrecvs; i++) {
-    ierr = MPI_Irecv((*olengths)+i,1,MPI_INT,MPI_ANY_SOURCE,tag,comm,r_waits+i);CHKERRQ(ierr);
+    ierr = MPI_Irecv((*olengths)+i,1,MPI_INT,MPI_ANY_SOURCE,tag,comm,rreqs+i);CHKERRQ(ierr);
   }
 
-  /* Post the Isends with the message length-info */
-  for (i=0,j=0; i<size; ++i) {
+  /* Post the Isends with the message length-info. Throttle pending isends to avoid overwhelming traffic
+     in extrem cases, which could cause MPI failures. Skew the communication and send to ranks greater
+     than me first to avoid hot spots.
+   */
+  for (i=rank,j=0,cnt=0; cnt<size; i=(i+1)%size,cnt++) { /* j: counter of isends in max_pending_isends bunches; cnt: counter towards size */
     if (ilengths[i]) {
-      ierr = MPI_Isend((void*)(ilengths+i),1,MPI_INT,i,tag,comm,s_waits+j);CHKERRQ(ierr);
+      ierr = MPI_Isend((void*)(ilengths+i),1,MPI_INT,i,tag,comm,sreqs+j);CHKERRQ(ierr);
       j++;
     }
+    if (j == max_pending_isends) {
+      ierr = MPI_Waitall(j,sreqs,MPI_STATUSES_IGNORE);CHKERRQ(ierr);
+      j    = 0;
+    }
   }
+  ierr = MPI_Waitall(j,sreqs,MPI_STATUSES_IGNORE);CHKERRQ(ierr); /* remainder of nsends/max_pending_isends */
 
-  /* Post waits on sends and receivs */
-  if (nrecvs+nsends) {ierr = MPI_Waitall(nrecvs+nsends,r_waits,w_status);CHKERRQ(ierr);}
-
+  /* Post waits on recvs */
+  ierr = MPI_Waitall(nrecvs,rreqs,stats);CHKERRQ(ierr);
   /* Pack up the received data */
   ierr = PetscMalloc1(nrecvs,onodes);CHKERRQ(ierr);
   for (i=0; i<nrecvs; ++i) {
-    (*onodes)[i] = w_status[i].MPI_SOURCE;
+    (*onodes)[i] = stats[i].MPI_SOURCE;
 #if defined(PETSC_HAVE_OMPI_MAJOR_VERSION)
     /* This line is a workaround for a bug in OpenMPI-2.1.1 distributed by Ubuntu-18.04.2 LTS.
-       It happens in self-to-self MPI_Send/Recv using MPI_ANY_SOURCE for message matching. OpenMPI
-       does not put correct value in recv buffer. See also
-       https://lists.mcs.anl.gov/pipermail/petsc-dev/2019-July/024803.html
-       https://www.mail-archive.com/users@lists.open-mpi.org//msg33383.html
-     */
-    if (w_status[i].MPI_SOURCE == rank) (*olengths)[i] = ilengths[rank];
+      It happens in self-to-self MPI_Send/Recv using MPI_ANY_SOURCE for message matching. OpenMPI
+      does not put correct value in recv buffer. See also
+      https://lists.mcs.anl.gov/pipermail/petsc-dev/2019-July/024803.html
+      https://www.mail-archive.com/users@lists.open-mpi.org//msg33383.html
+    */
+    if (stats[i].MPI_SOURCE == rank) (*olengths)[i] = ilengths[rank];
 #endif
   }
-  ierr = PetscFree2(r_waits,w_status);CHKERRQ(ierr);
+  ierr = PetscFree3(rreqs,sreqs,stats);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

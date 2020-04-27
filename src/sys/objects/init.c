@@ -46,6 +46,7 @@ PetscMPIInt PetscGlobalRank       = -1;
 PetscMPIInt PetscGlobalSize       = -1;
 
 PetscBool   use_gpu_aware_mpi     = PETSC_TRUE;
+PetscInt    max_pending_isends;
 
 #if defined(PETSC_HAVE_COMPLEX)
 #if defined(PETSC_COMPLEX_INSTANTIATE)
@@ -698,6 +699,12 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
     }
   }
 #endif
+
+  /* Throttle number of pending MPI_Isends per process in PetscGatherMessageLengths() etc.
+     The default is no throttling. Most users should not care or be aware of this option.
+  */
+  max_pending_isends = PETSC_MAX_INT;
+  ierr = PetscOptionsGetInt(NULL,NULL,"-max_pending_isends",&max_pending_isends,NULL);CHKERRQ(ierr);
 
   /*
        Print basic help message
