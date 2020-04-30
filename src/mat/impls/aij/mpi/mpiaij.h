@@ -61,6 +61,7 @@ typedef struct {
 
   /* The following variables are used for matrix-vector products */
   Vec        lvec;                 /* local vector */
+  Vec        zz;                   /* a left vector that can store results of MatMult */
   Vec        diag;
   VecScatter Mvctx,Mvctx_mpi1;     /* scatter context for vector */
   PetscBool  Mvctx_mpi1_flg;       /* if true, additional Mvctx_mpi1 is requested for mat-mat ops, default false */

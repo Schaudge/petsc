@@ -45,9 +45,9 @@ PetscErrorCode  MatMPIAIJSetPreallocation_MPIAIJCUSPARSE(Mat B,PetscInt d_nz,con
   ierr = MatCUSPARSESetFormat(b->A,MAT_CUSPARSE_MULT,cusparseStruct->diagGPUMatFormat);CHKERRQ(ierr);
   ierr = MatCUSPARSESetFormat(b->B,MAT_CUSPARSE_MULT,cusparseStruct->offdiagGPUMatFormat);CHKERRQ(ierr);
   ierr = MatCUSPARSESetHandle(b->A,cusparseStruct->handle);CHKERRQ(ierr);
-  ierr = MatCUSPARSESetHandle(b->B,cusparseStruct->handle);CHKERRQ(ierr);
+  ierr = MatCUSPARSESetHandle(b->B,cusparseStruct->handleB);CHKERRQ(ierr);
   ierr = MatCUSPARSESetStream(b->A,cusparseStruct->stream);CHKERRQ(ierr);
-  ierr = MatCUSPARSESetStream(b->B,cusparseStruct->stream);CHKERRQ(ierr);
+  ierr = MatCUSPARSESetStream(b->B,cusparseStruct->streamB);CHKERRQ(ierr);
 
   B->preallocated = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -55,9 +55,11 @@ PetscErrorCode  MatMPIAIJSetPreallocation_MPIAIJCUSPARSE(Mat B,PetscInt d_nz,con
 
 PetscErrorCode MatMult_MPIAIJCUSPARSE(Mat A,Vec xx,Vec yy)
 {
-  Mat_MPIAIJ     *a = (Mat_MPIAIJ*)A->data;
-  PetscErrorCode ierr;
-  PetscInt       nt;
+  PetscErrorCode     ierr;
+  cudaError_t        cerr;
+  Mat_MPIAIJ         *a = (Mat_MPIAIJ*)A->data;
+  Mat_MPIAIJCUSPARSE *cusparseStruct = (Mat_MPIAIJCUSPARSE*)a->spptr;
+  PetscInt           nt;
 
   PetscFunctionBegin;
   ierr = VecGetLocalSize(xx,&nt);CHKERRQ(ierr);
@@ -66,7 +68,10 @@ PetscErrorCode MatMult_MPIAIJCUSPARSE(Mat A,Vec xx,Vec yy)
   ierr = VecScatterBegin(a->Mvctx,xx,a->lvec,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = (*a->A->ops->mult)(a->A,xx,yy);CHKERRQ(ierr);
   ierr = VecScatterEnd(a->Mvctx,xx,a->lvec,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = (*a->B->ops->multadd)(a->B,a->lvec,yy,yy);CHKERRQ(ierr);
+  ierr = (*a->B->ops->mult)(a->B,a->lvec,a->zz);CHKERRQ(ierr);
+  cerr = cudaEventRecord(cusparseStruct->event,cusparseStruct->streamB);CHKERRCUDA(cerr);
+  cerr = cudaStreamWaitEvent(cusparseStruct->stream,cusparseStruct->event,0);CHKERRCUDA(cerr);
+  ierr = VecAYPX(yy,1.0,a->zz);CHKERRQ(ierr);
   ierr = VecScatterFinalizeForGPU(a->Mvctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -163,14 +168,15 @@ PetscErrorCode MatSetFromOptions_MPIAIJCUSPARSE(PetscOptionItems *PetscOptionsOb
 
 PetscErrorCode MatAssemblyEnd_MPIAIJCUSPARSE(Mat A,MatAssemblyType mode)
 {
-  PetscErrorCode ierr;
-  Mat_MPIAIJ     *mpiaij;
+  PetscErrorCode     ierr;
+  Mat_MPIAIJ         *a              = (Mat_MPIAIJ*)A->data;
+  Mat_MPIAIJCUSPARSE *cusparseStruct = (Mat_MPIAIJCUSPARSE*)a->spptr;
 
   PetscFunctionBegin;
-  mpiaij = (Mat_MPIAIJ*)A->data;
   ierr = MatAssemblyEnd_MPIAIJ(A,mode);CHKERRQ(ierr);
   if (!A->was_assembled && mode == MAT_FINAL_ASSEMBLY) {
-    ierr = VecSetType(mpiaij->lvec,VECSEQCUDA);CHKERRQ(ierr);
+    ierr = VecSetType(a->lvec,VECSEQCUDA);CHKERRQ(ierr);
+    ierr = VecScatterSetWaitStream(a->Mvctx,cusparseStruct->streamB);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -188,9 +194,10 @@ PetscErrorCode MatDestroy_MPIAIJCUSPARSE(Mat A)
     ierr = MatCUSPARSEClearHandle(a->A);CHKERRQ(ierr);
     ierr = MatCUSPARSEClearHandle(a->B);CHKERRQ(ierr);
     stat = cusparseDestroy(cusparseStruct->handle);CHKERRCUSPARSE(stat);
-    if (cusparseStruct->stream) {
-      err = cudaStreamDestroy(cusparseStruct->stream);CHKERRCUDA(err);
-    }
+    stat = cusparseDestroy(cusparseStruct->handleB);CHKERRCUSPARSE(stat);
+    if (cusparseStruct->stream)  {err = cudaStreamDestroy(cusparseStruct->stream);CHKERRCUDA(err);}
+    if (cusparseStruct->streamB) {err = cudaStreamDestroy(cusparseStruct->streamB);CHKERRCUDA(err);}
+    if (cusparseStruct->event)   {err = cudaEventDestroy(cusparseStruct->event);CHKERRCUDA(err);}
     delete cusparseStruct;
   } catch(char *ex) {
     SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Mat_MPIAIJCUSPARSE error: %s", ex);
@@ -202,6 +209,7 @@ PetscErrorCode MatDestroy_MPIAIJCUSPARSE(Mat A)
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat A)
 {
   PetscErrorCode     ierr;
+  cudaError_t        cerr;
   Mat_MPIAIJ         *a;
   Mat_MPIAIJCUSPARSE * cusparseStruct;
   cusparseStatus_t   stat;
@@ -219,7 +227,10 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat A)
   cusparseStruct->diagGPUMatFormat    = MAT_CUSPARSE_CSR;
   cusparseStruct->offdiagGPUMatFormat = MAT_CUSPARSE_CSR;
   cusparseStruct->stream              = 0;
+  cerr = cudaStreamCreateWithFlags(&cusparseStruct->streamB,cudaStreamNonBlocking);CHKERRCUDA(cerr);
+  cerr = cudaEventCreate(&cusparseStruct->event);CHKERRCUDA(cerr);
   stat = cusparseCreate(&(cusparseStruct->handle));CHKERRCUSPARSE(stat);
+  stat = cusparseCreate(&(cusparseStruct->handleB));CHKERRCUSPARSE(stat);
 
   A->ops->assemblyend    = MatAssemblyEnd_MPIAIJCUSPARSE;
   A->ops->mult           = MatMult_MPIAIJCUSPARSE;
