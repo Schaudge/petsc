@@ -40,7 +40,7 @@ PETSC_EXTERN PetscErrorCode MatCheckCompressedRow(Mat A,PetscInt nrows,Mat_Compr
   nrows = mbs - nrows;
 
   /* if a large number of zero rows is found, use compressedrow data structure */
-  if (nrows < ratio*mbs) {
+  if (1 || nrows < ratio*mbs) {
     compressedrow->use = PETSC_FALSE;
 
     ierr = PetscInfo3(A,"Found the ratio (num_zerorows %d)/(num_localrows %d) < %g. Do not use CompressedRow routines.\n",nrows,mbs,(double)ratio);CHKERRQ(ierr);

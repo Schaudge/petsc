@@ -8,8 +8,9 @@ typedef struct {
   /* The following are used by GPU capabilities to store matrix storage formats on the device */
   MatCUSPARSEStorageFormat diagGPUMatFormat;
   MatCUSPARSEStorageFormat offdiagGPUMatFormat;
-  cudaStream_t             stream;
-  cusparseHandle_t         handle;
+  cudaStream_t             stream,streamB;
+  cudaEvent_t              event;
+  cusparseHandle_t         handle,handleB;
 } Mat_MPIAIJCUSPARSE;
 
 PETSC_INTERN PetscErrorCode MatCUSPARSESetStream(Mat, const cudaStream_t stream);

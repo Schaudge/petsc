@@ -804,7 +804,7 @@ PetscErrorCode VecSet_SeqCUDA(Vec xin,PetscScalar alpha)
   ierr = VecCUDAGetArrayWrite(xin,&xarray);CHKERRQ(ierr);
   ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
   if (alpha == (PetscScalar)0.0) {
-    err = cudaMemset(xarray,0,n*sizeof(PetscScalar));CHKERRCUDA(err);
+   err = cudaMemsetAsync(xarray,0,n*sizeof(PetscScalar),0);CHKERRCUDA(err);
   } else {
     try {
       xptr = thrust::device_pointer_cast(xarray);

@@ -3,6 +3,7 @@ CFLAGS	         =
 FFLAGS	         =
 CPPFLAGS         =
 FPPFLAGS         =
+LDFLAGS          =  nvtx_pmpi.o   -lnvToolsExt
 LOCDIR           = src/vec/is/sf/tests/
 EXAMPLESC        = ex1.c ex2.c ex3.c ex4.c ex5.c
 EXAMPLESF        =
