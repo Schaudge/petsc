@@ -13,7 +13,7 @@ if __name__ == '__main__':
     'CC=icc',
     'CXX=icpc',
     'FC=ifort',
-    'COPTFLAGS=-g -O',
+    'COPTFLAGS=-g -std=c99 -O',
     'FOPTFLAGS=-g -O',
     'CXXOPTFLAGS=-g -O',
     '--with-scalar-type=complex',

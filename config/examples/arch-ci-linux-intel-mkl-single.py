@@ -14,7 +14,7 @@ if __name__ == '__main__':
     '--with-cxx=mpiicpc',
     '--with-fc=mpiifort',
     '--with-mpiexec=mpiexec.hydra',
-    'COPTFLAGS=-g -O',
+    'COPTFLAGS=-g -std=c99 -O',
     'FOPTFLAGS=-g -O',
     'CXXOPTFLAGS=-g -O',
     '--with-precision=single',
