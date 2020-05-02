@@ -60,6 +60,12 @@ typedef struct {
   Vec                       u,v,d,Hu;              /* Work vectors for the GKB algorithm                     */
   PetscScalar               *vecz;                 /* Contains intermediate values, eg for lower bound       */
 
+  /* Only used when the DGS preconditioner is used */
+  KSP                       ksp_dgs;               /* Solver for the approximate inversion of A10*A01 */
+  Mat                       A10,A01;               /* off-diagonal blocks (aka B and C)               */
+  // FIXME could reuse B and C above, once working.
+  Mat                       mat_dgs_aux;           /* Matrix to hold A10*A01                          */
+
   PC_FieldSplitLink         head;
   PetscBool                 isrestrict;             /* indicates PCFieldSplitRestrictIS() has been last called on this object, hack */
   PetscBool                 suboptionsset;          /* Indicates that the KSPSetFromOptions() has been called on the sub-KSPs */
@@ -352,6 +358,46 @@ static PetscErrorCode PCView_FieldSplit_GKB(PC pc,PetscViewer viewer)
   }
   PetscFunctionReturn(0);
 }
+
+static PetscErrorCode PCView_FieldSplit_DGS(PC pc,PetscViewer viewer)
+{
+  PC_FieldSplit     *jac = (PC_FieldSplit*)pc->data;
+  PetscBool         iascii,isdraw;
+
+  PetscFunctionBegin;
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii));
+  PetscCall(PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw));
+  if (iascii) {
+    PetscCall(PetscViewerASCIIPrintf(viewer,"  FieldSplit in Distributed Gauss-Seidel (DGS) smoother mode\n"));
+    if (pc->useAmat) {
+      PetscCall(PetscViewerASCIIPrintf(viewer,"  using Amat (not Pmat) as operator for blocks\n"));
+    }
+    if (jac->diag_use_amat) {
+      PetscCall(PetscViewerASCIIPrintf(viewer,"  using Amat (not Pmat) as operator for diagonal blocks\n"));
+    }
+    if (jac->offdiag_use_amat) {
+      PetscCall(PetscViewerASCIIPrintf(viewer,"  using Amat (not Pmat) as operator for off-diagonal blocks\n"));
+    }
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    PetscCall(PetscViewerASCIIPrintf(viewer,"KSP solver for A00 block\n"));
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    if (jac->head) {
+      PetscCall(KSPView(jac->head->ksp,viewer));
+    } else  {PetscCall(PetscViewerASCIIPrintf(viewer,"  not yet available\n"));}
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+    PetscCall(PetscViewerASCIIPrintf(viewer,"KSP solver for A10*A01 \n"));
+    PetscCall(PetscViewerASCIIPushTab(viewer));
+    if (jac->ksp_dgs) {
+      PetscCall(KSPView(jac->ksp_dgs,viewer));
+    } else {
+      PetscCall(PetscViewerASCIIPrintf(viewer,"  not yet available\n"));
+    }
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+    PetscCall(PetscViewerASCIIPopTab(viewer));
+  }
+  PetscFunctionReturn(0);
+}
+
 
 /* Precondition: jac->bs is set to a meaningful value */
 static PetscErrorCode PCFieldSplitSetRuntimeSplits_Private(PC pc)
@@ -752,7 +798,7 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
     ilink = ilink->next;
   }
 
-  if (jac->type != PC_COMPOSITE_ADDITIVE  && jac->type != PC_COMPOSITE_SCHUR && jac->type != PC_COMPOSITE_GKB) {
+  if (jac->type != PC_COMPOSITE_ADDITIVE  && jac->type != PC_COMPOSITE_SCHUR && jac->type != PC_COMPOSITE_GKB && jac->type != PC_COMPOSITE_DGS) {
     /* extract the rows of the matrix associated with each field: used for efficient computation of residual inside algorithm */
     /* FIXME: Can/should we reuse jac->mat whenever (jac->diag_use_amat) is true? */
     ilink = jac->head;
@@ -1079,6 +1125,32 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
       PetscCall(PetscViewerASCIISetTab(jac->gkbviewer,tablevel));
       PetscCall(PetscObjectIncrementTabLevel((PetscObject)ilink->ksp,(PetscObject)ilink->ksp,1));
     }
+  } else if (jac->type == PC_COMPOSITE_DGS) {
+    PC_FieldSplitLink link0,link1;
+    char              aux_prefix[1024];
+    Mat               A_source;
+
+    PetscCheck(nsplit == 2, PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_INCOMP,"To use DGS, you must have exactly 2 fields");
+
+    /* The 0- and 1-splits ("velocity" and "pressure") */
+    link0 = jac->head;
+    link1 = link0->next;
+
+    /* Set up the first solver "normally" */
+    PetscCall(KSPSetOperators(link0->ksp,jac->mat[0],jac->pmat[0]));
+    if (!jac->suboptionsset) {PetscCall(KSPSetFromOptions(link0->ksp));}
+
+    /* Set up an auxiliary solver */
+    PetscCall(KSPCreate(PetscObjectComm((PetscObject)pc),&jac->ksp_dgs));
+    A_source = jac->offdiag_use_amat ? pc->mat : pc->pmat;
+    PetscCall(MatCreateSubMatrix(A_source,link1->is,link0->is_col,MAT_INITIAL_MATRIX,&jac->A10));
+    PetscCall(MatCreateSubMatrix(A_source,link0->is,link1->is_col,MAT_INITIAL_MATRIX,&jac->A01));
+    // FIXME: this is only appropriate if you want this matrix assembled. You very likely don't want that and would prefer a shell matrix:
+    PetscCall(MatMatMult(jac->A10,jac->A01,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&jac->mat_dgs_aux));
+    PetscCall(KSPSetOperators(jac->ksp_dgs,jac->mat_dgs_aux,jac->mat_dgs_aux));
+    PetscCall(PetscSNPrintf(aux_prefix, sizeof(aux_prefix), "%sfieldsplit_dgs_aux_", ((PetscObject)pc)->prefix ? ((PetscObject)pc)->prefix : ""));
+    PetscCall(KSPSetOptionsPrefix(jac->ksp_dgs, aux_prefix));
+    PetscCall(KSPSetFromOptions(jac->ksp_dgs));
   } else {
     /* set up the individual splits' PCs */
     i     = 0;
@@ -1470,6 +1542,58 @@ static PetscErrorCode PCApply_FieldSplit_GKB(PC pc,Vec x,Vec y)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PCApply_FieldSplit_DGS(PC pc,Vec x,Vec y)
+{
+  PC_FieldSplit      *jac = (PC_FieldSplit*)pc->data;
+  PC_FieldSplitLink  link0,link1;
+
+  // FIXME this is not optimized! Could likely save plenty of operations and memory here.
+
+  PetscFunctionBegin;
+  link0 = jac->head;
+  link1 = link0->next;
+
+  PetscCall(VecScatterBegin(link0->sctx,x,link0->x,INSERT_VALUES,SCATTER_FORWARD));
+  PetscCall(VecScatterEnd(link0->sctx,x,link0->x,INSERT_VALUES,SCATTER_FORWARD));
+
+  PetscCall(KSPSolve(link0->ksp,link0->x,link0->x)); // link0->x now hold "dw"
+  PetscCall(KSPCheckSolve(link0->ksp,pc,link0->x));
+
+  {
+    /* Put rp - D\delta w in link1->y, using it as a work array */
+    Vec work_p = link1->y;
+
+    PetscCall(VecScatterBegin(link1->sctx,x,link1->x,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScatterEnd(link1->sctx,x,link1->x,INSERT_VALUES,SCATTER_FORWARD));
+    PetscCall(VecScale(link1->x,-1.0));                       // now holds -x1
+    PetscCall(MatMultAdd(jac->A10,link0->x,link1->x,work_p)); // now holds A10*dw - x1
+    PetscCall(VecScale(work_p,-1.0));                         // now x1 - A10*dw
+
+    /* Solve in place with Ap */
+    PetscCall(KSPSolve(jac->ksp_dgs,work_p,work_p));
+
+    /* Compute "dv" in link0->y */
+    PetscCall(MatMult(jac->A01,work_p,link0->y));
+  }
+
+  /* compute y1  = - A10 * "dv"*/
+  PetscCall(MatMult(jac->A10,link0->y,link1->y)); 
+  PetscCall(VecScale(link1->y,-1.0));
+
+  /* compute y0 = "dv" + "dw"*/
+  PetscCall(VecAXPY(link0->y,1.0,link0->x));
+
+  PetscCall(VecScatterBegin(link0->sctx,link0->y,y,INSERT_VALUES,SCATTER_REVERSE));
+  PetscCall(VecScatterEnd(link0->sctx,link0->y,y,INSERT_VALUES,SCATTER_REVERSE));
+  PetscCall(VecScatterBegin(link1->sctx,link1->y,y,INSERT_VALUES,SCATTER_REVERSE));
+  PetscCall(VecScatterEnd(link1->sctx,link1->y,y,INSERT_VALUES,SCATTER_REVERSE));
+
+  PetscFunctionReturn(0);
+}
+
+// FIXME can and should add a PCApplyRichardson implementation, as this is a smoother!
+
+
 #define FieldSplitSplitSolveAddTranspose(ilink,xx,yy) \
   (VecScatterBegin(ilink->sctx,xx,ilink->y,INSERT_VALUES,SCATTER_FORWARD) || \
    VecScatterEnd(ilink->sctx,xx,ilink->y,INSERT_VALUES,SCATTER_FORWARD) || \
@@ -1592,6 +1716,10 @@ static PetscErrorCode PCReset_FieldSplit(PC pc)
   PetscCall(VecDestroy(&jac->d));
   PetscCall(PetscFree(jac->vecz));
   PetscCall(PetscViewerDestroy(&jac->gkbviewer));
+  PetscCall(MatDestroy(&jac->mat_dgs_aux));
+  PetscCall(MatDestroy(&jac->A01));
+  PetscCall(MatDestroy(&jac->A10));
+  PetscCall(KSPDestroy(&jac->ksp_dgs));
   jac->isrestrict = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
@@ -2736,6 +2864,38 @@ static PetscErrorCode PCFieldSplitSetGKBNu_FieldSplit(PC pc,PetscReal nu)
   PetscFunctionReturn(0);
 }
 
+/*@
+    PCFieldSplitDGSGetAuxiliaryOperator - Obtain the auxiliary operator `A_{10}*A_{01}` used internally with the Distributed Gauss-Seidel type
+
+    Collective on PC
+
+    Input Parameter:
+.   pc     - the preconditioner context
+
+    Output Parameter:
+.   mat     - the auxiliary matrix
+
+    Level: intermediate
+
+.seealso: `PCFIELDSPLIT`, `PCFieldSplitType`, `PC_COMPOSITE_DGS`
+@*/
+PetscErrorCode PCFieldSplitDGSGetAuxiliaryOperator(PC pc,Mat *mat)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(pc,PC_CLASSID,1);
+  PetscTryMethod(pc,"PCFieldSplitDGSGetAuxiliaryOperator_C",(PC,Mat*),(pc,mat));
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PCFieldSplitDGSGetAuxiliaryOperator_FieldSplit(PC pc,Mat *mat)
+{
+  PC_FieldSplit *jac = (PC_FieldSplit*)pc->data;
+
+  PetscFunctionBegin;
+  *mat = jac->mat_dgs_aux;
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode  PCFieldSplitSetType_FieldSplit(PC pc,PCCompositeType type)
 {
   PC_FieldSplit  *jac = (PC_FieldSplit*)pc->data;
@@ -2752,6 +2912,7 @@ static PetscErrorCode  PCFieldSplitSetType_FieldSplit(PC pc,PCCompositeType type
   PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitSetGKBMaxit_C",0));
   PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitSetGKBNu_C",0));
   PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitSetGKBDelay_C",0));
+  PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitDGSGetAuxiliaryOperator_C",0));
 
   if (type == PC_COMPOSITE_SCHUR) {
     pc->ops->apply = PCApply_FieldSplit_Schur;
@@ -2771,6 +2932,11 @@ static PetscErrorCode  PCFieldSplitSetType_FieldSplit(PC pc,PCCompositeType type
     PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitSetGKBMaxit_C",PCFieldSplitSetGKBMaxit_FieldSplit));
     PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitSetGKBNu_C",PCFieldSplitSetGKBNu_FieldSplit));
     PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitSetGKBDelay_C",PCFieldSplitSetGKBDelay_FieldSplit));
+  } else if (type == PC_COMPOSITE_DGS){
+    pc->ops->apply          = PCApply_FieldSplit_DGS;
+    pc->ops->applytranspose = 0;
+    pc->ops->view           = PCView_FieldSplit_DGS;
+    PetscCall(PetscObjectComposeFunction((PetscObject)pc,"PCFieldSplitDGSGetAuxiliaryOperator_C",PCFieldSplitDGSGetAuxiliaryOperator_FieldSplit));
   } else {
     pc->ops->apply = PCApply_FieldSplit;
     pc->ops->view  = PCView_FieldSplit;
