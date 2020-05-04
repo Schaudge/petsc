@@ -1,18 +1,24 @@
-!
-!  Include file for Fortran use of the TS (timestepping) package in PETSc
-!
 #if !defined (PETSCTSDEF_H)
 #define PETSCTSDEF_H
 
 #include "petsc/finclude/petscsnes.h"
 
 #define TS type(tTS)
-#define TSAdapt type(tTSAdapt)
 #define TSTrajectory type(tTSTrajectory)
+#define TSAdapt type(tTSAdapt)
+#define TSGLLEAdapt type(tTSGLLEAdapt)
 
 #define TSType character*(80)
-#define TSAdaptType character*(80)
 #define TSTrajectoryType character*(80)
+#define TSSSPType character*(80)
+#define TSGLLEType character*(80)
+#define TSRKType character*(80)
+#define TSMPRKType character*(80)
+#define TSGLEEType character*(80)
+#define TSARKIMEXType character*(80)
+#define TSRosWType character*(80)
+#define TSBasicSymplecticType character*(80)
+
 #define TSEquationType PetscEnum
 #define TSConvergedReason PetscEnum
 #define TSExactFinalTimeOption PetscEnum
@@ -23,6 +29,7 @@
 
 #define TSEULER           'euler'
 #define TSBEULER          'beuler'
+#define TSBASICSYMPLECTIC 'basicsymplectic'
 #define TSPSEUDO          'pseudo'
 #define TSCN              'cn'
 #define TSSUNDIALS        'sundials'
@@ -30,35 +37,35 @@
 #define TSPYTHON          'python'
 #define TSTHETA           'theta'
 #define TSALPHA           'alpha'
+#define TSALPHA2          'alpha2'
 #define TSGLLE            'glle'
+#define TSGLEE            'glee'
 #define TSSSP             'ssp'
 #define TSARKIMEX         'arkimex'
 #define TSROSW            'rosw'
 #define TSEIMEX           'eimex'
+#define TSMIMEX           'mimex'
+#define TSBDF             'bdf'
 #define TSRADAU5          'radau5'
 #define TSMPRK            'mprk'
-
-#define TSTRAJECTORYBASIC 'basic'
-
-#define TSSSPType character*(80)
+#define TSTRAJECTORYBASIC         'basic'
+#define TSTRAJECTORYSINGLEFILE    'singlefile'
+#define TSTRAJECTORYMEMORY        'memory'
+#define TSTRAJECTORYVISUALIZATION 'visualization'
 #define TSSSPRKS2  'rks2'
 #define TSSSPRKS3  'rks3'
 #define TSSSPRK104 'rk104'
-
-#define TSGLLEAdaptType character*(80)
-#define TSGLLEADAPT_NONE 'none'
-#define TSGLLEADAPT_SIZE 'size'
-#define TSGLLEADAPT_BOTH 'both'
-
-#define TSAdaptType character*(80)
 #define TSADAPTNONE    'none'
 #define TSADAPTBASIC   'basic'
 #define TSADAPTDSP     'dsp'
 #define TSADAPTCFL     'cfl'
 #define TSADAPTGLEE    'glee'
 #define TSADAPTHISTORY 'history'
-
-#define TSRKType character*(80)
+#define TSGLLEADAPT_NONE 'none'
+#define TSGLLEADAPT_SIZE 'size'
+#define TSGLLEADAPT_BOTH 'both'
+#define TSGLLEACCEPT_ALWAYS 'always'
+#define TSGLLE_IRKS   'irks'
 #define TSRK1FE   '1fe'
 #define TSRK2A    '2a'
 #define TSRK3     '3'
@@ -67,16 +74,23 @@
 #define TSRK5F    '5f'
 #define TSRK5DP   '5dp'
 #define TSRK5BS   '5bs'
-#define TSRK6VR   "6vr"
-#define TSRK7VR   "7vr"
-#define TSRK8VR   "8vr"
-
-#define TSMPRKType   character*(80)
-#define TSMPRKPM2     'pm2'
-#define TSMPRKP2      'p2'
-#define TSMPRKP3      'p3'
-
-#define TSARKIMEXType character*(80)
+#define TSRK6VR   '6vr'
+#define TSRK7VR   '7vr'
+#define TSRK8VR   '8vr'
+#define TSMPRK2A22  '2a22'
+#define TSMPRK2A23  '2a23'
+#define TSMPRK2A32  '2a32'
+#define TSMPRK2A33  '2a33'
+#define TSMPRKP2    'p2'
+#define TSMPRKP3    'p3'
+#define TSGLEEi1      'BE1'
+#define TSGLEE23      '23'
+#define TSGLEE24      '24'
+#define TSGLEE25I     '25i'
+#define TSGLEE35      '35'
+#define TSGLEEEXRK2A  'exrk2a'
+#define TSGLEERK32G1  'rk32g1'
+#define TSGLEERK285EX 'rk285ex'
 #define TSARKIMEX1BEE   '1bee'
 #define TSARKIMEXA2     'a2'
 #define TSARKIMEXL2     'l2'
@@ -90,8 +104,6 @@
 #define TSARKIMEXARS443 'ars443'
 #define TSARKIMEX4      '4'
 #define TSARKIMEX5      '5'
-
-#define TSROSWType character*(80)
 #define TSROSW2M          '2m'
 #define TSROSW2P          '2p'
 #define TSROSWRA3PW       'ra3pw'
@@ -100,7 +112,7 @@
 #define TSROSWSANDU3      'sandu3'
 #define TSROSWASSP3P3S1C  'assp3p3s1c'
 #define TSROSWLASSP3P4S2C 'lassp3p4s2c'
-#define TSROSWLLSSP3P3S2C 'llssp3p3s2c'
+#define TSROSWLLSSP3P4S2C 'llssp3p4s2c'
 #define TSROSWARK3        'ark3'
 #define TSROSWTHETA1      'theta1'
 #define TSROSWTHETA2      'theta2'
@@ -108,10 +120,9 @@
 #define TSROSWSHAMP4      'shamp4'
 #define TSROSWVELDD4      'veldd4'
 #define TSROSW4L          '4l'
-
-#define TSEIMEXType character*(80)
-#define TSEIMEXS2     's2'
-#define TSEIMEXS3     's3'
-#define TSEIMEXS4     's4'
+#define TSBASICSYMPLECTICSIEULER   '1'
+#define TSBASICSYMPLECTICVELVERLET '2'
+#define TSBASICSYMPLECTIC3         '3'
+#define TSBASICSYMPLECTIC4         '4'
 
 #endif

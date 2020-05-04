@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the DMPlex package in PETSc
-!
 #if !defined (PETSCDMPLEXDEF_H)
 #define PETSCDMPLEXDEF_H
 
@@ -10,5 +6,13 @@
 
 #define DMPlexInterpolatedFlag PetscEnum
 #define DMPlexCellRefinerType PetscEnum
+
+#define PETSCPARTITIONERCHACO    'chaco'
+#define PETSCPARTITIONERPARMETIS 'parmetis'
+#define PETSCPARTITIONERPTSCOTCH 'ptscotch'
+#define PETSCPARTITIONERSHELL    'shell'
+#define PETSCPARTITIONERSIMPLE   'simple'
+#define PETSCPARTITIONERGATHER   'gather'
+#define PETSCPARTITIONERMATPARTITIONING 'matpartitioning'
 
 #endif

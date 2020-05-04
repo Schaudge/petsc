@@ -1,16 +1,10 @@
-!
-!
-!  Include file for Fortran use of the PetscDraw package in PETSc
-!
 #include "petsc/finclude/petscdraw.h"
-!
-!  Flags for draw
-!
+
+      ! Flags for draw
       PetscEnum, parameter :: PETSC_DRAW_BASIC_COLORS = 33
       PetscEnum, parameter :: PETSC_DRAW_ROTATE = -1
-!
-!  Colors for drawing
-!
+
+      ! Colors for drawing
       PetscEnum, parameter :: PETSC_DRAW_WHITE = 0
       PetscEnum, parameter :: PETSC_DRAW_BLACK = 1
       PetscEnum, parameter :: PETSC_DRAW_RED = 2
@@ -44,7 +38,8 @@
       PetscEnum, parameter :: PETSC_DRAW_LIMEGREEN = 30
       PetscEnum, parameter :: PETSC_DRAW_LAVENDERBLUSH =31
       PetscEnum, parameter :: PETSC_DRAW_PLUM = 32
-
+      
+      ! PetscDrawButton
       PetscEnum, parameter :: PETSC_BUTTON_NONE = 0
       PetscEnum, parameter :: PETSC_BUTTON_LEFT = 1
       PetscEnum, parameter :: PETSC_BUTTON_CENTER = 2
@@ -54,6 +49,3 @@
       PetscEnum, parameter :: PETSC_BUTTON_LEFT_SHIFT = 6
       PetscEnum, parameter :: PETSC_BUTTON_CENTER_SHIFT = 7
       PetscEnum, parameter :: PETSC_BUTTON_RIGHT_SHIFT = 8
-!
-!  End of Fortran include file for the PetscDraw package in PETSc
-

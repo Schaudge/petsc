@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the IS (index set) package in PETSc
-!
 #include "petsc/finclude/petscis.h"
 
       type tIS
@@ -30,18 +26,12 @@
       PetscSection, parameter :: PETSC_NULL_SECTION = tPetscSection(0)
       PetscSectionSym, parameter :: PETSC_NULL_SECTIONSYM = tPetscSectionSym(0)
 
-      PetscEnum, parameter :: IS_COLORING_GLOBAL = 0
-      PetscEnum, parameter :: IS_COLORING_LOCAL = 1
-
+      !
       PetscEnum, parameter :: IS_GENERAL = 0
       PetscEnum, parameter :: IS_STRIDE = 1
       PetscEnum, parameter :: IS_BLOCK = 2
 
-      PetscEnum, parameter :: IS_GTOLM_MASK =0
-      PetscEnum, parameter :: IS_GTOLM_DROP = 1
-!
-!  ISInfo; must match those in include/petscis.h
-!
+      ! ISInfo
       PetscEnum, parameter :: IS_INFO_MIN = -1
       PetscEnum, parameter :: IS_SORTED = 0
       PetscEnum, parameter :: IS_UNIQUE = 1
@@ -49,13 +39,18 @@
       PetscEnum, parameter :: IS_INTERVAL = 3
       PetscEnum, parameter :: IS_IDENTITY = 4
       PetscEnum, parameter :: IS_INFO_MAX = 5
-!
-!  ISInfoType; must match those in include/petscis.h
-!
+
+      ! ISInfoType
       PetscEnum, parameter :: IS_LOCAL = 0
       PetscEnum, parameter :: IS_GLOBAL = 1
-!
-!  End of Fortran include file for the IS package in PETSc
+
+      ! ISGlobalToLocalMappingMode
+      PetscEnum, parameter :: IS_GTOLM_MASK = 0
+      PetscEnum, parameter :: IS_GTOLM_DROP = 1
+
+      ! ISColoringType
+      PetscEnum, parameter :: IS_COLORING_GLOBAL = 0
+      PetscEnum, parameter :: IS_COLORING_LOCAL = 1
 
 #if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
 !DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_IS

@@ -1,2 +1,52 @@
+#if defined(PETSC_HAVE_FORTRAN_TYPE_STAR)
+      Interface
+      subroutine TSComputeRHSFunctionLinear(ts,t,X,F,ctx,ierr)
+       use petsctsdef
+       TS ts
+       PetscReal t
+       Vec X,F
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine TSComputeRHSFunctionLinear
+      end interface
 
+      Interface
+      subroutine TSComputeRHSJacobianConstant(ts,t,X,A,B,ctx,ierr)
+       use petsctsdef
+       TS ts
+       PetscReal t
+       Vec X,F
+       Mat A,B
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine TSComputeRHSJacobianConstant
+      end interface
 
+      Interface
+      subroutine TSComputeIFunctionLinear(ts,t,X,Xdot,F,ctx,ierr)
+       use petsctsdef
+       TS ts
+       PetscReal t
+       Vec X,Xdot,F
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine TSComputeIFunctionLinear
+      end interface
+
+      Interface
+      subroutine TSComputeIJacobianConstant(ts,t,X,Xdot,shift,A,B,ctx,ierr)
+       use petsctsdef
+       TS ts
+       PetscReal t,shift
+       Vec X,Xdot,F
+       Mat A,B
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine TSComputeIJacobianConstant
+      end interface
+#else
+      external :: TSComputeRHSFunctionLinear
+      external :: TSComputeRHSJacobianConstant
+      external :: TSComputeIFunctionLinear
+      external :: TSComputeIJacobianConstant
+#endif

@@ -1,38 +1,48 @@
 
 
       Interface
-      subroutine KSPSetType(a,b,z)
+      subroutine KSPSetType(a,b,ierr)
       use petsckspdef
        KSP a
        character(*) b
-       PetscErrorCode z
+       PetscErrorCode,intent(out) :: ierr
        end subroutine
       end Interface
 
       Interface
-      subroutine KSPView(a,b,z)
+      subroutine KSPView(a,b,ierr)
       use petsckspdef
        KSP a
        PetscViewer b
-       PetscErrorCode z
+       PetscErrorCode,intent(out) :: ierr
        end subroutine
       end Interface
 
       Interface PCBJacobiGetSubKSP
-      subroutine PCBJacobiGetSubKSP1(a,b,c,d,z)
+      subroutine PCBJacobiGetSubKSP1(a,b,c,d,ierr)
        use petsckspdef
        PC a ! PC
        PetscInt b ! PetscInt
        PetscInt c ! PetscInt
        KSP d ! KSP
-       PetscErrorCode z
+       PetscErrorCode,intent(out) :: ierr
       end subroutine
-      subroutine PCBJacobiGetSubKSP2(a,b,c,d,z)
+      subroutine PCBJacobiGetSubKSP2(a,b,c,d,ierr)
        use petsckspdef
        PC a ! PC
        PetscInt b ! PetscInt
        PetscInt c ! PetscInt
        KSP d(*) ! KSP
-       PetscErrorCode z
+       PetscErrorCode,intent(out) :: ierr
       end subroutine
       end Interface
+
+      external KSPConvergedDefault
+      external KSPConvergedSkip
+      external KSPGMRESMonitorKrylov
+      external KSPMonitorDefault
+      external KSPMonitorSingularValue
+      external KSPMonitorLGResidualNorm
+      external KSPMonitorLGTrueResidualNorm
+      external KSPMonitorTrueResidualNorm
+      external KSPMonitorSolution

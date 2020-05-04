@@ -10,36 +10,23 @@
 
 #define PC type(tPC)
 
+#define PCType character*(80)
+#define PCGAMGType character*(80)
+#define PCGAMGClassicalType character*(80)
+
 #define PCSide PetscEnum
 #define PCJacobiType PetscEnum
 #define PCASMType PetscEnum
 #define PCGASMType PetscEnum
 #define PCCompositeType PetscEnum
 #define PCRichardsonConvergedReason PetscEnum
-#define PCType character*(80)
 #define PCFieldSplitSchurPreType PetscEnum
 #define PCPARMSGlobalType PetscEnum
 #define PCPARMSLocalType PetscEnum
 #define PCFieldSplitSchurFactType PetscEnum
 #define CoarseProblemType PetscEnum
-#define PCGAMGType character*(80)
-#define PCGAMGClassicalType character*(80)
 #define PCGAMGLayoutType PetscEnum
-!
-! GAMG types
-!
-#define PCGAMGAGG 'agg'
-#define PCGAMGGEO 'geo'
-#define PCGAMGCLASSICAL 'classical'
-!
-! GAMG classical types
-!
-#define PCGAMGCLASSICALDIRECT   'direct'
-#define PCGAMGCLASSICALSTANDARD 'standard'
 
-!
-! Various preconditioners
-!
 #define PCNONE 'none'
 #define PCJACOBI 'jacobi'
 #define PCSOR 'sor'
@@ -89,6 +76,12 @@
 #define PCDEFLATION 'deflation'
 #define PCHPDDM 'hpddm'
 #define PCHARA 'hara'
+
+#define PCGAMGAGG 'agg'
+#define PCGAMGGEO 'geo'
+#define PCGAMGCLASSICAL 'classical'
+#define PCGAMGCLASSICALDIRECT 'direct'
+#define PCGAMGCLASSICALSTANDARD 'standard'
 
 #define PCMGType PetscEnum
 #define PCMGCycleType PetscEnum

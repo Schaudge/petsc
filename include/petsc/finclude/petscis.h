@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the IS (index set) package in PETSc
-!
 #if !defined (PETSCISDEF_H)
 #define PETSCISDEF_H
 
@@ -12,24 +8,26 @@
 #define ISColoring type(tISColoring)
 #define PetscSection type(tPetscSection)
 #define PetscSectionSym type(tPetscSectionSym)
-
 #define PetscSF type(tPetscSF)
-#define PetscLayout PetscFortranAddr
 
 #define ISType character*(80)
+#define ISGlobalToLocalType character*(80)
+#define ISLocalToGlobalMappingType character*(80)
+
+#define PetscLayout PetscFortranAddr
 #define ISInfo PetscEnum
 #define ISInfoType PetscEnum
 #define ISLocalToGlobalMapping PetscFortranAddr
-#define ISGlobalToLocalType character*(80)
 #define ISGlobalToLocalMappingMode PetscEnum
 #define ISColoringType PetscEnum
 
 #define ISColoringValue PETSC_IS_COLOR_VALUE_TYPE_F
 
-#define ISGENERAL 'general'
-#define ISSTRIDE 'stride'
-#define ISBLOCK 'block'
-
+#define ISGENERAL      'general'
+#define ISSTRIDE       'stride'
+#define ISBLOCK        'block'
+#define ISLOCALTOGLOBALMAPPINGBASIC 'basic'
+#define ISLOCALTOGLOBALMAPPINGHASH  'hash'
 #define ISGLOBALTOLOCALMAPPINGBASIC 'basic'
 #define ISGLOBALTOLOCALMAPPINGHASH  'hash'
 #endif

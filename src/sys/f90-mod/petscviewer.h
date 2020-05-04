@@ -1,6 +1,3 @@
-!
-!  Include file for Fortran use of the PetscViewer package in PETSc
-!
 #include "petsc/finclude/petscviewer.h"
 
       type tPetscViewer
@@ -8,10 +5,9 @@
       end type tPetscViewer
 
       PetscViewer, parameter :: PETSC_NULL_VIEWER = tPetscViewer(0)
-!
-!     The numbers used below should match those in
-!     petsc/private/fortranimpl.h
-!
+
+      ! The numbers used below should match those in
+      ! petsc/private/fortranimpl.h
       PetscViewer, parameter :: PETSC_VIEWER_STDOUT_SELF  = tPetscViewer(9)
       PetscViewer, parameter :: PETSC_VIEWER_DRAW_WORLD   = tPetscViewer(4)
       PetscViewer, parameter :: PETSC_VIEWER_DRAW_SELF    = tPetscViewer(5)
@@ -30,17 +26,19 @@
       external PETSC_VIEWER_STDOUT_
       external PETSC_VIEWER_DRAW_
       external PetscViewerAndFormatDestroy
-!
-!  Flags for binary I/O
-!
+
+      !  Flags for binary I/O
       PetscEnum, parameter :: FILE_MODE_READ = 0
       PetscEnum, parameter :: FILE_MODE_WRITE = 1
       PetscEnum, parameter :: FILE_MODE_APPEND = 2
       PetscEnum, parameter :: FILE_MODE_UPDATE = 3
       PetscEnum, parameter :: FILE_MODE_APPEND_UPDATE = 4
-!
-!  PetscViewer formats
-!
+
+      ! PetscViewerGLVisType
+      PetscEnum, parameter :: PETSC_VIEWER_GLVIS_DUMP = 0
+      PetscEnum, parameter :: PETSC_VIEWER_GLVIS_SOCKET = 1
+
+      ! PetscViewerFormat
       PetscEnum, parameter :: PETSC_VIEWER_DEFAULT = 0
       PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATLAB = 1
       PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATHEMATICA = 2
@@ -78,8 +76,13 @@
       PetscEnum, parameter :: PETSC_VIEWER_HDF5_MAT = 34
       PetscEnum, parameter :: PETSC_VIEWER_NOFORMAT = 35
       PetscEnum, parameter :: PETSC_VIEWER_LOAD_BALANCE = 36
-!
-!  End of Fortran include file for the PetscViewer package in PETSc
+
+      ! PetscViewerVTKFieldType
+      PetscEnum, parameter :: PETSC_VTK_INVALID = 0
+      PetscEnum, parameter :: PETSC_VTK_POINT_FIELD = 1
+      PetscEnum, parameter :: PETSC_VTK_POINT_VECTOR_FIELD = 2
+      PetscEnum, parameter :: PETSC_VTK_CELL_FIELD = 3
+      PetscEnum, parameter :: PETSC_VTK_CELL_VECTOR_FIELD = 4
 
 #if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
 !DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_VIEWER
