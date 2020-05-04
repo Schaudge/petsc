@@ -33,6 +33,15 @@
       PetscEnum, parameter :: MAT_FACTOR_CHOLESKY=2
       PetscEnum, parameter :: MAT_FACTOR_ILU=3
       PetscEnum, parameter :: MAT_FACTOR_ICC=4
+
+!
+!  MatReuse
+!
+      PetscEnum, parameter :: MAT_INITIAL_MATRIX=0
+      PetscEnum, parameter :: MAT_REUSE_MATRIX=1
+      PetscEnum, parameter :: MAT_IGNORE_MATRIX=2
+      PetscEnum, parameter :: MAT_INPLACE_MATRIX=3
+
 !
 ! MatCreateSubMatrixOption
 !
@@ -108,13 +117,6 @@
       PetscEnum, parameter :: MAT_INFO_FILL_RATIO_NEEDED=9
       PetscEnum, parameter :: MAT_INFO_FACTOR_MALLOCS=10
 !
-!  MatReuse
-!
-      PetscEnum, parameter :: MAT_INITIAL_MATRIX=0
-      PetscEnum, parameter :: MAT_REUSE_MATRIX=1
-      PetscEnum, parameter :: MAT_IGNORE_MATRIX=2
-      PetscEnum, parameter :: MAT_INPLACE_MATRIX=3
-!
 !  MatInfoType
 !
       PetscEnum, parameter :: MAT_LOCAL=1
@@ -154,6 +156,32 @@
       PetscEnum, parameter :: SOR_EISENSTAT=32
       PetscEnum, parameter :: SOR_APPLY_UPPER=64
       PetscEnum, parameter :: SOR_APPLY_LOWER=128
+!
+!
+!
+      PetscEnum, parameter :: MATRIX_BINARY_FORMAT_DENSE=-1
+!
+! MPChacoGlobalType
+      PetscEnum, parameter :: MP_CHACO_MULTILEVEL_KL=0
+      PetscEnum, parameter :: MP_CHACO_SPECTRAL=1
+      PetscEnum, parameter :: MP_CHACO_LINEAR=2
+      PetscEnum, parameter :: MP_CHACO_RANDOM=3
+      PetscEnum, parameter :: MP_CHACO_SCATTERED=4
+!
+! MPChacoLocalType
+      PetscEnum, parameter :: MP_CHACO_KERNIGHAN_LIN=0
+      PetscEnum, parameter :: MP_CHACO_NONE=1
+!
+! MPChacoEigenType
+      PetscEnum, parameter :: MP_CHACO_LANCZOS=0
+      PetscEnum, parameter :: MP_CHACO_RQI_SYMMLQ=1
+!
+! MPPTScotchStrategyType
+      PetscEnum, parameter :: MP_PTSCOTCH_QUALITY = 0
+      PetscEnum, parameter :: MP_PTSCOTCH_SPEED = 1
+      PetscEnum, parameter :: MP_PTSCOTCH_BALANCE = 2
+      PetscEnum, parameter :: MP_PTSCOTCH_SAFETY = 3
+      PetscEnum, parameter :: MP_PTSCOTCH_SCALABILITY = 4
 !
 !  MatOperation
 !
@@ -304,32 +332,6 @@
       PetscEnum, parameter :: MATOP_DESTROYSUBMATRICES=145
       PetscEnum, parameter :: MATOP_TRANSPOSE_SOLVE=146
       PetscEnum, parameter :: MATOP_GET_VALUES_LOCAL=147
-!
-!
-!
-      PetscEnum, parameter :: MATRIX_BINARY_FORMAT_DENSE=-1
-!
-! MPChacoGlobalType
-      PetscEnum, parameter :: MP_CHACO_MULTILEVEL_KL=0
-      PetscEnum, parameter :: MP_CHACO_SPECTRAL=1
-      PetscEnum, parameter :: MP_CHACO_LINEAR=2
-      PetscEnum, parameter :: MP_CHACO_RANDOM=3
-      PetscEnum, parameter :: MP_CHACO_SCATTERED=4
-!
-! MPChacoLocalType
-      PetscEnum, parameter :: MP_CHACO_KERNIGHAN_LIN=0
-      PetscEnum, parameter :: MP_CHACO_NONE=1
-!
-! MPChacoEigenType
-      PetscEnum, parameter :: MP_CHACO_LANCZOS=0
-      PetscEnum, parameter :: MP_CHACO_RQI_SYMMLQ=1
-!
-! MPPTScotchStrategyType
-      PetscEnum, parameter :: MP_PTSCOTCH_QUALITY = 0
-      PetscEnum, parameter :: MP_PTSCOTCH_SPEED = 1
-      PetscEnum, parameter :: MP_PTSCOTCH_BALANCE = 2
-      PetscEnum, parameter :: MP_PTSCOTCH_SAFETY = 3
-      PetscEnum, parameter :: MP_PTSCOTCH_SCALABILITY = 4
 
 ! PetscScalarPrecision
       PetscEnum, parameter :: PETSC_SCALAR_DOUBLE=0
