@@ -39,45 +39,44 @@
       PetscEnum, parameter :: FILE_MODE_UPDATE = 3
       PetscEnum, parameter :: FILE_MODE_APPEND_UPDATE = 4
 !
-!  PetscViewer formats
-!
-      PetscEnum, parameter :: PETSC_VIEWER_DEFAULT = 0
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATLAB = 1
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATHEMATICA = 2
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_IMPL = 3
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_INFO = 4
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_INFO_DETAIL = 5
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_COMMON = 6
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_SYMMODU = 7
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_INDEX = 8
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_DENSE = 9
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATRIXMARKET = 10
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_VTK = 11
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_VTK_CELL = 12
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_VTK_COORDS = 13
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_PCICE = 14
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_PYTHON = 15
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_FACTOR_INFO = 16
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_LATEX = 17
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_XML = 18
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_GLVIS = 19
-      PetscEnum, parameter :: PETSC_VIEWER_ASCII_CSV = 20
-      PetscEnum, parameter :: PETSC_VIEWER_DRAW_BASIC = 21
-      PetscEnum, parameter :: PETSC_VIEWER_DRAW_LG = 22
-      PetscEnum, parameter :: PETSC_VIEWER_DRAW_LG_XRANGE = 23
-      PetscEnum, parameter :: PETSC_VIEWER_DRAW_CONTOUR = 24
-      PetscEnum, parameter :: PETSC_VIEWER_DRAW_PORTS = 25
-      PetscEnum, parameter :: PETSC_VIEWER_VTK_VTS = 26
-      PetscEnum, parameter :: PETSC_VIEWER_VTK_VTR = 27
-      PetscEnum, parameter :: PETSC_VIEWER_VTK_VTU = 28
-      PetscEnum, parameter :: PETSC_VIEWER_BINARY_MATLAB = 29
-      PetscEnum, parameter :: PETSC_VIEWER_NATIVE = 30
-      PetscEnum, parameter :: PETSC_VIEWER_HDF5_PETSC = 31
-      PetscEnum, parameter :: PETSC_VIEWER_HDF5_VIZ = 32
-      PetscEnum, parameter :: PETSC_VIEWER_HDF5_XDMF = 33
-      PetscEnum, parameter :: PETSC_VIEWER_HDF5_MAT = 34
-      PetscEnum, parameter :: PETSC_VIEWER_NOFORMAT = 35
-      PetscEnum, parameter :: PETSC_VIEWER_LOAD_BALANCE = 36
+! PetscViewerFormat
+PetscEnum, parameter :: PETSC_VIEWER_DEFAULT = 0
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATLAB = 1
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATHEMATICA = 2
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_IMPL = 3
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_INFO = 4
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_INFO_DETAIL = 5
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_COMMON = 6
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_SYMMODU = 7
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_INDEX = 8
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_DENSE = 9
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATRIXMARKET = 10
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_VTK = 11
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_VTK_CELL = 12
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_VTK_COORDS = 13
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_PCICE = 14
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_PYTHON = 15
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_FACTOR_INFO = 16
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_LATEX = 17
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_XML = 18
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_GLVIS = 19
+PetscEnum, parameter :: PETSC_VIEWER_ASCII_CSV = 20
+PetscEnum, parameter :: PETSC_VIEWER_DRAW_BASIC = 21
+PetscEnum, parameter :: PETSC_VIEWER_DRAW_LG = 22
+PetscEnum, parameter :: PETSC_VIEWER_DRAW_LG_XRANGE = 23
+PetscEnum, parameter :: PETSC_VIEWER_DRAW_CONTOUR = 24
+PetscEnum, parameter :: PETSC_VIEWER_DRAW_PORTS = 25
+PetscEnum, parameter :: PETSC_VIEWER_VTK_VTS = 26
+PetscEnum, parameter :: PETSC_VIEWER_VTK_VTR = 27
+PetscEnum, parameter :: PETSC_VIEWER_VTK_VTU = 28
+PetscEnum, parameter :: PETSC_VIEWER_BINARY_MATLAB = 29
+PetscEnum, parameter :: PETSC_VIEWER_NATIVE = 30
+PetscEnum, parameter :: PETSC_VIEWER_HDF5_PETSC = 31
+PetscEnum, parameter :: PETSC_VIEWER_HDF5_VIZ = 32
+PetscEnum, parameter :: PETSC_VIEWER_HDF5_XDMF = 33
+PetscEnum, parameter :: PETSC_VIEWER_HDF5_MAT = 34
+PetscEnum, parameter :: PETSC_VIEWER_NOFORMAT = 35
+PetscEnum, parameter :: PETSC_VIEWER_LOAD_BALANCE = 36
 !
 !  End of Fortran include file for the PetscViewer package in PETSc
 
