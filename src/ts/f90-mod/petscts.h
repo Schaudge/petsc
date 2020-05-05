@@ -54,9 +54,4 @@
       PetscEnum, parameter :: SUNDIALS_MODIFIED_GS  = 1
       PetscEnum, parameter :: SUNDIALS_CLASSICAL_GS = 2
 #define SUNDIALS_UNMODIFIED_GS SUNDIALS_CLASSICAL_GS
-      
-      ! Some PETSc fortran functions that the user might pass as arguments
-      external TSCOMPUTERHSFUNCTIONLINEAR
-      external TSCOMPUTERHSJACOBIANCONSTANT
-      external TSCOMPUTEIFUNCTIONLINEAR
-      external TSCOMPUTEIJACOBIANCONSTANT
+

@@ -79,3 +79,16 @@
        PetscErrorCode, intent(out) :: ierr
       end subroutine SNESSetOptionsPrefix
       end Interface
+
+      ! Some PETSc fortran functions that the user might pass as arguments
+      ! ToDo: define interface
+      external SNESCOMPUTEJACOBIANDEFAULT
+      external MATMFFDCOMPUTEJACOBIAN
+      external SNESCOMPUTEJACOBIANDEFAULTCOLOR
+      external SNESMONITORDEFAULT
+      external SNESMONITORLGRESIDUALNORM
+      external SNESMONITORSOLUTION
+      external SNESMONITORSOLUTIONUPDATE
+
+      external SNESCONVERGEDDEFAULT
+      external SNESCONVERGEDSKIP

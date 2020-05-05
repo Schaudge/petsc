@@ -36,3 +36,14 @@
        PetscErrorCode z
       end subroutine
       end Interface
+
+      ! Possible arguments to KSPMonitorSet()
+      ! ToDo: define interface
+      external KSPCONVERGEDDEFAULT
+      external KSPMONITORDEFAULT
+      external KSPMONITORTRUERESIDUALNORM
+      external KSPMONITORLGRESIDUALNORM
+      external KSPMONITORLGTRUERESIDUALNORM
+      external KSPMONITORSOLUTION
+      external KSPMONITORSINGULARVALUE
+      external KSPGMRESMONITORKRYLOV

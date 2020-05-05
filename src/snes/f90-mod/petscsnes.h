@@ -80,15 +80,3 @@
       PetscEnum, parameter :: SNES_QN_LBFGS       = 0
       PetscEnum, parameter :: SNES_QN_BROYDEN     = 1
       PetscEnum, parameter :: SNES_QN_BADBROYDEN  = 2
-      
-      ! Some PETSc fortran functions that the user might pass as arguments
-      external SNESCOMPUTEJACOBIANDEFAULT
-      external MATMFFDCOMPUTEJACOBIAN
-      external SNESCOMPUTEJACOBIANDEFAULTCOLOR
-      external SNESMONITORDEFAULT
-      external SNESMONITORLGRESIDUALNORM
-      external SNESMONITORSOLUTION
-      external SNESMONITORSOLUTIONUPDATE
-
-      external SNESCONVERGEDDEFAULT
-      external SNESCONVERGEDSKIP
