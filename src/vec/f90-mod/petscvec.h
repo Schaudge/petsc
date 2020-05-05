@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the Vec package in PETSc
-!
 #include "petsc/finclude/petscvec.h"
 
       type tVec
@@ -20,19 +16,23 @@
       Vec, parameter :: PETSC_NULL_VEC = tVec(0)
       VecScatter, parameter :: PETSC_NULL_VECSCATTER = tVecScatter(0)
       VecTagger, parameter :: PETSC_NULL_VECTAGGER = tVecTagger(0)
-!
-!
-!  Types of vector and matrix norms
-!
+
+      ! ScatterMode
+      PetscEnum, parameter :: SCATTER_FORWARD = 0
+      PetscEnum, parameter :: SCATTER_REVERSE = 1
+      PetscEnum, parameter :: SCATTER_FORWARD_LOCAL = 2
+      PetscEnum, parameter :: SCATTER_REVERSE_LOCAL = 3
+      PetscEnum, parameter :: SCATTER_LOCAL = 2
+
+      ! NormType
       PetscEnum, parameter :: NORM_1 = 0
       PetscEnum, parameter :: NORM_2 = 1
       PetscEnum, parameter :: NORM_FROBENIUS = 2
       PetscEnum, parameter :: NORM_INFINITY = 3
       PetscEnum, parameter :: NORM_MAX = 3
       PetscEnum, parameter :: NORM_1_AND_2 = 4
-!
-!  Flags for VecSetValues() and MatSetValues()
-!
+
+      ! Flags for VecSetValues() and MatSetValues()
       PetscEnum, parameter :: NOT_SET_VALUES = 0
       PetscEnum, parameter :: INSERT_VALUES = 1
       PetscEnum, parameter :: ADD_VALUES = 2
@@ -42,30 +42,18 @@
       PetscEnum, parameter :: ADD_ALL_VALUES = 6
       PetscEnum, parameter :: INSERT_BC_VALUES = 7
       PetscEnum, parameter :: ADD_BC_VALUES = 8
-!
-!  Types of vector scatters
-!
-      PetscEnum, parameter :: SCATTER_FORWARD = 0
-      PetscEnum, parameter :: SCATTER_REVERSE = 1
-      PetscEnum, parameter :: SCATTER_FORWARD_LOCAL = 2
-      PetscEnum, parameter :: SCATTER_REVERSE_LOCAL = 3
-      PetscEnum, parameter :: SCATTER_LOCAL = 2
-!
-!  VecOption
-!
+
+      ! VecOption
       PetscEnum, parameter :: VEC_IGNORE_OFF_PROC_ENTRIES = 0
       PetscEnum, parameter :: VEC_IGNORE_NEGATIVE_INDICES = 1
       PetscEnum, parameter :: VEC_SUBSET_OFF_PROC_ENTRIES = 2
-!
-!  VecOperation
-!
+
+      ! VecOperation
       PetscEnum, parameter :: VECOP_DUPLICATE = 0
       PetscEnum, parameter :: VECOP_VIEW = 33
       PetscEnum, parameter :: VECOP_LOAD = 41
       PetscEnum, parameter :: VECOP_VIEWNATIVE = 68
       PetscEnum, parameter :: VECOP_LOADNATIVE = 69
-!
-!  End of Fortran include file for the Vec package in PETSc
 
 #if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
 !DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_VEC
