@@ -26,7 +26,7 @@
       PetscSection, parameter :: PETSC_NULL_SECTION = tPetscSection(0)
       PetscSectionSym, parameter :: PETSC_NULL_SECTIONSYM = tPetscSectionSym(0)
 
-
+      !
       PetscEnum, parameter :: IS_GENERAL = 0
       PetscEnum, parameter :: IS_STRIDE = 1
       PetscEnum, parameter :: IS_BLOCK = 2

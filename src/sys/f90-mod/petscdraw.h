@@ -3,7 +3,7 @@
       ! Flags for draw
       PetscEnum, parameter :: PETSC_DRAW_BASIC_COLORS = 33
       PetscEnum, parameter :: PETSC_DRAW_ROTATE = -1
-      
+
       ! Colors for drawing
       PetscEnum, parameter :: PETSC_DRAW_WHITE = 0
       PetscEnum, parameter :: PETSC_DRAW_BLACK = 1
