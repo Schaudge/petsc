@@ -56,12 +56,3 @@
       PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_DIAGONAL = 2
       PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_USER     = 3
 
-      ! Possible arguments to KSPMonitorSet()
-      external KSPCONVERGEDDEFAULT
-      external KSPMONITORDEFAULT
-      external KSPMONITORTRUERESIDUALNORM
-      external KSPMONITORLGRESIDUALNORM
-      external KSPMONITORLGTRUERESIDUALNORM
-      external KSPMONITORSOLUTION
-      external KSPMONITORSINGULARVALUE
-      external KSPGMRESMONITORKRYLOV
