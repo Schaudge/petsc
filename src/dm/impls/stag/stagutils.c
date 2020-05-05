@@ -37,6 +37,7 @@ static PetscErrorCode DMStagGetProductCoordinateArrays_Private(DM dm,void* arrX,
   PetscInt       dim,d,dofCheck[DMSTAG_MAX_STRATA],s;
   DM             dmCoord;
   void*          arr[DMSTAG_MAX_DIM];
+  PetscBool      checkDof;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
@@ -53,12 +54,16 @@ static PetscErrorCode DMStagGetProductCoordinateArrays_Private(DM dm,void* arrX,
     if (!isProduct) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is not of type DMPRODUCT");
   }
   for (s=0; s<DMSTAG_MAX_STRATA; ++s) dofCheck[s] = 0;
+  checkDof = PETSC_FALSE;
   for (d=0; d<dim; ++d) {
     DM        subDM;
     DMType    dmType;
     PetscBool isStag;
     PetscInt  dof[DMSTAG_MAX_STRATA],subDim;
     Vec       coord1d_local;
+
+    /* Ignore unrequested arrays */
+    if (!arr[d]) continue;
 
     ierr = DMProductGetDM(dmCoord,d,&subDM);CHKERRQ(ierr);
     if (!subDM) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate DM is missing sub DM %D",d);
@@ -68,8 +73,9 @@ static PetscErrorCode DMStagGetProductCoordinateArrays_Private(DM dm,void* arrX,
     ierr = PetscStrcmp(DMSTAG,dmType,&isStag);CHKERRQ(ierr);
     if (!isStag) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DM is not of type DMSTAG");
     ierr = DMStagGetDOF(subDM,&dof[0],&dof[1],&dof[2],&dof[3]);CHKERRQ(ierr);
-    if (d == 0) {
+    if (!checkDof) {
       for (s=0; s<DMSTAG_MAX_STRATA; ++s) dofCheck[s] = dof[s];
+      checkDof = PETSC_TRUE;
     } else {
       for (s=0; s<DMSTAG_MAX_STRATA; ++s) {
         if (dofCheck[s] != dof[s]) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Coordinate sub-DMs have different dofs");
@@ -651,15 +657,13 @@ PetscErrorCode DMStagGetLocationSlot(DM dm,DMStagStencilLocation loc,PetscInt c,
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMSTAG);
-#if defined(PETSC_USE_DEBUG)
-  {
+  if (PetscDefined(USE_DEBUG)) {
     PetscErrorCode ierr;
     PetscInt       dof;
     ierr = DMStagGetLocationDOF(dm,loc,&dof);CHKERRQ(ierr);
     if (dof < 1) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Location %s has no dof attached",DMStagStencilLocations[loc]);
     if (c > dof-1) SETERRQ3(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_OUTOFRANGE,"Supplied component number (%D) for location %s is too big (maximum %D)",c,DMStagStencilLocations[loc],dof-1);
   }
-#endif
   *slot = stag->locationOffsets[loc] + c;
   PetscFunctionReturn(0);
 }
@@ -852,6 +856,9 @@ static PetscErrorCode DMStagRestoreProductCoordinateArrays_Private(DM dm,void *a
     DM  subDM;
     Vec coord1d_local;
 
+    /* Ignore unrequested arrays */
+    if (!arr[d]) continue;
+
     ierr = DMProductGetDM(dmCoord,d,&subDM);CHKERRQ(ierr);
     ierr = DMGetCoordinatesLocal(subDM,&coord1d_local);CHKERRQ(ierr);
     if (read) {
@@ -956,9 +963,9 @@ PetscErrorCode DMStagSetBoundaryTypes(DM dm,DMBoundaryType boundaryType0,DMBound
   if (dim > 1) PetscValidLogicalCollectiveEnum(dm,boundaryType1,3);
   if (dim > 2) PetscValidLogicalCollectiveEnum(dm,boundaryType2,4);
   if (dm->setupcalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
-  if (boundaryType0           ) stag->boundaryType[0] = boundaryType0;
-  if (boundaryType1 && dim > 1) stag->boundaryType[1] = boundaryType1;
-  if (boundaryType2 && dim > 2) stag->boundaryType[2] = boundaryType2;
+               stag->boundaryType[0] = boundaryType0;
+  if (dim > 1) stag->boundaryType[1] = boundaryType1;
+  if (dim > 2) stag->boundaryType[2] = boundaryType2;
   PetscFunctionReturn(0);
 }
 
@@ -1273,8 +1280,7 @@ PetscErrorCode DMStagSetUniformCoordinatesExplicit(DM dm,PetscReal xmin,PetscRea
 /*@C
   DMStagSetUniformCoordinatesProduct - create uniform coordinates, as a product of 1D arrays
 
-  Set the coordinate DM to be a DMProduct of 1D DMStag objects, each of which have a coordinate DM (also a 1d DMStag) holding uniform
-  coordinates.
+  Set the coordinate DM to be a DMProduct of 1D DMStag objects, each of which have a coordinate DM (also a 1d DMStag) holding uniform coordinates.
 
   Collective
 
@@ -1284,6 +1290,10 @@ PetscErrorCode DMStagSetUniformCoordinatesExplicit(DM dm,PetscReal xmin,PetscRea
 
   Notes:
   Arguments corresponding to higher dimensions are ignored for 1D and 2D grids.
+
+  The per-dimension 1-dimensional DMStag objects that comprise the product
+  always have active 0-cells (vertices, element boundaries) and 1-cells
+  (element centers).
 
   Level: intermediate
 
@@ -1306,16 +1316,10 @@ PetscErrorCode DMStagSetUniformCoordinatesProduct(DM dm,PetscReal xmin,PetscReal
   ierr = DMGetCoordinateDM(dm,&dmc);CHKERRQ(ierr);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
 
-  /* Create 1D sub-DMs, living on subcommunicators */
-
-  dof0 = 0;
-  for (d=0; d<dim; ++d) {          /* Include point dof in the sub-DMs if any non-element strata are active in the original DMStag */
-    if (stag->dof[d]) {
-      dof0 = 1;
-      break;
-    }
-  }
-  dof1 = stag->dof[dim] ? 1 : 0; /*  Include element dof in the sub-DMs if the elements are active in the original DMStag */
+  /* Create 1D sub-DMs, living on subcommunicators.
+     Always include both vertex and element dof, regardless of the active strata of the DMStag */
+  dof0 = 1;
+  dof1 = 1;
 
   for (d=0; d<dim; ++d) {
     DM                subdm;

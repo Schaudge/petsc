@@ -352,6 +352,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_MPIAIJ_MPIDense(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATMPIDENSE);CHKERRQ(ierr);
   switch (product->type) {
   case MATPRODUCT_AB:
     ierr = MatProductSetFromOptions_MPIAIJ_MPIDense_AB(C);CHKERRQ(ierr);
@@ -2492,6 +2493,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_MPIAIJ(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATMPIAIJ);CHKERRQ(ierr);
   switch (product->type) {
   case MATPRODUCT_AB:
     ierr = MatProductSetFromOptions_MPIAIJ_AB(C);CHKERRQ(ierr);
@@ -2508,7 +2510,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_MPIAIJ(Mat C)
   case MATPRODUCT_ABC:
     ierr = MatProductSetFromOptions_MPIAIJ_ABC(C);CHKERRQ(ierr);
     break;
-  default: SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type is not supported");
+  default: SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type %s is not supported for MPIAIJ and MPIAIJ matrices",MatProductTypes[product->type]);
   }
   PetscFunctionReturn(0);
 }

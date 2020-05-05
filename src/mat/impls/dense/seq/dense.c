@@ -102,13 +102,13 @@ PetscErrorCode MatZeroRowsColumns_SeqDense(Mat A,PetscInt N,const PetscInt rows[
   const PetscScalar *xx;
 
   PetscFunctionBegin;
-#if defined(PETSC_USE_DEBUG)
-  for (i=0; i<N; i++) {
-    if (rows[i] < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Negative row requested to be zeroed");
-    if (rows[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D requested to be zeroed greater than or equal number of rows %D",rows[i],A->rmap->n);
-    if (rows[i] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Col %D requested to be zeroed greater than or equal number of cols %D",rows[i],A->cmap->n);
+  if (PetscDefined(USE_DEBUG)) {
+    for (i=0; i<N; i++) {
+      if (rows[i] < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Negative row requested to be zeroed");
+      if (rows[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D requested to be zeroed greater than or equal number of rows %D",rows[i],A->rmap->n);
+      if (rows[i] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Col %D requested to be zeroed greater than or equal number of cols %D",rows[i],A->cmap->n);
+    }
   }
-#endif
   if (!N) PetscFunctionReturn(0);
 
   /* fix right hand side if needed */
@@ -913,28 +913,20 @@ static PetscErrorCode MatSetValues_SeqDense(Mat A,PetscInt m,const PetscInt inde
     if (addv == INSERT_VALUES) {
       for (j=0; j<n; j++) {
         if (indexn[j] < 0) {idx += m; continue;}
-#if defined(PETSC_USE_DEBUG)
-        if (indexn[j] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
-#endif
+        if (PetscUnlikelyDebug(indexn[j] >= A->cmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
         for (i=0; i<m; i++) {
           if (indexm[i] < 0) {idx++; continue;}
-#if defined(PETSC_USE_DEBUG)
-          if (indexm[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
-#endif
+          if (PetscUnlikelyDebug(indexm[i] >= A->rmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
           av[indexn[j]*mat->lda + indexm[i]] = v[idx++];
         }
       }
     } else {
       for (j=0; j<n; j++) {
         if (indexn[j] < 0) {idx += m; continue;}
-#if defined(PETSC_USE_DEBUG)
-        if (indexn[j] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
-#endif
+        if (PetscUnlikelyDebug(indexn[j] >= A->cmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
         for (i=0; i<m; i++) {
           if (indexm[i] < 0) {idx++; continue;}
-#if defined(PETSC_USE_DEBUG)
-          if (indexm[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
-#endif
+          if (PetscUnlikelyDebug(indexm[i] >= A->rmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
           av[indexn[j]*mat->lda + indexm[i]] += v[idx++];
         }
       }
@@ -943,28 +935,20 @@ static PetscErrorCode MatSetValues_SeqDense(Mat A,PetscInt m,const PetscInt inde
     if (addv == INSERT_VALUES) {
       for (i=0; i<m; i++) {
         if (indexm[i] < 0) { idx += n; continue;}
-#if defined(PETSC_USE_DEBUG)
-        if (indexm[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
-#endif
+        if (PetscUnlikelyDebug(indexm[i] >= A->rmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
         for (j=0; j<n; j++) {
           if (indexn[j] < 0) { idx++; continue;}
-#if defined(PETSC_USE_DEBUG)
-          if (indexn[j] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
-#endif
+          if (PetscUnlikelyDebug(indexn[j] >= A->cmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
           av[indexn[j]*mat->lda + indexm[i]] = v[idx++];
         }
       }
     } else {
       for (i=0; i<m; i++) {
         if (indexm[i] < 0) { idx += n; continue;}
-#if defined(PETSC_USE_DEBUG)
-        if (indexm[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
-#endif
+        if (PetscUnlikelyDebug(indexm[i] >= A->rmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",indexm[i],A->rmap->n-1);
         for (j=0; j<n; j++) {
           if (indexn[j] < 0) { idx++; continue;}
-#if defined(PETSC_USE_DEBUG)
-          if (indexn[j] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
-#endif
+          if (PetscUnlikelyDebug(indexn[j] >= A->cmap->n)) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",indexn[j],A->cmap->n-1);
           av[indexn[j]*mat->lda + indexm[i]] += v[idx++];
         }
       }
@@ -1739,12 +1723,12 @@ static PetscErrorCode MatZeroRows_SeqDense(Mat A,PetscInt N,const PetscInt rows[
   const PetscScalar *xx;
 
   PetscFunctionBegin;
-#if defined(PETSC_USE_DEBUG)
-  for (i=0; i<N; i++) {
-    if (rows[i] < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Negative row requested to be zeroed");
-    if (rows[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D requested to be zeroed greater than or equal number of rows %D",rows[i],A->rmap->n);
+  if (PetscDefined(USE_DEBUG)) {
+    for (i=0; i<N; i++) {
+      if (rows[i] < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Negative row requested to be zeroed");
+      if (rows[i] >= A->rmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D requested to be zeroed greater than or equal number of rows %D",rows[i],A->rmap->n);
+    }
   }
-#endif
   if (!N) PetscFunctionReturn(0);
 
   /* fix right hand side if needed */
@@ -2241,6 +2225,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_SeqDense(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATSEQDENSE);CHKERRQ(ierr);
   switch (product->type) {
   case MATPRODUCT_AB:
     ierr = MatProductSetFromOptions_SeqDense_AB(C);CHKERRQ(ierr);
@@ -2254,7 +2239,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_SeqDense(Mat C)
   case MATPRODUCT_PtAP:
     ierr = MatProductSetFromOptions_SeqDense_PtAP(C);CHKERRQ(ierr);
     break;
-  default: SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type is not supported");
+  default: SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type %s is not supported for SeqDense and SeqDense matrices",MatProductTypes[product->type]);
   }
   PetscFunctionReturn(0);
 }

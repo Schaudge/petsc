@@ -1557,6 +1557,7 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_SeqAIJ_SeqDense(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATSEQDENSE);CHKERRQ(ierr);
   switch (product->type) {
   case MATPRODUCT_AB:
     ierr = MatProductSetFromOptions_SeqAIJ_SeqDense_AB(C);CHKERRQ(ierr);
@@ -1604,9 +1605,10 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_SeqXBAIJ_SeqDense(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATSEQDENSE);CHKERRQ(ierr);
   if (product->type == MATPRODUCT_AB) {
     ierr = MatProductSetFromOptions_SeqXBAIJ_SeqDense_AB(C);CHKERRQ(ierr);
-  } else SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type is not supported");
+  } else SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type %s is not supported for SeqXBAIJ and SeqDense matrices",MatProductTypes[product->type]);
   PetscFunctionReturn(0);
 }
 /* ------------------------------------------------------- */
@@ -1625,9 +1627,10 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_SeqDense_SeqAIJ(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATSEQDENSE);CHKERRQ(ierr);
   if (product->type == MATPRODUCT_AB) {
     ierr = MatProductSetFromOptions_SeqDense_SeqAIJ_AB(C);CHKERRQ(ierr);
-  } else SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type is not supported");
+  } else SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_SUP,"MatProduct type %s is not supported for SeqDense and SeqAIJ matrices",MatProductTypes[product->type]);
   PetscFunctionReturn(0);
 }
 /* ------------------------------------------------------- */
@@ -2102,6 +2105,7 @@ PetscErrorCode MatProductSetFromOptions_SeqAIJ(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
+  ierr = MatSetType(C,MATSEQAIJ);CHKERRQ(ierr);
   switch (product->type) {
   case MATPRODUCT_AB:
     ierr = MatProductSetFromOptions_SeqAIJ_AB(C);CHKERRQ(ierr);
@@ -2121,7 +2125,7 @@ PetscErrorCode MatProductSetFromOptions_SeqAIJ(Mat C)
   case MATPRODUCT_ABC:
     ierr = MatProductSetFromOptions_SeqAIJ_ABC(C);CHKERRQ(ierr);
     break;
-  default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"MatProduct type is not supported");
+  default: SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"MatProduct type %s is not supported for SeqAIJ and SeqAIJ matrices",MatProductTypes[product->type]);
   }
   PetscFunctionReturn(0);
 }

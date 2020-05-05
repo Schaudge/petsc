@@ -208,7 +208,7 @@ void Petsc_MPI_DebuggerOnError(MPI_Comm *comm,PetscMPIInt *flag,...)
   comm - the MPI communicator that will utilize the CUDA devices
 
   Options Database:
-+  -cuda_initialize <default yes,no> - do the initialization in PetscInitialize(). If -cuda_initialize no is used then the default initialization is done automatically
++  -cuda_initialize <yes,no> - Default no. Do the initialization in PetscInitialize(). If -cuda_initialize no is used then the default initialization is done automatically
                                when the first CUDA call is made unless you call PetscCUDAInitialize() before any CUDA operations are performed
 .  -cuda_view - view information about the CUDA devices
 .  -cuda_synchronize - wait at the end of asynchronize CUDA calls so that their time gets credited to the current event; default with -log_view
@@ -359,7 +359,7 @@ void PetscMPI_Comm_eh(MPI_Comm *comm, PetscMPIInt *err, ...)
 
 PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
 {
-  char              string[64],mname[PETSC_MAX_PATH_LEN];
+  char              string[64];
   MPI_Comm          comm = PETSC_COMM_WORLD;
   PetscBool         flg1 = PETSC_FALSE,flg2 = PETSC_FALSE,flg3 = PETSC_FALSE,flag;
   PetscErrorCode    ierr;
@@ -369,11 +369,14 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   PetscMPIInt       rank;
   char              version[256],helpoptions[256];
 #if defined(PETSC_USE_LOG)
+  char              mname[PETSC_MAX_PATH_LEN];
   PetscViewerFormat format;
   PetscBool         flg4 = PETSC_FALSE;
 #endif
 #if defined(PETSC_HAVE_CUDA)
-  PetscBool         initCUDA = PETSC_TRUE,mpi_gpu_awareness;
+  PetscBool         initCUDA = PETSC_FALSE,mpi_gpu_awareness;
+  cudaError_t       cerr;
+  int               devCount = 0;
 #endif
 
   PetscFunctionBegin;
@@ -386,15 +389,15 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
     */
     PetscBool         mdebug = PETSC_FALSE, eachcall = PETSC_FALSE, initializenan = PETSC_FALSE, mlog = PETSC_FALSE;
 
-#if defined(PETSC_USE_DEBUG)
-    mdebug        = PETSC_TRUE;
-    initializenan = PETSC_TRUE;
-    ierr   = PetscOptionsHasName(NULL,NULL,"-malloc_test",&flg1);CHKERRQ(ierr);
-#else
-    /* don't warn about unused option */
-    ierr = PetscOptionsHasName(NULL,NULL,"-malloc_test",&flg1);CHKERRQ(ierr);
-    flg1 = PETSC_FALSE;
-#endif
+    if (PetscDefined(USE_DEBUG)) {
+      mdebug        = PETSC_TRUE;
+      initializenan = PETSC_TRUE;
+      ierr   = PetscOptionsHasName(NULL,NULL,"-malloc_test",&flg1);CHKERRQ(ierr);
+    } else {
+      /* don't warn about unused option */
+      ierr = PetscOptionsHasName(NULL,NULL,"-malloc_test",&flg1);CHKERRQ(ierr);
+      flg1 = PETSC_FALSE;
+    }
     ierr = PetscOptionsGetBool(NULL,NULL,"-malloc_debug",&flg2,&flg3);CHKERRQ(ierr);
     if (flg1 || flg2) {
       mdebug        = PETSC_TRUE;
@@ -672,7 +675,9 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   ierr = PetscOptionsBool("-use_gpu_aware_mpi","Use GPU-aware MPI",NULL,use_gpu_aware_mpi,&use_gpu_aware_mpi,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   if (initCUDA) {ierr = PetscCUDAInitialize(PETSC_COMM_WORLD);CHKERRQ(ierr);}
-  if (use_gpu_aware_mpi) {
+  cerr = cudaGetDeviceCount(&devCount);{if (cerr != cudaErrorNoDevice) CHKERRCUDA(cerr);} /* Catch other errors */
+  if (cerr == cudaErrorNoDevice) devCount = 0; /* CUDA does not say what devCount is under this error */
+  if (devCount > 0 && use_gpu_aware_mpi) { /* Only do the MPI GPU awareness check when there are GPU(s) */
 #if defined(PETSC_HAVE_OMPI_MAJOR_VERSION) && defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
     /* Trust OpenMPI's compile time cuda query interface */
     mpi_gpu_awareness = PETSC_TRUE;
