@@ -39,15 +39,15 @@
       PetscEnum, parameter :: IS_INTERVAL = 3
       PetscEnum, parameter :: IS_IDENTITY = 4
       PetscEnum, parameter :: IS_INFO_MAX = 5
-      
+
       ! ISInfoType
       PetscEnum, parameter :: IS_LOCAL = 0
       PetscEnum, parameter :: IS_GLOBAL = 1
-      
+
       ! ISGlobalToLocalMappingMode
       PetscEnum, parameter :: IS_GTOLM_MASK = 0
       PetscEnum, parameter :: IS_GTOLM_DROP = 1
-      
+
       ! ISColoringType
       PetscEnum, parameter :: IS_COLORING_GLOBAL = 0
       PetscEnum, parameter :: IS_COLORING_LOCAL = 1

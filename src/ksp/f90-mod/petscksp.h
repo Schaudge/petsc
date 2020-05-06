@@ -1,30 +1,30 @@
 #include "petsc/finclude/petscksp.h"
 
       type tKSP
-        PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
+        PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tKSP
       type tKSPGuess
-        PetscFortranAddr:: v PETSC_FORTRAN_TYPE_INITIALIZE
+        PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tKSPGuess
 
       KSP, parameter :: PETSC_NULL_KSP = tKSP(0)
-      KSPGuess, parameter :: PETSC_NULL_KSPGuess = tKSPGuess(0)
+      KSPGuess, parameter :: PETSC_NULL_KSPGUESS = tKSPGuess(0)
 
       ! KSPFCDTruncationType
-      PetscEnum, parameter :: KSP_FCD_TRUNC_TYPE_STANDARD=0
-      PetscEnum, parameter :: KSP_FCD_TRUNC_TYPE_NOTAY=1
-      
+      PetscEnum, parameter :: KSP_FCD_TRUNC_TYPE_STANDARD = 0
+      PetscEnum, parameter :: KSP_FCD_TRUNC_TYPE_NOTAY = 1
+
       ! KSPGMRESCGSRefinementType
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_NEVER = 0
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_IFNEEDED = 1
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_ALWAYS = 2
 
       ! KSPNormType
-      PetscEnum, parameter :: KSP_NORM_DEFAULT=0
-      PetscEnum, parameter :: KSP_NORM_NONE=0
-      PetscEnum, parameter :: KSP_NORM_PRECONDITIONED=1
-      PetscEnum, parameter :: KSP_NORM_UNPRECONDITIONED=2
-      PetscEnum, parameter :: KSP_NORM_NATURAL=3
+      PetscEnum, parameter :: KSP_NORM_DEFAULT = 0
+      PetscEnum, parameter :: KSP_NORM_NONE = 0
+      PetscEnum, parameter :: KSP_NORM_PRECONDITIONED = 1
+      PetscEnum, parameter :: KSP_NORM_UNPRECONDITIONED = 2
+      PetscEnum, parameter :: KSP_NORM_NATURAL = 3
 
       ! KSPConvergedReason
       PetscEnum, parameter :: KSP_CONVERGED_RTOL = 2
@@ -47,8 +47,8 @@
       PetscEnum, parameter :: KSP_CONVERGED_ITERATING = 0
 
       ! KSPCGType
-      PetscEnum, parameter :: KSP_CG_SYMMETRIC=0
-      PetscEnum, parameter :: KSP_CG_HERMITIAN=1
+      PetscEnum, parameter :: KSP_CG_SYMMETRIC = 0
+      PetscEnum, parameter :: KSP_CG_HERMITIAN = 1
 
       ! MatLMVMSymBroydenScaleType 
       PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_NONE     = 0
