@@ -14,7 +14,7 @@
 
 #define DMDALocalInfo PetscInt
 !
-!   DMDA_LOCAL_INFO_SIZE is one large than the size incase the DA is larger than an integer (on 64 bit systems).
+!   DMDA_LOCAL_INFO_SIZE is one larger than the size in case the DA is larger than an integer (on 64 bit systems).
 !   non-int fields are not accessiable from fortran.
 !
 #define DMDA_LOCAL_INFO_SIZE 25

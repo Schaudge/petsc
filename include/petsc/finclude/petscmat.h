@@ -11,12 +11,19 @@
 #define MatNullSpace type(tMatNullSpace)
 #define MatFDColoring type(tMatFDColoring)
 
+#define MatType character*(80)
+#define MatSolverType character*(80)
+#define MatProductAlgorithm character*(80)
+#define MatOrderingType character*(80)
+#define MatColoringType character*(80)
+#define MatPartitioningType character*(80)
+#define MatCoarsenType character*(80)
+
 #define MatColoring PetscFortranAddr
 #define MatPartitioning PetscFortranAddr
 #define MatCoarsen PetscFortranAddr
 #define MatAIJIndices PetscFortranAddr
-#define MatType character*(80)
-#define MatSolverType character*(80)
+
 #define MatOption PetscEnum
 #define MatCreateSubMatrixOption PetscEnum
 #define MPChacoGlobalType PetscEnum
@@ -28,22 +35,22 @@
 #define MatFactorError PetscEnum
 #define MatFactorShiftType PetscEnum
 #define MatProductType PetscEnum
-#define MatProductAlgorithm character*(80)
+
 #define MatFactorSchurStatus PetscEnum
-#define MatOrderingType character*(80)
 #define MatSORType PetscEnum
 #define MatInfoType PetscEnum
 #define MatReuse PetscEnum
 #define MatOperation PetscEnum
-#define MatColoringType character*(80)
 #define MatInfo PetscLogDouble
 #define MatFactorInfo PetscReal
 #define MatDuplicateOption PetscEnum
 #define MatStructure PetscEnum
-#define MatPartitioningType character*(80)
-#define MatCoarsenType character*(80)
+#define MatCUSPARSEStorageFormat PetscEnum
+#define MatCUSPARSEFormatOperation PetscEnum
 #define MatCompositeType PetscEnum
 #define MatCompositeMergeType PetscEnum
+#define MatSTRUMPACKReordering PetscEnum
+
 #define MatStencil PetscInt
 #define MatStencil_k 1
 #define MatStencil_j 2
@@ -52,29 +59,7 @@
 
 #define MATPARTITIONING_CURRENT 'current'
 #define MATPARTITIONING_PARMETIS 'parmetis'
-
 #define MATCOARSEN_MIS 'mis'
-
-#define MATCOLORINGNATURAL 'natural'
-#define MATCOLORINGSL      'sl'
-#define MATCOLORINGLF      'lf'
-#define MATCOLORINGID      'id'
-#define MATCOLORINGGREEDY  'greedy'
-#define MATCOLORINGJP      'jp'
-
-#define MATORDERINGNATURAL   'natural'
-#define MATORDERINGNATURAL_OR_ND 'natural_or_nd'
-#define MATORDERINGND        'nd'
-#define MATORDERING1WD       '1wd'
-#define MATORDERINGRCM       'rcm'
-#define MATORDERINGQMD       'qmd'
-#define MATORDERINGROWLENGTH 'rowlength'
-#define MATORDERINGWBM       'wbm'
-#define MATORDERINGSPECTRAL  'spectral'
-#define MATORDERINGAMD       'amd'
-!
-!  Matrix types
-!
 #define MATSAME            'same'
 #define MATMAIJ            'maij'
 #define MATSEQMAIJ         'seqmaij'
@@ -117,7 +102,6 @@
 #define MATSBAIJ           'sbaij'
 #define MATSEQSBAIJ        'seqsbaij'
 #define MATMPISBAIJ        'mpisbaij'
-
 #define MATDAAD            'daad'
 #define MATMFFD            'mffd'
 #define MATNORMAL          'normal'
@@ -142,55 +126,51 @@
 #define MATSEQSELL         'seqsell'
 #define MATMPISELL         'mpisell'
 #define MATDUMMY           'dummy'
-
 #define MATLMVM            'lmvm'
+#define MATLMVMDFP         'lmvmdfp'
+#define MATLMVMBFGS        'lmvmbfgs'
+#define MATLMVMSR1         'lmvmsr1'
 #define MATLMVMBROYDEN     'lmvmbroyden'
 #define MATLMVMBADBROYDEN  'lmvmbadbroyden'
 #define MATLMVMSYMBROYDEN  'lmvmsymbroyden'
 #define MATLMVMSYMBADBROYDEN 'lmvmsymbadbroyden'
 #define MATLMVMDIAGBROYDEN 'lmvmdiagbroyden'
-#define MATLMVMSR1         'lmvmsr1'
-#define MATLMVMDFP         'lmvmdfp'
-#define MATLMVMBFGS        'lmvmbfgs'
-
-!
-! MatMFFDType values
-!
-#define MATMFFD_DS 'ds'
-#define MATMFFD_WP 'wp'
-
-!
-! MatSolverTypes
-!
-#define MATSOLVERSUPERLU         'superlu'
-#define MATSOLVERSUPERLU_DIST    'superlu_dist'
-#define MATSOLVERSTRUMPACK       'strumpack'
-#define MATSOLVERUMFPACK         'umfpack'
-#define MATSOLVERCHOLMOD         'cholmod'
-#define MATSOLVERSPARSEELEMENTAL 'sparseelemental'
-#define MATSOLVERKLU             'klu'
-#define MATSOLVERELEMENTAL       'elemental'
-#define MATSOLVERESSL            'essl'
-#define MATSOLVERLUSOL           'lusol'
-#define MATSOLVERMUMPS           'mumps'
-#define MATSOLVERMKL_PARDISO     'mkl_pardiso'
-#define MATSOLVERMKL_CPARDISO    'mkl_cpardiso'
-#define MATSOLVERPASTIX          'pastix'
-#define MATSOLVERMATLAB          'matlab'
-#define MATSOLVERPETSC           'petsc'
-#define MATSOLVERBAS             'bas'
-#define MATSOLVERCUSPARSE        'cusparse'
-#define MATSOLVERCUDA            'cuda'
-
-!
-! GPU Storage Formats for CUSPARSE
-!
-#define MatCUSPARSEStorageFormat PetscEnum
-#define MatCUSPARSEFormatOperation PetscEnum
-
-!
-! sparsity reducing ordering for STRUMPACK
-!
-#define MatSTRUMPACKReordering PetscEnum
+#define MATSOLVERSUPERLU          'superlu'
+#define MATSOLVERSUPERLU_DIST     'superlu_dist'
+#define MATSOLVERSTRUMPACK        'strumpack'
+#define MATSOLVERUMFPACK          'umfpack'
+#define MATSOLVERCHOLMOD          'cholmod'
+#define MATSOLVERKLU              'klu'
+#define MATSOLVERSPARSEELEMENTAL  'sparseelemental'
+#define MATSOLVERELEMENTAL        'elemental'
+#define MATSOLVERESSL             'essl'
+#define MATSOLVERLUSOL            'lusol'
+#define MATSOLVERMUMPS            'mumps'
+#define MATSOLVERMKL_PARDISO      'mkl_pardiso'
+#define MATSOLVERMKL_CPARDISO     'mkl_cpardiso'
+#define MATSOLVERPASTIX           'pastix'
+#define MATSOLVERMATLAB           'matlab'
+#define MATSOLVERPETSC            'petsc'
+#define MATSOLVERBAS              'bas'
+#define MATSOLVERCUSPARSE         'cusparse'
+#define MATSOLVERCUDA             'cuda'
+#define MATORDERINGNATURAL        'natural'
+#define MATORDERINGND             'nd'
+#define MATORDERING1WD            '1wd'
+#define MATORDERINGRCM            'rcm'
+#define MATORDERINGQMD            'qmd'
+#define MATORDERINGROWLENGTH      'rowlength'
+#define MATORDERINGWBM            'wbm'
+#define MATORDERINGSPECTRAL       'spectral'
+#define MATORDERINGAMD            'amd'
+#define MATORDERINGNATURAL_OR_ND  'natural_or_nd'
+#define MATCOLORINGJP      'jp'
+#define MATCOLORINGNATURAL 'natural'
+#define MATCOLORINGSL      'sl'
+#define MATCOLORINGLF      'lf'
+#define MATCOLORINGID      'id'
+#define MATCOLORINGGREEDY  'greedy'
+#define MATMFFD_DS  'ds'
+#define MATMFFD_WP  'wp'
 
 #endif

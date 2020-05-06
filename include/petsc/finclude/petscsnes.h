@@ -7,11 +7,11 @@
 #include "petsc/finclude/petscksp.h"
 
 #define SNES type(tSNES)
-
 #define PetscConvEst type(tPetscConvEst)
 
 #define SNESType character*(80)
 #define SNESMSType character*(80)
+
 #define SNESConvergedReason PetscEnum
 #define SNESLineSearchReason PetscEnum
 #define SNESLineSearchType  character*(80)
@@ -28,9 +28,6 @@
 #define SNESNGMRESRestartType PetscEnum
 #define SNESNGMRESSelectType PetscEnum
 
-!
-!  SNESType
-!
 #define SNESNEWTONLS         'newtonls'
 #define SNESNEWTONTR         'newtontr'
 #define SNESPYTHON           'python'
@@ -45,39 +42,22 @@
 #define SNESNCG              'ncg'
 #define SNESFAS              'fas'
 #define SNESMS               'ms'
-
-!
-! SNESLineSearchType
-!
-
-#define SNESLINESEARCHBASIC     'basic'
-#define SNESLINESEARCHBT        'bt'
-#define SNESLINESEARCHL2        'l2'
-#define SNESLINESEARCHCP        'cp'
-#define SNESLINESEARCHSHELL     'shell'
-#define SNESLINESEARCHNCGLINEAR 'ncglinear'
-
-!
-! SNESLineSearchOrder
-!
-
+#define SNESLINESEARCHBT                 'bt'
+#define SNESLINESEARCHBASIC              'basic'
+#define SNESLINESEARCHL2                 'l2'
+#define SNESLINESEARCHCP                 'cp'
+#define SNESLINESEARCHSHELL              'shell'
+#define SNESLINESEARCHNCGLINEAR          'ncglinear'
 #define SNES_LINESEARCH_ORDER_LINEAR    1
 #define SNES_LINESEARCH_ORDER_QUADRATIC 2
 #define SNES_LINESEARCH_ORDER_CUBIC     3
-
-
-!
-!  SNESMSType
-!
-#define SNESMSEULER     'euler'
 #define SNESMSM62       'm62'
+#define SNESMSEULER     'euler'
 #define SNESMSJAMESON83 'jameson83'
 #define SNESMSVLTP21    'vltp21'
 #define SNESMSVLTP31    'vltp31'
 #define SNESMSVLTP41    'vltp41'
 #define SNESMSVLTP51    'vltp51'
 #define SNESMSVLTP61    'vltp61'
-
-
 
 #endif
