@@ -43,7 +43,111 @@
        PetscErrorCode, intent(out) :: ierr
       end subroutine
       end Interface
+      
+      Interface
+      subroutine MatMFFDComputeJacobian(snes,x,m,p,ctx,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       Mat x,m,p
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine MatMFFDComputeJacobian
+      end interface
+
+      Interface
+      subroutine SNESComputeJacobianDefault(snes,x,m,p,ctx,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       Mat x,m,p
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESComputeJacobianDefault
+      end interface
+
+      Interface
+      subroutine SNESComputeJacobianDefaultColor(snes,x,m,p,ctx,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       Mat x,m,p
+       type(*) :: ctx
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESComputeJacobianDefaultColor
+      end interface
+
+      Interface
+      subroutine SNESConvergedDefault(snes,it,a,b,c,r,ct,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       PetscInt it
+       PetscReal a,b,c
+       SNESConvergedReason r
+       type(*) :: ct
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESConvergedDefault
+      end interface
+
+      Interface
+      subroutine SNESConvergedSkip(snes,it,a,b,c,r,ct,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       PetscInt it
+       PetscReal a,b,c
+       SNESConvergedReason r
+       type(*) :: ct
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESConvergedSkip
+      end interface
+#else
+      external :: SNESComputeJacobianDefault
+      external :: MatMFFDComputeJacobian
+      external :: SNESComputeJacobianDefaultColor
+      external :: SNESConvergedDefault
+      external :: SNESConvergedSkip
 #endif
+      Interface
+      subroutine SNESMonitorDefault(snes,its,fgnorm,dummy,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       PetscInt its
+       PetscReal fgnorm
+       PetscViewerAndFormat dummy !ToDo (pointer?)
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESMonitorDefault
+      end interface
+      
+      Interface
+      subroutine SNESMonitorLGResidualNorm(snes,its,fgnorm,dummy,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       PetscInt its
+       PetscReal fgnorm
+       PetscViewerAndFormat dummy !ToDo (pointer?)
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESMonitorLGResidualNorm
+      end interface
+     
+      Interface
+      subroutine SNESMonitorSolution(snes,its,fgnorm,dummy,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       PetscInt its
+       PetscReal fgnorm
+       PetscViewerAndFormat dummy !ToDo (pointer?)
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESMonitorSolution
+      end interface
+
+      Interface
+      subroutine SNESMonitorSolutionUpdate(snes,its,fgnorm,dummy,ierr)
+       use petscsnesdef
+       SNES, intent(in) :: snes
+       PetscInt its
+       PetscReal fgnorm
+       PetscViewerAndFormat dummy !ToDo (pointer?)
+       PetscErrorCode, intent(out) :: ierr
+      end subroutine SNESMonitorSolutionUpdate
+      end interface
+
       Interface
       subroutine SNESSetType(a,b,ierr)
       use petscsnesdef
@@ -80,15 +184,3 @@
       end subroutine SNESSetOptionsPrefix
       end Interface
 
-      ! Some PETSc fortran functions that the user might pass as arguments
-      ! ToDo: define interface
-      external SNESCOMPUTEJACOBIANDEFAULT
-      external MATMFFDCOMPUTEJACOBIAN
-      external SNESCOMPUTEJACOBIANDEFAULTCOLOR
-      external SNESMONITORDEFAULT
-      external SNESMONITORLGRESIDUALNORM
-      external SNESMONITORSOLUTION
-      external SNESMONITORSOLUTIONUPDATE
-
-      external SNESCONVERGEDDEFAULT
-      external SNESCONVERGEDSKIP
