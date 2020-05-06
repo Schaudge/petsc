@@ -1,17 +1,13 @@
-!
-!  Include file for Fortran use of the PetscViewer package in PETSc
-!
 #if !defined (PETSCVIEWERDEF_H)
 #define PETSCVIEWERDEF_H
 
-
 #define PetscViewer type(tPetscViewer)
 
-#define PetscViewerAndFormat PetscFortranAddr
+#define PetscViewerType character*(80)
 
+#define PetscViewerAndFormat PetscFortranAddr
 #define PetscViewers PetscFortranAddr
 #define PetscFileMode PetscEnum
-#define PetscViewerType character*(80)
 #define PetscViewerFormat PetscEnum
 
 #define PETSCVIEWERSOCKET       'socket'

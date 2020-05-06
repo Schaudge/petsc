@@ -1,6 +1,3 @@
-!
-!  Include file for Fortran use of the SNES package in PETSc
-!
 #if !defined (PETSCSNESDEF_H)
 #define PETSCSNESDEF_H
 
@@ -10,11 +7,11 @@
 #define PetscConvEst type(tPetscConvEst)
 
 #define SNESType character*(80)
+#define SNESLineSearchType character*(80)
 #define SNESMSType character*(80)
 
 #define SNESConvergedReason PetscEnum
 #define SNESLineSearchReason PetscEnum
-#define SNESLineSearchType  character*(80)
 #define MatMFFD PetscFortranAddr
 #define MatMFFDType PetscFortranAddr
 #define SNESLineSearch PetscFortranAddr

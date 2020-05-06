@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the KSP package in PETSc
-!
 #if !defined (PETSCKSPDEF_H)
 #define PETSCKSPDEF_H
 
@@ -20,7 +16,6 @@
 #define KSPGMRESCGSRefinementType PetscEnum
 #define MatSchurComplementAinvType PetscEnum
 #define MatLMVMSymBroydenScaleType PetscEnum
-
 
 #define KSPRICHARDSON 'richardson'
 #define KSPCHEBYSHEV  'chebyshev'

@@ -1,6 +1,3 @@
-!
-!  Include file for Fortran use of the TS (timestepping) package in PETSc
-!
 #if !defined (PETSCTSDEF_H)
 #define PETSCTSDEF_H
 
@@ -9,7 +6,6 @@
 #define TS type(tTS)
 #define TSTrajectory type(tTSTrajectory)
 #define TSAdapt type(tTSAdapt)
-
 
 #define TSType character*(80)
 #define TSTrajectoryType character*(80)
@@ -22,7 +18,6 @@
 #define TSRosWType character*(80)
 #define TSEIMEXType character*(80)
 
-
 #define TSEquationType PetscEnum
 #define TSConvergedReason PetscEnum
 #define TSExactFinalTimeOption PetscEnum
@@ -30,7 +25,6 @@
 #define TSProblemType PetscEnum
 #define TSSundialsGramSchmidtType PetscEnum
 #define TSSundialsLmmType PetscEnum
-
 
 #define TSEULER           'euler'
 #define TSBEULER          'beuler'

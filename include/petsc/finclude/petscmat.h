@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the Mat package in PETSc
-!
 #if !defined (PETSCMATDEF_H)
 #define PETSCMATDEF_H
 

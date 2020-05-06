@@ -1,7 +1,3 @@
-!
-!
-!  Include file for Fortran use of the Vec package in PETSc
-!
 #if !defined (PETSCVECDEF_H)
 #define PETSCVECDEF_H
 
