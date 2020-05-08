@@ -22,7 +22,7 @@
       PetscEnum, parameter :: KSP_GMRES_CGS_REFINE_ALWAYS = 2
 
       ! KSPNormType
-      PetscEnum, parameter :: KSP_NORM_DEFAULT = 0
+      PetscEnum, parameter :: KSP_NORM_DEFAULT = -1
       PetscEnum, parameter :: KSP_NORM_NONE = 0
       PetscEnum, parameter :: KSP_NORM_PRECONDITIONED = 1
       PetscEnum, parameter :: KSP_NORM_UNPRECONDITIONED = 2
@@ -48,6 +48,7 @@
       PetscEnum, parameter :: KSP_DIVERGED_NANORINF = -9
       PetscEnum, parameter :: KSP_DIVERGED_INDEFINITE_MAT = -10
       PetscEnum, parameter :: KSP_DIVERGED_PC_FAILED = -11
+      PetscEnum, parameter :: KSP_DIVERGED_PCSETUP_FAILED_DEPRECATED = -11
       PetscEnum, parameter :: KSP_CONVERGED_ITERATING = 0
 
       ! KSPCGType
@@ -59,9 +60,9 @@
       PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_LUMP = 1
       PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_BLOCK_DIAG = 2
 
-      ! MatLMVMSymBroydenScaleType 
-      PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_NONE     = 0
-      PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_SCALAR   = 1
-      PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_DIAGONAL = 2
-      PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_USER     = 3
+      ! MatLMVMSymBroydenScaleType
+      PetscEnum, parameter :: MAT_LMVM_SYMBROYDEN_SCALE_NONE = 0
+      PetscEnum, parameter :: MAT_LMVM_SYMBROYDEN_SCALE_SCALAR = 1
+      PetscEnum, parameter :: MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL = 2
+      PetscEnum, parameter :: MAT_LMVM_SYMBROYDEN_SCALE_USER = 3
 
