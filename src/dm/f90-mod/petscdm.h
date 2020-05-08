@@ -1,8 +1,3 @@
-
-
-!
-!  Include file for Fortran use of the DM package in PETSc
-!
 #include "petsc/finclude/petscdm.h"
 
       type tDM
