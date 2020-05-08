@@ -3,16 +3,20 @@
       type tTS
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTS
-      type tTSAdapt
-        PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
-      end type tTSAdapt
       type tTSTrajectory
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTSTrajectory
+      type tTSAdapt
+        PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
+      end type tTSAdapt
+      type tTSGLLEAdapt
+        PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
+      end type tTSGLLEAdapt
 
       TS, parameter :: PETSC_NULL_TS = tTS(0)
+      TSTrajectory, parameter :: PETSC_NULL_TSTRAJECTORY = tTSTrajectory(0)
       TSAdapt, parameter :: PETSC_NULL_TSADAPT = tTSAdapt(0)
-      TSTrajectory, parameter :: PETSC_NULL_TSTrajectory = tTSTrajectory(0)
+      TSGLLEAdapt, parameter :: PETSC_NULL_TSGLLEADAPT = tTSGLLEAdapt(0)
 
       ! TSProblemType
       PetscEnum, parameter :: TS_LINEAR = 0
@@ -37,8 +41,14 @@
       PetscEnum, parameter :: TS_CONVERGED_ITERATING = 0
       PetscEnum, parameter :: TS_CONVERGED_TIME = 1
       PetscEnum, parameter :: TS_CONVERGED_ITS = 2
+      PetscEnum, parameter :: TS_CONVERGED_USER = 3
+      PetscEnum, parameter :: TS_CONVERGED_EVENT = 4
+      PetscEnum, parameter :: TS_CONVERGED_PSEUDO_FATOL = 5
+      PetscEnum, parameter :: TS_CONVERGED_PSEUDO_FRTOL = 6
       PetscEnum, parameter :: TS_DIVERGED_NONLINEAR_SOLVE = -1
       PetscEnum, parameter :: TS_DIVERGED_STEP_REJECTED = -2
+      PetscEnum, parameter :: TSFORWARD_DIVERGED_LINEAR_SOLVE = -3
+      PetscEnum, parameter :: TSADJOINT_DIVERGED_LINEAR_SOLVE = -4
 
       ! TSExactFinalTimeOption
       PetscEnum, parameter :: TS_EXACTFINALTIME_UNSPECIFIED = 0

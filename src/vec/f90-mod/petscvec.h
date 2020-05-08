@@ -55,6 +55,11 @@
       PetscEnum, parameter :: VECOP_VIEWNATIVE = 68
       PetscEnum, parameter :: VECOP_LOADNATIVE = 69
 
+      ! VecTaggerCDFMethod
+      PetscEnum, parameter :: VECTAGGER_CDF_GATHER = 0
+      PetscEnum, parameter :: VECTAGGER_CDF_ITERATIVE = 1
+      PetscEnum, parameter :: VECTAGGER_CDF_NUM_METHODS = 2
+
 #if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
 !DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_VEC
 !DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_VECSCATTER
