@@ -10,17 +10,14 @@
 
 #define TSType character*(80)
 #define TSTrajectoryType character*(80)
-#define TSAdaptType character*(80)
 #define TSSSPType character*(80)
 #define TSGLLEType character*(80)
-#define TSGLLEAdaptType character*(80)
 #define TSRKType character*(80)
 #define TSMPRKType character*(80)
 #define TSGLEEType character*(80)
 #define TSARKIMEXType character*(80)
 #define TSRosWType character*(80)
 #define TSBasicSymplecticType character*(80)
-#define TSEIMEXType character*(80)
 
 #define TSEquationType PetscEnum
 #define TSConvergedReason PetscEnum
@@ -80,7 +77,6 @@
 #define TSRK6VR   '6vr'
 #define TSRK7VR   '7vr'
 #define TSRK8VR   '8vr'
-#define TSMPRKPM2     'pm2'
 #define TSMPRK2A22  '2a22'
 #define TSMPRK2A23  '2a23'
 #define TSMPRK2A32  '2a32'
@@ -116,7 +112,6 @@
 #define TSROSWSANDU3      'sandu3'
 #define TSROSWASSP3P3S1C  'assp3p3s1c'
 #define TSROSWLASSP3P4S2C 'lassp3p4s2c'
-#define TSROSWLLSSP3P3S2C 'llssp3p3s2c'
 #define TSROSWLLSSP3P4S2C 'llssp3p4s2c'
 #define TSROSWARK3        'ark3'
 #define TSROSWTHETA1      'theta1'
@@ -129,8 +124,5 @@
 #define TSBASICSYMPLECTICVELVERLET '2'
 #define TSBASICSYMPLECTIC3         '3'
 #define TSBASICSYMPLECTIC4         '4'
-#define TSEIMEXS2     's2'
-#define TSEIMEXS3     's3'
-#define TSEIMEXS4     's4'
 
 #endif
