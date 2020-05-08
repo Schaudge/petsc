@@ -283,17 +283,11 @@ PetscErrorCode MatDenseRestoreArrayRead_MPIDense(Mat A,const PetscScalar *array[
 PetscErrorCode MatAssemblyBegin_MPIDense(Mat mat,MatAssemblyType mode)
 {
   Mat_MPIDense   *mdn = (Mat_MPIDense*)mat->data;
-  MPI_Comm       comm;
   PetscErrorCode ierr;
   PetscInt       nstash,reallocs;
-  InsertMode     addv;
 
   PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)mat,&comm);CHKERRQ(ierr);
-  /* make sure all processors are either in INSERTMODE or ADDMODE */
-  ierr = MPIU_Allreduce((PetscEnum*)&mat->insertmode,(PetscEnum*)&addv,1,MPIU_ENUM,MPI_BOR,comm);CHKERRQ(ierr);
-  if (addv == (ADD_VALUES|INSERT_VALUES)) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"Cannot mix adds/inserts on different procs");
-  mat->insertmode = addv; /* in case this processor had no cache */
+  if (mdn->donotstash || mat->nooffprocentries) return(0);
 
   ierr = MatStashScatterBegin_Private(mat,&mat->stash,mat->rmap->range);CHKERRQ(ierr);
   ierr = MatStashGetInfo_Private(&mat->stash,&nstash,&reallocs);CHKERRQ(ierr);
@@ -310,24 +304,26 @@ PetscErrorCode MatAssemblyEnd_MPIDense(Mat mat,MatAssemblyType mode)
   PetscScalar    *val;
 
   PetscFunctionBegin;
-  /*  wait on receives */
-  while (1) {
-    ierr = MatStashScatterGetMesg_Private(&mat->stash,&n,&row,&col,&val,&flg);CHKERRQ(ierr);
-    if (!flg) break;
+  if (!mdn->donotstash && !mat->nooffprocentries) {
+    /*  wait on receives */
+    while (1) {
+      ierr = MatStashScatterGetMesg_Private(&mat->stash,&n,&row,&col,&val,&flg);CHKERRQ(ierr);
+      if (!flg) break;
 
-    for (i=0; i<n;) {
-      /* Now identify the consecutive vals belonging to the same row */
-      for (j=i,rstart=row[j]; j<n; j++) {
-        if (row[j] != rstart) break;
+      for (i=0; i<n;) {
+        /* Now identify the consecutive vals belonging to the same row */
+        for (j=i,rstart=row[j]; j<n; j++) {
+          if (row[j] != rstart) break;
+        }
+        if (j < n) ncols = j-i;
+        else       ncols = n-i;
+        /* Now assemble all these values with a single function call */
+        ierr = MatSetValues_MPIDense(mat,1,row+i,ncols,col+i,val+i,mat->insertmode);CHKERRQ(ierr);
+        i    = j;
       }
-      if (j < n) ncols = j-i;
-      else       ncols = n-i;
-      /* Now assemble all these values with a single function call */
-      ierr = MatSetValues_MPIDense(mat,1,row+i,ncols,col+i,val+i,mat->insertmode);CHKERRQ(ierr);
-      i    = j;
     }
+    ierr = MatStashScatterEnd_Private(&mat->stash);CHKERRQ(ierr);
   }
-  ierr = MatStashScatterEnd_Private(&mat->stash);CHKERRQ(ierr);
 
   ierr = MatAssemblyBegin(mdn->A,mode);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(mdn->A,mode);CHKERRQ(ierr);
@@ -928,7 +924,11 @@ PetscErrorCode MatSetUp_MPIDense(Mat A)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr =  MatMPIDenseSetPreallocation(A,0);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
+  if (!A->preallocated) {
+    ierr = MatMPIDenseSetPreallocation(A,0);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -1689,7 +1689,7 @@ PetscErrorCode MatTransposeMatMultSymbolic_MPIDense_MPIDense(Mat A,Mat B,PetscRe
   /* create matrix product C */
   ierr = MatSetSizes(C,cm,B->cmap->n,PETSC_DECIDE,PETSC_DECIDE);CHKERRQ(ierr);
   ierr = MatSetType(C,MATMPIDENSE);CHKERRQ(ierr);
-  ierr = MatMPIDenseSetPreallocation(C,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(C);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
@@ -1733,7 +1733,7 @@ static PetscErrorCode MatMatTransposeMultSymbolic_MPIDense_MPIDense(Mat A, Mat B
   /* setup matrix product C */
   ierr = MatSetSizes(C,A->rmap->n,B->rmap->n,A->rmap->N,B->rmap->N);CHKERRQ(ierr);
   ierr = MatSetType(C,MATMPIDENSE);CHKERRQ(ierr);
-  ierr = MatMPIDenseSetPreallocation(C,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(C);CHKERRQ(ierr);
   ierr = PetscObjectGetNewTag((PetscObject)C, &tag);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -2052,7 +2052,6 @@ PETSC_INTERN PetscErrorCode MatProductSetFromOptions_MPIDense(Mat C)
   Mat_Product    *product = C->product;
 
   PetscFunctionBegin;
-  ierr = MatSetType(C,MATMPIDENSE);CHKERRQ(ierr);
   switch (product->type) {
 #if defined(PETSC_HAVE_ELEMENTAL)
   case MATPRODUCT_AB:
