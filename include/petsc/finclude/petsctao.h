@@ -3,11 +3,12 @@
 
 #include "petsc/finclude/petscts.h"
 
+#define Tao type(tTao)
+#define TaoLineSearch type(tTaoLineSearch)
+
 #define TaoType character*(80)
 #define TaoLineSearchType character*(80)
 
-#define Tao PetscFortranAddr
-#define TaoLineSearch PetscFortranAddr
 #define TaoConvergedReason PetscEnum
 #define TaoADMMUpdateType PetscEnum
 #define TaoADMMRegularizerType PetscEnum
@@ -40,7 +41,15 @@
 #define TAOASILS    'asils'
 #define TAOASFLS    'asfls'
 #define TAOIPM      'ipm'
-#define TAOADMM     "admm"
-#define TAOFDTEST   "test"
+#define TAOPDIPM    'pdipm'
+#define TAOSHELL    'shell'
+#define TAOADMM     'admm'
+
+#define TAOLINESEARCHUNIT     'unit'
+#define TAOLINESEARCHMT       'more-thuente'
+#define TAOLINESEARCHGPCG     'gpcg'
+#define TAOLINESEARCHARMIJO   'armijo'
+#define TAOLINESEARCHOWARMIJO 'owarmijo'
+#define TAOLINESEARCHIPM      'ipm'
 
 #endif
