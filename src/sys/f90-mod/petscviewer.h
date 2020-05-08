@@ -34,6 +34,10 @@
       PetscEnum, parameter :: FILE_MODE_UPDATE = 3
       PetscEnum, parameter :: FILE_MODE_APPEND_UPDATE = 4
 
+      ! PetscViewerGLVisType
+      PetscEnum, parameter :: PETSC_VIEWER_GLVIS_DUMP = 0
+      PetscEnum, parameter :: PETSC_VIEWER_GLVIS_SOCKET = 1
+
       ! PetscViewerFormat
       PetscEnum, parameter :: PETSC_VIEWER_DEFAULT = 0
       PetscEnum, parameter :: PETSC_VIEWER_ASCII_MATLAB = 1
@@ -72,6 +76,13 @@
       PetscEnum, parameter :: PETSC_VIEWER_HDF5_MAT = 34
       PetscEnum, parameter :: PETSC_VIEWER_NOFORMAT = 35
       PetscEnum, parameter :: PETSC_VIEWER_LOAD_BALANCE = 36
+
+      ! PetscViewerVTKFieldType
+      PetscEnum, parameter :: PETSC_VTK_INVALID = 0
+      PetscEnum, parameter :: PETSC_VTK_POINT_FIELD = 1
+      PetscEnum, parameter :: PETSC_VTK_POINT_VECTOR_FIELD = 2
+      PetscEnum, parameter :: PETSC_VTK_CELL_FIELD = 3
+      PetscEnum, parameter :: PETSC_VTK_CELL_VECTOR_FIELD = 4
 
 #if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)
 !DEC$ ATTRIBUTES DLLEXPORT::PETSC_NULL_VIEWER
