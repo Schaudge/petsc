@@ -4,6 +4,7 @@
 #include "petsc/finclude/petscksp.h"
 
 #define SNES type(tSNES)
+#define SNESLineSearch type(tSNESLineSearch)
 #define PetscConvEst type(tPetscConvEst)
 
 #define SNESType character*(80)
@@ -14,7 +15,6 @@
 #define SNESLineSearchReason PetscEnum
 #define MatMFFD PetscFortranAddr
 #define MatMFFDType PetscFortranAddr
-#define SNESLineSearch PetscFortranAddr
 #define SNESLineSearchOrder PetscEnum
 #define SNESNormSchedule PetscEnum
 #define SNESQNType PetscEnum
