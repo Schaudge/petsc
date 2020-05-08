@@ -1,9 +1,11 @@
 #include "petsc/finclude/petscksp.h"
 
       type tKSP
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tKSP
       type tKSPGuess
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tKSPGuess
 
@@ -27,6 +29,8 @@
       PetscEnum, parameter :: KSP_NORM_NATURAL = 3
 
       ! KSPConvergedReason
+      PetscEnum, parameter :: KSP_CONVERGED_RTOL_NORMAL = 1
+      PetscEnum, parameter :: KSP_CONVERGED_ATOL_NORMAL = 9
       PetscEnum, parameter :: KSP_CONVERGED_RTOL = 2
       PetscEnum, parameter :: KSP_CONVERGED_ATOL = 3
       PetscEnum, parameter :: KSP_CONVERGED_ITS = 4
@@ -49,6 +53,11 @@
       ! KSPCGType
       PetscEnum, parameter :: KSP_CG_SYMMETRIC = 0
       PetscEnum, parameter :: KSP_CG_HERMITIAN = 1
+
+      ! MatSchurComplementAinvType
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_DIAG = 0
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_LUMP = 1
+      PetscEnum, parameter :: MAT_SCHUR_COMPLEMENT_AINV_BLOCK_DIAG = 2
 
       ! MatLMVMSymBroydenScaleType 
       PetscEnum, parameter :: MAT_LMVM_SYMBRDN_SCALE_NONE     = 0
