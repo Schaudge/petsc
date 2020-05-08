@@ -4,13 +4,17 @@
         sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tSNES
-
+      type tSNESLineSearch
+        sequence
+        PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
+      end type tSNESLineSearch
       type tPetscConvEst
         sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tPetscConvEst
 
       SNES, parameter :: PETSC_NULL_SNES = tSNES(0)
+      SNESLineSearch, parameter :: PETSC_NULL_SNESLINESEARCH = tSNESLineSearch(0)
       PetscConvEst, parameter :: PETSC_NULL_CONVEST = tPetscConvEst(0)
 
       ! SNESConvergedReason
@@ -29,6 +33,7 @@
       PetscEnum, parameter :: SNES_DIVERGED_DTOL = -9
       PetscEnum, parameter :: SNES_DIVERGED_JACOBIAN_DOMAIN = -10
       PetscEnum, parameter :: SNES_DIVERGED_TR_DELTA = -11
+      PetscEnum, parameter :: SNES_CONVERGED_TR_DELTA_DEPRECATED = -11
       PetscEnum, parameter :: SNES_CONVERGED_ITERATING = 0
 
       ! SNESNormSchedule
@@ -72,8 +77,8 @@
       ! SNESQNScaleType
       PetscEnum, parameter :: SNES_QN_SCALE_DEFAULT = 0
       PetscEnum, parameter :: SNES_QN_SCALE_NONE = 1
-      PetscEnum, parameter :: SNES_QN_SCALE_SHANNO = 2
-      PetscEnum, parameter :: SNES_QN_SCALE_LINESEARCH = 3
+      PetscEnum, parameter :: SNES_QN_SCALE_SCALAR = 2
+      PetscEnum, parameter :: SNES_QN_SCALE_DIAGONAL = 3
       PetscEnum, parameter :: SNES_QN_SCALE_JACOBIAN = 4
 
       ! SNESQNRestartType
@@ -86,3 +91,15 @@
       PetscEnum, parameter :: SNES_QN_LBFGS = 0
       PetscEnum, parameter :: SNES_QN_BROYDEN = 1
       PetscEnum, parameter :: SNES_QN_BADBROYDEN = 2
+
+      ! SNESCompositeType
+      PetscEnum, parameter :: SNES_COMPOSITE_ADDITIVE = 0
+      PetscEnum, parameter :: SNES_COMPOSITE_MULTIPLICATIVE = 1
+      PetscEnum, parameter :: SNES_COMPOSITE_ADDITIVEOPTIMAL = 2
+
+      ! SNESFASType
+      PetscEnum, parameter :: SNES_FAS_MULTIPLICATIVE = 0
+      PetscEnum, parameter :: SNES_FAS_ADDITIVE = 1
+      PetscEnum, parameter :: SNES_FAS_FULL = 2
+      PetscEnum, parameter :: SNES_FAS_KASKADE = 3
+
