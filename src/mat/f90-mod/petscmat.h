@@ -86,7 +86,8 @@
       PetscEnum, parameter :: MAT_SUBSET_OFF_PROC_ENTRIES = 20
       PetscEnum, parameter :: MAT_SUBMAT_SINGLEIS = 21
       PetscEnum, parameter :: MAT_STRUCTURE_ONLY = 22
-      PetscEnum, parameter :: MAT_OPTION_MAX = 23
+      PetscEnum, parameter :: MAT_SORTED_FULL = 23
+      PetscEnum, parameter :: MAT_OPTION_MAX = 24
 
       ! MatDuplicateOption
       PetscEnum, parameter :: MAT_DO_NOT_COPY_VALUES = 0
@@ -165,11 +166,11 @@
       PetscEnum, parameter :: MATRIX_BINARY_FORMAT_DENSE=-1
 
       ! MPChacoGlobalType
-      PetscEnum, parameter :: MP_CHACO_MULTILEVEL_KL=0
-      PetscEnum, parameter :: MP_CHACO_SPECTRAL=1
-      PetscEnum, parameter :: MP_CHACO_LINEAR=2
-      PetscEnum, parameter :: MP_CHACO_RANDOM=3
-      PetscEnum, parameter :: MP_CHACO_SCATTERED=4
+      PetscEnum, parameter :: MP_CHACO_MULTILEVEL = 1
+      PetscEnum, parameter :: MP_CHACO_SPECTRAL = 2
+      PetscEnum, parameter :: MP_CHACO_LINEAR = 4
+      PetscEnum, parameter :: MP_CHACO_RANDOM = 5
+      PetscEnum, parameter :: MP_CHACO_SCATTERED = 6
 
       ! MPChacoLocalType
       PetscEnum, parameter :: MP_CHACO_KERNIGHAN = 1
@@ -177,14 +178,15 @@
 
       ! MPChacoEigenType
       PetscEnum, parameter :: MP_CHACO_LANCZOS = 0
-      PetscEnum, parameter :: MP_CHACO_RQI_SYMMLQ=1
+      PetscEnum, parameter :: MP_CHACO_RQI = 1
 
       ! MPPTScotchStrategyType
-      PetscEnum, parameter :: MP_PTSCOTCH_QUALITY = 0
-      PetscEnum, parameter :: MP_PTSCOTCH_SPEED = 1
-      PetscEnum, parameter :: MP_PTSCOTCH_BALANCE = 2
-      PetscEnum, parameter :: MP_PTSCOTCH_SAFETY = 3
-      PetscEnum, parameter :: MP_PTSCOTCH_SCALABILITY = 4
+      PetscEnum, parameter :: MP_PTSCOTCH_DEFAULT = 0
+      PetscEnum, parameter :: MP_PTSCOTCH_QUALITY = 1
+      PetscEnum, parameter :: MP_PTSCOTCH_SPEED = 2
+      PetscEnum, parameter :: MP_PTSCOTCH_BALANCE = 3
+      PetscEnum, parameter :: MP_PTSCOTCH_SAFETY = 4
+      PetscEnum, parameter :: MP_PTSCOTCH_SCALABILITY = 5
 
       ! MatOperation
       PetscEnum, parameter :: MATOP_SET_VALUES = 0
@@ -250,7 +252,7 @@
       PetscEnum, parameter :: MATOP_DESTROY = 60
       PetscEnum, parameter :: MATOP_VIEW = 61
       PetscEnum, parameter :: MATOP_CONVERT_FROM = 62
-      PetscEnum, parameter :: MATOP_PLACEHOLDER_63 = 63
+      PetscEnum, parameter :: MATOP_MATMAT_MULT = 63
       PetscEnum, parameter :: MATOP_MATMAT_MULT_SYMBOLIC = 64
       PetscEnum, parameter :: MATOP_MATMAT_MULT_NUMERIC = 65
       PetscEnum, parameter :: MATOP_SET_LOCAL_TO_GLOBAL_MAP = 66
@@ -275,10 +277,10 @@
       PetscEnum, parameter :: MATOP_IS_STRUCTURALLY_SYMMETRIC = 86
       PetscEnum, parameter :: MATOP_SET_VALUES_BLOCKEDLOCAL = 87
       PetscEnum, parameter :: MATOP_CREATE_VECS = 88
-      PetscEnum, parameter :: MATOP_PLACEHOLDER_89 = 89
+      PetscEnum, parameter :: MATOP_MAT_MULT = 89
       PetscEnum, parameter :: MATOP_MAT_MULT_SYMBOLIC = 90
       PetscEnum, parameter :: MATOP_MAT_MULT_NUMERIC = 91
-      PetscEnum, parameter :: MATOP_PLACEHOLDER_92=92
+      PetscEnum, parameter :: MATOP_PTAP = 92
       PetscEnum, parameter :: MATOP_PTAP_SYMBOLIC = 93
       PetscEnum, parameter :: MATOP_PTAP_NUMERIC = 94
       PetscEnum, parameter :: MATOP_MAT_TRANSPOSE_MULT = 95
@@ -310,13 +312,13 @@
       PetscEnum, parameter :: MATOP_INVERT_BLOCK_DIAGONAL = 126
       PetscEnum, parameter :: MATOP_CREATE_SUB_MATRICES_MPI = 128
       PetscEnum, parameter :: MATOP_SET_VALUES_BATCH = 129
-      PetscEnum, parameter :: MATOP_PLACEHOLDER_130 = 130
+      PetscEnum, parameter :: MATOP_TRANSPOSE_MAT_MULT = 130
       PetscEnum, parameter :: MATOP_TRANSPOSE_MAT_MULT_SYMBO = 131
       PetscEnum, parameter :: MATOP_TRANSPOSE_MAT_MULT_NUMER = 132
       PetscEnum, parameter :: MATOP_TRANSPOSE_COLORING_CREAT = 133
       PetscEnum, parameter :: MATOP_TRANS_COLORING_APPLY_SPT = 134
       PetscEnum, parameter :: MATOP_TRANS_COLORING_APPLY_DEN = 135
-      PetscEnum, parameter :: MATOP_PLACEHOLDER_136=136
+      PetscEnum, parameter :: MATOP_RART = 136
       PetscEnum, parameter :: MATOP_RART_SYMBOLIC = 137
       PetscEnum, parameter :: MATOP_RART_NUMERIC = 138
       PetscEnum, parameter :: MATOP_SET_BLOCK_SIZES = 139
