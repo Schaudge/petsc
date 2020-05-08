@@ -1,17 +1,19 @@
 #include "petsc/finclude/petscsnes.h"
 
       type tSNES
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tSNES
 
       type tPetscConvEst
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tPetscConvEst
 
       SNES, parameter :: PETSC_NULL_SNES = tSNES(0)
       PetscConvEst, parameter :: PETSC_NULL_CONVEST = tPetscConvEst(0)
 
-! SNESConvergedReason
+      ! SNESConvergedReason
       PetscEnum, parameter :: SNES_CONVERGED_FNORM_ABS = 2
       PetscEnum, parameter :: SNES_CONVERGED_FNORM_RELATIVE = 3
       PetscEnum, parameter :: SNES_CONVERGED_SNORM_RELATIVE = 4
@@ -45,24 +47,24 @@
       PetscEnum, parameter :: SNES_LINESEARCH_FAILED_USER = 4
       PetscEnum, parameter :: SNES_LINESEARCH_FAILED_FUNCTION = 5
 
-! SNESNGMRESRestartType
+      ! SNESNGMRESRestartType
       PetscEnum, parameter :: SNES_NGMRES_RESTART_NONE = 0
       PetscEnum, parameter :: SNES_NGMRES_RESTART_PERIODIC = 1
       PetscEnum, parameter :: SNES_NGMRES_RESTART_DIFFERENCE = 2
 
-! SNESNGMRESSelectType
+      ! SNESNGMRESSelectType
       PetscEnum, parameter :: SNES_NGMRES_SELECT_NONE = 0
       PetscEnum, parameter :: SNES_NGMRES_SELECT_DIFFERENCE = 1
       PetscEnum, parameter :: SNES_NGMRES_SELECT_LINESEARCH = 2
 
-! SNESNCGType
+      ! SNESNCGType
       PetscEnum, parameter :: SNES_NCG_FR = 0
       PetscEnum, parameter :: SNES_NCG_PRP = 1
       PetscEnum, parameter :: SNES_NCG_HS = 2
       PetscEnum, parameter :: SNES_NCG_DY = 3
       PetscEnum, parameter :: SNES_NCG_CD = 4
 
-! SNESQNScaleType
+      ! SNESQNScaleType
       PetscEnum, parameter :: SNES_QN_SCALE_DEFAULT = 0
       PetscEnum, parameter :: SNES_QN_SCALE_NONE = 1
       PetscEnum, parameter :: SNES_QN_SCALE_SHANNO = 2
