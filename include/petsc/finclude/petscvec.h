@@ -9,6 +9,7 @@
 
 #define VecType character*(80)
 #define VecScatterType character*(80)
+#define VecTaggerType character*(80)
 
 #define NormType PetscEnum
 #define InsertMode PetscEnum
