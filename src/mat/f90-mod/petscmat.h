@@ -23,6 +23,15 @@
       PetscEnum, parameter :: MAT_FACTOR_CHOLESKY = 2
       PetscEnum, parameter :: MAT_FACTOR_ILU = 3
       PetscEnum, parameter :: MAT_FACTOR_ICC = 4
+      PetscEnum, parameter :: MAT_FACTOR_ILUDT = 5
+
+      ! MatProductType
+      PetscEnum, parameter :: MATPRODUCT_AB = 0
+      PetscEnum, parameter :: MATPRODUCT_AtB = 1
+      PetscEnum, parameter :: MATPRODUCT_ABt = 2
+      PetscEnum, parameter :: MATPRODUCT_PtAP = 3
+      PetscEnum, parameter :: MATPRODUCT_RARt = 4
+      PetscEnum, parameter :: MATPRODUCT_ABC = 5
 
       ! MatReuse
       PetscEnum, parameter :: MAT_INITIAL_MATRIX = 0
@@ -38,6 +47,10 @@
       PetscEnum, parameter :: DIFFERENT_NONZERO_PATTERN = 0
       PetscEnum, parameter :: SUBSET_NONZERO_PATTERN = 1
       PetscEnum, parameter :: SAME_NONZERO_PATTERN = 2
+
+      ! MatCompositeMergeType
+      PetscEnum, parameter :: MAT_COMPOSITE_MERGE_RIGHT = 0
+      PetscEnum, parameter :: MAT_COMPOSITE_MERGE_LEFT = 1
 
       ! MatCompositeType
       PetscEnum, parameter :: MAT_COMPOSITE_ADDITIVE = 0
@@ -111,6 +124,11 @@
       PetscEnum, parameter :: MAT_INFO_FILL_RATIO_NEEDED=9
       PetscEnum, parameter :: MAT_INFO_FACTOR_MALLOCS=10
 
+      ! MatFactorSchurStatus
+      PetscEnum, parameter :: MAT_FACTOR_SCHUR_UNFACTORED = 0
+      PetscEnum, parameter :: MAT_FACTOR_SCHUR_FACTORED = 1
+      PetscEnum, parameter :: MAT_FACTOR_SCHUR_INVERTED = 2
+
       ! MatSORType
       PetscEnum, parameter :: SOR_FORWARD_SWEEP = 1
       PetscEnum, parameter :: SOR_BACKWARD_SWEEP = 2
@@ -122,6 +140,12 @@
       PetscEnum, parameter :: SOR_EISENSTAT = 32
       PetscEnum, parameter :: SOR_APPLY_UPPER = 64
       PetscEnum, parameter :: SOR_APPLY_LOWER = 128
+
+      ! MatColoringWeightType
+      PetscEnum, parameter :: MAT_COLORING_WEIGHT_RANDOM = 0
+      PetscEnum, parameter :: MAT_COLORING_WEIGHT_LEXICAL = 1
+      PetscEnum, parameter :: MAT_COLORING_WEIGHT_LF = 2
+      PetscEnum, parameter :: MAT_COLORING_WEIGHT_SL = 3
 
 #include "../src/mat/f90-mod/petscmatfactorinfosize.h"
 
@@ -260,10 +284,6 @@
       PetscEnum, parameter :: MATOP_MAT_TRANSPOSE_MULT = 95
       PetscEnum, parameter :: MATOP_MAT_TRANSPOSE_MULT_SYMBO = 96
       PetscEnum, parameter :: MATOP_MAT_TRANSPOSE_MULT_NUMER = 97
-      !PetscEnum, parameter :: MATOP_PLACEHOLDER_98=98
-      !PetscEnum, parameter :: MATOP_PRODUCTSETFROMOPTIONS=99
-      !PetscEnum, parameter :: MATOP_PRODUCTSYMBOLIC=100
-      !PetscEnum, parameter :: MATOP_PRODUCTNUMERIC=101
       PetscEnum, parameter :: MATOP_CONJUGATE = 102
       PetscEnum, parameter :: MATOP_SET_VALUES_ROW = 104
       PetscEnum, parameter :: MATOP_REAL_PART = 105
@@ -308,20 +328,30 @@
       PetscEnum, parameter :: MATOP_TRANSPOSE_SOLVE = 146
       PetscEnum, parameter :: MATOP_GET_VALUES_LOCAL = 147
 
+      ! MatSTRUMPACKReordering
+      PetscEnum, parameter :: MAT_STRUMPACK_NATURAL = 0
+      PetscEnum, parameter :: MAT_STRUMPACK_METIS = 1
+      PetscEnum, parameter :: MAT_STRUMPACK_PARMETIS = 2
+      PetscEnum, parameter :: MAT_STRUMPACK_SCOTCH = 3
+      PetscEnum, parameter :: MAT_STRUMPACK_PTSCOTCH = 4
+      PetscEnum, parameter :: MAT_STRUMPACK_RCM = 5
+
       ! PetscScalarPrecision
       PetscEnum, parameter :: PETSC_SCALAR_DOUBLE=0
       PetscEnum, parameter :: PETSC_SCALAR_SINGLE=1
       PetscEnum, parameter :: PETSC_SCALAR_LONG_DOUBLE=2
 
 #if defined(PETSC_HAVE_CUDA)
-      ! CUSPARSE enumerated types
-      PetscEnum, parameter :: MAT_CUSPARSE_CSR=0
-      PetscEnum, parameter :: MAT_CUSPARSE_ELL=1
-      PetscEnum, parameter :: MAT_CUSPARSE_HYB=2
-      PetscEnum, parameter :: MAT_CUSPARSE_MULT_DIAG=0
-      PetscEnum, parameter :: MAT_CUSPARSE_MULT_OFFDIAG=1
-      PetscEnum, parameter :: MAT_CUSPARSE_MULT=2
-      PetscEnum, parameter :: MAT_CUSPARSE_ALL=3
+      ! MatCUSPARSEStorageFormat
+      PetscEnum, parameter :: MAT_CUSPARSE_CSR = 0
+      PetscEnum, parameter :: MAT_CUSPARSE_ELL = 1
+      PetscEnum, parameter :: MAT_CUSPARSE_HYB = 2
+
+      ! MatCUSPARSEFormatOperation
+      PetscEnum, parameter :: MAT_CUSPARSE_MULT_DIAG = 0
+      PetscEnum, parameter :: MAT_CUSPARSE_MULT_OFFDIAG = 1
+      PetscEnum, parameter :: MAT_CUSPARSE_MULT = 2
+      PetscEnum, parameter :: MAT_CUSPARSE_ALL = 3
 #endif
 
 #if defined(_WIN32) && defined(PETSC_USE_SHARED_LIBRARIES)

@@ -38,7 +38,12 @@
       PetscEnum, parameter :: SNES_NORM_INITIAL_ONLY = 2
       PetscEnum, parameter :: SNES_NORM_FINAL_ONLY = 3
       PetscEnum, parameter :: SNES_NORM_INITIAL_FINAL_ONLY = 4
-      
+
+      ! SNESFunctionType
+      PetscEnum, parameter :: SNES_FUNCTION_DEFAULT = -1
+      PetscEnum, parameter :: SNES_FUNCTION_UNPRECONDITIONED = 0
+      PetscEnum, parameter :: SNES_FUNCTION_PRECONDITIONED = 1
+
       ! SNESLineSearchReason
       PetscEnum, parameter :: SNES_LINESEARCH_SUCCEEDED = 0
       PetscEnum, parameter :: SNES_LINESEARCH_FAILED_NANORINF = 1
