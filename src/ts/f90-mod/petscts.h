@@ -1,15 +1,19 @@
 #include "petsc/finclude/petscts.h"
 
       type tTS
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTS
       type tTSTrajectory
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTSTrajectory
       type tTSAdapt
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTSAdapt
       type tTSGLLEAdapt
+        sequence
         PetscFortranAddr :: v PETSC_FORTRAN_TYPE_INITIALIZE
       end type tTSGLLEAdapt
 
