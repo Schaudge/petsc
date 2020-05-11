@@ -523,14 +523,6 @@ void land_kernel(const PetscInt nip, const PetscInt dim, const PetscInt totDim, 
     } // qj
   }
 }
-/* < v, u > */
-static void g0_1(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                  PetscReal t, PetscReal u_tShift, const PetscReal x[],  PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
-{
-  g0[0] = 1.;
-}
 
 struct _ISColoring_ctx {
   ISColoring coloring;
@@ -548,6 +540,9 @@ static PetscErrorCode destroy_coloring (void *obj)
   PetscFunctionReturn(0);
 }
 __global__ void assemble_kernel(const PetscInt nidx_arr[], PetscInt *idx_arr[], PetscScalar *new_el_mats[], const ISColoringValue colors[], Mat_SeqAIJ mats[]);
+static PetscErrorCode assemble_omp_private(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container);
+static PetscErrorCode assemble_cuda_private(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container);
+
 PetscErrorCode FPLandauCUDAJacobian( DM plex, PetscQuadrature quad, const PetscInt foffsets[], const PetscReal nu_m0_ma[FP_MAX_SPECIES][FP_MAX_SPECIES],
 				     const PetscReal invMass[FP_MAX_SPECIES], const PetscReal Eq_m[FP_MAX_SPECIES],const FPLandPointData * const IPDataGlobal,
 				     const PetscReal wiGlobal[], const PetscInt num_sub_blocks, const PetscLogEvent events[], PetscBool quarter3DDomain, Mat JacP)
@@ -668,63 +663,73 @@ PetscErrorCode FPLandauCUDAJacobian( DM plex, PetscQuadrature quad, const PetscI
   CUDA_SAFE_CALL(cudaFree(d_elemMats));
 #if defined(PETSC_USE_LOG)
   ierr = PetscLogEventEnd(events[5],0,0,0,0);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(events[6],0,0,0,0);CHKERRQ(ierr);
 #endif
   /* coloring */
   ierr = PetscObjectQuery((PetscObject)JacP,"coloring",(PetscObject*)&container);CHKERRQ(ierr);
   if (!container) {
-    PetscSection   csection;
-    DM             colordm;
-    Vec            color_vec, eidx_vec;
-    PetscInt       i,nc;
+    PetscInt        cell,i,nc,Nv;
+    ISColoring      iscoloring = NULL;
+    ISColoring_ctx  coloring_ctx = NULL;
+    Mat             G,Q;
+    PetscScalar     ones[64];
+    MatColoring     mc;
+    IS             *is;
+    PetscInt        csize,colour,j,k;
+    const PetscInt *indices;
     PetscInt       numComp[1];
-    PetscInt       numDof[3];
+    PetscInt       numDof[4];
     PetscFE        fe;
-    PetscDS        prob;
-    Mat            mat;
-    ISColoring     iscoloring = NULL;
-    ISColoring_ctx coloring_ctx = NULL;
-    /* Create a scalar field u, a vector field v, and a surface vector field w */
-    numComp[0] = 1;
+    DM             colordm;
+    PetscSection   csection;
+#if defined(PETSC_USE_LOG)
+    ierr = PetscLogEventBegin(events[8],0,0,0,0);CHKERRQ(ierr);
+#endif
+    /* create cell centered DM */
     ierr = DMClone(plex, &colordm);CHKERRQ(ierr);
-    /* we do not need the right degree for coloring so color_ prefix work */
     ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) plex), dim, 1, PETSC_FALSE, "color_", PETSC_DECIDE, &fe);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) fe, "color");CHKERRQ(ierr);
     ierr = DMSetField(colordm, 0, NULL, (PetscObject)fe);CHKERRQ(ierr);
     ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
     for (i = 0; i < (dim+1); ++i) numDof[i] = 0;
-    numDof[dim]   = 1;
-    /* Create a PetscSection with this data layout */
+    numDof[dim] = 1;
+    numComp[0] = 1;
     ierr = DMPlexCreateSection(colordm, NULL, numComp, numDof, 0, 0, NULL, NULL, NULL, &csection);CHKERRQ(ierr);
-    /* Name the Field variables */
     ierr = PetscSectionSetFieldName(csection, 0, "color");CHKERRQ(ierr);
-    /* Tell the DM to use this data layout */
     ierr = DMSetLocalSection(colordm, csection);CHKERRQ(ierr);
-    ierr = DMCreateDS(colordm);CHKERRQ(ierr);
-    ierr = DMGetDS(colordm, &prob);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(prob, 0, 0, g0_1, NULL, NULL, NULL);CHKERRQ(ierr);
     ierr = DMViewFromOptions(colordm,NULL,"-color_dm_view");CHKERRQ(ierr);
-    ierr = DMSetAdjacency(colordm, 0, PETSC_TRUE, PETSC_TRUE);CHKERRQ(ierr);
-    ierr = DMCreateMatrix(colordm, &mat);CHKERRQ(ierr);
-    /* Create a Mat and Vec with this layout and view it */
-    ierr = DMGetGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
-    ierr = DMGetGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
-    ierr = DMPlexSNESComputeJacobianFEM(colordm, color_vec, mat, mat, NULL);CHKERRQ(ierr);
-    ierr = MatViewFromOptions(mat,NULL,"-color_mat_view");CHKERRQ(ierr);
-    {
-      MatColoring     mc;
-      IS             *is;
-      PetscInt        csize,colour,j,k;
-      const PetscInt *indices;
-      ierr = MatColoringCreate(mat,&mc);CHKERRQ(ierr);
-      ierr = MatColoringSetDistance(mc,1);CHKERRQ(ierr);
-      ierr = MatColoringSetType(mc,MATCOLORINGJP);CHKERRQ(ierr);
-      ierr = MatColoringSetFromOptions(mc);CHKERRQ(ierr);
-      ierr = MatColoringApply(mc,&iscoloring);CHKERRQ(ierr);
-      ierr = MatColoringDestroy(&mc);CHKERRQ(ierr);
-      /* view */
-      ierr = ISColoringViewFromOptions(iscoloring,NULL,"-coloring_is_view");CHKERRQ(ierr);
-      ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
+    /* get vertex to element map Q and colroing graph G */
+    ierr = MatGetSize(JacP,NULL,&Nv);CHKERRQ(ierr);
+    ierr = MatCreateAIJ(PETSC_COMM_SELF,PETSC_DECIDE,PETSC_DECIDE,numGCells,Nv,totDim,NULL,0,NULL,&Q);CHKERRQ(ierr);
+    for(i=0;i<64;i++) ones[i] = 1.0;
+    for (cell = cStart, ej = 0 ; cell < cEnd; ++cell, ++ej) {
+      PetscInt numindices,*indices;
+      ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
+      ierr = MatSetValues(Q,1,&ej,numindices,indices,ones,ADD_VALUES);CHKERRQ(ierr);
+      ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
+    }
+    ierr = MatAssemblyBegin(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatMatTransposeMult(Q,Q,MAT_INITIAL_MATRIX,4.0,&G);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) Q, "Q");CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) G, "coloring graph");CHKERRQ(ierr);
+    ierr = MatViewFromOptions(G,NULL,"-coloring_mat_view");CHKERRQ(ierr);
+    ierr = MatViewFromOptions(Q,NULL,"-coloring_mat_view");CHKERRQ(ierr);
+    ierr = MatDestroy(&Q);CHKERRQ(ierr);
+    /* coloring */
+    ierr = MatColoringCreate(G,&mc);CHKERRQ(ierr);
+    ierr = MatColoringSetDistance(mc,1);CHKERRQ(ierr);
+    ierr = MatColoringSetType(mc,MATCOLORINGJP);CHKERRQ(ierr);
+    ierr = MatColoringSetFromOptions(mc);CHKERRQ(ierr);
+    ierr = MatColoringApply(mc,&iscoloring);CHKERRQ(ierr);
+    ierr = MatColoringDestroy(&mc);CHKERRQ(ierr);
+    /* view */
+    ierr = ISColoringViewFromOptions(iscoloring,NULL,"-coloring_is_view");CHKERRQ(ierr);
+    ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
+    if (1) {
+      PetscViewer    viewer;
+      Vec            color_vec, eidx_vec;
+      ierr = DMGetGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
+      ierr = DMGetGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
       for (colour=0; colour<nc; colour++) {
 	ierr = ISGetLocalSize(is[colour],&csize);CHKERRQ(ierr);
 	ierr = ISGetIndices(is[colour],&indices);CHKERRQ(ierr);
@@ -737,30 +742,30 @@ PetscErrorCode FPLandauCUDAJacobian( DM plex, PetscQuadrature quad, const PetscI
 	}
 	ierr = ISRestoreIndices(is[colour],&indices);CHKERRQ(ierr);
       }
-      ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
-    }
-    /* view coloring */
-    if (1) {
-      PetscViewer    viewer;
+      /* view */
+      //ierr = VecViewFromOptions(color_vec, NULL, "-color_vec_view");CHKERRQ(ierr);
+      //ierr = VecViewFromOptions(eidx_vec, NULL, "-eidx_vec_view");CHKERRQ(ierr);
       ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer);CHKERRQ(ierr);
       ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);CHKERRQ(ierr);
       ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_VTK);CHKERRQ(ierr);
       ierr = PetscViewerFileSetName(viewer, "color.vtk");CHKERRQ(ierr);
+      ierr = PetscObjectSetName((PetscObject) color_vec, "color");CHKERRQ(ierr);
       ierr = VecView(color_vec, viewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
       ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer);CHKERRQ(ierr);
       ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);CHKERRQ(ierr);
       ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_VTK);CHKERRQ(ierr);
       ierr = PetscViewerFileSetName(viewer, "eidx.vtk");CHKERRQ(ierr);
+      ierr = PetscObjectSetName((PetscObject) eidx_vec, "element-idx");CHKERRQ(ierr); 
       ierr = VecView(eidx_vec, viewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+      ierr = DMRestoreGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
+      ierr = DMRestoreGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
     }
-    /* Cleanup */
-    ierr = MatDestroy(&mat);CHKERRQ(ierr);
-    ierr = DMRestoreGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
-    ierr = DMRestoreGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
     ierr = PetscSectionDestroy(&csection);CHKERRQ(ierr);
     ierr = DMDestroy(&colordm);CHKERRQ(ierr);
+    ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
+    ierr = MatDestroy(&G);CHKERRQ(ierr);
     /* stash coloring */
     ierr = PetscContainerCreate(PETSC_COMM_SELF, &container);CHKERRQ(ierr);
     ierr = PetscNew(&coloring_ctx);CHKERRQ(ierr);
@@ -782,153 +787,22 @@ PetscErrorCode FPLandauCUDAJacobian( DM plex, PetscQuadrature quad, const PetscI
       }
     }
 #endif
+#if defined(PETSC_USE_LOG)
+    ierr = PetscLogEventEnd(events[8],0,0,0,0);CHKERRQ(ierr);
+#endif
   }
+#if defined(PETSC_USE_LOG)
+  ierr = PetscLogEventBegin(events[6],0,0,0,0);CHKERRQ(ierr);
+#endif
   if (0) {
     PetscScalar *elMat;
     for (ej = cStart, elMat = elemMats ; ej < cEnd; ++ej, elMat += totDim*totDim) {
       ierr = DMPlexMatSetClosure(plex, section, globalSection, JacP, ej, elMat, ADD_VALUES);CHKERRQ(ierr);
     }
   } else if (0) { /* OMP assembly */
-    /* assemble with coloring */
-    IS             *is;
-    PetscInt        nc,colour,j;
-    const PetscInt *clr_idxs;
-    ISColoring_ctx  coloring_ctx = NULL;
-    ISColoring      iscoloring;
-    ierr = PetscContainerGetPointer(container,(void**)&coloring_ctx);CHKERRQ(ierr);
-    iscoloring = coloring_ctx->coloring;
-    ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
-    for (colour=0; colour<nc; colour++) {
-      PetscInt    *idx_arr[64];
-      PetscScalar *new_el_mats[64];
-      PetscInt     idx_size[64],csize;
-      ierr = ISGetLocalSize(is[colour],&csize);CHKERRQ(ierr);
-      if (csize>64) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many elements in color. %D > %D",csize,64);
-      ierr = ISGetIndices(is[colour],&clr_idxs);CHKERRQ(ierr);
-      /* get indices and mats */
-      for (j=0; j<csize; j++) {
-	PetscInt cell = cStart + clr_idxs[j];
-	PetscInt numindices,*indices;
-	PetscScalar *elMat = &elemMats[clr_idxs[j]*totDim*totDim];
-	PetscScalar *valuesOrig = elMat;
-	ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);
-	idx_size[j] = numindices;
-	ierr = PetscMalloc2(numindices,&idx_arr[j],numindices*numindices,&new_el_mats[j]);CHKERRQ(ierr);
-	ierr = PetscMemcpy(idx_arr[j],indices,numindices*sizeof(PetscInt));CHKERRQ(ierr);
-	ierr = PetscMemcpy(new_el_mats[j],elMat,numindices*numindices*sizeof(PetscScalar));CHKERRQ(ierr);
-	ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);	
-	if (elMat != valuesOrig) {ierr = DMRestoreWorkArray(plex, numindices*numindices, MPIU_SCALAR, &elMat);}
-      }
-      ierr = ISRestoreIndices(is[colour],&clr_idxs);CHKERRQ(ierr);
-      /* assemble matrix */
-#pragma omp parallel for shared(JacP,idx_size,idx_arr,new_el_mats) private(j) schedule(static)
-      for (j=0; j<csize; j++) {
-	PetscInt numindices = idx_size[j], *indices = idx_arr[j];
-	PetscScalar *elMat = new_el_mats[j];
-	MatSetValues(JacP,numindices,indices,numindices,indices,elMat,ADD_VALUES);
-      }
-      /* free */
-      for (j=0; j<csize; j++) {
-	ierr = PetscFree2(idx_arr[j],new_el_mats[j]);CHKERRQ(ierr);
-      }
-    }
-    ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
+    ierr = assemble_omp_private(cStart, cEnd, totDim, plex, section, globalSection, JacP, elemMats, container);CHKERRQ(ierr);
   } else {  /* gpu assembly */
-#define FP_MAX_COLORS 16
-#define FP_MAX_ELEMS 256
-    PetscInt               nelems=cEnd-cStart,nc,ej,j;
-    const ISColoringValue *colors;
-    ISColoringValue       *d_colors,colour;
-    Mat_SeqAIJ             h_mats[FP_MAX_COLORS], *jaca = (Mat_SeqAIJ *)JacP->data, *d_mats;
-    PetscInt              *h_idx_arr[FP_MAX_ELEMS], h_nidx_arr[FP_MAX_ELEMS], *d_nidx_arr, **d_idx_arr;
-    const PetscInt         n = JacP->rmap->n, nnz = jaca->i[n];
-    PetscScalar           *h_new_el_mats[FP_MAX_ELEMS], *val_buf, **d_new_el_mats;
-    ISColoring_ctx         coloring_ctx = NULL;
-    ISColoring             iscoloring;
-    IS                     *is;
-    const PetscInt         *clr_idxs;
-    ierr = PetscContainerGetPointer(container,(void**)&coloring_ctx);CHKERRQ(ierr);
-    iscoloring = coloring_ctx->coloring;
-    /* get colors */
-    ierr = ISColoringGetColors(iscoloring, &j, &nc, &colors);CHKERRQ(ierr);
-    CUDA_SAFE_CALL(cudaMalloc((void **)&d_colors,         nelems*sizeof(ISColoringValue))); // kernel input
-    CUDA_SAFE_CALL(cudaMemcpy(          d_colors, colors, nelems*sizeof(ISColoringValue), cudaMemcpyHostToDevice));
-    ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
-    if (nelems>FP_MAX_ELEMS) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many elements. %D > %D",nelems,FP_MAX_ELEMS);
-    if (nc>FP_MAX_COLORS) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many colors. %D > %D",nc,FP_MAX_COLORS);
-    /* get indices and element matrices */
-    for (colour=0; colour<nc; colour++) {
-      PetscInt     csize;
-      ierr = ISGetLocalSize(is[colour],&csize);CHKERRQ(ierr);
-      ierr = ISGetIndices(is[colour],&clr_idxs);CHKERRQ(ierr);
-      /* get indices and mats */
-      for (j=0; j<csize; j++) {
-	const PetscInt eidx = clr_idxs[j], cell = cStart + eidx;
-	PetscInt numindices,*indices;
-	PetscScalar *elMat = &elemMats[eidx*totDim*totDim];
-	PetscScalar *valuesOrig = elMat;
-	if(colors[eidx] != colour) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "color != colour");
-	ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);
-	h_nidx_arr[eidx] = numindices;
-	CUDA_SAFE_CALL(cudaMalloc((void **)&h_idx_arr[eidx],          numindices*sizeof(PetscInt))); // kernel input
-	CUDA_SAFE_CALL(cudaMemcpy(          h_idx_arr[eidx], indices, numindices*sizeof(PetscInt), cudaMemcpyHostToDevice));
-	CUDA_SAFE_CALL(cudaMalloc((void **)&h_new_el_mats[eidx],        numindices*numindices*sizeof(PetscScalar))); // kernel input
-	CUDA_SAFE_CALL(cudaMemcpy(          h_new_el_mats[eidx], elMat, numindices*numindices*sizeof(PetscScalar), cudaMemcpyHostToDevice));
-	ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);
-	if (elMat != valuesOrig) {ierr = DMRestoreWorkArray(plex, numindices*numindices, MPIU_SCALAR, &elMat);CHKERRQ(ierr);}
-      }
-      ierr = ISRestoreIndices(is[colour],&clr_idxs);CHKERRQ(ierr);
-    }
-    ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
-    CUDA_SAFE_CALL(cudaMalloc((void **)&d_nidx_arr,             nelems*sizeof(PetscInt))); // kernel input
-    CUDA_SAFE_CALL(cudaMemcpy(          d_nidx_arr, h_nidx_arr, nelems*sizeof(PetscInt), cudaMemcpyHostToDevice));
-    CUDA_SAFE_CALL(cudaMalloc(&d_idx_arr,            nelems*sizeof(PetscInt*))); // kernel input
-    CUDA_SAFE_CALL(cudaMemcpy( d_idx_arr, h_idx_arr, nelems*sizeof(PetscInt*), cudaMemcpyHostToDevice));
-    CUDA_SAFE_CALL(cudaMalloc(&d_new_el_mats,                nelems*sizeof(PetscScalar*))); // kernel input
-    CUDA_SAFE_CALL(cudaMemcpy( d_new_el_mats, h_new_el_mats, nelems*sizeof(PetscScalar*), cudaMemcpyHostToDevice));
-    /* make matrix buffers */
-    for (colour=0; colour<nc; colour++) {
-      Mat_SeqAIJ *a = &h_mats[colour];
-      /* create on GPU and copy to GPU */
-      CUDA_SAFE_CALL(cudaMalloc((void **)&a->i,          (n+1)*sizeof(PetscInt))); // kernel input
-      CUDA_SAFE_CALL(cudaMemcpy(          a->i, jaca->i, (n+1)*sizeof(PetscInt), cudaMemcpyHostToDevice));
-      CUDA_SAFE_CALL(cudaMalloc((void **)&a->ilen,             (n)*sizeof(PetscInt))); // kernel input
-      CUDA_SAFE_CALL(cudaMemcpy(          a->ilen, jaca->ilen, (n)*sizeof(PetscInt), cudaMemcpyHostToDevice));
-      CUDA_SAFE_CALL(cudaMalloc((void **)&a->j,          (nnz)*sizeof(PetscInt))); // kernel input
-      CUDA_SAFE_CALL(cudaMemcpy(          a->j, jaca->j, (nnz)*sizeof(PetscInt), cudaMemcpyHostToDevice));
-      CUDA_SAFE_CALL(cudaMalloc((void **)&a->a,          (nnz)*sizeof(PetscScalar))); // kernel output
-      CUDA_SAFE_CALL(cudaMemset(          a->a, 0,       (nnz)*sizeof(PetscScalar)));
-    }
-    CUDA_SAFE_CALL(cudaMalloc(&d_mats,         nc*sizeof(Mat_SeqAIJ))); // kernel input
-    CUDA_SAFE_CALL(cudaMemcpy( d_mats, h_mats, nc*sizeof(Mat_SeqAIJ), cudaMemcpyHostToDevice));
-    /* do it */
-    assemble_kernel<<<nelems,1>>>(d_nidx_arr, d_idx_arr, d_new_el_mats, d_colors, d_mats);
-    CHECK_LAUNCH_ERROR();
-    /* cleanup */
-    CUDA_SAFE_CALL(cudaFree(d_colors));
-    CUDA_SAFE_CALL(cudaFree(d_nidx_arr));
-    for (ej = cStart ; ej < cEnd; ++ej) {
-      CUDA_SAFE_CALL(cudaFree(h_idx_arr[ej]));
-      CUDA_SAFE_CALL(cudaFree(h_new_el_mats[ej]));
-    }
-    CUDA_SAFE_CALL(cudaFree(d_idx_arr));
-    CUDA_SAFE_CALL(cudaFree(d_new_el_mats));
-    /* copy & add Mat data back to CPU to JacP */
-    ierr = PetscMalloc1(nnz,&val_buf);CHKERRQ(ierr);
-    ierr = PetscMemzero(jaca->a,nnz*sizeof(PetscScalar));CHKERRQ(ierr);
-    for (colour=0; colour<nc; colour++) {
-      Mat_SeqAIJ *a = &h_mats[colour];
-      CUDA_SAFE_CALL(cudaMemcpy(val_buf, a->a, (nnz)*sizeof(PetscScalar), cudaMemcpyDeviceToHost));
-      for(ii=0;ii<nnz;ii++) jaca->a[ii] += val_buf[ii];
-      //PetscKernelAXPY(jaca->a,1.0,val_buf,nnz);
-      /* destroy mat */
-      CUDA_SAFE_CALL(cudaFree(a->i));
-      CUDA_SAFE_CALL(cudaFree(a->ilen));
-      CUDA_SAFE_CALL(cudaFree(a->j));
-      CUDA_SAFE_CALL(cudaFree(a->a));
-    }
-    CUDA_SAFE_CALL(cudaFree(d_mats));
-    ierr = PetscFree(val_buf);CHKERRQ(ierr);
+    ierr = assemble_cuda_private(cStart, cEnd, totDim, plex, section, globalSection, JacP, elemMats, container);CHKERRQ(ierr);
   }
   ierr = PetscFree(elemMats);CHKERRQ(ierr);
 #if defined(PETSC_USE_LOG)
@@ -938,17 +812,17 @@ PetscErrorCode FPLandauCUDAJacobian( DM plex, PetscQuadrature quad, const PetscI
 }
 
 __global__
-void assemble_kernel(const PetscInt nidx_arr[], PetscInt *idx_arr[], PetscScalar *new_el_mats[], const ISColoringValue colors[], Mat_SeqAIJ mats[])
+void assemble_kernel(const PetscInt nidx_arr[], PetscInt *idx_arr[], PetscScalar *el_mats[], const ISColoringValue colors[], Mat_SeqAIJ mats[])
 {
-  const PetscInt myelem = blockIdx.x;
-  Mat_SeqAIJ a = mats[colors[myelem]]; /* copy to GPU */
-  const PetscScalar *v = new_el_mats[myelem];
-  const PetscInt *in = idx_arr[myelem], *im = idx_arr[myelem], n = nidx_arr[myelem], m = nidx_arr[myelem];  
+  const PetscInt     myelem = (gridDim.x==1) ? threadIdx.x : blockIdx.x;
+  Mat_SeqAIJ         a = mats[colors[myelem]]; /* copy to GPU */
+  const PetscScalar *v = el_mats[myelem];
+  const PetscInt    *in = idx_arr[myelem], *im = idx_arr[myelem], n = nidx_arr[myelem], m = nidx_arr[myelem];
   /* mat set values */
-  PetscInt       *rp,k,low,high,t,row,nrow,i,col,l;
-  PetscInt       *ai = a.i,*ailen = a.ilen;
-  PetscInt       *aj = a.j,lastcol = -1;
-  MatScalar      *ap=NULL,value=0.0,*aa = a.a;
+  PetscInt          *rp,k,low,high,t,row,nrow,i,col,l;
+  PetscInt          *ai = a.i,*ailen = a.ilen;
+  PetscInt          *aj = a.j,lastcol = -1;
+  MatScalar         *ap=NULL,value=0.0,*aa = a.a;
   for (k=0; k<m; k++) { /* loop over added rows */
     row = im[k];
     if (row < 0) continue;
@@ -975,8 +849,7 @@ void assemble_kernel(const PetscInt nidx_arr[], PetscInt *idx_arr[], PetscScalar
       for (i=low; i<high; i++) {
         if (rp[i] > col) break;
         if (rp[i] == col) {
-	  if (ap[i] != 0.0) printf("error element %d, color %d, (%d %d) = %g --> %g\n", myelem, colors[myelem], row, col, ap[i], value);
-	  ap[i] = value;
+	  ap[i] += value;
 	  low = i + 1;
           goto noinsert;
         }
@@ -985,4 +858,140 @@ void assemble_kernel(const PetscInt nidx_arr[], PetscInt *idx_arr[], PetscScalar
     noinsert:;
     }
   }
+}
+static PetscErrorCode assemble_omp_private(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container)
+{
+  PetscErrorCode  ierr;
+  IS             *is;
+  PetscInt        nc,colour,j;
+  const PetscInt *clr_idxs;
+  ISColoring_ctx  coloring_ctx = NULL;
+  ISColoring      iscoloring;
+  ierr = PetscContainerGetPointer(container,(void**)&coloring_ctx);CHKERRQ(ierr);
+  iscoloring = coloring_ctx->coloring;
+  ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
+  for (colour=0; colour<nc; colour++) {
+    PetscInt    *idx_arr[64];
+    PetscScalar *new_el_mats[64];
+    PetscInt     idx_size[64],csize;
+    ierr = ISGetLocalSize(is[colour],&csize);CHKERRQ(ierr);
+    if (csize>64) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many elements in color. %D > %D",csize,64);
+    ierr = ISGetIndices(is[colour],&clr_idxs);CHKERRQ(ierr);
+    /* get indices and mats */
+    for (j=0; j<csize; j++) {
+      PetscInt cell = cStart + clr_idxs[j];
+      PetscInt numindices,*indices;
+      PetscScalar *elMat = &elemMats[clr_idxs[j]*totDim*totDim];
+      PetscScalar *valuesOrig = elMat;
+      ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);
+      idx_size[j] = numindices;
+      ierr = PetscMalloc2(numindices,&idx_arr[j],numindices*numindices,&new_el_mats[j]);CHKERRQ(ierr);
+      ierr = PetscMemcpy(idx_arr[j],indices,numindices*sizeof(PetscInt));CHKERRQ(ierr);
+      ierr = PetscMemcpy(new_el_mats[j],elMat,numindices*numindices*sizeof(PetscScalar));CHKERRQ(ierr);
+      ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);	
+      if (elMat != valuesOrig) {ierr = DMRestoreWorkArray(plex, numindices*numindices, MPIU_SCALAR, &elMat);}
+    }
+    /* assemble matrix */
+#pragma omp parallel for shared(JacP,idx_size,idx_arr,new_el_mats,colour,clr_idxs) private(j) schedule(static)
+    for (j=0; j<csize; j++) {
+      PetscInt numindices = idx_size[j], *indices = idx_arr[j];
+      PetscScalar *elMat = new_el_mats[j];
+      MatSetValues(JacP,numindices,indices,numindices,indices,elMat,ADD_VALUES);
+    }
+    /* free */
+    ierr = ISRestoreIndices(is[colour],&clr_idxs);CHKERRQ(ierr);
+    for (j=0; j<csize; j++) {
+      ierr = PetscFree2(idx_arr[j],new_el_mats[j]);CHKERRQ(ierr);
+    }
+  }
+  ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode assemble_cuda_private(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container)
+{
+  PetscErrorCode    ierr;
+#define FP_MAX_COLORS 16
+#define FP_MAX_ELEMS 512
+  Mat_SeqAIJ             h_mats[FP_MAX_COLORS], *jaca = (Mat_SeqAIJ *)JacP->data, *d_mats;
+  const PetscInt         nelems = cEnd - cStart, nnz = jaca->i[JacP->rmap->n], N = JacP->rmap->n;  /* serial */
+  const ISColoringValue *colors;
+  ISColoringValue       *d_colors,colour;
+  PetscInt              *h_idx_arr[FP_MAX_ELEMS], h_nidx_arr[FP_MAX_ELEMS], *d_nidx_arr, **d_idx_arr,nc,ej,j,cell;
+  PetscScalar           *h_new_el_mats[FP_MAX_ELEMS], *val_buf, **d_new_el_mats;
+  ISColoring_ctx         coloring_ctx = NULL;
+  ISColoring             iscoloring;
+  ierr = PetscContainerGetPointer(container,(void**)&coloring_ctx);CHKERRQ(ierr);
+  iscoloring = coloring_ctx->coloring;
+  /* get colors */
+  ierr = ISColoringGetColors(iscoloring, &j, &nc, &colors);CHKERRQ(ierr);
+  if (nelems>FP_MAX_ELEMS) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many elements. %D > %D",nelems,FP_MAX_ELEMS);
+  if (nc>FP_MAX_COLORS) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many colors. %D > %D",nc,FP_MAX_COLORS);
+  /* colors for kernel */
+  CUDA_SAFE_CALL(cudaMalloc((void **)&d_colors,         nelems*sizeof(ISColoringValue))); // kernel input
+  CUDA_SAFE_CALL(cudaMemcpy(          d_colors, colors, nelems*sizeof(ISColoringValue), cudaMemcpyHostToDevice));
+  /* get indices and element matrices */
+  for (cell = cStart, ej = 0 ; cell < cEnd; ++cell, ++ej) {
+    PetscInt numindices,*indices;
+    PetscScalar *elMat = &elemMats[ej*totDim*totDim];
+    PetscScalar *valuesOrig = elMat;
+    ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);
+    h_nidx_arr[ej] = numindices;
+    CUDA_SAFE_CALL(cudaMalloc((void **)&h_idx_arr[ej],            numindices*sizeof(PetscInt))); // kernel input
+    CUDA_SAFE_CALL(cudaMemcpy(          h_idx_arr[ej],   indices, numindices*sizeof(PetscInt), cudaMemcpyHostToDevice));
+    CUDA_SAFE_CALL(cudaMalloc((void **)&h_new_el_mats[ej],        numindices*numindices*sizeof(PetscScalar))); // kernel input
+    CUDA_SAFE_CALL(cudaMemcpy(          h_new_el_mats[ej], elMat, numindices*numindices*sizeof(PetscScalar), cudaMemcpyHostToDevice));
+    ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, (PetscScalar **) &elMat);CHKERRQ(ierr);
+    if (elMat != valuesOrig) {ierr = DMRestoreWorkArray(plex, numindices*numindices, MPIU_SCALAR, &elMat);CHKERRQ(ierr);}
+  }
+  CUDA_SAFE_CALL(cudaMalloc((void **)&d_nidx_arr,                  nelems*sizeof(PetscInt))); // kernel input
+  CUDA_SAFE_CALL(cudaMemcpy(          d_nidx_arr,    h_nidx_arr,   nelems*sizeof(PetscInt), cudaMemcpyHostToDevice));
+  CUDA_SAFE_CALL(cudaMalloc((void **)&d_idx_arr,                   nelems*sizeof(PetscInt*))); // kernel input
+  CUDA_SAFE_CALL(cudaMemcpy(          d_idx_arr,     h_idx_arr,    nelems*sizeof(PetscInt*), cudaMemcpyHostToDevice));
+  CUDA_SAFE_CALL(cudaMalloc((void **)&d_new_el_mats,               nelems*sizeof(PetscScalar*))); // kernel input
+  CUDA_SAFE_CALL(cudaMemcpy(          d_new_el_mats, h_new_el_mats,nelems*sizeof(PetscScalar*), cudaMemcpyHostToDevice));
+  /* make matrix buffers */
+  for (colour=0; colour<nc; colour++) {
+    Mat_SeqAIJ *a = &h_mats[colour];
+    /* create on GPU and copy to GPU */
+    CUDA_SAFE_CALL(cudaMalloc((void **)&a->i,               (N+1)*sizeof(PetscInt))); // kernel input
+    CUDA_SAFE_CALL(cudaMemcpy(          a->i,    jaca->i,   (N+1)*sizeof(PetscInt), cudaMemcpyHostToDevice));
+    CUDA_SAFE_CALL(cudaMalloc((void **)&a->ilen,            (N)*sizeof(PetscInt))); // kernel input
+    CUDA_SAFE_CALL(cudaMemcpy(          a->ilen, jaca->ilen,(N)*sizeof(PetscInt), cudaMemcpyHostToDevice));
+    CUDA_SAFE_CALL(cudaMalloc((void **)&a->j,               (nnz)*sizeof(PetscInt))); // kernel input
+    CUDA_SAFE_CALL(cudaMemcpy(          a->j,    jaca->j,   (nnz)*sizeof(PetscInt), cudaMemcpyHostToDevice));
+    CUDA_SAFE_CALL(cudaMalloc((void **)&a->a,               (nnz)*sizeof(PetscScalar))); // kernel output
+    CUDA_SAFE_CALL(cudaMemset(          a->a, 0,            (nnz)*sizeof(PetscScalar)));
+  }
+  CUDA_SAFE_CALL(cudaMalloc(&d_mats,         nc*sizeof(Mat_SeqAIJ))); // kernel input
+  CUDA_SAFE_CALL(cudaMemcpy( d_mats, h_mats, nc*sizeof(Mat_SeqAIJ), cudaMemcpyHostToDevice));
+  /* do it */
+  assemble_kernel<<<nelems,1>>>(d_nidx_arr, d_idx_arr, d_new_el_mats, d_colors, d_mats);
+  CHECK_LAUNCH_ERROR();
+  /* cleanup */
+  CUDA_SAFE_CALL(cudaFree(d_colors));
+  CUDA_SAFE_CALL(cudaFree(d_nidx_arr));
+  for (ej = cStart ; ej < nelems; ++ej) {
+    CUDA_SAFE_CALL(cudaFree(h_idx_arr[ej]));
+    CUDA_SAFE_CALL(cudaFree(h_new_el_mats[ej]));
+  }
+  CUDA_SAFE_CALL(cudaFree(d_idx_arr));
+  CUDA_SAFE_CALL(cudaFree(d_new_el_mats));
+  /* copy & add Mat data back to CPU to JacP */
+  ierr = PetscMalloc1(nnz,&val_buf);CHKERRQ(ierr);
+  ierr = PetscMemzero(jaca->a,nnz*sizeof(PetscScalar));CHKERRQ(ierr);
+  for (colour=0; colour<nc; colour++) {
+    Mat_SeqAIJ *a = &h_mats[colour];
+    CUDA_SAFE_CALL(cudaMemcpy(val_buf, a->a, (nnz)*sizeof(PetscScalar), cudaMemcpyDeviceToHost));
+    for(j=0;j<nnz;j++) jaca->a[j] += val_buf[j];
+    //PetscKernelAXPY(jaca->a,1.0,val_buf,nnz);
+    /* destroy mat */
+    CUDA_SAFE_CALL(cudaFree(a->i));
+    CUDA_SAFE_CALL(cudaFree(a->ilen));
+    CUDA_SAFE_CALL(cudaFree(a->j));
+    CUDA_SAFE_CALL(cudaFree(a->a));
+  }
+  CUDA_SAFE_CALL(cudaFree(d_mats));
+  ierr = PetscFree(val_buf);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
