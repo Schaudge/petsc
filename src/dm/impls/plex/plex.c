@@ -6261,8 +6261,8 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
   const PetscScalar **flips[32] = {NULL};
   PetscScalar        *valCopy   = NULL;
   /* Hanging node constraints */
-  PetscInt           *pointsC;
-  PetscScalar        *valuesC;
+  PetscInt           *pointsC = NULL;
+  PetscScalar        *valuesC = NULL;
   PetscInt            NclC, NiC;
 
   PetscInt           *idx;
@@ -6333,7 +6333,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
     }
   }
   /* 4) Apply hanging node constraints. Get new symmetries and replace all storage with constrained storage */
-  ierr = DMPlexAnchorsModifyMat(dm, section, Ncl, Ni, points, perms, values ? *values : NULL, &NclC, &NiC, &pointsC, &valuesC, offsets, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = DMPlexAnchorsModifyMat(dm, section, Ncl, Ni, points, perms, values ? *values : NULL, &NclC, &NiC, &pointsC, values ? &valuesC : NULL, offsets, PETSC_TRUE);CHKERRQ(ierr);
   if (NclC) {
     if (valCopy) {ierr = DMRestoreWorkArray(dm, Ni*Ni, MPIU_SCALAR, &valCopy);CHKERRQ(ierr);}
     for (f = 0; f < PetscMax(1, Nf); ++f) {
@@ -6348,7 +6348,7 @@ PetscErrorCode DMPlexGetClosureIndices(DM dm, PetscSection section, PetscSection
     Ncl     = NclC;
     Ni      = NiC;
     points  = pointsC;
-    *values = valuesC;
+    if (values) *values = valuesC;
   }
   /* 5) Calculate indices */
   ierr = DMGetWorkArray(dm, Ni, MPIU_INT, &idx);CHKERRQ(ierr);
