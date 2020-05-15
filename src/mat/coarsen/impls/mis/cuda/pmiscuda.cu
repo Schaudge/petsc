@@ -17,9 +17,9 @@ __global__ void pmis_init_random(PetscInt *perm_ix,
                                  PetscInt *lid_random,
                                  PetscInt size)
 {
-  PetscInt lid,i;
   PetscInt global_id   = blockDim.x*blockIdx.x+threadIdx.x;
   PetscInt global_size = gridDim.x*blockDim.x;
+  PetscInt lid,i;
   curandState state;
 
   curand_init(global_id,global_id,0,&state);
@@ -34,9 +34,9 @@ __global__ void pmis_init_workdata(PetscInt my0,
                                    PetscInt *lid_parent_gid,
                                    PetscInt size)
 {
-  PetscInt i;
   PetscInt global_id   = blockDim.x*blockIdx.x+threadIdx.x;
   PetscInt global_size = gridDim.x*blockDim.x;
+  PetscInt i;
 
   for (i=global_id; i<size; i+=global_size) {
     lid_index[i] = i+my0;
@@ -123,7 +123,6 @@ __global__ void pmis_mark_mis_nodes(PetscInt       my0,
                                     PetscInt const *lid_state2,
                                     PetscInt const *lid_index2,
                                     PetscInt       *lid_state,
-                                    PetscInt       *lid_type,
                                     PetscInt       *undecided_buffer,
                                     PetscInt       size)
 {
@@ -135,13 +134,11 @@ __global__ void pmis_mark_mis_nodes(PetscInt       my0,
   for (i=global_id; i<size; i+=global_size) {
     max_state = lid_state2[i];
     max_index = lid_index2[i];
-    if (lid_type[i] == MIS_NOT_DONE) {
+    if (lid_state[i] == MIS_NOT_DONE) {
       if (i+my0 == max_index) { /* MIS node */
-        lid_type[i] = MIS_COARSE;
-        lid_state[i] = 1;
+        lid_state[i] = MIS_COARSE;
       } else if (max_state == 1) { /* can be removed */
-        lid_type[i] = MIS_FINE;
-        lid_state[i] = -1;
+        lid_state[i] = MIS_FINE;
       } else num_undecided += 1;
     }
   }
@@ -157,8 +154,8 @@ __global__ void pmis_mark_mis_nodes(PetscInt       my0,
 }
 
 __global__ void pmis_ghost_nodes_parents(PetscInt const *lid_cprowID,
+                                         PetscInt const *lid_state,
                                          PetscInt const *lid_state_ghosts,
-                                         PetscInt const *lid_type,
                                          PetscInt const *cpcol_gid,
                                          PetscInt       *lid_parent_gid,
                                          PetscInt const *ii_ghosts,
@@ -170,7 +167,7 @@ __global__ void pmis_ghost_nodes_parents(PetscInt const *lid_cprowID,
   PetscInt i,j,lidj;
 
   for (i=global_id; i<size; i+=global_size) {
-    if (lid_type[i] == MIS_FINE && lid_cprowID && lid_cprowID[i] != -1) {
+    if (lid_state[i] == MIS_FINE && lid_cprowID && lid_cprowID[i] != -1) {
       /* check the ghost neighbors */
       for (j=ii_ghosts[lid_cprowID[i]]; j<ii_ghosts[lid_cprowID[i]+1]; j++) { /* matB */
         lidj = jj_ghosts[j];
@@ -202,9 +199,8 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   Mat_MPIAIJ       *mpimat=NULL;
   MPI_Comm         comm;
   PetscInt         i,j,num_fine_ghosts,iter,Iend,my0,lid,num_undecided,num_undecided2,nselected;
-  PetscInt         *dev_lid_type,*lid_type;
   PetscInt         undecided_buffer[256];
-  PetscInt         *lid_gid,*dev_cpcol_gid,*dev_lid_parent_gid,*dev_lid_state,*dev_lid_random,*dev_lid_index,*dev_lid_state2,*dev_lid_random2,*dev_lid_index2,*dev_tmp;
+  PetscInt         *lid_state,*lid_gid,*dev_cpcol_gid,*dev_lid_parent_gid,*dev_lid_state,*dev_lid_random,*dev_lid_index,*dev_lid_state2,*dev_lid_random2,*dev_lid_index2,*dev_tmp;
   PetscInt         *dev_lid_state_ghosts = NULL,*dev_lid_random_ghosts = NULL,*dev_lid_index_ghosts = NULL;
   PetscInt         *dev_undecided_buffer;
   PetscInt         *dev_matAi,*dev_matAj,*dev_matBi,*dev_matBj;
@@ -243,8 +239,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   cerr = cudaMalloc((void**)&dev_matAj,matA->nz*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMemcpy(dev_matAj,matA->j,matA->nz*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
 
-  ierr = PetscMalloc1(nloc,&lid_type);CHKERRQ(ierr);
-  cerr = cudaMalloc((void**)&dev_lid_type,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
+  ierr = PetscMalloc1(nloc,&lid_state);CHKERRQ(ierr);
   cerr = cudaMalloc((void**)&dev_lid_state,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMalloc((void**)&dev_lid_random,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMalloc((void**)&dev_lid_index,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
@@ -254,7 +249,6 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   cerr = cudaMalloc((void**)&dev_lid_parent_gid,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
 
   /* initialize the data */
-  cerr = cudaMemset(dev_lid_type,0,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMemset(dev_lid_state,0,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMemcpy(dev_lid_random,perm_ix,nloc*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
   pmis_init_workdata<<<128, 128>>>(my0, 
@@ -263,9 +257,6 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
                                    nloc
                                   );
 
-
-  PetscMPIInt     rank;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   if (mpimat) {
     ierr = VecGetLocalSize(mpimat->lvec,&num_fine_ghosts);CHKERRQ(ierr);
     cerr = cudaMalloc((void**)&dev_lid_state_ghosts,num_fine_ghosts*sizeof(PetscInt));CHKERRCUDA(cerr);
@@ -350,7 +341,6 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
                                       dev_lid_state2,
                                       dev_lid_index2,
                                       dev_lid_state,
-                                      dev_lid_type,
                                       dev_undecided_buffer,
                                       nloc
                                      );
@@ -369,18 +359,18 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     } else break; /* all done */
   } /* outer parallel MIS loop */
 
-  cerr = cudaMemcpy(lid_type,dev_lid_type,nloc*sizeof(PetscInt),cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
+  cerr = cudaMemcpy(lid_state,dev_lid_state,nloc*sizeof(PetscInt),cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
   for (i=0; i<nloc; i++) {
-    if (lid_type[i] == MIS_COARSE) {
+    if (lid_state[i] == MIS_COARSE) {
       nselected++;
       ierr = PetscCDAppendID(agg_lists,i,i+my0);CHKERRQ(ierr);
-      lid_type[i] = MIS_APPENDED;
+      lid_state[i] = MIS_APPENDED;
       /* append local adjacient nodes that are not selected */
       for (j=0; j< matA->i[i+1]-matA->i[i]; j++) {
         PetscInt lidj = matA->j[matA->i[i]+j];
-        if (lid_type[lidj] != MIS_APPENDED) {
+        if (lid_state[lidj] != MIS_APPENDED) {
           ierr = PetscCDAppendID(agg_lists,i,lidj+my0);CHKERRQ(ierr);
-          lid_type[lidj] = MIS_APPENDED;
+          lid_state[lidj] = MIS_APPENDED;
         }
       }
     }
@@ -393,10 +383,10 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     /* find the parents of the ghost nodes */
     ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
     ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
-    cerr = cudaMemcpy(dev_lid_type,lid_type,nloc*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
+    cerr = cudaMemcpy(dev_lid_state,lid_state,nloc*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
     pmis_ghost_nodes_parents<<<128,128>>>(dev_lid_cprowID,
+                                          dev_lid_state,
                                           dev_lid_state_ghosts,
-                                          dev_lid_type,
                                           dev_cpcol_gid,
                                           dev_lid_parent_gid,
                                           dev_matBi,
@@ -436,8 +426,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     ierr = PetscFree(lid_cprowID);CHKERRQ(ierr);
     cerr = cudaFree(dev_lid_cprowID);CHKERRCUDA(cerr);
   }
-  ierr = PetscFree(lid_type);CHKERRQ(ierr);
-  cerr = cudaFree(dev_lid_type);CHKERRCUDA(cerr);
+  ierr = PetscFree(lid_state);CHKERRQ(ierr);
   cerr = cudaFree(dev_lid_state);CHKERRCUDA(cerr);
   cerr = cudaFree(dev_lid_random);CHKERRCUDA(cerr);
   cerr = cudaFree(dev_lid_index);CHKERRCUDA(cerr);
