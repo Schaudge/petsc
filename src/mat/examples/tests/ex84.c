@@ -51,6 +51,11 @@ int main(int argc,char **args)
     ja[0] = 0; ja[1] = 5; ja[2] = 8; ja[3] = 1; ja[4] = 4; ja[5] = 6; ja[6] = 9; ja[7] = 2;
     ja[8] = 5; ja[9] = 7; ja[10] = 10; ja[11] = 3; ja[12] = 6; ja[13] = 11;
     ia[0] = 0; ia[1] = 3; ia[2] = 7; ia[3] = 11; ia[4] = 14;
+    /* remove two nodes to test the handling of ghost nodes (node 4 will need to be appended to its parent)
+    ja[0] = 0; ja[1] = 8; ja[2] = 1; ja[3] = 9; ja[4] = 2;
+    ja[5] = 7; ja[6] = 10; ja[7] = 3; ja[8] = 6; ja[9] = 11;
+    ia[0] = 0; ia[1] = 2; ia[2] = 4; ia[3] = 7; ia[4] = 10;
+    */
   } else if (rank == 2) {
     ja[0] = 4; ja[1] = 9; ja[2] = 12; ja[3] = 5; ja[4] = 8; ja[5] = 10; ja[6] = 13; ja[7] = 6;
     ja[8] = 9; ja[9] = 11; ja[10] = 14; ja[11] = 7; ja[12] = 10; ja[13] = 15;
@@ -97,11 +102,16 @@ int main(int argc,char **args)
 
   for (i=0; i<nloc; i++) {
     PetscCDIntNd *pos;
+    PetscInt     gid1;
     ierr = PetscCDGetHeadPos(agg_lists,i,&pos);CHKERRQ(ierr);
-    while (pos) {
-      PetscInt gid1;
+    if (pos) {
       ierr = PetscCDIntNdGetID(pos,&gid1);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"Rank %D selected: lid %D pos %D\n",rank,i,gid1);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"Rank %D: aggregate %D root node %D\n",rank,i,gid1);CHKERRQ(ierr);
+      ierr = PetscCDGetNextPos(agg_lists,i,&pos);CHKERRQ(ierr);
+    }
+    while (pos) {
+      ierr = PetscCDIntNdGetID(pos,&gid1);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"Rank %D: aggregate %D non-MIS node %D\n",rank,i,gid1);CHKERRQ(ierr);
       ierr = PetscCDGetNextPos(agg_lists,i,&pos);CHKERRQ(ierr);
     }
   }
@@ -121,5 +131,5 @@ int main(int argc,char **args)
 
    test:
       nsize: 4
-
+      requires: cuda
 TEST*/
