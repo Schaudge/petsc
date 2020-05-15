@@ -234,8 +234,8 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   }
   ierr = MatGetOwnershipRange(Gmat,&my0,&Iend);CHKERRQ(ierr);
   ierr = ISGetIndices(perm, &perm_ix);CHKERRQ(ierr);
-  cerr = cudaMalloc((void**)&dev_matAi,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
-  cerr = cudaMemcpy(dev_matAi,matA->i,nloc*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
+  cerr = cudaMalloc((void**)&dev_matAi,(nloc+1)*sizeof(PetscInt));CHKERRCUDA(cerr);
+  cerr = cudaMemcpy(dev_matAi,matA->i,(nloc+1)*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
   cerr = cudaMalloc((void**)&dev_matAj,matA->nz*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMemcpy(dev_matAj,matA->j,matA->nz*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
 
@@ -251,7 +251,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   /* initialize the data */
   cerr = cudaMemset(dev_lid_state,0,nloc*sizeof(PetscInt));CHKERRCUDA(cerr);
   cerr = cudaMemcpy(dev_lid_random,perm_ix,nloc*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
-  pmis_init_workdata<<<128, 128>>>(my0, 
+  pmis_init_workdata<<<256, 256>>>(my0, 
                                    dev_lid_index,
                                    dev_lid_parent_gid,
                                    nloc
@@ -318,7 +318,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
         dev_tmp = dev_lid_index; dev_lid_index  = dev_lid_index2; dev_lid_index2 = dev_tmp;
       }
       /* max operation over neighborhood */
-      pmis_max_neighborhood<<<128, 128>>>(dev_lid_cprowID,
+      pmis_max_neighborhood<<<256, 256>>>(dev_lid_cprowID,
                                           dev_lid_state,
                                           dev_lid_random,
                                           dev_lid_index,
@@ -337,7 +337,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
 
     }
 
-    pmis_mark_mis_nodes<<<128, 128>>>(my0,
+    pmis_mark_mis_nodes<<<256, 256>>>(my0,
                                       dev_lid_state2,
                                       dev_lid_index2,
                                       dev_lid_state,
@@ -384,7 +384,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
     ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
     ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
     cerr = cudaMemcpy(dev_lid_state,lid_state,nloc*sizeof(PetscInt),cudaMemcpyHostToDevice);CHKERRCUDA(cerr);
-    pmis_ghost_nodes_parents<<<128,128>>>(dev_lid_cprowID,
+    pmis_ghost_nodes_parents<<<256,256>>>(dev_lid_cprowID,
                                           dev_lid_state,
                                           dev_lid_state_ghosts,
                                           dev_cpcol_gid,
@@ -435,5 +435,6 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   cerr = cudaFree(dev_lid_index2);CHKERRCUDA(cerr);
   cerr = cudaFree(dev_matAi);CHKERRCUDA(cerr);
   cerr = cudaFree(dev_matAj);CHKERRCUDA(cerr);
+  cerr = cudaFree(dev_undecided_buffer);CHKERRCUDA(cerr);
   PetscFunctionReturn(0);
 }
