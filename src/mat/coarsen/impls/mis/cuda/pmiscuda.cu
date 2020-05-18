@@ -198,7 +198,7 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   Mat_SeqAIJ       *matA,*matB=NULL;
   Mat_MPIAIJ       *mpimat=NULL;
   MPI_Comm         comm;
-  PetscInt         i,j,num_fine_ghosts,iter,Iend,my0,lid,num_undecided,num_undecided2,nselected;
+  PetscInt         i,j,num_fine_ghosts,iter,Iend,my0,lid,local_num_undecided,global_num_undecided,nselected;
   PetscInt         undecided_buffer[256];
   PetscInt         *lid_state,*lid_gid,*dev_cpcol_gid,*dev_lid_parent_gid,*dev_lid_state,*dev_lid_random,*dev_lid_index,*dev_lid_state2,*dev_lid_random2,*dev_lid_index2,*dev_tmp;
   PetscInt         *dev_lid_state_ghosts = NULL,*dev_lid_random_ghosts = NULL,*dev_lid_index_ghosts = NULL;
@@ -296,67 +296,67 @@ PETSC_EXTERN PetscErrorCode maxIndSetAggCUDA(IS perm,Mat Gmat,PetscBool strict_a
   cerr = cudaMalloc((void**)&dev_undecided_buffer,256*sizeof(PetscInt));CHKERRCUDA(cerr);
   /* MIS */
   iter = 0;
-  num_undecided2 = nloc;
-  while (num_undecided2) {
-    PetscInt r;
-    iter++;
-
-    if (mpimat) {
-      ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
-      ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
-      ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_random,dev_lid_random_ghosts);CHKERRQ(ierr);
-      ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_random,dev_lid_random_ghosts);CHKERRQ(ierr);
-      ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_index,dev_lid_index_ghosts);CHKERRQ(ierr);
-      ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_index,dev_lid_index_ghosts);CHKERRQ(ierr);
-    }
-
-    for (r=0; r<1; r++) { /* only work for MIS(1)*/
-      if (r>0) {
-        /* copy work array (can be fused into a single kernel if needed. Previous kernel is in most cases sufficiently heavy) */
-        dev_tmp = dev_lid_state; dev_lid_state  = dev_lid_state2; dev_lid_state2 = dev_tmp;
-        dev_tmp = dev_lid_random; dev_lid_random = dev_lid_random2; dev_lid_random2 = dev_tmp;
-        dev_tmp = dev_lid_index; dev_lid_index  = dev_lid_index2; dev_lid_index2 = dev_tmp;
+  global_num_undecided = 1; /* initialize to a nonzero value to start the loop */
+  while (global_num_undecided) {
+    local_num_undecided = 0;
+    if (nloc) {
+      PetscInt r;
+      iter++;
+      if (mpimat) {
+        ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
+        ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_state,dev_lid_state_ghosts);CHKERRQ(ierr);
+        ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_random,dev_lid_random_ghosts);CHKERRQ(ierr);
+        ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_random,dev_lid_random_ghosts);CHKERRQ(ierr);
+        ierr = PetscSFBcastBegin(sf,MPIU_INT,dev_lid_index,dev_lid_index_ghosts);CHKERRQ(ierr);
+        ierr = PetscSFBcastEnd(sf,MPIU_INT,dev_lid_index,dev_lid_index_ghosts);CHKERRQ(ierr);
       }
-      /* max operation over neighborhood */
-      pmis_max_neighborhood<<<256, 256>>>(dev_lid_cprowID,
-                                          dev_lid_state,
-                                          dev_lid_random,
-                                          dev_lid_index,
-                                          dev_lid_state_ghosts,
-                                          dev_lid_random_ghosts,
-                                          dev_lid_index_ghosts,
-                                          dev_lid_state2,
-                                          dev_lid_random2,
-                                          dev_lid_index2,
-                                          dev_matAi,
-                                          dev_matAj,
-                                          dev_matBi,
-                                          dev_matBj,
-                                          nloc
-                                         );
 
-    }
+      for (r=0; r<1; r++) { /* only work for MIS(1)*/
+        if (r>0) {
+          /* copy work array (can be fused into a single kernel if needed. Previous kernel is in most cases sufficiently heavy) */
+          dev_tmp = dev_lid_state; dev_lid_state  = dev_lid_state2; dev_lid_state2 = dev_tmp;
+          dev_tmp = dev_lid_random; dev_lid_random = dev_lid_random2; dev_lid_random2 = dev_tmp;
+          dev_tmp = dev_lid_index; dev_lid_index  = dev_lid_index2; dev_lid_index2 = dev_tmp;
+        }
+        /* max operation over neighborhood */
+        pmis_max_neighborhood<<<256, 256>>>(dev_lid_cprowID,
+                                            dev_lid_state,
+                                            dev_lid_random,
+                                            dev_lid_index,
+                                            dev_lid_state_ghosts,
+                                            dev_lid_random_ghosts,
+                                            dev_lid_index_ghosts,
+                                            dev_lid_state2,
+                                            dev_lid_random2,
+                                            dev_lid_index2,
+                                            dev_matAi,
+                                            dev_matAj,
+                                            dev_matBi,
+                                            dev_matBj,
+                                            nloc
+                                           );
 
-    pmis_mark_mis_nodes<<<256, 256>>>(my0,
-                                      dev_lid_state2,
-                                      dev_lid_index2,
-                                      dev_lid_state,
-                                      dev_undecided_buffer,
-                                      nloc
-                                     );
+      }
 
-    cerr = cudaMemcpy(undecided_buffer,dev_undecided_buffer,256*sizeof(PetscInt),cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
+      pmis_mark_mis_nodes<<<256, 256>>>(my0,
+                                        dev_lid_state2,
+                                        dev_lid_index2,
+                                        dev_lid_state,
+                                        dev_undecided_buffer,
+                                        nloc
+                                       );
 
-    /* reduction among all blocks */
-    num_undecided = 0;
-    for (i=0; i<256; i++) {
-      num_undecided += undecided_buffer[i];
+      cerr = cudaMemcpy(undecided_buffer,dev_undecided_buffer,256*sizeof(PetscInt),cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
+
+      /* reduction among all blocks */
+      for (i=0; i<256; i++) {
+        local_num_undecided += undecided_buffer[i];
+      }
     }
     if (mpimat) {
       /* all done? */
-      ierr = MPIU_Allreduce(&num_undecided,&num_undecided2,1,MPIU_INT,MPI_SUM,comm);CHKERRQ(ierr); /* synchronous version */
-      if (!num_undecided2) break;
-    } else break; /* all done */
+      ierr = MPIU_Allreduce(&local_num_undecided,&global_num_undecided,1,MPIU_INT,MPI_SUM,comm);CHKERRQ(ierr); /* synchronous version */
+    } else global_num_undecided = local_num_undecided;
   } /* outer parallel MIS loop */
 
   cerr = cudaMemcpy(lid_state,dev_lid_state,nloc*sizeof(PetscInt),cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
