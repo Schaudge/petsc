@@ -19,3 +19,9 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
 sindy_sine : sindy_sine.o sindy.o
+	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
+sindy_sine_cosine : sindy_sine_cosine.o sindy.o
+	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<

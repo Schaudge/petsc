@@ -3,7 +3,16 @@
 
 #include <petsctao.h>
 
-PETSC_EXTERN PetscErrorCode SINDyCreateBasis(Vec x, PetscInt poly_order, PetscInt sine_order, Mat* Theta, PetscInt *num_bases);
-PETSC_EXTERN PetscErrorCode SINDySparseLeastSquares(Mat A, Vec b, Mat D, Vec x);
+typedef struct _p_Basis* Basis;
+
+PETSC_EXTERN PetscErrorCode SINDyCreateBasis(PetscInt, PetscInt, Basis*);
+PETSC_EXTERN PetscErrorCode SINDyCreateBasisData(Basis, Vec, PetscInt);
+PETSC_EXTERN PetscErrorCode SINDyCreateBasisAndData(Vec, PetscInt, PetscInt, PetscInt, Basis*);
+PETSC_EXTERN PetscErrorCode SINDyBasisDestroy(Basis*);
+PETSC_EXTERN PetscErrorCode SINDyBasisDataGetSize(Basis, PetscInt*, PetscInt*);
+PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis, PetscInt, Vec*, Vec*);
+PETSC_EXTERN PetscErrorCode SINDySparseLeastSquares(Mat, Vec, Mat, Vec);
+PETSC_EXTERN PetscErrorCode SINDyBasisPrint(Basis, PetscInt, Vec*);
+
 
 #endif
