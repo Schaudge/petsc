@@ -130,7 +130,7 @@ static PetscErrorCode KSPSolve_LSQR(KSP ksp)
     KSPCheckNorm(ksp,rnorm);
   } else {
     /* this is an application of the preconditioner for the normal equations; not the operator, see the manual page */
-    ierr = PCApply(ksp->pc,V,Z);CHKERRQ(ierr);
+    ierr = KSP_PCApply(ksp,V,Z);CHKERRQ(ierr);
     ierr = VecDotRealPart(V,Z,&alpha);CHKERRQ(ierr);
     if (alpha <= 0.0) {
       ksp->reason = KSP_DIVERGED_BREAKDOWN;
@@ -575,5 +575,3 @@ PETSC_EXTERN PetscErrorCode KSPCreate_LSQR(KSP ksp)
   ierr = KSPSetConvergenceTest(ksp,KSPLSQRConvergedDefault,ctx,KSPConvergedDefaultDestroy);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-
