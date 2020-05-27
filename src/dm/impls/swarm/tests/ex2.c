@@ -439,6 +439,7 @@ static PetscErrorCode TestL2ProjectionFieldToParticles(DM dm, DM sw, AppCtx *use
   KSP            ksp;
   Mat            M;            /* FEM mass matrix */
   Mat            M_p;          /* Particle mass matrix */
+  Mat            normalEq;     /* M^T_p M_p */
   Vec            f, rhs, fhat; /* Particle field f, \int phi_i fhat, FEM field */
   PetscReal      pmoments[3];  /* \int f, \int x f, \int r^2 f */
   PetscReal      fmoments[3];  /* \int \hat f, \int x \hat f, \int r^2 \hat f */
@@ -456,21 +457,34 @@ static PetscErrorCode TestL2ProjectionFieldToParticles(DM dm, DM sw, AppCtx *use
   ierr = DMGetGlobalVector(dm, &rhs);CHKERRQ(ierr);
 
   ierr = DMCreateMassMatrix(sw, dm, &M_p);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) M_p, "Particle Mass Matrix");CHKERRQ(ierr);CHKERRQ(ierr);
   ierr = MatViewFromOptions(M_p, NULL, "-M_p_view");CHKERRQ(ierr);
 
   /* make particle weight vector */
   ierr = DMSwarmCreateGlobalVectorFromField(sw, "w_q", &f);CHKERRQ(ierr);
 
   /* create matrix RHS vector, in this case the FEM field fhat with the coefficients vector #alpha */
-  ierr = PetscObjectSetName((PetscObject) rhs,"rhs");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) rhs, "rhs");CHKERRQ(ierr);
   ierr = VecViewFromOptions(rhs, NULL, "-rhs_view");CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm, &M);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) M, "FEM Mass Matrix");CHKERRQ(ierr);CHKERRQ(ierr);
   ierr = DMPlexSNESComputeJacobianFEM(dm, fhat, M, M, user);CHKERRQ(ierr);
   ierr = MatViewFromOptions(M, NULL, "-M_view");CHKERRQ(ierr);
-  ierr = MatMultTranspose(M, fhat, rhs);CHKERRQ(ierr);
+  ierr = MatMult(M, fhat, rhs);CHKERRQ(ierr);
 
-  ierr = KSPSetOperators(ksp, M_p, M_p);CHKERRQ(ierr);
-  ierr = KSPSolveTranspose(ksp, rhs, f);CHKERRQ(ierr);
+  /* For the normal equations, M_p M^T_p */
+  {
+    Mat MT_p;
+
+    /* For right now, our best option is to explicitly form M^T_p */
+    ierr = MatTranspose(M_p, MAT_INITIAL_MATRIX, &MT_p);CHKERRQ(ierr);
+    ierr = MatTransposeMatMult(MT_p, MT_p, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &normalEq);CHKERRQ(ierr);
+    ierr = MatViewFromOptions(normalEq, NULL, "-neq_view");CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp, MT_p, normalEq);CHKERRQ(ierr);
+    ierr = KSPSolve(ksp, rhs, f);CHKERRQ(ierr);
+    ierr = MatDestroy(&normalEq);CHKERRQ(ierr);
+    ierr = MatDestroy(&MT_p);CHKERRQ(ierr);
+  }
   ierr = PetscObjectSetName((PetscObject) fhat,"fhat");CHKERRQ(ierr);
   ierr = VecViewFromOptions(fhat, NULL, "-fhat_view");CHKERRQ(ierr);
 
@@ -704,6 +718,13 @@ int main (int argc, char * argv[]) {
     suffix: proj_tri_2_faces
     requires: triangle !complex
     args: -dim 2 -faces 2  -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order {{2 3}} -ptof_pc_type lu  -ftop_ksp_rtol 1e-15 -ftop_ksp_type lsqr -ftop_pc_type none
+    filter: grep -v marker | grep -v atomic | grep -v usage
+
+  test:
+    suffix: proj_tri_lsqr_pc
+    requires: triangle !complex
+    nsize: 2
+    args: -dim 2 -faces 10 -particlesPerCell 10 -dm_view -sw_view -petscspace_degree 2 -petscfe_default_quadrature_order 2 -ptof_ksp_rtol 1e-15 -ptof_pc_type bjacobi -ptof_sub_pc_type ilu -ftop_ksp_rtol 1e-15 -ftop_ksp_type lsqr -ftop_pc_type bjacobi -ftop_pc_bjacobi_local_blocks 4 -ftop_sub_pc_type svd
     filter: grep -v marker | grep -v atomic | grep -v usage
 
   test:
