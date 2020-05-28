@@ -4,7 +4,11 @@ FFLAGS          =
 CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/ts/tutorials/multirate/
+<<<<<<< HEAD
 EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex9.c
+=======
+EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c
+>>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
 EXAMPLESF       =
 EXAMPLESFH      =
 MANSEC          = TS
