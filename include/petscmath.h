@@ -204,24 +204,29 @@ M*/
 #define PetscRealPartComplex(a)      (a).real()
 #define PetscImaginaryPartComplex(a) (a).imag()
 #define PetscAbsComplex(a)           petsccomplexlib::abs(a)
-#define PetscArgComplex(a)           petsccomplexlib::arg(a)
 #define PetscConjComplex(a)          petsccomplexlib::conj(a)
-#define PetscSqrtComplex(a)          petsccomplexlib::sqrt(a)
-#define PetscPowComplex(a,b)         petsccomplexlib::pow(a,b)
-#define PetscExpComplex(a)           petsccomplexlib::exp(a)
-#define PetscLogComplex(a)           petsccomplexlib::log(a)
-#define PetscSinComplex(a)           petsccomplexlib::sin(a)
-#define PetscCosComplex(a)           petsccomplexlib::cos(a)
-#define PetscTanComplex(a)           petsccomplexlib::tan(a)
-#define PetscAsinComplex(a)          petsccomplexlib::asin(a)
-#define PetscAcosComplex(a)          petsccomplexlib::acos(a)
-#define PetscAtanComplex(a)          petsccomplexlib::atan(a)
-#define PetscSinhComplex(a)          petsccomplexlib::sinh(a)
-#define PetscCoshComplex(a)          petsccomplexlib::cosh(a)
-#define PetscTanhComplex(a)          petsccomplexlib::tanh(a)
-#define PetscAsinhComplex(a)         petsccomplexlib::asinh(a)
-#define PetscAcoshComplex(a)         petsccomplexlib::acosh(a)
-#define PetscAtanhComplex(a)         petsccomplexlib::atanh(a)
+/* Though thrust provides these complex arithmetic functions, they may not have enough accuracy.
+   Ex. ksp_ksp_tutorials-ex59_bddc_fetidp_ml_1 failed with thrust::pow. So I force using host functions
+   from stdc++ libraries. If users use them in CUDA kernels, they will get compilation errors.
+   Once we have a correct and complete CUDA complex library, we can remove this workaround.
+*/
+#define PetscArgComplex(a)           static_cast<PetscComplex>(std::arg  (static_cast<std::complex<PetscReal> >(a)))
+#define PetscSqrtComplex(a)          static_cast<PetscComplex>(std::sqrt (static_cast<std::complex<PetscReal> >(a)))
+#define PetscPowComplex(a,b)         static_cast<PetscComplex>(std::pow  (static_cast<std::complex<PetscReal> >(a),static_cast<std::complex<PetscReal> >(b)))
+#define PetscExpComplex(a)           static_cast<PetscComplex>(std::exp  (static_cast<std::complex<PetscReal> >(a)))
+#define PetscLogComplex(a)           static_cast<PetscComplex>(std::log  (static_cast<std::complex<PetscReal> >(a)))
+#define PetscSinComplex(a)           static_cast<PetscComplex>(std::sin  (static_cast<std::complex<PetscReal> >(a)))
+#define PetscCosComplex(a)           static_cast<PetscComplex>(std::cos  (static_cast<std::complex<PetscReal> >(a)))
+#define PetscTanComplex(a)           static_cast<PetscComplex>(std::tan  (static_cast<std::complex<PetscReal> >(a)))
+#define PetscAsinComplex(a)          static_cast<PetscComplex>(std::asin (static_cast<std::complex<PetscReal> >(a)))
+#define PetscAcosComplex(a)          static_cast<PetscComplex>(std::acos (static_cast<std::complex<PetscReal> >(a)))
+#define PetscAtanComplex(a)          static_cast<PetscComplex>(std::atan (static_cast<std::complex<PetscReal> >(a)))
+#define PetscSinhComplex(a)          static_cast<PetscComplex>(std::sinh (static_cast<std::complex<PetscReal> >(a)))
+#define PetscCoshComplex(a)          static_cast<PetscComplex>(std::cosh (static_cast<std::complex<PetscReal> >(a)))
+#define PetscTanhComplex(a)          static_cast<PetscComplex>(std::tanh (static_cast<std::complex<PetscReal> >(a)))
+#define PetscAsinhComplex(a)         static_cast<PetscComplex>(std::asinh(static_cast<std::complex<PetscReal> >(a)))
+#define PetscAcoshComplex(a)         static_cast<PetscComplex>(std::acosh(static_cast<std::complex<PetscReal> >(a)))
+#define PetscAtanhComplex(a)         static_cast<PetscComplex>(std::atanh(static_cast<std::complex<PetscReal> >(a)))
 
 /* TODO: Add configure tests
 

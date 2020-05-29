@@ -209,7 +209,7 @@ M*/
 #  if !defined(PETSC_SKIP_COMPLEX)
      /* C++ support of complex number */
 #    define PETSC_HAVE_COMPLEX 1
-#    if defined(PETSC_HAVE_CUDA) && __CUDACC_VER_MAJOR__ > 6
+#    if defined(PETSC_HAVE_CUDA)
        /* complex headers in thrust only available in CUDA 7.0 and above */
 #      define petsccomplexlib thrust
 #      include <thrust/complex.h>
