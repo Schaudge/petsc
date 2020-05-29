@@ -86,7 +86,7 @@ PetscErrorCode random_network(PetscInt nvertex,PetscInt *pnbranch,Node **pnode,B
     for (j=0; j<nvertex; j++) {
       if (j != i) {
         dist = findDistance(x[i],x[j],y[i],y[j]);
-        prob = beta*PetscExpScalar(-dist/(maxdist*alpha));
+        prob = beta*PetscExpReal(-dist/(maxdist*alpha));
         ierr = PetscRandomGetValueReal(rnd,&value);CHKERRQ(ierr);
         if (value <= prob) {
           ierr = PetscMalloc1(1,&nnew);CHKERRQ(ierr);

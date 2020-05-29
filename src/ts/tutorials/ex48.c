@@ -242,18 +242,18 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   for (ii = 0; ii < options->dim; ++ii) {
     if (options->domain_hi[ii] <= options->domain_lo[ii]) SETERRQ3(comm,PETSC_ERR_ARG_WRONG,"Domain %D lo=%g hi=%g",ii,options->domain_lo[ii],options->domain_hi[ii]);
   }
-  options->ke = PetscSqrtScalar(options->Jop);
+  options->ke = PetscSqrtReal(options->Jop);
   if (options->Jop==0.0) {
-    options->Jo = 1.0/PetscPowScalar(options->a,2);
+    options->Jo = 1.0/PetscPowReal(options->a,2);
   } else {
     options->Jo = options->Jop*PetscCosReal(options->ke*options->a)/(1.0-PetscCosReal(options->ke*options->a));
   }
   options->ky = PETSC_PI*options->m/options->b;
   if (PetscPowReal(options->ky, 2) < options->Jop) {
-    options->kx = PetscSqrtScalar(options->Jop-PetscPowScalar(options->ky,2));
+    options->kx = PetscSqrtReal(options->Jop-PetscPowReal(options->ky,2));
     options->DeltaPrime = -2.0*options->kx*options->a*PetscCosReal(options->kx*options->a)/PetscSinReal(options->kx*options->a);
   } else if (PetscPowReal(options->ky, 2) > options->Jop) {
-    options->kx = PetscSqrtScalar(PetscPowScalar(options->ky,2)-options->Jop);
+    options->kx = PetscSqrtReal(PetscPowReal(options->ky,2)-options->Jop);
     options->DeltaPrime = -2.0*options->kx*options->a*PetscCoshReal(options->kx*options->a)/PetscSinhReal(options->kx*options->a);
   } else { /*they're equal (or there's a NaN), lim(x*cot(x))_x->0=1*/
     options->kx = 0;

@@ -274,10 +274,10 @@ PetscErrorCode ExactSolution(Vec u,void *c,PetscReal t)
     x          = i * dx;
     switch (ctxt->physics_type) {
     case PHYSICS_DIFFUSION:
-      uarr[i-is] = PetscExpScalar(-4.0*pi*pi*a*t)*PetscSinScalar(2*pi*x);
+      uarr[i-is] = PetscExpReal(-4.0*pi*pi*a*t)*PetscSinReal(2*pi*x);
       break;
     case PHYSICS_ADVECTION:
-      uarr[i-is] = PetscSinScalar(2*pi*(x - a*t));
+      uarr[i-is] = PetscSinReal(2*pi*(x - a*t));
       break;
     default: SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"No support for physics type %s",PhysicsTypes[ctxt->physics_type]);
     }
