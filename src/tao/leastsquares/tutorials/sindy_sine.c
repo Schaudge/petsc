@@ -4,8 +4,7 @@
 static char help[] = "Run SINDy on data generated from dx/dt = -sin(x). Finds the least-squares solution to the under constraint linear model A*Xi = dx/dt, with L1-norm regularizer. \n\
             A is a basis function matrix, Xi is sparse. \n\
             We find the sparse solution by solving 0.5*||A Xi-dx/dt||^2 + lambda*||D*Xi||_1, where lambda (by default 1e-4) is a user specified weight.\n\
-            D is the K*N transform matrix so that D*Xi is sparse. By default D is identity matrix, so that D*x = x.\
-            Note that you must pass the option '-tao_brgn_regularization_type l1dict' to use L1 regularization instead of the default l2prox.\n";
+            D is the K*N transform matrix so that D*Xi is sparse. By default D is identity matrix, so that D*x = x.\n";
 
 PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
   PetscErrorCode ierr;
@@ -14,7 +13,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
 
   PetscFunctionBegin;
   ierr = VecGetValues(X, 1, &idx, &x);CHKERRQ(ierr);
-  ierr = VecSet(F, -sin(x));CHKERRQ(ierr);
+  ierr = VecSet(F, -PetscSinReal(x));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -128,6 +127,7 @@ PetscErrorCode GetData(Vec* data, Vec* der_data)
 int main(int argc, char** argv) {
   PetscErrorCode ierr;
   Basis          basis;
+  SparseReg      sparse_reg;
   PetscInt       num_bases;
   Vec            x,dx,Xi;
   PetscMPIInt    size;
@@ -151,14 +151,18 @@ int main(int argc, char** argv) {
   ierr = GetData(&x, &dx);CHKERRQ(ierr);
 
   /* Create 5th order polynomial basis, with no sine functions. */
-  ierr = SINDyCreateBasisAndData(x, 1, 5, 0, &basis);CHKERRQ(ierr);
+  ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
+  ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
+  ierr = SINDyBasisCreateData(basis, x, 1);CHKERRQ(ierr);
+
+  ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
+  ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vector */
   ierr = SINDyBasisDataGetSize(basis, NULL, &num_bases);CHKERRQ(ierr);
   ierr = VecCreateSeq(PETSC_COMM_SELF, num_bases, &Xi);CHKERRQ(ierr);
-
   /* Run least squares */
-  ierr = SINDyFindSparseCoefficients(basis, 1, &dx, &Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 1, &dx, &Xi);CHKERRQ(ierr);
 
   /* View result. */
   ierr = PetscPrintf(PETSC_COMM_SELF, "------ result Xi ------ \n");CHKERRQ(ierr);
@@ -169,6 +173,7 @@ int main(int argc, char** argv) {
   ierr = VecDestroy(&dx);CHKERRQ(ierr);
   ierr = VecDestroy(&Xi);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
+  ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;
