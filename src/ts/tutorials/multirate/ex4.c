@@ -1518,7 +1518,7 @@ static PetscErrorCode FVRHSFunction(TS ts,PetscReal time,Vec X,Vec F,void *vctx)
   ierr = MPI_Allreduce(&cfl_idt,&ctx->cfl_idt,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)da));CHKERRQ(ierr);
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
   if (0) {
-    /* We need to a way to inform the TS of a CFL constraint, this is a debugging fragment */
+    /* We need a way to inform the TS of a CFL constraint, this is a debugging fragment */
     PetscReal dt,tnow;
     ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
     ierr = TSGetTime(ts,&tnow);CHKERRQ(ierr);
@@ -1749,10 +1749,10 @@ static PetscErrorCode FVRHSFunctionslow(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i > xs) {
-        for (j=0; j<dof; j++) f[(i-1)*dof+j] -= ctx->flux[j]/hs;
+        for (j=0; j<dof; j++) f[(islow-1)*dof+j] -= ctx->flux[j]/hs;
       }
       if (i < xs+xm) {
-        for (j=0; j<dof; j++) f[i*dof+j] += ctx->flux[j]/hs;
+        for (j=0; j<dof; j++) f[islow*dof+j] += ctx->flux[j]/hs;
         islow++;
       }
     } else if (i == sf) {
@@ -1765,9 +1765,8 @@ static PetscErrorCode FVRHSFunctionslow(TS ts,PetscReal time,Vec X,Vec F,void *v
         u[j] = x[(i-1)*dof+j]+PetscMax(0,PetscMin(min[j],alpha[0]+gamma[0]*r[j]))*(x[(i-1)*dof+j]-x[(i-2)*dof+j]);
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
-      if (i < xs+xm) {
-        for (j=0; j<dof; j++) f[(i-1)*dof+j] -= ctx->flux[j]/hs;
-        islow++;
+      if (i > xs) {
+        for (j=0; j<dof; j++) f[(islow-1)*dof+j] -= ctx->flux[j]/hs;
       }
     } else if (i == fs) {
       u = &ctx->u[0];
@@ -1780,7 +1779,7 @@ static PetscErrorCode FVRHSFunctionslow(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i < xs+xm) {
-        for (j=0; j<dof; j++)  f[i*dof+j-fs+sf] += ctx->flux[j]/hs;
+        for (j=0; j<dof; j++)  f[islow*dof+j] += ctx->flux[j]/hs;
         islow++;
       }
     } else if (i == fs+1) {
@@ -1794,10 +1793,11 @@ static PetscErrorCode FVRHSFunctionslow(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i > xs) {
-        for (j=0; j<dof; j++) f[(i-fs+sf-1)*dof+j] -= ctx->flux[j]/hs;
+        for (j=0; j<dof; j++) f[(islow-1)*dof+j] -= ctx->flux[j]/hs;
       }
       if (i < xs+xm) {
-        for (j=0; j<dof; j++) f[(i-fs+sf)*dof+j] += ctx->flux[j]/hs;
+        for (j=0; j<dof; j++) f[islow*dof+j] += ctx->flux[j]/hs;
+        islow++;
       }
     } else if (i > fs+1) {
       u = &ctx->u[0];
@@ -1810,11 +1810,16 @@ static PetscErrorCode FVRHSFunctionslow(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i > xs) {
-        for (j=0; j<dof; j++) f[(i-fs+sf-1)*dof+j] -= ctx->flux[j]/hs;
+        for (j=0; j<dof; j++) f[(islow-1)*dof+j] -= ctx->flux[j]/hs;
       }
       if (i < xs+xm) {
+<<<<<<< HEAD
         for (j=0; j<dof; j++) f[(i-fs+sf)*dof+j] += ctx->flux[j]/hs;
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
+=======
+        for (j=0; j<dof; j++) f[islow*dof+j] += ctx->flux[j]/hs;
+        islow++;
+>>>>>>> Merged master and copied the fixed ex7 to ex4, runs in parallel now
       }
     }
   }
@@ -2099,7 +2104,7 @@ static PetscErrorCode FVRHSFunctionfast(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i < xs+xm) {
-        for (j=0; j<dof; j++) f[(i-sf)*dof+j] += ctx->flux[j]/hf;
+        for (j=0; j<dof; j++) f[ifast*dof+j] += ctx->flux[j]/hf;
         ifast++;
       }
     } else if (i == sf+1) {
@@ -2113,10 +2118,10 @@ static PetscErrorCode FVRHSFunctionfast(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i > xs) {
-        for (j=0; j<dof; j++) f[(i-sf-1)*dof+j] -= ctx->flux[j]/hf;
+        for (j=0; j<dof; j++) f[(ifast-1)*dof+j] -= ctx->flux[j]/hf;
       }
       if (i < xs+xm) {
-        for (j=0; j<dof; j++) f[(i-sf)*dof+j] += ctx->flux[j]/hf;
+        for (j=0; j<dof; j++) f[ifast*dof+j] += ctx->flux[j]/hf;
         ifast++;
       }
     } else if (i > sf+1 && i < fs) {
@@ -2130,10 +2135,10 @@ static PetscErrorCode FVRHSFunctionfast(TS ts,PetscReal time,Vec X,Vec F,void *v
       }
       ierr = (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i > xs) {
-        for (j=0; j<dof; j++) f[(i-sf-1)*dof+j] -= ctx->flux[j]/hf;
+        for (j=0; j<dof; j++) f[(ifast-1)*dof+j] -= ctx->flux[j]/hf;
       }
       if (i < xs+xm) {
-        for (j=0; j<dof; j++) f[(i-sf)*dof+j] += ctx->flux[j]/hf;
+        for (j=0; j<dof; j++) f[ifast*dof+j] += ctx->flux[j]/hf;
         ifast++;
       }
     } else if (i == fs) {
@@ -2146,6 +2151,7 @@ static PetscErrorCode FVRHSFunctionfast(TS ts,PetscReal time,Vec X,Vec F,void *v
         u[j] = x[(i-1)*dof+j]+PetscMax(0,PetscMin(min[j],alpha[0]+gamma[0]*r[j]))*(x[(i-1)*dof+j]-x[(i-2)*dof+j]);
       }
       ierr =  (*ctx->physics.flux)(ctx->physics.user,u,ctx->flux,&maxspeed);CHKERRQ(ierr);
+<<<<<<< HEAD
       if (i>xs) {
         for (j=0; j<dof; j++) f[(i-sf-1)*dof+j] -= ctx->flux[j]/hf;
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
@@ -2331,6 +2337,10 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
       ierr    = (*ctx->physics2.riemann2)(ctx->physics2.user,dof,uL,uR,ctx->flux,&maxspeed);CHKERRQ(ierr);
       if (i > xs) {
         for (j=0; j<dof; j++) f[(ifast-1)*dof+j] -= ctx->flux[j]/hxf;
+=======
+      if (i > xs) {
+        for (j=0; j<dof; j++) f[(ifast-1)*dof+j] -= ctx->flux[j]/hf;
+>>>>>>> Merged master and copied the fixed ex7 to ex4, runs in parallel now
       }
     }
   }
@@ -2753,6 +2763,7 @@ int main(int argc,char *argv[])
     PetscScalar       mass_initial,mass_final,mass_difference,mass_differenceg;
     const PetscScalar *ptr_X,*ptr_X0;
 <<<<<<< HEAD
+<<<<<<< HEAD
     const PetscReal   hs = (ctx.xmax-ctx.xmin)*3.0/4.0/count_slow;
     const PetscReal   hf = (ctx.xmax-ctx.xmin)/4.0/count_fast;
 
@@ -2760,6 +2771,10 @@ int main(int argc,char *argv[])
     const PetscReal   hs  = (ctx.xmax-ctx.xmin)/2.0*(ctx.hratio+1.0)/Mx;
     const PetscReal   hf  = (ctx.xmax-ctx.xmin)/2.0*(1.0+1.0/ctx.hratio)/Mx;
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
+=======
+    const PetscReal   hs  = (ctx.xmax-ctx.xmin)/2.0/count_slow;
+    const PetscReal   hf  = (ctx.xmax-ctx.xmin)/2.0/count_fast;
+>>>>>>> Merged master and copied the fixed ex7 to ex4, runs in parallel now
     ierr = TSSolve(ts,X);CHKERRQ(ierr);
     ierr = TSGetSolveTime(ts,&ptime);CHKERRQ(ierr);
     ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
@@ -2768,6 +2783,7 @@ int main(int argc,char *argv[])
     mass_final   = 0.0;
     ierr = DMDAVecGetArrayRead(da,X0,(void*)&ptr_X0);CHKERRQ(ierr);
     ierr = DMDAVecGetArrayRead(da,X,(void*)&ptr_X);CHKERRQ(ierr);
+<<<<<<< HEAD
 <<<<<<< HEAD
     for (i=xs;i<xs+xm;i++) {
       if (i < ctx.sf || i > ctx.fs-1) {
@@ -2789,6 +2805,19 @@ int main(int argc,char *argv[])
         mass_initial = mass_initial+hf*ptr_X0[i];
         mass_final = mass_final+hf*ptr_X[i];
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
+=======
+    for(i=xs; i<xs+xm; i++) {
+      if(i < ctx.sf || i > ctx.fs-1) {
+        for (k=0; k<dof; k++) {
+          mass_initial = mass_initial+hs*ptr_X0[i*dof+k];
+          mass_final = mass_final+hs*ptr_X[i*dof+k];
+        }
+      } else {
+        for (k=0; k<dof; k++) {
+          mass_initial = mass_initial+hf*ptr_X0[i*dof+k];
+          mass_final = mass_final+hf*ptr_X[i*dof+k];
+        }
+>>>>>>> Merged master and copied the fixed ex7 to ex4, runs in parallel now
       }
     }
     ierr = DMDAVecRestoreArrayRead(da,X0,(void*)&ptr_X0);CHKERRQ(ierr);
@@ -2821,12 +2850,12 @@ int main(int argc,char *argv[])
     ierr = PetscPrintf(comm,"Mass difference %g\n",(double)mass_differenceg);CHKERRQ(ierr);
     ierr = PetscPrintf(comm,"Final time %g, steps %D\n",(double)ptime,steps);CHKERRQ(ierr);
     if (ctx.exact) {
-      PetscReal nrm1=0;
+      PetscReal nrm1 = 0;
       ierr = SolutionErrorNorms(&ctx,da,ptime,X,&nrm1);CHKERRQ(ierr);
       ierr = PetscPrintf(comm,"Error ||x-x_e||_1 %g\n",(double)nrm1);CHKERRQ(ierr);
     }
     if (ctx.simulation) {
-      PetscReal         nrm1=0;
+      PetscReal         nrm1 = 0;
       PetscViewer       fd;
       char              filename[PETSC_MAX_PATH_LEN] = "binaryoutput";
       Vec               XR;
@@ -3047,5 +3076,14 @@ int main(int argc,char *argv[])
       suffix: 4
       args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1
       output_file: output/ex7_3.out
+<<<<<<< HEAD
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
+=======
+
+    test:
+      suffix: 5
+      nsize: 2
+      args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1
+      output_file: output/ex7_3.out
+>>>>>>> Merged master and copied the fixed ex7 to ex4, runs in parallel now
 TEST*/
