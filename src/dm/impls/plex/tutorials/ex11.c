@@ -38,7 +38,7 @@ typedef struct REctx_struct {
 } REctx;
 
 static const PetscReal kev_joul = 6.241506479963235e+15; /* 1/1000e */
-static PetscBool quarter3DDomain = PETSC_FALSE;
+static PetscBool s_quarter3DDomain_notused = PETSC_FALSE;
 
 #define RE_CUT 5.
 /* < v, ru_e*v*q > */
@@ -57,7 +57,7 @@ static void f0_j_re(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   } else {
     if (x[2] > RE_CUT || x[2] < -RE_CUT) { /* simply a cutoff for REs. v_|| > 3 v(T_e) */
       *f0 = n_e                * x[2] * constants[0];
-      if (quarter3DDomain) *f0 *= 4.0;
+      if (s_quarter3DDomain_notused) *f0 *= 4.0;
     } else {
       *f0 = 0;
     }
@@ -79,7 +79,7 @@ static void f0_re(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   } else {
     if (x[2] > RE_CUT || x[2] < -RE_CUT) { /* simply a cutoff for REs. v_|| > 3 v(T_e) */
       *f0 = n_e               ;
-      if (quarter3DDomain) *f0 *= 4.0;
+      if (s_quarter3DDomain_notused) *f0 *= 4.0;
     } else {
       *f0 = 0;
     }
@@ -98,7 +98,7 @@ static void f0_jz( PetscInt dim, PetscInt Nf, PetscInt NfAux,
     for(ii=0;ii<numConstants;ii++) f0[0] += u[ii] * 2.*M_PI*x[0] * x[1] * constants[ii]; /* n * r * v_|| * q */
   } else {
     for(ii=0;ii<numConstants;ii++) f0[0] += u[ii]                * x[2] * constants[ii]; /* n * v_|| * q  */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 static void f0_0_jz( PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -111,7 +111,7 @@ static void f0_0_jz( PetscInt dim, PetscInt Nf, PetscInt NfAux,
     *f0 = u[ii] * 2.*M_PI*x[0] * x[1] * constants[ii]; /* n * r * v_|| * q */
   } else {
     *f0 = u[ii] *                x[2] * constants[ii]; /* n * r * v_|| * q */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 
@@ -125,7 +125,7 @@ static void f0_1_jz( PetscInt dim, PetscInt Nf, PetscInt NfAux,
     *f0 = u[ii] * 2.*M_PI*x[0] * x[1] * constants[ii]; /* n * r * v_|| * q */
   } else {
     *f0 = u[ii] *                x[2] * constants[ii]; /* n * r * v_|| * q */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 
@@ -138,7 +138,7 @@ static void f0_0_n( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = 2.*M_PI*x[0]*u[0];
   else {
     *f0 =              u[0];
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 static void f0_1_n( PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -149,7 +149,7 @@ static void f0_1_n( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = 2.*M_PI*x[0]*u[1];
   else {
     *f0 =              u[1];
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 static void f0_2_n( PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -160,7 +160,7 @@ static void f0_2_n( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = 2.*M_PI*x[0]*u[2];
   else {
     *f0 =              u[2];
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 
@@ -173,7 +173,7 @@ static void f0_0_vz( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = u[0] * 2.*M_PI*x[0] * x[1]; /* n r v_|| */
   else {
     *f0 = u[0] *                x[2]; /* n v_|| */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 
@@ -187,7 +187,7 @@ static void f0_0_v( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = u[0] * 2.*M_PI*x[0] * PetscSqrtReal(x[0]*x[0] + (x[1]-vz)*(x[1]-vz));             /* n r v */
   else {
     *f0 = u[0] *                PetscSqrtReal(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]); /* n v */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 /* < v, n_i v > */
@@ -199,7 +199,7 @@ static void f0_1_v( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = u[1] * 2.*M_PI*x[0] * PetscSqrtReal(x[0]*x[0] + x[1]*x[1]);             /* n r v */
   else {
     *f0 = u[1] *                PetscSqrtReal(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]); /* n v */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 /* < v, n_imp v > */
@@ -211,7 +211,7 @@ static void f0_2_v( PetscInt dim, PetscInt Nf, PetscInt NfAux,
   if (dim==2) *f0 = u[2] * 2.*M_PI*x[0] * PetscSqrtReal(x[0]*x[0] + x[1]*x[1]);             /* n r v */
   else {
     *f0 = u[2] *                PetscSqrtReal(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]); /* n v */
-    if (quarter3DDomain) *f0 *= 4.0;
+    if (s_quarter3DDomain_notused) *f0 *= 4.0;
   }
 }
 
@@ -824,7 +824,7 @@ int main(int argc, char **argv)
   ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
   ierr = DMSetUp(dm);CHKERRQ(ierr);
   ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
-  quarter3DDomain = ctx->quarter3DDomain; /* ugh */
+  s_quarter3DDomain_notused = ctx->quarter3DDomain; /* ugh */
   /* context */
   rectx = (REctx*)(ctx->data = malloc(sizeof(REctx)));
   ierr = ProcessREOptions(rectx,ctx,dm,"");CHKERRQ(ierr);
@@ -845,6 +845,17 @@ int main(int argc, char **argv)
   ierr = TSMonitorSet(ts,Monitor,ctx,NULL);CHKERRQ(ierr);
   ierr = TSSetPreStep(ts,PreStep);CHKERRQ(ierr);
   rectx->Ez_initial = ctx->Ez;       /* cache for induction caclulation - applied E field */
+  /* warm up */
+#if defined(PETSC_USE_LOG)
+  {
+    PetscLogStage stage;
+    ierr = MatSetOption(J, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);CHKERRQ(ierr);
+    ierr = PetscLogStageRegister("Warmup", &stage);CHKERRQ(ierr);
+    ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
+    ierr = FPLandIJacobian(ts,0.0,X,X,1.0,J,J,ctx);CHKERRQ(ierr);
+    ierr = PetscLogStagePop();CHKERRQ(ierr);
+  }
+#endif
   /* go */
   ierr = TSSolve(ts,X);CHKERRQ(ierr);
   /* clean up */
