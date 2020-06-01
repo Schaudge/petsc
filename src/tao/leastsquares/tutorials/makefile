@@ -1,5 +1,5 @@
 -include ../../../../petscdir.mk
-CFLAGS		 = 
+CFLAGS		 += -g 
 FFLAGS		 = 
 CPPFLAGS         =
 FPPFLAGS         =

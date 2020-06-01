@@ -31,7 +31,7 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec X, Mat J, Mat B, void* ctx) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode GetData(Vec* data, Vec* der_data)
+PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
 { 
   PetscErrorCode ierr;
   PetscInt       runs = 10;
@@ -39,14 +39,12 @@ PetscErrorCode GetData(Vec* data, Vec* der_data)
   PetscReal      dt = 0.001;
   PetscInt       i, r, t;
   PetscInt       N = runs * steps;
-  PetscInt       idx = 0;
   PetscReal      x0;
-  PetscReal      *data_array;
-  PetscReal      *der_data_array;
   Mat            J;
   TS             ts;
   TSAdapt        adapt;
-  Vec            x;
+  Vec            X;
+  Vec            *all_x, *all_dx;
 
   PetscFunctionBegin;
   ierr = MatCreateSeqDense(PETSC_COMM_SELF, 1, 1, NULL, &J);CHKERRQ(ierr);
@@ -67,59 +65,63 @@ PetscErrorCode GetData(Vec* data, Vec* der_data)
   ierr = TSAdaptSetType(adapt,TSADAPTNONE);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
-  ierr = VecCreateSeq(PETSC_COMM_SELF,N,data);CHKERRQ(ierr);
-  ierr = VecCreateSeq(PETSC_COMM_SELF,1,&x);CHKERRQ(ierr);
-  ierr = VecGetArray(*data, &data_array);CHKERRQ(ierr);
+  ierr = VecCreateSeq(PETSC_COMM_SELF,1,&X);CHKERRQ(ierr);
 
-  ierr = TSSetSolution(ts, x);CHKERRQ(ierr);
+  ierr = TSSetSolution(ts, X);CHKERRQ(ierr);
   ierr = TSSetUp(ts);CHKERRQ(ierr);
+
+  /* Create Vecs to hold data. */
+  ierr = VecDuplicateVecs(X, N, &all_x);CHKERRQ(ierr);
+  ierr = VecDuplicateVecs(X, N, &all_dx);CHKERRQ(ierr);
 
   /* Get x data from running TS. */
   i = 0;
-  for (r = 0; r < runs+1; r++) {
+  for (r = 0; r < runs; r++) {
     x0 = -1.25 + r * 0.25;
-    if (PetscAbsReal(x0) < 1e-3) continue;
+    if (x0 >= -1e-3) {
+      x0 = -1.25 + (r+1) * 0.25;
+    }
 
-    ierr = VecSet(x, x0);CHKERRQ(ierr);
-    ierr = TSSetSolution(ts, x);CHKERRQ(ierr);
+    ierr = VecSet(X, x0);CHKERRQ(ierr);
+    ierr = TSSetSolution(ts, X);CHKERRQ(ierr);
 
-    data_array[i] = x0;
+    ierr = VecCopy(X, all_x[i]);CHKERRQ(ierr);
     i++;
     for (t = 1; t < steps; t++) {
       ierr = TSStep(ts);CHKERRQ(ierr);
-      ierr = VecGetValues(x, 1, &idx, &x0);CHKERRQ(ierr);
-      data_array[i] = x0;
+      ierr = VecCopy(X, all_x[i]);CHKERRQ(ierr);
       i++;
     }
   }
 
   /* Get derivate data using fourth-order central difference. */
-  ierr = VecCreateSeq(PETSC_COMM_SELF,N,der_data);CHKERRQ(ierr);
-  ierr = VecSet(*der_data, 0);CHKERRQ(ierr);
-  ierr = VecGetArray(*der_data, &der_data_array);CHKERRQ(ierr);
   i = 0;
   for (r = 0; r < runs; r++) {
     for (t = 0; t < steps; t++) {
+      ierr = VecSet(all_dx[i], 0);CHKERRQ(ierr);
       if (t >= 2 && t < steps - 2) {
-        der_data_array[i] = (1.0/(12.0*dt))*(-data_array[i+2]+8*data_array[i+1]-8*data_array[i-1]+data_array[i-2]);
-      }
-      else {
-        /* Set boundary values to 0. */
-        der_data_array[i] = 0;
+        ierr = VecAXPY(all_dx[i], -1.0, all_x[i+2]);CHKERRQ(ierr);
+        ierr = VecAXPY(all_dx[i],  8.0, all_x[i+1]);CHKERRQ(ierr);
+        ierr = VecAXPY(all_dx[i], -8.0, all_x[i-1]);CHKERRQ(ierr);
+        ierr = VecAXPY(all_dx[i],  1.0, all_x[i-2]);CHKERRQ(ierr);
+        ierr = VecScale(all_dx[i], 1.0/(12.0*dt));CHKERRQ(ierr);
       }
       i++;
     }
     /* Set boundary values to 0. */
-    data_array[i-1] = 0;
-    data_array[i-2] = 0;
-    data_array[i-steps+1] = 0;
-    data_array[i-steps] = 0;
+    ierr = VecSet(all_x[i-1], 0);CHKERRQ(ierr);
+    ierr = VecSet(all_x[i-2], 0);CHKERRQ(ierr);
+    ierr = VecSet(all_x[i-steps], 0);CHKERRQ(ierr);
+    ierr = VecSet(all_x[i-steps+1], 0);CHKERRQ(ierr);
   }
 
-  ierr = VecRestoreArray(*data, &data_array);CHKERRQ(ierr);
-  ierr = VecRestoreArray(*der_data, &der_data_array);CHKERRQ(ierr);
+  /* Write output parameters. */
+  *N_p = N;
+  *all_x_p = all_x;
+  *all_dx_p = all_dx;
+
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
-  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = VecDestroy(&X);CHKERRQ(ierr);
   ierr = MatDestroy(&J);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -129,7 +131,9 @@ int main(int argc, char** argv) {
   Basis          basis;
   SparseReg      sparse_reg;
   PetscInt       num_bases;
-  Vec            x,dx,Xi;
+  PetscInt       n;
+  Vec            *x,*dx;
+  Vec            Xi;
   PetscMPIInt    size;
 
   ierr = PetscInitialize(&argc,&argv,(char *)0,help);if (ierr) return ierr;
@@ -148,29 +152,31 @@ int main(int argc, char** argv) {
   */
 
   /* Generate data. */
-  ierr = GetData(&x, &dx);CHKERRQ(ierr);
+  ierr = GetData(&n, &x, &dx);CHKERRQ(ierr);
 
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
-  ierr = SINDyBasisCreateData(basis, x, 1);CHKERRQ(ierr);
+  ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
+  ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-4)
   ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vector */
   ierr = SINDyBasisDataGetSize(basis, NULL, &num_bases);CHKERRQ(ierr);
   ierr = VecCreateSeq(PETSC_COMM_SELF, num_bases, &Xi);CHKERRQ(ierr);
+
   /* Run least squares */
-  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 1, &dx, &Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, &Xi);CHKERRQ(ierr);
 
   /* View result. */
   ierr = PetscPrintf(PETSC_COMM_SELF, "------ result Xi ------ \n");CHKERRQ(ierr);
   ierr = SINDyBasisPrint(basis, 1, &Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
-  ierr = VecDestroy(&x);CHKERRQ(ierr);
-  ierr = VecDestroy(&dx);CHKERRQ(ierr);
+  ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);
+  ierr = VecDestroyVecs(n, &dx);CHKERRQ(ierr);
   ierr = VecDestroy(&Xi);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
   ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);

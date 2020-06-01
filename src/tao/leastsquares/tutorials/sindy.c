@@ -166,10 +166,10 @@ PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SINDyBasisCreateData(Basis basis, Vec x, PetscInt dim)
+PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* x, PetscInt N)
 {
   PetscErrorCode   ierr;
-  PetscInt         x_size;
+  PetscInt         x_size,dim;
   const PetscReal  *x_data;
   PetscInt         n, i, r, o, d, b;
   PetscReal        *Theta_data;
@@ -179,18 +179,22 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec x, PetscInt dim)
 
   /* Get data dimensions. */
   PetscFunctionBegin;
-  ierr = VecGetSize(x, &x_size);CHKERRQ(ierr);
+  if (N <= 0) {
+    printf("SINDyBasisCreateData(): N should be > 0. Got %d\n", N);
+    return 1;
+  }
+
+  ierr = VecGetSize(x[0], &dim);CHKERRQ(ierr);
+  basis->data.N = N;
   basis->data.dim = dim;
-  basis->data.N = x_size / dim;
   basis->data.B = SINDyCountBases(basis->data.dim, basis->poly_order, basis->sine_order);
 
   /* Compute basis data. */
   ierr = PetscMalloc1(basis->data.B * basis->data.N, &Theta_data);CHKERRQ(ierr);
   ierr = PetscCalloc1(basis->data.B, &basis->data.column_scales);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &x_data);CHKERRQ(ierr);
   i = 0;
   for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
-    r = n * dim;                   /* r is index into x_data for this data point. */
+    ierr = VecGetArrayRead(x[n], &x_data);CHKERRQ(ierr);
     if (basis->poly_order >= 0) {
       /* Add constant function. */
         Theta_data[i] = 1;
@@ -199,18 +203,18 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec x, PetscInt dim)
     for (d = 0; d < dim; d++) {    /* For each degree of freedom d. */
       /* Add basis functions using this degree of freedom. */
       for (o = 1; o <= basis->poly_order; o++) {
-        Theta_data[i] = PetscPowRealInt(x_data[r+d], o);
+        Theta_data[i] = PetscPowRealInt(x_data[d], o);
         i++;
       }
       for (o = 1; o <= basis->sine_order; o++) {
-        Theta_data[i] = PetscSinReal(o * x_data[r+d]);
+        Theta_data[i] = PetscSinReal(o * x_data[d]);
         i++;
-        Theta_data[i] = PetscCosReal(o * x_data[r+d]);
+        Theta_data[i] = PetscCosReal(o * x_data[d]);
         i++;
       }
     }
+    ierr = VecRestoreArrayRead(x[n], &x_data);CHKERRQ(ierr);
   }
-  ierr = VecRestoreArrayRead(x, &x_data);CHKERRQ(ierr);
 
   if (basis->normalize_columns) {
     /* Scale the columns to have the same norm. */
@@ -248,25 +252,40 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec x, PetscInt dim)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, PetscInt dim, Vec* dxdt, Vec* Xis)
+PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, PetscInt N, Vec* dxdt, Vec* Xis)
 {
-  PetscErrorCode ierr;
-  PetscInt       i,d,k,b;
-  PetscInt       old_num_thresholded,num_thresholded;
-  PetscBool      *mask;
-  PetscReal      *xi_data,*zeros;
-  Mat            Tcpy;
-  PetscInt       *idn, *idb;
+  PetscErrorCode  ierr;
+  PetscInt        i,d,k,b;
+  PetscInt        dim,old_num_thresholded,num_thresholded;
+  PetscBool       *mask;
+  PetscReal       *xi_data,*zeros,*dxdt_dim_data;
+  const PetscReal *dxdt_data;
+  Mat             Tcpy;
+  PetscInt        *idn, *idb;
+  Vec             *dxdt_dim;
 
   PetscFunctionBegin;
-  if (!dim) PetscFunctionReturn(0);
-  if (dim != basis->data.dim) {
-    SETERRQ2(PetscObjectComm((PetscObject)Xis[0]),PETSC_ERR_ARG_WRONG,"the given dim (=%d) must match the basis dim (=%d)", dim, basis->data.dim);
+  if (!N) PetscFunctionReturn(0);
+  if (N != basis->data.N) {
+    SETERRQ2(PetscObjectComm((PetscObject)Xis[0]),PETSC_ERR_ARG_WRONG,"the given N (=%d) must match the basis N (=%d)", N, basis->data.N);
+  }
+
+  dim = basis->data.dim;
+
+  /* Separate out each dimension of the data. */
+  ierr = PetscMalloc1(d, &dxdt_dim);CHKERRQ(ierr);
+  for (d = 0; d < dim; d++) {
+    ierr = VecCreateSeq(PETSC_COMM_SELF, N, &dxdt_dim[d]);CHKERRQ(ierr);
+    ierr = VecGetArray(dxdt_dim[d], &dxdt_dim_data);CHKERRQ(ierr);
+    for (i = 0; i < N; i++) {
+      ierr = VecGetValues(dxdt[i], 1, &d, &dxdt_dim_data[i]);CHKERRQ(ierr);
+    }
+    ierr = VecRestoreArray(dxdt_dim[d], &dxdt_dim_data);CHKERRQ(ierr);
   }
 
   /* Run sparse least squares on each dimension of the data. */
   for (d = 0; d < dim; d++) {
-    ierr = SINDySparseLeastSquares(basis->data.Theta, dxdt[d], NULL, Xis[d]);CHKERRQ(ierr);
+    ierr = SINDySparseLeastSquares(basis->data.Theta, dxdt_dim[d], NULL, Xis[d]);CHKERRQ(ierr);
   }
   if (sparse_reg && sparse_reg->threshold > 0) {
     /* Create a workspace for thresholding. */
@@ -311,7 +330,7 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
 
         /* Run sparse least squares on the non-zero basis functions. */
         /* TODO: I should zero out the right-hand side at the thresholded values, too, so they don't affect the sparsity. */
-        ierr = SINDySparseLeastSquares(Tcpy, dxdt[d], NULL, Xis[d]);CHKERRQ(ierr);
+        ierr = SINDySparseLeastSquares(Tcpy, dxdt_dim[d], NULL, Xis[d]);CHKERRQ(ierr);
       }
 
       if (sparse_reg->monitor) {
@@ -348,6 +367,11 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
       ierr = SINDyBasisPrint(basis, dim, Xis);
     }
   }
+
+  for (d = 0; d < dim; d++) {
+    ierr = VecDestroy(&dxdt_dim[d]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree(dxdt_dim);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -409,7 +433,7 @@ PetscErrorCode SINDySparseRegCreate(SparseReg* new_sparse_reg)
 
   ierr = PetscMalloc1(1, &sparse_reg);CHKERRQ(ierr);
   sparse_reg->threshold = 1e-5;
-  sparse_reg->iterations = 1;
+  sparse_reg->iterations = 10;
   sparse_reg->monitor = PETSC_FALSE;
 
   *new_sparse_reg = sparse_reg;
@@ -425,6 +449,15 @@ PetscErrorCode SINDySparseRegDestroy(SparseReg* sparse_reg)
   if (!*sparse_reg) PetscFunctionReturn(0);
   ierr = PetscFree(*sparse_reg);CHKERRQ(ierr);
   *sparse_reg = NULL;
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg sparse_reg, PetscReal threshold)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  sparse_reg->threshold = threshold;
   PetscFunctionReturn(0);
 }
 
