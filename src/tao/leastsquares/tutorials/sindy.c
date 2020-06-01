@@ -75,6 +75,15 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
 }
 
 
+PETSC_EXTERN PetscErrorCode SINDyBasisSetNormalizeColumns(Basis basis, PetscBool normalize_columns)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  basis->normalize_columns = normalize_columns;
+  PetscFunctionReturn(0);
+}
+
 PETSC_EXTERN PetscErrorCode SINDyBasisSetFromOptions(Basis basis)
 {
   PetscErrorCode ierr;
@@ -340,11 +349,11 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* x, PetscInt N)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, PetscInt N, Vec* dxdt, Vec* Xis)
+PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, PetscInt N, Vec* dxdt, PetscInt dim, Vec* Xis)
 {
   PetscErrorCode  ierr;
   PetscInt        i,d,k,b;
-  PetscInt        dim,old_num_thresholded,num_thresholded;
+  PetscInt        old_num_thresholded,num_thresholded;
   PetscBool       *mask;
   PetscReal       *xi_data,*zeros,*dxdt_dim_data;
   const PetscReal *dxdt_data;
@@ -357,8 +366,9 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
   if (N != basis->data.N) {
     SETERRQ2(PetscObjectComm((PetscObject)Xis[0]),PETSC_ERR_ARG_WRONG,"the given N (=%d) must match the basis N (=%d)", N, basis->data.N);
   }
-
-  dim = basis->data.dim;
+  if (dim != basis->data.dim) {
+    SETERRQ2(PetscObjectComm((PetscObject)Xis[0]),PETSC_ERR_ARG_WRONG,"the given dim (=%d) must match the basis dim (=%d)", dim, basis->data.dim);
+  }
 
   /* Separate out each dimension of the data. */
   ierr = PetscMalloc1(dim, &dxdt_dim);CHKERRQ(ierr);
@@ -373,6 +383,9 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
 
   /* Run sparse least squares on each dimension of the data. */
   for (d = 0; d < dim; d++) {
+    if (sparse_reg->monitor) {
+      PetscPrintf(PETSC_COMM_SELF, "SparseReg: dimension %d starting initial least squares\n", d);
+    }
     ierr = SINDySparseLeastSquares(basis->data.Theta, dxdt_dim[d], NULL, Xis[d]);CHKERRQ(ierr);
   }
   if (sparse_reg && sparse_reg->threshold > 0) {
@@ -407,6 +420,9 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
           }
         }
         ierr = VecRestoreArray(Xis[d], &xi_data);CHKERRQ(ierr);
+        if (sparse_reg->monitor) {
+          PetscPrintf(PETSC_COMM_SELF, "SparseReg: dimension: %d, iteration: %d, nonzeros: %d\n", d, k, basis->data.B - num_thresholded);
+        }
         if (old_num_thresholded == num_thresholded) break;
 
         /* Zero out those columns of the matrix. */
@@ -419,10 +435,6 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
         /* Run sparse least squares on the non-zero basis functions. */
         /* TODO: I should zero out the right-hand side at the thresholded values, too, so they don't affect the sparsity. */
         ierr = SINDySparseLeastSquares(Tcpy, dxdt_dim[d], NULL, Xis[d]);CHKERRQ(ierr);
-      }
-
-      if (sparse_reg->monitor) {
-        PetscPrintf(PETSC_COMM_WORLD, "SparseReg: dimension %d did %d iteration%s\n", d, k, k == 1 ? "" : "s");
       }
 
       /* Maybe I should zero out the thresholded entries again here, just to make sure Tao didn't mess them up. */

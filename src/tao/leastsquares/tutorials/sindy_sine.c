@@ -156,6 +156,7 @@ int main(int argc, char** argv) {
 
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
+  ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
   ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
@@ -168,7 +169,7 @@ int main(int argc, char** argv) {
   ierr = VecCreateSeq(PETSC_COMM_SELF, num_bases, &Xi);CHKERRQ(ierr);
 
   /* Run least squares */
-  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, &Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 1, &Xi);CHKERRQ(ierr);
 
   /* View result. */
   ierr = PetscPrintf(PETSC_COMM_SELF, "------ result Xi ------ \n");CHKERRQ(ierr);

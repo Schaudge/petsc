@@ -55,7 +55,7 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   Vec            *all_x, *all_dx;
 
   PetscFunctionBegin;
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF, 1, 1, NULL, &J);CHKERRQ(ierr);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF, 2, 2, NULL, &J);CHKERRQ(ierr);
 
   ierr = TSCreate(PETSC_COMM_SELF, &ts);CHKERRQ(ierr);
   ierr = TSSetProblemType(ts, TS_NONLINEAR);CHKERRQ(ierr);
@@ -171,6 +171,7 @@ int main(int argc, char** argv) {
 
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
+  ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
   ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
@@ -184,7 +185,7 @@ int main(int argc, char** argv) {
   ierr = VecDuplicate(Xi[0], &Xi[1]);CHKERRQ(ierr);
 
   /* Run least squares */
-  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 2, Xi);CHKERRQ(ierr);
 
   /* View result. */
   ierr = PetscPrintf(PETSC_COMM_SELF, "------------- result Xi ------------- \n");CHKERRQ(ierr);
