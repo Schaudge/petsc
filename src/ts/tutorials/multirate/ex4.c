@@ -673,7 +673,7 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
   ierr = DMRestoreLocalVector(da,&Xloc);CHKERRQ(ierr);
   ierr = MPI_Allreduce(&cfl_idt,&ctx->cfl_idt,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)da));CHKERRMPI(ierr);
   if (0) {
-    /* We need to a way to inform the TS of a CFL constraint, this is a debugging fragment */
+    /* We need a way to inform the TS of a CFL constraint, this is a debugging fragment */
     PetscReal dt,tnow;
     ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
     ierr = TSGetTime(ts,&tnow);CHKERRQ(ierr);
