@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
   ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-4)
+  ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-4);CHKERRQ(ierr);
   ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vector */

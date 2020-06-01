@@ -7,6 +7,7 @@ typedef struct {
   PetscReal *column_scales;
   char      **names;
   char      *names_data;
+  PetscInt  max_name_size;
 } Data;
 
 struct _p_Basis {
@@ -21,9 +22,22 @@ struct _p_SparseReg {
     PetscBool monitor;
 };
 
+static PetscInt64 n_choose_k(PetscInt64 n, PetscInt64 k)
+{
+  if (k > n) {
+    return 0;
+  }
+  PetscInt64 r = 1;
+  for (PetscInt64 d = 1; d <= k; ++d) {
+    r *= n--;
+    r /= d;
+  }
+  return r;
+}
+
 static PetscInt SINDyCountBases(PetscInt dim, PetscInt poly_order, PetscInt sine_order)
 {
-  return dim * (poly_order + 1 + 2 * sine_order) - (dim - 1);
+  return n_choose_k(dim + poly_order, poly_order) + dim *  2 * sine_order;
 }
 
 PETSC_EXTERN PetscErrorCode SINDyBasisDataGetSize(Basis basis, PetscInt *N, PetscInt *B)
@@ -54,6 +68,7 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
   basis->data.column_scales = NULL;
   basis->data.names = NULL;
   basis->data.names_data = NULL;
+  basis->data.max_name_size = 0;
 
   *new_basis = basis;
   PetscFunctionReturn(0);
@@ -89,32 +104,52 @@ PetscErrorCode SINDyBasisDestroy(Basis* basis)
 
 PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
   PetscErrorCode   ierr;
-  PetscInt         b, r, o, d, names_size;
+  PetscInt         i, b, r, o, d, names_size;
   PetscInt         *names_offsets;
+  PetscInt         *poly_terms;
 
   PetscFunctionBegin;
   if (basis->data.names) PetscFunctionReturn(0);
 
+  if (basis->poly_order >= 0) {
+    ierr = PetscCalloc1(basis->poly_order+1, &poly_terms);CHKERRQ(ierr);
+  }
+
   /* Count string size. */
   ierr = PetscMalloc1(basis->data.B, &basis->data.names);CHKERRQ(ierr);
   ierr = PetscMalloc1(basis->data.B, &names_offsets);CHKERRQ(ierr);
+
   names_size = 0;
   b = 0;
-  if (basis->poly_order >= 0) {
-    /* Add constant function. */
+  while (poly_terms[basis->poly_order] < 1) {
     names_offsets[b] = names_size;
     b++;
-    names_size += 2;
+    i = 0;
+    for (o = basis->poly_order; o >= 0 ; o--) {
+      d = poly_terms[o] - 1;
+      if (d >= 0) {
+        i++;
+      }
+    }
+    if (i == 0) {
+      i++;
+    }
+    i++;
+    names_size += i+1;
+
+    /* Add one to the poly_terms data, with carrying. */
+    poly_terms[0]++;
+    for (o = 0; o < basis->poly_order; o++) {
+      if (poly_terms[o] > basis->data.dim) {
+        poly_terms[o+1]++;
+        for (PetscInt o2 = o; o2 >= 0; o2--) poly_terms[o2] = poly_terms[o+1];
+      } else {
+        break;
+      }
+    }
   }
   for (d = 0; d < basis->data.dim; d++) {    /* For each degree of freedom d. */
     /* Add basis functions using this degree of freedom. */
-    for (o = 1; o <= basis->poly_order; o++) {
-      names_offsets[b] = names_size;
-      b++;
-      names_size += 2 + PetscCeilReal(PetscLog10Real(o+2));
-      /* Null character */
-      names_size += 1;
-    }
     for (o = 1; o <= basis->sine_order; o++) {
       names_offsets[b] = names_size;
       b++;
@@ -132,23 +167,39 @@ PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
   /* Build string. */
   ierr = PetscMalloc1(names_size, &basis->data.names_data);CHKERRQ(ierr);
   b = 0;
-  if (basis->poly_order >= 0) {
-    /* Add constant function. */
-    basis->data.names[b] = basis->data.names_data + names_offsets[b];
-    if (sprintf(basis->data.names[b], "1") < 0) {
-      PetscFunctionReturn(1);
-    }
-    b++;
+  for (o = 0; o <= basis->poly_order; o++) {
+    poly_terms[o] = 0;
   }
-  for (d = 0; d < basis->data.dim; d++) {    /* For each degree of freedom d. */
-    /* Add basis functions using this degree of freedom. */
-    for (o = 1; o <= basis->poly_order; o++) {
-      basis->data.names[b] = basis->data.names_data + names_offsets[b];
-      if (sprintf(basis->data.names[b], "%c^%d", 'a'+d, o) < 0) {
-        PetscFunctionReturn(1);
+  while (poly_terms[basis->poly_order] < 1) {
+    basis->data.names[b] = basis->data.names_data + names_offsets[b];
+    i = 0;
+    for (o = basis->poly_order; o >= 0 ; o--) {
+      d = poly_terms[o] - 1;
+      if (d >= 0) {
+        basis->data.names[b][i] = 'a'+d;
+        i++;
       }
-      b++;
     }
+    if (i == 0) {
+      basis->data.names[b][0] = '1';
+      i++;
+    }
+    basis->data.names[b][i] = '\0';
+    b++;
+
+    /* Add one to the poly_terms data, with carrying. */
+    poly_terms[0]++;
+    for (o = 0; o < basis->poly_order; o++) {
+      if (poly_terms[o] > basis->data.dim) {
+        poly_terms[o+1]++;
+        for (PetscInt o2 = o; o2 >= 0; o2--) poly_terms[o2] = poly_terms[o+1];
+      } else {
+        break;
+      }
+    }
+  }
+
+  for (d = 0; d < basis->data.dim; d++) {
     for (o = 1; o <= basis->sine_order; o++) {
       basis->data.names[b] = basis->data.names_data + names_offsets[b];
       if (sprintf(basis->data.names[b], "sin(%d*%c)", o, 'a'+d) < 0) {
@@ -162,6 +213,13 @@ PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
       b++;
     }
   }
+  basis->data.max_name_size = 0;
+  for (b = 0; b < basis->data.B; b++) {
+    basis->data.max_name_size = PetscMax(strlen(basis->data.names[b]), basis->data.max_name_size);
+  }
+  if (basis->poly_order >= 0) {
+    ierr = PetscFree(poly_terms);CHKERRQ(ierr);
+  }
   ierr = PetscFree(names_offsets);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -174,6 +232,7 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* x, PetscInt N)
   PetscInt         n, i, r, o, d, b;
   PetscReal        *Theta_data;
   PetscInt         *idn, *idb;
+  PetscInt         *poly_terms;
 
   /* TODO: either error or free old data before creating new data. */
 
@@ -189,23 +248,49 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* x, PetscInt N)
   basis->data.dim = dim;
   basis->data.B = SINDyCountBases(basis->data.dim, basis->poly_order, basis->sine_order);
 
-  /* Compute basis data. */
+  /* Allocate basis data. */
   ierr = PetscMalloc1(basis->data.B * basis->data.N, &Theta_data);CHKERRQ(ierr);
   ierr = PetscCalloc1(basis->data.B, &basis->data.column_scales);CHKERRQ(ierr);
   i = 0;
+
+  if (basis->poly_order >= 0) {
+    ierr = PetscCalloc1(basis->poly_order+1, &poly_terms);CHKERRQ(ierr);
+  }
+
+  /* Compute basis data. */
   for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
-    ierr = VecGetArrayRead(x[n], &x_data);CHKERRQ(ierr);
-    if (basis->poly_order >= 0) {
-      /* Add constant function. */
-        Theta_data[i] = 1;
-        i++;
+    for (o = 0; o <= basis->poly_order; o++) {
+      poly_terms[o] = 0;
     }
-    for (d = 0; d < dim; d++) {    /* For each degree of freedom d. */
-      /* Add basis functions using this degree of freedom. */
-      for (o = 1; o <= basis->poly_order; o++) {
-        Theta_data[i] = PetscPowRealInt(x_data[d], o);
-        i++;
+
+    /* Iterate through all basis functions of every order up to poly_order. */
+    /* Result polynomial is product of entry poly_terms[o]-1 (if it's not 0). */
+    ierr = VecGetArrayRead(x[n], &x_data);CHKERRQ(ierr);
+    while (poly_terms[basis->poly_order] < 1) {
+      /* Generate the polynomial corresponding to the powers in poly_terms. */
+      Theta_data[i] = 1;
+      for (o = basis->poly_order; o >= 0 ; o--) {
+        d = poly_terms[o] - 1;
+        if (d >= 0) {
+          Theta_data[i] *= x_data[d];
+        }
       }
+      i++;
+
+      /* Add one to the poly_terms data, with carrying. */
+      poly_terms[0]++;
+      for (o = 0; o < basis->poly_order; o++) {
+        if (poly_terms[o] > dim) {
+          poly_terms[o+1]++;
+          for (PetscInt o2 = o; o2 >= 0; o2--) poly_terms[o2] = poly_terms[o+1];
+        } else {
+          break;
+        }
+      }
+    }
+
+    for (d = 0; d < dim; d++) {    /* For each degree of freedom d. */
+      /* Add trig functions using this degree of freedom. */
       for (o = 1; o <= basis->sine_order; o++) {
         Theta_data[i] = PetscSinReal(o * x_data[d]);
         i++;
@@ -247,6 +332,9 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* x, PetscInt N)
   ierr = MatAssemblyBegin(basis->data.Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(basis->data.Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
+  if (basis->poly_order >= 0) {
+    ierr = PetscFree(poly_terms);CHKERRQ(ierr);
+  }
   ierr = PetscFree2(idn, idb);CHKERRQ(ierr);
   ierr = PetscFree(Theta_data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -273,7 +361,7 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
   dim = basis->data.dim;
 
   /* Separate out each dimension of the data. */
-  ierr = PetscMalloc1(d, &dxdt_dim);CHKERRQ(ierr);
+  ierr = PetscMalloc1(dim, &dxdt_dim);CHKERRQ(ierr);
   for (d = 0; d < dim; d++) {
     ierr = VecCreateSeq(PETSC_COMM_SELF, N, &dxdt_dim[d]);CHKERRQ(ierr);
     ierr = VecGetArray(dxdt_dim[d], &dxdt_dim_data);CHKERRQ(ierr);
@@ -395,7 +483,7 @@ PetscErrorCode SINDyBasisPrint(Basis basis, PetscInt dim, Vec* Xis)
   }
 
   /* Print header line. */
-  printf("%9s", "");
+  printf("%*s", basis->data.max_name_size+1, "");
   for (d = 0; d < dim; d++) {
     printf("   %7s%c/dt", "d", 'a'+d);
   }
@@ -403,7 +491,7 @@ PetscErrorCode SINDyBasisPrint(Basis basis, PetscInt dim, Vec* Xis)
 
   /* Print results. */
   for (b = 0; b < basis->data.B; b++) {
-    printf("%9s ", basis->data.names[b]);
+    printf("%*s ", basis->data.max_name_size+1, basis->data.names[b]);
     for (d = 0; d < dim; d++) {
       if (xi_data[d][b] == 0) {
         printf("   %11s", "0");

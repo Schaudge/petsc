@@ -16,7 +16,7 @@ PETSC_EXTERN PetscErrorCode SINDyBasisPrint(Basis, PetscInt, Vec*);
 PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis, SparseReg, PetscInt, Vec*, Vec*);
 PETSC_EXTERN PetscErrorCode SINDySparseLeastSquares(Mat, Vec, Mat, Vec);
 PETSC_EXTERN PetscErrorCode SINDySparseRegCreate(SparseReg*);
-PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg, PetscReal)
+PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg, PetscReal);
 PETSC_EXTERN PetscErrorCode SINDySparseRegSetFromOptions(SparseReg);
 PETSC_EXTERN PetscErrorCode SINDySparseRegDestroy(SparseReg*);
 
