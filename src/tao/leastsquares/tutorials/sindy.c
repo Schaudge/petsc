@@ -89,9 +89,14 @@ PETSC_EXTERN PetscErrorCode SINDyBasisSetFromOptions(Basis basis)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsGetInt(NULL,NULL,"-sindy_poly_order",&basis->poly_order,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-sindy_sine_order",&basis->sine_order,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,NULL,"-sindy_normalize_columns",&basis->normalize_columns,NULL);CHKERRQ(ierr);
+
+  ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"sindy_","SINDy options","");CHKERRQ(ierr);
+  {
+    ierr = PetscOptionsInt("-poly_order","highest degree polynomial to use in basis","",basis->poly_order,&basis->poly_order,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsInt("-sine_order","highest frequency sine/cosine function to use in basis","",basis->sine_order,&basis->sine_order,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-normalize_columns","scale each basis function column to have norm 1","",basis->normalize_columns,&basis->normalize_columns,NULL);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -566,9 +571,14 @@ PETSC_EXTERN PetscErrorCode SINDySparseRegSetFromOptions(SparseReg sparse_reg)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsGetReal(NULL,NULL,"-sparse_reg_threshold",&sparse_reg->threshold,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,NULL,"-sparse_reg_iterations",&sparse_reg->iterations,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,NULL,"-sparse_reg_monitor",&sparse_reg->monitor,NULL);CHKERRQ(ierr);
+
+  ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"sparse_reg_","Sparse regression options","");CHKERRQ(ierr);
+  {
+    ierr = PetscOptionsReal("-threshold","coefficients below this are set to 0","",sparse_reg->threshold,&sparse_reg->threshold,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsInt("-iterations","number of thresholded iterations to do","",sparse_reg->iterations,&sparse_reg->iterations,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-monitor","print out additional information","",sparse_reg->monitor,&sparse_reg->monitor,NULL);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
