@@ -387,9 +387,12 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
   }
 
   /* Run sparse least squares on each dimension of the data. */
+  if (sparse_reg->monitor) {
+    PetscPrintf(PETSC_COMM_SELF, "SparseReg: dimensions: %d, matrix size: %d x %d\n", dim, basis->data.N, basis->data.B);
+  }
   for (d = 0; d < dim; d++) {
     if (sparse_reg->monitor) {
-      PetscPrintf(PETSC_COMM_SELF, "SparseReg: dimension %d starting initial least squares\n", d);
+      PetscPrintf(PETSC_COMM_SELF, "SparseReg: dimension: %d, initial least squares\n", d);
     }
     ierr = SINDySparseLeastSquares(basis->data.Theta, dxdt_dim[d], NULL, Xis[d]);CHKERRQ(ierr);
   }
@@ -455,7 +458,7 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
     ierr = MatDestroy(&Tcpy);CHKERRQ(ierr);
   }
   if (sparse_reg->monitor) {
-    PetscPrintf(PETSC_COMM_WORLD, "SparseReg: Xi\n");
+    PetscPrintf(PETSC_COMM_WORLD, "SparseReg:%s Xi\n", basis->normalize_columns ? " scaled" : "");
     ierr = SINDyBasisPrint(basis, dim, Xis);
   }
   if (basis->normalize_columns) {
@@ -468,7 +471,7 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
         ierr = VecRestoreArray(Xis[d], &xi_data);CHKERRQ(ierr);
     }
     if (sparse_reg->monitor) {
-      PetscPrintf(PETSC_COMM_WORLD, "SparseReg: scaled Xi\n");
+      PetscPrintf(PETSC_COMM_WORLD, "SparseReg: Xi\n");
       ierr = SINDyBasisPrint(basis, dim, Xis);
     }
   }
@@ -563,6 +566,15 @@ PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg sparse_reg, Pet
 
   PetscFunctionBegin;
   sparse_reg->threshold = threshold;
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode SINDySparseRegSetMonitor(SparseReg sparse_reg, PetscBool monitor)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  sparse_reg->monitor = monitor;
   PetscFunctionReturn(0);
 }
 

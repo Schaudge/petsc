@@ -1,10 +1,7 @@
 #include <petscts.h>
 #include "sindy.h"
 
-static char help[] = "Run SINDy on data generated from dx/dt = [-sin(x), cos(x)]. Finds the least-squares solution to the under constraint linear model A*Xi = dx/dt, with L1-norm regularizer. \n\
-            A is a basis function matrix, Xi is sparse. \n\
-            We find the sparse solution by solving 0.5*||A Xi-dx/dt||^2 + lambda*||D*Xi||_1, where lambda (by default 1e-4) is a user specified weight.\n\
-            D is the K*N transform matrix so that D*Xi is sparse. By default D is identity matrix, so that D*x = x.\n";
+static char help[] = "Run SINDy on data generated from dx/dt = [-sin(x), cos(x)].\n";
 
 PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
   PetscErrorCode    ierr;
@@ -176,7 +173,8 @@ int main(int argc, char** argv) {
   ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
+  ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-1);CHKERRQ(ierr);
+  ierr = SINDySparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vectors */
@@ -186,10 +184,6 @@ int main(int argc, char** argv) {
 
   /* Run least squares */
   ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 2, Xi);CHKERRQ(ierr);
-
-  /* View result. */
-  ierr = PetscPrintf(PETSC_COMM_SELF, "------------- result Xi ------------- \n");CHKERRQ(ierr);
-  ierr = SINDyBasisPrint(basis, 2, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);
