@@ -168,12 +168,13 @@ int main(int argc, char** argv) {
 
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
-  ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_FALSE);CHKERRQ(ierr);
+  ierr = SINDyBasisSetCrossTermRange(basis, 0);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
   ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-1);CHKERRQ(ierr);
+  ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
   ierr = SINDySparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 

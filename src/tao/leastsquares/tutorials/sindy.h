@@ -9,6 +9,7 @@ typedef struct _p_SparseReg* SparseReg;
 PETSC_EXTERN PetscErrorCode SINDyBasisCreate(PetscInt, PetscInt, Basis*);
 PETSC_EXTERN PetscErrorCode SINDyBasisDestroy(Basis*);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetNormalizeColumns(Basis, PetscBool);
+PETSC_EXTERN PetscErrorCode SINDyBasisSetCrossTermRange(Basis, PetscInt);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetFromOptions(Basis);
 PETSC_EXTERN PetscErrorCode SINDyBasisCreateData(Basis, Vec*, PetscInt);
 PETSC_EXTERN PetscErrorCode SINDyBasisDataGetSize(Basis, PetscInt*, PetscInt*);
