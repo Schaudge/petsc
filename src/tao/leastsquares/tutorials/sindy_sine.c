@@ -65,7 +65,6 @@ PetscErrorCode DataPostStep(TS ts)
 {
   PetscErrorCode ierr;
   Vec            X;
-  PetscReal      t;
   Data           *data;
 
   PetscFunctionBegin;

@@ -80,8 +80,6 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
 
 PETSC_EXTERN PetscErrorCode SINDyBasisSetNormalizeColumns(Basis basis, PetscBool normalize_columns)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   basis->normalize_columns = normalize_columns;
   PetscFunctionReturn(0);
@@ -89,8 +87,6 @@ PETSC_EXTERN PetscErrorCode SINDyBasisSetNormalizeColumns(Basis basis, PetscBool
 
 PETSC_EXTERN PetscErrorCode SINDyBasisSetCrossTermRange(Basis basis, PetscInt cross_term_range)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   basis->cross_term_range = cross_term_range;
   PetscFunctionReturn(0);
@@ -139,7 +135,7 @@ PetscErrorCode SINDyBasisDestroy(Basis* basis)
 
 PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
   PetscErrorCode   ierr;
-  PetscInt         i, b, r, o, d, names_size, basis_dim;
+  PetscInt         i, b, o, d, names_size, basis_dim;
   PetscInt         *names_offsets;
   PetscInt         *poly_terms;
 
@@ -255,7 +251,7 @@ PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
   }
   basis->data.max_name_size = 0;
   for (b = 0; b < basis->data.B; b++) {
-    basis->data.max_name_size = PetscMax(strlen(basis->data.names[b]), basis->data.max_name_size);
+    basis->data.max_name_size = PetscMax(strlen(basis->data.names[b]), (size_t) basis->data.max_name_size);
   }
   if (basis->poly_order >= 0) {
     ierr = PetscFree(poly_terms);CHKERRQ(ierr);
@@ -266,12 +262,11 @@ PetscErrorCode SINDyInitializeBasesNames(Basis basis) {
 
 static PetscErrorCode SINDyBasisCreateData_monolithic(Basis basis) {
   PetscErrorCode   ierr;
-  PetscInt         x_size,dim;
+  PetscInt         dim;
   const PetscReal  *x;
   Vec              *X;
-  PetscInt         n, i, r, o, d, b;
+  PetscInt         n, i, o, d, b;
   PetscReal        *Theta_data;
-  PetscInt         *idn, *idb;
   PetscInt         *poly_terms;
 
   PetscFunctionBegin;
@@ -368,9 +363,8 @@ static PetscErrorCode SINDyBasisCreateData_individual(Basis basis) {
   PetscInt         dim,B,ctr;
   const PetscReal  *x;
   Vec              *X;
-  PetscInt         n, i, r, o, d, d2, b;
+  PetscInt         n, i, o, d, d2, b;
   PetscReal        *Theta_data;
-  PetscInt         *idn, *idb;
   PetscInt         *poly_terms;
   Mat              Theta;
 
@@ -475,13 +469,8 @@ static PetscErrorCode SINDyBasisCreateData_individual(Basis basis) {
 
 PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* X, PetscInt N)
 {
-  PetscErrorCode   ierr;
-  PetscInt         x_size,dim;
-  const PetscReal  *x_data;
-  PetscInt         n, i, r, o, d, b;
-  PetscReal        *Theta_data;
-  PetscInt         *idn, *idb;
-  PetscInt         *poly_terms;
+  PetscErrorCode ierr;
+  PetscInt       dim;
 
   /* TODO: either error or free old data before creating new data. */
 
@@ -518,7 +507,6 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
   PetscInt        old_num_thresholded,num_thresholded;
   PetscBool       *mask;
   PetscReal       *xi_data,*zeros,*dxdt_dim_data;
-  const PetscReal *dxdt_data;
   Mat             Tcpy;
   PetscInt        *idn, *idb;
   Vec             *dxdt_dim;
@@ -749,8 +737,6 @@ PetscErrorCode SINDySparseRegDestroy(SparseReg* sparse_reg)
 
 PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg sparse_reg, PetscReal threshold)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   sparse_reg->threshold = threshold;
   PetscFunctionReturn(0);
@@ -758,8 +744,6 @@ PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg sparse_reg, Pet
 
 PETSC_EXTERN PetscErrorCode SINDySparseRegSetMonitor(SparseReg sparse_reg, PetscBool monitor)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   sparse_reg->monitor = monitor;
   PetscFunctionReturn(0);
@@ -770,7 +754,6 @@ PETSC_EXTERN PetscErrorCode SINDySparseRegSetFromOptions(SparseReg sparse_reg)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"sparse_reg_","Sparse regression options","");CHKERRQ(ierr);
   {
     ierr = PetscOptionsReal("-threshold","coefficients below this are set to 0","",sparse_reg->threshold,&sparse_reg->threshold,NULL);CHKERRQ(ierr);
