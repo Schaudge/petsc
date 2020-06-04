@@ -26,10 +26,10 @@ sindy_sine_cosine : sindy_sine_cosine.o sindy.o
 	$(LINK.F) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorentz : lorentz.o sindy.o
+lorenz : lorenz.o sindy.o
 	$(LINK.F) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorentz96 : lorentz96.o sindy.o
+lorenz96 : lorenz96.o sindy.o
 	$(LINK.F) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<

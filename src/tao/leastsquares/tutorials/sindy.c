@@ -804,7 +804,6 @@ static PetscErrorCode EvaluateJacobian(Tao tao, Vec X, Mat J, Mat Jpre, void *pt
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode FormStartingPoint(Vec X)
 {
   PetscErrorCode ierr;

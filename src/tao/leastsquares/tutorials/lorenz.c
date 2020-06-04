@@ -1,25 +1,25 @@
 #include <petscts.h>
 #include "sindy.h"
 
-static char help[] = "Run SINDy on data generated from the Lorentz system.\n";
+static char help[] = "Run SINDy on data generated from the Lorenz attractor system.\n";
 
 typedef struct {
   PetscReal sigma,beta,rho;
-} Lorentz;
+} Lorenz;
 
 PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
   PetscErrorCode    ierr;
   const PetscScalar *x;
   PetscScalar       *f;
-  Lorentz           *lorentz = (Lorentz*) ctx;
+  Lorenz           *lorenz = (Lorenz*) ctx;
 
   PetscFunctionBegin;
   
   ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);
   ierr = VecGetArray(F, &f);CHKERRQ(ierr);
-  f[0] = lorentz->sigma * (x[1] - x[0]);
-  f[1] = x[0] * (lorentz->rho - x[2]) - x[1];
-  f[2] = x[0] * x[1] - lorentz->beta * x[2];
+  f[0] = lorenz->sigma * (x[1] - x[0]);
+  f[1] = x[0] * (lorenz->rho - x[2]) - x[1];
+  f[2] = x[0] * x[1] - lorenz->beta * x[2];
   ierr = VecRestoreArrayRead(X, &x);CHKERRQ(ierr);
   ierr = VecRestoreArray(F, &f);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -28,21 +28,21 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
 PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec X, Mat J, Mat B, void* ctx) {
   PetscErrorCode    ierr;
   const PetscScalar *x;
-  Lorentz           *lorentz = (Lorentz*) ctx;
+  Lorenz           *lorenz = (Lorenz*) ctx;
 
   PetscFunctionBegin;
   ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);
-  ierr = MatSetValue(J, 0, 0, -lorentz->sigma, INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatSetValue(J, 0, 1, lorentz->sigma, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValue(J, 0, 0, -lorenz->sigma, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValue(J, 0, 1, lorenz->sigma, INSERT_VALUES);CHKERRQ(ierr);
   ierr = MatSetValue(J, 0, 2, 0, INSERT_VALUES);CHKERRQ(ierr);
 
-  ierr = MatSetValue(J, 1, 0, lorentz->rho - x[2], INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValue(J, 1, 0, lorenz->rho - x[2], INSERT_VALUES);CHKERRQ(ierr);
   ierr = MatSetValue(J, 1, 1, -1, INSERT_VALUES);CHKERRQ(ierr);
   ierr = MatSetValue(J, 1, 2, -x[0], INSERT_VALUES);CHKERRQ(ierr);
 
   ierr = MatSetValue(J, 2, 0, x[1], INSERT_VALUES);CHKERRQ(ierr);
   ierr = MatSetValue(J, 2, 1, x[0], INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatSetValue(J, 2, 2, -lorentz->beta, INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValue(J, 2, 2, -lorenz->beta, INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(X, &x);CHKERRQ(ierr);
 
   ierr = MatAssemblyBegin(J, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -64,16 +64,16 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   TSAdapt        adapt;
   Vec            X;
   Vec            *all_x, *all_dx;
-  Lorentz        lorentz;
+  Lorenz        lorenz;
 
   PetscFunctionBegin;
 
-  lorentz.sigma = 10;
-  lorentz.beta = 8.0 / 3.0;
-  lorentz.rho = 28;
-  ierr = PetscOptionsGetReal(NULL,NULL,"-lorentz_sigma",&lorentz.sigma,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetReal(NULL,NULL,"-lorentz_beta",&lorentz.beta,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetReal(NULL,NULL,"-lorentz_rho",&lorentz.rho,NULL);CHKERRQ(ierr);
+  lorenz.sigma = 10;
+  lorenz.beta = 8.0 / 3.0;
+  lorenz.rho = 28;
+  ierr = PetscOptionsGetReal(NULL,NULL,"-lorenz_sigma",&lorenz.sigma,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL,NULL,"-lorenz_beta",&lorenz.beta,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetReal(NULL,NULL,"-lorenz_rho",&lorenz.rho,NULL);CHKERRQ(ierr);
 
   ierr = MatCreateSeqDense(PETSC_COMM_SELF, 3, 3, NULL, &J);CHKERRQ(ierr);
 
@@ -86,8 +86,8 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   ierr = TSSetMaxSteps(ts, steps);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
 
-  ierr = TSSetRHSFunction(ts, NULL, RHSFunction, (void*)&lorentz);CHKERRQ(ierr);
-  ierr = TSSetRHSJacobian(ts, J, J, RHSJacobian, (void*)&lorentz);CHKERRQ(ierr);
+  ierr = TSSetRHSFunction(ts, NULL, RHSFunction, (void*)&lorenz);CHKERRQ(ierr);
+  ierr = TSSetRHSJacobian(ts, J, J, RHSJacobian, (void*)&lorenz);CHKERRQ(ierr);
 
   ierr = TSGetAdapt(ts,&adapt);CHKERRQ(ierr);
   ierr = TSAdaptSetType(adapt,TSADAPTNONE);CHKERRQ(ierr);
@@ -117,7 +117,7 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
 
   /* Get derivate data using RHS. */
   for (i = 0; i < steps; i++) {
-    ierr = RHSFunction(NULL, dt*i, all_x[i], all_dx[i], (void*)&lorentz);CHKERRQ(ierr);
+    ierr = RHSFunction(NULL, dt*i, all_x[i], all_dx[i], (void*)&lorenz);CHKERRQ(ierr);
   }
 
   /* Write output parameters. */

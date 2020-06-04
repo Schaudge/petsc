@@ -154,7 +154,7 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
 
   PetscFunctionBegin;
 
-  ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"lorentz_","Lorentz96 options","");CHKERRQ(ierr);
+  ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"lorenz_","Lorenz 96 options","");CHKERRQ(ierr);
   {
     ctx.force = 8;
     ierr = PetscOptionsReal("-force","forcing term","",ctx.force,&ctx.force,NULL);CHKERRQ(ierr);
