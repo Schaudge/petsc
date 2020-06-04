@@ -9,6 +9,7 @@
 *.vt[ksu]
 *.pvt[ksu]
 *.h5m
+*.vscode
 .*_license
 *.mypy_cache
 unix/*
