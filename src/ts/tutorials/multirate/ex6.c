@@ -754,6 +754,7 @@ int main(int argc,char *argv[])
   ctx.bctype = FVBC_PERIODIC;
   ctx.xmin = -1.0;
   ctx.xmax = 1.0;
+  ctx.hratio = 2; 
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmin","X min","",ctx.xmin,&ctx.xmin,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmax","X max","",ctx.xmax,&ctx.xmax,NULL);CHKERRQ(ierr);
@@ -845,8 +846,7 @@ int main(int argc,char *argv[])
   ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVRHSFunctionfast_2WaySplit,&ctx);CHKERRQ(ierr);
   ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVRHSFunctionslowbuffer_2WaySplit,&ctx);CHKERRQ(ierr);
 
-  ierr = TSSetType(ts,TSSSP);CHKERRQ(ierr);
-  /*ierr = TSSetType(ts,TSMPRK);CHKERRQ(ierr);*/
+  ierr = TSSetType(ts,TSMPRK);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,10);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
 

@@ -470,6 +470,45 @@ PetscErrorCode ReconstructListFind(PetscFunctionList flist,const char *name,Reco
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode RiemannListAdd_2WaySplit(PetscFunctionList *flist,const char *name,RiemannFunction_2WaySplit rsolve)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListAdd(flist,name,rsolve);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode RiemannListFind_2WaySplit(PetscFunctionList flist,const char *name,RiemannFunction_2WaySplit *rsolve)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListFind(flist,name,rsolve);CHKERRQ(ierr);
+  if (!*rsolve) SETERRQ1(PETSC_COMM_SELF,1,"Riemann solver \"%s\" could not be found",name);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ReconstructListAdd_2WaySplit(PetscFunctionList *flist,const char *name,ReconstructFunction_2WaySplit r)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListAdd(flist,name,r);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ReconstructListFind_2WaySplit(PetscFunctionList flist,const char *name,ReconstructFunction_2WaySplit *r)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListFind(flist,name,r);CHKERRQ(ierr);
+  if (!*r) SETERRQ1(PETSC_COMM_SELF,1,"Reconstruction \"%s\" could not be found",name);
+  PetscFunctionReturn(0);
+}
+
+
 /* --------------------------------- Physics ----------------------------------- */
 
 PetscErrorCode PhysicsDestroy_SimpleFree(void *vctx)
