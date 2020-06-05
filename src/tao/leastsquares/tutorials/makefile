@@ -33,3 +33,7 @@ lorenz : lorenz.o sindy.o
 lorenz96 : lorenz96.o sindy.o
 	$(LINK.F) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
+
+pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o
+	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<

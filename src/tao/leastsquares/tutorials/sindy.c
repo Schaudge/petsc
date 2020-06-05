@@ -341,7 +341,9 @@ static PetscErrorCode SINDyBasisCreateData_monolithic(Basis basis) {
     i = 0;
     for (n = 0; n < basis->data.N; n++) {
       for (b = 0; b < basis->data.B; b++) {
-        Theta_data[i] /= basis->data.column_scales[b];
+        if (basis->data.column_scales[b]) {
+          Theta_data[i] /= basis->data.column_scales[b];
+        }
         i++;
       }
     }
@@ -447,7 +449,9 @@ static PetscErrorCode SINDyBasisCreateData_individual(Basis basis) {
       i = 0;
       for (n = 0; n < basis->data.N; n++) {
         for (b = 0; b < B; b++) {
-          Theta_data[i] /= basis->data.column_scales[b+d*B];
+          if (basis->data.column_scales[b+d*B]) {
+            Theta_data[i] /= basis->data.column_scales[b+d*B];
+          }
           i++;
         }
       }
@@ -624,7 +628,9 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
       for (d = 0; d < dim; d++) {
           ierr = VecGetArray(Xis[d], &xi_data);CHKERRQ(ierr);
           for (b = 0; b < basis->data.B; b++) {
-            xi_data[b] /= basis->data.column_scales[b];
+            if (basis->data.column_scales[b]) {
+              xi_data[b] /= basis->data.column_scales[b];
+            }
           }
           ierr = VecRestoreArray(Xis[d], &xi_data);CHKERRQ(ierr);
       }
@@ -632,7 +638,9 @@ PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg s
       for (d = 0; d < dim; d++) {
           ierr = VecGetArray(Xis[d], &xi_data);CHKERRQ(ierr);
           for (b = 0; b < basis->data.B; b++) {
-            xi_data[b] /= basis->data.column_scales[b + d*basis->data.B];
+            if (basis->data.column_scales[b+d*basis->data.B]) {
+              xi_data[b] /= basis->data.column_scales[b + d*basis->data.B];
+            }
           }
           ierr = VecRestoreArray(Xis[d], &xi_data);CHKERRQ(ierr);
       }

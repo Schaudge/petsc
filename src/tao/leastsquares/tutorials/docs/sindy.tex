@@ -1,0 +1,207 @@
+% \documentclass[letterpaper,12pt]{article}
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+
+\usepackage{cite}
+\usepackage{listings}
+\usepackage{subcaption}
+\usepackage{color}
+\usepackage{amsmath,amssymb}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{gensymb}
+\usepackage{physics}
+\usepackage{listings}
+
+\usepackage[final]{hyperref} % adds hyper links inside the generated pdf file
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=blue,          % color of internal links
+    citecolor=blue,        % color of links to bibliography
+    filecolor=magenta,      % color of file links
+    urlcolor=blue         
+}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+
+\let\vec\mathbf
+\def\real{\mathbb{R}}
+
+\pdfstringdefDisableCommands{%
+  \def\lstinline#1{}%
+}
+
+\begin{document}
+
+\section{Theory}
+
+This discussion is based on \cite{brunton2016sindy} and \cite{shea2020sindy-bvp}.
+I'm going to try to outline the general case. 
+\begin{align}
+\vec{u} &= \vec{u}(\vec{x}, t) \\
+\frac{d\vec{u}}{dt} &= \frac{d\vec{u}}{dt}(\vec{u}, \vec{x}, t)
+\end{align}
+for $\vec{u} \in \real^{d_u}, \,\, \vec{x} \in \real^{d_x}, \,\, t \in \real$.
+The goal of SINDy is to represent $\frac{d\vec{u}}{dt}$ in a basis $B$ of size
+$p$ with sparse coefficients $\vec{c} \in \real^p$.
+\begin{equation}
+\frac{d\vec{u}}{dt} \approx \sum_{i=1}^p c_i \vec{b_i}
+\end{equation}
+\begin{align}
+b_i \in B = \{\vec{1}, \vec{u}, \vec{x}, t, \vec{u}^2, \vec{u}\vec{x},\vec{u}t,\vec{x}^2,\vec{x}t,t^2,\hdots,\sin\vec{u},\cos{\vec{u}}, \frac{\partial\vec{u}}{\partial \vec{x}},\hdots\}
+\end{align}
+When $d_x \ne 1$ or $d_u \ne 1$, the vector terms in the basis shown above
+aren't mathematically well-defined, but the idea is to include polynomial terms,
+and these can also include polynomial terms of separate components of the
+vector, and cross terms of those components. The functions shown in the basis
+above are just examples; the main idea is that the basis can have any kind of
+functions of $\vec{u}$, $\vec{x}$, and $t$ and cross terms.
+
+\subsection{Simplest dimensional case, $d_x = 0$ and $d_u = 1$}
+
+To get to a multi-dimensional formulation, I'll start out by describing the case when $d_x = 0$ and $d_u = 1$.
+\begin{align*}
+u &= u(t) \\
+\frac{du}{dt} &= \frac{du}{dt}(u, t)
+\end{align*}
+In this case, the collected data will be a one-dimensional set of values of $u$
+at different times. Let $m$ be the number of data points, and $\vec{U} \in
+\real^m$ be the set of data points, where $U_k$ is the $k$-th measurement of
+$u$, with a corresponding derivative $\frac{d\vec{U}}{dt}$. Let $\vec{B_i} \in
+\real^m$ be the $i$-th basis function evaluated at all $m$ data points, such
+that $B_{k,i}$ is the basis function evaluated at the $k$-th measurement.
+Then the equation to solve is the following:
+\begin{equation*}
+\frac{d\vec{U}}{dt} \approx \sum_{i=1}^p c_i \vec{B_i}
+\end{equation*}
+This can be written as a matrix multiplication, where $\vec{B_i}$ are the
+columns of $\Theta \in \real^{m \times p}$.
+\begin{equation}
+\frac{d\vec{U}}{dt} \approx \Theta \vec{c}
+\end{equation}
+This can be solved for a sparse $\vec{c}$ with a sparse least squares solver. In
+this case the basis functions are functions of the two variables $u$ and $t$.
+
+\subsection{More outputs, $d_x = 0$ and $d_u \ge 1$}
+
+When $\vec{u}$ is a vector, each measurement will have $d_u$ values. In this
+case the basis functions can be made of functions of the $d_u+1$ variables
+$u_1,u_2,\hdots,u_{d_u}$ and $t$. To obtain separate sparse coefficients for
+each output $\frac{du_i}{dt}$, the sparse regression can be performed on each
+output dimension separately. Let $\vec{U_i} \in \real^{m}$ be the measurements
+for output $i$ and $\vec{c_i} \in \real^p$ be the coefficients for output $i$.
+Then we can solve the equation below to find all the coefficients.
+\begin{equation*}
+\frac{d\vec{U_i}}{dt} \approx \Theta \vec{c_i} \,\,\ \text{ for $i \in \{1,2,\hdots,d_u\} $}
+\end{equation*}
+
+This can be structured as a single matrix equation by letting $\vec{U_i}$ be the
+columns of the matrix $\vec{U} \in \real^{m \times d_u}$, and $\vec{c_i}$ be the
+columns of the matrix $\vec{c} \in \real^{p \times d_u}$. Then the equation
+becomes the following:
+\begin{equation}
+\frac{d\vec{U}}{dt} \approx \Theta \vec{c}
+\end{equation}
+This formulation makes each output $u_i$ depend on the same set of basis
+functions, stored in $\Theta$. To write it as a single matrix equation but allow
+each $u_i$ to have a different set of basis functions, a block diagonal
+structure can be used.
+
+Let $\Theta^{(i)} \in \real^{m \times p_i}$ be the data for the $p_i$ basis
+functions to use for output $u_i$. Let $p = \sum p_i$ be the total number of
+basis functions. Then the block diagonal matrix $\Theta' \in \real^{md_u \times p}$ can be constructed
+using $\Theta^{(i)}$ along the diagonal. Then flatten the data $\vec{U}$ into a
+vector $\vec{U'} \in \real^{md_u}$ and flatten the coefficients $\vec{c}$ into a
+vector $\vec{c}' \in \real^{p}$.
+\begin{equation}
+\frac{d\vec{U'}}{dt} = 
+\begin{bmatrix}
+\vec{U_1} \\ \vec{U_2} \\ \vdots \\ \vec{U_{d_u}}
+\end{bmatrix}
+\approx
+\begin{bmatrix}
+\Theta^{(1)} \\
+& \Theta^{(2)} \\
+& & \ddots \\
+& & & \Theta^{(d_u)} \\
+\end{bmatrix}
+\begin{bmatrix}
+\vec{c_1} \\ \vec{c_2'} \\ \vdots \\ \vec{c_{d_u}}
+\end{bmatrix}
+= \Theta' \vec{c}'
+\end{equation}
+A possible problem with this formulation is that a sparse solver may enforce
+sparsity on $\vec{c}$, but the desired sparsity is actually on each separate
+$\vec{c_i}$. The problem is that a larger value in $\vec{c_i}$ may make the
+values in $\vec{c_j}$ smaller for some $i$ and $j$. For this reason, it may be
+more beneficial to use a sparse solver on the following separate equations instead:
+\begin{equation*}
+\frac{d\vec{U_i}}{dt} \approx \Theta^{(i)} \vec{c_i} \,\,\ \text{ for $i \in \{1,2,\hdots,d_u\} $}
+\end{equation*}
+
+\subsection{Handling coordinates, $d_x = 1$ and $d_u = 1$}
+TODO
+
+\subsection{Full multi-dimensional case, $d_x \ge 1$ and $d_u \ge 1$}
+TODO
+
+
+\section{Examples}
+
+\subsection{sindy\_sine}
+In this example, $d_x = 0$ (no coordinates) and $d_u = 1$. There is no time dependence.
+\begin{equation*}
+\frac{dU}{dt} = -\sin(U)
+\end{equation*}
+
+
+\subsection{sindy\_sine\_cosine}
+In this example, $d_x = 0$ (no coordinates) and $d_u = 2$. There is no time dependence.
+\begin{equation*}
+\frac{d\vec{U}}{dt} =
+\begin{bmatrix}
+-\sin(U_1) \\ \cos(U_2)
+\end{bmatrix}
+\end{equation*}
+
+
+\subsection{lorenz}
+In this example, $d_x = 0$ (no coordinates) and $d_u = 3$. There is no time dependence.
+\begin{equation*}
+\frac{d\vec{U}}{dt} =
+\begin{bmatrix}
+-\sin(U_1) \\ \cos(U_2)
+\end{bmatrix}
+\end{equation*}
+
+
+\subsection{lorenz96}
+In this example, $d_x = 0$ (no coordinates) and $d_u = 38$. There is no time dependence.
+\begin{equation*}
+\frac{dU_i}{dt} = (U_{i+1} - U_{i-2}) U_{i-1} - U_i + F
+\end{equation*}
+
+\subsection{pde\_power\_grid}
+In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
+\begin{align*}
+\frac{dU}{dt} &= - \frac{\partial x_1}{\partial t} \frac{\partial U}{\partial x_1}
+                 - \frac{\partial x_2}{\partial t} \frac{\partial U}{\partial x_2}
+                 + f(t) \frac{\partial^2 U}{\partial x_2^2}
+\\ \frac{\partial x_1}{\partial t} &= (x_2 - \omega_s)
+\\ \frac{\partial x_2}{\partial t} &= \frac{\omega_s}{2H}(P_m - P_{max}\sin(x_1))
+\\ f(t) &= \left(\frac{\lambda \omega_s}{2H}\right) ^ 2 q (1-e^{-t/\lambda})
+\end{align*}
+
+
+
+\bibliographystyle{unsrt}
+\bibliography{sources}
+
+
+
+
+\end{document}
