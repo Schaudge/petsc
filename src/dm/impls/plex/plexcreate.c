@@ -2414,6 +2414,57 @@ static PetscErrorCode DMCreateLocalVector_Plex(DM dm,Vec *vec)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMCreateGlobalCellVector_Plex(DM dm, Vec *vec)
+{
+  DM_Plex                 *mesh = (DM_Plex*) dm->data;
+  PetscInt                cStart, cEnd;
+  IS                      glob;
+  ISLocalToGlobalMapping  ltog;
+  PetscErrorCode          ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexGetHeightStratum(dm, mesh->vtkCellHeight, &cStart, &cEnd);CHKERRQ(ierr);
+  ierr = DMPlexCreateCellNumbering_Internal(dm, PETSC_TRUE, &glob);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingCreateIS(glob, &ltog);CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject) dm), vec);CHKERRQ(ierr);
+  ierr = VecSetType(*vec, dm->vectype);CHKERRQ(ierr);
+  ierr = VecSetSizes(*vec, cEnd-cStart, PETSC_DETERMINE);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(*vec, 1);CHKERRQ(ierr);
+  ierr = VecSetLocalToGlobalMapping(*vec, ltog);CHKERRQ(ierr);
+  ierr = VecSetDM(*vec, dm);CHKERRQ(ierr);
+  ierr = VecSetUp(*vec);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingDestroy(&ltog);CHKERRQ(ierr);
+  ierr = ISDestroy(&glob);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMCreateLocalCellVector_Plex(DM dm, Vec *vec)
+{
+  DM_Plex                 *mesh = (DM_Plex*) dm->data;
+  PetscInt                i, cStart, cEnd;
+  PetscInt                *ix;
+  ISLocalToGlobalMapping  ltog;
+  PetscErrorCode          ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMPlexGetHeightStratum(dm, mesh->vtkCellHeight, &cStart, &cEnd);CHKERRQ(ierr);
+  ierr = PetscMalloc1(cEnd-cStart, &ix);CHKERRQ(ierr);
+  for (i = 0; i < cEnd-cStart; i++) {ix[i] = i;}
+  ierr = ISLocalToGlobalMappingCreate(PETSC_COMM_SELF, 1, cEnd-cStart, (const PetscInt *) ix, PETSC_COPY_VALUES, &ltog);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_SELF, vec);CHKERRQ(ierr);
+  ierr = VecSetType(*vec, dm->vectype);CHKERRQ(ierr);
+  ierr = VecSetSizes(*vec, cEnd-cStart, cEnd-cStart);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(*vec, 1);CHKERRQ(ierr);
+  ierr = VecSetLocalToGlobalMapping(*vec, ltog);CHKERRQ(ierr);
+  ierr = VecSetDM(*vec, dm);CHKERRQ(ierr);
+  ierr = VecSetUp(*vec);CHKERRQ(ierr);
+  ierr = PetscFree(ix);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingDestroy(&ltog);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode DMGetDimPoints_Plex(DM dm, PetscInt dim, PetscInt *pStart, PetscInt *pEnd)
 {
   PetscInt       depth, d;
@@ -2475,6 +2526,8 @@ static PetscErrorCode DMInitialize_Plex(DM dm)
   dm->ops->createdefaultconstraints        = DMCreateDefaultConstraints_Plex;
   dm->ops->createglobalvector              = DMCreateGlobalVector_Plex;
   dm->ops->createlocalvector               = DMCreateLocalVector_Plex;
+  dm->ops->createglobalcellvector          = DMCreateGlobalCellVector_Plex;
+  dm->ops->createlocalcellvector           = DMCreateLocalCellVector_Plex;
   dm->ops->getlocaltoglobalmapping         = NULL;
   dm->ops->createfieldis                   = NULL;
   dm->ops->createcoordinatedm              = DMCreateCoordinateDM_Plex;
@@ -2553,7 +2606,6 @@ PETSC_INTERN PetscErrorCode DMClone_Plex(DM dm, DM *newdm)
 
 .seealso: DMType, DMPlexCreate(), DMCreate(), DMSetType()
 M*/
-
 PETSC_EXTERN PetscErrorCode DMCreate_Plex(DM dm)
 {
   DM_Plex       *mesh;

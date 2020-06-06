@@ -23,6 +23,8 @@ struct _DMOps {
   PetscErrorCode (*createdefaultconstraints)(DM);
   PetscErrorCode (*createglobalvector)(DM,Vec*);
   PetscErrorCode (*createlocalvector)(DM,Vec*);
+  PetscErrorCode (*createglobalcellvector)(DM,Vec*);
+  PetscErrorCode (*createlocalcellvector)(DM,Vec*);
   PetscErrorCode (*getlocaltoglobalmapping)(DM);
   PetscErrorCode (*createfieldis)(DM,PetscInt*,char***,IS**);
   PetscErrorCode (*createcoordinatedm)(DM,DM*);

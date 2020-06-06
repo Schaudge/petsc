@@ -992,6 +992,42 @@ PetscErrorCode  DMCreateLocalVector(DM dm,Vec *vec)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMCreateGlobalCellVector(DM dm, Vec *vec)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  PetscValidPointer(vec,2);
+  if (!dm->ops->createglobalcellvector) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DM type %s does not implement DMCreateGlobalCellVector",((PetscObject)dm)->type_name);
+  ierr = (*dm->ops->createglobalcellvector)(dm,vec);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    DM vdm;
+
+    ierr = VecGetDM(*vec,&vdm);CHKERRQ(ierr);
+    if (!vdm) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"DM type '%s' did not attach the DM to the vector\n",((PetscObject)dm)->type_name);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMCreateLocalCellVector(DM dm, Vec *vec)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  PetscValidPointer(vec,2);
+  if (!dm->ops->createlocalcellvector) SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DM type %s does not implement DMCreateLocalCellVector",((PetscObject)dm)->type_name);
+  ierr = (*dm->ops->createlocalcellvector)(dm,vec);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    DM vdm;
+
+    ierr = VecGetDM(*vec,&vdm);CHKERRQ(ierr);
+    if (!vdm) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"DM type '%s' did not attach the DM to the vector\n",((PetscObject)dm)->type_name);
+  }
+  PetscFunctionReturn(0);
+}
+
 /*@
    DMGetLocalToGlobalMapping - Accesses the local-to-global mapping in a DM.
 

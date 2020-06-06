@@ -55,6 +55,8 @@ PETSC_EXTERN PetscErrorCode DMLoad(DM,PetscViewer);
 PETSC_EXTERN PetscErrorCode DMDestroy(DM*);
 PETSC_EXTERN PetscErrorCode DMCreateGlobalVector(DM,Vec*);
 PETSC_EXTERN PetscErrorCode DMCreateLocalVector(DM,Vec*);
+PETSC_EXTERN PetscErrorCode DMCreateGlobalCellVector(DM,Vec*);
+PETSC_EXTERN PetscErrorCode DMCreateLocalCellVector(DM,Vec*);
 PETSC_EXTERN PetscErrorCode DMGetLocalVector(DM,Vec *);
 PETSC_EXTERN PetscErrorCode DMRestoreLocalVector(DM,Vec *);
 PETSC_EXTERN PetscErrorCode DMGetGlobalVector(DM,Vec *);
