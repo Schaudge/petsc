@@ -544,18 +544,25 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   ShallowCtx                *phys = (ShallowCtx*)vctx;
   PetscScalar               g = phys->gravity,fL[2],fR[2],s;
   struct {PetscScalar h,u;} L = {uL[0],uL[1]/uL[0]},R = {uR[0],uR[1]/uR[0]};
+  PetscReal                 tol = 1e-6; 
 
   PetscFunctionBeginUser;
-  if (!(L.h > 0 && R.h > 0)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Reconstructed thickness is negative");
+  /* Positivity preserving modification*/
+  if (L.h < tol) L.u = tol; 
+  if (R.h < tol) R.u = tol; 
+
+  /*simple pos preserv limiter */ 
+  if (L.h < 0) L.h=0; 
+  if (R.h < 0) R.h=0; 
+
   ShallowFlux(phys,uL,fL);
   ShallowFlux(phys,uR,fR);
   s         = PetscMax(PetscAbs(L.u)+PetscSqrtScalar(g*L.h),PetscAbs(R.u)+PetscSqrtScalar(g*R.h));
-  flux[0]   = 0.5*(fL[0] + fR[0]) + 0.5*s*(uL[0] - uR[0]);
+  flux[0]   = 0.5*(fL[0] + fR[0]) + 0.5*s*(L.h - R.h);
   flux[1]   = 0.5*(fL[1] + fR[1]) + 0.5*s*(uL[1] - uR[1]);
   *maxspeed = s;
   PetscFunctionReturn(0);
 }
-
 static PetscErrorCode PhysicsCharacteristic_Conservative(void *vctx,PetscInt m,const PetscScalar *u,PetscScalar *X,PetscScalar *Xi,PetscReal *speeds)
 {
   PetscInt i,j;
@@ -573,15 +580,24 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
   ShallowCtx     *phys = (ShallowCtx*)vctx;
   PetscReal      c;
   PetscErrorCode ierr;
-
+  PetscReal      tol = 1e-6; 
   PetscFunctionBeginUser;
   c         = PetscSqrtScalar(u[0]*phys->gravity);
+
+  if (u[0] < tol) {
+  X[0*2+0]  = 1;
+  X[0*2+1]  = 0;
+  X[1*2+0]  = 0;
+  X[1*2+1]  = 1;
+  } else {
   speeds[0] = u[1]/u[0] - c;
   speeds[1] = u[1]/u[0] + c;
   X[0*2+0]  = 1;
   X[0*2+1]  = speeds[0];
   X[1*2+0]  = 1;
   X[1*2+1]  = speeds[1];
+  }
+  
   ierr = PetscArraycpy(Xi,X,4);CHKERRQ(ierr);
   ierr = PetscKernel_A_gets_inverse_A_2(Xi,0,PETSC_FALSE,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -594,12 +610,36 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
   switch (initial) {
     case 0:
       u[0] = (x < 0) ? 2 : 1; /* Standard Dam Break Problem */
-      u[1] = (x < 0) ? 1 : 1;
+      u[1] = (x < 0) ? 0 : 0;
       break;
     case 1:
       u[0] = 1+0.5*PetscSinReal(2*PETSC_PI*x); 
       u[1] = 1*u[0];
       break;
+    case 2: 
+      if (x < -0.1) {
+       u[0] = 1e-9; 
+       u[1] = 0.0; 
+      } else if(x < 0.1){
+       u[0] = 1.0; 
+       u[1] = 0.0; 
+      } else {
+       u[0] = 1e-9; 
+       u[1] = 0.0; 
+      }
+      break; 
+    case 3: 
+     if (x < -0.1) {
+       u[0] = 2; 
+       u[1] = 0.0; 
+      } else if(x < 0.1){
+       u[0] = 3.0; 
+       u[1] = 0.0; 
+      } else {
+       u[0] = 2; 
+       u[1] = 0.0; 
+      }
+      break; 
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
   PetscFunctionReturn(0);
