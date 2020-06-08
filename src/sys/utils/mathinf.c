@@ -89,7 +89,7 @@ PetscBool PetscIsInfReal(PetscReal a)
 .     a - the floating point number
 
      Notes:
-    uses the C99 standard fpclassify() on systems where it exists, or isnan().
+    uses the C99 standard fpclassify() on systems where it exists, otherwise isnan() if it exists.
       Uses isnanq() with __float128
       Otherwises uses (a != a), note that some optimizing compiles compile
       out this form, thus removing the check.
