@@ -5,6 +5,8 @@ static char help[] =
 #include <petscds.h>
 #include <petscfe.h>
 #include <petscsnes.h>
+#include <petsc/private/snesimpl.h>
+#include <petscdmadaptor.h>
 /* We are solving the system of equations:
  * \vec{u} = -\grad{p}
  * \div{u} = f
@@ -222,6 +224,177 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
   ierr = DMDestroy(&cdm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/* Copy of SNESSolve. May eventually modify this to do more of the non-linear solve process onto the GPU.*/
+#if 0
+static PetscErrorCode SNESSolve_Ex10(SNES snes,Vec b,Vec x)
+{
+  PetscErrorCode    ierr;
+  PetscBool         flg;
+  PetscInt          grid;
+  Vec               xcreated = NULL;
+  DM                dm;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
+  if (x) PetscValidHeaderSpecific(x,VEC_CLASSID,3);
+  if (x) PetscCheckSameComm(snes,1,x,3);
+  if (b) PetscValidHeaderSpecific(b,VEC_CLASSID,2);
+  if (b) PetscCheckSameComm(snes,1,b,2);
+
+  /* High level operations using the nonlinear solver */
+  {
+    PetscViewer       viewer;
+    PetscViewerFormat format;
+    PetscInt          num;
+    PetscBool         flg;
+    static PetscBool  incall = PETSC_FALSE;
+
+    if (!incall) {
+      /* Estimate the convergence rate of the discretization */
+      ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) snes),((PetscObject)snes)->options, ((PetscObject) snes)->prefix, "-snes_convergence_estimate", &viewer, &format, &flg);CHKERRQ(ierr);
+      if (flg) {
+        PetscConvEst conv;
+        DM           dm;
+        PetscReal   *alpha; /* Convergence rate of the solution error for each field in the L_2 norm */
+        PetscInt     Nf;
+
+        incall = PETSC_TRUE;
+        ierr = SNESGetDM(snes, &dm);CHKERRQ(ierr);
+        ierr = DMGetNumFields(dm, &Nf);CHKERRQ(ierr);
+        ierr = PetscCalloc1(Nf, &alpha);CHKERRQ(ierr);
+        ierr = PetscConvEstCreate(PetscObjectComm((PetscObject) snes), &conv);CHKERRQ(ierr);
+        ierr = PetscConvEstSetSolver(conv, (PetscObject) snes);CHKERRQ(ierr);
+        ierr = PetscConvEstSetFromOptions(conv);CHKERRQ(ierr);
+        ierr = PetscConvEstSetUp(conv);CHKERRQ(ierr);
+        ierr = PetscConvEstGetConvRate(conv, alpha);CHKERRQ(ierr);
+        ierr = PetscViewerPushFormat(viewer, format);CHKERRQ(ierr);
+        ierr = PetscConvEstRateView(conv, alpha, viewer);CHKERRQ(ierr);
+        ierr = PetscViewerPopFormat(viewer);CHKERRQ(ierr);
+        ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+        ierr = PetscConvEstDestroy(&conv);CHKERRQ(ierr);
+        ierr = PetscFree(alpha);CHKERRQ(ierr);
+        incall = PETSC_FALSE;
+      }
+      /* Adaptively refine the initial grid */
+      num  = 1;
+      ierr = PetscOptionsGetInt(NULL, ((PetscObject) snes)->prefix, "-snes_adapt_initial", &num, &flg);CHKERRQ(ierr);
+      if (flg) {
+        DMAdaptor adaptor;
+
+        incall = PETSC_TRUE;
+        ierr = DMAdaptorCreate(PetscObjectComm((PetscObject)snes), &adaptor);CHKERRQ(ierr);
+        ierr = DMAdaptorSetSolver(adaptor, snes);CHKERRQ(ierr);
+        ierr = DMAdaptorSetSequenceLength(adaptor, num);CHKERRQ(ierr);
+        ierr = DMAdaptorSetFromOptions(adaptor);CHKERRQ(ierr);
+        ierr = DMAdaptorSetUp(adaptor);CHKERRQ(ierr);
+        ierr = DMAdaptorAdapt(adaptor, x, DM_ADAPTATION_INITIAL, &dm, &x);CHKERRQ(ierr);
+        ierr = DMAdaptorDestroy(&adaptor);CHKERRQ(ierr);
+        incall = PETSC_FALSE;
+      }
+      /* Use grid sequencing to adapt */
+      num  = 0;
+      ierr = PetscOptionsGetInt(NULL, ((PetscObject) snes)->prefix, "-snes_adapt_sequence", &num, NULL);CHKERRQ(ierr);
+      if (num) {
+        DMAdaptor adaptor;
+
+        incall = PETSC_TRUE;
+        ierr = DMAdaptorCreate(PetscObjectComm((PetscObject)snes), &adaptor);CHKERRQ(ierr);
+        ierr = DMAdaptorSetSolver(adaptor, snes);CHKERRQ(ierr);
+        ierr = DMAdaptorSetSequenceLength(adaptor, num);CHKERRQ(ierr);
+        ierr = DMAdaptorSetFromOptions(adaptor);CHKERRQ(ierr);
+        ierr = DMAdaptorSetUp(adaptor);CHKERRQ(ierr);
+        ierr = DMAdaptorAdapt(adaptor, x, DM_ADAPTATION_SEQUENTIAL, &dm, &x);CHKERRQ(ierr);
+        ierr = DMAdaptorDestroy(&adaptor);CHKERRQ(ierr);
+        incall = PETSC_FALSE;
+      }
+    }
+  }
+  if (!x) {
+    ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(dm,&xcreated);CHKERRQ(ierr);
+    x    = xcreated;
+  }
+  ierr = SNESViewFromOptions(snes,NULL,"-snes_view_pre");CHKERRQ(ierr);
+
+  for (grid=0; grid<snes->gridsequence; grid++) {ierr = PetscViewerASCIIPushTab(PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)snes)));CHKERRQ(ierr);}
+  for (grid=0; grid<snes->gridsequence+1; grid++) {
+
+    /* set solution vector */
+    if (!grid) {ierr = PetscObjectReference((PetscObject)x);CHKERRQ(ierr);}
+    ierr          = VecDestroy(&snes->vec_sol);CHKERRQ(ierr);
+    snes->vec_sol = x;
+    ierr          = SNESGetDM(snes,&dm);CHKERRQ(ierr);
+
+    /* set affine vector if provided */
+    if (b) { ierr = PetscObjectReference((PetscObject)b);CHKERRQ(ierr); }
+    ierr          = VecDestroy(&snes->vec_rhs);CHKERRQ(ierr);
+    snes->vec_rhs = b;
+
+    if (snes->vec_rhs && (snes->vec_func == snes->vec_rhs)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"Right hand side vector cannot be function vector");
+    if (snes->vec_func == snes->vec_sol) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"Solution vector cannot be function vector");
+    if (snes->vec_rhs  == snes->vec_sol) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"Solution vector cannot be right hand side vector");
+    if (!snes->vec_sol_update /* && snes->vec_sol */) {
+      ierr = VecDuplicate(snes->vec_sol,&snes->vec_sol_update);CHKERRQ(ierr);
+      ierr = PetscLogObjectParent((PetscObject)snes,(PetscObject)snes->vec_sol_update);CHKERRQ(ierr);
+    }
+    ierr = DMShellSetGlobalVector(dm,snes->vec_sol);CHKERRQ(ierr);
+    ierr = SNESSetUp(snes);CHKERRQ(ierr);
+
+    if (!grid) {
+      if (snes->ops->computeinitialguess) {
+        ierr = (*snes->ops->computeinitialguess)(snes,snes->vec_sol,snes->initialguessP);CHKERRQ(ierr);
+      }
+    }
+
+    if (snes->conv_hist_reset) snes->conv_hist_len = 0;
+    if (snes->counters_reset) {snes->nfuncs = 0; snes->linear_its = 0; snes->numFailures = 0;}
+
+    ierr = PetscLogEventBegin(SNES_Solve,snes,0,0,0);CHKERRQ(ierr);
+    ierr = (*snes->ops->solve)(snes);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(SNES_Solve,snes,0,0,0);CHKERRQ(ierr);
+    if (!snes->reason) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Internal error, solver returned without setting converged reason");
+    snes->domainerror = PETSC_FALSE; /* clear the flag if it has been set */
+
+    if (snes->lagjac_persist) snes->jac_iter += snes->iter;
+    if (snes->lagpre_persist) snes->pre_iter += snes->iter;
+
+    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)snes),((PetscObject)snes)->options,((PetscObject)snes)->prefix,"-snes_test_local_min",NULL,NULL,&flg);CHKERRQ(ierr);
+    if (flg && !PetscPreLoadingOn) { ierr = SNESTestLocalMin(snes);CHKERRQ(ierr); }
+    ierr = SNESReasonViewFromOptions(snes);CHKERRQ(ierr);
+
+    if (snes->errorifnotconverged && snes->reason < 0) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_NOT_CONVERGED,"SNESSolve has not converged");
+    if (snes->reason < 0) break;
+    if (grid <  snes->gridsequence) {
+      DM  fine;
+      Vec xnew;
+      Mat interp;
+
+      ierr = DMRefine(snes->dm,PetscObjectComm((PetscObject)snes),&fine);CHKERRQ(ierr);
+      if (!fine) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_ARG_INCOMP,"DMRefine() did not perform any refinement, cannot continue grid sequencing");
+      ierr = DMCreateInterpolation(snes->dm,fine,&interp,NULL);CHKERRQ(ierr);
+      ierr = DMCreateGlobalVector(fine,&xnew);CHKERRQ(ierr);
+      ierr = MatInterpolate(interp,x,xnew);CHKERRQ(ierr);
+      ierr = DMInterpolate(snes->dm,interp,fine);CHKERRQ(ierr);
+      ierr = MatDestroy(&interp);CHKERRQ(ierr);
+      x    = xnew;
+
+      ierr = SNESReset(snes);CHKERRQ(ierr);
+      ierr = SNESSetDM(snes,fine);CHKERRQ(ierr);
+      ierr = SNESResetFromOptions(snes);CHKERRQ(ierr);
+      ierr = DMDestroy(&fine);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPopTab(PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)snes)));CHKERRQ(ierr);
+    }
+  }
+  ierr = SNESViewFromOptions(snes,NULL,"-snes_view");CHKERRQ(ierr);
+  ierr = VecViewFromOptions(snes->vec_sol,(PetscObject)snes,"-snes_view_solution");CHKERRQ(ierr);
+  ierr = DMMonitor(snes->dm);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&xcreated);CHKERRQ(ierr);
+  ierr = PetscObjectSAWsBlock((PetscObject)snes);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+#endif
 
 int main(int argc,char **argv)
 {
