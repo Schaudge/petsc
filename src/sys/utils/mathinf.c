@@ -42,7 +42,7 @@ PetscBool PetscIsNormalReal(PetscReal a)
 .     a - the floating point number
 
      Notes:
-    uses the C99 standard fpclassify() on systems where it exists, or isinf().
+    uses the C99 standard fpclassify() on systems where it exists, otherwise uses isinf() if it exists.
       Uses isinfq() with __float128
       Otherwises uses (a && a/2 == a), note that some optimizing compiles compile
       out this form, thus removing the check.
