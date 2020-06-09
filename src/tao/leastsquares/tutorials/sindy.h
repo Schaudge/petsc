@@ -2,6 +2,7 @@
 #define PETSCSINDY_H
 
 #include <petsctao.h>
+#include <petscts.h>
 
 typedef struct _p_Basis* Basis;
 typedef struct _p_SparseReg* SparseReg;

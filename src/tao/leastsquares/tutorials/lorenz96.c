@@ -158,7 +158,7 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   {
     ctx.force = 8;
     ierr = PetscOptionsReal("-force","forcing term","",ctx.force,&ctx.force,NULL);CHKERRQ(ierr);
-    ctx.N = 38;
+    ctx.N = 36;
     ierr = PetscOptionsInt("-N","number of vector components","",ctx.N,&ctx.N,NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);

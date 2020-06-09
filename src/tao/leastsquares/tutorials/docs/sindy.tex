@@ -54,14 +54,21 @@ $p$ with sparse coefficients $\vec{c} \in \real^p$.
 \begin{align}
 b_i \in B = \{\vec{1}, \vec{u}, \vec{x}, t, \vec{u}^2, \vec{u}\vec{x},\vec{u}t,\vec{x}^2,\vec{x}t,t^2,\hdots,\sin\vec{u},\cos{\vec{u}}, \frac{\partial\vec{u}}{\partial \vec{x}},\hdots\}
 \end{align}
-When $d_x \ne 1$ or $d_u \ne 1$, the vector terms in the basis shown above
+This will generally be represented as a linear system with discretized $\vec{U}$
+and $\vec{X}$, with the columns of the matrix $\Theta$ represented basis
+functions evaluated at specific $\vec{X}$ and $t$.
+\begin{equation}
+\frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) c
+\end{equation}
+
+Note that when $d_x \ne 1$ or $d_u \ne 1$, the vector terms in the basis shown above
 aren't mathematically well-defined, but the idea is to include polynomial terms,
 and these can also include polynomial terms of separate components of the
 vector, and cross terms of those components. The functions shown in the basis
 above are just examples; the main idea is that the basis can have any kind of
-functions of $\vec{u}$, $\vec{x}$, and $t$ and cross terms.
+functions of $\vec{u}$, $\vec{x}$, and $t$.
 
-\subsection{Simplest dimensional case, $d_x = 0$ and $d_u = 1$}
+\subsection{Simplest dimensional case, $d_x = 0$ and $d_u = 1$} \label{section:simplest}
 
 To get to a multi-dimensional formulation, I'll start out by describing the case when $d_x = 0$ and $d_u = 1$.
 \begin{align*}
@@ -86,7 +93,7 @@ columns of $\Theta \in \real^{m \times p}$.
 This can be solved for a sparse $\vec{c}$ with a sparse least squares solver. In
 this case the basis functions are functions of the two variables $u$ and $t$.
 
-\subsection{More outputs, $d_x = 0$ and $d_u \ge 1$}
+\subsection{More outputs, $d_x = 0$ and $d_u \ge 1$} \label{section:more-outputs}
 
 When $\vec{u}$ is a vector, each measurement will have $d_u$ values. In this
 case the basis functions can be made of functions of the $d_u+1$ variables
@@ -95,17 +102,17 @@ each output $\frac{du_i}{dt}$, the sparse regression can be performed on each
 output dimension separately. Let $\vec{U_i} \in \real^{m}$ be the measurements
 for output $i$ and $\vec{c_i} \in \real^p$ be the coefficients for output $i$.
 Then we can solve the equation below to find all the coefficients.
-\begin{equation*}
+\begin{equation}\label{eq:same-theta-eqs}
 \frac{d\vec{U_i}}{dt} \approx \Theta \vec{c_i} \,\,\ \text{ for $i \in \{1,2,\hdots,d_u\} $}
-\end{equation*}
+\end{equation}
 
 This can be structured as a single matrix equation by letting $\vec{U_i}$ be the
 columns of the matrix $\vec{U} \in \real^{m \times d_u}$, and $\vec{c_i}$ be the
 columns of the matrix $\vec{c} \in \real^{p \times d_u}$. Then the equation
 becomes the following:
-\begin{equation}
+\begin{equation*}
 \frac{d\vec{U}}{dt} \approx \Theta \vec{c}
-\end{equation}
+\end{equation*}
 This formulation makes each output $u_i$ depend on the same set of basis
 functions, stored in $\Theta$. To write it as a single matrix equation but allow
 each $u_i$ to have a different set of basis functions, a block diagonal
@@ -117,10 +124,10 @@ basis functions. Then the block diagonal matrix $\Theta' \in \real^{md_u \times 
 using $\Theta^{(i)}$ along the diagonal. Then flatten the data $\vec{U}$ into a
 vector $\vec{U'} \in \real^{md_u}$ and flatten the coefficients $\vec{c}$ into a
 vector $\vec{c}' \in \real^{p}$.
-\begin{equation}
+\begin{equation}\label{eq:dx0-dudt-separate-theta}
 \frac{d\vec{U'}}{dt} = 
 \begin{bmatrix}
-\vec{U_1} \\ \vec{U_2} \\ \vdots \\ \vec{U_{d_u}}
+\frac{d\vec{U_1}}{dt} \\ \frac{d\vec{U_2}}{dt} \\ \vdots \\ \frac{d\vec{U_{d_u}}}{dt}
 \end{bmatrix}
 \approx
 \begin{bmatrix}
@@ -130,7 +137,7 @@ vector $\vec{c}' \in \real^{p}$.
 & & & \Theta^{(d_u)} \\
 \end{bmatrix}
 \begin{bmatrix}
-\vec{c_1} \\ \vec{c_2'} \\ \vdots \\ \vec{c_{d_u}}
+\vec{c_1} \\ \vec{c_2} \\ \vdots \\ \vec{c_{d_u}}
 \end{bmatrix}
 = \Theta' \vec{c}'
 \end{equation}
@@ -139,15 +146,90 @@ sparsity on $\vec{c}$, but the desired sparsity is actually on each separate
 $\vec{c_i}$. The problem is that a larger value in $\vec{c_i}$ may make the
 values in $\vec{c_j}$ smaller for some $i$ and $j$. For this reason, it may be
 more beneficial to use a sparse solver on the following separate equations instead:
-\begin{equation*}
+\begin{equation}\label{eq:diff-theta-eqs}
 \frac{d\vec{U_i}}{dt} \approx \Theta^{(i)} \vec{c_i} \,\,\ \text{ for $i \in \{1,2,\hdots,d_u\} $}
-\end{equation*}
+\end{equation}
 
 \subsection{Handling coordinates, $d_x = 1$ and $d_u = 1$}
-TODO
+In this case, we have a scalar function with 1D coordinates $u = u(x,t)$. In
+this case, our measurements will be snapshots of $u(x)$ at different times. Let
+$n$ be the number of slices of the $x$ dimension, and $m$ be the number of
+slices in the $t$ dimension. Let $\vec{U} \in \real^{m \times n}$ be the set of
+data points where each column $\vec{U_j} \in \real^m = u(x_j, t)$ is the value
+of $u$ at $x_j$ fixed time for each different time $t$.
+
+This can be thought of as monitoring $n$ separate outputs similary to the case
+in Section~\ref{section:more-outputs}, but additional structure can be obtained by
+assuming that $u$ is governed by a PDE. In that case, $\frac{du}{dt}(u,x_j,t)$
+will only depend on $x_j$, $u$, and the spatial derivatives of $u$ at $x_j$.
+Thus, the linear system should be set up so that there is no dependence between
+separate $x$ coordinates; each $x_j$ will have a separate basis matrix
+$\Theta^{(j)}(x_j, u(x_j,t)) \in \real^{m \times p}$.
+
+\paragraph{Varying coefficients}
+This can be done in a similar manner as
+Equation~\ref{eq:dx0-dudt-separate-theta}. Note that each point should use the
+same set of basis functions. Let the number of basis functions at each point be
+$p$. The block diagonal matrix $\Theta' \in \real^{mn \times np}$ has
+$\Theta^{(j)}$ along the diagonal. Each point $x_j$ has a coefficient vector
+$\vec{c_j} \in \real^p$
+\begin{equation}
+\frac{d\vec{U'}}{dt} = 
+\begin{bmatrix}
+\frac{d\vec{U_1}}{dt} \\ \frac{d\vec{U_2}}{dt} \\ \vdots \\ \frac{d\vec{U_n}}{dt}
+\end{bmatrix}
+\approx
+\begin{bmatrix}
+\Theta^{(1)} \\
+& \Theta^{(2)} \\
+& & \ddots \\
+& & & \Theta^{(n)} \\
+\end{bmatrix}
+\begin{bmatrix}
+\vec{c_1} \\ \vec{c_2} \\ \vdots \\ \vec{c_{n}}
+\end{bmatrix}
+= \Theta' \vec{c}'
+\end{equation}
+This formulation allows the coefficient vector to vary across space, since each
+point has a separate set of basis coefficients. This formulation is used on
+\cite{shea2020sindy-bvp}. An algorithm like Sequential Grouped Threshold Ridge
+Regression in \cite{shea2020sindy-bvp} can be used to ensure that each $x$
+coordinate uses the same sparsity for the basis functions.
+
+\paragraph{Constant coefficients}
+Alternatively, it may be desirable for the coefficients to not vary across
+space; instead, a single coefficient vector should represent all points. In this
+case, the input data and the matrices can be stacked so that each $x$ position
+is effectively an independent data point. The matrix $\Theta' \in \real^{mn
+\times p}$ can be constructed by stacking $\Theta^{(i)}$ rowwise. The
+data $\vec{U}$ can be stacked into vector $\vec{U'} \in \real^{md_u}$. Each
+point $x_j$ has the same coefficient vector $\vec{c} \in \real^p$
+
+\begin{equation}
+\frac{d\vec{U'}}{dt} = 
+\begin{bmatrix}
+\frac{d\vec{U_1}}{dt} \\ \frac{d\vec{U_2}}{dt} \\ \vdots \\ \frac{d\vec{U_{n}}}{dt}
+\end{bmatrix}
+\approx
+\begin{bmatrix}
+\Theta^{(1)} \\
+\Theta^{(2)} \\
+\vdots \\
+\Theta^{(n)} \\
+\end{bmatrix}
+\vec{c}
+= \Theta' \vec{c}
+\end{equation}
 
 \subsection{Full multi-dimensional case, $d_x \ge 1$ and $d_u \ge 1$}
-TODO
+This simply combines the descriptions of the previous two sections. The $d_x$
+coordinates can be linearized in some manner so that they can be referenced with
+a single index $j$.
+
+Each dimension $i \in \{1,2,\hdots,d_u \}$ can be treated
+separately, either as a separate column as used in
+Equation~\ref{eq:same-theta-eqs} and~\ref{eq:diff-theta-eqs} or as a stack next
+to a block diagonal matrix as used in Equation~\ref{eq:dx0-dudt-separate-theta}.
 
 
 \section{Examples}
@@ -180,7 +262,7 @@ In this example, $d_x = 0$ (no coordinates) and $d_u = 3$. There is no time depe
 
 
 \subsection{lorenz96}
-In this example, $d_x = 0$ (no coordinates) and $d_u = 38$. There is no time dependence.
+In this example, $d_x = 0$ (no coordinates) and $d_u = 36$. There is no time dependence.
 \begin{equation*}
 \frac{dU_i}{dt} = (U_{i+1} - U_{i-2}) U_{i-1} - U_i + F
 \end{equation*}

@@ -1,73 +1,7 @@
-#include <petscts.h>
 #include "sindy.h"
 #include "sindy_pde.h"
 
 static char help[] = "Run SINDy on data generated from a pde.\n";
-
-// PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
-// {
-//   PetscErrorCode ierr;
-//   PetscInt       r;
-//   Mat            J;
-//   TS             ts;
-//   TSAdapt        adapt;
-//   Vec            X;
-//   AppCtx         ctx;
-//   Data           *data;
-
-//   PetscFunctionBegin;
-//   data = &ctx.data;
-//   ierr = MatCreateSeqDense(PETSC_COMM_SELF, ctx.N, ctx.N, NULL, &J);CHKERRQ(ierr);
-//   ierr = VecCreateSeq(PETSC_COMM_SELF,ctx.N,&X);CHKERRQ(ierr);
-//   ierr = DataInitialize(data, X);CHKERRQ(ierr);
-
-//   ierr = TSCreate(PETSC_COMM_SELF, &ts);CHKERRQ(ierr);
-//   ierr = TSSetProblemType(ts, TS_NONLINEAR);CHKERRQ(ierr);
-//   ierr = TSSetType(ts, TSRK);CHKERRQ(ierr);
-//   ierr = TSRKSetType(ts, TSRK5DP);CHKERRQ(ierr);
-//   ierr = TSSetTimeStep(ts, data->dt);CHKERRQ(ierr);
-//   ierr = TSSetMaxSteps(ts, data->steps);CHKERRQ(ierr);
-
-//   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
-
-//   ierr = TSSetRHSFunction(ts, NULL, RHSFunction, &ctx);CHKERRQ(ierr);
-//   ierr = TSSetRHSJacobian(ts, J, J, RHSJacobian, &ctx);CHKERRQ(ierr);
-
-//   ierr = TSSetApplicationContext(ts, (void*)&ctx);CHKERRQ(ierr);
-//   ierr = TSSetPostStep(ts,DataPostStep);CHKERRQ(ierr);
-
-//   ierr = TSGetAdapt(ts,&adapt);CHKERRQ(ierr);
-//   ierr = TSAdaptSetType(adapt,TSADAPTNONE);CHKERRQ(ierr);
-//   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-
-//   ierr = TSSetSolution(ts, X);CHKERRQ(ierr);
-//   ierr = TSSetUp(ts);CHKERRQ(ierr);
-
-//   /* Set initial condition. */
-//   ierr = VecSet(X, 1);CHKERRQ(ierr);
-//   ierr = VecSetValue(X,ctx.N/2,1.01,INSERT_VALUES);CHKERRQ(ierr);
-//   ierr = DataPostStep(ts);CHKERRQ(ierr);
-
-
-//   /* Get x data from running TS. */
-//   ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
-//   ierr = TSSetTimeStep(ts, data->dt);CHKERRQ(ierr);
-//   ierr = TSSetMaxSteps(ts, data->steps-1);CHKERRQ(ierr);
-//   ierr = TSSolve(ts, NULL);CHKERRQ(ierr);
-
-//   /* Get derivative data. */
-//   ierr = DataComputeDerivative(data);CHKERRQ(ierr);
-
-//   /* Write output parameters. */
-//   *N_p = data->N;
-//   *all_x_p = data->all_x;
-//   *all_dx_p = data->all_dx;
-
-//   ierr = TSDestroy(&ts);CHKERRQ(ierr);
-//   ierr = VecDestroy(&X);CHKERRQ(ierr);
-//   ierr = MatDestroy(&J);CHKERRQ(ierr);
-//   PetscFunctionReturn(0);
-// }
 
 int main(int argc, char** argv)
 {

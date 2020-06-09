@@ -121,11 +121,48 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
     /* Get derivative data. */
   ierr = DataComputeDerivative(&user.data);CHKERRQ(ierr);
 
+  PetscScalar ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H),2)*user.q/(user.dy * user.dy);
+  PetscScalar kx = 1./(2*user.dx);
+  PetscScalar ky = -(user.ws/(2*user.H))/(2*user.dy);
+  /* Expected values:
+    fx = kx * (y - user.ws);
+    fy = ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
+
+    du/dx = ky2*(1.0-exp(-t/user.lambda)) * (p[j-1][i] - 2*p[j][i] + p[j+1][i])
+           + fx*(p[j][i+1] - p[j][i-1])
+           + fy*(p[j+1][i] - p[j-1][i]);
+
+
+    du/dx =
+             ky2*(p[j-1][i] - 2*p[j][i] + p[j+1][i])
+           + kx*y*(p[j][i+1] - p[j][i-1]) - kx*user.ws*(p[j][i+1] - p[j][i-1])
+           + ky*user.PM_min*(p[j+1][i] - p[j-1][i]) - ky*user.Pmax*PetscSinScalar(x)*(p[j+1][i] - p[j-1][i])
+  */
+  printf("Expected:\n");
+  printf("lambda: % g\n", user.lambda);
+  printf("exp(-t/lambda)*p[j-1][i]: % g\n", ky2);
+  printf("exp(-t/lambda) * p[j][i]: % g\n", 2 * ky2);
+  printf("exp(-t/lambda)*p[j+1][i]: % g\n", -ky2);
+
+  printf("               p[j-1][i]: % g\n", ky2 - ky*user.PM_min);
+  printf("                 p[j][i]: % g\n", -2 * ky2);
+  printf("               p[j+1][i]: % g\n", ky2 + ky*user.PM_min);
+
+  printf("               p[j][i-1]: % g\n", kx * user.ws);
+  printf("               p[j][i+1]: % g\n", -kx * user.ws);
+
+  printf("             y*p[j][i-1]: % g\n", kx);
+  printf("             y*p[j][i+1]: % g\n", -kx);
+
+  printf("        sin(x)*p[j-1][i]: % g\n", ky*user.Pmax);
+  printf("        sin(x)*p[j+1][i]: % g\n", -ky*user.Pmax);
+  printf("        sin(x)*p[j+1][i]: % g\n", -ky*user.Pmax);
+
+
   /* Write output parameters. */
   *N_p = user.data.N;
   *all_x_p = user.data.all_x;
   *all_dx_p = user.data.all_dx;
-
 
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = MatDestroy(&J);CHKERRQ(ierr);

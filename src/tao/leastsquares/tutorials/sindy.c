@@ -490,7 +490,7 @@ PetscErrorCode SINDyBasisCreateData(Basis basis, Vec* X, PetscInt N)
   basis->data.N = N;
   basis->data.dim = dim;
 
-  basis->monolithic = (basis->cross_term_range == -1);
+  basis->monolithic = basis->cross_term_range == -1;
   if (basis->monolithic) {
     basis->data.B = SINDyCountBases(basis->data.dim, basis->poly_order, basis->sine_order);
     ierr = SINDyBasisCreateData_monolithic(basis);CHKERRQ(ierr);
