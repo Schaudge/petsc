@@ -184,8 +184,9 @@ shared libraries and run with --known-mpi-shared-libraries=1')
     if 'with-mpiexec' in self.argDB:
       self.argDB['with-mpiexec'] = os.path.expanduser(self.argDB['with-mpiexec'])
       if not self.getExecutable(self.argDB['with-mpiexec'], resultName = 'mpiexec'):
-        raise RuntimeError('Invalid mpiexec specified: '+str(self.argDB['with-mpiexec']))
-      self.mpiexec = self.argDB['with-mpiexec']
+        self.argDB['with-mpiexec'] = '"'+self.argDB['with-mpiexec']+'"'
+        if not self.getExecutable(self.argDB['with-mpiexec'], resultName = 'mpiexec'):
+          raise RuntimeError('Invalid mpiexec specified: '+str(self.argDB['with-mpiexec']))
     elif self.isPOE:
       self.mpiexec = os.path.abspath(os.path.join('bin', 'mpiexec.poe'))
     else:

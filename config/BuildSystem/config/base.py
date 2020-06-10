@@ -205,6 +205,17 @@ class Configure(script.Script):
     self.argSubst[name] = arg
     return
 
+  def convertSpacesPath(self,path):
+    '''Converts a path to Cygwin if it has spaces'''
+    if path.find(' ') == -1: return path
+    (output, error, status) = Configure.executeShellCommand('uname -s')
+    if not status and output.lower().strip().find('cygwin') >= 0:
+      (output, error, status) = Configure.executeShellCommand("cygpath -ms '"+path+"'")
+      (output, error, status) = Configure.executeShellCommand("cygpath -u output")
+      return output
+    else:
+      return path.replace(' ','\ ').replace('(','\(').replace(')','\)')
+
   ################
   # Program Checks
   def checkExecutable(self, dir, name):
@@ -229,7 +240,7 @@ class Configure(script.Script):
     if isinstance(names,str) and names.startswith('/'):
       path = os.path.dirname(names)
       names = os.path.basename(names)
-
+ 
     if isinstance(names, str):
       names = [names]
     if isinstance(path, str):
@@ -254,6 +265,7 @@ class Configure(script.Script):
     varName = names[0]
     varPath = ''
     for d in path:
+      d = self.convertSpacesPath(d)
       for name in names:
         name, options, varName = getNames(name, resultName)
         if self.checkExecutable(d, name):
@@ -275,6 +287,7 @@ class Configure(script.Script):
       dirs = self.argDB['with-executables-search-path']
       if not isinstance(dirs, list): dirs = [dirs]
       for d in dirs:
+        d = self.convertSpacesPath(d)
         for name in names:
           name, options, varName = getNames(name, resultName)
           if self.checkExecutable(d, name):
