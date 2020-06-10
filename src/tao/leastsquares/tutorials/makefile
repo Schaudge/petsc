@@ -1,5 +1,5 @@
 -include ../../../../petscdir.mk
-CFLAGS		 += -g 
+CFLAGS		 += -g
 FFLAGS		 = 
 CPPFLAGS         =
 FPPFLAGS         =
@@ -22,7 +22,15 @@ sindy_sine : sindy_sine.o sindy.o
 	$(LINK.F) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
+sindy_sine_variable : sindy_sine_variable.o sindy.o
+	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
 sindy_sine_cosine : sindy_sine_cosine.o sindy.o
+	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
+sindy_sine_cosine_variable : sindy_sine_cosine_variable.o sindy.o
 	$(LINK.F) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
