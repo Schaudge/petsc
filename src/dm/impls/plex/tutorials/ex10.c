@@ -398,24 +398,24 @@ static PetscErrorCode SNESSolve_Ex10(SNES snes,Vec b,Vec x)
 
 
 /* Assign element matrix into global matrix */
-static PetscErrorCode InsertElementMatrices(DM dm,Mat* globalMat,const PetscScalar elementMat[]) {
+static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const PetscScalar elementMat[]) {
   PetscSection lSec,gSec;
-  PetscInt pStart,pEnd,p;
+  PetscInt nDoF,poffset;
+  IS nodeis;
+  const PetscInt* idx;
+  
   PetscErrorCode ierr;
 
    /* We will loop only over points in the local section. But need to insert into the matrix using global indices.*/
   PetscFunctionBegin;
   ierr = DMGetLocalSection(dm,&lSec);CHKERRQ(ierr); /* Maps local mesh points to their DoFs */
   ierr = DMGetGlobalSection(dm,&gSec);CHKERRQ(ierr); /* Maps all mesh points to their DoFs */
-  ierr = PetscSectionGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
-  for(p=pStart; p<pEnd; ++p){
-    PetscInt nNeighbours;
-    PetscInt* neighbours;
-
-    /* Insert the entries of elementMat to the global matrix using the dm topology. */
-    ierr = DMPlexGetClosureIndices(dm,lSec,gSec,p,&nNeighbours,&neighbours,NULL);CHKERRQ(ierr);
-    ierr = MatSetValuesBlocked(*globalMat,nNeighbours,neighbours,nNeighbours,ADD_VALUES);CHKERRQ(ierr);
-  }
+  ierr = PetscSectionGetDof(gSec,p,&nDoF);CHKERRQ(ierr);
+  ierr = PetscSectionGetOffset(gSec,p,&poffset);CHKERRQ(ierr);
+  ierr = ISCreateStride(PETSC_COMM_SELF,nDoF,poffset,1,&nodeis);
+  ierr = ISGetIndices(nodeis, &idx);CHKERRQ(ierr);
+  ierr = MatSetValuesBlocked(*globalMat,nDoF,idx,nDoF,idx,elementMat,ADD_VALUES);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(nodeis, &idx);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
