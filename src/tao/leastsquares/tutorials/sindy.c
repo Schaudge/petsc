@@ -1022,7 +1022,7 @@ static PetscErrorCode SINDyVariableGetDOF(PetscInt d, PetscInt cross_term_range,
   /* Need to extract local DOF d2 from variable var. */
   if(var->type == VECTOR) {
     ierr = VecGetArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
-    if (cross_term_range != -1 && var->dim <= 2*cross_term_range+1) {
+    if (cross_term_range != -1 && 2*cross_term_range+1 <= var->dim) {
       d2 = (d-cross_term_range + d2 + var->dim) % var->dim;
     }
     *val = x[d2];
