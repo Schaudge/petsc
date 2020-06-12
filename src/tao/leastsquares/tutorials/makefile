@@ -1,5 +1,5 @@
 -include ../../../../petscdir.mk
-CFLAGS		 += -g
+CFLAGS		 += -g -Wall -Wextra
 FFLAGS		 = 
 CPPFLAGS         =
 FPPFLAGS         =
@@ -19,29 +19,33 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
 sindy_sine : sindy_sine.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
 sindy_sine_variable : sindy_sine_variable.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
 sindy_sine_cosine : sindy_sine_cosine.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
 sindy_sine_cosine_variable : sindy_sine_cosine_variable.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
+sindy_sine_cosine_grid : sindy_sine_cosine_grid.o sindy.o
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
 lorenz : lorenz.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
 lorenz96 : lorenz96.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
 pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o
-	$(LINK.F) -o $@ $^ $(LDLIBS)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<

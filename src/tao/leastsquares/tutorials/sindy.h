@@ -3,6 +3,7 @@
 
 #include <petsctao.h>
 #include <petscts.h>
+#include <petscdmda.h>
 
 typedef struct _p_Basis* Basis;
 typedef struct _p_SparseReg* SparseReg;

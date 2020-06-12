@@ -141,7 +141,6 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   ierr = TSAdaptSetType(adapt,TSADAPTNONE);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
-
   ierr = TSSetSolution(ts, X);CHKERRQ(ierr);
   ierr = TSSetUp(ts);CHKERRQ(ierr);
 

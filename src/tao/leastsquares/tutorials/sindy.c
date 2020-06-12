@@ -35,9 +35,12 @@ struct _p_Variable {
     PetscScalar* scalar_data;
     Vec*         vec_data;
     DM           dm;
-    PetscInt     N,dim;
+    PetscInt     N,dim,coord_dim;
     VariableType type;
     PetscInt     cross_term_dim;
+    PetscInt     coord_dim_sizes[3];
+    PetscInt     coord_dim_sizes_total;
+    PetscInt     data_size_per_dof;
 };
 
 static PetscInt64 n_choose_k(PetscInt64 n, PetscInt64 k)
@@ -924,6 +927,7 @@ PetscErrorCode SINDyVariableCreate(const char* name, Variable* var_p)
   var->dm          = NULL;
   var->N           = 0;
   var->dim         = 0;
+  var->coord_dim   = 0;
   var->type        = VECTOR;
 
   *var_p = var;
@@ -950,6 +954,12 @@ PetscErrorCode SINDyVariableSetScalarData(Variable var, PetscInt N, PetscScalar*
   var->scalar_data = scalar_data;
   var->type        = SCALAR;
   var->dim         = 1;
+  var->coord_dim   = 1;
+  var->coord_dim_sizes[0] = 1;
+  var->coord_dim_sizes[1] = 1;
+  var->coord_dim_sizes[2] = 1;
+  var->data_size_per_dof = N;
+  var->coord_dim_sizes_total = 1;
   PetscFunctionReturn(0);
 }
 
@@ -964,20 +974,63 @@ PetscErrorCode SINDyVariableSetVecData(Variable var, PetscInt N, Vec* vec_data, 
   var->vec_data = vec_data;
   var->dm       = dm;
   var->type     = VECTOR;
+  var->coord_dim_sizes[0] = 1;
+  var->coord_dim_sizes[1] = 1;
+  var->coord_dim_sizes[2] = 1;
   if (var->N) {
-    ierr = VecGetSize(vec_data[0], &var->dim);CHKERRQ(ierr);
+    if (dm) {
+      // ierr = DMGetDimension(dm, &var->coord_dim);CHKERRQ(ierr);
+      ierr = DMGetCoordinateDim(dm, &var->coord_dim);CHKERRQ(ierr);
+      if (var->coord_dim > 3) {
+        SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Coordinate dimension must be <= 3 but got %d", var->coord_dim);
+      }
+      ierr = DMDAGetDof(dm, &var->dim);CHKERRQ(ierr);
+      ierr = DMDAGetNumCells(dm, &var->coord_dim_sizes[0], &var->coord_dim_sizes[1], &var->coord_dim_sizes[2], &var->coord_dim_sizes_total);CHKERRQ(ierr);
+    } else {
+      var->coord_dim = 1;
+      ierr = VecGetSize(vec_data[0], &var->dim);CHKERRQ(ierr);
+      var->coord_dim_sizes_total = 1;
+    }
   }
+  var->data_size_per_dof = N * var->coord_dim_sizes_total;
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode SINDyBasisValidateVariable(Basis basis, Variable var)
 {
   PetscFunctionBegin;
+  Variable out = basis->data.output_var;
+  if (!out) {
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,"Output variable must be set before calling this function");
+  }
   /* Validate variables size. */
   if (var->N != basis->data.N) {
-    SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,
-            "Inconsistent data size. Expected var to have size %d but found %d",
-            basis->data.N, var->N);
+    SETERRQ3(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,
+            "Inconsistent data size. Expected var \"%s\" to have size %d but found %d",
+            var->name, basis->data.N, var->N);
+  }
+
+  if (var->coord_dim < 1 || var->coord_dim > 3) {
+    SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,
+            "var \"%s\" coord_dim must 1, 2, or 3, but it is %d\n",
+            var->name, var->coord_dim);
+  }
+
+  /* Validate dm. */
+  /* The point is that if the output variable is defined on a coordinate space, then
+     every input that depends on a coordinate space needs to depend on the same
+     coordinate space. */
+  PetscBool is_coord_output = (out->type == VECTOR && out->dm);
+  PetscBool is_coord_input = (var->type == VECTOR && var->dm);
+  if (is_coord_output && is_coord_input && var->dm != out->dm) {
+    SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,
+            "Inconsistent coordinates. DM for var \"%s\" is not the same as for output variable.",var->name);
+  }
+  /* If the output variable isn't defined on a coordinate space, then for now,
+     no inputs should depend on a coordinate space. */
+  if (!is_coord_output && is_coord_input) {
+    SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_SUP,
+            "Inconsistent coordinates. Output doesn't depend on coordinates but var \"%s\" does.",var->name);
   }
   PetscFunctionReturn(0);
 }
@@ -987,15 +1040,14 @@ PETSC_EXTERN PetscErrorCode SINDyBasisSetOutputVariable(Basis basis, Variable va
 
   PetscFunctionBegin;
   if (basis->data.N == -1) basis->data.N = var->N;
-  ierr = SINDyBasisValidateVariable(basis, var);CHKERRQ(ierr);
   basis->data.output_var = var;
+  ierr = SINDyBasisValidateVariable(basis, var);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode SINDyBasisGetLocalDOF(PetscInt d, PetscInt num_vars, Variable* vars, PetscInt* d_p, Variable* var_p)
 {
-  PetscErrorCode  ierr;
-  PetscInt        v;
+  PetscInt v;
 
   PetscFunctionBegin;
   for (v = 0; v < num_vars; v++) {
@@ -1008,25 +1060,49 @@ static PetscErrorCode SINDyBasisGetLocalDOF(PetscInt d, PetscInt num_vars, Varia
   PetscFunctionReturn(0);
 }
 
-/* Extracts DOF d2 from the list of variables for data point n. */
-static PetscErrorCode SINDyVariableGetDOF(PetscInt d, PetscInt cross_term_range, PetscInt num_vars, Variable* vars,
+/* Extracts DOF d2 from the list of variables for data point n, as related to DOF
+   d at coordinate coords in the output variable.*/
+static PetscErrorCode SINDyVariableGetDOF(PetscInt d, PetscInt* coords, PetscInt cross_term_range,
+                                          PetscInt num_vars, Variable* vars,
                                           PetscInt n, PetscInt d2, PetscScalar *val)
 {
   PetscErrorCode  ierr;
   Variable        var;
-  const PetscReal *x;
 
   PetscFunctionBegin;
   ierr = SINDyBasisGetLocalDOF(d2, num_vars, vars, &d2, &var);CHKERRQ(ierr);
 
   /* Need to extract local DOF d2 from variable var. */
   if(var->type == VECTOR) {
-    ierr = VecGetArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
-    if (cross_term_range != -1 && 2*cross_term_range+1 <= var->dim) {
-      d2 = (d-cross_term_range + d2 + var->dim) % var->dim;
+    if (var->dm) {
+      void           *p;
+      PetscInt       i,j,k;
+      i = coords[0]; j = coords[1]; k = coords[2];
+
+      // ierr = VecView(var->vec_data[n], PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
+      ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+      if (var->coord_dim == 1) {
+        *val = ((PetscScalar **) p)[i][d];
+      } else if (var->coord_dim == 2) {
+        *val = ((PetscScalar ***) p)[j][i][d];
+      } else if (var->coord_dim == 3) {
+        *val = ((PetscScalar ****) p)[k][j][i][d];
+      } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"DMDA dimension not 1, 2, or 3, it is %D\n",var->coord_dim);
+      // printf("n: %d, k: %d, j: %d, i: %d, d: %d\n", n, k, j, i, d);
+      // printf("%10s: %p\n", "p[k]", p[k]);
+      // printf("%10s: %p\n", "p[k][j]", p[k][j]);
+      // printf("%10s: %p\n", "p[k][j][i]", p[k][j][i]);
+      // printf("%10s: %g\n", "p[k][j][i][d]", p[k][j][i][d]);
+      ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+    } else {
+      const PetscReal *x;
+      ierr = VecGetArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
+      if (cross_term_range != -1 && 2*cross_term_range+1 <= var->dim) {
+        d2 = (d-cross_term_range + d2 + var->dim) % var->dim;
+      }
+      *val = x[d2];
+      ierr = VecRestoreArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
     }
-    *val = x[d2];
-    ierr = VecRestoreArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
   } else if(var->type == SCALAR) {
     *val = var->scalar_data[n];
   } else {
@@ -1111,11 +1187,13 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
 {
   PetscErrorCode  ierr;
   PetscInt        output_dim,input_dim,cross_term_dim,B;
-  PetscInt        v, n, i, o, d, d2, b;
+  PetscInt        v, n, i, o, d, d2, b, c;
   PetscReal       *Theta_data;
   PetscInt        *poly_terms;
   Mat             Theta;
   PetscScalar     val;
+  PetscInt        coords[3];
+  Variable        out;
 
   PetscFunctionBegin;
   /* Validate variables size. */
@@ -1148,7 +1226,8 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   basis->data.B = SINDyCountBases(cross_term_dim, basis->poly_order, basis->sine_order);
 
   /* Nice short names. */
-  output_dim = basis->data.output_var->dim;
+  out = basis->data.output_var;
+  output_dim = out->dim;
   B = basis->data.B;
 
   /* Allocate basis data. */
@@ -1163,14 +1242,18 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   /* Allocate name data. */
   ierr = PetscMalloc1(B, &basis->data.names);CHKERRQ(ierr);
 
+  /* TODO: For now I will make the coefficients constant across all coordinates. In
+     the future, we can add an option to allow the coefficients to vary across
+     space. This will involve increasing the output_dim to the number of points
+     times the number of outputs per point.*/
   for (d = 0; d < output_dim; d++) {
     /* Create a separate matrix for each output degree of freedom d. */
-    ierr = MatCreateSeqDense(PETSC_COMM_SELF, basis->data.N, B, NULL, &Theta);CHKERRQ(ierr);
+    ierr = MatCreateSeqDense(PETSC_COMM_SELF, out->data_size_per_dof, B, NULL, &Theta);CHKERRQ(ierr);
     basis->data.Thetas[d] = Theta;
     ierr = MatDenseGetArray(Theta, &Theta_data);CHKERRQ(ierr);
 
-    b = 0;
     i = 0;
+    b = 0;
     /* Iterate through all basis functions of every order up to poly_order. */
     /* Result polynomial is product of dimensions poly_terms[o]-1 (if it's not -1). */
     for (o = 0; o <= basis->poly_order; o++) {
@@ -1186,16 +1269,37 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
       }
 
       /* Compute values. */
-      for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
-        Theta_data[i] = 1;
-        for (o = basis->poly_order; o >= 0 ; o--) {
-          d2 = poly_terms[o] - 1;
-          if (d2 >= 0) {
-            SINDyVariableGetDOF(d, basis->cross_term_range, num_vars, vars, n, d2, &val);
-            Theta_data[i] *= val;
+      /* Loop through all output coordinates. */
+      coords[0] = -1;
+      coords[1] = coords[2] = 0;
+      for (c = 0; c < out->coord_dim_sizes_total; c++) {
+        /* Add one to the coordinate. */
+        coords[0]++;
+        for (PetscInt c = 0; c < out->coord_dim-1; c++) {
+          if (coords[c] >= out->coord_dim_sizes[c]) {
+            coords[c] = 0;
+            coords[c+1]++;
+          } else {
+            break;
           }
         }
-        i++;
+        // printf("c: %d  (%d, %d, %d)\n", c, coords[0], coords[1], coords[2]);
+        if (coords[out->coord_dim-1] > out->coord_dim_sizes[out->coord_dim-1]) {
+          // printf("Finished looping through coordinates\n");
+          break;
+        }
+        for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
+          Theta_data[i] = 1;
+          for (o = basis->poly_order; o >= 0 ; o--) {
+            d2 = poly_terms[o] - 1;
+            if (d2 >= 0) {
+              ierr = SINDyVariableGetDOF(d, coords, basis->cross_term_range, num_vars, vars, n, d2, &val);CHKERRQ(ierr);
+              // printf("    c: %d  (%d, %d, %d), d: %d, d2: %d, n: %d, %g\n", c, coords[0], coords[1], coords[2], d, d2, n, val);
+              Theta_data[i] *= val;
+            }
+          }
+          i++;
+        }
       }
 
       /* Add one to the poly_terms data, with carrying. */
@@ -1217,15 +1321,40 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
           ierr = SINDyBasisGenerateNameSine(basis, num_vars, vars, o, d2, &basis->data.names[b], &basis->data.names[b+1]);CHKERRQ(ierr);
         }
         b += 2;
-        for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
-          SINDyVariableGetDOF(d, basis->cross_term_range, num_vars, vars, n, d2, &val);
-          Theta_data[i] = PetscSinReal(o * val);
-          i++;
-          Theta_data[i] = PetscCosReal(o * val);
-          i++;
+        /* Loop through all output coordinates. */
+        coords[0] = -1;
+        coords[1] = coords[2] = 0;
+        for (c = 0; c < out->coord_dim_sizes_total; c++) {
+          /* Add one to the coordinate. */
+          coords[0]++;
+          for (PetscInt c = 0; c < out->coord_dim-1; c++) {
+            if (coords[c] >= out->coord_dim_sizes[c]) {
+              coords[c] = 0;
+              coords[c+1]++;
+            } else {
+              break;
+            }
+          }
+          // printf("c: %d  (%d, %d, %d)\n", c, coords[0], coords[1], coords[2]);
+          if (coords[out->coord_dim-1] > out->coord_dim_sizes[out->coord_dim-1]) {
+            // printf("Finished looping through coordinates\n");
+            break;
+          }
+          for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
+            ierr = SINDyVariableGetDOF(d, coords, basis->cross_term_range, num_vars, vars, n, d2, &val);CHKERRQ(ierr);
+            Theta_data[i] = PetscSinReal(o * val);
+            i++;
+            Theta_data[i] = PetscCosReal(o * val);
+            i++;
+          }
         }
       }
     }
+    if (i != out->data_size_per_dof*B) {
+      SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_COR,"Computed a number basis functions (%d) different than the size of the basis matrix (%d)",
+               i, out->data_size_per_dof*B);
+    }
+
     if (basis->normalize_columns) {
       /* Scale the columns to have the same norm. */
       i = 0;
@@ -1252,6 +1381,8 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
 
     ierr = MatAssemblyBegin(Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    // printf("Theta[%d]:\n", d);
+    // ierr = MatView(Theta, PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
   }
 
   basis->data.max_name_size = 0;
@@ -1275,16 +1406,77 @@ PetscErrorCode SINDyVariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
   PetscFunctionBegin;
   ierr = PetscMalloc1(var->dim, &dim_vecs);CHKERRQ(ierr);
   if (var->type == VECTOR) {
-    for (d = 0; d < var->dim; d++) {
-      ierr = VecCreateSeq(PETSC_COMM_SELF, var->N, &dim_vecs[d]);CHKERRQ(ierr);
-      ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
-      for (i = 0; i < var->N; i++) {
-        ierr = VecGetValues(var->vec_data[i], 1, &d, &dim_data[i]);CHKERRQ(ierr);
+    if (var->dm) {
+      void           *p;
+      PetscInt       id,n,i,j,k;
+
+      // ierr = VecView(var->vec_data[n], PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
+      if (var->coord_dim == 1) {
+        for (d = 0; d < var->dim; d++) {
+          ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
+          ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+          id = 0;
+          for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+            for (n = 0; n < var->N; n++) {
+              ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+              dim_data[id] = ((PetscScalar **) p)[i][d];
+              ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+              id++;
+            }
+          }
+          ierr = VecRestoreArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+        }
+      } else if (var->coord_dim == 2) {
+        for (d = 0; d < var->dim; d++) {
+          ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
+          ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+          id = 0;
+          for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+              for (n = 0; n < var->N; n++) {
+                ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+                dim_data[id] = ((PetscScalar ***) p)[j][i][d];
+                ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+                id++;
+              }
+            }
+          }
+          ierr = VecRestoreArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+          // printf("dim_vecs[%d]:\n", d);
+          // ierr = VecView(dim_vecs[d], PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
+        }
+      } else if (var->coord_dim == 3) {
+        for (d = 0; d < var->dim; d++) {
+          ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
+          ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+          id = 0;
+          for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+              for (k = 0; k < var->coord_dim_sizes[2]; k++) {
+                for (n = 0; n < var->N; n++) {
+                  ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+                  dim_data[id] = ((PetscScalar ****) p)[k][j][i][d];
+                  ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
+                  id++;
+                }
+              }
+            }
+          }
+          ierr = VecRestoreArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+        }
+      } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"DMDA dimension not 1, 2, or 3, it is %D\n",var->coord_dim);
+    } else {
+      for (d = 0; d < var->dim; d++) {
+        ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
+        ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
+        for (i = 0; i < var->N; i++) {
+          ierr = VecGetValues(var->vec_data[i], 1, &d, &dim_data[i]);CHKERRQ(ierr);
+        }
+        ierr = VecRestoreArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
       }
-      ierr = VecRestoreArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
     }
   } else if (var->type == SCALAR) {
-    ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, var->N, var->scalar_data, &dim_vecs[0]);CHKERRQ(ierr);
+    ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, var->data_size_per_dof, var->scalar_data, &dim_vecs[0]);CHKERRQ(ierr);
   } else {
     SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"Invalid var type %d", var->type);
   }
@@ -1316,7 +1508,7 @@ PetscErrorCode SINDyFindSparseCoefficientsVariable(Basis basis, SparseReg sparse
 
   /* Run regression on each dimension of the data. */
   if (sparse_reg->monitor) {
-    PetscPrintf(PETSC_COMM_SELF, "SINDy: dimensions: %d, matrix size: %d x %d\n", output_dim, basis->data.N, basis->data.B);
+    PetscPrintf(PETSC_COMM_SELF, "SINDy: dimensions: %d, matrix size: %d x %d\n", output_dim, basis->data.output_var->data_size_per_dof, basis->data.B);
   }
   for (d = 0; d < output_dim; d++) {
     if (sparse_reg->monitor) {

@@ -294,7 +294,7 @@ PetscErrorCode IFunction(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,void *ctx)
     }
   }
   ierr = DMDAVecRestoreArrayRead(user->da,localX,&p);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArrayRead(user->da,localX,&pdot);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(user->da,localXdot,&pdot);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(user->da,&localXdot);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(user->da,F,&f);CHKERRQ(ierr);
