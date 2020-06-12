@@ -16,6 +16,7 @@ typedef struct {
   PetscScalar t0;
   PetscScalar dx,dy;
   PetscScalar xmin,xmax,ymin,ymax;
+  PetscBool   fd_der;
 } Data;
 
 PetscErrorCode InitialCondition(Data *user, Vec X)
@@ -156,14 +157,15 @@ PetscErrorCode DataInitializeParams(Data* data)
 
   PetscFunctionBegin;
 
-  data->steps  = 10;
-  data->dt     = 0.001;
-  data->t0     = 0;
-  data->xmin   = -1.25; data->xmax = 1.25;
-  data->ymin   = -1.25; data->ymax = 1.25;
-
+  data->steps    = 10;
+  data->dt       = 0.001;
+  data->t0       = 0;
+  data->xmin     = -1.25; data->xmax = 1.25;
+  data->ymin     = -1.25; data->ymax = 1.25;
+  data->fd_der = PETSC_FALSE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"","Data generation options","");CHKERRQ(ierr);
   {
+    ierr = PetscOptionsBool("-fd_der","use finite-difference to estimate derivative","",data->fd_der,&data->fd_der,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-steps","how many timesteps to simulate in each run","",data->steps,&data->steps,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-dt","timestep size","",data->dt,&data->dt,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsScalar("-xmin","coordinates params","",data->xmin,&data->xmin,NULL);CHKERRQ(ierr);
@@ -214,12 +216,19 @@ PetscErrorCode DataPostStep(TS ts)
   ierr = TSGetSolution(ts,&X);CHKERRQ(ierr);
   ierr = VecCopy(X, data->all_x[data->i]);CHKERRQ(ierr);
   ierr = TSGetTime(ts, &data->all_t[data->i]);CHKERRQ(ierr);
-
+  if (!data->fd_der) {
+    PetscReal     t;
+    TSRHSFunction func;
+    void          *ctx;
+    ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+    ierr = TSGetRHSFunction(ts,NULL,&func,&ctx);CHKERRQ(ierr);
+    ierr = func(ts, t, X, data->all_dx[data->i], ctx);CHKERRQ(ierr);
+  }
   data->i++;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DataComputeDerivative(Data* data)
+PetscErrorCode DataComputeDerivative_FD(Data* data)
 {
   PetscErrorCode ierr;
   PetscInt       i,t,r;
@@ -327,7 +336,9 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
     printf("Uh oh: recorded %d data points but expected %d data points\n", data.i, data.N);
   }
 
-  ierr = DataComputeDerivative(&data);CHKERRQ(ierr);
+  if (data.fd_der) {
+    ierr = DataComputeDerivative_FD(&data);CHKERRQ(ierr);
+  }
 
   /* Write output parameters. */
   *N_p = data.N;

@@ -19,7 +19,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
   ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);
   ierr = VecGetArray(F, &f);CHKERRQ(ierr);
   f[0] = -PetscSinReal(x[0]);
-  f[1] = -PetscTanReal(x[1]);
+  f[1] =  PetscCosReal(x[1]);
   ierr = VecRestoreArrayRead(X, &x);CHKERRQ(ierr);
   ierr = VecRestoreArray(F, &f);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -32,8 +32,7 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec X, Mat J, Mat B, void* ctx) {
   PetscFunctionBegin;
   ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);
   ierr = MatSetValue(J, 0, 0, -PetscCosReal(x[0]), INSERT_VALUES);CHKERRQ(ierr);
-
-  ierr = MatSetValue(J, 1, 1, -PetscPowRealInt(1.0/PetscCosReal(x[1]), 2), INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValue(J, 1, 1, -PetscSinReal(x[1]), INSERT_VALUES);CHKERRQ(ierr);
   ierr = MatSetValue(J, 0, 1, 0, INSERT_VALUES);CHKERRQ(ierr);
   ierr = MatSetValue(J, 1, 0, 0, INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(X, &x);CHKERRQ(ierr);
@@ -51,7 +50,7 @@ PetscErrorCode DataInitialize(Data* data, Vec X)
 
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"","Data generation options","");CHKERRQ(ierr);
   {
-    data->steps = 1000;
+    data->steps = 5000;
     ierr = PetscOptionsInt("-steps","how many timesteps to simulate in each run","",data->steps,&data->steps,NULL);CHKERRQ(ierr);
     data->dt = 0.001;
     ierr = PetscOptionsReal("-dt","timestep size","",data->dt,&data->dt,NULL);CHKERRQ(ierr);
@@ -233,18 +232,17 @@ int main(int argc, char** argv) {
   ierr = SINDyVariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
 
   /* Create 5th order polynomial basis, with no sine functions. */
-  ierr = SINDyBasisCreate(3, 0, &basis);CHKERRQ(ierr);
-  ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
+  ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_FALSE);CHKERRQ(ierr);
   ierr = SINDyBasisSetCrossTermRange(basis, 0);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
   Variable vars[] = {v_x, v_t};
   ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
-  ierr = SINDyBasisAddVariables(basis, 2, vars);CHKERRQ(ierr);
-  // ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
+  ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 3);CHKERRQ(ierr);
+  ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
   ierr = SINDySparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
@@ -255,7 +253,6 @@ int main(int argc, char** argv) {
 
   /* Run least squares */
   ierr = SINDyFindSparseCoefficientsVariable(basis, sparse_reg, 2, Xi);CHKERRQ(ierr);
-  // ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 2, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);

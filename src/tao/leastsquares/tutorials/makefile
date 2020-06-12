@@ -18,7 +18,7 @@ include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-sindy_sine : sindy_sine.o sindy.o
+sindy_sine : sindy_sine.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
@@ -26,7 +26,7 @@ sindy_sine_variable : sindy_sine_variable.o sindy.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-sindy_sine_cosine : sindy_sine_cosine.o sindy.o
+sindy_sine_cosine : sindy_sine_cosine.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
@@ -38,11 +38,11 @@ sindy_sine_cosine_grid : sindy_sine_cosine_grid.o sindy.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorenz : lorenz.o sindy.o
+lorenz : lorenz.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorenz96 : lorenz96.o sindy.o
+lorenz96 : lorenz96.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 

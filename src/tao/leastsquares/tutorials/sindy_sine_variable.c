@@ -208,7 +208,7 @@ int main(int argc, char** argv)
   ierr = SINDyVariableSetVecData(v_dx, n, dx, NULL);CHKERRQ(ierr);
 
   /* Create 5th order polynomial basis, with no sine functions. */
-  ierr = SINDyBasisCreate(3, 0, &basis);CHKERRQ(ierr);
+  ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
   ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
