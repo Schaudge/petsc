@@ -68,6 +68,14 @@ vector, and cross terms of those components. The functions shown in the basis
 above are just examples; the main idea is that the basis can have any kind of
 functions of $\vec{u}$, $\vec{x}$, and $t$.
 
+Also note that, as far as the algorithm goes, it does not matter what is on the
+left-hand side. The algorithm does not take advantage of it being a time
+derivative of something. It could be a time derivative (\cite{brunton2016sindy})
+or a spatial derivative (\cite{shea2020sindy-bvp}), or it could just be any
+variable that you want to have a sparse representation for (citation needed).
+Similarly, since the basis functions can be anything, the basis matrix $\Theta$
+could be a function of any variables.
+
 \subsection{Simplest dimensional case, $d_x = 0$ and $d_u = 1$} \label{section:simplest}
 
 To get to a multi-dimensional formulation, I'll start out by describing the case when $d_x = 0$ and $d_u = 1$.
@@ -266,19 +274,23 @@ In this example, $d_x = 2$ (2D coordinates) and $d_u = 2$. There is no time depe
 
 \subsection{lorenz}
 In this example, $d_x = 0$ (no coordinates) and $d_u = 3$. There is no time dependence.
-\begin{equation*}
-\frac{d\vec{U}}{dt} =
+\begin{align*}
+\frac{d\vec{U}}{dt} &=
 \begin{bmatrix}
--\sin(U_1) \\ \cos(U_2)
-\end{bmatrix}
-\end{equation*}
+\sigma(U_2-U_1) \\
+U_1(\rho-U_3)-U_2 \\
+U_1U_2-\beta U_3;
+\end{bmatrix} \\
+\sigma &= 10,\,\, \beta = \frac{8}{3},\,\, \rho = 28
+\end{align*}
 
 
 \subsection{lorenz96}
 In this example, $d_x = 0$ (no coordinates) and $d_u = 36$. There is no time dependence.
-\begin{equation*}
-\frac{dU_i}{dt} = (U_{i+1} - U_{i-2}) U_{i-1} - U_i + F
-\end{equation*}
+\begin{align*}
+\frac{dU_i}{dt} &= (U_{i+1} - U_{i-2}) U_{i-1} - U_i + F \\
+F &= 8
+\end{align*}
 
 \subsection{pde\_power\_grid}
 In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
