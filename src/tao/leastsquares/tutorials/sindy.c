@@ -528,7 +528,7 @@ static PetscErrorCode SINDyVariableGetDOF(PetscInt d, PetscInt* coords, PetscInt
 }
 
 /* Generate name using the given polynomial. */
-static PetscErrorCode SINDyBasisGenerateNamePolynomial(Basis basis, PetscInt num_vars, Variable* vars, PetscInt* poly_terms, char** name_p)
+static PetscErrorCode SINDyBasisGenerateNamePolynomial(Basis basis, PetscInt num_vars, Variable* vars, const PetscInt* poly_terms, char** name_p)
 {
   PetscErrorCode ierr;
   PetscInt       s, name_size, written;
@@ -544,6 +544,10 @@ static PetscErrorCode SINDyBasisGenerateNamePolynomial(Basis basis, PetscInt num
     if (d >= 0) {
       ierr = SINDyBasisGetLocalDOF(d, num_vars, vars, &d, &var);CHKERRQ(ierr);
       name_size += var->name_size + 3 + (int) PetscCeilReal(PetscLog10Real(var->dim+2));
+      if (var->cross_term_dim != var->dim) {
+        d = d + basis->cross_term_range;
+        if (d) name_size += 4 + (int) PetscCeilReal(PetscLog10Real(d+2));
+      }
     }
   }
   if (name_size == 0) name_size++; /* Constant '1'.  */
@@ -556,8 +560,15 @@ static PetscErrorCode SINDyBasisGenerateNamePolynomial(Basis basis, PetscInt num
     d = poly_terms[o] - 1;
     if (d >= 0) {
       ierr = SINDyBasisGetLocalDOF(d, num_vars, vars, &d, &var);CHKERRQ(ierr);
-      if (var->dim == 1) written = sprintf(&name[s], "%s*", var->name);
-      else               written = sprintf(&name[s], "%s[%d]*", var->name, d);
+      if (var->dim == 1) {
+        written = sprintf(&name[s], "%s*", var->name);
+      } else if (var->cross_term_dim == var->dim) {
+        written = sprintf(&name[s], "%s[%d]*", var->name, d);
+      } else {
+        d = d - basis->cross_term_range;
+        if (d) written = sprintf(&name[s], "%s[i%+d]*", var->name, d);
+        else   written = sprintf(&name[s], "%s[i]*", var->name);
+      }
       if (written < 0) SETERRQ(PETSC_COMM_SELF, 1, "sprintf error");
       s += written;
     }
@@ -587,12 +598,28 @@ static PetscErrorCode SINDyBasisGenerateNameSine(Basis basis, PetscInt num_vars,
     ierr = PetscMalloc1(name_size, &cos_name);CHKERRQ(ierr);
     if (sprintf(sin_name, "sin(%d*%s)", order, var->name) < 0) PetscFunctionReturn(1);
     if (sprintf(cos_name, "cos(%d*%s)", order, var->name) < 0) PetscFunctionReturn(1);
-  } else {
+  } else if (var->cross_term_dim == var->dim) {
     name_size += 2 + (int) PetscCeilReal(PetscLog10Real(var->dim+2));
     ierr = PetscMalloc1(name_size, &sin_name);CHKERRQ(ierr);
     ierr = PetscMalloc1(name_size, &cos_name);CHKERRQ(ierr);
     if (sprintf(sin_name, "sin(%d*%s[%d])", order, var->name, d) < 0) PetscFunctionReturn(1);
     if (sprintf(cos_name, "cos(%d*%s[%d])", order, var->name, d) < 0) PetscFunctionReturn(1);
+  } else {
+    d = d - basis->cross_term_range;
+    if (d) {
+      name_size += 4 + (int) PetscCeilReal(PetscLog10Real(PetscAbsInt(d)+2));
+      ierr = PetscMalloc1(name_size, &sin_name);CHKERRQ(ierr);
+      ierr = PetscMalloc1(name_size, &cos_name);CHKERRQ(ierr);
+      if (sprintf(sin_name, "sin(%d*%s[i%+d])", order, var->name, d) < 0) PetscFunctionReturn(1);
+      if (sprintf(cos_name, "cos(%d*%s[i%+d])", order, var->name, d) < 0) PetscFunctionReturn(1);
+    }
+    else {
+      name_size += 3;
+      ierr = PetscMalloc1(name_size, &sin_name);CHKERRQ(ierr);
+      ierr = PetscMalloc1(name_size, &cos_name);CHKERRQ(ierr);
+      if (sprintf(sin_name, "sin(%d*%s[i])", order, var->name) < 0) PetscFunctionReturn(1);
+      if (sprintf(cos_name, "cos(%d*%s[i])", order, var->name) < 0) PetscFunctionReturn(1);
+    }
   }
   *sin_p = sin_name;
   *cos_p = cos_name;
@@ -737,7 +764,7 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
       }
     }
 
-    /* Add trig functions. */
+    /* Add sine. */
     for (d2 = 0; d2 < cross_term_dim; d2++) {
       for (o = 1; o <= basis->sine_order; o++) {
         if (d == 0) {
@@ -758,15 +785,39 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
               break;
             }
           }
-          // printf("c: %d  (%d, %d, %d)\n", c, coords[0], coords[1], coords[2]);
           if (coords[out->coord_dim-1] > out->coord_dim_sizes[out->coord_dim-1]) {
-            // printf("Finished looping through coordinates\n");
             break;
           }
           for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
             ierr = SINDyVariableGetDOF(d, coords, basis->cross_term_range, num_vars, vars, n, d2, &val);CHKERRQ(ierr);
             Theta_data[i] = PetscSinReal(o * val);
             i++;
+          }
+        }
+      }
+    }
+    /* Add cosine. */
+    for (d2 = 0; d2 < cross_term_dim; d2++) {
+      for (o = 1; o <= basis->sine_order; o++) {
+        /* Loop through all output coordinates. */
+        coords[0] = -1;
+        coords[1] = coords[2] = 0;
+        for (c = 0; c < out->coord_dim_sizes_total; c++) {
+          /* Add one to the coordinate. */
+          coords[0]++;
+          for (PetscInt c = 0; c < out->coord_dim-1; c++) {
+            if (coords[c] >= out->coord_dim_sizes[c]) {
+              coords[c] = 0;
+              coords[c+1]++;
+            } else {
+              break;
+            }
+          }
+          if (coords[out->coord_dim-1] > out->coord_dim_sizes[out->coord_dim-1]) {
+            break;
+          }
+          for (n = 0; n < basis->data.N; n++) { /* For each data point n. */
+            ierr = SINDyVariableGetDOF(d, coords, basis->cross_term_range, num_vars, vars, n, d2, &val);CHKERRQ(ierr);
             Theta_data[i] = PetscCosReal(o * val);
             i++;
           }

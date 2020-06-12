@@ -281,22 +281,6 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
   ierr = DMSetMatType(data.da,MATAIJ);CHKERRQ(ierr);
   ierr = DataSetUp(&data, X);CHKERRQ(ierr);
 
-  // printf("dm:\n");
-  // ierr = DMView(data.da, PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
-
-
-  // PetscInt numCellsX;
-  // PetscInt numCellsY;
-  // PetscInt numCellsZ;
-  // PetscInt numCells;
-
-  // ierr = DMDAGetNumCells(data.da, &numCellsX, &numCellsY, &numCellsZ, &numCells);CHKERRQ(ierr);
-  // printf("%15s: %d\n", "numCellsX",numCellsX);
-  // printf("%15s: %d\n", "numCellsY",numCellsY);
-  // printf("%15s: %d\n", "numCellsZ",numCellsZ);
-  // printf("%15s: %d\n", "numCells",numCells);
-  // exit(1);
-
   /* Get Jacobian matrix structure from the da */
   ierr = DMCreateMatrix(data.da,&J);CHKERRQ(ierr);
 
