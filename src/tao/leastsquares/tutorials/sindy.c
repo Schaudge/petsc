@@ -1148,7 +1148,7 @@ PetscErrorCode SINDyBasisPrintVariable(Basis basis, PetscInt output_dim, Vec* Xi
     printf(" %*s", basis->data.max_name_size+1, "");
     for (d = base_d; d < max_d; d++) {
       if (output_dim == 1) printf("   %*s", output_name_size, basis->data.output_var->name);
-      else printf("   %*s[%d]", output_name_size - 2 - (int) PetscCeilReal(PetscLog10Real(output_dim+2)), basis->data.output_var->name, d);
+      else printf("   %*s[%d]", output_name_size - 2 - (int) PetscCeilReal(PetscLog10Real(d+2)), basis->data.output_var->name, d);
     }
     printf("\n");
 

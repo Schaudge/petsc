@@ -253,6 +253,8 @@ In this example, $d_x = 0$ (no coordinates) and $d_u = 1$. There is no time depe
 
 
 \subsection{sindy\_sine\_cosine}
+Note: this example doesn't work yet.
+
 In this example, $d_x = 0$ (no coordinates) and $d_u = 2$. There is no time dependence.
 \begin{equation*}
 \frac{d\vec{U}}{dt} =
@@ -293,6 +295,8 @@ F &= 8
 \end{align*}
 
 \subsection{pde\_power\_grid}
+Note: this example doesn't work yet.
+
 In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
 \begin{align*}
 \frac{dU}{dt} &= - \frac{\partial x_1}{\partial t} \frac{\partial U}{\partial x_1}
@@ -303,7 +307,7 @@ In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
 \\ f(t) &= \left(\frac{\lambda \omega_s}{2H}\right) ^ 2 q (1-e^{-t/\lambda})
 \end{align*}
 
-\section{Implementation}
+\section{Implementation overview}
 
 The basis system is below (copy/pasted from Equation~\ref{eq:basis-system}).
 \begin{equation}
@@ -323,9 +327,9 @@ An implementation requires the following steps:
 I'm using PETSc's \lstinline{TS} for Step 1. I assume a fixed-time step size and
 allocate memory for two arrays of \lstinline{Vec}s to hold $\vec{U}$ and
 $\frac{d\vec{U}}{dt}$. Then in the TS's \lstinline{PostStep}, I record the
-current value of $\vec{U}$. I have an option to either record the exact value of
-the derivative $\frac{d\vec{U}}{dt}$ in the PostStep, or a fourth-order central
-difference approximation after the run is complete.
+current value of $\vec{U}$. I have an option (in some examples) to either record
+the exact value of the derivative $\frac{d\vec{U}}{dt}$ in the PostStep, or a
+fourth-order central difference approximation after the run is complete.
 
 
 \subsection{Basis computation}
@@ -356,6 +360,39 @@ Thresholded Least Squares implemented, with parameters specified in a
 \lstinline{SparseReg} class. More backends could be tested here, and we could
 set sparse regression algorithm as a command-line argument.
 
+\section{Implementation specifics}
+
+\subsection{Cross terms}
+I ran into an issue with the Lorenz 96 system in that it required polynomial
+terms of degree 2, but it contains 36 independent variables. I used
+Equation~\ref{eq:same-theta-eqs} to set up the system, meaning each variable
+uses the same basis matrix.
+
+The basis function generator would originally create basis functions that had
+all the cross terms. In this case, that would lead to $\binom{36 + 2}{2} = 703$
+basis functions. Then the algorithm takes forever to run. In this case, we know
+that only nearby terms will affect each other, so I added a
+\lstinline{cross_term_range} parameter, which I'll call $c$. For output DOF $i$,
+it will only include input DOFs $i-c,i-c+1,\hdots,i,\hdots,i+c$. So there will
+be a total of $d = 2*c+1$ terms included. For $c=2$ reduces the number of basis
+functions from 703 to $\binom{d+2}{2} = \binom{7}{2} = 21$, which is much more
+manageable. Since each output DOF has a different set up of basis functions,
+this required changing from Equation~\ref{eq:same-theta-eqs} to
+Equation~\ref{eq:diff-theta-eqs} to maintain a separate basis matrix for each
+output DOF.
+
+This setup also helps the sine-cosine example. By setting the cross term range
+to 0, there is no intermingling of $U_1$ and $U_2$ in the basis functions.
+
+I have not applied this to examples with coordinates ($d_x \ne 0$) yet.
+
+\subsection{Basis matrix generation}
+
+\lstinline{SINDyBasisAddVariables} sets up the basis matrices. There is a
+separate matrix for each output DOF, so there are $d_u$ matrices to build.
+Each matrix is built by looping through each basis function, and for each basis function,
+looping through each output coordinate and adding all $m$ outputs to the for that coordinate.
+This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} columnwise.
 
 
 \bibliographystyle{unsrt}

@@ -18,15 +18,7 @@ include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-sindy_sine : sindy_sine.o sindy.o sindy_deprecated.o
-	$(LINK.c) -o $@ $^ $(LDLIBS)
-	$(RM) -f $<
-
 sindy_sine_variable : sindy_sine_variable.o sindy.o
-	$(LINK.c) -o $@ $^ $(LDLIBS)
-	$(RM) -f $<
-
-sindy_sine_cosine : sindy_sine_cosine.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
@@ -34,7 +26,24 @@ sindy_sine_cosine_variable : sindy_sine_cosine_variable.o sindy.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
+lorenz96_variable : lorenz96_variable.o sindy.o
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
+lorenz_variable : lorenz_variable.o sindy.o
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
 sindy_sine_cosine_grid : sindy_sine_cosine_grid.o sindy.o
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
+
+sindy_sine : sindy_sine.o sindy.o sindy_deprecated.o
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
+sindy_sine_cosine : sindy_sine_cosine.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
@@ -46,6 +55,6 @@ lorenz96 : lorenz96.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o
+pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
