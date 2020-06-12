@@ -57,7 +57,7 @@ b_i \in B = \{\vec{1}, \vec{u}, \vec{x}, t, \vec{u}^2, \vec{u}\vec{x},\vec{u}t,\
 This will generally be represented as a linear system with discretized $\vec{U}$
 and $\vec{X}$, with the columns of the matrix $\Theta$ represented basis
 functions evaluated at specific $\vec{X}$ and $t$.
-\begin{equation}
+\begin{equation}\label{eq:basis-system}
 \frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) c
 \end{equation}
 
@@ -173,7 +173,7 @@ same set of basis functions. Let the number of basis functions at each point be
 $p$. The block diagonal matrix $\Theta' \in \real^{mn \times np}$ has
 $\Theta^{(j)}$ along the diagonal. Each point $x_j$ has a coefficient vector
 $\vec{c_j} \in \real^p$
-\begin{equation}
+\begin{equation}\label{eq:coord-varying}
 \frac{d\vec{U'}}{dt} = 
 \begin{bmatrix}
 \frac{d\vec{U_1}}{dt} \\ \frac{d\vec{U_2}}{dt} \\ \vdots \\ \frac{d\vec{U_n}}{dt}
@@ -205,7 +205,7 @@ is effectively an independent data point. The matrix $\Theta' \in \real^{mn
 data $\vec{U}$ can be stacked into vector $\vec{U'} \in \real^{md_u}$. Each
 point $x_j$ has the same coefficient vector $\vec{c} \in \real^p$
 
-\begin{equation}
+\begin{equation}\label{eq:coord-const}
 \frac{d\vec{U'}}{dt} = 
 \begin{bmatrix}
 \frac{d\vec{U_1}}{dt} \\ \frac{d\vec{U_2}}{dt} \\ \vdots \\ \frac{d\vec{U_{n}}}{dt}
@@ -224,12 +224,15 @@ point $x_j$ has the same coefficient vector $\vec{c} \in \real^p$
 \subsection{Full multi-dimensional case, $d_x \ge 1$ and $d_u \ge 1$}
 This simply combines the descriptions of the previous two sections. The $d_x$
 coordinates can be linearized in some manner so that they can be referenced with
-a single index $j$.
+a single index $j$. Then Equation~\ref{eq:coord-varying} or~\ref{eq:coord-const}
+can be used with $n$ equal to the total number of coordinate points.
 
-Each dimension $i \in \{1,2,\hdots,d_u \}$ can be treated
-separately, either as a separate column as used in
-Equation~\ref{eq:same-theta-eqs} and~\ref{eq:diff-theta-eqs} or as a stack next
-to a block diagonal matrix as used in Equation~\ref{eq:dx0-dudt-separate-theta}.
+Each dimension $i \in \{1,2,\hdots,d_u \}$ can be treated separately, either as
+a separate column as used in Equation~\ref{eq:same-theta-eqs}
+and~\ref{eq:diff-theta-eqs} or as a stack next to a block diagonal matrix as
+used in Equation~\ref{eq:dx0-dudt-separate-theta}. This yields $d_u$ linear
+systems so that each output dimension has its own independent set of sparse
+coefficients as a solution.
 
 
 \section{Examples}
@@ -287,6 +290,59 @@ In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
 \\ \frac{\partial x_2}{\partial t} &= \frac{\omega_s}{2H}(P_m - P_{max}\sin(x_1))
 \\ f(t) &= \left(\frac{\lambda \omega_s}{2H}\right) ^ 2 q (1-e^{-t/\lambda})
 \end{align*}
+
+\section{Implementation}
+
+The basis system is below (copy/pasted from Equation~\ref{eq:basis-system}).
+\begin{equation}
+\frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) c
+\end{equation}
+An implementation requires the following steps:
+\begin{enumerate}
+    \item Compute the input data $\vec{U}$ (at coordinates $\vec{X}$ and times $t$). This could be data read from a file or generated with a timestepper.
+    \item Compute the left-hand side $\frac{d\vec{U}}{dt}$. This can be computed with finite differences or similar methods.
+    \item Compute the basis $\Theta$, which requires choosing basis functions.
+    \item Compute the coefficients $\vec{c}$. This can be done with any sparse regression algorithm.
+    \item Use $\vec{c}$ and the basis functions to generate $\frac{d\vec{U}}{dt}$ at the same data points or at new data points. (I have not done this yet).
+\end{enumerate}
+
+\subsection{Data generation}
+
+I'm using PETSc's \lstinline{TS} for Step 1. I assume a fixed-time step size and
+allocate memory for two arrays of \lstinline{Vec}s to hold $\vec{U}$ and
+$\frac{d\vec{U}}{dt}$. Then in the TS's \lstinline{PostStep}, I record the
+current value of $\vec{U}$. I have an option to either record the exact value of
+the derivative $\frac{d\vec{U}}{dt}$ in the PostStep, or a fourth-order central
+difference approximation after the run is complete.
+
+
+\subsection{Basis computation}
+
+In order for the code to work with different $d_u$ and $d_x$, the computation of
+the basis needs to be flexible in how it reads the input data. The data
+for a particle moving around might be stored in a 1D \lstinline{Vec} or a
+\lstinline{PetscScalar} array, while the data for a PDE may be stored in a
+\lstinline{Vec} with a \lstinline{DMDA}. To abstract away the data access
+details, I set up a \lstinline{Variable} class. An instance of the class tracks
+its data and knows how to access it properly. It also tracks its name for nice
+printouts.
+
+From the user perspective, computing the basis simply requires defining the variables
+that will be present in the basis.
+
+When the user passes these variables off to the backend, they are used to
+generate the basis matrix $\Theta$.
+I currently have the basis matrix set up as $d_u$ matrices as is shown in Equation~\ref{eq:diff-theta-eqs}, where
+each of those matrices is constant across space, as is done in Equation~\ref{eq:coord-const}.
+
+
+\subsection{Coefficient computation}
+
+The previous step computes $\Theta$, so all this step needs to do is run a
+sparse regression and return the results. I currently have Sequential
+Thresholded Least Squares implemented, with parameters specified in a
+\lstinline{SparseReg} class. More backends could be tested here, and we could
+set sparse regression algorithm as a command-line argument.
 
 
 

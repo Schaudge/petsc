@@ -764,13 +764,13 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
       }
     }
 
-    /* Add sine. */
+    /* Add trig functions. */
     for (d2 = 0; d2 < cross_term_dim; d2++) {
       for (o = 1; o <= basis->sine_order; o++) {
         if (d == 0) {
           ierr = SINDyBasisGenerateNameSine(basis, num_vars, vars, o, d2, &basis->data.names[b], &basis->data.names[b+1]);CHKERRQ(ierr);
+          b += 2;
         }
-        b += 2;
         /* Loop through all output coordinates. */
         coords[0] = -1;
         coords[1] = coords[2] = 0;
@@ -794,11 +794,6 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
             i++;
           }
         }
-      }
-    }
-    /* Add cosine. */
-    for (d2 = 0; d2 < cross_term_dim; d2++) {
-      for (o = 1; o <= basis->sine_order; o++) {
         /* Loop through all output coordinates. */
         coords[0] = -1;
         coords[1] = coords[2] = 0;

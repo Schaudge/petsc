@@ -8,6 +8,7 @@ typedef struct {
   PetscReal dt;
   Vec       *all_x,*all_dx;
   PetscReal *all_t;
+  PetscBool fd_der;
 } Data;
 
 PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
@@ -19,7 +20,7 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx) {
   ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);
   ierr = VecGetArray(F, &f);CHKERRQ(ierr);
   f[0] = -PetscSinReal(x[0]);
-  f[1] =  PetscCosReal(x[1]);
+  f[1] = PetscCosReal(x[1]);
   ierr = VecRestoreArrayRead(X, &x);CHKERRQ(ierr);
   ierr = VecRestoreArray(F, &f);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -48,11 +49,13 @@ PetscErrorCode DataInitialize(Data* data, Vec X)
 
   PetscFunctionBegin;
 
+  data->steps  = 5000;
+  data->dt     = 0.001;
+  data->fd_der = PETSC_FALSE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"","Data generation options","");CHKERRQ(ierr);
   {
-    data->steps = 5000;
+    ierr = PetscOptionsBool("-fd_der","use finite-difference to estimate derivative","",data->fd_der,&data->fd_der,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-steps","how many timesteps to simulate in each run","",data->steps,&data->steps,NULL);CHKERRQ(ierr);
-    data->dt = 0.001;
     ierr = PetscOptionsReal("-dt","timestep size","",data->dt,&data->dt,NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
@@ -83,12 +86,19 @@ PetscErrorCode DataPostStep(TS ts)
   ierr = TSGetSolution(ts,&X);CHKERRQ(ierr);
   ierr = VecCopy(X, data->all_x[data->i]);CHKERRQ(ierr);
   ierr = TSGetTime(ts, &data->all_t[data->i]);CHKERRQ(ierr);
-
+  if (!data->fd_der) {
+    PetscReal     t;
+    TSRHSFunction func;
+    void          *ctx;
+    ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+    ierr = TSGetRHSFunction(ts,NULL,&func,&ctx);CHKERRQ(ierr);
+    ierr = func(ts, t, X, data->all_dx[data->i], ctx);CHKERRQ(ierr);
+  }
   data->i++;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DataComputeDerivative(Data* data)
+PetscErrorCode DataComputeDerivative_FD(Data* data)
 {
   PetscErrorCode ierr;
   PetscInt       i,t,r;
@@ -180,7 +190,9 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
     printf("Uh oh: recorded %d data points but expected %d data points\n", data.i, data.N);
   }
 
-  ierr = DataComputeDerivative(&data);CHKERRQ(ierr);
+  if (data.fd_der) {
+    ierr = DataComputeDerivative_FD(&data);CHKERRQ(ierr);
+  }
 
   /* Write output parameters. */
   *N_p = data.N;
@@ -237,7 +249,6 @@ int main(int argc, char** argv) {
   ierr = SINDyBasisSetCrossTermRange(basis, 0);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
-  Variable vars[] = {v_x, v_t};
   ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
   ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
 
