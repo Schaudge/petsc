@@ -253,8 +253,6 @@ In this example, $d_x = 0$ (no coordinates) and $d_u = 1$. There is no time depe
 
 
 \subsection{sindy\_sine\_cosine}
-Note: this example doesn't work yet.
-
 In this example, $d_x = 0$ (no coordinates) and $d_u = 2$. There is no time dependence.
 \begin{equation*}
 \frac{d\vec{U}}{dt} =
@@ -384,7 +382,9 @@ output DOF.
 This setup also helps the sine-cosine example. By setting the cross term range
 to 0, there is no intermingling of $U_1$ and $U_2$ in the basis functions.
 
-I have not applied this to examples with coordinates ($d_x \ne 0$) yet.
+For examples with coordinates ($d_x \ne 0$), the cross term range currently only
+applies to DOFs within a point. I.e., for a point's output DOF $i$, it will only
+include input DOFs $i-c,i-c+1,\hdots,i,\hdots,i+c$ at that point.
 
 \subsection{Basis matrix generation}
 

@@ -397,7 +397,7 @@ PetscErrorCode SINDyVariablePrint(Variable var)
       ierr = VecGetSize(var->vec_data[n], &vec_size);CHKERRQ(ierr);
       ierr = PetscPrintf(PETSC_COMM_SELF, "  %3d:    ", n);CHKERRQ(ierr);
       for (i = 0; i < vec_size; i++) {
-        ierr = PetscPrintf(PETSC_COMM_SELF, "% -10.6g", x[i]);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF, "% -12.6g", x[i]);CHKERRQ(ierr);
       }
       ierr = PetscPrintf(PETSC_COMM_SELF, "\n");CHKERRQ(ierr);
       ierr = VecRestoreArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
@@ -408,7 +408,7 @@ PetscErrorCode SINDyVariablePrint(Variable var)
   } else if (var->type == SCALAR) {
     ierr = PetscPrintf(PETSC_COMM_SELF, "scalar\n");CHKERRQ(ierr);
     for (n = 0; n < var->N; n++) {
-      ierr = PetscPrintf(PETSC_COMM_SELF, "%3d: % -10.6g\n", n, var->scalar_data[n]);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF, "%3d: % -12.6g\n", n, var->scalar_data[n]);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -501,13 +501,16 @@ static PetscErrorCode SINDyVariableGetDOF(PetscInt d, PetscInt* coords, PetscInt
       PetscInt       i,j,k;
       i = coords[0]; j = coords[1]; k = coords[2];
 
+      if (cross_term_range != -1 && 2*cross_term_range+1 <= var->dim) {
+        d2 = (d-cross_term_range + d2 + var->dim) % var->dim;
+      }
       ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
       if (var->coord_dim == 1) {
-        *val = ((PetscScalar **) p)[i][d];
+        *val = ((PetscScalar **) p)[i][d2];
       } else if (var->coord_dim == 2) {
-        *val = ((PetscScalar ***) p)[j][i][d];
+        *val = ((PetscScalar ***) p)[j][i][d2];
       } else if (var->coord_dim == 3) {
-        *val = ((PetscScalar ****) p)[k][j][i][d];
+        *val = ((PetscScalar ****) p)[k][j][i][d2];
       } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"DMDA dimension not 1, 2, or 3, it is %D\n",var->coord_dim);
       ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
     } else {
@@ -883,6 +886,7 @@ PetscErrorCode SINDyVariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
       void           *p;
       PetscInt       id,n,i,j,k;
 
+      /* Warning: it's very important that these extract the data in the same order that SINDyBasisAddVariables does. */
       if (var->coord_dim == 1) {
         for (d = 0; d < var->dim; d++) {
           ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
@@ -903,8 +907,8 @@ PetscErrorCode SINDyVariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
           ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
           ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
           id = 0;
-          for (i = 0; i < var->coord_dim_sizes[0]; i++) {
-            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+          for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+            for (i = 0; i < var->coord_dim_sizes[0]; i++) {
               for (n = 0; n < var->N; n++) {
                 ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
                 dim_data[id] = ((PetscScalar ***) p)[j][i][d];
@@ -920,9 +924,9 @@ PetscErrorCode SINDyVariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
           ierr = VecCreateSeq(PETSC_COMM_SELF, var->data_size_per_dof, &dim_vecs[d]);CHKERRQ(ierr);
           ierr = VecGetArray(dim_vecs[d], &dim_data);CHKERRQ(ierr);
           id = 0;
-          for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+          for (k = 0; k < var->coord_dim_sizes[2]; k++) {
             for (j = 0; j < var->coord_dim_sizes[1]; j++) {
-              for (k = 0; k < var->coord_dim_sizes[2]; k++) {
+              for (i = 0; i < var->coord_dim_sizes[0]; i++) {
                 for (n = 0; n < var->N; n++) {
                   ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&p);CHKERRQ(ierr);
                   dim_data[id] = ((PetscScalar ****) p)[k][j][i][d];

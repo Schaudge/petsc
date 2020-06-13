@@ -38,6 +38,10 @@ sindy_sine_cosine_grid : sindy_sine_cosine_grid.o sindy.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
+pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
 
 sindy_sine : sindy_sine.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
@@ -52,9 +56,5 @@ lorenz : lorenz.o sindy.o sindy_deprecated.o
 	$(RM) -f $<
 
 lorenz96 : lorenz96.o sindy.o sindy_deprecated.o
-	$(LINK.c) -o $@ $^ $(LDLIBS)
-	$(RM) -f $<
-
-pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o sindy_deprecated.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<

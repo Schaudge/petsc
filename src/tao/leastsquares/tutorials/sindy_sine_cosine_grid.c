@@ -81,8 +81,8 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx)
   for (i=xs; i < xs+xm; i++) {
     for (j=ys; j < ys+ym; j++) {
       f[j][i].u = -PetscSinReal(p[j][i].u);
-      f[j][i].v =  -PetscTanReal(p[j][i].v);
-      // f[j][i].v =  PetscCosReal(p[j][i].v);
+      // f[j][i].v =  -PetscTanReal(p[j][i].v);
+      f[j][i].v =  PetscCosReal(p[j][i].v);
     }
   }
   ierr = DMDAVecRestoreArrayRead(user->da,localX,&p);CHKERRQ(ierr);
@@ -121,21 +121,13 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec X, Mat J, Mat Jpre, void* ctx
     for (j=ys; j < ys+ym; j++) {
       PetscInt nc = 0;
       row.i = i; row.j = j; row.c = 0;
-      // col[nc].i = i-1; col[nc].j = j;   col[nc].c = 0; val[nc++] = 0;
-      // col[nc].i = i+1; col[nc].j = j;   col[nc].c = 0; val[nc++] = 0;
-      // col[nc].i = i;   col[nc].j = j-1; col[nc].c = 0; val[nc++] = 0;
-      // col[nc].i = i;   col[nc].j = j+1; col[nc].c = 0; val[nc++] = 0;
       col[nc].i = i;   col[nc].j = j;   col[nc].c = 0; val[nc++] = -PetscCosReal(p[j][i].u);
       ierr = MatSetValuesStencil(Jpre,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
 
       nc = 0;
       row.i = i; row.j = j; row.c = 1;
-      // col[nc].i = i-1; col[nc].j = j;   col[nc].c = 1; val[nc++] = 0;
-      // col[nc].i = i+1; col[nc].j = j;   col[nc].c = 1; val[nc++] = 0;
-      // col[nc].i = i;   col[nc].j = j-1; col[nc].c = 1; val[nc++] = 0;
-      // col[nc].i = i;   col[nc].j = j+1; col[nc].c = 1; val[nc++] = 0;
-      // col[nc].i = i;   col[nc].j = j;   col[nc].c = 1; val[nc++] = -PetscSinReal(p[j][i].v);
-      col[nc].i = i;   col[nc].j = j;   col[nc].c = 1; val[nc++] = -PetscPowRealInt(1.0/PetscCosReal(p[j][i].v), 2);
+      col[nc].i = i;   col[nc].j = j;   col[nc].c = 1; val[nc++] = -PetscSinReal(p[j][i].v);
+      // col[nc].i = i;   col[nc].j = j;   col[nc].c = 1; val[nc++] = -PetscPowRealInt(1.0/PetscCosReal(p[j][i].v), 2);
       ierr = MatSetValuesStencil(Jpre,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -381,12 +373,8 @@ int main(int argc, char** argv) {
   ierr = SINDyBasisSetCrossTermRange(basis, 0);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
-  // Variable vars[] = {v_x, v_t};
-  Variable vars[] = {v_x, v_dx};
   ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
-  // ierr = SINDyBasisAddVariables(basis, 2, vars);CHKERRQ(ierr);
-  ierr = SINDyBasisAddVariables(basis, 1, &v_dx);CHKERRQ(ierr);
-  // ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
+  ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
   ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
@@ -400,7 +388,6 @@ int main(int argc, char** argv) {
 
   /* Run least squares */
   ierr = SINDyFindSparseCoefficientsVariable(basis, sparse_reg, 2, Xi);CHKERRQ(ierr);
-  // ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 2, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);

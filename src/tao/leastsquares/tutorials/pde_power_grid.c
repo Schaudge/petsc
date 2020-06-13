@@ -16,6 +16,8 @@ typedef struct {
   PetscInt  runs,steps,N,i;
   PetscReal dt;
   Vec       *all_x,*all_dx;
+  PetscReal *all_t;
+  PetscBool fd_der;
 } Data;
 
 
@@ -56,11 +58,9 @@ PetscErrorCode ini_bou(Vec,AppCtx*);
 PetscErrorCode IFunction(TS,PetscReal,Vec,Vec,Vec,void*);
 PetscErrorCode IJacobian(TS,PetscReal,Vec,Vec,PetscReal,Mat,Mat,void*);
 PetscErrorCode PostStep(TS);
-PetscErrorCode DataPostStep(Data*);
-PetscErrorCode DataRecordVector(Data*, Vec);
-PetscErrorCode DataComputeDerivative(Data*);
+PetscErrorCode DataComputeDerivative_FD(Data*);
 
-PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
+PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal** all_t_p, DM* dm_p)
 {
   PetscErrorCode ierr;
   Vec            x;  /* Solution vector */
@@ -95,7 +95,9 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   user.data.i = 0;
   ierr = VecDuplicateVecs(x, user.data.N, &user.data.all_x);CHKERRQ(ierr);
   ierr = VecDuplicateVecs(x, user.data.N, &user.data.all_dx);CHKERRQ(ierr);
-  ierr = DataRecordVector(&user.data, x);CHKERRQ(ierr);
+  ierr = PetscMalloc1(user.data.N, &user.data.all_t);
+  user.data.fd_der = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(NULL,NULL,"-fd_der",&user.data.fd_der,NULL);CHKERRQ(ierr);
 
   /* Get Jacobian matrix structure from the da */
   ierr = DMSetMatType(user.da,MATAIJ);CHKERRQ(ierr);
@@ -111,15 +113,23 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   ierr = TSSetTime(ts,user.t0);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,user.dt);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
+
   ierr = TSSetPostStep(ts,PostStep);CHKERRQ(ierr);
-  ierr = TSSolve(ts,x);CHKERRQ(ierr);
+  ierr = TSSetSolution(ts, x);CHKERRQ(ierr);
+  ierr = TSSetUp(ts);CHKERRQ(ierr);
+
+  /* Record initial values and then run. */
+  ierr = PostStep(ts);CHKERRQ(ierr);
+  ierr = TSSolve(ts,NULL);CHKERRQ(ierr);
 
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"fin_x",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(x,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-    /* Get derivative data. */
-  ierr = DataComputeDerivative(&user.data);CHKERRQ(ierr);
+  /* Get derivative data. */
+  if (user.data.fd_der) {
+    ierr = DataComputeDerivative_FD(&user.data);CHKERRQ(ierr);
+  }
 
   PetscScalar ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H),2)*user.q/(user.dy * user.dy);
   PetscScalar kx = 1./(2*user.dx);
@@ -163,31 +173,65 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   *N_p = user.data.N;
   *all_x_p = user.data.all_x;
   *all_dx_p = user.data.all_dx;
+  *all_t_p = user.data.all_t;
+  *dm_p = user.da;
 
   ierr = VecDestroy(&x);CHKERRQ(ierr);
   ierr = MatDestroy(&J);CHKERRQ(ierr);
-  ierr = DMDestroy(&user.da);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   return ierr;
 }
 
-PetscErrorCode DataRecordVector(Data* data, Vec X)
+PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr;
+  AppCtx         *user=(AppCtx*)ctx;
+  DM             cda;
+  DMDACoor2d     **coors;
+  PetscScalar    **p,**f;
+  PetscInt       i,j;
+  PetscInt       xs,ys,xm,ym,M,N;
+  Vec            localX,gc;
+  PetscScalar    p_adv1,p_adv2,p_diff;
 
-  PetscFunctionBegin;
-  if (data->i == data->N) {
-    // SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Cannot record more than %d vectors.",data->N);
-    printf("Cannot record more than %d vectors. Currently at %d.\n", data->N, data->i);
-    data->i++;
-    return 0;
+  PetscFunctionBeginUser;
+  ierr = DMDAGetInfo(user->da,NULL,&M,&N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(user->da,&cda);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(cda,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(user->da,&localX);CHKERRQ(ierr);
+
+  ierr = DMGlobalToLocalBegin(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+
+  ierr = DMGetCoordinatesLocal(user->da,&gc);CHKERRQ(ierr);
+
+  ierr = DMDAVecGetArrayRead(cda,gc,&coors);CHKERRQ(ierr);
+  ierr = DMDAVecGetArrayRead(user->da,localX,&p);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(user->da,F,&f);CHKERRQ(ierr);
+
+  user->disper_coe = PetscPowScalar((user->lambda*user->ws)/(2*user->H),2)*user->q*(1.0-PetscExpScalar(-t/user->lambda));
+  for (i=xs; i < xs+xm; i++) {
+    for (j=ys; j < ys+ym; j++) {
+      if (i == 0 || j == 0 || i == M-1 || j == N-1) {
+        ierr = BoundaryConditions(p,coors,i,j,M,N,f,user);CHKERRQ(ierr);
+      } else {
+        ierr = adv1(p,coors[j][i].y,i,j,M,&p_adv1,user);CHKERRQ(ierr);
+        ierr = adv2(p,coors[j][i].x,i,j,N,&p_adv2,user);CHKERRQ(ierr);
+        ierr = diffuse(p,i,j,t,&p_diff,user);CHKERRQ(ierr);
+        f[j][i] = -p_adv1 - p_adv2 + p_diff;
+      }
+    }
   }
-  ierr = VecCopy(X, data->all_x[data->i]);CHKERRQ(ierr);
-  data->i++;
+  ierr = DMDAVecRestoreArrayRead(user->da,localX,&p);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(user->da,&localX);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(user->da,F,&f);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArrayRead(cda,gc,&coors);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DataComputeDerivative(Data* data)
+PetscErrorCode DataComputeDerivative_FD(Data* data)
 {
   PetscErrorCode ierr;
   PetscInt       i,t,r;
@@ -221,8 +265,9 @@ PetscErrorCode PostStep(TS ts)
   PetscErrorCode ierr;
   Vec            X;
   AppCtx         *user;
-  PetscScalar    sum;
-  PetscReal      t;
+  // PetscScalar    sum;
+  // PetscReal      t;
+  Data           *data;
 
   PetscFunctionBegin;
   ierr = TSGetApplicationContext(ts,&user);CHKERRQ(ierr);
@@ -230,7 +275,21 @@ PetscErrorCode PostStep(TS ts)
   // ierr = VecSum(X,&sum);CHKERRQ(ierr);
   // ierr = TSGetTime(ts,&t);CHKERRQ(ierr);
   // ierr = PetscPrintf(PETSC_COMM_WORLD,"sum(p)*dw*dtheta at t = %3.2f = %3.6f\n",(double)t,(double)sum*user->dx*user->dy);CHKERRQ(ierr);
-  ierr = DataRecordVector(&user->data, X);CHKERRQ(ierr);
+  data = &user->data;
+  if (data->i == data->N) {
+    // SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_ARG_SIZ,"Cannot record more than %d vectors.",data->N);
+    printf("Cannot record more than %d vectors. Currently at %d.\n", data->N, data->i);
+    data->i++;
+    return 0;
+  }
+  ierr = VecCopy(X, data->all_x[data->i]);CHKERRQ(ierr);
+  ierr = TSGetTime(ts, &data->all_t[data->i]);CHKERRQ(ierr);
+  if (!data->fd_der) {
+    PetscReal     t;
+    ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+    ierr = RHSFunction(ts, t, X, data->all_dx[data->i], user);CHKERRQ(ierr);
+  }
+  data->i++;
   PetscFunctionReturn(0);
 }
 
