@@ -159,7 +159,6 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
     mpiexec -np 1 ex4 -da_grid_x 40 -initial 5 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 5.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
 */
 
-
 #include <petscts.h>
 #include <petscdm.h>
 #include <petscdmda.h>
@@ -2549,10 +2548,15 @@ PetscErrorCode FVRHSFunctionslowbuffer_2WaySplit(TS ts,PetscReal time,Vec X,Vec 
   ierr = DMDAGetArray(da,PETSC_TRUE,&slope);CHKERRQ(ierr);
   ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
 <<<<<<< HEAD
+<<<<<<< HEAD
   ierr = PetscMalloc4(dof,&r,dof,&min,dof,&alpha,dof,&gamma);CHKERRQ(ierr);
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
+=======
+  ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD); 
+  ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD); 
+>>>>>>> Minor edits
 
   if (ctx->bctype == FVBC_OUTFLOW) {
     for (i=xs-2; i<0; i++) {
