@@ -198,15 +198,16 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
 
   PetscFunctionBeginUser;
   /* Positivity preserving modification*/
-  if (L.h < tol) L.u = tol; 
-  if (R.h < tol) R.u = tol; 
+  if (L.h < tol) L.u = 0.0; 
+  if (R.h < tol) R.u = 0.0; 
 
-  /*simple pos preserv limiter */ 
+  /*simple pos preserve limiter*/
   if (L.h < 0) L.h=0; 
   if (R.h < 0) R.h=0; 
 
   ShallowFlux(phys,uL,fL);
   ShallowFlux(phys,uR,fR);
+
   s         = PetscMax(PetscAbs(L.u)+PetscSqrtScalar(g*L.h),PetscAbs(R.u)+PetscSqrtScalar(g*R.h));
   flux[0]   = 0.5*(fL[0] + fR[0]) + 0.5*s*(L.h - R.h);
   flux[1]   = 0.5*(fL[1] + fR[1]) + 0.5*s*(uL[1] - uR[1]);
@@ -234,7 +235,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
   PetscFunctionBeginUser;
   c         = PetscSqrtScalar(u[0]*phys->gravity);
 
-  if (u[0] < tol) {
+  if (u[0] < tol) { /*Use conservative variables*/
   X[0*2+0]  = 1;
   X[0*2+1]  = 0;
   X[1*2+0]  = 0;
@@ -295,6 +296,69 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
   PetscFunctionReturn(0);
 }
 
+/* Implements inflow conditions for the given initial conditions. Which ones are actually active depends on 
+   the results PhysicsSetInflowType_Shallow. It only makes physical sense for two total conditions be active 
+   at any one time. */
+static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,PetscReal *u)
+{
+  FVCtx          *ctx = (FVCtx*)vctx;
+  PetscFunctionBeginUser;
+  if (ctx->bctype == FVBC_INFLOW){
+    switch (ctx->initial) {
+      case 0:
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break; 
+      case 1:
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break; 
+      case 2: 
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break; 
+      case 3: 
+        u[0] = 0; u[1] = 1.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = -1.0; /* Right boundary conditions */
+        break; 
+      default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
+{
+  switch (ctx->initial) {
+      case 0: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break; 
+      case 1: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break; 
+      case 2: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break; 
+      case 3: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break;
+      default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+    }
+  PetscFunctionReturn(0); 
+}
+
 static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
 {
   PetscErrorCode    ierr;
@@ -305,11 +369,15 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   ctx->physics2.sample2         = PhysicsSample_Shallow;
+  ctx->physics2.inflow          = PhysicsInflow_Shallow;  
   ctx->physics2.destroy         = PhysicsDestroy_SimpleFree;
   ctx->physics2.riemann2        = PhysicsRiemann_Shallow_Rusanov; 
   ctx->physics2.characteristic2 = PhysicsCharacteristic_Shallow; 
   ctx->physics2.user            = user;
   ctx->physics2.dof             = 2;
+
+  PetscMalloc1(2*(ctx->physics2.dof),&ctx->physics2.bcinflowindex);
+  PhysicsSetInflowType_Shallow(ctx); 
   
   ierr = PetscStrallocpy("density",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
@@ -331,7 +399,6 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   ierr = PetscFunctionListDestroy(&rclist);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 PetscErrorCode FVSample_2WaySplit(FVCtx *ctx,DM da,PetscReal time,Vec U)
 {
@@ -434,7 +501,6 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
   ierr = DMDAVecGetArray(da,Xloc,&x);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(da,F,&f);CHKERRQ(ierr);
   ierr = DMDAGetArray(da,PETSC_TRUE,&slope);CHKERRQ(ierr);                  /* contains ghost points                                           */
-
   ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
 
   if (ctx->bctype == FVBC_OUTFLOW) {
@@ -445,6 +511,32 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
       for (j=0; j<dof; j++) x[i*dof+j] = x[(xs+xm-1)*dof+j];
     }
   }
+
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+        } else {
+          for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
+        }
+      }
+    }
+    if(xs+xm==Mx){ /* Right Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+        }
+      }
+    }
+  }
+
   for (i=xs-1; i<xs+xm+1; i++) {
     struct _LimitInfo info;
     PetscScalar       *cjmpL,*cjmpR;
@@ -595,6 +687,30 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
       for (j=0; j<dof; j++) x[i*dof+j] = x[(xs+xm-1)*dof+j];
     }
   }
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+        } else {
+          for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
+        }
+      }
+    }
+    if(xs+xm==Mx){ /* Right Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+        }
+      }
+    }
+  }
   for (i=xs-1; i<xs+xm+1; i++) {
     struct _LimitInfo info;
     PetscScalar       *cjmpL,*cjmpR;
@@ -721,6 +837,30 @@ PetscErrorCode FVRHSFunctionslowbuffer_2WaySplit(TS ts,PetscReal time,Vec X,Vec 
     }
     for (i=Mx; i<xs+xm+2; i++) {
       for (j=0; j<dof; j++) x[i*dof+j] = x[(xs+xm-1)*dof+j];
+    }
+  }
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+        } else {
+          for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
+        }
+      }
+    }
+    if(xs+xm==Mx){ /* Right Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+        }
+      }
     }
   }
   for (i=xs-1; i<xs+xm+1; i++) {
@@ -869,6 +1009,30 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
     }
     for (i=Mx; i<xs+xm+2; i++) {
       for (j=0; j<dof; j++) x[i*dof+j] = x[(xs+xm-1)*dof+j];
+    }
+  }
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+        } else {
+          for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
+        }
+      }
+    }
+    if(xs+xm==Mx){ /* Right Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+        }
+      }
     }
   }
   for (i=xs-1; i<xs+xm+1; i++) {
@@ -1034,6 +1198,7 @@ int main(int argc,char *argv[])
   /* Allocate work space for the Finite Volume solver (so it doesn't have to be reallocated on each function evaluation) */
   ierr = PetscMalloc4(dof*dof,&ctx.R,dof*dof,&ctx.Rinv,2*dof,&ctx.cjmpLR,1*dof,&ctx.cslope);CHKERRQ(ierr);
   ierr = PetscMalloc3(2*dof,&ctx.uLR,dof,&ctx.flux,dof,&ctx.speeds);CHKERRQ(ierr);
+  ierr = PetscMalloc1(2*dof,&ctx.ub);CHKERRQ(ierr); 
 
   /* Create a vector to store the solution and to save the initial state */
   ierr = DMCreateGlobalVector(da,&X);CHKERRQ(ierr);
@@ -1183,6 +1348,8 @@ int main(int argc,char *argv[])
   /* Clean up */
   ierr = (*ctx.physics2.destroy)(ctx.physics2.user);CHKERRQ(ierr);
   for (i=0; i<ctx.physics2.dof; i++) {ierr = PetscFree(ctx.physics2.fieldname[i]);CHKERRQ(ierr);}
+  ierr = PetscFree(ctx.physics2.bcinflowindex);CHKERRQ(ierr);
+  ierr = PetscFree(ctx.ub);
   ierr = PetscFree4(ctx.R,ctx.Rinv,ctx.cjmpLR,ctx.cslope);CHKERRQ(ierr);
   ierr = PetscFree3(ctx.uLR,ctx.flux,ctx.speeds);CHKERRQ(ierr);
   ierr = VecDestroy(&X);CHKERRQ(ierr);
