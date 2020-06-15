@@ -648,18 +648,23 @@ static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,P
   if (ctx->bctype == FVBC_INFLOW){
     switch (ctx->initial) {
       case 0:
-        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
-        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
-        break; 
       case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break;
+      case 6:
         u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
         u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
         break; 
-      case 2: 
+      case 7: 
         u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
         u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
         break; 
-      case 3: 
+      case 8: 
         u[0] = 0; u[1] = 1.0; /* Left boundary conditions */
         u[2] = 0; u[3] = -1.0; /* Right boundary conditions */
         break; 
@@ -672,26 +677,33 @@ static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,P
    Which conditions and the number of boundary conditions depends on the particular problem considered. */
 static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
 {
+  PetscFunctionBeginUser;
   switch (ctx->initial) {
-      case 0: /* Fix left and right momentum, height is outflow*/
+      case 0: 
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      /* Fix left and right momentum, height is outflow*/
         ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
         ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
         break; 
-      case 1: /* Fix left and right momentum, height is outflow*/
+      case 6: /* Fix left and right momentum, height is outflow*/
         ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
         ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
         break; 
-      case 2: /* Fix left and right momentum, height is outflow*/
+      case 7: /* Fix left and right momentum, height is outflow*/
         ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
         ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
         break; 
-      case 3: /* Fix left and right momentum, height is outflow*/
+      case 8: /* Fix left and right momentum, height is outflow*/
         ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
         ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
         ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
@@ -702,22 +714,24 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
   PetscFunctionReturn(0); 
 }
 
-PhysicsSetSource_Shallow(FVCtx *ctx){
+
+static PetscErrorCode PhysicsSetSource_Shallow(FVCtx *ctx){
+  PetscFunctionBeginUser;
   switch (ctx->initial) {
     case 0:
-      ctx->physics2.issource = PETSC_FALSE; 
-      breaks;
     case 1:
-      ctx->physics2.issource = PETSC_FALSE; 
-      break;
     case 2:
-      ctx->physics2.issource = PETSC_FALSE; 
-      break;
     case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
       ctx->physics2.issource = PETSC_FALSE; 
       break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
+  PetscFunctionReturn(0); 
 }
 
 static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
@@ -1621,10 +1635,30 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
       u[1] = (x < 0) ? 0 : 0;
       break;
     case 1:
+      u[0] = (x < 10) ?   1 : 0.1; 
+      u[1] = (x < 10) ? 2.5 : 0;
+      break;
+    case 2:
+      u[0] = (x < 25) ?  1 : 1;
+      u[1] = (x < 25) ? -5 : 5;
+      break;
+    case 3:
+      u[0] = (x < 20) ?  1 : 1e-12;
+      u[1] = (x < 20) ?  0 : 0;
+      break;
+    case 4:
+      u[0] = (x < 30) ? 1e-12 : 1;
+      u[1] = (x < 30) ? 0 : 0;
+      break;
+    case 5:
+      u[0] = (x < 25) ?  0.1 : 0.1;
+      u[1] = (x < 25) ? -0.3 : 0.3;
+      break;
+    case 6:
       u[0] = 1+0.5*PetscSinReal(2*PETSC_PI*x); 
       u[1] = 1*u[0];
       break;
-    case 2: 
+    case 7: 
       if (x < -0.1) {
        u[0] = 1e-9; 
        u[1] = 0.0; 
@@ -1636,7 +1670,7 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
        u[1] = 0.0; 
       }
       break; 
-    case 3: 
+    case 8:
      if (x < -0.1) {
        u[0] = 2; 
        u[1] = 0.0; 
@@ -1672,7 +1706,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   ierr = PetscStrallocpy("density",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
 
-  user->gravity = 1;
+  user->gravity = 9.81;
 
   ierr = RiemannListAdd_2WaySplit(&rlist,"exact",  PhysicsRiemann_Shallow_Exact);CHKERRQ(ierr);
   ierr = RiemannListAdd_2WaySplit(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
