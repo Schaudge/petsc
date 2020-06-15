@@ -23,6 +23,16 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
   "Several problem descriptions (initial data, physics specific features, boundary data) can be chosen with -initial N\n\n"
   "The problem size should be set with -da_grid_x M\n\n";
 
+/*
+  Example: 
+    mpiexec -np 1 ex4 -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ex4 -da_grid_x 40 -initial 2 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 2.5 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ex4 -da_grid_x 40 -initial 3 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ex4 -da_grid_x 40 -initial 4 -hratio 1 -limit koren3 -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ex4 -da_grid_x 40 -initial 5 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 5.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+*/
+
+
 #include <petscts.h>
 #include <petscdm.h>
 #include <petscdmda.h>
@@ -271,7 +281,7 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
       u[1] = (x < 0) ? 0 : 0;
       break;
     case 1:
-      u[0] = (x < 10) ?   1 : 0.1; 
+      u[0] = (x < 10) ?   1 : 0.1; /*The Next 5 problems are standard Riemann problem tests */
       u[1] = (x < 10) ? 2.5 : 0;
       break;
     case 2:
@@ -443,7 +453,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
 
   user->gravity = 9.81;
-
+ 
   ierr = RiemannListAdd_2WaySplit(&rlist,"exact",  PhysicsRiemann_Shallow_Exact);CHKERRQ(ierr);
   ierr = RiemannListAdd_2WaySplit(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
   ierr = ReconstructListAdd_2WaySplit(&rclist,"characteristic",PhysicsCharacteristic_Shallow);CHKERRQ(ierr);
@@ -1184,7 +1194,7 @@ int main(int argc,char *argv[])
   FVCtx             ctx;
   PetscInt          i,k,dof,xs,xm,Mx,draw = 0,count_slow,count_fast,islow = 0,ifast =0,islowbuffer = 0,*index_slow,*index_fast,*index_slowbuffer;
   PetscBool         view_final = PETSC_FALSE;
-  PetscReal         ptime;
+  PetscReal         ptime,maxtime;
   PetscErrorCode    ierr;
 
   ierr = PetscInitialize(&argc,&argv,0,help);if (ierr) return ierr;
@@ -1212,6 +1222,7 @@ int main(int argc,char *argv[])
   ctx.xmax = 1.0;
   ctx.initial = 1; 
   ctx.hratio = 2; 
+  maxtime = 10.0;
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmin","X min","",ctx.xmin,&ctx.xmin,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmax","X max","",ctx.xmax,&ctx.xmax,NULL);CHKERRQ(ierr);
@@ -1225,6 +1236,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsReal("-cfl","CFL number to time step at","",ctx.cfl,&ctx.cfl,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-bc_type","Boundary condition","",FVBCTypes,(PetscEnum)ctx.bctype,(PetscEnum*)&ctx.bctype,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-hratio","Spacing ratio","",ctx.hratio,&ctx.hratio,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-ts_max_time","Max Time to Run TS","",maxtime,&maxtime,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -1302,7 +1314,7 @@ int main(int argc,char *argv[])
   ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVRHSFunctionslowbuffer_2WaySplit,&ctx);CHKERRQ(ierr);
 
   ierr = TSSetType(ts,TSMPRK);CHKERRQ(ierr);
-  ierr = TSSetMaxTime(ts,10);CHKERRQ(ierr);
+  ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
 
   /* Compute initial conditions and starting time step */
