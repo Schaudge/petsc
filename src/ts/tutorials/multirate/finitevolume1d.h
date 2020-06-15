@@ -31,6 +31,10 @@ void Limit_CadaTorrilhon3R100(LimitInfo,const PetscScalar*,const PetscScalar*,Pe
 /* --------------------------------- Finite Volume data structures ----------------------------------- */
 
 typedef enum {FVBC_PERIODIC, FVBC_OUTFLOW, FVBC_INFLOW} FVBCType;
+<<<<<<< HEAD
+=======
+typedef enum {NONE, TOPOGRAPHY} SOURCEType; 
+>>>>>>> Added Support for Inflow Boundary Conditions
 extern const char *FVBCTypes[];
 /* we add three new variables at the end of input parameters of function to be position of cell center, left bounday of domain, right boundary of domain */
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*,PetscReal,PetscReal,PetscReal);
@@ -87,9 +91,16 @@ typedef struct {
   void                          *user;
   PetscInt                      dof;
   char                          *fieldname[16];
+<<<<<<< HEAD
   PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
                                                      is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow
                                                      outflow boundary condition. */
+=======
+  SOURCEType                    srctype;
+  PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
+                                   is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
+                                   outflow boundary condition.*/
+>>>>>>> Added Support for Inflow Boundary Conditions
 } PhysicsCtx2;
 
 typedef struct {
@@ -99,6 +110,7 @@ typedef struct {
   char        prefix[256];
 
   /* Local work arrays */
+
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
   PetscScalar *cjmpLR;          /* Jumps at left and right edge of cell, in characteristic basis, len=2*dof */
   PetscScalar *cslope;          /* Limited slope, written in characteristic basis */
@@ -106,6 +118,10 @@ typedef struct {
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *ub;              /* Boundary data for inflow boundary conditions */
+<<<<<<< HEAD
+=======
+
+>>>>>>> Added Support for Inflow Boundary Conditions
 
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
   PetscReal   cfl;
