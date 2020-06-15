@@ -30,7 +30,8 @@ void Limit_CadaTorrilhon3R100(LimitInfo,const PetscScalar*,const PetscScalar*,Pe
 
 /* --------------------------------- Finite Volume data structures ----------------------------------- */
 
-typedef enum {FVBC_PERIODIC, FVBC_OUTFLOW} FVBCType;
+typedef enum {FVBC_PERIODIC, FVBC_OUTFLOW, FVBC_INFLOW} FVBCType;
+typedef enum {NONE, TOPOGRAPHY} SOURCEType; 
 extern const char *FVBCTypes[];
 /* we add three new variables at the end of input parameters of function to be position of cell center, left bounday of domain, right boundary of domain */
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*,PetscReal,PetscReal,PetscReal);
@@ -80,12 +81,17 @@ PetscErrorCode ReconstructListFind_2WaySplit(PetscFunctionList,const char*,Recon
 
 typedef struct {
   PetscErrorCode                (*sample2)(void*,PetscInt,FVBCType,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal*);
+  PetscErrorCode                (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   RiemannFunction_2WaySplit     riemann2;
   ReconstructFunction_2WaySplit characteristic2;
   PetscErrorCode                (*destroy)(void*);
   void                          *user;
   PetscInt                      dof;
   char                          *fieldname[16];
+  SOURCEType                    srctype;
+  PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
+                                   is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
+                                   outflow boundary condition.*/
 } PhysicsCtx2;
 
 typedef struct {
@@ -95,12 +101,15 @@ typedef struct {
   char        prefix[256];
 
   /* Local work arrays */
+
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
   PetscScalar *cjmpLR;          /* Jumps at left and right edge of cell, in characteristic basis, len=2*dof */
   PetscScalar *cslope;          /* Limited slope, written in characteristic basis */
   PetscScalar *uLR;             /* Solution at left and right of interface, conservative variables, len=2*dof */
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
+  PetscReal   *ub;              /* Boundary data for inflow boundary conditions */
+
 
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
   PetscReal   cfl;
