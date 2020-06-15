@@ -546,6 +546,13 @@ static PetscErrorCode SolutionErrorNorms_2WaySplit(FVCtx *ctx,DM da,PetscReal t,
   PetscFunctionReturn(0);
 }
 
+/*
+PetscErrorCode FVRHSFunction_Test(TS ts, PetscReal Time, Vec X, Vec F, void *vctx)
+{
+
+}
+*/
+
 PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vctx)
 {
   FVCtx          *ctx = (FVCtx*)vctx;
@@ -747,8 +754,6 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
   ierr = VecGetArray(F,&f);CHKERRQ(ierr);
   ierr = DMDAGetArray(da,PETSC_TRUE,&slope);CHKERRQ(ierr);
   ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
-  ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD); 
-  ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD); 
 
   if (ctx->bctype == FVBC_OUTFLOW) {
     for (i=xs-2; i<0; i++) {
