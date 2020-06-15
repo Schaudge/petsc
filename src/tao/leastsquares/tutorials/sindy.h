@@ -40,7 +40,7 @@ PETSC_EXTERN PetscErrorCode SINDyVariableSetVecData(Variable, PetscInt, Vec*, DM
 PETSC_EXTERN PetscErrorCode SINDyVariableDestroy(Variable*);
 PETSC_EXTERN PetscErrorCode SINDyVariablePrint(Variable var);
 
-// PETSC_EXTERN PetscErrorCode SINDyVariableDifferentiate(Variable, PetscInt dim, PetscInt order, const char*, Variable*);
+PETSC_EXTERN PetscErrorCode SINDyVariableDifferentiateSpatial(Variable, PetscInt, PetscInt, const char*, Variable*);
 
 PETSC_EXTERN PetscErrorCode SINDyBasisAddVariables(Basis, PetscInt, Variable*);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetOutputVariable(Basis, Variable);

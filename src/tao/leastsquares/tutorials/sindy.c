@@ -397,7 +397,7 @@ PetscErrorCode SINDyVariablePrint(Variable var)
       ierr = VecGetSize(var->vec_data[n], &vec_size);CHKERRQ(ierr);
       ierr = PetscPrintf(PETSC_COMM_SELF, "  %3d:    ", n);CHKERRQ(ierr);
       for (i = 0; i < vec_size; i++) {
-        ierr = PetscPrintf(PETSC_COMM_SELF, "% -12.6g", x[i]);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF, "% -13.6g", x[i]);CHKERRQ(ierr);
       }
       ierr = PetscPrintf(PETSC_COMM_SELF, "\n");CHKERRQ(ierr);
       ierr = VecRestoreArrayRead(var->vec_data[n], &x);CHKERRQ(ierr);
@@ -408,11 +408,173 @@ PetscErrorCode SINDyVariablePrint(Variable var)
   } else if (var->type == SCALAR) {
     ierr = PetscPrintf(PETSC_COMM_SELF, "scalar\n");CHKERRQ(ierr);
     for (n = 0; n < var->N; n++) {
-      ierr = PetscPrintf(PETSC_COMM_SELF, "%3d: % -12.6g\n", n, var->scalar_data[n]);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF, "%3d: % -13.6g\n", n, var->scalar_data[n]);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
 }
+
+/* Take the der_order-th derivative along the coord_dim dimension of the given variable. */
+PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_dim, PetscInt der_order, const char* name, Variable* out_var_p)
+{
+  PetscErrorCode ierr;
+  Variable       der;
+
+  PetscFunctionBegin;
+  if(var->type == SCALAR) {
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Must be vector type to spatially differentiate");
+  } else if(var->type != VECTOR) {
+    SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"Invalid var type %d", var->type);
+  } else if(der_order < 1 || der_order > 2) {
+    SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Can only take first or second derivative");
+  } else if((!var->dim && coord_dim > 0) || (var->dm && coord_dim >= var->coord_dim)) {
+    SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_COR,"Invalid dimension to take derivative of. Got %d but should be < %d", coord_dim, var->dim);
+  } else if((!var->dm && var->dim <= der_order) || (var->dm && var->coord_dim_sizes[coord_dim] <= der_order)) {
+    SETERRQ2(PETSC_COMM_WORLD,PETSC_ERR_COR,"Need at least %d points to take a %d-th order derivative", der_order+1, der_order);
+  }
+
+  ierr = SINDyVariableCreate(name, &der);CHKERRQ(ierr);
+  if (var->dm) {
+    Vec            *der_vecs;
+    PetscInt       c[3];
+    PetscInt       n,i,j,k,d;
+    PetscScalar    dx;
+    c[0] = c[1] = c[2] = 0;
+    ierr = VecDuplicateVecs(var->vec_data[0], var->N, &der_vecs);CHKERRQ(ierr);
+
+    if (var->coord_dim == 2) {
+      const PetscScalar ***u;
+      PetscScalar       ***der_data;
+
+      /* Get dx, assuming it is constant. */
+      {
+        DM         x_dm;
+        Vec        gc;
+        DMDACoor2d **coords;
+        PetscInt   xs,ys,xm,ym,i,j,k;
+
+        ierr = DMGetCoordinateDM(var->dm,&x_dm);CHKERRQ(ierr);
+        ierr = DMGetCoordinatesLocal(var->dm,&gc);CHKERRQ(ierr);
+        ierr = DMDAGetCorners(x_dm,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
+        ierr = DMDAVecGetArrayRead(x_dm,gc,&coords);CHKERRQ(ierr);
+        if (coord_dim == 1) dx = coords[ys+1][xs].y - coords[ys][xs].y;
+        else                dx = coords[ys][xs+1].x - coords[ys][xs].x;
+        ierr = DMDAVecRestoreArrayRead(x_dm,gc,&coords);CHKERRQ(ierr);
+      }
+
+      for (n = 0; n < var->N; n++) {
+        ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&u);CHKERRQ(ierr);
+        ierr = DMDAVecGetArrayDOF(var->dm,der_vecs[n],&der_data);CHKERRQ(ierr);
+        if (coord_dim == 1) {
+          /* Centered difference on inner points and one-sided difference on boundary points. */
+          if (der_order == 1) {
+            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+              for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+                for (d = 0; d < var->dim; d++ ) {
+                  if (j == 0) {
+                    der_data[j][i][d] = (u[j+1][i][d] - u[j][i][d])/dx;
+                  } else if (j == var->coord_dim_sizes[coord_dim]-1) {
+                    der_data[j][i][d] = (u[j][i][d] - u[j-1][i][d])/dx;
+                  } else {
+                    der_data[j][i][d] = (u[j+1][i][d] - u[j-1][i][d])/(2*dx);
+                  }
+                }
+              }
+            }
+          } else if (der_order == 2) {
+            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+              for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+                for (d = 0; d < var->dim; d++ ) {
+                  if (j == 0) {
+                    der_data[j][i][d] = (u[j+2][i][d] - 2 * u[j+1][i][d]+ u[j][i][d])/(dx*dx);
+                  } else if (j == var->coord_dim_sizes[coord_dim]-1) {
+                    der_data[j][i][d] = (u[j][i][d] - 2 * u[j-1][i][d]+ u[j-2][i][d])/(dx*dx);
+                  } else {
+                    der_data[j][i][d] = (u[j+1][i][d] - 2 * u[j][i][d]+ u[j-1][i][d])/(dx*dx);
+                  }
+                }
+              }
+            }
+          } else {
+            SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"For 2D DMDA, unsupported der_order %d", der_order);
+          }
+        } else if (coord_dim == 0) {
+          /* Centered difference on inner points and one-sided difference on boundary points. */
+          if (der_order == 1) {
+            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+              for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+                for (d = 0; d < var->dim; d++ ) {
+                  if (i == 0) {
+                    der_data[j][i][d] = (u[j][i+1][d] - u[j][i][d])/dx;
+                  } else if (i == var->coord_dim_sizes[coord_dim]-1) {
+                    der_data[j][i][d] = (u[j][i][d] - u[j][i-1][d])/dx;
+                  } else {
+                    der_data[j][i][d] = (u[j][i+1][d] - u[j][i-1][d])/(2*dx);
+                  }
+                }
+              }
+            }
+          } else if (der_order == 2) {
+            for (j = 0; j < var->coord_dim_sizes[1]; j++) {
+              for (i = 0; i < var->coord_dim_sizes[0]; i++) {
+                for (d = 0; d < var->dim; d++ ) {
+                  if (i == 0) {
+                    der_data[j][i][d] = (u[j][i+2][d] - 2 * u[j][i+1][d]+ u[j][i][d])/(dx*dx);
+                  } else if (i == var->coord_dim_sizes[coord_dim]-1) {
+                    der_data[j][i][d] = (u[j][i][d] - 2 * u[j][i-1][d]+ u[j][i-2][d])/(dx*dx);
+                  } else {
+                    der_data[j][i][d] = (u[j][i+1][d] - 2 * u[j][i][d]+ u[j][i-1][d])/(dx*dx);
+                  }
+                }
+              }
+            }
+          } else {
+            SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"For 2D DMDA, unsupported der_order %d", der_order);
+          }
+        } else {
+          SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"For 2D DMDA, unsupported coord_dim %d", coord_dim);
+        }
+        ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&u);CHKERRQ(ierr);
+        ierr = DMDAVecRestoreArrayDOF(var->dm,der_vecs[n],&der_data);CHKERRQ(ierr);
+      }
+    } else {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Only supports 2D DMDA");
+    }
+    ierr = SINDyVariableSetVecData(der, var->N, der_vecs, var->dm);CHKERRQ(ierr);
+  } else {
+    /* Assume it is a 1D system with 1 DOF. */
+    PetscInt          i;
+    const PetscScalar *u;
+    Vec               *der_vecs;
+    PetscScalar       *der_data;
+    PetscInt          n;
+    const PetscReal   dx = 1;
+
+    if (der_order == 1) {
+      ierr = VecDuplicateVecs(var->vec_data[0], var->N, &der_vecs);CHKERRQ(ierr);
+      for (n = 0; n < var->N; n++) {
+        ierr = VecGetArrayRead(var->vec_data[n], &u);CHKERRQ(ierr);
+        ierr = VecGetArray(der_vecs[n], &der_data);CHKERRQ(ierr);
+        /* Centered difference on inner points. */
+        for (i = 1; i < var->dim-1; i++) {
+          der_data[i] = (u[i+1] - u[i-1])/(2*dx);
+        }
+        /* One-sided difference on first and last points. */
+        der_data[0] = (u[1] - u[0])/dx;
+        der_data[var->dim-1] = (u[var->dim-1] - u[var->dim-2])/dx;
+        ierr = VecRestoreArrayRead(var->vec_data[n], &u);CHKERRQ(ierr);
+        ierr = VecRestoreArray(der_vecs[n], &der_data);CHKERRQ(ierr);
+      }
+      ierr = SINDyVariableSetVecData(der, var->N, der_vecs, NULL);CHKERRQ(ierr);
+    } else {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Can only take first derivative for non-DMDA data");
+    }
+  }
+
+  *out_var_p = der;
+  PetscFunctionReturn(0);
+}
+
 
 static PetscErrorCode SINDyBasisValidateVariable(Basis basis, Variable var)
 {
@@ -440,9 +602,14 @@ static PetscErrorCode SINDyBasisValidateVariable(Basis basis, Variable var)
      coordinate space. */
   PetscBool is_coord_output = (out->type == VECTOR && out->dm);
   PetscBool is_coord_input = (var->type == VECTOR && var->dm);
-  if (is_coord_output && is_coord_input && var->dm != out->dm) {
-    SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,
-            "Inconsistent coordinates. DM for var \"%s\" is not the same as for output variable.",var->name);
+  if (is_coord_output && is_coord_input) {
+    for (PetscInt i = 0; i < 3; i++) {
+      if (var->coord_dim_sizes[i] != out->coord_dim_sizes[i]) {
+        SETERRQ4(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,
+                "Inconsistent coordinate sizes. Coordinate dimension %d for var \"%s\" is not the same as for output variable. %d != %d.",
+                i,var->coord_dim_sizes[i],out->coord_dim_sizes[i],var->name);
+      }
+    }
   }
   /* If the output variable isn't defined on a coordinate space, then for now,
      no inputs should depend on a coordinate space. */
@@ -831,7 +998,7 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
       /* Scale the columns to have the same norm. */
       i = 0;
       for (b = 0; b < B; b++) {
-        for (n = 0; n < basis->data.N; n++) {
+        for (n = 0; n < out->data_size_per_dof; n++) {
           basis->data.column_scales[b+d*B] += Theta_data[i]*Theta_data[i];
           i++;
         }
@@ -841,7 +1008,7 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
       }
       i = 0;
       for (b = 0; b < B; b++) {
-        for (n = 0; n < basis->data.N; n++) {
+        for (n = 0; n < out->data_size_per_dof; n++) {
           if (basis->data.column_scales[b+d*B]) {
             Theta_data[i] /= basis->data.column_scales[b+d*B];
           }

@@ -59,6 +59,10 @@ PetscErrorCode IFunction(TS,PetscReal,Vec,Vec,Vec,void*);
 PetscErrorCode IJacobian(TS,PetscReal,Vec,Vec,PetscReal,Mat,Mat,void*);
 PetscErrorCode PostStep(TS);
 PetscErrorCode DataComputeDerivative_FD(Data*);
+PetscErrorCode adv1(PetscScalar**,PetscScalar,PetscInt,PetscInt,PetscInt,PetscScalar*,AppCtx*);
+PetscErrorCode adv2(PetscScalar**,PetscScalar,PetscInt,PetscInt,PetscInt,PetscScalar*,AppCtx*);
+PetscErrorCode diffuse(PetscScalar**,PetscInt,PetscInt,PetscReal,PetscScalar*,AppCtx*);
+PetscErrorCode BoundaryConditions(PetscScalar **,DMDACoor2d **,PetscInt,PetscInt,PetscInt, PetscInt,PetscScalar **,AppCtx *);
 
 PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal** all_t_p, DM* dm_p)
 {
@@ -131,9 +135,6 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
     ierr = DataComputeDerivative_FD(&user.data);CHKERRQ(ierr);
   }
 
-  PetscScalar ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H),2)*user.q/(user.dy * user.dy);
-  PetscScalar kx = 1./(2*user.dx);
-  PetscScalar ky = -(user.ws/(2*user.H))/(2*user.dy);
   /* Expected values:
     fx = kx * (y - user.ws);
     fy = ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
@@ -148,25 +149,50 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
            + kx*y*(p[j][i+1] - p[j][i-1]) - kx*user.ws*(p[j][i+1] - p[j][i-1])
            + ky*user.PM_min*(p[j+1][i] - p[j-1][i]) - ky*user.Pmax*PetscSinScalar(x)*(p[j+1][i] - p[j-1][i])
   */
+  // PetscScalar ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H),2)*user.q/(user.dy * user.dy);
+  // PetscScalar kx = 1./(2*user.dx);
+  // PetscScalar ky = -(user.ws/(2*user.H))/(2*user.dy);
+  // printf("Expected:\n");
+  // printf("lambda: % g\n", user.lambda);
+  // printf("exp(-t/lambda)*p[j-1][i]: % g\n", ky2);
+  // printf("exp(-t/lambda) * p[j][i]: % g\n", 2 * ky2);
+  // printf("exp(-t/lambda)*p[j+1][i]: % g\n", -ky2);
+
+  // printf("               p[j-1][i]: % g\n", ky2 - ky*user.PM_min);
+  // printf("                 p[j][i]: % g\n", -2 * ky2);
+  // printf("               p[j+1][i]: % g\n", ky2 + ky*user.PM_min);
+
+  // printf("               p[j][i-1]: % g\n", kx * user.ws);
+  // printf("               p[j][i+1]: % g\n", -kx * user.ws);
+
+  // printf("             y*p[j][i-1]: % g\n", kx);
+  // printf("             y*p[j][i+1]: % g\n", -kx);
+
+  // printf("        sin(x)*p[j-1][i]: % g\n", ky*user.Pmax);
+  // printf("        sin(x)*p[j+1][i]: % g\n", -ky*user.Pmax);
+
+  /* Expected values:
+    fx = der_kx * (y - user.ws);
+    fy = der_ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
+
+    du/dx = der_ky2*(1.0-exp(-t/user.lambda)) * p_yy
+           - fx*p_x
+           - fy*p_y;
+    du/dx =
+             der_ky2*p_yy - der_ky2*exp(-t/user.lambda)*p_yy
+           - der_kx*y*p_x + der_kx*user.ws*p_x
+           - der_ky*user.PM_min*p_y + der_ky*user.Pmax*PetscSinScalar(x)*p_y
+  */
+  PetscScalar der_ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H), 2) * user.q;
+  PetscScalar der_kx = 1;
+  PetscScalar der_ky = -user.ws/(2*user.H);
   printf("Expected:\n");
   printf("lambda: % g\n", user.lambda);
-  printf("exp(-t/lambda)*p[j-1][i]: % g\n", ky2);
-  printf("exp(-t/lambda) * p[j][i]: % g\n", 2 * ky2);
-  printf("exp(-t/lambda)*p[j+1][i]: % g\n", -ky2);
-
-  printf("               p[j-1][i]: % g\n", ky2 - ky*user.PM_min);
-  printf("                 p[j][i]: % g\n", -2 * ky2);
-  printf("               p[j+1][i]: % g\n", ky2 + ky*user.PM_min);
-
-  printf("               p[j][i-1]: % g\n", kx * user.ws);
-  printf("               p[j][i+1]: % g\n", -kx * user.ws);
-
-  printf("             y*p[j][i-1]: % g\n", kx);
-  printf("             y*p[j][i+1]: % g\n", -kx);
-
-  printf("        sin(x)*p[j-1][i]: % g\n", ky*user.Pmax);
-  printf("        sin(x)*p[j+1][i]: % g\n", -ky*user.Pmax);
-  printf("        sin(x)*p[j+1][i]: % g\n", -ky*user.Pmax);
+  printf("                        p_x[j][i]: % g\n", der_kx*user.ws);
+  printf("                        p_y[j][i]: % g\n", der_ky*user.PM_min);
+  printf("                    y * p_x[j][i]: % g\n", -der_kx);
+  printf("               sin(x) * p_y[j][i]: % g\n", der_ky*user.Pmax);
+  printf("(1 - exp(-t/lambda)) * p_yy[j][i]: % g\n", der_ky2);
 
 
   /* Write output parameters. */

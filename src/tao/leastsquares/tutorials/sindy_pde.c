@@ -14,6 +14,7 @@ int main(int argc, char** argv)
   Vec            *Xi,Xi0;
   PetscMPIInt    size;
   PetscReal      *t;
+  PetscReal      *t_exp;
   DM             dm;
 
   ierr = PetscInitialize(&argc,&argv,"petscopt_ex6",help);if (ierr) return ierr;
@@ -35,13 +36,50 @@ int main(int argc, char** argv)
   printf("Generating data...\n");
   ierr = GetData(&n, &u, &du, &t, &dm);CHKERRQ(ierr);
 
-  Variable v_u,v_du,v_t;
+  DM       x_dm;
+  Vec      *x_vecs;
+  Variable v_x;
+  {
+    Vec        gc;
+    DMDACoor2d **coords;
+    PetscInt   xs,ys,xm,ym,i,j,k;
+
+    ierr = DMGetCoordinateDM(dm,&x_dm);CHKERRQ(ierr);
+    ierr = DMGetCoordinatesLocal(dm,&gc);CHKERRQ(ierr);
+    ierr = VecDuplicateVecs(gc, n, &x_vecs);CHKERRQ(ierr);
+    ierr = DMDAGetCorners(x_dm,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
+    for (k = 0; k < n; k++) {
+      ierr = DMDAVecGetArrayRead(x_dm,x_vecs[k],&coords);CHKERRQ(ierr);
+      for (i=xs; i < xs+xm; i++) {
+        for (j=ys; j < ys+ym; j++) {
+          coords[j][i].x = PetscSinReal(coords[j][i].x);
+        }
+      }
+      ierr = DMDAVecRestoreArrayRead(x_dm,x_vecs[k],&coords);CHKERRQ(ierr);
+    }
+  }
+  ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
+  ierr = SINDyVariableSetVecData(v_x, n, x_vecs, x_dm);CHKERRQ(ierr);
+
+
+  Variable v_u,v_dudt,v_t;
   ierr = SINDyVariableCreate("u", &v_u);CHKERRQ(ierr);
   ierr = SINDyVariableSetVecData(v_u, n, u, dm);CHKERRQ(ierr);
-  ierr = SINDyVariableCreate("du/dt", &v_du);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_du, n, du, dm);CHKERRQ(ierr);
-  // ierr = SINDyVariableCreate("t", &v_t);CHKERRQ(ierr);
-  // ierr = SINDyVariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
+  ierr = SINDyVariableCreate("du/dt", &v_dudt);CHKERRQ(ierr);
+  ierr = SINDyVariableSetVecData(v_dudt, n, du, dm);CHKERRQ(ierr);
+
+  ierr = SINDyVariableCreate("(1 - exp(-t/lambda))", &v_t);CHKERRQ(ierr);
+  ierr = PetscMalloc1(n, &t_exp);CHKERRQ(ierr);
+  for (PetscInt i = 0; i < n; i++) {
+    t_exp[i] = 1.0 - PetscExpScalar(-t[i] / 0.1);
+  }
+  ierr = SINDyVariableSetScalarData(v_t, n, t_exp);CHKERRQ(ierr);
+
+  Variable v_dudx,v_dudy,v_dudyy;
+  ierr = SINDyVariableDifferentiateSpatial(v_u, 0, 1, "du/dx", &v_dudx);CHKERRQ(ierr);
+  ierr = SINDyVariableDifferentiateSpatial(v_u, 1, 1, "du/dy", &v_dudy);CHKERRQ(ierr);
+  ierr = SINDyVariableDifferentiateSpatial(v_u, 1, 2, "d2u/dy2", &v_dudyy);CHKERRQ(ierr);
+
 
   // for (PetscInt i = 0; i < n; i++) {
   //   ierr = VecView(x[i], PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
@@ -53,8 +91,10 @@ int main(int argc, char** argv)
   // ierr = SINDyBasisSetCrossTermRange(basis, 0);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
-  ierr = SINDyBasisSetOutputVariable(basis, v_du);CHKERRQ(ierr);
-  ierr = SINDyBasisAddVariables(basis, 1, &v_du);CHKERRQ(ierr);
+  ierr = SINDyBasisSetOutputVariable(basis, v_dudt);CHKERRQ(ierr);
+
+  Variable vars[] = {v_dudx, v_dudy, v_dudyy, v_t, v_x};
+  ierr = SINDyBasisAddVariables(basis, sizeof(vars)/sizeof(vars[0]), vars);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
   ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-1);CHKERRQ(ierr);
@@ -79,15 +119,21 @@ int main(int argc, char** argv)
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &u);CHKERRQ(ierr);
   ierr = VecDestroyVecs(n, &du);CHKERRQ(ierr);
+  ierr = VecDestroyVecs(n, &x_vecs);CHKERRQ(ierr);
   ierr = VecDestroyVecs(dim, &Xi);CHKERRQ(ierr);
+
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFree(t);CHKERRQ(ierr);
+  ierr = PetscFree(t_exp);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
   ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
 
   ierr = SINDyVariableDestroy(&v_u);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_du);CHKERRQ(ierr);
-  // ierr = SINDyVariableDestroy(&v_t);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_dudt);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_dudx);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_dudy);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_dudyy);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_t);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;
