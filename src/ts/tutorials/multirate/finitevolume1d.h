@@ -31,7 +31,6 @@ void Limit_CadaTorrilhon3R100(LimitInfo,const PetscScalar*,const PetscScalar*,Pe
 /* --------------------------------- Finite Volume data structures ----------------------------------- */
 
 typedef enum {FVBC_PERIODIC, FVBC_OUTFLOW, FVBC_INFLOW} FVBCType;
-typedef enum {NONE, TOPOGRAPHY} SOURCEType; 
 extern const char *FVBCTypes[];
 /* we add three new variables at the end of input parameters of function to be position of cell center, left bounday of domain, right boundary of domain */
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*,PetscReal,PetscReal,PetscReal);
@@ -88,7 +87,7 @@ typedef struct {
   void                          *user;
   PetscInt                      dof;
   char                          *fieldname[16];
-  SOURCEType                    srctype;
+  PetscBool                     issource; 
   PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
                                    is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
                                    outflow boundary condition.*/
