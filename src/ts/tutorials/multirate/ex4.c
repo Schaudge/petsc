@@ -19,9 +19,13 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
   "  advection   - Constant coefficient scalar advection\n"
   "                u_t       + (a*u)_x               = 0\n"
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
 =======
   "  shallow     - 1D Shallow water equations (Saint Venant System)\n"                                                      
+=======
+  "  shallow     - 1D Shallow water equations (Saint Venant System)\n"
+>>>>>>> trivial edit: remove white spaces
   "                h_t + (q)_x = 0 \n"
   "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = -hg*z_x \n"
   "                where, h(x,t) denotes the height of the water, q(x,t) the momentum, and z(x)\n"
@@ -43,6 +47,7 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
 
 /*
   Example:
+<<<<<<< HEAD
      ./ex4 -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
      ./ex4 -da_grid_x 40 -initial 2 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 2.5 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
      ./ex4 -da_grid_x 40 -initial 3 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
@@ -66,6 +71,13 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
     mpiexec -np 1 ex4 -da_grid_x 40 -initial 3 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
     mpiexec -np 1 ex4 -da_grid_x 40 -initial 4 -hratio 1 -limit koren3 -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
     mpiexec -np 1 ex4 -da_grid_x 40 -initial 5 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 5.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+=======
+    mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 2 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 2.5 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 3 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 4 -hratio 1 -limit koren3 -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+    mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 5 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 5.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+>>>>>>> trivial edit: remove white spaces
 */
 
 #include <petscts.h>
@@ -77,8 +89,12 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
 #include <petsc/private/kernels/blockinvert.h>
 =======
 
+<<<<<<< HEAD
 #include <petsc/private/kernels/blockinvert.h> 
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
+=======
+#include <petsc/private/kernels/blockinvert.h>
+>>>>>>> trivial edit: remove white spaces
 
 PETSC_STATIC_INLINE PetscReal RangeMod(PetscReal a,PetscReal xmin,PetscReal xmax) { PetscReal range = xmax-xmin; return xmin +PetscFmodReal(range+PetscFmodReal(a,range),range); }
 PETSC_STATIC_INLINE PetscReal MaxAbs(PetscReal a,PetscReal b) { return (PetscAbs(a) > PetscAbs(b)) ? a : b; }
@@ -150,11 +166,15 @@ static PetscErrorCode PhysicsCreate_Advect(FVCtx *ctx)
   ctx->physics2.dof             = 1;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
 =======
   ctx->physics2.issource        = PETSC_FALSE; 
+=======
+  ctx->physics2.issource        = PETSC_FALSE;
+>>>>>>> trivial edit: remove white spaces
 
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
   ierr = PetscStrallocpy("u",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
@@ -570,16 +590,16 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   ShallowCtx                *phys = (ShallowCtx*)vctx;
   PetscScalar               g = phys->gravity,fL[2],fR[2],s;
   struct {PetscScalar h,u;} L = {uL[0],uL[1]/uL[0]},R = {uR[0],uR[1]/uR[0]};
-  PetscReal                 tol = 1e-6; 
+  PetscReal                 tol = 1e-6;
 
   PetscFunctionBeginUser;
   /* Positivity preserving modification*/
-  if (L.h < tol) L.u = 0.0; 
-  if (R.h < tol) R.u = 0.0; 
+  if (L.h < tol) L.u = 0.0;
+  if (R.h < tol) R.u = 0.0;
 
   /*simple pos preserve limiter*/
-  if (L.h < 0) L.h=0; 
-  if (R.h < 0) R.h=0; 
+  if (L.h < 0) L.h=0;
+  if (R.h < 0) R.h=0;
 
   ShallowFlux(phys,uL,fL);
   ShallowFlux(phys,uR,fR);
@@ -607,24 +627,25 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
   ShallowCtx     *phys = (ShallowCtx*)vctx;
   PetscReal      c;
   PetscErrorCode ierr;
-  PetscReal      tol = 1e-6; 
+  PetscReal      tol = 1e-6;
+
   PetscFunctionBeginUser;
   c         = PetscSqrtScalar(u[0]*phys->gravity);
 
   if (u[0] < tol) { /*Use conservative variables*/
-  X[0*2+0]  = 1;
-  X[0*2+1]  = 0;
-  X[1*2+0]  = 0;
-  X[1*2+1]  = 1;
+    X[0*2+0]  = 1;
+    X[0*2+1]  = 0;
+    X[1*2+0]  = 0;
+    X[1*2+1]  = 1;
   } else {
-  speeds[0] = u[1]/u[0] - c;
-  speeds[1] = u[1]/u[0] + c;
-  X[0*2+0]  = 1;
-  X[0*2+1]  = speeds[0];
-  X[1*2+0]  = 1;
-  X[1*2+1]  = speeds[1];
+    speeds[0] = u[1]/u[0] - c;
+    speeds[1] = u[1]/u[0] + c;
+    X[0*2+0]  = 1;
+    X[0*2+1]  = speeds[0];
+    X[1*2+0]  = 1;
+    X[1*2+1]  = speeds[1];
   }
-  
+
   ierr = PetscArraycpy(Xi,X,4);CHKERRQ(ierr);
   ierr = PetscKernel_A_gets_inverse_A_2(Xi,0,PETSC_FALSE,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -660,43 +681,44 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
       u[1] = (x < 25) ? -0.3 : 0.3;
       break;
     case 6:
-      u[0] = 1+0.5*PetscSinReal(2*PETSC_PI*x); 
+      u[0] = 1+0.5*PetscSinReal(2*PETSC_PI*x);
       u[1] = 1*u[0];
       break;
-    case 7: 
+    case 7:
       if (x < -0.1) {
-       u[0] = 1e-9; 
-       u[1] = 0.0; 
+       u[0] = 1e-9;
+       u[1] = 0.0;
       } else if(x < 0.1){
-       u[0] = 1.0; 
-       u[1] = 0.0; 
+       u[0] = 1.0;
+       u[1] = 0.0;
       } else {
-       u[0] = 1e-9; 
-       u[1] = 0.0; 
+       u[0] = 1e-9;
+       u[1] = 0.0;
       }
-      break; 
+      break;
     case 8:
      if (x < -0.1) {
-       u[0] = 2; 
-       u[1] = 0.0; 
+       u[0] = 2;
+       u[1] = 0.0;
       } else if(x < 0.1){
-       u[0] = 3.0; 
-       u[1] = 0.0; 
+       u[0] = 3.0;
+       u[1] = 0.0;
       } else {
-       u[0] = 2; 
-       u[1] = 0.0; 
+       u[0] = 2;
+       u[1] = 0.0;
       }
-      break; 
+      break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
   PetscFunctionReturn(0);
 }
 
-/* Implements inflow conditions for the given initial conditions. Which ones are actually active depends on 
+/* Implements inflow conditions for the given initial conditions. Which ones are actually active depends on
    on the results of PhysicsSetInflowType_Shallow. */
 static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,PetscReal *u)
 {
   FVCtx          *ctx = (FVCtx*)vctx;
+
   PetscFunctionBeginUser;
   if (ctx->bctype == FVBC_INFLOW){
     switch (ctx->initial) {
@@ -712,59 +734,59 @@ static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,P
       case 6:
         u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
         u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
-        break; 
-      case 7: 
+        break;
+      case 7:
         u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
         u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
-        break; 
-      case 8: 
+        break;
+      case 8:
         u[0] = 0; u[1] = 1.0; /* Left boundary conditions */
         u[2] = 0; u[3] = -1.0; /* Right boundary conditions */
-        break; 
+        break;
       default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
     }
   }
   PetscFunctionReturn(0);
 }
-/* Selects which boundary conditions are marked as inflow and which as outflow when FVBC_INFLOW is selected 
+/* Selects which boundary conditions are marked as inflow and which as outflow when FVBC_INFLOW is selected
    Which conditions and the number of boundary conditions depends on the particular problem considered. */
 static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
 {
   PetscFunctionBeginUser;
   switch (ctx->initial) {
-      case 0: 
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
       /* Fix left and right momentum, height is outflow*/
-        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
-        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
-        break; 
-      case 6: /* Fix left and right momentum, height is outflow*/
-        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
-        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
-        break; 
-      case 7: /* Fix left and right momentum, height is outflow*/
-        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
-        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
-        break; 
-      case 8: /* Fix left and right momentum, height is outflow*/
-        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
-        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
-        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
-        break;
-      default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
-    }
-  PetscFunctionReturn(0); 
+      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
+      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
+      break;
+    case 6: /* Fix left and right momentum, height is outflow*/
+      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
+      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
+      break;
+    case 7: /* Fix left and right momentum, height is outflow*/
+      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
+      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
+      break;
+    case 8: /* Fix left and right momentum, height is outflow*/
+      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
+      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
+      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
+      break;
+    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+  }
+  PetscFunctionReturn(0);
 }
 
 
@@ -780,11 +802,11 @@ static PetscErrorCode PhysicsSetSource_Shallow(FVCtx *ctx){
     case 6:
     case 7:
     case 8:
-      ctx->physics2.issource = PETSC_FALSE; 
+      ctx->physics2.issource = PETSC_FALSE;
       break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
-  PetscFunctionReturn(0); 
+  PetscFunctionReturn(0);
 }
 
 static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
@@ -797,22 +819,22 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   ctx->physics2.sample2         = PhysicsSample_Shallow;
-  ctx->physics2.inflow          = PhysicsInflow_Shallow;  
+  ctx->physics2.inflow          = PhysicsInflow_Shallow;
   ctx->physics2.destroy         = PhysicsDestroy_SimpleFree;
-  ctx->physics2.riemann2        = PhysicsRiemann_Shallow_Rusanov; 
-  ctx->physics2.characteristic2 = PhysicsCharacteristic_Shallow; 
+  ctx->physics2.riemann2        = PhysicsRiemann_Shallow_Rusanov;
+  ctx->physics2.characteristic2 = PhysicsCharacteristic_Shallow;
   ctx->physics2.user            = user;
   ctx->physics2.dof             = 2;
 
   PetscMalloc1(2*(ctx->physics2.dof),&ctx->physics2.bcinflowindex);
-  PhysicsSetInflowType_Shallow(ctx); 
-  PhysicsSetSource_Shallow(ctx); 
-  
+  PhysicsSetInflowType_Shallow(ctx);
+  PhysicsSetSource_Shallow(ctx);
+
   ierr = PetscStrallocpy("density",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
 
   user->gravity = 9.81;
- 
+
   ierr = RiemannListAdd_2WaySplit(&rlist,"exact",  PhysicsRiemann_Shallow_Exact);CHKERRQ(ierr);
   ierr = RiemannListAdd_2WaySplit(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
   ierr = ReconstructListAdd_2WaySplit(&rclist,"characteristic",PhysicsCharacteristic_Shallow);CHKERRQ(ierr);
@@ -1012,23 +1034,23 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
   }
 
   if (ctx->bctype == FVBC_INFLOW) {
-    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253
     pages 137-138 for the scheme. */
     if(xs==0){ /* Left Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
-          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
-          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
         }
@@ -1327,23 +1349,23 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
           for (i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 =======
   if (ctx->bctype == FVBC_INFLOW) {
-    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253
     pages 137-138 for the scheme. */
     if(xs==0){ /* Left Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
-          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
-          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 >>>>>>> Added Support for Inflow Boundary Conditions
@@ -1512,23 +1534,23 @@ PetscErrorCode FVRHSFunctionslowbuffer_2WaySplit(TS ts,PetscReal time,Vec X,Vec 
           for (i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 =======
   if (ctx->bctype == FVBC_INFLOW) {
-    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253
     pages 137-138 for the scheme. */
     if(xs==0){ /* Left Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
-          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
-          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 >>>>>>> Added Support for Inflow Boundary Conditions
@@ -1746,23 +1768,23 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
           for (i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 =======
   if (ctx->bctype == FVBC_INFLOW) {
-    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253
     pages 137-138 for the scheme. */
     if(xs==0){ /* Left Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
-          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
-      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
-          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 >>>>>>> Added Support for Inflow Boundary Conditions
@@ -1903,6 +1925,9 @@ int main(int argc,char *argv[])
   ierr = PetscFunctionListAdd(&physics,"advect"          ,PhysicsCreate_Advect);CHKERRQ(ierr);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> trivial edit: remove white spaces
   ctx.comm    = comm;
   ctx.cfl     = 0.9;
   ctx.bctype  = FVBC_PERIODIC;
@@ -1911,6 +1936,7 @@ int main(int argc,char *argv[])
   ctx.initial = 1;
   ctx.hratio  = 2;
   maxtime     = 10.0;
+<<<<<<< HEAD
   ctx.simulation = PETSC_FALSE;
 =======
   ctx.comm = comm;
@@ -1925,6 +1951,8 @@ int main(int argc,char *argv[])
 =======
   maxtime = 10.0;
 >>>>>>> Added example specifications
+=======
+>>>>>>> trivial edit: remove white spaces
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmin","X min","",ctx.xmin,&ctx.xmin,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmax","X max","",ctx.xmax,&ctx.xmax,NULL);CHKERRQ(ierr);
@@ -1974,12 +2002,16 @@ int main(int argc,char *argv[])
   ierr = PetscMalloc3(2*dof,&ctx.uLR,dof,&ctx.flux,dof,&ctx.speeds);CHKERRQ(ierr);
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   ierr = PetscMalloc1(2*dof,&ctx.ub);CHKERRQ(ierr);
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
 =======
   ierr = PetscMalloc1(2*dof,&ctx.ub);CHKERRQ(ierr); 
 >>>>>>> Added Support for Inflow Boundary Conditions
+=======
+  ierr = PetscMalloc1(2*dof,&ctx.ub);CHKERRQ(ierr);
+>>>>>>> trivial edit: remove white spaces
 
   /* Create a vector to store the solution and to save the initial state */
   ierr = DMCreateGlobalVector(da,&X);CHKERRQ(ierr);
@@ -2017,8 +2049,12 @@ int main(int argc,char *argv[])
 =======
   ctx.lsbwidth = 4;
   ctx.rsbwidth = 4;
+<<<<<<< HEAD
   
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
+=======
+
+>>>>>>> trivial edit: remove white spaces
   for (i=xs; i<xs+xm; i++) {
     if (i < ctx.sf-ctx.lsbwidth || i > ctx.fs+ctx.rsbwidth-1)
       for (k=0; k<dof; k++) index_slow[islow++] = i*dof+k;
