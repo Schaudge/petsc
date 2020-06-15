@@ -429,12 +429,21 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
 
   PetscFunctionBeginUser;
   /* Positivity preserving modification*/
+<<<<<<< HEAD
   if (L.h < tol) L.u = 0.0;
   if (R.h < tol) R.u = 0.0;
 
   /*simple pos preserve limiter*/
   if (L.h < 0) L.h = 0;
   if (R.h < 0) R.h = 0;
+=======
+  if (L.h < tol) L.u = 0.0; 
+  if (R.h < tol) R.u = 0.0; 
+
+  /*simple pos preserve limiter*/
+  if (L.h < 0) L.h=0; 
+  if (R.h < 0) R.h=0; 
+>>>>>>> Added Support for Inflow Boundary Conditions
 
   ShallowFlux(phys,uL,fL);
   ShallowFlux(phys,uR,fR);
@@ -469,10 +478,17 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
   c           = PetscSqrtScalar(u[0]*phys->gravity);
 
   if (u[0] < tol) { /*Use conservative variables*/
+<<<<<<< HEAD
     X[0*2+0]  = 1;
     X[0*2+1]  = 0;
     X[1*2+0]  = 0;
     X[1*2+1]  = 1;
+=======
+  X[0*2+0]  = 1;
+  X[0*2+1]  = 0;
+  X[1*2+0]  = 0;
+  X[1*2+1]  = 1;
+>>>>>>> Added Support for Inflow Boundary Conditions
   } else {
     speeds[0] = u[1]/u[0] - c;
     speeds[1] = u[1]/u[0] + c;
@@ -609,6 +625,69 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
   PetscFunctionReturn(0);
 }
 
+/* Implements inflow conditions for the given initial conditions. Which ones are actually active depends on 
+   the results PhysicsSetInflowType_Shallow. It only makes physical sense for two total conditions be active 
+   at any one time. */
+static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,PetscReal *u)
+{
+  FVCtx          *ctx = (FVCtx*)vctx;
+  PetscFunctionBeginUser;
+  if (ctx->bctype == FVBC_INFLOW){
+    switch (ctx->initial) {
+      case 0:
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break; 
+      case 1:
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break; 
+      case 2: 
+        u[0] = 0; u[1] = 0.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = 0.0; /* Right boundary conditions */
+        break; 
+      case 3: 
+        u[0] = 0; u[1] = 1.0; /* Left boundary conditions */
+        u[2] = 0; u[3] = -1.0; /* Right boundary conditions */
+        break; 
+      default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
+{
+  switch (ctx->initial) {
+      case 0: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break; 
+      case 1: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break; 
+      case 2: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break; 
+      case 3: /* Fix left and right momentum, height is outflow*/
+        ctx->physics2.bcinflowindex[0] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[1] = PETSC_TRUE; 
+        ctx->physics2.bcinflowindex[2] = PETSC_FALSE; 
+        ctx->physics2.bcinflowindex[3] = PETSC_TRUE; 
+        break;
+      default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+    }
+  PetscFunctionReturn(0); 
+}
+
 static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
 {
   PetscErrorCode    ierr;
@@ -619,7 +698,11 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   ctx->physics2.sample2         = PhysicsSample_Shallow;
+<<<<<<< HEAD
   ctx->physics2.inflow          = PhysicsInflow_Shallow;
+=======
+  ctx->physics2.inflow          = PhysicsInflow_Shallow;  
+>>>>>>> Added Support for Inflow Boundary Conditions
   ctx->physics2.destroy         = PhysicsDestroy_SimpleFree;
   ctx->physics2.riemann2        = PhysicsRiemann_Shallow_Rusanov;
   ctx->physics2.characteristic2 = PhysicsCharacteristic_Shallow;
@@ -627,9 +710,15 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   ctx->physics2.dof             = 2;
 
   PetscMalloc1(2*(ctx->physics2.dof),&ctx->physics2.bcinflowindex);
+<<<<<<< HEAD
   PhysicsSetInflowType_Shallow(ctx);
 
   ierr = PetscStrallocpy("height",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
+=======
+  PhysicsSetInflowType_Shallow(ctx); 
+  
+  ierr = PetscStrallocpy("density",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
+>>>>>>> Added Support for Inflow Boundary Conditions
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
 
   user->gravity = 9.81;
@@ -651,11 +740,66 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
 }
 /* --------------------------------- Shallow Water ----------------------------------- */
 
+<<<<<<< HEAD
 typedef struct {
   PetscReal gravity;
 } ShallowCtx;
 
 PETSC_STATIC_INLINE void ShallowFlux(ShallowCtx *phys,const PetscScalar *u,PetscScalar *f)
+=======
+PetscErrorCode FVSample_2WaySplit(FVCtx *ctx,DM da,PetscReal time,Vec U)
+{
+  PetscErrorCode  ierr;
+  PetscScalar     *u,*uj,xj,xi;
+  PetscInt        i,j,k,dof,xs,xm,Mx;
+  const PetscInt  N = 200;
+  PetscReal       hs,hf;
+
+  PetscFunctionBeginUser;
+  if (!ctx->physics2.sample2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Physics has not provided a sampling function");
+  ierr = DMDAGetInfo(da,0, &Mx,0,0, 0,0,0, &dof,0,0,0,0,0);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(da,U,&u);CHKERRQ(ierr);
+  ierr = PetscMalloc1(dof,&uj);CHKERRQ(ierr);
+  hs   = (ctx->xmax-ctx->xmin)*3.0/8.0/ctx->sf;
+  hf   = (ctx->xmax-ctx->xmin)/4.0/(ctx->fs-ctx->sf);
+  for (i=xs; i<xs+xm; i++) {
+    if (i < ctx->sf) {
+      xi = ctx->xmin+0.5*hs+i*hs;
+      /* Integrate over cell i using trapezoid rule with N points. */
+      for (k=0; k<dof; k++) u[i*dof+k] = 0;
+      for (j=0; j<N+1; j++) {
+        xj = xi+hs*(j-N/2)/(PetscReal)N;
+        ierr = (*ctx->physics2.sample2)(ctx->physics2.user,ctx->initial,ctx->bctype,ctx->xmin,ctx->xmax,time,xj,uj);CHKERRQ(ierr);
+        for (k=0; k<dof; k++) u[i*dof+k] += ((j==0 || j==N) ? 0.5 : 1.0)*uj[k]/N;
+      }
+    } else if (i < ctx->fs) {
+      xi = ctx->xmin+ctx->sf*hs+0.5*hf+(i-ctx->sf)*hf;
+      /* Integrate over cell i using trapezoid rule with N points. */
+      for (k=0; k<dof; k++) u[i*dof+k] = 0;
+      for (j=0; j<N+1; j++) {
+        xj = xi+hf*(j-N/2)/(PetscReal)N;
+        ierr = (*ctx->physics2.sample2)(ctx->physics2.user,ctx->initial,ctx->bctype,ctx->xmin,ctx->xmax,time,xj,uj);CHKERRQ(ierr);
+        for (k=0; k<dof; k++) u[i*dof+k] += ((j==0 || j==N) ? 0.5 : 1.0)*uj[k]/N;
+      }
+    } else {
+      xi = ctx->xmin+ctx->sf*hs+(ctx->fs-ctx->sf)*hf+0.5*hs+(i-ctx->fs)*hs;
+      /* Integrate over cell i using trapezoid rule with N points. */
+      for (k=0; k<dof; k++) u[i*dof+k] = 0;
+      for (j=0; j<N+1; j++) {
+        xj = xi+hs*(j-N/2)/(PetscReal)N;
+        ierr = (*ctx->physics2.sample2)(ctx->physics2.user,ctx->initial,ctx->bctype,ctx->xmin,ctx->xmax,time,xj,uj);CHKERRQ(ierr);
+        for (k=0; k<dof; k++) u[i*dof+k] += ((j==0 || j==N) ? 0.5 : 1.0)*uj[k]/N;
+      }
+    }
+  }
+  ierr = DMDAVecRestoreArray(da,U,&u);CHKERRQ(ierr);
+  ierr = PetscFree(uj);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SolutionErrorNorms_2WaySplit(FVCtx *ctx,DM da,PetscReal t,Vec X,PetscReal *nrm1)
+>>>>>>> Added Support for Inflow Boundary Conditions
 {
   f[0] = u[1];
   f[1] = PetscSqr(u[1])/u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
@@ -669,6 +813,7 @@ static PetscErrorCode PhysicsRiemann_Shallow_Exact(void *vctx,PetscInt m,const P
   PetscInt                  i;
 
   PetscFunctionBeginUser;
+<<<<<<< HEAD
   if (!(L.h > 0 && R.h > 0)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Reconstructed thickness is negative");
   cL = PetscSqrtScalar(g*L.h);
   cR = PetscSqrtScalar(g*R.h);
@@ -1601,6 +1746,8 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
   DM             da;
 
   PetscFunctionBeginUser;
+=======
+>>>>>>> Added Support for Inflow Boundary Conditions
   ierr = TSGetDM(ts,&da);CHKERRQ(ierr);
   ierr = DMGetLocalVector(da,&Xloc);CHKERRQ(ierr);                          /* Xloc contains ghost points                                     */
   ierr = DMDAGetInfo(da,0, &Mx,0,0, 0,0,0, &dof,0,0,0,0,0);CHKERRQ(ierr);   /* Mx is the number of center points                              */
@@ -1614,6 +1761,7 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
   ierr = DMDAVecGetArray(da,Xloc,&x);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(da,F,&f);CHKERRQ(ierr);
   ierr = DMDAGetArray(da,PETSC_TRUE,&slope);CHKERRQ(ierr);                  /* contains ghost points                                           */
+<<<<<<< HEAD
 
   ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
 
@@ -1966,6 +2114,9 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
+=======
+  ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
+>>>>>>> Added Support for Inflow Boundary Conditions
 
   if (ctx->bctype == FVBC_OUTFLOW) {
     for (i=xs-2; i<0; i++) {
@@ -1975,6 +2126,7 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
       for (j=0; j<dof; j++) x[i*dof+j] = x[(xs+xm-1)*dof+j];
     }
   }
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -2007,16 +2159,36 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
           for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
+=======
+
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+>>>>>>> Added Support for Inflow Boundary Conditions
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
+<<<<<<< HEAD
       ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+>>>>>>> Added Support for Inflow Boundary Conditions
+=======
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 >>>>>>> Added Support for Inflow Boundary Conditions
@@ -2025,9 +2197,13 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
     }
   }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
 =======
+>>>>>>> Added Support for Inflow Boundary Conditions
+=======
+
 >>>>>>> Added Support for Inflow Boundary Conditions
   for (i=xs-1; i<xs+xm+1; i++) {
     struct _LimitInfo info;
@@ -2313,6 +2489,7 @@ PetscErrorCode FVRHSFunctionslowbuffer_2WaySplit(TS ts,PetscReal time,Vec X,Vec 
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (ctx->bctype == FVBC_INFLOW) {
     /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253
     pages 137-138 for the scheme. */
@@ -2342,16 +2519,35 @@ PetscErrorCode FVRHSFunctionslowbuffer_2WaySplit(TS ts,PetscReal time,Vec X,Vec 
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
           for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
+=======
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+>>>>>>> Added Support for Inflow Boundary Conditions
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
+<<<<<<< HEAD
       ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+>>>>>>> Added Support for Inflow Boundary Conditions
+=======
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 >>>>>>> Added Support for Inflow Boundary Conditions
@@ -2360,12 +2556,15 @@ PetscErrorCode FVRHSFunctionslowbuffer_2WaySplit(TS ts,PetscReal time,Vec X,Vec 
     }
   }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
 =======
 >>>>>>> Added Support for Inflow Boundary Conditions
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
+=======
+>>>>>>> Added Support for Inflow Boundary Conditions
   for (i=xs-1; i<xs+xm+1; i++) {
     struct _LimitInfo info;
     PetscScalar       *cjmpL,*cjmpR;
@@ -2617,6 +2816,7 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
   }
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (ctx->bctype == FVBC_INFLOW) {
     /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253
     pages 137-138 for the scheme. */
@@ -2646,16 +2846,35 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
           for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
+=======
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+>>>>>>> Added Support for Inflow Boundary Conditions
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
         }
       }
     }
     if(xs+xm==Mx){ /* Right Boundary */
+<<<<<<< HEAD
       ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
         if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+>>>>>>> Added Support for Inflow Boundary Conditions
+=======
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
 >>>>>>> Added Support for Inflow Boundary Conditions
@@ -2664,6 +2883,9 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
     }
   }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Added Support for Inflow Boundary Conditions
   for (i=xs-1; i<xs+xm+1; i++) {
     struct _LimitInfo info;
     PetscScalar       *cjmpL,*cjmpR;
@@ -2822,6 +3044,30 @@ PetscErrorCode FVRHSFunctionfast_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
     }
     for (i=Mx; i<xs+xm+2; i++) {
       for (j=0; j<dof; j++) x[i*dof+j] = x[(xs+xm-1)*dof+j];
+    }
+  }
+  if (ctx->bctype == FVBC_INFLOW) {
+    /* See LeVeque, R. (2002). Finite Volume Methods for Hyperbolic Problems. doi:10.1017/CBO9780511791253 
+    pages 137-138 for the scheme. */
+    if(xs==0){ /* Left Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+          for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j]; 
+        } else {
+          for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
+        }
+      }
+    }
+    if(xs+xm==Mx){ /* Right Boundary */
+      ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub); 
+      for(j=0; j<dof; j++) {
+        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j]; 
+        } else {
+          for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
+        }
+      }
     }
   }
   for (i=xs-1; i<xs+xm+1; i++) {
@@ -3120,7 +3366,11 @@ int main(int argc,char *argv[])
 =======
   ierr = PetscMalloc4(dof*dof,&ctx.R,dof*dof,&ctx.Rinv,2*dof,&ctx.cjmpLR,1*dof,&ctx.cslope);CHKERRQ(ierr);
   ierr = PetscMalloc3(2*dof,&ctx.uLR,dof,&ctx.flux,dof,&ctx.speeds);CHKERRQ(ierr);
+<<<<<<< HEAD
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
+=======
+  ierr = PetscMalloc1(2*dof,&ctx.ub);CHKERRQ(ierr); 
+>>>>>>> Added Support for Inflow Boundary Conditions
 
   /* Create a vector to store the solution and to save the initial state */
   ierr = DMCreateGlobalVector(da,&X);CHKERRQ(ierr);
@@ -3513,6 +3763,8 @@ int main(int argc,char *argv[])
 =======
   ierr = (*ctx.physics2.destroy)(ctx.physics2.user);CHKERRQ(ierr);
   for (i=0; i<ctx.physics2.dof; i++) {ierr = PetscFree(ctx.physics2.fieldname[i]);CHKERRQ(ierr);}
+  ierr = PetscFree(ctx.physics2.bcinflowindex);CHKERRQ(ierr);
+  ierr = PetscFree(ctx.ub);
   ierr = PetscFree4(ctx.R,ctx.Rinv,ctx.cjmpLR,ctx.cslope);CHKERRQ(ierr);
   ierr = PetscFree3(ctx.uLR,ctx.flux,ctx.speeds);CHKERRQ(ierr);
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.

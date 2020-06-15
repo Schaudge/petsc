@@ -33,11 +33,15 @@ void Limit_CadaTorrilhon3R100(LimitInfo,const PetscScalar*,const PetscScalar*,Pe
 typedef enum {FVBC_PERIODIC, FVBC_OUTFLOW, FVBC_INFLOW} FVBCType;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 typedef enum {NONE, TOPOGRAPHY} SOURCEType; 
 >>>>>>> Added Support for Inflow Boundary Conditions
 =======
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
+=======
+typedef enum {NONE, TOPOGRAPHY} SOURCEType; 
+>>>>>>> Added Support for Inflow Boundary Conditions
 extern const char *FVBCTypes[];
 /* we add three new variables at the end of input parameters of function to be position of cell center, left bounday of domain, right boundary of domain */
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*,PetscReal,PetscReal,PetscReal);
@@ -97,6 +101,7 @@ typedef struct {
   char                          *fieldname[16];
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
                                                      is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow
                                                      outflow boundary condition. */
@@ -115,6 +120,12 @@ typedef struct {
                                                      is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
                                                      outflow boundary condition.*/
 >>>>>>> Small fixes to ex4
+=======
+  SOURCEType                    srctype;
+  PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
+                                   is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
+                                   outflow boundary condition.*/
+>>>>>>> Added Support for Inflow Boundary Conditions
 } PhysicsCtx2;
 
 typedef struct {
@@ -133,9 +144,13 @@ typedef struct {
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *ub;              /* Boundary data for inflow boundary conditions */
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 <<<<<<< HEAD
+>>>>>>> Added Support for Inflow Boundary Conditions
+=======
+
 >>>>>>> Added Support for Inflow Boundary Conditions
 
 =======
