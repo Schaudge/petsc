@@ -1127,7 +1127,7 @@ PetscErrorCode SINDyVariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
 }
 
 
-PetscErrorCode SINDyFindSparseCoefficientsVariable(Basis basis, SparseReg sparse_reg, PetscInt output_dim, Vec* Xis)
+PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, PetscInt output_dim, Vec* Xis)
 {
   PetscErrorCode  ierr;
   PetscInt        d,b;
@@ -1171,7 +1171,7 @@ PetscErrorCode SINDyFindSparseCoefficientsVariable(Basis basis, SparseReg sparse
 
   if (sparse_reg->monitor) {
     PetscPrintf(PETSC_COMM_WORLD, "SINDy: %s Xi\n", basis->normalize_columns ? " scaled" : "");
-    ierr = SINDyBasisPrintVariable(basis, output_dim, Xis);
+    ierr = SINDyBasisPrint(basis, output_dim, Xis);
   }
   if (basis->normalize_columns) {
     /* Scale back Xi to the original values. */
@@ -1198,7 +1198,7 @@ PetscErrorCode SINDyFindSparseCoefficientsVariable(Basis basis, SparseReg sparse
     }
     if (sparse_reg->monitor) {
       PetscPrintf(PETSC_COMM_WORLD, "SINDy: Xi\n");
-      ierr = SINDyBasisPrintVariable(basis, output_dim, Xis);
+      ierr = SINDyBasisPrint(basis, output_dim, Xis);
     }
   }
 
@@ -1284,7 +1284,7 @@ PetscErrorCode SINDySequentialThresholdedLeastSquares(SparseReg sparse_reg, Mat 
 }
 
 
-PetscErrorCode SINDyBasisPrintVariable(Basis basis, PetscInt output_dim, Vec* Xis)
+PetscErrorCode SINDyBasisPrint(Basis basis, PetscInt output_dim, Vec* Xis)
 {
   PetscErrorCode   ierr;
   const PetscReal  **xi_data;

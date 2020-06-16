@@ -15,15 +15,6 @@ PETSC_EXTERN PetscErrorCode SINDyBasisSetCrossTermRange(Basis, PetscInt);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetFromOptions(Basis);
 PETSC_EXTERN PetscErrorCode SINDyBasisDataGetSize(Basis, PetscInt*, PetscInt*);
 
-PETSC_DEPRECATED_FUNCTION("Use Variable: SINDyBasisAddVariables()")
-PETSC_EXTERN PetscErrorCode SINDyBasisCreateData(Basis, Vec*, PetscInt);
-
-PETSC_DEPRECATED_FUNCTION("Use Variable: SINDyFindSparseCoefficientsVariable()") 
-PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis, SparseReg, PetscInt, Vec*, PetscInt, Vec*);
-
-PETSC_DEPRECATED_FUNCTION("Use Variable: SINDyBasisPrintVariable()") 
-PETSC_EXTERN PetscErrorCode SINDyBasisPrint(Basis, PetscInt, Vec*);
-
 PETSC_EXTERN PetscErrorCode SINDySparseLeastSquares(Mat, Vec, Mat, Vec);
 PETSC_EXTERN PetscErrorCode SINDySparseRegCreate(SparseReg*);
 PETSC_EXTERN PetscErrorCode SINDySparseRegSetThreshold(SparseReg, PetscReal);
@@ -31,6 +22,9 @@ PETSC_EXTERN PetscErrorCode SINDySparseRegSetMonitor(SparseReg, PetscBool);
 PETSC_EXTERN PetscErrorCode SINDySparseRegSetFromOptions(SparseReg);
 PETSC_EXTERN PetscErrorCode SINDySparseRegDestroy(SparseReg*);
 
+PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis, SparseReg, PetscInt, Vec*);
+PETSC_EXTERN PetscErrorCode SINDyBasisPrint(Basis, PetscInt, Vec*);
+PETSC_EXTERN PetscErrorCode SINDySequentialThresholdedLeastSquares(SparseReg, Mat, Vec, Mat, Vec);
 
 typedef struct _p_Variable* Variable;
 
@@ -44,10 +38,6 @@ PETSC_EXTERN PetscErrorCode SINDyVariableDifferentiateSpatial(Variable, PetscInt
 
 PETSC_EXTERN PetscErrorCode SINDyBasisAddVariables(Basis, PetscInt, Variable*);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetOutputVariable(Basis, Variable);
-
-PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficientsVariable(Basis, SparseReg, PetscInt, Vec*);
-PETSC_EXTERN PetscErrorCode SINDyBasisPrintVariable(Basis, PetscInt, Vec*);
-PETSC_EXTERN PetscErrorCode SINDySequentialThresholdedLeastSquares(SparseReg, Mat, Vec, Mat, Vec);
 
 
 

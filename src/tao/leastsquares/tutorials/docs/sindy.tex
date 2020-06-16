@@ -622,14 +622,22 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
 
 \section{Things to do}
 
+\subsection{Speed}
 \begin{itemize}
+    \item Get it working in parallel.
+\end{itemize}
 
+\subsection{Basis functionality}
+\begin{itemize}
     \item Make it possible to use the computed coefficients to get the
       $\frac{d\vec{U}}{dt}$ approximation at a specific point or sets of points.
       A good way to do this may be to restructure the basis to make it easy to
       apply to a dataset and get back the computated basis values as some data
       structure that can then be multiplied with the computed coefficients.
+\end{itemize}
 
+\subsection{Data interface}
+\begin{itemize}
     \item Handle bad data points better. Perhaps supporting an interface to
       specify which points to not include in the linear system. (Current bad
       effects: the system has erroneous data that will mess up the regression.
@@ -647,7 +655,11 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
           problem throws out a whole \lstinline{Vec}, while this requires
           throwing out specific values within a \lstinline{Vec}.
     \end{itemize}
+\end{itemize}
 
+\subsection{Sparse regression}
+
+\begin{itemize}
     \item Handle threshold selection better.
     \begin{itemize}
         \item It would be good to be able to specify different thresholds for
@@ -667,11 +679,14 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
     \item Add ADMM as an option to do the regularized least squares? I think the
       sparse regression step in SINDy should call a backend that can be swapped
       out for various least squares algorithms.
+\end{itemize}
 
+\subsection{File I/O}
+
+\begin{itemize}
     \item Add support to write a computed basis to a file and read it from a
       file. This will let different sparse regularization strategies be tested
       without regenerating the data.
-
 \end{itemize}
 
 

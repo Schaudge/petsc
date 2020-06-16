@@ -385,7 +385,7 @@ int main(int argc, char** argv) {
   ierr = VecDuplicate(Xi[0], &Xi[1]);CHKERRQ(ierr);
 
   /* Run least squares */
-  ierr = SINDyFindSparseCoefficientsVariable(basis, sparse_reg, 2, Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 2, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);

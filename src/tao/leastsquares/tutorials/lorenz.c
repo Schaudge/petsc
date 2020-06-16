@@ -161,10 +161,18 @@ int main(int argc, char** argv) {
   printf("Generating data...\n");
   ierr = GetData(&n, &x, &dx);CHKERRQ(ierr);
 
+  Variable v_x,v_dx;
+  ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
+  ierr = SINDyVariableSetVecData(v_x, n, x, NULL);CHKERRQ(ierr);
+  ierr = SINDyVariableCreate("dx/dt", &v_dx);CHKERRQ(ierr);
+  ierr = SINDyVariableSetVecData(v_dx, n, dx, NULL);CHKERRQ(ierr);
+
   /* Create 3rd order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(3, 0, &basis);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
-  ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
+
+  ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
+  ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
   ierr = SINDySparseRegSetThreshold(sparse_reg, 0.025);CHKERRQ(ierr);
@@ -185,7 +193,7 @@ int main(int argc, char** argv) {
 
   /* Run least squares */
   printf("Running sparse least squares...\n");
-  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 3, Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 3, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);
@@ -195,6 +203,9 @@ int main(int argc, char** argv) {
   ierr = VecDestroy(&Xi[2]);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
   ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
+
+  ierr = SINDyVariableDestroy(&v_x);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_dx);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;

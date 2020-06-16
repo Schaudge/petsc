@@ -115,7 +115,7 @@ int main(int argc, char** argv)
 
   /* Run least squares */
   printf("Running sparse least squares...\n");
-  ierr = SINDyFindSparseCoefficientsVariable(basis, sparse_reg, 1, Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 1, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &u);CHKERRQ(ierr);

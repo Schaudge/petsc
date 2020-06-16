@@ -7,6 +7,7 @@ typedef struct {
   PetscInt  runs,steps,N,i;
   PetscReal dt;
   Vec       *all_x,*all_dx;
+  PetscBool fd_der;
 } Data;
 
 PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx)
@@ -42,11 +43,13 @@ PetscErrorCode DataInitialize(Data* data, Vec X)
 
   PetscFunctionBegin;
 
+  data->steps  = 5000;
+  data->dt     = 0.001;
+  data->fd_der = PETSC_FALSE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"","Data generation options","");CHKERRQ(ierr);
   {
-    data->steps = 5000;
+    ierr = PetscOptionsBool("-fd_der","use finite-difference to estimate derivative","",data->fd_der,&data->fd_der,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-steps","how many timesteps to simulate in each run","",data->steps,&data->steps,NULL);CHKERRQ(ierr);
-    data->dt = 0.001;
     ierr = PetscOptionsReal("-dt","timestep size","",data->dt,&data->dt,NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
@@ -74,11 +77,19 @@ PetscErrorCode DataPostStep(TS ts)
   }
   ierr = TSGetSolution(ts,&X);CHKERRQ(ierr);
   ierr = VecCopy(X, data->all_x[data->i]);CHKERRQ(ierr);
+  if (!data->fd_der) {
+    PetscReal     t;
+    TSRHSFunction func;
+    void          *ctx;
+    ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+    ierr = TSGetRHSFunction(ts,NULL,&func,&ctx);CHKERRQ(ierr);
+    ierr = func(ts, t, X, data->all_dx[data->i], ctx);CHKERRQ(ierr);
+  }
   data->i++;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DataComputeDerivative(Data* data)
+PetscErrorCode DataComputeDerivative_FD(Data* data)
 {
   PetscErrorCode ierr;
   PetscInt       i,t,r;
@@ -141,7 +152,6 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
   ierr = TSAdaptSetType(adapt,TSADAPTNONE);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
-
   ierr = TSSetSolution(ts, X);CHKERRQ(ierr);
   ierr = TSSetUp(ts);CHKERRQ(ierr);
 
@@ -160,7 +170,13 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
     ierr = TSSolve(ts, NULL);CHKERRQ(ierr);
   }
 
-  ierr = DataComputeDerivative(&data);CHKERRQ(ierr);
+  if (data.i != data.N) {
+    printf("Uh oh: recorded %d data points but expected %d data points\n", data.i, data.N);
+  }
+
+  if (data.fd_der) {
+    ierr = DataComputeDerivative_FD(&data);CHKERRQ(ierr);
+  }
 
   /* Write output parameters. */
   *N_p = data.N;
@@ -202,11 +218,20 @@ int main(int argc, char** argv)
   /* Generate data. */
   ierr = GetData(&n, &x, &dx);CHKERRQ(ierr);
 
+  Variable v_x,v_dx;
+  ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
+  ierr = SINDyVariableCreate("dx/dt", &v_dx);CHKERRQ(ierr);
+  ierr = SINDyVariableSetVecData(v_x, n, x, NULL);CHKERRQ(ierr);
+  ierr = SINDyVariableSetVecData(v_dx, n, dx, NULL);CHKERRQ(ierr);
+
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
   ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
-  ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
+
+  ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
+  ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
+  // ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
   ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-1);CHKERRQ(ierr);
@@ -218,7 +243,9 @@ int main(int argc, char** argv)
   ierr = VecCreateSeq(PETSC_COMM_SELF, num_bases, &Xi);CHKERRQ(ierr);
 
   /* Run least squares */
-  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 1, &Xi);CHKERRQ(ierr);
+  ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 1, &Xi);CHKERRQ(ierr);
+  // ierr = SINDyFindSparseCoefficients(basis, sparse_reg, n, dx, 1, &Xi);CHKERRQ(ierr);
+
 
    /* Free PETSc data structures */
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);
@@ -226,6 +253,9 @@ int main(int argc, char** argv)
   ierr = VecDestroy(&Xi);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
   ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
+
+  ierr = SINDyVariableDestroy(&v_x);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_dx);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;
