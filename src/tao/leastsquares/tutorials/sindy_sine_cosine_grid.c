@@ -81,7 +81,6 @@ PetscErrorCode RHSFunction(TS ts, PetscReal t, Vec X, Vec F, void* ctx)
   for (i=xs; i < xs+xm; i++) {
     for (j=ys; j < ys+ym; j++) {
       f[j][i].u = -PetscSinReal(p[j][i].u);
-      // f[j][i].v =  -PetscTanReal(p[j][i].v);
       f[j][i].v =  PetscCosReal(p[j][i].v);
     }
   }
@@ -127,7 +126,6 @@ PetscErrorCode RHSJacobian(TS ts, PetscReal t, Vec X, Mat J, Mat Jpre, void* ctx
       nc = 0;
       row.i = i; row.j = j; row.c = 1;
       col[nc].i = i;   col[nc].j = j;   col[nc].c = 1; val[nc++] = -PetscSinReal(p[j][i].v);
-      // col[nc].i = i;   col[nc].j = j;   col[nc].c = 1; val[nc++] = -PetscPowRealInt(1.0/PetscCosReal(p[j][i].v), 2);
       ierr = MatSetValuesStencil(Jpre,1,&row,nc,col,val,INSERT_VALUES);CHKERRQ(ierr);
     }
   }

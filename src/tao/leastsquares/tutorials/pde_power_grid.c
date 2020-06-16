@@ -25,6 +25,12 @@ typedef struct {
    User-defined data structures and routines
 */
 typedef struct {
+  PetscScalar scale_u_x;
+  PetscScalar scale_u_y;
+  PetscScalar scale_y_u_x;
+  PetscScalar scale_sin_x_u_y;
+  PetscScalar scale_nexp_t_u_yy;
+
   PetscScalar ws;   /* Synchronous speed */
   PetscScalar H;    /* Inertia constant */
   PetscScalar D;    /* Damping constant */
@@ -136,42 +142,6 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
   }
 
   /* Expected values:
-    fx = kx * (y - user.ws);
-    fy = ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
-
-    du/dx = ky2*(1.0-exp(-t/user.lambda)) * (p[j-1][i] - 2*p[j][i] + p[j+1][i])
-           + fx*(p[j][i+1] - p[j][i-1])
-           + fy*(p[j+1][i] - p[j-1][i]);
-
-
-    du/dx =
-             ky2*(p[j-1][i] - 2*p[j][i] + p[j+1][i])
-           + kx*y*(p[j][i+1] - p[j][i-1]) - kx*user.ws*(p[j][i+1] - p[j][i-1])
-           + ky*user.PM_min*(p[j+1][i] - p[j-1][i]) - ky*user.Pmax*PetscSinScalar(x)*(p[j+1][i] - p[j-1][i])
-  */
-  // PetscScalar ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H),2)*user.q/(user.dy * user.dy);
-  // PetscScalar kx = 1./(2*user.dx);
-  // PetscScalar ky = -(user.ws/(2*user.H))/(2*user.dy);
-  // printf("Expected:\n");
-  // printf("lambda: % g\n", user.lambda);
-  // printf("exp(-t/lambda)*p[j-1][i]: % g\n", ky2);
-  // printf("exp(-t/lambda) * p[j][i]: % g\n", 2 * ky2);
-  // printf("exp(-t/lambda)*p[j+1][i]: % g\n", -ky2);
-
-  // printf("               p[j-1][i]: % g\n", ky2 - ky*user.PM_min);
-  // printf("                 p[j][i]: % g\n", -2 * ky2);
-  // printf("               p[j+1][i]: % g\n", ky2 + ky*user.PM_min);
-
-  // printf("               p[j][i-1]: % g\n", kx * user.ws);
-  // printf("               p[j][i+1]: % g\n", -kx * user.ws);
-
-  // printf("             y*p[j][i-1]: % g\n", kx);
-  // printf("             y*p[j][i+1]: % g\n", -kx);
-
-  // printf("        sin(x)*p[j-1][i]: % g\n", ky*user.Pmax);
-  // printf("        sin(x)*p[j+1][i]: % g\n", -ky*user.Pmax);
-
-  /* Expected values:
     fx = der_kx * (y - user.ws);
     fy = der_ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
 
@@ -185,14 +155,15 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
   */
   PetscScalar der_ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H), 2) * user.q;
   PetscScalar der_kx = 1;
-  PetscScalar der_ky = -user.ws/(2*user.H);
+  PetscScalar der_ky = user.ws/(2*user.H);
   printf("Expected:\n");
   printf("lambda: % g\n", user.lambda);
-  printf("                        p_x[j][i]: % g\n", der_kx*user.ws);
-  printf("                        p_y[j][i]: % g\n", der_ky*user.PM_min);
-  printf("                    y * p_x[j][i]: % g\n", -der_kx);
-  printf("               sin(x) * p_y[j][i]: % g\n", der_ky*user.Pmax);
-  printf("(1 - exp(-t/lambda)) * p_yy[j][i]: % g\n", der_ky2);
+  printf("                        u_x[j][i]: % g\n", user.scale_u_x         * der_kx*user.ws);
+  printf("                        u_y[j][i]: % g\n", user.scale_u_y         * -der_ky*user.PM_min);
+  printf("                    y * u_x[j][i]: % g\n", user.scale_y_u_x       * -der_kx);
+  printf("               sin(x) * u_y[j][i]: % g\n", user.scale_sin_x_u_y   * der_ky*user.Pmax);
+  printf("(1 - exp(-t/lambda)) * u_yy[j][i]: % g\n", user.scale_nexp_t_u_yy * der_ky2);
+  printf("\n");
 
 
   /* Write output parameters. */
@@ -376,7 +347,7 @@ PetscErrorCode adv1(PetscScalar **p,PetscScalar y,PetscInt i,PetscInt j,PetscInt
 
     *p1 = 0.1*s1 + 0.6*s2 + 0.3*s3;
     } else *p1 = 0.0; */
-  f   =  (y - user->ws);
+  f   =  (user->scale_y_u_x * y - user->scale_u_x * user->ws);
   *p1 = f*(p[j][i+1] - p[j][i-1])/(2*user->dx);
   PetscFunctionReturn(0);
 }
@@ -400,7 +371,7 @@ PetscErrorCode adv2(PetscScalar **p,PetscScalar x,PetscInt i,PetscInt j,PetscInt
 
     *p2 = 0.1*s1 + 0.6*s2 + 0.3*s3;
     } else *p2 = 0.0; */
-  f   = (user->ws/(2*user->H))*(user->PM_min - user->Pmax*PetscSinScalar(x));
+  f   = (user->ws/(2*user->H))*(user->scale_u_y * user->PM_min - user->scale_sin_x_u_y* user->Pmax*PetscSinScalar(x));
   *p2 = f*(p[j+1][i] - p[j-1][i])/(2*user->dy);
   PetscFunctionReturn(0);
 }
@@ -409,8 +380,7 @@ PetscErrorCode adv2(PetscScalar **p,PetscScalar x,PetscInt i,PetscInt j,PetscInt
 PetscErrorCode diffuse(PetscScalar **p,PetscInt i,PetscInt j,PetscReal t,PetscScalar *p_diff,AppCtx * user)
 {
   PetscFunctionBeginUser;
-
-  *p_diff = user->disper_coe*((p[j-1][i] - 2*p[j][i] + p[j+1][i])/(user->dy*user->dy));
+  *p_diff = user->scale_nexp_t_u_yy * user->disper_coe*((p[j-1][i] - 2*p[j][i] + p[j+1][i])/(user->dy*user->dy));
   PetscFunctionReturn(0);
 }
 
@@ -613,7 +583,7 @@ PetscErrorCode Parameter_settings(AppCtx *user)
   user->xmin   = -1.0; user->xmax = 10.0;
   user->ymin   = -1.0; user->ymax = 10.0;
   user->bc     = 0;
-  
+
   ierr = PetscOptionsGetScalar(NULL,NULL,"-ws",&user->ws,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsGetScalar(NULL,NULL,"-Inertia",&user->H,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsGetScalar(NULL,NULL,"-Pmax",&user->Pmax,&flg);CHKERRQ(ierr);
@@ -633,6 +603,19 @@ PetscErrorCode Parameter_settings(AppCtx *user)
   ierr = PetscOptionsGetScalar(NULL,NULL,"-ymax",&user->ymax,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-steps",&user->steps,&flg);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,NULL,"-bc_type",&user->bc,&flg);CHKERRQ(ierr);
+
+
+  user->scale_u_x         = 1;
+  user->scale_u_y         = 1;
+  user->scale_y_u_x       = 1;
+  user->scale_sin_x_u_y   = 1;
+  user->scale_nexp_t_u_yy = 1;
+  ierr = PetscOptionsGetScalar(NULL,NULL,"-scale_u_x",&user->scale_u_x,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsGetScalar(NULL,NULL,"-scale_u_y",&user->scale_u_y,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsGetScalar(NULL,NULL,"-scale_y_u_x",&user->scale_y_u_x,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsGetScalar(NULL,NULL,"-scale_sin_x_u_y",&user->scale_sin_x_u_y,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsGetScalar(NULL,NULL,"-scale_nexp_t_u_yy",&user->scale_nexp_t_u_yy,&flg);CHKERRQ(ierr);
+
   user->muy = user->ws;
   PetscFunctionReturn(0);
 }

@@ -392,7 +392,49 @@ include input DOFs $i-c,i-c+1,\hdots,i,\hdots,i+c$ at that point.
 separate matrix for each output DOF, so there are $d_u$ matrices to build.
 Each matrix is built by looping through each basis function, and for each basis function,
 looping through each output coordinate and adding all $m$ outputs to the for that coordinate.
-This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} columnwise.
+This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} column-wise.
+
+
+\section{Things to do}
+
+\begin{itemize}
+    \item Handle bad data points better. Perhaps supporting an interface to
+      specify which points to not include in the linear system. (Current bad
+      effects: the system has erroneous data that will mess up the regression.
+      In the first case below, this will simply make the constant term more
+      likely to be 0, and in the second case below, it may mess up all the
+      results.)
+    \begin{itemize}
+        \item For example, when doing a fourth-order centered finite difference
+          to estimate $\frac{du}{dt}$, the first two points and last two points
+          don't have an estimate. I have been setting them to 0, but it would be
+          good to support ignoring specific input data points.
+        \item For example, on Dirichlet boundaries, $\frac{du}{dt} = 0$ no
+          matter what the PDE equations are, so those points should be thrown
+          out. This is different from the above problem because the above
+          problem throws out a whole \lstinline{Vec}, while this requires
+          throwing out specific values within a \lstinline{Vec}.
+    \end{itemize}
+
+    \item Handle threshold selection better.
+    \begin{itemize}
+        \item It would be good to be able to specify different thresholds for
+          different degrees of freedom.
+        \item It would be good to be to have automated methods for picking a
+          threshold. E.g., something like Section 3.3 in \cite{shea2020sindy-bvp}.
+    \end{itemize}
+
+    \item Do non-regularized least squares after thresholding is complete? This
+      will make the selected non-zero coefficients better match the data.
+
+    \item Is there a way to do normalization better? One problem is that the
+      current column scaling means coefficients get bigger and bigger as more
+      data is added, which means the threshold parameter and regularization
+      factor need to be changed accordingly. Maybe a row-scaling would be good.
+
+    \item Use ADMM to do the regularized least squares?
+
+\end{itemize}
 
 
 \bibliographystyle{unsrt}

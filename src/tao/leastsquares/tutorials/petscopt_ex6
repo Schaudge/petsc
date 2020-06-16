@@ -1,5 +1,5 @@
-# Options for ex30
-# ----------------
+# Options for pde_power_grid
+# --------------------------
 -ts_type beuler
 -ts_exact_final_time MATCHSTEP
 
@@ -21,9 +21,30 @@
 -xmax 10
 -ymin -1
 -ymax 10
--da_grid_x 10
--da_grid_y 10
 
--sparse_reg_threshold 0
--sindy_cross_term_range 1
+-da_grid_x 20
+-da_grid_y 20
+
+-scale_p_x 1
+-scale_p_y 1
+-scale_y_p_x 1
+-scale_sin_x_p_y 1
+-scale_nexp_t_p_yy 1
+
+#### SINDy parameters
+---------------------
+
+-sindy_cross_term_range -1
+-sindy_poly_order 2
+-sindy_monitor 0
+
+# Regularization tends to kill the d2u/dy2*(1 - exp(-t/lambda)) term.
+-tao_brgn_regularizer_weight 0
+
+## Parameters for non-normalized columns.
 -sindy_normalize_columns 0
+-sparse_reg_threshold 1e-6
+
+## Parameters for normalized columns.
+# -sindy_normalize_columns 1
+# -sparse_reg_threshold 1e-5

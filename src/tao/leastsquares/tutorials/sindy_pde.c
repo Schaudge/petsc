@@ -46,16 +46,20 @@ int main(int argc, char** argv)
 
     ierr = DMGetCoordinateDM(dm,&x_dm);CHKERRQ(ierr);
     ierr = DMGetCoordinatesLocal(dm,&gc);CHKERRQ(ierr);
+
     ierr = VecDuplicateVecs(gc, n, &x_vecs);CHKERRQ(ierr);
     ierr = DMDAGetCorners(x_dm,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
-    for (k = 0; k < n; k++) {
-      ierr = DMDAVecGetArrayRead(x_dm,x_vecs[k],&coords);CHKERRQ(ierr);
-      for (i=xs; i < xs+xm; i++) {
-        for (j=ys; j < ys+ym; j++) {
-          coords[j][i].x = PetscSinReal(coords[j][i].x);
-        }
+
+    ierr = VecCopy(gc, x_vecs[0]);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(x_dm,x_vecs[0],&coords);CHKERRQ(ierr);
+    for (i=xs; i < xs+xm; i++) {
+      for (j=ys; j < ys+ym; j++) {
+        coords[j][i].x = PetscSinReal(coords[j][i].x);
       }
-      ierr = DMDAVecRestoreArrayRead(x_dm,x_vecs[k],&coords);CHKERRQ(ierr);
+    }
+    ierr = DMDAVecRestoreArray(x_dm,x_vecs[0],&coords);CHKERRQ(ierr);
+    for (k = 1; k < n; k++) {
+      ierr = VecCopy(x_vecs[0], x_vecs[k]);CHKERRQ(ierr);
     }
   }
   ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
@@ -75,25 +79,21 @@ int main(int argc, char** argv)
   }
   ierr = SINDyVariableSetScalarData(v_t, n, t_exp);CHKERRQ(ierr);
 
-  Variable v_dudx,v_dudy,v_dudyy;
+  Variable v_dudx,v_dudy,v_dudyy,v_dudxx;
   ierr = SINDyVariableDifferentiateSpatial(v_u, 0, 1, "du/dx", &v_dudx);CHKERRQ(ierr);
   ierr = SINDyVariableDifferentiateSpatial(v_u, 1, 1, "du/dy", &v_dudy);CHKERRQ(ierr);
+  ierr = SINDyVariableDifferentiateSpatial(v_u, 0, 2, "d2u/dx2", &v_dudxx);CHKERRQ(ierr);
   ierr = SINDyVariableDifferentiateSpatial(v_u, 1, 2, "d2u/dy2", &v_dudyy);CHKERRQ(ierr);
-
-
-  // for (PetscInt i = 0; i < n; i++) {
-  //   ierr = VecView(x[i], PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
-  // }
 
   /* Create 2nd order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(2, 0, &basis);CHKERRQ(ierr);
   ierr = SINDyBasisSetNormalizeColumns(basis, PETSC_FALSE);CHKERRQ(ierr);
-  // ierr = SINDyBasisSetCrossTermRange(basis, 0);CHKERRQ(ierr);
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
   ierr = SINDyBasisSetOutputVariable(basis, v_dudt);CHKERRQ(ierr);
 
-  Variable vars[] = {v_dudx, v_dudy, v_dudyy, v_t, v_x};
+  Variable vars[] = {v_dudx, v_dudy, v_dudyy, v_dudxx, v_t, v_x};
+  printf("Building basis...\n");
   ierr = SINDyBasisAddVariables(basis, sizeof(vars)/sizeof(vars[0]), vars);CHKERRQ(ierr);
 
   ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);

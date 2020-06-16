@@ -411,6 +411,7 @@ PetscErrorCode SINDyVariablePrint(Variable var)
       ierr = PetscPrintf(PETSC_COMM_SELF, "%3d: % -13.6g\n", n, var->scalar_data[n]);CHKERRQ(ierr);
     }
   }
+  ierr = PetscPrintf(PETSC_COMM_SELF, "\n");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -451,7 +452,7 @@ PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_di
         DM         x_dm;
         Vec        gc;
         DMDACoor2d **coords;
-        PetscInt   xs,ys,xm,ym,i,j,k;
+        PetscInt   xs,ys,xm,ym;
 
         ierr = DMGetCoordinateDM(var->dm,&x_dm);CHKERRQ(ierr);
         ierr = DMGetCoordinatesLocal(var->dm,&gc);CHKERRQ(ierr);
@@ -466,15 +467,15 @@ PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_di
         ierr = DMDAVecGetArrayDOFRead(var->dm,var->vec_data[n],&u);CHKERRQ(ierr);
         ierr = DMDAVecGetArrayDOF(var->dm,der_vecs[n],&der_data);CHKERRQ(ierr);
         if (coord_dim == 1) {
-          /* Centered difference on inner points and one-sided difference on boundary points. */
+          /* Centered difference on inner points and zero on boundary points. // one-sided difference on boundary points. */
           if (der_order == 1) {
             for (j = 0; j < var->coord_dim_sizes[1]; j++) {
               for (i = 0; i < var->coord_dim_sizes[0]; i++) {
                 for (d = 0; d < var->dim; d++ ) {
                   if (j == 0) {
-                    der_data[j][i][d] = (u[j+1][i][d] - u[j][i][d])/dx;
+                    der_data[j][i][d] = 0; // (u[j+1][i][d] - u[j][i][d])/dx;
                   } else if (j == var->coord_dim_sizes[coord_dim]-1) {
-                    der_data[j][i][d] = (u[j][i][d] - u[j-1][i][d])/dx;
+                    der_data[j][i][d] = 0; // (u[j][i][d] - u[j-1][i][d])/dx;
                   } else {
                     der_data[j][i][d] = (u[j+1][i][d] - u[j-1][i][d])/(2*dx);
                   }
@@ -486,9 +487,9 @@ PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_di
               for (i = 0; i < var->coord_dim_sizes[0]; i++) {
                 for (d = 0; d < var->dim; d++ ) {
                   if (j == 0) {
-                    der_data[j][i][d] = (u[j+2][i][d] - 2 * u[j+1][i][d]+ u[j][i][d])/(dx*dx);
+                    der_data[j][i][d] = 0; // (u[j+2][i][d] - 2 * u[j+1][i][d]+ u[j][i][d])/(dx*dx);
                   } else if (j == var->coord_dim_sizes[coord_dim]-1) {
-                    der_data[j][i][d] = (u[j][i][d] - 2 * u[j-1][i][d]+ u[j-2][i][d])/(dx*dx);
+                    der_data[j][i][d] = 0; // (u[j][i][d] - 2 * u[j-1][i][d]+ u[j-2][i][d])/(dx*dx);
                   } else {
                     der_data[j][i][d] = (u[j+1][i][d] - 2 * u[j][i][d]+ u[j-1][i][d])/(dx*dx);
                   }
@@ -499,15 +500,15 @@ PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_di
             SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"For 2D DMDA, unsupported der_order %d", der_order);
           }
         } else if (coord_dim == 0) {
-          /* Centered difference on inner points and one-sided difference on boundary points. */
+          /* Centered difference on inner points and zero on boundary points. // one-sided difference on boundary points. */
           if (der_order == 1) {
             for (j = 0; j < var->coord_dim_sizes[1]; j++) {
               for (i = 0; i < var->coord_dim_sizes[0]; i++) {
                 for (d = 0; d < var->dim; d++ ) {
                   if (i == 0) {
-                    der_data[j][i][d] = (u[j][i+1][d] - u[j][i][d])/dx;
+                    der_data[j][i][d] = 0; // (u[j][i+1][d] - u[j][i][d])/dx;
                   } else if (i == var->coord_dim_sizes[coord_dim]-1) {
-                    der_data[j][i][d] = (u[j][i][d] - u[j][i-1][d])/dx;
+                    der_data[j][i][d] = 0; // (u[j][i][d] - u[j][i-1][d])/dx;
                   } else {
                     der_data[j][i][d] = (u[j][i+1][d] - u[j][i-1][d])/(2*dx);
                   }
@@ -519,9 +520,9 @@ PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_di
               for (i = 0; i < var->coord_dim_sizes[0]; i++) {
                 for (d = 0; d < var->dim; d++ ) {
                   if (i == 0) {
-                    der_data[j][i][d] = (u[j][i+2][d] - 2 * u[j][i+1][d]+ u[j][i][d])/(dx*dx);
+                    der_data[j][i][d] = 0; // (u[j][i+2][d] - 2 * u[j][i+1][d]+ u[j][i][d])/(dx*dx);
                   } else if (i == var->coord_dim_sizes[coord_dim]-1) {
-                    der_data[j][i][d] = (u[j][i][d] - 2 * u[j][i-1][d]+ u[j][i-2][d])/(dx*dx);
+                    der_data[j][i][d] = 0; // (u[j][i][d] - 2 * u[j][i-1][d]+ u[j][i-2][d])/(dx*dx);
                   } else {
                     der_data[j][i][d] = (u[j][i+1][d] - 2 * u[j][i][d]+ u[j][i-1][d])/(dx*dx);
                   }
@@ -559,9 +560,9 @@ PetscErrorCode SINDyVariableDifferentiateSpatial(Variable var, PetscInt coord_di
         for (i = 1; i < var->dim-1; i++) {
           der_data[i] = (u[i+1] - u[i-1])/(2*dx);
         }
-        /* One-sided difference on first and last points. */
-        der_data[0] = (u[1] - u[0])/dx;
-        der_data[var->dim-1] = (u[var->dim-1] - u[var->dim-2])/dx;
+        /* Zero out the first and last points. // One-sided difference on first and last points. */
+        der_data[0] = 0; // (u[1] - u[0])/dx;
+        der_data[var->dim-1] = 0; // (u[var->dim-1] - u[var->dim-2])/dx;
         ierr = VecRestoreArrayRead(var->vec_data[n], &u);CHKERRQ(ierr);
         ierr = VecRestoreArray(der_vecs[n], &der_data);CHKERRQ(ierr);
       }
