@@ -22,14 +22,14 @@
 -ymin -1
 -ymax 10
 
--da_grid_x 20
--da_grid_y 20
+-da_grid_x 13
+-da_grid_y 13
 
--scale_p_x 1
--scale_p_y 1
--scale_y_p_x 1
--scale_sin_x_p_y 1
--scale_nexp_t_p_yy 1
+-scale_u_x 1
+-scale_u_y 1
+-scale_y_u_x 1
+-scale_sin_x_u_y 1
+-scale_nexp_t_u_yy 1
 
 #### SINDy parameters
 ---------------------

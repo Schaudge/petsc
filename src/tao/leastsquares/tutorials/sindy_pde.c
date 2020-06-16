@@ -65,19 +65,20 @@ int main(int argc, char** argv)
   ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
   ierr = SINDyVariableSetVecData(v_x, n, x_vecs, x_dm);CHKERRQ(ierr);
 
-
-  Variable v_u,v_dudt,v_t;
+  Variable v_u,v_dudt,v_t,v_exp_t;
   ierr = SINDyVariableCreate("u", &v_u);CHKERRQ(ierr);
   ierr = SINDyVariableSetVecData(v_u, n, u, dm);CHKERRQ(ierr);
+
   ierr = SINDyVariableCreate("du/dt", &v_dudt);CHKERRQ(ierr);
   ierr = SINDyVariableSetVecData(v_dudt, n, du, dm);CHKERRQ(ierr);
 
-  ierr = SINDyVariableCreate("(1 - exp(-t/lambda))", &v_t);CHKERRQ(ierr);
+  ierr = SINDyVariableCreate("t", &v_t);CHKERRQ(ierr);
+  ierr = SINDyVariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
+
+  ierr = SINDyVariableCreate("(1 - exp(-t/lambda))", &v_exp_t);CHKERRQ(ierr);
   ierr = PetscMalloc1(n, &t_exp);CHKERRQ(ierr);
-  for (PetscInt i = 0; i < n; i++) {
-    t_exp[i] = 1.0 - PetscExpScalar(-t[i] / 0.1);
-  }
-  ierr = SINDyVariableSetScalarData(v_t, n, t_exp);CHKERRQ(ierr);
+  for (PetscInt i = 0; i < n; i++) t_exp[i] = 1.0 - PetscExpScalar(-t[i] / 0.1);
+  ierr = SINDyVariableSetScalarData(v_exp_t, n, t_exp);CHKERRQ(ierr);
 
   Variable v_dudx,v_dudy,v_dudyy,v_dudxx;
   ierr = SINDyVariableDifferentiateSpatial(v_u, 0, 1, "du/dx", &v_dudx);CHKERRQ(ierr);
@@ -92,7 +93,7 @@ int main(int argc, char** argv)
 
   ierr = SINDyBasisSetOutputVariable(basis, v_dudt);CHKERRQ(ierr);
 
-  Variable vars[] = {v_dudx, v_dudy, v_dudyy, v_dudxx, v_t, v_x};
+  Variable vars[] = {v_dudx, v_dudy, v_dudyy, v_dudxx, v_t, v_exp_t, v_x};
   printf("Building basis...\n");
   ierr = SINDyBasisAddVariables(basis, sizeof(vars)/sizeof(vars[0]), vars);CHKERRQ(ierr);
 
@@ -134,6 +135,7 @@ int main(int argc, char** argv)
   ierr = SINDyVariableDestroy(&v_dudy);CHKERRQ(ierr);
   ierr = SINDyVariableDestroy(&v_dudyy);CHKERRQ(ierr);
   ierr = SINDyVariableDestroy(&v_t);CHKERRQ(ierr);
+  ierr = SINDyVariableDestroy(&v_exp_t);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;

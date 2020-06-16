@@ -142,28 +142,39 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, PetscReal**
   }
 
   /* Expected values:
-    fx = der_kx * (y - user.ws);
-    fy = der_ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
+    fx = kx * (y - user.ws);
+    fy = ky * (user.PM_min - user.Pmax*PetscSinScalar(x));
 
-    du/dx = der_ky2*(1.0-exp(-t/user.lambda)) * p_yy
+    du/dx = ky2*(1.0-exp(-t/user.lambda)) * p_yy
            - fx*p_x
            - fy*p_y;
     du/dx =
-             der_ky2*p_yy - der_ky2*exp(-t/user.lambda)*p_yy
-           - der_kx*y*p_x + der_kx*user.ws*p_x
-           - der_ky*user.PM_min*p_y + der_ky*user.Pmax*PetscSinScalar(x)*p_y
+             ky2*p_yy - ky2*exp(-t/user.lambda)*p_yy
+           - kx*y*p_x + kx*user.ws*p_x
+           - ky*user.PM_min*p_y + ky*user.Pmax*PetscSinScalar(x)*p_y
+
+    (1.0-exp(-t/l)) = 1 - (1 + -t/l + (-t/l)^2/2 + (-t/l)^3/6 + (-t/l)^4/24 + ...)
+                         = t/l - t^2/(2*l^2) + t^3/(6*l^3) - t^4/(24*l^4) + ...
   */
-  PetscScalar der_ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H), 2) * user.q;
-  PetscScalar der_kx = 1;
-  PetscScalar der_ky = user.ws/(2*user.H);
+  PetscScalar ky2 = PetscPowScalar((user.lambda*user.ws)/(2*user.H), 2) * user.q;
+  PetscScalar kx = 1;
+  PetscScalar ky = user.ws/(2*user.H);
+  PetscScalar scaled_kyy = user.scale_nexp_t_u_yy * ky2;
   printf("Expected:\n");
   printf("lambda: % g\n", user.lambda);
-  printf("                        u_x[j][i]: % g\n", user.scale_u_x         * der_kx*user.ws);
-  printf("                        u_y[j][i]: % g\n", user.scale_u_y         * -der_ky*user.PM_min);
-  printf("                    y * u_x[j][i]: % g\n", user.scale_y_u_x       * -der_kx);
-  printf("               sin(x) * u_y[j][i]: % g\n", user.scale_sin_x_u_y   * der_ky*user.Pmax);
-  printf("(1 - exp(-t/lambda)) * u_yy[j][i]: % g\n", user.scale_nexp_t_u_yy * der_ky2);
+  printf("                        u_x: % g\n", user.scale_u_x         * kx*user.ws);
+  printf("                        u_y: % g\n", user.scale_u_y         * -ky*user.PM_min);
+  printf("                    y * u_x: % g\n", user.scale_y_u_x       * -kx);
+  printf("               sin(x) * u_y: % g\n", user.scale_sin_x_u_y   * ky*user.Pmax);
+  printf("(1 - exp(-t/lambda)) * u_yy: % g\n", scaled_kyy);
   printf("\n");
+
+  printf("Maclaurin series expansion for t:\n");
+  printf("             t * u_yy[j][i]: % g\n",   scaled_kyy / user.lambda);
+  printf("           t^2 * u_yy[j][i]: % g\n", - scaled_kyy / (2 * PetscPowScalarInt(user.lambda, 2)));
+  printf("           t^3 * u_yy[j][i]: % g\n",   scaled_kyy / (6 * PetscPowScalarInt(user.lambda, 3)));
+  printf("           t^4 * u_yy[j][i]: % g\n", - scaled_kyy / (24 * PetscPowScalarInt(user.lambda, 4)));
+
 
 
   /* Write output parameters. */

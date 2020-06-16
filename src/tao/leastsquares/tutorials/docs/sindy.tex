@@ -58,7 +58,7 @@ This will generally be represented as a linear system with discretized $\vec{U}$
 and $\vec{X}$, with the columns of the matrix $\Theta$ represented basis
 functions evaluated at specific $\vec{X}$ and $t$.
 \begin{equation}\label{eq:basis-system}
-\frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) c
+\frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) \vec{c}
 \end{equation}
 
 Note that when $d_x \ne 1$ or $d_u \ne 1$, the vector terms in the basis shown above
@@ -243,6 +243,17 @@ systems so that each output dimension has its own independent set of sparse
 coefficients as a solution.
 
 
+\subsection{Normalization}
+
+Let $D \in \real^{p \times p}$ be a diagonal matrix where each diagonal is the magnitude of the
+corresponding column in $\Theta$. This matrix can be used to scale $\Theta$ to
+get a matrix $\Theta'$ where each column has norm 1.
+\begin{equation}\label{eq:normalized-system}
+\frac{d\vec{U}}{dt} \approx (\Theta D^{-1}) (D\vec{c}) = \Theta' \vec{c'}
+\end{equation}
+The solution of the normalized system is $\vec{c'}$, and $\vec{c}$ can be
+recovered using $\vec{c} = D^{-1} \vec{c'}$.
+
 \section{Examples}
 
 \subsection{sindy\_sine}
@@ -309,7 +320,7 @@ In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
 
 The basis system is below (copy/pasted from Equation~\ref{eq:basis-system}).
 \begin{equation}
-\frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) c
+\frac{d\vec{U}}{dt} \approx \Theta(\vec{U}, \vec{X}, t) \vec{c}
 \end{equation}
 An implementation requires the following steps:
 \begin{enumerate}
@@ -433,6 +444,10 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
       factor need to be changed accordingly. Maybe a row-scaling would be good.
 
     \item Use ADMM to do the regularized least squares?
+
+    \item Add support to write a computed basis to a file and read it from a
+      file. This will let different sparse regularization strategies be tested
+      without regenerating the data.
 
 \end{itemize}
 
