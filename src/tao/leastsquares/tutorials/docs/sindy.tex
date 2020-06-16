@@ -1,6 +1,6 @@
 % \documentclass[letterpaper,12pt]{article}
 \documentclass{article}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.9in]{geometry}
 
 \usepackage{cite}
 \usepackage{listings}
@@ -22,10 +22,25 @@
     filecolor=magenta,      % color of file links
     urlcolor=blue         
 }
-
 \definecolor{dkgreen}{rgb}{0,0.6,0}
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
 \definecolor{mauve}{rgb}{0.58,0,0.82}
+\lstset{frame=tb,
+  language=C,
+  aboveskip=1mm,
+  belowskip=1mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
 
 
 \let\vec\mathbf
@@ -37,6 +52,9 @@
 
 \begin{document}
 
+\tableofcontents
+
+\pagebreak
 \section{Theory}
 
 This discussion is based on \cite{brunton2016sindy} and \cite{shea2020sindy-bvp}.
@@ -254,6 +272,7 @@ get a matrix $\Theta'$ where each column has norm 1.
 The solution of the normalized system is $\vec{c'}$, and $\vec{c}$ can be
 recovered using $\vec{c} = D^{-1} \vec{c'}$.
 
+\pagebreak
 \section{Examples}
 
 \subsection{sindy\_sine}
@@ -460,7 +479,56 @@ In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
 \\ \frac{\partial x_2}{\partial t} &= \frac{\omega_s}{2H}(P_m - P_{max}\sin(x_1))
 \\ f(t) &= \left(\frac{\lambda \omega_s}{2H}\right) ^ 2 q (1-e^{-t/\lambda})
 \end{align*}
+\begin{lstlisting}[language={}]
+                                                    du/dt
+ 1                                                       0
+ du/dx                                          1.0000e+00
+ du/dy                                         -1.0000e-01
+ d2u/dy2                                                 0
+ d2u/dx2                                                 0
+ t                                                       0
+ (1 - exp(-t/lambda))                                    0
+ x[0]                                                    0
+ x[1]                                                    0
+ du/dx*du/dx                                             0
+ du/dx*du/dy                                             0
+ du/dx*d2u/dy2                                           0
+ du/dx*d2u/dx2                                           0
+ du/dx*t                                                 0
+ du/dx*(1 - exp(-t/lambda))                              0
+ du/dx*x[0]                                              0
+ du/dx*x[1]                                    -1.0000e+00
+ du/dy*du/dy                                             0
+ du/dy*d2u/dy2                                           0
+ du/dy*d2u/dx2                                           0
+ du/dy*t                                                 0
+ du/dy*(1 - exp(-t/lambda))                              0
+ du/dy*x[0]                                     2.1000e-01
+ du/dy*x[1]                                              0
+ d2u/dy2*d2u/dy2                                         0
+ d2u/dy2*d2u/dx2                                         0
+ d2u/dy2*t                                               0
+ d2u/dy2*(1 - exp(-t/lambda))                   9.9999e-05
+ d2u/dy2*x[0]                                            0
+ d2u/dy2*x[1]                                            0
+ d2u/dx2*d2u/dx2                                         0
+ d2u/dx2*t                                               0
+ d2u/dx2*(1 - exp(-t/lambda))                            0
+ d2u/dx2*x[0]                                            0
+ d2u/dx2*x[1]                                            0
+ t*t                                                     0
+ t*(1 - exp(-t/lambda))                                  0
+ t*x[0]                                                  0
+ t*x[1]                                                  0
+ (1 - exp(-t/lambda))*(1 - exp(-t/lambda))               0
+ (1 - exp(-t/lambda))*x[0]                               0
+ (1 - exp(-t/lambda))*x[1]                               0
+ x[0]*x[0]                                               0
+ x[0]*x[1]                                               0
+ x[1]*x[1]                                               0
+\end{lstlisting}
 
+\pagebreak
 \section{Implementation overview}
 
 The basis system is below (copy/pasted from Equation~\ref{eq:basis-system}).
@@ -514,6 +582,7 @@ Thresholded Least Squares implemented, with parameters specified in a
 \lstinline{SparseReg} class. More backends could be tested here, and we could
 set sparse regression algorithm as a command-line argument.
 
+\pagebreak
 \section{Implementation specifics}
 
 \subsection{Cross terms}
