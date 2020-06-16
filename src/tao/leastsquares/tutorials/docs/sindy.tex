@@ -259,8 +259,32 @@ recovered using $\vec{c} = D^{-1} \vec{c'}$.
 \subsection{sindy\_sine}
 In this example, $d_x = 0$ (no coordinates) and $d_u = 1$. There is no time dependence.
 \begin{equation*}
-\frac{dU}{dt} = -\sin(U)
+\frac{dU}{dt} = -\sin(U) \approx -U + 0.1\overline{6}U^3 - 0.008\overline{3}U^5
 \end{equation*}
+The code runs the ODE from points spaced evenly around 0, with the goal of
+recovering the Maclaurin series. Note that since this problem has no
+coordinates, the name $x$ is used in the code instead of $U$.
+\begin{lstlisting}[language={}]
+                    dx/dt
+ 1                       0
+ x             -9.9993e-01
+ x*x                     0
+ x*x*x          1.6626e-01
+ x*x*x*x                 0
+ x*x*x*x*x     -7.7962e-03
+\end{lstlisting}
+These values are all slightly smaller than desired. Slightly better results can
+be obtained by not using regularization when doing the least squares. This can
+be done with the option \lstinline{-tao_brgn_regularizer_weight 0}.
+\begin{lstlisting}[language={}]
+                    dx/dt
+ 1                       0
+ x             -9.9997e-01
+ x*x                     0
+ x*x*x          1.6643e-01
+ x*x*x*x                 0
+ x*x*x*x*x     -7.9052e-03
+\end{lstlisting}
 
 
 \subsection{sindy\_sine\_cosine}
@@ -270,8 +294,59 @@ In this example, $d_x = 0$ (no coordinates) and $d_u = 2$. There is no time depe
 \begin{bmatrix}
 -\sin(U_1) \\ \cos(U_2)
 \end{bmatrix}
+\approx
+\begin{bmatrix}
+ -U + 0.1\overline{6}U^3 - 0.008\overline{3}U^5 \\  1 - 0.5U^2 +  0.041\overline{6}U^4
+\end{bmatrix}
 \end{equation*}
+This example effectively runs an independent ODE for each component of the vector.
+The code runs the ODEs from points spaced evenly around 0, with the goal of
+recovering the Maclaurin series for each term.
 
+Note that since $\cos(x)$ is positive around 0, the ODE will evolve those values
+such that they won't be centered around 0, which means the result won't be
+expected to match the Maclaurin series exactly.
+\begin{lstlisting}[language={}]
+                                dx/dt[0]      dx/dt[1]
+ 1                                      0    9.9928e-01
+ x[i]                         -9.9997e-01             0
+ x[i]*x[i]                              0   -4.9523e-01
+ x[i]*x[i]*x[i]                1.6642e-01             0
+ x[i]*x[i]*x[i]*x[i]                    0    3.6669e-02
+ x[i]*x[i]*x[i]*x[i]*x[i]     -7.9029e-03             0
+\end{lstlisting}
+
+In the above run, the cross term range was set to 0, so that each output
+component is a function only of the corresponding input component. Without
+making that constraint, noise can lead to entangled components, especially for
+the non-centered cosine term. In the above runs, the data for the time
+derivative was computed exactly, but in this run, a fourth-order centered finite
+difference scheme is used to compute the data used for SINDy. (This was done
+with the options \lstinline{-sindy_cross_term_range -1 -fd_der 1}).
+\begin{lstlisting}[language={}]
+                                dx/dt[0]      dx/dt[1]
+ 1                                      0    9.8486e-01
+ x[0]                         -9.9998e-01    8.9189e-03
+ x[1]                                   0    5.5136e-03
+ x[0]*x[0]                              0    1.1331e-01
+ x[0]*x[1]                              0   -3.0466e-02
+ x[1]*x[1]                              0   -4.5908e-01
+ x[0]*x[0]*x[0]                1.6643e-01   -1.3214e-01
+ x[0]*x[0]*x[1]                         0   -1.6491e-02
+ x[0]*x[1]*x[1]                         0   -9.6066e-03
+ x[1]*x[1]*x[1]                         0   -1.6298e-02
+ x[0]*x[0]*x[0]*x[0]                    0   -2.8238e-02
+ x[0]*x[0]*x[0]*x[1]                    0    9.3109e-02
+ x[0]*x[0]*x[1]*x[1]                    0   -1.1547e-01
+ x[0]*x[1]*x[1]*x[1]                    0    2.8111e-02
+ x[1]*x[1]*x[1]*x[1]                    0    1.6894e-02
+ x[0]*x[0]*x[0]*x[0]*x[0]     -7.9224e-03    5.2672e-02
+ x[0]*x[0]*x[0]*x[0]*x[1]               0   -4.3969e-02
+ x[0]*x[0]*x[0]*x[1]*x[1]               0    3.5491e-02
+ x[0]*x[0]*x[1]*x[1]*x[1]               0    5.1007e-02
+ x[0]*x[1]*x[1]*x[1]*x[1]               0   -7.6728e-03
+ x[1]*x[1]*x[1]*x[1]*x[1]               0    1.0493e-02
+\end{lstlisting}
 
 \subsection{sindy\_sine\_cosine\_grid}
 In this example, $d_x = 2$ (2D coordinates) and $d_u = 2$. There is no time dependence.
@@ -281,6 +356,23 @@ In this example, $d_x = 2$ (2D coordinates) and $d_u = 2$. There is no time depe
 -\sin U_1(x_1,x_2) \\ \cos U_2(x_1,x_2)
 \end{bmatrix}
 \end{equation*}
+This example effectively runs an independent ODE at each coordinate and each
+component of the vector. The code runs the ODEs from points spaced evenly around
+0, with the goal of recovering the Maclaurin series for each term, with the
+caveat that the cosine component won't stay centered about 0.
+
+This code essentially gives the same results as the examples above, with
+enhanced problem of the regularization messing up the data. With the default
+regularization parameter $10^{-4}$, the fifth order sine term is lost. Turning
+it down to \lstinline{-tao_brgn_regularizer_weight 1e-7} recovers the expected
+value.
+
+An additional problem encountered here is that the the constant term in the
+cosine data is lost if the left-hand side is approximated with a fourth-order
+central finite difference (\lstinline{-fd_der 1}). This happens because the
+finite difference doesn't approximate the first two steps or last two steps of
+any run, so it zeros them out instead. This effect can be overcome by running
+for more time steps so that the boundary steps have a smaller relative effect.
 
 
 \subsection{lorenz}
@@ -294,6 +386,31 @@ U_1U_2-\beta U_3;
 \end{bmatrix} \\
 \sigma &= 10,\,\, \beta = \frac{8}{3},\,\, \rho = 28
 \end{align*}
+This example runs in a straightforward manner and recovers the correct values
+essentially exactly.
+\begin{lstlisting}[language={}]
+                      dx/dt[0]      dx/dt[1]      dx/dt[2]
+ 1                            0             0             0
+ x[0]               -1.0000e+01    2.8000e+01             0
+ x[1]                1.0000e+01   -1.0000e+00             0
+ x[2]                         0             0   -2.6667e+00
+ x[0]*x[0]                    0             0             0
+ x[0]*x[1]                    0             0    1.0000e+00
+ x[0]*x[2]                    0   -1.0000e+00             0
+ x[1]*x[1]                    0             0             0
+ x[1]*x[2]                    0             0             0
+ x[2]*x[2]                    0             0             0
+ x[0]*x[0]*x[0]               0             0             0
+ x[0]*x[0]*x[1]               0             0             0
+ x[0]*x[0]*x[2]               0             0             0
+ x[0]*x[1]*x[1]               0             0             0
+ x[0]*x[1]*x[2]               0             0             0
+ x[0]*x[2]*x[2]               0             0             0
+ x[1]*x[1]*x[1]               0             0             0
+ x[1]*x[1]*x[2]               0             0             0
+ x[1]*x[2]*x[2]               0             0             0
+ x[2]*x[2]*x[2]               0             0             0
+\end{lstlisting}
 
 
 \subsection{lorenz96}
@@ -302,9 +419,37 @@ In this example, $d_x = 0$ (no coordinates) and $d_u = 36$. There is no time dep
 \frac{dU_i}{dt} &= (U_{i+1} - U_{i-2}) U_{i-1} - U_i + F \\
 F &= 8
 \end{align*}
+This system is very large. By default, SINDy would construct a basis that
+include terms entangling each $U_i$. To make the system tractable, I set the
+cross-term range to 2, so that only $U_{i-2},U_{i-1},U_i,U_{i+1},U_{i+2}$ would
+be used in the basis function computation for output $\frac{dU_i}{dt}$. Below is
+the output for the first three components; the rest are similar.
+\begin{lstlisting}[language={}]
+                     dx/dt[0]      dx/dt[1]      dx/dt[2]      dx/dt[3] 
+ 1                  7.8484e+00    7.8996e+00    7.8879e+00    7.8517e+00
+ x[i-2]                      0             0             0             0
+ x[i-1]                      0             0             0             0
+ x[i]              -9.8401e-01   -9.9015e-01   -9.8526e-01   -9.8215e-01
+ x[i+1]                      0             0             0             0
+ x[i+2]                      0             0             0             0
+ x[i-2]*x[i-2]               0             0             0             0
+ x[i-2]*x[i-1]     -9.9822e-01   -9.9845e-01   -9.9859e-01   -9.9754e-01
+ x[i-2]*x[i]                 0             0             0             0
+ x[i-2]*x[i+1]               0             0             0             0
+ x[i-2]*x[i+2]               0             0             0             0
+ x[i-1]*x[i-1]               0             0             0             0
+ x[i-1]*x[i]                 0             0             0             0
+ x[i-1]*x[i+1]      1.0002e+00    9.9959e-01    9.9914e-01    9.9933e-01
+ x[i-1]*x[i+2]               0             0             0             0
+ x[i]*x[i]                   0             0             0             0
+ x[i]*x[i+1]                 0             0             0             0
+ x[i]*x[i+2]                 0             0             0             0
+ x[i+1]*x[i+1]               0             0             0             0
+ x[i+1]*x[i+2]               0             0             0             0
+ x[i+2]*x[i+2]               0             0             0             0
+\end{lstlisting}
 
 \subsection{pde\_power\_grid}
-Note: this example doesn't work yet.
 
 In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
 \begin{align*}
@@ -409,6 +554,13 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
 \section{Things to do}
 
 \begin{itemize}
+
+    \item Make it possible to use the computed coefficients to get the
+      $\frac{d\vec{U}}{dt}$ approximation at a specific point or sets of points.
+      A good way to do this may be to restructure the basis to make it easy to
+      apply to a dataset and get back the computated basis values as some data
+      structure that can then be multiplied with the computed coefficients.
+
     \item Handle bad data points better. Perhaps supporting an interface to
       specify which points to not include in the linear system. (Current bad
       effects: the system has erroneous data that will mess up the regression.
@@ -443,7 +595,9 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
       data is added, which means the threshold parameter and regularization
       factor need to be changed accordingly. Maybe a row-scaling would be good.
 
-    \item Use ADMM to do the regularized least squares?
+    \item Add ADMM as an option to do the regularized least squares? I think the
+      sparse regression step in SINDy should call a backend that can be swapped
+      out for various least squares algorithms.
 
     \item Add support to write a computed basis to a file and read it from a
       file. This will let different sparse regularization strategies be tested
@@ -454,8 +608,6 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
 
 \bibliographystyle{unsrt}
 \bibliography{sources}
-
-
 
 
 \end{document}
