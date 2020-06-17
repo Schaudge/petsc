@@ -358,12 +358,12 @@ int main(int argc, char** argv) {
   ierr = GetData(&n, &x, &dx, &t, &dm);CHKERRQ(ierr);
 
   Variable v_x,v_dx,v_t;
-  ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_x, n, x, dm);CHKERRQ(ierr);
-  ierr = SINDyVariableCreate("dx/dt", &v_dx);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_dx, n, dx, dm);CHKERRQ(ierr);
-  ierr = SINDyVariableCreate("t", &v_t);CHKERRQ(ierr);
-  ierr = SINDyVariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
+  ierr = VariableCreate("x", &v_x);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_x, n, x, dm);CHKERRQ(ierr);
+  ierr = VariableCreate("dx/dt", &v_dx);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_dx, n, dx, dm);CHKERRQ(ierr);
+  ierr = VariableCreate("t", &v_t);CHKERRQ(ierr);
+  ierr = VariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
 
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(3, 0, &basis);CHKERRQ(ierr);
@@ -374,10 +374,10 @@ int main(int argc, char** argv) {
   ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
   ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
 
-  ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegCreate(&sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
+  ierr = SparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = SparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vectors */
   ierr = SINDyBasisDataGetSize(basis, NULL, &num_bases);CHKERRQ(ierr);
@@ -395,11 +395,11 @@ int main(int argc, char** argv) {
   ierr = VecDestroy(&Xi[1]);CHKERRQ(ierr);
   ierr = PetscFree(t);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
-  ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
 
-  ierr = SINDyVariableDestroy(&v_x);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_dx);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_t);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_x);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dx);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_t);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;

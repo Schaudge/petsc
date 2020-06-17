@@ -13,31 +13,32 @@ TUTORIALS        = chwirut1.c chwirut2.c chwirut1f.F90 chwirut2f.F90 cs1.c tomog
 DOCS		 = 
 DIRS		 = matlab
 CLEANFILES       = chwirut1 chwirut2 chwirut1f chwirut2f cs1 tomography
+SINDY            = sindy.o sparse_reg.o variable.o
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-sindy_sine : sindy_sine.o sindy.o
+sindy_sine : sindy_sine.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-sindy_sine_cosine : sindy_sine_cosine.o sindy.o
+sindy_sine_cosine : sindy_sine_cosine.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorenz96 : lorenz96.o sindy.o
+lorenz96 : lorenz96.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorenz : lorenz.o sindy.o
+lorenz : lorenz.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-sindy_sine_cosine_grid : sindy_sine_cosine_grid.o sindy.o
+sindy_sine_cosine_grid : sindy_sine_cosine_grid.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-pde_power_grid : pde_power_grid.o sindy_pde.o sindy.o
+pde_power_grid : pde_power_grid.o sindy_pde.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<

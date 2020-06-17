@@ -62,29 +62,29 @@ int main(int argc, char** argv)
       ierr = VecCopy(x_vecs[0], x_vecs[k]);CHKERRQ(ierr);
     }
   }
-  ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_x, n, x_vecs, x_dm);CHKERRQ(ierr);
+  ierr = VariableCreate("x", &v_x);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_x, n, x_vecs, x_dm);CHKERRQ(ierr);
 
   Variable v_u,v_dudt,v_t,v_exp_t;
-  ierr = SINDyVariableCreate("u", &v_u);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_u, n, u, dm);CHKERRQ(ierr);
+  ierr = VariableCreate("u", &v_u);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_u, n, u, dm);CHKERRQ(ierr);
 
-  ierr = SINDyVariableCreate("du/dt", &v_dudt);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_dudt, n, du, dm);CHKERRQ(ierr);
+  ierr = VariableCreate("du/dt", &v_dudt);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_dudt, n, du, dm);CHKERRQ(ierr);
 
-  ierr = SINDyVariableCreate("t", &v_t);CHKERRQ(ierr);
-  ierr = SINDyVariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
+  ierr = VariableCreate("t", &v_t);CHKERRQ(ierr);
+  ierr = VariableSetScalarData(v_t, n, t);CHKERRQ(ierr);
 
-  ierr = SINDyVariableCreate("(1 - exp(-t/lambda))", &v_exp_t);CHKERRQ(ierr);
+  ierr = VariableCreate("(1 - exp(-t/lambda))", &v_exp_t);CHKERRQ(ierr);
   ierr = PetscMalloc1(n, &t_exp);CHKERRQ(ierr);
   for (PetscInt i = 0; i < n; i++) t_exp[i] = 1.0 - PetscExpScalar(-t[i] / 0.1);
-  ierr = SINDyVariableSetScalarData(v_exp_t, n, t_exp);CHKERRQ(ierr);
+  ierr = VariableSetScalarData(v_exp_t, n, t_exp);CHKERRQ(ierr);
 
   Variable v_dudx,v_dudy,v_dudyy,v_dudxx;
-  ierr = SINDyVariableDifferentiateSpatial(v_u, 0, 1, "du/dx", &v_dudx);CHKERRQ(ierr);
-  ierr = SINDyVariableDifferentiateSpatial(v_u, 1, 1, "du/dy", &v_dudy);CHKERRQ(ierr);
-  ierr = SINDyVariableDifferentiateSpatial(v_u, 0, 2, "d2u/dx2", &v_dudxx);CHKERRQ(ierr);
-  ierr = SINDyVariableDifferentiateSpatial(v_u, 1, 2, "d2u/dy2", &v_dudyy);CHKERRQ(ierr);
+  ierr = VariableDifferentiateSpatial(v_u, 0, 1, "du/dx", &v_dudx);CHKERRQ(ierr);
+  ierr = VariableDifferentiateSpatial(v_u, 1, 1, "du/dy", &v_dudy);CHKERRQ(ierr);
+  ierr = VariableDifferentiateSpatial(v_u, 0, 2, "d2u/dx2", &v_dudxx);CHKERRQ(ierr);
+  ierr = VariableDifferentiateSpatial(v_u, 1, 2, "d2u/dy2", &v_dudyy);CHKERRQ(ierr);
 
   /* Create 2nd order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(2, 0, &basis);CHKERRQ(ierr);
@@ -97,10 +97,10 @@ int main(int argc, char** argv)
   printf("Building basis...\n");
   ierr = SINDyBasisAddVariables(basis, sizeof(vars)/sizeof(vars[0]), vars);CHKERRQ(ierr);
 
-  ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-1);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegCreate(&sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegSetThreshold(sparse_reg, 1e-1);CHKERRQ(ierr);
+  ierr = SparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = SparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vector */
   if (dm) {
@@ -127,15 +127,15 @@ int main(int argc, char** argv)
   ierr = PetscFree(t);CHKERRQ(ierr);
   ierr = PetscFree(t_exp);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
-  ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
 
-  ierr = SINDyVariableDestroy(&v_u);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_dudt);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_dudx);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_dudy);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_dudyy);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_t);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_exp_t);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_u);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dudt);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dudx);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dudy);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dudyy);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_t);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_exp_t);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;

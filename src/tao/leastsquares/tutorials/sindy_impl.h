@@ -1,3 +1,6 @@
+#ifndef _SINDYIMPL_H
+#define _SINDYIMPL_H
+
 #include <petsc/private/petscimpl.h>
 #include "sindy.h"
 
@@ -43,3 +46,5 @@ struct _p_Variable {
   PetscInt     coord_dim_sizes_total;
   PetscInt     data_size_per_dof;
 };
+
+#endif

@@ -219,10 +219,10 @@ int main(int argc, char** argv)
   ierr = GetData(&n, &x, &dx);CHKERRQ(ierr);
 
   Variable v_x,v_dx;
-  ierr = SINDyVariableCreate("x", &v_x);CHKERRQ(ierr);
-  ierr = SINDyVariableCreate("dx/dt", &v_dx);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_x, n, x, NULL);CHKERRQ(ierr);
-  ierr = SINDyVariableSetVecData(v_dx, n, dx, NULL);CHKERRQ(ierr);
+  ierr = VariableCreate("x", &v_x);CHKERRQ(ierr);
+  ierr = VariableCreate("dx/dt", &v_dx);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_x, n, x, NULL);CHKERRQ(ierr);
+  ierr = VariableSetVecData(v_dx, n, dx, NULL);CHKERRQ(ierr);
 
   /* Create 5th order polynomial basis, with no sine functions. */
   ierr = SINDyBasisCreate(5, 0, &basis);CHKERRQ(ierr);
@@ -233,10 +233,10 @@ int main(int argc, char** argv)
   ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
   // ierr = SINDyBasisCreateData(basis, x, n);CHKERRQ(ierr);
 
-  ierr = SINDySparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetThreshold(sparse_reg, 1e-1);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
-  ierr = SINDySparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegCreate(&sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegSetThreshold(sparse_reg, 1e-1);CHKERRQ(ierr);
+  ierr = SparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = SparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 
   /* Allocate solution vector */
   ierr = SINDyBasisDataGetSize(basis, NULL, &num_bases);CHKERRQ(ierr);
@@ -252,10 +252,10 @@ int main(int argc, char** argv)
   ierr = VecDestroyVecs(n, &dx);CHKERRQ(ierr);
   ierr = VecDestroy(&Xi);CHKERRQ(ierr);
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
-  ierr = SINDySparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
+  ierr = SparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
 
-  ierr = SINDyVariableDestroy(&v_x);CHKERRQ(ierr);
-  ierr = SINDyVariableDestroy(&v_dx);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_x);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dx);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
   return ierr;
