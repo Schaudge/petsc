@@ -118,10 +118,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx *user)
   user->simplex = PETSC_TRUE;
   user->dim     = 2;
 
-  ierr = PetscOptionsBegin(comm,"","PetscSpaceSum Tests","PetscSpace");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-simplex","Whether to use simplices (true) or tensor-product (false) cells in " "the mesh","ex8.c",user->simplex,
+  ierr = PetscOptionsBegin(comm,"","DMPlex GPU Tutorial","PetscSpace");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-simplex","Whether to use simplices (true) or tensor-product (false) cells in " "the mesh","ex10.c",user->simplex,
                           &user->simplex,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-dim","Number of solution dimensions","ex8.c",user->dim,&user->dim,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-dim","Number of solution dimensions","ex10.c",user->dim,&user->dim,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -396,13 +396,47 @@ static PetscErrorCode SNESSolve_Ex10(SNES snes,Vec b,Vec x)
 }
 #endif
 
+static PetscErrorCode ConstructElementMatrix(DM dm,PetscScalar** elementMat) {
+/* Use PetscFEIntegrateJacobian to get element matrix from a single cell. */
+  PetscDS prob;
+  PetscInt fieldI,fieldJ,numFields;
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  ierr = DMGetNumFields(dm,&numFields);CHKERRQ(ierr);
+  ierr = DMGetDS(dm,&prob);CHKERRQ(ierr);
+
+  for(fieldI=0; fieldI<numFields; ++fieldI){
+    for(fieldJ=0; fieldJ<numFields; ++fieldJ){
+      PetscFE testField,basisField;  
+      PetscQuadrature quad;
+      PetscFEGeom* geom;
+      PetscInt dim;
+
+      ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+      ierr = DMGetField(dm,fieldI,NULL,(PetscObject *) &testField);CHKERRQ(ierr);
+      ierr = DMGetField(dm,fieldJ,NULL,(PetscObject *) &basisField);CHKERRQ(ierr);
+      ierr = PetscFEGetQuadrature(testField, &quad);CHKERRQ(ierr);
+      ierr = PetscFEGeomCreate(quad,1,dim,PETSC_FALSE,&geom);CHKERRQ(ierr);
+
+
+      //ierr = PetscFEIntegrateJacobian(prob, PETSCFE_JACOBIAN,fieldI,fieldJ,1,)
+    }
+  }
+
+  PetscFunctionReturn(0);
+}
 
 /* Assign element matrix into global matrix */
 static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const PetscScalar elementMat[]) {
   PetscSection lSec,gSec;
   PetscInt nDoF,poffset;
+  PetscInt closureSize;
+  PetscInt* closure;
+  PetscInt vStart,vEnd,i,idxOffset=0,j;
+  PetscInt idxSize=0;
   IS nodeis;
-  const PetscInt* idx;
+  PetscInt* idx;
   
   PetscErrorCode ierr;
 
@@ -410,13 +444,55 @@ static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const 
   PetscFunctionBegin;
   ierr = DMGetLocalSection(dm,&lSec);CHKERRQ(ierr); /* Maps local mesh points to their DoFs */
   ierr = DMGetGlobalSection(dm,&gSec);CHKERRQ(ierr); /* Maps all mesh points to their DoFs */
-  ierr = PetscSectionGetDof(gSec,p,&nDoF);CHKERRQ(ierr);
-  ierr = PetscSectionGetOffset(gSec,p,&poffset);CHKERRQ(ierr);
-  ierr = ISCreateStride(PETSC_COMM_SELF,nDoF,poffset,1,&nodeis);
-  ierr = ISGetIndices(nodeis, &idx);CHKERRQ(ierr);
-  ierr = MatSetValuesBlocked(*globalMat,nDoF,idx,nDoF,idx,elementMat,ADD_VALUES);CHKERRQ(ierr);
-  ierr = ISRestoreIndices(nodeis, &idx);CHKERRQ(ierr);
+  ierr = PetscSectionView(lSec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscSectionView(gSec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = DMPlexGetTransitiveClosure(dm,p,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, 0, &vStart,&vEnd);CHKERRQ(ierr);
+  /* First need to determine the number of entries that we are modifying */
+  for (i=0; i<closureSize; ++i){
+    if (closure[i] >= vStart && closure[i] < vEnd){
+      ierr = PetscSectionGetDof(gSec,closure[i],&nDoF);CHKERRQ(ierr);
+      idxSize += nDoF;
+    }
+  }
+  ierr = PetscCalloc1(idxSize,&idx);CHKERRQ(ierr);
+
+  /* Now we can put the effected indices into an array */
+  for (i=0; i<closureSize; ++i){
+    if (closure[i] >= vStart && closure[i] < vEnd){
+      ierr = PetscSectionGetDof(gSec,closure[i],&nDoF);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(gSec,closure[i],&poffset);CHKERRQ(ierr);
+      /* idxOffset tracks where the next entry in idx should go, poffset tells us where the DoFs are in global indexing */
+      for (j=idxOffset; j<idxOffset+nDoF; ++j){
+        idx[j] = poffset+j-idxOffset;
+      }
+    }
+  }
+
+  ierr = MatSetValues(*globalMat,idxSize,idx,idxSize,idx,elementMat,ADD_VALUES);CHKERRQ(ierr);
   
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
+  /* Declare basis function coefficients on the reference element. Assuming 2d uniform quadrilaterals. */
+  PetscInt cStart,cEnd,c;
+  PetscFE field;
+  PetscTabulation tab;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetField(dm,0,NULL,&field); CHKERRQ(ierr);
+  ierr = PetscFEGetCellTabulation(field,&tab);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(dm,systemMat);CHKERRQ(ierr);
+  ierr = MatSetOption(*systemMat,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(dm, 0, &cStart,&cEnd);CHKERRQ(ierr);
+  for (c=cStart; c<cEnd; ++c){
+    ierr = InsertElementMatrix(dm,systemMat,c,tab->T[0]);CHKERRQ(ierr);
+  }
+  MatAssemblyBegin(*systemMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  MatAssemblyEnd(*systemMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
@@ -426,7 +502,11 @@ int main(int argc,char **argv)
   UserCtx         user;
   DM              dm;
   SNES            snes;
-  Vec             u;
+  KSP             ksp;  
+  PC              pc;
+  Vec             u,u1;
+  Mat             sysMat,JMat;
+  IS*             fieldIS;
   PetscErrorCode  ierr;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
@@ -437,20 +517,50 @@ int main(int argc,char **argv)
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&dm);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,dm);CHKERRQ(ierr);
   ierr = SetupDiscretization(dm,SetupProblem,&user);CHKERRQ(ierr);
+  ierr = DMCreateFieldIS(dm,NULL,NULL,&fieldIS);CHKERRQ(ierr);
+
+/*
+  ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,sysMat,sysMat);CHKERRQ(ierr);
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCFIELDSPLIT);CHKERRQ(ierr);
+  ierr = PCFieldSplitSetIS(pc,NULL,fieldIS[0]);CHKERRQ(ierr);
+  ierr = PCFieldSplitSetIS(pc,NULL,fieldIS[1]);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+ */ 
+
+
 
   /* Set the system and solve. */
   ierr = DMCreateGlobalVector(dm,&u);CHKERRQ(ierr);
   ierr = VecSet(u,0.0);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)u,"solution");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)u,"solution_snes");CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(dm,&user,&user,&user);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = DMSNESCheckFromOptions(snes,u,NULL,NULL);CHKERRQ(ierr);
+  
+  ierr = BuildSystemMatrix(dm,&sysMat);CHKERRQ(ierr);
+  ierr = MatViewFromOptions(sysMat,NULL,"-sysMat_view");CHKERRQ(ierr);
+
   ierr = SNESSolve(snes,NULL,u);CHKERRQ(ierr);
   ierr = SNESGetSolution(snes,&u);CHKERRQ(ierr);
-  ierr = VecViewFromOptions(u,NULL,"-solution_view");CHKERRQ(ierr);
+  ierr = VecViewFromOptions(u,NULL,"-solution_snes_view");CHKERRQ(ierr);
+  ierr = SNESGetJacobian(snes,&JMat,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = MatViewFromOptions(JMat,NULL,"-JMat_view");CHKERRQ(ierr);
+/*
+  ierr = DMCreateGlobalVector(dm,&u1);CHKERRQ(ierr);
+  ierr = VecSet(u1,0.0);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)u1,"solution_ksp");CHKERRQ(ierr);
+  ierr = KSPSolve(ksp,u1,u1);CHKERRQ(ierr);
+  ierr = VecViewFromOptions(u1,NULL,"-solution_ksp_view");CHKERRQ(ierr);
+*/
 
   /* Cleanup */
   ierr = VecDestroy(&u);CHKERRQ(ierr);
+ // ierr = VecDestroy(&u1);CHKERRQ(ierr);
+ // ierr = MatDestroy(&sysMat);CHKERRQ(ierr);
+ // ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
   ierr = SNESDestroy(&snes);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFinalize();
@@ -465,17 +575,17 @@ int main(int argc,char **argv)
       -simplex false \
       -dm_vec_type cuda \
       -dm_mat_type aijcusparse \
-      -velocity_petscspace_degree 2 \
+      -velocity_petscspace_degree 1 \
       -velocity_petscspace_type poly \
       -velocity_petscspace_components 2\
       -velocity_petscdualspace_type lagrange \
-      -divu_petscspace_degree 1 \
+      -divu_petscspace_degree 0 \
       -divu_petscspace_type poly \
       -dm_refine 0 \
       -snes_error_if_not_converged \
       -ksp_rtol 1e-10 \
       -ksp_error_if_not_converged \
       -pc_type fieldsplit\
-      -pc_fieldsplit_type schur\
-      -pc_fieldsplit_schur_precondition full
+      -pc_fieldsplit_type schur \
+      -pc_fieldsplit_schur_precondition full\
 TEST*/
