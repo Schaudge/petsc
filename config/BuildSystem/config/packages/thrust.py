@@ -15,7 +15,7 @@ class Configure(config.package.GNUPackage):
     self.includes         = ['thrust/version.h']
     self.precisions       = ['single','double']
     self.cxx              = 1
-    self.requirescxx11    = 1
+    self.requirescxx14    = 1
     return
 
   def versionToStandardForm(self,ver):
@@ -64,3 +64,8 @@ class Configure(config.package.GNUPackage):
       raise RuntimeError('Error copying THRUST')
     self.postInstall(output+err,'petsc.mk')
     return self.installDir
+
+  def configureLibrary(self):
+    config.package.Package.configureLibrary(self)
+    if '-std=c++14' not in self.setCompilers.CUDAFLAGS:
+      self.setCompilers.CUDAFLAGS += ' -std=c++14 '
