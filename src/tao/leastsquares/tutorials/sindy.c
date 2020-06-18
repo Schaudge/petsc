@@ -344,6 +344,36 @@ static PetscErrorCode SINDyBasisGenerateNameSine(Basis basis, PetscInt num_vars,
   PetscFunctionReturn(0);
 }
 
+/* Scale the columns to have the same norm (=1). */
+static PetscErrorCode NormalizeColumns(Mat Theta, PetscScalar* column_scales)
+{
+  PetscErrorCode ierr;
+  PetscInt       i,m,n,M,N;
+  PetscReal      *data;
+
+  ierr = MatGetSize(Theta, &M, &N);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(Theta, &data);CHKERRQ(ierr);
+  for (n = 0; n < N; n++) column_scales[n] = 0;
+  i = 0;
+  for (n = 0; n < N; n++) {
+    for (m = 0; m < M; m++) {
+      column_scales[n] += data[i]*data[i];
+      i++;
+    }
+  }
+  for (n = 0; n < N; n++) column_scales[n] = PetscSqrtReal(column_scales[n]);
+  i = 0;
+  for (n = 0; n < N; n++) {
+    for (m = 0; m < M; m++) {
+      if (column_scales[n]) {
+        data[i] /= column_scales[n];
+      }
+      i++;
+    }
+  }
+  ierr = MatDenseRestoreArray(Theta, &data);CHKERRQ(ierr);
+}
+
 PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* vars)
 {
   PetscErrorCode  ierr;
@@ -537,35 +567,14 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
         }
       }
     }
+    ierr = MatDenseRestoreArray(Theta, &Theta_data);CHKERRQ(ierr);
     if (i != out->data_size_per_dof*B) {
       SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_COR,"Computed a number basis functions (%d) different than the size of the basis matrix (%d)",
                i, out->data_size_per_dof*B);
     }
-
     if (basis->normalize_columns) {
-      /* Scale the columns to have the same norm. */
-      i = 0;
-      for (b = 0; b < B; b++) {
-        for (n = 0; n < out->data_size_per_dof; n++) {
-          basis->data.column_scales[b+d*B] += Theta_data[i]*Theta_data[i];
-          i++;
-        }
-      }
-      for (b = 0; b < B; b++) {
-        basis->data.column_scales[b+d*B] = PetscSqrtReal(basis->data.column_scales[b+d*B]);
-      }
-      i = 0;
-      for (b = 0; b < B; b++) {
-        for (n = 0; n < out->data_size_per_dof; n++) {
-          if (basis->data.column_scales[b+d*B]) {
-            Theta_data[i] /= basis->data.column_scales[b+d*B];
-          }
-          i++;
-        }
-      }
+      ierr = NormalizeColumns(Theta, &data.column_scales[d*B]);CHKERRQ(ierr);
     }
-    ierr = MatDenseRestoreArray(Theta, &Theta_data);CHKERRQ(ierr);
-
     ierr = MatAssemblyBegin(Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 

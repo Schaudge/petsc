@@ -26,7 +26,7 @@
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
 \definecolor{mauve}{rgb}{0.58,0,0.82}
 \lstset{frame=tb,
-  language=C,
+  language={},
   aboveskip=1mm,
   belowskip=1mm,
   showstringspaces=false,
@@ -66,8 +66,8 @@ I'm going to try to outline the general case.
 for $\vec{u} \in \real^{d_u}, \,\, \vec{x} \in \real^{d_x}, \,\, t \in \real$.
 The goal of SINDy is to represent $\frac{d\vec{u}}{dt}$ in a basis $B$ of size
 $p$ with sparse coefficients $\vec{c} \in \real^p$.
-\begin{equation}
-\frac{d\vec{u}}{dt} \approx \sum_{i=1}^p c_i \vec{b_i}
+\begin{equation}\label{eq:dudt-approx}
+\frac{d\vec{u}}{dt} \approx \sum_{i=1}^p c_i \vec{b_i}(\vec{u},\vec{x},t)
 \end{equation}
 \begin{align}
 b_i \in B = \{\vec{1}, \vec{u}, \vec{x}, t, \vec{u}^2, \vec{u}\vec{x},\vec{u}t,\vec{x}^2,\vec{x}t,t^2,\hdots,\sin\vec{u},\cos{\vec{u}}, \frac{\partial\vec{u}}{\partial \vec{x}},\hdots\}
@@ -92,7 +92,26 @@ derivative of something. It could be a time derivative (\cite{brunton2016sindy})
 or a spatial derivative (\cite{shea2020sindy-bvp}), or it could just be any
 variable that you want to have a sparse representation for (citation needed).
 Similarly, since the basis functions can be anything, the basis matrix $\Theta$
-could be a function of any variables.
+could be a function of any variables. At its core SINDy is just sparse
+regression. The following sections discuss how to set up the specific case of
+having vector-valued outputs with coordinates.
+
+\subsection{Integral formulation}
+
+Since derivatives can give noisy data, there is an alternative integral
+formulation described in \cite{schaeffer2017integral} that can be obtained by integrating
+Equation~\ref{eq:dudt-approx} over time.
+\begin{equation}
+\vec{u}(t) - \vec{u}(0) \approx \sum_{i=1}^p c_i \int_0^t \vec{b_i}(\vec{u}(\vec{x},\tau),\vec{x},\tau) \,\, d\tau
+\end{equation}
+This leads to a matrix formulation in the same form as
+Equation~\ref{eq:basis-system} where the basis functions are replaced with an
+integral and the left-hand side is replaced by $\vec{U}(t) - \vec{U}(0)$.
+The integrals can be approximated with something as simple as piecewise constant quadrature.
+Assuming the input data $\vec{u}$ is collected at regularly spaced times $t_k$, the integral can be computed as:
+\begin{equation}
+\int_0^t \vec{b_i}(\vec{u}(\vec{x},\tau),\vec{x},\tau) \,\, d\tau \approx \Delta t \sum_{i=1}^k \vec{b_i}(\vec{u}(\vec{x},t_i),\vec{x},t_i)
+\end{equation}
 
 \subsection{Simplest dimensional case, $d_x = 0$ and $d_u = 1$} \label{section:simplest}
 
@@ -263,14 +282,44 @@ coefficients as a solution.
 
 \subsection{Normalization}
 
-Let $D \in \real^{p \times p}$ be a diagonal matrix where each diagonal is the magnitude of the
-corresponding column in $\Theta$. This matrix can be used to scale $\Theta$ to
-get a matrix $\Theta'$ where each column has norm 1.
+Consider running a sparse regression on $\dot{U} = U$ with basis functions $U$,
+$100U$, and $0.01U$. The solution can be represented with either $\vec{c} =
+\begin{bmatrix} 1 & 0 & 0 \end{bmatrix}$, $\begin{bmatrix} 0 & 0.01 & 0
+\end{bmatrix}$, $\begin{bmatrix} 0 & 0 & 100 \end{bmatrix}$, or any result where
+$c_1 + 100*c_2 + 0.01*c_3 = 1$. Note that $c_3$ has to be 100 times larger than
+$c_1$ in order to have the same effect. Regularization will penalize the $c_3$
+factor more than the other factors and favor the $c_2$ factor more than the
+other factors, solely based on the scale of the basis functions.
+
+Real basis function won't be scaled versions of the same function, but they will
+still suffer from the same problem of larger basis columns being favored just
+for having larger values. To help alleviate this problem, the input basis
+functions can be normalized.
+
+Let $D \in \real^{p \times p}$ be a diagonal matrix where each diagonal element
+is the norm of the corresponding column in $\Theta$. This matrix can be
+used to scale $\Theta$ to get a matrix $\Theta'$ where each column has norm 1.
 \begin{equation}\label{eq:normalized-system}
 \frac{d\vec{U}}{dt} \approx (\Theta D^{-1}) (D\vec{c}) = \Theta' \vec{c'}
 \end{equation}
 The solution of the normalized system is $\vec{c'}$, and $\vec{c}$ can be
 recovered using $\vec{c} = D^{-1} \vec{c'}$.
+
+\paragraph{TODO:} The original SINDy paper's supporting document \cite{brunton-sindy-appendix}
+said that normalizing the columns of $\Theta$ may be necessary to ensure
+the restricted isometry property (RIP) holds. To track down why this holds and
+why this is desired, I did some citation hopping. The citation for this
+statement led to a paper that made the same claim and cited another paper, and
+that paper didn't seem to mention RIP or a relevant normalization, so it was a
+dead end. The only document I could find supporting this RIP idea is Proposition 8 in the
+blog post below, which gives the RIP constant for a matrix with normalized
+columns.
+\url{https://joelmoreira.wordpress.com/2014/07/31/the-restricted-isometry-property/}
+TODO: figure out why a RIP matrix is good.
+Hint: If a RIP matrix $A' \in \real^{m \times p}$ has a RIP constant smaller than 1,
+then every submatrix $A' \in \real^{m \times k}$ must have positive eigenvalues
+near 1.
+
 
 \pagebreak
 \section{Examples}
@@ -634,6 +683,21 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
       A good way to do this may be to restructure the basis to make it easy to
       apply to a dataset and get back the computated basis values as some data
       structure that can then be multiplied with the computed coefficients.
+    \begin{itemize}
+        \item Perhaps the \lstinline{Variable} can have a function pointer that knows
+          how to compute itself given the inputs, and then the basis computation can
+          return the computed basis functions as \lstinline{Variable} objects. The
+          basis function type can take an array of \lstinline{Variable} objects.
+        \item The inputs to the basis function may have a prescribed order of
+          computation, so I may need to track a directed acyclic graph to do the
+          computation correctly. E.g., for the power grid example, the nominal
+          inputs would be $\vec{U}$, $\vec{X}$, and $t$, but the current example
+          computes the $\sin(X_1)$ and $1-e^{-t/\lambda}$ terms first. Then
+          those terms are given to the cross-term calculating function to build
+          up the polynomials terms. I could rely on the user to compute their
+          custom terms themselves, but it'd be more user-friendly to do it
+          automatically.
+    \end{itemize}
 \end{itemize}
 
 \subsection{Data interface}
@@ -674,11 +738,26 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
     \item Is there a way to do normalization better? One problem is that the
       current column scaling means coefficients get bigger and bigger as more
       data is added, which means the threshold parameter and regularization
-      factor need to be changed accordingly. Maybe a row-scaling would be good.
+      factor need to be changed accordingly. 
+    \begin{itemize}
+        \item The original SINDy paper (appendix) normalizes in order for the
+          restricted isometry property to hold \cite{brunton2016sindy}, but I
+          don't know why that's desirable.
+        \item A SINDy PDE paper uses $\ell_\infty$ normalization
+          \cite{schaeffer2017sindy-pde2}. With this method, adding more data
+          will make the coefficients bigger only if the extra data has larger
+          values than the existing data.
+    \end{itemize}
 
     \item Add ADMM as an option to do the regularized least squares? I think the
       sparse regression step in SINDy should call a backend that can be swapped
       out for various least squares algorithms.
+\end{itemize}
+
+\subsection{Derivatives}
+
+\begin{itemize}
+    \item \cite{schaeffer2017sindy-pde2} computes spatial derivatives with the spectral method.
 \end{itemize}
 
 \subsection{File I/O}
@@ -689,6 +768,23 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
       without regenerating the data.
 \end{itemize}
 
+\subsection{Integrals}
+
+Support for the integral formulation may be useful. Supporting both the integral
+and the derivative formulations within the same framework would make it easier
+to empirically compare them. It might also be interesting to combine them. I.e.,
+create a combined derivative/integral system (by concatenating the data points
+from each method) to see if better coefficients are obtained.
+\begin{equation*}
+\begin{bmatrix}
+\frac{d\vec{U}}{dt} \\ \vec{U} - \vec{U}_0
+\end{bmatrix}
+\approx
+\begin{bmatrix}
+\Theta(\vec{U}, \vec{X}, t) \\ \int_0^t \Theta(\vec{U}, \vec{X}, \tau) \,\, d\tau
+\end{bmatrix}
+\vec{c}
+\end{equation*}
 
 \bibliographystyle{unsrt}
 \bibliography{sources}
