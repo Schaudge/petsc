@@ -573,7 +573,7 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
                i, out->data_size_per_dof*B);
     }
     if (basis->normalize_columns) {
-      ierr = NormalizeColumns(Theta, &data.column_scales[d*B]);CHKERRQ(ierr);
+      ierr = NormalizeColumns(Theta, &basis->data.column_scales[d*B]);CHKERRQ(ierr);
     }
     ierr = MatAssemblyBegin(Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(Theta,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
