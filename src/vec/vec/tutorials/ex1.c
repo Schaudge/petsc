@@ -188,4 +188,45 @@ int main(int argc,char **argv)
       output_file: output/ex1_1.out
       requires: cuda
 
+   test:
+      requires: cmake !__float128 !define(PETSC_HAVE_WINDOWS_COMPILERS)
+      suffix: cmake_build
+      localrunfiles: CMakeLists.txt ex1.c
+      output_file: output/ex1_1.out
+      testscript:
+      - export PETSC_DIR=$petsc_dir
+      - export PETSC_ARCH=$petsc_arch
+      - cmake=$(awk '/^CMAKE =/ {print $3}' "${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables")
+      - rm -rf build
+      - if command -v pkg-config 1>/dev/null 2>&1; then
+      - mkdir build
+      - cd build
+      - tap: ${cmake} ..
+      - tap: ${cmake} --build .
+      - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
+      - cp -f *.err *.out ..
+      - cd ..
+      - else
+      - echo "ok ${label}"
+      - fi
+
+   test:
+      #  Does not work when clanguage is C and using complex when C complex is broken since uses C compiler
+      requires: !__float128 !define(PETSC_CLANGUAGE_CXX)
+      suffix: makefileuser_build
+      localrunfiles: ex1.c
+      output_file: output/ex1_1.out
+      testscript:
+      - export PETSC_DIR=$petsc_dir
+      - export PETSC_ARCH=$petsc_arch
+      - if [ "${BUILDSHARED}" = "no" ] ; then export STATIC="STATIC=--static" ; fi
+      - make=$(awk '/^MAKE =/ {print $3}' "${petsc_dir}/${petsc_arch}/lib/petsc/conf/petscvariables")
+      - if command -v pkg-config 1>/dev/null 2>&1; then
+      - tap: ${make} -f $PETSC_DIR/share/petsc/Makefile.user ${STATIC} ex1
+      - tap: ${mpiexec} -n ${nsize} ./ex1 ${args}
+      - else
+      - echo "ok ${label}"
+      - fi
+
+ TEST*/
 TEST*/

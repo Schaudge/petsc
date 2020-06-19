@@ -74,6 +74,8 @@ class Configure(config.package.GNUPackage):
     if hasattr(self, 'cmake'):
       import re
       self.found = 1
+      # this definition is needed by src/vec/vec/examples/tutorials/ex1.c cmake_build
+      self.addMakeMacro('PETSC_HAVE_CMAKE',1)
       try:
         (output, error, status) = config.base.Configure.executeShellCommand(self.cmake+' --version', log = self.log)
         if status:

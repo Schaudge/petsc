@@ -6,6 +6,7 @@ header="""#!/usr/bin/env bash
 
 # PATH for DLLs on windows
 PATH="$PATH":@PETSC_LIB_DIR@
+PATH="$PATH:@PREFIXDIR@/bin"
 exec='@EXEC@'
 testname='@TESTNAME@'
 label='@LABEL@'
@@ -41,4 +42,5 @@ todoline='petsc_report_tapoutput "" "${label}" "TODO @TODOCOMMENT@"'
 skipline='petsc_report_tapoutput "" "${label}" "SKIP @SKIPCOMMENT@"'
 mpitest='petsc_testrun "${mpiexec} -n ${insize} ${exec} ${args} @SUBARGS@" @REDIRECT_FILE@ ${testname}.err "${label}@LABEL_SUFFIX@" @ERROR@'
 difftest='petsc_testrun "${diff_exe} @OUTPUT_FILE@ @REDIRECT_FILE@" diff-${testname}.out diff-${testname}.out diff-${label}@LABEL_SUFFIX@ ""'
-commandtest='petsc_testrun "@COMMAND@" @REDIRECT_FILE@ ${testname}.err cmd-${label}@LABEL_SUFFIX@ @ERROR@'
+filterdifftest='petsc_testrun "@FILTER_OUTPUT@ @OUTPUT_FILE@ | ${diff_exe} - @REDIRECT_FILE@" diff-${testname}.out diff-${testname}.out diff-${label}@LABEL_SUFFIX@ ""'
+commandtest='petsc_testrun "@COMMAND@" @REDIRECT_FILE@ ${testname}@LABEL_SUFFIX@.err ${label}@LABEL_SUFFIX@ @FILTER@'

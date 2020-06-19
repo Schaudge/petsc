@@ -394,6 +394,7 @@ class generateExamples(Petsc):
     subst['grep']=self.conf['GREP']
     subst['petsc_lib_dir']=self.conf['PETSC_LIB_DIR']
     subst['wpetsc_dir']=self.conf['wPETSC_DIR']
+    subst['prefixdir']=self.conf['PREFIXDIR']
 
     # Output file is special because of subtests override
     defroot = testparse.getDefaultOutputFileRoot(testname)
@@ -426,7 +427,7 @@ class generateExamples(Petsc):
       Str=subst['regexes'][subkey].sub(lambda x: subst[subkey],Str)
     return Str
 
-  def getCmds(self,subst,i, debug=False):
+  def getCmds(self,subst,i,root):
     """
       Generate bash script using template found next to this file.
       This file is read in at constructor time to avoid file I/O
@@ -434,6 +435,25 @@ class generateExamples(Petsc):
     nindnt=i # the start and has to be consistent with below
     cmdindnt=self.indent*nindnt
     cmdLines=""
+
+    # testscript  -- all commands just come from this
+    if subst['testscript']:
+      cmdLines='' 
+      for cmdinfile in subst['testscript']:
+        if cmdinfile.startswith('tap:'):
+          cmd=cmdinfile.lstrip('tap:').strip()
+          cmdsubst=subst.copy()
+          cmdsubst['command']=cmd
+          if not 'mpi' in cmd:
+            lbl=os.path.basename(cmd.strip().split()[0])
+            if '$' in lbl:
+              lbl=lbl.replace('$','').replace('{','').replace('}','')
+            cmdsubst['label_suffix']='-'+lbl
+            cmdsubst['redirect_file']=lbl+'-'+subst['redirect_file']
+          cmdLines += '\n'+cmdindnt+self._substVars(cmdsubst,example_template.commandtest)+'\n'
+        else:
+          cmdLines += cmdindnt+cmdinfile+'\n'
+      return cmdLines
 
     # MPI is the default -- but we have a few odd commands
     if not subst['command']:
@@ -542,75 +562,78 @@ class generateExamples(Petsc):
     rpath=self.srcrelpath(root)
     runscript_dir=os.path.join(self.testroot_dir,rpath)
     if not os.path.isdir(runscript_dir): os.makedirs(runscript_dir)
-    with open(os.path.join(runscript_dir,testname+".sh"),"w") as fh:
 
-      # Get variables to go into shell scripts.  last time testDict used
-      subst=self.getSubstVars(testDict,rpath,testname)
-      loopVars = self._getLoopVars(subst,testname)  # Alters subst as well
-      if 'subtests' in testDict:
-        # The subtests inherit inDict, so we don't need top-level loops.
-        loopVars = {}
+    # Get variables to go into shell scripts.  last time testDict used
+    subst=self.getSubstVars(testDict,rpath,testname)
 
-      #Handle runfiles
-      for lfile in subst.get('localrunfiles','').split():
+    loopVars = self._getLoopVars(subst,testname)  # Alters subst as well
+    if 'subtests' in testDict:
+      # The subtests inherit inDict, so we don't need top-level loops.
+      loopVars = {}
+
+    #Handle runfiles
+    for lfile in subst.get('localrunfiles','').split():
+      install_files(os.path.join(root, lfile),
+                    os.path.join(runscript_dir, os.path.dirname(lfile)))
+    # Check subtests for local runfiles
+    for stest in subst.get("subtests",[]):
+      for lfile in testDict[stest].get('localrunfiles','').split():
         install_files(os.path.join(root, lfile),
                       os.path.join(runscript_dir, os.path.dirname(lfile)))
-      # Check subtests for local runfiles
-      for stest in subst.get("subtests",[]):
-        for lfile in testDict[stest].get('localrunfiles','').split():
-          install_files(os.path.join(root, lfile),
-                        os.path.join(runscript_dir, os.path.dirname(lfile)))
 
-      # Now substitute the key variables into the header and footer
-      header=self._substVars(subst,example_template.header)
-      # The header is done twice to enable @...@ in header
-      header=self._substVars(subst,header)
-      footer=re.sub('@TESTROOT@',subst['testroot'],example_template.footer)
 
-      # Start writing the file
-      fh.write(header+"\n")
+    # Now generate script
+    scriptname=testname+".sh"
+    fh=open(os.path.join(runscript_dir,scriptname),"w")
+    # Now substitute the key variables into the header and footer
+    header=self._substVars(subst,example_template.header)
+    # The header is done twice to enable @...@ in header
+    header=self._substVars(subst,header)
+    footer=re.sub('@TESTROOT@',subst['testroot'],example_template.footer)
 
-      # If there is a TODO or a SKIP then we do it before writing out the
-      # rest of the command (which is useful for working on the test)
-      # SKIP and TODO can be for the source file or for the runs
-      self._writeTodoSkip(fh,'todo',[s for s in [srcDict.get('TODO',''), testDict.get('TODO','')] if s],footer)
-      self._writeTodoSkip(fh,'skip',srcDict.get('SKIP',[]) + testDict.get('SKIP',[]),footer)
+    # Start writing the file
+    fh.write(header+"\n")
 
-      j=0  # for indentation
+    # If there is a TODO or a SKIP then we do it before writing out the
+    # rest of the command (which is useful for working on the test)
+    # SKIP and TODO can be for the source file or for the runs
+    self._writeTodoSkip(fh,'todo',[s for s in [srcDict.get('TODO',''), testDict.get('TODO','')] if s],footer)
+    self._writeTodoSkip(fh,'skip',srcDict.get('SKIP',[]) + testDict.get('SKIP',[]),footer)
 
-      if loopVars:
-        (loopHead,j) = self.getLoopVarsHead(loopVars,j)
-        if (loopHead): fh.write(loopHead+"\n")
+    j=0  # for indentation
 
-      # Subtests are special
-      allLoopVars=list(loopVars.keys())
-      if 'subtests' in testDict:
-        substP=subst   # Subtests can inherit args but be careful
-        k=0  # for label suffixes
-        for stest in testDict["subtests"]:
-          subst=substP.copy()
-          subst.update(testDict[stest])
-          subst['label_suffix']='+'+string.ascii_letters[k]; k+=1
-          sLoopVars = self._getLoopVars(subst,testname,isSubtest=True)
-          if sLoopVars:
-            (sLoopHead,j) = self.getLoopVarsHead(sLoopVars,j,allLoopVars)
-            allLoopVars+=list(sLoopVars.keys())
-            fh.write(sLoopHead+"\n")
-          fh.write(self.getCmds(subst,j)+"\n")
-          if sLoopVars:
-            (sLoopFoot,j) = self.getLoopVarsFoot(sLoopVars,j)
-            fh.write(sLoopFoot+"\n")
-      else:
-        fh.write(self.getCmds(subst,j)+"\n")
+    if loopVars:
+      (loopHead,j) = self.getLoopVarsHead(loopVars,j)
+      if (loopHead): fh.write(loopHead+"\n")
 
-      if loopVars:
-        (loopFoot,j) = self.getLoopVarsFoot(loopVars,j)
-        fh.write(loopFoot+"\n")
+    # Subtests are special
+    allLoopVars=list(loopVars.keys())
+    if 'subtests' in testDict:
+      substP=subst   # Subtests can inherit args but be careful
+      k=0  # for label suffixes
+      for stest in testDict["subtests"]:
+        subst=substP.copy()
+        subst.update(testDict[stest])
+        subst['label_suffix']='+'+string.ascii_letters[k]; k+=1
+        sLoopVars = self._getLoopVars(subst,testname,isSubtest=True)
+        if sLoopVars:
+          (sLoopHead,j) = self.getLoopVarsHead(sLoopVars,j,allLoopVars)
+          allLoopVars+=list(sLoopVars.keys())
+          fh.write(sLoopHead+"\n")
+        fh.write(self.getCmds(subst,j,root)+"\n")
+        if sLoopVars:
+          (sLoopFoot,j) = self.getLoopVarsFoot(sLoopVars,j)
+          fh.write(sLoopFoot+"\n")
+    else:
+      fh.write(self.getCmds(subst,j,root)+"\n")
 
-      fh.write(footer+"\n")
+    if loopVars:
+      (loopFoot,j) = self.getLoopVarsFoot(loopVars,j)
+      fh.write(loopFoot+"\n")
 
-    os.chmod(os.path.join(runscript_dir,testname+".sh"),0o755)
-    #if '10_9' in testname: sys.exit()
+    fh.write(footer+"\n")
+    fh.close()
+    os.chmod(os.path.join(runscript_dir,scriptname),0o755)
     return
 
   def  genScriptsAndInfo(self,exfile,root,srcDict):
