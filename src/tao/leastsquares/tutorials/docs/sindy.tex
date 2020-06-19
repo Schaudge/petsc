@@ -320,7 +320,6 @@ Hint: If a RIP matrix $A' \in \real^{m \times p}$ has a RIP constant smaller tha
 then every submatrix $A' \in \real^{m \times k}$ must have positive eigenvalues
 near 1.
 
-
 \pagebreak
 \section{Examples}
 
@@ -740,9 +739,9 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
       data is added, which means the threshold parameter and regularization
       factor need to be changed accordingly. 
     \begin{itemize}
-        \item The original SINDy paper (appendix) normalizes in order for the
-          restricted isometry property to hold \cite{brunton2016sindy}, but I
-          don't know why that's desirable.
+        \item The original SINDy paper (in the supporting information document)
+          normalizes in order for the restricted isometry property to hold
+          \cite{brunton2016sindy}, but I don't know why that's desirable.
         \item A SINDy PDE paper uses $\ell_\infty$ normalization
           \cite{schaeffer2017sindy-pde2}. With this method, adding more data
           will make the coefficients bigger only if the extra data has larger
@@ -789,5 +788,156 @@ from each method) to see if better coefficients are obtained.
 \bibliographystyle{unsrt}
 \bibliography{sources}
 
+
+\pagebreak
+
+\section{Appendix}
+
+\subsection{Non-polynomial extraction}
+
+The inclusion of many non-polynomial basis functions can inflate the basis
+matrix $\Theta$ to be too large. We would like to be able to use only polynomial
+basis functions and then post-process the results to extract the non-polynomial
+terms based on some polynomial expansion (e.g., Taylor series) of those terms.
+
+\paragraph{Note:} This section discusses a completely different problem compared to the other
+sections in this document, so the notation used here is completely independent
+of the other sections.
+
+\subsubsection{Subtracting out non-polynomial functions}
+
+Let $f_j(x) = \sum_{i=0}^\infty A_{ij} x^i$ be a polynomial series representing a function,
+and let $f_j^{(d)} = \sum_{i=0}^d A_{ij} x^i$ be the degree $d$ truncation of
+the series. Let $g(y) = \sum_{i=0}^d b_i y^i$ be the known function that we want
+to extract non-polynomial terms from. We want to express $g(y)$ in terms of
+functions $f_i(x)$, where $y$ may be a scaled version of $x$.
+\begin{align*}
+g(y) = \sum_{i=0}^d k_i y^i + \sum_{j=1}^n c_j f_j^{(d)}(\sigma_j y)
+\end{align*}
+We'd like to determine $c_i$ and $\sigma_j$. The $k_i$ is used to absorb all the
+polynomials factors that aren't represented by the sum of the non-polynomial
+functions. The equation can be separated into $d+1$ equations by treating each
+$y^j$ coefficient independently.
+\begin{align*}
+\sum_{i=0}^d b_i y^i &= \sum_{i=0}^d k_i y^i + \sum_{i=0}^d \sum_{j=1}^n A_{ij} c_j \sigma_j^i y^i
+\\ \implies b_i &= k_i + \sum_{j=1}^n A_{ij} c_j \sigma_j^i
+\,\,\,\,\, \text{ for $i \in \{0, \hdots, d\}$}
+\end{align*}
+This is a nonlinear problem due to the $\sigma_j^i$ term. I'll define $A_{ij}' = A_{ij} \sigma^i_j$,
+\begin{align*}
+\vec{b} &= \vec{k} + \vec{A}'(\vec{\sigma}) \vec{c}
+\end{align*}
+We want sparsity in $\vec{k}$ and $\vec{c}$, which we can maybe approximate with
+the $\ell_1$ norm.
+\begin{align*}
+&\min_{\vec{c},\vec{\sigma}} ||\vec{k}||_1 + ||\vec{c}||_1
+\\& \text{subject to } \vec{k} =  \vec{b} - \vec{A}'(\vec{\sigma})\vec{c}
+\end{align*}
+Or equivalently,
+\begin{align*}
+\min_{\vec{c},\vec{\sigma}} ||\vec{b} - \vec{A}'(\vec{\sigma})\vec{c}||_1 + ||\vec{c}||_1
+\end{align*}
+Running this sparse optimization will show the active non-polynomial terms in
+$\vec{c}$, although I'm not sure what a good way to run this optimization would
+be.
+
+\paragraph{SINDy application:} Run SINDy with just polynomials and then use the
+above strategy to determine what non-polynomial terms are present. The
+coefficients for those terms can be computed as done above, or those terms can
+be added to the SINDy library for SINDy to be run again with the correct
+non-polynomial terms.
+
+Perhaps it could be combined in the SINDy optimization, with $\vec{k}$
+representing the polynomial terms and $\vec{c}$ representing the non-polynomial
+terms.
+\begin{align*}
+\min_{\vec{k},\vec{c},\vec{\sigma}} & ||\vec{k}||_1 + ||\vec{c}||_1
+\\\text{subject to } \vec{k} &=  \vec{b} - \vec{A}'(\vec{\sigma})\vec{c}
+\\ & \vec{b} = \arg \min_{\vec{b}'} ||\Theta \vec{b}' - \tfrac{d\vec{U}}{dt}||_2^2 + \lambda ||\vec{b}'||_1
+\end{align*}
+
+
+\subsubsection{Factoring out non-polynomial functions}
+
+The above formulation handles cases where $g(y)$ is equal to a polynomial plus
+some non-polynomial terms, where the non-polynomial terms have to be specified
+in advance (e.g., sine, cosine, the exponential function). But there may be
+terms like $x \sin(x)$ or $x\sin x + x^3\sin x$, where a polynomial is
+multiplied by a non-polynomial. These could be included as basis functions, but
+if we can extract them automatically, it will make the basis library more
+tractable. Consider a function that is multiplied by a monomial of degree $r \le
+d_r$. (The previous section is equivalent to $d_r=0$. This section essentially
+augments the non-polynomial library with the product of polynomials with the
+non-polynomials).
+\begin{align*}
+x^r f_j(x) = \sum_{i=0}^\infty A_{ij} x^{r+i} = \sum_{i=r}^\infty A_{i-r,j} x^{i}
+\end{align*}
+
+
+Again, let $g(y) = \sum_{i=0}^d b_i y^i$ be the known function that we want
+to extract non-polynomial terms from. We want to express $g(y)$ in terms of
+functions $f_i(x)$ multiplied by monomials.
+\begin{align*}
+g(y) &= \sum_{i=0}^d k_i y^i + \sum_{j=1}^n \sum_{r=0}^{d_r} c_{jr} y^r f_j^{(d)}(\sigma_j y)
+\\   &= \sum_{i=0}^d k_i y^i + \sum_{j=1}^n \sum_{r=0}^{d_r} c_{jr} \sigma_j^{-r} x^r f_j^{(d)}(\sigma_j y)
+\end{align*}
+\begin{align*}
+\sum_{i=0}^d b_i y^i &= \sum_{i=0}^d k_i y^i + \sum_{j=1}^n \sum_{r=0}^{d_r} \sum_{i=r}^d A_{i-r,j} c_{jr} \sigma_j^{i-r} y^i \\
+\sum_{i=0}^d b_i y^i &= \sum_{i=0}^d k_i y^i + \sum_{j=1}^n \sum_{i=0}^d \sum_{r=1}^{\min(i,d_r)} A_{i-r,j} c_{jr} \sigma_j^{i-r} y^i
+\\ \implies b_i &= k_i + \sum_{j=1}^n \sum_{r=1}^{\min(i,d_r)}  A_{i-r,j} \sigma_j^{i-r} c_{jr}
+\,\,\,\,\, \text{ for $i \in \{0, \hdots, d\}$}
+\end{align*}
+Linearize $c_{jr}$ by treating $jr$ as a single index that goes from 1 to $nd_r$,
+and let the matrix $\vec{A}' \in \real^{d \times nd_r}$ be defined as $A_{i,jr}' =
+A_{i-r,j}\sigma_j^{i-r}$. This yields the same form as the previous section.
+\begin{align*}
+\vec{b} &= \vec{k} + \vec{A}'(\vec{\sigma}) \vec{c}
+\end{align*}
+We want sparsity in $\vec{k}$ and $\vec{c}$, which we can maybe approximate with
+the $\ell_1$ norm, although this optimization may not work.
+\begin{align*}
+&\min_{\vec{c},\vec{\sigma}} ||\vec{k}||_1 + ||\vec{c}||_1
+\\& \text{subject to } \vec{k} =  \vec{b} - \vec{A}'(\vec{\sigma})\vec{c}
+\end{align*}
+
+\subsection{One at a time}
+
+The optimization problem above may be too difficult. An alternative method is to
+extract one non-polynomial function at a time. This can be repeated for any
+desired non-polynomial function.
+
+Again, let $g(y) = \sum_{i=0}^d b_i y^i$ be the known function that we want to
+extract non-polynomial terms from. We want to express $g(y)$ in terms of
+functions $f(x)$ multiplied by monomials, plus a polynomial function $h$.
+Assume we have a truncated series expansion of $f$ in terms of polynomials.
+\begin{align*}
+g(y) &= h(y) + c f^{(d)}(\sigma y) \\
+\sum_{i=0}^d b_i y^i &= \sum_{i=0}^d k_i y^i + \sum_{i=0}^d c a_i \sigma^i x^i
+\\ \implies b_i &= k_i + c a_i \sigma^i 
+\\ \implies \vec{b} &= \vec{k} + c D(\sigma) \vec{a} 
+\\ D(\sigma) &= \text{diag}(1, \sigma, \sigma^2, \ldots, \sigma^d)
+\end{align*}
+We want to choose $c$ and $\sigma$ such that they zero out at least one term in $\vec{k}$.
+Since we're choosing two parameters, though, we'll be able to zero out two terms.
+A direct algorithm would do the following:
+\begin{enumerate}
+  \item For any two entries $i,j$ in $\vec{k}$, with $i < j$:
+  \begin{enumerate}
+    \item Skip this $i,j$ pair if $a_i a_j b_i b_j = 0$, which means  one of the
+      terms doesn't show up in $g$, so zeroing this term out leads to $c = 0$,
+      or it means one of the terms doesn't show up in $f$, so we can't use it
+      zero out terms in $g$.
+    \item Solve for $c$ and $\sigma$ to make these two entries 0.
+      \begin{equation*}
+        \sigma = \left(\frac{a_i b_j}{a_j b_i} \right)^{\frac{1}{j-i}} \text{ and } c = \frac{b_i}{a_i\sigma^i}
+      \end{equation*}
+    \item Record a measure of the sparsity of $\vec{k}$.
+  \end{enumerate}
+  \item Choose the $c$ and $\sigma$ that lead to the best sparsity of $\vec{k}$,
+  or choose them to be zero if the sparsity of $\vec{b}$ is better.
+\end{enumerate}
+One this function is extracted, the algorithm can be repeated for a different
+function. Determining the optimal extractions for a library of non-polynomial
+functions may be a combinatorially large problem.
 
 \end{document}
