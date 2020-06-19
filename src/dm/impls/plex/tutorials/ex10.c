@@ -429,6 +429,8 @@ static PetscErrorCode ConstructElementMatrix(DM dm,PetscScalar** elementMat) {
 
 /* Assign element matrix into global matrix */
 static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const PetscScalar elementMat[]) {
+
+  /* Retry with get closure Indices*/
   PetscSection lSec,gSec;
   PetscInt nDoF,poffset;
   PetscInt closureSize;
@@ -444,14 +446,12 @@ static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const 
   PetscFunctionBegin;
   ierr = DMGetLocalSection(dm,&lSec);CHKERRQ(ierr); /* Maps local mesh points to their DoFs */
   ierr = DMGetGlobalSection(dm,&gSec);CHKERRQ(ierr); /* Maps all mesh points to their DoFs */
-  ierr = PetscSectionView(lSec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = PetscSectionView(gSec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = DMPlexGetTransitiveClosure(dm,p,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
   ierr = DMPlexGetDepthStratum(dm, 0, &vStart,&vEnd);CHKERRQ(ierr);
   /* First need to determine the number of entries that we are modifying */
   for (i=0; i<closureSize; ++i){
-    if (closure[i] >= vStart && closure[i] < vEnd){
-      ierr = PetscSectionGetDof(gSec,closure[i],&nDoF);CHKERRQ(ierr);
+    if (closure[2*i] >= vStart && closure[2*i] < vEnd){
+      ierr = PetscSectionGetDof(gSec,closure[2*i],&nDoF);CHKERRQ(ierr);
       idxSize += nDoF;
     }
   }
@@ -459,13 +459,14 @@ static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const 
 
   /* Now we can put the effected indices into an array */
   for (i=0; i<closureSize; ++i){
-    if (closure[i] >= vStart && closure[i] < vEnd){
-      ierr = PetscSectionGetDof(gSec,closure[i],&nDoF);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(gSec,closure[i],&poffset);CHKERRQ(ierr);
+    if (closure[2*i] >= vStart && closure[2*i] < vEnd){
+      ierr = PetscSectionGetDof(gSec,closure[2*i],&nDoF);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(gSec,closure[2*i],&poffset);CHKERRQ(ierr);
       /* idxOffset tracks where the next entry in idx should go, poffset tells us where the DoFs are in global indexing */
       for (j=idxOffset; j<idxOffset+nDoF; ++j){
         idx[j] = poffset+j-idxOffset;
       }
+      idxOffset += nDoF;
     }
   }
 
