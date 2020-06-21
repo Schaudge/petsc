@@ -181,8 +181,6 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx *user)
   ierr = PetscDSSetJacobian(prob,0,1,NULL,NULL,g2_vp,NULL);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(prob,1,0,NULL,g1_qu,NULL,NULL);CHKERRQ(ierr);
 
-  ierr = PetscDSAddBoundary(prob,DM_BC_NATURAL,"Boundary Integral","marker",0,0,NULL,(void (*)(void))NULL,1,&id,user);CHKERRQ(ierr);
-  ierr = PetscDSSetBdResidual(prob,0,f0_bd_u_linear,NULL);CHKERRQ(ierr);
   ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
   ierr = PetscDSSetExactSolution(prob,1,linear_divu,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -446,32 +444,11 @@ static PetscErrorCode InsertElementMatrix(DM dm,Mat* globalMat,PetscInt p,const 
   PetscFunctionBegin;
   ierr = DMGetLocalSection(dm,&lSec);CHKERRQ(ierr); /* Maps local mesh points to their DoFs */
   ierr = DMGetGlobalSection(dm,&gSec);CHKERRQ(ierr); /* Maps all mesh points to their DoFs */
-  ierr = DMPlexGetTransitiveClosure(dm,p,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
-  ierr = DMPlexGetDepthStratum(dm, 0, &vStart,&vEnd);CHKERRQ(ierr);
-  /* First need to determine the number of entries that we are modifying */
-  for (i=0; i<closureSize; ++i){
-    if (closure[2*i] >= vStart && closure[2*i] < vEnd){
-      ierr = PetscSectionGetDof(gSec,closure[2*i],&nDoF);CHKERRQ(ierr);
-      idxSize += nDoF;
-    }
-  }
-  ierr = PetscCalloc1(idxSize,&idx);CHKERRQ(ierr);
+  ierr = DMPlexGetClosureIndices(dm,lSec,gSec,p,PETSC_TRUE,&closureSize,&closure,NULL,NULL);CHKERRQ(ierr);
 
-  /* Now we can put the effected indices into an array */
-  for (i=0; i<closureSize; ++i){
-    if (closure[2*i] >= vStart && closure[2*i] < vEnd){
-      ierr = PetscSectionGetDof(gSec,closure[2*i],&nDoF);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(gSec,closure[2*i],&poffset);CHKERRQ(ierr);
-      /* idxOffset tracks where the next entry in idx should go, poffset tells us where the DoFs are in global indexing */
-      for (j=idxOffset; j<idxOffset+nDoF; ++j){
-        idx[j] = poffset+j-idxOffset;
-      }
-      idxOffset += nDoF;
-    }
-  }
-
-  ierr = MatSetValues(*globalMat,idxSize,idx,idxSize,idx,elementMat,ADD_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValues(*globalMat,closureSize,closure,closureSize,closure,elementMat,ADD_VALUES);CHKERRQ(ierr);
   
+  ierr = DMPlexRestoreClosureIndices(dm,lSec,gSec,p,PETSC_TRUE,&closureSize,&closure,NULL,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
