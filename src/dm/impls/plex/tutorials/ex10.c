@@ -7,6 +7,87 @@ static char help[] =
 #include <petscsnes.h>
 #include <petsc/private/snesimpl.h>
 #include <petscdmadaptor.h>
+
+/*
+  Construct a 4-tensor for the Poisson operator on the reference element of a finite element.
+
+  The element matrix of the Poisson operator on an element E in physical space is a matrix
+
+  A_{i,j} = \int_E \frac{\partial}{\partial x_k} \phi_i \frac{\partial}{\partial x_k} \phi_j dx
+
+  (This is Einstein notation).
+
+  To compute this quantity on a reference element \hat E, we have
+
+  A_{i,j} = \int_E (\frac{\partial \hat x_l}{\partial x_k} \frac{\partial}{\partial \hat x_l}) \phi_i (\frac{\partial \hat x_m}{\partial x_k} \frac{\partial}{\partial x_k}) \phi_j dx
+          = \int_{\hat E} (\frac{\partial \hat x_l}{\partial x_k} \frac{\partial}{\partial \hat x_l}) \hat \phi_i (\frac{\partial \hat x_m}{\partial x_k} \frac{\partial}{\partial \hat x_m}) \hat \phi_j |J_E| dx,
+
+  Where |J_E| is the determinant of the element map \hat E -> E.  If the map from \hat E to E is affine, we can write this as
+
+  A_{i,j} = (\int_{\hat E} \frac{\partial}{\partial \hat x_l} \hat \phi_i \frac{\partial}{\partial \hat x_m} \hat \phi_j |J_E| dx) (\frac{\partial \hat x_l}{\partial x_k} \frac{\partial \hat x_m}{\partial x_k} |J_E}),
+
+  which expresses the real element matrix as the contraction of a reference 4-tensor with indices ijlm and a matrix with indices lm.
+
+  The 4-tensor is constructed here with the indices in the order lmij (l slowest, j fastest).  This 4-tensor can then be moved to an accelerator to
+  contract with the geometric factors for the individual elements to compute all of the element matrices.
+
+  tensor should have size (dim * dim * ndof * ndof)
+*/
+static PetscErrorCode PoissonReferenceTensor(PetscFE fe, PetscScalar tensor[])
+{
+  PetscTabulation tabulation;
+  const PetscReal *D;
+  PetscQuadrature quad;
+  PetscInt nq, dim, ndof;
+  const PetscReal *w;
+  PetscInt idx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFEGetSpatialDimension(fe, &dim);CHKERRQ(ierr);
+  ierr = PetscFEGetDimension(fe, &ndof);CHKERRQ(ierr);
+  ierr = PetscFEGetCellTabulation(fe, &tabulation);CHKERRQ(ierr);
+  ierr = PetscFEGetQuadrature(fe, &quad);CHKERRQ(ierr);
+  ierr = PetscQuadratureGetData(quad, NULL, NULL, &nq, NULL, &w);CHKERRQ(ierr);
+  D = tabulation->T[1];
+  ierr = PetscArrayzero(tensor, dim * dim * ndof * ndof);CHKERRQ(ierr);
+  idx = 0;
+  for (PetscInt l = 0; l < dim; l++) {
+    for (PetscInt m = 0; m < dim; m++) {
+      for (PetscInt i = 0; i < ndof; i++) {
+        for (PetscInt j = 0; j < ndof; j++, idx++) {
+          PetscReal val = 0.;
+          for (PetscInt q = 0; q < nq; q++) val += D[(q*ndof + i)*dim + l] * D[(q*ndof + j)*dim + m] * w[q];
+          tensor[idx] += val;
+        }
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PoissonReferenceToReal(PetscInt dim, PetscInt ndof, const PetscScalar tensor[], const PetscReal Jinv[], PetscReal Jdet, PetscScalar elemMat[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscArrayzero(elemMat, ndof * ndof);CHKERRQ(ierr);
+  for (PetscInt k = 0; k < dim; k++) {
+    PetscInt idx = 0;
+
+    for (PetscInt l = 0; l < dim; l++) {
+      for (PetscInt m = 0; l < dim; l++) {
+        for (PetscInt i = 0; i < ndof; i++) {
+          for (PetscInt j = 0; j < ndof; j++, idx++) {
+            elemMat[i * ndof + j] += Jinv[l * dim + k] * Jinv[m * dim + k] * tensor[idx] * Jdet;
+          }
+        }
+      }
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
 /* We are solving the system of equations:
  * \vec{u} = -\grad{p}
  * \div{u} = f
