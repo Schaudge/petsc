@@ -441,6 +441,81 @@ finite difference doesn't approximate the first two steps or last two steps of
 any run, so it zeros them out instead. This effect can be overcome by running
 for more time steps so that the boundary steps have a smaller relative effect.
 
+\subsection{sindy\_pendulum}
+This example is a scalar second-order ODE, which I'll rephrase as a first-order ODE with two components.
+\begin{equation*}
+\frac{d^2U}{dt^2} = -\sin(U) \approx -U + 0.1\overline{6}U^3 - 0.008\overline{3}U^5
+\end{equation*}
+\begin{align*}
+\vec{U}' &=
+\begin{bmatrix}
+U \\ \frac{dU}{dt}
+\end{bmatrix} \\
+\frac{d\vec{U}'}{dt} &=
+\begin{bmatrix}
+\frac{dU}{dt} \\ \frac{d^2U}{dt^2}
+\end{bmatrix} =
+\begin{bmatrix}
+U'_2 \\ -\sin U'_1
+\end{bmatrix}
+\end{align*}
+The code runs the ODE with initial points spaced evenly around 0, with the goal of
+recovering the Maclaurin series. It performs well with 0 initial velocity.
+\begin{lstlisting}[language={}]
+                                    du'/dt[0]     du'/dt[1]
+ 1                                           0             0
+ u'[0]                                       0   -9.9995e-01
+ u'[1]                              1.0000e+00             0
+ u'[0]*u'[0]                                 0             0
+ u'[0]*u'[1]                                 0             0
+ u'[1]*u'[1]                                 0             0
+ u'[0]*u'[0]*u'[0]                           0    1.6633e-01
+ u'[0]*u'[0]*u'[1]                           0             0
+ u'[0]*u'[1]*u'[1]                           0             0
+ u'[1]*u'[1]*u'[1]                           0             0
+ u'[0]*u'[0]*u'[0]*u'[0]                     0             0
+ u'[0]*u'[0]*u'[0]*u'[1]                     0             0
+ u'[0]*u'[0]*u'[1]*u'[1]                     0             0
+ u'[0]*u'[1]*u'[1]*u'[1]                     0             0
+ u'[1]*u'[1]*u'[1]*u'[1]                     0             0
+ u'[0]*u'[0]*u'[0]*u'[0]*u'[0]               0   -7.8459e-03
+ u'[0]*u'[0]*u'[0]*u'[0]*u'[1]               0             0
+ u'[0]*u'[0]*u'[0]*u'[1]*u'[1]               0             0
+ u'[0]*u'[0]*u'[1]*u'[1]*u'[1]               0             0
+ u'[0]*u'[1]*u'[1]*u'[1]*u'[1]               0             0
+ u'[1]*u'[1]*u'[1]*u'[1]*u'[1]               0             0
+\end{lstlisting}
+
+I found that using a high initial velocity \lstinline{-v0 -2} gives bad results,
+whether or not finite-differences are used to approximate $\frac{d\vec{U'}}{dt}$
+(\lstinline{-fd_der}). Below is the output for \lstinline{./pendulum -v0 -2
+-fd_der}. However, this could be fixed by setting the time step size to a
+smaller value with \lstinline{-dt 0.001}, which gives nearly exactly the same
+results as the correct results above.
+\begin{lstlisting}[language={}]
+                                    du'/dt[0]     du'/dt[1]
+ 1                                           0             0
+ u'[0]                                       0   -4.7682e+00
+ u'[1]                              1.0000e+00    8.3012e+00
+ u'[0]*u'[0]                                 0   -2.9006e+00
+ u'[0]*u'[1]                                 0    2.7714e+00
+ u'[1]*u'[1]                                 0    9.5134e+00
+ u'[0]*u'[0]*u'[0]                           0   -5.2707e-01
+ u'[0]*u'[0]*u'[1]                           0   -5.0834e-01
+ u'[0]*u'[1]*u'[1]                           0    4.6567e+00
+ u'[1]*u'[1]*u'[1]                           0    3.1919e+00
+ u'[0]*u'[0]*u'[0]*u'[0]                     0   -2.7514e-02
+ u'[0]*u'[0]*u'[0]*u'[1]                     0   -2.1456e-01
+ u'[0]*u'[0]*u'[1]*u'[1]                     0    5.1738e-01
+ u'[0]*u'[1]*u'[1]*u'[1]                     0    1.3866e+00
+ u'[1]*u'[1]*u'[1]*u'[1]                     0    2.4970e-01
+ u'[0]*u'[0]*u'[0]*u'[0]*u'[0]               0             0
+ u'[0]*u'[0]*u'[0]*u'[0]*u'[1]               0   -1.1853e-02
+ u'[0]*u'[0]*u'[0]*u'[1]*u'[1]               0             0
+ u'[0]*u'[0]*u'[1]*u'[1]*u'[1]               0    1.0380e-01
+ u'[0]*u'[1]*u'[1]*u'[1]*u'[1]               0    1.0797e-01
+ u'[1]*u'[1]*u'[1]*u'[1]*u'[1]               0   -9.1037e-03
+\end{lstlisting}
 
 \subsection{lorenz}
 In this example, $d_x = 0$ (no coordinates) and $d_u = 3$. There is no time dependence.

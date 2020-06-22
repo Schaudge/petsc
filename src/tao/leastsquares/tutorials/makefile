@@ -27,6 +27,10 @@ sindy_sine_cosine : sindy_sine_cosine.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
+pendulum : pendulum.o $(SINDY)
+	$(LINK.c) -o $@ $^ $(LDLIBS)
+	$(RM) -f $<
+
 lorenz96 : lorenz96.o $(SINDY)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
