@@ -6,7 +6,8 @@
 #include "sparse_reg.h"
 #include "variable.h"
 
-typedef struct _p_Basis* Basis;
+typedef struct _p_Basis*  Basis;
+PETSC_EXTERN PetscClassId SINDY_CLASSID;
 
 PETSC_EXTERN PetscErrorCode SINDyBasisCreate(PetscInt, PetscInt, Basis*);
 PETSC_EXTERN PetscErrorCode SINDyBasisDestroy(Basis*);

@@ -47,4 +47,25 @@ struct _p_Variable {
   PetscInt     data_size_per_dof;
 };
 
+
+PETSC_EXTERN PetscBool SINDyRegisterAllCalled;
+PETSC_EXTERN PetscErrorCode SINDyRegisterAll(void);
+PETSC_EXTERN PetscErrorCode SINDyInitializePackage(void);
+PETSC_EXTERN PetscErrorCode SINDyFinalizePackage(void);
+PETSC_EXTERN PetscErrorCode VariableInitializePackage(void);
+PETSC_EXTERN PetscErrorCode VariableFinalizePackage(void);
+PETSC_EXTERN PetscErrorCode SparseRegInitializePackage(void);
+PETSC_EXTERN PetscErrorCode SparseRegFinalizePackage(void);
+
+PETSC_EXTERN PetscLogEvent SINDy_BasisCreate;
+PETSC_EXTERN PetscLogEvent SINDy_BasisAddVariables;
+PETSC_EXTERN PetscLogEvent SINDy_BasisPrint;
+PETSC_EXTERN PetscLogEvent SINDy_FindSparseCoefficients;
+
+PETSC_EXTERN PetscLogEvent Variable_Print;
+PETSC_EXTERN PetscLogEvent Variable_DifferentiateSpatial;
+PETSC_EXTERN PetscLogEvent Variable_ExtractDataByDim;
+
+PETSC_EXTERN PetscLogEvent SparseReg_STLSQ;
+
 #endif

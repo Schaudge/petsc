@@ -233,9 +233,12 @@ int main(int argc, char** argv) {
   */
 
   /* Generate data. */
+  PetscPreLoadBegin(PETSC_FALSE,"Data generation");
   ierr = GetData(&n, &x, &dx, &t);CHKERRQ(ierr);
 
   Variable v_x,v_dx,v_t;
+
+  PetscPreLoadStage("Var/Basis setup");
   ierr = VariableCreate("u'", &v_x);CHKERRQ(ierr);
   ierr = VariableSetVecData(v_x, n, x, NULL);CHKERRQ(ierr);
   ierr = VariableCreate("du'/dt", &v_dx);CHKERRQ(ierr);
@@ -249,8 +252,11 @@ int main(int argc, char** argv) {
   ierr = SINDyBasisSetFromOptions(basis);CHKERRQ(ierr);
 
   ierr = SINDyBasisSetOutputVariable(basis, v_dx);CHKERRQ(ierr);
+
+  PetscPreLoadStage("AddVariables");
   ierr = SINDyBasisAddVariables(basis, 1, &v_x);CHKERRQ(ierr);
 
+  PetscPreLoadStage("Regress setup");
   ierr = SparseRegCreate(&sparse_reg);CHKERRQ(ierr);
   ierr = SparseRegSetThreshold(sparse_reg, 5e-3);CHKERRQ(ierr);
   ierr = SparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
@@ -262,9 +268,11 @@ int main(int argc, char** argv) {
   ierr = VecDuplicate(Xi[0], &Xi[1]);CHKERRQ(ierr);
 
   /* Run least squares */
+  PetscPreLoadStage("Regression");
   ierr = SINDyFindSparseCoefficients(basis, sparse_reg, 2, Xi);CHKERRQ(ierr);
 
    /* Free PETSc data structures */
+  PetscPreLoadStage("Cleanup");
   ierr = VecDestroyVecs(n, &x);CHKERRQ(ierr);
   ierr = VecDestroyVecs(n, &dx);CHKERRQ(ierr);
   ierr = VecDestroy(&Xi[0]);CHKERRQ(ierr);
@@ -276,6 +284,8 @@ int main(int argc, char** argv) {
   ierr = VariableDestroy(&v_x);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_dx);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_t);CHKERRQ(ierr);
+
+  PetscPreLoadEnd();
 
   ierr = PetscFinalize();
   return ierr;

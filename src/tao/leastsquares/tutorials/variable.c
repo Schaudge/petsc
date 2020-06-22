@@ -1,5 +1,10 @@
 #include "sindy_impl.h"
 
+PetscClassId  VARIABLE_CLASSID;
+PetscLogEvent Variable_Print;
+PetscLogEvent Variable_DifferentiateSpatial;
+PetscLogEvent Variable_ExtractDataByDim;
+
 PetscErrorCode VariableCreate(const char* name, Variable* var_p)
 {
   PetscErrorCode ierr;
@@ -8,6 +13,7 @@ PetscErrorCode VariableCreate(const char* name, Variable* var_p)
   PetscFunctionBegin;
   PetscValidPointer(var_p,2);
   *var_p = NULL;
+  ierr = VariableInitializePackage();CHKERRQ(ierr);
 
   ierr = PetscMalloc1(1, &var);CHKERRQ(ierr);
   var->name        = name;

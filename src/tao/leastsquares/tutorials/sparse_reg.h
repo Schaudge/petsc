@@ -4,6 +4,7 @@
 #include <petsctao.h>
 
 typedef struct _p_SparseReg* SparseReg;
+PETSC_EXTERN PetscClassId    SPARSEREG_CLASSID;
 
 PETSC_EXTERN PetscErrorCode SparseRegCreate(SparseReg*);
 PETSC_EXTERN PetscErrorCode SparseRegSetThreshold(SparseReg, PetscReal);

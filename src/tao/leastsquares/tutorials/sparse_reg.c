@@ -1,5 +1,8 @@
 #include "sindy_impl.h"
 
+PetscClassId  SPARSEREG_CLASSID;
+PetscLogEvent SparseReg_STLSQ;
+
 static PetscErrorCode SparseLeastSquares(Mat A, Vec b, Mat D, Vec x);
 
 PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
@@ -8,8 +11,9 @@ PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
   SparseReg sparse_reg;
 
   PetscFunctionBegin;
-  PetscValidPointer(new_sparse_reg,3);
+  PetscValidPointer(new_sparse_reg,1);
   *new_sparse_reg = NULL;
+  ierr = SparseRegInitializePackage();CHKERRQ(ierr);
 
   ierr = PetscMalloc1(1, &sparse_reg);CHKERRQ(ierr);
   sparse_reg->threshold = 1e-5;

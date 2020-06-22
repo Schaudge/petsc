@@ -4,6 +4,7 @@
 #include <petscdmda.h>
 
 typedef struct _p_Variable* Variable;
+PETSC_EXTERN PetscClassId VARIABLE_CLASSID;
 
 PETSC_EXTERN PetscErrorCode VariableCreate(const char*, Variable*);
 PETSC_EXTERN PetscErrorCode VariableSetScalarData(Variable, PetscInt, PetscScalar*);

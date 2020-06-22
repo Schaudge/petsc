@@ -1,5 +1,11 @@
 #include "sindy_impl.h"
 
+PetscClassId  SINDY_CLASSID;
+PetscLogEvent SINDy_FindSparseCoefficients;
+PetscLogEvent SINDy_BasisPrint;
+PetscLogEvent SINDy_BasisAddVariables;
+PetscLogEvent SINDy_BasisCreate;
+
 static PetscInt64 n_choose_k(PetscInt64 n, PetscInt64 k)
 {
   if (k > n) {
@@ -18,6 +24,16 @@ static PetscInt SINDyCountBases(PetscInt dim, PetscInt poly_order, PetscInt sine
   return n_choose_k(dim + poly_order, poly_order) + dim *  2 * sine_order;
 }
 
+static PetscErrorCode SINDyRecordBasisFlops(PetscInt N, PetscInt dim, PetscInt poly_order, PetscInt sine_order)
+{
+  PetscErrorCode ierr;
+  PetscInt64     flops = dim * 2 * sine_order;
+  if (poly_order >= 2) flops += n_choose_k(dim + poly_order, poly_order) * ((poly_order - 1) * dim - 1) / (dim + 1) + 1;
+  printf("N * flops: %ld\n", N * flops);
+  ierr = PetscLogFlops(N * flops);CHKERRQ(ierr);
+  return(0);
+}
+
 PETSC_EXTERN PetscErrorCode SINDyBasisDataGetSize(Basis basis, PetscInt *N, PetscInt *B)
 {
   if (N) *N = basis->data.N;
@@ -33,6 +49,8 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
   PetscFunctionBegin;
   PetscValidPointer(new_basis,3);
   *new_basis = NULL;
+  ierr = SINDyInitializePackage();CHKERRQ(ierr);
+  PetscLogEventBegin(SINDy_BasisCreate,0,0,0,0);
 
   ierr = PetscMalloc1(1, &basis);CHKERRQ(ierr);
   basis->poly_order = poly_order;
@@ -53,6 +71,8 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
   basis->data.output_var = NULL;
 
   *new_basis = basis;
+  printf("end\n");
+  PetscLogEventEnd(SINDy_BasisCreate,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -351,6 +371,7 @@ static PetscErrorCode NormalizeColumns(Mat Theta, PetscScalar* column_scales)
   PetscInt       i,m,n,M,N;
   PetscReal      *data;
 
+  PetscFunctionBegin;
   ierr = MatGetSize(Theta, &M, &N);CHKERRQ(ierr);
   ierr = MatDenseGetArray(Theta, &data);CHKERRQ(ierr);
   for (n = 0; n < N; n++) column_scales[n] = 0;
@@ -372,6 +393,8 @@ static PetscErrorCode NormalizeColumns(Mat Theta, PetscScalar* column_scales)
     }
   }
   ierr = MatDenseRestoreArray(Theta, &data);CHKERRQ(ierr);
+  PetscLogFlops(M*N + 2*M + N + M*N);
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* vars)
@@ -385,10 +408,10 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   PetscScalar     val;
   PetscInt        coords[3];
   Variable        out;
-
   PetscFunctionBegin;
   /* Validate variables size. */
   if (!num_vars) PetscFunctionReturn(0);
+  PetscLogEventBegin(SINDy_BasisAddVariables,0,0,0,0);
   if (!basis->data.output_var) {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,"Output variable must be set before calling this function");
   }
@@ -593,6 +616,8 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   if (basis->poly_order >= 0) {
     ierr = PetscFree(poly_terms);CHKERRQ(ierr);
   }
+  SINDyRecordBasisFlops(out->coord_dim_sizes_total * basis->data.N, cross_term_dim, basis->poly_order, basis->sine_order);
+  PetscLogEventEnd(SINDy_BasisAddVariables,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -604,6 +629,7 @@ PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, Pe
   Vec             *dim_vecs;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(SINDy_FindSparseCoefficients,0,0,0,0);
   if (!basis->data.output_var) {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,"Output variable must be set before calling this function");
   }
@@ -665,6 +691,7 @@ PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, Pe
           ierr = VecRestoreArray(Xis[d], &xi_data);CHKERRQ(ierr);
       }
     }
+    PetscLogFlops(output_dim * basis->data.B);
     if (sparse_reg->monitor) {
       PetscPrintf(PETSC_COMM_WORLD, "SINDy: Xi\n");
       ierr = SINDyBasisPrint(basis, output_dim, Xis);
@@ -676,6 +703,7 @@ PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, Pe
     ierr = VecDestroy(&dim_vecs[d]);CHKERRQ(ierr);
   }
   ierr = PetscFree(dim_vecs);CHKERRQ(ierr);
+  PetscLogEventEnd(SINDy_FindSparseCoefficients,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -687,6 +715,7 @@ PetscErrorCode SINDyBasisPrint(Basis basis, PetscInt output_dim, Vec* Xis)
   const PetscInt   max_columns = 8;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(SINDy_BasisPrint,0,0,0,0);
   if (!basis->data.output_var) {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,"Output variable must be set before calling this function");
   }
@@ -741,5 +770,6 @@ PetscErrorCode SINDyBasisPrint(Basis basis, PetscInt output_dim, Vec* Xis)
     ierr = VecRestoreArrayRead(Xis[d], &xi_data[d]);CHKERRQ(ierr);
   }
   ierr = PetscFree(xi_data);CHKERRQ(ierr);
+  PetscLogEventEnd(SINDy_BasisPrint,0,0,0,0);
   PetscFunctionReturn(0);
 }

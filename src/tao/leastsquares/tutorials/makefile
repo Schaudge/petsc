@@ -13,7 +13,7 @@ TUTORIALS        = chwirut1.c chwirut2.c chwirut1f.F90 chwirut2f.F90 cs1.c tomog
 DOCS		 = 
 DIRS		 = matlab
 CLEANFILES       = chwirut1 chwirut2 chwirut1f chwirut2f cs1 tomography
-SINDY            = sindy.o sparse_reg.o variable.o
+SINDY            = sindy.o sparse_reg.o variable.o sindyregis.o
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
