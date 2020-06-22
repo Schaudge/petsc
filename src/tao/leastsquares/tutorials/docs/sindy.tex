@@ -42,6 +42,8 @@
   tabsize=3
 }
 
+\usepackage{titlesec}
+\newcommand{\sectionbreak}{\clearpage} % start each section on a new page
 
 \let\vec\mathbf
 \def\real{\mathbb{R}}
@@ -54,7 +56,6 @@
 
 \tableofcontents
 
-\pagebreak
 \section{Theory}
 
 This discussion is based on \cite{brunton2016sindy} and \cite{shea2020sindy-bvp}.
@@ -320,7 +321,6 @@ Hint: If a RIP matrix $A' \in \real^{m \times p}$ has a RIP constant smaller tha
 then every submatrix $A' \in \real^{m \times k}$ must have positive eigenvalues
 near 1.
 
-\pagebreak
 \section{Examples}
 
 \subsection{sindy\_sine}
@@ -576,7 +576,6 @@ In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
  x[1]*x[1]                                               0
 \end{lstlisting}
 
-\pagebreak
 \section{Implementation overview}
 
 The basis system is below (copy/pasted from Equation~\ref{eq:basis-system}).
@@ -630,7 +629,6 @@ Thresholded Least Squares implemented, with parameters specified in a
 \lstinline{SparseReg} class. More backends could be tested here, and we could
 set sparse regression algorithm as a command-line argument.
 
-\pagebreak
 \section{Implementation specifics}
 
 \subsection{Cross terms}
@@ -666,7 +664,6 @@ separate matrix for each output DOF, so there are $d_u$ matrices to build.
 Each matrix is built by looping through each basis function, and for each basis function,
 looping through each output coordinate and adding all $m$ outputs to the for that coordinate.
 This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} column-wise.
-
 
 \section{Things to do}
 
@@ -728,7 +725,12 @@ This iteration procedure generates $\Theta'$ from Equation~\ref{eq:coord-const} 
         \item It would be good to be able to specify different thresholds for
           different degrees of freedom.
         \item It would be good to be to have automated methods for picking a
-          threshold. E.g., something like Section 3.3 in \cite{shea2020sindy-bvp}.
+          threshold. E.g., something like Section 3.3 in
+          \cite{shea2020sindy-bvp}, which uses a loss similar to AIC.
+        \item In the supplemental information for \cite{rudy2017sindy-pde}, an
+          automated threshold-selecting algorithm incrementally increases or
+          decreases the threshold depending on the change in the
+          $\ell_0$-regularized error.
     \end{itemize}
 
     \item Do non-regularized least squares after thresholding is complete? This
@@ -788,8 +790,6 @@ from each method) to see if better coefficients are obtained.
 \bibliographystyle{unsrt}
 \bibliography{sources}
 
-
-\pagebreak
 
 \section{Appendix}
 
