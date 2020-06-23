@@ -129,10 +129,12 @@ int main(int argc, char** argv)
   ierr = SINDyBasisDestroy(&basis);CHKERRQ(ierr);
   ierr = SparseRegDestroy(&sparse_reg);CHKERRQ(ierr);
 
+  ierr = VariableDestroy(&v_x);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_u);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_dudt);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_dudx);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_dudy);CHKERRQ(ierr);
+  ierr = VariableDestroy(&v_dudxx);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_dudyy);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_t);CHKERRQ(ierr);
   ierr = VariableDestroy(&v_exp_t);CHKERRQ(ierr);

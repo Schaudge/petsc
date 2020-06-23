@@ -25,6 +25,7 @@ PetscErrorCode VariableCreate(const char* name, Variable* var_p)
   var->dim         = 0;
   var->coord_dim   = 0;
   var->type        = VECTOR;
+  var->own_data    = PETSC_FALSE;
 
   *var_p = var;
   PetscFunctionReturn(0);
@@ -36,6 +37,13 @@ PetscErrorCode VariableDestroy(Variable* var_p)
 
   PetscFunctionBegin;
   if (!*var_p) PetscFunctionReturn(0);
+  if ((*var_p)->own_data) {
+    if ((*var_p)->type == SCALAR) {
+      ierr = PetscFree((*var_p)->scalar_data);CHKERRQ(ierr);
+    } else {
+      ierr = VecDestroyVecs((*var_p)->N, &(*var_p)->vec_data);CHKERRQ(ierr);
+    }
+  }
   ierr = PetscFree(*var_p);CHKERRQ(ierr);
   *var_p = NULL;
   PetscFunctionReturn(0);
@@ -99,6 +107,7 @@ PetscErrorCode VariablePrint(Variable var)
   const PetscScalar  *x;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(Variable_Print,0,0,0,0);
   ierr = PetscPrintf(PETSC_COMM_SELF, "Variable Object: %s\n", var->name);CHKERRQ(ierr);
   if (var->type == VECTOR) {
     ierr = PetscPrintf(PETSC_COMM_SELF, "  type: vector\n");CHKERRQ(ierr);
@@ -135,6 +144,7 @@ PetscErrorCode VariablePrint(Variable var)
     }
   }
   ierr = PetscPrintf(PETSC_COMM_SELF, "\n");CHKERRQ(ierr);
+  PetscLogEventEnd(Variable_Print,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -145,6 +155,7 @@ PetscErrorCode VariableDifferentiateSpatial(Variable var, PetscInt coord_dim, Pe
   Variable       der;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(Variable_DifferentiateSpatial,0,0,0,0);
   if(var->type == SCALAR) {
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Must be vector type to spatially differentiate");
   } else if(var->type != VECTOR) {
@@ -161,7 +172,7 @@ PetscErrorCode VariableDifferentiateSpatial(Variable var, PetscInt coord_dim, Pe
   if (var->dm) {
     Vec            *der_vecs;
     PetscInt       c[3];
-    PetscInt       n,i,j,k,d;
+    PetscInt       n,i,j,d;
     PetscScalar    dx;
     c[0] = c[1] = c[2] = 0;
     ierr = VecDuplicateVecs(var->vec_data[0], var->N, &der_vecs);CHKERRQ(ierr);
@@ -261,6 +272,14 @@ PetscErrorCode VariableDifferentiateSpatial(Variable var, PetscInt coord_dim, Pe
         ierr = DMDAVecRestoreArrayDOFRead(var->dm,var->vec_data[n],&u);CHKERRQ(ierr);
         ierr = DMDAVecRestoreArrayDOF(var->dm,der_vecs[n],&der_data);CHKERRQ(ierr);
       }
+      {
+        PetscInt points,flops_per_point;
+        if (coord_dim == 1) points = (var->coord_dim_sizes[0]*var->coord_dim_sizes[1] - 2*var->coord_dim_sizes[0]);
+        else                points = (var->coord_dim_sizes[0]*var->coord_dim_sizes[1] - 2*var->coord_dim_sizes[1]);
+        if (der_order == 1) flops_per_point = 4;
+        else                flops_per_point = 2;
+        ierr = PetscLogFlops(var->N * points * flops_per_point + 2);CHKERRQ(ierr);
+      }
     } else {
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Only supports 2D DMDA");
     }
@@ -290,12 +309,14 @@ PetscErrorCode VariableDifferentiateSpatial(Variable var, PetscInt coord_dim, Pe
         ierr = VecRestoreArray(der_vecs[n], &der_data);CHKERRQ(ierr);
       }
       ierr = VariableSetVecData(der, var->N, der_vecs, NULL);CHKERRQ(ierr);
+      ierr = PetscLogFlops(var->N * (var->dim-2) * 2 + 1);CHKERRQ(ierr);
     } else {
       SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_COR,"Can only take first derivative for non-DMDA data");
     }
   }
-
+  der->own_data = PETSC_TRUE;
   *out_var_p = der;
+  PetscLogEventEnd(Variable_DifferentiateSpatial,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -307,6 +328,7 @@ PetscErrorCode VariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
   PetscReal      *dim_data;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(Variable_ExtractDataByDim,0,0,0,0);
   ierr = PetscMalloc1(var->dim, &dim_vecs);CHKERRQ(ierr);
   if (var->type == VECTOR) {
     if (var->dm) {
@@ -382,5 +404,6 @@ PetscErrorCode VariableExtractDataByDim(Variable var, Vec** dim_vecs_p)
     SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_COR,"Invalid var type %d", var->type);
   }
   *dim_vecs_p = dim_vecs;
+  PetscLogEventEnd(Variable_ExtractDataByDim,0,0,0,0);
   PetscFunctionReturn(0);
 }

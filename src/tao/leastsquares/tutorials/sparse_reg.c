@@ -2,8 +2,9 @@
 
 PetscClassId  SPARSEREG_CLASSID;
 PetscLogEvent SparseReg_STLSQ;
+PetscLogEvent SparseReg_LS;
 
-static PetscErrorCode SparseLeastSquares(Mat A, Vec b, Mat D, Vec x);
+static PetscErrorCode SparseRegLS(Mat A, Vec b, Mat D, Vec x);
 
 PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
 {
@@ -76,9 +77,13 @@ PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   PetscInt       *idR, *idC_thresh;
 
   PetscFunctionBegin;
-  ierr = SparseLeastSquares(A, b, D, X);CHKERRQ(ierr);
+  PetscLogEventBegin(SparseReg_STLSQ,0,0,0,0);
+  ierr = SparseRegLS(A, b, D, X);CHKERRQ(ierr);
 
-  if (sparse_reg->threshold <= 0) PetscFunctionReturn(0);
+  if (sparse_reg->threshold <= 0) {
+    PetscLogEventEnd(SparseReg_STLSQ,0,0,0,0);
+    PetscFunctionReturn(0);
+  }
 
   /* Create a workspace for thresholding. */
   ierr = MatDuplicate(A, MAT_COPY_VALUES, &A_thresh);CHKERRQ(ierr);
@@ -123,7 +128,7 @@ PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
     ierr = MatAssemblyEnd(A_thresh,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
     /* Run sparse least squares on the non-zero basis functions. */
-    ierr = SparseLeastSquares(A_thresh, b, D, X);CHKERRQ(ierr);
+    ierr = SparseRegLS(A_thresh, b, D, X);CHKERRQ(ierr);
   }
 
   /* Maybe I should zero out the thresholded entries again here, just to make sure Tao didn't mess them up. */
@@ -135,6 +140,7 @@ PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   ierr = PetscFree(zeros);CHKERRQ(ierr);
   ierr = PetscFree3(mask, idR, idC_thresh);CHKERRQ(ierr);
   ierr = MatDestroy(&A_thresh);CHKERRQ(ierr);
+  PetscLogEventEnd(SparseReg_STLSQ,0,0,0,0);
   PetscFunctionReturn(0);
 }
 
@@ -186,9 +192,8 @@ static PetscErrorCode FormStartingPoint(Vec X)
 }
 
 /* Find x to minimize ||Ax - b||_2 + ||Dx||_1 where A is an m x n matrix. If D is
-   null, it will default to the identity. The given mask tells which entries in
-   x to leave out of the optimization. If null, all entries will be optimized. */
-static PetscErrorCode SparseLeastSquares(Mat A, Vec b, Mat D, Vec x)
+   null, it will default to the identity. */
+static PetscErrorCode SparseRegLS(Mat A, Vec b, Mat D, Vec x)
 {
   PetscErrorCode  ierr;
   Vec             f;               /* solution, function f(x) = A*x-b */
@@ -198,6 +203,7 @@ static PetscErrorCode SparseLeastSquares(Mat A, Vec b, Mat D, Vec x)
   PetscBool       flg;
 
   PetscFunctionBegin;
+  PetscLogEventBegin(SparseReg_LS,0,0,0,0);
   ierr = InitializeLeastSquaresData(&ctx, A, D, b);CHKERRQ(ierr);
   J = A;
 
@@ -236,5 +242,6 @@ static PetscErrorCode SparseLeastSquares(Mat A, Vec b, Mat D, Vec x)
    /* Free PETSc data structures */
   ierr = VecDestroy(&f);CHKERRQ(ierr);
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
+  PetscLogEventEnd(SparseReg_LS,0,0,0,0);
   PetscFunctionReturn(0);
 }

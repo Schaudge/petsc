@@ -27,9 +27,8 @@ static PetscInt SINDyCountBases(PetscInt dim, PetscInt poly_order, PetscInt sine
 static PetscErrorCode SINDyRecordBasisFlops(PetscInt N, PetscInt dim, PetscInt poly_order, PetscInt sine_order)
 {
   PetscErrorCode ierr;
-  PetscInt64     flops = dim * 2 * sine_order;
+  PetscInt64     flops = dim * 4 * sine_order;
   if (poly_order >= 2) flops += n_choose_k(dim + poly_order, poly_order) * ((poly_order - 1) * dim - 1) / (dim + 1) + 1;
-  printf("N * flops: %ld\n", N * flops);
   ierr = PetscLogFlops(N * flops);CHKERRQ(ierr);
   return(0);
 }
@@ -71,7 +70,6 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
   basis->data.output_var = NULL;
 
   *new_basis = basis;
-  printf("end\n");
   PetscLogEventEnd(SINDy_BasisCreate,0,0,0,0);
   PetscFunctionReturn(0);
 }

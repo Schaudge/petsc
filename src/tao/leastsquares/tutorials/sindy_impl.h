@@ -45,6 +45,7 @@ struct _p_Variable {
   PetscInt     coord_dim_sizes[3];
   PetscInt     coord_dim_sizes_total;
   PetscInt     data_size_per_dof;
+  PetscBool    own_data;
 };
 
 
@@ -67,5 +68,6 @@ PETSC_EXTERN PetscLogEvent Variable_DifferentiateSpatial;
 PETSC_EXTERN PetscLogEvent Variable_ExtractDataByDim;
 
 PETSC_EXTERN PetscLogEvent SparseReg_STLSQ;
+PETSC_EXTERN PetscLogEvent SparseReg_LS;
 
 #endif
