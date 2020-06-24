@@ -15,8 +15,6 @@ static PetscBool SparseRegPackageInitialized = PETSC_FALSE;
 @*/
 PetscErrorCode SINDyFinalizePackage(void)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   SINDyPackageInitialized = PETSC_FALSE;
   PetscFunctionReturn(0);
@@ -80,8 +78,6 @@ PetscErrorCode SINDyInitializePackage(void)
 @*/
 PetscErrorCode VariableFinalizePackage(void)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   VariablePackageInitialized = PETSC_FALSE;
   PetscFunctionReturn(0);
@@ -141,8 +137,6 @@ PetscErrorCode VariableInitializePackage(void)
 @*/
 PetscErrorCode SparseRegFinalizePackage(void)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
   SparseRegPackageInitialized = PETSC_FALSE;
   PetscFunctionReturn(0);

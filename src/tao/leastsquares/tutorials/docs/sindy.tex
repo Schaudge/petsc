@@ -488,8 +488,8 @@ recovering the Maclaurin series. It performs well with 0 initial velocity.
 
 I found that using a high initial velocity \lstinline{-v0 -2} gives bad results,
 whether or not finite-differences are used to approximate $\frac{d\vec{U'}}{dt}$
-(\lstinline{-fd_der}). Below is the output for \lstinline{./pendulum -v0 -2
--fd_der}. However, this could be fixed by setting the time step size to a
+(\lstinline{-fd_der}). Below is the output for \lstinline{./pendulum -v0 -2 -fd_der}.
+However, this could be fixed by setting the time step size to a
 smaller value with \lstinline{-dt 0.001}, which gives nearly exactly the same
 results as the correct results above.
 \begin{lstlisting}[language={}]
@@ -651,9 +651,11 @@ In this example, $d_x = 2$ and $d_u = 1$, and there is time dependence.
  x[1]*x[1]                                               0
 \end{lstlisting}
 
-\section{Comparisons to original SINDy code}
+\section{Performance results}
 
 TODO: Timings/Accuracy
+
+Error and stage timings as the library size is increased and the data size is increased.
 
 
 \section{Implementation overview}
@@ -884,6 +886,7 @@ terms based on some polynomial expansion (e.g., Taylor series) of those terms.
 sections in this document, so the notation used here is completely independent
 of the other sections.
 
+
 \subsubsection{Subtracting out non-polynomial functions}
 
 Let $f_j(x) = \sum_{i=0}^\infty A_{ij} x^i$ be a polynomial series representing a function,
@@ -936,7 +939,32 @@ terms.
 \\ & \vec{b} = \arg \min_{\vec{b}'} ||\Theta \vec{b}' - \tfrac{d\vec{U}}{dt}||_2^2 + \lambda ||\vec{b}'||_1
 \end{align*}
 
-
+\paragraph{Simplification:} It will make the problem easier if the $\sigma_j$
+are assumed to be 1. Then the system becomes linear.
+\begin{align*}
+&\min_{\vec{c}} ||\vec{k}||_1 + ||\vec{c}||_1
+\\& \text{subject to } \vec{k} =  \vec{b} - \vec{A}\vec{c}
+\end{align*}
+Or equivalently,
+\begin{align*}
+&\min_{\vec{c}} \left|\left|
+\begin{bmatrix} \vec{b} \\ 0 \end{bmatrix}
+-
+\begin{bmatrix} \vec{A} \\ \vec{I}_n \end{bmatrix}
+\vec{c}
+\right|\right|_1
+\end{align*}
+where $\vec{I}_n$ is the identity.
+In this case, we can think of this optimization as simply expressing the
+original coefficients $\vec{b} \in \real^d $ in a new basis $\vec{B} \in
+\real^{d \times (n+d)}$, which is composed of the original polynomial basis,
+plus extra functions. Then we want to find the set of coefficients $\vec{c}' \in
+\real^(d+n)$, such that $\vec{b} = \vec{B} \vec{c'}$ and $\vec{c'}$ is as sparse
+as possible. Using the notation from above, the variables are defined as follows,
+\begin{align*}
+\vec{c}' &= \begin{bmatrix} \vec{k} \\ \vec{c} \end{bmatrix} \\
+\vec{B} &= \begin{bmatrix} \vec{I}_d & \vec{A} \end{bmatrix}
+\end{align*}
 \subsubsection{Factoring out non-polynomial functions}
 
 The above formulation handles cases where $g(y)$ is equal to a polynomial plus
