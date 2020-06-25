@@ -3845,8 +3845,8 @@ PetscErrorCode  VecGhostUpdateBegin(Vec g,InsertMode insertmode,ScatterMode scat
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  if (!x->ops->ghostupdatebegin) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_SUP,"Not supported by this vector type");
-  ierr = (*x->ops->ghostupdatebegin)(g,insertmode,scattermode);CHKERRQ(ierr);
+  if (!g->ops->ghostupdatebegin) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_SUP,"Not supported by this vector type");
+  ierr = (*g->ops->ghostupdatebegin)(g,insertmode,scattermode);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -3898,8 +3898,8 @@ PetscErrorCode  VecGhostUpdateEnd(Vec g,InsertMode insertmode,ScatterMode scatte
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(g,VEC_CLASSID,1);
-  if (!x->ops->ghostupdateend) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_SUP,"Not supported by this vector type");
-  ierr = (*x->ops->ghostupdateend)(g,insertmode,scattermode);CHKERRQ(ierr);
+  if (!g->ops->ghostupdateend) SETERRQ(PetscObjectComm((PetscObject)g),PETSC_ERR_SUP,"Not supported by this vector type");
+  ierr = (*g->ops->ghostupdateend)(g,insertmode,scattermode);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
