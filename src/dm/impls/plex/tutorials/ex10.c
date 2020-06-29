@@ -68,19 +68,27 @@ static PetscErrorCode PoissonReferenceTensor(PetscFE fe, PetscScalar tensor[])
 
 static PetscErrorCode PoissonReferenceToReal(PetscInt dim, PetscInt ndof, const PetscScalar tensor[], const PetscReal Jinv[], PetscReal Jdet, PetscScalar elemMat[])
 {
+  PetscReal      JJ[9];
+  PetscInt       idx;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = PetscArrayzero(JJ, dim * dim);CHKERRQ(ierr);
   ierr = PetscArrayzero(elemMat, ndof * ndof);CHKERRQ(ierr);
   for (PetscInt k = 0; k < dim; k++) {
-    PetscInt idx = 0;
-
     for (PetscInt l = 0; l < dim; l++) {
-      for (PetscInt m = 0; l < dim; l++) {
-        for (PetscInt i = 0; i < ndof; i++) {
-          for (PetscInt j = 0; j < ndof; j++, idx++) {
-            elemMat[i * ndof + j] += Jinv[l * dim + k] * Jinv[m * dim + k] * tensor[idx] * Jdet;
-          }
+      for (PetscInt m = 0; m < dim; m++) {
+        JJ[l * dim + m] += Jinv[l * dim + k] * Jinv[m * dim + k] * Jdet;
+      }
+    }
+  }
+
+  idx = 0;
+  for (PetscInt l = 0; l < dim; l++) {
+    for (PetscInt m = 0; m < dim; m++) {
+      for (PetscInt i = 0; i < ndof; i++) {
+        for (PetscInt j = 0; j < ndof; j++, idx++) {
+          elemMat[i * ndof + j] += JJ[l * dim + m] * tensor[idx];
         }
       }
     }
