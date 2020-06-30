@@ -97,7 +97,6 @@ PetscErrorCode DataPostStep(TS ts)
 {
   PetscErrorCode ierr;
   Vec            X;
-  PetscReal      t;
   AppCtx         *ctx;
 
   PetscFunctionBegin;
@@ -144,7 +143,6 @@ PetscErrorCode DataComputeDerivative(Data* data)
 PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p)
 {
   PetscErrorCode ierr;
-  PetscInt       r;
   Mat            J;
   TS             ts;
   TSAdapt        adapt;

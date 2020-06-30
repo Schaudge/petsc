@@ -12,6 +12,8 @@ PETSC_EXTERN PetscErrorCode SparseRegSetMonitor(SparseReg, PetscBool);
 PETSC_EXTERN PetscErrorCode SparseRegSetFromOptions(SparseReg);
 PETSC_EXTERN PetscErrorCode SparseRegDestroy(SparseReg*);
 
-PETSC_EXTERN PetscErrorCode SparseRegSTLSQ(SparseReg, Mat, Vec, Mat, Vec);
+PETSC_EXTERN PetscErrorCode SparseRegSTLSQR(SparseReg, Mat, Vec, Mat, Vec);
+PETSC_EXTERN PetscErrorCode SparseRegLS(SparseReg, Mat, Vec, Vec);
+PETSC_EXTERN PetscErrorCode SparseRegRLS(SparseReg, Mat, Vec, Mat, Vec);
 
 #endif

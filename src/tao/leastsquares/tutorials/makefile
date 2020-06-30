@@ -14,35 +14,38 @@ DOCS		 =
 DIRS		 = matlab
 CLEANFILES       = chwirut1 chwirut2 chwirut1f chwirut2f cs1 tomography
 SINDY            = sindy.o sparse_reg.o variable.o sindyregis.o
+SINDYH           = sindy.h sindy_impl.h variable.h sparse_reg.h
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-sindy_sine : sindy_sine.o $(SINDY)
+$(SINDY): $(SINDYH)
+
+sindy_sine : sindy_sine.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-sindy_sine_cosine : sindy_sine_cosine.o $(SINDY)
+sindy_sine_cosine : sindy_sine_cosine.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-pendulum : pendulum.o $(SINDY)
+pendulum : pendulum.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorenz96 : lorenz96.o $(SINDY)
+lorenz96 : lorenz96.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-lorenz : lorenz.o $(SINDY)
+lorenz : lorenz.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-sindy_sine_cosine_grid : sindy_sine_cosine_grid.o $(SINDY)
+sindy_sine_cosine_grid : sindy_sine_cosine_grid.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<
 
-pde_power_grid : pde_power_grid.o sindy_pde.o $(SINDY)
+pde_power_grid : pde_power_grid.o sindy_pde.o $(SINDY) $(SINDYH)
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(RM) -f $<

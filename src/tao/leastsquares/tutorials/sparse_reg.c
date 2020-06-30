@@ -2,9 +2,8 @@
 
 PetscClassId  SPARSEREG_CLASSID;
 PetscLogEvent SparseReg_STLSQ;
+PetscLogEvent SparseReg_RLS;
 PetscLogEvent SparseReg_LS;
-
-static PetscErrorCode SparseRegLS(Mat A, Vec b, Mat D, Vec x);
 
 PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
 {
@@ -20,6 +19,8 @@ PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
   sparse_reg->threshold = 1e-5;
   sparse_reg->iterations = 10;
   sparse_reg->monitor = PETSC_FALSE;
+  sparse_reg->use_regularization = PETSC_TRUE;
+  sparse_reg->solve_normal = PETSC_FALSE;
 
   *new_sparse_reg = sparse_reg;
   PetscFunctionReturn(0);
@@ -60,35 +61,46 @@ PetscErrorCode SparseRegSetFromOptions(SparseReg sparse_reg)
     ierr = PetscOptionsReal("-threshold","coefficients below this are set to 0","",sparse_reg->threshold,&sparse_reg->threshold,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-iterations","number of thresholded iterations to do","",sparse_reg->iterations,&sparse_reg->iterations,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-monitor","print out additional information","",sparse_reg->monitor,&sparse_reg->monitor,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-use_regularization","whether to use regularization or not","",sparse_reg->use_regularization,&sparse_reg->use_regularization,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-solve_normal","for KSP, solve normal equations instead of original LS problem","",sparse_reg->solve_normal,&sparse_reg->solve_normal,NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 /* Sequential thresholded least squares. */
-PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
+PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
 {
-  PetscErrorCode ierr;
-  PetscInt       i,k,j,R,C;
-  PetscInt       old_num_thresholded,num_thresholded;
-  PetscBool      *mask;
-  PetscReal      *x,*zeros;
-  Mat            A_thresh;
-  PetscInt       *idR, *idC_thresh;
+  PetscErrorCode    ierr;
+  PetscInt          i,k,j,R,C;
+  PetscInt          old_num_thresholded,num_thresholded;
+  PetscBool         *mask;
+  PetscReal         *x,*zeros;
+  Mat               A_thresh;
+  PetscInt          *idR, *idC_thresh;
+  Vec               *null_vecs;
+  MatNullSpace      nullsp;
+  const PetscScalar one = 1;
 
   PetscFunctionBegin;
   PetscLogEventBegin(SparseReg_STLSQ,0,0,0,0);
-  ierr = SparseRegLS(A, b, D, X);CHKERRQ(ierr);
+  if (sparse_reg->use_regularization) {
+    ierr = SparseRegRLS(sparse_reg, A, b, D, X);CHKERRQ(ierr);
+  } else {
+    ierr = SparseRegLS(sparse_reg, A, b, X);CHKERRQ(ierr);
+  }
 
   if (sparse_reg->threshold <= 0) {
     PetscLogEventEnd(SparseReg_STLSQ,0,0,0,0);
     PetscFunctionReturn(0);
   }
 
+  ierr = MatGetSize(A, &R, &C);CHKERRQ(ierr);
+
   /* Create a workspace for thresholding. */
   ierr = MatDuplicate(A, MAT_COPY_VALUES, &A_thresh);CHKERRQ(ierr);
+  ierr = VecDuplicateVecs(X, C, &null_vecs);CHKERRQ(ierr);
 
-  ierr = MatGetSize(A, &R, &C);CHKERRQ(ierr);
   ierr = PetscCalloc1(R, &zeros);CHKERRQ(ierr);
   ierr = PetscMalloc3(C, &mask, R, &idR, C, &idC_thresh);CHKERRQ(ierr);
   for (i=0;i<R;i++) idR[i] = i;
@@ -106,9 +118,14 @@ PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
       if (!mask[j]) {
         if (PetscAbsReal(x[j]) < sparse_reg->threshold) {
           x[j] = 0;
-          idC_thresh[num_thresholded] = j;
-          num_thresholded++;
           mask[j] = PETSC_TRUE;
+          idC_thresh[num_thresholded] = j;
+          ierr = VecZeroEntries(null_vecs[num_thresholded]);CHKERRQ(ierr);
+          ierr = VecSetValues(null_vecs[num_thresholded], 1, &j, &one, INSERT_VALUES);CHKERRQ(ierr);
+          ierr = VecAssemblyBegin(null_vecs[num_thresholded]);CHKERRQ(ierr);
+          ierr = VecAssemblyEnd(null_vecs[num_thresholded]);CHKERRQ(ierr);
+
+          num_thresholded++;
         }
       } else {
           x[j] = 0;
@@ -127,8 +144,17 @@ PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
     ierr = MatAssemblyBegin(A_thresh,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(A_thresh,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
+    /* Record this as the null space of the matrix. */
+    ierr = MatNullSpaceCreate(PETSC_COMM_SELF, PETSC_FALSE, num_thresholded, &null_vecs[0], &nullsp);CHKERRQ(ierr);
+    ierr = MatSetNullSpace(A_thresh, nullsp);CHKERRQ(ierr);
+
     /* Run sparse least squares on the non-zero basis functions. */
-    ierr = SparseRegLS(A_thresh, b, D, X);CHKERRQ(ierr);
+    if (sparse_reg->use_regularization) {
+      ierr = SparseRegRLS(sparse_reg, A_thresh, b, D, X);CHKERRQ(ierr);
+    } else {
+      ierr = SparseRegLS(sparse_reg, A_thresh, b, X);CHKERRQ(ierr);
+    }
+    ierr = MatNullSpaceDestroy(&nullsp);CHKERRQ(ierr);
   }
 
   /* Maybe I should zero out the thresholded entries again here, just to make sure Tao didn't mess them up. */
@@ -139,6 +165,7 @@ PetscErrorCode SparseRegSTLSQ(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   ierr = VecRestoreArray(X, &x);CHKERRQ(ierr);
   ierr = PetscFree(zeros);CHKERRQ(ierr);
   ierr = PetscFree3(mask, idR, idC_thresh);CHKERRQ(ierr);
+  ierr = VecDestroyVecs(C, &null_vecs);CHKERRQ(ierr);
   ierr = MatDestroy(&A_thresh);CHKERRQ(ierr);
   PetscLogEventEnd(SparseReg_STLSQ,0,0,0,0);
   PetscFunctionReturn(0);
@@ -191,9 +218,53 @@ static PetscErrorCode FormStartingPoint(Vec X)
   PetscFunctionReturn(0);
 }
 
+/* Find x to minimize ||Ax - b||_2  where A is an m x n matrix. */
+PetscErrorCode SparseRegLS(SparseReg sparse_reg, Mat A, Vec b, Vec x)
+{
+  PetscErrorCode  ierr;
+  Vec             Ab;
+  Mat             N;
+  KSP             ksp;
+
+  PetscFunctionBegin;
+  PetscLogEventBegin(SparseReg_LS,0,0,0,0);
+
+  ierr = KSPCreate(PETSC_COMM_SELF,&ksp);CHKERRQ(ierr);
+
+  ierr = MatCreateNormal(A,&N);CHKERRQ(ierr);
+  if (sparse_reg->solve_normal) {
+    ierr = VecDuplicate(x,&Ab);CHKERRQ(ierr);
+    ierr = MatMultTranspose(A,b,Ab);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,N,N);CHKERRQ(ierr);
+  } else {
+    PC pc;
+    ierr = KSPSetType(ksp,KSPLSQR);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCNONE);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,N);CHKERRQ(ierr);
+  }
+  ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+
+  if (sparse_reg->solve_normal) {
+    ierr = KSPSolve(ksp,Ab,x);CHKERRQ(ierr);
+  } else {
+    ierr = KSPSolve(ksp,b,x);CHKERRQ(ierr);
+  }
+
+  if (sparse_reg->solve_normal) {
+    ierr = VecDestroy(&Ab);CHKERRQ(ierr);
+  }
+  ierr = MatDestroy(&N);CHKERRQ(ierr);
+  ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
+
+  PetscLogEventEnd(SparseReg_LS,0,0,0,0);
+  PetscFunctionReturn(0);
+}
+
 /* Find x to minimize ||Ax - b||_2 + ||Dx||_1 where A is an m x n matrix. If D is
    null, it will default to the identity. */
-static PetscErrorCode SparseRegLS(Mat A, Vec b, Mat D, Vec x)
+PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec x)
 {
   PetscErrorCode  ierr;
   Vec             f;               /* solution, function f(x) = A*x-b */
@@ -203,7 +274,7 @@ static PetscErrorCode SparseRegLS(Mat A, Vec b, Mat D, Vec x)
   PetscBool       flg;
 
   PetscFunctionBegin;
-  PetscLogEventBegin(SparseReg_LS,0,0,0,0);
+  PetscLogEventBegin(SparseReg_RLS,0,0,0,0);
   ierr = InitializeLeastSquaresData(&ctx, A, D, b);CHKERRQ(ierr);
   J = A;
 
@@ -242,6 +313,7 @@ static PetscErrorCode SparseRegLS(Mat A, Vec b, Mat D, Vec x)
    /* Free PETSc data structures */
   ierr = VecDestroy(&f);CHKERRQ(ierr);
   ierr = TaoDestroy(&tao);CHKERRQ(ierr);
-  PetscLogEventEnd(SparseReg_LS,0,0,0,0);
+  PetscLogEventEnd(SparseReg_RLS,0,0,0,0);
   PetscFunctionReturn(0);
 }
+

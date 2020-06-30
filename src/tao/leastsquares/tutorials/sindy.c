@@ -656,9 +656,9 @@ PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, Pe
       PetscPrintf(PETSC_COMM_SELF, "SINDy: dimension: %d, starting least squares\n", d);
     }
     if (basis->monolithic) {
-      ierr = SparseRegSTLSQ(sparse_reg, basis->data.Theta, dim_vecs[d], NULL, Xis[d]);CHKERRQ(ierr);
+      ierr = SparseRegSTLSQR(sparse_reg, basis->data.Theta, dim_vecs[d], NULL, Xis[d]);CHKERRQ(ierr);
     } else {
-      ierr = SparseRegSTLSQ(sparse_reg, basis->data.Thetas[d], dim_vecs[d], NULL, Xis[d]);CHKERRQ(ierr);
+      ierr = SparseRegSTLSQR(sparse_reg, basis->data.Thetas[d], dim_vecs[d], NULL, Xis[d]);CHKERRQ(ierr);
     }
   }
 

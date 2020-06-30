@@ -26,6 +26,8 @@ struct _p_Basis {
 struct _p_SparseReg {
   PetscReal threshold;
   PetscInt  iterations;
+  PetscBool use_regularization;
+  PetscBool solve_normal;
   PetscBool monitor;
 };
 
@@ -68,6 +70,7 @@ PETSC_EXTERN PetscLogEvent Variable_DifferentiateSpatial;
 PETSC_EXTERN PetscLogEvent Variable_ExtractDataByDim;
 
 PETSC_EXTERN PetscLogEvent SparseReg_STLSQ;
+PETSC_EXTERN PetscLogEvent SparseReg_RLS;
 PETSC_EXTERN PetscLogEvent SparseReg_LS;
 
 #endif

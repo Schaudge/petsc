@@ -164,7 +164,8 @@ PetscErrorCode SparseRegInitializePackage(void)
   ierr = PetscClassIdRegister("SparseReg",&SPARSEREG_CLASSID);CHKERRQ(ierr);
 
   /* Register Events */
-  ierr = PetscLogEventRegister("SparseRegSTLSQ", SPARSEREG_CLASSID,&SparseReg_STLSQ);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("SparseRegSTLSQR", SPARSEREG_CLASSID,&SparseReg_STLSQ);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("SparseRegRLS", SPARSEREG_CLASSID,&SparseReg_RLS);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("SparseRegLS", SPARSEREG_CLASSID,&SparseReg_LS);CHKERRQ(ierr);
 
   /* Process Info */
