@@ -78,12 +78,13 @@ PetscErrorCode MatSeqDenseCUDASetPreallocation(Mat A, PetscScalar *d_data)
   Mat_SeqDense     *cA = (Mat_SeqDense*)A->data;
   Mat_SeqDenseCUDA *dA = (Mat_SeqDenseCUDA*)A->spptr;
   PetscErrorCode   ierr;
-  PetscBool        iscuda;
+  PetscBool        iscuda,ismagma;
   cudaError_t      cerr;
 
   PetscFunctionBegin;
   ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQDENSECUDA,&iscuda);CHKERRQ(ierr);
-  if (!iscuda) PetscFunctionReturn(0);
+  ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQDENSEMAGMA,&ismagma);CHKERRQ(ierr);
+  if (!(iscuda || ismagma)) PetscFunctionReturn(0);
   /* it may happen CPU preallocation has not been performed */
   ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
@@ -111,10 +112,10 @@ PetscErrorCode MatSeqDenseCUDACopyFromGPU(Mat A)
   cudaError_t      cerr;
 
   PetscFunctionBegin;
-  PetscCheckTypeName(A,MATSEQDENSECUDA);
+  /* PetscCheckTypeName(A,MATSEQDENSECUDA); */
   ierr = PetscInfo3(A,"%s matrix %d x %d\n",A->offloadmask == PETSC_OFFLOAD_GPU ? "Copy" : "Reusing",A->rmap->n,A->cmap->n);CHKERRQ(ierr);
   if (A->offloadmask == PETSC_OFFLOAD_GPU) {
-    if (!cA->v) { /* MatCreateSeqDenseCUDA may not allocate CPU memory. Allocate if needed */
+    if (!cA->v) { /* MatCreateSeqDenseCUDA() may not allocate CPU memory. Allocate if needed */
       ierr = MatSeqDenseSetPreallocation(A,NULL);CHKERRQ(ierr);
     }
     ierr = PetscLogEventBegin(MAT_DenseCopyFromGPU,A,0,0,0);CHKERRQ(ierr);
@@ -144,7 +145,7 @@ PetscErrorCode MatSeqDenseCUDACopyToGPU(Mat A)
   cudaError_t      cerr;
 
   PetscFunctionBegin;
-  PetscCheckTypeName(A,MATSEQDENSECUDA);
+  /* PetscCheckTypeName(A,MATSEQDENSECUDA); */
   if (A->boundtocpu) PetscFunctionReturn(0);
   copy = (PetscBool)(A->offloadmask == PETSC_OFFLOAD_CPU || A->offloadmask == PETSC_OFFLOAD_UNALLOCATED);
   ierr = PetscInfo3(A,"%s matrix %d x %d\n",copy ? "Copy" : "Reusing",A->rmap->n,A->cmap->n);CHKERRQ(ierr);
@@ -1167,7 +1168,7 @@ static PetscErrorCode  MatDenseSetLDA_SeqDenseCUDA(Mat A,PetscInt lda)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MatBindToCPU_SeqDenseCUDA(Mat A,PetscBool flg)
+PETSC_INTERN PetscErrorCode MatBindToCPU_SeqDenseCUDA(Mat A,PetscBool flg)
 {
   Mat_SeqDense   *a = (Mat_SeqDense*)A->data;
   PetscErrorCode ierr;

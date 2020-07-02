@@ -1,15 +1,16 @@
--include ../../../../../petscdir.mk
+-include ../../../../../../petscdir.mk
+#requirespackage   'PETSC_HAVE_MAGMA'
+
 ALL: lib
 
-DIRS     = cuda magma
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = dense.c densehdf5.c
+SOURCEC  = densemagma.c
 SOURCEF  =
-SOURCEH  = dense.h
+SOURCEH  =
 LIBBASE  = libpetscmat
 MANSEC   = Mat
-LOCDIR   = src/mat/impls/dense/seq/
+LOCDIR   = src/mat/impls/dense/seq/magma/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

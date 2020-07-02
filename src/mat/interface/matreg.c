@@ -176,7 +176,9 @@ PetscErrorCode MatSetVecType(Mat mat,VecType vtype)
 -  routine_create - routine to create method context
 
    Notes:
-   MatRegister() may be called multiple times to add several user-defined solvers.
+      MatRegister() may be called multiple times to add several user-defined solvers.
+
+      This routine is called by MatRegisterAll() to register all the PETSc provided matrix types.
 
    Sample usage:
 .vb
@@ -190,10 +192,8 @@ $     -mat_type my_mat
 
    Level: advanced
 
-.seealso: MatRegisterAll()
+.seealso: MatRegisterAll(), MatSolverTypeRegister()
 
-
-  Level: advanced
 @*/
 PetscErrorCode  MatRegister(const char sname[],PetscErrorCode (*function)(Mat))
 {

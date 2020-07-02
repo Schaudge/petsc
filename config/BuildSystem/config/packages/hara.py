@@ -54,12 +54,6 @@ class Configure(config.package.Package):
       nvcc = self.getCompiler()
       nvopts = self.getCompilerFlags()
       self.popLanguage()
-      self.getExecutable(nvcc,getFullPath=1,resultName='systemNvcc')
-      if hasattr(self,'systemNvcc'):
-        nvccDir = os.path.dirname(self.systemNvcc)
-        cudaDir = os.path.split(nvccDir)[0]
-      else:
-        raise RuntimeError('Unable to locate CUDA NVCC compiler')
       with_gpu=True
 
     if not with_gpu and not (self.thrust.found or self.cuda.found):
@@ -87,7 +81,7 @@ class Configure(config.package.Package):
 
       if with_gpu:
         g.write('with_gpu = 1\n')
-        g.write('CUDA_PATH = '+cudaDir+'\n')
+        g.write('CUDA_PATH = '+self.cuda.cudaDir+'\n')
         g.write('MAGMA_DIR = '+self.magma.directory+'\n')
         g.write('KBLASROOT = '+self.kblas.directory+'\n')
         g.write('NVCC = '+nvcc+'\n')

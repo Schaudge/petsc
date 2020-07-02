@@ -4309,9 +4309,15 @@ static MatSolverTypeHolder MatSolverTypeHolders = NULL;
 .    ftype - the type of factorization supported by the package
 -    getfactor - routine that will create the factored matrix ready to be used
 
-    Level: intermediate
+    Notes:
+      This is called by MatInitializePackage()
 
-.seealso: MatCopy(), MatDuplicate(), MatGetFactorAvailable()
+    Developer Notes:
+      Should there be a MatSolvePackageRegisterAll() like there is a MatRegisterAll()
+
+    Level: developer
+
+.seealso: MatCopy(), MatDuplicate(), MatGetFactorAvailable(), MatRegister(), MatGetFactor(), MatInitializePackage()
 @*/
 PetscErrorCode MatSolverTypeRegister(MatSolverType package,MatType mtype,MatFactorType ftype,PetscErrorCode (*getfactor)(Mat,MatFactorType,Mat*))
 {
@@ -4471,7 +4477,7 @@ PetscErrorCode MatSolverTypeDestroy(void)
 
    Level: intermediate
 
-.seealso: MatCopy(), MatDuplicate(), MatGetFactorAvailable()
+.seealso: MatCopy(), MatDuplicate(), MatGetFactorAvailable(), MatSolverTypeRegister()
 @*/
 PetscErrorCode MatGetFactor(Mat mat, MatSolverType type,MatFactorType ftype,Mat *f)
 {

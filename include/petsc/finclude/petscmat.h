@@ -152,7 +152,7 @@
 #define MATLMVMSYMBADBROYDEN 'lmvmsymbadbroyden'
 #define MATLMVMDIAGBROYDEN 'lmvmdiagbroyden'
 #define MATHARA            'hara'
-
+#define MATSEQDENSEMAGMA   'seqdensemagma'
 !
 ! MatMFFDType values
 !
@@ -182,6 +182,7 @@
 #define MATSOLVERBAS             'bas'
 #define MATSOLVERCUSPARSE        'cusparse'
 #define MATSOLVERCUDA            'cuda'
+#define MATSOLVERMAGMA           'magma'
 
 !
 ! GPU Storage Formats for CUSPARSE

@@ -85,6 +85,10 @@ PETSC_EXTERN PetscErrorCode MatCreate_ConstantDiagonal(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_HARA(Mat);
 #endif
 
+#if defined(PETSC_HAVE_MAGMA)
+PETSC_EXTERN PetscErrorCode MatCreate_SeqDenseMagma(Mat);
+#endif
+
 /*@C
   MatRegisterAll - Registers all of the matrix types in PETSc
 
@@ -92,7 +96,10 @@ PETSC_EXTERN PetscErrorCode MatCreate_HARA(Mat);
 
   Level: advanced
 
-.seealso:  MatRegister()
+  Notes:
+     This is called by MatInitializePackage()
+
+.seealso:  MatRegister(), MatInitializePackage()
 @*/
 PetscErrorCode  MatRegisterAll(void)
 {
@@ -203,6 +210,10 @@ PetscErrorCode  MatRegisterAll(void)
 
 #if defined(PETSC_HAVE_HARA)
   ierr = MatRegister(MATHARA,           MatCreate_HARA);CHKERRQ(ierr);
+#endif
+
+#if defined(PETSC_HAVE_MAGMA)
+  ierr = MatRegister(MATSEQDENSEMAGMA,       MatCreate_SeqDenseMagma);CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
 }

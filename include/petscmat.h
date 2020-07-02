@@ -107,6 +107,8 @@ typedef const char* MatType;
 #define MATLMVMDIAGBROYDEN   "lmvmdiagbroyden"
 #define MATCONSTANTDIAGONAL  "constantdiagonal"
 #define MATHARA              "hara"
+#define MATDENSEMAGAM        "densemagma"
+#define MATSEQDENSEMAGMA     "seqdensemagma"
 
 /*J
     MatSolverType - String with the name of a PETSc matrix solver type.
@@ -140,6 +142,7 @@ typedef const char* MatSolverType;
 #define MATSOLVERBAS              "bas"
 #define MATSOLVERCUSPARSE         "cusparse"
 #define MATSOLVERCUDA             "cuda"
+#define MATSOLVERMAGMA            "magma"
 
 /*E
     MatFactorType - indicates what type of factorization is requested

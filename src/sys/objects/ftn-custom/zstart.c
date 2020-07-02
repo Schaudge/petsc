@@ -12,6 +12,9 @@
 #define T3EMPI_FORTRAN
 
 #include <petsc/private/fortranimpl.h>
+#if defined(PETSC_HAVE_MAGMA)
+#include <magma_auxiliary.h>
+#endif
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
 #define petscinitialize_              PETSCINITIALIZE
@@ -501,6 +504,16 @@ static void petscinitialize_internal(char* filename, PetscInt len, PetscBool rea
   if (*ierr) {(*PetscErrorPrintf)("PetscInitialize:adios_select_method()\n");return;}
   *ierr = adios_read_init_method(ADIOS_READ_METHOD_BP,PETSC_COMM_WORLD,"");
   if (*ierr) {(*PetscErrorPrintf)("PetscInitialize:adios_read_init_method()\n");return;}
+#endif
+#if defined(PETSC_HAVE_MAGMA)
+  {
+    magma_int_t merr = magma_init();
+    if (merr) {
+      *ierr = PETSC_ERR_LIB;
+      (*PetscErrorPrintf)("PetscInitialize:magma_init()\n");
+      return;
+    }
+  }
 #endif
 }
 

@@ -136,6 +136,9 @@ PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_petsc(Mat,MatFactorType,Mat*);
 #if defined(PETSC_HAVE_CUDA)
 PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_cuda(Mat,MatFactorType,Mat*);
 #endif
+#if defined(PETSC_HAVE_MAGMA)
+PETSC_INTERN PetscErrorCode MatGetFactor_seqdense_magma(Mat,MatFactorType,Mat*);
+#endif
 PETSC_INTERN PetscErrorCode MatGetFactor_constantdiagonal_petsc(Mat,MatFactorType,Mat*);
 PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_bas(Mat,MatFactorType,Mat*);
 
@@ -362,6 +365,10 @@ PetscErrorCode  MatInitializePackage(void)
   ierr = MatSolverTypeRegister(MATSOLVERCUDA, MATSEQDENSE,       MAT_FACTOR_CHOLESKY,MatGetFactor_seqdense_cuda);CHKERRQ(ierr);
   ierr = MatSolverTypeRegister(MATSOLVERCUDA, MATSEQDENSECUDA,   MAT_FACTOR_LU,MatGetFactor_seqdense_cuda);CHKERRQ(ierr);
   ierr = MatSolverTypeRegister(MATSOLVERCUDA, MATSEQDENSECUDA,   MAT_FACTOR_CHOLESKY,MatGetFactor_seqdense_cuda);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_MAGMA)
+  ierr = MatSolverTypeRegister(MATSOLVERMAGMA, MATSEQDENSEMAGMA,   MAT_FACTOR_LU,MatGetFactor_seqdense_magma);CHKERRQ(ierr);
+  ierr = MatSolverTypeRegister(MATSOLVERMAGMA, MATSEQDENSEMAGMA,   MAT_FACTOR_CHOLESKY,MatGetFactor_seqdense_magma);CHKERRQ(ierr);
 #endif
 
   ierr = MatSolverTypeRegister(MATSOLVERBAS,   MATSEQAIJ,        MAT_FACTOR_ICC,MatGetFactor_seqaij_bas);CHKERRQ(ierr);

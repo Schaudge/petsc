@@ -105,18 +105,13 @@ class Configure(config.package.Package):
       petscNvcc = self.getCompiler()
       cudaFlags = self.getCompilerFlags()
       self.popLanguage()
-      self.getExecutable(petscNvcc,getFullPath=1,resultName='systemNvcc')
-      if hasattr(self,'systemNvcc'):
-        nvccDir = os.path.dirname(self.systemNvcc)
-        cudaDir = os.path.split(nvccDir)[0]
-      else:
-        raise RuntimeError('Unable to locate CUDA NVCC compiler')
-      args.append('CUDA_ROOT='+cudaDir)
-      args.append('GPU_BLAS_PATH='+cudaDir)
-      args.append('CUDA_PATH='+cudaDir)
-      args.append('CUDART_LIB='+cudaDir+'/lib64/libcudart.so')
-      args.append('CUBLAS_LIB='+cudaDir+'/lib64/libcublas.so')
-      args.append('CUDA_INC_PATH='+cudaDir+'/include')
+
+      args.append('CUDA_ROOT='+self.cuda.cudaDir)
+      args.append('GPU_BLAS_PATH='+self.cuda.cudaDir)
+      args.append('CUDA_PATH='+self.cuda.cudaDir)
+      args.append('CUDART_LIB='+self.cuda.cudaDir+'/lib64/libcudart.so')
+      args.append('CUBLAS_LIB='+self.cuda.cudaDir+'/lib64/libcublas.so')
+      args.append('CUDA_INC_PATH='+self.cuda.cudaDir+'/include')
       args.append('NVCCFLAGS="'+cudaFlags+' -Xcompiler -fPIC"')
       args.append('CHOLMOD_CONFIG="'+flg+' -DGPU_BLAS"')
       self.addDefine('USE_SUITESPARSE_GPU',1)

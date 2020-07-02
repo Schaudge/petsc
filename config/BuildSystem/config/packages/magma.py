@@ -7,16 +7,11 @@ import os
 class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self, framework)
-    # disable version check
-    #self.version          = '2.5.2'
-    #self.minversion       = '2.5.2'
-    #self.versionname      = ???
-    #self.gitcommit        = 'v'+self.version
-    version               = '2.5.2'
-    self.gitcommit        = 'v'+version
-    # hg stashing mechanism seems broken
-    #self.download         = ['https://bitbucket.org/icl/magma/get/'+self.gitcommit+'.tar.gz','hg://https://bitbucket.org/icl/magma']
-    self.download         = ['https://bitbucket.org/icl/magma/get/'+self.gitcommit+'.tar.gz']
+    self.minversion       = '2.5.2'
+    self.versionname      = 'MAGMA_VERSION_MAJOR.MAGMA_VERSION_MINOR.MAGMA_VERSION_MICRO'
+    self.versioninclude   = 'magma_types.h'
+    self.gitcommit        = 'master'
+    self.download         = ['git://https://bitbucket.com/icl/magma.git']
     self.downloaddirnames = ['icl-magma']
     self.functions        = ['magma_init']
     self.includes         = ['magma.h']
@@ -34,7 +29,7 @@ class Configure(config.package.Package):
   def setupHelp(self, help):
     import nargs
     config.package.Package.setupHelp(self, help)
-    help.addArgument('MAGMA', '-with-magma-gputarget', nargs.ArgString(None, '', 'GPU_TARGET make variable'))
+    help.addArgument('MAGMA', '-with-magma-gpu-target', nargs.ArgString(None, '', 'GPU_TARGET make variable, for example sm_35'))
     help.addArgument('MAGMA', '-with-magma-fortran-bindings', nargs.ArgBool(None, 1, 'Compile MAGMA Fortran bindings'))
     return
 
@@ -76,6 +71,9 @@ class Configure(config.package.Package):
   def Install(self):
     import os
 
+    if self.cuda.version_tuple >=  (10,0):
+      raise RuntimeError('Requires CUDA version less than 10')
+
     if self.blasLapack.has64bitindices:
       raise RuntimeError('Not coded for 64bit BlasLapack')
 
@@ -109,12 +107,6 @@ class Configure(config.package.Package):
     nvcc = self.getCompiler()
     nvccflags = self.getCompilerFlags()
     self.popLanguage()
-    self.getExecutable(nvcc,getFullPath=1,resultName='systemNvcc')
-    if hasattr(self,'systemNvcc'):
-      nvccDir = os.path.dirname(self.systemNvcc)
-      cudaDir = os.path.split(nvccDir)[0]
-    else:
-      raise RuntimeError('Unable to locate CUDA NVCC compiler')
 
     cflags += ' -DNDEBUG'
     if self.blasLapack.mkl:
@@ -148,8 +140,8 @@ class Configure(config.package.Package):
         g.write('FORT = '+fc+'\n')
         g.write('FFLAGS = '+fcflags+'\n')
         g.write('F90LAGS = '+fcflags+'\n')
-      if self.argDB['with-magma-gputarget']:
-        g.write('GPU_TARGET = '+self.argDB['with-magma-gputarget']+'\n')
+      if self.argDB['with-magma-gpu-target']:
+        g.write('GPU_TARGET = '+self.argDB['with-magma-gpu-target']+'\n')
       if self.cuda.gencodearch:
         g.write('NVCCFLAGS += -gencode arch=compute_'+self.cuda.gencodearch+',code=sm_'+self.cuda.gencodearch+'\n')
         g.write('MIN_ARCH = '+self.cuda.gencodearch+'0\n')

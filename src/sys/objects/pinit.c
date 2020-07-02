@@ -19,6 +19,10 @@ PetscFPT PetscFPTData = 0;
 #include <petscviewersaws.h>
 #endif
 
+#if defined(PETSC_HAVE_MAGMA)
+#include <magma_auxiliary.h>
+#endif
+
 /* -----------------------------------------------------------------------------------------*/
 
 PETSC_INTERN FILE *petsc_history;
@@ -1115,6 +1119,12 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 #if defined(PETSC_HAVE_ADIOS2)
 #endif
 
+#if defined(PETSC_HAVE_MAGMA)
+  {
+    magma_int_t merr = magma_init();CHKERRMAGMA(merr);
+  }
+#endif
+
   /*
       Set flag that we are completely initialized
   */
@@ -1212,6 +1222,12 @@ PetscErrorCode  PetscFinalize(void)
   }
   PetscFunctionBegin;
   ierr = PetscInfo(NULL,"PetscFinalize() called\n");CHKERRQ(ierr);
+
+#if defined(PETSC_HAVE_MAGMA)
+  {
+    magma_int_t merr = magma_finalize();CHKERRMAGMA(merr);
+  }
+#endif
 
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_ADIOS)

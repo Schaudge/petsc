@@ -43,12 +43,6 @@ class Configure(config.package.Package):
     nvcc = self.getCompiler()
     nvopts = self.getCompilerFlags()
     self.popLanguage()
-    self.getExecutable(nvcc,getFullPath=1,resultName='systemNvcc')
-    if hasattr(self,'systemNvcc'):
-      nvccDir = os.path.dirname(self.systemNvcc)
-      cudaDir = os.path.split(nvccDir)[0]
-    else:
-      raise RuntimeError('Unable to locate CUDA NVCC compiler')
 
     with open(os.path.join(self.packageDir,'make.inc'),'w') as g:
       g.write('_SUPPORT_BLAS2_ = TRUE\n')
@@ -59,7 +53,7 @@ class Configure(config.package.Package):
       g.write('_CUB_DIR_ = '+self.cub.directory+'/include\n') #TODO ROOT and DIR -> Use ROOT for consistency
       g.write('_USE_MAGMA_ = TRUE\n')
       g.write('_MAGMA_ROOT_ = '+self.magma.directory+'\n')
-      g.write('_CUDA_ROOT_ = '+cudaDir+'\n')
+      g.write('_CUDA_ROOT_ = '+self.cuda.cudaDir+'\n')
       if self.cuda.gencodearch:
         g.write('_CUDA_ARCH_ = '+self.cuda.gencodearch+'\n')
       else:
