@@ -4596,14 +4596,15 @@ PetscErrorCode MatLoad_SeqAIJ_Binary(Mat mat, PetscViewer viewer)
 {
   Mat_SeqAIJ     *a = (Mat_SeqAIJ*)mat->data;
   PetscErrorCode ierr;
-  PetscInt       header[4],*rowlens,M,N,nz,sum,rows,cols,i;
+  PetscInt       header[4],*rowlens,M,N,nz,sum,rows,cols,i,cnt;
 
   PetscFunctionBegin;
   ierr = PetscViewerSetUp(viewer);CHKERRQ(ierr);
 
   /* read in matrix header */
-  ierr = PetscViewerBinaryRead(viewer,header,4,NULL,PETSC_INT);CHKERRQ(ierr);
-  if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Not a matrix object in file");
+  ierr = PetscViewerBinaryRead(viewer,header,4,&cnt,PETSC_INT);CHKERRQ(ierr);
+  if (cnt != 4) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_READ,"Did not read 4 items in header as requested. Read %D",cnt);
+  if (header[0] != MAT_FILE_CLASSID) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Not a matrix object in file, found %D",header[0]);
   M = header[1]; N = header[2]; nz = header[3];
   if (M < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Matrix row size (%D) in file is negative",M);
   if (N < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Matrix column size (%D) in file is negative",N);

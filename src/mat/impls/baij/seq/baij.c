@@ -3219,7 +3219,7 @@ PetscErrorCode MatDuplicate_SeqBAIJ(Mat A,MatDuplicateOption cpvalues,Mat *B)
 /* Used for both SeqBAIJ and SeqSBAIJ matrices */
 PetscErrorCode MatLoad_SeqBAIJ_Binary(Mat mat,PetscViewer viewer)
 {
-  PetscInt       header[4],M,N,nz,bs,m,n,mbs,nbs,rows,cols,sum,i,j,k;
+  PetscInt       header[4],M,N,nz,bs,m,n,mbs,nbs,rows,cols,sum,i,j,k,cnt;
   PetscInt       *rowidxs,*colidxs;
   PetscScalar    *matvals;
   PetscErrorCode ierr;
@@ -3228,8 +3228,9 @@ PetscErrorCode MatLoad_SeqBAIJ_Binary(Mat mat,PetscViewer viewer)
   ierr = PetscViewerSetUp(viewer);CHKERRQ(ierr);
 
   /* read matrix header */
-  ierr = PetscViewerBinaryRead(viewer,header,4,NULL,PETSC_INT);CHKERRQ(ierr);
-  if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Not a matrix object in file");
+  ierr = PetscViewerBinaryRead(viewer,header,4,&cnt,PETSC_INT);CHKERRQ(ierr);
+  if (cnt != 4) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_READ,"Did not read 4 items in header as requested. Read %D",cnt);
+  if (header[0] != MAT_FILE_CLASSID) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Not a matrix object in file, found %D",header[0]);
   M = header[1]; N = header[2]; nz = header[3];
   if (M < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Matrix row size (%D) in file is negative",M);
   if (N < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Matrix column size (%D) in file is negative",N);

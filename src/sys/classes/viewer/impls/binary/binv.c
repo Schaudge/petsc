@@ -948,6 +948,7 @@ static PetscErrorCode PetscViewerBinaryWriteReadMPIIO(PetscViewer viewer,void *d
   if (write) {
     if (!rank) {
       ierr = MPIU_File_write_at(mfdes,vbinary->moff,data,cnt,mdtype,&status);CHKERRQ(ierr);
+      if (cnt > 0) {ierr = MPI_Get_count(&status,mdtype,&cnt);CHKERRQ(ierr);}
     }
   } else {
     if (!rank) {
@@ -1035,7 +1036,9 @@ PetscErrorCode PetscViewerBinaryWrite(PetscViewer viewer,const void *data,PetscI
   vbinary = (PetscViewer_Binary*)viewer->data;
 #if defined(PETSC_HAVE_MPIIO)
   if (vbinary->usempiio) {
-    ierr = PetscViewerBinaryWriteReadMPIIO(viewer,(void*)data,count,NULL,dtype,PETSC_TRUE);CHKERRQ(ierr);
+    PetscInt cnt;
+    ierr = PetscViewerBinaryWriteReadMPIIO(viewer,(void*)data,count,&cnt,dtype,PETSC_TRUE);CHKERRQ(ierr);
+    if (cnt != count) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Count written %D does not match count requested %D",cnt,count);
   } else {
 #endif
     ierr = PetscBinarySynchronizedWrite(PetscObjectComm((PetscObject)viewer),vbinary->fdes,data,count,dtype);CHKERRQ(ierr);
@@ -1059,6 +1062,7 @@ static PetscErrorCode PetscViewerBinaryWriteReadAll(PetscViewer viewer,PetscBool
   PetscValidLogicalCollectiveBool(viewer,((start>=0)||(start==PETSC_DETERMINE)),4);
   PetscValidLogicalCollectiveBool(viewer,((total>=0)||(total==PETSC_DETERMINE)),5);
   PetscValidLogicalCollectiveInt(viewer,total,5);
+  if (!total) PetscFunctionReturn(0);
   ierr = PetscViewerSetUp(viewer);CHKERRQ(ierr);
 
   ierr = PetscDataTypeToMPIDataType(dtype,&mdtype);CHKERRQ(ierr);
@@ -1088,7 +1092,13 @@ static PetscErrorCode PetscViewerBinaryWriteReadAll(PetscViewer viewer,PetscBool
     if (write) {
       ierr = MPIU_File_write_at_all(mfdes,off,data,cnt,mdtype,MPI_STATUS_IGNORE);CHKERRQ(ierr);
     } else {
-      ierr = MPIU_File_read_at_all(mfdes,off,data,cnt,mdtype,MPI_STATUS_IGNORE);CHKERRQ(ierr);
+      MPI_Status  status;
+      PetscMPIInt acnt;
+
+      ierr = MPIU_File_read_at_all(mfdes,off,data,cnt,mdtype,&status);CHKERRQ(ierr);
+      ierr = MPI_Get_count(&status,mdtype,&acnt);CHKERRQ(ierr);
+      /* if cnt is zero then MPI_Get_count() can return garbage */
+      if ((cnt > 0) && (acnt != cnt)) SETERRQ2(comm,PETSC_ERR_FILE_READ,"Did not read %D items requested. Read %D",cnt,acnt);
     }
     off  = (MPI_Offset)(total*dsize);
     ierr = PetscViewerBinaryAddMPIIOOffset(viewer,off);CHKERRQ(ierr);

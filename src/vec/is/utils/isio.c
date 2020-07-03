@@ -76,7 +76,7 @@ PetscErrorCode ISLoad_Binary(IS is, PetscViewer viewer)
   /* read IS header */
   if (!skipHeader) {
     ierr = PetscViewerBinaryRead(viewer,tr,2,NULL,PETSC_INT);CHKERRQ(ierr);
-    if (tr[0] != IS_FILE_CLASSID) SETERRQ(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Not an IS next in file");
+    if (tr[0] != IS_FILE_CLASSID) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Not an IS next in file, found %D",tr[0]);
     if (tr[1] < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"IS size (%D) in file is negative",tr[1]);
     if (N >= 0 && N != tr[1]) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"IS in file different size (%D) than input IS (%D)",tr[1],N);
     rows = tr[1];

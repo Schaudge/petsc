@@ -65,7 +65,7 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
 {
   PetscErrorCode ierr;
   PetscBool      skipHeader,flg;
-  PetscInt       tr[2],rows,N,n,s,bs;
+  PetscInt       tr[2],rows,N,n,s,bs,cnt;
   PetscScalar    *array;
   PetscLayout    map;
 
@@ -78,8 +78,9 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
 
   /* read vector header */
   if (!skipHeader) {
-    ierr = PetscViewerBinaryRead(viewer,tr,2,NULL,PETSC_INT);CHKERRQ(ierr);
-    if (tr[0] != VEC_FILE_CLASSID) SETERRQ(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Not a vector next in file");
+    ierr = PetscViewerBinaryRead(viewer,tr,2,&cnt,PETSC_INT);CHKERRQ(ierr);
+    if (cnt != 2) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_READ,"Did not read 2 items in header as requested. Read %D",cnt);
+    if (tr[0] != VEC_FILE_CLASSID) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Not a vector next in file, found %D",tr[0]);
     if (tr[1] < 0) SETERRQ1(PetscObjectComm((PetscObject)viewer),PETSC_ERR_FILE_UNEXPECTED,"Vector size (%D) in file is negative",tr[1]);
     if (N >= 0 && N != tr[1]) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Vector in file different size (%D) than input vector (%D)",tr[1],N);
     rows = tr[1];
