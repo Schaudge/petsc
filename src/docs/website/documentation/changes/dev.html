@@ -205,7 +205,10 @@
           <li>Add PetscDTIndexToGradedOrder() and PetscDTGradedOrderToIndex() for indexing multivariate monomials and derivatives in a linear order</li>
           <li>Add PetscSpaceType "sum" for constructing FE spaces as the sum or concatenation of other spaces.</li>
         </ul>
-      <h4>PetscViewer:</h4>
+        <h4>PetscViewer:</h4>
+        <ul>
+          <li>Require PetscViewerBinaryWrite() to have identical values on all processes, this is because MPI_File_write/read_at() is broken with Intel MPI on Windows.</li>
+        </ul>
       <h4>SYS:</h4>
         <ul>
           <li>Add PetscPowInt64 returning a 64bit integer result for cases where PetscPowInt result overflows 32bit representations</li>

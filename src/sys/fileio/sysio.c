@@ -817,6 +817,7 @@ PetscErrorCode MPIU_File_write_at(MPI_File fd,MPI_Offset off,void *data,PetscMPI
 
 
   PetscFunctionBegin;
+  if (cnt) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Do not use, broken on Intel Windows MPI");
   ierr = PetscMPIDataTypeToPetscDataType(dtype,&pdtype);CHKERRQ(ierr);
   if (!PetscBinaryBigEndian()) {ierr = PetscByteSwap(data,pdtype,cnt);CHKERRQ(ierr);}
   ierr = MPI_File_write_at(fd,off,data,cnt,dtype,status);CHKERRQ(ierr);
@@ -830,6 +831,7 @@ PetscErrorCode MPIU_File_read_at(MPI_File fd,MPI_Offset off,void *data,PetscMPII
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  if (cnt) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Do not use, broken on Intel Windows MPI");
   ierr = PetscMPIDataTypeToPetscDataType(dtype,&pdtype);CHKERRQ(ierr);
   ierr = MPI_File_read_at(fd,off,data,cnt,dtype,status);CHKERRQ(ierr);
   if (!PetscBinaryBigEndian()) {ierr = PetscByteSwap(data,pdtype,cnt);CHKERRQ(ierr);}

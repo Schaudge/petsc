@@ -1112,8 +1112,8 @@ PetscErrorCode MatView_MPIBAIJ_Binary(Mat mat,PetscViewer viewer)
 
   /* write matrix header */
   header[0] = MAT_FILE_CLASSID;
-  header[1] = M; header[2] = N; header[3] = nz;
-  ierr = MPI_Reduce(&nz,&header[3],1,MPIU_INT,MPI_SUM,0,PetscObjectComm((PetscObject)mat));CHKERRQ(ierr);
+  header[1] = M; header[2] = N;
+  ierr = MPI_Allreduce(&nz,&header[3],1,MPIU_INT,MPI_SUM,PetscObjectComm((PetscObject)mat));CHKERRQ(ierr);
   ierr = PetscViewerBinaryWrite(viewer,header,4,PETSC_INT);CHKERRQ(ierr);
 
   /* fill in and store row lengths */

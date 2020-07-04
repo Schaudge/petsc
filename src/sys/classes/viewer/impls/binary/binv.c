@@ -932,31 +932,23 @@ PetscErrorCode PetscViewerBinaryOpen(MPI_Comm comm,const char name[],PetscFileMo
 #if defined(PETSC_HAVE_MPIIO)
 static PetscErrorCode PetscViewerBinaryWriteReadMPIIO(PetscViewer viewer,void *data,PetscInt num,PetscInt *count,PetscDataType dtype,PetscBool write)
 {
-  MPI_Comm           comm = PetscObjectComm((PetscObject)viewer);
   PetscViewer_Binary *vbinary = (PetscViewer_Binary*)viewer->data;
   MPI_File           mfdes = vbinary->mfdes;
   PetscErrorCode     ierr;
   MPI_Datatype       mdtype;
-  PetscMPIInt        rank,cnt;
+  PetscMPIInt        cnt;
   MPI_Status         status;
   MPI_Aint           ul,dsize;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = PetscMPIIntCast(num,&cnt);CHKERRQ(ierr);
   ierr = PetscDataTypeToMPIDataType(dtype,&mdtype);CHKERRQ(ierr);
   if (write) {
-    if (!rank) {
-      ierr = MPIU_File_write_at(mfdes,vbinary->moff,data,cnt,mdtype,&status);CHKERRQ(ierr);
-      if (cnt > 0) {ierr = MPI_Get_count(&status,mdtype,&cnt);CHKERRQ(ierr);}
-    }
+    ierr = MPIU_File_write_at_all(mfdes,vbinary->moff,data,cnt,mdtype,&status);CHKERRQ(ierr);
+    if (cnt > 0) {ierr = MPI_Get_count(&status,mdtype,&cnt);CHKERRQ(ierr);}
   } else {
-    if (!rank) {
-      ierr = MPIU_File_read_at(mfdes,vbinary->moff,data,cnt,mdtype,&status);CHKERRQ(ierr);
-      if (cnt > 0) {ierr = MPI_Get_count(&status,mdtype,&cnt);CHKERRQ(ierr);}
-    }
-    ierr = MPI_Bcast(&cnt,1,MPI_INT,0,comm);CHKERRQ(ierr);
-    ierr = MPI_Bcast(data,cnt,mdtype,0,comm);CHKERRQ(ierr);
+    ierr = MPIU_File_read_at_all(mfdes,vbinary->moff,data,cnt,mdtype,&status);CHKERRQ(ierr);
+    if (cnt > 0) {ierr = MPI_Get_count(&status,mdtype,&cnt);CHKERRQ(ierr);}
   }
   ierr = MPI_Type_get_extent(mdtype,&ul,&dsize);CHKERRQ(ierr);
   vbinary->moff += dsize*cnt;
@@ -1008,7 +1000,7 @@ PetscErrorCode PetscViewerBinaryRead(PetscViewer viewer,void *data,PetscInt num,
 }
 
 /*@C
-   PetscViewerBinaryWrite - writes to a binary file, only from the first process
+   PetscViewerBinaryWrite - writes to a binary file, all processes must provide the same values
 
    Collective
 
