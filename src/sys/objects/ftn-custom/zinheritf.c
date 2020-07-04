@@ -34,7 +34,7 @@ PETSC_EXTERN void petsccudainitialize_(MPI_Fint *comm, PetscErrorCode *ierr)
 #endif
 
 #if defined(PETSC_HAVE_HIP)
-PETSC_EXTERN void PETSC_STDCALL petschipinitialize_(MPI_Fint *comm, PetscErrorCode *ierr)
+PETSC_EXTERN void petschipinitialize_(MPI_Fint *comm, PetscErrorCode *ierr)
 {
   *ierr = PetscHIPInitialize(MPI_Comm_f2c(*(comm)));
 }

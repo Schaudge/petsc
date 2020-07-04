@@ -134,9 +134,13 @@ struct _n_PetscSFLink {
   PetscErrorCode (*da_FetchAndAddLocal)(PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,void*,PetscInt,PetscSFPackOpt,const PetscInt*,const void*,void*);
 
   PetscInt     maxResidentThreadsPerGPU;     /* It is a copy from SF for convenience */
+#if defined(PETSC_HAVE_CUDA) 
   cudaStream_t stream;                       /* Stream to launch pack/unapck kernels if not using the default stream */
+#endif
   /*TODO:  Need to figure out consolidated name */
+#if defined(PETSC_HAVE_HIP)
   hipStream_t   stream;                      /* Stream to launch pack/unapck kernels if not using the default stream */
+#endif
 #endif
   PetscMPIInt  tag;                          /* Each link has a tag so we can perform multiple SF ops at the same time */
   MPI_Datatype unit;                         /* The MPI datatype this PetscSFLink is built for */

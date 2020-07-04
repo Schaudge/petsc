@@ -15,8 +15,10 @@ class Configure(config.package.Package):
     #self.liblist         = [['libhipblas.a','libhiprtc.a','libhipsparse.a','libhipsolver.a'],
     #                         ['hipfft.lib','hipblas.lib','hiprtc.lib','hipsparse.lib','hipsolver.lib']]
     self.includes         = ['hipblas.h','hipsparse.h']
-    self.liblist          = [['libhipblas.a','libhiprtc.a','libhipsparse.a','libhc_am.a','libmcwamp.a'],
-                             ['hipblas.lib','hiprtc.lib','hipsparse.lib','libhc_am.a','libmcwamp.a']]
+    self.liblist          = [['libhipsparse.a','libhipblas.a','librocsparse.a','librocblas.a','libamdhip64.a'],
+                             ['hipsparse.lib','hipblas.lib','rocsparse.lib','rocblas.lib','amdhip64.lib'],]
+    #self.liblist          = [['libhipsparse.a','libhipblas.a','libhiprtc.a'],
+    #                         ['hipsparse.lib','hipblas.lib','hiprtc.lib']]
     self.precisions       = ['single','double']
     self.cxx              = 1
     self.complex          = 1
@@ -100,10 +102,8 @@ class Configure(config.package.Package):
         self.includedir = ['include',os.path.join(cudaDir,'include')]
         self.delDefine('HAVE_CUDA')
         self.addDefine('HAVE_HIPCUDA',1)
-        self.framework.addDefine('__HIP_PLATFORM_NVCC__',1)
     else:
         self.addDefine('HAVE_HIPROCM',1)
-        self.framework.addDefine('__HIP_PLATFORM_HCC__',1)
     self.setCompilers.popLanguage()
 
     config.package.Package.configureLibrary(self)

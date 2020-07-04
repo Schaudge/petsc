@@ -3,8 +3,8 @@ ALL: lib
 
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = handle.c
-SOURCEHIP =
+SOURCEC  = handle.hip.cpp
+SOURCEHIP = handle.hip.cpp
 SOURCEF  =
 SOURCEH  =
 MANSEC   = Sys

@@ -1,9 +1,9 @@
 #if !defined(PETSCHIPBLAS_H)
 #define PETSCHIPBLAS_H
 
-#include <hip/hip_runtime.h>
-#include <hipblas.h>
-#include <cusolverDn.h>
+/* #include <hip/hip_runtime.h> */
+/* #include <hipblas.h> */
+/* #include <cusolverDn.h> */
 #include <petscsys.h>
 
 #define WaitForGPU() PetscHIPSynchronize ? hipDeviceSynchronize() : hipSuccess;

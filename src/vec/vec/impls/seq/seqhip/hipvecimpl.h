@@ -5,7 +5,7 @@
 #include <petschipblas.h>
 #include <petsc/private/vecimpl.h>
 
-#include <hipblas.h>
+/* TODO: SEK #include <hipblas.h> */
 
 typedef struct {
   PetscScalar  *GPUarray;           /* this always holds the GPU data */
