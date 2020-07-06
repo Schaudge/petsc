@@ -16,6 +16,7 @@ PETSC_EXTERN PetscErrorCode MatPartitioningCreate_Party(MatPartitioning);
 #if defined(PETSC_HAVE_PTSCOTCH)
 PETSC_EXTERN PetscErrorCode MatPartitioningCreate_PTScotch(MatPartitioning);
 #endif
+PETSC_EXTERN PetscErrorCode MatPartitioningCreate_ParHIP(MatPartitioning);
 
 /*@C
   MatPartitioningRegisterAll - Registers all of the matrix Partitioning routines in PETSc.
@@ -60,6 +61,9 @@ PetscErrorCode  MatPartitioningRegisterAll(void)
 #endif
 #if defined(PETSC_HAVE_PTSCOTCH)
   ierr = MatPartitioningRegister(MATPARTITIONINGPTSCOTCH,MatPartitioningCreate_PTScotch);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_KAHIP)
+  ierr = MatPartitioningRegister(MATPARTITIONINGPARHIP,  MatPartitioningCreate_ParHIP);CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);
 }
