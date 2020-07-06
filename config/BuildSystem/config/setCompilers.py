@@ -435,10 +435,15 @@ class Configure(config.base.Configure):
 
   @staticmethod
   def addLdPath(path):
+    ldPath = ''
     if 'LD_LIBRARY_PATH' in os.environ:
-      ldPath=os.environ['LD_LIBRARY_PATH']
-    else:
-      ldPath=''
+      ldPath = os.environ['LD_LIBRARY_PATH']
+    if 'DYLD_LIBRARY_PATH' in os.environ:
+      if ldPath == '': ldPath = os.environ['DYLD_LIBRARY_PATH']
+      else: ldPath += ':' + os.environ['DYLD_LIBRARY_PATH']
+    if 'DYLD_FALLBACK_LIBRARY_PATH' in os.environ:
+      if ldPath == '': ldPath = os.environ['DYLD_FALLBACK_LIBRARY_PATH']
+      else: ldPath += ':' + os.environ['DYLD_FALLBACK_LIBRARY_PATH']
     if ldPath == '': ldPath = path
     else: ldPath += ':' + path
     os.environ['LD_LIBRARY_PATH'] = ldPath
