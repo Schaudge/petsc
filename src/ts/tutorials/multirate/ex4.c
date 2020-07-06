@@ -27,10 +27,15 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
   "  shallow     - 1D Shallow water equations (Saint Venant System)\n"
 >>>>>>> trivial edit: remove white spaces
   "                h_t + (q)_x = 0 \n"
+<<<<<<< HEAD
   "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = -hg*z_x \n"
   "                where, h(x,t) denotes the height of the water, q(x,t) the momentum, and z(x)\n"
   "                the topography of the river bottom. \n"
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
+=======
+  "                q_t + (\frac{q^2}{h} + g/2*h^2)_x =  \n"
+  "                where, h(x,t) denotes the height of the water and q(x,t) the momentum.\n"
+>>>>>>> Added preliminary data structures and functions for fvnet. Completly untested at this point
   "  for this toy problem, we choose different meshsizes for different sub-domains (slow-fast-slow), say\n"
   "                hxs  = hratio*hxf \n"
   "  where hxs and hxf are the grid spacings for coarse and fine grids respectively.\n"
@@ -1039,7 +1044,7 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
     if(xs==0){ /* Left Boundary */
       ctx->physics2.inflow(ctx,time,ctx->xmin,ctx->ub);
       for(j=0; j<dof; j++) {
-        if(ctx->physics2.bcinflowindex[j]==PETSC_TRUE){
+        if(ctx->physics2.bcinflowindex[j]){
           for(i=-2; i<0; i++) x[i*dof+j] = 2.0*ctx->ub[j]-x[-(i+1)*dof+j];
         } else {
           for(i=-2; i<0; i++) x[i*dof+j] = x[j]; /* Outflow */
@@ -1049,7 +1054,7 @@ PetscErrorCode FVRHSFunction_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void *vc
     if(xs+xm==Mx){ /* Right Boundary */
       ctx->physics2.inflow(ctx,time,ctx->xmax,ctx->ub);
       for(j=0; j<dof; j++) {
-        if(ctx->physics2.bcinflowindex[dof+j]==PETSC_TRUE){
+        if(ctx->physics2.bcinflowindex[dof+j]){
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = 2.0*ctx->ub[dof+j]-x[(2*Mx-(i+1))*dof+j];
         } else {
           for(i=Mx; i<Mx+2; i++) x[i*dof+j] = x[(Mx-1)*dof+j]; /* Outflow */
