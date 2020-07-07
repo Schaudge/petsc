@@ -2672,27 +2672,6 @@ PetscErrorCode  TSSetUp(TS ts)
     ierr = VecDuplicate(ts->quadraturets->vec_sol,&ts->vec_costintegrand);CHKERRQ(ierr);
   }
 
-  ierr = TSGetRHSJacobian(ts,NULL,NULL,&rhsjac,NULL);CHKERRQ(ierr);
-  if (rhsjac == TSComputeRHSJacobianConstant) {
-    Mat Amat,Pmat;
-    SNES snes;
-    ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
-    ierr = SNESGetJacobian(snes,&Amat,&Pmat,NULL,NULL);CHKERRQ(ierr);
-    /* Matching matrices implies that an IJacobian is NOT set, because if it had been set, the IJacobian's matrix would
-     * have displaced the RHS matrix */
-    if (Amat && Amat == ts->Arhs) {
-      /* we need to copy the values of the matrix because for the constant Jacobian case the user will never set the numerical values in this new location */
-      ierr = MatDuplicate(ts->Arhs,MAT_COPY_VALUES,&Amat);CHKERRQ(ierr);
-      ierr = SNESSetJacobian(snes,Amat,NULL,NULL,NULL);CHKERRQ(ierr);
-      ierr = MatDestroy(&Amat);CHKERRQ(ierr);
-    }
-    if (Pmat && Pmat == ts->Brhs) {
-      ierr = MatDuplicate(ts->Brhs,MAT_COPY_VALUES,&Pmat);CHKERRQ(ierr);
-      ierr = SNESSetJacobian(snes,NULL,Pmat,NULL,NULL);CHKERRQ(ierr);
-      ierr = MatDestroy(&Pmat);CHKERRQ(ierr);
-    }
-  }
-
   ierr = TSGetAdapt(ts,&ts->adapt);CHKERRQ(ierr);
   ierr = TSAdaptSetDefaultType(ts->adapt,ts->default_adapt_type);CHKERRQ(ierr);
 
