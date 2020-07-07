@@ -184,10 +184,11 @@ PetscErrorCode PetscSetFPTrap(PetscFPTrap flag)
 
    Notes:
       Currently only supported on Linux and MacOS. Checks if divide by zero is enable and if so declares that trapping is on.
+      Certain Fortran linkers turn on floating point trapping by default while C/C++ linkers generally do not.
 
-   Level: advanced
+  Level: developer
 
-.seealso: PetscFPTrapPush(), PetscFPTrapPop(), PetscDetermineInitialFPTrap()
+.seealso: PetscFPTrapPush(), PetscFPTrapPop(), PetscSetFPTrap(), PetscDetermineInitialFPTrap()
 @*/
 PetscErrorCode  PetscDetermineInitialFPTrap(void)
 {

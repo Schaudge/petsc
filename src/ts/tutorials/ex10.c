@@ -418,17 +418,17 @@ static PetscErrorCode RDIJacobian_FD(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal 
   for (i=info.xs; i<info.xs+info.xm; i++) {
     PetscInt                  col[3];
     PetscReal                 rho = rd->rho;
-    PetscScalar /*Em_t,rad,*/ K[2][6];
+    PetscScalar /* Em_t,rad,*/ K[2][6];
     RDNode                    dEm_t,drad;
 
-    /*rad = (1.-Theta)* */ RDRadiation(rd,&x0[i],0); /* + Theta* */ RDRadiation(rd,&x[i],&drad);
+    /* rad = (1.-Theta)* */ RDRadiation(rd,&x0[i],0); /* + Theta* */ RDRadiation(rd,&x[i],&drad);
 
     if (rd->endpoint) {
       PetscScalar Em0,Em1;
       RDNode      dEm1;
       RDMaterialEnergy(rd,&x0[i],&Em0,NULL);
       RDMaterialEnergy(rd,&x[i],&Em1,&dEm1);
-      /*Em_t = (Em1 - Em0) / (Theta*dt);*/
+      /* Em_t = (Em1 - Em0) / (Theta*dt);*/
       dEm_t.E = dEm1.E / (Theta*dt);
       dEm_t.T = dEm1.T / (Theta*dt);
     } else {
@@ -444,7 +444,7 @@ static PetscErrorCode RDIJacobian_FD(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal 
       /* The Jacobian needs another derivative.  We finite difference here instead of
        * propagating second derivatives through the ionization model. */
       Em_TT = (dEm1.T - dEm.T) / epsilon;
-      /*Em_t = dEm.E * xdot[i].E + dEm.T * xdot[i].T;*/
+      /* Em_t = dEm.E * xdot[i].E + dEm.T * xdot[i].T;*/
       dEm_t.E = dEm.E * a;
       dEm_t.T = dEm.T * a + Em_TT * xdot[i].T;
     }
@@ -477,9 +477,9 @@ static PetscErrorCode RDIJacobian_FD(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal 
       K[0][0*2+0] = -1./Theta;
       K[0][1*2+0] = 1./Theta;
     } else {
-      /*PetscScalar diff;*/
+      /* PetscScalar diff;*/
       RDNode ddiff[3];
-      /*diff = (1.-Theta)*RDDiffusion(rd,hx,x0,i,0) + Theta* */ RDDiffusion(rd,hx,x,i,ddiff);
+      /* diff = (1.-Theta)*RDDiffusion(rd,hx,x0,i,0) + Theta* */ RDDiffusion(rd,hx,x,i,ddiff);
       K[0][0*2+0] = -hx*ddiff[0].E;
       K[0][0*2+1] = -hx*ddiff[0].T;
       K[0][1*2+0] = hx*(a - ddiff[1].E - drad.E);

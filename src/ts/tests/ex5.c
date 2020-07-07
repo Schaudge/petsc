@@ -69,7 +69,7 @@ static char help[] = "Nonlinear, time-dependent. Developed from radiative_surfac
 #include <petscdm.h>
 #include <petscdmda.h>
 
-/* stefan-boltzmann constant */
+/* Stefan-Boltzmann constant */
 #define SIG 0.000000056703
 /* absorption-emission constant for surface */
 #define EMMSFC   1
@@ -327,10 +327,7 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
-/*****************************end main program********************************/
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
+
 PetscErrorCode calcfluxs(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar emma, PetscScalar fract, PetscScalar cloudTemp, PetscScalar *flux)
 {
   PetscFunctionBeginUser;
@@ -652,7 +649,7 @@ PetscErrorCode RhsFunc(TS ts,PetscReal t,Vec Xglobal,Vec F,void *ctx)
   xend=xs+xm; yend=ys+ym;
   for (j=ys; j<yend; j++) {
     for (i=xs; i<xend; i++) {
-      Ts = X[j][i].Ts; u = X[j][i].u; v = X[j][i].v; p = X[j][i].p; /*P = X[j][i].P; */
+      Ts = X[j][i].Ts; u = X[j][i].u; v = X[j][i].v; p = X[j][i].p; /* P = X[j][i].P; */
 
       sfctemp1 = (double)Ts;
       ierr     = calcfluxs(sfctemp1,airtemp,emma,fract,Tc,&fsfc1);CHKERRQ(ierr);        /* calculates surface net radiative flux */

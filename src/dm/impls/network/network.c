@@ -1318,7 +1318,8 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
   Output Parameters:
 . subSF    - a subset of the masterSF for the desired subset.
 
-  Level: intermediate
+  Level: developer
+
 @*/
 PetscErrorCode PetscSFGetSubSF(PetscSF mastersf, ISLocalToGlobalMapping map, PetscSF *subSF) {
 

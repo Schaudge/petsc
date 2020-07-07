@@ -5,6 +5,7 @@
 #
 ALL: all
 LOCDIR	 = ./
+LOC      = ${PETSC_DIR}
 DIRS	 = src include tutorials interfaces share/petsc/matlab
 CFLAGS	 =
 FFLAGS	 =
@@ -25,7 +26,6 @@ include ${PETSC_DIR}/lib/petsc/conf/test.common
 
 OMAKE_SELF = $(OMAKE) -f makefile
 OMAKE_SELF_PRINTDIR = $(OMAKE_PRINTDIR) -f makefile
-
 #
 # Basic targets to build PETSc libraries.
 #
@@ -337,7 +337,7 @@ alldoc: allcite allpdf alldoc1 alldoc2 docsetdate
 # Build just citations
 allcite: chk_loc deletemanualpages
 	-${PYTHON} lib/petsc/bin/maint/countpetsccits.py
-	-${OMAKE_SELF} ACTION=manualpages_buildcite tree_basic LOC=${LOC}
+	-${OMAKE_SELF} ACTION=manualpages_buildcite tree LOC=${LOC}
 	-@sed -e s%man+../%man+manualpages/% ${LOC}/docs/manualpages/manualpages.cit > ${LOC}/docs/manualpages/htmlmap
 	-@cat ${PETSC_DIR}/src/docs/mpi.www.index >> ${LOC}/docs/manualpages/htmlmap
 
@@ -348,24 +348,33 @@ allpdf: chk_loc allcite
 
 # Build just manual pages + prerequisites
 allmanpages: chk_loc allcite
-	-${OMAKE_SELF} ACTION=manualpages tree_basic LOC=${LOC}
+	-${OMAKE_SELF} ACTION=manualpages tree LOC=${LOC}
 
 # Build just manual examples + prerequisites
 allmanexamples: chk_loc allmanpages
-	-${OMAKE_SELF} ACTION=manexamples tree_basic LOC=${LOC}
+	-${OMAKE_SELF} ACTION=manexamples tree LOC=${LOC}
 
 # Build everything that goes into 'doc' dir except html sources
 alldoc1: chk_loc chk_concepts_dir allcite allmanpages allmanexamples
 	-${OMAKE_SELF} manimplementations LOC=${LOC}
 	-${PYTHON} lib/petsc/bin/maint/wwwindex.py ${PETSC_DIR} ${LOC}
-	-${OMAKE_SELF} ACTION=getexlist tree_basic LOC=${LOC}
-	-${OMAKE_SELF} ACTION=exampleconcepts tree_basic LOC=${LOC}
+	-${OMAKE_SELF} ACTION=getexlist tree LOC=${LOC}
+	-${OMAKE_SELF} ACTION=exampleconcepts tree LOC=${LOC}
+	-${OMAKE_SELF} manincludes
 	-${PYTHON} lib/petsc/bin/maint/helpindex.py ${PETSC_DIR} ${LOC}
 
+# Add hyperlinks to includes in manual pages
+manincludes:
+	@for i in `ls -d ${LOC}/docs/manualpages/*`; do \
+          for j in `ls $${i}/*.html`; do \
+            cat $${j} | ${PYTHON} ${PETSC_DIR}/lib/petsc/bin/maint/fixinclude.py $${j} $${PETSC_DIR} > $${j}.tmp ;\
+            mv $${j}.tmp $${j}; \
+          done ; \
+        done
 # Builds .html versions of the source
 # html overwrites some stuff created by update-docs - hence this is done later.
 alldoc2: chk_loc allcite
-	-${OMAKE_SELF} ACTION=html PETSC_DIR=${PETSC_DIR} alltree LOC=${LOC}
+	-${OMAKE_SELF} ACTION=html PETSC_DIR=${PETSC_DIR} tree LOC=${LOC}
 	-${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${LOC}
 #
 # Makes links for all manual pages in $LOC/docs/manualpages/all
@@ -441,7 +450,7 @@ deletemanualpages: chk_loc
         fi
 
 allcleanhtml:
-	-${OMAKE_SELF} ACTION=cleanhtml PETSC_DIR=${PETSC_DIR} alltree
+	-${OMAKE_SELF} ACTION=cleanhtml PETSC_DIR=${PETSC_DIR} tree
 
 chk_concepts_dir: chk_loc
 	@if [ ! -d "${LOC}/docs/manualpages/concepts" ]; then \

@@ -62,7 +62,7 @@ int main(int argc,char **argv)
     ierr = DMGlobalToLocalBegin(da,global,INSERT_VALUES,local);CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(da,global,INSERT_VALUES,local);CHKERRQ(ierr);
 
-    /*Extract local array */
+    /* Extract local array */
     ierr = VecGetArray(local,&localptr);CHKERRQ(ierr);
     ierr = VecGetArray (global,&globalptr);CHKERRQ(ierr);
 

@@ -811,7 +811,7 @@ static PetscErrorCode KSPSolve_Private(KSP ksp,Vec b,Vec x)
 }
 
 /*@
-   KSPSolve - Solves linear system.
+   KSPSolve - Solves linear system.  KSPSetOperators()
 
    Collective on ksp
 
@@ -834,7 +834,6 @@ static PetscErrorCode KSPSolve_Private(KSP ksp,Vec b,Vec x)
 .  -ksp_view_final_residual - print 2-norm of true linear system residual at the end of the solution process
 -  -ksp_view - print the ksp data structure at the end of the system solution
 
-   Notes:
 
    If one uses KSPSetDM() then x or b need not be passed. Use KSPGetSolution() to access the solution in this case.
 

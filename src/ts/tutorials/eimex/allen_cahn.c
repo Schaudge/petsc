@@ -28,8 +28,8 @@ static PetscErrorCode FormInitialSolution(TS,Vec,void*);
 int main(int argc, char **argv)
 {
   TS                ts;
-  Vec               x; /*solution vector*/
-  Mat               A; /*Jacobian*/
+  Vec               x; /* solution vector*/
+  Mat               A; /* Jacobian*/
   PetscInt          steps,mx;
   PetscErrorCode    ierr;
   PetscReal         ftime;
@@ -120,11 +120,11 @@ static PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec X,Vec F,void *ptr)
   hx = (user->xright-user->xleft)/(mx-1);
   ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
   ierr = VecGetArray(F,&f);CHKERRQ(ierr);
-  f[0] = 2.*eps*(x[1]-x[0])/(hx*hx); /*boundary*/
+  f[0] = 2.*eps*(x[1]-x[0])/(hx*hx); /* boundary*/
   for (i=1;i<mx-1;i++) {
     f[i]= eps*(x[i+1]-2.*x[i]+x[i-1])/(hx*hx);
   }
-  f[mx-1] = 2.*eps*(x[mx-2]- x[mx-1])/(hx*hx); /*boundary*/
+  f[mx-1] = 2.*eps*(x[mx-2]- x[mx-1])/(hx*hx); /* boundary*/
   ierr = VecRestoreArrayRead(X,&x);CHKERRQ(ierr);
   ierr = VecRestoreArray(F,&f);CHKERRQ(ierr);
   PetscFunctionReturn(0);

@@ -141,8 +141,11 @@ def printdata(LOC,fd,dict):
                   concept_filename = "concepts/" + concept_filename + ".html"
 
                   #if os.access(concept_filename,os.F_OK):
-                  fd_tmp = os.popen('ls '+ LOC + '/docs/manualpages/'+ concept_filename)
-                  buf = fd_tmp.read()
+                  try:
+                    fd_tmp = os.popen('ls '+ LOC + '/docs/manualpages/'+ concept_filename + '  2> /dev/null')
+                    buf = fd_tmp.read()
+                  except:
+                    buf = ''
                   if not buf == '':
                         fd.write("<A HREF=\"")
                         fd.write(concept_filename)
@@ -168,8 +171,11 @@ def printdata(LOC,fd,dict):
                   concept_filename = "concepts/" + concept_filename + ".html"
 
                   #if os.access(concept_filename,os.F_OK):
-                  fd_tmp = os.popen('ls '+ LOC + '/docs/manualpages/' + concept_filename)
-                  buf = fd_tmp.read()
+                  try:
+                    fd_tmp = os.popen('ls '+ LOC + '/docs/manualpages/' + concept_filename + '  2> /dev/null')
+                    buf = fd_tmp.read()
+                  except:
+                    buf = ''
                   if not buf == '':
                         fd.write("<A HREF=\"")
                         fd.write(concept_filename)

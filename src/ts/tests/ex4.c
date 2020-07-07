@@ -410,7 +410,7 @@ PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec globalin,Vec globalout,void *ct
   ierr = VecScatterEnd(scatter,globalin,tmp_in,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
 
-  /*Extract income array - include ghost points */
+  /* Extract income array - include ghost points */
   ierr = VecGetArrayRead(tmp_in,&inptr);CHKERRQ(ierr);
 
   /* Extract outcome array*/

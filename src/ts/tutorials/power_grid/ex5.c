@@ -22,9 +22,6 @@ F*/
 Reference:
 Power System Modeling and Scripting - F. Milano
 */
-/*T
-
-T*/
 
 #include <petscts.h>
 
@@ -65,7 +62,7 @@ typedef struct {
 
 /* Initial values computed by Power flow and initialization */
 PetscScalar s = -0.00011577790353;
-/*Pw = 0.011064344110238; %Te*wm */
+/* Pw = 0.011064344110238; %Te*wm */
 PetscScalar       vwa  = 22.317142184449754;
 PetscReal         tmax = 20.0;
 

@@ -35,7 +35,7 @@ static char help[] = "Solves the van der Pol equation. \n Input parameters inclu
 
 typedef struct _User *User;
 struct _User {
-  PetscReal mu;  /*stiffness control coefficient: epsilon*/
+  PetscReal mu;  /* stiffness control coefficient: epsilon*/
 };
 
 static PetscErrorCode RHSFunction(TS,PetscReal,Vec,Vec,void*);
@@ -46,8 +46,8 @@ static PetscErrorCode IJacobian(TS,PetscReal,Vec,Vec,PetscReal,Mat,Mat,void*);
 int main(int argc, char **argv)
 {
   TS                ts;
-  Vec               x; /*solution vector*/
-  Mat               A; /*Jacobian*/
+  Vec               x; /* solution vector*/
+  Mat               A; /* Jacobian*/
   PetscInt          steps,mx,eimex_rowcol[2],two;
   PetscErrorCode    ierr;
   PetscScalar       *x_ptr;
