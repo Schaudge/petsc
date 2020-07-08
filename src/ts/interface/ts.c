@@ -1007,12 +1007,10 @@ PetscErrorCode TSComputeIJacobian(TS ts,PetscReal t,Vec U,Vec Udot,PetscReal shi
       } else {
         PetscBool flg;
 
-        if (ts->rhsjacobian.reuse) { /* Undo the damage */
-          /* MatScale has a short path for this case.
-             However, this code path is taken the first time TSComputeRHSJacobian is called
-             and the matrices have not been assembled yet */
-          ierr = TSRecoverRHSJacobian(ts,A,B);CHKERRQ(ierr);
-        }
+        /* MatScale has a short path for this case.
+           However, this code path is taken the first time TSComputeRHSJacobian is called
+           and the matrices have not been assembled yet */
+        ierr = TSRecoverRHSJacobian(ts,A,B);CHKERRQ(ierr);
         ierr = TSComputeRHSJacobian(ts,t,U,A,B);CHKERRQ(ierr);
         ierr = SNESGetUseMatrixFree(ts->snes,NULL,&flg);CHKERRQ(ierr);
         /* since -snes_mf_operator uses the full SNES function it does not need to be shifted or scaled here */
@@ -1454,7 +1452,7 @@ PetscErrorCode  TSSetIJacobian(TS ts,Mat Amat,Mat Pmat,TSIJacobian f,void *ctx)
 +  ts - TS context obtained from TSCreate()
 -  reuse - PETSC_TRUE if the RHS Jacobian
 
-   Level: intermediate
+   Level: deprecated
 
 .seealso: TSSetRHSJacobian(), TSComputeRHSJacobianConstant()
 @*/
