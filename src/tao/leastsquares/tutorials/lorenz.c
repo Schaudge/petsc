@@ -190,7 +190,7 @@ PetscErrorCode GetData(PetscInt* N_p, Vec** all_x_p, Vec** all_dx_p, Vec** Xi_p)
   ierr = PetscOptionsGetReal(NULL,NULL,"-lorenz_beta",&lorenz.beta,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(NULL,NULL,"-lorenz_rho",&lorenz.rho,NULL);CHKERRQ(ierr);
 
-  ierr = GetExactCoefficients(&lorenz, Xi_p);
+  ierr = GetExactCoefficients(&lorenz, Xi_p);CHKERRQ(ierr);
 
   ierr = MatCreateSeqDense(PETSC_COMM_SELF, 3, 3, NULL, &J);CHKERRQ(ierr);
   ierr = VecCreateSeq(PETSC_COMM_SELF,3,&X);CHKERRQ(ierr);
@@ -325,9 +325,9 @@ int main(int argc, char** argv) {
   PetscPreLoadStage("Error calcs");
   {
     Basis             correct_basis;
-    PetscScalar       total_error, dim_err;
+    PetscScalar       total_error[3], dim_err[3];
     const PetscScalar *data, *correct_data;
-    PetscInt          d, i, n, correct_n;
+    PetscInt          d, i, n, k, correct_n;
 
     ierr = SINDyBasisCreate(2, 0, &correct_basis);CHKERRQ(ierr);
     ierr = SINDyBasisSetOutputVariable(correct_basis, v_dx);CHKERRQ(ierr);
@@ -339,30 +339,50 @@ int main(int argc, char** argv) {
     ierr = SINDyBasisDataGetSize(correct_basis, NULL, &correct_n);CHKERRQ(ierr);
     ierr = SINDyBasisDataGetSize(basis, NULL, &n);CHKERRQ(ierr);
 
-    total_error = 0;
+    for (k = 0; k < 3; k++) total_error[k] = 0;
     for (d = 0; d < dim; d++) {
-      dim_err = 0;
+      for (k = 0; k < 3; k++) dim_err[k] = 0;
 
       ierr = VecGetArrayRead(Xi[d], &data);CHKERRQ(ierr);
       ierr = VecGetArrayRead(correct_Xi[d], &correct_data);CHKERRQ(ierr);
       for(i = 0; i < PetscMin(n, correct_n); i++) {
-        dim_err += PetscSqr(data[i] - correct_data[i]);
+        if ((data[i] == 0) != (correct_data[i] == 0)) dim_err[0]++;
+        dim_err[1] += PetscAbsScalar(data[i] - correct_data[i]);
+        dim_err[2] += PetscSqr(data[i] - correct_data[i]);
       }
       for(; i < correct_n; i++) {
-        dim_err += PetscSqr(correct_data[i]);
+        if (correct_data[i] != 0) dim_err[0]++;
+        dim_err[1] += PetscAbsScalar(correct_data[i]);
+        dim_err[2] += PetscSqr(correct_data[i]);
       }
       for(; i < n; i++) {
-        dim_err += PetscSqr(data[i]);
+        if (data[i] != 0) dim_err[0]++;
+        dim_err[1] += PetscAbsScalar(data[i]);
+        dim_err[2] += PetscSqr(data[i]);
       }
       ierr = VecRestoreArrayRead(Xi[d], &data);CHKERRQ(ierr);
       ierr = VecRestoreArrayRead(correct_Xi[d], &correct_data);CHKERRQ(ierr);
 
-      total_error += dim_err;
-      printf("dim %d l2 error: %g\n", d, PetscSqrtReal(dim_err));
+      for (k = 0; k < 3; k++) total_error[k] += dim_err[k];
+      dim_err[2] = PetscSqrtReal(dim_err[2]);
+      printf("dim %d mismatches: %g\n", d, dim_err[0]);
+      printf("dim %d   l1 error: %g\n", d, dim_err[1]);
+      printf("dim %d   l2 error: %g\n", d, dim_err[2]);
     }
-    printf("total l2 error: %g\n", PetscSqrtReal(total_error));
+    total_error[2] = PetscSqrtReal(total_error[2]);
+    printf("total mismatches: %g\n", total_error[0]);
+    printf("total   l1 error: %g\n", total_error[1]);
+    printf("total   l2 error: %g\n", total_error[2]);
     ierr = SINDyBasisDestroy(&correct_basis);CHKERRQ(ierr);
   }
+
+  PetscInt  iterations;
+  ierr = SparseRegGetTotalIterationNumber(sparse_reg, &iterations);CHKERRQ(ierr);
+  printf("iterations: %d\n", iterations);
+
+  PetscReal res_norm;
+  ierr = SINDyGetResidual(basis, &res_norm);CHKERRQ(ierr);
+  printf("residual: %g\n", res_norm);
 
    /* Free PETSc data structures */
   PetscPreLoadStage("Cleanup");

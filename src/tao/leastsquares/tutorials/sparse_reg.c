@@ -21,6 +21,7 @@ PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
   sparse_reg->monitor = PETSC_FALSE;
   sparse_reg->use_regularization = PETSC_TRUE;
   sparse_reg->solve_normal = PETSC_FALSE;
+  sparse_reg->solver_iterations = 0;
 
   *new_sparse_reg = sparse_reg;
   PetscFunctionReturn(0);
@@ -50,6 +51,14 @@ PetscErrorCode SparseRegSetMonitor(SparseReg sparse_reg, PetscBool monitor)
   sparse_reg->monitor = monitor;
   PetscFunctionReturn(0);
 }
+
+PetscErrorCode SparseRegGetTotalIterationNumber(SparseReg sparse_reg, PetscInt* iter)
+{
+  PetscFunctionBegin;
+  *iter = sparse_reg->solver_iterations;
+  PetscFunctionReturn(0);
+}
+
 
 PetscErrorCode SparseRegSetFromOptions(SparseReg sparse_reg)
 {
@@ -251,6 +260,7 @@ PetscErrorCode SparseRegLS(SparseReg sparse_reg, Mat A, Vec b, Vec x)
   } else {
     ierr = KSPSolve(ksp,b,x);CHKERRQ(ierr);
   }
+  sparse_reg->solver_iterations += 1;
 
   if (sparse_reg->solve_normal) {
     ierr = VecDestroy(&Ab);CHKERRQ(ierr);
@@ -272,6 +282,7 @@ PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec x)
   Tao             tao;                /* Tao solver context */
   LeastSquaresCtx ctx;
   PetscBool       flg;
+  PetscInt        iter;
 
   PetscFunctionBegin;
   PetscLogEventBegin(SparseReg_RLS,0,0,0,0);
@@ -309,6 +320,8 @@ PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec x)
 
   /* Perform the Solve */
   ierr = TaoSolve(tao);CHKERRQ(ierr);
+  ierr = TaoGetTotalIterationNumber(tao, &iter);CHKERRQ(ierr);
+  sparse_reg->solver_iterations += iter;
 
    /* Free PETSc data structures */
   ierr = VecDestroy(&f);CHKERRQ(ierr);

@@ -19,7 +19,7 @@ static PetscInt64 n_choose_k(PetscInt64 n, PetscInt64 k)
   return r;
 }
 
-static PetscInt SINDyCountBases(PetscInt dim, PetscInt poly_order, PetscInt sine_order)
+PETSC_EXTERN PetscInt SINDyCountBases(PetscInt dim, PetscInt poly_order, PetscInt sine_order)
 {
   return n_choose_k(dim + poly_order, poly_order) + dim *  2 * sine_order;
 }
@@ -85,6 +85,20 @@ PETSC_EXTERN PetscErrorCode SINDyBasisSetCrossTermRange(Basis basis, PetscInt cr
 {
   PetscFunctionBegin;
   basis->cross_term_range = cross_term_range;
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode SINDyBasisGetCrossTermRange(Basis basis, PetscInt *cross_term_range)
+{
+  PetscFunctionBegin;
+  *cross_term_range = basis->cross_term_range;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode SINDyGetResidual(Basis basis, PetscReal* res_norm)
+{
+  PetscFunctionBegin;
+  *res_norm = basis->data.res_norm;
   PetscFunctionReturn(0);
 }
 
@@ -619,11 +633,25 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode ComputeResidualNormSquared(Mat A, Vec b, Vec x, PetscReal* res_norm)
+{
+  PetscErrorCode ierr;
+  Vec            Ax;
+
+  PetscFunctionBegin;
+  ierr = VecDuplicate(b, &Ax);CHKERRQ(ierr);
+  ierr = MatMult(A, x, Ax);CHKERRQ(ierr);
+  ierr = VecAXPY(Ax, -1.0, b);CHKERRQ(ierr);
+  ierr = VecNorm(Ax, NORM_2, res_norm);CHKERRQ(ierr);
+  ierr = VecDestroy(&Ax);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, PetscInt output_dim, Vec* Xis)
 {
   PetscErrorCode  ierr;
   PetscInt        d,b;
-  PetscReal       *xi_data;
+  PetscReal       *xi_data, res_norm;
   Vec             *dim_vecs;
 
   PetscFunctionBegin;
@@ -661,6 +689,18 @@ PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, Pe
       ierr = SparseRegSTLSQR(sparse_reg, basis->data.Thetas[d], dim_vecs[d], NULL, Xis[d]);CHKERRQ(ierr);
     }
   }
+
+  /* Compute residual. */
+  basis->data.res_norm = 0;
+  for (d = 0; d < output_dim; d++) {
+    if (basis->monolithic) {
+      ierr = ComputeResidualNormSquared(basis->data.Theta, dim_vecs[d], Xis[d], &res_norm);CHKERRQ(ierr);
+    } else {
+      ierr = ComputeResidualNormSquared(basis->data.Thetas[d], dim_vecs[d], Xis[d], &res_norm);CHKERRQ(ierr);
+    }
+    basis->data.res_norm += res_norm;
+  }
+  basis->data.res_norm = PetscSqrtReal(basis->data.res_norm);
 
   if (sparse_reg->monitor) {
     PetscPrintf(PETSC_COMM_WORLD, "SINDy: %s Xi\n", basis->normalize_columns ? " scaled" : "");

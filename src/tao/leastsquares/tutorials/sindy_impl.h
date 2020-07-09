@@ -14,6 +14,7 @@ typedef struct {
   char      *names_data;
   PetscInt  max_name_size;
   Variable  output_var;
+  PetscReal res_norm;
 } Data;
 
 struct _p_Basis {
@@ -29,6 +30,7 @@ struct _p_SparseReg {
   PetscBool use_regularization;
   PetscBool solve_normal;
   PetscBool monitor;
+  PetscInt  solver_iterations;
 };
 
 typedef enum {

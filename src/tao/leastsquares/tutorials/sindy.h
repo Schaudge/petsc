@@ -9,14 +9,18 @@
 typedef struct _p_Basis*  Basis;
 PETSC_EXTERN PetscClassId SINDY_CLASSID;
 
+PETSC_EXTERN PetscInt SINDyCountBases(PetscInt dim, PetscInt poly_order, PetscInt sine_order);
+
 PETSC_EXTERN PetscErrorCode SINDyBasisCreate(PetscInt, PetscInt, Basis*);
 PETSC_EXTERN PetscErrorCode SINDyBasisDestroy(Basis*);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetNormalizeColumns(Basis, PetscBool);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetCrossTermRange(Basis, PetscInt);
+PETSC_EXTERN PetscErrorCode SINDyBasisGetCrossTermRange(Basis, PetscInt*);
 PETSC_EXTERN PetscErrorCode SINDyBasisSetFromOptions(Basis);
 PETSC_EXTERN PetscErrorCode SINDyBasisDataGetSize(Basis, PetscInt*, PetscInt*);
 
 PETSC_EXTERN PetscErrorCode SINDyFindSparseCoefficients(Basis, SparseReg, PetscInt, Vec*);
+PETSC_EXTERN PetscErrorCode SINDyGetResidual(Basis, PetscReal*);
 PETSC_EXTERN PetscErrorCode SINDyBasisPrint(Basis, PetscInt, Vec*);
 
 PETSC_EXTERN PetscErrorCode SINDyBasisAddVariables(Basis, PetscInt, Variable*);

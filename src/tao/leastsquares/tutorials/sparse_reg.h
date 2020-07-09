@@ -16,4 +16,6 @@ PETSC_EXTERN PetscErrorCode SparseRegSTLSQR(SparseReg, Mat, Vec, Mat, Vec);
 PETSC_EXTERN PetscErrorCode SparseRegLS(SparseReg, Mat, Vec, Vec);
 PETSC_EXTERN PetscErrorCode SparseRegRLS(SparseReg, Mat, Vec, Mat, Vec);
 
+PETSC_EXTERN PetscErrorCode SparseRegGetTotalIterationNumber(SparseReg, PetscInt*);
+
 #endif
