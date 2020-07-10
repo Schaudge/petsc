@@ -7,7 +7,7 @@
 #include "limiters.h"
 
 /* Finite Volume Data Structures */
-typedef enum {NONE,JUNCT=1,RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFLOW=8} VertexType;
+typedef enum {JUNCT=1,RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFLOW=8} VertexType;
 
 /* Network Data Structures */
 
@@ -34,14 +34,14 @@ struct _p_Junction{
   /* boundary data structures - To be added*/
 
   /* Multirate Context */
-  PetscInt   multirateoffset[3]; /* offset to index from the input index (X) to the output index (F) in slow/buffer/medium
+  PetscInt   multirateoffset[3]; /* offset to index from the input index (X) to the output index (F) in slow/buffer/fast
                                  rhs function evals (local indexing). How to generate 
                                  in general?! I'm currently using techniques based on knowing the underlying vector 
                                  representation of dmnetwork, which is really not the way of doing this.*/
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
 
-typedef enum {NONE,EVALTO,EVALFROM,EVALBOTH} VertexEval; /* terrible name... */
+typedef enum {EVALNONE,EVALTO,EVALFROM,EVALBOTH} VertexEval; /* terrible name... */
 
 struct _p_FVEdge
 {
@@ -60,8 +60,8 @@ struct _p_FVEdge
   PetscInt    nnodes;   /* number of nodes in da discretization */
   Mat         *jacobian;
  /*void                *user;*/ /* user inputted data, need for function evaluations. However not 
-                                   sure how do this right, as this data will have to set after partitioning, 
-                                   so the user will have to provide a function to set these based on id I think 
+                                   sure how do this right, as this data will have to be set after partitioning, 
+                                   so the user will have to provide a function to set these based on id I think.
                                    worry about it later */
 
   /* FV object */
@@ -94,7 +94,7 @@ struct _p_FVNetwork
   PetscInt    nedge,nvertex;           /* local number of components */
   PetscInt    Nedge,Nvertex;           /* global number of components */
   PetscInt    *edgelist;               /* local edge list */
-  Vec         localX,localF;                  /* vectors used in local function evalutation */
+  Vec         localX,localF;           /* vectors used in local function evalutation */
   Vec         X;                       /* Global vector used in function evaluations */
   PetscInt    nnodes_loc;              /* num of global and local nodes */
   PetscInt    stencilwidth;
@@ -112,7 +112,6 @@ struct _p_FVNetwork
   PetscScalar *uLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
-  PetscReal   *ub;              /* Boundary data for inflow boundary conditions */
   PetscReal   *uPlus;           /* Solution at the left of the interfacce in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
 
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
@@ -120,6 +119,8 @@ struct _p_FVNetwork
   PetscInt    initial;
   PetscBool   simulation;
   PetscBool   exact;
+  PetscInt    hratio;
+  PetscInt    Mx;               /* Variable used to specify smallest number of cells for an edge in a problem */
 
     
   /* Junction */
@@ -146,14 +147,17 @@ struct _p_FVNetwork
 typedef struct _p_FVNetwork *FVNetwork; 
 
 PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
-
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions. 
    Allocate the work array data for FVNetwork */
 PetscErrorCode FVNetworkCreate(PetscInt,FVNetwork,PetscInt);
 /* set the components into the network and the number of variables
    each component requires. Also construct the local ordering for the
    edges of a vertex */ 
-PetscErrorCode FVNetworkSetComponents(FVNetwork); 
+PetscErrorCode FVNetworkSetComponents(FVNetwork);
+/* Delete the unneeded data built by FVNetworkCreate. Removes 
+   the edgelist data, fvedges, junctions, that have been set 
+    into the network by FVNetworkSetComponents */
+PetscErrorCode FVNetworkCleanUp(FVNetwork);
 /* After distributing the network, build the dynamic data required 
    by the components. This includes physics data as well as building 
    the vertex data structures needed for evaluating the edge data they 
@@ -163,4 +167,7 @@ PetscErrorCode FVNetworkSetupPhysics(FVNetwork);
 PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
 /* Destroy allocated data */
 PetscErrorCode FVNetworkDestroy(FVNetwork);
+
+/*RHS Function*/
+PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 
