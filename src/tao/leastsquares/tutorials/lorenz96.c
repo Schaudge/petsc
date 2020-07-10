@@ -7,6 +7,7 @@ typedef struct {
   PetscInt  runs,steps,N,i;
   PetscReal dt;
   Vec       *all_x,*all_dx;
+  PetscBool fd_der;
 } Data;
 
 typedef struct {
@@ -80,6 +81,8 @@ PetscErrorCode DataInitialize(Data* data, Vec X)
     ierr = PetscOptionsInt("-steps","how many timesteps to simulate in each run","",data->steps,&data->steps,NULL);CHKERRQ(ierr);
     data->dt = 0.01;
     ierr = PetscOptionsReal("-dt","timestep size","",data->dt,&data->dt,NULL);CHKERRQ(ierr);
+    data->fd_der = PETSC_FALSE;
+    ierr = PetscOptionsBool("-fd_der","use finite-difference to estimate derivative","",data->fd_der,&data->fd_der,NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
@@ -107,11 +110,19 @@ PetscErrorCode DataPostStep(TS ts)
   }
   ierr = TSGetSolution(ts,&X);CHKERRQ(ierr);
   ierr = VecCopy(X, ctx->data.all_x[ctx->data.i]);CHKERRQ(ierr);
+  if (!ctx->data.fd_der) {
+    PetscReal     t;
+    TSRHSFunction func;
+    void          *rhs_ctx;
+    ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+    ierr = TSGetRHSFunction(ts,NULL,&func,&rhs_ctx);CHKERRQ(ierr);
+    ierr = func(ts, t, X, ctx->data.all_dx[ctx->data.i], rhs_ctx);CHKERRQ(ierr);
+  }
   ctx->data.i++;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DataComputeDerivative(Data* data)
+PetscErrorCode DataComputeDerivative_FD(Data* data)
 {
   PetscErrorCode ierr;
   PetscInt       i,t,r;
@@ -168,7 +179,7 @@ PetscErrorCode GetExactCoefficients(PetscInt cross_term_range, AppCtx* ctx, Vec*
     for (i = 0; i < N; i++) {
       ierr = VecZeroEntries((*Xi)[i]);CHKERRQ(ierr);
       // -1 at xi, +1 at xj*xk, -1 at xl*xj.
-      idx[1] = i;
+      idx[1] = i+1;
       j = (i-1+N) % N;
       k = (i+1+N) % N;
       l = (i-2+N) % N;
@@ -265,7 +276,9 @@ PetscErrorCode GetData(PetscInt cross_term_range, Vec** Xi_p, PetscInt* N_p, Vec
   ierr = TSSolve(ts, NULL);CHKERRQ(ierr);
 
   /* Get derivative data. */
-  ierr = DataComputeDerivative(data);CHKERRQ(ierr);
+  if (data->fd_der) {
+    ierr = DataComputeDerivative_FD(data);CHKERRQ(ierr);
+  }
 
   /* Write output parameters. */
   *N_p = data->N;
@@ -314,7 +327,7 @@ int main(int argc, char** argv)
   ierr = SINDyBasisGetCrossTermRange(basis, &cross_term_range);CHKERRQ(ierr);
 
   ierr = SparseRegCreate(&sparse_reg);CHKERRQ(ierr);
-  ierr = SparseRegSetThreshold(sparse_reg, 2e-1);CHKERRQ(ierr);
+  ierr = SparseRegSetThreshold(sparse_reg, 2.5e-2);CHKERRQ(ierr);
   ierr = SparseRegSetMonitor(sparse_reg, PETSC_TRUE);CHKERRQ(ierr);
   ierr = SparseRegSetFromOptions(sparse_reg);CHKERRQ(ierr);
 

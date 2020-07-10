@@ -57,6 +57,7 @@ PetscErrorCode SINDyBasisCreate(PetscInt poly_order, PetscInt sine_order, Basis*
   basis->cross_term_range = -1;
   basis->normalize_columns = PETSC_FALSE;
   basis->monitor = PETSC_FALSE;
+  basis->monolithic = PETSC_FALSE;
 
   basis->data.B = 0;
   basis->data.N = -1;
@@ -440,6 +441,7 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   }
 
   /* Set cross term sizes. */
+  basis->monolithic = (basis->cross_term_range == -1);
   for (v = 0; v < num_vars; v++) {
     if (basis->cross_term_range == -1) vars[v]->cross_term_dim = vars[v]->dim;
     else                               vars[v]->cross_term_dim = PetscMin(2*basis->cross_term_range+1, vars[v]->dim);
@@ -470,7 +472,7 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
   if (basis->normalize_columns) {
     ierr = PetscCalloc1(B * output_dim, &basis->data.column_scales);CHKERRQ(ierr);
   }
-  ierr = PetscMalloc1(output_dim, &basis->data.Thetas);CHKERRQ(ierr);
+  ierr = PetscCalloc1(output_dim, &basis->data.Thetas);CHKERRQ(ierr);
 
   /* Allocate name data. */
   ierr = PetscMalloc1(B, &basis->data.names);CHKERRQ(ierr);
@@ -619,6 +621,11 @@ PetscErrorCode SINDyBasisAddVariables(Basis basis, PetscInt num_vars, Variable* 
       ierr = PetscPrintf(PETSC_COMM_SELF, "SINDy basis matrix for dof %d: %d x %d\n", d, M, N);CHKERRQ(ierr);
       ierr = MatView(Theta, PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
     }
+    if (basis->monolithic) {
+      basis->data.Theta = basis->data.Thetas[d];
+      basis->data.Thetas[d] = NULL;
+      break;
+    }
   }
 
   basis->data.max_name_size = 0;
@@ -672,8 +679,6 @@ PetscErrorCode SINDyFindSparseCoefficients(Basis basis, SparseReg sparse_reg, Pe
       ierr = VecView(dim_vecs[d], PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);
     }
   }
-
-  basis->monolithic = PETSC_FALSE;
 
   /* Run regression on each dimension of the data. */
   if (sparse_reg->monitor) {
