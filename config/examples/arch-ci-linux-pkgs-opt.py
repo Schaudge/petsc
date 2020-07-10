@@ -41,6 +41,7 @@ configure_options = [
   '--with-opengl=1',
   '--download-libpng=1',
   '--download-libjpeg=1',
+  '--download-adios2=1',
   '--download-slepc=1',
   '--download-hpddm=1'
   ]

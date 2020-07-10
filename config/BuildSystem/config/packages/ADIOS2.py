@@ -8,7 +8,7 @@ class Configure(config.package.CMakePackage):
     self.downloaddirnames  = ['adios2']
     self.functions         = ['adios2_open']
     self.includes          = ['adios2_c.h']
-    self.liblist           = [['libadios2f.a', 'libadios2.a'],['libadios2.a']]
+    self.liblist           = [['libadios2_fortran.a', 'libadios2_c.a'],['libadios2_c.a']]
     self.hastests          = 1
     return
 
@@ -24,6 +24,7 @@ class Configure(config.package.CMakePackage):
     '''Add ADIOS2 specific configure arguments'''
     args = config.package.CMakePackage.formCMakeConfigureArgs(self)
     args.append('-DADIOS2_USE_MPI=ON')
+    args.append('-DCMAKE_INSTALL_LIBDIR:STRING="lib"')
     if self.hdf5.found:
       args.append('-DADIOS2_USE_HDF5=ON')
       args.append('-DHDF5_DIR="'+self.hdf5.directory+'"')

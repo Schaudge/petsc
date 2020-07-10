@@ -33,6 +33,7 @@ configure_options = [
   '--download-saws',
   '--download-codipack=1',
   '--download-adblaslapack=1',
+  '--download-adios2=1',
   '--download-hpddm=1'
   ]
 
