@@ -15,8 +15,8 @@ class Configure(config.package.Package):
     #self.liblist         = [['libhipblas.a','libhiprtc.a','libhipsparse.a','libhipsolver.a'],
     #                         ['hipfft.lib','hipblas.lib','hiprtc.lib','hipsparse.lib','hipsolver.lib']]
     self.includes         = ['hipblas.h','hipsparse.h']
-    self.liblist          = [['libhipsparse.a','libhipblas.a','librocsparse.a','librocblas.a','libamdhip64.a'],
-                             ['hipsparse.lib','hipblas.lib','rocsparse.lib','rocblas.lib','amdhip64.lib'],]
+    self.liblist          = [['libhipsparse.a','libhipblas.a','librocsparse.a','librocsolver.a','librocblas.a','libamdhip64.a'],
+                             ['hipsparse.lib','hipblas.lib','rocsparse.lib','rocsolver.lib','rocblas.lib','amdhip64.lib'],]
     #self.liblist          = [['libhipsparse.a','libhipblas.a','libhiprtc.a'],
     #                         ['hipsparse.lib','hipblas.lib','hiprtc.lib']]
     self.precisions       = ['single','double']
@@ -27,7 +27,8 @@ class Configure(config.package.Package):
     # Handle the platform issues
     if 'HIP_PLATFORM' in os.environ:
       self.platform = os.environ['HIP_PLATFORM']
-    elif hasttr('CUDA', config.compile):
+    elif hasattr(self,'systemNvcc'):
+    #elif hasattr(self.config.compile, 'CUDA'):
       self.platform = 'nvcc'
     else:
       self.platform = 'hcc'
@@ -102,8 +103,10 @@ class Configure(config.package.Package):
         self.includedir = ['include',os.path.join(cudaDir,'include')]
         self.delDefine('HAVE_CUDA')
         self.addDefine('HAVE_HIPCUDA',1)
+        self.framework.addDefine('__HIP_PLATFORM_NVCC__',1)
     else:
         self.addDefine('HAVE_HIPROCM',1)
+        self.framework.addDefine('__HIP_PLATFORM_HCC__',1)
     self.setCompilers.popLanguage()
 
     config.package.Package.configureLibrary(self)
