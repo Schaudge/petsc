@@ -76,7 +76,7 @@ static PetscErrorCode PoissonReferenceToReal(PetscInt dim, PetscInt ndof, const 
     PetscInt idx = 0;
 
     for (PetscInt l = 0; l < dim; l++) {
-      for (PetscInt m = 0; l < dim; l++) {
+      for (PetscInt m = 0; m < dim; m++) {
         for (PetscInt i = 0; i < ndof; i++) {
           for (PetscInt j = 0; j < ndof; j++, idx++) {
             elemMat[i * ndof + j] += Jinv[l * dim + k] * Jinv[m * dim + k] * tensor[idx] * Jdet;
@@ -146,6 +146,7 @@ static void g3_vu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],
 {
   PetscInt c;
 
+  for (c=0; c<dim*dim; ++c) g3[c] = 0.0;
   for (c=0; c<dim; ++c) g3[c*dim + c] = 1.0;
 }
 
@@ -290,17 +291,19 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
   /* Declare basis function coefficients on the reference element. Assuming 2d uniform quadrilaterals. */
   PetscInt cStart,cEnd,c;
   PetscFE field;
-  /* Taking advantage of the fact that we are using uniform quads for now. In the future we will need to determine sizes of tensor,
-   * elemMat, and values for Jinv and Jdet on a per element basis. */
   PetscScalar tensor[64],elemMat[16];
-  PetscReal Jinv[] = {1, 0, 0, 1};
-  PetscReal Jdet = 1;
+  PetscReal Jinv[9];
+  PetscReal Jdet;
+  PetscReal v0[3], J[9];
   PetscInt *closureSizes,**closures;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = DMGetField(dm,0,NULL,(PetscObject*)&field);CHKERRQ(ierr);
+  ierr = DMPlexComputeCellGeometryAffineFEM(dm, 0, v0, J, Jinv, &Jdet);CHKERRQ(ierr);
   ierr = PoissonReferenceTensor(field,tensor);CHKERRQ(ierr);
+  /* Taking advantage of the fact that we are using uniform quads for now. In the future we will need to determine sizes of tensor,
+   * elemMat, and values for Jinv and Jdet on a per element basis. */
   ierr = PoissonReferenceToReal(2,4,tensor,Jinv,Jdet,elemMat);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm,systemMat);CHKERRQ(ierr);
   ierr = MatSetOption(*systemMat,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
