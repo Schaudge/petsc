@@ -225,7 +225,6 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx *user)
 {
   PetscDS        prob;
   PetscErrorCode ierr;
-  const PetscInt id=1;
 
   PetscFunctionBegin;
   ierr = DMGetDS(dm,&prob);CHKERRQ(ierr);
@@ -300,23 +299,28 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
   PetscFE field;
   /* Taking advantage of the fact that we are using uniform quads for now. In the future we will need to determine sizes of tensor,
    * elemMat, and values for Jinv and Jdet on a per element basis. */
-  PetscScalar tensor[64],elemMat[16];
-  PetscReal Jinv[] = {1, 0, 0, 1};
-  PetscReal Jdet = 1;
-  PetscInt *closureSizes,**closures;
+  PetscScalar *tensor,*elemMat;
+  PetscReal Jdet,*Jinv,*J,*v;
+  PetscInt *closureSizes,**closures,nDoF,dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = DMGetField(dm,0,NULL,(PetscObject*)&field);CHKERRQ(ierr);
-  ierr = PoissonReferenceTensor(field,tensor);CHKERRQ(ierr);
-  ierr = PoissonReferenceToReal(2,4,tensor,Jinv,Jdet,elemMat);CHKERRQ(ierr);
-  ierr = DMCreateMatrix(dm,systemMat);CHKERRQ(ierr);
-  ierr = MatSetOption(*systemMat,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscFEGetSpatialDimension(field,&dim);CHKERRQ(ierr);
+  ierr = PetscFEGetDimension(field,&nDoF);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(dm, 0, &cStart,&cEnd);CHKERRQ(ierr);
+  ierr = PetscCalloc3(dim,&v,dim*dim,&J,dim*dim,&Jinv);CHKERRQ(ierr);
+  ierr = PetscCalloc2(nDoF*nDoF*dim*dim,&tensor,nDoF*nDoF,&elemMat);CHKERRQ(ierr);
+  ierr = PoissonReferenceTensor(field,tensor);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(dm,systemMat);CHKERRQ(ierr);
+  ierr = MatZeroEntries(*systemMat);CHKERRQ(ierr);
+  ierr = MatSetOption(*systemMat,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
   ierr = GetElementClosureMaps(dm,cStart,cEnd,&closureSizes,&closures);CHKERRQ(ierr);
 
   /* This a loop that we will convert to threadwise GPU style */
   for (c=cStart; c<cEnd; ++c){
+  ierr = DMPlexComputeCellGeometryAffineFEM(dm,c,v,J,Jinv,&Jdet);CHKERRQ(ierr);
+  ierr = PoissonReferenceToReal(dim,nDoF,tensor,Jinv,Jdet,elemMat);CHKERRQ(ierr);
     ierr = MatSetValues(*systemMat,closureSizes[c-cStart],closures[c-cStart],closureSizes[c-cStart],closures[c-cStart],elemMat,ADD_VALUES);CHKERRQ(ierr);
   }
   MatAssemblyBegin(*systemMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -327,6 +331,11 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
     PetscFree(closures[c]);
   }
   PetscFree(closures);
+  PetscFree(J);
+  PetscFree(Jinv);
+  PetscFree(v);
+  PetscFree(tensor);
+  PetscFree(elemMat);
 
   PetscFunctionReturn(0);
 }
@@ -337,9 +346,9 @@ int main(int argc,char **argv)
   UserCtx         user;
   DM              dm;
   SNES            snes;
-  Vec             u;
+  Vec             u,v,w,z;
+  PetscReal       norm;
   Mat             sysMat,JMat;
-  PetscBool       mats_are_equal;
   PetscErrorCode  ierr;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
@@ -368,12 +377,26 @@ int main(int argc,char **argv)
   ierr = BuildSystemMatrix(dm,&sysMat);CHKERRQ(ierr);
   ierr = MatViewFromOptions(sysMat,NULL,"-sysMat_view");CHKERRQ(ierr);
 
-  /* Check that we get the same matrices from both methods */
-  ierr = MatEqual(sysMat,JMat,&mats_are_equal);CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD,"Matrix assembly successful: %s\n",mats_are_equal?"true":"false");
+  /* Check that we get the same matrices from both methods using the roundabout method of checking whether the difference between vector multiplies
+   * has a norm less than some small number. Maybe eventually we implement a method for C = \alpha*A + B, and check that the difference matrix has
+   * entries all smaller than tolerance.*/
+  ierr = DMCreateGlobalVector(dm,&v);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dm,&w);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dm,&z);CHKERRQ(ierr);
+  ierr = VecSetRandom(u,NULL);CHKERRQ(ierr);
+  ierr = VecCopy(u,v);CHKERRQ(ierr);
+  ierr = MatMult(JMat,u,w);CHKERRQ(ierr);
+  ierr = MatMult(sysMat,v,z);CHKERRQ(ierr);
+  ierr = VecWAXPY(u,-1.0,w,z);CHKERRQ(ierr);
+  ierr = VecNorm(u,NORM_2,&norm);CHKERRQ(ierr);
+
+  PetscPrintf(PETSC_COMM_WORLD,"Matrix assembly successful: %s\n",norm<=PETSC_SMALL?"true":"false");
 
   /* Cleanup */
   ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&v);CHKERRQ(ierr);
+  ierr = VecDestroy(&w);CHKERRQ(ierr);
+  ierr = VecDestroy(&z);CHKERRQ(ierr);
   ierr = MatDestroy(&sysMat);CHKERRQ(ierr);
   ierr = SNESDestroy(&snes);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
