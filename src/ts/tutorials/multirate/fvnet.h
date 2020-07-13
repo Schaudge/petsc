@@ -44,9 +44,6 @@ struct _p_FVEdge
 {
   /* identification variables */
   PetscInt    id;
-  PetscInt    networkid; /* which network this pipe belongs */
-  PetscInt    vto_offset,vfrom_offset; /* offset for accessing the data 'belonging' to this 
-                                           edge contained in the 'to' and 'from' vertices */
   PetscInt    vto_recon_offset,vfrom_recon_offset; /* offsets for placing the reconstruction data and setting flux data 
                                                       for the edge cells */
   /* solver objects */
@@ -74,7 +71,7 @@ struct _p_FVEdge
 typedef struct _p_FVEdge *FVEdge;
 
 typedef struct {
-  PetscErrorCode                 (*sample)(void*,PetscInt,FVBCType,PetscReal,PetscReal,PetscReal,PetscReal,PetscReal*);
+  PetscErrorCode                 (*sample)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   RiemannFunction_2WaySplit      riemann;
   ReconstructFunction_2WaySplit  characteristic;
@@ -92,10 +89,12 @@ struct _p_FVNetwork
   PetscInt    Nedge,Nvertex;           /* global number of components */
   PetscInt    *edgelist;               /* local edge list */
   Vec         localX,localF;           /* vectors used in local function evalutation */
-  Vec         X;                       /* Global vector used in function evaluations */
+  Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
   PetscInt    nnodes_loc;              /* num of global and local nodes */
-  PetscInt    stencilwidth;
   DM          network;
+  PetscBool   monifv;
+  PetscReal   ymin,ymax;               
+  DMNetworkMonitor  monitor;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   RiemannFunction_2WaySplit couplingflux; /* Structure for performing the coupling flux. Should be attached 
@@ -164,7 +163,7 @@ PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*);
 /* Destroy allocated data */
 PetscErrorCode FVNetworkDestroy(FVNetwork);
 /* Set Initial Solution */\
-PetscErrorCode FVNetworkSetInitial(PetscInt,PetscInt,FVNetwork);
+PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
 /*RHS Function*/
 PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 
