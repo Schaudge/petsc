@@ -24,12 +24,9 @@ struct _p_Junction{
   PetscReal     x; /* x-coordinates */
   PetscBool     *dir; /*In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) (it feels like this info should 
-                             live in the dmnetwork, but I don't see how to access it.)*/
-                  
+                             live in the dmnetwork, but I don't see how to access it.)*/           
   /* Finite Volume Context */
   /*RiemannFunction_2WaySplit couplingflux; Need to figure out how to build a function pointer within a network component in a sensible way. */
-     
-
 
   /* boundary data structures - To be added*/
 
@@ -116,13 +113,12 @@ struct _p_FVNetwork
 
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
   PetscReal   cfl;
-  PetscInt    initial;
+  PetscInt    initial,subcase;
   PetscBool   simulation;
   PetscBool   exact;
   PetscInt    hratio;
   PetscInt    Mx;               /* Variable used to specify smallest number of cells for an edge in a problem */
 
-    
   /* Junction */
   Junction    junction;
 
@@ -167,7 +163,8 @@ PetscErrorCode FVNetworkSetupPhysics(FVNetwork);
 PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
 /* Destroy allocated data */
 PetscErrorCode FVNetworkDestroy(FVNetwork);
-
+/* Set Initial Solution */\
+PetscErrorCode FVNetworkSetInitial(PetscInt,PetscInt,FVNetwork);
 /*RHS Function*/
 PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 

@@ -472,14 +472,17 @@ int main(int argc,char *argv[])
   PetscReal         ptime,maxtime;
   DMNetworkMonitor  monitor;
   PetscErrorCode    ierr;
+  PetscMPIInt       size,rank;
   Vec               X0; 
 
   ierr = PetscInitialize(&argc,&argv,0,help);if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
   fvnet = &_p_fvnet;
   ierr = PetscMemzero(fvnet,sizeof(*fvnet));CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
 
-  /* Register limiters to be available on the command line REDO WITH UNIF LIMITERS */
+  /* Register limiters to be available on the command line */
   ierr = PetscFunctionListAdd(&limiters,"upwind"              ,Limit_Upwind_Uni);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&limiters,"lax-wendroff"        ,Limit_LaxWendroff_Uni);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&limiters,"beam-warming"        ,Limit_BeamWarming_Uni);CHKERRQ(ierr);
@@ -497,7 +500,7 @@ int main(int argc,char *argv[])
   maxtime             = 1.0;
   fvnet->Mx           = 12;
   fvnet->bufferwidth  = 0; 
-  fvnet->stencilwidth = 2;
+  fvnet->stencilwidth = 10;
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsFList("-limit","Name of flux imiter to use","",limiters,lname,lname,sizeof(lname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
@@ -509,6 +512,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-hratio","Spacing ratio","",fvnet->hratio,&fvnet->hratio,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-ts_max_time","Max Time to Run TS","",maxtime,&maxtime,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-Mx","Smallest number of cells for an edge","",fvnet->Mx,&fvnet->Mx,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-stencilwidth","Width of reconstruction stencil (for debugging)","",fvnet->stencilwidth,&fvnet->stencilwidth,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewdm","View DMNetwork Info in stdout","",viewdm,&viewdm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
@@ -530,7 +534,7 @@ int main(int argc,char *argv[])
   ierr = FVNetworkCreate(fvnet->initial,fvnet,fvnet->Mx);CHKERRQ(ierr);
   /* Create DMNetwork */
   ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet->network);CHKERRQ(ierr);
-  ierr = DMNetworkMonitorCreate(fvnet->network,&monitor);CHKERRQ(ierr);
+  if (size == 1) ierr = DMNetworkMonitorCreate(fvnet->network,&monitor);CHKERRQ(ierr);
   /* Set Network Data into the DMNetwork (on proc[0]) */ 
   ierr = FVNetworkSetComponents(fvnet);CHKERRQ(ierr);
   /* Delete unneeded data */
@@ -571,20 +575,29 @@ int main(int argc,char *argv[])
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
 
   /* Compute initial conditions and starting time step */
-  ierr = VecSet(X0,20);CHKERRQ(ierr);
+  ierr = VecSet(X0,1.0);CHKERRQ(ierr);
   ierr = FVNetRHS(ts,0,X0,fvnet->X,fvnet);CHKERRQ(ierr); 
-  ierr = VecCopy(X0,fvnet->X);CHKERRQ(ierr);                        
+  /* ierr = VecCopy(X0,fvnet->X);CHKERRQ(ierr); */ 
+  ierr = VecCopy(X0,fvnet->X);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,fvnet->cfl/fvnet->cfl_idt);CHKERRQ(ierr);
-  ierr = TSSetFromOptions(ts);CHKERRQ(ierr); /* Take runtime options */
+  ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
+  if (size == 1) ierr = TSMonitorSet(ts, TSDMNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+
 
   ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
   ierr = TSGetSolveTime(ts,&ptime);CHKERRQ(ierr);
   ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
-  ierr = TSMonitorSet(ts, TSDMNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+  
+
+  if (viewdm) {
+    if (!rank) printf("ts X:\n");
+    ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
 
   /* Clean up */
   ierr = VecDestroy(&X0);CHKERRQ(ierr);
   ierr = FVNetworkDestroy(fvnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
+  if (size == 1) ierr = DMNetworkMonitorDestroy(&monitor);CHKERRQ(ierr);
   ierr = DMDestroy(&fvnet->network);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&limiters);CHKERRQ(ierr);
