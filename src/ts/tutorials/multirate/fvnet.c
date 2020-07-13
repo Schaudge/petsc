@@ -71,6 +71,48 @@ PetscErrorCode FVNetworkCreate(PetscInt initial,FVNetwork fvnet, PetscInt Mx)
       }
     }
     break;
+    case 1:
+    /* Case 0: */
+    /* =================================================
+    (OUTFLOW) v0 --E0--> v1 (OUTFLOW)
+    ====================================================  */
+    nfvedge = 1;
+    fvnet->nedge   = nfvedge;
+    fvnet->nvertex = nfvedge + 1;
+
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices = 0;
+    numEdges    = 0;
+    edgelist    = NULL;
+    if (!rank) {
+      numVertices = fvnet->nvertex;
+      numEdges    = fvnet->nedge;
+
+      ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+      for (i=0; i<numEdges; i++) {
+        edgelist[2*i] = i; edgelist[2*i+1] = i+1;
+      }
+
+      /* Add network components */
+      /*------------------------*/
+      ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+
+      /* vertex */
+      junctions[0].type = OUTFLOW;
+      junctions[1].type = OUTFLOW;
+
+      for(i=0; i<numVertices; i++){
+        junctions[i].x = i*1.0; 
+      }
+
+      /* Edge */ 
+      fvedges[0].nnodes = Mx; 
+
+      for(i=0; i<numEdges;i++){
+          fvedges[i].h = 1.0/(PetscReal)fvedges[i].nnodes; 
+      }
+    }
+    break;
   default:
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
   }
@@ -97,7 +139,7 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   Junction          junctions; 
   PetscInt          KeyEdge,KeyJunction,KeyFlux;
   PetscInt          i,e,v,eStart,eEnd,vStart,vEnd,dof = fvnet->physics.dof,vfrom,vto;
-  PetscInt          nnodes_edge,nnodes_vertex,nedges_tmp; 
+  PetscInt          nedges_tmp; 
   PetscInt          *edgelist = NULL,*edgelists[1];
   DM                networkdm = fvnet->network;
   PetscInt          nedges,nvertices; /* local num of edges and vertices */
@@ -137,10 +179,6 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
      yet to distribute the network, all data is on proc[0]. */
   for (e = eStart; e < eEnd; e++) {
     ierr = DMNetworkAddComponent(networkdm,e,KeyEdge,&fvedge[e-eStart]);CHKERRQ(ierr);
-    /* Add number of variables to each edge. An edge does not own all 
-       of the data belonging to its discretization. The connected vertices 
-       each own the nearest bufferwidth+stencilwidth cells. */
-    nnodes_edge = dof*(fvedge[e-eStart].nnodes - 2*(fvnet->bufferwidth+fvnet->stencilwidth)); 
     ierr = DMNetworkAddNumVariables(networkdm,e,dof*fvedge[e-eStart].nnodes);CHKERRQ(ierr);
 
 /* Monitoring stuff, to be re-added once I understand how it works. 
@@ -151,15 +189,12 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
     }
 */    
   }
-  /* Add Junction component to all local vertices, including ghost vertices! However
+  /* Add Junction component to all local vertices. However
      all data is currently assumed to be on proc[0]. Also add the flux component */
   for (v = vStart; v < vEnd; v++) {
     ierr = DMNetworkAddComponent(networkdm,v,KeyJunction,&junctions[v-vStart]);CHKERRQ(ierr);
-    /* Add number of variables to vertex. Each vertex owns bufferwidth+stencilwidth cells 
-       from each connected edge.*/
-    ierr = DMNetworkGetSupportingEdges(networkdm,v,&nedges_tmp,&edges);CHKERRQ(ierr); /* will NULL work? --it does not. */
-    nnodes_vertex = dof*(fvnet->bufferwidth+fvnet->stencilwidth)*nedges_tmp;
-    ierr = DMNetworkSetComponentNumVariables(networkdm,v,JUNCTION,nnodes_vertex);CHKERRQ(ierr);
+    ierr = DMNetworkGetSupportingEdges(networkdm,v,&nedges_tmp,&edges);CHKERRQ(ierr);
+    ierr = DMNetworkSetComponentNumVariables(networkdm,v,JUNCTION,0);CHKERRQ(ierr);
     /* Add data structure for moving the vertex fluxes around. Also used to store 
        vertex reconstruction information. A working vector used for data storage 
        and message passing.*/
@@ -183,10 +218,8 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
       vfrom = cone[0];
       vto   = cone[1];
       if(v==vto){
-        fvedge->vto_offset = dof*i*(fvnet->stencilwidth+fvnet->bufferwidth); 
         fvedge->vto_recon_offset = dof*i; 
       } else if(v==vfrom){
-        fvedge->vfrom_offset = dof*i*(fvnet->stencilwidth+fvnet->bufferwidth); 
         fvedge->vfrom_recon_offset = dof*i; 
       } else {
         SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"v %D != vfrom or vto from supporting edge %D",v,e);
@@ -225,7 +258,7 @@ PetscErrorCode FVNetworkSetupPhysics(FVNetwork fvnet){
   for (v=vStart; v<vEnd; v++) {
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
     ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,FLUX,v,&offset);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offset);CHKERRQ(ierr);
     /* Iterate through the (local) connected edges. Each ghost vertex of a vertex connects to a 
        a non-overlapping set of local edges. This is why we can iterate in this way without 
        potentially conflicting our scatters.*/
@@ -256,7 +289,7 @@ PetscErrorCode FVNetworkSetupPhysics(FVNetwork fvnet){
      and build the junction component data structure dir. */
   for (v=vStart; v<vEnd; v++) {
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,FLUX,v,&offset);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offset);CHKERRQ(ierr);
     ierr = PetscMalloc1(junction->numedges,&(junction->dir));CHKERRQ(ierr); /* Freed in the final cleanup call*/
     /* Fill in the local dir data*/
     for(i=0; i<junction->numedges; i++) { 
@@ -286,7 +319,7 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet) {
   Junction       junction;
 
   PetscFunctionBegin; 
-  /* Still need to destroy my dynamic componenets ... */
+  /* Still need to destroy my dynamic components ... */
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);CHKERRQ(ierr);
   for (v=vStart; v<vEnd; v++) {
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
@@ -341,12 +374,11 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscErrorCode ierr;
   PetscInt       i,j,dof = fvnet->physics.dof;
   PetscReal      h,cfl_idt = 0;
-  PetscScalar    *f,*uL,*uR;
-  PetscInt       v,e,vStart,vEnd,eStart,eEnd,vfrom,vto,vto_offset,vfrom_offset;
-  PetscInt       offsetf,offset,dataoffset,offsetv,vwidth;
-  const PetscInt *cone;
+  PetscScalar    *f,*uL,*uR,*xarr;
+  PetscInt       v,e,vStart,vEnd,eStart,eEnd,vfrom,vto;
+  PetscInt       offsetf,offset,vwidth,nedges,nnodes;
+  const PetscInt *cone,*edges;
   Vec            localX = fvnet->localX,localF = fvnet->localF; 
-  PetscScalar    *xarr;
   FVEdge         fvedge; 
   Junction       junction;
   PetscReal      maxspeed; 
@@ -354,43 +386,37 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscFunctionBeginUser;
   ierr = VecZeroEntries(F);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(fvnet->network,fvnet->X,INSERT_VALUES,localX);CHKERRQ(ierr); 
-  ierr = DMGlobalToLocalEnd(fvnet->network,fvnet->X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&f);CHKERRQ(ierr); /* Why do I need to do these things through a localF? going to be real annoying with multirate */
+  ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
   vwidth = (fvnet->stencilwidth+fvnet->bufferwidth);
-  /* Iterate through all vertices (including ghosts) and compute the flux data for the vertex.  */
+  /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);
   for (v=vStart; v<vEnd; v++){
-    /* Reconstruct all data points and then compute vertex flux data (either coupling flux or boundary conditions) */
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,FLUX,v,&offsetf);
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,JUNCTION,v,&offset);
+    /* Reconstruct all local edge data points */
+    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
     switch(junction->type){
         case JUNCT:
-            for (i=0; i<junction->numedges; i++){
-            /* Hard coded 2 cell one-side reconstruction. To be improved */
-            dataoffset = dof*i*(fvnet->stencilwidth+fvnet->bufferwidth); 
-                for(j=0; j<dof; j++){
-                    xarr[offsetf+i*dof+j] = 0.5*(3*xarr[offset+dataoffset+j] - xarr[offset+dataoffset+dof+j]); /* This assumes a stencil width of at least 2 */
-                }
-            }
-            /* Now compute the coupling flux */
-            if (junction->numedges > 2){
-                SETERRQ1(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has more than 2 connected edges. Coupling flux supports only up to 2 edges currently",v);
-            } else { /* Note that in creation a junction must have at least 2 connected edges */
-                    if (junction->dir[0] == EDGEIN){
-                        uL = xarr+offsetf;
-                        uR = xarr+offsetf+dof;
-                    } else {
-                        uL = xarr+offsetf+dof;
-                        uR = xarr+offsetf;
-                    }
-                fvnet->couplingflux(fvnet->physics.user,dof,uL,uR,fvnet->flux,&maxspeed);
-                for(i=0; i<junction->numedges; i++){
-                    for(j=0; j<dof; j++){
-                        xarr[offsetf+i*dof+j] = fvnet->flux[j];
-                    }
+            ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
+            for (i=0; i<nedges; i++){
+                e = edges[i];
+                ierr = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+                ierr = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
+                ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+                vfrom = cone[0];
+                vto = cone[1];
+                /* Hard coded 2 cell one-side reconstruction. To be improved */
+                if (v == vfrom) {
+                  for(j=0; j<dof; j++) {
+                    f[offsetf+fvedge->vfrom_recon_offset+j] = 0.5*(3*xarr[offset+j] - xarr[offset+dof+j]);
+                  }
+                } else if(v == vto){
+                  for(j=0; j<dof; j++) {
+                    nnodes = fvedge->nnodes;
+                    f[offsetf+fvedge->vto_recon_offset+j] = 0.5*(3*xarr[offset+(nnodes-1)*dof+j] - xarr[offset+(nnodes-2)*dof+j]); 
+                  }
                 }
             }
             break;
@@ -398,14 +424,35 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             if (junction->numedges != 1) {
                 SETERRQ1(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"number of edge of vertex %D != 1 and is a OUTFLOW vertex. OUTFLOW vertices require exactly one edge",v);
             } else {
-                /* Ghost cell Reconstruction Technique: Repeat the last cell. */
-                ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset],&xarr[offset],&xarr[offset+dof]);CHKERRQ(ierr); /* Assumes stencil width of at least 2 */
-                /* &fvnet->uLR[0] gives the reconstructed value on the right of the interface. The left interface reconstructed value 
+                ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
+                e = edges[0];
+                ierr = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+                ierr = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
+                ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+                vfrom = cone[0];
+                vto = cone[1];
+                /* Either take the data from the beginning of the edge or the end */
+                if (v == vfrom) {
+                  /* Ghost cell Reconstruction Technique: Repeat the last cell. */
+                  ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset],&xarr[offset],&xarr[offset+dof]);CHKERRQ(ierr);
+                  /* &fvnet->uLR[0] gives the reconstructed value on the right of the interface. The left interface reconstructed value 
                    is just the cell average to the right of the boundary. */
-                ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,&xarr[offset],fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-                /* place flux in the flux component */
-                for(j=0; j<dof; j++) {
-                        xarr[offsetf+j] = fvnet->flux[j];
+                  ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,&xarr[offset],fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
+                  /* place flux in the flux component */
+                  for(j=0; j<dof; j++) {
+                    f[offsetf+j] = fvnet->flux[j];
+                  }
+                } else if(v == vto){
+                  nnodes = fvedge->nnodes;
+                   /* Ghost cell Reconstruction Technique: Repeat the last cell. */
+                  ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset+(nnodes-1)*dof],&xarr[offset+(nnodes-1)*dof],&xarr[offset+(nnodes-2)*dof]);CHKERRQ(ierr);
+                  /* &fvnet->uLR[0] gives the reconstructed value on the right of the interface. The left interface reconstructed value 
+                   is just the cell average to the right of the boundary. */
+                  ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,&xarr[offset+(nnodes-1)*dof],fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
+                  /* place flux in the flux component */
+                  for(j=0; j<dof; j++) {
+                    f[offsetf+j] = fvnet->flux[j];
+                  }
                 }
             }
             break;
@@ -413,25 +460,65 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
     } 
   }
-  /* Now all the vertex flux data is available. */
-  /* Iterate through the edges and update the cell data 'belonging' to that edge */
+  /* Now communicate the flux/reconstruction data to all processors */
+  ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(fvnet->network,localF,ADD_VALUES,F);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(fvnet->network,localF,ADD_VALUES,F);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(fvnet->network,F,INSERT_VALUES,localF);CHKERRQ(ierr); 
+  ierr = DMGlobalToLocalEnd(fvnet->network,F,INSERT_VALUES,localF);CHKERRQ(ierr);
+  ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
+  /* Now All processors have the reconstruction data to compute the coupling flux */
+  for (v=vStart; v<vEnd; v++){
+    /* Reconstruct all local edge data points */
+    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
+    switch(junction->type){
+        case JUNCT:
+             /* Now compute the coupling flux */
+            if (junction->numedges > 2){
+                SETERRQ1(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has more than 2 connected edges. Coupling flux supports only up to 2 edges currently",v);
+            } else { /* Note that in creation a junction must have at least 2 connected edges */
+                    if (junction->dir[0] == EDGEIN){
+                        uL = f+offsetf;
+                        uR = f+offsetf+dof;
+                    } else { /* EDGEOUT */
+                        uL = f+offsetf+dof;
+                        uR = f+offsetf;
+                    }
+                fvnet->couplingflux(fvnet->physics.user,dof,uL,uR,fvnet->flux,&maxspeed);
+                for(i=0; i<junction->numedges; i++){
+                    for(j=0; j<dof; j++){
+                        f[offsetf+i*dof+j] = fvnet->flux[j];
+                    }
+                }
+            }
+            break;
+        case OUTFLOW: 
+           /* Requires no new computation */
+            break;
+        default:
+            SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
+    } 
+  }
+  /* Now all the vertex flux data is available on each processor. */
+  /* Iterate through the edges and update the cell data belonging to that edge */
   /* WE ASSUME THAT localF HAS THE SAME STRUCTURE AS localX! FOR THIS UPDATE */
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
   for(e=eStart; e<eEnd; e++){
-        /* The cells are updated in the order 1) from vertex data 2) edge data 3) to vertex data */
+        /* The cells are updated in the order 1) vfrom vertex flux 2) special 2nd flux (requires special reconstruction) 3) interior cells 
+           4) 2nd to last flux (requires special reconstruction) 5) vto vertex flux */
         ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
         ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
         vfrom = cone[0];
         vto   = cone[1];
         ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
-        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,JUNCTION,vfrom,&offsetv);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,FLUX,vfrom,&offsetf);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,FVEDGE,e,&offset);CHKERRQ(ierr);
-        vfrom_offset = fvedge->vfrom_offset;
+        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
+        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
         h = fvedge->h;
+        nnodes = fvedge->nnodes;
         /* Update the vfrom vertex flux for this edge */
         for(j=0; j<dof; j++) {
-            f[offsetv+vfrom_offset+j] += xarr[fvedge->vfrom_recon_offset+j]/h;
+            f[offset+j] += f[fvedge->vfrom_recon_offset+j+offsetf]/h;
         }
         /* Now reconstruct the value at the left cell of the 1/2 interface. I have to redo code here, should alter 
          how I compute things to avoid this.  */
@@ -439,12 +526,12 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             case JUNCT:
             /* Hard coded 2 cell one-side reconstruction. To be improved */
                 for(j=0; j<dof; j++){
-                    fvnet->uPlus[j] = 0.5*(3*xarr[offsetv+vfrom_offset+j] + xarr[offsetv+vfrom_offset+dof+j]); /* This assumes a stencil width of at least 2 */
+                    fvnet->uPlus[j] = 0.5*(xarr[offset+j] + xarr[offset+dof+j]);
                 }
                 break;
             case OUTFLOW: 
                 /* Ghost cell Reconstruction Technique: Repeat the last cell. */
-                ierr = FVNetCharacteristicLimit(fvnet,&xarr[offsetv+vfrom_offset],&xarr[offsetv],&xarr[offsetv+vfrom_offset+dof]);CHKERRQ(ierr); /* Assumes stencil width of at least 2 */
+                ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset],&xarr[offset],&xarr[offset+dof]);CHKERRQ(ierr);
                 uR = fvnet->uLR+dof; 
                 for(j=0; j<dof; j++){
                     fvnet->uPlus[j] = uR[j]; 
@@ -453,44 +540,8 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             default:
             SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
         } 
-        /* Iterate through the cells owned by the vfrom vertex */
-        for(i=1; i<vwidth-2; i++) {
-            ierr = FVNetCharacteristicLimit(fvnet,&xarr[offsetv+vfrom_offset+(i-1)*dof],&xarr[offsetv+vfrom_offset+i*dof],&xarr[offsetv+vfrom_offset+(i+1)*dof]);CHKERRQ(ierr);
-            ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-            for(j=0; j<dof; j++){
-              fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
-            }
-            cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
-            for(j=0; j<dof; j++) {
-                f[offsetv+vfrom_offset+(i-1)*dof+j] -= fvnet->flux[j]/h; 
-                f[offsetv+vfrom_offset+i*dof+j] += fvnet->flux[j]/h; 
-            }
-        }
-        /* Different update for the interface one index to the left the boundary of the vertex data and the cell data. 
-        Require fvedge data for reconstruction */
-        ierr = FVNetCharacteristicLimit(fvnet,&xarr[offsetv+vfrom_offset+(vwidth-2)*dof],&xarr[offsetv+vfrom_offset+(vwidth-1)*dof],&xarr[offset]);CHKERRQ(ierr);
-        ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-         for(j=0; j<dof; j++){
-              fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
-        }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
-        for(j=0; j<dof; j++) {
-            f[offsetv+vfrom_offset+(vwidth-2)*dof+j] -= fvnet->flux[j]/h; 
-            f[offsetv+vfrom_offset+(vwidth-1)*dof+j] += fvnet->flux[j]/h; 
-        }
-        /* Now Compute Flux on the interface between vertex data and cell data */
-        ierr = FVNetCharacteristicLimit(fvnet,&xarr[offsetv+vfrom_offset+(vwidth-1)*dof],&xarr[offset],&xarr[offset+dof]);CHKERRQ(ierr);
-        ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-        for(j=0; j<dof; j++){
-          fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
-        }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
-        for(j=0; j<dof; j++) {
-            f[offsetv+vfrom_offset+(vwidth-1)*dof+j] -= fvnet->flux[j]/h; 
-            f[offset+j]                              += fvnet->flux[j]/h; 
-        }
         /* Iterate through the interior interfaces of the fvedge */
-        for(i=1; i<(fvedge->nnodes - 2); i++){
+        for(i=1; i<(nnodes - 1); i++){
             ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset+(i-1)*dof],&xarr[offset+i*dof],&xarr[offset+(i+1)*dof]);CHKERRQ(ierr);
             ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
             for(j=0; j<dof; j++){
@@ -498,61 +549,24 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             }
             cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
             for(j=0; j<dof; j++) {
-                f[offset+(i-1)*dof] -= fvnet->flux[j]/h;
-                f[offset+i*dof]     += fvnet->flux[j]/h;
+                f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
+                f[offset+i*dof+j]     += fvnet->flux[j]/h;
             }
         }
-        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,JUNCTION,vto,&offsetv);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,FLUX,vto,&offsetf);CHKERRQ(ierr);
+        ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
         ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
-        vto_offset = fvedge->vto_offset;
-        /* Compute the interface flux one index to the left of the vto vertex boundary */
-        ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset+(fvedge->nnodes-2)*dof],&xarr[offset+(fvedge->nnodes-2)*dof],&xarr[offsetv+vto_offset+(vwidth-1)*dof]);CHKERRQ(ierr);
-        ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-        for(j=0; j<dof; j++){
-          fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
-        }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
-        for(j=0; j<dof; j++) {
-            f[offset+(fvedge->nnodes-2)*dof] -= fvnet->flux[j]/h; 
-            f[offset+(fvedge->nnodes-1)*dof] += fvnet->flux[j]/h;
-        }
-        /* Compute the flux on the interface between fvedge and vertex vto */
-        ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset+(fvedge->nnodes-1)*dof],&xarr[offsetv+vto_offset+(vwidth-1)*dof],&xarr[offsetv+vto_offset+(vwidth-2)*dof]);CHKERRQ(ierr);
-        ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-        for(j=0; j<dof; j++){
-          fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
-        }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
-        for(j=0; j<dof; j++) {
-            f[offset+(fvedge->nnodes-1)*dof]     -= fvnet->flux[j]/h; 
-            f[offsetv+vto_offset+(vwidth-1)*dof] += fvnet->flux[j]/h;
-        }
-        /* Iterate through the vto vertex data */
-        for(i = vwidth-2; i>0; i--) {
-            ierr = FVNetCharacteristicLimit(fvnet,&xarr[offsetv+vto_offset+(i+1)*dof],&xarr[offsetv+vto_offset+i*dof],&xarr[offsetv+vto_offset+(i-1)*dof]);CHKERRQ(ierr);
-            ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-            for(j=0; j<dof; j++){
-              fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
-            }
-            cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
-            for(j=0; j<dof; j++) {
-            f[offsetv+vto_offset+(i+1)*dof] -= fvnet->flux[j]/h; 
-            f[offsetv+vto_offset+i*dof]     += fvnet->flux[j]/h;
-            }
-        }
         /* Now reconstruct the value at the 2nd to last interface . I have to redo code here, should alter 
            how I compute things to avoid this.  */
         switch(junction->type) {
             case JUNCT:
             /* Hard coded 2 cell one-side reconstruction. To be improved */
                 for(j=0; j<dof; j++){
-                    fvnet->uLR[j] = 0.5*(3*xarr[offsetv+vto_offset+j] + xarr[offsetv+vto_offset+dof+j]); /* This assumes a stencil width of at least 2 */
+                    fvnet->uLR[j] = 0.5*(xarr[offset+(nnodes-1)*dof+j] + xarr[offset+(nnodes-2)*dof+j]);
                 }
                 break;
             case OUTFLOW: 
                 /* Ghost cell Reconstruction Technique: Repeat the last cell. */
-                ierr = FVNetCharacteristicLimit(fvnet,&xarr[offsetv+vto_offset+dof],&xarr[offsetv],&xarr[offsetv]);CHKERRQ(ierr); /* Assumes stencil width of at least 2 */
+                ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset+dof*(nnodes-2)],&xarr[offset+dof*(nnodes-1)],&xarr[offset+dof*(nnodes-1)]);CHKERRQ(ierr);
                 break;
             default:
             SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
@@ -560,12 +574,12 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
         cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
         for(j=0; j<dof; j++) {
-            f[offsetv+vto_offset+dof] -= fvnet->flux[j]/h; 
-            f[offsetv+vto_offset]     += fvnet->flux[j]/h;
+            f[offset+dof*(nnodes-2)+j]  -= fvnet->flux[j]/h; 
+            f[offset+dof*(nnodes-1)+j] += fvnet->flux[j]/h;
         }
         /* Update the vfrom vertex flux for this edge */
         for(j=0; j<dof; j++) {
-            f[offsetv+vto_offset+j] -= xarr[fvedge->vto_recon_offset+j]/h;
+            f[offset+dof*(nnodes-1)+j] -= f[fvedge->vto_recon_offset+j+offsetf]/h;
         }
         /* We have now updated the rhs for all data for this edge. */
     }
