@@ -141,7 +141,6 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   PetscInt          i,j,e,v,eStart,eEnd,vStart,vEnd,dof = fvnet->physics.dof,vfrom,vto;
   PetscInt          nedges_tmp; 
   PetscInt          *edgelist = NULL,*edgelists[1];
-  DM                networkdm = fvnet->network;
   PetscInt          nedges,nvertices; /* local num of edges and vertices */
   FVEdge            fvedge;
   Junction          junction;
@@ -162,25 +161,25 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   fvedge      = fvnet->fvedge;
 
   /* Set up the network layout */
-  ierr = DMNetworkSetSizes(networkdm,1,&nvertices,&nedges,0,NULL);CHKERRQ(ierr);
+  ierr = DMNetworkSetSizes(fvnet->network,1,&nvertices,&nedges,0,NULL);CHKERRQ(ierr);
 
   /* Add local edge connectivity */
   edgelists[0] = edgelist;
-  ierr = DMNetworkSetEdgeList(networkdm,edgelists,NULL);CHKERRQ(ierr);
-  ierr = DMNetworkLayoutSetUp(networkdm);CHKERRQ(ierr);
+  ierr = DMNetworkSetEdgeList(fvnet->network,edgelists,NULL);CHKERRQ(ierr);
+  ierr = DMNetworkLayoutSetUp(fvnet->network);CHKERRQ(ierr);
 
-  ierr = DMNetworkGetEdgeRange(networkdm,&eStart,&eEnd);CHKERRQ(ierr);
-  ierr = DMNetworkGetVertexRange(networkdm,&vStart,&vEnd);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);CHKERRQ(ierr);
 
-  ierr = DMNetworkRegisterComponent(networkdm,"junctionstruct",sizeof(struct _p_Junction),&KeyJunction);CHKERRQ(ierr);
-  ierr = DMNetworkRegisterComponent(networkdm,"fvedgestruct",sizeof(struct _p_FVEdge),&KeyEdge);CHKERRQ(ierr);
-  ierr = DMNetworkRegisterComponent(networkdm,"empty",0,&KeyFlux);CHKERRQ(ierr);
+  ierr = DMNetworkRegisterComponent(fvnet->network,"junctionstruct",sizeof(struct _p_Junction),&KeyJunction);CHKERRQ(ierr);
+  ierr = DMNetworkRegisterComponent(fvnet->network,"fvedgestruct",sizeof(struct _p_FVEdge),&KeyEdge);CHKERRQ(ierr);
+  ierr = DMNetworkRegisterComponent(fvnet->network,"empty",0,&KeyFlux);CHKERRQ(ierr);
 
   /* Add FVEdge component to all local edges. Note that as we have 
      yet to distribute the network, all data is on proc[0]. */
   for (e = eStart; e < eEnd; e++) {
-    ierr = DMNetworkAddComponent(networkdm,e,KeyEdge,&fvedge[e-eStart]);CHKERRQ(ierr);
-    ierr = DMNetworkAddNumVariables(networkdm,e,dof*fvedge[e-eStart].nnodes);CHKERRQ(ierr);
+    ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,&fvedge[e-eStart]);CHKERRQ(ierr);
+    ierr = DMNetworkAddNumVariables(fvnet->network,e,dof*fvedge[e-eStart].nnodes);CHKERRQ(ierr);
 
     /* Add a monitor for every edge in the network, label the data according the user provided physics
  */
@@ -194,14 +193,14 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   /* Add Junction component to all local vertices. However
      all data is currently assumed to be on proc[0]. Also add the flux component */
   for (v = vStart; v < vEnd; v++) {
-    ierr = DMNetworkAddComponent(networkdm,v,KeyJunction,&junctions[v-vStart]);CHKERRQ(ierr);
-    ierr = DMNetworkGetSupportingEdges(networkdm,v,&nedges_tmp,&edges);CHKERRQ(ierr);
-    ierr = DMNetworkSetComponentNumVariables(networkdm,v,JUNCTION,0);CHKERRQ(ierr);
+    ierr = DMNetworkAddComponent(fvnet->network,v,KeyJunction,&junctions[v-vStart]);CHKERRQ(ierr);
+    ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges_tmp,&edges);CHKERRQ(ierr);
+    ierr = DMNetworkSetComponentNumVariables(fvnet->network,v,JUNCTION,0);CHKERRQ(ierr);
     /* Add data structure for moving the vertex fluxes around. Also used to store 
        vertex reconstruction information. A working vector used for data storage 
        and message passing.*/
-    ierr = DMNetworkAddComponent(networkdm,v,KeyFlux,NULL);CHKERRQ(ierr);
-    ierr = DMNetworkSetComponentNumVariables(networkdm,v,FLUX,dof*nedges_tmp);CHKERRQ(ierr);
+    ierr = DMNetworkAddComponent(fvnet->network,v,KeyFlux,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkSetComponentNumVariables(fvnet->network,v,FLUX,dof*nedges_tmp);CHKERRQ(ierr);
   }
   DMSetUp(fvnet->network);
   /* Build the edge offset data to allow for a sensible local ordering of the 
@@ -332,6 +331,7 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet) {
   ierr = PetscFree4(fvnet->R,fvnet->Rinv,fvnet->cjmpLR,fvnet->cslope);CHKERRQ(ierr);
   ierr = PetscFree4(fvnet->uLR,fvnet->flux,fvnet->speeds,fvnet->uPlus);CHKERRQ(ierr);
   ierr = VecDestroy(&fvnet->X);CHKERRQ(ierr);
+  ierr = VecDestroy(&fvnet->Ftmp);CHKERRQ(ierr);
   ierr = VecDestroy(&fvnet->localX);CHKERRQ(ierr);
   ierr = VecDestroy(&fvnet->localF);CHKERRQ(ierr);  
   PetscFunctionReturn(0); 
@@ -556,7 +556,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             }
         }
         ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
+        ierr  = DMNetworkGetComponent(fvnet->network,vto,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
         /* Now reconstruct the value at the 2nd to last interface . I have to redo code here, should alter 
            how I compute things to avoid this.  */
         switch(junction->type) {
