@@ -2132,7 +2132,7 @@ static PetscErrorCode hypre_array_destroy(void *ptr)
 {
    PetscFunctionBegin;
 #if defined(HYPRE_USING_CUDA)
-   hypre_TFree(ptr,HYPRE_MEMORY_SHARED);
+   hypre_TFree(ptr,HYPRE_MEMORY_DEVICE);
 #else
    hypre_TFree(ptr,HYPRE_MEMORY_HOST);
 #endif

@@ -1849,6 +1849,7 @@ PetscErrorCode VecSetInf(Vec xin)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecific(xin,VEC_CLASSID,1);
   ierr = VecGetArray(xin,&xx);CHKERRQ(ierr);
   for (i=0; i<n; i++) xx[i] = inf;
   ierr = VecRestoreArray(xin,&xx);CHKERRQ(ierr);
