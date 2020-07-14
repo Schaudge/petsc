@@ -238,7 +238,7 @@ PetscErrorCode DMTSCheckFromOptions(TS ts, Vec u)
   PetscFunctionReturn(0);
 }
 
-PETSC_INTERN PetscErrorCode DMPlexLandFormLandau_Internal(Vec, Mat, const PetscInt, void *);
+PETSC_EXTERN PetscErrorCode DMPlexLandFormLandau_Internal(Vec, Mat, const PetscInt, void *);
 /*@
   DMPlexLandIFunction
 @*/
