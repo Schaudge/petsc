@@ -4075,9 +4075,9 @@ PetscErrorCode MatSeqAIJCheckInode(Mat A)
   }
 
   {
-    PetscBool is_cudatype;
-    ierr = PetscObjectTypeCompareAny((PetscObject)A,&is_cudatype, MATAIJCUSPARSE, MATSEQAIJCUSPARSE, MATMPIAIJCUSPARSE, MATAIJVIENNACL, MATSEQAIJVIENNACL, MATMPIAIJVIENNACL,"");CHKERRQ(ierr);
-    if (is_cudatype) {
+    PetscBool is_gputype;
+    ierr = PetscObjectTypeCompareAny((PetscObject)A,&is_gputype, MATAIJCUSPARSE, MATSEQAIJCUSPARSE, MATMPIAIJCUSPARSE, MATAIJVIENNACL, MATSEQAIJVIENNACL, MATMPIAIJVIENNACL,MATAIJAXB,MATSEQAIJAXB,MATMPIAIJAXB,"");CHKERRQ(ierr);
+    if (is_gputype) {
       ierr = PetscInfo(A,"Not using Inode routines on GPU matrix\n");CHKERRQ(ierr);
       ierr = PetscFree(ns);CHKERRQ(ierr);
       a->inode.node_count       = 0;

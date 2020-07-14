@@ -17,7 +17,7 @@ PETSC_EXTERN PetscErrorCode VecValidValues(Vec vec,PetscInt argnum,PetscBool beg
   const PetscScalar *x;
 
   PetscFunctionBegin;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_LIBAXB)
   if ((vec->petscnative || vec->ops->getarray) && (vec->offloadmask & PETSC_OFFLOAD_CPU)) {
 #else
   if (vec->petscnative || vec->ops->getarray) {
@@ -1551,39 +1551,59 @@ $       call VecRestoreArray(x,x_array,i_x,ierr)
 PetscErrorCode VecGetArray(Vec x,PetscScalar **a)
 {
   PetscErrorCode ierr;
+#if defined(PETSC_HAVE_CUDA)
+   PetscBool      is_cuda = PETSC_FALSE;
+#endif  
 #if defined(PETSC_HAVE_VIENNACL)
   PetscBool      is_viennacltype = PETSC_FALSE;
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+  PetscBool      is_axb = PETSC_FALSE;
 #endif
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   ierr = VecSetErrorIfLocked(x,1);CHKERRQ(ierr);
   if (x->petscnative) {
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
     if (x->offloadmask == PETSC_OFFLOAD_GPU) {
 #if defined(PETSC_HAVE_VIENNACL)
       ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_viennacltype,VECSEQVIENNACL,VECMPIVIENNACL,VECVIENNACL,"");CHKERRQ(ierr);
       if (is_viennacltype) {
         ierr = VecViennaCLCopyFromGPU(x);CHKERRQ(ierr);
-      } else
-#endif
-      {
-#if defined(PETSC_HAVE_CUDA)
-        ierr = VecCUDACopyFromGPU(x);CHKERRQ(ierr);
-#endif
       }
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+      ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_axb,VECSEQAXB,VECMPIAXB,VECAXB,"");CHKERRQ(ierr);
+      if (is_axb) {
+        ierr = VecAXBCopyFromGPU(x);CHKERRQ(ierr);
+      }
+#endif
+#if defined(PETSC_HAVE_CUDA)
+      ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_cuda,VECSEQCUDA,VECMPICUDA,VECCUDA,"");CHKERRQ(ierr);
+      if (is_cuda) {
+        ierr = VecCUDACopyFromGPU(x);CHKERRQ(ierr);
+      }
+#endif
     } else if (x->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
 #if defined(PETSC_HAVE_VIENNACL)
       ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_viennacltype,VECSEQVIENNACL,VECMPIVIENNACL,VECVIENNACL,"");CHKERRQ(ierr);
       if (is_viennacltype) {
         ierr = VecViennaCLAllocateCheckHost(x);CHKERRQ(ierr);
-      } else
+      } 
 #endif
-      {
+#if defined(PETSC_HAVE_LIBAXB)
+      ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_axb,VECSEQAXB,VECMPIAXB,VECAXB,"");CHKERRQ(ierr);
+      if (is_axb) {
+         ierr = VecAXBAllocateCheckHost(x);CHKERRQ(ierr);
+      }      
+#endif
 #if defined(PETSC_HAVE_CUDA)
+      ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_cuda,VECSEQCUDA,VECMPICUDA,VECCUDA,"");CHKERRQ(ierr);
+      if (is_cuda) {
         ierr = VecCUDAAllocateCheckHost(x);CHKERRQ(ierr);
-#endif
       }
+#endif
     }
 #endif
     *a = *((PetscScalar**)x->data);
@@ -1701,26 +1721,39 @@ PetscErrorCode VecGetArrayWrite(Vec x,PetscScalar **a)
 PetscErrorCode VecGetArrayRead(Vec x,const PetscScalar **a)
 {
   PetscErrorCode ierr;
+#if defined(PETSC_HAVE_CUDA)
+   PetscBool      is_cuda = PETSC_FALSE;
+#endif  
 #if defined(PETSC_HAVE_VIENNACL)
   PetscBool      is_viennacltype = PETSC_FALSE;
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+  PetscBool      is_axb = PETSC_FALSE;
 #endif
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   if (x->petscnative) {
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
     if (x->offloadmask == PETSC_OFFLOAD_GPU) {
 #if defined(PETSC_HAVE_VIENNACL)
       ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_viennacltype,VECSEQVIENNACL,VECMPIVIENNACL,VECVIENNACL,"");CHKERRQ(ierr);
       if (is_viennacltype) {
         ierr = VecViennaCLCopyFromGPU(x);CHKERRQ(ierr);
-      } else
+      } 
 #endif
-      {
-#if defined(PETSC_HAVE_CUDA)
-        ierr = VecCUDACopyFromGPU(x);CHKERRQ(ierr);
-#endif
+#if defined(PETSC_HAVE_LIBAXB)
+      ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_axb,VECSEQAXB,VECMPIAXB,VECAXB,"");CHKERRQ(ierr);
+      if (is_axb) {
+        ierr = VecAXBCopyFromGPU(x);CHKERRQ(ierr);
       }
+#endif
+#if defined(PETSC_HAVE_CUDA)
+      ierr = PetscObjectTypeCompareAny((PetscObject)x,&is_cuda,VECSEQCUDA,VECMPICUDA,VECCUDA,"");CHKERRQ(ierr);
+      if (is_cuda) {
+        ierr = VecCUDACopyFromGPU(x);CHKERRQ(ierr);
+      }
+#endif
     }
 #endif
     *a = *((PetscScalar **)x->data);
@@ -1876,7 +1909,7 @@ PetscErrorCode VecRestoreArray(Vec x,PetscScalar **a)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   if (x->petscnative) {
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
     x->offloadmask = PETSC_OFFLOAD_CPU;
 #endif
   } else {
@@ -1943,7 +1976,7 @@ PetscErrorCode VecRestoreArrayWrite(Vec x,PetscScalar **a)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   if (x->petscnative) {
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_LIBAXB)
     x->offloadmask = PETSC_OFFLOAD_CPU;
 #endif
   } else {

@@ -13,6 +13,11 @@ PETSC_EXTERN PetscErrorCode VecCreate_SeqViennaCL(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_MPIViennaCL(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_ViennaCL(Vec);
 #endif
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode VecCreate_SeqAXB(Vec);
+PETSC_EXTERN PetscErrorCode VecCreate_MPIAXB(Vec);
+PETSC_EXTERN PetscErrorCode VecCreate_AXB(Vec);
+#endif
 #if defined(PETSC_HAVE_CUDA)
 PETSC_EXTERN PetscErrorCode VecCreate_SeqCUDA(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_MPICUDA(Vec);
@@ -47,6 +52,11 @@ PetscErrorCode VecRegisterAll(void)
   ierr = VecRegister(VECSEQVIENNACL,    VecCreate_SeqViennaCL);CHKERRQ(ierr);
   ierr = VecRegister(VECMPIVIENNACL,    VecCreate_MPIViennaCL);CHKERRQ(ierr);
   ierr = VecRegister(VECVIENNACL,       VecCreate_ViennaCL);CHKERRQ(ierr);
+#endif
+#if defined PETSC_HAVE_LIBAXB
+  ierr = VecRegister(VECSEQAXB,     VecCreate_SeqAXB);CHKERRQ(ierr);
+  ierr = VecRegister(VECMPIAXB,     VecCreate_MPIAXB);CHKERRQ(ierr);
+  ierr = VecRegister(VECAXB,        VecCreate_AXB);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_CUDA)
   ierr = VecRegister(VECSEQCUDA,    VecCreate_SeqCUDA);CHKERRQ(ierr);

@@ -96,6 +96,9 @@ typedef const char* VecType;
 #define VECSEQVIENNACL "seqviennacl"
 #define VECMPIVIENNACL "mpiviennacl"
 #define VECVIENNACL    "viennacl"   /* seqviennacl on one process and mpiviennacl on several */
+#define VECSEQAXB      "seqaxb"
+#define VECMPIAXB      "mpiaxb"
+#define VECAXB         "axb"        /* seqaxb on one process and mpiaxb on several */
 #define VECSEQCUDA     "seqcuda"
 #define VECMPICUDA     "mpicuda"
 #define VECCUDA        "cuda"       /* seqcuda on one process and mpicuda on several */
@@ -653,6 +656,10 @@ PETSC_EXTERN PetscErrorCode VecViennaCLCopyToGPUSome_Public(Vec,PetscViennaCLInd
 PETSC_EXTERN PetscErrorCode VecViennaCLCopyFromGPUSome_Public(Vec,PetscViennaCLIndices);
 PETSC_EXTERN PetscErrorCode VecCreateSeqViennaCL(MPI_Comm,PetscInt,Vec*);
 PETSC_EXTERN PetscErrorCode VecCreateMPIViennaCL(MPI_Comm,PetscInt,PetscInt,Vec*);
+#endif
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode VecCreateSeqAXB(MPI_Comm,PetscInt,Vec*);
+PETSC_EXTERN PetscErrorCode VecCreateMPIAXB(MPI_Comm,PetscInt,PetscInt,Vec*);
 #endif
 #if defined(PETSC_HAVE_CUDA)
 typedef struct _p_PetscCUDAIndices* PetscCUDAIndices;

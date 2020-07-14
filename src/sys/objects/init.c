@@ -31,6 +31,13 @@ PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
 #if defined(PETSC_HAVE_VIENNACL)
 PETSC_EXTERN PetscErrorCode PetscViennaCLInit();
 #endif
+#if defined(PETSC_HAVE_LIBAXB)
+#include <libaxb.h>
+
+extern struct axbHandle_s     *axb_handle;
+extern struct axbMemBackend_s *axb_mem_backend;
+extern struct axbOpBackend_s  *axb_op_backend;
+#endif
 
 /* ------------------------Nasty global variables -------------------------------*/
 /*
@@ -100,6 +107,7 @@ PetscErrorCode (*PetscVFPrintf)(FILE*,const char[],va_list)    = PetscVFPrintfDe
   This is needed to turn on/off GPU synchronization
 */
 PetscBool PetscViennaCLSynchronize = PETSC_FALSE;
+PetscBool PetscAXBSynchronize = PETSC_FALSE;
 PetscBool PetscCUDASynchronize = PETSC_FALSE;
 
 /* ------------------------------------------------------------------------------*/
@@ -280,6 +288,95 @@ PetscErrorCode PetscCUDAInitialize(MPI_Comm comm)
   PetscFunctionReturn(0);
 }
 #endif
+
+#if defined(PETSC_HAVE_LIBAXB)
+/*@C
+     PetscAXBInitialize - Initializes the backend provided via libaxb for hybrid devices.
+
+     Logically collective
+
+  Input Parameter:
+  comm - the MPI communicator that will utilize the hybrid devices
+
+  Options Database:
+.  -axb_view - view information about the hybrid backends in libaxb
+.  -axb_memory - select the hybrid memory domain to use. Defaults to CUDA if CUDA is available, otherwise host memory.
+.  -axb_ops - selects the hybrid operations to use for the operations on objects.
+
+@*/
+PETSC_EXTERN PetscErrorCode PetscAXBInitialize()
+{
+  PetscErrorCode         ierr;
+  char                   string[20];
+  PetscBool              flg;
+  struct axbMemBackend_s **mem_backends;
+  struct axbOpBackend_s  **op_backends;
+  size_t                 num_backends,i;
+  const char             *backend_name;
+
+  PetscFunctionBegin;
+  ierr = axbInit(&axb_handle);CHKERRQ(ierr);
+  ierr = axbMemBackendGetAll(axb_handle, &mem_backends, &num_backends);CHKERRQ(ierr);
+  axb_mem_backend = mem_backends[num_backends-1];
+  ierr = axbOpBackendGetAll(axb_handle, &op_backends, &num_backends);CHKERRQ(ierr);
+  axb_op_backend = op_backends[num_backends-1];
+
+  /* Memory backend selection: host, CUDA, OpenCL, etc.*/
+  ierr = PetscOptionsGetString(NULL,NULL,"-axb_memory",string,12,&flg);CHKERRQ(ierr);
+  if (flg) {
+    for (i=0; i<num_backends; ++i) {
+      ierr = axbMemBackendGetName(mem_backends[i], &backend_name);CHKERRQ(ierr);
+      if (strcmp(backend_name, string) == 0) {
+        axb_mem_backend = mem_backends[i];
+        break;
+      }
+    }
+    if (i==num_backends) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"libaxb error: Memory backend not recognized or available: %s.\n Pass -axb_view to see available backends.\n", string);
+  }
+
+  /* Operations backend selection: host, CUDA, CUBLAS, clSparse, etc. */
+  ierr = PetscOptionsGetString(NULL,NULL,"-axb_ops",string,12,&flg);CHKERRQ(ierr);
+  if (flg) {
+    for (i=0; i<num_backends; ++i) {
+      ierr = axbOpBackendGetName(op_backends[i], &backend_name);CHKERRQ(ierr);
+      if (strcmp(backend_name, string) == 0) {
+        axb_op_backend = op_backends[i];
+        break;
+      }
+    }
+    if (i==num_backends) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"libaxb error: Operations backend not recognized or available: %s.\n Pass -axb_view to see available backends.\n", string);
+  }
+
+  /* Print available backends */
+  ierr = PetscOptionsHasName(NULL,NULL,"-axb_view",&flg);CHKERRQ(ierr);
+  if (flg) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Memory backends available: ");CHKERRQ(ierr);
+    for (i=0; i<num_backends; ++i) {
+      ierr = axbMemBackendGetName(mem_backends[i], &backend_name);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "%s ", backend_name);CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");CHKERRQ(ierr);
+
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Operations backends available: ");CHKERRQ(ierr);
+    for (i=0; i<num_backends; ++i) {
+      ierr = axbOpBackendGetName(op_backends[i], &backend_name);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "%s ", backend_name);CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");CHKERRQ(ierr);
+
+    /* Print selected backends */
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Memory backend selected (customize via -axb_memory): ");CHKERRQ(ierr);
+    ierr = axbMemBackendGetName(axb_mem_backend, &backend_name);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s\n", backend_name);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Operations backend selected (customize via -axb_ops): ");CHKERRQ(ierr);
+    ierr = axbOpBackendGetName(axb_op_backend, &backend_name);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s\n", backend_name);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+#endif
+
+
 
 /*@C
    PetscEnd - Calls PetscFinalize() and then ends the program. This is useful if one
@@ -787,6 +884,16 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
   ierr = PetscOptionsGetBool(NULL,NULL,"-viennacl_synchronize",&flg3,NULL);CHKERRQ(ierr);
   PetscViennaCLSynchronize = flg3;
   ierr = PetscViennaCLInit();CHKERRQ(ierr);
+#endif
+
+#if defined(PETSC_HAVE_LIBAXB)
+  ierr = PetscOptionsHasName(NULL,NULL,"-log_summary",&flg3);CHKERRQ(ierr);
+  if (!flg3) {
+    ierr = PetscOptionsHasName(NULL,NULL,"-log_view",&flg3);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsGetBool(NULL,NULL,"-axb_synchronize",&flg3,NULL);CHKERRQ(ierr);
+  PetscAXBSynchronize = flg3;
+  ierr = PetscAXBInitialize();CHKERRQ(ierr);
 #endif
 
   /*

@@ -1,15 +1,14 @@
-
+#requirespackage 'PETSC_HAVE_LIBAXB'
 ALL: lib
 
-CFLAGS   = ${MATLAB_INCLUDE}
+CFLAGS   = 
 FFLAGS   =
-SOURCEC  = bvec2.c bvec1.c dvec2.c vseqcr.c bvec3.c
+SOURCEC  = mpiaxb.c
 SOURCEF  =
 SOURCEH  =
 LIBBASE  = libpetscvec
 MANSEC   = Vec
-LOCDIR   = src/vec/vec/impls/seq/
-DIRS     = ftn-kernels seqviennacl seqviennaclcuda seqcuda seqaxb
+LOCDIR   = src/vec/vec/impls/mpi/mpiaxb/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

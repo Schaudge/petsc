@@ -62,6 +62,11 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJViennaCL(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJViennaCL(Mat);
 #endif
 
+#if defined(PETSC_HAVE_LIBAXB)
+PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJAXB(Mat);
+PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJAXB(Mat);
+#endif
+
 #if defined(PETSC_HAVE_FFTW)
 PETSC_EXTERN PetscErrorCode MatCreate_FFTW(Mat);
 #endif
