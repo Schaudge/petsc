@@ -33,8 +33,6 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
     MRPK timestepping:
     mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
     mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 2 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
     mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
 */
 
