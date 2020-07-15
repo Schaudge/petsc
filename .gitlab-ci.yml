@@ -39,6 +39,11 @@ variables:
     variables:
       - $CI_MERGE_REQUEST_EVENT_TYPE == "merge_train"
       - $CI_MERGE_REQUEST_EVENT_TYPE == null
+      - $TEST_JOBS =~ $TEST_ARCH
+      - $TEST_JOBS == null
+  except:
+      - $SKIP_JOBS =~ $TEST_ARCH
+      - $SKIP_JOBS == null
   dependencies: []
 
 check-ci-settings:
@@ -85,11 +90,6 @@ check-ci-settings:
     - arch-*/tests/test_*_tap.log
     - arch-*/tests/test_*_err.log
     expire_in: 4 days
-  rules:
-   - if: '$PETSC_TEST_ONLY == ""'
-     when: always
-   - if: '$PETSC_TEST_ONLY == "$TEST_ARCH"'
-     when: always
 
 #
 # The following tests run on the cloud as part of stage-1.
