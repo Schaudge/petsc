@@ -28,8 +28,11 @@ class Configure(config.package.CMakePackage):
     self.cxxlibs         = framework.require('config.packages.cxxlibs',self)
     self.mathlib         = framework.require('config.packages.mathlib',self)
     self.deps            = [self.mpi,self.blasLapack,self.flibs,self.cxxlibs,self.mathlib]
-    #
-    # also requires the ./configure option --with-cxx-dialect=C++11
+    self.openmp          = framework.require('config.packages.openmp',self)
+    self.hwloc           = framework.require('config.packages.hwloc',self)
+    self.pthread         = framework.require('config.packages.pthread',self)
+    self.mpi             = framework.require('config.packages.MPI',self)
+    self.odeps           = [self.openmp,self.hwloc]
     return
 
   def versionToStandardForm(self,ver):
@@ -58,18 +61,26 @@ class Configure(config.package.CMakePackage):
     # Trilinos cmake does not set this variable (as it should) so cmake install does not properly reset the -id and rpath of --prefix installed Trilinos libraries
     args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
 
-    args.append('-DTPL_ENABLE_MPI=ON')
+    if self.mpi.found:
+      args.append('-DKokkos_ENABLE_MPI=ON')
 
-    # SEACAS finds an X11 to use but this can fail on some machines like the Cray
-    args.append('-DTPL_ENABLE_X11=OFF')
+    if self.hwloc.found:
+      args.append('-DKokkos_ENABLE_HWLOC=ON')
+      args.append('-DKokkos_HWLOC_DIR='+self.hwloc.directory)
 
-    # We do it anyways because the precribed way of providing the BLAS/LAPACK libraries is insane
-    args.append('-DTPL_BLAS_LIBRARIES="'+self.toString(self.blasLapack.dlib)+'"')
-    args.append('-DTPL_LAPACK_LIBRARIES="'+self.toString(self.blasLapack.dlib)+'"')
+    # looks for pthread by default so need to turn it off unless specifically requested
+    pthreadfound = self.pthread.found
+    if not 'with-pthread' in self.framework.clArgDB:
+      pthreadfound = 0
 
-    # From the docs at http://trilinos.org/download/public-git-repository/
-    #TIP: The arguments passed to CMake when building from the Trilinos public repository must include
-    args.append('-DTrilinos_ASSERT_MISSING_PACKAGES=OFF')
+    if self.openmp.found and pthreadfound:
+      raise RuntimeError("Kokkos only supports a single parallel system during its configuration")
+
+    args.append('-DKokkos_ENABLE_SERIAL=ON')
+    if self.openmp.found:
+      args.append('-DKokkos_ENABLE_OPENMP=ON')
+    if pthreadfound:
+      args.append('-DKokkos_ENABLE_PTHREAD=ON')
 
     return args
 

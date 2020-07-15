@@ -250,14 +250,17 @@ int main(int argc,char **argv)
   ierr = VecGetArrayWrite(F,&FF);CHKERRQ(ierr);
   ierr = VecGetArrayWrite(U,&UU);CHKERRQ(ierr);
 
-  Kokkos::initialize( argc, argv );
+  if (!getenv("OMP_PROC_BIND")) setenv("OMP_PROC_BIND","spread",1);
+  if (!getenv("OMP_PLACES")) setenv("OMP_PLACES","threads",1);
+  if (!getenv("KOKKOS_NUM_THREADS")) setenv("KOKKOS_NUM_THREADS","4",1);
 
-  /*
-    OMP_NUM_THREADS
-    OMP_PROC_BIND=spread OMP_PLACES=threads
-  */
+  /* use private routine to turn off warnings about negative number of cores etc */
+  Kokkos::Impl::pre_initialize(Kokkos::InitArguments(-1, -1, -1, true));
+  Kokkos::initialize( argc, argv );
+  Kokkos::print_configuration(std::cout, true);
+
   /* introduce a view object; reference like object  */
-  Kokkos::Experimental::OffsetView<PetscScalar*> xFF(Kokkos::View<PetscScalar*>(FF,xm-xs),{xs}), xUU(Kokkos::View<PetscScalar*>(UU,xm-xs),{xs});
+  Kokkos::Experimental::OffsetView<PetscScalar*> xFF(Kokkos::View<PetscScalar*>(FF,xm),{xs}), xUU(Kokkos::View<PetscScalar*>(UU,xm),{xs});
 
   PetscReal xpbase = xs*ctx.h;
   Kokkos:: parallel_for(Kokkos::RangePolicy<> (xs,xm), KOKKOS_LAMBDA ( int j ) {
