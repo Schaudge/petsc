@@ -5664,6 +5664,7 @@ PetscErrorCode MatGetOption(Mat mat,MatOption op,PetscBool *flg)
     *flg = mat->spd;
     break;
   default:
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"unknown option %d",op);
     break;
   }
   PetscFunctionReturn(0);
