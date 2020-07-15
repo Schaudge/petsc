@@ -31,14 +31,8 @@ struct _p_Junction{
   /* boundary data structures - To be added*/
 
   /* Multirate Context */
-  PetscInt   multirateoffset[3]; /* offset to index from the input index (X) to the output index (F) in slow/buffer/fast
-                                 rhs function evals (local indexing). How to generate 
-                                 in general?! I'm currently using techniques based on knowing the underlying vector 
-                                 representation of dmnetwork, which is really not the way of doing this.*/
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
-
-typedef enum {EVALNONE,EVALTO,EVALFROM,EVALBOTH} VertexEval; /* terrible name... */
 
 struct _p_FVEdge
 {
@@ -66,7 +60,8 @@ struct _p_FVEdge
                                  rhs function evals (local indexing). How to generate 
                                  in general?! I'm currently using techniques based on knowing the underlying vector 
                                  representation of dmnetwork, which is really not the way of doing this.*/
-  VertexEval  vertexeval; /* What vertex data this edge should evaluate */
+  PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
+  
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_FVEdge *FVEdge;
 
@@ -133,13 +128,21 @@ struct _p_FVNetwork
 
   PhysicsCtx_Net physics; 
   /* Multirate Context */
-  PetscInt    *i_slow, *i_fast,*i_buffer;        /* On processor edges for the slow and fast 
-                                                    residual functions respectively, as well 
-                                                    as index for the 'buffer' vertices. */
-  PetscInt    i_slow_size, i_fast_size,i_buffer_size;    
+  /* All of these IS are on MPI_COMM_SELF*/
+  IS    slow_edges,fast_edges,buf_slow_vert;        /* On processor edges for the slow and fast 
+                                                                  residual functions respectively, as well 
+                                                                  as index for the 'buffer' vertices. */
+  IS   slow_vert, fast_vert; /* On processor vertices (including ghosts) connected to slow/fast edges */                                                                     
   PetscInt    bufferwidth; 
 }PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar)); 
 typedef struct _p_FVNetwork *FVNetwork; 
+
+typedef struct{
+FVNetwork fvnet; 
+IS        edgelist;
+IS        vtxlist;
+IS        wheretoputstuff;
+} RhsCtx; 
 
 PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions. 
@@ -167,3 +170,10 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
 /*RHS Function*/
 PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 
+/* Multirate Functions */
+PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);
+PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork);
+PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork,IS*,IS*,IS*);
+
+PetscErrorCode FVNetRHS_Buffer(TS,PetscReal,Vec,Vec,void*);
+PetscErrorCode FVNetRHS_Multirate(TS,PetscReal,Vec,Vec,void*);
