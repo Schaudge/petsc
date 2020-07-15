@@ -768,6 +768,8 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       self.addDefine('DIR','"'+petscdir.replace('\\','\\\\')+'"')
       (petscdir,error,status) = self.executeShellCommand('cygpath -m '+self.installdir.petscDir, log = self.log)
       self.addMakeMacro('wPETSC_DIR',petscdir)
+      if self.mpi.defines.get('HAVE_I_MPI_NUMVERSION'):
+        self.addDefine('HAVE_WINDOWS_IMPI',1)
     else:
       self.addDefine('REPLACE_DIR_SEPARATOR','\'\\\\\'')
       self.addDefine('DIR_SEPARATOR','\'/\'')

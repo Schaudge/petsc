@@ -718,10 +718,9 @@ mswin-opt-impi:
     - .stage-3
     - .mswin_test
   tags:
-    - name:ps4
+    - name:mb
   variables:
     TEST_ARCH: arch-ci-mswin-opt-impi
-  allow_failure: true
 
 opensolaris-pkgs-opt:
   extends:
