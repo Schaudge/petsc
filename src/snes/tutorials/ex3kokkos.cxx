@@ -94,12 +94,14 @@ int main(int argc,char **argv)
   PetscInt       its,N = 5,maxit,maxf,xs,xm;
   PetscReal      abstol,rtol,stol,norm;
   PetscBool      flg,viewinitial = PETSC_FALSE;
+  PetscBool      view_kokkos_configuration = PETSC_TRUE;
 
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr  = MPI_Comm_rank(PETSC_COMM_WORLD,&ctx.rank);CHKERRQ(ierr);
   ierr  = MPI_Comm_size(PETSC_COMM_WORLD,&ctx.size);CHKERRQ(ierr);
   ierr  = PetscOptionsGetInt(NULL,NULL,"-n",&N,NULL);CHKERRQ(ierr);
+  ierr  = PetscOptionsGetBool(NULL,NULL,"-view_kokkos_configuration",&view_kokkos_configuration,NULL);CHKERRQ(ierr);
   ctx.h = 1.0/(N-1);
   ctx.sjerr = PETSC_FALSE;
   ierr  = PetscOptionsGetBool(NULL,NULL,"-test_jacobian_domain_error",&ctx.sjerr,NULL);CHKERRQ(ierr);
@@ -250,6 +252,9 @@ int main(int argc,char **argv)
   ierr = VecGetArrayWrite(F,&FF);CHKERRQ(ierr);
   ierr = VecGetArrayWrite(U,&UU);CHKERRQ(ierr);
 
+  /* -------------------------------------------------------------------------------------------------- */
+  /*  ./configure --download-kokkos --download-hwloc [one of --with-openmp --with-pthread --with-cuda] */
+
   if (!getenv("OMP_PROC_BIND")) setenv("OMP_PROC_BIND","spread",1);
   if (!getenv("OMP_PLACES")) setenv("OMP_PLACES","threads",1);
   if (!getenv("KOKKOS_NUM_THREADS")) setenv("KOKKOS_NUM_THREADS","4",1);
@@ -257,7 +262,9 @@ int main(int argc,char **argv)
   /* use private routine to turn off warnings about negative number of cores etc */
   Kokkos::Impl::pre_initialize(Kokkos::InitArguments(-1, -1, -1, true));
   Kokkos::initialize( argc, argv );
-  Kokkos::print_configuration(std::cout, true);
+  if (view_kokkos_configuration) {
+    Kokkos::print_configuration(std::cout, true);
+  }
 
   /* introduce a view object; reference like object  */
   Kokkos::Experimental::OffsetView<PetscScalar*> xFF(Kokkos::View<PetscScalar*>(FF,xm),{xs}), xUU(Kokkos::View<PetscScalar*>(UU,xm),{xs});
@@ -724,7 +731,7 @@ PetscErrorCode MatrixFreePreconditioner(PC pc,Vec x,Vec y)
 
    test:
      requires: kokkos double !complex !single
-     args: -view_initial
+     args: -view_initial -view_kokkos_configuration false
      output_file: output/ex3_12.out
 
 TEST*/

@@ -92,7 +92,7 @@ runex19_suitesparse:
            else  printf "${PWD}\nPossible problem with ex19 running with suitesparse, diffs above\n=========================================\n"; fi; \
 	   ${RM} -f ex19_1.tmp
 runex3_kokkos:
-	-@${MPIEXEC} -n 1 ./ex3kokkos -view_initial > ex3kokkos_1.tmp 2>&1; \
+	-@${MPIEXEC} -n 1 ./ex3kokkos -view_initial -view_kokkos_configuration false > ex3kokkos_1.tmp 2>&1; \
 	   if (${DIFF} output/ex3_12.out ex3kokkos_1.tmp) then \
            echo "C/C++ example src/snes/tutorials/ex3kokkos run successfully with kokkos"; \
            else  printf "${PWD}\nPossible problem with ex3kokkos running with kokkos, diffs above\n=========================================\n"; fi; \
