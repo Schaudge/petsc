@@ -297,6 +297,7 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac, void *ctx)
       args: -ksp_monitor_short -da_grid_x 50 -da_grid_y 50 -pc_type ksp -ksp_ksp_type cg -ksp_pc_type bjacobi -ksp_ksp_rtol 1e-1 -ksp_ksp_monitor -ksp_type pipefgmres -ksp_gmres_restart 5
 
    test:
+      requires: !define(PETSC_USE_CUDA_UNIFIED_MEMORY)
       suffix: hyprestruct
       nsize: 3
       requires: hypre
