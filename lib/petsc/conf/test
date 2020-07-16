@@ -21,9 +21,9 @@ LDLIBS += $(PETSC_LIB)
 % : %.cxx
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
 % : %.kok
-	-$(CP) $@.kok $@.cxx
-	-$(LINK.kok) $@.cxx $(LOADLIBES) $(LDLIBS) -o $@
-	-$(RM) $@.cxx
+	-@$(CP) $@.kok $@.cxx
+	-@$(LINK.kok) $@.cxx $(LOADLIBES) $(LDLIBS) -o $@
+	-@$(RM) $@.cxx
 
 ifneq (,$(findstring -TP,$(PCC_FLAGS)))
 % : %.c

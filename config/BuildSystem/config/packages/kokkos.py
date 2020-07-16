@@ -107,6 +107,6 @@ class Configure(config.package.CMakePackage):
         raise RuntimeError('You must set -with-kokkos-cuda-arch=PASCAL61, VOLTA70, VOLTA72, TURING75 etc.')
       args.append('-DKokkos_ARCH_'+self.argDB['with-kokkos-cuda-arch']+'=ON')
       args.append('-DKokkos_ENABLE_CUDA_LAMBDA:BOOL=ON')
-      self.addMakeMacro('KOKKOS_BIN',os.path.join(self.installDir,'bin')
+      self.addMakeMacro('KOKKOS_BIN',os.path.join(self.installDir,'bin'))
     return args
 
