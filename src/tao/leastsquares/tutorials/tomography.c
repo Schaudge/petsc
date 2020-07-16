@@ -295,7 +295,7 @@ PetscErrorCode InitializeUserData(AppCtx *user)
 
    test:
       localrunfiles: tomographyData_A_b_xGT
-      args: -tao_max_it 1000 -tao_brgn_regularization_type l1dict -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
+      args: -tao_max_it 100 -tao_brgn_regularization_type l1dict -tao_brgn_regularizer_weight 1e-8 -tao_brgn_l1_smooth_epsilon 1e-6 -tao_gatol 1.e-8
 
    test:
       suffix: 2

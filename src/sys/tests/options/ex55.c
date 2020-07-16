@@ -45,7 +45,7 @@ int main(int argc,char **argv)
    testset:
       localrunfiles: ex55options .petscrc petscrc
       filter: egrep -v -e "(malloc|nox|display|saws_port|vecscatter|options_left|check_pointer_intensity|cuda_initialize|error_output_stdout|use_gpu_aware_mpi)"
-      args: -options_left 0 -options_view -options_monitor_viewer ascii
+      args: -use_gpu_aware_mpi 0 -options_left 0 -options_view -options_monitor_viewer ascii
       args: -skip_petscrc {{0 1}separate output} -options_monitor_cancel {{0 1}separate output}
       test:
         suffix: 1
@@ -60,11 +60,11 @@ int main(int argc,char **argv)
       suffix: 4
       localrunfiles: ex55options .petscrc petscrc
       filter: egrep -v -e "(malloc|nox|display|saws_port|vecscatter|options_left|check_pointer_intensity|cuda_initialize|error_output_stdout|use_gpu_aware_mpi)"
-      args: -options_left 0 -options_view -options_monitor
+      args: -use_gpu_aware_mpi 0 -options_left 0 -options_view -options_monitor
    testset:
       localrunfiles: ex55options .petscrc petscrc
       filter: sed -Ee "s/(revision).*$/\\1/g" | egrep -e "(revision|version|help|^See)"
-      args: -options_left 0 -options_view -options_monitor
+      args: -use_gpu_aware_mpi 0 -options_left 0 -options_view -options_monitor
       test:
         suffix: 5a
         args: -help
