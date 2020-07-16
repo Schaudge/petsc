@@ -10,7 +10,8 @@ class Configure(config.package.CMakePackage):
     self.downloaddirnames = ['kokkos']
     self.includes         = ['Kokkos_Macros.hpp']
     self.liblist          = [['libkokkoscontainers.a','libkokkoscore.a']]
-    #self.functions        = ['']
+    self.functions        = ['']
+    self.functionsCxx     = [1,'namespace Kokkos {void initialize(int&,char*[]);}','int one = 1;char* args[1];Kokkos::initialize(one,args);']
     self.cxx              = 1
     self.requirescxx11    = 1
     self.downloadonWindows= 0
@@ -19,8 +20,15 @@ class Configure(config.package.CMakePackage):
     self.precisions       = ['double']
     return
 
+  def setupHelp(self, help):
+    import nargs
+    config.package.Package.setupHelp(self, help)
+    help.addArgument('Kokkos', '-with-kokkos-cuda-arch', nargs.ArgString(None, 0, 'One of KEPLER30, KEPLER32, KEPLER35, KEPLER37, MAXWELL50, MAXWELL52, MAXWELL53, PASCAL60, PASCAL61, VOLTA70, VOLTA72, TURING75 (Titan V is Volta), use nvidia-smi'))
+    return
+
   def setupDependencies(self, framework):
     config.package.CMakePackage.setupDependencies(self, framework)
+    self.externalpackagesdir = framework.require('PETSc.options.externalpackagesdir',self)
     self.compilerFlags   = framework.require('config.compilerFlags', self)
     self.blasLapack      = framework.require('config.packages.BlasLapack',self)
     self.mpi             = framework.require('config.packages.MPI',self)
@@ -29,10 +37,11 @@ class Configure(config.package.CMakePackage):
     self.mathlib         = framework.require('config.packages.mathlib',self)
     self.deps            = [self.mpi,self.blasLapack,self.flibs,self.cxxlibs,self.mathlib]
     self.openmp          = framework.require('config.packages.openmp',self)
-    self.hwloc           = framework.require('config.packages.hwloc',self)
     self.pthread         = framework.require('config.packages.pthread',self)
+    self.cuda            = framework.require('config.packages.cuda',self)
+    self.hwloc           = framework.require('config.packages.hwloc',self)
     self.mpi             = framework.require('config.packages.MPI',self)
-    self.odeps           = [self.openmp,self.hwloc]
+    self.odeps           = [self.openmp,self.hwloc,self.cuda,self.pthread]
     return
 
   def versionToStandardForm(self,ver):
@@ -73,7 +82,7 @@ class Configure(config.package.CMakePackage):
     if not 'with-pthread' in self.framework.clArgDB:
       pthreadfound = 0
 
-    if self.openmp.found and pthreadfound:
+    if self.openmp.found + pthreadfound + self.cuda.found > 1:
       raise RuntimeError("Kokkos only supports a single parallel system during its configuration")
 
     args.append('-DKokkos_ENABLE_SERIAL=ON')
@@ -81,7 +90,21 @@ class Configure(config.package.CMakePackage):
       args.append('-DKokkos_ENABLE_OPENMP=ON')
     if pthreadfound:
       args.append('-DKokkos_ENABLE_PTHREAD=ON')
-
+    if self.cuda.found:
+      args.append('-DKokkos_ENABLE_CUDA=ON')
+      self.pushLanguage('CUDA')
+      petscNvcc = self.getCompiler()
+      cudaFlags = self.getCompilerFlags()
+      self.popLanguage()
+      args.append('-DKOKKOS_CUDA_OPTIONS="'+cudaFlags.replace(' ',';')+'"')
+      # Kokkos must be compiled with its horrible nvcc_wrapper script when using nvcc
+      # cannot find way to set nvcc exectuable
+      # NVCC_WRAPPER_DEFAULT_COMPILER
+      args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_COMPILER=')
+      dir = self.externalpackagesdir.dir
+      args.append('-DCMAKE_CXX_COMPILER='+os.path.join(dir,'git.kokkos','bin','nvcc_wrapper'))
+      if not 'with-kokkos-cuda-arch' in self.framework.clArgDB:
+        raise RuntimeError('You must set -with-kokkos-cuda-arch=PASCAL61, VOLTA70, VOLTA72, TURING75 etc.')
+      args.append('-DKokkos_ARCH_'+self.argDB['with-kokkos-cuda-arch']+'=ON')
     return args
-
 

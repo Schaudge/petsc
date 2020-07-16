@@ -102,4 +102,7 @@ class Configure(config.package.Package):
     if gencodearch:
       self.gencodearch = str(gencodearch)
     self.addDefine('HAVE_CUDA','1')
+    # https://blog.exxactcorp.com/nvidia-cuda-11-now-available/
+    if self.versionToTuple(self.version) < (11,0,0):
+      self.addDefine("PETSC_HAVE_cusparseCreateSolveAnalysisInfo",1)
     return
