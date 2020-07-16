@@ -143,7 +143,13 @@ PETSC_STATIC_INLINE PetscErrorCode PetscGetMemType(const void *data,PetscMemType
     CUmemorytype  cumtype = CU_MEMORYTYPE_HOST;
     CUresult      cuerr;
     cuerr = cuPointerGetAttribute(&cumtype,CU_POINTER_ATTRIBUTE_MEMORY_TYPE,(CUdeviceptr)data);
-    if (cuerr == CUDA_SUCCESS && cumtype == CU_MEMORYTYPE_DEVICE) *mtype = PETSC_MEMTYPE_DEVICE;
+    if (cuerr == CUDA_SUCCESS && cumtype == CU_MEMORYTYPE_DEVICE) {
+      unsigned int ismanaged = 0;
+      cuerr = cuPointerGetAttribute(&ismanaged,CU_POINTER_ATTRIBUTE_IS_MANAGED,(CUdeviceptr)data);
+      if (cuerr != CUDA_SUCCESS) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error cuPointerGetAttribute %d", (int)cuerr);
+      if (ismanaged) *mtype = PETSC_MEMTYPE_HOST;
+      else *mtype = PETSC_MEMTYPE_DEVICE;
+    }
   }
 #endif
   PetscFunctionReturn(0);
