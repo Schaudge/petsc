@@ -145,7 +145,6 @@ struct _p_Vec {
   PetscOffloadMask       offloadmask;  /* a mask which indicates where the valid vector data is (GPU, CPU or both) */
   PetscBool              boundtocpu;
   size_t                 minimum_bytes_pinned_memory; /* minimum data size in bytes for which pinned memory will be allocated */
-  PetscBool              pinned_memory; /* PETSC_TRUE if the current host allocation has been made from pinned memory. */
 #endif
 };
 

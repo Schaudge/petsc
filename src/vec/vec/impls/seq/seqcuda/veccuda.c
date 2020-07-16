@@ -32,16 +32,15 @@ PetscErrorCode VecCUDAAllocateCheckHost(Vec v)
   }
   if (!s->array) {
     if (n*sizeof(PetscScalar) > v->minimum_bytes_pinned_memory) {
-      ierr = PetscMallocSetCUDAHost();CHKERRQ(ierr);
-      v->pinned_memory = PETSC_TRUE;
+      ierr = PetscPushMallocType(PETSC_MALLOC_CUDA_HOST);CHKERRQ(ierr);
     }
     ierr = PetscMalloc1(n,&array);CHKERRQ(ierr);
+    if (n*sizeof(PetscScalar) > v->minimum_bytes_pinned_memory) {
+      ierr = PetscPopMallocType();CHKERRQ(ierr);
+    }
     ierr = PetscLogObjectMemory((PetscObject)v,n*sizeof(PetscScalar));CHKERRQ(ierr);
     s->array           = array;
     s->array_allocated = array;
-    if (n*sizeof(PetscScalar) > v->minimum_bytes_pinned_memory) {
-      ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
-    }
     if (v->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
       v->offloadmask = PETSC_OFFLOAD_CPU;
     }
@@ -93,14 +92,7 @@ PetscErrorCode VecDestroy_SeqCUDA_Private(Vec v)
 #endif
   if (vs) {
     if (vs->array_allocated) {
-      if (v->pinned_memory) {
-        ierr = PetscMallocSetCUDAHost();CHKERRQ(ierr);
-      }
       ierr = PetscFree(vs->array_allocated);CHKERRQ(ierr);
-      if (v->pinned_memory) {
-        ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
-        v->pinned_memory = PETSC_FALSE;
-      }
     }
     ierr = PetscFree(vs);CHKERRQ(ierr);
   }

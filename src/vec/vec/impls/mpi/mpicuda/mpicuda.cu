@@ -37,12 +37,7 @@ PetscErrorCode VecDestroy_MPICUDA(Vec v)
     if (veccuda->stream) {
       err = cudaStreamDestroy(((Vec_CUDA*)v->spptr)->stream);CHKERRCUDA(err);
     }
-    if (v->pinned_memory) {
-      ierr = PetscMallocSetCUDAHost();CHKERRQ(ierr);
-      ierr = PetscFree(vecmpi->array_allocated);CHKERRQ(ierr);
-      ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
-      v->pinned_memory = PETSC_FALSE;
-    }
+    ierr = PetscFree(vecmpi->array_allocated);CHKERRQ(ierr);
     ierr = PetscFree(v->spptr);CHKERRQ(ierr);
   }
   ierr = VecDestroy_MPI(v);CHKERRQ(ierr);

@@ -524,7 +524,8 @@ PETSC_EXTERN const char *const PetscMallocTypes[];
 
     Values:
 +   PETSC_MALLOC_STANDARD - standard CPU malloc
-.   PETSC_MALLOC_CUDA_UNIFIED - use CudaMallocManaged (default when PETSc has been configured with --with-cuda-unifiedmemory)
+.   PETSC_MALLOC_CUDA_UNIFIED - use cudaMallocManaged (default when PETSc has been configured with --with-cuda-unifiedmemory)
+.   PETSC_MALLOC_CUDA_HOST- use cudaMallocHost
 .   PETSC_MALLOC_MEMKIND_DEFAULT - use memkind with default memory type
 -   PETSC_MALLOC_MEMKIND_HBW_PREFERRED - use memkind with preferred high-bandwith (default when PETSc has been configured with memkind support)
 
@@ -533,6 +534,7 @@ E*/
 typedef enum {
   PETSC_MALLOC_STANDARD = 0,
   PETSC_MALLOC_CUDA_UNIFIED,
+  PETSC_MALLOC_CUDA_HOST,
   PETSC_MALLOC_MEMKIND_DEFAULT,
   PETSC_MALLOC_MEMKIND_HBW_PREFERRED
 } PetscMallocType;
@@ -1281,11 +1283,11 @@ PETSC_EXTERN PetscErrorCode PetscMallocClear(void);
   Unlike PetscMallocSet and PetscMallocClear which overwrite the existing settings, these two functions save the previous choice of allocator, and should be used in pair.
 */
 #if defined(PETSC_HAVE_CUDA)
-PETSC_EXTERN PetscErrorCode PetscMallocSetCUDAHost(void);
-PETSC_EXTERN PetscErrorCode PetscMallocResetCUDAHost(void);
+PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use the PetscMallocTypePush()/PetscMallocTypePop() interface (since version 3.14)") PetscErrorCode PetscMallocSetCUDAHost(void);
+PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use the PetscMallocTypePush()/PetscMallocTypePop() interface (since version 3.14)") PetscErrorCode PetscMallocResetCUDAHost(void);
 #endif
-PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use the PetscMallocTypePush()/PetscMallocTypePop() interface (since version 3.12)") PetscErrorCode PetscMallocSetDRAM(void);
-PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use the PetscMallocTypePush()/PetscMallocTypePop() interface (since version 3.12)") PetscErrorCode PetscMallocResetDRAM(void);
+PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use the PetscMallocTypePush()/PetscMallocTypePop() interface (since version 3.14)") PetscErrorCode PetscMallocSetDRAM(void);
+PETSC_EXTERN PETSC_DEPRECATED_FUNCTION("Use the PetscMallocTypePush()/PetscMallocTypePop() interface (since version 3.14)") PetscErrorCode PetscMallocResetDRAM(void);
 
 #define MPIU_PETSCLOGDOUBLE  MPI_DOUBLE
 #define MPIU_2PETSCLOGDOUBLE MPI_2DOUBLE_PRECISION

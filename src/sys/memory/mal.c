@@ -14,7 +14,7 @@
 #include <cuda_runtime.h>
 #endif
 
-const char *const PetscMallocTypes[] = {"MALLOC_STANDARD","MALLOC_CUDA_UNIFIED","MALLOC_MEMKIND_DEFAULT","MALLOC_MEMKIND_HBW_PREFERRED","PetscMallocType","PETSC_",0};
+const char *const PetscMallocTypes[] = {"MALLOC_STANDARD","MALLOC_CUDA_UNIFIED","MALLOC_CUDA_HOST","MALLOC_MEMKIND_DEFAULT","MALLOC_MEMKIND_HBW_PREFERRED","PetscMallocType","PETSC_",0};
 
 #define PETSCMALLOCTYPEPUSHESMAX 64
 
@@ -52,6 +52,7 @@ PetscBool PetscHasMallocType(PetscMallocType mtype)
   switch (mtype) {
 #if defined(PETSC_HAVE_CUDA)
   case PETSC_MALLOC_CUDA_UNIFIED:
+  case PETSC_MALLOC_CUDA_HOST:
 #endif
 #if defined(PETSC_HAVE_MEMKIND)
   case PETSC_MALLOC_MEMKIND_DEFAULT:
@@ -96,6 +97,10 @@ PETSC_EXTERN PetscErrorCode PetscMallocAlign(size_t mem,PetscBool clear,int line
 #if defined(PETSC_HAVE_CUDA)
   case PETSC_MALLOC_CUDA_UNIFIED:
     cerr = cudaMallocManaged(&ptr,len,cudaMemAttachHost);
+    if (cerr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(cerr));
+    break;
+  case PETSC_MALLOC_CUDA_HOST:
+    cerr = cudaMallocHost(&ptr,len);
     if (cerr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(cerr));
     break;
 #endif
@@ -172,6 +177,10 @@ PETSC_EXTERN PetscErrorCode PetscFreeAlign(void *ptr,int line,const char func[],
 #if defined(PETSC_HAVE_CUDA)
   case PETSC_MALLOC_CUDA_UNIFIED:
     cerr = cudaFree(ptr);
+    if (cerr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(cerr));
+    break;
+  case PETSC_MALLOC_CUDA_HOST:
+    cerr = cudaFreeHost(ptr);
     if (cerr != cudaSuccess) PetscError(PETSC_COMM_SELF,line,func,file,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Likely memory corruption in heap. Cuda error:",cudaGetErrorString(cerr));
     break;
 #endif
