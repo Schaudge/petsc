@@ -87,14 +87,14 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   PetscReal         *x,*zeros;
   Mat               A_thresh;
   PetscInt          *idR, *idC_thresh;
-  Vec               *null_vecs;
+  Vec               *null_vecs, bounds[2];
   MatNullSpace      nullsp;
   const PetscScalar one = 1;
 
   PetscFunctionBegin;
   PetscLogEventBegin(SparseReg_STLSQ,0,0,0,0);
   if (sparse_reg->use_regularization) {
-    ierr = SparseRegRLS(sparse_reg, A, b, D, X);CHKERRQ(ierr);
+    ierr = SparseRegRLS(sparse_reg, A, b, NULL, NULL, D, X);CHKERRQ(ierr);
   } else {
     ierr = SparseRegLS(sparse_reg, A, b, X);CHKERRQ(ierr);
   }
@@ -109,6 +109,11 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   /* Create a workspace for thresholding. */
   ierr = MatDuplicate(A, MAT_COPY_VALUES, &A_thresh);CHKERRQ(ierr);
   ierr = VecDuplicateVecs(X, C, &null_vecs);CHKERRQ(ierr);
+  ierr = VecDuplicate(X, &bounds[0]);CHKERRQ(ierr);
+  ierr = VecDuplicate(X, &bounds[1]);CHKERRQ(ierr);
+
+  ierr = VecSet(bounds[0], PETSC_NINFINITY);CHKERRQ(ierr);
+  ierr = VecSet(bounds[1], PETSC_INFINITY);CHKERRQ(ierr);
 
   ierr = PetscCalloc1(R, &zeros);CHKERRQ(ierr);
   ierr = PetscMalloc3(C, &mask, R, &idR, C, &idC_thresh);CHKERRQ(ierr);
@@ -129,10 +134,21 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
           x[j] = 0;
           mask[j] = PETSC_TRUE;
           idC_thresh[num_thresholded] = j;
+
+          /* Add null vector for this column. */
           ierr = VecZeroEntries(null_vecs[num_thresholded]);CHKERRQ(ierr);
           ierr = VecSetValues(null_vecs[num_thresholded], 1, &j, &one, INSERT_VALUES);CHKERRQ(ierr);
           ierr = VecAssemblyBegin(null_vecs[num_thresholded]);CHKERRQ(ierr);
           ierr = VecAssemblyEnd(null_vecs[num_thresholded]);CHKERRQ(ierr);
+
+          /* Set bounds for this object. */
+          ierr = VecSetValue(bounds[0], j, 0, INSERT_VALUES);CHKERRQ(ierr);
+          ierr = VecSetValue(bounds[1], j, 0, INSERT_VALUES);CHKERRQ(ierr);
+          ierr = VecAssemblyBegin(bounds[0]);CHKERRQ(ierr);
+          ierr = VecAssemblyBegin(bounds[1]);CHKERRQ(ierr);
+          ierr = VecAssemblyEnd(bounds[0]);CHKERRQ(ierr);
+          ierr = VecAssemblyEnd(bounds[1]);CHKERRQ(ierr);
+
 
           num_thresholded++;
         }
@@ -146,8 +162,29 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
     }
     if (old_num_thresholded == num_thresholded) break;
 
-    /* Zero out those columns of the matrix. */
-    for (j = old_num_thresholded; j < num_thresholded; j++) {
+    /* Run sparse least squares on the non-zero basis functions. */
+    if (sparse_reg->use_regularization) {
+      ierr = SparseRegRLS(sparse_reg, A_thresh, b, bounds[0], bounds[1], D, X);CHKERRQ(ierr);
+    } else {
+      /* Zero out the newly thresholded columns of the matrix. */
+      for (j = old_num_thresholded; j < num_thresholded; j++) {
+        ierr = MatSetValues(A_thresh,R,idR,1,idC_thresh+j,zeros,INSERT_VALUES);CHKERRQ(ierr);
+      }
+      ierr = MatAssemblyBegin(A_thresh,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+      ierr = MatAssemblyEnd(A_thresh,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+      /* Record this as the null space of the matrix. */
+      ierr = MatNullSpaceCreate(PETSC_COMM_SELF, PETSC_FALSE, num_thresholded, &null_vecs[0], &nullsp);CHKERRQ(ierr);
+      ierr = MatSetNullSpace(A_thresh, nullsp);CHKERRQ(ierr);
+
+      ierr = SparseRegLS(sparse_reg, A_thresh, b, X);CHKERRQ(ierr);
+      ierr = MatNullSpaceDestroy(&nullsp);CHKERRQ(ierr);
+    }
+  }
+
+  if (sparse_reg->use_regularization) {
+    /* Zero out the thresholded columns of the matrix. */
+    for (j = 0; j < num_thresholded; j++) {
       ierr = MatSetValues(A_thresh,R,idR,1,idC_thresh+j,zeros,INSERT_VALUES);CHKERRQ(ierr);
     }
     ierr = MatAssemblyBegin(A_thresh,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -157,13 +194,8 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
     ierr = MatNullSpaceCreate(PETSC_COMM_SELF, PETSC_FALSE, num_thresholded, &null_vecs[0], &nullsp);CHKERRQ(ierr);
     ierr = MatSetNullSpace(A_thresh, nullsp);CHKERRQ(ierr);
 
-    /* Run sparse least squares on the non-zero basis functions. */
-    if (sparse_reg->use_regularization) {
-      ierr = SparseRegRLS(sparse_reg, A_thresh, b, D, X);CHKERRQ(ierr);
-    } else {
-      ierr = SparseRegLS(sparse_reg, A_thresh, b, X);CHKERRQ(ierr);
-    }
-    ierr = MatNullSpaceDestroy(&nullsp);CHKERRQ(ierr);
+    /* Do an unregularized regression to get the final values. */
+    ierr = SparseRegLS(sparse_reg, A_thresh, b, X);CHKERRQ(ierr);
   }
 
   /* Maybe I should zero out the thresholded entries again here, just to make sure Tao didn't mess them up. */
@@ -172,9 +204,12 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
     x[idC_thresh[j]] = 0;
   }
   ierr = VecRestoreArray(X, &x);CHKERRQ(ierr);
+
   ierr = PetscFree(zeros);CHKERRQ(ierr);
   ierr = PetscFree3(mask, idR, idC_thresh);CHKERRQ(ierr);
   ierr = VecDestroyVecs(C, &null_vecs);CHKERRQ(ierr);
+  ierr = VecDestroy(&bounds[0]);CHKERRQ(ierr);
+  ierr = VecDestroy(&bounds[1]);CHKERRQ(ierr);
   ierr = MatDestroy(&A_thresh);CHKERRQ(ierr);
   PetscLogEventEnd(SparseReg_STLSQ,0,0,0,0);
   PetscFunctionReturn(0);
@@ -274,7 +309,7 @@ PetscErrorCode SparseRegLS(SparseReg sparse_reg, Mat A, Vec b, Vec x)
 
 /* Find x to minimize ||Ax - b||_2 + ||Dx||_1 where A is an m x n matrix. If D is
    null, it will default to the identity. */
-PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec x)
+PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Vec LB, Vec UB, Mat D, Vec x)
 {
   PetscErrorCode  ierr;
   Vec             f;               /* solution, function f(x) = A*x-b */
@@ -301,6 +336,9 @@ PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec x)
   /* Create TAO solver and set desired solution method */
   ierr = TaoCreate(PETSC_COMM_SELF,&tao);CHKERRQ(ierr);
   ierr = TaoSetType(tao,TAOBRGN);CHKERRQ(ierr);
+
+  /* Set bounds. */
+  ierr = TaoSetVariableBounds(tao, LB, UB);CHKERRQ(ierr);
 
   /* Set initial guess */
   ierr = FormStartingPoint(x);CHKERRQ(ierr);
