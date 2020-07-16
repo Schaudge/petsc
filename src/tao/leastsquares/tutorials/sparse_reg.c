@@ -17,6 +17,8 @@ PetscErrorCode SparseRegCreate(SparseReg* new_sparse_reg)
 
   ierr = PetscMalloc1(1, &sparse_reg);CHKERRQ(ierr);
   sparse_reg->threshold = 1e-5;
+  sparse_reg->initial_threshold = -1;
+  sparse_reg->threshold_factor = 10;
   sparse_reg->iterations = 10;
   sparse_reg->monitor = PETSC_FALSE;
   sparse_reg->use_regularization = PETSC_TRUE;
@@ -68,6 +70,8 @@ PetscErrorCode SparseRegSetFromOptions(SparseReg sparse_reg)
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"sparse_reg_","Sparse regression options","");CHKERRQ(ierr);
   {
     ierr = PetscOptionsReal("-threshold","coefficients below this are set to 0","",sparse_reg->threshold,&sparse_reg->threshold,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-initial_threshold","start at this smaller threshold, and scale up to the threshold","",sparse_reg->initial_threshold,&sparse_reg->initial_threshold,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-threshold_factor","factor to scale the threshold by after each iteration","",sparse_reg->threshold_factor,&sparse_reg->threshold_factor,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-iterations","number of thresholded iterations to do","",sparse_reg->iterations,&sparse_reg->iterations,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-monitor","print out additional information","",sparse_reg->monitor,&sparse_reg->monitor,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-use_regularization","whether to use regularization or not","",sparse_reg->use_regularization,&sparse_reg->use_regularization,NULL);CHKERRQ(ierr);
@@ -89,6 +93,7 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   PetscInt          *idR, *idC_thresh;
   Vec               *null_vecs, bounds[2];
   MatNullSpace      nullsp;
+  PetscReal         threshold;
   const PetscScalar one = 1;
 
   PetscFunctionBegin;
@@ -124,13 +129,21 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
   num_thresholded = 0;
   ierr = MatCopy(A, A_thresh, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
 
+
+  if (sparse_reg->initial_threshold != -1) {
+    threshold = sparse_reg->initial_threshold;
+  } else {
+    threshold = sparse_reg->threshold;
+  }
+
   for (k = 0; k < sparse_reg->iterations; k++) {
     /* Threshold the data. */
     old_num_thresholded = num_thresholded;
     ierr = VecGetArray(X, &x);CHKERRQ(ierr);
+    printf("Thresholding with %lf\n", threshold);
     for (j = 0; j < C; j++) {
       if (!mask[j]) {
-        if (PetscAbsReal(x[j]) < sparse_reg->threshold) {
+        if (PetscAbsReal(x[j]) < threshold) {
           x[j] = 0;
           mask[j] = PETSC_TRUE;
           idC_thresh[num_thresholded] = j;
@@ -160,7 +173,11 @@ PetscErrorCode SparseRegSTLSQR(SparseReg sparse_reg, Mat A, Vec b, Mat D, Vec X)
     if (sparse_reg->monitor) {
       PetscPrintf(PETSC_COMM_SELF, "SparseReg: iteration: %d, nonzeros: %d\n", k, C - num_thresholded);
     }
-    if (old_num_thresholded == num_thresholded) break;
+    if (old_num_thresholded == num_thresholded && threshold == sparse_reg->threshold) break;
+    threshold *= sparse_reg->threshold_factor;
+    if (threshold > sparse_reg->threshold) {
+      threshold = sparse_reg->threshold;
+    }
 
     /* Run sparse least squares on the non-zero basis functions. */
     if (sparse_reg->use_regularization) {
@@ -339,9 +356,6 @@ PetscErrorCode SparseRegRLS(SparseReg sparse_reg, Mat A, Vec b, Vec LB, Vec UB, 
 
   /* Set bounds. */
   ierr = TaoSetVariableBounds(tao, LB, UB);CHKERRQ(ierr);
-
-  /* Set initial guess */
-  ierr = FormStartingPoint(x);CHKERRQ(ierr);
 
   /* Bind x to tao->solution. */
   ierr = TaoSetInitialVector(tao,x);CHKERRQ(ierr);

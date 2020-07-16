@@ -26,6 +26,8 @@ struct _p_Basis {
 
 struct _p_SparseReg {
   PetscReal threshold;
+  PetscReal initial_threshold;
+  PetscReal threshold_factor;
   PetscInt  iterations;
   PetscBool use_regularization;
   PetscBool solve_normal;
