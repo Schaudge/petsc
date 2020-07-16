@@ -106,5 +106,6 @@ class Configure(config.package.CMakePackage):
       if not 'with-kokkos-cuda-arch' in self.framework.clArgDB:
         raise RuntimeError('You must set -with-kokkos-cuda-arch=PASCAL61, VOLTA70, VOLTA72, TURING75 etc.')
       args.append('-DKokkos_ARCH_'+self.argDB['with-kokkos-cuda-arch']+'=ON')
+      args.append('-DKokkos_ENABLE_CUDA_LAMBDA:BOOL=ON')
     return args
 

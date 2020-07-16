@@ -8,6 +8,8 @@ endif
 LINK.c = $(PCC_LINKER) $(PCC_LINKER_FLAGS) $(PCC_FLAGS) $(PETSC_CCPPFLAGS) $(PFLAGS) $(LDFLAGS)
 LINK.F = $(FC_LINKER) $(FC_LINKER_FLAGS) $(FFLAGS) $(PETSC_FCPPFLAGS) $(CPPFLAGS) $(LDFLAGS)
 LINK.cc = $(CXXLINKER) $(CXX_LINKER_FLAGS) $(CXXFLAGS) $(PETSC_CCPPFLAGS) $(CPPFLAGS) $(LDFLAGS)
+LINK.kok = $(PETSC_DIR)/$(PETSC_ARCH)/bin/nvcc_wrapper $(CXX_LINKER_FLAGS) $(PETSC_CCPPFLAGS) $(CPPFLAGS) $(LDFLAGS)
+
 
 LDLIBS += $(PETSC_LIB)
 
@@ -15,6 +17,10 @@ LDLIBS += $(PETSC_LIB)
 	$(LINK.F) $^ $(LOADLIBES) $(LDLIBS) -o $@
 % : %.cxx
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
+% : %.kok
+	$(CP) $@.kok $@.cxx
+	NVCC_WRAPPER_DEFAULT_COMPILER=$(CXX_LINKER) $(LINK.kok) --expt-extended-lambda $@.cxx $(LOADLIBES) $(LDLIBS) -o $@
+	$(RM) $@.cxx
 
 ifneq (,$(findstring -TP,$(PCC_FLAGS)))
 % : %.c
