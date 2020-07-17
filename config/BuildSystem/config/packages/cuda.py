@@ -18,13 +18,11 @@ class Configure(config.package.Package):
     self.hastests          = 0
     self.hastestsdatafiles = 0
     self.gencodearch       = ''
-    return
 
   def setupHelp(self, help):
     import nargs
     config.package.Package.setupHelp(self, help)
     help.addArgument('CUDA', '-with-cuda-gencodearch', nargs.ArgInt(None, 0, 'Cuda architecture for code generation (may be used by external packages)'))
-    return
 
   def setupDependencies(self, framework):
     config.package.Package.setupDependencies(self, framework)
@@ -32,7 +30,6 @@ class Configure(config.package.Package):
     self.compilers    = framework.require('config.compilers',self)
     self.thrust       = framework.require('config.packages.thrust',self)
     self.odeps        = [self.thrust] # if user supplies thrust, install it first
-    return
 
   def getSearchDirectories(self):
     import os
@@ -52,7 +49,6 @@ class Configure(config.package.Package):
     size = self.types.checkSizeof('void *', (8, 4), lang='CUDA', save=False)
     if size != self.types.sizes['void-p']:
       raise RuntimeError('CUDA Error: sizeof(void*) with CUDA compiler is ' + str(size) + ' which differs from sizeof(void*) with C compiler')
-    return
 
   def checkThrustVersion(self,minVer):
     '''Check if thrust version is >= minVer '''
@@ -72,7 +68,6 @@ class Configure(config.package.Package):
         raise RuntimeError('CUDA Error: Using CUDA with PetscComplex requirs a C++ dialect at least cxx11. Use --with-cxx-dialect=xxx to specify a proper one')
       if not self.checkThrustVersion(100908):
         raise RuntimeError('CUDA Error: The thrust library is too low to support PetscComplex. Use --download-thrust or --with-thrust-dir to give a thrust >= 1.9.8')
-    return
 
   def versionToStandardForm(self,ver):
     '''Converts from CUDA 7050 notation to standard notation 7.5'''
@@ -88,7 +83,6 @@ class Configure(config.package.Package):
       c_size = self.types.checkSizeof('teststruct', (16, 12), lang='C', codeBegin=typedef, save=False)
       if c_size != cuda_size:
         raise RuntimeError('CUDA compiler error: memory alignment doesn\'t match C compiler (try adding -malign-double to compiler options)')
-    return
 
   def configureLibrary(self):
     config.package.Package.configureLibrary(self)
@@ -102,4 +96,9 @@ class Configure(config.package.Package):
     if gencodearch:
       self.gencodearch = str(gencodearch)
     self.addDefine('HAVE_CUDA','1')
-    return
+
+  def configure(self):
+    config.package.Package.configure(self)
+    # https://blog.exxactcorp.com/nvidia-cuda-11-now-available/
+    if self.found and self.versionToTuple(self.foundversion) < (11,0):
+      self.addDefine("HAVE_cusparseCreateSolveAnalysisInfo",1)

@@ -1185,7 +1185,7 @@ PetscErrorCode MatDestroy_SeqAIJ(Mat A)
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatConvert_seqaij_seqbaij_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatConvert_seqaij_seqaijperm_C",NULL);CHKERRQ(ierr);
 
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_cusparseCreateSolveAnalysisInfo)
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatConvert_seqaij_seqaijcusparse_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatProductSetFromOptions_seqaijcusparse_seqaij_C",NULL);CHKERRQ(ierr);
 #endif
@@ -4369,7 +4369,7 @@ PetscErrorCode  MatSeqAIJRestoreArray(Mat A,PetscScalar **array)
   PetscFunctionReturn(0);
 }
 
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_cusparseCreateSolveAnalysisInfo)
 PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJCUSPARSE(Mat);
 #endif
 
@@ -4429,7 +4429,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJ(Mat B)
 #if defined(PETSC_HAVE_MKL_SPARSE)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqaij_seqaijmkl_C",MatConvert_SeqAIJ_SeqAIJMKL);CHKERRQ(ierr);
 #endif
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_cusparseCreateSolveAnalysisInfo)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqaij_seqaijcusparse_C",MatConvert_SeqAIJ_SeqAIJCUSPARSE);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatProductSetFromOptions_seqaijcusparse_seqaij_C",MatProductSetFromOptions_SeqAIJ);CHKERRQ(ierr);
 #endif

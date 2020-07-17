@@ -1,5 +1,5 @@
 -include ../../../../../../petscdir.mk
-#requirespackage 'PETSC_HAVE_CUDA'
+#requiresdefine 'PETSC_HAVE_cusparseCreateSolveAnalysisInfo'
 ALL: lib
 
 CFLAGS   =
