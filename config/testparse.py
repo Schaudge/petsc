@@ -68,8 +68,9 @@ def _stripIndent(block,srcfile,entireBlock=False,fileNums=[]):
   Go through and remove a level of indentation
   Also strip of trailing whitespace
   """
-  # The first entry should be test: but it might be indented. 
-  ext=os.path.splitext(srcfile)[1]
+  # The first entry should be test: but it might be indented.
+  if srcfile.endswith('.kok.cxx'): ext = '.kok.cxx'
+  else: ext=os.path.splitext(srcfile)[1]
   stripstr=" "
   if len(fileNums)>0: lineNum=fileNums[0]-1
   for lline in block.split("\n"):
@@ -397,7 +398,8 @@ def parseTest(testStr,srcfile,verbosity):
   # Handle the new at the begininng
   bn=re.sub("new_","",basename)
   # This is the default
-  testname="run"+os.path.splitext(bn)[0]
+  if bn.endswith('.kok.cxx'): testname = "run"+bn[:-8]
+  else: testname="run"+os.path.splitext(bn)[0]
 
   # Tests that have default everything (so empty effectively)
   if len(testStr)==0: 

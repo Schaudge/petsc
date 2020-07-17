@@ -179,10 +179,12 @@ class generateExamples(Petsc):
     Can we just return srcext[1:\] now?
     """
     langReq=None
-    srcext=os.path.splitext(srcfile)[-1]
+    if srcfile.endswith('.kok.cxx'): srcext = '.kok.cxx'
+    else: srcext=os.path.splitext(srcfile)[-1]
     if srcext in ".F90".split(): langReq="F90"
     if srcext in ".F".split(): langReq="F"
     if srcext in ".cxx".split(): langReq="cxx"
+    if srcext in ".kok.cxx".split(): langReq="kok"
     if srcext in ".cpp".split(): langReq="cpp"
     if srcext == ".cu": langReq="cu"
     if srcext == ".c": langReq="c"
@@ -303,12 +305,14 @@ class generateExamples(Petsc):
     if 'depends' in srcDict:
       depSrcList=srcDict['depends'].split()
       for depSrc in depSrcList:
-        depObj=os.path.splitext(depSrc)[0]+".o"
+        if depSrc.endswith('.kok.cxx'): depObj = depSrc[:-8]+'.o'
+        else: depObj=os.path.splitext(depSrc)[0]+".o"
         self.sources[pkg][lang][relpfile].append(os.path.join(rpath,depObj))
 
     # In gmakefile, ${TESTDIR} var specifies the object compilation
     testsdir=rpath+"/"
-    objfile="${TESTDIR}/"+testsdir+os.path.splitext(exfile)[0]+".o"
+    if exfile.endswith('.kok.cxx'): objfile = "${TESTDIR}/"+testsdir+exfile[:-8]+'.o'
+    else: objfile="${TESTDIR}/"+testsdir+os.path.splitext(exfile)[0]+".o"
     self.objects[pkg].append(objfile)
     return
 
@@ -336,7 +340,8 @@ class generateExamples(Petsc):
     if self.single_ex:
       execname=rpath.split("/")[1]+"-ex"
     else:
-      execname=os.path.splitext(exfile)[0]
+      if exfile.endswith('.kok.cxx'):  execname=exfile[:-8]
+      else: execname=os.path.splitext(exfile)[0]
     return execname
 
   def getSubstVars(self,testDict,rpath,testname):
@@ -920,7 +925,9 @@ class generateExamples(Petsc):
     def write(stem, srcs):
       for lang in LANGS:
         if srcs[lang]['srcs']:
-          fd.write('%(stem)s.%(lang)s := %(srcs)s\n' % dict(stem=stem, lang=lang, srcs=' '.join(srcs[lang]['srcs'])))
+          if lang == 'kok': alang = 'kok.cxx'
+          else: alang = lang
+          fd.write('%(stem)s.%(lang)s := %(srcs)s\n' % dict(stem=stem, lang=alang, srcs=' '.join(srcs[lang]['srcs'])))
     for pkg in self.pkg_pkgs:
         srcs = self.gen_pkg(pkg)
         write('testsrcs-' + pkg, srcs)
@@ -928,8 +935,9 @@ class generateExamples(Petsc):
         for lang in LANGS:
             for exfile in srcs[lang]['srcs']:
                 if exfile in srcs[lang]:
-                    ex='$(TESTDIR)/'+os.path.splitext(exfile)[0]
-                    exfo='$(TESTDIR)/'+os.path.splitext(exfile)[0]+'.o'
+                    if exfile.endswith('.kok.cxx'):  ex = '$(TESTDIR)/'+exfile[:-8]
+                    else: ex='$(TESTDIR)/'+os.path.splitext(exfile)[0]
+                    exfo=ex+'.o'
                     deps = [os.path.join('$(TESTDIR)', dep) for dep in srcs[lang][exfile]]
                     if deps:
                         # The executable literally depends on the object file because it is linked
@@ -976,8 +984,10 @@ class generateExamples(Petsc):
             test=os.path.basename(ftest)
             basedir=os.path.dirname(ftest)
             testdeps.append(nameSpace(test,basedir))
-          fd.write("test-"+pkg+"."+lang+" := "+' '.join(testdeps)+"\n")
-          fd.write('test-%s.%s : $(test-%s.%s)\n' % (pkg, lang, pkg, lang))
+          if lang == 'kok': alang = 'kok.cxx'
+          else: alang = lang
+          fd.write("test-"+pkg+"."+alang+" := "+' '.join(testdeps)+"\n")
+          fd.write('test-%s.%s : $(test-%s.%s)\n' % (pkg, alang, pkg, alang))
 
           # test targets
           for ftest in self.tests[pkg][lang]:

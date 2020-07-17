@@ -68,7 +68,8 @@ def stripsplit(line):
   return line[len('#requires'):].replace("'","").split()
 
 PetscPKGS = 'sys vec mat dm ksp snes ts tao'.split()
-LANGS = dict(c='C', cxx='CXX', cpp='CPP', cu='CU', F='F', F90='F90')
+# the key is actually the language suffix, it won't work for suffixes such as 'kok.cxx' so this construct needs to be reorganized
+LANGS = dict(c='C', cxx='CXX', cpp='CPP', cu='CU', F='F', F90='F90', kok='KOK.CXX')
 
 class debuglogger(object):
     def __init__(self, log):
