@@ -741,7 +741,8 @@ PetscErrorCode MatrixFreePreconditioner(PC pc,Vec x,Vec y)
      requires: kokkos double !complex !single !cuda
      args: -view_initial -view_kokkos_configuration false
      output_file: output/ex3_12.out
-
+     filter: grep -v type:
+     
    test:
      suffix: 2
      requires: kokkos double !complex !single cuda
