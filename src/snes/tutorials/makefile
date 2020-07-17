@@ -93,9 +93,9 @@ runex19_suitesparse:
 	   ${RM} -f ex19_1.tmp
 runex3_kokkos: ex3kokkos
 ifneq ($(KOKKOS_BIN),)
-	-@${MPIEXEC} -n 1 ./ex3kokkos -view_initial -view_kokkos_configuration false -dm_vec_type cuda -vec_pinned_memory_min 0 -use_gpu_aware_mpi 0 > ex3kokkos_1.tmp 2>&1
+	-@${MPIEXEC} -n 1 ./ex3kokkos -view_initial -view_kokkos_configuration false -dm_vec_type cuda -vec_pinned_memory_min 0 -use_gpu_aware_mpi 0 | grep -v "type:" > ex3kokkos_1.tmp 2>&1
 else
-	-@${MPIEXEC} -n 1 ./ex3kokkos -view_initial -view_kokkos_configuration false > ex3kokkos_1.tmp 2>&1
+	-@${MPIEXEC} -n 1 ./ex3kokkos -view_initial -view_kokkos_configuration false | grep -v "type:"  > ex3kokkos_1.tmp 2>&1
 endif
 	-@if (${DIFF} output/ex3_12.out ex3kokkos_1.tmp) then \
            echo "C/C++ example src/snes/tutorials/ex3kokkos run successfully with kokkos"; \

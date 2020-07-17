@@ -183,6 +183,7 @@ class generateExamples(Petsc):
     if srcext in ".F90".split(): langReq="F90"
     if srcext in ".F".split(): langReq="F"
     if srcext in ".cxx".split(): langReq="cxx"
+    if srcext in ".kok".split(): langReq="kok"
     if srcext in ".cpp".split(): langReq="cpp"
     if srcext == ".cu": langReq="cu"
     if srcext == ".c": langReq="c"
@@ -653,6 +654,8 @@ class generateExamples(Petsc):
       elif lang=="F90" and 'PETSC_USING_F90FREEFORM' not in self.conf:
         srcDict["SKIP"].append("Fortran f90freeform required for this test")
     if lang=="cu" and 'PETSC_HAVE_CUDA' not in self.conf:
+      srcDict["SKIP"].append("CUDA required for this test")
+    if lang=="kok" and 'PETSC_HAVE_CUDA' not in self.conf:
       srcDict["SKIP"].append("CUDA required for this test")
     if lang=="cxx" and 'PETSC_HAVE_CXX' not in self.conf:
       srcDict["SKIP"].append("C++ required for this test")

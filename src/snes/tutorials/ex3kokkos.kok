@@ -1,3 +1,4 @@
+
 static char help[] = "Newton methods to solve u'' + u^{2} = f in parallel.\n\
 This example employs a user-defined monitoring routine and optionally a user-defined\n\
 routine to check candidate iterates produced by line search routines.\n\
@@ -737,20 +738,23 @@ PetscErrorCode MatrixFreePreconditioner(PC pc,Vec x,Vec y)
      requires: kokkos
 
    test:
-     requires: kokkos double !complex !single
+     requires: kokkos double !complex !single !cuda
      args: -view_initial -view_kokkos_configuration false
      output_file: output/ex3_12.out
 
    test:
-     requires: kokkos double !complex !single
+     suffix: 2
+     requires: kokkos double !complex !single cuda
      args: -dm_vec_type cuda -vec_pinned_memory_min 0 -use_gpu_aware_mpi 0 -view_initial -view_kokkos_configuration false
      output_file: output/ex3_12.out
+     filter: grep -v type:
 
    test:
-     requires: kokkos double !complex !single defined(PETSC_HAVE_cusparseCreateSolveAnalysisInfo)
+     suffix: 3
+     requires: kokkos double !complex !single defined(PETSC_HAVE_cusparseCreateSolveAnalysisInfo) cuda
      nsize: 2
      args: -dm_vec_type cuda -dm_mat_type aijcusparse -vec_pinned_memory_min 0 -use_gpu_aware_mpi 0 -view_initial -view_kokkos_configuration false
      output_file: output/ex3_12.out
-
+     filter: grep -v type:
 
 TEST*/
