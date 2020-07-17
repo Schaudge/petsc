@@ -7,7 +7,102 @@ static char help[] =
 #include <petscsnes.h>
 #include <petsc/private/snesimpl.h>
 #include <petscdmadaptor.h>
+#include <../src/mat/impls/aij/seq/aij.h>
 
+/* Until we have a good implementation of InsertMatrixElements for the Mat_seqAIJCUSparse we will use this stand-in struct so that we can do assembly
+ * on the GPU. We re-invent some wheels here, but in stripping things down we hopefully get a better picture of the moving pieces. This may help to
+ * give us a sense for the essential functions that need to be added to the libraries. */
+
+ typedef struct
+{
+  PetscInt nnz; /* number of non-zeros */
+  PetscInt m; /* number of rows */
+  PetscInt n; /* number of colmuns */
+  PetscReal* vals; /* array containing matrix entries */
+  PetscInt* rowPtr; /* pointers to first element of each row */
+  PetscInt* colInd; /* column indices for each entry */
+  PetscBool setupCalled;
+} SimpleCSRMat;
+
+static PetscErrorCode SimpleCSRMatDestroy(SimpleCSRMat * mat)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  /* Free mat as long as it exists */
+  if (mat) {
+    if (mat->colInd) {
+      ierr = PetscFree(mat->colInd);CHKERRQ(ierr);
+    }
+    if (mat->rowPtr) {
+      ierr = PetscFree(mat->rowPtr);CHKERRQ(ierr);
+    }
+    if (mat->vals) {
+      ierr = PetscFree(mat->vals);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(mat);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+/* Creates a mat pointer with garbage data values. */
+static PetscErrorCode SimpleCSRMatCreate(SimpleCSRMat ** mat)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (*mat) {
+    ierr = SimpleCSRMatDestroy(*mat);CHKERRQ(ierr);
+  }
+  ierr             = PetscMalloc1(1,mat);CHKERRQ(ierr);
+  (*mat)->setupCalled = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+/* Allocates the member arrays. Should only be called after nnz,m,and n are set.*/
+static PetscErrorCode SimpleCSRMatSetup(SimpleCSRMat * mat)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!(mat->setupCalled)) {
+    ierr             = PetscCalloc1(mat->nnz,&mat->vals);CHKERRQ(ierr);
+    ierr             = PetscCalloc2(mat->m,&mat->rowPtr,mat->nnz,&mat->colInd);CHKERRQ(ierr);
+    mat->setupCalled = PETSC_TRUE;
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SimpleCSRMatCopyNonZeroStructure(SimpleCSRMat *mat,Mat source)
+{
+  PetscInt i;
+  PetscErrorCode ierr;
+  Mat_SeqAIJ *a = (Mat_SeqAIJ*)source->data;
+
+  PetscFunctionBegin;
+  ierr = SimpleCSRMatCreate(&mat);
+  mat->nnz = a->nz;
+  ierr = MatGetSize(source,&mat->m,&mat->n);CHKERRQ(ierr);
+  ierr = SimpleCSRMatSetup(mat);CHKERRQ(ierr);
+
+  for(i=0; i<mat->m; ++i){
+    mat->rowPtr[i] = a->i[i];
+  }
+  for(i=0; i<mat->nnz; ++i){
+    mat->colInd[i] = a->j[i];
+  }
+  PetscFunctionReturn(0);
+}
+
+/* Returns the index into value array for Ith row Jth Column */
+static PetscErrorCode SimpleCSRMatGetIJ(SimpleCSRMat mat,PetscInt i, PetscInt j, PetscInt* ind)
+{
+  PetscErrorCode ierr;
+  
+  PetscFunctionBegin;
+
+  PetscFunctionReturn(0);
+}
 /*
   Construct a 4-tensor for the Poisson operator on the reference element of a finite element.
 
@@ -302,6 +397,7 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
   PetscScalar *tensor,*elemMat;
   PetscReal Jdet,*Jinv,*J,*v;
   PetscInt *closureSizes,**closures,nDoF,dim;
+  SimpleCSRMat *testCSR = NULL;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -313,6 +409,7 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
   ierr = PetscCalloc2(nDoF*nDoF*dim*dim,&tensor,nDoF*nDoF,&elemMat);CHKERRQ(ierr);
   ierr = PoissonReferenceTensor(field,tensor);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm,systemMat);CHKERRQ(ierr);
+  ierr = SimpleCSRMatCopyNonZeroStructure(testCSR,*systemMat);CHKERRQ(ierr);
   ierr = MatZeroEntries(*systemMat);CHKERRQ(ierr);
   ierr = MatSetOption(*systemMat,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
   ierr = GetElementClosureMaps(dm,cStart,cEnd,&closureSizes,&closures);CHKERRQ(ierr);
