@@ -14,7 +14,7 @@ typedef enum {JUNCT=1,RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFL
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {FVEDGE=0} EdgeCompNum;
 typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;   
-typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection; 
+typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
 struct _p_Junction{
   PetscInt	    id;        /* global index */
@@ -29,8 +29,6 @@ struct _p_Junction{
   /*RiemannFunction_2WaySplit couplingflux; Need to figure out how to build a function pointer within a network component in a sensible way. */
 
   /* boundary data structures - To be added*/
-
-  /* Multirate Context */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
 
@@ -56,10 +54,6 @@ struct _p_FVEdge
   PetscReal h; /* discretization size, assumes uniform mesh*/
 
   /* Multirate ODE Context */ 
-  PetscInt   multirateoffset; /* offset to index from the input index (X) to the output index (F) in slow/buffer/medium
-                                 rhs function evals (local indexing). How to generate 
-                                 in general?! I'm currently using techniques based on knowing the underlying vector 
-                                 representation of dmnetwork, which is really not the way of doing this.*/
   PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
   
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
@@ -173,6 +167,7 @@ PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 /* Multirate Functions */
 PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);
 PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork);
+PetscErrorCode FVNetworkFinalizePartition(FVNetwork);
 PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork,IS*,IS*,IS*);
 
 PetscErrorCode FVNetRHS_Buffer(TS,PetscReal,Vec,Vec,void*);

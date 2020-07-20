@@ -6,7 +6,7 @@
 static const char help[] = "1D periodic Finite Volume solver in slope-limiter form with semidiscrete time stepping.\n"
   "  advection   - Constant coefficient scalar advection\n"
   "                u_t       + (a*u)_x               = 0\n"
-  "  shallow     - 1D Shallow water equations (Saint Venant System)\n"
+  "  shallow     - 1D Shallow water equations (Saint Venant System) \n"
   "                h_t + (q)_x = 0 \n"
   "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = 0 \n"
   "                where, h(x,t) denotes the height of the water, q(x,t) the momentum.\n"
@@ -80,9 +80,9 @@ static PetscErrorCode PhysicsSample_Advect(void *vctx,PetscInt initial,PetscReal
 {
   PetscFunctionBeginUser;
   switch (initial) {
-    case 0: u[0] = (x0 < 0) ? 1 : -1; break;
-    case 1: u[0] = (x0 < 0) ? -1 : 1; break;
-    case 2: u[0] = (0 < x0 && x0 < 1) ? 1 : 0; break;
+    case 0: u[0] = (x0 < 25) ? 1 : -1; break;
+    case 1: u[0] = (x0 < 25) ? -1 : 1; break;
+    case 2: u[0] = (0 < x0 && x0 < 10) ? 1 : 0; break;
     case 3: u[0] = PetscSinReal(2*PETSC_PI*x0); break;
     case 4: u[0] = PetscAbs(x0); break;
     case 5: u[0] = (x0 < 0 || x0 > 0.5) ? 0 : PetscSqr(PetscSinReal(2*PETSC_PI*x0)); break;
@@ -354,83 +354,6 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode FVSample_2WaySplit(FVCtx *ctx,DM da,PetscReal time,Vec U)
-{
-  PetscErrorCode  ierr;
-  PetscScalar     *u,*uj,xj,xi;
-  PetscInt        i,j,k,dof,xs,xm,Mx;
-  const PetscInt  N = 200;
-  PetscReal       hs,hf;
-
-  PetscFunctionBeginUser;
-  if (!ctx->physics2.sample2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Physics has not provided a sampling function");
-  ierr = DMDAGetInfo(da,0, &Mx,0,0, 0,0,0, &dof,0,0,0,0,0);CHKERRQ(ierr);
-  ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(da,U,&u);CHKERRQ(ierr);
-  ierr = PetscMalloc1(dof,&uj);CHKERRQ(ierr);
-  hs   = (ctx->xmax-ctx->xmin)*3.0/8.0/ctx->sf;
-  hf   = (ctx->xmax-ctx->xmin)/4.0/(ctx->fs-ctx->sf);
-  for (i=xs; i<xs+xm; i++) {
-    if (i < ctx->sf) {
-      xi = ctx->xmin+0.5*hs+i*hs;
-      /* Integrate over cell i using trapezoid rule with N points. */
-      for (k=0; k<dof; k++) u[i*dof+k] = 0;
-      for (j=0; j<N+1; j++) {
-        xj = xi+hs*(j-N/2)/(PetscReal)N;
-        ierr = (*ctx->physics2.sample2)(ctx->physics2.user,ctx->initial,ctx->bctype,ctx->xmin,ctx->xmax,time,xj,uj);CHKERRQ(ierr);
-        for (k=0; k<dof; k++) u[i*dof+k] += ((j==0 || j==N) ? 0.5 : 1.0)*uj[k]/N;
-      }
-    } else if (i < ctx->fs) {
-      xi = ctx->xmin+ctx->sf*hs+0.5*hf+(i-ctx->sf)*hf;
-      /* Integrate over cell i using trapezoid rule with N points. */
-      for (k=0; k<dof; k++) u[i*dof+k] = 0;
-      for (j=0; j<N+1; j++) {
-        xj = xi+hf*(j-N/2)/(PetscReal)N;
-        ierr = (*ctx->physics2.sample2)(ctx->physics2.user,ctx->initial,ctx->bctype,ctx->xmin,ctx->xmax,time,xj,uj);CHKERRQ(ierr);
-        for (k=0; k<dof; k++) u[i*dof+k] += ((j==0 || j==N) ? 0.5 : 1.0)*uj[k]/N;
-      }
-    } else {
-      xi = ctx->xmin+ctx->sf*hs+(ctx->fs-ctx->sf)*hf+0.5*hs+(i-ctx->fs)*hs;
-      /* Integrate over cell i using trapezoid rule with N points. */
-      for (k=0; k<dof; k++) u[i*dof+k] = 0;
-      for (j=0; j<N+1; j++) {
-        xj = xi+hs*(j-N/2)/(PetscReal)N;
-        ierr = (*ctx->physics2.sample2)(ctx->physics2.user,ctx->initial,ctx->bctype,ctx->xmin,ctx->xmax,time,xj,uj);CHKERRQ(ierr);
-        for (k=0; k<dof; k++) u[i*dof+k] += ((j==0 || j==N) ? 0.5 : 1.0)*uj[k]/N;
-      }
-    }
-  }
-  ierr = DMDAVecRestoreArray(da,U,&u);CHKERRQ(ierr);
-  ierr = PetscFree(uj);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode SolutionErrorNorms_2WaySplit(FVCtx *ctx,DM da,PetscReal t,Vec X,PetscReal *nrm1)
-{
-  PetscErrorCode    ierr;
-  Vec               Y;
-  PetscInt          i,Mx;
-  const PetscScalar *ptr_X,*ptr_Y;
-  PetscReal         hs,hf;
-
-  PetscFunctionBeginUser;
-  ierr = VecGetSize(X,&Mx);CHKERRQ(ierr);
-  ierr = VecDuplicate(X,&Y);CHKERRQ(ierr);
-  ierr = FVSample_2WaySplit(ctx,da,t,Y);CHKERRQ(ierr);
-  hs   = (ctx->xmax-ctx->xmin)*3.0/8.0/ctx->sf;
-  hf   = (ctx->xmax-ctx->xmin)/4.0/(ctx->fs-ctx->sf);
-  ierr = VecGetArrayRead(X,&ptr_X);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(Y,&ptr_Y);CHKERRQ(ierr);
-  for (i=0; i<Mx; i++) {
-    if (i < ctx->sf || i > ctx->fs -1) *nrm1 +=  hs*PetscAbs(ptr_X[i]-ptr_Y[i]);
-    else *nrm1 += hf*PetscAbs(ptr_X[i]-ptr_Y[i]);
-  }
-  ierr = VecRestoreArrayRead(X,&ptr_X);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(Y,&ptr_Y);CHKERRQ(ierr);
-  ierr = VecDestroy(&Y);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
   PetscErrorCode     ierr;
@@ -445,7 +368,7 @@ PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
 
 int main(int argc,char *argv[])
 {
-  char              lname[256] = "minmod",physname[256] = "shallow",final_fname[256] = "solution.m";
+  char              lname[256] = "minmod",physname[256] = "shallow";
   PetscFunctionList limiters   = 0,physics = 0;
   MPI_Comm          comm;
   TS                ts;
@@ -558,7 +481,8 @@ int main(int argc,char *argv[])
   ierr = TSSetRHSFunction(ts,NULL,FVNetRHS,fvnet);CHKERRQ(ierr);
 
   /* Setup Multirate Partitions */
-  ierr = FVNetworkGenerateMultiratePartition_Preset(fvnet);
+  ierr = FVNetworkGenerateMultiratePartition_Preset(fvnet);CHKERRQ(ierr);
+  ierr = FVNetworkFinalizePartition(fvnet);CHKERRQ(ierr);
   ierr = FVNetworkBuildMultirateIS(fvnet,&slow,&fast,&buffer);CHKERRQ(ierr);
 
   ierr = TSRHSSplitSetIS(ts,"slow",slow);CHKERRQ(ierr);
