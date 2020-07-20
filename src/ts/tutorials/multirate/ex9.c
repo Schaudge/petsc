@@ -33,6 +33,8 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
     MRPK timestepping:
     mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
     mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 2 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
     mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
 */
 
@@ -125,6 +127,11 @@ PETSC_STATIC_INLINE void ShallowFlux(ShallowCtx *phys,const PetscScalar *u,Petsc
   f[0] = u[1];
   f[1] = PetscSqr(u[1])/u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
 }
+PETSC_STATIC_INLINE void ShallowFlux2(ShallowCtx *phys,const PetscScalar *u,PetscScalar *f)
+{
+  f[0] = u[1]*u[0];
+  f[1] = PetscSqr(u[1])*u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
+}
 
 static PetscErrorCode PhysicsRiemann_Shallow_Exact(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
 {
@@ -213,11 +220,11 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   if (R.h < tol) R.u = 0.0;
 
   /*simple pos preserve limiter*/
-  if (L.h < 0) L.h=0;
-  if (R.h < 0) R.h=0;
+  if (L.h < 0) L.h = 0;
+  if (R.h < 0) R.h = 0;
 
-  ShallowFlux(phys,uL,fL);
-  ShallowFlux(phys,uR,fR);
+  ShallowFlux2(phys,&L,fL);
+  ShallowFlux2(phys,&R,fR);
 
   s         = PetscMax(PetscAbs(L.u)+PetscSqrtScalar(g*L.h),PetscAbs(R.u)+PetscSqrtScalar(g*R.h));
   flux[0]   = 0.5*(fL[0] + fR[0]) + 0.5*s*(L.h - R.h);
@@ -252,6 +259,8 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
     X[0*2+1]  = 0;
     X[1*2+0]  = 0;
     X[1*2+1]  = 1;
+    speeds[0] = - c;
+    speeds[1] =   c;
   } else {
     speeds[0] = u[1]/u[0] - c;
     speeds[1] = u[1]/u[0] + c;
@@ -284,11 +293,11 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,PetscRea
       u[1] = (x < 25) ? -5 : 5;
       break;
     case 3:
-      u[0] = (x < 20) ?  1 : 1e-6;
+      u[0] = (x < 20) ?  1 : 0;
       u[1] = (x < 20) ?  0 : 0;
       break;
     case 4:
-      u[0] = (x < 30) ? 1e-12 : 1;
+      u[0] = (x < 30) ? 0: 1;
       u[1] = (x < 30) ? 0 : 0;
       break;
     case 5:
