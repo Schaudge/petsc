@@ -993,7 +993,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
                 /* Hard coded 2 cell one-side reconstruction. To be improved */
                 if (v == vfrom) {
                   for(j=0; j<dof; j++) {
-                    f[offsetf+fvedge->vfrom_recon_offset+j] = 0.5*(3*xarr[offset+j] - xarr[offset+dof+j]); /* CHECK IF THESE ARE RIGHT!!!!!! GETTING ODD ERRORS */
+                    f[offsetf+fvedge->vfrom_recon_offset+j] = 0.5*(3*xarr[offset+j] - xarr[offset+dof+j]);
                   }
                 } else if(v == vto){
                   for(j=0; j<dof; j++) {
