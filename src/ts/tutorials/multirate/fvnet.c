@@ -960,7 +960,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   VecScatter     scatter;
 
   PetscFunctionBeginUser;
-  ierr = VecSet(F,10.0);CHKERRQ(ierr);
+  ierr = VecSet(F,0.0);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
@@ -1380,8 +1380,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet) {
   PetscFunctionReturn(0);
 }
 
-
-/* Specifically for slow/slowbuffer/fast mulirate partitioning. A general function is needed later */
+/* Specifically for slow/slowbuffer/fast multirate partitioning. A general function is needed later */
 PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork fvnet, IS *slow, IS *fast, IS *buffer) {
   PetscErrorCode ierr;
   PetscInt       i,j,k,offset,e,dof = fvnet->physics.dof;
@@ -1459,7 +1458,7 @@ PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork fvnet, IS *slow, IS *fast, IS
   ierr = ISRestoreIndices(fvnet->slow_edges,&index);CHKERRQ(ierr);
   /* Repeat the same procedure for the fast edges. However a fast edge has no buffer data on it
      so this simplifies a bit. */
-   /* Iterate through the marked slow edges */
+   /* Iterate through the marked fast edges */
   ierr = ISGetIndices(fvnet->fast_edges,&index);CHKERRQ(ierr);
   ierr = ISGetLocalSize(fvnet->fast_edges,&size);CHKERRQ(ierr);
   /* Find the correct sizes for the arrays */
