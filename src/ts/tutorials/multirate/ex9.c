@@ -223,8 +223,8 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   if (L.h < 0) L.h = 0;
   if (R.h < 0) R.h = 0;
 
-  ShallowFlux2(phys,&L,fL);
-  ShallowFlux2(phys,&R,fR);
+  ShallowFlux2(phys,(PetscScalar*)&L,fL);
+  ShallowFlux2(phys,(PetscScalar*)&R,fR);
 
   s         = PetscMax(PetscAbs(L.u)+PetscSqrtScalar(g*L.h),PetscAbs(R.u)+PetscSqrtScalar(g*R.h));
   flux[0]   = 0.5*(fL[0] + fR[0]) + 0.5*s*(L.h - R.h);
