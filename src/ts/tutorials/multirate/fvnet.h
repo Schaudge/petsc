@@ -36,7 +36,7 @@ struct _p_FVEdge
 {
   /* identification variables */
   PetscInt    id;
-  PetscInt    vto_recon_offset,vfrom_recon_offset; /* offsets for placing the reconstruction data and setting flux data 
+  PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data 
                                                       for the edge cells */
   /* solver objects */
   /* Note that this object holds no solution data. This is held 
@@ -106,27 +106,20 @@ struct _p_FVNetwork
   PetscBool   exact;
   PetscInt    hratio;
   PetscInt    Mx;               /* Variable used to specify smallest number of cells for an edge in a problem */
-
   /* Junction */
   Junction    junction;
-
   /* Edges */
   FVEdge      fvedge;
-
   /* FV Context */ 
   /* We assume for efficiency and simplicity that the network has
      a single discretization on all edges/vertices and the same physics. 
      So that context information is stored here in the network object. The 
      solvers and rhs functions in the edges/vertices will call this info when 
      actually performing the cell updates */ 
-
   PhysicsCtx_Net physics; 
   /* Multirate Context */
   /* All of these IS are on MPI_COMM_SELF*/
-  IS    slow_edges,fast_edges,buf_slow_vert;        /* On processor edges for the slow and fast 
-                                                                  residual functions respectively, as well 
-                                                                  as index for the 'buffer' vertices. */
-  IS   slow_vert, fast_vert; /* On processor vertices (including ghosts) connected to slow/fast edges */                                                                     
+  IS          slow_edges,fast_edges,buf_slow_vert,slow_vert, fast_vert;                                                                 
   PetscInt    bufferwidth; 
 }PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar)); 
 typedef struct _p_FVNetwork *FVNetwork; 
@@ -163,7 +156,6 @@ PetscErrorCode FVNetworkDestroy(FVNetwork);
 PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
 /*RHS Function*/
 PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
-
 /* Multirate Functions */
 PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);
 PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork);
