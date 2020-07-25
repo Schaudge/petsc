@@ -75,6 +75,7 @@ typedef struct {
   PetscInt  agg_num_paths;
   PetscBool nodal_relax;
   PetscInt  nodal_relax_levels;
+  PetscBool keeptranspose;
 
   PetscInt  nodal_coarsening;
   PetscInt  nodal_coarsening_diag;
@@ -229,6 +230,7 @@ static PetscErrorCode PCSetUp_HYPRE(PC pc)
   if (!ishypre) {
     ierr = MatDestroy(&jac->hpmat);CHKERRQ(ierr);
     ierr = MatConvert(pc->pmat,MATHYPRE,MAT_INITIAL_MATRIX,&jac->hpmat);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)pc,(PetscObject)jac->hpmat);CHKERRQ(ierr);
   } else {
     ierr = PetscObjectReference((PetscObject)pc->pmat);CHKERRQ(ierr);
     ierr = MatDestroy(&jac->hpmat);CHKERRQ(ierr);
@@ -262,6 +264,7 @@ static PetscErrorCode PCSetUp_HYPRE(PC pc)
       }
       if (has_const) {
         ierr = MatCreateVecs(pc->pmat,&jac->hmnull_constant,NULL);CHKERRQ(ierr);
+        ierr = PetscLogObjectParent((PetscObject)pc,(PetscObject)jac->hmnull_constant);CHKERRQ(ierr);
         ierr = VecSet(jac->hmnull_constant,1);CHKERRQ(ierr);
         ierr = VecNormalize(jac->hmnull_constant,NULL);
         ierr = VecHYPRE_IJVectorCreate(jac->hmnull_constant,&jac->hmnull[nvec]);CHKERRQ(ierr);
@@ -424,7 +427,7 @@ static PetscErrorCode PCApply_HYPRE(PC pc,Vec b,Vec x)
   ierr = PetscCitationsRegister(hypreCitation,&cite);CHKERRQ(ierr);
   if (!jac->applyrichardson) {ierr = VecSet(x,0.0);CHKERRQ(ierr);}
   ierr = VecGetArrayRead(b,(const PetscScalar **)&bv);CHKERRQ(ierr);
-  ierr = VecGetArray(x,(PetscScalar **)&xv);CHKERRQ(ierr);
+  ierr = VecGetArrayWrite(x,(PetscScalar **)&xv);CHKERRQ(ierr);
   VecHYPRE_ParVectorReplacePointer(hjac->b,bv,sbv);
   VecHYPRE_ParVectorReplacePointer(hjac->x,xv,sxv);
 
@@ -440,7 +443,7 @@ static PetscErrorCode PCApply_HYPRE(PC pc,Vec b,Vec x)
   }
   VecHYPRE_ParVectorReplacePointer(hjac->b,sbv,bv);
   VecHYPRE_ParVectorReplacePointer(hjac->x,sxv,xv);
-  ierr = VecRestoreArray(x,(PetscScalar **)&xv);CHKERRQ(ierr);
+  ierr = VecRestoreArrayWrite(x,(PetscScalar **)&xv);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(b,(const PetscScalar **)&bv);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -915,6 +918,8 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PetscOptionItems *PetscOp
     PetscStackCallStandard(HYPRE_BoomerAMGSetOverlap,(jac->hsolver,0));
     PetscStackCallStandard(HYPRE_BoomerAMGSetSmoothNumLevels,(jac->hsolver,jac->nodal_relax_levels));
   }
+  ierr = PetscOptionsBool("-pc_hypre_boomeramg_keeptranspose", "Avoid tranpose matvecs in preconditioner application", "None", jac->keeptranspose, &jac->keeptranspose, NULL);CHKERRQ(ierr);
+  PetscStackCallStandard(HYPRE_BoomerAMGSetKeepTranspose,(jac->hsolver,jac->keeptranspose ? 1 : 0));
 
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
