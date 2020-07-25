@@ -392,14 +392,12 @@ int main(int argc,char **args)
       output_file: output/ex115_7.out
 
    test:
-      requires: !define(PETSC_USE_CUDA_UNIFIED_MEMORY)
       suffix: 8
       nsize: 3
       args: -M 1 -N 12 -test_offproc
       output_file: output/ex115_1.out
 
    test:
-      requires: !define(PETSC_USE_CUDA_UNIFIED_MEMORY)
       suffix: 9
       nsize: 3
       args: -M 1 -N 2 -test_offproc
