@@ -18,6 +18,7 @@ class Configure(config.package.Package):
     self.hastests          = 0
     self.hastestsdatafiles = 0
     self.gencodearch       = ''
+    self.unifiedmemory     = 0
     return
 
   def setupHelp(self, help):
@@ -105,4 +106,5 @@ class Configure(config.package.Package):
     self.addDefine('HAVE_CUDA','1')
     if self.argDB['with-cuda-unifiedmemory']:
       self.addDefine('USE_CUDA_UNIFIED_MEMORY','1')
+      self.unifiedmemory = 1
     return

@@ -85,9 +85,11 @@ class Configure(config.package.GNUPackage):
         raise RuntimeError('Hypre requires Cuda version 8.0.0 or higher, version '+self.cuda.foundversion+' is being used')
       self.usesgpu = 'Cuda'
       args.append('--with-cuda')
-      args.append('--enable-unified-memory')
+      if self.cuda.unifiedmemory:
+        args.append('--enable-unified-memory')
       args.append('CUDA_HOME="'+self.cuda.directory+'"')
-      # TODO: NEED TO MAKE HYPRE_CUDA_SM customizable (defaults to 60)
+      if self.cuda.gencodearch:
+        args.append('HYPRE_CUDA_SM='+self.cuda.gencodearch)
 
     # tell hypre configure not to look for blas/lapack [and not use hypre-internal blas]
     blaslibs = self.libraries.toString(self.blasLapack.dlib)
@@ -129,6 +131,9 @@ class Configure(config.package.GNUPackage):
     # Hypre changes the shared library linker to nvcc which cannot handle -Wl,-rpath
     if cudabuild:
       args = [arg.replace('-Wl,-rpath,','-L') for arg in args]
+      # get compilation errors with CXX14 extensions
+      args = [arg.replace('-std=gnu++14','-std=c++11') for arg in args]
+      args = [arg.replace('-std=c++14','-std=c++11') for arg in args]
 
     return args
 
