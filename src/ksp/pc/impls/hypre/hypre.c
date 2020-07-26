@@ -5,6 +5,7 @@
 /* Must use hypre 2.0.0 or more recent. */
 
 #include <petsc/private/pcimpl.h>          /*I "petscpc.h" I*/
+#include <petsc/private/petschypre.h>
 /* this include is needed ONLY to allow access to the private data inside the Mat object specific to hypre */
 #include <petsc/private/matimpl.h>
 #include <../src/vec/vec/impls/hypre/vhyp.h>
@@ -20,8 +21,9 @@ static const char hypreCitation[] = "@manual{hypre-web-page,\n  title  = {{\\sl 
    Private context (data structure) for the  preconditioner.
 */
 typedef struct {
-  HYPRE_Solver   hsolver;
-  Mat            hpmat; /* MatHYPRE */
+  HYPRE_Solver          hsolver;
+  Mat                   hpmat; /* MatHYPRE */
+  HYPRE_ExecutionPolicy exec_policy; /* execution policy */
 
   HYPRE_Int (*destroy)(HYPRE_Solver);
   HYPRE_Int (*solve)(HYPRE_Solver,HYPRE_ParCSRMatrix,HYPRE_ParVector,HYPRE_ParVector);
@@ -405,10 +407,14 @@ static PetscErrorCode PCSetUp_HYPRE(PC pc)
       PetscStackCallStandard(HYPRE_ADSSetInterpolations,(jac->hsolver,rt_parcsrfull,rt_parcsr[0],rt_parcsr[1],rt_parcsr[2],nd_parcsrfull,nd_parcsr[0],nd_parcsr[1],nd_parcsr[2]));
     }
   }
+PetscBool set_policy = PETSC_FALSE;
+    PetscOptionsGetBool(NULL,NULL,"-hypre_policy",&set_policy,NULL);
   PetscStackCallStandard(HYPRE_IJMatrixGetObject,(hjac->ij,(void**)&hmat));
   PetscStackCallStandard(HYPRE_IJVectorGetObject,(hjac->b,(void**)&bv));
   PetscStackCallStandard(HYPRE_IJVectorGetObject,(hjac->x,(void**)&xv));
+  if (set_policy) PetscHYPRESetExecPolicy(jac->exec_policy);
   PetscStackCallStandard(jac->setup,(jac->hsolver,hmat,bv,xv));
+  if (set_policy) PetscHYPRESetExecPolicy(HYPRE_EXEC_HOST);
   PetscFunctionReturn(0);
 }
 
@@ -430,11 +436,15 @@ static PetscErrorCode PCApply_HYPRE(PC pc,Vec b,Vec x)
   ierr = VecGetArrayWrite(x,(PetscScalar **)&xv);CHKERRQ(ierr);
   VecHYPRE_ParVectorReplacePointer(hjac->b,bv,sbv);
   VecHYPRE_ParVectorReplacePointer(hjac->x,xv,sxv);
+PetscBool set_policy = PETSC_FALSE;
+    PetscOptionsGetBool(NULL,NULL,"-hypre_policy",&set_policy,NULL);
 
   PetscStackCallStandard(HYPRE_IJMatrixGetObject,(hjac->ij,(void**)&hmat));
   PetscStackCallStandard(HYPRE_IJVectorGetObject,(hjac->b,(void**)&jbv));
   PetscStackCallStandard(HYPRE_IJVectorGetObject,(hjac->x,(void**)&jxv));
+  if (set_policy) PetscHYPRESetExecPolicy(jac->exec_policy);
   PetscStackCall("Hypre solve",hierr = (*jac->solve)(jac->hsolver,hmat,jbv,jxv);
+  if (set_policy) PetscHYPRESetExecPolicy(HYPRE_EXEC_HOST);
   if (hierr && hierr != HYPRE_ERROR_CONV) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error in HYPRE solver, error code %d",hierr);
   if (hierr) hypre__global_error = 0;);
 
@@ -1715,6 +1725,7 @@ static PetscErrorCode  PCHYPRESetType_HYPRE(PC pc,const char name[])
     ierr = PetscStrallocpy(name, &jac->hypre_type);CHKERRQ(ierr);
   }
 
+  jac->exec_policy     = HYPRE_EXEC_HOST;
   jac->maxiter         = PETSC_DEFAULT;
   jac->tol             = PETSC_DEFAULT;
   jac->printstatistics = PetscLogPrintInfo;
@@ -1780,6 +1791,10 @@ static PetscErrorCode  PCHYPRESetType_HYPRE(PC pc,const char name[])
     pc->ops->applyrichardson = PCApplyRichardson_HYPRE_BoomerAMG;
     ierr = PetscObjectComposeFunction((PetscObject)pc,"PCGetInterpolations_C",PCGetInterpolations_BoomerAMG);CHKERRQ(ierr);
     ierr = PetscObjectComposeFunction((PetscObject)pc,"PCGetCoarseOperators_C",PCGetCoarseOperators_BoomerAMG);CHKERRQ(ierr);
+#if defined(HYPRE_USING_CUDA)
+    PetscOptionsGetBool(NULL,NULL,"-hypre_device",&flag,NULL);
+    if (flag) jac->exec_policy = HYPRE_EXEC_DEVICE;
+#endif
     jac->destroy             = HYPRE_BoomerAMGDestroy;
     jac->setup               = HYPRE_BoomerAMGSetup;
     jac->solve               = HYPRE_BoomerAMGSolve;
@@ -1801,7 +1816,7 @@ static PetscErrorCode  PCHYPRESetType_HYPRE(PC pc,const char name[])
     jac->eu_droptolerance = 0;
     jac->eu_bj            = 0;
     jac->relaxtype[0]     = jac->relaxtype[1] = 6; /* Defaults to SYMMETRIC since in PETSc we are using a a PC - most likely with CG */
-    jac->relaxtype[2]     = 9; /*G.E. */
+    jac->relaxtype[2]     = 9; /* G.E. */
     jac->relaxweight      = 1.0;
     jac->outerrelaxweight = 1.0;
     jac->relaxorder       = 1;
@@ -1833,8 +1848,17 @@ static PetscErrorCode  PCHYPRESetType_HYPRE(PC pc,const char name[])
     PetscStackCallStandard(HYPRE_BoomerAMGSetAggNumLevels,(jac->hsolver,jac->agg_nl));
     PetscStackCallStandard(HYPRE_BoomerAMGSetPMaxElmts,(jac->hsolver,jac->pmax));
     PetscStackCallStandard(HYPRE_BoomerAMGSetNumPaths,(jac->hsolver,jac->agg_num_paths));
-    PetscStackCallStandard(HYPRE_BoomerAMGSetRelaxType,(jac->hsolver, jac->relaxtype[0]));  /*defaults coarse to 9*/
-    PetscStackCallStandard(HYPRE_BoomerAMGSetNumSweeps,(jac->hsolver, jac->gridsweeps[0])); /*defaults coarse to 1 */
+    PetscStackCallStandard(HYPRE_BoomerAMGSetRelaxType,(jac->hsolver, jac->relaxtype[0]));  /* defaults coarse to 9 */
+    PetscStackCallStandard(HYPRE_BoomerAMGSetNumSweeps,(jac->hsolver, jac->gridsweeps[0])); /* defaults coarse to 1 */
+#if defined(HYPRE_USING_CUDA)
+    if (jac->exec_policy == HYPRE_EXEC_DEVICE) {
+      PetscStackCallStandard(HYPRE_BoomerAMGSetRAP2,(jac->hsolver, 1));
+      PetscStackCallStandard(HYPRE_BoomerAMGSetModuleRAP2,(jac->hsolver, 1));
+    }
+    //hypre_HandleMemoryLocation(hypre_handle()) = HYPRE_MEMORY_DEVICE;
+    //hypre_HandleDefaultExecPolicy(hypre_handle()) = HYPRE_EXEC_DEVICE;
+    //hypre_HandleSpgemmUseCusparse(hypre_handle()) = 0;
+#endif
     PetscFunctionReturn(0);
   }
   ierr = PetscStrcmp("ams",jac->hypre_type,&flag);CHKERRQ(ierr);

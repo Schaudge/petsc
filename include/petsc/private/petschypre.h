@@ -27,5 +27,17 @@ PETSC_STATIC_INLINE PetscErrorCode PetscHYPREScalarCast(PetscScalar a, HYPRE_Com
 #endif
   PetscFunctionReturn(0);
 }
-#endif
 
+/* Protect with macros since hypre_HandleDefaultExecPolicy is exposed for all builds only from 2.19.0-devel (at some point) on
+   replace with version check when released? */
+#include <_hypre_utilities.h>
+PETSC_STATIC_INLINE PetscErrorCode PetscHYPRESetExecPolicy(HYPRE_ExecutionPolicy policy)
+{
+  PetscFunctionBegin;
+#if defined(HYPRE_USING_CUDA) || defined(HYPRE_USING_DEVICE_OPENMP)
+  hypre_HandleDefaultExecPolicy(hypre_handle()) = policy;
+#endif
+  PetscFunctionReturn(0);
+}
+
+#endif
