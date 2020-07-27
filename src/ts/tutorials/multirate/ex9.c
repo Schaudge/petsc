@@ -378,7 +378,6 @@ int main(int argc,char *argv[])
   PetscReal         ptime,maxtime;
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
-  Vec               X0;
   IS                slow = NULL,fast = NULL,buffer = NULL;
   RhsCtx            slowrhs,fastrhs,bufferrhs;
 
@@ -446,7 +445,7 @@ int main(int argc,char *argv[])
   fvnet->couplingflux = fvnet->physics.riemann; /* Hack for now */
 
   /* Generate Network Data */
-  ierr = FVNetworkCreate(fvnet->initial,fvnet,fvnet->Mx);CHKERRQ(ierr);
+  ierr = FVNetworkCreate(fvnet,fvnet->initial,fvnet->Mx);CHKERRQ(ierr);
   /* Create DMNetwork */
   ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet->network);CHKERRQ(ierr);
   if (size == 1 && fvnet->monifv) {
@@ -469,17 +468,10 @@ int main(int argc,char *argv[])
     PetscPrintf(PETSC_COMM_WORLD,"\nAfter DMNetworkDistribute, DMView:\n");CHKERRQ(ierr);
     ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
-
   /* Create Vectors */
-  ierr = DMCreateGlobalVector(fvnet->network,&fvnet->X);CHKERRQ(ierr);
-  ierr = VecDuplicate(fvnet->X,&X0);CHKERRQ(ierr);
-  ierr = VecDuplicate(fvnet->X,&fvnet->Ftmp);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(fvnet->network,&fvnet->localX);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(fvnet->network,&fvnet->localF);CHKERRQ(ierr);
-
+  ierr = FVNetworkCreateVectors(fvnet);CHKERRQ(ierr);
   /* Set up component dynamic data structures */
   ierr = FVNetworkSetupPhysics(fvnet);CHKERRQ(ierr);
-
   /* Create a time-stepping object */
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
@@ -516,9 +508,8 @@ int main(int argc,char *argv[])
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
 
   /* Compute initial conditions and starting time step */
-  ierr = FVNetworkSetInitial(fvnet,X0);CHKERRQ(ierr);
-  ierr = FVNetRHS(ts,0,X0,fvnet->X,fvnet);CHKERRQ(ierr);
-  ierr = VecCopy(X0,fvnet->X);CHKERRQ(ierr);
+  ierr = FVNetworkSetInitial(fvnet,fvnet->X);CHKERRQ(ierr);
+  ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,fvnet->cfl/fvnet->cfl_idt);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
   if (size == 1 && fvnet->monifv) {
@@ -534,7 +525,6 @@ int main(int argc,char *argv[])
   }
 
   /* Clean up */
-  ierr = VecDestroy(&X0);CHKERRQ(ierr);
   ierr = FVNetworkDestroy(fvnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
   if (size == 1 && fvnet->monifv) {
     ierr = DMNetworkMonitorDestroy(&fvnet->monitor);CHKERRQ(ierr);
