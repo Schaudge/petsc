@@ -91,6 +91,16 @@ PETSC_EXTERN PetscLogEvent PETSC_LARGEST_EVENT;
 PETSC_EXTERN PetscLogDouble petsc_TotalFlops;
 PETSC_EXTERN PetscLogDouble petsc_tmp_flops;
 
+/* Global GPU counters */
+#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN PetscLogDouble petsc_ctog_ct;
+PETSC_EXTERN PetscLogDouble petsc_gtoc_ct;
+PETSC_EXTERN PetscLogDouble petsc_ctog_sz;
+PETSC_EXTERN PetscLogDouble petsc_gtoc_sz;
+PETSC_EXTERN PetscLogDouble petsc_gflops;
+PETSC_EXTERN PetscLogDouble petsc_gtime;
+#endif
+
 /* We must make the following structures available to access the event
      activation flags in the PetscLogEventBegin/End() macros. These are not part of the PETSc public
      API and are not intended to be used by other parts of PETSc or by users.
@@ -178,6 +188,7 @@ typedef struct {
   PetscLogDouble GpuToCpuSize;  /* The total size of GPU to CPU copies */
   PetscLogDouble GpuFlops;      /* The flops done on a GPU in this event */
   PetscLogDouble GpuTime;       /* The time spent on a GPU in this event */
+  PetscLogDouble energyCons;    /* Energy Consumption */
   #endif
 } PetscEventPerfInfo;
 
@@ -248,21 +259,6 @@ PETSC_EXTERN PetscErrorCode PetscStageLogGetEventPerfLog(PetscStageLog,int,Petsc
 #define PETSC_FLOPS_PER_OP 1.0
 #endif
 
-/*@
-       PetscLogFlops - Log how many flops are performed in a calculation
-
-   Input Paramters:
-    flops - the number of flops
-
-   Notes:
-     To limit the chance of integer overflow when multiplying by a constant, represent the constant as a double, 
-     not an integer. Use PetscLogFlops(4.0*n) not PetscLogFlops(4*n)
-
-   Level: intermediate
-
-.seealso: PetscLogView()
-@*/
-
 PETSC_STATIC_INLINE PetscErrorCode PetscLogFlops(PetscLogDouble n)
 {
   PetscFunctionBegin;
@@ -274,17 +270,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscLogFlops(PetscLogDouble n)
 }
 
 #if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
-/* Global GPU counters */
-PETSC_EXTERN PetscLogDouble petsc_ctog_ct;
-PETSC_EXTERN PetscLogDouble petsc_gtoc_ct;
-PETSC_EXTERN PetscLogDouble petsc_ctog_sz;
-PETSC_EXTERN PetscLogDouble petsc_gtoc_sz;
-PETSC_EXTERN PetscLogDouble petsc_gflops;
-PETSC_EXTERN PetscLogDouble petsc_gtime;
-#if defined(PETSC_USE_DEBUG)
-PETSC_EXTERN PetscBool      petsc_gtime_inuse;
-#endif
-
 PETSC_STATIC_INLINE PetscErrorCode PetscLogCpuToGpu(PetscLogDouble size)
 {
   PetscFunctionBegin;
@@ -316,10 +301,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscLogGpuTimeBegin()
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-#if defined(PETSC_USE_DEBUG)
-  if (petsc_gtime_inuse) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Forgot to call PetscLogGpuTimeEnd()?");
-  petsc_gtime_inuse = PETSC_TRUE;
-#endif
   ierr = PetscTimeSubtract(&petsc_gtime);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -328,10 +309,6 @@ PETSC_STATIC_INLINE PetscErrorCode PetscLogGpuTimeEnd()
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-#if defined(PETSC_USE_DEBUG)
-  if (!petsc_gtime_inuse) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Forgot to call PetscLogGpuTimeBegin()?");
-  petsc_gtime_inuse = PETSC_FALSE;
-#endif
   ierr = PetscTimeAdd(&petsc_gtime);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -672,14 +649,12 @@ PETSC_EXTERN PetscErrorCode PetscLogObjectState(PetscObject,const char[],...);
 #define PetscLogEventBegin(e,o1,o2,o3,o4)  0
 #define PetscLogEventEnd(e,o1,o2,o3,o4)    0
 
-#if defined(PETSC_HAVE_VIENNACL) || defined(PETSC_HAVE_CUDA)
 #define PetscLogCpuToGpu(a)                0
 #define PetscLogGpuToCpu(a)                0
 #define PetscLogGpuFlops(a)                0
 #define PetscLogGpuTimeBegin()             0
 #define PetscLogGpuTimeEnd()               0
 #define PetscLogGpuTimeAdd(a)              0
-#endif
 
 /* If PETSC_USE_LOG is NOT defined, these still need to be! */
 #define MPI_Startall_irecv(count,datatype,number,requests) ((number) && MPI_Startall(number,requests))
