@@ -1,6 +1,6 @@
 #include "fvnet.h"
 
-PetscErrorCode FVNetworkCreate(PetscInt initial,FVNetwork fvnet,PetscInt Mx)
+PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt initial,PetscInt Mx)
 {
   PetscErrorCode ierr;
   PetscInt       nfvedge;
