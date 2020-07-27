@@ -146,7 +146,7 @@ PetscErrorCode FVNetworkCleanUp(FVNetwork);
    the vertex data structures needed for evaluating the edge data they 
    'steal' */ 
 PetscErrorCode FVNetworkCreateVectors(FVNetwork);
-PetscErrorCode FVNetworkSetupPhysics(FVNetwork);
+PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
 /* Create the multirate data structures the components require */
 PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
 /* Destroy allocated data */
