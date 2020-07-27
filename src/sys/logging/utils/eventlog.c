@@ -1,3 +1,274 @@
+//#define _POSIX_C_SOURCE 199309L
+#include <stdbool.h>
+#include <semaphore.h>
+#include "nvmlPower.hpp"
+#include <sys/types.h>
+#include <sys/syscall.h>
+
+/*
+These may be encompassed in a class if desired. Trivial CUDA programs written for the purpose of benchmarking might prefer this approach.
+*/
+static bool pollThreadStatus = false;
+static unsigned int deviceCount = 0;
+static char deviceNameStr[64];
+double consJoule;
+static double IdlePower;
+static int cuID;
+
+static nvmlReturn_t nvmlResult;
+static nvmlDevice_t *nvmlDeviceID;
+static nvmlPciInfo_t nvmPCIInfo;
+static nvmlEnableState_t pmmode;
+static nvmlComputeMode_t computeMode;
+
+static pthread_t powerPollThread;
+
+static pthread_mutex_t lock;
+static sem_t semb, semc;
+
+/*
+Poll the GPU using nvml APIs.
+*/
+void *powerPollingFunc(void *ptr)
+{
+	unsigned int powerLevel = 0;
+	double joule = 0, meanWatt = 0;
+	double begin, end;
+	double time_spent;
+	int nvml_err;
+	int dev_id;
+        bool start = true;
+
+        begin = MPI_Wtime();
+	dev_id = cuID;
+	pthread_mutex_lock(&lock);   
+
+	while (pollThreadStatus)
+	{
+		pthread_mutex_unlock(&lock);
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
+		// Get the power management mode of the GPU.
+		nvmlResult = nvmlDeviceGetPowerManagementMode(nvmlDeviceID[dev_id], &pmmode);
+
+		// The following function may be utilized to handle errors as needed.
+		if ((nvml_err = getNVMLError(nvmlResult)))
+		{
+			fprintf(stderr,"NVML error #%d\n",nvml_err);
+			pthread_exit(0);
+		}
+
+		// Check if power management mode is enabled.
+		if (pmmode == NVML_FEATURE_ENABLED)
+		{
+			// Get the power usage in milliWatts.
+			nvmlResult = nvmlDeviceGetPowerUsage(nvmlDeviceID[dev_id], &powerLevel);
+		}
+
+		meanWatt = (powerLevel)/1000.0;
+                if (start) {
+                	IdlePower = meanWatt;
+                        start = false;
+                }
+
+		end = MPI_Wtime();
+		time_spent = (double)(end - begin);
+		begin = end;
+		joule = meanWatt * time_spent;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+		pthread_mutex_lock(&lock);
+
+		consJoule += joule;
+	}
+	pthread_mutex_unlock(&lock);
+
+	pthread_exit(0);
+}
+
+/*
+Start power measurement by spawning a pthread that polls the GPU.
+Function needs to be modified as per usage to handle errors as seen fit.
+*/
+void nvmlAPIRun()
+{
+	int i;
+
+	// Initialize nvml.
+	nvmlResult = nvmlInit();
+	if (NVML_SUCCESS != nvmlResult)
+	{
+		printf("NVML Init fail: %s\n", nvmlErrorString(nvmlResult));
+		exit(0);
+	}
+
+	// Count the number of GPUs available.
+	nvmlResult = nvmlDeviceGetCount(&deviceCount);
+	if (NVML_SUCCESS != nvmlResult)
+	{
+		printf("Failed to query device count: %s\n", nvmlErrorString(nvmlResult));
+		exit(0);
+	}
+
+	nvmlDeviceID = (nvmlDevice_t *) malloc(deviceCount*sizeof(nvmlDevice_t));	
+
+	for (i = 0; i < deviceCount; i++)
+	{
+		// Get the device ID.
+		nvmlResult = nvmlDeviceGetHandleByIndex(i, nvmlDeviceID+i);
+		if (NVML_SUCCESS != nvmlResult)
+		{
+			printf("Failed to get handle for device %d: %s\n", i, nvmlErrorString(nvmlResult));
+			exit(0);
+		}
+
+		// Get the name of the device.
+		nvmlResult = nvmlDeviceGetName(nvmlDeviceID[i], deviceNameStr, sizeof(deviceNameStr)/sizeof(deviceNameStr[0]));
+		if (NVML_SUCCESS != nvmlResult)
+		{
+			printf("Failed to get name of device %d: %s\n", i, nvmlErrorString(nvmlResult));
+			exit(0);
+		}
+
+		// Get PCI information of the device.
+		nvmlResult = nvmlDeviceGetPciInfo(nvmlDeviceID[i], &nvmPCIInfo);
+		if (NVML_SUCCESS != nvmlResult)
+		{
+			printf("Failed to get PCI info of device %d: %s\n", i, nvmlErrorString(nvmlResult));
+			exit(0);
+		}
+
+		fprintf(stderr,"Found device %s with ID %d \n", deviceNameStr,i); 
+		// Get the compute mode of the device which indicates CUDA capabilities.
+		nvmlResult = nvmlDeviceGetComputeMode(nvmlDeviceID[i], &computeMode);
+		if (NVML_ERROR_NOT_SUPPORTED == nvmlResult)
+		{
+			printf("This is not a CUDA-capable device.\n");
+		}
+		else if (NVML_SUCCESS != nvmlResult)
+		{
+			printf("Failed to get compute mode for device %i: %s\n", i, nvmlErrorString(nvmlResult));
+			exit(0);
+		}
+		
+	}
+
+	// This statement assumes that the first indexed GPU will be used.
+	// If there are multiple GPUs that can be used by the system, this needs to be done with care.
+	// Test thoroughly and ensure the correct device ID is being used.
+	cudaGetDevice(&cuID);
+	fprintf(stderr,"Using CUDA device with ID %d\n",cuID);
+	nvmlResult = nvmlDeviceGetHandleByIndex(cuID, nvmlDeviceID+cuID);
+
+	pollThreadStatus = true;
+
+	const char *message = "Test";
+
+        if (pthread_mutex_init(&lock, NULL) != 0)
+        {
+        	fprintf(stderr, "\n mutex init failed\n");
+	}
+        if((sem_init(&semb,0,0))!=0)
+        	fprintf(stderr, "error in semb creation\n");
+        if((sem_init(&semc,0,0))!=0)
+        	fprintf(stderr, "error in semc creation\n");
+
+	int iret = pthread_create(&powerPollThread, NULL, powerPollingFunc, (void*) message);
+	if (iret)
+	{
+		fprintf(stderr,"Error - pthread_create() return code: %d\n",iret);
+		exit(0);
+	}
+}
+
+/*
+End power measurement. This ends the polling thread.
+*/
+void nvmlAPIEnd()
+{
+	pthread_mutex_lock(&lock);
+	pollThreadStatus = false;
+	pthread_mutex_unlock(&lock);
+	pthread_join(powerPollThread, NULL);
+
+	nvmlResult = nvmlShutdown();
+	if (NVML_SUCCESS != nvmlResult)
+	{
+		printf("Failed to shut down NVML: %s\n", nvmlErrorString(nvmlResult));
+		exit(0);
+	}
+}
+
+/*
+Return a number with a specific meaning. This number needs to be interpreted and handled appropriately.
+*/
+int getNVMLError(nvmlReturn_t resultToCheck)
+{
+	if (resultToCheck == NVML_ERROR_UNINITIALIZED)
+		return 1;
+	if (resultToCheck == NVML_ERROR_INVALID_ARGUMENT)
+		return 2;
+	if (resultToCheck == NVML_ERROR_NOT_SUPPORTED)
+		return 3;
+	if (resultToCheck == NVML_ERROR_NO_PERMISSION)
+		return 4;
+	if (resultToCheck == NVML_ERROR_ALREADY_INITIALIZED)
+		return 5;
+	if (resultToCheck == NVML_ERROR_NOT_FOUND)
+		return 6;
+	if (resultToCheck == NVML_ERROR_INSUFFICIENT_SIZE)
+		return 7;
+	if (resultToCheck == NVML_ERROR_INSUFFICIENT_POWER)
+		return 8;
+	if (resultToCheck == NVML_ERROR_DRIVER_NOT_LOADED)
+		return 9;
+	if (resultToCheck == NVML_ERROR_TIMEOUT)
+		return 10;
+	if (resultToCheck == NVML_ERROR_IRQ_ISSUE)
+		return 11;
+	if (resultToCheck == NVML_ERROR_LIBRARY_NOT_FOUND)
+		return 12;
+	if (resultToCheck == NVML_ERROR_FUNCTION_NOT_FOUND)
+		return 13;
+	if (resultToCheck == NVML_ERROR_CORRUPTED_INFOROM)
+		return 14;
+	if (resultToCheck == NVML_ERROR_GPU_IS_LOST)
+		return 15;
+	if (resultToCheck == NVML_ERROR_UNKNOWN)
+		return 16;
+
+	return 0;
+}
+
+void nvmlAPIstart()
+{
+	pthread_mutex_lock(&lock);
+	consJoule = 0;
+	pthread_mutex_unlock(&lock);
+	sem_post(&semc);
+	sem_wait(&semb);
+}
+
+double nvmlAPIstop()
+{
+	pthread_mutex_lock(&lock);
+	pthread_mutex_unlock(&lock);
+        sem_wait(&semb);
+	return consJoule;
+}
+
+double nvmlAPIcumul()
+{
+	double valret;
+	pthread_mutex_lock(&lock);
+        valret = consJoule;;
+        pthread_mutex_unlock(&lock);
+	return valret;
+}
+
+double nvmlAPIidle()
+{
+	return IdlePower;
+}
 
 /*
      This defines part of the private API for logging performance information. It is intended to be used only by the
@@ -170,6 +441,7 @@ PetscErrorCode PetscEventPerfInfoClear(PetscEventPerfInfo *eventInfo)
   eventInfo->GpuToCpuSize  = 0.0;
   eventInfo->GpuFlops      = 0.0;
   eventInfo->GpuTime       = 0.0;
+  eventInfo->energyCons    = 0.0;
   #endif
   PetscFunctionReturn(0);
 }
@@ -652,7 +924,8 @@ PetscErrorCode PetscLogEventBeginDefault(PetscLogEvent event,int t,PetscObject o
   eventLog->eventInfo[event].count++;
   eventLog->eventInfo[event].timeTmp = 0.0;
   PetscTimeSubtract(&eventLog->eventInfo[event].timeTmp);
-  eventLog->eventInfo[event].flopsTmp       = -petsc_TotalFlops;
+  eventLog->eventInfo[event].flopsTmp       = 0.0;
+  eventLog->eventInfo[event].flopsTmp      -= petsc_TotalFlops;
   eventLog->eventInfo[event].numMessages   -= petsc_irecv_ct  + petsc_isend_ct  + petsc_recv_ct  + petsc_send_ct;
   eventLog->eventInfo[event].messageLength -= petsc_irecv_len + petsc_isend_len + petsc_recv_len + petsc_send_len;
   eventLog->eventInfo[event].numReductions -= petsc_allreduce_ct + petsc_gather_ct + petsc_scatter_ct;
@@ -673,6 +946,8 @@ PetscErrorCode PetscLogEventBeginDefault(PetscLogEvent event,int t,PetscObject o
   eventLog->eventInfo[event].GpuToCpuSize  -= petsc_gtoc_sz;
   eventLog->eventInfo[event].GpuFlops      -= petsc_gflops;
   eventLog->eventInfo[event].GpuTime       -= petsc_gtime;
+  eventLog->eventInfo[event].energyCons    -= nvmlAPIcumul();
+  //nvmlAPIstart();
   #endif
   PetscFunctionReturn(0);
 }
@@ -720,6 +995,7 @@ PetscErrorCode PetscLogEventEndDefault(PetscLogEvent event,int t,PetscObject o1,
   eventLog->eventInfo[event].GpuToCpuSize  += petsc_gtoc_sz;
   eventLog->eventInfo[event].GpuFlops      += petsc_gflops;
   eventLog->eventInfo[event].GpuTime       += petsc_gtime;
+  eventLog->eventInfo[event].energyCons    += nvmlAPIcumul();
   #endif
   PetscFunctionReturn(0);
 }
