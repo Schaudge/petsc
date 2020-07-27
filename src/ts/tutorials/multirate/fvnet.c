@@ -209,8 +209,8 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   }
   PetscFunctionReturn(0);
 }
-/* Now we have a distributed network. It is assumed that localX and X have been created in fvnet */
-PetscErrorCode FVNetworkSetupPhysics(FVNetwork fvnet)
+/* Now we have a distributed network. It is assumed that localX and Ftmp have been created in fvnet */
+PetscErrorCode FVNetworkBuildDynamic(FVNetwork fvnet)
 {
   PetscErrorCode ierr; 
   PetscInt       e,v,i,nedges,dof = fvnet->physics.dof;
@@ -222,7 +222,7 @@ PetscErrorCode FVNetworkSetupPhysics(FVNetwork fvnet)
   PetscScalar    *xarr; 
 
   PetscFunctionBegin;
-  ierr   = VecSet(fvnet->X,0.0);CHKERRQ(ierr);
+  ierr   = VecSet(fvnet->Ftmp,0.0);CHKERRQ(ierr);
   ierr   = VecSet(localX,0.0);CHKERRQ(ierr);
   ierr   = VecGetArray(localX,&xarr);CHKERRQ(ierr);
   ierr   = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
@@ -254,11 +254,11 @@ PetscErrorCode FVNetworkSetupPhysics(FVNetwork fvnet)
     }
   }
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr); 
-  ierr = DMLocalToGlobalBegin(fvnet->network,localX,ADD_VALUES,fvnet->X);CHKERRQ(ierr);  
-  ierr = DMLocalToGlobalEnd(fvnet->network,localX,ADD_VALUES,fvnet->X);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(fvnet->network,localX,ADD_VALUES,fvnet->Ftmp);CHKERRQ(ierr);  
+  ierr = DMLocalToGlobalEnd(fvnet->network,localX,ADD_VALUES,fvnet->Ftmp);CHKERRQ(ierr);
   /* Now the flux components hold the edgein/edgeout information for all edges connected to the vertex (not just the local edges) */
-  ierr = DMGlobalToLocalBegin(fvnet->network,fvnet->X,INSERT_VALUES,localX);CHKERRQ(ierr); 
-  ierr = DMGlobalToLocalEnd(fvnet->network,fvnet->X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(fvnet->network,fvnet->Ftmp,INSERT_VALUES,localX);CHKERRQ(ierr); 
+  ierr = DMGlobalToLocalEnd(fvnet->network,fvnet->Ftmp,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
   /* Iterate through all vertices and build the junction component data structure dir. */
   for (v=vStart; v<vEnd; v++) {
@@ -286,7 +286,7 @@ PetscErrorCode FVNetworkCleanUp(FVNetwork fvnet)
   }
   PetscFunctionReturn(0);
 }
-FVNetworkCreateVectors(FVNetwork fvnet)
+PetscErrorCode FVNetworkCreateVectors(FVNetwork fvnet)
 {
   PetscErrorCode ierr; 
   PetscFunctionBegin;
@@ -1190,7 +1190,7 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0)
   ierr = DMLocalToGlobalEnd(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr); 
   PetscFunctionReturn(0);
 }
-/* Specific multirate partitions for test examples. This only works in sequential for now. */
+/* Specific multirate partitions for test examples. */
 PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet) 
 {
   PetscErrorCode ierr;

@@ -471,7 +471,7 @@ int main(int argc,char *argv[])
   /* Create Vectors */
   ierr = FVNetworkCreateVectors(fvnet);CHKERRQ(ierr);
   /* Set up component dynamic data structures */
-  ierr = FVNetworkSetupPhysics(fvnet);CHKERRQ(ierr);
+  ierr = FVNetworkBuildDynamic(fvnet);CHKERRQ(ierr);
   /* Create a time-stepping object */
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
