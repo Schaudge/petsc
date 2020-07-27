@@ -1,7 +1,7 @@
 #include <petscdmnetwork.h>
 #include <petsc.h>
 
-/* Finite Volume Data Strcutures, temporary as they are built right for this application. 
+/* Finite Volume Data Structures, temporary as they are built right for this application. 
    but they work for now */
 #include "finitevolume1d.h"
 #include "limiters.h"
@@ -18,7 +18,6 @@ typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
 struct _p_Junction{
   PetscInt	    id;        /* global index */
-  PetscInt      tag;       /* external id */
   VertexType    type;               
   Mat           *jacobian;
   PetscReal     x; /* x-coordinates */
@@ -44,7 +43,6 @@ struct _p_FVEdge
      for the data belonging to the given edge */
 
   PetscInt    nnodes;   /* number of nodes in da discretization */
-  Mat         *jacobian;
  /*void                *user;*/ /* user inputted data, need for function evaluations. However not 
                                    sure how do this right, as this data will have to be set after partitioning, 
                                    so the user will have to provide a function to set these based on id I think.
@@ -79,7 +77,7 @@ struct _p_FVNetwork
   PetscInt    *edgelist;               /* local edge list */
   Vec         localX,localF;           /* vectors used in local function evalutation */
   Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
-  PetscInt    nnodes_loc;              /* num of global and local nodes */
+  PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
   PetscBool   monifv;
   PetscReal   ymin,ymax;               
@@ -134,7 +132,7 @@ IS        wheretoputstuff;
 PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions. 
    Allocate the work array data for FVNetwork */
-PetscErrorCode FVNetworkCreate(PetscInt,FVNetwork,PetscInt);
+PetscErrorCode FVNetworkCreate(FVNetwork,PetscInt,PetscInt);
 /* set the components into the network and the number of variables
    each component requires. Also construct the local ordering for the
    edges of a vertex */ 
