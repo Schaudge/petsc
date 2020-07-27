@@ -286,6 +286,16 @@ PetscErrorCode FVNetworkCleanUp(FVNetwork fvnet)
   }
   PetscFunctionReturn(0);
 }
+FVNetworkCreateVectors(FVNetwork fvnet)
+{
+  PetscErrorCode ierr; 
+  PetscFunctionBegin;
+  ierr = DMCreateGlobalVector(fvnet->network,&fvnet->X);CHKERRQ(ierr);
+  ierr = VecDuplicate(fvnet->X,&fvnet->Ftmp);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(fvnet->network,&fvnet->localX);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(fvnet->network,&fvnet->localF);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 PetscErrorCode FVNetworkDestroy(FVNetwork fvnet) 
 {
   PetscErrorCode ierr;
