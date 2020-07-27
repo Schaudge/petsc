@@ -75,6 +75,7 @@ T*/
 #include <petscdm.h>
 #include <petscdmda.h>
 #endif
+#include <nvmlPower.hpp>
 
 /*
    User-defined routines and data structures
@@ -103,7 +104,9 @@ int main(int argc,char **argv)
   DM             da;
   Vec            x;
 
+  nvmlAPIRun();
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
+  //fprintf(stderr, "ex19.c: sema=%d\n", sema);
 
   PetscFunctionBeginUser;
   comm = PETSC_COMM_WORLD;
@@ -158,7 +161,9 @@ int main(int argc,char **argv)
   ierr = DMCreateGlobalVector(da,&x);CHKERRQ(ierr);
   ierr = FormInitialGuess(&user,da,x);CHKERRQ(ierr);
 
+  //nvmlAPIRun();
   ierr = SNESSolve(snes,NULL,x);CHKERRQ(ierr);
+  //nvmlAPIEnd();
 
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"Number of SNES iterations = %D\n", its);CHKERRQ(ierr);
@@ -178,6 +183,7 @@ int main(int argc,char **argv)
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = SNESDestroy(&snes);CHKERRQ(ierr);
   ierr = PetscFinalize();
+  nvmlAPIEnd();
   return ierr;
 }
 
@@ -1034,7 +1040,7 @@ PetscErrorCode NonlinearGS(SNES snes, Vec X, Vec B, void *ctx)
    test:
       suffix: umfpack
       requires: suitesparse
-      args: -da_refine 2 -pc_type lu -pc_factor_mat_solver_type umfpack -snes_view -snes_monitor_short -ksp_monitor_short -pc_factor_mat_ordering_type external
+      args: -da_refine 2 -pc_type lu -pc_factor_mat_solver_type umfpack -snes_view -snes_monitor_short -ksp_monitor_short
 
    test:
       suffix: tut_1
