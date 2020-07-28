@@ -17,6 +17,8 @@ of hours. This can be done on your own, or as part of a larger workshop on PETSc
 .. toctree::
   :maxdepth: 1
 
+  introductory_tutorial_ksp
+  introductory_tutorial_pc
 Learning More
 =============
 These tutorials are not intended to cover all possible topics, but rather
