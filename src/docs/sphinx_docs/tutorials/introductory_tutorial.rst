@@ -5,7 +5,7 @@ PETSc Introductory Tutorials
 .. note::
 
   This is work in progress. If you would like to help contribute to complete these
-  introductory tutorials, please be in touch via `GitLab <https://gitlab.com/petsc/petsc`__
+  introductory tutorials, please be in touch via `GitLab <https://gitlab.com/petsc/petsc>`__
   or ``petsc-maint@mcs.anl.gov``
 
 These tutorials are intended for people new to PETSc, who would like to get oriented
@@ -18,6 +18,8 @@ of hours. This can be done on your own, or as part of a larger workshop on PETSc
   :maxdepth: 1
 
   introductory_tutorial_build
+  introductory_tutorial_vec
+  introductory_tutorial_mat
   introductory_tutorial_ksp
   introductory_tutorial_pc
   introductory_tutorial_dm
