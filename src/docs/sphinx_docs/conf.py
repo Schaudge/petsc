@@ -19,6 +19,7 @@ import re
 import datetime
 
 sys.path.append(os.path.abspath('./ext'))
+from link import *
 
 # -- Project information -----------------------------------------------------
 
@@ -52,6 +53,8 @@ extensions.append('sphinx.ext.graphviz')
 extensions.append('sphinx.ext.mathjax')
 extensions.append('sphinxcontrib.bibtex')
 extensions.append('html5_petsc')          # Overrides HTML5Translator
+extensions.append('sphinx.ext.extlinks')
+extensions.append('xref')
 
 master_doc = 'index'
 # Add any paths that contain templates here, relative to this directory.
