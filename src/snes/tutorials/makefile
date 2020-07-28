@@ -1,7 +1,7 @@
 -include ../../../petscdir.mk
 CFLAGS           =
 FFLAGS		 =
-CPPFLAGS         =
+CPPFLAGS         = -lnvidia-ml
 FPPFLAGS         =
 LOCDIR		 = src/snes/tutorials/
 MANSEC           = SNES
