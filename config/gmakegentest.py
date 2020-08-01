@@ -184,7 +184,7 @@ class generateExamples(Petsc):
     if srcext in ".F90".split(): langReq="F90"
     if srcext in ".F".split(): langReq="F"
     if srcext in ".cxx".split(): langReq="cxx"
-    if srcext in ".kok.cxx".split(): langReq="kok"
+    if srcext in ".kok.cxx".split(): langReq="kok_cxx"
     if srcext in ".cpp".split(): langReq="cpp"
     if srcext == ".cu": langReq="cu"
     if srcext == ".c": langReq="c"
@@ -659,6 +659,8 @@ class generateExamples(Petsc):
         srcDict["SKIP"].append("Fortran f90freeform required for this test")
     if lang=="cu" and 'PETSC_HAVE_CUDA' not in self.conf:
       srcDict["SKIP"].append("CUDA required for this test")
+    if lang=="kok_cxx" and 'PETSC_HAVE_KOKKOS' not in self.conf:
+      srcDict["SKIP"].append("KOKKOS required for this test")
     if lang=="cxx" and 'PETSC_HAVE_CXX' not in self.conf:
       srcDict["SKIP"].append("C++ required for this test")
     if lang=="cpp" and 'PETSC_HAVE_CXX' not in self.conf:
@@ -925,9 +927,7 @@ class generateExamples(Petsc):
     def write(stem, srcs):
       for lang in LANGS:
         if srcs[lang]['srcs']:
-          if lang == 'kok': alang = 'kok.cxx'
-          else: alang = lang
-          fd.write('%(stem)s.%(lang)s := %(srcs)s\n' % dict(stem=stem, lang=alang, srcs=' '.join(srcs[lang]['srcs'])))
+          fd.write('%(stem)s.%(lang)s := %(srcs)s\n' % dict(stem=stem, lang=lang.replace('_','.'), srcs=' '.join(srcs[lang]['srcs'])))
     for pkg in self.pkg_pkgs:
         srcs = self.gen_pkg(pkg)
         write('testsrcs-' + pkg, srcs)
@@ -984,10 +984,8 @@ class generateExamples(Petsc):
             test=os.path.basename(ftest)
             basedir=os.path.dirname(ftest)
             testdeps.append(nameSpace(test,basedir))
-          if lang == 'kok': alang = 'kok.cxx'
-          else: alang = lang
-          fd.write("test-"+pkg+"."+alang+" := "+' '.join(testdeps)+"\n")
-          fd.write('test-%s.%s : $(test-%s.%s)\n' % (pkg, alang, pkg, alang))
+          fd.write("test-"+pkg+"."+lang.replace('_','.')+" := "+' '.join(testdeps)+"\n")
+          fd.write('test-%s.%s : $(test-%s.%s)\n' % (pkg, lang.replace('_','.'), pkg, lang.replace('_','.')))
 
           # test targets
           for ftest in self.tests[pkg][lang]:

@@ -20,6 +20,13 @@ def pathsplit(path):
         return (path,)
     return pathsplit(stem) + (basename,)
 
+def getlangext(name):
+    """Returns everything after the first . in the filename, including the ."""
+    file = os.path.basename(name)
+    loc = file.find('.')
+    if loc > -1: return file[loc:]
+    else: return ''
+
 class Mistakes(object):
     def __init__(self, log, verbose=False):
         self.mistakes = []
@@ -46,7 +53,7 @@ class Mistakes(object):
         if NOWARNDIRS.intersection(pathsplit(root)):
             return
         smsources = set(msources)
-        ssources  = set(f for f in files if os.path.splitext(f)[1] in ['.c', '.cxx', '.cc', '.cu', '.cpp', '.F', '.F90'])
+        ssources  = set(f for f in files if getlangext(f) in ['.c', '.kok.cxx','.cxx', '.cc', '.cu', '.cpp', '.F', '.F90'])
         if not smsources.issubset(ssources):
             self.mistakes.append('Makefile contains file not on filesystem: %s: %r' % (root, sorted(smsources - ssources)))
         if not self.verbose: return
@@ -68,8 +75,8 @@ def stripsplit(line):
   return line[len('#requires'):].replace("'","").split()
 
 PetscPKGS = 'sys vec mat dm ksp snes ts tao'.split()
-# the key is actually the language suffix, it won't work for suffixes such as 'kok.cxx' so this construct needs to be reorganized
-LANGS = dict(c='C', cxx='CXX', cpp='CPP', cu='CU', F='F', F90='F90', kok='KOK.CXX')
+# the key is actually the language suffix, it won't work for suffixes such as 'kok.cxx' so use an _ and replace the _ as needed with . 
+LANGS = dict(kok_cxx='KOK', c='C', cxx='CXX', cpp='CPP', cu='CU', F='F', F90='F90')
 
 class debuglogger(object):
     def __init__(self, log):
@@ -174,7 +181,7 @@ class Petsc(object):
         """Return dict {lang: list_of_source_files}"""
         source = dict()
         for lang, sourcelang in LANGS.items():
-            source[lang] = [f for f in makevars.get('SOURCE'+sourcelang,'').split() if f.endswith(lang)]
+            source[lang] = [f for f in makevars.get('SOURCE'+sourcelang,'').split() if f.endswith(lang.replace('_','.'))]
         return source
 
     def gen_pkg(self, pkg):
@@ -212,7 +219,7 @@ class Petsc(object):
     def gen_gnumake(self, fd):
         def write(stem, srcs):
             for lang in LANGS:
-                fd.write('%(stem)s.%(lang)s := %(srcs)s\n' % dict(stem=stem, lang=lang, srcs=' '.join(srcs[lang])))
+                fd.write('%(stem)s.%(lang)s := %(srcs)s\n' % dict(stem=stem, lang=lang.replace('_','.'), srcs=' '.join(srcs[lang])))
         for pkg in self.pkg_pkgs:
             srcs = self.gen_pkg(pkg)
             write('srcs-' + pkg, srcs)
