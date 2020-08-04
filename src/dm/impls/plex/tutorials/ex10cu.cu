@@ -73,33 +73,71 @@ static PetscErrorCode SimpleCSRMatSetup(SimpleCSRMat * mat)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SimpleCSRMatCopyNonZeroStructure(SimpleCSRMat *mat,Mat source)
+static PetscErrorCode SimpleCSRMatCopyNonZeroStructure(SimpleCSRMat **mat,Mat source)
 {
   PetscInt i;
   PetscErrorCode ierr;
   Mat_SeqAIJ *a = (Mat_SeqAIJ*)source->data;
 
   PetscFunctionBegin;
-  ierr = SimpleCSRMatCreate(&mat);
-  mat->nnz = a->nz;
-  ierr = MatGetSize(source,&mat->m,&mat->n);CHKERRQ(ierr);
-  ierr = SimpleCSRMatSetup(mat);CHKERRQ(ierr);
+  ierr = SimpleCSRMatCreate(mat);
+  (*mat)->nnz = a->nz;
+  ierr = MatGetSize(source,&((*mat)->m),&((*mat)->n));CHKERRQ(ierr);
+  ierr = SimpleCSRMatSetup(*mat);CHKERRQ(ierr);
 
-  for(i=0; i<mat->m; ++i){
-    mat->rowPtr[i] = a->i[i];
+  for(i=0; i<(*mat)->m; ++i){
+    (*mat)->rowPtr[i] = a->i[i];
   }
-  for(i=0; i<mat->nnz; ++i){
-    mat->colInd[i] = a->j[i];
+  for(i=0; i<(*mat)->nnz; ++i){
+    (*mat)->colInd[i] = a->j[i];
   }
   PetscFunctionReturn(0);
 }
 
-/* Returns the index into value array for Ith row Jth Column */
-static PetscErrorCode SimpleCSRMatGetIJ(SimpleCSRMat mat,PetscInt i, PetscInt j, PetscInt* ind)
-{
+static PetscErrorCode MatCopySimpleCSR(Mat* target,SimpleCSRMat *source){
+  Mat_SeqAIJ *a = (Mat_SeqAIJ*)(*target)->data;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
+  ierr = PetscArraycpy(a->a,source->vals,source->nnz);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* Returns the index into value array for Ith row Jth Column */
+static PetscErrorCode SimpleCSRMatGetInd(SimpleCSRMat mat,PetscInt i, PetscInt j, PetscInt* ind)
+{
+  PetscInt rowStart,rowLength,jdx;
+
+  PetscFunctionBegin;
+  rowStart = mat.rowPtr[i];
+  rowLength = (i==mat.m-1) ? mat.nnz-rowStart : mat.rowPtr[i+1]-rowStart;
+
+  *ind = -1;
+  for (jdx=rowStart; jdx < rowStart+rowLength; ++jdx) {
+    if (mat.colInd[jdx] == j) {
+      *ind = jdx;
+      break;
+    }
+  }
+
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SimpleCSRMatSetValues(SimpleCSRMat *mat,PetscInt m,const PetscInt* idx,PetscInt n,const PetscInt* jdx,const PetscScalar* v)
+{
+  PetscInt       i,j,adx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  for (j=0; j<n; ++j) {
+    for (i = 0; i<m; ++i) {
+      if (v[j*m+i]==0) continue;
+      ierr = SimpleCSRMatGetInd(*mat,idx[i],jdx[j],&adx);CHKERRQ(ierr);
+      if (adx!=-1) {
+        mat->vals[adx] += v[j*m+i];
+      }
+    }
+  }
 
   PetscFunctionReturn(0);
 }
@@ -409,19 +447,24 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
   ierr = PetscCalloc2(nDoF*nDoF*dim*dim,&tensor,nDoF*nDoF,&elemMat);CHKERRQ(ierr);
   ierr = PoissonReferenceTensor(field,tensor);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm,systemMat);CHKERRQ(ierr);
-  ierr = SimpleCSRMatCopyNonZeroStructure(testCSR,*systemMat);CHKERRQ(ierr);
+  ierr = SimpleCSRMatCopyNonZeroStructure(&testCSR,*systemMat);CHKERRQ(ierr);
   ierr = MatZeroEntries(*systemMat);CHKERRQ(ierr);
   ierr = MatSetOption(*systemMat,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
   ierr = GetElementClosureMaps(dm,cStart,cEnd,&closureSizes,&closures);CHKERRQ(ierr);
 
   /* This a loop that we will convert to threadwise GPU style */
   for (c=cStart; c<cEnd; ++c){
+    PetscInt numRowCol = closureSizes[c-cStart];
+    PetscInt* rowColIdx = closures[c-cStart];
   ierr = DMPlexComputeCellGeometryAffineFEM(dm,c,v,J,Jinv,&Jdet);CHKERRQ(ierr);
   ierr = PoissonReferenceToReal(dim,nDoF,tensor,Jinv,Jdet,elemMat);CHKERRQ(ierr);
-    ierr = MatSetValues(*systemMat,closureSizes[c-cStart],closures[c-cStart],closureSizes[c-cStart],closures[c-cStart],elemMat,ADD_VALUES);CHKERRQ(ierr);
+  //  ierr = MatSetValues(*systemMat,numRowCol,rowColIdx,numRowCol,rowColIdx,elemMat,ADD_VALUES);CHKERRQ(ierr);
+  ierr = SimpleCSRMatSetValues(testCSR,numRowCol,rowColIdx,numRowCol,rowColIdx,elemMat);CHKERRQ(ierr);
   }
+  ierr = MatCopySimpleCSR(systemMat,testCSR);CHKERRQ(ierr);
   MatAssemblyBegin(*systemMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   MatAssemblyEnd(*systemMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
 
   PetscFree(closureSizes);
   for (c=cStart; c<cEnd; ++c){
@@ -433,7 +476,7 @@ static PetscErrorCode BuildSystemMatrix(DM dm, Mat* systemMat){
   PetscFree(v);
   PetscFree(tensor);
   PetscFree(elemMat);
-
+  SimpleCSRMatDestroy(testCSR);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
