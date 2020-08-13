@@ -10,7 +10,7 @@
 #if defined(PETSC_HAVE_CUDA)
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <petsc/private/petscimpl.h> /* for PetscCUDAInitialized */
+#include <petsc/private/petscimpl.h> /* for PetscDeviceInitialized */
 #endif
 
 #define MPI_SUCCESS 0
@@ -64,7 +64,7 @@ int MPIUNI_Memcpy(void *dst,const void *src,int n)
   if (!n) return MPI_SUCCESS;
 
 #if defined(PETSC_HAVE_CUDA) /* CUDA-aware MPIUNI */
-  if (PetscCUDAInitialized) {
+  if (PetscDeviceInitialized) {
     int                          dstType=0,srcType=0; /* 0: host memory; 1: device memory */
     cudaError_t                  dstCerr,srcCerr,cerr;
     struct cudaPointerAttributes dstAttr,srcAttr;
