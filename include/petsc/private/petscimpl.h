@@ -939,6 +939,14 @@ PETSC_EXTERN PetscBool     use_gpu_aware_mpi;
 PETSC_EXTERN int64_t Petsc_adios_group;
 #endif
 
+#if defined(PETSC_HAVE_KOKKOS)
+PETSC_EXTERN PetscBool      KokkosInitialized;
+PETSC_INTERN PetscBool      PetscBeganKokkos;
+PETSC_INTERN PetscErrorCode PetscKokkosInitialize(void);
+PETSC_INTERN PetscErrorCode PetscKokkosInitialized(PetscBool*);
+PETSC_INTERN PetscErrorCode PetscKokkosFinalize(void);
+#endif
+
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
 /* Has petsc initialized GPU? One can use this flag to guard some GPU calls, which may initialize GPU runtime and incur a cost. */
 PETSC_EXTERN PetscBool      PetscDeviceInitialized;

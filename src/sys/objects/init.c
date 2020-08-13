@@ -51,6 +51,11 @@ PetscBool   PetscFinalizeCalled           = PETSC_FALSE;
 PetscMPIInt PetscGlobalRank               = -1;
 PetscMPIInt PetscGlobalSize               = -1;
 
+#if defined(PETSC_HAVE_KOKKOS)
+PetscBool   KokkosInitialized             = PETSC_FALSE;
+PetscBool   PetscBeganKokkos              = PETSC_FALSE;
+#endif
+
 PetscBool   PetscDeviceInitialized        = PETSC_FALSE;
 PetscBool   use_gpu_aware_mpi             = PETSC_TRUE;
 
@@ -293,7 +298,13 @@ PetscErrorCode PetscDeviceInitializeLazily(void)
       }
     }
     PetscDeviceInitialized = PETSC_TRUE;
+#if defined(PETSC_HAVE_KOKKOS)
+    ierr = PetscKokkosInitialize();CHKERRQ(ierr);
+    KokkosInitialized = PETSC_TRUE;
+    PetscBeganKokkos  = PETSC_TRUE;
+#endif
   }
+
   if (!devValdidateChecked) {
     ierr = PetscDeviceValidate();CHKERRQ(ierr);
     devValdidateChecked = PETSC_TRUE;
@@ -749,6 +760,24 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
 
   ierr = PetscOptionsGetBool(NULL,NULL,"-saws_options",&PetscOptionsPublish,NULL);CHKERRQ(ierr);
 
+#if defined(PETSC_HAVE_KOKKOS)
+  {
+    char      devStr[32]={0};
+    PetscBool set,devDefault;
+    ierr = PetscKokkosInitialized(&KokkosInitialized);CHKERRQ(ierr);
+    if (KokkosInitialized) {
+      ierr = PetscOptionsGetString(NULL,NULL,"-device_set",devStr,sizeof(devStr),&set);CHKERRQ(ierr);
+      if (set) { /* If users have initialized Kokkos themselves, but also had '-device_set XXX', for simplicity, make sure XXX is DEFAULT */
+        ierr = PetscStrcasecmp("DEFAULT",devStr,&devDefault);CHKERRQ(ierr);
+        if (!devDefault) {ierr = PetscStrcasecmp("PETSC_DEFAULT",devStr,&devDefault);CHKERRQ(ierr);}
+        if (!devDefault)  SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Kokkos was initialized before PetscInitialize(), but you have '-device_set %s'. Remove the option or use -device_set default.",devStr);
+      } else { /* If users did not have '-device_set XXX', insert one here so that petsc can continue its own device initialization */
+        ierr = PetscOptionsSetValue(NULL,"-device_set","DEFAULT");CHKERRQ(ierr);
+      }
+    }
+  }
+#endif
+
 #if defined(PETSC_HAVE_CUDA)
   {
     devError_t           cerr;
@@ -813,6 +842,14 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
       ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"[%d] Using device %d.\n",rank,devId);CHKERRQ(ierr);
       ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
     }
+  }
+#endif
+
+#if defined(PETSC_HAVE_KOKKOS)
+  if (PetscDeviceInitialized && !KokkosInitialized) {
+    ierr = PetscKokkosInitialize();CHKERRQ(ierr);
+    KokkosInitialized = PETSC_TRUE;
+    PetscBeganKokkos  = PETSC_TRUE;
   }
 #endif
 
