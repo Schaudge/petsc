@@ -24,7 +24,7 @@
 
 /* ---------------------------------------------------------------------*/
 
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+#if defined(PETSC_HAVE_DEVICE)
 PETSC_EXTERN void PetscDeviceInitialize_(MPI_Fint *comm, PetscInt *dev,PetscErrorCode *ierr)
 {
   *ierr = PetscDeviceInitialize(MPI_Comm_f2c(*(comm)),*dev);

@@ -942,17 +942,16 @@ PETSC_EXTERN int64_t Petsc_adios_group;
 #if defined(PETSC_HAVE_KOKKOS)
 PETSC_EXTERN PetscBool      KokkosInitialized;
 PETSC_INTERN PetscBool      PetscBeganKokkos;
-PETSC_INTERN PetscErrorCode PetscKokkosInitialize(void);
-PETSC_INTERN PetscErrorCode PetscKokkosInitialized(PetscBool*);
-PETSC_INTERN PetscErrorCode PetscKokkosFinalize(void);
+PETSC_INTERN PetscErrorCode PetscKokkosInitialize_Private(void); /* C bindings for the Kokkos C++ routines */
+PETSC_INTERN PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool*);
+PETSC_INTERN PetscErrorCode PetscKokkosFinalize_Private(void);
 #endif
 
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-/* Has petsc initialized GPU? One can use this flag to guard some GPU calls, which may initialize GPU runtime and incur a cost. */
+#if defined(PETSC_HAVE_DEVICE)
+/* Has petsc initialized the device? One can use this flag to guard some device calls, which may initialize device runtime and incur a cost. */
 PETSC_EXTERN PetscBool      PetscDeviceInitialized;
-PETSC_EXTERN PetscErrorCode PetscDeviceInitialize(MPI_Comm,PetscInt);
-/* Initialize the GPU device lazily just before creating the first GPU object. */
-PETSC_EXTERN PetscErrorCode PetscDeviceInitializeLazily(void);
+/* Initialize the device lazily just before creating the first device object. */
+PETSC_EXTERN PetscErrorCode PetscDeviceInitializeCheck(void);
 #endif
 
 #endif /* PETSCIMPL_H */

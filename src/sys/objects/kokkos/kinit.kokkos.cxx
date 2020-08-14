@@ -2,7 +2,8 @@
 #include <petsc/private/petscimpl.h>
 #include <Kokkos_Core.hpp>
 
-PetscErrorCode PetscKokkosInitialize(void)
+/* These wrappers are used as C bindings for the Kokkos routines */
+PetscErrorCode PetscKokkosInitialize_Private(void)
 {
   Kokkos::InitArguments args;
   int                   devId;
@@ -18,14 +19,14 @@ PetscErrorCode PetscKokkosInitialize(void)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscKokkosInitialized(PetscBool *isInitialized)
+PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool *isInitialized)
 {
   PetscFunctionBegin;
   *isInitialized = Kokkos::is_initialized() ? PETSC_TRUE : PETSC_FALSE;
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscKokkosFinalize(void)
+PetscErrorCode PetscKokkosFinalize_Private(void)
 {
   PetscFunctionBegin;
   Kokkos::finalize();

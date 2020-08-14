@@ -28,7 +28,7 @@ PETSC_INTERN PetscErrorCode PetscLogInitialize(void);
   #include <hip/hip_runtime.h>
 #endif
 
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+#if defined(PETSC_HAVE_DEVICE)
   #if defined(PETSC_HAVE_OMPI_MAJOR_VERSION)
     #include "mpi-ext.h" /* Needed for OpenMPI CUDA-aware check */
   #endif
@@ -242,7 +242,7 @@ void Petsc_MPI_DebuggerOnError(MPI_Comm *comm,PetscMPIInt *flag,...)
   #define CHKERRDEVICE(x)                         CHKERRQ((x)==hipSuccess? 0:PETSC_ERR_LIB)
 #endif
 
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
+#if defined(PETSC_HAVE_DEVICE)
 /* Device validation after it is lazily initialized */
 static PetscErrorCode PetscDeviceValidate(void)
 {
@@ -272,9 +272,9 @@ static PetscErrorCode PetscDeviceValidate(void)
   PetscFunctionReturn(0);
 }
 
-/* Initialize the GPU device lazily just before creating the first GPU object. */
-static PetscBool PetscNotUseDevice = PETSC_FALSE; /* Assert the code will not use GPUs */
-PetscErrorCode PetscDeviceInitializeLazily(void)
+/* Initialize the device lazily just before creating the first device object. */
+static PetscBool PetscNotUseDevice = PETSC_FALSE; /* Assert the code will not use devices */
+PetscErrorCode PetscDeviceInitializeCheck(void)
 {
   PetscErrorCode        ierr;
   devError_t            cerr;
@@ -283,7 +283,7 @@ PetscErrorCode PetscDeviceInitializeLazily(void)
   static PetscBool      devValdidateChecked = PETSC_FALSE;
 
   PetscFunctionBegin;
-  if (PetscNotUseDevice) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"You asserted the code won't use GPUs with -device_set none, but it is trying to create a device object. Remove this option or see manpage of PetscDeviceInitialize().");
+  if (PetscNotUseDevice) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"You asserted the code would't use devices with -device_set none, but now trying to create a device object. Remove this option or see manpage of PetscDeviceInitialize().");
   if (!PetscDeviceInitialized) {
     cerr = devGetDeviceCount(&devCount);CHKERRDEVICE(cerr);
     if (devCount > 1) {
@@ -299,7 +299,7 @@ PetscErrorCode PetscDeviceInitializeLazily(void)
     }
     PetscDeviceInitialized = PETSC_TRUE;
 #if defined(PETSC_HAVE_KOKKOS)
-    ierr = PetscKokkosInitialize();CHKERRQ(ierr);
+    ierr = PetscKokkosInitialize_Private();CHKERRQ(ierr);
     KokkosInitialized = PETSC_TRUE;
     PetscBeganKokkos  = PETSC_TRUE;
 #endif
@@ -764,7 +764,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
   {
     char      devStr[32]={0};
     PetscBool set,devDefault;
-    ierr = PetscKokkosInitialized(&KokkosInitialized);CHKERRQ(ierr);
+    ierr = PetscKokkosIsInitialized_Private(&KokkosInitialized);CHKERRQ(ierr);
     if (KokkosInitialized) {
       ierr = PetscOptionsGetString(NULL,NULL,"-device_set",devStr,sizeof(devStr),&set);CHKERRQ(ierr);
       if (set) { /* If users have initialized Kokkos themselves, but also had '-device_set XXX', for simplicity, make sure XXX is DEFAULT */
@@ -847,7 +847,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
 
 #if defined(PETSC_HAVE_KOKKOS)
   if (PetscDeviceInitialized && !KokkosInitialized) {
-    ierr = PetscKokkosInitialize();CHKERRQ(ierr);
+    ierr = PetscKokkosInitialize_Private();CHKERRQ(ierr);
     KokkosInitialized = PETSC_TRUE;
     PetscBeganKokkos  = PETSC_TRUE;
   }
