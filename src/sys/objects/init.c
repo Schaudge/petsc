@@ -111,7 +111,10 @@ PetscErrorCode (*PetscVFPrintf)(FILE*,const char[],va_list)    = PetscVFPrintfDe
   This is needed to turn on/off GPU synchronization
 */
 PetscBool PetscViennaCLSynchronize = PETSC_FALSE;
+
+#if defined(PETSC_HAVE_DEVICE)
 PetscBool PetscDeviceSynchronize   = PETSC_FALSE;
+#endif
 
 /* ------------------------------------------------------------------------------*/
 /*
@@ -778,7 +781,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
   }
 #endif
 
-#if defined(PETSC_HAVE_CUDA)
+#if defined(PETSC_HAVE_DEVICE)
   {
     devError_t           cerr;
     PetscBool             initDevice = PETSC_FALSE,devView = PETSC_FALSE,logView = PETSC_FALSE,devNone = PETSC_FALSE;
@@ -821,10 +824,10 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
           if (cerr == devSuccess) { /* It implies gpu runtime has not been initialized */
             ierr  = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
             devId = rank % devCount;
-            cerr  = devSetDevice(devId);CHKERRCUDA(cerr);
+            cerr  = devSetDevice(devId);CHKERRDEVICE(cerr);
           } else if (cerr == devErrorSetOnActiveProcess) {
             /* It means user initialized gpu runtime outside of petsc. We respect the device choice. */
-            cerr = devGetDevice(&devId);CHKERRCUDA(cerr);
+            cerr = devGetDevice(&devId);CHKERRDEVICE(cerr);
           }
         }
         ierr = PetscDeviceInitialize(PETSC_COMM_WORLD,(PetscInt)devId);CHKERRQ(ierr);
@@ -838,7 +841,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
         cerr = devGetDeviceProperties(&prop,devId);CHKERRDEVICE(cerr);
         ierr = PetscPrintf(PETSC_COMM_WORLD, "device %d: %s\n", devId, prop.name);CHKERRQ(ierr);
       }
-      cerr = devGetDevice(&devId);CHKERRCUDA(cerr);
+      cerr = devGetDevice(&devId);CHKERRDEVICE(cerr);
       ierr = PetscSynchronizedPrintf(PETSC_COMM_WORLD,"[%d] Using device %d.\n",rank,devId);CHKERRQ(ierr);
       ierr = PetscSynchronizedFlush(PETSC_COMM_WORLD,PETSC_STDOUT);CHKERRQ(ierr);
     }

@@ -954,4 +954,12 @@ PETSC_EXTERN PetscBool      PetscDeviceInitialized;
 PETSC_EXTERN PetscErrorCode PetscDeviceInitializeCheck(void);
 #endif
 
+#if defined(PETSC_HAVE_CUDA)
+  #define PetscCUDAInitialized       PetscDeviceInitialized
+  #define PetscCUDAInitializeCheck() PetscDeviceInitializeCheck()
+#elif defined(PETSC_HAVE_HIP)
+  #define PetscHIPInitialized        PetscDeviceInitialized
+  #define PetscHIPInitializeCheck()  PetscDeviceInitializeCheck()
+#endif
+
 #endif /* PETSCIMPL_H */
