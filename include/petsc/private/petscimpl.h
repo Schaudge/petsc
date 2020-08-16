@@ -947,19 +947,12 @@ PETSC_INTERN PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool*);
 PETSC_INTERN PetscErrorCode PetscKokkosFinalize_Private(void);
 #endif
 
-#if defined(PETSC_HAVE_DEVICE)
-/* Has petsc initialized the device? One can use this flag to guard some device calls, which may initialize device runtime and incur a cost. */
-PETSC_EXTERN PetscBool      PetscDeviceInitialized;
-/* Initialize the device lazily just before creating the first device object. */
-PETSC_EXTERN PetscErrorCode PetscDeviceInitializeCheck(void);
-#endif
-
 #if defined(PETSC_HAVE_CUDA)
-  #define PetscCUDAInitialized       PetscDeviceInitialized
-  #define PetscCUDAInitializeCheck() PetscDeviceInitializeCheck()
+PETSC_EXTERN PetscBool      PetscCUDAInitialized;  /* Has petsc initialized CUDA? One can use this flag to guard CUDA calls if one does not use GPUs. */
+PETSC_EXTERN PetscErrorCode PetscCUDAInitializeCheck(void);  /* Check if CUDA is initialized and init CUDA if not yet. */
 #elif defined(PETSC_HAVE_HIP)
-  #define PetscHIPInitialized        PetscDeviceInitialized
-  #define PetscHIPInitializeCheck()  PetscDeviceInitializeCheck()
+PETSC_EXTERN PetscBool      PetscHIPInitialized;
+PETSC_EXTERN PetscErrorCode PetscHIPInitializeCheck(void);
 #endif
 
 #endif /* PETSCIMPL_H */
