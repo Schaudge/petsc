@@ -111,6 +111,7 @@
         <ul>
           <li>Add PETSC_MPI_THREAD_REQUIRED to control the requested threading level for MPI_Init</li>
           <li>Remove option -cuda_initialize, whose functionality is succeeded by -device_set</li>
+          <li>Change PetscCUDAInitialize(comm) to PetscCUPMInitialize(comm,dev)</li>
           <li>Rename -cuda_set_device to -device_set, which can now accept NONE, PETSC_DEFAULT, PETSC_DECIDE in additon to non-negative integers</li>
           <li>Rename -cuda_view, -cuda_synchronize to -device_view, -device_synchronize respectively</li>
           <li>Add PetscOptionsInsertStringYAML() and "-options_string_yaml" for YAML-formatted options on the command line</li>

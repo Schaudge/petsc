@@ -947,12 +947,9 @@ PETSC_INTERN PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool*);
 PETSC_INTERN PetscErrorCode PetscKokkosFinalize_Private(void);
 #endif
 
-#if defined(PETSC_HAVE_CUDA)
-PETSC_EXTERN PetscBool      PetscCUDAInitialized;  /* Has petsc initialized CUDA? One can use this flag to guard CUDA calls if one does not use GPUs. */
-PETSC_EXTERN PetscErrorCode PetscCUDAInitializeCheck(void);  /* Check if CUDA is initialized and init CUDA if not yet. */
-#elif defined(PETSC_HAVE_HIP)
-PETSC_EXTERN PetscBool      PetscHIPInitialized;
-PETSC_EXTERN PetscErrorCode PetscHIPInitializeCheck(void);
+#if defined(PETSC_HAVE_DEVICE)
+PETSC_EXTERN PetscBool      PetscCUPMInitialized;  /* Has petsc initialized CUPM (cuda or hip)? One can use this flag to guard CUPM calls if one does not use GPUs. */
+PETSC_EXTERN PetscErrorCode PetscCUPMInitializeCheck(void);  /* Check if CUPM is initialized and init CUPM if not yet. */
 #endif
 
 #endif /* PETSCIMPL_H */
