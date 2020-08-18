@@ -450,7 +450,7 @@ PetscErrorCode  TSTrajectoryCreate(MPI_Comm comm,TSTrajectory *tj)
   t->adjoint_solve_mode   = PETSC_TRUE;
   t->solution_only        = PETSC_FALSE;
   t->keepfiles            = PETSC_FALSE;
-  t->usehistory           = PETSC_TRUE;
+  t->usehistory           = PETSC_FALSE;
   *tj  = t;
   ierr = TSTrajectorySetFiletemplate(t,"TS-%06D.bin");CHKERRQ(ierr);
   PetscFunctionReturn(0);
