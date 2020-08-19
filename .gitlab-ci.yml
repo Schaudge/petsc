@@ -838,12 +838,11 @@ analyze-pipeline:
     - linux-gcov
   variables:
     PETSC_ARCH: arch-ci-analyze-pipeline
-  allow_failure: true
   before_script:
     - date
     - hostname
   script:
-  - git fetch --unshallow --no-tags origin master
+  - git fetch --unshallow --no-tags origin +master:remotes/origin/master
   - ./configure --with-mpi=0 --with-cxx=0 --with-c2html
   - make srchtml
   - make mergegcov

@@ -253,7 +253,7 @@ def make_htmlpage(gcov_dir,petsc_dir,petsc_arch,tarballs,isCI):
         new_ntotal_lines = 0
         new_ntotal_lines_not_tested = 0
         new_output_list = []
-        diff = str(subprocess.check_output('git diff master | grep "diff "| cut -d" " -f4 | sed "s?^b/??g"', shell=True).decode(encoding='UTF-8',errors='replace')).split('\n')
+        diff = str(subprocess.check_output('git diff --name-only origin/master...', shell=True).decode(encoding='UTF-8',errors='replace')).split('\n')
         if lang == 'C':
            diff = [ i for i in diff if i.endswith('.c') and not i.find('ftn-') > -1 and not i.find('f90-') > -1]
         if lang == 'Fortran stubs':
@@ -263,7 +263,7 @@ def make_htmlpage(gcov_dir,petsc_dir,petsc_arch,tarballs,isCI):
            t_nsrc_lines_not_tested = 0
            ii = file.replace(os.sep,'__')
            if ii in tested:
-              diff = str(subprocess.check_output('git blame master.. '+file+' | grep -v "\^"', shell=True).decode(encoding='UTF-8',errors='replace')).split('\n')
+              diff = str(subprocess.check_output('git blame origin/master.. '+file+' | grep -v "\^"', shell=True).decode(encoding='UTF-8',errors='replace')).split('\n')
               lines_not_tested = {}
               for line in diff:
                   if len(line) > 0:
