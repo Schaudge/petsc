@@ -507,9 +507,14 @@ PETSC_EXTERN PetscErrorCode PetscSetHelpVersionFunctions(PetscErrorCode (*)(MPI_
 PETSC_EXTERN PetscErrorCode PetscCommDuplicate(MPI_Comm,MPI_Comm*,int*);
 PETSC_EXTERN PetscErrorCode PetscCommDestroy(MPI_Comm*);
 
-#if defined(PETSC_HAVE_DEVICE)
-PETSC_EXTERN PetscBool      PetscCUPMSynchronize;
-PETSC_EXTERN PetscErrorCode PetscCUPMInitialize(MPI_Comm,PetscInt);
+#if defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN PetscBool      PetscCUDASynchronize;
+PETSC_EXTERN PetscErrorCode PetscCUDAInitialize(MPI_Comm,PetscInt);
+#endif
+
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscBool      PetscHIPSynchronize;
+PETSC_EXTERN PetscErrorCode PetscHIPInitialize(MPI_Comm,PetscInt);
 #endif
 
 #if defined(PETSC_HAVE_ELEMENTAL)

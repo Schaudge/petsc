@@ -7,7 +7,7 @@
 #include <cusolverDn.h>
 #include <petscsys.h>
 
-#define WaitForGPU() PetscCUPMSynchronize ? cudaDeviceSynchronize() : cudaSuccess;
+#define WaitForGPU() PetscCUDASynchronize ? cudaDeviceSynchronize() : cudaSuccess;
 
 /* CUDART_VERSION = 1000 x major + 10 x minor version */
 

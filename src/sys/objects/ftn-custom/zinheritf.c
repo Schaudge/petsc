@@ -12,22 +12,31 @@
 #define petscobjectreference_      PETSCOBJECTREFERENCE
 #define petscobjectdereference_    PETSCOBJECTDEREFERENCE
 #define petscobjectgetreference_   PETSCOBJECTGETREFERENCE
-#define petsccupminitialize_       PETSCCUPMINITIALIZE
+#define petsccudainitialize_       PETSCCUDAINITIALIZE
+#define petschipinitialize_        PETSCHIPINITIALIZE
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
 #define petscobjectcompose_        petscobjectcompose
 #define petscobjectquery_          petscobjectquery
 #define petscobjectreference_      petscobjectreference
 #define petscobjectdereference_    petscobjectdereference
 #define petscobjectgetreference_   petscobjectgetreference
-#define petsccupminitialize_       petsccupminitialize
+#define petsccudainitialize_       petsccudainitialize
+#define petschipinitialize_        petschipinitialize
 #endif
 
 /* ---------------------------------------------------------------------*/
 
-#if defined(PETSC_HAVE_DEVICE)
-PETSC_EXTERN void PetscCUPMInitialize_(MPI_Fint *comm, PetscInt *dev,PetscErrorCode *ierr)
+#if defined(PETSC_HAVE_CUDA)
+PETSC_EXTERN void PetscCUDAInitialize_(MPI_Fint *comm, PetscInt *dev,PetscErrorCode *ierr)
 {
-  *ierr = PetscCUPMInitialize(MPI_Comm_f2c(*(comm)),*dev);
+  *ierr = PetscCUDAInitialize(MPI_Comm_f2c(*(comm)),*dev);
+}
+#endif
+
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN void PetscHIPInitialize_(MPI_Fint *comm, PetscInt *dev,PetscErrorCode *ierr)
+{
+  *ierr = PetscHIPInitialize(MPI_Comm_f2c(*(comm)),*dev);
 }
 #endif
 

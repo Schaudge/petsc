@@ -1550,7 +1550,7 @@ PetscErrorCode  PetscFinalize(void)
   PetscGlobalArgs = NULL;
 
 #if defined(PETSC_HAVE_KOKKOS)
-  if (PetscBeganKokkos && KokkosInitialized) {ierr = PetscKokkosFinalize_Private();CHKERRQ(ierr);}
+  if (PetscBeganKokkos) {ierr = PetscKokkosFinalize_Private();CHKERRQ(ierr);}
 #endif
 
   ierr = PetscFreeMPIResources();CHKERRQ(ierr);

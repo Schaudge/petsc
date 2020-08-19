@@ -11,7 +11,7 @@ PetscErrorCode PetscKokkosInitialize_Private(void)
   PetscFunctionBegin;
 #if defined(KOKKOS_ENABLE_CUDA)
   cudaGetDevice(&devId);
-#elif defined(KOKKOS_ENABLE_HIP)
+#elif defined(KOKKOS_ENABLE_HIP) /* Kokkos does not support CUDA and HIP at the same time */
   hipGetDevice(&devId);
 #endif
   args.device_id = devId;
@@ -19,16 +19,16 @@ PetscErrorCode PetscKokkosInitialize_Private(void)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool *isInitialized)
-{
-  PetscFunctionBegin;
-  *isInitialized = Kokkos::is_initialized() ? PETSC_TRUE : PETSC_FALSE;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode PetscKokkosFinalize_Private(void)
 {
   PetscFunctionBegin;
   Kokkos::finalize();
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PetscKokkosIsInitialized_Private(PetscBool *isInitialized)
+{
+  PetscFunctionBegin;
+  *isInitialized = Kokkos::is_initialized() ? PETSC_TRUE : PETSC_FALSE;
   PetscFunctionReturn(0);
 }
