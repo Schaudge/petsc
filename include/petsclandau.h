@@ -19,8 +19,22 @@ PETSC_EXTERN PetscErrorCode LandauIJacobian(TS, PetscReal,Vec,Vec,PetscReal,Mat,
 #if !defined(LANDAU_MAX_SPECIES)
 #define LANDAU_MAX_SPECIES 10
 #endif
+#if !defined(LANDAU_TENSOR_MAX_Q)
+#define LANDAU_TENSOR_MAX_Q 3
+#endif
 #if !defined(LANDAU_MAX_NQ)
-#define LANDAU_MAX_NQ 25
+#if defined LANDAU_DIM == 2
+#define LANDAU_MAX_NQ (LANDAU_TENSOR_MAX_Q*LANDAU_TENSOR_MAX_Q)
+#else
+#define LANDAU_MAX_NQ (LANDAU_TENSOR_MAX_Q*LANDAU_TENSOR_MAX_Q*LANDAU_TENSOR_MAX_Q)
+#endif
+#else
+#undef LANDAU_MAX_NQ
+#if defined LANDAU_DIM == 2
+#define LANDAU_MAX_NQ (LANDAU_TENSOR_MAX_Q*LANDAU_TENSOR_MAX_Q)
+#else
+#define LANDAU_MAX_NQ (LANDAU_TENSOR_MAX_Q*LANDAU_TENSOR_MAX_Q*LANDAU_TENSOR_MAX_Q)
+#endif
 #endif
 #if !defined(LANDAU_MAX_SUB_THREAD_BLOCKS)
 #if defined(PETSC_HAVE_CUDA)
