@@ -3,15 +3,12 @@
     -hratio is the ratio between mesh size of corse grids and fine grids
 */
 
-static const char help[] = "1D periodic Finite Volume solver in slope-limiter form with semidiscrete time stepping.\n"
-  "  advection   - Constant coefficient scalar advection\n"
-  "                u_t       + (a*u)_x               = 0\n"
+static const char help[] = "1D Finite Volume solver in slope-limiter form with semidiscrete time stepping defined on a network.\n"
   "  shallow     - 1D Shallow water equations (Saint Venant System) \n"
   "                h_t + (q)_x = 0 \n"
   "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = 0 \n"
   "                where, h(x,t) denotes the height of the water, q(x,t) the momentum.\n"
-  "  for this toy problem, we choose different meshsizes for different sub-domains (slow-fast-slow), say\n"
-  "                hxs  = hratio*hxf \n"
+  "   \n"
   "  where hxs and hxf are the grid spacings for coarse and fine grids respectively.\n"
   "  exact       - Exact Riemann solver which usually needs to perform a Newton iteration to connect\n"
   "                the states across shocks and rarefactions\n"
@@ -219,7 +216,7 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   if (L.h < tol) L.u = 0.0;
   if (R.h < tol) R.u = 0.0;
 
-  /*simple pos preserve limiter*/
+  /*simple positivity preserving limiter*/
   if (L.h < 0) L.h = 0;
   if (R.h < 0) R.h = 0;
 
@@ -318,6 +315,73 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,PetscRea
   PetscFunctionReturn(0);
 }
 
+/*2 edge vertex flux for edge 1 pointing in and edge 2 pointing out */
+static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_InOut(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed) 
+{
+  PetscErrorCode  ierr;
+  const FVNetwork fvnet = (FVNetwork)_fvnet; 
+  PetscInt        i,dof = fvnet->physics.dof; 
+
+  PetscFunctionBeginUser; 
+  /* First edge interpreted as uL, 2nd as uR. Use the user inputted Riemann function. */
+  ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV,uV+dof,flux,maxspeed);CHKERRQ(ierr);
+  /* Copy the flux */
+  for (i = 0; i<dof; i++) {
+    flux[i+dof] = flux[i];
+  }
+  PetscFunctionReturn(0);
+}
+
+/*2 edge vertex flux for edge 1 pointing out and edge 2 pointing in  */
+static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed) 
+{
+  PetscErrorCode  ierr;
+  const FVNetwork fvnet = (FVNetwork)_fvnet; 
+  PetscInt        i,dof = fvnet->physics.dof; 
+
+  PetscFunctionBeginUser; 
+  /* First edge interpreted as uR, 2nd as uL. Use the user inputted Riemann function. */
+  ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV+dof,uV,flux,maxspeed);CHKERRQ(ierr);
+  /* Copy the flux */
+  for (i = 0; i<dof; i++) {
+    flux[i+dof] = flux[i];
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Junction junct)
+{
+  const FVNetwork fvnet = (FVNetwork)_fvnet; 
+
+  PetscFunctionBeginUser; 
+  switch(junct->type)
+  {
+    case JUNCT: 
+      if (junct->numedges == 2) {
+        if (junct->dir[0] == EDGEIN) {
+          if (junct->dir[1] == EDGEIN) {
+            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
+          } else { /* dir[1] == EDGEOUT */
+            junct->couplingflux = PhysicsVertexFlux_Shallow_2Edge_InOut;
+          }
+        } else { /* dir[0] == EDGEOUT */
+          if (junct->dir[1] == EDGEIN) {
+            junct->couplingflux = PhysicsVertexFlux_Shallow_2Edge_OutIn;
+          } else { /* dir[1] == EDGEOUT */
+            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
+          }
+        }
+      } else {
+        /* Do the full riemann invariant solver */
+      }
+      break;
+    default: 
+      junct->couplingflux = NULL;
+  }
+  PetscFunctionReturn(0);
+}
+
+
 static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
 {
   PetscErrorCode    ierr;
@@ -331,6 +395,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
   fvnet->physics.destroy         = PhysicsDestroy_SimpleFree;
   fvnet->physics.riemann         = PhysicsRiemann_Shallow_Rusanov;
   fvnet->physics.characteristic  = PhysicsCharacteristic_Shallow;
+  fvnet->physics.vfluxassign     = PhysicsAssignVertexFlux_Shallow;
   fvnet->physics.user            = user;
   fvnet->physics.dof             = 2;
 
@@ -451,7 +516,6 @@ int main(int argc,char *argv[])
   if (size == 1 && fvnet->monifv) {
     ierr = DMNetworkMonitorCreate(fvnet->network,&fvnet->monitor);CHKERRQ(ierr);
   }
-
   /* Set Network Data into the DMNetwork (on proc[0]) */
   ierr = FVNetworkSetComponents(fvnet);CHKERRQ(ierr);
   /* Delete unneeded data */
@@ -515,6 +579,7 @@ int main(int argc,char *argv[])
   if (size == 1 && fvnet->monifv) {
     ierr = TSMonitorSet(ts, TSDMNetworkMonitor, fvnet->monitor, NULL);CHKERRQ(ierr);
   }
+  /*Solve it*/
   ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
   ierr = TSGetSolveTime(ts,&ptime);CHKERRQ(ierr);
   ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);

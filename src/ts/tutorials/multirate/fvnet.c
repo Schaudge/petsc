@@ -40,10 +40,12 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt initial,PetscInt Mx)
         numEdges    = fvnet->nedge;
         ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
 
-        for (i=0; i<numEdges; i++) {
-          edgelist[2*i] = i; 
-          edgelist[2*i+1] = i+1;
-        }
+        edgelist[0] = 0;
+        edgelist[1] = 1;
+        edgelist[2] = 1;
+        edgelist[3] = 2;
+        edgelist[4] = 2;
+        edgelist[5] = 3; 
         /* Add network components */
         /*------------------------*/
         ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
@@ -105,6 +107,55 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt initial,PetscInt Mx)
         }
       }
       break;
+    case 2:
+      /* Case 2: */
+      /* =================================================
+      (OUTFLOW) v0 <--E0-- v1<--E1-- v2 <--E2 --v3 (OUTFLOW)
+      ====================================================  
+      This tests whether the coupling flux can handle the "non-standard"
+      directed graph formulation of the problem. This is the same problem as 
+      case 0, but changes the direction of the graph and accordingly how the discretization 
+      works. The geometry of the vertices is adjusted to compensate. */
+      nfvedge        = 3;
+      fvnet->nedge   = nfvedge;
+      fvnet->nvertex = nfvedge + 1;
+      /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+      numVertices    = 0;
+      numEdges       = 0;
+      edgelist       = NULL;
+      if (!rank) {
+        numVertices = fvnet->nvertex;
+        numEdges    = fvnet->nedge;
+        ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+
+        edgelist[0] = 1;
+        edgelist[1] = 0;
+        edgelist[2] = 2;
+        edgelist[3] = 1;
+        edgelist[4] = 3;
+        edgelist[5] = 2; 
+        /* Add network components */
+        /*------------------------*/
+        ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+        /* vertex */
+        junctions[0].type = OUTFLOW;
+        junctions[1].type = JUNCT;
+        junctions[2].type = JUNCT;
+        junctions[3].type = OUTFLOW;
+
+        for (i=0; i<numVertices; i++) {
+          junctions[i].x = (3-i)*1.0/3.0*50.0; 
+        }
+        /* Edge */ 
+        fvedges[0].nnodes = Mx; 
+        fvedges[1].nnodes = fvnet->hratio*Mx; 
+        fvedges[2].nnodes = Mx; 
+
+        for (i=0; i<numEdges;i++) {
+          fvedges[i].h = 1.0/3.0/(PetscReal)fvedges[i].nnodes*50.0; 
+        }
+      }
+      break;
     default:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
   }
@@ -152,7 +203,7 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);CHKERRQ(ierr);
   ierr = DMNetworkRegisterComponent(fvnet->network,"junctionstruct",sizeof(struct _p_Junction),&KeyJunction);CHKERRQ(ierr);
   ierr = DMNetworkRegisterComponent(fvnet->network,"fvedgestruct",sizeof(struct _p_FVEdge),&KeyEdge);CHKERRQ(ierr);
-  ierr = DMNetworkRegisterComponent(fvnet->network,"empty",0,&KeyFlux);CHKERRQ(ierr);
+  ierr = DMNetworkRegisterComponent(fvnet->network,"flux",0,&KeyFlux);CHKERRQ(ierr);
   /* Add FVEdge component to all local edges. Note that as we have 
      yet to distribute the network, all data is on proc[0]. */
   for (e=eStart; e<eEnd; e++) {
@@ -185,7 +236,7 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
     ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges_tmp,&edges);CHKERRQ(ierr);
     junction->numedges = nedges_tmp;
     /* Iterate through the connected edges. As we are on a single processor, DMNetworkGetSupportingEdges which returns 
-       on processor edges, will be returning ALL connected edges on the graph.  */
+       on processor edges, will be returning ALL connected edges on the graph. */
     for (i=0; i<nedges_tmp; i++) {
       e     = edges[i];   
       ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
@@ -260,16 +311,28 @@ PetscErrorCode FVNetworkBuildDynamic(FVNetwork fvnet)
   ierr = DMGlobalToLocalBegin(fvnet->network,fvnet->Ftmp,INSERT_VALUES,localX);CHKERRQ(ierr); 
   ierr = DMGlobalToLocalEnd(fvnet->network,fvnet->Ftmp,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
-  /* Iterate through all vertices and build the junction component data structure dir. */
+  /* Iterate through all vertices and build the junction component data structure dir and local 
+     work array flux */
   for (v=vStart; v<vEnd; v++) {
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
     ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offset);CHKERRQ(ierr);
-    ierr = PetscMalloc1(junction->numedges,&(junction->dir));CHKERRQ(ierr); /* Freed in the final cleanup call*/
+    ierr = PetscMalloc1(junction->numedges,&(junction->dir));CHKERRQ(ierr); /* Freed in the network destroy call */
+    ierr = PetscMalloc1(dof*junction->numedges,&(junction->flux));CHKERRQ(ierr); /* Freed in the network destroy call */
     /* Fill in the local dir data */
     for (i=0; i<junction->numedges; i++) { 
       junction->dir[i] = xarr[offset+i*dof];
     }
   }
+  
+  /* Iterate through the vertices and assign the coupling flux functions
+     This is done by a user provided function that maps the junction type (an integer) to 
+     a user specified VertexFlux. A VertexFlux must be provided for all non-boundary types, that 
+     is JUNCT junctions and any other user specified coupling junction types. */
+  for (v=vStart; v<vEnd; v++) {
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
+    ierr = fvnet->physics.vfluxassign(fvnet,junction);CHKERRQ(ierr);
+  }
+
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr); 
   PetscFunctionReturn(0); 
 }
@@ -306,7 +369,9 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet)
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);CHKERRQ(ierr);
   for (v=vStart; v<vEnd; v++) {
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
-    ierr = PetscFree(junction->dir);CHKERRQ(ierr); /* Free dynamic memory for the junction component */
+    /* Free dynamic memory for the junction component */
+    ierr = PetscFree(junction->dir);CHKERRQ(ierr); 
+    ierr = PetscFree(junction->flux);CHKERRQ(ierr); 
   }
   ierr = (*fvnet->physics.destroy)(fvnet->physics.user);CHKERRQ(ierr);
   for (i=0; i<fvnet->physics.dof; i++) {
@@ -364,7 +429,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscErrorCode ierr; 
   FVNetwork      fvnet = (FVNetwork)ctx;    
   PetscReal      h,maxspeed,cfl_idt = 0;
-  PetscScalar    *f,*uL,*uR,*xarr;
+  PetscScalar    *f,*uR,*xarr;
   PetscInt       v,e,vStart,vEnd,eStart,eEnd,vfrom,vto;
   PetscInt       offsetf,offset,nedges,nnodes,i,j,dof = fvnet->physics.dof;;
   const PetscInt *cone,*edges;
@@ -461,21 +526,10 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     switch (junction->type) {
       case JUNCT:
         /* Now compute the coupling flux */
-        if (junction->numedges > 2) {
-          SETERRQ1(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has more than 2 connected edges. Coupling flux supports only up to 2 edges currently",v);
-        } else { /* Note that in creation a junction must have at least 2 connected edges */
-          if (junction->dir[0] == EDGEIN) {
-            uL = f+offsetf;
-            uR = f+offsetf+dof;
-          } else { /* EDGEOUT */
-            uL = f+offsetf+dof;
-            uR = f+offsetf;
-          }
-          fvnet->couplingflux(fvnet->physics.user,dof,uL,uR,fvnet->flux,&maxspeed);
-          for (i=0; i<junction->numedges; i++) {
-            for (j=0; j<dof; j++) {
-              f[offsetf+i*dof+j] = fvnet->flux[j];
-            }
+        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed);
+        for (i=0; i<junction->numedges; i++) {
+          for (j=0; j<dof; j++) {
+            f[offsetf+i*dof+j] = junction->flux[i*dof+j];
           }
         }
         break;
@@ -581,7 +635,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   RhsCtx         *rhsctx = (RhsCtx*)ctx;
   FVNetwork      fvnet = rhsctx->fvnet;
   PetscReal      h,maxspeed,cfl_idt = 0;
-  PetscScalar    *f,*uL,*uR,*xarr;
+  PetscScalar    *f,*uR,*xarr;
   PetscInt       i,j,k,ne,nv,dof = fvnet->physics.dof,bufferwidth = fvnet->bufferwidth;
   PetscInt       v,e,vfrom,vto,offsetf,offset,nedges,nnodes;
   const PetscInt *cone,*edges,*vtxlist,*edgelist;
@@ -687,21 +741,10 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     switch (junction->type) {
       case JUNCT:
         /* Now compute the coupling flux */
-        if (junction->numedges > 2) {
-          SETERRQ1(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has more than 2 connected edges. Coupling flux supports only up to 2 edges currently",v);
-        } else { /* Note that in creation a junction must have at least 2 connected edges */
-          if (junction->dir[0] == EDGEIN) {
-            uL = f+offsetf;
-            uR = f+offsetf+dof;
-          } else { /* EDGEOUT */
-            uL = f+offsetf+dof;
-            uR = f+offsetf;
-          }
-          fvnet->couplingflux(fvnet->physics.user,dof,uL,uR,fvnet->flux,&maxspeed);
-          for (i=0; i<junction->numedges; i++) {
-            for (j=0; j<dof; j++) {
-              f[offsetf+i*dof+j] = fvnet->flux[j];
-            }
+        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed);
+        for (i=0; i<junction->numedges; i++) {
+          for (j=0; j<dof; j++) {
+            f[offsetf+i*dof+j] = junction->flux[i*dof+j];
           }
         }
         break;
@@ -718,6 +761,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     4) 2nd to last flux (requires special reconstruction) 5) vto vertex flux */
     e      = edgelist[k];
     ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+    \
     ierr   = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
     vfrom  = cone[0];
     vto    = cone[1];
@@ -731,8 +775,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       for (j=0; j<dof; j++) {
         f[offset+j] += f[fvedge->offset_vfrom+j+offsetf]/h;
       }
-      /* Now reconstruct the value at the left cell of the 1/2 interface. I have to redo code here, should alter 
-        how I compute things to avoid this.  */
+      /* Now reconstruct the value at the left cell of the 1/2 interface. */
       switch (junction->type) {
         case JUNCT:
         /* Hard coded 2 cell one-side reconstruction. To be improved */
@@ -829,8 +872,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
           f[offset+i*dof+j]     += fvnet->flux[j]/h;
         }
       }
-      /* Now reconstruct the value at the 2nd to last interface . I have to redo code here, should alter 
-          how I compute things to avoid this. */
+      /* Now reconstruct the value at the 2nd to last interface */
       switch (junction->type) {
         case JUNCT:
           /* Hard coded 2 cell one-side reconstruction. To be improved */
@@ -879,7 +921,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   RhsCtx         *rhsctx = (RhsCtx*)ctx;
   FVNetwork      fvnet = rhsctx->fvnet;
   PetscReal      h,maxspeed,cfl_idt = 0;
-  PetscScalar    *f,*uL,*uR,*xarr;
+  PetscScalar    *f,*uR,*xarr;
   PetscInt       i,j,k,m,nv,dof = fvnet->physics.dof,bufferwidth = fvnet->bufferwidth;
   PetscInt       v,e,vfrom,vto,offsetf,offset,nedges,nnodes;
   const PetscInt *cone,*edges,*vtxlist;
@@ -980,22 +1022,11 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
     switch (junction->type) {
       case JUNCT:
-        /* Now compute the coupling flux */
-        if (junction->numedges > 2){
-          SETERRQ1(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has more than 2 connected edges. Coupling flux supports only up to 2 edges currently",v);
-        } else { /* Note that in creation a junction must have at least 2 connected edges */
-          if (junction->dir[0] == EDGEIN) {
-            uL = f+offsetf;
-            uR = f+offsetf+dof;
-          } else { /* EDGEOUT */
-            uL = f+offsetf+dof;
-            uR = f+offsetf;
-          }
-          fvnet->couplingflux(fvnet->physics.user,dof,uL,uR,fvnet->flux,&maxspeed);
-          for (i=0; i<junction->numedges; i++) {
-            for (j=0; j<dof; j++) {
-              f[offsetf+i*dof+j] = fvnet->flux[j];
-            }
+       /* Now compute the coupling flux */
+        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed);
+        for (i=0; i<junction->numedges; i++) {
+          for (j=0; j<dof; j++) {
+            f[offsetf+i*dof+j] = junction->flux[i*dof+j];
           }
         }
         break;
@@ -1175,7 +1206,8 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0)
       u = xarr+offset+i*dof; 
       switch (fvnet->initial) {
         case 0: 
-        case 1: 
+        case 1:
+        case 2: 
           /*Both are networks on [0,1] and so use the same initial conditions. User provided geometrically 1d initial conditions */
           fvnet->physics.sample((void*)&fvnet->physics.user,fvnet->subcase,0.0,x,u);
           break;
@@ -1202,6 +1234,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
   switch (fvnet->initial) {
     case 0: /* Mark the boundary edges as slow and the middle edge as fast */
+    case 2: 
       /* Find the number of slow/fast edges */
       for (e=eStart; e<eEnd; e++) {
         ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
