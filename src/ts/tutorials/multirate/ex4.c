@@ -28,12 +28,16 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
 >>>>>>> trivial edit: remove white spaces
   "                h_t + (q)_x = 0 \n"
 <<<<<<< HEAD
+<<<<<<< HEAD
   "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = -hg*z_x \n"
   "                where, h(x,t) denotes the height of the water, q(x,t) the momentum, and z(x)\n"
   "                the topography of the river bottom. \n"
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
 =======
   "                q_t + (\frac{q^2}{h} + g/2*h^2)_x =  \n"
+=======
+  "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = 0  \n"
+>>>>>>> Added coupling flux to the junction structure along with dynamic allocation of user set coupling flux functions after network distribution. Added new network, initial 2 to test flexibility of the method
   "                where, h(x,t) denotes the height of the water and q(x,t) the momentum.\n"
 >>>>>>> Added preliminary data structures and functions for fvnet. Completly untested at this point
   "  for this toy problem, we choose different meshsizes for different sub-domains (slow-fast-slow), say\n"
