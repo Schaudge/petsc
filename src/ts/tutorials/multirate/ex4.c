@@ -229,6 +229,7 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   *maxspeed = s;
   PetscFunctionReturn(0);
 }
+
 static PetscErrorCode PhysicsCharacteristic_Conservative(void *vctx,PetscInt m,const PetscScalar *u,PetscScalar *X,PetscScalar *Xi,PetscReal *speeds)
 {
   PetscInt i,j;
@@ -367,6 +368,7 @@ static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,P
   }
   PetscFunctionReturn(0);
 }
+
 /* Selects which boundary conditions are marked as inflow and which as outflow when FVBC_INFLOW is selected
    Which conditions and the number of boundary conditions depends on the particular problem considered. */
 static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
@@ -407,7 +409,6 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
   }
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode PhysicsSetSource_Shallow(FVCtx *ctx){
   PetscFunctionBeginUser;
@@ -748,8 +749,8 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
   ierr = VecGetArray(F,&f);CHKERRQ(ierr);
   ierr = DMDAGetArray(da,PETSC_TRUE,&slope);CHKERRQ(ierr);
   ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
-  ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD); 
-  ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD); 
+  ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD);
+  ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD);
 
   if (ctx->bctype == FVBC_OUTFLOW) {
     for (i=xs-2; i<0; i++) {
@@ -1442,16 +1443,28 @@ int main(int argc,char *argv[])
 /*TEST
 
     build:
-      requires: !complex c99
+      requires: !complex
       depends: finitevolume1d.c
 
     test:
       suffix: 1
       args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -limit mc -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22
+      output_file: output/ex6_1.out
 
     test:
       suffix: 2
       args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -limit mc -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 0
       output_file: output/ex6_1.out
+
+    test:
+      suffix: 3
+      args: -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+      output_file: output/ex4_3.out
+
+    test:
+      suffix: 4
+      nsize: 2
+      args: -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+      output_file: output/ex4_3.out
 
 TEST*/
