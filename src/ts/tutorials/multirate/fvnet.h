@@ -6,8 +6,13 @@
 #include "finitevolume1d.h"
 #include "limiters.h"
 
+/* Function Specifications */   
+
+/* Function Specification for coupling flux calculations at the vertex */
+typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*);
+
 /* Finite Volume Data Structures */
-typedef enum {JUNCT=1,RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFLOW=8} VertexType;
+typedef enum {RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFLOW=8,JUNCT=10} VertexType; /* First 0-10 integers in _p_Junction.type are reserved */
 
 /* Network Data Structures */
 
@@ -18,16 +23,15 @@ typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
 struct _p_Junction{
   PetscInt	    id;        /* global index */
-  VertexType    type;               
+  PetscInt      type;      /* Used to assign the vertex flux function to attach to junction */               
   Mat           *jacobian;
-  PetscReal     x; /* x-coordinates */
+  PetscReal     x; /* x-coordinate */
   PetscBool     *dir; /*In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) (it feels like this info should 
                              live in the dmnetwork, but I don't see how to access it.)*/           
   /* Finite Volume Context */
-  /*RiemannFunction_2WaySplit couplingflux; Need to figure out how to build a function pointer within a network component in a sensible way. */
-
-  /* boundary data structures - To be added*/
+  VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
+  PetscScalar   *flux;        /* Local work array for vertex fluxes. len = dof*numedges */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
 
@@ -42,7 +46,7 @@ struct _p_FVEdge
      by the DMnetwork. This object merely gives the appropriate context 
      for the data belonging to the given edge */
 
-  PetscInt    nnodes;   /* number of nodes in da discretization */
+  PetscInt    nnodes;   /* number of cells in the discretization of the edge*/
  /*void                *user;*/ /* user inputted data, need for function evaluations. However not 
                                    sure how do this right, as this data will have to be set after partitioning, 
                                    so the user will have to provide a function to set these based on id I think.
@@ -53,15 +57,20 @@ struct _p_FVEdge
 
   /* Multirate ODE Context */ 
   PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
+  PetscReal cfl; 
   
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_FVEdge *FVEdge;
+
+/* Specification for vertex flux assignment functions */
+typedef PetscErrorCode (*VertexFluxAssignment)(const void*,Junction); 
 
 typedef struct {
   PetscErrorCode                 (*sample)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   RiemannFunction_2WaySplit      riemann;
   ReconstructFunction_2WaySplit  characteristic;
+  VertexFluxAssignment           vfluxassign; 
   PetscErrorCode                 (*destroy)(void*);
   void                           *user;
   PetscInt                       dof;
@@ -90,7 +99,7 @@ struct _p_FVNetwork
 
   /* Local work arrays */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
-  PetscScalar *cjmpLR;          /* Jumps at left and right edge of cell, in characteristic basis, len=2*dof uL____cell_i____uR*/
+  PetscScalar *cjmpLR;          /* Jumps at left and right edge of cell, in characteristic basis, uL____cell_i____uR*/
   PetscScalar *cslope;          /* Limited slope, written in characteristic basis */
   PetscScalar *uLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
   PetscScalar *flux;            /* Flux across interface */

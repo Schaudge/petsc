@@ -70,7 +70,7 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
   "                u_t       + (a*u)_x               = 0\n"
   "  shallow     - 1D Shallow water equations (Saint Venant System)\n"
   "                h_t + (q)_x = 0 \n"
-  "                q_t + (\frac{q^2}{h} + g/2*h^2)_x =  \n"
+  "                q_t + (\frac{q^2}{h} + g/2*h^2)_x = 0  \n"
   "                where, h(x,t) denotes the height of the water and q(x,t) the momentum.\n"
   "  for this toy problem, we choose different meshsizes for different sub-domains (slow-fast-slow), say\n"
   "                hxs  = hratio*hxf \n"
