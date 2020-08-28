@@ -43,6 +43,7 @@ PetscErrorCode VecCUDAAllocateCheckHost(Vec v)
       ierr = PetscMallocResetCUDAHost();CHKERRQ(ierr);
     }
     if (v->offloadmask == PETSC_OFFLOAD_UNALLOCATED) {
+      ierr = PetscArrayzero(s->array,n);CHKERRQ(ierr);
       v->offloadmask = PETSC_OFFLOAD_CPU;
     }
   }
@@ -56,6 +57,7 @@ PetscErrorCode VecCopy_SeqCUDA_Private(Vec xin,Vec yin)
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
+  /* TODO: Why is this copying on the CPU, maybe the data is on the GPU? */
   ierr = VecCUDAAllocateCheckHost(xin);CHKERRQ(ierr);
   ierr = VecCUDAAllocateCheckHost(yin);CHKERRQ(ierr);
   if (xin != yin) {
@@ -263,12 +265,8 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
   PetscFunctionBegin;
   ierr = PetscCUDAInitializeCheck();CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(V->map);CHKERRQ(ierr);
-  ierr = VecCUDAAllocateCheck(V);CHKERRQ(ierr);
-  ierr = VecCreate_SeqCUDA_Private(V,((Vec_CUDA*)V->spptr)->GPUarray_allocated);CHKERRQ(ierr);
-  ierr = VecCUDAAllocateCheckHost(V);CHKERRQ(ierr);
-  ierr = VecSet(V,0.0);CHKERRQ(ierr);
-  ierr = VecSet_Seq(V,0.0);CHKERRQ(ierr);
-  V->offloadmask = PETSC_OFFLOAD_BOTH;
+  ierr = VecCreate_SeqCUDA_Private(V,NULL);CHKERRQ(ierr);
+  V->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
   PetscFunctionReturn(0);
 }
 
@@ -418,7 +416,6 @@ PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
   PetscErrorCode ierr;
   Vec_CUDA       *veccuda;
   PetscMPIInt    size;
-  PetscBool      option_set;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_size(PetscObjectComm((PetscObject)V),&size);CHKERRQ(ierr);
@@ -435,19 +432,17 @@ PetscErrorCode VecCreate_SeqCUDA_Private(Vec V,const PetscScalar *array)
       ierr = PetscMalloc(sizeof(Vec_CUDA),&V->spptr);CHKERRQ(ierr);
       veccuda = (Vec_CUDA*)V->spptr;
       veccuda->stream = 0; /* using default stream */
-      veccuda->GPUarray_allocated = 0;
-      V->offloadmask = PETSC_OFFLOAD_UNALLOCATED;
-
-      pinned_memory_min = 0;
-      /* Need to parse command line for minimum size to use for pinned memory allocations on host here.
-         Note: This same code duplicated in VecCUDAAllocateCheck() and VecCreate_MPICUDA_Private(). Is there a good way to avoid this? */
-      ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)V),((PetscObject)V)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
-      ierr = PetscOptionsReal("-vec_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecSetPinnedMemoryMin",pinned_memory_min,&pinned_memory_min,&option_set);CHKERRQ(ierr);
-      if (option_set) V->minimum_bytes_pinned_memory = pinned_memory_min;
-      ierr = PetscOptionsEnd();CHKERRQ(ierr);
+      veccuda->array_allocated = 0;
     }
     veccuda = (Vec_CUDA*)V->spptr;
-    veccuda->GPUarray = (PetscScalar*)array;
+    veccuda->array = (PetscScalar*)array;
+    if (V->offloadmask = PETSC_OFFLOAD_UNALLOCATED) {
+      V->offloadmask = PETSC_OFFLOAD_GPU;
+    }
   }
+  /* Need to parse command line for minimum size to use for pinned memory allocations on host here. */
+  ierr = PetscOptionsBegin(PetscObjectComm((PetscObject)V),((PetscObject)V)->prefix,"VECCUDA Options","Vec");CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-vec_pinned_memory_min","Minimum size (in bytes) for an allocation to use pinned memory on host","VecSetPinnedMemoryMin",V->minimum_bytes_pinned_memory,&V->minimum_bytes_pinned_memory,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
