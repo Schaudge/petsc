@@ -444,6 +444,19 @@ static PetscErrorCode TaoSolve_ADMM(Tao tao)
 
     am->Hxbool = PETSC_TRUE;
 
+    /* Relxation of x parameter                         */
+    /* x_{k+1} = \gamma*Ax_{k+1} + (1-\gamma)(c - Bz_k) */
+    switch (am->update) {
+    case TAO_ADMM_UPDATE_ADAPTIVE_RELAXED:
+	    /* naive approach: can just update subX->solution
+	     * technically "wrong" objective, then 
+	     * if i do different \tilda_x variable, then change everything - annoying*/
+      ierr = VecWAXPY(tempL, -1., am->Bz, am->c);CHKERRQ(ierr);
+      ierr = VecScale(tempL, 1-am->tilda);CHKERRQ(ierr); // relax sign may be off?     
+      ierr = VecWAXPY(am->xtilda, am->tilda, am->Ax,tempL);CHKERRQ(ierr);    
+      break;
+    }
+
     /* z update */
     switch (am->regswitch) {
     case TAO_ADMM_REGULARIZER_USER:
@@ -612,6 +625,9 @@ static PetscErrorCode TaoSetUp_ADMM(Tao tao)
   if (!am->workLeft) {
     ierr = VecDuplicate(tao->solution,&am->workLeft);CHKERRQ(ierr);
   }
+  if (!am->xtilda) {
+    ierr = VecDuplicate(tao->solution,&am->xtilda);CHKERRQ(ierr);
+  }
   if (!am->Axold) {
     ierr = VecDuplicate(am->Ax,&am->Axold);CHKERRQ(ierr);
   }
@@ -683,6 +699,7 @@ static PetscErrorCode TaoDestroy_ADMM(Tao tao)
 
   PetscFunctionBegin;
   ierr = VecDestroy(&am->z);CHKERRQ(ierr);
+  ierr = VecDestroy(&am->xtilda);CHKERRQ(ierr);
   ierr = VecDestroy(&am->Ax);CHKERRQ(ierr);
   ierr = VecDestroy(&am->Axold);CHKERRQ(ierr);
   ierr = VecDestroy(&am->Bz);CHKERRQ(ierr);
@@ -797,7 +814,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_ADMM(Tao tao)
   am->dualres         = 0;
   am->ops->regobjgrad = 0;
   am->ops->reghess    = 0;
-  am->gamma           = 1;
+  am->gamma           = 1.5;
   am->regobjgradP     = 0;
   am->reghessP        = 0;
   am->gatol_admm      = 1e-8;

@@ -17,7 +17,7 @@ typedef struct {
   PETSCHEADER(struct _TaoADMMOps);
   Tao                    subsolverX, subsolverZ, parent;
   Vec                    residual,y,yold,y0,yhat,yhatold,constraint;
-  Vec                    z,zold,Ax,Bz,Axold,Bzold,Bz0;
+  Vec                    z,zold,Ax,Bz,Axold,Bzold,Bz0,xtilda;
   Vec                    workLeft,workJacobianRight,workJacobianRight2; /*Ax,Bz,y,constraint are workJacobianRight sized. workLeft is solution sized */
   Mat                    Hx,Hxpre,Hz,Hzpre,ATA,BTB,JA,JApre,JB,JBpre;
   void*                  regobjgradP;
