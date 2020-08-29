@@ -1288,122 +1288,26 @@ static PetscErrorCode destroy_coloring (void *is)
 PetscErrorCode LandauCreateColoring(Mat JacP, DM plex, PetscContainer *container)
 {
   PetscErrorCode  ierr;
-  PetscInt        dim,cell,i,ej,nc,Nv,totDim,numGCells,cStart,cEnd;
   ISColoring      iscoloring = NULL;
-  Mat             G,Q;
-  PetscScalar     ones[128];
-  MatColoring     mc;
-  IS             *is;
-  PetscInt        csize,colour,j,k;
-  const PetscInt *indices;
-  PetscInt       numComp[1];
-  PetscInt       numDof[4];
-  PetscFE        fe;
-  DM             colordm;
-  PetscSection   csection, section, globalSection;
-  PetscDS        prob;
-  LandauCtx      *ctx;
+  LandauCtx       *ctx;
 
   PetscFunctionBegin;
   ierr = DMGetApplicationContext(plex, &ctx);CHKERRQ(ierr);
-  ierr = DMGetLocalSection(plex, &section);CHKERRQ(ierr);
-  ierr = DMGetGlobalSection(plex, &globalSection);CHKERRQ(ierr);
-  ierr = DMGetDimension(plex, &dim);CHKERRQ(ierr);
-  ierr = DMGetDS(plex, &prob);CHKERRQ(ierr);
-  ierr = PetscDSGetTotalDimension(prob, &totDim);CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(plex,0,&cStart,&cEnd);CHKERRQ(ierr);
-  numGCells = cEnd - cStart;
-  /* create cell centered DM */
-  ierr = DMClone(plex, &colordm);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) plex), dim, 1, PETSC_FALSE, "color_", PETSC_DECIDE, &fe);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fe, "color");CHKERRQ(ierr);
-  ierr = DMSetField(colordm, 0, NULL, (PetscObject)fe);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
-  for (i = 0; i < (dim+1); ++i) numDof[i] = 0;
-  numDof[dim] = 1;
-  numComp[0] = 1;
-  ierr = DMPlexCreateSection(colordm, NULL, numComp, numDof, 0, NULL, NULL, NULL, NULL, &csection);CHKERRQ(ierr);
-  ierr = PetscSectionSetFieldName(csection, 0, "color");CHKERRQ(ierr);
-  ierr = DMSetLocalSection(colordm, csection);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(colordm,NULL,"-color_dm_view");CHKERRQ(ierr);
-  /* get vertex to element map Q and colroing graph G */
-  ierr = MatGetSize(JacP,NULL,&Nv);CHKERRQ(ierr);
-  ierr = MatCreateAIJ(PETSC_COMM_SELF,PETSC_DECIDE,PETSC_DECIDE,numGCells,Nv,totDim,NULL,0,NULL,&Q);CHKERRQ(ierr);
-  for (i=0;i<128;i++) ones[i] = 1.0;
-  for (cell = cStart, ej = 0 ; cell < cEnd; ++cell, ++ej) {
-    PetscInt numindices,*indices;
-    ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
-    if (numindices>128) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "too many indices. %D > %D",numindices,128);
-    ierr = MatSetValues(Q,1,&ej,numindices,indices,ones,ADD_VALUES);CHKERRQ(ierr);
-    ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
-  }
-  ierr = MatAssemblyBegin(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatMatTransposeMult(Q,Q,MAT_INITIAL_MATRIX,4.0,&G);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) Q, "Q");CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) G, "coloring graph");CHKERRQ(ierr);
-  ierr = MatViewFromOptions(G,NULL,"-coloring_mat_view");CHKERRQ(ierr);
-  ierr = MatViewFromOptions(Q,NULL,"-coloring_mat_view");CHKERRQ(ierr);
-  ierr = MatDestroy(&Q);CHKERRQ(ierr);
-  /* coloring */
-  ierr = MatColoringCreate(G,&mc);CHKERRQ(ierr);
-  ierr = MatColoringSetDistance(mc,1);CHKERRQ(ierr);
-  ierr = MatColoringSetType(mc,MATCOLORINGJP);CHKERRQ(ierr);
-  ierr = MatColoringSetFromOptions(mc);CHKERRQ(ierr);
-  ierr = MatColoringApply(mc,&iscoloring);CHKERRQ(ierr);
-  ierr = MatColoringDestroy(&mc);CHKERRQ(ierr);
-  /* view */
-  ierr = ISColoringViewFromOptions(iscoloring,NULL,"-coloring_is_view");CHKERRQ(ierr);
-  ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
-  if (ctx && ctx->verbose > 5) {
-    PetscViewer    viewer;
-    Vec            color_vec, eidx_vec;
-    ierr = DMGetGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
-    ierr = DMGetGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
-    for (colour=0; colour<nc; colour++) {
-      ierr = ISGetLocalSize(is[colour],&csize);CHKERRQ(ierr);
-      ierr = ISGetIndices(is[colour],&indices);CHKERRQ(ierr);
-      for (j=0; j<csize; j++) {
-        PetscScalar v = (PetscScalar)colour;
-        k = indices[j];
-        ierr = VecSetValues(color_vec,1,&k,&v,INSERT_VALUES);
-        v = (PetscScalar)k;
-        ierr = VecSetValues(eidx_vec,1,&k,&v,INSERT_VALUES);
-      }
-      ierr = ISRestoreIndices(is[colour],&indices);CHKERRQ(ierr);
-    }
-    /* view */
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer);CHKERRQ(ierr);
-    ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_VTK);CHKERRQ(ierr);
-    ierr = PetscViewerFileSetName(viewer, "color.vtk");CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) color_vec, "color");CHKERRQ(ierr);
-    ierr = VecView(color_vec, viewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer);CHKERRQ(ierr);
-    ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_VTK);CHKERRQ(ierr);
-    ierr = PetscViewerFileSetName(viewer, "eidx.vtk");CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) eidx_vec, "element-idx");CHKERRQ(ierr);
-    ierr = VecView(eidx_vec, viewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-    ierr = DMRestoreGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
-    ierr = DMRestoreGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
-  }
-  ierr = PetscSectionDestroy(&csection);CHKERRQ(ierr);
-  ierr = DMDestroy(&colordm);CHKERRQ(ierr);
-  ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
-  ierr = MatDestroy(&G);CHKERRQ(ierr);
+  ierr = DMPlexCreateCellColoring(JacP, plex, &iscoloring);CHKERRQ(ierr);
   /* stash coloring */
-  ierr = PetscContainerCreate(PETSC_COMM_SELF, container);CHKERRQ(ierr);
+  ierr = PetscContainerCreate(PetscObjectComm((PetscObject) plex), container);CHKERRQ(ierr);
   ierr = PetscContainerSetPointer(*container,(void*)iscoloring);CHKERRQ(ierr);
   ierr = PetscContainerSetUserDestroy(*container, destroy_coloring);CHKERRQ(ierr);
   ierr = PetscObjectCompose((PetscObject)JacP,"coloring",(PetscObject)*container);CHKERRQ(ierr);
   if (ctx && ctx->verbose > 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Made coloring with %D colors\n", nc);CHKERRQ(ierr);
+    PetscInt        nc;
+    IS              *is;
+    ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject) plex), "Made coloring with %D colors\n", nc);CHKERRQ(ierr);
+    ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
-  }
+}
 
 PetscErrorCode LandauAssembleOpenMP(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container)
 {
