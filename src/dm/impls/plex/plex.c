@@ -8724,7 +8724,7 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   PetscErrorCode  ierr;
   PetscInt        dim,cell,i,ej,Nv,totDim,numGCells,cStart,cEnd;
   Mat             G,Q;
-  PetscScalar     ones[128];
+  PetscScalar     ones[1024];
   MatColoring     mc;
   PetscInt        numComp[1];
   PetscInt        numDof[4];
@@ -8759,11 +8759,11 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   /* get vertex to element map Q and colroing graph G */
   ierr = MatGetSize(JacP,NULL,&Nv);CHKERRQ(ierr);
   ierr = MatCreateAIJ(PetscObjectComm((PetscObject) plex),PETSC_DECIDE,PETSC_DECIDE,numGCells,Nv,totDim,NULL,0,NULL,&Q);CHKERRQ(ierr);
-  for (i=0;i<128;i++) ones[i] = 1.0;
+  for (i=0;i<1024;i++) ones[i] = 1.0;
   for (cell = cStart, ej = 0 ; cell < cEnd; ++cell, ++ej) {
     PetscInt numindices,*indices;
     ierr = DMPlexGetClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
-    if (numindices>128) SETERRQ2(PetscObjectComm((PetscObject) plex), PETSC_ERR_PLIB, "too many indices. %D > %D",numindices,128);
+    if (numindices>1024) SETERRQ2(PetscObjectComm((PetscObject) plex), PETSC_ERR_PLIB, "too many indices. %D > %D",numindices,1024);
     ierr = MatSetValues(Q,1,&ej,numindices,indices,ones,ADD_VALUES);CHKERRQ(ierr);
     ierr = DMPlexRestoreClosureIndices(plex, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
   }
@@ -8786,7 +8786,7 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   ierr = ISColoringViewFromOptions(*iscoloring,NULL,"-cell_coloring_view");CHKERRQ(ierr);
   ierr = ISColoringGetIS(*iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
   ierr = PetscInfo1(plex, "Made coloring with %D colors\n", nc);CHKERRQ(ierr);
-#if 1
+#if 0
   {
     PetscViewer    viewer;
     PetscInt       csize,colour,j,k;
