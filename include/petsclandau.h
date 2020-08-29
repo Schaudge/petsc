@@ -97,8 +97,9 @@ typedef struct {
   /* f; df data [Nc] */
   LandauFDF     fdf[LANDAU_MAX_SPECIES];
 } LandauPointData;
-
+#if defined(PETSC_HAVE_OPENMP)
 PETSC_EXTERN PetscErrorCode LandauAssembleOpenMP(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container);
+#endif
 PETSC_EXTERN PetscErrorCode LandauCreateColoring(Mat, DM, PetscContainer *);
 PETSC_EXTERN PetscErrorCode LandauFormJacobian_Internal(Vec, Mat, const PetscInt, void *);
 #if defined(PETSC_HAVE_CUDA)

@@ -1308,7 +1308,7 @@ PetscErrorCode LandauCreateColoring(Mat JacP, DM plex, PetscContainer *container
   }
   PetscFunctionReturn(0);
 }
-
+#if defined(PETSC_HAVE_OPENMP)
 PetscErrorCode LandauAssembleOpenMP(PetscInt cStart, PetscInt cEnd, PetscInt totDim, DM plex, PetscSection section, PetscSection globalSection, Mat JacP, PetscScalar elemMats[], PetscContainer container)
 {
   PetscErrorCode  ierr;
@@ -1341,8 +1341,7 @@ PetscErrorCode LandauAssembleOpenMP(PetscInt cStart, PetscInt cEnd, PetscInt tot
       if (elMat != valuesOrig) {ierr = DMRestoreWorkArray(plex, numindices*numindices, MPIU_SCALAR, &elMat);}
     }
     /* assemble matrix - pragmas break CI ? */
-    //#pragma omp parallel default(JacP,idx_size,idx_arr,new_el_mats,colour,clr_idxs)  private(j)
-    //#pragma omp parallel for private(j)
+#pragma omp parallel for private(j) shared(JacP,idx_size,idx_arr,new_el_mats,colour,clr_idxs)
     for (j=0; j<csize; j++) {
       PetscInt    numindices = idx_size[j], *indices = idx_arr[j];
       PetscScalar *elMat = new_el_mats[j];
@@ -1357,7 +1356,7 @@ PetscErrorCode LandauAssembleOpenMP(PetscInt cStart, PetscInt cEnd, PetscInt tot
   ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
+#endif
 /* < v, u > */
 static void g0_1(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
