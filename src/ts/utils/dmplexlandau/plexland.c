@@ -1303,7 +1303,7 @@ PetscErrorCode LandauCreateColoring(Mat JacP, DM plex, PetscContainer *container
     PetscInt        nc;
     IS              *is;
     ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
-    ierr = PetscPrintf(PetscObjectComm((PetscObject) plex), "Made coloring with %D colors\n", nc);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject) plex), "LandauCreateColoring: Made coloring with %D colors\n", nc);CHKERRQ(ierr);
     ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
