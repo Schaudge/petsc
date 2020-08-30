@@ -8786,7 +8786,7 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   /* view */
   ierr = ISColoringViewFromOptions(*iscoloring,NULL,"-cell_coloring_view");CHKERRQ(ierr);
   ierr = ISColoringGetIS(*iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
-  ierr = PetscInfo1(plex, "Made coloring with %D colors\n", nc);CHKERRQ(ierr);
+  ierr = PetscInfo1(JacP, "Made coloring with %D colors\n", nc);CHKERRQ(ierr); // info for on matrix for regression tests diff
 
   ierr = ISColoringRestoreIS(*iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&csection);CHKERRQ(ierr);

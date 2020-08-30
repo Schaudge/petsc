@@ -1300,7 +1300,7 @@ PetscErrorCode LandauCreateColoring(Mat JacP, DM plex, PetscContainer *container
   ierr = PetscContainerSetPointer(*container,(void*)iscoloring);CHKERRQ(ierr);
   ierr = PetscContainerSetUserDestroy(*container, destroy_coloring);CHKERRQ(ierr);
   ierr = PetscObjectCompose((PetscObject)JacP,"coloring",(PetscObject)*container);CHKERRQ(ierr);
-  if (ctx && ctx->verbose > 0) {
+  if (ctx && ctx->verbose > 1) {
     PetscInt        nc;
     IS              *is;
     ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
