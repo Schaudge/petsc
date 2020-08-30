@@ -1278,7 +1278,7 @@ static PetscErrorCode destroy_coloring (void *is)
 .   plex - The DM
 
   Output Parameter:
-.   container  - Container with coloring
+ .   container  - Container with coloring
 
   Level: beginner
 
@@ -1305,6 +1305,63 @@ PetscErrorCode LandauCreateColoring(Mat JacP, DM plex, PetscContainer *container
     ierr = ISColoringGetIS(iscoloring,PETSC_USE_POINTER,&nc,&is);CHKERRQ(ierr);
     ierr = PetscPrintf(PetscObjectComm((PetscObject) plex), "LandauCreateColoring: Made coloring with %D colors\n", nc);CHKERRQ(ierr);
     ierr = ISColoringRestoreIS(iscoloring,PETSC_USE_POINTER,&is);CHKERRQ(ierr);
+    if (ctx->verbose > 5) {
+      DM              colordm;
+      PetscFE         fe;
+      PetscInt        numComp[1];
+      PetscInt        numDof[4];
+      PetscViewer     viewer;
+      PetscInt        csize,colour,j,k,i,dim;
+      Vec             color_vec, eidx_vec;
+      const PetscInt  *indices;
+      PetscSection    csection;
+      /* create cell centered DM */
+      ierr = DMGetDimension(plex, &dim);CHKERRQ(ierr);
+      ierr = DMClone(plex, &colordm);CHKERRQ(ierr);
+      ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) plex), dim, 1, PETSC_FALSE, "color_", PETSC_DECIDE, &fe);CHKERRQ(ierr);
+      ierr = PetscObjectSetName((PetscObject) fe, "color");CHKERRQ(ierr);
+      ierr = DMSetField(colordm, 0, NULL, (PetscObject)fe);CHKERRQ(ierr);
+      ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
+      for (i = 0; i < (dim+1); ++i) numDof[i] = 0;
+      numDof[dim] = 1;
+      numComp[0] = 1;
+      ierr = DMPlexCreateSection(colordm, NULL, numComp, numDof, 0, NULL, NULL, NULL, NULL, &csection);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldName(csection, 0, "color");CHKERRQ(ierr);
+      ierr = DMSetLocalSection(colordm, csection);CHKERRQ(ierr);
+      ierr = DMGetGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
+      ierr = DMGetGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
+      for (colour=0; colour<nc; colour++) {
+        ierr = ISGetLocalSize(is[colour],&csize);CHKERRQ(ierr);
+        ierr = ISGetIndices(is[colour],&indices);CHKERRQ(ierr);
+        for (j=0; j<csize; j++) {
+          PetscScalar v = (PetscScalar)colour;
+          k = indices[j];
+          ierr = VecSetValues(color_vec,1,&k,&v,INSERT_VALUES);
+          v = (PetscScalar)k;
+          ierr = VecSetValues(eidx_vec,1,&k,&v,INSERT_VALUES);
+        }
+        ierr = ISRestoreIndices(is[colour],&indices);CHKERRQ(ierr);
+      }
+      /* view */
+      ierr = PetscViewerCreate(PetscObjectComm((PetscObject) plex), &viewer);CHKERRQ(ierr);
+      ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);CHKERRQ(ierr);
+      ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_VTK);CHKERRQ(ierr);
+      ierr = PetscViewerFileSetName(viewer, "color.vtk");CHKERRQ(ierr);
+      ierr = PetscObjectSetName((PetscObject) color_vec, "color");CHKERRQ(ierr);
+      ierr = VecView(color_vec, viewer);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+      ierr = PetscViewerCreate(PetscObjectComm((PetscObject) plex), &viewer);CHKERRQ(ierr);
+      ierr = PetscViewerSetType(viewer, PETSCVIEWERVTK);CHKERRQ(ierr);
+      ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_VTK);CHKERRQ(ierr);
+      ierr = PetscViewerFileSetName(viewer, "eidx.vtk");CHKERRQ(ierr);
+      ierr = PetscObjectSetName((PetscObject) eidx_vec, "element-idx");CHKERRQ(ierr);
+      ierr = VecView(eidx_vec, viewer);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+      ierr = PetscSectionDestroy(&csection);CHKERRQ(ierr);
+      ierr = DMRestoreGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
+      ierr = DMRestoreGlobalVector(colordm, &eidx_vec);CHKERRQ(ierr);
+      ierr = DMDestroy(&colordm);CHKERRQ(ierr);
+    }
   }
   PetscFunctionReturn(0);
 }
