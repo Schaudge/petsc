@@ -512,7 +512,7 @@ PetscErrorCode Monitor(TS ts, PetscInt stepi, PetscReal time, Vec X, void *actx)
   /* parallel check */
   if (reason) {
     PetscReal    val,rval;
-    PetscMPIInt    rank;
+    PetscMPIInt  rank;
     ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
     ierr = TSGetSolution(ts, &X);CHKERRQ(ierr);
     ierr = VecNorm(X,NORM_2,&val);CHKERRQ(ierr);

@@ -519,7 +519,7 @@ static PetscErrorCode SetupDS(DM dm, PetscInt dim, LandauCtx *ctx)
     ierr = DMSetField(dm, ii, NULL, (PetscObject) ctx->fe[ii]);CHKERRQ(ierr);
   }
   ierr = DMCreateDS(dm);CHKERRQ(ierr);
-  if (1) {
+  {
     PetscInt        ii;
     PetscSection    section;
     ierr = DMGetSection(dm, &section);CHKERRQ(ierr);
@@ -999,6 +999,7 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
       ierr = PetscOptionsClearValue(NULL,"-snes_converged_reason");CHKERRQ(ierr);
       ierr = PetscOptionsClearValue(NULL,"-ksp_converged_reason");CHKERRQ(ierr);
       ierr = PetscOptionsClearValue(NULL,"-snes_monitor");CHKERRQ(ierr);
+      ierr = PetscOptionsClearValue(NULL,"-snes_monitor_short");CHKERRQ(ierr);
       ierr = PetscOptionsClearValue(NULL,"-ksp_monitor");CHKERRQ(ierr);
       ierr = PetscOptionsClearValue(NULL,"-ts_monitor");CHKERRQ(ierr);
       ierr = PetscOptionsClearValue(NULL,"-ts_adapt_monitor");CHKERRQ(ierr);
