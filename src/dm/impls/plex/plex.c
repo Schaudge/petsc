@@ -8703,13 +8703,11 @@ PetscErrorCode DMPlexMonitorThroughput(DM dm, void *dummy)
 }
 
 /*@
-  DMPlexCreateCellColoring - create a coloring of cells in the DM using a distance one coloring of the "algebraic" cell graph (size us number of cells), which was created from the DM, for shared memory assembly.
-    We could generate the matrix from the DM and not take a matrix. If we take a matrix we should create one if it is NULL.
+  DMPlexCreateCellColoring - create a coloring of cells in the DM using a distance one coloring of the "algebraic" cell graph (size us number of cells) for shared memory assembly.
 
   Collective on JacP
 
   Input Parameters:
-+   JacP  - A matrix generated from the DM (this could be generated from the DM)
 .   plex - The DM
 
   Output Parameter:
@@ -8720,13 +8718,11 @@ PetscErrorCode DMPlexMonitorThroughput(DM dm, void *dummy)
 .keywords: mesh
 .seealso: LandauCreateVelocitySpace()
 @*/
-PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscoloring)
+PetscErrorCode DMPlexCreateCellColoring(DM plex, ISColoring *iscoloring)
 {
   PetscErrorCode  ierr;
-  PetscInt        dim,cell,ej,Nv,totDim,numGCells,cStart,cEnd,i;
+  PetscInt        dim,cell,ej,Nv,totDim,numGCells,cStart,cEnd,i, vStart, vEnd;
   Mat             G,Q;
-#define LANDAU_MAX_ROW_SIZE 1024
-  PetscScalar     ones[LANDAU_MAX_ROW_SIZE];
   MatColoring     mc;
   PetscFE         fe;
   DM              colordm;
@@ -8736,6 +8732,8 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   PetscInt        nc;
   PetscInt        numComp[1];
   PetscInt        numDof[4];
+#define LANDAU_MAX_ROW_SIZE 1024
+  PetscScalar     ones[LANDAU_MAX_ROW_SIZE];
 
   PetscFunctionBegin;
   ierr = DMGetLocalSection(plex, &section);CHKERRQ(ierr);
@@ -8744,6 +8742,7 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   ierr = DMGetDS(plex, &prob);CHKERRQ(ierr);
   ierr = PetscDSGetTotalDimension(prob, &totDim);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(plex,0,&cStart,&cEnd);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(plex, 0, &vStart, &vEnd);CHKERRQ(ierr);
   numGCells = cEnd - cStart;
   /* create cell centered DM */
   ierr = DMClone(plex, &colordm);CHKERRQ(ierr);
@@ -8758,8 +8757,9 @@ PetscErrorCode DMPlexCreateCellColoring(Mat JacP, DM plex, ISColoring *iscolorin
   ierr = PetscSectionSetFieldName(csection, 0, "color");CHKERRQ(ierr);
   ierr = DMSetLocalSection(colordm, csection);CHKERRQ(ierr);
   ierr = DMViewFromOptions(colordm,NULL,"-color_dm_view");CHKERRQ(ierr);
+
   /* get vertex to element map Q and colroing graph G */
-  ierr = MatGetSize(JacP,NULL,&Nv);CHKERRQ(ierr);
+  Nv = vEnd - vStart;
   ierr = MatCreateAIJ(PetscObjectComm((PetscObject) plex),PETSC_DECIDE,PETSC_DECIDE,numGCells,Nv,totDim,NULL,0,NULL,&Q);CHKERRQ(ierr);
   for (i=0;i<LANDAU_MAX_ROW_SIZE;i++) ones[i] = 1.0;
   for (cell = cStart, ej = 0 ; cell < cEnd; ++cell, ++ej) {

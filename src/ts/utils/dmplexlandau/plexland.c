@@ -1293,7 +1293,7 @@ PetscErrorCode LandauCreateColoring(Mat JacP, DM plex, PetscContainer *container
 
   PetscFunctionBegin;
   ierr = DMGetApplicationContext(plex, &ctx);CHKERRQ(ierr);
-  ierr = DMPlexCreateCellColoring(JacP, plex, &iscoloring);CHKERRQ(ierr);
+  ierr = DMPlexCreateCellColoring(plex, &iscoloring);CHKERRQ(ierr);
   /* stash coloring */
   ierr = PetscContainerCreate(PetscObjectComm((PetscObject) plex), container);CHKERRQ(ierr);
   ierr = PetscContainerSetPointer(*container,(void*)iscoloring);CHKERRQ(ierr);

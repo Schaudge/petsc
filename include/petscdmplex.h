@@ -453,6 +453,6 @@ PETSC_EXTERN PetscErrorCode DMPlexCellRefinerGetAffineTransforms(DMPlexCellRefin
 PETSC_EXTERN PetscErrorCode DMPlexCellRefinerGetAffineFaceTransforms(DMPlexCellRefiner, DMPolytopeType, PetscInt *, PetscReal *[], PetscReal *[], PetscReal *[], PetscReal *[]);
 PETSC_EXTERN PetscErrorCode DMPlexRefineUniform(DM, DMPlexCellRefiner, DM *);
 
-PETSC_EXTERN PetscErrorCode DMPlexCreateCellColoring(Mat, DM, ISColoring*);
+PETSC_EXTERN PetscErrorCode DMPlexCreateCellColoring(DM, ISColoring*);
 
 #endif
