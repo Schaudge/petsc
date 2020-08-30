@@ -6,7 +6,7 @@
 PetscErrorCode PetscKokkosInitialize_Private(void)
 {
   Kokkos::InitArguments args;
-  int                   devId;
+  int                   devId = 0;
 
   PetscFunctionBegin;
 #if defined(KOKKOS_ENABLE_CUDA)
