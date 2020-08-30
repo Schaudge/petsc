@@ -8726,7 +8726,7 @@ PetscErrorCode DMPlexCreateCellColoring(DM plex, ISColoring *iscoloring)
   MatColoring     mc;
   PetscFE         fe;
   DM              colordm;
-  PetscSection    csection, section, globalSection;
+  PetscSection    csection, globalSection;
   PetscDS         prob;
   IS              *is;
   PetscInt        nc;
@@ -8736,8 +8736,6 @@ PetscErrorCode DMPlexCreateCellColoring(DM plex, ISColoring *iscoloring)
   PetscScalar     ones[LANDAU_MAX_ROW_SIZE];
 
   PetscFunctionBegin;
-  ierr = DMGetLocalSection(plex, &section);CHKERRQ(ierr);
-  ierr = DMGetGlobalSection(plex, &globalSection);CHKERRQ(ierr);
   ierr = DMGetDimension(plex, &dim);CHKERRQ(ierr);
   ierr = DMGetDS(plex, &prob);CHKERRQ(ierr);
   ierr = PetscDSGetTotalDimension(prob, &totDim);CHKERRQ(ierr);
@@ -8757,17 +8755,17 @@ PetscErrorCode DMPlexCreateCellColoring(DM plex, ISColoring *iscoloring)
   ierr = PetscSectionSetFieldName(csection, 0, "color");CHKERRQ(ierr);
   ierr = DMSetLocalSection(colordm, csection);CHKERRQ(ierr);
   ierr = DMViewFromOptions(colordm,NULL,"-color_dm_view");CHKERRQ(ierr);
-
+  ierr = DMGetGlobalSection(colordm, &globalSection);CHKERRQ(ierr);
   /* get vertex to element map Q and colroing graph G */
   Nv = vEnd - vStart;
   ierr = MatCreateAIJ(PetscObjectComm((PetscObject) plex),numLocCells,Nv,PETSC_DECIDE,PETSC_DECIDE,totDim,NULL,totDim,NULL,&Q);CHKERRQ(ierr);
   for (i=0;i<LANDAU_MAX_ROW_SIZE;i++) ones[i] = 1.0;
   for (cell = cStart, ej = 0 ; cell < cEnd; ++cell, ++ej) {
     PetscInt numindices,*indices;
-    ierr = DMPlexGetClosureIndices(colordm, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
+    ierr = DMPlexGetClosureIndices(colordm, csection, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
     if (numindices>LANDAU_MAX_ROW_SIZE) SETERRQ2(PetscObjectComm((PetscObject) plex), PETSC_ERR_PLIB, "too many indices. %D > %d",numindices,LANDAU_MAX_ROW_SIZE);
     ierr = MatSetValues(Q,1,&ej,numindices,indices,ones,ADD_VALUES);CHKERRQ(ierr);
-    ierr = DMPlexRestoreClosureIndices(colordm, section, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
+    ierr = DMPlexRestoreClosureIndices(colordm, csection, globalSection, cell, PETSC_TRUE, &numindices, &indices, NULL, NULL);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Q, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
