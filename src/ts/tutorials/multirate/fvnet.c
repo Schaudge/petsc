@@ -428,7 +428,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr; 
   FVNetwork      fvnet = (FVNetwork)ctx;    
-  PetscReal      h,maxspeed,cfl_idt = 0;
+  PetscReal      h,maxspeed;
   PetscScalar    *f,*uR,*xarr;
   PetscInt       v,e,vStart,vEnd,eStart,eEnd,vfrom,vto;
   PetscInt       offsetf,offset,nedges,nnodes,i,j,dof = fvnet->physics.dof;;
@@ -441,6 +441,12 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecZeroEntries(F);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+    ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
+    /* Reset the edge cfl_idt values to 0 */
+    for (e=eStart; e<eEnd; e++) {
+      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+      fvedge->cfl_idt = 0; 
+    }
   ierr = DMGlobalToLocalEnd(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
   ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
@@ -448,7 +454,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);
   for (v=vStart; v<vEnd; v++) {
-    /* Reconstruct all local edge data points */
+    /* Reconstruct all local edge data points (NOTE: This routine (and the others done elsewhere) need to be refactored) */
     ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
     switch (junction->type) {
@@ -518,7 +524,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = DMGlobalToLocalBegin(fvnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr); 
   ierr = DMGlobalToLocalEnd(fvnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr);
   ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
-  /* Now All processors have the reconstruction data to compute the coupling flux */
+  /* Now ALL processors have the reconstruction data to compute the coupling flux */
   for (v=vStart; v<vEnd; v++) {
     /* Reconstruct all local edge data points */
     ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
@@ -585,7 +591,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       for (j=0; j<dof; j++) {
         fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
       }
-      cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+      fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
       for( j=0; j<dof; j++) {
         f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
         f[offset+i*dof+j]     += fvnet->flux[j]/h;
@@ -609,7 +615,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
     } 
     ierr = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-    cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+    fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
     for (j=0; j<dof; j++) {
       f[offset+dof*(nnodes-2)+j] -= fvnet->flux[j]/h; 
       f[offset+dof*(nnodes-1)+j] += fvnet->flux[j]/h;
@@ -625,7 +631,6 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(fvnet->network,localF,ADD_VALUES,F);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(fvnet->network,localF,ADD_VALUES,F);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&cfl_idt,&fvnet->cfl_idt,1,MPIU_SCALAR,MPIU_MAX,fvnet->comm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 /* Multirate Non-buffer RHS */
@@ -634,7 +639,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscErrorCode ierr;
   RhsCtx         *rhsctx = (RhsCtx*)ctx;
   FVNetwork      fvnet = rhsctx->fvnet;
-  PetscReal      h,maxspeed,cfl_idt = 0;
+  PetscReal      h,maxspeed;
   PetscScalar    *f,*uR,*xarr;
   PetscInt       i,j,k,ne,nv,dof = fvnet->physics.dof,bufferwidth = fvnet->bufferwidth;
   PetscInt       v,e,vfrom,vto,offsetf,offset,nedges,nnodes;
@@ -647,16 +652,17 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscFunctionBeginUser;
   ierr = VecZeroEntries(F);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
+  ierr = ISGetLocalSize(rhsctx->edgelist,&ne);CHKERRQ(ierr);
+  ierr = ISGetLocalSize(rhsctx->vtxlist,&nv);CHKERRQ(ierr);
+  ierr = ISGetIndices(rhsctx->edgelist,&edgelist);CHKERRQ(ierr); 
+  ierr = ISGetIndices(rhsctx->vtxlist,&vtxlist);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
   ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
   ierr = VecZeroEntries(Ftmp);CHKERRQ(ierr);
+
   /* Iterate through all marked vertices (including ghosts) and compute the flux/reconstruction data for the vertex. */
-  ierr = ISGetLocalSize(rhsctx->edgelist,&ne);CHKERRQ(ierr);
-  ierr = ISGetLocalSize(rhsctx->vtxlist,&nv);CHKERRQ(ierr);
-  ierr = ISGetIndices(rhsctx->edgelist,&edgelist);CHKERRQ(ierr); 
-  ierr = ISGetIndices(rhsctx->vtxlist,&vtxlist);CHKERRQ(ierr);
   for (k=0; k<nv; k++) {
     v = vtxlist[k];
     /* Reconstruct all local edge data points */
@@ -761,7 +767,6 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     4) 2nd to last flux (requires special reconstruction) 5) vto vertex flux */
     e      = edgelist[k];
     ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
-    \
     ierr   = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
     vfrom  = cone[0];
     vto    = cone[1];
@@ -801,7 +806,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         for (j=0; j<dof; j++) {
           fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
         }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+        fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
         for(j=0; j<dof; j++) {
           f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
           f[offset+i*dof+j]     += fvnet->flux[j]/h;
@@ -812,7 +817,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     ierr = FVNetCharacteristicLimit(fvnet,&xarr[offset+(bufferwidth-2)*dof],&xarr[offset+(bufferwidth-1)*dof],&xarr[offset+(bufferwidth)*dof]);CHKERRQ(ierr);
     if (!fvedge->frombufferlvl) {
       ierr    = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-      cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+      fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
       for (j=0; j<dof; j++) {
         f[offset+(bufferwidth-2)*dof+j] -= fvnet->flux[j]/h;
         f[offset+(bufferwidth-1)*dof+j] += fvnet->flux[j]/h;
@@ -827,7 +832,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     for (j=0; j<dof; j++) {
       fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
     }
-    cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+    fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
     for (j=0; j<dof; j++) {
       if (!fvedge->frombufferlvl) f[offset+(bufferwidth-1)*dof+j] -= fvnet->flux[j]/h;
       f[offset+(bufferwidth)*dof+j] += fvnet->flux[j]/h;
@@ -839,7 +844,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       for (j=0; j<dof; j++) {
         fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
       }
-      cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+      fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
       for (j=0; j<dof; j++) {
         f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
         f[offset+i*dof+j]     += fvnet->flux[j]/h;
@@ -851,7 +856,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     for (j=0; j<dof; j++) {
       fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
     }
-    cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+    fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
     for (j=0; j<dof; j++) {
       f[offset+(nnodes-bufferwidth-1)*dof+j] -= fvnet->flux[j]/h;
       if (!fvedge->tobufferlvl) f[offset+(nnodes-bufferwidth)*dof+j] += fvnet->flux[j]/h;
@@ -866,7 +871,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         for (j=0; j<dof; j++) {
           fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
         }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+        fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
         for (j=0; j<dof; j++) {
           f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
           f[offset+i*dof+j]     += fvnet->flux[j]/h;
@@ -888,7 +893,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
           SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
       } 
       ierr    = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-      cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+      fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
       for (j=0; j<dof; j++) {
         f[offset+dof*(nnodes-2)+j] -= fvnet->flux[j]/h; 
         f[offset+dof*(nnodes-1)+j] += fvnet->flux[j]/h;
@@ -910,7 +915,6 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecScatterBegin(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterEnd(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&cfl_idt,&fvnet->cfl_idt,1,MPIU_SCALAR,MPIU_MAX,fvnet->comm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -920,7 +924,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscErrorCode ierr;
   RhsCtx         *rhsctx = (RhsCtx*)ctx;
   FVNetwork      fvnet = rhsctx->fvnet;
-  PetscReal      h,maxspeed,cfl_idt = 0;
+  PetscReal      h,maxspeed;
   PetscScalar    *f,*uR,*xarr;
   PetscInt       i,j,k,m,nv,dof = fvnet->physics.dof,bufferwidth = fvnet->bufferwidth;
   PetscInt       v,e,vfrom,vto,offsetf,offset,nedges,nnodes;
@@ -1083,7 +1087,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
           for (j=0; j<dof; j++) {
             fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
           }
-          cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+          fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
           for (j=0; j<dof; j++) {
             f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
             f[offset+i*dof+j]     += fvnet->flux[j]/h;
@@ -1095,7 +1099,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         for (j=0; j<dof; j++) {
           fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
         }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+        fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
         for (j=0; j<dof; j++) {
           f[offset+(bufferwidth-1)*dof+j] -= fvnet->flux[j]/h;
         }
@@ -1112,7 +1116,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         for (j=0; j<dof; j++) {
           fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
         }
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+        fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
         for (j=0; j<dof; j++) {
           f[offset+(nnodes-bufferwidth)*dof+j] += fvnet->flux[j]/h;
         } 
@@ -1123,7 +1127,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
           for (j=0; j<dof; j++) {
             fvnet->uPlus[j] = fvnet->uLR[dof+j]; 
           }
-          cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+          fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
           for (j=0; j<dof; j++) {
             f[offset+(i-1)*dof+j] -= fvnet->flux[j]/h;
             f[offset+i*dof+j]     += fvnet->flux[j]/h;
@@ -1145,7 +1149,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
             SETERRQ2(PetscObjectComm((PetscObject)(fvnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D has unsupported type %D",v,junction->type);
         } 
         ierr    = (*fvnet->physics.riemann)(fvnet->physics.user,dof,fvnet->uPlus,fvnet->uLR,fvnet->flux,&maxspeed);CHKERRQ(ierr);
-        cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(cfl_idt)); /* Update the maximum signal speed (for CFL) */
+        fvedge->cfl_idt = PetscMax(PetscAbsScalar(maxspeed/h),PetscAbsScalar(fvedge->cfl_idt)); /* Update the maximum signal speed (for CFL) */
         for (j=0; j<dof; j++) {
           f[offset+dof*(nnodes-2)+j] -= fvnet->flux[j]/h; 
           f[offset+dof*(nnodes-1)+j] += fvnet->flux[j]/h;
@@ -1168,7 +1172,6 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecScatterBegin(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterEnd(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&cfl_idt,&fvnet->cfl_idt,1,MPIU_SCALAR,MPIU_MAX,fvnet->comm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0) 
