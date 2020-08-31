@@ -1,6 +1,6 @@
 #include "fvnet.h"
 
-PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt initial,PetscInt Mx)
+PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
 {
   PetscErrorCode ierr;
   PetscInt       nfvedge;
@@ -12,17 +12,17 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt initial,PetscInt Mx)
   PetscInt       dof = fvnet->physics.dof; 
   
   PetscFunctionBegin;
-  fvnet->nnodes_loc = 0;
-  ierr              = MPI_Comm_rank(fvnet->comm,&rank);CHKERRQ(ierr);
-  numVertices       = 0;
-  numEdges          = 0;
-  edgelist          = NULL;
-  fvnet->initial    = initial; 
+  fvnet->nnodes_loc  = 0;
+  ierr               = MPI_Comm_rank(fvnet->comm,&rank);CHKERRQ(ierr);
+  numVertices        = 0;
+  numEdges           = 0;
+  edgelist           = NULL;
+  fvnet->networktype = networktype; 
   /* proc[0] creates a sequential fvnet and edgelist */
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Setup initial %D\n",initial);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Setup Initial Network %D\n",networktype);CHKERRQ(ierr);
   /* Set global number of fvedges, edges, and junctions */
   /*-------------------------------------------------*/
-  switch (initial) {
+  switch (networktype) {
     case 0:
       /* Case 0: */
       /* =================================================
@@ -1204,12 +1204,12 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0)
         x = xfrom-i*h;
       }
       u = xarr+offset+i*dof; 
-      switch (fvnet->initial) {
+      switch (fvnet->networktype) {
         case 0: 
         case 1:
         case 2: 
           /*Both are networks on [0,1] and so use the same initial conditions. User provided geometrically 1d initial conditions */
-          fvnet->physics.sample((void*)&fvnet->physics.user,fvnet->subcase,0.0,x,u);
+          fvnet->physics.sample((void*)&fvnet->physics.user,fvnet->initial,0.0,x,u);
           break;
         default: 
           SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
@@ -1232,7 +1232,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
 
   PetscFunctionBegin;
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
-  switch (fvnet->initial) {
+  switch (fvnet->networktype) {
     case 0: /* Mark the boundary edges as slow and the middle edge as fast */
     case 2: 
       /* Find the number of slow/fast edges */
@@ -1537,5 +1537,51 @@ PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork fvnet, IS *slow, IS *fast, IS
   ierr = PetscFree(i_slow);CHKERRQ(ierr);
   ierr = PetscFree(i_fast);CHKERRQ(ierr);
   ierr = PetscFree(i_buf);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFree(vctx);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+PetscErrorCode RiemannListAdd_Net(PetscFunctionList *flist,const char *name,RiemannFunction rsolve)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListAdd(flist,name,rsolve);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode RiemannListFind_Net(PetscFunctionList flist,const char *name,RiemannFunction *rsolve)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListFind(flist,name,rsolve);CHKERRQ(ierr);
+  if (!*rsolve) SETERRQ1(PETSC_COMM_SELF,1,"Riemann solver \"%s\" could not be found",name);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ReconstructListAdd_Net(PetscFunctionList *flist,const char *name,ReconstructFunction r)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListAdd(flist,name,r);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode ReconstructListFind_Net(PetscFunctionList flist,const char *name,ReconstructFunction *r)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListFind(flist,name,r);CHKERRQ(ierr);
+  if (!*r) SETERRQ1(PETSC_COMM_SELF,1,"Reconstruction \"%s\" could not be found",name);
   PetscFunctionReturn(0);
 }
