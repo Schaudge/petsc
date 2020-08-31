@@ -86,11 +86,10 @@ typedef struct {
   PetscErrorCode                (*destroy)(void*);
   void                          *user;
   PetscInt                      dof;
-  char                          *fieldname[16];
-  PetscBool                     issource; 
+  char                          *fieldname[16]; 
   PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
-                                   is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
-                                   outflow boundary condition.*/
+                                                     is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
+                                                     outflow boundary condition.*/
 } PhysicsCtx2;
 
 typedef struct {
@@ -108,7 +107,6 @@ typedef struct {
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *ub;              /* Boundary data for inflow boundary conditions */
-
 
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
   PetscReal   cfl;
