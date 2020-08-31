@@ -101,6 +101,7 @@ typedef struct {
   void                          *user;
   PetscInt                      dof;
 <<<<<<< HEAD
+<<<<<<< HEAD
   char                          *fieldname[16];
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -133,6 +134,12 @@ typedef struct {
                                    is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
                                    outflow boundary condition.*/
 >>>>>>> Added Support for Inflow Boundary Conditions
+=======
+  char                          *fieldname[16]; 
+  PetscBool                     *bcinflowindex;   /* Boolean array where bcinflowindex[dof*i+j] = TRUE indicates that the jth component of the solution
+                                                     is an inflow boundary condition and i = 0 is left bc, i = 1 is right bc. FALSE implies outflow 
+                                                     outflow boundary condition.*/
+>>>>>>> Small fixes to ex4
 } PhysicsCtx2;
 
 typedef struct {
@@ -158,8 +165,11 @@ typedef struct {
 >>>>>>> Added Support for Inflow Boundary Conditions
 =======
 
+<<<<<<< HEAD
 >>>>>>> Added Support for Inflow Boundary Conditions
 
+=======
+>>>>>>> Small fixes to ex4
 =======
 >>>>>>> Small fixes to ex4
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
