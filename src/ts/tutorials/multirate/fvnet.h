@@ -35,13 +35,12 @@ struct _p_FVEdge
   PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data 
                                           for the edge cells */
   /* solver objects */
-  PetscInt    nnodes;   /* number of cells in the discretization of the edge*/
+  PetscInt    nnodes;   /* number of cells in the discretization of the edge */
+  PetscReal   cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
   /* FV object */
-  PetscReal h; /* discretization size, assumes uniform mesh*/
+  PetscReal h; /* discretization size, assumes uniform mesh */
   /* Multirate ODE Context */ 
   PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
-  PetscReal cfl; 
-  
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_FVEdge *FVEdge;
 
@@ -102,9 +101,9 @@ struct _p_FVNetwork
   FVEdge      fvedge;
   /* FV Context */ 
   /* We assume for efficiency and simplicity that the network has
-     a single discretization on all edges/vertices and the same physics. 
+     a single discretization on all edges and the same physics. 
      So that context information is stored here in the network object. The 
-     solvers and rhs functions in the edges/vertices will call this info when 
+     solvers and rhs functions in the edges will call this info when 
      actually performing the cell updates */ 
   PhysicsCtx_Net physics; 
   /* Multirate Context */
