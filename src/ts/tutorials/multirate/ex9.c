@@ -448,7 +448,7 @@ int main(int argc,char *argv[])
   }
   /* Set Network Data into the DMNetwork (on proc[0]) */
   ierr = FVNetworkSetComponents(fvnet);CHKERRQ(ierr);
-  /* Delete unneeded data */
+  /* Delete unneeded data in fvnet */
   ierr = FVNetworkCleanUp(fvnet);CHKERRQ(ierr);
   /* Distribute Network */
   ierr = DMSetUp(fvnet->network);CHKERRQ(ierr); 
