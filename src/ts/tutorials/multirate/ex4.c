@@ -2,6 +2,7 @@
   Note:
     -hratio is the ratio between mesh size of corse grids and fine grids
 <<<<<<< HEAD
+<<<<<<< HEAD
 */
 
 static const char help[] = "1D periodic Finite Volume solver in slope-limiter form with semidiscrete time stepping.\n"
@@ -13,6 +14,8 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
   "                where, h(x,t) denotes the height of the water and q(x,t) the momentum.\n"
 =======
     -ts_rk_dtratio is the ratio between the large stepsize and the small stepsize
+=======
+>>>>>>> Documentation adjustments to ex4
 */
 
 static const char help[] = "1D periodic Finite Volume solver in slope-limiter form with semidiscrete time stepping.\n"
@@ -50,6 +53,9 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
   "  characteristic - Limit the characteristic variables, this is usually preferred (default)\n"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Documentation adjustments to ex4
   "  bc_type     - Boundary condition for the problem, options are: periodic, outflow, inflow "
   "Several problem descriptions (initial data, physics specific features, boundary data) can be chosen with -initial N\n\n"
   "The problem size should be set with -da_grid_x M\n\n";
@@ -726,7 +732,7 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,FVBCType
   PetscFunctionReturn(0);
 }
 
-/* Implements inflow conditions for the given initial conditions. Which ones are actually active depends on
+/* Implements inflow conditions for the given initial conditions. Which conditions are actually enforced depends on
    on the results of PhysicsSetInflowType_Shallow. */
 static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,PetscReal *u)
 {
@@ -754,7 +760,7 @@ static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,P
         break;
       case 8:
         u[0] = 0; u[1] = 1.0; /* Left boundary conditions */
-        u[2] = 0; u[3] = -1.0; /* Right boundary conditions */
+        u[2] = 0; u[3] = -1.0;/* Right boundary conditions */
         break;
       default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
     }
@@ -762,8 +768,7 @@ static PetscErrorCode PhysicsInflow_Shallow(void *vctx,PetscReal t,PetscReal x,P
   PetscFunctionReturn(0);
 }
 
-/* Selects which boundary conditions are marked as inflow and which as outflow when FVBC_INFLOW is selected
-   Which conditions and the number of boundary conditions depends on the particular problem considered. */
+/* Selects which boundary conditions are marked as inflow and which as outflow when FVBC_INFLOW is selected. */
 static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
 {
   PetscFunctionBeginUser;
@@ -774,24 +779,8 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
     case 3:
     case 4:
     case 5:
-      /* Fix left and right momentum, height is outflow*/
-      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
-      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
-      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
-      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
-      break;
-    case 6: /* Fix left and right momentum, height is outflow*/
-      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
-      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
-      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
-      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
-      break;
-    case 7: /* Fix left and right momentum, height is outflow*/
-      ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
-      ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
-      ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
-      ctx->physics2.bcinflowindex[3] = PETSC_TRUE;
-      break;
+    case 6: 
+    case 7: 
     case 8: /* Fix left and right momentum, height is outflow*/
       ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
       ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
@@ -1892,7 +1881,7 @@ int main(int argc,char *argv[])
   DM                da;
   Vec               X,X0,R;
   FVCtx             ctx;
-  PetscInt          bs,i,k,dof,xs,xm,Mx,draw = 0,count_slow,count_fast,islow = 0,ifast =0,islowbuffer = 0,*index_slow,*index_fast,*index_slowbuffer;
+  PetscInt          i,k,dof,xs,xm,Mx,draw = 0,count_slow,count_fast,islow = 0,ifast =0,islowbuffer = 0,*index_slow,*index_fast,*index_slowbuffer;
   PetscBool         view_final = PETSC_FALSE;
   PetscReal         ptime,maxtime;
   PetscErrorCode    ierr;
@@ -2035,6 +2024,7 @@ int main(int argc,char *argv[])
   ctx.lsbwidth = 4;
   ctx.rsbwidth = 4;
 
+<<<<<<< HEAD
 =======
   if (((AdvectCtx*)ctx.physics2.user)->a > 0) {
     ctx.lsbwidth = 4;
@@ -2058,6 +2048,8 @@ int main(int argc,char *argv[])
   ierr = VecGetBlockSize(X,&bs);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"BlockSize %D\n",bs);CHKERRQ(ierr);
 >>>>>>> Small fixes to ex4
+=======
+>>>>>>> Documentation adjustments to ex4
   for (i=xs; i<xs+xm; i++) {
     if (i < ctx.sf-ctx.lsbwidth || i > ctx.fs+ctx.rsbwidth-1)
       for (k=0; k<dof; k++) index_slow[islow++] = i*dof+k;
