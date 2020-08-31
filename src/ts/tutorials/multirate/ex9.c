@@ -21,18 +21,18 @@ static const char help[] = "1D Finite Volume solver in slope-limiter form with s
 /*
   Example:
     Euler timestepping:
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 1 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 2 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 3 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 4 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 5 -hratio 2 -limit minmod -ts_dt 0.10 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 2 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.10 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type euler
 
     MRPK timestepping:
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 2 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -initial 0 -subcase 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 2 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
 */
 
 #include <petscts.h>
@@ -41,78 +41,10 @@ static const char help[] = "1D Finite Volume solver in slope-limiter form with s
 #include <petscdmnetwork.h>
 #include "fvnet.h"
 #include "limiters.h"
-
 #include <petsc/private/kernels/blockinvert.h>
 
 PETSC_STATIC_INLINE PetscReal MaxAbs(PetscReal a,PetscReal b) { return (PetscAbs(a) > PetscAbs(b)) ? a : b; }
-/* --------------------------------- Advection ----------------------------------- */
-typedef struct {
-  PetscReal a;                  /* advective velocity */
-} AdvectCtx;
 
-static PetscErrorCode PhysicsRiemann_Advect(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
-{
-  AdvectCtx *ctx = (AdvectCtx*)vctx;
-  PetscReal speed;
-
-  PetscFunctionBeginUser;
-  speed     = ctx->a;
-  flux[0]   = PetscMax(0,speed)*uL[0] + PetscMin(0,speed)*uR[0];
-  *maxspeed = speed;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsCharacteristic_Advect(void *vctx,PetscInt m,const PetscScalar *u,PetscScalar *X,PetscScalar *Xi,PetscReal *speeds)
-{
-  AdvectCtx *ctx = (AdvectCtx*)vctx;
-
-  PetscFunctionBeginUser;
-  X[0]      = 1.;
-  Xi[0]     = 1.;
-  speeds[0] = ctx->a;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsSample_Advect(void *vctx,PetscInt initial,PetscReal t,PetscReal x0,PetscReal *u)
-{
-  PetscFunctionBeginUser;
-  switch (initial) {
-    case 0: u[0] = (x0 < 25) ? 1 : -1; break;
-    case 1: u[0] = (x0 < 25) ? -1 : 1; break;
-    case 2: u[0] = (0 < x0 && x0 < 10) ? 1 : 0; break;
-    case 3: u[0] = PetscSinReal(2*PETSC_PI*x0); break;
-    case 4: u[0] = PetscAbs(x0); break;
-    case 5: u[0] = (x0 < 0 || x0 > 0.5) ? 0 : PetscSqr(PetscSinReal(2*PETSC_PI*x0)); break;
-    case 6: u[0] = (x0 < 0) ? 0 : ((x0 < 1) ? x0 : ((x0 < 2) ? 2-x0 : 0)); break;
-    case 7: u[0] = PetscPowReal(PetscSinReal(PETSC_PI*x0),10.0);break;
-    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsCreate_Advect(FVNetwork fvnet)
-{
-  PetscErrorCode ierr;
-  AdvectCtx      *user;
-
-  PetscFunctionBeginUser;
-  ierr = PetscNew(&user);CHKERRQ(ierr);
-  fvnet->physics.sample          = PhysicsSample_Advect;
-  fvnet->physics.riemann         = PhysicsRiemann_Advect;
-  fvnet->physics.characteristic  = PhysicsCharacteristic_Advect;
-  fvnet->physics.destroy         = PhysicsDestroy_SimpleFree;
-  fvnet->physics.user            = user;
-  fvnet->physics.dof             = 1;
-
-  ierr = PetscStrallocpy("u",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
-  user->a = 1;
-  ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for advection","");CHKERRQ(ierr);
-  {
-    ierr = PetscOptionsReal("-physics_advect_a","Speed","",user->a,&user->a,NULL);CHKERRQ(ierr);
-  }
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
 /* --------------------------------- Shallow Water ----------------------------------- */
 typedef struct {
   PetscReal gravity;
@@ -351,8 +283,6 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,c
 
 static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Junction junct)
 {
-  const FVNetwork fvnet = (FVNetwork)_fvnet; 
-
   PetscFunctionBeginUser; 
   switch(junct->type)
   {
@@ -372,7 +302,7 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
           }
         }
       } else {
-        /* Do the full riemann invariant solver */
+        /* Do the full riemann invariant solver (TO BE ADDED) */
       }
       break;
     default: 
@@ -380,7 +310,6 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
   }
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
 {
@@ -392,7 +321,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   fvnet->physics.sample          = PhysicsSample_Shallow;
-  fvnet->physics.destroy         = PhysicsDestroy_SimpleFree;
+  fvnet->physics.destroy         = PhysicsDestroy_SimpleFree_Net;
   fvnet->physics.riemann         = PhysicsRiemann_Shallow_Rusanov;
   fvnet->physics.characteristic  = PhysicsCharacteristic_Shallow;
   fvnet->physics.vfluxassign     = PhysicsAssignVertexFlux_Shallow;
@@ -404,17 +333,17 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
 
   user->gravity = 9.81;
 
-  ierr = RiemannListAdd_2WaySplit(&rlist,"exact",  PhysicsRiemann_Shallow_Exact);CHKERRQ(ierr);
-  ierr = RiemannListAdd_2WaySplit(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
-  ierr = ReconstructListAdd_2WaySplit(&rclist,"characteristic",PhysicsCharacteristic_Shallow);CHKERRQ(ierr);
-  ierr = ReconstructListAdd_2WaySplit(&rclist,"conservative",PhysicsCharacteristic_Conservative);CHKERRQ(ierr);
+  ierr = RiemannListAdd_Net(&rlist,"exact",  PhysicsRiemann_Shallow_Exact);CHKERRQ(ierr);
+  ierr = RiemannListAdd_Net(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
+  ierr = ReconstructListAdd_Net(&rclist,"characteristic",PhysicsCharacteristic_Shallow);CHKERRQ(ierr);
+  ierr = ReconstructListAdd_Net(&rclist,"conservative",PhysicsCharacteristic_Conservative);CHKERRQ(ierr);
   ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
     ierr = PetscOptionsReal("-physics_shallow_gravity","Gravity","",user->gravity,&user->gravity,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics_shallow_riemann","Riemann solver","",rlist,rname,rname,sizeof(rname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics_shallow_reconstruct","Reconstruction","",rclist,rcname,rcname,sizeof(rcname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  ierr = RiemannListFind_2WaySplit(rlist,rname,&fvnet->physics.riemann);CHKERRQ(ierr);
-  ierr = ReconstructListFind_2WaySplit(rclist,rcname,&fvnet->physics.characteristic);CHKERRQ(ierr);
+  ierr = RiemannListFind_Net(rlist,rname,&fvnet->physics.riemann);CHKERRQ(ierr);
+  ierr = ReconstructListFind_Net(rclist,rcname,&fvnet->physics.characteristic);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rclist);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -462,26 +391,28 @@ int main(int argc,char *argv[])
 
   /* Register physical models to be available on the command line */
   ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
-  ierr = PetscFunctionListAdd(&physics,"advect"          ,PhysicsCreate_Advect);CHKERRQ(ierr);
 
+  /* Set default values */
   fvnet->comm         = comm;
   fvnet->cfl          = 0.9;
-  fvnet->initial      = 0;
+  fvnet->networktype  = 1;
   fvnet->hratio       = 2;
   maxtime             = 1.0;
   fvnet->Mx           = 12;
   fvnet->bufferwidth  = 0;
-  fvnet->monifv       = PETSC_TRUE;
-  fvnet->subcase      = 1;
+  fvnet->monifv       = PETSC_FALSE;
+  fvnet->initial      = 1;
   fvnet->ymin         = 0;
   fvnet->ymax         = 2.0;
   fvnet->bufferwidth  = 4;
+
+  /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsFList("-limit","Name of flux imiter to use","",limiters,lname,lname,sizeof(lname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-draw","Draw solution vector, bitwise OR of (1=initial,2=final,4=final error)","",draw,&draw,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-initial","Network Topolog (Need to swap the name)","",fvnet->initial,&fvnet->initial,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-subcase","Initial condition (depends on the physics)","",fvnet->subcase,&fvnet->subcase,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-initial","Initial Condition (depends on the physics)","",fvnet->initial,&fvnet->initial,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-network","Network topology to load, along with boundary condition information","",fvnet->networktype,&fvnet->networktype,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-exact","Compare errors with exact solution","",fvnet->exact,&fvnet->exact,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simulation","Compare errors with reference solution","",fvnet->simulation,&fvnet->simulation,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-cfl","CFL number to time step at","",fvnet->cfl,&fvnet->cfl,NULL);CHKERRQ(ierr);
@@ -507,10 +438,9 @@ int main(int argc,char *argv[])
     /* Create the physics, will set the number of fields and their names */
     ierr = (*r)(fvnet);CHKERRQ(ierr);
   }
-  fvnet->couplingflux = fvnet->physics.riemann; /* Hack for now */
 
   /* Generate Network Data */
-  ierr = FVNetworkCreate(fvnet,fvnet->initial,fvnet->Mx);CHKERRQ(ierr);
+  ierr = FVNetworkCreate(fvnet,fvnet->networktype,fvnet->Mx);CHKERRQ(ierr);
   /* Create DMNetwork */
   ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet->network);CHKERRQ(ierr);
   if (size == 1 && fvnet->monifv) {
@@ -520,9 +450,8 @@ int main(int argc,char *argv[])
   ierr = FVNetworkSetComponents(fvnet);CHKERRQ(ierr);
   /* Delete unneeded data */
   ierr = FVNetworkCleanUp(fvnet);CHKERRQ(ierr);
-
   /* Distribute Network */
-  ierr = DMSetUp(fvnet->network);CHKERRQ(ierr);
+  ierr = DMSetUp(fvnet->network);CHKERRQ(ierr); 
   if (viewdm) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"\nOriginal networkdm, DMView:\n");CHKERRQ(ierr);
     ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -579,7 +508,7 @@ int main(int argc,char *argv[])
   if (size == 1 && fvnet->monifv) {
     ierr = TSMonitorSet(ts, TSDMNetworkMonitor, fvnet->monitor, NULL);CHKERRQ(ierr);
   }
-  /*Solve it*/
+  /* Evolve the PDE network in time */
   ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
   ierr = TSGetSolveTime(ts,&ptime);CHKERRQ(ierr);
   ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);

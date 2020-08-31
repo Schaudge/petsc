@@ -1,12 +1,6 @@
 #include <petscdmnetwork.h>
-#include <petsc.h>
-
-/* Finite Volume Data Structures, temporary as they are built right for this application. 
-   but they work for now */
-#include "finitevolume1d.h"
+#include <petscts.h>
 #include "limiters.h"
-
-/* Function Specifications */   
 
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*);
@@ -22,13 +16,12 @@ typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;
 typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
 struct _p_Junction{
-  PetscInt	    id;        /* global index */
-  PetscInt      type;      /* Used to assign the vertex flux function to attach to junction */               
+  PetscInt	    id;       /* global index */
+  PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */               
   Mat           *jacobian;
-  PetscReal     x; /* x-coordinate */
-  PetscBool     *dir; /*In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
-  PetscInt      numedges; /* Number of edges connected to this vertex (globally) (it feels like this info should 
-                             live in the dmnetwork, but I don't see how to access it.)*/           
+  PetscReal     x;        /* x-coordinate */
+  PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
+  PetscInt      numedges; /* Number of edges connected to this vertex (globally) */           
   /* Finite Volume Context */
   VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
   PetscScalar   *flux;        /* Local work array for vertex fluxes. len = dof*numedges */
@@ -40,21 +33,11 @@ struct _p_FVEdge
   /* identification variables */
   PetscInt    id;
   PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data 
-                                                      for the edge cells */
+                                          for the edge cells */
   /* solver objects */
-  /* Note that this object holds no solution data. This is held 
-     by the DMnetwork. This object merely gives the appropriate context 
-     for the data belonging to the given edge */
-
   PetscInt    nnodes;   /* number of cells in the discretization of the edge*/
- /*void                *user;*/ /* user inputted data, need for function evaluations. However not 
-                                   sure how do this right, as this data will have to be set after partitioning, 
-                                   so the user will have to provide a function to set these based on id I think.
-                                   worry about it later */
-
   /* FV object */
   PetscReal h; /* discretization size, assumes uniform mesh*/
-
   /* Multirate ODE Context */ 
   PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
   PetscReal cfl; 
@@ -63,13 +46,16 @@ struct _p_FVEdge
 typedef struct _p_FVEdge *FVEdge;
 
 /* Specification for vertex flux assignment functions */
-typedef PetscErrorCode (*VertexFluxAssignment)(const void*,Junction); 
+typedef PetscErrorCode (*VertexFluxAssignment)(const void*,Junction);
+
+typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
+typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
 
 typedef struct {
   PetscErrorCode                 (*sample)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
-  RiemannFunction_2WaySplit      riemann;
-  ReconstructFunction_2WaySplit  characteristic;
+  RiemannFunction                riemann;
+  ReconstructFunction            characteristic;
   VertexFluxAssignment           vfluxassign; 
   PetscErrorCode                 (*destroy)(void*);
   void                           *user;
@@ -93,9 +79,6 @@ struct _p_FVNetwork
   DMNetworkMonitor  monitor;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
-  RiemannFunction_2WaySplit couplingflux; /* Structure for performing the coupling flux. Should be attached 
-                                             to a junction instead of the global network structure. Also not sure 
-                                             if this is the right function type for this. But we will see. */
 
   /* Local work arrays */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
@@ -108,7 +91,7 @@ struct _p_FVNetwork
 
   PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
   PetscReal   cfl;
-  PetscInt    initial,subcase;
+  PetscInt    initial,networktype; 
   PetscBool   simulation;
   PetscBool   exact;
   PetscInt    hratio;
@@ -138,6 +121,13 @@ IS        vtxlist;
 IS        wheretoputstuff;
 } RhsCtx; 
 
+/* FV Functions */
+PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
+PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
+PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
+PetscErrorCode ReconstructListAdd_Net(PetscFunctionList*,const char*,ReconstructFunction);
+PetscErrorCode ReconstructListFind_Net(PetscFunctionList,const char*,ReconstructFunction*);
+/* Limit using the loaded limiter in the characteristic variables */
 PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions. 
    Allocate the work array data for FVNetwork */
@@ -155,6 +145,7 @@ PetscErrorCode FVNetworkCleanUp(FVNetwork);
    the vertex data structures needed for evaluating the edge data they 
    'steal' */ 
 PetscErrorCode FVNetworkCreateVectors(FVNetwork);
+/* Add dynamic data to the distributed network. */
 PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
 /* Create the multirate data structures the components require */
 PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
