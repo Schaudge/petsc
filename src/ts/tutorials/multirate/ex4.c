@@ -176,6 +176,7 @@ static PetscErrorCode PhysicsCreate_Advect(FVCtx *ctx)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
@@ -184,6 +185,8 @@ static PetscErrorCode PhysicsCreate_Advect(FVCtx *ctx)
 =======
   ctx->physics2.issource        = PETSC_FALSE;
 >>>>>>> trivial edit: remove white spaces
+=======
+>>>>>>> Small fixes to ex4
 
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
   ierr = PetscStrallocpy("u",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
@@ -607,8 +610,8 @@ static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const
   if (R.h < tol) R.u = 0.0;
 
   /*simple pos preserve limiter*/
-  if (L.h < 0) L.h=0;
-  if (R.h < 0) R.h=0;
+  if (L.h < 0) L.h = 0;
+  if (R.h < 0) R.h = 0;
 
   ShallowFlux(phys,uL,fL);
   ShallowFlux(phys,uR,fR);
@@ -640,7 +643,7 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
   PetscReal      tol = 1e-6;
 
   PetscFunctionBeginUser;
-  c         = PetscSqrtScalar(u[0]*phys->gravity);
+  c           = PetscSqrtScalar(u[0]*phys->gravity);
 
   if (u[0] < tol) { /*Use conservative variables*/
     X[0*2+0]  = 1;
@@ -800,25 +803,6 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PhysicsSetSource_Shallow(FVCtx *ctx){
-  PetscFunctionBeginUser;
-  switch (ctx->initial) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-      ctx->physics2.issource = PETSC_FALSE;
-      break;
-    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
-  }
-  PetscFunctionReturn(0);
-}
-
 static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
 {
   PetscErrorCode    ierr;
@@ -838,7 +822,6 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
 
   PetscMalloc1(2*(ctx->physics2.dof),&ctx->physics2.bcinflowindex);
   PhysicsSetInflowType_Shallow(ctx);
-  PhysicsSetSource_Shallow(ctx);
 
   ierr = PetscStrallocpy("density",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
@@ -1324,8 +1307,6 @@ PetscErrorCode FVRHSFunctionslow_2WaySplit(TS ts,PetscReal time,Vec X,Vec F,void
   ierr = VecGetArray(F,&f);CHKERRQ(ierr);
   ierr = DMDAGetArray(da,PETSC_TRUE,&slope);CHKERRQ(ierr);
   ierr = DMDAGetCorners(da,&xs,0,0,&xm,0,0);CHKERRQ(ierr);
-  ierr = VecView(F,PETSC_VIEWER_STDOUT_WORLD);
-  ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD);
 
   if (ctx->bctype == FVBC_OUTFLOW) {
     for (i=xs-2; i<0; i++) {
@@ -1911,7 +1892,7 @@ int main(int argc,char *argv[])
   DM                da;
   Vec               X,X0,R;
   FVCtx             ctx;
-  PetscInt          i,k,dof,xs,xm,Mx,draw = 0,count_slow,count_fast,islow = 0,ifast =0,islowbuffer = 0,*index_slow,*index_fast,*index_slowbuffer;
+  PetscInt          bs,i,k,dof,xs,xm,Mx,draw = 0,count_slow,count_fast,islow = 0,ifast =0,islowbuffer = 0,*index_slow,*index_fast,*index_slowbuffer;
   PetscBool         view_final = PETSC_FALSE;
   PetscReal         ptime,maxtime;
   PetscErrorCode    ierr;
@@ -1947,6 +1928,7 @@ int main(int argc,char *argv[])
   ctx.hratio  = 2;
   maxtime     = 10.0;
 <<<<<<< HEAD
+<<<<<<< HEAD
   ctx.simulation = PETSC_FALSE;
 =======
   ctx.comm = comm;
@@ -1963,6 +1945,9 @@ int main(int argc,char *argv[])
 >>>>>>> Added example specifications
 =======
 >>>>>>> trivial edit: remove white spaces
+=======
+  ctx.simulation = PETSC_FALSE; 
+>>>>>>> Small fixes to ex4
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmin","X min","",ctx.xmin,&ctx.xmin,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-xmax","X max","",ctx.xmax,&ctx.xmax,NULL);CHKERRQ(ierr);
@@ -1976,7 +1961,6 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsReal("-cfl","CFL number to time step at","",ctx.cfl,&ctx.cfl,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-bc_type","Boundary condition","",FVBCTypes,(PetscEnum)ctx.bctype,(PetscEnum*)&ctx.bctype,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-hratio","Spacing ratio","",ctx.hratio,&ctx.hratio,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsReal("-ts_max_time","Max Time to Run TS","",maxtime,&maxtime,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -2032,10 +2016,14 @@ int main(int argc,char *argv[])
      count_slow + count_fast = Mx, counts_slow*hs = 0.5, counts_fast*hf = 0.5 */
   count_slow = Mx/(1.0+ctx.hratio/3.0);
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (count_slow%2) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Please adjust grid size Mx (-da_grid_x) and hratio (-hratio) so that Mx/(1+hratio/3) is even");
 =======
   if (count_slow%2) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Please adjust grid size Mx (-da_grid_x) and hratio (-hratio) so that Mx/(1+hartio/3) is even");
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
+=======
+  if (count_slow%2) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_USER,"Please adjust grid size Mx (-da_grid_x) and hratio (-hratio) so that Mx/(1+hratio/3) is even");
+>>>>>>> Small fixes to ex4
   count_fast = Mx-count_slow;
   ctx.sf = count_slow/2;
   ctx.fs = ctx.sf+count_fast;
@@ -2064,7 +2052,12 @@ int main(int argc,char *argv[])
 >>>>>>> Added Shallow water equations to the top menu. Detailed description of options still required.
 =======
 
+<<<<<<< HEAD
 >>>>>>> trivial edit: remove white spaces
+=======
+  ierr = VecGetBlockSize(X,&bs);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm,"BlockSize %D\n",bs);CHKERRQ(ierr);
+>>>>>>> Small fixes to ex4
   for (i=xs; i<xs+xm; i++) {
     if (i < ctx.sf-ctx.lsbwidth || i > ctx.fs+ctx.rsbwidth-1)
       for (k=0; k<dof; k++) index_slow[islow++] = i*dof+k;
@@ -2248,6 +2241,7 @@ int main(int argc,char *argv[])
       args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -limit mc -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       output_file: output/ex4_1.out
 
     test:
@@ -2275,11 +2269,14 @@ int main(int argc,char *argv[])
 =======
       output_file: output/ex6_1.out
 >>>>>>> add test to src/ts/tutorials/multirate/ex4.c
+=======
+      output_file: output/ex4_1.out
+>>>>>>> Small fixes to ex4
 
     test:
       suffix: 2
       args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -limit mc -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 0
-      output_file: output/ex6_1.out
+      output_file: output/ex4_1.out
 
 <<<<<<< HEAD
 >>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
