@@ -494,15 +494,18 @@ int main(int argc,char *argv[])
   slowrhs.vtxlist           = fvnet->slow_vert;
   slowrhs.fvnet             = fvnet;
   slowrhs.wheretoputstuff   = slow;
+  slowrhs.scatter           = PETSC_NULL; /* Will be created in the rhs function */
 
   fastrhs.edgelist          = fvnet->fast_edges;
   fastrhs.vtxlist           = fvnet->fast_vert;
   fastrhs.fvnet             = fvnet;
   fastrhs.wheretoputstuff   = fast;
+  fastrhs.scatter           = PETSC_NULL; /* Will be created in the rhs function */
 
   bufferrhs.vtxlist         = fvnet->buf_slow_vert;
   bufferrhs.fvnet           = fvnet;
   bufferrhs.wheretoputstuff = buffer;
+  bufferrhs.scatter         = PETSC_NULL; /* Will be created in the rhs function */
 
   ierr = TSRHSSplitSetRHSFunction(ts,"slow",NULL,FVNetRHS_Multirate,&slowrhs);CHKERRQ(ierr);
   ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVNetRHS_Multirate,&fastrhs);CHKERRQ(ierr);
@@ -535,6 +538,9 @@ int main(int argc,char *argv[])
   if (size == 1 && fvnet->monifv) {
     ierr = DMNetworkMonitorDestroy(&fvnet->monitor);CHKERRQ(ierr);
   }
+  ierr = VecScatterDestroy(&slowrhs.scatter);CHKERRQ(ierr);
+  ierr = VecScatterDestroy(&fastrhs.scatter);CHKERRQ(ierr);
+  ierr = VecScatterDestroy(&bufferrhs.scatter);CHKERRQ(ierr);
   ierr = DMDestroy(&fvnet->network);CHKERRQ(ierr);
   ierr = ISDestroy(&slow);CHKERRQ(ierr);
   ierr = ISDestroy(&fast);CHKERRQ(ierr);
