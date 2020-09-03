@@ -73,11 +73,12 @@ struct _p_FVNetwork
   Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
-  PetscBool   monifv;
+  PetscInt    monifv;
   PetscReal   ymin,ymax;               
   DMNetworkMonitor  monitor;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
+  PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
 
   /* Local work arrays */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
@@ -87,8 +88,6 @@ struct _p_FVNetwork
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *uPlus;           /* Solution at the left of the interfacce in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
-
-  PetscReal   cfl_idt;          /* Max allowable value of 1/Delta t */
   PetscReal   cfl;
   PetscInt    initial,networktype; 
   PetscBool   simulation;
@@ -108,7 +107,7 @@ struct _p_FVNetwork
   PhysicsCtx_Net physics; 
   /* Multirate Context */
   /* All of these IS are on MPI_COMM_SELF*/
-  IS          slow_edges,fast_edges,buf_slow_vert,slow_vert, fast_vert;                                                                 
+  IS          slow_edges,fast_edges,buf_slow_vert,slow_vert,fast_vert;                                                                 
   PetscInt    bufferwidth; 
 }PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar)); 
 typedef struct _p_FVNetwork *FVNetwork; 
@@ -150,10 +149,14 @@ PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
 PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
 /* Destroy allocated data */
 PetscErrorCode FVNetworkDestroy(FVNetwork);
-/* Set Initial Solution */\
+/* Set Initial Solution */
 PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
-/*RHS Function*/
+/* RHS Function */
 PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
+/* Time step length functions */
+PetscErrorCode FVNetworkPreStep(TS);
+PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS,PetscReal*); 
+PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS,PetscReal*);
 /* Multirate Functions */
 PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);
 PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork);

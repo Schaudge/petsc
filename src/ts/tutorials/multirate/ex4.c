@@ -781,7 +781,7 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
     case 5:
     case 6: 
     case 7: 
-    case 8: /* Fix left and right momentum, height is outflow*/
+    case 8: /* Fix left and right momentum, height is outflow */
       ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
       ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
       ctx->physics2.bcinflowindex[2] = PETSC_FALSE;
@@ -2219,6 +2219,7 @@ int main(int argc,char *argv[])
     build:
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       requires: !complex !single
 =======
       requires: !complex c99
@@ -2226,6 +2227,9 @@ int main(int argc,char *argv[])
 =======
       requires: !complex
 >>>>>>> add test to src/ts/tutorials/multirate/ex4.c
+=======
+      requires: !complex 
+>>>>>>> Added adaptive time stepping to fvnet
       depends: finitevolume1d.c
 
     test:

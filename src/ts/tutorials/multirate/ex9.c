@@ -21,18 +21,18 @@ static const char help[] = "1D Finite Volume solver in slope-limiter form with s
 /*
   Example:
     Euler timestepping:
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 2 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type euler
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.10 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 7.0 -ymax 3 -ymin 0 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 2 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 2.5 -ymax 5.1 -ymin -5.1 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -ymax 2 -ymin -2 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.05 -ts_max_time 4.0 -ymax 2 -ymin -2 -ts_type euler
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.10 -ts_max_time 5.0 -ymax 0.5 -ymin -0.5 -ts_type euler
 
     MRPK timestepping:
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -viewdm -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 2 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 2.5 -viewdm -ymax 5.1 -ymin -5.1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -viewdm -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
-    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -viewdm -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 2 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 2.5 -ymax 5.1 -ymin -5.1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+    mpiexec -np 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
 */
 
 #include <petscts.h>
@@ -362,8 +362,8 @@ PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
 
 int main(int argc,char *argv[])
 {
-  char              lname[256] = "minmod",physname[256] = "shallow";
-  PetscFunctionList limiters = 0,physics = 0;
+  char              lname[256] = "minmod",physname[256] = "shallow",tname[256] = "fixed";
+  PetscFunctionList limiters = 0,physics = 0,timestep = 0;
   MPI_Comm          comm;
   TS                ts;
   FVNetwork         fvnet;
@@ -392,9 +392,13 @@ int main(int argc,char *argv[])
   /* Register physical models to be available on the command line */
   ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
 
+  /* Register time step functions to be available on the command line */
+  ierr = PetscFunctionListAdd(&timestep,"fixed"         ,FVNetwork_GetTimeStep_Fixed);CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(&timestep,"adaptive"      ,FVNetwork_GetTimeStep_Adaptive);CHKERRQ(ierr);
+
   /* Set default values */
   fvnet->comm         = comm;
-  fvnet->cfl          = 0.9;
+  fvnet->cfl          = 1;
   fvnet->networktype  = 1;
   fvnet->hratio       = 2;
   maxtime             = 1.0;
@@ -409,6 +413,7 @@ int main(int argc,char *argv[])
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
   ierr = PetscOptionsFList("-limit","Name of flux imiter to use","",limiters,lname,lname,sizeof(lname),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsFList("-stepsize","Name of function to adapt the timestep size","",timestep,tname,tname,sizeof(tname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-draw","Draw solution vector, bitwise OR of (1=initial,2=final,4=final error)","",draw,&draw,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-initial","Initial Condition (depends on the physics)","",fvnet->initial,&fvnet->initial,NULL);CHKERRQ(ierr);
@@ -423,7 +428,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-Mx","Smallest number of cells for an edge","",fvnet->Mx,&fvnet->Mx,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-bufferwidth","width of the buffer regions","",fvnet->bufferwidth,&fvnet->bufferwidth,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewdm","View DMNetwork Info in stdout","",viewdm,&viewdm,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-moni","Monitor FVNetwork","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-moni","Monitor FVNetwork","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -437,6 +442,11 @@ int main(int argc,char *argv[])
     if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
     /* Create the physics, will set the number of fields and their names */
     ierr = (*r)(fvnet);CHKERRQ(ierr);
+  }
+  /* Choose the function for determining timestep */
+  {
+    ierr = PetscFunctionListFind(timestep,tname,&fvnet->gettimestep);CHKERRQ(ierr);
+    if (!fvnet->gettimestep) SETERRQ1(PETSC_COMM_SELF,1,"Timestep function '%s' not found",tname);
   }
 
   /* Generate Network Data */
@@ -457,7 +467,7 @@ int main(int argc,char *argv[])
     ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
   ierr = DMNetworkDistribute(&fvnet->network,0);CHKERRQ(ierr);
-   if (viewdm) {
+  if (viewdm) {
     PetscPrintf(PETSC_COMM_WORLD,"\nAfter DMNetworkDistribute, DMView:\n");CHKERRQ(ierr);
     ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
@@ -468,12 +478,14 @@ int main(int argc,char *argv[])
   /* Create a time-stepping object */
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
+  ierr = TSSetApplicationContext(ts,fvnet);CHKERRQ(ierr);
   ierr = TSSetRHSFunction(ts,NULL,FVNetRHS,fvnet);CHKERRQ(ierr);
+  ierr = TSSetPreStep(ts,FVNetworkPreStep);CHKERRQ(ierr);
   /* Setup Multirate Partitions */
   ierr = FVNetworkGenerateMultiratePartition_Preset(fvnet);CHKERRQ(ierr);
   ierr = FVNetworkFinalizePartition(fvnet);CHKERRQ(ierr);
   ierr = FVNetworkBuildMultirateIS(fvnet,&slow,&fast,&buffer);CHKERRQ(ierr);
-
+ 
   ierr = TSRHSSplitSetIS(ts,"slow",slow);CHKERRQ(ierr);
   ierr = TSRHSSplitSetIS(ts,"slowbuffer",buffer);CHKERRQ(ierr);
   ierr = TSRHSSplitSetIS(ts,"fast",fast);CHKERRQ(ierr);
@@ -503,7 +515,7 @@ int main(int argc,char *argv[])
   /* Compute initial conditions and starting time step */
   ierr = FVNetworkSetInitial(fvnet,fvnet->X);CHKERRQ(ierr);
   ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
-  ierr = TSSetTimeStep(ts,fvnet->cfl/fvnet->cfl_idt);CHKERRQ(ierr);
+  //ierr = TSSetTimeStep(ts,fvnet->cfl/fvnet->cfl_idt);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
   if (size == 1 && fvnet->monifv) {
     ierr = TSMonitorSet(ts, TSDMNetworkMonitor, fvnet->monitor, NULL);CHKERRQ(ierr);
