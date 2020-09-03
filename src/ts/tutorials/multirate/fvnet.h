@@ -113,10 +113,11 @@ struct _p_FVNetwork
 typedef struct _p_FVNetwork *FVNetwork; 
 
 typedef struct{
-FVNetwork fvnet; 
-IS        edgelist;
-IS        vtxlist;
-IS        wheretoputstuff;
+FVNetwork   fvnet; 
+IS          edgelist;
+IS          vtxlist;
+IS          wheretoputstuff;
+VecScatter  scatter;
 } RhsCtx; 
 
 /* FV Functions */
