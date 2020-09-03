@@ -12,17 +12,8 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
  *
  */
 
-/* Some definitions to keep Brandon's head screwed on straight:
-   u \in H(div)= The solution vector field (i.e. the values that live on the
-   mesh); v \in H(div)= The test space vector field, we never really see this
-   value (I think); p \in L2 = The pressure that corresponds with u; q \in L2 =
-   The test space pressure.
 
-   When we construct the manufactured solution, should we do it in such a way
-   that the solution is the same when transformed back to the unit box mesh, or
-   is it okay if the different mesh types end up with different problems.
-   */
-
+/* We label solutions by the form of the potential/pressure, p: i.e. linear_u is the analytical form of u one gets when p is linear. */
 /* 2D Linear Exact Functions
    p = x;
    \vec{u} = <-1, 0>;
@@ -40,7 +31,7 @@ static PetscErrorCode linear_u(PetscInt dim,PetscReal time,const PetscReal x[],P
   for (PetscInt c = 0; c < Nc; ++c) u[c] = c ? 0.0 : -1.0;
   return 0;
 }
-static PetscErrorCode linear_divU(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+static PetscErrorCode linear_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
 {
   for (PetscInt c = 0; c < Nc; ++c) u[c] = 0;
   return 0;
@@ -72,27 +63,13 @@ static PetscErrorCode sinusoid_u(PetscInt dim,PetscReal time,const PetscReal x[]
   return 0;
 }
 
-static PetscErrorCode sinusoid_divU(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
 {
   u[0] = -8 * PETSC_PI * PETSC_PI;
   for (PetscInt d = 0; d < dim; ++d) u[0] *= sin(2 * PETSC_PI * x[d]);
   return 0;
 }
 
-/* The u set of equations enforce the equality u = \grad p weakly.  In weak
- form,this is (v,u) = (v,\grad p) for every v in the test space,but we integrate
- by parts to get (v,u) = -(\div v,p) for every v,[plus maybe boundary terms,but
- those are not present in the pointwise function in the interior of the
- domain,which is what f_v represents.
-
-   Moving the terms to the left (v,u) + (\div v,p) = 0 for every v.  This has
- one term that involves the value of the test [(v,u)],and one that involves
- derivatives of the test [(\div v,p) = (\trace(\grad v),p)]
-
- * */
-
-/* our layout of pointwise variables goes (u_x,u_y,u_z,p) in 3D and (u_x,u_y,p)
- * in 2D */
 
 /* Pointwise function for (v,u) */
 static void f0_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
@@ -119,7 +96,7 @@ static void f0_q_linear(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt u
   PetscScalar rhs = 0.0;
   PetscScalar divu;
 
-  (void) linear_divU(dim,t,x,dim,&rhs,NULL);
+  (void) linear_source(dim,t,x,dim,&rhs,NULL);
   divu = 0.;
   /* diagonal terms of the gradient */
   for (i = 0; i < dim; ++i) divu += u_x[uOff_x[0] + i * dim + i];
@@ -132,20 +109,10 @@ static void f0_q_sinusoid(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt
   PetscScalar rhs;
   PetscScalar divu;
 
-  (void) sinusoid_divU(dim,t,x,dim,&rhs,NULL);
+  (void) sinusoid_source(dim,t,x,dim,&rhs,NULL);
   divu = 0.;
   for (i = 0; i < dim; ++i) divu += u_x[uOff_x[0] + i * dim + i];
   f0[0] = divu - rhs;
-}
-
-static void f0_w(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
-{
-  PetscInt    i;
-  PetscScalar divu;
-
-  divu = 0.;
-  for (i = 0; i < dim; ++i) divu += u_x[uOff_x[0] + i * dim + i];
-  f0[0] = u[uOff[2]] - divu;
 }
 
 static void f0_linear_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
@@ -170,12 +137,6 @@ static void g0_vu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],
   for (c = 0; c < dim; ++c) g0[c * dim + c] = 1.0;
 }
 
-static void g0_wd(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar g0[])
-{
-  PetscInt c;
-  for (c = 0; c < dim; ++c) g0[c * dim + c] = 1.0;
-}
-
 /* <-p,\nabla\cdot v> = <-pI,\nabla u> */
 static void g2_vp(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar g2[])
 {
@@ -188,11 +149,6 @@ static void g1_qu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],
 {
   PetscInt d;
   for (d = 0; d < dim; ++d) g1[d * dim + d] = 1.0;
-}
-static void g1_wu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar g1[])
-{
-  PetscInt d;
-  for (d = 0; d < dim; ++d) g1[d * dim + d] = -1.0;
 }
 
 typedef enum
@@ -428,9 +384,6 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   ierr = PetscDSSetJacobian(prob,0,0,g0_vu,NULL,NULL,NULL);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(prob,0,1,NULL,NULL,g2_vp,NULL);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(prob,1,0,NULL,g1_qu,NULL,NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetResidual(prob,2,f0_w,NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(prob,2,0,NULL,g1_wu,NULL,NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(prob,2,2,g0_wd,NULL,NULL,NULL);CHKERRQ(ierr);
 
   switch (user->sol_form) {
   case LINEAR:
@@ -438,14 +391,12 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
     ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,2,linear_divU,NULL);CHKERRQ(ierr);
     break;
   case SINUSOIDAL:
     ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,2,sinusoid_divU,NULL);CHKERRQ(ierr);
     break;
   default:
     PetscFunctionReturn(-1);
@@ -470,13 +421,12 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
 static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,UserCtx*),UserCtx * user)
 {
   DM             cdm = mesh;
-  PetscFE        fevel,fepres,fedivU;
+  PetscFE        fevel,fepres;
   const PetscInt dim               = user->dim;
   PetscBool      corner_quadrature = PETSC_TRUE;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  // ierr = CreateFiniteElements(comm, user, fields);
   ierr = PetscFECreateDefault(
     PETSC_COMM_WORLD,//PetscObjectComm((PetscObject) mesh),
     dim,
@@ -497,16 +447,6 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
     &fepres
     );CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fepres,"pressure");CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(
-    PetscObjectComm((PetscObject) mesh),
-    dim,
-    1,
-    user->simplex,
-    "divU_",
-    PETSC_DEFAULT,
-    &fedivU
-    );CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fedivU,"divU");CHKERRQ(ierr);
   if (corner_quadrature) {
     PetscInt        dim;
     PetscInt        numPoints;
@@ -556,11 +496,9 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
   }
 
   ierr = PetscFECopyQuadrature(fevel,fepres);CHKERRQ(ierr);
-  ierr = PetscFECopyQuadrature(fevel,fedivU);CHKERRQ(ierr);
 
   ierr = DMSetField(mesh,0,NULL,(PetscObject) fevel);CHKERRQ(ierr);
   ierr = DMSetField(mesh,1,NULL,(PetscObject) fepres);CHKERRQ(ierr);
-  ierr = DMSetField(mesh,2,NULL,(PetscObject) fedivU);CHKERRQ(ierr);
   ierr = DMCreateDS(mesh);CHKERRQ(ierr);
   ierr = (*setup)(mesh,user);CHKERRQ(ierr);
   while (cdm) {
@@ -570,7 +508,6 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
 
   ierr = PetscFEDestroy(&fevel);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&fepres);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fedivU);CHKERRQ(ierr);
   ierr = DMDestroy(&cdm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -970,56 +907,24 @@ int main(int argc,char ** argv)
 }
 
 /*TEST
-
+  testset:
+    suffix: 2d_bdm
+    requires: triangle
+    args: -dim 2 \
+      -velocity_petscspace_degree 1 \
+      -velocity_petscdualspace_type bdm 
     test:
-        suffix: 0
-        requires: triangle
-        args: -dim 2 \
-            -sol_form linear \
-            -mesh_transform none \
-            -velocity_petscspace_degree 1 \
-            -velocity_petscdualspace_type bdm \
-            -dm_refine 0
+      suffix: linear
+      args: -sol_form linear -mesh_transform none
 
+  testset:
+    suffix: 3d_bdm
+    requires: triangle
+    args: -dim 3 \
+      -velocity_petscspace_degree 1 \
+      -velocity_petscdualspace_type bdm 
     test:
-        suffix: 1
-        requires: ctetgen
-        args: -dim 3 \
-            -sol_form linear \
-            -mesh_transform none \
-            -velocity_petscspace_degree 1 \
-            -velocity_petscdualspace_type bdm \
-            -dm_refine 0
-
-    test:
-        suffix: 2
-        requires: ctetgen
-        args: -dim 3 \
-            -sol_form linear \
-            -mesh_transform none \
-            -velocity_petscspace_degree 1 \
-            -velocity_petscdualspace_type lagrange \
-            -dm_refine 0
-
-    test:
-        suffix: 3
-        requires: triangle
-        args: -simplex false \
-            -dim 2 \
-            -sol_form linear \
-            -mesh_transform none \
-            -velocity_petscspace_degree 1 \
-            -velocity_petscdualspace_type bdm \
-            -dm_refine 0
-
-    test:
-        suffix: 4
-        requires: ctetgen
-        args: -simplex false \
-            -dim 3 \
-            -sol_form linear \
-            -mesh_transform none \
-            -velocity_petscspace_degree 1 \
-            -velocity_petscdualspace_type bdm \
-            -dm_refine 0
+      suffix: linear
+      args: -sol_form linear -mesh_transform none
+  
 TEST*/
