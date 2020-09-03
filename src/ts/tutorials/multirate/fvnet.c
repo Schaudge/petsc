@@ -438,7 +438,6 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   Junction       junction;
 
   PetscFunctionBeginUser;
-  ierr = VecZeroEntries(F);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
@@ -624,8 +623,8 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   /* Data Cleanup */
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(fvnet->network,localF,ADD_VALUES,F);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(fvnet->network,localF,ADD_VALUES,F);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(fvnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(fvnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 /* Multirate Non-buffer RHS */
@@ -642,10 +641,9 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   Vec            localX = fvnet->localX,localF = fvnet->localF,Ftmp = fvnet->Ftmp; 
   FVEdge         fvedge; 
   Junction       junction;
-  VecScatter     scatter;
 
   PetscFunctionBeginUser;
-  ierr = VecZeroEntries(F);CHKERRQ(ierr);
+  // ierr = VecZeroEntries(F);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
   ierr = ISGetLocalSize(rhsctx->edgelist,&ne);CHKERRQ(ierr);
   ierr = ISGetLocalSize(rhsctx->vtxlist,&nv);CHKERRQ(ierr);
@@ -906,10 +904,12 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = DMLocalToGlobalBegin(fvnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(fvnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
   /* Move Data into the expected format from the multirate ode  */
-  ierr = VecScatterCreate(Ftmp,rhsctx->wheretoputstuff,F,NULL,&scatter);CHKERRQ(ierr);
-  ierr = VecScatterBegin(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterEnd(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
+  if(!rhsctx->scatter) {
+    /* build the scatter */
+    ierr = VecScatterCreate(Ftmp,rhsctx->wheretoputstuff,F,NULL,&rhsctx->scatter);CHKERRQ(ierr);
+  }
+  ierr = VecScatterBegin(rhsctx->scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = VecScatterEnd(rhsctx->scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -927,7 +927,6 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   Vec            localX = fvnet->localX,localF = fvnet->localF,Ftmp = fvnet->Ftmp; 
   FVEdge         fvedge; 
   Junction       junction;
-  VecScatter     scatter;
 
   PetscFunctionBeginUser;
   ierr = VecSet(F,0.0);CHKERRQ(ierr);
@@ -1162,11 +1161,13 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(fvnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(fvnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
-  /* Move Data into the expected format from the multirate ode  */
-  ierr = VecScatterCreate(Ftmp,rhsctx->wheretoputstuff,F,NULL,&scatter);CHKERRQ(ierr);
-  ierr = VecScatterBegin(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterEnd(scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterDestroy(&scatter);CHKERRQ(ierr);
+  /* Move Data into the expected format from the multirate ode */
+  if(!rhsctx->scatter) {
+    /* build the scatter */
+    ierr = VecScatterCreate(Ftmp,rhsctx->wheretoputstuff,F,NULL,&rhsctx->scatter);CHKERRQ(ierr);
+  }
+  ierr = VecScatterBegin(rhsctx->scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = VecScatterEnd(rhsctx->scatter,Ftmp,F,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0) 
