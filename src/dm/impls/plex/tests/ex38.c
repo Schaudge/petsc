@@ -541,7 +541,8 @@ PetscErrorCode CreateVertDofMap(DM mesh,PetscSection * vert2Dof,PetscInt **    v
     ierr = PetscSectionGetDof(localSec,iEdge,&numDoF);CHKERRQ(ierr);
     for (PetscInt iDoF = 0; iDoF < numDoF; ++iDoF)
     {
-      ierr = PetscSectionAddDof(*vert2Dof,verts[iDoF],1);CHKERRQ(ierr);
+      const PetscInt vInd = (vOrient[iDoF] >= 0) ? vOrient[iDoF] : -(vOrient[iDoF]+1);
+      ierr = PetscSectionAddDof(*vert2Dof,verts[vInd],1);CHKERRQ(ierr);
     }
   }
 
@@ -552,18 +553,20 @@ PetscErrorCode CreateVertDofMap(DM mesh,PetscSection * vert2Dof,PetscInt **    v
   /*Assign the DoFs into the map */
   for (PetscInt iEdge = eStart; iEdge < eEnd; ++iEdge)
   {
-    const PetscInt * verts;
+    const PetscInt * verts, *vOrient;
     PetscInt       numDoF;
     PetscInt       eOff;
     ierr = DMPlexGetCone(mesh,iEdge,&verts);CHKERRQ(ierr);
     ierr = PetscSectionGetDof(localSec,iEdge,&numDoF);CHKERRQ(ierr);
+    ierr = DMPlexGetConeOrientation(mesh,iEdge,&vOrient);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(localSec,iEdge,&eOff);CHKERRQ(ierr);
     for (PetscInt iDoF = 0; iDoF < numDoF; ++iDoF)
     {
       PetscInt       vOff;
-      const PetscInt vInd0 = verts[iDoF] - vStart;
+      const PetscInt vInd = (vOrient[iDoF] >= 0) ? vOrient[iDoF] : -(vOrient[iDoF]+1);
+      const PetscInt vInd0 = verts[vInd] - vStart;
 
-      ierr = PetscSectionGetOffset(*vert2Dof,verts[iDoF],&vOff);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(*vert2Dof,verts[vInd],&vOff);CHKERRQ(ierr);
       PetscInt mapInd = vOff + vertDofCounter[vInd0];
       (*vertDofMap)[mapInd] = eOff + iDoF;
       ++vertDofCounter[vInd0];
@@ -738,7 +741,6 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
     ierr    = PetscSectionSetUp(*s);CHKERRQ(ierr);
     ierr    = PetscCalloc1(isCount,&idx);CHKERRQ(ierr);
     ierr    = PetscCalloc1(pEnd-pStart,&pCount);CHKERRQ(ierr);
-    isCount = 0;
 
     /* Now that proper space is allocated assign the correct values to the IS */
     /* TODO: Check that this method of construction preserves the orientation */
@@ -848,9 +850,11 @@ int main(int argc,char ** argv)
   DM             mesh;
   SNES           snes;
   PetscErrorCode ierr;
-  PetscSection   edgeVertSec,cellVertSec,vertCellSec,vertDofSec;
-  IS             edge2Vert,cell2Vert,vert2Cell,vert2Dof;
-  PetscInt       pDepth,uDepth;
+  PetscSection   edgeVertSec,cellVertSec,vertCellSec,vertDofSec,conesection;
+  IS             edge2Vert,cell2Vert,vert2Cell,vert2Dof,*fieldIS,lumpPerm,isList[2];
+  PetscInt       pDepth,uDepth,*cones;
+  Mat            jacobian,permJacobian;
+  Vec            u;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);
   if (ierr) return ierr;
@@ -860,6 +864,16 @@ int main(int argc,char ** argv)
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
   ierr = SetupDiscretization(mesh,SetupProblem,&user);CHKERRQ(ierr);
+  ierr = DMPlexSetSNESLocalFEM(mesh,&user,&user,&user);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh,&u);CHKERRQ(ierr);
+  ierr = DMPlexGetConeSection(mesh, &conesection);CHKERRQ(ierr);
+  ierr = DMPlexGetCones(mesh,&cones);CHKERRQ(ierr);
+
+  ierr = DMCreateFieldIS(mesh,NULL,NULL,&fieldIS);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(mesh,&jacobian);CHKERRQ(ierr);
+
+  ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
 
   /* Example: Getting depth stratum of pressure and velocity fields */
   ierr = DMPlexGetFieldDepth(mesh,1,&pDepth);CHKERRQ(ierr);
@@ -874,20 +888,26 @@ int main(int argc,char ** argv)
   /* Example: Mapping from cells to vertices*/
   ierr = DMPlexGetStratumMap(mesh,user.dim,0,&cellVertSec,&cell2Vert);CHKERRQ(ierr);
 
-  PetscSectionView(cellVertSec,PETSC_VIEWER_STDOUT_WORLD);
-  ISView(cell2Vert,PETSC_VIEWER_STDOUT_WORLD);
+  //PetscSectionView(cellVertSec,PETSC_VIEWER_STDOUT_WORLD);
+  //ISView(cell2Vert,PETSC_VIEWER_STDOUT_WORLD);
 
   /* Example: Mapping from vertices to cells*/
   ierr = DMPlexGetStratumMap(mesh,0,user.dim,&vertCellSec,&vert2Cell);CHKERRQ(ierr);
 
-  PetscSectionView(vertCellSec,PETSC_VIEWER_STDOUT_WORLD);
-  ISView(vert2Cell,PETSC_VIEWER_STDOUT_WORLD);
+  //PetscSectionView(vertCellSec,PETSC_VIEWER_STDOUT_WORLD);
+  //ISView(vert2Cell,PETSC_VIEWER_STDOUT_WORLD);
 
   /* Example: Mapping vertices to velocity DoFs*/
   ierr = DMPlexGetStratumDofMap(mesh,0,0,&vertDofSec,&vert2Dof);CHKERRQ(ierr);
 
-  PetscSectionView(vertDofSec,PETSC_VIEWER_STDOUT_WORLD);
-  ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);
+//  PetscSectionView(vertDofSec,PETSC_VIEWER_STDOUT_WORLD);
+//  ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);
+  isList[0] = fieldIS[1];
+  isList[1] = vert2Dof; 
+  ierr = ISConcatenate(PETSC_COMM_WORLD,2,isList,&lumpPerm);CHKERRQ(ierr);
+
+  ierr = MatPermute(jacobian,lumpPerm,lumpPerm,&permJacobian);CHKERRQ(ierr);
+  ierr = MatViewFromOptions(permJacobian,NULL,"-permJacobian_view");CHKERRQ(ierr);
 
   // Tear down
   ierr = ISDestroy(&edge2Vert);CHKERRQ(ierr);
@@ -904,6 +924,7 @@ int main(int argc,char ** argv)
   ierr = DMDestroy(&mesh);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
+
 }
 
 /*TEST
