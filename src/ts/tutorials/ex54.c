@@ -15,17 +15,19 @@ static char help[] =
 "is given then an equivalent system is formed,\n"
 "   x'      +  x + 2y = 8y\n"
 "        y' + 3x + 4y = 4x + 4y\n"
-"(Both of these systems are trivial transformations of the system\n"
-"x'=6y-x, y'=x.)  With the initial conditions chosen below, x(0)=1 and y(0)=3,\n"
+"Both of these systems are trivial transformations of the system\n"
+"x'=6y-x, y'=x.  With the initial conditions chosen below, x(0)=1 and y(0)=3,\n"
 "the exact solution to the above systems is x(t) = -3 e^{-3t} + 4 e^{2t},\n"
 "y(t) = e^{-3t} + 2 e^{2t}, and we compute the final numerical error\n"
-"accordingly.  Default type is BDF.  See the manual pages for the various\n"
+"accordingly.  Also reports on which call-backs were actually called.\n"
+"Default type is BDF.  See the manual pages for the various\n"
 "methods (e.g. TSROSW, TSARKIMEX, TSEIMEX, ...) for further information.\n\n";
 
 #include <petsc.h>
 
 typedef struct {
-  PetscBool  identity_in_F;
+  PetscBool  identity_in_F,
+             IFcn_called, IJac_called, RHSFcn_called, RHSJac_called;
 } Ctx;
 
 extern PetscErrorCode FormIFunction(TS,PetscReal,Vec,Vec,Vec F,void*);
@@ -41,38 +43,48 @@ int main(int argc,char **argv)
   Mat            JF,JG;
   Ctx            user;
   PetscMPIInt    size;
-  PetscReal      tf,xf,yf,errnorm;
+  PetscReal      tf,xf,yf,uexactnorm,errnorm,relerr;
   PetscInt       steps;
+  TSType         type;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);
   if (ierr) return ierr;
+
+  // setup and user option
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"Uniprocessor example only!");
-
   user.identity_in_F = PETSC_FALSE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,"","Simple F(t,u,u')=G(t,u) ODE system.","TS");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-identity_in_F","set up system so the dF/d(dudt) = I","ex54.c",user.identity_in_F,&(user.identity_in_F),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-identity_in_F","chose system for which dF/d(dudt) = I","ex54.c",user.identity_in_F,&(user.identity_in_F),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  user.IFcn_called = PETSC_FALSE;
+  user.IJac_called = PETSC_FALSE;
+  user.RHSFcn_called = PETSC_FALSE;
+  user.RHSJac_called = PETSC_FALSE;
 
+  // space for solution and initial condition
   ierr = VecCreate(PETSC_COMM_WORLD,&u);CHKERRQ(ierr);
   ierr = VecSetSizes(u,PETSC_DECIDE,2);CHKERRQ(ierr);
   ierr = VecSetFromOptions(u); CHKERRQ(ierr);
+  ierr = VecSetValue(u,0,1.0,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecSetValue(u,1,3.0,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(u);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(u);CHKERRQ(ierr);
 
+  // space for jacobians
   ierr = MatCreate(PETSC_COMM_WORLD,&JF);CHKERRQ(ierr);
   ierr = MatSetSizes(JF,PETSC_DECIDE,PETSC_DECIDE,2,2);CHKERRQ(ierr);
   ierr = MatSetFromOptions(JF);CHKERRQ(ierr);
   ierr = MatSetUp(JF);CHKERRQ(ierr);
   ierr = MatDuplicate(JF,MAT_DO_NOT_COPY_VALUES,&JG);CHKERRQ(ierr);
 
+  // configure TS, including setting all 4 call-backs
   ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
   ierr = TSSetApplicationContext(ts,&user);CHKERRQ(ierr);
-
   ierr = TSSetIFunction(ts,NULL,FormIFunction,&user);CHKERRQ(ierr);
   ierr = TSSetIJacobian(ts,JF,JF,FormIJacobian,&user);CHKERRQ(ierr);
-
   ierr = TSSetRHSFunction(ts,NULL,FormRHSFunction,&user);CHKERRQ(ierr);
   ierr = TSSetRHSJacobian(ts,JG,JG,FormRHSJacobian,&user);CHKERRQ(ierr);
-
   ierr = TSSetProblemType(ts,TS_NONLINEAR);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSBDF);CHKERRQ(ierr);
   ierr = TSSetTime(ts,0.0);CHKERRQ(ierr);
@@ -81,13 +93,18 @@ int main(int argc,char **argv)
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
-  ierr = VecSetValue(u,0,1.0,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecSetValue(u,1,3.0,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(u);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(u);CHKERRQ(ierr);
+  // solve
   ierr = TSSolve(ts,u);CHKERRQ(ierr);
 
-  ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
+  // report on call-backs
+  ierr = TSGetType(ts,&type);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"solver type: %s\n",type);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"IFunction:   %D\n",(int)user.IFcn_called);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"IJacobian:   %D\n",(int)user.IJac_called);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"RHSFunction: %D\n",(int)user.RHSFcn_called);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"RHSJacobian: %D\n",(int)user.RHSJac_called);CHKERRQ(ierr);
+
+  // compute exact solution
   ierr = TSGetTime(ts,&tf);CHKERRQ(ierr);
   xf = -3.0 * PetscExpReal(-3.0*tf) + 4.0 * PetscExpReal(2.0*tf);
   yf = PetscExpReal(-3.0*tf) + 2.0 * PetscExpReal(2.0*tf);
@@ -96,10 +113,19 @@ int main(int argc,char **argv)
   ierr = VecSetValue(uexact,1,yf,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(uexact);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(uexact);CHKERRQ(ierr);
+  ierr = VecNorm(uexact,NORM_2,&uexactnorm);CHKERRQ(ierr);
+
+  // report on error
+  ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
   ierr = VecAXPY(u,-1.0,uexact);CHKERRQ(ierr); // u <- u + (-1.0) uexact
   ierr = VecNorm(u,NORM_2,&errnorm);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"error norm at tf = %.6f from %D steps:  |u-u_exact| =  %.5e\n",(double)tf,steps,(double)errnorm);CHKERRQ(ierr);
+  relerr = errnorm/uexactnorm;
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"relative error at tf = %.6f from %D steps:  |u-u_exact|/|u_exact| =  %.3e\n",(double)tf,steps,(double)relerr);CHKERRQ(ierr);
+  if (relerr > 1.0e-2) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"WARNING: relative error unusually large ... bad options for ODE form?\n");CHKERRQ(ierr);  
+  }
 
+  // clean up
   VecDestroy(&u);  VecDestroy(&uexact);
   MatDestroy(&JF);  MatDestroy(&JG);
   TSDestroy(&ts);
@@ -114,6 +140,7 @@ PetscErrorCode FormIFunction(TS ts, PetscReal t, Vec u, Vec dudt,Vec F, void *us
     PetscReal       *aF;
     PetscBool       flag = ((Ctx*)user)->identity_in_F;
 
+    ((Ctx*)user)->IFcn_called = PETSC_TRUE;
     ierr = VecGetArrayRead(u,&au);CHKERRQ(ierr);
     ierr = VecGetArrayRead(dudt,&adudt);CHKERRQ(ierr);
     ierr = VecGetArray(F,&aF);
@@ -138,6 +165,7 @@ PetscErrorCode FormIJacobian(TS ts, PetscReal t, Vec u, Vec dudt,PetscReal a, Ma
     PetscReal      v[4];
     PetscBool      flag = ((Ctx*)user)->identity_in_F;
 
+    ((Ctx*)user)->IJac_called = PETSC_TRUE;
     if (flag) {
       v[0] = a + 1.0;    v[1] = 2.0;
       v[2] = 3.0;        v[3] = a + 4.0;
@@ -162,6 +190,7 @@ PetscErrorCode FormRHSFunction(TS ts, PetscReal t, Vec u,Vec G, void *user)
     PetscReal       *aG;
     PetscBool       flag = ((Ctx*)user)->identity_in_F;
 
+    ((Ctx*)user)->RHSFcn_called = PETSC_TRUE;
     ierr = VecGetArrayRead(u,&au);CHKERRQ(ierr);
     ierr = VecGetArray(G,&aG);CHKERRQ(ierr);
     if (flag) {
@@ -183,6 +212,7 @@ PetscErrorCode FormRHSJacobian(TS ts, PetscReal t, Vec u, Mat J, Mat P,void *use
     PetscReal      v[4];
     PetscBool      flag = ((Ctx*)user)->identity_in_F;
 
+    ((Ctx*)user)->RHSJac_called = PETSC_TRUE;
     if (flag) {
       v[0] = 0.0;    v[1] = 8.0;
       v[2] = 4.0;    v[3] = 4.0;
@@ -214,7 +244,27 @@ PetscErrorCode FormRHSJacobian(TS ts, PetscReal t, Vec u, Mat J, Mat P,void *use
 
     test:
       suffix: 3
-      args: -ts_rtol 1.0e-10 -ts_atol 1.0e-10 -ts_max_time 0.001
+      args: -ts_bdf_order 4 -ts_rtol 1.0e-7 -ts_atol 1.0e-7
+      requires: !single
+
+    test:
+      suffix: 4
+      args: -ts_type cn -snes_fd
+      requires: !single
+
+    test:
+      suffix: 5
+      args: -ts_type rosw
+      requires: !single
+
+    test:
+      suffix: 6
+      args: -ts_type arkimex
+      requires: !single
+
+    test:
+      suffix: 7
+      args: -ts_type arkimex -ts_arkimex_fully_implicit
       requires: !single
 
 TEST*/
