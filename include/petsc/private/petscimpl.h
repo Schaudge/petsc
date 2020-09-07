@@ -75,7 +75,7 @@ typedef struct _p_PetscObject {
   PetscOps             bops[1];
   MPI_Comm             comm;
   PetscInt             type;
-  PetscLogDouble       flops,time,mem,memchildren;
+  PetscLogDouble       flops,time,mem,descMemLog;
   PetscObjectId        id;
   PetscInt             refct;
   PetscMPIInt          tag;

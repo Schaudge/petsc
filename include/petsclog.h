@@ -117,7 +117,7 @@ typedef struct {
   int            creations;    /* The number of objects of this class created */
   int            destructions; /* The number of objects of this class destroyed */
   PetscLogDouble mem;          /* The total memory allocated by objects of this class */
-  PetscLogDouble descMem;      /* The total memory allocated by descendents of these objects */
+  PetscLogDouble descMem;      /* The total memory allocated by object and descendents of these objects */
 } PetscClassPerfInfo;
 
 typedef struct _n_PetscClassRegLog *PetscClassRegLog;
@@ -467,6 +467,9 @@ PETSC_EXTERN PetscErrorCode PetscLogEventSynchronize(PetscLogEvent, MPI_Comm);
 
 PETSC_EXTERN PetscErrorCode PetscLogEventGetFlops(PetscLogEvent,PetscLogDouble*);
 PETSC_EXTERN PetscErrorCode PetscLogEventZeroFlops(PetscLogEvent);
+
+PETSC_EXTERN PetscErrorCode PetscLogObjectDestroyEnd(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscLogObjectDestroyBegin(PetscObject,size_t);
 
 /*
      These are used internally in the PETSc routines to keep a count of MPI messages and

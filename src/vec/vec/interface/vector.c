@@ -389,6 +389,7 @@ PetscErrorCode  VecDestroy(Vec *v)
   if (!*v) PetscFunctionReturn(0);
   PetscValidHeaderSpecific((*v),VEC_CLASSID,1);
   if (--((PetscObject)(*v))->refct > 0) {*v = NULL; PetscFunctionReturn(0);}
+  ierr = PetscLogObjectDestroyBegin((PetscObject)*v,sizeof(struct _p_Vec));CHKERRQ(ierr);
 
   ierr = PetscObjectSAWsViewOff((PetscObject)*v);CHKERRQ(ierr);
   /* destroy the internal part */

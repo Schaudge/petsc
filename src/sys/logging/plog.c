@@ -1783,12 +1783,32 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
   ierr = PetscFPrintf(comm, fd, "\n");CHKERRQ(ierr);
   ierr = PetscFPrintf(comm, fd, "Memory usage is given in bytes:\n\n");CHKERRQ(ierr);
 
+  if (PetscLogMemory) {
+    ierr = PetscFPrintf(comm, fd, "Object Type          Creations   Destructions     Memory of object and descendents \n");CHKERRQ(ierr);
+    ierr = PetscFPrintf(comm, fd, "Reports information only for process 0.\n");CHKERRQ(ierr);
+    /* TODO: Fix to report the memory usage across the system */
+    for (stage = 0; stage < numStages; stage++) {
+      if (localStageUsed[stage]) {
+        classInfo = stageLog->stageInfo[stage].classLog->classInfo;
+        ierr = PetscFPrintf(comm, fd, "\n--- Event Stage %d: %s\n\n", stage, stageInfo[stage].name);CHKERRQ(ierr);
+        for (oclass = 0; oclass < stageLog->stageInfo[stage].classLog->numClasses; oclass++) {
+          if ((classInfo[oclass].creations > 0) || (classInfo[oclass].destructions > 0)) {
+            ierr = PetscFPrintf(comm, fd, "%20s %5d          %5d  %11.0f\n", stageLog->classLog->classInfo[oclass].name,
+                                classInfo[oclass].creations, classInfo[oclass].destructions, classInfo[oclass].descMem);CHKERRQ(ierr);
+          }
+        }
+      }
+    }
+  }
+
+  /* Possibly remove the following if the above reporting can be fixed to separate object and descendents */
+
   /* Right now, only stages on the first processor are reported here, meaning only objects associated with
-     the global communicator, or MPI_COMM_SELF for proc 1. We really should report global stats and then
+     the global communicator, or MPI_COMM_SELF for proc 1. TODO: We really should report global stats and then
      stats for stages local to processor sets.
   */
   /* We should figure out the longest object name here (now 20 characters) */
-  ierr = PetscFPrintf(comm, fd, "Object Type          Creations   Destructions     Memory  Descendants' Mem.\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(comm, fd, "Object Type          Creations   Destructions     Memory  \n");CHKERRQ(ierr);
   ierr = PetscFPrintf(comm, fd, "Reports information only for process 0.\n");CHKERRQ(ierr);
   for (stage = 0; stage < numStages; stage++) {
     if (localStageUsed[stage]) {
@@ -1796,9 +1816,8 @@ PetscErrorCode  PetscLogView_Default(PetscViewer viewer)
       ierr = PetscFPrintf(comm, fd, "\n--- Event Stage %d: %s\n\n", stage, stageInfo[stage].name);CHKERRQ(ierr);
       for (oclass = 0; oclass < stageLog->stageInfo[stage].classLog->numClasses; oclass++) {
         if ((classInfo[oclass].creations > 0) || (classInfo[oclass].destructions > 0)) {
-          ierr = PetscFPrintf(comm, fd, "%20s %5d          %5d  %11.0f     %g\n", stageLog->classLog->classInfo[oclass].name,
-                              classInfo[oclass].creations, classInfo[oclass].destructions, classInfo[oclass].mem,
-                              classInfo[oclass].descMem);CHKERRQ(ierr);
+          ierr = PetscFPrintf(comm, fd, "%20s %5d          %5d  %11.0f\n", stageLog->classLog->classInfo[oclass].name,
+                              classInfo[oclass].creations, classInfo[oclass].destructions, classInfo[oclass].mem);CHKERRQ(ierr);
         }
       }
     } else {

@@ -402,3 +402,89 @@ PetscErrorCode PetscLogObjDestroyDefault(PetscObject obj)
   }
   PetscFunctionReturn(0);
 }
+
+/*@C
+     PetscLogObjectDestroyBegin- logs to the class the amount of memory used by the object and its descendants called just before the header of the object is freed.
+
+     Collective on obj
+
+     Input Parameter:
+.     obj - any PETSc object
+
+     Level: developer
+
+     Developer Notes:
+        The object header field descMemLog is used to keep track of the current memory usage of the class while destroying the object and its children. This is
+        needed so that objects such as matrices which have matrices inside them do not double count the memory of the internal matrix objects. Each inner matrix will
+        change the classPerfLog->classInfo[oclass].descMem but the outer most destroyed object will override the memories from the inner ones thus giving the correct count.
+
+     TODO: add the logging of the objects memory and its descendents separately. I don't know how to do this.
+
+.seealso: PetscLogObjectDestroyBegin()
+@*/
+PetscErrorCode PetscLogObjectDestroyBegin(PetscObject obj,size_t osize)
+{
+  PetscStageLog     stageLog;
+  PetscClassRegLog  classRegLog;
+  PetscClassPerfLog classPerfLog;
+  PetscLogDouble    mem;
+  int               oclass = 0;
+  int               stage;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscLogGetStageLog(&stageLog);CHKERRQ(ierr);
+  ierr = PetscStageLogGetCurrent(stageLog, &stage);CHKERRQ(ierr);
+  if (stage != -1) {
+    /* That can happen if the log summary is output before some things are destroyed */
+    ierr = PetscStageLogGetClassRegLog(stageLog, &classRegLog);CHKERRQ(ierr);
+    ierr = PetscStageLogGetClassPerfLog(stageLog, stage, &classPerfLog);CHKERRQ(ierr);
+    ierr = PetscClassRegLogGetClass(classRegLog, obj->classid, &oclass);CHKERRQ(ierr);
+    classPerfLog->classInfo[oclass].destructions++;
+    ierr = PetscMallocGetCurrentUsage(&mem);CHKERRQ(ierr);
+    obj->descMemLog = classPerfLog->classInfo[oclass].descMem + mem + osize;
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@C
+     PetscLogObjectDestroyEnd - logs to the class the amount of memory used by the object and its descendants called just before the header of the object is freed.
+
+     Collective on obj
+
+     Input Parameter:
+.     obj - any PETSc object
+
+     Level: developer
+
+     Developer Notes:
+        The object header field descMemLog is used to keep track of the current memory usage of the class while destroying the object and its children. This is
+        needed so that objects such as matrices which have matrices inside them do not double count the memory of the internal matrix objects. Each inner matrix will
+        change the classPerfLog->classInfo[oclass].descMem but the outer most destroyed object will override the memories from the inner ones thus giving the correct count.
+
+.seealso: PetscLogObjectDestroyBegin()
+@*/
+PetscErrorCode PetscLogObjectDestroyEnd(PetscObject obj)
+{
+  PetscStageLog     stageLog;
+  PetscClassRegLog  classRegLog;
+  PetscClassPerfLog classPerfLog;
+  PetscLogDouble    mem;
+  int               oclass = 0;
+  int               stage;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscLogGetStageLog(&stageLog);CHKERRQ(ierr);
+  ierr = PetscStageLogGetCurrent(stageLog, &stage);CHKERRQ(ierr);
+  if (stage != -1) {
+    /* That can happen if the log summary is output before some things are destroyed */
+    ierr = PetscStageLogGetClassRegLog(stageLog, &classRegLog);CHKERRQ(ierr);
+    ierr = PetscStageLogGetClassPerfLog(stageLog, stage, &classPerfLog);CHKERRQ(ierr);
+    ierr = PetscClassRegLogGetClass(classRegLog, obj->classid, &oclass);CHKERRQ(ierr);
+    classPerfLog->classInfo[oclass].destructions++;
+    ierr = PetscMallocGetCurrentUsage(&mem);CHKERRQ(ierr);
+    classPerfLog->classInfo[oclass].descMem = obj->descMemLog - mem;
+  }
+  PetscFunctionReturn(0);
+}

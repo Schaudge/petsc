@@ -120,7 +120,6 @@ PetscErrorCode  PetscHeaderDestroy_Private(PetscObject h)
   ierr = PetscObjectListDestroy(&h->olist);CHKERRQ(ierr);
   ierr = PetscCommDestroy(&h->comm);CHKERRQ(ierr);
   /* next destroy other things */
-  h->classid = PETSCFREEDHEADER;
 
   ierr = PetscFunctionListDestroy(&h->qlist);CHKERRQ(ierr);
   ierr = PetscFree(h->type_name);CHKERRQ(ierr);
@@ -129,6 +128,8 @@ PetscErrorCode  PetscHeaderDestroy_Private(PetscObject h)
   ierr = PetscFree(h->fortran_func_pointers);CHKERRQ(ierr);
   ierr = PetscFree(h->fortrancallback[PETSC_FORTRAN_CALLBACK_CLASS]);CHKERRQ(ierr);
   ierr = PetscFree(h->fortrancallback[PETSC_FORTRAN_CALLBACK_SUBTYPE]);CHKERRQ(ierr);
+  ierr = PetscLogObjectDestroyEnd(h);CHKERRQ(ierr);
+  h->classid = PETSCFREEDHEADER;
 
 #if defined(PETSC_USE_LOG)
   if (PetscObjectsLog) {
