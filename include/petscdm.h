@@ -36,7 +36,7 @@ typedef const char* DMType;
 #define DMFOREST    "forest"
 #define DMP4EST     "p4est"
 #define DMP8EST     "p8est"
-#define DMP4ESTFV   "p4estfv"
+#define DMBF        "bf"
 #define DMSWARM     "swarm"
 #define DMPRODUCT   "product"
 #define DMSTAG      "stag"
