@@ -39,8 +39,8 @@ static const char help[] = "1D Finite Volume solver in slope-limiter form with s
 #include <petscdm.h>
 #include <petscdraw.h>
 #include <petscdmnetwork.h>
-#include "fvnet.h"
-#include "limiters.h"
+#include "./fvnet/fvnet.h"
+#include "./fvnet/limiters.h"
 #include <petsc/private/kernels/blockinvert.h>
 
 PETSC_STATIC_INLINE PetscReal MaxAbs(PetscReal a,PetscReal b) { return (PetscAbs(a) > PetscAbs(b)) ? a : b; }
@@ -548,6 +548,7 @@ int main(int argc,char *argv[])
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&limiters);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&physics);CHKERRQ(ierr);
+  ierr = PetscFunctionListDestroy(&timestep);CHKERRQ(ierr);
   ierr = PetscFree(fvnet);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;

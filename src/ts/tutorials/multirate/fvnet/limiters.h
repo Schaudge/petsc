@@ -1,6 +1,6 @@
 #include <petscsys.h>
 
-/* Collection of uniform mesh limiters*/
+/* Collection of uniform mesh limiters */
 void Limit_Upwind_Uni(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
 void Limit_LaxWendroff_Uni(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
 void Limit_BeamWarming_Uni(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
