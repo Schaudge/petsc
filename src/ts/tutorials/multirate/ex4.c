@@ -29,6 +29,8 @@ static const char help[] = "1D periodic Finite Volume solver in slope-limiter fo
     mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 3 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
     mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 4 -hratio 1 -limit koren3 -ts_dt 0.01 -ts_max_time 4.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
     mpiexec -np 1 ./ex4 -da_grid_x 40 -initial 5 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 5.0 -ts_type mprk -ts_mprk_type 2a22 -ts_monitor_draw_solution -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+
+  Contributed by: Aidan Hamilton <aidan@udel.edu>
 */
 
 #include <petscts.h>
@@ -1403,7 +1405,7 @@ int main(int argc,char *argv[])
 /*TEST
 
     build:
-      requires: !complex 
+      requires: !complex
       depends: finitevolume1d.c
 
     test:
