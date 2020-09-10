@@ -1,6 +1,6 @@
 #include <petscdmbf.h>
-#include <petscdmforest.h>
-#include <petsc/private/dmforestimpl.h>
+#include <petsc/private/dmforestimpl.h> /*I "petscdmforest.h" I*/
+#include <petsc/private/dmimpl.h>       /*I "petscdm.h" I*/
 #include "petsc_p4est_package.h"
 
 #if defined(PETSC_HAVE_P4EST)
@@ -486,15 +486,15 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
  * AMR
  **************************************/
 
-typedef struct _DM_BF_AmrCtx {
+typedef struct _p_DM_BF_AmrCtx {
   PetscInt  minLevel;
   PetscInt  maxLevel;
 } DM_BF_AmrCtx;
 
 static int p4est_coarsen_uniformly(p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[])
 {
-  DM_BF_AmrCtx   *amrctx = p4est->user_pointer;
-  const PetscInt minLevel = amrctx->minLevel;
+  DM_BF_AmrCtx   *amrCtx = p4est->user_pointer;
+  const PetscInt minLevel = amrCtx->minLevel;
   const PetscInt l = quadrants[0]->level;
 
   return (minLevel < l);
@@ -502,56 +502,88 @@ static int p4est_coarsen_uniformly(p4est_t * p4est, p4est_topidx_t which_tree, p
 
 static int p4est_refine_uniformly(p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
 {
-  DM_BF_AmrCtx   *amrctx = p4est->user_pointer;
-  const PetscInt maxLevel = amrctx->maxLevel;
+  DM_BF_AmrCtx   *amrCtx = p4est->user_pointer;
+  const PetscInt maxLevel = amrCtx->maxLevel;
   const PetscInt l = quadrant->level;
 
   return (l < maxLevel);
 }
 
-static PetscErrorCode DMBFCoarsenInPlace(DM dm, PetscInt nRecursive)
+/*@
+  DMBFCoarsenInPlace - Coarsens the mesh uniformly.
+
+  Logically collective on DM
+
+  Input Parameters:
++ dm      - the DMBF object
+- nCycles - number of coarsening cycles
+
+  Level: intermediate
+
+.seealso: DMBFRefineInPlace()
+@*/
+PetscErrorCode DMBFCoarsenInPlace(DM dm, PetscInt nCycles)
 {
-  DM_BF_AmrCtx   amrctx;
+  DM_BF_AmrCtx   amrCtx;
   DM_BF          *bf;
-  void           *p4est_ctx;
+  void           *p4est_user_pointer;
+  PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   /* set AMR parameters */
-  ierr = DMForestGetMinimumRefinement(dm,&amrctx.minLevel);CHKERRQ(ierr);
+  ierr = DMForestGetMinimumRefinement(dm,&amrCtx.minLevel);CHKERRQ(ierr);
   /* prepare p4est for AMR */
   bf = _p_GetBF(dm);
-  p4est_ctx = bf->p4est->user_pointer;
-  bf->p4est->user_pointer = (void*) &amrctx;
+  p4est_user_pointer      = bf->p4est->user_pointer;
+  bf->p4est->user_pointer = (void*) &amrCtx;
   /* coarsen & balance */
-  PetscStackCallP4est(p4est_coarsen,(bf->p4est,(int)nRecursive,p4est_coarsen_uniformly,NULL));
+  for (i=0; i<nCycles; i++) {
+    PetscStackCallP4est(p4est_coarsen,(bf->p4est,0,p4est_coarsen_uniformly,NULL));
+  }
   PetscStackCallP4est(p4est_balance,(bf->p4est,P4EST_CONNECT_FULL,NULL));
   /* finalize p4est after AMR */
-  bf->p4est->user_pointer = p4est_ctx;
+  bf->p4est->user_pointer = p4est_user_pointer;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMBFRefineInPlace(DM dm, PetscInt nRecursive)
+/*@
+  DMBFRefineInPlace - Refines the mesh uniformly.
+
+  Logically collective on DM
+
+  Input Parameters:
++ dm      - the DMBF object
+- nCycles - number of refinement cycles
+
+  Level: intermediate
+
+.seealso: DMBFCoarsenInPlace()
+@*/
+PetscErrorCode DMBFRefineInPlace(DM dm, PetscInt nCycles)
 {
-  DM_BF_AmrCtx   amrctx;
+  DM_BF_AmrCtx   amrCtx;
   DM_BF          *bf;
-  void           *p4est_ctx;
+  void           *p4est_user_pointer;
+  PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   /* set AMR parameters */
-  ierr = DMForestGetMaximumRefinement(dm,&amrctx.maxLevel);CHKERRQ(ierr);
+  ierr = DMForestGetMaximumRefinement(dm,&amrCtx.maxLevel);CHKERRQ(ierr);
   /* prepare p4est for AMR */
   bf = _p_GetBF(dm);
-  p4est_ctx = bf->p4est->user_pointer;
-  bf->p4est->user_pointer = (void*) &amrctx;
+  p4est_user_pointer      = bf->p4est->user_pointer;
+  bf->p4est->user_pointer = (void*) &amrCtx;
   /* refine & balance */
-  PetscStackCallP4est(p4est_refine,(bf->p4est,(int)nRecursive,p4est_refine_uniformly,NULL));
+  for (i=0; i<nCycles; i++) {
+    PetscStackCallP4est(p4est_refine,(bf->p4est,0,p4est_refine_uniformly,NULL));
+  }
   PetscStackCallP4est(p4est_balance,(bf->p4est,P4EST_CONNECT_FULL,NULL));
   /* finalize p4est after AMR */
-  bf->p4est->user_pointer = p4est_ctx;
+  bf->p4est->user_pointer = p4est_user_pointer;
   PetscFunctionReturn(0);
 }
 
@@ -590,6 +622,54 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *dmf)
     //TODO need to clone
   }
   ierr = DMBFRefineInPlace(*dmf,0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/***************************************
+ * ITERATORS
+ **************************************/
+
+typedef struct _p_DM_BF_IterCtx {
+  PetscErrorCode (*iterCell)(DM_BF_CellData*,void*);
+  void           *userIterCtx;
+} DM_BF_IterCtx;
+
+static void p4est_iter_volume(p4est_iter_volume_info_t *info, void *ctx)
+{
+  p4est_t              *p4est  = info->p4est;
+  p4est_tree_t         *tree   = p4est_tree_array_index(p4est->trees,info->treeid);
+  p4est_quadrant_t     *quad   = info->quad;
+  const p4est_qcoord_t qlength = P4EST_QUADRANT_LEN(quad->level);
+  double               vertex1[3], vertex2[3];
+  DM_BF_IterCtx        *iterCtx = ctx;
+  DM_BF_CellData       cellData;
+  PetscErrorCode       ierr;
+
+  /* get vertex coordinates of opposite corners */
+  p4est_qcoord_to_vertex(p4est->connectivity,info->treeid,quad->x,quad->y,vertex1);
+  p4est_qcoord_to_vertex(p4est->connectivity,info->treeid,quad->x+qlength,quad->y+qlength,vertex2);
+  /* set cell data */
+  cellData.index_local = (PetscInt)(tree->quadrants_offset + info->quadid);
+  cellData.level       = (PetscInt)quad->level;
+  cellData.corner[0]   = (PetscReal)vertex1[0];
+  cellData.corner[1]   = (PetscReal)vertex1[1];
+  cellData.corner[2]   = (PetscReal)vertex1[2];
+  cellData.length[0]   = (PetscReal)(vertex2[0] - vertex1[0]);
+  cellData.length[1]   = (PetscReal)(vertex2[1] - vertex1[1]);
+  cellData.length[2]   = (PetscReal)(vertex2[2] - vertex1[2]);
+  /* call cell function */
+  ierr = iterCtx->iterCell(&cellData,iterCtx->userIterCtx);CHKERRV(ierr);
+}
+
+PetscErrorCode DMBFIterateOverCells(DM dm, PetscErrorCode (*iterCell)(DM_BF_CellData*,void*), void *userIterCtx)
+{
+  DM_BF          *bf;
+  DM_BF_IterCtx  iterCtx = {iterCell, userIterCtx};
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_GetBF(dm);
+  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,p4est_iter_volume,NULL,NULL));
   PetscFunctionReturn(0);
 }
 
