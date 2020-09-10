@@ -121,48 +121,48 @@ VecScatter  scatter;
 } RhsCtx; 
 
 /* FV Functions */
-PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
-PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
-PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
-PetscErrorCode ReconstructListAdd_Net(PetscFunctionList*,const char*,ReconstructFunction);
-PetscErrorCode ReconstructListFind_Net(PetscFunctionList,const char*,ReconstructFunction*);
+extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
+extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
+extern PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
+extern PetscErrorCode ReconstructListAdd_Net(PetscFunctionList*,const char*,ReconstructFunction);
+extern PetscErrorCode ReconstructListFind_Net(PetscFunctionList,const char*,ReconstructFunction*);
 /* Limit using the loaded limiter in the characteristic variables */
-PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
+extern PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions. 
    Allocate the work array data for FVNetwork */
-PetscErrorCode FVNetworkCreate(FVNetwork,PetscInt,PetscInt);
+extern PetscErrorCode FVNetworkCreate(FVNetwork,PetscInt,PetscInt);
 /* set the components into the network and the number of variables
    each component requires. Also construct the local ordering for the
    edges of a vertex */ 
-PetscErrorCode FVNetworkSetComponents(FVNetwork);
+extern PetscErrorCode FVNetworkSetComponents(FVNetwork);
 /* Delete the unneeded data built by FVNetworkCreate. Removes 
    the edgelist data, fvedges, junctions, that have been set 
     into the network by FVNetworkSetComponents */
-PetscErrorCode FVNetworkCleanUp(FVNetwork);
+extern PetscErrorCode FVNetworkCleanUp(FVNetwork);
 /* After distributing the network, build the dynamic data required 
    by the components. This includes physics data as well as building 
    the vertex data structures needed for evaluating the edge data they 
    'steal' */ 
-PetscErrorCode FVNetworkCreateVectors(FVNetwork);
+extern PetscErrorCode FVNetworkCreateVectors(FVNetwork);
 /* Add dynamic data to the distributed network. */
-PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
+extern PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
 /* Create the multirate data structures the components require */
-PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
+extern PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
 /* Destroy allocated data */
-PetscErrorCode FVNetworkDestroy(FVNetwork);
+extern PetscErrorCode FVNetworkDestroy(FVNetwork);
 /* Set Initial Solution */
-PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
+extern PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
 /* RHS Function */
-PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 /* Time step length functions */
-PetscErrorCode FVNetworkPreStep(TS);
-PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS,PetscReal*); 
-PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS,PetscReal*);
+extern PetscErrorCode FVNetworkPreStep(TS);
+extern PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS,PetscReal*); 
+extern PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS,PetscReal*);
 /* Multirate Functions */
-PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);
-PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork);
-PetscErrorCode FVNetworkFinalizePartition(FVNetwork);
-PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork,IS*,IS*,IS*);
+extern PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);
+extern PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork);
+extern PetscErrorCode FVNetworkFinalizePartition(FVNetwork);
+extern PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork,IS*,IS*,IS*);
 
-PetscErrorCode FVNetRHS_Buffer(TS,PetscReal,Vec,Vec,void*);
-PetscErrorCode FVNetRHS_Multirate(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode FVNetRHS_Buffer(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode FVNetRHS_Multirate(TS,PetscReal,Vec,Vec,void*);
