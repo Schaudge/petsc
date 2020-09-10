@@ -1,6 +1,9 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Added -np 4 test for ex4
 =======
 >>>>>>> Added -np 4 test for ex4
 Solution range [ 0.00000, 2.50000] with minimum at 15, mean  0.64379, ||x||_TV  0.17000
@@ -8,6 +11,7 @@ Mass difference 32.6543
 Final time 2.4, steps 24
 Maximum allowable stepsize according to CFL 1.57756
 Solution range [-0.00001, 2.53457] with minimum at 35, mean  1.27376, ||x||_TV  0.17173
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
 =======
@@ -23,3 +27,5 @@ Solution range [ 0.00000, 2.54076] with minimum at 73, mean  2.68734, ||x||_TV  
 >>>>>>> Added -np 4 test for ex4
 =======
 >>>>>>> add test to src/ts/tutorials/multirate/ex4.c
+=======
+>>>>>>> Added -np 4 test for ex4
