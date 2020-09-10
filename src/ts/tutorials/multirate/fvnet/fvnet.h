@@ -74,7 +74,10 @@ struct _p_FVNetwork
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
   PetscInt    monifv;
+<<<<<<< HEAD
   PetscBool   viewfv;
+=======
+>>>>>>> Fixed memory leak. Reorganized the file structure.
   PetscReal   ymin,ymax;               
   DMNetworkMonitor  monitor;
   char        prefix[256];
