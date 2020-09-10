@@ -414,7 +414,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   PetscMalloc1(2*(ctx->physics2.dof),&ctx->physics2.bcinflowindex);
   PhysicsSetInflowType_Shallow(ctx);
 
-  ierr = PetscStrallocpy("density",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
+  ierr = PetscStrallocpy("height",&ctx->physics2.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&ctx->physics2.fieldname[1]);CHKERRQ(ierr);
 
   user->gravity = 9.81;
@@ -432,7 +432,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   ierr = ReconstructListFind_2WaySplit(rclist,rcname,&ctx->physics2.characteristic2);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rclist);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  PetscFunctionReturn(0); 
 }
 
 PetscErrorCode FVSample_2WaySplit(FVCtx *ctx,DM da,PetscReal time,Vec U)
@@ -1415,18 +1415,23 @@ int main(int argc,char *argv[])
 
     test:
       suffix: 2
-      args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -limit mc -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 0
+      args: -da_grid_x 60 -initial 7 -xmin -1 -xmax 1 -hratio 2 -limit mc -ts_dt 0.025 -ts_max_steps 24 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1
       output_file: output/ex4_1.out
 
     test:
       suffix: 3
-      args: -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+      args: -da_grid_x 40 -initial 1 -hratio 2 -limit mc -ts_dt 0.1 -ts_max_steps 24 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
       output_file: output/ex4_3.out
 
     test:
       suffix: 4
       nsize: 2
-      args: -da_grid_x 40 -initial 1 -hratio 1 -limit mc -ts_dt 0.01 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 0
+      args: -da_grid_x 40 -initial 1 -hratio 2 -limit mc -ts_dt 0.1 -ts_max_steps 24 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 1
       output_file: output/ex4_3.out
 
+    test: 
+      suffix: 5
+      nsize: 4
+      args: args: -da_grid_x 40 -initial 1 -hratio 2 -limit mc -ts_dt 0.1 -ts_max_steps 24 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 1
+      output_file: output/ex4_3.out
 TEST*/
