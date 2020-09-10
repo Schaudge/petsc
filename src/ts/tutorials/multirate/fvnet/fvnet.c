@@ -210,7 +210,7 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
     ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,&fvedge[e-eStart]);CHKERRQ(ierr);
     ierr = DMNetworkAddNumVariables(fvnet->network,e,dof*fvedge[e-eStart].nnodes);CHKERRQ(ierr);
     /* Add a monitor for every edge in the network, label the data according the user provided physics */
-    if (size == 1 && fvnet->monifv) { 
+    if (size == 1 && fvnet->viewfv) { 
       length = fvedge[e-eStart].h*(fvedge[e-eStart].nnodes+1);
       for (j=0; j<dof; j++) {
          ierr = DMNetworkMonitorAdd(fvnet->monitor,fvnet->physics.fieldname[j],e,fvedge[e-eStart].nnodes,j,dof,0.0,length,fvnet->ymin,fvnet->ymax,PETSC_TRUE);CHKERRQ(ierr);

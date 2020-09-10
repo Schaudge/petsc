@@ -1,0 +1,119 @@
+Setup Initial Network 0
+dt_slow -> 0.133165    dt_fast -> 0.757228
+FVNetworkPreStep-> step 0 time 0. dt 0.133165
+dt_slow -> 0.13147    dt_fast -> 0.757228
+FVNetworkPreStep-> step 1 time 0.133165 dt 0.13147
+dt_slow -> 0.127059    dt_fast -> 0.757228
+FVNetworkPreStep-> step 2 time 0.264636 dt 0.127059
+dt_slow -> 0.12583    dt_fast -> 0.757228
+FVNetworkPreStep-> step 3 time 0.391695 dt 0.12583
+dt_slow -> 0.125734    dt_fast -> 0.757228
+FVNetworkPreStep-> step 4 time 0.517525 dt 0.125734
+dt_slow -> 0.123881    dt_fast -> 0.757218
+FVNetworkPreStep-> step 5 time 0.643259 dt 0.123881
+dt_slow -> 0.123116    dt_fast -> 0.756989
+FVNetworkPreStep-> step 6 time 0.767141 dt 0.123116
+dt_slow -> 0.122244    dt_fast -> 0.753557
+FVNetworkPreStep-> step 7 time 0.890256 dt 0.122244
+dt_slow -> 0.121448    dt_fast -> 0.745302
+FVNetworkPreStep-> step 8 time 1.0125 dt 0.121448
+dt_slow -> 0.121354    dt_fast -> 0.704664
+FVNetworkPreStep-> step 9 time 1.13395 dt 0.121354
+dt_slow -> 0.121143    dt_fast -> 0.709313
+FVNetworkPreStep-> step 10 time 1.2553 dt 0.121143
+dt_slow -> 0.12012    dt_fast -> 0.217676
+FVNetworkPreStep-> step 11 time 1.37645 dt 0.12012
+dt_slow -> 0.119896    dt_fast -> 0.147223
+FVNetworkPreStep-> step 12 time 1.49657 dt 0.119896
+dt_slow -> 0.119863    dt_fast -> 0.127183
+FVNetworkPreStep-> step 13 time 1.61646 dt 0.119863
+dt_slow -> 0.119898    dt_fast -> 0.124171
+FVNetworkPreStep-> step 14 time 1.73633 dt 0.119898
+dt_slow -> 0.119766    dt_fast -> 0.122671
+FVNetworkPreStep-> step 15 time 1.85622 dt 0.119766
+dt_slow -> 0.119648    dt_fast -> 0.121386
+FVNetworkPreStep-> step 16 time 1.97599 dt 0.119648
+dt_slow -> 0.119624    dt_fast -> 0.120571
+FVNetworkPreStep-> step 17 time 2.09564 dt 0.119624
+dt_slow -> 0.119566    dt_fast -> 0.120087
+FVNetworkPreStep-> step 18 time 2.21526 dt 0.119566
+dt_slow -> 0.119565    dt_fast -> 0.119795
+FVNetworkPreStep-> step 19 time 2.33483 dt 0.119565
+dt_slow -> 0.119592    dt_fast -> 0.119614
+FVNetworkPreStep-> step 20 time 2.45439 dt 0.119592
+dt_slow -> 0.119634    dt_fast -> 0.119502
+FVNetworkPreStep-> step 21 time 2.57398 dt 0.119502
+dt_slow -> 0.119665    dt_fast -> 0.119438
+FVNetworkPreStep-> step 22 time 2.69349 dt 0.119438
+dt_slow -> 0.119721    dt_fast -> 0.119404
+FVNetworkPreStep-> step 23 time 2.81292 dt 0.119404
+dt_slow -> 0.119792    dt_fast -> 0.119393
+FVNetworkPreStep-> step 24 time 2.93233 dt 0.119393
+dt_slow -> 0.119873    dt_fast -> 0.119402
+FVNetworkPreStep-> step 25 time 3.05172 dt 0.119402
+dt_slow -> 0.119959    dt_fast -> 0.119411
+FVNetworkPreStep-> step 26 time 3.17112 dt 0.119411
+dt_slow -> 0.120052    dt_fast -> 0.119344
+FVNetworkPreStep-> step 27 time 3.29053 dt 0.119344
+dt_slow -> 0.12015    dt_fast -> 0.119252
+FVNetworkPreStep-> step 28 time 3.40988 dt 0.119252
+dt_slow -> 0.120251    dt_fast -> 0.119211
+FVNetworkPreStep-> step 29 time 3.52913 dt 0.119211
+dt_slow -> 0.120355    dt_fast -> 0.119162
+FVNetworkPreStep-> step 30 time 3.64834 dt 0.119162
+dt_slow -> 0.120461    dt_fast -> 0.119129
+FVNetworkPreStep-> step 31 time 3.7675 dt 0.119129
+dt_slow -> 0.120569    dt_fast -> 0.119086
+FVNetworkPreStep-> step 32 time 3.88663 dt 0.119086
+dt_slow -> 0.120677    dt_fast -> 0.119064
+FVNetworkPreStep-> step 33 time 4.00572 dt 0.119064
+dt_slow -> 0.120786    dt_fast -> 0.119037
+FVNetworkPreStep-> step 34 time 4.12478 dt 0.119037
+dt_slow -> 0.120895    dt_fast -> 0.119017
+FVNetworkPreStep-> step 35 time 4.24382 dt 0.119017
+dt_slow -> 0.121003    dt_fast -> 0.118997
+FVNetworkPreStep-> step 36 time 4.36284 dt 0.118997
+dt_slow -> 0.121111    dt_fast -> 0.118976
+FVNetworkPreStep-> step 37 time 4.48183 dt 0.118976
+dt_slow -> 0.121218    dt_fast -> 0.118961
+FVNetworkPreStep-> step 38 time 4.60081 dt 0.118961
+dt_slow -> 0.121325    dt_fast -> 0.11895
+FVNetworkPreStep-> step 39 time 4.71977 dt 0.11895
+dt_slow -> 0.12143    dt_fast -> 0.118939
+FVNetworkPreStep-> step 40 time 4.83872 dt 0.118939
+dt_slow -> 0.121534    dt_fast -> 0.118929
+FVNetworkPreStep-> step 41 time 4.95766 dt 0.118929
+dt_slow -> 0.121636    dt_fast -> 0.118918
+FVNetworkPreStep-> step 42 time 5.07659 dt 0.118918
+dt_slow -> 0.121736    dt_fast -> 0.118912
+FVNetworkPreStep-> step 43 time 5.19551 dt 0.118912
+dt_slow -> 0.121834    dt_fast -> 0.118903
+FVNetworkPreStep-> step 44 time 5.31442 dt 0.118903
+dt_slow -> 0.12193    dt_fast -> 0.118896
+FVNetworkPreStep-> step 45 time 5.43332 dt 0.118896
+dt_slow -> 0.11652    dt_fast -> 0.118886
+FVNetworkPreStep-> step 46 time 5.55222 dt 0.11652
+dt_slow -> 0.116162    dt_fast -> 0.118881
+FVNetworkPreStep-> step 47 time 5.66874 dt 0.116162
+dt_slow -> 0.117168    dt_fast -> 0.118878
+FVNetworkPreStep-> step 48 time 5.7849 dt 0.117168
+dt_slow -> 0.11711    dt_fast -> 0.118876
+FVNetworkPreStep-> step 49 time 5.90207 dt 0.11711
+dt_slow -> 0.117919    dt_fast -> 0.118875
+FVNetworkPreStep-> step 50 time 6.01918 dt 0.117919
+dt_slow -> 0.118297    dt_fast -> 0.118874
+FVNetworkPreStep-> step 51 time 6.1371 dt 0.118297
+dt_slow -> 0.117944    dt_fast -> 0.118874
+FVNetworkPreStep-> step 52 time 6.25539 dt 0.117944
+dt_slow -> 0.118499    dt_fast -> 0.118874
+FVNetworkPreStep-> step 53 time 6.37334 dt 0.118499
+dt_slow -> 0.118448    dt_fast -> 0.118873
+FVNetworkPreStep-> step 54 time 6.49184 dt 0.118448
+dt_slow -> 0.118507    dt_fast -> 0.118873
+FVNetworkPreStep-> step 55 time 6.61028 dt 0.118507
+dt_slow -> 0.1186    dt_fast -> 0.118872
+FVNetworkPreStep-> step 56 time 6.72879 dt 0.1186
+dt_slow -> 0.118477    dt_fast -> 0.118872
+FVNetworkPreStep-> step 57 time 6.84739 dt 0.118477
+dt_slow -> 0.118458    dt_fast -> 0.118872
+FVNetworkPreStep-> step 58 time 6.96587 dt 0.118458
