@@ -75,9 +75,13 @@ struct _p_FVNetwork
   DM          network;
   PetscInt    monifv;
 <<<<<<< HEAD
+<<<<<<< HEAD
   PetscBool   viewfv;
 =======
 >>>>>>> Fixed memory leak. Reorganized the file structure.
+=======
+  PetscBool   viewfv;
+>>>>>>> Added preliminary test to ex9. Small modifications to ex9
   PetscReal   ymin,ymax;               
   DMNetworkMonitor  monitor;
   char        prefix[256];

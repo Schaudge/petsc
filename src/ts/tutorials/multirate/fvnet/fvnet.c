@@ -211,10 +211,14 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
     ierr = DMNetworkAddNumVariables(fvnet->network,e,dof*fvedge[e-eStart].nnodes);CHKERRQ(ierr);
     /* Add a monitor for every edge in the network, label the data according the user provided physics */
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (size == 1 && fvnet->viewfv) { 
 =======
     if (size == 1 && fvnet->monifv) { 
 >>>>>>> Fixed memory leak. Reorganized the file structure.
+=======
+    if (size == 1 && fvnet->viewfv) { 
+>>>>>>> Added preliminary test to ex9. Small modifications to ex9
       length = fvedge[e-eStart].h*(fvedge[e-eStart].nnodes+1);
       for (j=0; j<dof; j++) {
          ierr = DMNetworkMonitorAdd(fvnet->monitor,fvnet->physics.fieldname[j],e,fvedge[e-eStart].nnodes,j,dof,0.0,length,fvnet->ymin,fvnet->ymax,PETSC_TRUE);CHKERRQ(ierr);
