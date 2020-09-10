@@ -401,7 +401,7 @@ int main(int argc,char *argv[])
 
   /* Set default values */
   fvnet->comm         = comm;
-  fvnet->cfl          = 1;
+  fvnet->cfl          = 0.9;
   fvnet->networktype  = 1;
   fvnet->hratio       = 2;
   maxtime             = 1.0;
@@ -412,6 +412,7 @@ int main(int argc,char *argv[])
   fvnet->ymin         = 0;
   fvnet->ymax         = 2.0;
   fvnet->bufferwidth  = 4;
+  fvnet->viewfv       = PETSC_FALSE; 
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -431,7 +432,8 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-Mx","Smallest number of cells for an edge","",fvnet->Mx,&fvnet->Mx,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-bufferwidth","width of the buffer regions","",fvnet->bufferwidth,&fvnet->bufferwidth,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewdm","View DMNetwork Info in stdout","",viewdm,&viewdm,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-moni","Monitor FVNetwork","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-moni","Monitor FVNetwork Diagnostic Info","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-viewfv","Display Solution","",fvnet->viewfv,&fvnet->viewfv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -456,7 +458,7 @@ int main(int argc,char *argv[])
   ierr = FVNetworkCreate(fvnet,fvnet->networktype,fvnet->Mx);CHKERRQ(ierr);
   /* Create DMNetwork */
   ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet->network);CHKERRQ(ierr);
-  if (size == 1 && fvnet->monifv) {
+  if (size == 1 && fvnet->viewfv) {
     ierr = DMNetworkMonitorCreate(fvnet->network,&fvnet->monitor);CHKERRQ(ierr);
   }
   /* Set Network Data into the DMNetwork (on proc[0]) */
@@ -521,9 +523,8 @@ int main(int argc,char *argv[])
   /* Compute initial conditions and starting time step */
   ierr = FVNetworkSetInitial(fvnet,fvnet->X);CHKERRQ(ierr);
   ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
-  //ierr = TSSetTimeStep(ts,fvnet->cfl/fvnet->cfl_idt);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
-  if (size == 1 && fvnet->monifv) {
+  if (size == 1 && fvnet->viewfv) {
     ierr = TSMonitorSet(ts, TSDMNetworkMonitor, fvnet->monitor, NULL);CHKERRQ(ierr);
   }
   /* Evolve the PDE network in time */
@@ -538,7 +539,7 @@ int main(int argc,char *argv[])
 
   /* Clean up */
   ierr = FVNetworkDestroy(fvnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
-  if (size == 1 && fvnet->monifv) {
+  if (size == 1 && fvnet->viewfv) {
     ierr = DMNetworkMonitorDestroy(&fvnet->monitor);CHKERRQ(ierr);
   }
   ierr = VecScatterDestroy(&slowrhs.scatter);CHKERRQ(ierr);
@@ -556,3 +557,21 @@ int main(int argc,char *argv[])
   ierr = PetscFinalize();
   return ierr;
 }
+
+/*TEST
+
+    build:
+      requires:
+      depends: ./fvnet/fvnet.c ./fvnet/fvfunctions.c ./fvnet/fvnetmprk.c ./fvnet/fvnetts.c ./fvnet/limiters.c
+    test:
+      suffix: 1
+      args: -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4 -stepsize adaptive -moni 3
+      output_file: output/ex9_1.out
+
+    test:
+      suffix: 2
+      nsize: 4
+      args: -Mx 20 -network 0 -initial 1 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 7.0 -ymax 3 -ymin 0 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4 -stepsize adaptive -moni 3
+      output_file: output/ex9_1.out
+
+TEST*/
