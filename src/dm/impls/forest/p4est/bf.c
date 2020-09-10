@@ -40,6 +40,8 @@ typedef struct _p_DM_BF {
   p4est_ghost_t         *ghost;
   /* nodes */
   p4est_lnodes_t        *lnodes;
+  /* block */
+  PetscInt              blockSize[3];
 } DM_BF;
 
 typedef struct _p_DM_BF_MatCtx {
@@ -227,16 +229,92 @@ static PetscErrorCode DMBFClear(DM dm)
   PetscFunctionReturn(0);
 }
 
+/***************************************
+ * OPTIONS
+ **************************************/
+
+/*@
+  DMBFSetBlockSize - During the pre-setup phase, set the levels of uniform block refinement of each cell in each dimension.
+
+  Logically collective on dm
+
+  Input Parameters:
++ dm        - the DMBF object
+- blockSize - levels of uniform block refinement of each cell in each dimension
+
+  Level: intermediate
+
+.seealso: DMBFGetBlockSize(), DMGetDimension()
+@*/
+PetscErrorCode DMBFSetBlockSize(DM dm, PetscInt *blockSize)
+{
+  DM_BF          *bf;
+  PetscInt       dim, i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidIntPointer(blockSize,2);
+  if (dm->setupcalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cannot change the block refinement after setup");
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  if (dim == PETSC_DETERMINE) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cannot set block refinement before topological dimension");
+  bf = _p_GetBF(dm);
+  for (i=0; i<dim; i++) {
+    bf->blockSize[i] = blockSize[i];
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMBFGetBlockSize - Get the levels of uniform block refinement of each cell in each dimension.
+
+  Logically collective on dm
+
+  Input Parameters:
++ dm        - the DMBF object
+- blockSize - levels of uniform block refinement of each cell in each dimension
+
+  Level: intermediate
+
+.seealso: DMBFSetBlockSize(), DMGetDimension()
+@*/
+PetscErrorCode DMBFGetBlockSize(DM dm, PetscInt *blockSize)
+{
+  DM_BF          *bf;
+  PetscInt       dim, i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidIntPointer(blockSize,2);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  if (dim == PETSC_DETERMINE) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Topological dimension has to be set for block refinement");
+  bf = _p_GetBF(dm);
+  for (i=0; i<dim; i++) {
+    blockSize[i] = bf->blockSize[i];
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,DM dm)
 {
-//DM_Forest_pforest *pforest = (DM_Forest_pforest*) ((DM_Forest*) dm->data)->data;
-//char              stringBuffer[256];
-//PetscBool         flg;
+  PetscInt          blockSize[3], nBlockDim=3;
+  PetscBool         set;
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   ierr = DMSetFromOptions_Forest(PetscOptionsObject,dm);CHKERRQ(ierr);
-  //TODO
+  /* block_size */
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  ierr = PetscOptionsIntArray(
+      "-dm_bf_block_size","set uniform refinement inside each cell in each dimension x,y,z","DMBFSetBlockSize",
+      blockSize,&nBlockDim,&set);CHKERRQ(ierr);
+  if (set) {
+    //TODO if (nBlockDim != dim)
+    ierr = DMBFSetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  }
+//TODO
+//char              stringBuffer[256];
 //ierr = PetscOptionsHead(PetscOptionsObject,"DM" P4EST_STRING " options");CHKERRQ(ierr);
 //ierr = PetscOptionsBool("-dm_p4est_partition_for_coarsening","partition forest to allow for coarsening","DMP4estSetPartitionForCoarsening",pforest->partition_for_coarsening,&(pforest->partition_for_coarsening),NULL);CHKERRQ(ierr);
 //ierr = PetscOptionsString("-dm_p4est_ghost_label_name","the name of the ghost label when converting from a DMPlex",NULL,NULL,stringBuffer,sizeof(stringBuffer),&flg);CHKERRQ(ierr);
@@ -263,7 +341,7 @@ static PetscErrorCode DMInitialize_BF(DM dm)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMCreate_BF(DM dm)
+PetscErrorCode DMCreate_BF(DM dm)
 {
   DM_BF          *bf;
   PetscErrorCode ierr;
@@ -291,6 +369,9 @@ PETSC_EXTERN PetscErrorCode DMCreate_BF(DM dm)
   bf->p4est        = NULL;
   bf->ghost        = NULL;
   bf->lnodes       = NULL;
+  bf->blockSize[0] = PETSC_DEFAULT;
+  bf->blockSize[1] = PETSC_DEFAULT;
+  bf->blockSize[2] = PETSC_DEFAULT;
 
   /* set data & functions of Forest object */
   {
@@ -325,7 +406,7 @@ static PetscErrorCode DMClone_BF(DM dm, DM *newdm)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM dm, void *p4est)
+PetscErrorCode DMBFGetP4est(DM dm, void *p4est)
 {
   DM_BF *bf;
 
@@ -337,7 +418,7 @@ PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM dm, void *p4est)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
+PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
 {
   DM_BF          *bf;
   PetscErrorCode ierr;
