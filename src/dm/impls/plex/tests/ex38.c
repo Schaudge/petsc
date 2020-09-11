@@ -4,6 +4,7 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 #include <petscdmplex.h>
 #include <petscds.h>
 #include <petscsnes.h>
+#include <petsc/private/petscfeimpl.h>
 
 /* Examples solve the system governed by:
  *
@@ -328,6 +329,42 @@ PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds, PetscFEJacobianType jtype, PetscInt fieldI, PetscInt fieldJ, PetscInt Ne, PetscFEGeom *cgeom,
+                                              const PetscScalar coefficients[], const PetscScalar coefficients_t[], PetscDS dsAux, const
+                                              PetscScalar coefficientsAux[], PetscReal t, PetscReal u_tshift, PetscScalar elemMat[]){
+PetscErrorCode ierr;
+PetscInt lumpMap[]  = {5,0,1,2,3,4};/* Vertex lumping for reference element, I think*/
+PetscInt eOffset = 0, totDim, e,offsetI,offsetJ,dim,f,fc,g,gc;
+PetscScalar tempEmat[36] = {};
+PetscTabulation *T;
+
+PetscFunctionBegin;
+
+ierr = PetscDSGetTotalDimension(ds, &totDim);CHKERRQ(ierr);
+ierr = PetscDSGetFieldOffset(ds, fieldI, &offsetI);CHKERRQ(ierr);
+ierr = PetscDSGetFieldOffset(ds, fieldJ, &offsetJ);CHKERRQ(ierr);
+ierr = PetscDSGetTabulation(ds, &T);CHKERRQ(ierr); 
+ierr = PetscFEIntegrateJacobian_Basic(ds, jtype, fieldI, fieldJ, Ne, cgeom, coefficients, coefficients_t, dsAux, coefficientsAux, t,
+    u_tshift, elemMat);CHKERRQ(ierr); 
+for(e=0; e < Ne; ++e){
+ /* Apply vertex lumping map to  elemMat */
+  for (fc = 0; fc < T[fieldI]->Nc; ++fc) {
+    for (f = 0; f < T[fieldI]->Nb; ++f) {
+      const PetscInt i = offsetI + f*T[fieldI]->Nc + fc;
+      for (gc = 0; gc < T[fieldJ]->Nc; ++gc) {
+        for (g = 0; g < T[fieldJ]->Nb; ++g) {
+          const PetscInt j = offsetJ + g*T[fieldJ]->Nc+gc;
+        }
+      }
+    }
+  }
+  eOffset += PetscSqr(totDim);
+}
+PetscFunctionReturn(0);
+}
+
+
+
 static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
 {
   PetscErrorCode   ierr;
@@ -496,6 +533,7 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
   }
 
   ierr = PetscFECopyQuadrature(fevel,fepres);CHKERRQ(ierr);
+  fevel->ops->integratejacobian = PetscFEIntegrateJacobian_WY;
 
   ierr = DMSetField(mesh,0,NULL,(PetscObject) fevel);CHKERRQ(ierr);
   ierr = DMSetField(mesh,1,NULL,(PetscObject) fepres);CHKERRQ(ierr);
@@ -625,7 +663,7 @@ PetscErrorCode PetscSectionGetFieldChart(PetscSection s,PetscInt field,PetscInt 
   PetscFunctionReturn(0);
 }
 
-/*@
+/*@C
  * DMPlexGetFieldDepth - Find the stratum on which the desired
  * field's DoFs are currently assigned.
  *
@@ -670,7 +708,7 @@ PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * new
   PetscFunctionReturn(0);
 }
 
-/*@
+/*@C
  * DMPlexGetStratumMap - Create a mapping in the form of a section and IS which
  * associates points from one stratum with points from another.
  *
@@ -771,7 +809,7 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
   PetscFunctionReturn(0);
 }
 
-/*@
+/*@C
  * DMPlexGetStratumDofMap - Create a map consisting of a PetscSection and IS
  * from a specified stratum to the DoFs of the specified field.
  *
@@ -854,7 +892,7 @@ int main(int argc,char ** argv)
   IS             edge2Vert,cell2Vert,vert2Cell,vert2Dof,*fieldIS,lumpPerm,isList[2];
   PetscInt       pDepth,uDepth,*cones;
   Mat            jacobian,permJacobian;
-  Vec            u;
+  Vec            u,b;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);
   if (ierr) return ierr;
@@ -867,11 +905,18 @@ int main(int argc,char ** argv)
   ierr = DMPlexSetSNESLocalFEM(mesh,&user,&user,&user);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh,&u);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh,&b);CHKERRQ(ierr);
   ierr = DMPlexGetConeSection(mesh, &conesection);CHKERRQ(ierr);
   ierr = DMPlexGetCones(mesh,&cones);CHKERRQ(ierr);
 
   ierr = DMCreateFieldIS(mesh,NULL,NULL,&fieldIS);CHKERRQ(ierr);
   ierr = DMCreateMatrix(mesh,&jacobian);CHKERRQ(ierr);
+
+  ierr = VecSet(u,0.0);CHKERRQ(ierr);
+  ierr = VecSet(b,0.0);CHKERRQ(ierr);
+
+  ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
+  ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr); 
 
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
 
@@ -933,7 +978,8 @@ int main(int argc,char ** argv)
     requires: triangle
     args: -dim 2 \
       -velocity_petscspace_degree 1 \
-      -velocity_petscdualspace_type bdm 
+      -velocity_petscdualspace_type bdm \
+      -velocity_petscdualspace_lagrange_node_endpoints true 
     test:
       suffix: linear
       args: -sol_form linear -mesh_transform none
