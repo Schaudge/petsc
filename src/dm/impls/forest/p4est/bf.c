@@ -65,6 +65,7 @@ static inline DM_BF *_p_GetBF(DM dm)
 
 static PetscErrorCode DMForestDestroy_BF(DM);
 static PetscErrorCode DMClone_BF(DM,DM*);
+static PetscErrorCode DMCreateLocalVector_BF(DM,Vec*);
 static PetscErrorCode DMCreateGlobalVector_BF(DM,Vec*);
 static PetscErrorCode DMCreateMatrix_BF(DM,Mat*);
 static PetscErrorCode DMCoarsen_BF(DM,MPI_Comm,DM*);
@@ -168,6 +169,7 @@ static PetscErrorCode DMBF_P4estDestroy(DM dm, p4est_t *p4est)
 static PetscErrorCode DMBF_GhostCreate(DM dm, p4est_t *p4est, p4est_ghost_t **ghost)
 {
   PetscFunctionBegin;
+  if (!p4est) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"P4est does not exist");
   PetscStackCallP4estReturn(*ghost,p4est_ghost_new,(p4est,P4EST_CONNECT_FULL));
   //TODO which connect flag, P4EST_CONNECT_FULL, P4EST_CONNECT_FACE, ...?
   PetscFunctionReturn(0);
@@ -331,6 +333,7 @@ static PetscErrorCode DMInitialize_BF(DM dm)
   dm->ops->setup              = DMSetUp_BF;
   dm->ops->setfromoptions     = DMSetFromOptions_BF;
   dm->ops->clone              = DMClone_BF;
+  dm->ops->createlocalvector  = DMCreateLocalVector_BF;
   dm->ops->createglobalvector = DMCreateGlobalVector_BF;
   dm->ops->creatematrix       = DMCreateMatrix_BF;
   dm->ops->coarsen            = DMCoarsen_BF;
@@ -427,10 +430,31 @@ PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_GetBF(dm);
   if (!bf->ghost) {
-    if (!bf->p4est) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"P4est does not exist");
     ierr = DMBF_GhostCreate(dm,bf->p4est,&bf->ghost);CHKERRQ(ierr);
   }
   *(void**)ghost = bf->ghost;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
+{
+  DM_BF          *bf;
+  PetscInt       n, ng;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidPointer(vec,2);
+  /* get number of entries */
+  bf = _p_GetBF(dm);
+  if (!bf->ghost) {
+    ierr = DMBF_GhostCreate(dm,bf->p4est,&bf->ghost);CHKERRQ(ierr);
+  }
+  n  = (PetscInt)bf->p4est->local_num_quadrants;
+  ng = (PetscInt)bf->ghost->ghosts.elem_count;
+  /* create vector */
+  ierr = VecCreateSeq(PETSC_COMM_SELF,n+ng,vec);CHKERRQ(ierr);
+  ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -443,11 +467,11 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(vec,2);
+  /* get number of entries */
   bf = _p_GetBF(dm);
-  /* set number of local entries */
-  n = (PetscInt) bf->p4est->local_num_quadrants;
-  /* set number of global entries */
-  N = (PetscInt) bf->p4est->global_num_quadrants;
+  n  = (PetscInt)bf->p4est->local_num_quadrants;
+  N  = (PetscInt)bf->p4est->global_num_quadrants;
+  /* create vector */
   ierr = VecCreateMPI(PetscObjectComm((PetscObject)dm),n,N,vec);CHKERRQ(ierr);
   ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
   //TODO
@@ -469,13 +493,12 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(mat,2);
+  /* get number of rows/cols */
   bf = _p_GetBF(dm);
-  ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
-  /* set number of local rows/cols */
-  n = (PetscInt) bf->p4est->local_num_quadrants;
-  /* set number of global rows/cols */
-  N = (PetscInt) bf->p4est->global_num_quadrants;
+  n  = (PetscInt)bf->p4est->local_num_quadrants;
+  N  = (PetscInt)bf->p4est->global_num_quadrants;
   /* create matrix */
+  ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
   ierr = MatCreateShell(PetscObjectComm((PetscObject)dm),n,n,N,N,appctx,mat);CHKERRQ(ierr);
   ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
   //TODO set null space?
@@ -629,47 +652,290 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *dmf)
  * ITERATORS
  **************************************/
 
-typedef struct _p_DM_BF_IterCtx {
-  PetscErrorCode (*iterCell)(DM_BF_CellData*,void*);
-  void           *userIterCtx;
-} DM_BF_IterCtx;
+static void _p_get_cell_data(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_topidx_t treeid, p4est_locidx_t quadid, int8_t is_ghost,
+                             /*OUT*/ DM_BF_CellData *cellData)
+{
+  const p4est_qcoord_t qlength = P4EST_QUADRANT_LEN(quad->level);
+  p4est_tree_t         *tree = p4est_tree_array_index(p4est->trees,treeid);
+  double               vertex1[3], vertex2[3];
+
+  /* get vertex coordinates of opposite corners */
+  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x,quad->y,vertex1);
+  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x+qlength,quad->y+qlength,vertex2);
+  /* set cell data */
+  if (!is_ghost) {
+    cellData->index_local  = (PetscInt)(tree->quadrants_offset + quadid);
+    cellData->index_global = cellData->index_local + (PetscInt)p4est->global_first_quadrant[p4est->mpirank];
+  } else {
+    cellData->index_local  = (PetscInt)(p4est->global_first_quadrant[p4est->mpirank+1] + quadid);
+    cellData->index_global = -1;
+  }
+  cellData->level     = (PetscInt)quad->level;
+  cellData->corner[0] = (PetscReal)vertex1[0];
+  cellData->corner[1] = (PetscReal)vertex1[1];
+  cellData->corner[2] = (PetscReal)vertex1[2];
+  cellData->length[0] = (PetscReal)(vertex2[0] - vertex1[0]);
+  cellData->length[1] = (PetscReal)(vertex2[1] - vertex1[1]);
+  cellData->length[2] = (PetscReal)(vertex2[2] - vertex1[2]);
+}
+
+static void _p_get_vec_data(/*IN    */ const PetscScalar **vecdata_in, PetscInt nVecsIn, PetscScalar **vecdata_out, PetscInt nVecsOut,
+                            /*IN/OUT*/ DM_BF_CellData *cellData)
+{
+  PetscInt i;
+
+  for (i=0; i<nVecsIn; i++) {
+    cellData->vecdata_in[i] = vecdata_in[i][cellData->index_local];
+  }
+  for (i=0; i<nVecsOut; i++) {
+    cellData->vecdata_out[i] = vecdata_out[i][cellData->index_local];
+  }
+}
+
+static void _p_set_vec_data(/*IN */ DM_BF_CellData *cellData,
+                            /*OUT*/ PetscScalar **vecdata_out, PetscInt nVecsOut)
+{
+  PetscInt i;
+
+  for (i=0; i<nVecsOut; i++) {
+    vecdata_out[i][cellData->index_local] = cellData->vecdata_out[i];
+  }
+}
+
+typedef struct _p_DM_BF_CellIterCtx {
+  PetscErrorCode    (*iterCell)(DM_BF_CellData*,void*);
+  void              *userIterCtx;
+  PetscInt          nVecsIn, nVecsOut;
+  const PetscScalar **vecdata_in;
+  PetscScalar       **vecdata_out;
+  DM_BF_CellData    cellData;
+} DM_BF_CellIterCtx;
 
 static void p4est_iter_volume(p4est_iter_volume_info_t *info, void *ctx)
 {
-  p4est_t              *p4est  = info->p4est;
-  p4est_tree_t         *tree   = p4est_tree_array_index(p4est->trees,info->treeid);
-  p4est_quadrant_t     *quad   = info->quad;
-  const p4est_qcoord_t qlength = P4EST_QUADRANT_LEN(quad->level);
-  double               vertex1[3], vertex2[3];
-  DM_BF_IterCtx        *iterCtx = ctx;
-  DM_BF_CellData       cellData;
-  PetscErrorCode       ierr;
+  DM_BF_CellIterCtx *iterCtx = ctx;
+  DM_BF_CellData    *cellData = &iterCtx->cellData;
+  PetscErrorCode    ierr;
 
-  /* get vertex coordinates of opposite corners */
-  p4est_qcoord_to_vertex(p4est->connectivity,info->treeid,quad->x,quad->y,vertex1);
-  p4est_qcoord_to_vertex(p4est->connectivity,info->treeid,quad->x+qlength,quad->y+qlength,vertex2);
-  /* set cell data */
-  cellData.index_local = (PetscInt)(tree->quadrants_offset + info->quadid);
-  cellData.level       = (PetscInt)quad->level;
-  cellData.corner[0]   = (PetscReal)vertex1[0];
-  cellData.corner[1]   = (PetscReal)vertex1[1];
-  cellData.corner[2]   = (PetscReal)vertex1[2];
-  cellData.length[0]   = (PetscReal)(vertex2[0] - vertex1[0]);
-  cellData.length[1]   = (PetscReal)(vertex2[1] - vertex1[1]);
-  cellData.length[2]   = (PetscReal)(vertex2[2] - vertex1[2]);
+  /* get cell and vector data */
+  _p_get_cell_data(info->p4est,info->quad,info->treeid,info->quadid,0,cellData);
+  _p_get_vec_data(iterCtx->vecdata_in,iterCtx->nVecsIn,iterCtx->vecdata_out,iterCtx->nVecsOut,cellData);
   /* call cell function */
-  ierr = iterCtx->iterCell(&cellData,iterCtx->userIterCtx);CHKERRV(ierr);
+  ierr = iterCtx->iterCell(cellData,iterCtx->userIterCtx);CHKERRV(ierr);
+  /* set vector data */
+  _p_set_vec_data(cellData,iterCtx->vecdata_out,iterCtx->nVecsOut);
+}
+
+PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM_BF_CellData*,void*), void *userIterCtx,
+                                           Vec *in, PetscInt nVecsIn, Vec *out, PetscInt nVecsOut)
+{
+  DM_BF             *bf;
+  DM_BF_CellIterCtx iterCtx;
+  PetscInt          i;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  /* set iterator context */
+  iterCtx.iterCell    = iterCell;
+  iterCtx.userIterCtx = userIterCtx;
+  iterCtx.nVecsIn     = nVecsIn;
+  iterCtx.nVecsOut    = nVecsOut;
+  if (0 < nVecsIn) {
+    ierr = PetscMalloc1(nVecsIn,&iterCtx.cellData.vecdata_in);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nVecsIn,&iterCtx.vecdata_in);CHKERRQ(ierr);
+    for (i=0; i<nVecsIn; i++) {
+      ierr = VecGetArrayRead(in[i],&iterCtx.vecdata_in[i]);CHKERRQ(ierr);
+    }
+  }
+  if (0 < nVecsOut) {
+    ierr = PetscMalloc1(nVecsOut,&iterCtx.cellData.vecdata_out);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nVecsOut,&iterCtx.vecdata_out);CHKERRQ(ierr);
+    for (i=0; i<nVecsOut; i++) {
+      ierr = VecGetArray(out[i],&iterCtx.vecdata_out[i]);CHKERRQ(ierr);
+    }
+  }
+  /* run iterator */
+  bf = _p_GetBF(dm);
+  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,p4est_iter_volume,NULL,NULL));
+  /* clear iterator context */
+  if (0 < nVecsIn) {
+    for (i=0; i<nVecsIn; i++) {
+      ierr = VecRestoreArrayRead(in[i],&iterCtx.vecdata_in[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecdata_in);CHKERRQ(ierr);
+    ierr = PetscFree(iterCtx.cellData.vecdata_in);CHKERRQ(ierr);
+  }
+  if (0 < nVecsOut) {
+    for (i=0; i<nVecsOut; i++) {
+      ierr = VecRestoreArray(out[i],&iterCtx.vecdata_out[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecdata_out);CHKERRQ(ierr);
+    ierr = PetscFree(iterCtx.cellData.vecdata_out);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMBFIterateOverCells(DM dm, PetscErrorCode (*iterCell)(DM_BF_CellData*,void*), void *userIterCtx)
 {
-  DM_BF          *bf;
-  DM_BF_IterCtx  iterCtx = {iterCell, userIterCtx};
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMBFIterateOverCellsVectors(dm,iterCell,userIterCtx,PETSC_NULL,0,PETSC_NULL,0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+typedef struct _p_DM_BF_FaceIterCtx {
+  PetscErrorCode    (*iterFace)(DM_BF_FaceData*,void*);
+  void              *userIterCtx;
+  PetscInt          nVecsIn, nVecsOut;
+  const PetscScalar **vecdata_in;
+  PetscScalar       **vecdata_out;
+  DM_BF_FaceData    faceData;
+  DM_BF_CellData    cellData[3]; //TODO only for 2D
+} DM_BF_FaceIterCtx;
+
+static void p4est_iter_face(p4est_iter_face_info_t *info, void *ctx)
+{
+  p4est_t              *p4est = info->p4est;
+  DM_BF_FaceIterCtx    *iterCtx = ctx;
+  DM_BF_FaceData       *faceData = &iterCtx->faceData;
+  DM_BF_CellData       *cellData = iterCtx->cellData;
+  const PetscBool      is_boundary = (1 == info->sides.elem_count);
+  PetscInt             i;
+  PetscErrorCode       ierr;
+
+  //TODO if debug
+  faceData->cellDataL[0] = PETSC_NULL;
+  faceData->cellDataL[1] = PETSC_NULL;
+  faceData->cellDataL[2] = PETSC_NULL;
+  faceData->cellDataL[3] = PETSC_NULL;
+  faceData->cellDataR[0] = PETSC_NULL;
+  faceData->cellDataR[1] = PETSC_NULL;
+  faceData->cellDataR[2] = PETSC_NULL;
+  faceData->cellDataR[3] = PETSC_NULL;
+
+  /* get cell and vector data */
+  if (is_boundary) {
+    p4est_iter_face_side_t *side = p4est_iter_fside_array_index_int(&info->sides,0);
+
+    _p_get_cell_data(p4est,side->is.full.quad,side->treeid,side->is.full.quadid,0,cellData);
+    _p_get_vec_data(iterCtx->vecdata_in,iterCtx->nVecsIn,iterCtx->vecdata_out,iterCtx->nVecsOut,cellData);
+    faceData->nCellsL = 1;
+    faceData->nCellsR = 0;
+    faceData->cellDataL[0] = cellData;
+  } else { /* !is_boundary */
+    p4est_iter_face_side_t *sideL = p4est_iter_fside_array_index_int(&info->sides,0);
+    p4est_iter_face_side_t *sideR = p4est_iter_fside_array_index_int(&info->sides,1);
+
+    faceData->nCellsL = (sideL->is_hanging ? 2 : 1); //TODO only 2D
+    faceData->nCellsR = (sideR->is_hanging ? 2 : 1); //TODO only 2D
+    if ( !(1 <= faceData->nCellsL && 1 <= faceData->nCellsR && (faceData->nCellsL + faceData->nCellsR) <= 3) ) { //TODO only 2D
+      //TODO error
+    }
+    if (sideL->is_hanging) {
+      for (i=0; i<faceData->nCellsL; i++) {
+        _p_get_cell_data(p4est,sideL->is.hanging.quad[i],sideL->treeid,sideL->is.hanging.quadid[i],sideL->is.hanging.is_ghost[i],cellData);
+        _p_get_vec_data(iterCtx->vecdata_in,iterCtx->nVecsIn,iterCtx->vecdata_out,iterCtx->nVecsOut,cellData);
+        faceData->cellDataL[i] = cellData;
+        cellData++;
+      }
+    } else {
+      _p_get_cell_data(p4est,sideL->is.full.quad,sideL->treeid,sideL->is.full.quadid,sideL->is.full.is_ghost,cellData);
+      _p_get_vec_data(iterCtx->vecdata_in,iterCtx->nVecsIn,iterCtx->vecdata_out,iterCtx->nVecsOut,cellData);
+      faceData->cellDataL[0] = cellData;
+      cellData++;
+    }
+    if (sideR->is_hanging) {
+      for (i=0; i<faceData->nCellsR; i++) {
+        _p_get_cell_data(p4est,sideR->is.hanging.quad[i],sideR->treeid,sideR->is.hanging.quadid[i],sideR->is.hanging.is_ghost[i],cellData);
+        _p_get_vec_data(iterCtx->vecdata_in,iterCtx->nVecsIn,iterCtx->vecdata_out,iterCtx->nVecsOut,cellData);
+        faceData->cellDataR[i] = cellData;
+        cellData++;
+      }
+    } else {
+      _p_get_cell_data(p4est,sideR->is.full.quad,sideR->treeid,sideR->is.full.quadid,sideR->is.full.is_ghost,cellData);
+      _p_get_vec_data(iterCtx->vecdata_in,iterCtx->nVecsIn,iterCtx->vecdata_out,iterCtx->nVecsOut,cellData);
+      faceData->cellDataR[0] = cellData;
+      cellData++;
+    }
+  }
+
+  /* call face function */
+  ierr = iterCtx->iterFace(faceData,iterCtx->userIterCtx);CHKERRV(ierr);
+
+  /* set vector data */
+  cellData = iterCtx->cellData;
+  for (i=0; i<(faceData->nCellsL + faceData->nCellsR); i++) {
+    _p_set_vec_data(cellData,iterCtx->vecdata_out,iterCtx->nVecsOut);
+    cellData++;
+  }
+}
+
+PetscErrorCode DMBFIterateOverFacesVectors(DM dm, PetscErrorCode (*iterFace)(DM_BF_FaceData*,void*), void *userIterCtx,
+                                           Vec *in, PetscInt nVecsIn, Vec *out, PetscInt nVecsOut)
+{
+  DM_BF             *bf;
+  DM_BF_FaceIterCtx iterCtx;
+  PetscInt          i;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  /* set iterator context */
+  iterCtx.iterFace    = iterFace;
+  iterCtx.userIterCtx = userIterCtx;
+  iterCtx.nVecsIn     = nVecsIn;
+  iterCtx.nVecsOut    = nVecsOut;
+  if (0 < nVecsIn) {
+    for (i=0; i<3; i++) {//TODO only 2D
+      ierr = PetscMalloc1(nVecsIn,&iterCtx.cellData[i].vecdata_in);CHKERRQ(ierr);
+    }
+    ierr = PetscMalloc1(nVecsIn,&iterCtx.vecdata_in);CHKERRQ(ierr);
+    for (i=0; i<nVecsIn; i++) {
+      ierr = VecGetArrayRead(in[i],&iterCtx.vecdata_in[i]);CHKERRQ(ierr);
+    }
+  }
+  if (0 < nVecsOut) {
+    for (i=0; i<3; i++) {//TODO only 2D
+      ierr = PetscMalloc1(nVecsOut,&iterCtx.cellData[i].vecdata_out);CHKERRQ(ierr);
+    }
+    ierr = PetscMalloc1(nVecsOut,&iterCtx.vecdata_out);CHKERRQ(ierr);
+    for (i=0; i<nVecsOut; i++) {
+      ierr = VecGetArray(out[i],&iterCtx.vecdata_out[i]);CHKERRQ(ierr);
+    }
+  }
+  /* run iterator */
   bf = _p_GetBF(dm);
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,p4est_iter_volume,NULL,NULL));
+  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,NULL,p4est_iter_face,NULL));
+  /* clear iterator context */
+  if (0 < nVecsIn) {
+    for (i=0; i<nVecsIn; i++) {
+      ierr = VecRestoreArrayRead(in[i],&iterCtx.vecdata_in[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecdata_in);CHKERRQ(ierr);
+    for (i=0; i<3; i++) {//TODO only 2D
+      ierr = PetscFree(iterCtx.cellData[i].vecdata_in);CHKERRQ(ierr);
+    }
+  }
+  if (0 < nVecsOut) {
+    for (i=0; i<nVecsOut; i++) {
+      ierr = VecRestoreArray(out[i],&iterCtx.vecdata_out[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecdata_out);CHKERRQ(ierr);
+    for (i=0; i<3; i++) {//TODO only 2D
+      ierr = PetscFree(iterCtx.cellData[i].vecdata_out);CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_FaceData*,void*), void *userIterCtx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMBFIterateOverFacesVectors(dm,iterFace,userIterCtx,PETSC_NULL,0,PETSC_NULL,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
