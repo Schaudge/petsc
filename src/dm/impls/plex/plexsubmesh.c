@@ -1653,6 +1653,33 @@ PetscErrorCode DMPlexConstructCohesiveCells(DM dm, DMLabel label, DMLabel splitL
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMPlexConstructCohesiveRegions(DM dm, PetscPartitioner partitioner, PetscInt *n, DM *reg[])
+{
+  PetscSection     cSection;
+  IS               cPart;
+  MPI_Comm         comm;
+  PetscErrorCode   ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  if (partitioner) {PetscValidHeaderSpecific(partitioner,PETSCPARTITIONER_CLASSID,2);}
+  else {
+    ierr = PetscPartitionerCreate(PETSC_COMM_SELF, &partitioner);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_PARMETIS)
+    ierr = PetscPartitionerSetType(partitioner, PETSCPARTITIONERPARMETIS);CHKERRQ(ierr);
+#endif
+    ierr = PetscPartitionerSetUp(partitioner);CHKERRQ(ierr);
+  }
+  PetscSection section;
+  ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);
+  ierr = PetscSectionView(section, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscSectionCreate(comm, &cSection);CHKERRQ(ierr);
+  ierr = PetscPartitionerDMPlexPartition(partitioner, dm, NULL, cSection, &cPart);CHKERRQ(ierr);
+  ierr = ISView(cPart, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /* Returns the side of the surface for a given cell with a face on the surface */
 static PetscErrorCode GetSurfaceSide_Static(DM dm, DM subdm, PetscInt numSubpoints, const PetscInt *subpoints, PetscInt cell, PetscInt face, PetscBool *pos)
 {
