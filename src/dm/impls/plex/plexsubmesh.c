@@ -1655,28 +1655,46 @@ PetscErrorCode DMPlexConstructCohesiveCells(DM dm, DMLabel label, DMLabel splitL
 
 PetscErrorCode DMPlexConstructCohesiveRegions(DM dm, PetscPartitioner partitioner, PetscInt *n, DM *reg[])
 {
-  PetscSection     cSection;
-  IS               cPart;
+  PetscInt         cHeight, nPart = 2, nVert;
+  PetscInt         *offsets, *adj;
+  PetscPartitioner part;
+  PetscSection     vSection, pSection, tSection = NULL;
+  IS               globalIds, partGraph;
   MPI_Comm         comm;
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-  if (partitioner) {PetscValidHeaderSpecific(partitioner,PETSCPARTITIONER_CLASSID,2);}
-  else {
-    ierr = PetscPartitionerCreate(PETSC_COMM_SELF, &partitioner);CHKERRQ(ierr);
+  ierr = DMPlexGetVTKCellHeight(dm, &cHeight);CHKERRQ(ierr);
+  if (partitioner) {
+    PetscValidHeaderSpecific(partitioner,PETSCPARTITIONER_CLASSID,2);
+    part = partitioner;
+  } else {
+    ierr = PetscPartitionerCreate(PETSC_COMM_SELF, &part);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_PARMETIS)
-    ierr = PetscPartitionerSetType(partitioner, PETSCPARTITIONERPARMETIS);CHKERRQ(ierr);
+    ierr = PetscPartitionerSetType(part, PETSCPARTITIONERPARMETIS);CHKERRQ(ierr);
 #endif
-    ierr = PetscPartitionerSetUp(partitioner);CHKERRQ(ierr);
+    ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
+    ierr = PetscPartitionerSetUp(part);CHKERRQ(ierr);
   }
-  PetscSection section;
-  ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);
-  ierr = PetscSectionView(section, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = PetscSectionCreate(comm, &cSection);CHKERRQ(ierr);
-  ierr = PetscPartitionerDMPlexPartition(partitioner, dm, NULL, cSection, &cPart);CHKERRQ(ierr);
-  ierr = ISView(cPart, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscPartitionerViewFromOptions(part, (PetscObject) dm, "-cohesive_partitioner_view");CHKERRQ(ierr);
+  ierr = DMPlexCreatePartitionerGraph(dm, cHeight, &nVert, &offsets, &adj, &globalIds);CHKERRQ(ierr);
+
+  ierr = PetscSectionCreate(comm, &pSection);CHKERRQ(ierr);
+  ierr = PetscSectionSetUp(pSection);CHKERRQ(ierr);
+  ierr = PetscSectionCreate(comm, &vSection);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(vSection, 0, nVert);CHKERRQ(ierr);
+  ierr = PetscSectionSetUp(vSection);CHKERRQ(ierr);
+  ierr = PetscPartitionerPartition(part, nPart, nVert, offsets, adj, vSection, tSection, pSection, &partGraph);CHKERRQ(ierr);
+  //ierr = PetscPartitionerDMPlexPartition(partitioner, dm, NULL, cSection, &cPart);CHKERRQ(ierr);
+  ierr = ISView(partGraph, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscFree(offsets);CHKERRQ(ierr);
+  ierr = PetscFree(adj);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&vSection);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&tSection);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&pSection);CHKERRQ(ierr);
+  ierr = ISDestroy(&partGraph);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
