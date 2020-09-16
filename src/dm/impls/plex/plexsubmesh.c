@@ -1655,7 +1655,7 @@ PetscErrorCode DMPlexConstructCohesiveCells(DM dm, DMLabel label, DMLabel splitL
 
 PetscErrorCode DMPlexConstructCohesiveRegions(DM dm, PetscPartitioner partitioner, PetscInt *n, DM *reg[])
 {
-  PetscInt         cHeight, nPart = 2, nVert;
+  PetscInt         i, cHeight, nPart = 4, nVert;
   PetscInt         *offsets, *adj;
   PetscPartitioner part;
   PetscSection     vSection, pSection, tSection = NULL;
@@ -1682,13 +1682,18 @@ PetscErrorCode DMPlexConstructCohesiveRegions(DM dm, PetscPartitioner partitione
   ierr = DMPlexCreatePartitionerGraph(dm, cHeight, &nVert, &offsets, &adj, &globalIds);CHKERRQ(ierr);
 
   ierr = PetscSectionCreate(comm, &pSection);CHKERRQ(ierr);
-  ierr = PetscSectionSetUp(pSection);CHKERRQ(ierr);
   ierr = PetscSectionCreate(comm, &vSection);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(vSection, 0, nVert);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(pSection, 0, nVert);CHKERRQ(ierr);
+  for (i =  0; i < nVert; ++i) {
+    ierr = PetscSectionSetDof(vSection, i, i);CHKERRQ(ierr);
+  }
   ierr = PetscSectionSetUp(vSection);CHKERRQ(ierr);
+  ierr = PetscSectionSetUp(pSection);CHKERRQ(ierr);
+  ierr = PetscSectionViewFromOptions(vSection, NULL, "-vertex_section_view");CHKERRQ(ierr);
   ierr = PetscPartitionerPartition(part, nPart, nVert, offsets, adj, vSection, tSection, pSection, &partGraph);CHKERRQ(ierr);
-  //ierr = PetscPartitionerDMPlexPartition(partitioner, dm, NULL, cSection, &cPart);CHKERRQ(ierr);
-  ierr = ISView(partGraph, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = ISViewFromOptions(partGraph, NULL, "-partition_is_view");CHKERRQ(ierr);
+  ierr = PetscSectionViewFromOptions(pSection, NULL, "-partition_section_view");CHKERRQ(ierr);
   ierr = PetscFree(offsets);CHKERRQ(ierr);
   ierr = PetscFree(adj);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&vSection);CHKERRQ(ierr);

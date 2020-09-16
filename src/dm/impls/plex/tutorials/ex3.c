@@ -13,9 +13,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscFunctionBeginUser;
   options->interp      = PETSC_TRUE;
   options->distribute  = PETSC_TRUE;
-  options->simplex     = PETSC_TRUE;
+  options->simplex     = PETSC_FALSE;
   options->filename[0] = '\0';
-  options->dim         = 3;
+  options->dim         = 2;
 
   ierr = PetscOptionsBegin(comm, "", "Meshing Problem Options", "DMPLEX");CHKERRQ(ierr);
   ierr = PetscOptionsBool("-interpolate", "Generate intermediate mesh elements", "ex2.c", options->interp, &options->interp, NULL);CHKERRQ(ierr);
