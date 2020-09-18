@@ -331,26 +331,26 @@ allfortranstubs:
 deletefortranstubs:
 	-@find . -type d -name ftn-auto | xargs rm -rf
 
-# Builds all the documentation - should be done every night
+# Builds all the documentation
 alldoc: allcite allpdf alldoc1 alldoc2 docsetdate
 
-# Build just citations
+# Build the list of everything that will get a link (mostly function names)
 allcite: chk_loc deletemanualpages
 	-${PYTHON} lib/petsc/bin/maint/countpetsccits.py
 	-${OMAKE_SELF} ACTION=manualpages_buildcite tree LOC=${LOC}
 	-@sed -e s%man+../%man+manualpages/% ${LOC}/docs/manualpages/manualpages.cit > ${LOC}/docs/manualpages/htmlmap
 	-@cat ${PETSC_DIR}/src/docs/mpi.www.index >> ${LOC}/docs/manualpages/htmlmap
 
-# Build just PDF manuals + prerequisites
+# Build PDF manuals + prerequisites
 allpdf: chk_loc allcite
 	-cd src/docs/tex/manual; ${OMAKE_SELF} manual.pdf LOC=${LOC}
 	-cd src/docs/tao_tex/manual; ${OMAKE_SELF} manual.pdf LOC=${LOC}
 
-# Build just manual pages + prerequisites
+# Build manual pages + prerequisites
 allmanpages: chk_loc allcite
 	-${OMAKE_SELF} ACTION=manualpages tree LOC=${LOC}
 
-# Build just manual examples + prerequisites
+# Add links to examples from manual pages + prerequisites
 allmanexamples: chk_loc allmanpages
 	-${OMAKE_SELF} ACTION=manexamples tree LOC=${LOC}
 
@@ -371,8 +371,8 @@ manincludes:
             mv $${j}.tmp $${j}; \
           done ; \
         done
+
 # Builds .html versions of the source
-# html overwrites some stuff created by update-docs - hence this is done later.
 alldoc2: chk_loc allcite
 	-${OMAKE_SELF} ACTION=html PETSC_DIR=${PETSC_DIR} tree LOC=${LOC}
 	-${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${LOC}
@@ -440,7 +440,7 @@ sphinx-docs-clean:
 
 alldocclean: deletemanualpages allcleanhtml
 
-# Deletes man pages (HTML version)
+# Deletes manual pages
 deletemanualpages: chk_loc
 	-@if [ -d ${LOC} -a -d ${LOC}/docs/manualpages ]; then \
           find ${LOC}/docs/manualpages -type f -name "*.html" -exec ${RM} {} \; ;\
@@ -449,6 +449,7 @@ deletemanualpages: chk_loc
           ${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${LOC} clean;\
         fi
 
+# Deletes all generated html
 allcleanhtml:
 	-${OMAKE_SELF} ACTION=cleanhtml PETSC_DIR=${PETSC_DIR} tree
 
@@ -457,7 +458,7 @@ chk_concepts_dir: chk_loc
 	  echo Making directory ${LOC}/docs/manualpages/concepts for library; ${MKDIR} ${LOC}/docs/manualpages/concepts; fi
 
 # Builds simple html versions of the source without links into the $PETSC_ARCH/obj directory, used by make mergecov
-srchtml: 
+srchtml:
 	-${OMAKE_SELF} ACTION=simplehtml PETSC_DIR=${PETSC_DIR} alltree_src
 
 ###########################################################
