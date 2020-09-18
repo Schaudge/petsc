@@ -200,8 +200,8 @@ PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const PetscInt dim
       if (ej==-1) {
         ierr = PetscPrintf(PETSC_COMM_SELF, "CPU Element matrix\n");CHKERRQ(ierr);
         for (d = 0; d < totDim; ++d){
-          for (f = 0; f < totDim; ++f) PetscPrintf(PETSC_COMM_SELF," %17.9e",  PetscRealPart(elemMat[d*totDim + f]));
-           PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
+          for (f = 0; f < totDim; ++f) {ierr = PetscPrintf(PETSC_COMM_SELF," %17.9e",  PetscRealPart(elemMat[d*totDim + f]));CHKERRQ(ierr);}
+          ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
         }
       }
     } /* ej cells loop, not cuda */
@@ -563,6 +563,7 @@ static PetscErrorCode maxwellian(PetscInt dim, PetscReal time, const PetscReal x
   LandauCtx     *ctx = mctx->ctx;
   PetscInt      i;
   PetscReal     v2 = 0, theta = 2*mctx->kT_m/(ctx->v_0*ctx->v_0); /* theta = 2kT/mc^2 */
+
   PetscFunctionBegin;
   /* compute the exponents, v^2 */
   for (i = 0; i < dim; ++i) v2 += x[i]*x[i];
@@ -581,19 +582,20 @@ static PetscErrorCode maxwellian(PetscInt dim, PetscReal time, const PetscReal x
 /*@
  LandauAddMaxwellians - Add a Maxwellian distribution to a state
 
- Collective on X
+ Collective on dm
 
  Input Parameters:
- .   dm - The mesh
- +   time - Current time
- -   temps - Temperatures of each species
+ +   dm - The mesh
+ .   time - Current time
+ .   temps - Temperatures of each species
  .   ns - Number density of each species
- +   actx - Landau context
+ -   actx - Landau context
 
  Output Parameter:
- .   X  - The state
+.   X - the state with the given Maxwellian distribution
 
-.keywords: mesh
+ Level: advanced
+
 .seealso: LandauCreateVelocitySpace()
 @*/
 PetscErrorCode LandauAddMaxwellians(DM dm, Vec X, PetscReal time, PetscReal temps[], PetscReal ns[], void *actx)
@@ -622,26 +624,26 @@ PetscErrorCode LandauAddMaxwellians(DM dm, Vec X, PetscReal time, PetscReal temp
 }
 
 /*
- LandauSetInitialCondition - Addes Maxwellians with context
+ LandauSetInitialCondition - Adds Maxwellians with context
 
-Collective on X
+Collective on dm
 
  Input Parameters:
- .   dm - The mesh
- +   actx - Landau context with T and n
+ +   dm - The mesh
+ -   actx - Landau context with T and n
 
- Output Parameter:
- .   X  - The state
+ Output Parameters:
+ .  X - the Maxwellian distribution 
 
  Level: beginner
 
-.keywords: mesh
 .seealso: LandauCreateVelocitySpace(), LandauAddMaxwellians()
 */
 static PetscErrorCode LandauSetInitialCondition(DM dm, Vec X, void *actx)
 {
-  LandauCtx        *ctx = (LandauCtx*)actx;
+  LandauCtx      *ctx = (LandauCtx*)actx;
   PetscErrorCode ierr;
+
   PetscFunctionBegin;
   if (!ctx) { ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr); }
   ierr = VecZeroEntries(X);CHKERRQ(ierr);
@@ -1029,7 +1031,6 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
 
   Level: beginner
 
-.keywords: mesh
 .seealso: DMPlexCreate(), LandauDestroyVelocitySpace()
 @*/
 PetscErrorCode LandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, const char prefix[], Vec *X, Mat *J, DM *dm)
@@ -1042,7 +1043,7 @@ PetscErrorCode LandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, const char
   ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
   if (size!=1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Velocity space meshes should be serial (but should work in parallel)");
   if (dim!=2 && dim!=3) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Only 2D and 3D supported");
-  ctx = (LandauCtx*)malloc(sizeof(LandauCtx));
+  ierr = PetscNew(&ctx);CHKERRQ(ierr);
   /* process options */
   ierr = ProcessOptions(ctx,prefix);CHKERRQ(ierr);
   /* Create Mesh */
@@ -1076,19 +1077,19 @@ PetscErrorCode LandauCreateVelocitySpace(MPI_Comm comm, PetscInt dim, const char
 
   Collective on dm
 
-  Input/Output Parameters:
+  Input Parameter:
   .   dm - the dm to destroy
 
   Level: beginner
 
-.keywords: mesh
 .seealso: LandauCreateVelocitySpace()
 @*/
 PetscErrorCode LandauDestroyVelocitySpace(DM *dm)
 {
   PetscErrorCode ierr,ii;
-  LandauCtx        *ctx;
+  LandauCtx      *ctx;
   PetscContainer container = NULL;
+
   PetscFunctionBegin;
   ierr = DMGetApplicationContext(*dm, &ctx);CHKERRQ(ierr);
   ierr = PetscObjectQuery((PetscObject)ctx->J,"coloring", (PetscObject*)&container);CHKERRQ(ierr);
@@ -1100,7 +1101,7 @@ PetscErrorCode LandauDestroyVelocitySpace(DM *dm)
   for (ii=0;ii<ctx->num_species;ii++) {
     ierr = PetscFEDestroy(&ctx->fe[ii]);CHKERRQ(ierr);
   }
-  free(ctx);
+  ierr = PetscFree(&ctx);CHKERRQ(ierr);
   ierr = DMDestroy(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1240,7 +1241,7 @@ PetscErrorCode LandauPrintNorms(Vec X, PetscInt stepi)
       energytot  += energy[ii];
       densitytot += density[ii];
     }
-    if (ctx->num_species>1) PetscPrintf(PETSC_COMM_WORLD, "\n");
+    if (ctx->num_species>1) {ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");CHKERRQ(ierr);}
   }
   /* totals */
   ierr = DMPlexGetHeightStratum(plex,0,&cStart,&cEnd);CHKERRQ(ierr);
@@ -1533,7 +1534,7 @@ PetscErrorCode LandauCreateMassMatrix(DM dm, Mat *Amat)
 +   TS  - The time stepping context
 .   time_dummy - current time (not used)
 -   X - Current state
-+   X_t - Time derivative of current state
++   Xdot - Time derivative of current state
 .   actx - Landau context
 
   Output Parameter:
@@ -1544,7 +1545,7 @@ PetscErrorCode LandauCreateMassMatrix(DM dm, Mat *Amat)
 .keywords: mesh
 .seealso: LandauCreateVelocitySpace(), LandauIJacobian()
 @*/
-PetscErrorCode LandauIFunction(TS ts,PetscReal time_dummy,Vec X,Vec X_t,Vec F,void *actx)
+PetscErrorCode LandauIFunction(TS ts,PetscReal time_dummy,Vec X,Vec Xdot,Vec F,void *actx)
 {
   PetscErrorCode ierr;
   LandauCtx      *ctx=(LandauCtx*)actx;
@@ -1568,8 +1569,8 @@ PetscErrorCode LandauIFunction(TS ts,PetscReal time_dummy,Vec X,Vec X_t,Vec F,vo
   /* mat vec for op */
   ierr = MatMult(ctx->J,X,F);CHKERRQ(ierr);CHKERRQ(ierr); /* C*f */
   /* add time term */
-  if (X_t) {
-    ierr = MatMultAdd(ctx->M,X_t,F,F);CHKERRQ(ierr);
+  if (Xdot) {
+    ierr = MatMultAdd(ctx->M,Xdot,F,F);CHKERRQ(ierr);
   }
   ierr = PetscLogEventEnd(ctx->events[0],0,0,0,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1584,8 +1585,8 @@ PetscErrorCode LandauIFunction(TS ts,PetscReal time_dummy,Vec X,Vec X_t,Vec F,vo
 +   TS  - The time stepping context
 .   time_dummy - current time (not used)
 -   X - Current state
-+   U_tdummy - Time derivative of current state (not used)
-.   shift - shift for du/dt term
++   Xdot - Time derivative of current state (not used)
+.   shift - shift for du/dt term (not used)
 -   actx - Landau context
 
   Output Parameter:
@@ -1594,10 +1595,9 @@ PetscErrorCode LandauIFunction(TS ts,PetscReal time_dummy,Vec X,Vec X_t,Vec F,vo
 
   Level: beginner
 
-.keywords: mesh
 .seealso: LandauCreateVelocitySpace(), LandauIFunction()
 @*/
-PetscErrorCode LandauIJacobian(TS ts,PetscReal time_dummy,Vec X,Vec U_tdummy,PetscReal shift,Mat Amat,Mat Pmat,void *actx)
+PetscErrorCode LandauIJacobian(TS ts,PetscReal time_dummy,Vec X,Vec Xdot,PetscReal shift,Mat Amat,Mat Pmat,void *actx)
 {
   PetscErrorCode ierr;
   LandauCtx      *ctx=(LandauCtx*)actx;
