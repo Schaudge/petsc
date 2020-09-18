@@ -54,7 +54,7 @@ static PetscErrorCode PetscViewerFlush_Draw(PetscViewer v)
     Level: intermediate
 
 
-.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen()
+.seealso: PetscViewerDrawGetDrawLG(), PetscViewerDrawGetDrawAxis(), PetscViewerDrawOpen()
 @*/
 PetscErrorCode  PetscViewerDrawGetDraw(PetscViewer viewer,PetscInt windownumber,PetscDraw *draw)
 {
@@ -120,7 +120,7 @@ PetscErrorCode  PetscViewerDrawGetDraw(PetscViewer viewer,PetscInt windownumber,
     Level: developer
 
 
-.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), PetscViewerDrawBaseSet()
+.seealso: PetscViewerDrawGetDrawLG(), PetscViewerDrawGetDrawAxis(), PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), PetscViewerDrawBaseSet()
 @*/
 PetscErrorCode  PetscViewerDrawBaseAdd(PetscViewer viewer,PetscInt windownumber)
 {
@@ -152,7 +152,7 @@ PetscErrorCode  PetscViewerDrawBaseAdd(PetscViewer viewer,PetscInt windownumber)
     Level: developer
 
 
-.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), PetscViewerDrawBaseAdd()
+.seealso: PetscViewerDrawGetDrawLG(), PetscViewerDrawGetDrawAxis(), PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), PetscViewerDrawBaseAdd()
 @*/
 PetscErrorCode  PetscViewerDrawBaseSet(PetscViewer viewer,PetscInt windownumber)
 {
@@ -188,7 +188,7 @@ PetscErrorCode  PetscViewerDrawBaseSet(PetscViewer viewer,PetscInt windownumber)
 
     Level: intermediate
 
-.seealso: PetscViewerDrawGetDraw(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen()
+.seealso: PetscViewerDrawGetDraw(), PetscViewerDrawGetDrawAxis(), PetscViewerDrawOpen()
 @*/
 PetscErrorCode  PetscViewerDrawGetDrawLG(PetscViewer viewer,PetscInt windownumber,PetscDrawLG *drawlg)
 {
@@ -233,7 +233,7 @@ PetscErrorCode  PetscViewerDrawGetDrawLG(PetscViewer viewer,PetscInt windownumbe
 
     Level: advanced
 
-.seealso: PetscViewerDrawGetDraw(), PetscViewerDrawGetLG(), PetscViewerDrawOpen()
+.seealso: PetscViewerDrawGetDraw(), PetscViewerDrawGetDrawLG(), PetscViewerDrawOpen()
 @*/
 PetscErrorCode  PetscViewerDrawGetDrawAxis(PetscViewer viewer,PetscInt windownumber,PetscDrawAxis *drawaxis)
 {
@@ -795,7 +795,7 @@ PetscViewer  PETSC_VIEWER_DRAW_(MPI_Comm comm)
       this viewer. Otherwise the color to physical value meaning changes with each new image if this is not set.
 
 
-.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen()
+.seealso: PetscViewerDrawGetDrawLG(), PetscViewerDrawGetDrawAxis(), PetscViewerDrawOpen()
 @*/
 PetscErrorCode  PetscViewerDrawSetBounds(PetscViewer viewer,PetscInt nbounds,const PetscReal *bounds)
 {
@@ -832,7 +832,7 @@ PetscErrorCode  PetscViewerDrawSetBounds(PetscViewer viewer,PetscInt nbounds,con
     Level: intermediate
 
 
-.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen(), PetscViewerDrawSetBounds()
+.seealso: PetscViewerDrawGetDrawLG(), PetscViewerDrawGetDrawAxis(), PetscViewerDrawOpen(), PetscViewerDrawSetBounds()
 @*/
 PetscErrorCode  PetscViewerDrawGetBounds(PetscViewer viewer,PetscInt *nbounds,const PetscReal **bounds)
 {
