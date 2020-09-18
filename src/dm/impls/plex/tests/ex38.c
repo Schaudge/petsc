@@ -329,291 +329,6 @@ PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds, PetscFEJacobianType jtype, PetscInt fieldI, PetscInt fieldJ, PetscInt Ne, PetscFEGeom *cgeom,
-                                              const PetscScalar coefficients[], const PetscScalar coefficients_t[], PetscDS dsAux, const
-                                              PetscScalar coefficientsAux[], PetscReal t, PetscReal u_tshift, PetscScalar elemMat[]){
-PetscErrorCode ierr;
-PetscInt lumpMap[]  = {5,0,1,2,3,4};/* Vertex lumping for reference element, I think*/
-PetscInt eOffset = 0, totDim, e,offsetI,offsetJ,dim,f,fc,g,gc;
-PetscScalar tempEmat[36] = {};
-PetscTabulation *T;
-
-PetscFunctionBegin;
-
-ierr = PetscDSGetTotalDimension(ds, &totDim);CHKERRQ(ierr);
-ierr = PetscDSGetFieldOffset(ds, fieldI, &offsetI);CHKERRQ(ierr);
-ierr = PetscDSGetFieldOffset(ds, fieldJ, &offsetJ);CHKERRQ(ierr);
-ierr = PetscDSGetTabulation(ds, &T);CHKERRQ(ierr); 
-ierr = PetscFEIntegrateJacobian_Basic(ds, jtype, fieldI, fieldJ, Ne, cgeom, coefficients, coefficients_t, dsAux, coefficientsAux, t,
-    u_tshift, elemMat);CHKERRQ(ierr); 
-for(e=0; e < Ne; ++e){
- /* Apply vertex lumping map to  elemMat */
-  for (fc = 0; fc < T[fieldI]->Nc; ++fc) {
-    for (f = 0; f < T[fieldI]->Nb; ++f) {
-      const PetscInt i = offsetI + f*T[fieldI]->Nc + fc;
-      for (gc = 0; gc < T[fieldJ]->Nc; ++gc) {
-        for (g = 0; g < T[fieldJ]->Nb; ++g) {
-          const PetscInt j = offsetJ + g*T[fieldJ]->Nc+gc;
-        }
-      }
-    }
-  }
-  eOffset += PetscSqr(totDim);
-}
-PetscFunctionReturn(0);
-}
-
-
-
-static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
-{
-  PetscErrorCode   ierr;
-  PetscRandom      ran;
-  DMLabel          label;
-  const char       * name = "marker";
-  DM               dmDist = NULL;
-  PetscPartitioner part;
-
-  PetscFunctionBegin;
-  ierr = PetscRandomCreate(comm,&ran);CHKERRQ(ierr);
-  // Create a mesh (2D vs. 3D) and (simplex vs. tensor) as determined by
-  // parameters
-  // TODO: make either a simplex or tensor-product mesh
-  // Desirable: a mesh with skewing element transforms that will stress the
-  // Piola transformations involved in assembling H-div finite elements
-  /* Create box mesh from user parameters */
-  ierr = DMPlexCreateBoxMesh(
-    comm,user->dim,user->simplex,NULL,NULL,NULL,NULL,PETSC_TRUE,mesh
-    );CHKERRQ(ierr);
-
-  ierr = DMPlexGetPartitioner(*mesh,&part);CHKERRQ(ierr);
-  ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
-  ierr = DMPlexDistribute(*mesh,0,NULL,&dmDist);CHKERRQ(ierr);
-  if (dmDist) {
-    ierr  = DMDestroy(mesh);CHKERRQ(ierr);
-    *mesh = dmDist;
-  }
-  ierr = DMCreateLabel(*mesh,name);CHKERRQ(ierr);
-  ierr = DMGetLabel(*mesh,name,&label);CHKERRQ(ierr);
-  ierr = DMPlexMarkBoundaryFaces(*mesh,1,label);CHKERRQ(ierr);
-  ierr = DMPlexLabelComplete(*mesh,label);CHKERRQ(ierr);
-  ierr = DMLocalizeCoordinates(*mesh);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) *mesh,"Mesh");CHKERRQ(ierr);
-  ierr = TransformMesh(user,mesh,&ran);CHKERRQ(ierr);
-  ierr = DMSetApplicationContext(*mesh,user);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*mesh);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*mesh,NULL,"-dm_view");CHKERRQ(ierr);
-
-  ierr = DMDestroy(&dmDist);CHKERRQ(ierr);
-  ierr = PetscRandomDestroy(&ran);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
-{
-  PetscDS        prob;
-  PetscErrorCode ierr;
-  const PetscInt id = 1;
-
-  PetscFunctionBegin;
-  ierr = DMGetDS(dm,&prob);CHKERRQ(ierr);
-  ierr = PetscDSSetResidual(prob,0,f0_v,f1_v);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(prob,0,0,g0_vu,NULL,NULL,NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(prob,0,1,NULL,NULL,g2_vp,NULL);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(prob,1,0,NULL,g1_qu,NULL,NULL);CHKERRQ(ierr);
-
-  switch (user->sol_form) {
-  case LINEAR:
-    ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
-    break;
-  case SINUSOIDAL:
-    ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
-    break;
-  default:
-    PetscFunctionReturn(-1);
-  }
-  ierr = PetscDSAddBoundary(
-    prob,
-    DM_BC_NATURAL,
-    "Boundary Integral",
-    "marker",
-    0,
-    0,
-    NULL,
-    (void (*)(void))NULL,
-    (void (*)(void))NULL,
-    1,
-    &id,
-    user
-    );CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,UserCtx*),UserCtx * user)
-{
-  DM             cdm = mesh;
-  PetscFE        fevel,fepres;
-  const PetscInt dim               = user->dim;
-  PetscBool      corner_quadrature = PETSC_TRUE;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscFECreateDefault(
-    PETSC_COMM_WORLD,//PetscObjectComm((PetscObject) mesh),
-    dim,
-    dim,
-    user->simplex,
-    "velocity_",
-    PETSC_DEFAULT,
-    &fevel
-    );CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fevel,"velocity");CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(
-    PetscObjectComm((PetscObject) mesh),
-    dim,
-    1,
-    user->simplex,
-    "pressure_",
-    PETSC_DEFAULT,
-    &fepres
-    );CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fepres,"pressure");CHKERRQ(ierr);
-  if (corner_quadrature) {
-    PetscInt        dim;
-    PetscInt        numPoints;
-    PetscBool       simplex;
-    PetscReal       * points;
-    PetscReal       * weights;
-    PetscQuadrature quad;
-
-    dim       = user->dim;
-    simplex   = user->simplex;
-    numPoints = simplex ? (dim + 1) : 2 * dim;
-    ierr      = PetscMalloc1(dim * numPoints,&points);CHKERRQ(ierr);
-    ierr      = PetscMalloc1(numPoints,&weights);CHKERRQ(ierr);
-    if (simplex)
-      switch (dim) {
-      case 2:
-        points[0]  = -1.;
-        points[1]  = -1.;
-        points[2]  = 1.;
-        points[3]  = -1.;
-        points[4]  = -1.;
-        points[5]  = 1.;
-        weights[0] = weights[1] = weights[2] = 2. / 3.;
-        break;
-      case 3:
-        points[0]  = -1.;
-        points[1]  = -1.;
-        points[2]  = -1.;
-        points[3]  = 1.;
-        points[4]  = -1.;
-        points[5]  = -1.;
-        points[6]  = -1.;
-        points[7]  = 1.;
-        points[8]  = -1.;
-        points[9]  = -1.;
-        points[10] = -1.;
-        points[11] = 1.;
-        weights[0] = weights[1] = weights[2] = 3. / 4.;
-        break;
-      }
-
-    ierr =
-      PetscQuadratureCreate(PetscObjectComm((PetscObject) mesh),&quad);CHKERRQ(ierr);
-    ierr = PetscQuadratureSetData(quad,dim,1,numPoints,points,weights);CHKERRQ(ierr);
-    ierr = PetscFESetQuadrature(fevel,quad);CHKERRQ(ierr);
-    ierr = PetscQuadratureDestroy(&quad);CHKERRQ(ierr);
-  }
-
-  ierr = PetscFECopyQuadrature(fevel,fepres);CHKERRQ(ierr);
-  fevel->ops->integratejacobian = PetscFEIntegrateJacobian_WY;
-
-  ierr = DMSetField(mesh,0,NULL,(PetscObject) fevel);CHKERRQ(ierr);
-  ierr = DMSetField(mesh,1,NULL,(PetscObject) fepres);CHKERRQ(ierr);
-  ierr = DMCreateDS(mesh);CHKERRQ(ierr);
-  ierr = (*setup)(mesh,user);CHKERRQ(ierr);
-  while (cdm) {
-    ierr = DMCopyDisc(mesh,cdm);CHKERRQ(ierr);
-    ierr = DMGetCoarseDM(cdm,&cdm);CHKERRQ(ierr);
-  }
-
-  ierr = PetscFEDestroy(&fevel);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fepres);CHKERRQ(ierr);
-  ierr = DMDestroy(&cdm);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode CreateVertDofMap(DM mesh,PetscSection * vert2Dof,PetscInt **    vertDofMap,PetscInt *     numVertDof)
-{
-  PetscErrorCode ierr;
-  PetscInt       eStart,eEnd,vStart,vEnd,*vertDofCounter;
-  PetscSection   localSec;
-
-  PetscFunctionBegin;
-  /* Allocate and initialize some function local variables */
-  ierr = DMGetLocalSection(mesh,&localSec);CHKERRQ(ierr);
-  ierr = DMPlexGetDepthStratum(mesh,1,&eStart,&eEnd);CHKERRQ(ierr);
-  ierr = DMPlexGetDepthStratum(mesh,0,&vStart,&vEnd);CHKERRQ(ierr);
-  const PetscInt numEdge = eEnd - eStart;
-  const PetscInt numVert = vEnd - vStart;
-  *numVertDof = 2 * numEdge;
-
-  ierr = PetscSectionCreate(PETSC_COMM_WORLD,vert2Dof);CHKERRQ(ierr);
-  ierr = PetscSectionSetChart(*vert2Dof,vStart,vEnd);CHKERRQ(ierr);
-
-  /*Set the correct number of DoFs for each vertex */
-  for (PetscInt iEdge = eStart; iEdge < eEnd; ++iEdge)
-  {
-    PetscInt       numDoF = -1;
-    const PetscInt * verts;
-    const PetscInt * vOrient;
-    ierr = DMPlexGetCone(mesh,iEdge,&verts);CHKERRQ(ierr);
-    ierr = DMPlexGetConeOrientation(mesh,iEdge,&vOrient);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(localSec,iEdge,&numDoF);CHKERRQ(ierr);
-    for (PetscInt iDoF = 0; iDoF < numDoF; ++iDoF)
-    {
-      const PetscInt vInd = (vOrient[iDoF] >= 0) ? vOrient[iDoF] : -(vOrient[iDoF]+1);
-      ierr = PetscSectionAddDof(*vert2Dof,verts[vInd],1);CHKERRQ(ierr);
-    }
-  }
-
-  PetscSectionSetUp(*vert2Dof);
-  ierr = PetscCalloc1(numVert,&vertDofCounter);CHKERRQ(ierr);
-  ierr = PetscCalloc1(2 * numEdge,vertDofMap);CHKERRQ(ierr);
-
-  /*Assign the DoFs into the map */
-  for (PetscInt iEdge = eStart; iEdge < eEnd; ++iEdge)
-  {
-    const PetscInt * verts, *vOrient;
-    PetscInt       numDoF;
-    PetscInt       eOff;
-    ierr = DMPlexGetCone(mesh,iEdge,&verts);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(localSec,iEdge,&numDoF);CHKERRQ(ierr);
-    ierr = DMPlexGetConeOrientation(mesh,iEdge,&vOrient);CHKERRQ(ierr);
-    ierr = PetscSectionGetOffset(localSec,iEdge,&eOff);CHKERRQ(ierr);
-    for (PetscInt iDoF = 0; iDoF < numDoF; ++iDoF)
-    {
-      PetscInt       vOff;
-      const PetscInt vInd = (vOrient[iDoF] >= 0) ? vOrient[iDoF] : -(vOrient[iDoF]+1);
-      const PetscInt vInd0 = verts[vInd] - vStart;
-
-      ierr = PetscSectionGetOffset(*vert2Dof,verts[vInd],&vOff);CHKERRQ(ierr);
-      PetscInt mapInd = vOff + vertDofCounter[vInd0];
-      (*vertDofMap)[mapInd] = eOff + iDoF;
-      ++vertDofCounter[vInd0];
-    }
-  }
-  ierr = PetscFree(vertDofCounter);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 /*@
  * PetscSectionGetFieldChart - Get the chart range for points which store the
  * DoFs of a specified filed.
@@ -882,6 +597,279 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds, PetscFEJacobianType jtype, PetscInt fieldI, PetscInt fieldJ,
+    PetscInt Ne, PetscFEGeom *cgeom, const PetscScalar coefficients[], const PetscScalar coefficients_t[], PetscDS dsAux, const PetscScalar coefficientsAux[], PetscReal t, PetscReal u_tshift, PetscScalar elemMat[]){
+PetscErrorCode ierr;
+PetscInt eOffset = 0,totDim,e,offsetI,offsetJ,dim,f,fc,g,gc;
+PetscTabulation *T;
+PetscFE fieldFE;
+PetscDualSpace dsp;
+PetscSection edgeVertSect;
+IS edge2Vert;
+DM refdm;
+
+PetscFunctionBegin;
+
+ierr = PetscDSGetTotalDimension(ds, &totDim);CHKERRQ(ierr);
+ierr = PetscDSGetFieldOffset(ds, fieldI, &offsetI);CHKERRQ(ierr);
+ierr = PetscDSGetFieldOffset(ds, fieldJ, &offsetJ);CHKERRQ(ierr);
+ierr = PetscDSGetTabulation(ds, &T);CHKERRQ(ierr); 
+ierr = PetscDSGetDiscretization(ds, fieldI, (PetscObject *) &fieldFE);CHKERRQ(ierr);
+ierr = PetscFEGetDualSpace(fieldFE, &dsp);CHKERRQ(ierr);
+ierr = PetscDualSpaceGetDM(dsp, &refdm);CHKERRQ(ierr);
+ierr = DMPlexGetStratumMap(refdm,1,0,&edgeVertSect,&edge2Vert);CHKERRQ(ierr);
+ierr = PetscFEIntegrateJacobian_Basic(ds, jtype, fieldI, fieldJ, Ne, cgeom, coefficients, coefficients_t, dsAux, coefficientsAux, t,
+    u_tshift, elemMat);CHKERRQ(ierr); 
+
+//ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nElement matrix for fields %d and %d\n",fieldI,fieldJ);CHKERRQ(ierr);
+for(e=0; e < Ne; ++e){
+//  ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr);
+ /* Apply vertex lumping map to  elemMat */
+  for (f = 0; f < T[fieldI]->Nb; ++f) {
+    for (fc = 0; fc < T[fieldI]->Nc; ++fc) {
+      const PetscInt i = offsetI + f*T[fieldI]->Nc + fc;
+        for (g = 0; g < T[fieldJ]->Nb; ++g) {
+          for (gc = 0; gc < T[fieldJ]->Nc; ++gc) {
+          const PetscInt j = offsetJ + g*T[fieldJ]->Nc+gc;
+//          ierr = PetscPrintf(PETSC_COMM_WORLD,"(i,j):\t(%d,%d)\n", i,j);CHKERRQ(ierr);
+        }
+      }
+    }
+  }
+  eOffset += PetscSqr(totDim);
+}
+PetscFunctionReturn(0);
+}
+
+
+static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
+{
+  PetscErrorCode   ierr;
+  PetscRandom      ran;
+  DMLabel          label;
+  const char       * name = "marker";
+  DM               dmDist = NULL;
+  PetscPartitioner part;
+
+  PetscFunctionBegin;
+  ierr = PetscRandomCreate(comm,&ran);CHKERRQ(ierr);
+  // Create a mesh (2D vs. 3D) and (simplex vs. tensor) as determined by
+  // parameters
+  // TODO: make either a simplex or tensor-product mesh
+  // Desirable: a mesh with skewing element transforms that will stress the
+  // Piola transformations involved in assembling H-div finite elements
+  /* Create box mesh from user parameters */
+  ierr = DMPlexCreateBoxMesh(
+    comm,user->dim,user->simplex,NULL,NULL,NULL,NULL,PETSC_TRUE,mesh
+    );CHKERRQ(ierr);
+
+  ierr = DMPlexGetPartitioner(*mesh,&part);CHKERRQ(ierr);
+  ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
+  ierr = DMPlexDistribute(*mesh,0,NULL,&dmDist);CHKERRQ(ierr);
+  if (dmDist) {
+    ierr  = DMDestroy(mesh);CHKERRQ(ierr);
+    *mesh = dmDist;
+  }
+  ierr = DMCreateLabel(*mesh,name);CHKERRQ(ierr);
+  ierr = DMGetLabel(*mesh,name,&label);CHKERRQ(ierr);
+  ierr = DMPlexMarkBoundaryFaces(*mesh,1,label);CHKERRQ(ierr);
+  ierr = DMPlexLabelComplete(*mesh,label);CHKERRQ(ierr);
+  ierr = DMLocalizeCoordinates(*mesh);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *mesh,"Mesh");CHKERRQ(ierr);
+  ierr = TransformMesh(user,mesh,&ran);CHKERRQ(ierr);
+  ierr = DMSetApplicationContext(*mesh,user);CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*mesh);CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*mesh,NULL,"-dm_view");CHKERRQ(ierr);
+
+  ierr = DMDestroy(&dmDist);CHKERRQ(ierr);
+  ierr = PetscRandomDestroy(&ran);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
+{
+  PetscDS        prob;
+  PetscErrorCode ierr;
+  const PetscInt id = 1;
+
+  PetscFunctionBegin;
+  ierr = DMGetDS(dm,&prob);CHKERRQ(ierr);
+  ierr = PetscDSSetResidual(prob,0,f0_v,f1_v);CHKERRQ(ierr);
+  ierr = PetscDSSetJacobian(prob,0,0,g0_vu,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = PetscDSSetJacobian(prob,0,1,NULL,NULL,g2_vp,NULL);CHKERRQ(ierr);
+  ierr = PetscDSSetJacobian(prob,1,0,NULL,g1_qu,NULL,NULL);CHKERRQ(ierr);
+
+  switch (user->sol_form) {
+  case LINEAR:
+    ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
+    break;
+  case SINUSOIDAL:
+    ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
+    break;
+  default:
+    PetscFunctionReturn(-1);
+  }
+  ierr = PetscDSAddBoundary(
+    prob,
+    DM_BC_NATURAL,
+    "Boundary Integral",
+    "marker",
+    0,
+    0,
+    NULL,
+    (void (*)(void))NULL,
+    (void (*)(void))NULL,
+    1,
+    &id,
+    user
+    );CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,UserCtx*),UserCtx * user)
+{
+  DM             cdm = mesh;
+  PetscFE        fevel,fepres;
+  const PetscInt dim               = user->dim;
+  PetscBool      corner_quadrature = PETSC_TRUE;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFECreateDefault(
+    PETSC_COMM_WORLD,//PetscObjectComm((PetscObject) mesh),
+    dim,
+    dim,
+    user->simplex,
+    "velocity_",
+    PETSC_DEFAULT,
+    &fevel
+    );CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fevel,"velocity");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(
+    PetscObjectComm((PetscObject) mesh),
+    dim,
+    1,
+    user->simplex,
+    "pressure_",
+    PETSC_DEFAULT,
+    &fepres
+    );CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fepres,"pressure");CHKERRQ(ierr);
+  if (corner_quadrature) {
+    PetscInt        dim;
+    PetscInt        numPoints;
+    PetscBool       simplex;
+    PetscReal       * points;
+    PetscReal       * weights;
+    PetscQuadrature quad;
+
+    dim       = user->dim;
+    simplex   = user->simplex;
+    numPoints = simplex ? (dim + 1) : 2 * dim;
+    ierr      = PetscMalloc1(dim * numPoints,&points);CHKERRQ(ierr);
+    ierr      = PetscMalloc1(numPoints,&weights);CHKERRQ(ierr);
+    if (simplex)
+      switch (dim) {
+      case 2:
+        points[0]  = -1.;
+        points[1]  = -1.;
+        points[2]  = 1.;
+        points[3]  = -1.;
+        points[4]  = -1.;
+        points[5]  = 1.;
+        weights[0] = weights[1] = weights[2] = 2. / 3.;
+        break;
+      case 3:
+        points[0]  = -1.;
+        points[1]  = -1.;
+        points[2]  = -1.;
+        points[3]  = 1.;
+        points[4]  = -1.;
+        points[5]  = -1.;
+        points[6]  = -1.;
+        points[7]  = 1.;
+        points[8]  = -1.;
+        points[9]  = -1.;
+        points[10] = -1.;
+        points[11] = 1.;
+        weights[0] = weights[1] = weights[2] = 3. / 4.;
+        break;
+      } else {
+        switch(dim) {
+          /* Need to check these weights. w=1 is based off |\hat{E}|/s from Wheeler & Yotov, this agrees with the above 2d weights but not with 3d as
+           * in 3d simplex case, |\hat{E}|/s gives 1/3 */
+          case 2:
+            points[0] = -1.;
+            points[1] = -1.;
+            points[2] = 1.;
+            points[3] = -1.;
+            points[4] = -1.;
+            points[5] = 1.;
+            points[6] = 1.;
+            points[7] = 1.;
+            weights[0] = weights[1] = weights[2] = 1.;
+            break;
+          case 3:
+            points[0] = -1.;
+            points[1] = -1.;
+            points[2] = -1.;
+            points[3] = 1.;
+            points[4] = -1.;
+            points[5] = -1.;
+            points[6] = -1.;
+            points[7] = 1.;
+            points[8] = -1.;
+            points[9] = 1.;
+            points[10] = 1.;
+            points[11] = -1.;
+            points[12] = -1.;
+            points[13] = -1.;
+            points[14] = 1.;
+            points[15] = 1.;
+            points[16] = -1.;
+            points[17] = 1.;
+            points[18] = -1.;
+            points[19] = 1.;
+            points[20] = 1.;
+            points[21] = 1.;
+            points[22] = 1.;
+            points[23] = 1.;
+            weights[0] = weights[1] = weights[2] = 1.;
+            break;
+        }
+      }
+
+    ierr =
+      PetscQuadratureCreate(PetscObjectComm((PetscObject) mesh),&quad);CHKERRQ(ierr);
+    ierr = PetscQuadratureSetData(quad,dim,1,numPoints,points,weights);CHKERRQ(ierr);
+    ierr = PetscFESetQuadrature(fevel,quad);CHKERRQ(ierr);
+    ierr = PetscQuadratureDestroy(&quad);CHKERRQ(ierr);
+  }
+
+  ierr = PetscFECopyQuadrature(fevel,fepres);CHKERRQ(ierr);
+  fevel->ops->integratejacobian = PetscFEIntegrateJacobian_WY;
+
+  ierr = DMSetField(mesh,0,NULL,(PetscObject) fevel);CHKERRQ(ierr);
+  ierr = DMSetField(mesh,1,NULL,(PetscObject) fepres);CHKERRQ(ierr);
+  ierr = DMCreateDS(mesh);CHKERRQ(ierr);
+  ierr = (*setup)(mesh,user);CHKERRQ(ierr);
+  while (cdm) {
+    ierr = DMCopyDisc(mesh,cdm);CHKERRQ(ierr);
+    ierr = DMGetCoarseDM(cdm,&cdm);CHKERRQ(ierr);
+  }
+
+  ierr = PetscFEDestroy(&fevel);CHKERRQ(ierr);
+  ierr = PetscFEDestroy(&fepres);CHKERRQ(ierr);
+  ierr = DMDestroy(&cdm);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 int main(int argc,char ** argv)
 {
   UserCtx        user;
@@ -927,8 +915,8 @@ int main(int argc,char ** argv)
   /* Example: Mapping from edges to vertices*/
   ierr = DMPlexGetStratumMap(mesh,1,0,&edgeVertSec,&edge2Vert);CHKERRQ(ierr);
 
-  PetscSectionView(edgeVertSec,PETSC_VIEWER_STDOUT_WORLD);
-  ISView(edge2Vert,PETSC_VIEWER_STDOUT_WORLD);
+//  PetscSectionView(edgeVertSec,PETSC_VIEWER_STDOUT_WORLD);
+//  ISView(edge2Vert,PETSC_VIEWER_STDOUT_WORLD);
 
   /* Example: Mapping from cells to vertices*/
   ierr = DMPlexGetStratumMap(mesh,user.dim,0,&cellVertSec,&cell2Vert);CHKERRQ(ierr);
@@ -980,6 +968,18 @@ int main(int argc,char ** argv)
       -velocity_petscspace_degree 1 \
       -velocity_petscdualspace_type bdm \
       -velocity_petscdualspace_lagrange_node_endpoints true 
+    test:
+      suffix: linear
+      args: -sol_form linear -mesh_transform none
+
+  testset:
+    suffix: 2d_bdmq
+    args: -dim 2 \
+      -simplex false \
+      -velocity_petscspace_degree 1 \
+      -velocity_petscdualspace_type bdm \
+      -velocity_petscdualspace_lagrange_tensor 1 \
+      -velocity_petscdualspace_lagrange_node_endpoints true
     test:
       suffix: linear
       args: -sol_form linear -mesh_transform none
