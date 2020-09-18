@@ -335,7 +335,7 @@ PetscErrorCode calcfluxs(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar e
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode calcfluxa(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar emma, PetscScalar *flux)   /* this function is not currently called upon */
+PetscErrorCode calcfluxa(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar emma, PetscScalar *flux)   /* not currently called */
 {
   PetscScalar emm = 0.001;
 

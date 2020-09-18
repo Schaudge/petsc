@@ -263,7 +263,7 @@ typedef struct xxt_CDT *xxt_ADT;
 Function: XXT_new()
 
 Return: ADT ptr or NULL upon failure.
-Description: This function allocates and returns an xxt handle
+Description: Allocates and returns an xxt handle
 Usage: xxt_handle = xxt_new();
 **************************************xxt.h***********************************/
 PETSC_INTERN xxt_ADT XXT_new(void);
@@ -274,7 +274,7 @@ Function: XXT_free()
 
 Input : pointer to ADT.
 
-Description: This function frees the storage associated with an xxt handle
+Description: Frees the storage associated with an xxt handle
 Usage: XXT_free(xxt_handle);
 **************************************xxt.h***********************************/
 PETSC_INTERN PetscInt XXT_free(xxt_ADT);
@@ -285,7 +285,7 @@ Function: XXT_factor
 
 Input : ADT ptr,  and pointer to object
 Return: 0 on failure, 1 on success
-Description: This function sets the xxt solver
+Description: Sets the xxt solver
 
 xxt assumptions: given n rows of global coarse matrix (E_loc) where
    o global dofs N = sum_p(n), p=0,P-1
@@ -323,7 +323,7 @@ Function: XXT_solve
 Input : ADT ptr, b (rhs)
 Output: x (soln)
 Return:
-Description: This function performs x = E^-1.b
+Description: Performs x = E^-1.b
 Usage:
 XXT_solve(xxt_handle, double *x, double *b)
 XXT_solve(xxt_handle, double *x, NULL)
@@ -377,7 +377,7 @@ typedef struct xyt_CDT *xyt_ADT;
 Function: XYT_new()
 
 Return: ADT ptr or NULL upon failure.
-Description: This function allocates and returns an xyt handle
+Description: Allocates and returns an xyt handle
 Usage: xyt_handle = xyt_new();
 **************************************xyt.h***********************************/
 PETSC_INTERN xyt_ADT XYT_new(void);
@@ -387,7 +387,7 @@ PETSC_INTERN xyt_ADT XYT_new(void);
 Function: XYT_free()
 
 Input : pointer to ADT.
-Description: This function frees the storage associated with an xyt handle
+Description: Frees the storage associated with an xyt handle
 Usage: XYT_free(xyt_handle);
 **************************************xyt.h***********************************/
 PETSC_INTERN PetscErrorCode XYT_free(xyt_ADT);
@@ -399,7 +399,7 @@ Function: XYT_factor
 Input : ADT ptr,  and pointer to object
 Output:
 Return: 0 on failure, 1 on success
-Description: This function sets the xyt solver
+Description: Sets the xyt solver
 
 xyt assumptions: given n rows of global coarse matrix (E_loc) where
    o global dofs N = sum_p(n), p=0,P-1
@@ -437,7 +437,7 @@ Function: XYT_solve
 Input : ADT ptr, b (rhs)
 Output: x (soln)
 Return:
-Description: This function performs x = E^-1.b
+Description: Performs x = E^-1.b
 Usage: XYT_solve(xyt_handle, double *x, double *b)
 **************************************xyt.h***********************************/
 PETSC_INTERN PetscErrorCode XYT_solve(xyt_ADT,PetscScalar*,PetscScalar*);

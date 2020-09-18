@@ -3812,7 +3812,7 @@ PetscErrorCode TSEvaluateWLTE(TS ts,NormType wnormtype,PetscInt *order,PetscReal
    Level: advanced
 
    Notes:
-   This function cannot be called until all stages have been evaluated.
+   Cannot be called until all stages have been evaluated.
    It is normally called by adaptive controllers before a step has been accepted and may also be called by the user after TSStep() has returned.
 
 .seealso: TSStep(), TSAdapt
@@ -4975,7 +4975,7 @@ PetscErrorCode  TSGetDM(TS ts,DM *dm)
 . F - the nonlinear residual
 
    Notes:
-   This function is not normally called by users and is automatically registered with the SNES used by TS.
+   Not normally called by users and is automatically registered with the SNES used by TS.
    It is most frequently passed to MatFDColoringSetFunction().
 
    Level: advanced
@@ -5012,7 +5012,7 @@ PetscErrorCode  SNESTSFormFunction(SNES snes,Vec U,Vec F,void *ctx)
 - flag - indicates any structure change in the matrix
 
    Notes:
-   This function is not normally called by users and is automatically registered with the SNES used by TS.
+   Not normally called by users and is automatically registered with the SNES used by TS.
 
    Level: developer
 
@@ -5052,7 +5052,7 @@ PetscErrorCode  SNESTSFormJacobian(SNES snes,Vec U,Mat A,Mat B,void *ctx)
    Level: intermediate
 
    Notes:
-   This function is intended to be passed to TSSetRHSFunction() to evaluate the right hand side for linear problems.
+   Intended to be passed to TSSetRHSFunction() to evaluate the right hand side for linear problems.
    The matrix (and optionally the evaluation context) should be passed to TSSetRHSJacobian().
 
 .seealso: TSSetRHSFunction(), TSSetRHSJacobian(), TSComputeRHSJacobianConstant()
@@ -5088,7 +5088,7 @@ PetscErrorCode TSComputeRHSFunctionLinear(TS ts,PetscReal t,Vec U,Vec F,void *ct
    Level: intermediate
 
    Notes:
-   This function is intended to be passed to TSSetRHSJacobian() to evaluate the Jacobian for linear time-independent problems.
+   Intended to be passed to TSSetRHSJacobian() to evaluate the Jacobian for linear time-independent problems.
 
 .seealso: TSSetRHSFunction(), TSSetRHSJacobian(), TSComputeRHSFunctionLinear()
 @*/
@@ -5158,7 +5158,7 @@ PetscErrorCode TSComputeIFunctionLinear(TS ts,PetscReal t,Vec U,Vec Udot,Vec F,v
    Level: advanced
 
    Notes:
-   This function is intended to be passed to TSSetIJacobian() to evaluate the Jacobian for linear time-independent problems.
+   Intended to be passed to TSSetIJacobian() to evaluate the Jacobian for linear time-independent problems.
 
    It is only appropriate for problems of the form
 
@@ -5543,7 +5543,7 @@ PetscErrorCode  TSMonitorSolution(TS ts,PetscInt step,PetscReal ptime,Vec u,Pets
    The VTK format does not allow writing multiple time steps in the same file, therefore a different file will be written for each time step.
    These are named according to the file name template.
 
-   This function is normally passed as an argument to TSMonitorSet() along with TSMonitorSolutionVTKDestroy().
+   Normally passed as an argument to TSMonitorSet() along with TSMonitorSolutionVTKDestroy().
 
 .seealso: TSMonitorSet(), TSMonitorDefault(), VecView()
 @*/
@@ -5573,7 +5573,7 @@ PetscErrorCode TSMonitorSolutionVTK(TS ts,PetscInt step,PetscReal ptime,Vec u,vo
    Level: intermediate
 
    Note:
-   This function is normally passed to TSMonitorSet() along with TSMonitorSolutionVTK().
+   Normally passed to TSMonitorSet() along with TSMonitorSolutionVTK().
 
 .seealso: TSMonitorSet(), TSMonitorSolutionVTK()
 @*/
@@ -7448,7 +7448,7 @@ PetscErrorCode TSSetFunctionDomainError(TS ts, PetscErrorCode (*func)(TS,PetscRe
 .    accept - Set to PETSC_FALSE if the current state vector is valid.
 
     Note:
-    This function is called by the TS integration routines and calls the user provided function (set with TSSetFunctionDomainError())
+    Called by the TS integration routines and calls the user provided function (set with TSSetFunctionDomainError())
     to check if the current state is valid.
 
     Level: developer
@@ -7467,7 +7467,7 @@ PetscErrorCode TSFunctionDomainError(TS ts,PetscReal stagetime,Vec Y,PetscBool* 
 }
 
 /*@C
-  TSClone - This function clones a time step object.
+  TSClone - Clones a time step object.
 
   Collective
 
@@ -7478,7 +7478,7 @@ PetscErrorCode TSFunctionDomainError(TS ts,PetscReal stagetime,Vec Y,PetscBool* 
 . tsout   - The output TS (cloned)
 
   Notes:
-  This function is used to create a clone of a TS object. It is used in ARKIMEX for initializing the slope for first stage explicit methods. It will likely be replaced in the future with a mechanism of switching methods on the fly.
+  Used to create a clone of a TS object. It is used in ARKIMEX for initializing the slope for first stage explicit methods. It will likely be replaced in the future with a mechanism of switching methods on the fly.
 
   When using TSDestroy() on a clone the user has to first reset the correct TS reference in the embedded SNES object: e.g.: by running SNES snes_dup=NULL; TSGetSNES(ts,&snes_dup); TSSetSNES(ts,snes_dup);
 

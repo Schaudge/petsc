@@ -422,7 +422,7 @@ M*/
   Level: beginner
 
    Notes:
-    This function just calls MPI_Abort().
+    Calls MPI_Abort().
 
 .seealso: PetscTraceBackErrorHandler(), PetscPushErrorHandler(), PetscError(), CHKERRQ(), CHKMEMQ, SETERRQ1(), SETERRQ2()
 M*/
@@ -784,7 +784,7 @@ M*/
 
 /*MC
    PetscFunctionBeginHot - Substitute for PetscFunctionBegin to be used in functions that are called in
-   performance-critical circumstances.  Use of this function allows for lighter profiling by default.
+   performance-critical circumstances.  Allows for lighter profiling by default.
 
    Synopsis:
    #include <petscsys.h>

@@ -10,7 +10,7 @@ PETSC_EXTERN PetscErrorCode TaoLineSearchCreate_OWArmijo(TaoLineSearch);
 static PetscBool TaoLineSearchPackageInitialized = PETSC_FALSE;
 
 /*@C
-  TaoLineSearchFinalizePackage - This function destroys everything in the PETSc/TAO
+  TaoLineSearchFinalizePackage - Destroys everything in the PETSc/TAO
   interface to the TaoLineSearch package. It is called from PetscFinalize().
 
   Level: developer
@@ -26,7 +26,7 @@ PetscErrorCode TaoLineSearchFinalizePackage(void)
 }
 
 /*@C
-  TaoLineSearchInitializePackage - This function registers the line-search
+  TaoLineSearchInitializePackage - Registers the line-search
   algorithms in TAO.  When using shared or static libraries, this function is called from the
   first entry to TaoCreate(); when using dynamic, it is called
   from PetscDLLibraryRegister_tao()

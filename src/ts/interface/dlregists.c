@@ -2,8 +2,7 @@
 
 static PetscBool TSPackageInitialized = PETSC_FALSE;
 /*@C
-  TSFinalizePackage - This function destroys everything in the Petsc interface to Mathematica. It is
-  called from PetscFinalize().
+  TSFinalizePackage - Frees all the global data structures associated with the TS integrators
 
   Level: developer
 
@@ -22,7 +21,7 @@ PetscErrorCode  TSFinalizePackage(void)
 }
 
 /*@C
-  TSInitializePackage - This function initializes everything in the TS package. It is called
+  TSInitializePackage - Initializes everything in the TS package. It is called
   from PetscDLLibraryRegister_petscts() when using dynamic libraries, and on the first call to TSCreate()
   when using shared or static libraries.
 
@@ -101,7 +100,7 @@ PetscErrorCode  TSInitializePackage(void)
 
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 /*
-  PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
+  PetscDLLibraryRegister - Called automatically when the dynamic library it is in is opened.
 
   This one registers all the TS methods that are in the basic PETSc libpetscts library.
 

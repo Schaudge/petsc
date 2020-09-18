@@ -11,7 +11,7 @@ extern PetscFunctionList ISLocalToGlobalMappingList;
 const char       *ISInfos[] = {"SORTED", "UNIQUE", "PERMUTATION", "INTERVAL", "IDENTITY", "ISInfo", "IS_",NULL};
 
 /*@C
-  ISFinalizePackage - This function destroys everything in the IS package. It is
+  ISFinalizePackage - Destroys everything in the IS package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -33,7 +33,7 @@ PetscErrorCode  ISFinalizePackage(void)
 }
 
 /*@C
-      ISInitializePackage - This function initializes everything in the IS package. It is called
+      ISInitializePackage - Initializes everything in the IS package. It is called
   from PetscDLLibraryRegister_petscvec() when using dynamic libraries, and on the first call to ISCreateXXXX()
   when using shared or static libraries.
 
@@ -141,7 +141,7 @@ PetscInt          NormIds[7];  /* map from NormType to IDs used to cache Normval
 static PetscBool  VecPackageInitialized = PETSC_FALSE;
 
 /*@C
-  VecInitializePackage - This function initializes everything in the Vec package. It is called
+  VecInitializePackage - Initializes everything in the Vec package. It is called
   from PetscDLLibraryRegister_petscvec() when using dynamic libraries, and on the first call to VecCreate()
   when using shared or static libraries.
 
@@ -256,7 +256,7 @@ PetscErrorCode  VecInitializePackage(void)
 }
 
 /*@C
-  VecFinalizePackage - This function finalizes everything in the Vec package. It is called
+  VecFinalizePackage - Finalizes everything in the Vec package. It is called
   from PetscFinalize().
 
   Level: developer
@@ -283,7 +283,7 @@ PetscErrorCode  VecFinalizePackage(void)
 
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 /*
-  PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
+  PetscDLLibraryRegister - Called when the dynamic library it is in is opened.
 
   This one registers all the methods that are in the basic PETSc Vec library.
 

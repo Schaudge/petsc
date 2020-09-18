@@ -889,7 +889,7 @@ PetscErrorCode MatMatMultSymbolic_MPIAIJ_MPIAIJ(Mat A,Mat P,PetscReal fill,Mat C
   PetscFunctionReturn(0);
 }
 
-/* This function is needed for the seqMPI matrix-matrix multiplication.  */
+/* Needed for the seqMPI matrix-matrix multiplication.  */
 /* Three input arrays are merged to one output array. The size of the    */
 /* output array is also output. Duplicate entries only show up once.     */
 static void Merge3SortedArrays(PetscInt  size1, PetscInt *in1,

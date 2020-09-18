@@ -81,7 +81,7 @@ PetscErrorCode  TSGLLEAdaptRegisterAll(void)
 }
 
 /*@C
-  TSGLLEFinalizePackage - This function destroys everything in the TSGLLE package. It is
+  TSGLLEFinalizePackage - Destroys everything in the TSGLLE package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -100,7 +100,7 @@ PetscErrorCode  TSGLLEAdaptFinalizePackage(void)
 }
 
 /*@C
-  TSGLLEAdaptInitializePackage - This function initializes everything in the TSGLLEAdapt package. It is
+  TSGLLEAdaptInitializePackage - Initializes everything in the TSGLLEAdapt package. It is
   called from TSInitializePackage().
 
   Level: developer

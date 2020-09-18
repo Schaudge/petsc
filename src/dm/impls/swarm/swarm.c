@@ -115,7 +115,7 @@ PetscErrorCode VecView_Swarm(Vec v, PetscViewer viewer)
 
    The field with name fieldname must be defined as having a data type of PetscScalar.
 
-   This function must be called prior to calling DMCreateLocalVector(), DMCreateGlobalVector().
+   Must be called prior to calling DMCreateLocalVector(), DMCreateGlobalVector().
    Mutiple calls to DMSwarmVectorDefineField() are permitted.
 
 .seealso: DMSwarmRegisterPetscDatatypeField(), DMCreateGlobalVector(), DMCreateLocalVector()

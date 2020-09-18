@@ -85,10 +85,10 @@ PetscErrorCode  PetscErrorPrintfDefault(const char format[],...)
   static PetscBool PetscErrorPrintfCalled = PETSC_FALSE;
 
   /*
-      This function does not call PetscFunctionBegin and PetscFunctionReturn() because
+      Does not call PetscFunctionBegin and PetscFunctionReturn() because
     it may be called by PetscStackView().
 
-      This function does not do error checking because it is called by the error handlers.
+      Does not do error checking because it is called by the error handlers.
   */
 
   if (!PetscErrorPrintfCalled) {

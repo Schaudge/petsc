@@ -990,7 +990,7 @@ PetscErrorCode  DMCompositeGetISLocalToGlobalMappings(DM dm,ISLocalToGlobalMappi
    Level: intermediate
 
    Notes:
-   At present, a composite local vector does not normally exist.  This function is used to provide index sets for
+   At present, a composite local vector does not normally exist.  Used to provide index sets for
    MatGetLocalSubMatrix().  In the future, the scatters for each entry in the DMComposite may be be merged into a single
    scatter to a composite local vector.  The user should not typically need to know which is being done.
 

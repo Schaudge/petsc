@@ -291,7 +291,7 @@ static PetscErrorCode PetscViewerBinarySetUseMPIIO_Binary(PetscViewer viewer,Pet
     Level: advanced
 
     Note:
-    If MPI-IO is not available, this function will always return PETSC_FALSE
+    If MPI-IO is not available, will always return PETSC_FALSE
 
     Fortran Note:
     This routine is not supported in Fortran.

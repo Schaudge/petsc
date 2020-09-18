@@ -1164,7 +1164,7 @@ PetscErrorCode SNESResetFromOptions(SNES snes)
    Level: intermediate
 
    Notes:
-   This function is currently not available from Fortran.
+   Currently not available from Fortran.
 
 .seealso: SNESGetApplicationContext(), SNESSetComputeApplicationContext(), SNESGetApplicationContext()
 @*/
@@ -1866,7 +1866,7 @@ PetscErrorCode  SNESSetFunction(SNES snes,Vec r,PetscErrorCode (*f)(SNES,Vec,Vec
    SNESSetInitialFunction - Sets the function vector to be used as the
    function norm at the initialization of the method.  In some
    instances, the user has precomputed the function before calling
-   SNESSolve.  This function allows one to avoid a redundant call
+   SNESSolve. Allows one to avoid a redundant call
    to SNESComputeFunction in that case.
 
    Logically Collective on SNES

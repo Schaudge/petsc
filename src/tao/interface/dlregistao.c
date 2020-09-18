@@ -5,7 +5,7 @@
 static PetscBool TaoPackageInitialized = PETSC_FALSE;
 
 /*@C
-  TaoFinalizePackage - This function destroys everything in the PETSc/TAO
+  TaoFinalizePackage -Destroys everything in the PETSc/TAO
   interface to the Tao package. It is called from PetscFinalize().
 
   Level: developer
@@ -23,7 +23,7 @@ PetscErrorCode TaoFinalizePackage(void)
 const char *const TaoADMMRegularizerTypes[] = {"REGULARIZER_USER","REGULARIZER_SOFT_THRESH","TaoADMMRegularizerType","TAO_ADMM_",NULL};
 const char *const TaoADMMUpdateTypes[]      = {"UPDATE_BASIC","UPDATE_ADAPTIVE","UPDATE_ADAPTIVE_RELAXED","TaoADMMUpdateType","TAO_ADMM_",NULL};
 /*@C
-  TaoInitializePackage - This function sets up PETSc to use the Tao
+  TaoInitializePackage - Sets up PETSc to use the Tao
   package.  When using static or shared libraries, this function is called from the
   first entry to TaoCreate(); when using shared or static libraries, it is called
   from PetscDLLibraryRegister_tao()
@@ -74,7 +74,7 @@ PetscErrorCode TaoInitializePackage(void)
 
 #ifdef PETSC_USE_DYNAMIC_LIBRARIES
 /*
-  PetscDLLibraryRegister - this function is called when the dynamic library it
+  PetscDLLibraryRegister - Called automatically when the dynamic library it
   is in is opened.
 
   This registers all of the Tao methods that are in the libtao

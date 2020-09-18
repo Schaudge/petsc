@@ -5,7 +5,7 @@
 static PetscBool  VecScatterPackageInitialized = PETSC_FALSE;
 
 /*@C
-  VecScatterFinalizePackage - This function destroys everything in the VecScatter package. It is
+  VecScatterFinalizePackage - Destroys everything in the VecScatter package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -24,7 +24,7 @@ PetscErrorCode VecScatterFinalizePackage(void)
 }
 
 /*@C
-      VecScatterInitializePackage - This function initializes everything in the VecScatter package. It is called
+      VecScatterInitializePackage - Initializes everything in the VecScatter package. It is called
   on the first call to VecScatterCreateXXXX().
 
   Level: developer

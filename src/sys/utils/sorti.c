@@ -243,9 +243,9 @@ PetscErrorCode  PetscSortedInt(PetscInt n,const PetscInt X[],PetscBool *sorted)
 -  X  - array of integers
 
    Notes:
-   This function serves as an alternative to PetscIntSortSemiOrdered(), and may perform faster especially if the array
-   is completely random. There are exceptions to this and so it is __highly__ recomended that the user benchmark their
-   code to see which routine is fastest.
+     Serves as an alternative to PetscIntSortSemiOrdered(), and may perform faster especially if the array
+     is completely random. There are exceptions to this and so it is __highly__ recomended that the user benchmark their
+     code to see which routine is fastest.
 
    Level: intermediate
 
@@ -536,9 +536,9 @@ PetscErrorCode  PetscSortedMPIInt(PetscInt n,const PetscMPIInt X[],PetscBool *so
    Level: intermediate
 
    Notes:
-   This function serves as an alternative to PetscMPIIntSortSemiOrdered(), and may perform faster especially if the array
-   is completely random. There are exceptions to this and so it is __highly__ recomended that the user benchmark their
-   code to see which routine is fastest.
+     Serves as an alternative to PetscMPIIntSortSemiOrdered(), and may perform faster especially if the array
+     is completely random. There are exceptions to this and so it is __highly__ recomended that the user benchmark their
+     code to see which routine is fastest.
 
 .seealso: PetscMPIIntSortSemiOrdered(), PetscSortReal(), PetscSortIntWithPermutation()
 @*/

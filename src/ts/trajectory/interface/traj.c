@@ -400,7 +400,7 @@ PetscErrorCode  TSTrajectorySetTransform(TSTrajectory tj,PetscErrorCode (*transf
 }
 
 /*@
-  TSTrajectoryCreate - This function creates an empty trajectory object used to store the time dependent solution of an ODE/DAE
+  TSTrajectoryCreate - Ceates an empty trajectory object used to store the time dependent solution of an ODE/DAE
 
   Collective
 

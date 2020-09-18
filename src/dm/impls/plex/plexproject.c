@@ -500,7 +500,7 @@ static PetscErrorCode DMGetFirstLabelEntry_Private(DM dm, DM odm, DMLabel label,
 }
 
 /*
-  This function iterates over a manifold, and interpolates the input function/field using the basis provided by the DS in our DM
+  Iterates over a manifold, and interpolates the input function/field using the basis provided by the DS in our DM
 
   There are several different scenarios:
 

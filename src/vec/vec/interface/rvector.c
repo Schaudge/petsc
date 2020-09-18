@@ -149,7 +149,8 @@ $    work load inbalance that causes certain processes to arrive much earlier th
      For complex numbers in C^n (that is a vector of n components with a complex number for each component) this is equal to the usual real dot product on the
      the space R^{2n} (that is a vector of 2n components with the real or imaginary part of the complex numbers for components)
 
-   Developer Note: This is not currently optimized to compute only the real part of the dot product.
+   Developer Note:
+     This is not currently optimized to compute only the real part of the dot product.
 
    Level: intermediate
 
@@ -1234,7 +1235,7 @@ PetscErrorCode  VecMAXPY(Vec y,PetscInt nv,const PetscScalar alpha[],Vec x[])
    Notes:
    The subvector Y should be returned with VecRestoreSubVector().
 
-   This function may return a subvector without making a copy, therefore it is not safe to use the original vector while
+   May return a subvector without making a copy, therefore it is not safe to use the original vector while
    modifying the subvector.  Other non-overlapping subvectors can still be obtained from X using this function.
 
 .seealso: MatCreateSubMatrix()
@@ -1436,7 +1437,7 @@ PetscErrorCode  VecRestoreSubVector(Vec X,IS is,Vec *Y)
    Level: beginner
 
    Notes:
-   This function is similar to VecGetArrayRead() which maps the local
+   Similar to VecGetArrayRead() which maps the local
    portion into a raw pointer.  VecGetLocalVectorRead() is usually
    almost as efficient as VecGetArrayRead() but in certain circumstances
    VecGetLocalVectorRead() can be much more efficient than
@@ -1516,7 +1517,7 @@ PetscErrorCode VecRestoreLocalVectorRead(Vec v,Vec w)
    Level: beginner
 
    Notes:
-   This function is similar to VecGetArray() which maps the local
+   Similar to VecGetArray() which maps the local
    portion into a raw pointer.  VecGetLocalVector() is usually about as
    efficient as VecGetArray() but in certain circumstances
    VecGetLocalVector() can be much more efficient than VecGetArray().
@@ -2157,7 +2158,7 @@ PetscErrorCode  VecReplaceArray(Vec vec,const PetscScalar array[])
 /*@C
    VecCUDAGetArray - Provides access to the CUDA buffer inside a vector.
 
-   This function has semantics similar to VecGetArray():  the pointer
+   Has semantics similar to VecGetArray():  the pointer
    returned by this function points to a consistent view of the vector
    data.  This may involve a copy operation of data from the host to the
    device if the data on the device is out of date.  If the device
@@ -2180,7 +2181,7 @@ PetscErrorCode  VecReplaceArray(Vec vec,const PetscScalar array[])
 .  a - the CUDA device pointer
 
    Fortran note:
-   This function is not currently available from Fortran.
+   Currently not available from Fortran.
 
    Level: intermediate
 
@@ -2215,7 +2216,7 @@ PETSC_EXTERN PetscErrorCode VecCUDAGetArray(Vec v, PetscScalar **a)
        VecCUDARestoreArray() returns.
 
    Fortran note:
-   This function is not currently available from Fortran.
+   Currently not available from Fortran.
 
    Level: intermediate
 
@@ -2238,7 +2239,7 @@ PETSC_EXTERN PetscErrorCode VecCUDARestoreArray(Vec v, PetscScalar **a)
 /*@C
    VecCUDAGetArrayRead - Provides read access to the CUDA buffer inside a vector.
 
-   This function is analogous to VecGetArrayRead():  The pointer
+   Analogous to VecGetArrayRead():  The pointer
    returned by this function points to a consistent view of the vector
    data.  This may involve a copy operation of data from the host to the
    device if the data on the device is out of date.  If the device
@@ -2260,7 +2261,7 @@ PETSC_EXTERN PetscErrorCode VecCUDARestoreArray(Vec v, PetscScalar **a)
 .  a - the CUDA pointer.
 
    Fortran note:
-   This function is not currently available from Fortran.
+   Currently not available from Fortran.
 
    Level: intermediate
 
@@ -2296,7 +2297,7 @@ PETSC_EXTERN PetscErrorCode VecCUDAGetArrayRead(Vec v, const PetscScalar **a)
        VecCUDARestoreArrayRead() returns.
 
    Fortran note:
-   This function is not currently available from Fortran.
+   Currently not available from Fortran.
 
    Level: intermediate
 
@@ -2333,7 +2334,7 @@ PETSC_EXTERN PetscErrorCode VecCUDARestoreArrayRead(Vec v, const PetscScalar **a
 .  a - the CUDA pointer
 
    Fortran note:
-   This function is not currently available from Fortran.
+   Currently available from Fortran.
 
    Level: advanced
 
@@ -2368,7 +2369,7 @@ PETSC_EXTERN PetscErrorCode VecCUDAGetArrayWrite(Vec v, PetscScalar **a)
        VecCUDARestoreArrayWrite() returns.
 
    Fortran note:
-   This function is not currently available from Fortran.
+   Currently not available from Fortran.
 
    Level: intermediate
 

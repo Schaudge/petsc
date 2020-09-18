@@ -262,7 +262,7 @@ PetscErrorCode DMGetDMSNESWrite(DM dm,DMSNES *snesdm)
    Level: developer
 
    Note:
-   The context is copied by reference. This function does not ensure that a context exists.
+     The context is copied by reference. Does not ensure that a context exists.
 
 .seealso: DMGetDMSNES(), SNESSetDM()
 @*/

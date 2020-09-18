@@ -387,7 +387,7 @@ PetscErrorCode TSGLEERegisterDestroy(void)
 }
 
 /*@C
-  TSGLEEInitializePackage - This function initializes everything in the TSGLEE package. It is called
+  TSGLEEInitializePackage - Initializes everything in the TSGLEE package. It is called
   from TSInitializePackage().
 
   Level: developer
@@ -408,7 +408,7 @@ PetscErrorCode TSGLEEInitializePackage(void)
 }
 
 /*@C
-  TSGLEEFinalizePackage - This function destroys everything in the TSGLEE package. It is
+  TSGLEEFinalizePackage - Destroys everything in the TSGLEE package. It is
   called from PetscFinalize().
 
   Level: developer

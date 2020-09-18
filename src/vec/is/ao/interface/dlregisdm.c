@@ -4,7 +4,7 @@
 static PetscBool AOPackageInitialized = PETSC_FALSE;
 
 /*@C
-  AOFinalizePackage - This function finalizes everything in the AO package. It is called
+  AOFinalizePackage - Finalizes everything in the AO package. It is called
   from PetscFinalize().
 
   Level: developer
@@ -23,7 +23,7 @@ PetscErrorCode  AOFinalizePackage(void)
 }
 
 /*@C
-  AOInitializePackage - This function initializes everything in the AO package. It is called
+  AOInitializePackage - Initializes everything in the AO package. It is called
   from PetscDLLibraryRegister_petscvec() when using dynamic libraries, and on the first call to AOCreate()
   when using static or shared libraries.
 

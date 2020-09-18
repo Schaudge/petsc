@@ -42,7 +42,7 @@ PETSC_EXTERN PetscErrorCode DMProductGetDM(DM dm,PetscInt slot,DM *subdm)
 - subdm - the sub-DM
 
   Notes:
-  This function does not destroy the provided sub-DM. You may safely destroy it after calling this function.
+    Ddoes not destroy the provided sub-DM. You may safely destroy it after calling this function.
 
   Level: advanced
 

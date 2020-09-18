@@ -10,7 +10,7 @@ PetscLogEvent MATMFFD_Mult;
 
 static PetscBool MatMFFDPackageInitialized = PETSC_FALSE;
 /*@C
-  MatMFFDFinalizePackage - This function destroys everything in the MatMFFD package. It is
+  MatMFFDFinalizePackage - Destroys everything in the MatMFFD package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -29,7 +29,7 @@ PetscErrorCode  MatMFFDFinalizePackage(void)
 }
 
 /*@C
-  MatMFFDInitializePackage - This function initializes everything in the MatMFFD package. It is called
+  MatMFFDInitializePackage - Initializes everything in the MatMFFD package. It is called
   from MatInitializePackage().
 
   Level: developer
@@ -298,7 +298,7 @@ static PetscErrorCode MatView_MFFD(Mat J,PetscViewer viewer)
    MatCreateMFFD_WP() to properly compute ||U|| only the first time
    in the linear solver rather than every time.
 
-   This function is referenced directly from MatAssemblyEnd_SNESMF(), which may be in a different shared library hence
+   Referenced directly from MatAssemblyEnd_SNESMF(), which may be in a different shared library hence
    it must be labeled as PETSC_EXTERN
 */
 PETSC_EXTERN PetscErrorCode MatAssemblyEnd_MFFD(Mat J,MatAssemblyType mt)
@@ -839,7 +839,7 @@ PetscErrorCode  MatMFFDSetFunction(Mat mat,PetscErrorCode (*func)(void*,Vec,Vec)
    Notes:
     If you use this you MUST call MatAssemblyBegin()/MatAssemblyEnd() on the matrix free
     matrix inside your compute Jacobian routine.
-    This function is necessary to compute the diagonal of the matrix.
+    Necessary to compute the diagonal of the matrix.
     funci must not contain any MPI call as it is called inside a loop on the local portion of the vector.
 
 .seealso: MatCreateSNESMF(),MatMFFDGetH(), MatMFFDSetHHistory(), MatMFFDResetHHistory(), SNESetFunction(), MatGetDiagonal()
@@ -869,7 +869,7 @@ PetscErrorCode  MatMFFDSetFunctioni(Mat mat,PetscErrorCode (*funci)(void*,PetscI
    Notes:
     If you use this you MUST call MatAssemblyBegin()/MatAssemblyEnd() on the matrix free
     matrix inside your compute Jacobian routine.
-    This function is necessary to compute the diagonal of the matrix.
+    Necessary to compute the diagonal of the matrix.
 
 
 .seealso: MatCreateSNESMF(),MatMFFDGetH(), MatCreateMFFD(), MATMFFD

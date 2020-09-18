@@ -893,8 +893,11 @@ PetscErrorCode MatProductSetType(Mat mat,MatProductType productype)
 
    Level: intermediate
 
-   Notes: this function should be called to remove any intermediate data used by the product
-          After having called this function, MatProduct operations can no longer be used on mat
+   Notes:
+     Should be called to remove any intermediate data used by the product
+     After being called, MatProduct operations can no longer be used on mat
+
+.seealso: MatProductCreate()
 @*/
 PetscErrorCode MatProductClear(Mat mat)
 {

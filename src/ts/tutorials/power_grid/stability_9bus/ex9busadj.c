@@ -350,7 +350,7 @@ PetscErrorCode IFunction(TS ts,PetscReal t, Vec X, Vec Xdot, Vec F, Userctx *use
   PetscFunctionReturn(0);
 }
 
-/* This function is used for solving the algebraic system only during fault on and
+/* Used for solving the algebraic system only during fault on and
    off times. It computes the entire F and then zeros out the part corresponding to
    differential equations
  F = [0;g(y)];

@@ -8,7 +8,7 @@
 #include <petsc/private/logimpl.h> /*I    "petscsys.h"   I*/
 
 /*@C
-  PetscIntStackDestroy - This function destroys a stack.
+  PetscIntStackDestroy - Destroys a stack.
 
   Not Collective
 
@@ -30,7 +30,7 @@ PetscErrorCode PetscIntStackDestroy(PetscIntStack stack)
 }
 
 /*@C
-  PetscIntStackEmpty - This function determines whether any items have been pushed.
+  PetscIntStackEmpty - Determines whether any items have been pushed.
 
   Not Collective
 
@@ -54,7 +54,7 @@ PetscErrorCode PetscIntStackEmpty(PetscIntStack stack, PetscBool  *empty)
 }
 
 /*@C
-  PetscIntStackTop - This function returns the top of the stack.
+  PetscIntStackTop - Returns the top of the stack.
 
   Not Collective
 
@@ -77,7 +77,7 @@ PetscErrorCode PetscIntStackTop(PetscIntStack stack, int *top)
 }
 
 /*@C
-  PetscIntStackPush - This function pushes an integer on the stack.
+  PetscIntStackPush - Pushes an integer on the stack.
 
   Not Collective
 
@@ -109,7 +109,7 @@ PetscErrorCode PetscIntStackPush(PetscIntStack stack, int item)
 }
 
 /*@C
-  PetscIntStackPop - This function pops an integer from the stack.
+  PetscIntStackPop - Pops an integer from the stack.
 
   Not Collective
 
@@ -133,7 +133,7 @@ PetscErrorCode PetscIntStackPop(PetscIntStack stack, int *item)
 }
 
 /*@C
-  PetscIntStackCreate - This function creates a stack.
+  PetscIntStackCreate - Creates a stack for holding integers.
 
   Not Collective
 

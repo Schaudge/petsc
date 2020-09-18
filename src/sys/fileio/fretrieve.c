@@ -338,7 +338,7 @@ PetscErrorCode  PetscSharedWorkingDirectory(MPI_Comm comm,PetscBool  *shared)
 -   found - if found or retrieved the file - valid on all processes
 
     Notes:
-    if the file already exists local this function just returns without downloading it.
+    if the file already exists local returns without downloading it.
 
     Level: intermediate
 @*/

@@ -476,7 +476,7 @@ extern PetscErrorCode private_DMSwarmProjectFields_PLEX(DM swarm,DM celldm,Petsc
 
    Notes:
 
-   If reuse = PETSC_FALSE, this function will allocate the array of Vec's, and each individual Vec.
+   If reuse = PETSC_FALSE, will allocate the array of Vec's, and each individual Vec.
      The user is responsible for destroying both the array and the individual Vec objects.
 
    Only swarm fields registered with data type = PETSC_REAL can be projected onto the cell DM.

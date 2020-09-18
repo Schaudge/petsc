@@ -235,7 +235,7 @@ PetscErrorCode PetscClassRegLogRegister(PetscClassRegLog classLog, const char cn
 
 /*------------------------------------------------ Query Functions --------------------------------------------------*/
 /*@C
-  PetscClassRegLogGetClass - This function returns the class corresponding to a given classid.
+  PetscClassRegLogGetClass - Returns the class corresponding to a given classid.
 
   Not Collective
 

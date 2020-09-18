@@ -492,7 +492,7 @@ PetscErrorCode TSARKIMEXRegisterDestroy(void)
 }
 
 /*@C
-  TSARKIMEXInitializePackage - This function initializes everything in the TSARKIMEX package. It is called
+  TSARKIMEXInitializePackage - Initializes everything in the TSARKIMEX package. It is called
   from TSInitializePackage().
 
   Level: developer
@@ -512,7 +512,7 @@ PetscErrorCode TSARKIMEXInitializePackage(void)
 }
 
 /*@C
-  TSARKIMEXFinalizePackage - This function destroys everything in the TSARKIMEX package. It is
+  TSARKIMEXFinalizePackage - Destroys everything in the TSARKIMEX package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -612,7 +612,7 @@ PetscErrorCode TSARKIMEXRegister(TSARKIMEXType name,PetscInt order,PetscInt s,
 
  x1 = x0 - h bt^T YdotI + h b^T YdotRHS
 
- This function can be called before or after ts->vec_sol has been updated.
+ May be called before or after ts->vec_sol has been updated.
  Suppose we have a completion formula (bt,b) and an embedded formula (bet,be) of different order.
  We can write
 

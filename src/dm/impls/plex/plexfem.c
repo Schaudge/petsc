@@ -1191,7 +1191,7 @@ PetscErrorCode DMComputeL2Diff_Plex(DM dm, PetscReal time, PetscErrorCode (**fun
 }
 
 /*@C
-  DMComputeL2DiffLocal - This function computes the L_2 difference between a function u and an FEM interpolant solution u_h.
+  DMComputeL2DiffLocal - Computes the L_2 difference between a function u and an FEM interpolant solution u_h.
 
   Collective on dm
 
@@ -1591,7 +1591,7 @@ PetscErrorCode DMComputeL2FieldDiff_Plex(DM dm, PetscReal time, PetscErrorCode (
 }
 
 /*@C
-  DMPlexComputeL2DiffVec - This function computes the cellwise L_2 difference between a function u and an FEM interpolant solution u_h, and stores it in a Vec.
+  DMPlexComputeL2DiffVec - Computes the cellwise L_2 difference between a function u and an FEM interpolant solution u_h, and stores it in a Vec.
 
   Collective on dm
 
@@ -1713,7 +1713,7 @@ PetscErrorCode DMPlexComputeL2DiffVec(DM dm, PetscReal time, PetscErrorCode (**f
 }
 
 /*@C
-  DMPlexComputeGradientClementInterpolant - This function computes the L2 projection of the cellwise gradient of a function u onto P1, and stores it in a Vec.
+  DMPlexComputeGradientClementInterpolant - Computes the L2 projection of the cellwise gradient of a function u onto P1, and stores it in a Vec.
 
   Collective on dm
 

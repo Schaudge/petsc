@@ -3,7 +3,7 @@
 
 static PetscBool PetscRandomPackageInitialized = PETSC_FALSE;
 /*@C
-  PetscRandomFinalizePackage - This function destroys everything in the Petsc interface to the Random package. It is
+  PetscRandomFinalizePackage - Destroys everything in the Petsc interface to the Random package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -22,7 +22,7 @@ PetscErrorCode  PetscRandomFinalizePackage(void)
 }
 
 /*@C
-  PetscRandomInitializePackage - This function initializes everything in the PetscRandom package. It is called
+  PetscRandomInitializePackage - Initializes everything in the PetscRandom package. It is called
   from PetscDLLibraryRegister_petsc() when using dynamic libraries, and on the first call to PetscRandomCreate()
   when using shared or static libraries.
 

@@ -17,7 +17,7 @@ const char *const *const PCFailedReasons       = PCFailedReasons_Shifted + 1;
 
 static PetscBool PCPackageInitialized = PETSC_FALSE;
 /*@C
-  PCFinalizePackage - This function destroys everything in the Petsc interface to the characteristics package. It is
+  PCFinalizePackage - Destroys everything in the Petsc interface to the characteristics package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -37,7 +37,7 @@ PetscErrorCode  PCFinalizePackage(void)
 }
 
 /*@C
-  PCInitializePackage - This function initializes everything in the PC package. It is called
+  PCInitializePackage - Initializes everything in the PC package. It is called
   from PetscDLLibraryRegister_petscksp() when using dynamic libraries, and on the first call to PCCreate()
   when using shared static libraries.
 
@@ -125,7 +125,7 @@ const char *const KSPFCDTruncationTypes[] = {"STANDARD","NOTAY","KSPFCDTruncatio
 
 static PetscBool KSPPackageInitialized = PETSC_FALSE;
 /*@C
-  KSPFinalizePackage - This function destroys everything in the Petsc interface to the KSP package. It is
+  KSPFinalizePackage - Destroys everything in the Petsc interface to the KSP package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -145,7 +145,7 @@ PetscErrorCode  KSPFinalizePackage(void)
 }
 
 /*@C
-  KSPInitializePackage - This function initializes everything in the KSP package. It is called
+  KSPInitializePackage - Initializes everything in the KSP package. It is called
   from PetscDLLibraryRegister_petscksp() when using dynamic libraries, and on the first call to KSPCreate()
   when using shared or static libraries.
 
@@ -207,7 +207,7 @@ PetscErrorCode  KSPInitializePackage(void)
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 
 /*
-  PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
+  PetscDLLibraryRegister - Called automatically when the dynamic library it is in is opened.
 
   This one registers all the KSP and PC methods that are in the basic PETSc libpetscksp
   library.

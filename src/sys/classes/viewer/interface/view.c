@@ -5,7 +5,7 @@ PetscClassId PETSC_VIEWER_CLASSID;
 
 static PetscBool PetscViewerPackageInitialized = PETSC_FALSE;
 /*@C
-  PetscViewerFinalizePackage - This function destroys any global objects created in the Petsc viewers. It is
+  PetscViewerFinalizePackage - Destroys any global objects created in the Petsc viewers. It is
   called from PetscFinalize().
 
   Level: developer
@@ -49,7 +49,7 @@ PetscErrorCode  PetscViewerFinalizePackage(void)
 }
 
 /*@C
-  PetscViewerInitializePackage - This function initializes everything in the main PetscViewer package.
+  PetscViewerInitializePackage - Initializes everything in the main PetscViewer package.
 
   Level: developer
 

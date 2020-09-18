@@ -80,7 +80,8 @@ static PetscErrorCode SNESTR_Converged_Private(SNES snes,PetscInt it,PetscReal x
 
    Level: intermediate
 
-   Note: This function is called BEFORE the function evaluation within the SNESNEWTONTR solver.
+   Note:
+     Called BEFORE the function evaluation within the SNESNEWTONTR solver.
 
 .seealso: SNESNewtonTRPreCheck(), SNESNewtonTRGetPreCheck(), SNESNewtonTRSetPostCheck(), SNESNewtonTRGetPostCheck()
 @*/
@@ -135,8 +136,9 @@ PetscErrorCode  SNESNewtonTRGetPreCheck(SNES snes, PetscErrorCode (**func)(SNES,
 
    Level: intermediate
 
-   Note: This function is called BEFORE the function evaluation within the SNESNEWTONTR solver while the function set in
-   SNESLineSearchSetPostCheck() is called AFTER the function evaluation.
+   Note:
+     Called BEFORE the function evaluation within the SNESNEWTONTR solver while the function set in
+     SNESLineSearchSetPostCheck() is called AFTER the function evaluation.
 
 .seealso: SNESNewtonTRPostCheck(), SNESNewtonTRGetPostCheck()
 @*/

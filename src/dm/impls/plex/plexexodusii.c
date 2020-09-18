@@ -299,18 +299,19 @@ static PetscErrorCode EXOGetVarIndex_Private(int exoid, ex_entity_type obj_type,
 - degree - the degree of the interpolation space
 
   Notes:
-  Not all DM can be written to disk this way. For instance, exodus assume that element blocks (mapped to "Cell sets" labels)
-  consists of sequentially numbered cells. If this is not the case, the exodus file will be corrupted.
+    Not all DM can be written to disk this way. For instance, exodus assume that element blocks (mapped to "Cell sets" labels)
+    consists of sequentially numbered cells. If this is not the case, the exodus file will be corrupted.
 
-  If the dm has been distributed and exoid points to different files on each MPI rank, only the "local" part of the DM
-  (including "ghost" cells and vertices) will be written. If all exoid points to the same file, the resulting file will
-  probably be corrupted.
+    If the dm has been distributed and exoid points to different files on each MPI rank, only the "local" part of the DM
+    (including "ghost" cells and vertices) will be written. If all exoid points to the same file, the resulting file will
+    probably be corrupted.
 
-  DMPlex only represents geometry while most post-processing software expect that a mesh also provides information
-  on the discretization space. This function assumes that the file represents Lagrange finite elements of order 1 or 2.
-  It should be extended to use PetscFE objects.
+    DMPlex only represents geometry while most post-processing software expect that a mesh also provides information
+    on the discretization space. Assumes that the file represents Lagrange finite elements of order 1 or 2.
+    It should be extended to use PetscFE objects.
 
-  This function will only handle TRI, TET, QUAD and HEX cells.
+    Only handles TRI, TET, QUAD and HEX cells.
+
   Level: beginner
 
 .seealso: EXOGetVarIndex_Private(), VecViewPlex_ExodusII_Nodal_Internal(), VecLoadNodal_PlexEXO(), VecViewZonal_PlexEXO(), VecLoadZonal_PlexEXO()

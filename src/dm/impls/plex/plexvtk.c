@@ -661,9 +661,9 @@ static PetscErrorCode DMPlexVTKWriteAll_ASCII(DM dm, PetscViewer viewer)
   Level: developer
 
   Note:
-  This function is a callback used by the VTK viewer to actually write the file.
-  The reason for this odd model is that the VTK file format does not provide any way to write one field at a time.
-  Instead, metadata for the entire file needs to be available up-front before you can start writing the file.
+    Provides a callback used by the VTK viewer to actually write the file.
+    The reason for this odd model is that the VTK file format does not provide any way to write one field at a time.
+    Instead, metadata for the entire file needs to be available up-front before you can start writing the file.
 
 .seealso: PETSCVIEWERVTK
 @*/

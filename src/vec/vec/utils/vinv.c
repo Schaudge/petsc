@@ -1498,7 +1498,8 @@ PetscErrorCode  VecAbs(Vec v)
 
   Level: beginner
 
-  Note: This function does not yet support parallel Index Sets with non-local permutations
+  Note:
+    Does not yet support parallel Index Sets with non-local permutations
 
 .seealso: MatPermute()
 @*/

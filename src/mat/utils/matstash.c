@@ -214,7 +214,7 @@ PetscErrorCode MatStashSetInitialSize_Private(MatStash *stash,PetscInt max)
   PetscFunctionReturn(0);
 }
 
-/* MatStashExpand_Private - Expand the stash. This function is called
+/* MatStashExpand_Private - Expand the stash. Called automatically
    when the space in the stash is not sufficient to add the new values
    being inserted into the stash.
 
@@ -252,8 +252,7 @@ static PetscErrorCode MatStashExpand_Private(MatStash *stash,PetscInt incr)
   PetscFunctionReturn(0);
 }
 /*
-  MatStashValuesRow_Private - inserts values into the stash. This function
-  expects the values to be roworiented. Multiple columns belong to the same row
+  MatStashValuesRow_Private - inserts values into the stash. Expects the values to be row-oriented. Multiple columns belong to the same row
   can be inserted with a single call to this function.
 
   Input Parameters:
@@ -291,8 +290,7 @@ PetscErrorCode MatStashValuesRow_Private(MatStash *stash,PetscInt row,PetscInt n
 }
 
 /*
-  MatStashValuesCol_Private - inserts values into the stash. This function
-  expects the values to be columnoriented. Multiple columns belong to the same row
+  MatStashValuesCol_Private - inserts values into the stash. Expects the values to be column-oriented. Multiple columns belong to the same row
   can be inserted with a single call to this function.
 
   Input Parameters:
@@ -333,9 +331,9 @@ PetscErrorCode MatStashValuesCol_Private(MatStash *stash,PetscInt row,PetscInt n
 
 /*
   MatStashValuesRowBlocked_Private - inserts blocks of values into the stash.
-  This function expects the values to be roworiented. Multiple columns belong
+  Expects the values to be row-oriented. Multiple columns belong
   to the same block-row can be inserted with a single call to this function.
-  This function extracts the sub-block of values based on the dimensions of
+  Extracts the sub-block of values based on the dimensions of
   the original input block, and the row,col values corresponding to the blocks.
 
   Input Parameters:
@@ -387,9 +385,9 @@ PetscErrorCode MatStashValuesRowBlocked_Private(MatStash *stash,PetscInt row,Pet
 
 /*
   MatStashValuesColBlocked_Private - inserts blocks of values into the stash.
-  This function expects the values to be roworiented. Multiple columns belong
+  Expects the values to be row-oriented. Multiple columns belong
   to the same block-row can be inserted with a single call to this function.
-  This function extracts the sub-block of values based on the dimensions of
+  Extracts the sub-block of values based on the dimensions of
   the original input block, and the row,col values corresponding to the blocks.
 
   Input Parameters:
@@ -440,7 +438,7 @@ PetscErrorCode MatStashValuesColBlocked_Private(MatStash *stash,PetscInt row,Pet
 }
 /*
   MatStashScatterBegin_Private - Initiates the transfer of values to the
-  correct owners. This function goes through the stash, and check the
+  correct owners. Goes through the stash, and check the
   owners of each stashed value, and sends the values off to the owner
   processors.
 
@@ -618,7 +616,7 @@ static PetscErrorCode MatStashScatterBegin_Ref(Mat mat,MatStash *stash,PetscInt 
 }
 
 /*
-   MatStashScatterGetMesg_Private - This function waits on the receives posted
+   MatStashScatterGetMesg_Private - Waits on the receives posted
    in the function MatStashScatterBegin_Private() and returns one message at
    a time to the calling function. If no messages are left, it indicates this
    by setting flg = 0, else it sets flg = 1.

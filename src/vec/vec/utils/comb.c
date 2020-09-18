@@ -74,7 +74,7 @@ static PetscErrorCode  PetscSplitReductionCreate(MPI_Comm comm,PetscSplitReducti
 }
 
 /*
-       This function is the MPI reduction operation used when there is
+       Is the MPI reduction operation used when there is
    a combination of sums and max in the reduction. The call below to
    MPI_Op_create() converts the function PetscSplitReduction_Local() to the
    MPI operator PetscSplitReduction_Op.

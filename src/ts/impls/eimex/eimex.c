@@ -24,7 +24,6 @@ typedef struct {
   TSStepStatus status;
 } TS_EIMEX;
 
-/* This function is pure */
 static PetscInt Map(PetscInt i, PetscInt j, PetscInt s)
 {
   return ((2*s-j+1)*j/2+i-j);

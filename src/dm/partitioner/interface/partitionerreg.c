@@ -88,7 +88,7 @@ PetscErrorCode PetscPartitionerRegisterAll(void)
 static PetscBool PetscPartitionerPackageInitialized = PETSC_FALSE;
 
 /*@C
-  PetscPartitionerFinalizePackage - This function finalizes everything in the PetscPartitioner package.
+  PetscPartitionerFinalizePackage - Finalizes everything in the PetscPartitioner package.
   It is called from PetscFinalize().
 
   Level: developer
@@ -107,7 +107,7 @@ PetscErrorCode  PetscPartitionerFinalizePackage(void)
 }
 
 /*@C
-  PetscPartitionerInitializePackage - This function initializes everything in the PetscPartitioner package.
+  PetscPartitionerInitializePackage - Initializes everything in the PetscPartitioner package.
 
   Level: developer
 

@@ -3051,9 +3051,10 @@ PetscErrorCode DMPlexComputeCellType_Internal(DM dm, PetscInt p, PetscInt pdepth
 
   Level: developer
 
-  Note: This function is normally called automatically by Plex when a cell type is requested. It creates an
-  internal DMLabel named "celltype" which can be directly accessed using DMGetLabel(). A user may disable
-  automatic creation by creating the label manually, using DMCreateLabel(dm, "celltype").
+  Note:
+    Normally called automatically by Plex when a cell type is requested. It creates an
+    internal DMLabel named "celltype" which can be directly accessed using DMGetLabel(). A user may disable
+    automatic creation by creating the label manually, using DMCreateLabel(dm, "celltype").
 
 .seealso: DMPlexCreate(), DMPlexSymmetrize(), DMPlexStratify(), DMGetLabel(), DMCreateLabel()
 @*/
@@ -3887,8 +3888,9 @@ PetscErrorCode DMPlexGetPointHeight(DM dm, PetscInt point, PetscInt *height)
   Output Parameter:
 . celltypeLabel - The DMLabel recording cell polytope type
 
-  Note: This function will trigger automatica computation of cell types. This can be disabled by calling
-  DMCreateLabel(dm, "celltype") beforehand.
+  Note:
+    Triggers automatic computation of cell types. This can be disabled by calling
+    DMCreateLabel(dm, "celltype") beforehand.
 
   Level: developer
 
@@ -3947,10 +3949,11 @@ PetscErrorCode DMPlexGetCellType(DM dm, PetscInt cell, DMPolytopeType *celltype)
 . cell - The cell
 - celltype - The polytope type of the cell
 
-  Note: By default, cell types will be automatically computed using DMPlexComputeCellTypes() before this function
-  is executed. This function will override the computed type. However, if automatic classification will not succeed
-  and a user wants to manually specify all types, the classification must be disabled by calling
-  DMCreaateLabel(dm, "celltype") before getting or setting any cell types.
+  Note:
+    By default, cell types will be automatically computed using DMPlexComputeCellTypes() before this function
+    is executed. This function will override the computed type. However, if automatic classification will not succeed
+    and a user wants to manually specify all types, the classification must be disabled by calling
+    DMCreaateLabel(dm, "celltype") before getting or setting any cell types.
 
   Level: advanced
 

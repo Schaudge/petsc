@@ -104,7 +104,7 @@ PetscErrorCode TSBasicSymplecticRegisterDestroy(void)
 }
 
 /*@C
-  TSBasicSymplecticInitializePackage - This function initializes everything in the TSBasicSymplectic package. It is called
+  TSBasicSymplecticInitializePackage - Iitializes everything in the TSBasicSymplectic package. It is called
   from TSInitializePackage().
 
   Level: developer
@@ -124,7 +124,7 @@ PetscErrorCode TSBasicSymplecticInitializePackage(void)
 }
 
 /*@C
-  TSBasicSymplecticFinalizePackage - This function destroys everything in the TSBasicSymplectic package. It is
+  TSBasicSymplecticFinalizePackage - Destroys everything in the TSBasicSymplectic package. It is
   called from PetscFinalize().
 
   Level: developer

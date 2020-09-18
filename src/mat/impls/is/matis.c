@@ -1665,9 +1665,9 @@ static PetscErrorCode MatISFixLocalEmpty_IS(Mat A, PetscBool fix)
    Level: intermediate
 
    Notes:
-    This function has the same interface as the MPIAIJ preallocation routine in order to simplify the transition
-          from the asssembled format to the unassembled one. It overestimates the preallocation of MATIS local
-          matrices; for exact preallocation, the user should set the preallocation directly on local matrix objects.
+     Has the same interface as the MPIAIJ preallocation routine in order to simplify the transition
+     from the asssembled format to the unassembled one. It overestimates the preallocation of MATIS local
+     matrices; for exact preallocation, the user should set the preallocation directly on local matrix objects.
 
 .seealso: MatCreate(), MatCreateIS(), MatMPIAIJSetPreallocation(), MatISGetLocalMat(), MATIS
 @*/
@@ -2113,7 +2113,7 @@ general_assembly:
   Level: developer
 
   Notes:
-    This function has been deprecated and it will be removed in future releases. Update your code to use the MatConvert() interface.
+    Has been deprecated and it will be removed in future releases. Update your code to use the MatConvert() interface.
 
 .seealso: MATIS, MatConvert()
 @*/

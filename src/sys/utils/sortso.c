@@ -1114,7 +1114,7 @@ PetscErrorCode PetscTimSortWithArray(PetscInt n, void *arr, size_t asize, void *
    Notes:
    If the array is less than 64 entries long PetscSortInt() is automatically used.
 
-   This function serves as an alternative to PetscSortInt(). While this function works for any array of integers it is
+   Serves as an alternative to PetscSortInt(). While this function works for any array of integers it is
    significantly faster if the array is not totally random. There are exceptions to this and so it is __highly__
    recomended that the user benchmark their code to see which routine is fastest.
 
@@ -1156,7 +1156,7 @@ PetscErrorCode PetscIntSortSemiOrdered(PetscInt n, PetscInt arr[])
 
    If the array to be sorted is less than 64 entries long PetscSortIntWithArray() is automatically used.
 
-   This function serves as an alternative to PetscSortIntWithArray(). While this function works for any array of integers it is
+   Serves as an alternative to PetscSortIntWithArray(). While this function works for any array of integers it is
    significantly faster if the array is not totally random. There are exceptions to this and so it is __highly__
    recomended that the user benchmark their code to see which routine is fastest.
 
@@ -1194,7 +1194,7 @@ PetscErrorCode PetscIntSortSemiOrderedWithArray(PetscInt n, PetscInt arr1[], Pet
    Notes:
    If the array is less than 64 entries long PetscSortMPIInt() is automatically used.
 
-   This function serves as an alternative to PetscSortMPIInt(). While this function works for any array of PetscMPIInts it is
+   Serves as an alternative to PetscSortMPIInt(). While this function works for any array of PetscMPIInts it is
    significantly faster if the array is not totally random. There are exceptions to this and so it is __highly__
    recomended that the user benchmark their code to see which routine is fastest.
 
@@ -1237,7 +1237,7 @@ PetscErrorCode PetscMPIIntSortSemiOrdered(PetscInt n, PetscMPIInt arr[])
 
    If the array to be sorted is less than 64 entries long PetscSortMPIIntWithArray() is automatically used.
 
-   This function serves as an alternative to PetscSortMPIIntWithArray(). While this function works for any array of integers it is
+   Serves as an alternative to PetscSortMPIIntWithArray(). While this function works for any array of integers it is
    significantly faster if the array is not totally random. There are exceptions to this and so it is __highly__
    recomended that the user benchmark their code to see which routine is fastest.
 
@@ -1275,7 +1275,7 @@ PetscErrorCode PetscMPIIntSortSemiOrderedWithArray(PetscInt n, PetscMPIInt arr1[
    Notes:
    If the array is less than 64 entries long PetscSortReal() is automatically used.
 
-   This function serves as an alternative to PetscSortReal(). While this function works for any array of PetscReals it is
+   Serves as an alternative to PetscSortReal(). While this function works for any array of PetscReals it is
    significantly faster if the array is not totally random. There are exceptions to this and so it is __highly__
    recomended that the user benchmark their code to see which routine is fastest.
 
@@ -1316,7 +1316,7 @@ PetscErrorCode PetscRealSortSemiOrdered(PetscInt n, PetscReal arr[])
    Notes:
    If the array to be sorted is less than 64 entries long PetscSortRealWithArrayInt() is automatically used.
 
-   This function serves as an alternative to PetscSortRealWithArray(). While this function works for any array of PetscReals it is
+   Serves as an alternative to PetscSortRealWithArray(). While this function works for any array of PetscReals it is
    significantly faster if the array is not totally random. There are exceptions to this and so it is __highly__
    recomended that the user benchmark their code to see which routine is fastest.
 

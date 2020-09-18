@@ -51,10 +51,10 @@ PetscErrorCode PetscObjectStateGet(PetscObject obj,PetscObjectState *state)
 -  state - the object state
 
    Notes:
-    This function should be used with extreme caution. There is
-   essentially only one use for it: if the user calls Mat(Vec)GetRow(Array),
-   which increases the state, but does not alter the data, then this
-   routine can be used to reset the state.  Such a reset must be collective.
+     Should be used with extreme caution. There is
+     essentially only one use for it: if the user calls Mat(Vec)GetRow(Array),
+     which increases the state, but does not alter the data, then this
+     routine can be used to reset the state.  Such a reset must be collective.
 
    Level: advanced
 

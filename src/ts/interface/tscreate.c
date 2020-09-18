@@ -16,7 +16,7 @@ const char *const TSConvergedReasons_Shifted[] = {
 const char *const*TSConvergedReasons = TSConvergedReasons_Shifted + 4;
 
 /*@C
-  TSCreate - This function creates an empty timestepper. The problem type can then be set with TSSetProblemType() and the
+  TSCreate - Creates an empty timestepper. The problem type can then be set with TSSetProblemType() and the
        type of solver can then be set with TSSetType().
 
   Collective

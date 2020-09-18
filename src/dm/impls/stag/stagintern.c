@@ -17,14 +17,14 @@
 . newdm  - The new DM object
 
   Developer Notes:
-  Copies over all of the state for a DMStag object, except that which is
-  populated during DMSetUp().  This function is used within (all) other
-  functions that require an un-setup clone, which is common when duplicating,
-  coarsening, refining, or creating compatible DMs with different fields.  For
-  this reason it also accepts an MPI communicator as an argument (though note
-  that at the time of this writing, implementations of DMCoarsen and DMRefine
-  don't usually seem to respect their "comm" arguments). This function could be
-  pushed up to the general DM API (and perhaps given a different name).
+    Copies over all of the state for a DMStag object, except that which is
+    populated during DMSetUp().  Used within (all) other
+    functions that require an un-setup clone, which is common when duplicating,
+    coarsening, refining, or creating compatible DMs with different fields.  For
+    this reason it also accepts an MPI communicator as an argument (though note
+    that at the time of this writing, implementations of DMCoarsen and DMRefine
+    don't usually seem to respect their "comm" arguments). This function could be
+    pushed up to the general DM API (and perhaps given a different name).
 
   Level: developer
 

@@ -155,7 +155,7 @@ PetscErrorCode  PetscFinalized(PetscBool  *isFinalized)
 PETSC_INTERN PetscErrorCode PetscOptionsCheckInitial_Private(const char []);
 
 /*
-       This function is the MPI reduction operation used to compute the sum of the
+       Defines the MPI reduction operation used to compute the sum of the
    first half of the datatype and the max of the second half.
 */
 MPI_Op MPIU_MAXSUM_OP = 0;

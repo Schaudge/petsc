@@ -2884,7 +2884,7 @@ PetscErrorCode MatCreateSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS i
  After that B's columns are mapped into C's global column space, so that C is in the "disassembled"
  state, and needs to be "assembled" later by compressing B's column space.
 
- This function may be called in lieu of preallocation, so C should not be expected to be preallocated.
+ May be called in lieu of preallocation, so C should not be expected to be preallocated.
  Following this call, C->A & C->B have been created, even if empty.
  */
 PetscErrorCode MatSetSeqMats_MPIAIJ(Mat C,IS rowemb,IS dcolemb,IS ocolemb,MatStructure pattern,Mat A,Mat B)

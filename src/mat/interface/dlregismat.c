@@ -41,7 +41,7 @@ extern PetscErrorCode  MatMFFDInitializePackage(void);
 extern PetscErrorCode  MatSolverTypeDestroy(void);
 static PetscBool MatPackageInitialized = PETSC_FALSE;
 /*@C
-  MatFinalizePackage - This function destroys everything in the Petsc interface to the Mat package. It is
+  MatFinalizePackage - Destroys everything in the Petsc interface to the Mat package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -143,7 +143,7 @@ PETSC_INTERN PetscErrorCode MatGetFactor_constantdiagonal_petsc(Mat,MatFactorTyp
 PETSC_INTERN PetscErrorCode MatGetFactor_seqaij_bas(Mat,MatFactorType,Mat*);
 
 /*@C
-  MatInitializePackage - This function initializes everything in the Mat package. It is called
+  MatInitializePackage - Initializes everything in the Mat package. It is called
   from PetscDLLibraryRegister_petscmat() when using dynamic libraries, and on the first call to MatCreate()
   when using shared or static libraries.
 
@@ -432,7 +432,7 @@ PetscErrorCode  MatInitializePackage(void)
 
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 /*
-  PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
+  PetscDLLibraryRegister - Called automatically when the dynamic library it is in is opened.
 
   This one registers all the matrix methods that are in the basic PETSc Matrix library.
 

@@ -588,13 +588,13 @@ PetscErrorCode VecScatterRestoreRemoteOrdered_Private(VecScatter ctx,PetscBool s
   Level: intermediate
 
   Notes:
-   Effectively, this function creates all the necessary indexing buffers and work
+   Effectively, creates all the necessary indexing buffers and work
    vectors needed to move only those data points in a vector which need to
    be communicated across ranks. This is done at the first time this function is
    called. Currently, this only used in the context of the parallel SpMV call in
    MatMult_MPIAIJCUSPARSE.
 
-   This function is executed before the call to MatMult. This enables the memory
+   Executed before the call to MatMult. This enables the memory
    transfers to be overlapped with the MatMult SpMV kernel call.
 
 .seealso: VecScatterFinalizeForGPU(), VecScatterCreate(), VecScatterEnd()

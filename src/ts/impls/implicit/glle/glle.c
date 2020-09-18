@@ -9,7 +9,6 @@ static PetscFunctionList TSGLLEAcceptList;
 static PetscBool         TSGLLEPackageInitialized;
 static PetscBool         TSGLLERegisterAllCalled;
 
-/* This function is pure */
 static PetscScalar Factorial(PetscInt n)
 {
   PetscInt i;
@@ -24,7 +23,6 @@ static PetscScalar Factorial(PetscInt n)
   }
 }
 
-/* This function is pure */
 static PetscScalar CPowF(PetscScalar c,PetscInt p)
 {
   return PetscPowRealInt(PetscRealPart(c),p)/Factorial(p);
@@ -1298,7 +1296,7 @@ PetscErrorCode  TSGLLERegisterAll(void)
 }
 
 /*@C
-  TSGLLEInitializePackage - This function initializes everything in the TSGLLE package. It is called
+  TSGLLEInitializePackage - Initializes everything in the TSGLLE package. It is called
   from TSInitializePackage().
 
   Level: developer
@@ -1318,7 +1316,7 @@ PetscErrorCode  TSGLLEInitializePackage(void)
 }
 
 /*@C
-  TSGLLEFinalizePackage - This function destroys everything in the TSGLLE package. It is
+  TSGLLEFinalizePackage - Destroys everything in the TSGLLE package. It is
   called from PetscFinalize().
 
   Level: developer

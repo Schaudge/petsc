@@ -1853,7 +1853,7 @@ PetscErrorCode  ISCopy(IS is,IS isy)
    Notes:
    It is usually desirable to create a parallel IS and look at the local part when necessary.
 
-   This function is useful if serial ISs must be created independently, or to view many
+   Useful if serial ISs must be created independently, or to view many
    logically independent serial ISs.
 
    The input IS must have the same type on every process.

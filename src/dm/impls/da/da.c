@@ -27,7 +27,7 @@ PetscErrorCode  DMDASetSizes(DM da, PetscInt M, PetscInt N, PetscInt P)
   PetscValidLogicalCollectiveInt(da,M,2);
   PetscValidLogicalCollectiveInt(da,N,3);
   PetscValidLogicalCollectiveInt(da,P,4);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   if (M < 1) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_SIZ,"Number of grid points in X direction must be positive");
   if (N < 0) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_SIZ,"Number of grid points in Y direction must be positive");
   if (P < 0) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_SIZ,"Number of grid points in Z direction must be positive");
@@ -63,7 +63,7 @@ PetscErrorCode  DMDASetNumProcs(DM da, PetscInt m, PetscInt n, PetscInt p)
   PetscValidLogicalCollectiveInt(da,m,2);
   PetscValidLogicalCollectiveInt(da,n,3);
   PetscValidLogicalCollectiveInt(da,p,4);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   dd->m = m;
   dd->n = n;
   dd->p = p;
@@ -104,7 +104,7 @@ PetscErrorCode  DMDASetBoundaryType(DM da,DMBoundaryType bx,DMBoundaryType by,DM
   PetscValidLogicalCollectiveEnum(da,bx,2);
   PetscValidLogicalCollectiveEnum(da,by,3);
   PetscValidLogicalCollectiveEnum(da,bz,4);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   dd->bx = bx;
   dd->by = by;
   dd->bz = bz;
@@ -131,7 +131,7 @@ PetscErrorCode  DMDASetDof(DM da, PetscInt dof)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(da,DM_CLASSID,1,DMDA);
   PetscValidLogicalCollectiveInt(da,dof,2);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   dd->w  = dof;
   da->bs = dof;
   PetscFunctionReturn(0);
@@ -448,7 +448,7 @@ PetscErrorCode  DMDASetStencilType(DM da, DMDAStencilType stype)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(da,DM_CLASSID,1,DMDA);
   PetscValidLogicalCollectiveEnum(da,stype,2);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   dd->stencil_type = stype;
   PetscFunctionReturn(0);
 }
@@ -499,7 +499,7 @@ PetscErrorCode  DMDASetStencilWidth(DM da, PetscInt width)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(da,DM_CLASSID,1,DMDA);
   PetscValidLogicalCollectiveInt(da,width,2);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   dd->s = width;
   PetscFunctionReturn(0);
 }
@@ -565,7 +565,7 @@ PetscErrorCode  DMDASetOwnershipRanges(DM da, const PetscInt lx[], const PetscIn
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(da,DM_CLASSID,1,DMDA);
-  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"This function must be called before DMSetUp()");
+  if (da->setupcalled) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Must be called before DMSetUp()");
   if (lx) {
     if (dd->m < 0) SETERRQ(PetscObjectComm((PetscObject)da),PETSC_ERR_ARG_WRONGSTATE,"Cannot set ownership ranges before setting number of procs");
     ierr = DMDACheckOwnershipRanges_Private(da,dd->M,dd->m,lx);CHKERRQ(ierr);

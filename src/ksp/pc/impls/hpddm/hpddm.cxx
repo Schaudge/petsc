@@ -1091,7 +1091,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_HPDDM(PC pc)
 }
 
 /*@C
-     PCHPDDMInitializePackage - This function initializes everything in the PCHPDDM package. It is called from PCInitializePackage().
+     PCHPDDMInitializePackage - Initializes everything in the PCHPDDM package. It is called from PCInitializePackage().
 
    Level: intermediate
 
@@ -1122,7 +1122,7 @@ PetscErrorCode PCHPDDMInitializePackage(void)
 }
 
 /*@C
-     PCHPDDMFinalizePackage - This function frees everything from the PCHPDDM package. It is called from PetscFinalize().
+     PCHPDDMFinalizePackage - Frees everything from the PCHPDDM package. It is called from PetscFinalize().
 
    Level: intermediate
 

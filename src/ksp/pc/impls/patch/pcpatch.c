@@ -2064,7 +2064,7 @@ static PetscErrorCode PCPatchComputeOperator_DMPlex_Private(PC pc, PetscInt patc
   PetscFunctionReturn(0);
 }
 
-/* This function zeros mat on entry */
+/* Zeros mat on entry */
 PetscErrorCode PCPatchComputeOperator_Internal(PC pc, Vec x, Mat mat, PetscInt point, PetscBool withArtificial)
 {
   PC_PATCH       *patch = (PC_PATCH *) pc->data;

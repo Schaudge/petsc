@@ -165,7 +165,7 @@ static PetscErrorCode SNESComputeJacobian_DMLocal(SNES snes,Vec X,Mat A,Mat B,vo
 }
 
 /*@C
-   DMSNESSetFunctionLocal - set a local residual evaluation function. This function is called with local vector
+   DMSNESSetFunctionLocal - set a local residual evaluation function. Called with local vector
       containing the local vector information PLUS ghost point information. It should compute a result for all local
       elements and DMSNES will automatically accumulate the overlapping values.
 
@@ -202,7 +202,7 @@ PetscErrorCode DMSNESSetFunctionLocal(DM dm,PetscErrorCode (*func)(DM,Vec,Vec,vo
 }
 
 /*@C
-   DMSNESSetBoundaryLocal - set a local boundary value function. This function is called with local vector
+   DMSNESSetBoundaryLocal - set a local boundary value function. Called with local vector
       containing the local vector information PLUS ghost point information. It should insert values into the local
       vector that do not come from the global vector, such as essential boundary condition data.
 

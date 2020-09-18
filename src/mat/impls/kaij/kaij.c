@@ -292,8 +292,8 @@ PetscErrorCode MatKAIJRestoreTRead(Mat A,const PetscScalar **T)
 -  B - the AIJ matrix
 
    Notes:
-   This function increases the reference count on the AIJ matrix, so the user is free to destroy the matrix if it is not needed.
-   Changes to the entries of the AIJ matrix will immediately affect the KAIJ matrix.
+     Increases the reference count on the AIJ matrix, so the user is free to destroy the matrix if it is not needed.
+     Changes to the entries of the AIJ matrix will immediately affect the KAIJ matrix.
 
    Level: advanced
 
@@ -1330,8 +1330,8 @@ PetscErrorCode  MatCreateSubMatrix_KAIJ(Mat mat,IS isrow,IS iscol,MatReuse cll,M
 . kaij - the new KAIJ matrix
 
   Notes:
-  This function increases the reference count on the AIJ matrix, so the user is free to destroy the matrix if it is not needed.
-  Changes to the entries of the AIJ matrix will immediately affect the KAIJ matrix.
+    Increases the reference count on the AIJ matrix, so the user is free to destroy the matrix if it is not needed.
+    Changes to the entries of the AIJ matrix will immediately affect the KAIJ matrix.
 
   Level: advanced
 

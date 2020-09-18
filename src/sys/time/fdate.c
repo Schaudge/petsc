@@ -9,7 +9,7 @@ PETSC_EXTERN int gettimeofday(struct timeval*,struct timezone*);
 #endif
 
 /*
-  This function is called once during the initialize stage.
+  Called once during the initialize stage.
   It stashes the timestamp, and uses it when needed. This is so that
   error handlers may report the date without generating possible
   additional system errors during the call to get the date.
@@ -28,7 +28,8 @@ PETSC_EXTERN int gettimeofday(struct timeval*,struct timezone*);
 
   Level: beginner
 
-    This function DOES make a system call and thus SHOULD NOT be called
+  Note:
+    DOES make a system call and thus SHOULD NOT be called
     from an error handler.
 
 @*/

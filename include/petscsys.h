@@ -1946,7 +1946,7 @@ M*/
 .  PETSC_PREFETCH_HINT_T1 - Fetch to level 2 and higher (not L1).
 -  PETSC_PREFETCH_HINT_T2 - Fetch to high-level cache only.  (On many systems, T0 and T1 are equivalent.)
 
-   This function does nothing on architectures that do not support prefetch and never errors (even if passed an invalid
+   Does nothing on architectures that do not support prefetch and never errors (even if passed an invalid
    address).
 
 M*/

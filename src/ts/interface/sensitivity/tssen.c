@@ -1639,7 +1639,7 @@ PetscErrorCode TSAdjointMonitor(TS ts,PetscInt step,PetscReal ptime,Vec u,PetscI
  Level: advanced
 
  Notes:
- This function cannot be called until TSAdjointStep() has been completed.
+ Cannot be called until TSAdjointStep() has been completed.
 
  .seealso: TSAdjointSolve(), TSAdjointStep
  @*/
@@ -1771,7 +1771,7 @@ PetscErrorCode TSForwardGetIntegralGradients(TS ts,PetscInt *numfwdint,Vec **vp)
   Level: advanced
 
   Notes:
-  This function cannot be called until TSStep() has been completed.
+  Cannot be called until TSStep() has been completed.
 
 .seealso: TSForwardSetSensitivities(), TSForwardGetSensitivities(), TSForwardSetIntegralGradients(), TSForwardGetIntegralGradients(), TSForwardSetUp()
 @*/
@@ -1858,7 +1858,7 @@ PetscErrorCode TSForwardGetSensitivities(TS ts,PetscInt *nump,Mat *Smat)
    Level: advanced
 
    Notes:
-   This function cannot be called until TSStep() has been completed.
+   Cannot be called until TSStep() has been completed.
 
 .seealso: TSSolve(), TSAdjointCostIntegral()
 @*/

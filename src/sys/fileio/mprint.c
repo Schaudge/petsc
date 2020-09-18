@@ -149,7 +149,7 @@ PetscErrorCode PetscFormatConvert(const char *format,char *newformat)
 -   fullLength - the amount of space in str actually used.
 
     Developer Notes:
-    this function may be called from an error handler, if an error occurs when it is called by the error handler than likely
+      May be called from an error handler, if an error occurs when it is called by the error handler than likely
       a recursion will occur and possible crash.
 
  Level: developer

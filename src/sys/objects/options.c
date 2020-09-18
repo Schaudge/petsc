@@ -1124,7 +1124,7 @@ PetscErrorCode PetscOptionsSetAlias(PetscOptions options,const char newname[],co
    Level: intermediate
 
    Note:
-   This function can be called BEFORE PetscInitialize()
+     Can be called BEFORE PetscInitialize()
 
    The collectivity of this routine is complex; only the MPI processes that call this routine will
    have the affect of these options. If some processes that create objects call this routine and others do

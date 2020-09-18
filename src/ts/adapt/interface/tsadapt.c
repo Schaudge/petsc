@@ -76,7 +76,7 @@ PetscErrorCode  TSAdaptRegisterAll(void)
 }
 
 /*@C
-  TSAdaptFinalizePackage - This function destroys everything in the TS package. It is
+  TSAdaptFinalizePackage - Destroys everything in the TS package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -95,7 +95,7 @@ PetscErrorCode  TSAdaptFinalizePackage(void)
 }
 
 /*@C
-  TSAdaptInitializePackage - This function initializes everything in the TSAdapt package. It is
+  TSAdaptInitializePackage - Initializes everything in the TSAdapt package. It is
   called from TSInitializePackage().
 
   Level: developer
@@ -711,7 +711,7 @@ PetscErrorCode TSAdaptGetStepLimits(TSAdapt adapt,PetscReal *hmin,PetscReal *hma
    Level: advanced
 
    Notes:
-   This function is automatically called by TSSetFromOptions()
+      Automatically called by TSSetFromOptions()
 
 .seealso: TSGetAdapt(), TSAdaptSetType(), TSAdaptSetAlwaysAccept(), TSAdaptSetSafety(),
           TSAdaptSetClip(), TSAdaptSetScaleSolveFailed(), TSAdaptSetStepLimits(), TSAdaptSetMonitor()

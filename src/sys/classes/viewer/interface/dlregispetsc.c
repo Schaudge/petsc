@@ -6,7 +6,7 @@
 static PetscBool PetscSysPackageInitialized = PETSC_FALSE;
 
 /*@C
-  PetscSysFinalizePackage - This function destroys everything in the PETSc created internally in the system library portion of PETSc.
+  PetscSysFinalizePackage - Destroys everything in the PETSc created internally in the system library portion of PETSc.
   It is called from PetscFinalize().
 
   Level: developer
@@ -26,7 +26,7 @@ PetscErrorCode  PetscSysFinalizePackage(void)
 }
 
 /*@C
-  PetscSysInitializePackage - This function initializes everything in the main Petsc package. It is called
+  PetscSysInitializePackage - Initializes everything in the main Petsc package. It is called
   from PetscDLLibraryRegister_petsc() when using dynamic libraries, and on the call to PetscInitialize()
   when using shared or static libraries.
 
@@ -83,7 +83,7 @@ PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscts(void);
 #else
 #endif
 /*
-  PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
+  PetscDLLibraryRegister - Called automatically when the dynamic library it is in is opened.
 
   This one registers all the draw and PetscViewer objects.
 

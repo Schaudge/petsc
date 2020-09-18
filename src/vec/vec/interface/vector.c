@@ -1006,7 +1006,7 @@ $      ierr = VecSetOperation(x,VECOP_VIEW,(void(*)(void))userview);CHKERRQ(ierr
     <OPERATION> is the name (in all capital letters) of the
     user interface routine (e.g., VecView() -> VECOP_VIEW).
 
-    This function is not currently available from Fortran.
+    Currently not available from Fortran.
 
 .seealso: VecCreate(), MatShellSetOperation()
 @*/

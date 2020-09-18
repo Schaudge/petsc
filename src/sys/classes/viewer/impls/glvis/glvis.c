@@ -339,7 +339,7 @@ PetscErrorCode PetscViewerGLVisGetType_Private(PetscViewer viewer,PetscViewerGLV
   PetscFunctionReturn(0);
 }
 
-/* This function is only relevant in the SOCKET_GLIVS case. The status is computed the first time it is requested, as GLVis currently has issues when connecting the first time through the socket */
+/* Only relevant in the SOCKET_GLIVS case. The status is computed the first time it is requested, as GLVis currently has issues when connecting the first time through the socket */
 PetscErrorCode PetscViewerGLVisGetStatus_Private(PetscViewer viewer, PetscViewerGLVisStatus *sockstatus)
 {
   PetscViewerGLVis socket = (PetscViewerGLVis)viewer->data;

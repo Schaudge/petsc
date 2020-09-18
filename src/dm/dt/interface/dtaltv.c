@@ -696,7 +696,8 @@ PetscErrorCode PetscDTAltVInteriorMatrix(PetscInt N, PetscInt k, const PetscReal
 
    Level: intermediate
 
-   Note: this function is useful when the interior product needs to be computed at multiple locations, as when computing the Koszul differential
+   Note:
+     Useful when the interior product needs to be computed at multiple locations, as when computing the Koszul differential
 
 .seealso: PetscDTAltV, PetscDTAltVInterior(), PetscDTAltVInteriorMatrix(), PetscDTAltVPullback(), PetscDTAltVPullbackMatrix()
 @*/

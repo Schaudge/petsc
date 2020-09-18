@@ -170,7 +170,7 @@ PetscErrorCode PetscInfoGetFile(char **filename, FILE **InfoFile)
     Notes:
     Not for use in Fortran
 
-    This function CANNOT be called after PetscInfoGetClass() or PetscInfoProcessClass() has been called.
+    CANNOT be called after PetscInfoGetClass() or PetscInfoProcessClass() has been called.
 
     Names in the classnames list should correspond to the names returned by PetscObjectGetClassName().
 
@@ -344,7 +344,7 @@ PetscErrorCode PetscInfoSetFilterCommSelf(PetscInfoCommFlag commSelfFlag)
 .   -info [filename][:[~]<list,of,classnames>[:[~]self]] - specify which informative messages are printed, See PetscInfo().
 
     Notes:
-    This function is called automatically during PetscInitialize() so users usually do not need to call it themselves.
+      Called automatically during PetscInitialize() so users usually do not need to call it themselves.
 
     Level: advanced
 
@@ -559,7 +559,7 @@ $     -info :sys:~self
     deactivates all info messages because sys means obj = NULL which implies PETSC_COMM_SELF but ~self filters out everything on PETSC_COMM_SELF.
 
     Fortran Note:
-    This function does not take the obj argument, there is only the PetscInfo()
+     Does not take the obj argument, there is only the PetscInfo()
      version, not PetscInfo1() etc.
 
     Level: intermediate

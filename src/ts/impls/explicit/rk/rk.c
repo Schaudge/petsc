@@ -352,7 +352,7 @@ PetscErrorCode TSRKRegisterDestroy(void)
 }
 
 /*@C
-  TSRKInitializePackage - This function initializes everything in the TSRK package. It is called
+  TSRKInitializePackage - Initializes everything in the TSRK package. It is called
   from TSInitializePackage().
 
   Level: developer
@@ -372,7 +372,7 @@ PetscErrorCode TSRKInitializePackage(void)
 }
 
 /*@C
-  TSRKFinalizePackage - This function destroys everything in the TSRK package. It is
+  TSRKFinalizePackage -Destroys everything in the TSRK package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -518,7 +518,7 @@ PetscErrorCode TSRKGetTableau(TS ts, PetscInt *s, const PetscReal **A, const Pet
 
  x1 = x0 + h b^T YdotRHS
 
- This function can be called before or after ts->vec_sol has been updated.
+ May be called before or after ts->vec_sol has been updated.
  Suppose we have a completion formula (b) and an embedded formula (be) of different order.
  We can write
 

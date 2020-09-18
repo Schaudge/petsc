@@ -457,7 +457,7 @@ PetscErrorCode PetscEventPerfLogDeactivateClass(PetscEventPerfLog eventLog,Petsc
 
 /*------------------------------------------------ Query Functions --------------------------------------------------*/
 /*@C
-  PetscEventRegLogGetEvent - This function returns the event id given the event name.
+  PetscEventRegLogGetEvent - Returns the event id given the event name.
 
   Not Collective
 
@@ -493,7 +493,7 @@ PetscErrorCode  PetscEventRegLogGetEvent(PetscEventRegLog eventLog,const char na
 }
 
 /*@C
-  PetscEventPerfLogSetVisible - This function determines whether an event is printed during PetscLogView()
+  PetscEventPerfLogSetVisible - Determines whether an event is printed during PetscLogView()
 
   Not Collective
 
@@ -517,7 +517,7 @@ PetscErrorCode PetscEventPerfLogSetVisible(PetscEventPerfLog eventLog,PetscLogEv
 }
 
 /*@C
-  PetscEventPerfLogGetVisible - This function returns whether an event is printed during PetscLogView()
+  PetscEventPerfLogGetVisible - Returns whether an event is printed during PetscLogView()
 
   Not Collective
 

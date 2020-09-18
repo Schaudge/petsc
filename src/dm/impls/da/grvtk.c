@@ -520,7 +520,7 @@ static PetscErrorCode DMDAVTKWriteAll_VTR(DM da,PetscViewer viewer)
    Level: developer
 
    Notes:
-   This function is a callback used by the VTK viewer to actually write the file.
+   Is a callback used by the VTK viewer to actually write the file.
    The reason for this odd model is that the VTK file format does not provide any way to write one field at a time.
    Instead, metadata for the entire file needs to be available up-front before you can start writing the file.
 

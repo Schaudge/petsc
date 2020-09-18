@@ -1914,19 +1914,20 @@ static PetscErrorCode  PCFieldSplitSetIS_FieldSplit(PC pc,const char splitname[]
     Level: intermediate
 
     Notes:
-    Use PCFieldSplitSetIS() to set a completely general set of indices as a field.
+      Use PCFieldSplitSetIS() to set a completely general set of indices as a field.
 
-     The PCFieldSplitSetFields() is for defining fields as strided blocks. For example, if the block
-     size is three then one can define a field as 0, or 1 or 2 or 0,1 or 0,2 or 1,2 which mean
-     0xx3xx6xx9xx12 ... x1xx4xx7xx ... xx2xx5xx8xx.. 01x34x67x... 0x1x3x5x7.. x12x45x78x....
-     where the numbered entries indicate what is in the field.
+      The PCFieldSplitSetFields() is for defining fields as strided blocks. For example, if the block
+      size is three then one can define a field as 0, or 1 or 2 or 0,1 or 0,2 or 1,2 which mean
+      0xx3xx6xx9xx12 ... x1xx4xx7xx ... xx2xx5xx8xx.. 01x34x67x... 0x1x3x5x7.. x12x45x78x....
+      where the numbered entries indicate what is in the field.
 
-     This function is called once per split (it creates a new split each time).  Solve options
-     for this split will be available under the prefix -fieldsplit_SPLITNAME_.
+      Called once per split (it creates a new split each time).  Solve options
+      for this split will be available under the prefix -fieldsplit_SPLITNAME_.
 
-     Developer Note: This routine does not actually create the IS representing the split, that is delayed
-     until PCSetUp_FieldSplit(), because information about the vector/matrix layouts may not be
-     available when this routine is called.
+    Developer Note:
+      This routine does not actually create the IS representing the split, that is delayed
+      until PCSetUp_FieldSplit(), because information about the vector/matrix layouts may not be
+      available when this routine is called.
 
 .seealso: PCFieldSplitGetSubKSP(), PCFIELDSPLIT, PCFieldSplitSetBlockSize(), PCFieldSplitSetIS()
 
@@ -2084,10 +2085,10 @@ PetscErrorCode  PCFieldSplitGetOffDiagUseAmat(PC pc,PetscBool *flg)
 
 
     Notes:
-    Use PCFieldSplitSetFields(), for fields defined by strided types.
+      Use PCFieldSplitSetFields(), for fields defined by strided types.
 
-    This function is called once per split (it creates a new split each time).  Solve options
-    for this split will be available under the prefix -fieldsplit_SPLITNAME_.
+      This function is called once per split (it creates a new split each time).  Solve options
+      for this split will be available under the prefix -fieldsplit_SPLITNAME_.
 
     Level: intermediate
 

@@ -420,7 +420,7 @@ PetscErrorCode  PetscLogStageRegister(const char sname[],PetscLogStage *stage)
 }
 
 /*@C
-  PetscLogStagePush - This function pushes a stage on the stack.
+  PetscLogStagePush - Pushes a logging stage on the stack.
 
   Not Collective
 
@@ -461,7 +461,7 @@ PetscErrorCode  PetscLogStagePush(PetscLogStage stage)
 }
 
 /*@C
-  PetscLogStagePop - This function pops a stage from the stack.
+  PetscLogStagePop - Pops a logging stage from the stack.
 
   Not Collective
 

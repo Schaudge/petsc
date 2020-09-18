@@ -1528,7 +1528,7 @@ $ origField - The field number given above, in the original DM
 $ field     - The field number in dm
 $ nullSpace - The nullspace for the given field
 
-  This function is currently not available from Fortran.
+  Currently not available from Fortran.
 
 .seealso: DMGetNullSpaceConstructor(), DMSetNearNullSpaceConstructor(), DMGetNearNullSpaceConstructor(), DMCreateSubDM(), DMCreateSuperDM()
 */
@@ -1561,7 +1561,7 @@ $ origField - The field number given above, in the original DM
 $ field     - The field number in dm
 $ nullSpace - The nullspace for the given field
 
-  This function is currently not available from Fortran.
+  Currently not available from Fortran.
 
 .seealso: DMSetNullSpaceConstructor(), DMSetNearNullSpaceConstructor(), DMGetNearNullSpaceConstructor(), DMCreateSubDM(), DMCreateSuperDM()
 */
@@ -1593,7 +1593,7 @@ $ origField - The field number given above, in the original DM
 $ field     - The field number in dm
 $ nullSpace - The nullspace for the given field
 
-  This function is currently not available from Fortran.
+  Currently not available from Fortran.
 
 .seealso: DMGetNearNullSpaceConstructor(), DMSetNullSpaceConstructor(), DMGetNullSpaceConstructor(), DMCreateSubDM(), DMCreateSuperDM()
 */
@@ -1626,7 +1626,7 @@ $ origField - The field number given above, in the original DM
 $ field     - The field number in dm
 $ nullSpace - The nullspace for the given field
 
-  This function is currently not available from Fortran.
+  Currently not available from Fortran.
 
 .seealso: DMSetNearNullSpaceConstructor(), DMSetNullSpaceConstructor(), DMGetNullSpaceConstructor(), DMCreateSubDM(), DMCreateSuperDM()
 */
@@ -2106,11 +2106,11 @@ $    interphook(DM coarse,Mat interp,DM fine,void *ctx)
    Level: advanced
 
    Notes:
-   This function is only needed if auxiliary data needs to be passed to fine grids while grid sequencing
+     Is only needed if auxiliary data needs to be passed to fine grids while grid sequencing
 
-   If this function is called multiple times, the hooks will be run in the order they are added.
+     If this function is called multiple times, the hooks will be run in the order they are added.
 
-   This function is currently not available from Fortran.
+     Currently not available from Fortran.
 
 .seealso: DMCoarsenHookAdd(), SNESFASGetInterpolation(), SNESFASGetInjection(), PetscObjectCompose(), PetscContainerCreate()
 @*/
@@ -2147,9 +2147,9 @@ PetscErrorCode DMRefineHookAdd(DM coarse,PetscErrorCode (*refinehook)(DM,DM,void
    Level: advanced
 
    Notes:
-   This function does nothing if the hook is not in the list.
+      Does nothing if the hook is not in the list.
 
-   This function is currently not available from Fortran.
+      Currently not available from Fortran.
 
 .seealso: DMCoarsenHookRemove(), SNESFASGetInterpolation(), SNESFASGetInjection(), PetscObjectCompose(), PetscContainerCreate()
 @*/
@@ -3033,14 +3033,14 @@ $    restricthook(DM fine,Mat mrestrict,Vec rscale,Mat inject,DM coarse,void *ct
    Level: advanced
 
    Notes:
-   This function is only needed if auxiliary data needs to be set up on coarse grids.
+      Only needed if auxiliary data needs to be set up on coarse grids.
 
-   If this function is called multiple times, the hooks will be run in the order they are added.
+      If this function is called multiple times, the hooks will be run in the order they are added.
 
-   In order to compose with nonlinear preconditioning without duplicating storage, the hook should be implemented to
-   extract the finest level information from its context (instead of from the SNES).
+      In order to compose with nonlinear preconditioning without duplicating storage, the hook should be implemented to
+      extract the finest level information from its context (instead of from the SNES).
 
-   This function is currently not available from Fortran.
+      Currently not available from Fortran.
 
 .seealso: DMCoarsenHookRemove(), DMRefineHookAdd(), SNESFASGetInterpolation(), SNESFASGetInjection(), PetscObjectCompose(), PetscContainerCreate()
 @*/
@@ -3077,9 +3077,9 @@ PetscErrorCode DMCoarsenHookAdd(DM fine,PetscErrorCode (*coarsenhook)(DM,DM,void
    Level: advanced
 
    Notes:
-   This function does nothing if the hook is not in the list.
+     Does nothing if the hook is not in the list.
 
-   This function is currently not available from Fortran.
+     Currently not available from Fortran.
 
 .seealso: DMCoarsenHookAdd(), DMRefineHookAdd(), SNESFASGetInterpolation(), SNESFASGetInjection(), PetscObjectCompose(), PetscContainerCreate()
 @*/
@@ -3163,14 +3163,14 @@ $    restricthook(DM global,VecScatter out,VecScatter in,DM block,void *ctx)
    Level: advanced
 
    Notes:
-   This function is only needed if auxiliary data needs to be set up on subdomain DMs.
+     Only needed if auxiliary data needs to be set up on subdomain DMs.
 
-   If this function is called multiple times, the hooks will be run in the order they are added.
+     If this function is called multiple times, the hooks will be run in the order they are added.
 
-   In order to compose with nonlinear preconditioning without duplicating storage, the hook should be implemented to
-   extract the global information from its context (instead of from the SNES).
+     In order to compose with nonlinear preconditioning without duplicating storage, the hook should be implemented to
+     extract the global information from its context (instead of from the SNES).
 
-   This function is currently not available from Fortran.
+   Currently not available from Fortran.
 
 .seealso: DMRefineHookAdd(), SNESFASGetInterpolation(), SNESFASGetInjection(), PetscObjectCompose(), PetscContainerCreate()
 @*/
@@ -3208,7 +3208,7 @@ PetscErrorCode DMSubDomainHookAdd(DM global,PetscErrorCode (*ddhook)(DM,DM,void*
 
    Notes:
 
-   This function is currently not available from Fortran.
+   Currently not available from Fortran.
 
 .seealso: DMSubDomainHookAdd(), SNESFASGetInterpolation(), SNESFASGetInjection(), PetscObjectCompose(), PetscContainerCreate()
 @*/
@@ -8585,7 +8585,7 @@ PetscErrorCode DMProjectBdFieldLabelLocal(DM dm, PetscReal time, DMLabel label, 
 }
 
 /*@C
-  DMComputeL2Diff - This function computes the L_2 difference between a function u and an FEM interpolant solution u_h.
+  DMComputeL2Diff - Computes the L_2 difference between a function u and an FEM interpolant solution u_h.
 
   Input Parameters:
 + dm    - The DM
@@ -8614,7 +8614,7 @@ PetscErrorCode DMComputeL2Diff(DM dm, PetscReal time, PetscErrorCode (**funcs)(P
 }
 
 /*@C
-  DMComputeL2GradientDiff - This function computes the L_2 difference between the gradient of a function u and an FEM interpolant solution grad u_h.
+  DMComputeL2GradientDiff - Computes the L_2 difference between the gradient of a function u and an FEM interpolant solution grad u_h.
 
   Collective on dm
 
@@ -8646,7 +8646,7 @@ PetscErrorCode DMComputeL2GradientDiff(DM dm, PetscReal time, PetscErrorCode (**
 }
 
 /*@C
-  DMComputeL2FieldDiff - This function computes the L_2 difference between a function u and an FEM interpolant solution u_h, separated into field components.
+  DMComputeL2FieldDiff - Computes the L_2 difference between a function u and an FEM interpolant solution u_h, separated into field components.
 
   Collective on dm
 
@@ -8880,7 +8880,7 @@ PetscErrorCode  MatFDColoringUseDM(Mat coloring,MatFDColoring fdcoloring)
     (MPI_UNEQUAL in the terminology of MPI_Comm_compare()) are always deemed
     incompatible.
 
-    This function is labeled "Collective," as information about all subdomains
+    Labeled "Collective," as information about all subdomains
     is required on each rank. However, in DM implementations which store all this
     information locally, this function may be merely "Logically Collective".
 

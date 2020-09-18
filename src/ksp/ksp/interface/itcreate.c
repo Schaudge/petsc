@@ -367,9 +367,9 @@ PetscErrorCode  KSPSetLagNorm(KSP ksp,PetscBool flg)
    Level: developer
 
    Notes:
-   This function should be called from the implementation files KSPCreate_XXX() to declare
-   which norms and preconditioner sides are supported. Users should not need to call this
-   function.
+     Should be called from the implementation files KSPCreate_XXX() to declare
+     which norms and preconditioner sides are supported. Users should not need to call this
+     function.
 
 .seealso: KSPSetNormType(), KSPSetPCSide()
 @*/

@@ -166,7 +166,7 @@ PetscErrorCode  SNESLineSearchMonitorSolutionUpdate(SNESLineSearch ls,PetscViewe
 
    Notes:
    The preferred calling sequence for users is to use SNESGetLineSearch() to acquire the SNESLineSearch instance
-   already associated with the SNES.  This function is for developer use.
+   already associated with the SNES.
 
 .seealso: LineSearchDestroy(), SNESGetLineSearch()
 @*/
@@ -493,11 +493,11 @@ PetscErrorCode SNESLineSearchPostCheck(SNESLineSearch linesearch,Vec X,Vec Y,Vec
    Level: advanced
 
    Notes:
-   This function should be passed to SNESLineSearchSetPreCheck()
+     Should be passed to SNESLineSearchSetPreCheck()
 
-   The justification for this method involves the linear convergence of a Picard iteration
-   so the Picard linearization should be provided in place of the "Jacobian". This correction
-   is generally not useful when using a Newton linearization.
+     The justification for this method involves the linear convergence of a Picard iteration
+     so the Picard linearization should be provided in place of the "Jacobian". This correction
+     is generally not useful when using a Newton linearization.
 
    Reference:
    Hindmarsh and Payne (1996) Time step limits for stable solutions of the ice sheet equation, Annals of Glaciology.
@@ -1329,7 +1329,7 @@ PetscErrorCode  SNESLineSearchSetOrder(SNESLineSearch linesearch,PetscInt order)
 -  ynorm - The norm of the current update
 
    Notes:
-   This function is mainly called from SNES implementations.
+     Mainly called from SNES implementations.
 
    Level: developer
 

@@ -1346,7 +1346,7 @@ PetscErrorCode DMPlexInterpolate(DM dm, DM *dmInt)
     ierr = DMGetPeriodicity(dm,&isper,&maxCell,&L,&bd);CHKERRQ(ierr);
     ierr = DMSetPeriodicity(idm,isper,maxCell,L,bd);CHKERRQ(ierr);
   }
-  /* This function makes the mesh fully interpolated on all ranks */
+  /* Makes the mesh fully interpolated on all ranks */
   {
     DM_Plex *plex = (DM_Plex *) idm->data;
     plex->interpolated = plex->interpolatedCollective = DMPLEX_INTERPOLATED_FULL;
@@ -1596,7 +1596,7 @@ PetscErrorCode DMPlexUninterpolate(DM dm, DM *dmUnint)
     ierr = DMGetPeriodicity(dm,&isper,&maxCell,&L,&bd);CHKERRQ(ierr);
     ierr = DMSetPeriodicity(udm,isper,maxCell,L,bd);CHKERRQ(ierr);
   }
-  /* This function makes the mesh fully uninterpolated on all ranks */
+  /* Makes the mesh fully uninterpolated on all ranks */
   {
     DM_Plex *plex = (DM_Plex *) udm->data;
     plex->interpolated = plex->interpolatedCollective = DMPLEX_INTERPOLATED_NONE;
@@ -1718,19 +1718,19 @@ PetscErrorCode DMPlexIsInterpolated(DM dm, DMPlexInterpolatedFlag *interpolated)
   Level: intermediate
 
   Notes:
-  Unlike DMPlexIsInterpolated(), this is collective so the results are guaranteed to be the same on all ranks.
+    Unlike DMPlexIsInterpolated(), this is collective so the results are guaranteed to be the same on all ranks.
 
-  This function will return DMPLEX_INTERPOLATED_MIXED if the results of DMPlexIsInterpolated() are different on different ranks.
+    Returns DMPLEX_INTERPOLATED_MIXED if the results of DMPlexIsInterpolated() are different on different ranks.
 
   Developer Notes:
-  Initially, plex->interpolatedCollective = DMPLEX_INTERPOLATED_INVALID.
+    Initially, plex->interpolatedCollective = DMPLEX_INTERPOLATED_INVALID.
 
-  If plex->interpolatedCollective == DMPLEX_INTERPOLATED_INVALID, this function calls DMPlexIsInterpolated() which sets plex->interpolated.
-  MPI_Allreduce() is then called and collectively consistent flag plex->interpolatedCollective is set and returned;
-  if plex->interpolated varies on different ranks, plex->interpolatedCollective = DMPLEX_INTERPOLATED_MIXED,
-  otherwise sets plex->interpolatedCollective = plex->interpolated.
+    If plex->interpolatedCollective == DMPLEX_INTERPOLATED_INVALID, this function calls DMPlexIsInterpolated() which sets plex->interpolated.
+    MPI_Allreduce() is then called and collectively consistent flag plex->interpolatedCollective is set and returned;
+    if plex->interpolated varies on different ranks, plex->interpolatedCollective = DMPLEX_INTERPOLATED_MIXED,
+    otherwise sets plex->interpolatedCollective = plex->interpolated.
 
-  If plex->interpolatedCollective != DMPLEX_INTERPOLATED_INVALID, this function just returns plex->interpolatedCollective.
+    If plex->interpolatedCollective != DMPLEX_INTERPOLATED_INVALID, this function just returns plex->interpolatedCollective.
 
 .seealso: DMPlexInterpolate(), DMPlexIsInterpolated()
 @*/

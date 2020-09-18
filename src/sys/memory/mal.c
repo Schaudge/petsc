@@ -356,8 +356,9 @@ static PetscBool petscmalloccoalesce =
 .  -malloc_coalesce - turn coalesced malloc on or off
 
    Note:
-   PETSc uses coalesced malloc by default for optimized builds and not for debugging builds.  This default can be changed via the command-line option -malloc_coalesce or by calling this function.
-   This function can only be called immediately after PetscInitialize()
+     PETSc uses coalesced malloc by default for optimized builds and not for debugging builds. 
+     This default can be changed via the command-line option -malloc_coalesce or by calling this function.
+     Can only be called immediately after PetscInitialize()
 
    Level: developer
 
@@ -387,7 +388,7 @@ PetscErrorCode PetscMallocSetCoalesce(PetscBool coalesce)
 .  ptr0 - first of n pointers to allocate
 
    Notes:
-   This function is not normally called directly by users, but rather via the macros PetscMalloc1(), PetscMalloc2(), or PetscCalloc1(), etc.
+     Not normally called directly by users, but rather via the macros PetscMalloc1(), PetscMalloc2(), or PetscCalloc1(), etc.
 
    Level: developer
 
@@ -441,7 +442,7 @@ PetscErrorCode PetscMallocA(int n,PetscBool clear,int lineno,const char *functio
 -  ptr0 ... - first of n pointers to free
 
    Note:
-   This function is not normally called directly by users, but rather via the macros PetscFree(), PetscFree2(), etc.
+     Not normally called directly by users, but rather via the macros PetscFree(), PetscFree2(), etc.
 
    The pointers are zeroed to prevent users from accidently reusing space that has been freed.
 

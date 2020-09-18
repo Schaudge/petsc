@@ -180,9 +180,9 @@ static PetscErrorCode KSPAGMRESSchurForm(KSP ksp, PetscBLASInt KspSize, PetscSca
 }
 
 /*
- * This function form the matrices for the generalized eigenvalue problem,
- * it then compute the Schur vectors needed to augment the Newton basis.
- */
+  Forms the matrices for the generalized eigenvalue problem,
+  it then compute the Schur vectors needed to augment the Newton basis.
+*/
 PetscErrorCode KSPAGMRESComputeDeflationData(KSP ksp)
 {
   KSP_AGMRES     *agmres  = (KSP_AGMRES*)ksp->data;

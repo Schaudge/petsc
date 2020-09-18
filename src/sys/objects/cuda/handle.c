@@ -11,7 +11,7 @@ static cusolverDnHandle_t cusolverdnhandle = NULL;
 
 /*
    Destroys the CUBLAS handle.
-   This function is intended and registered for PetscFinalize - do not call manually!
+   Intended and registered for PetscFinalize - do not call manually!
  */
 static PetscErrorCode PetscCUBLASDestroyHandle()
 {

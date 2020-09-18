@@ -3064,7 +3064,7 @@ PetscErrorCode DMPlexReferenceToCoordinates(DM dm, PetscInt cell, PetscInt numPo
 }
 
 /*@C
-  DMPlexRemapGeometry - This function maps the original DM coordinates to new coordinates.
+  DMPlexRemapGeometry - Maps the original DM coordinates to new coordinates.
 
   Not collective
 

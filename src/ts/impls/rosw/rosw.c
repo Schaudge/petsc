@@ -624,7 +624,7 @@ PetscErrorCode TSRosWRegisterDestroy(void)
 }
 
 /*@C
-  TSRosWInitializePackage - This function initializes everything in the TSRosW package. It is called
+  TSRosWInitializePackage - Initializes everything in the TSRosW package. It is called
   from TSInitializePackage().
 
   Level: developer
@@ -644,7 +644,7 @@ PetscErrorCode TSRosWInitializePackage(void)
 }
 
 /*@C
-  TSRosWFinalizePackage - This function destroys everything in the TSRosW package. It is
+  TSRosWFinalizePackage - Destroys everything in the TSRosW package. It is
   called from PetscFinalize().
 
   Level: developer
@@ -895,7 +895,7 @@ PetscErrorCode TSRosWRegisterRos4(TSRosWType name,PetscReal gamma,PetscReal a2,P
 
  x1 = x0 + b^T Y
 
- where Y is the multi-vector of stages corrections. This function can be called before or after ts->vec_sol has been
+ where Y is the multi-vector of stages corrections. May be called before or after ts->vec_sol has been
  updated. Suppose we have a completion formula b and an embedded formula be of different order. We can write
 
  x1e = x0 + be^T Y

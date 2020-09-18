@@ -448,7 +448,7 @@ PetscErrorCode  PFSetFromOptions(PF pf)
 
 static PetscBool PFPackageInitialized = PETSC_FALSE;
 /*@C
-  PFFinalizePackage - This function destroys everything in the Petsc interface to Mathematica. It is
+  PFFinalizePackage - Destroys everything in the Petsc interface to Mathematica. It is
   called from PetscFinalize().
 
   Level: developer
@@ -467,7 +467,7 @@ PetscErrorCode  PFFinalizePackage(void)
 }
 
 /*@C
-  PFInitializePackage - This function initializes everything in the PF package. It is called
+  PFInitializePackage - Initializes everything in the PF package. It is called
   from PetscDLLibraryRegister_petscvec() when using dynamic libraries, and on the first call to PFCreate()
   when using shared or static libraries.
 

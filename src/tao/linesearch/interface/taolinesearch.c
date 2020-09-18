@@ -235,7 +235,7 @@ PetscErrorCode TaoLineSearchSetUp(TaoLineSearch ls)
 
 /*@
   TaoLineSearchReset - Some line searches may carry state information
-  from one TaoLineSearchApply() to the next.  This function resets this
+  from one TaoLineSearchApply() to the next. Resets this
   state information.
 
   Collective on TaoLineSearch

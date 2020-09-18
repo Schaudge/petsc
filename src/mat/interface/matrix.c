@@ -6501,7 +6501,7 @@ PetscErrorCode MatGetOwnershipRangeColumn(Mat mat,PetscInt *m,PetscInt *n)
 -  n - one more than the global index of the last local row
 
    Note: Both output parameters can be NULL on input.
-$  This function requires that the matrix be preallocated. If you have not preallocated, consider using
+$    Requires that the matrix be preallocated. If you have not preallocated, consider using
 $    PetscSplitOwnership(MPI_Comm comm, PetscInt *n, PetscInt *N)
 $  and then MPI_Scan() to calculate prefix sums of the local sizes.
 

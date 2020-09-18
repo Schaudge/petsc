@@ -3,7 +3,7 @@
 #include <../src/mat/impls/sbaij/seq/sbaij.h>
 
 /*
-This function is used before applying a
+Used before applying a
 symmetric reordering to matrix A that is
 in SBAIJ format.
 

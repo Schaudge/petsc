@@ -3079,7 +3079,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_BDDC(PC pc)
 }
 
 /*@C
- PCBDDCInitializePackage - This function initializes everything in the PCBDDC package. It is called
+ PCBDDCInitializePackage - Initializes everything in the PCBDDC package. It is called
     from PCInitializePackage().
 
  Level: developer
@@ -3138,7 +3138,7 @@ PetscErrorCode PCBDDCInitializePackage(void)
 }
 
 /*@C
- PCBDDCFinalizePackage - This function frees everything from the PCBDDC package. It is
+ PCBDDCFinalizePackage - Frees everything from the PCBDDC package. It is
     called from PetscFinalize() automatically.
 
  Level: developer

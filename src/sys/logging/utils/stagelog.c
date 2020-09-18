@@ -10,7 +10,7 @@
 PetscStageLog petsc_stageLog = NULL;
 
 /*@C
-  PetscLogGetStageLog - This function returns the default stage logging object.
+  PetscLogGetStageLog - Returns the default stage logging object.
 
   Not collective
 
@@ -37,7 +37,7 @@ PetscErrorCode PetscLogGetStageLog(PetscStageLog *stageLog)
 }
 
 /*@C
-  PetscStageLogGetCurrent - This function returns the stage from the top of the stack.
+  PetscStageLogGetCurrent - Returns the stage from the top of the stack.
 
   Not Collective
 
@@ -74,7 +74,7 @@ PetscErrorCode  PetscStageLogGetCurrent(PetscStageLog stageLog, int *stage)
 }
 
 /*@C
-  PetscStageLogGetEventPerfLog - This function returns the PetscEventPerfLog for the given stage.
+  PetscStageLogGetEventPerfLog - Returns the PetscEventPerfLog for the given stage.
 
   Not Collective
 
@@ -209,7 +209,7 @@ PetscErrorCode  PetscStageLogRegister(PetscStageLog stageLog, const char sname[]
 }
 
 /*@C
-  PetscStageLogPush - This function pushes a stage on the stack.
+  PetscStageLogPush - Pushes a logging stage on the stack.
 
   Not Collective
 
@@ -282,7 +282,7 @@ PetscErrorCode  PetscStageLogPush(PetscStageLog stageLog, int stage)
 }
 
 /*@C
-  PetscStageLogPop - This function pops a stage from the stack.
+  PetscStageLogPop - Pops a logging stage from the stack.
 
   Not Collective
 
@@ -345,7 +345,7 @@ PetscErrorCode  PetscStageLogPop(PetscStageLog stageLog)
 
 
 /*@C
-  PetscStageLogGetClassRegLog - This function returns the PetscClassRegLog for the given stage.
+  PetscStageLogGetClassRegLog - Returns the PetscClassRegLog for the given stage.
 
   Not Collective
 
@@ -368,7 +368,7 @@ PetscErrorCode  PetscStageLogGetClassRegLog(PetscStageLog stageLog, PetscClassRe
 }
 
 /*@C
-  PetscStageLogGetEventRegLog - This function returns the PetscEventRegLog.
+  PetscStageLogGetEventRegLog - Returns the PetscEventRegLog.
 
   Not Collective
 
@@ -391,7 +391,7 @@ PetscErrorCode  PetscStageLogGetEventRegLog(PetscStageLog stageLog, PetscEventRe
 }
 
 /*@C
-  PetscStageLogGetClassPerfLog - This function returns the PetscClassPerfLog for the given stage.
+  PetscStageLogGetClassPerfLog - Returns the PetscClassPerfLog for the given stage.
 
   Not Collective
 
@@ -417,7 +417,7 @@ PetscErrorCode  PetscStageLogGetClassPerfLog(PetscStageLog stageLog, int stage, 
 
 
 /*@C
-  PetscStageLogSetActive - This function determines whether events will be logged during this state.
+  PetscStageLogSetActive - Determines whether events will be logged during this state.
 
   Not Collective
 
@@ -439,7 +439,7 @@ PetscErrorCode  PetscStageLogSetActive(PetscStageLog stageLog, int stage, PetscB
 }
 
 /*@C
-  PetscStageLogGetActive - This function returns whether events will be logged suring this stage.
+  PetscStageLogGetActive - Returns whether events will be logged suring this stage.
 
   Not Collective
 
@@ -464,7 +464,7 @@ PetscErrorCode  PetscStageLogGetActive(PetscStageLog stageLog, int stage, PetscB
 }
 
 /*@C
-  PetscStageLogSetVisible - This function determines whether a stage is printed during PetscLogView()
+  PetscStageLogSetVisible - Determines whether a stage is printed during PetscLogView()
 
   Not Collective
 
@@ -489,7 +489,7 @@ PetscErrorCode  PetscStageLogSetVisible(PetscStageLog stageLog, int stage, Petsc
 }
 
 /*@C
-  PetscStageLogGetVisible - This function returns whether a stage is printed during PetscLogView()
+  PetscStageLogGetVisible - Returns whether a stage is printed during PetscLogView()
 
   Not Collective
 
@@ -517,7 +517,7 @@ PetscErrorCode  PetscStageLogGetVisible(PetscStageLog stageLog, int stage, Petsc
 }
 
 /*@C
-  PetscStageLogGetStage - This function returns the stage id given the stage name.
+  PetscStageLogGetStage - Returns the stage id given the stage name.
 
   Not Collective
 

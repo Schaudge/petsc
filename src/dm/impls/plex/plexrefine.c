@@ -2191,7 +2191,7 @@ static PetscErrorCode DMPlexCellRefinerSetStarts(DMPlexCellRefiner cr, const Pet
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (cr->setupcalled) SETERRQ(PetscObjectComm((PetscObject) cr), PETSC_ERR_ARG_WRONGSTATE, "Must call this function before DMPlexCellRefinerSetUp()");
+  if (cr->setupcalled) SETERRQ(PetscObjectComm((PetscObject) cr), PETSC_ERR_ARG_WRONGSTATE, "Must call before DMPlexCellRefinerSetUp()");
   ierr = PetscCalloc2(ctSize, &cr->ctStart, ctSize, &cr->ctStartNew);CHKERRQ(ierr);
   ierr = PetscArraycpy(cr->ctStart,    ctStart,    ctSize);CHKERRQ(ierr);
   ierr = PetscArraycpy(cr->ctStartNew, ctStartNew, ctSize);CHKERRQ(ierr);

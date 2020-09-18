@@ -3098,8 +3098,8 @@ PetscErrorCode DMPlexBuildCoordinatesFromCellListParallel(DM dm, PetscInt spaceD
 - vertexSF - (Optional) SF describing complete vertex ownership
 
   Notes:
-  This function is just a convenient sequence of DMCreate(), DMSetType(), DMSetDimension(),
-  DMPlexBuildFromCellListParallel(), DMPlexInterpolate(), DMPlexBuildCoordinatesFromCellListParallel()
+    Provides a convenient sequence of DMCreate(), DMSetType(), DMSetDimension(),
+    DMPlexBuildFromCellListParallel(), DMPlexInterpolate(), DMPlexBuildCoordinatesFromCellListParallel()
 
   See DMPlexBuildFromCellListParallel() for an example and details about the topology-related parameters.
   See DMPlexBuildCoordinatesFromCellListParallel() for details about the geometry-related parameters.
@@ -3322,8 +3322,8 @@ PetscErrorCode DMPlexBuildCoordinatesFromCellList(DM dm, PetscInt spaceDim, cons
 . dm - The DM
 
   Notes:
-  This function is just a convenient sequence of DMCreate(), DMSetType(), DMSetDimension(), DMPlexBuildFromCellList(),
-  DMPlexInterpolate(), DMPlexBuildCoordinatesFromCellList()
+    Provides a convenient sequence of DMCreate(), DMSetType(), DMSetDimension(), DMPlexBuildFromCellList(),
+    DMPlexInterpolate(), DMPlexBuildCoordinatesFromCellList()
 
   See DMPlexBuildFromCellList() for an example and details about the topology-related parameters.
   See DMPlexBuildCoordinatesFromCellList() for details about the geometry-related parameters.

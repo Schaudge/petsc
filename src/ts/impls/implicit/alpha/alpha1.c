@@ -547,7 +547,7 @@ PetscErrorCode TSAlphaSetRadius(TS ts,PetscReal radius)
 -  -ts_alpha_gamma   <gamma>
 
   Note:
-  Use of this function is normally only required to hack TSALPHA to
+  Normally only required to hack TSALPHA to
   use a modified integration scheme. Users should call
   TSAlphaSetRadius() to set the desired spectral radius of the methods
   (i.e. high-frequency damping) in order so select optimal values for
@@ -584,7 +584,7 @@ PetscErrorCode TSAlphaSetParams(TS ts,PetscReal alpha_m,PetscReal alpha_f,PetscR
 -  \gamma   - algorithmic parameter
 
   Note:
-  Use of this function is normally only required to hack TSALPHA to
+  Normally only required to hack TSALPHA to
   use a modified integration scheme. Users should call
   TSAlphaSetRadius() to set the high-frequency damping (i.e. spectral
   radius of the method) in order so select optimal values for these

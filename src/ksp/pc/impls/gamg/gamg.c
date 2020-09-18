@@ -1689,7 +1689,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_GAMG(PC pc)
 }
 
 /*@C
- PCGAMGInitializePackage - This function initializes everything in the PCGAMG package. It is called
+ PCGAMGInitializePackage - Initializes everything in the PCGAMG package. It is called
     from PCInitializePackage().
 
  Level: developer
@@ -1757,7 +1757,7 @@ PetscErrorCode PCGAMGInitializePackage(void)
 }
 
 /*@C
- PCGAMGFinalizePackage - This function frees everything from the PCGAMG package. It is
+ PCGAMGFinalizePackage - Frees everything from the PCGAMG package. It is
     called from PetscFinalize() automatically.
 
  Level: developer

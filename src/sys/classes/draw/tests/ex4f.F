@@ -2,8 +2,7 @@
 !
 !  This example demonstrates use of PetscDrawZoom()
 !
-!          This function is called repeatedly by PetscDrawZoom() to
-!      redraw the figure
+!          Called repeatedly by PetscDrawZoom() to redraw the figure
 !
       subroutine zoomfunction(draw,dummy,ierr)
 #include <petsc/finclude/petscsys.h>

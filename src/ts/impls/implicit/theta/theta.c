@@ -1309,7 +1309,7 @@ PETSC_EXTERN PetscErrorCode TSCreate_Theta(TS ts)
 .  theta - stage abscissa
 
   Note:
-  Use of this function is normally only required to hack TSTHETA to use a modified integration scheme.
+  Normally only required to hack TSTHETA to use a modified integration scheme.
 
   Level: Advanced
 

@@ -413,7 +413,7 @@ PetscErrorCode TSMPRKRegisterDestroy(void)
 }
 
 /*@C
-  TSMPRKInitializePackage - This function initializes everything in the TSMPRK package. It is called
+  TSMPRKInitializePackage - Initializes everything in the TSMPRK package. It is called
   from PetscDLLibraryRegister() when using dynamic libraries, and on the first call to TSCreate_MPRK()
   when using static libraries.
 
@@ -434,7 +434,7 @@ PetscErrorCode TSMPRKInitializePackage(void)
 }
 
 /*@C
-  TSMPRKFinalizePackage - This function destroys everything in the TSMPRK package. It is
+  TSMPRKFinalizePackage - Destroys everything in the TSMPRK package. It is
   called from PetscFinalize().
 
   Level: developer

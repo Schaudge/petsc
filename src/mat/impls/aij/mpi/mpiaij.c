@@ -665,7 +665,7 @@ PetscErrorCode MatSetValues_MPIAIJ(Mat mat,PetscInt m,const PetscInt im[],PetscI
 }
 
 /*
-    This function sets the j and ilen arrays (of the diagonal and off-diagonal part) of an MPIAIJ-matrix.
+    Sets the j and ilen arrays (of the diagonal and off-diagonal part) of an MPIAIJ-matrix.
     The values in mat_i have to be sorted and the values in mat_j have to be sorted for each row (CSR-like).
     No off-processor parts off the matrix are allowed here and mat->was_assembled has to be PETSC_FALSE.
 */
@@ -705,7 +705,7 @@ PetscErrorCode MatSetValues_MPIAIJ_CopyFromCSRFormat_Symbolic(Mat mat,const Pets
 }
 
 /*
-    This function sets the local j, a and ilen arrays (of the diagonal and off-diagonal part) of an MPIAIJ-matrix.
+    Sets the local j, a and ilen arrays (of the diagonal and off-diagonal part) of an MPIAIJ-matrix.
     The values in mat_i have to be sorted and the values in mat_j have to be sorted for each row (CSR-like).
     No off-processor parts off the matrix are allowed here, they are set at a later point by MatSetValues_MPIAIJ.
     Also, mat->was_assembled has to be false, otherwise the statement aj[rowstart_diag+dnz_row] = mat_j[col] - cstart;
@@ -4384,7 +4384,7 @@ PetscErrorCode MatMPIAIJGetSeqAIJ(Mat A,Mat *Ad,Mat *Ao,const PetscInt *colmap[]
 
   PetscFunctionBegin;
   ierr = PetscStrbeginswith(((PetscObject)A)->type_name,MATMPIAIJ,&flg);CHKERRQ(ierr);
-  if (!flg) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"This function requires a MATMPIAIJ matrix as input");
+  if (!flg) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Requires a MATMPIAIJ matrix as input");
   if (Ad)     *Ad     = a->A;
   if (Ao)     *Ao     = a->B;
   if (colmap) *colmap = a->garray;

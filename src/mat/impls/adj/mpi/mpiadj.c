@@ -765,9 +765,9 @@ PetscErrorCode  MatMPIAdjToSeq_MPIAdj(Mat A,Mat *B)
    Level: developer
 
    Note:
-   This function is mostly useful for internal use by mesh partitioning packages that require that every process owns at least one row.
+     Mostly useful for internal use by mesh partitioning packages that require that every process owns at least one row.
 
-   The matrix B should be destroyed with MatDestroy(). The arrays are not copied, so B should be destroyed before A is destroyed.
+     The matrix B should be destroyed with MatDestroy(). The arrays are not copied, so B should be destroyed before A is destroyed.
 
 .seealso: MatCreateMPIAdj()
 @*/

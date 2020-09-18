@@ -123,7 +123,7 @@ PetscErrorCode SNESMSRegisterDestroy(void)
 }
 
 /*@C
-  SNESMSInitializePackage - This function initializes everything in the SNESMS package. It is called
+  SNESMSInitializePackage - Initializes everything in the SNESMS package. It is called
   from SNESInitializePackage().
 
   Level: developer
@@ -144,7 +144,7 @@ PetscErrorCode SNESMSInitializePackage(void)
 }
 
 /*@C
-  SNESMSFinalizePackage - This function destroys everything in the SNESMS package. It is
+  SNESMSFinalizePackage - Destroys everything in the SNESMS package. It is
   called from PetscFinalize().
 
   Level: developer

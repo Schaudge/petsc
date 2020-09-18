@@ -521,7 +521,7 @@ PetscErrorCode PetscOmpCtrlBarrier(PetscOmpCtrl ctrl)
 
     Notes:
     Only master ranks can call this function. Call PetscOmpCtrlGetOmpComms() to know if this is a master rank.
-    This function changes CPU binding of master ranks and nthreads-var of OpenMP runtime
+    Changes CPU binding of master ranks and nthreads-var of OpenMP runtime
 
     Level: developer
 
@@ -545,7 +545,7 @@ PetscErrorCode PetscOmpCtrlOmpRegionOnMasterBegin(PetscOmpCtrl ctrl)
 
    Notes:
    Only master ranks can call this function. Call PetscOmpCtrlGetOmpComms() to know if this is a master rank.
-   This function restores the CPU binding of master ranks and set and nthreads-var of OpenMP runtime to 1.
+   Restores the CPU binding of master ranks and set and nthreads-var of OpenMP runtime to 1.
 
    Level: developer
 

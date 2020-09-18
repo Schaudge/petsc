@@ -68,9 +68,9 @@ static PetscErrorCode PetscSortReal_Private(PetscReal *v,PetscInt right)
 -  v  - array of doubles
 
    Notes:
-   This function serves as an alternative to PetscRealSortSemiOrdered(), and may perform faster especially if the array
-   is completely random. There are exceptions to this and so it is __highly__ recomended that the user benchmark their
-   code to see which routine is fastest.
+     Serves as an alternative to PetscRealSortSemiOrdered(), and may perform faster especially if the array
+     is completely random. There are exceptions to this and so it is __highly__ recomended that the user benchmark their
+     code to see which routine is fastest.
 
    Level: intermediate
 

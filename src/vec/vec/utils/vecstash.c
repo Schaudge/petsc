@@ -167,7 +167,7 @@ PetscErrorCode VecStashSetInitialSize_Private(VecStash *stash,PetscInt max)
   PetscFunctionReturn(0);
 }
 
-/* VecStashExpand_Private - Expand the stash. This function is called
+/* VecStashExpand_Private - Expand the stash. Called automatically
    when the space in the stash is not sufficient to add the new values
    being inserted into the stash.
 
@@ -316,7 +316,7 @@ PetscErrorCode VecStashScatterBegin_Private(VecStash *stash,PetscInt *owners)
 }
 
 /*
-   VecStashScatterGetMesg_Private - This function waits on the receives posted
+   VecStashScatterGetMesg_Private - Waits on the receives posted
    in the function VecStashScatterBegin_Private() and returns one message at
    a time to the calling function. If no messages are left, it indicates this
    by setting flg = 0, else it sets flg = 1.

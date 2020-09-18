@@ -21,10 +21,9 @@ extern PetscErrorCode KSPDestroy_DGMRES(KSP);
 extern PetscErrorCode KSPSetFromOptions_DGMRES(PetscOptionItems *,KSP);
 extern PetscErrorCode KSPDGMRESSetEigen_DGMRES(KSP,PetscInt);
 /*
- * This function allocates  data for the Newton basis GMRES implementation.
- * Note that most data are allocated in KSPSetUp_DGMRES and KSPSetUp_GMRES, including the space for the basis vectors, the various Hessenberg matrices and the Givens rotations coefficients
- *
- */
+   Allocates  data for the Newton basis GMRES implementation.
+   Note that most data are allocated in KSPSetUp_DGMRES and KSPSetUp_GMRES, including the space for the basis vectors, the various Hessenberg matrices and the Givens rotations coefficients
+*/
 static PetscErrorCode    KSPSetUp_AGMRES(KSP ksp)
 {
   PetscErrorCode  ierr;
@@ -72,10 +71,7 @@ static PetscErrorCode    KSPSetUp_AGMRES(KSP ksp)
   PetscFunctionReturn(0);
 }
 
-/* This function returns the current solution from the private data structure of AGMRES back to ptr.
- * This function is provided to be compliant with the KSP GMRES  scheme.
- *
- */
+/* Returns the current solution from the private data structure of AGMRES back to ptr. */
 static PetscErrorCode KSPBuildSolution_AGMRES(KSP ksp,Vec ptr, Vec *result)
 {
   KSP_AGMRES     *agmres = (KSP_AGMRES*)ksp->data;
@@ -96,11 +92,12 @@ static PetscErrorCode KSPBuildSolution_AGMRES(KSP ksp,Vec ptr, Vec *result)
   PetscFunctionReturn(0);
 }
 
-/* This function computes the shifts  needed to generate stable basis vectors (through the Newton polynomials)
- * At input, the operators (matrix and preconditioners) are used to create a new GMRES KSP.
- * One cycle of GMRES with the Arnoldi process is performed and the eigenvalues of the induced Hessenberg matrix (the Ritz values) are computed.
- * NOTE: This function is not currently used; the next function is rather used when  the eigenvectors are needed next to augment the basis
- */
+/*
+   Computes the shifts  needed to generate stable basis vectors (through the Newton polynomials)
+   At input, the operators (matrix and preconditioners) are used to create a new GMRES KSP.
+   One cycle of GMRES with the Arnoldi process is performed and the eigenvalues of the induced Hessenberg matrix (the Ritz values) are computed.
+   NOTE: Not currently used; the next function is rather used when  the eigenvectors are needed next to augment the basis
+*/
 PetscErrorCode KSPComputeShifts_GMRES(KSP ksp)
 {
   PetscErrorCode  ierr;
@@ -160,17 +157,18 @@ PetscErrorCode KSPComputeShifts_GMRES(KSP ksp)
   PetscFunctionReturn(0);
 }
 
-/* This function computes the shift values (Ritz values) needed to generate stable basis vectors
- * One cycle of DGMRES is performed to find the eigenvalues. The same data structures are used since AGMRES extends DGMRES
- * Note that when the basis is  to be augmented, then this function computes the harmonic Ritz vectors from this first cycle.
- * Input :
- *  - The operators (matrix, preconditioners and right hand side) are  normally required.
- *  - max_k : the size of the (non augmented) basis.
- *  - neig: The number of eigenvectors to augment, if deflation is needed
- * Output :
- *  - The shifts as complex pair of arrays in wr and wi (size max_k).
- *  - The harmonic Ritz vectors (agmres->U) if deflation is needed.
- */
+/*
+   Computes the shift values (Ritz values) needed to generate stable basis vectors
+   One cycle of DGMRES is performed to find the eigenvalues. The same data structures are used since AGMRES extends DGMRES
+   Note that when the basis is  to be augmented, then this function computes the harmonic Ritz vectors from this first cycle.
+   Input :
+    - The operators (matrix, preconditioners and right hand side) are  normally required.
+    - max_k : the size of the (non augmented) basis.
+    - neig: The number of eigenvectors to augment, if deflation is needed
+   Output :
+    - The shifts as complex pair of arrays in wr and wi (size max_k).
+    - The harmonic Ritz vectors (agmres->U) if deflation is needed.
+*/
 static PetscErrorCode KSPComputeShifts_DGMRES(KSP ksp)
 {
   PetscErrorCode ierr;
@@ -250,15 +248,15 @@ static PetscErrorCode KSPComputeShifts_DGMRES(KSP ksp)
 }
 
 /*
- * Generate the basis vectors from the Newton polynomials with shifts and scaling factors
- * The scaling factors are computed to obtain unit vectors. Note that this step can be avoided with the preprocessing option KSP_AGMRES_NONORM.
- * Inputs :
- *  - Operators (Matrix and preconditioners and the first basis vector in VEC_V(0)
- *  - Shifts values in agmres->Rshift and agmres->Ishift.
- * Output :
- *  - agmres->vecs or VEC_V : basis vectors
- *  - agmres->Scale : Scaling factors (equal to 1 if no scaling is done)
- */
+   Generate the basis vectors from the Newton polynomials with shifts and scaling factors
+   The scaling factors are computed to obtain unit vectors. Note that this step can be avoided with the preprocessing option KSP_AGMRES_NONORM.
+   Inputs :
+    - Operators (Matrix and preconditioners and the first basis vector in VEC_V(0)
+    - Shifts values in agmres->Rshift and agmres->Ishift.
+   Output :
+    - agmres->vecs or VEC_V : basis vectors
+    - agmres->Scale : Scaling factors (equal to 1 if no scaling is done)
+*/
 static PetscErrorCode KSPAGMRESBuildBasis(KSP ksp)
 {
   PetscErrorCode ierr;
@@ -359,15 +357,16 @@ static PetscErrorCode KSPAGMRESBuildBasis(KSP ksp)
   PetscFunctionReturn(0);
 }
 
-/* Form the Hessenberg matrix for the Arnoldi-like relation.
- * Inputs :
- * - Shifts values in agmres->Rshift and agmres->Ishift
- * - RLoc : Triangular matrix from the RODDEC orthogonalization
- * Outputs :
- * - H = agmres->hh_origin : The Hessenberg matrix.
- *
- * NOTE: Note that the computed Hessenberg matrix is not mathematically equivalent to that in the real Arnoldi process (in KSP GMRES). If it is needed, it can be explicitly  formed as H <-- H * RLoc^-1.
- *
+/*
+   Form the Hessenberg matrix for the Arnoldi-like relation.
+   Inputs :
+   - Shifts values in agmres->Rshift and agmres->Ishift
+   - RLoc : Triangular matrix from the RODDEC orthogonalization
+   Outputs :
+   - H = agmres->hh_origin : The Hessenberg matrix.
+
+   NOTE: Note that the computed Hessenberg matrix is not mathematically equivalent to that in the real Arnoldi process (in KSP GMRES). If it is needed, it can be explicitly  formed as H <-- H * RLoc^-1.
+
  */
 static PetscErrorCode KSPAGMRESBuildHessenberg(KSP ksp)
 {
