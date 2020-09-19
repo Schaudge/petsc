@@ -121,7 +121,7 @@ PETSC_INTERN PetscErrorCode  MatReorderForNonzeroDiagonal_SeqAIJ(Mat mat,PetscRe
       }
       /*
           No column  suitable; instead check all future rows
-          Note: this will be very slow
+          This will be very slow
       */
       for (k=prow+1; k<n; k++) {
         ierr = MatGetRow_SeqAIJ(mat,row[k],&nnz,&jj,&vv);CHKERRQ(ierr);

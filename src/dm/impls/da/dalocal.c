@@ -429,8 +429,9 @@ PetscErrorCode DMDASetVertexCoordinates(DM dm, PetscReal xl, PetscReal xu, Petsc
     Output Parameters:
 .    vptr - array data structured
 
-    Note:  The vector values are NOT initialized and may have garbage in them, so you may need
-           to zero them.
+    Note:
+      The vector values are NOT initialized and may have garbage in them, so you may need
+      to zero them.
 
   Level: advanced
 

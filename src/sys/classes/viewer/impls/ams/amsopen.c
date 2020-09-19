@@ -57,13 +57,14 @@ PetscErrorCode PetscViewerSAWsOpen(MPI_Comm comm,PetscViewer *lab)
          PetscObjectSetName((PetscObject)mat,name);
 -  viewer - the SAWs viewer
 
+   Note:
+     The object must have already been named before calling this routine since naming an
+     object can be collective.
+
+   Developer Note:
+      Currently this is called only on rank zero of PETSC_COMM_WORLD
+
    Level: advanced
-
-   Developer Note: Currently this is called only on rank zero of PETSC_COMM_WORLD
-
-   The object must have already been named before calling this routine since naming an
-   object can be collective.
-
 
 .seealso: PetscObjectSetName(), PetscObjectSAWsViewOff()
 

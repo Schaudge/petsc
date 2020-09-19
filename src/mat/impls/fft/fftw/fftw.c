@@ -436,7 +436,8 @@ static PetscErrorCode VecDuplicate_FFTW_bout(Vec bout, Vec *bout_new)
 
   Level: advanced
 
-  Note: The parallel layout of output of forward FFTW is always same as the input
+  Note:
+        The parallel layout of output of forward FFTW is always same as the input
         of the backward FFTW. But parallel layout of the input vector of forward
         FFTW might not be same as the output of backward FFTW.
         Also note that we need to provide enough space while doing parallel real transform.
@@ -717,7 +718,8 @@ PetscErrorCode  MatCreateVecsFFTW_FFTW(Mat A,Vec *fin,Vec *fout,Vec *bout)
 
    Level: intermediate
 
-   Note: For real parallel FFT, FFTW requires insertion of extra space at the end of last dimension. This required even when
+   Note:
+         For real parallel FFT, FFTW requires insertion of extra space at the end of last dimension. This required even when
          one is not doing in-place transform. The last dimension size must be changed to 2*(dim[last]/2+1) to accommodate these extra
          zeros. This routine does that job by scattering operation.
 
@@ -951,7 +953,8 @@ PetscErrorCode VecScatterPetscToFFTW_FFTW(Mat A,Vec x,Vec y)
 
    Level: intermediate
 
-   Note: While doing real transform the FFTW output of backward DFT contains extra zeros at the end of last dimension.
+   Note:
+         While doing real transform the FFTW output of backward DFT contains extra zeros at the end of last dimension.
          VecScatterFFTWToPetsc removes those extra zeros.
 
 .seealso: VecScatterPetscToFFTW()

@@ -1,7 +1,7 @@
 
 /*
    Provides an interface to the ML smoothed Aggregation
-   Note: Something non-obvious breaks -pc_mg_type ADDITIVE for parallel runs
+   Something non-obvious breaks -pc_mg_type ADDITIVE for parallel runs
                                     Jed Brown, see [PETSC #18321, #18449].
 */
 #include <petsc/private/pcimpl.h>   /*I "petscpc.h" I*/

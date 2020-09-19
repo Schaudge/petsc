@@ -757,7 +757,8 @@ PetscErrorCode  PetscMallocDump(FILE *fp)
 
     Level: advanced
 
-    Notes: Must be called after PetscMallocSetDebug()
+    Notes:
+      Must be called after PetscMallocSetDebug()
 
     Uses MPI_COMM_WORLD to determine rank because PETSc communicators may not be available
 
@@ -959,7 +960,8 @@ foundit:;
 
    Level: developer
 
-    Notes: This is called in PetscInitialize() and should not be called elsewhere
+    Notes:
+      This is called in PetscInitialize() and should not be called elsewhere
 
 .seealso: CHKMEMQ(), PetscMallocValidate(), PetscMallocGetDebug()
 @*/

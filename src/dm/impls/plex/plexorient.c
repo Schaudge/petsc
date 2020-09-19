@@ -158,7 +158,8 @@ PetscErrorCode DMPlexOrientCell_Internal(DM dm, PetscInt p, PetscInt start1, Pet
 + dm   - The DM
 - cell - The cell number
 
-  Note: The modification of the DM is done in-place.
+  Note:
+    The modification of the DM is done in-place.
 
   Level: advanced
 
@@ -286,7 +287,8 @@ static PetscErrorCode DMPlexCheckFace_Internal(DM dm, PetscInt *faceFIFO, PetscI
   Input Parameters:
 . dm - The DM
 
-  Note: The orientation data for the DM are change in-place.
+  Note:
+    The orientation data for the DM are change in-place.
 $ This routine will fail for non-orientable surfaces, such as the Moebius strip.
 
   Level: advanced

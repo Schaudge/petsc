@@ -24,7 +24,8 @@ typedef struct _p_PetscFV *PetscFV;
 
   Level: beginner
 
-  Note: The components are
+  Note:
+    The components are
 $  PetscReal   normal[3]   - Area-scaled normals
 $  PetscReal   centroid[3] - Location of centroid (quadrature point)
 $  PetscScalar grad[2][3]  - Face contribution to gradient in left and right cell
@@ -42,7 +43,8 @@ typedef struct {
 
   Level: beginner
 
-  Note: The components are
+  Note:
+   The components are
 $  PetscReal   centroid[3] - The cell centroid
 $  PetscReal   volume      - The cell volume
 

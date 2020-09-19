@@ -47,7 +47,6 @@ static PetscErrorCode TSGLLEGetVecs(TS ts,DM dm,Vec *Z,Vec *Ydotstage)
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode TSGLLERestoreVecs(TS ts,DM dm,Vec *Z,Vec *Ydotstage)
 {
   PetscErrorCode ierr;
@@ -200,7 +199,7 @@ static PetscErrorCode TSGLLESchemeCreate(PetscInt p,PetscInt q,PetscInt r,PetscI
     /* beta[0] (rho in B,J,W 2007)
         e.rho = 1/factorial(p+2) - glm.B(1,:)*glm.c.^(p+1)/factorial(p+1) ...
             + glm.V(1,2:end)*e.beta;% - e.epsilon;
-    % Note: The paper (B,J,W 2007) includes the last term in their definition
+    % The paper (B,J,W 2007) includes the last term in their definition
     * */
     scheme->beta[0] = 1./Factorial(p+2);
     for (j=0; j<s; j++) scheme->beta[0] -= b[0*s+j]*CPowF(c[j],p+1);
@@ -334,7 +333,6 @@ static PetscErrorCode TSGLLEViewTable_Private(PetscViewer viewer,PetscInt m,Pets
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode TSGLLESchemeView(TSGLLEScheme sc,PetscBool view_details,PetscViewer viewer)
 {
   PetscErrorCode ierr;
@@ -461,10 +459,10 @@ static PetscErrorCode TSGLLECreate_IRKS(TS ts)
 
   {
     /* p=1,q=1, r=s=2, A- and L-stable with error estimates of order 2 and 3
-    * Listed in Butcher & Podhaisky 2006. On error estimation in general linear methods for stiff ODE.
-    * irks(0.3,0,[.3,1],[1],1)
-    * Note: can be made to have classical order (not stage order) 2 by replacing 0.3 with 1-sqrt(1/2)
-    * but doing so would sacrifice the error estimator.
+      Listed in Butcher & Podhaisky 2006. On error estimation in general linear methods for stiff ODE.
+      irks(0.3,0,[.3,1],[1],1)
+      Can be made to have classical order (not stage order) 2 by replacing 0.3 with 1-sqrt(1/2)
+      but doing so would sacrifice the error estimator.
     */
     const PetscScalar c[2]    = {3./10., 1.};
     const PetscScalar a[2][2] = {{3./10., 0}, {7./10., 3./10.}};
@@ -903,7 +901,7 @@ static PetscErrorCode TSSolve_GLLE(TS ts)
         for (j=0; j<i; j++) {
           ierr = VecAXPY(gl->Z,-shift*h*a[i*s+j],Ydot[j]);CHKERRQ(ierr);
         }
-        /* Note: Z is used within function evaluation, Ydot = Z + shift*Y */
+        /* Z is used within function evaluation, Ydot = Z + shift*Y */
 
         /* Compute an estimate of Y to start Newton iteration */
         if (gl->extrapolate) {
@@ -1082,7 +1080,6 @@ static PetscErrorCode SNESTSFormJacobian_GLLE(SNES snes,Vec x,Mat A,Mat B,TS ts)
   ierr   = TSGLLERestoreVecs(ts,dm,&Z,&Ydot);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode TSSetUp_GLLE(TS ts)
 {
@@ -1449,7 +1446,6 @@ PETSC_EXTERN PetscErrorCode TSCreate_GLLE(TS ts)
   ts->ops->snesjacobian   = SNESTSFormJacobian_GLLE;
 
   ts->usessnes = PETSC_TRUE;
-
 
   gl->max_step_rejections = 1;
   gl->min_order           = 1;

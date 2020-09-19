@@ -79,7 +79,8 @@ PetscErrorCode PetscFormatConvertGetSize(const char *format,size_t *size)
 .   newformat - the location to put the new format
 -   size - the length of newformat, you can use PetscFormatConvertGetSize() to compute the needed size
 
-    Note: this exists so we can have the same code when PetscInt is either int or long long int
+    Note:
+      This exists so we can have the same code when PetscInt is either int or long long int
 
  Level: developer
 
@@ -678,7 +679,8 @@ $}
 then before the call to PetscInitialize() do the assignment
 $    PetscHelpPrintf = mypetschelpprintf;
 
-  Note: the default routine used is called PetscHelpPrintfDefault().
+  Note:
+    The default routine used is called PetscHelpPrintfDefault().
 
   Level:  developer
 

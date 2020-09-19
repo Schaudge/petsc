@@ -674,7 +674,8 @@ PetscErrorCode PetscLayoutsCreateSF(PetscLayout rmap, PetscLayout lmap, PetscSF*
 
    Level: intermediate
 
-   Developers Note: Local indices which are the identity permutation in the range [0,nleaves) are discarded as they
+   Developers Note:
+   Local indices which are the identity permutation in the range [0,nleaves) are discarded as they
    encode contiguous storage. In such case, if localmode is PETSC_OWN_POINTER, the memory is deallocated as it is not
    needed
 
@@ -712,8 +713,6 @@ PetscErrorCode PetscSFSetGraphLayout(PetscSF sf,PetscLayout layout,PetscInt nlea
 . congruent - PETSC_TRUE if the two layouts are congruent, PETSC_FALSE otherwise
 
   Level: beginner
-
-  Notes:
 
 .seealso: PetscLayoutCreate(), PetscLayoutSetLocalSize(), PetscLayoutGetLocalSize(), PetscLayoutGetBlockSize(),
           PetscLayoutGetRange(), PetscLayoutGetRanges(), PetscLayoutSetSize(), PetscLayoutGetSize(), PetscLayoutSetUp()

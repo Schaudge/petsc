@@ -79,7 +79,7 @@ typedef struct {
     Vm0                - Voltage magnitude at t = 0
     ld_betap, ld_betaq  - exponents describing the load model for real and reactive part
 
-    Note: All loads have the same characteristic currently.
+    All loads have the same characteristic.
   */
 typedef struct {
   PetscInt    id;           /* bus id */

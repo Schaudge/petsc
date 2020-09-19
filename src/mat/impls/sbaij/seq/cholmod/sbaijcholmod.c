@@ -517,7 +517,8 @@ PETSC_INTERN PetscErrorCode MatGetInfo_CHOLMOD(Mat F,MatInfoType flag,MatInfo *i
 
    Level: beginner
 
-   Note: CHOLMOD is part of SuiteSparse http://faculty.cse.tamu.edu/davis/suitesparse.html
+   Note:
+     CHOLMOD is part of SuiteSparse http://faculty.cse.tamu.edu/davis/suitesparse.html
 
 .seealso: PCCHOLESKY, PCFactorSetMatSolverType(), MatSolverType
 M*/

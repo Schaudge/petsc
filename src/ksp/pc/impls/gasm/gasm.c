@@ -788,7 +788,7 @@ static PetscErrorCode PCApplyTranspose_GASM(PC pc,Vec xin,Vec yout)
      Support for limiting the restriction or interpolation to only local
      subdomain values (leaving the other values 0).
 
-     Note: these are reversed from the PCApply_GASM() because we are applying the
+     These are reversed from the PCApply_GASM() because we are applying the
      transpose of the three terms
   */
   if (!(osm->type & PC_GASM_INTERPOLATE)) {
@@ -1555,7 +1555,8 @@ PETSC_INTERN PetscErrorCode  PCGASMCreateStraddlingSubdomains(Mat A,PetscInt N,P
 
    Level: advanced
 
-   Note: When N >= A's communicator size, each subdomain is local -- contained within a single processor.
+   Note:
+         When N >= A's communicator size, each subdomain is local -- contained within a single processor.
          When N < size, the subdomains are 'straddling' (processor boundaries) and are no longer local.
          The resulting subdomains can be use in PCGASMSetSubdomains(pc,n,iss,NULL).  The overlapping
          outer subdomains will be automatically generated from these according to the requested amount of

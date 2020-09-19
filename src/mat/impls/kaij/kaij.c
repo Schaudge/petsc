@@ -40,7 +40,8 @@
 
    Level: advanced
 
-   Notes: The reference count on the AIJ matrix is not increased so you should not destroy it.
+   Notes:
+     The reference count on the AIJ matrix is not increased so you should not destroy it.
 
 .seealso: MatCreateKAIJ()
 @*/
@@ -77,7 +78,8 @@ PetscErrorCode  MatKAIJGetAIJ(Mat A,Mat *B)
 .  n - the number of columns in S
 -  S - the S matrix, in form of a scalar array in column-major format
 
-   Note: All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
+   Note:
+     All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
 
    Level: advanced
 
@@ -106,7 +108,8 @@ PetscErrorCode MatKAIJGetS(Mat A,PetscInt *m,PetscInt *n,PetscScalar **S)
 .  n - the number of columns in S
 -  S - the S matrix, in form of a scalar array in column-major format
 
-   Note: All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
+   Note:
+     All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
 
    Level: advanced
 
@@ -133,10 +136,12 @@ PetscErrorCode MatKAIJGetSRead(Mat A,PetscInt *m,PetscInt *n,const PetscScalar *
   Output Parameter:
 . S - location of pointer to array obtained with MatKAIJGetS()
 
-  Note: This routine zeros the array pointer to prevent accidental reuse after it has been restored.
-  If NULL is passed, it will not attempt to zero the array pointer.
+  Note:
+    This routine zeros the array pointer to prevent accidental reuse after it has been restored.
+    If NULL is passed, it will not attempt to zero the array pointer.
 
   Level: advanced
+
 .seealso: MatKAIJGetS(), MatKAIJGetSRead(), MatKAIJRestoreSRead()
 @*/
 PetscErrorCode MatKAIJRestoreS(Mat A,PetscScalar **S)
@@ -160,10 +165,12 @@ PetscErrorCode MatKAIJRestoreS(Mat A,PetscScalar **S)
   Output Parameter:
 . S - location of pointer to array obtained with MatKAIJGetS()
 
-  Note: This routine zeros the array pointer to prevent accidental reuse after it has been restored.
+  Note:
+  This routine zeros the array pointer to prevent accidental reuse after it has been restored.
   If NULL is passed, it will not attempt to zero the array pointer.
 
   Level: advanced
+
 .seealso: MatKAIJGetS(), MatKAIJGetSRead(), MatKAIJRestoreSRead()
 @*/
 PetscErrorCode MatKAIJRestoreSRead(Mat A,const PetscScalar **S)
@@ -186,7 +193,8 @@ PetscErrorCode MatKAIJRestoreSRead(Mat A,const PetscScalar **S)
 .  n - the number of columns in T
 -  T - the T matrix, in form of a scalar array in column-major format
 
-   Note: All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
+   Note:
+     All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
 
    Level: advanced
 
@@ -215,7 +223,8 @@ PetscErrorCode MatKAIJGetT(Mat A,PetscInt *m,PetscInt *n,PetscScalar **T)
 .  n - the number of columns in T
 -  T - the T matrix, in form of a scalar array in column-major format
 
-   Note: All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
+   Note:
+     All output parameters are optional (pass NULL or PETSC_IGNORE if not desired)
 
    Level: advanced
 
@@ -242,8 +251,10 @@ PetscErrorCode MatKAIJGetTRead(Mat A,PetscInt *m,PetscInt *n,const PetscScalar *
   Output Parameter:
 . T - location of pointer to array obtained with MatKAIJGetS()
 
-  Note: This routine zeros the array pointer to prevent accidental reuse after it has been restored.
-  If NULL is passed, it will not attempt to zero the array pointer.
+  Note:
+    This routine zeros the array pointer to prevent accidental reuse after it has been restored.
+
+    If NULL is passed, it will not attempt to zero the array pointer.
 
   Level: advanced
 .seealso: MatKAIJGetT(), MatKAIJGetTRead(), MatKAIJRestoreTRead()
@@ -269,10 +280,13 @@ PetscErrorCode MatKAIJRestoreT(Mat A,PetscScalar **T)
   Output Parameter:
 . T - location of pointer to array obtained with MatKAIJGetS()
 
-  Note: This routine zeros the array pointer to prevent accidental reuse after it has been restored.
-  If NULL is passed, it will not attempt to zero the array pointer.
+  Note:
+     This routine zeros the array pointer to prevent accidental reuse after it has been restored.
+
+     If NULL is passed, it will not attempt to zero the array pointer.
 
   Level: advanced
+
 .seealso: MatKAIJGetT(), MatKAIJGetTRead(), MatKAIJRestoreTRead()
 @*/
 PetscErrorCode MatKAIJRestoreTRead(Mat A,const PetscScalar **T)
@@ -328,7 +342,8 @@ PetscErrorCode MatKAIJSetAIJ(Mat A,Mat B)
 .  q - the number of columns in S
 -  S - the S matrix, in form of a scalar array in column-major format
 
-   Notes: The dimensions p and q must match those of the transformation matrix T associated with the KAIJ matrix.
+   Notes:
+   The dimensions p and q must match those of the transformation matrix T associated with the KAIJ matrix.
    The S matrix is copied, so the user can destroy this array.
 
    Level: Advanced
@@ -404,7 +419,8 @@ PetscErrorCode MatKAIJGetScaledIdentity(Mat A,PetscBool* identity)
 .  q - the number of columns in S
 -  T - the T matrix, in form of a scalar array in column-major format
 
-   Notes: The dimensions p and q must match those of the shift matrix S associated with the KAIJ matrix.
+   Notes:
+   The dimensions p and q must match those of the shift matrix S associated with the KAIJ matrix.
    The T matrix is copied, so the user can destroy this array.
 
    Level: Advanced

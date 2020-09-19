@@ -130,7 +130,6 @@ int main(int argc,char **argv)
 .   G - vector containing the newly evaluated gradient
 .   f - function value
 
-    Note:
     Some optimization methods ask for the function and the gradient evaluation
     at the same time.  Evaluating both at once may be more efficient that
     evaluating each separately.
@@ -188,7 +187,7 @@ PetscErrorCode FormFunctionGradient(Tao tao,Vec X,PetscReal *f, Vec G,void *ptr)
    Output Parameters:
 .  H     - Hessian matrix
 
-   Note:  Providing the Hessian may not be necessary.  Only some solvers
+   Providing the Hessian may not be necessary.  Only some solvers
    require this matrix.
 */
 PetscErrorCode FormHessian(Tao tao,Vec X,Mat H, Mat Hpre, void *ptr)

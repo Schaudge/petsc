@@ -196,7 +196,8 @@ PetscErrorCode PetscViewerFlush_ASCII(PetscViewer viewer)
     Output Parameter:
 .    fd - file pointer
 
-    Notes: for the standard PETSCVIEWERASCII the value is valid only on process 0 of the viewer
+    Notes:
+      For the standard PETSCVIEWERASCII the value is valid only on process 0 of the viewer
 
     Level: intermediate
 

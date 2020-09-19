@@ -161,7 +161,8 @@ PetscErrorCode  DMDAVecRestoreArray(DM da,Vec vec,void *array)
 
   Level: intermediate
 
-  Developer Notes: This has code duplication with DMDAVecGetArray() and DMDAVecGetArrayRead()
+  Developer Notes:
+    This has code duplication with DMDAVecGetArray() and DMDAVecGetArrayRead()
 
 .seealso: DMDAGetGhostCorners(), DMDAGetCorners(), VecGetArray(), VecRestoreArray(), DMDAVecRestoreArrayWrite(), DMDAVecRestoreArrayDOF()
           DMDAVecGetArrayDOF(), DMDAVecGetArray(), DMDAVecRestoreArray(), DMDAVecGetArrayRead(), DMDAVecRestoreArrayRead()

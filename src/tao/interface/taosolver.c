@@ -1157,7 +1157,8 @@ PetscErrorCode TaoGetCurrentTrustRegionRadius(Tao tao, PetscReal *radius)
 . grtol - stop if relative norm of gradient is less than this
 - gttol - stop if norm of gradient is reduced by a this factor
 
-  Note: NULL can be used as an argument if not all tolerances values are needed
+  Note:
+    NULL can be used as an argument if not all tolerances values are needed
 
 .seealso TaoSetTolerances()
 
@@ -1292,7 +1293,8 @@ PetscErrorCode TaoAddLineSearchCounts(Tao tao)
 
   Level: intermediate
 
-  Note:  The returned vector will be the same object that was passed into TaoSetInitialVector()
+  Note:
+    The returned vector will be the same object that was passed into TaoSetInitialVector()
 @*/
 PetscErrorCode TaoGetSolutionVector(Tao tao, Vec *X)
 {
@@ -1408,7 +1410,8 @@ $   PetscErrorCode conv(Tao tao, void *ctx)
 + tao - the Tao object
 - ctx - [optional] convergence context
 
-  Note: The new convergence testing routine should call TaoSetConvergedReason().
+  Note:
+    The new convergence testing routine should call TaoSetConvergedReason().
 
   Level: advanced
 
@@ -2296,8 +2299,9 @@ PetscErrorCode  TaoGetObjective(Tao tao,PetscReal *value)
 
    Level: intermediate
 
-   Developer Note: This is the 2-norm of the residual, we cannot use TaoGetGradientNorm() because that has
-                   a different meaning. For some reason Tao sometimes calls the gradient the residual.
+   Developer Note:
+     This is the 2-norm of the residual, we cannot use TaoGetGradientNorm() because that has
+     a different meaning. For some reason Tao sometimes calls the gradient the residual.
 
 .seealso:   TaoGetLinearSolveIterations(), TaoGetIterationNumber(), TaoGetObjective()
 @*/

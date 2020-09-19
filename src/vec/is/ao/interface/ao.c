@@ -290,7 +290,8 @@ PetscErrorCode  AOApplicationToPetsc(AO ao,PetscInt n,PetscInt ia[])
   Output Parameter:
 . array - The permuted array
 
-  Note: The length of the array should be block*N, where N is length
+  Note:
+  The length of the array should be block*N, where N is length
   provided to the AOCreate*() method that created the AO.
 
   The permutation takes array[i_pet] --> array[i_app], where i_app is
@@ -326,7 +327,8 @@ PetscErrorCode  AOPetscToApplicationPermuteInt(AO ao, PetscInt block, PetscInt a
   Output Parameter:
 . array - The permuted array
 
-  Note: The length of the array should be block*N, where N is length
+  Note:
+  The length of the array should be block*N, where N is length
   provided to the AOCreate*() method that created the AO.
 
   The permutation takes array[i_app] --> array[i_pet], where i_app is
@@ -362,7 +364,8 @@ PetscErrorCode  AOApplicationToPetscPermuteInt(AO ao, PetscInt block, PetscInt a
   Output Parameter:
 . array - The permuted array
 
-  Note: The length of the array should be block*N, where N is length
+  Note:
+  The length of the array should be block*N, where N is length
   provided to the AOCreate*() method that created the AO.
 
   The permutation takes array[i_pet] --> array[i_app], where i_app is
@@ -398,7 +401,8 @@ PetscErrorCode  AOPetscToApplicationPermuteReal(AO ao, PetscInt block, PetscReal
   Output Parameter:
 . array - The permuted array
 
-  Note: The length of the array should be block*N, where N is length
+  Note:
+  The length of the array should be block*N, where N is length
   provided to the AOCreate*() method that created the AO.
 
   The permutation takes array[i_app] --> array[i_pet], where i_app is

@@ -170,7 +170,8 @@ static PetscErrorCode DMProjectPoint_Func_Private(DM dm, PetscDS ds, DM dmIn, Pe
   Output Parameter:
 . values         - The value for each dual basis vector in the output dual space
 
-  Note: Not supported for FV
+  Note:
+    Not supported for FV
 
   Level: developer
 
@@ -665,7 +666,7 @@ static PetscErrorCode DMProjectLocal_Generic_Plex(DM dm, PetscReal time, Vec loc
       ierr = PetscFECreateTabulation(subfem, 1, numPoints, points, 1, &TAux[f]);CHKERRQ(ierr);
     }
   }
-  /* Note: We make no attempt to optimize for height. Higher height things just overwrite the lower height results. */
+  /* We make no attempt to optimize for height. Higher height things just overwrite the lower height results. */
   for (h = minHeight; h <= maxHeight; h++) {
     PetscInt     effectiveHeight = h - (auxBd ? 0 : minHeight);
     PetscDS      dsEff         = ds;

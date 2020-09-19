@@ -622,7 +622,8 @@ PetscErrorCode  PetscSortMPIIntWithArray(PetscMPIInt n,PetscMPIInt X[],PetscMPII
 
    Level: intermediate
 
-   Notes: this routine is useful when one needs to sort MPI ranks with other integer arrays.
+   Notes:
+     This routine is useful when one needs to sort MPI ranks with other integer arrays.
 
 .seealso: PetscSortMPIIntWithArray(), PetscIntSortSemiOrderedWithArray(), PetscTimSortWithArray()
 @*/

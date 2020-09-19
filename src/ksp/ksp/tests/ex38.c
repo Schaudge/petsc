@@ -69,7 +69,7 @@ int main(int argc,char **args)
      runtime. Also, the parallel partitioning of the matrix is
      determined by PETSc at runtime.
 
-     Performance tuning note:  For problems of substantial size,
+     Performance tuning note.  For problems of substantial size,
      preallocation of matrix memory is crucial for attaining good
      performance. See the matrix chapter of the users manual for details.
   */

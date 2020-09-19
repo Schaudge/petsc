@@ -5,9 +5,11 @@
   we don't have to worry about Fortran name mangling, this seems OK for now.
 */
 
-/* Have to redefine MKL_Complex16 and MKL_Complex8 as PetscScalar for the complex number cases.
- * This works fine with a C99 compiler -- still need to verify that this works with C89.
- * Note: These definitions need to occur BEFORE including MKL headers. */
+/*
+   Have to redefine MKL_Complex16 and MKL_Complex8 as PetscScalar for the complex number cases.
+   This works fine with a C99 compiler -- still need to verify that this works with C89.
+   These definitions need to occur BEFORE including MKL headers.
+*/
 #define MKL_Complex16 PetscScalar
 #define MKL_Complex8 PetscScalar
 
@@ -25,7 +27,7 @@
 # endif
 #endif
 
-/* Note: MKL releases prior to the end of 2014 do not have a const-correct interface -> ugly casts necessary.
+/*       MKL releases prior to the end of 2014 do not have a const-correct interface -> ugly casts necessary.
          Does not apply to mkl_sparse_x_*()-routines, because these have been introduced later. */
 #if !defined(PETSC_USE_COMPLEX)
 # if defined(PETSC_USE_REAL_SINGLE)

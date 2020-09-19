@@ -264,7 +264,8 @@ PetscErrorCode VecGetDM(Vec v, DM *dm)
 + v - The Vec
 - dm - The DM
 
-  Note: This is NOT the same as DMCreateGlobalVector() since it does not change the view methods or perform other customization, but merely sets the DM member.
+  Note:
+    This is NOT the same as DMCreateGlobalVector() since it does not change the view methods or perform other customization, but merely sets the DM member.
 
   Level: intermediate
 
@@ -399,8 +400,9 @@ PetscErrorCode  DMGetMatType(DM dm,MatType *ctype)
 
   Level: intermediate
 
-  Developer Note: Since the Mat class doesn't know about the DM class the DM object is associated with
-                  the Mat through a PetscObjectCompose() operation
+  Developer Note:
+     Since the Mat class doesn't know about the DM class the DM object is associated with
+     the Mat through a PetscObjectCompose() operation
 
 .seealso: MatSetDM(), DMCreateMatrix(), DMSetMatType()
 @*/
@@ -426,8 +428,9 @@ PetscErrorCode MatGetDM(Mat A, DM *dm)
 
   Level: intermediate
 
-  Developer Note: Since the Mat class doesn't know about the DM class the DM object is associated with
-                  the Mat through a PetscObjectCompose() operation
+  Developer Note:
+     Since the Mat class doesn't know about the DM class the DM object is associated with
+     the Mat through a PetscObjectCompose() operation
 
 
 .seealso: MatGetDM(), DMCreateMatrix(), DMSetMatType()
@@ -1865,7 +1868,8 @@ PetscErrorCode DMCreateFieldDecomposition(DM dm, PetscInt *len, char ***namelist
 + is - The global indices for the subproblem
 - subdm - The DM for the subproblem
 
-  Note: You need to call DMPlexSetMigrationSF() on the original DM if you want the Global-To-Natural map to be automatically constructed
+  Note:
+    You need to call DMPlexSetMigrationSF() on the original DM if you want the Global-To-Natural map to be automatically constructed
 
   Level: intermediate
 
@@ -1898,7 +1902,8 @@ PetscErrorCode DMCreateSubDM(DM dm, PetscInt numFields, const PetscInt fields[],
 + is - The global indices for the subproblem, or NULL
 - superdm - The DM for the superproblem
 
-  Note: You need to call DMPlexSetMigrationSF() on the original DM if you want the Global-To-Natural map to be automatically constructed
+  Note:
+    You need to call DMPlexSetMigrationSF() on the original DM if you want the Global-To-Natural map to be automatically constructed
 
   Level: intermediate
 
@@ -2041,7 +2046,8 @@ PetscErrorCode DMCreateDomainDecompositionScatters(DM dm,PetscInt n,DM *subdms,V
   Options Dtabase Keys:
 . -dm_plex_cell_refiner <strategy> - chooses the refinement strategy, e.g. regular, tohex
 
-  Note: If no refinement was done, the return value is NULL
+  Note:
+    If no refinement was done, the return value is NULL
 
   Level: developer
 
@@ -3909,7 +3915,8 @@ PetscErrorCode  DMLoad(DM newdm, PetscViewer viewer)
 
   Level: beginner
 
-  Note: If the DM is a DMDA and has no coordinates, the index bounds are returned instead.
+  Note:
+     If the DM is a DMDA and has no coordinates, the index bounds are returned instead.
 
 
 .seealso: DMGetCoordinates(), DMGetCoordinatesLocal(), DMGetBoundingBox()
@@ -4090,7 +4097,8 @@ PetscErrorCode DMGetSection(DM dm, PetscSection *section)
 
   Level: intermediate
 
-  Note: This gets a borrowed reference, so the user should not destroy this PetscSection.
+  Note:
+    This gets a borrowed reference, so the user should not destroy this PetscSection.
 
 .seealso: DMSetLocalSection(), DMGetGlobalSection()
 @*/
@@ -4146,7 +4154,8 @@ PetscErrorCode DMSetSection(DM dm, PetscSection section)
 
   Level: intermediate
 
-  Note: Any existing Section will be destroyed
+  Note:
+    Any existing Section will be destroyed
 
 .seealso: DMGetLocalSection(), DMSetGlobalSection()
 @*/
@@ -4193,7 +4202,8 @@ PetscErrorCode DMSetLocalSection(DM dm, PetscSection section)
 
   Level: advanced
 
-  Note: This gets borrowed references, so the user should not destroy the PetscSection or the Mat.
+  Note:
+    This gets borrowed references, so the user should not destroy the PetscSection or the Mat.
 
 .seealso: DMSetDefaultConstraints()
 @*/
@@ -4225,7 +4235,8 @@ PetscErrorCode DMGetDefaultConstraints(DM dm, PetscSection *section, Mat *mat)
 
   Level: advanced
 
-  Note: This increments the references of the PetscSection and the Mat, so they user can destroy them
+  Note:
+    This increments the references of the PetscSection and the Mat, so they user can destroy them
 
 .seealso: DMGetDefaultConstraints()
 @*/
@@ -4337,7 +4348,8 @@ static PetscErrorCode DMDefaultSectionCheckConsistency_Internal(DM dm, PetscSect
 
   Level: intermediate
 
-  Note: This gets a borrowed reference, so the user should not destroy this PetscSection.
+  Note:
+    This gets a borrowed reference, so the user should not destroy this PetscSection.
 
 .seealso: DMSetLocalSection(), DMGetLocalSection()
 @*/
@@ -4372,7 +4384,8 @@ PetscErrorCode DMGetGlobalSection(DM dm, PetscSection *section)
 
   Level: intermediate
 
-  Note: Any existing Section will be destroyed
+  Note:
+    Any existing Section will be destroyed
 
 .seealso: DMGetGlobalSection(), DMSetLocalSection()
 @*/
@@ -4404,7 +4417,8 @@ PetscErrorCode DMSetGlobalSection(DM dm, PetscSection section)
 
   Level: intermediate
 
-  Note: This gets a borrowed reference, so the user should not destroy this PetscSF.
+  Note:
+    This gets a borrowed reference, so the user should not destroy this PetscSF.
 
 .seealso: DMSetSectionSF(), DMCreateSectionSF()
 @*/
@@ -4445,7 +4459,8 @@ PetscErrorCode DMGetSectionSF(DM dm, PetscSF *sf)
 
   Level: intermediate
 
-  Note: Any previous SF is destroyed
+  Note:
+    Any previous SF is destroyed
 
 .seealso: DMGetSectionSF(), DMCreateSectionSF()
 @*/
@@ -4471,13 +4486,15 @@ PetscErrorCode DMSetSectionSF(DM dm, PetscSF sf)
 . localSection - PetscSection describing the local data layout
 - globalSection - PetscSection describing the global data layout
 
-  Notes: One usually uses DMGetSectionSF() to obtain the PetscSF
+  Notes:
+    One usually uses DMGetSectionSF() to obtain the PetscSF
 
   Level: developer
 
-  Developer Note: Since this routine has for arguments the two sections from the DM and puts the resulting PetscSF
-                  directly into the DM, perhaps this function should not take the local and global sections as
-                  input and should just obtain them from the DM?
+  Developer Note:
+    Since this routine has for arguments the two sections from the DM and puts the resulting PetscSF
+    directly into the DM, perhaps this function should not take the local and global sections as
+    input and should just obtain them from the DM?
 
 .seealso: DMGetSectionSF(), DMSetSectionSF(), DMGetLocalSection(), DMGetGlobalSection()
 @*/
@@ -4569,7 +4586,8 @@ PetscErrorCode DMCreateSectionSF(DM dm, PetscSection localSection, PetscSection 
 
   Level: intermediate
 
-  Note: This gets a borrowed reference, so the user should not destroy this PetscSF.
+  Note:
+    This gets a borrowed reference, so the user should not destroy this PetscSF.
 
 .seealso: DMSetPointSF(), DMGetSectionSF(), DMSetSectionSF(), DMCreateSectionSF()
 @*/
@@ -5220,7 +5238,8 @@ PetscErrorCode DMGetCellDS(DM dm, PetscInt point, PetscDS *prob)
 + fields - The IS containing the DM field numbers for the fields in this DS, or NULL
 - prob - The PetscDS defined on the given region, or NULL
 
-  Note: If the label is missing, this function returns an error
+  Note:
+    If the label is missing, this function returns an error
 
   Level: advanced
 
@@ -5256,8 +5275,9 @@ PetscErrorCode DMGetRegionDS(DM dm, DMLabel label, IS *fields, PetscDS *ds)
 . fields - The IS containing the DM field numbers for the fields in this DS, or NULL for all fields
 - prob   - The PetscDS defined on the given cell
 
-  Note: If the label has a DS defined, it will be replaced. Otherwise, it will be added to the DM. If DS is replaced,
-  the fields argument is ignored.
+  Note:
+    If the label has a DS defined, it will be replaced. Otherwise, it will be added to the DM. If DS is replaced,
+    the fields argument is ignored.
 
   Level: advanced
 
@@ -5420,7 +5440,8 @@ PetscErrorCode DMFindRegionNum(DM dm, PetscDS ds, PetscInt *num)
   Input Parameter:
 . dm - The DM
 
-  Note: If the label has a DS defined, it will be replaced. Otherwise, it will be added to the DM.
+  Note:
+    If the label has a DS defined, it will be replaced. Otherwise, it will be added to the DM.
 
   Level: intermediate
 
@@ -5611,7 +5632,8 @@ PetscErrorCode DMCreateDS(DM dm)
 + u    - The vector will be filled with exact solution values, or NULL
 - u_t  - The vector will be filled with the time derivative of exact solution values, or NULL
 
-  Note: The user must call PetscDSSetExactSolution() beforehand
+  Note:
+    The user must call PetscDSSetExactSolution() beforehand
 
   Level: developer
 
@@ -6475,7 +6497,8 @@ PetscErrorCode DMGetPeriodicity(DM dm, PetscBool *per, const PetscReal **maxCell
 . L       - If we assume the mesh is a torus, this is the length of each coordinate
 - bd      - This describes the type of periodicity in each topological dimension
 
-  Notes: If per is PETSC_TRUE and maxCell is not provided, coordinates need to be already localized, or must be localized by hand by the user.
+  Notes:
+    If per is PETSC_TRUE and maxCell is not provided, coordinates need to be already localized, or must be localized by hand by the user.
 
   Level: developer
 
@@ -6568,7 +6591,8 @@ PetscErrorCode DMLocalizeCoordinate(DM dm, const PetscScalar in[], PetscBool end
 
   Level: developer
 
-  Note: This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
+  Note:
+    This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
 
 .seealso: DMLocalizeCoordinates(), DMLocalizeAddCoordinate()
 */
@@ -6625,7 +6649,8 @@ PetscErrorCode DMLocalizeCoordinateReal_Internal(DM dm, PetscInt dim, const Pets
 
   Level: developer
 
-  Note: This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
+  Note:
+    This is meant to get a set of coordinates close to each other, as in a cell. The anchor is usually the one of the vertices on a containing cell
 
 .seealso: DMLocalizeCoordinates(), DMLocalizeCoordinate()
 */
@@ -7000,7 +7025,8 @@ PetscErrorCode DMGetOutputDM(DM dm, DM *odm)
 
   Level: intermediate
 
-  Note: This is intended for output that should appear in sequence, for instance
+  Note:
+  This is intended for output that should appear in sequence, for instance
   a set of timesteps in an HDF5 file, or a set of realizations of a stochastic system.
 
 .seealso: VecView()
@@ -7024,7 +7050,8 @@ PetscErrorCode DMGetOutputSequenceNumber(DM dm, PetscInt *num, PetscReal *val)
 
   Level: intermediate
 
-  Note: This is intended for output that should appear in sequence, for instance
+  Note:
+  This is intended for output that should appear in sequence, for instance
   a set of timesteps in an HDF5 file, or a set of realizations of a stochastic system.
 
 .seealso: VecView()
@@ -7051,7 +7078,8 @@ PetscErrorCode DMSetOutputSequenceNumber(DM dm, PetscInt num, PetscReal val)
 
   Level: intermediate
 
-  Note: This is intended for output that should appear in sequence, for instance
+  Note:
+  This is intended for output that should appear in sequence, for instance
   a set of timesteps in an HDF5 file, or a set of realizations of a stochastic system.
 
 .seealso: DMGetOutputSequenceNumber(), DMSetOutputSequenceNumber(), VecView()
@@ -7110,7 +7138,8 @@ PetscErrorCode DMGetUseNatural(DM dm, PetscBool *useNatural)
 + dm - The DM
 - useNatural - The flag to build the mapping to a natural order during distribution
 
-  Note: This also causes the map to be build after DMCreateSubDM() and DMCreateSuperDM()
+  Note:
+    This also causes the map to be build after DMCreateSubDM() and DMCreateSuperDM()
 
   Level: beginner
 
@@ -7848,7 +7877,8 @@ PetscErrorCode DMSetLabelOutput(DM dm, const char name[], PetscBool output)
 
   Level: intermediate
 
-  Note: This is typically used when interpolating or otherwise adding to a mesh
+  Note:
+    This is typically used when interpolating or otherwise adding to a mesh
 
 .seealso: DMGetCoordinates(), DMGetCoordinatesLocal(), DMGetCoordinateDM(), DMGetCoordinateSection(), DMShareLabels()
 @*/
@@ -8411,7 +8441,8 @@ $         PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscSc
 .  constants    - The value of each constant
 -  f            - The value of the function at this point in space
 
-  Note: There are three different DMs that potentially interact in this function. The output DM, dm, specifies the layout of the values calculates by funcs.
+  Note:
+  There are three different DMs that potentially interact in this function. The output DM, dm, specifies the layout of the values calculates by funcs.
   The input DM, attached to U, may be different. For example, you can input the solution over the full domain, but output over a piece of the boundary, or
   a subdomain. You can also output a different number of fields than the input, with different discretizations. Last the auxiliary DM, attached to the
   auxiliary field vector, which is attached to dm, can also be different. It can have a different topology, number of fields, and discretizations.
@@ -8483,7 +8514,8 @@ $         PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscSc
 .  constants    - The value of each constant
 -  f            - The value of the function at this point in space
 
-  Note: There are three different DMs that potentially interact in this function. The output DM, dm, specifies the layout of the values calculates by funcs.
+  Note:
+  There are three different DMs that potentially interact in this function. The output DM, dm, specifies the layout of the values calculates by funcs.
   The input DM, attached to U, may be different. For example, you can input the solution over the full domain, but output over a piece of the boundary, or
   a subdomain. You can also output a different number of fields than the input, with different discretizations. Last the auxiliary DM, attached to the
   auxiliary field vector, which is attached to dm, can also be different. It can have a different topology, number of fields, and discretizations.
@@ -8718,7 +8750,8 @@ PetscErrorCode DMAdaptLabel(DM dm, DMLabel label, DM *dmAdapt)
   Output Parameter:
 . dmAdapt  - Pointer to the DM object containing the adapted mesh
 
-  Note: The label in the adapted mesh will be registered under the name of the input DMLabel object
+  Note:
+    The label in the adapted mesh will be registered under the name of the input DMLabel object
 
   Level: advanced
 

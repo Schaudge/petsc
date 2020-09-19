@@ -810,20 +810,20 @@ $      func (TaoLinesearch ls, Vec x, PetscReal *f, PetscReal *gts, void *ctx);
 . gts - inner product of gradient and step direction vectors
 - ctx (optional) user-defined context
 
-  Note: The gradient will still need to be computed at the end of the line
-  search, so you will still need to set a line search gradient evaluation
-  routine
+  Notes:
+    The gradient will still need to be computed at the end of the line
+    search, so you will still need to set a line search gradient evaluation
+    routine
 
-  Note: Bounded line searches (those used in bounded optimization algorithms)
-  don't use g's directly, but rather (g'x - g'x0)/steplength.  You can get the
-  x0 and steplength with TaoLineSearchGetStartingVector() and TaoLineSearchGetStepLength()
+    Bounded line searches (those used in bounded optimization algorithms)
+    don't use g's directly, but rather (g'x - g'x0)/steplength.  You can get the
+    x0 and steplength with TaoLineSearchGetStartingVector() and TaoLineSearchGetStepLength()
+
+    Some algorithms (lcl, gpcg) set their own objective routine for the
+    line search, application programmers should be wary of overriding the
+    default objective routine.
 
   Level: advanced
-
-  Note:
-  Some algorithms (lcl, gpcg) set their own objective routine for the
-  line search, application programmers should be wary of overriding the
-  default objective routine.
 
 .seealso: TaoLineSearchCreate(), TaoLineSearchSetObjective(), TaoLineSearchSetGradient(), TaoLineSearchUseTaoRoutines()
 @*/
@@ -1196,8 +1196,9 @@ PetscErrorCode TaoLineSearchGetFullStepObjective(TaoLineSearch ls, PetscReal *f_
 . xl  - vector of lower bounds
 - xu  - vector of upper bounds
 
-  Note: If the variable bounds are not set with this routine, then
-  PETSC_NINFINITY and PETSC_INFINITY are assumed
+  Note:
+    If the variable bounds are not set with this routine, then
+    PETSC_NINFINITY and PETSC_INFINITY are assumed
 
   Level: beginner
 

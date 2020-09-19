@@ -164,7 +164,8 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_String(PetscViewer v)
 +    string - the string, optional use NULL if you do not need
 -   len - the length of the string, optional use NULL if you do
 
-  Notes: Do not write to the string nor free it
+  Notes:
+    Do not write to the string nor free it
 
   Level: advanced
 
@@ -197,7 +198,8 @@ PetscErrorCode  PetscViewerStringGetStringRead(PetscViewer viewer,const char *st
 .   string - the string to print data into
 -   len - the length of the string
 
-  Notes: The function does not copy the string, it uses it directly therefore you cannot free
+  Notes:
+   The function does not copy the string, it uses it directly therefore you cannot free
    the string until the viewer is destroyed. If you call PetscViewerStringSetOwnString() the ownership
    passes to the viewer and it will be responsable for freeing it. In this case the string must be
    obtained with PetscMalloc().
@@ -237,7 +239,8 @@ PetscErrorCode  PetscViewerStringSetString(PetscViewer viewer,char string[],size
   Input Parameters:
 .   viewer - string viewer
 
-  Notes: If you call this the string must have been obtained with PetscMalloc() and you cannot free the string
+  Notes:
+    If you call this the string must have been obtained with PetscMalloc() and you cannot free the string
 
   Level: advanced
 

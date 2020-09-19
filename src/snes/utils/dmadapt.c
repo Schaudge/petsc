@@ -194,7 +194,8 @@ PetscErrorCode DMAdaptorGetSolver(DMAdaptor adaptor, SNES *snes)
 
   Level: intermediate
 
-  Note: The solver MUST have an attached DM/DS, so that we know the exact solution
+  Note:
+    The solver MUST have an attached DM/DS, so that we know the exact solution
 
 .seealso: DMAdaptorGetSolver(), DMAdaptorCreate(), DMAdaptorAdapt()
 @*/
@@ -936,7 +937,8 @@ static PetscErrorCode DMAdaptorAdapt_Sequence_Private(DMAdaptor adaptor, Vec inx
 . -adapt_hessian_view : View the Clement interpolant of the solution Hessian
 - -adapt_metric_view : View the metric tensor for adaptive mesh refinement
 
-  Note: The available adaptation strategies are:
+  Note:
+    The available adaptation strategies are:
 $ 1) Adapt the initial mesh until a quality metric, e.g., a priori error bound, is satisfied
 $ 2) Solve the problem on a series of adapted meshes until a quality metric, e.g. a posteriori error bound, is satisfied
 $ 3) Solve the problem on a hierarchy of adapted meshes generated to satisfy a quality metric using multigrid

@@ -320,7 +320,8 @@ static PetscErrorCode PetscParallelSortInt_Samplesort(PetscLayout mapin, PetscLa
 
   Level: developer
 
-  Notes: This implements a distributed samplesort, which, with local array sizes n_in and n_out, global size N, and global number of processes P, does:
+  Notes:
+    This implements a distributed samplesort, which, with local array sizes n_in and n_out, global size N, and global number of processes P, does:
 
   - sorts locally
   - chooses pivots by sorting (in parallel) (P-1) pivot suggestions from each process using bitonic sort and allgathering a subset of (P-1) of those

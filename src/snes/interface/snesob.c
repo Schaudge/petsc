@@ -32,9 +32,10 @@ M*/
 
    Level: intermediate
 
-   Note: This is not used in the SNESLINESEARCHCP line search.
+   Notes:
+     This is not used in the SNESLINESEARCHCP line search.
 
-         If not provided then this defaults to the two norm of the function evaluation (set with SNESSetFunction())
+     If not provided then this defaults to the two norm of the function evaluation (set with SNESSetFunction())
 
 .seealso: SNESGetObjective(), SNESComputeObjective(), SNESSetFunction(), SNESSetJacobian(), SNESObjectiveFunction
 @*/

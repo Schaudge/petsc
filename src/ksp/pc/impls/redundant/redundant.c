@@ -119,7 +119,7 @@ static PetscErrorCode PCSetUp_Redundant(PC pc)
       /* create working vectors xdup and ydup.
        xdup concatenates all xsub's contigously to form a mpi vector over dupcomm  (see PetscSubcommCreate_interlaced())
        ydup concatenates all ysub and has empty local arrays because ysub's arrays will be place into it.
-       Note: we use communicator dupcomm, not PetscObjectComm((PetscObject)pc)! */
+       We use communicator dupcomm, not PetscObjectComm((PetscObject)pc)! */
       ierr = MatGetLocalSize(red->pmats,&mloc_sub,NULL);CHKERRQ(ierr);
       ierr = VecCreateMPI(PetscSubcommContiguousParent(red->psubcomm),mloc_sub,PETSC_DECIDE,&red->xdup);CHKERRQ(ierr);
       ierr = VecCreateMPIWithArray(PetscSubcommContiguousParent(red->psubcomm),1,mloc_sub,PETSC_DECIDE,NULL,&red->ydup);CHKERRQ(ierr);
@@ -514,7 +514,7 @@ PetscErrorCode PCRedundantGetOperators(PC pc,Mat *mat,Mat *pmat)
    PCFactorSetShiftType() applied to this PC will convey they shift type into the inner PC if it is factorization based.
 
    Developer Notes:
-    Note that PCSetInitialGuessNonzero()  is not used by this class but likely should be.
+     PCSetInitialGuessNonzero() is not used by this class but likely should be.
 
 .seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PCRedundantSetScatter(),
            PCRedundantGetKSP(), PCRedundantGetOperators(), PCRedundantSetNumber()

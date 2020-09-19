@@ -153,7 +153,8 @@ static PetscErrorCode PetscGetFileStat(const char fname[], uid_t *fileUid, gid_t
 
    Level: intermediate
 
-   Notes: if mode is '\0', no permissions checks are performed
+   Notes:
+     If mode is '\0', no permissions checks are performed
 
 .seealso: PetscTestDirectory(), PetscLs()
 @*/

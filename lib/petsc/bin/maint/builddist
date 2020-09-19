@@ -9,7 +9,8 @@
 #   builddist /sandbox/petsc/petsc.clone maint [petsc-3.4.1.tar.bz]
 #   builddist /sandbox/petsc/petsc.clone maint release-snapshot [petsc-release-snapshot.tar.bz]
 #
-# Notes: version info is automatically obtained from include/petscversion.h
+# Notes:
+#   version info is automatically obtained from include/petscversion.h
 #
 #echo "------- Have you done ALL of the following?? -----------------------------"
 #echo "(0) Excluded any directories not for public release"

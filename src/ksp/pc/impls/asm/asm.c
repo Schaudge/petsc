@@ -588,7 +588,7 @@ static PetscErrorCode PCApplyTranspose_ASM(PC pc,Vec x,Vec y)
      Support for limiting the restriction or interpolation to only local
      subdomain values (leaving the other values 0).
 
-     Note: these are reversed from the PCApply_ASM() because we are applying the
+     These are reversed from the PCApply_ASM() because we are applying the
      transpose of the three terms
   */
 
@@ -1385,12 +1385,13 @@ PETSC_EXTERN PetscErrorCode PCCreate_ASM(PC pc)
    Output Parameters:
 .  outis - the array of index sets defining the subdomains
 
-   Level: advanced
-
-   Note: this generates nonoverlapping subdomains; the PCASM will generate the overlap
+   Note:
+    This generates nonoverlapping subdomains; the PCASM will generate the overlap
     from these if you use PCASMSetLocalSubdomains()
 
     In the Fortran version you must provide the array outis[] already allocated of length n.
+
+   Level: advanced
 
 .seealso: PCASMSetLocalSubdomains(), PCASMDestroySubdomains()
 @*/

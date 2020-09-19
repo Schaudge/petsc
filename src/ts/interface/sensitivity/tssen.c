@@ -891,7 +891,8 @@ PetscErrorCode TSGetCostGradients(TS ts,PetscInt *numcost,Vec **lambda,Vec **mu)
 
    Level: beginner
 
-   Notes: Hessian of the cost function is completely different from Hessian of the ODE/DAE system
+   Notes:
+     Hessian of the cost function is completely different from Hessian of the ODE/DAE system
 
    For second-order adjoint, one needs to call this function and then TSAdjointSetForward() before TSSolve().
 
@@ -952,7 +953,8 @@ PetscErrorCode TSGetCostHessianProducts(TS ts,PetscInt *numcost,Vec **lambda2,Ve
 
   Level: intermediate
 
-  Notes: When computing sensitivies w.r.t. initial condition, set didp to NULL so that the solver will take it as an identity matrix mathematically. TSAdjoint does not reset the tangent linear solver automatically, TSAdjointResetForward() should be called to reset the tangent linear solver.
+  Notes:
+     When computing sensitivies w.r.t. initial condition, set didp to NULL so that the solver will take it as an identity matrix mathematically. TSAdjoint does not reset the tangent linear solver automatically, TSAdjointResetForward() should be called to reset the tangent linear solver.
 
 .seealso: TSSetCostHessianProducts(), TSAdjointResetForward()
 @*/
@@ -1882,7 +1884,8 @@ PetscErrorCode TSForwardCostIntegral(TS ts)
 
   Level: intermediate
 
-  Notes: TSSolve() allows users to pass the initial solution directly to TS. But the tangent linear variables cannot be initialized in this way. This function is used to set initial values for tangent linear variables.
+  Notes:
+    TSSolve() allows users to pass the initial solution directly to TS. But the tangent linear variables cannot be initialized in this way. This function is used to set initial values for tangent linear variables.
 
 .seealso: TSForwardSetSensitivities()
 @*/

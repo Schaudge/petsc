@@ -905,7 +905,8 @@ PetscErrorCode PCSetFailedReason(PC pc,PCFailedReason reason)
 
    Level: advanced
 
-   Notes: This is the maximum over reason over all ranks in the PC communicator. It is only valid after
+   Notes:
+   This is the maximum over reason over all ranks in the PC communicator. It is only valid after
    a call KSPCheckDot() or  KSPCheckNorm() inside a KSPSolve(). It is not valid immediately after a PCSetUp()
    or PCApply(), then use PCGetFailedReasonRank()
 

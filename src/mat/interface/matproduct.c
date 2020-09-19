@@ -640,7 +640,8 @@ PetscErrorCode MatProductNumeric_ABC(Mat mat)
 
    Level: intermediate
 
-   Notes: MatProductSymbolic() must have been called on mat before calling this function
+   Notes:
+     MatProductSymbolic() must have been called on mat before calling this function
 
 .seealso: MatProductCreate(), MatSetType(), MatProductSymbolic()
 @*/
@@ -753,7 +754,8 @@ PetscErrorCode MatProductSymbolic_ABC(Mat mat)
 
    Level: intermediate
 
-   Notes: MatProductSetFromOptions() must have been called on mat before calling this function
+   Notes:
+     MatProductSetFromOptions() must have been called on mat before calling this function
 
 .seealso: MatProductCreate(), MatProductCreateWithMat(), MatProductSetFromOptions(), MatProductNumeric(), MatProductSetType(), MatProductSetAlgorithm()
 @*/

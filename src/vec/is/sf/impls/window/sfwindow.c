@@ -133,7 +133,8 @@ static PetscErrorCode PetscSFWindowGetDataTypes(PetscSF sf,MPI_Datatype unit,con
 
    Level: advanced
 
-   Notes: Windows reusage follow this rules:
+   Notes:
+      Windows reusage follow this rules:
 
      PETSCSF_WINDOW_FLAVOR_CREATE: creates a new window every time, uses MPI_Win_create
 
@@ -294,7 +295,8 @@ static PetscErrorCode PetscSFWindowGetSyncType_Window(PetscSF sf,PetscSFWindowSy
 
    Level: advanced
 
-   Notes: the info handle is duplicated with a call to MPI_Info_dup unless info = MPI_INFO_NULL.
+   Notes:
+     The info handle is duplicated with a call to MPI_Info_dup unless info = MPI_INFO_NULL.
 
 .seealso: PetscSFSetFromOptions(), PetscSFWindowGetInfo()
 @*/
@@ -336,7 +338,8 @@ static PetscErrorCode PetscSFWindowSetInfo_Window(PetscSF sf,MPI_Info info)
 
    Level: advanced
 
-   Notes: if PetscSFWindowSetInfo() has not be called, this returns MPI_INFO_NULL
+   Notes:
+     If PetscSFWindowSetInfo() has not be called, this returns MPI_INFO_NULL
 
 .seealso: PetscSFSetFromOptions(), PetscSFWindowSetInfo()
 @*/

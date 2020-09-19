@@ -221,7 +221,8 @@ PetscErrorCode MatFDColoringSetBlockSize(MatFDColoring matfd,PetscInt brows,Pets
 
    Level: beginner
 
-   Notes: When the coloring type is IS_COLORING_LOCAL the coloring is in the local ordering of the unknowns.
+   Notes:
+     When the coloring type is IS_COLORING_LOCAL the coloring is in the local ordering of the unknowns.
 
 .seealso: MatFDColoringCreate(), MatFDColoringDestroy()
 @*/
@@ -383,7 +384,8 @@ PetscErrorCode  MatFDColoringSetFromOptions(MatFDColoring matfd)
    Options Database Keys:
 .  -mat_fd_type - "wp" or "ds"
 
-   Note: It is goofy that the argument type is MatMFFDType since the MatFDColoring actually computes the matrix entries
+   Developer Note:
+         It is goofy that the argument type is MatMFFDType since the MatFDColoring actually computes the matrix entries
          but the process of computing the entries is the same as as with the MatMFFD operation so we should reuse the names instead of
          introducing another one.
 
@@ -551,7 +553,8 @@ PetscErrorCode  MatFDColoringDestroy(MatFDColoring *c)
 
    Level: advanced
 
-   Note: IF the matrix type is BAIJ, then the block column indices are returned
+   Note:
+     IF the matrix type is BAIJ, then the block column indices are returned
 
    Fortran Note:
    This routine has a different interface for Fortran

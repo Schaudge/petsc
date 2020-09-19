@@ -7,7 +7,7 @@
       Provides an interface to the SPAI Sparse Approximate Inverse Preconditioner
    Code written by Stephen Barnard.
 
-      Note: there is some BAD memory bleeding below!
+      There is some BAD memory bleeding below!
 
       This code needs work
 

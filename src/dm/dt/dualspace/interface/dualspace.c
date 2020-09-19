@@ -628,7 +628,8 @@ PetscErrorCode PetscDualSpaceSetOrder(PetscDualSpace sp, PetscInt order)
   Output Parameter:
 . Nc - The number of components
 
-  Note: A vector space, for example, will have d components, where d is the spatial dimension
+  Note:
+    A vector space, for example, will have d components, where d is the spatial dimension
 
   Level: intermediate
 
@@ -776,7 +777,8 @@ PetscErrorCode PetscDualSpaceGetInteriorDimension(PetscDualSpace sp, PetscInt *i
 
    Level: advanced
 
-   Note: all of the usual spaces on simplex or tensor-product elements will be uniform, only reference cells
+   Note:
+   All of the usual spaces on simplex or tensor-product elements will be uniform, only reference cells
    with non-uniform strata (like trianguar-prisms) or anisotropic hp dual spaces will not be uniform.
 
 .seealso: PetscDualSpaceGetPointSubspace(), PetscDualSpaceGetSymmetries()
@@ -1047,7 +1049,8 @@ PetscErrorCode PetscDualSpaceCreateReferenceCell(PetscDualSpace sp, PetscInt dim
   Output Parameter:
 . value   - numComp output values
 
-  Note: The calling sequence for the callback func is given by:
+  Note:
+    The calling sequence for the callback func is given by:
 
 $ func(PetscInt dim, PetscReal time, const PetscReal x[],
 $      PetscInt numComponents, PetscScalar values[], void *ctx)
@@ -1131,7 +1134,8 @@ PetscErrorCode PetscDualSpaceApplyInterior(PetscDualSpace sp, const PetscScalar 
   Output Parameter:
 . value   - The output value
 
-  Note: The calling sequence for the callback func is given by:
+  Note:
+    The calling sequence for the callback func is given by:
 
 $ func(PetscInt dim, PetscReal time, const PetscReal x[],
 $      PetscInt numComponents, PetscScalar values[], void *ctx)
@@ -1529,7 +1533,8 @@ PetscErrorCode PetscDualSpaceCreateInteriorDataDefault(PetscDualSpace sp, PetscQ
   Output Parameter:
 . value - The output value (scalar)
 
-  Note: The calling sequence for the callback func is given by:
+  Note:
+    The calling sequence for the callback func is given by:
 
 $ func(PetscInt dim, PetscReal time, const PetscReal x[],
 $      PetscInt numComponents, PetscScalar values[], void *ctx)
@@ -1721,7 +1726,8 @@ PetscErrorCode PetscDualSpaceGetPointSubspace(PetscDualSpace sp, PetscInt point,
 + perms - Permutations of the interior degrees of freedom, parameterized by the point orientation
 - flips - Sign reversal of the interior degrees of freedom, parameterized by the point orientation
 
-  Note: The permutation and flip arrays are organized in the following way
+  Note:
+    The permutation and flip arrays are organized in the following way
 $ perms[p][ornt][dof # on point] = new local dof #
 $ flips[p][ornt][dof # on point] = reversal or not
 
@@ -1809,7 +1815,8 @@ PetscErrorCode PetscDualSpaceSetFormDegree(PetscDualSpace dsp, PetscInt k)
 
   Level: developer
 
-  Note: Currently supported values are
+  Note:
+    Currently supported values are
 $ 0: These are H_1 methods that only transform coordinates
 $ 1: These are Hcurl methods that transform functions using the covariant Piola transform (COVARIANT_PIOLA_TRANSFORM)
 $ 2: These are the same as 1
@@ -1849,7 +1856,8 @@ PetscErrorCode PetscDualSpaceGetDeRahm(PetscDualSpace dsp, PetscInt *k)
 
   Level: intermediate
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+  Note:
+    This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscDualSpaceTransformGradient(), PetscDualSpacePullback(), PetscDualSpacePushforward(), PetscDualSpaceTransformType
 @*/
@@ -1904,7 +1912,8 @@ PetscErrorCode PetscDualSpaceTransform(PetscDualSpace dsp, PetscDualSpaceTransfo
 
   Level: intermediate
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+  Note:
+    This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscDualSpaceTransform(), PetscDualSpacePullback(), PetscDualSpacePushforward(), PetscDualSpaceTransformType
 @*/
@@ -2015,9 +2024,10 @@ PetscErrorCode PetscDualSpaceTransformGradient(PetscDualSpace dsp, PetscDualSpac
 
   Level: advanced
 
-  Note: Functions transform in a complementary way (pushforward) to functionals, so that the scalar product is invariant. The type of transform is dependent on the associated k-simplex from the DeRahm complex.
+  Notes:
+    Functions transform in a complementary way (pushforward) to functionals, so that the scalar product is invariant. The type of transform is dependent on the associated k-simplex from the DeRahm complex.
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+    This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscDualSpacePushforward(), PetscDualSpaceTransform(), PetscDualSpaceGetDeRahm()
 @*/
@@ -2064,9 +2074,10 @@ PetscErrorCode PetscDualSpacePullback(PetscDualSpace dsp, PetscFEGeom *fegeom, P
 
   Level: advanced
 
-  Note: Functionals transform in a complementary way (pullback) to functions, so that the scalar product is invariant. The type of transform is dependent on the associated k-simplex from the DeRahm complex.
+  Notes:
+    Functionals transform in a complementary way (pullback) to functions, so that the scalar product is invariant. The type of transform is dependent on the associated k-simplex from the DeRahm complex.
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+    This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscDualSpacePullback(), PetscDualSpaceTransform(), PetscDualSpaceGetDeRahm()
 @*/
@@ -2113,9 +2124,10 @@ PetscErrorCode PetscDualSpacePushforward(PetscDualSpace dsp, PetscFEGeom *fegeom
 
   Level: advanced
 
-  Note: Functionals transform in a complementary way (pullback) to functions, so that the scalar product is invariant. The type of transform is dependent on the associated k-simplex from the DeRahm complex.
+  Notes:
+    Functionals transform in a complementary way (pullback) to functions, so that the scalar product is invariant. The type of transform is dependent on the associated k-simplex from the DeRahm complex.
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+     This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscDualSpacePushforward(), PPetscDualSpacePullback(), PetscDualSpaceTransform(), PetscDualSpaceGetDeRahm()
 @*/

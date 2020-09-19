@@ -134,7 +134,8 @@ PetscErrorCode PetscDualSpaceSimpleSetDimension(PetscDualSpace sp, PetscInt dim)
 
   Level: intermediate
 
-  Note: The quadrature will be reweighted so that it has unit volume.
+  Note:
+    The quadrature will be reweighted so that it has unit volume.
 
 .seealso: PetscDualSpaceSimpleSetDimension()
 @*/

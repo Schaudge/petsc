@@ -633,7 +633,7 @@ Collective on dm
  -   actx - Landau context with T and n
 
  Output Parameters:
- .  X - the Maxwellian distribution 
+ .  X - the Maxwellian distribution
 
  Level: beginner
 

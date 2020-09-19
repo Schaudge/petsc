@@ -83,7 +83,7 @@ int main(int argc,char **args)
       - Create parallel vectors.
         - When using VecSetSizes(), we specify only the vector's global
           dimension; the parallel partitioning is determined at runtime.
-        - Note: We form 1 vector from scratch and then duplicate as needed.
+        - We form 1 vector from scratch and then duplicate as needed.
   */
   ierr = MatCreate(PETSC_COMM_WORLD,&C1);CHKERRQ(ierr);
   ierr = MatSetSizes(C1,PETSC_DECIDE,PETSC_DECIDE,m*n,m*n);CHKERRQ(ierr);

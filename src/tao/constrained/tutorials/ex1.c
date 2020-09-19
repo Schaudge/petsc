@@ -16,7 +16,7 @@ Input parameters include:\n\
   -snes_fd           : snes with finite difference Jacobian (needed for pdipm)\n\
   -tao_cmonitor      : convergence monitor with constraint norm \n\
   -tao_view_solution : view exact solution at each itteration\n\
-  Note: external package superlu_dist is requried to run either for ipm or pdipm. Additionally This is designed for a maximum of 2 processors, the code will error if size > 2.\n\n";
+  The external package superlu_dist is requried to run either for ipm or pdipm. Additionally This is designed for a maximum of 2 processors, the code will error if size > 2.\n\n";
 
 /*
    User-defined application context - contains data needed by the

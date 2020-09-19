@@ -341,7 +341,8 @@ static PetscErrorCode PCView_PBJacobi(PC pc,PetscViewer viewer)
    terminating KSP with a KSP_DIVERGED_NANORIF allowing
    a nonlinear solver/ODE integrator to recover without stopping the program as currently happens.
 
-   Developer Note: Perhaps should provide an option that allows generation of a valid preconditioner
+   Developer Note:
+   Perhaps should provide an option that allows generation of a valid preconditioner
    even if a block is singular as the PCJACOBI does.
 
    Level: beginner

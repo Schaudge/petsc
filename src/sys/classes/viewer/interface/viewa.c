@@ -89,7 +89,8 @@ const char *const PetscViewerFormats[] = {
   where it didn't apply (PETSC_VIEWER_STDOUT_WORLD) it cause the default behavior
   for that viewer to be used.
 
-    Note: This supports passing in a NULL for the viewer for use in the debugger, but it should never be called in the code with a NULL viewer
+    Note:
+      This supports passing in a NULL for the viewer for use in the debugger, but it should never be called in the code with a NULL viewer
 
 .seealso: PetscViewerASCIIOpen(), PetscViewerBinaryOpen(), MatView(), VecView(), PetscViewerType,
           PetscViewerPushFormat(), PetscViewerPopFormat(), PetscViewerDrawOpen(),PetscViewerSocketOpen()

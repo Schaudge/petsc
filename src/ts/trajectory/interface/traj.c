@@ -46,7 +46,8 @@ PetscErrorCode TSTrajectoryRegister(const char sname[],PetscErrorCode (*function
 
   Level: developer
 
-  Notes: Usually one does not call this routine, it is called automatically during TSSolve()
+  Notes:
+    Usually one does not call this routine, it is called automatically during TSSolve()
 
 .seealso: TSTrajectorySetUp(), TSTrajectoryDestroy(), TSTrajectorySetType(), TSTrajectorySetVariableNames(), TSGetTrajectory(), TSTrajectoryGet(), TSTrajectoryGetVecs()
 @*/
@@ -117,7 +118,8 @@ PetscErrorCode TSTrajectoryGetNumSteps(TSTrajectory tj, PetscInt *steps)
 
   Level: developer
 
-  Notes: Usually one does not call this routine, it is called automatically during TSSolve()
+  Notes:
+    Usually one does not call this routine, it is called automatically during TSSolve()
 
 .seealso: TSTrajectorySetUp(), TSTrajectoryDestroy(), TSTrajectorySetType(), TSTrajectorySetVariableNames(), TSGetTrajectory(), TSTrajectorySet(), TSTrajectoryGetVecs(), TSGetSolution()
 @*/
@@ -163,8 +165,9 @@ PetscErrorCode TSTrajectoryGet(TSTrajectory tj,TS ts,PetscInt stepnum,PetscReal 
 
   Level: developer
 
-  Notes: If the step number is PETSC_DECIDE, the time argument is used to inquire the trajectory.
-         If the requested time does not match any in the trajectory, Lagrangian interpolations are returned.
+  Notes:
+    If the step number is PETSC_DECIDE, the time argument is used to inquire the trajectory.
+    If the requested time does not match any in the trajectory, Lagrangian interpolations are returned.
 
 .seealso: TSTrajectorySetUp(), TSTrajectoryDestroy(), TSTrajectorySetType(), TSTrajectorySetVariableNames(), TSGetTrajectory(), TSTrajectorySet(), TSTrajectoryGet()
 @*/
@@ -358,7 +361,8 @@ PetscErrorCode  TSTrajectoryView(TSTrajectory tj,PetscViewer viewer)
 
    Level: intermediate
 
-   Note: Fortran interface is not possible because of the string array argument
+   Note:
+     Fortran interface is not possible because of the string array argument
 
 .seealso: TSTrajectory, TSGetTrajectory()
 @*/
@@ -993,9 +997,10 @@ PetscErrorCode TSTrajectoryGetSolutionOnly(TSTrajectory tj,PetscBool *solution_o
 
    Level: developer
 
-   Notes: The vectors are interpolated if time does not match any time step stored in the TSTrajectory(). Pass NULL to not request a vector.
-          This function differs from TSTrajectoryGetVecs since the vectors obtained cannot be modified, and they need to be returned by
-          calling TSTrajectoryRestoreUpdatedHistoryVecs().
+   Notes:
+     The vectors are interpolated if time does not match any time step stored in the TSTrajectory(). Pass NULL to not request a vector.
+     This function differs from TSTrajectoryGetVecs since the vectors obtained cannot be modified, and they need to be returned by
+     calling TSTrajectoryRestoreUpdatedHistoryVecs().
 
 .seealso: TSSetSaveTrajectory(), TSTrajectoryCreate(), TSTrajectoryDestroy(), TSTrajectoryRestoreUpdatedHistoryVecs(), TSTrajectoryGetVecs()
 @*/

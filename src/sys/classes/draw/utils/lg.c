@@ -14,8 +14,9 @@
 
    Level: intermediate
 
-   Note: You must call PetscDrawLGDraw() to display any added points
-         Call PetscDrawLGReset() to remove all points
+   Note:
+     You must call PetscDrawLGDraw() to display any added points
+     Call PetscDrawLGReset() to remove all points
 
 .seealso: PetscDrawLGCreate(), PetscDrawLGAddPoints(), PetscDrawLGAddPoint(), PetscDrawLGReset(), PetscDrawLGDraw()
 @*/
@@ -62,8 +63,9 @@ PetscErrorCode  PetscDrawLGAddCommonPoint(PetscDrawLG lg,const PetscReal x,const
 -  x, y - the points to two arrays containing the new x and y
           point for each curve.
 
-   Note: You must call PetscDrawLGDraw() to display any added points
-         Call PetscDrawLGReset() to remove all points
+   Note:
+     You must call PetscDrawLGDraw() to display any added points
+     Call PetscDrawLGReset() to remove all points
 
    Level: intermediate
 
@@ -121,8 +123,9 @@ PetscErrorCode  PetscDrawLGAddPoint(PetscDrawLG lg,const PetscReal *x,const Pets
 
    Level: intermediate
 
-   Note: You must call PetscDrawLGDraw() to display any added points
-         Call PetscDrawLGReset() to remove all points
+   Note:
+     You must call PetscDrawLGDraw() to display any added points
+     Call PetscDrawLGReset() to remove all points
 
 .seealso: PetscDrawLGCreate(), PetscDrawLGAddPoint(), PetscDrawLGAddCommonPoint(), PetscDrawLGReset(), PetscDrawLGDraw()
 @*/

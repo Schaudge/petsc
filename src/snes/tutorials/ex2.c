@@ -8,8 +8,6 @@ This example employs a user-defined monitoring routine.\n\n";
    Processors: 1
 T*/
 
-
-
 /*
    Include "petscdraw.h" so that we can use PETSc drawing routines.
    Include "petscsnes.h" so that we can use SNES solvers.  Note that this
@@ -151,7 +149,7 @@ int main(int argc,char **argv)
      Evaluate initial guess; then solve nonlinear system
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   /*
-     Note: The user should initialize the vector, x, with the initial guess
+     The user should initialize the vector, x, with the initial guess
      for the nonlinear solver prior to calling SNESSolve().  In particular,
      to employ an initial guess of zero, the user should explicitly set
      this vector to zero by calling VecSet().

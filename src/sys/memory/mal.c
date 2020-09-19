@@ -356,7 +356,7 @@ static PetscBool petscmalloccoalesce =
 .  -malloc_coalesce - turn coalesced malloc on or off
 
    Note:
-     PETSc uses coalesced malloc by default for optimized builds and not for debugging builds. 
+     PETSc uses coalesced malloc by default for optimized builds and not for debugging builds.
      This default can be changed via the command-line option -malloc_coalesce or by calling this function.
      Can only be called immediately after PetscInitialize()
 

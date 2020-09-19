@@ -15,7 +15,8 @@ static PetscBool amsmemstack = PETSC_FALSE;
 
    Level: developer
 
-   Developers Note: Cannot use PetscFunctionBegin/Return() or PetscStackCallSAWs() since it may be used within those routines
+   Developers Note:
+     Cannot use PetscFunctionBegin/Return() or PetscStackCallSAWs() since it may be used within those routines
 
 .seealso: PetscObjectSetName(), PetscObjectSAWsViewOff(), PetscObjectSAWsTakeAccess()
 
@@ -35,7 +36,8 @@ void  PetscStackSAWsGrantAccess(void)
 
    Level: developer
 
-   Developers Note: Cannot use PetscFunctionBegin/Return() or PetscStackCallSAWs() since it may be used within those routines
+   Developers Note:
+     Cannot use PetscFunctionBegin/Return() or PetscStackCallSAWs() since it may be used within those routines
 
 .seealso: PetscObjectSetName(), PetscObjectSAWsViewOff(), PetscObjectSAWsTakeAccess()
 
@@ -107,12 +109,12 @@ PetscErrorCode  PetscStackView(FILE *file)
   if (!file) file = PETSC_STDOUT;
 
   if (file == PETSC_STDOUT) {
-    (*PetscErrorPrintf)("Note: The EXACT line numbers in the stack are not available,\n");
+    (*PetscErrorPrintf)("The EXACT line numbers in the stack are not available,\n");
     (*PetscErrorPrintf)("      INSTEAD the line number of the start of the function\n");
     (*PetscErrorPrintf)("      is given.\n");
     for (i=petscstack->currentsize-1; i>=0; i--) (*PetscErrorPrintf)("[%d] %s line %d %s\n",PetscGlobalRank,petscstack->function[i],petscstack->line[i],petscstack->file[i]);
   } else {
-    fprintf(file,"Note: The EXACT line numbers in the stack are not available,\n");
+    fprintf(file,"The EXACT line numbers in the stack are not available,\n");
     fprintf(file,"      INSTEAD the line number of the start of the function\n");
     fprintf(file,"      is given.\n");
     for (i=petscstack->currentsize-1; i>=0; i--) fprintf(file,"[%d] %s line %d %s\n",PetscGlobalRank,petscstack->function[i],petscstack->line[i],petscstack->file[i]);

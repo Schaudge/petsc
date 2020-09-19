@@ -138,7 +138,8 @@ PetscErrorCode PetscViewerDestroy_Matlab(PetscViewer v)
 
    Level: intermediate
 
-       Note: Currently can only save PETSc vectors to .mat files, not matrices (use the PETSCVIEWERBINARY and
+       Note:
+             Currently can only save PETSc vectors to .mat files, not matrices (use the PETSCVIEWERBINARY and
              ${PETSC_DIR}/share/petsc/matlab/PetscBinaryRead.m to read matrices into MATLAB).
 
              For parallel vectors obtained with DMCreateGlobalVector() or DMGetGlobalVector() the vectors are saved to
@@ -202,13 +203,13 @@ $    FILE_MODE_WRITE - open existing file for MATLAB output
 
    Level: beginner
 
-   Note: This PetscViewer should be destroyed with PetscViewerDestroy().
+   Notes:
+    This PetscViewer should be destroyed with PetscViewerDestroy().
 
     For writing files it only opens the file on processor 0 in the communicator.
 
-     This only saves Vecs it cannot be used to save Mats. We recommend using the PETSCVIEWERBINARY to save objects to be loaded into MATLAB
-     instead of this routine.
-
+    This only saves Vecs it cannot be used to save Mats. We recommend using the PETSCVIEWERBINARY to save objects to be loaded into MATLAB
+    instead of this routine.
 
 .seealso: PetscViewerASCIIOpen(), PetscViewerPushFormat(), PetscViewerDestroy(), PETSCVIEWERBINARY, PetscViewerBinaryOpen()
           VecView(), MatView(), VecLoad(), MatLoad()

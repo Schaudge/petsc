@@ -23,7 +23,8 @@ PETSC_EXTERN PetscErrorCode VecView_MPI(Vec, PetscViewer);
 + cStart - The first "normal" cell
 - cEnd   - The upper bound on "normal"" cells
 
-  Note: This just gives the first range of cells found. If the mesh has several cell types, it will only give the first.
+  Note:
+    This just gives the first range of cells found. If the mesh has several cell types, it will only give the first.
 
   Level: developer
 
@@ -1942,12 +1943,11 @@ PetscErrorCode DMPlexRestoreConeRecursive(DM dm, IS points, PetscInt *depth, IS 
 . p - The point, which must lie in the chart set with DMPlexSetChart()
 - cone - An array of points which are on the in-edges for point p
 
-  Output Parameter:
-
   Note:
-  This should be called after all calls to DMPlexSetConeSize() and DMSetUp().
+    This should be called after all calls to DMPlexSetConeSize() and DMSetUp().
 
-  Developer Note: Why not call this DMPlexSetCover()
+  Developer Note:
+    Why not call this DMPlexSetCover()
 
   Level: beginner
 
@@ -3101,7 +3101,8 @@ PetscErrorCode DMPlexComputeCellTypes(DM dm)
 
   Level: intermediate
 
-  Note: Currently, this is restricted to a single level join
+  Note:
+  Currently, this is restricted to a single level join
 
   Fortran Notes:
   Since it returns an array, this routine is only available in Fortran 90, and you must
@@ -3317,7 +3318,8 @@ PetscErrorCode DMPlexGetFullJoin(DM dm, PetscInt numPoints, const PetscInt point
 
   Level: intermediate
 
-  Note: Currently, this is restricted to a single level meet
+  Note:
+  Currently, this is restricted to a single level meet
 
   Fortran Notes:
   Since it returns an array, this routine is only available in Fortran 90, and you must
@@ -4148,7 +4150,8 @@ static PetscErrorCode PetscSectionFieldGetTensorDegree_Private(PetscSection sect
 . point   - Either a cell (highest dim point) or an edge (dim 1 point), or PETSC_DETERMINE
 - section - The PetscSection to reorder, or NULL for the default section
 
-  Note: The point is used to determine the number of dofs/field on an edge. For SEM, this is related to the polynomial
+  Note:
+  The point is used to determine the number of dofs/field on an edge. For SEM, this is related to the polynomial
   degree of the basis.
 
   Example:
@@ -5603,7 +5606,8 @@ static PetscErrorCode DMPlexPrintMatSetValues(PetscViewer viewer, Mat A, PetscIn
 
   Level: developer
 
-  Note: The indices could be local or global, depending on the value of 'off'.
+  Note:
+    The indices could be local or global, depending on the value of 'off'.
 */
 PetscErrorCode DMPlexGetIndicesPoint_Internal(PetscSection section, PetscBool islocal,PetscInt point, PetscInt off, PetscInt *loff, PetscBool setBC, const PetscInt perm[], const PetscInt indperm[], PetscInt indices[])
 {

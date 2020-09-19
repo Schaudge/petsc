@@ -2,7 +2,7 @@
 static char help[] = "Illustrate how to solves a matrix-free linear system with KSP.\n\n";
 
 /*
-  Note: modified from ~src/ksp/ksp/tutorials/ex1.c
+  Modified from ~src/ksp/ksp/tutorials/ex1.c
 */
 #include <petscksp.h>
 

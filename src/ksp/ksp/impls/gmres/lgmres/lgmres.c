@@ -639,7 +639,8 @@ static PetscErrorCode KSPLGMRESGetNewVectors(KSP ksp,PetscInt it)
    Output Parameter:
 .     result - the solution
 
-   Note: this calls KSPLGMRESBuildSoln - the same function that KSPLGMRESCycle
+   Note:
+   This calls KSPLGMRESBuildSoln - the same function that KSPLGMRESCycle
    calls directly.
 
 */

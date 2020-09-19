@@ -314,7 +314,8 @@ alldone:
 
    Level: developer
 
-   Note: If a Vec with the given name does not exist, it is created.
+   Note:
+     If a Vec with the given name does not exist, it is created.
 
 .seealso: DMGetNamedGlobalVector(), DMRestoreNamedLocalVector()
 @*/
@@ -353,7 +354,8 @@ PetscErrorCode DMHasNamedGlobalVector(DM dm,const char *name,PetscBool *exists)
 
    Level: developer
 
-   Note: If a Vec with the given name does not exist, it is created.
+   Note:
+     If a Vec with the given name does not exist, it is created.
 
 .seealso: DMRestoreNamedGlobalVector()
 @*/
@@ -456,7 +458,8 @@ PetscErrorCode DMRestoreNamedGlobalVector(DM dm,const char *name,Vec *X)
 
    Level: developer
 
-   Note: If a Vec with the given name does not exist, it is created.
+   Note:
+     If a Vec with the given name does not exist, it is created.
 
 .seealso: DMGetNamedGlobalVector(), DMRestoreNamedLocalVector()
 @*/
@@ -495,7 +498,8 @@ PetscErrorCode DMHasNamedLocalVector(DM dm,const char *name,PetscBool *exists)
 
    Level: developer
 
-   Note: If a Vec with the given name does not exist, it is created.
+   Note:
+     If a Vec with the given name does not exist, it is created.
 
 .seealso: DMGetNamedGlobalVector(), DMRestoreNamedLocalVector()
 @*/

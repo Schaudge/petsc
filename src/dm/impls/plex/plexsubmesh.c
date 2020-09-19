@@ -221,7 +221,8 @@ PetscErrorCode DMPlexLabelComplete(DM dm, DMLabel label)
 
   Level: developer
 
-  Note: The cells allow FEM boundary conditions to be applied using the cell geometry
+  Note:
+    The cells allow FEM boundary conditions to be applied using the cell geometry
 
 .seealso: DMPlexLabelAddFaceCells(), DMPlexLabelComplete(), DMPlexLabelCohesiveComplete()
 @*/
@@ -276,7 +277,8 @@ PetscErrorCode DMPlexLabelAddCells(DM dm, DMLabel label)
 
   Level: developer
 
-  Note: The cells allow FEM boundary conditions to be applied using the cell geometry
+  Note:
+    The cells allow FEM boundary conditions to be applied using the cell geometry
 
 .seealso: DMPlexLabelAddCells(), DMPlexLabelComplete(), DMPlexLabelCohesiveComplete()
 @*/
@@ -334,7 +336,8 @@ PetscErrorCode DMPlexLabelAddFaceCells(DM dm, DMLabel label)
 
   Level: developer
 
-  Note: This undoes DMPlexLabelAddCells() or DMPlexLabelAddFaceCells()
+  Note:
+    This undoes DMPlexLabelAddCells() or DMPlexLabelAddFaceCells()
 
 .seealso: DMPlexLabelComplete(), DMPlexLabelCohesiveComplete(), DMPlexLabelAddCells()
 @*/
@@ -925,7 +928,8 @@ static PetscErrorCode DMPlexConstructGhostCells_Internal(DM dm, DMLabel label, P
 + numGhostCells - The number of ghost cells added to the DM
 - dmGhosted - The new DM
 
-  Note: If no label exists of that name, one will be created marking all boundary faces
+  Note:
+    If no label exists of that name, one will be created marking all boundary faces
 
   Level: developer
 
@@ -1710,7 +1714,8 @@ static PetscErrorCode GetSurfaceSide_Static(DM dm, DM subdm, PetscInt numSubpoin
   Output Parameter:
 . label - A DMLabel marking all surface points
 
-  Note: The vertices in blabel are called "unsplit" in the terminology from hybrid cell creation.
+  Note:
+    The vertices in blabel are called "unsplit" in the terminology from hybrid cell creation.
 
   Level: developer
 
@@ -2070,7 +2075,8 @@ PetscErrorCode DMPlexCheckValidSubmesh_Private(DM dm, DMLabel label, DM subdm)
 . dmInterface - The new interface DM, or NULL
 - dmHybrid - The new DM with cohesive cells
 
-  Note: The hybridLabel indicates what parts of the original mesh impinged on the on division surface. For points
+  Note:
+  The hybridLabel indicates what parts of the original mesh impinged on the on division surface. For points
   directly on the division surface, they are labeled with their dimension, so an edge 7 on the division surface would be
   7 (1) in hybridLabel. For points that impinge from the positive side, they are labeled with 100+dim, so an edge 6 with
   one vertex 3 on the surface would be 6 (101) and 3 (0) in hybridLabel. If an edge 9 from the negative side of the
@@ -3690,7 +3696,8 @@ PetscErrorCode DMPlexGetSubpointMap(DM dm, DMLabel *subpointMap)
 + dm - The submesh DM
 - subpointMap - The DMLabel of all the points from the original mesh in this submesh
 
-  Note: Should normally not be called by the user, since it is set in DMPlexCreateSubmesh()
+  Note:
+    Should normally not be called by the user, since it is set in DMPlexCreateSubmesh()
 
   Level: developer
 
@@ -3779,7 +3786,8 @@ static PetscErrorCode DMPlexCreateSubpointIS_Internal(DM dm, IS *subpointIS)
   Output Parameter:
 . subpointIS - The IS of all the points from the original mesh in this submesh, or NULL if this is not a submesh
 
-  Note: This IS is guaranteed to be sorted by the construction of the submesh
+  Note:
+    This IS is guaranteed to be sorted by the construction of the submesh
 
   Level: developer
 

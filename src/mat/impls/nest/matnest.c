@@ -1439,7 +1439,8 @@ PetscErrorCode MatNestSetSubMats_Nest(Mat A,PetscInt nr,const IS is_row[],PetscI
 .  is_col - index sets for each nested column block, or NULL to make contiguous
 -  a - row-aligned array of nr*nc submatrices, empty submatrices can be passed using NULL
 
-   Notes: this always resets any submatrix information previously set
+   Notes:
+     This always resets any submatrix information previously set
 
    Level: advanced
 

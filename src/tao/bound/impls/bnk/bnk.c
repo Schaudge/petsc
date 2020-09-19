@@ -631,7 +631,7 @@ PetscErrorCode TaoBNKSafeguardStep(Tao tao, KSPConvergedReason ksp_reason, Petsc
         ierr = MatSolve(bnk->M, bnk->unprojected_gradient, tao->stepdirection);CHKERRQ(ierr);
 
         /* Check for success (descent direction)
-          NOTE: Negative gdx here means not a descent direction because
+          Negative gdx here means not a descent direction because
           the fall-back step is missing a negative sign. */
         ierr = VecDot(tao->gradient, tao->stepdirection, &gdx);CHKERRQ(ierr);
         if ((gdx <= 0.0) || PetscIsInfOrNanReal(gdx)) {
@@ -773,7 +773,7 @@ PetscErrorCode TaoBNKPerformLineSearch(Tao tao, PetscInt *stepType, PetscReal *s
         /* Attempt to use the BFGS direction */
         ierr = MatSolve(bnk->M, bnk->unprojected_gradient, tao->stepdirection);CHKERRQ(ierr);
         /* Check for success (descent direction)
-           NOTE: Negative gdx means not a descent direction because the step here is missing a negative sign. */
+           Negative gdx means not a descent direction because the step here is missing a negative sign. */
         ierr = VecDot(tao->gradient, tao->stepdirection, &gdx);CHKERRQ(ierr);
         if ((gdx <= 0.0) || PetscIsInfOrNanReal(gdx)) {
           /* BFGS direction is not descent or direction produced not a number

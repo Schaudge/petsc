@@ -7,7 +7,8 @@
 + dm        - The DM
 - naturalSF - The PetscSF
 
-  Note: It is necessary to call this in order to have DMCreateSubDM() or DMCreateSuperDM() build the Global-To-Natural map
+  Note:
+    It is necessary to call this in order to have DMCreateSubDM() or DMCreateSuperDM() build the Global-To-Natural map
 
   Level: intermediate
 
@@ -94,7 +95,8 @@ PetscErrorCode DMPlexGetGlobalToNaturalSF(DM dm, PetscSF *naturalSF)
   Output Parameter:
 . sfNatural   - PetscSF for mapping the Vec in PETSc ordering to the canonical ordering
 
-  Note: This is not typically called by the user.
+  Note:
+    This is not typically called by the user.
 
   Level: intermediate
 
@@ -188,7 +190,8 @@ PetscErrorCode DMPlexCreateGlobalToNaturalSF(DM dm, PetscSection section, PetscS
   Output Parameters:
 . nv - Vec in the canonical ordering distributed over all processors associated with gv
 
-  Note: The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
+  Note:
+    The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
 
   Level: intermediate
 
@@ -230,7 +233,8 @@ PetscErrorCode DMPlexGlobalToNaturalBegin(DM dm, Vec gv, Vec nv)
   Output Parameters:
 . nv - The natural Vec
 
-  Note: The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
+  Note:
+    The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
 
   Level: intermediate
 
@@ -271,7 +275,8 @@ PetscErrorCode DMPlexGlobalToNaturalEnd(DM dm, Vec gv, Vec nv)
   Output Parameters:
 . gv - The global Vec
 
-  Note: The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
+  Note:
+    The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
 
   Level: intermediate
 
@@ -317,7 +322,8 @@ PetscErrorCode DMPlexNaturalToGlobalBegin(DM dm, Vec nv, Vec gv)
   Output Parameters:
 . gv - The global Vec
 
-  Note: The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
+  Note:
+    The user must call DMSetUseNatural(dm, PETSC_TRUE) before DMPlexDistribute().
 
   Level: intermediate
 

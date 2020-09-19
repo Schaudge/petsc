@@ -48,7 +48,8 @@ PETSC_EXTERN const char *const TaoADMMUpdateTypes[];
 
   Level: advanced
 
-  Note: Most basic implementation. Generally slower than adaptive or adaptive relaxed version.
+  Note:
+    Most basic implementation. Generally slower than adaptive or adaptive relaxed version.
 
 .seealso: TaoADMMSetUpdateType(), TAO_ADMM_UPDATE_ADAPTIVE, TAO_ADMM_UPDATE_ADAPTIVE_RELAXED
 M*/
@@ -58,7 +59,8 @@ M*/
 
   Level: advanced
 
-  Note: Adaptively updates spectral penalty, using both steepest descent and minimum gradient.
+  Note:
+     Adaptively updates spectral penalty, using both steepest descent and minimum gradient.
 
 .seealso: TaoADMMSetUpdateType(), TAO_ADMM_UPDATE_BASIC, TAO_ADMM_UPDATE_ADAPTIVE_RELAXED
 M*/
@@ -68,7 +70,8 @@ M*/
 
   Level: advanced
 
-  Note: With adaptive spectral penalty update, it also relaxes x vector update by a factor.
+  Note:
+    With adaptive spectral penalty update, it also relaxes x vector update by a factor.
 
 .seealso: TaoADMMSetUpdateType(), TAO_ADMM_UPDATE_BASIC, TAO_ADMM_UPDATE_ADAPTIVE
 M*/
@@ -88,7 +91,8 @@ PETSC_EXTERN const char *const TaoADMMRegularizerTypes[];
 
   Level: advanced
 
-  Note: User needs to provided appropriate routines and type for regularizer solver
+  Note:
+    User needs to provided appropriate routines and type for regularizer solver
 
 .seealso: TaoADMMSetRegularizerType(), TAO_ADMM_REGULARIZER_SOFT_THRESH
 M*/
@@ -98,7 +102,8 @@ M*/
 
   Level: advanced
 
-  Note: Utilizes built-in SoftThreshold routines
+  Note:
+    Utilizes built-in SoftThreshold routines
 
 .seealso: TaoSoftThreshold(), TaoADMMSetRegularizerObjectiveAndGradientRoutine(),
           TaoADMMSetRegularizerHessianRoutine(), TaoADMMSetRegularizerType(), TAO_ADMM_REGULARIZER_USER

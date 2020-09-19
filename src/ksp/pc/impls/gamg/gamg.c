@@ -817,7 +817,8 @@ static PetscErrorCode PCGAMGSetProcEqLim_GAMG(PC pc, PetscInt n)
    Options Database Key:
 .  -pc_gamg_coarse_eq_limit <limit>
 
-   Notes: For example -pc_gamg_coarse_eq_limit 1000 will stop coarsening once the coarse grid
+   Notes:
+     For example -pc_gamg_coarse_eq_limit 1000 will stop coarsening once the coarse grid
      has less than 1000 unknowns.
 
    Level: intermediate

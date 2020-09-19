@@ -212,7 +212,8 @@ PetscErrorCode SNESVIComputeMeritFunctionGradient(Mat H, Vec phi, Vec dpsi)
    line search. The default line search does not do any line search
    but rather takes a full Newton step.
 
-   Developer Note: the code in this file should be slightly modified so that this routine need not exist and the SNESSolve_NEWTONLS() routine is called directly with the appropriate wrapped function and Jacobian evaluations
+   Developer Note:
+     The code in this file should be slightly modified so that this routine need not exist and the SNESSolve_NEWTONLS() routine is called directly with the appropriate wrapped function and Jacobian evaluations
 
 */
 PetscErrorCode SNESSolve_VINEWTONSSLS(SNES snes)

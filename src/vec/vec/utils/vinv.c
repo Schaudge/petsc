@@ -479,7 +479,6 @@ PetscErrorCode  VecStrideNormAll(Vec v,NormType ntype,PetscReal nrm[])
 
    Level: advanced
 
-
 .seealso: VecMax(), VecStrideNorm(), VecStrideGather(), VecStrideScatter(), VecStrideMin()
 @*/
 PetscErrorCode  VecStrideMaxAll(Vec v,PetscInt idex[],PetscReal nrm[])
@@ -539,7 +538,6 @@ PetscErrorCode  VecStrideMaxAll(Vec v,PetscInt idex[],PetscReal nrm[])
    information, or use a vector created from a multicomponent DMDA.
 
    The dimension of nrm must be the same as the vector block size
-
 
 .seealso: VecMin(), VecStrideNorm(), VecStrideGather(), VecStrideScatter(), VecStrideMax()
 @*/
@@ -876,7 +874,6 @@ PetscErrorCode  VecStrideScatter(Vec s,PetscInt start,Vec v,InsertMode addv)
    Notes:
    One must call VecSetBlockSize() on both vectors before this routine to set the stride
    information, or use a vector created from a multicomponent DMDA.
-
 
    The parallel layout of the vector and the subvector must be the same;
 
@@ -1238,7 +1235,8 @@ PetscErrorCode  VecLog(Vec v)
 
   Level: beginner
 
-  Note: The actual function is sqrt(|x_i|)
+  Note:
+    The actual function is sqrt(|x_i|)
 
 .seealso: VecLog(), VecExp(), VecReciprocal(), VecAbs()
 

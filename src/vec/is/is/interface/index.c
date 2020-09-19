@@ -257,7 +257,8 @@ PetscErrorCode ISCreateSubIS(IS is,IS comps,IS *subis)
 +  is - the index set
 -  clear_permanent_local - whether to remove the permanent status of local properties
 
-   NOTE: because all processes must agree on the global permanent status of a property,
+   NOTE:
+   Because all processes must agree on the global permanent status of a property,
    the permanent status can only be changed with ISSetInfo(), because this routine is not collective
 
    Level: developer
@@ -732,7 +733,8 @@ static PetscErrorCode ISGetInfo_Identity(IS is, ISInfoType type, PetscBool *flg)
    Output Parameter:
 .  flg - wheter the property is true (PETSC_TRUE) or false (PETSC_FALSE)
 
-   Note: ISGetInfo uses cached values when possible, which will be incorrect if ISSetInfo() has been called with incorrect information.  To clear cached values, use ISClearInfoCache().
+   Note:
+     ISGetInfo uses cached values when possible, which will be incorrect if ISSetInfo() has been called with incorrect information.  To clear cached values, use ISClearInfoCache().
 
    Level: advanced
 
@@ -771,9 +773,9 @@ PetscErrorCode ISGetInfo(IS is, ISInfo info, ISInfoType type, PetscBool compute,
     hasprop = (is->info[itype][(int)info] == IS_INFO_TRUE) ? PETSC_TRUE : PETSC_FALSE;
     infer = PETSC_TRUE;
   } else if ((itype == IS_LOCAL) && (is->info[IS_LOCAL][info] != IS_INFO_UNKNOWN)) {
-    /* we can cache local properties as long as we clear them when the IS changes */
-    /* NOTE: we only cache local values because there is no ISAssemblyBegin()/ISAssemblyEnd(),
-     so we have no way of knowing when a cached value has been invalidated by changes on a different process */
+    /* we can cache local properties as long as we clear them when the IS changes
+       We only cache local values because there is no ISAssemblyBegin()/ISAssemblyEnd(),
+       so we have no way of knowing when a cached value has been invalidated by changes on a different process */
     hasprop = (is->info[itype][(int)info] == IS_INFO_TRUE) ? PETSC_TRUE : PETSC_FALSE;
     infer = PETSC_TRUE;
   } else if (compute) {
@@ -827,7 +829,8 @@ static PetscErrorCode ISCopyInfo(IS source, IS dest)
 
    Level: intermediate
 
-   Note: If ISSetIdentity() (or ISSetInfo() for a permanent property) has been called,
+   Note:
+   If ISSetIdentity() (or ISSetInfo() for a permanent property) has been called,
    ISIdentity() will return its answer without communication between processes, but
    otherwise the output ident will be computed from ISGetInfo(),
    which may require synchronization on the communicator of IS.  To avoid this computation,
@@ -856,7 +859,8 @@ PetscErrorCode  ISIdentity(IS is,PetscBool  *ident)
 
    Level: intermediate
 
-   Note: The IS will be considered the identity permanently, even if indices have been changes (for example, with
+   Note:
+   The IS will be considered the identity permanently, even if indices have been changes (for example, with
    ISGeneralSetIndices()).  It's a good idea to only set this property if the IS will not change in the future.
    To clear this property, use ISClearInfoCache().
 
@@ -920,7 +924,8 @@ PetscErrorCode  ISContiguousLocal(IS is,PetscInt gstart,PetscInt gend,PetscInt *
 
    Level: intermediate
 
-   Note: If it is not alread known that the IS is a permutation (if ISSetPermutation()
+   Note:
+   If it is not alread known that the IS is a permutation (if ISSetPermutation()
    or ISSetInfo() has not been called), this routine will not attempt to compute
    whether the index set is a permutation and will assume perm is PETSC_FALSE.
    To compute the value when it is not already known, use ISGetInfo() with
@@ -953,7 +958,8 @@ PetscErrorCode  ISPermutation(IS is,PetscBool  *perm)
    The debug version of the libraries (./configure --with-debugging=1) checks if the
   index set is actually a permutation. The optimized version just believes you.
 
-   Note: The IS will be considered a permutation permanently, even if indices have been changes (for example, with
+   Note:
+   The IS will be considered a permutation permanently, even if indices have been changes (for example, with
    ISGeneralSetIndices()).  It's a good idea to only set this property if the IS will not change in the future.
    To clear this property, use ISClearInfoCache().
 
@@ -1520,9 +1526,9 @@ PetscErrorCode  ISRestoreNonlocalIndices(IS is, const PetscInt *indices[])
    Level: intermediate
 
    Notes:
-    complement represents the result of ISGetNonlocalIndices as an IS.
-          Therefore scalability issues similar to ISGetNonlocalIndices apply.
-          The resulting IS must be restored using ISRestoreNonlocalIS().
+     Complement represents the result of ISGetNonlocalIndices as an IS.
+     Therefore scalability issues similar to ISGetNonlocalIndices apply.
+     The resulting IS must be restored using ISRestoreNonlocalIS().
 
 .seealso: ISGetNonlocalIndices(), ISRestoreNonlocalIndices(),  ISAllGather(), ISGetSize()
 @*/
@@ -1758,9 +1764,9 @@ PetscErrorCode  ISToGeneral(IS is)
          or PETSC_FALSE otherwise.
 
    Notes:
-    For parallel IS objects this only indicates if the local part of the IS
-          is sorted. So some processors may return PETSC_TRUE while others may
-          return PETSC_FALSE.
+     For parallel IS objects this only indicates if the local part of the IS
+     is sorted. So some processors may return PETSC_TRUE while others may
+     return PETSC_FALSE.
 
    Level: intermediate
 
@@ -1851,12 +1857,12 @@ PetscErrorCode  ISCopy(IS is,IS isy)
    Level: advanced
 
    Notes:
-   It is usually desirable to create a parallel IS and look at the local part when necessary.
+     It is usually desirable to create a parallel IS and look at the local part when necessary.
 
-   Useful if serial ISs must be created independently, or to view many
-   logically independent serial ISs.
+     Useful if serial ISs must be created independently, or to view many
+     logically independent serial ISs.
 
-   The input IS must have the same type on every process.
+     The input IS must have the same type on every process.
 
 .seealso: ISSplit()
 @*/
@@ -1922,7 +1928,7 @@ PetscErrorCode  ISSetBlockSize(IS is,PetscInt bs)
 
    Level: intermediate
 
-Notes:
+   Notes:
    This is much like the block size for Vecs. It indicates that one can think of the indices as
    being in a collection of equal size blocks. For ISBlock() these collections of blocks are all contiquous
    within a block but this is not the case for other IS.

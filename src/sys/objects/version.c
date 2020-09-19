@@ -15,7 +15,8 @@
 
     For doing runtime checking off supported versions we recommend using PetscGetVersionNumber() instead of this routine.
 
-    Developer Note: The version information is also listed in
+    Developer Note:
+      The version information is also listed in
 $    src/docs/tex/manual/intro.tex,
 $    src/docs/tex/manual/manual.tex.
 $    src/docs/website/index.html.

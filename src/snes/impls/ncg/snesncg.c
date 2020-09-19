@@ -93,7 +93,8 @@ static PetscErrorCode SNESLineSearchApply_NCGLinear(SNESLineSearch linesearch)
    This line search uses the length "as if" the problem is linear (that is what is computed by the linear CG method) using the Jacobian of the function.
    alpha = (r, r) / (p, Ap) = (f, f) / (y, Jy) where r (f) is the current residual (function value), p (y) is the current search direction.
 
-   Notes: This requires a Jacobian-vector product but does not require the solution of a linear system with the Jacobian
+   Notes:
+     This requires a Jacobian-vector product but does not require the solution of a linear system with the Jacobian
 
    This is a "odd-ball" line search, we don't know if it is in the literature or used in practice by anyone.
 

@@ -959,10 +959,12 @@ PetscErrorCode TSAdaptChoose(TSAdapt adapt,TS ts,PetscReal h,PetscInt *next_sc,P
    Options Database Key:
 .  -ts_adapt_time_step_increase_delay cnt - number of steps to delay the increase
 
-   Notes: This is to prevent an adaptor from bouncing back and forth between two nearby timesteps. The default is 0.
-          The successful use of this option is problem dependent
+   Notes:
+     This is to prevent an adaptor from bouncing back and forth between two nearby timesteps. The default is 0.
+     The successful use of this option is problem dependent
 
-   Developer Note: there is no theory to support this option
+   Developer Note:
+     There is no theory to support this option
 
    Level: advanced
 

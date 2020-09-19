@@ -604,7 +604,7 @@ PetscErrorCode ISLocalToGlobalMappingSetFromOptions(ISLocalToGlobalMapping mappi
    ISLocalToGlobalMappingDestroy - Destroys a mapping between a local (0 to n)
    ordering and a global parallel ordering.
 
-   Note Collective
+   Not Collective
 
    Input Parameters:
 .  mapping - mapping data structure
@@ -821,7 +821,8 @@ PetscErrorCode ISLocalToGlobalMappingApplyBlock(ISLocalToGlobalMapping mapping,P
 
     Level: advanced
 
-    Developer Note: The manual page states that idx and idxout may be identical but the calling
+    Developer Note:
+       The manual page states that idx and idxout may be identical but the calling
        sequence declares idx as const so it cannot be the same as idxout.
 
 .seealso: ISLocalToGlobalMappingApply(), ISGlobalToLocalMappingApplyBlock(), ISLocalToGlobalMappingCreate(),
@@ -919,7 +920,8 @@ PetscErrorCode  ISGlobalToLocalMappingApplyIS(ISLocalToGlobalMapping mapping,ISG
 
     Level: advanced
 
-    Developer Note: The manual page states that idx and idxout may be identical but the calling
+    Developer Note:
+       The manual page states that idx and idxout may be identical but the calling
        sequence declares idx as const so it cannot be the same as idxout.
 
 .seealso: ISLocalToGlobalMappingApply(), ISGlobalToLocalMappingApply(), ISLocalToGlobalMappingCreate(),
@@ -1454,7 +1456,8 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreBlockInfo(ISLocalToGlobalMapping ma
 
     Level: advanced
 
-    Notes: The user needs to call ISLocalToGlobalMappingRestoreInfo when the data is no longer needed.
+    Notes:
+      The user needs to call ISLocalToGlobalMappingRestoreInfo when the data is no longer needed.
 
     Fortran Usage:
 $        ISLocalToGlobalMpngGetInfoSize(ISLocalToGlobalMapping,PetscInt nproc,PetscInt numprocmax,ierr) followed by
@@ -1538,7 +1541,8 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreInfo(ISLocalToGlobalMapping mapping
 
     Level: advanced
 
-    Notes: The user needs to call ISLocalToGlobalMappingRestoreInfo when the data is no longer needed.
+    Notes:
+      The user needs to call ISLocalToGlobalMappingRestoreInfo when the data is no longer needed.
 
 .seealso: ISLocalToGlobalMappingDestroy(), ISLocalToGlobalMappingCreateIS(), ISLocalToGlobalMappingCreate(),
           ISLocalToGlobalMappingGetInfo(), ISLocalToGlobalMappingRestoreNodeInfo()
@@ -1744,9 +1748,11 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreBlockIndices(ISLocalToGlobalMapping
    Output Arguments:
 . ltogcat - new mapping
 
-   Note: this currently always returns a mapping with block size of 1
+   Note:
+     This currently always returns a mapping with block size of 1
 
-   Developer Note: If all the input mapping have the same block size we could easily handle that as a special case
+   Developer Note:
+     If all the input mapping have the same block size we could easily handle that as a special case
 
    Level: advanced
 
@@ -1877,16 +1883,17 @@ PetscErrorCode  ISLocalToGlobalMappingRegister(const char sname[],PetscErrorCode
     of available methods (for instance, basic or hash)
 
    Notes:
-   See "petsc/include/petscis.h" for available methods
+     See "petsc/include/petscis.h" for available methods
 
-  Normally, it is best to use the ISLocalToGlobalMappingSetFromOptions() command and
-  then set the ISLocalToGlobalMapping type from the options database rather than by using
-  this routine.
+     Normally, it is best to use the ISLocalToGlobalMappingSetFromOptions() command and
+     then set the ISLocalToGlobalMapping type from the options database rather than by using
+     this routine.
 
   Level: intermediate
 
-  Developer Note: ISLocalToGlobalMappingRegister() is used to add new types to ISLocalToGlobalMappingList from which they
-  are accessed by ISLocalToGlobalMappingSetType().
+  Developer Note:
+    ISLocalToGlobalMappingRegister() is used to add new types to ISLocalToGlobalMappingList from which they
+    are accessed by ISLocalToGlobalMappingSetType().
 
 .seealso: PCSetType(), ISLocalToGlobalMappingType, ISLocalToGlobalMappingRegister(), ISLocalToGlobalMappingCreate()
 

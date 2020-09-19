@@ -16,8 +16,9 @@
 
   Level: intermediate
 
-   Note: vout may be NULL [PETSC_NULL_VEC from fortran] if you do not
-   need to have it created
+   Note:
+     vout may be NULL [PETSC_NULL_VEC from fortran] if you do not
+     need to have it created
 
    Usage:
 $        VecScatterCreateToAll(vin,&ctx,&vout);
@@ -87,8 +88,9 @@ PetscErrorCode  VecScatterCreateToAll(Vec vin,VecScatter *ctx,Vec *vout)
 
   Level: intermediate
 
-   Note: vout may be NULL [PETSC_NULL_VEC from fortran] if you do not
-   need to have it created
+   Note:
+     vout may be NULL [PETSC_NULL_VEC from fortran] if you do not
+     need to have it created
 
    Usage:
 $        VecScatterCreateToZero(vin,&ctx,&vout);

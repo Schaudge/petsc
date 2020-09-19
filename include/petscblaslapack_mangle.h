@@ -223,7 +223,7 @@
 #if !defined(PETSC_MISSING_LAPACK_ORMQR)
 # define LAPACKormqr_ PETSCBLAS(unmqr,UNMQR)
 #endif
-   /* note: dot and dotu are handled separately for complex data */
+   /* dot and dotu are handled separately for complex data */
 
 # define LAPACKsyev_  PETSCBLAS(heev,HEEV)  /* eigenvalues and eigenvectors of a symm matrix */
 # define LAPACKsyevx_ PETSCBLAS(heevx,HEEVX) /* selected eigenvalues and eigenvectors of a symm matrix */

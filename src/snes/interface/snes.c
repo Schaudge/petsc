@@ -4246,13 +4246,14 @@ PetscErrorCode  SNESGetConvergenceHistory(SNES snes,PetscReal *a[],PetscInt *its
 
   Calling sequence of func:
 $ func (SNES snes, PetscInt step);
++ snes - the SNES object
+- step - The current step of the iteration
 
-. step - The current step of the iteration
+  Note:
+    This is NOT what one uses to update the ghost points before a function evaluation, that should be done at the beginning of your FormFunction()
+    This is not used by most users.
 
   Level: advanced
-
-  Note: This is NOT what one uses to update the ghost points before a function evaluation, that should be done at the beginning of your FormFunction()
-        This is not used by most users.
 
 .seealso SNESSetJacobian(), SNESSolve()
 @*/
@@ -4807,7 +4808,8 @@ PetscErrorCode  SNESGetSolutionUpdate(SNES snes,Vec *x)
 
    Level: advanced
 
-    Notes: The vector r DOES NOT, in general contain the current value of the SNES nonlinear function
+    Notes:
+      The vector r DOES NOT, in general contain the current value of the SNES nonlinear function
 
 .seealso: SNESSetFunction(), SNESGetSolution(), SNESFunction
 @*/
@@ -4983,13 +4985,12 @@ $     SNESSetType(snes,"my_solver")
    or at runtime via the option
 $     -snes_type my_solver
 
+    Note:
+      If your function is not being put into a shared library then use SNESRegister() instead
+
    Level: advanced
 
-    Note: If your function is not being put into a shared library then use SNESRegister() instead
-
 .seealso: SNESRegisterAll(), SNESRegisterDestroy()
-
-  Level: advanced
 @*/
 PetscErrorCode  SNESRegister(const char sname[],PetscErrorCode (*function)(SNES))
 {

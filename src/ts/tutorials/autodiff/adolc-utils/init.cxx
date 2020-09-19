@@ -18,7 +18,8 @@
   A   - pointer to array for which memory is allocated
 
 
-  Note: Only arrays of doubles are currently accounted for in ADOL-C's myalloc2 function.
+  Note:
+    Only arrays of doubles are currently accounted for in ADOL-C's myalloc2 function.
 */
 template <class T> PetscErrorCode AdolcMalloc2(PetscInt m,PetscInt n,T **A[])
 {
@@ -33,7 +34,8 @@ template <class T> PetscErrorCode AdolcMalloc2(PetscInt m,PetscInt n,T **A[])
   Input parameter:
   A - array to free memory of
 
-  Note: Only arrays of doubles are currently accounted for in ADOL-C's myfree2 function.
+  Note:
+    Only arrays of doubles are currently accounted for in ADOL-C's myfree2 function.
 */
 template <class T> PetscErrorCode AdolcFree2(T **A)
 {

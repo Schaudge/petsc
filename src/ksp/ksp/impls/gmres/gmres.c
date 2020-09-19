@@ -754,7 +754,8 @@ PetscErrorCode  KSPGMRESGetCGSRefinementType(KSP ksp,KSPGMRESCGSRefinementType *
   Options Database:
 .  -ksp_gmres_restart <positive integer>
 
-    Note: The default value is 30.
+    Note:
+     The default value is 30.
 
    Level: intermediate
 
@@ -782,7 +783,8 @@ PetscErrorCode  KSPGMRESSetRestart(KSP ksp, PetscInt restart)
    Output Parameter:
 .   restart - integer restart value
 
-    Note: The default value is 30.
+    Note:
+     The default value is 30.
 
    Level: intermediate
 
@@ -809,7 +811,8 @@ PetscErrorCode  KSPGMRESGetRestart(KSP ksp, PetscInt *restart)
   Options Database:
 .  -ksp_gmres_haptol <positive real value>
 
-   Note: Happy breakdown is the rare case in GMRES where an 'exact' solution is obtained after
+   Note:
+         Happy breakdown is the rare case in GMRES where an 'exact' solution is obtained after
          a certain number of iterations. If you attempt more iterations after this point unstable
          things can happen hence very occasionally you may need to set this value to detect this condition
 

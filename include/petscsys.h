@@ -1662,7 +1662,8 @@ PETSC_EXTERN PetscErrorCode PetscScalarView(PetscInt,const PetscScalar[],PetscVi
    PetscArraymove() is preferred
    This routine is analogous to memmove().
 
-   Developers Note: This is inlined for performance
+   Developers Note:
+     This is inlined for performance
 
 .seealso: PetscMemcpy(), PetscMemcmp(), PetscArrayzero(), PetscMemzero(), PetscArraycmp(), PetscArraycpy(), PetscStrallocpy(),
           PetscArraymove()
@@ -1721,7 +1722,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscMemmove(void *a,const void *b,size_t n)
    This routine is analogous to memcpy().
    Not available from Fortran
 
-   Developer Note: this is inlined for fastest performance
+   Developer Note:
+     This is inlined for fastest performance
 
 .seealso: PetscMemzero(), PetscMemcmp(), PetscArrayzero(), PetscArraycmp(), PetscArraycpy(), PetscMemmove(), PetscStrallocpy()
 
@@ -1786,7 +1788,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscMemcpy(void *a,const void *b,size_t n)
    Not available from Fortran
    Prefer PetscArrayzero()
 
-   Developer Note: this is inlined for fastest performance
+   Developer Note:
+     This is inlined for fastest performance
 
 .seealso: PetscMemcpy(), PetscMemcmp(), PetscArrayzero(), PetscArraycmp(), PetscArraycpy(), PetscMemmove(), PetscStrallocpy()
 @*/
@@ -2045,7 +2048,8 @@ M*/
 
    Level: beginner
 
-   Note: This manual page is a place-holder because MPICH does not have a manual page for MPI_Comm
+   Note:
+     This manual page is a place-holder because MPICH does not have a manual page for MPI_Comm
 
 .seealso: PETSC_COMM_WORLD, PETSC_COMM_SELF
 M*/
@@ -2082,7 +2086,8 @@ PETSC_EXTERN PetscErrorCode MPIU_File_read_at_all(MPI_File,MPI_Offset,void*,Pets
 
    Level: advanced
 
-   Notes: If integers needed for the applications are too large to fit in 32 bit ints you can ./configure using --with-64-bit-indices to make PetscInt use 64 bit ints
+   Notes:
+     If integers needed for the applications are too large to fit in 32 bit ints you can ./configure using --with-64-bit-indices to make PetscInt use 64 bit ints
 
    Not available from Fortran
 
@@ -2214,7 +2219,8 @@ PETSC_STATIC_INLINE PetscInt PetscRealIntMultTruncate(PetscReal a,PetscInt b)
 
    Not available from Fortran
 
-   Developers Note: We currently assume that PetscInt addition can never overflow, this is obviously wrong but requires many more checks.
+   Developers Note:
+     We currently assume that PetscInt addition can never overflow, this is obviously wrong but requires many more checks.
 
    This is used where we compute approximate sizes for workspace and need to insure the workspace is index-able.
 
@@ -2283,7 +2289,8 @@ PETSC_STATIC_INLINE PetscInt PetscIntSumTruncate(PetscInt a,PetscInt b)
 
    Not available from Fortran
 
-   Developers Note: We currently assume that PetscInt addition does not overflow, this is obviously wrong but requires many more checks.
+   Developers Note:
+     We currently assume that PetscInt addition does not overflow, this is obviously wrong but requires many more checks.
 
    Level: advanced
 

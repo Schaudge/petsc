@@ -79,7 +79,8 @@ PetscErrorCode MatCholeskyFactorSymbolic_SparseElemental(Mat F,Mat A,IS r,const 
 
   This is currently not supported.
 
-  Developer Note: Jed Brown made the interface for Clique when it was a standalone package. Later Jack Poulson merged and refactored Clique into
+  Developer Note:
+  Jed Brown made the interface for Clique when it was a standalone package. Later Jack Poulson merged and refactored Clique into
   Elemental but since the Clique interface was not tested in PETSc the interface was not updated for the new Elemental interface. Later Barry Smith updated
   all the boilerplate for the Clique interface to SparseElemental but since the solver interface changed dramatically he did not update the code
   that actually calls the SparseElemental solvers. We are waiting on someone who has a need to complete the SparseElemental interface from PETSc.

@@ -180,7 +180,8 @@ PetscErrorCode PetscSegBufferExtractTo(PetscSegBuffer seg,void *contig)
 
    Level: developer
 
-   Developer Notes: 'seg' argument is a pointer so that implementation could reallocate, though this is not currently done
+   Developer Notes:
+      The 'seg' argument is a pointer so that implementation could reallocate, though this is not currently done
 
 .seealso: PetscSegBufferCreate(), PetscSegBufferGet(), PetscSegBufferDestroy(), PetscSegBufferExtractTo(), PetscSegBufferExtractInPlace()
 @*/

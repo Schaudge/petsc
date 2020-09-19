@@ -15,7 +15,7 @@ static char help[] = "This example demonstrates DMNetwork. It is used for testin
    Output Parameter:
 .  wash - wash context with nedge, nvertex and edgelist distributed
 
-   Note: The routine is used for testing parallel generation of dmnetwork, then redistribute.
+   The routine is used for testing parallel generation of dmnetwork, then redistribute.
 */
 PetscErrorCode WashNetworkDistribute(MPI_Comm comm,Wash wash)
 {

@@ -6,8 +6,6 @@ static char help[] = "Solves a tridiagonal linear system.\n\n";
    Processors: n
 T*/
 
-
-
 /*
   Include "petscksp.h" so that we can use KSP solvers.  Note that this file
   automatically includes:
@@ -16,7 +14,7 @@ T*/
      petscis.h     - index sets            petscksp.h - Krylov subspace methods
      petscviewer.h - viewers               petscpc.h  - preconditioners
 
-  Note:  The corresponding uniprocessor example is ex1.c
+  The corresponding uniprocessor example is ex1.c
 */
 #include <petscksp.h>
 

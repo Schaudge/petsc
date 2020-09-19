@@ -20,7 +20,7 @@ The flow can be driven with the lid or with bouyancy or both:\n\
       That example was removed because it used obsolete interfaces, but the
       algorithms from the paper can be reproduced using this example.
 
-      Note: The paper describes the algorithm as being linearly implicit but the
+      The paper describes the algorithm as being linearly implicit but the
       numerical results were created using nonlinearly implicit Euler.  The
       algorithm as described (linearly implicit) is more efficient and is the
       default when using TSPSEUDO.  If you want to reproduce the numerical
@@ -282,7 +282,7 @@ PetscErrorCode FormIFunctionLocal(DMDALocalInfo *info,PetscReal ptime,Field **x,
   /*
      Define mesh intervals ratios for uniform grid.
 
-     Note: FD formulae below are normalized by multiplying through by
+     The FD formulae below are normalized by multiplying through by
      local volume element (i.e. hx*hy) to obtain coefficients O(1) in two dimensions.
 
 

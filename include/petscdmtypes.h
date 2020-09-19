@@ -43,7 +43,8 @@ typedef enum {DM_BOUNDARY_NONE, DM_BOUNDARY_GHOSTED, DM_BOUNDARY_MIRROR, DM_BOUN
 /*E
   DMBoundaryConditionType - indicates what type of boundary condition is to be imposed
 
-  Note: This flag indicates the type of function which will define the condition:
+  Note:
+    This flag indicates the type of function which will define the condition:
 $ DM_BC_ESSENTIAL       - A Dirichlet condition using a function of the coordinates
 $ DM_BC_ESSENTIAL_FIELD - A Dirichlet condition using a function of the coordinates and auxiliary field data
 $ DM_BC_ESSENTIAL_BD_FIELD - A Dirichlet condition using a function of the coordinates, facet normal, and auxiliary field data

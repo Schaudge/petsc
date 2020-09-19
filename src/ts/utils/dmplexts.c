@@ -392,7 +392,8 @@ PetscErrorCode DMTSCheckJacobian(TS ts, DM dm, PetscReal t, Vec u, Vec u_t, Pets
 + ts - the TS object
 - u  - representative TS vector
 
-  Note: The user must call PetscDSSetExactSolution() beforehand
+  Note:
+    The user must call PetscDSSetExactSolution() beforehand
 
   Level: developer
 @*/

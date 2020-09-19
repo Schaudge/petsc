@@ -14,7 +14,7 @@
   Equation (6.15) of Nocedal and Wright "Numerical Optimization" 2nd
   edition, pg 139.
 
-  Note: Q[i] = (B_i)^{-1}*S[i] terms are computed ahead of time whenever
+  The Q[i] = (B_i)^{-1}*S[i] terms are computed ahead of time whenever
   the matrix is updated with a new (S[i], Y[i]) pair. This allows
   repeated calls of MatSolve without incurring redundant computation.
 

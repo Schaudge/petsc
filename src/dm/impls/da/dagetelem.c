@@ -465,11 +465,12 @@ PetscErrorCode  DMDAGetSubdomainCornersIS(DM dm,IS *is)
 
    Level: intermediate
 
-   Note: You should not access these values after you have called this routine.
+   Note:
+     You should not access these values after you have called this routine.
 
-         This restore signals the DMDA object that you no longer need access to the array information.
+     This restore signals the DMDA object that you no longer need access to the array information.
 
-         Not supported in Fortran
+      Not supported in Fortran
 
 .seealso: DMDAElementType, DMDASetElementType(), DMDAGetElements()
 @*/

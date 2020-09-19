@@ -98,7 +98,7 @@ PetscScalar Vref[3];
     V_m0                - Voltage magnitude at t = 0
     ld_betap, ld_betaq  - exponents describing the load model for real and reactive part
 
-    Note: All loads have the same characteristic currently.
+    All loads have the same characteristic currently.
 */
 const PetscScalar PD0[3] = {1.25,0.9,1.0};
 const PetscScalar QD0[3] = {0.5,0.3,0.35};
@@ -455,7 +455,7 @@ PetscErrorCode ResidualFunction(Vec X, Vec F, Userctx *user)
   /* Network current balance residual IG + Y*V + IL = 0. Only YV is added here.
      The generator current injection, IG, and load current injection, ID are added later
   */
-  /* Note that the values in Ybus are stored assuming the imaginary current balance
+  /* The values in Ybus are stored assuming the imaginary current balance
      equation is ordered first followed by real current balance equation for each bus.
      Thus imaginary current contribution goes in location 2*i, and
      real current contribution in 2*i+1

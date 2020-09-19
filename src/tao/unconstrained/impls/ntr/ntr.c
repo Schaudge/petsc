@@ -36,7 +36,8 @@ static const char *NTR_UPDATE[64] = {"reduction","interpolation"};
    definite matrix (the preconditioner).  Here g is the gradient and H
    is the Hessian matrix.
 
-   Note:  TaoSolve_NTR MUST use the iterative solver KSPNASH, KSPSTCG,
+   Note:
+           TaoSolve_NTR MUST use the iterative solver KSPNASH, KSPSTCG,
           or KSPGLTR.  Thus, we set KSPNASH, KSPSTCG, or KSPGLTR in this
           routine regardless of what the user may have previously specified.
 */

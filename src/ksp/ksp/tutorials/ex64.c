@@ -10,7 +10,7 @@ static char help[] = "Illustrates use of the preconditioner GASM.\n \
         -pc_gasm_print_subdomains\n \n";
 
 /*
-   Note:  This example focuses on setting the subdomains for the GASM
+   This example focuses on setting the subdomains for the GASM
    preconditioner for a problem on a 2D rectangular grid.  See ex1.c
    and ex2.c for more detailed comments on the basic usage of KSP
    (including working with matrices and vectors).

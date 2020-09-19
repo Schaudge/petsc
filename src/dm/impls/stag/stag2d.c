@@ -232,7 +232,7 @@ PETSC_INTERN PetscErrorCode DMSetUp_Stag_2d(DM dm)
   for (d=0; d<dim; ++d) {
     switch (stag->boundaryType[d]) {
       case DM_BOUNDARY_NONE:
-        /* Note: for a elements-only DMStag, the extra elements on the edges aren't necessary but we include them anyway */
+        /* For a elements-only DMStag, the extra elements on the edges aren't necessary but we include them anyway */
         switch (stag->stencilType) {
           case DMSTAG_STENCIL_NONE : /* only the extra one on the right/top edges */
             stag->nGhost[d] = stag->n[d];

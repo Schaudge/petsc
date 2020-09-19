@@ -64,7 +64,8 @@ $     MATORDERINGQMD - Quotient Minimum Degree
   Output Parameter:
 . perm - The point permutation as an IS, perm[old point number] = new point number
 
-  Note: The label is used to group sets of points together by label value. This makes it easy to reorder a mesh which
+  Note:
+  The label is used to group sets of points together by label value. This makes it easy to reorder a mesh which
   has different types of cells, and then loop over each set of reordered cells for assembly.
 
   Level: intermediate

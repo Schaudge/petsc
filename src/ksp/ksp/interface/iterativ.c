@@ -839,7 +839,8 @@ PetscErrorCode  KSPConvergedDefaultDestroy(void *ctx)
 
    Level: advanced
 
-   Developers Note: This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
+   Developers Note:
+     This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
 
 .seealso: KSPGetSolution(), KSPBuildResidualDefault()
 */
@@ -893,7 +894,8 @@ PetscErrorCode KSPBuildSolutionDefault(KSP ksp,Vec v,Vec *V)
 
    Level: advanced
 
-   Developers Note: This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
+   Developers Note:
+     This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
 
 .seealso: KSPBuildSolutionDefault()
 */
@@ -926,13 +928,15 @@ PetscErrorCode KSPBuildResidualDefault(KSP ksp,Vec t,Vec v,Vec *V)
 +  right - the array of vectors created
 -  left - the array of left vectors
 
-   Note: The right vector has as many elements as the matrix has columns. The left
+   Notes:
+     The right vector has as many elements as the matrix has columns. The left
      vector has as many elements as the matrix has rows.
 
-   The vectors are new vectors that are not owned by the KSP, they should be destroyed with calls to VecDestroyVecs() when no longer needed.
+     The vectors are new vectors that are not owned by the KSP, they should be destroyed with calls to VecDestroyVecs() when no longer needed.
 
-   Developers Note: First tries to duplicate the rhs and solution vectors of the KSP, if they do not exist tries to get them from the matrix, if
-                    that does not exist tries to get them from the DM (if it is provided).
+   Developers Note:
+     First tries to duplicate the rhs and solution vectors of the KSP, if they do not exist tries to get them from the matrix, if
+     that does not exist tries to get them from the DM (if it is provided).
 
    Level: advanced
 
@@ -1021,7 +1025,8 @@ PetscErrorCode KSPCreateVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn
 
   Level: developer
 
-  Developers Note: This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
+  Developers Note:
+   This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
 
 @*/
 PetscErrorCode KSPSetWorkVecs(KSP ksp,PetscInt nw)
@@ -1043,7 +1048,8 @@ PetscErrorCode KSPSetWorkVecs(KSP ksp,PetscInt nw)
   Input Parameter:
 . ksp - the iterative context
 
-   Developers Note: This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
+   Developers Note:
+     This is PETSC_EXTERN because it may be used by user written plugin KSP implementations
 
 */
 PetscErrorCode KSPDestroyDefault(KSP ksp)
@@ -1278,11 +1284,13 @@ PetscErrorCode  KSPGetApplicationContext(KSP ksp,void *usrP)
 .  pc - the preconditioner context
 -  vec - a vector that will be initialized with Inf to indicate lack of convergence
 
-   Notes: this may be called by a subset of the processes in the PC
+   Notes:
+    This may be called by a subset of the processes in the PC
 
    Level: developer
 
-   Developer Note: this is used to manage returning from preconditioners whose inner KSP solvers have failed in some way
+   Developer Note:
+     This is used to manage returning from preconditioners whose inner KSP solvers have failed in some way
 
 .seealso: KSPCreate(), KSPSetType(), KSP, KSPCheckNorm(), KSPCheckDot()
 @*/

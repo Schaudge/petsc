@@ -115,7 +115,8 @@ typedef const char* MatType;
 
    Level: beginner
 
-   Notes:  MATSOLVERUMFPACK, MATSOLVERCHOLMOD, MATSOLVERKLU form the SuiteSparse package for which you can use --download-suitesparse
+   Notes:
+     MATSOLVERUMFPACK, MATSOLVERCHOLMOD, MATSOLVERKLU form the SuiteSparse package for which you can use --download-suitesparse
 
 .seealso: MatGetFactor(), PCFactorSetMatSolverType(), PCFactorGetMatSolverType()
 J*/

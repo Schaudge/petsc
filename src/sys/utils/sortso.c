@@ -930,7 +930,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscTimSortBuildRunWithArray_Private(char *a
   PetscTimSort(n, arr, sizeof(arr[0]), my_increasing_comparison_function)
 .ve
 
-  Notes: Timsort makes the assumption that input data is already likely partially ordered, or that it contains
+  Notes:
+  PetscTimsort() makes the assumption that input data is already likely partially ordered, or that it contains
   contiguous sections (termed 'runs') where the data is locally ordered (but not necessarily globally ordered). It
   therefore aims
  to select slices of the array in such a way that resulting mergesorts operate on near perfectly length-balanced

@@ -1205,7 +1205,8 @@ $                 if (flg) {
    To get a listing of all currently specified options,
     see PetscOptionsView() or PetscOptionsGetAll()
 
-   Developer Note: This cannot check for invalid selection because of things like MATAIJ that are not included in the list
+   Developer Note:
+     This cannot check for invalid selection because of things like MATAIJ that are not included in the list
 
 .seealso: PetscOptionsGetInt(), PetscOptionsGetReal(),
            PetscOptionsHasName(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),

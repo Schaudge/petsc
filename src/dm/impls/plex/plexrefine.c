@@ -762,7 +762,8 @@ static PetscErrorCode DMPlexCellRefinerMapSubcells_ToSimplex(DMPlexCellRefiner c
 . cone   - A list of the faces for each subcell of the same type as source
 - ornt   - A list of the face orientations for each subcell of the same type as source
 
-  Note: The cone array gives the cone of each subcell listed by the first three outputs. For each cone point, we
+  Note:
+  The cone array gives the cone of each subcell listed by the first three outputs. For each cone point, we
   need the cell type, point identifier, and orientation within the subcell. The orientation is with respect to the canonical
   division (described in these outputs) of the cell in the original mesh. The point identifier is given by
 $   the number of cones to be taken, or 0 for the current cell
@@ -2463,7 +2464,8 @@ PetscErrorCode DMPlexCellRefinerGetAffineTransforms(DMPlexCellRefiner cr, DMPoly
 . invJ - The inverse Jacobian for each face
 - detJ - The determinant of the Jacobian for each face
 
-  Note: The Jacobian and inverse Jacboian will be rectangular, and the inverse is really a generalized inverse.
+  Note:
+    The Jacobian and inverse Jacboian will be rectangular, and the inverse is really a generalized inverse.
 
   Level: developer
 
@@ -3355,7 +3357,8 @@ PetscErrorCode DMPlexGetRefinementLimit(DM dm, PetscReal *refinementLimit)
 + dm - The DM
 - refinementFunc - Function giving the maximum cell volume in the refined mesh
 
-  Note: The calling sequence is refinementFunc(coords, limit)
+  Note:
+    The calling sequence is refinementFunc(coords, limit)
 $ coords - Coordinates of the current point, usually a cell centroid
 $ limit  - The maximum cell volume for a cell containing this point
 
@@ -3382,7 +3385,8 @@ PetscErrorCode DMPlexSetRefinementFunction(DM dm, PetscErrorCode (*refinementFun
   Output Parameter:
 . refinementFunc - Function giving the maximum cell volume in the refined mesh
 
-  Note: The calling sequence is refinementFunc(coords, limit)
+  Note:
+    The calling sequence is refinementFunc(coords, limit)
 $ coords - Coordinates of the current point, usually a cell centroid
 $ limit  - The maximum cell volume for a cell containing this point
 

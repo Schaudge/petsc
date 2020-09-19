@@ -38,7 +38,7 @@ static PetscErrorCode VecScatterBegin_MPI_ToAll(VecScatter ctx,Vec x,Vec y,Inser
       PetscInt rstart,rend;
       /*
          copy the correct part of the local vector into the local storage of
-         the MPI one.  Note: this operation only makes sense if all the local
+         the MPI one. This operation only makes sense if all the local
          vectors have the same values
       */
       ierr = VecGetOwnershipRange(y,&rstart,&rend);CHKERRQ(ierr);

@@ -377,7 +377,8 @@ PetscErrorCode  PetscStrcpy(char s[],const char t[])
      copied and the final location of s is set to NULL. This is different then the behavior of
      strncpy() which leaves s non-terminated if there is not room for the entire string.
 
-  Developers Note: Should this be PetscStrlcpy() to reflect its behavior which is like strlcpy() not strncpy()
+  Developers Note:
+     Should this be PetscStrlcpy() to reflect its behavior which is like strlcpy() not strncpy()
 
 .seealso: PetscStrcpy(), PetscStrcat(), PetscStrlcat()
 

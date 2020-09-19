@@ -343,7 +343,8 @@ PetscErrorCode PetscBagRegisterBoolArray(PetscBag bag,void *addr,PetscInt msize,
 
    Level: beginner
 
-   Note: The struct should have the field char mystring[msize]; not char *mystring
+   Note:
+     The struct should have the field char mystring[msize]; not char *mystring
 
 .seealso: PetscBag, PetscBagSetName(), PetscBagView(), PetscBagLoad(), PetscBagGetData()
            PetscBagRegisterInt(), PetscBagRegisterBool(), PetscBagRegisterScalar()
@@ -963,7 +964,8 @@ PetscErrorCode PetscBagGetData(PetscBag bag, void **data)
 +   bag - the bag of values
 -   prefix - the prefix to prepend all Bag item names with.
 
-  NOTES: Must be called prior to registering any of the bag items.
+  Notes:
+    Must be called prior to registering any of the bag items.
 
 .seealso: PetscBag, PetscBagRegisterReal(), PetscBagRegisterInt(), PetscBagRegisterBool(), PetscBagRegisterScalar()
            PetscBagSetFromOptions(), PetscBagCreate(), PetscBagDestroy(), PetscBagRegisterEnum()

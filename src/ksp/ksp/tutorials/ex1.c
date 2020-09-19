@@ -14,7 +14,7 @@ T*/
      petscis.h     - index sets
      petscviewer.h - viewers
 
-  Note:  The corresponding parallel example is ex23.c
+  The corresponding parallel example is ex23.c
 */
 #include <petscksp.h>
 

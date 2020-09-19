@@ -67,7 +67,7 @@ PetscScalar Vref[3];
     V_m0                - Voltage magnitude at t = 0
     ld_betap, ld_betaq  - exponents describing the load model for real and reactive part
 
-    Note: All loads have the same characteristic currently.
+    All loads have the same characteristic.
 */
 const PetscScalar PD0[3] = {1.25,0.9,1.0};
 const PetscScalar QD0[3] = {0.5,0.3,0.35};

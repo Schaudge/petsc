@@ -6711,7 +6711,7 @@ PetscErrorCode PCBDDCConstraintsSetUp(PC pc)
             | -s_1/s_n ...    -s_{n-1}/s_n      s_n/S |
 
             with S = \sum_{i=1}^n s_i^2
-            NOTE: in the above example, the primal dof is the last one of the edge in LOCAL ordering
+            In the above example, the primal dof is the last one of the edge in LOCAL ordering
                   in the current implementation, the primal dof is the first one of the edge in GLOBAL ordering
 
           - QR decomposition of constraints otherwise

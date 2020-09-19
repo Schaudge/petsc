@@ -192,7 +192,7 @@ static PetscErrorCode DMGetCompatibility_Stag(DM dm,DM dm2,PetscBool *compatible
       PetscFunctionReturn(0);
     }
   }
-  /* Note: we include stencil type and width in the notion of compatibility, as this affects
+  /* We include stencil type and width in the notion of compatibility, as this affects
      the "atlas" (local subdomains). This might be irritating in legitimate cases
      of wanting to transfer between two other-wise compatible DMs with different
      stencil characteristics. */

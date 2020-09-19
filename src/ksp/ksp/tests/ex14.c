@@ -153,14 +153,14 @@ int main(int argc,char **argv)
      Create matrix data structure for Jacobian
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   /*
-     Note:  For the parallel case, vectors and matrices MUST be partitioned
+     For the parallel case, vectors and matrices MUST be partitioned
      accordingly.  When using distributed arrays (DMDAs) to create vectors,
      the DMDAs determine the problem partitioning.  We must explicitly
      specify the local matrix dimensions upon its creation for compatibility
      with the vector distribution.  Thus, the generic MatCreate() routine
      is NOT sufficient when working with distributed arrays.
 
-     Note: Here we only approximately preallocate storage space for the
+     Here we only approximately preallocate storage space for the
      Jacobian.  See the users manual for a discussion of better techniques
      for preallocating matrix memory.
   */

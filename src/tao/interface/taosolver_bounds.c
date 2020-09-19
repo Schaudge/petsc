@@ -57,10 +57,12 @@ $      func (Tao tao, Vec xl, Vec xu);
 
   Level: beginner
 
-.seealso: TaoSetObjectiveRoutine(), TaoSetHessianRoutine() TaoSetObjectiveAndGradientRoutine(), TaoSetVariableBounds()
+   Note:
+     The func passed in to TaoSetVariableBoundsRoutine() takes
+     precedence over any values set in TaoSetVariableBounds().
 
-Note: The func passed in to TaoSetVariableBoundsRoutine() takes
-precedence over any values set in TaoSetVariableBounds().
+
+.seealso: TaoSetObjectiveRoutine(), TaoSetHessianRoutine() TaoSetObjectiveAndGradientRoutine(), TaoSetVariableBounds()
 
 @*/
 PetscErrorCode TaoSetVariableBoundsRoutine(Tao tao, PetscErrorCode (*func)(Tao, Vec, Vec, void*), void *ctx)

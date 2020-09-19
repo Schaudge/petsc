@@ -74,7 +74,8 @@ PetscErrorCode TSAdaptHistorySetTSHistory(TSAdapt adapt, TSHistory hist, PetscBo
 +  t  - the time corresponding to the requested step (can be NULL)
 -  dt - the time step to be taken at the requested step (can be NULL)
 
-   Notes: The time history is internally copied, and the user can free the hist array. The user still needs to specify the termination of the solve via TSSetMaxSteps().
+   Notes:
+     The time history is internally copied, and the user can free the hist array. The user still needs to specify the termination of the solve via TSSetMaxSteps().
 
    Level: advanced
 
@@ -108,7 +109,8 @@ PetscErrorCode TSAdaptHistoryGetStep(TSAdapt adapt, PetscInt step, PetscReal *t,
 .  hist     - the time history
 -  backward - if the time history has to be followed backward
 
-   Notes: The time history is internally copied, and the user can free the hist array. The user still needs to specify the termination of the solve via TSSetMaxSteps().
+   Notes:
+     The time history is internally copied, and the user can free the hist array. The user still needs to specify the termination of the solve via TSSetMaxSteps().
 
    Level: advanced
 
@@ -145,7 +147,8 @@ PetscErrorCode TSAdaptHistorySetHistory(TSAdapt adapt, PetscInt n, PetscReal his
 .  tj       - the TSTrajectory context
 -  backward - if the time history has to be followed backward
 
-   Notes: The time history is internally copied, and the user can destroy the TSTrajectory if not needed. The user still needs to specify the termination of the solve via TSSetMaxSteps().
+   Notes:
+     The time history is internally copied, and the user can destroy the TSTrajectory if not needed. The user still needs to specify the termination of the solve via TSSetMaxSteps().
 
    Level: advanced
 

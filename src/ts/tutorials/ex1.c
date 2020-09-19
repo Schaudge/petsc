@@ -16,7 +16,7 @@ static char help[] ="Solves the time independent Bratu problem using pseudo-time
     is the same for all grid points, i.e., this is equivalent to using
     the backward Euler method with a variable timestep.
 
-    Note: This example does not require pseudo-timestepping since it
+    This example does not require pseudo-timestepping since it
     is an easy nonlinear problem, but it is included to demonstrate how
     the pseudo-timestepping may be done.
 
@@ -266,7 +266,7 @@ PetscErrorCode FormFunction(TS ts,PetscReal t,Vec X,Vec F,void *ptr)
 /*
    Calculate the Jacobian matrix J(X,t).
 
-   Note: We put the Jacobian in the preconditioner storage B instead of J. This
+   We put the Jacobian in the preconditioner storage B instead of J. This
    way we can give the -snes_mf_operator flag to check our work. This replaces
    J with a finite difference approximation, using our analytic Jacobian B for
    the preconditioner.

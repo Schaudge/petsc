@@ -4,7 +4,7 @@ procedures for setting the particular block sizes and for using different\n\
 linear solvers on the individual blocks.\n\n";
 
 /*
-   Note:  This example focuses on ways to customize the block Jacobi
+   This example focuses on ways to customize the block Jacobi
    preconditioner. See ex1.c and ex2.c for more detailed comments on
    the basic usage of KSP (including working with matrices and vectors).
 
@@ -16,8 +16,6 @@ linear solvers on the individual blocks.\n\n";
    Concepts: KSP^customizing the block Jacobi preconditioner
    Processors: n
 T*/
-
-
 
 /*
   Include "petscksp.h" so that we can use KSP solvers.  Note that this file
@@ -131,7 +129,7 @@ int main(int argc,char **args)
      Also, see the command PCBJacobiSetLocalBlocks() to set the
      local blocks.
 
-      Note: The default decomposition is 1 block per processor.
+      The default decomposition is 1 block per processor.
   */
   ierr = PetscMalloc1(m,&blks);CHKERRQ(ierr);
   for (i=0; i<m; i++) blks[i] = n;
@@ -170,7 +168,7 @@ int main(int argc,char **args)
        Call KSPSetUp() to set the block Jacobi data structures (including
        creation of an internal KSP context for each block).
 
-       Note: KSPSetUp() MUST be called before PCBJacobiGetSubKSP().
+       KSPSetUp() MUST be called before PCBJacobiGetSubKSP().
     */
     ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 

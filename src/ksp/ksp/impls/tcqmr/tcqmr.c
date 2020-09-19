@@ -2,7 +2,7 @@
 /*
     This file contains an implementation of Tony Chan's transpose-free QMR.
 
-    Note: The vector dot products in the code have not been checked for the
+    The vector dot products in the code have not been checked for the
     complex numbers version, so most probably some are incorrect.
 */
 

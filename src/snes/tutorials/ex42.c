@@ -5,8 +5,6 @@ static char help[] = "Newton's method to solve a two-variable system that comes 
    Concepts: SNES^basic example
 T*/
 
-
-
 /*
    Include "petscsnes.h" so that we can use SNES solvers.  Note that this
    file automatically includes:
@@ -80,7 +78,7 @@ int main(int argc,char **argv)
   ierr  = VecRestoreArray(x,&xx);CHKERRQ(ierr);
 
   /*
-     Note: The user should initialize the vector, x, with the initial guess
+     The user should initialize the vector, x, with the initial guess
      for the nonlinear solver prior to calling SNESSolve().  In particular,
      to employ an initial guess of zero, the user should explicitly set
      this vector to zero by calling VecSet().

@@ -38,7 +38,7 @@ static PetscErrorCode MPIPetsc_Iallreduce(void *sendbuf,void *recvbuf,PetscMPIIn
 }
 
 /*
-   Note: the lvalues and gvalues are twice as long as maxops, this is to allow the second half of
+   The lvalues and gvalues are twice as long as maxops, this is to allow the second half of
 the entries to have a flag indicating if they are PETSC_SR_REDUCE_SUM, PETSC_SR_REDUCE_MAX, or PETSC_SR_REDUCE_MIN these are used by
 the custom reduction operation that replaces MPI_SUM, MPI_MAX, or MPI_MIN in the case when a reduction involves
 some of each.

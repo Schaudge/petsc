@@ -1573,7 +1573,8 @@ PetscErrorCode DMPlexMigrate(DM dm, PetscSF sf, DM targetDM)
 + sf - The PetscSF used for point distribution, or NULL if not needed
 - dmParallel - The distributed DMPlex object
 
-  Note: If the mesh was not distributed, the output dmParallel will be NULL.
+  Note:
+  If the mesh was not distributed, the output dmParallel will be NULL.
 
   The user can control the definition of adjacency for the mesh using DMSetAdjacency(). They should choose the combination appropriate for the function
   representation on the mesh.

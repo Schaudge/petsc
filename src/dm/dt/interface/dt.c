@@ -190,7 +190,8 @@ PetscErrorCode PetscQuadratureSetOrder(PetscQuadrature q, PetscInt order)
   Output Parameter:
 . Nc - The number of components
 
-  Note: We are performing an integral int f(x) . w(x) dx, where both f and w (the weight) have Nc components.
+  Note:
+    We are performing an integral int f(x) . w(x) dx, where both f and w (the weight) have Nc components.
 
   Level: intermediate
 
@@ -214,7 +215,8 @@ PetscErrorCode PetscQuadratureGetNumComponents(PetscQuadrature q, PetscInt *Nc)
 + q  - The PetscQuadrature object
 - Nc - The number of components
 
-  Note: We are performing an integral int f(x) . w(x) dx, where both f and w (the weight) have Nc components.
+  Note:
+    We are performing an integral int f(x) . w(x) dx, where both f and w (the weight) have Nc components.
 
   Level: intermediate
 
@@ -391,7 +393,8 @@ static PetscErrorCode PetscDTJacobianInverse_Internal(PetscInt m, PetscInt n, co
    Output Arguments:
 .  Jinvstarq - a quadrature rule where each point is the image of a point in the original quadrature rule, and where the k-form weights have been pulled-back by the pseudoinverse of J to the k-form weights in the image space.
 
-   Note: the new quadrature rule will have a different number of components if spaces have different dimensions.  For example, pushing a 2-form forward from a two dimensional space to a three dimensional space changes the number of components from 1 to 3.
+   Note:
+     The new quadrature rule will have a different number of components if spaces have different dimensions.  For example, pushing a 2-form forward from a two dimensional space to a three dimensional space changes the number of components from 1 to 3.
 
    Level: intermediate
 
@@ -462,7 +465,8 @@ PetscErrorCode PetscQuadraturePushForward(PetscQuadrature q, PetscInt imageDim, 
 . points - The coordinates of each quadrature point
 - weights - The weight of each quadrature point
 
-  Note: This routine owns the references to points and weights, so they must be allocated using PetscMalloc() and the user should not free them.
+  Note:
+    This routine owns the references to points and weights, so they must be allocated using PetscMalloc() and the user should not free them.
 
   Level: intermediate
 
@@ -560,7 +564,8 @@ PetscErrorCode PetscQuadratureView(PetscQuadrature quad, PetscViewer viewer)
   Output Parameters:
 . dim - The dimension
 
-  Note: Together v0 and jac define an affine mapping from the original reference element to each subelement
+  Note:
+    Together v0 and jac define an affine mapping from the original reference element to each subelement
 
  Not available from Fortran
 
@@ -876,7 +881,8 @@ PetscErrorCode PetscDTLegendreEval(PetscInt npoints,const PetscReal *points,Pets
 
   Level: beginner
 
-  Note: for two tuples x and y with the same degree sum, partial degree sums over the final elements of the tuples
+  Note:
+  For two tuples x and y with the same degree sum, partial degree sums over the final elements of the tuples
   acts as a tiebreaker.  For example, (2, 1, 1) and (1, 2, 1) have the same degree sum, but the degree sum over the
   last two elements is smaller for the former, so (2, 1, 1) < (1, 2, 1).
 
@@ -925,7 +931,8 @@ PetscErrorCode PetscDTIndexToGradedOrder(PetscInt len, PetscInt index, PetscInt 
 
   Level: Beginner
 
-  Note: for two tuples x and y with the same degree sum, partial degree sums over the final elements of the tuples
+  Note:
+  For two tuples x and y with the same degree sum, partial degree sums over the final elements of the tuples
   acts as a tiebreaker.  For example, (2, 1, 1) and (1, 2, 1) have the same degree sum, but the degree sum over the
   last two elements is smaller for the former, so (2, 1, 1) < (1, 2, 1).
 
@@ -991,7 +998,8 @@ const char       PKDCitation[] = "@article{Kirby2010,\n"
 
   Level: advanced
 
-  Note: The ordering of the basis functions, and the ordering of the derivatives in the jet, both follow the graded
+  Note:
+  The ordering of the basis functions, and the ordering of the derivatives in the jet, both follow the graded
   ordering of PetscDTIndexToGradedOrder() and PetscDTGradedOrderToIndex().  For example, in 3D, the polynomial with
   leading monomial x^3,y^1,z^2, which as degree tuple (2,0,1), which by PetscDTGradedOrderToIndex() has index 12 (it is the 13th basis function in the space);
   the partial derivative $\partial_x \partial_z$ has order tuple (1,0,1), appears at index 6 in the jet (it is the 7th partial derivative in the jet).
@@ -1476,7 +1484,9 @@ static PetscErrorCode PetscDTGaussJacobiQuadrature_Internal(PetscInt npoints,Pet
 
   Level: intermediate
 
-  Note: this quadrature rule is exact for polynomials up to degree 2*npoints - 1.
+  Note:
+  This quadrature rule is exact for polynomials up to degree 2*npoints - 1.
+
 @*/
 PetscErrorCode PetscDTGaussJacobiQuadrature(PetscInt npoints,PetscReal a, PetscReal b, PetscReal alpha, PetscReal beta, PetscReal x[], PetscReal w[])
 {
@@ -1536,7 +1546,8 @@ static PetscErrorCode PetscDTGaussLobattoJacobiQuadrature_Internal(PetscInt npoi
 
   Level: intermediate
 
-  Note: this quadrature rule is exact for polynomials up to degree 2*npoints - 3.
+  Note:
+    This quadrature rule is exact for polynomials up to degree 2*npoints - 3.
 @*/
 PetscErrorCode PetscDTGaussLobattoJacobiQuadrature(PetscInt npoints,PetscReal a, PetscReal b, PetscReal alpha, PetscReal beta, PetscReal x[], PetscReal w[])
 {
@@ -1731,7 +1742,8 @@ PetscErrorCode PetscDTGaussTensorQuadrature(PetscInt dim, PetscInt Nc, PetscInt 
   References:
 .  1. - Karniadakis and Sherwin.  FIAT
 
-  Note: For dim == 1, this is Gauss-Legendre quadrature
+  Note:
+    For dim == 1, this is Gauss-Legendre quadrature
 
 .seealso: PetscDTGaussTensorQuadrature(), PetscDTGaussQuadrature()
 @*/
@@ -2538,7 +2550,8 @@ PetscErrorCode PetscGaussLobattoLegendreElementMassDestroy(PetscInt n,PetscReal 
 
   Level: beginner
 
-  Note: the indices map to barycentric coordinates in lexicographic order, where the first index is the
+  Note:
+  The indices map to barycentric coordinates in lexicographic order, where the first index is the
   least significant and the last index is the most significant.
 
 .seealso: PetscDTBaryToIndex()
@@ -2594,7 +2607,8 @@ PetscErrorCode PetscDTIndexToBary(PetscInt len, PetscInt sum, PetscInt index, Pe
 
   Level: beginner
 
-  Note: the indices map to barycentric coordinates in lexicographic order, where the first index is the
+  Note:
+  The indices map to barycentric coordinates in lexicographic order, where the first index is the
   least significant and the last index is the most significant.
 
 .seealso: PetscDTIndexToBary

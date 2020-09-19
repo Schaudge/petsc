@@ -531,20 +531,21 @@ PetscErrorCode KSPPIPEGCRGetUnrollW(KSP ksp,PetscBool *unroll_w)
 /*@
   KSPPIPEGCRSetMmax - set the maximum number of previous directions PIPEGCR will store for orthogonalization
 
-  Note: mmax + 1 directions are stored (mmax previous ones along with a current one)
-  and whether all are used in each iteration also depends on the truncation strategy
-  (see KSPPIPEGCRSetTruncationType)
-
   Logically Collective on ksp
 
   Input Parameters:
 +  ksp - the Krylov space context
 -  mmax - the maximum number of previous directions to orthogonalize againt
 
-  Level: intermediate
-
   Options Database:
 . -ksp_pipegcr_mmax <N>
+
+  Note:
+  mmax + 1 directions are stored (mmax previous ones along with a current one)
+  and whether all are used in each iteration also depends on the truncation strategy
+  (see KSPPIPEGCRSetTruncationType)
+
+  Level: intermediate
 
 .seealso: KSPPIPEGCR, KSPPIPEGCRSetTruncationType(), KSPPIPEGCRSetNprealloc()
 @*/
@@ -562,8 +563,6 @@ PetscErrorCode KSPPIPEGCRSetMmax(KSP ksp,PetscInt mmax)
 /*@
   KSPPIPEGCRGetMmax - get the maximum number of previous directions PIPEGCR will store
 
-  Note: PIPEGCR stores mmax+1 directions at most (mmax previous ones, and one current one)
-
    Not Collective
 
    Input Parameter:
@@ -574,6 +573,9 @@ PetscErrorCode KSPPIPEGCRSetMmax(KSP ksp,PetscInt mmax)
 
   Options Database:
 . -ksp_pipegcr_mmax <N>
+
+  Note:
+    PIPEGCR stores mmax+1 directions at most (mmax previous ones, and one current one)
 
    Level: intermediate
 

@@ -11,7 +11,8 @@
   Output Parameter:
 . dm  - The DM object representing the mesh
 
-  Note: https://en.wikipedia.org/wiki/PLY_(file_format)
+  Note:
+    https://en.wikipedia.org/wiki/PLY_(file_format)
 
   Level: beginner
 

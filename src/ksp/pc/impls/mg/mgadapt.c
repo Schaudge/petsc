@@ -127,7 +127,8 @@ PetscErrorCode PCMGCreateCoarseSpace_Harmonic(PC pc, PetscInt level, DM dm, KSP 
 
   Level: developer
 
-  Note: This space is normally used to adapt the interpolator.
+  Note:
+     This space is normally used to adapt the interpolator.
 
 .seealso: PCMGAdaptInterpolator_Private()
 */
@@ -172,7 +173,8 @@ PetscErrorCode PCMGComputeCoarseSpace_Internal(PC pc, PetscInt l, PCMGCoarseSpac
 
   Level: developer
 
-  Note: This routine resets the interpolation and restriction for level l.
+  Note:
+    This routine resets the interpolation and restriction for level l.
 
 .seealso: PCMGComputeCoarseSpace_Private()
 */
@@ -207,7 +209,8 @@ PetscErrorCode PCMGAdaptInterpolator_Internal(PC pc, PetscInt l, KSP csmooth, KS
 
   Level: developer
 
-  Note: This routine recomputes the Galerkin triple product for the operator on level l.
+  Note:
+    This routine recomputes the Galerkin triple product for the operator on level l.
 */
 PetscErrorCode PCMGRecomputeLevelOperators_Internal(PC pc, PetscInt l)
 {

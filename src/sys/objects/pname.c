@@ -47,8 +47,9 @@ PetscErrorCode  PetscObjectSetName(PetscObject obj,const char name[])
           PETSC_VIEWER_ASCII_MATRIXMARKET then don't print header information
           as these formats can't process it.
 
-   Developer Note: The flag donotPetscObjectPrintClassNamePrefixType is useful to prevent double printing of the information when recursion is used
-                   to actually print the object.
+   Developer Note:
+     The flag donotPetscObjectPrintClassNamePrefixType is useful to prevent double printing of the information when recursion is used
+     to actually print the object.
 
 .seealso: PetscObjectSetName(), PetscObjectName()
 
@@ -108,9 +109,8 @@ PetscErrorCode PetscObjectPrintClassNamePrefixType(PetscObject obj,PetscViewer v
           Use PetscObjectSetName() to set the name of an object to what you want. The SAWs viewer requires that no two published objects
           share the same name.
 
-   Developer Note: this needs to generate the exact same string on all ranks that share the object. The current algorithm may not always work.
-
-
+   Developer Note:
+     This needs to generate the exact same string on all ranks that share the object. The current algorithm may not always work.
 
 .seealso: PetscObjectGetName(), PetscObjectSetName()
 @*/

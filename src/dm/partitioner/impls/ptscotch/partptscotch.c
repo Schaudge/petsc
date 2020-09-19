@@ -328,7 +328,8 @@ static PetscErrorCode PetscPartitionerInitialize_PTScotch(PetscPartitioner part)
 +  -petscpartitioner_ptscotch_strategy <string> - PT-Scotch strategy. Choose one of default quality speed balance safety scalability recursive remap
 -  -petscpartitioner_ptscotch_imbalance <val> - Load imbalance ratio
 
-  Notes: when the graph is on a single process, this partitioner actually uses Scotch and not PT-Scotch
+  Notes:
+    when the graph is on a single process, this partitioner actually uses Scotch and not PT-Scotch
 
 .seealso: PetscPartitionerType, PetscPartitionerCreate(), PetscPartitionerSetType()
 M*/

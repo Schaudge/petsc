@@ -1118,7 +1118,7 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck(Mat fact,Mat mat,const MatFacto
     lnklvl   - levels of lnk
     bt       - updated PetscBT (bitarray)
 
-  Note: the level of factor(i,j) is set as lvl(i,j) = min{ lvl(i,j), lvl(i,prow)+lvl(prow,j)+1)
+  The level of factor(i,j) is set as lvl(i,j) = min{ lvl(i,j), lvl(i,prow)+lvl(prow,j)+1)
         where idx = non-zero columns of U(prow,prow+1:n-1), prow<i
 */
 #define PetscILULLAddSorted(nidx,idx,level,idxlvl,idx_start,nlnk,lnk,lnklvl,bt,lnklvl_prow) 0;\
@@ -1254,7 +1254,7 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck(Mat fact,Mat mat,const MatFacto
     lnk    - the sorted(increasing order) linked list containing new and non-redundate entries from idx
     lnklvl - levels of lnk
     bt     - updated PetscBT (bitarray)
-  Note: the level of U(i,j) is set as lvl(i,j) = min{ lvl(i,j), lvl(prow,i)+lvl(prow,j)+1)
+  The level of U(i,j) is set as lvl(i,j) = min{ lvl(i,j), lvl(prow,i)+lvl(prow,j)+1)
         where idx = non-zero columns of U(prow,prow+1:n-1), prow<i
 */
 #define PetscICCLLAddSorted(nidx,idx,level,idxlvl,idx_start,nlnk,lnk,lnklvl,bt,idxlvl_prow) 0;\
@@ -1364,7 +1364,7 @@ do {\
     lnk_max   - max value of the entries
   Output Parameters:
     lnk       - list created and initialized
-    bt        - PetscBT (bitarray) with all bits set to false. Note: bt has size lnk_max, not nln_max!
+    bt        - PetscBT (bitarray) with all bits set to false. bt has size lnk_max, not nln_max!
 */
 PETSC_STATIC_INLINE PetscErrorCode PetscLLCondensedCreate(PetscInt nlnk_max,PetscInt lnk_max,PetscInt **lnk,PetscBT *bt)
 {

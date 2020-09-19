@@ -363,7 +363,8 @@ $    PetscError(MPI_Comm comm,PetscErrorCode n,PetscErrorType p,char *message)
 
    Experienced users can set the error handler with PetscPushErrorHandler().
 
-   Developer Note: Since this is called after an error condition it should not be calling any error handlers (currently it ignores any error codes)
+   Developer Note:
+   Since this is called after an error condition it should not be calling any error handlers (currently it ignores any error codes)
    BUT this routine does call regular PETSc functions that may call error handlers, this is problematic and could be fixed by never calling other PETSc routines
    but this annoying.
 

@@ -669,7 +669,8 @@ PetscErrorCode DMLabelDestroyIndex(DMLabel label)
 + pStart - The smallest point
 - pEnd   - The largest point + 1
 
-  Note: This will compute an index for the label if one does not exist.
+  Note:
+    This will compute an index for the label if one does not exist.
 
   Level: intermediate
 
@@ -734,7 +735,8 @@ PetscErrorCode DMLabelHasValue(DMLabel label, PetscInt value, PetscBool *contain
   Output Parameter:
 . contains - Flag indicating whether the label maps this point to a value
 
-  Note: The user must call DMLabelCreateIndex() before this function.
+  Note:
+     The user must call DMLabelCreateIndex() before this function.
 
   Level: developer
 
@@ -1283,7 +1285,8 @@ PetscErrorCode DMLabelClearStratum(DMLabel label, PetscInt value)
 . pStart - The first point
 - pEnd   - A point beyond all marked points
 
-  Note: The marks points are [pStart, pEnd), and only the bounds are stored.
+  Note:
+    The marks points are [pStart, pEnd), and only the bounds are stored.
 
   Level: intermediate
 
@@ -1588,7 +1591,8 @@ PetscErrorCode DMLabelDistribute(DMLabel label, PetscSF sf, DMLabel *labelNew)
 
   Level: developer
 
-  Note: This is the inverse operation to DMLabelDistribute.
+  Note:
+    This is the inverse operation to DMLabelDistribute.
 
 .seealso: DMLabelDistribute()
 @*/
@@ -1744,7 +1748,8 @@ PetscErrorCode DMLabelConvertToSection(DMLabel label, PetscSection *section, IS 
   Output Parameter:
   . gsection - The PetscSection for the global field layout
 
-  Note: This gives negative sizes and offsets to points not owned by this process
+  Note:
+    This gives negative sizes and offsets to points not owned by this process
 
   Level: developer
 

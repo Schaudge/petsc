@@ -104,7 +104,7 @@ int main(int argc,char **argv)
 
 
   /* Use slow fd Jacobian or fast fd Jacobian with colorings.
-     Note: this requirs snes which is not created until TSSetUp()/TSSetFromOptions() is called */
+     This requires snes which is not created until TSSetUp()/TSSetFromOptions() is called */
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"Options for Jacobian evaluation",NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-jac_type","Type of Jacobian","",JacobianTypes,(PetscEnum)jacType,(PetscEnum*)&jacType,0);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);

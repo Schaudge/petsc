@@ -1424,7 +1424,8 @@ PetscErrorCode DMPlexCreateGmshFromFile(MPI_Comm comm, const char filename[], Pe
   Output Parameter:
 . dm  - The DM object representing the mesh
 
-  Note: http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
+  Note:
+     http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
 
   Level: beginner
 

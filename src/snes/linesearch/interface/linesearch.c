@@ -667,11 +667,12 @@ PetscErrorCode SNESLineSearchDestroy(SNESLineSearch * linesearch)
    Options Database:
 .   -snes_linesearch_monitor [:filename] - enables the monitor
 
-   Level: intermediate
-
-   Developer Note: This monitor is implemented differently than the other SNESLineSearchMonitors that are set with
+   Developer Note:
+     This monitor is implemented differently than the other SNESLineSearchMonitors that are set with
      SNESLineSearchMonitorSet() since it is called in many locations of the line search routines to display aspects of the
      line search that are not visible to the other monitors.
+
+   Level: intermediate
 
 .seealso: SNESGetLineSearch(), SNESLineSearchGetDefaultMonitor(), PetscViewer, SNESLineSearchSetMonitor()
 @*/

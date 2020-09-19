@@ -517,7 +517,8 @@ static PetscErrorCode DMMoab_UMR_Private(DM dm, MPI_Comm comm, PetscBool refine,
   Output Parameter:
 . dmf - the refined DM, or NULL
 
-  Note: If no refinement was done, the return value is NULL
+  Note:
+    If no refinement was done, the return value is NULL
 
   Level: developer
 
@@ -547,7 +548,8 @@ PETSC_EXTERN PetscErrorCode DMRefine_Moab(DM dm, MPI_Comm comm, DM* dmf)
   Output Parameter:
 . dmf - the coarsened DM, or NULL
 
-  Note: If no coarsening was done, the return value is NULL
+  Note:
+    If no coarsening was done, the return value is NULL
 
   Level: developer
 

@@ -345,7 +345,8 @@ PetscErrorCode  PetscLogTraceBegin(FILE *file)
 
   Level: intermediate
 
-  Note: Logging of actions continues to consume more memory as the program
+  Note:
+  Logging of actions continues to consume more memory as the program
   runs. Long running programs should consider turning this feature off.
 
   Options Database Keys:
@@ -370,7 +371,8 @@ PetscErrorCode  PetscLogActions(PetscBool flag)
 
   Level: intermediate
 
-  Note: Logging of objects continues to consume more memory as the program
+  Note:
+  Logging of objects continues to consume more memory as the program
   runs. Long running programs should consider turning this feature off.
 
   Options Database Keys:

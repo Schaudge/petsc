@@ -19,14 +19,15 @@ struct _n_PetscObjectList {
 +     fl - the object list
 -     name - the name to use for the object
 
+    Notes:
+      Use PetscObjectListAdd(PetscObjectList,const char name[],NULL) to truly remove the object from the list
+
+      Use this routine ONLY if you know that the object referenced will remain in existence until the pointing object is destroyed
+
+   Developer Note:
+      This is to handle some cases that otherwise would result in having circular references so reference counts never got to zero
+
     Level: developer
-
-       Notes:
-    Use PetscObjectListAdd(PetscObjectList,const char name[],NULL) to truly remove the object from the list
-
-              Use this routine ONLY if you know that the object referenced will remain in existence until the pointing object is destroyed
-
-      Developer Note: this is to handle some cases that otherwise would result in having circular references so reference counts never got to zero
 
 .seealso: PetscObjectListDestroy(), PetscObjectListFind(), PetscObjectListDuplicate(), PetscObjectListReverseFind(), PetscObjectListDuplicate(), PetscObjectListAdd()
 
@@ -63,10 +64,10 @@ PetscErrorCode  PetscObjectListRemoveReference(PetscObjectList *fl,const char na
 
     Level: developer
 
-       Notes:
-    Replaces item if it is already in list. Removes item if you pass in a NULL object.
+    Notes:
+      Replaces item if it is already in list. Removes item if you pass in a NULL object.
 
-        Use PetscObjectListFind() or PetscObjectListReverseFind() to get the object back
+      Use PetscObjectListFind() or PetscObjectListReverseFind() to get the object back
 
 .seealso: PetscObjectListDestroy(), PetscObjectListFind(), PetscObjectListDuplicate(), PetscObjectListReverseFind(), PetscObjectListDuplicate()
 
@@ -176,9 +177,9 @@ PetscErrorCode  PetscObjectListDestroy(PetscObjectList *ifl)
     Level: developer
 
     Notes:
-    The name must have been registered with the PetscObjectListAdd() before calling this routine.
+      The name must have been registered with the PetscObjectListAdd() before calling this routine.
 
-    The reference count of the object is not increased
+      The reference count of the object is not increased
 
 .seealso: PetscObjectListDestroy(), PetscObjectListAdd(), PetscObjectListDuplicate(), PetscObjectListReverseFind(), PetscObjectListDuplicate()
 

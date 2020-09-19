@@ -1189,9 +1189,10 @@ PetscErrorCode PetscFEGetDimension(PetscFE fem, PetscInt *dim)
 
   Level: advanced
 
-  Note: This just forwards the call onto PetscDualSpacePushforward().
+  Notes:
+    This just forwards the call onto PetscDualSpacePushforward().
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+    This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscDualSpacePushforward()
 @*/
@@ -1218,9 +1219,10 @@ PetscErrorCode PetscFEPushforward(PetscFE fe, PetscFEGeom *fegeom, PetscInt Nv, 
 
   Level: advanced
 
-  Note: This just forwards the call onto PetscDualSpacePushforwardGradient().
+  Notes:
+    This just forwards the call onto PetscDualSpacePushforwardGradient().
 
-  Note: This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
+    This only handles tranformations when the embedding dimension of the geometry in fegeom is the same as the reference dimension.
 
 .seealso: PetscFEPushforward(), PetscDualSpacePushforwardGradient(), PetscDualSpacePushforward()
 @*/
@@ -1663,7 +1665,8 @@ PetscErrorCode PetscFEIntegrateHybridJacobian(PetscDS prob, PetscFEJacobianType 
   Output Parameter:
 . subfe  - The subspace of this FE space
 
-  Note: For example, if we want the subspace of this space for a face, we would choose height = 1.
+  Note:
+    For example, if we want the subspace of this space for a face, we would choose height = 1.
 
   Level: advanced
 

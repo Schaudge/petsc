@@ -79,7 +79,7 @@ PetscErrorCode MatSolve_LMVMBFGS(Mat B, Vec F, Vec dX)
   application in the DFP formulation, except with S and Y exchanging
   roles.
 
-  Note: P[i] = (B_i)*S[i] terms are computed ahead of time whenever
+  The P[i] = (B_i)*S[i] terms are computed ahead of time whenever
   the matrix is updated with a new (S[i], Y[i]) pair. This allows
   repeated calls of MatMult inside KSP solvers without unnecessarily
   recomputing P[i] terms in expensive nested-loops.

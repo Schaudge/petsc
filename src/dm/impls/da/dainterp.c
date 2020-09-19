@@ -1385,7 +1385,8 @@ PetscErrorCode DMCreateAggregates(DM dac,DM daf,Mat *mat)
 
    Level: intermediate
 
-   Note: This routine is not used by PETSc.
+   Note:
+   This routine is not used by PETSc.
    It is not clear what its use case is and it may be removed in a future release.
    Users should contact petsc-maint@mcs.anl.gov if they plan to use it.
 

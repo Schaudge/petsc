@@ -148,7 +148,7 @@ static PetscErrorCode KSPGuessUpdate_Fischer_1(KSPGuess guess, Vec b, Vec x)
 /*
   Given a basis generated already this computes a new guess x from the new right hand side b
   Figures out the components of b in each btilde direction and adds them to x
-  Note: do not change the b right hand side as is done in the publication
+  Do not change the b right hand side as is done in the publication
 */
 static PetscErrorCode KSPGuessFormGuess_Fischer_2(KSPGuess guess, Vec b, Vec x)
 {
@@ -323,7 +323,8 @@ static PetscErrorCode KSPGuessFischerSetModel_Fischer(KSPGuess guess,PetscInt mo
 
     Method 2 is only for positive definite matrices, since it uses the A norm.
 
-    Developer note: the option -ksp_fischer_guess <int,int> is still available for backward compatibility
+    Developer note:
+      The option -ksp_fischer_guess <int,int> is still available for backward compatibility
 
     Level: intermediate
 

@@ -65,7 +65,7 @@ int main(int argc,char **args)
         appropriate processor during matrix assembly).
       - Always specify global rows and columns of matrix entries.
 
-     Note: this uses the less common natural ordering that orders first
+     This uses the less common natural ordering that orders first
      all the unknowns for x = h then for x = 2h etc; Hence you see J = Ii +- n
      instead of J = I +- m as you might expect. The more standard ordering
      would first do all variables for y = h, then y = 2h etc.
@@ -153,7 +153,7 @@ int main(int argc,char **args)
 
   /*
     Example of how to use external package MUMPS
-    Note: runtime options
+    runtime options
           '-ksp_type preonly -pc_type lu -pc_factor_mat_solver_type mumps -mat_mumps_icntl_7 2 -mat_mumps_icntl_1 0.0'
           are equivalent to these procedural calls
   */
@@ -193,7 +193,7 @@ int main(int argc,char **args)
 
   /*
     Example of how to use external package SuperLU
-    Note: runtime options
+    runtime options
           '-ksp_type preonly -pc_type ilu -pc_factor_mat_solver_type superlu -mat_superlu_ilu_droptol 1.e-8'
           are equivalent to these procedual calls
   */
@@ -236,7 +236,7 @@ int main(int argc,char **args)
 
   /*
     Example of how to use external package STRUMPACK
-    Note: runtime options
+    runtime options
           '-pc_type lu/ilu \
            -pc_factor_mat_solver_type strumpack \
            -mat_strumpack_reordering METIS \

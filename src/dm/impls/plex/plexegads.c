@@ -31,7 +31,8 @@
   Output Parameter:
 . gcoords - The closest coordinate point on the geometry model associated with 'p' to the given point
 
-  Note: Returns the original coordinates if no geometry model is found. Right now the only supported geometry model is EGADS.
+  Note:
+  Returns the original coordinates if no geometry model is found. Right now the only supported geometry model is EGADS.
 
   Level: intermediate
 

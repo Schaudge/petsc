@@ -855,7 +855,8 @@ $    We recommend always using GMRES for such singular systems.
 $    If nullspace(A) = nullspace(A') (note symmetric matrices always satisfy this property) then both left and right preconditioning will work
 $    If nullspace(A) != nullspace(A') then left preconditioning will work but right preconditioning may not work (or it may).
 
-   Developer Note: The reason we cannot always solve  nullspace(A) != nullspace(A') systems with right preconditioning is because we need to remove at each iteration
+   Developer Note:
+       The reason we cannot always solve  nullspace(A) != nullspace(A') systems with right preconditioning is because we need to remove at each iteration
        the nullspace(AB) from the search direction. While we know the nullspace(A) the nullspace(AB) equals B^-1 times the nullspace(A) but except for trivial preconditioners
        such as diagonal scaling we cannot apply the inverse of the preconditioner to a vector and thus cannot compute the nullspace(AB).
 
@@ -1533,7 +1534,8 @@ PetscErrorCode  KSPGetErrorIfNotConverged(KSP ksp,PetscBool  *flag)
 
    Level: advanced
 
-   Developer Note: the Knoll trick is not currently implemented using the KSPGuess class
+   Developer Note:
+     The Knoll trick is not currently implemented using the KSPGuess class
 
 .seealso: KSPGetInitialGuessKnoll(), KSPSetInitialGuessNonzero(), KSPGetInitialGuessNonzero(), KSP
 @*/
@@ -2203,7 +2205,8 @@ $     converge (KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reaso
 
    Level: advanced
 
-   Notes: This is intended to be used to allow transferring the convergence test (and its context) to another testing object (for example another KSP) and then calling
+   Notes:
+     This is intended to be used to allow transferring the convergence test (and its context) to another testing object (for example another KSP) and then calling
           KSPSetConvergenceTest() on this original KSP. If you just called KSPGetConvergenceTest() followed by KSPSetConvergenceTest() the original context information
           would be destroyed and hence the transferred context would be invalid and trigger a crash on use
 
@@ -2570,7 +2573,8 @@ $  func(KSP ksp,Vec x,void *ctx)
 .  x - solution vector
 -  ctx - optional user-provided context
 
-   Notes: This should only be used in conjunction with KSPSetComputeRHS(), KSPSetComputeOperators(), otherwise
+   Notes:
+   This should only be used in conjunction with KSPSetComputeRHS(), KSPSetComputeOperators(), otherwise
    call KSPSetInitialGuessNonzero() and set the initial guess values in the solution vector passed to KSPSolve().
 
    Level: beginner

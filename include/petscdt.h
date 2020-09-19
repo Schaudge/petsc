@@ -39,7 +39,8 @@ $  PETSCDTNODES_GAUSSJACOBI - Nodes at either Gauss-Jacobi or Gauss-Lobatto-Jaco
 $  PETSCDTNODES_EQUISPACED - Nodes equispaced either including the endpoints or excluding them
 $  PETSCDTNODES_TANHSINH - Nodes at Tanh-Sinh quadrature points
 
-  Note: a PetscDTNodeType can be paired with a PetscBool to indicate whether
+  Note:
+  A PetscDTNodeType can be paired with a PetscBool to indicate whether
   the nodes include endpoints or not, and in the case of PETSCDT_GAUSSJACOBI
   with exponents for the weight function.
 
@@ -148,7 +149,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTFactorial(PetscInt n, PetscReal *facto
 
    Level: beginner
 
-   Note: this is limited to n such that n! can be represented by PetscInt, which is 12 if PetscInt is a signed 32-bit integer and 20 if PetscInt is a signed 64-bit integer.
+   Note:
+     This is limited to n such that n! can be represented by PetscInt, which is 12 if PetscInt is a signed 32-bit integer and 20 if PetscInt is a signed 64-bit integer.
 M*/
 PETSC_STATIC_INLINE PetscErrorCode PetscDTFactorialInt(PetscInt n, PetscInt *factorial)
 {
@@ -211,7 +213,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomial(PetscInt n, PetscInt k, Petsc
    Output Arguments:
 .  binomial - the binomial coefficient n choose k
 
-   Note: this is limited by integers that can be represented by PetscInt
+   Note:
+     This is limited by integers that can be represented by PetscInt
 
    Level: beginner
 M*/
@@ -256,7 +259,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTBinomialInt(PetscInt n, PetscInt k, Pe
 +  perm - the permuted list of the integers [0, ..., n-1]
 -  isOdd - if not NULL, returns wether the permutation used an even or odd number of swaps.
 
-   Note: this is limited to n such that n! can be represented by PetscInt, which is 12 if PetscInt is a signed 32-bit integer and 20 if PetscInt is a signed 64-bit integer.
+   Note:
+     This is limited to n such that n! can be represented by PetscInt, which is 12 if PetscInt is a signed 32-bit integer and 20 if PetscInt is a signed 64-bit integer.
 
    Level: beginner
 M*/
@@ -299,7 +303,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumPerm(PetscInt n, PetscInt k, Petsc
 +  k - an integer in [0, n!)
 -  isOdd - if not NULL, returns wether the permutation used an even or odd number of swaps.
 
-   Note: this is limited to n such that n! can be represented by PetscInt, which is 12 if PetscInt is a signed 32-bit integer and 20 if PetscInt is a signed 64-bit integer.
+   Note:
+     This is limited to n such that n! can be represented by PetscInt, which is 12 if PetscInt is a signed 32-bit integer and 20 if PetscInt is a signed 64-bit integer.
 
    Level: beginner
 M*/
@@ -347,7 +352,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTPermIndex(PetscInt n, const PetscInt *
    Output Arguments:
 .  subset - the jth subset of size k of the integers [0, ..., n - 1]
 
-   Note: this is limited by arguments such that n choose k can be represented by PetscInt
+   Note:
+     This is limited by arguments such that n choose k can be represented by PetscInt
 
    Level: beginner
 
@@ -386,7 +392,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTEnumSubset(PetscInt n, PetscInt k, Pet
    Output Arguments:
 .  index - the rank of the subset in lexicographic order
 
-   Note: this is limited by arguments such that n choose k can be represented by PetscInt
+   Note:
+     This is limited by arguments such that n choose k can be represented by PetscInt
 
    Level: beginner
 
@@ -428,7 +435,8 @@ PETSC_STATIC_INLINE PetscErrorCode PetscDTSubsetIndex(PetscInt n, PetscInt k, co
 +  perm - the jth subset of size k of the integers [0, ..., n - 1], followed by its complementary set.
 -  isOdd - if not NULL, return whether perm is an even or odd permutation.
 
-   Note: this is limited by arguments such that n choose k can be represented by PetscInt
+   Note:
+     This is limited by arguments such that n choose k can be represented by PetscInt
 
    Level: beginner
 

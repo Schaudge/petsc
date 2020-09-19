@@ -43,10 +43,11 @@ PetscFunctionList PCList = NULL;
   choosing the appropriate preconditioner.  In other words, this
   routine is not for beginners.
 
-  Level: intermediate
-
-  Developer Note: PCRegister() is used to add preconditioner types to PCList from which they
+  Developer Note:
+  PCRegister() is used to add preconditioner types to PCList from which they
   are accessed by PCSetType().
+
+  Level: intermediate
 
 .seealso: KSPSetType(), PCType, PCRegister(), PCCreate(), KSPGetPC()
 

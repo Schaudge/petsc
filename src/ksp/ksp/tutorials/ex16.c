@@ -97,7 +97,7 @@ int main(int argc,char **args)
         be partitioned accordingly.  PETSc automatically generates
         appropriately partitioned matrices and vectors when MatCreate()
         and VecCreate() are used with the same communicator.
-      - Note: We form 1 vector from scratch and then duplicate as needed.
+      - We form 1 vector from scratch and then duplicate as needed.
   */
   ierr = VecCreate(PETSC_COMM_WORLD,&u);CHKERRQ(ierr);
   ierr = VecSetSizes(u,PETSC_DECIDE,m*n);CHKERRQ(ierr);

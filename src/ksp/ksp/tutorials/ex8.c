@@ -7,7 +7,7 @@ parameters include:\n\
   -user_set_subdomains:  Activate user-defined subdomains\n\n";
 
 /*
-   Note:  This example focuses on setting the subdomains for the ASM
+   This example focuses on setting the subdomains for the ASM
    preconditioner for a problem on a 2D rectangular grid.  See ex1.c
    and ex2.c for more detailed comments on the basic usage of KSP
    (including working with matrices and vectors).
@@ -26,8 +26,6 @@ parameters include:\n\
    Concepts: KSP^Additive Schwarz Method (ASM) with user-defined subdomains
    Processors: n
 T*/
-
-
 
 /*
   Include "petscksp.h" so that we can use KSP solvers.  Note that this file
@@ -132,7 +130,7 @@ int main(int argc,char **args)
      Could instead use the option -pc_asm_overlap <ovl>
 
      Set the total number of blocks via -pc_asm_blocks <blks>
-     Note:  The ASM default is to use 1 block per processor.  To
+     The ASM default is to use 1 block per processor.  To
      experiment on a single processor with various overlaps, you
      must specify use of multiple blocks!
   */
@@ -226,7 +224,7 @@ int main(int argc,char **args)
        Call KSPSetUp() to set the block Jacobi data structures (including
        creation of an internal KSP context for each block).
 
-       Note: KSPSetUp() MUST be called before PCASMGetSubKSP().
+       KSPSetUp() MUST be called before PCASMGetSubKSP().
     */
     ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 

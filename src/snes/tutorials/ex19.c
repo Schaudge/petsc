@@ -259,7 +259,7 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,Field **x,Field **f,void *p
   /*
      Define mesh intervals ratios for uniform grid.
 
-     Note: FD formulae below are normalized by multiplying through by
+     The FD formulae below are normalized by multiplying through by
      local volume element (i.e. hx*hy) to obtain coefficients O(1) in two dimensions.
 
 

@@ -368,9 +368,8 @@ PetscErrorCode TaoSetResidualRoutine(Tao tao, Vec res, PetscErrorCode (*func)(Ta
 . cols    - index list of columns for sigma_w
 - vals - array of weights
 
-
-
-  Note: Either sigma_v or sigma_w (or both) should be NULL
+  Note:
+     Either sigma_v or sigma_w (or both) should be NULL
 
   Level: intermediate
 

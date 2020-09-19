@@ -269,7 +269,7 @@ PetscErrorCode MatSolve_SeqBAIJ_4_NaturalOrdering_SSE_Demotion_usj(Mat A,Vec bb,
   PetscFunctionBegin;
   SSE_SCOPE_BEGIN;
   /*
-     Note: This code currently uses demotion of double
+     This code currently uses demotion of double
      to float when performing the mixed-mode computation.
      This may not be numerically reasonable for all applications.
   */
@@ -464,7 +464,7 @@ PetscErrorCode MatSolve_SeqBAIJ_4_NaturalOrdering_SSE_Demotion(Mat A,Vec bb,Vec 
   PetscFunctionBegin;
   SSE_SCOPE_BEGIN;
   /*
-     Note: This code currently uses demotion of double
+     This code currently uses demotion of double
      to float when performing the mixed-mode computation.
      This may not be numerically reasonable for all applications.
   */

@@ -6,8 +6,6 @@ static char help[] = "Basic vector routines.\n\n";
    Processors: n
 T*/
 
-
-
 /*
   Include "petscvec.h" so that we can use vectors.  Note that this file
   automatically includes:
@@ -80,7 +78,7 @@ int main(int argc,char **argv)
   ierr = VecMDot(x,3,z,dots);CHKERRQ(ierr);
 
   /*
-     Note: If using a complex numbers version of PETSc, then
+     If using a complex numbers version of PETSc, then
      PETSC_USE_COMPLEX is defined in the makefiles; otherwise,
      (when using real numbers) it is undefined.
   */

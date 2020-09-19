@@ -2142,7 +2142,8 @@ PetscErrorCode MatShellGetOperation(Mat mat,MatOperation op,void(**g)(void))
 
     Level: developer
 
-    Notes: in the future, we should allow the object type name to be changed still using the MatShell data structure for other matrices (i.e. MATTRANSPOSEMAT, MATSCHURCOMPLEMENT etc)
+    Notes:
+      In the future, we should allow the object type name to be changed still using the MatShell data structure for other matrices (i.e. MATTRANSPOSEMAT, MATSCHURCOMPLEMENT etc)
 
 .seealso: MatCreateShell()
 @*/

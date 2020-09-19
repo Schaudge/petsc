@@ -29,7 +29,8 @@ PetscErrorCode VecScatterFinalizePackage(void)
 
   Level: developer
 
-  Developers Note: this does not seem to get called directly when using dynamic libraries.
+  Developers Note:
+    This does not seem to get called directly when using dynamic libraries.
 
 .seealso: PetscInitialize()
 @*/

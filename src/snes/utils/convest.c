@@ -123,7 +123,8 @@ PetscErrorCode PetscConvEstGetSolver(PetscConvEst ce, PetscObject *solver)
 
   Level: intermediate
 
-  Note: The solver MUST have an attached DM/DS, so that we know the exact solution
+  Note:
+    The solver MUST have an attached DM/DS, so that we know the exact solution
 
 .seealso: PetscConvEstGetSNES(), PetscConvEstCreate(), PetscConvEstGetConvRate()
 @*/
@@ -412,7 +413,8 @@ static PetscErrorCode PetscConvEstGetConvRateSNES_Private(PetscConvEst ce, Petsc
   Output Parameter:
 . alpha - The convergence rate for each field
 
-  Note: The convergence rate alpha is defined by
+  Note:
+    The convergence rate alpha is defined by
 $ || u_\Delta - u_exact || < C \Delta^alpha
 where u_\Delta is the discrete solution, and Delta is a measure of the discretization size. We usually use h for the
 spatial resolution and \Delta t for the temporal resolution.

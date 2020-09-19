@@ -413,20 +413,21 @@ static PetscErrorCode KSPView_PIPEFCG(KSP ksp,PetscViewer viewer)
 /*@
   KSPPIPEFCGSetMmax - set the maximum number of previous directions PIPEFCG will store for orthogonalization
 
-  Note: mmax + 1 directions are stored (mmax previous ones along with the current one)
-  and whether all are used in each iteration also depends on the truncation strategy
-  (see KSPPIPEFCGSetTruncationType)
-
   Logically Collective on ksp
 
   Input Parameters:
 +  ksp - the Krylov space context
 -  mmax - the maximum number of previous directions to orthogonalize against
 
-  Level: intermediate
-
   Options Database:
 . -ksp_pipefcg_mmax <N>
+
+  Level: intermediate
+
+  Note:
+  mmax + 1 directions are stored (mmax previous ones along with the current one)
+  and whether all are used in each iteration also depends on the truncation strategy
+  (see KSPPIPEFCGSetTruncationType)
 
 .seealso: KSPPIPEFCG, KSPPIPEFCGSetTruncationType(), KSPPIPEFCGSetNprealloc()
 @*/
@@ -444,8 +445,6 @@ PetscErrorCode KSPPIPEFCGSetMmax(KSP ksp,PetscInt mmax)
 /*@
   KSPPIPEFCGGetMmax - get the maximum number of previous directions PIPEFCG will store
 
-  Note: PIPEFCG stores mmax+1 directions at most (mmax previous ones, and the current one)
-
    Not Collective
 
    Input Parameter:
@@ -456,6 +455,9 @@ PetscErrorCode KSPPIPEFCGSetMmax(KSP ksp,PetscInt mmax)
 
   Options Database:
 . -ksp_pipefcg_mmax <N>
+
+  Note:
+    PIPEFCG stores mmax+1 directions at most (mmax previous ones, and the current one)
 
    Level: intermediate
 

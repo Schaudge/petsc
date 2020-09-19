@@ -40,7 +40,8 @@ PetscErrorCode  PetscObjectGetType(PetscObject obj, const char *type[])
          PetscObjectGetType((PetscObject)mat,&type);
 -  type - the object type
 
-   Note: This does not currently work since we need to dispatch by type.
+   Note:
+     This does not currently work since we need to dispatch by type.
 
    Level: advanced
 

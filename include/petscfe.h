@@ -110,7 +110,8 @@ typedef const char *PetscDualSpaceType;
 
   Level: intermediate
 
-  Note: This type is a constructor alias of PETSCDUALSPACELAGRANGE.  During
+  Note:
+  This type is a constructor alias of PETSCDUALSPACELAGRANGE.  During
   PetscDualSpaceSetUp(), the correct value of PetscDualSpaceSetFormDegree() is
   set for H-div conforming spaces. The type of the dual space is then changed to
   to PETSCDUALSPACELAGRANGE.
@@ -198,7 +199,8 @@ PETSC_EXTERN PetscClassId PETSCFE_CLASSID;
 
   Level: beginner
 
-  Note: Currently, the classes are concerned with the implementation of element integration
+  Note:
+    Currently, the classes are concerned with the implementation of element integration
 
 .seealso: PetscFESetType(), PetscFE
 J*/

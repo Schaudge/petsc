@@ -292,7 +292,8 @@ PETSC_EXTERN const char *const KSPGMRESCGSRefinementTypes[];
 
    Level: advanced
 
-   Note: Possible unstable, but the fastest to compute
+   Note:
+     Possible unstable, but the fastest to compute
 
 .seealso: KSPGMRESClassicalGramSchmidtOrthogonalization(), KSPGMRESSetOrthogonalization(), KSPGMRESGetOrthogonalization(),
           KSPGMRESSetCGSRefinementType(), KSPGMRESGetCGSRefinementType(), KSP_GMRES_CGS_REFINE_IFNEEDED, KSP_GMRES_CGS_REFINE_ALWAYS,
@@ -306,7 +307,8 @@ M*/
 
    Level: advanced
 
-   Note: This is slower than KSP_GMRES_CGS_REFINE_NEVER because it requires an extra norm computation to
+   Note:
+     This is slower than KSP_GMRES_CGS_REFINE_NEVER because it requires an extra norm computation to
      estimate the orthogonality but is more stable.
 
 .seealso: KSPGMRESClassicalGramSchmidtOrthogonalization(), KSPGMRESSetOrthogonalization(), KSPGMRESGetOrthogonalization(),
@@ -319,7 +321,8 @@ M*/
 
    Level: advanced
 
-   Note: This is roughly twice the cost of KSP_GMRES_CGS_REFINE_NEVER because it performs the process twice
+   Note:
+     This is roughly twice the cost of KSP_GMRES_CGS_REFINE_NEVER because it performs the process twice
      but it saves the extra norm calculation needed by KSP_GMRES_CGS_REFINE_IFNEEDED.
 
         You should only use this if you absolutely know that the iterative refinement is needed.
@@ -426,7 +429,8 @@ PETSC_EXTERN const char *const*const KSPNormTypes;
 
    Level: advanced
 
-    Note: Some Krylov methods need to compute a residual norm (such as GMRES) and then this option is ignored
+    Note:
+      Some Krylov methods need to compute a residual norm (such as GMRES) and then this option is ignored
 
 .seealso: KSPNormType, KSPSetNormType(), KSP_NORM_PRECONDITIONED, KSP_NORM_UNPRECONDITIONED, KSP_NORM_NATURAL
 M*/

@@ -111,7 +111,7 @@ int main(int argc,char **args)
       - When using VecCreate() VecSetSizes() and VecSetFromOptions(),
         we specify only the vector's global
         dimension; the parallel partitioning is determined at runtime.
-      - Note: We form 1 vector from scratch and then duplicate as needed.
+      - We form 1 vector from scratch and then duplicate as needed.
   */
   ierr = VecCreate(PETSC_COMM_WORLD,&u);CHKERRQ(ierr);
   ierr = VecSetSizes(u,PETSC_DECIDE,m*n);CHKERRQ(ierr);
@@ -173,7 +173,7 @@ int main(int argc,char **args)
     ierr = PCShellSetName(pc,"MyPreconditioner");CHKERRQ(ierr);
 
     /* (Optional) Do any setup required for the preconditioner */
-    /* Note: This function could be set with PCShellSetSetUp and it would be called when necessary */
+    /* This function could be set with PCShellSetSetUp and it would be called when necessary */
     ierr = SampleShellPCSetUp(pc,A,x);CHKERRQ(ierr);
 
   } else {

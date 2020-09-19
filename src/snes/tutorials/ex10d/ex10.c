@@ -297,7 +297,7 @@ int main(int argc,char **argv)
                      represented on this processor, then the corresponding
                      entry in verticesmask is zero
 
-      Note: vertices and verticesmask are both Nvglobal in length; this may
+    Vertices and verticesmask are both Nvglobal in length; this may
     sound terribly non-scalable, but in fact is not so bad for a reasonable
     number of processors. Importantly, it allows us to use NO SEARCHING
     in setting up the data structures.
@@ -440,7 +440,7 @@ int main(int argc,char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*
-     Note: The user should initialize the vector, x, with the initial guess
+     The user should initialize the vector, x, with the initial guess
      for the nonlinear solver prior to calling SNESSolve().  In particular,
      to employ an initial guess of zero, the user should explicitly set
      this vector to zero by calling VecSet().

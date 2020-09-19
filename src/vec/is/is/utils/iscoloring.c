@@ -107,7 +107,8 @@ PetscErrorCode  ISColoringDestroy(ISColoring *iscoloring)
 
   Level: intermediate
 
-  Developer Note: This cannot use PetscObjectViewFromOptions() because ISColoring is not a PetscObject
+  Developer Note:
+     This cannot use PetscObjectViewFromOptions() because ISColoring is not a PetscObject
 
 */
 PetscErrorCode ISColoringViewFromOptions(ISColoring obj,PetscObject bobj,const char optionname[])
@@ -746,7 +747,6 @@ PetscErrorCode  ISAllGather(IS is,IS *isout)
 
     Notes:
     ISAllGatherColors() is clearly not scalable for large index sets.
-
 
     Level: intermediate
 

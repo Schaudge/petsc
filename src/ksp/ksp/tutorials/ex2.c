@@ -69,7 +69,7 @@ int main(int argc,char **args)
         appropriate processor during matrix assembly).
       - Always specify global rows and columns of matrix entries.
 
-     Note: this uses the less common natural ordering that orders first
+     This uses the less common natural ordering that orders first
      all the unknowns for x = h then for x = 2h etc; Hence you see J = Ii +- n
      instead of J = I +- m as you might expect. The more standard ordering
      would first do all variables for y = h, then y = 2h etc.

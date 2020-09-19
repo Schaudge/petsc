@@ -12,7 +12,8 @@ struct _n_PetscShmComm {
 
    This is called by MPI, not by users. This is called by MPI_Comm_free() when the communicator that has this  data as an attribute is freed.
 
-   Note: this is declared extern "C" because it is passed to MPI_Comm_create_keyval()
+   Note:
+     This is declared extern "C" because it is passed to MPI_Comm_create_keyval()
 
 */
 PETSC_EXTERN PetscMPIInt MPIAPI Petsc_ShmComm_Attr_Delete_Fn(MPI_Comm comm,PetscMPIInt keyval,void *val,void *extra_state)
@@ -466,7 +467,8 @@ PetscErrorCode PetscOmpCtrlDestroy(PetscOmpCtrl *pctrl)
                        on slave ranks, MPI_COMM_NULL will be return in reality.
 -   is_omp_master    - true if the calling process is an OMP master rank.
 
-    Notes: any output parameter can be NULL. The parameter is just ignored.
+    Notes:
+      Any output parameter can be NULL. The parameter is just ignored.
 
     Level: developer
 @*/

@@ -3,7 +3,7 @@
 
 #include <petsc/private/dmstagimpl.h>
 
-/* Note: this is an internal function but we provide a man page in case it's made public */
+/* This is an internal function but we provide a man page in case it's made public */
 /*@C
   DMStagDuplicateWithoutSetup - duplicate a DMStag object without setting it up
 

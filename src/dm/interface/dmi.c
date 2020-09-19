@@ -95,7 +95,8 @@ PetscErrorCode DMCreateLocalVector_Section_Private(DM dm,Vec *vec)
 + is - The global indices for the subproblem
 - subdm - The DM for the subproblem, which must already have be cloned from dm
 
-  Note: This handles all information in the DM class and the PetscSection. This is used as the basis for creating subDMs in specialized classes,
+  Note:
+  This handles all information in the DM class and the PetscSection. This is used as the basis for creating subDMs in specialized classes,
   such as Plex and Forest.
 
   Level: intermediate
@@ -303,7 +304,8 @@ PetscErrorCode DMCreateSectionSubDM(DM dm, PetscInt numFields, const PetscInt fi
 + is - The global indices for the subproblem, or NULL
 - superdm - The DM for the superproblem, which must already have be cloned
 
-  Note: This handles all information in the DM class and the PetscSection. This is used as the basis for creating subDMs in specialized classes,
+  Note:
+  This handles all information in the DM class and the PetscSection. This is used as the basis for creating subDMs in specialized classes,
   such as Plex and Forest.
 
   Level: intermediate

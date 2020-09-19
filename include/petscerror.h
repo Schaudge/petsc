@@ -917,9 +917,11 @@ PETSC_STATIC_INLINE PetscBool PetscStackActive(void) {return PETSC_FALSE;}
 +   name - string that gives the name of the function being called
 -   routine - actual call to the routine, including ierr = and CHKERRQ(ierr);
 
-   Note: Often one should use PetscStackCallStandard() instead. This routine is intended for external library routines that DO NOT return error codes
+   Note:
+     Often one should use PetscStackCallStandard() instead. This routine is intended for external library routines that DO NOT return error codes
 
-   Developer Note: this is so that when a user or external library routine results in a crash or corrupts memory, they get blamed instead of PETSc.
+   Developer Note:
+     This is so that when a user or external library routine results in a crash or corrupts memory, they get blamed instead of PETSc.
 
 
 
@@ -936,7 +938,8 @@ PETSC_STATIC_INLINE PetscBool PetscStackActive(void) {return PETSC_FALSE;}
    Notes:
     This is intended for external package routines that return error codes. Use PetscStackCall() for those that do not.
 
-   Developer Note: this is so that when an external packge routine results in a crash or corrupts memory, they get blamed instead of PETSc.
+   Developer Note:
+     This is so that when an external packge routine results in a crash or corrupts memory, they get blamed instead of PETSc.
 
 */
 #define PetscStackCallStandard(func,args) do {                                                            \

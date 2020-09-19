@@ -28,7 +28,7 @@ C    STORED IN ROW J (AND THUS M(I,J) IS NOT STORED).
   -- output: new index set (inew, jnew) for A and a map a2anew that maps
              values a to anew, such that all
              nonzero A_(perm(i),iperm(k)) will be stored in the upper triangle.
-             Note: matrix A is not permuted by this function!
+             matrix A is not permuted by this function!
 */
 PetscErrorCode  MatReorderingSeqSBAIJ(Mat A,IS perm)
 {
@@ -95,7 +95,7 @@ PetscErrorCode  MatReorderingSeqSBAIJ(Mat A,IS perm)
 
   /* Phase 2: Find new ai and permutation to apply to (aj,a).
               Determine pointers (r) to delimit rows in permuted (aj,a).
-              Note: r is different from r used in phase 1.
+              r is different from r used in phase 1.
               At the end of this phase, (aj[j],a[j]) will be stored in
               (aj[r(j)],a[r(j)]).
   */

@@ -46,7 +46,8 @@ static PetscErrorCode MatTransposeAXPY_Private(Mat Y,PetscScalar a,Mat X,MatStru
 -  str - either SAME_NONZERO_PATTERN, DIFFERENT_NONZERO_PATTERN
          or SUBSET_NONZERO_PATTERN (nonzeros of X is a subset of Y's)
 
-   Notes: No operation is performed when a is zero.
+   Notes:
+     No operation is performed when a is zero.
 
    Level: intermediate
 

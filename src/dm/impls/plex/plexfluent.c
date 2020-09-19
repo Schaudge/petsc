@@ -219,7 +219,8 @@ static PetscErrorCode DMPlexCreateFluent_ReadSection(PetscViewer viewer, FluentS
   Output Parameter:
 . dm  - The DM object representing the mesh
 
-  Note: http://aerojet.engr.ucdavis.edu/fluenthelp/html/ug/node1490.htm
+  Note:
+    http://aerojet.engr.ucdavis.edu/fluenthelp/html/ug/node1490.htm
 
   Level: beginner
 

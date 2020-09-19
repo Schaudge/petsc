@@ -3637,7 +3637,7 @@ PetscErrorCode MatCreateSubMatrix_MPIAIJ_SameRowDist(Mat mat,IS isrow,IS iscol,I
   in local and then by concatenating the local matrices the end result.
   Writing it directly would be much like MatCreateSubMatrices_MPIAIJ()
 
-  Note: This requires a sequential iscol with all indices.
+  This requires a sequential iscol with all indices.
 */
 PetscErrorCode MatCreateSubMatrix_MPIAIJ_nonscalable(Mat mat,IS isrow,IS iscol,PetscInt csize,MatReuse call,Mat *newmat)
 {
@@ -4367,7 +4367,8 @@ PetscErrorCode  MatCreateAIJ(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,Pets
 . Ao - The local off-diagonal block as a SeqAIJ matrix
 - colmap - An array mapping local column numbers of Ao to global column numbers of the parallel matrix
 
-  Note: The rows in Ad and Ao are in [0, Nr), where Nr is the number of local rows on this process. The columns
+  Note:
+  The rows in Ad and Ao are in [0, Nr), where Nr is the number of local rows on this process. The columns
   in Ad are in [0, Nc) where Nc is the number of local columns. The columns are Ao are in [0, Nco), where Nco is
   the number of nonzero columns in the local off-diagonal piece of the matrix A. The array colmap maps these
   local column numbers to global column numbers in the original matrix.
@@ -5454,7 +5455,8 @@ PetscErrorCode MatGetBrowsOfAcols(Mat A,Mat B,MatReuse scall,IS *rowb,IS *colb,M
 .    bufa_ptr - array for sending matrix values, saved for MAT_REUSE (or NULL)
 -    B_oth - the sequential matrix generated with size aBn=a->B->cmap->n by B->cmap->N
 
-    Developer Notes: This directly accesses information inside the VecScatter associated with the matrix-vector product
+    Developer Notes:
+     This directly accesses information inside the VecScatter associated with the matrix-vector product
      for this matrix. This is not desirable..
 
     Level: developer

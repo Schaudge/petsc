@@ -96,7 +96,7 @@ PetscErrorCode KSPSolve_QCG(KSP ksp)
    Correpondence with documentation above:
       B = g = gradient,
       X = s = step
-   Note:  This is not coded correctly for complex arithmetic!
+   This is not coded correctly for complex arithmetic!
  */
 
   KSP_QCG        *pcgP = (KSP_QCG*)ksp->data;

@@ -26,7 +26,8 @@
   Output Parameter:
 . dm  - The DM object representing the mesh
 
-  Note: http://www.grc.nasa.gov/WWW/cgns/CGNS_docs_current/index.html
+  Note:
+    http://www.grc.nasa.gov/WWW/cgns/CGNS_docs_current/index.html
 
   Level: beginner
 
@@ -69,7 +70,8 @@ PetscErrorCode DMPlexCreateCGNSFromFile(MPI_Comm comm, const char filename[], Pe
   Output Parameter:
 . dm  - The DM object representing the mesh
 
-  Note: http://www.grc.nasa.gov/WWW/cgns/CGNS_docs_current/index.html
+  Note:
+    http://www.grc.nasa.gov/WWW/cgns/CGNS_docs_current/index.html
 
   Level: beginner
 

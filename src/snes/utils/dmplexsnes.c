@@ -171,7 +171,8 @@ PetscErrorCode DMInterpolationGetDof(DMInterpolationInfo ctx, PetscInt *dof)
 . n      - the number of points
 - points - the coordinates for each point, an array of size n * dim
 
-  Note: The coordinate information is copied.
+  Note:
+    The coordinate information is copied.
 
   Level: intermediate
 
@@ -319,7 +320,8 @@ PetscErrorCode DMInterpolationSetUp(DMInterpolationInfo ctx, DM dm, PetscBool re
   Output Parameter:
 . coordinates  - the coordinates of interpolation points
 
-  Note: The local vector entries correspond to interpolation points lying on this process, according to the associated DM. This is a borrowed vector that the user should not destroy.
+  Note:
+    The local vector entries correspond to interpolation points lying on this process, according to the associated DM. This is a borrowed vector that the user should not destroy.
 
   Level: intermediate
 
@@ -345,7 +347,8 @@ PetscErrorCode DMInterpolationGetCoordinates(DMInterpolationInfo ctx, Vec *coord
   Output Parameter:
 . v  - a vector capable of holding the interpolated field values
 
-  Note: This vector should be returned using DMInterpolationRestoreVector().
+  Note:
+    This vector should be returned using DMInterpolationRestoreVector().
 
   Level: intermediate
 
@@ -864,7 +867,8 @@ PETSC_STATIC_INLINE PetscErrorCode DMInterpolate_Hex_Private(DMInterpolationInfo
   Output Parameters:
 . v   - The vector containing the interpolated values
 
-  Note: A suitable v can be obtained using DMInterpolationGetVector().
+  Note:
+    A suitable v can be obtained using DMInterpolationGetVector().
 
   Level: beginner
 
@@ -1406,7 +1410,8 @@ PetscErrorCode DMPlexSetSNESLocalFEM(DM dm, void *boundaryctx, void *residualctx
   Output Parameters:
 . error - An array which holds the discretization error in each field, or NULL
 
-  Note: The user must call PetscDSSetExactSolution() beforehand
+  Note:
+    The user must call PetscDSSetExactSolution() beforehand
 
   Level: developer
 
@@ -1672,7 +1677,8 @@ PetscErrorCode DMSNESCheck_Internal(SNES snes, DM dm, Vec u)
 + snes - the SNES object
 - u    - representative SNES vector
 
-  Note: The user must call PetscDSSetExactSolution() beforehand
+  Note:
+    The user must call PetscDSSetExactSolution() beforehand
 
   Level: developer
 @*/

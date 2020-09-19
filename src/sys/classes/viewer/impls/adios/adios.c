@@ -178,7 +178,8 @@ PetscErrorCode  PetscViewerADIOSOpen(MPI_Comm comm, const char name[], PetscFile
 
   Level: advanced
 
-  Developer Notes: These have not been verified
+  Developer Notes:
+    These have not been verified
 
 .seealso: PetscDataType, PetscADIOSDataTypeToPetscDataType()
 @*/
@@ -215,7 +216,8 @@ PetscErrorCode PetscDataTypeToADIOSDataType(PetscDataType ptype, enum ADIOS_DATA
 
   Level: advanced
 
-  Developer Notes: These have not been verified
+  Developer Notes:
+     These have not been verified
 
 .seealso: PetscDataType, PetscADIOSDataTypeToPetscDataType()
 @*/

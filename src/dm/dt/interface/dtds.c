@@ -1042,7 +1042,8 @@ PetscErrorCode PetscDSSetObjective(PetscDS prob, PetscInt f,
 + f0 - integrand for the test function term
 - f1 - integrand for the test function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi f_0(u, u_t, \nabla u, x, t) + \nabla\phi \cdot {\vec f}_1(u, u_t, \nabla u, x, t)
 
@@ -1104,7 +1105,8 @@ PetscErrorCode PetscDSGetResidual(PetscDS prob, PetscInt f,
 . f0 - integrand for the test function term
 - f1 - integrand for the test function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi f_0(u, u_t, \nabla u, x, t) + \nabla\phi \cdot {\vec f}_1(u, u_t, \nabla u, x, t)
 
@@ -1208,7 +1210,8 @@ PetscErrorCode PetscDSHasJacobian(PetscDS prob, PetscBool *hasJac)
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi g_0(u, u_t, \nabla u, x, t) \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \nabla \psi
 
@@ -1285,7 +1288,8 @@ PetscErrorCode PetscDSGetJacobian(PetscDS prob, PetscInt f, PetscInt g,
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi g_0(u, u_t, \nabla u, x, t) \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \nabla \psi
 
@@ -1425,7 +1429,8 @@ PetscErrorCode PetscDSHasJacobianPreconditioner(PetscDS prob, PetscBool *hasJacP
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi g_0(u, u_t, \nabla u, x, t) \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \nabla \psi
 
@@ -1502,7 +1507,8 @@ PetscErrorCode PetscDSGetJacobianPreconditioner(PetscDS prob, PetscInt f, PetscI
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi g_0(u, u_t, \nabla u, x, t) \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \nabla \psi
 
@@ -1620,7 +1626,8 @@ PetscErrorCode PetscDSHasDynamicJacobian(PetscDS prob, PetscBool *hasDynJac)
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi g_0(u, u_t, \nabla u, x, t) \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \nabla \psi
 
@@ -1697,7 +1704,8 @@ PetscErrorCode PetscDSGetDynamicJacobian(PetscDS prob, PetscInt f, PetscInt g,
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Omega \phi g_0(u, u_t, \nabla u, x, t) \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \nabla \psi
 
@@ -1864,7 +1872,8 @@ PetscErrorCode PetscDSSetRiemannSolver(PetscDS prob, PetscInt f,
   Output Parameters:
 . update - update function
 
-  Note: The calling sequence for the callback update is given by:
+  Note:
+    The calling sequence for the callback update is given by:
 
 $ update(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 $        const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -1914,7 +1923,8 @@ PetscErrorCode PetscDSGetUpdate(PetscDS prob, PetscInt f,
 . f      - The field number
 - update - update function
 
-  Note: The calling sequence for the callback update is given by:
+  Note:
+    The calling sequence for the callback update is given by:
 
 $ update(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 $        const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -1993,7 +2003,8 @@ PetscErrorCode PetscDSSetContext(PetscDS prob, PetscInt f, void *ctx)
 + f0 - boundary integrand for the test function term
 - f1 - boundary integrand for the test function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Gamma \phi {\vec f}_0(u, u_t, \nabla u, x, t) \cdot \hat n + \nabla\phi \cdot {\overleftrightarrow f}_1(u, u_t, \nabla u, x, t) \cdot \hat n
 
@@ -2056,7 +2067,8 @@ PetscErrorCode PetscDSGetBdResidual(PetscDS prob, PetscInt f,
 . f0 - boundary integrand for the test function term
 - f1 - boundary integrand for the test function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Gamma \phi {\vec f}_0(u, u_t, \nabla u, x, t) \cdot \hat n + \nabla\phi \cdot {\overleftrightarrow f}_1(u, u_t, \nabla u, x, t) \cdot \hat n
 
@@ -2159,7 +2171,8 @@ PetscErrorCode PetscDSHasBdJacobian(PetscDS prob, PetscBool *hasBdJac)
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Gamma \phi {\vec g}_0(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \cdot \hat n \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \hat n \cdot \nabla \psi
 
@@ -2237,7 +2250,8 @@ PetscErrorCode PetscDSGetBdJacobian(PetscDS prob, PetscInt f, PetscInt g,
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Gamma \phi {\vec g}_0(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \cdot \hat n \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \hat n \cdot \nabla \psi
 
@@ -2356,7 +2370,8 @@ PetscErrorCode PetscDSHasBdJacobianPreconditioner(PetscDS prob, PetscBool *hasBd
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Gamma \phi {\vec g}_0(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \cdot \hat n \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \hat n \cdot \nabla \psi
 
@@ -2437,7 +2452,8 @@ PetscErrorCode PetscDSGetBdJacobianPreconditioner(PetscDS prob, PetscInt f, Pets
 . g2 - integrand for the test function gradient and basis function term
 - g3 - integrand for the test function gradient and basis function gradient term
 
-  Note: We are using a first order FEM model for the weak form:
+  Note:
+    We are using a first order FEM model for the weak form:
 
   \int_\Gamma \phi {\vec g}_0(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \phi {\vec g}_1(u, u_t, \nabla u, x, t) \cdot \hat n \nabla \psi + \nabla\phi \cdot {\vec g}_2(u, u_t, \nabla u, x, t) \cdot \hat n \psi + \nabla\phi \cdot {\overleftrightarrow g}_3(u, u_t, \nabla u, x, t) \cdot \hat n \cdot \nabla \psi
 
@@ -2524,7 +2540,8 @@ PetscErrorCode PetscDSSetBdJacobianPreconditioner(PetscDS prob, PetscInt f, Pets
 + exactSol - exact solution for the test field
 - exactCtx - exact solution context
 
-  Note: The calling sequence for the solution functions is given by:
+  Note:
+    The calling sequence for the solution functions is given by:
 
 $ sol(PetscInt dim, PetscReal t, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx)
 
@@ -2560,7 +2577,8 @@ PetscErrorCode PetscDSGetExactSolution(PetscDS prob, PetscInt f, PetscErrorCode 
 . sol  - solution function for the test fields
 - ctx  - solution context or NULL
 
-  Note: The calling sequence for solution functions is given by:
+  Note:
+    The calling sequence for solution functions is given by:
 
 $ sol(PetscInt dim, PetscReal t, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx)
 
@@ -2601,7 +2619,8 @@ PetscErrorCode PetscDSSetExactSolution(PetscDS prob, PetscInt f, PetscErrorCode 
 + exactSol - time derivative of the exact solution for the test field
 - exactCtx - time derivative of the exact solution context
 
-  Note: The calling sequence for the solution functions is given by:
+  Note:
+    The calling sequence for the solution functions is given by:
 
 $ sol(PetscInt dim, PetscReal t, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx)
 
@@ -2637,7 +2656,8 @@ PetscErrorCode PetscDSGetExactSolutionTimeDerivative(PetscDS prob, PetscInt f, P
 . sol  - time derivative of the solution function for the test fields
 - ctx  - time derivative of the solution context or NULL
 
-  Note: The calling sequence for solution functions is given by:
+  Note:
+    The calling sequence for solution functions is given by:
 
 $ sol(PetscInt dim, PetscReal t, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx)
 

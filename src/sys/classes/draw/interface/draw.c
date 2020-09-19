@@ -197,7 +197,8 @@ PetscErrorCode  PetscDrawGetTitle(PetscDraw draw,const char *title[])
 
    Level: intermediate
 
-   Note: The title is positioned in the windowing system title bar for the window. Hence it will not be saved with -draw_save
+   Note:
+   The title is positioned in the windowing system title bar for the window. Hence it will not be saved with -draw_save
    in the image.
 
    A copy of the string is made, so you may destroy the

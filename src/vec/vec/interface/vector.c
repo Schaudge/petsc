@@ -1675,7 +1675,8 @@ PetscErrorCode  VecSwap(Vec x,Vec y)
 
   Level: intermediate
 
-  Developer Note: This cannot use PetscObjectViewFromOptions() because it takes a Vec as an argument but does not use VecView
+  Developer Note:
+    This cannot use PetscObjectViewFromOptions() because it takes a Vec as an argument but does not use VecView
 
 */
 PetscErrorCode VecStashViewFromOptions(Vec obj,PetscObject bobj,const char optionname[])

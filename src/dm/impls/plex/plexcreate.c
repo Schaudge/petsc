@@ -158,7 +158,8 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
   Output Parameter:
 . dm  - The DM object
 
-  Note: Here is the numbering returned for 2 cells in each direction:
+  Note:
+    Here is the numbering returned for 2 cells in each direction:
 $ 18--5-17--4--16
 $  |     |     |
 $  6    10     3
@@ -3411,7 +3412,8 @@ PetscErrorCode DMPlexCreateFromCellList(MPI_Comm comm, PetscInt dim, PetscInt nu
   Output Parameter:
 . dm - The DM
 
-  Note: Two triangles sharing a face would have input
+  Note:
+    Two triangles sharing a face would have input
 $  depth = 1, numPoints = [4 2], coneSize = [3 3 0 0 0 0]
 $  cones = [2 3 4  3 5 4], coneOrientations = [0 0 0  0 0 0]
 $ vertexCoords = [-1.0 0.0  0.0 -1.0  0.0 1.0  1.0 0.0]
@@ -3503,7 +3505,8 @@ PetscErrorCode DMPlexCreateFromDAG(DM dm, PetscInt depth, const PetscInt numPoin
   Output Parameter:
 . dm  - The DM object representing the mesh
 
-  Note: The format is the simplest possible:
+  Note:
+    The format is the simplest possible:
 $ Ne
 $ v0 v1 ... vk
 $ Nv

@@ -1243,7 +1243,8 @@ PetscErrorCode PetscSectionGetConstrainedStorageSize(PetscSection s, PetscInt *s
   Output Parameter:
 . gsection - The PetscSection for the global field layout
 
-  Note: This gives negative sizes and offsets to points not owned by this process
+  Note:
+    This gives negative sizes and offsets to points not owned by this process
 
   Level: intermediate
 
@@ -1345,7 +1346,8 @@ PetscErrorCode PetscSectionCreateGlobalSection(PetscSection s, PetscSF sf, Petsc
   Output Parameter:
   . gsection - The PetscSection for the global field layout
 
-  Note: This gives negative sizes and offsets to points not owned by this process
+  Note:
+    This gives negative sizes and offsets to points not owned by this process
 
   Level: advanced
 
@@ -1440,7 +1442,8 @@ PetscErrorCode PetscSectionCreateGlobalSectionCensored(PetscSection s, PetscSF s
   Output Parameter:
 . layout - The point layout for the section
 
-  Note: This is usually caleld for the default global section.
+  Note:
+    This is usually caleld for the default global section.
 
   Level: advanced
 
@@ -1478,7 +1481,8 @@ PetscErrorCode PetscSectionGetPointLayout(MPI_Comm comm, PetscSection s, PetscLa
   Output Parameter:
 . layout - The dof layout for the section
 
-  Note: This is usually called for the default global section.
+  Note:
+    This is usually called for the default global section.
 
   Level: advanced
 
@@ -1545,7 +1549,8 @@ PetscErrorCode PetscSectionGetOffset(PetscSection s, PetscInt point, PetscInt *o
 . point - the point
 - offset - the offset
 
-  Note: The user usually does not call this function, but uses PetscSectionSetUp()
+  Note:
+    The user usually does not call this function, but uses PetscSectionSetUp()
 
   Level: intermediate
 
@@ -1600,7 +1605,8 @@ PetscErrorCode PetscSectionGetFieldOffset(PetscSection s, PetscInt point, PetscI
 . field - the field
 - offset - the offset
 
-  Note: The user usually does not call this function, but uses PetscSectionSetUp()
+  Note:
+    The user usually does not call this function, but uses PetscSectionSetUp()
 
   Level: intermediate
 
@@ -1630,8 +1636,9 @@ PetscErrorCode PetscSectionSetFieldOffset(PetscSection s, PetscInt point, PetscI
   Output Parameter:
 . offset - the offset
 
-  Note: This gives the offset on a point of the field, ignoring constraints, meaning starting at the first dof for
-        this point, what number is the first dof with this field.
+  Note:
+     This gives the offset on a point of the field, ignoring constraints, meaning starting at the first dof for
+     this point, what number is the first dof with this field.
 
   Level: advanced
 
@@ -1703,7 +1710,8 @@ PetscErrorCode PetscSectionGetOffsetRange(PetscSection s, PetscInt *start, Petsc
   Output Parameter:
 . subs   - the subsection
 
-  Note: The section offsets now refer to a new, smaller vector.
+  Note:
+    The section offsets now refer to a new, smaller vector.
 
   Level: advanced
 
@@ -1803,7 +1811,8 @@ PetscErrorCode PetscSectionCreateSubsection(PetscSection s, PetscInt len, const 
   Output Parameter:
 . supers - the supersection
 
-  Note: The section offsets now refer to a new, larger vector.
+  Note:
+    The section offsets now refer to a new, larger vector.
 
   Level: advanced
 
@@ -1919,7 +1928,8 @@ PetscErrorCode PetscSectionCreateSupersection(PetscSection s[], PetscInt len, Pe
   Output Parameter:
 . subs - the subsection
 
-  Note: The section offsets now refer to a new, smaller vector.
+  Note:
+    The section offsets now refer to a new, smaller vector.
 
   Level: advanced
 
@@ -2319,7 +2329,8 @@ PetscErrorCode PetscSectionHasConstraints(PetscSection s, PetscBool *hasConstrai
   Output Parameter:
 . indices - The constrained dofs
 
-  Note: In Fortran, you call PetscSectionGetConstraintIndicesF90() and PetscSectionRestoreConstraintIndicesF90()
+  Note:
+    In Fortran, you call PetscSectionGetConstraintIndicesF90() and PetscSectionRestoreConstraintIndicesF90()
 
   Level: intermediate
 
@@ -2347,7 +2358,8 @@ PetscErrorCode PetscSectionGetConstraintIndices(PetscSection s, PetscInt point, 
 . point - The point
 - indices - The constrained dofs
 
-  Note: The Fortran is PetscSectionSetConstraintIndicesF90()
+  Note:
+    The Fortran is PetscSectionSetConstraintIndicesF90()
 
   Level: intermediate
 
@@ -2410,7 +2422,8 @@ PetscErrorCode PetscSectionGetFieldConstraintIndices(PetscSection s, PetscInt po
 . field   - The field number
 - indices - The constrained dofs
 
-  Note: The Fortran is PetscSectionSetFieldConstraintIndicesF90()
+  Note:
+    The Fortran is PetscSectionSetFieldConstraintIndicesF90()
 
   Level: intermediate
 
@@ -2705,7 +2718,8 @@ PetscErrorCode PetscSFCreateRemoteOffsets(PetscSF sf, PetscSection rootSection, 
   Output Parameters:
 - sectionSF - The new SF
 
-  Note: Either rootSection or remoteOffsets can be specified
+  Note:
+    Either rootSection or remoteOffsets can be specified
 
   Level: advanced
 
@@ -2783,7 +2797,8 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
 . clSection - Section giving the size of the closure of each point
 - clPoints  - IS giving the points in each closure
 
-  Note: We compress out closure points with no dofs in this section
+  Note:
+    We compress out closure points with no dofs in this section
 
   Level: advanced
 
@@ -2821,7 +2836,8 @@ PetscErrorCode PetscSectionSetClosureIndex(PetscSection section, PetscObject obj
 + clSection - Section giving the size of the closure of each point
 - clPoints  - IS giving the points in each closure
 
-  Note: We compress out closure points with no dofs in this section
+  Note:
+    We compress out closure points with no dofs in this section
 
   Level: advanced
 

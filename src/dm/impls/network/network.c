@@ -1129,7 +1129,8 @@ PetscErrorCode DMNetworkSetSubMap_private(PetscInt pstart, PetscInt pend, ISLoca
   Input Parameters:
 . dm   - The DMNetworkObject
 
-  Note: the routine will create alternative orderings for the vertices and edges. Assume global network points are:
+  Note:
+  The routine will create alternative orderings for the vertices and edges. Assume global network points are:
 
   points = [0 1 2 3 4 5 6]
 

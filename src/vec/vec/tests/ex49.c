@@ -14,7 +14,8 @@ static const char help[] = "Test VEC_SUBSET_OFF_PROC_ENTRIES\n\n";
 
    Contributed-by: David Wells <drwells@email.unc.edu>
 
-  Petsc developers' notes: this test tests how Petsc knows it can reuse existing communication
+  Developers' Notes:
+  This test tests how Petsc knows it can reuse existing communication
   pattern. All processes must come to the same conclusion, otherwise deadlock may happen due
   to mismatched MPI_Send/Recv. It also tests changing VEC_SUBSET_OFF_PROC_ENTRIES back and forth.
 */

@@ -302,7 +302,8 @@ PetscErrorCode PetscLimiterCreate(MPI_Comm comm, PetscLimiter *lim)
   Output Parameter:
 . phi  - The limited field
 
-Note: Limiters given in symmetric form following Berger, Aftosmis, and Murman 2005
+  Note:
+    Limiters are given in symmetric form following Berger, Aftosmis, and Murman 2005
 $ The classical flux-limited formulation is psi(r) where
 $
 $ r = (u[0] - u[-1]) / (u[1] - u[0])
@@ -1549,7 +1550,8 @@ PetscErrorCode PetscFVGetQuadrature(PetscFV fvm, PetscQuadrature *q)
   Output Parameter:
 . sp - The PetscDualSpace object
 
-  Note: A simple dual space is provided automatically, and the user typically will not need to override it.
+  Note:
+    A simple dual space is provided automatically, and the user typically will not need to override it.
 
   Level: intermediate
 
@@ -1605,7 +1607,8 @@ PetscErrorCode PetscFVGetDualSpace(PetscFV fvm, PetscDualSpace *sp)
 
   Level: intermediate
 
-  Note: A simple dual space is provided automatically, and the user typically will not need to override it.
+  Note:
+    A simple dual space is provided automatically, and the user typically will not need to override it.
 
 .seealso: PetscFVCreate()
 @*/

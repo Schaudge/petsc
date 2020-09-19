@@ -253,7 +253,8 @@ static PetscErrorCode PetscPartitionerInitialize_ParMetis(PetscPartitioner part)
 .  -petscpartitioner_parmetis_debug <int> - Debugging flag passed to ParMETIS/METIS routines
 -  -petscpartitioner_parmetis_seed <int> - Random seed
 
-  Notes: when the graph is on a single process, this partitioner actually calls METIS and not ParMETIS
+  Notes:
+    when the graph is on a single process, this partitioner actually calls METIS and not ParMETIS
 
 .seealso: PetscPartitionerType, PetscPartitionerCreate(), PetscPartitionerSetType()
 M*/

@@ -613,7 +613,8 @@ PETSC_EXTERN PetscErrorCode SNESLineSearchSetOrder(SNESLineSearch,PetscInt order
    Developer Notes:
     this must match petsc/finclude/petscsnes.h
 
-   Developer Note: The string versions of these are in SNESLineSearchReasons, if you change any value here you must
+   Developer Note:
+     The string versions of these are in SNESLineSearchReasons, if you change any value here you must
      also adjust that array.
 
 .seealso: SNESSolve(), SNESGetConvergedReason(), KSPConvergedReason, SNESSetConvergenceTest()

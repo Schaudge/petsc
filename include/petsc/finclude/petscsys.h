@@ -1,7 +1,7 @@
 !
 !
 !  Part of the base include file for Fortran use of PETSc.
-!  Note: This file should contain only define statements and
+!  This file should contain only define statements and
 !  not the declaration of variables.
 
 ! No spaces for #defines as some compilers (PGI) also adds

@@ -71,14 +71,15 @@ PetscSpinlock PetscCommSpinLock;
 
    Collective
 
-   Level: advanced
-
     Notes:
-    this is called only by the PETSc Julia interface. Even though it might start MPI it sets the flag to
-     indicate that it did NOT start MPI so that the PetscFinalize() does not end MPI, thus allowing PetscInitialize() to
-     be called multiple times from Julia without the problem of trying to initialize MPI more than once.
+      Called only by the PETSc Julia interface. Even though it might start MPI it sets the flag to
+      indicate that it did NOT start MPI so that the PetscFinalize() does not end MPI, thus allowing PetscInitialize() to
+      be called multiple times from Julia without the problem of trying to initialize MPI more than once.
 
-     Developer Note: Turns off PETSc signal handling to allow Julia to manage signals
+    Developer Note:
+      Turns off PETSc signal handling to allow Julia to manage signals
+
+   Level: advanced
 
 .seealso: PetscInitialize(), PetscInitializeFortran(), PetscInitializeNoArguments()
 */
@@ -299,7 +300,7 @@ PETSC_EXTERN void PetscMin_Local(void *in,void *out,PetscMPIInt *cnt,MPI_Datatyp
 
    This is called by MPI, not by users. This is called by MPI_Comm_free() when the communicator that has this  data as an attribute is freed.
 
-   Note: this is declared extern "C" because it is passed to MPI_Comm_create_keyval()
+   This is declared extern "C" because it is passed to MPI_Comm_create_keyval()
 
 */
 PETSC_EXTERN PetscMPIInt MPIAPI Petsc_Counter_Attr_Delete_Fn(MPI_Comm comm,PetscMPIInt keyval,void *count_val,void *extra_state)
@@ -322,7 +323,7 @@ PETSC_EXTERN PetscMPIInt MPIAPI Petsc_Counter_Attr_Delete_Fn(MPI_Comm comm,Petsc
 
   This is called by MPI, not by users. This is called when MPI_Comm_free() is called on the communicator.
 
-  Note: this is declared extern "C" because it is passed to MPI_Comm_create_keyval()
+  This is declared extern "C" because it is passed to MPI_Comm_create_keyval()
 
 */
 PETSC_EXTERN PetscMPIInt MPIAPI Petsc_InnerComm_Attr_Delete_Fn(MPI_Comm comm,PetscMPIInt keyval,void *attr_val,void *extra_state)
@@ -1613,7 +1614,7 @@ PetscErrorCode  PetscFinalize(void)
   }
 /*
 
-     Note: In certain cases PETSC_COMM_WORLD is never MPI_Comm_free()ed because
+   In certain cases PETSC_COMM_WORLD is never MPI_Comm_free()ed because
    the communicator has some outstanding requests on it. Specifically if the
    flag PETSC_HAVE_BROKEN_REQUEST_FREE is set (for IBM MPI implementation). See
    src/vec/utils/vpscat.c. Due to this the memory allocated in PetscCommDuplicate()

@@ -877,7 +877,7 @@ PetscErrorCode MatSolve_SeqBAIJ_4_Demotion(Mat A,Vec bb,Vec xx)
 PetscErrorCode MatSolve_SeqBAIJ_4_SSE_Demotion(Mat A,Vec bb,Vec xx)
 {
   /*
-     Note: This code uses demotion of double
+     This code uses demotion of double
      to float when performing the mixed-mode computation.
      This may not be numerically reasonable for all applications.
   */

@@ -1553,7 +1553,7 @@ static PetscErrorCode DMStagSetUpBuildScatter_3d(DM dm,const PetscInt *globalOff
   PetscFunctionReturn(0);
 }
 
-/* Note: Assumes that DMBoundary types of none, ghosted, and periodic are the only ones of interest.
+/* Assumes that DMBoundary types of none, ghosted, and periodic are the only ones of interest.
 Adding support for others should be done very carefully.  */
 static PetscErrorCode DMStagSetUpBuildL2G_3d(DM dm,const PetscInt *globalOffsets)
 {

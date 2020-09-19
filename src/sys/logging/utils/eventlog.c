@@ -14,7 +14,7 @@ PetscBool PetscLogGpuTraffic = PETSC_FALSE;
 #endif
 
 /*----------------------------------------------- Creation Functions -------------------------------------------------*/
-/* Note: these functions do not have prototypes in a public directory, so they are considered "internal" and not exported. */
+/* These functions do not have prototypes in a public directory, so they are considered "internal" and not exported. */
 
 /*@C
   PetscEventRegLogCreate - This creates a PetscEventRegLog object.
@@ -278,7 +278,6 @@ PetscErrorCode PetscLogEventEndMPE(PetscLogEvent event,int t,PetscObject o1,Pets
 .ve
 
   Notes:
-
   PETSc can gather data for use with the utilities Jumpshot
   (part of the MPICH distribution).  If PETSc has been compiled
   with flag -DPETSC_HAVE_MPE (MPE is an additional utility within
@@ -926,7 +925,8 @@ PetscErrorCode PetscLogEventEndTrace(PetscLogEvent event,int t,PetscObject o1,Pe
   Database Options:
 . -log_view - Activates log summary
 
-  Note: This is to enable logging of convergence
+  Note:
+    This is to enable logging of convergence
 
   Level: developer
 
@@ -961,8 +961,9 @@ PetscErrorCode PetscLogEventSetDof(PetscLogEvent event, PetscInt n, PetscLogDoub
   Database Options:
 . -log_view - Activates log summary
 
-  Note: This is to enable logging of convergence, and enable users to interpret the errors as they wish. For example,
-  as different norms, or as errors for different fields
+  Note:
+    This is to enable logging of convergence, and enable users to interpret the errors as they wish. For example,
+    as different norms, or as errors for different fields
 
   Level: developer
 

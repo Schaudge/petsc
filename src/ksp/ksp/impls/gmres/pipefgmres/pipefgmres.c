@@ -565,7 +565,8 @@ static PetscErrorCode KSPPIPEFGMRESUpdateHessenberg(KSP ksp,PetscInt it,PetscBoo
    Output Parameter:
 .     result - the solution
 
-   Note: this calls KSPPIPEFGMRESBuildSoln - the same function that KSPPIPEFGMRESCycle
+   Note:
+   This calls KSPPIPEFGMRESBuildSoln() - the same function that KSPPIPEFGMRESCycle()
    calls directly.
 
 */

@@ -215,8 +215,9 @@ static PetscErrorCode KSPChebyshevEstEigSetUseNoisy_Chebyshev(KSP ksp,PetscBool 
   Options Database:
 .  -ksp_chebyshev_eigenvalues emin,emax
 
-   Note: Call KSPChebyshevEstEigSet() or use the option -ksp_chebyshev_esteig a,b,c,d to have the KSP
-         estimate the eigenvalues and use these estimated values automatically
+   Note:
+     Call KSPChebyshevEstEigSet() or use the option -ksp_chebyshev_esteig a,b,c,d to have the KSP
+     estimate the eigenvalues and use these estimated values automatically
 
    Level: intermediate
 

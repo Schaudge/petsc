@@ -322,9 +322,6 @@ static PetscErrorCode KSPView_FCG(KSP ksp,PetscViewer viewer)
 /*@
   KSPFCGSetMmax - set the maximum number of previous directions FCG will store for orthogonalization
 
-  Note: mmax + 1 directions are stored (mmax previous ones along with a current one)
-  and whether all are used in each iteration also depends on the truncation strategy
-  (see KSPFCGSetTruncationType())
 
   Logically Collective on ksp
 
@@ -332,10 +329,15 @@ static PetscErrorCode KSPView_FCG(KSP ksp,PetscViewer viewer)
 +  ksp - the Krylov space context
 -  mmax - the maximum number of previous directions to orthogonalize againt
 
-  Level: intermediate
-
   Options Database:
 . -ksp_fcg_mmax <N>
+
+  Level: intermediate
+
+  Note:
+  mmax + 1 directions are stored (mmax previous ones along with a current one)
+  and whether all are used in each iteration also depends on the truncation strategy
+  (see KSPFCGSetTruncationType())
 
 .seealso: KSPFCG, KSPFCGGetTruncationType(), KSPFCGGetNprealloc()
 @*/
@@ -353,8 +355,6 @@ PetscErrorCode KSPFCGSetMmax(KSP ksp,PetscInt mmax)
 /*@
   KSPFCGGetMmax - get the maximum number of previous directions FCG will store
 
-  Note: FCG stores mmax+1 directions at most (mmax previous ones, and one current one)
-
    Not Collective
 
    Input Parameter:
@@ -365,6 +365,9 @@ PetscErrorCode KSPFCGSetMmax(KSP ksp,PetscInt mmax)
 
   Options Database:
 . -ksp_fcg_mmax <N>
+
+  Note:
+     FCG stores mmax+1 directions at most (mmax previous ones, and one current one)
 
    Level: intermediate
 

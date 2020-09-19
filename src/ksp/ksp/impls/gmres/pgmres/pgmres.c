@@ -396,7 +396,8 @@ static PetscErrorCode KSPPGMRESUpdateHessenberg(KSP ksp,PetscInt it,PetscBool *h
    Output Parameter:
 .     result - the solution
 
-   Note: this calls KSPPGMRESBuildSoln - the same function that KSPPGMRESCycle
+   Note:
+   This calls KSPPGMRESBuildSoln() - the same function that KSPPGMRESCycle
    calls directly.
 
 */

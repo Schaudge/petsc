@@ -938,7 +938,8 @@ static PetscErrorCode DMPlexAddSharedFace_Private(DM dm, PetscSection candidateS
 
   Level: developer
 
-   Note: All debugging for this process can be turned on with the options: -dm_interp_pre_view -petscsf_interp_pre_view -petscsection_interp_candidate_view -petscsection_interp_candidate_remote_view -petscsection_interp_claim_view -petscsf_interp_pre_view -dmplex_interp_debug
+   Note:
+   All debugging for this process can be turned on with the options: -dm_interp_pre_view -petscsf_interp_pre_view -petscsection_interp_candidate_view -petscsection_interp_candidate_remote_view -petscsection_interp_claim_view -petscsf_interp_pre_view -dmplex_interp_debug
 
 .seealso: DMPlexInterpolate(), DMPlexUninterpolate()
 @*/
@@ -1369,7 +1370,8 @@ PetscErrorCode DMPlexInterpolate(DM dm, DM *dmInt)
 
   Level: intermediate
 
-  Note: This is typically used when adding pieces other than vertices to a mesh
+  Note:
+    This is typically used when adding pieces other than vertices to a mesh
 
 .seealso: DMCopyLabels(), DMGetCoordinates(), DMGetCoordinatesLocal(), DMGetCoordinateDM(), DMGetCoordinateSection()
 @*/

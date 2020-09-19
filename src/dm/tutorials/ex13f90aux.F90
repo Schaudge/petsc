@@ -77,7 +77,7 @@ contains
     call transform_petsc_us(array,f,stw)
   end subroutine petsc_to_local
   subroutine transform_petsc_us(array,f,stw)
-    !Note: this assumed shape-array is what does the "coordinate transformation"
+    !This assumed shape-array is what does the "coordinate transformation"
     PetscInt,intent(in)                                   :: stw
     PetscReal, intent(in), dimension(:,1-stw:,1-stw:,1-stw:)  :: array
     PetscReal,intent(inout),dimension(:,1-stw:,1-stw:,1-stw:) :: f
@@ -95,7 +95,7 @@ contains
     call DMDAVecRestoreArrayF90(da,vec,array,ierr);CHKERRQ(ierr);
   end subroutine local_to_petsc
   subroutine transform_us_petsc(array,f,stw)
-    !Note: this assumed shape-array is what does the "coordinate transformation"
+    !This assumed shape-array is what does the "coordinate transformation"
     PetscInt,intent(in)                                     :: stw
     PetscReal, intent(inout), dimension(:,1-stw:,1-stw:,1-stw:) :: array
     PetscReal, intent(in),dimension(:,1-stw:,1-stw:,1-stw:)      :: f

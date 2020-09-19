@@ -17,11 +17,12 @@ typedef struct _p_IS* IS;
 
    Level: intermediate
 
-   Note: mapping from local to global is scalable; but global
+   Notes:
+  Mapping from local to global is scalable; but global
   to local may not be if the range of global values represented locally
   is very large.
 
-   Note: the ISLocalToGlobalMapping is actually a private object; it is included
+  The ISLocalToGlobalMapping is actually a private object; it is included
   here for the inline function ISLocalToGlobalMappingApply() to allow it to be inlined since
   it is used so often.
 
@@ -44,7 +45,8 @@ typedef struct _p_ISLocalToGlobalMapping* ISLocalToGlobalMapping;
     That is the matching the local (ghosted) vector; a local to global mapping must be applied to map
     them to the global ordering.
 
-    Developer Note: this is not a PetscObject
+    Developer Note:
+      This is not a PetscObject
 
 .seealso:  ISColoringCreate(), ISColoringGetIS(), ISColoringView()
 S*/

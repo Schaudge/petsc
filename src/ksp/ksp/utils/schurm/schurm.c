@@ -430,7 +430,8 @@ PetscErrorCode  MatSchurComplementUpdateSubMatrices(Mat S,Mat A00,Mat Ap00,Mat A
 + A00,A01,A10,A11  - the four parts of the original matrix A = [A00 A01; A10 A11] (A11 is optional)
 - Ap00             - preconditioning matrix for use in ksp(A00,Ap00) to approximate the action of A^{-1}.
 
-  Note: A11 is optional, and thus can be NULL.  The submatrices are not increfed before they are returned and should not be modified or destroyed.
+  Note:
+    A11 is optional, and thus can be NULL.  The submatrices are not increfed before they are returned and should not be modified or destroyed.
 
   Level: intermediate
 
@@ -467,7 +468,8 @@ PetscErrorCode  MatSchurComplementGetSubMatrices(Mat S,Mat *A00,Mat *Ap00,Mat *A
   Output Parameter:
 . S - the Schur complement matrix
 
-  Note: This can be expensive, so it is mainly for testing
+  Note:
+    This can be expensive, so it is mainly for testing
 
   Level: advanced
 
@@ -524,8 +526,10 @@ PetscErrorCode MatSchurComplementComputeExplicitOperator(Mat M, Mat *S)
   PetscFunctionReturn(0);
 }
 
-/* Developer Notes:
-    This should be implemented with a MatCreate_SchurComplement() as that is the standard design for new Mat classes. */
+/*
+    Developer Notes:
+    This should be implemented with a MatCreate_SchurComplement() as that is the standard design for new Mat classes
+*/
 PetscErrorCode MatGetSchurComplement_Basic(Mat mat,IS isrow0,IS iscol0,IS isrow1,IS iscol1,MatReuse mreuse,Mat *newmat,MatSchurComplementAinvType ainvtype, MatReuse preuse,Mat *newpmat)
 {
   PetscErrorCode ierr;

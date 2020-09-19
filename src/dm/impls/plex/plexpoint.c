@@ -13,7 +13,8 @@
 +  start - start of point data
 -  end - end of point data
 
-   Note: This is a half open interval [start, end)
+   Note:
+    This is a half open interval [start, end)
 
    Level: intermediate
 
@@ -124,7 +125,8 @@ PetscErrorCode DMPlexPointLocalRef(DM dm,PetscInt point,PetscScalar *array,void 
 + start - start of point data
 - end - end of point data
 
-  Note: This is a half open interval [start, end)
+  Note:
+    This is a half open interval [start, end)
 
   Level: intermediate
 
@@ -222,7 +224,8 @@ PetscErrorCode DMPlexPointLocalFieldRef(DM dm,PetscInt point,PetscInt field,Pets
 + start - start of point data; returns -(globalStart+1) if point is not owned
 - end - end of point data; returns -(globalEnd+1) if point is not owned
 
-  Note: This is a half open interval [start, end)
+  Note:
+    This is a half open interval [start, end)
 
   Level: intermediate
 
@@ -333,7 +336,8 @@ PetscErrorCode DMPlexPointGlobalRef(DM dm,PetscInt point,PetscScalar *array,void
 + start - start of point data; returns -(globalStart+1) if point is not owned
 - end - end of point data; returns -(globalEnd+1) if point is not owned
 
-  Note: This is a half open interval [start, end)
+  Note:
+    This is a half open interval [start, end)
 
   Level: intermediate
 

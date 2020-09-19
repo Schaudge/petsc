@@ -1102,10 +1102,10 @@
 !================================ FORCE  ============================72
 !
 !  Provided by Bob Biedron, inserted by Eric on 10/31/96
-!  (Note:  "history" common block has to be modified everywhere
+!  ( "history" common block has to be modified everywhere
 !   to use this routine!)
 !
-!  NOTE:  This currently ONLY DOES PRESSURE FORCES correctly.
+!  This currently ONLY DOES PRESSURE FORCES correctly.
 !         There's no guarantee on the viscous force stuff.
 !         (We think it's right though)
 !

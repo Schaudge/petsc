@@ -552,7 +552,8 @@ PetscErrorCode  PetscViewerHDF5GetFileId(PetscViewer viewer, hid_t *file_id)
 
   Level: intermediate
 
-  Note: The group name being NULL, empty string, or a sequence of all slashes (e.g. "///") is always internally stored as NULL and interpreted as "/".
+  Note:
+    The group name being NULL, empty string, or a sequence of all slashes (e.g. "///") is always internally stored as NULL and interpreted as "/".
 
 .seealso: PetscViewerHDF5Open(),PetscViewerHDF5PopGroup(),PetscViewerHDF5GetGroup(),PetscViewerHDF5OpenGroup()
 @*/
@@ -914,7 +915,8 @@ PetscErrorCode PetscViewerHDF5WriteObjectAttribute(PetscViewer viewer, PetscObje
   Output Parameter:
 . value    - The attribute value
 
-  Notes: If the datatype is PETSC_STRING one must PetscFree() the obtained value when it is no longer needed.
+  Notes:
+    If the datatype is PETSC_STRING one must PetscFree() the obtained value when it is no longer needed.
 
   Level: advanced
 

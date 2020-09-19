@@ -171,7 +171,8 @@ static PetscErrorCode DMPlexProjectRigidBody_Private(PetscInt dim, PetscReal t, 
   Output Argument:
 . sp - the null space
 
-  Note: This is necessary to provide a suitable coarse space for algebraic multigrid
+  Note:
+  This is necessary to provide a suitable coarse space for algebraic multigrid
 
   Level: advanced
 
@@ -248,7 +249,8 @@ PetscErrorCode DMPlexCreateRigidBody(DM dm, PetscInt field, MatNullSpace *sp)
   Output Argument:
 . sp - the null space
 
-  Note: This is necessary to provide a suitable coarse space for algebraic multigrid
+  Note:
+  This is necessary to provide a suitable coarse space for algebraic multigrid
 
   Level: advanced
 
@@ -366,7 +368,8 @@ typedef struct {
 } RotCtx;
 
 /*
-  Note: Following https://en.wikipedia.org/wiki/Euler_angles, we will specify Euler angles by extrinsic rotations, meaning that
+  Note:
+  Following https://en.wikipedia.org/wiki/Euler_angles, we will specify Euler angles by extrinsic rotations, meaning that
   we rotate with respect to a fixed initial coordinate system, the local basis (x-y-z). The global basis (X-Y-Z) is reached as follows:
   $ The XYZ system rotates about the z axis by alpha. The X axis is now at angle alpha with respect to the x axis.
   $ The XYZ system rotates again about the x axis by beta. The Z axis is now at angle beta with respect to the z axis.
@@ -638,7 +641,8 @@ static PetscErrorCode DMPlexBasisTransform_Internal(DM dm, Vec lv, PetscBool l2g
   Output Parameters:
 . lv - A local vector with values in the local basis
 
-  Note: This method is only intended to be called inside DMGlobalToLocal(). It is unlikely that a user will have a local vector full of coefficients for the global basis unless they are reimplementing GlobalToLocal.
+  Note:
+  This method is only intended to be called inside DMGlobalToLocal(). It is unlikely that a user will have a local vector full of coefficients for the global basis unless they are reimplementing GlobalToLocal.
 
   Level: developer
 
@@ -665,7 +669,8 @@ PetscErrorCode DMPlexGlobalToLocalBasis(DM dm, Vec lv)
   Output Parameters:
 . lv - A local vector with values in the global basis
 
-  Note: This method is only intended to be called inside DMGlobalToLocal(). It is unlikely that a user would want a local vector full of coefficients for the global basis unless they are reimplementing GlobalToLocal.
+  Note:
+  This method is only intended to be called inside DMGlobalToLocal(). It is unlikely that a user would want a local vector full of coefficients for the global basis unless they are reimplementing GlobalToLocal.
 
   Level: developer
 
@@ -692,7 +697,8 @@ PetscErrorCode DMPlexLocalToGlobalBasis(DM dm, Vec lv)
 . beta  - The second Euler angle
 - gamma - The third Euler angle
 
-  Note: Following https://en.wikipedia.org/wiki/Euler_angles, we will specify Euler angles by extrinsic rotations, meaning that
+  Note:
+  Following https://en.wikipedia.org/wiki/Euler_angles, we will specify Euler angles by extrinsic rotations, meaning that
   we rotate with respect to a fixed initial coordinate system, the local basis (x-y-z). The global basis (X-Y-Z) is reached as follows:
   $ The XYZ system rotates about the z axis by alpha. The X axis is now at angle alpha with respect to the x axis.
   $ The XYZ system rotates again about the x axis by beta. The Z axis is now at angle beta with respect to the z axis.
@@ -883,7 +889,8 @@ PetscErrorCode DMPlexInsertBoundaryValuesEssentialBdField(DM dm, PetscReal time,
   Output Parameter:
 . locX   - A local vector to receives the boundary values
 
-  Note: This implementation currently ignores the numcomps/comps argument from DMAddBoundary()
+  Note:
+  This implementation currently ignores the numcomps/comps argument from DMAddBoundary()
 
   Level: developer
 

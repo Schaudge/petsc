@@ -298,7 +298,8 @@ PETSC_EXTERN PetscErrorCode MatCreate_Scatter(Mat A)
    required for use of the matrix interface routines, even though
    the scatter matrix may not actually be physically partitioned.
 
-  Developer Notes: This directly accesses information inside the VecScatter associated with the matrix-vector product
+  Developer Notes:
+   This directly accesses information inside the VecScatter associated with the matrix-vector product
    for this matrix. This is not desirable..
 
 

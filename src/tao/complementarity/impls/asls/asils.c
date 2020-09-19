@@ -164,7 +164,7 @@ static PetscErrorCode TaoSolve_ASILS(Tao tao)
     /* We are going to solve a linear system of equations.  We need to
        set the tolerances for the solve so that we maintain an asymptotic
        rate of convergence that is superlinear.
-       Note: these tolerances are for the reduced system.  We really need
+       These tolerances are for the reduced system.  We really need
        to make sure that the full system satisfies the full-space conditions.
 
        This rule gives superlinear asymptotic convergence

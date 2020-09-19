@@ -35,7 +35,8 @@ Solver loop to update \tau:
 
   Level: intermediate
 
-  Note: All processes in commz should have the same rank (could autosplit comm)
+  Note:
+    All processes in commz should have the same rank (could autosplit comm)
 
 .seealso: DMPatchSolve()
 */

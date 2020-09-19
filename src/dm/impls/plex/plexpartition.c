@@ -421,7 +421,8 @@ PetscErrorCode DMPlexCreatePartitionerGraph(DM dm, PetscInt height, PetscInt *nu
 . offsets     - The offset to the adjacency list for each cell
 - adjacency   - The adjacency list for all cells
 
-  Note: This is suitable for input to a mesh partitioner like ParMetis.
+  Note:
+    This is suitable for input to a mesh partitioner like ParMetis.
 
   Level: advanced
 
@@ -777,7 +778,8 @@ PetscErrorCode PetscPartitionerDMPlexPartition(PetscPartitioner part, DM dm, Pet
 
   Level: developer
 
-  Note: This gets a borrowed reference, so the user should not destroy this PetscPartitioner.
+  Note:
+    This gets a borrowed reference, so the user should not destroy this PetscPartitioner.
 
 .seealso DMPlexDistribute(), DMPlexSetPartitioner(), PetscPartitionerDMPlexPartition(), PetscPartitionerCreate()
 @*/
@@ -803,7 +805,8 @@ PetscErrorCode DMPlexGetPartitioner(DM dm, PetscPartitioner *part)
 
   Level: developer
 
-  Note: Any existing PetscPartitioner will be destroyed.
+  Note:
+    Any existing PetscPartitioner will be destroyed.
 
 .seealso DMPlexDistribute(), DMPlexGetPartitioner(), PetscPartitionerCreate()
 @*/
@@ -1068,7 +1071,8 @@ PetscErrorCode DMPlexPartitionLabelAdjacency(DM dm, DMLabel label)
 
   Level: developer
 
-  Note: This is required when generating multi-level overlaps to capture
+  Note:
+  This is required when generating multi-level overlaps to capture
   overlap points from non-neighbouring partitions.
 
 .seealso: DMPlexPartitionLabelCreateSF(), DMPlexDistribute(), DMPlexCreateOverlap()
@@ -1132,7 +1136,8 @@ PetscErrorCode DMPlexPartitionLabelPropagate(DM dm, DMLabel label)
   Output Parameter:
 . leafLabel - DMLabel assinging ranks to remote roots
 
-  Note: The rootLabel defines a send pattern by mapping local points to remote target ranks. The
+  Note:
+  The rootLabel defines a send pattern by mapping local points to remote target ranks. The
   resulting leafLabel is a receiver mapping of remote roots to their parent rank.
 
   Level: developer
@@ -1267,7 +1272,8 @@ PetscErrorCode DMPlexPartitionLabelInvert(DM dm, DMLabel rootLabel, PetscSF proc
   Output Parameter:
 . sf    - The star forest communication context encapsulating the defined mapping
 
-  Note: The incoming label is a receiver mapping of remote points to their parent rank.
+  Note:
+  The incoming label is a receiver mapping of remote points to their parent rank.
 
   Level: developer
 

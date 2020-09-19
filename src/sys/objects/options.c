@@ -141,7 +141,8 @@ static PetscErrorCode PetscOptionsMonitor(PetscOptions options,const char name[]
 
    Level: advanced
 
-   Developer Note: We may want eventually to pass a MPI_Comm to determine the ownership of the object
+   Developer Note:
+     We may want eventually to pass a MPI_Comm to determine the ownership of the object
 
 .seealso: PetscOptionsDestroy(), PetscOptionsPush(), PetscOptionsPop(), PetscOptionsInsert(), PetscOptionsSetValue()
 @*/
@@ -1131,7 +1132,8 @@ PetscErrorCode PetscOptionsSetAlias(PetscOptions options,const char newname[],co
    not the code may fail in complicated ways because the same parallel solvers may incorrectly use different options
    on different ranks.
 
-   Developers Note: Uses malloc() directly because PETSc may not be initialized yet.
+   Developers Note:
+     Uses malloc() directly because PETSc may not be initialized yet.
 
 .seealso: PetscOptionsInsert(), PetscOptionsClearValue()
 @*/
@@ -1806,7 +1808,8 @@ PetscErrorCode PetscOptionsLeft(PetscOptions options)
 
    Notes:
    Users should call PetscOptionsLeftRestore() to free the memory allocated in this routine
-   Notes: The value returned may be different on each process and depends on which options have been processed
+
+   The value returned may be different on each process and depends on which options have been processed
    on the given process
 
 .seealso: PetscOptionsAllUsed(), PetscOptionsLeft()
@@ -2524,13 +2527,12 @@ PetscErrorCode PetscOptionsGetScalar(PetscOptions options,const char pre[],const
 .ve
 
    Notes:
-    if the option is given but no string is provided then an empty string is returned and set is given the value of PETSC_TRUE
+     If the option is given but no string is provided then an empty string is returned and set is given the value of PETSC_TRUE
 
-           If the user does not use the option then the string is not changed. Thus
-           you should ALWAYS initialize the string if you access it without first checking if the set flag is true.
+     If the user does not use the option then the string is not changed. Thus
+     you should ALWAYS initialize the string if you access it without first checking if the set flag is true.
 
-    Note:
-      Even if the user provided no string (for example -optionname -someotheroption) the flag is set to PETSC_TRUE (and the string is fulled with nulls).
+     Even if the user provided no string (for example -optionname -someotheroption) the flag is set to PETSC_TRUE (and the string is fulled with nulls).
 
 .seealso: PetscOptionsGetInt(), PetscOptionsGetReal(),
           PetscOptionsHasName(), PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool(),

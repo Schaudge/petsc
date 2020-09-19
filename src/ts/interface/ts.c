@@ -451,7 +451,8 @@ PetscErrorCode  TSSetFromOptions(TS ts)
    Output Parameters:
 .  tr - the TSTrajectory object, if it exists
 
-   Note: This routine should be called after all TS options have been set
+   Note:
+     This routine should be called after all TS options have been set
 
    Level: advanced
 
@@ -478,7 +479,8 @@ PetscErrorCode  TSGetTrajectory(TS ts,TSTrajectory *tr)
 +  -ts_save_trajectory - saves the trajectory to a file
 -  -ts_trajectory_type type
 
-Note: This routine should be called after all TS options have been set
+   Note:
+     This routine should be called after all TS options have been set
 
     The TSTRAJECTORYVISUALIZATION files can be loaded into Python with $PETSC_DIR/lib/petsc/bin/PetscBinaryIOTrajectory.py and
    MATLAB with $PETSC_DIR/share/petsc/matlab/PetscReadBinaryTrajectory.m
@@ -2412,7 +2414,8 @@ PetscErrorCode  TSGetTimeStep(TS ts,PetscReal *dt)
    Output Parameter:
 .  v - the vector containing the solution
 
-   Note: If you used TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP); this does not return the solution at the requested
+   Note:
+   If you used TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP); this does not return the solution at the requested
    final time. It returns the solution at the next timestep.
 
    Level: intermediate
@@ -2499,12 +2502,13 @@ PetscErrorCode  TSGetAuxSolution(TS ts,Vec *v)
 
    Not Collective, but Vec returned is parallel if TS is parallel
 
-   Note: MUST call after TSSetUp()
-
    Parameters :
 +  ts - the TS context obtained from TSCreate() (input parameter).
 .  n - current estimate (n=0) or previous one (n=-1)
 -  v - the vector containing the error (same size as the solution).
+
+   Note:
+     MUST call after TSSetUp()
 
    Level: intermediate
 
@@ -7294,7 +7298,8 @@ PetscErrorCode  TSRollBack(TS ts)
 
    Level: advanced
 
-   Notes: Both ns and Y can be NULL.
+   Notes:
+     Both ns and Y can be NULL.
 
 .seealso: TSCreate()
 @*/
