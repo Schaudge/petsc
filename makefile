@@ -4,7 +4,6 @@
 # See also conf for additional commands.
 #
 ALL: all
-LOCDIR	 = ./
 LOC      = ${PETSC_DIR}
 DIRS	 = src include tutorials interfaces share/petsc/matlab
 CFLAGS	 =
@@ -337,35 +336,35 @@ alldoc: allcite allpdf alldoc1 alldoc2 docsetdate
 # Build the list of everything that will get a link (mostly function names)
 allcite: chk_loc deletemanualpages
 	-${PYTHON} lib/petsc/bin/maint/countpetsccits.py
-	-${OMAKE_SELF} ACTION=manualpages_buildcite tree LOC=${LOC}
-	-@sed -e s%man+../%man+manualpages/% ${LOC}/docs/manualpages/manualpages.cit > ${LOC}/docs/manualpages/htmlmap
-	-@cat ${PETSC_DIR}/src/docs/mpi.www.index >> ${LOC}/docs/manualpages/htmlmap
+	-${OMAKE_SELF} ACTION=manualpages_buildcite tree
+	-@sed -e s%man+../%man+manualpages/% ${PETSC_DIR}/docs/manualpages/manualpages.cit > ${PETSC_DIR}/docs/manualpages/htmlmap
+	-@cat ${PETSC_DIR}/src/docs/mpi.www.index >> ${PETSC_DIR}/docs/manualpages/htmlmap
 
 # Build PDF manuals + prerequisites
 allpdf: chk_loc allcite
-	-cd src/docs/tex/manual; ${OMAKE_SELF} manual.pdf LOC=${LOC}
-	-cd src/docs/tao_tex/manual; ${OMAKE_SELF} manual.pdf LOC=${LOC}
+	-cd src/docs/tex/manual; ${OMAKE_SELF} manual.pdf
+	-cd src/docs/tao_tex/manual; ${OMAKE_SELF} manual.pdf
 
 # Build manual pages + prerequisites
 allmanpages: chk_loc allcite
-	-${OMAKE_SELF} ACTION=manualpages tree LOC=${LOC}
+	-${OMAKE_SELF} ACTION=manualpages tree
 
 # Add links to examples from manual pages + prerequisites
 allmanexamples: chk_loc allmanpages
-	-${OMAKE_SELF} ACTION=manexamples tree LOC=${LOC}
+	-${OMAKE_SELF} ACTION=manexamples tree
 
 # Build everything that goes into 'doc' dir except html sources
 alldoc1: chk_loc chk_concepts_dir allcite allmanpages allmanexamples
-	-${OMAKE_SELF} manimplementations LOC=${LOC}
-	-${PYTHON} lib/petsc/bin/maint/wwwindex.py ${PETSC_DIR} ${LOC}
-	-${OMAKE_SELF} ACTION=getexlist tree LOC=${LOC}
-	-${OMAKE_SELF} ACTION=exampleconcepts tree LOC=${LOC}
+	-${OMAKE_SELF} manimplementations
+	-${PYTHON} lib/petsc/bin/maint/wwwindex.py ${PETSC_DIR} ${PETSC_DIR}
+	-${OMAKE_SELF} ACTION=getexlist tree
+	-${OMAKE_SELF} ACTION=exampleconcepts tree
 	-${OMAKE_SELF} manincludes
-	-${PYTHON} lib/petsc/bin/maint/helpindex.py ${PETSC_DIR} ${LOC}
+	-${PYTHON} lib/petsc/bin/maint/helpindex.py ${PETSC_DIR} ${PETSC_DIR}
 
 # Add hyperlinks to includes in manual pages
 manincludes:
-	@for i in `ls -d ${LOC}/docs/manualpages/*`; do \
+	@for i in `ls -d ${PETSC_DIR}/docs/manualpages/*`; do \
           for j in `ls $${i}/*.html`; do \
             cat $${j} | ${PYTHON} ${PETSC_DIR}/lib/petsc/bin/maint/fixinclude.py $${j} $${PETSC_DIR} > $${j}.tmp ;\
             mv $${j}.tmp $${j}; \
@@ -374,12 +373,12 @@ manincludes:
 
 # Builds .html versions of the source
 alldoc2: chk_loc allcite
-	-${OMAKE_SELF} ACTION=html PETSC_DIR=${PETSC_DIR} tree LOC=${LOC}
-	-${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${LOC}
+	-${OMAKE_SELF} ACTION=html PETSC_DIR=${PETSC_DIR} tree
+	-${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${PETSC_DIR}
 #
-# Makes links for all manual pages in $LOC/docs/manualpages/all
+# Makes links for all manual pages in $PETSC_DIR/docs/manualpages/all
 allman:
-	@cd ${LOC}/docs/manualpages; rm -rf all ; mkdir all ; find *  -type d -wholename all -prune -o -name index.html -prune  -o -type f -name \*.html -exec ln -s  -f ../{} all \;
+	@cd ${PETSC_DIR}/docs/manualpages; rm -rf all ; mkdir all ; find *  -type d -wholename all -prune -o -name index.html -prune  -o -type f -name \*.html -exec ln -s  -f ../{} all \;
 
 DOCSETDATE_PRUNE_LIST=-o -type f -wholename share/petsc/saws/linearsolveroptions.html -prune -o -type f -wholename tutorials/HandsOnExercise.html -prune -o -type f -wholename tutorials/TAOHandsOnExercise.html -prune
 
@@ -442,11 +441,11 @@ alldocclean: deletemanualpages allcleanhtml
 
 # Deletes manual pages
 deletemanualpages: chk_loc
-	-@if [ -d ${LOC} -a -d ${LOC}/docs/manualpages ]; then \
-          find ${LOC}/docs/manualpages -type f -name "*.html" -exec ${RM} {} \; ;\
-          ${RM} ${LOC}/docs/exampleconcepts ;\
-          ${RM} ${LOC}/docs/manualpages/manualpages.cit ;\
-          ${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${LOC} clean;\
+	-@if [ -d ${PETSC_DIR} -a -d ${PETSC_DIR}/docs/manualpages ]; then \
+          find ${PETSC_DIR}/docs/manualpages -type f -name "*.html" -exec ${RM} {} \; ;\
+          ${RM} ${PETSC_DIR}/docs/exampleconcepts ;\
+          ${RM} ${PETSC_DIR}/docs/manualpages/manualpages.cit ;\
+          ${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${PETSC_DIR} clean;\
         fi
 
 # Deletes all generated html
@@ -454,8 +453,8 @@ allcleanhtml:
 	-${OMAKE_SELF} ACTION=cleanhtml PETSC_DIR=${PETSC_DIR} tree
 
 chk_concepts_dir: chk_loc
-	@if [ ! -d "${LOC}/docs/manualpages/concepts" ]; then \
-	  echo Making directory ${LOC}/docs/manualpages/concepts for library; ${MKDIR} ${LOC}/docs/manualpages/concepts; fi
+	@if [ ! -d "${PETSC_DIR}/docs/manualpages/concepts" ]; then \
+	  echo Making directory ${PETSC_DIR}/docs/manualpages/concepts for library; ${MKDIR} ${PETSC_DIR}/docs/manualpages/concepts; fi
 
 # Builds simple html versions of the source without links into the $PETSC_ARCH/obj directory, used by make mergecov
 srchtml:
