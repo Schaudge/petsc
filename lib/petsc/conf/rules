@@ -385,6 +385,7 @@ manualpages_buildcite: chk_manualpage_dir
         fi
 #
 #
+# TODO: since loading sowing on each source file is expensive should skip source files that have no manual pages
 manualpages:
 	-@if [ "${MANSEC}" != "" ] ; then \
             if [ "${SUBMANSEC}" = "" ] ; then LMANSEC=${MANSEC}; else LMANSEC=${SUBMANSEC}; fi; \

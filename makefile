@@ -334,27 +334,27 @@ deletefortranstubs:
 alldoc: allcite allpdf alldoc1 alldoc2 docsetdate
 
 # Build the list of everything that will get a link (mostly function names)
-allcite: chk_loc deletemanualpages
+allcite: deletemanualpages
 	-${PYTHON} lib/petsc/bin/maint/countpetsccits.py
 	-${OMAKE_SELF} ACTION=manualpages_buildcite tree
 	-@sed -e s%man+../%man+manualpages/% ${PETSC_DIR}/docs/manualpages/manualpages.cit > ${PETSC_DIR}/docs/manualpages/htmlmap
 	-@cat ${PETSC_DIR}/src/docs/mpi.www.index >> ${PETSC_DIR}/docs/manualpages/htmlmap
 
 # Build PDF manuals + prerequisites
-allpdf: chk_loc allcite
+allpdf: allcite
 	-cd src/docs/tex/manual; ${OMAKE_SELF} manual.pdf
 	-cd src/docs/tao_tex/manual; ${OMAKE_SELF} manual.pdf
 
 # Build manual pages + prerequisites
-allmanpages: chk_loc allcite
+allmanpages:  allcite
 	-${OMAKE_SELF} ACTION=manualpages tree
 
 # Add links to examples from manual pages + prerequisites
-allmanexamples: chk_loc allmanpages
+allmanexamples:  allmanpages
 	-${OMAKE_SELF} ACTION=manexamples tree
 
 # Build everything that goes into 'doc' dir except html sources
-alldoc1: chk_loc chk_concepts_dir allcite allmanpages allmanexamples
+alldoc1:  chk_concepts_dir allcite allmanpages allmanexamples
 	-${OMAKE_SELF} manimplementations
 	-${PYTHON} lib/petsc/bin/maint/wwwindex.py ${PETSC_DIR} ${PETSC_DIR}
 	-${OMAKE_SELF} ACTION=getexlist tree
@@ -365,14 +365,15 @@ alldoc1: chk_loc chk_concepts_dir allcite allmanpages allmanexamples
 # Add hyperlinks to includes in manual pages
 manincludes:
 	@for i in `ls -d ${PETSC_DIR}/docs/manualpages/*`; do \
-          for j in `ls $${i}/*.html`; do \
-            cat $${j} | ${PYTHON} ${PETSC_DIR}/lib/petsc/bin/maint/fixinclude.py $${j} $${PETSC_DIR} > $${j}.tmp ;\
-            mv $${j}.tmp $${j}; \
-          done ; \
+          if [ -d $${i} ]; then\
+            for j in `ls $${i}/*.html`; do \
+              sed -i  s'?#include "\([a-zA-Z\.]*\)"?#include <A href="${PETSC_DIR}/include/\1.html">\&lt;\1\&gt;</A>?'g $${j} ;\
+            done ; \
+          fi;\
         done
 
 # Builds .html versions of the source
-alldoc2: chk_loc allcite
+alldoc2:  allcite
 	-${OMAKE_SELF} ACTION=html PETSC_DIR=${PETSC_DIR} tree
 	-${PYTHON} lib/petsc/bin/maint/update-docs.py ${PETSC_DIR} ${PETSC_DIR}
 #
@@ -440,7 +441,7 @@ sphinx-docs-clean:
 alldocclean: deletemanualpages allcleanhtml
 
 # Deletes manual pages
-deletemanualpages: chk_loc
+deletemanualpages:
 	-@if [ -d ${PETSC_DIR} -a -d ${PETSC_DIR}/docs/manualpages ]; then \
           find ${PETSC_DIR}/docs/manualpages -type f -name "*.html" -exec ${RM} {} \; ;\
           ${RM} ${PETSC_DIR}/docs/exampleconcepts ;\
@@ -452,7 +453,7 @@ deletemanualpages: chk_loc
 allcleanhtml:
 	-${OMAKE_SELF} ACTION=cleanhtml PETSC_DIR=${PETSC_DIR} tree
 
-chk_concepts_dir: chk_loc
+chk_concepts_dir:
 	@if [ ! -d "${PETSC_DIR}/docs/manualpages/concepts" ]; then \
 	  echo Making directory ${PETSC_DIR}/docs/manualpages/concepts for library; ${MKDIR} ${PETSC_DIR}/docs/manualpages/concepts; fi
 
