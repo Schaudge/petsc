@@ -251,3 +251,16 @@ allobj.d := $(srcs.o:%.o=%.d)
 $(allobj.d) : ;
 
 -include $(allobj.d)
+
+mansecs := $(shell ls -d -F docs/manualpages/* | grep /$$ | sed s'?/$$??'g)
+
+FORCE: ;
+
+$(mansecs): FORCE
+	-@echo $@
+	@for j in `ls $@/*.html`; do \
+              sed -i  s'?#include "\([a-zA-Z\.]*\)"?#include <A href="${PETSC_DIR}/include/\1.html">\&lt;\1\&gt;</A>?'g $${j} ;\
+        done
+
+gmanincludes: $(mansecs)
+

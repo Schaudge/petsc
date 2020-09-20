@@ -364,13 +364,7 @@ alldoc1:  chk_concepts_dir allcite allmanpages allmanexamples
 
 # Add hyperlinks to includes in manual pages
 manincludes:
-	@for i in `ls -d ${PETSC_DIR}/docs/manualpages/*`; do \
-          if [ -d $${i} ]; then\
-            for j in `ls $${i}/*.html`; do \
-              sed -i  s'?#include "\([a-zA-Z\.]*\)"?#include <A href="${PETSC_DIR}/include/\1.html">\&lt;\1\&gt;</A>?'g $${j} ;\
-            done ; \
-          fi;\
-        done
+	make -f gmakefile -j$(MAKE_NP) gmanincludes
 
 # Builds .html versions of the source
 alldoc2:  allcite
