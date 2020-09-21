@@ -737,8 +737,8 @@ static PetscErrorCode PhysicsSetInflowType_Shallow(FVCtx *ctx)
     case 3:
     case 4:
     case 5:
-    case 6: 
-    case 7: 
+    case 6:
+    case 7:
     case 8: /* Fix left and right momentum, height is outflow */
       ctx->physics2.bcinflowindex[0] = PETSC_FALSE;
       ctx->physics2.bcinflowindex[1] = PETSC_TRUE;
@@ -812,7 +812,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVCtx *ctx)
   ierr = ReconstructListFind_2WaySplit(rclist,rcname,&ctx->physics2.characteristic2);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rclist);CHKERRQ(ierr);
-  PetscFunctionReturn(0); 
+  PetscFunctionReturn(0);
 }
 /* --------------------------------- Shallow Water ----------------------------------- */
 
@@ -4124,9 +4124,13 @@ int main(int argc,char *argv[])
       output_file: output/ex4_3.out
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> add test to src/ts/tutorials/multirate/ex4.c
 =======
     test: 
+=======
+    test:
+>>>>>>> rm white spaces
       suffix: 5
       nsize: 4
       args: args: -da_grid_x 40 -initial 1 -hratio 2 -limit mc -ts_dt 0.1 -ts_max_steps 24 -ts_max_time 7.0 -ts_type mprk -ts_mprk_type 2a22 -physics shallow -bc_type outflow -xmin 0 -xmax 50 -ts_use_splitrhsfunction 1
