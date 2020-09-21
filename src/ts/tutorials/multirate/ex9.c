@@ -251,13 +251,13 @@ static PetscErrorCode PhysicsSample_Shallow(void *vctx,PetscInt initial,PetscRea
 }
 
 /*2 edge vertex flux for edge 1 pointing in and edge 2 pointing out */
-static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_InOut(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed) 
+static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_InOut(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed)
 {
   PetscErrorCode  ierr;
-  const FVNetwork fvnet = (FVNetwork)_fvnet; 
-  PetscInt        i,dof = fvnet->physics.dof; 
+  const FVNetwork fvnet = (FVNetwork)_fvnet;
+  PetscInt        i,dof = fvnet->physics.dof;
 
-  PetscFunctionBeginUser; 
+  PetscFunctionBeginUser;
   /* First edge interpreted as uL, 2nd as uR. Use the user inputted Riemann function. */
   ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV,uV+dof,flux,maxspeed);CHKERRQ(ierr);
   /* Copy the flux */
@@ -268,13 +268,13 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_InOut(const void* _fvnet,c
 }
 
 /*2 edge vertex flux for edge 1 pointing out and edge 2 pointing in  */
-static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed) 
+static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed)
 {
   PetscErrorCode  ierr;
-  const FVNetwork fvnet = (FVNetwork)_fvnet; 
-  PetscInt        i,dof = fvnet->physics.dof; 
+  const FVNetwork fvnet = (FVNetwork)_fvnet;
+  PetscInt        i,dof = fvnet->physics.dof;
 
-  PetscFunctionBeginUser; 
+  PetscFunctionBeginUser;
   /* First edge interpreted as uR, 2nd as uL. Use the user inputted Riemann function. */
   ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV+dof,uV,flux,maxspeed);CHKERRQ(ierr);
   /* Copy the flux */
@@ -286,10 +286,10 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,c
 
 static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Junction junct)
 {
-  PetscFunctionBeginUser; 
+  PetscFunctionBeginUser;
   switch(junct->type)
   {
-    case JUNCT: 
+    case JUNCT:
       if (junct->numedges == 2) {
         if (junct->dir[0] == EDGEIN) {
           if (junct->dir[1] == EDGEIN) {
@@ -308,7 +308,7 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
         /* Do the full riemann invariant solver (TO BE ADDED) */
       }
       break;
-    default: 
+    default:
       junct->couplingflux = NULL;
   }
   PetscFunctionReturn(0);
@@ -412,7 +412,7 @@ int main(int argc,char *argv[])
   fvnet->ymin         = 0;
   fvnet->ymax         = 2.0;
   fvnet->bufferwidth  = 4;
-  fvnet->viewfv       = PETSC_FALSE; 
+  fvnet->viewfv       = PETSC_FALSE;
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -466,7 +466,7 @@ int main(int argc,char *argv[])
   /* Delete unneeded data in fvnet */
   ierr = FVNetworkCleanUp(fvnet);CHKERRQ(ierr);
   /* Distribute Network */
-  ierr = DMSetUp(fvnet->network);CHKERRQ(ierr); 
+  ierr = DMSetUp(fvnet->network);CHKERRQ(ierr);
   if (viewdm) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"\nOriginal networkdm, DMView:\n");CHKERRQ(ierr);
     ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -490,7 +490,7 @@ int main(int argc,char *argv[])
   ierr = FVNetworkGenerateMultiratePartition_Preset(fvnet);CHKERRQ(ierr);
   ierr = FVNetworkFinalizePartition(fvnet);CHKERRQ(ierr);
   ierr = FVNetworkBuildMultirateIS(fvnet,&slow,&fast,&buffer);CHKERRQ(ierr);
- 
+
   ierr = TSRHSSplitSetIS(ts,"slow",slow);CHKERRQ(ierr);
   ierr = TSRHSSplitSetIS(ts,"slowbuffer",buffer);CHKERRQ(ierr);
   ierr = TSRHSSplitSetIS(ts,"fast",fast);CHKERRQ(ierr);
