@@ -32,7 +32,7 @@ if __name__ == '__main__':
     '--download-parmetis',
     '--download-triangle',
     '--download-p4est',
-    '--with-cuda',
+    '--with-cuda-dir=/usr/local/cuda-11.0',
     '--with-shared-libraries',
     '--download-magma',
     '--with-magma-fortran-bindings=0',

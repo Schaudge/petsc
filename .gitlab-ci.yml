@@ -408,7 +408,7 @@ linux-sycl-double:
     INIT_SCRIPT: /home/glci/bin/ci-inteloneapi.sh
     DISABLE_TESTS: 1
 
-linux-c-exodus-dbg:
+linux-cuda11-exodus-dbg:
   extends:
     - .stage-3
     - .linux_test
@@ -416,18 +416,8 @@ linux-c-exodus-dbg:
     - gpu:nvidia, os:linux, name:frog
   variables:
     PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
-    TEST_ARCH: arch-ci-linux-c-exodus-dbg
+    TEST_ARCH: arch-ci-linux-cuda11-exodus-dbg
     RUN_GCOV: 1
-
-linux-cuda11-double:
-  extends:
-    - .stage-3
-    - .linux_test
-  tags:
-    - gpu:nvidia, os:linux, name:frog
-  variables:
-    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
-    TEST_ARCH: arch-ci-linux-cuda11-double
 
 linux-cuda11-complex:
   extends:
@@ -872,7 +862,7 @@ analyze-pipeline:
   tags:
     - gce-nfs
   dependencies:
-    - linux-c-exodus-dbg
+    - linux-cuda11-exodus-dbg
     - linux-pkgs-gcov
     - linux-cmplx-gcov
     - linux-matlab-ilp64-gcov
