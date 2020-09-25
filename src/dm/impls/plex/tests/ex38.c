@@ -521,6 +521,7 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
       );CHKERRQ(ierr);
   }
 
+  PetscFree(pCount);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -597,48 +598,79 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds, PetscFEJacobianType jtype, PetscInt fieldI, PetscInt fieldJ,
-    PetscInt Ne, PetscFEGeom *cgeom, const PetscScalar coefficients[], const PetscScalar coefficients_t[], PetscDS dsAux, const PetscScalar coefficientsAux[], PetscReal t, PetscReal u_tshift, PetscScalar elemMat[]){
-PetscErrorCode ierr;
-PetscInt eOffset = 0,totDim,e,offsetI,offsetJ,dim,f,fc,g,gc;
-PetscTabulation *T;
-PetscFE fieldFE;
-PetscDualSpace dsp;
-PetscSection edgeVertSect;
-IS edge2Vert;
-DM refdm;
+static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,const PetscScalar coefficients[],const PetscScalar coefficients_t[],PetscDS dsAux,const PetscScalar coefficientsAux[],PetscReal t,PetscReal u_tshift,PetscScalar elemMat[])
+{
+  PetscErrorCode  ierr;
+  PetscInt        eOffset = 0,totDim,e,offsetI,offsetJ,dim,f,g,vDofMin,vDofMax,mapI,mapJ;
+  PetscTabulation *T;
+  PetscFE         fieldFE;
+  PetscDualSpace  dsp;
+  PetscSection    vertDofSect;
+  IS              vert2Dof;
+  PetscInt*       vertDofInd;
+  DM              refdm;
+  PetscBool       simplex;
+  PetscScalar *tmpElemMat;
 
-PetscFunctionBegin;
+  PetscFunctionBegin;
 
-ierr = PetscDSGetTotalDimension(ds, &totDim);CHKERRQ(ierr);
-ierr = PetscDSGetFieldOffset(ds, fieldI, &offsetI);CHKERRQ(ierr);
-ierr = PetscDSGetFieldOffset(ds, fieldJ, &offsetJ);CHKERRQ(ierr);
-ierr = PetscDSGetTabulation(ds, &T);CHKERRQ(ierr); 
-ierr = PetscDSGetDiscretization(ds, fieldI, (PetscObject *) &fieldFE);CHKERRQ(ierr);
-ierr = PetscFEGetDualSpace(fieldFE, &dsp);CHKERRQ(ierr);
-ierr = PetscDualSpaceGetDM(dsp, &refdm);CHKERRQ(ierr);
-ierr = DMPlexGetStratumMap(refdm,1,0,&edgeVertSect,&edge2Vert);CHKERRQ(ierr);
-ierr = PetscFEIntegrateJacobian_Basic(ds, jtype, fieldI, fieldJ, Ne, cgeom, coefficients, coefficients_t, dsAux, coefficientsAux, t,
-    u_tshift, elemMat);CHKERRQ(ierr); 
+  ierr = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
+  ierr = PetscMalloc1(totDim*totDim,&tmpElemMat);CHKERRQ(ierr);
+  ierr = PetscDSGetFieldOffset(ds,fieldI,&offsetI);CHKERRQ(ierr);
+  ierr = PetscDSGetFieldOffset(ds,fieldJ,&offsetJ);CHKERRQ(ierr);
+  ierr = PetscDSGetTabulation(ds,&T);CHKERRQ(ierr);
+  ierr = PetscDSGetSpatialDimension(ds,&dim);CHKERRQ(ierr);
+  ierr = PetscDSGetDiscretization(ds,fieldI,(PetscObject*)&fieldFE);CHKERRQ(ierr);
+  ierr = PetscFEGetDualSpace(fieldFE,&dsp);CHKERRQ(ierr);
+  ierr = PetscDualSpaceGetDM(dsp,&refdm);CHKERRQ(ierr);
+  ierr = DMSetField(refdm,0,NULL,(PetscObject)fieldFE);CHKERRQ(ierr);
+  //ierr = DMView(refdm,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = DMPlexGetStratumDofMap(refdm,0,0,&vertDofSect,&vert2Dof);CHKERRQ(ierr);
+  ierr = ISGetMinMax(vert2Dof,&vDofMin,&vDofMax);CHKERRQ(ierr);
+  ierr = ISGetIndices(vert2Dof, &vertDofInd);CHKERRQ(ierr);
+  //ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscFEIntegrateJacobian_Basic(ds,jtype,fieldI,fieldJ,Ne,cgeom,coefficients,coefficients_t,dsAux,coefficientsAux,t,
+                                        u_tshift,elemMat);CHKERRQ(ierr);
 
-//ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nElement matrix for fields %d and %d\n",fieldI,fieldJ);CHKERRQ(ierr);
-for(e=0; e < Ne; ++e){
-//  ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr);
- /* Apply vertex lumping map to  elemMat */
-  for (f = 0; f < T[fieldI]->Nb; ++f) {
-    for (fc = 0; fc < T[fieldI]->Nc; ++fc) {
-      const PetscInt i = offsetI + f*T[fieldI]->Nc + fc;
-        for (g = 0; g < T[fieldJ]->Nb; ++g) {
-          for (gc = 0; gc < T[fieldJ]->Nc; ++gc) {
-          const PetscInt j = offsetJ + g*T[fieldJ]->Nc+gc;
-//          ierr = PetscPrintf(PETSC_COMM_WORLD,"(i,j):\t(%d,%d)\n", i,j);CHKERRQ(ierr);
-        }
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nElement matrix for fields %d and %d\n",fieldI,fieldJ);CHKERRQ(ierr);
+  for (e=0; e < Ne; ++e) {
+    ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
+   // ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr);
+    
+    /* Applying the lumping and storing the permuted array in a tmp array */
+    for (f = 0; f < T[fieldI]->Nb; ++f) {
+      const PetscInt i = offsetI + f;
+      for (g = 0; g < T[fieldJ]->Nb; ++g) {
+        const PetscInt j = offsetJ + g;
+    //    ierr = PetscPrintf(PETSC_COMM_WORLD,"(i,j):\t(%d,%d)\n",i,j);CHKERRQ(ierr);
+    //   ierr = PetscPrintf(PETSC_COMM_WORLD,"ElemMat(i,j):\t%g\n",elemMat[eOffset+i*totDim+j]);CHKERRQ(ierr);
+        mapI = (i>=vDofMin && i<=vDofMax) ? vertDofInd[f] + offsetI : i;
+        mapJ = (j>=vDofMin && j<=vDofMax) ? vertDofInd[g] + offsetJ : j;
+
+        tmpElemMat[i*totDim + j] = elemMat[eOffset+mapI*totDim+mapJ];
       }
     }
+
+    /* Move data from tmp array back to original now that we can safely overwrite */ 
+    //PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d -- permuted\n",e);CHKERRQ(ierr);
+    for (f = 0; f < T[fieldI]->Nb; ++f) {
+      const PetscInt i = offsetI + f;
+      for (g = 0; g < T[fieldJ]->Nb; ++g) {
+        const PetscInt j = offsetJ + g;
+        elemMat[eOffset+i*totDim+j] = tmpElemMat[i*totDim + j];
+     //   ierr = PetscPrintf(PETSC_COMM_WORLD,"(i,j):\t(%d,%d)\n",i,j);CHKERRQ(ierr);
+     //   ierr = PetscPrintf(PETSC_COMM_WORLD,"ElemMat(i,j):\t%g\n",elemMat[eOffset+i*totDim+j]);CHKERRQ(ierr);
+      }
+    }
+    eOffset += PetscSqr(totDim);
   }
-  eOffset += PetscSqr(totDim);
-}
-PetscFunctionReturn(0);
+  ierr = ISRestoreIndices(vert2Dof,&vertDofInd);CHKERRQ(ierr);
+  ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
+  ierr = ISDestroy(&vert2Dof);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&vertDofSect);CHKERRQ(ierr);
+//  ierr = DMDestroy(&refdm);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 
@@ -888,9 +920,9 @@ int main(int argc,char ** argv)
 
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh);CHKERRQ(ierr);
-  ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
   ierr = SetupDiscretization(mesh,SetupProblem,&user);CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(mesh,&user,&user,&user);CHKERRQ(ierr);
+  ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh,&u);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh,&b);CHKERRQ(ierr);
@@ -898,13 +930,13 @@ int main(int argc,char ** argv)
   ierr = DMPlexGetCones(mesh,&cones);CHKERRQ(ierr);
 
   ierr = DMCreateFieldIS(mesh,NULL,NULL,&fieldIS);CHKERRQ(ierr);
-  ierr = DMCreateMatrix(mesh,&jacobian);CHKERRQ(ierr);
 
   ierr = VecSet(u,0.0);CHKERRQ(ierr);
-  ierr = VecSet(b,0.0);CHKERRQ(ierr);
+  ierr = VecSet(b,1.0);CHKERRQ(ierr);
 
   ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
   ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr); 
+  ierr = SNESViewFromOptions(snes, NULL, "-ssnes_view");CHKERRQ(ierr);
 
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
 
@@ -939,19 +971,25 @@ int main(int argc,char ** argv)
   isList[1] = vert2Dof; 
   ierr = ISConcatenate(PETSC_COMM_WORLD,2,isList,&lumpPerm);CHKERRQ(ierr);
 
-  ierr = MatPermute(jacobian,lumpPerm,lumpPerm,&permJacobian);CHKERRQ(ierr);
-  ierr = MatViewFromOptions(permJacobian,NULL,"-permJacobian_view");CHKERRQ(ierr);
+  //ierr = MatPermute(jacobian,lumpPerm,lumpPerm,&permJacobian);CHKERRQ(ierr);
+ // ierr = MatViewFromOptions(permJacobian,NULL,"-permJacobian_view");CHKERRQ(ierr);
 
   // Tear down
   ierr = ISDestroy(&edge2Vert);CHKERRQ(ierr);
   ierr = ISDestroy(&cell2Vert);CHKERRQ(ierr);
   ierr = ISDestroy(&vert2Cell);CHKERRQ(ierr);
   ierr = ISDestroy(&vert2Dof);CHKERRQ(ierr);
+  ierr = ISDestroy(&lumpPerm);CHKERRQ(ierr);
+  ierr = ISDestroy(&fieldIS[1]);CHKERRQ(ierr);
+  ierr = ISDestroy(&fieldIS[0]);CHKERRQ(ierr);
 
   ierr = PetscSectionDestroy(&edgeVertSec);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&cellVertSec);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&vertCellSec);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&vertDofSec);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&b);CHKERRQ(ierr);
 
   ierr = SNESDestroy(&snes);CHKERRQ(ierr);
   ierr = DMDestroy(&mesh);CHKERRQ(ierr);
