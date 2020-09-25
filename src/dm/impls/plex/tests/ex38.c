@@ -329,7 +329,7 @@ PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
   PetscFunctionReturn(0);
 }
 
-/*@
+/*
  * PetscSectionGetFieldChart - Get the chart range for points which store the
  * DoFs of a specified filed.
  *
@@ -342,7 +342,7 @@ PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
  *   - pEnd - End index of the chart
  *
  *   Level:
- @*/
+ */
 PetscErrorCode PetscSectionGetFieldChart(PetscSection s,PetscInt field,PetscInt *    pStart,PetscInt *    pEnd)
 {
   PetscErrorCode ierr;
@@ -378,7 +378,7 @@ PetscErrorCode PetscSectionGetFieldChart(PetscSection s,PetscInt field,PetscInt 
   PetscFunctionReturn(0);
 }
 
-/*@C
+/*
  * DMPlexGetFieldDepth - Find the stratum on which the desired
  * field's DoFs are currently assigned.
  *
@@ -388,7 +388,7 @@ PetscErrorCode PetscSectionGetFieldChart(PetscSection s,PetscInt field,PetscInt 
  *
  *   Output Parameters:
  *   - depth - The depth of the stratum that to which field's DoFs are assigned
- @*/
+ */
 PetscErrorCode DMPlexGetFieldDepth(DM dm,PetscInt field,PetscInt * depth)
 {
   PetscErrorCode ierr;
@@ -423,7 +423,7 @@ PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * new
   PetscFunctionReturn(0);
 }
 
-/*@C
+/*
  * DMPlexGetStratumMap - Create a mapping in the form of a section and IS which
  * associates points from one stratum with points from another.
  *
@@ -436,7 +436,7 @@ PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * new
  *   + s - PetscSection which contains the number of target points and offset
  *   for each point in source.
  *   - is - IS containing the indices of points in target stratum
- @*/
+ */
 PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSection * s,IS *           is)
 {
   PetscErrorCode ierr;
@@ -525,7 +525,7 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
   PetscFunctionReturn(0);
 }
 
-/*@C
+/*
  * DMPlexGetStratumDofMap - Create a map consisting of a PetscSection and IS
  * from a specified stratum to the DoFs of the specified field.
  *
@@ -537,7 +537,7 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
  *   Output Parameters:
  *   + section - The section to be created consisting of points in the stratum.
  *   - is - The IS to be created which will contain indices of the field DoFs.
- @*/
+ */
 PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,PetscSection *section,IS *is)
 {
   PetscErrorCode ierr;
@@ -633,7 +633,43 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
   ierr = PetscFEIntegrateJacobian_Basic(ds,jtype,fieldI,fieldJ,Ne,cgeom,coefficients,coefficients_t,dsAux,coefficientsAux,t,
                                         u_tshift,elemMat);CHKERRQ(ierr);
 
-  //ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nElement matrix for fields %d and %d\n",fieldI,fieldJ);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nElement matrix for fields %d and %d, %d elements\n",fieldI,fieldJ, Ne);CHKERRQ(ierr);
+  //dof_to_group // which corner group I'm in
+  //group_to_dof // vertDofInd
+  //group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere
+  // C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith
+  // dof in the corner group
+  //
+  // For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6]
+  //
+  // That corresponds to
+  //
+  //   +5-------4+
+  //   6         3
+  //   |         |
+  //   |         |
+  //   7         2
+  //   +0-------1+
+  //
+  // the C_{0,7} block for group {0,7}
+  //
+  // [ 0 -1 ]
+  // [-1  0 ]
+  //
+  // and the C_{1,2} block for group {1,2} is
+  //
+  // [ 0 -1 ]
+  // [ 1  0 ]
+  //
+  //
+  // M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]],
+  //
+  // C_{0,7}^{-1} C_{1,2}
+  //
+  // [ 0 -1 ] [ 0 -1 ] = [-1  0 ]
+  // [-1  0 ] [ 1  0 ]   [ 0  1 ]
+  //
+  // M[[0,7],[0,7]] += C_{0,7}^{-1} C_{1,2} M[[0,7],[1,2]]
   for (e=0; e < Ne; ++e) {
     ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
    // ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr);
@@ -769,7 +805,7 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
   DM             cdm = mesh;
   PetscFE        fevel,fepres;
   const PetscInt dim               = user->dim;
-  PetscBool      corner_quadrature = PETSC_TRUE;
+  PetscBool      corner_quadrature = PETSC_FALSE;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
