@@ -1190,8 +1190,9 @@ PetscErrorCode LandauPrintNorms(Vec X, PetscInt stepi)
   PetscDS        prob;
   DM             plex,dm;
   PetscInt       cStart, cEnd, dim, ii;
-  PetscScalar    xmomentumtot=0, ymomentumtot=0, zmomentumtot=0, energytot=0, densitytot=0, tt[LANDAU_MAX_SPECIES];
-  PetscScalar    xmomentum[LANDAU_MAX_SPECIES],  ymomentum[LANDAU_MAX_SPECIES],  zmomentum[LANDAU_MAX_SPECIES], energy[LANDAU_MAX_SPECIES], density[LANDAU_MAX_SPECIES];
+  PetscScalar    tt[LANDAU_MAX_SPECIES];
+  PetscReal      xmomentumtot=0, ymomentumtot=0, zmomentumtot=0, energytot=0, densitytot=0;
+  PetscReal      xmomentum[LANDAU_MAX_SPECIES],  ymomentum[LANDAU_MAX_SPECIES],  zmomentum[LANDAU_MAX_SPECIES], energy[LANDAU_MAX_SPECIES], density[LANDAU_MAX_SPECIES];
 
   PetscFunctionBegin;
   ierr = VecGetDM(X, &dm);CHKERRQ(ierr);
@@ -1209,13 +1210,13 @@ PetscErrorCode LandauPrintNorms(Vec X, PetscInt stepi)
     if (dim==2) { /* 2/3X + 3V (cylindrical coordinates) */
       ierr = PetscDSSetObjective(prob, 0, &f0_s_rden);CHKERRQ(ierr);
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      density[ii] = tt[0]*ctx->n_0*ctx->charges[ii];
+      density[ii] = PetscRealPart(tt[0])*ctx->n_0*ctx->charges[ii];
       ierr = PetscDSSetObjective(prob, 0, &f0_s_rmom);CHKERRQ(ierr);
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      zmomentum[ii] = tt[0]*ctx->n_0*ctx->v_0*ctx->masses[ii];
+      zmomentum[ii] = PetscRealPart(tt[0])*ctx->n_0*ctx->v_0*ctx->masses[ii];
       ierr = PetscDSSetObjective(prob, 0, &f0_s_rv2);CHKERRQ(ierr);
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      energy[ii] = tt[0]*0.5*ctx->n_0*ctx->v_0*ctx->v_0*ctx->masses[ii];
+      energy[ii] = PetscRealPart(tt[0])*0.5*ctx->n_0*ctx->v_0*ctx->v_0*ctx->masses[ii];
       zmomentumtot += zmomentum[ii];
       energytot  += energy[ii];
       densitytot += density[ii];
@@ -1223,20 +1224,20 @@ PetscErrorCode LandauPrintNorms(Vec X, PetscInt stepi)
     } else { /* 2/3X + 3V */
       ierr = PetscDSSetObjective(prob, 0, &f0_s_den);CHKERRQ(ierr);
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      density[ii] = tt[0]*ctx->n_0*ctx->charges[ii];
+      density[ii] = PetscRealPart(tt[0])*ctx->n_0*ctx->charges[ii];
       ierr = PetscDSSetObjective(prob, 0, &f0_s_mom);CHKERRQ(ierr);
       user[1] = 0;
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      xmomentum[ii]  = tt[0]*ctx->n_0*ctx->v_0*ctx->masses[ii];
+      xmomentum[ii]  = PetscRealPart(tt[0])*ctx->n_0*ctx->v_0*ctx->masses[ii];
       user[1] = 1;
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      ymomentum[ii] = tt[0]*ctx->n_0*ctx->v_0*ctx->masses[ii];
+      ymomentum[ii] = PetscRealPart(tt[0])*ctx->n_0*ctx->v_0*ctx->masses[ii];
       user[1] = 2;
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      zmomentum[ii] = tt[0]*ctx->n_0*ctx->v_0*ctx->masses[ii];
+      zmomentum[ii] = PetscRealPart(tt[0])*ctx->n_0*ctx->v_0*ctx->masses[ii];
       ierr = PetscDSSetObjective(prob, 0, &f0_s_v2);CHKERRQ(ierr);
       ierr = DMPlexComputeIntegralFEM(plex,X,tt,ctx);CHKERRQ(ierr);
-      energy[ii]    = 0.5*tt[0]*ctx->n_0*ctx->v_0*ctx->v_0*ctx->masses[ii];
+      energy[ii]    = 0.5*PetscRealPart(tt[0])*ctx->n_0*ctx->v_0*ctx->v_0*ctx->masses[ii];
       ierr = PetscPrintf(PETSC_COMM_WORLD, "%3D) species %D: density=%20.13e, x-momentum=%20.13e, y-momentum=%20.13e, z-momentum=%20.13e, energy=%21.13e",
                          stepi,ii,density[ii],xmomentum[ii],ymomentum[ii],zmomentum[ii],energy[ii]);CHKERRQ(ierr);
       xmomentumtot += xmomentum[ii];
