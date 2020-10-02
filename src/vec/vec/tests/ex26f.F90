@@ -16,7 +16,7 @@ program main
   IS :: index_set
   PetscInt, allocatable :: subindices(:)
 
-  call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+  call PetscInitialize(PETSC_NULL_CHARACTER, ierr)
   call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
   if (rank == 0) then
@@ -25,24 +25,24 @@ program main
      num_cells = 0
   end if
 
-  call VecCreate(PETSC_COMM_WORLD, v, ierr); CHKERRQ(ierr)
-  call VecSetSizes(v, num_cells * blocksize, PETSC_DECIDE, ierr); CHKERRQ(ierr)
-  call VecSetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
-  call VecSetFromOptions(v, ierr); CHKERRQ(ierr)
+  call VecCreate(PETSC_COMM_WORLD, v, ierr);CHKERRA(ierr)
+  call VecSetSizes(v, num_cells * blocksize, PETSC_DECIDE, ierr);CHKERRA(ierr)
+  call VecSetBlockSize(v, blocksize, ierr); CHKERRQ(ierr);CHKERRA(ierr)
+  call VecSetFromOptions(v, ierr);CHKERRQ(ierr)
 
   subsize = num_cells
   allocate(subindices(0: subsize - 1))
   subindices = [(i, i = 0, subsize - 1)] * blocksize + field
   call ISCreateGeneral(PETSC_COMM_WORLD, subsize, subindices, &
-       PETSC_COPY_VALUES, index_set, ierr); CHKERRQ(ierr)
+       PETSC_COPY_VALUES, index_set, ierr);CHKERRA(ierr)
   deallocate(subindices)
 
-  call VecGetSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
-  call VecRestoreSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
-  call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+  call VecGetSubVector(v, index_set, subv, ierr);CHKERRA(ierr)
+  call VecRestoreSubVector(v, index_set, subv, ierr);CHKERRA(ierr)
+  call ISDestroy(index_set, ierr); CHKERRQ(ierr);CHKERRA(ierr)
 
-  call VecDestroy(v, ierr); CHKERRQ(ierr)
-  call PetscFinalize(ierr); CHKERRQ(ierr)
+  call VecDestroy(v, ierr);CHKERRQ(ierr)
+  call PetscFinalize(ierr);CHKERRQ(ierr)
   end
 
 
