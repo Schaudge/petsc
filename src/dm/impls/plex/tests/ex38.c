@@ -411,15 +411,56 @@ PetscErrorCode DMPlexGetFieldDepth(DM dm,PetscInt field,PetscInt * depth)
 
 PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * newSec,IS *           newIs)
 {
+  /* We take a map, implemented as a Section and IS, and swap the domain (points) and range (DoFs) to create a new map from the range into the
+   * domain.*/
   PetscErrorCode ierr;
-  PetscInt       sStart,sEnd,isStart,isEnd;
+  PetscInt       sStart,sEnd,isStart,isEnd,point,pOff,pNum,j,newPoint,*newIsInd,totalDof=0,*pointOffTracker,newOff;
+  const PetscInt* isInd;
 
-  /* WIP: May not be needed, but may also be useful to have */
   PetscFunctionBegin;
   ierr = PetscSectionGetChart(s,&sStart,&sEnd);CHKERRQ(ierr);
   ierr = ISGetMinMax(is,&isStart,&isEnd);CHKERRQ(ierr);
-  ierr = PetscSectionCreate(PETSC_COMM_WORLD,newSec);CHKERRQ(ierr);
-  ierr = PetscSectionSetChart(*newSec,isStart,isEnd);CHKERRQ(ierr);
+  ierr = ISGetIndices(is,&isInd);CHKERRQ(ierr);
+  ierr = PetscSectionCreate(PetscObjectComm((PetscObject) s),newSec);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(*newSec,isStart,isEnd+1);CHKERRQ(ierr);
+
+  
+  for (point = sStart; point < sEnd; ++point){
+    /* Here we allocate the space needed for our map. Everytime we encounter a DoF in the range of the given map
+     * (i.e. there is a point x which maps to the DoF y) we must add space for a DoF to our new map at the point y.*/
+    ierr = PetscSectionGetOffset(s, point, &pOff);CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(s, point, &pNum);CHKERRQ(ierr);
+    for (j = pOff; j < pOff+pNum; ++j){
+      newPoint = isInd[j];
+      PetscSectionAddDof(*newSec,newPoint,1);
+      ++totalDof;
+    }
+  }
+
+  ierr = PetscSectionSetUp(*newSec);CHKERRQ(ierr);
+  ierr = PetscCalloc1(totalDof,&newIsInd);CHKERRQ(ierr);
+  ierr = PetscCalloc1(isEnd-isStart,&pointOffTracker);CHKERRQ(ierr);
+  /* At this point newSec will give the proper offset and numDof information */
+
+  for (point = sStart; point < sEnd; ++point){
+    /* Now we assign values into the newIS to complete the mapping. When we encounter a point x that maps to y under the given
+     * mapping we put x into our new IS and increment a counter to keep track of how many Dofs we have currently assigned to y. */
+    ierr = PetscSectionGetOffset(s, point, &pOff);CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(s, point, &pNum);CHKERRQ(ierr);
+    for (j = pOff; j < pOff+pNum; ++j){
+      newPoint = isInd[j];
+      PetscSectionGetOffset(*newSec,newPoint,&newOff);CHKERRQ(ierr);
+      PetscInt currOffset = pointOffTracker[newPoint-isStart];
+      newIsInd[newOff+currOffset] = point;
+      ++pointOffTracker[newPoint-isStart];
+    }
+  }
+
+  
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) is),totalDof,newIsInd,PETSC_OWN_POINTER,newIs);
+
+  ierr = PetscFree(pointOffTracker);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is,&isInd);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -601,13 +642,14 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
 static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,const PetscScalar coefficients[],const PetscScalar coefficients_t[],PetscDS dsAux,const PetscScalar coefficientsAux[],PetscReal t,PetscReal u_tshift,PetscScalar elemMat[])
 {
   PetscErrorCode  ierr;
-  PetscInt        eOffset = 0,totDim,e,offsetI,offsetJ,dim,f,g,vDofMin,vDofMax,mapI,mapJ;
+  PetscInt        eOffset =
+    0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,mapI,mapJ,vStart,vEnd,numVert,*group2Constant,*group2ConstantInv;
   PetscTabulation *T;
   PetscFE         fieldFE;
   PetscDualSpace  dsp;
-  PetscSection    vertDofSect;
-  IS              vert2Dof;
-  PetscInt*       vertDofInd;
+  PetscSection    groupDofSect,dofGroupSect;
+  IS              group2Dof,dof2Group;
+  const PetscInt*       groupDofInd,*dofGroupInd;
   DM              refdm;
   PetscBool       simplex;
   PetscScalar *tmpElemMat;
@@ -623,19 +665,29 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
   ierr = PetscDSGetDiscretization(ds,fieldI,(PetscObject*)&fieldFE);CHKERRQ(ierr);
   ierr = PetscFEGetDualSpace(fieldFE,&dsp);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetDM(dsp,&refdm);CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(refdm, 0, &vStart,&vEnd);CHKERRQ(ierr);
+  numVert = vEnd-vStart;
+  simplex = (numVert == dim + 1);
+  ierr = PetscCalloc2(numVert*dim*dim,&group2Constant, numVert*dim*dim, &group2ConstantInv);CHKERRQ(ierr);
+
   ierr = DMSetField(refdm,0,NULL,(PetscObject)fieldFE);CHKERRQ(ierr);
   //ierr = DMView(refdm,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = DMPlexGetStratumDofMap(refdm,0,0,&vertDofSect,&vert2Dof);CHKERRQ(ierr);
-  ierr = ISGetMinMax(vert2Dof,&vDofMin,&vDofMax);CHKERRQ(ierr);
-  ierr = ISGetIndices(vert2Dof, &vertDofInd);CHKERRQ(ierr);
+  ierr = DMPlexGetStratumDofMap(refdm,0,0,&groupDofSect,&group2Dof);CHKERRQ(ierr);
+  ierr = PetscSectionInvertMapping(groupDofSect,group2Dof,&dofGroupSect,&dof2Group);CHKERRQ(ierr);
+  
+  ierr = ISGetMinMax(group2Dof,&gDofMin,&gDofMax);CHKERRQ(ierr);
+  ierr = ISGetMinMax(dof2Group,&dGroupMin,&dGroupMax);CHKERRQ(ierr);
+  ierr = ISGetIndices(group2Dof, &groupDofInd);CHKERRQ(ierr);
+  ierr = ISGetIndices(dof2Group, &dofGroupInd);CHKERRQ(ierr);
+
   //ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   //ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = PetscFEIntegrateJacobian_Basic(ds,jtype,fieldI,fieldJ,Ne,cgeom,coefficients,coefficients_t,dsAux,coefficientsAux,t,
                                         u_tshift,elemMat);CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nElement matrix for fields %d and %d, %d elements\n",fieldI,fieldJ, Ne);CHKERRQ(ierr);
   //dof_to_group // which corner group I'm in
-  //group_to_dof // vertDofInd
+  //group_to_dof // covered by group DofSect/group2Dof/groupDofInd
+  // currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way)
   //group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere
   // C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith
   // dof in the corner group
@@ -664,47 +716,126 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
   //
   // M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]],
   //
-  // C_{0,7}^{-1} C_{1,2}
+  // C_{1,2} C^{-1}_{0,7} 
   //
-  // [ 0 -1 ] [ 0 -1 ] = [-1  0 ]
-  // [-1  0 ] [ 1  0 ]   [ 0  1 ]
-  //
+  // [ 0 -1 ] [ 0 -1 ] = [ 1  0 ]
+  // [ 1  0 ] [-1  0 ]   [ 0 -1 ]
+  // ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1
   // M[[0,7],[0,7]] += C_{0,7}^{-1} C_{1,2} M[[0,7],[1,2]]
+  
+#if 1
+  /* Create group to constants here.... lots of hardcoded arrays incoming. Using column-major ordering and indexing by [group*dim*dim + j*dim + i] to
+   * make clear what is being assigned*/
+  if (simplex) {
+    // TBD
+  } else {
+    switch(dim){
+      case 2:
+        group2Constant[0*dim*dim + 0*dim + 0] = 0; 
+        group2Constant[0*dim*dim + 0*dim + 1] = -1; 
+        group2Constant[0*dim*dim + 1*dim + 0] = -1;
+        group2Constant[0*dim*dim + 1*dim + 1] = 0;
+
+        group2Constant[1*dim*dim + 0*dim + 0] = 0;
+        group2Constant[1*dim*dim + 0*dim + 1] = 1;
+        group2Constant[1*dim*dim + 1*dim + 0] = -1;
+        group2Constant[1*dim*dim + 1*dim + 1] = 0;
+        
+        group2Constant[2*dim*dim + 0*dim + 0] = 1;
+        group2Constant[2*dim*dim + 0*dim + 1] = 0;
+        group2Constant[2*dim*dim + 1*dim + 0] = 0;
+        group2Constant[2*dim*dim + 1*dim + 1] = 1;
+
+        group2Constant[3*dim*dim + 0*dim + 0] = 0;
+        group2Constant[3*dim*dim + 0*dim + 1] = -1;
+        group2Constant[3*dim*dim + 1*dim + 0] = 1;
+        group2Constant[3*dim*dim + 1*dim + 1] = 0;
+        
+        group2ConstantInv[0*dim*dim + 0*dim + 0] = 0;
+        group2ConstantInv[0*dim*dim + 0*dim + 1] = -1;
+        group2ConstantInv[0*dim*dim + 1*dim + 0] = -1;
+        group2ConstantInv[0*dim*dim + 1*dim + 1] = 0;
+
+        group2ConstantInv[1*dim*dim + 0*dim + 0] = 0;
+        group2ConstantInv[1*dim*dim + 0*dim + 1] = -1;
+        group2ConstantInv[1*dim*dim + 1*dim + 0] = 1;
+        group2ConstantInv[1*dim*dim + 1*dim + 1] = 0;
+        
+        group2ConstantInv[2*dim*dim + 0*dim + 0] = 1;
+        group2ConstantInv[2*dim*dim + 0*dim + 1] = 0;
+        group2ConstantInv[2*dim*dim + 1*dim + 0] = 0;
+        group2ConstantInv[2*dim*dim + 1*dim + 1] = 1;
+
+        group2ConstantInv[3*dim*dim + 0*dim + 0] = 0;
+        group2ConstantInv[3*dim*dim + 0*dim + 1] = 1;
+        group2ConstantInv[3*dim*dim + 1*dim + 0] = -1;
+        group2ConstantInv[3*dim*dim + 1*dim + 1] = 0;
+        break;
+      case 3:
+        //also TBD
+        break;
+    }
+  }
   for (e=0; e < Ne; ++e) {
     ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
-   // ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr);
-    
-    /* Applying the lumping and storing the permuted array in a tmp array */
+    /* ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr); */
+
+    /* Applying the lumping and storing result in tmp array (may not need tmp any more) */
     for (f = 0; f < T[fieldI]->Nb; ++f) {
       const PetscInt i = offsetI + f;
-      for (g = 0; g < T[fieldJ]->Nb; ++g) {
-        const PetscInt j = offsetJ + g;
-    //    ierr = PetscPrintf(PETSC_COMM_WORLD,"(i,j):\t(%d,%d)\n",i,j);CHKERRQ(ierr);
-    //   ierr = PetscPrintf(PETSC_COMM_WORLD,"ElemMat(i,j):\t%g\n",elemMat[eOffset+i*totDim+j]);CHKERRQ(ierr);
-        mapI = (i>=vDofMin && i<=vDofMax) ? vertDofInd[f] + offsetI : i;
-        mapJ = (j>=vDofMin && j<=vDofMax) ? vertDofInd[g] + offsetJ : j;
 
-        tmpElemMat[i*totDim + j] = elemMat[eOffset+mapI*totDim+mapJ];
+      /* Some indices we need for the valid non-zeros in this row */
+      PetscInt group,gOff,numGDof,DoF,*constInv;
+      ierr     = PetscSectionGetOffset(dofGroupSect,i,&group);CHKERRQ(ierr);
+      ierr     = PetscSectionGetOffset(groupDofSect,dofGroupInd[group],&gOff);CHKERRQ(ierr);
+      ierr     = PetscSectionGetDof(groupDofSect,dofGroupInd[group],&numGDof);CHKERRQ(ierr);
+      constInv = &group2ConstantInv[group*dim*dim];
+
+      for (DoF = gOff; DoF < gOff+numGDof; DoF++) {
+        /* for each valid non-zero location. */
+        const PetscInt DoFJ = groupDofInd[DoF];
+
+        for (g = 0; g < numVert; ++g) {
+          /* for every group */
+          PetscInt colOff,numColDof,col,tmpI,*colConst,*tmpVec;
+          ierr     = PetscCalloc1(dim,&tmpVec);
+          ierr     = PetscSectionGetOffset(groupDofSect,vStart+g,&colOff);CHKERRQ(ierr);
+          ierr     = PetscSectionGetDof(groupDofSect,vStart+g,&numColDof);CHKERRQ(ierr);
+          colConst = &group2Constant[g*dim*dim];
+
+          for (col = colOff; col < colOff + numColDof; ++col) {
+            const PetscInt j = groupDofInd[col];
+
+            for (tmpI = 0; tmpI < dim; ++tmpI) {
+              /* MatVec here is C^{-1}_{group}*M[i,groupDofInd[g]] */
+              tmpVec[tmpI] += constInv[(col-colOff)*dim + tmpI] *elemMat[eOffset+i*totDim+j];
+            }
+          }
+
+          for (tmpI = 0; tmpI < dim; ++tmpI) {
+            /* another MatVec, C_{g}*tmpVec */
+            for (col = 0; col < dim; ++col) tmpElemMat[i*totDim+DoFJ] += colConst[col*dim + tmpI]*tmpVec[col];
+          }
+        }
       }
     }
 
-    /* Move data from tmp array back to original now that we can safely overwrite */ 
-    //PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d -- permuted\n",e);CHKERRQ(ierr);
+    /* Move data from tmp array back to original now that we can safely overwrite */
+    /*PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d -- permuted\n",e);CHKERRQ(ierr); */
     for (f = 0; f < T[fieldI]->Nb; ++f) {
       const PetscInt i = offsetI + f;
       for (g = 0; g < T[fieldJ]->Nb; ++g) {
         const PetscInt j = offsetJ + g;
         elemMat[eOffset+i*totDim+j] = tmpElemMat[i*totDim + j];
-     //   ierr = PetscPrintf(PETSC_COMM_WORLD,"(i,j):\t(%d,%d)\n",i,j);CHKERRQ(ierr);
-     //   ierr = PetscPrintf(PETSC_COMM_WORLD,"ElemMat(i,j):\t%g\n",elemMat[eOffset+i*totDim+j]);CHKERRQ(ierr);
       }
     }
     eOffset += PetscSqr(totDim);
-  }
-  ierr = ISRestoreIndices(vert2Dof,&vertDofInd);CHKERRQ(ierr);
+  } 
+#endif
+  ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
   ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
-  ierr = ISDestroy(&vert2Dof);CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&vertDofSect);CHKERRQ(ierr);
+  ierr = ISDestroy(&group2Dof);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&groupDofSect);CHKERRQ(ierr);
 //  ierr = DMDestroy(&refdm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
