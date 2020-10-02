@@ -641,202 +641,209 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
 
 static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,const PetscScalar coefficients[],const PetscScalar coefficients_t[],PetscDS dsAux,const PetscScalar coefficientsAux[],PetscReal t,PetscReal u_tshift,PetscScalar elemMat[])
 {
-  PetscErrorCode  ierr;
-  PetscInt        eOffset =
-    0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,mapI,mapJ,vStart,vEnd,numVert,*group2Constant,*group2ConstantInv;
+  PetscErrorCode ierr;
+  PetscInt       eOffset =
+    0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,mapI,mapJ,vStart,vEnd,numVert;
+  PetscInt nGroups,nDoFs;
+  PetscScalar     *group2Constant,*group2ConstantInv;
   PetscTabulation *T;
   PetscFE         fieldFE;
   PetscDualSpace  dsp;
   PetscSection    groupDofSect,dofGroupSect;
   IS              group2Dof,dof2Group;
-  const PetscInt*       groupDofInd,*dofGroupInd;
+  const PetscInt  * groupDofInd,*dofGroupInd;
   DM              refdm;
   PetscBool       simplex;
-  PetscScalar *tmpElemMat;
+  PetscScalar     *tmpElemMat;
 
   PetscFunctionBegin;
 
-  ierr = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
-  ierr = PetscMalloc1(totDim*totDim,&tmpElemMat);CHKERRQ(ierr);
-  ierr = PetscDSGetFieldOffset(ds,fieldI,&offsetI);CHKERRQ(ierr);
-  ierr = PetscDSGetFieldOffset(ds,fieldJ,&offsetJ);CHKERRQ(ierr);
-  ierr = PetscDSGetTabulation(ds,&T);CHKERRQ(ierr);
-  ierr = PetscDSGetSpatialDimension(ds,&dim);CHKERRQ(ierr);
-  ierr = PetscDSGetDiscretization(ds,fieldI,(PetscObject*)&fieldFE);CHKERRQ(ierr);
-  ierr = PetscFEGetDualSpace(fieldFE,&dsp);CHKERRQ(ierr);
-  ierr = PetscDualSpaceGetDM(dsp,&refdm);CHKERRQ(ierr);
-  ierr = DMPlexGetDepthStratum(refdm, 0, &vStart,&vEnd);CHKERRQ(ierr);
+  ierr    = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
+  ierr    = PetscMalloc1(totDim*totDim,&tmpElemMat);CHKERRQ(ierr);
+  ierr    = PetscDSGetFieldOffset(ds,fieldI,&offsetI);CHKERRQ(ierr);
+  ierr    = PetscDSGetFieldOffset(ds,fieldJ,&offsetJ);CHKERRQ(ierr);
+  ierr    = PetscDSGetTabulation(ds,&T);CHKERRQ(ierr);
+  ierr    = PetscDSGetSpatialDimension(ds,&dim);CHKERRQ(ierr);
+  ierr    = PetscDSGetDiscretization(ds,fieldI,(PetscObject*)&fieldFE);CHKERRQ(ierr);
+  ierr    = PetscFEGetDualSpace(fieldFE,&dsp);CHKERRQ(ierr);
+  ierr    = PetscDualSpaceGetDM(dsp,&refdm);CHKERRQ(ierr);
+  ierr    = DMPlexGetDepthStratum(refdm,0,&vStart,&vEnd);CHKERRQ(ierr);
   numVert = vEnd-vStart;
   simplex = (numVert == dim + 1);
-  ierr = PetscCalloc2(numVert*dim*dim,&group2Constant, numVert*dim*dim, &group2ConstantInv);CHKERRQ(ierr);
+  ierr    = PetscCalloc2(numVert*dim*dim,&group2Constant,numVert*dim*dim,&group2ConstantInv);CHKERRQ(ierr);
 
   ierr = DMSetField(refdm,0,NULL,(PetscObject)fieldFE);CHKERRQ(ierr);
-  //ierr = DMView(refdm,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  /*ierr = DMView(refdm,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
   ierr = DMPlexGetStratumDofMap(refdm,0,0,&groupDofSect,&group2Dof);CHKERRQ(ierr);
   ierr = PetscSectionInvertMapping(groupDofSect,group2Dof,&dofGroupSect,&dof2Group);CHKERRQ(ierr);
-  
+
   ierr = ISGetMinMax(group2Dof,&gDofMin,&gDofMax);CHKERRQ(ierr);
   ierr = ISGetMinMax(dof2Group,&dGroupMin,&dGroupMax);CHKERRQ(ierr);
-  ierr = ISGetIndices(group2Dof, &groupDofInd);CHKERRQ(ierr);
-  ierr = ISGetIndices(dof2Group, &dofGroupInd);CHKERRQ(ierr);
+  ierr = ISGetIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
+  ierr = ISGetIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
 
-  //ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  nDoFs   = gDofMax - gDofMin + 1;
+  nGroups = dGroupMax - dGroupMin +1;
+
+  /*ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
+  /*ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
   ierr = PetscFEIntegrateJacobian_Basic(ds,jtype,fieldI,fieldJ,Ne,cgeom,coefficients,coefficients_t,dsAux,coefficientsAux,t,
                                         u_tshift,elemMat);CHKERRQ(ierr);
 
-  //dof_to_group // which corner group I'm in
-  //group_to_dof // covered by group DofSect/group2Dof/groupDofInd
-  // currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way)
-  //group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere
-  // C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith
-  // dof in the corner group
-  //
-  // For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6]
-  //
-  // That corresponds to
-  //
-  //   +5-------4+
-  //   6         3
-  //   |         |
-  //   |         |
-  //   7         2
-  //   +0-------1+
-  //
-  // the C_{0,7} block for group {0,7}
-  //
-  // [ 0 -1 ]
-  // [-1  0 ]
-  //
-  // and the C_{1,2} block for group {1,2} is
-  //
-  // [ 0 -1 ]
-  // [ 1  0 ]
-  //
-  //
-  // M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]],
-  //
-  // C_{1,2} C^{-1}_{0,7} 
-  //
-  // [ 0 -1 ] [ 0 -1 ] = [ 1  0 ]
-  // [ 1  0 ] [-1  0 ]   [ 0 -1 ]
-  // ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1
-  // M[[0,7],[0,7]] += C_{0,7}^{-1} C_{1,2} M[[0,7],[1,2]]
-  
-#if 1
-  /* Create group to constants here.... lots of hardcoded arrays incoming. Using column-major ordering and indexing by [group*dim*dim + j*dim + i] to
-   * make clear what is being assigned*/
-  if (simplex) {
-    // TBD
-  } else {
-    switch(dim){
+  /*dof_to_group // which corner group I'm in */
+  /*group_to_dof // covered by group DofSect/group2Dof/groupDofInd */
+  /* currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way) */
+  /*group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere */
+  /* C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith */
+  /* dof in the corner group */
+  /* */
+  /* For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6] */
+  /* */
+  /* That corresponds to */
+  /* */
+  /*   +5-------4+ */
+  /*   6         3 */
+  /*   |         | */
+  /*   |         | */
+  /*   7         2 */
+  /*   +0-------1+ */
+  /* */
+  /* the C_{0,7} block for group {0,7} */
+  /* */
+  /* [ 0 -1 ] */
+  /* [-1  0 ] */
+  /* */
+  /* and the C_{1,2} block for group {1,2} is */
+  /* */
+  /* [ 0 -1 ] */
+  /* [ 1  0 ] */
+  /* */
+  /* */
+  /* M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]], */
+  /* */
+  /* C_{1,2} C^{-1}_{0,7} */
+  /* */
+  /* [ 0 -1 ] [ 0 -1 ] = [ 1  0 ] */
+  /* [ 1  0 ] [-1  0 ]   [ 0 -1 ] */
+  /* ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1 */
+  /* M[[0,7],[0,7]] += C_{0,7}^{-1} C_{1,2} M[[0,7],[1,2]] */
+
+  if ((nDoFs % nGroups) == 0 && fieldI==fieldJ) { /* Hack */
+    /* Create group to constants here.... lots of hardcoded arrays incoming. Using column-major ordering and indexing by [group*dim*dim + j*dim + i] to
+     * make clear what is being assigned*/
+    if (simplex) {
+      /* TBD */
+    } else {
+      switch (dim) {
       case 2:
-        group2Constant[0*dim*dim + 0*dim + 0] = 0; 
-        group2Constant[0*dim*dim + 0*dim + 1] = -1; 
-        group2Constant[0*dim*dim + 1*dim + 0] = -1;
-        group2Constant[0*dim*dim + 1*dim + 1] = 0;
+        group2Constant[0*dim*dim + 0*dim + 0] = 0.;
+        group2Constant[0*dim*dim + 0*dim + 1] = -1.;
+        group2Constant[0*dim*dim + 1*dim + 0] = -1.;
+        group2Constant[0*dim*dim + 1*dim + 1] = 0.;
 
-        group2Constant[1*dim*dim + 0*dim + 0] = 0;
-        group2Constant[1*dim*dim + 0*dim + 1] = 1;
-        group2Constant[1*dim*dim + 1*dim + 0] = -1;
-        group2Constant[1*dim*dim + 1*dim + 1] = 0;
-        
-        group2Constant[2*dim*dim + 0*dim + 0] = 1;
-        group2Constant[2*dim*dim + 0*dim + 1] = 0;
-        group2Constant[2*dim*dim + 1*dim + 0] = 0;
-        group2Constant[2*dim*dim + 1*dim + 1] = 1;
+        group2Constant[1*dim*dim + 0*dim + 0] = 0.;
+        group2Constant[1*dim*dim + 0*dim + 1] = 1.;
+        group2Constant[1*dim*dim + 1*dim + 0] = -1.;
+        group2Constant[1*dim*dim + 1*dim + 1] = 0.;
 
-        group2Constant[3*dim*dim + 0*dim + 0] = 0;
-        group2Constant[3*dim*dim + 0*dim + 1] = -1;
-        group2Constant[3*dim*dim + 1*dim + 0] = 1;
-        group2Constant[3*dim*dim + 1*dim + 1] = 0;
-        
-        group2ConstantInv[0*dim*dim + 0*dim + 0] = 0;
-        group2ConstantInv[0*dim*dim + 0*dim + 1] = -1;
-        group2ConstantInv[0*dim*dim + 1*dim + 0] = -1;
-        group2ConstantInv[0*dim*dim + 1*dim + 1] = 0;
+        group2Constant[2*dim*dim + 0*dim + 0] = 1.;
+        group2Constant[2*dim*dim + 0*dim + 1] = 0.;
+        group2Constant[2*dim*dim + 1*dim + 0] = 0.;
+        group2Constant[2*dim*dim + 1*dim + 1] = 1.;
 
-        group2ConstantInv[1*dim*dim + 0*dim + 0] = 0;
-        group2ConstantInv[1*dim*dim + 0*dim + 1] = -1;
-        group2ConstantInv[1*dim*dim + 1*dim + 0] = 1;
-        group2ConstantInv[1*dim*dim + 1*dim + 1] = 0;
-        
-        group2ConstantInv[2*dim*dim + 0*dim + 0] = 1;
-        group2ConstantInv[2*dim*dim + 0*dim + 1] = 0;
-        group2ConstantInv[2*dim*dim + 1*dim + 0] = 0;
-        group2ConstantInv[2*dim*dim + 1*dim + 1] = 1;
+        group2Constant[3*dim*dim + 0*dim + 0] = 0.;
+        group2Constant[3*dim*dim + 0*dim + 1] = -1.;
+        group2Constant[3*dim*dim + 1*dim + 0] = 1.;
+        group2Constant[3*dim*dim + 1*dim + 1] = 0.;
 
-        group2ConstantInv[3*dim*dim + 0*dim + 0] = 0;
-        group2ConstantInv[3*dim*dim + 0*dim + 1] = 1;
-        group2ConstantInv[3*dim*dim + 1*dim + 0] = -1;
-        group2ConstantInv[3*dim*dim + 1*dim + 1] = 0;
+        group2ConstantInv[0*dim*dim + 0*dim + 0] = 0.;
+        group2ConstantInv[0*dim*dim + 0*dim + 1] = -1.;
+        group2ConstantInv[0*dim*dim + 1*dim + 0] = -1.;
+        group2ConstantInv[0*dim*dim + 1*dim + 1] = 0.;
+
+        group2ConstantInv[1*dim*dim + 0*dim + 0] = 0.;
+        group2ConstantInv[1*dim*dim + 0*dim + 1] = -1.;
+        group2ConstantInv[1*dim*dim + 1*dim + 0] = 1.;
+        group2ConstantInv[1*dim*dim + 1*dim + 1] = 0.;
+
+        group2ConstantInv[2*dim*dim + 0*dim + 0] = 1.;
+        group2ConstantInv[2*dim*dim + 0*dim + 1] = 0.;
+        group2ConstantInv[2*dim*dim + 1*dim + 0] = 0.;
+        group2ConstantInv[2*dim*dim + 1*dim + 1] = 1.;
+
+        group2ConstantInv[3*dim*dim + 0*dim + 0] = 0.;
+        group2ConstantInv[3*dim*dim + 0*dim + 1] = 1.;
+        group2ConstantInv[3*dim*dim + 1*dim + 0] = -1.;
+        group2ConstantInv[3*dim*dim + 1*dim + 1] = 0.;
         break;
       case 3:
-        //also TBD
+        /*also TBD */
         break;
+      }
     }
-  }
-  for (e=0; e < Ne; ++e) {
-    ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
-    /* ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr); */
+    for (e=0; e < Ne; ++e) {
+      ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
+      /* ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr); */
 
-    /* Applying the lumping and storing result in tmp array (may not need tmp any more) */
-    for (f = 0; f < T[fieldI]->Nb; ++f) {
-      const PetscInt i = offsetI + f;
+      /* Applying the lumping and storing result in tmp array (may not need tmp any more) */
+      for (f = 0; f < T[fieldI]->Nb; ++f) {
+        const PetscInt i = offsetI + f;
 
-      /* Some indices we need for the valid non-zeros in this row */
-      PetscInt group,gOff,numGDof,DoF,*constInv;
-      ierr     = PetscSectionGetOffset(dofGroupSect,i,&group);CHKERRQ(ierr);
-      ierr     = PetscSectionGetOffset(groupDofSect,dofGroupInd[group],&gOff);CHKERRQ(ierr);
-      ierr     = PetscSectionGetDof(groupDofSect,dofGroupInd[group],&numGDof);CHKERRQ(ierr);
-      constInv = &group2ConstantInv[group*dim*dim];
+        /* Some indices we need for the valid non-zeros in this row */
+        PetscInt group,gOff,numGDof,DoF;
+        PetscScalar *constInv;
+        ierr     = PetscSectionGetOffset(dofGroupSect,i,&group);CHKERRQ(ierr);
+        ierr     = PetscSectionGetOffset(groupDofSect,dofGroupInd[group],&gOff);CHKERRQ(ierr);
+        ierr     = PetscSectionGetDof(groupDofSect,dofGroupInd[group],&numGDof);CHKERRQ(ierr);
+        constInv = &group2ConstantInv[group*dim*dim];
 
-      for (DoF = gOff; DoF < gOff+numGDof; DoF++) {
-        /* for each valid non-zero location. */
-        const PetscInt DoFJ = groupDofInd[DoF];
+        for (DoF = gOff; DoF < gOff+numGDof; DoF++) {
+          /* for each valid non-zero location. */
+          const PetscInt DoFJ = groupDofInd[DoF];
 
-        for (g = 0; g < numVert; ++g) {
-          /* for every group */
-          PetscInt colOff,numColDof,col,tmpI,*colConst,*tmpVec;
-          ierr     = PetscCalloc1(dim,&tmpVec);
-          ierr     = PetscSectionGetOffset(groupDofSect,vStart+g,&colOff);CHKERRQ(ierr);
-          ierr     = PetscSectionGetDof(groupDofSect,vStart+g,&numColDof);CHKERRQ(ierr);
-          colConst = &group2Constant[g*dim*dim];
+          for (g = 0; g < numVert; ++g) {
+            /* for every group */
+            PetscInt    colOff,numColDof,col,tmpI;
+            PetscScalar *tmpVec,*colConst;
+            ierr     = PetscCalloc1(dim,&tmpVec);
+            ierr     = PetscSectionGetOffset(groupDofSect,vStart+g,&colOff);CHKERRQ(ierr);
+            ierr     = PetscSectionGetDof(groupDofSect,vStart+g,&numColDof);CHKERRQ(ierr);
+            colConst = &group2Constant[g*dim*dim];
 
-          for (col = colOff; col < colOff + numColDof; ++col) {
-            const PetscInt j = groupDofInd[col];
+            for (col = colOff; col < colOff + numColDof; ++col) {
+              const PetscInt j = groupDofInd[col];
+
+              for (tmpI = 0; tmpI < dim; ++tmpI) {
+                /* MatVec here is C^{-1}_{group}*M[i,groupDofInd[g]] */
+                tmpVec[tmpI] += constInv[(col-colOff)*dim + tmpI] *elemMat[eOffset+i*totDim+j];
+              }
+            }
 
             for (tmpI = 0; tmpI < dim; ++tmpI) {
-              /* MatVec here is C^{-1}_{group}*M[i,groupDofInd[g]] */
-              tmpVec[tmpI] += constInv[(col-colOff)*dim + tmpI] *elemMat[eOffset+i*totDim+j];
+              /* another MatVec, C_{g}*tmpVec */
+              for (col = 0; col < dim; ++col) tmpElemMat[i*totDim+DoFJ] += colConst[col*dim + tmpI]*tmpVec[col];
             }
-          }
-
-          for (tmpI = 0; tmpI < dim; ++tmpI) {
-            /* another MatVec, C_{g}*tmpVec */
-            for (col = 0; col < dim; ++col) tmpElemMat[i*totDim+DoFJ] += colConst[col*dim + tmpI]*tmpVec[col];
           }
         }
       }
-    }
 
-    /* Move data from tmp array back to original now that we can safely overwrite */
-    /*PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d -- permuted\n",e);CHKERRQ(ierr); */
-    for (f = 0; f < T[fieldI]->Nb; ++f) {
-      const PetscInt i = offsetI + f;
-      for (g = 0; g < T[fieldJ]->Nb; ++g) {
-        const PetscInt j = offsetJ + g;
-        elemMat[eOffset+i*totDim+j] = tmpElemMat[i*totDim + j];
+      /* Move data from tmp array back to original now that we can safely overwrite
+       *PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d -- permuted\n",e);CHKERRQ(ierr);*/
+      for (f = 0; f < T[fieldI]->Nb; ++f) {
+        const PetscInt i = offsetI + f;
+        for (g = 0; g < T[fieldJ]->Nb; ++g) {
+          const PetscInt j = offsetJ + g;
+          elemMat[eOffset+i*totDim+j] = tmpElemMat[i*totDim + j];
+        }
       }
+      eOffset += PetscSqr(totDim);
     }
-    eOffset += PetscSqr(totDim);
-  } 
-#endif
+  }
   ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
   ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
   ierr = ISDestroy(&group2Dof);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&groupDofSect);CHKERRQ(ierr);
-//  ierr = DMDestroy(&refdm);CHKERRQ(ierr);
+/*  ierr = DMDestroy(&refdm);CHKERRQ(ierr); */
   PetscFunctionReturn(0);
 }
 
