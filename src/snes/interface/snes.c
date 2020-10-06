@@ -763,12 +763,9 @@ PetscErrorCode SNESSetUpMatrices(SNES snes)
     ierr = MatDestroy(&J);CHKERRQ(ierr);
     ierr = MatDestroy(&B);CHKERRQ(ierr);
   } else if (!snes->jacobian_pre) {
-    PetscErrorCode (*nspconstr)(DM, PetscInt, PetscInt, MatNullSpace *);
-    PetscDS          prob;
-    Mat              J, B;
-    MatNullSpace     nullspace = NULL;
-    PetscBool        hasPrec   = PETSC_FALSE;
-    PetscInt         Nf;
+    PetscDS   prob;
+    Mat       J, B;
+    PetscBool hasPrec   = PETSC_FALSE;
 
     J    = snes->jacobian;
     ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
@@ -776,11 +773,6 @@ PetscErrorCode SNESSetUpMatrices(SNES snes)
     if (J)            {ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);}
     else if (hasPrec) {ierr = DMCreateMatrix(snes->dm, &J);CHKERRQ(ierr);}
     ierr = DMCreateMatrix(snes->dm, &B);CHKERRQ(ierr);
-    ierr = PetscDSGetNumFields(prob, &Nf);CHKERRQ(ierr);
-    ierr = DMGetNullSpaceConstructor(snes->dm, Nf, &nspconstr);CHKERRQ(ierr);
-    if (nspconstr) (*nspconstr)(snes->dm, Nf, Nf, &nullspace);
-    ierr = MatSetNullSpace(B, nullspace);CHKERRQ(ierr);
-    ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
     ierr = SNESSetJacobian(snes, J ? J : B, B, NULL, NULL);CHKERRQ(ierr);
     ierr = MatDestroy(&J);CHKERRQ(ierr);
     ierr = MatDestroy(&B);CHKERRQ(ierr);

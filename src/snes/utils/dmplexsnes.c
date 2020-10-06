@@ -1592,7 +1592,6 @@ PetscErrorCode DMSNESCheckJacobian(SNES snes, DM dm, Vec u, PetscReal tol, Petsc
     ierr = MatNullSpaceTest(nullspace, J, &isNull);CHKERRQ(ierr);
     if (!isNull) SETERRQ(comm, PETSC_ERR_PLIB, "The null space calculated for the system operator is invalid.");
   }
-  ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
   /* Taylor test */
   {
     PetscRandom rand;
