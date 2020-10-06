@@ -998,7 +998,7 @@ PetscErrorCode PCGAMGSetUseSAEstEig(PC pc, PetscBool n)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PCGAMGSetUseSAEstEig_GAMG(PC pc, PetscInt n)
+static PetscErrorCode PCGAMGSetUseSAEstEig_GAMG(PC pc, PetscBool n)
 {
   PC_MG   *mg      = (PC_MG*)pc->data;
   PC_GAMG *pc_gamg = (PC_GAMG*)mg->innerctx;
