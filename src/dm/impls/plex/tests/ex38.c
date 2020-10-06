@@ -644,7 +644,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
   PetscErrorCode ierr;
   PetscInt       eOffset =
     0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,mapI,mapJ,vStart,vEnd,numVert;
-  PetscInt nGroups,nDoFs;
+  PetscInt        nGroups,nDoFs;
   PetscScalar     *group2Constant,*group2ConstantInv;
   PetscTabulation *T;
   PetscFE         fieldFE;
@@ -685,50 +685,49 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
   nDoFs   = gDofMax - gDofMin + 1;
   nGroups = dGroupMax - dGroupMin +1;
 
-  /*ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
-  /*ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
+  /*ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+   *ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);*/
   ierr = PetscFEIntegrateJacobian_Basic(ds,jtype,fieldI,fieldJ,Ne,cgeom,coefficients,coefficients_t,dsAux,coefficientsAux,t,
                                         u_tshift,elemMat);CHKERRQ(ierr);
 
-  /*dof_to_group // which corner group I'm in */
-  /*group_to_dof // covered by group DofSect/group2Dof/groupDofInd */
-  /* currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way) */
-  /*group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere */
-  /* C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith */
-  /* dof in the corner group */
-  /* */
-  /* For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6] */
-  /* */
-  /* That corresponds to */
-  /* */
-  /*   +5-------4+ */
-  /*   6         3 */
-  /*   |         | */
-  /*   |         | */
-  /*   7         2 */
-  /*   +0-------1+ */
-  /* */
-  /* the C_{0,7} block for group {0,7} */
-  /* */
-  /* [ 0 -1 ] */
-  /* [-1  0 ] */
-  /* */
-  /* and the C_{1,2} block for group {1,2} is */
-  /* */
-  /* [ 0 -1 ] */
-  /* [ 1  0 ] */
-  /* */
-  /* */
-  /* M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]], */
-  /* */
-  /* C_{1,2} C^{-1}_{0,7} */
-  /* */
-  /* [ 0 -1 ] [ 0 -1 ] = [ 1  0 ] */
-  /* [ 1  0 ] [-1  0 ]   [ 0 -1 ] */
-  /* ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1 */
-  /* M[[0,7],[0,7]] += C_{0,7}^{-1} C_{1,2} M[[0,7],[1,2]] */
+  /*dof_to_group // which corner group I'm in
+  group_to_dof // covered by group DofSect/group2Dof/groupDofInd
+   currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way)
+  group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere
+   C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith
+   dof in: the corner group
 
-  if ((nDoFs % nGroups) == 0 && fieldI==fieldJ) { /* Hack */
+   For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6]
+   That corresponds to
+
+     +5-------4+
+     6         3
+     |         |
+     |         |
+     7         2
+     +0-------1+
+
+   the C_{0,7} block for group {0,7}
+
+   [ 0 -1 ]
+   [-1  0 ]
+
+   and the C_{1,2} block for group {1,2} is
+
+   [ 0 -1 ]
+   [ 1  0 ]
+
+
+   M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]],
+
+   C_{0,7} C^{-1}_{1,2}
+
+   [ 0  -1 ] [ 0  1 ] = [ 1  0 ]
+   [ -1  0 ] [-1  0 ]   [ 0 -1 ]
+   ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1
+   M[[0,7],[0,7]] += M[[0,7],[1,2]] C_{0,7} C^{-1}_{1,2}  */
+
+  if (fieldJ==fieldI) {
     /* Create group to constants here.... lots of hardcoded arrays incoming. Using column-major ordering and indexing by [group*dim*dim + j*dim + i] to
      * make clear what is being assigned*/
     if (simplex) {
@@ -782,46 +781,50 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       }
     }
     for (e=0; e < Ne; ++e) {
+      PetscInt groupI;
       ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
       /* ierr = PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d\n",e);CHKERRQ(ierr); */
 
       /* Applying the lumping and storing result in tmp array (may not need tmp any more) */
-      for (f = 0; f < T[fieldI]->Nb; ++f) {
-        const PetscInt i = offsetI + f;
+      for (groupI = dGroupMin; groupI <= dGroupMax; ++groupI) {
+        /* Group I is our target (range) for the lumping. I.e. the block diagonal elements that the lumping will preserve*/
+        PetscInt    gIOff,numGIDof,DoFI;
+        PetscScalar *constI;
+        ierr   = PetscSectionGetOffset(groupDofSect,groupI,&gIOff);CHKERRQ(ierr);
+        ierr   = PetscSectionGetDof(groupDofSect,groupI,&numGIDof);CHKERRQ(ierr);
+        constI = &group2Constant[(groupI-dGroupMin)*dim*dim];
 
-        /* Some indices we need for the valid non-zeros in this row */
-        PetscInt group,gOff,numGDof,DoF;
-        PetscScalar *constInv;
-        ierr     = PetscSectionGetOffset(dofGroupSect,i,&group);CHKERRQ(ierr);
-        ierr     = PetscSectionGetOffset(groupDofSect,dofGroupInd[group],&gOff);CHKERRQ(ierr);
-        ierr     = PetscSectionGetDof(groupDofSect,dofGroupInd[group],&numGDof);CHKERRQ(ierr);
-        constInv = &group2ConstantInv[group*dim*dim];
+        for (DoFI = gIOff; DoFI < gIOff+numGIDof; ++DoFI) {
+          /* For each dof in group I serving as a row index for both source and target values. */
+          PetscInt DoFJ,rowInd = groupDofInd[DoFI];
+          for (DoFJ = gIOff; DoFJ < gIOff+numGIDof; ++DoFJ) {
+            /* For each dof in group I serving as a column index for the target value. */
+            PetscInt groupJ,colIndTarget = groupDofInd[DoFJ];
 
-        for (DoF = gOff; DoF < gOff+numGDof; DoF++) {
-          /* for each valid non-zero location. */
-          const PetscInt DoFJ = groupDofInd[DoF];
-
-          for (g = 0; g < numVert; ++g) {
-            /* for every group */
-            PetscInt    colOff,numColDof,col,tmpI;
-            PetscScalar *tmpVec,*colConst;
-            ierr     = PetscCalloc1(dim,&tmpVec);
-            ierr     = PetscSectionGetOffset(groupDofSect,vStart+g,&colOff);CHKERRQ(ierr);
-            ierr     = PetscSectionGetDof(groupDofSect,vStart+g,&numColDof);CHKERRQ(ierr);
-            colConst = &group2Constant[g*dim*dim];
-
-            for (col = colOff; col < colOff + numColDof; ++col) {
-              const PetscInt j = groupDofInd[col];
-
-              for (tmpI = 0; tmpI < dim; ++tmpI) {
-                /* MatVec here is C^{-1}_{group}*M[i,groupDofInd[g]] */
-                tmpVec[tmpI] += constInv[(col-colOff)*dim + tmpI] *elemMat[eOffset+i*totDim+j];
+            for (groupJ = dGroupMin; groupJ <= dGroupMax; ++groupJ) {
+              /* Group J represents the source (or domain) of the lumping. The DoFs belonging to Group J are the values that we will be adding into
+               * the DoFs of Group I. */
+              PetscInt    gJOff,numGJDof,DoFK;
+              PetscScalar *constJ;
+              ierr   = PetscSectionGetOffset(groupDofSect,groupJ,&gJOff);CHKERRQ(ierr);
+              ierr   = PetscSectionGetDof(groupDofSect,groupJ,&numGJDof);CHKERRQ(ierr);
+              constJ = &group2ConstantInv[(groupJ-dGroupMin)*dim*dim];
+              for (DoFK = gJOff; DoFK < gJOff+numGJDof; ++DoFK) {
+                PetscInt k,colIndSource = groupDofInd[DoFK];
+                /* Now we need to perform the matrix multiplication M[[GroupI],[GroupI]] += M[[GroupI],[GroupJ]]*constI*constJ;*/
+                for (k = 0; k<numGIDof; ++k) {
+                  PetscScalar val;
+                  /* k is a temporary index to facilitate the matrix multiply*/
+                  val                                        = elemMat[eOffset + rowInd*totDim + colIndSource];
+                  tmpElemMat[rowInd*totDim +  colIndTarget] += elemMat[eOffset + rowInd*totDim + colIndSource] *
+                                                               constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k];
+                  if (constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k] > 0) {
+                    ierr = PetscPrintf(PETSC_COMM_SELF,"Adding %g, to entry %d,%d; from %d,%d\n",val,rowInd,colIndTarget,rowInd,colIndSource);CHKERRQ(ierr);
+                  } else if (constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k] < 0) {
+                    ierr = PetscPrintf(PETSC_COMM_SELF,"Subtracting %g, from entry %d,%d; from %d,%d\n",val,rowInd,colIndTarget,rowInd,colIndSource);CHKERRQ(ierr);
+                  }
+                }
               }
-            }
-
-            for (tmpI = 0; tmpI < dim; ++tmpI) {
-              /* another MatVec, C_{g}*tmpVec */
-              for (col = 0; col < dim; ++col) tmpElemMat[i*totDim+DoFJ] += colConst[col*dim + tmpI]*tmpVec[col];
             }
           }
         }
