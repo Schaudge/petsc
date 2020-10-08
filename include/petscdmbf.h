@@ -21,13 +21,12 @@ typedef struct _p_DM_BF_Cell {
   /* view of vector entries corresponding to this cell (not owned) */
   const PetscScalar **vecViewRead;
   PetscScalar       **vecViewReadWrite;
-  /* data corresponding to this cell (owned, flexible array member) */
+  /* data corresponding to this cell (owned) */
   const PetscScalar *dataRead;
   PetscScalar       *dataReadWrite;
-  PetscScalar       data[]; //TODO implement without flexible member
 } DM_BF_Cell;
 
-#define DMBFCellIsGhost(cell) (-1 == (cell)->indexGlobal)
+//#define DMBFCellIsGhost(cell) (-1 == (cell)->indexGlobal) //TODO implement version with checking global indices
 
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCellsVectors(DM,PetscErrorCode(*)(DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCells(DM,PetscErrorCode(*)(DM_BF_Cell*,void*),void*);
@@ -42,7 +41,7 @@ PETSC_EXTERN PetscErrorCode DMBFIterateOverFaces(DM,PetscErrorCode(*)(DM_BF_Face
 
 PETSC_EXTERN PetscErrorCode DMBFSetCellData(DM,Vec*,Vec*);
 PETSC_EXTERN PetscErrorCode DMBFGetCellData(DM,Vec*,Vec*);
-PETSC_EXTERN PetscErrorCode DMBFExchangeGhostCells(DM);
+PETSC_EXTERN PetscErrorCode DMBFCommunicateGhostCells(DM);
 
 PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM,void*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM,void*);
