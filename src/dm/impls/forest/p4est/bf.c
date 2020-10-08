@@ -3,6 +3,7 @@
 #include <petsc/private/dmimpl.h>       /*I "petscdm.h" I*/
 #include "petsc_p4est_package.h"
 
+
 #if defined(PETSC_HAVE_P4EST)
 
 //TODO the way it's implemented now, only 2d domains are supported
@@ -506,6 +507,31 @@ static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,D
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMView_BF(DM dm, PetscViewer viewer)
+{
+
+  PetscBool      isvtk, ishdf5, isdraw, isglvis;
+  PetscErrorCode ierr;
+  PetscInt       gsize;
+  PetscInt       vsize;
+  PetscViewerVTKFieldType ft;
+
+  PetscFunctionBegin;
+
+  if (!dm) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONG,"No DM provided to view");
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERVTK,   &isvtk);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
+  if(isvtk) {
+    ierr = DMBFVTKWriteAll((PetscObject) dm,viewer);CHKERRQ(ierr);
+  } else if(ishdf5 || isdraw || isglvis) {
+    SETERRQ(PetscObjectComm((PetscObject) dm),PETSC_ERR_SUP,"non-VTK viewer currently not supported by BF");
+  }
+  PetscFunctionReturn(0);
+}
+
+
 /***************************************
  * CREATE/DESTROY
  **************************************/
@@ -521,6 +547,7 @@ static PetscErrorCode DMInitialize_BF(DM dm)
   dm->ops->creatematrix       = DMCreateMatrix_BF;
   dm->ops->coarsen            = DMCoarsen_BF;
   dm->ops->refine             = DMRefine_BF;
+  dm->ops->view               = DMView_BF;
   //TODO
   //dm->ops->createsubdm    = DMCreateSubDM_Forest;
   //dm->ops->adaptlabel     = DMAdaptLabel_Forest;
@@ -626,6 +653,40 @@ PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
   PetscFunctionReturn(0);
 }
 
+
+/*************************
+ * VEC
+ *************************/
+
+PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
+{
+  DM             dm;
+  PetscBool      isvtk, ishdf5, isdraw, isglvis;
+  PetscErrorCode ierr;
+  PetscInt       gsize;
+  PetscInt       vsize;
+  PetscViewerVTKFieldType ft;
+
+  PetscFunctionBegin;
+  ierr = VecGetDM(v,&dm);CHKERRQ(ierr);
+  if (!dm) SETERRQ(PetscObjectComm((PetscObject)v),PETSC_ERR_ARG_WRONG,"Vector not generated from a DM");
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERVTK,   &isvtk);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
+  if(isvtk) {
+    ierr = DMBFGetGlobalSize(dm, &gsize);CHKERRQ(ierr);
+    ierr = VecGetSize(v, &vsize);CHKERRQ(ierr);
+    if(vsize == 3*gsize)                { ft = PETSC_VTK_CELL_VECTOR_FIELD; }
+    else if(vsize == gsize)             { ft = PETSC_VTK_CELL_FIELD;        }
+    else  SETERRQ(PetscObjectComm((PetscObject)v), PETSC_ERR_SUP, "Only vector and scalar cell fields currently supported");    
+    ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)v);CHKERRQ(ierr);
+  } else if(ishdf5 || isdraw || isglvis) {
+    SETERRQ(PetscObjectComm((PetscObject) dm),PETSC_ERR_SUP,"non-VTK viewer currently not supported by BF");
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
 {
   DM_BF          *bf;
@@ -664,6 +725,7 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   /* create vector */
   ierr = VecCreateMPI(PetscObjectComm((PetscObject)dm),n,N,vec);CHKERRQ(ierr);
   ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
+  ierr = VecSetOperation(*vec,VECOP_VIEW,(void (*)(void))VecView_BF);CHKERRQ(ierr);
   //TODO
   //ierr = VecSetOperation(*g,VECOP_VIEW,(void (*)(void))VecView_MPI_DA);CHKERRQ(ierr);
   //ierr = VecSetOperation(*vec, VECOP_VIEWNATIVE, (void (*)(void))VecView_pforest_Native);CHKERRQ(ierr);
@@ -700,6 +762,7 @@ typedef struct _p_DM_BF_VecGhostData {
   PetscScalar value;
 } DM_BF_VecGhostData;
 
+/* take global vector and return local version */
 static PetscErrorCode DMGlobalToLocalBegin_BF(DM dm, Vec glo, InsertMode mode, Vec loc)
 {
   DM_BF              *bf;
@@ -720,8 +783,9 @@ static PetscErrorCode DMGlobalToLocalBegin_BF(DM dm, Vec glo, InsertMode mode, V
   }
   n  = (PetscInt)bf->p4est->local_num_quadrants;
   ng = (PetscInt)bf->ghost->ghosts.elem_count;
-  /* */
-//{
+
+//{ ghostupdatebegin
+// ghostupdateend on local vec
 //  p4est_tree_t     *tree;
 //  p4est_quadrant_t *quad;
 //  sc_array_t       *tquadrants;
@@ -767,6 +831,58 @@ static PetscErrorCode DMGlobalToLocalBegin_BF(DM dm, Vec glo, InsertMode mode, V
   PetscFunctionReturn(0);
 }
 #endif
+
+/***************************************
+ * MESH
+ **************************************/
+
+/*@
+  DMBFGetLocalSize - Gets number of local quadrants.
+
+  Logically collective on DM
+
+  Input Parameters:
++ dm      - the DMBF object
+- nQuads  - number of local quadrants (does not count ghosts)
+
+  Level: beginner
+
+.seealso: DMBFGetGlobalSize(), DMBFGetBlockSize()
+@*/
+
+PetscErrorCode DMBFGetLocalSize(DM dm, PetscInt *nQuads) {
+  
+  DM_BF   *bf;
+  
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  *nQuads  = (PetscInt)bf->p4est->local_num_quadrants;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMBFGetGlobalSize - Gets number of global quadrants.
+
+  Logically collective on DM
+
+  Input Parameters:
++ dm      - the DMBF object
+- nQuads  - number of global quadrants
+
+  Level: beginner
+
+.seealso: DMBFGetGlobalSize(), DMBFGetBlockSize()
+@*/
+
+PetscErrorCode DMBFGetGlobalSize(DM dm, PetscInt *nQuads) {
+  
+  DM_BF   *bf;
+  
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  *nQuads  = (PetscInt)bf->p4est->global_num_quadrants;
+  PetscFunctionReturn(0);
+}
 
 /***************************************
  * AMR
@@ -1488,5 +1604,6 @@ PetscErrorCode DMBFExchangeGhostCells(DM dm)
   PetscStackCallP4est(p4est_ghost_exchange_data,(bf->p4est,bf->ghost,ghostCells));
   PetscFunctionReturn(0);
 }
+
 
 #endif /* defined(PETSC_HAVE_P4EST) */
