@@ -8,6 +8,9 @@ PETSC_EXTERN PetscErrorCode DMBFGetBlockSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFSetCellDataSize(DM,PetscInt*,PetscInt,PetscInt*,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFGetCellDataSize(DM,PetscInt**,PetscInt*,PetscInt**,PetscInt*);
 
+PETSC_EXTERN PetscErrorCode DMBFGetLocalSize(DM,PetscInt*);
+PETSC_EXTERN PetscErrorCode DMBFGetGlobalSize(DM,PetscInt*);
+
 PETSC_EXTERN PetscErrorCode DMBFCoarsenInPlace(DM,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFRefineInPlace(DM,PetscInt);
 
@@ -45,5 +48,8 @@ PETSC_EXTERN PetscErrorCode DMBFCommunicateGhostCells(DM);
 
 PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM,void*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM,void*);
+
+PETSC_EXTERN PetscErrorCode DMBFVTKWriteAll(PetscObject,PetscViewer);
+
 
 #endif /* defined(PETSCDMBF_H) */
