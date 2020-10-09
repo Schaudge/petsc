@@ -10,6 +10,7 @@ PETSC_EXTERN PetscErrorCode DMBFGetCellDataSize(DM,PetscInt**,PetscInt*,PetscInt
 
 PETSC_EXTERN PetscErrorCode DMBFGetLocalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGlobalSize(DM,PetscInt*);
+PETSC_EXTERN PetscErrorCode DMBFGetGhostSize(DM,PetscInt*);
 
 PETSC_EXTERN PetscErrorCode DMBFCoarsenInPlace(DM,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFRefineInPlace(DM,PetscInt);

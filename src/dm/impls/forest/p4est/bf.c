@@ -40,6 +40,8 @@ typedef struct _p_DM_BF {
   PetscInt   *valsPerElemRead, *valsPerElemReadWrite;
   PetscInt   nValsPerElemRead, nValsPerElemReadWrite;
   PetscInt   valsPerElemReadTotal, valsPerElemReadWriteTotal;
+  VecScatter            ltog;
+
 } DM_BF;
 
 /******************************************************************************
@@ -272,6 +274,60 @@ static PetscErrorCode DMBF_CellsDestroy(DM dm)
   ierr = PetscFree(bf->cells);CHKERRQ(ierr);
   bf->cells = PETSC_NULL;
   PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog) {
+  
+  DM_BF            *bf;
+  PetscErrorCode   ierr;
+  IS               isfrom,isto;
+  MPI_Comm         comm;
+  PetscInt         rank,n,ng,N,offset;
+  PetscInt         i;
+  PetscInt         lid,gid;
+  p4est_topidx_t   t;
+  p4est_quadrant_t *quad;
+  Vec              vin,vout;
+  
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  
+  rank   = (PetscInt)bf->p4est->mpirank;
+  n      = (PetscInt)bf->p4est->local_num_quadrants;
+  ng     = (PetscInt)bf->ghost->ghosts.elem_count;
+  N      = (PetscInt)bf->p4est->global_num_quadrants;
+  offset = (PetscInt)bf->p4est->global_first_quadrant[rank];
+  
+  PetscInt from_idx[n + ng];  
+  PetscInt to_idx[n + ng];
+  
+  for(i = 0; i < n; i++) {
+    from_idx[i] = i;
+    to_idx[i]   = (PetscInt)offset + i; 
+  }
+  
+  for(i = 0; i < ng; i++) {
+    quad      = sc_array_index(&bf->ghost->ghosts, i);                  /* get ghost quadrant i */
+    t         = quad->p.piggy3.which_tree;                              /* get tree i of ghost quadrant i */
+    rank      = p4est_quadrant_find_owner(bf->p4est, t, -1, quad);      /* get mpirank of ghost quadrant i */
+    lid       = (PetscInt)quad->p.piggy3.local_num;                     /* get local id of ghost quadrant i on mpirank rank */
+    gid       = (PetscInt)bf->p4est->global_first_quadrant[rank] + lid; /* translate local id to global id */
+    from_idx[n + i] = n + i;
+    to_idx[n + i]   = gid;
+  }
+  
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  
+  ierr = ISCreateGeneral(comm,n+ng,from_idx,PETSC_COPY_VALUES,&isfrom);CHKERRQ(ierr); /*TODO Copy or Use Pointer? */
+  ierr = ISCreateGeneral(comm,n+ng,to_idx,PETSC_COPY_VALUES,&isto);CHKERRQ(ierr);
+  
+  ierr = DMCreateLocalVector(dm,&vin);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dm,&vout);CHKERRQ(ierr);
+  
+  ierr = VecScatterCreate(vin,isfrom,vout,isto,ltog);CHKERRQ(ierr);
+    
+  PetscFunctionReturn(0);
+  
 }
 
 static PetscErrorCode DMSetUp_BF(DM dm)
@@ -547,6 +603,70 @@ PetscErrorCode DMView_BF(DM dm, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMGlobalToLocalBegin_BF(DM dm, Vec glo, InsertMode mode, Vec loc)
+{
+  DM_BF              *bf;
+  PetscErrorCode     ierr;
+  
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecific(glo,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(loc,VEC_CLASSID,4);
+  
+  ierr = VecScatterBegin(bf->ltog,glo,loc,mode,SCATTER_REVERSE);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMGlobalToLocalEnd_BF(DM dm, Vec glo, InsertMode mode, Vec loc)
+{
+  DM_BF              *bf;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecific(glo,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(loc,VEC_CLASSID,4);
+  
+  ierr = VecScatterEnd(bf->ltog,glo,loc,mode,SCATTER_REVERSE);CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}
+
+
+static PetscErrorCode DMLocalToGlobalBegin_BF(DM dm, Vec loc, InsertMode mode, Vec glo)
+{
+  DM_BF              *bf;  
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecific(glo,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(loc,VEC_CLASSID,4);
+  
+  ierr = VecScatterBegin(bf->ltog,loc,glo,mode,SCATTER_FORWARD);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMLocalToGlobalEnd_BF(DM dm, Vec loc, InsertMode mode, Vec glo)
+{
+  DM_BF              *bf;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecific(glo,VEC_CLASSID,2);
+  PetscValidHeaderSpecific(loc,VEC_CLASSID,4);
+  
+  ierr = VecScatterEnd(bf->ltog,loc,glo,mode,SCATTER_FORWARD);CHKERRQ(ierr);
+  
+  PetscFunctionReturn(0);
+}
+
+
 
 /***************************************
  * CREATE/DESTROY
@@ -677,9 +797,12 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
   DM             dm;
   PetscBool      isvtk, ishdf5, isdraw, isglvis;
   PetscErrorCode ierr;
-  PetscInt       gsize;
+  PetscInt       size, ng;
   PetscInt       vsize;
+  PetscInt       comm_size;
   PetscViewerVTKFieldType ft;
+  MPI_Comm       comm;
+  //Vec            vloc;
 
   PetscFunctionBegin;
   ierr = VecGetDM(v,&dm);CHKERRQ(ierr);
@@ -689,18 +812,28 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
   if(isvtk) {
-    ierr = DMBFGetGlobalSize(dm, &gsize);CHKERRQ(ierr);
-    ierr = VecGetSize(v, &vsize);CHKERRQ(ierr);
-    if(vsize == 3*gsize)                { ft = PETSC_VTK_CELL_VECTOR_FIELD; }
-    else if(vsize == gsize)             { ft = PETSC_VTK_CELL_FIELD;        }
+    ierr = VecGetSize(v,&vsize);CHKERRQ(ierr);
+    PetscObjectGetComm((PetscObject)v,&comm);
+    MPI_Comm_size(comm,&comm_size);
+    
+    if(comm_size > 1) { 
+      ierr = DMBFGetGlobalSize(dm, &size);CHKERRQ(ierr); 
+    } else { 
+      ierr = DMBFGetLocalSize(dm, &size);CHKERRQ(ierr);
+      ierr = DMBFGetGhostSize(dm, &ng);CHKERRQ(ierr);
+      size = size + ng;
+    }
+    
+    if(vsize == P4EST_DIM*size)                { ft = PETSC_VTK_CELL_VECTOR_FIELD; }
+    else if(vsize == size)                     { ft = PETSC_VTK_CELL_FIELD;        }
     else  SETERRQ(PetscObjectComm((PetscObject)v), PETSC_ERR_SUP, "Only vector and scalar cell fields currently supported");    
+    
     ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)v);CHKERRQ(ierr);
   } else if(ishdf5 || isdraw || isglvis) {
     SETERRQ(PetscObjectComm((PetscObject) dm),PETSC_ERR_SUP,"non-VTK viewer currently not supported by BF");
   }
   PetscFunctionReturn(0);
 }
-
 static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
 {
   DM_BF          *bf;
@@ -902,6 +1035,34 @@ PetscErrorCode DMBFGetGlobalSize(DM dm, PetscInt *nQuads) {
   *nQuads  = (PetscInt)bf->p4est->global_num_quadrants;
   PetscFunctionReturn(0);
 }
+
+/*@
+  DMBFGetGhostSize - Gets number of ghost quadrants.
+
+  Logically collective on DM
+
+  Input Parameters:
++ dm      - the DMBF object
+- nQuads  - number of ghost quadrants
+
+  Level: beginner
+
+.seealso: DMBFGetGlobalSize(), DMBFGetBlockSize()
+@*/
+
+PetscErrorCode DMBFGetGhostSize(DM dm, PetscInt *nQuads) {
+  
+  DM_BF   *bf;
+  
+  PetscFunctionBegin;
+  bf = _p_getBF(dm);
+  
+  if(!bf->ghost) { *nQuads = 0; }
+  else           { *nQuads  = (PetscInt)bf->ghost->ghosts.elem_count; }
+
+  PetscFunctionReturn(0);
+}
+
 
 /***************************************
  * AMR
