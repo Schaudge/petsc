@@ -1022,7 +1022,7 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
             points[5] = 1.;
             points[6] = 1.;
             points[7] = 1.;
-            weights[0] = weights[1] = weights[2] = 1.;
+            weights[0] = weights[1] = weights[2] = weights[3] = 1.;
             break;
           case 3:
             points[0] = -1.;
@@ -1049,7 +1049,7 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
             points[21] = 1.;
             points[22] = 1.;
             points[23] = 1.;
-            weights[0] = weights[1] = weights[2] = 1.;
+            for (PetscInt w = 0; w < 8; w++) weights[w] = 1.;
             break;
         }
       }
