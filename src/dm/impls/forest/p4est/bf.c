@@ -1,12 +1,15 @@
 #include <petscdmbf.h>
 #include <petsc/private/dmforestimpl.h> /*I "petscdmforest.h" I*/
 #include <petsc/private/dmimpl.h>       /*I "petscdm.h" I*/
-#include "petsc_p4est_package.h"
+#include "bf_2d_topology.h"
+#include "bf_3d_topology.h"
+#include "bf_2d_cells.h"
+#include "bf_3d_cells.h"
 
 #if defined(PETSC_HAVE_P4EST)
 
-//TODO the way it's implemented now, only 2d domains are supported
-#if !defined(P4_TO_P8)
+//TODO deprecated
+#include "petsc_p4est_package.h"
 #include <p4est.h>
 #include <p4est_extended.h>
 #include <p4est_geometry.h>
@@ -16,48 +19,27 @@
 #include <p4est_plex.h>
 #include <p4est_bits.h>
 #include <p4est_algorithms.h>
-#else
-#include <p8est.h>
-#include <p8est_extended.h>
-#include <p8est_geometry.h>
-#include <p8est_ghost.h>
-#include <p8est_lnodes.h>
-#include <p8est_vtk.h>
-#include <p8est_plex.h>
-#include <p8est_bits.h>
-#include <p8est_algorithms.h>
-#endif /* !defined(P4_TO_P8) */
 
 /******************************************************************************
  * PRIVATE STRUCTURES
  *****************************************************************************/
 
 typedef struct _p_DM_BF {
-  /* forest-of-tree topology */
-  p4est_connectivity_t  *connectivity;
-  p4est_geometry_t      *geometry;//TODO need this?
-  /* forest-of-tree cells */
-  p4est_t               *p4est;
-  p4est_ghost_t         *ghost;
-  /* forest-of-tree nodes */
-  p4est_lnodes_t        *lnodes;
+  /* forest-of-tree objects sequence: topology -> cells -> nodes */
+  void       *ftTopology;
+  void       *ftCells;
+  void       *ftNodes;
   /* DMBF cells */
-  DM_BF_Cell            *cells;
-  PetscBool             ownedCellsSetUpCalled;
-  PetscBool             ghostCellsSetUpCalled;
+  DM_BF_Cell *cells;
+  PetscBool  ownedCellsSetUpCalled;
+  PetscBool  ghostCellsSetUpCalled;
   /* [option] blocks within a cell */
-  PetscInt              blockSize[3];
+  PetscInt   blockSize[3];
   /* [option] settings for cell data */
-  PetscInt              *valsPerElemRead, *valsPerElemReadWrite;
-  PetscInt              nValsPerElemRead, nValsPerElemReadWrite;
-  PetscInt              valsPerElemReadTotal, valsPerElemReadWriteTotal;
+  PetscInt   *valsPerElemRead, *valsPerElemReadWrite;
+  PetscInt   nValsPerElemRead, nValsPerElemReadWrite;
+  PetscInt   valsPerElemReadTotal, valsPerElemReadWriteTotal;
 } DM_BF;
-
-typedef struct _p_DM_BF_MatCtx {
-  p4est_t               *p4est;
-  p4est_ghost_t         *ghost;
-  void                  *userMatCtx;
-} DM_BF_MatCtx;
 
 /******************************************************************************
  * PRIVATE FUNCTIONS WITHOUT ERROR CHECKING
@@ -102,12 +84,15 @@ static inline DM_BF_Cell *_p_cellGetPtrIndex(DM_BF *bf, PetscInt index)
 
 static inline DM_BF_Cell *_p_cellGetPtrQuadId(DM_BF *bf, p4est_topidx_t treeid, p4est_locidx_t quadid, int8_t is_ghost)
 {
+  p4est_t        *p4est; //TODO deprecated
+  DMBF_2D_CellsGetP4est((DM_BF_2D_Cells*)bf->ftCells,&p4est); //TODO deprecated
+
   if (!is_ghost) {
-    p4est_tree_t *tree = p4est_tree_array_index(bf->p4est->trees,treeid);
+    p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
 
     return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)(tree->quadrants_offset + quadid)));
   } else {
-    return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)(bf->p4est->local_num_quadrants + quadid)));
+    return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)(p4est->local_num_quadrants + quadid)));
   }
 }
 
@@ -139,110 +124,112 @@ static PetscErrorCode DMRefine_BF(DM,MPI_Comm,DM*);
  * PRIVATE & PUBLIC FUNCTIONS
  *****************************************************************************/
 
-static PetscErrorCode DMBF_ConnectivityCreate(DM dm, p4est_connectivity_t **connectivity)
+/***************************************
+ * SETUP
+ **************************************/
+
+static void _p_cellGetInfo(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_topidx_t treeid, p4est_locidx_t quadid, int8_t is_ghost,
+                           /*OUT*/ DM_BF_Cell *cell)
 {
-  const char        *prefix;
-  DMForestTopology  topologyName;
-  PetscBool         isBrick;
-  PetscErrorCode    ierr;
+  const p4est_qcoord_t qlength = P4EST_QUADRANT_LEN(quad->level);
+  double               vertex1[3], vertex2[3];
 
-  PetscFunctionBegin;
-  ierr = PetscObjectGetOptionsPrefix((PetscObject)dm,&prefix);CHKERRQ(ierr);
+  /* get vertex coordinates of opposite corners */
+  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x,quad->y,vertex1);
+  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x+qlength,quad->y+qlength,vertex2);
+  /* set cell data */
+  if (!is_ghost) {
+    p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
 
-  /* get topology name */
-  ierr = DMForestGetTopology(dm,&topologyName);CHKERRQ(ierr);
-  if (!topologyName) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"DMBF needs a topology");
-  ierr = PetscStrcmp((const char*) topologyName,"brick",&isBrick);CHKERRQ(ierr);
-
-  if (isBrick && dm->setfromoptionscalled) { /* if brick topology with given uptions */
-    PetscBool flgN, flgP, flgB, periodic=PETSC_FALSE;
-    PetscInt  N[3]={2,2,2}, P[3]={0,0,0}, nretN=P4EST_DIM, nretP=P4EST_DIM, nretB=2*P4EST_DIM, i, j;
-    PetscReal B[6]={0.0,1.0,0.0,1.0,0.0,1.0};
-
-    /* get brick options */
-    ierr = PetscOptionsGetIntArray(((PetscObject)dm)->options,prefix,"-dm_p4est_brick_size",N,&nretN,&flgN);CHKERRQ(ierr);
-    ierr = PetscOptionsGetIntArray(((PetscObject)dm)->options,prefix,"-dm_p4est_brick_periodicity",P,&nretP,&flgP);CHKERRQ(ierr);
-    ierr = PetscOptionsGetRealArray(((PetscObject)dm)->options,prefix,"-dm_p4est_brick_bounds",B,&nretB,&flgB);CHKERRQ(ierr);
-    if (flgN && nretN != P4EST_DIM) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"Need to give %d sizes in -dm_p4est_brick_size, gave %d",P4EST_DIM,nretN);
-    if (flgP && nretP != P4EST_DIM) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"Need to give %d periodicities in -dm_p4est_brick_periodicity, gave %d",P4EST_DIM,nretP);
-    if (flgB && nretB != 2 * P4EST_DIM) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"Need to give %d bounds in -dm_p4est_brick_bounds, gave %d",P4EST_DIM,nretP);
-
-    /* update periodicity */
-    for (i=0; i<P4EST_DIM; i++) {
-      P[i] = (P[i] ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE);
-      periodic = (PetscBool)(P[i] || periodic);
-      if (!flgB) B[2*i+1] = N[i];
-    }
-    ierr = DMSetPeriodicity(dm,periodic,PETSC_NULL,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
-
-    /* create connectivity */
-    PetscStackCallP4estReturn(
-        *connectivity,p4est_connectivity_new_brick,
-        ((int) N[0], (int) N[1], (P[0] == DM_BOUNDARY_PERIODIC), (P[1] == DM_BOUNDARY_PERIODIC)) );
-
-    { /* scale to bounds */
-      double *vertices = (*connectivity)->vertices;
-
-      for (i=0; i<3*(*connectivity)->num_vertices; i++) {
-        j = i % 3;
-        vertices[i] = B[2*j] + (vertices[i]/N[j]) * (B[2*j+1] - B[2*j]);
-      }
-    }
-  } else { /* otherwise call generic function */
-    /* create connectivity */
-    PetscStackCallP4estReturn(*connectivity,p4est_connectivity_new_byname,((const char*) topologyName));
+    cell->indexLocal  = (PetscInt)(tree->quadrants_offset + quadid);
+    cell->indexGlobal = cell->indexLocal + (PetscInt)p4est->global_first_quadrant[p4est->mpirank];
+  } else {
+    cell->indexLocal  = (PetscInt)(p4est->global_first_quadrant[p4est->mpirank+1] + quadid);
+    cell->indexGlobal = -1;
   }
-  PetscFunctionReturn(0);
+  cell->level         = (PetscInt)quad->level;
+  cell->corner[0]     = (PetscReal)vertex1[0];
+  cell->corner[1]     = (PetscReal)vertex1[1];
+  cell->corner[2]     = (PetscReal)vertex1[2];
+  //TODO set all 4/8 corners
+  //TODO set volume
+  cell->sidelength[0] = (PetscReal)(vertex2[0] - vertex1[0]);
+  cell->sidelength[1] = (PetscReal)(vertex2[1] - vertex1[1]);
+  cell->sidelength[2] = (PetscReal)(vertex2[2] - vertex1[2]);
+  //TODO set side lengths to NAN if warped geometry
 }
 
-static PetscErrorCode DMBF_ConnectivityDestroy(DM dm, p4est_connectivity_t *connectivity)
+static void _p_cellGetVecView(/*IN    */ const PetscScalar **vecViewRead, PetscInt nVecsRead,
+                                         PetscScalar **vecViewReadWrite, PetscInt nVecsReadWrite,
+                              /*IN/OUT*/ DM_BF_Cell *cell)
 {
-  PetscFunctionBegin;
-  PetscStackCallP4est(p4est_connectivity_destroy,(connectivity));
-  PetscFunctionReturn(0);
+  PetscInt i;
+
+  for (i=0; i<nVecsRead; i++) {
+    cell->vecViewRead[i] = &vecViewRead[i][cell->indexLocal];
+  }
+  for (i=0; i<nVecsReadWrite; i++) {
+    cell->vecViewReadWrite[i] = &vecViewReadWrite[i][cell->indexLocal];
+  }
 }
 
-static PetscErrorCode DMBF_P4estCreate(DM dm, p4est_connectivity_t *connectivity, p4est_t **p4est)
+static void p4est_iter_set_cell_info(p4est_iter_volume_info_t *info, void *ctx)
 {
-  PetscInt       initLevel;
+  DM_BF      *bf   = ctx;
+  DM_BF_Cell *cell = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
+
+  /* get cell info */
+  _p_cellGetInfo(info->p4est,info->quad,info->treeid,info->quadid,0,cell);
+  cell->dataRead      = (const PetscScalar*)_p_cellGetDataRead(cell);
+  cell->dataReadWrite = _p_cellGetDataReadWrite(cell,bf);
+  /* assign cell to forest quadrant */
+  info->quad->p.user_data = cell;
+}
+
+static PetscErrorCode DMBFSetUpOwnedCells(DM dm)
+{
+  DM_BF          *bf;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
-  ierr = DMForestGetInitialRefinement(dm,&initLevel);CHKERRQ(ierr);
-  PetscStackCallP4estReturn(
-      *p4est,p4est_new_ext,
-      ( PetscObjectComm((PetscObject)dm),
-        connectivity,
-        0,           /* minimum number of quadrants per processor */
-        initLevel,   /* level of refinement */
-        1,           /* uniform refinement */
-        0,           /* we don't allocate any per quadrant data */
-        NULL,        /* there is no special quadrant initialization */
-        (void*)dm )  /* this DM is the user context */
-  );
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_getBF(dm);
+  if (!bf->cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  /* run iterator */
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,bf,p4est_iter_set_cell_info,NULL,NULL));
+  p4est->data_size = _p_cellSize(bf);
+  bf->ownedCellsSetUpCalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMBF_P4estDestroy(DM dm, p4est_t *p4est)
+static PetscErrorCode DMBFSetUpGhostCells(DM dm)
 {
-  PetscFunctionBegin;
-  PetscStackCallP4est(p4est_destroy,(p4est));
-  PetscFunctionReturn(0);
-}
+  DM_BF      *bf;
+  DM_BF_Cell *cell;
+  PetscInt   offset_cells, ng_cells, i;
+  PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
-static PetscErrorCode DMBF_GhostCreate(DM dm, p4est_t *p4est, p4est_ghost_t **ghost)
-{
   PetscFunctionBegin;
-  if (!p4est) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"P4est does not exist");
-  PetscStackCallP4estReturn(*ghost,p4est_ghost_new,(p4est,P4EST_CONNECT_FULL));
-  //TODO which connect flag, P4EST_CONNECT_FULL, P4EST_CONNECT_FACE, ...?
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode DMBF_GhostDestroy(DM dm, p4est_ghost_t *ghost)
-{
-  PetscFunctionBegin;
-  PetscStackCallP4est(p4est_ghost_destroy,(ghost));
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_getBF(dm);
+  if (!bf->cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  /* set data pointers of all ghost cells */
+  offset_cells = (PetscInt)p4est->local_num_quadrants;
+  ng_cells     = (PetscInt)ghost->ghosts.elem_count;
+  for (i=offset_cells; i<(offset_cells+ng_cells); i++) {
+    cell                = _p_cellGetPtrIndex(bf,i);
+    cell->dataRead      = (const PetscScalar*)_p_cellGetDataRead(cell);
+    cell->dataReadWrite = _p_cellGetDataReadWrite(cell,bf);
+  }
+  bf->ghostCellsSetUpCalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 
@@ -251,15 +238,16 @@ static PetscErrorCode DMBF_CellsCreate(DM dm)
   DM_BF          *bf;
   size_t         n_cells, ng_cells, cell_size;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   /* get number of cells and their size */
   bf = _p_getBF(dm);
-  if (!bf->ghost) {
-    ierr = DMBF_GhostCreate(dm,bf->p4est,&bf->ghost);CHKERRQ(ierr);
-  }
-  n_cells   = (size_t)bf->p4est->local_num_quadrants;
-  ng_cells  = (size_t)bf->ghost->ghosts.elem_count;
+  n_cells   = (size_t)p4est->local_num_quadrants;
+  ng_cells  = (size_t)ghost->ghosts.elem_count;
   cell_size = _p_cellSize(bf);
   /* create DMBF cells */
   ierr = PetscMalloc((n_cells+ng_cells)*cell_size,&bf->cells);CHKERRQ(ierr);
@@ -288,23 +276,38 @@ static PetscErrorCode DMBF_CellsDestroy(DM dm)
 static PetscErrorCode DMSetUp_BF(DM dm)
 {
   DM_BF          *bf;
+  PetscInt       dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  bf = _p_getBF(dm);
-  /* create topology */
-  if (bf->connectivity) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Connectivity exists already");
-  ierr = DMBF_ConnectivityCreate(dm,&bf->connectivity);CHKERRQ(ierr);
-  /* create forest of trees */
-  if (!bf->connectivity) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Connectivity does not exist");
-  if (bf->p4est) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"P4est exists already");
-  ierr = DMBF_P4estCreate(dm, bf->connectivity, &bf->p4est);CHKERRQ(ierr);
-  /* create ghost */
-//if (bf->ghost) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost exists already");
-//ierr = DMBF_GhostCreate(dm,bf->p4est,&bf->ghost);CHKERRQ(ierr);
-  /* create nodes */
-  //TODO
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  bf   = _p_getBF(dm);
+  if (dim == PETSC_DETERMINE) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Topological dimension has to be set before setup");
+  if (dim < 2 || 3 < dim)     SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DM does not support %d dimensional domains",dim);
+  if (bf->ftTopology)         SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Topology exists already");
+  if (bf->ftCells)            SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells exist already");
+  if (bf->ftNodes)            SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Nodes exist already");
+  /* create forest-of-tree topology */
+  if (2 == dim) {
+    ierr = DMBF_2D_TopologyCreate(dm,(DM_BF_2D_Topology**)&bf->ftTopology);CHKERRQ(ierr);
+  } else if (3 == dim) {
+    ierr = DMBF_3D_TopologyCreate(dm,(DM_BF_3D_Topology**)&bf->ftTopology);CHKERRQ(ierr);
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
+  }
+  if (!bf->ftTopology) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Topology does not exist");
+  /* create forest-of-tree cells */
+  if (2 == dim) {
+    ierr = DMBF_2D_CellsCreate(dm,(DM_BF_2D_Topology*)bf->ftTopology,(DM_BF_2D_Cells**)&bf->ftCells);CHKERRQ(ierr);
+  } else if (3 == dim) {
+    ierr = DMBF_3D_CellsCreate(dm,(DM_BF_3D_Topology*)bf->ftTopology,(DM_BF_3D_Cells**)&bf->ftCells);CHKERRQ(ierr);
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
+  }
+  if (!bf->ftCells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  /* create forest-of-tree nodes */
+  //TODO create nodes
   /* create DMBF cells */
   ierr = DMBF_CellsCreate(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -313,22 +316,28 @@ static PetscErrorCode DMSetUp_BF(DM dm)
 static PetscErrorCode DMBFClear(DM dm)
 {
   DM_BF          *bf;
+  PetscInt       dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  bf = _p_getBF(dm);
-  /* destroy forest-of-tree objects */
-//if (bf->lnodes)       { PetscStackCallP4est(p4est_lnodes_destroy,(bf->lnodes)); }
-  if (bf->ghost)        { ierr = DMBF_GhostDestroy(dm,bf->ghost);CHKERRQ(ierr); }
-  if (bf->p4est)        { ierr = DMBF_P4estDestroy(dm,bf->p4est);CHKERRQ(ierr); }
-//if (bf->geometry)     { PetscStackCallP4est(p4est_geometry_destroy,(bf->geometry)); }
-  if (bf->connectivity) { ierr = DMBF_ConnectivityDestroy(dm,bf->connectivity);CHKERRQ(ierr); }
-  bf->lnodes            = PETSC_NULL;
-  bf->ghost             = PETSC_NULL;
-  bf->p4est             = PETSC_NULL;
-  bf->geometry          = PETSC_NULL;
-  bf->connectivity      = PETSC_NULL;
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  bf   = _p_getBF(dm);
+  /* destroy forest-of-tree objects (in reverse order of creation) */
+  if (2 == dim) {
+    //TODO destroy nodes
+    if (bf->ftCells)    { ierr = DMBF_2D_CellsDestroy(dm,(DM_BF_2D_Cells*)bf->ftCells);CHKERRQ(ierr); }
+    if (bf->ftTopology) { ierr = DMBF_2D_TopologyDestroy(dm,(DM_BF_2D_Topology*)bf->ftTopology);CHKERRQ(ierr); }
+  } else if (3 == dim) {
+    //TODO destroy nodes
+    if (bf->ftCells)    { ierr = DMBF_3D_CellsDestroy(dm,(DM_BF_3D_Cells*)bf->ftCells);CHKERRQ(ierr); }
+    if (bf->ftTopology) { ierr = DMBF_3D_TopologyDestroy(dm,(DM_BF_3D_Topology*)bf->ftTopology);CHKERRQ(ierr); }
+  } else {
+    SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
+  }
+  bf->ftNodes    = PETSC_NULL;
+  bf->ftCells    = PETSC_NULL;
+  bf->ftTopology = PETSC_NULL;
   /* destroy DMBF cells */
   ierr = DMBF_CellsDestroy(dm);CHKERRQ(ierr);
   /* destroy cell options */
@@ -544,7 +553,6 @@ PetscErrorCode DMCreate_BF(DM dm)
   ierr = PetscP4estInitialize();CHKERRQ(ierr);
   ierr = DMCreate_Forest(dm);CHKERRQ(ierr);
   ierr = DMInitialize_BF(dm);CHKERRQ(ierr);
-  ierr = DMSetDimension(dm,P4EST_DIM);CHKERRQ(ierr);
 
   /* set default parameters of Forest object */
   ierr = DMForestSetTopology(dm,"unit");CHKERRQ(ierr);
@@ -557,11 +565,9 @@ PetscErrorCode DMCreate_BF(DM dm)
 
   /* create BF */
   ierr = PetscNewLog(dm,&bf);CHKERRQ(ierr);
-  bf->connectivity              = PETSC_NULL;
-  bf->geometry                  = PETSC_NULL;
-  bf->p4est                     = PETSC_NULL;
-  bf->ghost                     = PETSC_NULL;
-  bf->lnodes                    = PETSC_NULL;
+  bf->ftTopology                = PETSC_NULL;
+  bf->ftCells                   = PETSC_NULL;
+  bf->ftNodes                   = PETSC_NULL;
   bf->cells                     = PETSC_NULL;
   bf->ownedCellsSetUpCalled     = PETSC_FALSE;
   bf->ghostCellsSetUpCalled     = PETSC_FALSE;
@@ -610,13 +616,14 @@ static PetscErrorCode DMClone_BF(DM dm, DM *newdm)
 
 PetscErrorCode DMBFGetP4est(DM dm, void *p4est)
 {
-  DM_BF *bf;
+  DM_BF          *bf;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
-  if (!bf->p4est) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"P4est does not exist");
-  *(void**)p4est = bf->p4est;
+  if (!bf->ftCells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  ierr = DMBF_2D_CellsGetP4est((DM_BF_2D_Cells*)bf->ftCells,p4est);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -628,10 +635,8 @@ PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
-  if (!bf->ghost) {
-    ierr = DMBF_GhostCreate(dm,bf->p4est,&bf->ghost);CHKERRQ(ierr);
-  }
-  *(void**)ghost = bf->ghost;
+  if (!bf->ftCells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  ierr = DMBF_2D_CellsGetGhost((DM_BF_2D_Cells*)bf->ftCells,ghost);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -640,17 +645,18 @@ static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
   DM_BF          *bf;
   PetscInt       n, ng;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(vec,2);
   /* get number of entries */
   bf = _p_getBF(dm);
-  if (!bf->ghost) {
-    ierr = DMBF_GhostCreate(dm,bf->p4est,&bf->ghost);CHKERRQ(ierr);
-  }
-  n  = (PetscInt)bf->p4est->local_num_quadrants;
-  ng = (PetscInt)bf->ghost->ghosts.elem_count;
+  n  = (PetscInt)p4est->local_num_quadrants;
+  ng = (PetscInt)ghost->ghosts.elem_count;
   /* create vector */
   ierr = VecCreateSeq(PETSC_COMM_SELF,n+ng,vec);CHKERRQ(ierr);
   ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
@@ -662,14 +668,16 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   DM_BF          *bf;
   PetscInt       n, N;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(vec,2);
   /* get number of entries */
   bf = _p_getBF(dm);
-  n  = (PetscInt)bf->p4est->local_num_quadrants;
-  N  = (PetscInt)bf->p4est->global_num_quadrants;
+  n  = (PetscInt)p4est->local_num_quadrants;
+  N  = (PetscInt)p4est->global_num_quadrants;
   /* create vector */
   ierr = VecCreateMPI(PetscObjectComm((PetscObject)dm),n,N,vec);CHKERRQ(ierr);
   ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
@@ -688,14 +696,16 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   void           *appctx;
   PetscInt       n, N;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(mat,2);
   /* get number of rows/cols */
   bf = _p_getBF(dm);
-  n  = (PetscInt)bf->p4est->local_num_quadrants;
-  N  = (PetscInt)bf->p4est->global_num_quadrants;
+  n  = (PetscInt)p4est->local_num_quadrants;
+  N  = (PetscInt)p4est->global_num_quadrants;
   /* create matrix */
   ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
   ierr = MatCreateShell(PetscObjectComm((PetscObject)dm),n,n,N,N,appctx,mat);CHKERRQ(ierr);
@@ -824,22 +834,24 @@ PetscErrorCode DMBFCoarsenInPlace(DM dm, PetscInt nCycles)
   void           *p4est_user_pointer;
   PetscInt       i;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   /* set AMR parameters */
   ierr = DMForestGetMinimumRefinement(dm,&amrCtx.minLevel);CHKERRQ(ierr);
   /* prepare p4est for AMR */
   bf = _p_getBF(dm);
-  p4est_user_pointer      = bf->p4est->user_pointer;
-  bf->p4est->user_pointer = (void*) &amrCtx;
+  p4est_user_pointer  = p4est->user_pointer;
+  p4est->user_pointer = (void*) &amrCtx;
   /* coarsen & balance */
   for (i=0; i<nCycles; i++) {
-    PetscStackCallP4est(p4est_coarsen,(bf->p4est,0,p4est_coarsen_uniformly,NULL));
+    PetscStackCallP4est(p4est_coarsen,(p4est,0,p4est_coarsen_uniformly,NULL));
   }
-  PetscStackCallP4est(p4est_balance,(bf->p4est,P4EST_CONNECT_FULL,NULL));
+  PetscStackCallP4est(p4est_balance,(p4est,P4EST_CONNECT_FULL,NULL));
   /* finalize p4est after AMR */
-  bf->p4est->user_pointer = p4est_user_pointer;
+  p4est->user_pointer = p4est_user_pointer;
   //TODO need to update bf cells
   PetscFunctionReturn(0);
 }
@@ -864,22 +876,24 @@ PetscErrorCode DMBFRefineInPlace(DM dm, PetscInt nCycles)
   void           *p4est_user_pointer;
   PetscInt       i;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   /* set AMR parameters */
   ierr = DMForestGetMaximumRefinement(dm,&amrCtx.maxLevel);CHKERRQ(ierr);
   /* prepare p4est for AMR */
   bf = _p_getBF(dm);
-  p4est_user_pointer      = bf->p4est->user_pointer;
-  bf->p4est->user_pointer = (void*) &amrCtx;
+  p4est_user_pointer  = p4est->user_pointer;
+  p4est->user_pointer = (void*) &amrCtx;
   /* refine & balance */
   for (i=0; i<nCycles; i++) {
-    PetscStackCallP4est(p4est_refine,(bf->p4est,0,p4est_refine_uniformly,NULL));
+    PetscStackCallP4est(p4est_refine,(p4est,0,p4est_refine_uniformly,NULL));
   }
-  PetscStackCallP4est(p4est_balance,(bf->p4est,P4EST_CONNECT_FULL,NULL));
+  PetscStackCallP4est(p4est_balance,(p4est,P4EST_CONNECT_FULL,NULL));
   /* finalize p4est after AMR */
-  bf->p4est->user_pointer = p4est_user_pointer;
+  p4est->user_pointer = p4est_user_pointer;
   //TODO need to update bf cells
   PetscFunctionReturn(0);
 }
@@ -926,51 +940,6 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *dmf)
  * ITERATORS
  **************************************/
 
-static void _p_cellGetInfo(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_topidx_t treeid, p4est_locidx_t quadid, int8_t is_ghost,
-                           /*OUT*/ DM_BF_Cell *cell)
-{
-  const p4est_qcoord_t qlength = P4EST_QUADRANT_LEN(quad->level);
-  double               vertex1[3], vertex2[3];
-
-  /* get vertex coordinates of opposite corners */
-  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x,quad->y,vertex1);
-  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x+qlength,quad->y+qlength,vertex2);
-  /* set cell data */
-  if (!is_ghost) {
-    p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
-
-    cell->indexLocal  = (PetscInt)(tree->quadrants_offset + quadid);
-    cell->indexGlobal = cell->indexLocal + (PetscInt)p4est->global_first_quadrant[p4est->mpirank];
-  } else {
-    cell->indexLocal  = (PetscInt)(p4est->global_first_quadrant[p4est->mpirank+1] + quadid);
-    cell->indexGlobal = -1;
-  }
-  cell->level         = (PetscInt)quad->level;
-  cell->corner[0]     = (PetscReal)vertex1[0];
-  cell->corner[1]     = (PetscReal)vertex1[1];
-  cell->corner[2]     = (PetscReal)vertex1[2];
-  //TODO set all 4/8 corners
-  //TODO set volume
-  cell->sidelength[0] = (PetscReal)(vertex2[0] - vertex1[0]);
-  cell->sidelength[1] = (PetscReal)(vertex2[1] - vertex1[1]);
-  cell->sidelength[2] = (PetscReal)(vertex2[2] - vertex1[2]);
-  //TODO set side lengths to NAN if warped geometry
-}
-
-static void _p_cellGetVecView(/*IN    */ const PetscScalar **vecViewRead, PetscInt nVecsRead,
-                                         PetscScalar **vecViewReadWrite, PetscInt nVecsReadWrite,
-                              /*IN/OUT*/ DM_BF_Cell *cell)
-{
-  PetscInt i;
-
-  for (i=0; i<nVecsRead; i++) {
-    cell->vecViewRead[i] = &vecViewRead[i][cell->indexLocal];
-  }
-  for (i=0; i<nVecsReadWrite; i++) {
-    cell->vecViewReadWrite[i] = &vecViewReadWrite[i][cell->indexLocal];
-  }
-}
-
 typedef struct _p_DM_BF_CellIterCtx {
   DM_BF             *bf;
   PetscErrorCode    (*iterCell)(DM_BF_Cell*,void*);
@@ -1006,8 +975,12 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM_
   DM_BF_CellIterCtx iterCtx;
   PetscInt          i;
   PetscErrorCode    ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidFunction(iterCell,2);
   if (nVecsRead)      PetscValidPointer(vecRead,4);
@@ -1036,7 +1009,7 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM_
     }
   }
   /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,p4est_iter_volume,NULL,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,p4est_iter_volume,NULL,NULL));
   /* clear iterator context */
   if (0 < iterCtx.nVecsRead) {
     for (i=0; i<iterCtx.nVecsRead; i++) {
@@ -1160,8 +1133,12 @@ PetscErrorCode DMBFIterateOverFacesVectors(DM dm, PetscErrorCode (*iterFace)(DM_
   DM_BF_FaceIterCtx iterCtx;
   PetscInt          i;
   PetscErrorCode    ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidFunction(iterFace,2);
   if (nVecsRead)      PetscValidPointer(vecRead,4);
@@ -1191,7 +1168,7 @@ PetscErrorCode DMBFIterateOverFacesVectors(DM dm, PetscErrorCode (*iterFace)(DM_
   }
   /* run iterator */
   bf = _p_getBF(dm);
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,NULL,p4est_iter_face,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,p4est_iter_face,NULL));
   /* clear iterator context */
   if (0 < nVecsRead) {
     for (i=0; i<nVecsRead; i++) {
@@ -1289,8 +1266,13 @@ PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face
 {
   DM_BF             *bf;
   DM_BF_FaceIterCtx iterCtx;
+  PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidFunction(iterFace,2);
   bf = _p_getBF(dm);
@@ -1302,7 +1284,7 @@ PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face
   iterCtx.iterFace    = iterFace;
   iterCtx.userIterCtx = userIterCtx;
   /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,NULL,p4est_iter_face,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,p4est_iter_face,NULL));
   PetscFunctionReturn(0);
 }
 #endif
@@ -1316,56 +1298,6 @@ typedef struct _p_DM_BF_SetCellDataIterCtx {
   const PetscScalar **vecViewRead, **vecViewReadWrite;
   PetscInt          nVecsRead, nVecsReadWrite;
 } DM_BF_SetCellDataIterCtx;
-
-static void p4est_iter_set_cell_info(p4est_iter_volume_info_t *info, void *ctx)
-{
-  DM_BF      *bf   = ctx;
-  DM_BF_Cell *cell = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
-
-  /* get cell info */
-  _p_cellGetInfo(info->p4est,info->quad,info->treeid,info->quadid,0,cell);
-  cell->dataRead      = (const PetscScalar*)_p_cellGetDataRead(cell);
-  cell->dataReadWrite = _p_cellGetDataReadWrite(cell,bf);
-  /* assign cell to forest quadrant */
-  info->quad->p.user_data = cell;
-}
-
-static PetscErrorCode DMBFSetUpOwnedCells(DM dm)
-{
-  DM_BF          *bf;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  bf = _p_getBF(dm);
-  if (!bf->cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,bf,p4est_iter_set_cell_info,NULL,NULL));
-  bf->p4est->data_size = _p_cellSize(bf);
-  bf->ownedCellsSetUpCalled = PETSC_TRUE;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode DMBFSetUpGhostCells(DM dm)
-{
-  DM_BF      *bf;
-  DM_BF_Cell *cell;
-  PetscInt   offset_cells, ng_cells, i;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  bf = _p_getBF(dm);
-  if (!bf->cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  /* set data pointers of all ghost cells */
-  offset_cells = (PetscInt)bf->p4est->local_num_quadrants;
-  ng_cells     = (PetscInt)bf->ghost->ghosts.elem_count;
-  for (i=offset_cells; i<(offset_cells+ng_cells); i++) {
-    cell                = _p_cellGetPtrIndex(bf,i);
-    cell->dataRead      = (const PetscScalar*)_p_cellGetDataRead(cell);
-    cell->dataReadWrite = _p_cellGetDataReadWrite(cell,bf);
-  }
-  bf->ghostCellsSetUpCalled = PETSC_TRUE;
-  PetscFunctionReturn(0);
-}
 
 static void p4est_iter_set_cell_data(p4est_iter_volume_info_t *info, void *ctx)
 {
@@ -1407,8 +1339,12 @@ PetscErrorCode DMBFSetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
   DM_BF_SetCellDataIterCtx iterCtx;
   PetscInt                 i;
   PetscErrorCode           ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
   if (!bf->cells)                 SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
@@ -1432,7 +1368,7 @@ PetscErrorCode DMBFSetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
     }
   }
   /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,p4est_iter_set_cell_data,NULL,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,p4est_iter_set_cell_data,NULL,NULL));
   /* clear iterator context */
   if (0 < iterCtx.nVecsRead) {
     for (i=0; i<iterCtx.nVecsRead; i++) {
@@ -1495,8 +1431,12 @@ PetscErrorCode DMBFGetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
   DM_BF_GetCellDataIterCtx iterCtx;
   PetscInt                 i;
   PetscErrorCode           ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
   if (!bf->cells)                 SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
@@ -1520,7 +1460,7 @@ PetscErrorCode DMBFGetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
     }
   }
   /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(bf->p4est,bf->ghost,&iterCtx,p4est_iter_get_cell_data,NULL,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,p4est_iter_get_cell_data,NULL,NULL));
   /* clear iterator context */
   if (0 < iterCtx.nVecsRead) {
     for (i=0; i<iterCtx.nVecsRead; i++) {
@@ -1542,15 +1482,19 @@ PetscErrorCode DMBFCommunicateGhostCells(DM dm)
   DM_BF          *bf;
   DM_BF_Cell     *ghostCells;
   PetscErrorCode ierr;
+  p4est_t        *p4est; //TODO deprecated
+  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
   if (!bf->cells)                 SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   if (!bf->ownedCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   /* run ghost exchange */
-  ghostCells = _p_cellGetPtrIndex(bf,bf->p4est->local_num_quadrants);
-  PetscStackCallP4est(p4est_ghost_exchange_data,(bf->p4est,bf->ghost,ghostCells));
+  ghostCells = _p_cellGetPtrIndex(bf,p4est->local_num_quadrants);
+  PetscStackCallP4est(p4est_ghost_exchange_data,(p4est,ghost,ghostCells));
   bf->ghostCellsSetUpCalled = PETSC_FALSE;
   ierr = DMBFSetUpGhostCells(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
