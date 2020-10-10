@@ -91,6 +91,43 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   ierr = DMSetApplicationContext(*dm, user);CHKERRQ(ierr);
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+  if (user->benchmark) {
+    DM             colordm;
+    PetscSection   csection;
+    PetscInt       numComp[1],i,rs,re;
+    PetscInt       numDof[4];
+    PetscFE        fe;
+    PetscViewer    viewer;
+    Vec            color_vec;
+    PetscMPIInt    rank;
+    ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+    ierr = DMClone(*dm, &colordm);CHKERRQ(ierr);
+    ierr = PetscFECreateDefault(comm, dim, 1, PETSC_FALSE, "color_", PETSC_DECIDE, &fe);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) fe, "color");CHKERRQ(ierr);
+    ierr = DMSetField(colordm, 0, NULL, (PetscObject)fe);CHKERRQ(ierr);
+    ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
+    for (i = 0; i < (dim+1); ++i) numDof[i] = 0;
+    numDof[dim] = 1;
+    numComp[0] = 1;
+    ierr = DMPlexCreateSection(colordm, NULL, numComp, numDof, 0, NULL, NULL, NULL, NULL, &csection);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldName(csection, 0, "color");CHKERRQ(ierr);
+    ierr = DMSetLocalSection(colordm, csection);CHKERRQ(ierr);
+    ierr = DMViewFromOptions(colordm,NULL,"-color_dm_view");CHKERRQ(ierr);
+    ierr = DMGetGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(color_vec,&rs,&re);CHKERRQ(ierr);
+    for (i = rs; i < re; ++i) {
+      PetscScalar v = (PetscScalar)rank;
+      ierr = VecSetValues(color_vec,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    /* view */
+    ierr = PetscViewerVTKOpen(comm, "domaindecomp.vtu", FILE_MODE_WRITE, &viewer);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) color_vec, "color");CHKERRQ(ierr);
+    ierr = VecView(color_vec, viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    ierr = DMRestoreGlobalVector(colordm, &color_vec);CHKERRQ(ierr);
+    ierr = PetscSectionDestroy(&csection);CHKERRQ(ierr);
+    ierr = DMDestroy(&colordm);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
