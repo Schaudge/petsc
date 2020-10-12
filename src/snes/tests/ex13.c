@@ -290,10 +290,10 @@ int main(int argc, char **argv)
     ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
     ierr = SNESGetFunction(snes, &b, NULL, NULL);CHKERRQ(ierr);
     ierr = SNESComputeFunction(snes, u, b);CHKERRQ(ierr);
+    ierr = PetscOptionsClearValue(NULL,"-ksp_monitor");CHKERRQ(ierr);
     ierr = PetscLogStageRegister("KSP Solve only", &stage);CHKERRQ(ierr);
     ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
     for (ii = 0; ii < 20; ++ii) {
-      ierr = VecZeroEntries(u);CHKERRQ(ierr);
       ierr = KSPSolve(ksp, b, u);CHKERRQ(ierr);
     }
     ierr = PetscLogStagePop();CHKERRQ(ierr);
