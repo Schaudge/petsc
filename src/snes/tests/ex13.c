@@ -173,13 +173,14 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   if (user->benchmark &&0) {
     DM             colordm;
     PetscSection   csection;
-    PetscInt       numComp[1],i,rs,re;
+    PetscInt       numComp[1],i,rs,re,dim;
     PetscInt       numDof[4];
     PetscFE        fe;
     PetscViewer    viewer;
     Vec            color_vec;
     PetscMPIInt    rank;
     ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+    ierr = DMGetDimension(*dm, &dim);CHKERRQ(ierr);
     ierr = DMClone(*dm, &colordm);CHKERRQ(ierr);
     ierr = PetscFECreateDefault(comm, dim, 1, PETSC_FALSE, "color_", PETSC_DECIDE, &fe);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) fe, "color");CHKERRQ(ierr);
