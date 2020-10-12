@@ -7,7 +7,8 @@ class Configure(config.package.CMakePackage):
     self.minversion       = '6.1.1'
     self.version          = '6.3.0'
     self.versionname      = 'SUPERLU_DIST_MAJOR_VERSION.SUPERLU_DIST_MINOR_VERSION.SUPERLU_DIST_PATCH_VERSION'
-    self.gitcommit        = 'v'+self.version
+    #self.gitcommit        = 'v'+self.version
+    self.gitcommit        = '015b191' # master oct-12-2020
     self.download         = ['git://https://github.com/xiaoyeli/superlu_dist','https://github.com/xiaoyeli/superlu_dist/archive/'+self.gitcommit+'.tar.gz']
     self.functions        = ['set_default_options_dist']
     self.includes         = ['superlu_ddefs.h']
@@ -40,8 +41,6 @@ class Configure(config.package.CMakePackage):
     else:
       args.append('-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=TRUE')
     if self.cuda.found:
-      if not self.openmp.found:
-        raise RuntimeError('SuperLU_DIST GPU code currently requires OpenMP. Use --with-openmp=1')
       # SuperLU_DIST CMake doesn't know about GPU builds
       for place,item in enumerate(args):
         if item.find('CMAKE_C_FLAGS') >= 0:
