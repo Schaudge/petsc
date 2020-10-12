@@ -89,7 +89,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 
   ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
   ierr = DMSetApplicationContext(*dm, user);CHKERRQ(ierr);
-  if (user->benchmark &&0) {
+  if (user->benchmark) {
     PetscPartitioner part;
     PetscInt         cEnd, ii, np,cells_proc[3],procs_node[3];
     PetscMPIInt      rank, size;
@@ -285,14 +285,17 @@ int main(int argc, char **argv)
 #endif
     KSP           ksp;
     Vec           b;
+    PetscInt      ii;
     ierr = SNESGetKSP(snes, &ksp);CHKERRQ(ierr);
     ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
-    ierr = VecZeroEntries(u);CHKERRQ(ierr);
     ierr = SNESGetFunction(snes, &b, NULL, NULL);CHKERRQ(ierr);
     ierr = SNESComputeFunction(snes, u, b);CHKERRQ(ierr);
     ierr = PetscLogStageRegister("KSP Solve only", &stage);CHKERRQ(ierr);
     ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
-    ierr = KSPSolve(ksp, b, u);CHKERRQ(ierr);
+    for (ii = 0; ii < 20; ++ii) {
+      ierr = VecZeroEntries(u);CHKERRQ(ierr);
+      ierr = KSPSolve(ksp, b, u);CHKERRQ(ierr);
+    }
     ierr = PetscLogStagePop();CHKERRQ(ierr);
   }
   ierr = SNESGetSolution(snes, &u);CHKERRQ(ierr);
