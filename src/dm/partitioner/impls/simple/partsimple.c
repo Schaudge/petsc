@@ -90,7 +90,7 @@ static PetscErrorCode PetscPartitionerPartition_Simple_Grid(PetscPartitioner par
     }
   }
   for (i = 0; i < 3; ++i) Nc *= cells[i];
-  if (numVertices % Nc) SETERRQ2(comm, PETSC_ERR_ARG_INCOMP, "Number of cells %D != %D computed cell grid size", numVertices, Nc);
+  if (numVertices && numVertices != Nc) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "Number of cells %D != %D computed cell grid size", numVertices, Nc);
   for (i = 0; i < p->gridDim; ++i) {pcells[i] = cells[i] / (nodes[i]*procs[i]); Nlc *= pcells[i];}
   /* Compute sizes */
   for (np = 0; np < nparts; ++np) {ierr = PetscSectionSetDof(partSection, np, numVertices/nparts);CHKERRQ(ierr);}
