@@ -642,8 +642,8 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
 static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,const PetscScalar coefficients[],const PetscScalar coefficients_t[],PetscDS dsAux,const PetscScalar coefficientsAux[],PetscReal t,PetscReal u_tshift,PetscScalar elemMat[])
 {
   PetscErrorCode ierr;
-  PetscInt       eOffset =
-    0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,mapI,mapJ,vStart,vEnd,numVert;
+  PetscInt eOffset =
+    0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,vStart,vEnd,numVert;
   PetscInt        nGroups,nDoFs;
   PetscScalar     *group2Constant,*group2ConstantInv;
   PetscTabulation *T;
@@ -728,13 +728,103 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
    M[[0,7],[0,7]] += M[[0,7],[1,2]] C_{0,7} C^{-1}_{1,2}  */
 
   if (fieldJ==fieldI) {
-    /* Create group to constants here.... lots of hardcoded arrays incoming. Using column-major ordering and indexing by [group*dim*dim + j*dim + i] to
-     * make clear what is being assigned*/
+
+    /* Build coefficient matrices using dualspace data. */
+    PetscInt m,n,d;
+    Mat      allMat;
+    Vec      x,y;
+    PetscLayout rmap,cmap;
+
+    ierr = PetscDualSpaceGetAllData(dsp,NULL,&allMat);CHKERRQ(ierr);
+    ierr = MatGetSize(allMat,&m,&n);CHKERRQ(ierr);
+    ierr = MatGetLayouts(allMat,&rmap,&cmap);CHKERRQ(ierr);
+
+    ierr = VecCreate(PetscObjectComm((PetscObject) ds),&x);CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject) ds),&y);CHKERRQ(ierr);
+    ierr = VecSetSizes(x,PETSC_DECIDE,m);CHKERRQ(ierr);
+    ierr = VecSetSizes(y,PETSC_DECIDE,m);CHKERRQ(ierr);
+    ierr = VecSetLayout(x,rmap);CHKERRQ(ierr);
+    ierr = VecSetLayout(y,rmap);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(x);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(y);CHKERRQ(ierr);
+
+    for (d = 0; d < dim; ++d) {
+      PetscInt col,v;
+      ierr = VecSet(y,0);CHKERRQ(ierr);
+      for (col = d; col < n; col+=dim) {
+        /* This loop is the same as multiplying by a vector that has 1s every dim entries,with an initial offset defined by d,this gets us the dth
+         * column of each coefficient array up to some mapping. */
+        ierr = MatGetColumnVector(allMat,x,col);CHKERRQ(ierr);
+        ierr = VecAXPY(y,1,x);CHKERRQ(ierr);
+      }
+      for (v=0; v < numVert; ++v) {
+        /* The afformentioned mapping step. Entries in y are in order 0-numDof,but we need to access them in their grouped order, defined by
+         * groupDofSect and groupDofInd, for assignment into the group2Constant array */
+        PetscInt       numVals,nOffset,n;
+        const PetscInt * ix;
+        ierr = PetscSectionGetDof(groupDofSect,v+vStart,&numVals);CHKERRQ(ierr);
+        ierr = PetscSectionGetOffset(groupDofSect,v+vStart,&nOffset);CHKERRQ(ierr);
+        ix   = &groupDofInd[nOffset];
+        ierr = VecGetValues(y,numVals,ix,&group2Constant[v*dim*dim + d*dim]);CHKERRQ(ierr);
+      }
+    }
+
+    /* Now we have to get inverses of the coefficient matrices, i.e. solve system C*X = I for each C. */
+    {
+      Mat CMat,FMat;
+      Vec w,z;
+      PetscInt v,r,*rowIdx;
+      IS ident;
+
+      ierr = VecCreate(PetscObjectComm((PetscObject)ds),&w);CHKERRQ(ierr);
+      ierr = VecCreate(PetscObjectComm((PetscObject)ds),&z);CHKERRQ(ierr);
+      ierr = VecSetSizes(w, PETSC_DECIDE,dim);CHKERRQ(ierr);
+      ierr = VecSetSizes(z, PETSC_DECIDE,dim);CHKERRQ(ierr);
+      ierr = VecSetFromOptions(w);CHKERRQ(ierr);
+      ierr = VecSetFromOptions(z);CHKERRQ(ierr);
+
+      ierr = MatCreate(PetscObjectComm((PetscObject)ds),&CMat);CHKERRQ(ierr);
+      ierr = MatSetSizes(CMat,PETSC_DECIDE,PETSC_DECIDE,dim,dim);CHKERRQ(ierr);
+      //ierr = MatSetFromOptions(CMat);CHKERRQ(ierr);
+      ierr = MatSetType(CMat,MATDENSE);CHKERRQ(ierr);
+      ierr = MatSetUp(CMat);CHKERRQ(ierr);
+      ierr = PetscCalloc1(dim,&rowIdx);CHKERRQ(ierr);
+      for (r = 0; r < dim; ++r) rowIdx[r] = r; 
+      ierr = ISCreateStride(PetscObjectComm((PetscObject)ds),dim,0,1,&ident);CHKERRQ(ierr);
+      for (v=0; v < numVert; ++v){
+        PetscInt iCol,d;
+        for (iCol = 0; iCol < dim; ++iCol){
+          ierr = MatSetValues(CMat,dim,rowIdx,1,&iCol,&group2Constant[v*dim*dim + iCol*dim],INSERT_VALUES);CHKERRQ(ierr);
+        }
+        MatAssemblyBegin(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        MatAssemblyEnd(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+        ierr = MatGetFactor(CMat, MATSOLVERPETSC,MAT_FACTOR_LU,&FMat);CHKERRQ(ierr);
+        ierr = MatLUFactorSymbolic(FMat,CMat,ident,ident,NULL);CHKERRQ(ierr);
+        ierr = MatLUFactorNumeric(FMat,CMat,NULL);CHKERRQ(ierr);
+        for (d=0; d< dim; ++d){
+          ierr = VecSet(z,0);CHKERRQ(ierr);
+          ierr = VecSetValue(z,d,1,INSERT_VALUES);CHKERRQ(ierr);
+          /* Possible bug/strange behaviour. If CMat is MatSeqAij, then w ends up inf inf... meaning theres some kind of breakdown in sparse LU??? */
+          ierr = MatSolve(FMat,z,w);CHKERRQ(ierr);
+          ierr = VecGetValues(w,dim,rowIdx,&group2ConstantInv[v*dim*dim + d*dim]);CHKERRQ(ierr);
+        }
+        ierr = MatDestroy(&FMat);CHKERRQ(ierr);
+      }
+      ierr = MatDestroy(&CMat);CHKERRQ(ierr);
+      ierr = VecDestroy(&w);CHKERRQ(ierr);
+      ierr = VecDestroy(&z);CHKERRQ(ierr);
+      ierr = PetscFree(rowIdx);CHKERRQ(ierr);
+    }
+
+
+    
     if (simplex) {
       /* TBD */
     } else {
       switch (dim) {
       case 2:
+        /*
         group2Constant[0*dim*dim + 0*dim + 0] = 0.;
         group2Constant[0*dim*dim + 0*dim + 1] = -1.;
         group2Constant[0*dim*dim + 1*dim + 0] = -1.;
@@ -754,6 +844,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         group2Constant[3*dim*dim + 0*dim + 1] = -1.;
         group2Constant[3*dim*dim + 1*dim + 0] = 1.;
         group2Constant[3*dim*dim + 1*dim + 1] = 0.;
+        
 
         group2ConstantInv[0*dim*dim + 0*dim + 0] = 0.;
         group2ConstantInv[0*dim*dim + 0*dim + 1] = -1.;
@@ -774,6 +865,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         group2ConstantInv[3*dim*dim + 0*dim + 1] = 1.;
         group2ConstantInv[3*dim*dim + 1*dim + 0] = -1.;
         group2ConstantInv[3*dim*dim + 1*dim + 1] = 0.;
+        */
         break;
       case 3:
         /*also TBD */
@@ -951,7 +1043,7 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
 
   PetscFunctionBegin;
   ierr = PetscFECreateDefault(
-    PETSC_COMM_WORLD,//PetscObjectComm((PetscObject) mesh),
+    PetscObjectComm((PetscObject) mesh),
     dim,
     dim,
     user->simplex,
