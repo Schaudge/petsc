@@ -91,7 +91,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   ierr = DMSetApplicationContext(*dm, user);CHKERRQ(ierr);
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-  if (user->benchmark &&0) {
+  if (user->benchmark) {
     DM             colordm;
     PetscSection   csection;
     PetscInt       numComp[1],i,rs,re,dim;
@@ -239,6 +239,14 @@ int main(int argc, char **argv)
     nsize: 16
     args: -dm_plex_box_dim 2 -dm_plex_box_simplex 0 -dm_plex_box_faces 4,4 -dm_refine 1 -dm_distribute \
           -petscpartitioner_type simple -petscpartitioner_simple_process_grid 2,2 -petscpartitioner_simple_node_grid 2,2 \
+          -dm_refine 1 -potential_petscspace_degree 2 -ksp_type cg -pc_type gamg \
+          -benchmark -dm_view
+
+  test:
+    suffix: bench3d
+    nsize: 64
+    args: -dm_plex_box_dim 3 -dm_plex_box_simplex 0 -dm_plex_box_faces 4,4,4 -dm_refine 1 -dm_distribute \
+          -petscpartitioner_type simple -petscpartitioner_simple_process_grid 2,2,2 -petscpartitioner_simple_node_grid 2,2,2 \
           -potential_petscspace_degree 2 -ksp_type cg -pc_type gamg \
           -benchmark -dm_view
 

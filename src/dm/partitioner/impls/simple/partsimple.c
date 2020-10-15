@@ -66,7 +66,7 @@ static PetscErrorCode PetscPartitionerPartition_Simple_Grid(PetscPartitioner par
   const PetscInt          *nodes = p->nodeGrid;
   const PetscInt          *procs = p->processGrid;
   PetscInt                *cellproc, cells[3] = {1, 1, 1}, pcells[3] = {1, 1, 1};
-  PetscInt                 Np    = 1, Nc = 1, Nlc = 1, Nr, np, nk, nj, ni, pk, pj, pi, ck, cj, ci, i;
+  PetscInt                 Np    = 1, Nc = 1, Nlc = 1, Nr, np, nk, nj, ni, pk, pj, pi, ck, cj, ci, i, pid;
   MPI_Comm                 comm;
   PetscMPIInt              size;
   PetscErrorCode           ierr;
@@ -97,28 +97,43 @@ static PetscErrorCode PetscPartitionerPartition_Simple_Grid(PetscPartitioner par
   if (!numVertices) pcells[0] = pcells[1] = pcells[2] = 0;
   /* Compute partition */
   ierr = PetscMalloc1(numVertices, &cellproc);CHKERRQ(ierr);
+  pid = 0;
   for (nk = 0; nk < nodes[2]; ++nk) {
     for (nj = 0; nj < nodes[1]; ++nj) {
       for (ni = 0; ni < nodes[0]; ++ni) {
         for (pk = 0; pk < procs[2]; ++pk) {
           for (pj = 0; pj < procs[1]; ++pj) {
             for (pi = 0; pi < procs[0]; ++pi) {
-              const PetscInt pid = ((((nk*nodes[1] + nj)*nodes[0] + ni)*procs[2] + pk)*procs[1] + pj)*procs[0] + pi;
-
               /* Assume that cells are originally numbered lexicographically */
               for (ck = 0; ck < pcells[2]; ++ck) {
+                const PetscInt cidz = ((nk*procs[2] + pk)*pcells[2] + ck)*nodes[0]*procs[0]*pcells[0]*nodes[1]*procs[1]*pcells[1]; /* cell index of proc z plane */
                 for (cj = 0; cj < pcells[1]; ++cj) {
+                  const PetscInt cidj = ((nj*procs[1] + pj)*pcells[1] + cj)*nodes[0]*procs[0]*pcells[0]; /* cell index of proc j line */
                   for (ci = 0; ci < pcells[0]; ++ci) {
-                    const PetscInt cid = pid*Nlc + (ck*pcells[1] + cj)*pcells[0] + ci;
-
+                    const PetscInt cid = cidz + cidj + (ni*procs[0] + pi)*pcells[0] + ci;
                     cellproc[cid] = pid;
                   }
                 }
               }
+              pid++;
             }
           }
         }
       }
+    }
+  }
+  if (pid!=size)  SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_INCOMP, "pid= %D size=%D", pid, size);
+  if (numVertices) {
+    PetscPrintf(comm," numVertices=%D  Nlc=%D\n",numVertices, Nlc);
+    for (ck = 0; ck < cells[2]; ++ck) {
+      for (cj = 0; cj < cells[1]; ++cj) {
+        for (ci = 0; ci < cells[0]; ++ci) {
+          const PetscInt cid = (ck*cells[1] + cj)*cells[0] + ci;
+          PetscPrintf(comm," %3D ",cellproc[cid]);
+        }
+        PetscPrintf(comm,"\n");
+      }
+      PetscPrintf(comm,"\n");
     }
   }
   ierr = ISCreateGeneral(PETSC_COMM_SELF, numVertices, cellproc, PETSC_OWN_POINTER, partition);CHKERRQ(ierr);
