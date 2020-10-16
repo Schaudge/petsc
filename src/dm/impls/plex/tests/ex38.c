@@ -179,6 +179,7 @@ typedef struct
   PetscInt     dim;
   Perturbation mesh_transform;
   Solution     sol_form;
+  PetscBool    showNorm;
 } UserCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
@@ -190,49 +191,23 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
   user->dim            = 2;
   user->mesh_transform = NONE;
   user->sol_form       = LINEAR;
-  // Define/Read in example parameters
+  user->showNorm       = PETSC_FALSE;
+  /* Define/Read in example parameters */
   ierr = PetscOptionsBegin(comm,"","Stratum Dof Grouping Options","DMPLEX");CHKERRQ(ierr);
-  ierr = PetscOptionsBool(
-    "-simplex",
-    "Whether to use simplices (true) or tensor-product (false) cells in "
-    "the mesh",
-    "ex38.c",
-    user->simplex,
-    &user->simplex,
-    NULL
-    );CHKERRQ(ierr);
-  ierr = PetscOptionsInt(
-    "-dim",
-    "Number of solution dimensions",
-    "ex38.c",
-    user->dim,
-    &user->dim,
-    NULL
-    );CHKERRQ(ierr);
-  ierr = PetscOptionsEnum(
-    "-mesh_transform",
-    "Method used to perturb the mesh vertices. Options are Skew,Random,"
-    "SkewRand,or None",
-    "ex38.c",
-    PerturbationTypes,
-    (PetscEnum) user->mesh_transform,
-    (PetscEnum*) &user->mesh_transform,
-    NULL
-    );CHKERRQ(ierr);
-  ierr = PetscOptionsEnum(
-    "-sol_form",
-    "Form of the exact solution. Options are Linear or Sinusoidal",
-    "ex38.c",
-    SolutionTypes,
-    (PetscEnum) user->sol_form,
-    (PetscEnum*) &user->sol_form,
-    NULL
-    );CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-simplex","Whether to use simplices (true) or tensor-product (false) cells in the mesh","ex38.c",user->simplex,
+                          &user->simplex,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-dim","Number of solution dimensions","ex38.c",user->dim,&user->dim,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-mesh_transform","Method used to perturb the mesh vertices. Options are Skew,Random," "SkewRand,or None","ex38.c",
+                          PerturbationTypes,(PetscEnum)user->mesh_transform,(PetscEnum*)&user->mesh_transform,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-sol_form","Form of the exact solution. Options are Linear or Sinusoidal","ex38.c",SolutionTypes,(PetscEnum)user->sol_form,
+                          (PetscEnum*)&user->sol_form,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-showNorm","Whether to print the norm of the difference between lumped and unlumped solutions.","ex38.c",user->showNorm,
+                          &user->showNorm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PerturbMesh(DM *          mesh,PetscScalar * coordVals,PetscInt ncoord,PetscInt dim,PetscRandom * ran)
+PetscErrorCode PerturbMesh(DM * mesh,PetscScalar * coordVals,PetscInt ncoord,PetscInt dim,PetscRandom * ran)
 {
   PetscErrorCode ierr;
   PetscReal      minCoords[3],maxCoords[3],maxPert[3],randVal;
@@ -1033,131 +1008,25 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,UserCtx*),UserCtx * user)
+static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,UserCtx*),UserCtx * user,PetscBool useLumping)
 {
   DM             cdm = mesh;
   PetscFE        fevel,fepres;
-  const PetscInt dim               = user->dim;
-  PetscBool      corner_quadrature = PETSC_FALSE;
+  const PetscInt dim = user->dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFECreateDefault(
-    PetscObjectComm((PetscObject) mesh),
-    dim,
-    dim,
-    user->simplex,
-    "velocity_",
-    PETSC_DEFAULT,
-    &fevel
-    );CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fevel,"velocity");CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(
-    PetscObjectComm((PetscObject) mesh),
-    dim,
-    1,
-    user->simplex,
-    "pressure_",
-    PETSC_DEFAULT,
-    &fepres
-    );CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fepres,"pressure");CHKERRQ(ierr);
-  if (corner_quadrature) {
-    PetscInt        dim;
-    PetscInt        numPoints;
-    PetscBool       simplex;
-    PetscReal       * points;
-    PetscReal       * weights;
-    PetscQuadrature quad;
-
-    dim       = user->dim;
-    simplex   = user->simplex;
-    numPoints = simplex ? (dim + 1) : 2 * dim;
-    ierr      = PetscMalloc1(dim * numPoints,&points);CHKERRQ(ierr);
-    ierr      = PetscMalloc1(numPoints,&weights);CHKERRQ(ierr);
-    if (simplex)
-      switch (dim) {
-      case 2:
-        points[0]  = -1.;
-        points[1]  = -1.;
-        points[2]  = 1.;
-        points[3]  = -1.;
-        points[4]  = -1.;
-        points[5]  = 1.;
-        weights[0] = weights[1] = weights[2] = 2. / 3.;
-        break;
-      case 3:
-        points[0]  = -1.;
-        points[1]  = -1.;
-        points[2]  = -1.;
-        points[3]  = 1.;
-        points[4]  = -1.;
-        points[5]  = -1.;
-        points[6]  = -1.;
-        points[7]  = 1.;
-        points[8]  = -1.;
-        points[9]  = -1.;
-        points[10] = -1.;
-        points[11] = 1.;
-        weights[0] = weights[1] = weights[2] = 3. / 4.;
-        break;
-      } else {
-        switch(dim) {
-          /* Need to check these weights. w=1 is based off |\hat{E}|/s from Wheeler & Yotov, this agrees with the above 2d weights but not with 3d as
-           * in 3d simplex case, |\hat{E}|/s gives 1/3 */
-          case 2:
-            points[0] = -1.;
-            points[1] = -1.;
-            points[2] = 1.;
-            points[3] = -1.;
-            points[4] = -1.;
-            points[5] = 1.;
-            points[6] = 1.;
-            points[7] = 1.;
-            weights[0] = weights[1] = weights[2] = weights[3] = 1.;
-            break;
-          case 3:
-            points[0] = -1.;
-            points[1] = -1.;
-            points[2] = -1.;
-            points[3] = 1.;
-            points[4] = -1.;
-            points[5] = -1.;
-            points[6] = -1.;
-            points[7] = 1.;
-            points[8] = -1.;
-            points[9] = 1.;
-            points[10] = 1.;
-            points[11] = -1.;
-            points[12] = -1.;
-            points[13] = -1.;
-            points[14] = 1.;
-            points[15] = 1.;
-            points[16] = -1.;
-            points[17] = 1.;
-            points[18] = -1.;
-            points[19] = 1.;
-            points[20] = 1.;
-            points[21] = 1.;
-            points[22] = 1.;
-            points[23] = 1.;
-            for (PetscInt w = 0; w < 8; w++) weights[w] = 1.;
-            break;
-        }
-      }
-
-    ierr =
-      PetscQuadratureCreate(PetscObjectComm((PetscObject) mesh),&quad);CHKERRQ(ierr);
-    ierr = PetscQuadratureSetData(quad,dim,1,numPoints,points,weights);CHKERRQ(ierr);
-    ierr = PetscFESetQuadrature(fevel,quad);CHKERRQ(ierr);
-    ierr = PetscQuadratureDestroy(&quad);CHKERRQ(ierr);
-  }
+  ierr = PetscFECreateDefault (PetscObjectComm((PetscObject)mesh),dim,dim,user->simplex,"velocity_",PETSC_DEFAULT,&fevel);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)fevel,"velocity");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject)mesh),dim,1,user->simplex,"pressure_",PETSC_DEFAULT,&fepres);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)fepres,"pressure");CHKERRQ(ierr);
 
   ierr = PetscFECopyQuadrature(fevel,fepres);CHKERRQ(ierr);
-  fevel->ops->integratejacobian = PetscFEIntegrateJacobian_WY;
 
-  ierr = DMSetField(mesh,0,NULL,(PetscObject) fevel);CHKERRQ(ierr);
-  ierr = DMSetField(mesh,1,NULL,(PetscObject) fepres);CHKERRQ(ierr);
+  if (useLumping) fevel->ops->integratejacobian = PetscFEIntegrateJacobian_WY;
+
+  ierr = DMSetField(mesh,0,NULL,(PetscObject)fevel);CHKERRQ(ierr);
+  ierr = DMSetField(mesh,1,NULL,(PetscObject)fepres);CHKERRQ(ierr);
   ierr = DMCreateDS(mesh);CHKERRQ(ierr);
   ierr = (*setup)(mesh,user);CHKERRQ(ierr);
   while (cdm) {
@@ -1174,93 +1043,70 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
 int main(int argc,char ** argv)
 {
   UserCtx        user;
-  DM             mesh;
-  SNES           snes;
+  DM             mesh,mesh_WY;
+  SNES           snes,snes_WY;
+  Mat            jacobian,jacobian_WY;
+  Vec            u,b,u_WY,b_WY;
+  PetscScalar    diffNorm;
+  PetscBool      solutionSame;
   PetscErrorCode ierr;
-  PetscSection   edgeVertSec,cellVertSec,vertCellSec,vertDofSec,conesection;
-  IS             edge2Vert,cell2Vert,vert2Cell,vert2Dof,*fieldIS,lumpPerm,isList[2];
-  PetscInt       pDepth,uDepth,*cones;
-  Mat            jacobian,permJacobian;
-  Vec            u,b;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);
   if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD,&user);CHKERRQ(ierr);
 
-  ierr = SNESCreate(PETSC_COMM_WORLD,&snes);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh);CHKERRQ(ierr);
-  ierr = SetupDiscretization(mesh,SetupProblem,&user);CHKERRQ(ierr);
+  ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh_WY);CHKERRQ(ierr);
+  ierr = SetupDiscretization(mesh,SetupProblem,&user,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = SetupDiscretization(mesh_WY,SetupProblem,&user,PETSC_TRUE);CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(mesh,&user,&user,&user);CHKERRQ(ierr);
-  ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
-  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(mesh,&u);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(mesh,&b);CHKERRQ(ierr);
-  ierr = DMPlexGetConeSection(mesh, &conesection);CHKERRQ(ierr);
-  ierr = DMPlexGetCones(mesh,&cones);CHKERRQ(ierr);
+  ierr = DMPlexSetSNESLocalFEM(mesh_WY,&user,&user,&user);CHKERRQ(ierr);
 
-  ierr = DMCreateFieldIS(mesh,NULL,NULL,&fieldIS);CHKERRQ(ierr);
+  ierr = SNESCreate(PETSC_COMM_WORLD,&snes);CHKERRQ(ierr);
+  ierr = SNESCreate(PETSC_COMM_WORLD,&snes_WY);CHKERRQ(ierr);
+  ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
+  ierr = SNESSetDM(snes_WY,mesh_WY);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(snes_WY);CHKERRQ(ierr);
+
+  ierr = DMCreateGlobalVector(mesh,&u);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh_WY,&u_WY);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh,&b);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh_WY,&b_WY);CHKERRQ(ierr);
 
   ierr = VecSet(u,0.0);CHKERRQ(ierr);
+  ierr = VecSet(u_WY,0.0);CHKERRQ(ierr);
   ierr = VecSet(b,1.0);CHKERRQ(ierr);
+  ierr = VecSet(b_WY,1.0);CHKERRQ(ierr);
 
   ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
+  ierr = SNESSolve(snes_WY,b_WY,u_WY);CHKERRQ(ierr);
+
   ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr); 
-  ierr = SNESViewFromOptions(snes, NULL, "-ssnes_view");CHKERRQ(ierr);
-
+  ierr = SNESGetJacobian(snes_WY,&jacobian_WY,NULL,NULL,NULL);CHKERRQ(ierr); 
+  
+  ierr = SNESViewFromOptions(snes, NULL, "-snes_view");CHKERRQ(ierr);
+  ierr = SNESViewFromOptions(snes_WY, NULL, "-snes_WY_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
+  ierr = MatViewFromOptions(jacobian_WY,NULL,"-jacobian_WY_view");CHKERRQ(ierr);
 
-  /* Example: Getting depth stratum of pressure and velocity fields */
-  ierr = DMPlexGetFieldDepth(mesh,1,&pDepth);CHKERRQ(ierr);
-  ierr = DMPlexGetFieldDepth(mesh,0,&uDepth);CHKERRQ(ierr);
-
-  /* Example: Mapping from edges to vertices*/
-  ierr = DMPlexGetStratumMap(mesh,1,0,&edgeVertSec,&edge2Vert);CHKERRQ(ierr);
-
-//  PetscSectionView(edgeVertSec,PETSC_VIEWER_STDOUT_WORLD);
-//  ISView(edge2Vert,PETSC_VIEWER_STDOUT_WORLD);
-
-  /* Example: Mapping from cells to vertices*/
-  ierr = DMPlexGetStratumMap(mesh,user.dim,0,&cellVertSec,&cell2Vert);CHKERRQ(ierr);
-
-  //PetscSectionView(cellVertSec,PETSC_VIEWER_STDOUT_WORLD);
-  //ISView(cell2Vert,PETSC_VIEWER_STDOUT_WORLD);
-
-  /* Example: Mapping from vertices to cells*/
-  ierr = DMPlexGetStratumMap(mesh,0,user.dim,&vertCellSec,&vert2Cell);CHKERRQ(ierr);
-
-  //PetscSectionView(vertCellSec,PETSC_VIEWER_STDOUT_WORLD);
-  //ISView(vert2Cell,PETSC_VIEWER_STDOUT_WORLD);
-
-  /* Example: Mapping vertices to velocity DoFs*/
-  ierr = DMPlexGetStratumDofMap(mesh,0,0,&vertDofSec,&vert2Dof);CHKERRQ(ierr);
-
-//  PetscSectionView(vertDofSec,PETSC_VIEWER_STDOUT_WORLD);
-//  ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);
-  isList[0] = fieldIS[1];
-  isList[1] = vert2Dof; 
-  ierr = ISConcatenate(PETSC_COMM_WORLD,2,isList,&lumpPerm);CHKERRQ(ierr);
-
-  //ierr = MatPermute(jacobian,lumpPerm,lumpPerm,&permJacobian);CHKERRQ(ierr);
- // ierr = MatViewFromOptions(permJacobian,NULL,"-permJacobian_view");CHKERRQ(ierr);
+  ierr = VecAXPY(u,-1,u_WY);CHKERRQ(ierr);
+  ierr = VecNorm(u,NORM_2,&diffNorm);CHKERRQ(ierr);
+  if (user.showNorm){
+    ierr = PetscPrintf(MPI_COMM_WORLD,"Norm of solution difference: %g\n",diffNorm);CHKERRQ(ierr);
+  }
+  solutionSame = (diffNorm <= PETSC_SMALL);
+  ierr = PetscPrintf(MPI_COMM_WORLD,"Solutions are same?: %s\n",solutionSame?"True":"False");CHKERRQ(ierr);
 
   // Tear down
-  ierr = ISDestroy(&edge2Vert);CHKERRQ(ierr);
-  ierr = ISDestroy(&cell2Vert);CHKERRQ(ierr);
-  ierr = ISDestroy(&vert2Cell);CHKERRQ(ierr);
-  ierr = ISDestroy(&vert2Dof);CHKERRQ(ierr);
-  ierr = ISDestroy(&lumpPerm);CHKERRQ(ierr);
-  ierr = ISDestroy(&fieldIS[1]);CHKERRQ(ierr);
-  ierr = ISDestroy(&fieldIS[0]);CHKERRQ(ierr);
-
-  ierr = PetscSectionDestroy(&edgeVertSec);CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&cellVertSec);CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&vertCellSec);CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&vertDofSec);CHKERRQ(ierr);
-
-  ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&b_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b);CHKERRQ(ierr);
+  ierr = VecDestroy(&u_WY);CHKERRQ(ierr);
+  ierr = VecDestroy(&u);CHKERRQ(ierr);
 
+  ierr = SNESDestroy(&snes_WY);CHKERRQ(ierr);
   ierr = SNESDestroy(&snes);CHKERRQ(ierr);
+  ierr = DMDestroy(&mesh_WY);CHKERRQ(ierr);
   ierr = DMDestroy(&mesh);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
