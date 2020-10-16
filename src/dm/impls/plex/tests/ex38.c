@@ -13,7 +13,6 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
  *
  */
 
-
 /* We label solutions by the form of the potential/pressure, p: i.e. linear_u is the analytical form of u one gets when p is linear. */
 /* 2D Linear Exact Functions
    p = x;
@@ -21,18 +20,20 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
    f = 0;
    \div{\vec{u}} = 0;
    */
-static PetscErrorCode linear_p(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+static PetscErrorCode linear_p(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
   u[0] = x[0];
   return 0;
 }
-static PetscErrorCode linear_u(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+
+static PetscErrorCode linear_u(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
   /* Need to set only the x-component i.e. c==0  */
   for (PetscInt c = 0; c < Nc; ++c) u[c] = c ? 0.0 : -1.0;
   return 0;
 }
-static PetscErrorCode linear_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+
+static PetscErrorCode linear_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
   for (PetscInt c = 0; c < Nc; ++c) u[c] = 0;
   return 0;
@@ -43,20 +44,18 @@ static PetscErrorCode linear_source(PetscInt dim,PetscReal time,const PetscReal 
    \vec{u} = <2*pi*cos(2*pi*x)*sin(2*pi*y), 2*pi*cos(2*pi*y)*sin(2*pi*x);
    \div{\vec{u}} = -8*pi^2*sin(2*pi*x)*sin(2*pi*y);
    */
-static PetscErrorCode sinusoid_p(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+static PetscErrorCode sinusoid_p(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
   u[0] = 1;
   for (PetscInt d = 0; d < dim; ++d) u[0] *= PetscSinReal(2 * PETSC_PI * x[d]);
   return 0;
 }
 
-static PetscErrorCode sinusoid_u(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+static PetscErrorCode sinusoid_u(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
-  for (PetscInt c = 0; c < Nc; ++c)
-  {
+  for (PetscInt c = 0; c < Nc; ++c) {
     u[c] = 1;
-    for (PetscInt d = 0; d < dim; ++d)
-    {
+    for (PetscInt d = 0; d < dim; ++d) {
       if (d == c) u[c] *= 2 * PETSC_PI * PetscCosReal(2 * PETSC_PI * x[d]);
       else u[c] *= PetscSinReal(2 * PETSC_PI * x[d]);
     }
@@ -64,16 +63,17 @@ static PetscErrorCode sinusoid_u(PetscInt dim,PetscReal time,const PetscReal x[]
   return 0;
 }
 
-static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar *    u,void *           ctx)
+static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
   u[0] = -8 * PETSC_PI * PETSC_PI;
   for (PetscInt d = 0; d < dim; ++d) u[0] *= sin(2 * PETSC_PI * x[d]);
   return 0;
 }
 
-
 /* Pointwise function for (v,u) */
-static void f0_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
+static void f0_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],
+                 const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],
+                 const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
 {
   PetscInt i;
 
@@ -82,7 +82,9 @@ static void f0_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],c
 
 /* This is the pointwise function that represents (\trace(\grad v),p) == (\grad
  * v : I*p) */
-static void f1_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f1[])
+static void f1_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],
+                 const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],
+                 const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f1[])
 {
   PetscInt c,d;
   for (c = 0; c < dim; ++c)
@@ -91,62 +93,84 @@ static void f1_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],c
 }
 
 /* represents (\div u - f,q). */
-static void f0_q_linear(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
+static void f0_q_linear(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
+                        const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
+                        const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,
+                        const PetscScalar constants[],PetscScalar f0[])
 {
   PetscInt    i;
   PetscScalar rhs = 0.0;
   PetscScalar divu;
 
-  (void) linear_source(dim,t,x,dim,&rhs,NULL);
+  (void)linear_source(dim,t,x,dim,&rhs,NULL);
   divu = 0.;
   /* diagonal terms of the gradient */
   for (i = 0; i < dim; ++i) divu += u_x[uOff_x[0] + i * dim + i];
   f0[0] = divu - rhs;
 }
 
-static void f0_q_sinusoid(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
+static void f0_q_sinusoid(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
+                          const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
+                          const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,
+                          const PetscScalar constants[],PetscScalar f0[])
 {
   PetscInt    i;
   PetscScalar rhs;
   PetscScalar divu;
 
-  (void) sinusoid_source(dim,t,x,dim,&rhs,NULL);
+  (void)sinusoid_source(dim,t,x,dim,&rhs,NULL);
   divu = 0.;
   for (i = 0; i < dim; ++i) divu += u_x[uOff_x[0] + i * dim + i];
   f0[0] = divu - rhs;
 }
 
-static void f0_linear_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
+static void f0_linear_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
+                           const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
+                           const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],PetscInt numConstants,
+                           const PetscScalar constants[],PetscScalar f0[])
 {
   PetscScalar pressure;
 
-  (void) linear_p(dim,t,x,dim,&pressure,NULL);
+  (void)linear_p(dim,t,x,dim,&pressure,NULL);
   for (PetscInt d = 0; d < dim; ++d) f0[d] = pressure * n[d];
 }
-static void f0_sinusoid_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
+
+static void f0_sinusoid_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
+                             const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
+                             const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],
+                             PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[])
 {
   PetscScalar pressure;
 
-  (void) sinusoid_p(dim,t,x,dim,&pressure,NULL);
+  (void)sinusoid_p(dim,t,x,dim,&pressure,NULL);
   for (PetscInt d = 0; d < dim; ++d) f0[d] = pressure * n[d];
 }
 
 /* <v, u> */
-static void g0_vu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar g0[])
+static void g0_vu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],
+                  const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],
+                  const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],
+                  PetscScalar g0[])
 {
   PetscInt c;
   for (c = 0; c < dim; ++c) g0[c * dim + c] = 1.0;
 }
 
 /* <-p,\nabla\cdot v> = <-pI,\nabla u> */
-static void g2_vp(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar g2[])
+static void g2_vp(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],
+                  const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],
+                  const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],
+                  PetscScalar g2[])
 {
   PetscInt c;
   for (c = 0; c < dim; ++c) g2[c * dim + c] = -1.0;
 }
 
 /* <q, \nabla\cdot u> */
-static void g1_qu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],PetscScalar g1[])
+static void g1_qu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],
+                  const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],
+                  const PetscScalar a_x[],PetscReal t,PetscReal u_tShift,const PetscReal x[],PetscInt numConstants,const PetscScalar constants[],
+                  PetscScalar g1[])
 {
   PetscInt d;
   for (d = 0; d < dim; ++d) g1[d * dim + d] = 1.0;
@@ -222,8 +246,7 @@ PetscErrorCode PerturbMesh(DM * mesh,PetscScalar * coordVals,PetscInt ncoord,Pet
   for (int k = 0; k < dim; ++k) maxPert[k] = 0.5 * (maxCoords[k] - minCoords[k])
                                              / (PetscPowReal(ncoord,1. / dim) - 1);
   for (int i = 0; i < ncoord; ++i)
-    for (int j = 0; j < dim; ++j)
-    {
+    for (int j = 0; j < dim; ++j) {
       ierr                    = PetscRandomGetValueReal(*ran,&randVal);CHKERRQ(ierr);
       phase                   = PETSC_PI * (randVal - 0.5);
       ierr                    = PetscRandomGetValueReal(*ran,&randVal);CHKERRQ(ierr);
@@ -247,19 +270,16 @@ PetscErrorCode SkewMesh(DM * mesh,PetscScalar * coordVals,PetscInt ncoord,PetscI
 
   /* Make a matrix representing a skew transformation */
   for (int i = 0; i < dim; ++i)
-    for (int j = 0; j < dim; ++j)
-    {
+    for (int j = 0; j < dim; ++j) {
       if (i == j) transMat[i * dim + j] = 1;
       else if (j < i) transMat[i * dim + j] = 2 * (j + i);
       else transMat[i * dim + j] = 0;
     }
 
   /* Multiply each coordinate vector by our tranformation */
-  for (int i = 0; i < ncoord; ++i)
-  {
+  for (int i = 0; i < ncoord; ++i) {
     PetscReal tmpcoord[3];
-    for (int j = 0; j < dim; ++j)
-    {
+    for (int j = 0; j < dim; ++j) {
       tmpcoord[j] = 0;
       for (int k = 0; k < dim; ++k) tmpcoord[j] += coordVals[dim * i + k] * transMat[dim * k + j];
     }
@@ -328,8 +348,7 @@ PetscErrorCode PetscSectionGetFieldChart(PetscSection s,PetscInt field,PetscInt 
   ierr = PetscSectionGetField(s,field,&fieldSec);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(fieldSec,&cBegin,&cEnd);CHKERRQ(ierr);
 
-  for (PetscInt p = cBegin; p < cEnd; ++p)
-  {
+  for (PetscInt p = cBegin; p < cEnd; ++p) {
     ierr = PetscSectionGetDof(fieldSec,p,&nDof);CHKERRQ(ierr);
     if (nDof > 0) {
       *pStart = p;
@@ -337,8 +356,7 @@ PetscErrorCode PetscSectionGetFieldChart(PetscSection s,PetscInt field,PetscInt 
     }
   }
 
-  for (PetscInt p = cEnd - 1; p >= cBegin; --p)
-  {
+  for (PetscInt p = cEnd - 1; p >= cBegin; --p) {
     ierr = PetscSectionGetDof(fieldSec,p,&nDof);CHKERRQ(ierr);
     if (nDof > 0) {
       *pEnd = p + 1;
@@ -375,8 +393,7 @@ PetscErrorCode DMPlexGetFieldDepth(DM dm,PetscInt field,PetscInt * depth)
   ierr = PetscSectionGetFieldChart(localSec,field,&fStart,&fEnd);CHKERRQ(ierr);
   ierr = DMPlexGetDepth(dm,&maxDepth);CHKERRQ(ierr);
 
-  for (*depth = 0; *depth <= maxDepth; ++(*depth))
-  {
+  for (*depth = 0; *depth <= maxDepth; ++(*depth)) {
     ierr = DMPlexGetDepthStratum(dm,*depth,&pStart,&pEnd);CHKERRQ(ierr);
     if (pStart == fStart && pEnd == fEnd) break;
   }
@@ -384,28 +401,27 @@ PetscErrorCode DMPlexGetFieldDepth(DM dm,PetscInt field,PetscInt * depth)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * newSec,IS *           newIs)
+PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * newSec,IS * newIs)
 {
   /* We take a map, implemented as a Section and IS, and swap the domain (points) and range (DoFs) to create a new map from the range into the
    * domain.*/
   PetscErrorCode ierr;
   PetscInt       sStart,sEnd,isStart,isEnd,point,pOff,pNum,j,newPoint,*newIsInd,totalDof=0,*pointOffTracker,newOff;
-  const PetscInt* isInd;
+  const PetscInt * isInd;
 
   PetscFunctionBegin;
   ierr = PetscSectionGetChart(s,&sStart,&sEnd);CHKERRQ(ierr);
   ierr = ISGetMinMax(is,&isStart,&isEnd);CHKERRQ(ierr);
   ierr = ISGetIndices(is,&isInd);CHKERRQ(ierr);
-  ierr = PetscSectionCreate(PetscObjectComm((PetscObject) s),newSec);CHKERRQ(ierr);
+  ierr = PetscSectionCreate(PetscObjectComm((PetscObject)s),newSec);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(*newSec,isStart,isEnd+1);CHKERRQ(ierr);
 
-  
-  for (point = sStart; point < sEnd; ++point){
+  for (point = sStart; point < sEnd; ++point) {
     /* Here we allocate the space needed for our map. Everytime we encounter a DoF in the range of the given map
      * (i.e. there is a point x which maps to the DoF y) we must add space for a DoF to our new map at the point y.*/
-    ierr = PetscSectionGetOffset(s, point, &pOff);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(s, point, &pNum);CHKERRQ(ierr);
-    for (j = pOff; j < pOff+pNum; ++j){
+    ierr = PetscSectionGetOffset(s,point,&pOff);CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(s,point,&pNum);CHKERRQ(ierr);
+    for (j = pOff; j < pOff+pNum; ++j) {
       newPoint = isInd[j];
       PetscSectionAddDof(*newSec,newPoint,1);
       ++totalDof;
@@ -417,22 +433,24 @@ PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * new
   ierr = PetscCalloc1(isEnd-isStart,&pointOffTracker);CHKERRQ(ierr);
   /* At this point newSec will give the proper offset and numDof information */
 
-  for (point = sStart; point < sEnd; ++point){
+  for (point = sStart; point < sEnd; ++point) {
     /* Now we assign values into the newIS to complete the mapping. When we encounter a point x that maps to y under the given
      * mapping we put x into our new IS and increment a counter to keep track of how many Dofs we have currently assigned to y. */
-    ierr = PetscSectionGetOffset(s, point, &pOff);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(s, point, &pNum);CHKERRQ(ierr);
-    for (j = pOff; j < pOff+pNum; ++j){
-      newPoint = isInd[j];
-      PetscSectionGetOffset(*newSec,newPoint,&newOff);CHKERRQ(ierr);
-      PetscInt currOffset = pointOffTracker[newPoint-isStart];
+
+    ierr = PetscSectionGetOffset(s,point,&pOff);CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(s,point,&pNum);CHKERRQ(ierr);
+    for (j = pOff; j < pOff+pNum; ++j) {
+      PetscInt currOffset;
+
+      newPoint                    = isInd[j];
+      ierr                        = PetscSectionGetOffset(*newSec,newPoint,&newOff);CHKERRQ(ierr);
+      currOffset                  = pointOffTracker[newPoint-isStart];
       newIsInd[newOff+currOffset] = point;
       ++pointOffTracker[newPoint-isStart];
     }
   }
 
-  
-  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) is),totalDof,newIsInd,PETSC_OWN_POINTER,newIs);
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject)is),totalDof,newIsInd,PETSC_OWN_POINTER,newIs);
 
   ierr = PetscFree(pointOffTracker);CHKERRQ(ierr);
   ierr = ISRestoreIndices(is,&isInd);CHKERRQ(ierr);
@@ -453,7 +471,7 @@ PetscErrorCode PetscSectionInvertMapping(PetscSection s,IS is,PetscSection * new
  *   for each point in source.
  *   - is - IS containing the indices of points in target stratum
  */
-PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSection * s,IS *           is)
+PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSection * s,IS * is)
 {
   PetscErrorCode ierr;
   PetscInt       pStart,pEnd,tStart,tEnd,nClosurePoints,*closurePoints = NULL,
@@ -469,13 +487,12 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
     /* Each point maps to itself and only to itself, this is the trivial map
      */
 
-    for (PetscInt p = pStart; p < pEnd; ++p)
-    {
+    for (PetscInt p = pStart; p < pEnd; ++p) {
       ierr = PetscSectionSetDof(*s,p,1);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(*s);CHKERRQ(ierr);
     ierr = ISCreateStride(PETSC_COMM_WORLD,pEnd - pStart,pStart,1,is);CHKERRQ(ierr);
-  }else {
+  } else {
     if (source < target) inCone = PETSC_FALSE;
     /* TODO: This routine currently relies on a number of calls to
      * DMPlexGetTransitiveClosure. Determine whether there is a more efficient
@@ -485,14 +502,12 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
     /* Count the number of target points for each source
      * so that the proper amount of memory can be allocated for the section and
      * IS */
-    for (PetscInt p = pStart; p < pEnd; ++p)
-    {
+    for (PetscInt p = pStart; p < pEnd; ++p) {
       ierr = DMPlexGetTransitiveClosure(
         dm,p,inCone,&nClosurePoints,&closurePoints
         );CHKERRQ(ierr);
 
-      for (PetscInt cp = 0; cp < nClosurePoints; ++cp)
-      {
+      for (PetscInt cp = 0; cp < nClosurePoints; ++cp) {
         PetscInt closurePoint = closurePoints[2 * cp];
         /* Check if closure point is in target stratum */
         if (closurePoint >= tStart && closurePoint < tEnd) {
@@ -507,25 +522,22 @@ PetscErrorCode DMPlexGetStratumMap(DM dm,PetscInt source,PetscInt target,PetscSe
         );CHKERRQ(ierr);
     }
 
-    ierr    = PetscSectionSetUp(*s);CHKERRQ(ierr);
-    ierr    = PetscCalloc1(isCount,&idx);CHKERRQ(ierr);
-    ierr    = PetscCalloc1(pEnd-pStart,&pCount);CHKERRQ(ierr);
+    ierr = PetscSectionSetUp(*s);CHKERRQ(ierr);
+    ierr = PetscCalloc1(isCount,&idx);CHKERRQ(ierr);
+    ierr = PetscCalloc1(pEnd-pStart,&pCount);CHKERRQ(ierr);
 
-    /* Now that proper space is allocated assign the correct values to the IS */
-    /* TODO: Check that this method of construction preserves the orientation */
-    for (PetscInt p = pStart; p < pEnd; ++p)
-    {
+    /* Now that proper space is allocated assign the correct values to the IS
+     * TODO: Check that this method of construction preserves the orientation*/
+    for (PetscInt p = pStart; p < pEnd; ++p) {
       ierr = DMPlexGetTransitiveClosure(
         dm,p,inCone,&nClosurePoints,&closurePoints
         );CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(*s,p,&pOff);CHKERRQ(ierr);
 
-      for (PetscInt cp = 0; cp < nClosurePoints; ++cp)
-      {
+      for (PetscInt cp = 0; cp < nClosurePoints; ++cp) {
         PetscInt closurePoint = closurePoints[2 * cp];
         /* Check if closure point is in target stratum */
         if (closurePoint >= tStart && closurePoint < tEnd) idx[pOff + pCount[p-pStart]++] = closurePoint;
-
       }
 
       ierr = DMPlexRestoreTransitiveClosure(
@@ -603,7 +615,6 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
           PetscSectionGetOffset(*section,stratInds[pOff+j],&sOff);CHKERRQ(ierr);
         mapInd      = sOff + stratDofCount[sInd0]++;
         idx[mapInd] = dofOff+j;
-
       }
   }
   ierr = ISRestoreIndices(stratum2Stratum,&stratInds);CHKERRQ(ierr);
@@ -614,108 +625,104 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,const PetscScalar coefficients[],const PetscScalar coefficients_t[],PetscDS dsAux,const PetscScalar coefficientsAux[],PetscReal t,PetscReal u_tshift,PetscScalar elemMat[])
+/*
+ * PetscFEIntegrateJacobian_WY - Integrate the jacobian functions and perform the DoF lumping a la Wheeler and Yotov.
+ */
+static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,
+                                                  const PetscScalar coefficients[],const PetscScalar coefficients_t[],PetscDS dsAux,
+                                                  const PetscScalar coefficientsAux[],PetscReal t,PetscReal u_tshift,PetscScalar elemMat[])
 {
   PetscErrorCode ierr;
-  PetscInt eOffset =
-    0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,vStart,vEnd,numVert;
-  PetscInt        nGroups,nDoFs;
-  PetscScalar     *group2Constant,*group2ConstantInv;
-  PetscTabulation *T;
-  PetscFE         fieldFE;
-  PetscDualSpace  dsp;
-  PetscSection    groupDofSect,dofGroupSect;
-  IS              group2Dof,dof2Group;
-  const PetscInt  * groupDofInd,*dofGroupInd;
-  DM              refdm;
-  PetscBool       simplex;
-  PetscScalar     *tmpElemMat;
-
   PetscFunctionBegin;
 
-  ierr    = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
-  ierr    = PetscMalloc1(totDim*totDim,&tmpElemMat);CHKERRQ(ierr);
-  ierr    = PetscDSGetFieldOffset(ds,fieldI,&offsetI);CHKERRQ(ierr);
-  ierr    = PetscDSGetFieldOffset(ds,fieldJ,&offsetJ);CHKERRQ(ierr);
-  ierr    = PetscDSGetTabulation(ds,&T);CHKERRQ(ierr);
-  ierr    = PetscDSGetSpatialDimension(ds,&dim);CHKERRQ(ierr);
-  ierr    = PetscDSGetDiscretization(ds,fieldI,(PetscObject*)&fieldFE);CHKERRQ(ierr);
-  ierr    = PetscFEGetDualSpace(fieldFE,&dsp);CHKERRQ(ierr);
-  ierr    = PetscDualSpaceGetDM(dsp,&refdm);CHKERRQ(ierr);
-  ierr    = DMPlexGetDepthStratum(refdm,0,&vStart,&vEnd);CHKERRQ(ierr);
-  numVert = vEnd-vStart;
-  simplex = (numVert == dim + 1);
-  ierr    = PetscCalloc2(numVert*dim*dim,&group2Constant,numVert*dim*dim,&group2ConstantInv);CHKERRQ(ierr);
-
-  ierr = DMSetField(refdm,0,NULL,(PetscObject)fieldFE);CHKERRQ(ierr);
-  /*ierr = DMView(refdm,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
-  ierr = DMPlexGetStratumDofMap(refdm,0,0,&groupDofSect,&group2Dof);CHKERRQ(ierr);
-  ierr = PetscSectionInvertMapping(groupDofSect,group2Dof,&dofGroupSect,&dof2Group);CHKERRQ(ierr);
-
-  ierr = ISGetMinMax(group2Dof,&gDofMin,&gDofMax);CHKERRQ(ierr);
-  ierr = ISGetMinMax(dof2Group,&dGroupMin,&dGroupMax);CHKERRQ(ierr);
-  ierr = ISGetIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
-  ierr = ISGetIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
-
-  nDoFs   = gDofMax - gDofMin + 1;
-  nGroups = dGroupMax - dGroupMin +1;
-
-  /*ierr = PetscSectionView(vertDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-   *ierr = ISView(vert2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);*/
   ierr = PetscFEIntegrateJacobian_Basic(ds,jtype,fieldI,fieldJ,Ne,cgeom,coefficients,coefficients_t,dsAux,coefficientsAux,t,
                                         u_tshift,elemMat);CHKERRQ(ierr);
-
-  /*dof_to_group // which corner group I'm in
-  group_to_dof // covered by group DofSect/group2Dof/groupDofInd
-   currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way)
-  group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere
-   C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith
-   dof in: the corner group
-
-   For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6]
-   That corresponds to
-
-     +5-------4+
-     6         3
-     |         |
-     |         |
-     7         2
-     +0-------1+
-
-   the C_{0,7} block for group {0,7}
-
-   [ 0 -1 ]
-   [-1  0 ]
-
-   and the C_{1,2} block for group {1,2} is
-
-   [ 0 -1 ]
-   [ 1  0 ]
-
-
-   M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]],
-
-   C_{0,7} C^{-1}_{1,2}
-
-   [ 0  -1 ] [ 0  1 ] = [ 1  0 ]
-   [ -1  0 ] [-1  0 ]   [ 0 -1 ]
-   ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1
-   M[[0,7],[0,7]] += M[[0,7],[1,2]] C_{0,7} C^{-1}_{1,2}  */
-
   if (fieldJ==fieldI) {
+    PetscInt eOffset =
+      0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,vStart,vEnd;
+    PetscInt        nGroups,nDoFs;
+    PetscInt        m,n,d;
+    const PetscInt  *groupDofInd,*dofGroupInd;
+    PetscTabulation *T;
+    PetscFE         fieldFE;
+    PetscDualSpace  dsp;
+    PetscSection    groupDofSect,dofGroupSect;
+    IS              group2Dof,dof2Group;
+    DM              refdm;
+    PetscScalar     *group2Constant,*group2ConstantInv;
+    PetscScalar     *tmpElemMat;
+    Mat             allMat;
+    Vec             x,y;
+    PetscLayout     rmap,cmap;
 
+    ierr = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
+    ierr = PetscMalloc1(totDim*totDim,&tmpElemMat);CHKERRQ(ierr);
+    ierr = PetscDSGetFieldOffset(ds,fieldI,&offsetI);CHKERRQ(ierr);
+    ierr = PetscDSGetFieldOffset(ds,fieldJ,&offsetJ);CHKERRQ(ierr);
+    ierr = PetscDSGetTabulation(ds,&T);CHKERRQ(ierr);
+    ierr = PetscDSGetSpatialDimension(ds,&dim);CHKERRQ(ierr);
+    ierr = PetscDSGetDiscretization(ds,fieldI,(PetscObject*)&fieldFE);CHKERRQ(ierr);
+    ierr = PetscFEGetDualSpace(fieldFE,&dsp);CHKERRQ(ierr);
+    ierr = PetscDualSpaceGetDM(dsp,&refdm);CHKERRQ(ierr);
+    ierr = DMPlexGetDepthStratum(refdm,0,&vStart,&vEnd);CHKERRQ(ierr);
+
+    ierr = DMSetField(refdm,0,NULL,(PetscObject)fieldFE);CHKERRQ(ierr);
+    ierr = DMPlexGetStratumDofMap(refdm,0,0,&groupDofSect,&group2Dof);CHKERRQ(ierr);
+    ierr = PetscSectionInvertMapping(groupDofSect,group2Dof,&dofGroupSect,&dof2Group);CHKERRQ(ierr);
+
+    ierr = ISGetMinMax(group2Dof,&gDofMin,&gDofMax);CHKERRQ(ierr);
+    ierr = ISGetMinMax(dof2Group,&dGroupMin,&dGroupMax);CHKERRQ(ierr);
+    ierr = ISGetIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
+    ierr = ISGetIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
+
+    nDoFs   = gDofMax - gDofMin + 1; //Possibly unnecessary. Maybe some place where this is better to use than current setup. 
+    nGroups = dGroupMax - dGroupMin +1;
+
+    /*dof_to_group // which corner group I'm in
+      group_to_dof // covered by group DofSect/group2Dof/groupDofInd
+      currently use a combination of PetscSection/ IS, and a work array to access IS entries (maybe better way)
+      group_to_constants // numberofgroups x d x d: think of it as a matrix C for each corner, whiere
+      C_{i,j} is the coefficient of constant function j in its representation on shape function for the ith
+      dof in: the corner group
+
+     For example in the vertDofInd [0, 7, 1, 2, 3, 4, 5, 6]
+     That corresponds to
+
+       +5-------4+
+       6         3
+       |         |
+       |         |
+       7         2
+       +0-------1+
+
+     the C_{0,7} block for group {0,7}
+
+     [ 0 -1 ]
+     [-1  0 ]
+
+     and the C_{1,2} block for group {1,2} is
+
+     [ 0 -1 ]
+     [ 1  0 ]
+
+
+     M[[0, 7],[1, 2]] has been filled, we have to add it in to M[[0,7],[0,7]],
+
+     C_{0,7} C^{-1}_{1,2}
+
+     [ 0  -1 ] [ 0  1 ] = [ 1  0 ]
+     [ -1  0 ] [-1  0 ]   [ 0 -1 ]
+     ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1
+     M[[0,7],[0,7]] += M[[0,7],[1,2]] C_{0,7} C^{-1}_{1,2}  */
+    
     /* Build coefficient matrices using dualspace data. */
-    PetscInt m,n,d;
-    Mat      allMat;
-    Vec      x,y;
-    PetscLayout rmap,cmap;
-
+    ierr = PetscCalloc2(nGroups*dim*dim,&group2Constant,nGroups*dim*dim,&group2ConstantInv);CHKERRQ(ierr);
     ierr = PetscDualSpaceGetAllData(dsp,NULL,&allMat);CHKERRQ(ierr);
     ierr = MatGetSize(allMat,&m,&n);CHKERRQ(ierr);
     ierr = MatGetLayouts(allMat,&rmap,&cmap);CHKERRQ(ierr);
 
-    ierr = VecCreate(PetscObjectComm((PetscObject) ds),&x);CHKERRQ(ierr);
-    ierr = VecCreate(PetscObjectComm((PetscObject) ds),&y);CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject)ds),&x);CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject)ds),&y);CHKERRQ(ierr);
     ierr = VecSetSizes(x,PETSC_DECIDE,m);CHKERRQ(ierr);
     ierr = VecSetSizes(y,PETSC_DECIDE,m);CHKERRQ(ierr);
     ierr = VecSetLayout(x,rmap);CHKERRQ(ierr);
@@ -732,10 +739,10 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         ierr = MatGetColumnVector(allMat,x,col);CHKERRQ(ierr);
         ierr = VecAXPY(y,1,x);CHKERRQ(ierr);
       }
-      for (v=0; v < numVert; ++v) {
+      for (v=0; v < nGroups; ++v) {
         /* The afformentioned mapping step. Entries in y are in order 0-numDof,but we need to access them in their grouped order, defined by
          * groupDofSect and groupDofInd, for assignment into the group2Constant array */
-        PetscInt       numVals,nOffset,n;
+        PetscInt       numVals,nOffset;
         const PetscInt * ix;
         ierr = PetscSectionGetDof(groupDofSect,v+vStart,&numVals);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(groupDofSect,v+vStart,&nOffset);CHKERRQ(ierr);
@@ -746,38 +753,38 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
 
     /* Now we have to get inverses of the coefficient matrices, i.e. solve system C*X = I for each C. */
     {
-      Mat CMat,FMat;
-      Vec w,z;
+      Mat      CMat,FMat;
+      Vec      w,z;
       PetscInt v,r,*rowIdx;
-      IS ident;
+      IS       ident;
 
       ierr = VecCreate(PetscObjectComm((PetscObject)ds),&w);CHKERRQ(ierr);
       ierr = VecCreate(PetscObjectComm((PetscObject)ds),&z);CHKERRQ(ierr);
-      ierr = VecSetSizes(w, PETSC_DECIDE,dim);CHKERRQ(ierr);
-      ierr = VecSetSizes(z, PETSC_DECIDE,dim);CHKERRQ(ierr);
+      ierr = VecSetSizes(w,PETSC_DECIDE,dim);CHKERRQ(ierr);
+      ierr = VecSetSizes(z,PETSC_DECIDE,dim);CHKERRQ(ierr);
       ierr = VecSetFromOptions(w);CHKERRQ(ierr);
       ierr = VecSetFromOptions(z);CHKERRQ(ierr);
 
       ierr = MatCreate(PetscObjectComm((PetscObject)ds),&CMat);CHKERRQ(ierr);
       ierr = MatSetSizes(CMat,PETSC_DECIDE,PETSC_DECIDE,dim,dim);CHKERRQ(ierr);
-      //ierr = MatSetFromOptions(CMat);CHKERRQ(ierr);
+      /*ierr = MatSetFromOptions(CMat);CHKERRQ(ierr); */
       ierr = MatSetType(CMat,MATDENSE);CHKERRQ(ierr);
       ierr = MatSetUp(CMat);CHKERRQ(ierr);
       ierr = PetscCalloc1(dim,&rowIdx);CHKERRQ(ierr);
-      for (r = 0; r < dim; ++r) rowIdx[r] = r; 
+      for (r = 0; r < dim; ++r) rowIdx[r] = r;
       ierr = ISCreateStride(PetscObjectComm((PetscObject)ds),dim,0,1,&ident);CHKERRQ(ierr);
-      for (v=0; v < numVert; ++v){
+      for (v=0; v < nGroups; ++v) {
         PetscInt iCol,d;
-        for (iCol = 0; iCol < dim; ++iCol){
+        for (iCol = 0; iCol < dim; ++iCol) {
           ierr = MatSetValues(CMat,dim,rowIdx,1,&iCol,&group2Constant[v*dim*dim + iCol*dim],INSERT_VALUES);CHKERRQ(ierr);
         }
         MatAssemblyBegin(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
         MatAssemblyEnd(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-        ierr = MatGetFactor(CMat, MATSOLVERPETSC,MAT_FACTOR_LU,&FMat);CHKERRQ(ierr);
+        ierr = MatGetFactor(CMat,MATSOLVERPETSC,MAT_FACTOR_LU,&FMat);CHKERRQ(ierr);
         ierr = MatLUFactorSymbolic(FMat,CMat,ident,ident,NULL);CHKERRQ(ierr);
         ierr = MatLUFactorNumeric(FMat,CMat,NULL);CHKERRQ(ierr);
-        for (d=0; d< dim; ++d){
+        for (d=0; d< dim; ++d) {
           ierr = VecSet(z,0);CHKERRQ(ierr);
           ierr = VecSetValue(z,d,1,INSERT_VALUES);CHKERRQ(ierr);
           /* Possible bug/strange behaviour. If CMat is MatSeqAij, then w ends up inf inf... meaning theres some kind of breakdown in sparse LU??? */
@@ -792,61 +799,6 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       ierr = PetscFree(rowIdx);CHKERRQ(ierr);
     }
 
-
-    
-    if (simplex) {
-      /* TBD */
-    } else {
-      switch (dim) {
-      case 2:
-        /*
-        group2Constant[0*dim*dim + 0*dim + 0] = 0.;
-        group2Constant[0*dim*dim + 0*dim + 1] = -1.;
-        group2Constant[0*dim*dim + 1*dim + 0] = -1.;
-        group2Constant[0*dim*dim + 1*dim + 1] = 0.;
-
-        group2Constant[1*dim*dim + 0*dim + 0] = 0.;
-        group2Constant[1*dim*dim + 0*dim + 1] = 1.;
-        group2Constant[1*dim*dim + 1*dim + 0] = -1.;
-        group2Constant[1*dim*dim + 1*dim + 1] = 0.;
-
-        group2Constant[2*dim*dim + 0*dim + 0] = 1.;
-        group2Constant[2*dim*dim + 0*dim + 1] = 0.;
-        group2Constant[2*dim*dim + 1*dim + 0] = 0.;
-        group2Constant[2*dim*dim + 1*dim + 1] = 1.;
-
-        group2Constant[3*dim*dim + 0*dim + 0] = 0.;
-        group2Constant[3*dim*dim + 0*dim + 1] = -1.;
-        group2Constant[3*dim*dim + 1*dim + 0] = 1.;
-        group2Constant[3*dim*dim + 1*dim + 1] = 0.;
-        
-
-        group2ConstantInv[0*dim*dim + 0*dim + 0] = 0.;
-        group2ConstantInv[0*dim*dim + 0*dim + 1] = -1.;
-        group2ConstantInv[0*dim*dim + 1*dim + 0] = -1.;
-        group2ConstantInv[0*dim*dim + 1*dim + 1] = 0.;
-
-        group2ConstantInv[1*dim*dim + 0*dim + 0] = 0.;
-        group2ConstantInv[1*dim*dim + 0*dim + 1] = -1.;
-        group2ConstantInv[1*dim*dim + 1*dim + 0] = 1.;
-        group2ConstantInv[1*dim*dim + 1*dim + 1] = 0.;
-
-        group2ConstantInv[2*dim*dim + 0*dim + 0] = 1.;
-        group2ConstantInv[2*dim*dim + 0*dim + 1] = 0.;
-        group2ConstantInv[2*dim*dim + 1*dim + 0] = 0.;
-        group2ConstantInv[2*dim*dim + 1*dim + 1] = 1.;
-
-        group2ConstantInv[3*dim*dim + 0*dim + 0] = 0.;
-        group2ConstantInv[3*dim*dim + 0*dim + 1] = 1.;
-        group2ConstantInv[3*dim*dim + 1*dim + 0] = -1.;
-        group2ConstantInv[3*dim*dim + 1*dim + 1] = 0.;
-        */
-        break;
-      case 3:
-        /*also TBD */
-        break;
-      }
-    }
     for (e=0; e < Ne; ++e) {
       PetscInt groupI;
       ierr = PetscArrayzero(tmpElemMat,totDim*totDim);CHKERRQ(ierr);
@@ -880,16 +832,9 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
                 PetscInt k,colIndSource = groupDofInd[DoFK];
                 /* Now we need to perform the matrix multiplication M[[GroupI],[GroupI]] += M[[GroupI],[GroupJ]]*constI*constJ;*/
                 for (k = 0; k<numGIDof; ++k) {
-                  PetscScalar val;
                   /* k is a temporary index to facilitate the matrix multiply*/
-                  val                                        = elemMat[eOffset + rowInd*totDim + colIndSource];
                   tmpElemMat[rowInd*totDim +  colIndTarget] += elemMat[eOffset + rowInd*totDim + colIndSource] *
                                                                constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k];
-                  if (constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k] > 0) {
-                    ierr = PetscPrintf(PETSC_COMM_SELF,"Adding %g, to entry %d,%d; from %d,%d\n",val,rowInd,colIndTarget,rowInd,colIndSource);CHKERRQ(ierr);
-                  } else if (constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k] < 0) {
-                    ierr = PetscPrintf(PETSC_COMM_SELF,"Subtracting %g, from entry %d,%d; from %d,%d\n",val,rowInd,colIndTarget,rowInd,colIndSource);CHKERRQ(ierr);
-                  }
                 }
               }
             }
@@ -897,8 +842,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         }
       }
 
-      /* Move data from tmp array back to original now that we can safely overwrite
-       *PetscPrintf(PETSC_COMM_WORLD,"ELEMENT %d -- permuted\n",e);CHKERRQ(ierr);*/
+      /* Move data from tmp array back to original now that we can safely overwrite*/
       for (f = 0; f < T[fieldI]->Nb; ++f) {
         const PetscInt i = offsetI + f;
         for (g = 0; g < T[fieldJ]->Nb; ++g) {
@@ -908,15 +852,19 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       }
       eOffset += PetscSqr(totDim);
     }
-  }
-  ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = VecDestroy(&y);CHKERRQ(ierr);
   ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
+  ierr = PetscFree2(group2Constant,group2ConstantInv);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
   ierr = ISDestroy(&group2Dof);CHKERRQ(ierr);
+  ierr = ISDestroy(&dof2Group);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&groupDofSect);CHKERRQ(ierr);
-/*  ierr = DMDestroy(&refdm);CHKERRQ(ierr); */
+  ierr = PetscSectionDestroy(&dofGroupSect);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
-
 
 static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
 {
@@ -929,15 +877,13 @@ static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
 
   PetscFunctionBegin;
   ierr = PetscRandomCreate(comm,&ran);CHKERRQ(ierr);
-  // Create a mesh (2D vs. 3D) and (simplex vs. tensor) as determined by
-  // parameters
-  // TODO: make either a simplex or tensor-product mesh
-  // Desirable: a mesh with skewing element transforms that will stress the
-  // Piola transformations involved in assembling H-div finite elements
+  /* Create a mesh (2D vs. 3D) and (simplex vs. tensor) as determined by */
+  /* parameters */
+  /* TODO: make either a simplex or tensor-product mesh */
+  /* Desirable: a mesh with skewing element transforms that will stress the */
+  /* Piola transformations involved in assembling H-div finite elements */
   /* Create box mesh from user parameters */
-  ierr = DMPlexCreateBoxMesh(
-    comm,user->dim,user->simplex,NULL,NULL,NULL,NULL,PETSC_TRUE,mesh
-    );CHKERRQ(ierr);
+  ierr = DMPlexCreateBoxMesh(comm,user->dim,user->simplex,NULL,NULL,NULL,NULL,PETSC_TRUE,mesh);CHKERRQ(ierr);
 
   ierr = DMPlexGetPartitioner(*mesh,&part);CHKERRQ(ierr);
   ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
@@ -991,20 +937,7 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   default:
     PetscFunctionReturn(-1);
   }
-  ierr = PetscDSAddBoundary(
-    prob,
-    DM_BC_NATURAL,
-    "Boundary Integral",
-    "marker",
-    0,
-    0,
-    NULL,
-    (void (*)(void))NULL,
-    (void (*)(void))NULL,
-    1,
-    &id,
-    user
-    );CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob,DM_BC_NATURAL,"Boundary Integral","marker",0,0,NULL,(void (*)(void))NULL,(void (*)(void))NULL,1,&id,user);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1082,23 +1015,23 @@ int main(int argc,char ** argv)
   ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
   ierr = SNESSolve(snes_WY,b_WY,u_WY);CHKERRQ(ierr);
 
-  ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr); 
-  ierr = SNESGetJacobian(snes_WY,&jacobian_WY,NULL,NULL,NULL);CHKERRQ(ierr); 
-  
-  ierr = SNESViewFromOptions(snes, NULL, "-snes_view");CHKERRQ(ierr);
-  ierr = SNESViewFromOptions(snes_WY, NULL, "-snes_WY_view");CHKERRQ(ierr);
+  ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr);
+  ierr = SNESGetJacobian(snes_WY,&jacobian_WY,NULL,NULL,NULL);CHKERRQ(ierr);
+
+  ierr = SNESViewFromOptions(snes,NULL,"-snes_view");CHKERRQ(ierr);
+  ierr = SNESViewFromOptions(snes_WY,NULL,"-snes_WY_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian_WY,NULL,"-jacobian_WY_view");CHKERRQ(ierr);
 
   ierr = VecAXPY(u,-1,u_WY);CHKERRQ(ierr);
   ierr = VecNorm(u,NORM_2,&diffNorm);CHKERRQ(ierr);
-  if (user.showNorm){
+  if (user.showNorm) {
     ierr = PetscPrintf(MPI_COMM_WORLD,"Norm of solution difference: %g\n",diffNorm);CHKERRQ(ierr);
   }
   solutionSame = (diffNorm <= PETSC_SMALL);
-  ierr = PetscPrintf(MPI_COMM_WORLD,"Solutions are same?: %s\n",solutionSame?"True":"False");CHKERRQ(ierr);
+  ierr         = PetscPrintf(MPI_COMM_WORLD,"Solutions are same?: %s\n",solutionSame ? "True" : "False");CHKERRQ(ierr);
 
-  // Tear down
+  /* Tear down */
   ierr = VecDestroy(&b_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b);CHKERRQ(ierr);
   ierr = VecDestroy(&u_WY);CHKERRQ(ierr);
@@ -1110,7 +1043,6 @@ int main(int argc,char ** argv)
   ierr = DMDestroy(&mesh);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return ierr;
-
 }
 
 /*TEST
@@ -1120,7 +1052,7 @@ int main(int argc,char ** argv)
     args: -dim 2 \
       -velocity_petscspace_degree 1 \
       -velocity_petscdualspace_type bdm \
-      -velocity_petscdualspace_lagrange_node_endpoints true 
+      -velocity_petscdualspace_lagrange_node_endpoints true
     test:
       suffix: linear
       args: -sol_form linear -mesh_transform none
@@ -1142,9 +1074,9 @@ int main(int argc,char ** argv)
     requires: triangle
     args: -dim 3 \
       -velocity_petscspace_degree 1 \
-      -velocity_petscdualspace_type bdm 
+      -velocity_petscdualspace_type bdm
     test:
       suffix: linear
       args: -sol_form linear -mesh_transform none
-  
+
 TEST*/
