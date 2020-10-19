@@ -1,8 +1,9 @@
 
-#include <petsc/private/matimpl.h>               /*I "petscmat.h" I*/
+#include <petsc/private/matpartitioningimpl.h>   /*I "petscmatpartitioning.h" I*/
 
 /* Logging support */
 PetscClassId MAT_PARTITIONING_CLASSID;
+PetscLogEvent MAT_Partitioning, MAT_PartitioningND;
 
 /*
    Simplest partitioning, keeps the current partitioning.
