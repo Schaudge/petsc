@@ -141,7 +141,7 @@ PetscErrorCode DMBFGetVTKConnectivity(DM dm, PetscVTKInt **conn_data, PetscInt n
 
 PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt **offset_data, PetscInt nCells) {
   
-  PetscErrorCode ierr; 
+  //PetscErrorCode ierr;
   PetscInt       il;
   
   PetscFunctionBegin;
@@ -224,8 +224,7 @@ PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt **mpirank, PetscInt nCells) 
 PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt **quadlevel, PetscInt nCells) {
   
   PetscErrorCode    ierr; 
-  PetscInt          rank;
-  PetscInt          il, k, Q, q;
+  PetscInt          k, Q, q;
   
   p4est_topidx_t    tt, first_local_tree, last_local_tree;
   sc_array_t       *trees, *tquadrants;
@@ -445,7 +444,6 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
     
     const char  *vecname = "";
     Vec v = (Vec)link->vec;
-    PetscInt     size;
     const PetscVTUReal *vec_data;
     
     if ((link->ft != PETSC_VTK_CELL_FIELD) && (link->ft != PETSC_VTK_CELL_VECTOR_FIELD)) continue;
@@ -520,12 +518,10 @@ PetscErrorCode DMBFVTKWriteAll(PetscObject odm,PetscViewer viewer)
   FILE                     *f;
   PetscErrorCode           ierr;
   const char               *byte_order = PetscBinaryBigEndian() ? "BigEndian" : "LittleEndian";
-  PetscInt                 offset = 0;
   char                      gfname[PETSC_MAX_PATH_LEN];
   char                      noext[PETSC_MAX_PATH_LEN];
   PetscMPIInt               rank, size;
   int                       n;
-  PetscVTKInt               bytes = 0;
 
   PetscFunctionBegin;
   
