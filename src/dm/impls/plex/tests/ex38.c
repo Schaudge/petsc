@@ -89,8 +89,7 @@ static void f1_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],c
 {
   PetscInt c,d;
   for (c = 0; c < dim; ++c)
-    for (d = 0; d < dim; ++d)
-      if (c == d) f1[c * dim + d] = -u[uOff[1]];
+      f1[c * dim + c] = -u[uOff[1]];
 }
 
 /* represents (\div u - f,q). */
@@ -1066,10 +1065,9 @@ int main(int argc,char ** argv)
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian_WY,NULL,"-jacobian_WY_view");CHKERRQ(ierr);
 
-  //ierr = DMComputeL2FieldDiff(mesh,0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
-  //ierr = DMComputeL2FieldDiff(mesh_WY,0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
   ierr = DMComputeExactSolution(mesh,0,exactSol,NULL);CHKERRQ(ierr);
-  ierr = DMSNESCheckResidual(snes,mesh,exactSol,tol,&resNorm_exact);CHKERRQ(ierr);
+  ierr = VecViewFromOptions(exactSol,NULL,"-exact_view");CHKERRQ(ierr);
+  ierr = DMSNESCheckResidual(snes,mesh,exactSol,-1,&resNorm_exact);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"EXACT RESIDUAL: %14.12g\n",resNorm_exact);CHKERRQ(ierr);
   ierr = VecAXPBYPCZ(errVec,1.0,-1.0,0,exactSol,u);CHKERRQ(ierr);
   ierr = VecAXPBYPCZ(errVec_WY,1.0,-1.0,0,exactSol,u_WY);CHKERRQ(ierr);
