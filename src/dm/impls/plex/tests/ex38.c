@@ -65,8 +65,9 @@ static PetscErrorCode sinusoid_u(PetscInt dim,PetscReal time,const PetscReal x[]
 
 static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx)
 {
-  u[0] = -8 * PETSC_PI * PETSC_PI;
-  for (PetscInt d = 0; d < dim; ++d) u[0] *= sin(2 * PETSC_PI * x[d]);
+  PetscReal pressure;
+  (void) sinusoid_p(dim,time,x,Nc,&pressure,ctx);
+  u[0] = -4*dim * PETSC_PI * PETSC_PI*pressure;
   return 0;
 }
 
@@ -204,6 +205,8 @@ typedef struct
   Perturbation mesh_transform;
   Solution     sol_form;
   PetscBool    showNorm;
+  PetscBool    toFile;
+  char         filename[128];
 } UserCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
@@ -216,6 +219,8 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
   user->mesh_transform = NONE;
   user->sol_form       = LINEAR;
   user->showNorm       = PETSC_FALSE;
+  user->toFile         = PETSC_FALSE;
+  ierr = PetscStrncpy(user->filename,"",128);CHKERRQ(ierr);
   /* Define/Read in example parameters */
   ierr = PetscOptionsBegin(comm,"","Stratum Dof Grouping Options","DMPLEX");CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex","Whether to use simplices (true) or tensor-product (false) cells in the mesh","ex38.c",user->simplex,
@@ -227,6 +232,8 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
                           (PetscEnum*)&user->sol_form,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-showNorm","Whether to print the norm of the difference between lumped and unlumped solutions.","ex38.c",user->showNorm,
                           &user->showNorm,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-toFile","Whether to print solution errors to file.","ex38.c",user->toFile,&user->toFile,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsString("-filename","If printing results to file, the path to use.","ex38.c",user->filename,user->filename,128,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -778,8 +785,8 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         for (iCol = 0; iCol < dim; ++iCol) {
           ierr = MatSetValues(CMat,dim,rowIdx,1,&iCol,&group2Constant[v*dim*dim + iCol*dim],INSERT_VALUES);CHKERRQ(ierr);
         }
-        MatAssemblyBegin(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-        MatAssemblyEnd(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyBegin(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
         ierr = MatGetFactor(CMat,MATSOLVERPETSC,MAT_FACTOR_LU,&FMat);CHKERRQ(ierr);
         ierr = MatLUFactorSymbolic(FMat,CMat,ident,ident,NULL);CHKERRQ(ierr);
@@ -975,13 +982,19 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
 
 int main(int argc,char ** argv)
 {
-  UserCtx        user;
-  DM             mesh,mesh_WY;
-  SNES           snes,snes_WY;
-  Mat            jacobian,jacobian_WY;
-  Vec            u,b,u_WY,b_WY;
-  PetscScalar    diffNorm;
-  PetscBool      solutionSame;
+  UserCtx         user;
+  DM              mesh,mesh_WY;
+  SNES            snes,snes_WY;
+  Mat             jacobian,jacobian_WY;
+  Vec             u,b,u_WY,b_WY;
+  PetscReal       diffNorm;
+  PetscReal       *fieldDiff, *fieldDiff_WY;
+  PetscBool       solutionWithinTol;
+  const PetscReal tol = 100*PETSC_SQRT_MACHINE_EPSILON;
+  PetscErrorCode (**exacts)(PetscInt dim,PetscReal t,const PetscReal* x,PetscInt Nc,PetscScalar *u,void *ctx);
+  PetscDS             prob;
+  PetscInt       Nf,f;
+  PetscViewer view;
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc,&argv,NULL,help);
@@ -990,15 +1003,27 @@ int main(int argc,char ** argv)
 
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh_WY);CHKERRQ(ierr);
+  ierr = DMView(mesh,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = DMView(mesh_WY,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = SetupDiscretization(mesh,SetupProblem,&user,PETSC_FALSE);CHKERRQ(ierr);
   ierr = SetupDiscretization(mesh_WY,SetupProblem,&user,PETSC_TRUE);CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(mesh,&user,&user,&user);CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(mesh_WY,&user,&user,&user);CHKERRQ(ierr);
+  ierr = DMGetDS(mesh,&prob);CHKERRQ(ierr);
+  ierr = DMGetNumFields(mesh,&Nf);CHKERRQ(ierr);
+
+  ierr = PetscMalloc(Nf,&exacts);CHKERRQ(ierr);
+  ierr = PetscCalloc2(Nf,&fieldDiff,Nf,&fieldDiff_WY);CHKERRQ(ierr);
+  for (f=0; f<Nf; ++f) {
+    ierr = PetscDSGetExactSolution(prob,f,&exacts[f],NULL);CHKERRQ(ierr);
+  }
 
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes);CHKERRQ(ierr);
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes_WY);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
   ierr = SNESSetDM(snes_WY,mesh_WY);CHKERRQ(ierr);
+  ierr = SNESSetOptionsPrefix(snes,"A_");CHKERRQ(ierr);
+  ierr = SNESSetOptionsPrefix(snes_WY,"WY_");CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes_WY);CHKERRQ(ierr);
 
@@ -1009,8 +1034,8 @@ int main(int argc,char ** argv)
 
   ierr = VecSet(u,0.0);CHKERRQ(ierr);
   ierr = VecSet(u_WY,0.0);CHKERRQ(ierr);
-  ierr = VecSet(b,1.0);CHKERRQ(ierr);
-  ierr = VecSet(b_WY,1.0);CHKERRQ(ierr);
+  ierr = VecSet(b,0.0);CHKERRQ(ierr);
+  ierr = VecSet(b_WY,0.0);CHKERRQ(ierr);
 
   ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
   ierr = SNESSolve(snes_WY,b_WY,u_WY);CHKERRQ(ierr);
@@ -1018,20 +1043,41 @@ int main(int argc,char ** argv)
   ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr);
   ierr = SNESGetJacobian(snes_WY,&jacobian_WY,NULL,NULL,NULL);CHKERRQ(ierr);
 
-  ierr = SNESViewFromOptions(snes,NULL,"-snes_view");CHKERRQ(ierr);
-  ierr = SNESViewFromOptions(snes_WY,NULL,"-snes_WY_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian_WY,NULL,"-jacobian_WY_view");CHKERRQ(ierr);
+
+  ierr = DMComputeL2FieldDiff(mesh,0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
+  ierr = DMComputeL2FieldDiff(mesh_WY,0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
+
+  if (user.toFile) {
+    ierr = PetscViewerCreate(MPI_COMM_WORLD,&view);CHKERRQ(ierr);
+    ierr = PetscViewerSetType(view,PETSCVIEWERASCII);CHKERRQ(ierr);
+    ierr = PetscViewerFileSetMode(view,FILE_MODE_APPEND);CHKERRQ(ierr);
+    ierr = PetscViewerFileSetName(view,user.filename);CHKERRQ(ierr);
+
+    ierr = PetscViewerASCIIPrintf(view,"==== Refine Level: ====\n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(view,"Unmodified Field Diff: \n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPushTab(view);CHKERRQ(ierr);
+    ierr = PetscRealView(Nf,fieldDiff,view);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPopTab(view);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(view,"Lumped Field Diff: \n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPushTab(view);CHKERRQ(ierr);
+    ierr = PetscRealView(Nf,fieldDiff_WY,view);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPopTab(view);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&view);CHKERRQ(ierr);
+  }
 
   ierr = VecAXPY(u,-1,u_WY);CHKERRQ(ierr);
   ierr = VecNorm(u,NORM_2,&diffNorm);CHKERRQ(ierr);
   if (user.showNorm) {
     ierr = PetscPrintf(MPI_COMM_WORLD,"Norm of solution difference: %g\n",diffNorm);CHKERRQ(ierr);
   }
-  solutionSame = (diffNorm <= PETSC_SMALL);
-  ierr         = PetscPrintf(MPI_COMM_WORLD,"Solutions are same?: %s\n",solutionSame ? "True" : "False");CHKERRQ(ierr);
+  solutionWithinTol = (diffNorm <= tol);
+  ierr              = PetscPrintf(MPI_COMM_WORLD,"Solutions are witin tolerance?: %s\n",solutionWithinTol ? "True" : "False");CHKERRQ(ierr);
 
   /* Tear down */
+  ierr = PetscFree(exacts);CHKERRQ(ierr);
+  ierr = PetscFree2(fieldDiff,fieldDiff_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b);CHKERRQ(ierr);
   ierr = VecDestroy(&u_WY);CHKERRQ(ierr);
@@ -1052,10 +1098,21 @@ int main(int argc,char ** argv)
     args: -dim 2 \
       -velocity_petscspace_degree 1 \
       -velocity_petscdualspace_type bdm \
-      -velocity_petscdualspace_lagrange_node_endpoints true
+      -velocity_petscdualspace_lagrange_node_endpoints true \
+      -A_ksp_rtol 1e-12 \
+      -WY_ksp_rtol 1e-12 \
+      -A_pc_type fieldsplit \
+      -WY_pc_type fieldsplit \
+      -A_pc_fieldsplit_type schur \
+      -WY_pc_fieldsplit_type schur \
+      -A_pc_fieldsplit_schur_precondition full \
+      -WY_pc_fieldsplit_schur_precondition full
     test:
       suffix: linear
       args: -sol_form linear -mesh_transform none
+    test:
+      suffix: sinusoidal
+      args: -sol_form sinusoidal -mesh_transform none
 
   testset:
     suffix: 2d_bdmq
@@ -1064,10 +1121,21 @@ int main(int argc,char ** argv)
       -velocity_petscspace_degree 1 \
       -velocity_petscdualspace_type bdm \
       -velocity_petscdualspace_lagrange_tensor 1 \
-      -velocity_petscdualspace_lagrange_node_endpoints true
+      -velocity_petscdualspace_lagrange_node_endpoints true \
+      -A_ksp_rtol 1e-12 \
+      -WY_ksp_rtol 1e-12 \
+      -A_pc_type fieldsplit \
+      -WY_pc_type fieldsplit \
+      -A_pc_fieldsplit_type schur \
+      -WY_pc_fieldsplit_type schur \
+      -A_pc_fieldsplit_schur_precondition full \
+      -WY_pc_fieldsplit_schur_precondition full
     test:
       suffix: linear
       args: -sol_form linear -mesh_transform none
+    test:
+      suffix: sinusoidal
+      args: -sol_form sinusoidal -mesh_transform none
 
   testset:
     suffix: 3d_bdm
