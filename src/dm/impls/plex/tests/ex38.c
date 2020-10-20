@@ -986,14 +986,15 @@ int main(int argc,char ** argv)
   DM              mesh,mesh_WY;
   SNES            snes,snes_WY;
   Mat             jacobian,jacobian_WY;
-  Vec             u,b,u_WY,b_WY;
-  PetscReal       diffNorm;
-  PetscReal       *fieldDiff, *fieldDiff_WY;
+  Vec             u,b,u_WY,b_WY,exactSol,errVec,errVec_WY,resVec,resVec_WY;
+  PetscSection    gSec,lSec;
+  PetscReal       diffNorm,resNorm_exact;
+  PetscReal       *fieldDiff, *fieldDiff_WY,*fieldResNorm,*fieldResNorm_WY;
   PetscBool       solutionWithinTol;
   const PetscReal tol = 100*PETSC_SQRT_MACHINE_EPSILON;
   PetscErrorCode (**exacts)(PetscInt dim,PetscReal t,const PetscReal* x,PetscInt Nc,PetscScalar *u,void *ctx);
   PetscDS             prob;
-  PetscInt       Nf,f;
+  PetscInt       Nf,f,nIt,nIt_WY;
   PetscViewer view;
   PetscErrorCode ierr;
 
@@ -1003,8 +1004,11 @@ int main(int argc,char ** argv)
 
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh_WY);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"====Mesh====\n");CHKERRQ(ierr);
   ierr = DMView(mesh,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n====Mesh_WY====\n");CHKERRQ(ierr);
   ierr = DMView(mesh_WY,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n");CHKERRQ(ierr);
   ierr = SetupDiscretization(mesh,SetupProblem,&user,PETSC_FALSE);CHKERRQ(ierr);
   ierr = SetupDiscretization(mesh_WY,SetupProblem,&user,PETSC_TRUE);CHKERRQ(ierr);
   ierr = DMPlexSetSNESLocalFEM(mesh,&user,&user,&user);CHKERRQ(ierr);
@@ -1014,6 +1018,7 @@ int main(int argc,char ** argv)
 
   ierr = PetscMalloc(Nf,&exacts);CHKERRQ(ierr);
   ierr = PetscCalloc2(Nf,&fieldDiff,Nf,&fieldDiff_WY);CHKERRQ(ierr);
+  ierr = PetscCalloc2(Nf,&fieldResNorm,Nf,&fieldResNorm_WY);CHKERRQ(ierr);
   for (f=0; f<Nf; ++f) {
     ierr = PetscDSGetExactSolution(prob,f,&exacts[f],NULL);CHKERRQ(ierr);
   }
@@ -1022,6 +1027,8 @@ int main(int argc,char ** argv)
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes_WY);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
   ierr = SNESSetDM(snes_WY,mesh_WY);CHKERRQ(ierr);
+  ierr = SNESSetAlwaysComputesFinalResidual(snes,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = SNESSetAlwaysComputesFinalResidual(snes_WY,PETSC_TRUE);CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(snes,"A_");CHKERRQ(ierr);
   ierr = SNESSetOptionsPrefix(snes_WY,"WY_");CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
@@ -1031,14 +1038,27 @@ int main(int argc,char ** argv)
   ierr = DMCreateGlobalVector(mesh_WY,&u_WY);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh,&b);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh_WY,&b_WY);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh,&errVec);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh_WY,&errVec_WY);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh,&resVec);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh_WY,&resVec_WY);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(mesh,&exactSol);CHKERRQ(ierr);
+  ierr = DMGetGlobalSection(mesh,&gSec);CHKERRQ(ierr);
+  ierr = DMGetLocalSection(mesh,&lSec);CHKERRQ(ierr);
+
 
   ierr = VecSet(u,0.0);CHKERRQ(ierr);
   ierr = VecSet(u_WY,0.0);CHKERRQ(ierr);
   ierr = VecSet(b,0.0);CHKERRQ(ierr);
   ierr = VecSet(b_WY,0.0);CHKERRQ(ierr);
+  ierr = VecSet(errVec,0.0);CHKERRQ(ierr);
+  ierr = VecSet(errVec_WY,0.0);CHKERRQ(ierr);
 
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"====A_Solve====\n");CHKERRQ(ierr);
   ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n====WY_Solve====\n");CHKERRQ(ierr);
   ierr = SNESSolve(snes_WY,b_WY,u_WY);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n");CHKERRQ(ierr);
 
   ierr = SNESGetJacobian(snes,&jacobian,NULL,NULL,NULL);CHKERRQ(ierr);
   ierr = SNESGetJacobian(snes_WY,&jacobian_WY,NULL,NULL,NULL);CHKERRQ(ierr);
@@ -1046,8 +1066,21 @@ int main(int argc,char ** argv)
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian_WY,NULL,"-jacobian_WY_view");CHKERRQ(ierr);
 
-  ierr = DMComputeL2FieldDiff(mesh,0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
-  ierr = DMComputeL2FieldDiff(mesh_WY,0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
+  //ierr = DMComputeL2FieldDiff(mesh,0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
+  //ierr = DMComputeL2FieldDiff(mesh_WY,0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
+  ierr = DMComputeExactSolution(mesh,0,exactSol,NULL);CHKERRQ(ierr);
+  ierr = DMSNESCheckResidual(snes,mesh,exactSol,tol,&resNorm_exact);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"EXACT RESIDUAL: %14.12g\n",resNorm_exact);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(errVec,1.0,-1.0,0,exactSol,u);CHKERRQ(ierr);
+  ierr = VecAXPBYPCZ(errVec_WY,1.0,-1.0,0,exactSol,u_WY);CHKERRQ(ierr);
+  ierr = PetscSectionVecNorm(lSec,gSec,errVec,NORM_2,fieldDiff);CHKERRQ(ierr);
+  ierr = PetscSectionVecNorm(lSec,gSec,errVec_WY,NORM_2,fieldDiff_WY);CHKERRQ(ierr);
+  ierr = SNESGetIterationNumber(snes,&nIt);CHKERRQ(ierr);
+  ierr = SNESGetIterationNumber(snes_WY,&nIt_WY);CHKERRQ(ierr);
+  ierr = SNESGetFunction(snes,&resVec,NULL,NULL);CHKERRQ(ierr);
+  ierr = SNESGetFunction(snes_WY,&resVec_WY,NULL,NULL);CHKERRQ(ierr);
+  ierr = PetscSectionVecNorm(lSec,gSec,resVec,NORM_2,fieldResNorm);CHKERRQ(ierr);
+  ierr = PetscSectionVecNorm(lSec,gSec,resVec_WY,NORM_2,fieldResNorm_WY);CHKERRQ(ierr);
 
   if (user.toFile) {
     ierr = PetscViewerCreate(MPI_COMM_WORLD,&view);CHKERRQ(ierr);
@@ -1056,13 +1089,13 @@ int main(int argc,char ** argv)
     ierr = PetscViewerFileSetName(view,user.filename);CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIPrintf(view,"==== Refine Level: ====\n");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(view,"Unmodified Field Diff: \n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(view,"Unmodified System: \n");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPushTab(view);CHKERRQ(ierr);
-    ierr = PetscRealView(Nf,fieldDiff,view);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(view,"%14.12g\t%14.12g\t%14.12g\t%14.12g\t%D\n",fieldDiff[0],fieldDiff[1],fieldResNorm[0],fieldResNorm[1],nIt);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPopTab(view);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(view,"Lumped Field Diff: \n");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPushTab(view);CHKERRQ(ierr);
-    ierr = PetscRealView(Nf,fieldDiff_WY,view);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(view,"%14.12g\t%14.12g\t%14.12g\t%14.12g\t%D\n",fieldDiff_WY[0],fieldDiff_WY[1],fieldResNorm_WY[0],fieldResNorm_WY[1],nIt_WY);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPopTab(view);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&view);CHKERRQ(ierr);
   }
@@ -1077,6 +1110,7 @@ int main(int argc,char ** argv)
 
   /* Tear down */
   ierr = PetscFree(exacts);CHKERRQ(ierr);
+  ierr = PetscFree2(fieldResNorm,fieldResNorm_WY);CHKERRQ(ierr);
   ierr = PetscFree2(fieldDiff,fieldDiff_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b);CHKERRQ(ierr);
