@@ -59,6 +59,7 @@ static PetscErrorCode sinusoid_u(PetscInt dim,PetscReal time,const PetscReal x[]
       if (d == c) u[c] *= 2 * PETSC_PI * PetscCosReal(2 * PETSC_PI * x[d]);
       else u[c] *= PetscSinReal(2 * PETSC_PI * x[d]);
     }
+    u[c]*=-1;
   }
   return 0;
 }
@@ -67,7 +68,7 @@ static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscRea
 {
   PetscReal pressure;
   (void) sinusoid_p(dim,time,x,Nc,&pressure,ctx);
-  u[0] = -4*dim * PETSC_PI * PETSC_PI*pressure;
+  u[0] = 4*dim * PETSC_PI * PETSC_PI*pressure;
   return 0;
 }
 
@@ -931,19 +932,18 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   case LINEAR:
     ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob,DM_BC_NATURAL,"Boundary Integral","marker",0,0,NULL,(void (*)(void))NULL,(void (*)(void))NULL,1,&id,user);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
     break;
   case SINUSOIDAL:
     ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
     break;
   default:
     PetscFunctionReturn(-1);
   }
-  ierr = PetscDSAddBoundary(prob,DM_BC_NATURAL,"Boundary Integral","marker",0,0,NULL,(void (*)(void))NULL,(void (*)(void))NULL,1,&id,user);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
