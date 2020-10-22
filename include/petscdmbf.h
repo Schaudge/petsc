@@ -8,6 +8,7 @@ PETSC_EXTERN PetscErrorCode DMBFGetBlockSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFSetCellDataSize(DM,PetscInt*,PetscInt,PetscInt*,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFGetCellDataSize(DM,PetscInt**,PetscInt*,PetscInt**,PetscInt*);
 
+PETSC_EXTERN PetscErrorCode DMBFGetInfo(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetLocalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGlobalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhostSize(DM,PetscInt*);

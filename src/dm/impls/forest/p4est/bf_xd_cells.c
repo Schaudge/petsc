@@ -60,7 +60,7 @@ PetscErrorCode DMBF_XD_CellsCreate(DM dm, DM_BF_XD_Topology *topology, DM_BF_XD_
   ierr = PetscNewLog(dm,cells);CHKERRQ(ierr);
   ierr = DMBF_XD_TopologyGetConnectivity(topology,&connectivity);CHKERRQ(ierr);
   ierr = DMBF_XD_P4estCreate(dm,connectivity,&(*cells)->p4est);CHKERRQ(ierr);
-  (*cells)->ghost = PETSC_NULL;
+  ierr = DMBF_XD_GhostCreate((*cells)->p4est,&(*cells)->ghost);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -74,6 +74,19 @@ PetscErrorCode DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
   }
   ierr = DMBF_XD_P4estDestroy(dm,cells->p4est);CHKERRQ(ierr);
   ierr = PetscFree(cells);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, PetscInt *nGlobal, PetscInt *nGhost)
+{
+  PetscFunctionBegin;
+  PetscValidIntPointer(nLocal,3);
+  PetscValidIntPointer(nGlobal,4);
+  PetscValidIntPointer(nGhost,5);
+  *nLocal  = (PetscInt)(cells->p4est->local_num_quadrants);
+  *nGlobal = (PetscInt)(cells->p4est->global_num_quadrants);
+  if (cells->ghost) *nGhost = (PetscInt)(cells->ghost->ghosts.elem_count);
+  else              *nGhost = 0;
   PetscFunctionReturn(0);
 }
 
