@@ -4212,7 +4212,7 @@ static PetscErrorCode PetscSectionFieldGetTensorDegree_Private(PetscSection sect
 
   Level: developer
 
-.seealso: DMGetLocalSection(), PetscSectionSetClosurePermutation(), DMSetGlobalSection()
+.seealso: DMPlexSetClosurePermutationSimplex(), DMGetLocalSection(), PetscSectionSetClosurePermutation(), DMSetGlobalSection()
 @*/
 PetscErrorCode DMPlexSetClosurePermutationTensor(DM dm, PetscInt point, PetscSection section)
 {
@@ -4276,7 +4276,7 @@ PetscErrorCode DMPlexSetClosurePermutationTensor(DM dm, PetscInt point, PetscSec
         foffset = offset;
         break;
       case 2:
-        /* The original quad closure is oriented clockwise, {f, e_b, e_r, e_t, e_l, v_lb, v_rb, v_tr, v_tl} */
+        /* The original quad closure is oriented counter-clockwise, {f, e_b, e_r, e_t, e_l, v_lb, v_rb, v_tr, v_tl} */
         ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
         /* The SEM order is
 
@@ -4417,6 +4417,282 @@ PetscErrorCode DMPlexSetClosurePermutationTensor(DM dm, PetscInt point, PetscSec
           for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovtlb*Nc + c + foffset;
           for (o = oetl-1; o >= oetb; --o) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
           for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovtrb*Nc + c + foffset;
+
+          foffset = offset;
+        }
+        break;
+      default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "No spectral ordering for dimension %D", d);
+      }
+    }
+    if (offset != size) SETERRQ2(PetscObjectComm((PetscObject) dm), PETSC_ERR_PLIB, "Number of permutation entries %D != %D", offset, size);
+    /* Check permutation */
+    {
+      PetscInt *check;
+
+      ierr = PetscMalloc1(size, &check);CHKERRQ(ierr);
+      for (i = 0; i < size; ++i) {check[i] = -1; if (perm[i] < 0 || perm[i] >= size) SETERRQ2(PetscObjectComm((PetscObject) dm), PETSC_ERR_PLIB, "Invalid permutation index p[%D] = %D", i, perm[i]);}
+      for (i = 0; i < size; ++i) check[perm[i]] = i;
+      for (i = 0; i < size; ++i) {if (check[i] < 0) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_PLIB, "Missing permutation index %D", i);}
+      ierr = PetscFree(check);CHKERRQ(ierr);
+    }
+    ierr = PetscSectionSetClosurePermutation_Internal(section, (PetscObject) dm, d, size, PETSC_OWN_POINTER, perm);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@
+
+  DMPlexSetClosurePermutationSimplex - Create a permutation from the default (BFS) point ordering in the closure, to a
+  lexicographic ordering over the simplicial cell (i.e., line, tri, tet, etc.), and set this permutation in the
+  section provided (or the section of the DM).
+
+  Input Parameters:
++ dm      - The DM
+. point   - Either a cell (highest dim point) or an edge (dim 1 point), or PETSC_DETERMINE
+- section - The PetscSection to reorder, or NULL for the default section
+
+  Note: The point is used to determine the number of dofs/field on an edge. For SEM, this is related to the polynomial
+  degree of the basis.
+
+  Example:
+  A typical interpolated single-tri mesh might order points as
+.vb
+  [c0, v1, v2, v3, e4, e5, e6]
+
+  v3
+  | \
+  |  \
+  |   \
+  |    \
+  e6    e5
+  |       \
+  |   c0   \
+  |         \
+  |          \
+  v1 -- e4 -- v2
+.ve
+
+  (There is no significance to the ordering described here.)  The default section for a P4 quad might typically assign
+  dofs in the order of points, e.g.,
+.vb
+    c0 -> [0, 1, 2]
+    v1 -> [3]
+    ...
+    e5 -> [9, 10, 11]
+.ve
+
+  which corresponds to the dofs
+.vb
+    5
+    12  11
+    13  2   10
+    14  0   1   9
+    3   6   7   8   4
+.ve
+
+  The closure in BFS ordering works through height strata (cells, edges, vertices) to produce the ordering
+.vb
+  0 1 2 6 7 8 9 10 11 12 13 14 3 4 5
+.ve
+
+  After calling DMPlexSetClosurePermutationSimplex(), the closure will be ordered lexicographically,
+.vb
+   3 6 7 8 4 14 0 1 9 13 2 10 12 11 5
+.ve
+
+  Level: developer
+
+.seealso: DMPlexSetClosurePermutationTensor(), DMGetLocalSection(), PetscSectionSetClosurePermutation(), DMSetGlobalSection()
+@*/
+PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSection section)
+{
+  DMLabel        label;
+  PetscInt       dim, depth = -1, eStart = -1, Nf;
+  PetscBool      vertexchart;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  if (dim < 1) PetscFunctionReturn(0);
+  if (point < 0) {
+    PetscInt sStart,sEnd;
+
+    ierr = DMPlexGetDepthStratum(dm, 1, &sStart, &sEnd);CHKERRQ(ierr);
+    point = sEnd-sStart ? sStart : point;
+  }
+  ierr = DMPlexGetDepthLabel(dm, &label);CHKERRQ(ierr);
+  if (point >= 0) { ierr = DMLabelGetValue(label, point, &depth);CHKERRQ(ierr); }
+  if (!section) {ierr = DMGetLocalSection(dm, &section);CHKERRQ(ierr);}
+  if (depth == 1) {eStart = point;}
+  else if  (depth == dim) {
+    const PetscInt *cone;
+
+    ierr = DMPlexGetCone(dm, point, &cone);CHKERRQ(ierr);
+    if (dim == 2) eStart = cone[0];
+    else if (dim == 3) {
+      const PetscInt *cone2;
+      ierr = DMPlexGetCone(dm, cone[0], &cone2);CHKERRQ(ierr);
+      eStart = cone2[0];
+    } else SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Point %D of depth %D cannot be used to bootstrap spectral ordering for dim %D", point, depth, dim);
+  } else if (depth >= 0) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Point %D of depth %D cannot be used to bootstrap spectral ordering for dim %D", point, depth, dim);
+  {                             /* Determine whether the chart covers all points or just vertices. */
+    PetscInt pStart,pEnd,cStart,cEnd;
+    ierr = DMPlexGetDepthStratum(dm,0,&pStart,&pEnd);CHKERRQ(ierr);
+    ierr = PetscSectionGetChart(section,&cStart,&cEnd);CHKERRQ(ierr);
+    if (pStart == cStart && pEnd == cEnd) vertexchart = PETSC_TRUE; /* Just vertices */
+    else vertexchart = PETSC_FALSE;                                 /* Assume all interpolated points are in chart */
+  }
+  ierr = PetscSectionGetNumFields(section, &Nf);CHKERRQ(ierr);
+  for (PetscInt d=1; d<=dim; d++) {
+    PetscInt k, f, Nc, c, i, j, size = 0, offset = 0, foffset = 0;
+    PetscInt *perm;
+
+    for (f = 0; f < Nf; ++f) {
+      PetscInt fsize = 1, df;
+
+      ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
+      for (df = 1; df <= d; ++df) {fsize *= (k+df); fsize /= df;}
+      size += fsize*Nc;
+    }
+    ierr = PetscMalloc1(size, &perm);CHKERRQ(ierr);
+    for (f = 0; f < Nf; ++f) {
+      switch (d) {
+      case 1:
+        ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
+        /*
+         Original ordering is [ edge of length k-1; vtx0; vtx1 ]
+         We want              [ vtx0; edge of length k-1; vtx1 ]
+         */
+        for (c=0; c<Nc; c++,offset++) perm[offset] = (k-1)*Nc + c + foffset;
+        for (i=0; i<k-1; i++) for (c=0; c<Nc; c++,offset++) perm[offset] = i*Nc + c + foffset;
+        for (c=0; c<Nc; c++,offset++) perm[offset] = k*Nc + c + foffset;
+        foffset = offset;
+        break;
+      case 2:
+        /* The original tri closure is oriented counter-clockwise, {f, e_b, e_r, e_l, v_lb, v_rb, v_tl} */
+        ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
+        /* The SEM order is
+
+         v_lb, {e_b}, v_rb,
+         e^{(k-1)-i}_l, {f^{\sum^i_0 k-1-l}}, e^i_r,
+         v_tl
+         */
+        {
+          const PetscInt of   = 0;
+          const PetscInt oeb  = of   + (k-1)*k/2;
+          const PetscInt oer  = oeb  + (k-1);
+          const PetscInt oel  = oer  + (k-1);
+          const PetscInt ovlb = oel  + (k-1);
+          const PetscInt ovrb = ovlb + 1;
+          const PetscInt ovlt = ovrb + 1;
+          PetscInt       foff = 0;
+          PetscInt       o;
+
+          /* bottom */
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovlb*Nc + c + foffset;
+          for (o = oeb; o < oer; ++o) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovrb*Nc + c + foffset;
+          /* middle */
+          for (i = 0; i < k-1; ++i) {
+            const PetscInt fo = foff;
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oel+(k-2)-i)*Nc + c + foffset;
+            for (o = of+fo; o < of+fo+(k-1-i); ++o, ++foff) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oer+i)*Nc + c + foffset;
+          }
+          /* top */
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovlt*Nc + c + foffset;
+          foffset = offset;
+          if (foff != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cell offset %D != %D", foff, (k-1)*k/2);
+        }
+        break;
+      case 3:
+        /* The original tet closure is
+
+         {c,
+         f_b, f_l, f_f, f_d,
+         e_bl, e_bd, e_bf,  e_lf, e_ld, e_fd,
+         v_blf, v_blb, v_brf, v_t}
+         */
+        ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
+        /* The SEM order is
+         Bottom Slice
+         v_blf, {e^{(k-1)-i}_bf}, v_brf,
+         e^{i}_bl, f^{\sum^i_0 k-1-l}_b, e^{(k-1)-i}_br,
+         v_blb,
+
+         Middle Slice (j)
+         {e^{(k-1)-j}_lf}, {f^{\sum^i_0 k-1-j}_f}, e^j_fd,
+         f^{i*(k-1)+j}_l, {c^{(j*(k-1) + i)*(k-1)+n}_t}, f^{j*(k-1)+i}_d,
+         e^j_ld,
+
+         Top Slice
+         v_t
+         */
+        {
+          const PetscInt oc    = 0;
+          const PetscInt ofb   = oc    + (k-1)*k*(k+1)/6;
+          const PetscInt ofl   = ofb   + (k-1)*k/2;
+          const PetscInt off   = ofl   + (k-1)*k/2;
+          const PetscInt ofd   = off   + (k-1)*k/2;
+          const PetscInt oebl  = ofd   + (k-1)*k/2;
+          const PetscInt oebd  = oebl  + (k-1);
+          const PetscInt oebf  = oebd  + (k-1);
+          const PetscInt oelf  = oebf  + (k-1);
+          const PetscInt oeld  = oelf  + (k-1);
+          const PetscInt oefd  = oeld  + (k-1);
+          const PetscInt ovblf = oefd  + (k-1);
+          const PetscInt ovblb = ovblf + 1;
+          const PetscInt ovbrf = ovblb + 1;
+          const PetscInt ovt   = ovbrf + 1;
+          PetscInt       foff[4] = {0, 0, 0, 0};
+          PetscInt       coff    = 0;
+          PetscInt       o;
+
+          /* Bottom Slice */
+          /*   front */
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovblf*Nc + c + foffset;
+          for (o = oelf-1; o >= oebf; --o) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovbrf*Nc + c + foffset;
+          /*   middle */
+          for (i = 0; i < k-1; ++i) {
+            PetscInt fo = foff[0];
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oebl+i)*Nc + c + foffset;
+            for (o = ofb+fo; o < ofb+fo+(k-1-i); ++o, ++foff[0]) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oebd+(k-2)-i)*Nc + c + foffset;
+          }
+          /*   back */
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovblb*Nc + c + foffset;
+          if (foff[0] != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 0 offset %D != %D", foff[0], (k-1)*k/2);
+
+          /* Middle Slice */
+          for (j = 0; j < k-1; ++j) {
+            PetscInt co = coff;
+            PetscInt fo[4];
+
+            fo[3] = foff[3];
+            /*   front */
+            fo[2] = foff[2];
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oelf+j)*Nc + c + foffset;
+            for (o = off+fo[2]; o < off+fo[2]+(k-1-j); ++o, ++foff[2]) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oefd+j)*Nc + c + foffset;
+            /*   middle */
+            fo[1] = foff[1];
+            for (i = 0; i < k-1-j; ++i) {
+              for (c = 0; c < Nc; ++c, ++offset) {perm[offset] = (ofl+fo[1])*Nc + c + foffset;} fo[1] += k-1-i;
+              for (o = oc+co; o < oc+co+k-1-i; ++o, ++coff) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+              for (c = 0; c < Nc; ++c, ++offset) {perm[offset] = (ofd+fo[3])*Nc + c + foffset;} ++fo[3];
+            }
+            ++foff[1];
+            foff[3] += k-1-j;
+            /*   back */
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oeld+j)*Nc + c + foffset;
+          }
+          if (foff[2] != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 2 offset %D != %D", foff[2], (k-1)*k/2);
+          if (foff[3] != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 3 offset %D != %D", foff[3], (k-1)*k/2);
+          if (coff    != (k-1)*k*(k+1)/6) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cell offset %D != %D", coff, (k-1)*k*(k+1)/6);
+
+          /* Top Slice */
+          for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovt*Nc + c + foffset;
 
           foffset = offset;
         }
