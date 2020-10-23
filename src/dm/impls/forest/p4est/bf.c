@@ -342,13 +342,13 @@ static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
 static PetscErrorCode DMSetUp_BF(DM dm)
 {
   DM_BF          *bf;
-  PetscInt       dim=P4EST_DIM;
+  PetscInt       dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf   = _p_getBF(dm);
-  ierr = DMSetDimension(dm,dim);CHKERRQ(ierr);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   if (dim == PETSC_DETERMINE) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Topological dimension has to be set before setup");
   if (dim < 2 || 3 < dim)     SETERRQ1(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"DM does not support %d dimensional domains",dim);
   if (bf->ftTopology)         SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Topology exists already");
@@ -630,7 +630,8 @@ PetscErrorCode DMCreate_BF(DM dm)
   ierr = DMCreate_Forest(dm);CHKERRQ(ierr);
   ierr = DMInitialize_BF(dm);CHKERRQ(ierr);
 
-  /* set default parameters of Forest object */
+  /* set default parameters */
+  ierr = DMSetDimension(dm,2);CHKERRQ(ierr);
   ierr = DMForestSetTopology(dm,"unit");CHKERRQ(ierr);
   ierr = DMForestSetMinimumRefinement(dm,0);CHKERRQ(ierr);
   ierr = DMForestSetInitialRefinement(dm,0);CHKERRQ(ierr);
@@ -1115,8 +1116,8 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *dmf)
  **************************************/
 
 typedef struct _p_DM_BF_CellIterCtx {
-  DM_BF             *bf;
-  PetscErrorCode    (*iterCell)(DM_BF_Cell*,void*);
+  DM                dm;
+  PetscErrorCode    (*iterCell)(DM,DM_BF_Cell*,void*);
   void              *userIterCtx;
   const PetscScalar **vecViewRead, **cellVecViewRead;
   PetscScalar       **vecViewReadWrite, **cellVecViewReadWrite;
@@ -1126,7 +1127,7 @@ typedef struct _p_DM_BF_CellIterCtx {
 static void p4est_iter_volume(p4est_iter_volume_info_t *info, void *ctx)
 {
   DM_BF_CellIterCtx *iterCtx = ctx;
-  DM_BF             *bf      = iterCtx->bf;
+  DM_BF             *bf      = _p_getBF(iterCtx->dm);;
   DM_BF_Cell        *cell    = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
   PetscErrorCode    ierr;
 
@@ -1136,13 +1137,13 @@ static void p4est_iter_volume(p4est_iter_volume_info_t *info, void *ctx)
   /* get vector view */
   _p_cellGetVecView(iterCtx->vecViewRead,iterCtx->nVecsRead,iterCtx->vecViewReadWrite,iterCtx->nVecsReadWrite,cell);
   /* call cell function */
-  ierr = iterCtx->iterCell(cell,iterCtx->userIterCtx);CHKERRV(ierr);
+  ierr = iterCtx->iterCell(iterCtx->dm,cell,iterCtx->userIterCtx);CHKERRV(ierr);
   /* remove vector view from cell */
   cell->vecViewRead      = PETSC_NULL;
   cell->vecViewReadWrite = PETSC_NULL;
 }
 
-PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM_BF_Cell*,void*), void *userIterCtx,
+PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM,DM_BF_Cell*,void*), void *userIterCtx,
                                            Vec *vecRead, PetscInt nVecsRead, Vec *vecReadWrite, PetscInt nVecsReadWrite)
 {
   DM_BF             *bf;
@@ -1163,7 +1164,7 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM_
   if (!bf->cells)                 SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   if (!bf->ownedCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   /* set iterator context */
-  iterCtx.bf             = bf;
+  iterCtx.dm             = dm;
   iterCtx.iterCell       = iterCell;
   iterCtx.userIterCtx    = userIterCtx;
   iterCtx.nVecsRead      = nVecsRead;
@@ -1202,7 +1203,7 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM_
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFIterateOverCells(DM dm, PetscErrorCode (*iterCell)(DM_BF_Cell*,void*), void *userIterCtx)
+PetscErrorCode DMBFIterateOverCells(DM dm, PetscErrorCode (*iterCell)(DM,DM_BF_Cell*,void*), void *userIterCtx)
 {
   PetscErrorCode ierr;
 
@@ -1365,7 +1366,7 @@ PetscErrorCode DMBFIterateOverFacesVectors(DM dm, PetscErrorCode (*iterFace)(DM_
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face*,void*), void *userIterCtx)
+PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM,DM_BF_Face*,void*), void *userIterCtx)
 {
   PetscErrorCode ierr;
 
@@ -1375,8 +1376,8 @@ PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face
 }
 #else
 typedef struct _p_DM_BF_FaceIterCtx {
-  DM_BF             *bf;
-  PetscErrorCode    (*iterFace)(DM_BF_Face*,void*);
+  DM                dm;
+  PetscErrorCode    (*iterFace)(DM,DM_BF_Face*,void*);
   void              *userIterCtx;
   DM_BF_Face        face;
 } DM_BF_FaceIterCtx;
@@ -1384,7 +1385,7 @@ typedef struct _p_DM_BF_FaceIterCtx {
 static void p4est_iter_face(p4est_iter_face_info_t *info, void *ctx)
 {
   DM_BF_FaceIterCtx    *iterCtx   = ctx;
-  DM_BF                *bf        = iterCtx->bf;
+  DM_BF                *bf        = _p_getBF(iterCtx->dm);
   DM_BF_Face           *face      = &iterCtx->face;
   const PetscBool      isBoundary = (1 == info->sides.elem_count);
   PetscInt             i;
@@ -1433,10 +1434,10 @@ static void p4est_iter_face(p4est_iter_face_info_t *info, void *ctx)
     }
   }
   /* call face function */
-  ierr = iterCtx->iterFace(face,iterCtx->userIterCtx);CHKERRV(ierr);
+  ierr = iterCtx->iterFace(iterCtx->dm,face,iterCtx->userIterCtx);CHKERRV(ierr);
 }
 
-PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face*,void*), void *userIterCtx)
+PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM,DM_BF_Face*,void*), void *userIterCtx)
 {
   DM_BF             *bf;
   DM_BF_FaceIterCtx iterCtx;
@@ -1454,7 +1455,7 @@ PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face
   if (!bf->ownedCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   if (!bf->ghostCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
   /* set iterator context */
-  iterCtx.bf          = bf;
+  iterCtx.dm          = dm;
   iterCtx.iterFace    = iterFace;
   iterCtx.userIterCtx = userIterCtx;
   /* run iterator */
