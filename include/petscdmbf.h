@@ -32,16 +32,16 @@ typedef struct _p_DM_BF_Cell {
 
 //#define DMBFCellIsGhost(cell) (-1 == (cell)->indexGlobal) //TODO implement version with checking global indices
 
-PETSC_EXTERN PetscErrorCode DMBFIterateOverCellsVectors(DM,PetscErrorCode(*)(DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
-PETSC_EXTERN PetscErrorCode DMBFIterateOverCells(DM,PetscErrorCode(*)(DM_BF_Cell*,void*),void*);
+PETSC_EXTERN PetscErrorCode DMBFIterateOverCellsVectors(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
+PETSC_EXTERN PetscErrorCode DMBFIterateOverCells(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*);
 
 typedef struct _p_DM_BF_Face {
   PetscInt    nCellsL, nCellsR;
   DM_BF_Cell  *cellL[4], *cellR[4];
 } DM_BF_Face;
 
-PETSC_EXTERN PetscErrorCode DMBFIterateOverFacesVectors(DM,PetscErrorCode(*)(DM_BF_Face*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
-PETSC_EXTERN PetscErrorCode DMBFIterateOverFaces(DM,PetscErrorCode(*)(DM_BF_Face*,void*),void*);
+PETSC_EXTERN PetscErrorCode DMBFIterateOverFacesVectors(DM,PetscErrorCode(*)(DM,DM_BF_Face*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
+PETSC_EXTERN PetscErrorCode DMBFIterateOverFaces(DM,PetscErrorCode(*)(DM,DM_BF_Face*,void*),void*);
 
 PETSC_EXTERN PetscErrorCode DMBFSetCellData(DM,Vec*,Vec*);
 PETSC_EXTERN PetscErrorCode DMBFGetCellData(DM,Vec*,Vec*);

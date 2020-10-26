@@ -138,12 +138,14 @@ include "petscdm.pxi"
 include "petscds.pxi"
 include "petscdmda.pxi"
 include "petscdmplex.pxi"
+include "petscdmbf.pxi"
 include "petscdmstag.pxi"
 include "petscdmcomposite.pxi"
 include "petscdmshell.pxi"
 include "petscdmlabel.pxi"
 include "petscdmswarm.pxi"
 include "petscpartitioner.pxi"
+
 
 # --------------------------------------------------------------------
 
@@ -177,6 +179,7 @@ include "AO.pyx"
 include "DM.pyx"
 include "DS.pyx"
 include "DMDA.pyx"
+include "DMBF.pyx"
 include "DMPlex.pyx"
 include "DMStag.pyx"
 include "DMComposite.pyx"
