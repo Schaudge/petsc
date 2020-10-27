@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+#
+# run with files to be processed for one plot from run.bsub output.
+#  eg, ./plot.py out_*kokkos_tpl*
+#
 import sys, os, math, glob
 import matplotlib.pyplot as plt
 import numpy as npy
