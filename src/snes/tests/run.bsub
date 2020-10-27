@@ -1,0 +1,73 @@
+#!/bin/bash
+### Begin BSUB Options
+#BSUB -P CSC314
+#BSUB -J petsc
+#BSUB -W 2:00
+#BSUB -N
+#BSUB -nnodes 512
+#BSUB -alloc_flags "smt1 gpumps"
+### End BSUB Options and begin shell commands
+
+#cd $MEMBERWORK/geo127/amgx
+pwd
+export CUDA_MEMCHECK_PATCH_MODULE=1
+
+date
+
+for REFINE in 2 3 4 5
+do
+
+PETSC_ARCH=arch-summit-opt-gnu-kokkos-tpl-cuda
+
+jsrun -n 6      -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 2,3,4    -petscpartitioner_simple_node_grid 1,1,1   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0001_cuda_def_${REFINE}_a4g1r6.txt
+jsrun -n 48     -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 4,6,8    -petscpartitioner_simple_node_grid 2,2,2   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0008_cuda_def_${REFINE}_a4g1r6.txt
+jsrun -n 384    -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 8,12,16  -petscpartitioner_simple_node_grid 4,4,4   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0064_cuda_def_${REFINE}_a4g1r6.txt
+jsrun -n 3072   -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 16,24,32 -petscpartitioner_simple_node_grid 8,8,8   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0512_cuda_def_${REFINE}_a4g1r6.txt
+#jsrun -n 24576  -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 32,48,64 -petscpartitioner_simple_node_grid 16,16,16 -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_4096_cuda_def_${REFINE}_a4g1r6.txt
+
+#jsrun -n 1     -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 2,3,4    -petscpartitioner_simple_node_grid 1,1,1   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -pc_gamg_rank_reduction_factors 0 >& out_0001_cuda_devreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 8     -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 4,6,8    -petscpartitioner_simple_node_grid 2,2,2   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -pc_gamg_rank_reduction_factors 0 >& out_0008_cuda_devreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 64    -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 8,12,16  -petscpartitioner_simple_node_grid 4,4,4   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -pc_gamg_rank_reduction_factors 0 >& out_0064_cuda_devreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 512   -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 16,24,32 -petscpartitioner_simple_node_grid 8,8,8   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -pc_gamg_rank_reduction_factors 0 >& out_0512_cuda_devreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 4096  -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 32,48,64 -petscpartitioner_simple_node_grid 16,16,16 -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -pc_gamg_rank_reduction_factors 0 >& out_4096_cuda_devreduce_${REFINE}_a24g6r1.txt
+
+#jsrun -n 1     -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 2,3,4    -petscpartitioner_simple_node_grid 1,1,1   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda  >& out_0001_cuda_nodevreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 8     -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 4,6,8    -petscpartitioner_simple_node_grid 2,2,2   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda  >& out_0008_cuda_nodevreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 64    -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 8,12,16  -petscpartitioner_simple_node_grid 4,4,4   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda  >& out_0064_cuda_nodevreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 512   -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 16,24,32 -petscpartitioner_simple_node_grid 8,8,8   -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda  >& out_0512_cuda_nodevreduce_${REFINE}_a24g6r1.txt
+#jsrun -n 4096  -a 24 -c 24 -g 6 -r 1 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 32,48,64 -petscpartitioner_simple_node_grid 16,16,16 -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda  >& out_4096_cuda_nodevreduce_${REFINE}_a24g6r1.txt
+
+#jsrun -n 6      -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 2,3,4    -petscpartitioner_simple_node_grid 1,1,1    -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -use_gpu_aware_mpi false >& out_0001_cuda_nogpuaware_${REFINE}_a4g1r6.txt
+#jsrun -n 48     -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 4,6,8    -petscpartitioner_simple_node_grid 2,2,2    -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -use_gpu_aware_mpi false >& out_0008_cuda_nogpuaware_${REFINE}_a4g1r6.txt
+#jsrun -n 384    -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 8,12,16  -petscpartitioner_simple_node_grid 4,4,4    -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -use_gpu_aware_mpi false >& out_0064_cuda_nogpuaware_${REFINE}_a4g1r6.txt
+#jsrun -n 3072   -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 16,24,32 -petscpartitioner_simple_node_grid 8,8,8    -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -use_gpu_aware_mpi false >& out_0512_cuda_nogpuaware_${REFINE}_a4g1r6.txt
+#jsrun -n 24576  -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 32,48,64 -petscpartitioner_simple_node_grid 16,16,16 -dm_refine ${REFINE} -dm_mat_type aijcusparse -dm_vec_type cuda -use_gpu_aware_mpi false >& out_4096_cuda_nogpuaware_${REFINE}_a4g1r6.txt
+
+PETSC_ARCH=arch-summit-opt-gnu-kokkos-notpl-cuda
+
+jsrun -n 6      -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 2,3,4    -petscpartitioner_simple_node_grid 1,1,1   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0001_kokkos_notpl_${REFINE}_a4g1r6.txt
+jsrun -n 48     -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 4,6,8    -petscpartitioner_simple_node_grid 2,2,2   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0008_kokkos_notpl_${REFINE}_a4g1r6.txt
+jsrun -n 384    -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 8,12,16  -petscpartitioner_simple_node_grid 4,4,4   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0064_kokkos_notpl_${REFINE}_a4g1r6.txt
+jsrun -n 3072   -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 16,24,32 -petscpartitioner_simple_node_grid 8,8,8   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0512_kokkos_notpl_${REFINE}_a4g1r6.txt
+#jsrun -n 24576  -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 32,48,64 -petscpartitioner_simple_node_grid 16,16,16 -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_4096_kokkos_notpl_${REFINE}_a4g1r6.txt
+
+PETSC_ARCH=arch-summit-opt-gnu-kokkos-tpl-cuda
+
+jsrun -n 6      -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 2,3,4    -petscpartitioner_simple_node_grid 1,1,1   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0001_kokkos_tpl_${REFINE}_a4g1r6.txt
+jsrun -n 48     -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 4,6,8    -petscpartitioner_simple_node_grid 2,2,2   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0008_kokkos_tpl_${REFINE}_a4g1r6.txt
+jsrun -n 384    -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 8,12,16  -petscpartitioner_simple_node_grid 4,4,4   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0064_kokkos_tpl_${REFINE}_a4g1r6.txt
+jsrun -n 3072   -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 16,24,32 -petscpartitioner_simple_node_grid 8,8,8   -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_0512_kokkos_tpl_${REFINE}_a4g1r6.txt
+#jsrun -n 24576  -a 4 -c 4 -g 1 -r 6 --smpiargs "-gpu" ./ex13.${PETSC_ARCH} -dm_plex_box_faces 32,48,64 -petscpartitioner_simple_node_grid 16,16,16 -dm_refine ${REFINE} -dm_mat_type aijkokkos -dm_vec_type kokkos >& out_4096_kokkos_tpl_${REFINE}_a4g1r6.txt
+
+# REFINE1=$(( ${REFINE} + 1 ))
+#jsrun -n 6      -a 1 -c 1 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 1,2,3     -petscpartitioner_simple_process_grid 1,2,3 -petscpartitioner_simple_node_grid 1,1,1    -dm_plex_box_upper 2,4,6 -dm_refine ${REFINE1} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0001_cuda_def_${REFINE}_a1g1r6.txt
+#jsrun -n 48     -a 1 -c 1 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 2,4,6     -petscpartitioner_simple_process_grid 1,2,3 -petscpartitioner_simple_node_grid 2,2,2    -dm_plex_box_upper 2,4,6 -dm_refine ${REFINE1} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0008_cuda_def_${REFINE}_a1g1r6.txt
+#jsrun -n 384    -a 1 -c 1 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 4,8,12   -petscpartitioner_simple_process_grid 1,2,3  -petscpartitioner_simple_node_grid 4,4,4    -dm_plex_box_upper 2,4,6 -dm_refine ${REFINE1} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0064_cuda_def_${REFINE}_a1g1r6.txt
+#jsrun -n 3072   -a 1 -c 1 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 8,16,24  -petscpartitioner_simple_process_grid 1,2,3  -petscpartitioner_simple_node_grid 8,8,8    -dm_plex_box_upper 2,4,6 -dm_refine ${REFINE1} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_0512_cuda_def_${REFINE}_a1g1r6.txt
+#jsrun -n 24576  -a 1 -c 1 -g 1 -r 6 --smpiargs "-gpu" ../ex13.${PETSC_ARCH} -dm_plex_box_faces 16,32,48 -petscpartitioner_simple_process_grid 1,2,3  -petscpartitioner_simple_node_grid 16,16,16 -dm_plex_box_upper 2,4,6 -dm_refine ${REFINE1} -dm_mat_type aijcusparse -dm_vec_type cuda >& out_4096_cuda_def_${REFINE}_a1g1r6.txt
+
+
+done
+
+date
+
