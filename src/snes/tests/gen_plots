@@ -1,0 +1,3 @@
+./plot.py out_*kokkos_tpl*
+./plot.py out_*kokkos_notpl*
+./plot.py out_*cuda_def*
