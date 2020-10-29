@@ -13,7 +13,7 @@ typedef struct {
   /* Domain and mesh definition */
   PetscInt  dim;               /* The topological mesh dimension */
   PetscBool simplex;           /* Flag for simplex or tensor product mesh */
-  PetscBool refcell;           /* Make the mesh only a reference cell */
+  DMPolytopeType refcell;      /* Make the mesh only a reference cell */
   PetscBool useDA;             /* Flag DMDA tensor product mesh */
   PetscBool interpolate;       /* Generate intermediate mesh elements */
   PetscReal refinementLimit;   /* The largest allowable cell volume */
@@ -130,7 +130,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->debug           = 0;
   options->dim             = 2;
   options->simplex         = PETSC_TRUE;
-  options->refcell         = PETSC_FALSE;
+  options->refcell         = DM_POLYTOPE_UNKNOWN;
   options->useDA           = PETSC_TRUE;
   options->interpolate     = PETSC_TRUE;
   options->refinementLimit = 0.0;
@@ -155,7 +155,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBoundedInt("-debug", "The debugging level", "ex3.c", options->debug, &options->debug, NULL,0);CHKERRQ(ierr);
   ierr = PetscOptionsRangeInt("-dim", "The topological mesh dimension", "ex3.c", options->dim, &options->dim, NULL,1,3);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "Flag for simplices or hexhedra", "ex3.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-refcell", "Make the mesh only the reference cell", "ex3.c", options->refcell, &options->refcell, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-refcell", "Make the mesh only the reference cell with given type", "ex3.c", DMPolytopeTypes, (PetscEnum) options->refcell, (PetscEnum *) &options->refcell, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-use_da", "Flag for DMDA mesh", "ex3.c", options->useDA, &options->useDA, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-interpolate", "Generate intermediate mesh elements", "ex3.c", options->interpolate, &options->interpolate, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-refinement_limit", "The largest allowable cell volume", "ex3.c", options->refinementLimit, &options->refinementLimit, NULL);CHKERRQ(ierr);
@@ -255,8 +255,8 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  if (user->refcell) {
-    ierr = DMPlexCreateReferenceCell(comm, dim, user->simplex, dm);CHKERRQ(ierr);
+  if (user->refcell != DM_POLYTOPE_UNKNOWN) {
+    ierr = DMPlexCreateReferenceCellByType(comm, user->refcell, dm);CHKERRQ(ierr);
   } else if (user->simplex || !user->useDA) {
     DM refinedMesh = NULL;
 
@@ -930,7 +930,145 @@ int main(int argc, char **argv)
   ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PETSC_COMM_WORLD, user.dim, user.numComponents, user.simplex, NULL, user.qorder, &user.fe);CHKERRQ(ierr);
+  if (user.refcell == DM_POLYTOPE_TRI_PRISM) {
+    PetscFE        *fem = &user.fe;
+    PetscSpace      P;
+    PetscDualSpace  Q;
+    PetscQuadrature q, fq;
+    PetscInt        dim = 3, Nc = 3, order, qorder, quadPointsPerEdge;
+    PetscBool       tensor = PETSC_FALSE;
+    const char     *prefix = NULL;
+
+    ierr = PetscSpaceCreate(PETSC_COMM_SELF, &P);CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) P, prefix);CHKERRQ(ierr);
+    ierr = PetscSpacePolynomialSetTensor(P, tensor);CHKERRQ(ierr);
+    ierr = PetscSpaceSetNumComponents(P, Nc);CHKERRQ(ierr);
+    ierr = PetscSpaceSetNumVariables(P, dim);CHKERRQ(ierr);
+    ierr = PetscSpaceSetFromOptions(P);CHKERRQ(ierr);
+    ierr = PetscSpaceSetUp(P);CHKERRQ(ierr);
+    ierr = PetscSpaceGetDegree(P, &order, NULL);CHKERRQ(ierr);
+    ierr = PetscSpacePolynomialGetTensor(P, &tensor);CHKERRQ(ierr);
+
+#if 0
+    ierr = PetscDualSpaceCreate(PETSC_COMM_SELF, &Q);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetType(Q,PETSCDUALSPACELAGRANGE);CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) Q, prefix);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetDM(Q, dm);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetNumComponents(Q, Nc);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetOrder(Q, order);CHKERRQ(ierr);
+    ierr = PetscDualSpaceLagrangeSetTensor(Q, tensor);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetFromOptions(Q);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetUp(Q);CHKERRQ(ierr);
+#else
+    ierr = PetscDualSpaceCreate(PETSC_COMM_SELF, &Q);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetType(Q,PETSCDUALSPACESIMPLE);CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) Q, prefix);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetDM(Q, dm);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetNumComponents(Q, Nc);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetOrder(Q, order);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSimpleSetDimension(Q, 18);CHKERRQ(ierr);
+    {
+      PetscReal *x, *w;
+
+      ierr = PetscMalloc1(dim, &x);CHKERRQ(ierr);
+      ierr = PetscMalloc1(Nc,  &w);CHKERRQ(ierr);
+      ierr = PetscQuadratureCreate(PETSC_COMM_SELF, &q);CHKERRQ(ierr);
+      x[0] = -1.0; x[1] = -1.0; x[2] = -1.0;
+      w[0] =  1.0; w[1] =  0.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 0, q);CHKERRQ(ierr);
+      CHKMEMQ;
+      w[0] =  0.0; w[1] =  1.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 1, q);CHKERRQ(ierr);
+      CHKMEMQ;
+      w[0] =  0.0; w[1] =  0.0; w[2] =  1.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 2, q);CHKERRQ(ierr);
+      CHKMEMQ;
+      x[0] =  1.0; x[1] = -1.0; x[2] = -1.0;
+      w[0] =  1.0; w[1] =  0.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 3, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  1.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 4, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  0.0; w[2] =  1.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 5, q);CHKERRQ(ierr);
+      x[0] = -1.0; x[1] =  1.0; x[2] = -1.0;
+      w[0] =  1.0; w[1] =  0.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 6, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  1.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 7, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  0.0; w[2] =  1.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 8, q);CHKERRQ(ierr);
+      x[0] = -1.0; x[1] = -1.0; x[2] =  1.0;
+      w[0] =  1.0; w[1] =  0.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 9, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  1.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 10, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  0.0; w[2] =  1.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 11, q);CHKERRQ(ierr);
+      x[0] =  1.0; x[1] = -1.0; x[2] =  1.0;
+      w[0] =  1.0; w[1] =  0.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 12, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  1.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 13, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  0.0; w[2] =  1.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 14, q);CHKERRQ(ierr);
+      x[0] = -1.0; x[1] =  1.0; x[2] =  1.0;
+      w[0] =  1.0; w[1] =  0.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 15, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  1.0; w[2] =  0.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 16, q);CHKERRQ(ierr);
+      w[0] =  0.0; w[1] =  0.0; w[2] =  1.0;
+      ierr = PetscQuadratureSetData(q, dim, Nc, 1, x, w);CHKERRQ(ierr);
+      ierr = PetscDualSpaceSimpleSetFunctional(Q, 17, q);CHKERRQ(ierr);
+      ierr = PetscQuadratureDestroy(&q);CHKERRQ(ierr);
+    }
+    ierr = PetscDualSpaceSetFromOptions(Q);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetUp(Q);CHKERRQ(ierr);
+#endif
+
+    ierr = PetscFECreate(PETSC_COMM_SELF, fem);CHKERRQ(ierr);
+    ierr = PetscObjectSetOptionsPrefix((PetscObject) *fem, prefix);CHKERRQ(ierr);
+    ierr = PetscFESetBasisSpace(*fem, P);CHKERRQ(ierr);
+    ierr = PetscFESetDualSpace(*fem, Q);CHKERRQ(ierr);
+    ierr = PetscFESetNumComponents(*fem, Nc);CHKERRQ(ierr);
+    ierr = PetscFESetFromOptions(*fem);CHKERRQ(ierr);
+    ierr = PetscFESetUp(*fem);CHKERRQ(ierr);
+    ierr = PetscSpaceDestroy(&P);CHKERRQ(ierr);
+    ierr = PetscDualSpaceDestroy(&Q);CHKERRQ(ierr);
+
+    /* TODO This quadrature is wrong */
+    qorder = order;
+    quadPointsPerEdge = PetscMax(qorder + 1,1);
+    if (user.simplex) {
+      ierr = PetscDTStroudConicalQuadrature(dim,   1, quadPointsPerEdge, -1.0, 1.0, &q);CHKERRQ(ierr);
+      ierr = PetscDTStroudConicalQuadrature(dim-1, 1, quadPointsPerEdge, -1.0, 1.0, &fq);CHKERRQ(ierr);
+    } else {
+      ierr = PetscDTGaussTensorQuadrature(dim,   1, quadPointsPerEdge, -1.0, 1.0, &q);CHKERRQ(ierr);
+      ierr = PetscDTGaussTensorQuadrature(dim-1, 1, quadPointsPerEdge, -1.0, 1.0, &fq);CHKERRQ(ierr);
+    }
+    ierr = PetscFESetQuadrature(*fem, q);CHKERRQ(ierr);
+    ierr = PetscFESetFaceQuadrature(*fem, fq);CHKERRQ(ierr);
+    ierr = PetscQuadratureDestroy(&q);CHKERRQ(ierr);
+    ierr = PetscQuadratureDestroy(&fq);CHKERRQ(ierr);
+  } else {
+    ierr = PetscFECreateDefault(PETSC_COMM_WORLD, user.dim, user.numComponents, user.simplex, NULL, user.qorder, &user.fe);CHKERRQ(ierr);
+  }
   ierr = SetupSection(dm, &user);CHKERRQ(ierr);
   if (user.testFEjacobian) {ierr = TestFEJacobian(dm, &user);CHKERRQ(ierr);}
   if (user.testFVgrad) {ierr = TestFVGrad(dm, &user);CHKERRQ(ierr);}
@@ -1254,6 +1392,20 @@ int main(int argc, char **argv)
     args: -petscspace_degree 1 -petscdualspace_type bdm \
           -petscdualspace_lagrange_tensor 1 \
           -use_da 0 -simplex 0 -num_comp 2 -qorder 1 -porder 2
+
+  # 3D Wheeler-Xue-Yotov on a trianglular prism
+  test:
+    suffix: wxy_3d_0
+    requires: triangle
+    args: -dim 3 -refcell triangular_prism -petscspace_type wxy -petscspace_degree 1 -qorder 1 -convergence
+  test:
+    suffix: wxy_3d_1
+    requires: triangle
+    args: -dim 3 -refcell triangular_prism -petscspace_type wxy -num_comp 3 -petscspace_degree 1 -qorder 1 -porder 1
+  test:
+    suffix: wxy_3d_2
+    requires: triangle
+    args: -dim 3 -refcell triangular_prism -petscspace_type wxy -petscspace_degree 1 -qorder 1 -porder 2
 
   # Test high order quadrature
   test:

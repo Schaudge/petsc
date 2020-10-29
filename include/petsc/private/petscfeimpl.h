@@ -70,6 +70,13 @@ typedef struct {
   PetscQuadrature quad;         /* The points defining the space */
 } PetscSpace_Point;
 
+typedef struct {
+  PetscInt   Nu;                /* The number of basis vectors in the unconstrained space */
+  PetscInt   N;                 /* The number of basis vectors in the constrained space */
+  PetscReal *tmpB;              /* [Nu][3]: The Vandermonde matrix for the unconstrained basis */
+  PetscReal *N_C;               /* [Nu][N]: The nullspace of the constraint matrix C */
+} PetscSpace_WXY;
+
 typedef struct _PetscDualSpaceOps *PetscDualSpaceOps;
 struct _PetscDualSpaceOps {
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,PetscDualSpace);
