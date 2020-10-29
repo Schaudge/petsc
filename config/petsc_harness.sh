@@ -266,7 +266,9 @@ export LC_ALL=C
 
 if $compile; then
     curexec=`basename ${exec}`
-    (cd $petsc_dir && make -f gmakefile.test ${abspath_scriptdir}/${curexec})
+    fullexec=${abspath_scriptdir}/${curexec}
+    maketarget=`echo ${fullexec} | sed "s#${petsc_dir}/##"`
+    (cd $petsc_dir && make -f gmakefile.test ${maketarget})
 fi
 function petsc_mpiexec_valgrind() {
   _mpiexec=$1;shift
