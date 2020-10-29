@@ -19,7 +19,7 @@
 -pc_gamg_agg_nsmooths 1
 -pc_gamg_coarse_eq_limit 200
 -pc_gamg_process_eq_limit 500
--pc_gamg_reuse_interpolation false
+-pc_gamg_reuse_interpolation true
 -snes_monitor
 #-ksp_monitor
 -ksp_converged_reason
