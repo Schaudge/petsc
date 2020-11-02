@@ -1721,7 +1721,7 @@ PetscErrorCode DMPlexCreateGmsh(MPI_Comm comm, PetscViewer viewer, PetscBool int
     PetscBool       continuity = periodic ? PETSC_FALSE : PETSC_TRUE;
     PetscDTNodeType nodeType   = PETSCDTNODES_EQUISPACED;
 
-    if (isSimplex) continuity = PETSC_FALSE; /* XXX FIXME Requires DMPlexSetClosurePermutationLexicographic() */
+    //if (isSimplex) continuity = PETSC_FALSE; /* XXX FIXME Requires DMPlexSetClosurePermutationLexicographic() */
 
     ierr = GmshCreateFE(comm, NULL, isSimplex, continuity, nodeType, dim, coordDim, order, &fe);CHKERRQ(ierr);
     ierr = PetscFEViewFromOptions(fe, NULL, "-dm_plex_gmsh_fe_view");CHKERRQ(ierr);
@@ -1741,7 +1741,11 @@ PetscErrorCode DMPlexCreateGmsh(MPI_Comm comm, PetscViewer viewer, PetscBool int
     ierr = DMSetLocalSection(cdm, NULL);CHKERRQ(ierr);
     ierr = DMGetLocalSection(cdm, &coordSection);CHKERRQ(ierr);
     ierr = PetscSectionClone(coordSection, &section);CHKERRQ(ierr);
-    ierr = DMPlexSetClosurePermutationTensor(cdm, 0, section);CHKERRQ(ierr); /* XXX Implement DMPlexSetClosurePermutationLexicographic() */
+    if (isSimplex) {
+      ierr = DMPlexSetClosurePermutationSimplex(cdm, 0, section);CHKERRQ(ierr);
+    } else {
+      ierr = DMPlexSetClosurePermutationTensor(cdm, 0, section);CHKERRQ(ierr);
+    }
 
     ierr = DMCreateLocalVector(cdm, &coordinates);CHKERRQ(ierr);
     ierr = PetscMalloc1(maxDof, &cellCoords);CHKERRQ(ierr);
@@ -1836,7 +1840,7 @@ PetscErrorCode DMPlexCreateGmsh(MPI_Comm comm, PetscViewer viewer, PetscBool int
     PetscBool       continuity = periodic ? PETSC_FALSE : PETSC_TRUE;
     PetscDTNodeType nodeType   = PETSCDTNODES_GAUSSJACOBI;
 
-    if (isSimplex) continuity = PETSC_FALSE; /* XXX FIXME Requires DMPlexSetClosurePermutationLexicographic() */
+    //if (isSimplex) continuity = PETSC_FALSE; /* XXX FIXME Requires DMPlexSetClosurePermutationLexicographic() */
 
     ierr = GmshCreateFE(comm, prefix, isSimplex, continuity, nodeType, dim, coordDim, order, &fe);CHKERRQ(ierr);
     ierr = PetscFEViewFromOptions(fe, NULL, "-dm_plex_gmsh_project_fe_view");CHKERRQ(ierr);
