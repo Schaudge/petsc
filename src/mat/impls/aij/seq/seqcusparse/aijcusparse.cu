@@ -2277,7 +2277,7 @@ static PetscErrorCode MatAssemblyEnd_SeqAIJCUSPARSE(Mat A,MatAssemblyType mode)
   }
   if (d_mat) {
     cudaError_t err;
-    ierr = PetscInfo(A,"Assemble device matrix\n");CHKERRQ(ierr);
+    ierr = PetscInfo2(A,"Assemble device matrix A=%p d_mat=%p\n",A,d_mat);CHKERRQ(ierr);
     err = cudaMemcpy( &h_mat, d_mat, sizeof(PetscSplitCSRDataStructure), cudaMemcpyDeviceToHost);CHKERRCUDA(err);
     nnz_state = h_mat.nonzerostate;
     is_seq = h_mat.seq;
