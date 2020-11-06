@@ -36,7 +36,6 @@ typedef struct _p_DM_BF_Cell {
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCellsVectors(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCells(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*);
 
-
 typedef struct _p_DM_BF_Face {
   PetscInt    nCellsL, nCellsR;
   DM_BF_Cell  *cellL[4], *cellR[4];
@@ -53,6 +52,5 @@ PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM,void*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM,void*);
 
 PETSC_EXTERN PetscErrorCode DMBFVTKWriteAll(PetscObject,PetscViewer);
-
 
 #endif /* defined(PETSCDMBF_H) */

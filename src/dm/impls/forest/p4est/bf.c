@@ -549,14 +549,14 @@ PetscErrorCode DMBFGetCellDataSize(DM dm, PetscInt **valsPerElemRead, PetscInt *
   PetscValidIntPointer(valsPerElemReadWrite,5);
   bf = _p_getBF(dm);
   *nValsPerElemRead = bf->nValsPerElemRead;
-  if (0 < bf->nValsPerElemRead) {
+  if (0 < bf->nValsPerElemRead && valsPerElemRead) {
     ierr = PetscMalloc1(bf->nValsPerElemRead,valsPerElemRead);CHKERRQ(ierr);
     for (i=0; i<bf->nValsPerElemRead; i++) {
       (*valsPerElemRead)[i] = bf->valsPerElemRead[i];
     }
   }
   *nValsPerElemReadWrite = bf->nValsPerElemReadWrite;
-  if (0 < bf->nValsPerElemReadWrite) {
+  if (0 < bf->nValsPerElemReadWrite && valsPerElemReadWrite) {
     ierr = PetscMalloc1(bf->nValsPerElemReadWrite,valsPerElemReadWrite);CHKERRQ(ierr);
     for (i=0; i<bf->nValsPerElemReadWrite; i++) {
       (*valsPerElemReadWrite)[i] = bf->valsPerElemReadWrite[i];
@@ -1131,7 +1131,7 @@ typedef struct _p_DM_BF_CellIterCtx {
 static void p4est_iter_volume(p4est_iter_volume_info_t *info, void *ctx)
 {
   DM_BF_CellIterCtx *iterCtx = ctx;
-  DM_BF             *bf      = _p_getBF(iterCtx->dm);;
+  DM_BF             *bf      = _p_getBF(iterCtx->dm);
   DM_BF_Cell        *cell    = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
   PetscErrorCode    ierr;
 
@@ -1305,7 +1305,7 @@ static void p4est_iter_face(p4est_iter_face_info_t *info, void *ctx)
 //  cell++;
 //}
 }
-PetscErrorCode DMBFIterateOverFacesVectors(DM dm, PetscErrorCode (*iterFace)(DM_BF_Face*,void*), void *userIterCtx,
+PetscErrorCode DMBFIterateOverFacesVectors(DM dm, PetscErrorCode (*iterFace)(DM,DM_BF_Face*,void*), void *userIterCtx,
                                            Vec *vecRead, PetscInt nVecsRead, Vec *vecReadWrite, PetscInt nVecsReadWrite)
 {
   DM_BF             *bf;
