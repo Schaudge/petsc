@@ -3,6 +3,7 @@
 
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
 
+PetscErrorCode DMBF_2D_IterateSetUpCells(DM,char*,size_t,size_t,size_t);
 PetscErrorCode DMBF_2D_IterateOverCellsVectors(DM,char*,size_t,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
 PetscErrorCode DMBF_2D_IterateOverFaces(DM,char*,size_t,PetscErrorCode(*)(DM,DM_BF_Face*,void*),void*);
 

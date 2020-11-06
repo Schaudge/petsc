@@ -151,66 +151,22 @@ static PetscErrorCode VecView_BF(Vec,PetscViewer);
  * SETUP
  **************************************/
 
-static void _p_cellGetInfo(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_topidx_t treeid, p4est_locidx_t quadid, int8_t is_ghost,
-                           /*OUT*/ DM_BF_Cell *cell)
-{
-  const p4est_qcoord_t qlength = P4EST_QUADRANT_LEN(quad->level);
-  double               vertex1[3], vertex2[3];
-
-  /* get vertex coordinates of opposite corners */
-  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x,quad->y,vertex1);
-  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x+qlength,quad->y+qlength,vertex2);
-  /* set cell data */
-  if (!is_ghost) {
-    p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
-
-    cell->indexLocal  = (PetscInt)(tree->quadrants_offset + quadid);
-    cell->indexGlobal = cell->indexLocal + (PetscInt)p4est->global_first_quadrant[p4est->mpirank];
-  } else {
-    cell->indexLocal  = (PetscInt)(p4est->global_first_quadrant[p4est->mpirank+1] + quadid);
-    cell->indexGlobal = -1;
-  }
-  cell->level         = (PetscInt)quad->level;
-  cell->corner[0]     = (PetscReal)vertex1[0];
-  cell->corner[1]     = (PetscReal)vertex1[1];
-  cell->corner[2]     = (PetscReal)vertex1[2];
-  //TODO set all 4/8 corners
-  //TODO set volume
-  cell->sidelength[0] = (PetscReal)(vertex2[0] - vertex1[0]);
-  cell->sidelength[1] = (PetscReal)(vertex2[1] - vertex1[1]);
-  cell->sidelength[2] = (PetscReal)(vertex2[2] - vertex1[2]);
-  //TODO set side lengths to NAN if warped geometry
-}
-
-static void p4est_iter_set_cell_info(p4est_iter_volume_info_t *info, void *ctx)
-{
-  DM_BF      *bf   = ctx;
-  DM_BF_Cell *cell = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
-
-  /* get cell info */
-  _p_cellGetInfo(info->p4est,info->quad,info->treeid,info->quadid,0,cell);
-  cell->dataRead      = (const PetscScalar*)_p_cellGetDataRead(cell);
-  cell->dataReadWrite = _p_cellGetDataReadWrite(cell,bf);
-  /* assign cell to forest quadrant */
-  info->quad->p.user_data = cell;
-}
-
 static PetscErrorCode DMBFSetUpOwnedCells(DM dm)
 {
   DM_BF          *bf;
+  PetscInt       dim;
   PetscErrorCode ierr;
-  p4est_t        *p4est; //TODO deprecated
-  p4est_ghost_t  *ghost; //TODO deprecated
 
   PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
-  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
   if (!bf->cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(p4est,ghost,bf,p4est_iter_set_cell_info,NULL,NULL));
-  p4est->data_size = _p_cellSize(bf);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  switch (dim) {
+    case 2: ierr = DMBF_2D_IterateSetUpCells(dm,(char*)bf->cells,_p_cellSize(bf),_p_cellSizeOfInfo(),_p_cellSizeOfDataRead(bf));CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateSetUpCells(dm,(char*)bf->cells,_p_cellSize(bf),_p_cellSizeOfInfo(),_p_cellSizeOfDataRead(bf));CHKERRQ(ierr); break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
+  }
   bf->ownedCellsSetUpCalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
