@@ -449,7 +449,7 @@ PetscErrorCode VecBindToCPU_SeqCUDA(Vec V,PetscBool pin)
     V->ops->waxpy                  = VecWAXPY_Seq;
     V->ops->dotnorm2               = NULL;
     V->ops->placearray             = VecPlaceArray_Seq;
-    V->ops->replacearray           = VecReplaceArray_SeqCUDA;
+    V->ops->replacearray           = VecReplaceArray_Seq;
     V->ops->resetarray             = VecResetArray_Seq;
     V->ops->duplicate              = VecDuplicate_Seq;
     V->ops->conjugate              = VecConjugate_Seq;
