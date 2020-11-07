@@ -66,10 +66,14 @@ static inline size_t _p_cellSizeOfInfo()
   return _p_bytesAlign(sizeof(DM_BF_Cell));
 }
 
+#define _p_cellOffsetDataRead _p_cellSizeOfInfo
+
 static inline size_t _p_cellSizeOfDataRead(DM_BF *bf)
 {
   return _p_bytesAlign((size_t)(sizeof(PetscScalar)*bf->blockSize[0]*bf->blockSize[1]*bf->blockSize[2]*bf->valsPerElemReadTotal));
 }
+
+#define _p_cellOffsetDataReadWrite(bf) (_p_cellSizeOfInfo() + _p_cellSizeOfDataRead(bf))
 
 static inline size_t _p_cellSizeOfDataReadWrite(DM_BF *bf)
 {
@@ -93,20 +97,6 @@ static inline size_t _p_cellSize(DM_BF *bf)
 static inline DM_BF_Cell *_p_cellGetPtrIndex(DM_BF *bf, PetscInt index)
 {
   return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)index));
-}
-
-static inline DM_BF_Cell *_p_cellGetPtrQuadId(DM_BF *bf, p4est_topidx_t treeid, p4est_locidx_t quadid, int8_t is_ghost)
-{
-  p4est_t        *p4est; //TODO deprecated
-  DMBF_2D_CellsGetP4est((DM_BF_2D_Cells*)bf->ftCells,&p4est); //TODO deprecated
-
-  if (!is_ghost) {
-    p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
-
-    return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)(tree->quadrants_offset + quadid)));
-  } else {
-    return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)(p4est->local_num_quadrants + quadid)));
-  }
 }
 
 static inline PetscScalar *_p_cellGetDataRead(DM_BF_Cell *cell)
@@ -163,8 +153,8 @@ static PetscErrorCode DMBFSetUpOwnedCells(DM dm)
   if (!bf->cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-    case 2: ierr = DMBF_2D_IterateSetUpCells(dm,(char*)bf->cells,_p_cellSize(bf),_p_cellSizeOfInfo(),_p_cellSizeOfDataRead(bf));CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateSetUpCells(dm,(char*)bf->cells,_p_cellSize(bf),_p_cellSizeOfInfo(),_p_cellSizeOfDataRead(bf));CHKERRQ(ierr); break;
+    case 2: ierr = DMBF_2D_IterateSetUpCells(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf));CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateSetUpCells(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf));CHKERRQ(ierr); break;
     default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
   bf->ownedCellsSetUpCalled = PETSC_TRUE;
@@ -589,7 +579,7 @@ PetscErrorCode DMCreate_BF(DM dm)
   ierr = DMForestSetTopology(dm,"unit");CHKERRQ(ierr);
   ierr = DMForestSetMinimumRefinement(dm,0);CHKERRQ(ierr);
   ierr = DMForestSetInitialRefinement(dm,0);CHKERRQ(ierr);
-  ierr = DMForestSetMaximumRefinement(dm,P4EST_QMAXLEVEL);CHKERRQ(ierr);
+  ierr = DMForestSetMaximumRefinement(dm,18);CHKERRQ(ierr);
   ierr = DMForestSetGradeFactor(dm,2);CHKERRQ(ierr);
   ierr = DMForestSetAdjacencyDimension(dm,0);CHKERRQ(ierr);
   ierr = DMForestSetPartitionOverlap(dm,0);CHKERRQ(ierr);
@@ -1084,9 +1074,9 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM,
   if (!bf->ownedCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-    case 2: ierr = DMBF_2D_IterateOverCellsVectors(dm,(char*)bf->cells,_p_cellSize(bf),iterCell,userIterCtx,
+    case 2: ierr = DMBF_2D_IterateOverCellsVectors(dm,bf->cells,_p_cellSize(bf),iterCell,userIterCtx,
                                                    vecRead,nVecsRead,vecReadWrite,nVecsReadWrite);CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateOverCellsVectors(dm,(char*)bf->cells,_p_cellSize(bf),iterCell,userIterCtx,
+    case 3: ierr = DMBF_3D_IterateOverCellsVectors(dm,bf->cells,_p_cellSize(bf),iterCell,userIterCtx,
                                                    vecRead,nVecsRead,vecReadWrite,nVecsReadWrite);CHKERRQ(ierr); break;
     default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
@@ -1115,197 +1105,61 @@ PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM,DM_BF_F
   if (!bf->ghostCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-    case 2: ierr = DMBF_2D_IterateOverFaces(dm,(char*)bf->cells,_p_cellSize(bf),iterFace,userIterCtx);CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateOverFaces(dm,(char*)bf->cells,_p_cellSize(bf),iterFace,userIterCtx);CHKERRQ(ierr); break;
+    case 2: ierr = DMBF_2D_IterateOverFaces(dm,bf->cells,_p_cellSize(bf),iterFace,userIterCtx);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateOverFaces(dm,bf->cells,_p_cellSize(bf),iterFace,userIterCtx);CHKERRQ(ierr); break;
     default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
   PetscFunctionReturn(0);
 }
 
-/***************************************
- * CELL DATA
- **************************************/
-
-typedef struct _p_DM_BF_SetCellDataIterCtx {
-  DM_BF             *bf;
-  const PetscScalar **vecViewRead, **vecViewReadWrite;
-  PetscInt          nVecsRead, nVecsReadWrite;
-} DM_BF_SetCellDataIterCtx;
-
-static void p4est_iter_set_cell_data(p4est_iter_volume_info_t *info, void *ctx)
-{
-  DM_BF_SetCellDataIterCtx *iterCtx = ctx;
-  DM_BF                    *bf      = iterCtx->bf;
-  DM_BF_Cell               *cell    = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
-  PetscScalar              *data;
-  PetscInt                 i, j, di;
-
-  /* set cell data for reading */
-  if (0 < iterCtx->nVecsRead) {
-    data = _p_cellGetDataRead(cell);
-    di   = 0;
-    for (i=0; i<bf->nValsPerElemRead; i++) {
-      for (j=0; j<bf->valsPerElemRead[i]; j++) {
-        if (bf->valsPerElemReadTotal <= di) SETERRABORT(PetscObjectComm((PetscObject)bf),PETSC_ERR_PLIB,"Cell data read index is above max");
-        data[di] = iterCtx->vecViewRead[i][bf->valsPerElemRead[i]*cell->indexLocal+j];
-        di++;
-      }
-    }
-  }
-  /* set cell data for reading & writing */
-  if (0 < iterCtx->nVecsReadWrite) {
-    data = _p_cellGetDataReadWrite(cell,bf);
-    di   = 0;
-    for (i=0; i<bf->nValsPerElemReadWrite; i++) {
-      for (j=0; j<bf->valsPerElemReadWrite[i]; j++) {
-        if (bf->valsPerElemReadWriteTotal <= di) SETERRABORT(PetscObjectComm((PetscObject)bf),PETSC_ERR_PLIB,"Cell data read-write index is above max");
-        data[di] = iterCtx->vecViewReadWrite[i][bf->valsPerElemReadWrite[i]*cell->indexLocal+j];
-        di++;
-      }
-    }
-  }
-}
-
 PetscErrorCode DMBFSetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
 {
-  DM_BF                    *bf;
-  DM_BF_SetCellDataIterCtx iterCtx;
-  PetscInt                 i;
-  PetscErrorCode           ierr;
-  p4est_t        *p4est; //TODO deprecated
-  p4est_ghost_t  *ghost; //TODO deprecated
+  DM_BF          *bf;
+  PetscInt       dim;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
-  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
   if (!bf->cells)                 SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   if (!bf->ownedCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   if (vecRead      && bf->nValsPerElemRead)      PetscValidPointer(vecRead,2);
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
-  /* set iterator context */
-  iterCtx.nVecsRead      = (vecRead      ? bf->nValsPerElemRead      : 0);
-  iterCtx.nVecsReadWrite = (vecReadWrite ? bf->nValsPerElemReadWrite : 0);
-  iterCtx.bf             = bf;
-  if (0 < iterCtx.nVecsRead) {
-    ierr = PetscMalloc1(iterCtx.nVecsRead,&iterCtx.vecViewRead);CHKERRQ(ierr);
-    for (i=0; i<iterCtx.nVecsRead; i++) {
-      ierr = VecGetArrayRead(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
-    }
-  }
-  if (0 < iterCtx.nVecsReadWrite) {
-    ierr = PetscMalloc1(iterCtx.nVecsReadWrite,&iterCtx.vecViewReadWrite);CHKERRQ(ierr);
-    for (i=0; i<iterCtx.nVecsReadWrite; i++) {
-      ierr = VecGetArrayRead(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
-    }
-  }
-  /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,p4est_iter_set_cell_data,NULL,NULL));
-  /* clear iterator context */
-  if (0 < iterCtx.nVecsRead) {
-    for (i=0; i<iterCtx.nVecsRead; i++) {
-      ierr = VecRestoreArrayRead(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree(iterCtx.vecViewRead);CHKERRQ(ierr);
-  }
-  if (0 < iterCtx.nVecsReadWrite) {
-    for (i=0; i<iterCtx.nVecsReadWrite; i++) {
-      ierr = VecRestoreArrayRead(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree(iterCtx.vecViewReadWrite);CHKERRQ(ierr);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  switch (dim) {
+    case 2: ierr = DMBF_2D_IterateSetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateSetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite);CHKERRQ(ierr); break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
   PetscFunctionReturn(0);
 }
 
-typedef struct _p_DM_BF_GetCellDataIterCtx {
-  DM_BF       *bf;
-  PetscScalar **vecViewRead, **vecViewReadWrite;
-  PetscInt    nVecsRead, nVecsReadWrite;
-} DM_BF_GetCellDataIterCtx;
-
-static void p4est_iter_get_cell_data(p4est_iter_volume_info_t *info, void *ctx)
-{
-  DM_BF_GetCellDataIterCtx *iterCtx = ctx;
-  DM_BF                    *bf      = iterCtx->bf;
-  DM_BF_Cell               *cell    = _p_cellGetPtrQuadId(bf,info->treeid,info->quadid,0);
-  PetscScalar              *data;
-  PetscInt                 i, j, di=0;
-
-  /* get cell data for reading */
-  if (0 < iterCtx->nVecsRead) {
-    data = _p_cellGetDataRead(cell);
-    di   = 0;
-    for (i=0; i<bf->nValsPerElemRead; i++) {
-      for (j=0; j<bf->valsPerElemRead[i]; j++) {
-        if (bf->valsPerElemReadTotal <= di) SETERRABORT(PetscObjectComm((PetscObject)bf),PETSC_ERR_PLIB,"Cell data read index is above max");
-        iterCtx->vecViewRead[i][bf->valsPerElemRead[i]*cell->indexLocal+j] = data[di];
-        di++;
-      }
-    }
-  }
-  /* get cell data for reading & writing */
-  if (0 < iterCtx->nVecsReadWrite) {
-    data = _p_cellGetDataReadWrite(cell,bf);
-    di   = 0;
-    for (i=0; i<bf->nValsPerElemReadWrite; i++) {
-      for (j=0; j<bf->valsPerElemReadWrite[i]; j++) {
-        if (bf->valsPerElemReadWriteTotal <= di) SETERRABORT(PetscObjectComm((PetscObject)bf),PETSC_ERR_PLIB,"Cell data read-write index is above max");
-        iterCtx->vecViewReadWrite[i][bf->valsPerElemReadWrite[i]*cell->indexLocal+j] = data[di];
-        di++;
-      }
-    }
-  }
-}
-
 PetscErrorCode DMBFGetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
 {
-  DM_BF                    *bf;
-  DM_BF_GetCellDataIterCtx iterCtx;
-  PetscInt                 i;
-  PetscErrorCode           ierr;
-  p4est_t        *p4est; //TODO deprecated
-  p4est_ghost_t  *ghost; //TODO deprecated
+  DM_BF          *bf;
+  PetscInt       dim;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
-  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
   if (!bf->cells)                 SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   if (!bf->ownedCellsSetUpCalled) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   if (vecRead      && bf->nValsPerElemRead)      PetscValidPointer(vecRead,2);
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
-  /* set iterator context */
-  iterCtx.nVecsRead      = (vecRead      ? bf->nValsPerElemRead      : 0);
-  iterCtx.nVecsReadWrite = (vecReadWrite ? bf->nValsPerElemReadWrite : 0);
-  iterCtx.bf             = bf;
-  if (0 < iterCtx.nVecsRead) {
-    ierr = PetscMalloc1(iterCtx.nVecsRead,&iterCtx.vecViewRead);CHKERRQ(ierr);
-    for (i=0; i<iterCtx.nVecsRead; i++) {
-      ierr = VecGetArray(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
-    }
-  }
-  if (0 < iterCtx.nVecsReadWrite) {
-    ierr = PetscMalloc1(iterCtx.nVecsReadWrite,&iterCtx.vecViewReadWrite);CHKERRQ(ierr);
-    for (i=0; i<iterCtx.nVecsReadWrite; i++) {
-      ierr = VecGetArray(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
-    }
-  }
-  /* run iterator */
-  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,p4est_iter_get_cell_data,NULL,NULL));
-  /* clear iterator context */
-  if (0 < iterCtx.nVecsRead) {
-    for (i=0; i<iterCtx.nVecsRead; i++) {
-      ierr = VecRestoreArray(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree(iterCtx.vecViewRead);CHKERRQ(ierr);
-  }
-  if (0 < iterCtx.nVecsReadWrite) {
-    for (i=0; i<iterCtx.nVecsReadWrite; i++) {
-      ierr = VecRestoreArray(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
-    }
-    ierr = PetscFree(iterCtx.vecViewReadWrite);CHKERRQ(ierr);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  switch (dim) {
+    case 2: ierr = DMBF_2D_IterateGetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateGetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite);CHKERRQ(ierr); break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
   PetscFunctionReturn(0);
 }

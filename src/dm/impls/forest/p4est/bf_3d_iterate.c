@@ -6,6 +6,9 @@
 
 /* rename generic functions that are the same for 2D and 3D */
 #define DMBF_3D_IterateSetUpCells       DMBF_3D_IterateSetUpCells
+#define DMBF_XD_IterateSetCellData      DMBF_3D_IterateSetCellData
+#define DMBF_XD_IterateGetCellData      DMBF_3D_IterateGetCellData
+
 #define DMBF_XD_IterateOverCellsVectors DMBF_3D_IterateOverCellsVectors
 #define DMBF_XD_IterateOverFaces        DMBF_3D_IterateOverFaces
 
