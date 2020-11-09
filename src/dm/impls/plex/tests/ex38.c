@@ -1140,40 +1140,81 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       /* Applying the lumping and storing result in tmp array (may not need tmp any more) */
       for (groupI = dGroupMin; groupI <= dGroupMax; ++groupI) {
         /* Group I is our target (range) for the lumping. I.e. the block diagonal elements that the lumping will preserve*/
-        PetscInt    gIOff,numGIDof,DoFI;
+        PetscInt    gIOff,numGIDof,DoFI,groupJ;
         PetscScalar *constI;
         ierr   = PetscSectionGetOffset(groupDofSect,groupI,&gIOff);CHKERRQ(ierr);
         ierr   = PetscSectionGetDof(groupDofSect,groupI,&numGIDof);CHKERRQ(ierr);
-        constI = &group2Constant[(groupI-dGroupMin)*dim*dim];
+        constI = &group2ConstantInv[(groupI-dGroupMin)*dim*dim];
 
-        for (DoFI = gIOff; DoFI < gIOff+numGIDof; ++DoFI) {
-          /* For each dof in group I serving as a row index for both source and target values. */
-          PetscInt DoFJ,rowInd = groupDofInd[DoFI];
-          for (DoFJ = gIOff; DoFJ < gIOff+numGIDof; ++DoFJ) {
-            /* For each dof in group I serving as a column index for the target value. */
-            PetscInt groupJ,colIndTarget = groupDofInd[DoFJ];
+        for (groupJ = dGroupMin; groupJ <= dGroupMax; ++groupJ) {
+          /* Group J represents the source (or domain) of the lumping. The DoFs belonging to Group J are the values that we will be adding into
+           * the DoFs of Group I. */
+          PetscInt    gJOff,numGJDof,DoFK;
+          PetscScalar *constJ;
 
-            for (groupJ = dGroupMin; groupJ <= dGroupMax; ++groupJ) {
-              /* Group J represents the source (or domain) of the lumping. The DoFs belonging to Group J are the values that we will be adding into
-               * the DoFs of Group I. */
-              PetscInt    gJOff,numGJDof,DoFK;
-              PetscScalar *constJ;
-              ierr   = PetscSectionGetOffset(groupDofSect,groupJ,&gJOff);CHKERRQ(ierr);
-              ierr   = PetscSectionGetDof(groupDofSect,groupJ,&numGJDof);CHKERRQ(ierr);
-              constJ = &group2ConstantInv[(groupJ-dGroupMin)*dim*dim];
+          ierr   = PetscSectionGetOffset(groupDofSect,groupJ,&gJOff);CHKERRQ(ierr);
+          ierr   = PetscSectionGetDof(groupDofSect,groupJ,&numGJDof);CHKERRQ(ierr);
+          constJ = &group2Constant[(groupJ-dGroupMin)*dim*dim];
+
+          for (DoFI = gIOff; DoFI < gIOff+numGIDof; ++DoFI) {
+            /* For each dof in group I serving as a row index for both source and target values. */
+            PetscInt DoFJ,rowInd = groupDofInd[DoFI];
+
+            for (DoFJ = gIOff; DoFJ < gIOff+numGIDof; ++DoFJ) {
+              /* For each dof in group I serving as a column index for the target value. */
+              PetscInt colIndTarget = groupDofInd[DoFJ];
+
               for (DoFK = gJOff; DoFK < gJOff+numGJDof; ++DoFK) {
                 PetscInt k,colIndSource = groupDofInd[DoFK];
                 /* Now we need to perform the matrix multiplication M[[GroupI],[GroupI]] += M[[GroupI],[GroupJ]]*constI*constJ;*/
                 for (k = 0; k<numGIDof; ++k) {
                   /* k is a temporary index to facilitate the matrix multiply*/
                   tmpElemMat[rowInd*totDim +  colIndTarget] += elemMat[eOffset + rowInd*totDim + colIndSource] *
-                                                               constI[k*numGIDof + (DoFK-gJOff)] * constJ[(DoFJ-gIOff)*numGIDof + k];
+                                                               constJ[k*numGIDof + (DoFK-gJOff)] * constI[(DoFJ-gIOff)*numGIDof + k];
                 }
               }
             }
           }
         }
       }
+
+#if 0
+      {
+        const PetscScalar *eMat = &elemMat[eOffset];
+        const PetscScalar *tMat = tmpElemMat;
+        const PetscScalar constVal[3] = {-0.2, 0.5, 1.1};
+        PetscReal diff;
+        PetscScalar *eMatVec, *tMatVec;
+
+        PetscScalar *constVec;
+
+        ierr = PetscCalloc3(totDim, &constVec, totDim, &eMatVec, totDim, &tMatVec);CHKERRQ(ierr);
+        for (PetscInt v = 0; v < nGroups; v++) {
+          PetscScalar dofVal[3] = {0., 0., 0.};
+          const PetscScalar *C = &group2Constant[v * dim * dim];
+
+          for (PetscInt d = 0; d < dim; d++) {
+            for (PetscInt e = 0; e < dim; e++) {
+              // Column major
+              dofVal[d] += C[dim * e + d] * constVal[e];
+            }
+          }
+          for (PetscInt d = 0; d < dim; d++) {
+            constVec[groupDofInd[dim * v + d]] = dofVal[d];
+          }
+        }
+        diff = 0;
+        for (PetscInt i = 0; i < totDim; i++) {
+          for (PetscInt j = 0; j < totDim; j++) {
+            eMatVec[i] += eMat[i * totDim + j] * constVec[j];
+            tMatVec[i] += tMat[i * totDim + j] * constVec[j];
+          }
+          diff += PetscSqr(eMatVec[i] - tMatVec[i]);
+        }
+        printf("lumped matrix diff: %g\n", (double) diff);
+        ierr = PetscFree3(constVec, eMatVec, tMatVec);CHKERRQ(ierr);
+      }
+#endif
 
       /* Move data from tmp array back to original now that we can safely overwrite*/
       for (f = 0; f < T[fieldI]->Nb; ++f) {
