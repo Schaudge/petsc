@@ -1270,8 +1270,9 @@ static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
   }
   ierr = PetscObjectSetName((PetscObject) *mesh,"Mesh");CHKERRQ(ierr);
   ierr = DMSetApplicationContext(*mesh,user);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*mesh);CHKERRQ(ierr);
   ierr = TransformMesh(user,mesh,&ran);CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*mesh);CHKERRQ(ierr);
+  ierr = DMSetUp(*mesh);CHKERRQ(ierr);
   ierr = DMCreateLabel(*mesh,name);CHKERRQ(ierr);
   ierr = DMGetLabel(*mesh,name,&label);CHKERRQ(ierr);
   ierr = DMPlexMarkBoundaryFaces(*mesh,1,label);CHKERRQ(ierr);
