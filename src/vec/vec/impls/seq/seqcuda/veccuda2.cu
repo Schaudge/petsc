@@ -329,6 +329,24 @@ PetscErrorCode VecDot_SeqCUDA(Vec xin,Vec yin,PetscScalar *z)
 #define MDOT_WORKGROUP_NUM  128
 
 #if !defined(PETSC_USE_COMPLEX)
+template <typename vec_t>
+__global__ void VecMDot_SeqCUDA_kernel(const PetscScalar *__restrict__ x, const PetscScalar *__restrict__ y0[], PetscInt size, PetscScalar *result)
+{
+  extern __shared__ shm[];
+  /* How many elems we can copy to shm per vectorized load */
+  constexpr size_t copy_size = sizeof(float4)/sizeof(vec_t);
+  const PetscInt tx = threadIdx.x, bx = blockIdx.x, bdx = blockDim.x;
+  const PetscInt gloc = bx*bdx+tx;
+
+  if (gloc < size) {
+    *((vec_t *)(shm))
+    for (int i = 0; i < copy_size; ++i) {
+
+    }
+  }
+  return;
+}
+
 // M = 2:
 __global__ void VecMDot_SeqCUDA_kernel2(const PetscScalar *x,const PetscScalar *y0,const PetscScalar *y1,
                                         PetscInt size, PetscScalar *group_results)
