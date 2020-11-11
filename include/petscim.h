@@ -29,6 +29,7 @@ PETSC_EXTERN PetscErrorCode IMSetFromOptions(IM);
 PETSC_EXTERN PetscErrorCode IMSetIndices(IM,PetscInt,const PetscInt[],PetscCopyMode);
 PETSC_EXTERN PetscErrorCode IMGetIndices(IM,const PetscInt*[]);
 PETSC_EXTERN PetscErrorCode IMGetSizes(IM,PetscInt*,PetscInt*);
+PETSC_EXTERN PetscErrorCode IMSetLayout(IM,IM);
 PETSC_EXTERN PetscErrorCode IMGetLayout(IM,IM*);
 PETSC_EXTERN PetscErrorCode IMRestoreLayout(IM,IM*);
 PETSC_EXTERN PetscErrorCode IMRestoreIndices(IM,const PetscInt*[]);

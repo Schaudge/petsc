@@ -234,6 +234,18 @@ PetscErrorCode IMGetSizes(IM m, PetscInt *n, PetscInt *N)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode IMSetLayout(IM m, IM ml)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(m,IM_CLASSID,1);
+  PetscValidHeaderSpecificType(ml,IM_CLASSID,2,IMLAYOUT);
+  ierr = IMDestroy(&(m->map));CHKERRQ(ierr);
+  m->map = ml;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode IMGetLayout(IM m, IM *ml)
 {
   PetscErrorCode ierr;

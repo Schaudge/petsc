@@ -29,15 +29,15 @@ typedef enum {
 
 struct _p_IM {
   PETSCHEADER(struct _IMOps);
-  void      *data;              /* impls, contains *idx */
-  PetscInt  *idx;               /* local key array */
-  PetscInt   nIdx[IM_MAX_MODE]; /* local/global keys */
-  IMBool     sorted[IM_MAX_MODE];
-  IM         map;
-  PetscBool  allowedMap;
-  PetscBool  alloced;
-  PetscBool  setupcalled;       /* is  __everything__ setup, locks everything */
-  PetscObjectState cstate;
+  void             *data;       /* impls */
+  PetscInt         *idx;        /* local key array */
+  PetscInt          nIdx[IM_MAX_MODE]; /* local/global number of keys */
+  IMBool            sorted[IM_MAX_MODE]; /* local/global is sorted? */
+  IM                map;        /* PetscLayout */
+  PetscBool         allowedMap; /* Is this IM allowed to build a PetscLayout in IMSetup? Default no */
+  PetscBool         alloced;    /* PetscCopyMode support */
+  PetscBool         setupcalled; /* is  __everything__ setup, locks everything */
+  PetscObjectState  cstate;      /* Could be useful for caching states for optimization */
 };
 
 PETSC_STATIC_INLINE PetscErrorCode IMInitializeBase_Private(IM m)
