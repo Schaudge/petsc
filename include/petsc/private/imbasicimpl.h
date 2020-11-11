@@ -6,6 +6,7 @@
 
 typedef struct {
   PetscInt  bs, stride;
+  PetscInt  min[IM_MAX_MODE], max[IM_MAX_MODE];
 } IM_Basic;
 
 PETSC_INTERN PetscErrorCode IMCreate_Basic(IM);
@@ -17,8 +18,10 @@ PETSC_INTERN PetscErrorCode IMPermute_Basic(IM,IM);
 PETSC_STATIC_INLINE PetscErrorCode IMInitializeBasic_Private(IM_Basic *mb)
 {
   PetscFunctionBegin;
-  mb->bs     = PETSC_DECIDE;
-  mb->stride = PETSC_DECIDE;
+  mb->bs            = PETSC_DECIDE;
+  mb->stride        = PETSC_DECIDE;
+  mb->min[IM_LOCAL] = PETSC_MIN_INT;
+  mb->max[IM_LOCAL] = PETSC_MAX_INT;
   PetscFunctionReturn(0);
 }
 

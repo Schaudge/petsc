@@ -29,8 +29,8 @@ PetscErrorCode IMDestroy_Layout(IM m)
 PetscErrorCode IMSetUp_Layout(IM m)
 {
   IM_Layout      *ml = (IM_Layout *) m->data;
-  PetscInt       minmax[2];
   const PetscInt nk = m->nIdx[IM_LOCAL];
+  PetscInt       minmax[2];
   PetscMPIInt    size, rank;
   MPI_Comm       comm;
   PetscErrorCode ierr;
