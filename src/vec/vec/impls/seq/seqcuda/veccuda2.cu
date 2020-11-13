@@ -329,24 +329,87 @@ PetscErrorCode VecDot_SeqCUDA(Vec xin,Vec yin,PetscScalar *z)
 #define MDOT_WORKGROUP_NUM  128
 
 #if !defined(PETSC_USE_COMPLEX)
-template <typename vec_t>
-__global__ void VecMDot_SeqCUDA_kernel(const PetscScalar *__restrict__ x, const PetscScalar *__restrict__ y0[], PetscInt size, PetscScalar *result)
+#define WARP_SIZE             32
+#define FULL_WARP_MASK        0xffffffff
+#define MAX_THREADS_PER_BLOCK 1024
+
+/*
+   Perform a reduction over a warp, where tx%WARP_SIZE == 0 holds the final reduced
+   result, you must also pass in a mask to signify which threads in the warp are
+   participating in the reduction
+*/
+template <typename T>
+__device__ __forceinline__ void warpReduce(unsigned int warpMask, T& redVal)
 {
-  extern __shared__ shm[];
-  /* How many elems we can copy to shm per vectorized load */
+  /* __shfl_down deprecated after CUDA 9, no clue when __shfl_down was introduced however */
+#if (CUDART_VERSION >= 9000)
+#pragma unroll
+  for (int i = WARP_SIZE/2; i > 0; i >>= 1) redVal += __shfl_down_sync(warpMask, redVal, i);
+#else
+#pragma unroll
+  for (int i = WARP_SIZE/2; i > 0; i >>= 1) redVal += __shfl_down(redVal, i);
+#endif
+}
+
+template <typename vec_t>
+__global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t *__restrict__ y0[],\
+ PetscInt vecLen, PetscInt ny, vec_t *__restrict__ result)
+{
+  /* Hold X slice in ceil(blockDim.x/copy_size) elements */
+  extern __shared__ float4 shm[];
+  __shared__ vec_t warpSums[2][WARP_SIZE];
   constexpr size_t copy_size = sizeof(float4)/sizeof(vec_t);
   const PetscInt tx = threadIdx.x, bx = blockIdx.x, bdx = blockDim.x;
-  const PetscInt gloc = bx*bdx+tx;
+  const PetscInt laneId = tx%WARP_SIZE, warpId = tx/WARP_SIZE;
+  /* Every thread performs copy_size number of additions, float = 4, double = 2, __fp128 = 1 */
+  const PetscInt idx = bx*bdx*copy_size+tx*copy_size;
+  /* Buffer selection */
+  PetscInt flipflop = 0;
+  vec_t sum;
 
-  if (gloc < size) {
-    *((vec_t *)(shm))
-    for (int i = 0; i < copy_size; ++i) {
+  /* Load slice of X into shared memory with vectorized load */
+  /* TODO HANDLE NON ALIGNED VECLEN */
+  shm[tx] = tx < vecLen ? __ldg((float4 *)(x+idx)) : 0;
+#pragma unroll
+  for (PetscInt i = 0; i < ny; ++i) {
+    /* Load our slice of the y vector into registers */
+    const float4 yslice = __ldg((float4 *)(y0+i*vecLen+idx));
 
+    /* Essentially a constexpr */
+    switch (copy_size) {
+    case 4: /* float */
+      sum = shm[tx].x*yslice.x+shm[tx].y*yslice.y+shm[tx].z*yslice.z+shm[tx].w*yslice.w;
+      break;
+    case 2: /* double */
+      sum = ((float2 *)(shm))[2*tx].x*((const float2)(yslice)).x+((float2 *)(shm))[2*tx+1].y*((const float2)(yslice)).y;
+      break;
+    case 1: /* __fp128 */
+      sum = ((vec_t *)(shm))[tx]*(const vec_t)yslice;
+      break;
+    default:
+      /* Not expected, crash the kernel */
+      asm volatile("exit;");
+      break;
     }
+    /* Warp-wide reduction such that only laneId == 0 has reduced sum */
+    warpReduce(FULL_WARP_MASK, sum);
+    /* Only warp leader stores intermediate sums, threads must diverge here */
+    if (!laneId) warpSums[flipflop][warpId] = sum;
+    /* First warp performs final reduction, no thread divergence */
+    if (!warpId) {
+      warpReduce(FULL_WARP_MASK, warpSums[flipflop][laneId]);
+      /* Again, only warp leader writes */
+      if (!laneId) atomicAdd(&(result[ny]), warpSums[flipflop][laneId]);
+    }
+    flipflop = 1-flipflop;
+    /* Sync every other */
+    if (flipflop) __syncthreads();
   }
   return;
 }
 
+#undef WARP_SIZE
+#undef FULL_WARP_MASK
 // M = 2:
 __global__ void VecMDot_SeqCUDA_kernel2(const PetscScalar *x,const PetscScalar *y0,const PetscScalar *y1,
                                         PetscInt size, PetscScalar *group_results)
@@ -541,6 +604,38 @@ __global__ void VecMDot_SeqCUDA_kernel8(const PetscScalar *x,const PetscScalar *
   }
 }
 #endif /* !defined(PETSC_USE_COMPLEX) */
+
+PetscErrorCode VecMDot_SeqCUDA_NEW(Vec xin, PetscInt nv, const Vec yin[], PetscScalar *z)
+{
+  const PetscScalar **d_y;
+  PetscScalar       *d_z;
+  const PetscScalar *d_x;
+  const PetscInt    xBlocks = (PetscInt)PetscCeilReal((PetscReal)(xin->map->n)/(PetscReal)(MAX_THREADS_PER_BLOCK));
+  const dim3        dimGrid(xBlocks), dimBlock(MAX_THREADS_PER_BLOCK);
+  /* How many elems we can copy to shm per vectorized load */
+  const size_t      shmSize = (PetscInt)PetscCeilReal((PetscReal)(MAX_THREADS_PER_BLOCK)/(PetscReal)(sizeof(float4)/sizeof(PetscScalar)));
+  PetscInt          i;
+  cudaError_t       cerr;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  if (nv <= 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Number of vectors provided to VecMDot_SeqCUDA not positive.");
+  if (!xin->map->n) {
+    for (i = 0; i < nv; ++i) z[i] = 0;
+    PetscFunctionReturn(0);
+  }
+  cerr = cudaMalloc(&d_y, nv*sizeof(PetscScalar *));CHKERRCUDA(cerr);
+  cerr = cudaMalloc(&d_z, nv*sizeof(PetscScalar));CHKERRCUDA(cerr);
+  for (i = 0; i < nv; ++i) {ierr = VecCUDAGetArrayRead(yin[i], &(d_y[i]));CHKERRQ(ierr);}
+  ierr = VecCUDAGetArrayRead(xin, &d_x);CHKERRQ(ierr);
+  VecMDot_SeqCUDA_kernel<PetscScalar><<<dimGrid, dimBlock, shmSize>>>(d_x, d_y, xin->map->n, nv, d_z);
+  ierr = VecCUDARestoreArrayRead(xin, &d_x);CHKERRQ(ierr);
+  for (i = 0; i < nv; ++i) {ierr = VecCUDARestoreArrayRead(yin[i], &(d_y[i]));CHKERRQ(ierr);}
+  cerr = cudaMemcpy(z, d_z, nv*sizeof(PetscScalar), cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
+  cerr = cudaFree(d_z);CHKERRCUDA(cerr);
+  PetscFunctionReturn(0);
+}
+#undef MAX_THREADS_PER_BLOCK
 
 PetscErrorCode VecMDot_SeqCUDA(Vec xin,PetscInt nv,const Vec yin[],PetscScalar *z)
 {
