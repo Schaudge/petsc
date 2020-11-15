@@ -333,6 +333,47 @@ PetscErrorCode VecDot_SeqCUDA(Vec xin,Vec yin,PetscScalar *z)
 #define FULL_WARP_MASK        0xffffffff
 #define MAX_THREADS_PER_BLOCK 1024
 
+static __device__ __forceinline__ float PetscCUDADot(float2 a, float2 b)
+{
+  return a.x*b.x+a.y*b.y;
+}
+
+static __device__ __forceinline__ float PetscCUDADot(float4 a, float4 b)
+{
+    return a.x*b.x+a.y*b.y+a.z*b.z+a.w*b.w;
+}
+
+
+#if (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 600))
+#else
+/* Compute capability 6 or lower doesn't have atomic add for doubles */
+static __device__ __forceinline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long int* address_as_ull = (unsigned long long int*)address;
+  unsigned long long int old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old = atomicCAS(address_as_ull,assumed,__double_as_longlong(val+__longlong_as_double(assumed)));
+    // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
+
+/* For some reason compiler can't deduce derived types, so do it by force here */
+static __device__ __forceinline__ PetscScalar PetscAtomicAdd(PetscScalar *address, PetscScalar val)
+{
+#if defined(PETSC_USE_REAL_SINGLE)
+  return (PetscScalar)atomicAdd((float *)address, (float)val);
+#elif defined(PETSC_USE_REAL_DOUBLE)
+  return (PetscScalar)atomicAdd((double *)address, (double)val);
+#elif defined(PETSC_USE_REAL___FLOAT128)
+  return (PetscScalar)atomicAdd((__fp128 *)address, (__fp128)val);
+#elif defined(PETSC_USE_REAL___FP16)
+  return (PetscScalar)atomicAdd((half *)address, (half)val);
+#endif
+}
+
 /*
    Perform a reduction over a warp, where tx%WARP_SIZE == 0 holds the final reduced
    result, you must also pass in a mask to signify which threads in the warp are
@@ -352,13 +393,12 @@ __device__ __forceinline__ void warpReduce(unsigned int warpMask, T& redVal)
 }
 
 template <typename vec_t>
-__global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t *__restrict__ y0[],\
- PetscInt vecLen, PetscInt ny, vec_t *__restrict__ result)
+__global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t *__restrict__ y0[], PetscInt vecLen, PetscInt ny, vec_t *result)
 {
-  /* Hold X slice in ceil(blockDim.x/copy_size) elements */
-  extern __shared__ float4 shm[];
-  __shared__ vec_t warpSums[2][WARP_SIZE];
   constexpr size_t copy_size = sizeof(float4)/sizeof(vec_t);
+  /* Hold X slice in shared memory */
+  __shared__ vec_t shm[MAX_THREADS_PER_BLOCK*copy_size];
+  __shared__ vec_t warpSums[2][WARP_SIZE];
   const PetscInt tx = threadIdx.x, bx = blockIdx.x, bdx = blockDim.x;
   const PetscInt laneId = tx%WARP_SIZE, warpId = tx/WARP_SIZE;
   /* Every thread performs copy_size number of additions, float = 4, double = 2, __fp128 = 1 */
@@ -366,25 +406,26 @@ __global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t 
   /* Buffer selection */
   PetscInt flipflop = 0;
   vec_t sum;
+  vec_t yslice[copy_size];
 
   /* Load slice of X into shared memory with vectorized load */
   /* TODO HANDLE NON ALIGNED VECLEN */
-  shm[tx] = tx < vecLen ? __ldg((float4 *)(x+idx)) : 0;
+  *((float4 *)(shm+copy_size*tx)) = tx < vecLen ? *((float4 *)(x+idx)) : make_float4(0,0,0,0);
 #pragma unroll
   for (PetscInt i = 0; i < ny; ++i) {
     /* Load our slice of the y vector into registers */
-    const float4 yslice = __ldg((float4 *)(y0+i*vecLen+idx));
+    *((float4 *)yslice) = *((float4 *)(y0+i*vecLen+idx));
 
     /* Essentially a constexpr */
     switch (copy_size) {
     case 4: /* float */
-      sum = shm[tx].x*yslice.x+shm[tx].y*yslice.y+shm[tx].z*yslice.z+shm[tx].w*yslice.w;
+      sum = PetscCUDADot(((float4 *)(shm))[4*tx], ((float4 *)(yslice))[0]);
       break;
     case 2: /* double */
-      sum = ((float2 *)(shm))[2*tx].x*((const float2)(yslice)).x+((float2 *)(shm))[2*tx+1].y*((const float2)(yslice)).y;
+      sum = PetscCUDADot(((float2 *)(shm))[2*tx], ((float2 *)(yslice))[0])+dot(((float2 *)(shm))[2*tx+1], ((float2 *)(yslice))[1]);
       break;
     case 1: /* __fp128 */
-      sum = ((vec_t *)(shm))[tx]*(const vec_t)yslice;
+      sum = shm[tx]*yslice[0];
       break;
     default:
       /* Not expected, crash the kernel */
@@ -399,7 +440,7 @@ __global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t 
     if (!warpId) {
       warpReduce(FULL_WARP_MASK, warpSums[flipflop][laneId]);
       /* Again, only warp leader writes */
-      if (!laneId) atomicAdd(&(result[ny]), warpSums[flipflop][laneId]);
+      if (!laneId) PetscAtomicAdd(&(result[ny]), warpSums[flipflop][laneId]);
     }
     flipflop = 1-flipflop;
     /* Sync every other */
@@ -608,12 +649,11 @@ __global__ void VecMDot_SeqCUDA_kernel8(const PetscScalar *x,const PetscScalar *
 PetscErrorCode VecMDot_SeqCUDA_NEW(Vec xin, PetscInt nv, const Vec yin[], PetscScalar *z)
 {
   const PetscScalar **d_y;
-  PetscScalar       *d_z;
   const PetscScalar *d_x;
   const PetscInt    xBlocks = (PetscInt)PetscCeilReal((PetscReal)(xin->map->n)/(PetscReal)(MAX_THREADS_PER_BLOCK));
   const dim3        dimGrid(xBlocks), dimBlock(MAX_THREADS_PER_BLOCK);
   /* How many elems we can copy to shm per vectorized load */
-  const size_t      shmSize = (PetscInt)PetscCeilReal((PetscReal)(MAX_THREADS_PER_BLOCK)/(PetscReal)(sizeof(float4)/sizeof(PetscScalar)));
+  PetscScalar       *d_z;
   PetscInt          i;
   cudaError_t       cerr;
   PetscErrorCode    ierr;
@@ -628,11 +668,12 @@ PetscErrorCode VecMDot_SeqCUDA_NEW(Vec xin, PetscInt nv, const Vec yin[], PetscS
   cerr = cudaMalloc(&d_z, nv*sizeof(PetscScalar));CHKERRCUDA(cerr);
   for (i = 0; i < nv; ++i) {ierr = VecCUDAGetArrayRead(yin[i], &(d_y[i]));CHKERRQ(ierr);}
   ierr = VecCUDAGetArrayRead(xin, &d_x);CHKERRQ(ierr);
-  VecMDot_SeqCUDA_kernel<PetscScalar><<<dimGrid, dimBlock, shmSize>>>(d_x, d_y, xin->map->n, nv, d_z);
+  VecMDot_SeqCUDA_kernel<<<dimGrid, dimBlock>>>(d_x, d_y, xin->map->n, nv, d_z);
   ierr = VecCUDARestoreArrayRead(xin, &d_x);CHKERRQ(ierr);
   for (i = 0; i < nv; ++i) {ierr = VecCUDARestoreArrayRead(yin[i], &(d_y[i]));CHKERRQ(ierr);}
   cerr = cudaMemcpy(z, d_z, nv*sizeof(PetscScalar), cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
   cerr = cudaFree(d_z);CHKERRCUDA(cerr);
+  cerr = cudaFree(d_y);CHKERRCUDA(cerr);
   PetscFunctionReturn(0);
 }
 #undef MAX_THREADS_PER_BLOCK
