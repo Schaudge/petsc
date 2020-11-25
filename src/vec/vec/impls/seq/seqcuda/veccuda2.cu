@@ -361,7 +361,7 @@ static __device__ __forceinline__ double atomicAdd(double* address, double val)
 #endif
 
 /* For some reason compiler can't deduce derived types, so do it by force here */
-static __device__ __forceinline__ PetscScalar PetscAtomicAdd(PetscScalar *address, PetscScalar val)
+static __device__ __forceinline__ PetscScalar PetscCUDAAtomicAdd(PetscScalar *address, PetscScalar val)
 {
 #if defined(PETSC_USE_REAL_SINGLE)
   return (PetscScalar)atomicAdd((float *)address, (float)val);
@@ -429,10 +429,10 @@ __global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t 
       break;
     default:
       /* Not expected, crash the kernel */
-      asm volatile("exit;");
+      __trap();
       break;
     }
-    /* Warp-wide reduction such that only laneId == 0 has reduced sum */
+    /* Block-wide warp reduction such that only laneId == 0 for each warp has reduced sum */
     warpReduce(FULL_WARP_MASK, sum);
     /* Only warp leader stores intermediate sums, threads must diverge here */
     if (!laneId) warpSums[flipflop][warpId] = sum;
@@ -440,7 +440,7 @@ __global__ void VecMDot_SeqCUDA_kernel(const vec_t *__restrict__ x, const vec_t 
     if (!warpId) {
       warpReduce(FULL_WARP_MASK, warpSums[flipflop][laneId]);
       /* Again, only warp leader writes */
-      if (!laneId) PetscAtomicAdd(&(result[ny]), warpSums[flipflop][laneId]);
+      if (!laneId) PetscCUDAAtomicAdd(&(result[ny]), warpSums[flipflop][laneId]);
     }
     flipflop = 1-flipflop;
     /* Sync every other */
