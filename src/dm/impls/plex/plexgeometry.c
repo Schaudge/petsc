@@ -1440,6 +1440,51 @@ static PetscErrorCode DMPlexComputeHexahedronGeometry_Internal(DM dm, PetscInt e
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMPlexComputeTriPrismGeometry_Internal(DM dm, PetscInt e, PetscInt Nq, const PetscReal points[], PetscReal v[], PetscReal J[], PetscReal invJ[], PetscReal *detJ)
+{
+  PetscSection   coordSection;
+  Vec            coordinates;
+  PetscScalar   *coords = NULL;
+  const PetscInt dim = 3;
+  PetscInt       d;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+  ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
+  ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, e, NULL, &coords);CHKERRQ(ierr);
+  if (!Nq) {
+    *detJ = 0.0;
+    if (v)   {for (d = 0; d < dim; d++) v[d] = PetscRealPart(coords[d]);}
+    if (J)    {
+      for (d = 0; d < dim; d++) {
+        J[d*dim+0] = 0.5*(PetscRealPart(coords[2*dim+d]) - PetscRealPart(coords[0*dim+d]));
+        J[d*dim+1] = 0.5*(PetscRealPart(coords[1*dim+d]) - PetscRealPart(coords[0*dim+d]));
+        J[d*dim+2] = 0.5*(PetscRealPart(coords[3*dim+d]) - PetscRealPart(coords[0*dim+d]));
+      }
+      ierr = PetscLogFlops(18.0);CHKERRQ(ierr);
+      DMPlex_Det3D_Internal(detJ, J);
+    }
+    if (invJ) {DMPlex_Invert3D_Internal(invJ, J, *detJ);}
+  } else {
+    PetscInt q;
+
+    //SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Custom quadrature not supported for prism");
+    for (q = 0; q < Nq; ++q) {
+      if (v) {v[q*3+0] = -1.0; v[q*3+1] = -1.0; v[q*3+2] = -1.0;}
+      if (J) {
+        J[q*9+0] =  1.0; J[q*9+1] =  0.0; J[q*9+2] =  0.0;
+        J[q*9+3] =  0.0; J[q*9+4] =  1.0; J[q*9+5] =  0.0;
+        J[q*9+6] =  0.0; J[q*9+7] =  0.0; J[q*9+8] =  1.0;
+        DMPlex_Det3D_Internal(&detJ[q], &J[q*9]);
+      }
+      if (invJ) {DMPlex_Invert3D_Internal(&invJ[q*9], &J[q*9], detJ[q]);}
+    }
+  }
+  ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, e, NULL, &coords);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode DMPlexComputeCellGeometryFEM_Implicit(DM dm, PetscInt cell, PetscQuadrature quad, PetscReal *v, PetscReal *J, PetscReal *invJ, PetscReal *detJ)
 {
   DMPolytopeType  ct;
@@ -1491,6 +1536,10 @@ static PetscErrorCode DMPlexComputeCellGeometryFEM_Implicit(DM dm, PetscInt cell
     break;
     case DM_POLYTOPE_HEXAHEDRON:
     ierr = DMPlexComputeHexahedronGeometry_Internal(dm, cell, Nq, points, v, J, invJ, detJ);CHKERRQ(ierr);
+    isAffine = PETSC_FALSE;
+    break;
+    case DM_POLYTOPE_TRI_PRISM:
+    ierr = DMPlexComputeTriPrismGeometry_Internal(dm, cell, Nq, points, v, J, invJ, detJ);CHKERRQ(ierr);
     isAffine = PETSC_FALSE;
     break;
     default: SETERRQ2(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "No element geometry for cell %D with type %s", cell, DMPolytopeTypes[ct]);

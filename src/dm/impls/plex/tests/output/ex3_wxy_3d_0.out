@@ -1,0 +1,8 @@
+Function tests FAIL for order 0 at tolerance 1e-10 error 3.4641
+Function tests pass for order 0 derivatives at tolerance 1e-10
+Function   convergence rate at refinement 0: nan
+Derivative convergence rate at refinement 0: nan
+Function   convergence rate at refinement 1: nan
+Derivative convergence rate at refinement 1: nan
+Function   convergence rate at refinement 2: nan
+Derivative convergence rate at refinement 2: nan

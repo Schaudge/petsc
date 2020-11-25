@@ -934,6 +934,7 @@ int main(int argc, char **argv)
     PetscFE        *fem = &user.fe;
     PetscSpace      P;
     PetscDualSpace  Q;
+    DM              refcell;
     PetscQuadrature q, fq;
     PetscInt        dim = 3, Nc = 3, order, qorder, quadPointsPerEdge;
     PetscBool       tensor = PETSC_FALSE;
@@ -949,11 +950,12 @@ int main(int argc, char **argv)
     ierr = PetscSpaceGetDegree(P, &order, NULL);CHKERRQ(ierr);
     ierr = PetscSpacePolynomialGetTensor(P, &tensor);CHKERRQ(ierr);
 
+    ierr = DMPlexCreateReferenceCellByType(PETSC_COMM_SELF, DM_POLYTOPE_TRI_PRISM, &refcell);CHKERRQ(ierr);
 #if 0
     ierr = PetscDualSpaceCreate(PETSC_COMM_SELF, &Q);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetType(Q,PETSCDUALSPACELAGRANGE);CHKERRQ(ierr);
     ierr = PetscObjectSetOptionsPrefix((PetscObject) Q, prefix);CHKERRQ(ierr);
-    ierr = PetscDualSpaceSetDM(Q, dm);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetDM(Q, refcell);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetNumComponents(Q, Nc);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetOrder(Q, order);CHKERRQ(ierr);
     ierr = PetscDualSpaceLagrangeSetTensor(Q, tensor);CHKERRQ(ierr);
@@ -963,7 +965,7 @@ int main(int argc, char **argv)
     ierr = PetscDualSpaceCreate(PETSC_COMM_SELF, &Q);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetType(Q,PETSCDUALSPACESIMPLE);CHKERRQ(ierr);
     ierr = PetscObjectSetOptionsPrefix((PetscObject) Q, prefix);CHKERRQ(ierr);
-    ierr = PetscDualSpaceSetDM(Q, dm);CHKERRQ(ierr);
+    ierr = PetscDualSpaceSetDM(Q, refcell);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetNumComponents(Q, Nc);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetOrder(Q, order);CHKERRQ(ierr);
     ierr = PetscDualSpaceSimpleSetDimension(Q, 18);CHKERRQ(ierr);
@@ -1040,6 +1042,7 @@ int main(int argc, char **argv)
     }
     ierr = PetscDualSpaceSetFromOptions(Q);CHKERRQ(ierr);
     ierr = PetscDualSpaceSetUp(Q);CHKERRQ(ierr);
+    ierr = DMDestroy(&refcell);CHKERRQ(ierr);
 #endif
 
     ierr = PetscFECreate(PETSC_COMM_SELF, fem);CHKERRQ(ierr);
@@ -1067,7 +1070,7 @@ int main(int argc, char **argv)
     ierr = PetscQuadratureDestroy(&q);CHKERRQ(ierr);
     ierr = PetscQuadratureDestroy(&fq);CHKERRQ(ierr);
   } else {
-    ierr = PetscFECreateDefault(PETSC_COMM_WORLD, user.dim, user.numComponents, user.simplex, NULL, user.qorder, &user.fe);CHKERRQ(ierr);
+    ierr = PetscFECreateDefault(PETSC_COMM_SELF, user.dim, user.numComponents, user.simplex, NULL, user.qorder, &user.fe);CHKERRQ(ierr);
   }
   ierr = SetupSection(dm, &user);CHKERRQ(ierr);
   if (user.testFEjacobian) {ierr = TestFEJacobian(dm, &user);CHKERRQ(ierr);}
@@ -1396,15 +1399,12 @@ int main(int argc, char **argv)
   # 3D Wheeler-Xue-Yotov on a trianglular prism
   test:
     suffix: wxy_3d_0
-    requires: triangle
     args: -dim 3 -refcell triangular_prism -petscspace_type wxy -petscspace_degree 1 -qorder 1 -convergence
   test:
     suffix: wxy_3d_1
-    requires: triangle
     args: -dim 3 -refcell triangular_prism -petscspace_type wxy -num_comp 3 -petscspace_degree 1 -qorder 1 -porder 1
   test:
     suffix: wxy_3d_2
-    requires: triangle
     args: -dim 3 -refcell triangular_prism -petscspace_type wxy -petscspace_degree 1 -qorder 1 -porder 2
 
   # Test high order quadrature

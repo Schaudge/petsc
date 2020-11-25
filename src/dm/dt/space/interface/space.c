@@ -482,34 +482,34 @@ PetscErrorCode PetscSpaceGetNumVariables(PetscSpace sp, PetscInt *n)
   PetscSpaceEvaluate - Evaluate the basis functions and their derivatives (jet) at each point
 
   Input Parameters:
-+ sp      - The PetscSpace
-. npoints - The number of evaluation points, in reference coordinates
-- points  - The point coordinates
++ sp     - The PetscSpace
+. Np     - The number of evaluation points, in reference coordinates
+- points - The point coordinates
 
   Output Parameters:
-+ B - The function evaluations in a npoints x nfuncs array
-. D - The derivative evaluations in a npoints x nfuncs x dim array
-- H - The second derivative evaluations in a npoints x nfuncs x dim x dim array
++ B - The function evaluations in an array B[Np][Nf][Nc]
+. D - The derivative evaluations in an array D[Np][Nf][Nc][dim]
+- H - The second derivative evaluations in an array H[Np][Nf][Nc][dim][dim]
 
-  Note: Above nfuncs is the dimension of the space, and dim is the spatial dimension. The coordinates are given
-  on the reference cell, not in real space.
+  Note: Above Nf is the dimension of the space or number of functions, Nc is the number of components for each function,
+  and dim is the spatial dimension. The coordinates are given on the reference cell, not in real space.
 
   Level: beginner
 
 .seealso: PetscFECreateTabulation(), PetscFEGetCellTabulation(), PetscSpaceCreate()
 @*/
-PetscErrorCode PetscSpaceEvaluate(PetscSpace sp, PetscInt npoints, const PetscReal points[], PetscReal B[], PetscReal D[], PetscReal H[])
+PetscErrorCode PetscSpaceEvaluate(PetscSpace sp, PetscInt Np, const PetscReal points[], PetscReal B[], PetscReal D[], PetscReal H[])
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (!npoints) PetscFunctionReturn(0);
+  if (!Np) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(sp, PETSCSPACE_CLASSID, 1);
   if (sp->Nv) PetscValidPointer(points, 3);
   if (B) PetscValidPointer(B, 4);
   if (D) PetscValidPointer(D, 5);
   if (H) PetscValidPointer(H, 6);
-  if (sp->ops->evaluate) {ierr = (*sp->ops->evaluate)(sp, npoints, points, B, D, H);CHKERRQ(ierr);}
+  if (sp->ops->evaluate) {ierr = (*sp->ops->evaluate)(sp, Np, points, B, D, H);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
