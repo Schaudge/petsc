@@ -959,6 +959,37 @@ PetscErrorCode DMPlexGetStratumDofMap(DM dm,PetscInt stratum,PetscInt field,Pets
 }
 
 /*
+ * PetscDualSpaceProjectConstants - Create matrices representing the projection of constant functions onto the DoFs.
+ */
+PetscErrorCode PetscDualSpaceProjectConstants(PetscDualSpace dual,PetscScalar* constants) {
+  /* Set up variables in local scope */
+  PetscQuadrature allQuad;
+  Mat             allMat;
+  PetscInt        dim,c,numComponents,totNumDoF=0,p,numPoints;
+  PetscScalar*    constEvals;
+  PetscErrorCode  ierr;
+
+
+  ierr = PetscDualSpaceGetAllData(dual,&allQuad,&allMat);CHKERRQ(ierr);
+  ierr = PetscDualSpaceGetNumComponents(dual,&numComponents);CHKERRQ(ierr);
+  ierr = PetscQuadratureGetData(allQuad, &dim,NULL,&numPoints,NULL,NULL);CHKERRQ(ierr);
+  ierr = MatGetSize(allMat,&totNumDoF,&numPoints);
+  
+
+  ierr = PetscCalloc1(numPoints,&constEvals);CHKERRQ(ierr);
+  
+  for (c = 0; c < numComponents; ++c){
+    ierr = PetscArrayzero(constEvals,numPoints);
+    for (p = c; p < numPoints; p+=numComponents){
+      constEvals[p] = 1.0;
+    }
+    ierr = PetscDualSpaceApplyAll(dual,constEvals,&constants[c*totNumDoF]);CHKERRQ(ierr);
+  }
+  ierr = PetscFree(constEvals);CHKERRQ(ierr);
+
+  return 0;
+}
+/*
  * PetscFEIntegrateJacobian_WY - Integrate the jacobian functions and perform the DoF lumping a la Wheeler and Yotov.
  */
 static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType jtype,PetscInt fieldI,PetscInt fieldJ,PetscInt Ne,PetscFEGeom *cgeom,
@@ -984,9 +1015,6 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
     DM              refdm;
     PetscScalar     *group2Constant,*group2ConstantInv;
     PetscScalar     *tmpElemMat;
-    Mat             allMat;
-    Vec             x,y;
-    PetscLayout     rmap,cmap;
 
     ierr = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
     ierr = PetscMalloc1(totDim*totDim,&tmpElemMat);CHKERRQ(ierr);
@@ -1050,39 +1078,25 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
     
     /* Build coefficient matrices using dualspace data. */
     ierr = PetscCalloc2(nGroups*dim*dim,&group2Constant,nGroups*dim*dim,&group2ConstantInv);CHKERRQ(ierr);
-    ierr = PetscDualSpaceGetAllData(dsp,NULL,&allMat);CHKERRQ(ierr);
-    ierr = MatGetSize(allMat,&m,&n);CHKERRQ(ierr);
-    ierr = MatGetLayouts(allMat,&rmap,&cmap);CHKERRQ(ierr);
 
-    ierr = VecCreate(PetscObjectComm((PetscObject)ds),&x);CHKERRQ(ierr);
-    ierr = VecCreate(PetscObjectComm((PetscObject)ds),&y);CHKERRQ(ierr);
-    ierr = VecSetSizes(x,PETSC_DECIDE,m);CHKERRQ(ierr);
-    ierr = VecSetSizes(y,PETSC_DECIDE,m);CHKERRQ(ierr);
-    ierr = VecSetLayout(x,rmap);CHKERRQ(ierr);
-    ierr = VecSetLayout(y,rmap);CHKERRQ(ierr);
-    ierr = VecSetFromOptions(x);CHKERRQ(ierr);
-    ierr = VecSetFromOptions(y);CHKERRQ(ierr);
+    ierr = PetscDualSpaceProjectConstants(dsp,group2ConstantInv);CHKERRQ(ierr);
 
     for (d = 0; d < dim; ++d) {
-      PetscInt col,v;
-      ierr = VecSet(y,0);CHKERRQ(ierr);
-      for (col = d; col < n; col+=dim) {
-        /* This loop is the same as multiplying by a vector that has 1s every dim entries,with an initial offset defined by d,this gets us the dth
-         * column of each coefficient array up to some mapping. */
-        ierr = MatGetColumnVector(allMat,x,col);CHKERRQ(ierr);
-        ierr = VecAXPY(y,1,x);CHKERRQ(ierr);
-      }
+      PetscInt v;
       for (v=0; v < nGroups; ++v) {
         /* The afformentioned mapping step. Entries in y are in order 0-numDof,but we need to access them in their grouped order, defined by
          * groupDofSect and groupDofInd, for assignment into the group2Constant array */
-        PetscInt       numVals,nOffset;
-        const PetscInt * ix;
+        PetscInt numVals,nOffset;
+        PetscInt ix,cI;
         ierr = PetscSectionGetDof(groupDofSect,v+vStart,&numVals);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(groupDofSect,v+vStart,&nOffset);CHKERRQ(ierr);
-        ix   = &groupDofInd[nOffset];
-        ierr = VecGetValues(y,numVals,ix,&group2Constant[v*dim*dim + d*dim]);CHKERRQ(ierr);
+        for (cI = 0; cI<numVals; cI++){
+          ix = groupDofInd[nOffset+cI];
+          group2Constant[v*dim*dim + d*dim +cI] = group2ConstantInv[d*nGroups*dim + ix];
+        }
       }
     }
+
 
     /* Now we have to get inverses of the coefficient matrices, i.e. solve system C*X = I for each C. */
     {
@@ -1226,8 +1240,6 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       }
       eOffset += PetscSqr(totDim);
     }
-  ierr = VecDestroy(&x);CHKERRQ(ierr);
-  ierr = VecDestroy(&y);CHKERRQ(ierr);
   ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
   ierr = PetscFree2(group2Constant,group2ConstantInv);CHKERRQ(ierr);
   ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
