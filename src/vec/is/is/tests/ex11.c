@@ -36,9 +36,9 @@ int main(int argc,char **argv)
   n    = (PetscInt) PetscMin(r, nmax);
   ierr = PetscRandomSetInterval(randsizes, 0., 1.);CHKERRQ(ierr);
   ierr = PetscRandomGetValueReal(randsizes, &r);CHKERRQ(ierr);
-  first = PETSC_MIN_INT + 1 + (PetscInt) ((PETSC_MAX_INT - 1) * r);
+  first = PETSC_MIN_INT + 1 + (PetscInt) ((PETSC_MAX_INT_DBL - 1) * r);
   ierr = PetscRandomGetValueReal(randsizes, &r);CHKERRQ(ierr);
-  last = first + (PetscInt) ((PETSC_MAX_INT - 1) * r);
+  last = first + (PetscInt) ((PETSC_MAX_INT_DBL - 1) * r);
 
   ierr = PetscRandomSetInterval(randvalues, first, last);CHKERRQ(ierr);
   ierr = PetscMalloc3(n, &keys, n, &keyscopy, n, &keyssorted);CHKERRQ(ierr);

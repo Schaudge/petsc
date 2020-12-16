@@ -738,7 +738,16 @@ M*/
 #define PetscSqr(a)     ((a)*(a))
 
 /* ----------------------------------------------------------------------------*/
+int petscPopCount(unsigned long long x) {
+        unsigned long long y;
+        y = x * 0x0002000400080010ULL;
+        y = y & 0x1111111111111111ULL;
+        y = y * 0x1111111111111111ULL;
+        y = y >> 60;
+        return y;
+    }
 
+/* ----------------------------------------------------------------------------*/
 #if defined(PETSC_USE_REAL_SINGLE)
 #define PetscRealConstant(constant) constant##F
 #elif defined(PETSC_USE_REAL_DOUBLE)
@@ -759,8 +768,13 @@ M*/
 #if !defined(PETSC_USE_64BIT_INDICES)
 #define PETSC_MAX_INT            2147483647
 #define PETSC_MIN_INT            (-PETSC_MAX_INT - 1)
+#define PETSC_MAX_INT_DBL        (double)2147483647
 #else
 #define PETSC_MAX_INT            9223372036854775807L
+/* Values near UINT64_MAX overflow to 2**64 when converting to double precision.  
+   Calculate a maximal double precision value below 2**64, computed as 
+   "the next value after 2**64 (0x1p64) in the direction of 0".  */
+#define PETSC_MAX_INT_DBL        (double)petscPopCount(9223372036854775807L)
 #define PETSC_MIN_INT            (-PETSC_MAX_INT - 1)
 #endif
 #define PETSC_MAX_UINT16         65535

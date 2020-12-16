@@ -42,7 +42,7 @@ int main(int argc,char **argv)
 
   for (i=0; i<n; ++i) {
     ierr = PetscRandomGetValueReal(rdm,&val);CHKERRQ(ierr);
-    XR[i] = val*PETSC_MAX_INT;
+    XR[i] = val*PETSC_MAX_INT_DBL;
     if (d > 1) XR[i] = XR[i] % (n/d);
     XSO[i] = i;
     if (d > 1) XSO[i] = XSO[i] % (n/d);
@@ -97,7 +97,7 @@ int main(int argc,char **argv)
 
   for (i=0; i<n; i++) { /* Init X[] */
     ierr = PetscRandomGetValueReal(rdm,&val);CHKERRQ(ierr);
-    X[i] = val*PETSC_MAX_INT;
+    X[i] = val*PETSC_MAX_INT_DBL;
     if (d > 1) X[i] = X[i] % (n/d);
   }
   ierr = PetscCalloc3(n,&XP,n,&X1P,n,&W);CHKERRQ(ierr);
