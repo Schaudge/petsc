@@ -738,9 +738,10 @@ class Framework(config.base.Configure, script.LanguageProcessor):
   def outputDefines(self, f, petscconf=False):
     for item in sorted(self.defineDict):
       if petscconf and 'HIP_PLATFORM' in item:
-        f.write('#!defined(__HIP__))\n')
+        f.write('#if !defined(__HIP__)\n')
       self.outputDefine(f, *self.defineDict[item])
-      if petscconf and 'HIP_PLATFORM' in item: f.write('#endif\n')
+      if petscconf and 'HIP_PLATFORM' in item:
+        f.write('#endif\n')
 
   def outputPkgVersion(self, f, child):
     '''If the child contains a tuple named "version_tuple", the entries are output in the config package header.'''
