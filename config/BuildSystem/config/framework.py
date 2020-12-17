@@ -738,7 +738,7 @@ class Framework(config.base.Configure, script.LanguageProcessor):
   def outputDefines(self, f, petscconf=False):
     for item in sorted(self.defineDict):
       if petscconf and 'HIP_PLATFORM' in item:
-        f.write('#if (defined(__clang__) && !defined(__HIP__))\n')
+        f.write('#!defined(__HIP__))\n')
       self.outputDefine(f, *self.defineDict[item])
       if petscconf and 'HIP_PLATFORM' in item: f.write('#endif\n')
 
