@@ -1,3 +1,5 @@
+from sympy.physics.units.definitions.unit_definitions import dm
+import numpy as np
 
 cdef class DMBF(DM):
     
@@ -21,13 +23,18 @@ cdef class DMBF(DM):
         CHKERR( DMBFGetGlobalSize(self.dm,&globalSize) )
         return globalSize
     
-    def iterateOverCells(self,cellf,args=None,kargs=None):
-            
+    def getGhostSize(self):
+        cdef PetscInt ghostSize
+        CHKERR( DMBFGetGhostSize(self.dm,&ghostSize) )
+        return ghostSize
+    
+    def iterateOverCells(self,cellf,args=None,kargs=None):        
         if args  is None: args  = ()
         if kargs is None: kargs = {}        
         context = (cellf, args, kargs)
         self.set_attr('__cellf__', context)
         CHKERR( DMBFIterateOverCells(self.dm,DMBF_CellCallback,<void*>context) )
+        return args
         
     def iterateOverFaces(self,facef,args=None,kargs=None):           
         if args  is None: args  = ()
@@ -46,12 +53,26 @@ cdef class DMBF(DM):
         valsPerElemReadWrite = iarray_i(valsPerElemReadWrite,&nValsPerElemReadWritec,&valsPerElemReadWritec)
         CHKERR( DMBFSetCellDataSize(self.dm,valsPerElemReadc,nValsPerElemReadc,valsPerElemReadWritec,nValsPerElemReadWritec) )
     
-    def setCellData(self,Vec vin,Vec vout):
-        cdef PetscVec *vecRead
-        cdef PetscVec *vecReadWrite
-        vecRead = <PetscVec*> &vin.vec
-        vecReadWrite = <PetscVec*> &vout.vec
-        CHKERR( DMBFSetCellData(self.dm,vecRead,vecReadWrite) )
+    def setCellData(self,int nVecRead,Vec[:] vecRead or None,int nVecReadWrite, Vec[:] vecReadWrite or None):
+        cdef int i   
+        cdef PetscVec *PetscVecRead, *PetscVecReadWrite  
+        if vecRead is None:
+            PetscVecRead  = NULL
+        else:
+            PetscVecRead  = <PetscVec*> malloc(sizeof(PetscVec)*nVecRead)
+        if vecReadWrite is None:
+            PetscVecReadWrite  = NULL
+        else:
+            PetscVecReadWrite  = <PetscVec*> malloc(sizeof(PetscVec)*nVecReadWrite)
+        
+        for i in range(nVecRead):
+            PetscVecRead[i] = vecRead[i].vec
+        for i in range(nVecReadWrite):
+            PetscVecReadWrite[i] = vecReadWrite[i].vec
+                
+        CHKERR( DMBFSetCellData(self.dm,PetscVecRead,PetscVecReadWrite) )
+    
+        #self.__p__setCellData(nVecRead,nVecWrite,VecRead,VecWrite)
    
     def getCellDataSize(self):
         cdef PetscInt  *valsPerElemRead
@@ -77,12 +98,12 @@ cdef class DMBF(DM):
         CHKERR( DMBFGetCellDataSize(self.dm,NULL,NULL,&valsPerElemReadWrite,&nValsPerElemReadWrite) )
         return (array_i(nValsPerElemReadWrite,valsPerElemReadWrite),nValsPerElemReadWrite)
     
-    def getCellData(self,Vec vout):
-        cdef PetscVec *vecReadWrite
-        vecReadWrite = <PetscVec*> &vout.vec
-        CHKERR( DMBFGetCellData(self.dm,NULL,vecReadWrite) )
+    def getCellData(self,int nVecReadWrite,Vec[:] vecReadWrite):
+        cdef PetscVec *PetscVecReadWrite = <PetscVec*> malloc(sizeof(PetscVec)*nVecReadWrite)
+        for i in range(nVecReadWrite):
+            PetscVecReadWrite[i] = vecReadWrite[i].vec
+        CHKERR( DMBFGetCellData(self.dm,NULL,PetscVecReadWrite) )
 
-    
     def communicateGhostCells(self):
          CHKERR( DMBFCommunicateGhostCells(self.dm) )
     
@@ -94,6 +115,26 @@ cdef class DMBF(DM):
         self.set_attr('__cellf__', context)
         CHKERR( DMBFIterateOverCellsVectors(self.dm, DMBF_CellCallback, &(vec_in[0]), len(vec_in) <void*>context) )
     '''
+    def matCreateFromCellFunction(self,cell_function):
+        ctx = CellMatCtx(self,cell_function)
+        K = Mat().createPython([self.getGlobalSize(), self.getGlobalSize()], comm=self.comm)
+        K.setPythonContext(ctx)
+        K.setUp()
+        return K
+
+class CellMatCtx(object):
+
+    def __init__(self, dm, cell_function):
+        self.dm = dm
+        self.cellf = cell_function
+    
+    def mult(self, K, x, b):
+        b.set(0.0)
+        self.dm.setCellData(x,b)
+        self.dm.communicateGhostCells()
+        self.dm.iterateOverCells(self.cellf)
+        self.dm.getCellData(b)
+        
 
 cdef class PyDM_BF_Cell:
     cdef DM_BF_Cell *cell
@@ -117,7 +158,7 @@ cdef class PyDM_BF_Cell:
         cdef PetscInt nVals, i       
         ValsPerElemReadWrite,_ = dm.getCellDataSizeReadWrite()
         nVals = sum(ValsPerElemReadWrite)
-        if(mode):
+        if mode:
             for i in range(nVals):
                 self.cell.dataReadWrite[i] = data[i]
         else:
