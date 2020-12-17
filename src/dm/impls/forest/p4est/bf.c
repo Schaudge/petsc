@@ -485,17 +485,17 @@ PetscErrorCode DMBFGetCellDataSize(DM dm, PetscInt **valsPerElemRead, PetscInt *
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  PetscValidIntPointer(valsPerElemRead,3);
-  PetscValidIntPointer(valsPerElemReadWrite,5);
+  /* PetscValidIntPointer(valsPerElemRead,3); */
+  /* PetscValidIntPointer(valsPerElemReadWrite,5); */
   bf = _p_getBF(dm);
-  *nValsPerElemRead = bf->nValsPerElemRead;
+  if(nValsPerElemRead) { *nValsPerElemRead = bf->nValsPerElemRead; }
   if (0 < bf->nValsPerElemRead && valsPerElemRead) {
     ierr = PetscMalloc1(bf->nValsPerElemRead,valsPerElemRead);CHKERRQ(ierr);
     for (i=0; i<bf->nValsPerElemRead; i++) {
       (*valsPerElemRead)[i] = bf->valsPerElemRead[i];
     }
   }
-  *nValsPerElemReadWrite = bf->nValsPerElemReadWrite;
+  if(nValsPerElemReadWrite) { *nValsPerElemReadWrite = bf->nValsPerElemReadWrite; }
   if (0 < bf->nValsPerElemReadWrite && valsPerElemReadWrite) {
     ierr = PetscMalloc1(bf->nValsPerElemReadWrite,valsPerElemReadWrite);CHKERRQ(ierr);
     for (i=0; i<bf->nValsPerElemReadWrite; i++) {

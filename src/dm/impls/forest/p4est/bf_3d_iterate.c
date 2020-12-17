@@ -5,7 +5,7 @@
 //#include <p4est_to_p8est.h> /* convert to p8est for 3D domains */
 
 /* rename generic functions that are the same for 2D and 3D */
-#define DMBF_3D_IterateSetUpCells       DMBF_3D_IterateSetUpCells
+#define DMBF_XD_IterateSetUpCells       DMBF_3D_IterateSetUpCells
 #define DMBF_XD_IterateSetCellData      DMBF_3D_IterateSetCellData
 #define DMBF_XD_IterateGetCellData      DMBF_3D_IterateGetCellData
 
