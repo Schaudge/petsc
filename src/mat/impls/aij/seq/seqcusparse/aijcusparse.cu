@@ -293,6 +293,27 @@ static PetscErrorCode MatSetFromOptions_SeqAIJCUSPARSE(PetscOptionItems *PetscOp
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode MatSeqAIJCUSPARSECopyFromGPU(Mat A)
+{
+  Mat_SeqAIJ         *a = (Mat_SeqAIJ*)A->data;
+  Mat_SeqAIJCUSPARSE *cusp = (Mat_SeqAIJCUSPARSE*)A->spptr;
+  cudaError_t        cerr;
+  PetscErrorCode     ierr;
+
+  PetscFunctionBegin;
+  if (A->offloadmask == PETSC_OFFLOAD_GPU) {
+    CsrMatrix *matrix = (CsrMatrix*)cusp->mat->mat;
+
+    ierr = PetscLogEventBegin(MAT_CUSPARSECopyFromGPU,A,0,0,0);CHKERRQ(ierr);
+    cerr = cudaMemcpy(a->a, matrix->values->data().get(), a->nz*sizeof(PetscScalar), cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
+    cerr = WaitForCUDA();CHKERRCUDA(cerr);
+    ierr = PetscLogGpuToCpu(a->nz*sizeof(PetscScalar));CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(MAT_CUSPARSECopyFromGPU,A,0,0,0);CHKERRQ(ierr);
+    A->offloadmask = PETSC_OFFLOAD_BOTH;
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode MatILUFactorSymbolic_SeqAIJCUSPARSE(Mat B,Mat A,IS isrow,IS iscol,const MatFactorInfo *info)
 {
   Mat_SeqAIJCUSPARSETriFactors *cusparseTriFactors = (Mat_SeqAIJCUSPARSETriFactors*)B->spptr;
@@ -300,6 +321,7 @@ static PetscErrorCode MatILUFactorSymbolic_SeqAIJCUSPARSE(Mat B,Mat A,IS isrow,I
 
   PetscFunctionBegin;
   ierr = MatSeqAIJCUSPARSETriFactors_Reset(&cusparseTriFactors);CHKERRQ(ierr);
+  ierr = MatSeqAIJCUSPARSECopyFromGPU(A);CHKERRQ(ierr);
   ierr = MatILUFactorSymbolic_SeqAIJ(B,A,isrow,iscol,info);CHKERRQ(ierr);
   B->ops->lufactornumeric = MatLUFactorNumeric_SeqAIJCUSPARSE;
   PetscFunctionReturn(0);
@@ -312,6 +334,7 @@ static PetscErrorCode MatLUFactorSymbolic_SeqAIJCUSPARSE(Mat B,Mat A,IS isrow,IS
 
   PetscFunctionBegin;
   ierr = MatSeqAIJCUSPARSETriFactors_Reset(&cusparseTriFactors);CHKERRQ(ierr);
+  ierr = MatSeqAIJCUSPARSECopyFromGPU(A);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic_SeqAIJ(B,A,isrow,iscol,info);CHKERRQ(ierr);
   B->ops->lufactornumeric = MatLUFactorNumeric_SeqAIJCUSPARSE;
   PetscFunctionReturn(0);
@@ -324,6 +347,7 @@ static PetscErrorCode MatICCFactorSymbolic_SeqAIJCUSPARSE(Mat B,Mat A,IS perm,co
 
   PetscFunctionBegin;
   ierr = MatSeqAIJCUSPARSETriFactors_Reset(&cusparseTriFactors);CHKERRQ(ierr);
+  ierr = MatSeqAIJCUSPARSECopyFromGPU(A);CHKERRQ(ierr);
   ierr = MatICCFactorSymbolic_SeqAIJ(B,A,perm,info);CHKERRQ(ierr);
   B->ops->choleskyfactornumeric = MatCholeskyFactorNumeric_SeqAIJCUSPARSE;
   PetscFunctionReturn(0);
@@ -936,6 +960,7 @@ static PetscErrorCode MatLUFactorNumeric_SeqAIJCUSPARSE(Mat B,Mat A,const MatFac
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  ierr = MatSeqAIJCUSPARSECopyFromGPU(A);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric_SeqAIJ(B,A,info);CHKERRQ(ierr);
   B->offloadmask = PETSC_OFFLOAD_CPU;
   /* determine which version of MatSolve needs to be used. */
@@ -1635,27 +1660,6 @@ static PetscErrorCode MatSolve_SeqAIJCUSPARSE_NaturalOrdering(Mat A,Vec bb,Vec x
   cerr = WaitForCUDA();CHKERRCUDA(cerr);
   ierr = PetscLogGpuTimeEnd();CHKERRQ(ierr);
   ierr = PetscLogGpuFlops(2.0*cusparseTriFactors->nnz - A->cmap->n);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode MatSeqAIJCUSPARSECopyFromGPU(Mat A)
-{
-  Mat_SeqAIJ         *a = (Mat_SeqAIJ*)A->data;
-  Mat_SeqAIJCUSPARSE *cusp = (Mat_SeqAIJCUSPARSE*)A->spptr;
-  cudaError_t        cerr;
-  PetscErrorCode     ierr;
-
-  PetscFunctionBegin;
-  if (A->offloadmask == PETSC_OFFLOAD_GPU) {
-    CsrMatrix *matrix = (CsrMatrix*)cusp->mat->mat;
-
-    ierr = PetscLogEventBegin(MAT_CUSPARSECopyFromGPU,A,0,0,0);CHKERRQ(ierr);
-    cerr = cudaMemcpy(a->a, matrix->values->data().get(), a->nz*sizeof(PetscScalar), cudaMemcpyDeviceToHost);CHKERRCUDA(cerr);
-    cerr = WaitForCUDA();CHKERRCUDA(cerr);
-    ierr = PetscLogGpuToCpu(a->nz*sizeof(PetscScalar));CHKERRQ(ierr);
-    ierr = PetscLogEventEnd(MAT_CUSPARSECopyFromGPU,A,0,0,0);CHKERRQ(ierr);
-    A->offloadmask = PETSC_OFFLOAD_BOTH;
-  }
   PetscFunctionReturn(0);
 }
 
@@ -2610,7 +2614,6 @@ static PetscErrorCode MatAXPY_SeqAIJCUSPARSE(Mat Y,PetscScalar a,Mat X,MatStruct
       ierr = PetscObjectStateIncrease((PetscObject)Y);CHKERRQ(ierr);
       if (Y->offloadmask == PETSC_OFFLOAD_BOTH) Y->offloadmask = PETSC_OFFLOAD_GPU;
       else if (Y->offloadmask != PETSC_OFFLOAD_GPU) SETERRQ(PetscObjectComm((PetscObject)X),PETSC_ERR_PLIB,"wrong state");
-      ierr = MatSeqAIJCUSPARSECopyFromGPU(Y);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
