@@ -162,33 +162,11 @@ PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const PetscInt dim
       /* create point data for cell i for Landau tensor: x, f(x), grad f(x) */
       for (qj = 0; qj < Nq; ++qj) {
         PetscInt         gidx = (ej*Nq + qj);
-        PetscScalar      refSpaceDer[LANDAU_DIM];
-        PetscInt         dOffset = 0, fOffset = 0;
         IPData.x[gidx] = vj[qj * dim + 0]; /* coordinate */
         IPData.y[gidx] = vj[qj * dim + 1];
         if (dim==3) IPData.z[gidx] = vj[qj * dim + 2];
         IPData.w[gidx] = detJj[qj] * quadWeights[qj];
         if (dim==2) IPData.w[gidx] *= IPData.x[gidx];  /* cylindrical coordinate, w/o 2pi */
-        /* get u & du (EvaluateFieldJets) */
-        for (f = 0; f < Nf; ++f) {
-          const PetscReal *Bq = &Tf[f]->T[0][qj*Nb];
-          const PetscReal *Dq = &Tf[f]->T[1][qj*Nb*dim];
-          PetscInt         b, e;
-          uu[fOffset] = 0.0;
-          for (d = 0; d < LANDAU_DIM; ++d) refSpaceDer[d] = 0.0;
-          for (b = 0; b < Nb; ++b) {
-            const PetscInt    cidx = b;
-            uu[fOffset] += Bq[cidx]*coef[dOffset+cidx];
-            for (d = 0; d < dim; ++d) refSpaceDer[d] += Dq[cidx*dim+d]*coef[dOffset+cidx];
-          }
-          for (d = 0; d < dim; ++d) {
-            for (e = 0, u_x[fOffset*dim+d] = 0.0; e < dim; ++e) {
-              u_x[fOffset*dim+d] += invJ[qj * dim * dim + e*dim+d]*refSpaceDer[e];
-            }
-          }
-          fOffset += 1;
-          dOffset += Nb;
-        }
       } /* q */
       ierr = DMPlexVecRestoreClosure(plex, section, locX, cStart+ej, NULL, &coef);CHKERRQ(ierr);
     } /* e */
