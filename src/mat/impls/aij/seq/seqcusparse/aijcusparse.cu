@@ -944,6 +944,7 @@ static PetscErrorCode MatSeqAIJCUSPARSECopyFromGPU(Mat A)
     cerr = WaitForCUDA();CHKERRCUDA(cerr);
     ierr = PetscLogGpuToCpu(a->nz*sizeof(PetscScalar));CHKERRQ(ierr);
     ierr = PetscLogEventEnd(MAT_CUSPARSECopyFromGPU,A,0,0,0);CHKERRQ(ierr);
+    ierr = PetscObjectStateIncrease((PetscObject)A);CHKERRQ(ierr);
     A->offloadmask = PETSC_OFFLOAD_BOTH;
   }
   PetscFunctionReturn(0);
