@@ -141,7 +141,6 @@ PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const PetscInt dim
 
   {
     static int         cc = 0;
-    PetscScalar        uu[LANDAU_MAX_SPECIES],u_x[LANDAU_MAX_SPECIES*LANDAU_DIM];
     /* collect f data */
     if (ctx->verbose > 2 || (ctx->verbose > 0 && cc++ == 0)) {
       PetscInt N,Nloc;
