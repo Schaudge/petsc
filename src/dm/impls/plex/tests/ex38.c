@@ -5,6 +5,7 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 #include <petscds.h>
 #include <petscsnes.h>
 #include <petsc/private/petscfeimpl.h>
+#include <petsc/private/dmpleximpl.h>
 
 const PetscReal DOMAIN_SPLIT = 0.0; // Used to switch value/form of the permeability tensor.
 const PetscInt  RANDOM_SEED = 0; // Used to seed rng for mesh perturbations.
@@ -1013,7 +1014,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
     PetscSection    groupDofSect,dofGroupSect;
     IS              group2Dof,dof2Group;
     DM              refdm;
-    PetscScalar     *group2Constant,*group2ConstantInv;
+    PetscScalar     *group2Constant,*group2ConstantInv,*constantProjections;
     PetscScalar     *tmpElemMat;
 
     ierr = PetscDSGetTotalDimension(ds,&totDim);CHKERRQ(ierr);
@@ -1036,7 +1037,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
     ierr = ISGetIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
     ierr = ISGetIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
 
-    nDoFs   = gDofMax - gDofMin + 1; //Possibly unnecessary. Maybe some place where this is better to use than current setup. 
+    nDoFs   = gDofMax - gDofMin + 1;   /*Possibly unnecessary. Maybe some place where this is better to use than current setup. */
     nGroups = dGroupMax - dGroupMin +1;
 
     /*dof_to_group // which corner group I'm in
@@ -1075,75 +1076,37 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
      [ -1  0 ] [-1  0 ]   [ 0 -1 ]
      ** This means DoF 0 and DoF 1 are in the same direction, DoF 7 and DoF 2 are in opposing directions. And DoF 0 orth. to DoF 2, same for 7 and 1
      M[[0,7],[0,7]] += M[[0,7],[1,2]] C_{0,7} C^{-1}_{1,2}  */
-    
+
     /* Build coefficient matrices using dualspace data. */
-    ierr = PetscCalloc2(nGroups*dim*dim,&group2Constant,nGroups*dim*dim,&group2ConstantInv);CHKERRQ(ierr);
+    ierr = PetscCalloc3(nGroups*dim*dim,&group2Constant,nGroups*dim*dim,&group2ConstantInv,nGroups*dim*dim,&constantProjections);CHKERRQ(ierr);
+    ierr = PetscDualSpaceProjectConstants(dsp,constantProjections);CHKERRQ(ierr);
 
-    ierr = PetscDualSpaceProjectConstants(dsp,group2ConstantInv);CHKERRQ(ierr);
-
-    for (d = 0; d < dim; ++d) {
-      PetscInt v;
-      for (v=0; v < nGroups; ++v) {
-        /* The afformentioned mapping step. Entries in y are in order 0-numDof,but we need to access them in their grouped order, defined by
-         * groupDofSect and groupDofInd, for assignment into the group2Constant array */
-        PetscInt numVals,nOffset;
-        PetscInt ix,cI;
-        ierr = PetscSectionGetDof(groupDofSect,v+vStart,&numVals);CHKERRQ(ierr);
-        ierr = PetscSectionGetOffset(groupDofSect,v+vStart,&nOffset);CHKERRQ(ierr);
-        for (cI = 0; cI<numVals; cI++){
-          ix = groupDofInd[nOffset+cI];
-          group2Constant[v*dim*dim + d*dim +cI] = group2ConstantInv[d*nGroups*dim + ix];
+    for (g=0; g < nGroups; ++g) {
+      PetscInt nPointsInGroup,nOffset,point,globalInd;
+      ierr = PetscSectionGetDof(groupDofSect,g+vStart,&nPointsInGroup);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(groupDofSect,g+vStart,&nOffset);CHKERRQ(ierr);
+      for (point = 0; point<nPointsInGroup; ++point) {
+        PetscInt comp;
+        globalInd = groupDofInd[nOffset+point];
+        for (comp = 0; comp<dim; ++comp) {
+          group2Constant[g*dim*dim + point*dim + comp] = constantProjections[comp*nGroups*dim + globalInd];
         }
       }
     }
 
-
     /* Now we have to get inverses of the coefficient matrices, i.e. solve system C*X = I for each C. */
     {
-      Mat      CMat,FMat;
-      Vec      w,z;
-      PetscInt v,r,*rowIdx;
-      IS       ident;
-
-      ierr = VecCreate(PetscObjectComm((PetscObject)ds),&w);CHKERRQ(ierr);
-      ierr = VecCreate(PetscObjectComm((PetscObject)ds),&z);CHKERRQ(ierr);
-      ierr = VecSetSizes(w,PETSC_DECIDE,dim);CHKERRQ(ierr);
-      ierr = VecSetSizes(z,PETSC_DECIDE,dim);CHKERRQ(ierr);
-      ierr = VecSetFromOptions(w);CHKERRQ(ierr);
-      ierr = VecSetFromOptions(z);CHKERRQ(ierr);
-
-      ierr = MatCreate(PetscObjectComm((PetscObject)ds),&CMat);CHKERRQ(ierr);
-      ierr = MatSetSizes(CMat,PETSC_DECIDE,PETSC_DECIDE,dim,dim);CHKERRQ(ierr);
-      /*ierr = MatSetFromOptions(CMat);CHKERRQ(ierr); */
-      ierr = MatSetType(CMat,MATDENSE);CHKERRQ(ierr);
-      ierr = MatSetUp(CMat);CHKERRQ(ierr);
-      ierr = PetscCalloc1(dim,&rowIdx);CHKERRQ(ierr);
-      for (r = 0; r < dim; ++r) rowIdx[r] = r;
-      ierr = ISCreateStride(PetscObjectComm((PetscObject)ds),dim,0,1,&ident);CHKERRQ(ierr);
-      for (v=0; v < nGroups; ++v) {
-        PetscInt iCol,d;
-        for (iCol = 0; iCol < dim; ++iCol) {
-          ierr = MatSetValues(CMat,dim,rowIdx,1,&iCol,&group2Constant[v*dim*dim + iCol*dim],INSERT_VALUES);CHKERRQ(ierr);
+      
+        for (g=0; g< nGroups; ++g) {
+            PetscScalar detJ;
+            if (dim==2){
+              DMPlex_Det2D_Scalar_Internal(&detJ,&group2Constant[g*dim*dim]);
+              DMPlex_Invert2D_Internal(&group2ConstantInv[g*dim*dim],&group2Constant[g*dim*dim],detJ);
+            } else if (dim==3){
+              DMPlex_Det3D_Scalar_Internal(&detJ,&group2Constant[g*dim*dim]);
+              DMPlex_Invert3D_Internal(&group2ConstantInv[g*dim*dim],&group2Constant[g*dim*dim],detJ);
+            }
         }
-        ierr = MatAssemblyBegin(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-        ierr = MatAssemblyEnd(CMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-        ierr = MatGetFactor(CMat,MATSOLVERPETSC,MAT_FACTOR_LU,&FMat);CHKERRQ(ierr);
-        ierr = MatLUFactorSymbolic(FMat,CMat,ident,ident,NULL);CHKERRQ(ierr);
-        ierr = MatLUFactorNumeric(FMat,CMat,NULL);CHKERRQ(ierr);
-        for (d=0; d< dim; ++d) {
-          ierr = VecSet(z,0);CHKERRQ(ierr);
-          ierr = VecSetValue(z,d,1,INSERT_VALUES);CHKERRQ(ierr);
-          /* Possible bug/strange behaviour. If CMat is MatSeqAij, then w ends up inf inf... meaning theres some kind of breakdown in sparse LU??? */
-          ierr = MatSolve(FMat,z,w);CHKERRQ(ierr);
-          ierr = VecGetValues(w,dim,rowIdx,&group2ConstantInv[v*dim*dim + d*dim]);CHKERRQ(ierr);
-        }
-        ierr = MatDestroy(&FMat);CHKERRQ(ierr);
-      }
-      ierr = MatDestroy(&CMat);CHKERRQ(ierr);
-      ierr = VecDestroy(&w);CHKERRQ(ierr);
-      ierr = VecDestroy(&z);CHKERRQ(ierr);
-      ierr = PetscFree(rowIdx);CHKERRQ(ierr);
     }
 
     for (e=0; e < Ne; ++e) {
@@ -1192,44 +1155,6 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         }
       }
 
-#if 0
-      {
-        const PetscScalar *eMat = &elemMat[eOffset];
-        const PetscScalar *tMat = tmpElemMat;
-        const PetscScalar constVal[3] = {-0.2, 0.5, 1.1};
-        PetscReal diff;
-        PetscScalar *eMatVec, *tMatVec;
-
-        PetscScalar *constVec;
-
-        ierr = PetscCalloc3(totDim, &constVec, totDim, &eMatVec, totDim, &tMatVec);CHKERRQ(ierr);
-        for (PetscInt v = 0; v < nGroups; v++) {
-          PetscScalar dofVal[3] = {0., 0., 0.};
-          const PetscScalar *C = &group2Constant[v * dim * dim];
-
-          for (PetscInt d = 0; d < dim; d++) {
-            for (PetscInt e = 0; e < dim; e++) {
-              // Column major
-              dofVal[d] += C[dim * e + d] * constVal[e];
-            }
-          }
-          for (PetscInt d = 0; d < dim; d++) {
-            constVec[groupDofInd[dim * v + d]] = dofVal[d];
-          }
-        }
-        diff = 0;
-        for (PetscInt i = 0; i < totDim; i++) {
-          for (PetscInt j = 0; j < totDim; j++) {
-            eMatVec[i] += eMat[i * totDim + j] * constVec[j];
-            tMatVec[i] += tMat[i * totDim + j] * constVec[j];
-          }
-          diff += PetscSqr(eMatVec[i] - tMatVec[i]);
-        }
-        printf("lumped matrix diff: %g\n", (double) diff);
-        ierr = PetscFree3(constVec, eMatVec, tMatVec);CHKERRQ(ierr);
-      }
-#endif
-
       /* Move data from tmp array back to original now that we can safely overwrite*/
       for (f = 0; f < T[fieldI]->Nb; ++f) {
         const PetscInt i = offsetI + f;
@@ -1240,14 +1165,14 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       }
       eOffset += PetscSqr(totDim);
     }
-  ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
-  ierr = PetscFree2(group2Constant,group2ConstantInv);CHKERRQ(ierr);
-  ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
-  ierr = ISRestoreIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
-  ierr = ISDestroy(&group2Dof);CHKERRQ(ierr);
-  ierr = ISDestroy(&dof2Group);CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&groupDofSect);CHKERRQ(ierr);
-  ierr = PetscSectionDestroy(&dofGroupSect);CHKERRQ(ierr);
+    ierr = PetscFree(tmpElemMat);CHKERRQ(ierr);
+    ierr = PetscFree2(group2Constant,group2ConstantInv);CHKERRQ(ierr);
+    ierr = ISRestoreIndices(group2Dof,&groupDofInd);CHKERRQ(ierr);
+    ierr = ISRestoreIndices(dof2Group,&dofGroupInd);CHKERRQ(ierr);
+    ierr = ISDestroy(&group2Dof);CHKERRQ(ierr);
+    ierr = ISDestroy(&dof2Group);CHKERRQ(ierr);
+    ierr = PetscSectionDestroy(&groupDofSect);CHKERRQ(ierr);
+    ierr = PetscSectionDestroy(&dofGroupSect);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1311,26 +1236,26 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   ierr = PetscDSSetJacobian(prob,1,0,NULL,g1_qu,NULL,NULL);CHKERRQ(ierr);
 
   switch (user->sol_form) {
-  case LINEAR:
-    ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
-    break;
-  case QUADRATIC:
-    ierr = PetscDSSetResidual(prob,1,f0_q_quad,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdResidual(prob,0,f0_quad_bd_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,0,quad_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,1,quad_p,NULL);CHKERRQ(ierr);
-    break;
-  case SINUSOIDAL:
-    ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
-    break;
-  default:
-    PetscFunctionReturn(-1);
+    case LINEAR:
+      ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
+      break;
+    case QUADRATIC:
+      ierr = PetscDSSetResidual(prob,1,f0_q_quad,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetBdResidual(prob,0,f0_quad_bd_u,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetExactSolution(prob,0,quad_u,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetExactSolution(prob,1,quad_p,NULL);CHKERRQ(ierr);
+      break;
+    case SINUSOIDAL:
+      ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
+      ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
+      break;
+    default:
+      PetscFunctionReturn(-1);
   }
   ierr = PetscDSAddBoundary(prob,DM_BC_NATURAL,"Boundary Integral","marker",0,0,NULL,(void (*)(void))NULL,(void (*)(void))NULL,1,&id,user);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1511,78 +1436,109 @@ int main(int argc,char ** argv)
 }
 
 /*TEST
-  testset:
-    suffix: 2d_bdm
-    requires: triangle
-    args: -dim 2 \
-      -velocity_petscspace_degree 1 \
-      -velocity_petscdualspace_type bdm \
-      -velocity_petscdualspace_lagrange_node_endpoints true \
-      -A_snes_converged_reason \
-      -A_snes_linesearch_type basic \
-      -A_snes_rtol 1e-10 \
-      -A_snes_atol 1e-10 \
-      -A_snes_stol 1e-10 \
-      -A_snes_max_it 500 \
-      -A_ksp_rtol 1e-12 \
-      -A_pc_type fieldsplit \
-      -A_pc_fieldsplit_type schur \
-      -A_pc_fieldsplit_schur_precondition full \
-      -WY_snes_converged_reason \
-      -WY_snes_linesearch_type basic \
-      -WY_snes_rtol 1e-10 \
-      -WY_snes_atol 1e-10 \
-      -WY_snes_stol 1e-10 \
-      -WY_snes_max_it 500 \
-      -WY_ksp_rtol 1e-12 \
-      -WY_pc_type fieldsplit \
-      -WY_pc_fieldsplit_type schur \
-      -WY_pc_fieldsplit_schur_precondition full \
-      -showNorm true 
-    test:
-      suffix: linear
-      args: -sol_form linear -mesh_transform none
-    test:
-      suffix: quadratic
-      args: -sol_form quadratic -mesh_transform none
-    test: 
-      suffix: sinusoidal
-      args: -sol_form sinusoidal -mesh_transform none
+testset:
+  suffix: 2d_bdm
+  requires: triangle
+  args: -dim 2 \
+  -velocity_petscspace_degree 1 \
+  -velocity_petscdualspace_type bdm \
+  -velocity_petscdualspace_lagrange_node_endpoints true \
+  -A_snes_converged_reason \
+  -A_snes_linesearch_type basic \
+  -A_snes_rtol 1e-10 \
+  -A_snes_atol 1e-10 \
+  -A_snes_stol 1e-10 \
+  -A_snes_max_it 500 \
+  -A_ksp_rtol 1e-12 \
+  -A_pc_type fieldsplit \
+  -A_pc_fieldsplit_type schur \
+  -A_pc_fieldsplit_schur_precondition full \
+  -WY_snes_converged_reason \
+  -WY_snes_linesearch_type basic \
+  -WY_snes_rtol 1e-10 \
+  -WY_snes_atol 1e-10 \
+  -WY_snes_stol 1e-10 \
+  -WY_snes_max_it 500 \
+  -WY_ksp_rtol 1e-12 \
+  -WY_pc_type fieldsplit \
+  -WY_pc_fieldsplit_type schur \
+  -WY_pc_fieldsplit_schur_precondition full \
+  -showNorm true 
+  test:
+    suffix: linear
+    args: -sol_form linear -mesh_transform none
+  test:
+    suffix: quadratic
+    args: -sol_form quadratic -mesh_transform none
+  test: 
+    suffix: sinusoidal
+    args: -sol_form sinusoidal -mesh_transform none
 
-  testset:
-    suffix: 2d_bdmq
-    args: -dim 2 \
-      -simplex false \
-      -velocity_petscspace_degree 1 \
-      -velocity_petscdualspace_type bdm \
-      -velocity_petscdualspace_lagrange_tensor 1 \
-      -velocity_petscdualspace_lagrange_node_endpoints true \
-      -A_ksp_rtol 1e-12 \
-      -WY_ksp_rtol 1e-12 \
-      -A_pc_type fieldsplit \
-      -WY_pc_type fieldsplit \
-      -A_pc_fieldsplit_type schur \
-      -WY_pc_fieldsplit_type schur \
-      -A_pc_fieldsplit_schur_precondition full \
-      -WY_pc_fieldsplit_schur_precondition full
-    test:
-      suffix: linear
-      args: -sol_form linear -mesh_transform none
-    test:
-      suffix: quadratic
-      args: -sol_form quadratic -mesh_transform none
-    test:
-      suffix: sinusoidal
-      args: -sol_form sinusoidal -mesh_transform none
+testset:
+  suffix: 2d_bdmq
+  args: -dim 2 \
+  -simplex false \
+  -velocity_petscspace_degree 1 \
+  -velocity_petscdualspace_type bdm \
+  -velocity_petscdualspace_lagrange_tensor 1 \
+  -velocity_petscdualspace_lagrange_node_endpoints true \
+  -A_ksp_rtol 1e-12 \
+  -WY_ksp_rtol 1e-12 \
+  -A_pc_type fieldsplit \
+  -WY_pc_type fieldsplit \
+  -A_pc_fieldsplit_type schur \
+  -WY_pc_fieldsplit_type schur \
+  -A_pc_fieldsplit_schur_precondition full \
+  -WY_pc_fieldsplit_schur_precondition full
+  test:
+    suffix: linear
+    args: -sol_form linear -mesh_transform none
+  test:
+    suffix: quadratic
+    args: -sol_form quadratic -mesh_transform none
+  test:
+    suffix: sinusoidal
+    args: -sol_form sinusoidal -mesh_transform none
 
-  testset:
-    suffix: 3d_bdm
-    requires: triangle
-    args: -dim 3 \
-      -velocity_petscspace_degree 1 \
-      -velocity_petscdualspace_type bdm
-    test:
-      suffix: linear
-      args: -sol_form linear -mesh_transform none
+testset:
+  suffix: 3d_bdm
+  requires: triangle
+  args: -dim 3 \
+  -velocity_petscspace_degree 1 \
+  -velocity_petscdualspace_type bdm
+  test:
+    suffix: linear
+    args: -sol_form linear -mesh_transform none
+
+# Test set for subsurface flow cases.
+# Eventually we should stop abusing the test harness and break
+# these out into dedicated executables or external scripts .
+# Domain is a square, 205m side length with 41 cells per side.
+# Need Neumann conditions on top and bottom of domain, dirichlet on sides.
+testset:
+  suffix: subsurface_benchmark
+  args: -dim 2 \
+    -simplex false \
+    -velocity_petscspace_degree 1 \
+    -velocity_petscdualspace_type bdm \
+    -velocity_petscdualspace_lagrange_tensor 1 \
+    -velocity_petscdualspace_lagrange_node_endpoints true \
+    -A_ksp_rtol 1e-12 \ 
+    -WY_ksp_rtol 1e-12 \
+    -A_pc_type_fieldsplit \
+    -WY_pc_type_fieldsplit \
+    -A_pc_fieldsplit_type schur \
+    -WY_pc_fieldsplit type schur \
+    -A_pc_fieldsplit_schur_precondition full \
+    -WY_pc_fieldsplit_schur_precondition full
+  test: 
+    suffix: chang3.1
+    args: -dm_plex_box_lower -102.5,-102.5 \
+      -dm_plex_box_upper 102.5,102.5 \
+      -dm_plex_box_faces 41,41 \
+      -dm_plex_box_interpolate true \
+      -sol_form linear -mesh_transform none
+      
+
 
 TEST*/
