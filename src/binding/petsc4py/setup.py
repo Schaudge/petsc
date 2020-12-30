@@ -34,7 +34,7 @@ def name():
     return 'petsc4py'
 
 def version():
-    with open(os.path.join(topdir, 'src', '__init__.py')) as f:
+    with open(os.path.join(topdir, 'petsc4py', '__init__.py')) as f:
         m = re.search(r"__version__\s*=\s*'(.*)'", f.read())
         return m.groups()[0]
 
@@ -72,7 +72,7 @@ def get_ext_modules(Extension):
     from os   import walk, path
     from glob import glob
     depends = []
-    for pth, dirs, files in walk('src'):
+    for pth, dirs, files in walk('petsc4py'):
         depends += glob(path.join(pth, '*.h'))
         depends += glob(path.join(pth, '*.c'))
     try:
@@ -81,10 +81,10 @@ def get_ext_modules(Extension):
     except ImportError:
         numpy_includes = []
     return [Extension('petsc4py.lib.PETSc',
-                      sources=['src/PETSc.c',
-                               'src/libpetsc4py.c',
+                      sources=['petsc4py/PETSc.c',
+                               'petsc4py/libpetsc4py.c',
                                ],
-                      include_dirs=['src/include',
+                      include_dirs=['petsc4py/include',
                                     ] + numpy_includes,
                       depends=depends)]
 
@@ -110,7 +110,7 @@ def run_setup():
             PETSC = ">=%s.%s,<%s.%s" % (x, y, x, y+1)
             setup_args['install_requires'] += ['petsc'+PETSC]
     if setuptools:
-        src = os.path.join('src', 'petsc4py.PETSc.c')
+        src = os.path.join('petsc4py', 'petsc4py.PETSc.c')
         has_src = os.path.exists(os.path.join(topdir, src))
         has_git = os.path.isdir(os.path.join(topdir, '.git'))
         has_hg  = os.path.isdir(os.path.join(topdir, '.hg'))
@@ -119,8 +119,8 @@ def run_setup():
     #
     setup(packages     = ['petsc4py',
                           'petsc4py.lib',],
-          package_dir  = {'petsc4py'     : 'src',
-                          'petsc4py.lib' : 'src/lib'},
+          package_dir  = {'petsc4py'     : 'petsc4py',
+                          'petsc4py.lib' : 'petsc4py/lib'},
           package_data = {'petsc4py'     : ['include/petsc4py/*.h',
                                             'include/petsc4py/*.i',
                                             'include/petsc4py/*.pxd',
@@ -235,7 +235,7 @@ def build_sources(cmd):
     includes = ['include']
     destdir_h = os.path.join('include', 'petsc4py')
     run_cython(source, depends, includes,
-               destdir_c=None, destdir_h=destdir_h, wdir='src',
+               destdir_c=None, destdir_h=destdir_h, wdir='petsc4py',
                force=cmd.force, VERSION=CYTHON)
     # libpetsc4py
     source = os.path.join('libpetsc4py', 'libpetsc4py.pyx')
@@ -245,7 +245,7 @@ def build_sources(cmd):
     depends.extend(pdepends)
     includes = ['include']
     run_cython(source, depends, includes,
-               destdir_c=None, destdir_h=None, wdir='src',
+               destdir_c=None, destdir_h=None, wdir='petsc4py',
                force=cmd.force, VERSION=CYTHON)
 
 build_src.run = build_sources

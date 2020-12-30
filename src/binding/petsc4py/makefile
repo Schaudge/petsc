@@ -23,10 +23,10 @@ test-%:
 srcbuild:
 	${PYTHON} setup.py build_src ${SRCOPT}
 srcclean:
-	-${RM} src/${package}.${MODULE}.c
-	-${RM} src/include/${package}/${package}.${MODULE}.h
-	-${RM} src/include/${package}/${package}.${MODULE}_api.h
-	-${RM} src/lib${package}/lib${package}.[ch]
+	-${RM} petsc4py/${package}.${MODULE}.c
+	-${RM} petsc4py/include/${package}/${package}.${MODULE}.h
+	-${RM} petsc4py/include/${package}/${package}.${MODULE}_api.h
+	-${RM} petsc4py/lib${package}/lib${package}.[ch]
 
 .PHONY: clean distclean fullclean
 clean:
