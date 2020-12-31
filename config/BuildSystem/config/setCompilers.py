@@ -1277,7 +1277,7 @@ class Configure(config.base.Configure):
   def checkBuildSharedLibraries(self):
     '''Determine whether compiler and linker can build a shared library, and determine the appropriate PIC flag for each compiler if necessary. Returns RuntimeError if it __attempts__ and fails'''
     useSharedLibraries = 'with-shared-libraries' in self.argDB and self.argDB['with-shared-libraries']
-    myLanguage = self.language[-1]
+    linkLangDefault = self.language[-1]
     if not useSharedLibraries:
       self.logPrint("Skip checking PIC options on user request")
       return
@@ -1315,7 +1315,11 @@ class Configure(config.base.Configure):
           continue
 
         # check if linker can build a shared lib, checklink doesn't throw exception though
-        if not self.checkLink(includes = includeLine, body = None, codeBegin = '', codeEnd = '', cleanup = 1, shared = 1, linkLanguage = myLanguage):
+        if self.isCygwin:
+          linkLang = 'Cxx'
+        else:
+          linkLang = linkLangDefault
+        if not self.checkLink(includes = includeLine, body = None, codeBegin = '', codeEnd = '', cleanup = 1, shared = 1, linkLanguage = linkLang):
           self.logPrint('Rejected '+language+' compiler flag '+testFlag+' because shared linker cannot handle it')
           setattr(self, compilerFlagsArg, oldCompilerFlags)
           continue
