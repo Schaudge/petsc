@@ -1314,11 +1314,12 @@ class Configure(config.base.Configure):
           setattr(self, compilerFlagsArg, oldCompilerFlags)
           continue
 
-        # check if linker can build a shared lib, checklink doesn't throw exception though
-        if self.isCygwin:
+        # CygWin c compiler can't link cpp for some reason
+        if self.isCygwin(self.log) and language == 'Cxx':
           linkLang = 'Cxx'
         else:
           linkLang = linkLangDefault
+        # check if linker can build a shared lib, checklink doesn't throw exception though
         if not self.checkLink(includes = includeLine, body = None, codeBegin = '', codeEnd = '', cleanup = 1, shared = 1, linkLanguage = linkLang):
           self.logPrint('Rejected '+language+' compiler flag '+testFlag+' because shared linker cannot handle it')
           setattr(self, compilerFlagsArg, oldCompilerFlags)
