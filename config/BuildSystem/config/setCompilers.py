@@ -1300,6 +1300,7 @@ class Configure(config.base.Configure):
       oldCompilerFlags = getattr(self, compilerFlagsArg)
       canBuildSharedLibs = False
       for testFlag in self.generatePICGuesses():
+        print(testFlag)
         if testFlag:
           self.logPrint('Trying '+language+' compiler flag '+testFlag+' for PIC code')
         else:
@@ -1319,6 +1320,7 @@ class Configure(config.base.Configure):
           linkLang = 'Cxx'
         else:
           linkLang = linkLangDefault
+        print(linkLang)
         # check if linker can build a shared lib, checklink doesn't throw exception though
         if not self.checkLink(includes = includeLine, body = None, codeBegin = '', codeEnd = '', cleanup = 1, shared = 1, linkLanguage = linkLang):
           self.logPrint('Rejected '+language+' compiler flag '+testFlag+' because shared linker cannot handle it')
