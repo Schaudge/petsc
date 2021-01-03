@@ -966,16 +966,15 @@ PetscErrorCode PetscDualSpaceProjectConstants(PetscDualSpace dual,PetscScalar* c
   /* Set up variables in local scope */
   PetscQuadrature allQuad;
   Mat             allMat;
-  PetscInt        dim,c,numComponents,totNumDoF=0,p,numPoints;
+  PetscInt        dim,c,numComponents,totNumDoF=0,p,numPoints,dof;
   PetscScalar*    constEvals;
   PetscErrorCode  ierr;
-
 
   ierr = PetscDualSpaceGetAllData(dual,&allQuad,&allMat);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetNumComponents(dual,&numComponents);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(allQuad, &dim,NULL,&numPoints,NULL,NULL);CHKERRQ(ierr);
-  ierr = MatGetSize(allMat,&totNumDoF,&numPoints);
-  
+  ierr = MatGetSize(allMat,&totNumDoF,&numPoints);CHKERRQ(ierr);
+  ierr = MatView(allMat, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = PetscCalloc1(numPoints,&constEvals);CHKERRQ(ierr);
   
@@ -986,8 +985,19 @@ PetscErrorCode PetscDualSpaceProjectConstants(PetscDualSpace dual,PetscScalar* c
     }
     ierr = PetscDualSpaceApplyAll(dual,constEvals,&constants[c*totNumDoF]);CHKERRQ(ierr);
   }
-  ierr = PetscFree(constEvals);CHKERRQ(ierr);
 
+  /* Normalise the row values */
+  for (dof = 0; dof < totNumDoF; ++dof){
+    PetscReal norm=0;
+    for (c = 0; c < numComponents; ++c){
+      norm += PetscSqr(constants[c*totNumDoF + dof]);
+    }
+    norm = PetscSqrtReal(norm);
+    for (c = 0; c < numComponents; ++c){
+      constants[c*totNumDoF + dof] /= norm;
+    }
+  }
+  ierr = PetscFree(constEvals);CHKERRQ(ierr);
   return 0;
 }
 /*
@@ -1088,25 +1098,23 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       for (point = 0; point<nPointsInGroup; ++point) {
         PetscInt comp;
         globalInd = groupDofInd[nOffset+point];
-        for (comp = 0; comp<dim; ++comp) {
-          group2Constant[g*dim*dim + point*dim + comp] = constantProjections[comp*nGroups*dim + globalInd];
-        }
+        for (comp = 0; comp<dim; ++comp) group2Constant[g*dim*dim + point*dim + comp] = constantProjections[comp*nGroups*dim + globalInd];
       }
     }
 
-    /* Now we have to get inverses of the coefficient matrices, i.e. solve system C*X = I for each C. */
-    {
-      
-        for (g=0; g< nGroups; ++g) {
-            PetscScalar detJ;
-            if (dim==2){
-              DMPlex_Det2D_Scalar_Internal(&detJ,&group2Constant[g*dim*dim]);
-              DMPlex_Invert2D_Internal(&group2ConstantInv[g*dim*dim],&group2Constant[g*dim*dim],detJ);
-            } else if (dim==3){
-              DMPlex_Det3D_Scalar_Internal(&detJ,&group2Constant[g*dim*dim]);
-              DMPlex_Invert3D_Internal(&group2ConstantInv[g*dim*dim],&group2Constant[g*dim*dim],detJ);
-            }
-        }
+    ierr = PetscSectionView(groupDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = ISView(group2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscScalarView(nDoFs*dim,group2Constant,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+    for (g=0; g< nGroups; ++g) {
+      PetscScalar detJ;
+      if (dim==2) {
+        DMPlex_Det2D_Scalar_Internal(&detJ,&group2Constant[g*dim*dim]);
+        DMPlex_Invert2D_Internal(&group2ConstantInv[g*dim*dim],&group2Constant[g*dim*dim],detJ);
+      } else if (dim==3) {
+        DMPlex_Det3D_Scalar_Internal(&detJ,&group2Constant[g*dim*dim]);
+        DMPlex_Invert3D_Internal(&group2ConstantInv[g*dim*dim],&group2Constant[g*dim*dim],detJ);
+      }
     }
 
     for (e=0; e < Ne; ++e) {
