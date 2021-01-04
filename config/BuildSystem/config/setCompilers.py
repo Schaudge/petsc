@@ -14,8 +14,8 @@ except NameError:
   def any(lst):
     return reduce(lambda x,y:x or y,lst,False)
 
-def _generatePICTestIncludes(language, export=''):
-  if language in ['C','HIP','SYCL']:
+def _generatePICTestIncludes(language, export='', isCxxCygWin=False):
+  if language in ['C','HIP','SYCL'] or isCxxCygWin:
     return '\n'.join(['#include <stdio.h>',
                       'int (*fprintf_ptr)(FILE*,const char*,...) = fprintf;',
                       'void '+export+' foo(void){',
@@ -1277,7 +1277,7 @@ class Configure(config.base.Configure):
   def checkBuildSharedLibraries(self):
     '''Determine whether compiler and linker can build a shared library, and determine the appropriate PIC flag for each compiler if necessary. Returns RuntimeError if it __attempts__ and fails'''
     useSharedLibraries = 'with-shared-libraries' in self.argDB and self.argDB['with-shared-libraries']
-    linkLangDefault = self.language[-1]
+    linkLang = self.language[-1]
     if not useSharedLibraries:
       self.logPrint("Skip checking PIC options on user request")
       return
@@ -1295,7 +1295,9 @@ class Configure(config.base.Configure):
       languages.append('SYCL')
     for language in languages:
       self.pushLanguage(language)
-      includeLine = _generatePICTestIncludes(language)
+      # CygWin C linker can't handle std::allocator<char>::allocator() from CPP
+      isCxxCygWin = config.setCompilers.Configure.isCygwin(self.log) and language == 'Cxx'
+      includeLine = _generatePICTestIncludes(language, isCxxCygWin=isCxxCygWin)
       compilerFlagsArg = self.getCompilerFlagsArg(1) # compiler only
       oldCompilerFlags = getattr(self, compilerFlagsArg)
       canBuildSharedLibs = False
@@ -1314,11 +1316,6 @@ class Configure(config.base.Configure):
           setattr(self, compilerFlagsArg, oldCompilerFlags)
           continue
 
-        # CygWin c compiler can't link cpp for some reason
-        if config.setCompilers.Configure.isCygwin(self.log) and language == 'Cxx':
-          linkLang = 'Cxx'
-        else:
-          linkLang = linkLangDefault
         # check if linker can build a shared lib, checklink doesn't throw exception though
         if not self.checkLink(includes = includeLine, body = None, codeBegin = '', codeEnd = '', cleanup = 1, shared = 1, linkLanguage = linkLang):
           self.logPrint('Rejected '+language+' compiler flag '+testFlag+' because shared linker cannot handle it')
