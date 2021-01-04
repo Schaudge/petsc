@@ -224,6 +224,22 @@ static PetscErrorCode reluctivity_tensor(PetscInt dim,PetscReal time,const Petsc
   ierr = PetscFree2(Q,Q_T);CHKERRQ(ierr);
   return 0;
 }
+
+static PetscErrorCode zero(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void * ctx){
+  PetscInt c;
+  for (c=0; c<Nc; ++c) u[c] = 0.0;
+  return 0;
+}
+
+static PetscErrorCode hiHead(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void *ctx){
+  u[0] = 105.00;
+  return 0;
+}
+
+static PetscErrorCode loHead(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void *ctx){
+  u[0] = 100.00;
+  return 0;
+}
 /* We label solutions by the form of the potential/pressure, p: i.e. linear_u is the analytical form of u one gets when p is linear. */
 /* 2D Linear Exact Functions
    p = x;
@@ -539,6 +555,7 @@ typedef struct
   PetscBool    showNorm;
   PetscBool    toFile;
   char         filename[128];
+  PetscBool    singleBoundary;
 } UserCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
@@ -552,6 +569,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
   user->sol_form       = LINEAR;
   user->showNorm       = PETSC_FALSE;
   user->toFile         = PETSC_FALSE;
+  user->singleBoundary = PETSC_TRUE;
   ierr = PetscStrncpy(user->filename,"",128);CHKERRQ(ierr);
   /* Define/Read in example parameters */
   ierr = PetscOptionsBegin(comm,"","Stratum Dof Grouping Options","DMPLEX");CHKERRQ(ierr);
@@ -566,6 +584,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
                           &user->showNorm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-toFile","Whether to print solution errors to file.","ex38.c",user->toFile,&user->toFile,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsString("-filename","If printing results to file, the path to use.","ex38.c",user->filename,user->filename,128,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-singleBoundary","Whether to have a single mesh boundary or separate boundaries for each direction.","ex38.c",user->singleBoundary,&user->singleBoundary,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -974,7 +993,6 @@ PetscErrorCode PetscDualSpaceProjectConstants(PetscDualSpace dual,PetscScalar* c
   ierr = PetscDualSpaceGetNumComponents(dual,&numComponents);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(allQuad, &dim,NULL,&numPoints,NULL,NULL);CHKERRQ(ierr);
   ierr = MatGetSize(allMat,&totNumDoF,&numPoints);CHKERRQ(ierr);
-  ierr = MatView(allMat, PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = PetscCalloc1(numPoints,&constEvals);CHKERRQ(ierr);
   
@@ -1016,7 +1034,6 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
     PetscInt eOffset =
       0,totDim,e,offsetI,offsetJ,dim,f,g,gDofMin,gDofMax,dGroupMin,dGroupMax,vStart,vEnd;
     PetscInt        nGroups,nDoFs;
-    PetscInt        m,n,d;
     const PetscInt  *groupDofInd,*dofGroupInd;
     PetscTabulation *T;
     PetscFE         fieldFE;
@@ -1101,10 +1118,6 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
         for (comp = 0; comp<dim; ++comp) group2Constant[g*dim*dim + point*dim + comp] = constantProjections[comp*nGroups*dim + globalInd];
       }
     }
-
-    ierr = PetscSectionView(groupDofSect,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    ierr = ISView(group2Dof,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    ierr = PetscScalarView(nDoFs*dim,group2Constant,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
     for (g=0; g< nGroups; ++g) {
       PetscScalar detJ;
@@ -1213,16 +1226,11 @@ static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
     ierr  = DMDestroy(mesh);CHKERRQ(ierr);
     *mesh = dmDist;
   }
+  ierr = DMLocalizeCoordinates(*mesh);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *mesh,"Mesh");CHKERRQ(ierr);
   ierr = DMSetApplicationContext(*mesh,user);CHKERRQ(ierr);
   ierr = TransformMesh(user,mesh,&ran);CHKERRQ(ierr);
   ierr = DMSetFromOptions(*mesh);CHKERRQ(ierr);
-  ierr = DMSetUp(*mesh);CHKERRQ(ierr);
-  ierr = DMCreateLabel(*mesh,name);CHKERRQ(ierr);
-  ierr = DMGetLabel(*mesh,name,&label);CHKERRQ(ierr);
-  ierr = DMPlexMarkBoundaryFaces(*mesh,1,label);CHKERRQ(ierr);
-  ierr = DMPlexLabelComplete(*mesh,label);CHKERRQ(ierr);
-  ierr = DMLocalizeCoordinates(*mesh);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*mesh,NULL,"-dm_view");CHKERRQ(ierr);
 
   ierr = DMDestroy(&dmDist);CHKERRQ(ierr);
@@ -1234,7 +1242,8 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
 {
   PetscDS        prob;
   PetscErrorCode ierr;
-  const PetscInt id = 1;
+  PetscInt       id = 1;
+  PetscInt       dim=user->dim;
 
   PetscFunctionBegin;
   ierr = DMGetDS(dm,&prob);CHKERRQ(ierr);
@@ -1244,28 +1253,46 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   ierr = PetscDSSetJacobian(prob,1,0,NULL,g1_qu,NULL,NULL);CHKERRQ(ierr);
 
   switch (user->sol_form) {
-    case LINEAR:
-      ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
-      break;
-    case QUADRATIC:
-      ierr = PetscDSSetResidual(prob,1,f0_q_quad,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetBdResidual(prob,0,f0_quad_bd_u,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(prob,0,quad_u,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(prob,1,quad_p,NULL);CHKERRQ(ierr);
-      break;
-    case SINUSOIDAL:
-      ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
-      ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
-      break;
-    default:
-      PetscFunctionReturn(-1);
+  case LINEAR:
+    ierr = PetscDSSetResidual(prob,1,f0_q_linear,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
+    break;
+  case QUADRATIC:
+    ierr = PetscDSSetResidual(prob,1,f0_q_quad,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob,0,f0_quad_bd_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,0,quad_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,1,quad_p,NULL);CHKERRQ(ierr);
+    break;
+  case SINUSOIDAL:
+    ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
+    break;
+  default:
+    PetscFunctionReturn(-1);
   }
-  ierr = PetscDSAddBoundary(prob,DM_BC_NATURAL,"Boundary Integral","marker",0,0,NULL,(void (*)(void))NULL,(void (*)(void))NULL,1,&id,user);CHKERRQ(ierr);
+
+  if (user->singleBoundary) {
+    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Boundary","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+  } else {
+    id   = 1;
+    ierr = DMAddBoundary (dm,DM_BC_NATURAL,"Bottom","marker",1,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    id   = dim==3 ? 5 : 2;
+    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Right","marker",1,0,NULL,(void (*)(void))loHead,NULL,1,&id,user);CHKERRQ(ierr);
+    id   = dim==3 ? 2 : 3;
+    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Top","marker",1,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    id   = dim==3 ? 6 : 4;
+    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Left","marker",1,0,NULL,(void (*)(void))hiHead,NULL,1,&id,user);CHKERRQ(ierr);
+    if (dim==3) {
+      id   = 3;
+      ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Front","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+      id   = 4;
+      ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Back","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -1527,16 +1554,17 @@ testset:
   suffix: subsurface_benchmark
   args: -dim 2 \
     -simplex false \
+    -singleBoundary false \
     -velocity_petscspace_degree 1 \
     -velocity_petscdualspace_type bdm \
     -velocity_petscdualspace_lagrange_tensor 1 \
     -velocity_petscdualspace_lagrange_node_endpoints true \
     -A_ksp_rtol 1e-12 \ 
     -WY_ksp_rtol 1e-12 \
-    -A_pc_type_fieldsplit \
-    -WY_pc_type_fieldsplit \
+    -A_pc_type fieldsplit \
+    -WY_pc_type fieldsplit \
     -A_pc_fieldsplit_type schur \
-    -WY_pc_fieldsplit type schur \
+    -WY_pc_fieldsplit_type schur \
     -A_pc_fieldsplit_schur_precondition full \
     -WY_pc_fieldsplit_schur_precondition full
   test: 
@@ -1545,8 +1573,7 @@ testset:
       -dm_plex_box_upper 102.5,102.5 \
       -dm_plex_box_faces 41,41 \
       -dm_plex_box_interpolate true \
+      -dm_plex_separate_marker \
       -sol_form linear -mesh_transform none
-      
-
 
 TEST*/
