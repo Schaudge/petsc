@@ -31,12 +31,12 @@ def _generatePICTestIncludes(language, export='', isCxxCygWin=False):
                       '}',
                       'std::string baz(void){return foo();}'])
   elif language == 'FC':
-    return '\n'.join(['      function foo(a)',
-                      '      real:: a,x,bar',
-                      '      common /xx/ x',
-                      '      x=a',
-                      '      foo = bar(x)',
-                      '      end\n'])
+    return '\n'.join(['function foo(a)',
+                      '  real:: a,x,bar',
+                      '  common /xx/ x',
+                      '  x=a',
+                      '  foo=bar(x)',
+                      'end function foo\n'])
   else:
     raise RuntimeError("Internal error! Unknown Language: "+language)
 
