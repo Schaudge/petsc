@@ -86,20 +86,6 @@ PetscErrorCode VecCopy_SeqCUDA_Private(Vec xin,Vec yin)
   PetscFunctionReturn(0);
 }
 
-/* this is an exact copy of VecSetRandom_Seq */
-PetscErrorCode VecSetRandom_SeqCUDA(Vec xin,PetscRandom r)
-{
-  PetscErrorCode ierr;
-  PetscInt       n = xin->map->n,i;
-  PetscScalar    *xx;
-
-  PetscFunctionBegin;
-  ierr = VecGetArrayWrite(xin,&xx);CHKERRQ(ierr);
-  for (i=0; i<n; i++) { ierr = PetscRandomGetValue(r,&xx[i]);CHKERRQ(ierr); }
-  ierr = VecRestoreArrayWrite(xin,&xx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode VecDestroy_SeqCUDA_Private(Vec v)
 {
   Vec_Seq        *vs = (Vec_Seq*)v->data;
@@ -133,6 +119,29 @@ PetscErrorCode VecResetArray_SeqCUDA_Private(Vec vin)
   PetscFunctionBegin;
   v->array         = v->unplacedarray;
   v->unplacedarray = 0;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecSetRandom_SeqCUDA(Vec xin,PetscRandom r)
+{
+  PetscErrorCode ierr;
+  PetscInt       n = xin->map->n,i;
+  PetscScalar    *xh,*xd;
+  cublasHandle_t cublasv2handle;
+  cudaStream_t   stream;
+  cudaError_t    cerr;
+  cublasStatus_t stat;
+
+  PetscFunctionBegin;
+  ierr = VecGetArrayWrite(xin,&xh);CHKERRQ(ierr);
+  ierr = VecCUDAGetArrayWrite(xin,&xd);CHKERRQ(ierr);
+  for (i=0; i<n; i++) { ierr = PetscRandomGetValue(r,&xh[i]);CHKERRQ(ierr); }
+  ierr = PetscCUBLASGetHandle(&cublasv2handle);CHKERRQ(ierr);
+  stat = cublasGetStream(cublasv2handle,&stream);CHKERRCUBLAS(stat);
+  cerr = cudaMemcpyAsync(xd,xh,n*sizeof(PetscScalar),cudaMemcpyHostToDevice,stream);CHKERRCUDA(cerr);
+  ierr = VecCUDARestoreArrayWrite(xin,&xd);CHKERRQ(ierr);
+  ierr = VecRestoreArrayWrite(xin,&xh);CHKERRQ(ierr);
+  xin->offloadmask = PETSC_OFFLOAD_BOTH;
   PetscFunctionReturn(0);
 }
 
