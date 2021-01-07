@@ -1004,17 +1004,6 @@ PetscErrorCode PetscDualSpaceProjectConstants(PetscDualSpace dual,PetscScalar* c
     ierr = PetscDualSpaceApplyAll(dual,constEvals,&constants[c*totNumDoF]);CHKERRQ(ierr);
   }
 
-  /* Normalise the row values */
-  for (dof = 0; dof < totNumDoF; ++dof){
-    PetscReal norm=0;
-    for (c = 0; c < numComponents; ++c){
-      norm += PetscSqr(constants[c*totNumDoF + dof]);
-    }
-    norm = PetscSqrtReal(norm);
-    for (c = 0; c < numComponents; ++c){
-      constants[c*totNumDoF + dof] /= norm;
-    }
-  }
   ierr = PetscFree(constEvals);CHKERRQ(ierr);
   return 0;
 }
