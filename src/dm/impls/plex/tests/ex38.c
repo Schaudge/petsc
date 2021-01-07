@@ -9,6 +9,7 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 
 const PetscReal DOMAIN_SPLIT = 0.0; // Used to switch value/form of the permeability tensor.
 const PetscInt  RANDOM_SEED = 0; // Used to seed rng for mesh perturbations.
+const PetscReal PUMP_STRENGTH = 0;//-50/(6.25*24*3600); 
 
 static PetscErrorCode smallSAXPY(PetscInt dim, const PetscScalar x[], PetscScalar alpha, PetscScalar* y){
   /* Updates y with y = ax+ y;*/
@@ -75,14 +76,15 @@ static PetscErrorCode smallDIP(PetscInt dim, const PetscScalar A[], const PetscS
  * K is the the permeability tensor. We will often use K^{-1} which is the reluctivity tensor.
  */
 
-static PetscErrorCode permeability_tensor(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,PetscScalar * u_x,void *ctx){
+static PetscErrorCode permeability_tensor(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,PetscScalar * u_x,void *ctx)
+{
   /* Constructs the anisotropic, spacially varying permeability tensor using an eigenvalue decompositon. Q and Q_T are the left and right eigenbasis.
    * D holds the eigenvalues which controls the "strength" of the permeability. The varies continously, but not smoothly, in the domain. The
    * transition point is put close to half way, but not exactly so that it does not perfectly line up with the mesh. This function will also compute
    * the divergence of the permeability_tensor if u_x is not NULL.*/
   PetscErrorCode ierr;
-  PetscInt      i;
-  PetscScalar *Q,*Q_T,*D,*tmpu,*D_x,*tmpu_x;
+  PetscInt       i;
+  PetscScalar    *Q,*Q_T,*D,*tmpu,*D_x,*tmpu_x;
 
   ierr = PetscCalloc2(dim*dim,&Q,dim*dim,&Q_T);CHKERRQ(ierr);
   if (u) {
@@ -91,57 +93,57 @@ static PetscErrorCode permeability_tensor(PetscInt dim,PetscReal time,const Pets
   if (u_x) {
     ierr = PetscCalloc2(dim*dim*dim,&D_x,dim,&tmpu_x);CHKERRQ(ierr);
   }
-  switch (dim){
-    case 2:
-      Q[0] = Q_T[0] = 0.6;
-      Q[1] = Q_T[2] = 0.8;
-      Q[2] = Q_T[1] = -0.8;
-      Q[3] = Q_T[3] = 0.6;
+  switch (dim) {
+  case 2:
+    Q[0] = Q_T[0] = 0.6;
+    Q[1] = Q_T[2] = 0.8;
+    Q[2] = Q_T[1] = -0.8;
+    Q[3] = Q_T[3] = 0.6;
 
-      if (u) {
-        D[0] = (x[0] < DOMAIN_SPLIT) ? 12 : 18; //12. : 21.-20.*x[0];
-        D[3] = (x[0] < DOMAIN_SPLIT) ? 0.2 : 0.4;//0.2 + 50.*x[0] : 22.7;
-      }
-      if (u_x) {
-        /* The indexing scheme for D_x is sligtly different to facilitate MatVecs later on. D_x[k,i,j] = d/dx_i(D[j,k]) */
-        D_x[0] = (x[0] < DOMAIN_SPLIT) ? 0 : 0; //0 : -20;
-        D_x[6] = (x[0] < DOMAIN_SPLIT) ? 0: 0; //50. : 0;
-      }
-      break;
-    case 3:
-      Q[0] = Q_T[0] = 1./3.;
-      Q[1] = Q_T[3] = 2./3.;
-      Q[2] = Q_T[6] = 2./3.;
-      Q[3] = Q_T[1] = 0.;
-      Q[4] = Q_T[4] = -2./PetscSqrtReal(8.);
-      Q[5] = Q_T[7] = -2./PetscSqrtReal(8.);
-      Q[6] = Q_T[2] = 8./PetscSqrtReal(72);
-      Q[7] = Q_T[5] = -2./PetscSqrtReal(72);
-      Q[8] = Q_T[8] = -2./PetscSqrtReal(72);
-      if (u) {
-        D[0] = (x[0] < DOMAIN_SPLIT) ? 12. : 21.-20.*x[0];
-        D[4] = (x[0] < DOMAIN_SPLIT) ? 0.2 + 50.*x[0] : 22.7;
-        D[8] = (x[2] < DOMAIN_SPLIT) ? 0.1 + x[0] + 2*x[1] + x[2]*x[2] : 0.3025 + x[0] + 2*x[1]; 
-      }
-      if (u_x) {
-        D_x[0] = (x[0] < DOMAIN_SPLIT) ? 0 : -20.;
-        D_x[12] = (x[0] < DOMAIN_SPLIT) ? 50. : 0.;
-        D_x[24] = 1;
-        D_x[25] = 2;
-        D_x[26] = (x[2] < DOMAIN_SPLIT) ? 2*x[2] : 0;
-      }
-      break;
+    if (u) {
+      D[0] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*12 : 18; //12. : 21.-20.*x[0]; */
+      D[3] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*0.2 : 0.4;//0.2 + 50.*x[0] : 22.7; */
+    }
+    if (u_x) {
+      /* The indexing scheme for D_x is sligtly different to facilitate MatVecs later on. D_x[k,i,j] = d/dx_i(D[j,k]) */
+      D_x[0] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;   /*0 : -20; */
+      D_x[6] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;  /*50. : 0; */
+    }
+    break;
+  case 3:
+    Q[0] = Q_T[0] = 1./3.;
+    Q[1] = Q_T[3] = 2./3.;
+    Q[2] = Q_T[6] = 2./3.;
+    Q[3] = Q_T[1] = 0.;
+    Q[4] = Q_T[4] = -2./PetscSqrtReal(8.);
+    Q[5] = Q_T[7] = -2./PetscSqrtReal(8.);
+    Q[6] = Q_T[2] = 8./PetscSqrtReal(72);
+    Q[7] = Q_T[5] = -2./PetscSqrtReal(72);
+    Q[8] = Q_T[8] = -2./PetscSqrtReal(72);
+    if (u) {
+      D[0] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*12. : 21.-20.*x[0]; */
+      D[4] = (x[0] < DOMAIN_SPLIT) ? 1 : 1; /*0.2 + 50.*x[0] : 22.7; */
+      D[8] = (x[2] < DOMAIN_SPLIT) ? 1 : 1;/*0.1 + x[0] + 2*x[1] + x[2]*x[2] : 0.3025 + x[0] + 2*x[1]; */
+    }
+    if (u_x) {
+      D_x[0]  = (x[0] < DOMAIN_SPLIT) ? 0 : 0;/*0 : -20.; */
+      D_x[12] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;/* 50. : 0.; */
+      D_x[24] = 0;  /*1; */
+      D_x[25] = 0;  /*2; */
+      D_x[26] = (x[2] < DOMAIN_SPLIT) ? 0 : 0;/*2*x[2] : 0; */
+    }
+    break;
   }
   if (u) {
-    ierr = PetscArrayzero(u, dim*dim);CHKERRQ(ierr);
+    ierr = PetscArrayzero(u,dim*dim);CHKERRQ(ierr);
     ierr = smallMatMat(dim,D,Q_T,tmpu);CHKERRQ(ierr);
     ierr = smallMatMat(dim,Q,tmpu,u);CHKERRQ(ierr);
     ierr = PetscFree2(D,tmpu);CHKERRQ(ierr);
   }
   if (u_x) {
     ierr = PetscArrayzero(u_x,dim);CHKERRQ(ierr);
-    for (i = 0; i < dim; ++i){
-      ierr = smallDIP(dim,&D_x[i*dim*dim],Q_T,&tmpu_x[i]);CHKERRQ(ierr); 
+    for (i = 0; i < dim; ++i) {
+      ierr = smallDIP(dim,&D_x[i*dim*dim],Q_T,&tmpu_x[i]);CHKERRQ(ierr);
     }
     ierr = smallMatVec(dim,Q,tmpu_x,u_x);CHKERRQ(ierr);
     ierr = PetscFree2(D_x,tmpu_x);CHKERRQ(ierr);
@@ -151,12 +153,13 @@ static PetscErrorCode permeability_tensor(PetscInt dim,PetscReal time,const Pets
   return 0;
 }
 
-static PetscErrorCode reluctivity_tensor(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,PetscScalar * u_x,void *ctx){
+static PetscErrorCode reluctivity_tensor(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,PetscScalar * u_x,void *ctx)
+{
   /* Constructs the reluctivity tensor which is the inverse of the permeability. This function will also compute
    * the divergence of the reluctivity_tensor if u_x is not NULL.*/
   PetscErrorCode ierr;
-  PetscInt      i;
-  PetscScalar *Q,*Q_T,*D,*tmpu,*D_x,*tmpu_x;
+  PetscInt       i;
+  PetscScalar    *Q,*Q_T,*D,*tmpu,*D_x,*tmpu_x;
 
   ierr = PetscCalloc2(dim*dim,&Q,dim*dim,&Q_T);CHKERRQ(ierr);
   if (u) {
@@ -165,57 +168,57 @@ static PetscErrorCode reluctivity_tensor(PetscInt dim,PetscReal time,const Petsc
   if (u_x) {
     ierr = PetscCalloc2(dim*dim*dim,&D_x,dim,&tmpu_x);CHKERRQ(ierr);
   }
-  switch (dim){
-    case 2:
-      Q[0] = Q_T[0] = 0.6;
-      Q[1] = Q_T[2] = 0.8;
-      Q[2] = Q_T[1] = -0.8;
-      Q[3] = Q_T[3] = 0.6;
+  switch (dim) {
+  case 2:
+    Q[0] = Q_T[0] = 0.6;
+    Q[1] = Q_T[2] = 0.8;
+    Q[2] = Q_T[1] = -0.8;
+    Q[3] = Q_T[3] = 0.6;
 
-      if (u) {
-        D[0] = (x[0] < DOMAIN_SPLIT) ? 1./12 : 1./18; //1./12. : 1./(21.-20*x[0]);
-        D[3] = (x[0] < DOMAIN_SPLIT) ? 1./0.2 : 1/0.4; //1./(0.2 + 50.*x[0]) : 1./22.7;
-      }
-      if (u_x) {
-        /* The indexing scheme for D_x is sligtly different to facilitate MatVecs later on. D_x[k,i,j] = d/dx_i(D[j,k]) */
-        D_x[0] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;//0 : 20./PetscSqr(21-20*x[0]);
-        D_x[6] = (x[0] < DOMAIN_SPLIT) ? 0 : 0; //-50./PetscSqr(0.2+50.*x[0]) : 0;
-      }
-      break;
-    case 3:
-      Q[0] = Q_T[0] = 1./3.;
-      Q[1] = Q_T[3] = 2./3.;
-      Q[2] = Q_T[6] = 2./3.;
-      Q[3] = Q_T[1] = 0.;
-      Q[4] = Q_T[4] = -2./PetscSqrtReal(8.);
-      Q[5] = Q_T[7] = -2./PetscSqrtReal(8.);
-      Q[6] = Q_T[2] = 8./PetscSqrtReal(72);
-      Q[7] = Q_T[5] = -2./PetscSqrtReal(72);
-      Q[8] = Q_T[8] = -2./PetscSqrtReal(72);
-      if (u) {
-        D[0] = (x[0] < DOMAIN_SPLIT) ? 1./12. : 21.-20*x[0];
-        D[4] = (x[0] < DOMAIN_SPLIT) ? 1./(0.2 + 50.*x[0]) : 1./22.7;
-        D[8] = (x[2] < DOMAIN_SPLIT) ? 1./(0.1 + x[0] + 2*x[1] + x[2]*x[2]) : 1./(0.3025 + x[0] + 2*x[1]); 
-      }
-      if (u_x) {
-        D_x[0] = (x[0] < DOMAIN_SPLIT) ? 0 : 20./PetscSqr(21-20*x[0]);
-        D_x[12] = (x[0] < DOMAIN_SPLIT) ? -50./PetscSqr(0.2+50.*x[0]) : 0.;
-        D_x[24] = (x[2]<DOMAIN_SPLIT) ? -1./PetscSqr(0.1 + x[0] + 2*x[1] + x[2]*x[2]) : -1./PetscSqr(0.3025 + x[0] + 2*x[1]);
-        D_x[25] = (x[2] < DOMAIN_SPLIT) ? -2./PetscSqr(0.1 + x[0] + 2*x[1] + x[2]*x[2]) : -2./PetscSqr(0.3025 + x[0] + 2*x[1]);
-        D_x[26] = (x[2] < DOMAIN_SPLIT) ? -2*x[2]/PetscSqr(0.1 + x[0] + 2*x[1] + x[2]*x[2]) :  0;
-      }
-      break;
+    if (u) {
+      D[0] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*1./12 : 1./18; //1./12. : 1./(21.-20*x[0]); */
+      D[3] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*1./0.2 : 1/0.4; //1./(0.2 + 50.*x[0]) : 1./22.7; */
+    }
+    if (u_x) {
+      /* The indexing scheme for D_x is sligtly different to facilitate MatVecs later on. D_x[k,i,j] = d/dx_i(D[j,k]) */
+      D_x[0] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;  /*0 : 20./PetscSqr(21-20*x[0]); */
+      D_x[6] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;   /*-50./PetscSqr(0.2+50.*x[0]) : 0; */
+    }
+    break;
+  case 3:
+    Q[0] = Q_T[0] = 1./3.;
+    Q[1] = Q_T[3] = 2./3.;
+    Q[2] = Q_T[6] = 2./3.;
+    Q[3] = Q_T[1] = 0.;
+    Q[4] = Q_T[4] = -2./PetscSqrtReal(8.);
+    Q[5] = Q_T[7] = -2./PetscSqrtReal(8.);
+    Q[6] = Q_T[2] = 8./PetscSqrtReal(72);
+    Q[7] = Q_T[5] = -2./PetscSqrtReal(72);
+    Q[8] = Q_T[8] = -2./PetscSqrtReal(72);
+    if (u) {
+      D[0] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*1./12. : 21.-20*x[0]; */
+      D[4] = (x[0] < DOMAIN_SPLIT) ? 1 : 1;/*1./(0.2 + 50.*x[0]) : 1./22.7; */
+      D[8] = (x[2] < DOMAIN_SPLIT) ? 1 : 1;/*1./(0.1 + x[0] + 2*x[1] + x[2]*x[2]) : 1./(0.3025 + x[0] + 2*x[1]); */
+    }
+    if (u_x) {
+      D_x[0]  = (x[0] < DOMAIN_SPLIT) ? 0 : 0;/*0 : 20./PetscSqr(21-20*x[0]); */
+      D_x[12] = (x[0] < DOMAIN_SPLIT) ? 0 : 0;/* -50./PetscSqr(0.2+50.*x[0]) : 0.; */
+      D_x[24] = (x[2]<DOMAIN_SPLIT) ? 0 : 0;/*-1./PetscSqr(0.1 + x[0] + 2*x[1] + x[2]*x[2]) : -1./PetscSqr(0.3025 + x[0] + 2*x[1]); */
+      D_x[25] = (x[2] < DOMAIN_SPLIT) ? 0 : 0;/* -2./PetscSqr(0.1 + x[0] + 2*x[1] + x[2]*x[2]) : -2./PetscSqr(0.3025 + x[0] + 2*x[1]); */
+      D_x[26] = (x[2] < DOMAIN_SPLIT) ? 0 : 0;/* -2*x[2]/PetscSqr(0.1 + x[0] + 2*x[1] + x[2]*x[2]) :  0; */
+    }
+    break;
   }
   if (u) {
-    ierr = PetscArrayzero(u, dim*dim);CHKERRQ(ierr);
+    ierr = PetscArrayzero(u,dim*dim);CHKERRQ(ierr);
     ierr = smallMatMat(dim,D,Q_T,tmpu);CHKERRQ(ierr);
     ierr = smallMatMat(dim,Q,tmpu,u);CHKERRQ(ierr);
     ierr = PetscFree2(D,tmpu);CHKERRQ(ierr);
   }
   if (u_x) {
     ierr = PetscArrayzero(u_x,dim);CHKERRQ(ierr);
-    for (i = 0; i < dim; ++i){
-      ierr = smallDIP(dim,&D_x[i*dim*dim],Q,&tmpu_x[i]);CHKERRQ(ierr); 
+    for (i = 0; i < dim; ++i) {
+      ierr = smallDIP(dim,&D_x[i*dim*dim],Q,&tmpu_x[i]);CHKERRQ(ierr);
     }
     ierr = smallMatVec(dim,Q,tmpu_x,u_x);CHKERRQ(ierr);
     ierr = PetscFree2(D_x,tmpu_x);CHKERRQ(ierr);
@@ -387,6 +390,16 @@ static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscRea
   return 0;
 }
 
+static PetscErrorCode subsurface_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx){
+  PetscBool inBox = PETSC_TRUE;
+  PetscReal boxBound = 2.5;
+  PetscInt i;
+  for (i = 0; i< dim; ++i){
+   inBox = inBox && (x[i] < boxBound && x[i] > -boxBound);
+  }
+  u[0] = inBox ? PUMP_STRENGTH : 0;
+  return 0;
+}
 /* Pointwise function for (v,u) */
 static void f0_v(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],const PetscScalar u_t[],
                  const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],const PetscScalar a_t[],
@@ -460,6 +473,20 @@ static void f0_q_sinusoid(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt
   f0[0] = divu - rhs;
 }
 
+static void f0_q_subsurface(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
+                          const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
+                          const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],PetscInt numConstants,
+                          const PetscScalar constants[],PetscScalar f0[]){
+  PetscInt i;
+  PetscScalar rhs;
+  PetscScalar divu;
+
+  (void)subsurface_source(dim,t,x,dim,&rhs,NULL);
+  divu = 0.;
+  for (i = 0; i < dim; ++i) divu += u_x[uOff_x[0] + i*dim+i];
+  f0[0] = divu - rhs;
+}
+
 static void f0_linear_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
                            const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
                            const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],PetscInt numConstants,
@@ -491,6 +518,23 @@ static void f0_sinusoid_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const Petsc
 
   (void)sinusoid_p(dim,t,x,dim,&pressure,NULL);
   for (PetscInt d = 0; d < dim; ++d) f0[d] = pressure * n[d];
+}
+
+static void f0_subsurface_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],const PetscInt uOff_x[],const PetscScalar u[],
+                             const PetscScalar u_t[],const PetscScalar u_x[],const PetscInt aOff[],const PetscInt aOff_x[],const PetscScalar a[],
+                             const PetscScalar a_t[],const PetscScalar a_x[],PetscReal t,const PetscReal x[],const PetscReal n[],
+                             PetscInt numConstants,const PetscScalar constants[],PetscScalar f0[]){
+  PetscInt d;
+  PetscScalar pressure;
+
+  if (x[0] == -102.5){
+    (void)hiHead(dim,t,x,1,&pressure,NULL);
+  } else if (x[0] == 102.5){
+    (void)loHead(dim,t,x,1,&pressure,NULL);
+  } else {
+    pressure = 0;
+  }
+  for (d=0; d< dim; ++d) f0[d] = pressure * n[d];
 }
 
 /* <v, u> */
@@ -537,11 +581,13 @@ typedef enum
 {
   LINEAR = 0,
   SINUSOIDAL = 1,
-  QUADRATIC = 2
+  QUADRATIC = 2,
+  SUBSURFACE_BENCHMARK=3
 } Solution;
 const char* const SolutionTypes[] = {"linear",
                                      "sinusoidal",
                                      "quadratic",
+                                     "subsurface_benchmark",
                                      "Solution",
                                      "",
                                      NULL};
@@ -555,7 +601,6 @@ typedef struct
   PetscBool    showNorm;
   PetscBool    toFile;
   char         filename[128];
-  PetscBool    singleBoundary;
 } UserCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
@@ -569,7 +614,6 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
   user->sol_form       = LINEAR;
   user->showNorm       = PETSC_FALSE;
   user->toFile         = PETSC_FALSE;
-  user->singleBoundary = PETSC_TRUE;
   ierr = PetscStrncpy(user->filename,"",128);CHKERRQ(ierr);
   /* Define/Read in example parameters */
   ierr = PetscOptionsBegin(comm,"","Stratum Dof Grouping Options","DMPLEX");CHKERRQ(ierr);
@@ -584,7 +628,6 @@ PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
                           &user->showNorm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-toFile","Whether to print solution errors to file.","ex38.c",user->toFile,&user->toFile,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsString("-filename","If printing results to file, the path to use.","ex38.c",user->filename,user->filename,128,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-singleBoundary","Whether to have a single mesh boundary or separate boundaries for each direction.","ex38.c",user->singleBoundary,&user->singleBoundary,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1191,8 +1234,6 @@ static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
 {
   PetscErrorCode   ierr;
   PetscRandom      ran;
-  DMLabel          label;
-  const char       * name = "marker";
   DM               dmDist = NULL;
   PetscPartitioner part;
 
@@ -1232,6 +1273,7 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   PetscDS        prob;
   PetscErrorCode ierr;
   PetscInt       id = 1;
+  PetscInt       cmp = 1;
   PetscInt       dim=user->dim;
 
   PetscFunctionBegin;
@@ -1247,32 +1289,32 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
     ierr = PetscDSSetBdResidual(prob,0,f0_linear_bd_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,linear_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,linear_p,NULL);CHKERRQ(ierr);
+    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Boundary","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     break;
   case QUADRATIC:
     ierr = PetscDSSetResidual(prob,1,f0_q_quad,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob,0,f0_quad_bd_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,quad_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,quad_p,NULL);CHKERRQ(ierr);
+    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Boundary","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     break;
   case SINUSOIDAL:
     ierr = PetscDSSetResidual(prob,1,f0_q_sinusoid,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob,0,f0_sinusoid_bd_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,0,sinusoid_u,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetExactSolution(prob,1,sinusoid_p,NULL);CHKERRQ(ierr);
-    break;
-  default:
-    PetscFunctionReturn(-1);
-  }
-
-  if (user->singleBoundary) {
     ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Boundary","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
-  } else {
+    break;
+  case SUBSURFACE_BENCHMARK:
+    ierr = PetscDSSetResidual(prob,1,f0_q_subsurface,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob,0,f0_subsurface_bd_u,NULL);CHKERRQ(ierr);
     id   = 1;
-    ierr = DMAddBoundary (dm,DM_BC_NATURAL,"Bottom","marker",1,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    cmp  = 1;
+    ierr = DMAddBoundary (dm,DM_BC_ESSENTIAL,"Bottom","marker",0,1,&cmp,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     id   = dim==3 ? 5 : 2;
     ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Right","marker",1,0,NULL,(void (*)(void))loHead,NULL,1,&id,user);CHKERRQ(ierr);
     id   = dim==3 ? 2 : 3;
-    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Top","marker",1,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Top","marker",0,1,&cmp,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     id   = dim==3 ? 6 : 4;
     ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Left","marker",1,0,NULL,(void (*)(void))hiHead,NULL,1,&id,user);CHKERRQ(ierr);
     if (dim==3) {
@@ -1281,7 +1323,11 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
       id   = 4;
       ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Back","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     }
+    break;
+  default:
+    PetscFunctionReturn(-1);
   }
+
   PetscFunctionReturn(0);
 }
 
@@ -1409,8 +1455,10 @@ int main(int argc,char ** argv)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"EXACT RESIDUAL: %14.12g\n",resNorm_exact);CHKERRQ(ierr);
   ierr = SNESGetIterationNumber(snes,&nIt);CHKERRQ(ierr);
   ierr = SNESGetIterationNumber(snes_WY,&nIt_WY);CHKERRQ(ierr);
-  ierr = DMComputeL2FieldDiff(mesh,0.0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
-  ierr = DMComputeL2FieldDiff(mesh_WY,0.0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
+  if (user.sol_form != SUBSURFACE_BENCHMARK){
+    ierr = DMComputeL2FieldDiff(mesh,0.0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
+    ierr = DMComputeL2FieldDiff(mesh_WY,0.0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
+  }
   ierr = SNESGetFunction(snes,&resVec,NULL,NULL);CHKERRQ(ierr);
   ierr = SNESGetFunction(snes_WY,&resVec_WY,NULL,NULL);CHKERRQ(ierr);
   ierr = PetscSectionVecNorm(lSec,gSec,resVec,NORM_2,fieldResNorm);CHKERRQ(ierr);
@@ -1543,7 +1591,6 @@ testset:
   suffix: subsurface_benchmark
   args: -dim 2 \
     -simplex false \
-    -singleBoundary false \
     -velocity_petscspace_degree 1 \
     -velocity_petscdualspace_type bdm \
     -velocity_petscdualspace_lagrange_tensor 1 \
@@ -1563,6 +1610,6 @@ testset:
       -dm_plex_box_faces 41,41 \
       -dm_plex_box_interpolate true \
       -dm_plex_separate_marker \
-      -sol_form linear -mesh_transform none
+      -sol_form subsurface_benchmark -mesh_transform none
 
 TEST*/
