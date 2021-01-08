@@ -9,7 +9,7 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 
 const PetscReal DOMAIN_SPLIT = 0.0; // Used to switch value/form of the permeability tensor.
 const PetscInt  RANDOM_SEED = 0; // Used to seed rng for mesh perturbations.
-const PetscReal PUMP_STRENGTH = 0;//-50/(6.25*24*3600); 
+const PetscReal PUMP_STRENGTH = -0.1; 
 
 static PetscErrorCode smallSAXPY(PetscInt dim, const PetscScalar x[], PetscScalar alpha, PetscScalar* y){
   /* Updates y with y = ax+ y;*/
@@ -234,6 +234,11 @@ static PetscErrorCode zero(PetscInt dim, PetscReal time, const PetscReal x[], Pe
   return 0;
 }
 
+static PetscErrorCode ten(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void * ctx){
+  PetscInt c;
+  for (c=0; c<Nc; ++c) u[c] = 10.0;
+  return 0;
+}
 static PetscErrorCode hiHead(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void *ctx){
   u[0] = 105.00;
   return 0;
@@ -392,7 +397,7 @@ static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscRea
 
 static PetscErrorCode subsurface_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx){
   PetscBool inBox = PETSC_TRUE;
-  PetscReal boxBound = 2.5;
+  PetscReal boxBound = PetscSqrtReal(2.5);
   PetscInt i;
   for (i = 0; i< dim; ++i){
    inBox = inBox && (x[i] < boxBound && x[i] > -boxBound);
@@ -531,9 +536,9 @@ static void f0_subsurface_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const Pet
     (void)hiHead(dim,t,x,1,&pressure,NULL);
   } else if (x[0] == 102.5){
     (void)loHead(dim,t,x,1,&pressure,NULL);
-  } else {
-    pressure = 0;
   }
+  
+
   for (d=0; d< dim; ++d) f0[d] = pressure * n[d];
 }
 
@@ -1310,13 +1315,13 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
     ierr = PetscDSSetBdResidual(prob,0,f0_subsurface_bd_u,NULL);CHKERRQ(ierr);
     id   = 1;
     cmp  = 1;
-    ierr = DMAddBoundary (dm,DM_BC_ESSENTIAL,"Bottom","marker",0,1,&cmp,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    ierr = DMAddBoundary (dm,DM_BC_ESSENTIAL,"Bottom","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     id   = dim==3 ? 5 : 2;
-    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Right","marker",1,0,NULL,(void (*)(void))loHead,NULL,1,&id,user);CHKERRQ(ierr);
+    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Right","marker",0,0,NULL,NULL,NULL,1,&id,user);CHKERRQ(ierr);
     id   = dim==3 ? 2 : 3;
-    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Top","marker",0,1,&cmp,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
+    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Top","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
     id   = dim==3 ? 6 : 4;
-    ierr = DMAddBoundary(dm,DM_BC_ESSENTIAL,"Left","marker",1,0,NULL,(void (*)(void))hiHead,NULL,1,&id,user);CHKERRQ(ierr);
+    ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Left","marker",0,0,NULL,NULL,NULL,1,&id,user);CHKERRQ(ierr);
     if (dim==3) {
       id   = 3;
       ierr = DMAddBoundary(dm,DM_BC_NATURAL,"Front","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
@@ -1602,7 +1607,9 @@ testset:
     -A_pc_fieldsplit_type schur \
     -WY_pc_fieldsplit_type schur \
     -A_pc_fieldsplit_schur_precondition full \
-    -WY_pc_fieldsplit_schur_precondition full
+    -WY_pc_fieldsplit_schur_precondition full \
+    -A_snes_converged_reason \
+    -WY_snes_converged_reason
   test: 
     suffix: chang3.1
     args: -dm_plex_box_lower -102.5,-102.5 \
