@@ -16,6 +16,7 @@
 #define DMBF_XD_CellsCreate             DMBF_2D_CellsCreate
 #define DMBF_XD_CellsDestroy            DMBF_2D_CellsDestroy
 #define DMBF_XD_GetSizes                DMBF_2D_GetSizes
+#define DMBF_XD_GetLocalToGlobalIndices DMBF_2D_GetLocalToGlobalIndices
 #define DMBF_XD_CellsGetP4est           DMBF_2D_CellsGetP4est
 #define DMBF_XD_CellsGetGhost           DMBF_2D_CellsGetGhost
 

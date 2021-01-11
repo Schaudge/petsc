@@ -90,6 +90,41 @@ PetscErrorCode DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, PetscInt *fromIdx, PetscInt *toIdx)
+{
+  p4est_t          *p4est = cells->p4est;
+  p4est_ghost_t    *ghost = cells->ghost;
+  p4est_locidx_t    n, ng, lid, i;
+  p4est_gloidx_t    offset, gid;
+  p4est_quadrant_t *quad;
+  p4est_topidx_t    t;
+  int               rank;
+
+  PetscFunctionBegin;
+  PetscValidIntPointer(fromIdx,3);
+  PetscValidIntPointer(toIdx,4);
+  /* get sizes */
+  n      = p4est->local_num_quadrants;
+  ng     = ghost->ghosts.elem_count;
+  offset = p4est->global_first_quadrant[p4est->mpirank];
+  /* set indices of owned cells */
+  for(i = 0; i < n; i++) {
+    fromIdx[i] = (PetscInt)i;
+    toIdx[i]   = (PetscInt)(offset + i);
+  }
+  /* set indices of ghost cells */
+  for(i = 0; i < ng; i++) {
+    quad = sc_array_index(&ghost->ghosts,i);           /* get ghost quadrant i */
+    t    = quad->p.piggy3.which_tree;                  /* get tree # of ghost quadrant i */
+    rank = p4est_quadrant_find_owner(p4est,t,-1,quad); /* get mpirank of ghost quadrant i */
+    lid  = quad->p.piggy3.local_num;                   /* get local id of ghost quadrant i on mpirank rank */
+    gid  = p4est->global_first_quadrant[rank] + lid;   /* translate local id to global id */
+    fromIdx[n + i] = (PetscInt)(n + i);
+    toIdx[n + i]   = (PetscInt)gid;
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode DMBF_XD_CellsGetP4est(DM_BF_XD_Cells *cells, void *p4est)
 {
   PetscFunctionBegin;

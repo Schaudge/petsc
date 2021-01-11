@@ -9,6 +9,7 @@ PetscErrorCode DMBF_3D_CellsCreate(DM,DM_BF_3D_Topology*,DM_BF_3D_Cells**);
 PetscErrorCode DMBF_3D_CellsDestroy(DM,DM_BF_3D_Cells*);
 
 PetscErrorCode DMBF_3D_GetSizes(DM,DM_BF_3D_Cells*,PetscInt*,PetscInt*,PetscInt*);
+PetscErrorCode DMBF_3D_GetLocalToGlobalIndices(DM,DM_BF_3D_Cells*,PetscInt*,PetscInt*toIdx);
 
 PetscErrorCode DMBF_3D_CellsGetP4est(DM_BF_3D_Cells*,void*);
 PetscErrorCode DMBF_3D_CellsGetGhost(DM_BF_3D_Cells*,void*);

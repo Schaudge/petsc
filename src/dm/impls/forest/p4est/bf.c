@@ -224,60 +224,54 @@ static PetscErrorCode DMBF_CellsDestroy(DM dm)
 
 static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
 {
-  PetscErrorCode   ierr;
-  IS               isfrom,isto;
-  MPI_Comm         comm;
-  PetscInt         rank,n,ng,N,offset;
-  PetscInt         i;
-  PetscInt         lid,gid;
-  p4est_topidx_t   t;
-  p4est_quadrant_t *quad;
-  Vec              vin,vout;
-  p4est_t         *p4est;
-  p4est_ghost_t   *ghost;
-  PetscInt *from_idx;
-  PetscInt *to_idx;
+  DM_BF          *bf;
+  PetscInt       dim, n, ng;
+  PetscInt       *fromIdx, *toIdx;
+  IS             fromIS, toIS;
+  Vec            vloc, vglo;
+  MPI_Comm       comm;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
-  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr); //TODO deprecated
-
-  rank   = (PetscInt)p4est->mpirank;
-  n      = (PetscInt)p4est->local_num_quadrants;
-  ng     = (PetscInt)ghost->ghosts.elem_count;
-  N      = (PetscInt)p4est->global_num_quadrants;
-  offset = (PetscInt)p4est->global_first_quadrant[rank];
-
-  ierr = PetscMalloc1(n+ng,&from_idx);CHKERRQ(ierr);
-  ierr = PetscMalloc1(n+ng,&to_idx);CHKERRQ(ierr);
-
-  for(i = 0; i < n; i++) {
-    from_idx[i] = i;
-    to_idx[i]   = (PetscInt)offset + i;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecific(ltog,VEC_SCATTER_CLASSID,2);
+  /* create local-to-global indices */
+  bf = _p_getBF(dm);
+  ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
+  ierr = PetscMalloc1(n+ng,&fromIdx);CHKERRQ(ierr);
+  ierr = PetscMalloc1(n+ng,&toIdx);CHKERRQ(ierr);
+  switch (dim) {
+    case 2: ierr = DMBF_2D_GetLocalToGlobalIndices(dm,(DM_BF_2D_Cells*)bf->ftCells,fromIdx,toIdx);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_GetLocalToGlobalIndices(dm,(DM_BF_3D_Cells*)bf->ftCells,fromIdx,toIdx);CHKERRQ(ierr); break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
+  /* create IS */
+  ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(comm,n+ng,fromIdx,PETSC_COPY_VALUES,&fromIS);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(comm,n+ng,toIdx,PETSC_COPY_VALUES,&toIS);CHKERRQ(ierr);
+  ierr = PetscFree(fromIdx);CHKERRQ(ierr);
+  ierr = PetscFree(toIdx);CHKERRQ(ierr);
+  /* create vectors */
+  ierr = DMCreateLocalVector(dm,&vloc);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dm,&vglo);CHKERRQ(ierr);
+  /* create vec scatter object */
+  ierr = VecScatterCreate(vloc,fromIS,vglo,toIS,ltog);CHKERRQ(ierr);
+  /* destroy */
+  ierr = ISDestroy(&fromIS);CHKERRQ(ierr);
+  ierr = ISDestroy(&toIS);CHKERRQ(ierr);
+  ierr = VecDestroy(&vloc);CHKERRQ(ierr);
+  ierr = VecDestroy(&vglo);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
-  for(i = 0; i < ng; i++) {
-    quad      = sc_array_index(&ghost->ghosts, i);                  /* get ghost quadrant i */
-    t         = quad->p.piggy3.which_tree;                              /* get tree # of ghost quadrant i */
-    rank      = p4est_quadrant_find_owner(p4est, t, -1, quad);      /* get mpirank of ghost quadrant i */
-    lid       = (PetscInt)quad->p.piggy3.local_num;                     /* get local id of ghost quadrant i on mpirank rank */
-    gid       = (PetscInt)p4est->global_first_quadrant[rank] + lid; /* translate local id to global id */
-    from_idx[n + i] = n + i;
-    to_idx[n + i]   = gid;
-  }
+static PetscErrorCode DMBF_LocalToGlobalScatterDestroy(DM dm, VecScatter *ltog)
+{
+  PetscErrorCode ierr;
 
-  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
-
-  ierr = ISCreateGeneral(comm,n+ng,from_idx,PETSC_COPY_VALUES,&isfrom);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(comm,n+ng,to_idx,PETSC_COPY_VALUES,&isto);CHKERRQ(ierr);
-  ierr = PetscFree(from_idx);CHKERRQ(ierr);
-  ierr = PetscFree(to_idx);CHKERRQ(ierr);
-
-  ierr = DMCreateLocalVector(dm,&vin);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(dm,&vout);CHKERRQ(ierr);
-
-  ierr = VecScatterCreate(vin,isfrom,vout,isto,ltog);CHKERRQ(ierr);
-
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecific(ltog,VEC_SCATTER_CLASSID,2);
+  ierr = VecScatterDestroy(ltog);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -314,6 +308,7 @@ static PetscErrorCode DMSetUp_BF(DM dm)
   //TODO create nodes
   /* create DMBF cells */
   ierr = DMBF_CellsCreate(dm);CHKERRQ(ierr);
+  /* create local-to-global vector scattering info */
   ierr = DMBF_LocalToGlobalScatterCreate(dm,&bf->ltog);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -360,6 +355,8 @@ static PetscErrorCode DMBFClear(DM dm)
   bf->nValsPerElemReadWrite     = 0;
   bf->valsPerElemReadTotal      = 0;
   bf->valsPerElemReadWriteTotal = 0;
+  /* destroy local-to-global vector scattering info */
+  ierr = DMBF_LocalToGlobalScatterDestroy(dm,&bf->ltog);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1182,6 +1179,7 @@ PetscErrorCode DMBFCommunicateGhostCells(DM dm)
   /* run ghost exchange */
   ghostCells = _p_cellGetPtrIndex(bf,p4est->local_num_quadrants);
   PetscStackCallP4est(p4est_ghost_exchange_data,(p4est,ghost,ghostCells));
+  /* setup ghost cells */
   bf->ghostCellsSetUpCalled = PETSC_FALSE;
   ierr = DMBFSetUpGhostCells(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);

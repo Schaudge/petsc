@@ -9,6 +9,7 @@ PetscErrorCode DMBF_2D_CellsCreate(DM,DM_BF_2D_Topology*,DM_BF_2D_Cells**);
 PetscErrorCode DMBF_2D_CellsDestroy(DM,DM_BF_2D_Cells*);
 
 PetscErrorCode DMBF_2D_GetSizes(DM,DM_BF_2D_Cells*,PetscInt*,PetscInt*,PetscInt*);
+PetscErrorCode DMBF_2D_GetLocalToGlobalIndices(DM,DM_BF_2D_Cells*,PetscInt*,PetscInt*toIdx);
 
 PetscErrorCode DMBF_2D_CellsGetP4est(DM_BF_2D_Cells*,void*);
 PetscErrorCode DMBF_2D_CellsGetGhost(DM_BF_2D_Cells*,void*);
