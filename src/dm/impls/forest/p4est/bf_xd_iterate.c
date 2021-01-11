@@ -26,8 +26,16 @@ static void _p_getInfo(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_top
   double               vertex1[3], vertex2[3];
 
   /* get vertex coordinates of opposite corners */
-  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x,quad->y,vertex1);
-  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x+qlength,quad->y+qlength,vertex2);
+  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x,quad->y,
+#if defined(P4_TO_P8)
+                         quad->z,
+#endif
+                         vertex1);
+  p4est_qcoord_to_vertex(p4est->connectivity,treeid,quad->x+qlength,quad->y+qlength,
+#if defined(P4_TO_P8)
+                         quad->z+qlength,
+#endif
+                         vertex2);
   /* set cell data */
   if (!is_ghost) {
     p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
@@ -106,7 +114,11 @@ PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, size_t cellSi
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetUp,NULL,NULL,NULL));
+#else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetUp,NULL,NULL));
+#endif
   p4est->data_size = cellSize;
   PetscFunctionReturn(0);
 }
@@ -201,7 +213,11 @@ PetscErrorCode DMBF_XD_IterateSetCellData(DM dm, DM_BF_Cell *cells, size_t cellS
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetCellData,NULL,NULL,NULL));
+#else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetCellData,NULL,NULL));
+#endif
   /* clear iterator context */
   if (vecRead) {
     for (i=0; i<nValsPerElemRead; i++) {
@@ -304,7 +320,11 @@ PetscErrorCode DMBF_XD_IterateGetCellData(DM dm, DM_BF_Cell *cells, size_t cellS
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellDate,NULL,NULL,NULL));
+#else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellDate,NULL,NULL));
+#endif
   /* clear iterator context */
   if (vecRead) {
     for (i=0; i<nValsPerElemRead; i++) {
@@ -318,6 +338,26 @@ PetscErrorCode DMBF_XD_IterateGetCellData(DM dm, DM_BF_Cell *cells, size_t cellS
     }
     ierr = PetscFree(iterCtx.vecViewReadWrite);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+/***************************************
+ * GHOST CELLS
+ **************************************/
+
+PetscErrorCode DMBF_XD_IterateGhostExchange(DM dm, DM_BF_Cell *cells, size_t cellSize)
+{
+  DM_BF_Cell     *ghostCells;
+  PetscErrorCode ierr;
+  p4est_t        *p4est;
+  p4est_ghost_t  *ghost;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+  ghostCells = _p_getCellPtr(cells,cellSize,p4est,-1/*no tree id*/,0 /*quadid*/,1/*ghost*/);
+  PetscStackCallP4est(p4est_ghost_exchange_data,(p4est,ghost,ghostCells));
   PetscFunctionReturn(0);
 }
 
@@ -396,7 +436,11 @@ PetscErrorCode DMBF_XD_IterateOverCellsVectors(DM dm, DM_BF_Cell *cells, size_t 
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterVolume,NULL,NULL,NULL));
+#else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterVolume,NULL,NULL));
+#endif
   /* clear iterator context */
   if (0 < iterCtx.nVecsRead) {
     for (i=0; i<iterCtx.nVecsRead; i++) {
@@ -509,7 +553,11 @@ PetscErrorCode DMBF_XD_IterateOverFaces(DM dm, DM_BF_Cell *cells, size_t cellSiz
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFace,NULL,NULL));
+#else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFace,NULL));
+#endif
   PetscFunctionReturn(0);
 }
 

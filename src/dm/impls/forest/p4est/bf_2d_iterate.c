@@ -7,6 +7,8 @@
 #define DMBF_XD_IterateSetCellData      DMBF_2D_IterateSetCellData
 #define DMBF_XD_IterateGetCellData      DMBF_2D_IterateGetCellData
 
+#define DMBF_XD_IterateGhostExchange    DMBF_2D_IterateGhostExchange
+
 #define DMBF_XD_IterateOverCellsVectors DMBF_2D_IterateOverCellsVectors
 #define DMBF_XD_IterateOverFaces        DMBF_2D_IterateOverFaces
 
