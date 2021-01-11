@@ -82,6 +82,8 @@ static PetscErrorCode KSPSetUp_CG(KSP ksp)
 */
 #define VecXDot(x,y,a) (((cg->type) == (KSP_CG_HERMITIAN)) ? VecDot(x,y,a) : VecTDot(x,y,a))
 
+#include <petscdevicescalar.h>
+
 /*
      KSPSolve_CG - This routine actually applies the conjugate gradient method
 
@@ -94,14 +96,15 @@ static PetscErrorCode KSPSetUp_CG(KSP ksp)
 */
 static PetscErrorCode KSPSolve_CG(KSP ksp)
 {
-  PetscErrorCode ierr;
-  PetscInt       i,stored_max_it,eigs;
-  PetscScalar    dpi = 0.0,a = 1.0,beta,betaold = 1.0,b = 0,*e = NULL,*d = NULL,dpiold;
-  PetscReal      dp  = 0.0;
-  Vec            X,B,Z,R,P,W;
-  KSP_CG         *cg;
-  Mat            Amat,Pmat;
-  PetscBool      diagonalscale;
+  PetscErrorCode    ierr;
+  PetscInt          i,stored_max_it,eigs;
+  PetscDeviceScalar dpi = 0.0,a = 1.0,beta,betaold = 1.0,b = 0,dpiold;
+  PetscScalar       *e = NULL,*d = NULL;
+  PetscReal         dp  = 0.0;
+  Vec               X,B,Z,R,P,W;
+  KSP_CG            *cg;
+  Mat               Amat,Pmat;
+  PetscBool         diagonalscale;
 
   PetscFunctionBegin;
   ierr = PCGetDiagonalScale(ksp->pc,&diagonalscale);CHKERRQ(ierr);
