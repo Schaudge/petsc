@@ -11,6 +11,7 @@
 
 #define DMBF_XD_TopologyCreate          DMBF_2D_TopologyCreate
 #define DMBF_XD_TopologyDestroy         DMBF_2D_TopologyDestroy
+#define DMBF_XD_TopologyClone           DMBF_2D_TopologyClone
 #define DMBF_XD_TopologyGetConnectivity DMBF_2D_TopologyGetConnectivity
 
 /* include generic functions */

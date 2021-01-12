@@ -77,6 +77,17 @@ PetscErrorCode DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMBF_XD_CellsClone(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trgCells, DM trgDm)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
+  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*copy mpicomm*/));
+  ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, PetscInt *nGlobal, PetscInt *nGhost)
 {
   PetscFunctionBegin;

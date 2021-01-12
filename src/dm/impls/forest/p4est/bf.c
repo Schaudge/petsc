@@ -43,7 +43,6 @@ typedef struct _p_DM_BF {
   PetscInt   nValsPerElemRead, nValsPerElemReadWrite;
   PetscInt   valsPerElemReadTotal, valsPerElemReadWriteTotal;
   VecScatter ltog; /* local to global scatter object, for parallel communication of data between local and global vectors */
-
 } DM_BF;
 
 /******************************************************************************
@@ -502,6 +501,91 @@ PetscErrorCode DMBFGetCellDataSize(DM dm, PetscInt **valsPerElemRead, PetscInt *
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMBFSetDefaultOptions(DM dm)
+{
+  DM_BF          *bf;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+
+  ierr = DMSetDimension(dm,2);CHKERRQ(ierr);
+  ierr = DMForestSetTopology(dm,"unit");CHKERRQ(ierr);
+  ierr = DMForestSetMinimumRefinement(dm,0);CHKERRQ(ierr);
+  ierr = DMForestSetInitialRefinement(dm,0);CHKERRQ(ierr);
+  ierr = DMForestSetMaximumRefinement(dm,18);CHKERRQ(ierr);
+  ierr = DMForestSetGradeFactor(dm,2);CHKERRQ(ierr);
+  ierr = DMForestSetAdjacencyDimension(dm,0);CHKERRQ(ierr);
+  ierr = DMForestSetPartitionOverlap(dm,0);CHKERRQ(ierr);
+
+  bf = _p_getBF(dm);
+
+  bf->ftTopology = PETSC_NULL;
+  bf->ftCells    = PETSC_NULL;
+  bf->ftNodes    = PETSC_NULL;
+
+  bf->cells                 = PETSC_NULL;
+  bf->ownedCellsSetUpCalled = PETSC_FALSE;
+  bf->ghostCellsSetUpCalled = PETSC_FALSE;
+
+  bf->blockSize[0] = 1;
+  bf->blockSize[1] = 1;
+  bf->blockSize[2] = 1;
+
+  bf->valsPerElemRead           = PETSC_NULL;
+  bf->valsPerElemReadWrite      = PETSC_NULL;
+  bf->nValsPerElemRead          = 0;
+  bf->nValsPerElemReadWrite     = 0;
+  bf->valsPerElemReadTotal      = 0;
+  bf->valsPerElemReadWriteTotal = 0;
+
+  bf->ltog = PETSC_NULL;
+
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
+{
+  DM_BF          *srcbf, *trgbf;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(srcdm,DM_CLASSID,1,DMBF);
+  PetscValidHeaderSpecificType(trgdm,DM_CLASSID,2,DMBF);
+
+  srcbf = _p_getBF(srcdm);
+  trgbf = _p_getBF(trgdm);
+
+  trgbf->ftTopology = PETSC_NULL;
+  trgbf->ftCells    = PETSC_NULL;
+  trgbf->ftNodes    = PETSC_NULL;
+
+  trgbf->cells                 = PETSC_NULL;
+  trgbf->ownedCellsSetUpCalled = PETSC_FALSE;
+  trgbf->ghostCellsSetUpCalled = PETSC_FALSE;
+
+  trgbf->blockSize[0] = srcbf->blockSize[0];
+  trgbf->blockSize[1] = srcbf->blockSize[1];
+  trgbf->blockSize[2] = srcbf->blockSize[2];
+
+  if (0 < srcbf->nValsPerElemRead) {
+    ierr = PetscMalloc1(srcbf->nValsPerElemRead,&trgbf->valsPerElemRead);CHKERRQ(ierr);
+    ierr = PetscArraycpy(trgbf->valsPerElemRead,srcbf->valsPerElemRead,srcbf->nValsPerElemRead);CHKERRQ(ierr);
+  }
+  if (0 < srcbf->nValsPerElemReadWrite) {
+    ierr = PetscMalloc1(srcbf->nValsPerElemReadWrite,&trgbf->valsPerElemReadWrite);CHKERRQ(ierr);
+    ierr = PetscArraycpy(trgbf->valsPerElemReadWrite,srcbf->valsPerElemReadWrite,srcbf->nValsPerElemReadWrite);CHKERRQ(ierr);
+  }
+  trgbf->nValsPerElemRead          = srcbf->nValsPerElemRead;
+  trgbf->nValsPerElemReadWrite     = srcbf->nValsPerElemReadWrite;
+  trgbf->valsPerElemReadTotal      = srcbf->valsPerElemReadTotal;
+  trgbf->valsPerElemReadWriteTotal = srcbf->valsPerElemReadWriteTotal;
+
+  trgbf->ltog = PETSC_NULL;
+
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,DM dm)
 {
   PetscInt          blockSize[3], nBlockDim=3;
@@ -509,6 +593,7 @@ static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,D
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,2,DMBF);
   ierr = DMSetFromOptions_Forest(PetscOptionsObject,dm);CHKERRQ(ierr);
   /* block_size */
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
@@ -531,7 +616,6 @@ static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,D
 //}
   PetscFunctionReturn(0);
 }
-
 
 /***************************************
  * CREATE/DESTROY
@@ -567,39 +651,15 @@ PetscErrorCode DMCreate_BF(DM dm)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  /* create Forest object */
   ierr = PetscP4estInitialize();CHKERRQ(ierr);
   ierr = DMCreate_Forest(dm);CHKERRQ(ierr);
   ierr = DMInitialize_BF(dm);CHKERRQ(ierr);
-
-  /* set default parameters */
-  ierr = DMSetDimension(dm,2);CHKERRQ(ierr);
-  ierr = DMForestSetTopology(dm,"unit");CHKERRQ(ierr);
-  ierr = DMForestSetMinimumRefinement(dm,0);CHKERRQ(ierr);
-  ierr = DMForestSetInitialRefinement(dm,0);CHKERRQ(ierr);
-  ierr = DMForestSetMaximumRefinement(dm,18);CHKERRQ(ierr);
-  ierr = DMForestSetGradeFactor(dm,2);CHKERRQ(ierr);
-  ierr = DMForestSetAdjacencyDimension(dm,0);CHKERRQ(ierr);
-  ierr = DMForestSetPartitionOverlap(dm,0);CHKERRQ(ierr);
-
-  /* create BF */
+  /* create BF object */
   ierr = PetscNewLog(dm,&bf);CHKERRQ(ierr);
-  bf->ftTopology                = PETSC_NULL;
-  bf->ftCells                   = PETSC_NULL;
-  bf->ftNodes                   = PETSC_NULL;
-  bf->cells                     = PETSC_NULL;
-  bf->ownedCellsSetUpCalled     = PETSC_FALSE;
-  bf->ghostCellsSetUpCalled     = PETSC_FALSE;
-  bf->blockSize[0]              = 1;
-  bf->blockSize[1]              = 1;
-  bf->blockSize[2]              = 1;
-  bf->valsPerElemRead           = PETSC_NULL;
-  bf->valsPerElemReadWrite      = PETSC_NULL;
-  bf->nValsPerElemRead          = 0;
-  bf->nValsPerElemReadWrite     = 0;
-  bf->valsPerElemReadTotal      = 0;
-  bf->valsPerElemReadWriteTotal = 0;
-
-  /* set data & functions of Forest object */
+  /* set default options */
+  ierr = DMBFSetDefaultOptions(dm);CHKERRQ(ierr);
+  /* set data and functions of Forest object */
   {
     DM_Forest *forest = (DM_Forest*) dm->data;
 
@@ -621,14 +681,78 @@ static PetscErrorCode DMForestDestroy_BF(DM dm)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode DMBFCloneInit(DM dm, DM *newdm)
+{
+  DM_BF          *newbf;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  /* clone Forest object (via ++refct) */
+  ierr = DMClone_Forest(dm,newdm);CHKERRQ(ierr);
+  ierr = DMInitialize_BF(*newdm);CHKERRQ(ierr);
+  /* create BF object */
+  ierr = PetscNewLog(*newdm,&newbf);CHKERRQ(ierr);
+  /* copy options */
+  ierr = DMBFCopyOptions(dm,*newdm);CHKERRQ(ierr);
+  /* set data and functions of Forest object */
+  {
+    DM_Forest *forest = (DM_Forest*) (*newdm)->data;
+
+    forest->data    = newbf;
+    forest->destroy = DMForestDestroy_BF;
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMBFCloneForestOfTrees(DM dm, DM newdm)
+{
+  DM_BF          *bf, *newbf;
+  PetscInt       dim;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  bf    = _p_getBF(dm);
+  newbf = _p_getBF(newdm);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  switch (dim) {
+    case 2:
+      ierr = DMBF_2D_TopologyClone((DM_BF_2D_Topology*)bf->ftTopology,(DM_BF_2D_Topology**)&newbf->ftTopology,newdm);CHKERRQ(ierr);
+      ierr = DMBF_2D_CellsClone((DM_BF_2D_Cells*)bf->ftCells,(DM_BF_2D_Cells**)&newbf->ftCells,newdm);CHKERRQ(ierr);
+      //TODO clone nodes
+      break;
+    case 3:
+      ierr = DMBF_3D_TopologyClone((DM_BF_3D_Topology*)bf->ftTopology,(DM_BF_3D_Topology**)&newbf->ftTopology,newdm);CHKERRQ(ierr);
+      ierr = DMBF_3D_CellsClone((DM_BF_3D_Cells*)bf->ftCells,(DM_BF_3D_Cells**)&newbf->ftCells,newdm);CHKERRQ(ierr);
+      //TODO clone nodes
+      break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode DMBFCloneFinalize(DM newdm)
+{
+  DM_BF          *newbf;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  /* create DMBF cells */
+  ierr = DMBF_CellsCreate(newdm);CHKERRQ(ierr); //TODO create a clone fnc instead?
+  /* create local-to-global vector scattering info */
+  newbf = _p_getBF(newdm);
+  ierr = DMBF_LocalToGlobalScatterCreate(newdm,&newbf->ltog);CHKERRQ(ierr); //TODO create a clone fnc instead?
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode DMClone_BF(DM dm, DM *newdm)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = DMClone_Forest(dm,newdm);CHKERRQ(ierr);
-  ierr = DMInitialize_BF(*newdm);CHKERRQ(ierr);
-  //TODO this is likely incomplete
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  ierr = DMBFCloneInit(dm,newdm);CHKERRQ(ierr);
+  ierr = DMBFCloneForestOfTrees(dm,*newdm);CHKERRQ(ierr);
+  ierr = DMBFCloneFinalize(*newdm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
