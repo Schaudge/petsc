@@ -405,6 +405,7 @@ extern "C"  {
 #endif
       Kokkos::parallel_for("Landau elements", Kokkos::TeamPolicy<>(numCells, team_size, /*Kokkos::AUTO*/ 16).set_scratch_size(KOKKOS_SHARED_LEVEL, Kokkos::PerTeam(scr_bytes)), KOKKOS_LAMBDA (const team_member team) {
           const PetscInt  elem = team.league_rank();
+          g0_scr_t        g0(team.team_scratch(KOKKOS_SHARED_LEVEL),Nf,Nq);
           g2_scr_t        g2(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,Nf,Nq); // we don't use these for mass matrix
           g3_scr_t        g3(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,dim,Nf,Nq);
           if (d_IPf) {
@@ -465,6 +466,7 @@ extern "C"  {
                 // add alpha and put in gg2/3
                 Kokkos::parallel_for(Kokkos::ThreadVectorRange (team, (int)Nf), [&] (const int& fieldA) {
                     PetscInt d2,d3;
+                    g0(fieldA,myQi) = 0;
                     for (d2 = 0; d2 < dim; d2++) {
                       gg2(d2,fieldA,myQi) = gg_temp.gg2[d2]*d_alpha[fieldA];
                       for (d3 = 0; d3 < dim; d3++) {
@@ -476,9 +478,23 @@ extern "C"  {
                 Kokkos::parallel_for(Kokkos::ThreadVectorRange (team, (int)Nf), [&] (const int& fieldA) {
                     gg2(dim-1,fieldA,myQi) += d_Eq_m[fieldA];
                   });
+                // add quench terms to electrons
+                if (ctx_hd.quench_rate_current>0) {
+                  PetscReal S_H, v, v2 = 0, kT_m = ctx_hd.k*ctx_hd.quench_T/ctx_hd.masses[0], theta = 2*kT_m/(ctx_hd.v_0*ctx_hd.v_0); /* theta = 2kT/mc^2 */
+                  // theta_H & S_H & divf*S_H
+                  for (int i = 0; i < dim; ++i) v2 += vj[i]*vj[i];
+                  v = PetscSqrtReal(v2);
+                  S_H = -ctx_hd.quench_rate_current * PetscPowReal(PETSC_PI*theta,-1.5) * PetscExpReal(-v2/theta); // negate for -C
+                  if (dim==2) S_H *= 2.*PETSC_PI*vj[0];
+                  // k(t) * S_H
+                  for (int i = 0; i < dim; ++i) gg2(i,0,myQi) += -S_H * vj[i]/v; // negate for IBP
+                  //  k(t) * div S_H
+                  g0(0,myQi) = 2*S_H*(1./v - v/theta) * wj;
+                }
+                // Kokkos::single(Kokkos::PerThread(team), [&]() {
                 Kokkos::parallel_for(Kokkos::ThreadVectorRange (team, (int)Nf), [=] (const int& fieldA) {
                     int d,d2,d3,dp;
-                    /* Jacobian transform - g2, g3 - per thread (2D) */
+                    /* Jacobian transform - g2, g3 */
                     for (d = 0; d < dim; ++d) {
                       g2(d,fieldA,myQi) = 0;
                       for (d2 = 0; d2 < dim; ++d2) {
@@ -496,7 +512,15 @@ extern "C"  {
                   });
               }); // Nq
             team.team_barrier();
-          } // Jacobian
+          } else { // end Jacobian
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team,0,Nq), [=] (int myQi) {
+                const PetscInt                    jpidx = myQi + myelem * Nq;
+                Kokkos::parallel_for(Kokkos::ThreadVectorRange (team, (int)Nf), [&] (const int& fieldA) {
+                    g0(fieldA,myQi) = d_mass_w_k(jpidx) * shift;
+                  });
+              });
+            team.team_barrier(); // new???
+          }
           /* assemble */
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team,0,Nb), [=] (int blk_i) {
               Kokkos::parallel_for(Kokkos::ThreadVectorRange(team,0,(int)Nf), [=] (int fieldA) {
@@ -517,7 +541,9 @@ extern "C"  {
                         }
                       } else {
                         const PetscInt jpidx = qj + elem * Nq;
-                        t += BJq[blk_i] * d_mass_w_k(jpidx) * shift * BJq[blk_j];
+                        // t += BJq[blk_i] * d_mass_w_k(jpidx) * shift * BJq[blk_j];
+                        t += BJq[blk_i] * g0(fieldA,qj) * BJq[blk_j];
+                        //printf("\tmat[%d %d %d %d %d]: B=%g w=%g shift=%g B=%g\n",myelem,fOff,fieldA,qj,d,BJq[blk_i],d_mass_w(jpidx),shift,BJq[blk_j]);
                       }
                     }
                     if (global_elem_mat_sz) d_elem_mats(elem,fOff) = t; // can set this because local element matrix[fOff]

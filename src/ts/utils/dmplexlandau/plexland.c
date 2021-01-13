@@ -313,6 +313,7 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
             gg2_temp[d] = 0;
             for (d2=0;d2<dim;d2++) gg3_temp[d][d2] = 0;
           }
+          for (d=0;d<Nf;d++) g0[d] = 0;
           for (ipidx = 0; ipidx < nip; ipidx++) {
             const PetscReal wi = ww[ipidx], x = xx[ipidx], y = yy[ipidx];
             PetscReal       temp1[3] = {0, 0, 0}, temp2 = 0;
@@ -370,6 +371,20 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
           for (fieldA = 0; fieldA < Nf; ++fieldA) {
             gg2[fieldA][dim-1] += Eq_m[fieldA];
           }
+          /* add quench terms */
+          if (ctx->quench_rate_current>0.0) {
+            PetscReal r=vj[0], kS_H, v, v2 = 0, kT_m = ctx->k*ctx->quench_T/ctx->masses[0], theta = 2*kT_m/(ctx->v_0*ctx->v_0); /* theta = 2kT/mc^2 */
+            // theta_H & kS_H & divf*kS_H
+            for (int i = 0; i < dim; ++i) v2 += vj[i]*vj[i];
+            v = PetscSqrtReal(v2);
+            kS_H = -ctx->quench_rate_current * PetscPowReal(PETSC_PI*theta,-1.5) * PetscExpReal(-v2/theta); // negate for -C (not)
+            if (dim==2) {
+              kS_H *= 2.*PETSC_PI*r; // 2pi is a constant, fold in
+            }
+            for (int i = 0; i < dim; ++i) gg2[0][i] += -kS_H * vj[i]/v; // int by pars seems to flip sign
+            //  k(t) * div kS_H
+            g0[0] = 2*kS_H*(1./v - v/theta);
+          }
           /* Jacobian transform - g2, g3 */
           for (fieldA = 0; fieldA < Nf; ++fieldA) {
             for (d = 0; d < dim; ++d) {
@@ -385,6 +400,9 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
                 g3[fieldA][d][d2] *= wj;
               }
               g2[fieldA][d] *= wj;
+            }
+            if (ctx->quench_rate_current>0.0 && fieldA==0) {
+              g0[0] *= wj;
             }
           }
         } else { // mass
@@ -411,6 +429,9 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
                     for (d2 = 0; d2 < dim; ++d2) {
                       elemMat[fOff] += DIq[f*dim + d]*g3[fieldA][d][d2]*DIq[g*dim + d2];
                     }
+                  }
+                  if (ctx->quench_rate_current>0.0 && fieldA==0) {
+                    elemMat[fOff] += BJq[f]*g0[fieldA]*BJq[g];
                   }
                 } else { // mass
                   elemMat[fOff] += BJq[f]*g0[fieldA]*BJq[g];
@@ -495,7 +516,7 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
   /* assemble matrix or vector */
   ierr = MatAssemblyBegin(JacP, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(JacP, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-#define MAP_BF_SIZE (128*LANDAU_DIM*LANDAU_MAX_Q_FACE*LANDAU_MAX_SPECIES)
+#define MAP_BF_SIZE (128*LANDAU_DIM*LANDAU_DIM*LANDAU_MAX_Q_FACE*LANDAU_MAX_SPECIES)
   if (ctx->gpu_assembly && !container) {
     PetscScalar             elemMatrix[LANDAU_MAX_NQ*LANDAU_MAX_NQ*LANDAU_MAX_SPECIES*LANDAU_MAX_SPECIES], *elMat;
     pointInterpolationP4est pointMaps[MAP_BF_SIZE][LANDAU_MAX_Q_FACE];
@@ -553,10 +574,10 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
                   pointMaps[maps->num_reduced][jj].scale = 0;
                   pointMaps[maps->num_reduced][jj].gid = -1;
                 }
-                if (PetscAbs(sum-1.0) > 10*PETSC_MACHINE_EPSILON) { // debug
+                if (PetscAbs(sum-1.0)>PETSC_MACHINE_EPSILON*1.e1) { // debug
                   int       d,f;
                   PetscReal tmp = 0;
-                  PetscPrintf(PETSC_COMM_SELF,"\t\t%D.%D.%D) ERROR total I = %22.16e (LANDAU_MAX_Q_FACE=%d, #face=%D)\n",eidx,q,fieldA,sum,LANDAU_MAX_Q_FACE,maps->num_face);
+                  PetscPrintf(PETSC_COMM_SELF,"\t\t%D.%D.%D) ERROR total I = %22.16e (LANDAU_MAX_Q_FACE=%d, #face=%D)\n",eidx,q,fieldA,sum-1.0,LANDAU_MAX_Q_FACE,maps->num_face);
                   for (d = 0, tmp = 0; d < numindices; ++d){
                     if (tmp!=0 && PetscAbs(tmp-1.0) > 10*PETSC_MACHINE_EPSILON) ierr = PetscPrintf(PETSC_COMM_WORLD,"%3D) %3D: ",d,indices[d]);CHKERRQ(ierr);
                     for (f = 0; f < numindices; ++f) {
@@ -940,7 +961,7 @@ static PetscErrorCode SetupDS(DM dm, PetscInt dim, LandauCtx *ctx)
 /* f(x;\theta)=\left(\frac{1}{\pi\theta}\right)^{3/2} \exp [ -x^2/\theta ] */
 
 typedef struct {
-  LandauCtx   *ctx;
+  LandauCtx *ctx;
   PetscReal kT_m;
   PetscReal n;
   PetscReal shift;
@@ -967,7 +988,7 @@ static PetscErrorCode maxwellian(PetscInt dim, PetscReal time, const PetscReal x
   PetscFunctionReturn(0);
 }
 
-/*@
+/*@1
  LandauAddMaxwellians - Add a Maxwellian distribution to a state
 
  Collective on X
@@ -1246,6 +1267,12 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   ctx->init = PETSC_FALSE; // doit first time
   ctx->use_matrix_mass = PETSC_FALSE; /* fast but slightly fragile */
   ctx->plex = NULL;     /* cache as expensive to Convert */
+  ctx->quench_T = 1;
+  ctx->quench_rate = 1;
+  ctx->quench_rate_current = 0;
+  ctx->quench_total = 1;
+  ctx->quench = PETSC_FALSE;
+  ctx->quench_sum = 0;
   ierr = PetscOptionsBegin(ctx->comm, prefix, "Options for Fokker-Plank-Landau collision operator", "none");CHKERRQ(ierr);
   {
     char opstring[256];
@@ -1296,11 +1323,15 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   ierr = PetscOptionsReal("-dm_landau_Ez","Initial parallel electric field in unites of Conner-Hastie criticle field","plexland.c",ctx->Ez,&ctx->Ez, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-dm_landau_n_0","Normalization constant for number density","plexland.c",ctx->n_0,&ctx->n_0, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-dm_landau_ln_lambda","Cross section parameter","plexland.c",ctx->lnLam,&ctx->lnLam, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-dm_landau_quench_T","","plexland.c",ctx->quench_T,&ctx->quench_T, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-dm_landau_quench_total","","plexland.c",ctx->quench_total,&ctx->quench_total, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-dm_landau_quench_rate","","plexland.c",ctx->quench_rate,&ctx->quench_rate, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-dm_landau_quench","","plexland.c",ctx->quench,&ctx->quench, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dm_landau_num_sections", "Number of tangential section in (2D) grid, 2, 3, of 4", "plexland.c", ctx->num_sections, &ctx->num_sections, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dm_landau_num_thread_teams", "The number of other concurrent runs to make room for", "plexland.c", ctx->numConcurrency, &ctx->numConcurrency, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-dm_landau_use_mataxpy_mass", "Use fast but slightly fragile MATAXPY to add mass term", "plexland.c", ctx->use_matrix_mass, &ctx->use_matrix_mass, NULL);CHKERRQ(ierr);
 
-  /* get num species with tempurature*/
+  /* get num species with temperature */
   {
     PetscReal arr[100];
     nt = 100;
@@ -1320,6 +1351,7 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
     ctx->num_species = nt;
   } else SETERRQ(ctx->comm,PETSC_ERR_ARG_WRONG,"-dm_landau_thermal_temps ,t1,t2,.. must be provided to set the number of species");
   for (ii=0;ii<ctx->num_species;ii++) ctx->thermal_temps[ii] *= 1.1604525e7; /* convert to Kelvin */
+  ctx->quench_T *= 1.1604525e7; /* convert to Kelvin */
   nm = LANDAU_MAX_SPECIES-1;
   ierr = PetscOptionsRealArray("-dm_landau_ion_masses", "Mass of each species in units of proton mass [i_0=2,i_1=40...]", "plexland.c", &ctx->masses[1], &nm, &flg);CHKERRQ(ierr);
   if (flg && nm != ctx->num_species-1) {
@@ -1334,7 +1366,7 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   for (ii=0;ii<LANDAU_MAX_SPECIES;ii++) ctx->masses[ii] *= 1.6720e-27; /* scale by proton mass kg */
   ctx->masses[0] = 9.10938356e-31; /* electron mass kg (should be about right already) */
   ctx->m_0 = ctx->masses[0]; /* arbitrary reference mass, electrons */
-  ierr = PetscOptionsReal("-dm_landau_v_0","Velocity to normalize with in units of initial electrons thermal velocity (not recommended to change default)","plexland.c",ctx->v_0,&ctx->v_0, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-dm_landau_v_0","Velocity to normalize velocity (not recommended to change default)","plexland.c",ctx->v_0,&ctx->v_0, NULL);CHKERRQ(ierr);
   ctx->v_0 *= PetscSqrtReal(ctx->k*ctx->thermal_temps[0]/(ctx->masses[0])); /* electron mean velocity in 1D (need 3D form in computing T from FE integral) */
   nc = LANDAU_MAX_SPECIES-1;
   ierr = PetscOptionsRealArray("-dm_landau_ion_charges", "Charge of each species in units of proton charge [i_0=2,i_1=18,...]", "plexland.c", &ctx->charges[1], &nc, &flg);CHKERRQ(ierr);
@@ -2025,13 +2057,10 @@ PetscErrorCode LandauIFunction(TS ts, PetscReal time_dummy, Vec X, Vec X_t, Vec 
   starttime = MPI_Wtime();
 #endif
   ierr = DMGetDimension(ctx->dmv, &dim);CHKERRQ(ierr);
-  if (!ctx->aux_bool) {
-    ierr = PetscInfo3(ts, "Create Landau Jacobian t=%g X=%p %s\n",time_dummy,X_t,ctx->aux_bool ? " -- seems to be in line search" : "");CHKERRQ(ierr);
-    ierr = LandauFormJacobian_Internal(X,ctx->J,dim,0.0,(void*)ctx);CHKERRQ(ierr);
-    ctx->aux_bool = PETSC_TRUE;
-  } else {
-    ierr = PetscInfo(ts, "Skip forming Jacobian, has not changed (should check norm)\n");CHKERRQ(ierr);
-  }
+  ierr = PetscInfo3(ts, "Create Landau Jacobian t=%g X'=%p %s\n",time_dummy,X_t,ctx->aux_bool ? " -- seems to be in line search ???????????? " : "");CHKERRQ(ierr);
+  ierr = LandauFormJacobian_Internal(X,ctx->J,dim,0.0,(void*)ctx);CHKERRQ(ierr);
+  ctx->aux_bool = PETSC_TRUE;
+
   ierr = MatViewFromOptions(ctx->J,NULL,"-landau_jacobian_mat_view");CHKERRQ(ierr);
   /* mat vec for op */
   ierr = MatMult(ctx->J,X,F);CHKERRQ(ierr);CHKERRQ(ierr); /* C*f */

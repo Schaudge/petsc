@@ -255,13 +255,22 @@ landau_inner_integral_v2(const PetscInt myQi, const PetscInt jpidx, PetscInt nip
 #if LANDAU_DIM==3
                          const PetscReal zz[], PetscReal s_dfz[], PetscReal d_dfdz[],
 #endif
-                         PetscReal d_mass_w[], PetscReal shift,
+                         PetscReal d_mass_w[], PetscReal shift, PetscReal quench_rate_current, PetscReal theta,
                          PetscInt elem, PetscErrorCode *ierr)
 {
   int           delta,d,f,g,d2,dp,d3,fieldA,ipidx_b,nip_pad = nip; // vectorization padding not supported;
+  LandauIPData  IPData;
+
+  // un pack IPData (NULL if mass)
+  IPData.w   = IPDataRaw;
+  IPData.x   = IPDataRaw + 1*nip_pad;
+  IPData.y   = IPDataRaw + 2*nip_pad;
+  IPData.z   = IPDataRaw + 3*nip_pad;
+
   *ierr = 0;
   if (!d_mass_w) { // get g2 & g3 -- d_mass_w flag for mass matrix
     PetscReal     gg2_temp[LANDAU_DIM], gg3_temp[LANDAU_DIM][LANDAU_DIM];
+
     // create g2 & g3
     for (f=threadIdx.x; f<Nf; f+=blockDim.x) {
       for (d=0;d<dim;d++) { // clear accumulation data D & K
@@ -373,6 +382,21 @@ landau_inner_integral_v2(const PetscInt myQi, const PetscInt jpidx, PetscInt nip
     for (fieldA = threadIdx.x; fieldA < Nf; fieldA += blockDim.x) {
       gg2[dim-1][myQi][fieldA] += Eq_m[fieldA];
     }
+    /* add q2 quench terms */
+    if (quench_rate_current>0.0) {
+      const PetscReal vj[3] = {IPData.x[jpidx], IPData.y[jpidx], IPData.z ? IPData.z[jpidx] : 0};
+      PetscReal r=vj[0], kS_H, v, v2 = 0;
+      // theta_H & kS_H & divf*kS_H
+      for (int i = 0; i < dim; ++i) v2 += vj[i]*vj[i];
+      v = PetscSqrtReal(v2);
+      kS_H = quench_rate_current * PetscPowReal(PETSC_PI*theta,-1.5) * PetscExpReal(-v2/theta); // negate for -C and for IBP
+      if (dim==2) {
+	kS_H *= 2.*PETSC_PI*r; // 2pi is a constant, fold in
+      }
+      for (int i = 0; i < dim; ++i) gg2[i][myQi][0] += kS_H * vj[i]/v;
+      //  k(t) * div kS_H
+      // g0[myQi][0] = 2*kS_H*(1./v - v/theta);
+    }
     __syncthreads();
     /* Jacobian transform - g2 */
     for (fieldA = threadIdx.x; fieldA < Nf; fieldA += blockDim.x) {
@@ -422,6 +446,25 @@ landau_inner_integral_v2(const PetscInt myQi, const PetscInt jpidx, PetscInt nip
                   t += DIq[f*dim + d]*g3[d][d2][qj][fieldA]*DIq[g*dim + d2];
                 }
               }
+	      if (quench_rate_current>0.0 && fieldA==0) {
+		const PetscInt jpidx = qj + myelem * Nq;
+		PetscReal wj = IPData.w[jpidx];
+		const PetscReal vj[3] = {IPData.x[jpidx], IPData.y[jpidx], IPData.z ? IPData.z[jpidx] : 0};
+		/* add quench terms */
+		PetscReal g0, r=vj[0], kS_H, v, v2 = 0;
+		// theta_H & kS_H & divf*kS_H
+		for (int i = 0; i < dim; ++i) v2 += vj[i]*vj[i];
+		v = PetscSqrtReal(v2);
+		kS_H = -quench_rate_current * PetscPowReal(PETSC_PI*theta,-1.5) * PetscExpReal(-v2/theta);  // negate for -C
+		if (dim==2) {
+		  kS_H *= 2.*PETSC_PI*r; // 2pi is a constant, fold in
+		}
+		// for (int i = 0; i < dim; ++i) gg2[0][i] += kS_H * vj[i]/v;
+		// k(t) * div kS_H
+		g0 = 2*kS_H*(1./v - v/theta);
+		// FE assembly
+		t += BJq[f] * g0 * BJq[g] * wj;
+	      }
             } else {
               const PetscInt jpidx = qj + elem * Nq;
               t += BJq[f] * d_mass_w[jpidx]*shift * BJq[g];
@@ -491,7 +534,7 @@ void __launch_bounds__(256,1) landau_kernel_v2(const PetscInt nip, const PetscIn
 #if LANDAU_DIM==3
                                                const PetscReal zz[], PetscReal d_dfdz[],
 #endif
-                                               PetscReal d_mass_w[], PetscReal shift,
+                                               PetscReal d_mass_w[], PetscReal shift, PetscReal quench_rate_current, PetscReal theta,
                                                PetscErrorCode *ierr)
 {
   const PetscInt  Nq = blockDim.y, elem = blockIdx.x;
@@ -541,7 +584,7 @@ void __launch_bounds__(256,1) landau_kernel_v2(const PetscInt nip, const PetscIn
 #if LANDAU_DIM==3
                            zz, s_dfz, d_dfdz,
 #endif
-                           d_mass_w, shift,
+                           d_mass_w, shift, quench_rate_current, theta,
                            elem, ierr); /* compact */
 }
 
@@ -550,10 +593,10 @@ PetscErrorCode LandauCUDAJacobian(DM plex, const PetscInt Nq, PetscReal a_Eq_m[]
 {
   PetscErrorCode    ierr,*d_ierr = (PetscErrorCode*)SData_d->ierr;
   cudaError_t       cerr;
-  PetscInt          ii,ej,*Nbf,Nb,cStart,cEnd,Nf,dim,numGCells,totDim,nip,szf=sizeof(PetscReal),szs=sizeof(PetscScalar);
-  PetscReal         *d_BB=NULL,*d_DD=NULL,*d_invJj=NULL,*d_nu_alpha=NULL,*d_nu_beta=NULL,*d_invMass=NULL,*d_Eq_m=NULL,*d_mass_w=NULL,*d_x=NULL,*d_y=NULL,*d_w=NULL;
-  PetscScalar       *d_elemMats=NULL,*d_IPf=NULL;
-  PetscReal         *d_f=NULL,*d_dfdx=NULL,*d_dfdy=NULL;
+  PetscInt          ii,ej,*Nbf,Nb,nip_dim2,cStart,cEnd,Nf,dim,numGCells,totDim,nip,szf=sizeof(LandauIPReal),ipdatasz;
+  PetscReal         *d_BB,*d_DD,*d_invJj=NULL,*d_nu_alpha,*d_nu_beta,*d_invMass,*d_Eq_m,*d_mass_w=NULL,kT_m,theta;
+  PetscScalar       *d_elemMats=NULL;
+  LandauIPReal       *d_f=NULL, *d_dfdx=NULL, *d_dfdy=NULL;
 #if LANDAU_DIM==3
   PetscReal         *d_dfdz=NULL, *d_z = NULL;
 #endif
@@ -584,6 +627,8 @@ PetscErrorCode LandauCUDAJacobian(DM plex, const PetscInt Nq, PetscReal a_Eq_m[]
   ierr = DMGetGlobalSection(plex, &globalSection);CHKERRQ(ierr);
   ierr = DMGetApplicationContext(plex, &ctx);CHKERRQ(ierr);
   if (!ctx) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "no context");
+  kT_m = ctx->k*ctx->quench_T/ctx->masses[0];
+  theta = 2*kT_m/(ctx->v_0*ctx->v_0); /* theta = 2kT/mc^2 */
 
   if (ctx->gpu_assembly) {
     PetscContainer container;
@@ -669,7 +714,7 @@ PetscErrorCode LandauCUDAJacobian(DM plex, const PetscInt Nq, PetscReal a_Eq_m[]
 #if LANDAU_DIM==3
                                                     d_z, d_dfdz,
 #endif
-                                                    d_mass_w, shift,
+                                                    d_mass_w, shift, dt, ctx->quench_rate_current, theta,
                                                     d_ierr);
     CHECK_LAUNCH_ERROR(); // has sync
     cerr = WaitForCUDA();CHKERRCUDA(cerr);

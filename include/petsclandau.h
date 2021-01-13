@@ -135,6 +135,13 @@ typedef struct {
   /* diagnostics */
   PetscInt       verbose;
   PetscLogEvent  events[20];
+  /* thermal quench */
+  PetscReal        quench_T;
+  PetscReal        quench_rate;
+  PetscReal        quench_rate_current;
+  PetscReal        quench_sum;
+  PetscReal        quench_total;
+  PetscBool        quench;
 } LandauCtx;
 
 typedef int LandauIdx;
