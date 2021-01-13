@@ -19,12 +19,12 @@ static PetscErrorCode DMBF_XD_P4estCreate(DM dm, p4est_connectivity_t *connectiv
       *p4est,p4est_new_ext,
       ( PetscObjectComm((PetscObject)dm),
         connectivity,
-        0,           /* minimum number of quadrants per processor */
-        initLevel,   /* level of refinement */
-        1,           /* uniform refinement */
-        0,           /* we don't allocate any per quadrant data */
-        NULL,        /* there is no special quadrant initialization */
-        (void*)dm )  /* this DM is the user context */
+        0,          /* minimum number of quadrants per processor */
+        initLevel,  /* level of refinement */
+        1,          /* uniform refinement */
+        0,          /* quadrant data size */
+        NULL,       /* quadrant init function */
+        (void*)dm ) /* this DM is the user context */
   );
   PetscFunctionReturn(0);
 }
@@ -32,6 +32,7 @@ static PetscErrorCode DMBF_XD_P4estCreate(DM dm, p4est_connectivity_t *connectiv
 static PetscErrorCode DMBF_XD_P4estDestroy(DM dm, p4est_t *p4est)
 {
   PetscFunctionBegin;
+  p4est->data_size = 0; /* avoid that p4est destroys quadrant data */
   PetscStackCallP4est(p4est_destroy,(p4est));
   PetscFunctionReturn(0);
 }

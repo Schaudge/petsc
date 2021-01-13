@@ -221,7 +221,6 @@ static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  PetscValidHeaderSpecific(ltog,VEC_SCATTER_CLASSID,2);
   /* create local-to-global indices */
   bf = _p_getBF(dm);
   ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
@@ -257,7 +256,6 @@ static PetscErrorCode DMBF_LocalToGlobalScatterDestroy(DM dm, VecScatter *ltog)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  PetscValidHeaderSpecific(ltog,VEC_SCATTER_CLASSID,2);
   ierr = VecScatterDestroy(ltog);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -527,8 +525,6 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
   bf->valsPerElemReadTotal      = 0;
   bf->valsPerElemReadWriteTotal = 0;
 
-  bf->ltog = PETSC_NULL;
-
   PetscFunctionReturn(0);
 }
 
@@ -568,8 +564,6 @@ static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
   trgbf->nValsPerElemReadWrite     = srcbf->nValsPerElemReadWrite;
   trgbf->valsPerElemReadTotal      = srcbf->valsPerElemReadTotal;
   trgbf->valsPerElemReadWriteTotal = srcbf->valsPerElemReadWriteTotal;
-
-  trgbf->ltog = PETSC_NULL;
 
   PetscFunctionReturn(0);
 }
@@ -645,8 +639,6 @@ PetscErrorCode DMCreate_BF(DM dm)
   ierr = DMInitialize_BF(dm);CHKERRQ(ierr);
   /* create BF object */
   ierr = PetscNewLog(dm,&bf);CHKERRQ(ierr);
-  /* set default options */
-  ierr = DMBFSetDefaultOptions(dm);CHKERRQ(ierr);
   /* set data and functions of Forest object */
   {
     DM_Forest *forest = (DM_Forest*) dm->data;
@@ -654,6 +646,8 @@ PetscErrorCode DMCreate_BF(DM dm)
     forest->data    = bf;
     forest->destroy = DMForestDestroy_BF;
   }
+  /* set default options */
+  ierr = DMBFSetDefaultOptions(dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -675,13 +669,11 @@ static PetscErrorCode DMBFCloneInit(DM dm, DM *newdm)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  /* clone Forest object (via ++refct) */
-  ierr = DMClone_Forest(dm,newdm);CHKERRQ(ierr);
+  /* clone Forest object */
+  ierr = DMForestTemplate(dm,PetscObjectComm((PetscObject)dm),newdm);CHKERRQ(ierr);
   ierr = DMInitialize_BF(*newdm);CHKERRQ(ierr);
   /* create BF object */
   ierr = PetscNewLog(*newdm,&newbf);CHKERRQ(ierr);
-  /* copy options */
-  ierr = DMBFCopyOptions(dm,*newdm);CHKERRQ(ierr);
   /* set data and functions of Forest object */
   {
     DM_Forest *forest = (DM_Forest*) (*newdm)->data;
@@ -689,6 +681,8 @@ static PetscErrorCode DMBFCloneInit(DM dm, DM *newdm)
     forest->data    = newbf;
     forest->destroy = DMForestDestroy_BF;
   }
+  /* copy options */
+  ierr = DMBFCopyOptions(dm,*newdm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1034,6 +1028,13 @@ static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *coarsedm)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  {
+    PetscMPIInt mpiComparison;
+    MPI_Comm dmcomm = PetscObjectComm((PetscObject)dm);
+
+    ierr = MPI_Comm_compare(comm, dmcomm, &mpiComparison);CHKERRQ(ierr);
+    if (mpiComparison != MPI_IDENT && mpiComparison != MPI_CONGRUENT) SETERRQ(dmcomm,PETSC_ERR_SUP,"No support for different communicators");
+  }
   ierr = DMBFCloneInit(dm,coarsedm);CHKERRQ(ierr);
   bf       = _p_getBF(dm);
   coarsebf = _p_getBF(*coarsedm);
@@ -1064,6 +1065,13 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *finedm)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  {
+    PetscMPIInt mpiComparison;
+    MPI_Comm dmcomm = PetscObjectComm((PetscObject)dm);
+
+    ierr = MPI_Comm_compare(comm, dmcomm, &mpiComparison);CHKERRQ(ierr);
+    if (mpiComparison != MPI_IDENT && mpiComparison != MPI_CONGRUENT) SETERRQ(dmcomm,PETSC_ERR_SUP,"No support for different communicators");
+  }
   ierr = DMBFCloneInit(dm,finedm);CHKERRQ(ierr);
   bf     = _p_getBF(dm);
   finebf = _p_getBF(*finedm);
