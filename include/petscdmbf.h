@@ -13,9 +13,6 @@ PETSC_EXTERN PetscErrorCode DMBFGetLocalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGlobalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhostSize(DM,PetscInt*);
 
-PETSC_EXTERN PetscErrorCode DMBFCoarsenInPlace(DM,PetscInt);
-PETSC_EXTERN PetscErrorCode DMBFRefineInPlace(DM,PetscInt);
-
 typedef struct _p_DM_BF_Cell {
   /* corner coordinates */
   PetscReal         corner[8*3], volume, sidelength[3], dummy1[4];

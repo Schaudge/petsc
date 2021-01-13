@@ -16,4 +16,3 @@
 #include "bf_xd_iterate.c"
 
 #endif /* defined(PETSC_HAVE_P4EST) */
-

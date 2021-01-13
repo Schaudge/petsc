@@ -1,6 +1,11 @@
 #if defined(PETSC_HAVE_P4EST)
 
 #include "bf_xd.h"
+#if !defined(P4_TO_P8)
+#include "bf_2d_amr.h"
+#else
+#include "bf_3d_amr.h"
+#endif
 
 static PetscErrorCode DMBF_XD_P4estCreate(DM dm, p4est_connectivity_t *connectivity, p4est_t **p4est)
 {
@@ -83,7 +88,31 @@ PetscErrorCode DMBF_XD_CellsClone(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trg
 
   PetscFunctionBegin;
   ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
-  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*copy mpicomm*/));
+  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*duplicate mpicomm*/));
+  ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_CellsCoarsen(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trgCells, DM trgDm, PetscInt minLevel)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
+  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*duplicate mpicomm*/));
+  ierr = DMBF_XD_AmrCoarsenUniformly((*trgCells)->p4est,minLevel);CHKERRQ(ierr);
+  ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_CellsRefine(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trgCells, DM trgDm, PetscInt maxLevel)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
+  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*duplicate mpicomm*/));
+  ierr = DMBF_XD_AmrRefineUniformly((*trgCells)->p4est,maxLevel);CHKERRQ(ierr);
   ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

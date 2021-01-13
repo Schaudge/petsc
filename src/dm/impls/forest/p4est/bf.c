@@ -7,21 +7,9 @@
 #include "bf_3d_cells.h"
 #include "bf_2d_iterate.h"
 #include "bf_3d_iterate.h"
-
-
 #if defined(PETSC_HAVE_P4EST)
-
-//TODO deprecated
 #include "petsc_p4est_package.h"
-#include <p4est.h>
-#include <p4est_extended.h>
-#include <p4est_geometry.h>
-#include <p4est_ghost.h>
-#include <p4est_lnodes.h>
-#include <p4est_vtk.h>
-#include <p4est_plex.h>
-#include <p4est_bits.h>
-#include <p4est_algorithms.h>
+#endif
 
 /******************************************************************************
  * PRIVATE STRUCTURES
@@ -1038,148 +1026,63 @@ PetscErrorCode DMBFGetGhostSize(DM dm, PetscInt *nGhost)
  * AMR
  **************************************/
 
-typedef struct _p_DM_BF_AmrCtx {
-  PetscInt  minLevel;
-  PetscInt  maxLevel;
-} DM_BF_AmrCtx;
-
-static int p4est_coarsen_uniformly(p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrants[])
+static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *coarsedm)
 {
-  DM_BF_AmrCtx   *amrCtx = p4est->user_pointer;
-  const PetscInt minLevel = amrCtx->minLevel;
-  const PetscInt l = quadrants[0]->level;
-
-  return (minLevel < l);
-}
-
-static int p4est_refine_uniformly(p4est_t * p4est, p4est_topidx_t which_tree, p4est_quadrant_t *quadrant)
-{
-  DM_BF_AmrCtx   *amrCtx = p4est->user_pointer;
-  const PetscInt maxLevel = amrCtx->maxLevel;
-  const PetscInt l = quadrant->level;
-
-  return (l < maxLevel);
-}
-
-/*@
-  DMBFCoarsenInPlace - Coarsens the mesh uniformly.
-
-  Logically collective on DM
-
-  Input Parameters:
-+ dm      - the DMBF object
-- nCycles - number of coarsening cycles
-
-  Level: intermediate
-
-.seealso: DMBFRefineInPlace()
-@*/
-PetscErrorCode DMBFCoarsenInPlace(DM dm, PetscInt nCycles)
-{
-  DM_BF_AmrCtx   amrCtx;
-  DM_BF          *bf;
-  void           *p4est_user_pointer;
-  PetscInt       i;
+  DM_BF          *bf, *coarsebf;
+  PetscInt       dim, minLevel;
   PetscErrorCode ierr;
-  p4est_t        *p4est; //TODO deprecated
 
   PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  /* set AMR parameters */
-  ierr = DMForestGetMinimumRefinement(dm,&amrCtx.minLevel);CHKERRQ(ierr);
-  /* prepare p4est for AMR */
-  bf = _p_getBF(dm);
-  p4est_user_pointer  = p4est->user_pointer;
-  p4est->user_pointer = (void*) &amrCtx;
-  /* coarsen & balance */
-  for (i=0; i<nCycles; i++) {
-    PetscStackCallP4est(p4est_coarsen,(p4est,0,p4est_coarsen_uniformly,NULL));
+  ierr = DMBFCloneInit(dm,coarsedm);CHKERRQ(ierr);
+  bf       = _p_getBF(dm);
+  coarsebf = _p_getBF(*coarsedm);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  ierr = DMForestGetMinimumRefinement(*coarsedm,&minLevel);CHKERRQ(ierr);
+  switch (dim) {
+    case 2:
+      ierr = DMBF_2D_TopologyClone((DM_BF_2D_Topology*)bf->ftTopology,(DM_BF_2D_Topology**)&coarsebf->ftTopology,*coarsedm);CHKERRQ(ierr);
+      ierr = DMBF_2D_CellsCoarsen((DM_BF_2D_Cells*)bf->ftCells,(DM_BF_2D_Cells**)&coarsebf->ftCells,*coarsedm,minLevel);CHKERRQ(ierr);
+      //TODO clone nodes
+      break;
+    case 3:
+      ierr = DMBF_3D_TopologyClone((DM_BF_3D_Topology*)bf->ftTopology,(DM_BF_3D_Topology**)&coarsebf->ftTopology,*coarsedm);CHKERRQ(ierr);
+      ierr = DMBF_3D_CellsCoarsen((DM_BF_3D_Cells*)bf->ftCells,(DM_BF_3D_Cells**)&coarsebf->ftCells,*coarsedm,minLevel);CHKERRQ(ierr);
+      //TODO clone nodes
+      break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
-  PetscStackCallP4est(p4est_balance,(p4est,P4EST_CONNECT_FULL,NULL));
-  /* finalize p4est after AMR */
-  p4est->user_pointer = p4est_user_pointer;
-  //TODO need to update bf cells
+  ierr = DMBFCloneFinalize(*coarsedm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-/*@
-  DMBFRefineInPlace - Refines the mesh uniformly.
-
-  Logically collective on DM
-
-  Input Parameters:
-+ dm      - the DMBF object
-- nCycles - number of refinement cycles
-
-  Level: intermediate
-
-.seealso: DMBFCoarsenInPlace()
-@*/
-PetscErrorCode DMBFRefineInPlace(DM dm, PetscInt nCycles)
+static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *finedm)
 {
-  DM_BF_AmrCtx   amrCtx;
-  DM_BF          *bf;
-  void           *p4est_user_pointer;
-  PetscInt       i;
-  PetscErrorCode ierr;
-  p4est_t        *p4est; //TODO deprecated
-
-  PetscFunctionBegin;
-  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr); //TODO deprecated
-  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  /* set AMR parameters */
-  ierr = DMForestGetMaximumRefinement(dm,&amrCtx.maxLevel);CHKERRQ(ierr);
-  /* prepare p4est for AMR */
-  bf = _p_getBF(dm);
-  p4est_user_pointer  = p4est->user_pointer;
-  p4est->user_pointer = (void*) &amrCtx;
-  /* refine & balance */
-  for (i=0; i<nCycles; i++) {
-    PetscStackCallP4est(p4est_refine,(p4est,0,p4est_refine_uniformly,NULL));
-  }
-  PetscStackCallP4est(p4est_balance,(p4est,P4EST_CONNECT_FULL,NULL));
-  /* finalize p4est after AMR */
-  p4est->user_pointer = p4est_user_pointer;
-  //TODO need to update bf cells
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *dmc)
-{
+  DM_BF          *bf, *finebf;
+  PetscInt       dim, maxLevel;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  /* coarsen input DM */
-  if (!dmc) {
-    ierr = DMBFCoarsenInPlace(dm,0);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+  ierr = DMBFCloneInit(dm,finedm);CHKERRQ(ierr);
+  bf     = _p_getBF(dm);
+  finebf = _p_getBF(*finedm);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  ierr = DMForestGetMaximumRefinement(*finedm,&maxLevel);CHKERRQ(ierr);
+  switch (dim) {
+    case 2:
+      ierr = DMBF_2D_TopologyClone((DM_BF_2D_Topology*)bf->ftTopology,(DM_BF_2D_Topology**)&finebf->ftTopology,*finedm);CHKERRQ(ierr);
+      ierr = DMBF_2D_CellsRefine((DM_BF_2D_Cells*)bf->ftCells,(DM_BF_2D_Cells**)&finebf->ftCells,*finedm,maxLevel);CHKERRQ(ierr);
+      //TODO clone nodes
+      break;
+    case 3:
+      ierr = DMBF_3D_TopologyClone((DM_BF_3D_Topology*)bf->ftTopology,(DM_BF_3D_Topology**)&finebf->ftTopology,*finedm);CHKERRQ(ierr);
+      ierr = DMBF_3D_CellsRefine((DM_BF_3D_Cells*)bf->ftCells,(DM_BF_3D_Cells**)&finebf->ftCells,*finedm,maxLevel);CHKERRQ(ierr);
+      //TODO clone nodes
+      break;
+    default: SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_SUP,"Unreachable code");
   }
-  /* coarsen output DM */
-  if (dm != *dmc) { /* if new fine DM */
-    //TODO need to clone
-  }
-  ierr = DMBFCoarsenInPlace(*dmc,0);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *dmf)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  /* refine input DM */
-  if (!dmf) {
-    ierr = DMBFRefineInPlace(dm,0);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-  }
-  /* refine output DM */
-  if (dm != *dmf) { /* if new fine DM */
-    //TODO need to clone
-  }
-  ierr = DMBFRefineInPlace(*dmf,0);CHKERRQ(ierr);
+  ierr = DMBFCloneFinalize(*finedm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1383,6 +1286,3 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
   }
   PetscFunctionReturn(0);
 }
-
-
-#endif /* defined(PETSC_HAVE_P4EST) */

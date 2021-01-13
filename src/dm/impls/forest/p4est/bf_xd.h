@@ -2,9 +2,9 @@
 #define PETSCDMBF_XD_H
 
 #include <petsc/private/dmforestimpl.h> /*I "petscdmforest.h" I*/
-#include "petsc_p4est_package.h"
 
 #if defined(PETSC_HAVE_P4EST)
+#include "petsc_p4est_package.h"
 
 #if !defined(P4_TO_P8)
 #include <p4est.h>
