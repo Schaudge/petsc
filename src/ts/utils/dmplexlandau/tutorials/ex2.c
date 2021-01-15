@@ -240,14 +240,14 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, DM plex, PetscInt stepi, PetscRe
     rectx->J_0 = J; /* use real J before the switch */
   }
   ratio = E/(rectx->J_0 - J_re)/spit_eta;
-  if (stepi>10 && !rectx->use_spitzer_eta && ((old_ratio-ratio < 1.e-3 && ratio > 0.99 && ratio < 1.01) || (old_ratio-ratio < 1.e-4 && ratio > 0.98 && ratio < 1.02))) {
-    rectx->pulse_start = time + 1.9*dt;
+  if (stepi>10 && !rectx->use_spitzer_eta && ((old_ratio-ratio < 1.e-4 && ratio > 0.99 && ratio < 1.01) || (old_ratio-ratio < 1.e-5 && ratio > 0.98 && ratio < 1.02))) {
+    rectx->pulse_start = time + .99*dt;
     rectx->use_spitzer_eta = PETSC_TRUE;
     rectx->J_0 = J; /* use fixed J after the switch */
   }
   ierr = TSGetConvergedReason(ts,&reason);CHKERRQ(ierr);
-  if ((rectx->plotting) || stepi == 0 || reason || rectx->pulse_start == time + 1.9*dt) {
-    ierr = PetscPrintf(ctx->comm, "testSpitzer: %4D) time=%11.4e n_e= %10.3e E= %10.3e J= %10.3e J_re= %10.3e %.3g %% Te_kev= %10.3e Z_eff=%g E/J to eta ratio=%g (diff=%g) vz= %g %s %s\n",stepi,time,n_e,ctx->Ez,J,J_re,100*J_re/J, Te_kev,Z,ratio,old_ratio-ratio, vz, J/rectx->J_0, rectx->use_spitzer_eta ? "using Spitzer eta*J E" : "constant E",rectx->pulse_start != time + 1.9*dt ? "normal" : "transition");CHKERRQ(ierr);
+  if ((rectx->plotting) || stepi == 0 || reason || rectx->pulse_start == time + .99*dt) {
+    ierr = PetscPrintf(ctx->comm, "testSpitzer: %4D) time=%11.4e n_e= %10.3e E= %10.3e J= %10.3e J_re= %10.3e %.3g %% Te_kev= %10.3e Z_eff=%g E/J to eta ratio=%g (diff=%g) vz= %g %s %s\n",stepi,time,n_e,ctx->Ez,J,J_re,100*J_re/J, Te_kev,Z,ratio,old_ratio-ratio, vz, J/rectx->J_0, rectx->use_spitzer_eta ? "using Spitzer eta*J E" : "constant E",rectx->pulse_start != time + .99*dt ? "normal" : "transition");CHKERRQ(ierr);
   }
   old_ratio = ratio;
   PetscFunctionReturn(0);
