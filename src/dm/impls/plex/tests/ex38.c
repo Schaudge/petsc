@@ -9,7 +9,8 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 
 const PetscReal DOMAIN_SPLIT = 0.0; // Used to switch value/form of the permeability tensor.
 const PetscInt  RANDOM_SEED = 0; // Used to seed rng for mesh perturbations.
-const PetscReal PUMP_STRENGTH = -0.1; 
+const PetscReal PUMP_HALF_SIDE_LENGTH = 2.5;
+const PetscReal PUMP_STRENGTH = 2.5/PetscSqr(2*PUMP_HALF_SIDE_LENGTH); 
 
 static PetscErrorCode smallSAXPY(PetscInt dim, const PetscScalar x[], PetscScalar alpha, PetscScalar* y){
   /* Updates y with y = ax+ y;*/
@@ -397,10 +398,9 @@ static PetscErrorCode sinusoid_source(PetscInt dim,PetscReal time,const PetscRea
 
 static PetscErrorCode subsurface_source(PetscInt dim,PetscReal time,const PetscReal x[],PetscInt Nc,PetscScalar * u,void * ctx){
   PetscBool inBox = PETSC_TRUE;
-  PetscReal boxBound = PetscSqrtReal(2.5);
   PetscInt i;
   for (i = 0; i< dim; ++i){
-   inBox = inBox && (x[i] < boxBound && x[i] > -boxBound);
+   inBox = inBox && (x[i] < PUMP_HALF_SIDE_LENGTH && x[i] > -PUMP_HALF_SIDE_LENGTH);
   }
   u[0] = inBox ? PUMP_STRENGTH : 0;
   return 0;
