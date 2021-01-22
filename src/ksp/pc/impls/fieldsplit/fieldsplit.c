@@ -4,7 +4,9 @@
 #if defined(PETSC_HAVE_OPENMP) && defined(PETSC_HAVE_THREADSAFETY)
 #include <omp.h>
 #endif
-
+#if defined(PETSC_HAVE_CUDA)
+#include <petsccublas.h>
+#endif
 const char *const PCFieldSplitSchurPreTypes[] = {"SELF","SELFP","A11","USER","FULL","PCFieldSplitSchurPreType","PC_FIELDSPLIT_SCHUR_PRE_",NULL};
 const char *const PCFieldSplitSchurFactTypes[] = {"DIAG","LOWER","UPPER","FULL","PCFieldSplitSchurFactType","PC_FIELDSPLIT_SCHUR_FACT_",NULL};
 
@@ -1228,17 +1230,18 @@ static PetscErrorCode PCApply_FieldSplit_Schur(PC pc,Vec x,Vec y)
   }
   PetscFunctionReturn(0);
 }
+
 #if defined(PETSC_HAVE_OPENMP) && defined(PETSC_HAVE_THREADSAFETY)
-static PetscErrorCode PetscFSOMPSolve(PC_FieldSplitLink ilink, Vec x, Vec y)
+static PetscErrorCode PCFieldSplitApply_SingleField(PC pc, PC_FieldSplitLink ilink, Vec x, Vec y)
 {
   PetscErrorCode     ierr;
-  PetscFunctionBegin;
   ierr = VecScatterBegin(ilink->sctx,x,ilink->x,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = VecScatterEnd(ilink->sctx,x,ilink->x,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
   ierr = KSPSolve(ilink->ksp,ilink->x,ilink->y);CHKERRQ(ierr);
-  ierr = VecScatterBegin(ilink->sctx,ilink->y,y,ADD_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
-  ierr = VecScatterEnd(ilink->sctx,ilink->y,y,ADD_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
+  ierr = KSPCheckSolve(ilink->ksp,pc,ilink->y);CHKERRQ(ierr);
+  ierr = VecScatterBegin(ilink->sctx,ilink->y,y,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr); /* OMP can not add */
+  ierr = VecScatterEnd(ilink->sctx,ilink->y,y,INSERT_VALUES,SCATTER_REVERSE);
+  return ierr;
 }
 #endif
 
@@ -1267,9 +1270,21 @@ static PetscErrorCode PCApply_FieldSplit(PC pc,Vec x,Vec y)
       ierr = VecStrideScatterAll(jac->y,y,INSERT_VALUES);CHKERRQ(ierr);
     } else {
       ierr = VecSet(y,0.0);CHKERRQ(ierr);
-      ierr = PetscLogEventBegin(ilink->event,ilink->ksp,ilink->x,ilink->y,NULL);CHKERRQ(ierr);
-      if (jac->use_openmp && jac->use_openmp++ > 1) {
 #if defined(PETSC_HAVE_OPENMP) && defined(PETSC_HAVE_THREADSAFETY)
+      if (jac->use_openmp == 1) {
+        /* initialize handles for timing */
+#if defined(PETSC_HAVE_CUDA)
+        PetscInt  nt = omp_get_num_threads(); /* we really only need to init 'cnt' but we don't have that here */
+        if (nt>PETSC_MAX_THREADS) SETERRQ1(PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_OUTOFRANGE,"Number of local fieldspilt blocks >= %D",PETSC_MAX_THREADS);
+        for (bs=0;bs<nt;bs++) {
+          ierr = PetscCUBLASInitializeHandle(bs);CHKERRQ(ierr);
+          ierr = PetscCUSOLVERDnInitializeHandle(bs);CHKERRQ(ierr);
+        }
+#endif
+        jac->use_openmp++;
+        goto no_omp_doit;
+      }
+      if (jac->use_openmp && jac->use_openmp++ > 1) {
         PC_FieldSplitLink links[PETSC_MAX_THREADS]; /* you can have more blocks than threads but this is convenient define */
         cnt = 0;
         while (ilink) {
@@ -1278,24 +1293,25 @@ static PetscErrorCode PCApply_FieldSplit(PC pc,Vec x,Vec y)
           ilink = ilink->next;
         }
         ierr = 0;
-#pragma omp parallel for private(bs) shared(links,x,y,ierr)
-        for (bs=0;bs<cnt;bs++) {
+#pragma omp parallel for shared(links,x,y,ierr,cnt)
+        for (PetscInt bs=0;bs<cnt;bs++) {
           PetscInt       idx = omp_get_thread_num(), nt = omp_get_num_threads();
           PetscErrorCode ierr2 = PetscInfo4(pc, "thread %D/%D in field %D/%D\n",idx+1,nt,bs+1,cnt);
-          if (!ierr2) ierr2 = PetscFSOMPSolve(links[bs], x, y);
+          if (!ierr2) ierr2 = PCFieldSplitApply_SingleField(pc, links[bs], x, y);
           if (ierr2) ierr = ierr2;
         }
         CHKERRQ(ierr);
-#else
-        SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_OUTOFRANGE,"Should not be here");
+
+      } else
+no_omp_doit:
 #endif
-      } else {
         while (ilink) {
+          ierr = PetscLogEventBegin(ilink->event,ilink->ksp,ilink->x,ilink->y,NULL);CHKERRQ(ierr);
           ierr = FieldSplitSplitSolveAdd(ilink,x,y);CHKERRQ(ierr);
+          ierr = KSPCheckSolve(ilink->ksp,pc,ilink->y);CHKERRQ(ierr);
+          ierr = PetscLogEventEnd(ilink->event,ilink->ksp,ilink->x,ilink->y,NULL);CHKERRQ(ierr);
           ilink = ilink->next;
         }
-      }
-      ierr = PetscLogEventEnd(ilink->event,ilink->ksp,ilink->x,ilink->y,NULL);CHKERRQ(ierr);
     }
   } else if (jac->type == PC_COMPOSITE_MULTIPLICATIVE && jac->nsplits == 2) {
     ierr = VecSet(y,0.0);CHKERRQ(ierr);
