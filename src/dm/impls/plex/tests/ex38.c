@@ -10,7 +10,7 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 const PetscReal DOMAIN_SPLIT = 0.0; // Used to switch value/form of the permeability tensor.
 const PetscInt  RANDOM_SEED = 0; // Used to seed rng for mesh perturbations.
 const PetscReal PUMP_HALF_SIDE_LENGTH = 2.5;
-const PetscReal PUMP_STRENGTH = 2.5/PetscSqr(2*PUMP_HALF_SIDE_LENGTH); 
+const PetscReal PUMP_STRENGTH = -50/(80*PetscSqr(PUMP_HALF_SIDE_LENGTH)); 
 
 static PetscErrorCode smallSAXPY(PetscInt dim, const PetscScalar x[], PetscScalar alpha, PetscScalar* y){
   /* Updates y with y = ax+ y;*/
@@ -1152,7 +1152,7 @@ static PetscErrorCode PetscFEIntegrateJacobian_WY(PetscDS ds,PetscFEJacobianType
       for (point = 0; point<nPointsInGroup; ++point) {
         PetscInt comp;
         globalInd = groupDofInd[nOffset+point];
-        for (comp = 0; comp<dim; ++comp) group2Constant[g*dim*dim + point*dim + comp] = constantProjections[comp*nGroups*dim + globalInd];
+        for (comp = 0; comp<dim; ++comp) group2Constant[g*dim*dim + comp*dim + point] = constantProjections[comp*nGroups*dim + globalInd];
       }
     }
 
