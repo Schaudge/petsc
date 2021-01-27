@@ -577,10 +577,11 @@ typedef enum
   NONE = 0,
   RANDOM = 1,
   SKEW = 2,
-  SKEWRAND = 3
+  SKEWRAND = 3,
+  ZONLY = 4
 } Perturbation;
 const char* const PerturbationTypes[] =
-{"none","random","skew","skewrand","Perturbation","",NULL};
+{"none","random","skew","skewrand","zonly","Perturbation","",NULL};
 
 typedef enum
 {
@@ -690,6 +691,35 @@ PetscErrorCode SkewMesh(DM * mesh,PetscScalar * coordVals,PetscInt ncoord,PetscI
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode SkewZ(DM * mesh,PetscScalar * coordVals,PetscInt ncoord,PetscInt dim)
+{
+  PetscErrorCode ierr;
+  PetscReal      * transMat;
+
+  PetscFunctionBegin;
+  ierr = PetscCalloc1(dim * dim,&transMat);CHKERRQ(ierr);
+
+  /* Make a matrix representing a skew transformation */
+  for (int i = 0; i < dim; ++i)
+    for (int j = 0; j < dim; ++j) {
+      if (i == j) transMat[i * dim + j] = 1;
+      else if (i == dim-1 && j < i) transMat[i * dim + j] = 2 * (j + i);
+      else transMat[i * dim + j] = 0;
+    }
+
+  /* Multiply each coordinate vector by our tranformation */
+  for (int k = 0; k < ncoord; ++k) {
+    PetscReal tmpcoord[3];
+    for (int i = 0; i < dim; ++i) {
+      tmpcoord[i] = 0;
+      for (int j = 0; j < dim; ++j) tmpcoord[i] += coordVals[dim * k + j] * transMat[dim * i + j];
+    }
+    for (int l = 0; l < dim; ++l) coordVals[dim * k + l] = tmpcoord[l];
+  }
+  ierr = PetscFree(transMat);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
 {
   PetscErrorCode ierr;
@@ -698,7 +728,7 @@ PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
   Vec            coords;
 
   PetscFunctionBegin;
-  ierr   = DMGetCoordinates(*mesh,&coords);CHKERRQ(ierr);
+  ierr   = DMGetCoordinatesLocal(*mesh,&coords);CHKERRQ(ierr);
   ierr   = VecGetArray(coords,&coordVals);CHKERRQ(ierr);
   ierr   = VecGetLocalSize(coords,&ncoord);CHKERRQ(ierr);
   ierr   = DMGetCoordinateDim(*mesh,&dim);CHKERRQ(ierr);
@@ -717,11 +747,15 @@ PetscErrorCode TransformMesh(UserCtx * user,DM * mesh,PetscRandom * ran)
     ierr = SkewMesh(mesh,coordVals,ncoord,dim);CHKERRQ(ierr);
     ierr = PerturbMesh(mesh,coordVals,ncoord,dim,ran);CHKERRQ(ierr);
     break;
+  case ZONLY:
+    ierr = SkewZ(mesh,coordVals,ncoord,dim);CHKERRQ(ierr);
+    break;
   default:
     PetscFunctionReturn(-1);
   }
   ierr = VecRestoreArray(coords,&coordVals);CHKERRQ(ierr);
-  ierr = DMSetCoordinates(*mesh,coords);CHKERRQ(ierr);
+  ierr = DMSetCoordinatesLocal(*mesh,coords);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
@@ -1268,7 +1302,6 @@ static PetscErrorCode CreateMesh(MPI_Comm comm,UserCtx * user,DM * mesh)
   ierr = DMSetFromOptions(*mesh);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*mesh,NULL,"-dm_view");CHKERRQ(ierr);
 
-  ierr = DMDestroy(&dmDist);CHKERRQ(ierr);
   ierr = PetscRandomDestroy(&ran);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1340,13 +1373,15 @@ static PetscErrorCode SetupDiscretization(DM mesh,PetscErrorCode (*setup)(DM,Use
 {
   DM             cdm = mesh;
   PetscFE        fevel,fepres;
+  MPI_Comm       comm;
   const PetscInt dim = user->dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFECreateDefault (PetscObjectComm((PetscObject)mesh),dim,dim,user->simplex,"velocity_",PETSC_DEFAULT,&fevel);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)mesh, &comm);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault (comm,dim,dim,user->simplex,"velocity_",PETSC_DEFAULT,&fevel);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fevel,"velocity");CHKERRQ(ierr);
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject)mesh),dim,1,user->simplex,"pressure_",PETSC_DEFAULT,&fepres);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm,dim,1,user->simplex,"pressure_",PETSC_DEFAULT,&fepres);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)fepres,"pressure");CHKERRQ(ierr);
 
   ierr = PetscFECopyQuadrature(fevel,fepres);CHKERRQ(ierr);
