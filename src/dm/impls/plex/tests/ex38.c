@@ -1409,7 +1409,7 @@ int main(int argc,char ** argv)
   DM              mesh,mesh_WY;
   SNES            snes,snes_WY;
   Mat             jacobian,jacobian_WY;
-  Vec             u,b,u_WY,b_WY,exactSol,errVec,errVec_WY,resVec,resVec_WY;
+  Vec             u,b,u_WY,b_WY,exactSol,resVec,resVec_WY;
   PetscSection    gSec,lSec;
   PetscReal       diffNorm,resNorm_exact;
   PetscReal       *fieldDiff, *fieldDiff_WY,*fieldResNorm,*fieldResNorm_WY;
@@ -1439,13 +1439,15 @@ int main(int argc,char ** argv)
   ierr = DMGetDS(mesh,&prob);CHKERRQ(ierr);
   ierr = DMGetNumFields(mesh,&Nf);CHKERRQ(ierr);
 
-  ierr = PetscMalloc(Nf,&exacts);CHKERRQ(ierr);
-  ierr = PetscCalloc2(Nf,&fieldDiff,Nf,&fieldDiff_WY);CHKERRQ(ierr);
-  ierr = PetscCalloc2(Nf,&fieldResNorm,Nf,&fieldResNorm_WY);CHKERRQ(ierr);
-  for (f=0; f<Nf; ++f) {
-    ierr = PetscDSGetExactSolution(prob,f,&exacts[f],NULL);CHKERRQ(ierr);
+  if (user.sol_form != SUBSURFACE_BENCHMARK){
+    ierr = PetscMalloc(Nf,&exacts);CHKERRQ(ierr);
+    ierr = PetscCalloc2(Nf,&fieldDiff,Nf,&fieldDiff_WY);CHKERRQ(ierr);
+    for (f=0; f<Nf; ++f) {
+      ierr = PetscDSGetExactSolution(prob,f,&exacts[f],NULL);CHKERRQ(ierr);
+    }
   }
 
+  ierr = PetscCalloc2(Nf,&fieldResNorm,Nf,&fieldResNorm_WY);CHKERRQ(ierr);
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes);CHKERRQ(ierr);
   ierr = SNESCreate(PETSC_COMM_WORLD,&snes_WY);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,mesh);CHKERRQ(ierr);
@@ -1461,11 +1463,11 @@ int main(int argc,char ** argv)
   ierr = DMCreateGlobalVector(mesh_WY,&u_WY);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh,&b);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh_WY,&b_WY);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(mesh,&errVec);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(mesh_WY,&errVec_WY);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh,&resVec);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(mesh_WY,&resVec_WY);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(mesh,&exactSol);CHKERRQ(ierr);
+  if (user.sol_form != SUBSURFACE_BENCHMARK){
+    ierr = DMCreateGlobalVector(mesh,&exactSol);CHKERRQ(ierr);
+  }
   ierr = DMGetGlobalSection(mesh,&gSec);CHKERRQ(ierr);
   ierr = DMGetLocalSection(mesh,&lSec);CHKERRQ(ierr);
 
@@ -1474,8 +1476,6 @@ int main(int argc,char ** argv)
   ierr = VecSet(u_WY,0.0);CHKERRQ(ierr);
   ierr = VecSet(b,0.0);CHKERRQ(ierr);
   ierr = VecSet(b_WY,0.0);CHKERRQ(ierr);
-  ierr = VecSet(errVec,0.0);CHKERRQ(ierr);
-  ierr = VecSet(errVec_WY,0.0);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"====A_Solve====\n");CHKERRQ(ierr);
   ierr = SNESSolve(snes,b,u);CHKERRQ(ierr);
@@ -1489,13 +1489,13 @@ int main(int argc,char ** argv)
   ierr = MatViewFromOptions(jacobian,NULL,"-jacobian_view");CHKERRQ(ierr);
   ierr = MatViewFromOptions(jacobian_WY,NULL,"-jacobian_WY_view");CHKERRQ(ierr);
 
-  ierr = DMComputeExactSolution(mesh,0,exactSol,NULL);CHKERRQ(ierr);
-  ierr = VecViewFromOptions(exactSol,NULL,"-exact_view");CHKERRQ(ierr);
-  ierr = DMSNESCheckResidual(snes,mesh,exactSol,-1,&resNorm_exact);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"EXACT RESIDUAL: %14.12g\n",resNorm_exact);CHKERRQ(ierr);
   ierr = SNESGetIterationNumber(snes,&nIt);CHKERRQ(ierr);
   ierr = SNESGetIterationNumber(snes_WY,&nIt_WY);CHKERRQ(ierr);
   if (user.sol_form != SUBSURFACE_BENCHMARK){
+    ierr = DMComputeExactSolution(mesh,0,exactSol,NULL);CHKERRQ(ierr);
+    ierr = VecViewFromOptions(exactSol,NULL,"-exact_view");CHKERRQ(ierr);
+    ierr = DMSNESCheckResidual(snes,mesh,exactSol,-1,&resNorm_exact);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"EXACT RESIDUAL: %14.12g\n",resNorm_exact);CHKERRQ(ierr);
     ierr = DMComputeL2FieldDiff(mesh,0.0,exacts,NULL,u,fieldDiff);CHKERRQ(ierr);
     ierr = DMComputeL2FieldDiff(mesh_WY,0.0,exacts,NULL,u_WY,fieldDiff_WY);CHKERRQ(ierr);
   }
@@ -1531,9 +1531,11 @@ int main(int argc,char ** argv)
   ierr              = PetscPrintf(MPI_COMM_WORLD,"Solutions are witin tolerance?: %s\n",solutionWithinTol ? "True" : "False");CHKERRQ(ierr);
 
   /* Tear down */
-  ierr = PetscFree(exacts);CHKERRQ(ierr);
+  if (user.sol_form != SUBSURFACE_BENCHMARK) {
+    ierr = PetscFree(exacts);CHKERRQ(ierr);
+    ierr = PetscFree2(fieldDiff,fieldDiff_WY);CHKERRQ(ierr);
+  }
   ierr = PetscFree2(fieldResNorm,fieldResNorm_WY);CHKERRQ(ierr);
-  ierr = PetscFree2(fieldDiff,fieldDiff_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b_WY);CHKERRQ(ierr);
   ierr = VecDestroy(&b);CHKERRQ(ierr);
   ierr = VecDestroy(&u_WY);CHKERRQ(ierr);
@@ -1653,5 +1655,36 @@ testset:
       -dm_plex_box_interpolate true \
       -dm_plex_separate_marker \
       -sol_form subsurface_benchmark -mesh_transform none
+
+testset:
+  suffix: hydrology
+  args: 
+  test:
+    suffix: 01
+    args: -dim 3 \
+      -simplex true \
+      -velocity_petscspace_degree 1 \
+      -velocity_petscdualspace_type bdm \
+      -velocity_petscdualspace_lagrange_tensor 1 \
+      -velocity_petscdualspace_lagrange_node_endpoints true \
+      -A_snes_max_it 1 \
+      -WY_snes_max_it 1 \
+      -A_ksp_rtol 1e-12 \ 
+      -WY_ksp_rtol 1e-12 \
+      -A_pc_type fieldsplit \
+      -WY_pc_type fieldsplit \
+      -A_pc_fieldsplit_type schur \
+      -WY_pc_fieldsplit_type schur \
+      -A_pc_fieldsplit_schur_precondition full \
+      -WY_pc_fieldsplit_schur_precondition full \
+      -A_snes_converged_reason \
+      -WY_snes_converged_reason \
+      -dm_plex_box_lower -102.5,-102.5,-10 \
+      -dm_plex_box_upper 102.5,102.5,10 \
+      -dm_plex_box_faces 2,2,2 \
+      -dm_plex_box_interpolate true \
+      -dm_plex_separate_marker true \
+      -sol_form subsurface_benchmark \
+      -mesh_transform none
 
 TEST*/
