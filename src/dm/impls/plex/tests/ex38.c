@@ -9,8 +9,92 @@ const char help[] = "A test demonstrating stratum-dof grouping methods.\n";
 
 const PetscReal DOMAIN_SPLIT = 0.0; // Used to switch value/form of the permeability tensor.
 const PetscInt  RANDOM_SEED = 0; // Used to seed rng for mesh perturbations.
-const PetscReal PUMP_HALF_SIDE_LENGTH = 2.5;
-const PetscReal PUMP_STRENGTH = -50/(80*PetscSqr(PUMP_HALF_SIDE_LENGTH)); 
+PetscReal PUMP_HALF_SIDE_LENGTH;
+PetscReal PUMP_STRENGTH; 
+PetscReal LEFT_BOUND; // X-Coordinate of the left boundary face
+PetscReal RIGHT_BOUND; // X-Corrdinate of the right boundary face
+PetscReal LEFT_HEAD;
+PetscReal RIGHT_HEAD;
+
+typedef enum
+{
+  NONE = 0,
+  RANDOM = 1,
+  SKEW = 2,
+  SKEWRAND = 3,
+  ZONLY = 4
+} Perturbation;
+const char* const PerturbationTypes[] =
+{"none","random","skew","skewrand","zonly","Perturbation","",NULL};
+
+typedef enum
+{
+  LINEAR = 0,
+  SINUSOIDAL = 1,
+  QUADRATIC = 2,
+  SUBSURFACE_BENCHMARK=3,
+  UNKNOWN = 4
+} Solution;
+const char* const SolutionTypes[] = {"linear",
+                                     "sinusoidal",
+                                     "quadratic",
+                                     "subsurface_benchmark",
+                                     "unknown",
+                                     "Solution",
+                                     "",
+                                     NULL};
+
+typedef struct
+{
+  PetscBool    simplex;
+  PetscInt     dim;
+  Perturbation mesh_transform;
+  Solution     sol_form;
+  PetscBool    showNorm;
+  PetscBool    toFile;
+  char         filename[128];
+  PetscReal    pumpHalfSideLength;
+  PetscReal    pumpStrength;
+  PetscReal    leftHead;
+  PetscReal    rightHead;
+} UserCtx;
+
+PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  user->simplex        = PETSC_TRUE;
+  user->dim            = 2;
+  user->mesh_transform = NONE;
+  user->sol_form       = LINEAR;
+  user->showNorm       = PETSC_FALSE;
+  user->toFile         = PETSC_FALSE;
+  ierr = PetscStrncpy(user->filename,"",128);CHKERRQ(ierr);
+  user->pumpHalfSideLength = 0;
+  user->pumpStrength = 0;
+  user->leftHead = 100;
+  user->rightHead = 0;
+  /* Define/Read in example parameters */
+  ierr = PetscOptionsBegin(comm,"","Stratum Dof Grouping Options","DMPLEX");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-simplex","Whether to use simplices (true) or tensor-product (false) cells in the mesh","ex38.c",user->simplex,
+                          &user->simplex,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-dim","Number of solution dimensions","ex38.c",user->dim,&user->dim,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-mesh_transform","Method used to perturb the mesh vertices. Options are Skew,Random," "SkewRand,or None","ex38.c",
+                          PerturbationTypes,(PetscEnum)user->mesh_transform,(PetscEnum*)&user->mesh_transform,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnum("-sol_form","Form of the exact solution. Options are Linear or Sinusoidal","ex38.c",SolutionTypes,(PetscEnum)user->sol_form,
+                          (PetscEnum*)&user->sol_form,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-showNorm","Whether to print the norm of the difference between lumped and unlumped solutions.","ex38.c",user->showNorm,
+                          &user->showNorm,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-toFile","Whether to print solution errors to file.","ex38.c",user->toFile,&user->toFile,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsString("-filename","If printing results to file, the path to use.","ex38.c",user->filename,user->filename,128,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-pump_half_side_length","Determines the area where pumping source term will be added","ex38.c",user->pumpHalfSideLength,&user->pumpHalfSideLength,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-pump_strength","Determines the strength of the pumping source","ex38.c",user->pumpStrength,&user->pumpStrength,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-left_head","Pressure on the left (-x) face of the domain","ex38.c",user->leftHead,&user->leftHead,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-right_head","Pressure on the right (+x) face of the domain","ex38.c",user->rightHead,&user->rightHead,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode smallSAXPY(PetscInt dim, const PetscScalar x[], PetscScalar alpha, PetscScalar* y){
   /* Updates y with y = ax+ y;*/
@@ -235,20 +319,6 @@ static PetscErrorCode zero(PetscInt dim, PetscReal time, const PetscReal x[], Pe
   return 0;
 }
 
-static PetscErrorCode ten(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void * ctx){
-  PetscInt c;
-  for (c=0; c<Nc; ++c) u[c] = 10.0;
-  return 0;
-}
-static PetscErrorCode hiHead(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void *ctx){
-  u[0] = 105.00;
-  return 0;
-}
-
-static PetscErrorCode loHead(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar* u, void *ctx){
-  u[0] = 100.00;
-  return 0;
-}
 /* We label solutions by the form of the potential/pressure, p: i.e. linear_u is the analytical form of u one gets when p is linear. */
 /* 2D Linear Exact Functions
    p = x;
@@ -532,10 +602,10 @@ static void f0_subsurface_bd_u(PetscInt dim,PetscInt Nf,PetscInt NfAux,const Pet
   PetscInt d;
   PetscScalar pressure;
 
-  if (x[0] == -102.5){
-    (void)hiHead(dim,t,x,1,&pressure,NULL);
-  } else if (x[0] == 102.5){
-    (void)loHead(dim,t,x,1,&pressure,NULL);
+  if (x[0] == LEFT_BOUND){
+    pressure = LEFT_HEAD;
+  } else if (x[0] == RIGHT_BOUND){
+    pressure = RIGHT_HEAD;
   }
   
 
@@ -572,71 +642,7 @@ static void g1_qu(PetscInt dim,PetscInt Nf,PetscInt NfAux,const PetscInt uOff[],
   for (d = 0; d < dim; ++d) g1[d * dim + d] = 1.0;
 }
 
-typedef enum
-{
-  NONE = 0,
-  RANDOM = 1,
-  SKEW = 2,
-  SKEWRAND = 3,
-  ZONLY = 4
-} Perturbation;
-const char* const PerturbationTypes[] =
-{"none","random","skew","skewrand","zonly","Perturbation","",NULL};
 
-typedef enum
-{
-  LINEAR = 0,
-  SINUSOIDAL = 1,
-  QUADRATIC = 2,
-  SUBSURFACE_BENCHMARK=3
-} Solution;
-const char* const SolutionTypes[] = {"linear",
-                                     "sinusoidal",
-                                     "quadratic",
-                                     "subsurface_benchmark",
-                                     "Solution",
-                                     "",
-                                     NULL};
-
-typedef struct
-{
-  PetscBool    simplex;
-  PetscInt     dim;
-  Perturbation mesh_transform;
-  Solution     sol_form;
-  PetscBool    showNorm;
-  PetscBool    toFile;
-  char         filename[128];
-} UserCtx;
-
-PetscErrorCode ProcessOptions(MPI_Comm comm,UserCtx * user)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  user->simplex        = PETSC_TRUE;
-  user->dim            = 2;
-  user->mesh_transform = NONE;
-  user->sol_form       = LINEAR;
-  user->showNorm       = PETSC_FALSE;
-  user->toFile         = PETSC_FALSE;
-  ierr = PetscStrncpy(user->filename,"",128);CHKERRQ(ierr);
-  /* Define/Read in example parameters */
-  ierr = PetscOptionsBegin(comm,"","Stratum Dof Grouping Options","DMPLEX");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-simplex","Whether to use simplices (true) or tensor-product (false) cells in the mesh","ex38.c",user->simplex,
-                          &user->simplex,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-dim","Number of solution dimensions","ex38.c",user->dim,&user->dim,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnum("-mesh_transform","Method used to perturb the mesh vertices. Options are Skew,Random," "SkewRand,or None","ex38.c",
-                          PerturbationTypes,(PetscEnum)user->mesh_transform,(PetscEnum*)&user->mesh_transform,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnum("-sol_form","Form of the exact solution. Options are Linear or Sinusoidal","ex38.c",SolutionTypes,(PetscEnum)user->sol_form,
-                          (PetscEnum*)&user->sol_form,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-showNorm","Whether to print the norm of the difference between lumped and unlumped solutions.","ex38.c",user->showNorm,
-                          &user->showNorm,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-toFile","Whether to print solution errors to file.","ex38.c",user->toFile,&user->toFile,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsString("-filename","If printing results to file, the path to use.","ex38.c",user->filename,user->filename,128,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
 
 PetscErrorCode PerturbMesh(DM * mesh,PetscScalar * coordVals,PetscInt ncoord,PetscInt dim,PetscRandom * ran)
 {
@@ -1411,7 +1417,7 @@ int main(int argc,char ** argv)
   Mat             jacobian,jacobian_WY;
   Vec             u,b,u_WY,b_WY,exactSol,resVec,resVec_WY;
   PetscSection    gSec,lSec;
-  PetscReal       diffNorm,resNorm_exact;
+  PetscReal       diffNorm,resNorm_exact,bMin[3],bMax[3];
   PetscReal       *fieldDiff, *fieldDiff_WY,*fieldResNorm,*fieldResNorm_WY;
   PetscBool       solutionWithinTol;
   const PetscReal tol = 100*PETSC_SQRT_MACHINE_EPSILON;
@@ -1424,9 +1430,16 @@ int main(int argc,char ** argv)
   ierr = PetscInitialize(&argc,&argv,NULL,help);
   if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD,&user);CHKERRQ(ierr);
+  PUMP_HALF_SIDE_LENGTH = user.pumpHalfSideLength;
+  PUMP_STRENGTH = user.pumpStrength;
+  LEFT_HEAD = user.leftHead;
+  RIGHT_HEAD = user.rightHead;
 
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD,&user,&mesh_WY);CHKERRQ(ierr);
+  ierr = DMGetBoundingBox(mesh, bMin, bMax);CHKERRQ(ierr);
+  LEFT_BOUND=bMin[0];
+  RIGHT_BOUND=bMax[0];
   ierr = PetscPrintf(PETSC_COMM_WORLD,"====Mesh====\n");CHKERRQ(ierr);
   ierr = DMView(mesh,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n====Mesh_WY====\n");CHKERRQ(ierr);
@@ -1654,7 +1667,12 @@ testset:
       -dm_plex_box_faces 41,41 \
       -dm_plex_box_interpolate true \
       -dm_plex_separate_marker \
-      -sol_form subsurface_benchmark -mesh_transform none
+      -sol_form subsurface_benchmark \
+      -mesh_transform none \
+      -pump_half_side_length 2.5 \
+      -pump_strength -0.1 \
+      -left_head 105 \
+      -right_head 100
 
 testset:
   suffix: hydrology
