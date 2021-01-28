@@ -2750,9 +2750,9 @@ PetscErrorCode MatCreateSubMatrix_SeqAIJ(Mat A,IS isrow,IS iscol,PetscInt csize,
         goto cpu_copy;
       }
     } else
+cpu_copy:
 #endif
     { /* normal CPU version */
-cpu_copy:
       ierr = MatSeqAIJGetArrayRead(A,&aa);CHKERRQ(ierr);
       c = (Mat_SeqAIJ*)(C->data);
       for (i=0; i<nrows; i++) {
