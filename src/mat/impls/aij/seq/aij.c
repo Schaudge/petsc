@@ -2614,7 +2614,7 @@ PetscErrorCode MatCreateSubMatrix_SeqAIJ(Mat A,IS isrow,IS iscol,PetscInt csize,
   PetscInt          *starts,*j_new,*i_new,*aj = a->j,*ai = a->i,ii,*ailen = a->ilen;
   MatScalar         *a_new,*mat_a;
   Mat               C;
-  PetscBool         stride, iskok = PETSC_FALSE, iscu = PETSC_FALSE;
+  PetscBool         stride;
 
   PetscFunctionBegin;
   ierr = ISGetIndices(isrow,&irow);CHKERRQ(ierr);
@@ -2728,6 +2728,7 @@ PetscErrorCode MatCreateSubMatrix_SeqAIJ(Mat A,IS isrow,IS iscol,PetscInt csize,
     }
 #if defined(PETSC_HAVE_DEVICE)
     if (A->offloadmask == PETSC_OFFLOAD_GPU || A->offloadmask == PETSC_OFFLOAD_BOTH) {
+      PetscBool iskok = PETSC_FALSE, iscu = PETSC_FALSE;
       ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQAIJKOKKOS,&iskok);CHKERRQ(ierr);
       ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQAIJCUSPARSE,&iscu);CHKERRQ(ierr);
       if (iskok) {
