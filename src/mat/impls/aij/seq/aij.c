@@ -2726,6 +2726,7 @@ PetscErrorCode MatCreateSubMatrix_SeqAIJ(Mat A,IS isrow,IS iscol,PetscInt csize,
       ierr = MatSetType(C,((PetscObject)A)->type_name);CHKERRQ(ierr);
       ierr = MatSeqAIJSetPreallocation_SeqAIJ(C,0,lens);CHKERRQ(ierr);
     }
+#if defined(PETSC_HAVE_DEVICE)
     if (A->offloadmask == PETSC_OFFLOAD_GPU || A->offloadmask == PETSC_OFFLOAD_BOTH) {
       ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQAIJKOKKOS,&iskok);CHKERRQ(ierr);
       ierr = PetscObjectTypeCompare((PetscObject)A,MATSEQAIJCUSPARSE,&iscu);CHKERRQ(ierr);
@@ -2747,7 +2748,9 @@ PetscErrorCode MatCreateSubMatrix_SeqAIJ(Mat A,IS isrow,IS iscol,PetscInt csize,
         ierr = PetscInfo(A, "Warning: have GPU offload but unsupported device\n");CHKERRQ(ierr);
         goto cpu_copy;
       }
-    } else { /* normal CPU version */
+    } else
+#endif
+    { /* normal CPU version */
 cpu_copy:
       ierr = MatSeqAIJGetArrayRead(A,&aa);CHKERRQ(ierr);
       c = (Mat_SeqAIJ*)(C->data);
