@@ -133,25 +133,29 @@ PetscErrorCode DMBF_XD_GetSizes(DM dm, DM_BF_XD_Cells *cells, PetscInt *nLocal, 
 
 PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, PetscInt *fromIdx, PetscInt *toIdx)
 {
-  p4est_t          *p4est = cells->p4est;
-  p4est_ghost_t    *ghost = cells->ghost;
-  p4est_locidx_t    n, ng, lid, i;
+  p4est_t           *p4est = cells->p4est;
+  p4est_ghost_t     *ghost = cells->ghost;
+  p4est_locidx_t    n, ng, lid, i, j, k, l, idx;
+  PetscInt          blockSize[3] = {1, 1, 1}, bs;
   p4est_gloidx_t    offset, gid;
-  p4est_quadrant_t *quad;
+  p4est_quadrant_t  *quad;
   p4est_topidx_t    t;
   int               rank;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   PetscValidIntPointer(fromIdx,3);
   PetscValidIntPointer(toIdx,4);
   /* get sizes */
+  ierr   = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  bs     = blockSize[0]*blockSize[1]*blockSize[2];
   n      = p4est->local_num_quadrants;
   ng     = ghost->ghosts.elem_count;
   offset = p4est->global_first_quadrant[p4est->mpirank];
   /* set indices of owned cells */
-  for(i = 0; i < n; i++) {
+  for(i = 0; i < n*bs; i++) {
     fromIdx[i] = (PetscInt)i;
-    toIdx[i]   = (PetscInt)(offset + i);
+    toIdx[i]   = (PetscInt)(offset*bs + i);
   }
   /* set indices of ghost cells */
   for(i = 0; i < ng; i++) {
@@ -160,8 +164,28 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
     rank = p4est_quadrant_find_owner(p4est,t,-1,quad); /* get mpirank of ghost quadrant i */
     lid  = quad->p.piggy3.local_num;                   /* get local id of ghost quadrant i on mpirank rank */
     gid  = p4est->global_first_quadrant[rank] + lid;   /* translate local id to global id */
-    fromIdx[n + i] = (PetscInt)(n + i);
-    toIdx[n + i]   = (PetscInt)gid;
+    switch(P4EST_DIM) {
+      case 2:  
+        for(k = 0; k < blockSize[1]; k++) {
+          for(j = 0; j < blockSize[0]; j++) {
+            idx = (PetscInt) n + bs*i + blockSize[0]*k + j;
+            fromIdx[idx] = idx;
+            toIdx[idx]   = (PetscInt)gid + blockSize[0]*k + j;
+          }
+        }
+        break;
+      case 3:        
+        for(l = 0; l < blockSize[2]; l++) {
+          for(k = 0; k < blockSize[1]; k++) {
+            for(j = 0; j < blockSize[0]; j++) {
+              idx = (PetscInt) n + bs*i + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
+              fromIdx[idx] = idx;
+              toIdx[idx]   = (PetscInt)gid + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
+            }
+          }
+        }
+        break;  
+    }
   }
   PetscFunctionReturn(0);
 }

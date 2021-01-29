@@ -212,7 +212,7 @@ static PetscErrorCode DMBF_CellsDestroy(DM dm)
 static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
 {
   DM_BF          *bf;
-  PetscInt       dim, n, ng;
+  PetscInt       dim, n, ng, locDof, bs, blockSize[3] = {1, 1, 1};
   PetscInt       *fromIdx, *toIdx;
   IS             fromIS, toIS;
   Vec            vloc, vglo;
@@ -224,8 +224,11 @@ static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
   /* create local-to-global indices */
   bf = _p_getBF(dm);
   ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
-  ierr = PetscMalloc1(n+ng,&fromIdx);CHKERRQ(ierr);
-  ierr = PetscMalloc1(n+ng,&toIdx);CHKERRQ(ierr);
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  bs   = blockSize[0]*blockSize[1]*blockSize[2];
+  locDof = (n + ng)*bs;
+  ierr = PetscMalloc1(locDof,&fromIdx);CHKERRQ(ierr);
+  ierr = PetscMalloc1(locDof,&toIdx);CHKERRQ(ierr);
   switch (dim) {
     case 2: ierr = DMBF_2D_GetLocalToGlobalIndices(dm,(DM_BF_2D_Cells*)bf->ftCells,fromIdx,toIdx);CHKERRQ(ierr); break;
     case 3: ierr = DMBF_3D_GetLocalToGlobalIndices(dm,(DM_BF_3D_Cells*)bf->ftCells,fromIdx,toIdx);CHKERRQ(ierr); break;
@@ -233,8 +236,8 @@ static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
   }
   /* create IS */
   ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(comm,n+ng,fromIdx,PETSC_COPY_VALUES,&fromIS);CHKERRQ(ierr);
-  ierr = ISCreateGeneral(comm,n+ng,toIdx,PETSC_COPY_VALUES,&toIS);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(comm,locDof,fromIdx,PETSC_COPY_VALUES,&fromIS);CHKERRQ(ierr);
+  ierr = ISCreateGeneral(comm,locDof,toIdx,PETSC_COPY_VALUES,&toIS);CHKERRQ(ierr);
   ierr = PetscFree(fromIdx);CHKERRQ(ierr);
   ierr = PetscFree(toIdx);CHKERRQ(ierr);
   /* create vectors */
@@ -778,7 +781,9 @@ PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
 
 static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
 {
+  PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, ng;
+  PetscInt       locDof, cellDof = 1;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -786,15 +791,22 @@ static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
   PetscValidPointer(vec,2);
   /* get number of entries */
   ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  for(PetscInt i = 0; i < dim; i++) {
+    cellDof *= blockSize[i];
+  }
+  locDof    = cellDof*(n + ng);
   /* create vector */
-  ierr = VecCreateSeq(PETSC_COMM_SELF,n+ng,vec);CHKERRQ(ierr);
+  ierr = VecCreateSeq(PETSC_COMM_SELF,locDof,vec);CHKERRQ(ierr);
   ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
 {
+  PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, N;
+  PetscInt       locDof, gloDof, cellDof = 1;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -802,8 +814,14 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   PetscValidPointer(vec,2);
   /* get number of entries */
   ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  for(PetscInt i = 0; i < dim; i++) {
+    cellDof *= blockSize[i];
+  }
+  locDof = cellDof*n;
+  gloDof = cellDof*N;
   /* create vector */
-  ierr = VecCreateMPI(PetscObjectComm((PetscObject)dm),n,N,vec);CHKERRQ(ierr);
+  ierr = VecCreateMPI(PetscObjectComm((PetscObject)dm),locDof,gloDof,vec);CHKERRQ(ierr);
   ierr = VecSetDM(*vec,dm);CHKERRQ(ierr);
   ierr = VecSetOperation(*vec,VECOP_VIEW,(void (*)(void))VecView_BF);CHKERRQ(ierr);
   //TODO
@@ -818,7 +836,10 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
 static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
 {
   void           *appctx;
+  PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, N;
+  PetscInt       cellDof = 1;
+  PetscInt       locDof,gloDof;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -826,9 +847,15 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   PetscValidPointer(mat,2);
   /* get number of rows/cols */
   ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  for(PetscInt i = 0; i < dim; i++) {
+    cellDof *= blockSize[i];
+  }
+  locDof = cellDof*n;
+  gloDof = cellDof*N;
   /* create matrix */
   ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
-  ierr = MatCreateShell(PetscObjectComm((PetscObject)dm),n,n,N,N,appctx,mat);CHKERRQ(ierr);
+  ierr = MatCreateShell(PetscObjectComm((PetscObject)dm),locDof,locDof,gloDof,gloDof,appctx,mat);CHKERRQ(ierr);
   ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
   //TODO set null space?
   PetscFunctionReturn(0);
@@ -1259,8 +1286,8 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
   DM             dm;
   PetscBool      isvtk, ishdf5, isdraw, isglvis;
   PetscErrorCode ierr;
-  PetscInt       size,ng;
-  PetscInt       vsize;
+  PetscInt       vsize,locDof,ng;
+  PetscInt       bs, blockSize[3] = {1, 1, 1};
   PetscViewerVTKFieldType ft;
   Vec            locv;
   const char     *name;
@@ -1279,14 +1306,16 @@ PetscErrorCode VecView_BF(Vec v, PetscViewer viewer)
     ierr = DMGlobalToLocal(dm,v,INSERT_VALUES,locv);CHKERRQ(ierr);
     ierr = PetscObjectGetName((PetscObject) v, &name);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) locv, name);CHKERRQ(ierr);
-    ierr = DMBFGetLocalSize(dm,&size);CHKERRQ(ierr);
+    ierr = DMBFGetLocalSize(dm,&locDof);CHKERRQ(ierr);
     ierr = DMBFGetGhostSize(dm,&ng);CHKERRQ(ierr);
     ierr = VecGetSize(locv,&vsize);CHKERRQ(ierr);
-
+    ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+    bs = blockSize[0]*blockSize[1]*blockSize[2];
+    locDof = (locDof + ng)*bs;
     //if(vsize == P4EST_DIM*size)                { ft = PETSC_VTK_CELL_VECTOR_FIELD; } /* right now this is not actually supported (dm local to global is only for cell fields) */
     //else if(vsize == size)                     { ft = PETSC_VTK_CELL_FIELD;        }
-    if(vsize == size + ng)                       { ft = PETSC_VTK_CELL_FIELD;        } /* if it's a local vector field, there will be an error before this in the dmlocaltoglobal */
-    else  SETERRQ(PetscObjectComm((PetscObject)locv), PETSC_ERR_SUP, "Only vector and scalar cell fields currently supported");
+    if(vsize == locDof)                    { ft = PETSC_VTK_CELL_FIELD;        } /* if it's a local vector field, there will be an error before this in the dmlocaltoglobal */
+    else  SETERRQ(PetscObjectComm((PetscObject)locv), PETSC_ERR_SUP, "Only scalar cell fields currently supported");
 
     ierr = PetscViewerVTKAddField(viewer,(PetscObject)dm,DMBFVTKWriteAll,PETSC_DEFAULT,ft,PETSC_TRUE,(PetscObject)locv);CHKERRQ(ierr);
   } else if(ishdf5 || isdraw || isglvis) {

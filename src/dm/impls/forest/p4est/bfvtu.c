@@ -49,31 +49,36 @@ typedef PetscReal PetscVTUReal;
 
 PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, PetscInt nPoints) {
   
-  p4est_t             *p4est;
+  p4est_t              *p4est;
   
   PetscErrorCode       ierr; 
   
-  PetscVTUReal         h2, eta_x, eta_y, eta_z = 0.;
+  PetscVTUReal         hx, hy, eta_x, eta_y, eta_z = 0.;
               
   PetscVTUReal         xyz[3];   /* 3 not P4EST_DIM */
   
-  p4est_locidx_t       xi, yi, j, k;
-  sc_array_t          *quadrants; /* use p4est data types here */
-  sc_array_t          *trees;
-  p4est_tree_t        *tree;
-  p4est_quadrant_t    *quad;
+  p4est_locidx_t       xi, yi, i, j, k, l;
+  sc_array_t           *quadrants; /* use p4est data types here */
+  sc_array_t           *trees;
+  p4est_tree_t         *tree;
+  p4est_quadrant_t     *quad;
   p4est_topidx_t       first_local_tree, last_local_tree, jt, vt[P4EST_CHILDREN];
   p4est_locidx_t       quad_count;
   size_t               num_quads, zz;
+  p4est_qcoord_t       x,y;
   const p4est_topidx_t *tree_to_vertex;
   const PetscVTUReal   *v;
-  const PetscVTUReal    intsize = 1.0 / P4EST_ROOT_LEN;
-  PetscVTUReal          scale   = .999;
-
+  const PetscVTUReal   intsize = 1.0 / P4EST_ROOT_LEN;
+  PetscVTUReal         scale   = .999999;
+  PetscInt             bs,bs0,bs1,bs2,blockSize[3] = {1,1,1},ncorners = PetscPowInt(2,P4EST_DIM);
   PetscFunctionBegin;
   
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
- 
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  bs0  = blockSize[0];
+  bs1  = blockSize[1];
+  bs2  = blockSize[2];
+  bs   = bs0*bs1*bs2;
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
   trees = p4est->trees;
@@ -93,34 +98,35 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, Pet
     }
 
     /* loop over the elements in tree and calculate vertex coordinates */
-    for (zz = 0; zz < num_quads; ++zz, ++quad_count) {
+    for (zz = 0; zz < num_quads; ++zz) {
       quad = p4est_quadrant_array_index (quadrants, zz);
-      h2 = .5 * intsize * P4EST_QUADRANT_LEN (quad->level);
-      k = 0;
-        for (yi = 0; yi < 2; ++yi) {
-          eta_y = intsize * quad->y + h2 * (1. + (yi * 2 - 1) * scale);
-          for (xi = 0; xi < 2; ++xi) {
-            P4EST_ASSERT (0 <= k && k < P4EST_CHILDREN);
-            eta_x = intsize * quad->x + h2 * (1. + (xi * 2 - 1) * scale);
-            for (j = 0; j < 3; ++j) {
-                /* *INDENT-OFF* */
-              xyz[j] =
-          ((1. - eta_z) * ((1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + j] +
-                                                 eta_x  * v[3 * vt[1] + j]) +
-                                 eta_y  * ((1. - eta_x) * v[3 * vt[2] + j] +
-                                                 eta_x  * v[3 * vt[3] + j]))
-          );
-                /* *INDENT-ON* */
-                (*point_data)[3 * (P4EST_CHILDREN * quad_count + k) + j] =
-                  (PetscVTUReal) xyz[j];
-
+      hx = .5 * P4EST_QUADRANT_LEN (quad->level) / bs0;      
+      hy = .5 * P4EST_QUADRANT_LEN (quad->level) / bs1;
+      for(j = 0; j < bs1; j++) {
+        y = quad->y + 2.*j*hy;
+        for(i = 0; i < bs0; i++, quad_count++) {
+          x = quad->x + 2.*i*hx;
+          l = 0;       
+          for (yi = 0; yi < 2; ++yi) {
+            eta_y = intsize * y + intsize * hy * (1. + (yi * 2 - 1) * scale);
+            for (xi = 0; xi < 2; ++xi) {
+              P4EST_ASSERT (0 <= l && l < P4EST_CHILDREN);
+              eta_x = intsize * x + intsize * hx * (1. + (xi * 2 - 1) * scale);
+              for(k = 0; k < 3; ++k) {
+                xyz[k] = (1. - eta_y) * ((1. - eta_x) * v[3 * vt[0] + k] 
+                                             + eta_x  * v[3 * vt[1] + k])
+                             + eta_y  * ((1. - eta_x) * v[3 * vt[2] + k] 
+                                             + eta_x  * v[3 * vt[3] + k]);
+               (*point_data)[3 * (P4EST_CHILDREN * quad_count + l) + k] = (PetscVTUReal) xyz[k];
               }
-            ++k;
+            l++;
             }
           }
-        }
+        }  
+      }
     }
-  
+  }
+  P4EST_ASSERT(P4EST_CHILDREN * quad_count == nPoints);
   PetscFunctionReturn(0);
 }
 
@@ -133,7 +139,7 @@ PetscErrorCode DMBFGetVTKConnectivity(DM dm, PetscVTKInt **conn_data, PetscInt n
   ierr = PetscMalloc1(nPoints*sizeof(PetscVTKInt), conn_data);CHKERRQ(ierr);
 
   for (il = 0; il < nPoints; ++il) {
-    conn_data[0][il] = (PetscVTKInt) il;
+    (*conn_data)[il] = (PetscVTKInt) il;
   }
   
   PetscFunctionReturn(0);
@@ -148,7 +154,7 @@ PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt **offset_data, PetscInt 
   // ierr = PetscMalloc1(nCells*sizeof(PetscVTKInt), offset_data);CHKERRQ(ierr); /* if !offset_data? */
 
   for(il = 1; il <= nCells; ++il) {
-      offset_data[0][il - 1] = (PetscVTKInt) P4EST_CHILDREN * il;  /* offsets */
+      (*offset_data)[il - 1] = (PetscVTKInt) P4EST_CHILDREN * il;  /* offsets */
   }
   
   PetscFunctionReturn(0);
@@ -162,8 +168,8 @@ PetscErrorCode DMBFGetVTKCellTypes(DM dm, PetscVTKType **type_data, PetscInt nCe
   PetscFunctionBegin;
   ierr = PetscMalloc1(nCells*sizeof(PetscVTKType), type_data);CHKERRQ(ierr); /* if !type_data? */
 
-  for(il = 1; il <= nCells; ++il) {
-      type_data[0][il - 1] = P4EST_VTK_CELL_TYPE;  /* offsets */
+  for(il = 0; il < nCells; ++il) {
+      (*type_data)[il] = P4EST_VTK_CELL_TYPE;  /* offsets */
   }
   
   PetscFunctionReturn(0);
@@ -174,15 +180,22 @@ PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt **treeids, PetscInt nCells) 
   PetscErrorCode  ierr; 
   PetscInt        il, num_quads, zz;
   p4est_t        *p4est;
-  p4est_topidx_t  jt, first_local_tree, last_local_tree;
+  p4est_topidx_t jt, first_local_tree, last_local_tree;
   p4est_tree_t   *tree;
   sc_array_t     *trees;
+  PetscInt       bs,bs0,bs1,bs2,blockSize[3] = {1,1,1};
+
 
 
   PetscFunctionBegin;
   
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
-   
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  bs0  = blockSize[0];
+  bs1  = blockSize[1];
+  bs2  = blockSize[2];
+  bs   = bs0*bs1*bs2;
+
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
   trees = p4est->trees;
@@ -195,8 +208,8 @@ PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt **treeids, PetscInt nCells) 
   for (il = 0, jt = first_local_tree; jt <= last_local_tree; ++jt) {
     tree = p4est_tree_array_index (trees, jt);
     num_quads = (PetscInt) tree->quadrants.elem_count;
-    for (zz = 0; zz < num_quads; ++zz, ++il) {
-      treeids[0][il] = (PetscVTKInt) jt;
+    for(zz = 0; zz < num_quads*bs; ++zz, ++il) {
+      (*treeids)[il] = (PetscVTKInt) jt;
     }
   }
   
@@ -215,7 +228,7 @@ PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt **mpirank, PetscInt nCells) 
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
 
   for(il = 0; il < nCells; il++) {
-    mpirank[0][il] = (PetscVTKInt)rank;
+    (*mpirank)[il] = (PetscVTKInt)rank;
   }
   
   PetscFunctionReturn(0);
@@ -224,19 +237,26 @@ PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt **mpirank, PetscInt nCells) 
 PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt **quadlevel, PetscInt nCells) {
   
   PetscErrorCode    ierr; 
-  PetscInt          k, Q, q;
+  PetscInt          i, k, Q, q;
   
   p4est_topidx_t    tt, first_local_tree, last_local_tree;
   sc_array_t       *trees, *tquadrants;
   p4est_tree_t     *tree;
   p4est_quadrant_t *quad;
   p4est_t          *p4est;
+  PetscInt         bs,bs0,bs1,bs2,blockSize[3] = {1,1,1};
+
   
   PetscFunctionBegin;
   
   ierr = PetscMalloc1(nCells*sizeof(PetscVTKInt), quadlevel);CHKERRQ(ierr); /* if !type_data? */
   
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  bs0  = blockSize[0];
+  bs1  = blockSize[1];
+  bs2  = blockSize[2];
+  bs   = bs0*bs1*bs2;
    
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
@@ -246,12 +266,13 @@ PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt **quadlevel, Pet
     tree = p4est_tree_array_index(p4est->trees, tt);
     tquadrants = &tree->quadrants;
     Q = (PetscInt) tquadrants->elem_count;
-    for (q = 0; q < Q; ++q, ++k) {
+    for (q = 0; q < Q; ++q) {
        quad = p4est_quadrant_array_index(tquadrants, q);
-       quadlevel[0][k] = (PetscVTKInt) quad->level;
+       for(i = 0; i < bs; i++, k++) {
+         (*quadlevel)[k] = (PetscVTKInt) quad->level;
+       }
      }
   }
-  
   PetscFunctionReturn(0);
 }
 
@@ -269,16 +290,18 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
   PetscErrorCode           ierr;
   const char               *byte_order = PetscBinaryBigEndian() ? "BigEndian" : "LittleEndian";
   PetscInt                 locSize, nPoints, nCells;
+  PetscInt                 bs,bs0,bs1,bs2,blockSize[3] = {1,1,1};
   PetscInt                 offset = 0;
   PetscVTKInt              *int_data;
   PetscVTUReal             *float_data;
   PetscVTKType             *type_data;
-  char                      lfname[PETSC_MAX_PATH_LEN];
-  char                      noext[PETSC_MAX_PATH_LEN];
-  PetscMPIInt               rank;
-  int                       n;
-  PetscVTKInt               bytes = 0;
-  size_t                    write_ret;         
+  char                     lfname[PETSC_MAX_PATH_LEN];
+  char                     noext[PETSC_MAX_PATH_LEN];
+  PetscMPIInt              rank;
+  int                      n;
+  PetscVTKInt              bytes = 0;
+  size_t                   write_ret;         
+
 
   PetscFunctionBegin;
   
@@ -299,9 +322,16 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
    * P4EST_CHILDREN*locSize local corners.
    */
   
-  ierr = DMBFGetLocalSize(dm, &locSize);CHKERRQ(ierr);
-  nCells          = locSize;
-  nPoints         = P4EST_CHILDREN*locSize;
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  ierr = DMBFGetLocalSize(dm,&locSize);CHKERRQ(ierr);
+
+  bs0  = blockSize[0];
+  bs1  = blockSize[1];
+  bs2  = blockSize[2];
+  bs   = bs0*bs1*bs2;
+  
+  nCells          = locSize*bs;
+  nPoints         = P4EST_CHILDREN*nCells;
   
   ierr = PetscFPrintf(PETSC_COMM_SELF,f,"    <Piece NumberOfPoints=\"%D\" NumberOfCells=\"%D\">\n",
            nPoints, nCells);CHKERRQ(ierr);
@@ -513,11 +543,11 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 PetscErrorCode DMBFVTKWriteAll(PetscObject odm,PetscViewer viewer)
 {
   DM dm = (DM) odm;
-  PetscViewer_VTK          *vtk = (PetscViewer_VTK*)viewer->data;
-  PetscViewerVTKObjectLink link;
-  FILE                     *f;
-  PetscErrorCode           ierr;
-  const char               *byte_order = PetscBinaryBigEndian() ? "BigEndian" : "LittleEndian";
+  PetscViewer_VTK           *vtk = (PetscViewer_VTK*)viewer->data;
+  PetscViewerVTKObjectLink  link;
+  FILE                      *f;
+  PetscErrorCode            ierr;
+  const char                *byte_order = PetscBinaryBigEndian() ? "BigEndian" : "LittleEndian";
   char                      gfname[PETSC_MAX_PATH_LEN];
   char                      noext[PETSC_MAX_PATH_LEN];
   PetscMPIInt               rank, size;
