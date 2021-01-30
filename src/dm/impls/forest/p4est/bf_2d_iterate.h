@@ -4,6 +4,8 @@
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
 
 PetscErrorCode DMBF_2D_IterateSetUpCells(DM,DM_BF_Cell*,size_t,size_t,size_t);
+PetscErrorCode DMBF_2D_IterateSetUpP4estCells(DM,size_t,size_t,size_t);
+PetscErrorCode DMBF_2D_IterateCopyP4estCells(DM,DM_BF_Cell*,size_t);
 PetscErrorCode DMBF_2D_IterateSetCellData(DM,DM_BF_Cell*,size_t,size_t,size_t,const PetscInt*,PetscInt,const PetscInt*,PetscInt,Vec*,Vec*);
 PetscErrorCode DMBF_2D_IterateGetCellData(DM,DM_BF_Cell*,size_t,size_t,size_t,const PetscInt*,PetscInt,const PetscInt*,PetscInt,Vec*,Vec*);
 

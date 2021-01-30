@@ -1,4 +1,5 @@
 #include <petscdmbf.h> /*I "petscdmbf.h" I*/
+#include <petsc/private/dmbfimpl.h>
 #include <petscdm.h>   /*I "petscdm.h" I*/
 
 #if defined(PETSC_HAVE_P4EST)
@@ -76,7 +77,13 @@ static void _p_getVecView(/*IN    */ const PetscScalar **vecViewRead, PetscInt n
  * CELL SETUP
  **************************************/
 
+typedef enum {
+  SET_DMBF_CELLS,
+  SET_P4EST_CELLS
+} DM_BF_SetUpMode;
+
 typedef struct _p_DM_BF_SetUpCtx {
+  DM_BF_SetUpMode   mode;
   /* DM-specifc info (required) */
   DM                dm;
   DM_BF_Cell        *cells;
@@ -86,14 +93,23 @@ typedef struct _p_DM_BF_SetUpCtx {
 static void _p_iterSetUp(p4est_iter_volume_info_t *info, void *ctx)
 {
   DM_BF_SetUpCtx *iterCtx = ctx;
-  DM_BF_Cell     *cell    = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,info->treeid,info->quadid,0/*!ghost*/);
+  DM_BF_Cell     *cell = PETSC_NULL;
 
+  /* get cell */
+  switch (iterCtx->mode) {
+    case SET_DMBF_CELLS:  cell = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,info->treeid,info->quadid,0/*!ghost*/); break;
+    case SET_P4EST_CELLS: cell = info->quad->p.user_data; break;
+  }
   /* get cell info */
   _p_getInfo(info->p4est,info->quad,info->treeid,info->quadid,0,cell);
+  cell->adaptFlag     = DM_ADAPT_DETERMINE;
   cell->dataRead      = (const PetscScalar*)_p_getCellDataPtr(cell,iterCtx->cellOffsetDataRead);
   cell->dataReadWrite = (PetscScalar*)      _p_getCellDataPtr(cell,iterCtx->cellOffsetDataReadWrite);
   /* assign cell to forest quadrant */
-  info->quad->p.user_data = cell;
+  switch (iterCtx->mode) {
+    case SET_DMBF_CELLS:  info->quad->p.user_data = cell; break;
+    case SET_P4EST_CELLS: break;
+  }
 }
 
 PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite)
@@ -106,6 +122,7 @@ PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, size_t cellSi
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   /* set iterator context */
+  iterCtx.mode                    = (cells ? SET_DMBF_CELLS : SET_P4EST_CELLS);
   iterCtx.dm                      = dm;
   iterCtx.cells                   = cells;
   iterCtx.cellSize                = cellSize;
@@ -114,12 +131,57 @@ PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, size_t cellSi
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+  if (cells && p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Unclear which cell data allocation should be used");
+  if (!cells && !p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cell data allocations do not exist");
+  if (!cells && p4est->data_size != cellSize) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"p4est data size mismatch: is %d, should be %d",(int)p4est->data_size,(int)cellSize);
 #if defined(P4_TO_P8)
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetUp,NULL,NULL,NULL));
 #else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetUp,NULL,NULL));
 #endif
   p4est->data_size = cellSize;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_IterateSetUpP4estCells(DM dm, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  CHKERRQ( DMBF_XD_IterateSetUpCells(dm,PETSC_NULL,cellSize,cellOffsetDataRead,cellOffsetDataReadWrite) );
+  PetscFunctionReturn(0);
+}
+
+static void _p_iterCopy(p4est_iter_volume_info_t *info, void *ctx)
+{
+  DM_BF_SetUpCtx *iterCtx = ctx;
+  DM_BF_Cell     *cell    = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,info->treeid,info->quadid,0/*!ghost*/);
+
+  CHKERRV( PetscMemcpy(cell,info->quad->p.user_data,iterCtx->cellSize) );
+}
+
+PetscErrorCode DMBF_XD_IterateCopyP4estCells(DM dm, DM_BF_Cell *cells, size_t cellSize)
+{
+  DM_BF_SetUpCtx iterCtx;
+  PetscErrorCode ierr;
+  p4est_t        *p4est;
+  p4est_ghost_t  *ghost;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  /* set iterator context */
+  iterCtx.dm       = dm;
+  iterCtx.cells    = cells;
+  iterCtx.cellSize = cellSize;
+  /* run iterator */
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+  if (!p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"p4est has no user data memory");
+  if (p4est->data_size != cellSize) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"p4est data size mismatch: is %d, should be %d",(int)p4est->data_size,(int)cellSize);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterCopy,NULL,NULL,NULL));
+#else
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterCopy,NULL,NULL));
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -245,7 +307,7 @@ typedef struct _p_DM_BF_GetCellDataIterCtx {
   PetscScalar       **vecViewRead, **vecViewReadWrite;
 } DM_BF_GetCellDataIterCtx;
 
-static void _p_iterGetCellDate(p4est_iter_volume_info_t *info, void *ctx)
+static void _p_iterGetCellData(p4est_iter_volume_info_t *info, void *ctx)
 {
   DM_BF_GetCellDataIterCtx *iterCtx = ctx;
   DM_BF_Cell               *cell    = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,info->treeid,info->quadid,0/*!ghost*/);
@@ -321,9 +383,9 @@ PetscErrorCode DMBF_XD_IterateGetCellData(DM dm, DM_BF_Cell *cells, size_t cellS
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
 #if defined(P4_TO_P8)
-  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellDate,NULL,NULL,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellData,NULL,NULL,NULL));
 #else
-  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellDate,NULL,NULL));
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellData,NULL,NULL));
 #endif
   /* clear iterator context */
   if (vecRead) {
@@ -480,7 +542,6 @@ static void _p_iterFace(p4est_iter_face_info_t *info, void *ctx)
   DM_BF_Face           *face      = &iterCtx->face;
   const PetscBool      isBoundary = (1 == info->sides.elem_count);
   PetscInt             i;
-  PetscErrorCode       ierr;
 
 #if defined(PETSC_USE_DEBUG)
   face->cellL[0] = PETSC_NULL;
@@ -530,7 +591,7 @@ static void _p_iterFace(p4est_iter_face_info_t *info, void *ctx)
     }
   }
   /* call face function */
-  ierr = iterCtx->iterFace(iterCtx->dm,face,iterCtx->userIterCtx);CHKERRV(ierr);
+  CHKERRV( iterCtx->iterFace(iterCtx->dm,face,iterCtx->userIterCtx) );
 }
 
 PetscErrorCode DMBF_XD_IterateOverFaces(DM dm, DM_BF_Cell *cells, size_t cellSize,

@@ -33,6 +33,7 @@ static PetscErrorCode DMBF_XD_P4estDestroy(DM dm, p4est_t *p4est)
 {
   PetscFunctionBegin;
   p4est->data_size = 0; /* avoid that p4est destroys quadrant data */
+  if (p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"p4est should not allocate user data memory");
   PetscStackCallP4est(p4est_destroy,(p4est));
   PetscFunctionReturn(0);
 }
@@ -83,38 +84,88 @@ PetscErrorCode DMBF_XD_CellsDestroy(DM dm, DM_BF_XD_Cells *cells)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsClone(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trgCells, DM trgDm)
+PetscErrorCode DMBF_XD_CellsClone(/*IN    */ DM_BF_XD_Cells *origCells,
+                                  /*OUT   */ DM_BF_XD_Cells **clonedCells,
+                                  /*IN/OUT*/ DM clonedDm)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
-  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*duplicate mpicomm*/));
-  ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
+  ierr = PetscNewLog(clonedDm,clonedCells);CHKERRQ(ierr);
+  PetscStackCallP4estReturn((*clonedCells)->p4est,p4est_copy_ext,(origCells->p4est,0/*!copy data*/,1/*duplicate mpicomm*/));
+  ierr = DMBF_XD_GhostCreate((*clonedCells)->p4est,&(*clonedCells)->ghost);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsCoarsen(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trgCells, DM trgDm, PetscInt minLevel)
+PetscErrorCode DMBF_XD_CellsCoarsen(/*IN    */ DM_BF_XD_Cells *origCells,
+                                    /*OUT   */ DM_BF_XD_Cells **coarseCells,
+                                    /*IN/OUT*/ DM coarseDm,
+                                    /*IN    */ PetscInt minLevel)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
-  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*duplicate mpicomm*/));
-  ierr = DMBF_XD_AmrCoarsenUniformly((*trgCells)->p4est,minLevel);CHKERRQ(ierr);
-  ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
+  ierr = PetscNewLog(coarseDm,coarseCells);CHKERRQ(ierr);
+  PetscStackCallP4estReturn((*coarseCells)->p4est,p4est_copy_ext,(origCells->p4est,0/*!copy data*/,1/*duplicate mpicomm*/));
+  ierr = DMBF_XD_AmrCoarsenUniformly((*coarseCells)->p4est,minLevel);CHKERRQ(ierr);
+  ierr = DMBF_XD_GhostCreate((*coarseCells)->p4est,&(*coarseCells)->ghost);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBF_XD_CellsRefine(DM_BF_XD_Cells *srcCells, DM_BF_XD_Cells **trgCells, DM trgDm, PetscInt maxLevel)
+PetscErrorCode DMBF_XD_CellsRefine(/*IN    */ DM_BF_XD_Cells *origCells,
+                                   /*OUT   */ DM_BF_XD_Cells **fineCells,
+                                   /*IN/OUT*/ DM fineDm,
+                                   /*IN    */ PetscInt maxLevel)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscNewLog(trgDm,trgCells);CHKERRQ(ierr);
-  PetscStackCallP4estReturn((*trgCells)->p4est,p4est_copy_ext,(srcCells->p4est,0/*copy data*/,1/*duplicate mpicomm*/));
-  ierr = DMBF_XD_AmrRefineUniformly((*trgCells)->p4est,maxLevel);CHKERRQ(ierr);
-  ierr = DMBF_XD_GhostCreate((*trgCells)->p4est,&(*trgCells)->ghost);CHKERRQ(ierr);
+  ierr = PetscNewLog(fineDm,fineCells);CHKERRQ(ierr);
+  PetscStackCallP4estReturn((*fineCells)->p4est,p4est_copy_ext,(origCells->p4est,0/*!copy data*/,1/*duplicate mpicomm*/));
+  ierr = DMBF_XD_AmrRefineUniformly((*fineCells)->p4est,maxLevel);CHKERRQ(ierr);
+  ierr = DMBF_XD_GhostCreate((*fineCells)->p4est,&(*fineCells)->ghost);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_CellsAmrAdapt(/*IN    */ DM_BF_XD_Cells *origCells,
+                                     /*OUT   */ DM_BF_XD_Cells **adapCells,
+                                     /*IN/OUT*/ DM adapDm,
+                                     /*IN    */ DM_BF_AmrOps *amrOps, PetscInt minLevel, PetscInt maxLevel,
+                                                size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite)
+{
+  p4est_t        *orig_p4est = origCells->p4est;
+  p4est_t        *adap_p4est;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscNewLog(adapDm,adapCells);CHKERRQ(ierr);
+  /* create copy of p4est */
+  PetscStackCallP4estReturn((*adapCells)->p4est,p4est_copy_ext,(orig_p4est,0/*!copy data*/,1/*duplicate mpicomm*/));
+  adap_p4est = (*adapCells)->p4est;
+  /* adapt cells of p4est */
+  ierr = DMBF_XD_AmrAdapt(adap_p4est,minLevel,maxLevel);CHKERRQ(ierr);
+  /* create and setup cell data owned by p4est */
+  PetscStackCallP4est(p4est_reset_data,(adap_p4est,cellSize,NULL/*init_fn*/,orig_p4est->user_pointer));
+  ierr = DMBF_XD_IterateSetUpP4estCells(adapDm,cellSize,cellOffsetDataRead,cellOffsetDataReadWrite);CHKERRQ(ierr);
+  /* adapt cell data */
+  ierr = DMBF_XD_AmrAdaptData(orig_p4est,adap_p4est,adapDm,amrOps);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_CellsAmrPartition(/*IN/OUT*/ DM_BF_XD_Cells *cells)
+{
+  PetscFunctionBegin;
+  CHKERRQ( DMBF_XD_AmrPartition(cells->p4est) );
+  CHKERRQ( DMBF_XD_GhostCreate(cells->p4est,&cells->ghost) );
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBF_XD_CellsAmrFinalize(/*IN/OUT*/ DM dm, DM_BF_XD_Cells *cells, DM_BF_Cell *bfCells,
+                                        /*IN    */ size_t cellSize)
+{
+  PetscFunctionBegin;
+  CHKERRQ( DMBF_XD_IterateCopyP4estCells(dm,bfCells,cellSize) );
+  PetscStackCallP4est(p4est_reset_data,(cells->p4est,0/*data_size*/,NULL/*init_fn*/,cells->p4est->user_pointer));
   PetscFunctionReturn(0);
 }
 
@@ -165,7 +216,7 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
     lid  = quad->p.piggy3.local_num;                   /* get local id of ghost quadrant i on mpirank rank */
     gid  = p4est->global_first_quadrant[rank] + lid;   /* translate local id to global id */
     switch(P4EST_DIM) {
-      case 2:  
+      case 2:
         for(k = 0; k < blockSize[1]; k++) {
           for(j = 0; j < blockSize[0]; j++) {
             idx = (PetscInt) n + bs*i + blockSize[0]*k + j;
@@ -174,7 +225,7 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
           }
         }
         break;
-      case 3:        
+      case 3:
         for(l = 0; l < blockSize[2]; l++) {
           for(k = 0; k < blockSize[1]; k++) {
             for(j = 0; j < blockSize[0]; j++) {
@@ -184,7 +235,7 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
             }
           }
         }
-        break;  
+        break;
     }
   }
   PetscFunctionReturn(0);

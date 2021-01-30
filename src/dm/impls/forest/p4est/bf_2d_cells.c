@@ -1,4 +1,5 @@
 #include "bf_2d_cells.h"
+#include "bf_2d_iterate.h"
 
 #if defined(PETSC_HAVE_P4EST)
 
@@ -13,12 +14,18 @@
 #define _p_DM_BF_XD_Cells               _p_DM_BF_2D_Cells
 
 #define DMBF_XD_TopologyGetConnectivity DMBF_2D_TopologyGetConnectivity
+#define DMBF_XD_IterateSetUpP4estCells  DMBF_2D_IterateSetUpP4estCells
+#define DMBF_XD_IterateCopyP4estCells   DMBF_2D_IterateCopyP4estCells
 
 #define DMBF_XD_CellsCreate             DMBF_2D_CellsCreate
 #define DMBF_XD_CellsDestroy            DMBF_2D_CellsDestroy
 #define DMBF_XD_CellsClone              DMBF_2D_CellsClone
+
 #define DMBF_XD_CellsCoarsen            DMBF_2D_CellsCoarsen
 #define DMBF_XD_CellsRefine             DMBF_2D_CellsRefine
+#define DMBF_XD_CellsAmrAdapt           DMBF_2D_CellsAmrAdapt
+#define DMBF_XD_CellsAmrPartition       DMBF_2D_CellsAmrPartition
+#define DMBF_XD_CellsAmrFinalize        DMBF_2D_CellsAmrFinalize
 
 #define DMBF_XD_GetSizes                DMBF_2D_GetSizes
 #define DMBF_XD_GetLocalToGlobalIndices DMBF_2D_GetLocalToGlobalIndices

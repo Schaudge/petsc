@@ -13,8 +13,8 @@ static PetscErrorCode DMBF_XD_ConnectivityDestroy(DM dm, p4est_connectivity_t *c
 }
 
 struct _p_DM_BF_XD_Topology {
+  int                   refct;
   p4est_connectivity_t *connectivity;
-  PetscInt             connectivityRefct;
 };
 
 PetscErrorCode DMBF_XD_TopologyCreate(DM dm, DM_BF_XD_Topology **topology)
@@ -24,7 +24,7 @@ PetscErrorCode DMBF_XD_TopologyCreate(DM dm, DM_BF_XD_Topology **topology)
   PetscFunctionBegin;
   ierr = PetscNewLog(dm,topology);CHKERRQ(ierr);
   ierr = DMBF_XD_ConnectivityCreate(dm,&(*topology)->connectivity);CHKERRQ(ierr);
-  (*topology)->connectivityRefct = 1;
+  (*topology)->refct = 1;
   PetscFunctionReturn(0);
 }
 
@@ -33,22 +33,19 @@ PetscErrorCode DMBF_XD_TopologyDestroy(DM dm, DM_BF_XD_Topology *topology)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  topology->connectivityRefct -= 1;
-  if (!topology->connectivityRefct) {
+  topology->refct -= 1;
+  if (!topology->refct) {
     ierr = DMBF_XD_ConnectivityDestroy(dm,topology->connectivity);CHKERRQ(ierr);
+    ierr = PetscFree(topology);CHKERRQ(ierr);
   }
-  ierr = PetscFree(topology);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode DMBF_XD_TopologyClone(DM_BF_XD_Topology *srcTopology, DM_BF_XD_Topology **trgTopology, DM trgDm)
 {
-  PetscErrorCode ierr;
-
   PetscFunctionBegin;
-  ierr = PetscNewLog(trgDm,trgTopology);CHKERRQ(ierr);
-  (*trgTopology)->connectivity = srcTopology->connectivity;
-  srcTopology->connectivityRefct += 1;
+  (*trgTopology) = srcTopology;
+  (*trgTopology)->refct += 1;
   PetscFunctionReturn(0);
 }
 

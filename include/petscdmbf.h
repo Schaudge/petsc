@@ -14,12 +14,14 @@ PETSC_EXTERN PetscErrorCode DMBFGetGlobalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhostSize(DM,PetscInt*);
 
 typedef struct _p_DM_BF_Cell {
-  /* corner coordinates */
-  PetscReal         corner[8*3], volume, sidelength[3], dummy1[4];
+  /* corner coordinates, etc. */
+  PetscReal         corner[8*3], volume, sidelength[3], padding1[4];
   /* cell indices local to this processor rank and global across all ranks */
   PetscInt          indexLocal, indexGlobal;
   /* cell refinement level */
-  PetscInt          level, dummy2;
+  PetscInt          level, padding2;
+  /* flag for AMR */
+  DMAdaptFlag       adaptFlag;
   /* view of vector entries corresponding to this cell (not owned) */
   const PetscScalar **vecViewRead;
   PetscScalar       **vecViewReadWrite;
@@ -45,8 +47,16 @@ PETSC_EXTERN PetscErrorCode DMBFSetCellData(DM,Vec*,Vec*);
 PETSC_EXTERN PetscErrorCode DMBFGetCellData(DM,Vec*,Vec*);
 PETSC_EXTERN PetscErrorCode DMBFCommunicateGhostCells(DM);
 
-PETSC_EXTERN PetscErrorCode DMBFGetP4est(DM,void*);
-PETSC_EXTERN PetscErrorCode DMBFGetGhost(DM,void*);
+typedef struct _p_DM_BF_AmrOps {
+  PetscErrorCode (*setAmrFlag)(DM,DM_BF_Cell*,void*);
+  PetscErrorCode (*projectToCoarse)(DM,DM_BF_Cell**,PetscInt,DM_BF_Cell**,PetscInt,void*);
+  PetscErrorCode (*projectToFine)(DM,DM_BF_Cell**,PetscInt,DM_BF_Cell**,PetscInt,void*);
+  void *setAmrFlagCtx, *projectToCoarseCtx, *projectToFineCtx;
+} DM_BF_AmrOps;
+
+PETSC_EXTERN PetscErrorCode DMBFAMRSetOperators(DM,DM_BF_AmrOps*);
+PETSC_EXTERN PetscErrorCode DMBFAMRFlag(DM);
+PETSC_EXTERN PetscErrorCode DMBFAMRAdapt(DM,DM*);
 
 PETSC_EXTERN PetscErrorCode DMBFVTKWriteAll(PetscObject,PetscViewer);
 
