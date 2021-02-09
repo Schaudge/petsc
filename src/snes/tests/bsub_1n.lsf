@@ -1,0 +1,50 @@
+#!/bin/bash
+#BSUB -P csc314
+#BSUB -J test_matmatgpu
+#BSUB -W 02:00
+#BSUB -nnodes 1
+##BSUB -nnodes 8
+##BSUB -nnodes 64
+##BSUB -alloc_flags "gpumps smt4"
+
+# using src/snes/tests/ex13.c
+EXE=./ex13
+
+######################################
+# This is a weak scaling test
+# uncomment the pair (nnodes,ref) and modify the BSUB directive above accordingly
+######################################
+
+nnodes=1
+ref=3
+
+#nnodes=8
+#ref=4
+
+#nnodes=64
+#ref=5
+
+# no need to modify anything below this point
+rs=6
+nn=$(printf '%04d' $nnodes)
+ng=$(($rs * $nnodes))
+OPTS="-options_file opts.txt -dm_refine_pre $ref -pc_gamg_square_graph 10 "
+GPU="-dm_mat_type aijcusparse -dm_vec_type cuda -matmatmult_backend_mergeB "
+CPU="-dm_mat_type aij "
+for f in "7"; do
+  np=$(printf '%04d' $ng)
+  # GPU runs 1 MPI process per GPU (run with GPU aware)
+  # note that the filtering script assumes you have one run per GPU case
+  # if you also want to collect timings with CPU MPI, you need to place those logs in a different folder
+  jsrun --smpiargs="-gpu" -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 1 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_gpu_gpumpi_nn${nn}_np${np}_f${f}
+  jsrun --smpiargs="-gpu" -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 1 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_gpu_gpumpi_nn${nn}_np${np}_f${f}
+  #jsrun                  -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 0 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_gpu_cpumpi_nn${nn}_np${np}_f${f}
+  #jsrun                  -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 0 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_gpu_cpumpi_nn${nn}_np${np}_f${f}
+  # CPU runs, keep problem fixed, increase node resources (strong scaling within node)
+  for a in "1" "2" "3" "4" "5" "6" "7"; do
+    n=$(($ng * $a))
+    np=$(printf '%04d' $n)
+    jsrun -n $ng -a $a -c $a -r $rs $EXE $OPTS $CPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_nn${nn}_np${np}_f${f}
+    jsrun -n $ng -a $a -c $a -r $rs $EXE $OPTS $CPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_nn${nn}_np${np}_f${f}
+  done
+done

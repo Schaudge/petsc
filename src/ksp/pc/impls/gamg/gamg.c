@@ -83,10 +83,18 @@ static PetscErrorCode PCGAMGCreateLevel_GAMG(PC pc,Mat Amat_fine,PetscInt cr_bs,
   ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
   ierr = MPI_Comm_size(comm, &size);CHKERRMPI(ierr);
   ierr = MatGetBlockSize(Amat_fine, &f_bs);CHKERRQ(ierr);
-  ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][1],0,0,0,0);CHKERRQ(ierr);
-  ierr = MatPtAP(Amat_fine, Pold, MAT_INITIAL_MATRIX, 2.0, &Cmat);CHKERRQ(ierr);
-  ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][1],0,0,0,0);CHKERRQ(ierr);
-
+  PetscBool testnumeric = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(NULL,NULL,"-pc_gamg_numericonly",&testnumeric,NULL);CHKERRQ(ierr);
+  if (testnumeric) {
+    ierr = MatPtAP(Amat_fine, Pold, MAT_INITIAL_MATRIX, 2.0, &Cmat);CHKERRQ(ierr);
+    ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][1],0,0,0,0);CHKERRQ(ierr);
+    ierr = MatPtAP(Amat_fine, Pold, MAT_REUSE_MATRIX, 2.0, &Cmat);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][1],0,0,0,0);CHKERRQ(ierr);
+  } else {
+    ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][1],0,0,0,0);CHKERRQ(ierr);
+    ierr = MatPtAP(Amat_fine, Pold, MAT_INITIAL_MATRIX, 2.0, &Cmat);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][1],0,0,0,0);CHKERRQ(ierr);
+  }
   if (Pcolumnperm) *Pcolumnperm = NULL;
 
   /* set 'ncrs' (nodes), 'ncrs_eq' (equations)*/

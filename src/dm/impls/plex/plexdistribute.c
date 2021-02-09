@@ -1524,8 +1524,9 @@ PetscErrorCode DMPlexMigrate(DM dm, PetscSF sf, DM targetDM)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  ierr = PetscLogEventBegin(DMPLEX_Migrate, dm, 0, 0, 0);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = MPI_Barrier(comm);CHKERRMPI(ierr);
+  ierr = PetscLogEventBegin(DMPLEX_Migrate, dm, 0, 0, 0);CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
   ierr = DMSetDimension(targetDM, dim);CHKERRQ(ierr);
   ierr = DMGetCoordinateDim(dm, &cdim);CHKERRQ(ierr);
