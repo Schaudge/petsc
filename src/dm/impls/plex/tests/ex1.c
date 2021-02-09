@@ -33,6 +33,7 @@ typedef struct {
   PetscBool     redistribute;
   PetscBool     final_ref;                       /* Run refinement at the end */
   PetscBool     final_diagnostics;               /* Run diagnostics on the final mesh */
+  PetscInt      testcase;
 } AppCtx;
 
 PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -72,6 +73,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->redistribute      = PETSC_FALSE;
   options->final_ref         = PETSC_FALSE;
   options->final_diagnostics = PETSC_TRUE;
+  options->testcase          = 0;
 
   ierr = PetscOptionsBegin(comm, "", "Meshing Problem Options", "DMPLEX");CHKERRQ(ierr);
   ierr = PetscOptionsBoundedInt("-debug", "The debugging level", "ex1.c", options->debug, &options->debug, NULL,0);CHKERRQ(ierr);
@@ -112,6 +114,7 @@ PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBool("-test_redistribute", "Test redistribution", "ex1.c", options->redistribute, &options->redistribute, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-final_ref", "Run uniform refinement on the final mesh", "ex1.c", options->final_ref, &options->final_ref, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-final_diagnostics", "Run diagnostics on the final mesh", "ex1.c", options->final_diagnostics, &options->final_diagnostics, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-testcase", "Partitioning test case", "ex1.c", options->testcase, &options->testcase, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();
 
   ierr = PetscLogEventRegister("CreateMesh", DM_CLASSID, &options->createMeshEvent);CHKERRQ(ierr);
@@ -318,6 +321,37 @@ PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
       ierr = DMPlexGetPartitioner(*dm,&part);CHKERRQ(ierr);
       ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
     }
+
+    if (user->testcase) { /* produces par (1) and parrand (2) test cases */
+      PetscPartitioner part;
+
+      ierr = DMPlexGetPartitioner(*dm,&part);CHKERRQ(ierr);
+      switch (user->testcase) {
+      case 2: /* Use a random partitioner to obtain a scrambled mesh to be redistributed later with some graph partitioning algorithm*/
+        ierr = PetscPartitionerSetType(part,PETSCPARTITIONERSHELL);CHKERRQ(ierr);
+        ierr = PetscPartitionerShellSetRandom(part,PETSC_TRUE);CHKERRQ(ierr);
+        break;
+      case 1: /* Use a simple partitioner to get a chunked mesh to be redistributed later with some graph partitioning algorithm*/
+        ierr = PetscPartitionerSetType(part,PETSCPARTITIONERSIMPLE);CHKERRQ(ierr);
+        break;
+      default:
+        break;
+      }
+      ierr = DMPlexDistribute(*dm, 0, NULL, &distributedMesh);CHKERRQ(ierr);
+      if (distributedMesh) {
+        ierr = DMDestroy(dm);CHKERRQ(ierr);
+        *dm  = distributedMesh;
+      }
+
+      /* recreate partitioner from options database */
+      ierr = DMPlexGetPartitioner(*dm,&part);CHKERRQ(ierr);
+      ierr = PetscPartitionerSetFromOptions(part);CHKERRQ(ierr);
+    }
+
+    /* Distribute mesh over processes (do not take timings here since they may involve library loads */
+    ierr = DMPlexDistribute(*dm, 0, NULL, &distributedMesh);CHKERRQ(ierr);
+    ierr = DMDestroy(&distributedMesh);CHKERRQ(ierr);
+
     /* Distribute mesh over processes */
     ierr = PetscLogStagePush(user->stages[STAGE_DISTRIBUTE]);CHKERRQ(ierr);
     ierr = DMViewFromOptions(*dm, NULL, "-dm_pre_dist_view");CHKERRQ(ierr);
