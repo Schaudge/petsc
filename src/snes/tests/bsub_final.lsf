@@ -38,10 +38,10 @@ for f in "7"; do
   # GPU runs 1 MPI process per GPU (run with GPU aware)
   # note that the filtering script assumes you have one run per GPU case
   # if you also want to collect timings with CPU MPI, you need to place those logs in a different folder
-  echo jsrun --smpiargs="-gpu" -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 1 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_gpu_gpumpi_nn${nn}_np${np}_f${f}
-  echo jsrun --smpiargs="-gpu" -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 1 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_gpu_gpumpi_nn${nn}_np${np}_f${f}
-  #echo jsrun                   -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 0 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_gpu_cpumpi_nn${nn}_np${np}_f${f}
-  #echo jsrun                   -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 0 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_gpu_cpumpi_nn${nn}_np${np}_f${f}
+  jsrun --smpiargs="-gpu" -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 1 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_gpu_gpumpi_nn${nn}_np${np}_f${f}
+  jsrun --smpiargs="-gpu" -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 1 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_gpu_gpumpi_nn${nn}_np${np}_f${f}
+  #jsrun                   -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 0 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 0 >& out_symnum_gpu_cpumpi_nn${nn}_np${np}_f${f}
+  #jsrun                   -n $ng -a 1 -c 1 -g 1 -r $rs $EXE -use_gpu_aware_mpi 0 $OPTS $GPU -dm_plex_box_faces ${f},${f},${f} -pc_gamg_numericonly 1 >& out_numonly_gpu_cpumpi_nn${nn}_np${np}_f${f}
   # CPU runs, keep problem fixed, increase node resources (strong scaling within node)
   for a in "1" "2" "3" "4" "5" "6" "7"; do
     n=$(($ng * $a))
