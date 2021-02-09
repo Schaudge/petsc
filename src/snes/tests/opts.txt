@@ -1,0 +1,39 @@
+-log_view
+-dm_plex_box_simplex 0
+-dm_plex_box_dim 3
+-dm_plex_box_lower 0,0,0
+-dm_plex_box_upper 1,1,1
+-petscpartitioner_type parmetis
+-potential_petscspace_degree 2
+-snes_max_it 1
+-ksp_max_it 150
+-ksp_type cg
+-ksp_rtol 1.e-12
+-ksp_norm_type unpreconditioned
+-snes_rtol 1.e-8
+-pc_type gamg
+-pc_gamg_type agg
+-pc_gamg_agg_nsmooths 1
+-pc_gamg_coarse_eq_limit 200
+-pc_gamg_process_eq_limit 500
+-pc_gamg_reuse_interpolation true
+-snes_monitor
+-ksp_monitor
+-ksp_converged_reason
+-snes_converged_reason
+-mg_levels_ksp_max_it 2
+-mg_levels_ksp_type chebyshev
+-mg_levels_pc_type jacobi
+-pc_gamg_esteig_ksp_type cg
+-pc_gamg_esteig_ksp_max_it 5
+-mg_levels_esteig_ksp_type cg
+-mg_levels_esteig_ksp_max_it 5
+-dm_distribute
+-matptap_via scalable
+-pc_gamg_repartition true
+-pc_gamg_coarse_grid_layout_type spread
+-pc_gamg_threshold -1
+-snes_type ksponly
+-use_gpu_aware_mpi 0
+-benchmark_it 1
+

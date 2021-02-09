@@ -1155,10 +1155,19 @@ static PetscErrorCode PCGAMGOptProlongator_AGG(PC pc,Mat Amat,Mat *a_P)
 
     ierr = PetscLogEventBegin(petsc_gamg_setup_events[SET9],0,0,0,0);CHKERRQ(ierr);
 
-    /* smooth P1 := (I - omega/lam D^{-1}A)P0 */
-    ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2],0,0,0,0);CHKERRQ(ierr);
-    ierr = MatMatMult(Amat, Prol, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tMat);CHKERRQ(ierr);
-    ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2],0,0,0,0);CHKERRQ(ierr);
+    /* smooth P1 := (I - omega/lam D^{-1}A)P0 */#
+    PetscBool testnumeric = PETSC_FALSE;
+    ierr = PetscOptionsGetBool(NULL,NULL,"-pc_gamg_numericonly",&testnumeric,NULL);CHKERRQ(ierr);
+    if (testnumeric) {
+      ierr = MatMatMult(Amat, Prol, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tMat);CHKERRQ(ierr);
+      ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2],0,0,0,0);CHKERRQ(ierr);
+      ierr = MatMatMult(Amat, Prol, MAT_REUSE_MATRIX, PETSC_DEFAULT, &tMat);CHKERRQ(ierr);
+      ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2],0,0,0,0);CHKERRQ(ierr);
+    } else {
+      ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2],0,0,0,0);CHKERRQ(ierr);
+      ierr = MatMatMult(Amat, Prol, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tMat);CHKERRQ(ierr);
+      ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[pc_gamg->current_level][2],0,0,0,0);CHKERRQ(ierr);
+    }
     ierr = MatProductClear(tMat);CHKERRQ(ierr);
     ierr = MatCreateVecs(Amat, &diag, NULL);CHKERRQ(ierr);
     ierr = MatGetDiagonal(Amat, diag);CHKERRQ(ierr); /* effectively PCJACOBI */
