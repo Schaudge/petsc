@@ -1,0 +1,21 @@
+#!/bin/bash
+### Begin BSUB Options
+#BSUB -P CSC314
+#BSUB -J o-ex1-400-parmetis
+#BSUB -W 05:00
+#BSUB -nnodes 400
+#BSUB -alloc_flags "smt4"
+### End BSUB Options and begin shell commands
+
+date
+module list
+
+for i in {400..20..-20}; do
+jsrun -n $i -a 42 -c 42 -g 0 -r 1 ./ex1 -options_file opts.txt -testcase 0 -petscpartitioner_type parmetis
+jsrun -n $i -a 42 -c 42 -g 0 -r 1 ./ex1 -options_file opts.txt -testcase 1 -petscpartitioner_type parmetis
+jsrun -n $i -a 42 -c 42 -g 0 -r 1 ./ex1 -options_file opts.txt -testcase 2 -petscpartitioner_type parmetis
+done
+
+jsrun -n 10 -a 42 -c 42 -g 0 -r 1 ./ex1 -options_file opts.txt -testcase 0 -petscpartitioner_type parmetis
+jsrun -n 10 -a 42 -c 42 -g 0 -r 1 ./ex1 -options_file opts.txt -testcase 1 -petscpartitioner_type parmetis
+jsrun -n 10 -a 42 -c 42 -g 0 -r 1 ./ex1 -options_file opts.txt -testcase 2 -petscpartitioner_type parmetis

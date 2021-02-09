@@ -1,0 +1,9 @@
+-log_view
+-dim 3
+-interpolate
+-domain_box_sizes 128,128,128
+-cell_simplex 0
+-x_periodicity periodic
+-y_periodicity periodic
+-z_periodicity periodic
+-petscpartitioner_type parmetis
