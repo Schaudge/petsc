@@ -34,6 +34,5 @@
 -pc_gamg_coarse_grid_layout_type spread
 -pc_gamg_threshold -1
 -snes_type ksponly
--use_gpu_aware_mpi 0
 -benchmark_it 1
 
