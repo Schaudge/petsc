@@ -23,7 +23,7 @@ PetscErrorCode FVNetworkPreStep(TS ts)
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
   /* Reset the edge cfl_idt values to 0 */
   for (e=eStart; e<eEnd; e++) {
-    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
     fvedge->cfl_idt = 0; 
   }
 
@@ -61,7 +61,7 @@ PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS ts ,PetscReal *dt)
     /* Iterate through the (local) slow edges and compute the maximum of all cfl_idt */
     for (i=0; i<size; i++) {
       e    = index[i];
-      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
       cfl_idt_slow = PetscMax(PetscAbsScalar(cfl_idt_slow),PetscAbsScalar(fvedge->cfl_idt));CHKERRQ(ierr);
     }
     ierr = MPI_Allreduce(&cfl_idt_slow,&cfl_idt_slow,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRQ(ierr);
@@ -70,7 +70,7 @@ PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS ts ,PetscReal *dt)
     /* Iterate through the (local) fast edges and compute the maximum of all cfl_idt */
     for (i=0; i<size; i++) {
       e    = index[i];
-      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
       cfl_idt_fast = PetscMax(PetscAbsScalar(cfl_idt_fast),PetscAbsScalar(fvedge->cfl_idt));CHKERRQ(ierr);
     }
     ierr = MPI_Allreduce(&cfl_idt_fast,&cfl_idt_fast,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRQ(ierr);
@@ -101,7 +101,7 @@ PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS ts ,PetscReal *dt)
     /* Iterate through all (local) edges and compute the maximum cfl_idt */
     ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
     for (e=eStart; e<eEnd; e++) {
-      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+      ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
       cfl_idt = PetscMax(PetscAbsScalar(cfl_idt),PetscAbsScalar(fvedge->cfl_idt));CHKERRQ(ierr);
     }
     ierr = MPI_Allreduce(&cfl_idt,&cfl_idt,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRQ(ierr);

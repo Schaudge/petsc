@@ -15,7 +15,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
     case 2: 
       /* Find the number of slow/fast edges */
       for (e=eStart; e<eEnd; e++) {
-        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
         if (!id || id == 2) {
           slow_edges_size++;
@@ -27,7 +27,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
       ierr = PetscMalloc1(slow_edges_size,&slow_edges);CHKERRQ(ierr);
       ierr = PetscMalloc1(fast_edges_size,&fast_edges);CHKERRQ(ierr);
       for (e=eStart; e<eEnd; e++) {
-        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
         if (!id || id == 2) {
           slow_edges[slow_edges_count] = e; 
@@ -43,7 +43,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
       break; 
     case 1: /* Mark the middle edge as slow */
       for (e=eStart; e<eEnd; e++) {
-        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
         if (!id) {
           slow_edges_size++;
@@ -53,7 +53,7 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
       ierr = PetscMalloc1(slow_edges_size,&slow_edges);CHKERRQ(ierr);
       ierr = PetscMalloc1(fast_edges_size,&fast_edges);CHKERRQ(ierr);
       for (e=eStart; e<eEnd; e++) {
-        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
         if (!id) {
           slow_edges[slow_edges_count] = e; 
@@ -99,26 +99,26 @@ PetscErrorCode FVNetworkFinalizePartition(FVNetwork fvnet)
   ierr = ISGetLocalSize(fvnet->slow_edges,&ne);CHKERRQ(ierr);
   for (i=0; i<ne; i++) {
     e     = edges[i];
-    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
     vfrom = cone[0];
     vto   = cone[1];
-    ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
     f[offsetf+fvedge->offset_vfrom] = SLOW;
-    ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
     f[offsetf+fvedge->offset_vto]   = SLOW; 
   }
   ierr = ISGetIndices(fvnet->fast_edges,&edges);CHKERRQ(ierr);
   ierr = ISGetLocalSize(fvnet->fast_edges,&ne);CHKERRQ(ierr);
   for (i=0; i<ne; i++) {
     e     = edges[i];
-    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
     vfrom = cone[0];
     vto   = cone[1];
-    ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
     f[offsetf+fvedge->offset_vfrom] = FAST;
-    ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
     f[offsetf+fvedge->offset_vto]   = FAST; 
   }
   /* Now communicate the marking data to all processors */
@@ -137,8 +137,8 @@ PetscErrorCode FVNetworkFinalizePartition(FVNetwork fvnet)
   }
   /* Find the sizes of the vertex lists */
   for (v=vStart; v<vEnd; v++) {
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
     for (i=0; i<numlvls; i++) {
       hasmarkededge[i] = PETSC_FALSE; 
     } 
@@ -161,8 +161,8 @@ PetscErrorCode FVNetworkFinalizePartition(FVNetwork fvnet)
   ierr = PetscMalloc1(buf_size,&buf_vert);CHKERRQ(ierr);
   /* Build the vertex lists */
   for (v=vStart; v<vEnd; v++) {
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
     for (i=0; i<numlvls; i++) {
       hasmarkededge[i] = PETSC_FALSE; 
     } 
@@ -187,7 +187,7 @@ PetscErrorCode FVNetworkFinalizePartition(FVNetwork fvnet)
       for (i=0; i<ne; i++) { /* Mark the connected slow edges as buffer edges */
         e     = edges[i];
         ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+        ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         vfrom = cone[0]; 
         vto   = cone[1];
         if (v == vfrom) {
@@ -226,7 +226,7 @@ PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork fvnet, IS *slow, IS *fast, IS
   /* Find the correct sizes for the arrays */
   for (i=0; i<size; i++) {
     e    = index[i];
-    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr); 
+    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr); 
     if (!fvedge->tobufferlvl) {
       slow_size += dof*bufferwidth; 
     } else {
@@ -244,8 +244,8 @@ PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork fvnet, IS *slow, IS *fast, IS
   /* Build the set of indices (global data indices) */
   for (i=0; i<size; i++) {
     e    = index[i];
-    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponentVariableGlobalOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkGetGlobalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     if (!fvedge->frombufferlvl) {
       for (j=0; j<bufferwidth; j++) {
         for (k=0; k<dof; k++) {
@@ -291,14 +291,14 @@ PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork fvnet, IS *slow, IS *fast, IS
   /* Find the correct sizes for the arrays */
   for (i=0; i<size; i++) {
     e         = index[i];
-    ierr      = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr); 
+    ierr      = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr); 
     fast_size += dof*fvedge->nnodes;
   }
   ierr = PetscMalloc1(fast_size,&i_fast);CHKERRQ(ierr); 
   for (i=0; i<size; i++) {
     e    = index[i];
-    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponentVariableGlobalOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkGetGlobalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     for (j=0; j<fvedge->nnodes; j++) {
       for (k=0; k<dof; k++) {
         i_fast[fast_count] = offset+j*dof+k; 
