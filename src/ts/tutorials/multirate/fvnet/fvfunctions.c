@@ -104,16 +104,16 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);
   for (v=vStart; v<vEnd; v++) {
     /* Reconstruct all local edge data points (NOTE: This routine (and the others done elsewhere) need to be refactored) */
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
     switch (junction->type) {
       case JUNCT:
         ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
           for (i=0; i<nedges; i++) {
             e     = edges[i];
-            ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+            ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
             ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-            ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+            ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
             vfrom = cone[0];
             vto   = cone[1];
             /* Hard coded 2 cell one-side reconstruction. To be improved */
@@ -135,9 +135,9 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         } else {
           ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
           e     = edges[0];
-          ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+          ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
           ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
           vfrom = cone[0];
           vto   = cone[1];
           if (v == vfrom) {
@@ -176,8 +176,8 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   /* Now ALL processors have the reconstruction data to compute the coupling flux */
   for (v=vStart; v<vEnd; v++) {
     /* Reconstruct all local edge data points */
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     switch (junction->type) {
       case JUNCT:
         /* Now compute the coupling flux */
@@ -201,13 +201,13 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   for (e=eStart; e<eEnd; e++) {
     /* The cells are updated in the order 1) vfrom vertex flux 2) special 2nd flux (requires special reconstruction) 3) interior cells 
        4) 2nd to last flux (requires special reconstruction) 5) vto vertex flux */
-    ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+    ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
     ierr   = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
     vfrom  = cone[0];
     vto    = cone[1];
-    ierr   = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
-    ierr   = DMNetworkGetComponentVariableOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr   = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    ierr   = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
+    ierr   = DMNetworkGetLocalVecOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr   = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     h      = fvedge->h;
     nnodes = fvedge->nnodes;
     /* Update the vfrom vertex flux for this edge */
@@ -246,8 +246,8 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         f[offset+i*dof+j]     += fvnet->flux[j]/h;
       }
     }
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(fvnet->network,vto,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,vto,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
     /* Now reconstruct the value at the 2nd to last interface. */
     switch (junction->type) {
       case JUNCT:
@@ -314,16 +314,16 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   for (k=0; k<nv; k++) {
     v = vtxlist[k];
     /* Reconstruct all local edge data points */
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
     switch (junction->type) {
       case JUNCT:
         ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
         for (i=0; i<nedges; i++) {
           e     = edges[i];
-          ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+          ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
           ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
           vfrom = cone[0];
           vto   = cone[1];
           /* Hard coded 2 cell one-side reconstruction. To be improved */
@@ -345,9 +345,9 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         } else {
           ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
           e     = edges[0];
-          ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+          ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
           ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
           vfrom = cone[0];
           vto   = cone[1];
           /* Either take the data from the beginning of the edge or the end */
@@ -390,8 +390,8 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   for (k=0; k<nv; k++) {
     v = vtxlist[k];
     /* Reconstruct all local edge data points */
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
     switch (junction->type) {
       case JUNCT:
         /* Now compute the coupling flux */
@@ -414,13 +414,13 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     /* The cells are updated in the order 1) vfrom vertex flux 2) special 2nd flux (requires special reconstruction) 3) interior cells 
     4) 2nd to last flux (requires special reconstruction) 5) vto vertex flux */
     e      = edgelist[k];
-    ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+    ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
     ierr   = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
     vfrom  = cone[0];
     vto    = cone[1];
-    ierr   = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
-    ierr   = DMNetworkGetComponentVariableOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr   = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    ierr   = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
+    ierr   = DMNetworkGetLocalVecOffset(fvnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr   = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     h      = fvedge->h;
     nnodes = fvedge->nnodes;
     if (!fvedge->frombufferlvl) { /* Evaluate from buffer data */
@@ -509,8 +509,8 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       f[offset+(nnodes-bufferwidth-1)*dof+j] -= fvnet->flux[j]/h;
       if (!fvedge->tobufferlvl) f[offset+(nnodes-bufferwidth)*dof+j] += fvnet->flux[j]/h;
     }
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(fvnet->network,vto,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,vto,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
     /* Iterate through the remaining cells */
     if (!fvedge->tobufferlvl) {
       for (i=nnodes-bufferwidth+1; i<(nnodes-1); i++) {
@@ -595,17 +595,17 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = ISGetIndices(rhsctx->vtxlist,&vtxlist);CHKERRQ(ierr);
   for (k=0; k<nv; k++) {
     v    = vtxlist[k];
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     switch (junction->type) {
       case JUNCT:
         /* Reconstruct all local edge data points */
         ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
         for (i=0; i<nedges; i++) {
           e     = edges[i];
-          ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+          ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
           ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
           vfrom = cone[0];
           vto   = cone[1];
           /* Hard coded 2 cell one-side reconstruction. To be improved */
@@ -627,9 +627,9 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         } else {
           ierr  = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
           e     = edges[0];
-          ierr  = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+          ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
           ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
-          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+          ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
           vfrom = cone[0];
           vto   = cone[1];
           if (v == vfrom) {
@@ -670,8 +670,8 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   /* Now All processors have the reconstruction data to compute the coupling flux */
   for (k=0; k<nv; k++) {
     v    = vtxlist[k];
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
     switch (junction->type) {
       case JUNCT:
        /* Now compute the coupling flux */
@@ -693,16 +693,16 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   for (k=0; k<nv; k++) {
     v    = vtxlist[k]; 
     ierr = DMNetworkGetSupportingEdges(fvnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction);CHKERRQ(ierr); 
-    ierr = DMNetworkGetComponentVariableOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
+    ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
     for (m=0; m<nedges; m++) {
       /* Update the buffer regions */
       e      = edges[m];
-      ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge);CHKERRQ(ierr);
+      ierr   = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
       ierr   = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
       vfrom  = cone[0];
       vto    = cone[1];
-      ierr   = DMNetworkGetComponentVariableOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+      ierr   = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
       h      = fvedge->h;
       nnodes = fvedge->nnodes;
       if (v==vfrom && fvedge->frombufferlvl) {
