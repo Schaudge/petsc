@@ -576,7 +576,6 @@ static PetscErrorCode MatNestFindIS(Mat A,PetscInt n,const IS list[],IS is,Petsc
     }
   }
   SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_ARG_INCOMP,"Could not find index set");
-  PetscFunctionReturn(0);
 }
 
 /* Get a block row as a new MatNest */
@@ -679,7 +678,6 @@ static PetscErrorCode MatCreateSubMatrix_Nest(Mat A,IS isrow,IS iscol,MatReuse r
     break;
   case MAT_INPLACE_MATRIX:       /* Nothing to do */
     SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"MAT_INPLACE_MATRIX is not supported yet");
-    break;
   }
   PetscFunctionReturn(0);
 }
@@ -925,7 +923,7 @@ static PetscErrorCode MatView_Nest(Mat A,PetscViewer viewer)
         PetscBool isNest = PETSC_FALSE;
 
         if (!bA->m[i][j]) {
-          CHKERRQ(ierr);PetscViewerASCIIPrintf(viewer, "(%D,%D) : NULL \n",i,j);CHKERRQ(ierr);
+          ierr = PetscViewerASCIIPrintf(viewer, "(%D,%D) : NULL \n",i,j);CHKERRQ(ierr);
           continue;
         }
         ierr = MatGetSize(bA->m[i][j],&NR,&NC);CHKERRQ(ierr);
@@ -1912,7 +1910,7 @@ PETSC_INTERN PetscErrorCode MatConvert_Nest_AIJ(Mat A,MatType newtype,MatReuse r
   Mat            C;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)A),&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)A),&size);CHKERRMPI(ierr);
   if (size == 1) { /* look for a special case with SeqAIJ matrices and strided-1, contiguous, blocks */
     PetscInt  nf;
     PetscBool fast;

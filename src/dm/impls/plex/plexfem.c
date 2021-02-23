@@ -387,7 +387,7 @@ static PetscErrorCode DMPlexBasisTransformSetUp_Rotation_Internal(DM dm, void *c
     rc->R[0] =  c1;rc->R[1] = s1;
     rc->R[2] = -s1;rc->R[3] = c1;
     ierr = PetscArraycpy(rc->RT, rc->R, PetscSqr(dim));CHKERRQ(ierr);
-    DMPlex_Transpose2D_Internal(rc->RT);break;
+    DMPlex_Transpose2D_Internal(rc->RT);
     break;
   case 3:
     c1 = PetscCosReal(rc->alpha);s1 = PetscSinReal(rc->alpha);
@@ -397,7 +397,7 @@ static PetscErrorCode DMPlexBasisTransformSetUp_Rotation_Internal(DM dm, void *c
     rc->R[3] = -c1*s3 - c2*c3*s1;rc->R[4] =  c1*c2*c3 - s1*s3;   rc->R[5] = c3*s2;
     rc->R[6] =  s1*s2;           rc->R[7] = -c1*s2;              rc->R[8] = c2;
     ierr = PetscArraycpy(rc->RT, rc->R, PetscSqr(dim));CHKERRQ(ierr);
-    DMPlex_Transpose3D_Internal(rc->RT);break;
+    DMPlex_Transpose3D_Internal(rc->RT);
     break;
   default: SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_OUTOFRANGE, "Dimension %D not supported", dim);
   }
@@ -1414,7 +1414,7 @@ PetscErrorCode DMComputeL2GradientDiff_Plex(DM dm, PetscReal time, PetscErrorCod
           CHKERRQ(ierr);
         }
         if (transform) {ierr = DMPlexBasisTransformApply_Internal(dm, &coords[coordDim*q], PETSC_FALSE, Nc, funcVal, funcVal, dm->transformCtx);CHKERRQ(ierr);}
-        ierr = PetscFEInterpolateGradient_Static(fe, &x[fieldOffset], &qgeom, q, interpolant);CHKERRQ(ierr);
+        ierr = PetscFEInterpolateGradient_Static(fe, 1, &x[fieldOffset], &qgeom, q, interpolant);CHKERRQ(ierr);
         /* Overwrite with the dot product if the normal is given */
         if (n) {
           for (fc = 0; fc < Nc; ++fc) {
@@ -1821,7 +1821,7 @@ PetscErrorCode DMPlexComputeGradientClementInterpolant(DM dm, Vec locX, Vec locC
             ierr2 = PetscFree6(gradsum,interpolant,coords,fegeom.detJ,fegeom.J,fegeom.invJ);CHKERRQ(ierr2);
             CHKERRQ(ierr);
           }
-          if (id == PETSCFE_CLASSID)      {ierr = PetscFEInterpolateGradient_Static((PetscFE) obj, &x[fieldOffset], &qgeom, q, interpolant);CHKERRQ(ierr);}
+          if (id == PETSCFE_CLASSID)      {ierr = PetscFEInterpolateGradient_Static((PetscFE) obj, 1, &x[fieldOffset], &qgeom, q, interpolant);CHKERRQ(ierr);}
           else SETERRQ1(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Unknown discretization type for field %D", field);
           for (fc = 0; fc < Nc; ++fc) {
             const PetscReal wt = quadWeights[q*qNc+qc+fc];
@@ -2240,16 +2240,11 @@ static PetscErrorCode DMPlexComputeBdIntegral_Internal(DM dm, Vec locX, IS point
       ierr = PetscQuadratureGetData(qGeom, NULL, NULL, &Nq, NULL, NULL);CHKERRQ(ierr);
       ierr = DMPlexGetFEGeom(coordField, pointIS, qGeom, PETSC_TRUE, &fgeom);CHKERRQ(ierr);
       for (face = 0; face < numFaces; ++face) {
-        const PetscInt point = points[face], *support, *cone;
+        const PetscInt point = points[face], *support;
         PetscScalar    *x    = NULL;
-        PetscInt       i, coneSize, faceLoc;
+        PetscInt       i;
 
         ierr = DMPlexGetSupport(dm, point, &support);CHKERRQ(ierr);
-        ierr = DMPlexGetConeSize(dm, support[0], &coneSize);CHKERRQ(ierr);
-        ierr = DMPlexGetCone(dm, support[0], &cone);CHKERRQ(ierr);
-        for (faceLoc = 0; faceLoc < coneSize; ++faceLoc) if (cone[faceLoc] == point) break;
-        if (faceLoc == coneSize) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not find face %D in cone of support[0] %D", face, support[0]);
-        fgeom->face[face][0] = faceLoc;
         ierr = DMPlexVecGetClosure(plex, section, locX, support[0], NULL, &x);CHKERRQ(ierr);
         for (i = 0; i < totDim; ++i) u[face*totDim+i] = x[i];
         ierr = DMPlexVecRestoreClosure(plex, section, locX, support[0], NULL, &x);CHKERRQ(ierr);
@@ -3007,7 +3002,7 @@ PetscErrorCode DMPlexComputeMassMatrixGeneral(DM dmc, DM dmf, Mat mass, void *us
     ierr = PetscObjectGetClassId(obj, &id);CHKERRQ(ierr);
     if (id == PETSCFE_CLASSID) {
       ierr = PetscFEGetQuadrature((PetscFE) obj, &quad);CHKERRQ(ierr);
-      ierr = PetscFEGetCellTabulation((PetscFE) obj, &Tfine);CHKERRQ(ierr);
+      ierr = PetscFEGetCellTabulation((PetscFE) obj, 1, &Tfine);CHKERRQ(ierr);
       ierr = PetscFECreateTabulation((PetscFE) obj, 1, 1, x, 0, &T);CHKERRQ(ierr);
     } else {
       ierr = PetscFVGetQuadrature((PetscFV) obj, &quad);CHKERRQ(ierr);
@@ -4287,16 +4282,11 @@ static PetscErrorCode DMPlexComputeBdResidual_Single_Internal(DM dm, PetscReal t
     ierr = PetscQuadratureGetData(qGeom, NULL, NULL, &Nq, NULL, NULL);CHKERRQ(ierr);
     ierr = DMSNESGetFEGeom(coordField,pointIS,qGeom,PETSC_TRUE,&fgeom);CHKERRQ(ierr);
     for (face = 0; face < numFaces; ++face) {
-      const PetscInt point = points[face], *support, *cone;
+      const PetscInt point = points[face], *support;
       PetscScalar   *x     = NULL;
-      PetscInt       i, coneSize, faceLoc;
+      PetscInt       i;
 
       ierr = DMPlexGetSupport(dm, point, &support);CHKERRQ(ierr);
-      ierr = DMPlexGetConeSize(dm, support[0], &coneSize);CHKERRQ(ierr);
-      ierr = DMPlexGetCone(dm, support[0], &cone);CHKERRQ(ierr);
-      for (faceLoc = 0; faceLoc < coneSize; ++faceLoc) if (cone[faceLoc] == point) break;
-      if (faceLoc == coneSize) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not find face %D in cone of support[0] %D", point, support[0]);
-      fgeom->face[face][0] = faceLoc;
       ierr = DMPlexVecGetClosure(plex, section, locX, support[0], NULL, &x);CHKERRQ(ierr);
       for (i = 0; i < totDim; ++i) u[face*totDim+i] = x[i];
       ierr = DMPlexVecRestoreClosure(plex, section, locX, support[0], NULL, &x);CHKERRQ(ierr);
@@ -5007,16 +4997,11 @@ PetscErrorCode DMPlexComputeBdJacobian_Single_Internal(DM dm, PetscReal t, DMLab
     ierr = PetscQuadratureGetData(qGeom, NULL, NULL, &Nq, NULL, NULL);CHKERRQ(ierr);
     ierr = DMSNESGetFEGeom(coordField,pointIS,qGeom,PETSC_TRUE,&fgeom);CHKERRQ(ierr);
     for (face = 0; face < numFaces; ++face) {
-      const PetscInt point = points[face], *support, *cone;
+      const PetscInt point = points[face], *support;
       PetscScalar   *x     = NULL;
-      PetscInt       i, coneSize, faceLoc;
+      PetscInt       i;
 
       ierr = DMPlexGetSupport(dm, point, &support);CHKERRQ(ierr);
-      ierr = DMPlexGetConeSize(dm, support[0], &coneSize);CHKERRQ(ierr);
-      ierr = DMPlexGetCone(dm, support[0], &cone);CHKERRQ(ierr);
-      for (faceLoc = 0; faceLoc < coneSize; ++faceLoc) if (cone[faceLoc] == point) break;
-      if (faceLoc == coneSize) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Could not find face %D in cone of support[0] %D", point, support[0]);
-      fgeom->face[face][0] = faceLoc;
       ierr = DMPlexVecGetClosure(plex, section, locX, support[0], NULL, &x);CHKERRQ(ierr);
       for (i = 0; i < totDim; ++i) u[face*totDim+i] = x[i];
       ierr = DMPlexVecRestoreClosure(plex, section, locX, support[0], NULL, &x);CHKERRQ(ierr);

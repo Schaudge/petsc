@@ -33,7 +33,7 @@ configure_options = [
   '--download-parms=1',
   '--download-hdf5=1',
   '--download-med=1',
-  '--download-sundials=1',
+  '--download-sundials2=1',
   '--download-hypre=1',
   '--download-amrex=1',
   '--download-cmake=1',
@@ -47,7 +47,12 @@ configure_options = [
   '--download-tetgen=1',
   '--download-mfem=1',
   '--download-glvis=1',
+  '--download-hpddm=1',
   '--with-opengl=1',
+  '--download-adolc=1',
+  '--download-colpack=1',
+  '--download-mmg=1',
+  '--download-parmmg=1',
   ]
 
 if __name__ == '__main__':

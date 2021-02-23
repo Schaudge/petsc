@@ -33,7 +33,7 @@ all:
 	+@${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} chk_petscdir chk_upgrade | tee ${PETSC_ARCH}/lib/petsc/conf/make.log
 	@ln -sf ${PETSC_ARCH}/lib/petsc/conf/make.log make.log
 	+@${OMAKE_SELF_PRINTDIR} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} all-local 2>&1 | tee -a ${PETSC_ARCH}/lib/petsc/conf/make.log;
-	@grep -E "out of memory allocating.*after a total of" ${PETSC_ARCH}/lib/petsc/conf/make.log | tee ${PETSC_ARCH}/lib/petsc/conf/memoryerror.log > /dev/null
+	@egrep '(out of memory allocating.*after a total of|gfortran: fatal error: Killed signal terminated program f951)' ${PETSC_ARCH}/lib/petsc/conf/make.log | tee ${PETSC_ARCH}/lib/petsc/conf/memoryerror.log > /dev/null
 	@egrep -i "( error | error: |no such file or directory)" ${PETSC_ARCH}/lib/petsc/conf/make.log | tee ${PETSC_ARCH}/lib/petsc/conf/error.log > /dev/null
 	+@if test -s ${PETSC_ARCH}/lib/petsc/conf/memoryerror.log; then \
            printf ${PETSC_TEXT_HILIGHT}"**************************ERROR*************************************\n" 2>&1 | tee -a ${PETSC_ARCH}/lib/petsc/conf/make.log; \
@@ -78,27 +78,27 @@ info:
 	-@echo "Using configuration flags:"
 	-@grep "\#define " ${PETSCCONF_H}
 	-@echo "-----------------------------------------"
-	-@echo "Using C compile: ${PETSC_CCOMPILE}"
+	-@echo "Using C compile: ${PETSC_CCOMPILE_SINGLE}"
 	-@if [  "${MPICC_SHOW}" != "" ]; then \
              printf  "mpicc -show: %b\n" "${MPICC_SHOW}";\
           fi; \
         printf  "C compiler version: %b\n" "${C_VERSION}"; \
-        if [ "${PETSC_CXXCOMPILE}" != "" ]; then \
-        echo "Using C++ compile: ${PETSC_CXXCOMPILE}";\
+        if [ "${CXX}" != "" ]; then \
+        echo "Using C++ compile: ${PETSC_CXXCOMPILE_SINGLE}";\
         if [ "${MPICXX_SHOW}" != "" ]; then \
                printf "mpicxx -show: %b\n" "${MPICXX_SHOW}"; \
             fi;\
             printf  "C++ compiler version: %b\n" "${Cxx_VERSION}"; \
           fi
 	-@if [ "${FC}" != "" ]; then \
-	   echo "Using Fortran compile: ${PETSC_FCOMPILE}";\
+	   echo "Using Fortran compile: ${PETSC_FCOMPILE_SINGLE}";\
            if [ "${MPIFC_SHOW}" != "" ]; then \
              printf "mpif90 -show: %b\n" "${MPIFC_SHOW}"; \
            fi; \
              printf  "Fortran compiler version: %b\n" "${FC_VERSION}"; \
          fi
 	-@if [ "${CUDAC}" != "" ]; then \
-	   echo "Using CUDA compile: ${PETSC_CUCOMPILE}";\
+	   echo "Using CUDA compile: ${PETSC_CUCOMPILE_SINGLE}";\
          fi
 	-@if [ "${CLANGUAGE}" = "CXX" ]; then \
            echo "Using C++ compiler to compile PETSc";\
@@ -155,6 +155,9 @@ check_build:
 	+@cd src/snes/tutorials >/dev/null; ${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} testex19
 	+@if [ "${HYPRE_LIB}" != "" ] && [ "${PETSC_WITH_BATCH}" = "" ] &&  [ "${PETSC_SCALAR}" = "real" ]; then \
           cd src/snes/tutorials >/dev/null; ${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} DIFF=${PETSC_DIR}/lib/petsc/bin/petscdiff runex19_hypre; \
+         fi;
+	+@if [ "${CUDA_LIB}" != "" ] && [ "${PETSC_WITH_BATCH}" = "" ] &&  [ "${PETSC_SCALAR}" = "real" ]; then \
+          cd src/snes/tutorials >/dev/null; ${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} DIFF=${PETSC_DIR}/lib/petsc/bin/petscdiff runex19_cuda; \
          fi;
 	+@if [ "${KOKKOS_LIB}" != "" ] && [ "${PETSC_WITH_BATCH}" = "" ] &&  [ "${PETSC_SCALAR}" = "real" ] && [ "${PETSC_PRECISION}" = "double" ]; then \
           cd src/snes/tutorials >/dev/null; ${OMAKE_SELF} PETSC_ARCH=${PETSC_ARCH}  PETSC_DIR=${PETSC_DIR} DIFF=${PETSC_DIR}/lib/petsc/bin/petscdiff runex3_kokkos; \
@@ -332,7 +335,7 @@ deletefortranstubs:
 	-@find . -type d -name ftn-auto | xargs rm -rf
 
 # Builds all the documentation - should be done every night
-alldoc: allcite allpdf alldoc1 alldoc2 docsetdate
+alldoc: allcite allpdf sphinx-docs-all alldoc1 alldoc2 docsetdate
 
 # Build just citations
 allcite: chk_loc deletemanualpages
@@ -341,9 +344,8 @@ allcite: chk_loc deletemanualpages
 	-@sed -e s%man+../%man+manualpages/% ${LOC}/docs/manualpages/manualpages.cit > ${LOC}/docs/manualpages/htmlmap
 	-@cat ${PETSC_DIR}/src/docs/mpi.www.index >> ${LOC}/docs/manualpages/htmlmap
 
-# Build just PDF manuals + prerequisites
+# Build just TAO PDF manual + prerequisites
 allpdf: chk_loc allcite
-	-cd src/docs/tex/manual; ${OMAKE_SELF} manual.pdf LOC=${LOC}
 	-cd src/docs/tao_tex/manual; ${OMAKE_SELF} manual.pdf LOC=${LOC}
 
 # Build just manual pages + prerequisites
@@ -407,29 +409,53 @@ docsetdate: chk_petscdir
           -exec perl -pi -e 's^(<head>)^$$1 <link rel="canonical" href="http://www.mcs.anl.gov/petsc/petsc-current/{}" />^i' {} \; ; \
         echo "Done fixing version number, date, canonical URL info"
 
-# Build the Sphinx HTML documentation.  This uses Python's venv, which should
+# Use Sphinx to build some documentation.  This uses Python's venv, which should
 # behave similarly to what happens on e.g. ReadTheDocs. You may prefer to use
 # your own Python environment and directly build the Sphinx docs by using
 # the makefile in ${PETSC_SPHINX_ROOT}, paying attention to the requirements.txt
 # there.
 PETSC_SPHINX_ROOT=src/docs/sphinx_docs
-PETSC_SPHINX_ENV=sphinx_docs_env
+PETSC_SPHINX_ENV=${PETSC_ARCH}/sphinx_docs_env
+PETSC_SPHINX_DEST=docs/sphinx_docs
 
-sphinx-docs-html:
-	@${PYTHON} -c 'import sys; sys.exit(sys.version_info[:2] < (3,3))' || \
-    (printf 'Working Python 3.3 or later is required to build the Sphinx docs in a virtual environment\nTry e.g.\n  make sphinx-docs-html PYTHON=python3\n' && false)
+sphinx-docs-all: sphinx-docs-manual sphinx-docs-html
+	-@cd src/binding/petsc4py ; make docs
+
+sphinx-docs-fast: chk_loc sphinx-docs-env
+	@. ${PETSC_SPHINX_ENV}/bin/activate && ${OMAKE} -C ${PETSC_SPHINX_ROOT} \
+		BUILDDIR=${LOC}/${PETSC_SPHINX_DEST} html
+
+sphinx-docs-html: chk_loc allcite sphinx-docs-env
+	@. ${PETSC_SPHINX_ENV}/bin/activate && ${OMAKE} -C ${PETSC_SPHINX_ROOT} \
+		BUILDDIR=${LOC}/${PETSC_SPHINX_DEST} html
+
+sphinx-docs-manual: chk_loc sphinx-docs-env
+	@. ${PETSC_SPHINX_ENV}/bin/activate && ${OMAKE} -C ${PETSC_SPHINX_ROOT}  BUILDDIR=${LOC}/${PETSC_SPHINX_DEST} latexpdf
+	@mv ${LOC}/${PETSC_SPHINX_DEST}/latex/manual.pdf ${LOC}/docs/manual.pdf
+	@${RM} -rf ${LOC}/${PETSC_SPHINX_DEST}/latex
+
+sphinx-docs-env: sphinx-docs-check-python sphinx-docs-check-rsvg-convert
 	@if [ ! -d  "${PETSC_SPHINX_ENV}" ]; then \
         ${PYTHON} -m venv ${PETSC_SPHINX_ENV}; \
         . ${PETSC_SPHINX_ENV}/bin/activate; \
-        pip install -r src/docs/sphinx_docs/requirements.txt; \
+        pip install -r ${PETSC_SPHINX_ROOT}/requirements.txt; \
       fi
-	@. ${PETSC_SPHINX_ENV}/bin/activate && ${OMAKE} -C ${PETSC_SPHINX_ROOT} html
 
-sphinx-docs-clean:
-	${OMAKE} -C ${PETSC_SPHINX_ROOT} clean
+sphinx-docs-check-rsvg-convert:
+	@if ! command -v rsvg-convert 2>&1 > /dev/null; then \
+		    printf "rsvg-convert is required for the sphinxcontrib-svg2pdfconverter extension for the Sphinx docs\n"; \
+			  false; \
+	    fi
+
+sphinx-docs-check-python:
+	@${PYTHON} -c 'import sys; sys.exit(sys.version_info[:2] < (3,3))' || \
+    (printf 'Working Python 3.3 or later is required to build the Sphinx docs in a virtual environment\nTry e.g.\n  make ... PYTHON=python3\n' && false)
+
+sphinx-docs-clean: chk_loc
 	${RM} -rf ${PETSC_SPHINX_ENV}
+	${RM} -rf ${LOC}/${PETSC_SPHINX_DEST}
 
-alldocclean: deletemanualpages allcleanhtml
+alldocclean: deletemanualpages allcleanhtml sphinx-docs-clean
 
 # Deletes man pages (HTML version)
 deletemanualpages: chk_loc
@@ -448,7 +474,7 @@ chk_concepts_dir: chk_loc
 	  echo Making directory ${LOC}/docs/manualpages/concepts for library; ${MKDIR} ${LOC}/docs/manualpages/concepts; fi
 
 # Builds simple html versions of the source without links into the $PETSC_ARCH/obj directory, used by make mergecov
-srchtml: 
+srchtml:
 	-${OMAKE_SELF} ACTION=simplehtml PETSC_DIR=${PETSC_DIR} alltree_src
 
 ###########################################################
@@ -493,7 +519,7 @@ gcov:
 	@$(PYTHON) ${PETSC_DIR}/lib/petsc/bin/maint/gcov.py --run_gcov --petsc_arch ${PETSC_ARCH}
 
 mergegcov:
-	@$(PYTHON) ${PETSC_DIR}/lib/petsc/bin/maint/gcov.py --merge_gcov  --petsc_arch ${PETSC_ARCH}
+	@$(PYTHON) ${PETSC_DIR}/lib/petsc/bin/maint/gcov.py --merge_gcov  --petsc_arch ${PETSC_ARCH} --merge_branch `lib/petsc/bin/maint/check-merge-branch.sh`
 
 
 ########################

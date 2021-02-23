@@ -164,28 +164,50 @@ int main(int argc,char **argv)
   return ierr;
 }
 
-
-
 /*TEST
 
-   test:
+  testset:
+    output_file: output/ex1_1.out
+    # This is a test where the exact numbers are critical
+    diff_args: -j
 
-   test:
-      suffix: 2
-      nsize: 2
-      output_file: output/ex1_1.out
+    test:
 
-   test:
-      suffix: 2_cuda
-      nsize: 2
-      args: -vec_type cuda
-      output_file: output/ex1_1.out
-      requires: cuda
+    test:
+        suffix: cuda
+        args: -vec_type cuda
+        requires: cuda
 
-   test:
-      suffix: cuda
-      args: -vec_type cuda
-      output_file: output/ex1_1.out
-      requires: cuda
+    test:
+        suffix: kokkos
+        args: -vec_type kokkos
+        requires: kokkos_kernels
+
+    test:
+        suffix: hip
+        args: -vec_type hip
+        requires: hip
+
+    test:
+        suffix: 2
+        nsize: 2
+
+    test:
+        suffix: 2_cuda
+        nsize: 2
+        args: -vec_type cuda
+        requires: cuda
+
+    test:
+        suffix: 2_kokkos
+        nsize: 2
+        args: -vec_type kokkos
+        requires: kokkos_kernels
+
+    test:
+        suffix: 2_hip
+        nsize: 2
+        args: -vec_type hip
+        requires: hip
 
 TEST*/

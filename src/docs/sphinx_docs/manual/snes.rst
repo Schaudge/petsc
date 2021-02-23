@@ -1,3 +1,5 @@
+.. _chapter_snes:
+
 SNES: Nonlinear Solvers
 -----------------------
 
@@ -147,9 +149,9 @@ needed. In C and C++, a user-defined context is merely a structure in
 which various objects can be stashed; in Fortran a user context can be
 an integer array that contains both parameters and pointers to PETSc
 objects.
-`${PETSC_DIR}/src/snes/tutorials/ex5.c <https://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex5.c.html>`_
+`SNES Tutorial ex5 <https://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex5.c.html>`__
 and
-`${PETSC_DIR}/src/snes/tutorials/ex5f.F90 <https://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex5f.F90.html>`_
+`SNES Tutorial ex5f <https://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex5f.F90.html>`__
 give examples of user-defined application contexts in C and Fortran,
 respectively.
 
@@ -225,7 +227,7 @@ matrix entries to zero by calling ``MatZeroEntries()``. See
 :any:`sec_othermat` for details on the reuse of the matrix
 context.
 
-The directory ``${PETSC_DIR}/src/snes/tutorials`` provides a variety of
+The directory ``$PETSC_DIR/src/snes/tutorials`` provides a variety of
 examples.
 
 .. _sec_nlsolvers:
@@ -797,7 +799,7 @@ the subsidiary linear systems within the Newton-like methods of
 ``SNES``. When solving a system of nonlinear equations, one can instead
 employ the techniques of Eisenstat and Walker :cite:`EW96`
 to compute :math:`\eta_k` at each step of the nonlinear solver by using
-the option ``-snes_ksp_ew_conv`` . In addition, by adding one’s own
+the option ``-snes_ksp_ew`` . In addition, by adding one’s own
 ``KSP`` convergence test (see :any:`sec_convergencetests`), one can easily create one’s own,
 problem-dependent, inner convergence tests.
 
@@ -1155,6 +1157,8 @@ option ``-snes_vi_monitor`` turns on extra monitoring of the active set
 associated with the bounds and ``-snes_vi_type`` allows selecting from
 several VI solvers, the default is preferred.
 
+.. _sec_snespc:
+
 Nonlinear Preconditioning
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1208,8 +1212,9 @@ and accessed with
 
    SNESCompositeGetSNES(SNES,PetscInt,SNES *);
 
-References
-~~~~~~~~~~
+.. raw:: html
+
+    <hr>
 
 .. bibliography:: ../../tex/petsc.bib
    :filter: docname in docnames

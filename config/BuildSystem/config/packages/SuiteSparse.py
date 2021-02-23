@@ -4,7 +4,7 @@ class Configure(config.package.Package):
   def __init__(self, framework):
     config.package.Package.__init__(self,framework)
     self.minversion        = '5.6.0'
-    self.version           = '5.7.1'
+    self.version           = '5.8.1'
     self.versioninclude    = 'SuiteSparse_config.h'
     self.versionname       = 'SUITESPARSE_MAIN_VERSION.SUITESPARSE_SUB_VERSION.SUITESPARSE_SUBSUB_VERSION'
     self.gitcommit         = 'v'+self.version
@@ -52,22 +52,22 @@ class Configure(config.package.Package):
     # From v4.5.0, SuiteSparse_config/SuiteSparse_config.mk is not modifiable anymore. Instead, we must override make variables
     args=[]
 
-    self.setCompilers.pushLanguage('C')
-    args.append('CC="'+self.setCompilers.getCompiler()+'"')
-    cflags=self.removeWarningFlags(self.setCompilers.getCompilerFlags())
+    self.pushLanguage('C')
+    args.append('CC="'+self.getCompiler()+'"')
+    cflags=self.updatePackageCFlags(self.getCompilerFlags())
     if self.checkSharedLibrariesEnabled():
-      ldflags=self.setCompilers.getDynamicLinkerFlags()
+      ldflags=self.getDynamicLinkerFlags()
     else:
       ldflags=''
-    ldflags+=self.setCompilers.LDFLAGS
+    ldflags += ' '+self.setCompilers.LDFLAGS
     # SuiteSparse 5.6.0 makefile has a bug in how it treats LDFLAGS (not using the override directive)
     ldflags+=" -L\$(INSTALL_LIB)"
-    self.setCompilers.popLanguage()
+    self.popLanguage()
 
     # CHOLMOD may build the shared library with CXX
-    self.setCompilers.pushLanguage('Cxx')
-    args.append('CXX="'+self.setCompilers.getCompiler()+'"')
-    self.setCompilers.popLanguage()
+    self.pushLanguage('Cxx')
+    args.append('CXX="'+self.getCompiler()+'"')
+    self.popLanguage()
 
     args.append('MAKE="'+self.make.make+'"')
     args.append('RANLIB="'+self.setCompilers.RANLIB+'"')
@@ -126,6 +126,7 @@ class Configure(config.package.Package):
       args.append('CF="'+cflags+'"')
       args.append('CHOLMOD_CONFIG="'+flg+'"')
       args.append('CUDA=no')
+      args.append('CUDA_PATH=')
 
     args = ' '.join(args)
     conffile = os.path.join(self.packageDir,self.package+'.petscconf')

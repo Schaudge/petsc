@@ -46,7 +46,7 @@ PetscErrorCode VecNorm_MPI(Vec xin,NormType type,PetscReal *z)
   const PetscScalar *xx;
   PetscErrorCode    ierr;
   PetscInt          n   = xin->map->n;
-  PetscBLASInt      one = 1,bn;
+  PetscBLASInt      one = 1,bn = 0;
 
   PetscFunctionBegin;
   ierr = PetscBLASIntCast(n,&bn);CHKERRQ(ierr);
@@ -130,11 +130,3 @@ PetscErrorCode VecMin_MPI(Vec xin,PetscInt *idx,PetscReal *z)
   }
   PetscFunctionReturn(0);
 }
-
-
-
-
-
-
-
-

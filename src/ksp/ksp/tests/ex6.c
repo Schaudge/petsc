@@ -1,4 +1,3 @@
-
 static char help[] = "Reads a PETSc matrix and vector from a file and solves a linear system.\n\
 Input arguments are:\n\
   -f <input_file> : file to load. For example see $PETSC_DIR/share/petsc/datafiles/matrices\n\n";
@@ -28,7 +27,9 @@ int main(int argc,char **args)
 {
   PetscErrorCode ierr;
   PetscInt       its;
+#if defined(PETSC_USE_LOG)
   PetscLogStage  stage1,stage2;
+#endif
   PetscReal      norm;
   Vec            x,b,u;
   Mat            A;
@@ -171,7 +172,11 @@ int main(int argc,char **args)
       #SYMMLQ converges in 4 iterations and then generate nans
       test:
         suffix: 3_skip
-        args: -ksp_type {{chebyshev cg groppcg pipecg pipecgrr pipelcg pipeprcg cgne nash stcg gltr fcg pipefcg gmres pipefgmres fgmres lgmres dgmres pgmres tcqmr bcgs ibcgs fbcgs fbcgsr bcgsl pipebcgs cgs tfqmr cr pipecr qcg bicg minres lcd gcr cgls richardson}}
+        args: -ksp_type {{chebyshev cg groppcg pipecg pipecgrr pipelcg pipeprcg cgne nash stcg gltr fcg pipefcg gmres fgmres lgmres dgmres pgmres tcqmr bcgs ibcgs fbcgs fbcgsr bcgsl pipebcgs cgs tfqmr cr pipecr qcg bicg minres lcd gcr cgls richardson}}
+      test:
+        requires: !pgf90_compiler
+        suffix: 3_skip_pipefgmres
+        args: -ksp_type pipefgmres
       #PIPEGCR generates nans on linux-knl
       test:
         requires: !define(PETSC_USE_AVX512_KERNELS)

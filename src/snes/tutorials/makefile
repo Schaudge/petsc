@@ -6,7 +6,7 @@ FPPFLAGS         =
 LOCDIR		 = src/snes/tutorials/
 MANSEC           = SNES
 EXAMPLESC	 = ex1.c ex2.c ex3.c  ex5.c ex9.c \
-                   ex12.c ex14.c ex15.c ex18.c ex19.c ex21.c ex22.c \
+                   ex12.c ex14.c ex15.c ex17.c ex18.c ex19.c ex21.c ex22.c \
                    ex25.c ex28.c ex30.c ex33.c \
                    ex35.c ex42.c ex46.c ex48.c \
                    ex56.c ex58.c ex59.c \
@@ -66,6 +66,12 @@ runex19_hypre:
 	   if (${DIFF} output/ex19_hypre.out ex19_1.tmp) then \
            echo "C/C++ example src/snes/tutorials/ex19 run successfully with hypre"; \
            else  printf "${PWD}\nPossible problem with ex19 running with hypre, diffs above\n=========================================\n"; fi; \
+	   ${RM} -f ex19_1.tmp
+runex19_cuda:
+	-@${MPIEXEC} -n 1 ./ex19 -snes_monitor -dm_mat_type seqaijcusparse -dm_vec_type seqcuda -pc_type gamg -ksp_monitor -mg_levels_ksp_max_it 3  > ex19_1.tmp 2>&1; \
+	   if (${DIFF} output/ex19_cuda_1.out ex19_1.tmp) then \
+           echo "C/C++ example src/snes/tutorials/ex19 run successfully with cuda"; \
+           else  printf "${PWD}\nPossible problem with ex19 running with cuda, diffs above\n=========================================\n"; fi; \
 	   ${RM} -f ex19_1.tmp
 runex19_ml:
 	-@${MPIEXEC} -n 2 ./ex19 -da_refine 3 -snes_monitor_short -pc_type ml > ex19_1.tmp 2>&1; \

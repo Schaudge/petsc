@@ -83,7 +83,9 @@ class Package(config.base.Configure):
     self.requires32bitintblas   = 1  # 1 means that the package will not work with 64 bit integer BLAS/LAPACK
     self.skippackagewithoptions = 0  # packages like fblaslapack and MPICH do not support --with-package* options so do not print them in help
     self.alternativedownload    = [] # Used by, for example mpi.py to print useful error messages, which does not support --download-mpi but one can use --download-mpich
-    self.usesopenmp             = 'no'  # yes, no, unknow package is built to use OpenMP
+    self.usesopenmp             = 'no'  # yes, no, unknowm package is built to use OpenMP
+    self.usespthreads           = 'no'  # yes, no, unknown package is built to use Pthreads
+    self.cmakelistsdir          = '' # Location of CMakeLists.txt - if not located at the top level of the package dir
 
     # Outside coupling
     self.defaultInstallDir      = ''
@@ -118,6 +120,7 @@ class Package(config.base.Configure):
       if self.executablename: output += '  '+getattr(self,self.executablename)+'\n'
       if self.usesopenmp == 'yes': output += '  uses OpenMP; use export OMP_NUM_THREADS=<p> or -omp_num_threads <p> to control the number of threads\n'
       if self.usesopenmp == 'unknown': output += '  Unknown if this uses OpenMP (try export OMP_NUM_THREADS=<1-4> yourprogram -log_view) \n'
+      if self.usespthreads == 'yes': output += '  uses PTHREADS; please consult the documentation on how to control the number of threads\n'
     return output
 
   def setupDependencies(self, framework):
@@ -142,7 +145,7 @@ class Package(config.base.Configure):
       self.petscdir        = FakePETScDir()
     # All packages depend on make
     self.make          = framework.require('config.packages.make',self)
-    if not self.isMPI and not self.package in ['make','cuda','thrust']:
+    if not self.isMPI and not self.package in ['make','cuda','thrust','valgrind','hwloc','x']:
       # force MPI to be the first package configured since all other packages
       # may depend on its compilers defined here
       self.mpi         = framework.require('config.packages.MPI',self)
@@ -181,7 +184,7 @@ class Package(config.base.Configure):
     self.package          = self.name.lower()
     self.pkgname          = self.package
     self.downloadname     = self.name
-    self.downloaddirnames = [self.downloadname];
+    self.downloaddirnames = [self.downloadname]
     return
 
   def getDefaultPrecision(self):
@@ -256,9 +259,30 @@ class Package(config.base.Configure):
 
   def removeWarningFlags(self,flags):
     outflags = []
-    for flag in flags.split():
-      if not flag in ['-Werror','-Wall','-Wwrite-strings','-Wno-strict-aliasing','-Wno-unknown-pragmas','-Wno-unused-variable','-Wno-unused-dummy-argument','-fvisibility=hidden','-std=c89','-pedantic','--coverage','-MFree','-fdefault-integer-8']:
+    for flag in flags:
+      if not flag in ['-Werror','-Wall','-Wwrite-strings','-Wno-strict-aliasing','-Wno-unknown-pragmas','-Wno-unused-variable','-Wno-unused-dummy-argument','-fvisibility=hidden','-std=c89','-pedantic','--coverage','-Mfree','-fdefault-integer-8']:
         outflags.append(flag)
+    return outflags
+
+  def updatePackageCFlags(self,flags):
+    '''To turn off various warnings or errors the compilers may produce with external packages, remove or add appropriate compiler flags'''
+    outflags = self.removeWarningFlags(flags.split())
+    with self.Language('C'):
+      if config.setCompilers.Configure.isDarwinCatalina(self.log) and config.setCompilers.Configure.isClang(self.getCompiler(), self.log):
+        outflags.append('-Wno-implicit-function-declaration')
+    return ' '.join(outflags)
+
+  def updatePackageFFlags(self,flags):
+    outflags = self.removeWarningFlags(flags.split())
+    with self.Language('FC'):
+      if config.setCompilers.Configure.isNAG(self.getLinker(), self.log):
+         outflags.extend(['-mismatch','-dusty','-dcfuns'])
+      if config.setCompilers.Configure.isGfortran100plus(self.getCompiler(), self.log):
+        outflags.append('-fallow-argument-mismatch')
+    return ' '.join(outflags)
+
+  def updatePackageCxxFlags(self,flags):
+    outflags = self.removeWarningFlags(flags.split())
     return ' '.join(outflags)
 
   def getDefaultLanguage(self):
@@ -329,7 +353,7 @@ class Package(config.base.Configure):
     '''Special case if --package-prefix-hash then even self.publicInstall == 0 are installed in the prefix location'''
     self.confDir    = self.installDirProvider.confDir  # private install location; $PETSC_DIR/$PETSC_ARCH for PETSc
     self.packageDir = self.getDir()
-    if not self.packageDir or (self.download[0].find('dir://') >= 0) or (self.download[0].find('link://') >= 0): self.packageDir = self.downLoad()
+    if not self.packageDir: self.packageDir = self.downLoad()
     self.updateGitDir()
     self.updatehgDir()
     if (self.publicInstall or 'package-prefix-hash' in self.argDB) and not ('package-prefix-hash' in self.argDB and (hasattr(self,'postProcess') or self.builtafterpetsc)):
@@ -656,6 +680,10 @@ class Package(config.base.Configure):
   def updateGitDir(self):
     '''Checkout the correct gitcommit for the gitdir - and update pkg.gitcommit'''
     if hasattr(self.sourceControl, 'git') and (self.packageDir == os.path.join(self.externalPackagesDir,'git.'+self.package)):
+      if not (hasattr(self, 'gitcommit') and self.gitcommit):
+        raise RuntimeError('Trying to update '+self.package+' package source directory '+self.packageDir+' which is supposed to be a git repository, but no gitcommit is set for this package.\n\
+Try to delete '+self.packageDir+' and rerun configure.\n\
+If the problem persists, please send your configure.log to petsc-maint@mcs.anl.gov')
       # verify that packageDir is actually a git clone
       if not os.path.isdir(os.path.join(self.packageDir,'.git')):
         raise RuntimeError(self.packageDir +': is not a git repository! '+os.path.join(self.packageDir,'.git')+' not found!')
@@ -990,7 +1018,10 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
   def versionToTuple(self,version):
     '''Converts string of the form x.y to (x,y)'''
     if not version: return ()
-    return tuple(map(int,version.split('.')))
+    vl = version.split('.')
+    if len(vl) > 2:
+      vl[-1] = re.compile(r'^[0-9]+').search(vl[-1]).group(0)
+    return tuple(map(int,vl))
 
   def checkVersion(self):
     '''Uses self.version, self.minversion, self.maxversion, self.versionname, and self.versioninclude to determine if package has required version'''
@@ -1053,7 +1084,6 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
       return
     try:
       self.foundversion = self.versionToStandardForm(version)
-      self.version_tuple = self.versionToTuple(self.foundversion)
     except:
       self.log.write('For '+self.package+' unable to convert version information ('+version+') to standard form, skipping version check\n')
       if self.requiresversion:
@@ -1063,26 +1093,27 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
     self.log.write('For '+self.package+' need '+self.minversion+' <= '+self.foundversion+' <= '+self.maxversion+'\n')
 
     try:
-      foundversiontuple = self.versionToTuple(self.foundversion)
+      self.version_tuple = self.versionToTuple(self.foundversion)
     except:
       self.log.write('For '+self.package+' unable to convert version string to tuple, skipping version check\n')
       if self.requiresversion:
-        raise RuntimeError('Configure must be able to determined the version information for '+self.name+'. It was unable to, please send configure.log to petsc-maint@mcs.anl.gov')
+        raise RuntimeError('Configure must be able to determined the version information for '+self.name+'; it appears to be '+self.foundversion+'. It was unable to, please send configure.log to petsc-maint@mcs.anl.gov')
+      self.foundversion = ''
       return
 
     suggest = ''
     if self.download: suggest = '\nSuggest using --download-'+self.package+' for a compatible '+self.name
     if self.minversion:
-      if self.versionToTuple(self.minversion) > foundversiontuple:
+      if self.versionToTuple(self.minversion) > self.version_tuple:
         raise RuntimeError(self.package+' version is '+self.foundversion+' this version of PETSc needs at least '+self.minversion+suggest+'\n')
     elif self.version:
-      if self.versionToTuple(zeroPatch(self.version)) > foundversiontuple:
+      if self.versionToTuple(zeroPatch(self.version)) > self.version_tuple:
         self.logPrintBox('Warning: Using version '+self.foundversion+' of package '+self.package+' PETSc is tested with '+dropPatch(self.version)+suggest)
     if self.maxversion:
-      if self.versionToTuple(self.maxversion) < foundversiontuple:
+      if self.versionToTuple(self.maxversion) < self.version_tuple:
         raise RuntimeError(self.package+' version is '+self.foundversion+' this version of PETSc needs at most '+self.maxversion+suggest+'\n')
     elif self.version:
-      if self.versionToTuple(infinitePatch(self.version)) < foundversiontuple:
+      if self.versionToTuple(infinitePatch(self.version)) < self.version_tuple:
         self.logPrintBox('Warning: Using version '+self.foundversion+' of package '+self.package+' PETSc is tested with '+dropPatch(self.version)+suggest)
     return
 
@@ -1516,7 +1547,7 @@ class GNUPackage(Package):
       args.append('CC="'+self.setCompilers.cross_cc+'"')
     else:
       args.append('CC="'+self.getCompiler()+'"')
-    args.append('CFLAGS="'+self.removeWarningFlags(self.getCompilerFlags())+'"')
+    args.append('CFLAGS="'+self.updatePackageCFlags(self.getCompilerFlags())+'"')
     args.append('AR="'+self.setCompilers.AR+'"')
     args.append('ARFLAGS="'+self.setCompilers.AR_FLAGS+'"')
     if not self.installwithbatch and hasattr(self.setCompilers,'cross_LIBS'):
@@ -1530,7 +1561,7 @@ class GNUPackage(Package):
         args.append('CXX="'+self.setCompilers.cross_CC+'"')
       else:
         args.append('CXX="'+self.getCompiler()+'"')
-      args.append('CXXFLAGS="'+self.removeWarningFlags(self.getCompilerFlags())+'"')
+      args.append('CXXFLAGS="'+self.updatePackageCxxFlags(self.getCompilerFlags())+'"')
       self.popLanguage()
     else:
       args.append('--disable-cxx')
@@ -1551,17 +1582,17 @@ class GNUPackage(Package):
           args.append('F90="'+self.setCompilers.cross_fc+'"')
         else:
           args.append('F90="'+fc+'"')
-        args.append('F90FLAGS="'+self.removeWarningFlags(self.getCompilerFlags())+'"')
+        args.append('F90FLAGS="'+self.updatePackageFFlags(self.getCompilerFlags())+'"')
       else:
         args.append('--disable-f90')
-      args.append('FFLAGS="'+self.removeWarningFlags(self.getCompilerFlags())+'"')
+      args.append('FFLAGS="'+self.updatePackageFFlags(self.getCompilerFlags())+'"')
       if not self.installwithbatch and hasattr(self.setCompilers,'cross_fc'):
         args.append('FC="'+self.setCompilers.cross_fc+'"')
         args.append('F77="'+self.setCompilers.cross_fc+'"')
       else:
         args.append('FC="'+fc+'"')
         args.append('F77="'+fc+'"')
-      args.append('FCFLAGS="'+self.removeWarningFlags(self.getCompilerFlags())+'"')
+      args.append('FCFLAGS="'+self.updatePackageFFlags(self.getCompilerFlags())+'"')
       self.popLanguage()
     else:
       args.append('--disable-fortran')
@@ -1672,13 +1703,20 @@ class CMakePackage(Package):
     import shlex
 
     args = ['-DCMAKE_INSTALL_PREFIX='+self.installDir]
+    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
+    args.append('-DCMAKE_INSTALL_LIBDIR:STRING="lib"')
     args.append('-DCMAKE_VERBOSE_MAKEFILE=1')
+    if self.compilerFlags.debugging:
+      args.append('-DCMAKE_BUILD_TYPE=Debug')
+    else:
+      args.append('-DCMAKE_BUILD_TYPE=Release')
     self.framework.pushLanguage('C')
     args.append('-DCMAKE_C_COMPILER="'+self.framework.getCompiler()+'"')
+    args.append('-DMPI_C_COMPILER="'+self.framework.getCompiler()+'"')
     args.append('-DCMAKE_AR='+self.setCompilers.AR)
     ranlib = shlex.split(self.setCompilers.RANLIB)[0]
     args.append('-DCMAKE_RANLIB='+ranlib)
-    cflags = self.removeWarningFlags(self.setCompilers.getCompilerFlags())
+    cflags = self.updatePackageCFlags(self.setCompilers.getCompilerFlags())
     args.append('-DCMAKE_C_FLAGS:STRING="'+cflags+'"')
     args.append('-DCMAKE_C_FLAGS_DEBUG:STRING="'+cflags+'"')
     args.append('-DCMAKE_C_FLAGS_RELEASE:STRING="'+cflags+'"')
@@ -1686,26 +1724,28 @@ class CMakePackage(Package):
     if hasattr(self.compilers, 'CXX'):
       self.framework.pushLanguage('Cxx')
       args.append('-DCMAKE_CXX_COMPILER="'+self.framework.getCompiler()+'"')
-      args.append('-DCMAKE_CXX_FLAGS:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DMPI_CXX_COMPILER="'+self.framework.getCompiler()+'"')
+      args.append('-DCMAKE_CXX_FLAGS:STRING="'+self.updatePackageCxxFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING="'+self.updatePackageCxxFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING="'+self.updatePackageCxxFlags(self.framework.getCompilerFlags())+'"')
       self.framework.popLanguage()
 
     if hasattr(self.compilers, 'FC'):
       self.framework.pushLanguage('FC')
       args.append('-DCMAKE_Fortran_COMPILER="'+self.framework.getCompiler()+'"')
-      args.append('-DCMAKE_Fortran_FLAGS:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_Fortran_FLAGS_DEBUG:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
-      args.append('-DCMAKE_Fortran_FLAGS_RELEASE:STRING="'+self.removeWarningFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DMPI_Fortran_COMPILER="'+self.framework.getCompiler()+'"')
+      args.append('-DCMAKE_Fortran_FLAGS:STRING="'+self.updatePackageFFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_Fortran_FLAGS_DEBUG:STRING="'+self.updatePackageFFlags(self.framework.getCompilerFlags())+'"')
+      args.append('-DCMAKE_Fortran_FLAGS_RELEASE:STRING="'+self.updatePackageFFlags(self.framework.getCompilerFlags())+'"')
       self.framework.popLanguage()
 
     if self.setCompilers.LDFLAGS:
       args.append('-DCMAKE_EXE_LINKER_FLAGS:STRING="'+self.setCompilers.LDFLAGS+'"')
 
     if self.checkSharedLibrariesEnabled():
-      args.append('-DBUILD_SHARED_LIBS=on')
+      args.append('-DBUILD_SHARED_LIBS:BOOL=ON')
     else:
-      args.append('-DBUILD_SHARED_LIBS=off')
+      args.append('-DBUILD_SHARED_LIBS:BOOL=OFF')
     return args
 
   def Install(self):
@@ -1725,7 +1765,7 @@ class CMakePackage(Package):
         raise RuntimeError('CMake not found, needed to build '+self.PACKAGE+'. Rerun configure with --download-cmake.')
 
       # effectively, this is 'make clean'
-      folder = os.path.join(self.packageDir, 'petsc-build')
+      folder = os.path.join(self.packageDir, self.cmakelistsdir, 'petsc-build')
       if os.path.isdir(folder):
         import shutil
         shutil.rmtree(folder)

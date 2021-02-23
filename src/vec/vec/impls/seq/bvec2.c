@@ -133,9 +133,9 @@ PetscErrorCode VecSetRandom_Seq(Vec xin,PetscRandom r)
   PetscScalar    *xx;
 
   PetscFunctionBegin;
-  ierr = VecGetArray(xin,&xx);CHKERRQ(ierr);
+  ierr = VecGetArrayWrite(xin,&xx);CHKERRQ(ierr);
   for (i=0; i<n; i++) {ierr = PetscRandomGetValue(r,&xx[i]);CHKERRQ(ierr);}
-  ierr = VecRestoreArray(xin,&xx);CHKERRQ(ierr);
+  ierr = VecRestoreArrayWrite(xin,&xx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -145,8 +145,6 @@ PetscErrorCode VecGetSize_Seq(Vec vin,PetscInt *size)
   *size = vin->map->n;
   PetscFunctionReturn(0);
 }
-
-
 
 PetscErrorCode VecConjugate_Seq(Vec xin)
 {
@@ -216,16 +214,16 @@ PetscErrorCode VecNorm_Seq(Vec xin,NormType type,PetscReal *z)
   const PetscScalar *xx;
   PetscErrorCode    ierr;
   PetscInt          n = xin->map->n;
-  PetscBLASInt      one = 1, bn;
+  PetscBLASInt      one = 1, bn = 0;
 
   PetscFunctionBegin;
   ierr = PetscBLASIntCast(n,&bn);CHKERRQ(ierr);
   if (type == NORM_2 || type == NORM_FROBENIUS) {
     ierr = VecGetArrayRead(xin,&xx);CHKERRQ(ierr);
 #if defined(PETSC_USE_REAL___FP16)
-    *z   = BLASnrm2_(&bn,xx,&one);
+    PetscStackCallBLAS("BLASnrm2",*z = BLASnrm2_(&bn,xx,&one));
 #else
-    *z   = PetscRealPart(BLASdot_(&bn,xx,&one,xx,&one));
+    PetscStackCallBLAS("BLASdot",*z   = PetscRealPart(BLASdot_(&bn,xx,&one,xx,&one)));
     *z   = PetscSqrtReal(*z);
 #endif
     ierr = VecRestoreArrayRead(xin,&xx);CHKERRQ(ierr);
@@ -303,7 +301,7 @@ PetscErrorCode VecView_Seq_ASCII(Vec xin,PetscViewer viewer)
       ierr = PetscViewerASCIIPrintf(viewer,"%18.16e\n",(double)xv[i]);CHKERRQ(ierr);
 #endif
     }
-  } else if (format == PETSC_VIEWER_ASCII_VTK || format == PETSC_VIEWER_ASCII_VTK_CELL) {
+  } else if (format == PETSC_VIEWER_ASCII_VTK_DEPRECATED || format == PETSC_VIEWER_ASCII_VTK_CELL_DEPRECATED) {
     /*
        state 0: No header has been output
        state 1: Only POINT_DATA has been output
@@ -325,7 +323,7 @@ PetscErrorCode VecView_Seq_ASCII(Vec xin,PetscViewer viewer)
     ierr = PetscObjectGetName((PetscObject) xin, &name);CHKERRQ(ierr);
     ierr = VecGetBlockSize(xin, &bs);CHKERRQ(ierr);
     if ((bs < 1) || (bs > 3)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE, "VTK can only handle 3D objects, but vector dimension is %d", bs);
-    if (format == PETSC_VIEWER_ASCII_VTK) {
+    if (format == PETSC_VIEWER_ASCII_VTK_DEPRECATED) {
       if (outputState == 0) {
         outputState = 1;
         doOutput = 1;
@@ -378,7 +376,7 @@ PetscErrorCode VecView_Seq_ASCII(Vec xin,PetscViewer viewer)
       }
       ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
     }
-  } else if (format == PETSC_VIEWER_ASCII_VTK_COORDS) {
+  } else if (format == PETSC_VIEWER_ASCII_VTK_COORDS_DEPRECATED) {
     PetscInt bs, b;
 
     ierr = VecGetBlockSize(xin, &bs);CHKERRQ(ierr);
@@ -723,7 +721,7 @@ PetscErrorCode VecDestroy_Seq(Vec v)
 #if defined(PETSC_USE_LOG)
   PetscLogObjectState((PetscObject)v,"Length=%D",v->map->n);
 #endif
-  ierr = PetscFree(vs->array_allocated);CHKERRQ(ierr);
+  if (vs) { ierr = PetscFree(vs->array_allocated);CHKERRQ(ierr); }
   ierr = PetscFree(v->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -821,6 +819,7 @@ static struct _VecOps DvOps = {VecDuplicate_Seq, /* 1 */
                                VecStrideSubSetGather_Default,
                                VecStrideSubSetScatter_Default,
                                NULL,
+                               NULL,
                                NULL
 };
 
@@ -841,6 +840,7 @@ PetscErrorCode VecCreate_Seq_Private(Vec v,const PetscScalar array[])
   v->petscnative     = PETSC_TRUE;
   s->array           = (PetscScalar*)array;
   s->array_allocated = NULL;
+  if (array) v->offloadmask = PETSC_OFFLOAD_CPU;
 
   ierr = PetscLayoutSetUp(v->map);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)v,VECSEQ);CHKERRQ(ierr);
@@ -890,7 +890,7 @@ PetscErrorCode  VecCreateSeqWithArray(MPI_Comm comm,PetscInt bs,PetscInt n,const
   ierr = VecCreate(comm,V);CHKERRQ(ierr);
   ierr = VecSetSizes(*V,n,n);CHKERRQ(ierr);
   ierr = VecSetBlockSize(*V,bs);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQ on more than one process");
   ierr = VecCreate_Seq_Private(*V,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);

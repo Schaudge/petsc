@@ -66,6 +66,7 @@ class Configure(config.base.Configure):
     self.arch          = framework.require('PETSc.options.arch',        self.setCompilers)
     self.petscdir      = framework.require('PETSc.options.petscdir',    self.arch)
     self.installdir    = framework.require('PETSc.options.installDir',  self)
+    self.dataFilesPath = framework.require('PETSc.options.dataFilesPath',self)
     self.scalartypes   = framework.require('PETSc.options.scalarTypes', self)
     self.indexTypes    = framework.require('PETSc.options.indexTypes',  self)
     self.languages     = framework.require('PETSc.options.languages',   self.setCompilers)
@@ -170,6 +171,16 @@ class Configure(config.base.Configure):
         with self.setCompilers.Language('FC'):
           fd.write('fcompiler='+self.setCompilers.getCompiler()+'\n')
           fd.write('fflags_extra='+self.setCompilers.getCompilerFlags().strip()+'\n')
+      if hasattr(self.compilers, 'CUDAC'):
+        with self.setCompilers.Language('CUDA'):
+          fd.write('cudacompiler='+self.setCompilers.getCompiler()+'\n')
+          fd.write('cudaflags_extra='+self.setCompilers.getCompilerFlags().strip()+'\n')
+          p = self.framework.require('config.packages.cuda')
+          fd.write('cudalib='+self.libraries.toStringNoDupes(p.lib)+'\n')
+          fd.write('cudainclude='+self.headers.toStringNoDupes(p.include)+'\n')
+          if hasattr(self.setCompilers,'CUDA_CXX'):
+            fd.write('cuda_cxx='+self.setCompilers.CUDA_CXX+'\n')
+            fd.write('cuda_cxxflags='+self.setCompilers.CUDA_CXXFLAGS+'\n')
 
       fd.write('\n')
       fd.write('Name: PETSc\n')
@@ -225,6 +236,17 @@ prepend-path PATH "%s"
       # Remove any MPI/MPICH include files that may have been put here by previous runs of ./configure
       self.executeShellCommand('rm -rf  '+os.path.join(self.petscdir.dir,self.arch.arch,'include','mpi*')+' '+os.path.join(self.petscdir.dir,self.arch.arch,'include','opa*'), log = self.log)
 
+    self.logPrintDivider()
+    # Test for compiler-specific macros that need to be defined.
+    if self.setCompilers.isCrayVector('CC', self.log):
+      self.addDefine('HAVE_CRAY_VECTOR','1')
+
+    if self.functions.haveFunction('gethostbyname') and self.functions.haveFunction('socket') and self.headers.haveHeader('netinet/in.h'):
+      self.addDefine('USE_SOCKET_VIEWER','1')
+      if self.checkCompile('#include <sys/socket.h>','setsockopt(0,SOL_SOCKET,SO_REUSEADDR,0,0)'):
+        self.addDefine('HAVE_SO_REUSEADDR','1')
+
+    self.logPrintDivider()
     self.setCompilers.pushLanguage('C')
     compiler = self.setCompilers.getCompiler()
     if compiler.endswith('mpicc') or compiler.endswith('mpiicc'):
@@ -362,18 +384,9 @@ prepend-path PATH "%s"
     if self.framework.argDB['with-batch']:
       self.addMakeMacro('PETSC_WITH_BATCH','1')
 
-    # Test for compiler-specific macros that need to be defined.
-    if self.setCompilers.isCrayVector('CC', self.log):
-      self.addDefine('HAVE_CRAY_VECTOR','1')
-
-#-----------------------------------------------------------------------------------------------------
-    if self.functions.haveFunction('gethostbyname') and self.functions.haveFunction('socket') and self.headers.haveHeader('netinet/in.h'):
-      self.addDefine('USE_SOCKET_VIEWER','1')
-      if self.checkCompile('#include <sys/socket.h>','setsockopt(0,SOL_SOCKET,SO_REUSEADDR,0,0)'):
-        self.addDefine('HAVE_SO_REUSEADDR','1')
-
 #-----------------------------------------------------------------------------------------------------
     # print include and lib for makefiles
+    self.logPrintDivider()
     self.framework.packages.reverse()
     petscincludes = [os.path.join(self.petscdir.dir,'include'),os.path.join(self.petscdir.dir,self.arch.arch,'include')]
     petscincludes_install = [os.path.join(self.installdir.dir, 'include')] if self.framework.argDB['prefix'] else petscincludes
@@ -463,7 +476,7 @@ prepend-path PATH "%s"
   def dumpConfigInfo(self):
     import time
     fd = open(os.path.join(self.arch.arch,'include','petscconfiginfo.h'),'w')
-    fd.write('static const char *petscconfigureoptions = "'+self.framework.getOptionsString(['configModules', 'optionsModule']).replace('\"','\\"')+'";\n')
+    fd.write('static const char *petscconfigureoptions = "'+self.framework.getOptionsString(['configModules', 'optionsModule']).replace('\"','\\"').replace('\\ ','\\\\ ')+'";\n')
     fd.close()
     return
 
@@ -566,6 +579,13 @@ prepend-path PATH "%s"
     else:
       self.addDefine('Prefetch(a,b,c)', ' ')
     self.popLanguage()
+
+  def delGenFiles(self):
+    '''Delete generated files'''
+    delfile = os.path.join(self.arch.arch,'lib','petsc','conf','files')
+    try:
+      os.unlink(delfile)
+    except: pass
 
   def configureAtoll(self):
     '''Checks if atoll exists'''
@@ -773,11 +793,17 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
       self.addDefine('DIR','"'+petscdir.replace('\\','\\\\')+'"')
       (petscdir,error,status) = self.executeShellCommand('cygpath -m '+self.installdir.petscDir, log = self.log)
       self.addMakeMacro('wPETSC_DIR',petscdir)
+      if self.dataFilesPath.datafilespath:
+        (datafilespath,error,status) = self.executeShellCommand('cygpath -m '+self.dataFilesPath.datafilespath, log = self.log)
+        self.addMakeMacro('DATAFILESPATH',datafilespath)
+
     else:
       self.addDefine('REPLACE_DIR_SEPARATOR','\'\\\\\'')
       self.addDefine('DIR_SEPARATOR','\'/\'')
       self.addDefine('DIR','"'+self.installdir.petscDir+'"')
       self.addMakeMacro('wPETSC_DIR',self.installdir.petscDir)
+      if self.dataFilesPath.datafilespath:
+        self.addMakeMacro('DATAFILESPATH',self.dataFilesPath.datafilespath)
     self.addDefine('ARCH','"'+self.installdir.petscArch+'"')
     return
 
@@ -945,6 +971,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
     self.Dump()
     self.dumpConfigInfo()
     self.dumpMachineInfo()
+    self.delGenFiles()
     # need to save the current state of BuildSystem so that postProcess() packages can read it in and perhaps run make install
     self.framework.storeSubstitutions(self.framework.argDB)
     self.framework.argDB['configureCache'] = pickle.dumps(self.framework)

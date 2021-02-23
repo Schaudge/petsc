@@ -6,6 +6,20 @@ CHANGES: PETSc for Python
 :Contact: dalcinl@gmail.com
 
 
+Release 3.14.1
+==============
+
+- Fix build issues after changes in recent PETSc patch releases.
+- Add various missing types and enums definitions.
+- Update Cython build, require ``Cython >= 0.24``.
+
+
+Release 3.14.0
+==============
+
+- Update to PETSc 3.14 release.
+
+
 Release 3.13.0
 ==============
 

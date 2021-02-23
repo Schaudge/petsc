@@ -59,6 +59,7 @@ PetscBool   PetscBeganKokkos              = PETSC_FALSE;
 #endif
 
 PetscBool   use_gpu_aware_mpi             = PETSC_TRUE;
+PetscBool   PetscCreatedGpuObjects        = PETSC_FALSE;
 
 #if defined(PETSC_HAVE_COMPLEX)
 #if defined(PETSC_COMPLEX_INSTANTIATE)
@@ -128,7 +129,7 @@ PetscErrorCode  PetscOpenHistoryFile(const char filename[],FILE **fd)
   char           version[256];
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   if (!rank) {
     char        arch[10];
     int         err;
@@ -136,7 +137,7 @@ PetscErrorCode  PetscOpenHistoryFile(const char filename[],FILE **fd)
     ierr = PetscGetArchType(arch,10);CHKERRQ(ierr);
     ierr = PetscGetDate(date,64);CHKERRQ(ierr);
     ierr = PetscGetVersion(version,256);CHKERRQ(ierr);
-    ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
     if (filename) {
       ierr = PetscFixFilename(filename,fname);CHKERRQ(ierr);
     } else {
@@ -168,7 +169,7 @@ PETSC_INTERN PetscErrorCode PetscCloseHistoryFile(FILE **fd)
   int            err;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
   if (!rank) {
     ierr = PetscGetDate(date,64);CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"----------------------------------------\n");CHKERRQ(ierr);
@@ -265,18 +266,6 @@ PetscErrorCode  PetscSetHelpVersionFunctions(PetscErrorCode (*help)(MPI_Comm),Pe
 PETSC_INTERN PetscBool   PetscObjectsLog;
 #endif
 
-void PetscMPI_Comm_eh(MPI_Comm *comm, PetscMPIInt *err, ...)
-{
-  if (PetscUnlikely(*err)) {
-    PetscMPIInt len;
-    char        errstring[MPI_MAX_ERROR_STRING];
-
-    MPI_Error_string(*err,errstring,&len);
-    PetscError(MPI_COMM_SELF,__LINE__,PETSC_FUNCTION_NAME,__FILE__,PETSC_MPI_ERROR_CODE,PETSC_ERROR_INITIAL,"Internal error in MPI: %s",errstring);
-  }
-  return;
-}
-
 /* CUPM stands for 'CUDA Programming Model', which is implemented in either CUDA or HIP.
    Use the following macros to define CUDA/HIP initialization related vars/routines.
  */
@@ -291,6 +280,8 @@ void PetscMPI_Comm_eh(MPI_Comm *comm, PetscMPIInt *err, ...)
   #define cupmGetLastError()                      cudaGetLastError()
   #define cupmDeviceMapHost                       cudaDeviceMapHost
   #define cupmSuccess                             cudaSuccess
+  #define cupmErrorMemoryAllocation               cudaErrorMemoryAllocation
+  #define cupmErrorLaunchOutOfResources           cudaErrorLaunchOutOfResources
   #define cupmErrorSetOnActiveProcess             cudaErrorSetOnActiveProcess
   #define CHKERRCUPM(x)                           CHKERRCUDA(x)
   #define PetscCUPMBLASInitializeHandle()         PetscCUBLASInitializeHandle()
@@ -322,6 +313,8 @@ void PetscMPI_Comm_eh(MPI_Comm *comm, PetscMPIInt *err, ...)
   #define cupmGetLastError()                      hipGetLastError()
   #define cupmDeviceMapHost                       hipDeviceMapHost
   #define cupmSuccess                             hipSuccess
+  #define cupmErrorMemoryAllocation               hipErrorMemoryAllocation
+  #define cupmErrorLaunchOutOfResources           hipErrorLaunchOutOfResources
   #define cupmErrorSetOnActiveProcess             hipErrorSetOnActiveProcess
   #define CHKERRCUPM(x)                           CHKERRQ((x)==hipSuccess? 0:PETSC_ERR_LIB)
   #define PetscCUPMBLASInitializeHandle()         0
@@ -360,7 +353,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
 #endif
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
 
 #if !defined(PETSC_HAVE_THREADSAFETY)
   if (!(PETSC_RUNNING_ON_VALGRIND)) {
@@ -388,6 +381,9 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
       eachcall      = PETSC_FALSE;
       initializenan = PETSC_FALSE;
     }
+
+    ierr = PetscOptionsGetBool(NULL,NULL,"-malloc_requested_size",&flg1,&flg2);CHKERRQ(ierr);
+    if (flg2) {ierr = PetscMallocLogRequestedSizeSet(flg1);CHKERRQ(ierr);}
 
     ierr = PetscOptionsHasName(NULL,NULL,"-malloc_view",&mlog);CHKERRQ(ierr);
     if (mlog) {
@@ -481,7 +477,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
     if (hasHelpIntro) {
       ierr = PetscOptionsDestroyDefault();CHKERRQ(ierr);
       ierr = PetscFreeMPIResources();CHKERRQ(ierr);
-      ierr = MPI_Finalize();CHKERRQ(ierr);
+      ierr = MPI_Finalize();CHKERRMPI(ierr);
       exit(0);
     }
   }
@@ -492,7 +488,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
   flg1 = PETSC_FALSE;
   ierr = PetscOptionsGetBool(NULL,NULL,"-on_error_abort",&flg1,NULL);CHKERRQ(ierr);
   if (flg1) {
-    ierr = MPI_Comm_set_errhandler(comm,MPI_ERRORS_ARE_FATAL);CHKERRQ(ierr);
+    ierr = MPI_Comm_set_errhandler(comm,MPI_ERRORS_ARE_FATAL);CHKERRMPI(ierr);
     ierr = PetscPushErrorHandler(PetscAbortErrorHandler,NULL);CHKERRQ(ierr);
   }
   flg1 = PETSC_FALSE;
@@ -501,17 +497,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
   flg1 = PETSC_FALSE;
   ierr = PetscOptionsGetBool(NULL,NULL,"-mpi_return_on_error",&flg1,NULL);CHKERRQ(ierr);
   if (flg1) {
-    ierr = MPI_Comm_set_errhandler(comm,MPI_ERRORS_RETURN);CHKERRQ(ierr);
-  }
-  /* experimental */
-  flg1 = PETSC_FALSE;
-  ierr = PetscOptionsGetBool(NULL,NULL,"-mpi_return_error_string",&flg1,NULL);CHKERRQ(ierr);
-  if (flg1) {
-    MPI_Errhandler eh;
-
-    ierr = MPI_Comm_create_errhandler(PetscMPI_Comm_eh,&eh);CHKERRQ(ierr);
-    ierr = MPI_Comm_set_errhandler(comm,eh);CHKERRQ(ierr);
-    ierr = MPI_Errhandler_free(&eh);CHKERRQ(ierr);
+    ierr = MPI_Comm_set_errhandler(comm,MPI_ERRORS_RETURN);CHKERRMPI(ierr);
   }
   flg1 = PETSC_FALSE;
   ierr = PetscOptionsGetBool(NULL,NULL,"-no_signal_handler",&flg1,NULL);CHKERRQ(ierr);
@@ -526,8 +512,8 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
     MPI_Errhandler err_handler;
 
     ierr = PetscSetDebuggerFromString(string);CHKERRQ(ierr);
-    ierr = MPI_Comm_create_errhandler(Petsc_MPI_DebuggerOnError,&err_handler);CHKERRQ(ierr);
-    ierr = MPI_Comm_set_errhandler(comm,err_handler);CHKERRQ(ierr);
+    ierr = MPI_Comm_create_errhandler(Petsc_MPI_DebuggerOnError,&err_handler);CHKERRMPI(ierr);
+    ierr = MPI_Comm_set_errhandler(comm,err_handler);CHKERRMPI(ierr);
     ierr = PetscPushErrorHandler(PetscAttachDebuggerErrorHandler,NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsGetString(NULL,NULL,"-debug_terminal",string,sizeof(string),&flg1);CHKERRQ(ierr);
@@ -536,7 +522,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
   ierr = PetscOptionsGetString(NULL,NULL,"-stop_for_debugger",string,sizeof(string),&flg2);CHKERRQ(ierr);
   if (flg1 || flg2) {
     PetscMPIInt    size;
-    PetscInt       lsize,*nodes;
+    PetscInt       lsize,*ranks;
     MPI_Errhandler err_handler;
     /*
        we have to make sure that all processors have opened
@@ -544,28 +530,53 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
        debugger has stated it is likely to receive a SIGUSR1
        and kill the program.
     */
-    ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+    ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
     if (size > 2) {
       PetscMPIInt dummy = 0;
       MPI_Status  status;
       for (i=0; i<size; i++) {
         if (rank != i) {
-          ierr = MPI_Send(&dummy,1,MPI_INT,i,109,comm);CHKERRQ(ierr);
+          ierr = MPI_Send(&dummy,1,MPI_INT,i,109,comm);CHKERRMPI(ierr);
         }
       }
       for (i=0; i<size; i++) {
         if (rank != i) {
-          ierr = MPI_Recv(&dummy,1,MPI_INT,i,109,comm,&status);CHKERRQ(ierr);
+          ierr = MPI_Recv(&dummy,1,MPI_INT,i,109,comm,&status);CHKERRMPI(ierr);
         }
       }
     }
     /* check if this processor node should be in debugger */
-    ierr  = PetscMalloc1(size,&nodes);CHKERRQ(ierr);
+    ierr  = PetscMalloc1(size,&ranks);CHKERRQ(ierr);
     lsize = size;
-    ierr  = PetscOptionsGetIntArray(NULL,NULL,"-debugger_nodes",nodes,&lsize,&flag);CHKERRQ(ierr);
+    /* Deprecated in 3.14 */
+    ierr  = PetscOptionsGetIntArray(NULL,NULL,"-debugger_nodes",ranks,&lsize,&flag);CHKERRQ(ierr);
+    if (flag) {
+      const char * const quietopt="-options_suppress_deprecated_warnings";
+      char               msg[4096];
+      PetscBool          quiet = PETSC_FALSE;
+
+      ierr = PetscOptionsGetBool(NULL,NULL,quietopt,&quiet,NULL);CHKERRQ(ierr);
+      if (!quiet) {
+        ierr = PetscStrcpy(msg,"** PETSc DEPRECATION WARNING ** : the option ");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg,"-debugger_nodes");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg," is deprecated as of version ");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg,"3.14");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg," and will be removed in a future release.");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg," Please use the option ");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg,"-debugger_ranks");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg," instead.");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg," (Silence this warning with ");CHKERRQ(ierr);
+        ierr = PetscStrcat(msg,quietopt);CHKERRQ(ierr);
+        ierr = PetscStrcat(msg,")\n");CHKERRQ(ierr);
+        ierr = PetscPrintf(comm,msg);CHKERRQ(ierr);
+      }
+    } else {
+      lsize = size;
+      ierr  = PetscOptionsGetIntArray(NULL,NULL,"-debugger_ranks",ranks,&lsize,&flag);CHKERRQ(ierr);
+    }
     if (flag) {
       for (i=0; i<lsize; i++) {
-        if (nodes[i] == rank) { flag = PETSC_FALSE; break; }
+        if (ranks[i] == rank) { flag = PETSC_FALSE; break; }
       }
     }
     if (!flag) {
@@ -576,10 +587,12 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
       } else {
         ierr = PetscStopForDebugger();CHKERRQ(ierr);
       }
-      ierr = MPI_Comm_create_errhandler(Petsc_MPI_AbortOnError,&err_handler);CHKERRQ(ierr);
-      ierr = MPI_Comm_set_errhandler(comm,err_handler);CHKERRQ(ierr);
+      ierr = MPI_Comm_create_errhandler(Petsc_MPI_AbortOnError,&err_handler);CHKERRMPI(ierr);
+      ierr = MPI_Comm_set_errhandler(comm,err_handler);CHKERRMPI(ierr);
+    } else {
+      ierr = PetscWaitOnError();CHKERRQ(ierr);
     }
-    ierr = PetscFree(nodes);CHKERRQ(ierr);
+    ierr = PetscFree(ranks);CHKERRQ(ierr);
   }
 
   ierr = PetscOptionsGetString(NULL,NULL,"-on_error_emacs",emacsmachinename,sizeof(emacsmachinename),&flg1);CHKERRQ(ierr);
@@ -686,7 +699,7 @@ PETSC_INTERN PetscErrorCode  PetscOptionsCheckInitial_Private(const char help[])
     ierr = (*PetscHelpPrintf)(comm,"       start all processes in the debugger\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -on_error_emacs <machinename>\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm,"    emacs jumps to error file\n");CHKERRQ(ierr);
-    ierr = (*PetscHelpPrintf)(comm," -debugger_nodes [n1,n2,..] Nodes to start in debugger\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -debugger_ranks [n1,n2,..] Ranks to start in debugger\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -debugger_pause [m] : delay (in seconds) to attach debugger\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -stop_for_debugger : prints message on how to attach debugger manually\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm,"                      waits the delay for you to attach\n");CHKERRQ(ierr);

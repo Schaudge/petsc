@@ -66,7 +66,7 @@ Much of the power of ``KSP`` can be accessed through the single routine
 
    KSPSetFromOptions(KSP ksp);
 
-This routine accepts the options ``-h`` and ``-help`` as well as any of
+This routine accepts the option ``-help`` as well as any of
 the ``KSP`` and ``PC`` options discussed below. To solve a linear
 system, one sets the rhs and solution vectors using and executes the
 command
@@ -388,7 +388,7 @@ can be used by the options database command
   * - Deflated Generalized Minimal Residual
     - ``KSPDGMRES``
     - ``dgmres``
-  * - Pipelined Generalized Minimal Residual :cite:`Ghysels_Ashby_Meerbergen_Vanroose_2012`
+  * - Pipelined Generalized Minimal Residual :cite:`GhyselsAshbyMeerbergenVanroose2013`
     - ``KSPPGMRES``
     - ``pgmres``
   * - Pipelined, Flexible Generalized Minimal Residual :cite:`SananSchneppMay2016`
@@ -511,8 +511,7 @@ information about the iterations. The user can indicate that the norms
 of the residuals should be displayed by using ``-ksp_monitor`` within
 the options database. To display the residual norms in a graphical
 window (running under X Windows), one should use
-``-ksp_monitor_lg_residualnorm`` ``[x,y,w,h]``, where either all or none
-of the options must be specified. Application programmers can also
+``-ksp_monitor draw::draw_lg``. Application programmers can also
 provide their own routines to perform the monitoring by using the
 command
 
@@ -533,9 +532,9 @@ Several monitoring routines are supplied with PETSc, including
 
 ::
 
-   KSPMonitorDefault(KSP,PetscInt,PetscReal, void *);
+   KSPMonitorResidual(KSP,PetscInt,PetscReal, void *);
    KSPMonitorSingularValue(KSP,PetscInt,PetscReal,void *);
-   KSPMonitorTrueResidualNorm(KSP,PetscInt,PetscReal, void *);
+   KSPMonitorTrueResidual(KSP,PetscInt,PetscReal, void *);
 
 The default monitor simply prints an estimate of the :math:`l_2`-norm of
 the residual at each iteration. The routine
@@ -549,26 +548,8 @@ for testing or convergence studies, not for timing. These monitors may
 be accessed with the command line options ``-ksp_monitor``,
 ``-ksp_monitor_singular_value``, and ``-ksp_monitor_true_residual``.
 
-To employ the default graphical monitor, one should use the commands
-
-::
-
-   PetscDrawLG lg;
-   KSPMonitorLGResidualNormCreate(MPI_Comm comm,char *display,char *title,PetscInt x,PetscInt y,PetscInt w,PetscInt h,PetscDrawLG *lg);
-   KSPMonitorSet(KSP ksp,KSPMonitorLGResidualNorm,lg,0);
-
-When no longer needed, the line graph should be destroyed with the
-command
-
-::
-
-   PetscDrawLGDestroy(PetscDrawLG *lg);
-
-The user can change aspects of the graphs with the ``PetscDrawLG*()``
-and ``PetscDrawAxis*()`` routines. One can also access this
-functionality from the options database with the command
-``-ksp_monitor_lg_residualnorm`` ``[x,y,w,h]``. , where ``x, y, w, h``
-are the optional location and size of the window.
+To employ the default graphical monitor, one should use the command
+``-ksp_monitor draw::draw_lg``.
 
 One can cancel hardwired monitoring routines for KSP at runtime with
 ``-ksp_monitor_cancel``.
@@ -920,9 +901,9 @@ the various blocks. To set the appropriate data structures, the user
 *must* explicitly call ``KSPSetUp()`` before calling
 ``PCBJacobiGetSubKSP()`` or ``PCASMGetSubKSP(``). For further details,
 see
-`KSP Example 7 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex7.c.html>`__
+`KSP Tutorial ex7 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex7.c.html>`__
 or
-`KSP Example 8 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex8.c.html>`__.
+`KSP Tutorial ex8 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex8.c.html>`__.
 
 The block Jacobi, block Gauss-Seidel, and additive Schwarz
 preconditioners allow the user to set the number of blocks into which
@@ -1043,7 +1024,7 @@ for subdomains that fit within a single MPI rank, exactly as in
 ``PCASM``.
 
 Examples of the described PCGASM usage can be found in
-`KSP Example 62 <https://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/PC/PCGASM.html>`__.
+`KSP Tutorial ex62 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex62.c.html>`__.
 In particular, ``runex62_superlu_dist`` illustrates the use of
 ``SuperLU_DIST`` as the subdomain solver on coalesced multi-rank
 subdomains. The ``runex62_2D_*`` examples illustrate the use of
@@ -1359,7 +1340,7 @@ the number of subdomains that will be generated at the next level; the
 larger the coarsening ratio, the lower the number of coarser subdomains.
 
 For further details, see the example
-`KSP Example 59 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex59.c>`__
+`KSP Tutorial ex59 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex59.c>`__
 and the online documentation for ``PCBDDC``.
 
 Shell Preconditioners
@@ -1424,8 +1405,8 @@ preconditioners of type ``type1`` and ``type2``. The preconditioner
 ::
 
    PCSetType(pc,PCCOMPOSITE);
-   PCCompositeAddPC(pc,type1);
-   PCCompositeAddPC(pc,type2);
+   PCCompositeAddPCType(pc,type1);
+   PCCompositeAddPCType(pc,type2);
 
 Any number of preconditioners may added in this way.
 
@@ -2110,7 +2091,7 @@ Using External Linear Solvers
 PETSc interfaces to several external linear solvers (also see :any:`chapter_acknowledgements`)
 at the beginning of this manual). To use these solvers, one may:
 
-#. Run ``./configure`` with the additional options
+#. Run ``configure`` with the additional options
    ``--download-packagename`` e.g. ``--download-superlu_dist``
    ``--download-parmetis`` (SuperLU_DIST needs ParMetis) or
    ``--download-mumps`` ``--download-scalapack`` (MUMPS requires
@@ -2253,7 +2234,7 @@ at the beginning of this manual). To use these solvers, one may:
      - -
 
 The default and available input options for each external software can
-be found by specifying ``-help`` (or ``-h``) at runtime.
+be found by specifying ``-help`` at runtime.
 
 As an alternative to using runtime flags to employ these external
 packages, procedural calls are provided for some packages. For example,
@@ -2293,17 +2274,22 @@ preallocation routines are called for these communicator morphing types.
 The call for the incorrect type will simply be ignored without any harm
 or message.
 
+.. raw:: html
+
+   <hr>
+
 .. [2]
    See :any:`sec_amg` for information on using algebraic multigrid.
 
 .. [3]
-   This may seem an odd way to implement since it involves the “extra”
+   This may seem an odd way to implement since it involves the "extra"
    multiply by :math:`-A_{11}`. The reason is this is implemented this
    way is that this approach works for any number of blocks that may
    overlap.
 
-References
-~~~~~~~~~~
+.. raw:: html
+
+   <hr>
 
 .. bibliography:: ../../tex/petsc.bib
    :filter: docname in docnames

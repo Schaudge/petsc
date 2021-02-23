@@ -542,7 +542,7 @@ int main(int argc,char **args)
   if (testproj) {
     ierr = MatPtAPMultEqual(T2,B,PtAP,10,&flg);CHKERRQ(ierr);
     if (!flg) {
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with PtAP\n");CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with PtAP (MATSHELL)\n");CHKERRQ(ierr);
     }
     if (testshellops) { /* projections fail if the product operations are not specified */
       ierr = MatPtAP(T2,B,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&T);CHKERRQ(ierr);
@@ -551,7 +551,7 @@ int main(int argc,char **args)
       if (!flg) {
         Mat TE;
 
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with PtAP (user defined)\n");CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with PtAP (MATSHELL user defined)\n");CHKERRQ(ierr);
         ierr = MatComputeOperator(T,MATDENSE,&TE);CHKERRQ(ierr);
         ierr = MatView(TE,NULL);CHKERRQ(ierr);
         ierr = MatView(PtAP,NULL);CHKERRQ(ierr);
@@ -564,7 +564,7 @@ int main(int argc,char **args)
     if (RARt) {
       ierr = MatRARtMultEqual(T2,R,RARt,10,&flg);CHKERRQ(ierr);
       if (!flg) {
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with RARt\n");CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with RARt (MATSHELL)\n");CHKERRQ(ierr);
       }
     }
     if (testshellops) {
@@ -574,7 +574,7 @@ int main(int argc,char **args)
       if (!flg) {
         Mat TE;
 
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with RARt (user defined)\n");CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"Error with RARt (MATSHELL user defined)\n");CHKERRQ(ierr);
         ierr = MatComputeOperator(T,MATDENSE,&TE);CHKERRQ(ierr);
         ierr = MatView(TE,NULL);CHKERRQ(ierr);
         if (RARt) {
@@ -728,14 +728,7 @@ int main(int argc,char **args)
     output_file: output/ex70_1.out
     requires: cuda
     suffix: 1_cuda
-    args: -local {{0 1}} -xgpu {{0 1}} -bgpu {{0 1}} -A_mat_type {{seqaijcusparse seqaij}} -testnest 0 -testshellops {{0 1}}
-
-  test:
-    TODO: VecGetSubVector seems broken with CUDA
-    output_file: output/ex70_1.out
-    requires: cuda
-    suffix: 1_cuda_broken
-    args: -local {{0 1}} -xgpu {{0 1}} -bgpu {{0 1}} -A_mat_type seqaijcusparse -testnest
+    args: -local {{0 1}} -xgpu {{0 1}} -bgpu {{0 1}} -A_mat_type {{seqaijcusparse seqaij}} -testshellops {{0 1}}
 
   test:
     output_file: output/ex70_1.out
@@ -756,12 +749,18 @@ int main(int argc,char **args)
     nsize: 1
     args: -M {{7 11}} -N {{12 9}} -K {{1 3}} -local {{0 1}}
 
-  test:
+  testset:
     requires: cuda
     output_file: output/ex70_1.out
-    suffix: 2_cuda
     nsize: 1
     args: -M 7 -N 9 -K 2 -local {{0 1}} -testnest 0 -A_mat_type {{seqdensecuda seqdense}} -xgpu {{0 1}} -bgpu {{0 1}}
+    test:
+      requires: !complex
+      suffix: 2_cuda_real
+    test:
+      # complex+single gives a little bigger error in the MatDenseGetColumnVec test
+      requires: complex !single
+      suffix: 2_cuda_complex
 
   test:
     output_file: output/ex70_1.out

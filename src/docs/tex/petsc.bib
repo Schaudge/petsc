@@ -3,6 +3,16 @@
 % those belong in petscapp.bib
 %
 %   DO NOT DEFINE ANY ABREVIATIONS TO USE IN ENTRIES BELOW: Always write out the names of journels etc
+@article{Brandt2000,
+  title   = {General highly accurate algebraic coarsening},
+  author  = {Achi Brandt},
+  journal = {Electronic Transactions on Numerical Analysis},
+  volume  = {10},
+  number  = {9680},
+  pages   = {1--20},
+  issn    = {10689613},
+  year    = {2000}
+}
 @article{DalcinPazKlerCosimo2011,
   title = "Parallel distributed computing using Python",
   author = "Lisandro D. Dalcin and Rodrigo R. Paz and Pablo A. Kler and Alejandro Cosimo",
@@ -182,6 +192,24 @@ archivePrefix = "arXiv",
   Year                     = {1997},
   Pages                    = {151--167},
   Volume                   = {25}
+}
+
+@book{AscherPetzold1998,
+  title   = {Computer methods for ordinary differential equations and differential-algebraic equations},
+  author  = {Uri M Ascher and Linda R Petzold},
+  volume  = {61},
+  publisher = {SIAM},
+  year    = {1998}
+}
+
+@article{ColomesBadia2016,
+  title   = {Segregated {Runge}--{Kutta} methods for the incompressible {Navier}--{Stokes} equations},
+  author  = {Oriol Colom{\'e}s, and Santiago Badia},
+  journal = {International Journal for Numerical Methods in Engineering},
+  volume  = {105},
+  number  = {5},
+  pages   = {372--400},
+  year    = {2016}
 }
 
 @Article{Sandu_1997,
@@ -4779,7 +4807,14 @@ note  = "\url{https://ice.txcorp.com/trac/2011_FspDefinitionWorkshop}"
   number = "TICAM 00-02",
   year = 2000,
 }
-
+@article{JoshaghaniJoodatNakshatrala2019,
+  title   = {A stabilized mixed discontinuous Galerkin formulation for double porosity/permeability model},
+  author  = {MS Joshaghani and SHS Joodat and KB Nakshatrala},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  volume  = {352},
+  pages   = {508--560},
+  year    = {2019}
+}
 @inproceedings{cai99,
   author = "X.-C. Cai and M. Paraschivoiu and M. Sarkis",
   title = "An explicit multi-model compressible flow formulation based on the full potential
@@ -6521,7 +6556,7 @@ author = "Eric C. Cyr and John N. Shadid and Raymond S. Tuminaro",
              Efthimios Kaxiras and Alice Koniges and Kihwan Lee and Aaron Lott and
              Qiming Lu and John Magerlein and Reed Maxwell and Michael McCourt and
              Miriam Mehl and Roger Pawlowski and Amanda Peters Randles and Daniel Reynolds and
-             Beatrice Rivi\`{e}re and Ulrich R\"{u}de and Tim Scheibe and John Shadid and
+             B\'{e}atrice Rivi\`{e}re and Ulrich R\"{u}de and Tim Scheibe and John Shadid and
              Brendan Sheehan and Mark Shephard and Andrew Siegel and
              Barry Smith and Xianzhu Tang and Cian Wilson and Barbara Wohlmuth},
  journal  = {International Journal of High Performance Computing Applications},
@@ -6648,6 +6683,18 @@ summarize challenges and forecast opportunities.}
   pages={15--26},
   year={2007},
   publisher={Springer}
+}
+@article{BrannickFalgout2007,
+  title   = {{Compatible Relaxation and Coarsening in Algebraic Multigrid}},
+  author  = {James J. Brannick and Robert D. Falgout},
+  journal = {SIAM Journal on Scientific Computing},
+  volume  = {32},
+  number  = {3},
+  pages   = {1393--1416},
+  url     = {http://epubs.siam.org/doi/10.1137/090772216},
+  doi     = {10.1137/090772216},
+  issn    = {1064-8275},
+  year    = {2010}
 }
 @article{xu2004energy,
   title={On an energy minimizing basis for algebraic multigrid methods},
@@ -7482,18 +7529,19 @@ year = {2010}
 }
 
 @techreport{Ghysels_Ashby_Meerbergen_Vanroose_2012,
-	Author = {Ghysels, P. and Ashby, T.J. and Meerbergen, K. and Vanroose, W.},
-	Institution = {Intel Exascience Lab},
-	Address= {Leuven, Belgium},
-	Number = {04.2012.1},
-	Type = {Tech. report},
-	Title = {Hiding global communication latency in the {GMRES} algorithm on massively parallel machines},
-        url = {http://twna.ua.ac.be/sites/twna.ua.ac.be/files/latency_gmres.pdf},
-	Year = {2012}
+  Author = {Ghysels, P. and Ashby, T.J. and Meerbergen, K. and Vanroose, W.},
+  Institution = {Intel Exascience Lab},
+  Address= {Leuven, Belgium},
+  Number = {04.2012.1},
+  Type = {Tech. report},
+  Title = {Hiding global communication latency in the {GMRES} algorithm on massively parallel machines},
+  url = {http://twna.ua.ac.be/sites/twna.ua.ac.be/files/latency_gmres.pdf},
+  Year = {2012}
 }
 
 @article{GhyselsAshbyMeerbergenVanroose2013,
   author  = {Ghysels, P. and Ashby, T.J. and Meerbergen, K. and Vanroose, W.},
+  title={Hiding global communication latency in the {GMRES} algorithm on massively parallel machines},
   journal = {SIAM Journal on Scientific Computing},
   volume  = {35},
   number  = {1},
@@ -9542,13 +9590,17 @@ year = {2009}
   note    = {accepted},
   year    = {2015}
 }
+
 @article{IsaacStadlerGhattas2015,
-  title   = {Solution of nonlinear Stokes equations discretized by high-order finite elements on nonconforming and anisotropic meshes, with application to ice sheet dynamics},
-  author  = {Tobin Isaac and Georg Stadler and Omar Ghattas},
-  journal = {SIAM Journal on Scientific Computing},
-  eprint  = {arXiv preprint arXiv:1406.6573},
-  year    = {2015}
+  title   = {Solution of nonlinear {S}tokes equations discretized by high-order finite elements on nonconforming and anisotropic meshes, with application to ice sheet dynamics},
+  author  = {Isaac, Tobin and Stadler, Georg and Ghattas, Omar},
+  journal = {SIAM J. Sci. Comput.},
+  number  = {6},
+  pages   = {804--833},
+  volume  = {37},
+  year    = {2015},
 }
+
 @inproceedings{RudiMalossiIsaacStadlerGurnisStaarIneichenBekasCurioniGhattas2015,
   title     = {An extreme-scale implicit solver for complex {PDEs}: highly heterogeneous flow in earth's mantle},
   author    = {Johann Rudi and A Cristiano I Malossi and Tobin Isaac and Georg Stadler and Michael Gurnis and Peter WJ Staar and Yves Ineichen and Costas Bekas and Alessandro Curioni and Omar Ghattas},
@@ -10693,7 +10745,7 @@ year = {2009}
 }
 @article{FabienKnepleyMillsRiviere2017,
   title   = {Manycore parallel computing for a hybridizable discontinuous {Galerkin} nested multigrid method},
-  author  = {Maurice S. Fabien and Matthew G. Knepley and Richard Mills and B\'eatrice M. Rivier\'e},
+  author  = {Maurice S. Fabien and Matthew G. Knepley and Richard Mills and B\'eatrice M. Rivi\`ere},
   journal = {SIAM Journal on Scientific Computing},
   url     = {https://arxiv.org/abs/1705.09907},
   volume  = {41},
@@ -10711,7 +10763,7 @@ year = {2009}
 }
 @article{FabienKnepleyRiviere2020,
   title   = {A high order hybridizable discontinuous Galerkin method for incompressible miscible displacement in heterogeneous media},
-  author  = {Maurice S. Fabien and Matthew G. Knepley and B\'eatrice M. Rivier\'e},
+  author  = {Maurice S. Fabien and Matthew G. Knepley and B\'eatrice M. Rivi\`ere},
   journal = {Results in Applied Mathematics},
   url     = {https://arxiv.org/abs/1809.00747},
   doi     = {10.1016/j.rinam.2019.100089},
@@ -10719,7 +10771,7 @@ year = {2009}
 }
 @article{FabienKnepleyRiviere2019B,
   title   = {Families of Interior Penalty Hybridizable discontinuous Galerkin methods for second order elliptic problems},
-  author  = {Maurice S. Fabien and Matthew G. Knepley and B\'eatrice M. Rivier\'e},
+  author  = {Maurice S. Fabien and Matthew G. Knepley and B\'eatrice M. Rivi\`ere},
   journal = {Journal of Numerical Mathematics},
   doi     = {10.1515/jnma-2019-0027},
   year    = {2019}
@@ -10735,14 +10787,61 @@ year = {2009}
   doi     = {10.4208/cicp.OA-2018-0235},
   year    = {2019},
 }
+@unpublished{AwanouFabienGuzmanStern2020,
+  title  = {Hybridization and postprocessing in finite element exterior calculus},
+  author = {Gerard Awanou and Maurice Fabien and Johnny Guzm\'an and Ari Stern},
+  eprint = {2008.00149},
+  note   = {preprint},
+  primaryclass = {math.NA},
+  year   = {2020}
+}
+@article{ChaabaneGiraultRiviereThompson2018,
+  title = "A stable enriched Galerkin element for the Stokes problem",
+  author  = {Nabil Chaabane and Vivette Girault and B\'eatrice Rivi\`ere and Travis Thompson},
+  journal = {Applied Numerical Mathematics},
+  volume  = {132},
+  pages   = {1--21},
+  issn    = {0168-9274},
+  doi     = {https://doi.org/10.1016/j.apnum.2018.04.008},
+  url     = {http://www.sciencedirect.com/science/article/pii/S0168927418300977},
+  year    = {2018}
+}
 @article{ThompsonRiviereKnepley2018,
   title   = {An Implicit Discontinuous Galerkin Method For Modeling Acute Edema and Resuscitation In The Small Intestine},
-  author  = {Travis Thompson and B\'eatrice M. Rivier\'e and Matthew G. Knepley},
+  author  = {Travis Thompson and B\'eatrice M. Rivi\`ere and Matthew G. Knepley},
   journal = {Mathematical Medicine and Biology},
   doi     = {10.1093/imammb/dqz00},
   year    = {2019}
 }
-
+@misc{KevrekidisThompsonGoriely2020,
+  title  = {Anisotropic Diffusion and Traveling Waves of Toxic Proteins in Neurodegenerative Diseases},
+  author = {P. G. Kevrekidis and Travis Thompson and Alain Goriely},
+  eprint = {2007.02421},
+  archivePrefix = {arXiv},
+  primaryClass  = {q-bio.CB},
+  year   = {2020}
+}
+@misc{MardalRognesThompson2020,
+  title  = {Accurate Discretization Of Poroelasticity Without {Darcy} Stability -- {Stokes-Biot} Stability Revisited},
+  author = {Kent-Andre Mardal and Marie E. Rognes and Travis B. Thompson},
+  eprint = {2007.10012},
+  archivePrefix = {arXiv},
+  primaryClass  = {math.NA},
+  year   = {2020}
+}
+@inproceedings{ActorFuentesRiviere2020B,
+  title     = {Identification of Kernels in a Convolutional Neural Network: Connections Between Level Set Equation and Deep Learning for Image Segmentation},
+  author    = {Jonas A. Actor and David T. Fuentes and B\'eatrice M. Rivi\`ere},
+  booktitle = {Proceedings of the SPIE Medical Imaging Conference},
+  year      = {2020}
+}
+@article{ActorFuentesRiviere2020,
+  title   = {Robust Regularized Networks in the Presence of Noise},
+  author  = {Jonas A. Actor and David T. Fuentes and B\'eatrice M. Rivi\`ere},
+  journal = {Medical Image Analysis},
+  note    = {In revision},
+  year    = {2020}
+}
 @book{Byerly1893,
   title     = {An elementary treatise on Fourier's series: and spherical, cylindrical, and ellipsoidal harmonics, with applications to problems in mathematical physics},
   author    = {William Elwood Byerly},
@@ -11432,4 +11531,22 @@ year    = {2009}
   author = {Kenneth Kuttler},
   url    = {http://www.math.byu.edu/~klkuttle/Linearalgebra.pdf},
   year   = {2012}
+}
+@book{elman_silvester_wathen_2014,
+  place     = {Oxford},
+  title     = {Finite elements and fast iterative solvers: with applications in incompressible fluid dynamics},
+  publisher = {Oxford University Press},
+  author    = {Elman, Howard C. and Silvester, David J. and Wathen, Andrew J.},
+  url       = {https://global.oup.com/academic/product/finite-elements-and-fast-iterative-solvers-9780199678792?cc=us&lang=en&},
+  year      = {2014}
+}
+@article{AlamEtAl2007,
+  title   = {An evaluation of the ORNL Cray XT3},
+  author  = {S. R. Alam and R. F. Barrett and M. R. Fahey and J. A. Kuehn and O. E. B. Messer and R. T. Mills and P. C. Roth and J. S. Vetter and P. H. Worley},
+  journal = {International Journal of High Performance Computing Applications},
+  volume  = {22},
+  number  = {1},
+  pages   = {52--80},
+  doi     = {10.1177/1094342007085019},
+  year    = {2007}
 }

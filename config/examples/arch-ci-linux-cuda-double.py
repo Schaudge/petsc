@@ -10,7 +10,7 @@ if __name__ == '__main__':
   import configure
   configure_options = [
     '--package-prefix-hash='+petsc_hash_pkgs,
-    '--with-make-test-np=2',
+    '--with-make-test-np=1',
     '--with-mpi-dir=/home/petsc/soft/openmpi-4.0.2-cuda',
     'COPTFLAGS=-g -O',
     'FOPTFLAGS=-g -O',
@@ -19,6 +19,7 @@ if __name__ == '__main__':
     '--with-precision=double',
     '--with-clanguage=c',
     '--download-kokkos',
+    '--download-kokkos-kernels',
     '--download-hwloc',
     '--with-kokkos-cuda-arch=TURING75',
     # Note: If using nvcc with a host compiler other than the CUDA SDK default for your platform (GCC on Linux, clang

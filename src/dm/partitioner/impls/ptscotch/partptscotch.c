@@ -47,6 +47,7 @@ static int PTScotch_Strategy(PetscInt strategy)
 static PetscErrorCode PTScotch_PartGraph_Seq(SCOTCH_Num strategy, double imbalance, SCOTCH_Num n, SCOTCH_Num xadj[], SCOTCH_Num adjncy[],
                                              SCOTCH_Num vtxwgt[], SCOTCH_Num adjwgt[], SCOTCH_Num nparts, SCOTCH_Num tpart[], SCOTCH_Num part[])
 {
+  SCOTCH_Arch    archdat;
   SCOTCH_Graph   grafdat;
   SCOTCH_Strat   stradat;
   SCOTCH_Num     vertnbr = n;
@@ -68,15 +69,14 @@ static PetscErrorCode PTScotch_PartGraph_Seq(SCOTCH_Num strategy, double imbalan
   ierr = SCOTCH_graphBuild(&grafdat, 0, vertnbr, xadj, xadj + 1, velotab, NULL, edgenbr, adjncy, edlotab);CHKERRPTSCOTCH(ierr);
   ierr = SCOTCH_stratInit(&stradat);CHKERRPTSCOTCH(ierr);
   ierr = SCOTCH_stratGraphMapBuild(&stradat, flagval, nparts, kbalval);CHKERRPTSCOTCH(ierr);
+  ierr = SCOTCH_archInit(&archdat);CHKERRPTSCOTCH(ierr);
   if (tpart) {
-    SCOTCH_Arch archdat;
-    ierr = SCOTCH_archInit(&archdat);CHKERRPTSCOTCH(ierr);
     ierr = SCOTCH_archCmpltw(&archdat, nparts, tpart);CHKERRPTSCOTCH(ierr);
-    ierr = SCOTCH_graphMap(&grafdat, &archdat, &stradat, part);CHKERRPTSCOTCH(ierr);
-    SCOTCH_archExit(&archdat);
   } else {
-    ierr = SCOTCH_graphPart(&grafdat, nparts, &stradat, part);CHKERRPTSCOTCH(ierr);
+    ierr = SCOTCH_archCmplt(&archdat, nparts);CHKERRPTSCOTCH(ierr);
   }
+  ierr = SCOTCH_graphMap(&grafdat, &archdat, &stradat, part);CHKERRPTSCOTCH(ierr);
+  SCOTCH_archExit(&archdat);
   SCOTCH_stratExit(&stradat);
   SCOTCH_graphExit(&grafdat);
   PetscFunctionReturn(0);
@@ -106,8 +106,8 @@ static PetscErrorCode PTScotch_PartGraph_MPI(SCOTCH_Num strategy, double imbalan
     ierr = PetscOptionsGetBool(NULL, NULL, "-petscpartititoner_ptscotch_vertex_weight", &flg, NULL);CHKERRQ(ierr);
     if (!flg) veloloctab = NULL;
   }
-  ierr = MPI_Comm_size(comm, &procglbnbr);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm, &proclocnum);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &procglbnbr);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(comm, &proclocnum);CHKERRMPI(ierr);
   vertlocnbr = vtxdist[proclocnum + 1] - vtxdist[proclocnum];
   edgelocnbr = xadj[vertlocnbr];
 
@@ -122,7 +122,6 @@ static PetscErrorCode PTScotch_PartGraph_MPI(SCOTCH_Num strategy, double imbalan
     ierr = SCOTCH_archCmplt(&archdat, nparts);CHKERRPTSCOTCH(ierr);
   }
   ierr = SCOTCH_dgraphMapInit(&grafdat, &mappdat, &archdat, part);CHKERRPTSCOTCH(ierr);
-
   ierr = SCOTCH_dgraphMapCompute(&grafdat, &mappdat, &stradat);CHKERRPTSCOTCH(ierr);
   SCOTCH_dgraphMapExit(&grafdat, &mappdat);
   SCOTCH_archExit(&archdat);
@@ -151,7 +150,7 @@ static PetscErrorCode PetscPartitionerDestroy_PTScotch(PetscPartitioner part)
   PetscErrorCode             ierr;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_free(&p->pcomm);CHKERRQ(ierr);
+  ierr = MPI_Comm_free(&p->pcomm);CHKERRMPI(ierr);
   ierr = PetscFree(part->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -216,12 +215,12 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
 
   PetscFunctionBegin;
   ierr = PetscObjectGetComm((PetscObject)part,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm, &size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
   ierr = PetscMalloc2(size+1,&vtxdist,PetscMax(nvtxs,1),&assignment);CHKERRQ(ierr);
   /* Calculate vertex distribution */
   vtxdist[0] = 0;
-  ierr = MPI_Allgather(&nvtxs, 1, MPIU_INT, &vtxdist[1], 1, MPIU_INT, comm);CHKERRQ(ierr);
+  ierr = MPI_Allgather(&nvtxs, 1, MPIU_INT, &vtxdist[1], 1, MPIU_INT, comm);CHKERRMPI(ierr);
   for (p = 2; p <= size; ++p) {
     hasempty = (PetscBool)(hasempty || !vtxdist[p-1] || !vtxdist[p]);
     vtxdist[p] += vtxdist[p-1];
@@ -250,9 +249,7 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
       ierr = PetscSectionGetDof(targetSection,p,&tpwgts[p]);CHKERRQ(ierr);
       sumw += tpwgts[p];
     }
-    if (!sumw) {
-      ierr = PetscFree(tpwgts);CHKERRQ(ierr);
-    }
+    if (!sumw) {ierr = PetscFree(tpwgts);CHKERRQ(ierr);}
   }
 
   {
@@ -271,7 +268,7 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
       if (hasempty) {
         PetscInt cnt;
 
-        ierr = MPI_Comm_split(pts->pcomm,!!nvtxs,rank,&pcomm);CHKERRQ(ierr);
+        ierr = MPI_Comm_split(pts->pcomm,!!nvtxs,rank,&pcomm);CHKERRMPI(ierr);
         for (p=0,cnt=0;p<size;p++) {
           if (vtxdist[p+1] != vtxdist[p]) {
             vtxdist[cnt+1] = vtxdist[p+1];
@@ -283,7 +280,7 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
         ierr = PTScotch_PartGraph_MPI(strat, imbal, vtxdist, xadj, adjncy, vwgt, adjwgt, nparts, tpwgts, assignment, pcomm);CHKERRQ(ierr);
       }
       if (hasempty) {
-        ierr = MPI_Comm_free(&pcomm);CHKERRQ(ierr);
+        ierr = MPI_Comm_free(&pcomm);CHKERRMPI(ierr);
       }
     }
   }
@@ -343,7 +340,7 @@ PETSC_EXTERN PetscErrorCode PetscPartitionerCreate_PTScotch(PetscPartitioner par
   ierr = PetscNewLog(part, &p);CHKERRQ(ierr);
   part->data = p;
 
-  ierr = MPI_Comm_dup(PetscObjectComm((PetscObject)part),&p->pcomm);CHKERRQ(ierr);
+  ierr = MPI_Comm_dup(PetscObjectComm((PetscObject)part),&p->pcomm);CHKERRMPI(ierr);
   p->strategy  = 0;
   p->imbalance = 0.01;
 

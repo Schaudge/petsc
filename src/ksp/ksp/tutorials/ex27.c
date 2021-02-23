@@ -33,7 +33,7 @@ static PetscErrorCode VecLoadIfExists_Private(Vec b,PetscViewer fd,PetscBool *ha
 #endif
   } else {
     PetscErrorCode ierrp;
-    ierr  = PetscPushErrorHandler(PetscIgnoreErrorHandler,NULL);CHKERRQ(ierr);
+    ierr  = PetscPushErrorHandler(PetscReturnErrorHandler,NULL);CHKERRQ(ierr);
     ierrp = VecLoad(b,fd);
     ierr  = PetscPopErrorHandler();CHKERRQ(ierr);
     *has  = ierrp ? PETSC_FALSE : PETSC_TRUE;
@@ -62,8 +62,8 @@ int main(int argc,char **args)
   PetscMPIInt    rank,size;
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
   /*
      Determine files from which we read the linear system
      (matrix, right-hand-side and initial guess vector).

@@ -108,6 +108,9 @@ PETSC_EXTERN PetscErrorCode PetscViewerWritable(PetscViewer,PetscBool*);
 PETSC_EXTERN PetscErrorCode PetscViewerCheckReadable(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerCheckWritable(PetscViewer);
 
+#define PETSC_VIEWER_ASCII_VTK_ATTR        PETSC_VIEWER_ASCII_VTK        PETSC_DEPRECATED_ENUM("Legacy VTK deprecated; use PetscViewerVTKOpen() with XML (.vtr .vts .vtu) format (since 3.14)")
+#define PETSC_VIEWER_ASCII_VTK_CELL_ATTR   PETSC_VIEWER_ASCII_VTK_CELL   PETSC_DEPRECATED_ENUM("Legacy VTK deprecated; use PetscViewerVTKOpen() with XML (.vtr .vts .vtu) format (since 3.14)")
+#define PETSC_VIEWER_ASCII_VTK_COORDS_ATTR PETSC_VIEWER_ASCII_VTK_COORDS PETSC_DEPRECATED_ENUM("Legacy VTK deprecated; use PetscViewerVTKOpen() with XML (.vtr .vts .vtu) format (since 3.14)")
 /*E
     PetscViewerFormat - Way a viewer presents the object
 
@@ -127,9 +130,12 @@ typedef enum {
   PETSC_VIEWER_ASCII_INDEX,
   PETSC_VIEWER_ASCII_DENSE,
   PETSC_VIEWER_ASCII_MATRIXMARKET,
-  PETSC_VIEWER_ASCII_VTK,
-  PETSC_VIEWER_ASCII_VTK_CELL,
-  PETSC_VIEWER_ASCII_VTK_COORDS,
+  PETSC_VIEWER_ASCII_VTK_DEPRECATED,
+  PETSC_VIEWER_ASCII_VTK_ATTR = PETSC_VIEWER_ASCII_VTK_DEPRECATED,
+  PETSC_VIEWER_ASCII_VTK_CELL_DEPRECATED,
+  PETSC_VIEWER_ASCII_VTK_CELL_ATTR = PETSC_VIEWER_ASCII_VTK_CELL_DEPRECATED,
+  PETSC_VIEWER_ASCII_VTK_COORDS_DEPRECATED,
+  PETSC_VIEWER_ASCII_VTK_COORDS_ATTR = PETSC_VIEWER_ASCII_VTK_COORDS_DEPRECATED,
   PETSC_VIEWER_ASCII_PCICE,
   PETSC_VIEWER_ASCII_PYTHON,
   PETSC_VIEWER_ASCII_FACTOR_INFO,
@@ -170,9 +176,9 @@ PETSC_EXTERN PetscErrorCode PetscOptionsGetViewer(MPI_Comm,PetscOptions,const ch
 #define PetscOptionsViewer(a,b,c,d,e,f) PetscOptionsViewer_Private(PetscOptionsObject,a,b,c,d,e,f)
 PETSC_EXTERN PetscErrorCode PetscOptionsViewer_Private(PetscOptionItems*,const char[],const char[],const char[],PetscViewer*,PetscViewerFormat *,PetscBool *);
 
-typedef struct {PetscViewer viewer;PetscViewerFormat format;} PetscViewerAndFormat;
-PETSC_EXTERN PetscErrorCode  PetscViewerAndFormatCreate(PetscViewer,PetscViewerFormat,PetscViewerAndFormat**);
-PETSC_EXTERN PetscErrorCode  PetscViewerAndFormatDestroy(PetscViewerAndFormat**);
+typedef struct {PetscViewer viewer;PetscViewerFormat format;PetscDrawLG lg;void *data;} PetscViewerAndFormat;
+PETSC_EXTERN PetscErrorCode PetscViewerAndFormatCreate(PetscViewer,PetscViewerFormat,PetscViewerAndFormat**);
+PETSC_EXTERN PetscErrorCode PetscViewerAndFormatDestroy(PetscViewerAndFormat**);
 
 /*
    Operations explicit to a particular class of viewers

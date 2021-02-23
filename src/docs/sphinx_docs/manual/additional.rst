@@ -8,8 +8,8 @@ Additional Information
    matlab
    profiling
    performance
+   blas-lapack
    other
-   buildsystem
    advanced
    tests
    acknowledgements

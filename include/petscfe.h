@@ -14,7 +14,7 @@ typedef struct _n_PetscFEGeom {
   PetscReal *J;           /* J[Nc*Np*dE*dE]:        The Jacobian of the map from reference to real coordinates (if nonsquare it is completed with orthogonal columns) */
   PetscReal *invJ;        /* invJ[Nc*Np*dE*dE]:     The inverse of the Jacobian of the map from reference to real coordinates (if nonsquare it is completed with orthogonal columns) */
   PetscReal *detJ;        /* detJ[Nc*Np]:           The determinant of J, and if it is non-square its the volume change */
-  PetscReal *n;           /* n[Nc*Np*dE]:           For faces, the normal to the face in real coordinates */
+  PetscReal *n;           /* n[Nc*Np*dE]:           For faces, the normal to the face in real coordinates, outward for the first supporting cell */
   PetscInt  (*face)[2];   /* face[Nc][s]:           For faces, the local face number (cone index) for this face in each supporting cell s */
   PetscReal *suppJ[2];    /* sJ[s][Nc*Np*dE*dE]:    For faces, the Jacobian for each supporting cell s */
   PetscReal *suppInvJ[2]; /* sInvJ[s][Nc*Np*dE*dE]: For faces, the inverse Jacobian for each supporting cell s */
@@ -171,9 +171,12 @@ PETSC_EXTERN PetscErrorCode PetscDualSpaceGetFormDegree(PetscDualSpace, PetscInt
 PETSC_EXTERN PetscErrorCode PetscDualSpaceSetFormDegree(PetscDualSpace, PetscInt);
 PETSC_EXTERN PetscErrorCode PetscDualSpaceGetDeRahm(PetscDualSpace, PetscInt *);
 PETSC_EXTERN PetscErrorCode PetscDualSpaceTransform(PetscDualSpace, PetscDualSpaceTransformType, PetscBool, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
+PETSC_EXTERN PetscErrorCode PetscDualSpaceTransformGradient(PetscDualSpace, PetscDualSpaceTransformType, PetscBool, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
+PETSC_EXTERN PetscErrorCode PetscDualSpaceTransformHessian(PetscDualSpace, PetscDualSpaceTransformType, PetscBool, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
 PETSC_EXTERN PetscErrorCode PetscDualSpacePullback(PetscDualSpace, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
 PETSC_EXTERN PetscErrorCode PetscDualSpacePushforward(PetscDualSpace, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
 PETSC_EXTERN PetscErrorCode PetscDualSpacePushforwardGradient(PetscDualSpace, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
+PETSC_EXTERN PetscErrorCode PetscDualSpacePushforwardHessian(PetscDualSpace, PetscFEGeom *, PetscInt, PetscInt, PetscScalar[]);
 
 PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeGetContinuity(PetscDualSpace, PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeSetContinuity(PetscDualSpace, PetscBool);
@@ -183,6 +186,10 @@ PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeGetTrimmed(PetscDualSpace, Pet
 PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeSetTrimmed(PetscDualSpace, PetscBool);
 PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeGetNodeType(PetscDualSpace, PetscDTNodeType *, PetscBool *, PetscReal *);
 PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeSetNodeType(PetscDualSpace, PetscDTNodeType, PetscBool, PetscReal);
+PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeGetUseMoments(PetscDualSpace, PetscBool *);
+PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeSetUseMoments(PetscDualSpace, PetscBool);
+PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeGetMomentOrder(PetscDualSpace, PetscInt *);
+PETSC_EXTERN PetscErrorCode PetscDualSpaceLagrangeSetMomentOrder(PetscDualSpace, PetscInt);
 
 PETSC_EXTERN PetscErrorCode PetscDualSpaceGetHeightSubspace(PetscDualSpace,PetscInt,PetscDualSpace *);
 PETSC_EXTERN PetscErrorCode PetscDualSpaceGetPointSubspace(PetscDualSpace,PetscInt,PetscDualSpace *);
@@ -241,8 +248,8 @@ PETSC_EXTERN PetscErrorCode PetscFECopyQuadrature(PetscFE, PetscFE);
 PETSC_EXTERN PetscErrorCode PetscFEGetNumDof(PetscFE, const PetscInt **);
 
 /* TODO: Need a function to reuse the memory when retabulating the same FE at different points */
-PETSC_EXTERN PetscErrorCode PetscFEGetCellTabulation(PetscFE, PetscTabulation *);
-PETSC_EXTERN PetscErrorCode PetscFEGetFaceTabulation(PetscFE, PetscTabulation *);
+PETSC_EXTERN PetscErrorCode PetscFEGetCellTabulation(PetscFE, PetscInt, PetscTabulation *);
+PETSC_EXTERN PetscErrorCode PetscFEGetFaceTabulation(PetscFE, PetscInt, PetscTabulation *);
 PETSC_EXTERN PetscErrorCode PetscFEGetFaceCentroidTabulation(PetscFE, PetscTabulation *);
 PETSC_EXTERN PetscErrorCode PetscFECreateTabulation(PetscFE, PetscInt, PetscInt, const PetscReal[], PetscInt, PetscTabulation *);
 PETSC_EXTERN PetscErrorCode PetscFEComputeTabulation(PetscFE, PetscInt, const PetscReal[], PetscInt, PetscTabulation);
@@ -255,6 +262,7 @@ PETSC_EXTERN PetscErrorCode PetscFECreateCellGeometry(PetscFE, PetscQuadrature, 
 PETSC_EXTERN PetscErrorCode PetscFEDestroyCellGeometry(PetscFE, PetscFEGeom *);
 PETSC_EXTERN PetscErrorCode PetscFEPushforward(PetscFE, PetscFEGeom *, PetscInt, PetscScalar[]);
 PETSC_EXTERN PetscErrorCode PetscFEPushforwardGradient(PetscFE, PetscFEGeom *, PetscInt, PetscScalar[]);
+PETSC_EXTERN PetscErrorCode PetscFEPushforwardHessian(PetscFE, PetscFEGeom *, PetscInt, PetscScalar[]);
 
 PETSC_EXTERN PetscErrorCode PetscFEIntegrate(PetscDS, PetscInt, PetscInt, PetscFEGeom *, const PetscScalar[], PetscDS, const PetscScalar[], PetscScalar[]);
 PETSC_EXTERN PetscErrorCode PetscFEIntegrateBd(PetscDS, PetscInt,

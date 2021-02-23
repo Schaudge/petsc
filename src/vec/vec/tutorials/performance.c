@@ -13,7 +13,9 @@ int main(int argc, char **argv)
   PetscScalar    val;
   PetscReal      norm1,norm2;
   PetscRandom    rctx;
+#if defined(PETSC_USE_LOG)
   PetscLogStage  stage;
+#endif
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = PetscOptionsGetInt(NULL,NULL,"-n",&n,NULL);CHKERRQ(ierr);
@@ -65,10 +67,18 @@ int main(int argc, char **argv)
 
 /*TEST
 
-   test:
-      suffix: cuda
+   testset:
       nsize: 2
-      args: -vec_type mpicuda
-      requires: cuda
+      output_file: output/performance_cuda.out
+
+      test:
+        suffix: cuda
+        args: -vec_type mpicuda
+        requires: cuda
+
+      test:
+        suffix: hip
+        args: -vec_type mpihip
+        requires: hip
 
 TEST*/

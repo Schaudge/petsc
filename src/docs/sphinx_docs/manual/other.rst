@@ -1,8 +1,6 @@
 Other PETSc Features
 --------------------
 
-.. include:: temp_edit_needed_banner.inc
-
 PETSc on a process subset
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -19,15 +17,15 @@ its value, for example to an existing ``MPI_COMM_WORLD``,
 *before* calling ``PetscInitialize()``, but, obviously, after calling
 ``MPI_Init()``.
 
+.. _sec_options:
+
 Runtime Options
 ~~~~~~~~~~~~~~~
-
-[sec_options]
 
 Allowing the user to modify parameters and options easily at runtime is
 very desirable for many applications. PETSc provides a simple mechanism
 to enable such customization. To print a list of available options for a
-given program, simply specify the option ``-help`` (or ``-h``) at
+given program, simply specify the option ``-help`` at
 runtime, e.g.,
 
 ::
@@ -52,7 +50,7 @@ One could then override this choice at runtime with the option
    -ksp_type tfqmr
 
 to select the Transpose-Free QMR algorithm. (See
-Chapter `[ch_ksp] <#ch_ksp>`__ for details.)
+:any:`chapter_ksp` for details.)
 
 The remainder of this section discusses details of runtime options.
 
@@ -136,6 +134,25 @@ may also use ``KSPSetOptionsPrefix()``,\ ``DMSetOptionsPrefix()`` ,
 functions to assign custom prefixes, useful for applications with
 multiple or nested solvers.
 
+Adding options from a file
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PETSc can load additional options from a file using ``PetscOptionsInsertFile()``,
+which can also be used from the command line, e.g. ``-options_file my_options.opts``.
+
+If PETSc is configured with YAML, one can use YAML files this way (relying on ``PetscOptionsInsertFileYAML()``).
+For example, the following file:
+
+.. literalinclude:: /../../../src/sys/tests/ex47-options.yaml
+  :language: yaml
+
+corresponds to the following PETSc options:
+
+.. literalinclude:: /../../../src/sys/tests/output/ex47_3_options.out
+  :language: none
+  :start-after: #
+  :end-before: #End
+
 User-Defined PetscOptions
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -209,8 +226,8 @@ Here ``obj`` is any PETSc object of type ``XXX``, where ``XXX`` is
    object to be drawn in a default X window.
 
 -  Passing in a viewer obtained by ``PetscViewerDrawOpen()`` causes the
-   object to be displayed graphically. See Section
-   `5.9 <#sec_graphics>`__ for more on PETSc’s graphics support.
+   object to be displayed graphically. See
+   :any:`sec_graphics` for more on PETSc’s graphics support.
 
 -  To save an object to a file in ASCII format, the user creates the
    viewer object with the command
@@ -227,7 +244,7 @@ Here ``obj`` is any PETSc object of type ``XXX``, where ``XXX`` is
 -  Vector and matrix objects can be passed to a running MATLAB process
    with a viewer created by
    ``PetscViewerSocketOpen(MPI_Comm comm,char *machine,int port,PetscViewer *viewer)``.
-   For more, see Section `2.2 <#sec_matlabsocket>`__.
+   For more, see :any:`sec_matlabsocket`.
 
 The user can control the format of ASCII printed objects with viewers
 created by ``PetscViewerASCIIOpen()`` by calling
@@ -334,7 +351,7 @@ Using SAWs with PETSc
 ~~~~~~~~~~~~~~~~~~~~~
 
 The Scientific Application Web server, SAWs [8]_, allows one to monitor
-running PETSc applications from a browser. ``./configure`` PETSc with
+running PETSc applications from a browser. ``configure`` PETSc with
 the additional option ``--download-saws``. Options to use SAWs include
 
 -  ``-saws_options`` - allows setting values in the PETSc options
@@ -372,10 +389,10 @@ Also see the manual pages for ``PetscSAWsBlock``,
 ``PetscStackSAWsTakeAccess``, ``KSPMonitorSAWs``, and
 ``SNESMonitorSAWs``.
 
+.. _sec-debugging:
+
 Debugging
 ~~~~~~~~~
-
-[sec_debugging]
 
 PETSc programs may be debugged using one of the two options below.
 
@@ -411,9 +428,11 @@ run without the debugger) with the option
 
 .. code-block:: none
 
-   -debugger_nodes node1,node2,...
+   -debugger_ranks rank1,rank2,...
 
-where you simply list the nodes you want the debugger to run with.
+where you simply list the ranks you want the debugger to run with.
+
+.. _sec_errors:
 
 Error Handling
 ~~~~~~~~~~~~~~
@@ -533,10 +552,10 @@ usage is given below.
        PetscFunctionReturn(0);
    }
 
+.. _sec_complex:
+
 Numbers
 ~~~~~~~
-
-[sec_complex]
 
 PETSc supports the use of complex numbers in application programs
 written in C, C++, and Fortran. To do so, we employ either the C99
@@ -544,15 +563,15 @@ written in C, C++, and Fortran. To do so, we employ either the C99
 basic “scalar” datatype, given in PETSc codes by ``PetscScalar``, is
 defined as ``complex`` (or ``complex<double>`` for machines using
 templated complex class libraries). To work with complex numbers, the
-user should run ``./configure`` with the additional option
-``--with-scalar-type=complex``. The file
-```${PETSC_DIR}/src/docs/website/documentation/installation.html`` <https://www.mcs.anl.gov/petsc/documentation/installation.html>`__
-provides detailed instructions for installing PETSc. You can use
+user should run ``configure`` with the additional option
+``--with-scalar-type=complex``. The
+`installation instructions <https://www.mcs.anl.gov/petsc/documentation/installation.html>`__
+provide detailed instructions for installing PETSc. You can use
 ``--with-clanguage=c`` (the default) to use the C99 complex numbers or
 ``--with-clanguage=c++`` to use the C++ complex type [9]_.
 
 Recall that each variant of the PETSc libraries is stored in a different
-directory, given by ``${PETSC_DIR}/lib/${PETSC_ARCH``
+directory, given by ``$PETSC_DIR/lib/$PETSC_ARCH``
 
 according to the architecture. Thus, the libraries for complex numbers
 are maintained separately from those for real numbers. When using any of
@@ -564,10 +583,10 @@ working *only* with real numbers in a code, one should use a version of
 PETSc for real numbers for best efficiency.
 
 The program
-```${PETSC_DIR}/src/ksp/ksp/tutorials/ex11.c`` <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex11.c.html>`__
+`KSP Tutorial ex11 <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex11.c.html>`__
 solves a linear system with a complex coefficient matrix. Its Fortran
 counterpart is
-```${PETSC_DIR}/src/ksp/ksp/tutorials/ex11f.F90`` <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex11f.F90.html>`__.
+`KSP Tutorial ex11f <https://www.mcs.anl.gov/petsc/petsc-current/src/ksp/ksp/tutorials/ex11f.F90.html>`__.
 
 Parallel Communication
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -588,7 +607,7 @@ interactively with PETSc programs. We urge users to generate their
 publication-quality graphics using a professional graphics package. If a
 user wants to hook certain packages into PETSc, he or she should send a
 message to
-```petsc-maint@mcs.anl.gov`` <mailto:petsc-maint@mcs.anl.gov>`__; we
+`petsc-maint@mcs.anl.gov <mailto:petsc-maint@mcs.anl.gov>`__; we
 will see whether it is reasonable to try to provide direct interfaces.
 
 Windows as PetscViewers
@@ -603,8 +622,8 @@ may first create a viewer using the command
 
 This viewer may be passed to any of the ``XXXView()`` routines.
 Alternately, one may use command-line options to quickly specify viewer
-formats, including ``PetscDraw``-based ones; see Section
-`5.3.1 <#sec_viewfromoptions>`__.
+formats, including ``PetscDraw``-based ones; see
+:any:`sec_viewfromoptions`.
 
 To draw directly into the viewer, one must obtain the ``PetscDraw``
 object with the command
@@ -725,7 +744,7 @@ PETSc includes a set of routines for manipulating simple two-dimensional
 graphs. These routines, which begin with ``PetscDrawAxisDraw()``, are
 usually not used directly by the application programmer. Instead, the
 programmer employs the line graph routines to draw simple line graphs.
-As shown in the program, within Figure `[fig_plot] <#fig_plot>`__, line
+As shown in the :ref:`listing below <listing_draw_test_ex3>`, line
 graphs are created with the command
 
 ::
@@ -792,23 +811,32 @@ will prevent any windows from being opened or any drawing actions to be
 done. This is useful for running large jobs when the graphics overhead
 is too large, or for timing.
 
+The full example, `Draw Test ex3 <https://www.mcs.anl.gov/petsc/petsc-current/src/sys/classes/draw/tests/ex3.c.html>`__,
+follows.
+
+.. _listing_draw_test_ex3:
+
+.. admonition:: Listing: ``src/classes/draw/tests/ex3.c``
+   :name: snes-ex1
+
+   .. literalinclude:: ../../../sys/classes/draw/tests/ex3.c
+      :end-before: /*TEST
+
+
+
 Graphical Convergence Monitor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For both the linear and nonlinear solvers default routines allow one to
 graphically monitor convergence of the iterative method. These are
-accessed via the command line with ``-ksp_monitor_lg_residualnorm`` and
-``-snes_monitor_lg_residualnorm``. See also Sections
-`3.3.3 <#sec_kspmonitor>`__ and `4.3.2 <#sec_snesmonitor>`__.
-
-The two functions used are ``KSPMonitorLGResidualNorm()`` and
-``KSPMonitorLGResidualNormCreate()``. These can easily be modified to
-serve specialized needs.
+accessed via the command line with ``-ksp_monitor draw::draw_lg`` and
+``-snes_monitor draw::draw_lg``. See also
+:any:`sec_kspmonitor` and :any:`sec_snesmonitor`.
 
 Disabling Graphics at Compile Time
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To disable all X-window-based graphics, run ``./configure`` with the
+To disable all X-window-based graphics, run ``configure`` with the
 additional option ``--with-x=0``
 
 .. _sec-emacs:
@@ -835,7 +863,7 @@ Tags
 It is sometimes useful to cross-reference tags across projects.
 Regardless of whether you use lsp-mode, it can be useful to use `GNU Global <https://www.gnu.org/software/global/>`_ (install ``gtags``) to provide reverse lookups (e.g. find all call sites
 for a given function) across all projects you might work on/browse.
-Tags for PETSc can be generated by running ``make allgtags`` from ``${PETSC_DIR}``, or one can generate tags for all projects by running a command such as
+Tags for PETSc can be generated by running ``make allgtags`` from ``$PETSC_DIR``, or one can generate tags for all projects by running a command such as
 
 .. code-block:: none
 
@@ -860,7 +888,7 @@ add the following to ``~/.emacs`` to enable gtags and specify key bindings.
 
 A more basic alternative to the GNU Global (``gtags``) approach that does not require adding packages is to use
 the builtin ``etags`` feature.  First, run ``make alletags`` from the
-PETSc home directory to generate the file ``${PETSC_DIR}/TAGS``, and
+PETSc home directory to generate the file ``$PETSC_DIR/TAGS``, and
 then from within Emacs, run
 
 .. code-block:: none
@@ -885,7 +913,7 @@ See the :ref:`sec-emacs` discussion above for configuration of clangd, which pro
 
 If users develop application codes using Vi or Vim the ``tags`` feature
 can be used to search PETSc files quickly and efficiently. To use this
-feature, one should first check if the file, ``${PETSC_DIR}/CTAGS``
+feature, one should first check if the file, ``$PETSC_DIR/CTAGS``
 exists. If this file is not present, it should be generated by running
 ``make alletags`` from the PETSc home directory. Once the file
 exists, from Vi/Vim the user should issue the command
@@ -894,7 +922,7 @@ exists, from Vi/Vim the user should issue the command
 
    :set tags=CTAGS
 
-from the ``PETSC_DIR`` directory and enter the name of the ``CTAGS``
+from the ``$PETSC_DIR`` directory and enter the name of the ``CTAGS``
 file. Then the command “tag functionname” will cause Vi/Vim to find the
 file and line number where a desired PETSc function is defined. See, `online tutorials <http://www.yolinux.com/TUTORIALS/LinuxTutorialAdvanced_vi.html>`_
 for additional Vi/Vim options that allow searches, etc. It is also
@@ -926,15 +954,15 @@ One way to index and build PETSc in Eclipse is as follows.
 
 #. Right-click on the C project and open the “Properties” panel. Under
    “C/C++ Build :math:`\rightarrow` Builder Settings”, set the Build
-   directory to ``PETSC_DIR`` and make sure “Generate Makefiles
+   directory to ``$PETSC_DIR`` and make sure “Generate Makefiles
    automatically” is unselected. Under the section “C/C++
    General\ :math:`\rightarrow`\ Paths and Symbols”, add the PETSc paths
    to “Includes”.
 
  .. code-block:: none
 
-        ${PETSC_DIR}/include
-        ${PETSC_DIR}/${PETSC_ARCH}/include
+        $PETSC_DIR/include
+        $PETSC_DIR/$PETSC_ARCH/include
 
    Under the section “C/C++ General\ :math:`\rightarrow`\ index”, choose
    “Use active build configuration”.
@@ -945,11 +973,11 @@ One way to index and build PETSc in Eclipse is as follows.
 
 If you launch Eclipse from the Dock on Mac OS X, ``.bashrc`` will not be
 loaded (a known OS X behavior, for security reasons). This will be a
-problem if you set the environment variables ``PETSC_DIR`` and
-``PETSC_ARCH`` in ``.bashrc``. A solution which involves replacing the
+problem if you set the environment variables ``$PETSC_DIR`` and
+``$PETSC_ARCH`` in ``.bashrc``. A solution which involves replacing the
 executable can be found at
 ```/questions/829749/launch-mac-eclipse-with-environment-variables-set`` </questions/829749/launch-mac-eclipse-with-environment-variables-set>`__.
-Alternatively, you can add ``PETSC_DIR`` and ``PETSC_ARCH`` manually
+Alternatively, you can add ``$PETSC_DIR`` and ``$PETSC_ARCH`` manually
 under “Properties :math:`\rightarrow` C/C++ Build :math:`\rightarrow`
 Environment”.
 
@@ -964,15 +992,15 @@ link with the PETSc libraries, a PETSc user has suggested the following.
 
 .. code-block:: none
 
-      ${PETSC_DIR}/include
-      ${PETSC_DIR}/${PETSC_ARCH}/include
+      $PETSC_DIR/include
+      $PETSC_DIR/$PETSC_ARCH/include
 
 #. Select “Libraries” under the header Linker and set the library search
    path:
 
 .. code-block:: none
 
-      ${PETSC_DIR}/${PETSC_ARCH}/lib
+      $PETSC_DIR/$PETSC_ARCH/lib
 
    and the libraries, for example
 
@@ -1006,8 +1034,8 @@ Qt Creator Users
 This information was provided by Mohammad Mirzadeh. The Qt Creator IDE
 is part of the Qt SDK, developed for cross-platform GUI programming
 using C++. It is available under GPL v3, LGPL v2 and a commercial
-license and may be obtained, either as a part of Qt SDK or as an
-stand-alone software, via http://qt.nokia.com/downloads/. It supports
+license and may be obtained, either as part of the Qt SDK or as
+stand-alone software. It supports
 automatic makefile generation using cross-platform ``qmake`` and
 ``cmake`` build systems as well as allowing one to import projects based
 on existing, possibly hand-written, makefiles. Qt Creator has a visual
@@ -1088,7 +1116,7 @@ In this example, keywords include:
    functionality to work, ``PETSc.pc`` must be in path which might
    require adjusting the ``PKG_CONFIG_PATH`` enviroment variable. For
    more information see
-   https://doc.qt.io/qtcreator/creator-build-settings.html#build-environment.
+   `the Qt Creator documentation <https://doc.qt.io/qtcreator/creator-build-settings.html>`__.
 
 -  ``QMAKE_CC`` and ``QMAKE_CXX``: Define which C/C++ compilers use.
 
@@ -1156,7 +1184,7 @@ libraries inside your iOS XCode projects; see the examples in
 the Apple ``Accelerate.framework``.
 
 .. [8]
-   ```https://bitbucket.org/saws/saws/wiki/Home`` <https://bitbucket.org/saws/saws/wiki/Home>`__
+   `Saws wiki on Bitbucket <https://bitbucket.org/saws/saws/wiki/Home>`__
 
 .. [9]
    Note that this option is not required to use PETSc with C++

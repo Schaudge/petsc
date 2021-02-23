@@ -14,8 +14,8 @@ int main(int argc,char **argv)
   VecScatter     ctx = 0;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /* create two vectors */
   N    = size*n;
@@ -73,12 +73,12 @@ int main(int argc,char **argv)
         suffix: cuda
         args: -vec_type cuda
       test:
-       requires: cuda
-        suffix: cuda_sf
-        args: -vec_type cuda -vecscatter_type sf
-      test:
         requires: viennacl
         suffix:  viennacl
         args: -vec_type viennacl
+      test:
+        requires: kokkos_kernels
+        suffix: kokkos
+        args: -vec_type kokkos
 
 TEST*/

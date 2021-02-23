@@ -356,6 +356,8 @@ PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES,Vec,Mat,Mat,void*);
    The user can open an alternative visualization context with
    PetscViewerASCIIOpen() - output to a specified file.
 
+  In the debugger you can do "call SNESView(snes,0)" to display the SNES solver. (The same holds for any PETSc object viewer).
+
    Level: beginner
 
 .seealso: PetscViewerASCIIOpen()
@@ -466,7 +468,7 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
     char        type[256];
 
     ierr = PetscObjectGetComm((PetscObject)snes,&comm);CHKERRQ(ierr);
-    ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
     if (!rank) {
       ierr = PetscViewerBinaryWrite(viewer,&classid,1,PETSC_INT);CHKERRQ(ierr);
       ierr = PetscStrncpy(type,((PetscObject)snes)->type_name,sizeof(type));CHKERRQ(ierr);
@@ -496,7 +498,7 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
     const char *name;
 
     ierr = PetscObjectGetName((PetscObject)snes,&name);CHKERRQ(ierr);
-    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
     if (!((PetscObject)snes)->amsmem && !rank) {
       char       dir[1024];
 
@@ -763,12 +765,9 @@ PetscErrorCode SNESSetUpMatrices(SNES snes)
     ierr = MatDestroy(&J);CHKERRQ(ierr);
     ierr = MatDestroy(&B);CHKERRQ(ierr);
   } else if (!snes->jacobian_pre) {
-    PetscErrorCode (*nspconstr)(DM, PetscInt, PetscInt, MatNullSpace *);
-    PetscDS          prob;
-    Mat              J, B;
-    MatNullSpace     nullspace = NULL;
-    PetscBool        hasPrec   = PETSC_FALSE;
-    PetscInt         Nf;
+    PetscDS   prob;
+    Mat       J, B;
+    PetscBool hasPrec   = PETSC_FALSE;
 
     J    = snes->jacobian;
     ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
@@ -776,11 +775,6 @@ PetscErrorCode SNESSetUpMatrices(SNES snes)
     if (J)            {ierr = PetscObjectReference((PetscObject) J);CHKERRQ(ierr);}
     else if (hasPrec) {ierr = DMCreateMatrix(snes->dm, &J);CHKERRQ(ierr);}
     ierr = DMCreateMatrix(snes->dm, &B);CHKERRQ(ierr);
-    ierr = PetscDSGetNumFields(prob, &Nf);CHKERRQ(ierr);
-    ierr = DMGetNullSpaceConstructor(snes->dm, Nf, &nspconstr);CHKERRQ(ierr);
-    if (nspconstr) (*nspconstr)(snes->dm, Nf, Nf, &nullspace);
-    ierr = MatSetNullSpace(B, nullspace);CHKERRQ(ierr);
-    ierr = MatNullSpaceDestroy(&nullspace);CHKERRQ(ierr);
     ierr = SNESSetJacobian(snes, J ? J : B, B, NULL, NULL);CHKERRQ(ierr);
     ierr = MatDestroy(&J);CHKERRQ(ierr);
     ierr = MatDestroy(&B);CHKERRQ(ierr);
@@ -877,7 +871,9 @@ PetscErrorCode  SNESMonitorSetFromOptions(SNES snes,const char name[],const char
 .  -snes_fd_color - use finite differences with coloring to compute Jacobian
 .  -snes_mf_ksp_monitor - if using matrix-free multiply then print h at each KSP iteration
 .  -snes_converged_reason - print the reason for convergence/divergence after each solve
--  -npc_snes_type <type> - the SNES type to use as a nonlinear preconditioner
+.  -npc_snes_type <type> - the SNES type to use as a nonlinear preconditioner
+.   -snes_test_jacobian <optional threshold> - compare the user provided Jacobian with one computed via finite differences to check for errors.  If a threshold is given, display only those entries whose difference is greater than the threshold.
+-   -snes_test_jacobian_view - display the user provided Jacobian, the finite difference Jacobian and the difference between them to help users detect the location of errors in the user provided Jacobian.
 
     Options Database for Eisenstat-Walker method:
 +  -snes_ksp_ew - use Eisenstat-Walker method for determining linear system convergence
@@ -905,7 +901,7 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
   PetscBool      flg,pcset,persist,set;
   PetscInt       i,indx,lag,grids;
   const char     *deft        = SNESNEWTONLS;
-  const char     *convtests[] = {"default","skip"};
+  const char     *convtests[] = {"default","skip","correct_pressure"};
   SNESKSPEW      *kctx        = NULL;
   char           type[256], monfilename[PETSC_MAX_PATH_LEN];
   PetscErrorCode ierr;
@@ -960,11 +956,12 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
     ierr = SNESSetGridSequence(snes,grids);CHKERRQ(ierr);
   }
 
-  ierr = PetscOptionsEList("-snes_convergence_test","Convergence test","SNESSetConvergenceTest",convtests,2,"default",&indx,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsEList("-snes_convergence_test","Convergence test","SNESSetConvergenceTest",convtests,sizeof(convtests)/sizeof(char*),"default",&indx,&flg);CHKERRQ(ierr);
   if (flg) {
     switch (indx) {
     case 0: ierr = SNESSetConvergenceTest(snes,SNESConvergedDefault,NULL,NULL);CHKERRQ(ierr); break;
-    case 1: ierr = SNESSetConvergenceTest(snes,SNESConvergedSkip,NULL,NULL);CHKERRQ(ierr);    break;
+    case 1: ierr = SNESSetConvergenceTest(snes,SNESConvergedSkip,NULL,NULL);CHKERRQ(ierr); break;
+    case 2: ierr = SNESSetConvergenceTest(snes,SNESConvergedCorrectPressure,NULL,NULL);CHKERRQ(ierr); break;
     }
   }
 
@@ -1005,14 +1002,6 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
   ierr = PetscOptionsString("-snes_monitor_python","Use Python function","SNESMonitorSet",NULL,monfilename,sizeof(monfilename),&flg);CHKERRQ(ierr);
   if (flg) {ierr = PetscPythonMonitorSet((PetscObject)snes,monfilename);CHKERRQ(ierr);}
 
-  flg  = PETSC_FALSE;
-  ierr = PetscOptionsBool("-snes_monitor_lg_residualnorm","Plot function norm at each iteration","SNESMonitorLGResidualNorm",flg,&flg,NULL);CHKERRQ(ierr);
-  if (flg) {
-    PetscDrawLG ctx;
-
-    ierr = SNESMonitorLGCreate(PetscObjectComm((PetscObject)snes),NULL,NULL,PETSC_DECIDE,PETSC_DECIDE,400,300,&ctx);CHKERRQ(ierr);
-    ierr = SNESMonitorSet(snes,SNESMonitorLGResidualNorm,ctx,(PetscErrorCode (*)(void**))PetscDrawLGDestroy);CHKERRQ(ierr);
-  }
   flg  = PETSC_FALSE;
   ierr = PetscOptionsBool("-snes_monitor_lg_range","Plot function range at each iteration","SNESMonitorLGRange",flg,&flg,NULL);CHKERRQ(ierr);
   if (flg) {
@@ -3296,7 +3285,7 @@ PetscErrorCode  SNESDestroy(SNES *snes)
 
    Input Parameters:
 +  snes - the SNES context
--  lag - -1 indicates NEVER rebuild, 1 means rebuild every time the Jacobian is computed within a single nonlinear solve, 2 means every second time
+-  lag - 1 means rebuild every time the Jacobian is computed within a single nonlinear solve, 2 means every second time
          the Jacobian is built etc. -2 indicates rebuild preconditioner at next chance but then never rebuild after that
 
    Options Database Keys:
@@ -3308,7 +3297,8 @@ PetscErrorCode  SNESDestroy(SNES *snes)
    Notes:
    The default is 1
    The preconditioner is ALWAYS built in the first iteration of a nonlinear solve unless lag is -1 or SNESSetLagPreconditionerPersists() was called
-   If  -1 is used before the very first nonlinear solve the preconditioner is still built because there is no previous preconditioner to use
+
+   SNESSetLagPreconditionerPersists() allows using the same uniform lagging (for example every second solve) across multiple solves.
 
    Level: intermediate
 
@@ -3525,7 +3515,7 @@ PetscErrorCode  SNESSetLagJacobianPersists(SNES snes,PetscBool flg)
 }
 
 /*@
-   SNESSetLagPreconditionerPersists - Set whether or not the preconditioner lagging persists through multiple solves
+   SNESSetLagPreconditionerPersists - Set whether or not the preconditioner lagging persists through multiple nonlinear solves
 
    Logically Collective on SNES
 
@@ -3783,30 +3773,6 @@ PetscErrorCode  SNESSetTrustRegionTolerance(SNES snes,PetscReal tol)
   PetscFunctionReturn(0);
 }
 
-/*
-   Duplicate the lg monitors for SNES from KSP; for some reason with
-   dynamic libraries things don't work under Sun4 if we just use
-   macros instead of functions
-*/
-PetscErrorCode  SNESMonitorLGResidualNorm(SNES snes,PetscInt it,PetscReal norm,void *ctx)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
-  ierr = KSPMonitorLGResidualNorm((KSP)snes,it,norm,ctx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode  SNESMonitorLGCreate(MPI_Comm comm,const char host[],const char label[],int x,int y,int m,int n,PetscDrawLG *lgctx)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = KSPMonitorLGResidualNormCreate(comm,host,label,x,y,m,n,lgctx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 PETSC_INTERN PetscErrorCode  SNESMonitorRange_Private(SNES,PetscInt,PetscReal*);
 
 PetscErrorCode  SNESMonitorLGRange(SNES snes,PetscInt n,PetscReal rnorm,void *monctx)
@@ -3946,8 +3912,7 @@ M*/
 
    Options Database Keys:
 +    -snes_monitor        - sets SNESMonitorDefault()
-.    -snes_monitor_lg_residualnorm    - sets line graph monitor,
-                            uses SNESMonitorLGCreate()
+.    -snes_monitor draw::draw_lg - sets line graph monitor,
 -    -snes_monitor_cancel - cancels all monitors that have
                             been hardwired into a code by
                             calls to SNESMonitorSet(), but
@@ -5327,8 +5292,6 @@ PetscErrorCode  SNESGetKSP(SNES snes,KSP *ksp)
   PetscValidPointer(ksp,2);
 
   if (!snes->ksp) {
-    PetscBool monitor = PETSC_FALSE;
-
     ierr = KSPCreate(PetscObjectComm((PetscObject)snes),&snes->ksp);CHKERRQ(ierr);
     ierr = PetscObjectIncrementTabLevel((PetscObject)snes->ksp,(PetscObject)snes,1);CHKERRQ(ierr);
     ierr = PetscLogObjectParent((PetscObject)snes,(PetscObject)snes->ksp);CHKERRQ(ierr);
@@ -5336,18 +5299,7 @@ PetscErrorCode  SNESGetKSP(SNES snes,KSP *ksp)
     ierr = KSPSetPreSolve(snes->ksp,(PetscErrorCode (*)(KSP,Vec,Vec,void*))KSPPreSolve_SNESEW,snes);CHKERRQ(ierr);
     ierr = KSPSetPostSolve(snes->ksp,(PetscErrorCode (*)(KSP,Vec,Vec,void*))KSPPostSolve_SNESEW,snes);CHKERRQ(ierr);
 
-    ierr = PetscOptionsGetBool(((PetscObject)snes)->options,((PetscObject)snes)->prefix,"-ksp_monitor_snes",&monitor,NULL);CHKERRQ(ierr);
-    if (monitor) {
-      ierr = KSPMonitorSet(snes->ksp,KSPMonitorSNES,snes,NULL);CHKERRQ(ierr);
-    }
-    monitor = PETSC_FALSE;
-    ierr = PetscOptionsGetBool(((PetscObject)snes)->options,((PetscObject)snes)->prefix,"-ksp_monitor_snes_lg",&monitor,NULL);CHKERRQ(ierr);
-    if (monitor) {
-      PetscObject *objs;
-      ierr = KSPMonitorSNESLGResidualNormCreate(PetscObjectComm((PetscObject)snes),NULL,NULL,PETSC_DECIDE,PETSC_DECIDE,600,600,&objs);CHKERRQ(ierr);
-      objs[0] = (PetscObject) snes;
-      ierr = KSPMonitorSet(snes->ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorSNESLGResidualNorm,objs,(PetscErrorCode (*)(void**))KSPMonitorSNESLGResidualNormDestroy);CHKERRQ(ierr);
-    }
+    ierr = KSPMonitorSetFromOptions(snes->ksp, "-snes_monitor_ksp", "snes_preconditioned_residual", snes);CHKERRQ(ierr);
     ierr = PetscObjectSetOptions((PetscObject)snes->ksp,((PetscObject)snes)->options);CHKERRQ(ierr);
   }
   *ksp = snes->ksp;

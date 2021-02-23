@@ -1,6 +1,5 @@
 
 #include <petsc/private/matimpl.h>  /*I "petscmat.h" I*/
-#include <petscpkg_version.h>
 
 PETSC_EXTERN PetscErrorCode MatCreate_MFFD(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MAIJ(Mat);
@@ -61,6 +60,11 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJCUSPARSE(Mat);
 #if defined(PETSC_HAVE_VIENNACL)
 PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJViennaCL(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJViennaCL(Mat);
+#endif
+
+#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJKokkos(Mat);
+PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJKokkos(Mat);
 #endif
 
 #if defined(PETSC_HAVE_FFTW)
@@ -172,17 +176,21 @@ PetscErrorCode  MatRegisterAll(void)
   ierr = MatRegister(MATSEQSELL,         MatCreate_SeqSELL);CHKERRQ(ierr);
 
 #if defined(PETSC_HAVE_CUDA)
-#if PETSC_PKG_CUDA_VERSION_LT(11,0,0)
   ierr = MatRegisterRootName(MATAIJCUSPARSE,MATSEQAIJCUSPARSE,MATMPIAIJCUSPARSE);CHKERRQ(ierr);
   ierr = MatRegister(MATSEQAIJCUSPARSE, MatCreate_SeqAIJCUSPARSE);CHKERRQ(ierr);
   ierr = MatRegister(MATMPIAIJCUSPARSE, MatCreate_MPIAIJCUSPARSE);CHKERRQ(ierr);
-#endif
 #endif
 
 #if defined(PETSC_HAVE_VIENNACL)
   ierr = MatRegisterRootName(MATAIJVIENNACL,MATSEQAIJVIENNACL,MATMPIAIJVIENNACL);CHKERRQ(ierr);
   ierr = MatRegister(MATSEQAIJVIENNACL, MatCreate_SeqAIJViennaCL);CHKERRQ(ierr);
   ierr = MatRegister(MATMPIAIJVIENNACL, MatCreate_MPIAIJViennaCL);CHKERRQ(ierr);
+#endif
+
+#if defined(PETSC_HAVE_KOKKOS_KERNELS)
+  ierr = MatRegisterRootName(MATAIJKOKKOS,MATSEQAIJKOKKOS,MATMPIAIJKOKKOS);CHKERRQ(ierr);
+  ierr = MatRegister(MATSEQAIJKOKKOS,   MatCreate_SeqAIJKokkos);CHKERRQ(ierr);
+  ierr = MatRegister(MATMPIAIJKOKKOS,   MatCreate_MPIAIJKokkos);CHKERRQ(ierr);
 #endif
 
 #if defined(PETSC_HAVE_FFTW)

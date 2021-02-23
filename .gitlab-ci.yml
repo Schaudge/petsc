@@ -24,6 +24,7 @@ variables:
 #
 
 .test:
+  interruptible: true
   only:
     refs:
 #     Set with CI/CD Shedules - New Schedule
@@ -61,7 +62,9 @@ check-ci-settings:
     - echo ${CONFIG_OPTS}
   script:
     - printf "PATH:$PATH\n"
+    - printf "PYTHONPATH:$PYTHONPATH\n"
     - printf "PETSC_OPTIONS:$PETSC_OPTIONS\n"
+    - if [ ! -z ${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME+x} ]; then printf "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME\n" ;fi
     - ${PYTHON} ./configure --with-debugging=0 COPTFLAGS='-O -march=native' CXXOPTFLAGS='-O -march=native' FOPTFLAGS='-O -march=native' ${CONFIG_OPTS}
     - make CFLAGS=-Werror CXXFLAGS="-Werror -Wzero-as-null-pointer-constant" FFLAGS=-Werror
     - make CFLAGS=-Werror CXXFLAGS=-Werror FFLAGS=-Werror allgtests-tap search="${TEST_SEARCH}" TIMEOUT=${TIMEOUT}
@@ -151,7 +154,9 @@ check-py-vermin:
   extends: .test
   script:
     - printf "PATH:$PATH\n"
+    - printf "PYTHONPATH:$PYTHONPATH\n"
     - printf "PETSC_OPTIONS:$PETSC_OPTIONS\n"
+    - if [ ! -z ${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME+x} ]; then printf "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME\n" ;fi
     - printf "./config/examples/${TEST_ARCH}.py\n"
     - cat ./config/examples/${TEST_ARCH}.py
     - ./config/examples/${TEST_ARCH}.py
@@ -159,7 +164,7 @@ check-py-vermin:
     - make CFLAGS="${MAKE_CFLAGS}" CXXFLAGS="${MAKE_CXXFLAGS}" FFLAGS="${MAKE_FFLAGS}" check
     - make updatedatafiles
     - if [ -z ${DISABLE_PETSC4PY_TESTS+x} ]; then if [ -z ${ENABLE_PETSC4PY_LDPRELOAD+x} ]; then echo "NOT using LD_PRELOAD"; make petsc4pytest; else echo "using LD_PRELOAD"; LD_PRELOAD=${PWD}/${TEST_ARCH}/lib/libpetsc.so make petsc4pytest; fi; fi
-    - if [ -z ${DISABLE_TESTS+x} ]; then make CFLAGS="${MAKE_CFLAGS}" CXXFLAGS="${MAKE_CXXFLAGS}" FFLAGS="${MAKE_FFLAGS}" cleantest allgtests-tap TIMEOUT=${TIMEOUT}; fi
+    - if [ -z ${DISABLE_TESTS+x} ]; then make CFLAGS="${MAKE_CFLAGS}" CXXFLAGS="${MAKE_CXXFLAGS}" FFLAGS="${MAKE_FFLAGS}" cleantest allgtests-tap TIMEOUT=${TIMEOUT}  ${TEST_OPTS}; fi
     - if [ ! -z ${RUN_GCOV+x} ]; then make gcov && bash <(curl -s https://codecov.io/bash) -c > /dev/null 2>&1; fi
   artifacts:
     reports:
@@ -294,7 +299,7 @@ freebsd-c-single-opt:
 
 linux-cuda-double:
   extends:
-    - .stage-2
+    - .stage-3
     - .linux_test
   tags:
     - gpu:nvidia, os:linux, name:p1
@@ -333,7 +338,7 @@ mswin-uni:
     - .stage-2
     - .mswin_test
   tags:
-    - name:ps5-2
+    - win-stage2
   variables:
     TEST_ARCH: arch-ci-mswin-uni
 
@@ -342,7 +347,7 @@ mswin-gnu:
     - .stage-2
     - .mswin_test
   tags:
-    - name:ps5-3
+    - win-stage2
   variables:
     TEST_ARCH: arch-ci-mswin-gnu
     MAKE_CFLAGS: -Werror
@@ -387,15 +392,15 @@ freebsd-pkgs-opt:
   variables:
     TEST_ARCH: arch-ci-freebsd-pkgs-opt
 
-linux-hiphcc-double:
+linux-hip-double:
   extends:
     - .stage-3
     - .linux_test
   tags:
-    - os:linux, name:frog
+    - gpu:amd, os:linux, name:hip-txcorp
   variables:
+    PATH: /opt/rh/devtoolset-7/root/usr/bin:/opt/rocm/bin:/opt/rocm/llvm/bin:/usr/sbin:/usr/bin:/sbin:/bin
     TEST_ARCH: arch-ci-linux-hip-double
-    DISABLE_TESTS: 1
 
 linux-sycl-double:
   extends:
@@ -418,8 +423,9 @@ linux-c-exodus-dbg:
     PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
     TEST_ARCH: arch-ci-linux-c-exodus-dbg
     RUN_GCOV: 1
+    TEST_OPTS: -j1 query=requires queryval=cuda
 
-linux-cuda11:
+linux-cuda11-double:
   extends:
     - .stage-3
     - .linux_test
@@ -427,26 +433,29 @@ linux-cuda11:
     - gpu:nvidia, os:linux, name:frog
   variables:
     PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
-    TEST_ARCH: arch-ci-linux-cuda11
-    DISABLE_TESTS: 1
+    TEST_ARCH: arch-ci-linux-cuda11-double
+    TEST_OPTS: -j1 query=requires queryval=cuda
 
-linux-cuda-complex:
+linux-cuda11-complex:
   extends:
     - .stage-3
     - .linux_test
   tags:
-    - gpu:nvidia, os:linux, name:p1
+    - gpu:nvidia, os:linux, name:frog
   variables:
-    TEST_ARCH: arch-ci-linux-cuda-complex
+    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
+    TEST_ARCH: arch-ci-linux-cuda11-complex
+    TEST_OPTS: -j1 query=requires queryval=cuda
 
 linux-cuda-double-64idx:
   extends:
-    - .stage-3
+    - .stage-2
     - .linux_test
   tags:
     - gpu:nvidia, os:linux, name:p1
   variables:
     TEST_ARCH: arch-ci-linux-cuda-double-64idx
+    TEST_OPTS: -j1 query=requires queryval=cuda
 
 linux-cuda-single-cxx:
   extends:
@@ -457,6 +466,7 @@ linux-cuda-single-cxx:
   variables:
     PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
     TEST_ARCH: arch-ci-linux-cuda-single-cxx
+    TEST_OPTS: -j1 query=requires queryval=cuda
 
 linux-cuda-uni-pkgs:
   extends:
@@ -466,6 +476,7 @@ linux-cuda-uni-pkgs:
     - gpu:nvidia, os:linux
   variables:
     TEST_ARCH: arch-ci-linux-cuda-uni-pkgs
+    TEST_OPTS: -j4 query=requires queryval=cuda
 
 linux-viennacl:
   extends:
@@ -476,17 +487,7 @@ linux-viennacl:
   variables:
     TEST_ARCH: arch-ci-linux-viennacl
     MAKE_CXXFLAGS: -Werror -Wno-ignored-attributes
-
-linux-viennacl-cuda:
-  extends:
-    - .stage-3
-    - .linux_test
-  tags:
-    - gpu:nvidia, os:linux
-  variables:
-    PETSC_OPTIONS: -check_pointer_intensity 0 -error_output_stdout -nox -nox_warning -malloc_dump -use_gpu_aware_mpi 0
-    TEST_ARCH: arch-ci-linux-viennacl-cuda
-    MAKE_CXXFLAGS: -Werror -Wno-ignored-attributes -Wno-parentheses
+    TEST_OPTS: -j1 query=requires queryval=viennacl
 
 linux-without-fc:
   extends:
@@ -536,7 +537,7 @@ linux-knl:
 linux-intel-mkl-single:
   extends:
     - .stage-3
-    - .linux_test_noflags
+    - .linux_test_nofflags
   tags:
     - name:isdp001
   variables:
@@ -644,6 +645,7 @@ linux-pgi:
     - gce-nfs, linux-mcpu
   variables:
     TEST_ARCH: arch-ci-linux-pgi
+    LOAD_MODULES: hpc_sdk/20.9
 
 linux-nagfor:
   extends:
@@ -659,7 +661,7 @@ linux-nagfor:
 linux-intel-cmplx:
   extends:
     - .stage-3
-    - .linux_test_noflags
+    - .linux_test_nofflags
   tags:
     - gce-nfs
   variables:
@@ -768,7 +770,7 @@ mswin-intel-cxx-cmplx:
     - .stage-3
     - .mswin_test
   tags:
-    - name:ps5
+    - os:win
   variables:
     TEST_ARCH: arch-ci-mswin-intel-cxx-cmplx
 
@@ -777,7 +779,7 @@ mswin-intel:
     - .stage-3
     - .mswin_test
   tags:
-    - name:ps5
+    - os:win
   variables:
     TEST_ARCH: arch-ci-mswin-intel
 
@@ -786,7 +788,7 @@ mswin-opt-impi:
     - .stage-3
     - .mswin_test
   tags:
-    - name:ps4
+    - os:win
   variables:
     TEST_ARCH: arch-ci-mswin-opt-impi
     DISABLE_TESTS: 1
@@ -874,7 +876,6 @@ analyze-pipeline:
     - date
     - hostname
   script:
-  - git fetch --unshallow --no-tags origin +master:remotes/origin/master
   - ./configure --with-mpi=0 --with-cxx=0 --with-c2html
   - make srchtml
   - make mergegcov

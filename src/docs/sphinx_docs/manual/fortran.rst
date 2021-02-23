@@ -1,9 +1,7 @@
-.. _ch_fortran:
+.. _chapter_fortran:
 
 PETSc for Fortran Users
 -----------------------
-
-.. include:: temp_edit_needed_banner.inc
 
 Most of the functionality of PETSc can be obtained by people who program
 purely in Fortran.
@@ -18,16 +16,16 @@ options are fully supported. The routine arguments follow the usual
 Fortran conventions; the user need not worry about passing pointers or
 values. The calling sequences for the Fortran version are in most cases
 identical to the C version, except for the error checking variable
-discussed in Section `1.1.2 <#sec_fortran_errors>`__ and a few routines
-listed in Section `1.1.9 <#sec_fortran_exceptions>`__.
+discussed in :any:`sec_fortran_errors` and a few routines
+listed in :any:`sec_fortran_exceptions`.
 
 .. _sec_fortran_includes:
 
-Include Files
-^^^^^^^^^^^^^
+Fortran Include Files
+^^^^^^^^^^^^^^^^^^^^^
 
 The Fortran include files for PETSc are located in the directory
-``${PETSC_DIR}/include/petsc/finclude`` and should be used via
+``$PETSC_DIR/include/petsc/finclude`` and should be used via
 statements such as the following:
 
 .. code-block:: fortran
@@ -74,8 +72,8 @@ which terminates all processes when an error is encountered. Likewise,
 one can set error codes within Fortran programs by using
 ``SETERRQ(comm,p,' ',ierr)``, which again terminates all processes upon
 detection of an error. Note that complete error tracebacks with
-``CHKERRQ()`` and ``SETERRQ()``, as described in Section
-`1.4 <#sec_simple>`__ for C routines, are *not* directly supported for
+``CHKERRQ()`` and ``SETERRQ()``, as described in
+:any:`sec_simple` for C routines, are *not* directly supported for
 Fortran routines; however, Fortran programmers can easily use the error
 codes in writing their own tracebacks. For example, one could use code
 such as the following:
@@ -102,7 +100,7 @@ machines change all the letters in Fortran routine names to capitals.
 PETSc provides two macros (defined in C/C++) to help write portable code
 that mixes C/C++ and Fortran. They are ``PETSC_HAVE_FORTRAN_UNDERSCORE``
 and ``PETSC_HAVE_FORTRAN_CAPS`` , which are defined in the file
-``${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h``. The macros are used,
+``$PETSC_DIR/$PETSC_ARCH/include/petscconf.h``. The macros are used,
 for example, as follows:
 
 .. code-block:: fortran
@@ -171,7 +169,7 @@ Matrix, Vector and IS Indices
 All matrices, vectors and ``IS`` in PETSc use zero-based indexing,
 regardless of whether C or Fortran is being used. The interface
 routines, such as ``MatSetValues()`` and ``VecSetValues()``, always use
-zero indexing. See Section `2.2 <#sec_matoptions>`__ for further
+zero indexing. See :any:`sec_matoptions` for further
 details.
 
 Setting Routines
@@ -190,17 +188,7 @@ test is assumed to be written in Fortran.
 Compiling and Linking Fortran Programs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Figure `[fig_make1] <#fig_make1>`__ shows a sample makefile that can be
-used for PETSc programs. In this makefile, one can compile and run a
-debugging version of the Fortran program ``ex3.F90`` with the actions
-``make`` ``ex3`` and ``make`` ``runex3``, respectively. The compilation
-command is restated below:
-
-.. code-block:: make
-
-   ex3: ex3.o
-          -${FLINKER}} -o ex3 ex3.o ${PETSC_LIB}
-           ${RM} ex3.o
+See :any:`sec_writing_application_codes`.
 
 .. _sec_fortran_exceptions:
 
@@ -253,16 +241,42 @@ Sample Fortran Programs
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Sample programs that illustrate the PETSc interface for Fortran are
-given in Figures `[fig_vec-Fortran] <#fig_vec-Fortran>`__ *–*
-`[fig_SNES-Fortran] <#fig_SNES-Fortran>`__, corresponding to
-```${PETSC_DIR}/src/vec/vec/tests/ex19f.F`` <https://www.mcs.anl.gov/petsc/petsc-current/src/vec/vec/tests/ex19f.F.html>`__,
-```${PETSC_DIR}/src/vec/vec/tutorials/ex4f.F`` <https://www.mcs.anl.gov/petsc/petsc-current/src/vec/vec/tutorials/ex4f.F.html>`__,
-```${PETSC_DIR}/src/sys/classes/draw/tests/ex5f.F`` <https://www.mcs.anl.gov/petsc/petsc-current/src/sys/classes/draw/tests/ex5f.F.html>`__,
+given below, corresponding to
+`Vec Test ex19f <https://www.mcs.anl.gov/petsc/petsc-current/src/vec/vec/tests/ex19f.F.html>`__,
+`Vec Tutorial ex4f <https://www.mcs.anl.gov/petsc/petsc-current/src/vec/vec/tutorials/ex4f.F.html>`__,
+`Draw Test ex5f <https://www.mcs.anl.gov/petsc/petsc-current/src/sys/classes/draw/tests/ex5f.F.html>`__,
 and
-```${PETSC_DIR}/src/snes/examples/ex1f.F90`` <https://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex1f.F90.html>`__,
+`SNES Tutorial ex1f <https://www.mcs.anl.gov/petsc/petsc-current/src/snes/tutorials/ex1f.F90.html>`__,
 respectively. We also refer Fortran programmers to the C examples listed
 throughout the manual, since PETSc usage within the two languages
 differs only slightly.
+
+
+.. admonition:: Listing: ``src/vec/vec/tests/ex19f.F``
+   :name: vec-test-ex19f
+
+   .. literalinclude:: ../../../vec/vec/tests/ex19f.F
+      :language: fortran
+
+.. _listing_vec_ex4f:
+
+.. admonition:: Listing: ``src/vec/vec/tutorials/ex4f.F``
+   :name: vec-ex4f
+
+   .. literalinclude:: ../../../vec/vec/tutorials/ex4f.F
+      :language: fortran
+
+.. admonition:: Listing: ``src/sys/classes/draw/tests/ex5f.F``
+   :name: draw-test-ex5f
+
+   .. literalinclude:: ../../../sys/classes/draw/tests/ex5f.F
+      :language: fortran
+
+.. admonition:: Listing: ``src/snes/tutorials/ex1f.F90``
+   :name: snes-ex1f
+
+   .. literalinclude:: ../../../snes/tutorials/ex1f.F90
+      :language: fortran
 
 .. _sec_fortranarrays:
 
@@ -322,7 +336,7 @@ manipulations in the conventional Fortran manner.
    10 continue
       call VecRestoreArray(x,xx_v,xx_i,ierr)
 
-Figure `[fig_vec2-Fortran] <#fig_vec2-Fortran>`__ contains an example of
+:ref:`The Vec ex4f Tutorial listed above <listing_vec_ex4f>` contains an example of
 using ``VecGetArray()`` within a Fortran routine.
 
 Since in this case the array is accessed directly from Fortran, indexing

@@ -83,6 +83,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
       if (!flag) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Unknown function %s",fstring);
     }
   }
+  ierr = PetscOptionsReal("-moment_tol", "Tolerance for moment checks", "ex2.c", options->momentTol, &options->momentTol, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-block_diag_prec", "Use the block diagonal of the normal equations to precondition the particle projection", "ex2.c", options->useBlockDiagPrec, &options->useBlockDiagPrec, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();
 
@@ -306,7 +307,7 @@ static PetscErrorCode computeParticleMoments(DM sw, PetscReal moments[3], AppCtx
   ierr = DMSwarmRestoreField(sw, DMSwarmPICField_coor, NULL, NULL, (void **) &coords);CHKERRQ(ierr);
   ierr = DMSwarmRestoreField(sw, "w_q", NULL, NULL, (void **) &w);CHKERRQ(ierr);
   ierr = DMSwarmSortRestoreAccess(sw);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(mom, moments, 3, MPIU_REAL, MPI_SUM, PetscObjectComm((PetscObject) sw));CHKERRQ(ierr);
+  ierr = MPI_Allreduce(mom, moments, 3, MPIU_REAL, MPI_SUM, PetscObjectComm((PetscObject) sw));CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -559,7 +560,7 @@ static PetscErrorCode InterpolateGradient(DM dm, Vec locX, Vec locC){
             ierr2 = PetscFree6(gradsum,interpolant,coords,fegeom.detJ,fegeom.J,fegeom.invJ);CHKERRQ(ierr2);
             CHKERRQ(ierr);
           }
-          if (id == PETSCFE_CLASSID)      {ierr = PetscFEInterpolateGradient_Static((PetscFE) obj, &x[fieldOffset], &fegeom, q, interpolant);CHKERRQ(ierr);}
+          if (id == PETSCFE_CLASSID)      {ierr = PetscFEInterpolateGradient_Static((PetscFE) obj, 1, &x[fieldOffset], &fegeom, q, interpolant);CHKERRQ(ierr);}
           else SETERRQ1(PetscObjectComm((PetscObject)dm), PETSC_ERR_ARG_WRONG, "Unknown discretization type for field %d", field);
           for (fc = 0; fc < Nc; ++fc) {
             const PetscReal wt = quadWeights[q*qNc+qc+fc];
