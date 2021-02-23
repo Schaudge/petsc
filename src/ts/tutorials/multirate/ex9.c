@@ -284,6 +284,24 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,c
   PetscFunctionReturn(0);
 }
 
+// static PetscErrorCode PhysicsVertexFlux_Shallow_Full(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed)
+// {
+//   PetscErrorCode  ierr;
+//   const FVNetwork fvnet = (FVNetwork)_fvnet;
+//   PetscInt        i,dof = fvnet->physics.dof;
+
+//   PetscFunctionBeginUser;
+
+//   if 
+//   /* First edge interpreted as uR, 2nd as uL. Use the user inputted Riemann function. */
+//   ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV+dof,uV,flux,maxspeed);CHKERRQ(ierr);
+//   /* Copy the flux */
+//   for (i = 0; i<dof; i++) {
+//     flux[i+dof] = flux[i];
+//   }
+//   PetscFunctionReturn(0);
+// }
+
 static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Junction junct)
 {
   PetscFunctionBeginUser;

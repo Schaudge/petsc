@@ -18,7 +18,9 @@ typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 struct _p_Junction{
   PetscInt	    id;       /* global index */
   PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */               
-  Mat           *jacobian;
+  Mat           jacobian;
+  SNES          snes; /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver. Assigned within the coupling
+                           flux function. Needs a redesign. */
   PetscReal     x;        /* x-coordinate */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) */           
