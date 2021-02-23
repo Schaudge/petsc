@@ -161,8 +161,13 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
   }
   /* set edge global id */
   for (i=0; i<numEdges; i++) fvedges[i].id = i;
-  /* set junction global id */
-  for (i=0; i<numVertices; i++) junctions[i].id = i; 
+  /* set junction global id and set default values */
+  for (i=0; i<numVertices; i++) 
+  {
+    junctions[i].id = i;
+    junctions[i].snes = NULL;
+    junctions[i].jacobian = NULL; 
+  }
   fvnet->nedge    = numEdges;
   fvnet->nvertex  = numVertices;
   fvnet->edgelist = edgelist;
