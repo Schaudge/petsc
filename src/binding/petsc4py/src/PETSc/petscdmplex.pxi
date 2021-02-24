@@ -78,6 +78,7 @@ cdef extern from * nogil:
     int DMPlexCreateSquareBoundary(PetscDM,const PetscReal[],const PetscReal[],const PetscInt[])
     int DMPlexCreateCubeBoundary(PetscDM,const PetscReal[],const PetscReal[],const PetscInt[])
     int DMPlexCreateBoxMesh(MPI_Comm,PetscInt,PetscBool,PetscInt[],PetscReal[],PetscReal[],PetscDMBoundaryType[],PetscBool,PetscDM*)
+    int DMPlexCreateHexCylinderMesh(MPI_Comm,PetscInt,PetscDMBoundaryType,PetscDM*)
     int DMPlexCreateFromFile(MPI_Comm,const char[],PetscBool,PetscDM*)
     int DMPlexCreateCGNS(MPI_Comm,PetscInt,PetscBool,PetscDM*)
     int DMPlexCreateCGNSFromFile(MPI_Comm,const char[],PetscBool,PetscDM*)

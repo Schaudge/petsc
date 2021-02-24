@@ -64,6 +64,15 @@ cdef class DMPlex(DM):
         PetscCLEAR(self.obj); self.dm = newdm
         return self
 
+    def createHexCylinderMesh(self, numRefine=0, periodic=False, comm=None):
+        cdef MPI_Comm            ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
+        cdef PetscInt            cNr   = numRefine
+        cdef PetscDMBoundaryType btype = asBoundaryType(periodic)
+        cdef PetscDM             newdm = NULL
+        CHKERR( DMPlexCreateHexCylinderMesh(ccomm, cNr, btype, &newdm) )
+        PetscCLEAR(self.obj); self.dm = newdm
+        return self
+
     def createFromFile(self, filename, interpolate=True, comm=None):
         cdef MPI_Comm  ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
         cdef PetscBool interp = interpolate
@@ -547,7 +556,7 @@ cdef class DMPlex(DM):
             bcField = iarray_i(bcField, &nbc, &bcfield)
             if bcComps is not None:
                 bcComps = list(bcComps)
-                assert len(bcComps) == nbc 
+                assert len(bcComps) == nbc
                 tmp1 = oarray_p(empty_p(nbc), NULL, <void**>&bccomps)
                 for i from 0 <= i < nbc:
                     bccomps[i] = (<IS?>bcComps[<Py_ssize_t>i]).iset
