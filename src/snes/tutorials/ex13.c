@@ -508,6 +508,11 @@ int main(int argc, char **argv)
     requires: triangle
     args: -potential_petscspace_degree 1 -snes_convergence_estimate -convest_num_refine 2
   test:
+    # Using -dm_refine 2 -convest_num_refine 3 we get L_2 convergence rate: 1.9
+    suffix: 2d_p1_conv_self
+    requires: triangle
+    args: -potential_petscspace_degree 1 -snes_convergence_estimate -snes_convergence_estimate_self -convest_num_refine 5 -convest_monitor
+  test:
     # Using -dm_refine 2 -convest_num_refine 3 we get L_2 convergence rate: 2.9
     suffix: 2d_p2_conv
     requires: triangle

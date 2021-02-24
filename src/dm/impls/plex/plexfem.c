@@ -1471,7 +1471,9 @@ PetscErrorCode DMComputeL2FieldDiff_Plex(DM dm, PetscReal time, PetscErrorCode (
   ierr = VecSet(localX, 0.0);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm, X, INSERT_VALUES, localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm, X, INSERT_VALUES, localX);CHKERRQ(ierr);
-  ierr = DMProjectFunctionLocal(dm, time, funcs, ctxs, INSERT_BC_VALUES, localX);CHKERRQ(ierr);
+  if (funcs) {
+    ierr = DMProjectFunctionLocal(dm, time, funcs, ctxs, INSERT_BC_VALUES, localX);CHKERRQ(ierr);
+  }
   ierr = DMGetNumDS(dm, &Nds);CHKERRQ(ierr);
   ierr = PetscCalloc1(Nf, &localDiff);CHKERRQ(ierr);
   for (s = 0; s < Nds; ++s) {
@@ -1550,13 +1552,17 @@ PetscErrorCode DMComputeL2FieldDiff_Plex(DM dm, PetscReal time, PetscErrorCode (
           } else {
             gcoords = &coords[dE*q];
           }
-          ierr = (*funcs[fields[f]])(dE, time, gcoords, Nc, funcVal, ctx);
-          if (ierr) {
-            PetscErrorCode ierr2;
-            ierr2 = DMPlexVecRestoreClosure(dm, NULL, localX, cell, NULL, &x);CHKERRQ(ierr2);
-            ierr2 = DMRestoreLocalVector(dm, &localX);CHKERRQ(ierr2);
-            ierr2 = PetscFree6(funcVal,interpolant,coords,fegeom.detJ,fegeom.J,fegeom.invJ);CHKERRQ(ierr2);
-            CHKERRQ(ierr);
+          if (funcs) {
+            ierr = (*funcs[fields[f]])(dE, time, gcoords, Nc, funcVal, ctx);
+            if (ierr) {
+              PetscErrorCode ierr2;
+              ierr2 = DMPlexVecRestoreClosure(dm, NULL, localX, cell, NULL, &x);CHKERRQ(ierr2);
+              ierr2 = DMRestoreLocalVector(dm, &localX);CHKERRQ(ierr2);
+              ierr2 = PetscFree6(funcVal,interpolant,coords,fegeom.detJ,fegeom.J,fegeom.invJ);CHKERRQ(ierr2);
+              CHKERRQ(ierr);
+            }
+          } else {
+            ierr = PetscArrayzero(funcVal, totNc);CHKERRQ(ierr);
           }
           if (transform) {ierr = DMPlexBasisTransformApply_Internal(dm, &coords[dE*q], PETSC_FALSE, Nc, funcVal, funcVal, dm->transformCtx);CHKERRQ(ierr);}
           /* Call once for each face, except for lagrange field */
