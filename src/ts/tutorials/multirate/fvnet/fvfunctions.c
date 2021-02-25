@@ -181,7 +181,7 @@ PetscErrorCode FVNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     switch (junction->type) {
       case JUNCT:
         /* Now compute the coupling flux */
-        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed);
+        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed,junction);
         for (i=0; i<junction->numedges; i++) {
           for (j=0; j<dof; j++) {
             f[offsetf+i*dof+j] = junction->flux[i*dof+j];
@@ -395,7 +395,7 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     switch (junction->type) {
       case JUNCT:
         /* Now compute the coupling flux */
-        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed);
+        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed,junction);
         for (i=0; i<junction->numedges; i++) {
           for (j=0; j<dof; j++) {
             f[offsetf+i*dof+j] = junction->flux[i*dof+j];
@@ -675,7 +675,7 @@ PetscErrorCode FVNetRHS_Buffer(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     switch (junction->type) {
       case JUNCT:
        /* Now compute the coupling flux */
-        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed);
+        junction->couplingflux(fvnet,f+offsetf,junction->dir,junction->flux,&maxspeed,junction);
         for (i=0; i<junction->numedges; i++) {
           for (j=0; j<dof; j++) {
             f[offsetf+i*dof+j] = junction->flux[i*dof+j];
