@@ -156,6 +156,58 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
         }
       }
       break;
+    case 3:
+    /* Case 3: */
+    /* =================================================
+    (OUTFLOW) v0 --E0--> v1--E1--> v2  (OUTFLOW)
+                          |
+                          E2  
+                          |
+                          \/
+                          v3 (OUTFLOW)
+    ====================================================  
+    This tests the coupling condition for the simple case */
+    nfvedge        = 3;
+    fvnet->nedge   = nfvedge;
+    fvnet->nvertex = nfvedge + 1;
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices    = 0;
+    numEdges       = 0;
+    edgelist       = NULL;
+    if (!rank) {
+      numVertices = fvnet->nvertex;
+      numEdges    = fvnet->nedge;
+      ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+
+      edgelist[0] = 0;
+      edgelist[1] = 1;
+      edgelist[2] = 1;
+      edgelist[3] = 2;
+      edgelist[4] = 1;
+      edgelist[5] = 3; 
+      /* Add network components */
+      /*------------------------*/
+      ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+      /* vertex */
+      junctions[0].type = OUTFLOW;
+      junctions[1].type = JUNCT;
+      junctions[2].type = OUTFLOW;
+      junctions[3].type = OUTFLOW;
+
+      junctions[0].x = -3.0; 
+      junctions[1].x = 0.0; 
+      junctions[2].x = 3.0; 
+      junctions[3].x = 3.0; 
+      /* Edge */ 
+      fvedges[0].nnodes = fvnet->hratio*Mx; 
+      fvedges[1].nnodes = Mx;  
+      fvedges[2].nnodes = Mx; 
+
+      for (i=0; i<numEdges;i++) {
+        fvedges[i].h = 3.0/(PetscReal)fvedges[i].nnodes; 
+      }
+    }
+    break;
     default:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
   }
@@ -165,8 +217,6 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
   for (i=0; i<numVertices; i++) 
   {
     junctions[i].id = i;
-    junctions[i].snes = NULL;
-    junctions[i].jacobian = NULL; 
   }
   fvnet->nedge    = numEdges;
   fvnet->nvertex  = numVertices;
@@ -379,7 +429,10 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet)
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     /* Free dynamic memory for the junction component */
     ierr = PetscFree(junction->dir);CHKERRQ(ierr); 
-    ierr = PetscFree(junction->flux);CHKERRQ(ierr); 
+    ierr = PetscFree(junction->flux);CHKERRQ(ierr);
+    ierr = VecDestroy(&junction->rcouple);CHKERRQ(ierr);
+    ierr = VecDestroy(&junction->xcouple);CHKERRQ(ierr);
+    ierr = SNESDestroy(&junction->snes);CHKERRQ(ierr);
   }
   ierr = (*fvnet->physics.destroy)(fvnet->physics.user);CHKERRQ(ierr);
   for (i=0; i<fvnet->physics.dof; i++) {
@@ -402,13 +455,13 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet)
 PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0) 
 {
   PetscErrorCode ierr;
-  PetscInt       i,vfrom,vto,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof;
+  PetscInt       i,j,vfrom,vto,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof;
   const PetscInt *cone;
-  PetscScalar    *xarr,*u;
+  PetscScalar    *xarr,*u,*utmp;
   Junction       junction;
   FVEdge         fvedge;
   Vec            localX = fvnet->localX;
-  PetscReal      h,xfrom,xto,x;
+  PetscReal      h,xfrom,xto,x,xend,xstart;
   
   PetscFunctionBegin;
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
@@ -424,26 +477,47 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0)
     xto   = junction->x;
     ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     xfrom = junction->x;
-    /* This code assumes a geometrically 1d network. To be improved later */
-    for (i=0; i<fvedge->nnodes; i++) {
-      if (xto>xfrom) {
-        x = xfrom+i*h;
-      } else {
-        x = xfrom-i*h;
+    if (fvnet->networktype<3) {
+      /* This code assumes a geometrically 1d network. To be improved later */
+      for (i=0; i<fvedge->nnodes; i++) {
+        if (xto>xfrom) {
+          x = xfrom+i*h;
+        } else {
+          x = xfrom-i*h;
+        }
+        u = xarr+offset+i*dof; 
+        switch (fvnet->networktype) {
+          case 0: 
+          case 1:
+          case 2:
+            /*Both are networks on [0,1] and so use the same initial conditions. User provided geometrically 1d initial conditions */
+            fvnet->physics.sample1d((void*)&fvnet->physics.user,fvnet->initial,0.0,x,u);
+            break;
+          default: 
+            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
+        }
       }
-      u = xarr+offset+i*dof; 
-      switch (fvnet->networktype) {
-        case 0: 
-        case 1:
-        case 2: 
-          /*Both are networks on [0,1] and so use the same initial conditions. User provided geometrically 1d initial conditions */
-          fvnet->physics.sample((void*)&fvnet->physics.user,fvnet->initial,0.0,x,u);
-          break;
-        default: 
-          SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
+    } else { /* Our sample function changes for each edge in the network */
+      ierr = PetscMalloc1(2*dof,&utmp);CHKERRQ(ierr);
+      for (i=0; i<fvedge->nnodes; i++) {
+          if (xto>xfrom) {
+          xstart = xfrom+i*h;
+          xend   = xstart+h;
+        } else {
+          xstart = xfrom-i*h;
+          xend   = xstart-h;
+        }
+        u = xarr+offset+i*dof;
+        fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,0.0,xstart,utmp,fvedge->id);
+        fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,0.0,xend,utmp+dof,fvedge->id);
+        for(j=0;j<dof;j++) {
+          u[j] = (utmp[j]+utmp[j+dof])/2.0; /* Trapezoid integration */
+        }
       }
+      ierr = PetscFree(utmp);CHKERRQ(ierr);
     }
   }
+  
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
   /* Can use insert as each edge belongs to a single processor and vertex data is only for temporary computation and holds no 'real' data. */
   ierr = DMLocalToGlobalBegin(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr);

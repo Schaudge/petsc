@@ -3,7 +3,7 @@
 #include "limiters.h"
 
 /* Function Specification for coupling flux calculations at the vertex */
-typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*);
+typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
 
 /* Finite Volume Data Structures */
 typedef enum {RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFLOW=8,JUNCT=10} VertexType; /* First 0-10 integers in _p_Junction.type are reserved */
@@ -19,6 +19,7 @@ struct _p_Junction{
   PetscInt	    id;       /* global index */
   PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */               
   Mat           jacobian;
+  Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */      
   SNES          snes; /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver. Assigned within the coupling
                            flux function. Needs a redesign. */
   PetscReal     x;        /* x-coordinate */
@@ -53,7 +54,8 @@ typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,cons
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
 
 typedef struct {
-  PetscErrorCode                 (*sample)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
+  PetscErrorCode                 (*sample1d)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
+  PetscErrorCode                 (*samplenetwork)(void*,PetscInt,PetscReal,PetscReal,PetscReal*,PetscInt);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   RiemannFunction                riemann;
   ReconstructFunction            characteristic;
