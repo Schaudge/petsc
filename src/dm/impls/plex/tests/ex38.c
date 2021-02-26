@@ -1352,6 +1352,8 @@ static PetscErrorCode SetupProblem(DM dm,UserCtx * user)
   case SUBSURFACE_BENCHMARK:
     ierr = PetscDSSetResidual(prob,1,f0_q_subsurface,NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob,0,f0_subsurface_bd_u,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,0,zero,NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetExactSolution(prob,1,zero,NULL);CHKERRQ(ierr);
     id   = 1;
     cmp  = 1;
     ierr = DMAddBoundary (dm,DM_BC_ESSENTIAL,"Bottom","marker",0,0,NULL,(void (*)(void))zero,NULL,1,&id,user);CHKERRQ(ierr);
@@ -1673,6 +1675,24 @@ testset:
       -pump_strength -0.1 \
       -left_head 105 \
       -right_head 100
+  test: 
+    suffix: convest
+    args: -dm_plex_box_lower -102.5,-102.5 \
+      -dm_plex_box_upper 102.5,102.5 \
+      -dm_plex_box_faces 11,11 \
+      -dm_plex_box_interpolate true \
+      -dm_plex_separate_marker \
+      -sol_form subsurface_benchmark \
+      -mesh_transform none \
+      -pump_half_side_length 2.5 \
+      -pump_strength -0.1 \
+      -left_head 105 \
+      -right_head 100 \
+      -A_snes_max_it 1 \
+      -WY_snes_max_it 1 \
+      -WY_snes_convergence_estimate \
+      -WY_snes_convergence_estimate_self \
+      -convest_monitor 
 
 testset:
   suffix: hydrology
