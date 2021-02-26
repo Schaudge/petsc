@@ -1,6 +1,7 @@
 /*
   Note:
     -hratio is the ratio between mesh size of corse grids and fine grids
+    -viewfv to view the solution
 */
 
 static const char help[] = "1D Finite Volume solver in slope-limiter form with semidiscrete time stepping defined on a network.\n"
@@ -33,6 +34,9 @@ static const char help[] = "1D Finite Volume solver in slope-limiter form with s
     mpiexec -n 1 ./ex9 -Mx 20 -network 0 -initial 3 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
     mpiexec -n 1 ./ex9 -Mx 20 -network 0 -initial 4 -hratio 2 -limit minmod -ts_dt 0.1 -ts_max_time 4.0 -ymax 2 -ymin -2 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
     mpiexec -n 1 ./ex9 -Mx 20 -network 0 -initial 5 -hratio 2 -limit minmod -ts_dt 0.2 -ts_max_time 5.0 -ymax 0.5 -ymin -0.5 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
+
+    3 Junction Coupling (E0,E1,E2 all meet at a vertex)
+    mpiexec -n 1 ./ex9 -Mx 40 -network 3 -initial 2 -hratio 2 -limit minmod -ts_dt 0.005 -ts_max_time 0.4 -ymax 2.5 -ymin -1 -ts_type mprk -ts_mprk_type 2a22 -ts_use_splitrhsfunction 1 -bufferwidth 4
 
   Contributed by: Aidan Hamilton <aidan@udel.edu>
 
