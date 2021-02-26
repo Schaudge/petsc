@@ -1,6 +1,7 @@
 /*
       Data structure used for Multigrid preconditioner.
 */
+#include "petscpctypes.h"
 #if !defined(__MG_IMPL)
 #define __MG_IMPL
 #include <petsc/private/pcimpl.h>
@@ -23,10 +24,14 @@ typedef struct {
                                                   the sequence of spaces. */
 
   PetscErrorCode (*residual)(Mat,Vec,Vec,Vec);
+  PetscErrorCode (*residualtranspose)(Mat,Vec,Vec,Vec);
 
   Mat           A;                             /* matrix used in forming residual*/
   KSP           smoothd;                       /* pre smoother */
   KSP           smoothu;                       /* post smoother */
+  KSP           cr;                            /* post compatible relaxation (cr) */
+  Vec           crx;                           /* cr solution */
+  Vec           crb;                           /* cr rhs */
   Mat           interpolate;
   Mat           restrct;                       /* restrict is a reserved word in C99 and on Cray */
   Mat           inject;                        /* Used for moving state if provided. */
@@ -52,6 +57,8 @@ typedef struct {
   PetscInt            Nc;                     /* The number of vectors in coarseSpace */
   PetscInt            eigenvalue;             /* Key for storing the eigenvalue as a scalar in the eigenvector Vec */
   PetscBool           mespMonitor;            /* flag to monitor the multilevel eigensolver */
+
+  PetscBool           compatibleRelaxation;   /* flag to monitor the coarse space quality using an auxiliary solve with compatible relaxation */
 
   PetscInt     nlevels;
   PC_MG_Levels **levels;
@@ -81,5 +88,9 @@ PETSC_INTERN PetscErrorCode PCMGComputeCoarseSpace_Internal(PC, PetscInt, PCMGCo
 PETSC_INTERN PetscErrorCode PCMGAdaptInterpolator_Internal(PC, PetscInt, KSP, KSP, PetscInt, Vec[], Vec[]);
 PETSC_INTERN PetscErrorCode PCMGRecomputeLevelOperators_Internal(PC, PetscInt);
 
+PETSC_INTERN PetscErrorCode PCMGACycle_Private(PC,PC_MG_Levels**,PetscBool);
+PETSC_INTERN PetscErrorCode PCMGFCycle_Private(PC,PC_MG_Levels**,PetscBool);
+PETSC_INTERN PetscErrorCode PCMGKCycle_Private(PC,PC_MG_Levels**,PetscBool);
+PETSC_INTERN PetscErrorCode PCMGMCycle_Private(PC,PC_MG_Levels**,PetscBool,PCRichardsonConvergedReason*);
 
 #endif

@@ -14,8 +14,8 @@ PETSC_EXTERN PetscErrorCode KSPInitializePackage(void);
    Level: beginner
 
         Notes:
-    When a direct solver is used but no Krylov solver is used the KSP object is still used by with a
-       KSPType of KSPPREONLY (meaning application of the preconditioner is only used as the linear solver).
+    When a direct solver is used, but no Krylov solver is used, the KSP object is still used but with a
+       KSPType of KSPPREONLY, meaning that only application of the preconditioner is used as the linear solver.
 
 .seealso:  KSPCreate(), KSPSetType(), KSPType, SNES, TS, PC, KSP, KSPDestroy(), KSPCG, KSPGMRES
 S*/
@@ -91,6 +91,7 @@ PETSC_EXTERN PetscErrorCode KSPSetUp(KSP);
 PETSC_EXTERN PetscErrorCode KSPSetUpOnBlocks(KSP);
 PETSC_EXTERN PetscErrorCode KSPSolve(KSP,Vec,Vec);
 PETSC_EXTERN PetscErrorCode KSPSolveTranspose(KSP,Vec,Vec);
+PETSC_EXTERN PetscErrorCode KSPSetUseExplicitTranspose(KSP,PetscBool);
 PETSC_EXTERN PetscErrorCode KSPMatSolve(KSP,Mat,Mat);
 PETSC_EXTERN PetscErrorCode KSPSetMatSolveBlockSize(KSP,PetscInt);
 PETSC_EXTERN PetscErrorCode KSPGetMatSolveBlockSize(KSP,PetscInt*);
@@ -137,8 +138,10 @@ PETSC_EXTERN PetscErrorCode KSPMonitor(KSP,PetscInt,PetscReal);
 PETSC_EXTERN PetscErrorCode KSPMonitorSet(KSP,PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*),void*,PetscErrorCode (*)(void**));
 PETSC_EXTERN PetscErrorCode KSPMonitorCancel(KSP);
 PETSC_EXTERN PetscErrorCode KSPGetMonitorContext(KSP,void**);
-PETSC_EXTERN PetscErrorCode KSPGetResidualHistory(KSP,PetscReal*[],PetscInt*);
+PETSC_EXTERN PetscErrorCode KSPGetResidualHistory(KSP,const PetscReal*[],PetscInt*);
 PETSC_EXTERN PetscErrorCode KSPSetResidualHistory(KSP,PetscReal[],PetscInt,PetscBool);
+PETSC_EXTERN PetscErrorCode KSPGetErrorHistory(KSP,const PetscReal*[],PetscInt*);
+PETSC_EXTERN PetscErrorCode KSPSetErrorHistory(KSP,PetscReal[],PetscInt,PetscBool);
 
 PETSC_EXTERN PetscErrorCode KSPBuildSolutionDefault(KSP,Vec,Vec*);
 PETSC_EXTERN PetscErrorCode KSPBuildResidualDefault(KSP,Vec,Vec,Vec*);
@@ -221,6 +224,7 @@ PETSC_EXTERN PetscErrorCode KSPPIPEGCRGetUnrollW(KSP,PetscBool*);
 PETSC_EXTERN PetscErrorCode KSPGMRESSetRestart(KSP, PetscInt);
 PETSC_EXTERN PetscErrorCode KSPGMRESGetRestart(KSP, PetscInt*);
 PETSC_EXTERN PetscErrorCode KSPGMRESSetHapTol(KSP,PetscReal);
+PETSC_EXTERN PetscErrorCode KSPGMRESSetBreakdownTolerance(KSP,PetscReal);
 
 PETSC_EXTERN PetscErrorCode KSPGMRESSetPreAllocateVectors(KSP);
 PETSC_EXTERN PetscErrorCode KSPGMRESSetOrthogonalization(KSP,PetscErrorCode (*)(KSP,PetscInt));
@@ -385,6 +389,7 @@ PETSC_EXTERN PetscErrorCode KSPLoad(KSP,PetscViewer);
 PETSC_EXTERN PetscErrorCode KSPViewFromOptions(KSP,PetscObject,const char[]);
 PETSC_EXTERN PetscErrorCode KSPConvergedReasonView(KSP,PetscViewer);
 PETSC_EXTERN PetscErrorCode KSPConvergedReasonViewFromOptions(KSP);
+PETSC_EXTERN PetscErrorCode KSPConvergedRateView(KSP,PetscViewer);
 
 PETSC_DEPRECATED_FUNCTION("Use KSPConvergedReasonView() (since version 3.14)") PETSC_STATIC_INLINE PetscErrorCode KSPReasonView(KSP ksp,PetscViewer v) {return KSPConvergedReasonView(ksp,v);}
 PETSC_DEPRECATED_FUNCTION("Use KSPConvergedReasonViewFromOptions() (since version 3.14)") PETSC_STATIC_INLINE PetscErrorCode KSPReasonViewFromOptions(KSP ksp) {return KSPConvergedReasonViewFromOptions(ksp);}
@@ -658,6 +663,7 @@ PETSC_EXTERN PetscErrorCode KSPConvergedDefaultSetUMIRNorm(KSP);
 PETSC_EXTERN PetscErrorCode KSPConvergedDefaultSetConvergedMaxits(KSP,PetscBool);
 PETSC_EXTERN PetscErrorCode KSPConvergedSkip(KSP,PetscInt,PetscReal,KSPConvergedReason*,void*);
 PETSC_EXTERN PetscErrorCode KSPGetConvergedReason(KSP,KSPConvergedReason*);
+PETSC_EXTERN PetscErrorCode KSPComputeConvergenceRate(KSP,PetscReal*,PetscReal*,PetscReal*,PetscReal*);
 
 PETSC_DEPRECATED_FUNCTION("Use KSPConvergedDefault() (since version 3.5)") PETSC_STATIC_INLINE void KSPDefaultConverged(void) { /* never called */ }
 #define KSPDefaultConverged (KSPDefaultConverged, KSPConvergedDefault)

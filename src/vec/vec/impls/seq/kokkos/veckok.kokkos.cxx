@@ -163,7 +163,7 @@ PetscErrorCode VecMin_SeqKokkos(Vec xin,PetscInt *p,PetscReal *val)
       lminloc.loc = i;
     }
   },Kokkos::MinLoc<PetscReal,PetscInt>(minloc)); /* Kokkos will set minloc properly even if xin is zero-lengthed */
-  *p   = minloc.loc;
+  if (p) *p = minloc.loc;
   *val = minloc.val;
   ierr = VecKokkosRestoreDeviceViewRead(xin,&xv);CHKERRQ(ierr);
   ierr = PetscLogGpuTimeEnd();CHKERRQ(ierr);
@@ -187,7 +187,7 @@ PetscErrorCode VecMax_SeqKokkos(Vec xin,PetscInt *p,PetscReal *val)
       lmaxloc.loc = i;
     }
   },Kokkos::MaxLoc<PetscReal,PetscInt>(maxloc));
-  *p   = maxloc.loc;
+  if (p) *p = maxloc.loc;
   *val = maxloc.val;
   ierr = VecKokkosRestoreDeviceViewRead(xin,&xv);CHKERRQ(ierr);
   ierr = PetscLogGpuTimeEnd();CHKERRQ(ierr);
@@ -1037,7 +1037,7 @@ PetscErrorCode  VecCreateSeqKokkosWithArray(MPI_Comm comm,PetscInt bs,PetscInt n
   PetscScalar    *harray;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Cannot create VECSEQKOKKOS on more than one process");
 
   ierr = PetscKokkosInitializeCheck();CHKERRQ(ierr);

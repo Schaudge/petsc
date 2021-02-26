@@ -9,6 +9,10 @@
 #include <../src/vec/vec/impls/dvecimpl.h>
 #include <petsc/private/cudavecimpl.h>
 #endif
+#if defined(PETSC_HAVE_HIP)
+#include <../src/vec/vec/impls/dvecimpl.h>
+#include <petsc/private/hipvecimpl.h>
+#endif
 static PetscInt VecGetSubVectorSavedStateId = -1;
 
 PETSC_EXTERN PetscErrorCode VecValidValues(Vec vec,PetscInt argnum,PetscBool begin)
@@ -19,7 +23,7 @@ PETSC_EXTERN PetscErrorCode VecValidValues(Vec vec,PetscInt argnum,PetscBool beg
   const PetscScalar *x;
 
   PetscFunctionBegin;
-#if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_VIENNACL)
+#if defined(PETSC_HAVE_DEVICE)
   if ((vec->petscnative || vec->ops->getarray) && (vec->offloadmask & PETSC_OFFLOAD_CPU)) {
 #else
   if (vec->petscnative || vec->ops->getarray) {
@@ -1220,6 +1224,89 @@ PetscErrorCode  VecMAXPY(Vec y,PetscInt nv,const PetscScalar alpha[],Vec x[])
 }
 
 /*@
+   VecConcatenate - Creates a new vector that is a vertical concatenation of all the given array of vectors
+                    in the order they appear in the array. The concatenated vector resides on the same
+                    communicator and is the same type as the source vectors.
+
+   Collective on X
+
+   Input Arguments:
++  nx   - number of vectors to be concatenated
+-  X    - array containing the vectors to be concatenated in the order of concatenation
+
+   Output Arguments:
++  Y    - concatenated vector
+-  x_is - array of index sets corresponding to the concatenated components of Y (NULL if not needed)
+
+   Notes:
+   Concatenation is similar to the functionality of a VecNest object; they both represent combination of
+   different vector spaces. However, concatenated vectors do not store any information about their
+   sub-vectors and own their own data. Consequently, this function provides index sets to enable the
+   manipulation of data in the concatenated vector that corresponds to the original components at creation.
+
+   This is a useful tool for outer loop algorithms, particularly constrained optimizers, where the solver
+   has to operate on combined vector spaces and cannot utilize VecNest objects due to incompatibility with
+   bound projections.
+
+   Level: advanced
+
+.seealso: VECNEST, VECSCATTER, VecScatterCreate()
+@*/
+PetscErrorCode VecConcatenate(PetscInt nx, const Vec X[], Vec *Y, IS *x_is[])
+{
+  MPI_Comm       comm;
+  VecType        vec_type;
+  Vec            Ytmp, Xtmp;
+  IS             *is_tmp;
+  PetscInt       i, shift=0, Xnl, Xng, Xbegin;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidLogicalCollectiveInt(*X,nx,1);
+  PetscValidHeaderSpecific(*X,VEC_CLASSID,2);
+  PetscValidType(*X,2);
+  PetscValidPointer(Y, 3);
+
+  if ((*X)->ops->concatenate) {
+    /* use the dedicated concatenation function if available */
+    ierr = (*(*X)->ops->concatenate)(nx,X,Y,x_is);
+  } else {
+    /* loop over vectors and start creating IS */
+    comm = PetscObjectComm((PetscObject)(*X));
+    ierr = VecGetType(*X, &vec_type);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nx, &is_tmp);
+    for (i=0; i<nx; i++) {
+      ierr = VecGetSize(X[i], &Xng);CHKERRQ(ierr);
+      ierr = VecGetLocalSize(X[i], &Xnl);CHKERRQ(ierr);
+      ierr = VecGetOwnershipRange(X[i], &Xbegin, NULL);CHKERRQ(ierr);
+      ierr = ISCreateStride(comm, Xnl, shift + Xbegin, 1, &is_tmp[i]);
+      shift += Xng;
+    }
+    /* create the concatenated vector */
+    ierr = VecCreate(comm, &Ytmp);CHKERRQ(ierr);
+    ierr = VecSetType(Ytmp, vec_type);CHKERRQ(ierr);
+    ierr = VecSetSizes(Ytmp, PETSC_DECIDE, shift);CHKERRQ(ierr);
+    ierr = VecSetUp(Ytmp);CHKERRQ(ierr);
+    /* copy data from X array to Y and return */
+    for (i=0; i<nx; i++) {
+      ierr = VecGetSubVector(Ytmp, is_tmp[i], &Xtmp);CHKERRQ(ierr);
+      ierr = VecCopy(X[i], Xtmp);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(Ytmp, is_tmp[i], &Xtmp);CHKERRQ(ierr);
+    }
+    *Y = Ytmp;
+    if (x_is) {
+      *x_is = is_tmp;
+    } else {
+      for (i=0; i<nx; i++) {
+        ierr = ISDestroy(&is_tmp[i]);CHKERRQ(ierr);
+      }
+      ierr = PetscFree(is_tmp);CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@
    VecGetSubVector - Gets a vector representing part of another vector
 
    Collective on X and IS
@@ -1278,15 +1365,13 @@ PetscErrorCode  VecGetSubVector(Vec X,IS is,Vec *Y)
     if (red[0]) { /* We can do a no-copy implementation */
       const PetscScalar *x;
       PetscInt          state = 0;
-      PetscBool         isstd;
-#if defined(PETSC_HAVE_CUDA)
-      PetscBool         iscuda;
-#endif
+      PetscBool         isstd,iscuda,iship;
 
       ierr = PetscObjectTypeCompareAny((PetscObject)X,&isstd,VECSEQ,VECMPI,VECSTANDARD,"");CHKERRQ(ierr);
-#if defined(PETSC_HAVE_CUDA)
       ierr = PetscObjectTypeCompareAny((PetscObject)X,&iscuda,VECSEQCUDA,VECMPICUDA,"");CHKERRQ(ierr);
+      ierr = PetscObjectTypeCompareAny((PetscObject)X,&iship,VECSEQHIP,VECMPIHIP,"");CHKERRQ(ierr);
       if (iscuda) {
+#if defined(PETSC_HAVE_CUDA)
         const PetscScalar *x_d;
         PetscMPIInt       size;
         PetscOffloadMask  flg;
@@ -1296,20 +1381,37 @@ PetscErrorCode  VecGetSubVector(Vec X,IS is,Vec *Y)
         if (n && !x && !x_d) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Missing vector data");
         if (x) x += start;
         if (x_d) x_d += start;
-        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)X),&size);CHKERRQ(ierr);
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)X),&size);CHKERRMPI(ierr);
         if (size == 1) {
           ierr = VecCreateSeqCUDAWithArrays(PetscObjectComm((PetscObject)X),bs,n,x,x_d,&Z);CHKERRQ(ierr);
         } else {
           ierr = VecCreateMPICUDAWithArrays(PetscObjectComm((PetscObject)X),bs,n,N,x,x_d,&Z);CHKERRQ(ierr);
         }
         Z->offloadmask = flg;
-      } else if (isstd) {
-#else
-      if (isstd) { /* standard CPU: use CreateWithArray pattern */
 #endif
+      } else if (iship) {
+#if defined(PETSC_HAVE_HIP)
+        const PetscScalar *x_d;
+        PetscMPIInt       size;
+        PetscOffloadMask  flg;
+
+        ierr = VecHIPGetArrays_Private(X,&x,&x_d,&flg);CHKERRQ(ierr);
+        if (flg == PETSC_OFFLOAD_UNALLOCATED) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Not for PETSC_OFFLOAD_UNALLOCATED");
+        if (n && !x && !x_d) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Missing vector data");
+        if (x) x += start;
+        if (x_d) x_d += start;
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)X),&size);CHKERRQ(ierr);
+        if (size == 1) {
+          ierr = VecCreateSeqHIPWithArrays(PetscObjectComm((PetscObject)X),bs,n,x,x_d,&Z);CHKERRQ(ierr);
+        } else {
+          ierr = VecCreateMPIHIPWithArrays(PetscObjectComm((PetscObject)X),bs,n,N,x,x_d,&Z);CHKERRQ(ierr);
+        }
+        Z->offloadmask = flg;
+#endif
+      } else if (isstd) {
         PetscMPIInt size;
 
-        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)X),&size);CHKERRQ(ierr);
+        ierr = MPI_Comm_size(PetscObjectComm((PetscObject)X),&size);CHKERRMPI(ierr);
         ierr = VecGetArrayRead(X,&x);CHKERRQ(ierr);
         if (x) x += start;
         if (size == 1) {
@@ -1399,11 +1501,12 @@ PetscErrorCode  VecRestoreSubVector(Vec X,IS is,Vec *Y)
         ierr = VecScatterBegin(scatter,*Y,X,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
         ierr = VecScatterEnd(scatter,*Y,X,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
       } else {
-#if defined(PETSC_HAVE_CUDA)
-        PetscBool iscuda;
+        PetscBool         iscuda,iship;
+        ierr = PetscObjectTypeCompareAny((PetscObject)X,&iscuda,VECSEQCUDA,VECMPICUDA,"");CHKERRQ(ierr);
+        ierr = PetscObjectTypeCompareAny((PetscObject)X,&iship,VECSEQHIP,VECMPIHIP,"");CHKERRQ(ierr);
 
-        ierr = PetscObjectTypeCompareAny((PetscObject)*Y,&iscuda,VECSEQCUDA,VECMPICUDA,"");CHKERRQ(ierr);
         if (iscuda) {
+#if defined(PETSC_HAVE_CUDA)
           PetscOffloadMask ymask = (*Y)->offloadmask;
 
           /* The offloadmask of X dictates where to move memory
@@ -1432,10 +1535,39 @@ PetscErrorCode  VecRestoreSubVector(Vec X,IS is,Vec *Y)
             SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"This should not happen");
             break;
           }
-        } else {
-#else
-        {
 #endif
+        } else if (iship) {
+#if defined(PETSC_HAVE_HIP)
+          PetscOffloadMask ymask = (*Y)->offloadmask;
+
+          /* The offloadmask of X dictates where to move memory
+             If X GPU data is valid, then move Y data on GPU if needed
+             Otherwise, move back to the CPU */
+          switch (X->offloadmask) {
+          case PETSC_OFFLOAD_BOTH:
+            if (ymask == PETSC_OFFLOAD_CPU) {
+              ierr = VecHIPResetArray(*Y);CHKERRQ(ierr);
+            } else if (ymask == PETSC_OFFLOAD_GPU) {
+              X->offloadmask = PETSC_OFFLOAD_GPU;
+            }
+            break;
+          case PETSC_OFFLOAD_GPU:
+            if (ymask == PETSC_OFFLOAD_CPU) {
+              ierr = VecHIPResetArray(*Y);CHKERRQ(ierr);
+            }
+            break;
+          case PETSC_OFFLOAD_CPU:
+            if (ymask == PETSC_OFFLOAD_GPU) {
+              ierr = VecResetArray(*Y);CHKERRQ(ierr);
+            }
+            break;
+          case PETSC_OFFLOAD_UNALLOCATED:
+          case PETSC_OFFLOAD_VECKOKKOS:
+            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"This should not happen");
+            break;
+          }
+#endif
+        } else {
           /* If OpenCL vecs updated the device memory, this triggers a copy on the CPU */
           ierr = VecResetArray(*Y);CHKERRQ(ierr);
         }
@@ -2425,8 +2557,10 @@ PetscErrorCode VecCUDAReplaceArray(Vec vin,const PetscScalar a[])
   PetscFunctionBegin;
   PetscCheckTypeNames(vin,VECSEQCUDA,VECMPICUDA);
 #if defined(PETSC_HAVE_CUDA)
-  err = cudaFree(((Vec_CUDA*)vin->spptr)->GPUarray);CHKERRCUDA(err);
-  ((Vec_CUDA*)vin->spptr)->GPUarray = (PetscScalar*)a;
+  if (((Vec_CUDA*)vin->spptr)->GPUarray_allocated) {
+    err = cudaFree(((Vec_CUDA*)vin->spptr)->GPUarray_allocated);CHKERRCUDA(err);
+  }
+  ((Vec_CUDA*)vin->spptr)->GPUarray_allocated = ((Vec_CUDA*)vin->spptr)->GPUarray = (PetscScalar*)a;
   vin->offloadmask = PETSC_OFFLOAD_GPU;
 #endif
   ierr = PetscObjectStateIncrease((PetscObject)vin);CHKERRQ(ierr);
@@ -2456,6 +2590,351 @@ PetscErrorCode VecCUDAResetArray(Vec vin)
 #if defined(PETSC_HAVE_CUDA)
   ierr = VecCUDACopyToGPU(vin);CHKERRQ(ierr);
   ((Vec_CUDA*)vin->spptr)->GPUarray = (PetscScalar *) ((Vec_Seq*)vin->data)->unplacedarray;
+  ((Vec_Seq*)vin->data)->unplacedarray = 0;
+  vin->offloadmask = PETSC_OFFLOAD_GPU;
+#endif
+  ierr = PetscObjectStateIncrease((PetscObject)vin);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPGetArray - Provides access to the HIP buffer inside a vector.
+
+   This function has semantics similar to VecGetArray():  the pointer
+   returned by this function points to a consistent view of the vector
+   data.  This may involve a copy operation of data from the host to the
+   device if the data on the device is out of date.  If the device
+   memory hasn't been allocated previously it will be allocated as part
+   of this function call.  VecHIPGetArray() assumes that
+   the user will modify the vector data.  This is similar to
+   intent(inout) in fortran.
+
+   The HIP device pointer has to be released by calling
+   VecHIPRestoreArray().  Upon restoring the vector data
+   the data on the host will be marked as out of date.  A subsequent
+   access of the host data will thus incur a data transfer from the
+   device to the host.
+
+
+   Input Parameter:
+.  v - the vector
+
+   Output Parameter:
+.  a - the HIP device pointer
+
+   Fortran note:
+   This function is not currently available from Fortran.
+
+   Level: intermediate
+
+.seealso: VecHIPRestoreArray(), VecHIPGetArrayRead(), VecHIPGetArrayWrite(), VecGetArray(), VecGetArrayRead()
+@*/
+PETSC_EXTERN PetscErrorCode VecHIPGetArray(Vec v, PetscScalar **a)
+{
+#if defined(PETSC_HAVE_HIP)
+  PetscErrorCode ierr;
+#endif
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(v,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  *a   = 0;
+  ierr = VecHIPCopyToGPU(v);CHKERRQ(ierr);
+  *a   = ((Vec_HIP*)v->spptr)->GPUarray;
+#endif
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPRestoreArray - Restore a HIP device pointer previously acquired with VecHIPGetArray().
+
+   This marks the host data as out of date.  Subsequent access to the
+   vector data on the host side with for instance VecGetArray() incurs a
+   data transfer.
+
+   Input Parameter:
++  v - the vector
+-  a - the HIP device pointer.  This pointer is invalid after
+       VecHIPRestoreArray() returns.
+
+   Fortran note:
+   This function is not currently available from Fortran.
+
+   Level: intermediate
+
+.seealso: VecHIPGetArray(), VecHIPGetArrayRead(), VecHIPGetArrayWrite(), VecGetArray(), VecRestoreArray(), VecGetArrayRead()
+@*/
+PETSC_EXTERN PetscErrorCode VecHIPRestoreArray(Vec v, PetscScalar **a)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(v,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  v->offloadmask = PETSC_OFFLOAD_GPU;
+#endif
+
+  ierr = PetscObjectStateIncrease((PetscObject)v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPGetArrayRead - Provides read access to the HIP buffer inside a vector.
+
+   This function is analogous to VecGetArrayRead():  The pointer
+   returned by this function points to a consistent view of the vector
+   data.  This may involve a copy operation of data from the host to the
+   device if the data on the device is out of date.  If the device
+   memory hasn't been allocated previously it will be allocated as part
+   of this function call.  VecHIPGetArrayRead() assumes that the
+   user will not modify the vector data.  This is analgogous to
+   intent(in) in Fortran.
+
+   The HIP device pointer has to be released by calling
+   VecHIPRestoreArrayRead().  If the data on the host side was
+   previously up to date it will remain so, i.e. data on both the device
+   and the host is up to date.  Accessing data on the host side does not
+   incur a device to host data transfer.
+
+   Input Parameter:
+.  v - the vector
+
+   Output Parameter:
+.  a - the HIP pointer.
+
+   Fortran note:
+   This function is not currently available from Fortran.
+
+   Level: intermediate
+
+.seealso: VecHIPRestoreArrayRead(), VecHIPGetArray(), VecHIPGetArrayWrite(), VecGetArray(), VecGetArrayRead()
+@*/
+PETSC_EXTERN PetscErrorCode VecHIPGetArrayRead(Vec v, const PetscScalar **a)
+{
+#if defined(PETSC_HAVE_HIP)
+  PetscErrorCode ierr;
+#endif
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(v,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  *a   = 0;
+  ierr = VecHIPCopyToGPU(v);CHKERRQ(ierr);
+  *a   = ((Vec_HIP*)v->spptr)->GPUarray;
+#endif
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPRestoreArrayRead - Restore a HIP device pointer previously acquired with VecHIPGetArrayRead().
+
+   If the data on the host side was previously up to date it will remain
+   so, i.e. data on both the device and the host is up to date.
+   Accessing data on the host side e.g. with VecGetArray() does not
+   incur a device to host data transfer.
+
+   Input Parameter:
++  v - the vector
+-  a - the HIP device pointer.  This pointer is invalid after
+       VecHIPRestoreArrayRead() returns.
+
+   Fortran note:
+   This function is not currently available from Fortran.
+
+   Level: intermediate
+
+.seealso: VecHIPGetArrayRead(), VecHIPGetArrayWrite(), VecHIPGetArray(), VecGetArray(), VecRestoreArray(), VecGetArrayRead()
+@*/
+PETSC_EXTERN PetscErrorCode VecHIPRestoreArrayRead(Vec v, const PetscScalar **a)
+{
+  PetscFunctionBegin;
+  PetscCheckTypeNames(v,VECSEQHIP,VECMPIHIP);
+  *a = NULL;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPGetArrayWrite - Provides write access to the HIP buffer inside a vector.
+
+   The data pointed to by the device pointer is uninitialized.  The user
+   may not read from this data.  Furthermore, the entire array needs to
+   be filled by the user to obtain well-defined behaviour.  The device
+   memory will be allocated by this function if it hasn't been allocated
+   previously.  This is analogous to intent(out) in Fortran.
+
+   The device pointer needs to be released with
+   VecHIPRestoreArrayWrite().  When the pointer is released the
+   host data of the vector is marked as out of data.  Subsequent access
+   of the host data with e.g. VecGetArray() incurs a device to host data
+   transfer.
+
+
+   Input Parameter:
+.  v - the vector
+
+   Output Parameter:
+.  a - the HIP pointer
+
+   Fortran note:
+   This function is not currently available from Fortran.
+
+   Level: advanced
+
+.seealso: VecHIPRestoreArrayWrite(), VecHIPGetArray(), VecHIPGetArrayRead(), VecHIPGetArrayWrite(), VecGetArray(), VecGetArrayRead()
+@*/
+PETSC_EXTERN PetscErrorCode VecHIPGetArrayWrite(Vec v, PetscScalar **a)
+{
+#if defined(PETSC_HAVE_HIP)
+  PetscErrorCode ierr;
+#endif
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(v,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  *a   = 0;
+  ierr = VecHIPAllocateCheck(v);CHKERRQ(ierr);
+  *a   = ((Vec_HIP*)v->spptr)->GPUarray;
+#endif
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPRestoreArrayWrite - Restore a HIP device pointer previously acquired with VecHIPGetArrayWrite().
+
+   Data on the host will be marked as out of date.  Subsequent access of
+   the data on the host side e.g. with VecGetArray() will incur a device
+   to host data transfer.
+
+   Input Parameter:
++  v - the vector
+-  a - the HIP device pointer.  This pointer is invalid after
+       VecHIPRestoreArrayWrite() returns.
+
+   Fortran note:
+   This function is not currently available from Fortran.
+
+   Level: intermediate
+
+.seealso: VecHIPGetArrayWrite(), VecHIPGetArray(), VecHIPGetArrayRead(), VecHIPGetArrayWrite(), VecGetArray(), VecRestoreArray(), VecGetArrayRead()
+@*/
+PETSC_EXTERN PetscErrorCode VecHIPRestoreArrayWrite(Vec v, PetscScalar **a)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(v,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  v->offloadmask = PETSC_OFFLOAD_GPU;
+#endif
+
+  ierr = PetscObjectStateIncrease((PetscObject)v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPPlaceArray - Allows one to replace the GPU array in a vector with a
+   GPU array provided by the user. This is useful to avoid copying an
+   array into a vector.
+
+   Not Collective
+
+   Input Parameters:
++  vec - the vector
+-  array - the GPU array
+
+   Notes:
+   You can return to the original GPU array with a call to VecHIPResetArray()
+   It is not possible to use VecHIPPlaceArray() and VecPlaceArray() at the
+   same time on the same vector.
+
+   Level: developer
+
+.seealso: VecPlaceArray(), VecGetArray(), VecRestoreArray(), VecReplaceArray(), VecResetArray(), VecHIPResetArray(), VecHIPReplaceArray()
+
+@*/
+PetscErrorCode VecHIPPlaceArray(Vec vin,const PetscScalar a[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(vin,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  ierr = VecHIPCopyToGPU(vin);CHKERRQ(ierr);
+  if (((Vec_Seq*)vin->data)->unplacedarray) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"VecHIPPlaceArray()/VecPlaceArray() was already called on this vector, without a call to VecHIPResetArray()/VecResetArray()");
+  ((Vec_Seq*)vin->data)->unplacedarray  = (PetscScalar *) ((Vec_HIP*)vin->spptr)->GPUarray; /* save previous GPU array so reset can bring it back */
+  ((Vec_HIP*)vin->spptr)->GPUarray = (PetscScalar*)a;
+  vin->offloadmask = PETSC_OFFLOAD_GPU;
+#endif
+  ierr = PetscObjectStateIncrease((PetscObject)vin);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPReplaceArray - Allows one to replace the GPU array in a vector
+   with a GPU array provided by the user. This is useful to avoid copying
+   a GPU array into a vector.
+
+   Not Collective
+
+   Input Parameters:
++  vec - the vector
+-  array - the GPU array
+
+   Notes:
+   This permanently replaces the GPU array and frees the memory associated
+   with the old GPU array.
+
+   The memory passed in CANNOT be freed by the user. It will be freed
+   when the vector is destroyed.
+
+   Not supported from Fortran
+
+   Level: developer
+
+.seealso: VecGetArray(), VecRestoreArray(), VecPlaceArray(), VecResetArray(), VecHIPResetArray(), VecHIPPlaceArray(), VecReplaceArray()
+
+@*/
+PetscErrorCode VecHIPReplaceArray(Vec vin,const PetscScalar a[])
+{
+#if defined(PETSC_HAVE_HIP)
+  hipError_t err;
+#endif
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(vin,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  err = hipFree(((Vec_HIP*)vin->spptr)->GPUarray);CHKERRHIP(err);
+  ((Vec_HIP*)vin->spptr)->GPUarray = (PetscScalar*)a;
+  vin->offloadmask = PETSC_OFFLOAD_GPU;
+#endif
+  ierr = PetscObjectStateIncrease((PetscObject)vin);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   VecHIPResetArray - Resets a vector to use its default memory. Call this
+   after the use of VecHIPPlaceArray().
+
+   Not Collective
+
+   Input Parameters:
+.  vec - the vector
+
+   Level: developer
+
+.seealso: VecGetArray(), VecRestoreArray(), VecReplaceArray(), VecPlaceArray(), VecResetArray(), VecHIPPlaceArray(), VecHIPReplaceArray()
+
+@*/
+PetscErrorCode VecHIPResetArray(Vec vin)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscCheckTypeNames(vin,VECSEQHIP,VECMPIHIP);
+#if defined(PETSC_HAVE_HIP)
+  ierr = VecHIPCopyToGPU(vin);CHKERRQ(ierr);
+  ((Vec_HIP*)vin->spptr)->GPUarray = (PetscScalar *) ((Vec_Seq*)vin->data)->unplacedarray;
   ((Vec_Seq*)vin->data)->unplacedarray = 0;
   vin->offloadmask = PETSC_OFFLOAD_GPU;
 #endif

@@ -83,7 +83,8 @@ class Package(config.base.Configure):
     self.requires32bitintblas   = 1  # 1 means that the package will not work with 64 bit integer BLAS/LAPACK
     self.skippackagewithoptions = 0  # packages like fblaslapack and MPICH do not support --with-package* options so do not print them in help
     self.alternativedownload    = [] # Used by, for example mpi.py to print useful error messages, which does not support --download-mpi but one can use --download-mpich
-    self.usesopenmp             = 'no'  # yes, no, unknow package is built to use OpenMP
+    self.usesopenmp             = 'no'  # yes, no, unknowm package is built to use OpenMP
+    self.usespthreads           = 'no'  # yes, no, unknown package is built to use Pthreads
     self.cmakelistsdir          = '' # Location of CMakeLists.txt - if not located at the top level of the package dir
 
     # Outside coupling
@@ -119,6 +120,7 @@ class Package(config.base.Configure):
       if self.executablename: output += '  '+getattr(self,self.executablename)+'\n'
       if self.usesopenmp == 'yes': output += '  uses OpenMP; use export OMP_NUM_THREADS=<p> or -omp_num_threads <p> to control the number of threads\n'
       if self.usesopenmp == 'unknown': output += '  Unknown if this uses OpenMP (try export OMP_NUM_THREADS=<1-4> yourprogram -log_view) \n'
+      if self.usespthreads == 'yes': output += '  uses PTHREADS; please consult the documentation on how to control the number of threads\n'
     return output
 
   def setupDependencies(self, framework):
@@ -143,7 +145,7 @@ class Package(config.base.Configure):
       self.petscdir        = FakePETScDir()
     # All packages depend on make
     self.make          = framework.require('config.packages.make',self)
-    if not self.isMPI and not self.package in ['make','cuda','thrust','valgrind']:
+    if not self.isMPI and not self.package in ['make','cuda','thrust','valgrind','hwloc','x']:
       # force MPI to be the first package configured since all other packages
       # may depend on its compilers defined here
       self.mpi         = framework.require('config.packages.MPI',self)
@@ -182,7 +184,7 @@ class Package(config.base.Configure):
     self.package          = self.name.lower()
     self.pkgname          = self.package
     self.downloadname     = self.name
-    self.downloaddirnames = [self.downloadname];
+    self.downloaddirnames = [self.downloadname]
     return
 
   def getDefaultPrecision(self):
@@ -1016,7 +1018,10 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
   def versionToTuple(self,version):
     '''Converts string of the form x.y to (x,y)'''
     if not version: return ()
-    return tuple(map(int,version.split('.')))
+    vl = version.split('.')
+    if len(vl) > 2:
+      vl[-1] = re.compile(r'^[0-9]+').search(vl[-1]).group(0)
+    return tuple(map(int,vl))
 
   def checkVersion(self):
     '''Uses self.version, self.minversion, self.maxversion, self.versionname, and self.versioninclude to determine if package has required version'''
@@ -1079,7 +1084,6 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
       return
     try:
       self.foundversion = self.versionToStandardForm(version)
-      self.version_tuple = self.versionToTuple(self.foundversion)
     except:
       self.log.write('For '+self.package+' unable to convert version information ('+version+') to standard form, skipping version check\n')
       if self.requiresversion:
@@ -1089,26 +1093,27 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
     self.log.write('For '+self.package+' need '+self.minversion+' <= '+self.foundversion+' <= '+self.maxversion+'\n')
 
     try:
-      foundversiontuple = self.versionToTuple(self.foundversion)
+      self.version_tuple = self.versionToTuple(self.foundversion)
     except:
       self.log.write('For '+self.package+' unable to convert version string to tuple, skipping version check\n')
       if self.requiresversion:
-        raise RuntimeError('Configure must be able to determined the version information for '+self.name+'. It was unable to, please send configure.log to petsc-maint@mcs.anl.gov')
+        raise RuntimeError('Configure must be able to determined the version information for '+self.name+'; it appears to be '+self.foundversion+'. It was unable to, please send configure.log to petsc-maint@mcs.anl.gov')
+      self.foundversion = ''
       return
 
     suggest = ''
     if self.download: suggest = '\nSuggest using --download-'+self.package+' for a compatible '+self.name
     if self.minversion:
-      if self.versionToTuple(self.minversion) > foundversiontuple:
+      if self.versionToTuple(self.minversion) > self.version_tuple:
         raise RuntimeError(self.package+' version is '+self.foundversion+' this version of PETSc needs at least '+self.minversion+suggest+'\n')
     elif self.version:
-      if self.versionToTuple(zeroPatch(self.version)) > foundversiontuple:
+      if self.versionToTuple(zeroPatch(self.version)) > self.version_tuple:
         self.logPrintBox('Warning: Using version '+self.foundversion+' of package '+self.package+' PETSc is tested with '+dropPatch(self.version)+suggest)
     if self.maxversion:
-      if self.versionToTuple(self.maxversion) < foundversiontuple:
+      if self.versionToTuple(self.maxversion) < self.version_tuple:
         raise RuntimeError(self.package+' version is '+self.foundversion+' this version of PETSc needs at most '+self.maxversion+suggest+'\n')
     elif self.version:
-      if self.versionToTuple(infinitePatch(self.version)) < foundversiontuple:
+      if self.versionToTuple(infinitePatch(self.version)) < self.version_tuple:
         self.logPrintBox('Warning: Using version '+self.foundversion+' of package '+self.package+' PETSc is tested with '+dropPatch(self.version)+suggest)
     return
 
@@ -1698,9 +1703,16 @@ class CMakePackage(Package):
     import shlex
 
     args = ['-DCMAKE_INSTALL_PREFIX='+self.installDir]
+    args.append('-DCMAKE_INSTALL_NAME_DIR:STRING="'+os.path.join(self.installDir,self.libdir)+'"')
+    args.append('-DCMAKE_INSTALL_LIBDIR:STRING="lib"')
     args.append('-DCMAKE_VERBOSE_MAKEFILE=1')
+    if self.compilerFlags.debugging:
+      args.append('-DCMAKE_BUILD_TYPE=Debug')
+    else:
+      args.append('-DCMAKE_BUILD_TYPE=Release')
     self.framework.pushLanguage('C')
     args.append('-DCMAKE_C_COMPILER="'+self.framework.getCompiler()+'"')
+    args.append('-DMPI_C_COMPILER="'+self.framework.getCompiler()+'"')
     args.append('-DCMAKE_AR='+self.setCompilers.AR)
     ranlib = shlex.split(self.setCompilers.RANLIB)[0]
     args.append('-DCMAKE_RANLIB='+ranlib)
@@ -1712,6 +1724,7 @@ class CMakePackage(Package):
     if hasattr(self.compilers, 'CXX'):
       self.framework.pushLanguage('Cxx')
       args.append('-DCMAKE_CXX_COMPILER="'+self.framework.getCompiler()+'"')
+      args.append('-DMPI_CXX_COMPILER="'+self.framework.getCompiler()+'"')
       args.append('-DCMAKE_CXX_FLAGS:STRING="'+self.updatePackageCxxFlags(self.framework.getCompilerFlags())+'"')
       args.append('-DCMAKE_CXX_FLAGS_DEBUG:STRING="'+self.updatePackageCxxFlags(self.framework.getCompilerFlags())+'"')
       args.append('-DCMAKE_CXX_FLAGS_RELEASE:STRING="'+self.updatePackageCxxFlags(self.framework.getCompilerFlags())+'"')
@@ -1720,6 +1733,7 @@ class CMakePackage(Package):
     if hasattr(self.compilers, 'FC'):
       self.framework.pushLanguage('FC')
       args.append('-DCMAKE_Fortran_COMPILER="'+self.framework.getCompiler()+'"')
+      args.append('-DMPI_Fortran_COMPILER="'+self.framework.getCompiler()+'"')
       args.append('-DCMAKE_Fortran_FLAGS:STRING="'+self.updatePackageFFlags(self.framework.getCompilerFlags())+'"')
       args.append('-DCMAKE_Fortran_FLAGS_DEBUG:STRING="'+self.updatePackageFFlags(self.framework.getCompilerFlags())+'"')
       args.append('-DCMAKE_Fortran_FLAGS_RELEASE:STRING="'+self.updatePackageFFlags(self.framework.getCompilerFlags())+'"')
@@ -1729,9 +1743,9 @@ class CMakePackage(Package):
       args.append('-DCMAKE_EXE_LINKER_FLAGS:STRING="'+self.setCompilers.LDFLAGS+'"')
 
     if self.checkSharedLibrariesEnabled():
-      args.append('-DBUILD_SHARED_LIBS=on')
+      args.append('-DBUILD_SHARED_LIBS:BOOL=ON')
     else:
-      args.append('-DBUILD_SHARED_LIBS=off')
+      args.append('-DBUILD_SHARED_LIBS:BOOL=OFF')
     return args
 
   def Install(self):

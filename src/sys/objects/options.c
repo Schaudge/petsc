@@ -18,9 +18,6 @@
 #if defined(PETSC_HAVE_STRINGS_H)
 #  include <strings.h>          /* strcasecmp */
 #endif
-#if defined(PETSC_HAVE_YAML)
-#include <yaml.h>
-#endif
 
 #if defined(PETSC_HAVE_STRCASECMP)
 #define PetscOptNameCmp(a,b) strcasecmp(a,b)
@@ -427,7 +424,7 @@ static char *Petscgetline(FILE * f)
 @*/
 PetscErrorCode PetscOptionsInsertFile(MPI_Comm comm,PetscOptions options,const char file[],PetscBool require)
 {
-  char           *string,fname[PETSC_MAX_PATH_LEN],*vstring = NULL,*astring = NULL,*packed = NULL;
+  char           *string,*vstring = NULL,*astring = NULL,*packed = NULL;
   char           *tokens[4];
   PetscErrorCode ierr;
   size_t         i,len,bytes;
@@ -441,13 +438,15 @@ PetscErrorCode PetscOptionsInsertFile(MPI_Comm comm,PetscOptions options,const c
   PetscBool      isdir,alias=PETSC_FALSE,valid;
 
   PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = PetscMemzero(tokens,sizeof(tokens));CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
   if (!rank) {
-    cnt        = 0;
-    acnt       = 0;
+    char fpath[PETSC_MAX_PATH_LEN];
+    char fname[PETSC_MAX_PATH_LEN];
 
-    ierr = PetscFixFilename(file,fname);CHKERRQ(ierr);
+    ierr = PetscStrreplace(PETSC_COMM_SELF,file,fpath,sizeof(fpath));CHKERRQ(ierr);
+    ierr = PetscFixFilename(fpath,fname);CHKERRQ(ierr);
+
     fd   = fopen(fname,"r");
     ierr = PetscTestDirectory(fname,'r',&isdir);CHKERRQ(ierr);
     if (isdir && require) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"Specified options file %s is a directory",fname);
@@ -556,7 +555,7 @@ destroy:
     ierr = PetscMalloc1(2+acnt+cnt,&packed);CHKERRQ(ierr);
   }
   if (acnt || cnt) {
-    ierr = MPI_Bcast(packed,2+acnt+cnt,MPI_CHAR,0,comm);CHKERRQ(ierr);
+    ierr = MPI_Bcast(packed,2+acnt+cnt,MPI_CHAR,0,comm);CHKERRMPI(ierr);
     astring = packed;
     vstring = packed + acnt + 1;
   }
@@ -769,7 +768,7 @@ PetscErrorCode PetscOptionsInsert(PetscOptions options,int *argc,char ***args,co
 
   PetscFunctionBegin;
   if (hasArgs && !(args && *args)) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_NULL, "*argc > 1 but *args not given");
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   if (!options) {
     ierr = PetscOptionsCreateDefault();CHKERRQ(ierr);
@@ -803,20 +802,19 @@ PetscErrorCode PetscOptionsInsert(PetscOptions options,int *argc,char ***args,co
       ierr     = PetscStrlen(eoptions,&len);CHKERRQ(ierr);
       ierr     = MPI_Bcast(&len,1,MPIU_SIZE_T,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
     } else {
-      ierr = MPI_Bcast(&len,1,MPIU_SIZE_T,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
+      ierr = MPI_Bcast(&len,1,MPIU_SIZE_T,0,PETSC_COMM_WORLD);CHKERRMPI(ierr);
       if (len) {
         ierr = PetscMalloc1(len+1,&eoptions);CHKERRQ(ierr);
       }
     }
     if (len) {
-      ierr = MPI_Bcast(eoptions,len,MPI_CHAR,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
+      ierr = MPI_Bcast(eoptions,len,MPI_CHAR,0,PETSC_COMM_WORLD);CHKERRMPI(ierr);
       if (rank) eoptions[len] = 0;
       ierr = PetscOptionsInsertString(options,eoptions);CHKERRQ(ierr);
       if (rank) {ierr = PetscFree(eoptions);CHKERRQ(ierr);}
     }
   }
 
-#if defined(PETSC_HAVE_YAML)
   {
     char   *eoptions = NULL;
     size_t len       = 0;
@@ -825,13 +823,13 @@ PetscErrorCode PetscOptionsInsert(PetscOptions options,int *argc,char ***args,co
       ierr     = PetscStrlen(eoptions,&len);CHKERRQ(ierr);
       ierr     = MPI_Bcast(&len,1,MPIU_SIZE_T,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
     } else {
-      ierr = MPI_Bcast(&len,1,MPIU_SIZE_T,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
+      ierr = MPI_Bcast(&len,1,MPIU_SIZE_T,0,PETSC_COMM_WORLD);CHKERRMPI(ierr);
       if (len) {
         ierr = PetscMalloc1(len+1,&eoptions);CHKERRQ(ierr);
       }
     }
     if (len) {
-      ierr = MPI_Bcast(eoptions,len,MPI_CHAR,0,PETSC_COMM_WORLD);CHKERRQ(ierr);
+      ierr = MPI_Bcast(eoptions,len,MPI_CHAR,0,PETSC_COMM_WORLD);CHKERRMPI(ierr);
       if (rank) eoptions[len] = 0;
       ierr = PetscOptionsInsertStringYAML(options,eoptions);CHKERRQ(ierr);
       if (rank) {ierr = PetscFree(eoptions);CHKERRQ(ierr);}
@@ -843,14 +841,13 @@ PetscErrorCode PetscOptionsInsert(PetscOptions options,int *argc,char ***args,co
     PetscBool yaml_flg;
     ierr = PetscOptionsGetString(NULL,NULL,"-options_file_yaml",yaml_file,sizeof(yaml_file),&yaml_flg);CHKERRQ(ierr);
     if (yaml_flg) {
-      ierr = PetscOptionsInsertFileYAML(PETSC_COMM_WORLD,yaml_file,PETSC_TRUE);CHKERRQ(ierr);
+      ierr = PetscOptionsInsertFileYAML(PETSC_COMM_WORLD,options,yaml_file,PETSC_TRUE);CHKERRQ(ierr);
     }
     ierr = PetscOptionsGetString(NULL,NULL,"-options_string_yaml",yaml_string,sizeof(yaml_string),&yaml_flg);CHKERRQ(ierr);
     if (yaml_flg) {
-      ierr = PetscOptionsInsertStringYAML(NULL,yaml_string);CHKERRQ(ierr);
+      ierr = PetscOptionsInsertStringYAML(options,yaml_string);CHKERRQ(ierr);
     }
   }
-#endif
 
   /* insert command line options here because they take precedence over arguments in petscrc/environment */
   if (hasArgs) {ierr = PetscOptionsInsertArgs(options,*argc,*args);CHKERRQ(ierr);}
@@ -1219,6 +1216,13 @@ setvalue:
     strcpy(options->values[n],value);
   } else {
     options->values[n] = NULL;
+  }
+
+  /* handle -help so that it can be set from anywhere */
+  if (!PetscOptNameCmp(name,"help")) {
+    options->help = PETSC_TRUE;
+    ierr = PetscStrcasecmp(value, "intro", &options->help_intro);CHKERRQ(ierr);
+    options->used[n] = PETSC_TRUE;
   }
 
   if (PetscErrorHandlingInitialized) {

@@ -356,6 +356,8 @@ PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES,Vec,Mat,Mat,void*);
    The user can open an alternative visualization context with
    PetscViewerASCIIOpen() - output to a specified file.
 
+  In the debugger you can do "call SNESView(snes,0)" to display the SNES solver. (The same holds for any PETSc object viewer).
+
    Level: beginner
 
 .seealso: PetscViewerASCIIOpen()
@@ -466,7 +468,7 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
     char        type[256];
 
     ierr = PetscObjectGetComm((PetscObject)snes,&comm);CHKERRQ(ierr);
-    ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
     if (!rank) {
       ierr = PetscViewerBinaryWrite(viewer,&classid,1,PETSC_INT);CHKERRQ(ierr);
       ierr = PetscStrncpy(type,((PetscObject)snes)->type_name,sizeof(type));CHKERRQ(ierr);
@@ -496,7 +498,7 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
     const char *name;
 
     ierr = PetscObjectGetName((PetscObject)snes,&name);CHKERRQ(ierr);
-    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+    ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
     if (!((PetscObject)snes)->amsmem && !rank) {
       char       dir[1024];
 

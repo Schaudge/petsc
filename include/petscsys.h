@@ -1269,6 +1269,11 @@ PETSC_EXTERN PetscErrorCode PetscMallocResetDRAM(void);
 PETSC_EXTERN PetscErrorCode PetscMallocSetCUDAHost(void);
 PETSC_EXTERN PetscErrorCode PetscMallocResetCUDAHost(void);
 #endif
+#if defined(PETSC_HAVE_HIP)
+PETSC_EXTERN PetscErrorCode PetscMallocSetHIPHost(void);
+PETSC_EXTERN PetscErrorCode PetscMallocResetHIPHost(void);
+#endif
+
 
 #define MPIU_PETSCLOGDOUBLE  MPI_DOUBLE
 #define MPIU_2PETSCLOGDOUBLE MPI_2DOUBLE_PRECISION
@@ -1575,18 +1580,33 @@ M*/
 
    Synopsis:
     #include <petscsys.h>
-     PetscErrorCode (*PetscHelpPrintf)(const char format[],...);
+     PetscErrorCode (*PetscHelpPrintf)(MPI_Comm comm, const char format[],args);
 
-    Not Collective
+    Collective on comm
 
     Input Parameters:
-.   format - the usual printf() format string
++  comm - the MPI communicator over which the help message is printed
+.  format - the usual printf() format string
+-  args - arguments to be printed
 
    Level: developer
 
-    Fortran Note:
-    This routine is not supported in Fortran.
+   Fortran Note:
+     This routine is not supported in Fortran.
 
+   Note:
+     You can change how help messages are printed by replacing the function pointer with a function that does not simply write to stdout.
+
+      To use, write your own function, for example,
+$PetscErrorCode mypetschelpprintf(MPI_Comm comm,const char format[],....)
+${
+$ PetscFunctionReturn(0);
+$}
+then do the assigment
+$    PetscHelpPrintf = mypetschelpprintf;
+   You can do the assignment before PetscInitialize().
+
+  The default routine used is called PetscHelpPrintfDefault().
 
 .seealso: PetscFPrintf(), PetscSynchronizedPrintf(), PetscErrorPrintf()
 M*/
@@ -2097,7 +2117,7 @@ PETSC_EXTERN PetscErrorCode MPIU_File_read_at_all(MPI_File,MPI_Offset,void*,Pets
 
    Not available from Fortran
 
-.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscMPIIntCast(), PetscBLASIntCast()
+.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscMPIIntCast(), PetscBLASIntCast(), PetscIntMultError(), PetscIntSumError()
 @*/
 PETSC_STATIC_INLINE PetscErrorCode PetscIntCast(PetscInt64 a,PetscInt *b)
 {
@@ -2134,7 +2154,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscBLASIntCast(PetscInt a,PetscBLASInt *b)
   PetscFunctionBegin;
 #if defined(PETSC_USE_64BIT_INDICES) && !defined(PETSC_HAVE_64BIT_BLAS_INDICES)
   *b = 0;
-  if ((a) > PETSC_BLAS_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array too long for BLAS/LAPACK");
+  if ((a) > PETSC_BLAS_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array is too long for BLAS/LAPACK, which is restricted to 32 bit integers.  Either you have an invalidly large integer error in your code or you must ./configure PETSc with -with-64-bit-blas-indices for the case you are running");
 #endif
   if (a < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Passing negative integer to BLAS/LAPACK routine");
   *b =  (PetscBLASInt)(a);
@@ -2164,7 +2184,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscMPIIntCast(PetscInt a,PetscMPIInt *b)
   PetscFunctionBegin;
 #if defined(PETSC_USE_64BIT_INDICES)
   *b = 0;
-  if ((a) > PETSC_MPI_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array too long for MPI");
+  if ((a) > PETSC_MPI_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array too long for MPI, which is restricted to 32 bit integers");
 #endif
   *b =  (PetscMPIInt)(a);
   PetscFunctionReturn(0);
@@ -2198,7 +2218,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscMPIIntCast(PetscInt a,PetscMPIInt *b)
 
    Level: advanced
 
-.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult()
+.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult(), PetscIntMultError(), PetscIntSumError()
 @*/
 PETSC_STATIC_INLINE PetscInt PetscRealIntMultTruncate(PetscReal a,PetscInt b)
 {
@@ -2234,7 +2254,7 @@ PETSC_STATIC_INLINE PetscInt PetscRealIntMultTruncate(PetscReal a,PetscInt b)
 
    Level: advanced
 
-.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult()
+.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult(), PetscIntMultError(), PetscIntSumError()
 @*/
 PETSC_STATIC_INLINE PetscInt PetscIntMultTruncate(PetscInt a,PetscInt b)
 {
@@ -2268,7 +2288,7 @@ PETSC_STATIC_INLINE PetscInt PetscIntMultTruncate(PetscInt a,PetscInt b)
 
    Level: advanced
 
-.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult()
+.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult(), PetscIntMultError()
 @*/
 PETSC_STATIC_INLINE PetscInt PetscIntSumTruncate(PetscInt a,PetscInt b)
 {
@@ -2310,7 +2330,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscIntMultError(PetscInt a,PetscInt b,Petsc
   PetscFunctionBegin;
   r  =  PetscInt64Mult(a,b);
 #if !defined(PETSC_USE_64BIT_INDICES)
-  if (r > PETSC_MAX_INT) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Product of two integer %d %d overflow, you must ./configure PETSc with --with-64-bit-indices for the case you are running",a,b);
+  if (r > PETSC_MAX_INT) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Product of two integers %d %d overflow, either you have an invalidly large integer error in your code or you must ./configure PETSc with --with-64-bit-indices for the case you are running",a,b);
 #endif
   if (result) *result = (PetscInt) r;
   PetscFunctionReturn(0);
@@ -2336,7 +2356,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscIntMultError(PetscInt a,PetscInt b,Petsc
 
    Level: advanced
 
-.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult()
+.seealso: PetscBLASInt, PetscMPIInt, PetscInt, PetscBLASIntCast(), PetscInt64Mult(), PetscIntMultError()
 @*/
 PETSC_STATIC_INLINE PetscErrorCode PetscIntSumError(PetscInt a,PetscInt b,PetscInt *result)
 {
@@ -2345,7 +2365,7 @@ PETSC_STATIC_INLINE PetscErrorCode PetscIntSumError(PetscInt a,PetscInt b,PetscI
   PetscFunctionBegin;
   r  =  ((PetscInt64)a) + ((PetscInt64)b);
 #if !defined(PETSC_USE_64BIT_INDICES)
-  if (r > PETSC_MAX_INT) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sum of two integer %d %d overflow, you must ./configure PETSc with --with-64-bit-indices for the case you are running",a,b);
+  if (r > PETSC_MAX_INT) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sum of two integers %d %d overflow, either you have an invalidly large integer error in your code or you must ./configure PETSc with --with-64-bit-indices for the case you are running",a,b);
 #endif
   if (result) *result = (PetscInt) r;
   PetscFunctionReturn(0);
@@ -2498,6 +2518,7 @@ typedef const char* PetscRandomType;
 #define PETSCSPRNG      "sprng"
 #define PETSCRANDER48   "rander48"
 #define PETSCRANDOM123  "random123"
+#define PETSCCURAND     "curand"
 
 /* Logging support */
 PETSC_EXTERN PetscClassId PETSC_RANDOM_CLASSID;
@@ -2508,15 +2529,17 @@ PETSC_EXTERN PetscErrorCode PetscRandomInitializePackage(void);
 PETSC_EXTERN PetscFunctionList PetscRandomList;
 
 PETSC_EXTERN PetscErrorCode PetscRandomRegister(const char[],PetscErrorCode (*)(PetscRandom));
-PETSC_EXTERN PetscErrorCode PetscRandomSetType(PetscRandom, PetscRandomType);
+PETSC_EXTERN PetscErrorCode PetscRandomSetType(PetscRandom,PetscRandomType);
 PETSC_EXTERN PetscErrorCode PetscRandomSetFromOptions(PetscRandom);
-PETSC_EXTERN PetscErrorCode PetscRandomGetType(PetscRandom, PetscRandomType*);
+PETSC_EXTERN PetscErrorCode PetscRandomGetType(PetscRandom,PetscRandomType*);
 PETSC_EXTERN PetscErrorCode PetscRandomViewFromOptions(PetscRandom,PetscObject,const char[]);
 PETSC_EXTERN PetscErrorCode PetscRandomView(PetscRandom,PetscViewer);
 
 PETSC_EXTERN PetscErrorCode PetscRandomCreate(MPI_Comm,PetscRandom*);
 PETSC_EXTERN PetscErrorCode PetscRandomGetValue(PetscRandom,PetscScalar*);
 PETSC_EXTERN PetscErrorCode PetscRandomGetValueReal(PetscRandom,PetscReal*);
+PETSC_EXTERN PetscErrorCode PetscRandomGetValues(PetscRandom,PetscInt,PetscScalar*);
+PETSC_EXTERN PetscErrorCode PetscRandomGetValuesReal(PetscRandom,PetscInt,PetscReal*);
 PETSC_EXTERN PetscErrorCode PetscRandomGetInterval(PetscRandom,PetscScalar*,PetscScalar*);
 PETSC_EXTERN PetscErrorCode PetscRandomSetInterval(PetscRandom,PetscScalar,PetscScalar);
 PETSC_EXTERN PetscErrorCode PetscRandomSetSeed(PetscRandom,unsigned long);
@@ -2759,9 +2782,8 @@ PETSC_EXTERN PetscErrorCode MPIU_Win_shared_query(MPI_Win,PetscMPIInt,MPI_Aint*,
 #endif
 
 /*
-    Returned from PETSc functions that are called from MPI, such as related to attributes
+    List of external packages and queries on it
 */
-PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CLASS;
-PETSC_EXTERN PetscMPIInt PETSC_MPI_ERROR_CODE;
+PETSC_EXTERN PetscErrorCode  PetscHasExternalPackage(const char[],PetscBool*);
 
 #endif

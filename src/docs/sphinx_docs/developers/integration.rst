@@ -2,7 +2,8 @@
 Getting your code and documentation into PETSc
 ==============================================
 
-PETSc uses :any:`git <git>`, `GitLab <https:gitlab.com/petsc/petsc>`__, and its testing system, for its source code management.
+PETSc uses `git <https://git-scm.com/>`__, `GitLab <https://gitlab.com/petsc/petsc>`__,
+and its testing system, for its source code management.
 All new code in PETSc is accepted via merge requests (MRs).
 
 Integration branches
@@ -81,7 +82,8 @@ Submitting an MR
    <div name="raw_1" id="thumbwrap"> <a class="thumb" href="#raw_1"><img src="../../_images/git-push-mr.png" alt=""><span><img src="../../_images/git-push-mr.png" alt=""></span></a> </div></p>
    <div class="clearfix"></div>
 
-Alternatively, use `GitLab's web interface <https://gitlab.com/petsc/petsc/-/merge_requests/new>`__.
+Alternatively, use `GitLab's web interface <https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html>`__.
+For merge requests within the main PETSc repository, `click here <https://gitlab.com/petsc/petsc/-/merge_requests/new>`__.
 
 .. raw:: html
 
@@ -487,22 +489,22 @@ To stay oriented when working with branches, we encourage configuring
 In the following, we will include the directory, branch name, and
 PETSC_ARCH in our prompt, e.g.
 
-.. code-block:: bash
+.. code-block:: console
 
    ~/Src/petsc (master=) arch-complex
-   $ git checkout release
+   > git checkout release
     ~/Src/petsc (release<) arch-complex
 
 The ``<`` indicates that our copy of release is behind the repository we are
 pulling from. To achieve this we have the following in our ``.profile`` (for
 bash)
 
-.. code-block:: bash
+.. code-block:: console
 
-   source ~/bin/git-prompt.sh  (point this to the location of your git-prompt.sh)
-   export GIT_PS1_SHOWDIRTYSTATE=1
-   export GIT_PS1_SHOWUPSTREAM="auto"
-   export PS1='\w\[\e[1m\]\[\e[35m\]$(__git_ps1 " (%s)")\[\e[0m\] ${PETSC_ARCH}\n\$ '
+   > source ~/bin/git-prompt.sh  (point this to the location of your git-prompt.sh)
+   > export GIT_PS1_SHOWDIRTYSTATE=1
+   > export GIT_PS1_SHOWUPSTREAM="auto"
+   > export PS1='\w\[\e[1m\]\[\e[35m\]$(__git_ps1 " (%s)")\[\e[0m\] ${PETSC_ARCH}\n\$ '
 
 Git tab completion
 ^^^^^^^^^^^^^^^^^^
@@ -519,7 +521,7 @@ Starting a new feature branch
 
 -  Obtain the PETSc source
    
-   - If you have write access to the PETSc `GitLab <https:gitlab.com/petsc/petsc>`__ repository
+   - If you have write access to the PETSc `GitLab <https://gitlab.com/petsc/petsc>`__ repository
 
      - ``git clone git@gitlab.com/petsc/petsc``  (or just use a clone you already have)
 
@@ -569,9 +571,9 @@ fall behind the ``master`` branch.
 You can move your changes to the top
 of the latest ``master`` using
 
-.. code-block:: bash
+.. code-block:: console
 
-    $ git rebase master (while in your branch)
+    > git rebase master (while in your branch)
 
 Quick summary of Git commands
 -----------------------------
