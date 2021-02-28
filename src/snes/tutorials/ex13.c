@@ -209,19 +209,15 @@ static PetscErrorCode SetupPrimalProblem(DM dm, AppCtx *user)
 {
   PetscDS        prob;
   const PetscInt id = 1;
+  PetscPointFunc f0 = user->homogeneous ? f0_trig_homogeneous_u : f0_trig_inhomogeneous_u;
+  PetscErrorCode (*ex)(PetscInt, PetscReal, const PetscReal [], PetscInt, PetscScalar *, void *) = user->homogeneous ? trig_homogeneous_u : trig_inhomogeneous_u;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
-  if (user->homogeneous) {
-    ierr = PetscDSSetResidual(prob, 0, f0_trig_homogeneous_u, f1_u);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob, 0, trig_homogeneous_u, user);CHKERRQ(ierr);
-    ierr = DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", "marker", 0, 0, NULL, (void (*)(void)) trig_homogeneous_u, NULL, 1, &id, user);CHKERRQ(ierr);
-  } else {
-    ierr = PetscDSSetResidual(prob, 0, f0_trig_inhomogeneous_u, f1_u);CHKERRQ(ierr);
-    ierr = PetscDSSetExactSolution(prob, 0, trig_inhomogeneous_u, user);CHKERRQ(ierr);
-    ierr = DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", "marker", 0, 0, NULL, (void (*)(void)) trig_inhomogeneous_u, NULL, 1, &id, user);CHKERRQ(ierr);
-  }
+  ierr = PetscDSSetResidual(prob, 0, f0, f1_u);CHKERRQ(ierr);
+  ierr = PetscDSSetExactSolution(prob, 0, ex, user);CHKERRQ(ierr);
+  ierr = DMAddBoundary(dm, DM_BC_ESSENTIAL, "wall", "marker", 0, 0, NULL, (void (*)(void)) ex, NULL, 1, &id, user);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(prob, 0, 0, NULL, NULL, NULL, g3_uu);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
