@@ -2618,6 +2618,8 @@ static PetscErrorCode DMGetNeighbors_Plex(DM dm, PetscInt *nranks, const PetscMP
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMCreateAffineInterpolationCorrection_Plex(DM,DM,Vec*);
+
 static PetscErrorCode DMInitialize_Plex(DM dm)
 {
   PetscErrorCode ierr;
@@ -2670,6 +2672,7 @@ static PetscErrorCode DMInitialize_Plex(DM dm)
   ierr = PetscObjectComposeFunction((PetscObject)dm,"DMSetUpGLVisViewer_C",DMSetUpGLVisViewer_Plex);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)dm,"DMCreateNeumannOverlap_C",DMCreateNeumannOverlap_Plex);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)dm,"DMPlexGetOverlap_C",DMPlexGetOverlap_Plex);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)dm,"DMCreateAffineInterpolationCorrection_C",DMCreateAffineInterpolationCorrection_Plex);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

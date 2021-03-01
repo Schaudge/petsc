@@ -1391,6 +1391,7 @@ PetscErrorCode DMDestroy_Plex(DM dm)
   ierr = PetscObjectComposeFunction((PetscObject)dm,"DMSetUpGLVisViewer_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)dm,"DMPlexInsertBoundaryValues_C", NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)dm,"DMCreateNeumannOverlap_C", NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)dm,"DMCreateAffineInterpolationCorrection_C", NULL);CHKERRQ(ierr);
   if (--mesh->refct > 0) PetscFunctionReturn(0);
   ierr = PetscSectionDestroy(&mesh->coneSection);CHKERRQ(ierr);
   ierr = PetscFree(mesh->cones);CHKERRQ(ierr);
@@ -8198,6 +8199,58 @@ PetscErrorCode DMPlexComputeOrthogonalQuality(DM dm, PetscFV fv, PetscReal atol,
   }
   ierr = PetscViewerDestroy(&vwr);CHKERRQ(ierr);
   ierr = VecViewFromOptions(*OrthQual, NULL, "-dm_plex_orthogonal_quality_vec_view");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMCreateAffineInterpolationCorrection_Plex(DM dmc, DM dmf, Vec *shift) {
+  DM             dmco, dmfo;
+  Mat            interpo;
+  Vec            rscale;
+  Vec            cglobalo, clocal;
+  Vec            fglobal, fglobalo, flocal;
+  PetscBool      regular;
+  PetscInt       Nf;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetOutputDM(dmc, &dmco);CHKERRQ(ierr);
+  ierr = DMGetOutputDM(dmf, &dmfo);CHKERRQ(ierr);
+  ierr = DMSetCoarseDM(dmfo, dmco);CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&(dmco->localSection->bc));CHKERRQ(ierr);
+  ierr = PetscSectionDestroy(&(dmfo->localSection->bc));CHKERRQ(ierr);
+  ierr = PetscSectionGetNumFields(dmco->localSection, &Nf);CHKERRQ(ierr);
+  for (PetscInt f = 0; f < Nf; f++) {
+    ierr = PetscSectionDestroy(&(dmco->localSection->field[f]->bc));CHKERRQ(ierr);
+    ierr = PetscSectionDestroy(&(dmfo->localSection->field[f]->bc));CHKERRQ(ierr);
+  }
+  ierr = DMPlexGetRegularRefinement(dmf, &regular);CHKERRQ(ierr);
+  ierr = DMPlexSetRegularRefinement(dmfo, regular);CHKERRQ(ierr);
+  ierr = DMCreateInterpolation(dmco, dmfo, &interpo, &rscale);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmco, &cglobalo);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmc, &clocal);CHKERRQ(ierr);
+  ierr = VecSet(cglobalo, 0.);CHKERRQ(ierr);
+  ierr = VecSet(clocal, 0.);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmf, &fglobal);CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dmfo, &fglobalo);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(dmf, &flocal);CHKERRQ(ierr);
+  ierr = VecSet(fglobal, 0.);CHKERRQ(ierr);
+  ierr = VecSet(fglobalo, 0.);CHKERRQ(ierr);
+  ierr = VecSet(flocal, 0.);CHKERRQ(ierr);
+  ierr = DMPlexInsertBoundaryValues(dmc, PETSC_TRUE, clocal, 0., NULL, NULL, NULL);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmco, clocal, INSERT_VALUES, cglobalo);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(dmco, clocal, INSERT_VALUES, cglobalo);CHKERRQ(ierr);
+  ierr = MatMult(interpo, cglobalo, fglobalo);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dmfo, fglobalo, INSERT_VALUES, flocal);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dmfo, fglobalo, INSERT_VALUES, flocal);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(dmf, flocal, INSERT_VALUES, fglobal);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(dmf, flocal, INSERT_VALUES, fglobal);CHKERRQ(ierr);
+  *shift = fglobal;
+  ierr = VecDestroy(&flocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&fglobalo);CHKERRQ(ierr);
+  ierr = VecDestroy(&clocal);CHKERRQ(ierr);
+  ierr = VecDestroy(&cglobalo);CHKERRQ(ierr);
+  ierr = VecDestroy(&rscale);CHKERRQ(ierr);
+  ierr = MatDestroy(&interpo);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

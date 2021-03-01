@@ -20,6 +20,7 @@ typedef struct {
   SNES fine;                                   /* the finest SNES instance; used as a reference for prefixes */
   SNES previous;                               /* the SNES instance for the next finer level in the hierarchy */
   Mat  interpolate;                            /* interpolation */
+  Vec  interpshift;                            /* interpolation shift for affine problems */
   Mat  inject;                                 /* injection operator (unscaled) */
   Mat  restrct;                                /* restriction operator */
   Vec  rscale;                                 /* the pointwise scaling of the restriction operator */

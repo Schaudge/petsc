@@ -1150,6 +1150,19 @@ PetscErrorCode  DMCreateInterpolation(DM dmc,DM dmf,Mat *mat,Vec *vec)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMCreateAffineInterpolationCorrection(DM dmc, DM dmf, Vec *shift)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dmc,DM_CLASSID,1);
+  PetscValidHeaderSpecific(dmf,DM_CLASSID,2);
+  PetscValidPointer(shift,3);
+  *shift = NULL;
+  ierr = PetscTryMethod(dmc,"DMCreateAffineInterpolationCorrection_C",(DM,DM,Vec*),(dmc,dmf,shift));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@
     DMCreateInterpolationScale - Forms L = 1/(R*1) such that diag(L)*R preserves scale and is thus suitable for state (versus residual) restriction.
 

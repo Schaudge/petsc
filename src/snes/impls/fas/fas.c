@@ -12,6 +12,7 @@ static PetscErrorCode SNESReset_FAS(SNES snes)
   ierr = SNESDestroy(&fas->smoothu);CHKERRQ(ierr);
   ierr = SNESDestroy(&fas->smoothd);CHKERRQ(ierr);
   ierr = MatDestroy(&fas->inject);CHKERRQ(ierr);
+  ierr = VecDestroy(&fas->interpshift);CHKERRQ(ierr);
   ierr = MatDestroy(&fas->interpolate);CHKERRQ(ierr);
   ierr = MatDestroy(&fas->restrct);CHKERRQ(ierr);
   ierr = VecDestroy(&fas->rscale);CHKERRQ(ierr);
@@ -121,6 +122,7 @@ static PetscErrorCode SNESSetUp_FAS(SNES snes)
       /* set the interpolation and restriction from the DM */
       if (!fas->interpolate) {
         ierr = DMCreateInterpolation(next->dm, snes->dm, &fas->interpolate, &fas->rscale);CHKERRQ(ierr);
+        ierr = DMCreateAffineInterpolationCorrection(next->dm, snes->dm, &fas->interpshift);CHKERRQ(ierr);
         if (!fas->restrct) {
           ierr = DMHasCreateRestriction(next->dm, &hasCreateRestriction);CHKERRQ(ierr);
           /* DM can create restrictions, use that */
@@ -524,11 +526,12 @@ PetscErrorCode SNESFASCoarseCorrection(SNES snes, Vec X, Vec F, Vec X_new)
   SNESConvergedReason reason;
   SNES                next;
   Mat                 restrct, interpolate;
-  SNES_FAS            *fasc;
+  SNES_FAS            *fasc, *fasf;
 
   PetscFunctionBegin;
   ierr = SNESFASCycleGetCorrection(snes, &next);CHKERRQ(ierr);
   if (next) {
+    fasf = (SNES_FAS*)snes->data;
     fasc = (SNES_FAS*)next->data;
 
     ierr = SNESFASCycleGetRestriction(snes, &restrct);CHKERRQ(ierr);
@@ -570,6 +573,9 @@ PetscErrorCode SNESFASCoarseCorrection(SNES snes, Vec X, Vec F, Vec X_new)
 
     if (fasc->eventinterprestrict) {ierr = PetscLogEventBegin(fasc->eventinterprestrict,snes,0,0,0);CHKERRQ(ierr);}
     ierr = MatInterpolateAdd(interpolate, X_c, X, X_new);CHKERRQ(ierr);
+    if (fasf->interpshift) {
+      ierr = VecAXPY(X_new, 1.0, fasf->interpshift);CHKERRQ(ierr);
+    }
     ierr = PetscObjectSetName((PetscObject) X_c, "Coarse correction");CHKERRQ(ierr);
     ierr = VecViewFromOptions(X_c, NULL, "-fas_coarse_solution_view");CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) X_new, "Updated Fine solution");CHKERRQ(ierr);
@@ -964,6 +970,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_FAS(SNES snes)
   fas->previous               = NULL;
   fas->fine                   = snes;
   fas->interpolate            = NULL;
+  fas->interpshift            = NULL;
   fas->restrct                = NULL;
   fas->inject                 = NULL;
   fas->usedmfornumberoflevels = PETSC_FALSE;
