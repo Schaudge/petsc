@@ -139,6 +139,7 @@ typedef const char* MatSolverType;
 #define MATSOLVERPASTIX           "pastix"
 #define MATSOLVERMATLAB           "matlab"
 #define MATSOLVERPETSC            "petsc"
+#define MATSOLVERPETSCBAND        "petscband"
 #define MATSOLVERBAS              "bas"
 #define MATSOLVERCUSPARSE         "cusparse"
 #define MATSOLVERCUDA             "cuda"
