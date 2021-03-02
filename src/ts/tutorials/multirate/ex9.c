@@ -272,7 +272,7 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       } else if (edgeid == 1) {
         u[0] = 0.5; 
         u[1] = 0.0; 
-      } else if(edgeid == 2) {
+      } else  {
         u[0] = 1; 
         u[1] = 0.0;
       }
@@ -284,7 +284,7 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       } else if (edgeid == 1) {
         u[0] = 1.0; 
         u[1] = 0.0; 
-      } else if(edgeid == 2) {
+      } else  {
         u[0] = 0.5; 
         u[1] = 0.0;
       }
@@ -297,7 +297,7 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       } else if (edgeid == 1) {
         u[0] = 1.0; 
         u[1] = 0.0; 
-      } else if(edgeid == 2) {
+      } else {
         u[0] = 0.5; 
         u[1] = 0.0;
       }
@@ -572,6 +572,7 @@ int main(int argc,char *argv[])
   fvnet->ymax         = 2.0;
   fvnet->bufferwidth  = 4;
   fvnet->viewfv       = PETSC_FALSE;
+  fvnet->ndaughters   = 2; 
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -593,6 +594,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsBool("-viewdm","View DMNetwork Info in stdout","",viewdm,&viewdm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-moni","Monitor FVNetwork Diagnostic Info","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewfv","Display Solution","",fvnet->viewfv,&fvnet->viewfv,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",fvnet->ndaughters,&fvnet->ndaughters,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -606,7 +608,7 @@ int main(int argc,char *argv[])
     if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
     /* Create the physics, will set the number of fields and their names */
     ierr = (*r)(fvnet);CHKERRQ(ierr);
-  }
+  } 
   /* Choose the function for determining timestep */
   {
     ierr = PetscFunctionListFind(timestep,tname,&fvnet->gettimestep);CHKERRQ(ierr);

@@ -94,7 +94,7 @@ struct _p_FVNetwork
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *uPlus;           /* Solution at the left of the interfacce in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
   PetscReal   cfl;
-  PetscInt    initial,networktype; 
+  PetscInt    initial,networktype,ndaughters; 
   PetscBool   simulation;
   PetscBool   exact;
   PetscInt    hratio;
