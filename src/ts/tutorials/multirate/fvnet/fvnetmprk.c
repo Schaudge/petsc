@@ -69,10 +69,10 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
       for (e=eStart; e<eEnd; e++) {
         ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
-        if (id == 1 || id == 2) {
+        if (!id) {
+          fast_edges_size++; 
+        } else  { 
           slow_edges_size++;
-        } else if (id == 0) { 
-          fast_edges_size++;
         }
       }
       /* Data will be owned and deleted by the IS*/
@@ -81,12 +81,12 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
       for (e=eStart; e<eEnd; e++) {
         ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
-        if ( id == 1 || id == 2) {
-          slow_edges[slow_edges_count] = e; 
-          slow_edges_count++; 
-        } else if (id == 0) { 
+        if (id == 0) { 
           fast_edges[fast_edges_count] = e; 
           fast_edges_count++; 
+        } else {
+          slow_edges[slow_edges_count] = e; 
+          slow_edges_count++; 
         }
       }
       /* Generate IS */

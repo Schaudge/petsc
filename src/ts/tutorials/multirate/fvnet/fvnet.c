@@ -157,17 +157,17 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
       }
       break;
     case 3:
-    /* Case 3: */
+    /* Case 3: (Image is for the case we ndaughers = 2. The number of out branches is given by fvnet->ndaughers */
     /* =================================================
     (OUTFLOW) v0 --E0--> v1--E1--> v2  (OUTFLOW)
                           |
                           E2  
                           |
                           \/
-                          v3 (OUTFLOW)
+                          v3 (OUTFLOW) 
     ====================================================  
     This tests the coupling condition for the simple case */
-    nfvedge        = 3;
+    nfvedge        = fvnet->ndaughters+1; 
     fvnet->nedge   = nfvedge;
     fvnet->nvertex = nfvedge + 1;
     /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
@@ -179,29 +179,33 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
       numEdges    = fvnet->nedge;
       ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
 
+      /* Parent Branch (pointing in) */
       edgelist[0] = 0;
       edgelist[1] = 1;
-      edgelist[2] = 1;
-      edgelist[3] = 2;
-      edgelist[4] = 1;
-      edgelist[5] = 3; 
+      /* Daughter Branches (pointing out from v1) */
+      for (i=1; i<fvnet->ndaughters+1; ++i) {
+        edgelist[2*i]   = 1; 
+        edgelist[2*i+1] = i+1; 
+      }
+
       /* Add network components */
       /*------------------------*/
       ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
       /* vertex */
       junctions[0].type = OUTFLOW;
       junctions[1].type = JUNCT;
-      junctions[2].type = OUTFLOW;
-      junctions[3].type = OUTFLOW;
+      for (i=2; i<fvnet->ndaughters+2; ++i) {
+        junctions[i].type = OUTFLOW;
+        junctions[i].x    = 3.0;
+      }
 
       junctions[0].x = -3.0; 
       junctions[1].x = 0.0; 
-      junctions[2].x = 3.0; 
-      junctions[3].x = 3.0; 
       /* Edge */ 
       fvedges[0].nnodes = fvnet->hratio*Mx; 
-      fvedges[1].nnodes = Mx;  
-      fvedges[2].nnodes = Mx; 
+      for(i=1; i<fvnet->ndaughters+1; ++i) {
+        fvedges[i].nnodes = Mx;  
+      }
 
       for (i=0; i<numEdges;i++) {
         fvedges[i].h = 3.0/(PetscReal)fvedges[i].nnodes; 
