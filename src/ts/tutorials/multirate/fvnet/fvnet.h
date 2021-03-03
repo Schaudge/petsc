@@ -12,19 +12,19 @@ typedef enum {RESERVOIR=2,VALVE=3,DEMAND=4,INFLOW=5,STAGE=6,TANK=7,OUTFLOW=8,JUN
 
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {FVEDGE=0} EdgeCompNum;
-typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;   
+typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;
 typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
 struct _p_Junction{
-  PetscInt	    id;       /* global index */
-  PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */               
+  PetscInt      id;       /* global index */
+  PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */
   Mat           jacobian;
-  Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */      
+  Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   SNES          snes; /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver. Assigned within the coupling
                            flux function. Needs a redesign. */
   PetscReal     x;        /* x-coordinate */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
-  PetscInt      numedges; /* Number of edges connected to this vertex (globally) */           
+  PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
   /* Finite Volume Context */
   VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
   PetscScalar   *flux;        /* Local work array for vertex fluxes. len = dof*numedges */
@@ -35,14 +35,14 @@ struct _p_FVEdge
 {
   /* identification variables */
   PetscInt    id;
-  PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data 
+  PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data
                                           for the edge cells */
   /* solver objects */
   PetscInt    nnodes;   /* number of cells in the discretization of the edge */
   PetscReal   cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
   /* FV object */
   PetscReal h; /* discretization size, assumes uniform mesh */
-  /* Multirate ODE Context */ 
+  /* Multirate ODE Context */
   PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_FVEdge *FVEdge;
@@ -59,7 +59,7 @@ typedef struct {
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   RiemannFunction                riemann;
   ReconstructFunction            characteristic;
-  VertexFluxAssignment           vfluxassign; 
+  VertexFluxAssignment           vfluxassign;
   PetscErrorCode                 (*destroy)(void*);
   void                           *user;
   PetscInt                       dof;
@@ -67,7 +67,7 @@ typedef struct {
 } PhysicsCtx_Net;
 
 /* Global FV information on the entire network. */
-struct _p_FVNetwork 
+struct _p_FVNetwork
 {
   MPI_Comm    comm;
   PetscInt    nedge,nvertex;           /* local number of components */
@@ -79,7 +79,7 @@ struct _p_FVNetwork
   DM          network;
   PetscInt    monifv;
   PetscBool   viewfv;
-  PetscReal   ymin,ymax;               
+  PetscReal   ymin,ymax;
   DMNetworkMonitor  monitor;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
@@ -94,7 +94,7 @@ struct _p_FVNetwork
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *uPlus;           /* Solution at the left of the interfacce in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
   PetscReal   cfl;
-  PetscInt    initial,networktype,ndaughters; 
+  PetscInt    initial,networktype,ndaughters;
   PetscBool   simulation;
   PetscBool   exact;
   PetscInt    hratio;
@@ -103,27 +103,27 @@ struct _p_FVNetwork
   Junction    junction;
   /* Edges */
   FVEdge      fvedge;
-  /* FV Context */ 
+  /* FV Context */
   /* We assume for efficiency and simplicity that the network has
-     a single discretization on all edges and the same physics. 
-     So that context information is stored here in the network object. The 
-     solvers and rhs functions in the edges will call this info when 
-     actually performing the cell updates */ 
-  PhysicsCtx_Net physics; 
+     a single discretization on all edges and the same physics.
+     So that context information is stored here in the network object. The
+     solvers and rhs functions in the edges will call this info when
+     actually performing the cell updates */
+  PhysicsCtx_Net physics;
   /* Multirate Context */
   /* All of these IS are on MPI_COMM_SELF*/
-  IS          slow_edges,fast_edges,buf_slow_vert,slow_vert,fast_vert;                                                                 
-  PetscInt    bufferwidth; 
-}PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar)); 
-typedef struct _p_FVNetwork *FVNetwork; 
+  IS          slow_edges,fast_edges,buf_slow_vert,slow_vert,fast_vert;
+  PetscInt    bufferwidth;
+}PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
+typedef struct _p_FVNetwork *FVNetwork;
 
 typedef struct{
-FVNetwork   fvnet; 
+FVNetwork   fvnet;
 IS          edgelist;
 IS          vtxlist;
 IS          wheretoputstuff;
 VecScatter  scatter;
-} RhsCtx; 
+} RhsCtx;
 
 /* FV Functions */
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
@@ -133,26 +133,26 @@ extern PetscErrorCode ReconstructListAdd_Net(PetscFunctionList*,const char*,Reco
 extern PetscErrorCode ReconstructListFind_Net(PetscFunctionList,const char*,ReconstructFunction*);
 /* Limit using the loaded limiter in the characteristic variables */
 extern PetscErrorCode FVNetCharacteristicLimit(FVNetwork,PetscScalar*,PetscScalar*,PetscScalar*);
-/* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions. 
+/* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions.
    Allocate the work array data for FVNetwork */
 extern PetscErrorCode FVNetworkCreate(FVNetwork,PetscInt,PetscInt);
 /* set the components into the network and the number of variables
    each component requires. Also construct the local ordering for the
-   edges of a vertex */ 
+   edges of a vertex */
 extern PetscErrorCode FVNetworkSetComponents(FVNetwork);
-/* Delete the unneeded data built by FVNetworkCreate. Removes 
-   the edgelist data, fvedges, junctions, that have been set 
+/* Delete the unneeded data built by FVNetworkCreate. Removes
+   the edgelist data, fvedges, junctions, that have been set
     into the network by FVNetworkSetComponents */
 extern PetscErrorCode FVNetworkCleanUp(FVNetwork);
-/* After distributing the network, build the dynamic data required 
-   by the components. This includes physics data as well as building 
-   the vertex data structures needed for evaluating the edge data they 
-   'steal' */ 
+/* After distributing the network, build the dynamic data required
+   by the components. This includes physics data as well as building
+   the vertex data structures needed for evaluating the edge data they
+   'steal' */
 extern PetscErrorCode FVNetworkCreateVectors(FVNetwork);
 /* Add dynamic data to the distributed network. */
 extern PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
 /* Create the multirate data structures the components require */
-extern PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*); 
+extern PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,PetscInt*);
 /* Destroy allocated data */
 extern PetscErrorCode FVNetworkDestroy(FVNetwork);
 /* Set Initial Solution */
@@ -161,7 +161,7 @@ extern PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
 extern PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 /* Time step length functions */
 extern PetscErrorCode FVNetworkPreStep(TS);
-extern PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS,PetscReal*); 
+extern PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS,PetscReal*);
 extern PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS,PetscReal*);
 /* Multirate Functions */
 extern PetscErrorCode FVNetworkGenerateMultiratePartition_HValue(FVNetwork,PetscReal);

@@ -247,7 +247,7 @@ static PetscErrorCode PhysicsSample_Shallow1D(void *vctx,PetscInt initial,PetscR
       u[0] = 1.0;
       u[1] = 1.0;
       break;
-    case 8: 
+    case 8:
       u[0] = (x < -2) ? 2 : 1; /* Standard Dam Break Problem */
       u[1] = (x < -2) ? 0 : 0;
       break;
@@ -261,44 +261,44 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
   PetscFunctionBeginUser;
   if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
   switch (initial) {
-    case 0: 
+    case 0:
       u[0] = (x < -2) ? 2 : 1; /* Standard Dam Break Problem */
       u[1] = (x < -2) ? 0 : 0;
-      break; 
-    case 1: 
+      break;
+    case 1:
       if (edgeid == 0) {
-        u[0] = 0.5; 
-        u[1] = 0.1; 
+        u[0] = 0.5;
+        u[1] = 0.1;
       } else if (edgeid == 1) {
-        u[0] = 0.5; 
-        u[1] = 0.0; 
+        u[0] = 0.5;
+        u[1] = 0.0;
       } else  {
-        u[0] = 1; 
+        u[0] = 1;
         u[1] = 0.0;
       }
       break;
-    case 2: 
+    case 2:
       if (edgeid == 0) {
-        u[0] = 1.0+PetscExpReal(-20.0*(x+1.0)*(x+1.0)); 
-        u[1] = u[0]/2.0; 
+        u[0] = 1.0+PetscExpReal(-20.0*(x+1.0)*(x+1.0));
+        u[1] = u[0]/2.0;
       } else if (edgeid == 1) {
-        u[0] = 1.0; 
-        u[1] = 0.0; 
+        u[0] = 1.0;
+        u[1] = 0.0;
       } else  {
-        u[0] = 0.5; 
+        u[0] = 0.5;
         u[1] = 0.0;
       }
       break;
-    case 3: 
-      x+=1.0; 
+    case 3:
+      x+=1.0;
       if (edgeid == 0) {
-        u[0] = ((x>=0 && x<=0.2) || (x>=0.4 && x<=0.6) || (x>=0.8 && x<=1.0)) ? 1.5 : 1.0 ; 
-        u[1] = u[0]/5.0; 
+        u[0] = ((x>=0 && x<=0.2) || (x>=0.4 && x<=0.6) || (x>=0.8 && x<=1.0)) ? 1.5 : 1.0 ;
+        u[1] = u[0]/5.0;
       } else if (edgeid == 1) {
-        u[0] = 1.0; 
-        u[1] = 0.0; 
+        u[0] = 1.0;
+        u[1] = 0.0;
       } else {
-        u[0] = 0.5; 
+        u[0] = 0.5;
         u[1] = 0.0;
       }
       break;
@@ -341,47 +341,47 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,c
   PetscFunctionReturn(0);
 }
 
-PetscReal ShallowRiemannInvariant_Left(const PetscScalar hl, const PetscScalar vl, PetscScalar h) 
+PetscReal ShallowRiemannInvariant_Left(const PetscScalar hl, const PetscScalar vl, PetscScalar h)
 {
-  const PetscScalar g = 9.81; 
+  const PetscScalar g = 9.81;
   return h<hl ? vl-2.0*(PetscSqrtScalar(g*h)-PetscSqrtScalar(g*hl)) : vl- (h-hl)*PetscSqrtScalar(g*(h+hl)/(2.0*h*hl));
 }
 
-PetscReal ShallowRiemannInvariant_Right(const PetscScalar hr, const PetscScalar vr, PetscScalar h) 
+PetscReal ShallowRiemannInvariant_Right(const PetscScalar hr, const PetscScalar vr, PetscScalar h)
 {
-  const PetscScalar g = 9.81; 
+  const PetscScalar g = 9.81;
   return h<hr ? vr+2.0*(PetscSqrtScalar(g*h)-PetscSqrtScalar(g*hr)) : vr+(h-hr)*PetscSqrtScalar(g*(h+hr)/(2.0*h*hr));
 }
 
 
 typedef struct {
-  Junction junct; 
+  Junction          junct;
   const PetscScalar *uV;
 } Shallow_Couple_InputWrapper;
 
 PetscErrorCode RiemannInvariant_Couple_Shallow(SNES snes,Vec x,Vec f, void *ctx)
 {
-  PetscErrorCode ierr; 
+  PetscErrorCode ierr;
   PetscInt       i,n,dof=2;
-  Shallow_Couple_InputWrapper *wrapper= (Shallow_Couple_InputWrapper*) ctx; 
+  Shallow_Couple_InputWrapper *wrapper= (Shallow_Couple_InputWrapper*) ctx;
   const Junction  junct = wrapper->junct;
-  const PetscScalar *ustar,*uV = wrapper->uV; 
-  PetscScalar *F; 
+  const PetscScalar *ustar,*uV = wrapper->uV;
+  PetscScalar *F;
 
   ierr = VecGetSize(x,&n);CHKERRQ(ierr);
     /* Error Check to confirm the correct sizing. To be removed */
   if (n != junct->numedges*dof)
-  { 
+  {
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Size of the vector in the nonlinear solve must be equal to twice the number of edges connected to this junction");
-  } 
+  }
 
   ierr = VecGetArrayRead(x,&ustar);CHKERRQ(ierr);
   ierr = VecGetArray(f,&F);CHKERRQ(ierr);
-  
+
   F[n-2] = (junct->dir[junct->numedges-1] == EDGEIN) ?  ustar[n-1] : -ustar[n-1];
 
   for (i=0; i<junct->numedges-1; i++)
-  {  
+  {
     F[dof*i] = ustar[dof*i] - ustar[dof*(i+1)];
     F[n-2] += (junct->dir[i] == EDGEIN) ? ustar[dof*i+1] : -ustar[dof*i+1];
     /* output for this edges vstar eqn */
@@ -391,7 +391,7 @@ PetscErrorCode RiemannInvariant_Couple_Shallow(SNES snes,Vec x,Vec f, void *ctx)
       F[dof*i+1] = ustar[dof*i+1] - ShallowRiemannInvariant_Right(uV[dof*i],uV[dof*i+1]/uV[dof*i],ustar[dof*i]);
     }
   }
-  
+
    if (junct->dir[junct->numedges-1] == EDGEIN){
       F[n-1] = ustar[n-1] - ShallowRiemannInvariant_Left(uV[n-2],uV[n-1]/uV[n-2],ustar[n-2]);
     } else { /* junct->dir[i] == EDGEOUT */
@@ -413,12 +413,12 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full(const void* _fvnet,const Pe
 
   PetscFunctionBeginUser;
 
-  ierr = SNESSetFunction(junct->snes,junct->rcouple,RiemannInvariant_Couple_Shallow,&wrapper); 
+  ierr = SNESSetFunction(junct->snes,junct->rcouple,RiemannInvariant_Couple_Shallow,&wrapper);
   /* Set initial condition as the reconstructed h,v values*/
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
   ierr = VecGetSize(junct->xcouple,&n);CHKERRQ(ierr);
   for (i=0;i<junct->numedges;i++) {
-    x[i*dof]   = uV[i*dof]; 
+    x[i*dof]   = uV[i*dof];
     x[i*dof+1] = uV[i*dof+1]/uV[i*dof];
   }
   ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
@@ -437,7 +437,7 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
 {
   PetscErrorCode  ierr;
   const FVNetwork fvnet = (FVNetwork)_fvnet;
-  PetscInt        dof = 2; 
+  PetscInt        dof = 2;
 
   PetscFunctionBeginUser;
   switch(junct->type)
@@ -463,7 +463,7 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
         ierr = SNESSetFromOptions(junct->snes);CHKERRQ(ierr);
         ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->rcouple);CHKERRQ(ierr);
         ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->xcouple);CHKERRQ(ierr);
-        junct->couplingflux = PhysicsVertexFlux_Shallow_Full; 
+        junct->couplingflux = PhysicsVertexFlux_Shallow_Full;
       }
       break;
     default:
@@ -541,8 +541,8 @@ int main(int argc,char *argv[])
   comm = PETSC_COMM_WORLD;
   ierr = PetscMalloc1(1,&fvnet);CHKERRQ(ierr);
   ierr = PetscMemzero(fvnet,sizeof(*fvnet));CHKERRQ(ierr);
-  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /* Register limiters to be available on the command line */
   ierr = PetscFunctionListAdd(&limiters,"upwind"              ,Limit_Upwind_Uni);CHKERRQ(ierr);
@@ -572,7 +572,7 @@ int main(int argc,char *argv[])
   fvnet->ymax         = 2.0;
   fvnet->bufferwidth  = 4;
   fvnet->viewfv       = PETSC_FALSE;
-  fvnet->ndaughters   = 2; 
+  fvnet->ndaughters   = 2;
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -608,7 +608,7 @@ int main(int argc,char *argv[])
     if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
     /* Create the physics, will set the number of fields and their names */
     ierr = (*r)(fvnet);CHKERRQ(ierr);
-  } 
+  }
   /* Choose the function for determining timestep */
   {
     ierr = PetscFunctionListFind(timestep,tname,&fvnet->gettimestep);CHKERRQ(ierr);

@@ -12,7 +12,7 @@ OBJECTS_FV      = finitevolume1d.o
 DIRS            = fvnet
 
 SOURCES_FVNET = $(wildcard ./fvnet/*.c)
-OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET)) 
+OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
