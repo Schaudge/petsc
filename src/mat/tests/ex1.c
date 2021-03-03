@@ -292,22 +292,29 @@ int main(int argc,char **argv)
      output_file: output/ex1_1.out
 
    test:
-     requires: cuda
-     suffix: seqdensecuda_2
-     args: -ldl 0 -solver_type cuda
+     requires: hip
+     suffix: seqdensehip
+     args: -mat_type seqdensehip -rhs_mat_type seqdensehip -ldl 0 -solver_type {{petsc hip}}
      output_file: output/ex1_1.out
 
-   test:
+   testset:
      requires: cuda
-     suffix: seqdensecuda_seqaijcusparse
-     args: -mat_type seqaijcusparse -rhs_mat_type seqdensecuda -qr 0
      output_file: output/ex1_2.out
+     args: -rhs_mat_type seqdensecuda -qr 0
+     test:
+       suffix: seqdensecuda_seqaijcusparse
+       args: -mat_type seqaijcusparse
+     test:
+       requires: viennacl
+       suffix: seqdensecuda_seqaijviennacl
+       args: -mat_type seqaijviennacl
 
    test:
-     requires: cuda viennacl
-     suffix: seqdensecuda_seqaijviennacl
-     args: -mat_type seqaijviennacl -rhs_mat_type seqdensecuda -qr 0
+     requires: hip
      output_file: output/ex1_2.out
+     suffix: seqdensehip_seqaijhipsparse
+     !TODO: Check -qr 0
+     args: -mat_type seqaijcusparse -rhs_mat_type seqdensehip 
 
    test:
      suffix: 4
