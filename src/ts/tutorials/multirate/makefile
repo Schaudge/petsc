@@ -17,6 +17,7 @@ OBJECTS_FV      = finitevolume1d.o
 DIRS            = fvnet
 
 SOURCES_FVNET = $(wildcard ./fvnet/*.c)
+<<<<<<< HEAD
 OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET)) 
 =======
 EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex9.c
@@ -33,6 +34,9 @@ DIRS            = fvnet
 SOURCES_FVNET = $(wildcard ./fvnet/*.c)
 OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET)) 
 >>>>>>> Fixed memory leak. Reorganized the file structure.
+=======
+OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+>>>>>>> rm white spaces;
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
