@@ -10,9 +10,9 @@ EXAMPLESFH      =
 MANSEC          = TS
 OBJECTS_FV      = finitevolume1d.o
 DIRS            = fvnet
-
-SOURCES_FVNET = $(wildcard ./fvnet/*.c)
-OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+SOURCES_FVNET   = $(wildcard ./fvnet/*.c)
+OBJECTS_FVNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+CLEANFILES      = ${OBJECTS_FVNET}
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
@@ -21,6 +21,7 @@ ex5: ex5.o $(OBJECTS_FV)
 ex4: ex4.o $(OBJECTS_FV)
 ex6: ex6.o $(OBJECTS_FV)
 ex8: ex8.o $(OBJECTS_FV)
+ex9.o:  ./fvnet/fvnet.h ./fvnet/limiters.h
 ex9: ex9.o $(OBJECTS_FVNET)
-
 include ${PETSC_DIR}/lib/petsc/conf/test
+
