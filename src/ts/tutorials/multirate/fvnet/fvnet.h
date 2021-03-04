@@ -20,8 +20,6 @@ struct _p_Junction{
   PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */
   Mat           jacobian;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
-  SNES          snes; /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver. Assigned within the coupling
-                           flux function. Needs a redesign. */
   PetscReal     x;        /* x-coordinate */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
@@ -77,6 +75,7 @@ struct _p_FVNetwork
   Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
+  SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver. */
   PetscInt    monifv;
   PetscBool   viewfv;
   PetscReal   ymin,ymax;

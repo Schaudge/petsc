@@ -413,7 +413,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full(const void* _fvnet,const Pe
 
   PetscFunctionBeginUser;
 
-  ierr = SNESSetFunction(junct->snes,junct->rcouple,RiemannInvariant_Couple_Shallow,&wrapper);
+  ierr = SNESSetFunction(fvnet->snes,junct->rcouple,RiemannInvariant_Couple_Shallow,&wrapper);
   /* Set initial condition as the reconstructed h,v values*/
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
   ierr = VecGetSize(junct->xcouple,&n);CHKERRQ(ierr);
@@ -422,7 +422,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full(const void* _fvnet,const Pe
     x[i*dof+1] = uV[i*dof+1]/uV[i*dof];
   }
   ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  ierr = SNESSolve(junct->snes,NULL,junct->xcouple);CHKERRQ(ierr);
+  ierr = SNESSolve(fvnet->snes,NULL,junct->xcouple);CHKERRQ(ierr);
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
   /* Compute the Flux from the computed star values */
   for (i=0;i<junct->numedges;i++) {
@@ -459,8 +459,6 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
         }
       } else {
         /* First construct the SNES solver to be used in the Riemann invariant function */
-        ierr = SNESCreate(MPI_COMM_SELF,&junct->snes);CHKERRQ(ierr);
-        ierr = SNESSetFromOptions(junct->snes);CHKERRQ(ierr);
         ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->rcouple);CHKERRQ(ierr);
         ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->xcouple);CHKERRQ(ierr);
         junct->couplingflux = PhysicsVertexFlux_Shallow_Full;
