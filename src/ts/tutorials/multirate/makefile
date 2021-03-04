@@ -15,6 +15,7 @@ EXAMPLESFH      =
 MANSEC          = TS
 OBJECTS_FV      = finitevolume1d.o
 DIRS            = fvnet
+<<<<<<< HEAD
 
 SOURCES_FVNET = $(wildcard ./fvnet/*.c)
 <<<<<<< HEAD
@@ -37,6 +38,11 @@ OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 =======
 OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 >>>>>>> rm white spaces;
+=======
+SOURCES_FVNET   = $(wildcard ./fvnet/*.c)
+OBJECTS_FVNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+CLEANFILES      = ${OBJECTS_FVNET}
+>>>>>>> Modified make file to improve dependency on fvnet.h WIP
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
@@ -48,6 +54,7 @@ ex6: ex6.o $(OBJECTS_FV)
 ex8: ex8.o $(OBJECTS_FV)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 ex9: ex9.o $(OBJECTS_FVNET)
 =======
 ex9: ex9.o $(OBJECTS_FV)
@@ -56,4 +63,9 @@ ex9: ex9.o $(OBJECTS_FV)
 ex9: ex9.o $(OBJECTS_FVNET)
 >>>>>>> Fixed memory leak. Reorganized the file structure.
 
+=======
+ex9.o:  ./fvnet/fvnet.h ./fvnet/limiters.h
+ex9: ex9.o $(OBJECTS_FVNET)
+>>>>>>> Modified make file to improve dependency on fvnet.h WIP
 include ${PETSC_DIR}/lib/petsc/conf/test
+
