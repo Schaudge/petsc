@@ -12,6 +12,8 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
   PetscInt       dof = fvnet->physics.dof; 
   
   PetscFunctionBegin;
+  ierr = SNESCreate(MPI_COMM_SELF,&fvnet->snes);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(fvnet->snes);CHKERRQ(ierr);
   fvnet->nnodes_loc  = 0;
   ierr               = MPI_Comm_rank(fvnet->comm,&rank);CHKERRQ(ierr);
   numVertices        = 0;
@@ -436,7 +438,6 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet)
     ierr = PetscFree(junction->flux);CHKERRQ(ierr);
     ierr = VecDestroy(&junction->rcouple);CHKERRQ(ierr);
     ierr = VecDestroy(&junction->xcouple);CHKERRQ(ierr);
-    ierr = SNESDestroy(&junction->snes);CHKERRQ(ierr);
   }
   ierr = (*fvnet->physics.destroy)(fvnet->physics.user);CHKERRQ(ierr);
   for (i=0; i<fvnet->physics.dof; i++) {
@@ -444,6 +445,7 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet)
   }
   ierr = PetscFree4(fvnet->R,fvnet->Rinv,fvnet->cjmpLR,fvnet->cslope);CHKERRQ(ierr);
   ierr = PetscFree4(fvnet->uLR,fvnet->flux,fvnet->speeds,fvnet->uPlus);CHKERRQ(ierr);
+  ierr = SNESDestroy(&fvnet->snes);CHKERRQ(ierr);
   ierr = VecDestroy(&fvnet->X);CHKERRQ(ierr);
   ierr = VecDestroy(&fvnet->Ftmp);CHKERRQ(ierr);
   ierr = VecDestroy(&fvnet->localX);CHKERRQ(ierr);
