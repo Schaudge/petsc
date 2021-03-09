@@ -18,7 +18,7 @@ typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 struct _p_Junction{
   PetscInt      id;       /* global index */
   PetscInt      type;     /* Used to assign the vertex flux function to attach to junction */
-  Mat           jacobian;
+  Mat           jacobian,couplesystem;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   PetscReal     x;        /* x-coordinate */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
@@ -75,9 +75,11 @@ struct _p_FVNetwork
   Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
   PetscInt    nnodes_loc;              /* num of local nodes */
   DM          network;
-  SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver. */
+  SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver.
+                                          should be moved back to junct structure to reuse jacobian matrix? */
+  KSP         ksp; 
   PetscInt    monifv;
-  PetscBool   viewfv;
+  PetscBool   viewfv,linearcoupling; 
   PetscReal   ymin,ymax;
   DMNetworkMonitor  monitor;
   char        prefix[256];
