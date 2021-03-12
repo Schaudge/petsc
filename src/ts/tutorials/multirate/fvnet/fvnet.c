@@ -382,17 +382,31 @@ PetscErrorCode FVNetworkBuildDynamic(FVNetwork fvnet)
       junction->dir[i] = xarr[offset+i*dof];
     }
   }
-  /* Iterate through the vertices and assign the coupling flux functions
-     This is done by a user provided function that maps the junction type (an integer) to 
-     a user specified VertexFlux. A VertexFlux must be provided for all non-boundary types, that 
-     is JUNCT junctions and any other user specified coupling junction types. */
-  for (v=vStart; v<vEnd; v++) {
-    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
-    ierr = fvnet->physics.vfluxassign(fvnet,junction);CHKERRQ(ierr);
-  }
+  ierr = FVNetworkAssignCoupling(fvnet);CHKERRQ(ierr);
 
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr); 
   PetscFunctionReturn(0); 
+}
+ /* Iterate through the vertices and assign the coupling flux functions
+     This is done by a user provided function that maps the junction type (an integer) to 
+     a user specified VertexFlux. A VertexFlux must be provided for all non-boundary types, that 
+     is JUNCT junctions and any other user specified coupling junction types. */
+PetscErrorCode FVNetworkAssignCoupling(FVNetwork fvnet)
+{
+  PetscErrorCode ierr;
+  PetscInt       v,vStart,vEnd;
+  Junction       junction; 
+
+  PetscFunctionBegin; 
+
+  ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);CHKERRQ(ierr); 
+    
+  for (v=vStart; v<vEnd; v++) {
+    ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
+    ierr = fvnet->physics.vfluxdestroy(fvnet,junction);CHKERRQ(ierr);
+    ierr = fvnet->physics.vfluxassign(fvnet,junction);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
 }
 PetscErrorCode FVNetworkCleanUp(FVNetwork fvnet)
 {
@@ -520,10 +534,42 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0)
       ierr = PetscFree(utmp);CHKERRQ(ierr);
     }
   }
-  
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
   /* Can use insert as each edge belongs to a single processor and vertex data is only for temporary computation and holds no 'real' data. */
   ierr = DMLocalToGlobalBegin(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr); 
+  PetscFunctionReturn(0);
+}
+
+
+/* Compute the L1 Norm of the Vector X associated with the FVNetowork fvnet */
+PetscErrorCode FVNetworkL1CellAvg(FVNetwork fvnet, Vec X,PetscReal *norm) 
+{
+  PetscErrorCode ierr;
+  PetscInt       i,j,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof;
+  const PetscScalar    *xarr,*u;
+  FVEdge         fvedge;
+  Vec            localX = fvnet->localX;
+  PetscReal      h;
+  
+  PetscFunctionBegin;
+  ierr = VecGetArrayRead(X,&xarr);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  for (j=0;j<dof;j++) {
+    norm[j] = 0.0; 
+  }
+  for (e=eStart; e<eEnd; e++) {
+    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,&type,(void**)&fvedge,NULL);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    h     = fvedge->h;
+    for (i=0; i<fvedge->nnodes; i++) {
+      u = xarr+offset+i*dof;
+      for(j=0; j<dof; j++) {
+        norm[j] += h*PetscAbs(u[j]);
+      }
+    }
+  }
+  ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
+  MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,fvnet->comm);CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }

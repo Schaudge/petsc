@@ -449,7 +449,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _fvnet,c
   PetscErrorCode  ierr;
   const FVNetwork fvnet = (FVNetwork)_fvnet;
   const Junction  junct = (Junction) _junct;
-  PetscInt        i,n,dof = fvnet->physics.dof;
+  PetscInt        i,dof = fvnet->physics.dof;
   PetscScalar     *x,*r,eig,h,v,hv;
 
   PetscFunctionBeginUser;
@@ -490,7 +490,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _fvnet,c
   }
   x[0] = uV[0];
   ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  ierr = KSPSetInitialGuessNonzero(fvnet->ksp,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(fvnet->ksp,PETSC_TRUE);CHKERRQ(ierr);
   ierr = KSPSetOperators(fvnet->ksp,junct->couplesystem,junct->couplesystem);CHKERRQ(ierr);
   ierr = KSPSolve(fvnet->ksp,junct->rcouple,junct->xcouple);CHKERRQ(ierr);
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
@@ -549,6 +549,34 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PhysicsDestroyVertexFlux_Shallow(const void* _fvnet, Junction junct)
+{
+  PetscErrorCode  ierr;
+  const FVNetwork fvnet = (FVNetwork)_fvnet;
+
+  PetscFunctionBeginUser;
+  switch(junct->type)
+  {
+    case JUNCT:
+      if (junct->numedges == 2) {
+        // Nothing to Destroy 
+      } else {
+        if(!fvnet->linearcoupling) {
+          ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
+          ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
+        } else {
+          ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
+          ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
+          ierr = MatDestroy(&junct->couplesystem);CHKERRQ(ierr);
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
 {
   PetscErrorCode    ierr;
@@ -564,6 +592,7 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
   fvnet->physics.riemann         = PhysicsRiemann_Shallow_Rusanov;
   fvnet->physics.characteristic  = PhysicsCharacteristic_Shallow;
   fvnet->physics.vfluxassign     = PhysicsAssignVertexFlux_Shallow;
+  fvnet->physics.vfluxdestroy    = PhysicsDestroyVertexFlux_Shallow;
   fvnet->physics.user            = user;
   fvnet->physics.dof             = 2;
 
@@ -606,13 +635,14 @@ int main(int argc,char *argv[])
   MPI_Comm          comm;
   TS                ts;
   FVNetwork         fvnet;
-  PetscInt          steps,draw = 0;
+  PetscInt          i,steps,draw = 0;
   PetscBool         viewdm = PETSC_FALSE;
-  PetscReal         ptime,maxtime;
+  PetscReal         ptime,maxtime,*norm;
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   IS                slow = NULL,fast = NULL,buffer = NULL;
   RhsCtx            slowrhs,fastrhs,bufferrhs;
+  Vec               Xprev; 
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -674,6 +704,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-moni","Monitor FVNetwork Diagnostic Info","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewfv","Display Solution","",fvnet->viewfv,&fvnet->viewfv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",fvnet->ndaughters,&fvnet->ndaughters,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-lincouplediff","Compare the results for linearcoupling and nonliner","",fvnet->lincouplediff,&fvnet->lincouplediff,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -713,7 +744,7 @@ int main(int argc,char *argv[])
   }
   ierr = DMNetworkDistribute(&fvnet->network,0);CHKERRQ(ierr);
   if (viewdm) {
-    PetscPrintf(PETSC_COMM_WORLD,"\nAfter DMNetworkDistribute, DMView:\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"\nAfter DMNetworkDistribute, DMView:\n");CHKERRQ(ierr);
     ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
   /* Create Vectors */
@@ -775,6 +806,33 @@ int main(int argc,char *argv[])
   if (viewdm) {
     if (!rank) printf("ts X:\n");
     ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
+  /* If lincouplediff = true && lincouple == true then solve with nonlinear coupling
+   and compute the norm of the difference */
+  if (fvnet->lincouplediff && fvnet->linearcoupling) {
+    VecDuplicate(fvnet->X,&Xprev);CHKERRQ(ierr);
+    VecCopy(fvnet->X,Xprev);CHKERRQ(ierr);
+    /* Now solve with nonlinear coupling */
+    fvnet->linearcoupling = PETSC_FALSE; 
+    ierr = FVNetworkAssignCoupling(fvnet);CHKERRQ(ierr);
+    ierr = FVNetworkSetInitial(fvnet,fvnet->X);CHKERRQ(ierr);
+    ierr = TSSetStepNumber(ts,0);CHKERRQ(ierr);
+    ierr = TSSetTime(ts,0);CHKERRQ(ierr);
+    ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
+    ierr = TSSetUp(ts);CHKERRQ(ierr);
+    ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
+    /*Compute the L1 cell average (close to L1 norm of the solutions) of the difference of the two solves */
+
+    ierr = VecAXPY(Xprev,-1,fvnet->X);CHKERRQ(ierr);
+    ierr = PetscMalloc1(fvnet->physics.dof,&norm);CHKERRQ(ierr);
+    ierr = FVNetworkL1CellAvg(fvnet,Xprev,norm);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"FVNET: Norm difference between linear and nonlinear coupling : \n");CHKERRQ(ierr);
+    for(i=0;i<fvnet->physics.dof;i++) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"Var %i : %g \n",i,norm[i]);CHKERRQ(ierr);
+    }
+   // ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = PetscFree(norm);CHKERRQ(ierr);
+    ierr = VecDestroy(&Xprev);CHKERRQ(ierr);
   }
 
   /* Clean up */
