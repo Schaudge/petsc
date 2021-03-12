@@ -47,6 +47,7 @@ typedef struct _p_FVEdge *FVEdge;
 
 /* Specification for vertex flux assignment functions */
 typedef PetscErrorCode (*VertexFluxAssignment)(const void*,Junction);
+typedef PetscErrorCode (*VertexFluxDestroy)(const void*,Junction);
 
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
@@ -58,6 +59,7 @@ typedef struct {
   RiemannFunction                riemann;
   ReconstructFunction            characteristic;
   VertexFluxAssignment           vfluxassign;
+  VertexFluxDestroy              vfluxdestroy;
   PetscErrorCode                 (*destroy)(void*);
   void                           *user;
   PetscInt                       dof;
@@ -82,6 +84,7 @@ struct _p_FVNetwork
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   PetscBool   viewfv;
 <<<<<<< HEAD
 =======
@@ -94,6 +97,9 @@ struct _p_FVNetwork
 =======
   PetscBool   viewfv,linearcoupling; 
 >>>>>>> Added support for Jingmei's Linearized coupling condition based on Riemann invariants
+=======
+  PetscBool   viewfv,linearcoupling,lincouplediff; 
+>>>>>>> Added function to compute approximated L1 norm for FVNet and comparison routine for linear and nonlinear coupling
   PetscReal   ymin,ymax;
 >>>>>>> rm white spaces;
   DMNetworkMonitor  monitor;
@@ -165,6 +171,9 @@ extern PetscErrorCode FVNetworkCleanUp(FVNetwork);
    the vertex data structures needed for evaluating the edge data they
    'steal' */
 extern PetscErrorCode FVNetworkCreateVectors(FVNetwork);
+/* Assign the coupling condition functions to the vertices of the network based 
+   user provided vfluxassign function */
+extern PetscErrorCode FVNetworkAssignCoupling(FVNetwork);
 /* Add dynamic data to the distributed network. */
 extern PetscErrorCode FVNetworkBuildDynamic(FVNetwork);
 /* Create the multirate data structures the components require */
@@ -187,3 +196,5 @@ extern PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork,IS*,IS*,IS*);
 
 extern PetscErrorCode FVNetRHS_Buffer(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode FVNetRHS_Multirate(TS,PetscReal,Vec,Vec,void*);
+
+extern PetscErrorCode FVNetworkL1CellAvg(FVNetwork,Vec,PetscReal*);

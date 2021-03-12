@@ -26,7 +26,6 @@ PetscErrorCode FVNetworkPreStep(TS ts)
     ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
     fvedge->cfl_idt = 0; 
   }
-
   PetscFunctionReturn(0);
 }
 PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS ts ,PetscReal *dt) 
@@ -64,7 +63,7 @@ PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS ts ,PetscReal *dt)
       ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
       cfl_idt_slow = PetscMax(PetscAbsScalar(cfl_idt_slow),PetscAbsScalar(fvedge->cfl_idt));CHKERRQ(ierr);
     }
-    ierr = MPI_Allreduce(&cfl_idt_slow,&cfl_idt_slow,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRQ(ierr);
+    ierr = MPI_Allreduce(&cfl_idt_slow,&cfl_idt_slow,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRMPI(ierr);
     ierr = ISGetIndices(fvnet->fast_edges,&index);CHKERRQ(ierr);
     ierr = ISGetLocalSize(fvnet->fast_edges,&size);CHKERRQ(ierr);
     /* Iterate through the (local) fast edges and compute the maximum of all cfl_idt */
@@ -73,7 +72,7 @@ PetscErrorCode FVNetwork_GetTimeStep_Adaptive(TS ts ,PetscReal *dt)
       ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
       cfl_idt_fast = PetscMax(PetscAbsScalar(cfl_idt_fast),PetscAbsScalar(fvedge->cfl_idt));CHKERRQ(ierr);
     }
-    ierr = MPI_Allreduce(&cfl_idt_fast,&cfl_idt_fast,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRQ(ierr);
+    ierr = MPI_Allreduce(&cfl_idt_fast,&cfl_idt_fast,1,MPIU_SCALAR,MPIU_MAX,PetscObjectComm((PetscObject)fvnet->network));CHKERRMPI(ierr);
     /* Determine the TSMPRK type */
     ierr = TSMPRKGetType(ts,&mprktype);CHKERRQ(ierr);
     ierr = PetscStrcmp(TSMPRKP2,mprktype,&flg1);CHKERRQ(ierr);
