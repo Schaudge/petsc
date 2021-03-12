@@ -561,7 +561,9 @@ PetscErrorCode FVNetworkL1CellAvg(FVNetwork fvnet, Vec X,PetscReal *norm)
   PetscReal      h;
   
   PetscFunctionBegin;
-  ierr = VecGetArrayRead(X,&xarr);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr); 
+  ierr = DMGlobalToLocalEnd(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(localX,&xarr);CHKERRQ(ierr);
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
   for (j=0;j<dof;j++) {
     norm[j] = 0.0; 

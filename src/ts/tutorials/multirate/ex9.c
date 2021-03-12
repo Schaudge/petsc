@@ -365,10 +365,10 @@ PetscReal ShallowRiemannEig_Right(const PetscScalar hr, const PetscScalar vr)
   return vr + PetscSqrtScalar(g*hr);
 }
 
-PetscReal ShallowRiemannEig_Left(const PetscScalar hr, const PetscScalar vr)
+PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar vl)
 {
   const PetscScalar g = 9.81;
-  return vr - PetscSqrtScalar(g*hr);
+  return vl - PetscSqrtScalar(g*hl);
 }
 
 typedef struct {
@@ -475,22 +475,28 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _fvnet,c
     ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v);
   ierr = MatSetValue(junct->couplesystem,0,1,-1 ,INSERT_VALUES);CHKERRQ(ierr); /* hv* term */
   ierr = MatSetValue(junct->couplesystem,0,0,eig,INSERT_VALUES);CHKERRQ(ierr);      /* h* term */
-  ierr = MatSetValue(junct->couplesystem,1,1,junct->dir[i] == EDGEIN ? 1:-1,INSERT_VALUES);CHKERRQ(ierr);  
+  ierr = MatSetValue(junct->couplesystem,1,1,junct->dir[0] == EDGEIN ? 1:-1,INSERT_VALUES);CHKERRQ(ierr);  
   r[0] = eig*h-hv; /* riemann invariant at the boundary */
   r[1] = 0.0;   
   ierr = VecRestoreArray(junct->rcouple,&r);CHKERRQ(ierr);
-
   ierr = MatAssemblyBegin(junct->couplesystem,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(junct->couplesystem,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-  /* Set initial guess as the reconstructed h,v values*/
+  /* Set initial guess as the reconstructed h,v values */
+
+  /* Somehow this was causing issues with the solver. Occasionally 
+     the preconditioned residual would be ~6-12 orders of magnitude better
+     than the true residual and the solution would deterioate. Not sure why (also only in parallel?) */
+  /*
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
   for (i=0;i<junct->numedges;i++) {
     x[i+1] = uV[i*dof+1];
   }
   x[0] = uV[0];
   ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  ierr = KSPSetInitialGuessNonzero(fvnet->ksp,PETSC_TRUE);CHKERRQ(ierr);
+  */
+  ierr = KSPResetFromOptions(fvnet->ksp);CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(fvnet->ksp,PETSC_FALSE);CHKERRQ(ierr);
   ierr = KSPSetOperators(fvnet->ksp,junct->couplesystem,junct->couplesystem);CHKERRQ(ierr);
   ierr = KSPSolve(fvnet->ksp,junct->rcouple,junct->xcouple);CHKERRQ(ierr);
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
@@ -643,6 +649,7 @@ int main(int argc,char *argv[])
   IS                slow = NULL,fast = NULL,buffer = NULL;
   RhsCtx            slowrhs,fastrhs,bufferrhs;
   Vec               Xprev; 
+  PetscBool         singlecoupleeval;
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -666,21 +673,22 @@ int main(int argc,char *argv[])
   ierr = PetscFunctionListAdd(&timestep,"adaptive"      ,FVNetwork_GetTimeStep_Adaptive);CHKERRQ(ierr);
 
   /* Set default values */
-  fvnet->comm         = comm;
-  fvnet->cfl          = 0.9;
-  fvnet->networktype  = 1;
-  fvnet->hratio       = 2;
-  maxtime             = 1.0;
-  fvnet->Mx           = 12;
-  fvnet->bufferwidth  = 0;
-  fvnet->monifv       = PETSC_FALSE;
-  fvnet->initial      = 1;
-  fvnet->ymin         = 0;
-  fvnet->ymax         = 2.0;
-  fvnet->bufferwidth  = 4;
-  fvnet->viewfv       = PETSC_FALSE;
-  fvnet->ndaughters   = 2;
+  fvnet->comm           = comm;
+  fvnet->cfl            = 0.9;
+  fvnet->networktype    = 1;
+  fvnet->hratio         = 2;
+  maxtime               = 1.0;
+  fvnet->Mx             = 12;
+  fvnet->bufferwidth    = 0;
+  fvnet->monifv         = PETSC_FALSE;
+  fvnet->initial        = 1;
+  fvnet->ymin           = 0;
+  fvnet->ymax           = 2.0;
+  fvnet->bufferwidth    = 4;
+  fvnet->viewfv         = PETSC_FALSE;
+  fvnet->ndaughters     = 2;
   fvnet->linearcoupling = PETSC_FALSE;
+  singlecoupleeval      = PETSC_FALSE; 
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -704,7 +712,8 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-moni","Monitor FVNetwork Diagnostic Info","",fvnet->monifv,&fvnet->monifv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewfv","Display Solution","",fvnet->viewfv,&fvnet->viewfv,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",fvnet->ndaughters,&fvnet->ndaughters,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-lincouplediff","Compare the results for linearcoupling and nonliner","",fvnet->lincouplediff,&fvnet->lincouplediff,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-lincouplediff","Compare the results for linearcoupling and nonlinear","",fvnet->lincouplediff,&fvnet->lincouplediff,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-singlecoupleeval","Use the single couple eval rhs functions","",singlecoupleeval,&singlecoupleeval,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -755,7 +764,6 @@ int main(int argc,char *argv[])
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
   ierr = TSSetApplicationContext(ts,fvnet);CHKERRQ(ierr);
-  ierr = TSSetRHSFunction(ts,NULL,FVNetRHS,fvnet);CHKERRQ(ierr);
   ierr = TSSetPreStep(ts,FVNetworkPreStep);CHKERRQ(ierr);
   /* Setup Multirate Partitions */
   ierr = FVNetworkGenerateMultiratePartition_Preset(fvnet);CHKERRQ(ierr);
@@ -783,9 +791,17 @@ int main(int argc,char *argv[])
   bufferrhs.wheretoputstuff = buffer;
   bufferrhs.scatter         = PETSC_NULL; /* Will be created in the rhs function */
 
-  ierr = TSRHSSplitSetRHSFunction(ts,"slow",NULL,FVNetRHS_Multirate,&slowrhs);CHKERRQ(ierr);
-  ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVNetRHS_Multirate,&fastrhs);CHKERRQ(ierr);
-  ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVNetRHS_Buffer,&bufferrhs);CHKERRQ(ierr);
+  if (singlecoupleeval) {
+    ierr = TSSetRHSFunction(ts,NULL,FVNetRHS_SingleCoupleEval,fvnet);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetRHSFunction(ts,"slow",NULL,FVNetRHS_Multirate_SingleCoupleEval,&slowrhs);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVNetRHS_Multirate_SingleCoupleEval,&fastrhs);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVNetRHS_Buffer_SingleCoupleEval,&bufferrhs);CHKERRQ(ierr);
+  } else { 
+    ierr = TSSetRHSFunction(ts,NULL,FVNetRHS,fvnet);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetRHSFunction(ts,"slow",NULL,FVNetRHS_Multirate,&slowrhs);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVNetRHS_Multirate,&fastrhs);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVNetRHS_Buffer,&bufferrhs);CHKERRQ(ierr);
+  }
 
   ierr = TSSetType(ts,TSMPRK);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
@@ -812,6 +828,7 @@ int main(int argc,char *argv[])
   if (fvnet->lincouplediff && fvnet->linearcoupling) {
     VecDuplicate(fvnet->X,&Xprev);CHKERRQ(ierr);
     VecCopy(fvnet->X,Xprev);CHKERRQ(ierr);
+    //ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     /* Now solve with nonlinear coupling */
     fvnet->linearcoupling = PETSC_FALSE; 
     ierr = FVNetworkAssignCoupling(fvnet);CHKERRQ(ierr);
@@ -821,8 +838,8 @@ int main(int argc,char *argv[])
     ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
     ierr = TSSetUp(ts);CHKERRQ(ierr);
     ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
+   // ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     /*Compute the L1 cell average (close to L1 norm of the solutions) of the difference of the two solves */
-
     ierr = VecAXPY(Xprev,-1,fvnet->X);CHKERRQ(ierr);
     ierr = PetscMalloc1(fvnet->physics.dof,&norm);CHKERRQ(ierr);
     ierr = FVNetworkL1CellAvg(fvnet,Xprev,norm);CHKERRQ(ierr);

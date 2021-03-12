@@ -184,6 +184,7 @@ extern PetscErrorCode FVNetworkDestroy(FVNetwork);
 extern PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
 /* RHS Function */
 extern PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode FVNetRHS_SingleCoupleEval(TS,PetscReal,Vec,Vec,void*);
 /* Time step length functions */
 extern PetscErrorCode FVNetworkPreStep(TS);
 extern PetscErrorCode FVNetwork_GetTimeStep_Fixed(TS,PetscReal*);
@@ -196,5 +197,7 @@ extern PetscErrorCode FVNetworkBuildMultirateIS(FVNetwork,IS*,IS*,IS*);
 
 extern PetscErrorCode FVNetRHS_Buffer(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode FVNetRHS_Multirate(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode FVNetRHS_Buffer_SingleCoupleEval(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode FVNetRHS_Multirate_SingleCoupleEval(TS,PetscReal,Vec,Vec,void*);
 
 extern PetscErrorCode FVNetworkL1CellAvg(FVNetwork,Vec,PetscReal*);
