@@ -1196,7 +1196,7 @@ void __launch_bounds__(256,1) mat_lu_factor(const PetscInt n, const PetscInt r[]
 // OBSOLETE
 // LU factorization with optimization for block diagonal (Nf blocks) in natural order (-mat_no_inode -pc_factor_mat_ordering_type rcm with Nf>1 fields)
 //
-//   requires: 
+//   requires:
 //     structurally symmetric: fix with transpose/column meta data
 //
 static PetscErrorCode MatLUFactorNumeric_SeqAIJCUSPARSECUDA(Mat B,Mat A,const MatFactorInfo *info)
@@ -4688,7 +4688,7 @@ void mat_lu_factor_band(const PetscInt n, const int bi_csr[], PetscScalar ba_csr
         PetscScalar Lid  = *Aid;
         for (int jIdx=threadIdx.x ; jIdx<nzUd ; jIdx += blockDim.x) {
           if (jIdx<nzUd) {
-	    //printf("\t\t\tUpdate Aij(%d.%d) = %13.6e to %13.6e\n",myi,glbDD+jIdx+1, Aij[jIdx] , Aij[jIdx] - Lid*baUd[jIdx]);
+            //printf("\t\t\tUpdate Aij(%d.%d) = %13.6e to %13.6e\n",myi,glbDD+jIdx+1, Aij[jIdx] , Aij[jIdx] - Lid*baUd[jIdx]);
             Aij[jIdx] -= Lid*baUd[jIdx];
           }
         }
@@ -4912,18 +4912,18 @@ PetscErrorCode MatLUFactorSymbolic_SeqAIJCUSPARSEBAND(Mat B,Mat A,IS isrow,IS is
       for (int i=0;i<n;i++) {
         if (i<bwL) AiLU[i+1] = AiLU[i] + i + 1;
         else       AiLU[i+1] = AiLU[i] + bwL+1;
-	for (int j=AiLU[i], k = (i-bwL) > 0 ? i-bwL: 0 ; j<AiLU[i+1] ; j++, k++) {
+        for (int j=AiLU[i], k = (i-bwL) > 0 ? i-bwL: 0 ; j<AiLU[i+1] ; j++, k++) {
           AjLU[j] = k;
-	}
+        }
       }
     } else { // U
       AiLU[0] = 0;
       for (int i=0;i<n;i++) {
         if (i < n-bwU) AiLU[i+1] = AiLU[i] + bwU+1;
         else           AiLU[i+1] = AiLU[i] + n-i;
-	for (int j=AiLU[i],k=i;j<AiLU[i+1];j++,k++) {
+        for (int j=AiLU[i],k=i;j<AiLU[i+1];j++,k++) {
           AjLU[j] = k;
-	}
+        }
       }
     }
     /* allocate space for the triangular factor information */
@@ -4958,7 +4958,7 @@ PetscErrorCode MatLUFactorSymbolic_SeqAIJCUSPARSEBAND(Mat B,Mat A,IS isrow,IS is
     TriFactor->csrMat->num_rows = n;
     TriFactor->csrMat->num_cols = n;
     TriFactor->csrMat->num_entries = nzLower;
-    
+
     TriFactor->csrMat->row_offsets = new THRUSTINTARRAY32(n+1);
     TriFactor->csrMat->row_offsets->assign(AiLU, AiLU+n+1);
 
@@ -4988,7 +4988,7 @@ PetscErrorCode MatLUFactorSymbolic_SeqAIJCUSPARSEBAND(Mat B,Mat A,IS isrow,IS is
   }
   cerr = cudaFreeHost(AiLU);CHKERRCUDA(cerr);
   cerr = cudaFreeHost(AjLU);CHKERRCUDA(cerr);
- 
+
   /* put together the new matrix */
   b->free_a       = PETSC_FALSE;
   b->free_ij      = PETSC_FALSE;
