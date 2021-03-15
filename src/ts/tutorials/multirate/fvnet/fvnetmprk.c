@@ -64,7 +64,8 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
       ierr = ISCreateGeneral(MPI_COMM_SELF,slow_edges_size,slow_edges,PETSC_OWN_POINTER,&fvnet->slow_edges);CHKERRQ(ierr);
       ierr = ISCreateGeneral(MPI_COMM_SELF,fast_edges_size,fast_edges,PETSC_OWN_POINTER,&fvnet->fast_edges);CHKERRQ(ierr);
       break;
-    case 3: 
+    case 3:
+    case 4:
        /* Find the number of slow/fast edges */
       for (e=eStart; e<eEnd; e++) {
         ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
@@ -82,6 +83,35 @@ PetscErrorCode FVNetworkGenerateMultiratePartition_Preset(FVNetwork fvnet)
         ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
         id   = fvedge->id; 
         if (id == 0) { 
+          fast_edges[fast_edges_count] = e; 
+          fast_edges_count++; 
+        } else {
+          slow_edges[slow_edges_count] = e; 
+          slow_edges_count++; 
+        }
+      }
+      /* Generate IS */
+      ierr = ISCreateGeneral(MPI_COMM_SELF,slow_edges_size,slow_edges,PETSC_OWN_POINTER,&fvnet->slow_edges);CHKERRQ(ierr);
+      ierr = ISCreateGeneral(MPI_COMM_SELF,fast_edges_size,fast_edges,PETSC_OWN_POINTER,&fvnet->fast_edges);CHKERRQ(ierr);
+      break;
+    case 5:
+       /* Find the number of slow/fast edges */
+      for (e=eStart; e<eEnd; e++) {
+        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
+        id   = fvedge->id; 
+        if (id % 2) {  
+          fast_edges_size++; 
+        } else  { 
+          slow_edges_size++;
+        }
+      }
+      /* Data will be owned and deleted by the IS*/
+      ierr = PetscMalloc1(slow_edges_size,&slow_edges);CHKERRQ(ierr);
+      ierr = PetscMalloc1(fast_edges_size,&fast_edges);CHKERRQ(ierr);
+      for (e=eStart; e<eEnd; e++) {
+        ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&fvedge,NULL);CHKERRQ(ierr);
+        id   = fvedge->id; 
+        if (id % 2) { 
           fast_edges[fast_edges_count] = e; 
           fast_edges_count++; 
         } else {
