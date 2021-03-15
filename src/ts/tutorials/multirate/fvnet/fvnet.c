@@ -216,6 +216,120 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
       }
     }
     break;
+  case 4:
+    /* Case 4: ndaughter-1-ndaughter 
+    =================================================
+    (OUTFLOW) v2 --E1--> v0--E0--> v1 --E3--> (OUTFLOW)
+                          ^         ^
+                          |         |
+                          E1        E4
+                          |         |
+                (OUTFLOW) v3        v4 (OUTFLOW)
+    ====================================================  
+    This tests the coupling condition for the simple case */
+    nfvedge        = 2*fvnet->ndaughters+1; 
+    fvnet->nedge   = nfvedge;
+    fvnet->nvertex = nfvedge + 1;
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices    = 0;
+    numEdges       = 0;
+    edgelist       = NULL;
+    if (!rank) {
+      numVertices = fvnet->nvertex;
+      numEdges    = fvnet->nedge;
+      ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+
+      /* Parent Branch (pointing in) */
+      edgelist[0] = 0;
+      edgelist[1] = 1;
+      /* Left Daughter Branches (pointing into v0) */
+      for (i=1; i<fvnet->ndaughters+1; ++i) {
+        edgelist[2*i]   = i+1; 
+        edgelist[2*i+1] = 0; 
+      } /* Right Daughter Branches (pointing away from v1) */
+      for(i=fvnet->ndaughters+1; i<2*fvnet->ndaughters+1;++i) {
+        edgelist[2*i]   = 1;
+        edgelist[2*i+1] = i+1; 
+      }
+
+      /* Add network components */
+      /*------------------------*/
+      ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+      /* vertex */
+      junctions[0].type = JUNCT;
+      junctions[1].type = JUNCT;
+      for (i=2; i<fvnet->ndaughters+2; ++i) {
+        junctions[i].type = OUTFLOW;
+        junctions[i].x    = -10.0;
+      }
+      for (i=fvnet->ndaughters+2; i<2*fvnet->ndaughters+2; ++i) {
+        junctions[i].type = OUTFLOW;
+        junctions[i].x    = 10.0;
+      }
+      junctions[0].x = -5.0; 
+      junctions[1].x = 5.0; 
+      /* Edge */ 
+      fvedges[0].nnodes = fvnet->hratio*Mx; 
+      for(i=1; i<numEdges; ++i) {
+        fvedges[i].nnodes = Mx;  
+      }
+      fvedges[0].h = 10.0/(PetscReal)fvedges[0].nnodes;
+      for (i=1; i<numEdges; i++) {
+        fvedges[i].h = 5.0/(PetscReal)fvedges[i].nnodes; 
+      }
+    }
+    break;
+  case 5:
+    /* Case 4: Roundabout 
+    =================================================
+      TODO FINISH DRAWING 
+    ====================================================  
+    This tests the coupling condition for the simple case */
+    if (fvnet->ndaughters < 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"ndaughter must be at least 2 for network 5 (The roundabout) ");
+    nfvedge        = 2*fvnet->ndaughters; 
+    fvnet->nedge   = nfvedge;
+    fvnet->nvertex = nfvedge;
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices    = 0;
+    numEdges       = 0;
+    edgelist       = NULL;
+    if (!rank) {
+      numVertices = fvnet->nvertex;
+      numEdges    = fvnet->nedge;
+      ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+
+      for (i=0; i<numEdges-2; i+=2) {
+        edgelist[2*i]     = i; 
+        edgelist[2*i+1]   = i+1; 
+        edgelist[2*(i+1)] = i+1;
+        edgelist[2*(i+1)+1] = i+3;
+      } 
+      /* final part of the roundabout */
+
+      edgelist[2*(nfvedge-2)] =   nfvedge -2; 
+      edgelist[2*(nfvedge-2)+1] = nfvedge -1;
+      edgelist[2*(nfvedge-1)] =   nfvedge -1; 
+      edgelist[2*(nfvedge-1)+1] = 1; 
+
+      /* Add network components */
+      /*------------------------*/
+      ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+      /* vertex */
+      for (i=0; i<fvnet->ndaughters; ++i) {
+        junctions[2*i].type   = OUTFLOW;
+        junctions[2*i].x      = 3.0*(2*i)-3.0; 
+        junctions[2*i+1].type = JUNCT;
+        junctions[2*i+1].x    = 3.0*(2*i+1)-3.0; 
+      }
+      for (i=0; i<fvnet->ndaughters; ++i) {
+        fvedges[2*i].nnodes   = fvnet->Mx;
+        fvedges[2*i+1].nnodes = fvnet->Mx*fvnet->hratio; 
+      }
+      for (i=0; i<numEdges; i++) {
+        fvedges[i].h = 3.0/(PetscReal)fvedges[i].nnodes; 
+      }
+    }
+    break;  
     default:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
   }

@@ -271,7 +271,7 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       u[0] = (x < -2) ? 2 : 1; /* Standard Dam Break Problem */
       u[1] = (x < -2) ? 0 : 0;
       break;
-    case 1:
+    case 1: /* Initial 1-3 are from Jingmei's and Bennedito's paper */
       if (edgeid == 0) {
         u[0] = 0.5;
         u[1] = 0.1;
@@ -307,6 +307,15 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
         u[0] = 0.5;
         u[1] = 0.0;
       }
+      break;
+    case 4: /* Sunny's Test Case*/
+      if (edgeid == 0) { /* Not sure what the correct IC is here*/
+          u[0] = ((x>=-1 && x<=1)) ? 2.0-PetscSqr(x): 1.0; 
+          u[1] = 0.0;
+      } else {
+          u[0] = 1.0; 
+          u[1] = 0.0;
+       }
       break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
