@@ -212,6 +212,34 @@ def processDir(petscdir, bfort, verbose, dirpath, dirnames, filenames):
                  and name != 'petsc']
   return
 
+ptypes = [
+  'PetscRandom',
+  'IS',
+  'Vec',
+  'PetscViewer',
+  'PetscOptions',
+  'PetscSubcomm',
+  'ISColoring',
+  'PetscSection',
+  'VecTagger',
+  'MatNullSpace',
+  'Mat',
+  'MatFDColoring',
+  'VecScatter',
+  'DMLabel',
+  'DM',
+  'PetscSectionSym',
+  'PetscSF',
+  'DMPlexCellRefiner',
+  'KSP',
+  'PC',
+  'KSPGuess',
+  'PetscConvEst',
+  'SNES',
+  'TSTrajectory',
+  'TS',
+  'TSAdapt',
+]
 
 def processf90interfaces(petscdir,verbose):
   ''' Takes all the individually generated fortran interface files and merges them into one for each mansec'''
@@ -225,17 +253,15 @@ def processf90interfaces(petscdir,verbose):
         for sfile in os.listdir(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces',submansec+'-tmpdir')):
           if verbose: print('  Copying in '+sfile)
           fdr = open(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces',submansec+'-tmpdir',sfile))
-          txt = fdr.readline()
-          while txt:
-            if 'integer z' in txt: txt = '        PetscErrorCode z\n'
-            if 'integer a ! MPI_Comm' in txt: txt = '      MPI_Comm a ! MPI_Comm\n'
-            fd.write(txt)
-            if txt.find('subroutine ') > -1 and txt.find('end subroutine') == -1:
-              while txt.endswith('&\n'):
-                txt = fdr.readline()
-                fd.write(txt)
-              fd.write('      use petsc'+mansec+'def\n')
-            txt = fdr.readline()
+          for ibuf in fdr.read().split('      subroutine')[1:]:
+            ibuf = '      subroutine'+ibuf
+            ibuf = ibuf.replace('integer z','PetscErrorCode z')
+            ibuf = ibuf.replace('integer a ! MPI_Comm','MPI_Comm a ! MPI_Comm')
+            plist = []
+            for ptype in ptypes:
+              if ibuf.find(' '+ptype+' ') >= 0: plist.append('t'+ptype)
+            if plist: ibuf = ibuf.replace(')',')\n       import '+','.join(set(plist)),1)
+            fd.write(ibuf)
           fdr.close()
         fd.close()
         import shutil
