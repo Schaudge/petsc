@@ -45,7 +45,7 @@ def FixFile(filename):
   with open(filename) as ff:
     data = ff.read()
 
-  data = re.subn('\00','',data)[0]  
+  data = re.subn('\00','',data)[0]
   data = re.subn('\nvoid ','\nPETSC_EXTERN void ',data)[0]
   data = re.subn('\nPetscErrorCode ','\nPETSC_EXTERN void ',data)[0]
   data = re.subn('Petsc([ToRm]*)Pointer\(int\)','Petsc\\1Pointer(void*)',data)[0]
@@ -212,10 +212,24 @@ def processDir(petscdir, bfort, verbose, dirpath, dirnames, filenames):
                  and name != 'petsc']
   return
 
+def updatePetscTypesFromMansec(types, path):
+  for file in os.listdir(path):
+    if file.endswith('.h'):
+      with open(os.path.join(path,file)) as fd:
+        txtlst = fd.readlines()
+        for line in txtlst:
+          if 'type ' in line:
+            lst = line.strip().split(' ')
+            typeToAdd = lst[lst.index('type')+1]
+            if typeToAdd.startswith('t'):
+              types.add(typeToAdd)
+  return types
 
 def processf90interfaces(petscdir,verbose):
   ''' Takes all the individually generated fortran interface files and merges them into one for each mansec'''
+  petscTypes = set()
   for mansec in ['sys','vec','mat','dm','ksp','snes','ts','tao']:
+    petscTypes = updatePetscTypesFromMansec(petscTypes, os.path.join(petscdir,'src',mansec,'f90-mod'))
     for submansec in os.listdir(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces')):
       if verbose: print('Processing F90 interface for '+submansec)
       if os.path.isdir(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces',submansec)):
@@ -226,17 +240,47 @@ def processf90interfaces(petscdir,verbose):
           if verbose: print('  Copying in '+sfile)
           fdr = open(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces',submansec+'-tmpdir',sfile))
           txt = fdr.readline()
-          while txt:
-            if 'integer z' in txt: txt = '        PetscErrorCode z\n'
-            if 'integer a ! MPI_Comm' in txt: txt = '      MPI_Comm a ! MPI_Comm\n'
-            fd.write(txt)
-            if txt.find('subroutine ') > -1 and txt.find('end subroutine') == -1:
-              while txt.endswith('&\n'):
-                txt = fdr.readline()
-                fd.write(txt)
-              fd.write('      use petsc'+mansec+'def\n')
-            txt = fdr.readline()
-          fdr.close()
+          if 0:
+            while txt:
+              if 'integer z' in txt: txt = '        PetscErrorCode z\n'
+              if 'integer a ! MPI_Comm' in txt: txt = '      MPI_Comm a ! MPI_Comm\n'
+              fd.write(txt)
+              if txt.find('subroutine ') > -1 and txt.find('end subroutine') == -1:
+                while txt.endswith('&\n'):
+                  txt = fdr.readline()
+                  fd.write(txt)
+                fd.write('      use petsc'+mansec+'def\n')
+              txt = fdr.readline()
+          else:
+            while txt:
+              # subroutine start
+              if 'integer z' in txt: txt = '       PetscErrorCode z\n'
+              if 'integer a ! MPI_Comm' in txt: txt = '      MPI_Comm a ! MPI_Comm\n'
+              fd.write(txt)
+              tlo = txt.lower()
+              if tlo.find('subroutine ') > -1 and tlo.find('end subroutine') == -1:
+                while txt.endswith('&\n'):
+                  txt = fdr.readline()
+                  fd.write(txt)
+                # now start of subroutine
+                #importStmt = '      import petsc'+mansec+'def'
+                subrlst = []
+                subrtxt = fdr.readline()
+                while subrtxt:
+                  if 'integer z' in subrtxt: subrtxt = '        PetscErrorCode z\n'
+                  if 'integer a ! MPI_Comm' in subrtxt: subrtxt = '      MPI_Comm a ! MPI_Comm\n'
+                  subrlst.append(subrtxt)
+                  if subrtxt.lower().find('end subroutine') > -1: break
+                  subrtxt = fdr.readline()
+                # -1 to not include endsubroutine
+                types = set('t'+x.strip().split(' ')[0] for x in subrlst[:-1])
+                types = [x for x in types if x in petscTypes]
+                if len(types):
+                  types = ', '.join(types)
+                  importStmt = '      import '+types+'\n'
+                  subrlst.insert(0, importStmt)
+                fd.writelines(subrlst)
+              txt = fdr.readline()
         fd.close()
         import shutil
         shutil.rmtree(os.path.join(petscdir,'src',mansec,'f90-mod','ftn-auto-interfaces',submansec+'-tmpdir'))
