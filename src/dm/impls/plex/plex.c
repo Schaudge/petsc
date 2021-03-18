@@ -4569,17 +4569,21 @@ PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSe
         foffset = offset;
         break;
       case 2:
-        /* The original tri closure is oriented counter-clockwise, {f, e_b, e_r, e_l, v_lb, v_rb, v_tl} */
+        /* The original tri closure is oriented counter-clockwise,
+         {f,
+         e_b, e_r, e_l,
+         v_lb, v_rb, v_lt}
+         */
         ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
         /* The SEM order is
 
          v_lb, {e_b}, v_rb,
          e^{(k-1)-i}_l, {f^{\sum^i_0 k-1-l}}, e^i_r,
-         v_tl
+         v_lt
          */
         {
           const PetscInt of   = 0;
-          const PetscInt oeb  = of   + (k-1)*k/2;
+          const PetscInt oeb  = of   + (k-2)*(k-1)/2;
           const PetscInt oer  = oeb  + (k-1);
           const PetscInt oel  = oer  + (k-1);
           const PetscInt ovlb = oel  + (k-1);
@@ -4595,19 +4599,18 @@ PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSe
           /* middle */
           for (i = 0; i < k-1; ++i) {
             const PetscInt fo = foff;
-            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oel+(k-2)-i)*Nc + c + foffset;
-            for (o = of+fo; o < of+fo+(k-1-i); ++o, ++foff) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+            for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oel+(k-2-i))*Nc + c + foffset;
+            for (o = of+fo; o < of+fo+(k-2-i); ++o, ++foff) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
             for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oer+i)*Nc + c + foffset;
           }
           /* top */
           for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovlt*Nc + c + foffset;
           foffset = offset;
-          if (foff != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cell offset %D != %D", foff, (k-1)*k/2);
+          if (foff != (k-2)*(k-1)/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cell offset %D != %D", foff, (k-2)*(k-1)/2);
         }
         break;
       case 3:
         /* The original tet closure is
-
          {c,
          f_b, f_l, f_f, f_d,
          e_bl, e_bd, e_bf,  e_lf, e_ld, e_fd,
@@ -4615,6 +4618,7 @@ PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSe
          */
         ierr = PetscSectionFieldGetTensorDegree_Private(section,f,eStart,vertexchart,&Nc,&k);CHKERRQ(ierr);
         /* The SEM order is
+
          Bottom Slice
          v_blf, {e^{(k-1)-i}_bf}, v_brf,
          e^{i}_bl, f^{\sum^i_0 k-1-l}_b, e^{(k-1)-i}_br,
@@ -4630,11 +4634,11 @@ PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSe
          */
         {
           const PetscInt oc    = 0;
-          const PetscInt ofb   = oc    + (k-1)*k*(k+1)/6;
-          const PetscInt ofl   = ofb   + (k-1)*k/2;
-          const PetscInt off   = ofl   + (k-1)*k/2;
-          const PetscInt ofd   = off   + (k-1)*k/2;
-          const PetscInt oebl  = ofd   + (k-1)*k/2;
+          const PetscInt ofb   = oc    + (k-3)*(k-2)*(k-1)/6;
+          const PetscInt ofl   = ofb   + (k-2)*(k-1)/2;
+          const PetscInt off   = ofl   + (k-2)*(k-1)/2;
+          const PetscInt ofd   = off   + (k-2)*(k-1)/2;
+          const PetscInt oebl  = ofd   + (k-2)*(k-1)/2;
           const PetscInt oebd  = oebl  + (k-1);
           const PetscInt oebf  = oebd  + (k-1);
           const PetscInt oelf  = oebf  + (k-1);
@@ -4657,12 +4661,12 @@ PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSe
           for (i = 0; i < k-1; ++i) {
             PetscInt fo = foff[0];
             for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oebl+i)*Nc + c + foffset;
-            for (o = ofb+fo; o < ofb+fo+(k-1-i); ++o, ++foff[0]) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+            for (o = ofb+fo; o < ofb+fo+(k-2-i); ++o, ++foff[0]) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
             for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oebd+(k-2)-i)*Nc + c + foffset;
           }
           /*   back */
           for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovblb*Nc + c + foffset;
-          if (foff[0] != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 0 offset %D != %D", foff[0], (k-1)*k/2);
+          if (foff[0] != (k-2)*(k-1)/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 0 offset %D != %D", foff[0], (k-2)*(k-1)/2);
 
           /* Middle Slice */
           for (j = 0; j < k-1; ++j) {
@@ -4673,23 +4677,23 @@ PetscErrorCode DMPlexSetClosurePermutationSimplex(DM dm, PetscInt point, PetscSe
             /*   front */
             fo[2] = foff[2];
             for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oelf+j)*Nc + c + foffset;
-            for (o = off+fo[2]; o < off+fo[2]+(k-1-j); ++o, ++foff[2]) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+            for (o = off+fo[2]; o < off+fo[2]+(k-2-j); ++o, ++foff[2]) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
             for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oefd+j)*Nc + c + foffset;
             /*   middle */
             fo[1] = foff[1];
-            for (i = 0; i < k-1-j; ++i) {
+            for (i = 0; i < k-2-j; ++i) {
               for (c = 0; c < Nc; ++c, ++offset) {perm[offset] = (ofl+fo[1])*Nc + c + foffset;} fo[1] += k-1-i;
-              for (o = oc+co; o < oc+co+k-1-i; ++o, ++coff) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
+              for (o = oc+co; o < oc+co+k-3-i-j; ++o, ++coff) for (c = 0; c < Nc; ++c, ++offset) perm[offset] = o*Nc + c + foffset;
               for (c = 0; c < Nc; ++c, ++offset) {perm[offset] = (ofd+fo[3])*Nc + c + foffset;} ++fo[3];
             }
             ++foff[1];
-            foff[3] += k-1-j;
+            foff[3] += k-2-j;
             /*   back */
             for (c = 0; c < Nc; ++c, ++offset) perm[offset] = (oeld+j)*Nc + c + foffset;
           }
-          if (foff[2] != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 2 offset %D != %D", foff[2], (k-1)*k/2);
-          if (foff[3] != (k-1)*k/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 3 offset %D != %D", foff[3], (k-1)*k/2);
-          if (coff    != (k-1)*k*(k+1)/6) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cell offset %D != %D", coff, (k-1)*k*(k+1)/6);
+          if (foff[2] != (k-2)*(k-1)/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 2 offset %D != %D", foff[2], (k-2)*(k-1)/2);
+          if (foff[3] != (k-2)*(k-1)/2) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Face 3 offset %D != %D", foff[3], (k-2)*(k-1)/2);
+          if (coff    != (k-3)*(k-2)*(k-1)/6) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Cell offset %D != %D", coff, (k-3)*(k-2)*(k-1)/6);
 
           /* Top Slice */
           for (c = 0; c < Nc; ++c, ++offset) perm[offset] = ovt*Nc + c + foffset;
