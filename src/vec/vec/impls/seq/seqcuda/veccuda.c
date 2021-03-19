@@ -243,7 +243,7 @@ PetscErrorCode VecCreate_SeqCUDA(Vec V)
   PetscFunctionBegin;
   ierr = PetscCUDAInitializeCheck();CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(V->map);CHKERRQ(ierr);
-  ierr = VecCreate_SeqCUDA_Private(V,0);CHKERRQ(ierr);
+  ierr = VecCreate_SeqCUDA_Private(V,NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
