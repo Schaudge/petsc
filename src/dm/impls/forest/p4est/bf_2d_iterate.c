@@ -7,7 +7,9 @@
 #define DMBF_XD_IterateSetUpP4estCells  DMBF_2D_IterateSetUpP4estCells
 #define DMBF_XD_IterateCopyP4estCells   DMBF_2D_IterateCopyP4estCells
 #define DMBF_XD_IterateSetCellData      DMBF_2D_IterateSetCellData
+#define DMBF_XD_IterateSetCellFields    DMBF_2D_IterateSetCellFields
 #define DMBF_XD_IterateGetCellData      DMBF_2D_IterateGetCellData
+#define DMBF_XD_IterateGetCellFields    DMBF_2D_IterateGetCellFields
 
 #define DMBF_XD_IterateGhostExchange    DMBF_2D_IterateGhostExchange
 

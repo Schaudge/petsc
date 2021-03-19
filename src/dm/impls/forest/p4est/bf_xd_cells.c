@@ -219,9 +219,9 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
       case 2:
         for(k = 0; k < blockSize[1]; k++) {
           for(j = 0; j < blockSize[0]; j++) {
-            idx = (PetscInt) n + bs*i + blockSize[0]*k + j;
+            idx = (PetscInt) n*bs + bs*i + blockSize[0]*k + j;
             fromIdx[idx] = idx;
-            toIdx[idx]   = (PetscInt)gid + blockSize[0]*k + j;
+            toIdx[idx]   = (PetscInt)bs*gid + blockSize[0]*k + j;
           }
         }
         break;
@@ -229,9 +229,9 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
         for(l = 0; l < blockSize[2]; l++) {
           for(k = 0; k < blockSize[1]; k++) {
             for(j = 0; j < blockSize[0]; j++) {
-              idx = (PetscInt) n + bs*i + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
+              idx = (PetscInt) bs*n + bs*i + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
               fromIdx[idx] = idx;
-              toIdx[idx]   = (PetscInt)gid + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
+              toIdx[idx]   = (PetscInt)bs*gid + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
             }
           }
         }

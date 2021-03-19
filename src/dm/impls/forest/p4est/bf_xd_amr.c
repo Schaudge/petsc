@@ -94,7 +94,9 @@ _p_coarsen_via_flag (p4est_t *p4est, p4est_topidx_t tree, p4est_quadrant_t *quad
   //SC_CHECK_ABORT (p4est_quadrant_is_familypv (quadrants), "Coarsen invocation");
   for (k = 0; k < P4EST_CHILDREN; k++) {
     DM_BF_Cell *cell = quadrants[k]->p.user_data;
-
+    if(!cell) {
+      return 0;
+    }
     /* if at least one child is not flagged for coarsening */
     if (DM_ADAPT_COARSEN != cell->adaptFlag) {
       return 0;
@@ -109,7 +111,9 @@ _p_refine_via_flag (p4est_t *p4est, p4est_topidx_t tree, p4est_quadrant_t *quadr
 {
   DM_BF_AmrCtx *amrCtx = p4est->user_pointer;
   DM_BF_Cell   *cell   = quadrant->p.user_data;
-
+  if(!cell) {
+    return 0;
+  }
   /* if this quadrant is flagged for refinement */
   return (DM_ADAPT_REFINE == cell->adaptFlag) && (0 <= amrCtx->maxLevel && quadrant->level < amrCtx->maxLevel);
 }
@@ -125,8 +129,8 @@ PetscErrorCode DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxL
   amrCtx.maxLevel = (int) maxLevel;
   p4est->user_pointer = (void*) &amrCtx;
   /* run AMR */
-  PetscStackCallP4est(p4est_coarsen,(p4est,0/*!recursively*/,_p_coarsen_via_flag,NULL/*init_fn*/));
   PetscStackCallP4est(p4est_refine,(p4est,0/*!recursively*/,_p_refine_via_flag,NULL/*init_fn*/));
+  PetscStackCallP4est(p4est_coarsen,(p4est,0/*!recursively*/,_p_coarsen_via_flag,NULL/*init_fn*/));
   p4est->user_pointer = user_pointer;
   /* balance */
   PetscStackCallP4est(p4est_balance,(p4est,P4EST_CONNECT_FULL,NULL/*init_fn*/));

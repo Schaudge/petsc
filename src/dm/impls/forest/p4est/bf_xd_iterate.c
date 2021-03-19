@@ -296,6 +296,133 @@ PetscErrorCode DMBF_XD_IterateSetCellData(DM dm, DM_BF_Cell *cells, size_t cellS
   PetscFunctionReturn(0);
 }
 
+typedef struct _p_DM_BF_SetCellFieldsIterCtx {
+  /* DM-specifc info (required) */
+  DM                dm;
+  DM_BF_Cell        *cells;
+  size_t            cellSize, cellOffsetDataRead, cellOffsetDataReadWrite;
+  /* iterator-specific info */
+  const PetscInt    *valsPerElemRead, *valsPerElemReadWrite;
+  PetscInt          nValsPerElemRead, nValsPerElemReadWrite;
+  const PetscScalar **vecViewRead, **vecViewReadWrite;
+  const PetscInt    *fieldsRead, *fieldsReadWrite;
+  PetscInt          *cellOffsetsRead, *cellOffsetsReadWrite;
+  PetscInt          nFieldsRead, nFieldsReadWrite;
+} DM_BF_SetCellFieldsIterCtx;
+
+static void _p_iterSetCellFields(p4est_iter_volume_info_t *info, void *ctx)
+{
+  DM_BF_SetCellFieldsIterCtx *iterCtx = ctx;
+  DM_BF_Cell               *cell    = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,info->treeid,info->quadid,0/*!ghost*/);
+  PetscScalar              *data;
+  PetscInt                 i, di, fn;
+
+  /* set cell data for reading */
+  if (iterCtx->vecViewRead) {
+    data = (PetscScalar*)_p_getCellDataPtr(cell,iterCtx->cellOffsetDataRead);
+    for (i=0; i<iterCtx->nFieldsRead; i++) {
+      fn = iterCtx->fieldsRead[i];
+      for(di = iterCtx->cellOffsetsRead[i]; di < iterCtx->valsPerElemRead[fn]; di++) {
+        data[di] = iterCtx->vecViewRead[i][iterCtx->valsPerElemRead[fn]*cell->indexLocal+di];
+      }
+    }
+  }
+  /* set cell data for reading & writing */
+  if (iterCtx->vecViewReadWrite) {
+    data = (PetscScalar*)_p_getCellDataPtr(cell,iterCtx->cellOffsetDataReadWrite);
+    for (i=0; i<iterCtx->nFieldsReadWrite; i++) {
+      fn = iterCtx->fieldsReadWrite[i];
+      for(di = iterCtx->cellOffsetsReadWrite[i]; di < iterCtx->valsPerElemReadWrite[fn]; di++) {
+        data[di] = iterCtx->vecViewReadWrite[i][iterCtx->valsPerElemReadWrite[fn]*cell->indexLocal+di];
+      }
+    }
+  }
+}
+
+PetscErrorCode DMBF_XD_IterateSetCellFields(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite,
+                                          const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead,
+                                          const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite,
+                                          Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead,
+                                                                          PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
+{
+  DM_BF_SetCellFieldsIterCtx iterCtx;
+  PetscInt                 i, j, fn, di;
+  PetscErrorCode           ierr;
+  p4est_t                  *p4est;
+  p4est_ghost_t            *ghost;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  /* set iterator context */
+  iterCtx.dm                      = dm;
+  iterCtx.cells                   = cells;
+  iterCtx.cellSize                = cellSize;
+  iterCtx.cellOffsetDataRead      = cellOffsetDataRead;
+  iterCtx.cellOffsetDataReadWrite = cellOffsetDataReadWrite;
+  iterCtx.valsPerElemRead         = valsPerElemRead; 
+  iterCtx.nValsPerElemRead        = nValsPerElemRead;
+  iterCtx.valsPerElemReadWrite    = valsPerElemReadWrite;
+  iterCtx.nValsPerElemReadWrite   = nValsPerElemReadWrite;
+  iterCtx.fieldsRead              = fieldsRead;
+  iterCtx.nFieldsRead             = nFieldsRead;
+  iterCtx.fieldsReadWrite         = fieldsReadWrite;
+  iterCtx.nFieldsReadWrite        = nFieldsReadWrite;
+  if (vecRead) {
+    ierr = PetscMalloc1(nFieldsRead,&iterCtx.vecViewRead);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nFieldsRead,&iterCtx.cellOffsetsRead);CHKERRQ(ierr);
+    for (i=0; i<nFieldsRead; i++) {
+      ierr = VecGetArrayRead(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
+      fn   = fieldsRead[i];
+      for(j = 0, di = 0; j < fn; j++) {
+        di += valsPerElemRead[j];
+      }
+      iterCtx.cellOffsetsRead[i] = di;
+    }
+  } else {
+    iterCtx.vecViewRead = PETSC_NULL;
+    iterCtx.cellOffsetsRead = PETSC_NULL;
+  }
+  if (vecReadWrite) {
+    ierr = PetscMalloc1(nFieldsReadWrite,&iterCtx.vecViewReadWrite);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nFieldsReadWrite,&iterCtx.cellOffsetsReadWrite);CHKERRQ(ierr);
+    for (i=0; i<nFieldsReadWrite; i++) {
+      ierr = VecGetArrayRead(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
+      fn   = fieldsReadWrite[i];
+      for(j = 0, di = 0; j < fn; j++) {
+        di += valsPerElemReadWrite[j];
+      }
+      iterCtx.cellOffsetsReadWrite[i] = di;
+    }
+  } else {
+    iterCtx.vecViewReadWrite = PETSC_NULL;
+    iterCtx.cellOffsetsReadWrite = PETSC_NULL;
+  }
+  /* run iterator */
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetCellFields,NULL,NULL,NULL));
+#else
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetCellFields,NULL,NULL));
+#endif
+  /* clear iterator context */
+  if (vecRead) {
+    for (i=0; i<nFieldsRead; i++) {
+      ierr = VecRestoreArrayRead(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecViewRead);CHKERRQ(ierr);
+    ierr = PetscFree(iterCtx.cellOffsetsRead);CHKERRQ(ierr);
+  }
+  if (vecReadWrite) {
+    for (i=0; i<nFieldsReadWrite; i++) {
+      ierr = VecRestoreArrayRead(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecViewReadWrite);CHKERRQ(ierr);
+    ierr = PetscFree(iterCtx.cellOffsetsReadWrite);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 typedef struct _p_DM_BF_GetCellDataIterCtx {
   /* DM-specifc info (required) */
   DM                dm;
@@ -402,6 +529,136 @@ PetscErrorCode DMBF_XD_IterateGetCellData(DM dm, DM_BF_Cell *cells, size_t cellS
   }
   PetscFunctionReturn(0);
 }
+
+typedef struct _p_DM_BF_GetCellFieldsIterCtx {
+  /* DM-specifc info (required) */
+  DM                dm;
+  DM_BF_Cell        *cells;
+  size_t            cellSize, cellOffsetDataRead, cellOffsetDataReadWrite;
+  /* iterator-specific info */
+  const PetscInt    *valsPerElemRead, *valsPerElemReadWrite;
+  PetscInt          nValsPerElemRead, nValsPerElemReadWrite;
+  PetscScalar       **vecViewRead, **vecViewReadWrite;
+  const PetscInt    *fieldsRead, *fieldsReadWrite;
+  PetscInt          *cellOffsetsRead, *cellOffsetsReadWrite;
+  PetscInt          nFieldsRead, nFieldsReadWrite;
+} DM_BF_GetCellFieldsIterCtx;
+
+static void _p_iterGetCellFields(p4est_iter_volume_info_t *info, void *ctx)
+{
+  DM_BF_GetCellFieldsIterCtx *iterCtx = ctx;
+  DM_BF_Cell               *cell    = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,info->treeid,info->quadid,0/*!ghost*/);
+  PetscScalar              *data;
+  PetscInt                 i, di, fn;
+
+  /* set cell data for reading */
+  if (iterCtx->vecViewRead) {
+    data = (PetscScalar*)_p_getCellDataPtr(cell,iterCtx->cellOffsetDataRead);
+    for (i=0; i<iterCtx->nFieldsRead; i++) {
+      fn = iterCtx->fieldsRead[i];
+      for(di = iterCtx->cellOffsetsRead[i]; di < iterCtx->valsPerElemRead[fn]; di++) {
+        iterCtx->vecViewRead[i][iterCtx->valsPerElemRead[fn]*cell->indexLocal+di] = data[di];
+      }
+    }
+  }
+  /* set cell data for reading & writing */
+  if (iterCtx->vecViewReadWrite) {
+    data = (PetscScalar*)_p_getCellDataPtr(cell,iterCtx->cellOffsetDataReadWrite);
+    for (i=0; i<iterCtx->nFieldsReadWrite; i++) {
+      fn = iterCtx->fieldsReadWrite[i];
+      for(di = iterCtx->cellOffsetsReadWrite[i]; di < iterCtx->valsPerElemReadWrite[fn]; di++) {
+        iterCtx->vecViewReadWrite[i][iterCtx->valsPerElemReadWrite[fn]*cell->indexLocal+di] = data[di];
+      }
+    }
+  }
+}
+
+PetscErrorCode DMBF_XD_IterateGetCellFields(DM dm, DM_BF_Cell *cells, size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite,
+                                          const PetscInt *valsPerElemRead, PetscInt nValsPerElemRead,
+                                          const PetscInt *valsPerElemReadWrite, PetscInt nValsPerElemReadWrite,
+                                          Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead,
+                                                                          PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
+{
+  DM_BF_GetCellFieldsIterCtx iterCtx;
+  PetscInt                 i, j, fn, di;
+  PetscErrorCode           ierr;
+  p4est_t                  *p4est;
+  p4est_ghost_t            *ghost;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  /* set iterator context */
+  iterCtx.dm                      = dm;
+  iterCtx.cells                   = cells;
+  iterCtx.cellSize                = cellSize;
+  iterCtx.cellOffsetDataRead      = cellOffsetDataRead;
+  iterCtx.cellOffsetDataReadWrite = cellOffsetDataReadWrite;
+  iterCtx.valsPerElemRead         = valsPerElemRead; 
+  iterCtx.nValsPerElemRead        = nValsPerElemRead;
+  iterCtx.valsPerElemReadWrite    = valsPerElemReadWrite;
+  iterCtx.nValsPerElemReadWrite   = nValsPerElemReadWrite;
+  iterCtx.fieldsRead              = fieldsRead;
+  iterCtx.nFieldsRead             = nFieldsRead;
+  iterCtx.fieldsReadWrite         = fieldsReadWrite;
+  iterCtx.nFieldsReadWrite        = nFieldsReadWrite;
+  if (vecRead) {
+    ierr = PetscMalloc1(nFieldsRead,&iterCtx.vecViewRead);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nFieldsRead,&iterCtx.cellOffsetsRead);CHKERRQ(ierr);
+    for (i=0; i<nFieldsRead; i++) {
+      ierr = VecGetArray(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
+      fn   = fieldsRead[i];
+      for(j = 0, di = 0; j < fn; j++) {
+        di+=valsPerElemRead[j];
+      }
+      iterCtx.cellOffsetsRead[i] = di;
+    }
+  }
+  else {
+    iterCtx.vecViewRead = PETSC_NULL;
+    iterCtx.cellOffsetsRead = PETSC_NULL;
+  }
+  if (vecReadWrite) {
+    ierr = PetscMalloc1(nFieldsReadWrite,&iterCtx.vecViewReadWrite);CHKERRQ(ierr);
+    ierr = PetscMalloc1(nFieldsReadWrite,&iterCtx.cellOffsetsReadWrite);CHKERRQ(ierr);
+    for (i=0; i<nFieldsReadWrite; i++) {
+      ierr = VecGetArray(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
+      fn   = fieldsReadWrite[i];
+      for(j = 0, di = 0; j < fn; j++) {
+        di+=valsPerElemReadWrite[j];
+      }
+      iterCtx.cellOffsetsReadWrite[i] = di;
+    }
+  }
+  else {
+    iterCtx.vecViewReadWrite = PETSC_NULL;
+    iterCtx.cellOffsetsReadWrite = PETSC_NULL;
+  }
+  /* run iterator */
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellFields,NULL,NULL,NULL));
+#else
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterGetCellFields,NULL,NULL));
+#endif
+  /* clear iterator context */
+  if (vecRead) {
+    for (i=0; i<nFieldsRead; i++) {
+      ierr = VecRestoreArray(vecRead[i],&iterCtx.vecViewRead[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecViewRead);CHKERRQ(ierr);
+    ierr = PetscFree(iterCtx.cellOffsetsRead);CHKERRQ(ierr);
+  }
+  if (vecReadWrite) {
+    for (i=0; i<nFieldsReadWrite; i++) {
+      ierr = VecRestoreArray(vecReadWrite[i],&iterCtx.vecViewReadWrite[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(iterCtx.vecViewReadWrite);CHKERRQ(ierr);
+    ierr = PetscFree(iterCtx.cellOffsetsReadWrite);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 
 /***************************************
  * GHOST CELLS

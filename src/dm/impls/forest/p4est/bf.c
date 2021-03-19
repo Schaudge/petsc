@@ -1248,6 +1248,7 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
   /* setup DMBF cells */
   ierr = DMBF_CellsSetUpOwned(*adaptedDm);CHKERRQ(ierr);
   ierr = DMBF_CellsSetUpGhost(*adaptedDm);CHKERRQ(ierr);
+  ierr = DMBF_LocalToGlobalScatterCreate(*adaptedDm,&adaptedbf->ltog);CHKERRQ(ierr);
   /* create forest-of-tree nodes */
   //TODO create nodes
   /* check resulting DM */
@@ -1340,6 +1341,32 @@ PetscErrorCode DMBFSetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMBFSetCellFields(DM dm, Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead, PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
+{
+  DM_BF          *bf;
+  PetscInt       dim;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_getBF(dm);
+  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  if (vecRead      && bf->nValsPerElemRead)      PetscValidPointer(vecRead,2);
+  if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  switch (dim) {
+    case 2: ierr = DMBF_2D_IterateSetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateSetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
+    default: _p_SETERRQ_UNREACHABLE(dm);
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode DMBFGetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
 {
   DM_BF          *bf;
@@ -1362,6 +1389,31 @@ PetscErrorCode DMBFGetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBFGetCellFields(DM dm, Vec *vecRead, Vec *vecReadWrite, PetscInt nFieldsRead, PetscInt *fieldsRead, PetscInt nFieldsReadWrite, PetscInt *fieldsReadWrite)
+{
+  DM_BF          *bf;
+  PetscInt       dim;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_getBF(dm);
+  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  if (vecRead      && bf->nValsPerElemRead)      PetscValidPointer(vecRead,2);
+  if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  switch (dim) {
+  case 2: ierr = DMBF_2D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                            bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                            vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
+  case 3: ierr = DMBF_3D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+                                            bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                            vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;   default: _p_SETERRQ_UNREACHABLE(dm);
   }
   PetscFunctionReturn(0);
 }
