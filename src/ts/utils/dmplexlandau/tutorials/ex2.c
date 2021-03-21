@@ -229,7 +229,7 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, DM plex, PetscInt stepi, PetscRe
       J_re = 0;
     } else {
       if (!ctx->quench) {
-        PetscScalar user[] = {thrm_cutoff,ctx->charges[0]};
+        PetscScalar user[] = {3.,ctx->charges[0]};
         ierr = PetscDSSetConstants(prob, 2, user);CHKERRQ(ierr);
         ierr = PetscDSSetObjective(prob, 0, &f0_je_ge_cut);CHKERRQ(ierr);
         ierr = DMPlexComputeIntegralFEM(plex,X,tt,NULL);CHKERRQ(ierr);
@@ -245,11 +245,10 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, DM plex, PetscInt stepi, PetscRe
     J_re = 0;
     E = ctx->Ez; /* keep fixed E */
     rectx->J_0 = J; /* use real J before the switch */
-    printf("QT: pre spit_eta=%10.3e; J (!cut)= %10.3e, Te=%10.3e\n",spit_eta,J,Te_kev_cut);
   }
 
   ratio = E/(rectx->J_0 - J_re)/spit_eta;
-  if (stepi>10 && !rectx->use_spitzer_eta && ((old_ratio-ratio < 1.e-2 && ratio > 0.99 && ratio < 1.01) || (old_ratio-ratio < 1.e-3 && ratio > 0.98 && ratio < 1.02))) {
+  if (stepi>10 && !rectx->use_spitzer_eta && ((old_ratio-ratio < 1.e-3 && ratio > 0.99 && ratio < 1.01) || (old_ratio-ratio < 1.e-4 && ratio > 0.97 && ratio < 1.03))) {
     rectx->pulse_start = time + .99*dt;
     rectx->use_spitzer_eta = PETSC_TRUE;
     if (ctx->quench) {
@@ -261,7 +260,7 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, DM plex, PetscInt stepi, PetscRe
   }
   ierr = TSGetConvergedReason(ts,&reason);CHKERRQ(ierr);
   if ((rectx->plotting) || stepi == 0 || reason || rectx->pulse_start == time + .99*dt) {
-    //ierr = PetscPrintf(ctx->comm, "testSpitzer: %4D) time=%11.4e n_e= %10.3e E= %10.3e J= %10.3e J_re= %10.3e %.3g %% Te_kev= %10.3e Z_eff=%g E/J to eta ratio=%g (diff=%g) vz= %g %s %s\n",stepi,time,n_e_cut/ctx->n_0,ctx->Ez,J,J_re,100*J_re/J, Te_kev_cut,Z,ratio,old_ratio-ratio, vz, J/rectx->J_0, rectx->use_spitzer_eta ? "using Spitzer eta*J E" : "constant E",rectx->pulse_start != time + .99*dt ? "normal" : "transition");CHKERRQ(ierr);
+    ierr = PetscPrintf(ctx->comm, "testSpitzer: %4D) time=%11.4e n_e= %10.3e E= %10.3e J= %10.3e J_re= %10.3e %.3g %% Te_kev= %10.3e Z_eff=%g E/J to eta ratio=%g (diff=%g) vz= %g %s %s\n",stepi,time,n_e_cut/ctx->n_0,ctx->Ez,J,J_re,100*J_re/J, Te_kev_cut,Z,ratio,old_ratio-ratio, vz, J/rectx->J_0, rectx->use_spitzer_eta ? "using Spitzer eta*J E" : "constant E",rectx->pulse_start != time + .99*dt ? " " : "transition");CHKERRQ(ierr);
   }
   old_ratio = ratio;
   PetscFunctionReturn(0);
