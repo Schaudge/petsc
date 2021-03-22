@@ -360,6 +360,7 @@
 
       Interface
         Subroutine PetscViewerExodusIIOpen(c,str,mode,v,ierr)
+          import tPetscViewer
           MPI_Comm                     :: c
           character(len=*)             :: str
           PetscFileMode                :: mode
