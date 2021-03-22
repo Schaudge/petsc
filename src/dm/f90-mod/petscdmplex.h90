@@ -359,12 +359,11 @@
       End Interface
 
       Interface
-        subroutine PetscViewerExodusIIOpen(c,str,mode,v,ierr)
-          use petscdmdef
+        Subroutine PetscViewerExodusIIOpen(c,str,mode,v,ierr)
           MPI_Comm                     :: c
           character(len=*)             :: str
           PetscFileMode                :: mode
           PetscViewer                  :: v
           PetscErrorCode, intent(out)  :: ierr
-        end subroutine
-      end interface
+        end Subroutine
+      end Interface
