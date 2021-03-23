@@ -78,6 +78,7 @@ static PetscErrorCode PetscViewerDestroy_ExodusII(PetscViewer viewer)
 
   PetscFunctionBegin;
   if (exo->exoid >= 0) {PetscStackCallStandard(ex_close,(exo->exoid));}
+  ierr = PetscFree(exo->filename);CHKERRQ(ierr);
   ierr = PetscFree(exo);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)viewer,"PetscViewerFileSetName_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)viewer,"PetscViewerFileGetName_C",NULL);CHKERRQ(ierr);
@@ -734,13 +735,13 @@ PetscErrorCode DMView_PlexExodusII(DM dm, PetscViewer viewer)
       }
       ierr = PetscFree3(elem_ind,elem_list,side_list);CHKERRQ(ierr);
     }
-    ierr = PetscSectionDestroy(&coordSection);CHKERRQ(ierr);
     /*
       close the exodus file
     */
     ex_close(exo->exoid);
     exo->exoid = -1;
   }
+  ierr = PetscSectionDestroy(&coordSection);CHKERRQ(ierr);
 
   /*
     reopen the file in parallel
