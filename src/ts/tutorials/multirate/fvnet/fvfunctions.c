@@ -298,7 +298,6 @@ PetscErrorCode FVNetRHS_Multirate(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   Junction       junction;
 
   PetscFunctionBeginUser;
-  // ierr = VecZeroEntries(F);CHKERRQ(ierr);
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
   ierr = ISGetLocalSize(rhsctx->edgelist,&ne);CHKERRQ(ierr);
   ierr = ISGetLocalSize(rhsctx->vtxlist,&nv);CHKERRQ(ierr);
