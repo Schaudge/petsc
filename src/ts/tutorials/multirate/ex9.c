@@ -268,8 +268,13 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
   if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
   switch (initial) {
     case 0:
-      u[0] = (x < -2) ? 2 : 1; /* Standard Dam Break Problem */
-      u[1] = (x < -2) ? 0 : 0;
+      if(edgeid == 0) {
+        u[0] = (x < -2) ? 20 : 1; /* Standard Dam Break Problem */
+        u[1] = (x < -2) ? 0 : 0;
+      } else {
+        u[0] = 1; 
+        u[1] = 0;
+      }
       break;
     case 1: /* Initial 1-3 are from Jingmei's and Bennedito's paper */
       if (edgeid == 0) {
@@ -317,13 +322,17 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
           u[1] = 0.0;
        }
       break;
+    case 5: /* Roundabout Pulse */
+      u[0] = !(edgeid%2) ? 2 : 1; 
+      u[1] = 0;
+      break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
   PetscFunctionReturn(0);
 }
 
 /*2 edge vertex flux for edge 1 pointing in and edge 2 pointing out */
-static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_InOut(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
+static PetscErrorCode PhysicsVertexFlux_2Edge_InOut(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
 {
   PetscErrorCode  ierr;
   const FVNetwork fvnet = (FVNetwork)_fvnet;
@@ -340,7 +349,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_InOut(const void* _fvnet,c
 }
 
 /*2 edge vertex flux for edge 1 pointing out and edge 2 pointing in  */
-static PetscErrorCode PhysicsVertexFlux_Shallow_2Edge_OutIn(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
+static PetscErrorCode PhysicsVertexFlux_2Edge_OutIn(const void* _fvnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
 {
   PetscErrorCode  ierr;
   const FVNetwork fvnet = (FVNetwork)_fvnet;
@@ -432,6 +441,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full(const void* _fvnet,const Pe
   PetscInt        i,n,dof = fvnet->physics.dof;
   PetscScalar     *x;
 
+
   PetscFunctionBeginUser;
 
   ierr = SNESSetFunction(fvnet->snes,junct->rcouple,RiemannInvariant_Couple_Shallow,&wrapper);
@@ -460,6 +470,7 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _fvnet,c
   const Junction  junct = (Junction) _junct;
   PetscInt        i,dof = fvnet->physics.dof;
   PetscScalar     *x,*r,eig,h,v,hv;
+  PetscBool       nonzeroinitial; 
 
   PetscFunctionBeginUser;
 
@@ -491,21 +502,17 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _fvnet,c
   ierr = MatAssemblyBegin(junct->couplesystem,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(junct->couplesystem,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-  /* Set initial guess as the reconstructed h,v values */
-
-  /* Somehow this was causing issues with the solver. Occasionally 
-     the preconditioned residual would be ~6-12 orders of magnitude better
-     than the true residual and the solution would deterioate. Not sure why (also only in parallel?) */
-  /*
-  ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
-  for (i=0;i<junct->numedges;i++) {
-    x[i+1] = uV[i*dof+1];
+  ierr = KSPGetInitialGuessNonzero(fvnet->ksp,&nonzeroinitial);CHKERRQ(ierr);
+  if(nonzeroinitial) {
+    /* Set initial guess as the reconstructed h,v values */
+    ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
+    for (i=0;i<junct->numedges;i++) {
+      x[i+1] = uV[i*dof+1];
+    }
+    x[0] = uV[0];
+    ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
   }
-  x[0] = uV[0];
-  ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  */
-  ierr = KSPResetFromOptions(fvnet->ksp);CHKERRQ(ierr);
-  ierr = KSPSetInitialGuessNonzero(fvnet->ksp,PETSC_FALSE);CHKERRQ(ierr);
+
   ierr = KSPSetOperators(fvnet->ksp,junct->couplesystem,junct->couplesystem);CHKERRQ(ierr);
   ierr = KSPSolve(fvnet->ksp,junct->rcouple,junct->xcouple);CHKERRQ(ierr);
   ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
@@ -533,11 +540,11 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _fvnet, Juncti
           if (junct->dir[1] == EDGEIN) {
             SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
           } else { /* dir[1] == EDGEOUT */
-            junct->couplingflux = PhysicsVertexFlux_Shallow_2Edge_InOut;
+            junct->couplingflux = PhysicsVertexFlux_2Edge_InOut;
           }
         } else { /* dir[0] == EDGEOUT */
           if (junct->dir[1] == EDGEIN) {
-            junct->couplingflux = PhysicsVertexFlux_Shallow_2Edge_OutIn;
+            junct->couplingflux = PhysicsVertexFlux_2Edge_OutIn;
           } else { /* dir[1] == EDGEOUT */
             SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
           }
@@ -621,7 +628,6 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
   ierr = ReconstructListAdd_Net(&rclist,"characteristic",PhysicsCharacteristic_Shallow);CHKERRQ(ierr);
   ierr = ReconstructListAdd_Net(&rclist,"conservative",PhysicsCharacteristic_Conservative);CHKERRQ(ierr);
   ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
-    ierr = PetscOptionsReal("-physics_shallow_gravity","Gravity","",user->gravity,&user->gravity,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics_shallow_riemann","Riemann solver","",rlist,rname,rname,sizeof(rname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics_shallow_reconstruct","Reconstruction","",rclist,rcname,rcname,sizeof(rcname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
@@ -631,6 +637,266 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
   ierr = PetscFunctionListDestroy(&rclist);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+/* --------------------------------- Traffic ----------------------------------- */
+
+typedef struct {
+  PetscReal a;
+} TrafficCtx;
+
+PETSC_STATIC_INLINE PetscScalar TrafficFlux(PetscScalar a,PetscScalar u) { return a*u*(1-u); }
+PETSC_STATIC_INLINE PetscScalar TrafficChar(PetscScalar a,PetscScalar u) { return a*(1-2*u); }
+
+static PetscErrorCode PhysicsRiemann_Traffic_Exact(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
+{
+  PetscReal a = ((TrafficCtx*)vctx)->a;
+
+  PetscFunctionBeginUser;
+  if (uL[0] < uR[0]) {
+    flux[0] = PetscMin(TrafficFlux(a,uL[0]),TrafficFlux(a,uR[0]));
+  } else {
+    flux[0] = (uR[0] < 0.5 && 0.5 < uL[0]) ? TrafficFlux(a,0.5) : PetscMax(TrafficFlux(a,uL[0]),TrafficFlux(a,uR[0]));
+  }
+  *maxspeed = a*MaxAbs(1-2*uL[0],1-2*uR[0]);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsRiemann_Traffic_Roe(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
+{
+  PetscReal a = ((TrafficCtx*)vctx)->a;
+  PetscReal speed;
+
+  PetscFunctionBeginUser;
+  speed = a*(1 - (uL[0] + uR[0]));
+  flux[0] = 0.5*(TrafficFlux(a,uL[0]) + TrafficFlux(a,uR[0])) - 0.5*PetscAbs(speed)*(uR[0]-uL[0]);
+  *maxspeed = speed;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsRiemann_Traffic_Rusanov(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
+{
+  PetscReal a = ((TrafficCtx*)vctx)->a;
+  PetscReal speed;
+
+  PetscFunctionBeginUser;
+  speed     = a*PetscMax(PetscAbs(1-2*uL[0]),PetscAbs(1-2*uR[0]));
+  flux[0]   = 0.5*(TrafficFlux(a,uL[0]) + TrafficFlux(a,uR[0])) - 0.5*speed*(uR[0]-uL[0]);
+  *maxspeed = speed;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsAssignVertexFlux_Traffic(const void* _fvnet, Junction junct)
+{
+  PetscErrorCode  ierr;
+  const FVNetwork fvnet = (FVNetwork)_fvnet;
+
+  PetscFunctionBeginUser;
+  switch(junct->type)
+  {
+    case JUNCT:
+      if (junct->numedges == 2) {
+        if (junct->dir[0] == EDGEIN) {
+          if (junct->dir[1] == EDGEIN) {
+            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
+          } else { /* dir[1] == EDGEOUT */
+            junct->couplingflux = PhysicsVertexFlux_2Edge_InOut;
+          }
+        } else { /* dir[0] == EDGEOUT */
+          if (junct->dir[1] == EDGEIN) {
+            junct->couplingflux = PhysicsVertexFlux_2Edge_OutIn;
+          } else { /* dir[1] == EDGEOUT */
+            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
+          }
+        }
+      } else {
+        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"General coupling conditions are not yet implemented for traffic models");
+      }
+      break;
+    default:
+      junct->couplingflux = NULL;
+  }
+  PetscFunctionReturn(0);
+}
+static PetscErrorCode PhysicsSample_Traffic1D(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u)
+{
+  PetscFunctionBeginUser;
+  if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
+  switch (initial) {
+    case 0:
+      u[0] = (x < 25) ? 2 : 1; /* Traffic Break problem ? */
+      break;
+    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+  }
+  PetscFunctionReturn(0);
+}
+typedef struct {
+  PetscReal a,x,t;
+} MethodCharCtx; 
+/* TODO Generalize to arbitrary initial value */
+static  PetscErrorCode TrafficCase1Char(SNES snes,Vec X,Vec f, void *ctx) {
+  PetscReal      x,t,rhs,a;
+  const PetscScalar *s; 
+  PetscErrorCode ierr; 
+  
+  PetscFunctionBeginUser;
+  x = ((MethodCharCtx*)ctx)->x;
+  t = ((MethodCharCtx*)ctx)->t;
+  a = ((MethodCharCtx*)ctx)->a;
+
+  ierr = VecGetArrayRead(X,&s);CHKERRQ(ierr);
+  rhs  = TrafficChar(a,PetscSinReal(PETSC_PI*(s[0]/5.0))+2)*t +s[0]-x; 
+  ierr = VecSetValue(f,0,rhs,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(X,&s);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+/* TODO Generalize to arbitrary initial value */
+static  PetscErrorCode TrafficCase1Char_J(SNES snes,Vec X,Mat Amat,Mat Pmat, void *ctx) {
+  PetscReal      x,t,rhs,a;
+  const PetscScalar *s; 
+  PetscErrorCode ierr; 
+  
+  PetscFunctionBeginUser;
+  x = ((MethodCharCtx*)ctx)->x;
+  t = ((MethodCharCtx*)ctx)->t;
+  a = ((MethodCharCtx*)ctx)->a;
+
+  ierr = VecGetArrayRead(X,&s);CHKERRQ(ierr);
+  rhs = 1.0- t*a*2.0*PETSC_PI/5.0*PetscCosReal(PETSC_PI*(s[0]/5.0)); 
+  ierr = MatSetValue(Pmat,0,0,rhs,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(X,&s);CHKERRQ(ierr);
+
+  ierr = MatAssemblyBegin(Pmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Pmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  if (Amat != Pmat) {
+    ierr = MatAssemblyBegin(Amat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(Amat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+
+static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u,PetscInt edgeid)
+{
+  SNES           snes; 
+  Mat            J;
+  Vec            X,R;
+  PetscErrorCode ierr; 
+  PetscReal      *s;
+  MethodCharCtx  ctx;  
+
+  PetscFunctionBeginUser;
+  if (t<0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"t must be >= 0 ");
+  switch (initial) {
+    case 0:
+        if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solution for case 0 not implemented for t > 0");
+      if(edgeid == 0) {
+        u[0] = (x < -2) ? 2 : 1; /* Traffic Break problem ?*/
+      } else {
+        u[0] = 1; 
+      }
+      break;
+    case 1:
+      if (t==0.0) {
+        if(edgeid == 0) {
+          u[0] = PetscSinReal(PETSC_PI*(x/5.0))+2;
+        } else if(edgeid == 1) {
+          u[0] = PetscSinReal(PETSC_PI*(-x/5.0))+2;
+        } else {
+          u[0] = 0; 
+        }
+      } else {
+          /* Method of characteristics to solve for exact solution */
+          ctx.t =t; ctx.a = 0.5;
+          ctx.x = !edgeid ? x : -x; 
+          ierr = VecCreate(PETSC_COMM_SELF,&X);CHKERRQ(ierr);
+          ierr = VecSetSizes(X,PETSC_DECIDE,1);CHKERRQ(ierr);
+          ierr = VecSetFromOptions(X);CHKERRQ(ierr);
+          ierr = VecDuplicate(X,&R);CHKERRQ(ierr);
+          ierr = MatCreate(PETSC_COMM_SELF,&J);CHKERRQ(ierr);
+          ierr = MatSetSizes(J,1,1,1,1);CHKERRQ(ierr);
+          ierr = MatSetFromOptions(J);CHKERRQ(ierr);
+          ierr = MatSetUp(J);CHKERRQ(ierr);
+          ierr = SNESCreate(PETSC_COMM_SELF,&snes);CHKERRQ(ierr);
+          ierr = SNESSetFunction(snes,R,TrafficCase1Char,&ctx);
+          ierr = SNESSetJacobian(snes,J,J,TrafficCase1Char_J,&ctx);
+          ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
+          ierr = VecSet(X,x);CHKERRQ(ierr);
+          ierr = SNESSolve(snes,NULL,X);CHKERRQ(ierr);
+          ierr = PetscMalloc1(1,&s);CHKERRQ(ierr);
+          ierr = VecGetArray(X,&s);CHKERRQ(ierr);
+      
+            u[0] = PetscSinReal(PETSC_PI*(s[0]/5.0))+2;
+         
+          ierr = VecRestoreArray(X,&s);CHKERRQ(ierr);
+          ierr = VecDestroy(&X);CHKERRQ(ierr);
+          ierr = VecDestroy(&R);CHKERRQ(ierr);
+          ierr = MatDestroy(&J);CHKERRQ(ierr);
+          ierr = SNESDestroy(&snes);CHKERRQ(ierr);
+          ierr = PetscFree(s); 
+      } 
+      break;
+    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsDestroyVertexFlux(const void* _fvnet, Junction junct)
+{
+  PetscErrorCode  ierr;
+  const FVNetwork fvnet = (FVNetwork)_fvnet;
+
+  PetscFunctionBeginUser;
+  switch(junct->type)
+  {
+    case JUNCT:
+          ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
+          ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
+          ierr = MatDestroy(&junct->couplesystem);CHKERRQ(ierr);
+      break;
+    default:
+      break;
+  }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PhysicsCreate_Traffic(FVNetwork fvnet)
+{
+  PetscErrorCode    ierr;
+  TrafficCtx        *user;
+  RiemannFunction   r;
+  PetscFunctionList rlist      = 0;
+  char              rname[256] = "exact";
+
+  PetscFunctionBeginUser;
+  ierr = PetscNew(&user);CHKERRQ(ierr);
+  fvnet->physics.sample1d       = PhysicsSample_Traffic1D;
+  fvnet->physics.samplenetwork  = PhysicsSample_TrafficNetwork;
+  fvnet->physics.characteristic = PhysicsCharacteristic_Conservative;
+  fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
+  fvnet->physics.user           = user;
+  fvnet->physics.dof            = 1;
+  fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
+  fvnet->physics.vfluxassign    = PhysicsAssignVertexFlux_Traffic;
+  fvnet->physics.vfluxdestroy   = PhysicsDestroyVertexFlux;
+  fvnet->physics.user           = user;
+
+  ierr = PetscStrallocpy("density",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
+  user->a = 0.5;
+  ierr = RiemannListAdd_Net(&rlist,"rusanov",PhysicsRiemann_Traffic_Rusanov);CHKERRQ(ierr);
+  ierr = RiemannListAdd_Net(&rlist,"exact",  PhysicsRiemann_Traffic_Exact);CHKERRQ(ierr);
+  ierr = RiemannListAdd_Net(&rlist,"roe",    PhysicsRiemann_Traffic_Roe);CHKERRQ(ierr);
+  ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Traffic","");CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-physics_traffic_a","Flux = a*u*(1-u)","",user->a,&user->a,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsFList("-physics_traffic_riemann","Riemann solver","",rlist,rname,rname,sizeof(rname),NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+
+  ierr = RiemannListFind_Net(rlist,rname,&r);CHKERRQ(ierr);
+  ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);
+
+  fvnet->physics.riemann = r;
+  PetscFunctionReturn(0);
+}
+
 
 PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
@@ -648,16 +914,16 @@ int main(int argc,char *argv[])
   char              lname[256] = "minmod",physname[256] = "shallow",tname[256] = "fixed";
   PetscFunctionList limiters = 0,physics = 0,timestep = 0;
   MPI_Comm          comm;
-  TS                ts;
-  FVNetwork         fvnet;
-  PetscInt          i,steps,draw = 0;
+  TS                ts,ts_lin;
+  FVNetwork         fvnet,fvnet_lin;
+  PetscInt          i,j,n,steps,draw = 0,convergencelevel= 0;
   PetscBool         viewdm = PETSC_FALSE;
-  PetscReal         ptime,maxtime,*norm;
+  PetscReal         ptime,maxtime,*norm,dt,*total,*totalinitial;
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   IS                slow = NULL,fast = NULL,buffer = NULL;
-  RhsCtx            slowrhs,fastrhs,bufferrhs;
-  Vec               Xprev; 
+  RhsCtx            slowrhs,fastrhs,bufferrhs,slowlin,fastlin,bufferlin;
+  Vec               Xprev,Xtrue; 
   PetscBool         singlecoupleeval;
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
@@ -676,7 +942,7 @@ int main(int argc,char *argv[])
 
   /* Register physical models to be available on the command line */
   ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
-
+  ierr = PetscFunctionListAdd(&physics,"traffic"         ,PhysicsCreate_Traffic);CHKERRQ(ierr);
   /* Register time step functions to be available on the command line */
   ierr = PetscFunctionListAdd(&timestep,"fixed"         ,FVNetwork_GetTimeStep_Fixed);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&timestep,"adaptive"      ,FVNetwork_GetTimeStep_Adaptive);CHKERRQ(ierr);
@@ -698,6 +964,7 @@ int main(int argc,char *argv[])
   fvnet->ndaughters     = 2;
   fvnet->linearcoupling = PETSC_FALSE;
   singlecoupleeval      = PETSC_FALSE; 
+  fvnet->length         = 3.0;
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -715,6 +982,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsReal("-ts_max_time","Max Time to Run TS","",maxtime,&maxtime,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-ymin","Min y-value in plotting","",fvnet->ymin,&fvnet->ymin,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-ymax","Max y-value in plotting","",fvnet->ymax,&fvnet->ymax,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-length","Length of Edges in the Network","",fvnet->length,&fvnet->length,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-Mx","Smallest number of cells for an edge","",fvnet->Mx,&fvnet->Mx,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-bufferwidth","width of the buffer regions","",fvnet->bufferwidth,&fvnet->bufferwidth,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-viewdm","View DMNetwork Info in stdout","",viewdm,&viewdm,NULL);CHKERRQ(ierr);
@@ -723,6 +991,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",fvnet->ndaughters,&fvnet->ndaughters,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-lincouplediff","Compare the results for linearcoupling and nonlinear","",fvnet->lincouplediff,&fvnet->lincouplediff,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-singlecoupleeval","Use the single couple eval rhs functions","",singlecoupleeval,&singlecoupleeval,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-convergence", "Test convergence on meshes 2^3 - 2^n","",convergencelevel,&convergencelevel,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the limiter from the list of registered limiters */
@@ -815,55 +1084,273 @@ int main(int argc,char *argv[])
   ierr = TSSetType(ts,TSMPRK);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+      ierr = PetscMalloc1(fvnet->physics.dof,&totalinitial);CHKERRQ(ierr);
 
   /* Compute initial conditions and starting time step */
-  ierr = FVNetworkSetInitial(fvnet,fvnet->X);CHKERRQ(ierr);
+  ierr = FVNetworkProject(fvnet,fvnet->X,0.0);CHKERRQ(ierr);
+  ierr = FVNetworkL1CellAvg(fvnet,fvnet->X,totalinitial);
   ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
   if (size == 1 && fvnet->viewfv) {
-    ierr = TSMonitorSet(ts, TSDMNetworkMonitor, fvnet->monitor, NULL);CHKERRQ(ierr);
-  }
-  /* Evolve the PDE network in time */
-  ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
-  ierr = TSGetSolveTime(ts,&ptime);CHKERRQ(ierr);
-  ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
+      ierr = TSMonitorSet(ts, TSDMNetworkMonitor, fvnet->monitor, NULL);CHKERRQ(ierr);
+    }
+  if(!fvnet->lincouplediff) {
+    
+    /* Evolve the PDE network in time */
+    ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
+    ierr = TSGetSolveTime(ts,&ptime);CHKERRQ(ierr);
+    ierr = TSGetStepNumber(ts,&steps);CHKERRQ(ierr);
+      ierr = PetscMalloc1(fvnet->physics.dof,&total);CHKERRQ(ierr);
 
-  if (viewdm) {
-    if (!rank) printf("ts X:\n");
-    ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  }
-  /* If lincouplediff = true && lincouple == true then solve with nonlinear coupling
-   and compute the norm of the difference */
-  if (fvnet->lincouplediff && fvnet->linearcoupling) {
-    VecDuplicate(fvnet->X,&Xprev);CHKERRQ(ierr);
-    VecCopy(fvnet->X,Xprev);CHKERRQ(ierr);
-    //ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    /* Now solve with nonlinear coupling */
+    ierr = FVNetworkL1CellAvg(fvnet,fvnet->X,total); 
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"FVNET: Mass difference : %g \n",total[0]-totalinitial[0]);CHKERRQ(ierr);
+
+
+    if (viewdm) {
+      if (!rank) printf("ts X:\n");
+      ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    }
+  } else {
+        /* Now solve with nonlinear coupling */
     fvnet->linearcoupling = PETSC_FALSE; 
     ierr = FVNetworkAssignCoupling(fvnet);CHKERRQ(ierr);
-    ierr = FVNetworkSetInitial(fvnet,fvnet->X);CHKERRQ(ierr);
-    ierr = TSSetStepNumber(ts,0);CHKERRQ(ierr);
-    ierr = TSSetTime(ts,0);CHKERRQ(ierr);
-    ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
-    ierr = TSSetUp(ts);CHKERRQ(ierr);
-    ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
-   // ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+    ierr = PetscMalloc1(1,&fvnet_lin);CHKERRQ(ierr);
+    *fvnet_lin = *fvnet;
+    fvnet_lin->linearcoupling = PETSC_TRUE;
+      /* Choose the physics from the list of registered models */
+    {
+      PetscErrorCode (*r)(FVNetwork);
+      ierr = PetscFunctionListFind(physics,physname,&r);CHKERRQ(ierr);
+      if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
+      /* Create the physics, will set the number of fields and their names */
+      ierr = (*r)(fvnet_lin);CHKERRQ(ierr);
+    }
+        /* Generate Network Data */
+    ierr = FVNetworkCreate(fvnet_lin,fvnet_lin->networktype,fvnet_lin->Mx);CHKERRQ(ierr);
+    /* Create DMNetwork */
+    ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet_lin->network);CHKERRQ(ierr);
+    if (size == 1 && fvnet_lin->viewfv) {
+      ierr = DMNetworkMonitorCreate(fvnet_lin->network,&fvnet_lin->monitor);CHKERRQ(ierr);
+    }
+    /* Set Network Data into the DMNetwork (on proc[0]) */
+    ierr = FVNetworkSetComponents(fvnet_lin);CHKERRQ(ierr);
+    /* Delete unneeded data in fvnet */
+    ierr = FVNetworkCleanUp(fvnet_lin);CHKERRQ(ierr);
+    /* Distribute Network */
+    ierr = DMSetUp(fvnet_lin->network);CHKERRQ(ierr);
+    ierr = DMNetworkDistribute(&fvnet_lin->network,0);CHKERRQ(ierr);
+ 
+    /* Create Vectors */
+    ierr = FVNetworkCreateVectors(fvnet_lin);CHKERRQ(ierr);
+    /* Set up component dynamic data structures */
+    ierr = FVNetworkBuildDynamic(fvnet_lin);CHKERRQ(ierr);
+    /* Create a time-stepping object */
+    ierr = TSCreate(comm,&ts_lin);CHKERRQ(ierr);
+    ierr = TSSetDM(ts_lin,fvnet_lin->network);CHKERRQ(ierr);
+    ierr = TSSetApplicationContext(ts_lin,fvnet_lin);CHKERRQ(ierr);
+    ierr = TSSetPreStep(ts_lin,FVNetworkPreStep);CHKERRQ(ierr);
+
+    slowlin = slowrhs; slowlin.fvnet = fvnet_lin;
+    fastlin = fastrhs; fastlin.fvnet = fvnet_lin;
+    bufferlin = bufferrhs; bufferlin.fvnet = fvnet_lin;
+
+    ierr = TSRHSSplitSetIS(ts_lin,"slow",slow);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetIS(ts_lin,"slowbuffer",buffer);CHKERRQ(ierr);
+    ierr = TSRHSSplitSetIS(ts_lin,"fast",fast);CHKERRQ(ierr);
+
+    if (singlecoupleeval) {
+      ierr = TSSetRHSFunction(ts_lin,NULL,FVNetRHS_SingleCoupleEval,fvnet_lin);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetRHSFunction(ts_lin,"slow",NULL,FVNetRHS_Multirate_SingleCoupleEval,&slowlin);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetRHSFunction(ts_lin,"fast",NULL,FVNetRHS_Multirate_SingleCoupleEval,&fastlin);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetRHSFunction(ts_lin,"slowbuffer",NULL,FVNetRHS_Buffer_SingleCoupleEval,&bufferlin);CHKERRQ(ierr);
+    } else { 
+      ierr = TSSetRHSFunction(ts_lin,NULL,FVNetRHS,fvnet_lin);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetRHSFunction(ts_lin,"slow",NULL,FVNetRHS_Multirate,&slowlin);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetRHSFunction(ts_lin,"fast",NULL,FVNetRHS_Multirate,&fastlin);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetRHSFunction(ts_lin,"slowbuffer",NULL,FVNetRHS_Buffer,&bufferlin);CHKERRQ(ierr);
+    }
+
+    ierr = TSSetType(ts_lin,TSMPRK);CHKERRQ(ierr);
+    ierr = TSSetMaxTime(ts_lin,maxtime);CHKERRQ(ierr);
+    ierr = TSSetExactFinalTime(ts_lin,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+
+    ierr = FVNetworkProject(fvnet_lin,fvnet_lin->X,0.0);CHKERRQ(ierr);
+    ierr = FVNetRHS(ts_lin,0,fvnet_lin->X,fvnet_lin->Ftmp,fvnet_lin);CHKERRQ(ierr);
+    ierr = TSSetFromOptions(ts_lin);CHKERRQ(ierr);  /* Take runtime options */
+    ierr = TSSetUp(ts_lin);CHKERRQ(ierr);
+    ierr = VecDuplicate(fvnet->X,&Xprev);CHKERRQ(ierr);
+    
+    ierr = TSSetSolution(ts,fvnet->X);CHKERRQ(ierr);
+    ierr = TSSetSolution(ts_lin,fvnet_lin->X);CHKERRQ(ierr);
+    ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
+
+    for(i=0;i<maxtime/dt; i++) {
+      ierr = TSStep(ts);CHKERRQ(ierr);
+      ierr = TSStep(ts_lin);CHKERRQ(ierr);
+      ierr = TSGetSolution(ts,&fvnet->X);CHKERRQ(ierr);
+      ierr = TSGetSolution(ts_lin,&fvnet_lin->X);CHKERRQ(ierr);
+      ierr = TSMonitor(ts,i,i*dt,fvnet->X);
+      ierr = VecWAXPY(Xprev,-1,fvnet->X,fvnet_lin->X);CHKERRQ(ierr);
+      ierr = DMNetworkMonitorView(fvnet_lin->monitor,Xprev);CHKERRQ(ierr);
+
+    }
     /*Compute the L1 cell average (close to L1 norm of the solutions) of the difference of the two solves */
-    ierr = VecAXPY(Xprev,-1,fvnet->X);CHKERRQ(ierr);
-    ierr = PetscMalloc1(fvnet->physics.dof,&norm);CHKERRQ(ierr);
+    
+    ierr = PetscMalloc2(fvnet->physics.dof,&norm,fvnet->physics.dof,&total);CHKERRQ(ierr);
     ierr = FVNetworkL1CellAvg(fvnet,Xprev,norm);CHKERRQ(ierr);
     ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"FVNET: Norm difference between linear and nonlinear coupling : \n");CHKERRQ(ierr);
     for(i=0;i<fvnet->physics.dof;i++) {
       ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"Var %i : %g \n",i,norm[i]);CHKERRQ(ierr);
     }
-   // ierr = VecView(fvnet->X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    ierr = PetscFree(norm);CHKERRQ(ierr);
+
+    /* Compute the difference in the L1 cell averages of the solution */ 
+
+    ierr = FVNetworkTotal(fvnet,fvnet->X,norm);CHKERRQ(ierr);
+    ierr = FVNetworkTotal(fvnet_lin,fvnet_lin->X,total);CHKERRQ(ierr);
+    ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"FVNET: Difference in the total variable quantities between linear and nonlinear coupling: \n");CHKERRQ(ierr);
+    for(i=0;i<fvnet->physics.dof;i++) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"Var %i : %g \n",i,norm[i]-total[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree2(norm,total);CHKERRQ(ierr);
     ierr = VecDestroy(&Xprev);CHKERRQ(ierr);
   }
 
+
+
+  /* Perform a Convergence Test (network 6 is the periodic network and the only one currently with exact solutions) */
+  if (convergencelevel > 0 && fvnet->networktype == 6) {
+    ierr = PetscMalloc1(fvnet->physics.dof*convergencelevel,&norm);CHKERRQ(ierr);
+    
+    for (n = 3; n<convergencelevel + 3; ++n) {
+      fvnet->Mx = PetscPowInt(2,n); 
+      /* Rebuild everything and solve the system with the new mesh */
+      /* TODO find a better way to do this, either a solve function to wrap this up and/or reuse componenets of the data structure */
+      ierr = FVNetworkDestroy(fvnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
+      if (size == 1 && fvnet->viewfv && fvnet->monitor) {
+        ierr = DMNetworkMonitorDestroy(&fvnet->monitor);CHKERRQ(ierr);
+      }
+      ierr = VecScatterDestroy(&slowrhs.scatter);CHKERRQ(ierr);
+      ierr = VecScatterDestroy(&fastrhs.scatter);CHKERRQ(ierr);
+      ierr = VecScatterDestroy(&bufferrhs.scatter);CHKERRQ(ierr);
+      ierr = DMDestroy(&fvnet->network);CHKERRQ(ierr);
+      ierr = ISDestroy(&slow);CHKERRQ(ierr);
+      ierr = ISDestroy(&fast);CHKERRQ(ierr);
+      ierr = ISDestroy(&buffer);CHKERRQ(ierr);
+      ierr = TSDestroy(&ts);CHKERRQ(ierr);
+
+      {
+        PetscErrorCode (*r)(FVNetwork);
+        ierr = PetscFunctionListFind(physics,physname,&r);CHKERRQ(ierr);
+        if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
+        /* Create the physics, will set the number of fields and their names */
+        ierr = (*r)(fvnet);CHKERRQ(ierr);
+      }
+        /* Generate Network Data */
+      ierr = FVNetworkCreate(fvnet,fvnet->networktype,fvnet->Mx);CHKERRQ(ierr);
+      /* Create DMNetwork */
+      ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet->network);CHKERRQ(ierr);
+      if (size == 1 && fvnet->viewfv) {
+        ierr = DMNetworkMonitorCreate(fvnet->network,&fvnet->monitor);CHKERRQ(ierr);
+      }
+      /* Set Network Data into the DMNetwork (on proc[0]) */
+      ierr = FVNetworkSetComponents(fvnet);CHKERRQ(ierr);
+      /* Delete unneeded data in fvnet */
+      ierr = FVNetworkCleanUp(fvnet);CHKERRQ(ierr);
+      /* Distribute Network */
+      ierr = DMSetUp(fvnet->network);CHKERRQ(ierr);
+      if (viewdm) {
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nOriginal networkdm, DMView:\n");CHKERRQ(ierr);
+        ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+      }
+      ierr = DMNetworkDistribute(&fvnet->network,0);CHKERRQ(ierr);
+      if (viewdm) {
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nAfter DMNetworkDistribute, DMView:\n");CHKERRQ(ierr);
+        ierr = DMView(fvnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+      }
+      /* Create Vectors */
+      ierr = FVNetworkCreateVectors(fvnet);CHKERRQ(ierr);
+      /* Set up component dynamic data structures */
+      ierr = FVNetworkBuildDynamic(fvnet);CHKERRQ(ierr);
+      /* Create a time-stepping object */
+      ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
+      ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
+      ierr = TSSetApplicationContext(ts,fvnet);CHKERRQ(ierr);
+      ierr = TSSetPreStep(ts,FVNetworkPreStep);CHKERRQ(ierr);
+
+      /* Setup Multirate Partitions */
+      ierr = FVNetworkGenerateMultiratePartition_Preset(fvnet);CHKERRQ(ierr);
+      ierr = FVNetworkFinalizePartition(fvnet);CHKERRQ(ierr);
+      ierr = FVNetworkBuildMultirateIS(fvnet,&slow,&fast,&buffer);CHKERRQ(ierr);
+
+      ierr = TSRHSSplitSetIS(ts,"slow",slow);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetIS(ts,"slowbuffer",buffer);CHKERRQ(ierr);
+      ierr = TSRHSSplitSetIS(ts,"fast",fast);CHKERRQ(ierr);
+
+      slowrhs.edgelist          = fvnet->slow_edges;
+      slowrhs.vtxlist           = fvnet->slow_vert;
+      slowrhs.fvnet             = fvnet;
+      slowrhs.wheretoputstuff   = slow;
+      slowrhs.scatter           = PETSC_NULL; /* Will be created in the rhs function */
+
+      fastrhs.edgelist          = fvnet->fast_edges;
+      fastrhs.vtxlist           = fvnet->fast_vert;
+      fastrhs.fvnet             = fvnet;
+      fastrhs.wheretoputstuff   = fast;
+      fastrhs.scatter           = PETSC_NULL; /* Will be created in the rhs function */
+
+      bufferrhs.vtxlist         = fvnet->buf_slow_vert;
+      bufferrhs.fvnet           = fvnet;
+      bufferrhs.wheretoputstuff = buffer;
+      bufferrhs.scatter         = PETSC_NULL; /* Will be created in the rhs function */
+
+      if (singlecoupleeval) {
+        ierr = TSSetRHSFunction(ts,NULL,FVNetRHS_SingleCoupleEval,fvnet);CHKERRQ(ierr);
+        ierr = TSRHSSplitSetRHSFunction(ts,"slow",NULL,FVNetRHS_Multirate_SingleCoupleEval,&slowrhs);CHKERRQ(ierr);
+        ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVNetRHS_Multirate_SingleCoupleEval,&fastrhs);CHKERRQ(ierr);
+        ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVNetRHS_Buffer_SingleCoupleEval,&bufferrhs);CHKERRQ(ierr);
+      } else { 
+        ierr = TSSetRHSFunction(ts,NULL,FVNetRHS,fvnet);CHKERRQ(ierr);
+        ierr = TSRHSSplitSetRHSFunction(ts,"slow",NULL,FVNetRHS_Multirate,&slowrhs);CHKERRQ(ierr);
+        ierr = TSRHSSplitSetRHSFunction(ts,"fast",NULL,FVNetRHS_Multirate,&fastrhs);CHKERRQ(ierr);
+        ierr = TSRHSSplitSetRHSFunction(ts,"slowbuffer",NULL,FVNetRHS_Buffer,&bufferrhs);CHKERRQ(ierr);
+      }
+
+      ierr = TSSetType(ts,TSMPRK);CHKERRQ(ierr);
+      ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
+      ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+
+      /* Compute initial conditions and starting time step */
+      ierr = FVNetworkProject(fvnet,fvnet->X,0.0);CHKERRQ(ierr);
+      ierr = FVNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
+      ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
+      ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
+      ierr = TSSetTimeStep(ts,dt/PetscPowReal(2.0,n-3));
+      /* Evolve the PDE network in time */
+      ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
+      /* Compute true solution and compute norm of the difference with computed solution*/
+      ierr = VecDuplicate(fvnet->X,&Xtrue);CHKERRQ(ierr);
+      ierr = FVNetworkProject(fvnet,Xtrue,maxtime);CHKERRQ(ierr);
+      ierr = VecAXPY(Xtrue,-1,fvnet->X);CHKERRQ(ierr);
+      ierr = FVNetworkL1CellAvg(fvnet,Xtrue,norm+(fvnet->physics.dof*(n-3)));CHKERRQ(ierr);
+      ierr = VecDestroy(&Xtrue);CHKERRQ(ierr);
+    }
+    for (j=0;j<fvnet->physics.dof;j++) {
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),
+              "FVNET:  Convergence Table for Variable %i \n"
+              "FVNET: |---h---||---Error---||---Order---| \n",j);CHKERRQ(ierr);
+      for(i=0;i<convergencelevel;i++) {
+        ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),
+              "FVNET: |  %g  |  %g  |  %g  | \n",1.0/PetscPowReal(2.0,i+3),norm[fvnet->physics.dof*i+j],
+              !i ? NAN : -PetscLog2Real(norm[fvnet->physics.dof*i+j]/norm[fvnet->physics.dof*(i-1)+j]));CHKERRQ(ierr);
+      }
+      ierr = PetscPrintf(PetscObjectComm((PetscObject)fvnet->network),"\n");CHKERRQ(ierr);
+    }
+     ierr = PetscFree(norm);CHKERRQ(ierr);
+  }
   /* Clean up */
   ierr = FVNetworkDestroy(fvnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
-  if (size == 1 && fvnet->viewfv) {
+  if (size == 1 && fvnet->viewfv && fvnet->monitor) {
     ierr = DMNetworkMonitorDestroy(&fvnet->monitor);CHKERRQ(ierr);
   }
   ierr = VecScatterDestroy(&slowrhs.scatter);CHKERRQ(ierr);

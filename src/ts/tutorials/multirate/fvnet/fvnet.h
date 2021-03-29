@@ -82,7 +82,7 @@ struct _p_FVNetwork
   KSP         ksp; 
   PetscInt    monifv;
   PetscBool   viewfv,linearcoupling,lincouplediff; 
-  PetscReal   ymin,ymax;
+  PetscReal   ymin,ymax,length;
   DMNetworkMonitor  monitor;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
@@ -162,7 +162,7 @@ extern PetscErrorCode FVNetworkSetupMultirate(FVNetwork,PetscInt*,PetscInt*,Pets
 /* Destroy allocated data */
 extern PetscErrorCode FVNetworkDestroy(FVNetwork);
 /* Set Initial Solution */
-extern PetscErrorCode FVNetworkSetInitial(FVNetwork,Vec);
+extern PetscErrorCode FVNetworkProject(FVNetwork,Vec,PetscReal);
 /* RHS Function */
 extern PetscErrorCode FVNetRHS(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode FVNetRHS_SingleCoupleEval(TS,PetscReal,Vec,Vec,void*);
@@ -182,3 +182,4 @@ extern PetscErrorCode FVNetRHS_Buffer_SingleCoupleEval(TS,PetscReal,Vec,Vec,void
 extern PetscErrorCode FVNetRHS_Multirate_SingleCoupleEval(TS,PetscReal,Vec,Vec,void*);
 
 extern PetscErrorCode FVNetworkL1CellAvg(FVNetwork,Vec,PetscReal*);
+extern PetscErrorCode FVNetworkTotal(FVNetwork,Vec,PetscReal*);

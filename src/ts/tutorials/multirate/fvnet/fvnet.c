@@ -20,10 +20,8 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
   ierr               = MPI_Comm_rank(fvnet->comm,&rank);CHKERRQ(ierr);
   numVertices        = 0;
   numEdges           = 0;
-  edgelist           = NULL;
-  fvnet->networktype = networktype; 
+  edgelist           = NULL; 
   /* proc[0] creates a sequential fvnet and edgelist */
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Setup Initial Network %D\n",networktype);CHKERRQ(ierr);
   /* Set global number of fvedges, edges, and junctions */
   /*-------------------------------------------------*/
   switch (networktype) {
@@ -200,10 +198,10 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
       junctions[1].type = JUNCT;
       for (i=2; i<fvnet->ndaughters+2; ++i) {
         junctions[i].type = OUTFLOW;
-        junctions[i].x    = 3.0;
+        junctions[i].x    = fvnet->length;
       }
 
-      junctions[0].x = -3.0; 
+      junctions[0].x = -fvnet->length; 
       junctions[1].x = 0.0; 
       /* Edge */ 
       fvedges[0].nnodes = fvnet->hratio*Mx; 
@@ -212,7 +210,7 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
       }
 
       for (i=0; i<numEdges;i++) {
-        fvedges[i].h = 3.0/(PetscReal)fvedges[i].nnodes; 
+        fvedges[i].h = fvnet->length/(PetscReal)fvedges[i].nnodes; 
       }
     }
     break;
@@ -280,7 +278,7 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
     }
     break;
   case 5:
-    /* Case 4: Roundabout 
+    /* Case 5: Roundabout 
     =================================================
       TODO FINISH DRAWING 
     ====================================================  
@@ -329,7 +327,47 @@ PetscErrorCode FVNetworkCreate(FVNetwork fvnet,PetscInt networktype,PetscInt Mx)
         fvedges[i].h = 3.0/(PetscReal)fvedges[i].nnodes; 
       }
     }
-    break;  
+    break;
+  case 6: 
+        /* Case 6: Periodic Boundary conditions 
+    =================================================
+       v1 --E1--> v0--E0--> v1 
+    ====================================================  
+          used for convergence tests */
+    nfvedge        = 2; 
+    fvnet->nedge   = nfvedge;
+    fvnet->nvertex = 2;
+    /* Set local edges and vertices -- proc[0] sets entire network, then distributes */
+    numVertices    = 0;
+    numEdges       = 0;
+    edgelist       = NULL;
+    if (!rank) {
+      numVertices = fvnet->nvertex;
+      numEdges    = fvnet->nedge;
+      ierr = PetscCalloc1(2*numEdges,&edgelist);CHKERRQ(ierr);
+
+      edgelist[0] = 0;
+      edgelist[1] = 1;
+      edgelist[2] = 1; 
+      edgelist[3] = 0;
+ 
+
+      /* Add network components */
+      /*------------------------*/
+      ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
+      /* vertex */
+      junctions[0].type = JUNCT;
+      junctions[1].type = JUNCT;
+
+      junctions[0].x = -5.0; 
+      junctions[1].x = 5.0; 
+      /* Edge */ 
+      for(i=0; i<numEdges; ++i) {
+        fvedges[i].nnodes = Mx; 
+        fvedges[i].h = 10.0/(PetscReal)fvedges[i].nnodes; 
+      }
+    }
+    break;
     default:
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
   }
@@ -385,10 +423,10 @@ PetscErrorCode FVNetworkSetComponents(FVNetwork fvnet){
   for (e=eStart; e<eEnd; e++) {
     ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,&fvedge[e-eStart],dof*fvedge[e-eStart].nnodes);CHKERRQ(ierr);
     /* Add a monitor for every edge in the network, label the data according the user provided physics */
-    if (size == 1 && fvnet->viewfv) { 
+    if (fvnet->monitor) { 
       length = fvedge[e-eStart].h*(fvedge[e-eStart].nnodes+1);
       for (j=0; j<dof; j++) {
-         ierr = DMNetworkMonitorAdd(fvnet->monitor,fvnet->physics.fieldname[j],e,fvedge[e-eStart].nnodes,j,dof,0.0,length,fvnet->ymin,fvnet->ymax,PETSC_TRUE);CHKERRQ(ierr);
+         ierr = DMNetworkMonitorAdd(fvnet->monitor,fvnet->physics.fieldname[j],e,fvedge[e-eStart].nnodes,j,dof,0.0,length,fvnet->ymin,fvnet->ymax,PETSC_FALSE);CHKERRQ(ierr);
       }
     }
   }
@@ -583,20 +621,22 @@ PetscErrorCode FVNetworkDestroy(FVNetwork fvnet)
   PetscFunctionReturn(0); 
 }
 
-PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0) 
+PetscErrorCode FVNetworkProject(FVNetwork fvnet,Vec X0,PetscReal t) 
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,vfrom,vto,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof;
+  PetscInt       i,j,k,vfrom,vto,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof,numnodes = 4;
   const PetscInt *cone;
   PetscScalar    *xarr,*u,*utmp;
   Junction       junction;
   FVEdge         fvedge;
   Vec            localX = fvnet->localX;
-  PetscReal      h,xfrom,xto,x,xend,xstart;
+  PetscReal      h,xfrom,xto,xend,xstart,*xnodes,*w;
   
   PetscFunctionBegin;
+  
   ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
   ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  ierr = PetscMalloc3(numnodes,&xnodes,numnodes,&w,numnodes*dof,&utmp);CHKERRQ(ierr);
   for (e=eStart; e<eEnd; e++) {
     ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,&type,(void**)&fvedge,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
@@ -609,45 +649,51 @@ PetscErrorCode FVNetworkSetInitial(FVNetwork fvnet,Vec X0)
     ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     xfrom = junction->x;
     if (fvnet->networktype<3) {
-      /* This code assumes a geometrically 1d network. To be improved later */
+      /* This code assumes a geometrically 1d network. */  
       for (i=0; i<fvedge->nnodes; i++) {
         if (xto>xfrom) {
-          x = xfrom+i*h;
-        } else {
-          x = xfrom-i*h;
-        }
-        u = xarr+offset+i*dof; 
-        switch (fvnet->networktype) {
-          case 0: 
-          case 1:
-          case 2:
-            /*Both are networks on [0,1] and so use the same initial conditions. User provided geometrically 1d initial conditions */
-            fvnet->physics.sample1d((void*)&fvnet->physics.user,fvnet->initial,0.0,x,u);
-            break;
-          default: 
-            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"not done yet");
-        }
-      }
-    } else { /* Our sample function changes for each edge in the network */
-      ierr = PetscMalloc1(2*dof,&utmp);CHKERRQ(ierr);
-      for (i=0; i<fvedge->nnodes; i++) {
-          if (xto>xfrom) {
           xstart = xfrom+i*h;
           xend   = xstart+h;
         } else {
           xstart = xfrom-i*h;
           xend   = xstart-h;
         }
+        ierr = PetscDTGaussQuadrature(numnodes,xstart,xend,xnodes,w);CHKERRQ(ierr);
         u = xarr+offset+i*dof;
-        fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,0.0,xstart,utmp,fvedge->id);
-        fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,0.0,xend,utmp+dof,fvedge->id);
+        for(j=0;j<numnodes;j++) {
+          fvnet->physics.sample1d((void*)&fvnet->physics.user,fvnet->initial,t,xnodes[j],utmp+dof*j);
+        }
         for(j=0;j<dof;j++) {
-          u[j] = (utmp[j]+utmp[j+dof])/2.0; /* Trapezoid integration */
+            u[j] = 0;
+          for(k=0;k<numnodes;k++) {
+            u[j] += w[k]*utmp[dof*k+j]/h; /* Gaussian Quadrature*/
+          }
         }
       }
-      ierr = PetscFree(utmp);CHKERRQ(ierr);
+    } else { /* Our sample function changes for each edge in the network */
+      for (i=0; i<fvedge->nnodes; i++) {
+        if (xto>xfrom) {
+          xstart = xfrom+i*h;
+          xend   = xstart+h;
+        } else {
+          xstart = xfrom-(i+1)*h;
+          xend   = xstart+h;
+        }
+        ierr = PetscDTGaussQuadrature(numnodes,xstart,xend,xnodes,w);CHKERRQ(ierr);
+        u = xarr+offset+i*dof;
+        for(j=0;j<numnodes;j++) {
+          fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,t,xnodes[j],utmp+dof*j,fvedge->id);
+        }
+        for(j=0;j<dof;j++) {
+            u[j] = 0;
+          for(k=0;k<numnodes;k++) {
+            u[j] += w[k]*utmp[dof*k+j]/h; /* Gaussian Quadrature*/
+          }
+        }
+      }   
     }
   }
+  ierr = PetscFree3(xnodes,w,utmp);CHKERRQ(ierr);
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
   /* Can use insert as each edge belongs to a single processor and vertex data is only for temporary computation and holds no 'real' data. */
   ierr = DMLocalToGlobalBegin(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr);
@@ -682,6 +728,41 @@ PetscErrorCode FVNetworkL1CellAvg(FVNetwork fvnet, Vec X,PetscReal *norm)
       u = xarr+offset+i*dof;
       for(j=0; j<dof; j++) {
         norm[j] += h*PetscAbs(u[j]);
+      }
+    }
+  }
+  ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
+  MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,fvnet->comm);CHKERRMPI(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+/* Compute the L1 Norm of the Vector X associated with the FVNetowork fvnet */
+PetscErrorCode FVNetworkTotal(FVNetwork fvnet, Vec X,PetscReal *norm) 
+{
+  PetscErrorCode ierr;
+  PetscInt       i,j,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof;
+  const PetscScalar    *xarr,*u;
+  FVEdge         fvedge;
+  Vec            localX = fvnet->localX;
+  PetscReal      h;
+  
+  PetscFunctionBegin;
+  ierr = DMGlobalToLocalBegin(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr); 
+  ierr = DMGlobalToLocalEnd(fvnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(localX,&xarr);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  for (j=0;j<dof;j++) {
+    norm[j] = 0.0; 
+  }
+  for (e=eStart; e<eEnd; e++) {
+    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,&type,(void**)&fvedge,NULL);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    h     = fvedge->h;
+    for (i=0; i<fvedge->nnodes; i++) {
+      u = xarr+offset+i*dof;
+      for(j=0; j<dof; j++) {
+        norm[j] += h*u[j];
       }
     }
   }
