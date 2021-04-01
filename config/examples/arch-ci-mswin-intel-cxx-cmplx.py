@@ -19,7 +19,7 @@ if __name__ == '__main__':
     '--with-mpi-include=[/cygdrive/c/PROGRA~2/MICROS~2/MPI/Include/,/cygdrive/c/PROGRA~2/MICROS~2/MPI/Include/x64]',
     '--with-mpi-lib=[/cygdrive/c/PROGRA~2/MICROS~2/MPI/lib/x64/msmpifec.lib,/cygdrive/c/PROGRA~2/MICROS~2/MPI/lib/x64/msmpi.lib]',
     '--with-mpiexec=/cygdrive/c/PROGRA~1/MICROS~2/Bin/mpiexec',
-    '--with-shared-libraries=0',
+    '--with-shared-libraries=1',
     '--with-mpi-f90module-visibility=0',
   ]
   configure.petsc_configure(configure_options)

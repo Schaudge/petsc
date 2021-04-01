@@ -18,6 +18,6 @@ if __name__ == '__main__':
     '--with-mpi-include=/cygdrive/c/PROGRA~2/INTELS~1/mpi/20172~1.187/intel64/include',
     '--with-mpi-lib=/cygdrive/c/PROGRA~2/INTELS~1/mpi/20172~1.187/intel64/lib/impi.lib',
     '--with-mpiexec=/cygdrive/c/PROGRA~2/INTELS~1/mpi/20172~1.187/intel64/bin/mpiexec -localonly',
-    '--with-shared-libraries=0',
+    '--with-shared-libraries=1',
   ]
   configure.petsc_configure(configure_options)
