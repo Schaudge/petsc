@@ -189,6 +189,12 @@ function petsc_testrun() {
 
   eval "{ time -p $cmd ; } 2>> timing.out"
   cmd_res=$?
+  # Bash gives unintuitive error messages at times:
+  #    https://tldp.org/LDP/abs/html/exitcodes.html
+  # so we need to check error messages > 128
+  if [ $cmd_res -gt 128 ]; then
+      let cmd_res=$cmd_res-128
+  fi
   #  If it is a lack of GPU resources or MPI failure (Intel) then try once more
   #  See: src/sys/error/err.c
   if [ $cmd_res -eq 96 -o $cmd_res -eq 97 -o $cmd_res -eq 98 ]; then
