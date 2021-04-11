@@ -353,7 +353,7 @@
       Interface
         Subroutine DMPlexCreateDefault(m,ierr)
           import tDM
-          DM, intent(out) :: m
+          type(tDM), intent(out) :: m
           PetscErrorCode, intent(out):: ierr
         End Subroutine
       End Interface
@@ -368,3 +368,63 @@
           PetscErrorCode, intent(out)  :: ierr
         End Subroutine
       End Interface
+
+      Interface
+        Subroutine DMPlexCreateExodusFromFile(c,str,interpolate,m,ierr)
+          import tDM
+          MPI_Comm                     :: c
+          character(len=*)             :: str
+          PetscBool                    :: interpolate
+          Type(tDM), intent(out)       :: m
+          PetscErrorCode, intent(out)  :: ierr
+        End Subroutine
+      End Interface
+
+      Interface
+        Subroutine DMPlexCreateGmshFromFile(c,str,interpolate,m,ierr)
+          import tDM
+          MPI_Comm                     :: c
+          character(len=*)             :: str
+          PetscBool                    :: interpolate
+          Type(tDM), intent(out)       :: m
+          PetscErrorCode, intent(out)  :: ierr
+        End Subroutine
+      End Interface
+
+      Interface
+        Subroutine DMPlexCreateFluentFromFile(c,str,interpolate,m,ierr)
+          import tDM
+          MPI_Comm                     :: c
+          character(len=*)             :: str
+          PetscBool                    :: interpolate
+          Type(tDM), intent(out)       :: m
+          PetscErrorCode, intent(out)  :: ierr
+        End Subroutine
+      End Interface
+
+      Interface
+        Subroutine DMPlexConstructGhostCells(m,str,n,mG,ierr)
+          import tDM
+          Type(tDM),intent(IN)         :: m
+          character(len=*)             :: str
+          PetscInt                     :: n
+          Type(tDM),intent(OUT)        :: mG
+          PetscErrorCode, intent(out)  :: ierr
+        End Subroutine
+      End Interface
+
+      Interface
+        Subroutine DMPlexCreateBoxMesh(c,dim,simplex,faces,lower,upper,periodicity,interpolate,m,ierr)
+          import tDM
+          MPI_Comm                     :: c
+          PetscInt                     :: dim
+          PetscBool                    :: simplex
+          PetscInt,Pointer             :: faces(:)
+          PetscReal,Pointer            :: lower(:),upper(:)
+          DMBoundaryType,pointer       :: periodicity
+          PetscBool                    :: interpolate
+          Type(tDM), intent(out)       :: m
+          PetscErrorCode, intent(out)  :: ierr
+        End Subroutine
+      End Interface
+

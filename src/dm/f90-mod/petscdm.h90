@@ -1,18 +1,51 @@
       Interface
-       subroutine DMGetStratumIS(d,str,v,i,ierr)
+        subroutine DMGetStratumIS(d,str,v,i,ierr)
           import tDM,tIS
           type(tDM),      intent(in)  :: d
           character(*),   intent(in)  :: str
           PetscInt,       intent(in)  :: v
           type(tIS),      intent(out) :: i
           PetscErrorCode, intent(out) :: ierr
-       end Subroutine DMGetStratumIS
-       subroutine DMGetStratumSize(d,str,v,s,ierr)
+        end Subroutine DMGetStratumIS
+      End Interface
+      Interface
+        subroutine DMGetStratumSize(d,str,v,s,ierr)
           import tDM
           type(tDM),      intent(in)  :: d
           character(*),   intent(in)  :: str
           PetscInt,       intent(in)  :: v
           PetscInt,       intent(out) :: s
           PetscErrorCode, intent(out) :: ierr
-       end Subroutine DMGetStratumSize
+        end Subroutine DMGetStratumSize
       end Interface
+
+! These cause a circular reference. Not sure why
+! gmake[3]: Circular /opt/HPC/petsc-main/bigsur-gcc10.2-arm64-basic-g/include/petscdmdefdummy.mod <- /opt/HPC/petsc-main/bigsur-gcc10.2-arm64-basic-g/include/petscdmdefdummy.mod dependency dropped.
+
+!      Interface
+!        subroutine DMGetNamedGlobalVector(d,name,X,ierr)
+!          import tDM,tVec
+!          type(tDM),      intent(in)  :: d
+!          character(*),   intent(in)  :: name
+!          type(tVec),intent(out)      :: X
+!          PetscErrorCode, intent(out) :: ierr
+!         End Subroutine DMGetNamedGlobalVector
+!      End Interface
+!
+!      Interface
+!        subroutine DMRestoreNamedGlobalVector(d,name,X,ierr)
+!          import tDM,tVec
+!          type(tDM),      intent(in)  :: d
+!          character(*),   intent(in)  :: name
+!          type(tVec),intent(out)      :: X
+!          PetscErrorCode, intent(out) :: ierr
+!         End Subroutine DMRestoreNamedGlobalVector
+!      End Interface
+!
+!      Interface
+!        subroutine DMDestroy(d,ierr)
+!          import tDM
+!          type(tDM),      intent(out) :: d
+!          PetscErrorCode, intent(out) :: ierr
+!         End Subroutine DMDestroy
+!      End Interface
