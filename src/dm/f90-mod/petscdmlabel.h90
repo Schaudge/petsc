@@ -44,3 +44,38 @@
           PetscErrorCode, intent(out) :: ierr
        end Subroutine DMSetLabelValue
       end Interface
+      Interface
+        Subroutine DMLabelView(l,v,ierr)
+          import tDMLabel,tPetscViewer
+          DMLabel,       intent(in)     :: l
+          Type(tPetscViewer),intent(in) :: v
+          PetscErrorCode,intent(out)    :: ierr
+        End Subroutine DMLabelView
+      End Interface
+      Interface
+        Subroutine DMHasLabel(d,v,t,ierr)
+          import tDM
+          Type(tDM),      intent(in)  :: d
+          character(*),   intent(in)  :: v
+          PetscBool,      intent(out) :: t
+          PetscErrorCode, intent(out) :: ierr
+        End Subroutine DMHasLabel
+      End Interface
+      Interface
+        Subroutine DMGetLabelName(d,n,s,ierr)
+          import tDM
+          Type(tDM),      intent(in)  :: d
+          PetscInt,       intent(in)  :: n
+          character(*),   intent(out) :: s
+          PetscErrorCode, intent(out) :: ierr
+        End Subroutine DMGetLabelName
+      End Interface
+      Interface
+        Subroutine DMRemoveLabel(d,n,l,ierr)
+          import tDM,tDMLabel
+          Type(tDM),      intent(in)  :: d
+          character(*),   intent(out) :: n
+          DMLabel,        intent(out) :: l
+          PetscErrorCode, intent(out) :: ierr
+        End Subroutine DMRemoveLabel
+      End Interface

@@ -364,7 +364,7 @@
           MPI_Comm                     :: c
           character(len=*)             :: str
           PetscFileMode                :: mode
-          PetscViewer                  :: v
+          Type(tPetscViewer)           :: v
           PetscErrorCode, intent(out)  :: ierr
         End Subroutine
       End Interface
@@ -413,18 +413,19 @@
         End Subroutine
       End Interface
 
-      Interface
-        Subroutine DMPlexCreateBoxMesh(c,dim,simplex,faces,lower,upper,periodicity,interpolate,m,ierr)
-          import tDM
-          MPI_Comm                     :: c
-          PetscInt                     :: dim
-          PetscBool                    :: simplex
-          PetscInt,Pointer             :: faces(:)
-          PetscReal,Pointer            :: lower(:),upper(:)
-          DMBoundaryType,pointer       :: periodicity
-          PetscBool                    :: interpolate
-          Type(tDM), intent(out)       :: m
-          PetscErrorCode, intent(out)  :: ierr
-        End Subroutine
-      End Interface
+      ! I don't know how to deal with the intended interface of passing a single PETSC_NULL_INTEGER for faces
+      ! Interface
+      !   Subroutine DMPlexCreateBoxMesh(c,dim,simplex,faces,lower,upper,periodicity,interpolate,m,ierr)
+      !     import tDM
+      !     MPI_Comm                     :: c
+      !     PetscInt                     :: dim
+      !     PetscBool                    :: simplex
+      !     PetscInt,Pointer             :: faces(:)
+      !     PetscReal,Pointer            :: lower(:),upper(:)
+      !     DMBoundaryType,pointer       :: periodicity(:)
+      !     PetscBool                    :: interpolate
+      !     Type(tDM), intent(out)       :: m
+      !     PetscErrorCode, intent(out)  :: ierr
+      !   End Subroutine
+      ! End Interface
 

@@ -7774,7 +7774,7 @@ PetscErrorCode DMGetLabelByNum(DM dm, PetscInt n, DMLabel *label)
   SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Label %D does not exist in this DM", n);
 }
 
-/*@C
+/*@
   DMAddLabel - Add the label to this mesh
 
   Not Collective

@@ -1,51 +1,150 @@
+!!!   Functions defined in dm.c
       Interface
-        subroutine DMGetStratumIS(d,str,v,i,ierr)
+        Subroutine DMSetStratumIS(d,str,v,i,ierr)
           import tDM,tIS
-          type(tDM),      intent(in)  :: d
-          character(*),   intent(in)  :: str
-          PetscInt,       intent(in)  :: v
-          type(tIS),      intent(out) :: i
-          PetscErrorCode, intent(out) :: ierr
-        end Subroutine DMGetStratumIS
+          type(tDM),intent(in)          :: d
+          character(*),intent(in)       :: str
+          PetscInt,intent(in)           :: v
+          type(tIS),intent(in)         :: i
+          PetscErrorCode,intent(out)    :: ierr
+        End Subroutine DMSetStratumIS
       End Interface
       Interface
-        subroutine DMGetStratumSize(d,str,v,s,ierr)
+         Subroutine DMGetStratumIS(d,str,v,i,ierr)
+            import tDM,tIS
+            type(tDM),intent(in)          :: d
+            character(*),intent(in)       :: str
+            PetscInt,intent(in)           :: v
+            type(tIS),intent(out)         :: i
+            PetscErrorCode,intent(out)    :: ierr
+         End Subroutine DMGetStratumIS
+      End Interface
+      Interface
+         Subroutine DMGetStratumSize(d,str,v,s,ierr)
+            import tDM
+            type(tDM),intent(in)          :: d
+            character(*),intent(in)       :: str
+            PetscInt,intent(in)           :: v
+            PetscInt,intent(out)          :: s
+            PetscErrorCode,intent(out)    :: ierr
+         End Subroutine DMGetStratumSize
+      End Interface
+      Interface
+         Subroutine DMGetNamedGlobalVector(d,name,X,ierr)
+            import tDM,tVec
+            type(tDM),intent(in)          :: d
+            character(*),intent(in)       :: name
+            type(tVec),intent(out)        :: X
+            PetscErrorCode,intent(out)    :: ierr
+         End Subroutine DMGetNamedGlobalVector
+      End Interface
+      Interface
+         Subroutine DMRestoreNamedGlobalVector(d,name,X,ierr)
+            import tDM,tVec
+            type(tDM),intent(in)          :: d
+            character(*),intent(in)       :: name
+            type(tVec),intent(out)        :: X
+            PetscErrorCode,intent(out)    :: ierr
+         End Subroutine DMRestoreNamedGlobalVector
+      End Interface
+      Interface
+         Subroutine DMView(d,v,ierr)
+            import tDM,tPetscViewer
+            Type(tDM),intent(in)          :: d
+            Type(tPetscViewer),intent(in) :: v
+            PetscErrorCode,intent(out)    :: ierr
+         End Subroutine DMView
+      End Interface
+      Interface
+         Subroutine DMDestroy(d,ierr)
+            import tDM
+            type(tDM),intent(out)        :: d
+            PetscErrorCode,intent(out)   :: ierr
+         End Subroutine DMDestroy
+      End Interface
+      Interface
+         Subroutine DMCreateLabel(d,name,ierr)
+            import tDM
+            Type(tDM),intent(in)         :: d
+            Character(*),intent(in)      :: name
+            PetscErrorCode,intent(out)   :: ierr
+         End Subroutine DMCreateLabel
+      End Interface
+      Interface
+         Subroutine DMCreateInterpolation(c,f,m,v,ierr)
+            import tDM,tMat,tVec
+            Type(tDM),intent(in)         :: c,f
+            Type(tMat),intent(out)       :: m
+            Type(tVec),intent(out)       :: v
+            PetscErrorCode,intent(out)   :: ierr
+         End Subroutine DMCreateInterpolation
+      End Interface
+      Interface
+        Subroutine DMSetOptionsPrefix(d,p,ierr)
           import tDM
-          type(tDM),      intent(in)  :: d
-          character(*),   intent(in)  :: str
-          PetscInt,       intent(in)  :: v
-          PetscInt,       intent(out) :: s
-          PetscErrorCode, intent(out) :: ierr
-        end Subroutine DMGetStratumSize
-      end Interface
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(in)         :: p
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMSetOptionsPrefix
+      End Interface
+      Interface
+        Subroutine DMSetType(d,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(in)         :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMSetType
+      End Interface
+      Interface
+        Subroutine DMGetType(d,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(out)        :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMGetType
+      End Interface
+      Interface
+        Subroutine DMSetMatType(d,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(in)         :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMSetMatType
+      End Interface
+      Interface
+        Subroutine DMSetVecType(d,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(in)         :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMSetVecType
+      End Interface
+      Interface
+        Subroutine DMGetMatType(d,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(out)        :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMGetMatType
+      End Interface
+      Interface
+        Subroutine DMGetVecType(d,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Character(*),intent(out)        :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMGetVecType
+      End Interface
 
-! These cause a circular reference. Not sure why
-! gmake[3]: Circular /opt/HPC/petsc-main/bigsur-gcc10.2-arm64-basic-g/include/petscdmdefdummy.mod <- /opt/HPC/petsc-main/bigsur-gcc10.2-arm64-basic-g/include/petscdmdefdummy.mod dependency dropped.
+#if defined(PETSC_HAVE_FORTRAN_TYPE_STAR)
+      Interface
+        Subroutine DMViewFromOptions(d,o,t,ierr)
+          import tDM
+          Type(tDM),intent(in)            :: d
+          Type(*),intent(in)              :: o
+          Character(*),intent(in)         :: t
+          PetscErrorCode,intent(out)      :: ierr
+        End Subroutine DMViewFromOptions
+      End Interface
+#endif
 
-!      Interface
-!        subroutine DMGetNamedGlobalVector(d,name,X,ierr)
-!          import tDM,tVec
-!          type(tDM),      intent(in)  :: d
-!          character(*),   intent(in)  :: name
-!          type(tVec),intent(out)      :: X
-!          PetscErrorCode, intent(out) :: ierr
-!         End Subroutine DMGetNamedGlobalVector
-!      End Interface
-!
-!      Interface
-!        subroutine DMRestoreNamedGlobalVector(d,name,X,ierr)
-!          import tDM,tVec
-!          type(tDM),      intent(in)  :: d
-!          character(*),   intent(in)  :: name
-!          type(tVec),intent(out)      :: X
-!          PetscErrorCode, intent(out) :: ierr
-!         End Subroutine DMRestoreNamedGlobalVector
-!      End Interface
-!
-!      Interface
-!        subroutine DMDestroy(d,ierr)
-!          import tDM
-!          type(tDM),      intent(out) :: d
-!          PetscErrorCode, intent(out) :: ierr
-!         End Subroutine DMDestroy
-!      End Interface
