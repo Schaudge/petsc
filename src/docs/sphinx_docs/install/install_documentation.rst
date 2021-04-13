@@ -642,7 +642,7 @@ ALCF - Argonne National Laboratory - theta machine - Intel KNL based system
 - PI:
 - Notes on usage:
 
-  - Log into theta.alcf.anl.gov
+  - Log into theta.alcf.anl.gov (use MobilPass+ app to provide the requested password).
   - There are three compiler suites `Modules`_
 
     - module load PrgEnv-intel intel
@@ -672,16 +672,33 @@ ALCF - Argonne National Laboratory - thetagpu machine - AMD CPUs with NVIDIA GPU
 
   - Log into theta.alcf.anl.gov
     - Log into thetagpusn1
-      - qsub -I -t TimeInMinutes -n 1 -A AProjectName (for example, gpu_hack)
-        - The connection to the outside world does not exist so do
-          export http_proxy=http://proxy.tmi.alcf.anl.gov:3128
-          export https_proxy=http://proxy.tmi.alcf.anl.gov:3128
 
+      -Put into your .bashrc file
+       - export http_proxy=http://proxy.tmi.alcf.anl.gov:3128
+       - export https_proxy=http://proxy.tmi.alcf.anl.gov:3128
+       - module unload openmpi/openmpi-4.0.5
+       - module use /soft/thetagpu/hpc-sdk/modulefiles
+       - module load nvhpc/21.2
+       - module load openmpi/openmpi-4.0.5
+
+      - To log into compute node to compile use qsub -I -t TimeInMinutes -n 1 -A AProjectName (for example, gpu_hack)
+
+      - GNU compilers
         - There is no default BLAS/LAPACK so use a --download option for BLAS/LAPACK
 
         - Use the configure option --with-cuda-gencodearch=80  because this machine does not have deviceQuery
-
         - Use -with-kokkos-cuda-arch=AMPERE80
+
+      - NVIDIAs compilers
+
+        - on front end compile with
+          - ./configure CUDAC=/lus/theta-fs0/software/thetagpu/cuda/cuda_11.2.1_460.32.03_linux/bin/nvcc --with-cuda --with-fortran-bindings=0
+
+        - on compute node compile with
+          - ./configure CUDAC=/usr/local/cuda-11.0/bin/nvcc --with-cuda --with-fortran-bindings=0
+
+
+          - there are some conflicts with the gcc 7.5 install and NVIDIAs compilers that prevent sowing from just using the native GNU compilers
 
 
 OLCF - Oak Ridge National Laboratory - Summit machine - NVIDIA GPUs and IBM Power PC processors
