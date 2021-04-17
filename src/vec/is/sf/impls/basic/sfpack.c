@@ -1029,8 +1029,14 @@ PetscErrorCode PetscSFLinkPackRootData_Private(PetscSF sf,PetscSFLink link,Petsc
   PetscErrorCode   (*Pack)(PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,const void*,void*) = NULL;
   PetscMemType     rootmtype = link->rootmtype;
   PetscSFPackOpt   opt = NULL;
+  PetscBool        disable = PETSC_FALSE, disableAll = PETSC_FALSE;
 
   PetscFunctionBegin;
+  ierr = PetscObjectOptionsBegin((PetscObject)sf);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_root_pack","disables PetscSFLinkPackRootData_Private","",disable,&disable,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_all_pack","disables all petscsf packing","",disableAll,&disableAll,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  if (disable || disableAll) PetscFunctionReturn(0);
   ierr = PetscLogEventBegin(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   if (!link->rootdirect[scope]) { /* If rootdata works directly as rootbuf, skip packing */
     ierr = PetscSFLinkGetRootPackOptAndIndices(sf,link,rootmtype,scope,&count,&start,&opt,&rootindices);CHKERRQ(ierr);
@@ -1050,8 +1056,14 @@ PetscErrorCode PetscSFLinkPackLeafData_Private(PetscSF sf,PetscSFLink link,Petsc
   PetscErrorCode   (*Pack)(PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,const void*,void*) = NULL;
   PetscMemType     leafmtype = link->leafmtype;
   PetscSFPackOpt   opt = NULL;
+  PetscBool        disable = PETSC_FALSE, disableAll = PETSC_FALSE;
 
   PetscFunctionBegin;
+  ierr = PetscObjectOptionsBegin((PetscObject)sf);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_leaf_pack","disables PetscSFLinkPackLeafData_Private","",disable,&disable,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_all_pack","disables all petscsf packing","",disableAll,&disableAll,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  if (disable || disableAll) PetscFunctionReturn(0);
   ierr = PetscLogEventBegin(PETSCSF_Pack,sf,0,0,0);CHKERRQ(ierr);
   if (!link->leafdirect[scope]) { /* If leafdata works directly as rootbuf, skip packing */
     ierr = PetscSFLinkGetLeafPackOptAndIndices(sf,link,leafmtype,scope,&count,&start,&opt,&leafindices);CHKERRQ(ierr);
@@ -1103,8 +1115,14 @@ PetscErrorCode PetscSFLinkUnpackRootData_Private(PetscSF sf,PetscSFLink link,Pet
   PetscErrorCode   (*UnpackAndOp)(PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,void*,const void*) = NULL;
   PetscMemType     rootmtype = link->rootmtype;
   PetscSFPackOpt   opt = NULL;
+  PetscBool        disable = PETSC_FALSE, disableAll = PETSC_FALSE;
 
   PetscFunctionBegin;
+  ierr = PetscObjectOptionsBegin((PetscObject)sf);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_root_unpack","disables PetscSFLinkUnpackRootData_Private","",disable,&disable,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_all_pack","disables all petscsf packing","",disableAll,&disableAll,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  if (disable || disableAll) PetscFunctionReturn(0);
   if (!link->rootdirect[scope]) { /* If rootdata works directly as rootbuf, skip unpacking */
     ierr = PetscSFLinkGetUnpackAndOp(link,rootmtype,op,bas->rootdups[scope],&UnpackAndOp);CHKERRQ(ierr);
     if (UnpackAndOp) {
@@ -1127,8 +1145,14 @@ PetscErrorCode PetscSFLinkUnpackLeafData_Private(PetscSF sf,PetscSFLink link,Pet
   PetscErrorCode   (*UnpackAndOp)(PetscSFLink,PetscInt,PetscInt,PetscSFPackOpt,const PetscInt*,void*,const void*) = NULL;
   PetscMemType     leafmtype = link->leafmtype;
   PetscSFPackOpt   opt = NULL;
+  PetscBool        disable = PETSC_FALSE, disableAll = PETSC_FALSE;
 
   PetscFunctionBegin;
+  ierr = PetscObjectOptionsBegin((PetscObject)sf);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_leaf_unpack","disables PetscSFLinkUnpackLeafData_Private","",disable,&disable,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-sf_disable_all_pack","disables all petscsf packing","",disableAll,&disableAll,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  if (disable || disableAll) PetscFunctionReturn(0);
   if (!link->leafdirect[scope]) { /* If leafdata works directly as rootbuf, skip unpacking */
     ierr = PetscSFLinkGetUnpackAndOp(link,leafmtype,op,sf->leafdups[scope],&UnpackAndOp);CHKERRQ(ierr);
     if (UnpackAndOp) {
