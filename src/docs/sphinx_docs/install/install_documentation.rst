@@ -681,9 +681,11 @@ ALCF - Argonne National Laboratory - thetagpu machine - AMD CPUs with NVIDIA GPU
       - module load libtool-2.4.6-gcc-7.5.0-jdxbjft
       - ./configure --with-mpi-dir=$OPAL_PREFIX -with-cuda-dir=$CUDA_DIR/11.2  --download-f2cblaslapack=1
 
+      - to install cmake add --download-cmake --download-cmake-configure-arguments="-- -DCMAKE_USE_OPENSSL=OFF"
+
       - Log into interactive nodes with
         - qsub -I -t TimeInMinutes -n 1 -A AProjectName (for example, gpu_hack)
-        - Run executables with $OPAL_PREFIX/bin/mpirun 
+        - Run executables with $OPAL_PREFIX/bin/mpirun
 
 
 OLCF - Oak Ridge National Laboratory - Summit machine - NVIDIA GPUs and IBM Power PC processors

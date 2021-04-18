@@ -4,7 +4,7 @@ import os
 class Configure(config.package.GNUPackage):
   def __init__(self, framework):
     config.package.GNUPackage.__init__(self, framework)
-    self.download          = ['https://cmake.org/files/v3.20.1/cmake-3.20.1.tar.gz',
+    self.download          = ['https://cmake.org/files/v3.20/cmake-3.20.1.tar.gz',
                               'http://ftp.mcs.anl.gov/pub/petsc/externalpackages/cmake-3.20.1.tar.gz']
     self.download_311      = ['https://cmake.org/files/v3.11/cmake-3.11.4.tar.gz',
                               'http://ftp.mcs.anl.gov/pub/petsc/externalpackages/cmake-3.11.4.tar.gz']
@@ -25,6 +25,7 @@ class Configure(config.package.GNUPackage):
     help.addArgument('CMAKE', '-with-ctest-exec=<executable>',                nargs.Arg(None, None, 'Ctest executable to look for'))
     return
 
+  # To added CMake arguments in building CMake use, for example, -download-cmake-configure-arguments="-- -DCMAKE_USE_OPENSSL=OFF"
   def formGNUConfigureArgs(self):
     '''Does not use the standard arguments at all since this does not use the MPI compilers etc
        Cmake will chose its own compilers if they are not provided explicitly here'''
