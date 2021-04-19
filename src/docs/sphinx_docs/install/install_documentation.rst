@@ -682,6 +682,8 @@ ALCF - Argonne National Laboratory - thetagpu machine - AMD CPUs with NVIDIA GPU
       - ./configure --with-mpi-dir=$OPAL_PREFIX -with-cuda-dir=$CUDA_DIR/11.2  --download-f2cblaslapack=1
 
       - to install cmake add --download-cmake --download-cmake-configure-arguments="-- -DCMAKE_USE_OPENSSL=OFF"
+      - to install Kokkos need to do
+        export CUDA_ROOT=$CUDA_DIR/11.2
 
       - Log into interactive nodes with
         - qsub -I -t TimeInMinutes -n 1 -A AProjectName (for example, gpu_hack)

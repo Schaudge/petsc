@@ -9,7 +9,8 @@ class Configure(config.package.CMakePackage):
     self.download         = ['git://https://github.com/kokkos/kokkos.git']
     self.downloaddirnames = ['kokkos']
     self.excludedDirs     = ['kokkos-kernels'] # Do not wrongly think kokkos-kernels as kokkos-vernum
-    self.includes         = ['Kokkos_Macros.hpp']
+    #  Cannot test includes since requires using kokkos.cxx rules with Kokkos nvcc wrapper
+    #self.includes         = ['Kokkos_Macros.hpp']
     self.liblist          = [['libkokkoscontainers.a','libkokkoscore.a']]
     self.functions        = ['']
     self.functionsCxx     = [1,'namespace Kokkos {void initialize(int&,char*[]);}','int one = 1;char* args[1];Kokkos::initialize(one,args);']
