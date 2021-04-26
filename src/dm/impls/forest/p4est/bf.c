@@ -544,6 +544,9 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
   ierr = DMForestSetAdjacencyDimension(dm,0);CHKERRQ(ierr);
   ierr = DMForestSetPartitionOverlap(dm,0);CHKERRQ(ierr);
 
+  ierr = DMSetVecType(dm,VECSTANDARD);CHKERRQ(ierr);
+  ierr = DMSetMatType(dm,MATSHELL);CHKERRQ(ierr);
+
   bf = _p_getBF(dm);
 
   bf->ftTopology = PETSC_NULL;
@@ -825,6 +828,7 @@ PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
   PetscFunctionReturn(0);
 }
 
+//TODO need to use DMGetVecType and; add DMSetVecType -> STANDARD to be default for the DM
 static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
 {
   PetscInt       blockSize[3] = {1, 1, 1};
@@ -848,6 +852,7 @@ static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
   PetscFunctionReturn(0);
 }
 
+//TODO need to use DMGetVecType and; add DMSetVecType -> STANDARD to be default for the DM
 static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
 {
   PetscInt       blockSize[3] = {1, 1, 1};
@@ -881,11 +886,12 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
 
 static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
 {
-  void           *appctx;
   PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, N;
   PetscInt       cellDof = 1;
   PetscInt       locDof,gloDof;
+  MatType        mattype;
+  PetscBool      match;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -900,9 +906,21 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   locDof = cellDof*n;
   gloDof = cellDof*N;
   /* create matrix */
-  ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
-  ierr = MatCreateShell(_p_comm(dm),locDof,locDof,gloDof,gloDof,appctx,mat);CHKERRQ(ierr);
+  ierr = MatCreate(_p_comm(dm),mat);CHKERRQ(ierr);
+  ierr = MatSetSizes(*mat,locDof,locDof,gloDof,gloDof);CHKERRQ(ierr);
+  ierr = MatSetBlockSize(*mat,1/*blocksize*/);CHKERRQ(ierr);
   ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
+  /* set type */
+  ierr = DMGetMatType(dm,&mattype);CHKERRQ(ierr);
+  ierr = MatSetType(*mat,mattype);CHKERRQ(ierr);
+  /* set context */
+  PetscStrcmp(mattype,MATSHELL,&match);
+  if (match) {
+    void *appctx;
+    ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
+    ierr = MatShellSetContext(*mat,appctx);CHKERRQ(ierr);
+    ierr = MatSetUp(*mat);CHKERRQ(ierr);
+  }
   //TODO set null space?
   PetscFunctionReturn(0);
 }
