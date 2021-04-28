@@ -70,7 +70,6 @@ makefile.html
 *.cpp.html
 *.hh.html
 *.sidl.html
-src/docs/website/publications/generated_topics.html
 src/dm/mesh/tests/unitTests
 src/dm/mesh/tutorials/*_quadrature.h
 src/dm/mesh/tutorials/*.vtk
