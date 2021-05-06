@@ -16,5 +16,5 @@ PetscErrorCode DMBF_2D_IterateGhostExchange(DM,DM_BF_Cell*,size_t);
 
 PetscErrorCode DMBF_2D_IterateOverCellsVectors(DM,DM_BF_Cell*,size_t,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
 PetscErrorCode DMBF_2D_IterateOverFaces(DM,DM_BF_Cell*,size_t,PetscErrorCode(*)(DM,DM_BF_Face*,void*),void*);
-
+PetscErrorCode DMBF_2D_IterateFVMatAssembly(DM,DM_BF_Cell*,size_t,Mat,PetscErrorCode(*)(DM,DM_BF_Face*,PetscReal*,void*),void*);
 #endif /* defined(PETSCDMBF_2D_ITERATE_H) */

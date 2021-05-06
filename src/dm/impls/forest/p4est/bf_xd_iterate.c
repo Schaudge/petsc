@@ -40,11 +40,10 @@ static void _p_getInfo(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_top
   /* set cell data */
   if (!is_ghost) {
     p4est_tree_t *tree = p4est_tree_array_index(p4est->trees,treeid);
-
     cell->indexLocal  = (PetscInt)(tree->quadrants_offset + quadid);
     cell->indexGlobal = cell->indexLocal + (PetscInt)p4est->global_first_quadrant[p4est->mpirank];
   } else {
-    cell->indexLocal  = (PetscInt)(p4est->global_first_quadrant[p4est->mpirank+1] + quadid);
+    cell->indexLocal  = (PetscInt)(p4est->local_num_quadrants + quadid);
     cell->indexGlobal = -1;
   }
   cell->level         = (PetscInt)quad->level;
@@ -875,6 +874,184 @@ PetscErrorCode DMBF_XD_IterateOverFaces(DM dm, DM_BF_Cell *cells, size_t cellSiz
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFace,NULL,NULL));
 #else
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFace,NULL));
+#endif
+  PetscFunctionReturn(0);
+}
+
+typedef struct _p_DM_BF_FVMatAssemblyIterCtx {
+  /* DM-specifc info (required) */
+  DM                dm;
+  DM_BF_Cell        *cells;
+  size_t            cellSize;
+  /* iterator-specific info */
+  PetscErrorCode    (*iterFace)(DM,DM_BF_Face*,PetscReal*,void*);
+  PetscReal         *cellCoeff; 
+  PetscInt          *rowIndices;
+  PetscInt          *colIndices;
+  Mat               M;
+  void              *userIterCtx;
+  DM_BF_Face        face;
+} DM_BF_FVMatAssemblyIterCtx;
+
+static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
+{
+  DM_BF_FVMatAssemblyIterCtx    *iterCtx   = ctx;
+  DM_BF_Face           *face      = &iterCtx->face;
+  const PetscBool      isBoundary = (1 == info->sides.elem_count);
+  PetscInt             blockSize[3] = {1, 1, 1};
+  PetscInt             i,j,k=0,len=0,bs,idx;
+
+#if defined(PETSC_USE_DEBUG)
+  face->cellL[0] = PETSC_NULL;
+  face->cellL[1] = PETSC_NULL;
+  face->cellL[2] = PETSC_NULL;
+  face->cellL[3] = PETSC_NULL;
+  face->cellR[0] = PETSC_NULL;
+  face->cellR[1] = PETSC_NULL;
+  face->cellR[2] = PETSC_NULL;
+  face->cellR[3] = PETSC_NULL;
+#endif
+  
+  CHKERRV( DMBFGetBlockSize(iterCtx->dm,blockSize) ); /* set indices of values to set in matrix */
+  bs   = blockSize[0]*blockSize[1]*blockSize[2];
+
+  /* get cell and vector data */
+  if (isBoundary) {
+    p4est_iter_face_side_t *side = p4est_iter_fside_array_index_int(&info->sides,0);
+
+    face->nCellsL = 1;
+    face->nCellsR = 0;
+    face->cellL[0] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                   side->treeid,side->is.full.quadid,0/*!ghost*/);
+    len++;
+    idx = face->cellL[0]->indexLocal;
+    for(j = 0; j < bs; j++,k++) {
+      iterCtx->rowIndices[k] = bs*idx + j;
+      iterCtx->colIndices[k] = bs*idx + j;
+    }
+  } else { /* !isBoundary */
+    p4est_iter_face_side_t *sideL = p4est_iter_fside_array_index_int(&info->sides,0);
+    p4est_iter_face_side_t *sideR = p4est_iter_fside_array_index_int(&info->sides,1);
+
+    face->nCellsL = (sideL->is_hanging ? 2 : 1); //TODO only 2D
+    face->nCellsR = (sideR->is_hanging ? 2 : 1); //TODO only 2D
+    if ( !(1 <= face->nCellsL && 1 <= face->nCellsR && (face->nCellsL + face->nCellsR) <= 3) ) { //TODO only 2D
+      //TODO error
+    }
+    if (sideL->is_hanging) {
+      for (i=0; i<face->nCellsL; i++) {
+        face->cellL[i] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                       sideL->treeid,sideL->is.hanging.quadid[i],sideL->is.hanging.is_ghost[i]);
+        len++;
+        if(!sideL->is.hanging.is_ghost[i]) {
+          idx = face->cellL[i]->indexLocal;
+        } else {
+          idx = info->p4est->local_num_quadrants + sideL->is.hanging.quadid[i];
+        }
+        for(j = 0; j < bs; j++,k++) {
+          iterCtx->colIndices[k] = bs*idx + j;
+          if(sideL->is.hanging.is_ghost[i]) {
+            iterCtx->rowIndices[k] = -1;
+          } else {
+           iterCtx->rowIndices[k] = bs*idx + j;
+          }
+        }
+      }
+    } else {
+      face->cellL[0] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                     sideL->treeid,sideL->is.full.quadid,sideL->is.full.is_ghost);
+      len++;
+      if(!sideL->is.full.is_ghost) {
+        idx = face->cellL[0]->indexLocal;
+      } else {
+        idx = info->p4est->local_num_quadrants + sideL->is.full.quadid;
+      }
+      for(j = 0; j < bs; j++,k++) {
+        iterCtx->colIndices[k] = bs*idx + j;
+        if(sideL->is.full.is_ghost) {
+          iterCtx->rowIndices[k] = -1;
+        } else {
+          iterCtx->rowIndices[k] = bs*idx + j;
+        }
+      }
+    }
+    if (sideR->is_hanging) {
+      for (i=0; i<face->nCellsR; i++) {
+        face->cellR[i] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                       sideR->treeid,sideR->is.hanging.quadid[i],sideR->is.hanging.is_ghost[i]);
+        len++;
+        if(!sideR->is.hanging.is_ghost[i]) {
+          idx = face->cellR[i]->indexLocal;
+        } else {
+          idx = info->p4est->local_num_quadrants + sideR->is.hanging.quadid[i];
+        }
+        for(j = 0; j < bs; j++,k++) {
+          iterCtx->colIndices[k] = bs*idx + j;
+          if(sideR->is.hanging.is_ghost[i]) {
+            iterCtx->rowIndices[k] = -1;
+          } else {
+            iterCtx->rowIndices[k] = bs*idx + j;
+          }
+        }
+      }
+    } else {
+      face->cellR[0] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                     sideR->treeid,sideR->is.full.quadid,sideR->is.full.is_ghost);
+      len++;
+      if(!sideR->is.full.is_ghost) {
+        idx = face->cellR[0]->indexLocal;
+      } else {
+        idx = info->p4est->local_num_quadrants + sideR->is.full.quadid;
+      }
+      for(j = 0; j < bs; j++,k++) {
+        iterCtx->colIndices[k] = bs*idx + j;
+        if(sideR->is.full.is_ghost) {
+          iterCtx->rowIndices[k] = -1;
+        } else {
+          iterCtx->rowIndices[k] = bs*idx + j;
+        }
+      }
+    }
+  }
+  /* call face function */
+  CHKERRV( iterCtx->iterFace(iterCtx->dm,face,iterCtx->cellCoeff,iterCtx->userIterCtx) );
+  CHKERRV( MatSetValuesLocal(iterCtx->M,len,iterCtx->rowIndices,len,iterCtx->colIndices,iterCtx->cellCoeff,ADD_VALUES) );
+}
+
+PetscErrorCode DMBF_XD_IterateFVMatAssembly(DM dm, DM_BF_Cell *cells, size_t cellSize, Mat M,
+                                            PetscErrorCode (*iterFace)(DM,DM_BF_Face*,PetscReal*,void*), void *userIterCtx)
+{
+  DM_BF_FVMatAssemblyIterCtx iterCtx;
+  PetscErrorCode    ierr;
+  p4est_t           *p4est;
+  p4est_ghost_t     *ghost;
+  PetscInt          blockSize[3] = {1, 1, 1},bs;
+
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidFunction(iterFace,2);
+  /* set iterator context */
+  iterCtx.dm          = dm;
+  iterCtx.cells       = cells;
+  iterCtx.cellSize    = cellSize;
+  iterCtx.iterFace    = iterFace;
+  iterCtx.userIterCtx = userIterCtx;
+  iterCtx.M           = M;
+  
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  bs   = blockSize[0]*blockSize[1]*blockSize[2];
+  PetscMalloc1(bs*bs*3*3,&iterCtx.cellCoeff);CHKERRQ(ierr);  /* In 3D, 3 should be 5 */
+  PetscMalloc1(bs*3,&iterCtx.rowIndices);CHKERRQ(ierr);
+  PetscMalloc1(bs*3,&iterCtx.colIndices);CHKERRQ(ierr);
+
+  /* run iterator */
+  ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
+  ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
+#if defined(P4_TO_P8)
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFVMatAssembly,NULL,NULL));
+#else
+  PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,NULL,_p_iterFVMatAssembly,NULL));
 #endif
   PetscFunctionReturn(0);
 }

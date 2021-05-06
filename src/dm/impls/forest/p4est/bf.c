@@ -273,6 +273,7 @@ static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
   ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
   ierr = ISCreateGeneral(comm,locDof,fromIdx,PETSC_COPY_VALUES,&fromIS);CHKERRQ(ierr);
   ierr = ISCreateGeneral(comm,locDof,toIdx,PETSC_COPY_VALUES,&toIS);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingCreate(comm,1,locDof,toIdx,PETSC_COPY_VALUES,&dm->ltogmap);CHKERRQ(ierr);
   ierr = PetscFree(fromIdx);CHKERRQ(ierr);
   ierr = PetscFree(toIdx);CHKERRQ(ierr);
   /* create vectors */
@@ -884,12 +885,13 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
-{
+static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat) {
+  
+  DM_BF          *bf;
   PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, N;
   PetscInt       cellDof = 1;
-  PetscInt       locDof,gloDof;
+  PetscInt       locDof,gloDof,nGhost;
   MatType        mattype;
   PetscBool      match;
   PetscErrorCode ierr;
@@ -898,7 +900,7 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(mat,2);
   /* get number of rows/cols */
-  ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
+  ierr = DMBFGetInfo(dm,&dim,&n,&N,&nGhost);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   for(PetscInt i = 0; i < dim; i++) {
     cellDof *= blockSize[i];
@@ -906,7 +908,9 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   locDof = cellDof*n;
   gloDof = cellDof*N;
   /* create matrix */
+  bf    = _p_getBF(dm);
   ierr = MatCreate(_p_comm(dm),mat);CHKERRQ(ierr);
+  ierr = MatSetLocalToGlobalMapping(*mat,dm->ltogmap,dm->ltogmap);CHKERRQ(ierr);
   ierr = MatSetSizes(*mat,locDof,locDof,gloDof,gloDof);CHKERRQ(ierr);
   ierr = MatSetBlockSize(*mat,1/*blocksize*/);CHKERRQ(ierr);
   ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
@@ -919,8 +923,8 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
     void *appctx;
     ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
     ierr = MatShellSetContext(*mat,appctx);CHKERRQ(ierr);
-    ierr = MatSetUp(*mat);CHKERRQ(ierr);
-  }
+  } 
+  ierr = MatSetUp(*mat);CHKERRQ(ierr);
   //TODO set null space?
   PetscFunctionReturn(0);
 }
@@ -1457,6 +1461,31 @@ PetscErrorCode DMBFCommunicateGhostCells(DM dm)
   /* setup ghost cells */
   bf->ghostCellsSetUpCalled = PETSC_FALSE;
   ierr = DMBF_CellsSetUpGhost(dm);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBFFVMatAssemble(DM dm, Mat mat, PetscErrorCode (*iterFace)(DM,DM_BF_Face*,PetscReal*,void*), void *userIterCtx)
+{
+  DM_BF          *bf;
+  PetscInt       dim;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidFunction(iterFace,2);
+  bf = _p_getBF(dm);
+  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  if (!bf->ghostCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
+  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
+  ierr = MatZeroEntries(mat);CHKERRQ(ierr);
+  switch (dim) {
+    case 2: ierr = DMBF_2D_IterateFVMatAssembly(dm,bf->cells,_p_cellSize(bf),mat,iterFace,userIterCtx);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateFVMatAssembly(dm,bf->cells,_p_cellSize(bf),mat,iterFace,userIterCtx);CHKERRQ(ierr); break;
+    default: _p_SETERRQ_UNREACHABLE(dm);
+  }
+  ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -16,6 +16,7 @@
 
 #define DMBF_XD_IterateOverCellsVectors DMBF_3D_IterateOverCellsVectors
 #define DMBF_XD_IterateOverFaces        DMBF_3D_IterateOverFaces
+#define DMBF_XD_IterateFVMatAssembly    DMBF_3D_IterateFVMatAssembly
 
 /* include generic functions */
 #include "bf_xd_iterate.c"
