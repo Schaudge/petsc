@@ -1138,6 +1138,19 @@ If its a remote branch, use: origin/'+self.gitcommit+' for commit.')
     if 'with-'+self.package+'-pkg-config' in self.argDB:
       self.argDB['with-'+self.package] = 1
 
+    if 'with-'+self.package+'-dir' in self.argDB and 'LIBRARY_PATH' in os.environ and not hasattr(self,'Printed_LIBRARY_PATH_warning'):
+      self.Printed_LIBRARY_PATH_warning = 1
+      self.logPrintBox('***** WARNING: You have requested --with-'+self.package+'-dir='+self.argDB['with-'+self.package+'-dir']+' but have a LIBRARY_PATH of \n'\
+      +os.environ['LIBRARY_PATH'].replace(':','\n')+'\nin your environment. configure may incorrectly use libraries found in LIBRARY_PATH instead of the directory you have requested.')
+    if 'with-'+self.package+'-include' in self.argDB and 'CPATH' in os.environ and not hasattr(self,'Printed_CPATH_warning'):
+      if self.setCompilers.isWindows(self.setCompilers.getCompiler(),self.log):
+        sep = ';'
+      else:
+        sep = ':'
+      self.Printed_CPATH_warning = 1
+      self.logPrintBox('***** WARNING: You have requested --with-'+self.package+'-include='+str(self.argDB['with-'+self.package+'-include'])+' but have a CPATH of \n'\
+      +os.environ['CPATH'].replace(sep,'\n')+'\nin your environment. configure may incorrectly use include files found in CPATH instead of the directory you have requested.')
+
     self.consistencyChecks()
     if self.argDB['with-'+self.package]:
       # If clanguage is c++, test external packages with the c++ compiler
