@@ -221,15 +221,14 @@ static PetscErrorCode MatDestroy_MFFD(Mat mat)
 
   PetscFunctionBegin;
   ierr = MatShellGetContext(mat,&ctx);CHKERRQ(ierr);
+  ierr = PetscObjectDestroy(&ctx->getctx);CHKERRQ(ierr);
   ierr = VecDestroy(&ctx->w);CHKERRQ(ierr);
-  ierr = VecDestroy(&ctx->current_u);CHKERRQ(ierr);
-  if (ctx->current_f_allocated) {
-    ierr = VecDestroy(&ctx->current_f);CHKERRQ(ierr);
-  }
+  ierr = VecDestroy(&ctx->current_f);CHKERRQ(ierr);
   if (ctx->ops->destroy) {ierr = (*ctx->ops->destroy)(ctx);CHKERRQ(ierr);}
   ierr = PetscHeaderDestroy(&ctx);CHKERRQ(ierr);
 
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatMFFDSetBase_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)mat,"MatMFFDGetBase_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatMFFDSetFunctioniBase_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatMFFDSetFunctioni_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)mat,"MatMFFDSetFunction_C",NULL);CHKERRQ(ierr);
@@ -279,7 +278,9 @@ static PetscErrorCode MatView_MFFD(Mat J,PetscViewer viewer)
     ierr = PetscOptionsHasName(((PetscObject)J)->options,prefix, "-mat_mffd_view_base", &viewbase);CHKERRQ(ierr);
     if (viewbase) {
       ierr = PetscViewerASCIIPrintf(viewer, "Base:\n");CHKERRQ(ierr);
-      ierr = VecView(ctx->current_u, viewer);CHKERRQ(ierr);
+      Vec U;
+      ierr = (*ctx->getu)(ctx->getctx,&U);CHKERRQ(ierr);
+      ierr = VecView(U, viewer);CHKERRQ(ierr);
     }
     ierr = PetscOptionsHasName(((PetscObject)J)->options,prefix, "-mat_mffd_view_function", &viewfunction);CHKERRQ(ierr);
     if (viewfunction) {
@@ -326,20 +327,31 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
   PetscScalar    h;
   Vec            w,U,F;
   PetscErrorCode ierr;
-  PetscBool      zeroa;
+  PetscBool      zeroa,computefbase = PETSC_FALSE;
 
   PetscFunctionBegin;
   ierr = MatShellGetContext(mat,&ctx);CHKERRQ(ierr);
-  if (!ctx->current_u) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"MatMFFDSetBase() has not been called, this is often caused by forgetting to call \n\t\tMatAssemblyBegin/End on the first Mat in the SNES compute function");
   /* We log matrix-free matrix-vector products separately, so that we can
      separate the performance monitoring from the cases that use conventional
      storage.  We may eventually modify event logging to associate events
      with particular objects, hence alleviating the more general problem. */
   ierr = PetscLogEventBegin(MATMFFD_Mult,a,y,0,0);CHKERRQ(ierr);
 
+  if (!ctx->getu) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"MatMFFDSetBase() has not been called, this is often caused by forgetting to call \n\t\tMatAssemblyBegin/End on the first Mat in the SNES compute function");
+  ierr = (*ctx->getu)(ctx->getctx,&U);CHKERRQ(ierr);
+  if (!ctx->w) {
+    ierr = VecDuplicate(U,&ctx->w);CHKERRQ(ierr);
+  }
   w = ctx->w;
-  U = ctx->current_u;
-  F = ctx->current_f;
+  if (ctx->getf) {
+    ierr = (*ctx->getf)(ctx->getctx,&F);CHKERRQ(ierr);
+  } else {
+    if (!ctx->current_f) {
+      ierr = MatCreateVecs(mat,NULL,&ctx->current_f);CHKERRQ(ierr);
+    }
+    F            = ctx->current_f;
+    computefbase = PETSC_TRUE;
+  }
   /*
       Compute differencing parameter
   */
@@ -378,7 +390,7 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
   ierr = VecWAXPY(w,h,a,U);CHKERRQ(ierr);
 
   /* compute func(U) as base for differencing; only needed first time in and not when provided by user */
-  if (ctx->ncurrenth == 1 && ctx->current_f_allocated) {
+  if (ctx->ncurrenth == 1 && computefbase) {
     ierr = (*ctx->func)(ctx->funcctx,U,F);CHKERRQ(ierr);
   }
   ierr = (*ctx->func)(ctx->funcctx,w,y);CHKERRQ(ierr);
@@ -421,8 +433,12 @@ PetscErrorCode MatGetDiagonal_MFFD(Mat mat,Vec a)
   ierr = MatShellGetContext(mat,&ctx);CHKERRQ(ierr);
   if (!ctx->func) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Requires calling MatMFFDSetFunction() first");
   if (!ctx->funci) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Requires calling MatMFFDSetFunctioni() first");
-  w    = ctx->w;
-  U    = ctx->current_u;
+  if (!ctx->getu) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"MatMFFDSetBase() has not been called, this is often caused by forgetting to call \n\t\tMatAssemblyBegin/End on the first Mat in the SNES compute function");
+  ierr = (*ctx->getu)(ctx->getctx,&U);CHKERRQ(ierr);
+  if (!ctx->w) {
+    ierr = VecDuplicate(U,&ctx->w);CHKERRQ(ierr);
+  }
+  w = ctx->w;
   ierr = (*ctx->func)(ctx->funcctx,U,a);CHKERRQ(ierr);
   if (ctx->funcisetbase) {
     ierr = (*ctx->funcisetbase)(ctx->funcctx,U);CHKERRQ(ierr);
@@ -452,7 +468,7 @@ PetscErrorCode MatGetDiagonal_MFFD(Mat mat,Vec a)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode MatMFFDSetBase_MFFD(Mat J,Vec U,Vec F)
+PETSC_EXTERN PetscErrorCode MatMFFDSetBase_MFFD(Mat J,PetscErrorCode (*getu)(PetscObject,Vec*),PetscErrorCode (*getf)(PetscObject,Vec*),PetscObject getctx)
 {
   PetscErrorCode ierr;
   MatMFFD        ctx;
@@ -460,25 +476,29 @@ PETSC_EXTERN PetscErrorCode MatMFFDSetBase_MFFD(Mat J,Vec U,Vec F)
   PetscFunctionBegin;
   ierr = MatShellGetContext(J,&ctx);CHKERRQ(ierr);
   ierr = MatMFFDResetHHistory(J);CHKERRQ(ierr);
-  if (!ctx->current_u) {
-    ierr = VecDuplicate(U,&ctx->current_u);CHKERRQ(ierr);
-    ierr = VecLockReadPush(ctx->current_u);CHKERRQ(ierr);
-  }
-  ierr = VecLockReadPop(ctx->current_u);CHKERRQ(ierr);
-  ierr = VecCopy(U,ctx->current_u);CHKERRQ(ierr);
-  ierr = VecLockReadPush(ctx->current_u);CHKERRQ(ierr);
-  if (F) {
-    if (ctx->current_f_allocated) {ierr = VecDestroy(&ctx->current_f);CHKERRQ(ierr);}
-    ctx->current_f           = F;
-    ctx->current_f_allocated = PETSC_FALSE;
-  } else if (!ctx->current_f_allocated) {
-    ierr = MatCreateVecs(J,NULL,&ctx->current_f);CHKERRQ(ierr);
-    ctx->current_f_allocated = PETSC_TRUE;
-  }
-  if (!ctx->w) {
-    ierr = VecDuplicate(ctx->current_u,&ctx->w);CHKERRQ(ierr);
+  ctx->getu    = getu;
+  ctx->getf    = getf;
+  ierr         = PetscObjectReference(getctx);CHKERRQ(ierr);
+  ierr         = PetscObjectDestroy(&ctx->getctx);CHKERRQ(ierr);
+  ctx->getctx  = getctx;
+  if (getf && ctx->current_f) {
+    ierr = VecDestroy(&ctx->current_f);CHKERRQ(ierr);
   }
   J->assembled = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
+
+PETSC_EXTERN PetscErrorCode MatMFFDGetBase_MFFD(Mat J,PetscErrorCode (**getu)(PetscObject,Vec*),PetscErrorCode (**getf)(PetscObject,Vec*),PetscObject *getctx)
+{
+  PetscErrorCode ierr;
+  MatMFFD        ctx;
+
+  PetscFunctionBegin;
+  ierr = MatShellGetContext(J,&ctx);CHKERRQ(ierr);
+  if (getu)   *getu = ctx->getu;
+  if (getf)   *getf = ctx->getf;
+  if (getctx) *getctx = ctx->getctx;
   PetscFunctionReturn(0);
 }
 
@@ -667,6 +687,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MFFD(Mat A)
   ierr = MatShellSetOperation(A,MATOP_SET_FROM_OPTIONS,(void (*)(void))MatSetFromOptions_MFFD);CHKERRQ(ierr);
 
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatMFFDSetBase_C",MatMFFDSetBase_MFFD);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)A,"MatMFFDGetBase_C",MatMFFDGetBase_MFFD);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatMFFDSetFunctioniBase_C",MatMFFDSetFunctioniBase_MFFD);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatMFFDSetFunctioni_C",MatMFFDSetFunctioni_MFFD);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatMFFDSetFunction_C",MatMFFDSetFunction_MFFD);CHKERRQ(ierr);
@@ -1009,35 +1030,65 @@ PetscErrorCode  MatMFFDResetHHistory(Mat J)
   PetscFunctionReturn(0);
 }
 
-/*@
-    MatMFFDSetBase - Sets the vector U at which matrix vector products of the
-        Jacobian are computed
+/*@C
+    MatMFFDSetBase - Sets a function that provides the base vector U at which matrix vector products of the
+        Jacobian are computed as well as, optionally, the computed function at that base
 
     Logically Collective on Mat
 
     Input Parameters:
 +   J - the MatMFFD matrix
-.   U - the vector
--   F - (optional) vector that contains F(u) if it has been already computed
+.   getu - the function to provide the base U at which the product is computed
+.   getf - the function to provide the evaluation of the nonlinear function at base U (optional)
+-   getctx - the context for the function
 
     Notes:
     This is rarely used directly
 
-    If F is provided then it is not recomputed. Otherwise the function is evaluated at the base
-    point during the first MatMult() after each call to MatMFFDSetBase().
+    If getf is provided then it is not recomputed. Otherwise the nonlinear function is evaluated at the base
+    point U during the first MatMult() after each call to MatMFFDSetBase().
 
     Level: advanced
 
+.seealso: MatCreateMFFD(), MatMFFDSetBase()
+
 @*/
-PetscErrorCode  MatMFFDSetBase(Mat J,Vec U,Vec F)
+PetscErrorCode  MatMFFDSetBase(Mat J,PetscErrorCode (*getu)(PetscObject,Vec*),PetscErrorCode (*getf)(PetscObject,Vec*),PetscObject getctx)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(J,MAT_CLASSID,1);
-  PetscValidHeaderSpecific(U,VEC_CLASSID,2);
-  if (F) PetscValidHeaderSpecific(F,VEC_CLASSID,3);
-  ierr = PetscTryMethod(J,"MatMFFDSetBase_C",(Mat,Vec,Vec),(J,U,F));CHKERRQ(ierr);
+  ierr = PetscTryMethod(J,"MatMFFDSetBase_C",(Mat,PetscErrorCode (*)(PetscObject,Vec*),PetscErrorCode (*)(PetscObject,Vec*),PetscObject),(J,getu,getf,getctx));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@C
+    MatMFFDGetBase - Gets a function that provides the base vector U at which matrix vector products of the
+        Jacobian are computed as well as, optionally, the computed function at that base
+
+    Logically Collective on Mat
+
+    Input Parameter:
+.   J - the MatMFFD matrix
+
+    Output Parameters:
++   getu - the function to provide the base U at which the product is computed
+.   getf - the function to provide the evaluation of the nonlinear function at base U (optional)
+-   getctx - the context for the function
+
+    Level: advanced
+
+.seealso: MatCreateMFFD(), MatMFFDSetBase()
+
+@*/
+PetscErrorCode  MatMFFDGetBase(Mat J,PetscErrorCode (**getu)(PetscObject,Vec*),PetscErrorCode (**getf)(PetscObject,Vec*),PetscObject *getctx)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(J,MAT_CLASSID,1);
+  ierr = PetscTryMethod(J,"MatMFFDGetBase_C",(Mat,PetscErrorCode (**)(PetscObject,Vec*),PetscErrorCode (**)(PetscObject,Vec*),PetscObject*),(J,getu,getf,getctx));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -3395,10 +3395,22 @@ PetscErrorCode  SNESConvergedReasonViewCancel(SNES snes)
 PetscErrorCode  SNESDestroy(SNES *snes)
 {
   PetscErrorCode ierr;
+  PetscObject    obj;
 
   PetscFunctionBegin;
   if (!*snes) PetscFunctionReturn(0);
   PetscValidHeaderSpecific((*snes),SNES_CLASSID,1);
+
+  /* Handle circular reference */
+  if ((*snes)->jacobian) {
+    ierr = MatMFFDGetBase((*snes)->jacobian,NULL,NULL,&obj);CHKERRQ(ierr);
+    if ((((PetscObject)(*snes))->refct == 2) && (obj == (PetscObject)(*snes))) {
+      ++((PetscObject)(*snes))->refct;
+      ierr = MatMFFDSetBase((*snes)->jacobian,NULL,NULL,NULL);CHKERRQ(ierr);
+      --((PetscObject)(*snes))->refct;
+    }
+  }
+
   if (--((PetscObject)(*snes))->refct > 0) {*snes = NULL; PetscFunctionReturn(0);}
 
   ierr = SNESReset((*snes));CHKERRQ(ierr);

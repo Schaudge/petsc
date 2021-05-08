@@ -9214,6 +9214,7 @@ PetscErrorCode MatCreateVecs(Mat mat,Vec *right,Vec *left)
       ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
       ierr = VecSetBlockSize(*right,cbs);CHKERRQ(ierr);
       ierr = VecSetType(*right,mat->defaultvectype);CHKERRQ(ierr);
+      /* this goes through all the parallel work of creating a layout, above and then replaces it. Should be fixed to not create an initial layout */
       ierr = PetscLayoutReference(mat->cmap,&(*right)->map);CHKERRQ(ierr);
     }
     if (left) {

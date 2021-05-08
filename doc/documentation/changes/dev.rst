@@ -76,6 +76,7 @@ Changes: Development
    centering matrix
 -  Remove -mat_mumps_icntl_7 1 option, use -pc_factor_mat_ordering_type <type> to have PETSc perform the ordering (sequential only)
 -  Add ``MATSOLVERSPQR`` - interface to SuiteSparse QR factorization
+-  Change ``MatMFFDSetBase()`` calling sequence to take functions and a context that return the required base U and F vectors, instead of copying the given base U vector and passing a pointer for the F vector
 
 .. rubric:: PC:
 -  Add ``PCQR`` - interface to SuiteSparse QR factorization

@@ -43,9 +43,11 @@ struct _p_MatMFFD {
 
   PetscErrorCode (*func)(void*,Vec,Vec); /* function used for matrix free */
   void           *funcctx;               /* the context for the function */
+
+  PetscErrorCode (*getu)(PetscObject,Vec*);  /* gets the U at which the matrix-free multiple should be performed (base) */
+  PetscErrorCode (*getf)(PetscObject,Vec*);  /* gets the F at which the matrix-free multiple should be performed (base) */
+  PetscObject    getctx;
   Vec            current_f;              /* location of F(u); used with F(u+h) */
-  PetscBool      current_f_allocated;
-  Vec            current_u;              /* location of u; used with F(u+h) */
 
   PetscErrorCode (*funci)(void*,PetscInt,Vec,PetscScalar*); /* Evaluates func_[i]() */
   PetscErrorCode (*funcisetbase)(void*,Vec);                /* Sets base for future evaluations of func_[i]() */

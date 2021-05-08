@@ -1769,7 +1769,8 @@ PETSC_EXTERN PetscErrorCode MatKAIJGetScaledIdentity(Mat,PetscBool*);
 PETSC_EXTERN PetscErrorCode MatDiagonalScaleLocal(Mat,Vec);
 
 PETSC_EXTERN PetscErrorCode MatCreateMFFD(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,Mat*);
-PETSC_EXTERN PetscErrorCode MatMFFDSetBase(Mat,Vec,Vec);
+PETSC_EXTERN PetscErrorCode MatMFFDSetBase(Mat,PetscErrorCode (*)(PetscObject,Vec*),PetscErrorCode (*)(PetscObject,Vec*),PetscObject);
+PETSC_EXTERN PetscErrorCode MatMFFDGetBase(Mat,PetscErrorCode (**)(PetscObject,Vec*),PetscErrorCode (**)(PetscObject,Vec*),PetscObject*);
 PETSC_EXTERN PetscErrorCode MatMFFDSetFunction(Mat,PetscErrorCode(*)(void*,Vec,Vec),void*);
 PETSC_EXTERN PetscErrorCode MatMFFDSetFunctioni(Mat,PetscErrorCode (*)(void*,PetscInt,Vec,PetscScalar*));
 PETSC_EXTERN PetscErrorCode MatMFFDSetFunctioniBase(Mat,PetscErrorCode (*)(void*,Vec));

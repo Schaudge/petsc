@@ -169,6 +169,13 @@ PetscErrorCode  FormInitialGuess(SNES snes,Vec x)
   ierr = VecSet(x,pfive);CHKERRQ(ierr);
   return 0;
 }
+
+static PetscErrorCode getu(Vec x,Vec *outx)
+{
+  *outx = x;
+  return 0;
+}
+
 /* --------------------  Evaluate Jacobian F'(x) -------------------- */
 /*  Evaluates a matrix that is used to precondition the matrix-free
     jacobian. In this case, the explict preconditioner matrix is
@@ -201,7 +208,7 @@ PetscErrorCode  FormJacobian(SNES snes,Vec x,Mat jac,Mat B,void *dummy)
   ierr  = VecRestoreArrayRead(x,&xx);CHKERRQ(ierr);
 
   if (user->variant) {
-    ierr = MatMFFDSetBase(jac,x,NULL);CHKERRQ(ierr);
+    ierr = MatMFFDSetBase(jac,(PetscErrorCode (*)(PetscObject,Vec*))getu,NULL,(PetscObject)x);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -214,7 +221,7 @@ PetscErrorCode  FormJacobianNoMatrix(SNES snes,Vec x,Mat jac,Mat B,void *dummy)
   AppCtx            *user = (AppCtx*) dummy;
 
   if (user->variant) {
-    ierr = MatMFFDSetBase(jac,x,NULL);CHKERRQ(ierr);
+    ierr = MatMFFDSetBase(jac,(PetscErrorCode (*)(PetscObject,Vec*))getu,NULL,(PetscObject)x);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);

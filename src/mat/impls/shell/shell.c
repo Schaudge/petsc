@@ -1889,6 +1889,13 @@ PetscErrorCode MatShellSetManageScalingShifts(Mat A)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode getu(Vec x,Vec *r)
+{
+  PetscFunctionBegin;
+  *r = x;
+  PetscFunctionReturn(0);
+}
+
 /*@C
     MatShellTestMult - Compares the multiply routine provided to the MATSHELL with differencing on a given function.
 
@@ -1927,7 +1934,7 @@ PetscErrorCode  MatShellTestMult(Mat mat,PetscErrorCode (*f)(void*,Vec,Vec),Vec 
   ierr = MatGetLocalSize(mat,&m,&n);CHKERRQ(ierr);
   ierr = MatCreateMFFD(PetscObjectComm((PetscObject)mat),m,n,PETSC_DECIDE,PETSC_DECIDE,&mf);CHKERRQ(ierr);
   ierr = MatMFFDSetFunction(mf,f,ctx);CHKERRQ(ierr);
-  ierr = MatMFFDSetBase(mf,base,NULL);CHKERRQ(ierr);
+  ierr = MatMFFDSetBase(mf,(PetscErrorCode (*)(PetscObject,Vec*))getu,NULL,(PetscObject)base);CHKERRQ(ierr);
 
   ierr = MatComputeOperator(mf,MATAIJ,&Dmf);CHKERRQ(ierr);
   ierr = MatComputeOperator(mat,MATAIJ,&Dmat);CHKERRQ(ierr);
@@ -1997,7 +2004,7 @@ PetscErrorCode  MatShellTestMultTranspose(Mat mat,PetscErrorCode (*f)(void*,Vec,
   ierr = MatGetSize(mat,&M,&N);CHKERRQ(ierr);
   ierr = MatCreateMFFD(PetscObjectComm((PetscObject)mat),m,n,M,N,&mf);CHKERRQ(ierr);
   ierr = MatMFFDSetFunction(mf,f,ctx);CHKERRQ(ierr);
-  ierr = MatMFFDSetBase(mf,base,NULL);CHKERRQ(ierr);
+  ierr = MatMFFDSetBase(mf,(PetscErrorCode (*)(PetscObject,Vec*))getu,NULL,(PetscObject)base);CHKERRQ(ierr);
   ierr = MatComputeOperator(mf,MATAIJ,&Dmf);CHKERRQ(ierr);
   ierr = MatTranspose(Dmf,MAT_INPLACE_MATRIX,&Dmf);CHKERRQ(ierr);
   ierr = MatComputeOperatorTranspose(mat,MATAIJ,&Dmat);CHKERRQ(ierr);
