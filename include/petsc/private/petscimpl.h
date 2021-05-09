@@ -72,6 +72,7 @@ typedef struct {
 #define PETSC_MAX_OPTIONS_HANDLER 5
 typedef struct _p_PetscObject {
   PetscClassId         classid;
+  PetscBool            cannotcompose;
   PetscOps             bops[1];
   MPI_Comm             comm;
   PetscInt             type;

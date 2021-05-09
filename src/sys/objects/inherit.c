@@ -725,6 +725,7 @@ PetscErrorCode  PetscObjectCompose(PetscObject obj,const char name[],PetscObject
   PetscValidHeader(obj,1);
   PetscValidCharPointer(name,2);
   if (ptr) PetscValidHeader(ptr,3);
+  if (ptr && ptr->cannotcompose) SETERRQ(PetscObjectComm((PetscObject)obj),PETSC_ERR_SUP,"Cannot compose this object since it was obtained with Get/Restore pattern");
   if (obj == ptr) SETERRQ(PetscObjectComm((PetscObject)obj),PETSC_ERR_SUP,"Cannot compose object with itself");
   ierr = (*obj->bops->compose)(obj,name,ptr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
