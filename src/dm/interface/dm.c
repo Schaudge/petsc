@@ -630,6 +630,7 @@ PetscErrorCode  DMDestroy(DM *dm)
     nnext = nlink->next;
     if (nlink->status != DMVEC_STATUS_IN) SETERRQ1(((PetscObject)*dm)->comm,PETSC_ERR_ARG_WRONGSTATE,"DM still has Vec named '%s' checked out",nlink->name);
     ierr = PetscFree(nlink->name);CHKERRQ(ierr);
+    ((PetscObject)nlink->X)->classid = VEC_CLASSID;
     ierr = VecDestroy(&nlink->X);CHKERRQ(ierr);
     ierr = PetscFree(nlink);CHKERRQ(ierr);
   }

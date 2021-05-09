@@ -2715,9 +2715,6 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
   ierr = VecLockReadPop(X);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(SNES_JacobianEval,snes,X,A,B);CHKERRQ(ierr);
 
-  /* attach latest linearization point to the preconditioning matrix */
-  ierr = PetscObjectCompose((PetscObject)B,"__SNES_latest_X",(PetscObject)X);CHKERRQ(ierr);
-
   /* the next line ensures that snes->ksp exists */
   ierr = SNESGetKSP(snes,&ksp);CHKERRQ(ierr);
   if (snes->lagpreconditioner == -2) {
