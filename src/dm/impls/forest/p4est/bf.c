@@ -885,9 +885,8 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat) {
-  
-  DM_BF          *bf;
+static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
+{
   PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, N;
   PetscInt       cellDof = 1;
@@ -908,7 +907,6 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat) {
   locDof = cellDof*n;
   gloDof = cellDof*N;
   /* create matrix */
-  bf    = _p_getBF(dm);
   ierr = MatCreate(_p_comm(dm),mat);CHKERRQ(ierr);
   ierr = MatSetLocalToGlobalMapping(*mat,dm->ltogmap,dm->ltogmap);CHKERRQ(ierr);
   ierr = MatSetSizes(*mat,locDof,locDof,gloDof,gloDof);CHKERRQ(ierr);
@@ -923,7 +921,7 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat) {
     void *appctx;
     ierr = DMGetApplicationContext(dm,&appctx);CHKERRQ(ierr);
     ierr = MatShellSetContext(*mat,appctx);CHKERRQ(ierr);
-  } 
+  }
   ierr = MatSetUp(*mat);CHKERRQ(ierr);
   //TODO set null space?
   PetscFunctionReturn(0);
