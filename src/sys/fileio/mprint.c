@@ -284,6 +284,7 @@ PetscErrorCode PetscVFPrintfDefault(FILE *fd,const char *format,va_list Argp)
 #if defined(PETSC_HAVE_VA_COPY)
   va_list        Argpcopy;
 #endif
+  PetscFPTrap    trap;
 
   PetscFunctionBegin;
 #if defined(PETSC_HAVE_VA_COPY)
@@ -297,6 +298,12 @@ PetscErrorCode PetscVFPrintfDefault(FILE *fd,const char *format,va_list Argp)
 #else
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"C89 does not support va_copy() hence cannot print long strings with PETSc printing routines");
 #endif
+  }
+  ierr = PetscGetFPTrap(&trap);CHKERRQ(ierr);
+  if (trap == PETSC_FP_TRAP_ON) {
+    char *found;
+    ierr = PetscStrstr(str,"nan.",&found);CHKERRQ(ierr);
+    if (found) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Nan being printed");
   }
   fprintf(fd,"%s",buff);CHKERRQ(ierr);
   fflush(fd);

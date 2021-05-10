@@ -1562,6 +1562,9 @@ PetscErrorCode KSPCreateVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn
     else {
       if (preferdm) {
         ierr = DMGetGlobalVector(ksp->dm,&vecr);CHKERRQ(ierr);
+        if (PetscDefined(USE_DEBUG)) {
+          ierr = VecSet(vecr,0.0);CHKERRQ(ierr);
+        }
       } else if (ksp->pc) {
         ierr = PCGetOperatorsSet(ksp->pc,&matset,&pmatset);CHKERRQ(ierr);
         /* check for mat before pmat because for KSPLSQR pmat may be a different size than mat since pmat maybe mat'*mat */
@@ -1575,6 +1578,9 @@ PetscErrorCode KSPCreateVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn
       }
       if (!vecr && ksp->dm) {
         ierr = DMGetGlobalVector(ksp->dm,&vecr);CHKERRQ(ierr);
+        if (PetscDefined(USE_DEBUG)) {
+          ierr = VecSet(vecr,0.0);CHKERRQ(ierr);
+        }
       }
       if (!vecr) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_ARG_WRONGSTATE,"You requested a vector from a KSP that cannot provide one");
     }
@@ -1595,6 +1601,9 @@ PetscErrorCode KSPCreateVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn
     else {
       if (preferdm) {
         ierr = DMGetGlobalVector(ksp->dm,&vecl);CHKERRQ(ierr);
+        if (PetscDefined(USE_DEBUG)) {
+          ierr = VecSet(vecl,0.0);CHKERRQ(ierr);
+        }
       } else if (ksp->pc) {
         ierr = PCGetOperatorsSet(ksp->pc,&matset,&pmatset);CHKERRQ(ierr);
         /* check for mat before pmat because for KSPLSQR pmat may be a different size than mat since pmat maybe mat'*mat */
@@ -1608,6 +1617,9 @@ PetscErrorCode KSPCreateVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn
       }
       if (!vecl && ksp->dm) {
         ierr = DMGetGlobalVector(ksp->dm,&vecl);CHKERRQ(ierr);
+        if (PetscDefined(USE_DEBUG)) {
+          ierr = VecSet(vecl,0.0);CHKERRQ(ierr);
+        }
       }
       if (!vecl) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_ARG_WRONGSTATE,"You requested a vector from a KSP that cannot provide one");
     }

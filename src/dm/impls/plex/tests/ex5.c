@@ -946,8 +946,10 @@ static PetscErrorCode TestAssembly(DM dm, AppCtx *user)
   ierr = ISCreateStride(PETSC_COMM_SELF, cEnd - cMax, cMax, 1, &cohesiveCells);CHKERRQ(ierr);
   ierr = DMGetLabel(dm, "cohesive", &fault);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm, &locX);CHKERRQ(ierr);
+  ierr = VecSet(locX, 0.);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) locX, "Local Solution");CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm, &locF);CHKERRQ(ierr);
+  ierr = VecSet(locF, 0.);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) locF, "Local Residual");CHKERRQ(ierr);
   ierr = DMCreateMatrix(dm, &J);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) J, "Jacobian");CHKERRQ(ierr);
@@ -984,7 +986,6 @@ static PetscErrorCode TestAssembly(DM dm, AppCtx *user)
   keys[2].label = fault;
   keys[2].value = 1;
   keys[2].field = 0;
-  ierr = VecSet(locF, 0.);CHKERRQ(ierr);
   ierr = DMPlexComputeResidual_Hybrid_Internal(dm, keys, cohesiveCells, 0.0, locX, NULL, 0.0, locF, user);CHKERRQ(ierr);
   ierr = VecViewFromOptions(locF, NULL, "-local_residual_view");CHKERRQ(ierr);
   ierr = MatZeroEntries(J);CHKERRQ(ierr);

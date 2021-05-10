@@ -71,6 +71,7 @@ static PetscErrorCode SNESComputeFunction_DMDA(SNES snes,Vec X,Vec F,void *ctx)
   if (!dmdasnes->residuallocal) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_PLIB,"Corrupt context");
   ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm,&Xloc);CHKERRQ(ierr);
+  ierr = VecZeroEntries(Xloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
   ierr = DMDAGetLocalInfo(dm,&info);CHKERRQ(ierr);
@@ -156,6 +157,7 @@ PETSC_EXTERN PetscErrorCode SNESComputeJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B
 
   if (dmdasnes->jacobianlocal) {
     ierr = DMGetLocalVector(dm,&Xloc);CHKERRQ(ierr);
+    ierr = VecZeroEntries(Xloc);CHKERRQ(ierr);
     ierr = DMGlobalToLocalBegin(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
     ierr = DMDAGetLocalInfo(dm,&info);CHKERRQ(ierr);
@@ -343,6 +345,7 @@ static PetscErrorCode SNESComputePicard_DMDA(SNES snes,Vec X,Vec F,void *ctx)
   if (!dmdasnes->rhsplocal) SETERRQ(PetscObjectComm((PetscObject)snes),PETSC_ERR_PLIB,"Corrupt context");
   ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm,&Xloc);CHKERRQ(ierr);
+  ierr = VecZeroEntries(Xloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
   ierr = DMDAGetLocalInfo(dm,&info);CHKERRQ(ierr);
@@ -390,6 +393,7 @@ static PetscErrorCode SNESComputePicardJacobian_DMDA(SNES snes,Vec X,Mat A,Mat B
   ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
 
   ierr = DMGetLocalVector(dm,&Xloc);CHKERRQ(ierr);
+  ierr = VecZeroEntries(Xloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm,X,INSERT_VALUES,Xloc);CHKERRQ(ierr);
   ierr = DMDAGetLocalInfo(dm,&info);CHKERRQ(ierr);

@@ -736,12 +736,21 @@ static PetscErrorCode PCHPDDMSetUpNeumannOverlap_Private(PC pc)
 
     ierr = PCGetDM(pc,&dm);CHKERRQ(ierr);
     ierr = DMHasNamedGlobalVector(dm,"SNESVecSol",&snesvecsol);CHKERRQ(ierr);
-    if (!snesvecsol) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_WRONGSTATE,"PC does not come from a SNES");
-    ierr = DMGetNamedGlobalVector(dm,"SNESVecSol",&x);CHKERRQ(ierr);
+    if (snesvecsol) {
+      ierr = DMGetNamedGlobalVector(dm,"SNESVecSol",&x);CHKERRQ(ierr);
+    } else {
+      Mat P;
+
+      ierr = PCGetOperators(pc, NULL, &P);CHKERRQ(ierr);
+      ierr = PetscObjectQuery((PetscObject)P, "SNESVecSol", (PetscObject*)&x);CHKERRQ(ierr);
+      if (!x) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_ARG_WRONGSTATE,"DM in PC does not have SNESVecSol nor does the operator, the PC must come from a SNES");
+    }
     PetscStackPush("PCHPDDM Neumann callback");
     ierr = (*data->setup)(data->aux, t, x, xt, s, data->is, data->setup_ctx);CHKERRQ(ierr);
     PetscStackPop;
-    ierr = DMRestoreNamedGlobalVector(dm,"SNESVecSol",&x);CHKERRQ(ierr);
+    if (snesvecsol) {
+      ierr = DMRestoreNamedGlobalVector(dm,"SNESVecSol",&x);CHKERRQ(ierr);
+    }
   }
   PetscFunctionReturn(0);
 }

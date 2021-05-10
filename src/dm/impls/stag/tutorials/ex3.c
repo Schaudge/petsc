@@ -676,6 +676,7 @@ static PetscErrorCode CreateReferenceSolution(DM dmSol,Vec *pSolRef)
   ierr = DMGetCoordinateDM(dmSol,&dmCoord);CHKERRQ(ierr);
   ierr = DMGetCoordinates(dmSol,&coord);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmCoord,&coordLocal);CHKERRQ(ierr);
+  ierr = VecSet(coordLocal,0.0);CHKERRQ(ierr);
   ierr = DMGlobalToLocal(dmCoord,coord,INSERT_VALUES,coordLocal);CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(dmSol,ELEMENT,0,&ip);CHKERRQ(ierr);
   ierr = DMStagGetLocationSlot(dmSol,LEFT,   0,&iux);CHKERRQ(ierr);
@@ -689,6 +690,7 @@ static PetscErrorCode CreateReferenceSolution(DM dmSol,Vec *pSolRef)
   }
   ierr = DMStagVecGetArrayRead(dmCoord,coordLocal,&arrCoord);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmSol,&solRefLocal);CHKERRQ(ierr);
+  ierr = VecSet(solRefLocal,0.0);CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmSol,solRefLocal,&arrSol);CHKERRQ(ierr);
   for (ez=start[2]; ez<start[2] + n[2] + nExtra[2]; ++ez) {
     for (ey=start[1]; ey<start[1] + n[1] + nExtra[1]; ++ey) {

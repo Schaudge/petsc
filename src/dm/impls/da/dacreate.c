@@ -237,6 +237,9 @@ PetscErrorCode DMCreateFieldDecomposition_DA(DM dm, PetscInt *len,char ***nameli
     PetscInt rstart,n;
 
     ierr = DMGetGlobalVector(dm,&v);CHKERRQ(ierr);
+    if (PetscDefined(USE_DEBUG)) {
+      ierr = VecSet(v,0.0);CHKERRQ(ierr);
+    }
     ierr = VecGetOwnershipRange(v,&rstart,NULL);CHKERRQ(ierr);
     ierr = VecGetLocalSize(v,&n);CHKERRQ(ierr);
     ierr = DMRestoreGlobalVector(dm,&v);CHKERRQ(ierr);

@@ -779,6 +779,9 @@ PetscErrorCode SNESSetWorkVecs(SNES snes,PetscInt nw)
 
   ierr = SNESGetDM(snes, &dm);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dm, &v);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    ierr = VecSet(v,0.0);CHKERRQ(ierr);
+  }
   ierr = VecDuplicateVecs(v,snes->nwork,&snes->work);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(dm, &v);CHKERRQ(ierr);
   ierr = PetscLogObjectParents(snes,nw,snes->work);CHKERRQ(ierr);

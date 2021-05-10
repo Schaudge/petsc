@@ -224,6 +224,8 @@ PETSC_EXTERN PetscErrorCode VecCopy(Vec,Vec);
 PETSC_EXTERN PetscErrorCode VecSetRandom(Vec,PetscRandom);
 PETSC_EXTERN PetscErrorCode VecSet(Vec,PetscScalar);
 PETSC_EXTERN PetscErrorCode VecSetInf(Vec);
+PETSC_EXTERN PetscErrorCode VecSetNan(Vec);
+PETSC_EXTERN PetscErrorCode VecCheckNan(Vec);
 PETSC_EXTERN PetscErrorCode VecSwap(Vec,Vec);
 PETSC_EXTERN PetscErrorCode VecAXPY(Vec,PetscScalar,Vec);
 PETSC_EXTERN PetscErrorCode VecAXPBY(Vec,PetscScalar,PetscScalar,Vec);

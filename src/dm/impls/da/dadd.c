@@ -467,6 +467,11 @@ PetscErrorCode DMCreateDomainDecompositionScatters_DA(DM dm,PetscInt nsubdms,DM 
     ierr = DMGetGlobalVector(dm,&dvec);CHKERRQ(ierr);
     ierr = DMGetGlobalVector(subdm,&svec);CHKERRQ(ierr);
     ierr = DMGetLocalVector(subdm,&slvec);CHKERRQ(ierr);
+    if (PetscDefined(USE_DEBUG)) {
+      ierr = VecSet(dvec,0.0);CHKERRQ(ierr);
+      ierr = VecSet(svec,0.0);CHKERRQ(ierr);
+      ierr = VecSet(slvec,0.0);CHKERRQ(ierr);
+    }
 
     if (iscat) {ierr = VecScatterCreate(dvec,idis,svec,isis,&(*iscat)[i]);CHKERRQ(ierr);}
     if (oscat) {ierr = VecScatterCreate(dvec,odis,svec,osis,&(*oscat)[i]);CHKERRQ(ierr);}

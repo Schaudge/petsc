@@ -4592,6 +4592,7 @@ PetscErrorCode DMPlexComputeResidual_Internal(DM dm, PetscHashFormKey key, IS ce
       ierr = DMPlexReconstructGradients_Internal(dm, fvm, fStart, fEnd, faceGeometryFVM, cellGeometryFVM, locX, grad);CHKERRQ(ierr);
       /* Communicate gradient values */
       ierr = DMGetLocalVector(dmGrad, &locGrad);CHKERRQ(ierr);
+      ierr = VecZeroEntries(locGrad);CHKERRQ(ierr);
       ierr = DMGlobalToLocalBegin(dmGrad, grad, INSERT_VALUES, locGrad);CHKERRQ(ierr);
       ierr = DMGlobalToLocalEnd(dmGrad, grad, INSERT_VALUES, locGrad);CHKERRQ(ierr);
       ierr = DMRestoreGlobalVector(dmGrad, &grad);CHKERRQ(ierr);

@@ -592,14 +592,14 @@ PetscErrorCode DMDestroyLabelLinkList_Internal(DM dm)
 }
 
 /*@C
-    DMDestroy - Destroys a vector packer or DM.
+    DMDestroy - Destroys a DM.
 
     Collective on dm
 
     Input Parameter:
 .   dm - the DM object to destroy
 
-    Level: developer
+    Level: beginner
 
 .seealso DMView(), DMCreateGlobalVector(), DMCreateInterpolation(), DMCreateColoring(), DMCreateMatrix()
 
@@ -640,6 +640,7 @@ PetscErrorCode  DMDestroy(DM *dm)
     nnext = nlink->next;
     if (nlink->status != DMVEC_STATUS_IN) SETERRQ1(((PetscObject)*dm)->comm,PETSC_ERR_ARG_WRONGSTATE,"DM still has Vec named '%s' checked out",nlink->name);
     ierr = PetscFree(nlink->name);CHKERRQ(ierr);
+    ((PetscObject)nlink->X)->classid = VEC_CLASSID;
     ierr = VecDestroy(&nlink->X);CHKERRQ(ierr);
     ierr = PetscFree(nlink);CHKERRQ(ierr);
   }
@@ -8558,6 +8559,7 @@ PetscErrorCode DMProjectFunction(DM dm, PetscReal time, PetscErrorCode (**funcs)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
   ierr = DMGetLocalVector(dm, &localX);CHKERRQ(ierr);
+  ierr = VecSet(localX,0.0);CHKERRQ(ierr);
   ierr = DMProjectFunctionLocal(dm, time, funcs, ctxs, mode, localX);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dm, localX, mode, X);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dm, localX, mode, X);CHKERRQ(ierr);
@@ -8588,6 +8590,10 @@ $    func(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscS
 .  Nf  - The number of fields
 .  u   - The output field values
 -  ctx - optional user-defined function context
+
+  Notes:
+    This may ignore entries in the local vector associated with boundary conditions so the local vector should be sure to be zeroed or
+    have correct entries for the boundary conditions
 
   Level: developer
 

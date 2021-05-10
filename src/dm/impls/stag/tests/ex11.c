@@ -36,9 +36,13 @@ int main(int argc,char **argv)
 
   /* Compute reference solution on the grid, using direct array access */
   ierr = DMCreateGlobalVector(dmSol,&rhs);CHKERRQ(ierr);
+  ierr = VecSet(rhs,0.0);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(dmSol,&solRef);CHKERRQ(ierr);
+  ierr = VecSet(solRef,0.0);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmSol,&solRefLocal);CHKERRQ(ierr);
+  ierr = VecSet(solRefLocal,0.0);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmSol,&rhsLocal);CHKERRQ(ierr);
+  ierr = VecSet(rhsLocal,0.0);CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmSol,solRefLocal,&arrSol);CHKERRQ(ierr);
 
   ierr = DMStagGetCorners(dmSol,&startx,&starty,NULL,&nx,&ny,NULL,&nExtrax,&nExtray,NULL);CHKERRQ(ierr);

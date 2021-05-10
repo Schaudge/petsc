@@ -1844,6 +1844,50 @@ PetscErrorCode VecSetLayout(Vec x,PetscLayout map)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode VecSetNan(Vec xin)
+{
+  size_t        i,n = xin->map->n*sizeof(PetscScalar)/sizeof(PetscReal);
+  PetscReal      *xx;
+
+  PetscFunctionBegin;
+  if (xin->petscnative && xin->data) {
+    xx = *((PetscReal**)xin->data);
+  /* from https://www.doc.ic.ac.uk/~eedwards/compsys/float/nan.html */
+#if defined(PETSC_USE_REAL_SINGLE)
+    int        nas = 0x7F800002;
+#else
+    PetscInt64 nas = 0x7FF0000000000002;
+#endif
+    for (i=0; i<n; i++) {
+      memcpy(xx+i,&nas,sizeof(PetscReal));
+    }
+  }
+  CHKMEMQ;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecCheckNan(Vec xin)
+{
+  size_t          i,n = xin->map->n*sizeof(PetscScalar)/sizeof(PetscReal);
+  const PetscReal *xx;
+
+  PetscFunctionBegin;
+  if (xin->petscnative && xin->data) {
+    xx = *((const PetscReal**)xin->data);
+  /* from https://www.doc.ic.ac.uk/~eedwards/compsys/float/nan.html */
+#if defined(PETSC_USE_REAL_SINGLE)
+    int        nas = 0x7F800002;
+#else
+    PetscInt64 nas = 0x7FF0000000000002;
+#endif
+    for (i=0; i<n; i++) {
+      int r = memcmp(xx+i,&nas,sizeof(PetscReal));
+      if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"There is a Nan in the vector, local location (as if a PetscReal) %D",(PetscInt)i);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode VecSetInf(Vec xin)
 {
   PetscInt       i,n = xin->map->n;

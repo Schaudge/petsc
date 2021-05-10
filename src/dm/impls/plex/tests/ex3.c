@@ -492,6 +492,7 @@ static PetscErrorCode SetupSection(DM dm, AppCtx *user)
       ierr = DMCreateMatrix(dm,&mass);CHKERRQ(ierr);
       /* get a dummy local variable to serve as the solution */
       ierr = DMGetLocalVector(dm,&local);CHKERRQ(ierr);
+      ierr = VecSet(local,0.0);CHKERRQ(ierr);
       ierr = DMGetDS(dm,&ds);CHKERRQ(ierr);
       /* set the jacobian to be the mass matrix */
       ierr = PetscDSSetJacobian(ds, 0, 0, simple_mass, NULL,  NULL, NULL);CHKERRQ(ierr);
@@ -527,6 +528,7 @@ static PetscErrorCode TestFEJacobian(DM dm, AppCtx *user)
     ierr = PetscDSSetJacobian(ds,0,0,NULL,NULL,NULL,symmetric_gradient_inner_product);CHKERRQ(ierr);
     ierr = DMCreateMatrix(dm,&E);CHKERRQ(ierr);
     ierr = DMGetLocalVector(dm,&local);CHKERRQ(ierr);
+    ierr = VecSet(local,0.0);CHKERRQ(ierr);
     ierr = DMPlexSNESComputeJacobianFEM(dm,local,E,E,NULL);CHKERRQ(ierr);
     ierr = DMPlexCreateRigidBody(dm,0,&sp);CHKERRQ(ierr);
     ierr = MatNullSpaceGetVecs(sp,&hasConst,&n,&vecs);CHKERRQ(ierr);

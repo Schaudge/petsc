@@ -1162,6 +1162,10 @@ PetscErrorCode DMCreateInjection_DA_1D(DM dac,DM daf,VecScatter *inject)
   ierr = ISCreateBlock(PetscObjectComm((PetscObject)daf),dof,nc,cols,PETSC_OWN_POINTER,&isf);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dac,&vecc);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(daf,&vecf);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    ierr = VecSet(vecc,0.0);CHKERRQ(ierr);
+    ierr = VecSet(vecf,0.0);CHKERRQ(ierr);
+  }
   ierr = VecScatterCreate(vecf,isf,vecc,NULL,inject);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(dac,&vecc);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(daf,&vecf);CHKERRQ(ierr);
@@ -1231,6 +1235,10 @@ PetscErrorCode DMCreateInjection_DA_2D(DM dac,DM daf,VecScatter *inject)
   ierr = ISCreateBlock(PetscObjectComm((PetscObject)daf),dof,nc,cols,PETSC_OWN_POINTER,&isf);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dac,&vecc);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(daf,&vecf);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    ierr = VecSet(vecc,0.0);CHKERRQ(ierr);
+    ierr = VecSet(vecf,0.0);CHKERRQ(ierr);
+  }
   ierr = VecScatterCreate(vecf,isf,vecc,NULL,inject);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(dac,&vecc);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(daf,&vecf);CHKERRQ(ierr);
@@ -1317,6 +1325,10 @@ PetscErrorCode DMCreateInjection_DA_3D(DM dac,DM daf,VecScatter *inject)
   ierr = ISCreateBlock(PetscObjectComm((PetscObject)daf),dof,nc,cols,PETSC_OWN_POINTER,&isf);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dac,&vecc);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(daf,&vecf);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    ierr = VecSet(vecc,0.0);CHKERRQ(ierr);
+    ierr = VecSet(vecf,0.0);CHKERRQ(ierr);
+  }
   ierr = VecScatterCreate(vecf,isf,vecc,NULL,inject);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(dac,&vecc);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(daf,&vecf);CHKERRQ(ierr);

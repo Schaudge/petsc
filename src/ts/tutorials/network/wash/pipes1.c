@@ -244,7 +244,7 @@ PetscErrorCode WASHSetInitialSolution(DM networkdm,Vec X,Wash wash)
   PetscFunctionBegin;
   ierr = VecSet(X,0.0);CHKERRQ(ierr);
   ierr = DMGetLocalVector(networkdm,&localX);CHKERRQ(ierr);
-  ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
+  ierr = VecGetArrayWrite(localX,&xarr);CHKERRQ(ierr);
 
   /* Edge */
   ierr = DMNetworkGetEdgeRange(networkdm,&eStart,&eEnd);CHKERRQ(ierr);
@@ -283,7 +283,7 @@ PetscErrorCode WASHSetInitialSolution(DM networkdm,Vec X,Wash wash)
     ierr = VecRestoreArrayRead(pipe->x,&xarray);CHKERRQ(ierr);
   }
 
-  ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
+  ierr = VecRestoreArrayWrite(localX,&xarr);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(networkdm,localX,ADD_VALUES,X);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(networkdm,localX,ADD_VALUES,X);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(networkdm,&localX);CHKERRQ(ierr);
@@ -315,7 +315,7 @@ PetscErrorCode PipesView(Vec X,DM networkdm,Wash wash)
   PetscInt             key,Start,End;
   PetscMPIInt          rank;
   PetscInt             nx,nnodes,nidx,*idx1,*idx2,*idx1_h,*idx2_h,idx_start,i,k,k1,xstart,j1;
-  Vec                  Xq,Xh,localX;
+  Vec                  Xq,Xh;
   IS                   is1_q,is2_q,is1_h,is2_h;
   VecScatter           ctx_q,ctx_h;
 
@@ -335,8 +335,6 @@ PetscErrorCode PipesView(Vec X,DM networkdm,Wash wash)
   ierr = VecSetFromOptions(Xq);CHKERRQ(ierr);
   ierr = VecSet(Xq,0.0);CHKERRQ(ierr);
   ierr = VecDuplicate(Xq,&Xh);CHKERRQ(ierr);
-
-  ierr = DMGetLocalVector(networkdm,&localX);CHKERRQ(ierr);
 
   /* set idx1 and idx2 */
   ierr = PetscCalloc4(nidx,&idx1,nidx,&idx2,nidx,&idx1_h,nidx,&idx2_h);CHKERRQ(ierr);
@@ -389,7 +387,6 @@ PetscErrorCode PipesView(Vec X,DM networkdm,Wash wash)
 
   ierr = VecDestroy(&Xq);CHKERRQ(ierr);
   ierr = VecDestroy(&Xh);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(networkdm,&localX);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

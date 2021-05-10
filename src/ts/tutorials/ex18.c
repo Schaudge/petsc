@@ -974,7 +974,7 @@ static PetscErrorCode MonitorFunctionals(TS ts, PetscInt stepnum, PetscReal time
       ierr = PetscSectionDestroy(&fs);CHKERRQ(ierr);
       ierr = DMGetGlobalVector(fdm[f], &fv[f]);CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) fv[f], name);CHKERRQ(ierr);
-      ierr = VecGetArray(fv[f], &fx[f]);CHKERRQ(ierr);
+      ierr = VecGetArrayWrite(fv[f], &fx[f]);CHKERRQ(ierr);
     }
     ierr = DMPlexGetSimplexOrBoxCells(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
     ierr = VecGetDM(cellgeom, &dmCell);CHKERRQ(ierr);
@@ -1044,7 +1044,7 @@ static PetscErrorCode MonitorFunctionals(TS ts, PetscInt stepnum, PetscReal time
       ftableused += countused;
       ftable[ftableused] = 0;
       /* Output vecs */
-      ierr = VecRestoreArray(fv[f], &fx[f]);CHKERRQ(ierr);
+      ierr = VecRestoreArrayWrite(fv[f], &fx[f]);CHKERRQ(ierr);
       ierr = PetscStrlen(func->name, &len);CHKERRQ(ierr);
       ierr = PetscMalloc1(len+2,&prefix);CHKERRQ(ierr);
       ierr = PetscStrcpy(prefix, func->name);CHKERRQ(ierr);

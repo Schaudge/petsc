@@ -38,11 +38,13 @@ int main(int argc,char **argv)
   ierr = DMCreateGlobalVector(dmSol,&rhs);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(dmSol,&solRef);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dmSol,&solRefLocal);CHKERRQ(ierr);
-  ierr = DMGetLocalVector(dmSol,&rhsLocal);CHKERRQ(ierr);
+  ierr = VecSet(solRefLocal,0.0);CHKERRQ(ierr);
   ierr = DMStagVecGetArray(dmSol,solRefLocal,&arrSol);CHKERRQ(ierr);
+  ierr = DMGetLocalVector(dmSol,&rhsLocal);CHKERRQ(ierr);
+  ierr = VecSet(rhsLocal,0.0);CHKERRQ(ierr);
+  ierr = DMStagVecGetArray(dmSol,rhsLocal,&arrRHS);CHKERRQ(ierr);
 
   ierr = DMStagGetCorners(dmSol,&startx,&starty,&startz,&nx,&ny,&nz,&nExtrax,&nExtray,&nExtraz);CHKERRQ(ierr);
-  ierr = DMStagVecGetArray(dmSol,rhsLocal,&arrRHS);CHKERRQ(ierr);
 
   /* Get the correct entries for each of our variables in local element-wise storage */
   ierr = DMStagGetLocationSlot(dmSol,DMSTAG_LEFT,0,&iux);CHKERRQ(ierr);

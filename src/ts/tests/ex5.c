@@ -637,6 +637,7 @@ PetscErrorCode RhsFunc(TS ts,PetscReal t,Vec Xglobal,Vec F,void *ctx)
      By placing code between these two statements, computations can be
      done while messages are in transition.
   */
+  ierr = VecZeroEntries(localT);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(da,Xglobal,INSERT_VALUES,localT);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(da,Xglobal,INSERT_VALUES,localT);CHKERRQ(ierr);
 

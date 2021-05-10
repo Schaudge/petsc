@@ -502,8 +502,33 @@ static const FPNode error_codes[] = {
   {FE_INVALID,  "invalid floating point arguments (domain error)"},
   {FE_OVERFLOW, "floating point overflow"},
   {FE_UNDERFLOW,"floating point underflow"},
+#if defined(FE_DENORMALOPERAND)
+  {FE_DENORMALOPERAND,"denormal operand"},
+#endif
   {0           ,"unknown error"}
 };
+
+void PetscPrintFPTrapError(void)
+{
+  const FPNode *node;
+  int          code;
+  PetscBool    matched = PETSC_FALSE;
+
+  code = fetestexcept(FE_ALL_EXCEPT);
+  for (node=&error_codes[0]; node->code; node++) {
+    if (code & node->code) {
+      matched = PETSC_TRUE;
+      printf("*** floating point error \"%s\" occurred ***\n",node->name);
+      code &= ~node->code; /* Unset this flag since it has been processed */
+    }
+  }
+  if (!matched) {
+    printf("*** unknown floating point error occurred ***\n");
+    if (code) printf("*** error code is %d ***\n",code);
+  } else if (code) {
+    printf("*** Remaining unknown portion of error code is %d ***\n",code);
+  }
+}
 
 void PetscDefaultFPTrap(int sig)
 {
@@ -525,14 +550,18 @@ void PetscDefaultFPTrap(int sig)
       code &= ~node->code; /* Unset this flag since it has been processed */
     }
   }
-  if (!matched || code) { /* If any remaining flags are set, or we didn't process any flags */
+  if (!matched) {
     (*PetscErrorPrintf)("*** unknown floating point error occurred ***\n");
+    if (code) (*PetscErrorPrintf)("*** error code is %d ***\n",code);
+    else (*PetscErrorPrintf)("*** error code is not available to the running program ***\n",code);
     (*PetscErrorPrintf)("The specific exception can be determined by running in a debugger.  When the\n");
-    (*PetscErrorPrintf)("debugger traps the signal, the exception can be found with fetestexcept(0x%x)\n",FE_ALL_EXCEPT);
+    (*PetscErrorPrintf)("debugger traps the signal, the exception can be found by\n");
+    (*PetscErrorPrintf)("call PetscPrintFPTrapError() or print (int) fetestexcept(0x%x)\n",FE_ALL_EXCEPT);
     (*PetscErrorPrintf)("where the result is a bitwise OR of the following flags:\n");
     (*PetscErrorPrintf)("FE_INVALID=0x%x FE_DIVBYZERO=0x%x FE_OVERFLOW=0x%x FE_UNDERFLOW=0x%x FE_INEXACT=0x%x\n",FE_INVALID,FE_DIVBYZERO,FE_OVERFLOW,FE_UNDERFLOW,FE_INEXACT);
+  } else if (code) {
+    (*PetscErrorPrintf)("*** Remaining unknown portion of error code is %d ***\n",code);
   }
-
   (*PetscErrorPrintf)("Try option -start_in_debugger\n");
   if (PetscDefined(USE_DEBUG)) {
     if (!PetscStackActive()) (*PetscErrorPrintf)("  or try option -log_stack\n");
@@ -560,7 +589,7 @@ PetscErrorCode  PetscSetFPTrap(PetscFPTrap on)
     if (feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW) == -1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot activate floating point exceptions\n");
 #elif defined PETSC_HAVE_XMMINTRIN_H
    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_DIV_ZERO);
-   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_UNDERFLOW);
+   /* _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_UNDERFLOW); */
    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_OVERFLOW);
    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #else
@@ -680,6 +709,28 @@ PetscErrorCode  PetscDetermineInitialFPTrap(void)
   PetscFunctionReturn(0);
 }
 #endif
+
+/*@
+   PetscGetFPTrap - Indicates if traps/exceptions on common floating point errors are turn on.
+
+   Not Collective
+
+   Output Parameter:
+.  flag - PETSC_FP_TRAP_ON, PETSC_FP_TRAP_OFF.
+
+   Options Database Keys:
+.  -fp_trap - Activates floating point trapping
+
+   Level: advanced
+
+.seealso: PetscFPTrapPush(), PetscFPTrapPop(), PetscDetermineInitialFPTrap(), PetscSetFPTrap()
+@*/
+PetscErrorCode PetscGetFPTrap(PetscFPTrap *flag)
+{
+  PetscFunctionBegin;
+  *flag =_trapmode;
+  PetscFunctionReturn(0);
+}
 
 
 

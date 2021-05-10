@@ -1061,7 +1061,7 @@ static PetscErrorCode TaoSetUp_POUNDERS(Tao tao)
   ierr = PetscMalloc1(mfqP->n,&mfqP->xmin);CHKERRQ(ierr);
   ierr = PetscMalloc1(mfqP->m,&mfqP->C);CHKERRQ(ierr);
   ierr = PetscMalloc1(mfqP->m*mfqP->n,&mfqP->Fdiff);CHKERRQ(ierr);
-  ierr = PetscMalloc1(mfqP->npmax*mfqP->n,&mfqP->Disp);CHKERRQ(ierr);
+  ierr = PetscCalloc1(mfqP->npmax*mfqP->n,&mfqP->Disp);CHKERRQ(ierr); /* Allocate with zeros because LAPACK/BLAS routines may access the unused rows of the matrix and generate an FPE */
   ierr = PetscMalloc1(mfqP->n,&mfqP->Gres);CHKERRQ(ierr);
   ierr = PetscMalloc1(mfqP->n*mfqP->n,&mfqP->Hres);CHKERRQ(ierr);
   ierr = PetscMalloc1(mfqP->n*mfqP->n,&mfqP->Gpoints);CHKERRQ(ierr);

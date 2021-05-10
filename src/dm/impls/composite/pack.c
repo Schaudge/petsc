@@ -686,6 +686,9 @@ PetscErrorCode  DMCompositeGather(DM dm,InsertMode imode,Vec gvec,...)
       ierr = DMLocalToGlobalEnd(next->dm,local,imode,global);CHKERRQ(ierr);
       ierr = VecRestoreArray(gvec,&array);CHKERRQ(ierr);
       ierr = VecResetArray(global);CHKERRQ(ierr);
+      if (PetscDefined(USE_DEBUG)) {
+        ierr = VecZeroEntries(global);CHKERRQ(ierr);
+      }
       ierr = DMRestoreGlobalVector(next->dm,&global);CHKERRQ(ierr);
     }
   }
@@ -786,9 +789,15 @@ PetscErrorCode  DMCompositeAddDM(DM dmc,DM dm)
   ierr = PetscNew(&mine);CHKERRQ(ierr);
   ierr = PetscObjectReference((PetscObject)dm);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dm,&global);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    ierr = VecSet(global,0.0);CHKERRQ(ierr);
+  }
   ierr = VecGetLocalSize(global,&n);CHKERRQ(ierr);
   ierr = DMRestoreGlobalVector(dm,&global);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm,&local);CHKERRQ(ierr);
+  if (PetscDefined(USE_DEBUG)) {
+    ierr = VecSet(local,0.0);CHKERRQ(ierr);
+  }
   ierr = VecGetSize(local,&nlocal);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm,&local);CHKERRQ(ierr);
 

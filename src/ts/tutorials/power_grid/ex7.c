@@ -267,6 +267,7 @@ PetscErrorCode IFunction(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,void *ctx)
   ierr = DMGetLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = DMGetLocalVector(user->da,&localXdot);CHKERRQ(ierr);
 
+  ierr = VecZeroEntries(localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(user->da,Xdot,INSERT_VALUES,localXdot);CHKERRQ(ierr);

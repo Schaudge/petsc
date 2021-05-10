@@ -499,10 +499,10 @@ PetscErrorCode PetscDualSpaceCreate(MPI_Comm comm, PetscDualSpace *sp)
 @*/
 PetscErrorCode PetscDualSpaceDuplicate(PetscDualSpace sp, PetscDualSpace *spNew)
 {
-  DM             dm;
+  DM                 dm;
   PetscDualSpaceType type;
-  const char     *name;
-  PetscErrorCode ierr;
+  const char         *name;
+  PetscErrorCode     ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp, PETSCDUALSPACE_CLASSID, 1);
@@ -819,8 +819,8 @@ PetscErrorCode PetscDualSpaceGetNumDof(PetscDualSpace sp, const PetscInt **numDo
   PetscValidPointer(numDof, 2);
   if (!sp->uniform) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "A non-uniform space does not have a fixed number of dofs for each height");
   if (!sp->numDof) {
-    DM       dm;
-    PetscInt depth, d;
+    DM           dm;
+    PetscInt     depth, d;
     PetscSection section;
 
     ierr = PetscDualSpaceGetDM(sp, &dm);CHKERRQ(ierr);
@@ -969,9 +969,9 @@ PetscErrorCode PetscDualSpaceGetSection(PetscDualSpace sp, PetscSection *section
  * have one cell */
 PetscErrorCode PetscDualSpacePushForwardSubspaces_Internal(PetscDualSpace sp, PetscInt sStart, PetscInt sEnd)
 {
-  PetscReal *sv0, *v0, *J;
-  PetscSection section;
-  PetscInt     dim, s, k;
+  PetscReal      *sv0, *v0, *J;
+  PetscSection   section;
+  PetscInt       dim, s, k;
   DM             dm;
   PetscErrorCode ierr;
 
@@ -982,11 +982,11 @@ PetscErrorCode PetscDualSpacePushForwardSubspaces_Internal(PetscDualSpace sp, Pe
   ierr = PetscMalloc3(dim, &v0, dim, &sv0, dim*dim, &J);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetFormDegree(sp, &k);CHKERRQ(ierr);
   for (s = sStart; s < sEnd; s++) {
-    PetscReal detJ, hdetJ;
+    PetscReal      detJ, hdetJ;
     PetscDualSpace ssp;
-    PetscInt dof, off, f, sdim;
-    PetscInt i, j;
-    DM sdm;
+    PetscInt       dof, off, f, sdim;
+    PetscInt       i, j;
+    DM             sdm;
 
     ierr = PetscDualSpaceGetPointSubspace(sp, s, &ssp);CHKERRQ(ierr);
     if (!ssp) continue;

@@ -62,7 +62,7 @@ alldone:
     }
   }
   if (PetscDefined(USE_DEBUG)) {
-    ierr = VecSetInf(*g);CHKERRQ(ierr);
+    ierr = VecSetNan(*g);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -92,6 +92,9 @@ PetscErrorCode  DMRestoreLocalVector(DM dm,Vec *g)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   PetscValidPointer(g,2);
+  if (0 && PetscDefined(USE_DEBUG)) {
+    ierr = VecCheckNan(*g);CHKERRQ(ierr);
+  }
   for (j=0; j<DM_MAX_WORK_VECTORS; j++) {
     if (*g == dm->localout[j]) {
       DM vdm;
@@ -178,7 +181,7 @@ alldone:
     }
   }
   if (PetscDefined(USE_DEBUG)) {
-    ierr = VecSetInf(*g);CHKERRQ(ierr);
+    ierr = VecSetNan(*g);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -289,6 +292,9 @@ PetscErrorCode  DMRestoreGlobalVector(DM dm,Vec *g)
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   PetscValidPointer(g,2);
   ierr = VecSetErrorIfLocked(*g, 2);CHKERRQ(ierr);
+  if (0 && PetscDefined(USE_DEBUG)) {
+    ierr = VecCheckNan(*g);CHKERRQ(ierr);
+  }
   for (j=0; j<DM_MAX_WORK_VECTORS; j++) {
     if (*g == dm->globalout[j]) {
       DM vdm;
@@ -313,6 +319,47 @@ alldone:
 }
 
 /*@C
+   DMIsNamedGlobalVector - checks for a named, persistent global vector and if it matches the passed in vector
+
+   Not Collective
+
+   Input Arguments:
++  dm - DM to hold named vectors
+.  name - unique name for Vec
+-  v - vector to match
+
+   Output Arguments:
+.  exists - true if the vector has this name
+
+   Level: developer
+
+.seealso: DMGetNamedGlobalVector(), DMRestoreNamedLocalVector()
+@*/
+PetscErrorCode DMIsNamedGlobalVector(DM dm,const char *name,Vec v,PetscBool *exists)
+{
+  PetscErrorCode ierr;
+  DMNamedVecLink link;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
+  PetscValidCharPointer(name,2);
+  PetscValidHeaderSpecific(v,VEC_CLASSID,1);
+  PetscValidBoolPointer(exists,3);
+  *exists = PETSC_FALSE;
+  for (link=dm->namedglobal; link; link=link->next) {
+    PetscBool match;
+    ierr = PetscStrcmp(name,link->name,&match);CHKERRQ(ierr);
+    if (match) {
+      if (link->X == v) {
+        *exists = PETSC_TRUE;
+      }
+      break;
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+/*@C
    DMHasNamedGlobalVector - check for a named, persistent global vector
 
    Not Collective
@@ -325,8 +372,6 @@ alldone:
 .  exists - true if the vector was previously created
 
    Level: developer
-
-   Note: If a Vec with the given name does not exist, it is created.
 
 .seealso: DMGetNamedGlobalVector(), DMRestoreNamedLocalVector()
 @*/

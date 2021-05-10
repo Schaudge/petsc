@@ -1931,6 +1931,9 @@ PetscErrorCode VecGetArrayWrite(Vec x,PetscScalar **a)
   if (x->ops->getarraywrite) {
     ierr = (*x->ops->getarraywrite)(x,a);CHKERRQ(ierr);
   } else {
+    if (0 && PetscDefined(USE_DEBUG) && x->petscnative && x->data) {
+      ierr = VecSetNan(x);CHKERRQ(ierr);
+    }
     ierr = VecGetArray(x,a);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -1956,6 +1959,9 @@ PetscErrorCode VecRestoreArrayWrite(Vec x,PetscScalar **a)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
+  if (0 && PetscDefined(USE_DEBUG) && x->petscnative) {
+    ierr = VecCheckNan(x);CHKERRQ(ierr);
+  }
   if (x->ops->restorearraywrite) {
     ierr = (*x->ops->restorearraywrite)(x,a);CHKERRQ(ierr);
   } else if (x->ops->restorearray) {

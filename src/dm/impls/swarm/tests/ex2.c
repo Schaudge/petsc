@@ -375,6 +375,7 @@ static PetscErrorCode TestL2ProjectionParticlesToField(DM dm, DM sw, AppCtx *use
   ierr = KSPCreate(comm, &ksp);CHKERRQ(ierr);
   ierr = KSPSetOptionsPrefix(ksp, "ptof_");CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dm, &fhat);CHKERRQ(ierr);
+  ierr = VecSet(fhat,0.0);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dm, &rhs);CHKERRQ(ierr);
 
   ierr = DMCreateMassMatrix(sw, dm, &M_p);CHKERRQ(ierr);

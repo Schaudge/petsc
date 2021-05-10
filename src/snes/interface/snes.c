@@ -659,6 +659,12 @@ static PetscErrorCode DMRestrictHook_SNESVecSol(DM dmfine,Mat Restrict,Vec Rscal
   }
   if (dmfine == snes->dm) Xfine = snes->vec_sol;
   else {
+    /*
+         An alternative to using named vectors would be to have a SNES for every level (this is heavy weight since the SNES is only needed to store the solution and compute the
+       Jacobian on coarser levels) or to have DMSNES have a location for the current solution, used on each level. Currently the same SNES is used for all the levels.
+       it is not clear if that is always a good model since the Jacobian computation may involve level dependent parameters.
+        If each level has its own SNES is there a need for DMSNES?
+     */
     ierr  = DMGetNamedGlobalVector(dmfine,"SNESVecSol",&Xfine_named);CHKERRQ(ierr);
     Xfine = Xfine_named;
   }
@@ -2667,6 +2673,7 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
   DM             dm;
   DMSNES         sdm;
   KSP            ksp;
+  PetscBool      snesvecsol;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
@@ -2714,6 +2721,12 @@ PetscErrorCode  SNESComputeJacobian(SNES snes,Vec X,Mat A,Mat B)
   PetscStackPop;
   ierr = VecLockReadPop(X);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(SNES_JacobianEval,snes,X,A,B);CHKERRQ(ierr);
+
+  /* attach latest linearization point to the preconditioning matrix if it is not the DM named vector (finest grid problem usually) */
+  ierr = DMIsNamedGlobalVector(dm,"SNESVecSol",X,&snesvecsol);CHKERRQ(ierr);
+  if (!snesvecsol) {
+    ierr = PetscObjectCompose((PetscObject)B,"SNESVecSol",(PetscObject)X);CHKERRQ(ierr);
+  }
 
   /* the next line ensures that snes->ksp exists */
   ierr = SNESGetKSP(snes,&ksp);CHKERRQ(ierr);

@@ -248,13 +248,14 @@ PetscErrorCode DMPatchSolve(DM dm)
         if (dmz) {ierr = DMView(dmz, PETSC_VIEWER_STDOUT_(commz));CHKERRQ(ierr);}
         ierr = PetscSFView(sfz,  PETSC_VIEWER_STDOUT_(comm));CHKERRQ(ierr);
         ierr = PetscSFView(sfzr, PETSC_VIEWER_STDOUT_(comm));CHKERRQ(ierr);
-        /* Scatter Xcoarse -> Xzoom */
+        /* Scatter Xcoarse -> XZ */
         if (dmz) {ierr = DMGetGlobalVector(dmz, &XZ);CHKERRQ(ierr);}
+        ierr = VecSet(XZ,0.0);CHKERRQ(ierr);
         if (XZ)  {ierr = VecGetArray(XZ, &xzarray);CHKERRQ(ierr);}
-        ierr = VecGetArray(XC, &xcarray);CHKERRQ(ierr);
+        ierr = VecGetArrayRead(XC, (const PetscScalar **)&xcarray);CHKERRQ(ierr);
         ierr = PetscSFBcastBegin(sfz, MPIU_SCALAR, xcarray, xzarray,MPI_REPLACE);CHKERRQ(ierr);
         ierr = PetscSFBcastEnd(sfz, MPIU_SCALAR, xcarray, xzarray,MPI_REPLACE);CHKERRQ(ierr);
-        ierr = VecRestoreArray(XC, &xcarray);CHKERRQ(ierr);
+        ierr = VecRestoreArrayRead(XC, (const PetscScalar **)&xcarray);CHKERRQ(ierr);
         if (XZ)  {ierr = VecRestoreArray(XZ, &xzarray);CHKERRQ(ierr);}
 #if 0
         /* Interpolate Xzoom -> Xfine, note that this may be on subcomms */

@@ -1085,7 +1085,6 @@ PetscErrorCode MatMarkDiagonal_SeqBAIJ(Mat A)
   PetscFunctionReturn(0);
 }
 
-
 static PetscErrorCode MatGetRowIJ_SeqBAIJ(Mat A,PetscInt oshift,PetscBool symmetric,PetscBool blockcompressed,PetscInt *nn,const PetscInt *inia[],const PetscInt *inja[],PetscBool  *done)
 {
   Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*)A->data;

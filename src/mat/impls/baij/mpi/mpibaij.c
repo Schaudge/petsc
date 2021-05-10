@@ -13,15 +13,15 @@ PetscErrorCode MatGetRowMaxAbs_MPIBAIJ(Mat A,Vec v,PetscInt idx[])
   Mat_MPIBAIJ       *a = (Mat_MPIBAIJ*)A->data;
   PetscErrorCode    ierr;
   PetscInt          i,*idxb = NULL,m = A->rmap->n,bs = A->cmap->bs;
-  PetscScalar       *va,*vv;
+  PetscScalar       *vv;
   Vec               vB,vA;
-  const PetscScalar *vb;
+  const PetscScalar *vb,*va;
 
   PetscFunctionBegin;
   ierr = VecCreateSeq(PETSC_COMM_SELF,m,&vA);CHKERRQ(ierr);
   ierr = MatGetRowMaxAbs(a->A,vA,idx);CHKERRQ(ierr);
 
-  ierr = VecGetArrayWrite(vA,&va);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(vA,&va);CHKERRQ(ierr);
   if (idx) {
     for (i=0; i<m; i++) {
       if (PetscAbsScalar(va[i])) idx[i] += A->cmap->rstart;
@@ -44,8 +44,8 @@ PetscErrorCode MatGetRowMaxAbs_MPIBAIJ(Mat A,Vec v,PetscInt idx[])
         idx[i] = bs*a->garray[idxb[i]/bs] + (idxb[i] % bs);
     }
   }
-  ierr = VecRestoreArrayWrite(vA,&vv);CHKERRQ(ierr);
-  ierr = VecRestoreArrayWrite(vA,&va);CHKERRQ(ierr);
+  ierr = VecRestoreArrayWrite(v,&vv);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(vA,&va);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(vB,&vb);CHKERRQ(ierr);
   ierr = PetscFree(idxb);CHKERRQ(ierr);
   ierr = VecDestroy(&vA);CHKERRQ(ierr);

@@ -104,7 +104,7 @@ PetscErrorCode MatSetRandom(Mat x,PetscRandom rctx)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the factored matrix
 
    Output Parameter:
@@ -137,7 +137,7 @@ PetscErrorCode MatFactorGetErrorZeroPivot(Mat mat,PetscReal *pivot,PetscInt *row
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the factored matrix
 
    Output Parameter:
@@ -305,7 +305,7 @@ PetscErrorCode MatFindZeroRows(Mat mat,IS *zerorows)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .   A - the matrix
 
    Output Parameters:
@@ -345,7 +345,7 @@ PetscErrorCode MatGetDiagonalBlock(Mat A,Mat *a)
 
    Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -372,11 +372,10 @@ PetscErrorCode MatGetTrace(Mat mat,PetscScalar *trace)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Level: advanced
-
 
 .seealso: MatImaginaryPart()
 @*/
@@ -437,11 +436,10 @@ PetscErrorCode MatGetGhosts(Mat mat,PetscInt *nghosts,const PetscInt *ghosts[])
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Level: advanced
-
 
 .seealso: MatRealPart()
 @*/
@@ -576,7 +574,7 @@ PetscErrorCode MatGetRow(Mat mat,PetscInt row,PetscInt *ncols,const PetscInt *co
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Level: advanced
@@ -658,7 +656,7 @@ PetscErrorCode MatRestoreRow(Mat mat,PetscInt row,PetscInt *ncols,const PetscInt
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Notes:
@@ -688,7 +686,7 @@ PetscErrorCode MatGetRowUpperTriangular(Mat mat)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Notes:
@@ -805,7 +803,7 @@ PetscErrorCode MatGetOptionsPrefix(Mat A,const char *prefix[])
 
    Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  A - the Mat context
 
    Notes:
@@ -833,7 +831,7 @@ PetscErrorCode MatResetPreallocation(Mat A)
 
    Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  A - the Mat context
 
    Notes:
@@ -1898,9 +1896,11 @@ PetscErrorCode MatSetValuesBlocked(Mat mat,PetscInt m,const PetscInt idxm[],Pets
 
    Input Parameters:
 +  mat - the matrix
-.  v - a logically two-dimensional array for storing the values
 .  m, idxm - the number of rows and their global indices
 -  n, idxn - the number of columns and their global indices
+
+   Output Parameter:
+.  v - a logically two-dimensional array for storing the values
 
    Notes:
      The user must allocate space (m*n PetscScalars) for the values, v.
@@ -2072,10 +2072,9 @@ PetscErrorCode MatSetValuesBatch(Mat mat, PetscInt nb, PetscInt bs, PetscInt row
    Input Parameters:
 +  x - the matrix
 .  rmapping - row mapping created with ISLocalToGlobalMappingCreate()   or ISLocalToGlobalMappingCreateIS()
-- cmapping - column mapping
+-  cmapping - column mapping
 
    Level: intermediate
-
 
 .seealso:  MatAssemblyBegin(), MatAssemblyEnd(), MatSetValues(), MatSetValuesLocal(), MatGetValuesLocal()
 @*/
@@ -2098,13 +2097,12 @@ PetscErrorCode MatSetLocalToGlobalMapping(Mat x,ISLocalToGlobalMapping rmapping,
   PetscFunctionReturn(0);
 }
 
-
 /*@
    MatGetLocalToGlobalMapping - Gets the local-to-global numbering set by MatSetLocalToGlobalMapping()
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  A - the matrix
 
    Output Parameters:
@@ -2112,7 +2110,6 @@ PetscErrorCode MatSetLocalToGlobalMapping(Mat x,ISLocalToGlobalMapping rmapping,
 - cmapping - column mapping
 
    Level: advanced
-
 
 .seealso:  MatSetValuesLocal()
 @*/
@@ -2159,7 +2156,7 @@ PetscErrorCode MatSetLayouts(Mat A,PetscLayout rmap,PetscLayout cmap)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  A - the matrix
 
    Output Parameters:
@@ -2410,7 +2407,7 @@ PetscErrorCode MatMultDiagonalBlock(Mat mat,Vec x,Vec y)
 +  mat - the matrix
 -  x   - the vector to be multiplied
 
-   Output Parameters:
+   Output Parameter:
 .  y - the result
 
    Notes:
@@ -2461,7 +2458,7 @@ PetscErrorCode MatMult(Mat mat,Vec x,Vec y)
 +  mat - the matrix
 -  x   - the vector to be multiplied
 
-   Output Parameters:
+   Output Parameter:
 .  y - the result
 
    Notes:
@@ -2518,7 +2515,7 @@ PetscErrorCode MatMultTranspose(Mat mat,Vec x,Vec y)
 +  mat - the matrix
 -  x   - the vector to be multilplied
 
-   Output Parameters:
+   Output Parameter:
 .  y - the result
 
    Notes:
@@ -2588,7 +2585,7 @@ PetscErrorCode MatMultHermitianTranspose(Mat mat,Vec x,Vec y)
 +   mat - the matrix
 -   v1, v2 - the vectors
 
-    Output Parameters:
+    Output Parameter:
 .   v3 - the result
 
     Notes:
@@ -2639,7 +2636,7 @@ PetscErrorCode MatMultAdd(Mat mat,Vec v1,Vec v2,Vec v3)
 +  mat - the matrix
 -  v1, v2 - the vectors
 
-   Output Parameters:
+   Output Parameter:
 .  v3 - the result
 
    Notes:
@@ -2688,7 +2685,7 @@ PetscErrorCode MatMultTransposeAdd(Mat mat,Vec v1,Vec v2,Vec v3)
 +  mat - the matrix
 -  v1, v2 - the vectors
 
-   Output Parameters:
+   Output Parameter:
 .  v3 - the result
 
    Notes:
@@ -2754,7 +2751,7 @@ PetscErrorCode MatMultHermitianTransposeAdd(Mat mat,Vec v1,Vec v2,Vec v3)
 +  mat - the matrix
 -  x   - the vector to be multilplied
 
-   Output Parameters:
+   Output Parameter:
 .  y - the result
 
    Notes:
@@ -2799,7 +2796,7 @@ PetscErrorCode MatMultConstrained(Mat mat,Vec x,Vec y)
 +  mat - the matrix
 -  x   - the vector to be multilplied
 
-   Output Parameters:
+   Output Parameter:
 .  y - the result
 
    Notes:
@@ -2836,10 +2833,10 @@ PetscErrorCode MatMultTransposeConstrained(Mat mat,Vec x,Vec y)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
-   Output Parameters:
+   Output Parameter:
 .  t - the type, one of MAT_FACTOR_NONE, MAT_FACTOR_LU, MAT_FACTOR_CHOLESKY, MAT_FACTOR_ILU, MAT_FACTOR_ICC,MAT_FACTOR_ILUDT
 
    Level: intermediate
@@ -2885,7 +2882,7 @@ PetscErrorCode MatSetFactorType(Mat mat, MatFactorType t)
 
    Collective on Mat if MAT_GLOBAL_MAX or MAT_GLOBAL_SUM is used as the flag
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -3208,7 +3205,7 @@ PetscErrorCode MatLUFactorNumeric(Mat fact,Mat mat,const MatFactorInfo *info)
    Input Parameters:
 +  mat - the matrix
 .  perm - row and column permutations
--  f - expected fill as ratio of original fill
+-  info - options for performing the factorization
 
    Notes:
    See MatLUFactor() for the nonsymmetric case.  See also
@@ -4117,6 +4114,7 @@ PetscErrorCode MatSolveTransposeAdd(Mat mat,Vec b,Vec y,Vec x)
 
    Input Parameters:
 +  mat - the matrix
+.  x - initial values of x (not used if the flag is SOR_ZERO_INITIAL_GUESS)
 .  b - the right hand side
 .  omega - the relaxation factor
 .  flag - flag indicating the type of SOR (see below)
@@ -4124,7 +4122,7 @@ PetscErrorCode MatSolveTransposeAdd(Mat mat,Vec b,Vec y,Vec x)
 .  its - the number of iterations
 -  lits - the number of local iterations
 
-   Output Parameters:
+   Output Parameter:
 .  x - the solution (can contain an initial guess, use option SOR_ZERO_INITIAL_GUESS to indicate no guess)
 
    SOR Flags:
@@ -4690,7 +4688,7 @@ PetscErrorCode MatSolverTypeDestroy(void)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -4721,7 +4719,7 @@ PetscErrorCode MatFactorGetUseOrdering(Mat mat, PetscBool *flg)
 .  type - name of solver type, for example, superlu, petsc (to use PETSc's default)
 -  ftype - factor type, MAT_FACTOR_LU, MAT_FACTOR_CHOLESKY, MAT_FACTOR_ICC, MAT_FACTOR_ILU,
 
-   Output Parameters:
+   Output Parameter:
 .  f - the factor matrix used with MatXXFactorSymbolic() calls
 
    Notes:
@@ -4883,9 +4881,8 @@ PetscErrorCode MatDuplicate(Mat mat,MatDuplicateOption op,Mat *M)
 
    Logically Collective on Mat
 
-   Input Parameters:
-+  mat - the matrix
--  v - the vector for storing the diagonal
+   Input Parameter:
+.  mat - the matrix
 
    Output Parameter:
 .  v - the diagonal of the matrix
@@ -4920,7 +4917,7 @@ PetscErrorCode MatGetDiagonal(Mat mat,Vec v)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -4935,7 +4932,7 @@ PetscErrorCode MatGetDiagonal(Mat mat,Vec v)
 
     This code is only implemented for a couple of matrix formats.
 
-.seealso: MatGetDiagonal(), MatCreateSubMatrices(), MatCreateSubMatrix(), MatGetRowMaxAbs(),
+.seealso: MatGetDiagonal(), MatCreateSubMatrices(), MatCreateSubMatrix(), MatGetRowMaxAbs(), MatGetRowMinAbs(),
           MatGetRowMax()
 @*/
 PetscErrorCode MatGetRowMin(Mat mat,Vec v,PetscInt idx[])
@@ -4969,7 +4966,7 @@ PetscErrorCode MatGetRowMin(Mat mat,Vec v,PetscInt idx[])
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -5019,7 +5016,7 @@ PetscErrorCode MatGetRowMinAbs(Mat mat,Vec v,PetscInt idx[])
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -5030,7 +5027,7 @@ PetscErrorCode MatGetRowMinAbs(Mat mat,Vec v,PetscInt idx[])
 
    Notes:
     The result of this call are the same as if one converted the matrix to dense format
-      and found the minimum value in each row (i.e. the implicit zeros are counted as zeros).
+      and found the maximum value in each row (i.e. the implicit zeros are counted as zeros).
 
     This code is only implemented for a couple of matrix formats.
 
@@ -5067,7 +5064,7 @@ PetscErrorCode MatGetRowMax(Mat mat,Vec v,PetscInt idx[])
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -5115,7 +5112,7 @@ PetscErrorCode MatGetRowMaxAbs(Mat mat,Vec v,PetscInt idx[])
 
    Logically or Neighborhood Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -5317,7 +5314,7 @@ PetscErrorCode MatIsHermitianTranspose(Mat A,Mat B,PetscReal tol,PetscBool  *flg
 .  row - row permutation, each processor supplies only the permutation for its rows
 -  col - column permutation, each processor supplies only the permutation for its columns
 
-   Output Parameters:
+   Output Parameter:
 .  B - the permuted matrix
 
    Level: advanced
@@ -5490,7 +5487,7 @@ PetscErrorCode MatScale(Mat mat,PetscScalar a)
 +  mat - the matrix
 -  type - the type of norm, NORM_1, NORM_FROBENIUS, NORM_INFINITY
 
-   Output Parameters:
+   Output Parameter:
 .  nrm - the resulting norm
 
    Level: intermediate
@@ -5953,7 +5950,7 @@ PetscErrorCode MatGetOption(Mat mat,MatOption op,PetscBool *flg)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Level: intermediate
@@ -6670,7 +6667,7 @@ PetscErrorCode MatGetSize(Mat mat,PetscInt *m,PetscInt *n)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -6700,7 +6697,7 @@ PetscErrorCode MatGetLocalSize(Mat mat,PetscInt *m,PetscInt *n)
 
    Not Collective, unless matrix has not been allocated, then collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -6736,7 +6733,7 @@ PetscErrorCode MatGetOwnershipRangeColumn(Mat mat,PetscInt *m,PetscInt *n)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -6772,7 +6769,7 @@ PetscErrorCode MatGetOwnershipRange(Mat mat,PetscInt *m,PetscInt *n)
 
    Not Collective, unless matrix has not been allocated, then collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -6801,7 +6798,7 @@ PetscErrorCode MatGetOwnershipRanges(Mat mat,const PetscInt **ranges)
 
    Not Collective, unless matrix has not been allocated, then collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -7211,7 +7208,7 @@ PetscErrorCode MatDestroySubMatrices(PetscInt n,Mat *mat[])
 
    Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
@@ -7245,7 +7242,7 @@ PetscErrorCode MatGetSeqNonzeroStructure(Mat mat,Mat *matstruct)
 
    Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix (note that this is a pointer to the array of matrices, just to match the calling
                        sequence of MatGetSequentialNonzeroStructure())
 
@@ -7496,7 +7493,7 @@ PetscErrorCode MatSetVariableBlockSizes(Mat mat,PetscInt nblocks,PetscInt *bsize
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameters:
@@ -9237,9 +9234,8 @@ PetscErrorCode MatCreateVecs(Mat mat,Vec *right,Vec *left)
 
    Not Collective
 
-   Input Parameters:
+   Input Parameter:
 .    info - the MatFactorInfo data structure
-
 
    Notes:
     The solvers are generally used through the KSP and PC objects, for example
@@ -9307,9 +9303,11 @@ PetscErrorCode MatFactorSetSchurIS(Mat mat,IS is)
 
    Logically Collective on Mat
 
-   Input Parameters:
-+  F - the factored matrix obtained by calling MatGetFactor() from PETSc-MUMPS interface
-.  S - location where to return the Schur complement, can be NULL
+   Input Parameter:
+.  F - the factored matrix obtained by calling MatGetFactor() from PETSc-MUMPS interface
+
+   Output Paramters:
++  S - location where to return the Schur complement, can be NULL
 -  status - the status of the Schur complement matrix, can be NULL
 
    Notes:
@@ -9360,9 +9358,11 @@ PetscErrorCode MatFactorCreateSchurComplement(Mat F,Mat* S,MatFactorSchurStatus*
 
    Logically Collective on Mat
 
-   Input Parameters:
-+  F - the factored matrix obtained by calling MatGetFactor()
-.  *S - location where to return the Schur complement, can be NULL
+   Input Parameter:
+.  F - the factored matrix obtained by calling MatGetFactor()
+
+   Output Paramters:
++  *S - location where to return the Schur complement, can be NULL
 -  status - the status of the Schur complement matrix, can be NULL
 
    Notes:
@@ -9528,7 +9528,7 @@ PetscErrorCode MatFactorSolveSchurComplement(Mat F, Vec rhs, Vec sol)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  F - the factored matrix obtained by calling MatGetFactor()
 
    Notes:
@@ -9561,7 +9561,7 @@ PetscErrorCode MatFactorInvertSchurComplement(Mat F)
 
    Logically Collective on Mat
 
-   Input Parameters:
+   Input Parameter:
 .  F - the factored matrix obtained by calling MatGetFactor()
 
    Notes:
@@ -10265,7 +10265,7 @@ PetscErrorCode MatFindOffBlockDiagonalEntries(Mat mat,IS *is)
 
   Collective on Mat
 
-  Input Parameters:
+  Input Parameter:
 . mat - the matrix
 
   Output Parameters:
@@ -10329,7 +10329,7 @@ PetscErrorCode MatInvertVariableBlockDiagonal(Mat mat,PetscInt nblocks,const Pet
 
   Collective on Mat
 
-  Input Parameters:
+  Input Parameter:
 . A - the matrix
 
   Output Parameters:
@@ -10641,7 +10641,7 @@ PetscErrorCode MatSubdomainsCreateCoalesce(Mat A,PetscInt N,PetscInt *n,IS *iss[
 .  reuse - either MAT_INITIAL_MATRIX or MAT_REUSE_MATRIX
 -  fill - expected fill, use PETSC_DEFAULT if you do not have a good estimate
 
-   Output Parameters:
+   Output Parameter:
 .  A - the Galerkin coarse matrix
 
    Options Database Key:
@@ -10824,7 +10824,7 @@ PetscErrorCode MatHasOperation(Mat mat,MatOperation op,PetscBool *has)
 
    Collective on mat
 
-   Input Parameters:
+   Input Parameter:
 .  mat - the matrix
 
    Output Parameter:
