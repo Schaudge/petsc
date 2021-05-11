@@ -67,6 +67,11 @@ typedef struct {
 } PetscSpace_Sum;
 
 typedef struct {
+  PetscSpace *domainspace;       /* Space that the koszul operator is applied to */
+  PetscBool  setupCalled;
+} PetscSpace_Koszul;
+
+typedef struct {
   PetscQuadrature quad;         /* The points defining the space */
 } PetscSpace_Point;
 
