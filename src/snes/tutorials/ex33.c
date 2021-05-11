@@ -140,6 +140,7 @@ int main(int argc, char **argv)
   /* Setup Problem */
   ierr = DMDASNESSetFunctionLocal(da,INSERT_VALUES,(PetscErrorCode (*)(DMDALocalInfo*,void*,void*,void*))FormFunctionLocal,&user);CHKERRQ(ierr);
   ierr = DMGetGlobalVector(da, &u);CHKERRQ(ierr);
+  ierr = VecZeroEntries(u);CHKERRQ(ierr); /* Needed because of the VecView() below */
   ierr = DMGetGlobalVector(da, &user.uold);CHKERRQ(ierr);
 
   user.sl  = 1.0;

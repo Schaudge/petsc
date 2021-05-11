@@ -128,6 +128,7 @@ PetscErrorCode ApplyOperator(Mat A,Vec in,Vec out)
   PetscFunctionBeginUser;
   ierr = MatGetDM(A,&dm);CHKERRQ(ierr);
   ierr = DMGetLocalVector(dm,&inLocal);CHKERRQ(ierr);
+  ierr = VecZeroEntries(inLocal);CHKERRQ(ierr); /* Needed since global to local does not fill in all used memory locations */
   ierr = DMGetLocalVector(dm,&outLocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm,in,INSERT_VALUES,inLocal);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm,in,INSERT_VALUES,inLocal);CHKERRQ(ierr);

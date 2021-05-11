@@ -36,7 +36,7 @@ PetscErrorCode FormFunction_Water(DM networkdm,Vec localX,Vec localF,PetscInt nv
   PetscFunctionBegin;
   /* Get arrays for the vectors */
   ierr = VecGetArrayRead(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&farr);CHKERRQ(ierr);
+  ierr = VecGetArrayWrite(localF,&farr);CHKERRQ(ierr);
 
   for (i=0; i<ne; i++) { /* for each edge */
     /* Get the offset and the key for the component for edge number e[i] */
@@ -94,7 +94,7 @@ PetscErrorCode FormFunction_Water(DM networkdm,Vec localX,Vec localF,PetscInt nv
   }
 
   ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecRestoreArray(localF,&farr);CHKERRQ(ierr);
+  ierr = VecRestoreArrayWrite(localF,&farr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

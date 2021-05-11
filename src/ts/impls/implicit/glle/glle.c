@@ -148,7 +148,9 @@ static PetscErrorCode TSGLLESchemeCreate(PetscInt p,PetscInt q,PetscInt r,PetscI
     PetscReal    rcond,*sing,*workreal;
     PetscScalar  *ImV,*H,*bmat,*workscalar,*c=scheme->c,*a=scheme->a,*b=scheme->b,*u=scheme->u,*v=scheme->v;
     PetscBLASInt rank;
-    ierr = PetscMalloc7(PetscSqr(r),&ImV,3*s,&H,3*ss,&bmat,lwork,&workscalar,5*(3+r),&workreal,r+s,&sing,r+s,&ipiv);CHKERRQ(ierr);
+
+    ierr = PetscCalloc1(PetscSqr(r),&ImV);CHKERRQ(ierr); /* Allocate with zeros because LAPACK/BLAS routines may access the unused rows of the matrix and generate an FPE */
+    ierr = PetscMalloc6(3*s,&H,3*ss,&bmat,lwork,&workscalar,5*(3+r),&workreal,r+s,&sing,r+s,&ipiv);CHKERRQ(ierr);
 
     /* column-major input */
     for (i=0; i<r-1; i++) {
@@ -271,7 +273,8 @@ static PetscErrorCode TSGLLESchemeCreate(PetscInt p,PetscInt q,PetscInt r,PetscI
         scheme->psi[2*r+j] -= CPowF(c[k],j-1)*scheme->phi[2*s+k];
       }
     }
-    ierr = PetscFree7(ImV,H,bmat,workscalar,workreal,sing,ipiv);CHKERRQ(ierr);
+    ierr = PetscFree(ImV);CHKERRQ(ierr);
+    ierr = PetscFree6(H,bmat,workscalar,workreal,sing,ipiv);CHKERRQ(ierr);
   }
   /* Check which properties are satisfied */
   scheme->stiffly_accurate = PETSC_TRUE;

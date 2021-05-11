@@ -135,7 +135,7 @@ PetscErrorCode  PetscSignalHandlerDefault(int sig,void *ptr)
   SIGNAME[SIGUSR2] = "User 2";
 #endif
 
-  signal(sig,SIG_DFL);
+  //signal(sig,SIG_DFL);
   (*PetscErrorPrintf)("------------------------------------------------------------------------\n");
   if (sig >= 0 && sig <= 20) (*PetscErrorPrintf)("Caught signal number %d %s\n",sig,SIGNAME[sig]);
   else (*PetscErrorPrintf)("Caught signal\n");

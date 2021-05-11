@@ -539,7 +539,7 @@ void PetscDefaultFPTrap(int sig)
   PetscFunctionBegin;
   /* Note: While it is possible for the exception state to be preserved by the
    * kernel, this seems to be rare which makes the following flag testing almost
-   * useless.  But on a system where the flags can be preserved, it would provide
+   * useless.  But on a system where the flags are preserved, it would provide
    * more detail.
    */
   code = fetestexcept(FE_ALL_EXCEPT);
@@ -586,13 +586,17 @@ PetscErrorCode  PetscSetFPTrap(PetscFPTrap on)
     if (feclearexcept(FE_ALL_EXCEPT)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot clear floating point exception flags\n");
 #if defined(FE_NOMASK_ENV)
     /* Could use fesetenv(FE_NOMASK_ENV), but that causes spurious exceptions (like gettimeofday() -> PetscLogDouble). */
-    if (feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW) == -1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot activate floating point exceptions\n");
+    if (feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW) == -1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot activate floating point exceptions\n");
 #elif defined PETSC_HAVE_XMMINTRIN_H
    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_DIV_ZERO);
    /* _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_UNDERFLOW); */
    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_OVERFLOW);
    _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #else
+   /* the following flags do not work on Apple despite being listed in manual pages */
+   fexcept_t flagp;
+   if (fegetexceptflag(&flagp,FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot obtain floating point exceptions\n");
+   if (fesetexceptflag(&flagp,FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Cannot activate floating point exceptions\n");
     /* C99 does not provide a way to modify the environment so there is no portable way to activate trapping. */
 #endif
     if (SIG_ERR == signal(SIGFPE,PetscDefaultFPTrap)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Can't set floating point handler\n");
