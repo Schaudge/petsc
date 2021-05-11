@@ -6,10 +6,14 @@ FPPFLAGS        =
 LOCDIR          = src/ts/tutorials/multirate/
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex9.c
 =======
 EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c
 >>>>>>> add src/ts/tutorials/multirate/ex4.c for a shallow water model
+=======
+EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex9.c ex10.c
+>>>>>>> WIP
 EXAMPLESF       =
 EXAMPLESFH      =
 MANSEC          = TS
@@ -41,8 +45,14 @@ OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 =======
 SOURCES_FVNET   = $(wildcard ./fvnet/*.c)
 OBJECTS_FVNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+<<<<<<< HEAD
 CLEANFILES      = ${OBJECTS_FVNET}
 >>>>>>> Modified make file to improve dependency on fvnet.h WIP
+=======
+SOURCES_DGNET   = $(wildcard ./dgnet/*.c)
+OBJECTS_DGNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+CLEANFILES      = ${OBJECTS_FVNET} ${OBJECTS_DGNET}
+>>>>>>> WIP
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
@@ -66,6 +76,10 @@ ex9: ex9.o $(OBJECTS_FVNET)
 =======
 ex9.o:  ./fvnet/fvnet.h ./fvnet/limiters.h
 ex9: ex9.o $(OBJECTS_FVNET)
+<<<<<<< HEAD
 >>>>>>> Modified make file to improve dependency on fvnet.h WIP
+=======
+ex10: ex10.o $(OBJECTS_DGNET)
+>>>>>>> WIP
 include ${PETSC_DIR}/lib/petsc/conf/test
 
