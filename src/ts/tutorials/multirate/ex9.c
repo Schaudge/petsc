@@ -216,52 +216,6 @@ static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PhysicsSample_Shallow1D(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u)
-{
-  PetscFunctionBeginUser;
-  if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
-  switch (initial) {
-    case 0:
-      u[0] = (x < 25) ? 2 : 1; /* Standard Dam Break Problem */
-      u[1] = (x < 25) ? 0 : 0;
-      break;
-    case 1:
-      u[0] = (x < 10) ?   1 : 0.1; /*The Next 5 problems are standard Riemann problem tests */
-      u[1] = (x < 10) ? 2.5 : 0;
-      break;
-    case 2:
-      u[0] = (x < 25) ?  1 : 1;
-      u[1] = (x < 25) ? -5 : 5;
-      break;
-    case 3:
-      u[0] = (x < 20) ?  1 : 0;
-      u[1] = (x < 20) ?  0 : 0;
-      break;
-    case 4:
-      u[0] = (x < 30) ? 0: 1;
-      u[1] = (x < 30) ? 0 : 0;
-      break;
-    case 5:
-      u[0] = (x < 25) ?  0.1 : 0.1;
-      u[1] = (x < 25) ? -0.3 : 0.3;
-      break;
-    case 6:
-      u[0] = 1+0.5*PetscSinReal(2*PETSC_PI*x);
-      u[1] = 1*u[0];
-      break;
-    case 7:
-      u[0] = 1.0;
-      u[1] = 1.0;
-      break;
-    case 8:
-      u[0] = (x < -2) ? 2 : 1; /* Standard Dam Break Problem */
-      u[1] = (x < -2) ? 0 : 0;
-      break;
-    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
-  }
-  PetscFunctionReturn(0);
-}
-
 static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u,PetscInt edgeid)
 {
   PetscFunctionBeginUser;
@@ -325,6 +279,43 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
     case 5: /* Roundabout Pulse */
       u[0] = !(edgeid%2) ? 2 : 1; 
       u[1] = 0;
+      break;
+ /* The following problems are based on geoemtrically 1d Networks, no notion of edgeid is considered */
+    case 6:
+      u[0] = (x < 10) ?   1 : 0.1; 
+      u[1] = (x < 10) ? 2.5 : 0;
+      break;
+    case 7:
+      u[0] = (x < 25) ?  1 : 1;
+      u[1] = (x < 25) ? -5 : 5;
+      break;
+    case 8:
+      u[0] = (x < 20) ?  1 : 0;
+      u[1] = (x < 20) ?  0 : 0;
+      break;
+    case 9:
+      u[0] = (x < 30) ? 0: 1;
+      u[1] = (x < 30) ? 0 : 0;
+      break;
+    case 10:
+      u[0] = (x < 25) ?  0.1 : 0.1;
+      u[1] = (x < 25) ? -0.3 : 0.3;
+      break;
+    case 11:
+      u[0] = 1+0.5*PetscSinReal(2*PETSC_PI*x);
+      u[1] = 1*u[0];
+      break;
+    case 12:
+      u[0] = 1.0;
+      u[1] = 1.0;
+      break;
+    case 13:
+      u[0] = (x < -2) ? 2 : 1; /* Standard Dam Break Problem */
+      u[1] = (x < -2) ? 0 : 0;
+      break;
+    case 14:
+      u[0] = (x < 25) ? 2 : 1; /* Standard Dam Break Problem */
+      u[1] = (x < 25) ? 0 : 0;
       break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
@@ -608,7 +599,6 @@ static PetscErrorCode PhysicsCreate_Shallow(FVNetwork fvnet)
 
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
-  fvnet->physics.sample1d        = PhysicsSample_Shallow1D;
   fvnet->physics.samplenetwork   = PhysicsSample_ShallowNetwork;
   fvnet->physics.destroy         = PhysicsDestroy_SimpleFree_Net;
   fvnet->physics.riemann         = PhysicsRiemann_Shallow_Rusanov;
@@ -717,18 +707,6 @@ static PetscErrorCode PhysicsAssignVertexFlux_Traffic(const void* _fvnet, Juncti
   }
   PetscFunctionReturn(0);
 }
-static PetscErrorCode PhysicsSample_Traffic1D(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u)
-{
-  PetscFunctionBeginUser;
-  if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
-  switch (initial) {
-    case 0:
-      u[0] = (x < 25) ? 2 : 1; /* Traffic Break problem ? */
-      break;
-    default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
-  }
-  PetscFunctionReturn(0);
-}
 typedef struct {
   PetscReal a,x,t;
 } MethodCharCtx; 
@@ -773,8 +751,6 @@ static  PetscErrorCode TrafficCase1Char_J(SNES snes,Vec X,Mat Amat,Mat Pmat, voi
   }
   PetscFunctionReturn(0);
 }
-
-
 static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u,PetscInt edgeid)
 {
   SNES           snes; 
@@ -825,7 +801,7 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx,PetscInt initial,P
           ierr = PetscMalloc1(1,&s);CHKERRQ(ierr);
           ierr = VecGetArray(X,&s);CHKERRQ(ierr);
       
-            u[0] = PetscSinReal(PETSC_PI*(s[0]/5.0))+2;
+          u[0] = PetscSinReal(PETSC_PI*(s[0]/5.0))+2;
          
           ierr = VecRestoreArray(X,&s);CHKERRQ(ierr);
           ierr = VecDestroy(&X);CHKERRQ(ierr);
@@ -869,7 +845,6 @@ static PetscErrorCode PhysicsCreate_Traffic(FVNetwork fvnet)
 
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
-  fvnet->physics.sample1d       = PhysicsSample_Traffic1D;
   fvnet->physics.samplenetwork  = PhysicsSample_TrafficNetwork;
   fvnet->physics.characteristic = PhysicsCharacteristic_Conservative;
   fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
@@ -911,7 +886,7 @@ PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
 
 int main(int argc,char *argv[])
 {
-  char              lname[256] = "minmod",physname[256] = "shallow",tname[256] = "fixed";
+  char              lname[256] = "minmod",physname[256] = "shallow",tname[256] = "adaptive";
   PetscFunctionList limiters = 0,physics = 0,timestep = 0;
   MPI_Comm          comm;
   TS                ts,ts_lin;
@@ -934,23 +909,25 @@ int main(int argc,char *argv[])
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
 
   /* Register limiters to be available on the command line */
+  ierr = PetscFunctionListAdd(&limiters,"minmod"              ,Limit_Minmod_Uni);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&limiters,"upwind"              ,Limit_Upwind_Uni);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&limiters,"lax-wendroff"        ,Limit_LaxWendroff_Uni);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&limiters,"beam-warming"        ,Limit_BeamWarming_Uni);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&limiters,"fromm"               ,Limit_Fromm_Uni);CHKERRQ(ierr);
-  ierr = PetscFunctionListAdd(&limiters,"minmod"              ,Limit_Minmod_Uni);CHKERRQ(ierr);
+
 
   /* Register physical models to be available on the command line */
   ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&physics,"traffic"         ,PhysicsCreate_Traffic);CHKERRQ(ierr);
   /* Register time step functions to be available on the command line */
-  ierr = PetscFunctionListAdd(&timestep,"fixed"         ,FVNetwork_GetTimeStep_Fixed);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&timestep,"adaptive"      ,FVNetwork_GetTimeStep_Adaptive);CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(&timestep,"fixed"         ,FVNetwork_GetTimeStep_Fixed);CHKERRQ(ierr);
+
 
   /* Set default values */
   fvnet->comm           = comm;
   fvnet->cfl            = 0.9;
-  fvnet->networktype    = 1;
+  fvnet->networktype    = 6;
   fvnet->hratio         = 2;
   maxtime               = 1.0;
   fvnet->Mx             = 12;
@@ -994,6 +971,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-convergence", "Test convergence on meshes 2^3 - 2^n","",convergencelevel,&convergencelevel,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
+
   /* Choose the limiter from the list of registered limiters */
   ierr = PetscFunctionListFind(limiters,lname,&fvnet->limit);CHKERRQ(ierr);
   if (!fvnet->limit) SETERRQ1(PETSC_COMM_SELF,1,"Limiter '%s' not found",lname);
@@ -1006,6 +984,7 @@ int main(int argc,char *argv[])
     /* Create the physics, will set the number of fields and their names */
     ierr = (*r)(fvnet);CHKERRQ(ierr);
   }
+
   /* Choose the function for determining timestep */
   {
     ierr = PetscFunctionListFind(timestep,tname,&fvnet->gettimestep);CHKERRQ(ierr);

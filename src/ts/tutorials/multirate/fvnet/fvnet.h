@@ -53,7 +53,6 @@ typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,cons
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
 
 typedef struct {
-  PetscErrorCode                 (*sample1d)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
   PetscErrorCode                 (*samplenetwork)(void*,PetscInt,PetscReal,PetscReal,PetscReal*,PetscInt);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   RiemannFunction                riemann;

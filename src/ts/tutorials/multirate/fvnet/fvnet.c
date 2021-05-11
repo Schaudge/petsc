@@ -648,49 +648,25 @@ PetscErrorCode FVNetworkProject(FVNetwork fvnet,Vec X0,PetscReal t)
     xto   = junction->x;
     ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     xfrom = junction->x;
-    if (fvnet->networktype<3) {
-      /* This code assumes a geometrically 1d network. */  
-      for (i=0; i<fvedge->nnodes; i++) {
-        if (xto>xfrom) {
-          xstart = xfrom+i*h;
-          xend   = xstart+h;
-        } else {
-          xstart = xfrom-i*h;
-          xend   = xstart-h;
-        }
-        ierr = PetscDTGaussQuadrature(numnodes,xstart,xend,xnodes,w);CHKERRQ(ierr);
-        u = xarr+offset+i*dof;
-        for(j=0;j<numnodes;j++) {
-          fvnet->physics.sample1d((void*)&fvnet->physics.user,fvnet->initial,t,xnodes[j],utmp+dof*j);
-        }
-        for(j=0;j<dof;j++) {
-            u[j] = 0;
-          for(k=0;k<numnodes;k++) {
-            u[j] += w[k]*utmp[dof*k+j]/h; /* Gaussian Quadrature*/
-          }
+    for (i=0; i<fvedge->nnodes; i++) {
+      if (xto>xfrom) {
+        xstart = xfrom+i*h;
+        xend   = xstart+h;
+      } else {
+        xstart = xfrom-(i+1)*h;
+        xend   = xstart+h;
+      }
+      ierr = PetscDTGaussQuadrature(numnodes,xstart,xend,xnodes,w);CHKERRQ(ierr);
+      u = xarr+offset+i*dof;
+      for(j=0;j<numnodes;j++) {
+        fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,t,xnodes[j],utmp+dof*j,fvedge->id);
+      }
+      for(j=0;j<dof;j++) {
+          u[j] = 0;
+        for(k=0;k<numnodes;k++) {
+          u[j] += w[k]*utmp[dof*k+j]/h; /* Gaussian Quadrature*/
         }
       }
-    } else { /* Our sample function changes for each edge in the network */
-      for (i=0; i<fvedge->nnodes; i++) {
-        if (xto>xfrom) {
-          xstart = xfrom+i*h;
-          xend   = xstart+h;
-        } else {
-          xstart = xfrom-(i+1)*h;
-          xend   = xstart+h;
-        }
-        ierr = PetscDTGaussQuadrature(numnodes,xstart,xend,xnodes,w);CHKERRQ(ierr);
-        u = xarr+offset+i*dof;
-        for(j=0;j<numnodes;j++) {
-          fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,t,xnodes[j],utmp+dof*j,fvedge->id);
-        }
-        for(j=0;j<dof;j++) {
-            u[j] = 0;
-          for(k=0;k<numnodes;k++) {
-            u[j] += w[k]*utmp[dof*k+j]/h; /* Gaussian Quadrature*/
-          }
-        }
-      }   
     }
   }
   ierr = PetscFree3(xnodes,w,utmp);CHKERRQ(ierr);
