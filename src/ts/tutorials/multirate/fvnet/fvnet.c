@@ -708,7 +708,7 @@ PetscErrorCode FVNetworkL1CellAvg(FVNetwork fvnet, Vec X,PetscReal *norm)
     }
   }
   ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
-  MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,fvnet->comm);CHKERRMPI(ierr);
+  ierr = MPI_Allreduce(MPI_IN_PLACE,&norm,dof,MPIU_REAL,MPIU_SUM,fvnet->comm);CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -743,6 +743,6 @@ PetscErrorCode FVNetworkTotal(FVNetwork fvnet, Vec X,PetscReal *norm)
     }
   }
   ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
-  MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,fvnet->comm);CHKERRMPI(ierr);
+  ierr = MPI_Allreduce(MPI_IN_PLACE,&norm,dof,MPIU_REAL,MPIU_SUM,fvnet->comm);CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }
