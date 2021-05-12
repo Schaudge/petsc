@@ -87,6 +87,7 @@ PETSC_EXTERN PetscErrorCode PetscSpaceSumGetConcatenate(PetscSpace, PetscBool *)
 PETSC_EXTERN PetscErrorCode PetscSpaceCreateSum(PetscInt numSubspaces,const PetscSpace subspaces[],PetscBool concatenate,PetscSpace *sumSpace);
 
 PETSC_EXTERN PetscErrorCode PetscSpaceCreateKoszul(PetscSpace*,PetscSpace*);
+PETSC_EXTERN PetscErrorCode PetscSpaceKoszulSetDomain(PetscSpace,PetscSpace);
 
 PETSC_EXTERN PetscErrorCode PetscSpacePointGetPoints(PetscSpace, PetscQuadrature *);
 PETSC_EXTERN PetscErrorCode PetscSpacePointSetPoints(PetscSpace, PetscQuadrature);
