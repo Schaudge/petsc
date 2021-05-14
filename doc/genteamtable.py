@@ -271,7 +271,7 @@ def writeWarnRst(fname):
         f.writelines([".. warning::\n\n",
                       "   ``$PETSC_GITLAB_PRIVATE_TOKEN`` was not defined in your environment. Please generate a gitlab private token and export it to your environment. See https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html for more information."])
 
-def main(writeDirPath, token, builderName=None):
+def main(writeDirPath, token=None, builderName=None):
     print("Running from %s" % (os.path.realpath(__file__)))
     try:
         os.mkdir(writeDirPath)
@@ -283,7 +283,14 @@ def main(writeDirPath, token, builderName=None):
 
     currentFile = os.path.join(writeDirPath, "petsc-team-table.inc")
     emeritusFile = os.path.join(writeDirPath, "petsc-emeritus-table.inc")
-    if token is None and "READTHEDOCS" not in os.environ:
+    if token is None:
+      try:
+        token = os.environ["CI_JOB_TOKEN"]
+      except KeyError:
+        print("CI_JOB_TOKEN not in environment!")
+        print(os.environ)
+        pass
+    if token is None:
         writeWarnRst(currentFile)
         writeWarnRst(emeritusFile)
     else:
