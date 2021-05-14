@@ -1,6 +1,9 @@
 #ifndef PETSCMLDR_H
 #define PETSCMLDR_H
 
+#include <petsctao.h>
+#include <slepcsvd.h>
+
 typedef struct _p_MLDR* MLDR;
 
 /*J
@@ -19,3 +22,5 @@ PETSC_EXTERN PetscErrorCode MLDRInitializePackage(void);
 PETSC_EXTERN PetscErrorCode MLDRCreate(MPI_Comm,MLDR*);
 PETSC_EXTERN PetscErrorCode MLDRReset(MLDR);
 PETSC_EXTERN PetscErrorCode MLDRDestroy(MLDR*);
+PETSC_EXTERN PetscErrorCode MLDRView(MLDR*);
+#endif

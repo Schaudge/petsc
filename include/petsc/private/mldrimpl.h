@@ -1,6 +1,9 @@
 #if !defined(MLDRIMPL_H)
 #define MLDRIMPL_H
 
+#include <petscmldr.h>
+#include <petsc/private/petscimpl.h>
+
 PETSC_EXTERN PetscBool MLDRRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode MLDRRegisterAll(void);
 
@@ -13,7 +16,7 @@ struct _MLDROps {
   PetscErrorCode (*transform)(MLDR,Mat,Mat*);                       /* apply computed transformation to matrix */
   PetscErrorCode (*destroy)(MLDR);
   PetscErrorCode (*reset)(MLDR);
-}
+};
 
 /* Define the MLDR data structure. */
 struct _p_MLDR {
@@ -23,4 +26,6 @@ struct _p_MLDR {
   void      *data; /* Implementation-specific data */
   SVD svd; /* Not all MLDR types will use a SLEPc SVD context, but enough do that we put it at this level. */
   Mat training;  /* Matrix holding the training data set */
-}
+};
+
+#endif
