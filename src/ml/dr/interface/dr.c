@@ -1,4 +1,4 @@
-#include <petsc/private/petscmldrimpl.h>
+#include <petsc/private/mldrimpl.h>
 
 PetscBool         MLDRRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList MLDRList              = NULL;
@@ -32,10 +32,10 @@ PetscErrorCode MLDRCreate(MPI_Comm comm,MLDR *newmldr)
   mldr->training = NULL;
   
   *newmldr = mldr;
-  PetscFunctionBegin(0);
+  PetscFunctionReturn(0);
 }
 
-PetscErrorCode MLDRReset(MLDR snes)
+PetscErrorCode MLDRReset(MLDR mldr)
 {
   PetscErrorCode ierr;
 
