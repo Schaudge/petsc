@@ -144,7 +144,7 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPIAIJKokkos(Mat A, MatType mtype,
   B->ops->multadd               = MatMultAdd_MPIAIJKokkos;
   B->ops->multtranspose         = MatMultTranspose_MPIAIJKokkos;
   // Needs an efficient implementation of the COO preallocation routines
-  //B->ops->productsetfromoptions = MatProductSetFromOptions_MPIAIJBACKEND;
+  B->ops->productsetfromoptions = MatProductSetFromOptions_MPIAIJBACKEND;
 
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatMPIAIJSetPreallocation_C",MatMPIAIJSetPreallocation_MPIAIJKokkos);CHKERRQ(ierr);
   PetscFunctionReturn(0);

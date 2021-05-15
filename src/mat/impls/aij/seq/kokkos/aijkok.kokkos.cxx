@@ -5,10 +5,12 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosBlas.hpp>
+#include <KokkosKernels_Sorting.hpp>
 #include <KokkosSparse_CrsMatrix.hpp>
 #include <KokkosSparse_spmv.hpp>
 #include <KokkosSparse_spiluk.hpp>
 #include <KokkosSparse_sptrsv.hpp>
+#include <KokkosSparse_spgemm.hpp>
 
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <../src/mat/impls/aij/seq/kokkos/aijkokkosimpl.hpp>
@@ -131,6 +133,7 @@ PetscErrorCode MatSeqAIJKokkosGetDeviceMat(Mat A, PetscSplitCSRDataStructure *d_
   }
   PetscFunctionReturn(0);
 }
+
 static PetscErrorCode MatSeqAIJKokkosGenerateTranspose(Mat A)
 {
   PetscErrorCode                   ierr;
@@ -437,158 +440,174 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJKokkos(Mat A)
   PetscFunctionReturn(0);
 }
 
-#if 0
-static PetscErrorCode MatMatKernelHandleDestroy_Private(void* data)
+static PetscErrorCode MatProductDataDestroy_SeqAIJKokkos(void* pdata)
 {
-  MatMatKernelHandle_t *kh = static_cast<MatMatKernelHandle_t *>(data);
-
   PetscFunctionBegin;
-  delete kh;
+  delete static_cast<MatProductData_SeqAIJKokkos*>(pdata);
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode MatProductNumeric_SeqAIJKokkos_SeqAIJKokkos(Mat C)
 {
-  Mat_Product          *product = C->product;
-  Mat                  A,B;
-  MatProductType       ptype;
-  Mat_SeqAIJKokkos     *akok,*bkok,*ckok;
-  bool                 tA,tB;
-  PetscErrorCode       ierr;
-  MatMatKernelHandle_t *kh;
-  Mat_SeqAIJ           *c;
+  PetscErrorCode                 ierr;
+  Mat_Product                    *product = C->product;
+  Mat                            A,B,At,Bt;
+  bool                           transA = false,transB = false;
+  Mat_SeqAIJKokkos               *akok,*bkok,*ckok;
+  Mat_SeqAIJ                     *c;
+  MatProductData_SeqAIJKokkos    *pdata;
 
   PetscFunctionBegin;
   MatCheckProduct(C,1);
   if (!C->product->data) SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Product data empty");
-  A = product->A;
-  B = product->B;
-  ierr = MatSeqAIJKokkosSyncDevice(A);CHKERRQ(ierr);
-  ierr = MatSeqAIJKokkosSyncDevice(B);CHKERRQ(ierr);
-  akok = static_cast<Mat_SeqAIJKokkos*>(A->spptr);
-  bkok = static_cast<Mat_SeqAIJKokkos*>(B->spptr);
-  ckok = static_cast<Mat_SeqAIJKokkos*>(C->spptr);
-  kh   = static_cast<MatMatKernelHandle_t*>(C->product->data);
-  ptype = product->type;
-  if (A->symmetric && ptype == MATPRODUCT_AtB) ptype = MATPRODUCT_AB;
-  if (B->symmetric && ptype == MATPRODUCT_ABt) ptype = MATPRODUCT_AB;
-  switch (ptype) {
-  case MATPRODUCT_AB:
-    tA = false;
-    tB = false;
-    break;
-  case MATPRODUCT_AtB:
-    tA = true;
-    tB = false;
-    break;
-  case MATPRODUCT_ABt:
-    tA = false;
-    tB = true;
-    break;
-  default:
-    SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Unsupported product type %s",MatProductTypes[product->type]);
+  A     = product->A;
+  B     = product->B;
+  ierr  = MatSeqAIJKokkosSyncDevice(A);CHKERRQ(ierr);
+  ierr  = MatSeqAIJKokkosSyncDevice(B);CHKERRQ(ierr);
+  akok  = static_cast<Mat_SeqAIJKokkos*>(A->spptr);
+  bkok  = static_cast<Mat_SeqAIJKokkos*>(B->spptr);
+  ckok  = static_cast<Mat_SeqAIJKokkos*>(C->spptr);
+  pdata = static_cast<MatProductData_SeqAIJKokkos*>(C->product->data);
+
+  /* TODO: Once KK spgemm implements transpose, we can get rid of the explicit transpose here */
+  if (pdata->transA) {
+    A->form_explicit_transpose = PETSC_TRUE;
+    ierr   = MatSeqAIJKokkosGenerateTranspose(A);CHKERRQ(ierr);
+    At     = static_cast<Mat_SeqAIJKokkos*>(A->spptr)->At;
+    akok   = static_cast<Mat_SeqAIJKokkos*>(At->spptr);
+    transA = false;
   }
 
-  KokkosSparse::spgemm_numeric(*kh, akok->csr, tA, bkok->csr, tB, ckok->csr);
-  C->offloadmask = PETSC_OFFLOAD_GPU;
+  if (pdata->transB) {
+    B->form_explicit_transpose = PETSC_TRUE;
+    ierr   = MatSeqAIJKokkosGenerateTranspose(B);CHKERRQ(ierr);
+    Bt     = static_cast<Mat_SeqAIJKokkos*>(B->spptr)->At;
+    bkok   = static_cast<Mat_SeqAIJKokkos*>(Bt->spptr);
+    transB = false;
+  }
+
+  KokkosSparse::spgemm_numeric(pdata->kh,akok->csrmat,transA,bkok->csrmat,transB,ckok->csrmat);
+  KokkosKernels::Impl::sort_crs_matrix(ckok->csrmat);
   /* shorter version of MatAssemblyEnd_SeqAIJ */
   c = (Mat_SeqAIJ*)C->data;
   ierr = PetscInfo3(C,"Matrix size: %D X %D; storage space: 0 unneeded,%D used\n",C->rmap->n,C->cmap->n,c->nz);CHKERRQ(ierr);
   ierr = PetscInfo(C,"Number of mallocs during MatSetValues() is 0\n");CHKERRQ(ierr);
   ierr = PetscInfo1(C,"Maximum nonzeros in any row is %D\n",c->rmax);CHKERRQ(ierr);
   c->reallocs         = 0;
-  C->info.mallocs    += 0;
+  C->info.mallocs     = 0;
   C->info.nz_unneeded = 0;
-  C->assembled = C->was_assembled = PETSC_TRUE;
+  C->assembled        = C->was_assembled = PETSC_TRUE;
   C->num_ass++;
-  /* we can remove these calls when MatSeqAIJGetArray operations are used everywhere! */
-  // TODO JZ, copy from device to host since most of Petsc code for AIJ matrices does not use MatSeqAIJGetArray()
-  C->offloadmask = PETSC_OFFLOAD_BOTH;
-  // Also, we should add support to copy back from device to host
+  C->offloadmask      = PETSC_OFFLOAD_GPU;
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode MatProductSymbolic_SeqAIJKokkos_SeqAIJKokkos(Mat C)
 {
-  Mat_Product          *product = C->product;
-  Mat                  A,B;
-  MatProductType       ptype;
-  Mat_SeqAIJKokkos     *akok,*bkok,*ckok;
-  PetscInt             m,n,k;
-  bool                 tA,tB;
-  PetscErrorCode       ierr;
-  Mat_SeqAIJ           *c;
-  MatMatKernelHandle_t *kh;
+  PetscErrorCode                 ierr;
+  Mat_Product                    *product = C->product;
+  MatProductType                 ptype;
+  Mat                            A,B,At,Bt;
+  bool                           transA,transB;
+  Mat_SeqAIJKokkos               *akok,*bkok,*ckok;
+  Mat_SeqAIJ                     *c;
+  PetscInt                       m,n,k;
+  MatProductData_SeqAIJKokkos    *pdata;
 
   PetscFunctionBegin;
   MatCheckProduct(C,1);
   if (C->product->data) SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Product data not empty");
-  A = product->A;
-  B = product->B;
-  // TODO only copy the i,j data, not the values
-  ierr = MatSeqAIJKokkosSyncDevice(A);CHKERRQ(ierr);
-  ierr = MatSeqAIJKokkosSyncDevice(B);CHKERRQ(ierr);
-  akok = static_cast<Mat_SeqAIJKokkos*>(A->spptr);
-  bkok = static_cast<Mat_SeqAIJKokkos*>(B->spptr);
+  A     = product->A;
+  B     = product->B;
+  ierr  = MatSeqAIJKokkosSyncDevice(A);CHKERRQ(ierr);
+  ierr  = MatSeqAIJKokkosSyncDevice(B);CHKERRQ(ierr);
+  akok  = static_cast<Mat_SeqAIJKokkos*>(A->spptr);
+  bkok  = static_cast<Mat_SeqAIJKokkos*>(B->spptr);
   ptype = product->type;
   if (A->symmetric && ptype == MATPRODUCT_AtB) ptype = MATPRODUCT_AB;
   if (B->symmetric && ptype == MATPRODUCT_ABt) ptype = MATPRODUCT_AB;
   switch (ptype) {
-  case MATPRODUCT_AB:
-    tA = false;
-    tB = false;
-    m = A->rmap->n;
-    n = B->cmap->n;
-    break;
-  case MATPRODUCT_AtB:
-    tA = true;
-    tB = false;
-    m = A->cmap->n;
-    n = B->cmap->n;
-    break;
-  case MATPRODUCT_ABt:
-    tA = false;
-    tB = true;
-    m = A->rmap->n;
-    n = B->rmap->n;
-    break;
-  default:
-    SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Unsupported product type %s",MatProductTypes[product->type]);
+    case MATPRODUCT_AB:
+      transA = false;
+      transB = false;
+      m      = A->rmap->n;
+      n      = B->cmap->n;
+      break;
+    case MATPRODUCT_AtB:
+      transA = true;
+      transB = false;
+      m      = A->cmap->n;
+      n      = B->cmap->n;
+      break;
+    case MATPRODUCT_ABt:
+      transA = false;
+      transB = true;
+      m      = A->rmap->n;
+      n      = B->rmap->n;
+      break;
+    default:
+      SETERRQ1(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Unsupported product type %s",MatProductTypes[product->type]);
   }
   ierr = MatSetSizes(C,m,n,m,n);CHKERRQ(ierr);
   ierr = MatSetType(C,MATSEQAIJKOKKOS);CHKERRQ(ierr);
-  c = (Mat_SeqAIJ*)C->data;
 
-  kh = new MatMatKernelHandle_t;
-  // TODO SZ: ADD RUNTIME SELECTION OF THESE
-  kh->set_team_work_size(16);
-  kh->set_dynamic_scheduling(true);
-  // Select an spgemm algorithm, limited by configuration at compile-time and
-  // set via the handle Some options: {SPGEMM_KK_MEMORY, SPGEMM_KK_SPEED,
-  // SPGEMM_KK_MEMSPEED, /*SPGEMM_CUSPARSE, */ SPGEMM_MKL}
-  std::string myalg("SPGEMM_KK_MEMORY");
-  kh->create_spgemm_handle(KokkosSparse::StringToSPGEMMAlgorithm(myalg));
+  C->product->data = pdata = new MatProductData_SeqAIJKokkos(transA,transB);
+  pdata->kh.set_team_work_size(16);
+  pdata->kh.set_dynamic_scheduling(true);
 
-  // TODO JZ
-  ckok = NULL; //new Mat_SeqAIJKokkos();
-  C->spptr = ckok;
-  KokkosCsrMatrix_t ccsr; // here only to have the code compile
-  KokkosSparse::spgemm_symbolic(*kh, akok->csr, tA, bkok->csr, tB, ccsr);
+  /* TODO: add command line options to select spgemm algorithms */
+ #if defined(KOKKOSKERNELS_ENABLE_TPL_CUSPARSE)
+  auto spgemm_alg = KokkosSparse::SPGEMMAlgorithm::SPGEMM_CUSPARSE;
+ #else
+  auto spgemm_alg = KokkosSparse::SPGEMMAlgorithm::SPGEMM_KK;
+ #endif
+  pdata->kh.create_spgemm_handle(spgemm_alg);
 
-  c->singlemalloc = PETSC_FALSE;
-  c->free_a       = PETSC_TRUE;
-  c->free_ij      = PETSC_TRUE;
-  ierr = PetscMalloc1(m+1,&c->i);CHKERRQ(ierr);
-  ierr = PetscMalloc1(c->nz,&c->j);CHKERRQ(ierr);
-  ierr = PetscMalloc1(c->nz,&c->a);CHKERRQ(ierr);
+  /* TODO: Get rid of the explicit transpose once KK-spgemm implements the transpose option */
+  if (transA) {
+    A->form_explicit_transpose = PETSC_TRUE;
+    ierr   = MatSeqAIJKokkosGenerateTranspose(A);CHKERRQ(ierr);
+    At     = static_cast<Mat_SeqAIJKokkos*>(A->spptr)->At;
+    akok   = static_cast<Mat_SeqAIJKokkos*>(At->spptr);
+    transA = false;
+  }
 
-  // TODO JZ copy from device to c->i and c->j
+  if (transB) {
+    B->form_explicit_transpose = PETSC_TRUE;
+    ierr   = MatSeqAIJKokkosGenerateTranspose(B);CHKERRQ(ierr);
+    Bt     = static_cast<Mat_SeqAIJKokkos*>(B->spptr)->At;
+    bkok   = static_cast<Mat_SeqAIJKokkos*>(Bt->spptr);
+    transB = false;
+  }
+
+  KokkosCsrMatrix C_csrmat;
+  KokkosSparse::spgemm_symbolic(pdata->kh,akok->csrmat,transA,bkok->csrmat,transB,C_csrmat);
+  /* spgemm_symbolic() only populates C's rowmap, but not C's column indices.
+     So we have to do a fake spgemm_numeric() here to get C_csrmat->j_d setup, before
+     calling new Mat_SeqAIJKokkos().
+     TODO: Remove the fake spgemm_numeric() after KK fixed this problem.
+  */
+  KokkosSparse::spgemm_numeric(pdata->kh,akok->csrmat,transA,bkok->csrmat,transB,C_csrmat);
+  KokkosKernels::Impl::sort_crs_matrix(C_csrmat);
+  /* TODO: Not really need to update a_h's value. Only need to alloc memory for it */
+  ckok           = new Mat_SeqAIJKokkos(C_csrmat); /* Hook ckok to C */
+  C->spptr       = ckok;
+  C->offloadmask = PETSC_OFFLOAD_BOTH;
+
+  /* Populate Mat_SeqAIJ of C->data */
+  c                = (Mat_SeqAIJ*)C->data;
+  c->a             = ckok->a_h.data();
+  c->i             = const_cast<PetscInt*>(ckok->i_h.data());
+  c->j             = ckok->j_h.data();
+  c->nz            = ckok->a_h.extent(0);
+  c->free_a        = PETSC_FALSE;
+  c->free_ij       = PETSC_FALSE;
+  c->maxnz         = c->nz;
 
   ierr = PetscMalloc1(m,&c->ilen);CHKERRQ(ierr);
   ierr = PetscMalloc1(m,&c->imax);CHKERRQ(ierr);
-  c->maxnz = c->nz;
   c->nonzerorowcnt = 0;
-  c->rmax = 0;
+  c->rmax          = 0;
   for (k = 0; k < m; k++) {
     const PetscInt nn = c->i[k+1] - c->i[k];
     c->ilen[k] = c->imax[k] = nn;
@@ -601,22 +620,20 @@ static PetscErrorCode MatProductSymbolic_SeqAIJKokkos_SeqAIJKokkos(Mat C)
   ierr = PetscLayoutSetUp(C->cmap);CHKERRQ(ierr);
   ierr = MatMarkDiagonal_SeqAIJ(C);CHKERRQ(ierr);
   ckok->nonzerostate = C->nonzerostate;
-  C->offloadmask   = PETSC_OFFLOAD_UNALLOCATED;
-  C->preallocated  = PETSC_TRUE;
-  C->assembled     = PETSC_FALSE;
-  C->was_assembled = PETSC_FALSE;
 
+  C->preallocated        = PETSC_TRUE;
+  C->assembled           = PETSC_FALSE;
+  C->was_assembled       = PETSC_FALSE;
   C->ops->productnumeric = MatProductNumeric_SeqAIJKokkos_SeqAIJKokkos;
-  C->product->data = kh;
-  C->product->destroy = MatMatKernelHandleDestroy_Private;
+  C->product->destroy    = MatProductDataDestroy_SeqAIJKokkos;
   PetscFunctionReturn(0);
 }
 
 /* handles sparse matrix matrix ops */
-PETSC_UNUSED static PetscErrorCode MatProductSetFromOptions_SeqAIJKokkos(Mat mat)
+static PetscErrorCode MatProductSetFromOptions_SeqAIJKokkos(Mat mat)
 {
-  Mat_Product    *product = mat->product;
   PetscErrorCode ierr;
+  Mat_Product    *product = mat->product;
   PetscBool      Biskok = PETSC_FALSE,Ciskok = PETSC_TRUE;
 
   PetscFunctionBegin;
@@ -645,7 +662,6 @@ PETSC_UNUSED static PetscErrorCode MatProductSetFromOptions_SeqAIJKokkos(Mat mat
   }
   PetscFunctionReturn(0);
 }
-#endif
 
 static PetscErrorCode MatSetValues_SeqAIJKokkos(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
 {
@@ -831,7 +847,7 @@ static PetscErrorCode MatSetOps_SeqAIJKokkos(Mat A)
   A->ops->axpy                      = MatAXPY_SeqAIJKokkos;
   A->ops->scale                     = MatScale_SeqAIJKokkos;
   A->ops->zeroentries               = MatZeroEntries_SeqAIJKokkos;
-  //A->ops->productsetfromoptions     = MatProductSetFromOptions_SeqAIJKokkos;
+  A->ops->productsetfromoptions     = MatProductSetFromOptions_SeqAIJKokkos;
   A->ops->mult                      = MatMult_SeqAIJKokkos;
   A->ops->multadd                   = MatMultAdd_SeqAIJKokkos;
   A->ops->multtranspose             = MatMultTranspose_SeqAIJKokkos;
@@ -1166,11 +1182,11 @@ static PetscErrorCode MatSeqAIJKokkosTransposeSolveCheck(Mat A)
     factors->iLt_d = MatRowOffsetKokkosView("factors->iLt_d",n+1);
     Kokkos::deep_copy(factors->iLt_d,0); /* KK requires 0 */
     factors->jLt_d = MatColumnIndexKokkosView("factors->jLt_d",factors->jL_d.extent(0));
-    factors->aLt_d = MatValueKokkosView("factors->aLt_d",factors->aL_d.extent(0));
+    factors->aLt_d = MatScalarKokkosView("factors->aLt_d",factors->aL_d.extent(0));
 
     KokkosKernels::Impl::transpose_matrix<
-      ConstMatRowOffsetKokkosView,ConstMatColumnIndexKokkosView,ConstMatValueKokkosView,
-      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatValueKokkosView,
+      ConstMatRowOffsetKokkosView,ConstMatColumnIndexKokkosView,ConstMatScalarKokkosView,
+      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatScalarKokkosView,
       MatRowOffsetKokkosView,DefaultExecutionSpace>(
         n,n,factors->iL_d,factors->jL_d,factors->aL_d,
         factors->iLt_d,factors->jLt_d,factors->aLt_d);
@@ -1179,7 +1195,7 @@ static PetscErrorCode MatSeqAIJKokkosTransposeSolveCheck(Mat A)
       We have to sort the indices, until KK provides finer control options.
     */
     KokkosKernels::Impl::sort_crs_matrix<DefaultExecutionSpace,
-      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatValueKokkosView>(
+      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatScalarKokkosView>(
         factors->iLt_d,factors->jLt_d,factors->aLt_d);
 
     KokkosSparse::Experimental::sptrsv_symbolic(&factors->khLt,factors->iLt_d,factors->jLt_d,factors->aLt_d);
@@ -1188,18 +1204,18 @@ static PetscErrorCode MatSeqAIJKokkosTransposeSolveCheck(Mat A)
     factors->iUt_d = MatRowOffsetKokkosView("factors->iUt_d",n+1);
     Kokkos::deep_copy(factors->iUt_d,0); /* KK requires 0 */
     factors->jUt_d = MatColumnIndexKokkosView("factors->jUt_d",factors->jU_d.extent(0));
-    factors->aUt_d = MatValueKokkosView("factors->aUt_d",factors->aU_d.extent(0));
+    factors->aUt_d = MatScalarKokkosView("factors->aUt_d",factors->aU_d.extent(0));
 
     KokkosKernels::Impl::transpose_matrix<
-      ConstMatRowOffsetKokkosView,ConstMatColumnIndexKokkosView,ConstMatValueKokkosView,
-      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatValueKokkosView,
+      ConstMatRowOffsetKokkosView,ConstMatColumnIndexKokkosView,ConstMatScalarKokkosView,
+      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatScalarKokkosView,
       MatRowOffsetKokkosView,DefaultExecutionSpace>(
         n,n,factors->iU_d, factors->jU_d, factors->aU_d,
         factors->iUt_d,factors->jUt_d,factors->aUt_d);
 
     /* Sort indices. See comments above */
     KokkosKernels::Impl::sort_crs_matrix<DefaultExecutionSpace,
-      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatValueKokkosView>(
+      MatRowOffsetKokkosView,MatColumnIndexKokkosView,MatScalarKokkosView>(
         factors->iUt_d,factors->jUt_d,factors->aUt_d);
 
     KokkosSparse::Experimental::sptrsv_symbolic(&factors->khUt,factors->iUt_d,factors->jUt_d,factors->aUt_d);
@@ -1229,7 +1245,7 @@ static PetscErrorCode MatSolve_SeqAIJKokkos(Mat A,Vec b,Vec x)
   PetscFunctionReturn(0);
 }
 
-/* Solve A^T x = b, with A^T = U^T L^T */
+/* Solve A^T x = b, where A^T = U^T L^T */
 static PetscErrorCode MatSolveTranspose_SeqAIJKokkos(Mat A,Vec b,Vec x)
 {
   PetscErrorCode                 ierr;
