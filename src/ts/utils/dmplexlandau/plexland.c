@@ -1323,7 +1323,6 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   ierr = PetscOptionsReal("-dm_landau_Ez","Initial parallel electric field in unites of Conner-Hastie criticle field","plexland.c",ctx->Ez,&ctx->Ez, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-dm_landau_n_0","Normalization constant for number density","plexland.c",ctx->n_0,&ctx->n_0, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-dm_landau_ln_lambda","Cross section parameter","plexland.c",ctx->lnLam,&ctx->lnLam, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsReal("-dm_landau_quench_T","Tempurature of Maxellian used in quench","plexland.c",ctx->quench_T,&ctx->quench_T, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-dm_landau_quench_total","","plexland.c",ctx->quench_total,&ctx->quench_total, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-dm_landau_quench_rate","","plexland.c",ctx->quench_rate,&ctx->quench_rate, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-dm_landau_quench","","plexland.c",ctx->quench,&ctx->quench, NULL);CHKERRQ(ierr);
@@ -1349,7 +1348,9 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   if (flg) {
     PetscInfo1(dummy, "num_species set to number of thermal temps provided (%D)\n",nt);
     ctx->num_species = nt;
+    ctx->quench_T = ctx->thermal_temps[0];
   } else SETERRQ(ctx->comm,PETSC_ERR_ARG_WRONG,"-dm_landau_thermal_temps ,t1,t2,.. must be provided to set the number of species");
+  ierr = PetscOptionsReal("-dm_landau_quench_T","Tempurature of Maxellian used in quench","plexland.c",ctx->quench_T,&ctx->quench_T, NULL);CHKERRQ(ierr);
   for (ii=0;ii<ctx->num_species;ii++) ctx->thermal_temps[ii] *= 1.1604525e7; /* convert to Kelvin */
   ctx->quench_T *= 1.1604525e7; /* convert to Kelvin */
   nm = LANDAU_MAX_SPECIES-1;
