@@ -231,6 +231,7 @@ extern "C"  {
                                       const PetscInt num_sub_blocks, PetscReal shift, const PetscLogEvent events[], Mat JacP)
   {
     using scr_mem_t = Kokkos::DefaultExecutionSpace::scratch_memory_space;
+    using g0_scr_t = Kokkos::View<PetscReal**, Kokkos::LayoutRight, scr_mem_t>;
     using g2_scr_t = Kokkos::View<PetscReal***, Kokkos::LayoutRight, scr_mem_t>;
     using g3_scr_t = Kokkos::View<PetscReal****, Kokkos::LayoutRight, scr_mem_t>;
     PetscErrorCode    ierr;
@@ -280,7 +281,7 @@ extern "C"  {
     ierr = PetscDSGetDimensions(prob, &Nbf);CHKERRQ(ierr); Nb = Nbf[0];
     if (Nq != Nb) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Nq != Nb. %D  %D",Nq,Nb);
     if (LANDAU_DIM != dim) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "dim %D != LANDAU_DIM %d",dim,LANDAU_DIM);
-    scr_bytes = 2*(g2_scr_t::shmem_size(dim,Nf,Nq) + g3_scr_t::shmem_size(dim,dim,Nf,Nq));
+    scr_bytes = 2*(g2_scr_t::shmem_size(dim,Nf,Nq) + g3_scr_t::shmem_size(dim,dim,Nf,Nq))  + g0_scr_t::shmem_size(Nf,Nq);
     ierr = PetscDSGetTotalDimension(prob, &totDim);CHKERRQ(ierr);
     if (ctx->gpu_assembly) {
       PetscContainer container;
@@ -317,6 +318,8 @@ extern "C"  {
       const Kokkos::View<PetscScalar*, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> >h_IPf_k  (a_IPf,  (a_IPf || a_xarray) ? nip*Nf : 0);
       const Kokkos::View<PetscReal*, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> >  h_Eq_m_k (a_Eq_m, (a_IPf || a_xarray) ? Nf : 0);
       Kokkos::View<PetscScalar**, Kokkos::LayoutRight>                                                                 d_elem_mats("element matrices", global_elem_mat_sz, totDim*totDim);
+      LandauCtx                                                                     ctx_hd = *ctx; // get captured by lambda ?
+
       // copy dynamic data to device
       if (a_IPf || a_xarray) {  // form f and df
         static int cc=0;
@@ -514,7 +517,7 @@ extern "C"  {
             team.team_barrier();
           } else { // end Jacobian
             Kokkos::parallel_for(Kokkos::TeamThreadRange(team,0,Nq), [=] (int myQi) {
-                const PetscInt                    jpidx = myQi + myelem * Nq;
+                const PetscInt jpidx = myQi + elem * Nq;
                 Kokkos::parallel_for(Kokkos::ThreadVectorRange (team, (int)Nf), [&] (const int& fieldA) {
                     g0(fieldA,myQi) = d_mass_w_k(jpidx) * shift;
                   });
@@ -540,7 +543,7 @@ extern "C"  {
                           }
                         }
                       } else {
-                        const PetscInt jpidx = qj + elem * Nq;
+                        // const PetscInt jpidx = qj + elem * Nq;
                         // t += BJq[blk_i] * d_mass_w_k(jpidx) * shift * BJq[blk_j];
                         t += BJq[blk_i] * g0(fieldA,qj) * BJq[blk_j];
                         //printf("\tmat[%d %d %d %d %d]: B=%g w=%g shift=%g B=%g\n",myelem,fOff,fieldA,qj,d,BJq[blk_i],d_mass_w(jpidx),shift,BJq[blk_j]);
