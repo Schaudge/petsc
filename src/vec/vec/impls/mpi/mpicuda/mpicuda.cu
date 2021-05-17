@@ -91,7 +91,7 @@ PetscErrorCode VecNorm_MPICUDAAsync(Vec xin,NormType type,PetscStreamScalar *psc
     ierr = VecNorm_SeqCUDAAsync(xin,NORM_2,pscalz,pstream);CHKERRQ(ierr);
     ierr = PetscStreamScalarAwait(*pscalz,val,pstream);CHKERRQ(ierr);
     work = PetscRealPart(val[0])*PetscRealPart(val[0]);
-    ierr = MPIU_Allreduce(&work,&sum,1,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+    ierr = MPIU_Allreduce(&work,&sum,1,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
     /* ensure proper constructor is called */
     val[0] = static_cast<PetscScalar>(PetscSqrtReal(sum));
     ierr = PetscStreamScalarSetValue(*pscalz,val,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
@@ -101,7 +101,7 @@ PetscErrorCode VecNorm_MPICUDAAsync(Vec xin,NormType type,PetscStreamScalar *psc
     ierr = PetscStreamScalarAwait(*pscalz,val,pstream);CHKERRQ(ierr);
     work = PetscRealPart(val[0]);
     /* Find the global max */
-    ierr = MPIU_Allreduce(&work,&sum,1,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+    ierr = MPIU_Allreduce(&work,&sum,1,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
     val[0] = static_cast<PetscScalar>(sum);
     ierr = PetscStreamScalarSetValue(*pscalz,val,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   } else if (type == NORM_INFINITY) {
@@ -110,7 +110,7 @@ PetscErrorCode VecNorm_MPICUDAAsync(Vec xin,NormType type,PetscStreamScalar *psc
     ierr = PetscStreamScalarAwait(*pscalz,val,pstream);CHKERRQ(ierr);
     work = PetscRealPart(val[0]);
     /* Find the global max */
-    ierr = MPIU_Allreduce(&work,&sum,1,MPIU_REAL,MPIU_MAX,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+    ierr = MPIU_Allreduce(&work,&sum,1,MPIU_REAL,MPIU_MAX,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
     val[0] = static_cast<PetscScalar>(sum);
     ierr = PetscStreamScalarSetValue(*pscalz,val,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   } else if (type == NORM_1_AND_2) {
@@ -121,7 +121,7 @@ PetscErrorCode VecNorm_MPICUDAAsync(Vec xin,NormType type,PetscStreamScalar *psc
     ierr = PetscStreamScalarAwait(pscalz[1],val+1,pstream);CHKERRQ(ierr);
     temp[0] = PetscRealPart(val[0]);
     temp[1] = PetscRealPart(val[1])*PetscRealPart(val[1]);
-    ierr = MPIU_Allreduce(temp,z,2,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+    ierr = MPIU_Allreduce(temp,z,2,MPIU_REAL,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
     val[0] = static_cast<PetscScalar>(z[0]);
     val[1] = static_cast<PetscScalar>(PetscSqrtReal(z[1]));
     ierr = PetscStreamScalarSetValue(pscalz[0],val,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
@@ -150,7 +150,7 @@ PetscErrorCode VecDot_MPICUDAAsync(Vec xin,Vec yin,PetscStreamScalar pscal,Petsc
   PetscFunctionBegin;
   ierr = VecDot_SeqCUDAAsync(xin,yin,pscal,pstream);CHKERRQ(ierr);
   ierr = PetscStreamScalarAwait(pscal,&work,pstream);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(&work,&sum,1,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&work,&sum,1,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
   ierr = PetscStreamScalarSetValue(pscal,&sum,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -175,7 +175,7 @@ PetscErrorCode VecTDot_MPICUDAAsync(Vec xin,Vec yin,PetscStreamScalar pscal,Pets
   PetscFunctionBegin;
   ierr = VecTDot_SeqCUDAAsync(xin,yin,pscal,pstream);CHKERRQ(ierr);
   ierr = PetscStreamScalarAwait(pscal,&work,pstream);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(&work,&sum,1,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(&work,&sum,1,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
   ierr = PetscStreamScalarSetValue(pscal,&sum,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -209,7 +209,7 @@ PetscErrorCode VecMDot_MPICUDAAsync(Vec xin,PetscInt nv,const Vec y[],PetscStrea
   for (PetscInt i = 0; i < nv; ++i) {
     ierr = PetscStreamScalarAwait(pscal[i],work+i,pstream);CHKERRQ(ierr);
   }
-  ierr = MPIU_Allreduce(work,sum,nv,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(work,sum,nv,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)xin));CHKERRMPI(ierr);
   for (PetscInt i = 0; i < nv; ++i) {
     ierr = PetscStreamScalarSetValue(pscal[i],sum+i,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   }
@@ -294,7 +294,7 @@ PetscErrorCode VecDotNorm2_MPICUDAAsync(Vec s,Vec t,PetscStreamScalar pscaldp,Pe
   ierr = VecDotNorm2_SeqCUDAAsync(s,t,pscaldp,pscalnm,pstream);CHKERRQ(ierr);
   ierr = PetscStreamScalarAwait(pscaldp,work,pstream);CHKERRQ(ierr);
   ierr = PetscStreamScalarAwait(pscalnm,work+1,pstream);CHKERRQ(ierr);
-  ierr = MPIU_Allreduce(work,sum,2,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)s));CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(work,sum,2,MPIU_SCALAR,MPIU_SUM,PetscObjectComm((PetscObject)s));CHKERRMPI(ierr);
   ierr = PetscStreamScalarSetValue(pscaldp,sum,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   ierr = PetscStreamScalarSetValue(pscalnm,sum+1,PETSC_MEMTYPE_HOST,pstream);CHKERRQ(ierr);
   PetscFunctionReturn(0);
