@@ -149,6 +149,8 @@ int main(int argc, char **argv)
   ierr = PetscRandomCreate(comm,&rand);CHKERRQ(ierr);
   /* for each rank you recieve from make up as indices for all the locations they will send to you and where you will put them*/
   ierr = VecGetOwnershipRanges(global,&ranges);CHKERRQ(ierr);
+  /* If the matrix isn't symmetric then transposing it will create new allocations */
+  ierr = MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);CHKERRQ(ierr);
   ierr = MatTranspose(A,MAT_INPLACE_MATRIX,&A);CHKERRQ(ierr);
   ierr = MatGetRow(A,rank,&ncols,&cols,&vals);CHKERRQ(ierr);
 

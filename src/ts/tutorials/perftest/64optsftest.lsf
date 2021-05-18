@@ -5,6 +5,7 @@
 #BSUB -nnodes 1
 #BSUB -J petsc_sftest_64
 
+export MESH_COMM_ENV=1
 export PETSC_ARCH=64-arch-olcf-summit-opt
 export PETSC_DIR=/autofs/nccs-svm1_home1/jfaibussow/petsc
 export CUDA_HOME=/sw/summit/cuda/10.2.89
@@ -30,7 +31,7 @@ echo "PETSC_ARCH=${PETSC_ARCH}"
 
 set -x
 nodeNum=1
-binfile=0To34-1To3-2To3_Sym
+binfile=0To1
 resourcefile="resources${suffix}.${LSB_JOBID}"
 stdoutfile="petsc_sftest${suffix}.${LSB_JOBID}"
 origdir=`pwd`
@@ -70,8 +71,8 @@ do
     echo "start time:                    $(date -u)"
     SECONDS=0
     set -x
-    jsrun --smpiargs "-gpu" -n ${nodeNum} -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/sftest64 -fname ${PETSC_DIR}/src/ts/tutorials/perftest/bin/${binfile} -fout ${outBinFile} -num_fields ${numFields} -vec_type cuda -use_nvshmem
-    jsrun --smpiargs "-gpu" -n ${nodeNum} -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/sftest64  -fname ${PETSC_DIR}/src/ts/tutorials/perftest/bin/${binfile} -fout ${outBinFile} -num_fields ${numFields} -vec_type cuda
+    jsrun --smpiargs "-gpu" -n ${nodeNum} -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/sftest64 -fname ${PETSC_DIR}/src/ts/tutorials/perftest/bin/${binfile} -fout ${outBinFile} -num_fields ${numFields} -vec_type cuda -use_nvshmem -sf_disable_all_pack
+    jsrun --smpiargs "-gpu" -n ${nodeNum} -a 6 -c 42 -g 6 -r 1 -l GPU-GPU -d packed -b packed:7 -S ${resourcefile} -o ${rawlog} -e collected -k ${runError} ${PETSC_DIR}/src/ts/tutorials/perftest/sftest64  -fname ${PETSC_DIR}/src/ts/tutorials/perftest/bin/${binfile} -fout ${outBinFile} -num_fields ${numFields} -vec_type cuda -sf_disable_all_pack -mat_view_input
     set +x
     duration=$SECONDS
     echo "end time:                      $(date -u)"
