@@ -16,9 +16,12 @@ J*/
 typedef const char *MLDRType;
 #define MLDRPCA "pca"
 
+PETSC_EXTERN PetscFunctionList MLDRList;
 PETSC_EXTERN PetscClassId MLDR_CLASSID;
 
 PETSC_EXTERN PetscErrorCode MLDRInitializePackage(void);
+PETSC_EXTERN PetscErrorCode MLDRFinalizePackage(void);
+PETSC_EXTERN PetscErrorCode MLDRRegister(const char[],PetscErrorCode (*)(MLDR));
 PETSC_EXTERN PetscErrorCode MLDRCreate(MPI_Comm,MLDR*);
 PETSC_EXTERN PetscErrorCode MLDRReset(MLDR);
 PETSC_EXTERN PetscErrorCode MLDRDestroy(MLDR*);

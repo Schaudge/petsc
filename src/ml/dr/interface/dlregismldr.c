@@ -48,13 +48,13 @@ PetscErrorCode MLDRInitializePackage(void)
 
 .seealso: MLDRInitializePackage()
 @*/
-PetscErrorCode PetscSFFinalizePackage(void)
+PetscErrorCode MLDRFinalizePackage(void)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFunctionListDestroy(&PetscSFList);CHKERRQ(ierr);
-  PetscSFPackageInitialized = PETSC_FALSE;
-  PetscSFRegisterAllCalled  = PETSC_FALSE;
+  ierr = PetscFunctionListDestroy(&MLDRList);CHKERRQ(ierr);
+  MLDRPackageInitialized = PETSC_FALSE;
+  MLDRRegisterAllCalled  = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
