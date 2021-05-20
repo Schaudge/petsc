@@ -7,8 +7,7 @@ PetscErrorCode MLDRRegisterAll(void)
   PetscFunctionBegin;
   if (MLDRRegisterAllCalled) PetscFunctionReturn(0);
   MLDRRegisterAllCalled = PETSC_TRUE;
-  ierr = MLDRRegister(MLDRPCA,MLDRCreate_PCA);CHKERRQ(ierr);
+  // TODO: Register all of the sub-types
+  //ierr = MLDRRegister(MLDRPCA,MLDRCreate_PCA);CHKERRQ(ierr);  // Uncomment after MLDRCreate_PCA() exists!
   PetscFunctionReturn(0);
 }
-
-
