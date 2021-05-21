@@ -2,7 +2,9 @@
 #define PETSCMLDR_H
 
 #include <petsctao.h>
+#if defined(PETSC_HAVE_SLEPC)
 #include <slepcsvd.h>
+#endif
 
 typedef struct _p_MLDR* MLDR;
 
@@ -25,5 +27,5 @@ PETSC_EXTERN PetscErrorCode MLDRRegister(const char[],PetscErrorCode (*)(MLDR));
 PETSC_EXTERN PetscErrorCode MLDRCreate(MPI_Comm,MLDR*);
 PETSC_EXTERN PetscErrorCode MLDRReset(MLDR);
 PETSC_EXTERN PetscErrorCode MLDRDestroy(MLDR*);
-PETSC_EXTERN PetscErrorCode MLDRView(MLDR*);
+PETSC_EXTERN PetscErrorCode MLDRView(MLDR*,PetscViewer);
 #endif
