@@ -3,6 +3,8 @@
 PetscBool         MLDRRegisterAllCalled = PETSC_FALSE;
 PetscFunctionList MLDRList              = NULL;
 
+PetscClassId MLDR_CLASSID;
+
 PetscErrorCode MLDRRegister(const char sname[],PetscErrorCode (*function)(MLDR))
 {
   PetscErrorCode ierr;
@@ -28,7 +30,9 @@ PetscErrorCode MLDRCreate(MPI_Comm comm,MLDR *newmldr)
   // TODO: Finish setting the various fields of the MLDR private data structure to defaults, etc.
   mldr->setupcalled = PETSC_FALSE;
   mldr->data = NULL;
+#if defined(PETSC_HAVE_SLEPC)
   mldr->svd = NULL;
+#endif
   mldr->training = NULL;
   
   *newmldr = mldr;
@@ -42,10 +46,52 @@ PetscErrorCode MLDRReset(MLDR mldr)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mldr,MLDR_CLASSID,1);
   // TODO: Finish putting all of the Reset, Destroy, and free calls needed here!
+#if defined(PETSC_HAVE_SLEPC)
   if (mldr->svd) {
     ierr = SVDReset(mldr->svd);CHKERRQ(ierr);
   }
+#endif
   ierr = MatDestroy(&mldr->training);CHKERRQ(ierr);
   mldr->setupcalled = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+   MLDRDestroy - Destroys the dimension reduction context that was created
+   with MLDRCreate().
+
+   Collective on MLDR
+
+   Input Parameter:
+.  mldr - the MLDR context
+
+   Level: beginner
+
+.seealso: MLDRCreate(), MLDRSetUp(), MLDRReset(), MLDR
+@*/
+PetscErrorCode MLDRDestroy(MLDR *mldr)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!*mldr) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific((*mldr),MLDR_CLASSID,1);
+  if (--((PetscObject)(*mldr))->refct > 0) {*mldr = NULL; PetscFunctionReturn(0);}
+
+  ierr = MLDRReset((*mldr));CHKERRQ(ierr);
+#if defined(PETSC_HAVE_SLEPC)
+  if ((*mldr)->svd) {
+    ierr = SVDDestroy(&(*mldr)->svd);CHKERRQ(ierr);
+  }
+#endif
+
+  ierr = PetscHeaderDestroy(mldr);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MLDRView(MLDR *mldr,PetscViewer viewer)
+{
+  PetscFunctionBegin;
+  // TODO: Complete this when I have a good idea of what bits of the MLDR should be shown!
   PetscFunctionReturn(0);
 }
