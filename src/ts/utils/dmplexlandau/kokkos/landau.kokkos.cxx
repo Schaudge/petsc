@@ -112,7 +112,7 @@ extern "C"  {
     PetscFunctionReturn(0);
   }
 
-  PetscErrorCode LandauKokkosStaticDataSet(DM plex, const PetscInt Nq, PetscReal nu_alpha[], PetscReal nu_beta[], PetscReal a_invMass[], PetscReal a_invJ[], PetscReal a_mass_w[],
+  PetscErrorCode LandauKokkosStaticDataSet(DM plex, const PetscInt Nq, PetscReal nu_alpha[], PetscReal nu_beta[], PetscReal a_invMass[], PetscReal a_invJ[],
                                            PetscReal a_x[], PetscReal a_y[], PetscReal a_z[], PetscReal a_w[], LandauGeomData *SData_d)
   {
     PetscReal       *BB,*DD;
@@ -152,9 +152,6 @@ extern "C"  {
       const Kokkos::View<PetscReal*, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> > h_DD (DD,Nq*Nb*dim);
       auto D = new Kokkos::View<PetscReal*, Kokkos::LayoutLeft> ("D", Nq*Nb*dim);
       SData_d->D = static_cast<void*>(D);
-      const Kokkos::View<PetscReal*, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> > h_mass_w (a_mass_w, nip);
-      auto mass_w = new Kokkos::View<PetscReal*, Kokkos::LayoutLeft> ("mass_w", nip);
-      SData_d->mass_w = static_cast<void*>(mass_w);
       const Kokkos::View<PetscReal*, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> > h_invJ (a_invJ, nip*dim*dim);
       auto invJ = new Kokkos::View<PetscReal*, Kokkos::LayoutLeft> ("invJ", nip*dim*dim);
       SData_d->invJ = static_cast<void*>(invJ);
@@ -171,7 +168,6 @@ extern "C"  {
       auto z = new Kokkos::View<PetscReal*, Kokkos::LayoutLeft> ("z", dim==3 ? nip : 0);
       SData_d->z = static_cast<void*>(z);
 
-      Kokkos::deep_copy (*mass_w, h_mass_w);
       Kokkos::deep_copy (*alpha, h_alpha);
       Kokkos::deep_copy (*beta, h_beta);
       Kokkos::deep_copy (*invMass, h_invMass);
@@ -205,8 +201,6 @@ extern "C"  {
       delete B;
       auto D = static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->D);
       delete D;
-      auto mass_w = static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->mass_w);
-      delete mass_w;
       auto invJ = static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->invJ);
       delete invJ;
       auto x = static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->x);
@@ -253,7 +247,6 @@ extern "C"  {
     const PetscReal   *d_BB = d_B_k->data();
     auto              d_D_k = static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->D);
     const PetscReal   *d_DD = d_D_k->data();
-    auto              d_mass_w_k = *static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->mass_w);
     auto              d_invJ_k = *static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->invJ); // use Kokkos vector in kernels
     auto              d_x_k = static_cast<Kokkos::View<PetscReal*, Kokkos::LayoutLeft>*>(SData_d->x); //static data
     const PetscReal   *d_x = d_x_k->data();
@@ -398,15 +391,15 @@ extern "C"  {
       ierr = PetscLogEventBegin(events[4],0,0,0,0);CHKERRQ(ierr);
       ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
 #if defined(PETSC_HAVE_CUDA) || defined(PETSC_HAVE_HIP)
-      ierr = PetscLogGpuFlops(nip*(PetscLogDouble)(!(a_IPf || a_xarray) ? (nip*(11*Nf+ 4*dim*dim) + 6*Nf*dim*dim*dim + 10*Nf*dim*dim + 4*Nf*dim + Nb*Nf*Nb*Nq*dim*dim*5) : Nb*Nf*Nb*Nq*4));CHKERRQ(ierr);
+      ierr = PetscLogGpuFlops(nip*(PetscLogDouble)(d_IPf!=NULL ? (nip*(11*Nf+ 4*dim*dim) + 6*Nf*dim*dim*dim + 10*Nf*dim*dim + 4*Nf*dim + Nb*Nf*Nb*Nq*dim*dim*5) : Nb*Nf*Nb*Nq*4));CHKERRQ(ierr);
       if (ctx->deviceType == LANDAU_CPU) PetscInfo(plex, "Warning: Landau selected CPU but no support for Kokkos using CPU\n");
 #else
-      ierr = PetscLogFlops(nip*(PetscLogDouble)(!(a_IPf || a_xarray) ? (nip*(11*Nf+ 4*dim*dim) + 6*Nf*dim*dim*dim + 10*Nf*dim*dim + 4*Nf*dim + Nb*Nf*Nb*Nq*dim*dim*5) : Nb*Nf*Nb*Nq*4));CHKERRQ(ierr);
+      ierr = PetscLogFlops(nip*(PetscLogDouble)(d_IPf!=NULL ? (nip*(11*Nf+ 4*dim*dim) + 6*Nf*dim*dim*dim + 10*Nf*dim*dim + 4*Nf*dim + Nb*Nf*Nb*Nq*dim*dim*5) : Nb*Nf*Nb*Nq*4));CHKERRQ(ierr);
 #endif
-      Kokkos::parallel_for("Landau elements", Kokkos::TeamPolicy<>(numCells, team_size, /*Kokkos::AUTO*/ 16).set_scratch_size(KOKKOS_SHARED_LEVEL, Kokkos::PerTeam(scr_bytes)), KOKKOS_LAMBDA (const team_member team) {
-          const PetscInt  elem = team.league_rank();
-          g2_scr_t        g2(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,Nf,Nq); // we don't use these for mass matrix
-          g3_scr_t        g3(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,dim,Nf,Nq);
+      Kokkos::parallel_for("Landau elements", Kokkos::TeamPolicy<>(numCells, team_size, /*Kokkos::AUTO*/ 16).set_scratch_size(KOKKOS_SHARED_LEVEL, Kokkos::PerTeam(d_IPf!=NULL ? scr_bytes : 0)), KOKKOS_LAMBDA (const team_member team) {
+          const PetscInt  elem = team.league_rank(), jac_nq = d_IPf ? Nq : 0;
+          g2_scr_t        g2(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,Nf,jac_nq); // we don't use these for mass matrix
+          g3_scr_t        g3(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,dim,Nf,jac_nq);
           if (d_IPf) {
             g2_scr_t        gg2(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,Nf,Nq);
             g3_scr_t        gg3(team.team_scratch(KOKKOS_SHARED_LEVEL),dim,dim,Nf,Nq);
@@ -517,7 +510,9 @@ extern "C"  {
                         }
                       } else {
                         const PetscInt jpidx = qj + elem * Nq;
-                        t += BJq[blk_i] * d_mass_w_k(jpidx) * shift * BJq[blk_j];
+                        PetscScalar t2 = BJq[blk_i] * d_w[jpidx] * shift * BJq[blk_j];
+                        if (dim==2) t2 *=  2.*PETSC_PI; // mass has 2pi term (Landau does not)
+                        t += t2;
                       }
                     }
                     if (global_elem_mat_sz) d_elem_mats(elem,fOff) = t; // can set this because local element matrix[fOff]
