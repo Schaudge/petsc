@@ -123,7 +123,7 @@ PetscErrorCode TaoMADComputeLagrangianAndGradient(Tao tao, FullSpaceVec *Q, Lagr
     ierr = VecPointwiseMult(dLdQ->Sc, Q->Sc, dLdQ->Sc);CHKERRQ(ierr);
     ierr = VecShift(dLdQ->Sc, -mad->mu);CHKERRQ(ierr);
   }
-  if(tao->bounded) {
+  if (tao->bounded) {
     if (mad->isXL) {
       /* dL/dX += -Zl */
       ierr = VecAXPY(dLdQ->X, -1.0, Q->Zl);CHKERRQ(ierr);
@@ -227,7 +227,7 @@ PetscErrorCode TaoMADComputeReducedKKT(Tao tao, FullSpaceVec *Q, FullSpaceVec *d
     ierr = VecAXPY(G->Yi, 1.0, dLdQ->Yi);CHKERRQ(ierr);
   }
   if (tao->eq_constrained) {
-    /* set Rye = dLdYe */ 
+    /* set Rye = dLdYe */
     ierr = VecCopy(dLdQ->Ye, G->Ye);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -334,7 +334,7 @@ PetscErrorCode TaoMADTestFractionToBoundary(Tao tao, Vec Q, PetscReal alpha, Vec
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, 
+PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D,
                                       PetscReal *alpha_p, PetscReal *alpha_y)
 {
   TAO_MAD            *mad = (TAO_MAD*)tao->data;
@@ -425,7 +425,7 @@ PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TaoMADApplyFilterStep(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, Lagrangian *L, 
+PetscErrorCode TaoMADApplyFilterStep(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, Lagrangian *L,
                                      FullSpaceVec *dLdQ, PetscBool *dominated)
 {
   TAO_MAD            *mad = (TAO_MAD*)tao->data;
@@ -564,7 +564,7 @@ PetscErrorCode TaoMADUpdateBarrier(Tao tao, FullSpaceVec *Q, PetscReal *mu)
 {
   TAO_MAD        *mad = (TAO_MAD*)tao->data;
   FullSpaceVec   *W = mad->W;
-  PetscReal      tmp, yTs, min_tmp, min_ys, xi, mu_aff; 
+  PetscReal      tmp, yTs, min_tmp, min_ys, xi, mu_aff;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;

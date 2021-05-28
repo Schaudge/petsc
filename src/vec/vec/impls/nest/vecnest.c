@@ -816,7 +816,7 @@ PetscErrorCode  VecNestGetSubVec_Nest(Vec X,PetscInt idxm,Vec *sx)
 
  Input Parameters:
  .  X   - nest vector
- 
+
  Output Parameters:
  .  Y   - concatenated contiguous vector
  .  yis - index sets to extract parts of the contiguous vector

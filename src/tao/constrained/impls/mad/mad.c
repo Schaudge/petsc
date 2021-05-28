@@ -83,7 +83,7 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
     ierr = VecSet(mad->W->Yi, 1.0);CHKERRQ(ierr);
     ierr = VecPointwiseMin(mad->CiScale, mad->W->Yi, mad->CiScale);CHKERRQ(ierr);
   }
-  
+
   /* unfortunately we have to recompute the whole Lagrangian and gradient with the new scaling factors */
   ierr = TaoMADUpdateBarrier(tao, mad->Q, &mad->mu);CHKERRQ(ierr);
   ierr = TaoMADComputeLagrangianAndGradient(tao, mad->Q, mad->L, mad->dLdQ);CHKERRQ(ierr);
@@ -214,7 +214,7 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
         ierr = KSPSolve(tao->ksp, mad->RHS, mad->gamma);CHKERRQ(ierr);
         break;
     }
-    
+
     /* construct the search direction D = -eta*r - (S - eta*R)*gamma */
     ierr = VecCopy(mad->G->R, mad->D->R);CHKERRQ(ierr);
     if (mad->pre) {
@@ -407,7 +407,7 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
     ierr = VecNestConcatenate(mad->G->R, &Wtmp, NULL);CHKERRQ(ierr);
     ierr = VecScatterCreateToAll(Wtmp, &mad->allgather, &mad->Gseq);CHKERRQ(ierr);
     ierr = VecDestroy(&Wtmp);CHKERRQ(ierr);
-  } 
+  }
   PetscFunctionReturn(0);
 }
 
@@ -434,7 +434,7 @@ static PetscErrorCode TaoDestroy_MAD(Tao tao)
   ierr = ISDestroy(&mad->isXL);CHKERRQ(ierr);
   ierr = ISDestroy(&mad->isXU);CHKERRQ(ierr);
   ierr = ISDestroy(&mad->isIL);CHKERRQ(ierr);
-  ierr = ISDestroy(&mad->isIU);CHKERRQ(ierr); 
+  ierr = ISDestroy(&mad->isIU);CHKERRQ(ierr);
   ierr = VecDestroy(&mad->XL);CHKERRQ(ierr);
   ierr = VecDestroy(&mad->XU);CHKERRQ(ierr);
   ierr = VecDestroy(&mad->IL);CHKERRQ(ierr);
@@ -517,7 +517,7 @@ static PetscErrorCode TaoSetFromOptions_MAD(PetscOptionItems *PetscOptionsObject
   endwhile
   .ve
 
-.seealso: 
+.seealso:
 M*/
 PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
 {
@@ -566,7 +566,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   mad->unconstrained  = PETSC_TRUE;
   mad->subsolver_type = TAO_MAD_SUBSOLVER_NORMAL;
   mad->pre            = NULL;
-  
+
   mad->Q              = Q;
   mad->Qprev          = Qprev;
   mad->D              = D;
