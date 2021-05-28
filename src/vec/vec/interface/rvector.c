@@ -1256,7 +1256,7 @@ PetscErrorCode VecConcatenate(PetscInt nx, const Vec X[], Vec *Y, IS *x_is[])
 {
   MPI_Comm       comm;
   VecType        vec_type;
-  Vec            Ytmp, Xtmp;
+  Vec            Ytmp;
   IS             *is_tmp;
   PetscInt       i, shift=0, Xnl, Xng, Xbegin;
   PetscErrorCode ierr;
@@ -1289,9 +1289,7 @@ PetscErrorCode VecConcatenate(PetscInt nx, const Vec X[], Vec *Y, IS *x_is[])
     ierr = VecSetUp(Ytmp);CHKERRQ(ierr);
     /* copy data from X array to Y and return */
     for (i=0; i<nx; i++) {
-      ierr = VecGetSubVector(Ytmp, is_tmp[i], &Xtmp);CHKERRQ(ierr);
-      ierr = VecCopy(X[i], Xtmp);CHKERRQ(ierr);
-      ierr = VecRestoreSubVector(Ytmp, is_tmp[i], &Xtmp);CHKERRQ(ierr);
+      ierr = VecISCopy(Ytmp, is_tmp[i], SCATTER_FORWARD, X[i]);CHKERRQ(ierr);
     }
     *Y = Ytmp;
     if (x_is) {

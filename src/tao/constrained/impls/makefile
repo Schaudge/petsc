@@ -1,6 +1,6 @@
 ALL: lib
 
-DIRS     = ipm admm almm
+DIRS     = ipm admm almm mad
 LOCDIR   = src/tao/constrained/impls/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

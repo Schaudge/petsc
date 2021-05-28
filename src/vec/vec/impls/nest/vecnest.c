@@ -810,6 +810,41 @@ PetscErrorCode  VecNestGetSubVec_Nest(Vec X,PetscInt idxm,Vec *sx)
 }
 
 /*@
+ VecNestConcatenate - Constructs a contiguous copy of the union of vectors in VECNEST.
+
+ Collective
+
+ Input Parameters:
+ .  X   - nest vector
+ 
+ Output Parameters:
+ .  Y   - concatenated contiguous vector
+ .  yis - index sets to extract parts of the contiguous vector
+
+ Notes:
+
+ Level: developer
+
+ .seealso: VecConcatenate()
+@*/
+PetscErrorCode VecNestConcatenate(Vec X, Vec *Y, IS *yis[])
+{
+  Vec_Nest       *bx = (Vec_Nest*)X->data;
+  PetscInt       i;
+  PetscBool      isnest;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  for (i=0; i<bx->nb; i++) {
+    isnest = PETSC_FALSE;
+    ierr = PetscObjectTypeCompare((PetscObject)bx->v[i],VECNEST,&isnest);CHKERRQ(ierr);
+    if (isnest) SETERRQ(PetscObjectComm((PetscObject)X), PETSC_ERR_ARG_INCOMP, "VECNEST inside VECNEST is not supported");
+  }
+  ierr = VecConcatenate(bx->nb, bx->v, Y, yis);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
  VecNestGetSubVec - Returns a single, sub-vector from a nest vector.
 
  Not collective

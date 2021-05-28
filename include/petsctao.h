@@ -117,6 +117,39 @@ E*/
 typedef enum {TAO_ALMM_CLASSIC,TAO_ALMM_PHR} TaoALMMType;
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
+/*E
+     TaoMADSubsolver - Solution method for the least squares subproblem in TAOMAD.
+
+$  TAO_MAD_SUBSOLVER_NORMAL       - Use KSPCG to solve the problem using normal equations
+$  TAO_MAD_SUBSOLVER_SVD          - Use truncated SVD via LAPACK on a potentially very large matrix (??)
+
+  Level: advanced
+
+.seealso TAOMAD, TaoMADSetSubsolver()
+E*/
+typedef enum {TAO_MAD_SUBSOLVER_NORMAL,TAO_MAD_SUBSOLVER_SVD} TaoMADSubsolver;
+PETSC_EXTERN const char *const TaoMADSubsolvers[];
+
+/*E
+     TaoMADFilters - Filter type for globalization in TAOMAD.
+
+$  TAO_MAD_FILTER_NONE         - Do not use globalization at all, accept step length of 1.0 every time
+$  TAO_MAD_FILTER_SIMPLE       - Use a Fletcher-Leyffer filter using only objective value and constraint-norm
+$  TAO_MAD_FILTER_BARRIER      - Replace the objective value in the Fletcher-Leyffer filter with the barrier function
+$  TAO_MAD_FILTER_MARKOV       - Ignore past history and seek improvements in objective OR constraints (not both)
+
+  Level: advanced
+
+.seealso TAOMAD, TaoMADSetFilterType()
+E*/
+typedef enum {
+  TAO_MAD_FILTER_NONE,
+  TAO_MAD_FILTER_SIMPLE,
+  TAO_MAD_FILTER_BARRIER,
+  TAO_MAD_FILTER_MARKOV
+} TaoMADFilterType;
+PETSC_EXTERN const char *const TaoMADFilters[];
+
 typedef struct _p_Tao*   Tao;
 
 /*J
@@ -158,6 +191,7 @@ typedef const char *TaoType;
 #define TAOSHELL    "shell"
 #define TAOADMM     "admm"
 #define TAOALMM     "almm"
+#define TAOMAD      "mad"
 
 PETSC_EXTERN PetscClassId TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
@@ -394,4 +428,10 @@ PETSC_EXTERN PetscErrorCode TaoALMMGetMultipliers(Tao, Vec*);
 PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS*, IS*);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS*, IS*);
+
+PETSC_EXTERN PetscErrorCode TaoMADGetSubsolver(Tao, TaoMADSubsolver*);
+PETSC_EXTERN PetscErrorCode TaoMADSetSubsolver(Tao, TaoMADSubsolver);
+PETSC_EXTERN PetscErrorCode TaoMADSetMaxHistory(Tao, PetscInt);
+PETSC_EXTERN PetscErrorCode TaoMADGetPreconditioner(Tao, Mat*);
+PETSC_EXTERN PetscErrorCode TaoMADSetPreconditioner(Tao, Mat);
 #endif
