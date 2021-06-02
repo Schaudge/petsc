@@ -1,6 +1,6 @@
 #include <petsc/private/petscfeimpl.h> /*I "petscfe.h" I*/
 
-/*@ 
+/*@
   PetscSpaceKoszulSetDomain - Set the space to use as domain for the koszul map
 
   Input Parameters:
@@ -11,9 +11,10 @@ Level: intermediate
 
 .seealso:
 @*/
-PetscErrorCode PetscSpaceKoszulSetDomain(PetscSpace koszulsp,PetscSpace domainsp){
+PetscErrorCode PetscSpaceKoszulSetDomain(PetscSpace koszulsp,PetscSpace domainsp)
+{
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(koszulsp,PETSCSPACE_CLASSID,1);
   if (domainsp) PetscValidHeaderSpecific(domainsp,PETSCSPACE_CLASSID,3);
@@ -21,39 +22,79 @@ PetscErrorCode PetscSpaceKoszulSetDomain(PetscSpace koszulsp,PetscSpace domainsp
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode PetscSpaceKoszulSetDomain_Koszul(PetscSpace koszulsp, PetscSpace domainsp)
+/*@
+  PetscSpaceKoszulSetFormDegree - Set the form degree of the space
+
+  Input Parameters:
+  + koszulsp - the koszul space object
+  - formDegree - the form degree that is expected after applying the koszul operator
+
+Level: intermediate
+
+.seealso:
+@*/
+PetscErrorCode PetscSpaceKoszulSetFormDegree(PetscSpace koszulsp,PetscInt formDegree){
+    PetscErrorCode ierr;
+    PetscFunctionBegin;
+    PetscValidHeaderSpecific(koszulsp,PETSCSPACE_CLASSID,1);
+    ierr = PetscTryMethod(koszulsp,"PetscSpaceKoszulSetDomain_C",(PetscSpace,PetscInt),(koszulsp,formDegree));CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+
+}
+
+static PetscErrorCode PetscSpaceKoszulSetDomain_Koszul(PetscSpace koszulsp,PetscSpace domainsp)
 {
-  PetscSpace_Koszul *kosz = (PetscSpace_Koszul*)koszulsp->data;
-  PetscErrorCode ierr;
+  PetscSpace_Koszul * kosz = (PetscSpace_Koszul*)koszulsp->data;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   if (kosz->setupCalled) SETERRQ(PetscObjectComm((PetscObject)koszulsp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change domain space after setup called\n");
-  
-  ierr = PetscObjectReference((PetscObject)domainsp);CHKERRQ(ierr);
-  ierr = PetscSpaceDestroy(kosz->domainspace);CHKERRQ(ierr);
-  *(kosz->domainspace) = domainsp;
+
+  ierr                 = PetscObjectReference((PetscObject)domainsp);CHKERRQ(ierr);
+  if (kosz->domainspace) {
+    ierr = PetscSpaceDestroy(&kosz->domainspace);CHKERRQ(ierr);
+  }
+  ierr = PetscSpaceCreate(PetscObjectComm((PetscObject) domainsp),&kosz->domainspace);CHKERRQ(ierr);
+  kosz->domainspace = domainsp;
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode PetscSpaceKoszulSetFormDegree_Koszul(PetscSpace koszulsp,PetscInt formDegree)
+{
+  PetscSpace_Koszul * kosz = (PetscSpace_Koszul*)koszulsp->data;
+
+  PetscFunctionBegin;
+  if (kosz->setupCalled) SETERRQ(PetscObjectComm((PetscObject)koszulsp),PETSC_ERR_ARG_WRONGSTATE,"Cannot change form degree after setup called\n");
+  kosz->formDegree = formDegree;
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode PetscSpaceEvaluate_Koszul(PetscSpace sp,PetscInt npoints,const PetscReal points[],PetscReal B[],PetscReal D[],PetscReal H[])
 {
-  PetscSpace_Koszul *koszul = (PetscSpace_Koszul*)sp->data;
-  DM             dm = sp->dm;
-  PetscInt       Nc = sp->Nc,Nv = sp->Nv;
-  PetscInt       i,s,offset,ncoffset,pdimfull,numelB,numelD,numelH;
-  PetscReal      *sB = NULL,*sD = NULL,*sH = NULL;
-  PetscErrorCode ierr;
+  PetscSpace_Koszul * koszul = (PetscSpace_Koszul*)sp->data;
+  DM                dm = sp->dm;
+  PetscInt          Nc_k = sp->Nc,Nv = sp->Nv,Nc_d = (koszul->domainspace)->Nc,formDegree = koszul->formDegree;
+  PetscInt          i,p,pdimfull_d,pdimfull_k,numelB_d, numelB_k,numelD,numelH;
+  PetscReal         * sB_d = NULL,*sD = NULL,*sH = NULL,*sB_k = NULL;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   if (!koszul->setupCalled) {
     ierr = PetscSpaceSetUp(sp);CHKERRQ(ierr);
   }
-  ierr   = PetscSpaceGetDimension(sp,&pdimfull);CHKERRQ(ierr);
-  numelB = npoints*pdimfull*Nc;
-  numelD = numelB*Nv;
-  numelH = numelD*Nv;
+  /* Set up work arrays*/
+  ierr   = PetscSpaceGetDimension(sp,&pdimfull_k);CHKERRQ(ierr);
+  ierr   = PetscSpaceGetDimension(koszul->domainspace,&pdimfull_d);CHKERRQ(ierr);
+
+  /* In general, we will need different sizes for the domainspace and
+   * koszul-applied evaluations */
+  numelB_d = npoints * pdimfull_d * Nc_d; 
+  numelB_k = npoints * pdimfull_k * Nc_k;
+  numelD = numelB_d * Nv;
+  numelH = numelD * Nv;
   if (B || D || H) {
-    ierr = DMGetWorkArray(dm,numelB,MPIU_REAL,&sB);CHKERRQ(ierr);
+    ierr = DMGetWorkArray(dm,numelB_d,MPIU_REAL,&sB_d);CHKERRQ(ierr);
+    ierr = DMGetWorkArray(dm,numelB_k,MPIU_REAL,&sB_k);CHKERRQ(ierr);
   }
   if (D || H) {
     ierr = DMGetWorkArray(dm,numelD,MPIU_REAL,&sD);CHKERRQ(ierr);
@@ -62,14 +103,29 @@ static PetscErrorCode PetscSpaceEvaluate_Koszul(PetscSpace sp,PetscInt npoints,c
     ierr = DMGetWorkArray(dm,numelH,MPIU_REAL,&sH);CHKERRQ(ierr);
   }
   if (B)
-    for (i=0; i<numelB; ++i) B[i] = 0.;
+  {
+    for (i = 0; i < numelB_d; ++i) B[i] = 0.;
+    for (i = 0; i < numelB_k; ++i) B[i] = 0.;
+  }
   if (D)
-    for (i=0; i<numelD; ++i) D[i] = 0.;
+    for (i = 0; i < numelD; ++i) D[i] = 0.;
   if (H)
-    for (i=0; i<numelH; ++i) H[i] = 0.;
+    for (i = 0; i < numelH; ++i) H[i] = 0.;
 
-  ierr = PetscSpaceEvaluate(koszul->domainspace,npoints,points,sB,sD,sH);CHKERRQ(ierr);
+  /* Evaluate the domain space */
+  ierr = PetscSpaceEvaluate(koszul->domainspace,npoints,points,sB_d,sD,sH);CHKERRQ(ierr);
 
+  /* Now apply koszul operator using AltV interior at each point */
+  PetscInt f;
+  for (f = 0; f < pdimfull_d;++f){
+      for (p = 0; p < npoints; ++p){
+          /* apply interior product */
+          /* If Nc_k == (N chooose k) then all we need is the call to AltV,
+           * otherwise we have to duplicate the entries??? */
+          ierr = PetscDTAltVInterior(Nv,formDegree+1,&sB_d[(f*npoints+p)*Nc_d],&points[p*Nv],&sB_k[(f*npoints+p)*Nc_k]);CHKERRQ(ierr);
+      
+      }
+  }
   if (H) {
     ierr = DMRestoreWorkArray(dm,numelH,MPIU_REAL,&sH);CHKERRQ(ierr);
   }
@@ -77,22 +133,40 @@ static PetscErrorCode PetscSpaceEvaluate_Koszul(PetscSpace sp,PetscInt npoints,c
     ierr = DMRestoreWorkArray(dm,numelD,MPIU_REAL,&sD);CHKERRQ(ierr);
   }
   if (B || D || H) {
-    ierr = DMRestoreWorkArray(dm,numelB,MPIU_REAL,&sB);CHKERRQ(ierr);
+    ierr = DMRestoreWorkArray(dm,numelB_d,MPIU_REAL,&sB_d);CHKERRQ(ierr);
+    ierr = DMRestoreWorkArray(dm,numelB_k,MPIU_REAL,&sB_k);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PetscSpaceDestroy_Koszul(PetscSpace sp)
+{
+    PetscSpace_Koszul *kosz = (PetscSpace_Koszul*)sp->data;
+    PetscErrorCode ierr;
+
+    PetscFunctionBegin;
+    ierr = PetscSpaceDestroy(&kosz->domainspace);CHKERRQ(ierr);
+
+    PetscFunctionReturn(0);
+
+}
+
 static PetscErrorCode PetscSpaceInitialize_Koszul(PetscSpace sp)
 {
-
+    PetscErrorCode ierr;
   PetscFunctionBegin;
-  sp->ops->evaluate       = PetscSpaceEvaluate_Koszul;
+  sp->ops->evaluate = PetscSpaceEvaluate_Koszul;
+  sp->ops->destroy = PetscSpaceDestroy_Koszul;
+
+  ierr = PetscObjectComposeFunction((PetscObject)sp,"PetscSpaceKoszulSetDomain_C",PetscSpaceKoszulSetDomain_Koszul);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)sp,"PetscSpaceKoszulSetFormDegree_C",PetscSpaceKoszulSetFormDegree_Koszul);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
 
 /*MC
-  PETSCSPACEKOSZUL = "koszul" - A space that results from application of the koszul operator. 
+  PETSCSPACEKOSZUL = "koszul" - A space that results from application of the
+koszul operator.
 
   Level: intermediate
 
@@ -100,8 +174,8 @@ static PetscErrorCode PetscSpaceInitialize_Koszul(PetscSpace sp)
 M*/
 PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Koszul(PetscSpace sp)
 {
-  PetscSpace_Koszul *koszul;
-  PetscErrorCode ierr;
+  PetscSpace_Koszul * koszul;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sp,PETSCSPACE_CLASSID,1);
@@ -111,22 +185,32 @@ PETSC_EXTERN PetscErrorCode PetscSpaceCreate_Koszul(PetscSpace sp)
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode PetscSpaceCreateKoszul(PetscSpace *domainsp,PetscSpace *koszulsp)
+PETSC_EXTERN PetscErrorCode PetscSpaceCreateKoszul(PetscSpace * domainsp,PetscInt formDegree, PetscInt Nc, PetscSpace * koszulsp)
 {
+  PetscInt nChooseK;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (koszulsp) {
-    ierr = PetscSpaceDestroy(koszulsp);CHKERRQ(ierr);
+  /*
+  if (koszulsp)
+  {
+      ierr = PetscSpaceDestroy(koszulsp);CHKERRQ(ierr);
   }
-  ierr = PetscSpaceCreate(PetscObjectComm((PetscObject)*domainsp),koszulsp);CHKERRQ(ierr);
+  */
+  ierr = PetscSpaceCreate(PetscObjectComm((PetscObject) *domainsp),koszulsp);CHKERRQ(ierr);
   ierr = PetscSpaceSetType(*koszulsp,PETSCSPACEKOSZUL);CHKERRQ(ierr);
   /* Inherit number of variables and components from domain space */
   ierr = PetscSpaceKoszulSetDomain(*koszulsp,*domainsp);CHKERRQ(ierr);
   ierr = PetscSpaceSetNumVariables(*koszulsp,(*domainsp)->Nv);CHKERRQ(ierr);
-  /* TODO: number of compontents for a koszul space is potentially different from the
-   * domain space since we increase the form degree. This should be known in advance? Maybe we require user to set
-   * number of components?*/
-  ierr = PetscSpaceSetNumComponents(*koszulsp, (*domainsp)->Nc);CHKERRQ(ierr);
+  /* Gonna set degrees like this for now even though I'm pretty sure we can make
+   * 0 guarantees about the approximation properties of the koszul space */
+  ierr = PetscSpaceSetDegree(*koszulsp,(*domainsp)->degree,(*domainsp)->maxDegree+1);CHKERRQ(ierr);
+
+  ierr = PetscDTBinomialInt((*domainsp)->degree,formDegree,&nChooseK);CHKERRQ(ierr);
+  if (Nc % nChooseK != 0){
+      SETERRQ(PETSC_COMM_SELF,62,"Requested number of components is incompatible with given domain space and form degree.\n");
+  }
+  ierr = PetscSpaceSetNumComponents(*koszulsp,nChooseK);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }

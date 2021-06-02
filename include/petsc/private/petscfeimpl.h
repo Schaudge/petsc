@@ -67,7 +67,8 @@ typedef struct {
 } PetscSpace_Sum;
 
 typedef struct {
-  PetscSpace *domainspace;       /* Space that the koszul operator is applied to */
+  PetscSpace domainspace;       /* Space that the koszul operator is applied to */
+  PetscInt   formDegree;         /* Differential form degree of resulting space */
   PetscBool  setupCalled;
 } PetscSpace_Koszul;
 
