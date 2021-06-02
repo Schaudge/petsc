@@ -2,7 +2,7 @@
 
 PetscErrorCode MLDRRegisterAll(void)
 {
-  PetscErrorCode ierr;
+  //PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (MLDRRegisterAllCalled) PetscFunctionReturn(0);

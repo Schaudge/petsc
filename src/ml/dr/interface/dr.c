@@ -46,11 +46,6 @@ PetscErrorCode MLDRReset(MLDR mldr)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mldr,MLDR_CLASSID,1);
   // TODO: Finish putting all of the Reset, Destroy, and free calls needed here!
-#if defined(PETSC_HAVE_SLEPC)
-  if (mldr->svd) {
-    ierr = SVDReset(mldr->svd);CHKERRQ(ierr);
-  }
-#endif
   ierr = MatDestroy(&mldr->training);CHKERRQ(ierr);
   mldr->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
@@ -79,11 +74,6 @@ PetscErrorCode MLDRDestroy(MLDR *mldr)
   if (--((PetscObject)(*mldr))->refct > 0) {*mldr = NULL; PetscFunctionReturn(0);}
 
   ierr = MLDRReset((*mldr));CHKERRQ(ierr);
-#if defined(PETSC_HAVE_SLEPC)
-  if ((*mldr)->svd) {
-    ierr = SVDDestroy(&(*mldr)->svd);CHKERRQ(ierr);
-  }
-#endif
 
   ierr = PetscHeaderDestroy(mldr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
