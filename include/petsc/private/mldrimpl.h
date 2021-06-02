@@ -24,9 +24,6 @@ struct _p_MLDR {
 
   PetscBool setupcalled; /* True if setup has been called */
   void      *data; /* Implementation-specific data */
-#if defined(PETSC_HAVE_SLEPC)
-  SVD svd; /* Not all MLDR types will use a SLEPc SVD context, but enough do that we put it at this level. */
-#endif
   Mat training;  /* Matrix holding the training data set */
 };
 

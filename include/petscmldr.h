@@ -2,9 +2,6 @@
 #define PETSCMLDR_H
 
 #include <petsctao.h>
-#if defined(PETSC_HAVE_SLEPC)
-#include <slepcsvd.h>
-#endif
 
 typedef struct _p_MLDR* MLDR;
 
