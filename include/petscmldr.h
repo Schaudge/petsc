@@ -24,5 +24,5 @@ PETSC_EXTERN PetscErrorCode MLDRRegister(const char[],PetscErrorCode (*)(MLDR));
 PETSC_EXTERN PetscErrorCode MLDRCreate(MPI_Comm,MLDR*);
 PETSC_EXTERN PetscErrorCode MLDRReset(MLDR);
 PETSC_EXTERN PetscErrorCode MLDRDestroy(MLDR*);
-PETSC_EXTERN PetscErrorCode MLDRView(MLDR*,PetscViewer);
+PETSC_EXTERN PetscErrorCode MLDRView(MLDR,PetscViewer);
 #endif
