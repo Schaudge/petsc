@@ -30,9 +30,6 @@ PetscErrorCode MLDRCreate(MPI_Comm comm,MLDR *newmldr)
   // TODO: Finish setting the various fields of the MLDR private data structure to defaults, etc.
   mldr->setupcalled = PETSC_FALSE;
   mldr->data = NULL;
-#if defined(PETSC_HAVE_SLEPC)
-  mldr->svd = NULL;
-#endif
   mldr->training = NULL;
   
   *newmldr = mldr;
