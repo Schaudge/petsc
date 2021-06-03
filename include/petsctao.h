@@ -127,7 +127,11 @@ $  TAO_MAD_SUBSOLVER_SVD          - Use truncated SVD via LAPACK on a potentiall
 
 .seealso TAOMAD, TaoMADSetSubsolver()
 E*/
-typedef enum {TAO_MAD_SUBSOLVER_NORMAL,TAO_MAD_SUBSOLVER_SVD} TaoMADSubsolver;
+typedef enum {
+  TAO_MAD_SUBSOLVER_LSQR,
+  TAO_MAD_SUBSOLVER_NORMAL,
+  TAO_MAD_SUBSOLVER_SVD
+} TaoMADSubsolver;
 PETSC_EXTERN const char *const TaoMADSubsolvers[];
 
 /*E

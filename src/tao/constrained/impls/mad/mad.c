@@ -8,7 +8,6 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
   Mat                AeT, AiT;
   Vec                Xb, Cb, Qtmp, Gtmp;
   PetscReal          ginf, cnorm2;
-  PetscReal          alpha_p, alpha_y;
   PetscScalar        *Ae_norms, *Ai_norms, *riTr, *ga, *gg, *rhs;
   PetscInt           i, j, *idx;
   PetscBool          step_failed;
@@ -18,20 +17,21 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
   /* set initial multipliers to 1.0 */
   ierr = VecSet(mad->Q->Y, 1.0);CHKERRQ(ierr);
   /* initial slacks are a safeguarded clone of the corresponding constraints (Vanderbei and Shanno, 1998) */
+  /* however, in their formulation their slacks have a negative sign, ours is positive, so we flip */
   if (tao->ineq_constrained) {
     ierr = TaoComputeInequalityConstraints(tao, mad->Q->X, mad->Ci);CHKERRQ(ierr);
     ierr = VecSet(mad->W->Sc, mad->slack_init);CHKERRQ(ierr);
     ierr = VecPointwiseMax(mad->Q->Sc, mad->Ci, mad->W->Sc);CHKERRQ(ierr);
     if (mad->isIL) {
       ierr = VecGetSubVector(mad->Q->Sc, mad->isIL, &Cb);CHKERRQ(ierr);
-      ierr = VecWAXPY(mad->Q->Scl, -1.0, mad->IL, Cb);CHKERRQ(ierr);
+      ierr = VecWAXPY(mad->Q->Scl, -1.0, Cb, mad->IL);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(mad->Q->Sc, mad->isIL, &Cb);CHKERRQ(ierr);
       ierr = VecSet(mad->W->Scl, mad->slack_init);CHKERRQ(ierr);
       ierr = VecPointwiseMax(mad->Q->Scl, mad->Q->Scl, mad->W->Scl);CHKERRQ(ierr);
     }
     if (mad->isIU) {
       ierr = VecGetSubVector(mad->Q->Sc, mad->isIU, &Cb);CHKERRQ(ierr);
-      ierr = VecWAXPY(mad->Q->Scu, -1.0, Cb, mad->IU);CHKERRQ(ierr);
+      ierr = VecWAXPY(mad->Q->Scu, -1.0, mad->IU, Cb);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(mad->Q->Sc, mad->isIU, &Cb);CHKERRQ(ierr);
       ierr = VecSet(mad->W->Scu, mad->slack_init);CHKERRQ(ierr);
       ierr = VecPointwiseMax(mad->Q->Scu, mad->Q->Scu, mad->W->Scu);CHKERRQ(ierr);
@@ -40,14 +40,14 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
   if (tao->ineq_constrained) {
     if (mad->isIL) {
       ierr = VecGetSubVector(mad->Q->X, mad->isXL, &Xb);CHKERRQ(ierr);
-      ierr = VecWAXPY(mad->Q->Sxl, -1.0, mad->XL, Xb);CHKERRQ(ierr);
+      ierr = VecWAXPY(mad->Q->Sxl, -1.0, Xb, mad->XL);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(mad->Q->X, mad->isXL, &Xb);CHKERRQ(ierr);
       ierr = VecSet(mad->W->Sxl, mad->slack_init);CHKERRQ(ierr);
       ierr = VecPointwiseMax(mad->Q->Sxl, mad->Q->Sxl, mad->W->Sxl);CHKERRQ(ierr);
     }
     if (mad->isIU) {
       ierr = VecGetSubVector(mad->Q->X, mad->isXU, &Xb);CHKERRQ(ierr);
-      ierr = VecWAXPY(mad->Q->Sxu, -1.0, Xb, mad->XU);CHKERRQ(ierr);
+      ierr = VecWAXPY(mad->Q->Sxu, -1.0, mad->XU, Xb);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(mad->Q->X, mad->isXU, &Xb);CHKERRQ(ierr);
       ierr = VecSet(mad->W->Sxu, mad->slack_init);CHKERRQ(ierr);
       ierr = VecPointwiseMax(mad->Q->Sxu, mad->Q->Sxu, mad->W->Sxu);CHKERRQ(ierr);
@@ -84,11 +84,24 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
     ierr = VecPointwiseMin(mad->CiScale, mad->W->Yi, mad->CiScale);CHKERRQ(ierr);
   }
 
+  VecSet(mad->W->P, 1.0);
+  PetscPrintf(PETSC_COMM_SELF, "\nwork vector of ones:\n");
+  VecView(mad->W->P, PETSC_VIEWER_STDOUT_SELF);
+  PetscPrintf(PETSC_COMM_SELF, "\nprimal gradient:\n");
+  VecView(mad->dLdQ->P, PETSC_VIEWER_STDOUT_SELF);
+  VecDot(mad->dLdQ->P, mad->W->P, &ginf);
+  PetscPrintf(PETSC_COMM_SELF, "\ndot with 1 = %g\n", ginf);
+  VecNorm(mad->dLdQ->P, NORM_2, &ginf);
+  PetscPrintf(PETSC_COMM_SELF, "2-norm = %g\n", ginf);
+  VecDot(mad->dLdQ->P, mad->dLdQ->P, &ginf);
+  ginf = PetscAbsScalar(PetscSqrtScalar(ginf));
+  PetscPrintf(PETSC_COMM_SELF, "manual 2-norm w/ dot = %g\n", ginf);
+
   /* unfortunately we have to recompute the whole Lagrangian and gradient with the new scaling factors */
   ierr = TaoMADUpdateBarrier(tao, mad->Q, &mad->mu);CHKERRQ(ierr);
   ierr = TaoMADComputeLagrangianAndGradient(tao, mad->Q, mad->L, mad->dLdQ);CHKERRQ(ierr);
   /* check convergence at the scaled initial point */
-  ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ);
+  ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, 0.0);
   if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(0);
 
   /* store first iterate as the previous solution for future update */
@@ -104,18 +117,21 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
 
   /* first iteration is a simple gradient descent step */
   ++tao->niter;
+  ierr = TaoMADComputeReducedKKT(tao, mad->Q, mad->dLdQ, mad->G);CHKERRQ(ierr);
   ierr = VecCopy(mad->G->R, mad->D->R);CHKERRQ(ierr);
+  ierr = VecScale(mad->D->R, -1.0);CHKERRQ(ierr);
   ierr = TaoMADEvaluateClosedFormUpdates(tao, mad->Q, mad->dLdQ, mad->D);CHKERRQ(ierr);
-  ierr = TaoMADEstimateMaxAlphas(tao, mad->Q, mad->D, &alpha_p, &alpha_y);CHKERRQ(ierr);
   /* check the new point against the filter (only contains initial iterate here) */
   ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &step_failed);CHKERRQ(ierr);
-  ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ);
+  ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, 1.0);
   if (step_failed) tao->reason = TAO_DIVERGED_LS_FAILURE;
   if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(0);
 
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     ++tao->niter;
     /* Lagrangian and gradient were updated during filter search but we need to update barrier and get reduced KKT */
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");
+    ierr = VecView(mad->Q->X, PETSC_VIEWER_STDOUT_WORLD);
     ierr = TaoMADUpdateBarrier(tao, mad->Q, &mad->mu);CHKERRQ(ierr);
     ierr = TaoMADComputeReducedKKT(tao, mad->Q, mad->dLdQ, mad->G);CHKERRQ(ierr);
 
@@ -183,19 +199,23 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
         ierr = VecRestoreArray(mad->gamma, &ga);CHKERRQ(ierr);
         break;
 
+      case TAO_MAD_SUBSOLVER_LSQR:
+        /* TODO: implement this!! */
+        break;
+
       case TAO_MAD_SUBSOLVER_NORMAL:
       default:
         /* construct the matrix for the least squares problem */
         ierr = MatDestroy(&mad->GRmat);CHKERRQ(ierr);
         ierr = MatCreate(PetscObjectComm((PetscObject)tao), &mad->GRmat);CHKERRQ(ierr);
         ierr = MatSetType(mad->GRmat, MATSEQDENSE);
-        ierr = MatSetSizes(mad->GRmat, PETSC_DECIDE, mad->k, PETSC_DECIDE, mad->k);CHKERRQ(ierr);
+        ierr = MatSetSizes(mad->GRmat, PETSC_DECIDE, PETSC_DECIDE, mad->k, mad->k);CHKERRQ(ierr);
         ierr = MatSetUp(mad->GRmat);CHKERRQ(ierr);
         ierr = PetscCalloc2(mad->k, &idx, mad->k, &riTr);CHKERRQ(ierr);
         for (i=0; i<mad->k; i++) idx[i] = i;
         for (i=0; i<mad->k; i++) {
           ierr = VecMTDot(mad->GR[i], mad->k, mad->GR, riTr);CHKERRQ(ierr);
-          ierr = MatSetValues(mad->GRmat, mad->k, idx, 1, &i, riTr, INSERT_VALUES);CHKERRQ(ierr);
+          ierr = MatSetValues(mad->GRmat, 1, &i, mad->k, idx, riTr, INSERT_VALUES);CHKERRQ(ierr);
         }
         ierr = MatAssemblyBegin(mad->GRmat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
         ierr = MatAssemblyEnd(mad->GRmat, MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -243,11 +263,12 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
       ierr = LagrangianCopy(mad->Lprev, mad->L);CHKERRQ(ierr);
       /* now we fallback to a simple gradient descent step */
       ierr = VecCopy(mad->G->R, mad->D->R);CHKERRQ(ierr);
+      ierr = VecScale(mad->D->R, -1.0);CHKERRQ(ierr);
       ierr = TaoMADEvaluateClosedFormUpdates(tao, mad->Q, mad->dLdQ, mad->D);CHKERRQ(ierr);
       ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &step_failed);CHKERRQ(ierr);
       if (!step_failed) mad->k = 0;  /* gradient descent worked so let's just reset MAD and start fresh */
     }
-    ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ);
+    ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, 1.0);
     if (step_failed) tao->reason = TAO_DIVERGED_LS_FAILURE;
     if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(0);
   }
@@ -286,11 +307,12 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
   mad->Q->X = tao->solution;
   ierr = VecGetSize(mad->Q->X, &mad->Nx);CHKERRQ(ierr);
   ierr = VecDuplicate(mad->Q->X, &mad->G->X);CHKERRQ(ierr);
-  mad->Q->nR=1;  mad->Q->nF=1;  mad->Q->nP=1;  mad->Q->nS=0;  mad->Q->nY=0;
+  mad->G->nR=1;  mad->Q->nR=1;  mad->Q->nF=1;  mad->Q->nP=1;  mad->Q->nS=0;  mad->Q->nY=0;
   if (!tao->gradient) {
     ierr = VecDuplicate(tao->solution, &tao->gradient);CHKERRQ(ierr);
   }
   mad->dFdX = tao->gradient;
+  mad->Gscale = 1.0;
 
   /* check all the constraints types and create necessary vectors */
   if (tao->eq_constrained) {
@@ -300,7 +322,9 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
     ierr = VecGetSize(mad->Ce, &mad->Ne);CHKERRQ(ierr);
     ierr = VecDuplicate(mad->Ce, &mad->Q->Ye);CHKERRQ(ierr);
     ierr = VecDuplicate(mad->Ce, &mad->G->Ye);CHKERRQ(ierr);
-    mad->Q->nR += 1;  mad->Q->nF += 1;  mad->Q->nY += 1;
+    ierr = VecDuplicate(mad->Ce, &mad->CeScale);CHKERRQ(ierr);
+    ierr = VecSet(mad->CeScale, 1.0);CHKERRQ(ierr);
+    mad->G->nR += 1; mad->Q->nR += 1;  mad->Q->nF += 1;  mad->Q->nY += 1;
   }
   if (tao->ineq_constrained) {
     mad->unconstrained = PETSC_FALSE;
@@ -311,7 +335,9 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
     ierr = VecDuplicate(mad->Ci, &mad->Q->Sc);CHKERRQ(ierr);
     ierr = VecDuplicate(mad->Ci, &mad->B);CHKERRQ(ierr);
     ierr = VecDuplicate(mad->Ci, &mad->G->Yi);CHKERRQ(ierr);
-    mad->Q->nR += 1;  mad->Q->nF += 2;  mad->Q->nP += 1;  mad->Q->nS +=1; mad->Q->nY += 1;
+    ierr = VecDuplicate(mad->Ci, &mad->CiScale);CHKERRQ(ierr);
+    ierr = VecSet(mad->CiScale, 1.0);CHKERRQ(ierr);
+    mad->G->nR += 1; mad->Q->nR += 1;  mad->Q->nF += 2;  mad->Q->nP += 1;  mad->Q->nS +=1; mad->Q->nY += 1;
     if (!tao->ineq_doublesided) {
       /* user did not define lower/upper bounds so we assume c_i(x) <= 0 */
       ierr = VecDuplicate(mad->Ci, &tao->IU);CHKERRQ(ierr);
@@ -327,7 +353,7 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
       ierr = VecDuplicate(Wtmp, &mad->IL);CHKERRQ(ierr);
       ierr = VecCopy(Wtmp, mad->IL);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(mad->Ci, mad->isIL, &Wtmp);CHKERRQ(ierr);
-      mad->Q->nF += 2;  mad->Q->nP =+ 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
+      mad->Q->nF += 2;  mad->Q->nP += 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
     }
     if (tao->IU) {
       ierr = VecSet(mad->Q->Yi, PETSC_INFINITY);CHKERRQ(ierr);
@@ -339,7 +365,7 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
       ierr = VecDuplicate(Wtmp, &mad->IU);CHKERRQ(ierr);
       ierr = VecCopy(Wtmp, mad->IU);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(mad->Ci, mad->isIU, &Wtmp);CHKERRQ(ierr);
-      mad->Q->nF += 2;  mad->Q->nP =+ 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
+      mad->Q->nF += 2;  mad->Q->nP += 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
     }
   }
   if (tao->bounded) {
@@ -351,11 +377,11 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
       ierr = ISGetSize(mad->isXL, &mad->Nxl);CHKERRQ(ierr);
       ierr = VecGetSubVector(tao->XL, mad->isXL, &Wtmp);CHKERRQ(ierr);
       ierr = VecDuplicate(Wtmp, &mad->Q->Sxl);CHKERRQ(ierr);
-      ierr = VecDuplicate(Wtmp, &mad->Q->Vl);CHKERRQ(ierr);
+      ierr = VecDuplicate(Wtmp, &mad->Q->Zl);CHKERRQ(ierr);
       ierr = VecDuplicate(Wtmp, &mad->XL);CHKERRQ(ierr);
       ierr = VecCopy(Wtmp, mad->XL);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(tao->solution, mad->isXL, &Wtmp);CHKERRQ(ierr);
-      mad->Q->nF += 2;  mad->Q->nP =+ 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
+      mad->Q->nF += 2;  mad->Q->nP += 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
     }
     if (tao->XU) {
       ierr = VecSet(mad->dFdX, PETSC_INFINITY);CHKERRQ(ierr);
@@ -363,11 +389,11 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
       ierr = ISGetSize(mad->isXU, &mad->Nxu);CHKERRQ(ierr);
       ierr = VecGetSubVector(tao->XU, mad->isXU, &Wtmp);CHKERRQ(ierr);
       ierr = VecDuplicate(Wtmp, &mad->Q->Sxu);CHKERRQ(ierr);
-      ierr = VecDuplicate(Wtmp, &mad->Q->Vu);CHKERRQ(ierr);
+      ierr = VecDuplicate(Wtmp, &mad->Q->Zu);CHKERRQ(ierr);
       ierr = VecDuplicate(Wtmp, &mad->XU);CHKERRQ(ierr);
       ierr = VecCopy(Wtmp, mad->XU);CHKERRQ(ierr);
       ierr = VecRestoreSubVector(tao->solution, mad->isXU, &Wtmp);CHKERRQ(ierr);
-      mad->Q->nF += 2;  mad->Q->nP =+ 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
+      mad->Q->nF += 2;  mad->Q->nP += 1;  mad->Q->nS +=1;  mad->Q->nY += 1;
     }
   }
   /* compute sizing of combined vectors */
@@ -381,9 +407,11 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
   /* now we need to construct the VECNEST combinations */
   ierr = FullSpaceVecCreate(mad->Q);CHKERRQ(ierr);
   ierr = FullSpaceVecDuplicate(mad->Q, mad->Qprev);CHKERRQ(ierr);
+  ierr = FullSpaceVecDuplicate(mad->Q, mad->Qtrial);CHKERRQ(ierr);
   ierr = FullSpaceVecDuplicate(mad->Q, mad->D);CHKERRQ(ierr);
   ierr = FullSpaceVecDuplicate(mad->Q, mad->dLdQ);CHKERRQ(ierr);
   ierr = FullSpaceVecDuplicate(mad->Q, mad->dLdQprev);CHKERRQ(ierr);
+  ierr = FullSpaceVecDuplicate(mad->Q, mad->dLdQtrial);CHKERRQ(ierr);
   ierr = FullSpaceVecDuplicate(mad->Q, mad->W);CHKERRQ(ierr);
 
   /* create reduced space counterpart */
@@ -396,13 +424,14 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
 
   /* determine workspace size needed for LAPACK */
   if (mad->subsolver_type == TAO_MAD_SUBSOLVER_SVD) {
-    ierr = PetscCalloc3(mad->Nr*mad->k, &mad->GRarr, mad->Nr, &mad->rhs, mad->Nr, &mad->sigma);CHKERRQ(ierr);
+    ierr = PetscCalloc3(mad->Nr*mad->kmax, &mad->GRarr, mad->Nr, &mad->rhs, mad->Nr, &mad->sigma);CHKERRQ(ierr);
     ierr = PetscBLASIntCast(mad->Nr, &mad->msize);CHKERRQ(ierr);
     ierr = PetscBLASIntCast(mad->kmax, &mad->nsize);CHKERRQ(ierr);
+    mad->lda = mad->msize;
+    mad->ldb = mad->msize;
     mad->nrhs = 1;
     mad->info = 0;
-    mad->lwork = -1;
-    PetscStackCallBLAS("LAPACKgelss",LAPACKgelss_(&mad->msize,&mad->nsize,&mad->nrhs,mad->GRarr,&mad->msize,mad->rhs,&mad->msize,mad->sigma,&mad->rcond,&mad->rank,mad->work,&mad->lwork,&mad->info));
+    mad->lwork = 12*mad->msize;
     ierr = PetscCalloc1(mad->lwork, &mad->work);CHKERRQ(ierr);
     ierr = VecNestConcatenate(mad->G->R, &Wtmp, NULL);CHKERRQ(ierr);
     ierr = VecScatterCreateToAll(Wtmp, &mad->allgather, &mad->Gseq);CHKERRQ(ierr);
@@ -421,9 +450,11 @@ static PetscErrorCode TaoDestroy_MAD(Tao tao)
   /* destroy vector structures */
   ierr = FullSpaceVecDestroy(mad->Q);CHKERRQ(ierr);
   ierr = FullSpaceVecDestroy(mad->Qprev);CHKERRQ(ierr);
+  ierr = FullSpaceVecDestroy(mad->Qtrial);CHKERRQ(ierr);
   ierr = FullSpaceVecDestroy(mad->D);CHKERRQ(ierr);
   ierr = FullSpaceVecDestroy(mad->dLdQ);CHKERRQ(ierr);
   ierr = FullSpaceVecDestroy(mad->dLdQprev);CHKERRQ(ierr);
+  ierr = FullSpaceVecDestroy(mad->dLdQtrial);CHKERRQ(ierr);
   ierr = FullSpaceVecDestroy(mad->W);CHKERRQ(ierr);
   ierr = ReducedSpaceVecDestroy(mad->G);CHKERRQ(ierr);
   ierr = ReducedSpaceVecDestroy(mad->Gprev);CHKERRQ(ierr);
@@ -439,9 +470,16 @@ static PetscErrorCode TaoDestroy_MAD(Tao tao)
   ierr = VecDestroy(&mad->XU);CHKERRQ(ierr);
   ierr = VecDestroy(&mad->IL);CHKERRQ(ierr);
   ierr = VecDestroy(&mad->IU);CHKERRQ(ierr);
+  ierr = VecDestroy(&mad->B);CHKERRQ(ierr);
+  ierr = VecDestroy(&mad->CeScale);CHKERRQ(ierr);
+  ierr = VecDestroy(&mad->CiScale);CHKERRQ(ierr);
   /* destroy filter */
   ierr = PetscFree2(filter->f, filter->h);CHKERRQ(ierr);
   ierr = PetscFree(filter);CHKERRQ(ierr);
+  /* destroy Lagrangians */
+  ierr = PetscFree(mad->L);CHKERRQ(ierr);
+  ierr = PetscFree(mad->Lprev);CHKERRQ(ierr);
+  ierr = PetscFree(mad->Ltrial);CHKERRQ(ierr);
   /* destroy subsolver data */
   if (mad->subsolver_type == TAO_MAD_SUBSOLVER_SVD) {
     ierr = PetscFree3(mad->GRarr, mad->rhs, mad->sigma);CHKERRQ(ierr);
@@ -466,7 +504,6 @@ static PetscErrorCode TaoSetFromOptions_MAD(PetscOptionItems *PetscOptionsObject
   ierr = PetscOptionsReal("-tao_mad_max_scale","maximum scaling factor for primal gradient and dual variables","",mad->scale_max,&mad->scale_max,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-tao_mad_filter_type","globalize the solution with a simple filter","TaoMADFilterType",TaoMADFilters,(PetscEnum)mad->filter_type,(PetscEnum*)&mad->filter_type,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_mad_step_min","minimum step length for the filter globalization","",mad->alpha_min,&mad->alpha_min,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsReal("-tao_mad_step_shrink","backtracking interval for the step length","",mad->alpha_cut,&mad->alpha_cut,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_mad_step_factor","backtracking factor for the step length","",mad->alpha_fac,&mad->alpha_fac,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnum("-tao_mad_subsolver","solution method for the Least-Squares subproblem","TaoMADSubsolver",TaoMADSubsolvers,(PetscEnum)mad->subsolver_type,(PetscEnum*)&mad->subsolver_type,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_mad_ls_rcond","conditioning tolerance for truncated SVD","",mad->rcond,&mad->rcond,NULL);CHKERRQ(ierr);
@@ -488,9 +525,10 @@ static PetscErrorCode TaoSetFromOptions_MAD(PetscOptionItems *PetscOptionsObject
 . -tao_mad_barrier_steplength <real>          - steplength for the log-barrier parameter updates (default: 0.95)
 . -tao_mad_filter_type <none,barrier,markov>  - filter type for globalization (default: none)
 . -tao_mad_max_filter_size <int>              - maximum number of iterates stored in the filter (default: 300)
-. -tao_mad_step_min <real>                    - minimum step length for filter globalization (default: 1e-5)
+. -tao_mad_step_min <real>                    - minimum step length for filter globalization (default: 1e-8)
 . -tao_mad_step_shrink <real>                 - backtracking interval for the step length (default: 0.1)
 . -tao_mad_step_factor <real>                 - backtracking factor for the step length (default: 0.5)
+. -tao_mad_armijo_epsilon <real>              - Armijo condition factor for backtracking (default: 1e-6)
 . -tao_mad_subsolver <normal, svd>            - solution method for the Least-Squares subproblem (default: normal)
 - -tao_mad_ls_rcond <real>                    - conditioning tolerance for truncated SVD (default: 1e-8)
 
@@ -523,9 +561,10 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
 {
   TAO_MAD          *mad;
   SimpleFilter     *filter;
-  Lagrangian       *L, *Lprev;
+  Lagrangian       *L, *Lprev, *Ltrial;
   ReducedSpaceVec  *G, *Gprev;
-  FullSpaceVec     *Q, *Qprev, *D, *dLdQ, *dLdQprev, *W;
+  FullSpaceVec     *Q, *Qprev, *Qtrial, *D;
+  FullSpaceVec     *dLdQ, *dLdQprev, *dLdQtrial, *W;
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
@@ -534,13 +573,16 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   ierr = PetscNewLog(tao, &Gprev);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &Q);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &Qprev);CHKERRQ(ierr);
+  ierr = PetscNewLog(tao, &Qtrial);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &D);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &dLdQ);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &dLdQprev);CHKERRQ(ierr);
+  ierr = PetscNewLog(tao, &dLdQtrial);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &W);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &filter);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &L);CHKERRQ(ierr);
   ierr = PetscNewLog(tao, &Lprev);CHKERRQ(ierr);
+  ierr = PetscNewLog(tao, &Ltrial);CHKERRQ(ierr);
 
   tao->ops->destroy        = TaoDestroy_MAD;
   tao->ops->setup          = TaoSetUp_MAD;
@@ -563,22 +605,31 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   mad->eta            = 0.1;
   mad->beta           = 0.5;
   mad->rcond          = 1e-8;
+  mad->scale_max      = 100.0;
+  mad->slack_init     = 1.0;
+  mad->alpha_min      = 1e-5;
+  mad->alpha_fac      = 0.5;
+  mad->tau_min        = 0.99;
+  mad->suff_decr      = 1e-6;
   mad->unconstrained  = PETSC_TRUE;
   mad->subsolver_type = TAO_MAD_SUBSOLVER_NORMAL;
   mad->pre            = NULL;
 
   mad->Q              = Q;
   mad->Qprev          = Qprev;
+  mad->Qtrial         = Qtrial;
   mad->D              = D;
   mad->dLdQ           = dLdQ;
   mad->dLdQprev       = dLdQprev;
+  mad->dLdQtrial      = dLdQtrial;
   mad->W              = W;
   mad->G              = G;
   mad->Gprev          = Gprev;
   mad->L              = L;
   mad->Lprev          = Lprev;
+  mad->Ltrial         = Ltrial;
 
-  mad->filter_type    = TAO_MAD_FILTER_NONE;
+  mad->filter_type    = TAO_MAD_FILTER_MARKOV;
   mad->filter         = filter;
   filter->max_size    = 10*mad->kmax;
   filter->size        = 0;

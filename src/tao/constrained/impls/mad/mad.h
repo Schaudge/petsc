@@ -43,7 +43,7 @@ typedef struct {
   PetscReal        eta, beta, rcond;                 /* MAD parameters */
   PetscReal        slack_init;                       /* safeguard for initial slack values */
   PetscReal        gnorm, cnorm;                     /* convergence norms */
-  Lagrangian       *L, *Lprev;                       /* scalar Lagrangian components */
+  Lagrangian       *L, *Lprev, *Ltrial;              /* scalar Lagrangian components */
 
   PetscReal        scale_max;                        /* maximum scaling parameter */
   PetscReal        Gscale;                           /* dynamic primal scaling factor */
@@ -52,20 +52,20 @@ typedef struct {
   Mat              pre;                              /* MAD "preconditioner" matrix */
   Mat              Ai, Ae;                           /* aliases for constraint jacobians */
   Vec              dFdX, Ci, Ce;                     /* aliases for base Tao vectors */
-  IS              isXL, isXU, isIL, isIU;           /* index sets to extract non-infinity bounds */
+  IS               isXL, isXU, isIL, isIU;           /* index sets to extract non-infinity bounds */
   Vec              XL, XU, IL, IU, B;                /* useful intermediate vectors */
   Vec              *QR;                              /* MAD history for reduced VECNEST primal-dual iterates */
   Vec              *GR;                              /* MAD history for reduced VECNEST first-order optimality */
   ReducedSpaceVec  *G, *Gprev;                       /* reduced-space gradient vectors */
-  FullSpaceVec     *Q, *Qprev, *D;                   /* full-space iterate vectors */
-  FullSpaceVec     *dLdQ, *dLdQprev;                 /* full-space gradient vectors */
+  FullSpaceVec     *Q, *Qprev, *Qtrial, *D;          /* full-space iterate vectors */
+  FullSpaceVec     *dLdQ, *dLdQprev, *dLdQtrial;     /* full-space gradient vectors */
   FullSpaceVec     *W;                               /* full-space work vectors */
 
   TaoMADFilterType filter_type;
   SimpleFilter     *filter;                          /* filter structure */
-  PetscReal        tau;                              /* fraction-to-the-boundary ratio */
+  PetscReal        tau, tau_min;                     /* fraction-to-the-boundary ratio */
   PetscReal        suff_decr;                        /* Armijo condition parameter */
-  PetscReal        alpha_min, alpha_fac, alpha_cut;  /* step length parameters */
+  PetscReal        alpha_min, alpha_fac;             /* step length parameters */
 
   /* least-squares subproblem variables */
   TaoMADSubsolver  subsolver_type;
@@ -76,19 +76,23 @@ typedef struct {
   Vec              RHS;
 
   /* LAPACK DGELSS solution variables for the subproblem */
-  PetscBLASInt     msize, nsize, nrhs, rank, lwork, info;
+  PetscBLASInt     msize, nsize, lda, ldb, nrhs, rank, lwork, info;
   PetscScalar      *GRarr, *rhs, *sigma, *work, *rwork;
   VecScatter       allgather;
   Vec              Gseq;
 } TAO_MAD;
 
 PETSC_INTERN PetscErrorCode LagrangianCopy(Lagrangian*,Lagrangian*);
-PETSC_INTERN PetscErrorCode FullSpaceVecCreate(FullSpaceVec*);
+PETSC_EXTERN PetscErrorCode FullSpaceVecCreate(FullSpaceVec*);
 PETSC_INTERN PetscErrorCode FullSpaceVecDuplicate(FullSpaceVec*,FullSpaceVec*);
-PETSC_INTERN PetscErrorCode FullSpaceVecDestroy(FullSpaceVec*);
-PETSC_INTERN PetscErrorCode ReducedSpaceVecCreate(ReducedSpaceVec*);
+PETSC_EXTERN PetscErrorCode FullSpaceVecDestroy(FullSpaceVec*);
+PETSC_EXTERN PetscErrorCode ReducedSpaceVecCreate(ReducedSpaceVec*);
 PETSC_INTERN PetscErrorCode ReducedSpaceVecDuplicate(ReducedSpaceVec*,ReducedSpaceVec*);
-PETSC_INTERN PetscErrorCode ReducedSpaceVecDestroy(ReducedSpaceVec*);
+PETSC_EXTERN PetscErrorCode ReducedSpaceVecDestroy(ReducedSpaceVec*);
+
+PETSC_INTERN PetscErrorCode FullSpaceVecGetNorms(FullSpaceVec*,NormType,PetscInt*,PetscReal**);
+PETSC_INTERN PetscErrorCode FullSpaceVecPrintNorms(FullSpaceVec*,NormType);
+PETSC_INTERN PetscErrorCode TaoMADCHeckLagrangianAndGradient(Tao,FullSpaceVec*,FullSpaceVec*);
 
 PETSC_INTERN PetscErrorCode TaoMADComputeBarrierFunction(Tao,FullSpaceVec*,PetscReal*);
 PETSC_INTERN PetscErrorCode TaoMADComputeLagrangianAndGradient(Tao,FullSpaceVec*,Lagrangian*,FullSpaceVec*);
@@ -99,6 +103,6 @@ PETSC_INTERN PetscErrorCode TaoMADEstimateMaxAlphas(Tao,FullSpaceVec*,FullSpaceV
 PETSC_INTERN PetscErrorCode TaoMADApplyFilterStep(Tao,FullSpaceVec*,FullSpaceVec*,Lagrangian*,FullSpaceVec*,PetscBool*);
 PETSC_INTERN PetscErrorCode TaoMADUpdateFilter(Tao,PetscReal,PetscReal,PetscReal);
 PETSC_INTERN PetscErrorCode TaoMADUpdateBarrier(Tao,FullSpaceVec*,PetscReal*);
-PETSC_INTERN PetscErrorCode TaoMADCheckConvergence(Tao,Lagrangian*,FullSpaceVec*);
+PETSC_INTERN PetscErrorCode TaoMADCheckConvergence(Tao,Lagrangian*,FullSpaceVec*,PetscReal);
 
 #endif
