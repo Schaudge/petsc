@@ -79,7 +79,7 @@ PetscErrorCode MLDRDestroy(MLDR *mldr)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MLDRView(MLDR *mldr,PetscViewer viewer)
+PetscErrorCode MLDRView(MLDR mldr,PetscViewer viewer)
 {
   PetscFunctionBegin;
   // TODO: Complete this when I have a good idea of what bits of the MLDR should be shown!
