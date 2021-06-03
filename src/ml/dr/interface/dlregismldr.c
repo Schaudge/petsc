@@ -32,7 +32,7 @@ PetscErrorCode MLDRInitializePackage(void)
     PetscClassId  classids[1];
 
     classids[0] = PETSCMLDR_CLASSID;
-    ierr = PetscInfoProcessClass("mldf", 1, classids);CHKERRQ(ierr);
+    ierr = PetscInfoProcessClass("mldr", 1, classids);CHKERRQ(ierr);
   }
   /* Register package finalizer */
   ierr = PetscRegisterFinalize(MLDRFinalizePackage);CHKERRQ(ierr);
