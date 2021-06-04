@@ -5,21 +5,22 @@
 
 static  char help[]= "Tests the special vector spaces for the MAD algorithm\n\n";
 
+const char *const Flabels[] = {"X","Sc","Scl","Scu","Sxl","Sxu","Yi","Ye","Vl","Vu","Zl","Zu"};
+const char *const Rlabels[] = {"X","Yi","Ye"};
+const char *const Plabels[] = {"X","Sc","Scl","Scu","Sxl","Sxu"};
+const char *const Slabels[] = {"Sc","Scl","Scu","Sxl","Sxu"};
+const char *const Ylabels[] = {"Yi","Ye","Vl","Vu","Zl","Zu"};
+
 PetscErrorCode main(int argc,char **argv)
 { 
-  FullSpaceVec   *vecF;
-  ReducedSpaceVec *vecR;
-  Vec            *vb, tmp;
+  FullSpaceVec      *vecF;
+  ReducedSpaceVec   *vecR;
+  Vec               *vb, tmp;
   const PetscScalar *vv;
-  PetscReal      selfdot, norm2, norm2manual;
-  PetscInt       vn, n, i, j;
-  PetscMPIInt    size;
-  const char *const Flabels[] = {"X","Sc","Scl","Scu","Sxl","Sxu","Yi","Ye","Vl","Vu","Zl","Zu"};
-  const char *const Rlabels[] = {"X","Yi","Ye"};
-  const char *const Plabels[] = {"X","Sc","Scl","Scu","Sxl","Sxu"};
-  const char *const Slabels[] = {"Sc","Scl","Scu","Sxl","Sxu"};
-  const char *const Ylabels[] = {"Yi","Ye","Vl","Vu","Zl","Zu"};
-  PetscErrorCode ierr;
+  PetscReal         selfdot, norm2, norm2manual;
+  PetscInt          vn, n, i, j;
+  PetscMPIInt       size;
+  PetscErrorCode    ierr;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);

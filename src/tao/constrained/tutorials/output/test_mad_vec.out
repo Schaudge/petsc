@@ -1,0 +1,150 @@
+Testing FullSpaceVec->F VECNEST...
+  X[0] = 1.00 | correct
+  X[1] = 1.00 | correct
+  X[2] = 1.00 | correct
+
+  Sc[0] = 2.00 | correct
+  Sc[1] = 2.00 | correct
+
+  Scl[0] = 3.00 | correct
+  Scl[1] = 3.00 | correct
+
+  Scu[0] = 4.00 | correct
+  Scu[1] = 4.00 | correct
+
+  Sxl[0] = 5.00 | correct
+  Sxl[1] = 5.00 | correct
+  Sxl[2] = 5.00 | correct
+
+  Sxu[0] = 6.00 | correct
+  Sxu[1] = 6.00 | correct
+  Sxu[2] = 6.00 | correct
+
+  Yi[0] = 7.00 | correct
+  Yi[1] = 7.00 | correct
+
+  Ye[0] = 8.00 | correct
+
+  Vl[0] = 9.00 | correct
+  Vl[1] = 9.00 | correct
+
+  Vu[0] = 10.00 | correct
+  Vu[1] = 10.00 | correct
+
+  Zl[0] = 11.00 | correct
+  Zl[1] = 11.00 | correct
+  Zl[2] = 11.00 | correct
+
+  Zu[0] = 12.00 | correct
+  Zu[1] = 12.00 | correct
+  Zu[2] = 12.00 | correct
+
+  VECNEST norm type: NORM_2
+    self-dot = 1.563e+03
+    2-norm = 3.953e+01
+  ||F|| = 3.953e+01 | correct
+
+Testing FullSpaceVec->R VECNEST...
+  X[0] = 1.00 | correct
+  X[1] = 1.00 | correct
+  X[2] = 1.00 | correct
+
+  Yi[0] = 2.00 | correct
+  Yi[1] = 2.00 | correct
+
+  Ye[0] = 3.00 | correct
+
+  VECNEST norm type: NORM_2
+    self-dot = 2.000e+01
+    2-norm = 4.472e+00
+  ||Fr|| = 4.472e+00 | correct
+
+Testing FullSpaceVec->P VECNEST...
+  X[0] = 1.00 | correct
+  X[1] = 1.00 | correct
+  X[2] = 1.00 | correct
+
+  Sc[0] = 2.00 | correct
+  Sc[1] = 2.00 | correct
+
+  Scl[0] = 3.00 | correct
+  Scl[1] = 3.00 | correct
+
+  Scu[0] = 4.00 | correct
+  Scu[1] = 4.00 | correct
+
+  Sxl[0] = 5.00 | correct
+  Sxl[1] = 5.00 | correct
+  Sxl[2] = 5.00 | correct
+
+  Sxu[0] = 6.00 | correct
+  Sxu[1] = 6.00 | correct
+  Sxu[2] = 6.00 | correct
+
+  VECNEST norm type: NORM_2
+    self-dot = 2.440e+02
+    2-norm = 1.562e+01
+  ||Fp|| = 1.562e+01 | correct
+
+Testing FullSpaceVec->S VECNEST...
+  Sc[0] = 1.00 | correct
+  Sc[1] = 1.00 | correct
+
+  Scl[0] = 2.00 | correct
+  Scl[1] = 2.00 | correct
+
+  Scu[0] = 3.00 | correct
+  Scu[1] = 3.00 | correct
+
+  Sxl[0] = 4.00 | correct
+  Sxl[1] = 4.00 | correct
+  Sxl[2] = 4.00 | correct
+
+  Sxu[0] = 5.00 | correct
+  Sxu[1] = 5.00 | correct
+  Sxu[2] = 5.00 | correct
+
+  VECNEST norm type: NORM_2
+    self-dot = 1.510e+02
+    2-norm = 1.229e+01
+  ||Fs|| = 1.229e+01 | correct
+
+Testing FullSpaceVec->Y VECNEST...
+  Yi[0] = 1.00 | correct
+  Yi[1] = 1.00 | correct
+
+  Ye[0] = 2.00 | correct
+
+  Vl[0] = 3.00 | correct
+  Vl[1] = 3.00 | correct
+
+  Vu[0] = 4.00 | correct
+  Vu[1] = 4.00 | correct
+
+  Zl[0] = 5.00 | correct
+  Zl[1] = 5.00 | correct
+  Zl[2] = 5.00 | correct
+
+  Zu[0] = 6.00 | correct
+  Zu[1] = 6.00 | correct
+  Zu[2] = 6.00 | correct
+
+  VECNEST norm type: NORM_2
+    self-dot = 2.390e+02
+    2-norm = 1.546e+01
+  ||Fy|| = 1.546e+01 | correct
+
+Testing ReducedSpaceVec->R VECNEST...
+  X[0] = 1.00 | correct
+  X[1] = 1.00 | correct
+  X[2] = 1.00 | correct
+
+  Yi[0] = 2.00 | correct
+  Yi[1] = 2.00 | correct
+
+  Ye[0] = 3.00 | correct
+
+  VECNEST norm type: NORM_2
+    self-dot = 2.000e+01
+    2-norm = 4.472e+00
+  ||R|| = 4.472e+00 | correct

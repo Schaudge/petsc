@@ -294,16 +294,22 @@ static PetscErrorCode VecNorm_Nest(Vec xin,NormType type,PetscReal *z)
   nr = bx->nb;
   _z = 0.0;
 
+  PetscPrintf(PETSC_COMM_SELF, "  VECNEST norm type: ");
   if (type == NORM_2) {
     PetscScalar dot;
+    PetscPrintf(PETSC_COMM_SELF, "NORM_2\n");
     ierr = VecDot(xin,xin,&dot);CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_SELF, "    self-dot = %.3e\n", dot);
     _z = PetscAbsScalar(PetscSqrtScalar(dot));
+    PetscPrintf(PETSC_COMM_SELF, "    2-norm = %.3e\n", _z);
   } else if (type == NORM_1) {
+    PetscPrintf(PETSC_COMM_SELF, "NORM_1\n");
     for (i=0; i<nr; i++) {
       ierr = VecNorm(bx->v[i],type,&z_i);CHKERRQ(ierr);
       _z = _z + z_i;
     }
   } else if (type == NORM_INFINITY) {
+    PetscPrintf(PETSC_COMM_SELF, "NORM_INFINITY\n");
     for (i=0; i<nr; i++) {
       ierr = VecNorm(bx->v[i],type,&z_i);CHKERRQ(ierr);
       if (z_i > _z) _z = z_i;

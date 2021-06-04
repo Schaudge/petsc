@@ -212,7 +212,7 @@ $    work load inbalance that causes certain processes to arrive much earlier th
 
 PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)
 {
-  PetscBool      flg;
+  PetscBool      flg,is_nest;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -223,14 +223,15 @@ PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)
   /*
    * Cached data?
    */
-  if (type!=NORM_1_AND_2) {
+  ierr = PetscObjectTypeCompare((PetscObject)x,VECNEST,&is_nest);CHKERRQ(ierr);
+  if (type!=NORM_1_AND_2 && !is_nest) {
     ierr = PetscObjectComposedDataGetReal((PetscObject)x,NormIds[type],*val,flg);CHKERRQ(ierr);
     if (flg) PetscFunctionReturn(0);
   }
   ierr = PetscLogEventBegin(VEC_Norm,x,0,0,0);CHKERRQ(ierr);
   ierr = (*x->ops->norm)(x,type,val);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(VEC_Norm,x,0,0,0);CHKERRQ(ierr);
-  if (type!=NORM_1_AND_2) {
+  if (type!=NORM_1_AND_2 && !is_nest) {
     ierr = PetscObjectComposedDataSetReal((PetscObject)x,NormIds[type],*val);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
