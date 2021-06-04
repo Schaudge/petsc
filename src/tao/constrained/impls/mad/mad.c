@@ -84,19 +84,6 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
     ierr = VecPointwiseMin(mad->CiScale, mad->W->Yi, mad->CiScale);CHKERRQ(ierr);
   }
 
-  VecSet(mad->W->P, 1.0);
-  PetscPrintf(PETSC_COMM_SELF, "\nwork vector of ones:\n");
-  VecView(mad->W->P, PETSC_VIEWER_STDOUT_SELF);
-  PetscPrintf(PETSC_COMM_SELF, "\nprimal gradient:\n");
-  VecView(mad->dLdQ->P, PETSC_VIEWER_STDOUT_SELF);
-  VecDot(mad->dLdQ->P, mad->W->P, &ginf);
-  PetscPrintf(PETSC_COMM_SELF, "\ndot with 1 = %g\n", ginf);
-  VecNorm(mad->dLdQ->P, NORM_2, &ginf);
-  PetscPrintf(PETSC_COMM_SELF, "2-norm = %g\n", ginf);
-  VecDot(mad->dLdQ->P, mad->dLdQ->P, &ginf);
-  ginf = PetscAbsScalar(PetscSqrtScalar(ginf));
-  PetscPrintf(PETSC_COMM_SELF, "manual 2-norm w/ dot = %g\n", ginf);
-
   /* unfortunately we have to recompute the whole Lagrangian and gradient with the new scaling factors */
   ierr = TaoMADUpdateBarrier(tao, mad->Q, &mad->mu);CHKERRQ(ierr);
   ierr = TaoMADComputeLagrangianAndGradient(tao, mad->Q, mad->L, mad->dLdQ);CHKERRQ(ierr);
@@ -132,6 +119,7 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
     /* Lagrangian and gradient were updated during filter search but we need to update barrier and get reduced KKT */
     ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");
     ierr = VecView(mad->Q->X, PETSC_VIEWER_STDOUT_WORLD);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");
     ierr = TaoMADUpdateBarrier(tao, mad->Q, &mad->mu);CHKERRQ(ierr);
     ierr = TaoMADComputeReducedKKT(tao, mad->Q, mad->dLdQ, mad->G);CHKERRQ(ierr);
 

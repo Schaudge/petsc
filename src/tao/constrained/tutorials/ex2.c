@@ -16,24 +16,6 @@ Input parameters include:\n\
   -no_eq             : removes the equaility constraints from the problem\n\
   \n\n";
 
-/*
-   User-defined application context - contains data needed by the
-   application-provided call-back routines, FormFunction(),
-   FormGradient(), and FormHessian().
-*/
-
-/*
-   x,d in R^n
-   f in R
-   bin in R^mi
-   beq in R^me
-   Aeq in R^(me x n)
-   Ain in R^(mi x n)
-   H in R^(n x n)
-   min f=(1/2)*x'*H*x + d'*x
-   s.t.    Aeq*x == beq
-        cl <= Ain*x <= cu
-*/
 typedef struct {
   PetscInt   n;  /* Global length of x */
   PetscInt   ne; /* Global number of equality constraints */

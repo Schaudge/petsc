@@ -1,7 +1,7 @@
 /* Program usage: mpiexec -n 2 ./test_mad_vec [-help] [all TAO options] */
 
 #include <petsc.h>
-#include <../src/tao/constrained/impls/mad/mad.h> /*I "petsctao.h" I*/ /*I "petscvecF->h" I*/
+#include <../src/tao/constrained/impls/mad/mad.h>
 
 static  char help[]= "Tests the special vector spaces for the MAD algorithm\n\n";
 
