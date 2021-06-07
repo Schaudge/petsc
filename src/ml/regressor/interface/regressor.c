@@ -45,6 +45,7 @@ PetscErrorCode MLRegressorReset(MLRegressor mlregressor)
   PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
   // TODO: Finish putting all of the Reset, Destroy, and free calls needed here!
   ierr = MatDestroy(&mlregressor->training);CHKERRQ(ierr);
+  ierr = VecDestroy(&mlregressor->target);CHKERRQ(ierr);
   mlregressor->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
