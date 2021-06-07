@@ -29,5 +29,6 @@ PetscErrorCode KSPMatRegisterAll(void)
   ierr = MatRegister(MATLMVMSYMBROYDEN,        MatCreate_LMVMSymBrdn);CHKERRQ(ierr);
   ierr = MatRegister(MATLMVMSYMBADBROYDEN,     MatCreate_LMVMSymBadBrdn);CHKERRQ(ierr);
   ierr = MatRegister(MATLMVMDIAGBROYDEN,       MatCreate_LMVMDiagBrdn);CHKERRQ(ierr);
+  ierr = MatRegister(MATLMVMDIAGBB,            MatCreate_LMVMDiagBB);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

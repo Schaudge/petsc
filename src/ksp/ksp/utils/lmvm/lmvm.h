@@ -74,6 +74,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_LMVMBadBrdn(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMSymBrdn(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMSymBadBrdn(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_LMVMDiagBrdn(Mat);
+PETSC_EXTERN PetscErrorCode MatCreate_LMVMDiagBB(Mat);
 
 /* Solve functions for derived LMVM types (necessary only for DFP and BFGS for re-use under SymBrdn) */
 PETSC_INTERN PetscErrorCode MatSolve_LMVMDFP(Mat, Vec, Vec);

@@ -115,6 +115,34 @@ E*/
 typedef enum {TAO_ALMM_CLASSIC,TAO_ALMM_PHR} TaoALMMType;
 PETSC_EXTERN const char *const TaoALMMTypes[];
 
+/*E
+     TaoVMNOSUpdateType - Determine update rule for VMNOS variable metric
+
+  Level: advanced
+
+.seealso TaoVMNOSSetUpdateType()
+E*/
+typedef enum {TAO_VMNOS_ADAPTIVE,TAO_VMNOS_BB} TaoVMNOSUpdateType;
+PETSC_EXTERN const char *const TaoVMNOSUpdateTypes[];
+/*MC
+     TAO_VMNOS_ADAPTIVE - Pedregosa-Gidel adaptive scalar weight
+
+  Level: advanced
+
+.seealso: TaoVMNOSSetUpdateType()
+M*/
+
+/*MC
+     TAO_VMNOS_BB - Barzilai-Borwein diagonal variable metric.
+
+  Level: advanced
+
+  Note: User may need to provide Lipschitz constant threshold
+
+.seealso: TaoVMNOSSetUpdateType()
+M*/
+
+
 typedef struct _p_Tao*   Tao;
 
 /*J
@@ -156,6 +184,7 @@ typedef const char *TaoType;
 #define TAOSHELL    "shell"
 #define TAOADMM     "admm"
 #define TAOALMM     "almm"
+#define TAOVMNOS    "vmnos"
 
 PETSC_EXTERN PetscClassId TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;
@@ -392,4 +421,16 @@ PETSC_EXTERN PetscErrorCode TaoALMMGetMultipliers(Tao, Vec*);
 PETSC_EXTERN PetscErrorCode TaoALMMSetMultipliers(Tao, Vec);
 PETSC_EXTERN PetscErrorCode TaoALMMGetPrimalIS(Tao, IS*, IS*);
 PETSC_EXTERN PetscErrorCode TaoALMMGetDualIS(Tao, IS*, IS*);
+
+PETSC_EXTERN PetscErrorCode TaoVMNOSSetF1ObjectiveRoutine(Tao,PetscErrorCode (*)(Tao,Vec,PetscReal *,void*),void*);
+PETSC_EXTERN PetscErrorCode TaoVMNOSSetF1GradientRoutine(Tao,PetscErrorCode (*)(Tao,Vec,Vec,void*),void*);
+PETSC_EXTERN PetscErrorCode TaoVMNOSSetUpdateType(Tao,TaoVMNOSUpdateType);
+PETSC_EXTERN PetscErrorCode TaoVMNOSGetUpdateType(Tao,TaoVMNOSUpdateType*);
+PETSC_EXTERN PetscErrorCode TaoVMNOSSetSeparableOperatorCount(Tao,PetscInt);
+PETSC_EXTERN PetscErrorCode TaoGetVMNOSParentTao(Tao, Tao *);
+PETSC_EXTERN PetscErrorCode TaoVMNOSGetSubsolvers(Tao, Tao[]);
+PETSC_EXTERN PetscErrorCode TaoVMNOSGetVMMat(Tao, Mat *);
+
+
+
 #endif

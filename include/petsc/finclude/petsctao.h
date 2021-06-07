@@ -11,6 +11,7 @@
 #define TaoADMMUpdateType PetscEnum
 #define TaoADMMRegularizerType PetscEnum
 #define TaoALMMType PetscEnum
+#define TaoVMNOSUpdateType PetscEnum
 
 #define TAOLMVM     "lmvm"
 #define TAONLS      "nls"
@@ -43,6 +44,7 @@
 #define TAOPDIPM    "pdipm"
 #define TAOADMM     "admm"
 #define TAOALMM     "almm"
+#define TAOVMNOS    "vmnos"
 #define TAOFDTEST   "test"
 
 #endif

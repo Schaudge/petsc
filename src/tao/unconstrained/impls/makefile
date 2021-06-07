@@ -1,6 +1,6 @@
 ALL: lib
 
-DIRS     = lmvm nls neldermead cg ntl ntr owlqn bmrm
+DIRS     = lmvm nls neldermead cg ntl ntr owlqn bmrm vmnos
 LOCDIR   = src/tao/unconstrained/impls/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

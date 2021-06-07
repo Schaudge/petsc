@@ -1,16 +1,16 @@
--include ../../../../../petscdir.mk
+-include ../../../../../../petscdir.mk
 
 ALL: lib
 
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = lmvmimpl.c lmvmutils.c
+SOURCEC  = diagbb.c
 SOURCEF  =
-SOURCEH  = lmvm.h
+SOURCEH  = diagbb.h
 LIBBASE  = libpetscksp
+DIRS     =
 MANSEC   = KSP
-DIRS     = sr1 dfp bfgs symbrdn brdn diagbrdn diagbb
-LOCDIR   = src/ksp/ksp/utils/lmvm/
+LOCDIR   = src/ksp/ksp/utils/lmvm/diagbb/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
