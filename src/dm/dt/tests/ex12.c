@@ -1,12 +1,22 @@
 #include <petscfe.h>
+#include <petscmath.h>
 
 static char help[] = "Test PetscSpace_Koszul";
 
+static PetscErrorCode PetscAssert(PetscBool b){
+    return !b;
+}
+static PetscBool isEqualTol(PetscReal a, PetscReal b, PetscReal tol)
+{
+    return PetscAbs(b-a) <= tol;
+}
+
+
 int main(int argc,char ** argv)
 {
-  PetscSpace     domain,koszul;
-  PetscReal*     B_d, *B_k, points[4]={0,0,1,1};
-  PetscInt dim_d,dim_k,npoints=2;
+  PetscSpace     domain,koszul,koszul2;
+  PetscReal      * B_d,*B_k,*B_kk,points[4]={0,0,1,1};
+  PetscInt       dim_d,dim_k,dim_kk,npoints=2,i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -43,18 +53,30 @@ int main(int argc,char ** argv)
   ierr = PetscSpaceCreateKoszul(&domain,1,2,&koszul);CHKERRQ(ierr);
 
   ierr = PetscSpaceGetDimension(koszul,&dim_k);CHKERRQ(ierr);
-  ierr = PetscCalloc1(dim_k*npoints,&B_k);CHKERRQ(ierr);
+  ierr = PetscCalloc1(dim_k*npoints*2,&B_k);CHKERRQ(ierr);
 
   ierr = PetscSpaceEvaluate(koszul,npoints,points,B_k,NULL,NULL);CHKERRQ(ierr);
-
 
   ierr = PetscSpaceView(koszul,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = PetscRealView(dim_k*npoints,B_k,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
+  ierr = PetscSpaceCreateKoszul(&koszul,0,1,&koszul2);CHKERRQ(ierr);
 
+  ierr = PetscSpaceGetDimension(koszul2,&dim_kk);CHKERRQ(ierr);
+  ierr = PetscCalloc1(dim_kk*npoints,&B_kk);CHKERRQ(ierr);
 
-  PetscFree(B_d);
+  ierr = PetscSpaceEvaluate(koszul2,npoints,points,B_kk,NULL,NULL);CHKERRQ(ierr);
+  ierr = PetscSpaceView(koszul2,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscRealView(dim_kk*npoints,B_kk,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  for (i = 0; i < dim_kk*npoints; ++i){
+      ierr = PetscAssert(isEqualTol(B_kk[i],0,PETSC_MACHINE_EPSILON));
+  }
+
+  PetscFree(B_kk);
   PetscFree(B_k);
+  PetscFree(B_d);
+  ierr = PetscSpaceDestroy(&koszul2);CHKERRQ(ierr);
   ierr = PetscSpaceDestroy(&koszul);CHKERRQ(ierr);
   ierr = PetscSpaceDestroy(&domain);CHKERRQ(ierr);
 
