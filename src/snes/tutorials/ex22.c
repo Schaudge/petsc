@@ -309,7 +309,8 @@ PetscErrorCode ComputeJacobian_MF(SNES snes,Vec x,Mat A,Mat B,void *ctx)
 
   PetscFunctionBeginUser;
   ierr = MatMFFDSetFunction(A,(PetscErrorCode (*)(void*,Vec,Vec))SNESComputeFunction,snes);CHKERRQ(ierr);
-  ierr = MatMFFDSetBase(A,(PetscErrorCode (*)(PetscObject,Vec*))getu,NULL,(PetscObject)x);CHKERRQ(ierr);
+  ierr = VecDuplicate(x,&base);CHKERRQ(ierr);
+  ierr = MatMFFDSetBase(A,(PetscErrorCode (*)(PetscObject,Vec*))getu,(PetscErrorCode (*)(PetscObject,Vec*))NULL,(PetscObject)base);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

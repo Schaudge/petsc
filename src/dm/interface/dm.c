@@ -267,6 +267,9 @@ PetscErrorCode VecGetDM(Vec v, DM *dm)
   PetscFunctionReturn(0);
 }
 
+#include <petsc/private/vecimpl.h>
+PetscErrorCode  VecDuplicate_Composite(Vec g,Vec *gg);
+
 /*@
   VecSetDM - Sets the DM defining the data layout of the vector.
 
@@ -289,6 +292,7 @@ PetscErrorCode VecSetDM(Vec v, DM dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(v,VEC_CLASSID,1);
   if (dm) PetscValidHeaderSpecific(dm,DM_CLASSID,2);
+  if (!dm && v->ops->duplicate == VecDuplicate_Composite) PetscStackView(0);
   ierr = PetscObjectCompose((PetscObject) v, "__PETSc_dm", (PetscObject) dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

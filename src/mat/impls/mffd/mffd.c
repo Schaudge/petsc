@@ -347,7 +347,8 @@ static PetscErrorCode MatMult_MFFD(Mat mat,Vec a,Vec y)
     ierr = (*ctx->getf)(ctx->getctx,&F);CHKERRQ(ierr);
   } else {
     if (!ctx->current_f) {
-      ierr = MatCreateVecs(mat,NULL,&ctx->current_f);CHKERRQ(ierr);
+      ierr = VecDuplicate(y,&ctx->current_f);CHKERRQ(ierr);
+      //      ierr = MatCreateVecs(mat,NULL,&ctx->current_f);CHKERRQ(ierr);
     }
     F            = ctx->current_f;
     computefbase = PETSC_TRUE;

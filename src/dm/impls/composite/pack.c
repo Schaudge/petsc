@@ -855,6 +855,18 @@ PetscErrorCode  VecView_DMComposite(Vec gvec,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode  VecDuplicate_Composite(Vec g,Vec *gg)
+{
+  PetscErrorCode ierr;
+  DM             da;
+
+  PetscFunctionBegin;
+  ierr = VecGetDM(g, &da);CHKERRQ(ierr);
+  if (!da) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"DMCOMPOSITE Vec is missing DM");CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(da,gg);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode  DMCreateGlobalVector_Composite(DM dm,Vec *gvec)
 {
   PetscErrorCode ierr;
@@ -869,6 +881,7 @@ PetscErrorCode  DMCreateGlobalVector_Composite(DM dm,Vec *gvec)
   ierr = VecSetSizes(*gvec,com->n,com->N);CHKERRQ(ierr);
   ierr = VecSetDM(*gvec, dm);CHKERRQ(ierr);
   ierr = VecSetOperation(*gvec,VECOP_VIEW,(void (*)(void))VecView_DMComposite);CHKERRQ(ierr);
+  ierr = VecSetOperation(*gvec,VECOP_DUPLICATE,(void (*)(void))VecDuplicate_Composite);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -887,6 +900,7 @@ PetscErrorCode  DMCreateLocalVector_Composite(DM dm,Vec *lvec)
   ierr = VecSetType(*lvec,dm->vectype);CHKERRQ(ierr);
   ierr = VecSetSizes(*lvec,com->nghost,PETSC_DECIDE);CHKERRQ(ierr);
   ierr = VecSetDM(*lvec, dm);CHKERRQ(ierr);
+  ierr = VecSetOperation(*lvec,VECOP_DUPLICATE,(void (*)(void))VecDuplicate_Composite);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
