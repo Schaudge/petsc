@@ -296,21 +296,13 @@ PetscErrorCode DMCreateMatrix_MF(DM packer,Mat *A)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode getu(Vec x,Vec *xout)
-{
-  PetscFunctionBeginUser;
-  *xout = x;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode ComputeJacobian_MF(SNES snes,Vec x,Mat A,Mat B,void *ctx)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   ierr = MatMFFDSetFunction(A,(PetscErrorCode (*)(void*,Vec,Vec))SNESComputeFunction,snes);CHKERRQ(ierr);
-  ierr = VecDuplicate(x,&base);CHKERRQ(ierr);
-  ierr = MatMFFDSetBase(A,(PetscErrorCode (*)(PetscObject,Vec*))getu,(PetscErrorCode (*)(PetscObject,Vec*))NULL,(PetscObject)base);CHKERRQ(ierr);
+  ierr = MatMFFDSetBase(A,(PetscErrorCode (*)(PetscObject,Vec*))SNESGetSolution,(PetscErrorCode (*)(PetscObject,Vec*))NULL,(PetscObject)snes);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

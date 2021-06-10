@@ -292,7 +292,6 @@ PetscErrorCode VecSetDM(Vec v, DM dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(v,VEC_CLASSID,1);
   if (dm) PetscValidHeaderSpecific(dm,DM_CLASSID,2);
-  if (!dm && v->ops->duplicate == VecDuplicate_Composite) PetscStackView(0);
   ierr = PetscObjectCompose((PetscObject) v, "__PETSc_dm", (PetscObject) dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
