@@ -29,6 +29,12 @@ static PetscErrorCode myF(void* ctx,Vec x,Vec y)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode getbase(Vec x,Vec *outx)
+{
+  *outx = x;
+  return 0;
+}
+
 int main(int argc,char **args)
 {
   Mat            A,B;
@@ -43,7 +49,7 @@ int main(int argc,char **args)
   ierr = MatCreateVecs(A,&base,NULL);CHKERRQ(ierr);
   ierr = VecSet(base,2.0);CHKERRQ(ierr);
   ierr = MatMFFDSetFunction(A,myF,NULL);CHKERRQ(ierr);
-  ierr = MatMFFDSetBase(A,base,NULL);CHKERRQ(ierr);
+  ierr = MatMFFDSetBase(A,(PetscErrorCode (*)(PetscObject,Vec*))getbase,NULL,(PetscObject)base);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatComputeOperator(A,NULL,&B);CHKERRQ(ierr);
