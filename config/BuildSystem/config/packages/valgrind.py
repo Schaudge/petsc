@@ -71,9 +71,10 @@ class Configure(config.package.Package):
     if self.found:
       self.checkVersion()
 
-    if not self.found and self.setCompilers.isLinux(self.log):
-      self.logPrintBox('It appears you do not have valgrind installed on your system.\n\
-We HIGHLY recommend you install it from www.valgrind.org\n\
-Or install valgrind-devel or equivalent using your package manager.\n\
+    if not self.found and self.setCompilers.isLinux(self.log) and not 'CRAYPE_DIR' in os.environ:
+      self.logPrintBox('Your system may support valgrind. It appears you do not have valgrind installed on your system.\n\
+Valgrind can be extremely helpful in debugging and testing code for memory corruption errors.\n\
+We suggest you install it from www.valgrind.org\n\
+or installing valgrind-devel or equivalent using your package manager.\n\
 Then rerun ./configure')
 
