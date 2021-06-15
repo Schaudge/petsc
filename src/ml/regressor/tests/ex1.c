@@ -10,6 +10,7 @@ int main(int argc,char **args)
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
 
   ierr = MLRegressorCreate(PETSC_COMM_WORLD,&mlregressor);CHKERRQ(ierr);
+  ierr = MLRegressorSetType(mlregressor,MLREGRESSORLINEAR);CHKERRQ(ierr);
   ierr = MLRegressorDestroy(&mlregressor);CHKERRQ(ierr);
 
   ierr = PetscFinalize();

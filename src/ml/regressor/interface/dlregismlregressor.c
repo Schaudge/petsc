@@ -22,7 +22,6 @@ PetscErrorCode MLRegressorInitializePackage(void)
   MLRegressorPackageInitialized = PETSC_TRUE;
   /* Register Class */
   ierr = PetscClassIdRegister("Regressor",&MLREGRESSOR_CLASSID);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
   /* Register Constructors */
   ierr = MLRegressorRegisterAll();CHKERRQ(ierr);
   /* Register Events */

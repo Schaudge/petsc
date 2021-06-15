@@ -43,6 +43,9 @@ PetscErrorCode MLRegressorReset(MLRegressor mlregressor)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  if (mlregressor->ops->reset) {
+    ierr = (*mlregressor->ops->reset)(mlregressor);CHKERRQ(ierr);
+  }
   // TODO: Finish putting all of the Reset, Destroy, and free calls needed here!
   ierr = MatDestroy(&mlregressor->training);CHKERRQ(ierr);
   ierr = VecDestroy(&mlregressor->target);CHKERRQ(ierr);
@@ -73,8 +76,47 @@ PetscErrorCode MLRegressorDestroy(MLRegressor *mlregressor)
   if (--((PetscObject)(*mlregressor))->refct > 0) {*mlregressor = NULL; PetscFunctionReturn(0);}
 
   ierr = MLRegressorReset((*mlregressor));CHKERRQ(ierr);
+  if ((*mlregressor)->ops->destroy) {ierr = (*(*mlregressor)->ops->destroy)(*mlregressor);CHKERRQ(ierr);}
 
   ierr = PetscHeaderDestroy(mlregressor);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MLRegressorSetType(MLRegressor mlregressor, MLRegressorType type)
+{
+  PetscErrorCode ierr,(*r)(MLRegressor);
+  PetscBool match;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  PetscValidCharPointer(type,2);
+
+  ierr = PetscObjectTypeCompare((PetscObject)mlregressor,type,&match);CHKERRQ(ierr);
+  if (match) PetscFunctionReturn(0);
+
+  ierr = PetscFunctionListFind(MLRegressorList,type,&r);CHKERRQ(ierr);
+  if (!r) SETERRQ1(PetscObjectComm((PetscObject)mlregressor),PETSC_ERR_ARG_UNKNOWN_TYPE,"Unable to find requested MLRegressor type %s",type);
+
+  /* Destroy the previous private MLRegressor context */
+  if (mlregressor->ops->destroy) {
+    ierr               = (*(mlregressor)->ops->destroy)(mlregressor);CHKERRQ(ierr);
+    mlregressor->ops->destroy = NULL;
+  }
+
+  /* Reinitialize function pointers in MLRegressorOps structure */
+  mlregressor->ops->setup          = NULL;
+  mlregressor->ops->setfromoptions = NULL;
+  mlregressor->ops->settraining    = NULL;
+  mlregressor->ops->fit            = NULL;
+  mlregressor->ops->predict        = NULL;
+  mlregressor->ops->destroy        = NULL;
+  mlregressor->ops->reset          = NULL;
+  mlregressor->ops->view           = NULL;
+
+  /* Call the MLRegressorCreate_XXX routine for this particular regressor */
+  mlregressor->setupcalled = PETSC_FALSE;
+  ierr = (*r)(mlregressor);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)mlregressor,type);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
