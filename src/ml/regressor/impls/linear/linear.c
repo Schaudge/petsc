@@ -8,13 +8,27 @@ PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
 
 PetscErrorCode MLRegressorReset_Linear(MLRegressor mlregressor)
 {
+  PetscErrorCode ierr;
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+
   PetscFunctionBegin;
+  /* Destroy the PETSc objects associated with the linear regressor implementation. */
+  ierr = MatDestroy(&linear->X);CHKERRQ(ierr);
+  ierr = KSPDestroy(&linear->ksp);CHKERRQ(ierr);
+
+  /* Reset options/parameters to the setupcalled = 0 state. */
+  /* TODO: Add the reset code once the linear regressor is fleshed out enough to need resetting! */
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MLRegressorDestroy_Linear(MLRegressor *mlregressor)
+PetscErrorCode MLRegressorDestroy_Linear(MLRegressor mlregressor)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  ierr = MLRegressorReset_Linear(mlregressor);CHKERRQ(ierr);
+  ierr = PetscFree(mlregressor->data);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
@@ -49,6 +63,12 @@ PetscErrorCode MLRegressorLinearGetKSP(MLRegressor mlregressor,KSP *ksp)
 
   /* Analogous to how SNESGetKSP() operates, this routine should create the KSP if it doesn't exist.
    * TODO: Follow what SNESGetKSP() does when setting this up. */
+  if (!linear->ksp) {
+    ierr = KSPCreate(PetscObjectComm((PetscObject)mlregressor),&linear->ksp);CHKERRQ(ierr);
+    ierr = PetscObjectIncrementTabLevel((PetscObject)linear->ksp,(PetscObject)mlregressor,1);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)mlregressor,(PetscObject)linear->ksp);CHKERRQ(ierr);
+    ierr = PetscObjectSetOptions((PetscObject)linear->ksp,((PetscObject)mlregressor)->options);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
