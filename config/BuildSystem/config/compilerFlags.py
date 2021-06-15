@@ -76,7 +76,7 @@ class Configure(config.base.Configure):
       options = mod.CompilerOptions(self.framework)
       options.setup()
     except ImportError:
-      self.logPrint('ERROR: Failed to load user options module '+str(self.argDB['optionsModule']))
+      self.logPrint('ERROR: Failed to load user options module', self.argDB['optionsModule'])
     return options
 
   def configureCompilerFlags(self):
@@ -116,10 +116,10 @@ class Configure(config.base.Configure):
           flags = [self.argDB[self.getOptionalFlagsName(language)]]
           userflags = 1
         elif bopt in ['g','O'] and self.hasOptFlags(getattr(self.setCompilers,flagsName)): # check --CFLAGS etc
-          self.logPrint('Optimization options found in '+flagsName+ '. Skipping setting defaults')
+          self.logPrint('Optimization options found in', flagsName+'. Skipping setting defaults')
           flags = []
         elif bopt == '' and flagsName in self.argDB:
-          self.logPrint('Ignoring default options which were overridden using --'+flagsName+ ' ' + self.argDB[flagsName])
+          self.logPrint('Ignoring default options which were overridden using --'+flagsName, self.argDB[flagsName])
           flags = []
         else:
           flags = options.getCompilerFlags(language, self.setCompilers.getCompiler(), bopt)
@@ -128,12 +128,12 @@ class Configure(config.base.Configure):
           if isinstance(testFlag,tuple):
             testFlag = ' '.join(testFlag)
           try:
-            self.logPrint('Trying '+language+' compiler flag '+testFlag)
+            self.logPrint('Trying', language, 'compiler flag', testFlag)
             self.setCompilers.addCompilerFlag(testFlag)
           except RuntimeError:
             if userflags:
               raise RuntimeError('User provided flags for language '+language+' with '+self.getOptionalFlagsName(language)+': '+self.argDB[self.getOptionalFlagsName(language)]+' are not correct for the compiler')
-            self.logPrint('Rejected '+language+' compiler flag '+testFlag)
+            self.logPrint('Rejected', language, 'compiler flag', testFlag)
             self.rejected[language].append(testFlag)
       self.setCompilers.popLanguage()
     return

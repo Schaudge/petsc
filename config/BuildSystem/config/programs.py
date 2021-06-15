@@ -31,11 +31,11 @@ class Configure(config.base.Configure):
         (output, error, status) = config.base.Configure.executeShellCommand(self.mkdir+' -p '+conftmpDir, log = self.log)
         if not status and os.path.isdir(conftmpDir):
           self.mkdir = self.mkdir+' -p'
-          self.logPrint('Adding -p flag to '+self.mkdir+' to automatically create directories')
+          self.logPrint('Adding -p flag to', self.mkdir, 'to automatically create directories')
         else:
-          self.logPrint('Could not determine flag for '+self.mkdir+' to automatically create directories')
+          self.logPrint('Could not determine flag for', self.mkdir, 'to automatically create directories')
       except RuntimeError:
-        self.logPrint('Could not determine flag for '+self.mkdir+' to automatically create directories')
+        self.logPrint('Could not determine flag for', self.mkdir, 'to automatically create directories')
       self.addMakeMacro('MKDIR', self.mkdir)
       if os.path.exists(conftmpDir): os.rmdir(conftmpDir)
       if os.path.exists(confDir):    os.rmdir(confDir)
@@ -59,7 +59,7 @@ class Configure(config.base.Configure):
         self.logPrint('autoreconf test successful!')
       except RuntimeError as e:
         self.autoreconf = None
-        self.logPrint('autoreconf test error: '+str(e))
+        self.logPrint('autoreconf test error:', e)
       shutil.rmtree(testdir)
     self.libtoolize = None
     if not self.getExecutable(self.argDB['with-libtoolize'], getFullPath = 1,resultName = 'libtoolize',setMakeMacro = 0):
@@ -83,12 +83,12 @@ class Configure(config.base.Configure):
     for sedcmd in [self.sed+' -i',self.sed+' -i ""','perl -pi -e']:
       try:
         (out,err,status) = Configure.executeShellCommand('%s s/sed/sd/g "%s"'%(sedcmd,sed1), log = self.log)
-        self.logPrint('Adding SEDINPLACE cmd: '+sedcmd)
+        self.logPrint('Adding SEDINPLACE cmd:', sedcmd)
         self.addMakeMacro('SEDINPLACE',sedcmd)
         status = 1
         break
       except RuntimeError:
-        self.logPrint('Rejected SEDINPLACE cmd: '+sedcmd)
+        self.logPrint('Rejected SEDINPLACE cmd:', sedcmd)
     os.unlink(sed1)
     if not status:
         self.logPrint('No suitable SEDINPLACE found')

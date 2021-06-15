@@ -77,14 +77,14 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
     if hash:
       self.framework.hash = hash
       self.framework.hashfile = hashfile
-      self.logPrint('Setting hashfile: '+hashfile)
+      self.logPrint('Setting hashfile:',hashfile)
       if hashfilepackages: self.framework.hashfilepackages = hashfilepackages
     try:
-      self.logPrint('Deleting configure hash file: '+hashfile)
+      self.logPrint('Deleting configure hash file:',hashfile)
       os.remove(hashfile)
-      self.logPrint('Deleted configure hash file: '+hashfile)
+      self.logPrint('Deleted configure hash file:',hashfile)
     except:
-      self.logPrint('Unable to delete configure hash file: '+hashfile)
+      self.logPrint('Unable to delete configure hash file:',hashfile)
 
 
   def checkDependency(self):
@@ -149,11 +149,11 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
         self.arch = 'arch-'+hprefix[0:6]
       else:
         if not os.path.isdir(self.argDB['package-prefix-hash']):
-          self.logPrintBox('Specified package-prefix-hash location %s not found! Attemping to create this dir!' % self.argDB['package-prefix-hash'])
+          self.logPrintBox('Specified package-prefix-hash location',self.argDB['package-prefix-hash'],'not found! Attemping to create this dir!')
           try:
             os.makedirs(self.argDB['package-prefix-hash'])
           except Exception as e:
-            self.logPrint('Error creating package-prefix-hash directory '+self.argDB['package-prefix-hash']+': '+str(e))
+            self.logPrint('Error creating package-prefix-hash directory',self.argDB['package-prefix-hash']+':',e)
             raise RuntimeError('You must have write permission to create this directory!')
         status = False
         for idx in range(6,len(hprefix)):
@@ -169,7 +169,7 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
             try:
               os.mkdir(hashdirpackages)
             except Exception as e:
-              self.logPrint('Error creating package-prefix-hash directory '+hashdirpackages+': '+str(e))
+              self.logPrint('Error creating package-prefix-hash directory',hashdirpackages+':',e)
               raise RuntimeError('You must have write permission on --package-prefix-hash='+self.argDB['package-prefix-hash']+' directory')
             status = True
             break
@@ -201,7 +201,7 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
           self.logPrint('Saved lib/petsc/conf/petscvariables file')
       except:
         self.logPrint('Unable to save lib/petsc/conf/petscvariables file')
-      self.logPrint('configure hash file: '+hashfile+' matches; no need to run configure.')
+      self.logPrint('configure hash file:',hashfile,'matches; no need to run configure.')
       print('Your configure options and state has not changed; no need to run configure')
       print('However you can force a configure run using the option: --force')
 
@@ -211,7 +211,7 @@ Warning: Using from command-line or name of script: %s, ignoring environment: %s
       print('   %s PETSC_DIR=%s PETSC_ARCH=%s all' % (getMakeUserPath(self.arch), self.petscdir.dir, self.arch))
       print('xxx=========================================================================xxx')
       sys.exit()
-    self.logPrint('configure hash file: '+hashfile+' does not match, need to run configure')
+    self.logPrint('configure hash file:',hashfile,'does not match, need to run configure')
     self.makeDependency(hash,hashfile,hashfilepackages)
 
   def configure(self):

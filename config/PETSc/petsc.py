@@ -73,12 +73,12 @@ class Configure(config.base.Configure):
       confPath = os.path.join(petscDir, petscArch,'lib','petsc','conf')
       petscConf = framework.loadFramework(confPath)
       if petscConf:
-        self.logPrint('Loaded PETSc-AS configuration ('+name+') from '+confPath)
+        self.logPrint('Loaded PETSc-AS configuration ('+name+') from',confPath)
         self.location = (petscDir, petscArch)
         self.trial[self.location] = name
         break
       else:
-        self.logPrint('PETSc-AS has no cached configuration in '+confPath)
+        self.logPrint('PETSc-AS has no cached configuration in', confPath)
         sys.path.reverse()
         sys.path.remove(petscPythonDir)
         sys.path.reverse()
@@ -277,7 +277,7 @@ class Configure(config.base.Configure):
     if not self.checkPETScLink('#include <petsctime.h>\n', 'PetscLogDouble time;\nPetscErrorCode ierr;\n\nierr = PetscTime(&time);CHKERRQ(ierr);\n'):
       self.logPrint('PETSc cannot link, which indicates a problem with the PETSc installation')
       return 0
-    self.logPrint('PETSc can link with '+self.languages.clanguage)
+    self.logPrint('PETSc can link with', self.languages.clanguage)
     self.popLanguage()
 
     if hasattr(self.compilers, 'CXX') and self.languages.clanguage == 'C':
@@ -364,7 +364,7 @@ class Configure(config.base.Configure):
     if root:
       d = os.path.join(root, 'lib', self.arch)
       if not os.path.isdir(d):
-        self.logPrint('', 3, 'petsc')
+        self.logPrint('', debugLevel = 3, debugSection = 'petsc')
         return
       yield [os.path.join(d, 'libpetsc'+lib+'.a') for lib in libs]
     else:
@@ -375,7 +375,7 @@ class Configure(config.base.Configure):
     '''Find a working PETSc'''
     for location, name in self.trial.items():
       self.framework.logPrintDivider()
-      self.framework.logPrint('Checking for a functional PETSc in '+name+', location/origin '+str(location))
+      self.framework.logPrint('Checking for a functional PETSc in', name+', location/origin',location)
       lib     = None
       include = None
       found   = 0
@@ -391,22 +391,22 @@ class Configure(config.base.Configure):
                 break
               else:
                 self.framework.logPrintDivider(single = 1)
-                self.framework.logPrint('PETSc in '+name+', location/origin '+str(location)+' failed checkWorkingLink test')
+                self.framework.logPrint('PETSc in', name+', location/origin', location, 'failed checkWorkingLink test')
             else:
               self.framework.logPrintDivider(single = 1)
-              self.framework.logPrint('PETSc in '+name+', location/origin '+str(location)+' failed checkInclude test with includeDir: '+str(includeDir))
+              self.framework.logPrint('PETSc in', name+', location/origin', location, 'failed checkInclude test with includeDir:', includeDir)
           if not found:
             self.framework.logPrintDivider(single = 1)
-            self.framework.logPrint('PETSc in '+name+', location/origin '+str(location)+' failed checkIncludes test')
+            self.framework.logPrint('PETSc in', name+', location/origin', location, 'failed checkIncludes test')
             continue
         else:
           self.framework.logPrintDivider(single = 1)
-          self.framework.logPrint('PETSc in '+name+', location/origin '+str(location)+' failed checkLib test with libraries: '+str(libraries))
+          self.framework.logPrint('PETSc in', name+', location/origin', location, 'failed checkLib test with libraries:', libraries)
           continue
         if self.framework.argDB['with-petsc-shared']:
           if not self.executeTest(self.checkSharedLibrary, [libraries]):
             self.framework.logPrintDivider(single = 1)
-            self.framework.logPrint('PETSc in '+name+', location/origin '+str(location)+' failed checkSharedLibrary test with libraries: '+str(libraries))
+            self.framework.logPrint('PETSc in', name+', location/origin', location, 'failed checkSharedLibrary test with libraries:', libraries)
             found = 0
         if found:
           break
@@ -415,7 +415,7 @@ class Configure(config.base.Configure):
         self.working[location] = (name, include, lib, version)
         break
     if found:
-      self.logPrint('Choose PETSc '+self.version+' in '+self.name)
+      self.logPrint('Choose PETSc', self.version, 'in', self.name)
     else:
       raise RuntimeError('Could not locate any functional PETSc')
     return

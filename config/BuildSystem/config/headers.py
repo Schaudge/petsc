@@ -92,7 +92,7 @@ class Configure(config.base.Configure):
     self.log.write('Checking for header files ' +str(hfiles)+ ' in '+str(incl)+'\n')
     for hfile in hfiles:
       flagsArg = self.getPreprocessorFlagsArg()
-      self.logPrint('Checking include with compiler flags var '+flagsArg+' '+str(incl+otherIncludes))
+      self.logPrint('Checking include with compiler flags var', flagsArg, incl+otherIncludes)
       #oldFlags = self.compilers.CPPFLAGS
       oldFlags = getattr(self.compilers, flagsArg)
       #self.compilers.CPPFLAGS += ' '+' '.join([self.getIncludeArgument(inc) for inc in incl+otherIncludes])

@@ -546,17 +546,17 @@ class Configure(config.base.Configure):
       for flagsArg in [config.base.Configure.getCompilerFlagsName(language), config.base.Configure.getCompilerFlagsName(language, 1), config.base.Configure.getLinkerFlagsName(language)]:
         if flagsArg in self.argDB: setattr(self, flagsArg, self.argDB[flagsArg])
         else: setattr(self, flagsArg, '')
-        self.logPrint('Initialized '+flagsArg+' to '+str(getattr(self, flagsArg)))
+        self.logPrint('Initialized', flagsArg, 'to', getattr(self, flagsArg))
       self.popLanguage()
     for flagsArg in ['CPPFLAGS', 'FPPFLAGS', 'CUDAPPFLAGS', 'CXXPPFLAGS', 'HIPPPFLAGS', 'SYCLPPFLAGS']:
       if flagsArg in self.argDB: setattr(self, flagsArg, self.argDB[flagsArg])
       else: setattr(self, flagsArg, '')
-      self.logPrint('Initialized '+flagsArg+' to '+str(getattr(self, flagsArg)))
+      self.logPrint('Initialized', flagsArg, 'to', getattr(self, flagsArg))
     for flagsArg in ['CC_LINKER_FLAGS', 'CXX_LINKER_FLAGS', 'FC_LINKER_FLAGS', 'CUDAC_LINKER_FLAGS', 'HIPC_LINKER_FLAGS', 'SYCLCXX_LINKER_FLAGS', 'sharedLibraryFlags', 'dynamicLibraryFlags']:
       if isinstance(self.argDB[flagsArg],str): val = [self.argDB[flagsArg]]
       else: val = self.argDB[flagsArg]
       setattr(self, flagsArg, val)
-      self.logPrint('Initialized '+flagsArg+' to '+str(getattr(self, flagsArg)))
+      self.logPrint('Initialized', flagsArg, 'to', getattr(self, flagsArg))
     if 'LIBS' in self.argDB:
       self.LIBS = self.argDB['LIBS']
     else:
@@ -726,9 +726,9 @@ class Configure(config.base.Configure):
           break
       except RuntimeError as e:
         self.mesg = str(e)
-        self.logPrint('Error testing C compiler: '+str(e))
+        self.logPrint('Error testing C compiler:', e)
         if os.path.basename(self.CC) == 'mpicc':
-          self.logPrint(' MPI installation '+str(self.CC)+' is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI.')
+          self.logPrint(' MPI installation', self.CC, 'is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI.')
         self.delMakeMacro('CC')
         del self.CC
     if not hasattr(self, 'CC'):
@@ -813,7 +813,7 @@ class Configure(config.base.Configure):
           break
       except RuntimeError as e:
         self.mesg = str(e)
-        self.logPrint('Error testing CUDA compiler: '+str(e))
+        self.logPrint('Error testing CUDA compiler:', e)
         self.delMakeMacro('CUDAC')
         del self.CUDAC
     return
@@ -890,7 +890,7 @@ class Configure(config.base.Configure):
           break
       except RuntimeError as e:
         self.mesg = str(e)
-        self.logPrint('HERE Error testing HIP compiler: '+str(e))
+        self.logPrint('HERE Error testing HIP compiler:', e)
         self.delMakeMacro('HIPC')
         del self.HIPC
     return
@@ -1067,9 +1067,9 @@ class Configure(config.base.Configure):
             break
         except RuntimeError as e:
           self.mesg = str(e)
-          self.logPrint('Error testing C++ compiler: '+str(e))
+          self.logPrint('Error testing C++ compiler:', e)
           if os.path.basename(self.CXX) in ['mpicxx', 'mpiCC']:
-            self.logPrint('  MPI installation '+str(self.CXX)+' is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI.')
+            self.logPrint('  MPI installation', self.CXX, 'is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI.')
           self.delMakeMacro('CXX')
           del self.CXX
       if hasattr(self, 'CXX'):
@@ -1106,7 +1106,7 @@ class Configure(config.base.Configure):
       except RuntimeError as e:
 
         if os.path.basename(self.CXXPP) in ['mpicxx', 'mpiCC']:
-          self.logPrint('MPI installation '+self.getCompiler()+' is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI')
+          self.logPrint('MPI installation', self.getCompiler(), 'is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI')
         self.popLanguage()
         self.delMakeMacro('CXXPP')
         del self.CXXPP
@@ -1204,9 +1204,9 @@ class Configure(config.base.Configure):
           break
       except RuntimeError as e:
         self.mesg = str(e)
-        self.logPrint('Error testing Fortran compiler: '+str(e))
+        self.logPrint('Error testing Fortran compiler:', e)
         if os.path.basename(self.FC) in ['mpif90']:
-          self.logPrint(' MPI installation '+str(self.FC)+' is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI.')
+          self.logPrint(' MPI installation', self.FC, 'is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI.')
         self.delMakeMacro('FC')
         del self.FC
     if hasattr(self, 'FC'):
@@ -1242,7 +1242,7 @@ class Configure(config.base.Configure):
       except RuntimeError as e:
 
         if os.path.basename(self.FPP) in ['mpif90']:
-          self.logPrint('MPI installation '+self.getCompiler()+' is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI')
+          self.logPrint('MPI installation', self.getCompiler(), 'is likely incorrect.\n  Use --with-mpi-dir to indicate an alternate MPI')
         self.popLanguage()
         self.delMakeMacro('FPP')
         del self.FPP
@@ -1285,19 +1285,19 @@ class Configure(config.base.Configure):
     setattr(self, flagsArg, oldFlags+' '+flag)
     (output, error, status) = self.outputCompile(includes, body)
     output += error
-    self.logPrint('Output from compiling with '+oldFlags+' '+flag+'\n'+output)
+    self.logPrint('Output from compiling with', oldFlags, flag+'\n'+output)
     valid   = 1
     setattr(self, flagsArg, oldFlags)
     # Please comment each entry and provide an example line
     if status:
       valid = 0
-      self.logPrint('Rejecting compiler flag '+flag+' due to nonzero status from link')
+      self.logPrint('Rejecting compiler flag', flag, 'due to nonzero status from link')
     # Lahaye F95
     if output.find('Invalid suboption') >= 0:
       valid = 0
     if self.containsInvalidFlag(output):
       valid = 0
-      self.logPrint('Rejecting compiler flag '+flag+' due to \n'+output)
+      self.logPrint('Rejecting compiler flag', flag, 'due to \n'+output)
     return valid
 
   def insertCompilerFlag(self, flag, compilerOnly):
@@ -1332,7 +1332,7 @@ class Configure(config.base.Configure):
     # Try without specific PIC flag only if the MPI compiler or user compiler flag already provides a PIC option
     for i in PICFlags:
       if output.find(' '+i+' ') > -1:
-        self.logPrint('Trying no specific compiler flag for PIC code since MPI compiler or current flags seem to provide such a flag with '+i)
+        self.logPrint('Trying no specific compiler flag for PIC code since MPI compiler or current flags seem to provide such a flag with',i)
         yield ''
         break
     for i in PICFlags:
@@ -1374,9 +1374,9 @@ class Configure(config.base.Configure):
       oldCompilerFlags = getattr(self, compilerFlagsArg)
       for testFlag in self.generatePICGuesses():
         if testFlag:
-          self.logPrint('Trying '+language+' compiler flag '+testFlag+' for PIC code')
+          self.logPrint('Trying', language, 'compiler flag', testFlag, 'for PIC code')
         else:
-          self.logPrint('Trying '+language+' for PIC code without any compiler flag')
+          self.logPrint('Trying', language, 'for PIC code without any compiler flag')
         acceptedPIC = 1
         try:
           self.addCompilerFlag(testFlag, compilerOnly = 1)
@@ -1384,13 +1384,13 @@ class Configure(config.base.Configure):
         except RuntimeError:
           acceptedPIC = 0
         if not acceptedPIC:
-          self.logPrint('Rejected '+language+' compiler flag '+testFlag+' because shared linker cannot handle it')
+          self.logPrint('Rejected', language, 'compiler flag', testFlag, 'because shared linker cannot handle it')
           setattr(self, compilerFlagsArg, oldCompilerFlags)
           continue
         if testFlag:
-          self.logPrint('Accepted '+language+' compiler flag '+testFlag+' for PIC code')
+          self.logPrint('Accepted', language, 'compiler flag', testFlag, 'for PIC code')
         else:
-          self.logPrint('Accepted '+language+' PIC code without compiler flag')
+          self.logPrint('Accepted', language, 'PIC code without compiler flag')
         self.isPIC = 1
         break
       self.popLanguage()
@@ -1409,9 +1409,9 @@ class Configure(config.base.Configure):
         try:
           self.addCompilerFlag('-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64',compilerOnly=1)
         except RuntimeError as e:
-          self.logPrint('Error adding ' +language+ ' flags -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64')
+          self.logPrint('Error adding', language, 'flags -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64')
       else:
-        self.logPrint('Rejected ' +language+ ' flags -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64')
+        self.logPrint('Rejected', language, 'flags -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64')
       self.popLanguage()
     return
 
@@ -1530,7 +1530,7 @@ class Configure(config.base.Configure):
             (output, error, status) = config.base.Configure.executeShellCommand(self.AR+' '+arflags+' '+arcUnix+' '+objName, checkCommand = checkArchive, log = self.log)
             (output, error, status) = config.base.Configure.executeShellCommand(self.RANLIB+' '+arcUnix, checkCommand = checkRanlib, log = self.log)
           except RuntimeError as e:
-            self.logPrint(str(e))
+            self.logPrint(e)
             continue
           self.LIBS = '-L'+self.tmpDir+' -lconf1 ' + oldLibs
           success =  self.checkLink('extern int foo(int);', '  int b = foo(1);  if (b);\n')
@@ -1644,10 +1644,10 @@ class Configure(config.base.Configure):
     self.sharedLibraries = 0
     self.staticLibraries = 0
     for linker, flags, ext in self.generateSharedLinkerGuesses():
-      self.logPrint('Checking shared linker '+linker+' using flags '+str(flags))
+      self.logPrint('Checking shared linker', linker, 'using flags', flags)
       if self.getExecutable(linker, resultName = 'LD_SHARED'):
         for picFlag in self.generatePICGuesses():
-          self.logPrint('Trying '+self.language[-1]+' compiler flag '+picFlag)
+          self.logPrint('Trying', self.language[-1], 'compiler flag', picFlag)
           compilerFlagsArg = self.getCompilerFlagsArg(1) # compiler only
           oldCompilerFlags = getattr(self, compilerFlagsArg)
           accepted = 1
@@ -1676,9 +1676,9 @@ class Configure(config.base.Configure):
               self.LIBS = oldLibs
               if accepted:
                 self.sharedLibraries = 1
-                self.logPrint('Using shared linker '+self.sharedLinker+' with flags '+str(self.sharedLibraryFlags)+' and library extension '+self.sharedLibraryExt)
+                self.logPrint('Using shared linker', self.sharedLinker, 'with flags', self.sharedLibraryFlags, 'and library extension', self.sharedLibraryExt)
                 break
-          self.logPrint('Rejected '+self.language[-1]+' compiler flag '+picFlag+' because it was not compatible with shared linker '+linker+' using flags '+str(flags))
+          self.logPrint('Rejected', self.language[-1], 'compiler flag', picFlag, 'because it was not compatible with shared linker', linker, 'using flags', flags)
           setattr(self, compilerFlagsArg, oldCompilerFlags)
         if os.path.isfile(self.linkerObj): os.remove(self.linkerObj)
         if self.sharedLibraries: break
@@ -1696,13 +1696,13 @@ class Configure(config.base.Configure):
     valid = 1
     if status:
       valid = 0
-      self.logPrint('Rejecting linker flag '+flag+' due to nonzero status from link')
+      self.logPrint('Rejecting linker flag', flag, 'due to nonzero status from link')
     output = self.filterLinkOutput(output)
     if self.containsInvalidFlag(output):
       valid = 0
-      self.logPrint('Rejecting '+self.language[-1]+' linker flag '+flag+' due to \n'+output)
+      self.logPrint('Rejecting', self.language[-1], 'linker flag', flag, 'due to \n'+output)
     if valid:
-      self.logPrint('Valid '+self.language[-1]+' linker flag '+flag)
+      self.logPrint('Valid', self.language[-1], 'linker flag', flag)
     setattr(self, flagsArg, oldFlags)
     return valid
 
@@ -1781,12 +1781,12 @@ class Configure(config.base.Configure):
       if self.isSun(self.framework.getCompiler(), self.log):
         testFlags.insert(0,'-R')
       for testFlag in testFlags:
-        self.logPrint('Trying '+language+' linker flag '+testFlag)
+        self.logPrint('Trying', language, 'linker flag', testFlag)
         if self.checkLinkerFlag(testFlag+os.path.abspath(os.getcwd())):
           flag = testFlag
           break
         else:
-          self.logPrint('Rejected '+language+' linker flag '+testFlag)
+          self.logPrint('Rejected', language, 'linker flag', testFlag)
       self.popLanguage()
       setattr(self, language+'SharedLinkerFlag', flag)
     return
@@ -1851,7 +1851,7 @@ class Configure(config.base.Configure):
         return
     self.logWrite(self.libraries.restoreLog())
     for linker, flags, ext in self.generateDynamicLinkerGuesses():
-      self.logPrint('Checking dynamic linker '+linker+' using flags '+str(flags))
+      self.logPrint('Checking dynamic linker', linker, 'using flags', flags)
       if self.getExecutable(linker, resultName = 'dynamicLinker'):
         flagsArg = self.getLinkerFlagsArg()
         goodFlags = list(filter(self.checkLinkerFlag, flags))
@@ -1879,7 +1879,7 @@ if (dlclose(handle)) {
 ''' % oldLib
           if self.checkLink(includes = '#include <dlfcn.h>\n#include <stdio.h>', body = code):
             self.dynamicLibraries = 1
-            self.logPrint('Using dynamic linker '+self.dynamicLinker+' with flags '+str(self.dynamicLibraryFlags)+' and library extension '+self.dynamicLibraryExt)
+            self.logPrint('Using dynamic linker', self.dynamicLinker, 'with flags', self.dynamicLibraryFlags, 'and library extension', self.dynamicLibraryExt)
             os.remove(oldLib)
             break
         if os.path.isfile(self.linkerObj): os.remove(self.linkerObj)
@@ -1984,7 +1984,7 @@ if (dlclose(handle)) {
       libdir = os.path.join(self.argDB['with-mpi-dir'], 'lib')
       if os.path.exists(os.path.join(libdir,'libopen-rte.so')):
         Configure.addLdPath(libdir)
-        self.logPrint('Adding to LD_LIBRARY_PATH '+libdir)
+        self.logPrint('Adding to LD_LIBRARY_PATH', libdir)
     return
 
   def resetEnvCompilers(self):
@@ -1992,7 +1992,7 @@ if (dlclose(handle)) {
     for envVal in ignoreEnvCompilers:
       if envVal in os.environ:
         if envVal in self.framework.clArgDB or 'with-'+envVal.lower() in self.framework.clArgDB:
-          self.logPrint(envVal+' (set to '+os.environ[envVal]+') found in environment variables - ignoring since also set on command line')
+          self.logPrint(envVal, '(set to', os.environ[envVal]+') found in environment variables - ignoring since also set on command line')
           del os.environ[envVal]
         elif self.argDB['with-environment-variables']:
           self.logPrintBox('***** WARNING: '+envVal+' (set to '+os.environ[envVal]+') found in environment variables - using it \n use ./configure --disable-environment-variables to NOT use the environmental variables ******')
@@ -2007,7 +2007,7 @@ if (dlclose(handle)) {
     for envVal in ignoreEnv:
       if envVal in os.environ:
         if envVal in self.framework.clArgDB:
-          self.logPrint(envVal+' (set to '+os.environ[envVal]+') found in environment variables - ignoring since also set on command line')
+          self.logPrint(envVal, '(set to', os.environ[envVal]+') found in environment variables - ignoring since also set on command line')
           del os.environ[envVal]
         elif self.argDB['with-environment-variables']:
           self.logPrintBox('***** WARNING: '+envVal+' (set to '+os.environ[envVal]+') found in environment variables - using it \n use ./configure --disable-environment-variables to NOT use the environmental variables******')

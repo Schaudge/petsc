@@ -131,7 +131,7 @@ class Configure(script.Script):
     import time
 
     self.logPrintDivider()
-    self.logPrint('TESTING: '+str(test.__func__.__name__)+' from '+str(test.__self__.__class__.__module__)+'('+str(test.__func__.__code__.co_filename)+':'+str(test.__func__.__code__.co_firstlineno)+')', debugSection = 'screen', indent = 0)
+    self.logPrint('TESTING:', test.__func__.__name__, 'from', test.__self__.__class__.__module__, '('+str(test.__func__.__code__.co_filename)+':'+str(test.__func__.__code__.co_firstlineno)+')', debugSection = 'screen', indent = 0)
     if test.__doc__: self.logWrite('  '+test.__doc__+'\n')
     #t = time.time()
     if not isinstance(args, list): args = [args]
@@ -142,14 +142,14 @@ class Configure(script.Script):
   def printTest(self, test):
     '''Prints the function and class information for a test'''
     self.logPrintDivider()
-    self.logPrint('TESTING: '+str(test.__func__.__name__)+' from '+str(test.__self__.__class__.__module__)+'('+str(test.__func__.__code__.co_filename)+':'+str(test.__func__.__code__.co_firstlineno)+')', debugSection = 'screen', indent = 0)
+    self.logPrint('TESTING:', test.__func__.__name__, 'from', test.__self__.__class__.__module__, '('+str(test.__func__.__code__.co_filename)+':'+str(test.__func__.__code__.co_firstlineno)+')', debugSection = 'screen', indent = 0)
     if test.__doc__: self.logWrite('  '+test.__doc__+'\n')
 
   #################################
   # Define and Substitution Supported
   def addMakeRule(self, name, dependencies, rule = []):
     '''Designate that "name" should be rule in the makefile header (bmake file)'''
-    self.logPrint('Defined make rule "'+name+'" with dependencies "'+str(dependencies)+'" and code '+str(rule))
+    self.logPrint('Defined make rule "'+name+'" with dependencies "'+str(dependencies)+'" and code', rule)
     if not isinstance(rule,list): rule = [rule]
     self.makeRules[name] = [dependencies,rule]
     return
@@ -192,7 +192,7 @@ class Configure(script.Script):
     '''Add a missing function prototype
        - The language argument defaults to "All"
        - Other language choices are C, Cxx, extern C'''
-    self.logPrint('Added prototype '+prototype+' to language '+language)
+    self.logPrint('Added prototype', prototype, 'to language', language)
     language = language.replace('+', 'x')
     if not language in self.prototypes:
       self.prototypes[language] = []
@@ -585,7 +585,7 @@ class Configure(script.Script):
     examineOutput(ret, out, err)
     out = self.filterCompileOutput(out+'\n'+err)
     if ret or len(out):
-      self.logPrint('Compile failed inside link\n'+out)
+      self.logPrint('Compile failed inside link', out, sep = '\n')
       self.linkerObj = ''
       return (out, ret)
 

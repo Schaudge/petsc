@@ -166,6 +166,7 @@ class Logger(args.ArgumentProcessor):
         else:
           self._linewidth = LineWidth
     return self._linewidth
+
   def setLinewidth(self, linewidth):
     self._linewidth = linewidth
     return
@@ -245,7 +246,7 @@ class Logger(args.ArgumentProcessor):
     '''Write the message to the log streams'''
     '''Generally goes to the file but not the screen'''
     for writeAll, f in enumerate([self.out, self.log]):
-      if self.checkWrite(f, debugLevel, debugSection, writeAll):
+      if self.checkWrite(f, debugLevel, debugSection, writeAll = writeAll):
         if not forceScroll and not writeAll and self.linewidth > 0:
           global RemoveDirectory
           self.logBack()
@@ -262,14 +263,15 @@ class Logger(args.ArgumentProcessor):
           f.flush()
     return
 
-  def logPrint(self, msg, debugLevel = -1, debugSection = None, indent = 1, comm = None, forceScroll = 0, rmDir = 1):
+  def logPrint(self, *args, debugLevel = -1, debugSection = None, indent = 1, comm = None, forceScroll = 0, rmDir = 1, sep = ' '):
     '''Write the message to the log streams with proper indentation and a newline'''
     '''Generally goes to the file and the screen'''
     if indent:
-      self.logIndent(debugLevel, debugSection, comm)
-    self.logWrite(msg, debugLevel, debugSection, forceScroll = forceScroll, rmDir = rmDir)
+      self.logIndent(debugLevel = debugLevel, debugSection = debugSection, comm = comm)
+    msg = sep.join(map(str,args))
+    self.logWrite(msg, debugLevel = debugLevel, debugSection = debugSection, forceScroll = forceScroll, rmDir = rmDir)
     for writeAll, f in enumerate([self.out, self.log]):
-      if self.checkWrite(f, debugLevel, debugSection, writeAll):
+      if self.checkWrite(f, debugLevel, debugSection, writeAll = writeAll):
         if writeAll or self.linewidth < 0:
           f.write('\n')
     return

@@ -253,17 +253,17 @@ class Script(logger.Logger):
     if argDB is None:
       argDB = self.argDB
     if not 'configureCache' in argDB:
-      self.logPrint('No cached configure in RDict at '+str(argDB.saveFilename))
+      self.logPrint('No cached configure in RDict at',argDB.saveFilename)
       return None
     try:
       cache = argDB['configureCache']
       framework = pickle.loads(cache)
       framework.framework = framework
       framework.argDB = argDB
-      self.logPrint('Loaded configure to cache: size '+str(len(cache)))
+      self.logPrint('Loaded configure to cache: size',len(cache))
     except pickle.UnpicklingError as e:
       framework = None
-      self.logPrint('Invalid cached configure: '+str(e))
+      self.logPrint('Invalid cached configure:',e)
     return framework
 
 import args
@@ -375,12 +375,12 @@ class LanguageProcessor(args.ArgumentProcessor):
         module     = __import__(moduleName)
       except ImportError as e:
         if not moduleName is None:
-          self.logPrint('Failure to find language module: '+str(e))
+          self.logPrint('Failure to find language module:',e)
         try:
           moduleName = self.modulePath+'.'+language
           module     = __import__(moduleName)
         except ImportError as e:
-          self.logPrint('Failure to find language module: '+str(e))
+          self.logPrint('Failure to find language module:',e)
           moduleName = 'config.compile.'+language
           module     = __import__(moduleName)
       components = moduleName.split('.')

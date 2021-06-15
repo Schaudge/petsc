@@ -176,7 +176,7 @@ class SourceDB (dict, logger.Logger):
       (checksum, mtime, timestamp, dependencies) = self[source]
     except KeyError:
       pass
-    self.logPrint('Updating '+source+' in source database', 3, 'sourceDB')
+    self.logPrint('Updating', source,' in source database', debugLevel = 3, debugSection = 'sourceDB')
     if noChecksum:
       checksum   = ''
     else:
@@ -188,7 +188,7 @@ class SourceDB (dict, logger.Logger):
     '''This removes source information, but preserved dependencies'''
     if source in self:
       self.isDirty = 1
-      self.logPrint('Clearing '+source+' from source database', 3, 'sourceDB')
+      self.logPrint('Clearing', source, 'from source database', debugLevel = 3, debugSection = 'sourceDB')
       (checksum, mtime, timestamp, dependencies) = self[source]
       self[source] = ('', 0, time.time(), dependencies)
     return
@@ -209,15 +209,15 @@ class SourceDB (dict, logger.Logger):
       checksum = ''
       mtime    = 0
     if not dependency in dependencies:
-      self.logPrint('Adding dependency '+dependency+' to source '+source+' in source database', 3, 'sourceDB')
+      self.logPrint('Adding dependency', dependency, 'to source', source, 'in source database', debugLevel = 3, debugSection = 'sourceDB')
       dependencies = dependencies+(dependency,)
     self[source] = (checksum, mtime, time.time(), dependencies)
     return
 
   def calculateDependencies(self):
-    self.logPrint('Recalculating dependencies', 1, 'sourceDB')
+    self.logPrint('Recalculating dependencies', debugLevel = 1, debugSection = 'sourceDB')
     for source in self:
-      self.logPrint('Calculating '+source, 3, 'sourceDB')
+      self.logPrint('Calculating', source, debugLevel = 3, debugSection = 'sourceDB')
       (checksum, mtime, timestamp, dependencies) = self[source]
       newDep = []
       try:
@@ -234,15 +234,15 @@ class SourceDB (dict, logger.Logger):
           filename  = m.group('includeFile')
           matchNum  = 0
           matchName = filename
-          self.logPrint('  Includes '+filename, 3, 'sourceDB')
+          self.logPrint('  Includes', filename, debugLevel = 3, debugSection = 'sourceDB')
           for s in self:
             if s.find(filename) >= 0:
-              self.logPrint('    Checking '+s, 3, 'sourceDB')
+              self.logPrint('    Checking', s, debugLevel = 3, debugSection = 'sourceDB')
               c = s.split('/')
               for i in range(len(c)):
                 if not comps[i] == c[i]: break
               if i > matchNum:
-                self.logPrint('    Choosing '+s+'('+str(i)+')', 3, 'sourceDB')
+                self.logPrint('    Choosing', s, '('+str(i)+')', debugLevel = 3, debugSection = 'sourceDB')
                 matchName = s
                 matchNum  = i
           newDep.append(matchName)
@@ -255,29 +255,29 @@ class SourceDB (dict, logger.Logger):
     filename = str(self.filename)
     if os.path.exists(filename):
       self.clear()
-      self.logPrint('Loading source database from '+filename, 2, 'sourceDB')
+      self.logPrint('Loading source database from', filename, debugLevel = 2, debugSection = 'sourceDB')
       dbFile = open(filename)
       newDB  = pickle.load(dbFile)
       dbFile.close()
       self.update(newDB)
     else:
-      self.logPrint('Could not load source database from '+filename, 1, 'sourceDB')
+      self.logPrint('Could not load source database from', filename, debugLevel = 1, debugSection = 'sourceDB')
     return
 
   def save(self, force = 0):
     '''Save the source database to a file. The saved database with have path names relative to the root.'''
     if not self.isDirty and not force:
-      self.logPrint('No need to save source database in '+str(self.filename), 2, 'sourceDB')
+      self.logPrint('No need to save source database in', self.filename, debugLevel = 2, debugSection = 'sourceDB')
       return
     filename = str(self.filename)
     if os.path.exists(os.path.dirname(filename)):
-      self.logPrint('Saving source database in '+filename, 2, 'sourceDB')
+      self.logPrint('Saving source database in', filename, debugLevel = 2, debugSection = 'sourceDB')
       dbFile = open(filename, 'w')
       pickle.dump(self, dbFile)
       dbFile.close()
       self.isDirty = 0
     else:
-      self.logPrint('Could not save source database in '+filename, 1, 'sourceDB')
+      self.logPrint('Could not save source database in', filename, debugLevel = 1, debugSection = 'sourceDB')
     return
 
 class DependencyAnalyzer (logger.Logger):
@@ -295,15 +295,15 @@ class DependencyAnalyzer (logger.Logger):
     matchNum   = 0
     matchName  = dep
     components = source.split(os.sep)
-    self.logPrint('  Includes '+filename, 3, 'sourceDB')
+    self.logPrint('  Includes', filename, debugLevel = 3, debugSection = 'sourceDB')
     for s in self.sourceDB:
       if s.find(dep) >= 0:
-        self.logPrint('    Checking '+s, 3, 'sourceDB')
+        self.logPrint('    Checking', s, debugLevel = 3, debugSection = 'sourceDB')
         comp = s.split(os.sep)
         for i in range(len(comp)):
           if not components[i] == comp[i]: break
         if i > matchNum:
-          self.logPrint('    Choosing '+s+'('+str(i)+')', 3, 'sourceDB')
+          self.logPrint('    Choosing', s, '('+str(i)+')', debugLevel = 3, debugSection = 'sourceDB')
           matchName = s
           matchNum  = i
     if not matchName in self.sourceDB: raise RuntimeError('Invalid #include '+matchName+' in '+source)
@@ -351,20 +351,20 @@ if __name__ == '__main__':
         sys.exit('Could not load source database from '+sys.argv[1])
       if sys.argv[2] == 'insert':
         if sys.argv[3] in sourceDB:
-          self.logPrint('Updating '+sys.argv[3], 3, 'sourceDB')
+          self.logPrint('Updating', sys.argv[3], debugLevel = 3, debugSection = 'sourceDB')
         else:
-          self.logPrint('Inserting '+sys.argv[3], 3, 'sourceDB')
+          self.logPrint('Inserting', sys.argv[3], debugLevel = 3, debugSection = 'sourceDB')
         self.sourceDB.updateSource(sys.argv[3])
       elif sys.argv[2] == 'remove':
         if sys.argv[3] in sourceDB:
-          sourceDB.logPrint('Removing '+sys.argv[3], 3, 'sourceDB')
+          sourceDB.logPrint('Removing', sys.argv[3], debugLevel = 3, debugSection = 'sourceDB')
           del self.sourceDB[sys.argv[3]]
         else:
-          sourceDB.logPrint('Matching regular expression '+sys.argv[3]+' over source database', 1, 'sourceDB')
+          sourceDB.logPrint('Matching regular expression', sys.argv[3], 'over source database', debugLevel = 1, debugSection = 'sourceDB')
           removeRE = re.compile(sys.argv[3])
           removes  = list(filter(removeRE.match, sourceDB.keys()))
           for source in removes:
-            self.logPrint('Removing '+source, 3, 'sourceDB')
+            self.logPrint('Removing', source, debugLevel = 3, debugSection = 'sourceDB')
             del self.sourceDB[source]
       else:
         sys.exit('Unknown source database action: '+sys.argv[2])

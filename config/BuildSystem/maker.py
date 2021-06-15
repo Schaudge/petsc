@@ -37,7 +37,7 @@ class Make(script.Script):
     # FIX THIS: For now ignore RDict project info, and just use a fixed path
     import install.urlMapping
 
-    self.logPrint('Adding project dependency: '+url)
+    self.logPrint('Adding project dependency:', url)
     path   = os.path.join(self.argDB['baseDirectory'], install.urlMapping.UrlMappingNew.getRepositoryPath(url))
     oldDir = os.getcwd()
     os.chdir(path)
@@ -109,7 +109,7 @@ class Make(script.Script):
        - If the database does not contain a cached configure'''
     configureFile = self.getPythonFile(self.configureMod, 'configure.py')
     if framework.header and not os.path.isfile(framework.header):
-      self.logPrint('Reconfiguring due to absence of configure header: '+str(framework.header))
+      self.logPrint('Reconfiguring due to absence of configure header:', framework.header)
       return 1
     if not reduce(lambda x,y: x and y, [os.path.isfile(pair[1]) for pair in framework.substFiles], 1):
       self.logPrint('Reconfiguring due to absence of configure generated files: '+str([os.path.isfile(pair[1]) for pair in framework.substFiles]))
@@ -119,7 +119,7 @@ class Make(script.Script):
       return 1
     if (not configureFile in self.builder.sourceDB or
         not self.builder.sourceDB[configureFile][0] == self.builder.sourceDB.getChecksum(configureFile)):
-      self.logPrint('Reconfiguring due to changed '+configureFile)
+      self.logPrint('Reconfiguring due to changed', configureFile)
       return 1
     if not 'configureCache' in self.argDB:
       self.logPrint('Reconfiguring due to absence of configure cache')
@@ -133,7 +133,7 @@ class Make(script.Script):
       if self.configureMod is None:
         self.configureMod = self.getModule(self.root, 'configure')
       self.configureObj = self.configureMod.Configure(framework)
-      self.logPrint('Configure module found in '+self.configureObj.root)
+      self.logPrint('Configure module found in', self.configureObj.root)
       self.configureObj.argDB = self.argDB
       self.configureObj.setup()
       self.configureObj.setupPackageDependencies(framework)
@@ -141,7 +141,7 @@ class Make(script.Script):
       framework.addChild(self.configureObj)
     except ImportError as e:
       self.configureObj = None
-      self.logPrint('Configure module not present: '+str(e))
+      self.logPrint('Configure module not present:', e)
       return 0
     return 1
 
@@ -165,7 +165,7 @@ class Make(script.Script):
       self.builder.sourceDB.updateSource(self.getPythonFile(self.configureMod))
       cache = pickle.dumps(self.framework)
       self.argDB['configureCache'] = cache
-      self.logPrint('Wrote configure to cache: size '+str(len(cache)))
+      self.logPrint('Wrote configure to cache: size', len(cache))
     else:
       self.logPrint('Using cached configure')
       self.framework.cleanup()
@@ -203,7 +203,7 @@ class Make(script.Script):
     import time
 
     self.log.write(('='*80)+'\n')
-    self.logPrint('SECTION: '+str(section.__func__.__name__)+' in '+self.getRoot()+' from '+str(section.__self__.__class__.__module__)+'('+str(section.__func__.__code__.co_filename)+':'+str(section.__func__.__code__.co_firstlineno)+') at '+time.ctime(time.time()), debugSection = 'screen', indent = 0)
+    self.logPrint('SECTION:', section.__func__.__name__, 'in', self.getRoot(), 'from', section.__self__.__class__.__module__, '('+str(section.__func__.__code__.co_filename)+':'+str(section.__func__.__code__.co_firstlineno)+') at '+time.ctime(time.time()), debugSection = 'screen', indent = 0)
     if section.__doc__: self.logWrite('  '+section.__doc__+'\n')
     return section(*args)
 
@@ -349,8 +349,8 @@ class BasicMake(Make):
       lib.includes, lib.libs = params[0:2]
       if (len(params) == 3): lib.flags = params[2]
       lib.configuration = name[4:]
-      self.logPrint('Found configuration '+lib.configuration+' for library '+lib.name)
-      self.logPrint('  includes '+str(lib.includes)+' libraries '+str(lib.libs))
+      self.logPrint('Found configuration', lib.configuration, 'for library', lib.name)
+      self.logPrint('  includes', lib.includes, 'libraries', lib.libs)
       self.lib[lib.name] = lib
     return
 
@@ -366,8 +366,8 @@ class BasicMake(Make):
       lib.includes, lib.libs = params[0:2]
       if (len(params) == 3): lib.flags = params[2]
       lib.configuration = name[6:]
-      self.logPrint('Found configuration '+lib.configuration+' for dynamic library '+lib.name)
-      self.logPrint('  includes '+str(lib.includes)+' libraries '+str(lib.libs))
+      self.logPrint('Found configuration', lib.configuration, 'for dynamic library', lib.name)
+      self.logPrint('  includes', lib.includes, 'libraries', lib.libs)
       self.dylib[lib.name] = lib
     return
 
@@ -392,11 +392,11 @@ class BasicMake(Make):
       self.libDir = os.path.abspath(self.argDB['libdir'])
       self.binDir = os.path.abspath(self.argDB['bindir'])
     else:
-      self.logPrint('prefix '+self.prefix+' libDir '+self.argDB['libdir']+' totdir '+os.path.join(self.prefix, self.argDB['libdir']))
+      self.logPrint('prefix', self.prefix, 'libDir', self.argDB['libdir'], 'totdir', os.path.join(self.prefix, self.argDB['libdir']))
       self.libDir = os.path.abspath(os.path.join(self.prefix, self.argDB['libdir']))
       self.binDir = os.path.abspath(os.path.join(self.prefix, self.argDB['bindir']))
-    self.logPrint('Library directory is '+self.libDir)
-    self.logPrint('Executable directory is '+self.binDir)
+    self.logPrint('Library directory is', self.libDir)
+    self.logPrint('Executable directory is', self.binDir)
     return
 
   def setupLibraryDirectories(self, builder):
@@ -407,18 +407,18 @@ class BasicMake(Make):
     self.includeDir = {}
     for language in languages:
       self.srcDir[language] = os.path.abspath(os.path.join('src', self.languageNames[language].lower()))
-      self.logPrint('Source directory for '+language+' is '+self.srcDir[language])
+      self.logPrint('Source directory for', language, 'is', self.srcDir[language])
       if self.prefix is None:
         self.includeDir[language] = os.path.abspath('include')
       else:
         self.includeDir[language] = os.path.abspath(os.path.join(self.prefix, 'include'))
-      self.logPrint('Include directory for '+language+' is '+self.includeDir[language])
+      self.logPrint('Include directory for', language, 'is', self.includeDir[language])
     return
 
   def setupLibraries(self, builder):
     '''Configures the builder for libraries'''
     for lib in self.lib.values():
-      self.logPrint('Configuring library '+lib.name)
+      self.logPrint('Configuring library', lib.name)
       languages = sets.Set(lib.src.keys())
       builder.pushConfiguration(lib.configuration)
       for language in languages:
@@ -427,17 +427,17 @@ class BasicMake(Make):
           builder.setCompilerFlags(' '.join(lib.flags))
         compiler = builder.getCompilerObject()
         lib.includes = [inc for inc in lib.includes if inc]
-        self.logPrint('  Adding includes '+str(lib.includes))
+        self.logPrint('  Adding includes', lib.includes)
         compiler.includeDirectories.update(lib.includes)
         builder.popLanguage()
       linker = builder.getSharedLinkerObject()
       for l in lib.libs:
         if not l: continue
         if isinstance(l, str):
-          self.logPrint('  Adding library '+str(l))
+          self.logPrint('  Adding library', l)
           linker.libraries.add(l)
         else:
-          self.logPrint('  Adding library '+os.path.join(self.libDir, l.name+'.'+self.setCompilers.sharedLibraryExt))
+          self.logPrint('  Adding library', os.path.join(self.libDir, l.name+'.'+self.setCompilers.sharedLibraryExt))
           linker.libraries.add(os.path.join(self.libDir, l.name+'.'+self.setCompilers.sharedLibraryExt))
       linker.libraries.update(self.compilers.flibs)
       if self.libraries.math:
@@ -450,7 +450,7 @@ class BasicMake(Make):
   def setupDynamicLibraries(self, builder):
     '''Configures the builder for dynamic libraries'''
     for lib in self.dylib.values():
-      self.logPrint('Configuring dynamic library '+lib.name)
+      self.logPrint('Configuring dynamic library', lib.name)
       languages = sets.Set(lib.src.keys())
       builder.pushConfiguration(lib.configuration)
       for language in languages:
@@ -459,17 +459,17 @@ class BasicMake(Make):
           builder.setCompilerFlags(' '.join(lib.flags))
         compiler = builder.getCompilerObject()
         lib.includes = [inc for inc in lib.includes if inc]
-        self.logPrint('  Adding includes '+str(lib.includes))
+        self.logPrint('  Adding includes', lib.includes)
         compiler.includeDirectories.update(lib.includes)
         builder.popLanguage()
       linker = builder.getDynamicLinkerObject()
       for l in lib.libs:
         if not l: continue
         if isinstance(l, str):
-          self.logPrint('  Adding library '+str(l))
+          self.logPrint('  Adding library', l)
           linker.libraries.add(l)
         else:
-          self.logPrint('  Adding library '+os.path.join(self.libDir, l.name+'.'+self.setCompilers.dynamicLibraryExt))
+          self.logPrint('  Adding library', os.path.join(self.libDir, l.name+'.'+self.setCompilers.dynamicLibraryExt))
           linker.libraries.add(os.path.join(self.libDir, l.name+'.'+self.setCompilers.dynamicLibraryExt))
       linker.libraries.update(self.compilers.flibs)
       if self.libraries.math:
@@ -482,7 +482,7 @@ class BasicMake(Make):
   def setupExecutables(self, builder):
     '''Configures the builder for the executable'''
     for bin in self.bin.values():
-      self.logPrint('Configuring executable '+bin.name)
+      self.logPrint('Configuring executable', bin.name)
       languages = sets.Set(bin.src.keys())
       builder.pushConfiguration(bin.configuration)
       for language in languages:
@@ -491,17 +491,17 @@ class BasicMake(Make):
           builder.setCompilerFlags(' '.join(bin.flags))
         compiler = builder.getCompilerObject()
         bin.includes = [inc for inc in bin.includes if inc]
-        self.logPrint('  Adding includes '+str(bin.includes))
+        self.logPrint('  Adding includes', bin.includes)
         compiler.includeDirectories.update(bin.includes)
         builder.popLanguage()
       linker = builder.getLinkerObject()
       for l in bin.libs:
         if not l: continue
         if isinstance(l, str):
-          self.logPrint('  Adding library '+str(l))
+          self.logPrint('  Adding library', l)
           linker.libraries.add(l)
         else:
-          self.logPrint('  Adding library '+os.path.join(self.libDir, l.name+'.'+self.setCompilers.sharedLibraryExt))
+          self.logPrint('  Adding library', os.path.join(self.libDir, l.name+'.'+self.setCompilers.sharedLibraryExt))
           linker.libraries.add(os.path.join(self.libDir, l.name+'.'+self.setCompilers.sharedLibraryExt))
       linker.libraries.update(self.compilers.fmainlibs)
       linker.libraries.update(self.compilers.flibs)
@@ -517,19 +517,19 @@ class BasicMake(Make):
     for language in languages:
       if not os.path.isdir(self.includeDir[language]):
         os.mkdir(self.includeDir[language])
-        self.logPrint('Created include directory '+self.includeDir[language])
+        self.logPrint('Created include directory', self.includeDir[language])
     if not os.path.isdir(self.libDir):
       os.mkdir(self.libDir)
-      self.logPrint('Created library directory '+self.libDir)
+      self.logPrint('Created library directory', self.libDir)
     if not os.path.isdir(self.binDir):
       os.mkdir(self.binDir)
-      self.logPrint('Created executable directory '+self.binDir)
+      self.logPrint('Created executable directory', self.binDir)
     return
 
   def buildLibraries(self, builder):
     '''Builds the libraries'''
     for lib in self.lib.values():
-      self.logPrint('Building library: '+lib.name)
+      self.logPrint('Building library:', lib.name)
       builder.pushConfiguration(lib.configuration)
       objects = []
       for language in lib.src:
@@ -546,7 +546,7 @@ class BasicMake(Make):
   def buildDynamicLibraries(self, builder):
     '''Builds the dynamic libraries'''
     for lib in self.dylib.values():
-      self.logPrint('Building dynamic library: '+lib.name)
+      self.logPrint('Building dynamic library:', lib.name)
       builder.pushConfiguration(lib.configuration)
       objects = []
       for language in lib.src:
@@ -601,13 +601,13 @@ class BasicMake(Make):
   def installIncludes(self, builder):
     import shutil
     for lib in self.lib.values()+self.dylib.values():
-      self.logPrint('Installing library: '+lib.name)
+      self.logPrint('Installing library:', lib.name)
       for language in lib.inc:
         for inc in lib.inc[language]:
           installInc = os.path.join(self.includeDir[language], os.path.basename(inc))
           if os.path.isfile(installInc):
             os.remove(installInc)
-          self.logPrint('Installing '+inc+' into '+installInc)
+          self.logPrint('Installing', inc, 'into', installInc)
           shutil.copy(os.path.join(self.srcDir[language], inc), installInc)
     return
 

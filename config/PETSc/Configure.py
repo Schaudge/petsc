@@ -117,7 +117,7 @@ class Configure(config.base.Configure):
       for script in self.framework.argDB['with-package-scripts']:
         if os.path.splitext(script)[1] != '.py':
           raise RuntimeError('Only python scripts compatible with configure package script format should be specified! Invalid option -with-package-scripts='+script)
-        self.framework.logPrint('User is registering a new package script: '+script)
+        self.framework.logPrint('User is registering a new package script:', script)
         dname,fname = os.path.split(script)
         if dname: sys.path.append(dname)
         self.registerPythonFile(fname,'')
@@ -881,7 +881,7 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
     try:
       os.chmod(scriptName, 0o775)
     except OSError as e:
-      self.framework.logPrint('Unable to make reconfigure script executable:\n'+str(e))
+      self.framework.logPrint('Unable to make reconfigure script executable:', e, sep = '\n')
     self.framework.actions.addArgument('PETSc', 'File creation', 'Created '+scriptName+' for automatic reconfiguration')
     return
 

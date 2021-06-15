@@ -49,7 +49,7 @@ class Configure(config.base.Configure):
         os.makedirs(os.path.join(self.dir,'PETScTestDirectory'))
         os.rmdir(os.path.join(self.dir,'PETScTestDirectory'))
       except Exception as e:
-        self.logPrint('Error trying to to test write permissions on directory '+str(e))
+        self.logPrint('Error trying to to test write permissions on directory',e)
         self.installSudoMessage = 'You do not have write permissions to the --prefix directory '+self.dir+'\nYou will be prompted for the sudo password for any external package installs'
         self.installSudo = 'sudo '
     else:
@@ -72,7 +72,7 @@ class Configure(config.base.Configure):
       os.remove(self.framework.argDB.saveFilename)
     confdir = os.path.join(dir,'lib','petsc','conf')
     self.framework.argDB.saveFilename = os.path.abspath(os.path.join(confdir, 'RDict.db'))
-    self.logPrint('Changed persistence directory to '+confdir)
+    self.logPrint('Changed persistence directory to',confdir)
     return
 
   def cleanConfDir(self):
@@ -92,7 +92,7 @@ class Configure(config.base.Configure):
         os.rename(self.reconfigure_file,self.save_reconfigure_file)
       except Exception as e:
         self.save_reconfigure_file = None
-        self.logPrint('error in saveReconfigure(): '+ str(e))
+        self.logPrint('error in saveReconfigure():', e)
     return
 
   def restoreReconfigure(self):
@@ -100,7 +100,7 @@ class Configure(config.base.Configure):
       try:
         os.rename(self.save_reconfigure_file,self.reconfigure_file)
       except Exception as e:
-        self.logPrint('error in restoreReconfigure(): '+ str(e))
+        self.logPrint('error in restoreReconfigure():', e)
     return
 
   def configure(self):

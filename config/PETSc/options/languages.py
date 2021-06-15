@@ -31,7 +31,7 @@ class Configure(config.base.Configure):
       raise RuntimeError('Invalid C language specified: '+str(self.clanguage))
     if self.clanguage == 'Cxx':
       self.logPrintBox('WARNING -with-clanguage=C++ is a developer feature and is *not* required for regular usage of PETSc either from C or C++')
-    self.logPrint('C language is '+str(self.clanguage))
+    self.logPrint('C language is'self.clanguage)
     self.addDefine('CLANGUAGE_'+self.clanguage.upper(),'1')
     self.addMakeMacro('CLANGUAGE',self.clanguage.upper())
 

@@ -50,7 +50,7 @@ class Configure(config.base.Configure):
         self.addDefine('USE_CXXCOMPLEX',1)
     elif not self.scalartype == 'real':
       raise RuntimeError('--with-scalar-type must be real or complex')
-    self.logPrint('Scalar type is '+str(self.scalartype))
+    self.logPrint('Scalar type is',self.scalartype)
     # On apple isinf() and isnan() do not work when <complex> is included
     self.pushLanguage(self.languages.clanguage)
     if self.scalartype == 'complex' and self.languages.clanguage == 'Cxx':
@@ -120,7 +120,7 @@ class Configure(config.base.Configure):
         raise RuntimeError('__float128 support not found. --with-precision=__float128 works with gcc-4.6 and newer compilers.')
     else:
       raise RuntimeError('--with-precision must be __fp16, single, double, or __float128')
-    self.logPrint('Precision is '+str(self.precision))
+    self.logPrint('Precision is',self.precision)
     if self.precision == '__float128' and self.scalartype == 'complex' and self.languages.clanguage == 'Cxx':
       raise RuntimeError('Cannot use --with-precision=__float128 --with-scalar-type=complex and --with-clanguage=cxx because C++ std:complex class has no support for __float128, use --with-clanguage=c')
     return

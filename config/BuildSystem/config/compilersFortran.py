@@ -65,7 +65,7 @@ class Configure(config.base.Configure):
       if returnCode or (output+error).find('Type size specifiers are an extension to standard Fortran 95') >= 0:
         self.setCompilers.FFLAGS = oldFlags
       else:
-        self.logPrint('Looks like ifc compiler, adding -w90 -w flags to avoid warnings about real*8 etc', 4, 'compilers')
+        self.logPrint('Looks like ifc compiler, adding -w90 -w flags to avoid warnings about real*8 etc', debugLevel = 4, debugSection = 'compilers')
     self.popLanguage()
     return
 
@@ -84,13 +84,13 @@ class Configure(config.base.Configure):
         setattr(self.setCompilers, flagsArg, oldFlags+' '+flag)
         self.fortranPreprocess = 1
         self.setCompilers.popLanguage()
-        self.logPrint('Fortran uses '+flag+' preprocessor', 3, 'compilers')
+        self.logPrint('Fortran uses', flag, 'preprocessor', debugLevel = 3, debugSection = 'compilers')
         return
       except RuntimeError:
         setattr(self.setCompilers, flagsArg, oldFlags)
     self.setCompilers.popLanguage()
     self.fortranPreprocess = 0
-    self.logPrint('Fortran does NOT use preprocessor', 3, 'compilers')
+    self.logPrint('Fortran does NOT use preprocessor', debugLevel = 3, debugSection = 'compilers')
     return
 
   def checkFortranDefineCompilerOption(self):
@@ -106,11 +106,11 @@ class Configure(config.base.Configure):
         self.FortranDefineCompilerOption = flag
         self.framework.addMakeMacro('FC_DEFINE_FLAG',self.FortranDefineCompilerOption)
         self.setCompilers.popLanguage()
-        self.logPrint('Fortran uses '+flag+' for defining macro', 3, 'compilers')
+        self.logPrint('Fortran uses', flag, 'for defining macro', debugLevel = 3, debugSection = 'compilers')
         return
     self.logWrite(self.setCompilers.restoreLog())
     self.setCompilers.popLanguage()
-    self.logPrint('Fortran does not support defining macro', 3, 'compilers')
+    self.logPrint('Fortran does not support defining macro', debugLevel = 3, debugSection = 'compilers')
     return
 
   def configureFortranFlush(self):
@@ -217,9 +217,9 @@ class Configure(config.base.Configure):
     if self.argDB['with-batch']:
       if config.setCompilers.Configure.isPGI(self.setCompilers.FC, self.log):
         self.addDefine('HAVE_F90_2PTR_ARG', 1)
-        self.logPrint('PGI F90 compiler detected & using --with-batch, so use two arguments for array pointers', 3, 'compilers')
+        self.logPrint('PGI F90 compiler detected & using --with-batch, so use two arguments for array pointers', debugLevel = 3, debugSection = 'compilers')
       else:
-        self.logPrint('Using --with-batch, so guess that F90 uses a single argument for array pointers', 3, 'compilers')
+        self.logPrint('Using --with-batch, so guess that F90 uses a single argument for array pointers', debugLevel = 3, debugSection = 'compilers')
       return
     # do not check on windows - as it pops up the annoying debugger
     if config.setCompilers.Configure.isCygwin(self.log):
@@ -250,10 +250,10 @@ class Configure(config.base.Configure):
     cobj = os.path.join(self.tmpDir, 'fooobj.o')
     self.pushLanguage('C')
     if not self.checkCompile(cinc+ccode, None, cleanup = 0):
-      self.logPrint('Cannot compile C function: f90ptrtest', 3, 'compilers')
+      self.logPrint('Cannot compile C function: f90ptrtest', debugLevel = 3, debugSection = 'compilers')
       raise RuntimeError('Could not check Fortran pointer arguments')
     if not os.path.isfile(self.compilerObj):
-      self.logPrint('Cannot locate object file: '+os.path.abspath(self.compilerObj), 3, 'compilers')
+      self.logPrint('Cannot locate object file:', os.path.abspath(self.compilerObj), debugLevel = 3, debugSection = 'compilers')
       raise RuntimeError('Could not check Fortran pointer arguments')
     os.rename(self.compilerObj, cobj)
     self.popLanguage()
@@ -290,15 +290,15 @@ class Configure(config.base.Configure):
       os.remove(cobj)
     if found:
       self.addDefine('HAVE_F90_2PTR_ARG', 1)
-      self.logPrint('F90 compiler uses two arguments for array pointers', 3, 'compilers')
+      self.logPrint('F90 compiler uses two arguments for array pointers', debugLevel = 3, debugSection = 'compilers')
     else:
-      self.logPrint('F90 uses a single argument for array pointers', 3, 'compilers')
+      self.logPrint('F90 uses a single argument for array pointers', debugLevel = 3, debugSection = 'compilers')
     return
 
   def checkFortran90AssumedType(self):
     if config.setCompilers.Configure.isIBM(self.setCompilers.FC, self.log):
       self.addDefine('HAVE_F90_ASSUMED_TYPE_NOT_PTR', 1)
-      self.logPrint('IBM F90 compiler detected so using HAVE_F90_ASSUMED_TYPE_NOT_PTR', 3, 'compilers')
+      self.logPrint('IBM F90 compiler detected so using HAVE_F90_ASSUMED_TYPE_NOT_PTR', debugLevel = 3, debugSection = 'compilers')
 
   def checkFortranModuleInclude(self):
     '''Figures out what flag is used to specify the include path for Fortran modules'''
@@ -317,11 +317,11 @@ class Configure(config.base.Configure):
     # Compile the Fortran test module
     self.pushLanguage('FC')
     if not self.checkCompile(modcode, None, cleanup = 0):
-      self.logPrint('Cannot compile Fortran module', 3, 'compilers')
+      self.logPrint('Cannot compile Fortran module', debugLevel = 3, debugSection = 'compilers')
       self.popLanguage()
       raise RuntimeError('Cannot determine Fortran module include flag')
     if not os.path.isfile(self.compilerObj):
-      self.logPrint('Cannot locate object file: '+os.path.abspath(self.compilerObj), 3, 'compilers')
+      self.logPrint('Cannot locate object file:', os.path.abspath(self.compilerObj), debugLevel = 3, debugSection = 'compilers')
       self.popLanguage()
       raise RuntimeError('Cannot determine Fortran module include flag')
     if not os.path.isdir(testdir):
@@ -335,7 +335,7 @@ class Configure(config.base.Configure):
         break
     if not foundModule:
       d = os.path.dirname(os.path.abspath('configtest.mod'))
-      self.logPrint('Directory '+d+' contents:\n'+str(os.listdir(d)))
+      self.logPrint('Directory', d, 'contents:\n'+str(os.listdir(d)))
       raise RuntimeError('Fortran module was not created during the compile. %s/CONFIGTEST.mod not found' % os.path.abspath('configtest.mod'))
     shutil.move(modname, os.path.join(testdir, os.path.basename(modname)))
     fcode = '''\
@@ -349,9 +349,9 @@ class Configure(config.base.Configure):
       self.setCompilers.FFLAGS = flag+testdir+' '+self.setCompilers.FFLAGS
       self.setCompilers.LIBS   = modobj+' '+self.setCompilers.LIBS
       if not self.checkLink(None, fcode):
-        self.logPrint('Fortran module include flag '+flag+' failed', 3, 'compilers')
+        self.logPrint('Fortran module include flag', flag, 'failed', debugLevel = 3, debugSection = 'compilers')
       else:
-        self.logPrint('Fortran module include flag '+flag+' found', 3, 'compilers')
+        self.logPrint('Fortran module include flag', flag, 'found', debugLevel = 3, debugSection = 'compilers')
         self.setCompilers.fortranModuleIncludeFlag = flag
         found = 1
       self.setCompilers.LIBS   = oldLIBS
@@ -391,15 +391,15 @@ class Configure(config.base.Configure):
       self.setCompilers.FFLAGS = flag+testdir+' '+self.setCompilers.FFLAGS
       self.setCompilers.LIBS   = modobj+' '+self.setCompilers.LIBS
       if not self.checkCompile(modcode, None, cleanup = 0):
-        self.logPrint('Fortran module output flag '+flag+' compile failed', 3, 'compilers')
+        self.logPrint('Fortran module output flag', flag, 'compile failed', debugLevel = 3, debugSection = 'compilers')
       elif os.path.isfile(os.path.join(testdir, 'configtest.mod')) or os.path.isfile(os.path.join(testdir, 'CONFIGTEST.mod')):
         if os.path.isfile(os.path.join(testdir, 'configtest.mod')): modname = 'configtest.mod'
         if os.path.isfile(os.path.join(testdir, 'CONFIGTEST.mod')): modname = 'CONFIGTEST.mod'
-        self.logPrint('Fortran module output flag '+flag+' found', 3, 'compilers')
+        self.logPrint('Fortran module output flag', flag, 'found', debugLevel = 3, debugSection = 'compilers')
         self.setCompilers.fortranModuleOutputFlag = flag
         found = 1
       else:
-        self.logPrint('Fortran module output flag '+flag+' failed', 3, 'compilers')
+        self.logPrint('Fortran module output flag', flag, 'failed', debugLevel = 3, debugSection = 'compilers')
       self.setCompilers.LIBS   = oldLIBS
       self.setCompilers.FFLAGS = oldFLAGS
       if found: break
@@ -431,7 +431,7 @@ class Configure(config.base.Configure):
                        # Cray only supports -M, which writes to stdout
                      ]:
         try:
-          self.logPrint('Trying '+language+' compiler flag '+testFlag)
+          self.logPrint('Trying', language, 'compiler flag', testFlag)
           if self.setCompilers.checkCompilerFlag(testFlag, compilerOnly = 1):
             depFilename = os.path.splitext(self.setCompilers.compilerObj)[0]+'.d'
             if os.path.isfile(depFilename):
@@ -442,11 +442,11 @@ class Configure(config.base.Configure):
               self.generateDependencies[language]       = 1
               break
             else:
-              self.logPrint('Rejected '+language+' compiler flag '+testFlag+' because no dependency file ('+depFilename+') was generated')
+              self.logPrint('Rejected', language, 'compiler flag', testFlag, 'because no dependency file ('+depFilename+') was generated')
           else:
-            self.logPrint('Rejected '+language+' compiler flag '+testFlag)
+            self.logPrint('Rejected', language, 'compiler flag', testFlag)
         except RuntimeError:
-          self.logPrint('Rejected '+language+' compiler flag '+testFlag)
+          self.logPrint('Rejected', language, 'compiler flag', testFlag)
       self.setCompilers.popLanguage()
       self.logWrite(self.setCompilers.restoreLog())
     return

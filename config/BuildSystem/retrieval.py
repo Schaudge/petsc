@@ -89,7 +89,7 @@ Unable to download package %s from: %s
     return f(url, root, package)
 
   def dirRetrieve(self, url, root, package):
-    self.logPrint('Retrieving %s as directory' % url, 3, 'install')
+    self.logPrint('Retrieving',url,'as directory', debugLevel = 3, debugSection = 'install')
     d = self.removePrefix(url, 'dir://')
     if not os.path.isdir(d): raise RuntimeError('URL %s is not a directory' % url)
 
@@ -98,7 +98,7 @@ Unable to download package %s from: %s
     shutil.copytree(d,t)
 
   def linkRetrieve(self, url, root, package):
-    self.logPrint('Retrieving %s as link' % url, 3, 'install')
+    self.logPrint('Retrieving',url,'as link', debugLevel = 3, debugSection = 'install')
     d = self.removePrefix(url, 'link://')
     if not os.path.isdir(d): raise RuntimeError('URL %s is not pointing to a directory' % url)
 
@@ -107,7 +107,7 @@ Unable to download package %s from: %s
     os.symlink(os.path.abspath(d),t)
 
   def gitRetrieve(self, url, root, package):
-    self.logPrint('Retrieving %s as git repo' % url, 3, 'install')
+    self.logPrint('Retrieving', url, 'as git repo', debugLevel = 3, debugSection = 'install')
     if not hasattr(self.sourceControl, 'git'):
       raise RuntimeError('self.sourceControl.git not set')
     d = self.removePrefix(url, 'git://')
@@ -120,13 +120,13 @@ Unable to download package %s from: %s
     try:
       config.base.Configure.executeShellCommand('%s clone %s %s' % (self.sourceControl.git, d, newgitrepo), log = self.log)
     except  RuntimeError as e:
-      self.logPrint('ERROR: '+str(e))
+      self.logPrint('ERROR:',e)
       err = str(e)
       failureMessage = self.getDownloadFailureMessage(package, url)
       raise RuntimeError('Unable to clone '+package+'\n'+err+failureMessage)
 
   def hgRetrieve(self, url, root, package):
-    self.logPrint('Retrieving %s as hg repo' % url, 3, 'install')
+    self.logPrint('Retrieving',url,'as hg repo', debugLevel = 3, debugSection = 'install')
     if not hasattr(self.sourceControl, 'hg'):
       raise RuntimeError('self.sourceControl.hg not set')
     d = self.removePrefix(url, 'hg://')
@@ -136,7 +136,7 @@ Unable to download package %s from: %s
     try:
       config.base.Configure.executeShellCommand('%s clone %s %s' % (self.sourceControl.hg, d, newgitrepo), log = self.log)
     except  RuntimeError as e:
-      self.logPrint('ERROR: '+str(e))
+      self.logPrint('ERROR:',e)
       err = str(e)
       failureMessage = self.getDownloadFailureMessage(package, url)
       raise RuntimeError('Unable to clone '+package+'\n'+err+failureMessage)
@@ -145,7 +145,7 @@ Unable to download package %s from: %s
     parsed = urlparse_local.urlparse(url)
     filename = os.path.basename(parsed[2])
     localFile = os.path.join(root,'_d_'+filename)
-    self.logPrint('Retrieving %s as tarball to %s' % (url,localFile) , 3, 'install')
+    self.logPrint('Retrieving', url, 'as tarball to',localFile , debugLevel = 3, debugSection = 'install')
     ext =  os.path.splitext(localFile)[1]
     if ext not in ['.bz2','.tbz','.gz','.tgz','.zip','.ZIP']:
       raise RuntimeError('Unknown compression type in URL: '+ url)
@@ -171,7 +171,7 @@ Unable to download package %s from: %s
         failureMessage = self.getDownloadFailureMessage(package, url, filename)
         raise RuntimeError(failureMessage)
 
-    self.logPrint('Extracting '+localFile)
+    self.logPrint('Extracting',localFile)
     if ext in ['.zip','.ZIP']:
       config.base.Configure.executeShellCommand('cd '+root+'; unzip '+localFile, log = self.log)
       output = config.base.Configure.executeShellCommand('cd '+root+'; zipinfo -1 '+localFile+' | head -n 1', log = self.log)
