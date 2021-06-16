@@ -5,6 +5,9 @@ PetscFunctionList MLRegressorList              = NULL;
 
 PetscClassId MLREGRESSOR_CLASSID;
 
+/* Logging support */
+PetscLogEvent MLRegressor_SetUp, MLRegressor_Fit, MLRegressor_Predict;
+
 PetscErrorCode MLRegressorRegister(const char sname[],PetscErrorCode (*function)(MLRegressor))
 {
   PetscErrorCode ierr;
@@ -34,6 +37,48 @@ PetscErrorCode MLRegressorCreate(MPI_Comm comm,MLRegressor *newmlregressor)
   mlregressor->target = NULL;
   
   *newmlregressor = mlregressor;
+  PetscFunctionReturn(0);
+}
+
+/*@
+   MLRegressorSetUp - Sets up the internal data structures for the later use
+   of a regressor.
+
+   Collective on MLRegressor
+
+   Input Parameters:
+.  mlregressor - the MLRegressor context
+
+   Notes:
+   For basic use of the MLRegressor solvers the user need not explicitly call
+   MLRegressorSetUp(), since these actions will automatically occur during
+   the call to MLRegressorFit().  However, if one wishes to control this
+   phase separately, MLRegressorSetUp() should be called after MLRegressorCreate()
+   and optional routines of the form MLRegressorSetXXX(), but before MLRegressorFit().
+
+   Level: advanced
+
+.seealso: MLRegressorCreate(), MLRegressorFit(), MLRegressorDestroy()
+@*/
+PetscErrorCode MLRegressorSetUp(MLRegressor mlregressor)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  if (mlregressor->setupcalled) PetscFunctionReturn(0);
+  ierr = PetscLogEventBegin(MLRegressor_SetUp,mlregressor,0,0,0);CHKERRQ(ierr);
+
+  if (!((PetscObject)mlregressor)->type_name) {
+    ierr = MLRegressorSetType(mlregressor,MLREGRESSORLINEAR);CHKERRQ(ierr);
+  }
+
+  if (mlregressor->ops->setup) {
+    ierr = (*mlregressor->ops->setup)(mlregressor);CHKERRQ(ierr);
+  }
+
+  ierr = PetscLogEventEnd(MLRegressor_SetUp,mlregressor,0,0,0);CHKERRQ(ierr);
+  mlregressor->setupcalled = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
 

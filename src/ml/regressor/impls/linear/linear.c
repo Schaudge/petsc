@@ -3,6 +3,8 @@
 PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
 {
   PetscFunctionBegin;
+  // TODO: This routine will need to call MLRegressorLinearGetKSP if the KSP does not exist.
+  // This does not happen at the interface level (as in SNESSetUp) since not all MLRegressors have a KSP.
   PetscFunctionReturn(0);
 }
 

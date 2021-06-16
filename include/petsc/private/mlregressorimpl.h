@@ -7,7 +7,7 @@
 PETSC_EXTERN PetscBool MLRegressorRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode MLRegressorRegisterAll(void);
 
-typedef struct _MLRegressorOps *MRegressorOps;
+typedef struct _MLRegressorOps *MLRegressorOps;
 
 struct _MLRegressorOps {
   PetscErrorCode (*setup)(MLRegressor);
@@ -29,5 +29,9 @@ struct _p_MLRegressor {
   Mat       training;     /* Matrix holding the training data set */
   Vec       target;       /* Targets for training data (response variables or labels) */
 };
+
+PETSC_EXTERN PetscLogEvent MLRegressor_SetUp;
+PETSC_EXTERN PetscLogEvent MLRegressor_Fit;
+PETSC_EXTERN PetscLogEvent MLRegressor_Predict;
 
 #endif
