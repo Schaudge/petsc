@@ -27,9 +27,10 @@ typedef struct {
   Vec P;                                             /* primal VECNEST containing X, Sc, Scu, Scl, Sxl, Sxu */
   Vec S;                                             /* slack VECNEST containing Sc, Scu, Scl, Sxl, Sxu */
   Vec Y;                                             /* dual VECNEST containing Yi, Ye, Vl, Vu, Zl, Vu */
+  Vec Ys;                                            /* dual VECNEST containing only inequality terms */
   Vec F;                                             /* full-space VECNEST containing everything */
   Vec R;                                             /* reduced primal-dual VECNEST containg X, Yi, Ye */
-  PetscInt nF, nP, nS, nY, nR;                       /* block sizing of combined vector spaces */
+  PetscInt nF, nP, nS, nY, nYs, nR;                  /* block sizing of combined vector spaces */
 } FullSpaceVec;
 
 typedef struct {
@@ -39,7 +40,7 @@ typedef struct {
   PetscInt         Np, Ns, Ny, Nr, Nf;               /* vector sizing of combined vector spaces */
   PetscInt         k, kmax;                          /* MAD history size */
   PetscInt         nupdates, nresets;                /* information counters */
-  PetscReal        mu, mu_r, mu_g;                   /* log-barrier parameters */
+  PetscReal        mu, mu_r, mu_g, mu_min, mu_max;   /* log-barrier parameters */
   PetscReal        eta, beta, rcond;                 /* MAD parameters */
   PetscReal        slack_init;                       /* safeguard for initial slack values */
   PetscReal        gnorm, cnorm;                     /* convergence norms */
@@ -100,7 +101,7 @@ PETSC_INTERN PetscErrorCode TaoMADComputeReducedKKT(Tao,FullSpaceVec*,FullSpaceV
 PETSC_INTERN PetscErrorCode TaoMADEvaluateClosedFormUpdates(Tao,FullSpaceVec*,FullSpaceVec*,FullSpaceVec*);
 PETSC_INTERN PetscErrorCode TaoMADTestFractionToBoundary(Tao,Vec,PetscReal,Vec,PetscBool*);
 PETSC_INTERN PetscErrorCode TaoMADEstimateMaxAlphas(Tao,FullSpaceVec*,FullSpaceVec*,PetscReal*,PetscReal*);
-PETSC_INTERN PetscErrorCode TaoMADApplyFilterStep(Tao,FullSpaceVec*,FullSpaceVec*,Lagrangian*,FullSpaceVec*,PetscBool*);
+PETSC_INTERN PetscErrorCode TaoMADApplyFilterStep(Tao,FullSpaceVec*,FullSpaceVec*,Lagrangian*,FullSpaceVec*,PetscReal*);
 PETSC_INTERN PetscErrorCode TaoMADUpdateFilter(Tao,PetscReal,PetscReal,PetscReal);
 PETSC_INTERN PetscErrorCode TaoMADUpdateBarrier(Tao,FullSpaceVec*,PetscReal*);
 PETSC_INTERN PetscErrorCode TaoMADCheckConvergence(Tao,Lagrangian*,FullSpaceVec*,PetscReal);

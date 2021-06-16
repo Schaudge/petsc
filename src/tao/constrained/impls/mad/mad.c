@@ -7,10 +7,9 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
   TAO_MAD            *mad = (TAO_MAD*)tao->data;
   Mat                AeT, AiT;
   Vec                Xb, Cb, Qtmp, Gtmp;
-  PetscReal          ginf, cnorm2;
+  PetscReal          ginf, cnorm2, alpha;
   PetscScalar        *Ae_norms, *Ai_norms, *riTr, *ga, *gg, *rhs;
   PetscInt           i, j, *idx;
-  PetscBool          step_failed;
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
@@ -109,17 +108,14 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
   ierr = VecScale(mad->D->R, -1.0);CHKERRQ(ierr);
   ierr = TaoMADEvaluateClosedFormUpdates(tao, mad->Q, mad->dLdQ, mad->D);CHKERRQ(ierr);
   /* check the new point against the filter (only contains initial iterate here) */
-  ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &step_failed);CHKERRQ(ierr);
-  ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, 1.0);
-  if (step_failed) tao->reason = TAO_DIVERGED_LS_FAILURE;
+  ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &alpha);CHKERRQ(ierr);
+  ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, alpha);
+  if (alpha == 0.0) tao->reason = TAO_DIVERGED_LS_FAILURE;
   if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(0);
 
   while (tao->reason == TAO_CONTINUE_ITERATING) {
     ++tao->niter;
     /* Lagrangian and gradient were updated during filter search but we need to update barrier and get reduced KKT */
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");
-    ierr = VecView(mad->Q->X, PETSC_VIEWER_STDOUT_WORLD);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "\n");
     ierr = TaoMADUpdateBarrier(tao, mad->Q, &mad->mu);CHKERRQ(ierr);
     ierr = TaoMADComputeReducedKKT(tao, mad->Q, mad->dLdQ, mad->G);CHKERRQ(ierr);
 
@@ -133,13 +129,14 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
         mad->GR[i] = mad->GR[i+1];
       }
       mad->QR[mad->kmax-1] = Qtmp;
-      mad->QR[mad->kmax-1] = Gtmp;
+      mad->GR[mad->kmax-1] = Gtmp;
       mad->k -= 1;
     }
     ierr = VecWAXPY(mad->QR[mad->k], -1.0, mad->Qprev->R, mad->Q->R);CHKERRQ(ierr);
     ierr = VecWAXPY(mad->GR[mad->k], -1.0, mad->Gprev->R, mad->G->R);CHKERRQ(ierr);
     ierr = VecAXPY(mad->GR[mad->k], mad->beta, mad->QR[mad->k]);CHKERRQ(ierr);  /* Tikhonov regularization */
     mad->k += 1;
+    mad->nupdates += 1;
 
     /* store current point as previous for future updates */
     ierr = VecCopy(mad->Q->F, mad->Qprev->F);CHKERRQ(ierr);
@@ -176,8 +173,9 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
         ierr = VecRestoreArray(mad->Gseq, &rhs);CHKERRQ(ierr);
         /* trigger LAPACK least squares solver with truncated SVD */
         ierr = PetscBLASIntCast(mad->k, &mad->nsize);CHKERRQ(ierr);
+        ierr = PetscBLASIntCast(PetscMax(mad->Nr, mad->k), &mad->ldb);CHKERRQ(ierr);
         ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
-        PetscStackCallBLAS("LAPACKgelss",LAPACKgelss_(&mad->msize,&mad->nsize,&mad->nrhs,mad->GRarr,&mad->msize,mad->rhs,&mad->msize,mad->sigma,&mad->rcond,&mad->rank,mad->work,&mad->lwork,&mad->info));
+        PetscStackCallBLAS("LAPACKgelss",LAPACKgelss_(&mad->msize,&mad->nsize,&mad->nrhs,mad->GRarr,&mad->lda,mad->rhs,&mad->ldb,mad->sigma,&mad->rcond,&mad->rank,mad->work,&mad->lwork,&mad->info));
         ierr = PetscFPTrapPop();CHKERRQ(ierr);
         if (mad->info < 0) SETERRQ(PetscObjectComm((PetscObject)tao),PETSC_ERR_LIB,"Bad argument to GELSS");
         if (mad->info > 0) SETERRQ(PetscObjectComm((PetscObject)tao),PETSC_ERR_LIB,"SVD failed to converge");
@@ -242,8 +240,8 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
     ierr = TaoMADEvaluateClosedFormUpdates(tao, mad->Q, mad->dLdQ, mad->D);CHKERRQ(ierr);
 
     /* check the new point against the filter*/
-    ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &step_failed);CHKERRQ(ierr);
-    if (step_failed) {
+    ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &alpha);CHKERRQ(ierr);
+    if (alpha == 0.0) {
       /* couldn't find a valid step length, reset back to previous solution */
       ierr = VecCopy(mad->Qprev->F, mad->Q->F);CHKERRQ(ierr);
       ierr = VecCopy(mad->dLdQprev->F, mad->dLdQ->F);CHKERRQ(ierr);
@@ -253,11 +251,15 @@ static PetscErrorCode TaoSolve_MAD(Tao tao)
       ierr = VecCopy(mad->G->R, mad->D->R);CHKERRQ(ierr);
       ierr = VecScale(mad->D->R, -1.0);CHKERRQ(ierr);
       ierr = TaoMADEvaluateClosedFormUpdates(tao, mad->Q, mad->dLdQ, mad->D);CHKERRQ(ierr);
-      ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &step_failed);CHKERRQ(ierr);
-      if (!step_failed) mad->k = 0;  /* gradient descent worked so let's just reset MAD and start fresh */
+      ierr = TaoMADApplyFilterStep(tao, mad->Q, mad->D, mad->L, mad->dLdQ, &alpha);CHKERRQ(ierr);
+      if (alpha != 0.0) {
+        /* gradient descent worked so let's just reset MAD and start fresh */
+        mad->k = 0;
+        mad->nresets += 1;
+      }
     }
-    ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, 1.0);
-    if (step_failed) tao->reason = TAO_DIVERGED_LS_FAILURE;
+    ierr = TaoMADCheckConvergence(tao, mad->L, mad->dLdQ, alpha);
+    if (alpha == 0.0) tao->reason = TAO_DIVERGED_LS_FAILURE;
     if (tao->reason != TAO_CONTINUE_ITERATING) PetscFunctionReturn(0);
   }
   PetscFunctionReturn(0);
@@ -412,7 +414,7 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
 
   /* determine workspace size needed for LAPACK */
   if (mad->subsolver_type == TAO_MAD_SUBSOLVER_SVD) {
-    ierr = PetscCalloc3(mad->Nr*mad->kmax, &mad->GRarr, mad->Nr, &mad->rhs, mad->Nr, &mad->sigma);CHKERRQ(ierr);
+    ierr = PetscCalloc3(mad->Nr*mad->kmax, &mad->GRarr, mad->kmax, &mad->rhs, PetscMin(mad->Nr, mad->kmax), &mad->sigma);CHKERRQ(ierr);
     ierr = PetscBLASIntCast(mad->Nr, &mad->msize);CHKERRQ(ierr);
     ierr = PetscBLASIntCast(mad->kmax, &mad->nsize);CHKERRQ(ierr);
     mad->lda = mad->msize;
@@ -585,13 +587,15 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   tao->crtol = 0.0;
 
   tao->data           = (void*)mad;
-  mad->mu             = 1.0;
+  mad->mu             = 100.0;
   mad->mu_r           = 0.95;
   mad->mu_g           = 0.1;
+  mad->mu_min         = PETSC_MACHINE_EPSILON;
+  mad->mu_max         = 1e5;
   mad->k              = 0;
   mad->kmax           = 30;
-  mad->eta            = 0.1;
-  mad->beta           = 0.5;
+  mad->eta            = 0.5;
+  mad->beta           = 0.2;
   mad->rcond          = 1e-8;
   mad->scale_max      = 100.0;
   mad->slack_init     = 1.0;
@@ -600,7 +604,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   mad->tau_min        = 0.99;
   mad->suff_decr      = 1e-6;
   mad->unconstrained  = PETSC_TRUE;
-  mad->subsolver_type = TAO_MAD_SUBSOLVER_NORMAL;
+  mad->subsolver_type = TAO_MAD_SUBSOLVER_SVD;
   mad->pre            = NULL;
 
   mad->Q              = Q;
@@ -617,7 +621,7 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   mad->Lprev          = Lprev;
   mad->Ltrial         = Ltrial;
 
-  mad->filter_type    = TAO_MAD_FILTER_MARKOV;
+  mad->filter_type    = TAO_MAD_FILTER_BARRIER;
   mad->filter         = filter;
   filter->max_size    = 10*mad->kmax;
   filter->size        = 0;

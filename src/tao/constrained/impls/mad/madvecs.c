@@ -17,15 +17,15 @@ PetscErrorCode LagrangianCopy(Lagrangian *source, Lagrangian *target)
 
 PetscErrorCode FullSpaceVecCreate(FullSpaceVec *Q)
 {
-  Vec            *Farr, *Rarr, *Parr, *Sarr, *Yarr;
-  PetscInt       fi, ri, pi, si, yi;
+  Vec            *Farr, *Rarr, *Parr, *Sarr, *Yarr, *Ysarr;
+  PetscInt       fi, ri, pi, si, yi, ys;
   MPI_Comm       comm = PetscObjectComm((PetscObject)Q->X);
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   /* first count the sizing of arrays and name the vectors */
   ierr = VecSetOptionsPrefix(Q->X, "mad_x_");CHKERRQ(ierr);
-  Q->nF = 1; Q->nR = 1; Q->nP = 1; Q->nS = 0; Q->nY = 0;
+  Q->nF = 1; Q->nR = 1; Q->nP = 1; Q->nS = 0; Q->nY = 0; Q->nYs = 0;
   if (Q->Sc) {
     ierr = VecSetOptionsPrefix(Q->Sc, "mad_sc_");CHKERRQ(ierr);
     Q->nF += 1; Q->nP += 1; Q->nS += 1;
@@ -48,7 +48,7 @@ PetscErrorCode FullSpaceVecCreate(FullSpaceVec *Q)
     }
   if (Q->Yi) {
     ierr = VecSetOptionsPrefix(Q->Yi, "mad_yi_");CHKERRQ(ierr);
-    Q->nF += 1; Q->nR += 1; Q->nY += 1;
+    Q->nF += 1; Q->nR += 1; Q->nY += 1; Q->nYs += 1;
   }
   if (Q->Ye)  {
     ierr = VecSetOptionsPrefix(Q->Ye, "mad_ye_");CHKERRQ(ierr);
@@ -56,34 +56,36 @@ PetscErrorCode FullSpaceVecCreate(FullSpaceVec *Q)
   }
   if (Q->Vl) {
     ierr = VecSetOptionsPrefix(Q->Vl, "mad_vl_");CHKERRQ(ierr);
-    Q->nF += 1; Q->nY += 1;
+    Q->nF += 1; Q->nY += 1; Q->nYs += 1;
   }
   if (Q->Vu) {
     ierr = VecSetOptionsPrefix(Q->Vu, "mad_vu_");CHKERRQ(ierr);
-    Q->nF += 1; Q->nY += 1;
+    Q->nF += 1; Q->nY += 1; Q->nYs += 1;
   }
   if (Q->Zl) {
     ierr = VecSetOptionsPrefix(Q->Zl, "mad_zl_");CHKERRQ(ierr);
-    Q->nF += 1; Q->nY += 1;
+    Q->nF += 1; Q->nY += 1; Q->nYs += 1;
   }
   if (Q->Zu) {
     ierr = VecSetOptionsPrefix(Q->Zu, "mad_zu_");CHKERRQ(ierr);
-    Q->nF += 1; Q->nY += 1;
+    Q->nF += 1; Q->nY += 1; Q->nYs += 1;
   }
-  ierr = PetscMalloc5(Q->nF, &Farr, Q->nR, &Rarr, Q->nP, &Parr, Q->nS, &Sarr, Q->nY, &Yarr);CHKERRQ(ierr);
-  fi = 0; ri = 0; pi = 0;  si = 0; yi = 0;
+  /* construct arrays to hold vector pointers for each vector subspace */
+  ierr = PetscMalloc6(Q->nF, &Farr, Q->nR, &Rarr, Q->nP, &Parr, Q->nS, &Sarr, Q->nY, &Yarr, Q->nYs, &Ysarr);CHKERRQ(ierr);
+  fi = 0; ri = 0; pi = 0;  si = 0; yi = 0; ys = 0;
   Rarr[ri++] = Q->X; Farr[fi++] = Q->X; Parr[pi++] = Q->X;
   if (Q->Sc)  { Farr[fi++] = Q->Sc;   Parr[pi++] = Q->Sc;   Sarr[si++] = Q->Sc;  }
   if (Q->Scl) { Farr[fi++] = Q->Scl;  Parr[pi++] = Q->Scl;  Sarr[si++] = Q->Scl; }
   if (Q->Scu) { Farr[fi++] = Q->Scu;  Parr[pi++] = Q->Scu;  Sarr[si++] = Q->Scu; }
   if (Q->Sxl) { Farr[fi++] = Q->Sxl;  Parr[pi++] = Q->Sxl;  Sarr[si++] = Q->Sxl; }
   if (Q->Sxu) { Farr[fi++] = Q->Sxu;  Parr[pi++] = Q->Sxu;  Sarr[si++] = Q->Sxu; }
-  if (Q->Yi)  { Farr[fi++] = Q->Yi;   Rarr[ri++] = Q->Yi;   Yarr[yi++] = Q->Yi;  }
+  if (Q->Yi)  { Farr[fi++] = Q->Yi;   Rarr[ri++] = Q->Yi;   Yarr[yi++] = Q->Yi;  Ysarr[ys++] = Q->Yi;  }
   if (Q->Ye)  { Farr[fi++] = Q->Ye;   Rarr[ri++] = Q->Ye;   Yarr[yi++] = Q->Ye;  }
-  if (Q->Vl)  { Farr[fi++] = Q->Vl;   Yarr[yi++] = Q->Vl; }
-  if (Q->Vu)  { Farr[fi++] = Q->Vu;   Yarr[yi++] = Q->Vu; }
-  if (Q->Zl)  { Farr[fi++] = Q->Zl;   Yarr[yi++] = Q->Zl; }
-  if (Q->Zu)  { Farr[fi++] = Q->Zu;   Yarr[yi++] = Q->Zu; }
+  if (Q->Vl)  { Farr[fi++] = Q->Vl;   Yarr[yi++] = Q->Vl;  Ysarr[ys++] = Q->Vl;  }
+  if (Q->Vu)  { Farr[fi++] = Q->Vu;   Yarr[yi++] = Q->Vu;  Ysarr[ys++] = Q->Vu;  }
+  if (Q->Zl)  { Farr[fi++] = Q->Zl;   Yarr[yi++] = Q->Zl;  Ysarr[ys++] = Q->Zl;  }
+  if (Q->Zu)  { Farr[fi++] = Q->Zu;   Yarr[yi++] = Q->Zu;  Ysarr[ys++] = Q->Zu;  }
+  /* create all the nested vectors in the structure */
   ierr = VecCreateNest(comm, Q->nF, NULL, Farr, &Q->F);CHKERRQ(ierr);
   ierr = VecSetOptionsPrefix(Q->F, "mad_q_");CHKERRQ(ierr);
   ierr = VecCreateNest(comm, Q->nR, NULL, Rarr, &Q->R);CHKERRQ(ierr);
@@ -98,30 +100,36 @@ PetscErrorCode FullSpaceVecCreate(FullSpaceVec *Q)
     ierr = VecCreateNest(comm, Q->nY, NULL, Yarr, &Q->Y);CHKERRQ(ierr);
     ierr = VecSetOptionsPrefix(Q->Y, "mad_qy_");CHKERRQ(ierr);
   }
+  if (Q->nYs > 0) {
+    ierr = VecCreateNest(comm, Q->nYs, NULL, Ysarr, &Q->Ys);CHKERRQ(ierr);
+    ierr = VecSetOptionsPrefix(Q->Ys, "mad_qys_");CHKERRQ(ierr);
+  }
+  /* clean up -- we only destroy Farr pointers, and it will clean up everything else */
   for (fi=0; fi<Q->nF; fi++) {
     ierr = VecDestroy(&Farr[fi]);CHKERRQ(ierr);
   }
-  ierr = PetscFree5(Farr, Rarr, Parr, Sarr, Yarr);CHKERRQ(ierr);
+  ierr = PetscFree6(Farr, Rarr, Parr, Sarr, Yarr, Ysarr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode FullSpaceVecDuplicate(FullSpaceVec *source, FullSpaceVec *target)
 {
-  Vec            *vb, *Rarr, *Parr, *Sarr, *Yarr;
-  PetscInt       i=0, ri=0, pi=0, si=0, yi=0;
+  Vec            *vb, *Rarr, *Parr, *Sarr, *Yarr, *Ysarr;
+  PetscInt       i=0, ri=0, pi=0, si=0, yi=0, ys=0;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscMalloc1(source->nR, &Rarr);CHKERRQ(ierr);
-  ierr = PetscMalloc1(source->nP, &Parr);CHKERRQ(ierr);
-  ierr = PetscMalloc1(source->nS, &Sarr);CHKERRQ(ierr);
-  ierr = PetscMalloc1(source->nY, &Yarr);CHKERRQ(ierr);
+  /* create arrays to hold vector pointers in different subspaces */
+  ierr = PetscMalloc5(source->nR, &Rarr, source->nP, &Parr, source->nS, &Sarr, source->nY, &Yarr, source->nYs, &Ysarr);CHKERRQ(ierr);
+  /* duplicate he full-space VECNEST first, this will create all the sub-vectors we need */
   target->nF = source->nF;
   ierr = VecDuplicate(source->F, &target->F);CHKERRQ(ierr);
   ierr = VecSetOptionsPrefix(target->F, "mad_f_");CHKERRQ(ierr);
+  /* get the array of full-space subvecs */
   ierr = VecNestGetSubVecs(target->F, NULL, &vb);CHKERRQ(ierr);
   target->X = vb[i++];
   ierr = VecSetOptionsPrefix(target->X, "mad_x_");CHKERRQ(ierr);
+  /* assign full-space subvects to the correct element of the structure, and accumulate arrays for other nested vectors */
   Rarr[ri++] = target->X;
   Parr[pi++] = target->X;
   if (source->Sc) {
@@ -145,7 +153,7 @@ PetscErrorCode FullSpaceVecDuplicate(FullSpaceVec *source, FullSpaceVec *target)
     ierr = VecSetOptionsPrefix(target->Sxu, "mad_sxu_");CHKERRQ(ierr);
   }
   if (source->Yi) {
-    target->Yi = vb[i++];   Rarr[ri++] = target->Yi;   Yarr[yi++] = target->Yi;
+    target->Yi = vb[i++];   Rarr[ri++] = target->Yi;   Yarr[yi++] = target->Yi;   Ysarr[ys++] = target->Yi;
     ierr = VecSetOptionsPrefix(target->Yi, "mad_yi_");CHKERRQ(ierr);
   }
   if (source->Ye) {
@@ -153,21 +161,22 @@ PetscErrorCode FullSpaceVecDuplicate(FullSpaceVec *source, FullSpaceVec *target)
     ierr = VecSetOptionsPrefix(target->Ye, "mad_ye_");CHKERRQ(ierr);
   }
   if (source->Vl) {
-    target->Vl = vb[i++];   Yarr[yi++] = target->Vl;
+    target->Vl = vb[i++];   Yarr[yi++] = target->Vl;   Ysarr[ys++] = target->Vl;
     ierr = VecSetOptionsPrefix(target->Vl, "mad_vl_");CHKERRQ(ierr);
   }
   if (source->Vu) {
-    target->Vu = vb[i++];   Yarr[yi++] = target->Vu;
+    target->Vu = vb[i++];   Yarr[yi++] = target->Vu;   Ysarr[ys++] = target->Vu;
     ierr = VecSetOptionsPrefix(target->Vu, "mad_vu_");CHKERRQ(ierr);
   }
   if (source->Zl) {
-    target->Zl = vb[i++];   Yarr[yi++] = target->Zl;
+    target->Zl = vb[i++];   Yarr[yi++] = target->Zl;   Ysarr[ys++] = target->Zl;
     ierr = VecSetOptionsPrefix(target->Zl, "mad_zl_");CHKERRQ(ierr);
   }
   if (source->Zu) {
-    target->Zu = vb[i++];   Yarr[yi++] = target->Zu;
+    target->Zu = vb[i++];   Yarr[yi++] = target->Zu;   Ysarr[ys++] = target->Zu;
     ierr = VecSetOptionsPrefix(target->Zu, "mad_zu_");CHKERRQ(ierr);
   }
+  /* create all the necessary nested vectors (we already have full-space nested vec from the duplication) */
   target->nR = source->nR;
   ierr = VecCreateNest(PetscObjectComm((PetscObject)source->X), target->nR, NULL, Rarr, &target->R);CHKERRQ(ierr);
   ierr = VecSetOptionsPrefix(target->R, "mad_r_");CHKERRQ(ierr);
@@ -184,16 +193,19 @@ PetscErrorCode FullSpaceVecDuplicate(FullSpaceVec *source, FullSpaceVec *target)
     ierr = VecCreateNest(PetscObjectComm((PetscObject)source->X), target->nY, NULL, Yarr, &target->Y);CHKERRQ(ierr);
     ierr = VecSetOptionsPrefix(target->Y, "mad_y_");CHKERRQ(ierr);
   }
+  target->nYs = source->nYs;
+  if (target->nYs > 0) {
+    ierr = VecCreateNest(PetscObjectComm((PetscObject)source->X), target->nYs, NULL, Ysarr, &target->Ys);CHKERRQ(ierr);
+    ierr = VecSetOptionsPrefix(target->Ys, "mad_ys_");CHKERRQ(ierr);
+  }
+  /* clean up, we only need to destroy primal and dual arrays, rest goes away on its own */
   for (pi=0; pi<target->nP; pi++) {
     ierr = VecDestroy(&Parr[pi]);CHKERRQ(ierr);
   }
   for (yi=0; yi<target->nY; yi++) {
     ierr = VecDestroy(&Yarr[yi]);CHKERRQ(ierr);
   }
-  ierr = PetscFree(Rarr);CHKERRQ(ierr);
-  ierr = PetscFree(Parr);CHKERRQ(ierr);
-  ierr = PetscFree(Sarr);CHKERRQ(ierr);
-  ierr = PetscFree(Yarr);CHKERRQ(ierr);
+  ierr = PetscFree5(Rarr, Parr, Sarr, Yarr, Ysarr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -207,6 +219,7 @@ PetscErrorCode FullSpaceVecDestroy(FullSpaceVec *Q)
   ierr = VecDestroy(&Q->P);CHKERRQ(ierr);
   ierr = VecDestroy(&Q->S);CHKERRQ(ierr);
   ierr = VecDestroy(&Q->Y);CHKERRQ(ierr);
+  ierr = VecDestroy(&Q->Ys);CHKERRQ(ierr);
   ierr = PetscFree(Q);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

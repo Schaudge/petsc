@@ -347,7 +347,7 @@ PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D
     PetscFunctionReturn(0);
   }
   /* compute fraction-to-the-boundary parameter */
-  mad->tau = PetscMin(mad->tau_min, mad->mu);
+  mad->tau = PetscMax(mad->tau_min, mad->mu);
   /* first estimate the primal step */
   alpha_trial = 1.0;
   ftb_violated = PETSC_FALSE;
@@ -371,6 +371,7 @@ PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D
     }
     if (ftb_violated) {
       alpha_trial *= mad->alpha_fac;
+      ftb_violated = PETSC_FALSE;
     } else {
       break;
     }
@@ -400,6 +401,7 @@ PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D
     }
     if (ftb_violated) {
       alpha_trial *= mad->alpha_fac;
+      ftb_violated = PETSC_FALSE;
     } else {
       break;
     }
@@ -409,26 +411,28 @@ PetscErrorCode TaoMADEstimateMaxAlphas(Tao tao, FullSpaceVec *Q, FullSpaceVec *D
 }
 
 PetscErrorCode TaoMADApplyFilterStep(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, Lagrangian *L,
-                                     FullSpaceVec *dLdQ, PetscBool *dominated)
+                                     FullSpaceVec *dLdQ, PetscReal *alpha)
 {
   TAO_MAD            *mad = (TAO_MAD*)tao->data;
   SimpleFilter       *filter = mad->filter;
   PetscReal          cnorm2, dfTdx, dcTdc, dsTs;
   PetscReal          suff_f, suff_h;
-  PetscReal          alpha_p, alpha_y;
+  PetscReal          alpha_p, alpha_y, alpha_t;
   PetscReal          merit, merit_filter;
   PetscInt           i;
+  PetscBool          dominated;
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
   /* use fraction-to-the-boundary rule to estimate maximum step lengths */
   ierr = TaoMADEstimateMaxAlphas(tao, Q, D, &alpha_p, &alpha_y);CHKERRQ(ierr);
-  *dominated = PETSC_FALSE;
+  dominated = PETSC_FALSE;
+  alpha_t = 1.0;
   if (mad->filter_type == TAO_MAD_FILTER_NONE) {
     /* just accept the max step length, ignore filter */
-    ierr = VecAXPY(Q->P, alpha_p, D->P);CHKERRQ(ierr);
+    ierr = VecAXPY(Q->P, alpha_t*alpha_p, D->P);CHKERRQ(ierr);
     if (Q->Y) {
-      ierr = VecAXPY(Q->Y, alpha_y, D->Y);CHKERRQ(ierr);
+      ierr = VecAXPY(Q->Y, alpha_t*alpha_y, D->Y);CHKERRQ(ierr);
     }
     ierr = TaoMADComputeLagrangianAndGradient(tao, Q, L, dLdQ);CHKERRQ(ierr);
   } else {
@@ -447,11 +451,11 @@ PetscErrorCode TaoMADApplyFilterStep(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, 
     }
     suff_f = mad->suff_decr*(dfTdx + dsTs);
     /* enter the filter loop here */
-    while (alpha_p >= mad->alpha_min) {
+    while (alpha_t >= mad->alpha_min) {
       /* apply the trial step and compute objective and feasibility */
-      ierr = VecWAXPY(mad->Qtrial->P, alpha_p, D->P, Q->P);CHKERRQ(ierr);
+      ierr = VecWAXPY(mad->Qtrial->P, alpha_t*alpha_p, D->P, Q->P);CHKERRQ(ierr);
       if (Q->Y) {
-        ierr = VecWAXPY(mad->Qtrial->Y, alpha_y, D->Y, Q->Y);CHKERRQ(ierr);
+        ierr = VecWAXPY(mad->Qtrial->Y, alpha_t*alpha_y, D->Y, Q->Y);CHKERRQ(ierr);
       }
       ierr = TaoMADComputeLagrangianAndGradient(tao, mad->Qtrial, mad->Ltrial, mad->dLdQtrial);CHKERRQ(ierr);
       if (dLdQ->Y) {
@@ -465,7 +469,7 @@ PetscErrorCode TaoMADApplyFilterStep(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, 
         merit += mad->mu*mad->Ltrial->barrier;
       }
       /* iterate through the filter and compare the trial point */
-      *dominated = PETSC_FALSE;
+      dominated = PETSC_FALSE;
       for (i=0; i<filter->size; i++){
         if (mad->filter_type == TAO_MAD_FILTER_BARRIER) {
           /* re-evaluate the barrier function for the filter point using new barrier factor */
@@ -473,29 +477,27 @@ PetscErrorCode TaoMADApplyFilterStep(Tao tao, FullSpaceVec *Q, FullSpaceVec *D, 
         } else {
           merit_filter = filter->f[i];
         }
-        if ((merit > merit_filter + alpha_p*suff_f) && (cnorm2 > filter->h[i] + alpha_y*suff_h)) {
-          *dominated = PETSC_TRUE;
+        if ((merit > merit_filter + alpha_t*alpha_p*suff_f) && (cnorm2 > filter->h[i] + alpha_t*alpha_y*suff_h)) {
+          dominated = PETSC_TRUE;
           break;
         }
       }
-      if (*dominated) {
+      if (dominated) {
         /* if the filter dominates, shrink step length and try again */
-        alpha_p *= mad->alpha_fac;
+        alpha_t *= mad->alpha_fac;
       } else {
         /* we found a step so let's accept it */
-        ierr = VecCopy(mad->Qtrial->P, Q->P);CHKERRQ(ierr);
-        ierr = VecCopy(mad->dLdQtrial->P, dLdQ->P);CHKERRQ(ierr);
+        ierr = VecCopy(mad->Qtrial->F, Q->F);CHKERRQ(ierr);
+        ierr = VecCopy(mad->dLdQtrial->F, dLdQ->F);CHKERRQ(ierr);
         ierr = LagrangianCopy(mad->Ltrial, L);CHKERRQ(ierr);
-        if (Q->Y) {
-          ierr = VecCopy(mad->Qtrial->Y, Q->Y);CHKERRQ(ierr);
-          ierr = VecCopy(mad->dLdQtrial->Y, dLdQ->Y);CHKERRQ(ierr);
-        }
         /* we found a step length, add to filter and exit */
         ierr = TaoMADUpdateFilter(tao, L->obj, L->barrier, cnorm2);CHKERRQ(ierr);
         break;
       }
     }
   }
+  if (dominated) alpha_t = 0.0;
+  *alpha = alpha_t;
   PetscFunctionReturn(0);
 }
 
@@ -503,15 +505,17 @@ PetscErrorCode TaoMADUpdateFilter(Tao tao, PetscReal fval, PetscReal barrier, Pe
 {
   TAO_MAD            *mad = (TAO_MAD*)tao->data;
   SimpleFilter       *filter = mad->filter;
+  PetscReal          *new_f, *new_h, *new_b;
   PetscInt           i;
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
   if (filter->size == 0 && mad->filter_type != TAO_MAD_FILTER_NONE) {
     /* this is the first update ever so we have to create the arrays from scratch */
-    ierr = PetscMalloc2(1, &filter->f, 1, &filter->h);CHKERRQ(ierr);
+    filter->size += 1;
+    ierr = PetscMalloc2(filter->size, &filter->f, filter->size, &filter->h);CHKERRQ(ierr);
     if (mad->filter_type == TAO_MAD_FILTER_BARRIER) {
-      ierr = PetscMalloc1(1, &filter->b);CHKERRQ(ierr);
+      ierr = PetscMalloc1(filter->size, &filter->b);CHKERRQ(ierr);
     }
   }
 
@@ -522,6 +526,7 @@ PetscErrorCode TaoMADUpdateFilter(Tao tao, PetscReal fval, PetscReal barrier, Pe
     filter->size += 1;
     if (filter->size > filter->max_size) {
       /* we need to shift filter values and discard oldest to make room */
+      filter->size = filter->max_size;
       for (i=0; i<filter->max_size-1; i++) {
         filter->f[i] = filter->f[i+1];
         filter->h[i] = filter->h[i+1];
@@ -529,10 +534,20 @@ PetscErrorCode TaoMADUpdateFilter(Tao tao, PetscReal fval, PetscReal barrier, Pe
       }
     } else {
       /* resize filter arrays and add new point */
-      ierr = PetscRealloc(filter->size, &filter->f);CHKERRQ(ierr);
-      ierr = PetscRealloc(filter->size, &filter->h);CHKERRQ(ierr);
+      ierr = PetscMalloc2(filter->size, &new_f, filter->size, &new_h);CHKERRQ(ierr);
       if (mad->filter_type == TAO_MAD_FILTER_BARRIER) {
-        ierr = PetscRealloc(filter->size, &filter->b);CHKERRQ(ierr);
+        ierr = PetscMalloc1(filter->size, &new_b);CHKERRQ(ierr);
+      }
+      for (i=0; i<filter->size-1; i++) {
+        new_f[i] = filter->f[i];
+        new_h[i] = filter->h[i];
+        if (mad->filter_type == TAO_MAD_FILTER_BARRIER) new_b[i] = filter->b[i];
+      }
+      ierr = PetscFree2(filter->f, filter->h);CHKERRQ(ierr);
+      filter->f = new_f;  filter->h = new_h;
+      if (mad->filter_type == TAO_MAD_FILTER_BARRIER) {
+        ierr = PetscFree(filter->b);CHKERRQ(ierr);
+        filter->b = new_b;
       }
     }
     filter->f[filter->size-1] = fval;
@@ -547,74 +562,40 @@ PetscErrorCode TaoMADUpdateBarrier(Tao tao, FullSpaceVec *Q, PetscReal *mu)
 {
   TAO_MAD        *mad = (TAO_MAD*)tao->data;
   FullSpaceVec   *W = mad->W;
-  PetscReal      tmp, yTs, min_tmp, min_ys, xi, mu_aff;
+  PetscReal      yTs, min_ys, xi, mu_aff, mu_tmp;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (mad->unconstrained) PetscFunctionReturn(0);  /* unconstrained problem no-op */
   /* need dot product of slacks and multipliers, and min value of slacks times multipliers */
-  yTs = 0.0;
-  min_ys = PETSC_INFINITY;
-  if (tao->ineq_constrained) {
-    ierr = VecDot(Q->Yi, Q->Sc, &tmp);CHKERRQ(ierr);
-    yTs += tmp;
-    ierr = VecPointwiseMult(W->Yi, Q->Yi, Q->Sc);CHKERRQ(ierr);
-    ierr = VecMin(W->Yi, NULL, &min_tmp);CHKERRQ(ierr);
-    min_ys = PetscMin(min_ys, min_tmp);CHKERRQ(ierr);
-    if (mad->isIL) {
-      ierr = VecDot(Q->Vl, Q->Scl, &tmp);CHKERRQ(ierr);
-      yTs += tmp;
-      ierr = VecPointwiseMult(W->Vl, Q->Vl, Q->Scl);CHKERRQ(ierr);
-      ierr = VecMin(W->Vl, NULL, &min_tmp);CHKERRQ(ierr);
-      min_ys = PetscMin(min_ys, min_tmp);CHKERRQ(ierr);
-    }
-    if (mad->isIU) {
-      ierr = VecDot(Q->Vu, Q->Scu, &tmp);CHKERRQ(ierr);
-      yTs += tmp;
-      ierr = VecPointwiseMult(W->Vu, Q->Vl, Q->Scu);CHKERRQ(ierr);
-      ierr = VecMin(W->Vu, NULL, &min_tmp);CHKERRQ(ierr);
-      min_ys = PetscMin(min_ys, min_tmp);CHKERRQ(ierr);
-    }
-  }
-  if (tao->bounded) {
-    if (mad->isXL) {
-      ierr = VecDot(Q->Zl, Q->Sxl, &tmp);CHKERRQ(ierr);
-      yTs += tmp;
-      ierr = VecPointwiseMult(W->Zl, Q->Zl, Q->Sxl);CHKERRQ(ierr);
-      ierr = VecMin(W->Zl, NULL, &min_tmp);CHKERRQ(ierr);
-      min_ys = PetscMin(min_ys, min_tmp);CHKERRQ(ierr);
-    }
-    if (mad->isXU) {
-      ierr = VecDot(Q->Zu, Q->Sxu, &tmp);CHKERRQ(ierr);
-      yTs += tmp;
-      ierr = VecPointwiseMult(W->Zu, Q->Zu, Q->Sxu);CHKERRQ(ierr);
-      ierr = VecMin(W->Zu, NULL, &min_tmp);CHKERRQ(ierr);
-      min_ys = PetscMin(min_ys, min_tmp);CHKERRQ(ierr);
-    }
-  }
+  ierr = VecDot(Q->Ys, Q->S, &yTs);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(W->Ys, Q->Ys, Q->S);CHKERRQ(ierr);
+  ierr = VecMin(W->Ys, NULL, &min_ys);CHKERRQ(ierr);
   /* compute distance from uniformity between slacks and multipliers, xi = min_ys / (yTs/Ns) */
   xi = min_ys/(yTs/mad->Ns);
   /* compute affine scaling/centering parameter, mu_aff = mu_g * min((1-mu_r)*(1-xi)/xi, 2)^3 */
   mu_aff = mad->mu_g*PetscPowReal(PetscMin((1.0 - mad->mu_r)*(1.0 - xi)/xi,2.0), 3.0);
   /* finally compute the new barrier parameter, mu = mu_aff * yTs / Ns */
-  *mu = mu_aff*yTs/mad->Ns;
+  mu_tmp = mu_aff*yTs/mad->Ns;
+  /* safeguard to prevent uncontrolled increases */
+  *mu = PetscMax(mad->mu_min, PetscMin(mad->mu_max, mu_tmp));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TaoMADCheckConvergence(Tao tao, Lagrangian *L, FullSpaceVec *dLdQ, PetscReal alpha_p)
+PetscErrorCode TaoMADCheckConvergence(Tao tao, Lagrangian *L, FullSpaceVec *dLdQ, PetscReal alpha)
 {
-  PetscReal      gnorm, cnorm;
+  PetscReal      pnorm, ynorm;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecNorm(dLdQ->P, NORM_2, &gnorm);CHKERRQ(ierr);
+  ierr = VecNorm(dLdQ->P, NORM_2, &pnorm);CHKERRQ(ierr);
   if (dLdQ->Y) {
-    ierr = VecNorm(dLdQ->Y, NORM_2, &cnorm);CHKERRQ(ierr);
+    ierr = VecNorm(dLdQ->Y, NORM_2, &ynorm);CHKERRQ(ierr);
   } else {
-    cnorm = 0.0;
+    ynorm = 0.0;
   }
-  ierr = TaoLogConvergenceHistory(tao, L->obj, gnorm, cnorm, tao->ksp_its);CHKERRQ(ierr);
-  ierr = TaoMonitor(tao, tao->niter, L->obj, gnorm, cnorm, alpha_p);CHKERRQ(ierr);
+  ierr = TaoLogConvergenceHistory(tao, L->obj, pnorm, ynorm, tao->ksp_its);CHKERRQ(ierr);
+  ierr = TaoMonitor(tao, tao->niter, L->obj, pnorm, ynorm, alpha);CHKERRQ(ierr);
   ierr = (*tao->ops->convergencetest)(tao, tao->cnvP);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
