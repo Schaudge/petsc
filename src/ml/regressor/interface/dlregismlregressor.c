@@ -25,7 +25,9 @@ PetscErrorCode MLRegressorInitializePackage(void)
   /* Register Constructors */
   ierr = MLRegressorRegisterAll();CHKERRQ(ierr);
   /* Register Events */
-  // TODO: Add events once I've defined some!
+  ierr = PetscLogEventRegister("MLRegressorSetUp",MLREGRESSOR_CLASSID,&MLRegressor_SetUp);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MLRegressorFit",MLREGRESSOR_CLASSID,&MLRegressor_Fit);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MLRegressorPredict",MLREGRESSOR_CLASSID,&MLRegressor_Predict);CHKERRQ(ierr);
   /* Process Info */
   {
     PetscClassId  classids[1];
