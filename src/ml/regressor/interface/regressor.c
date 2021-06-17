@@ -82,6 +82,31 @@ PetscErrorCode MLRegressorSetUp(MLRegressor mlregressor)
   PetscFunctionReturn(0);
 }
 
+/* NOTE: I've decided to make this take X and y, like the Scikit-learn Fit routines do.
+ * Am I overlooking some reason that X should be set in a seperate function call, a la KSPSetOperators()?. */
+PetscErrorCode MLRegressorFit(MLRegressor mlregressor, Mat X, Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  if (X) PetscValidHeaderSpecific(X,MAT_CLASSID,2);
+  if (y) PetscValidHeaderSpecific(y,VEC_CLASSID,3);
+
+  if (X) {
+    ierr                  = PetscObjectReference((PetscObject)X);CHKERRQ(ierr);
+    ierr                  = MatDestroy(&mlregressor->training);CHKERRQ(ierr);
+    mlregressor->training = X;
+  }
+  if (y) {
+    ierr                  = PetscObjectReference((PetscObject)y);CHKERRQ(ierr);
+    ierr                  = VecDestroy(&mlregressor->target);CHKERRQ(ierr);
+    mlregressor->target   = y;
+  }
+  ierr = (*mlregressor->ops->fit)(mlregressor);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode MLRegressorReset(MLRegressor mlregressor)
 {
   PetscErrorCode ierr;
