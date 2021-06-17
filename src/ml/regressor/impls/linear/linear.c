@@ -53,12 +53,6 @@ PetscErrorCode MLRegressorView_Linear(MLRegressor mlregressor, PetscViewer viewe
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MLRegressorFit_Linear(MLRegressor mlregressor)
-{
-  PetscFunctionBegin;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode MLRegressorPredict_Linear(MLRegressor mlregressor, Mat X, Vec y)
 {
   PetscFunctionBegin;
@@ -77,6 +71,49 @@ PetscErrorCode MLRegressorLinearGetKSP(MLRegressor mlregressor,KSP *ksp)
     ierr = PetscObjectIncrementTabLevel((PetscObject)linear->ksp,(PetscObject)mlregressor,1);CHKERRQ(ierr);
     ierr = PetscLogObjectParent((PetscObject)mlregressor,(PetscObject)linear->ksp);CHKERRQ(ierr);
     ierr = PetscObjectSetOptions((PetscObject)linear->ksp,((PetscObject)mlregressor)->options);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MLRegressorFit_Linear(MLRegressor mlregressor)
+{
+  PetscErrorCode ierr;
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+  KSP ksp;
+  Mat A;  /* The operator we will pass to the KSP; this could be something like a composite matrix using MATCENTERING. */
+  Mat AtA;
+
+  PetscFunctionBegin;
+  if (!linear->ksp) {ierr = MLRegressorLinearGetKSP(mlregressor,&linear->ksp);CHKERRQ(ierr);}
+  ksp = linear->ksp;
+
+  if (linear->fit_intercept) {
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Linear MLRegressor intercept fitting is not yet implemented!");
+    /* TODO: If we are fitting the intercept, we probably need to make A a composite matrix using MATCENTERING. 
+     * Though there might be some cases we don't want to do this for, depending on what kind of matrix is passed in. 
+     * We will also need to ensure that the right-hand side passed to the KSP is also mean-centered, since we
+     * intend to compute the intercept separately from regression coefficients (that is, we will not be adding a
+     * column of all 1s to our design matrix). */
+  } else {
+    /* When not fitting intercept, we assume that the input data are already centered.
+     * TODO: Perhaps revisit exactly what options should exist around this. */
+    A = mlregressor->training;
+  }
+
+  /* Now use the KSP to solve the least squares problem using KSPLSQR.
+   * TODO: Add options to use other methods. */
+  ierr = MatCreateNormal(A,&AtA);CHKERRQ(ierr);
+  ierr = KSPSetType(ksp,KSPLSQR);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,A,AtA);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);  // TODO: Does this have the right option prefixes set?
+  ierr = KSPSolve(ksp,mlregressor->target,linear->coefficients);CHKERRQ(ierr);
+
+  /* Calculate the intercept. */
+  if (linear->fit_intercept) {
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Linear MLRegressor intercept fitting is not yet implemented!");
+    /* TODO: Write the code to calculate the intercept here! */
+  } else {
+    linear->intercept = 0.0;
   }
   PetscFunctionReturn(0);
 }
