@@ -2,9 +2,16 @@
 
 PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
 {
+  PetscErrorCode ierr;
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+
   PetscFunctionBegin;
-  // TODO: This routine will need to call MLRegressorLinearGetKSP if the KSP does not exist.
-  // This does not happen at the interface level (as in SNESSetUp) since not all MLRegressors have a KSP.
+  if (!linear->ksp) {
+    ierr = MLRegressorLinearGetKSP(mlregressor,&linear->ksp);CHKERRQ(ierr);
+    // TODO: Figure out if I need to set operators for the KSP here or set the operator X.
+    // I think maybe I can just do this stuff in the Fit() routine.
+  }
+
   PetscFunctionReturn(0);
 }
 
