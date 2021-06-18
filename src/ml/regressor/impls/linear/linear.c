@@ -53,12 +53,6 @@ PetscErrorCode MLRegressorView_Linear(MLRegressor mlregressor, PetscViewer viewe
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MLRegressorPredict_Linear(MLRegressor mlregressor, Mat X, Vec y)
-{
-  PetscFunctionBegin;
-  PetscFunctionReturn(0);
-}
-
 PetscErrorCode MLRegressorLinearGetKSP(MLRegressor mlregressor,KSP *ksp)
 {
   MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
@@ -115,6 +109,17 @@ PetscErrorCode MLRegressorFit_Linear(MLRegressor mlregressor)
   } else {
     linear->intercept = 0.0;
   }
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode MLRegressorPredict_Linear(MLRegressor mlregressor, Mat X, Vec y)
+{
+  PetscErrorCode ierr;
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+
+  PetscFunctionBegin;
+  ierr = MatMult(X,linear->coefficients,y);CHKERRQ(ierr);
+  ierr = VecShift(y,linear->intercept);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

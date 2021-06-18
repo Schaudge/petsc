@@ -103,7 +103,24 @@ PetscErrorCode MLRegressorFit(MLRegressor mlregressor, Mat X, Vec y)
     ierr                  = VecDestroy(&mlregressor->target);CHKERRQ(ierr);
     mlregressor->target   = y;
   }
+  ierr = PetscLogEventBegin(MLRegressor_Fit,mlregressor,X,y,0);CHKERRQ(ierr);
   ierr = (*mlregressor->ops->fit)(mlregressor);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(MLRegressor_Fit,mlregressor,X,y,0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MLRegressorPredict(MLRegressor mlregressor, Mat X, Vec y)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  if (X) PetscValidHeaderSpecific(X,MAT_CLASSID,2);
+  if (y) PetscValidHeaderSpecific(y,VEC_CLASSID,3);
+  // TODO: Add code to check that the Fit step has been completed!
+  ierr = PetscLogEventBegin(MLRegressor_Predict,mlregressor,X,y,0);CHKERRQ(ierr);
+  ierr = (*mlregressor->ops->predict)(mlregressor,X,y);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(MLRegressor_Predict,mlregressor,X,y,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
