@@ -6,11 +6,49 @@ int main(int argc,char **args)
 {
   MLRegressor    mlregressor;
   PetscErrorCode ierr;
+  PetscMPIInt rank;
+  PetscInt i,j;
+  Mat X;
+  Vec y,y_predicted;
+  PetscScalar y_array[5] = {0.20000,-0.30000,-0.80000,-0.30000,1.20000};
+  PetscScalar X_array[10] = {-1.00000,  0.50000,
+                             -0.50000, -0.25000,
+                              0.00000, -0.50000,
+                              0.50000, -0.25000,
+                              1.00000,  0.50000};
+  PetscInt rows_ix[5] = {0, 1, 2, 3, 4};
+  PetscInt cols_ix[2] = {0, 1};
 
   ierr = PetscInitialize(&argc,&args,(char*)0,help);if (ierr) return ierr;
+  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRMPI(ierr);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&y);CHKERRQ(ierr);
+  ierr = VecSetSizes(y,PETSC_DECIDE,5);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(y);CHKERRQ(ierr);
+  ierr = VecDuplicate(y,&y_predicted);CHKERRQ(ierr);
+  ierr = MatCreate(PETSC_COMM_WORLD,&X);CHKERRQ(ierr);
+  ierr = MatSetSizes(X,PETSC_DECIDE,PETSC_DECIDE,5,2);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(X);CHKERRQ(ierr);
+  ierr = MatSetUp(X);CHKERRQ(ierr);
+
+  if (!rank) {
+    ierr = VecSetValues(y,5,rows_ix,y_array,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = MatSetValues(X,5,rows_ix,2,cols_ix,X_array,ADD_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(y);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(y);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(X,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(X,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
   ierr = MLRegressorCreate(PETSC_COMM_WORLD,&mlregressor);CHKERRQ(ierr);
   ierr = MLRegressorSetType(mlregressor,MLREGRESSORLINEAR);CHKERRQ(ierr);
+  ierr = MLRegressorSetUp(mlregressor);CHKERRQ(ierr);
+  ierr = MLRegressorFit(mlregressor,X,y);CHKERRQ(ierr);
+  ierr = MLRegressorPredict(mlregressor,X,y_predicted);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Predicted values are\n");CHKERRQ(ierr);
+  ierr = VecView(y_predicted,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
+
   ierr = MLRegressorDestroy(&mlregressor);CHKERRQ(ierr);
 
   ierr = PetscFinalize();
