@@ -2,6 +2,7 @@
 
 PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
 {
+  //MPI_Comm comm;
   PetscErrorCode ierr;
   MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
 
@@ -24,6 +25,7 @@ PetscErrorCode MLRegressorReset_Linear(MLRegressor mlregressor)
   /* Destroy the PETSc objects associated with the linear regressor implementation. */
   ierr = MatDestroy(&linear->X);CHKERRQ(ierr);
   ierr = KSPDestroy(&linear->ksp);CHKERRQ(ierr);
+  ierr = VecDestroy(&linear->coefficients);CHKERRQ(ierr);
 
   /* Reset options/parameters to the setupcalled = 0 state. */
   /* TODO: Add the reset code once the linear regressor is fleshed out enough to need resetting! */
@@ -93,6 +95,10 @@ PetscErrorCode MLRegressorFit_Linear(MLRegressor mlregressor)
      * TODO: Perhaps revisit exactly what options should exist around this. */
     A = mlregressor->training;
   }
+
+  if (linear->coefficients) {ierr = VecDestroy(&linear->coefficients);CHKERRQ(ierr);}
+//  ierr = VecDuplicate(mlregressor->target,&linear->coefficients);CHKERRQ(ierr);
+  ierr = MatCreateVecs(A,&linear->coefficients,NULL);CHKERRQ(ierr);
 
   /* Now use the KSP to solve the least squares problem using KSPLSQR.
    * TODO: Add options to use other methods. */
