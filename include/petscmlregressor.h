@@ -34,4 +34,5 @@ PETSC_EXTERN PetscErrorCode MLRegressorSetTraining(MLRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode MLRegressorFit(MLRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode MLRegressorPredict(MLRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode MLRegressorLinearGetKSP(MLRegressor,KSP*);
+PETSC_EXTERN PetscErrorCode MLRegressorLinearGetCoefficients(MLRegressor,Vec*);
 #endif

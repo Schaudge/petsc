@@ -60,6 +60,9 @@ PetscErrorCode MLRegressorLinearGetKSP(MLRegressor mlregressor,KSP *ksp)
   MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
   PetscErrorCode ierr;
 
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  PetscValidPointer(ksp,2);
   /* Analogous to how SNESGetKSP() operates, this routine should create the KSP if it doesn't exist.
    * TODO: Follow what SNESGetKSP() does when setting this up. */
   if (!linear->ksp) {
@@ -68,6 +71,17 @@ PetscErrorCode MLRegressorLinearGetKSP(MLRegressor mlregressor,KSP *ksp)
     ierr = PetscLogObjectParent((PetscObject)mlregressor,(PetscObject)linear->ksp);CHKERRQ(ierr);
     ierr = PetscObjectSetOptions((PetscObject)linear->ksp,((PetscObject)mlregressor)->options);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+PETSC_EXTERN PetscErrorCode MLRegressorLinearGetCoefficients(MLRegressor mlregressor, Vec *coefficients)
+{
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  PetscValidPointer(coefficients,2);
+  *coefficients = linear->coefficients;
   PetscFunctionReturn(0);
 }
 

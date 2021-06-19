@@ -4,12 +4,11 @@ static char help[] = "Tests basic creation and destruction of MLRegressor object
 
 int main(int argc,char **args)
 {
-  MLRegressor    mlregressor;
+  MLRegressor mlregressor;
   PetscErrorCode ierr;
   PetscMPIInt rank;
-  PetscInt i,j;
   Mat X;
-  Vec y,y_predicted;
+  Vec y,y_predicted,coefficients;
   PetscScalar y_array[5] = {0.20000,-0.30000,-0.80000,-0.30000,1.20000};
   PetscScalar X_array[10] = {-1.00000,  0.50000,
                              -0.50000, -0.25000,
@@ -45,7 +44,10 @@ int main(int argc,char **args)
   ierr = MLRegressorSetUp(mlregressor);CHKERRQ(ierr);
   ierr = MLRegressorFit(mlregressor,X,y);CHKERRQ(ierr);
   ierr = MLRegressorPredict(mlregressor,X,y_predicted);CHKERRQ(ierr);
+  ierr = MLRegressorLinearGetCoefficients(mlregressor,&coefficients);CHKERRQ(ierr);
 
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Coefficients are\n");CHKERRQ(ierr);
+  ierr = VecView(coefficients,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Predicted values are\n");CHKERRQ(ierr);
   ierr = VecView(y_predicted,PETSC_VIEWER_DEFAULT);CHKERRQ(ierr);
 
