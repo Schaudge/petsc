@@ -737,7 +737,7 @@ PetscErrorCode LandauCUDAJacobian(DM plex, const PetscInt Nq, PetscReal a_Eq_m[]
                                     cudaFuncAttributeMaxDynamicSharedMemorySize,
                                     98304);CHKERRCUDA(cerr);
       }
-      ierr = PetscInfo1(plex, "Jacobian shared memory size: %D bytes\n",ii);CHKERRQ(ierr);
+      ierr = PetscInfo3(plex, "Jacobian shared memory size: %D bytes. Thread block %d x %D\n",ii,nnn,Nq);CHKERRQ(ierr);
       landau_kernel_v2<<<numGCells,dimBlock,ii*szf>>>(nip,dim,totDim,Nf,Nb,d_invJj,d_nu_alpha,d_nu_beta,d_invMass,d_Eq_m,
                                                       d_BB, d_DD, d_x, d_y, d_w,
                                                       d_elemMats, d_maps, d_mat, d_f, d_dfdx, d_dfdy,
