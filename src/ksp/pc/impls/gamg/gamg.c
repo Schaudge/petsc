@@ -541,7 +541,6 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
               reuse = MAT_REUSE_MATRIX;
             }
           }
-          if (reuse == MAT_INITIAL_MATRIX) { ierr = MatDestroy(&mglevels[level]->A);CHKERRQ(ierr); }
           if (reuse == MAT_REUSE_MATRIX) {
             ierr = PetscInfo1(pc,"RAP after first solve, reuse matrix level %D\n",level);CHKERRQ(ierr);
           } else {
@@ -550,6 +549,8 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
           ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[gl][1],0,0,0,0);CHKERRQ(ierr);
           ierr = MatPtAP(dB,mglevels[level+1]->interpolate,reuse,PETSC_DEFAULT,&B);CHKERRQ(ierr);
           ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[gl][1],0,0,0,0);CHKERRQ(ierr);
+          ierr = MatDestroy(&mglevels[level]->A);CHKERRQ(ierr);
+          ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr);
           mglevels[level]->A = B;
           ierr = KSPSetOperators(mglevels[level]->smoothd,B,B);CHKERRQ(ierr);
           dB   = B;
