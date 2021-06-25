@@ -370,6 +370,7 @@ class Configure(config.package.Package):
       yield ('User specified installation root BLIS/LAPACK', os.path.join(dir, 'libblis.a'), os.path.join(dir, 'liblapack.a'), 'unknown', 'unknown')
       # Search for OpenBLAS
       yield ('User specified OpenBLAS', None, os.path.join(dir, 'libopenblas.a'),'unknown','unknown')
+      yield ('User specified OpenBLAS', None, os.path.join(dir, 'lib','libopenblas.a'),'unknown','unknown')
       # Search for atlas
       yield ('User specified ATLAS Linux installation root', [os.path.join(dir, 'libcblas.a'),os.path.join(dir, 'libf77blas.a'), os.path.join(dir, 'libatlas.a')],  [os.path.join(dir, 'liblapack.a')],'32','no')
       yield ('User specified ATLAS Linux installation root', [os.path.join(dir, 'libf77blas.a'), os.path.join(dir, 'libatlas.a')],  [os.path.join(dir, 'liblapack.a')],'32','no')
