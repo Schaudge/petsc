@@ -1,7 +1,5 @@
 #include <petscdmnetwork.h>
 #include <petscts.h>
-#include "limiters.h"
-
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
 
@@ -35,11 +33,14 @@ struct _p_EdgeFE
   /* identification variables */
   PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data
                                           for the edge cells */
+
   /* solver objects */
-  PetscInt    nnodes;   /* number of cells in the discretization of the edge */
   PetscReal   cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
   /* Mesh object */
-  PetscReal h; /* discretization size, assumes uniform mesh */
+  DM          dm, dmaux;
+
+  PetscInt    nnodes;
+  PetscReal   length; /* Used to setup the DMPLex, to be refactored out. */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_EdgeFE *EdgeFE;
 
@@ -50,8 +51,11 @@ typedef PetscErrorCode (*VertexFluxDestroy)(const void*,Junction);
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
 
+
+/* 
+  TODO : Change physics struct to extend PETSCDS 
+*/
 typedef struct {
-  PetscErrorCode                 (*sample1d)(void*,PetscInt,PetscReal,PetscReal,PetscReal*);
   PetscErrorCode                 (*samplenetwork)(void*,PetscInt,PetscReal,PetscReal,PetscReal*,PetscInt);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
   PetscErrorCode                 (*flux)(void*,PetscReal*,PetscReal*);
@@ -62,10 +66,11 @@ typedef struct {
   PetscErrorCode                 (*destroy)(void*);
   void                           *user;
   PetscInt                       dof;
+  PetscInt                       *order; 
   char                           *fieldname[16];
 } PhysicsCtx_Net;
 
-/* Global DG information on the entire network. */
+/* Global DG information on the entire network. Needs a creation function .... */
 struct _p_DGNetwork
 {
   MPI_Comm    comm;
@@ -75,14 +80,12 @@ struct _p_DGNetwork
   Vec         localX,localF;           /* vectors used in local function evalutation */
   Vec         X,Ftmp;                  /* Global vectors used in function evaluations */
   PetscInt    nnodes_loc;              /* num of local nodes */
-  PetscInt    basisorder;              /* Order of the DG Basis */
-  PetscInt    quadorder; 
   DM          network;
   SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver.
                                           should be moved back to junct structure to reuse jacobian matrix? */
   KSP         ksp; 
   PetscInt    moni;
-  PetscBool   view,linearcoupling,lincouplediff; 
+  PetscBool   view,linearcoupling,lincouplediff,tabulated; 
   PetscReal   ymin,ymax,length;
   DMNetworkMonitor  monitor;
   char        prefix[256];
@@ -90,12 +93,26 @@ struct _p_DGNetwork
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
 
   /* DG Basis Evaluations and Quadrature */
-  PetscQuadrature quad; 
-  PetscReal *LegEval;
-  PetscReal *LegEvalD;
-  PetscReal *LegEvaL_bdry;
-  PetscReal *Leg_L2; 
+  /* These are arrays with LegEval[fieldtotab[f]] giving the legendre evaluations for the given field 
+     We only construct a single set of tabulations/quadrature for single dg order. Different fields can have 
+     different dg order polynomials, but if field 1 and field 2 share the same order, then they will share the same 
+     tabulation. 
+    */
+  PetscQuadrature *quad; 
+  PetscReal **LegEval;
+  PetscReal **LegEvalD;
+  PetscReal **LegEvaL_bdry;
+  PetscReal **Leg_L2; 
+  
+  /* 
+    TODO : the above evaluations should be replaced by PETSCTabulation objects. However the petsctabulation object needs 
+    some additional features to make it complete, including viewers and proper general interfaces. Wrapper functions for Legendre evaluations
+    and etc. That way you don't have to think about things. Also maybe should be stored internally as Mat objects? 
+  */
 
+  PetscInt        *fieldtotab; /* size is dof */
+  PetscInt        *taborder;  
+  PetscInt        tabordersize; 
   /* Local work arrays */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
   PetscScalar *uLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
@@ -126,12 +143,13 @@ struct _p_DGNetwork
 }PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_DGNetwork *DGNetwork;
 
-/* FV Functions */
+/* 
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
 extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
 extern PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
 extern PetscErrorCode ReconstructListAdd_Net(PetscFunctionList*,const char*,ReconstructFunction);
 extern PetscErrorCode ReconstructListFind_Net(PetscFunctionList,const char*,ReconstructFunction*);
+*/
 
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions.
    Allocate the work array data for FVNetwork */
@@ -148,21 +166,17 @@ extern PetscErrorCode DGNetworkCleanUp(DGNetwork);
    by the components. This includes physics data as well as building
    the vertex data structures needed for evaluating the edge data they
    'steal' */
-extern PetscErrorCode FVNetworkCreateVectors(DGNetwork);
+extern PetscErrorCode DGNetworkCreateVectors(DGNetwork);
 /* Assign the coupling condition functions to the vertices of the network based 
    user provided vfluxassign function */
-extern PetscErrorCode FVNetworkAssignCoupling(DGNetwork);
+extern PetscErrorCode DGNetworkAssignCoupling(DGNetwork);
 /* Add dynamic data to the distributed network. */
-extern PetscErrorCode FVNetworkBuildDynamic(DGNetwork);
+extern PetscErrorCode DGNetworkBuildDynamic(DGNetwork);
+
+extern PetscErrorCode ViewDiscretizationObjects(DGNetwork,PetscViewer);
+
+extern PetscErrorCode DGNetworkBuildTabulation(DGNetwork);
 
 /* Destroy allocated data */
-extern PetscErrorCode FVNetworkDestroy(DGNetwork);
-/* Set Initial Solution */
-extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
-/* RHS Function */
-extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
-extern PetscErrorCode DGNetRHS_SingleCoupleEval(TS,PetscReal,Vec,Vec,void*);
-/* Time step length functions */
-extern PetscErrorCode DGNetworkPreStep(TS);
-extern PetscErrorCode DGNetwork_GetTimeStep_Fixed(TS,PetscReal*);
-extern PetscErrorCode DGNetwork_GetTimeStep_Adaptive(TS,PetscReal*);
+extern PetscErrorCode DGNetworkDestroy(DGNetwork);
+extern PetscErrorCode DGNetworkDestroyTabulation(DGNetwork);
