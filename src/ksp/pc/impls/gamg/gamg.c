@@ -549,8 +549,8 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
           ierr = PetscLogEventBegin(petsc_gamg_setup_matmat_events[gl][1],0,0,0,0);CHKERRQ(ierr);
           ierr = MatPtAP(dB,mglevels[level+1]->interpolate,reuse,PETSC_DEFAULT,&B);CHKERRQ(ierr);
           ierr = PetscLogEventEnd(petsc_gamg_setup_matmat_events[gl][1],0,0,0,0);CHKERRQ(ierr);
-          ierr = MatDestroy(&mglevels[level]->A);CHKERRQ(ierr);
           ierr = PetscObjectReference((PetscObject)B);CHKERRQ(ierr);
+          ierr = MatDestroy(&mglevels[level]->A);CHKERRQ(ierr);
           mglevels[level]->A = B;
           ierr = KSPSetOperators(mglevels[level]->smoothd,B,B);CHKERRQ(ierr);
           dB   = B;
