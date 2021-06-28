@@ -1027,31 +1027,50 @@ static PetscBool InList(PetscMPIInt needle,PetscMPIInt n,const PetscMPIInt *list
 @*/
 PetscErrorCode PetscSFSetUpRanks(PetscSF sf,MPI_Group dgroup)
 {
-  PetscErrorCode     ierr;
-  PetscTable         table;
-  PetscTablePosition pos;
-  PetscMPIInt        size,groupsize,*groupranks;
-  PetscInt           *rcount,*ranks;
-  PetscInt           i, irank = -1,orank = -1;
+  PetscErrorCode ierr;
+  PetscMPIInt    groupsize,*groupranks;
+  PetscInt       *rcount,*ranks;
+  PetscInt       i,j,irank = -1;
+  PetscInt       *remoteRanks,*origIndices;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(sf,PETSCSF_CLASSID,1);
   PetscSFCheckGraphSet(sf,1);
-  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)sf),&size);CHKERRMPI(ierr);
-  ierr = PetscTableCreate(10,size,&table);CHKERRQ(ierr);
+
+  /* Sort remote ranks, and record the original sequential indices for accessing rmine[] etc later.
+     We have to use stable sort, since algorithms in MatGetBrowsOfAoCols_MPIAIJ() require recv
+     rank and recv indices are sorted, so that recvbuf will provide correct data directly used in AIJ.
+  */
+  ierr = PetscMalloc2(sf->nleaves,&remoteRanks,sf->nleaves,&origIndices);CHKERRQ(ierr);
   for (i=0; i<sf->nleaves; i++) {
-    /* Log 1-based rank */
-    ierr = PetscTableAdd(table,sf->remote[i].rank+1,1,ADD_VALUES);CHKERRQ(ierr);
+    origIndices[i] = i;
+    remoteRanks[i] = sf->remote[i].rank;
   }
-  ierr = PetscTableGetCount(table,&sf->nranks);CHKERRQ(ierr);
-  ierr = PetscMalloc4(sf->nranks,&sf->ranks,sf->nranks+1,&sf->roffset,sf->nleaves,&sf->rmine,sf->nleaves,&sf->rremote);CHKERRQ(ierr);
+  if (sf->nleaves) {ierr = PetscIntSortSemiOrderedWithArray(sf->nleaves,remoteRanks,origIndices);CHKERRQ(ierr);}
+
+  /* Count sf->nranks */
+  sf->nranks = sf->nleaves > 0 ? 1 : 0;
+  for (i=1; i<sf->nleaves; i++) {
+    if (remoteRanks[i] != remoteRanks[i-1]) sf->nranks++;
+  }
+
+  /* Fill rcount[] and ranks[] */
   ierr = PetscMalloc2(sf->nranks,&rcount,sf->nranks,&ranks);CHKERRQ(ierr);
-  ierr = PetscTableGetHeadPosition(table,&pos);CHKERRQ(ierr);
-  for (i=0; i<sf->nranks; i++) {
-    ierr = PetscTableGetNext(table,&pos,&ranks[i],&rcount[i]);CHKERRQ(ierr);
-    ranks[i]--;             /* Convert back to 0-based */
+  if (sf->nranks) { /* Init stuff for the first remote rank if any */
+    rcount[0] = 1;
+    ranks[0]  = remoteRanks[0];
   }
-  ierr = PetscTableDestroy(&table);CHKERRQ(ierr);
+  j = 0; /* inc when meeting a new rank */
+  for (i=1; i<sf->nleaves; i++) {
+    if (remoteRanks[i] != remoteRanks[i-1]) {
+      j++;
+      rcount[j] = 1;
+      ranks[j]  = remoteRanks[i];
+    } else {
+      rcount[j]++;
+    }
+  }
+  ierr = PetscMalloc4(sf->nranks,&sf->ranks,sf->nranks+1,&sf->roffset,sf->nleaves,&sf->rmine,sf->nleaves,&sf->rremote);CHKERRQ(ierr);
 
   /* We expect that dgroup is reliably "small" while nranks could be large */
   {
@@ -1088,30 +1107,31 @@ PetscErrorCode PetscSFSetUpRanks(PetscSF sf,MPI_Group dgroup)
     }
   }
   ierr = PetscFree(groupranks);CHKERRQ(ierr);
+
+  /* Fill sf->roffset[] */
   ierr = PetscSortIntWithArray(sf->ndranks,ranks,rcount);CHKERRQ(ierr);
   ierr = PetscSortIntWithArray(sf->nranks-sf->ndranks,ranks+sf->ndranks,rcount+sf->ndranks);CHKERRQ(ierr);
   sf->roffset[0] = 0;
   for (i=0; i<sf->nranks; i++) {
     ierr = PetscMPIIntCast(ranks[i],sf->ranks+i);CHKERRQ(ierr);
     sf->roffset[i+1] = sf->roffset[i] + rcount[i];
-    rcount[i]        = 0;
   }
-  for (i=0, irank = -1, orank = -1; i<sf->nleaves; i++) {
-    /* short circuit */
-    if (orank != sf->remote[i].rank) {
-      /* Search for index of iremote[i].rank in sf->ranks */
-      ierr = PetscFindMPIInt(sf->remote[i].rank,sf->ndranks,sf->ranks,&irank);CHKERRQ(ierr);
-      if (irank < 0) {
-        ierr = PetscFindMPIInt(sf->remote[i].rank,sf->nranks-sf->ndranks,sf->ranks+sf->ndranks,&irank);CHKERRQ(ierr);
-        if (irank >= 0) irank += sf->ndranks;
-      }
-      orank = sf->remote[i].rank;
+
+  /* Fill sf->rmine[] and rremote[] */
+  for (i=0; i<sf->nleaves;) {
+    /* Distinguished ranks and non-distinguished ranks are separately sorted, so we might need two PetscFindMPIInt */
+    ierr = PetscFindMPIInt(remoteRanks[i],sf->ndranks,sf->ranks,&irank);CHKERRQ(ierr);
+    if (irank < 0) {
+      ierr = PetscFindMPIInt(remoteRanks[i],sf->nranks-sf->ndranks,sf->ranks+sf->ndranks,&irank);CHKERRQ(ierr);
+      if (irank >= 0) irank += sf->ndranks;
     }
-    if (irank < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Could not find rank %D in array",sf->remote[i].rank);
-    sf->rmine[sf->roffset[irank] + rcount[irank]]   = sf->mine ? sf->mine[i] : i;
-    sf->rremote[sf->roffset[irank] + rcount[irank]] = sf->remote[i].index;
-    rcount[irank]++;
+    if (irank < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Could not find rank %D in array",remoteRanks[i]);
+    for (j=0; j<rcount[irank]; j++,i++) {
+      sf->rmine  [sf->roffset[irank] + j] = sf->mine ? sf->mine[origIndices[i]] : origIndices[i];
+      sf->rremote[sf->roffset[irank] + j] = sf->remote[origIndices[i]].index;
+    }
   }
+  ierr = PetscFree2(remoteRanks,origIndices);CHKERRQ(ierr);
   ierr = PetscFree2(rcount,ranks);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
