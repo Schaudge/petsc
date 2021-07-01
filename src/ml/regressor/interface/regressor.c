@@ -50,11 +50,12 @@ PetscErrorCode MLRegressorCreate(MPI_Comm comm,MLRegressor *newmlregressor)
 .  mlregressor - the MLRegressor context
 
    Notes:
-   For basic use of the MLRegressor solvers the user need not explicitly call
+   For basic use of the MLRegressor solvers the user need not to explicitly call
    MLRegressorSetUp(), since these actions will automatically occur during
    the call to MLRegressorFit().  However, if one wishes to control this
-   phase separately, MLRegressorSetUp() should be called after MLRegressorCreate()
-   and optional routines of the form MLRegressorSetXXX(), but before MLRegressorFit().
+   phase separately, MLRegressorSetUp() should be called after MLRegressorCreate(),
+   MLRegressorSetUp(), and optional routines of the form MLRegressorSetXXX(),
+   but before MLRegressorFit().
 
    Level: advanced
 
@@ -103,6 +104,8 @@ PetscErrorCode MLRegressorFit(MLRegressor mlregressor, Mat X, Vec y)
     ierr                  = VecDestroy(&mlregressor->target);CHKERRQ(ierr);
     mlregressor->target   = y;
   }
+  ierr = MLRegressorSetUp(mlregressor);CHKERRQ(ierr);
+
   ierr = PetscLogEventBegin(MLRegressor_Fit,mlregressor,X,y,0);CHKERRQ(ierr);
   ierr = (*mlregressor->ops->fit)(mlregressor);CHKERRQ(ierr);
   ierr = PetscLogEventEnd(MLRegressor_Fit,mlregressor,X,y,0);CHKERRQ(ierr);
