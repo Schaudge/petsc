@@ -41,7 +41,6 @@ int main(int argc,char **args)
 
   ierr = MLRegressorCreate(PETSC_COMM_WORLD,&mlregressor);CHKERRQ(ierr);
   ierr = MLRegressorSetType(mlregressor,MLREGRESSORLINEAR);CHKERRQ(ierr);
-  ierr = MLRegressorSetUp(mlregressor);CHKERRQ(ierr);
   ierr = MLRegressorFit(mlregressor,X,y);CHKERRQ(ierr);
   ierr = MLRegressorPredict(mlregressor,X,y_predicted);CHKERRQ(ierr);
   ierr = MLRegressorLinearGetCoefficients(mlregressor,&coefficients);CHKERRQ(ierr);
