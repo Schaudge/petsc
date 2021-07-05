@@ -14,3 +14,6 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
 ex1 : ../dgnet.c
+ex2 : ../dgnet.c
+ex3 : ../dgnet.c
+ex4 : ../dgnet.c ../dgfunctions.c

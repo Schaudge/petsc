@@ -220,7 +220,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
       TODO FINISH DRAWING 
       TODO REDO FOR DG 
     ====================================================  
-
+    */
     break;
   case 6: 
         /* Case 6: Periodic Boundary conditions 
@@ -273,7 +273,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
   ierr = PetscMalloc4(2*dof,&fvnet->uLR,dof,&fvnet->flux,dof,&fvnet->speeds,dof,&fvnet->uPlus);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-PetscErrorCode FVNetworkSetComponents(DGNetwork fvnet){
+PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
   PetscErrorCode    ierr;  
   PetscInt          f,i,e,v,eStart,eEnd,vStart,vEnd,dof = fvnet->physics.dof;
   PetscInt          KeyEdge,KeyJunction,KeyFlux,vfrom,vto,nedges_tmp,nedges,nvertices; 
@@ -292,7 +292,6 @@ PetscErrorCode FVNetworkSetComponents(DGNetwork fvnet){
   nedges      = fvnet->nedge;
   nvertices   = fvnet->nvertex; /* local num of vertices, excluding ghosts */
   edgelist    = fvnet->edgelist;
-
   /* Construct the arrays for building the section for the plexs inside each edge 
      from the user provided physics. HERE WE ARE ASSUMING DG FUNCTION SPACES FOR EVERY 
      FIELD, ALONG WITH 1 COMPONENT PER FIELD (this can and will be altered later) */
@@ -305,7 +304,6 @@ PetscErrorCode FVNetworkSetComponents(DGNetwork fvnet){
   for (f = 0; f < dof; ++f) {
     numDof[f*(dim+1)+dim] = fvnet->physics.order[f]+1;
   }
-
   /* Set up the network layout */
   ierr = DMNetworkSetNumSubNetworks(fvnet->network,PETSC_DECIDE,1);CHKERRQ(ierr);
   ierr = DMNetworkAddSubnetwork(fvnet->network,NULL,nvertices,nedges,edgelist,NULL);CHKERRQ(ierr);
@@ -340,16 +338,19 @@ PetscErrorCode FVNetworkSetComponents(DGNetwork fvnet){
     ierr = DMSetLocalSection(edgefe->dm,section);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(section,&dmsize);CHKERRQ(ierr);
     ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
+    ierr = DMSetUp(edgefe->dm);CHKERRQ(ierr);
+
     /* 
       Add the data from the dmplex to the dmnetwork. We will create the global network vector from the dmnetwork and use the dmplex to manage the 
       data on an edge after getting the offset for set the edge. The dmnetwork creates the vectors and, but the dmplex inside an edge is used to actually 
       interact with the edge componenent of the network vector 
     */
-    ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,&edgefe,dmsize);CHKERRQ(ierr);
+    ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,edgefe,dmsize);CHKERRQ(ierr);
     /* 
       Build a better Monitor here 
     */
   }
+  ierr = PetscFree2(numComp,numDof);CHKERRQ(ierr);
   /* Add Junction component to all local vertices. All data is currently assumed to be on proc[0]. Also add the flux component */
   for (v=vStart; v<vEnd; v++) {
     junction = &fvnet->junction[v-vStart];
@@ -389,7 +390,7 @@ PetscErrorCode FVNetworkSetComponents(DGNetwork fvnet){
 
 
 /* Now we have a distributed network. It is assumed that localX and Ftmp have been created in fvnet */
-PetscErrorCode FVNetworkBuildDynamic(DGNetwork fvnet)
+PetscErrorCode DGNetworkBuildDynamic(DGNetwork fvnet)
 {
   PetscErrorCode ierr; 
   PetscInt       e,v,i,nedges,dof = fvnet->physics.dof;
@@ -491,18 +492,22 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     dgnet->taborder[i] = temp_taborder[i]; 
   }
   ierr = PetscFree(temp_taborder);CHKERRQ(ierr);
-  ierr = PetscMalloc5(dgnet->tabordersize,&dgnet->quad,dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
+  ierr = PetscMalloc4(dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
           &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry);CHKERRQ(ierr);
-
-  for (i=0; i<dgnet->tabordersize; i++) {
-     /* Build Reference Quadrature */
-    ierr = PetscQuadratureCreate(dgnet->comm,&dgnet->quad[i]);CHKERRQ(ierr);
-    n = PetscCeilReal(dgnet->taborder[i])+1;
+  ierr = PetscMalloc1(dgnet->tabordersize,&dgnet->comp);CHKERRQ(ierr);
+    /* Build Reference Quadrature (Single Quadrature for all fields (maybe generalize but not now) */
+    ierr = PetscQuadratureCreate(dgnet->comm,&dgnet->quad);CHKERRQ(ierr);
+    /* Find maximum ordeer */
+    n = 0; 
+    for(i=0; i<dgnet->tabordersize; i++) {
+      if(n < PetscCeilReal(dgnet->taborder[i])+1) n =  PetscCeilReal(dgnet->taborder[i])+1;
+    }
     ierr = PetscMalloc2(n,&xnodes,n,&w);CHKERRQ(ierr);
     ierr = PetscDTGaussQuadrature(n,-1,1,xnodes,w);CHKERRQ(ierr);
-    ierr = PetscQuadratureSetData(dgnet->quad[i],dim,1,n,xnodes,w);CHKERRQ(ierr);
-    ierr = PetscQuadratureSetOrder(dgnet->quad[i],2*n);CHKERRQ(ierr);
-
+    ierr = PetscQuadratureSetData(dgnet->quad,dim,1,n,xnodes,w);CHKERRQ(ierr);
+    ierr = PetscQuadratureSetOrder(dgnet->quad,2*n);CHKERRQ(ierr);
+    ierr = PetscMalloc2(dof,&dgnet->pteval,dof*n,&dgnet->fluxeval);CHKERRQ(ierr);
+  for (i=0; i<dgnet->tabordersize; i++) {
     /* Build Reference Legendre Evaluations */
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&deg);CHKERRQ(ierr);
     ierr = PetscMalloc2(n*(dgnet->taborder[i]+1),&dgnet->LegEval[i],n*(dgnet->taborder[i]+1),&dgnet->LegEvalD[i]);CHKERRQ(ierr);
@@ -513,6 +518,9 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]);CHKERRQ(ierr);
     for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = 1./(2.0*j +1.); } 
     ierr = PetscFree(deg);CHKERRQ(ierr);
+
+    /* Workspace */
+    ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->comp[i]);CHKERRQ(ierr);
   }
     PetscFunctionReturn(0);
 }
@@ -542,17 +550,18 @@ PetscErrorCode ViewDiscretizationObjects(DGNetwork dgnet,PetscViewer viewer)
   PetscInt       ndegree; 
   PetscFunctionBegin;
 
-  /* Iterate through the tabulation Orders */
-  for (i=0; i<dgnet->tabordersize; i++) {
 
-    ierr = PetscViewerASCIIPrintf(viewer,"Legendre Tabulation Order: %i \n \n",dgnet->taborder[i]);CHKERRQ(ierr);
   /* call standard viewers for discretization objects if available */
-    ierr = PetscQuadratureView(dgnet->quad[i],viewer);CHKERRQ(ierr);
-    ierr = PetscQuadratureGetData(dgnet->quad[i],NULL,NULL,&quadsize,NULL,NULL);CHKERRQ(ierr);
+    ierr = PetscQuadratureView(dgnet->quad,viewer);CHKERRQ(ierr);
+    ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,NULL);CHKERRQ(ierr);
   /* View the tabulation arrays
     TODO as per other comments, these arrays should be petsctabulation objects and this should be its dedicated viewing routine 
   */
     ierr = PetscViewerASCIIPrintf(viewer,"Quadsize: %i \n",quadsize);CHKERRQ(ierr);
+
+  /* Iterate through the tabulation Orders */
+  for (i=0; i<dgnet->tabordersize; i++) {
+    ierr = PetscViewerASCIIPrintf(viewer,"Legendre Tabulation Order: %i \n \n",dgnet->taborder[i]);CHKERRQ(ierr);
     /* Hack to make use of PetscRealViewer function */
     /* Maybe should be redone to have everything stored as Matrices, or custom storage? Idk man, either
        way it will work for now, though involves silly copying of data to get the arrays in the right format 
@@ -571,6 +580,49 @@ PetscErrorCode ViewDiscretizationObjects(DGNetwork dgnet,PetscViewer viewer)
 
     ierr = PetscViewerASCIIPrintf(viewer,"Legendre Normalization\n");CHKERRQ(ierr);
     ierr = PetscRealView(ndegree+1,dgnet->Leg_L2[i],viewer);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+/*
+  TODO : Refactor as PetscView Function
+
+  Function for Viewing the Mesh information inside of the dgnet (just calls dmview for each
+  dmplex inside the edges)
+*/
+PetscErrorCode DGNetworkViewEdgeDMs(DGNetwork dgnet,PetscViewer viewer) 
+{
+  PetscErrorCode ierr;
+  PetscInt       e,eStart,eEnd;
+  EdgeFE         edgefe;
+
+  PetscFunctionBegin;
+  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  for(e=eStart; e<eEnd; e++) {
+    ierr = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"\n Mesh on Edge %i \n \n ",e);CHKERRQ(ierr);
+    ierr = DMView(edgefe->dm,viewer);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+/* Just prints the jacobian and inverse jacobians to screen for dms inside the edgee 
+
+ONLY WORKS FOR 1D MESHES FOR NOW !!!! */ 
+PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork dgnet, PetscViewer viewer){
+  PetscErrorCode ierr;
+  PetscInt       e,eStart,eEnd,c,cStart,cEnd;
+  EdgeFE         edgefe;
+  PetscReal      J,Jinv,Jdet;
+
+  PetscFunctionBegin;
+  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  for(e=eStart; e<eEnd; e++) {
+    ierr = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"\n \n Geometric Info on Edge %i \n \n \n ",e);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+    for (c = cStart; c<cEnd; c++) {
+      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&Jinv,&Jdet);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"Cell %i: J: %e  - Jinv: %e - Jdet: %e \n  ",c,J,Jinv,Jdet);CHKERRQ(ierr);
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -627,30 +679,39 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork fvnet){
     ierr = PetscFree2(fvnet->LegEval[i],fvnet->LegEvalD[i]);CHKERRQ(ierr);
     ierr = PetscFree(fvnet->Leg_L2[i]);CHKERRQ(ierr);
     ierr = PetscFree(fvnet->LegEvaL_bdry[i]);CHKERRQ(ierr);
-    ierr = PetscQuadratureDestroy(&fvnet->quad[i]);CHKERRQ(ierr);
+    ierr = PetscQuadratureDestroy(&fvnet->quad);CHKERRQ(ierr);
+    ierr = PetscFree(fvnet->comp[i]);CHKERRQ(ierr);
   }
   ierr = PetscFree5(fvnet->Leg_L2,fvnet->LegEval,fvnet->LegEvaL_bdry,fvnet->LegEvalD,fvnet->quad);CHKERRQ(ierr);
   ierr = PetscFree(fvnet->taborder);CHKERRQ(ierr);
   ierr = PetscFree(fvnet->fieldtotab);CHKERRQ(ierr);
+  ierr = PetscFree(fvnet->comp);CHKERRQ(ierr);
+  ierr = PetscFree2(fvnet->fluxeval,fvnet->pteval);CHKERRQ(ierr);
   PetscFunctionReturn(0); 
 }
 PetscErrorCode DGNetworkDestroy(DGNetwork fvnet) 
 {
   PetscErrorCode ierr;
-  PetscInt       i,v,vStart,vEnd;
+  PetscInt       i,v,e,eStart,eEnd,vStart,vEnd;
   Junction       junction;
+  EdgeFE         edgefe;
 
   PetscFunctionBegin; 
+  ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  for(e=eStart; e<eEnd; e++) {
+    ierr = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr = DMDestroy(&edgefe->dm);CHKERRQ(ierr);
+    ierr = DMDestroy(&edgefe->dmaux);CHKERRQ(ierr);
+  }
   ierr = DMNetworkGetVertexRange(fvnet->network,&vStart,&vEnd);CHKERRQ(ierr);
   for (v=vStart; v<vEnd; v++) {
     ierr = DMNetworkGetComponent(fvnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     /* Free dynamic memory for the junction component */
     ierr = PetscFree(junction->dir);CHKERRQ(ierr); 
     ierr = PetscFree(junction->flux);CHKERRQ(ierr);
-    ierr = VecDestroy(&junction->R);CHKERRQ(ierr);
-    ierr = VecDestroy(&junction->X);CHKERRQ(ierr);
+    ierr = VecDestroy(&junction->rcouple);CHKERRQ(ierr);
+    ierr = VecDestroy(&junction->xcouple);CHKERRQ(ierr);
     ierr = MatDestroy(&junction->mat);CHKERRQ(ierr);
-
   }
   ierr = (*fvnet->physics.destroy)(fvnet->physics.user);CHKERRQ(ierr);
   for (i=0; i<fvnet->physics.dof; i++) {

@@ -12,7 +12,7 @@ typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
 struct _p_Junction{
   Mat           mat;
-  Vec           X,R;  /* Information for nonlinear solver for coupling flux */
+  Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
   PetscReal     x; 
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
@@ -50,7 +50,6 @@ typedef PetscErrorCode (*VertexFluxDestroy)(const void*,Junction);
 
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
-
 
 /* 
   TODO : Change physics struct to extend PETSCDS 
@@ -98,12 +97,17 @@ struct _p_DGNetwork
      different dg order polynomials, but if field 1 and field 2 share the same order, then they will share the same 
      tabulation. 
     */
-  PetscQuadrature *quad; 
+
+  PetscQuadrature quad; 
   PetscReal **LegEval;
   PetscReal **LegEvalD;
   PetscReal **LegEvaL_bdry;
   PetscReal **Leg_L2; 
   
+  /* DG WorkSpace Stuff */
+  PetscReal **comp; 
+  PetscReal *pteval;
+  PetscReal *fluxeval; /*refactor this to be a single contiguous array of data */
   /* 
     TODO : the above evaluations should be replaced by PETSCTabulation objects. However the petsctabulation object needs 
     some additional features to make it complete, including viewers and proper general interfaces. Wrapper functions for Legendre evaluations
@@ -113,7 +117,9 @@ struct _p_DGNetwork
   PetscInt        *fieldtotab; /* size is dof */
   PetscInt        *taborder;  
   PetscInt        tabordersize; 
-  /* Local work arrays */
+
+
+  /* Local work arrays for numerical flux */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
   PetscScalar *uLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
   PetscScalar *flux;            /* Flux across interface */
@@ -175,8 +181,18 @@ extern PetscErrorCode DGNetworkBuildDynamic(DGNetwork);
 
 extern PetscErrorCode ViewDiscretizationObjects(DGNetwork,PetscViewer);
 
+extern PetscErrorCode DGNetworkViewEdgeDMs(DGNetwork,PetscViewer);
+extern PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork,PetscViewer);
+
 extern PetscErrorCode DGNetworkBuildTabulation(DGNetwork);
 
 /* Destroy allocated data */
 extern PetscErrorCode DGNetworkDestroy(DGNetwork);
 extern PetscErrorCode DGNetworkDestroyTabulation(DGNetwork);
+
+extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
+
+extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
+extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
+extern PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
