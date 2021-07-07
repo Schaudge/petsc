@@ -1,4 +1,5 @@
 #include "dgnet.h"
+#include <petscdraw.h>
 
 PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
 {
@@ -250,12 +251,12 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
       ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
       /* vertex */
 
-      junctions[0].x = -5.0; 
-      junctions[1].x = 5.0; 
+      junctions[0].x = 0.0; 
+      junctions[1].x = 1.0; 
       /* Edge */ 
       for(i=0; i<numEdges; ++i) {
         fvedges[i].nnodes = Mx; 
-        fvedges[i].length = 10.0; 
+        fvedges[i].length = 1.0; 
       }
     }
     break;
@@ -346,9 +347,6 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
       interact with the edge componenent of the network vector 
     */
     ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,edgefe,dmsize);CHKERRQ(ierr);
-    /* 
-      Build a better Monitor here 
-    */
   }
   ierr = PetscFree2(numComp,numDof);CHKERRQ(ierr);
   /* Add Junction component to all local vertices. All data is currently assumed to be on proc[0]. Also add the flux component */
@@ -387,7 +385,19 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
   }
   PetscFunctionReturn(0);
 }
+PetscErrorCode DGNetworkAddMonitortoEdges(DGNetwork dgnet, DGNetworkMonitor monitor) {
+  PetscErrorCode    ierr;  
+  PetscInt          e,eStart,eEnd;
 
+  PetscFunctionBegin;
+   ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  if(monitor) {
+    for (e = eStart; e<eEnd; e++){
+      ierr = DGNetworkMonitorAdd(monitor,e,PETSC_DECIDE,PETSC_DECIDE,dgnet->ymin,dgnet->ymax,PETSC_FALSE);CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}
 
 /* Now we have a distributed network. It is assumed that localX and Ftmp have been created in fvnet */
 PetscErrorCode DGNetworkBuildDynamic(DGNetwork fvnet)
@@ -461,7 +471,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
   PetscErrorCode ierr; 
   PetscInt       n,j,i,dof = dgnet->physics.dof,numunique,dim=1;
   PetscInt       *deg,*temp_taborder;
-  PetscReal      *xnodes,*w,bdry[2] = {-1,1};
+  PetscReal      *xnodes,*w,bdry[2] = {-1,1},*viewnodes;
   PetscBool      unique; 
   
   PetscFunctionBegin;
@@ -495,6 +505,8 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
   ierr = PetscMalloc4(dgnet->tabordersize,&dgnet->LegEval,dgnet->tabordersize,
           &dgnet->Leg_L2,dgnet->tabordersize,&dgnet->LegEvalD,dgnet->tabordersize,&dgnet->LegEvaL_bdry);CHKERRQ(ierr);
   ierr = PetscMalloc1(dgnet->tabordersize,&dgnet->comp);CHKERRQ(ierr);
+  /* Internal Viewer Storage stuff (to be migrated elsewhere) */
+  ierr = PetscMalloc2(dgnet->tabordersize,&dgnet->LegEval_equispaced,dgnet->tabordersize,&dgnet->numviewpts);CHKERRQ(ierr);
     /* Build Reference Quadrature (Single Quadrature for all fields (maybe generalize but not now) */
     ierr = PetscQuadratureCreate(dgnet->comm,&dgnet->quad);CHKERRQ(ierr);
     /* Find maximum ordeer */
@@ -516,7 +528,14 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     ierr = PetscMalloc1(2*(dgnet->taborder[i]+1),&dgnet->LegEvaL_bdry[i]);CHKERRQ(ierr);
     ierr = PetscDTLegendreEval(2,bdry,dgnet->taborder[i]+1,deg,dgnet->LegEvaL_bdry[i],PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]);CHKERRQ(ierr);
-    for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = 1./(2.0*j +1.); } 
+    for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = 1./(2.*(2.0*j +1.)); }
+    /* Viewer evaluations to be migrated */
+    dgnet->numviewpts[i] = n;
+    ierr = PetscMalloc1(dgnet->numviewpts[i],&viewnodes);CHKERRQ(ierr);
+    for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]-1) - 1.;
+    ierr = PetscMalloc1(dgnet->numviewpts[i]*(dgnet->taborder[i]+1),&dgnet->LegEval_equispaced[i]);CHKERRQ(ierr);
+    ierr = PetscDTLegendreEval(dgnet->numviewpts[i],viewnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval_equispaced[i],PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
+    ierr = PetscFree(viewnodes);CHKERRQ(ierr);
     ierr = PetscFree(deg);CHKERRQ(ierr);
 
     /* Workspace */
@@ -681,12 +700,14 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork fvnet){
     ierr = PetscFree(fvnet->LegEvaL_bdry[i]);CHKERRQ(ierr);
     ierr = PetscQuadratureDestroy(&fvnet->quad);CHKERRQ(ierr);
     ierr = PetscFree(fvnet->comp[i]);CHKERRQ(ierr);
+    ierr = PetscFree(fvnet->LegEval_equispaced[i]);CHKERRQ(ierr);
   }
   ierr = PetscFree5(fvnet->Leg_L2,fvnet->LegEval,fvnet->LegEvaL_bdry,fvnet->LegEvalD,fvnet->quad);CHKERRQ(ierr);
   ierr = PetscFree(fvnet->taborder);CHKERRQ(ierr);
   ierr = PetscFree(fvnet->fieldtotab);CHKERRQ(ierr);
   ierr = PetscFree(fvnet->comp);CHKERRQ(ierr);
   ierr = PetscFree2(fvnet->fluxeval,fvnet->pteval);CHKERRQ(ierr);
+  ierr = PetscFree2(fvnet->LegEval_equispaced,fvnet->numviewpts);CHKERRQ(ierr);
   PetscFunctionReturn(0); 
 }
 PetscErrorCode DGNetworkDestroy(DGNetwork fvnet) 
@@ -733,4 +754,162 @@ PetscErrorCode DGNetworkDestroy(DGNetwork fvnet)
   ierr = ISDestroy(&fvnet->fast_edges);CHKERRQ(ierr);
   ierr = ISDestroy(&fvnet->fast_vert);CHKERRQ(ierr);
   PetscFunctionReturn(0); 
+}
+
+/*DGNetwork Viewing Functions, to be refactored and moved elsewhere */
+PetscReal evalviewpt_internal(DGNetwork dgnet, PetscInt field, PetscInt viewpt,const PetscReal *comp) {
+  PetscInt deg,tab = dgnet->fieldtotab[field],ndegree = dgnet->taborder[tab];
+  PetscReal eval = 0.0; 
+
+  for(deg=0; deg<=ndegree; deg++) {
+    eval += comp[deg]* dgnet->LegEval_equispaced[tab][viewpt*(ndegree+1)+deg];
+  }
+  return eval; 
+}
+
+PetscErrorCode DGNetworkMonitorCreate(DGNetwork dgnet,DGNetworkMonitor *monitorptr)
+{
+  PetscErrorCode   ierr;
+  DGNetworkMonitor monitor;
+  MPI_Comm         comm;
+  PetscMPIInt      size;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)dgnet->network,&comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm, &size);CHKERRMPI(ierr);
+  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Parallel DGNetworkMonitor is not supported yet");
+
+  ierr = PetscMalloc1(1,&monitor);CHKERRQ(ierr);
+  monitor->comm      = comm;
+  monitor->dgnet     = dgnet; 
+  monitor->firstnode = NULL;
+
+  *monitorptr = monitor;
+  PetscFunctionReturn(0);
+}
+PetscErrorCode DGNetworkMonitorPop(DGNetworkMonitor monitor)
+{
+  PetscErrorCode       ierr;
+  DGNetworkMonitorList node;
+
+  PetscFunctionBegin;
+  if (monitor->firstnode) {
+    /* Update links */
+    node = monitor->firstnode;
+    monitor->firstnode = node->next;
+
+    /* Free list node */
+    ierr = PetscViewerDestroy(&(node->viewer));CHKERRQ(ierr);
+    ierr = VecDestroy(&(node->v));CHKERRQ(ierr);
+    ierr = PetscFree(node);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+PetscErrorCode DGNetworkMonitorDestroy(DGNetworkMonitor *monitor)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  while ((*monitor)->firstnode) {
+    ierr = DGNetworkMonitorPop(*monitor);CHKERRQ(ierr);
+  }
+
+  ierr = PetscFree(*monitor);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+/* ymax and ymin must be removed by the caller */
+PetscErrorCode DGNetworkMonitorAdd(DGNetworkMonitor monitor,PetscInt element,PetscReal xmin,PetscReal xmax,PetscReal ymin,PetscReal ymax,PetscBool hold)
+{
+  PetscErrorCode       ierr;
+  PetscDrawLG          drawlg;
+  PetscDrawAxis        axis;
+  PetscMPIInt          rank, size;
+  DGNetworkMonitorList node;
+  char                 titleBuffer[64];
+  PetscInt             vStart,vEnd,eStart,eEnd,viewsize,field,cStart,cEnd;
+  DM                   network=monitor->dgnet->network;
+  DGNetwork            dgnet=monitor->dgnet;
+  PetscInt             dof=dgnet->physics.dof;
+  EdgeFE               edgefe; 
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(monitor->comm, &rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(monitor->comm, &size);CHKERRMPI(ierr);
+
+  ierr = DMNetworkGetVertexRange(network, &vStart, &vEnd);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(network, &eStart, &eEnd);CHKERRQ(ierr);
+  /* make a viewer for each field on the componenent */
+  for(field=0; field<dof; field++) {
+    /* Make window title */
+    if (vStart <= element && element < vEnd) {
+      /* Nothing to view on the vertices for DGNetwork (for now) so skip */
+      PetscFunctionReturn(0);
+    } else if (eStart <= element && element < eEnd) {
+      ierr = PetscSNPrintf(titleBuffer, 64, "%s @ edge %d [%d / %d]", dgnet->physics.fieldname[field], element - eStart, rank, size-1);CHKERRQ(ierr);
+    } else {
+      /* vertex / edge is not on local machine, so skip! */
+      PetscFunctionReturn(0);
+    }
+    ierr = PetscMalloc1(1, &node);CHKERRQ(ierr);
+    /* Setup viewer. */
+    ierr = PetscViewerDrawOpen(monitor->comm, NULL, titleBuffer, PETSC_DECIDE, PETSC_DECIDE, PETSC_DRAW_QUARTER_SIZE, PETSC_DRAW_QUARTER_SIZE, &(node->viewer));CHKERRQ(ierr);
+    ierr = PetscViewerPushFormat(node->viewer, PETSC_VIEWER_DRAW_LG_XRANGE);CHKERRQ(ierr);
+    ierr = PetscViewerDrawGetDrawLG(node->viewer, 0, &drawlg);CHKERRQ(ierr);
+    ierr = PetscDrawLGGetAxis(drawlg, &axis);CHKERRQ(ierr);
+    if (xmin != PETSC_DECIDE && xmax != PETSC_DECIDE) {
+      ierr = PetscDrawAxisSetLimits(axis, xmin, xmax, ymin, ymax);CHKERRQ(ierr);
+    } else {
+      ierr = PetscDrawAxisSetLimits(axis, 0, 1, ymin, ymax);CHKERRQ(ierr);
+    }
+    ierr = PetscDrawAxisSetHoldLimits(axis, hold);CHKERRQ(ierr);
+
+    /* Setup vector storage for drawing. */
+    ierr  = DMNetworkGetComponent(network,element,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+    viewsize = dgnet->numviewpts[dgnet->fieldtotab[field]]*(cEnd-cStart);
+    ierr = VecCreateSeq(PETSC_COMM_SELF, viewsize, &(node->v));CHKERRQ(ierr);
+
+    node->element   = element;
+    node->field     = field;
+    node->next         = monitor->firstnode;
+    node->vsize    = viewsize;
+    monitor->firstnode = node;
+  }
+  PetscFunctionReturn(0);
+}
+PetscErrorCode DGNetworkMonitorView(DGNetworkMonitor monitor,Vec x)
+{
+  PetscErrorCode      ierr;
+  PetscInt            edgeoff,fieldoff,cStart,cEnd,c,tab,q,viewpt;
+  const PetscScalar   *xx;
+  PetscScalar         *vv;
+  DGNetworkMonitorList node;
+  DM                   network=monitor->dgnet->network;
+  DGNetwork            dgnet=monitor->dgnet;
+  EdgeFE               edgefe;
+  PetscSection         section;
+
+  PetscFunctionBegin;
+  ierr = VecGetArrayRead(x, &xx);CHKERRQ(ierr);
+  for (node = monitor->firstnode; node; node = node->next) {
+    ierr = DMNetworkGetLocalVecOffset(network, node->element, FVEDGE, &edgeoff);CHKERRQ(ierr);
+    ierr = DMNetworkGetComponent(dgnet->network,node->element,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr = VecGetArray(node->v, &vv);CHKERRQ(ierr);
+
+    ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+    ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+    tab = dgnet->fieldtotab[node->field];
+    /* Evaluate at the eqiudistant point evalutions */
+    viewpt = 0;
+    for(c=cStart; c<cEnd; c++) {
+      ierr = PetscSectionGetFieldOffset(section,c,node->field,&fieldoff);CHKERRQ(ierr);
+      for(q=0; q<dgnet->numviewpts[tab]; q++) {
+       vv[viewpt++]=evalviewpt_internal(dgnet,node->field,q,xx+edgeoff+fieldoff);
+      }
+    }
+    ierr = VecRestoreArray(node->v, &vv);CHKERRQ(ierr);
+    ierr = VecView(node->v, node->viewer);CHKERRQ(ierr);
+  }
+  ierr = VecRestoreArrayRead(x, &xx);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }

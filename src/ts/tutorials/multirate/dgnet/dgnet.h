@@ -57,7 +57,7 @@ typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,
 typedef struct {
   PetscErrorCode                 (*samplenetwork)(void*,PetscInt,PetscReal,PetscReal,PetscReal*,PetscInt);
   PetscErrorCode                 (*inflow)(void*,PetscReal,PetscReal,PetscReal*);
-  PetscErrorCode                 (*flux)(void*,PetscReal*,PetscReal*);
+  PetscErrorCode                 (*flux)(void*,const PetscReal*,PetscReal*);
   RiemannFunction                riemann;
   ReconstructFunction            characteristic;
   VertexFluxAssignment           vfluxassign;
@@ -86,7 +86,6 @@ struct _p_DGNetwork
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated; 
   PetscReal   ymin,ymax,length;
-  DMNetworkMonitor  monitor;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
@@ -102,7 +101,11 @@ struct _p_DGNetwork
   PetscReal **LegEval;
   PetscReal **LegEvalD;
   PetscReal **LegEvaL_bdry;
-  PetscReal **Leg_L2; 
+  PetscReal **Leg_L2;
+
+  /* Viewer Object (probably refactor as a viewer for dgnet)*/
+  PetscInt  *numviewpts;
+  PetscReal **LegEval_equispaced; /* tabulation for viewing */
   
   /* DG WorkSpace Stuff */
   PetscReal **comp; 
@@ -149,13 +152,23 @@ struct _p_DGNetwork
 }PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_DGNetwork *DGNetwork;
 
-/* 
-extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
-extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
-extern PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
-extern PetscErrorCode ReconstructListAdd_Net(PetscFunctionList*,const char*,ReconstructFunction);
-extern PetscErrorCode ReconstructListFind_Net(PetscFunctionList,const char*,ReconstructFunction*);
-*/
+typedef struct _p_DGNetworkMonitorList *DGNetworkMonitorList;
+struct _p_DGNetworkMonitorList
+{
+  PetscViewer viewer;
+  Vec         v;
+  PetscInt    element,field,vsize;
+  DGNetworkMonitorList next;
+};
+
+typedef struct _p_DGNetworkMonitor *DGNetworkMonitor;
+struct _p_DGNetworkMonitor
+{
+  MPI_Comm             comm;
+  DGNetwork            dgnet;
+  DGNetworkMonitorList firstnode;
+};
+
 
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions.
    Allocate the work array data for FVNetwork */
@@ -196,3 +209,11 @@ extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
 extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
 extern PetscErrorCode RiemannListFind_Net(PetscFunctionList,const char*,RiemannFunction*);
+
+
+extern PetscErrorCode DGNetworkMonitorCreate(DGNetwork,DGNetworkMonitor*);
+extern PetscErrorCode DGNetworkMonitorPop(DGNetworkMonitor);
+extern PetscErrorCode DGNetworkMonitorDestroy(DGNetworkMonitor*);
+extern PetscErrorCode DGNetworkMonitorAdd(DGNetworkMonitor,PetscInt,PetscReal,PetscReal,PetscReal,PetscReal,PetscBool);
+extern PetscErrorCode DGNetworkMonitorView(DGNetworkMonitor,Vec);
+extern PetscErrorCode DGNetworkAddMonitortoEdges(DGNetwork,DGNetworkMonitor);

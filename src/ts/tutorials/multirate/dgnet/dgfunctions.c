@@ -87,15 +87,15 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr; 
   DGNetwork      dgnet = (DGNetwork)ctx;    
-  PetscReal      h,maxspeed,sum,*coordval,detJ,J,invJ;
-  PetscScalar    *f,*uR,*xarr,*coeff;
+  PetscReal      maxspeed,detJ,J,invJ;
+  PetscScalar    *f,*xarr,*coeff;
   PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd;
   PetscInt       offsetf,offset,nedges,i,j,dof = dgnet->physics.dof,field,fieldoff;
   const PetscInt *cone,*edges,*supp;
-  Vec            localX = dgnet->localX,localF = dgnet->localF,Ftmp = dgnet->Ftmp,coord; 
+  Vec            localX = dgnet->localX,localF = dgnet->localF,Ftmp = dgnet->Ftmp; 
   EdgeFE         edgefe; 
   Junction       junction;
-  PetscSection   section,coordsec;
+  PetscSection   section;
   const PetscReal *qweight;
 
   PetscFunctionBeginUser;
@@ -132,7 +132,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
           }
         } else if (v == vto) {
           for (field=0; field<dof; field++) {
-            ierr = PetscSectionGetFieldOffset(section,cEnd,field,&fieldoff);CHKERRQ(ierr);
+            ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
             f[offsetf+edgefe->offset_vto+field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
           }
         }
@@ -225,7 +225,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       ndeg = dgnet->taborder[tab]+1;
       for (deg = 0; deg<ndeg; deg++) {
         coeff = f+offset+fieldoff+deg;
-        *coeff += f[edgefe->offset_vfrom+field+offsetf]*dgnet->LegEvaL_bdry[tab][0];
+        *coeff += f[edgefe->offset_vfrom+field+offsetf]*dgnet->LegEvaL_bdry[tab][deg];
       }
     }
     /* cEnd cell */
@@ -233,12 +233,12 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     ierr   = DMNetworkGetLocalVecOffset(dgnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
     /* Update the vfrom vertex flux for this edge */
     for (field=0; field<dof; field++) {
-      ierr = PetscSectionGetFieldOffset(section,cEnd,field,&fieldoff);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
       tab = dgnet->fieldtotab[field];
       ndeg = dgnet->taborder[tab]+1;
       for (deg = 0; deg<ndeg; deg++) {
         coeff = f+offset+fieldoff+deg;
-        *coeff -= f[edgefe->offset_vto+field+offsetf]*dgnet->LegEvaL_bdry[tab][1];
+        *coeff -= f[edgefe->offset_vto+field+offsetf]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
       }
     }
 
@@ -264,7 +264,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         ndeg = dgnet->taborder[tab]+1;
         for (deg = 0; deg<ndeg; deg++) {
           coeff = f+offset+fieldoff+deg;
-          *coeff -= dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][1];
+          *coeff -= dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
         }
       }
 
@@ -274,7 +274,7 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         ndeg = dgnet->taborder[tab]+1;
         for (deg = 0; deg<ndeg; deg++) {
           coeff = f+offset+fieldoff+deg;
-          *coeff += dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][0];
+          *coeff += dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][deg];
         }
       }
     }
@@ -306,13 +306,12 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t) 
 {
   PetscErrorCode ierr;
-  PetscInt       i,j,k,vfrom,vto,type,offset,e,eStart,eEnd,dof = dgnet->physics.dof;
+  PetscInt       type,offset,e,eStart,eEnd,dof = dgnet->physics.dof;
   PetscInt       c,cStart,cEnd,field,edgeid,deg,ndeg,tab,fieldoff,quadsize,q;
-  const PetscInt *cone;
   PetscScalar    *xarr,*coeff;
   EdgeFE         edgefe;
   Vec            localX = dgnet->localX;
-  PetscReal      J,invJ,detJ,v0,fun;
+  PetscReal      J,invJ,detJ,v0;
   const PetscReal *qpoint,*qweight;
   PetscSection   section;
   
@@ -341,6 +340,7 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t)
             dgnet->physics.samplenetwork((void*)&dgnet->physics.user,dgnet->initial,t,qpoint[q]*J+v0,dgnet->pteval,edgeid);
             *coeff += qweight[q]*dgnet->pteval[field]*dgnet->LegEval[tab][ndeg*q+deg]; 
           }
+          *coeff *= dgnet->Leg_L2[tab][deg];
         }
       }
     }

@@ -33,10 +33,12 @@ typedef struct {
   PetscReal gravity;
 } ShallowCtx;
 
-PETSC_STATIC_INLINE void ShallowFlux(ShallowCtx *phys,const PetscScalar *u,PetscScalar *f)
+PETSC_STATIC_INLINE PetscErrorCode ShallowFlux(void *ctx,const PetscReal *u,PetscReal *f)
 {
+  ShallowCtx *phys = (ShallowCtx*)ctx;
   f[0] = u[1];
   f[1] = PetscSqr(u[1])/u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
+  PetscFunctionReturn(0);
 }
 
 PETSC_STATIC_INLINE void ShallowFlux2(ShallowCtx *phys,const PetscScalar *u,PetscScalar *f)
@@ -126,13 +128,8 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
   if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
   switch (initial) {
     case 0:
-      if(edgeid == 0) {
-        u[0] = (x < -2) ? 20 : 1; /* Standard Dam Break Problem */
-        u[1] = (x < -2) ? 0 : 0;
-      } else {
-        u[0] = 1; 
-        u[1] = 0;
-      }
+      u[0] = 2.0; 
+      u[1] = 1.0; 
       break;
     case 1: /* Initial 1-3 are from Jingmei's and Bennedito's paper */
       if (edgeid == 0) {
@@ -159,7 +156,6 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       }
       break;
     case 3:
-      x+=1.0;
       if (edgeid == 0) {
         u[0] = ((x>=0 && x<=0.2) || (x>=0.4 && x<=0.6) || (x>=0.8 && x<=1.0)) ? 1.5 : 1.0 ;
         u[1] = u[0]/5.0;
@@ -485,7 +481,7 @@ static PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   PetscErrorCode    ierr;
   ShallowCtx        *user;
   PetscFunctionList rlist = 0;
-  char              rname[256] = "rusanov",rcname[256] = "characteristic";
+  char              rname[256] = "rusanov";
 
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
@@ -560,10 +556,7 @@ static PetscErrorCode PhysicsRiemann_Traffic_Rusanov(void *vctx,PetscInt m,const
 }
 
 static PetscErrorCode PhysicsAssignVertexFlux_Traffic(const void* _fvnet, Junction junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_fvnet;
-
+{  
   PetscFunctionBeginUser;
       if (junct->numedges == 2) {
         if (junct->dir[0] == EDGEIN) {
@@ -696,7 +689,6 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx,PetscInt initial,P
 static PetscErrorCode PhysicsDestroyVertexFlux(const void* _fvnet, Junction junct)
 {
   PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_fvnet;
 
   PetscFunctionBeginUser;
           ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
@@ -742,14 +734,14 @@ static PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TSDMNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
+PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
   PetscErrorCode     ierr;
-  DMNetworkMonitor   monitor;
+  DGNetworkMonitor   monitor;
 
   PetscFunctionBegin;
-  monitor = (DMNetworkMonitor)context;
-  ierr = DMNetworkMonitorView(monitor,x);CHKERRQ(ierr);
+  monitor = (DGNetworkMonitor)context;
+  ierr = DGNetworkMonitorView(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
  static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
@@ -763,15 +755,15 @@ int main(int argc,char *argv[])
   char              lname[256] = "minmod",physname[256] = "shallow",tname[256] = "adaptive";
   PetscFunctionList limiters = 0,physics = 0,timestep = 0;
   MPI_Comm          comm;
-  TS                ts,ts_lin;
-  DGNetwork         fvnet,fvnet_lin;
-  PetscInt          i,j,n,steps,draw = 0,convergencelevel= 0,maxorder=2,*order;
+  TS                ts;
+  DGNetwork         fvnet;
+  PetscInt          draw = 0,convergencelevel= 0,maxorder=1,*order;
   PetscBool         viewdm = PETSC_FALSE;
-  PetscReal         ptime,maxtime,*norm,dt,*total,*totalinitial;
+  PetscReal         maxtime;
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
-  Vec               Xprev,Xtrue; 
   PetscBool         singlecoupleeval;
+  DGNetworkMonitor  monitor=NULL;
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -790,9 +782,9 @@ int main(int argc,char *argv[])
   fvnet->networktype    = 6;
   fvnet->hratio         = 2;
   maxtime               = 1.0;
-  fvnet->Mx             = 12;
+  fvnet->Mx             = 10;
   fvnet->bufferwidth    = 0;
-  fvnet->initial        = 1;
+  fvnet->initial        = 0;
   fvnet->ymin           = 0;
   fvnet->ymax           = 2.0;
   fvnet->bufferwidth    = 4;
@@ -800,6 +792,7 @@ int main(int argc,char *argv[])
   fvnet->linearcoupling = PETSC_FALSE;
   singlecoupleeval      = PETSC_FALSE; 
   fvnet->length         = 3.0;
+  fvnet->view           = PETSC_TRUE;
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
@@ -825,6 +818,7 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsBool("-lincouplediff","Compare the results for linearcoupling and nonlinear","",fvnet->lincouplediff,&fvnet->lincouplediff,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-singlecoupleeval","Use the single couple eval rhs functions","",singlecoupleeval,&singlecoupleeval,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-convergence", "Test convergence on meshes 2^3 - 2^n","",convergencelevel,&convergencelevel,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
 
@@ -845,18 +839,22 @@ int main(int argc,char *argv[])
   /* Create DMNetwork */
   ierr = DMNetworkCreate(PETSC_COMM_WORLD,&fvnet->network);CHKERRQ(ierr);
 
+   if (size == 1 && fvnet->view) {
+    ierr = DGNetworkMonitorCreate(fvnet,&monitor);CHKERRQ(ierr);
+  }
+
   /* Set Network Data into the DMNetwork (on proc[0]) */
   ierr = DGNetworkSetComponents(fvnet);CHKERRQ(ierr);
   /* Delete unneeded data in fvnet */
   ierr = DGNetworkCleanUp(fvnet);CHKERRQ(ierr);
-  /* Distribute Network */
-  ierr = DMSetUp(fvnet->network);CHKERRQ(ierr);
+  ierr = DGNetworkBuildTabulation(fvnet);CHKERRQ(ierr);
+  ierr = DGNetworkAddMonitortoEdges(fvnet,monitor);CHKERRQ(ierr);
+
 
   /* Create Vectors */
   ierr = DGNetworkCreateVectors(fvnet);CHKERRQ(ierr);
   /* Set up component dynamic data structures */
   ierr = DGNetworkBuildDynamic(fvnet);CHKERRQ(ierr);
-  ierr = DGNetworkBuildTabulation(fvnet);CHKERRQ(ierr);
   /* Create a time-stepping object */
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
@@ -867,16 +865,20 @@ int main(int argc,char *argv[])
   ierr = TSSetType(ts,TSSSP);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts,0.05);CHKERRQ(ierr);
 
   /* Compute initial conditions and starting time step */
   ierr = DGNetworkProject(fvnet,fvnet->X,0.0);CHKERRQ(ierr);
   ierr = DGNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
-    
-    /* Evolve the PDE network in time */
-    ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
+  if (size == 1 && fvnet->view) {
+      ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+  }
+  /* Evolve the PDE network in time */
+  ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
 
   /* Clean up */
+  if(fvnet->view && size==1) ierr = DGNetworkMonitorDestroy(&monitor);
   ierr = DGNetworkDestroy(fvnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
 
   ierr = DMDestroy(&fvnet->network);CHKERRQ(ierr);
