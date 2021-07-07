@@ -3,6 +3,10 @@
 
 #include <petscdm.h>
 
+PETSC_EXTERN PetscErrorCode DMBFSetCellDataShape(DM,const PetscInt*,PetscInt,PetscInt);
+PETSC_EXTERN PetscErrorCode DMBFGetCellDataShape(DM,PetscInt**,PetscInt*,PetscInt*);
+PETSC_EXTERN PetscErrorCode DMBFSetCellDataVSize(DM,size_t);
+PETSC_EXTERN PetscErrorCode DMBFGetCellDataVSize(DM,size_t*);
 PETSC_EXTERN PetscErrorCode DMBFSetBlockSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetBlockSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFSetCellDataSize(DM,PetscInt*,PetscInt,PetscInt*,PetscInt);
@@ -13,24 +17,34 @@ PETSC_EXTERN PetscErrorCode DMBFGetLocalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGlobalSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFGetGhostSize(DM,PetscInt*);
 
+typedef struct _p_DM_BF_Shape {
+  size_t    n, dim, size, __padding__;
+  size_t    **list;  /* size=(n x dim) */
+  size_t    *pad;    /* size=(n)       */
+} DM_BF_Shape;
+
 typedef struct _p_DM_BF_Cell {
   /* corner coordinates, etc. */
-  PetscReal         corner[8*3], volume, sidelength[3], padding1[4];
+  PetscReal         corner[8*3], volume, sidelength[3], __padding1__[4];
   /* cell indices local to this processor rank and global across all ranks */
   PetscInt          indexLocal, indexGlobal;
   /* cell refinement level */
-  PetscInt          level, padding2;
+  PetscInt          level, __padding2__;
   /* flag for AMR */
   DMAdaptFlag       adaptFlag;
+  /* memory layout of this cell (not owned) */
+  const DM_BF_Shape *memory;
   /* view of vector entries corresponding to this cell (not owned) */
   const PetscScalar **vecViewRead;
   PetscScalar       **vecViewReadWrite;
   /* data corresponding to this cell (owned) */
-  const PetscScalar *dataRead;
-  PetscScalar       *dataReadWrite;
+  const PetscScalar *dataRead;      //TODO deprecated
+  PetscScalar       *dataReadWrite; //TODO deprecated
+  void              *dataV;
+  PetscScalar       **data;
 } DM_BF_Cell;
 
-//#define DMBFCellIsGhost(cell) (-1 == (cell)->indexGlobal) //TODO implement version with checking global indices
+//#define DMBFCellIsGhost(cell) (-1 == (cell)->indexGlobal) //TODO implement version that checks global indices
 
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCellsVectors(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCells(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*);

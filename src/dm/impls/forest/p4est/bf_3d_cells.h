@@ -11,9 +11,9 @@ PetscErrorCode DMBF_3D_CellsClone(DM_BF_3D_Cells*,DM_BF_3D_Cells**,DM);
 
 PetscErrorCode DMBF_3D_CellsCoarsen(DM_BF_3D_Cells*,DM_BF_3D_Cells**,DM,PetscInt);
 PetscErrorCode DMBF_3D_CellsRefine(DM_BF_3D_Cells*,DM_BF_3D_Cells**,DM,PetscInt);
-PetscErrorCode DMBF_3D_CellsAmrAdapt(DM_BF_3D_Cells*,DM_BF_3D_Cells**,DM,DM_BF_AmrOps*,PetscInt,PetscInt,size_t,size_t,size_t);
+PetscErrorCode DMBF_3D_CellsAmrAdapt(DM_BF_3D_Cells*,DM_BF_3D_Cells**,DM,DM_BF_AmrOps*,PetscInt,PetscInt,const DM_BF_Shape*);
 PetscErrorCode DMBF_3D_CellsAmrPartition(DM_BF_3D_Cells*);
-PetscErrorCode DMBF_3D_CellsAmrFinalize(DM,DM_BF_3D_Cells*,DM_BF_Cell*,size_t);
+PetscErrorCode DMBF_3D_CellsAmrFinalize(DM,DM_BF_3D_Cells*,DM_BF_Cell*,const DM_BF_Shape*);
 
 PetscErrorCode DMBF_3D_GetSizes(DM,DM_BF_3D_Cells*,PetscInt*,PetscInt*,PetscInt*);
 PetscErrorCode DMBF_3D_GetLocalToGlobalIndices(DM,DM_BF_3D_Cells*,PetscInt*,PetscInt*toIdx);

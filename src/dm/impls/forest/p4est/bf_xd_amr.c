@@ -129,8 +129,8 @@ PetscErrorCode DMBF_XD_AmrAdapt(p4est_t *p4est, PetscInt minLevel, PetscInt maxL
   amrCtx.maxLevel = (int) maxLevel;
   p4est->user_pointer = (void*) &amrCtx;
   /* run AMR */
-  PetscStackCallP4est(p4est_refine,(p4est,0/*!recursively*/,_p_refine_via_flag,NULL/*init_fn*/));
   PetscStackCallP4est(p4est_coarsen,(p4est,0/*!recursively*/,_p_coarsen_via_flag,NULL/*init_fn*/));
+  PetscStackCallP4est(p4est_refine,(p4est,0/*!recursively*/,_p_refine_via_flag,NULL/*init_fn*/));
   p4est->user_pointer = user_pointer;
   /* balance */
   PetscStackCallP4est(p4est_balance,(p4est,P4EST_CONNECT_FULL,NULL/*init_fn*/));

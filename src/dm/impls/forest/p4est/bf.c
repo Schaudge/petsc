@@ -18,29 +18,39 @@
 
 typedef struct _p_DM_BF {
   /* forest-of-tree objects sequence: topology -> cells -> nodes */
-  void         *ftTopology;
-  void         *ftCells;
-  void         *ftNodes;
+  void          *ftTopology;
+  void          *ftCells;
+  void          *ftNodes;
   /* DMBF cells */
-  DM_BF_Cell   *cells;
-  PetscBool    ownedCellsSetUpCalled;
-  PetscBool    ghostCellsSetUpCalled;
-  /* [option] blocks within a cell */
-  PetscInt     blockSize[3];
-  /* [option] settings for cell data */
-  PetscInt     *valsPerElemRead, *valsPerElemReadWrite;
-  PetscInt     nValsPerElemRead, nValsPerElemReadWrite;
-  PetscInt     valsPerElemReadTotal, valsPerElemReadWriteTotal;
-  VecScatter   ltog; /* local to global scatter object, for parallel communication of data between local and global vectors */
+  DM_BF_Cell    *cells;
+  PetscBool     ownedCellsSetUpCalled;
+  PetscBool     ghostCellsSetUpCalled;
+  DM_BF_Shape   cellMemoryShape;
+  /* [option] cell data shapes */
+  DM_BF_Shape   cellDataShape;
+  /* [option] variable cell data */
+  size_t        cellDataVSize;
+  /* [option] blocks within a cell TODO deprecated */
+  PetscInt      blockSize[3];
+  /* [option] settings for cell data TODO deprecated */
+  PetscInt      *valsPerElemRead, *valsPerElemReadWrite;
+  PetscInt      nValsPerElemRead, nValsPerElemReadWrite;
+  PetscInt      valsPerElemReadTotal, valsPerElemReadWriteTotal;
+  /* local to global scatter object, for parallel communication of data between local and global vectors */
+  VecScatter    ltog;
   /* AMR callback functions */
-  DM_BF_AmrOps *amrOps;
+  DM_BF_AmrOps  *amrOps;
 } DM_BF;
 
 /******************************************************************************
  * PRIVATE FUNCTIONS WITHOUT ERROR CHECKING
  *****************************************************************************/
 
-static inline DM_BF *_p_getBF(DM dm)
+#define _p_comm(dm) PetscObjectComm((PetscObject)(dm))
+
+#define _p_SETERRQ_UNREACHABLE(dm) SETERRQ(PetscObjectComm((PetscObject)(dm)),PETSC_ERR_SUP,"Unreachable code")
+
+PETSC_STATIC_INLINE DM_BF *_p_getBF(DM dm)
 {
   return (DM_BF*) ((DM_Forest*) dm->data)->data;
 }
@@ -49,66 +59,8 @@ static PetscInt _p_dim(DM dm)
 {
   PetscInt dim;
 
-  CHKERRQ( DMGetDimension(dm,&dim) );
+  CHKERRABORT(_p_comm(dm),DMGetDimension(dm,&dim));
   return dim;
-}
-
-#define _p_comm(dm) PetscObjectComm((PetscObject)(dm))
-
-#define _p_SETERRQ_UNREACHABLE(dm) SETERRQ(PetscObjectComm((PetscObject)(dm)),PETSC_ERR_SUP,"Unreachable code")
-
-/***************************************
- * CELL SIZES
- **************************************/
-
-#define _p_bytesAlign(a) (((a)+(PETSC_MEMALIGN-1)) & ~(PETSC_MEMALIGN-1))
-
-static inline size_t _p_cellSizeOfInfo()
-{
-  return _p_bytesAlign(sizeof(DM_BF_Cell));
-}
-
-#define _p_cellOffsetDataRead _p_cellSizeOfInfo
-
-static inline size_t _p_cellSizeOfDataRead(DM_BF *bf)
-{
-  return _p_bytesAlign((size_t)(sizeof(PetscScalar)*bf->blockSize[0]*bf->blockSize[1]*bf->blockSize[2]*bf->valsPerElemReadTotal));
-}
-
-#define _p_cellOffsetDataReadWrite(bf) (_p_cellSizeOfInfo() + _p_cellSizeOfDataRead(bf))
-
-static inline size_t _p_cellSizeOfDataReadWrite(DM_BF *bf)
-{
-  return _p_bytesAlign((size_t)(sizeof(PetscScalar)*bf->blockSize[0]*bf->blockSize[1]*bf->blockSize[2]*bf->valsPerElemReadWriteTotal));
-}
-
-static inline size_t _p_cellSizeOfData(DM_BF *bf)
-{
-  return _p_cellSizeOfDataRead(bf) + _p_cellSizeOfDataReadWrite(bf);
-}
-
-static inline size_t _p_cellSize(DM_BF *bf)
-{
-  return _p_cellSizeOfInfo() + _p_cellSizeOfData(bf);
-}
-
-/***************************************
- * CELL POINTERS
- **************************************/
-
-static inline DM_BF_Cell *_p_cellGetPtrIndex(DM_BF *bf, PetscInt index)
-{
-  return (DM_BF_Cell*)(((char*)bf->cells) + _p_cellSize(bf) * ((size_t)index));
-}
-
-static inline PetscScalar *_p_cellGetDataRead(DM_BF_Cell *cell)
-{
-  return (PetscScalar*)(((char*)cell) + _p_cellSizeOfInfo());
-}
-
-static inline PetscScalar *_p_cellGetDataReadWrite(DM_BF_Cell *cell, DM_BF *bf)
-{
-  return (PetscScalar*)(((char*)cell) + _p_cellSizeOfInfo() + _p_cellSizeOfDataRead(bf));
 }
 
 /******************************************************************************
@@ -164,6 +116,111 @@ static PetscErrorCode DMBFCheck(DM dm)
 #endif
 
 /***************************************
+ * CELL MEMORY
+ **************************************/
+
+#define _p_bytesAlign(a) (((a)+(PETSC_MEMALIGN-1)) & ~(PETSC_MEMALIGN-1))
+#define _p_bytesAlignPadding(a) ( (((a)+(PETSC_MEMALIGN-1)) & ~(PETSC_MEMALIGN-1)) - (a))
+
+static PetscErrorCode DMBF_CellMemoryShapeSetUp(DM dm)
+{
+  DM_BF          *bf;
+  PetscBool      isSetUp;
+  const size_t   nCell = DMBF_CELLMEMIDX_DATA;
+  size_t         nData, dim, *elements, *pad, i, j, e, s;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_getBF(dm);
+  /* set dimensions */
+  ierr = DMBFShapeIsSetUp(&bf->cellDataShape,&isSetUp);CHKERRQ(ierr);
+  if (isSetUp) {
+    ierr = DMBFShapeCheckValid(&bf->cellDataShape);CHKERRQ(ierr);
+    nData = bf->cellDataShape.n;
+    dim   = bf->cellDataShape.dim + 1;
+  } else {
+    nData = 0;
+    dim   = 2;
+  }
+  /* create elements and padding */
+  ierr = PetscMalloc1((nCell+nData)*dim,&elements);CHKERRQ(ierr);
+  ierr = PetscMalloc1((nCell+nData),&pad);CHKERRQ(ierr);
+  /* set zero all elements */
+  for (i=0; i<(nCell+nData); i++) {
+    for (j=0; j<dim; j++) {
+      elements[i*dim+j] = 0;
+    }
+    pad[i] = 0;
+  }
+  /* set cell info */
+  i = DMBF_CELLMEMIDX_INFO;
+  elements[i*dim  ] = sizeof(DM_BF_Cell);
+  elements[i*dim+1] = 1;
+  pad[i]            = 0;
+  /* set cell pointers */
+  i = DMBF_CELLMEMIDX_POINTERS;
+  e = nData;
+  elements[i*dim  ] = (0<e ? sizeof(PetscScalar*) : 0);
+  elements[i*dim+1] = e;
+  pad[i]            = _p_bytesAlignPadding(elements[i*dim]*elements[i*dim+1] +
+                                           elements[(i-1)*dim]*elements[(i-1)*dim+1]);
+  /* set cell data (read/read-write) TODO deprecated */
+  i = DMBF_CELLMEMIDX_DATAREAD;
+  e = (size_t)(bf->blockSize[0]*bf->blockSize[1]*bf->blockSize[2]*bf->valsPerElemReadTotal);
+  elements[i*dim  ] = (0<e ? sizeof(PetscScalar) : 0);
+  elements[i*dim+1] = e;
+  pad[i]            = _p_bytesAlignPadding(elements[i*dim]*elements[i*dim+1]);
+  i = DMBF_CELLMEMIDX_DATAREADWRITE;
+  e = (size_t)(bf->blockSize[0]*bf->blockSize[1]*bf->blockSize[2]*bf->valsPerElemReadWriteTotal);
+  elements[i*dim  ] = (0<e ? sizeof(PetscScalar) : 0);
+  elements[i*dim+1] = e;
+  pad[i]            = _p_bytesAlignPadding(elements[i*dim]*elements[i*dim+1]);
+  /* set user/void cell data */
+  i = DMBF_CELLMEMIDX_DATAV;
+  elements[i*dim  ] = bf->cellDataVSize;
+  elements[i*dim+1] = (0<bf->cellDataVSize ? 1 : 0);
+  pad[i]            = _p_bytesAlignPadding(elements[i*dim]*elements[i*dim+1]);
+  /* set entries pertaining to cell data */
+  for (i=nCell; i<nCell+nData; i++) {
+    s = e = sizeof(PetscScalar);
+    elements[i*dim] = e;
+    for (j=1; j<dim; j++) {
+      e = bf->cellDataShape.list[i-nCell][j-1];
+      if (0 < e) s *= e;
+      elements[i*dim+j] = e;
+    }
+    pad[i] = _p_bytesAlignPadding(s);
+  }
+//{ //###DEV###
+//  PetscPrintf(PETSC_COMM_WORLD,"DMBF_CellMemoryShapeSetUp: nCell=%i nData=%i dim=%i\n",nCell,nData,dim);
+//  for (i=0; i<nCell+nData; i++) {
+//    PetscPrintf(PETSC_COMM_WORLD,"  i %i ; el ",i);
+//    for (j=0; j<dim; j++) {
+//      PetscPrintf(PETSC_COMM_WORLD,"%i ",elements[i*dim+j]);
+//    }
+//    PetscPrintf(PETSC_COMM_WORLD,"; pad %i\n",pad[i]);
+//  }
+//}
+  /* set up memory shape */
+  ierr = DMBFShapeSetUp(&bf->cellMemoryShape,nCell+nData,dim);CHKERRQ(ierr);
+  ierr = DMBFShapeSet(&bf->cellMemoryShape,elements,pad);CHKERRQ(ierr);
+  ierr = PetscFree(elements);CHKERRQ(ierr);
+  ierr = PetscFree(pad);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PETSC_STATIC_INLINE size_t _p_cellSize(DM_BF *bf)
+{
+  return bf->cellMemoryShape.size;
+}
+
+PETSC_STATIC_INLINE DM_BF_Cell *_p_getCellPtrFromIndex(DM_BF *bf, PetscInt index)
+{
+  return (DM_BF_Cell*)(((char*)bf->cells) + bf->cellMemoryShape.size*((size_t)index));
+}
+
+/***************************************
  * SETUP
  **************************************/
 
@@ -171,20 +228,22 @@ static PetscErrorCode DMBF_CellsCreate(DM dm)
 {
   DM_BF          *bf;
   PetscInt       dim, n, ng;
-  size_t         n_cells, ng_cells, cell_size;
+  size_t         n_cells, ng_cells, cellSize;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  bf = _p_getBF(dm);
+  /* set cell memory shape */
+  ierr = DMBF_CellMemoryShapeSetUp(dm);CHKERRQ(ierr);
   /* get number of cells and their size */
-  bf   = _p_getBF(dm);
   ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
-  n_cells   = (size_t)n;
-  ng_cells  = (size_t)ng;
-  cell_size = _p_cellSize(bf);
+  n_cells  = (size_t)n;
+  ng_cells = (size_t)ng;
+  cellSize = _p_cellSize(bf);
   /* create DMBF cells */
-  ierr = PetscMalloc((n_cells+ng_cells)*cell_size,&bf->cells);CHKERRQ(ierr);
-  ierr = PetscLogObjectMemory((PetscObject)dm,(n_cells+ng_cells)*cell_size);CHKERRQ(ierr);
+  ierr = PetscMalloc1((n_cells+ng_cells)*cellSize,&bf->cells);CHKERRQ(ierr);
+  ierr = PetscLogObjectMemory((PetscObject)dm,(n_cells+ng_cells)*cellSize);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -200,6 +259,7 @@ static PetscErrorCode DMBF_CellsDestroy(DM dm)
   }
   ierr = PetscFree(bf->cells);CHKERRQ(ierr);
   //ierr = PetscLogObjectMemory((PetscObject)dm,-(n_cells+ng_cells)*cell_size);CHKERRQ(ierr); //TODO need to "unlog" memeory?
+  ierr = DMBFShapeClear(&bf->cellMemoryShape);CHKERRQ(ierr);
   bf->cells = PETSC_NULL;
   PetscFunctionReturn(0);
 }
@@ -214,8 +274,8 @@ static PetscErrorCode DMBF_CellsSetUpOwned(DM dm)
   bf = _p_getBF(dm);
   if (!bf->cells) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   switch (_p_dim(dm)) {
-    case 2: ierr = DMBF_2D_IterateSetUpCells(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf));CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateSetUpCells(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf));CHKERRQ(ierr); break;
+    case 2: ierr = DMBF_2D_IterateSetUpCells(dm,bf->cells,&bf->cellMemoryShape);CHKERRQ(ierr); break;
+    case 3: ierr = DMBF_3D_IterateSetUpCells(dm,bf->cells,&bf->cellMemoryShape);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);
   }
   bf->ownedCellsSetUpCalled = PETSC_TRUE;
@@ -236,9 +296,8 @@ static PetscErrorCode DMBF_CellsSetUpGhost(DM dm)
   /* set data pointers of all ghost cells */
   ierr = DMBFGetInfo(dm,&dim,&offset_cells,PETSC_NULL,&ng_cells);CHKERRQ(ierr);
   for (i=offset_cells; i<(offset_cells+ng_cells); i++) {
-    cell                = _p_cellGetPtrIndex(bf,i);
-    cell->dataRead      = (const PetscScalar*)_p_cellGetDataRead(cell);
-    cell->dataReadWrite = _p_cellGetDataReadWrite(cell,bf);
+    cell = _p_getCellPtrFromIndex(bf,i);
+    ierr = DMBFCellInitialize(cell,&bf->cellMemoryShape);CHKERRQ(ierr);
   }
   bf->ghostCellsSetUpCalled = PETSC_TRUE;
   PetscFunctionReturn(0);
@@ -369,10 +428,11 @@ static PetscErrorCode DMBFClear(DM dm)
   /* destroy DMBF cells */
   ierr = DMBF_CellsDestroy(dm);CHKERRQ(ierr);
   /* destroy cell options */
-  if (!bf->valsPerElemRead) {
+  ierr = DMBFShapeClear(&bf->cellDataShape);CHKERRQ(ierr);
+  if (bf->valsPerElemRead) {
     ierr = PetscFree(bf->valsPerElemRead);CHKERRQ(ierr);
   }
-  if (!bf->valsPerElemReadWrite) {
+  if (bf->valsPerElemReadWrite) {
     ierr = PetscFree(bf->valsPerElemReadWrite);CHKERRQ(ierr);
   }
   bf->valsPerElemRead           = PETSC_NULL;
@@ -389,6 +449,80 @@ static PetscErrorCode DMBFClear(DM dm)
 /***************************************
  * OPTIONS
  **************************************/
+
+PetscErrorCode DMBFSetCellDataShape(DM dm, const PetscInt *shapeElements, PetscInt n, PetscInt dim)
+{
+  DM_BF          *bf;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidIntPointer(shapeElements,2);
+  if (dm->setupcalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cannot change cell data after setup");
+  bf = _p_getBF(dm);
+  /* set settings */
+  if (0 < n && 0 < dim) {
+    ierr = DMBFShapeSetUp(&bf->cellDataShape,(size_t)n,(size_t)dim);CHKERRQ(ierr);
+    ierr = DMBFShapeSetFromInt(&bf->cellDataShape,shapeElements);CHKERRQ(ierr);
+  } else {
+    ierr = DMBFShapeClear(&bf->cellDataShape);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBFGetCellDataShape(DM dm, PetscInt **shapeElements, PetscInt *n, PetscInt *dim)
+{
+  DM_BF          *bf;
+  PetscBool      isSetUp;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidPointer(shapeElements,2);
+  PetscValidIntPointer(n,3);
+  PetscValidIntPointer(dim,4);
+  bf = _p_getBF(dm);
+  /* get settings */
+  ierr = DMBFShapeIsSetUp(&bf->cellDataShape,&isSetUp);CHKERRQ(ierr);
+  if (isSetUp) {
+    ierr = DMBFShapeGetToInt(&bf->cellDataShape,shapeElements,n,dim);CHKERRQ(ierr);
+  } else {
+    *shapeElements = PETSC_NULL;
+    *n             = 0;
+    *dim           = 0;
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBFSetCellDataVSize(DM dm, size_t size)
+{
+  DM_BF          *bf;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  if (dm->setupcalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cannot change cell data after setup");
+  bf = _p_getBF(dm);
+  /* set setting */
+  if (0 < size) {
+    bf->cellDataVSize = size;
+  } else {
+    bf->cellDataVSize = 0;
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMBFGetCellDataVSize(DM dm, size_t *size)
+{
+  DM_BF          *bf;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  PetscValidPointer(size,2);
+  bf = _p_getBF(dm);
+  /* get setting */
+  *size = bf->cellDataVSize;
+  PetscFunctionReturn(0);
+}
 
 /*@
   DMBFSetBlockSize - During the pre-setup phase, set the levels of uniform block refinement of each cell in each dimension.
@@ -558,6 +692,11 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
   bf->ownedCellsSetUpCalled = PETSC_FALSE;
   bf->ghostCellsSetUpCalled = PETSC_FALSE;
 
+  ierr = DMBFShapeClear(&bf->cellMemoryShape);CHKERRQ(ierr);
+  ierr = DMBFShapeClear(&bf->cellDataShape);CHKERRQ(ierr);
+
+  bf->cellDataVSize = 0;
+
   bf->blockSize[0] = 1;
   bf->blockSize[1] = 1;
   bf->blockSize[2] = 1;
@@ -576,6 +715,7 @@ static PetscErrorCode DMBFSetDefaultOptions(DM dm)
 static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
 {
   DM_BF          *srcbf, *trgbf;
+  PetscBool      isSetUp;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -592,6 +732,24 @@ static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
   trgbf->cells                 = PETSC_NULL;
   trgbf->ownedCellsSetUpCalled = PETSC_FALSE;
   trgbf->ghostCellsSetUpCalled = PETSC_FALSE;
+
+  ierr = DMBFShapeIsSetUp(&srcbf->cellMemoryShape,&isSetUp);CHKERRQ(ierr);
+  if (isSetUp) {
+    ierr = DMBFShapeSetUp(&trgbf->cellMemoryShape,srcbf->cellMemoryShape.n,srcbf->cellMemoryShape.dim);CHKERRQ(ierr);
+    ierr = DMBFShapeCopy(&trgbf->cellMemoryShape,&srcbf->cellMemoryShape);CHKERRQ(ierr);
+  } else {
+    ierr = DMBFShapeClear(&trgbf->cellMemoryShape);CHKERRQ(ierr);
+  }
+
+  ierr = DMBFShapeIsSetUp(&srcbf->cellDataShape,&isSetUp);CHKERRQ(ierr);
+  if (isSetUp) {
+    ierr = DMBFShapeSetUp(&trgbf->cellDataShape,srcbf->cellDataShape.n,srcbf->cellDataShape.dim);CHKERRQ(ierr);
+    ierr = DMBFShapeCopy(&trgbf->cellDataShape,&srcbf->cellDataShape);CHKERRQ(ierr);
+  } else {
+    ierr = DMBFShapeClear(&trgbf->cellDataShape);CHKERRQ(ierr);
+  }
+
+  trgbf->cellDataVSize = srcbf->cellDataVSize;
 
   trgbf->blockSize[0] = srcbf->blockSize[0];
   trgbf->blockSize[1] = srcbf->blockSize[1];
@@ -616,7 +774,7 @@ static PetscErrorCode DMBFCopyOptions(DM srcdm, DM trgdm)
 
 static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,DM dm)
 {
-  PetscInt          blockSize[3], nBlockDim=3;
+  PetscInt          blockSize[3], blockDim=3;
   PetscBool         set;
   PetscErrorCode    ierr;
 
@@ -627,9 +785,9 @@ static PetscErrorCode DMSetFromOptions_BF(PetscOptionItems *PetscOptionsObject,D
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   ierr = PetscOptionsIntArray(
       "-dm_bf_block_size","set uniform refinement inside each cell in each dimension x,y,z","DMBFSetBlockSize",
-      blockSize,&nBlockDim,&set);CHKERRQ(ierr);
+      blockSize,&blockDim,&set);CHKERRQ(ierr);
   if (set) {
-    //TODO if (nBlockDim != dim)
+    //TODO if (blockDim != dim)
     ierr = DMBFSetBlockSize(dm,blockSize);CHKERRQ(ierr);
   }
 //TODO
@@ -713,7 +871,7 @@ static PetscErrorCode DMForestDestroy_BF(DM dm)
 
 static PetscErrorCode DMBFCloneInit(DM dm, DM *newdm)
 {
-  DM_BF          *bf, *newbf;
+  DM_BF          *newbf;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -730,7 +888,6 @@ static PetscErrorCode DMBFCloneInit(DM dm, DM *newdm)
     forest->destroy = DMForestDestroy_BF;
   }
   /* copy operators */
-  bf   = _p_getBF(dm);
   ierr = PetscMemcpy((*newdm)->ops,dm->ops,sizeof(*(dm->ops)));CHKERRQ(ierr);
   /* copy options */
   ierr = DMBFCopyOptions(dm,*newdm);CHKERRQ(ierr);
@@ -889,8 +1046,7 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
 {
   PetscInt       blockSize[3] = {1, 1, 1};
   PetscInt       dim, n, N;
-  PetscInt       cellDof = 1;
-  PetscInt       locDof,gloDof,nGhost;
+  PetscInt       locDof, gloDof, cellDof = 1;
   MatType        mattype;
   PetscBool      match;
   PetscErrorCode ierr;
@@ -899,7 +1055,7 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidPointer(mat,2);
   /* get number of rows/cols */
-  ierr = DMBFGetInfo(dm,&dim,&n,&N,&nGhost);CHKERRQ(ierr);
+  ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   for(PetscInt i = 0; i < dim; i++) {
     cellDof *= blockSize[i];
@@ -908,9 +1064,9 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   gloDof = cellDof*N;
   /* create matrix */
   ierr = MatCreate(_p_comm(dm),mat);CHKERRQ(ierr);
-  ierr = MatSetLocalToGlobalMapping(*mat,dm->ltogmap,dm->ltogmap);CHKERRQ(ierr);
   ierr = MatSetSizes(*mat,locDof,locDof,gloDof,gloDof);CHKERRQ(ierr);
   ierr = MatSetBlockSize(*mat,1/*blocksize*/);CHKERRQ(ierr);
+  ierr = MatSetLocalToGlobalMapping(*mat,dm->ltogmap,dm->ltogmap);CHKERRQ(ierr);
   ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
   /* set type */
   ierr = DMGetMatType(dm,&mattype);CHKERRQ(ierr);
@@ -1215,7 +1371,7 @@ PetscErrorCode DMBFAMRFlag(DM dm)
   /* set data pointers of all ghost cells */
   ierr = DMBFGetInfo(dm,&dim,&n_cells,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
   for (i=0; i<n_cells; i++) {
-    cell = _p_cellGetPtrIndex(bf,i);
+    cell = _p_getCellPtrFromIndex(bf,i);
     ierr = bf->amrOps->setAmrFlag(dm,cell,bf->amrOps->setAmrFlagCtx);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -1242,13 +1398,13 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
     case 2:
       ierr = DMBF_2D_TopologyClone((DM_BF_2D_Topology*)bf->ftTopology,(DM_BF_2D_Topology**)&adaptedbf->ftTopology,*adaptedDm);CHKERRQ(ierr);
       ierr = DMBF_2D_CellsAmrAdapt((DM_BF_2D_Cells*)bf->ftCells,(DM_BF_2D_Cells**)&adaptedbf->ftCells,*adaptedDm,bf->amrOps,
-                                   minLevel,maxLevel,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf));CHKERRQ(ierr);
+                                   minLevel,maxLevel,&bf->cellMemoryShape);CHKERRQ(ierr);
       ierr = DMBF_2D_CellsAmrPartition((DM_BF_2D_Cells*)adaptedbf->ftCells);CHKERRQ(ierr);
       break;
     case 3:
       ierr = DMBF_3D_TopologyClone((DM_BF_3D_Topology*)bf->ftTopology,(DM_BF_3D_Topology**)&adaptedbf->ftTopology,*adaptedDm);CHKERRQ(ierr);
       ierr = DMBF_3D_CellsAmrAdapt((DM_BF_3D_Cells*)bf->ftCells,(DM_BF_3D_Cells**)&adaptedbf->ftCells,*adaptedDm,bf->amrOps,
-                                   minLevel,maxLevel,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf));CHKERRQ(ierr);
+                                   minLevel,maxLevel,&bf->cellMemoryShape);CHKERRQ(ierr);
       ierr = DMBF_3D_CellsAmrPartition((DM_BF_3D_Cells*)adaptedbf->ftCells);CHKERRQ(ierr);
       break;
     default: _p_SETERRQ_UNREACHABLE(dm);
@@ -1258,10 +1414,10 @@ PetscErrorCode DMBFAMRAdapt(DM dm, DM *adaptedDm)
   /* copy data of DMBF cells from p4est */
   switch (dim) {
     case 2:
-      ierr = DMBF_2D_CellsAmrFinalize(*adaptedDm,(DM_BF_2D_Cells*)adaptedbf->ftCells,adaptedbf->cells,_p_cellSize(adaptedbf));CHKERRQ(ierr);
+      ierr = DMBF_2D_CellsAmrFinalize(*adaptedDm,(DM_BF_2D_Cells*)adaptedbf->ftCells,adaptedbf->cells,&adaptedbf->cellMemoryShape);CHKERRQ(ierr);
       break;
     case 3:
-      ierr = DMBF_3D_CellsAmrFinalize(*adaptedDm,(DM_BF_3D_Cells*)adaptedbf->ftCells,adaptedbf->cells,_p_cellSize(adaptedbf));CHKERRQ(ierr);
+      ierr = DMBF_3D_CellsAmrFinalize(*adaptedDm,(DM_BF_3D_Cells*)adaptedbf->ftCells,adaptedbf->cells,&adaptedbf->cellMemoryShape);CHKERRQ(ierr);
       break;
     default: _p_SETERRQ_UNREACHABLE(dm);
   }
@@ -1335,6 +1491,10 @@ PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM,DM_BF_F
   PetscFunctionReturn(0);
 }
 
+//TODO deprecated
+#define _p_cellOffsetDataRead(bf) _p_cellMemoryOffset(&(bf)->cellMemoryShape,(size_t)DMBF_CELLMEMIDX_DATAREAD)
+#define _p_cellOffsetDataReadWrite(bf) _p_cellMemoryOffset(&(bf)->cellMemoryShape,(size_t)DMBF_CELLMEMIDX_DATAREADWRITE)
+
 PetscErrorCode DMBFSetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
 {
   DM_BF          *bf;
@@ -1350,10 +1510,10 @@ PetscErrorCode DMBFSetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-    case 2: ierr = DMBF_2D_IterateSetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+    case 2: ierr = DMBF_2D_IterateSetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite);CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateSetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+    case 3: ierr = DMBF_3D_IterateSetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);
@@ -1376,10 +1536,10 @@ PetscErrorCode DMBFSetCellFields(DM dm, Vec *vecRead, Vec *vecReadWrite, PetscIn
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-    case 2: ierr = DMBF_2D_IterateSetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+    case 2: ierr = DMBF_2D_IterateSetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateSetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+    case 3: ierr = DMBF_3D_IterateSetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);
@@ -1402,10 +1562,10 @@ PetscErrorCode DMBFGetCellData(DM dm, Vec *vecRead, Vec *vecReadWrite)
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-    case 2: ierr = DMBF_2D_IterateGetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+    case 2: ierr = DMBF_2D_IterateGetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite);CHKERRQ(ierr); break;
-    case 3: ierr = DMBF_3D_IterateGetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+    case 3: ierr = DMBF_3D_IterateGetCellData(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                               bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                               vecRead,vecReadWrite);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);
@@ -1428,10 +1588,10 @@ PetscErrorCode DMBFGetCellFields(DM dm, Vec *vecRead, Vec *vecReadWrite, PetscIn
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-  case 2: ierr = DMBF_2D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+  case 2: ierr = DMBF_2D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                             bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                             vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
-  case 3: ierr = DMBF_3D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(),_p_cellOffsetDataReadWrite(bf),
+  case 3: ierr = DMBF_3D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
                                             bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
                                             vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;   default: _p_SETERRQ_UNREACHABLE(dm);
   }
@@ -1465,19 +1625,15 @@ PetscErrorCode DMBFCommunicateGhostCells(DM dm)
 PetscErrorCode DMBFFVMatAssemble(DM dm, Mat mat, PetscErrorCode (*iterFace)(DM,DM_BF_Face*,PetscReal*,void*), void *userIterCtx)
 {
   DM_BF          *bf;
-  PetscInt       dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidFunction(iterFace,2);
+  CHKERRQ( DMBFCheck(dm) );
   bf = _p_getBF(dm);
-  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
-  if (!bf->ghostCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
-  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   ierr = MatZeroEntries(mat);CHKERRQ(ierr);
-  switch (dim) {
+  switch (_p_dim(dm)) {
     case 2: ierr = DMBF_2D_IterateFVMatAssembly(dm,bf->cells,_p_cellSize(bf),mat,iterFace,userIterCtx);CHKERRQ(ierr); break;
     case 3: ierr = DMBF_3D_IterateFVMatAssembly(dm,bf->cells,_p_cellSize(bf),mat,iterFace,userIterCtx);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);

@@ -131,7 +131,7 @@ PetscErrorCode DMBF_XD_CellsAmrAdapt(/*IN    */ DM_BF_XD_Cells *origCells,
                                      /*OUT   */ DM_BF_XD_Cells **adapCells,
                                      /*IN/OUT*/ DM adapDm,
                                      /*IN    */ DM_BF_AmrOps *amrOps, PetscInt minLevel, PetscInt maxLevel,
-                                                size_t cellSize, size_t cellOffsetDataRead, size_t cellOffsetDataReadWrite)
+                                                const DM_BF_Shape *cellMemoryShape)
 {
   p4est_t        *orig_p4est = origCells->p4est;
   p4est_t        *adap_p4est;
@@ -145,8 +145,8 @@ PetscErrorCode DMBF_XD_CellsAmrAdapt(/*IN    */ DM_BF_XD_Cells *origCells,
   /* adapt cells of p4est */
   ierr = DMBF_XD_AmrAdapt(adap_p4est,minLevel,maxLevel);CHKERRQ(ierr);
   /* create and setup cell data owned by p4est */
-  PetscStackCallP4est(p4est_reset_data,(adap_p4est,cellSize,NULL/*init_fn*/,orig_p4est->user_pointer));
-  ierr = DMBF_XD_IterateSetUpP4estCells(adapDm,cellSize,cellOffsetDataRead,cellOffsetDataReadWrite);CHKERRQ(ierr);
+  PetscStackCallP4est(p4est_reset_data,(adap_p4est,cellMemoryShape->size,NULL/*init_fn*/,orig_p4est->user_pointer));
+  ierr = DMBF_XD_IterateSetUpP4estCells(adapDm,cellMemoryShape);CHKERRQ(ierr);
   /* adapt cell data */
   ierr = DMBF_XD_AmrAdaptData(orig_p4est,adap_p4est,adapDm,amrOps);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -161,10 +161,10 @@ PetscErrorCode DMBF_XD_CellsAmrPartition(/*IN/OUT*/ DM_BF_XD_Cells *cells)
 }
 
 PetscErrorCode DMBF_XD_CellsAmrFinalize(/*IN/OUT*/ DM dm, DM_BF_XD_Cells *cells, DM_BF_Cell *bfCells,
-                                        /*IN    */ size_t cellSize)
+                                        /*IN    */ const DM_BF_Shape *cellMemoryShape)
 {
   PetscFunctionBegin;
-  CHKERRQ( DMBF_XD_IterateCopyP4estCells(dm,bfCells,cellSize) );
+  CHKERRQ( DMBF_XD_IterateCopyP4estCells(dm,bfCells,cellMemoryShape) );
   PetscStackCallP4est(p4est_reset_data,(cells->p4est,0/*data_size*/,NULL/*init_fn*/,cells->p4est->user_pointer));
   PetscFunctionReturn(0);
 }
