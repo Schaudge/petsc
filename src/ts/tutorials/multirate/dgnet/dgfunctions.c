@@ -178,6 +178,8 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
     /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
     ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+    ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
+
     /* Iterate through the cells of the edge mesh */
     for(c=cStart; c<cEnd; c++) {
       /* Get Geometric Data */
@@ -185,7 +187,6 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
       /* Now we do the main integral \int_K flux(u)\phi_x \dx  on the reference element*/ 
       /* First we evaluate the flux(u) at the quadrature points */
-      ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
       
       for(q=0; q<quadsize; q++) {
         for(field = 0; field<dof; field++) {
@@ -349,5 +350,63 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t)
   /* Can use insert as each edge belongs to a single processor and vertex data is only for temporary computation and holds no 'real' data. */
   ierr = DMLocalToGlobalBegin(dgnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dgnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr); 
+  PetscFunctionReturn(0);
+}
+/* Compute the L1 Norm of the Vector X associated with the FVNetowork fvnet */
+PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm) 
+{
+  PetscErrorCode     ierr;
+  PetscInt           field,offset,e,eStart,eEnd,c,cStart,cEnd,dof = dgnet->physics.dof,quadsize,q,fieldoff;
+  const PetscScalar  *xarr,*coeff;
+  EdgeFE             edgefe;
+  Vec                localX = dgnet->localX;
+  PetscSection       section;
+  PetscReal          J,invJ,detJ,qeval,*cellint;
+  const PetscReal    *qweight;
+  
+  PetscFunctionBegin;
+  ierr = DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr); 
+  ierr = DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(localX,&xarr);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  for (field=0;field<dof;field++) {
+    norm[field] = 0.0; 
+  }
+  for (e=eStart; e<eEnd-1; e++) {
+    ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+    /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
+    ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+    ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
+    ierr = PetscMalloc1(dof,&cellint);CHKERRQ(ierr);
+    /* Iterate through the cells of the edge mesh */
+    for(c=cStart; c<cEnd; c++) {
+      /* Get Geometric Data */
+      /* Assumes Affine coordinates for now (And 1D everything!!) (and I think assumes same embedding dimension as topological ) */
+      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
+      /* Now we do the main integral \int_K flux(u)\phi_x \dx  on the reference element*/ 
+      /* First we evaluate the flux(u) at the quadrature points */
+      for(field = 0; field<dof; field++) cellint[field] = 0; 
+      for(q=0; q<quadsize; q++) {
+        for(field = 0; field<dof; field++) {
+          ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
+          coeff = xarr+offset+fieldoff;
+          qeval = evalquad_internal(dgnet,field,q,(PetscReal*)coeff);
+          cellint[field] += qweight[q]*PetscPowReal(qeval,2);  
+        }
+      }
+      /* Now we can compute quadrature for each integral for each field */
+      for(field = 0; field<dof; field++) {
+        norm[field] += detJ*cellint[field];
+      }
+    }
+    for(field = 0; field<dof; field++) {
+      norm[field] = PetscSqrtReal(norm[field]);
+    }
+  }
+  ierr = PetscFree(cellint);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
+  MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,dgnet->comm);CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }

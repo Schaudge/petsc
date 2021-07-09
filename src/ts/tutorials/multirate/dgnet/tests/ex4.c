@@ -516,6 +516,11 @@ typedef struct {
 
 PETSC_STATIC_INLINE PetscScalar TrafficFlux(PetscScalar a,PetscScalar u) { return a*u*(1-u); }
 PETSC_STATIC_INLINE PetscScalar TrafficChar(PetscScalar a,PetscScalar u) { return a*(1-2*u); }
+PETSC_STATIC_INLINE PetscErrorCode TrafficFlux2(void *ctx,const PetscReal *u,PetscReal *f) {
+  TrafficCtx *phys = (TrafficCtx*)ctx;
+  f[0] = phys->a * u[0]*(1. - u[0]);
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode PhysicsRiemann_Traffic_Exact(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
 {
@@ -716,6 +721,7 @@ static PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   fvnet->physics.vfluxassign    = PhysicsAssignVertexFlux_Traffic;
   fvnet->physics.vfluxdestroy   = PhysicsDestroyVertexFlux;
   fvnet->physics.user           = user;
+  fvnet->physics.flux           = TrafficFlux2;
 
   ierr = PetscStrallocpy("density",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
   user->a = 0.5;
@@ -784,7 +790,7 @@ int main(int argc,char *argv[])
   maxtime               = 1.0;
   fvnet->Mx             = 10;
   fvnet->bufferwidth    = 0;
-  fvnet->initial        = 0;
+  fvnet->initial        = 1;
   fvnet->ymin           = 0;
   fvnet->ymax           = 2.0;
   fvnet->bufferwidth    = 4;
@@ -865,7 +871,7 @@ int main(int argc,char *argv[])
   ierr = TSSetType(ts,TSSSP);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
-  ierr = TSSetTimeStep(ts,0.05);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts,fvnet->cfl/fvnet->Mx/(2*maxorder+1));CHKERRQ(ierr);
 
   /* Compute initial conditions and starting time step */
   ierr = DGNetworkProject(fvnet,fvnet->X,0.0);CHKERRQ(ierr);

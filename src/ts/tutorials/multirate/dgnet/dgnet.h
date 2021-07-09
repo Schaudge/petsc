@@ -217,3 +217,5 @@ extern PetscErrorCode DGNetworkMonitorDestroy(DGNetworkMonitor*);
 extern PetscErrorCode DGNetworkMonitorAdd(DGNetworkMonitor,PetscInt,PetscReal,PetscReal,PetscReal,PetscReal,PetscBool);
 extern PetscErrorCode DGNetworkMonitorView(DGNetworkMonitor,Vec);
 extern PetscErrorCode DGNetworkAddMonitortoEdges(DGNetwork,DGNetworkMonitor);
+
+extern PetscErrorCode DGNetworkNormL2(DGNetwork,Vec,PetscReal*);

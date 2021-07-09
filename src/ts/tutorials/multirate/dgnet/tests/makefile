@@ -17,3 +17,4 @@ ex1 : ../dgnet.c ../dgfunctions.c
 ex2 : ../dgnet.c ../dgfunctions.c
 ex3 : ../dgnet.c ../dgfunctions.c
 ex4 : ../dgnet.c ../dgfunctions.c
+ex5 : ../dgnet.c ../dgfunctions.c

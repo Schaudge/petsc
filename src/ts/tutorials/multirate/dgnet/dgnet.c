@@ -251,12 +251,12 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
       ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
       /* vertex */
 
-      junctions[0].x = 0.0; 
-      junctions[1].x = 1.0; 
+      junctions[0].x = -5.0; 
+      junctions[1].x = 5.0; 
       /* Edge */ 
       for(i=0; i<numEdges; ++i) {
         fvedges[i].nnodes = Mx; 
-        fvedges[i].length = 1.0; 
+        fvedges[i].length = 5.0; 
       }
     }
     break;
@@ -528,9 +528,9 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     ierr = PetscMalloc1(2*(dgnet->taborder[i]+1),&dgnet->LegEvaL_bdry[i]);CHKERRQ(ierr);
     ierr = PetscDTLegendreEval(2,bdry,dgnet->taborder[i]+1,deg,dgnet->LegEvaL_bdry[i],PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]);CHKERRQ(ierr);
-    for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = 1./(2.*(2.0*j +1.)); }
+    for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = (2.0*j +1.)/(2.); }
     /* Viewer evaluations to be migrated */
-    dgnet->numviewpts[i] = n;
+    dgnet->numviewpts[i] = 2*n;
     ierr = PetscMalloc1(dgnet->numviewpts[i],&viewnodes);CHKERRQ(ierr);
     for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]-1) - 1.;
     ierr = PetscMalloc1(dgnet->numviewpts[i]*(dgnet->taborder[i]+1),&dgnet->LegEval_equispaced[i]);CHKERRQ(ierr);
@@ -541,7 +541,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     /* Workspace */
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->comp[i]);CHKERRQ(ierr);
   }
-    PetscFunctionReturn(0);
+  PetscFunctionReturn(0);
 }
 PetscErrorCode LegendreTabulationViewer_Internal(PetscInt npoints, PetscInt ndegree, PetscViewer viewer, PetscReal *LegEval) {
   PetscErrorCode ierr;
