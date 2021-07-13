@@ -108,6 +108,7 @@ typedef const char* MatType;
 #define MATLMVMSYMBROYDEN  "lmvmsymbroyden"
 #define MATLMVMSYMBADBROYDEN "lmvmsymbadbroyden"
 #define MATLMVMDIAGBROYDEN   "lmvmdiagbroyden"
+#define MATLMVMDIAGBB      "lmvmdiagbb"
 #define MATCONSTANTDIAGONAL  "constantdiagonal"
 #define MATHARA              "hara"
 #define MATHTOOL           "htool"

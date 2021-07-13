@@ -814,6 +814,7 @@ PETSC_EXTERN PetscErrorCode MatCreateLMVMBadBroyden(MPI_Comm,PetscInt,PetscInt,M
 PETSC_EXTERN PetscErrorCode MatCreateLMVMSymBroyden(MPI_Comm,PetscInt,PetscInt,Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMSymBadBroyden(MPI_Comm,PetscInt,PetscInt,Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateLMVMDiagBroyden(MPI_Comm,PetscInt,PetscInt,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateLMVMDiagBB(MPI_Comm,PetscInt,PetscInt,Mat*);
 
 PETSC_EXTERN PetscErrorCode MatLMVMUpdate(Mat, Vec, Vec);
 PETSC_EXTERN PetscErrorCode MatLMVMIsAllocated(Mat, PetscBool*);
