@@ -326,7 +326,7 @@ the following
 * ``PetscLogView(PetscViewer);``
 
 These routines are normally called by the ``PetscInitialize()`` and
-``PetscFinalize()`` routines when the option ``-logview`` is given.
+``PetscFinalize()`` routines when the option ``-log_view`` is given.
 
 References
 ----------
