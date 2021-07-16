@@ -20,8 +20,9 @@
 #include <petsc/private/hipvecimpl.h>
 
 #include <rocsparse.h>
-/* csrsv2Info_t is defined in hipsparse and not rocsparse */
-#include <hipsparse.h>
+/* csrsv2Info_t is defined in hipsparse and not rocsparse so we'll have some
+ * work to re-implement it */
+/* #include <hipsparse.h> */
 
 #include <algorithm>
 #include <vector>
@@ -57,68 +58,76 @@
   const PetscScalar PETSC_HIPSPARSE_ZERO       = 0.0;
 #endif
 
-#define rocsparse_create_analysis_info  hipsparseCreateCsrsv2Info
-#define rocsparse_destroy_analysis_info hipsparseDestroyCsrsv2Info
+/* TODO
+ * Namespace:  prsparse = PETSc's rocsparse interface
+ * PETSc cusparse interface uses cusparse for namespacing.  This is perhaps OK
+ * because cusparse uses camelCase and PETSc's wrapper uses snake_case so one
+ * can distinguish the two by looking at them.  rocsparse uses camel case so
+ * need a better way of namespacing our own architecture
+ */
+#define prsparse_create_analysis_info  rocsparse_create_mat_info((rocsparse_mat_info*)info)
+#define prsparse_destroy_analysis_info rocsparse_destroy_mat_info((rocsparse_mat_info)info)
 #if defined(PETSC_USE_COMPLEX)
   #if defined(PETSC_USE_REAL_SINGLE)
-    #define rocsparse_get_svbuffsize(a,b,c,d,e,f,g,h,i,j) hipsparseCcsrsv2_bufferSize(a,b,c,d,e,(hipComplex*)(f),g,h,i,j)
-    #define rocsparse_analysis(a,b,c,d,e,f,g,h,i,j,k)     hipsparseCcsrsv2_analysis(a,b,c,d,e,(const hipComplex*)(f),g,h,i,j,k)
-    #define rocsparse_solve(a,b,c,d,e,f,g,h,i,j,k,l,m,n)  hipsparseCcsrsv2_solve(a,b,c,d,(const hipComplex*)(e),f,(const hipComplex*)(g),h,i,j,(const hipComplex*)(k),(hipComplex*)(l),m,n)
+    #define prsparse_get_svbuffsize(a,b,c,d,e,f,g,h,i,j) rocsparse_ccsrsv_buffer_size(a,b,c,d,e,(rocsparse_float_complex*)(f),g,h,i,j)
+     /* TODO:  The cusparse version of analysis is blocking so need to check if I have to worry about that */
+    #define prsparse_analysis(a,b,c,d,e,f,g,h,i,j,k)     rocsparse_ccsrsv_analysis(a,b,c,d,e,(const rocsparse_float_complex*)(f),g,h,i,j,k)
+    #define prsparse_solve(a,b,c,d,e,f,g,h,i,j,k,l,m,n)  rocsparse_ccsrsv_solve(a,b,c,d,(const rocsparse_float_complex*)(e),f,(const rocsparse_float_complex*)(g),h,i,j,(const rocsparse_float_complex*)(k),(rocsparse_float_complex*)(l),m,n)
   #elif defined(PETSC_USE_REAL_DOUBLE)
-    #define rocsparse_get_svbuffsize(a,b,c,d,e,f,g,h,i,j) hipsparseZcsrsv2_bufferSize(a,b,c,d,e,(hipDoubleComplex*)(f),g,h,i,j)
-    #define rocsparse_analysis(a,b,c,d,e,f,g,h,i,j,k)     hipsparseZcsrsv2_analysis(a,b,c,d,e,(const hipDoubleComplex*)(f),g,h,i,j,k)
-    #define rocsparse_solve(a,b,c,d,e,f,g,h,i,j,k,l,m,n)  hipsparseZcsrsv2_solve(a,b,c,d,(const hipDoubleComplex*)(e),f,(const hipDoubleComplex*)(g),h,i,j,(const hipDoubleComplex*)(k),(hipDoubleComplex*)(l),m,n)
+    #define prsparse_get_svbuffsize(a,b,c,d,e,f,g,h,i,j) rocsparse_zcsrsv_buffer_size(a,b,c,d,e,(rocsparse_double_complex*)(f),g,h,i,j)
+    #define prsparse_analysis(a,b,c,d,e,f,g,h,i,j,k)     rocsparse_zcsrsv_analysis(a,b,c,d,e,(const rocsparse_double_complex*)(f),g,h,i,j,k)
+    #define prsparse_solve(a,b,c,d,e,f,g,h,i,j,k,l,m,n)  rocsparse_zcsrsv_solve(a,b,c,d,(const rocsparse_double_complex*)(e),f,(const rocsparse_double_complex*)(g),h,i,j,(const rocsparse_double_complex*)(k),(rocsparse_double_complex*)(l),m,n)
   #endif
 #else /* not complex */
   #if defined(PETSC_USE_REAL_SINGLE)
-    #define rocsparse_get_svbuffsize hipsparseScsrsv2_bufferSize
-    #define rocsparse_analysis       hipsparseScsrsv2_analysis
-    #define rocsparse_solve          hipsparseScsrsv2_solve
+    #define prsparse_get_svbuffsize rocsparse_scsrsv_buffer_size
+    #define prsparse_analysis       rocsparse_scsrsv_analysis
+    #define prsparse_solve          rocsparse_scsrsv_solve
   #elif defined(PETSC_USE_REAL_DOUBLE)
-    #define rocsparse_get_svbuffsize hipsparseDcsrsv2_bufferSize
-    #define rocsparse_analysis       hipsparseDcsrsv2_analysis
-    #define rocsparse_solve          hipsparseDcsrsv2_solve
+    #define prsparse_get_svbuffsize rocsparse_scsrsv_buffer_size
+    #define prsparse_analysis       rocsparse_dcsrsv_analysis
+    #define prsparse_solve          rocsparse_dcsrsv_solve
   #endif
 #endif
 #if defined(PETSC_USE_COMPLEX)
   #if defined(PETSC_USE_REAL_SINGLE)
-    #define rocsparse_csr_spmv(a,b,c,d,e,f,g,h,i,j,k,l,m)       hipsparseCcsrmv((a),(b),(c),(d),(e),(hipComplex*)(f),(g),(hipComplex*)(h),(i),(j),(hipComplex*)(k),(hipComplex*)(l),(hipComplex*)(m))
-    #define rocsparse_csr_spmm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) hipsparseCcsrmm((a),(b),(c),(d),(e),(f),(hipComplex*)(g),(h),(hipComplex*)(i),(j),(k),(hipComplex*)(l),(m),(hipComplex*)(n),(hipComplex*)(o),(p))
-    #define rocsparse_csr2csc(a,b,c,d,e,f,g,h,i,j,k,l)          hipsparseCcsr2csc((a),(b),(c),(d),(hipComplex*)(e),(f),(g),(hipComplex*)(h),(i),(j),(k),(l))
-    #define rocsparse_hyb_spmv(a,b,c,d,e,f,g,h)                 hipsparseChybmv((a),(b),(hipComplex*)(c),(d),(e),(hipComplex*)(f),(hipComplex*)(g),(hipComplex*)(h))
-    #define rocsparse_csr2hyb(a,b,c,d,e,f,g,h,i,j)              hipsparseCcsr2hyb((a),(b),(c),(d),(hipComplex*)(e),(f),(g),(h),(i),(j))
-    #define rocsparse_hyb2csr(a,b,c,d,e,f)                      rocsparseChyb2csr((a),(b),(c),(hipComplex*)(d),(e),(f))
-    #define rocsparse_csr_spgemm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t) hipsparseCcsrgemm(a,b,c,d,e,f,g,h,(hipComplex*)i,j,k,l,m,(hipComplex*)n,o,p,q,(hipComplex*)r,s,t)
-    #define rocsparse_csr_spgeam(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s)   hipsparseCcsrgeam(a,b,c,(hipComplex*)d,e,f,(hipComplex*)g,h,i,(hipComplex*)j,k,l,(hipComplex*)m,n,o,p,(hipComplex*)q,r,s)
+    #define prsparse_csr_spmv(a,b,c,d,e,f,g,h,i,j,k,l,m)       rocsparse_ccsrmv((a),(b),(c),(d),(e),(rocsparse_float_complex*)(f),(g),(rocsparse_float_complex*)(h),(i),(j),(rocsparse_float_complex*)(k),(rocsparse_float_complex*)(l),(rocsparse_float_complex*)(m))
+    #define prsparse_csr_spmm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) rocsparse_ccsrmm((a),(b),(c),(d),(e),(f),(rocspare_float_complex*)(g),(h),(rocspare_float_complex*)(i),(j),(k),(rocspare_float_complex*)(l),(m),(rocspare_float_complex*)(n),(rocspare_float_complex*)(o),(p))
+    #define prsparse_csr2csc(a,b,c,d,e,f,g,h,i,j,k,l)          hipsparseCcsr2csc((a),(b),(c),(d),(rocspare_float_complex*)(e),(f),(g),(rocspare_float_complex*)(h),(i),(j),(k),(l))
+    #define prsparse_hyb_spmv(a,b,c,d,e,f,g,h)                 hipsparseChybmv((a),(b),(rocspare_float_complex*)(c),(d),(e),(rocspare_float_complex*)(f),(rocspare_float_complex*)(g),(rocspare_float_complex*)(h))
+    #define prsparse_csr2hyb(a,b,c,d,e,f,g,h,i,j)              hipsparseCcsr2hyb((a),(b),(c),(d),(rocspare_float_complex*)(e),(f),(g),(h),(i),(j))
+    #define prsparse_hyb2csr(a,b,c,d,e,f)                      rocsparseChyb2csr((a),(b),(c),(rocspare_float_complex*)(d),(e),(f))
+    #define prsparse_csr_spgemm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t) hipsparseCcsrgemm(a,b,c,d,e,f,g,h,(rocspare_float_complex*)i,j,k,l,m,(rocspare_float_complex*)n,o,p,q,(rocspare_float_complex*)r,s,t)
+    #define prsparse_csr_spgeam(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s)   hipsparseCcsrgeam(a,b,c,(rocspare_float_complex*)d,e,f,(rocspare_float_complex*)g,h,i,(rocspare_float_complex*)j,k,l,(rocspare_float_complex*)m,n,o,p,(rocspare_float_complex*)q,r,s)
   #elif defined(PETSC_USE_REAL_DOUBLE)
-    #define rocsparse_csr_spmv(a,b,c,d,e,f,g,h,i,j,k,l,m)       hipsparseZcsrmv((a),(b),(c),(d),(e),(hipDoubleComplex*)(f),(g),(hipDoubleComplex*)(h),(i),(j),(hipDoubleComplex*)(k),(hipDoubleComplex*)(l),(hipDoubleComplex*)(m))
-    #define rocsparse_csr_spmm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) hipsparseZcsrmm((a),(b),(c),(d),(e),(f),(hipDoubleComplex*)(g),(h),(hipDoubleComplex*)(i),(j),(k),(hipDoubleComplex*)(l),(m),(hipDoubleComplex*)(n),(hipDoubleComplex*)(o),(p))
-    #define rocsparse_csr2csc(a,b,c,d,e,f,g,h,i,j,k,l)          hipsparseZcsr2csc((a),(b),(c),(d),(hipDoubleComplex*)(e),(f),(g),(hipDoubleComplex*)(h),(i),(j),(k),(l))
-    #define rocsparse_hyb_spmv(a,b,c,d,e,f,g,h)                 hipsparseZhybmv((a),(b),(hipDoubleComplex*)(c),(d),(e),(hipDoubleComplex*)(f),(hipDoubleComplex*)(g),(hipDoubleComplex*)(h))
-    #define rocsparse_csr2hyb(a,b,c,d,e,f,g,h,i,j)              hipsparseZcsr2hyb((a),(b),(c),(d),(hipDoubleComplex*)(e),(f),(g),(h),(i),(j))
-    #define rocsparse_hyb2csr(a,b,c,d,e,f)                      rocsparseZhyb2csr((a),(b),(c),(hipDoubleComplex*)(d),(e),(f))
-    #define rocsparse_csr_spgemm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t) hipsparseZcsrgemm(a,b,c,d,e,f,g,h,(hipDoubleComplex*)i,j,k,l,m,(hipDoubleComplex*)n,o,p,q,(hipDoubleComplex*)r,s,t)
-    #define rocsparse_csr_spgeam(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s)   hipsparseZcsrgeam(a,b,c,(hipDoubleComplex*)d,e,f,(hipDoubleComplex*)g,h,i,(hipDoubleComplex*)j,k,l,(hipDoubleComplex*)m,n,o,p,(hipDoubleComplex*)q,r,s)
+    #define prsparse_csr_spmv(a,b,c,d,e,f,g,h,i,j,k,l,m)       hipsparseZcsrmv((a),(b),(c),(d),(e),(rocsparse_double_complex*)(f),(g),(rocsparse_double_complex*)(h),(i),(j),(rocsparse_double_complex*)(k),(rocsparse_double_complex*)(l),(rocsparse_double_complex*)(m))
+    #define prsparse_csr_spmm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) hipsparseZcsrmm((a),(b),(c),(d),(e),(f),(rocsparse_double_complex*)(g),(h),(rocsparse_double_complex*)(i),(j),(k),(rocsparse_double_complex*)(l),(m),(rocsparse_double_complex*)(n),(rocsparse_double_complex*)(o),(p))
+    #define prsparse_csr2csc(a,b,c,d,e,f,g,h,i,j,k,l)          hipsparseZcsr2csc((a),(b),(c),(d),(rocsparse_double_complex*)(e),(f),(g),(rocsparse_double_complex*)(h),(i),(j),(k),(l))
+    #define prsparse_hyb_spmv(a,b,c,d,e,f,g,h)                 hipsparseZhybmv((a),(b),(rocsparse_double_complex*)(c),(d),(e),(rocsparse_double_complex*)(f),(rocsparse_double_complex*)(g),(rocsparse_double_complex*)(h))
+    #define prsparse_csr2hyb(a,b,c,d,e,f,g,h,i,j)              hipsparseZcsr2hyb((a),(b),(c),(d),(rocsparse_double_complex*)(e),(f),(g),(h),(i),(j))
+    #define prsparse_hyb2csr(a,b,c,d,e,f)                      rocsparseZhyb2csr((a),(b),(c),(rocsparse_double_complex*)(d),(e),(f))
+    #define prsparse_csr_spgemm(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t) hipsparseZcsrgemm(a,b,c,d,e,f,g,h,(rocsparse_double_complex*)i,j,k,l,m,(rocsparse_double_complex*)n,o,p,q,(rocsparse_double_complex*)r,s,t)
+    #define prsparse_csr_spgeam(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s)   hipsparseZcsrgeam(a,b,c,(rocsparse_double_complex*)d,e,f,(rocsparse_double_complex*)g,h,i,(rocsparse_double_complex*)j,k,l,(rocsparse_double_complex*)m,n,o,p,(rocsparse_double_complex*)q,r,s)
   #endif
 #else
   #if defined(PETSC_USE_REAL_SINGLE)
-    #define rocsparse_csr_spmv hipsparseScsrmv
-    #define rocsparse_csr_spmm hipsparseScsrmm
-    #define rocsparse_csr2csc  hipsparseScsr2csc
-    #define rocsparse_hyb_spmv hipsparseShybmv
-    #define rocsparse_csr2hyb  hipsparseScsr2hyb
-    #define rocsparse_hyb2csr  rocsparseShyb2csr
-    #define rocsparse_csr_spgemm hipsparseScsrgemm
-    #define rocsparse_csr_spgeam hipsparseScsrgeam
+    #define prsparse_csr_spmv rocsparse_scsrmv
+    #define prsparse_csr_spmm rocsparse_scsrmm
+    #define prsparse_csr2csc  rocsparse_scsr2csc
+    #define prsparse_hyb_spmv rocsparse_shybmv
+    #define prsparse_csr2hyb  rocsparse_scsr2hyb
+    #define prsparse_hyb2csr  rocsparse_shyb2csr
+    #define prsparse_csr_spgemm rocsparse_scsrgemm
+    #define prsparse_csr_spgeam rocsparse_scsrgeam
   #elif defined(PETSC_USE_REAL_DOUBLE)
-    #define rocsparse_csr_spmv hipsparseDcsrmv
-    #define rocsparse_csr_spmm hipsparseDcsrmm
-    #define rocsparse_csr2csc  hipsparseDcsr2csc
-    #define rocsparse_hyb_spmv hipsparseDhybmv
-    #define rocsparse_csr2hyb  hipsparseDcsr2hyb
-    #define rocsparse_hyb2csr  hipsparseDhyb2csr
-    #define rocsparse_csr_spgemm hipsparseDcsrgemm
-    #define rocsparse_csr_spgeam hipsparseDcsrgeam
+    #define prsparse_csr_spmv rocsparse_dcsrmv
+    #define prsparse_csr_spmm rocsparse_dcsrmm
+    #define prsparse_csr2csc  rocsparse_dcsr2csc
+    #define prsparse_hyb_spmv rocsparse_dhybmv
+    #define prsparse_csr2hyb  rocsparse_dcsr2hyb
+    #define prsparse_hyb2csr  rocsparse_dhyb2csr
+    #define prsparse_csr_spgemm rocsparse_dcsrgemm
+    #define prsparse_csr_spgeam rocsparse_dcsrgeam
   #endif
 #endif
 
@@ -141,12 +150,11 @@ struct Mat_SeqAIJHIPSPARSETriFactorStruct {
   /* Data needed for triangular solve */
   /* rocsparseMatDescr_t */
   rocsparse_mat_descr          descr;
-  rocsparse_operation_         solveOp;
+  rocsparse_operation          solveOp;
   /* rocsparseOperation_t */
   CsrMatrix                   *csrMat;
-  csrsv2Info_t                solveInfo;
-  rocsparse_solve_policy_     solvePolicy;     /* whether level information is generated and used */
-  /* rocsparseSolvePolicy_t */
+  rocsparse_mat_info          solveInfo;
+  rocsparse_solve_policy      solvePolicy;     /* whether level information is generated and used */
   int                         solveBufferSize;
   void                        *solveBuffer;
   size_t                      csr2cscBufferSize; /* to transpose the triangular factor (only used for CUDA >= 11.0) */
@@ -190,8 +198,8 @@ struct Mat_SeqAIJHIPSPARSE {
   THRUSTARRAY                  *workVector;     /* pointer to a workvector to which we can copy the relevant indices of a vector we want to multiply */
   THRUSTINTARRAY32             *rowoffsets_gpu; /* rowoffsets on GPU in non-compressed-row format. It is used to convert CSR to CSC */
   PetscInt                     nrows;           /* number of rows of the matrix seen by GPU */
-  MatHIPSPARSEStorageFormat     format;          /* the storage format for the matrix on the device */
-  hipStream_t                 stream;          /* a stream for the parallel SpMV ... this is not owned and should not be deleted */
+  MatHIPSPARSEStorageFormat    format;          /* the storage format for the matrix on the device */
+  hipStream_t                  stream;          /* a stream for the parallel SpMV ... this is not owned and should not be deleted */
   rocsparse_handle             handle;          /* a handle to the rocsparse library ... this may not be owned (if we're working in parallel i.e. multiGPUs) */
   PetscObjectState             nonzerostate;    /* track nonzero state to possibly recreate the GPU matrix */
   PetscBool                    transgen;        /* whether or not to generate explicit transpose for MatMultTranspose operations */

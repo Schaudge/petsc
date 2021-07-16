@@ -158,7 +158,10 @@ static PetscErrorCode MatSetPreallocationCOO_MPIAIJHIPSPARSE(Mat B, PetscInt n, 
   ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
   thrust::advance(o_j,hipsp->coo_nd);
   thrust::sort(thrust::device,o_j,d_j.end());
+/*DEBUG  -- LOOKS LIKE UNIQUE GIVES A COMPILER ERROR
   auto wit = thrust::unique(thrust::device,o_j,d_j.end());
+  */
+  auto wit = o_j;
   cerr = WaitForHIP();CHKERRHIP(cerr);
   ierr = PetscLogGpuTimeEnd();CHKERRQ(ierr);
   noff = thrust::distance(o_j,wit);
@@ -341,25 +344,8 @@ PetscErrorCode MatZeroEntries_MPIAIJHIPSPARSE(Mat A)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (A->factortype == MAT_FACTOR_NONE) {
-    Mat_MPIAIJHIPSPARSE *spptr = (Mat_MPIAIJHIPSPARSE*)l->spptr;
-    PetscSplitCSRDataStructure *d_mat = spptr->deviceMat;
-    if (d_mat) {
-      Mat_SeqAIJ   *a = (Mat_SeqAIJ*)l->A->data;
-      Mat_SeqAIJ   *b = (Mat_SeqAIJ*)l->B->data;
-      PetscInt     n = A->rmap->n, nnza = a->i[n], nnzb = b->i[n];
-      hipError_t  err;
-      PetscScalar  *vals;
-      ierr = PetscInfo(A,"Zero device matrix diag and offfdiag\n");CHKERRQ(ierr);
-      err = hipMemcpy( &vals, &d_mat->diag.a, sizeof(PetscScalar*), hipMemcpyDeviceToHost);CHKERRHIP(err);
-      err = hipMemset( vals, 0, (nnza)*sizeof(PetscScalar));CHKERRHIP(err);
-      err = hipMemcpy( &vals, &d_mat->offdiag.a, sizeof(PetscScalar*), hipMemcpyDeviceToHost);CHKERRHIP(err);
-      err = hipMemset( vals, 0, (nnzb)*sizeof(PetscScalar));CHKERRHIP(err);
-    }
-  }
   ierr = MatZeroEntries(l->A);CHKERRQ(ierr);
   ierr = MatZeroEntries(l->B);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 PetscErrorCode MatMultAdd_MPIAIJHIPSPARSE(Mat A,Vec xx,Vec yy,Vec zz)
@@ -450,18 +436,27 @@ PetscErrorCode MatSetFromOptions_MPIAIJHIPSPARSE(PetscOptionItems *PetscOptionsO
 
 PetscErrorCode MatAssemblyEnd_MPIAIJHIPSPARSE(Mat A,MatAssemblyType mode)
 {
-  PetscErrorCode             ierr;
-  Mat_MPIAIJ                 *mpiaij = (Mat_MPIAIJ*)A->data;
-  Mat_MPIAIJHIPSPARSE         *hipsparseStruct = (Mat_MPIAIJHIPSPARSE*)mpiaij->spptr;
-  PetscSplitCSRDataStructure *d_mat = hipsparseStruct->deviceMat;
+  PetscErrorCode       ierr;
+  Mat_MPIAIJ           *mpiaij = (Mat_MPIAIJ*)A->data;
+  Mat_MPIAIJHIPSPARSE  *hipsparseStruct = (Mat_MPIAIJHIPSPARSE*)mpiaij->spptr;
+  PetscObjectState     onnz = A->nonzerostate;
+
   PetscFunctionBegin;
   ierr = MatAssemblyEnd_MPIAIJ(A,mode);CHKERRQ(ierr);
-  if (!A->was_assembled && mode == MAT_FINAL_ASSEMBLY) {
-    ierr = VecSetType(mpiaij->lvec,VECSEQHIP);CHKERRQ(ierr);
+  if (mpiaij->lvec) { ierr = VecSetType(mpiaij->lvec,VECSEQHIP);CHKERRQ(ierr); }
+  if (onnz != A->nonzerostate && hipsparseStruct->deviceMat) {
+    PetscSplitCSRDataStructure d_mat = hipsparseStruct->deviceMat, h_mat;
+    hipError_t                 herr;
+
+    ierr = PetscInfo(A,"Destroy device mat since nonzerostate changed\n");CHKERRQ(ierr);
+    ierr = PetscNew(&h_mat);CHKERRQ(ierr);
+    herr = hipMemcpy(h_mat,d_mat,sizeof(*d_mat),hipMemcpyDeviceToHost);CHKERRHIP(herr);
+    herr = hipFree(h_mat->colmap);CHKERRHIP(herr);
+    herr = hipFree(d_mat);CHKERRHIP(herr);
+    ierr = PetscFree(h_mat);CHKERRQ(ierr);
+    hipsparseStruct->deviceMat = NULL;
   }
-  if (d_mat) {
-    A->offloadmask = PETSC_OFFLOAD_GPU; // if we assembled on the device
-  }
+
 
   PetscFunctionReturn(0);
 }
@@ -471,33 +466,30 @@ PetscErrorCode MatDestroy_MPIAIJHIPSPARSE(Mat A)
   PetscErrorCode     ierr;
   Mat_MPIAIJ         *aij            = (Mat_MPIAIJ*)A->data;
   Mat_MPIAIJHIPSPARSE *hipsparseStruct = (Mat_MPIAIJHIPSPARSE*)aij->spptr;
-  hipError_t        err;
+  hipError_t         herr;
   rocsparse_status   stat;
 
   PetscFunctionBegin;
   if (!hipsparseStruct) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_COR,"Missing spptr");
   if (hipsparseStruct->deviceMat) {
-    Mat_SeqAIJ                 *jaca = (Mat_SeqAIJ*)aij->A->data;
-    Mat_SeqAIJ                 *jacb = (Mat_SeqAIJ*)aij->B->data;
-    PetscSplitCSRDataStructure *d_mat = hipsparseStruct->deviceMat, h_mat;
+    PetscSplitCSRDataStructure d_mat = hipsparseStruct->deviceMat, h_mat;
+
     ierr = PetscInfo(A,"Have device matrix\n");CHKERRQ(ierr);
-    err = hipMemcpy( &h_mat, d_mat, sizeof(PetscSplitCSRDataStructure), hipMemcpyDeviceToHost);CHKERRHIP(err);
-    if (jaca->compressedrow.use) {
-      err = hipFree(h_mat.diag.i);CHKERRHIP(err);
-    }
-    if (jacb->compressedrow.use) {
-      err = hipFree(h_mat.offdiag.i);CHKERRHIP(err);
-    }
-    err = hipFree(h_mat.colmap);CHKERRHIP(err);
-    err = hipFree(d_mat);CHKERRHIP(err);
+    ierr = PetscNew(&h_mat);CHKERRQ(ierr);
+    herr = hipMemcpy(h_mat,d_mat,sizeof(*d_mat),hipMemcpyDeviceToHost);CHKERRHIP(herr);
+    herr = hipFree(h_mat.colmap);CHKERRHIP(herr);
+    herr = hipFree(d_mat);CHKERRHIP(herr);
+    ierr = PetscFree(h_mat);CHKERRQ(ierr);
   }
   try {
     if (aij->A) { ierr = MatHIPSPARSEClearHandle(aij->A);CHKERRQ(ierr); }
     if (aij->B) { ierr = MatHIPSPARSEClearHandle(aij->B);CHKERRQ(ierr); }
-    stat = hipsparseDestroy(hipsparseStruct->handle);CHKERRHIPSPARSE(stat);
+    stat = rocsparse_destroy_handle(hipsparseStruct->handle);CHKERRHIPSPARSE(stat);
+    /* We want hipsparseStruct to use PetscDefaultCudaStream
     if (hipsparseStruct->stream) {
-      err = hipStreamDestroy(hipsparseStruct->stream);CHKERRHIP(err);
+      herr = hipStreamDestroy(hipsparseStruct->stream);CHKERRHIP(herr);
     }
+    */
     delete hipsparseStruct->coo_p;
     delete hipsparseStruct->coo_pw;
     delete hipsparseStruct;
@@ -548,8 +540,8 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPIAIJHIPSPARSE(Mat B, MatType mty
     hipsparseStruct->coo_p               = NULL;
     hipsparseStruct->coo_pw              = NULL;
     hipsparseStruct->stream              = 0;
-    stat = rocsparse_create(&(hipsparseStruct->handle));CHKERRHIPSPARSE(stat);
-    hipsparseStruct->deviceMat = NULL;
+    hipsparseStruct->deviceMat           = NULL;
+    stat = rocsparse_create_handle(&(hipsparseStruct->handle));CHKERRHIPSPARSE(stat);
   }
 
   A->ops->assemblyend           = MatAssemblyEnd_MPIAIJHIPSPARSE;
@@ -567,6 +559,9 @@ PETSC_INTERN PetscErrorCode MatConvert_MPIAIJ_MPIAIJHIPSPARSE(Mat B, MatType mty
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatHIPSPARSESetFormat_C",MatHIPSPARSESetFormat_MPIAIJHIPSPARSE);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatSetPreallocationCOO_C",MatSetPreallocationCOO_MPIAIJHIPSPARSE);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatSetValuesCOO_C",MatSetValuesCOO_MPIAIJHIPSPARSE);CHKERRQ(ierr);
+  /* DANGER DANGER WILL ROBINSON!
+  */
+
   PetscFunctionReturn(0);
 }
 
@@ -584,7 +579,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPIAIJHIPSPARSE(Mat A)
 /*@
    MatCreateAIJHIPSPARSE - Creates a sparse matrix in AIJ (compressed row) format
    (the default parallel PETSc format).  This matrix will ultimately pushed down
-   to NVidia GPUs and use the HIPSPARSE library for calculations. For good matrix
+   to AMD GPUs and use the HIPSPARSE library for calculations. For good matrix
    assembly performance the user should preallocate the matrix storage by setting
    the parameter nz (or the array nnz).  By setting these parameters accurately,
    performance during matrix assembly can be increased by more than a factor of 50.
@@ -650,9 +645,9 @@ PetscErrorCode  MatCreateAIJHIPSPARSE(MPI_Comm comm,PetscInt m,PetscInt n,PetscI
 /*MC
    MATAIJHIPSPARSE - MATMPIAIJHIPSPARSE = "aijhipsparse" = "mpiaijhipsparse" - A matrix type to be used for sparse matrices.
 
-   A matrix type type whose data resides on Nvidia GPUs. These matrices can be in either
+   A matrix type type whose data resides on AMD GPUs. These matrices can be in either
    CSR, ELL, or Hybrid format. The ELL and HYB formats require HIP 4.2 or later.
-   All matrix calculations are performed on Nvidia GPUs using the HIPSPARSE library.
+   All matrix calculations are performed on AMD GPUs using the HIPSPARSE library.
 
    This matrix type is identical to MATSEQAIJHIPSPARSE when constructed with a single process communicator,
    and MATMPIAIJHIPSPARSE otherwise.  As a result, for single process communicators,
@@ -675,135 +670,140 @@ M*/
 // get GPU pointer to stripped down Mat. For both Seq and MPI Mat.
 PetscErrorCode MatHIPSPARSEGetDeviceMatWrite(Mat A, PetscSplitCSRDataStructure **B)
 {
-#if defined(PETSC_USE_CTABLE)
-  SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Device metadata does not support ctable (--with-ctable=0)");
-#else
-  PetscSplitCSRDataStructure **p_d_mat;
-  PetscMPIInt                size,rank;
-  MPI_Comm                   comm;
+  PetscSplitCSRDataStructure d_mat;
+  PetscMPIInt                size;
   PetscErrorCode             ierr;
-  int                        *ai,*bi,*aj,*bj;
+  int                        *ai = NULL,*bi = NULL,*aj = NULL,*bj = NULL;
+  PetscScalar                *aa = NULL,*ba = NULL;
+  Mat_SeqAIJ                 *jaca = NULL;
+  Mat_SeqAIJHIPSPARSE        *hipsparsestructA = NULL;
+  CsrMatrix                  *matrixA = NULL,*matrixB = NULL;
   PetscScalar                *aa,*ba;
 
   PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)A,&comm);CHKERRQ(ierr);
-  ierr = MPI_Comm_size(comm,&size);CHKERRMPI(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRMPI(ierr);
-  if (A->factortype == MAT_FACTOR_NONE) {
-    CsrMatrix *matrixA,*matrixB=NULL;
-    if (size == 1) {
-      Mat_SeqAIJHIPSPARSE *hipsparsestruct = (Mat_SeqAIJHIPSPARSE*)A->spptr;
-      p_d_mat = &hipsparsestruct->deviceMat;
-      Mat_SeqAIJHIPSPARSEMultStruct *matstruct = (Mat_SeqAIJHIPSPARSEMultStruct*)hipsparsestruct->mat;
-      if (hipsparsestruct->format==MAT_HIPSPARSE_CSR) {
-        matrixA = (CsrMatrix*)matstruct->mat;
-        bi = bj = NULL; ba = NULL;
-      } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Device Mat needs MAT_HIPSPARSE_CSR");
-    } else {
-      Mat_MPIAIJ         *aij = (Mat_MPIAIJ*)A->data;
-      Mat_MPIAIJHIPSPARSE *spptr = (Mat_MPIAIJHIPSPARSE*)aij->spptr;
-      p_d_mat = &spptr->deviceMat;
-      Mat_SeqAIJHIPSPARSE *hipsparsestructA = (Mat_SeqAIJHIPSPARSE*)aij->A->spptr;
-      Mat_SeqAIJHIPSPARSE *hipsparsestructB = (Mat_SeqAIJHIPSPARSE*)aij->B->spptr;
-      Mat_SeqAIJHIPSPARSEMultStruct *matstructA = (Mat_SeqAIJHIPSPARSEMultStruct*)hipsparsestructA->mat;
-      Mat_SeqAIJHIPSPARSEMultStruct *matstructB = (Mat_SeqAIJHIPSPARSEMultStruct*)hipsparsestructB->mat;
-      if (hipsparsestructA->format==MAT_HIPSPARSE_CSR) {
-        if (hipsparsestructB->format!=MAT_HIPSPARSE_CSR) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Device Mat B needs MAT_HIPSPARSE_CSR");
-        matrixA = (CsrMatrix*)matstructA->mat;
-        matrixB = (CsrMatrix*)matstructB->mat;
-        bi = thrust::raw_pointer_cast(matrixB->row_offsets->data());
-        bj = thrust::raw_pointer_cast(matrixB->column_indices->data());
-        ba = thrust::raw_pointer_cast(matrixB->values->data());
-      } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Device Mat A needs MAT_HIPSPARSE_CSR");
-    }
-    ai = thrust::raw_pointer_cast(matrixA->row_offsets->data());
-    aj = thrust::raw_pointer_cast(matrixA->column_indices->data());
-    aa = thrust::raw_pointer_cast(matrixA->values->data());
-  } else {
+  if (!A->assembled) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Need already assembled matrix");
+  if (A->factortype != MAT_FACTOR_NONE) {
     *B = NULL;
     PetscFunctionReturn(0);
   }
-  // act like MatSetValues because not called on host
-  if (A->assembled) {
-    if (A->was_assembled) {
-      ierr = PetscInfo(A,"Assemble more than once already\n");CHKERRQ(ierr);
-    }
-    A->was_assembled = PETSC_TRUE; // this is done (lazy) in MatAssemble but we are not calling it anymore - done in AIJ AssemblyEnd, need here?
-  } else {
-    SETERRQ(comm,PETSC_ERR_SUP,"Need assemble matrix");
-  }
-  if (!*p_d_mat) {
-    hipError_t                 err;
-    PetscSplitCSRDataStructure  *d_mat, h_mat;
-    Mat_SeqAIJ                  *jaca;
-    PetscInt                    n = A->rmap->n, nnz;
-    // create and copy
-    ierr = PetscInfo(A,"Create device matrix\n");CHKERRQ(ierr);
-    err = hipMalloc((void **)&d_mat, sizeof(PetscSplitCSRDataStructure));CHKERRHIP(err);
-    err = hipMemset( d_mat, 0,       sizeof(PetscSplitCSRDataStructure));CHKERRHIP(err);
-    *B = *p_d_mat = d_mat; // return it, set it in Mat, and set it up
-    if (size == 1) {
+  ierr = MPI_Comm_size(PetscObjectComm((PetscObject)A),&size);CHKERRMPI(ierr);
+  if (size == 1) {
+    PetscBool isseqaij;
+
+    ierr = PetscObjectBaseTypeCompare((PetscObject)A,MATSEQAIJ,&isseqaij);CHKERRQ(ierr);
+    if (isseqaij) {
       jaca = (Mat_SeqAIJ*)A->data;
-      h_mat.rstart = 0; h_mat.rend = A->rmap->n;
-      h_mat.cstart = 0; h_mat.cend = A->cmap->n;
-      h_mat.offdiag.i = h_mat.offdiag.j = NULL;
-      h_mat.offdiag.a = NULL;
+      if (!jaca->roworiented) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Device assembly does not currently support column oriented values insertion");
+      hipsparsestructA = (Mat_SeqAIJHIPSPARSE*)A->spptr;
+      d_mat = hipsparsestructA->deviceMat;
+      ierr = MatSeqAIJHIPSPARSECopyToGPU(A);CHKERRQ(ierr);
     } else {
-      Mat_MPIAIJ  *aij = (Mat_MPIAIJ*)A->data;
-      Mat_SeqAIJ  *jacb;
+      Mat_MPIAIJ *aij = (Mat_MPIAIJ*)A->data;
+      if (!aij->roworiented) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Device assembly does not currently support column oriented values insertion");
+      Mat_MPIAIJHIPSPARSE *spptr = (Mat_MPIAIJHIPSPARSE*)aij->spptr;
       jaca = (Mat_SeqAIJ*)aij->A->data;
-      jacb = (Mat_SeqAIJ*)aij->B->data;
-      if (!aij->garray) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"MPIAIJ Matrix was assembled but is missing garray");
-      if (aij->B->rmap->n != aij->A->rmap->n) SETERRQ(comm,PETSC_ERR_SUP,"Only support aij->B->rmap->n == aij->A->rmap->n");
-      // create colmap - this is ussually done (lazy) in MatSetValues
-      aij->donotstash = PETSC_TRUE;
-      aij->A->nooffprocentries = aij->B->nooffprocentries = A->nooffprocentries = PETSC_TRUE;
-      jaca->nonew = jacb->nonew = PETSC_TRUE; // no more dissassembly
-      ierr = PetscCalloc1(A->cmap->N+1,&aij->colmap);CHKERRQ(ierr);
-      aij->colmap[A->cmap->N] = -9;
-      ierr = PetscLogObjectMemory((PetscObject)A,(A->cmap->N+1)*sizeof(PetscInt));CHKERRQ(ierr);
-      {
-        PetscInt ii;
-        for (ii=0; ii<aij->B->cmap->n; ii++) aij->colmap[aij->garray[ii]] = ii+1;
-      }
-      if (aij->colmap[A->cmap->N] != -9) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"aij->colmap[A->cmap->N] != -9");
-      // allocate B copy data
-      h_mat.rstart = A->rmap->rstart; h_mat.rend = A->rmap->rend;
-      h_mat.cstart = A->cmap->rstart; h_mat.cend = A->cmap->rend;
-      nnz = jacb->i[n];
-
-      if (jacb->compressedrow.use) {
-        err = hipMalloc((void **)&h_mat.offdiag.i,               (n+1)*sizeof(int));CHKERRHIP(err); // kernel input
-        err = hipMemcpy(          h_mat.offdiag.i,    jacb->i,   (n+1)*sizeof(int), hipMemcpyHostToDevice);CHKERRHIP(err);
-      } else h_mat.offdiag.i = bi;
-      h_mat.offdiag.j = bj;
-      h_mat.offdiag.a = ba;
-
-      err = hipMalloc((void **)&h_mat.colmap,                  (A->cmap->N+1)*sizeof(PetscInt));CHKERRHIP(err); // kernel output
-      err = hipMemcpy(          h_mat.colmap,    aij->colmap,  (A->cmap->N+1)*sizeof(PetscInt), hipMemcpyHostToDevice);CHKERRHIP(err);
-      h_mat.offdiag.ignorezeroentries = jacb->ignorezeroentries;
-      h_mat.offdiag.n = n;
+      hipsparsestructA = (Mat_SeqAIJHIPSPARSE*)aij->A->spptr;
+      d_mat = spptr->deviceMat;
+      ierr = MatSeqAIJHIPSPARSECopyToGPU(aij->A);CHKERRQ(ierr);
     }
-    // allocate A copy data
-    nnz = jaca->i[n];
-    h_mat.diag.n = n;
-    h_mat.diag.ignorezeroentries = jaca->ignorezeroentries;
-    ierr = MPI_Comm_rank(comm,&h_mat.rank);CHKERRMPI(ierr);
-    if (jaca->compressedrow.use) {
-      err = hipMalloc((void **)&h_mat.diag.i,               (n+1)*sizeof(int));CHKERRHIP(err); // kernel input
-      err = hipMemcpy(          h_mat.diag.i,    jaca->i,   (n+1)*sizeof(int), hipMemcpyHostToDevice);CHKERRHIP(err);
-    } else {
-      h_mat.diag.i = ai;
-    }
-    h_mat.diag.j = aj;
-    h_mat.diag.a = aa;
-    // copy pointers and metdata to device
-    err = hipMemcpy(          d_mat, &h_mat, sizeof(PetscSplitCSRDataStructure), hipMemcpyHostToDevice);CHKERRHIP(err);
-    ierr = PetscInfo2(A,"Create device Mat n=%D nnz=%D\n",h_mat.diag.n, nnz);CHKERRQ(ierr);
+    if (hipsparsestructA->format==MAT_HIPSPARSE_CSR) {
+      Mat_SeqAIJHIPSPARSEMultStruct *matstruct = (Mat_SeqAIJHIPSPARSEMultStruct*)hipsparsestructA->mat;
+      if (!matstruct) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing Mat_SeqAIJHIPSPARSEMultStruct for A");
+      matrixA = (CsrMatrix*)matstruct->mat;
+      bi = NULL;
+      bj = NULL;
+      ba = NULL;
+    } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Device Mat needs MAT_HIPSPARSE_CSR");
   } else {
-    *B = *p_d_mat;
+    Mat_MPIAIJ *aij = (Mat_MPIAIJ*)A->data;
+    if (!aij->roworiented) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Device assembly does not currently support column oriented values insertion");
+    jaca = (Mat_SeqAIJ*)aij->A->data;
+    Mat_SeqAIJ *jacb = (Mat_SeqAIJ*)aij->B->data;
+    Mat_MPIAIJHIPSPARSE *spptr = (Mat_MPIAIJHIPSPARSE*)aij->spptr;
+
+    if (!A->nooffprocentries && !aij->donotstash) SETERRQ(PetscObjectComm((PetscObject)A),PETSC_ERR_SUP,"Device assembly does not currently support offproc values insertion. Use MatSetOption(A,MAT_NO_OFF_PROC_ENTRIES,PETSC_TRUE) or MatSetOption(A,MAT_IGNORE_OFF_PROC_ENTRIES,PETSC_TRUE)");
+    hipsparsestructA = (Mat_SeqAIJHIPSPARSE*)aij->A->spptr;
+    Mat_SeqAIJHIPSPARSE *hipsparsestructB = (Mat_SeqAIJHIPSPARSE*)aij->B->spptr;
+    if (hipsparsestructA->format!=MAT_HIPSPARSE_CSR) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Device Mat A needs MAT_HIPSPARSE_CSR");
+    if (hipsparsestructB->format==MAT_HIPSPARSE_CSR) {
+      ierr = MatSeqAIJHIPSPARSECopyToGPU(aij->A);CHKERRQ(ierr);
+      ierr = MatSeqAIJHIPSPARSECopyToGPU(aij->B);CHKERRQ(ierr);
+      Mat_SeqAIJHIPSPARSEMultStruct *matstructA = (Mat_SeqAIJHIPSPARSEMultStruct*)hipsparsestructA->mat;
+      Mat_SeqAIJHIPSPARSEMultStruct *matstructB = (Mat_SeqAIJHIPSPARSEMultStruct*)hipsparsestructB->mat;
+      if (!matstructA) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing Mat_SeqAIJHIPSPARSEMultStruct for A");
+      if (!matstructB) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Missing Mat_SeqAIJHIPSPARSEMultStruct for B");
+      matrixA = (CsrMatrix*)matstructA->mat;
+      matrixB = (CsrMatrix*)matstructB->mat;
+      if (jacb->compressedrow.use) {
+        if (!hipsparsestructB->rowoffsets_gpu) {
+          hipsparsestructB->rowoffsets_gpu = new THRUSTINTARRAY32(A->rmap->n+1);
+          hipsparsestructB->rowoffsets_gpu->assign(jacb->i,jacb->i+A->rmap->n+1);
+        }
+        bi = thrust::raw_pointer_cast(hipsparsestructB->rowoffsets_gpu->data());
+      } else {
+        bi = thrust::raw_pointer_cast(matrixB->row_offsets->data());
+      }
+      bj = thrust::raw_pointer_cast(matrixB->column_indices->data());
+      ba = thrust::raw_pointer_cast(matrixB->values->data());
+    } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Device Mat B needs MAT_HIPSPARSE_CSR");
+    d_mat = spptr->deviceMat;
   }
-  A->assembled = PETSC_FALSE; // ready to write with matsetvalues - this done (lazy) in normal MatSetValues
+  if (jaca->compressedrow.use) {
+    if (!hipsparsestructA->rowoffsets_gpu) {
+      hipsparsestructA->rowoffsets_gpu = new THRUSTINTARRAY32(A->rmap->n+1);
+      hipsparsestructA->rowoffsets_gpu->assign(jaca->i,jaca->i+A->rmap->n+1);
+    }
+    ai = thrust::raw_pointer_cast(hipsparsestructA->rowoffsets_gpu->data());
+  } else {
+    ai = thrust::raw_pointer_cast(matrixA->row_offsets->data());
+  }
+  aj = thrust::raw_pointer_cast(matrixA->column_indices->data());
+  aa = thrust::raw_pointer_cast(matrixA->values->data());
+
+  if (!d_mat) {
+    hipError_t                 herr;
+    PetscSplitCSRDataStructure h_mat;
+
+    // create and populate struct on host and copy on device
+    ierr = PetscInfo(A,"Create device matrix\n");CHKERRQ(ierr);
+    ierr = PetscNew(&h_mat);CHKERRQ(ierr);
+    herr = hipMalloc((void**)&d_mat,sizeof(*d_mat));CHKERRHIP(herr);
+    if (size > 1) { /* need the colmap array */
+      Mat_MPIAIJ *aij = (Mat_MPIAIJ*)A->data;
+      int        *colmap;
+      PetscInt   ii,n = aij->B->cmap->n,N = A->cmap->N;
+
+      if (n && !aij->garray) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"MPIAIJ Matrix was assembled but is missing garray");
+
+      ierr = PetscCalloc1(N+1,&colmap);CHKERRQ(ierr);
+      for (ii=0; ii<n; ii++) colmap[aij->garray[ii]] = (int)(ii+1);
+
+      h_mat->offdiag.i = bi;
+      h_mat->offdiag.j = bj;
+      h_mat->offdiag.a = ba;
+      h_mat->offdiag.n = A->rmap->n;
+
+      cerr = hipMalloc((void**)&h_mat->colmap,(N+1)*sizeof(int));CHKERRHIP(cerr);
+      cerr = hipMemcpy(h_mat->colmap,colmap,(N+1)*sizeof(int),hipMemcpyHostToDevice);CHKERRHIP(cerr);
+      ierr = PetscFree(colmap);CHKERRQ(ierr);
+    }
+    h_mat->rstart = A->rmap->rstart;
+    h_mat->rend   = A->rmap->rend;
+    h_mat->cstart = A->cmap->rstart;
+    h_mat->cend   = A->cmap->rend;
+    h_mat->N      = A->cmap->N;
+    h_mat->diag.i = ai;
+    h_mat->diag.j = aj;
+    h_mat->diag.a = aa;
+    h_mat->diag.n = A->rmap->n;
+    h_mat->rank   = PetscGlobalRank;
+    // copy pointers and metadata to device
+    cerr = hipMemcpy(d_mat,h_mat,sizeof(*d_mat),hipMemcpyHostToDevice);CHKERRHIP(cerr);
+    ierr = PetscFree(h_mat);CHKERRQ(ierr);
+  } else {
+    ierr = PetscInfo(A,"Reusing device matrix\n");CHKERRQ(ierr);
+  }
+  *B = d_mat;
+  A->offloadmask = PETSC_OFFLOAD_GPU;
   PetscFunctionReturn(0);
-#endif
 }

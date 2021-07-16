@@ -16,6 +16,7 @@
 
 const char *const MatHIPSPARSEStorageFormats[]    = {"CSR","ELL","HYB","MatHIPSPARSEStorageFormat","MAT_HIPSPARSE_",0};
 
+
 static PetscErrorCode MatICCFactorSymbolic_SeqAIJHIPSPARSE(Mat,Mat,IS,const MatFactorInfo*);
 static PetscErrorCode MatCholeskyFactorSymbolic_SeqAIJHIPSPARSE(Mat,Mat,IS,const MatFactorInfo*);
 static PetscErrorCode MatCholeskyFactorNumeric_SeqAIJHIPSPARSE(Mat,Mat,const MatFactorInfo*);
@@ -57,30 +58,30 @@ static PetscErrorCode MatSeqAIJCopySubArray_SeqAIJHIPSPARSE(Mat,PetscInt,const P
 
 PetscErrorCode MatHIPSPARSESetStream(Mat A,const hipStream_t stream)
 {
-  rocsparseStatus_t   stat;
+  rocsparse_status   stat;
   Mat_SeqAIJHIPSPARSE *hipsparsestruct = (Mat_SeqAIJHIPSPARSE*)A->spptr;
 
   PetscFunctionBegin;
   if (!hipsparsestruct) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_COR,"Missing spptr");
   hipsparsestruct->stream = stream;
-  stat = hipsparseSetStream(hipsparsestruct->handle,hipsparsestruct->stream);CHKERRHIPSPARSE(stat);
+  stat = rocsparse_set_stream(hipsparsestruct->handle,hipsparsestruct->stream);CHKERRHIPSPARSE(stat);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode MatHIPSPARSESetHandle(Mat A,const rocsparse_handle handle)
 {
-  rocsparseStatus_t   stat;
+  rocsparse_status   stat;
   Mat_SeqAIJHIPSPARSE *hipsparsestruct = (Mat_SeqAIJHIPSPARSE*)A->spptr;
 
   PetscFunctionBegin;
   if (!hipsparsestruct) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_COR,"Missing spptr");
   if (hipsparsestruct->handle != handle) {
     if (hipsparsestruct->handle) {
-      stat = hipsparseDestroy(hipsparsestruct->handle);CHKERRHIPSPARSE(stat);
+      stat = rocsparse_destroy_handle(hipsparsestruct->handle);CHKERRHIPSPARSE(stat);
     }
     hipsparsestruct->handle = handle;
   }
-  stat = hipsparseSetPointerMode(hipsparsestruct->handle, HIPSPARSE_POINTER_MODE_DEVICE);CHKERRHIPSPARSE(stat);
+  stat = rocsparse_set_pointer_mode(hipsparsestruct->handle, rocsparse_pointer_mode_device);CHKERRHIPSPARSE(stat);
   PetscFunctionReturn(0);
 }
 
@@ -126,7 +127,7 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_seqaijhipsparse_hipsparse(Mat A,MatFact
   ierr = MatCreate(PetscObjectComm((PetscObject)A),B);CHKERRQ(ierr);
   ierr = MatSetSizes(*B,n,n,n,n);CHKERRQ(ierr);
   (*B)->factortype = ftype;
-  (*B)->useordering = PETSC_TRUE;
+  (*B)->canuseordering = PETSC_TRUE;
   ierr = MatSetType(*B,MATSEQAIJHIPSPARSE);CHKERRQ(ierr);
 
   if (ftype == MAT_FACTOR_LU || ftype == MAT_FACTOR_ILU || ftype == MAT_FACTOR_ILUDT) {
@@ -302,13 +303,13 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILULowerTriMatrix(Mat A)
   PetscInt                          n = A->rmap->n;
   Mat_SeqAIJHIPSPARSETriFactors      *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *loTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->loTriFactorPtr;
-  rocsparseStatus_t                  stat;
+  rocsparse_status                  stat;
   const PetscInt                    *ai = a->i,*aj = a->j,*vi;
   const MatScalar                   *aa = a->a,*v;
   PetscInt                          *AiLo, *AjLo;
   PetscInt                          i,nz, nzLower, offset, rowOffset;
   PetscErrorCode                    ierr;
-  hipError_t                       cerr;
+  hipError_t                        cerr;
 
   PetscFunctionBegin;
   if (!n) PetscFunctionReturn(0);
@@ -354,16 +355,16 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILULowerTriMatrix(Mat A)
 
         /* allocate space for the triangular factor information */
         ierr = PetscNew(&loTriFactor);CHKERRQ(ierr);
-        loTriFactor->solvePolicy = HIPSPARSE_SOLVE_POLICY_USE_LEVEL;
+        loTriFactor->solvePolicy = rocsparse_solve_policy_auto;
         /* Create the matrix description */
         stat = rocsparse_create_mat_descr(&loTriFactor->descr);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_index_base(loTriFactor->descr, HIPSPARSE_INDEX_BASE_ZERO);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_type(loTriFactor->descr, HIPSPARSE_MATRIX_TYPE_GENERAL);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_fill_mode(loTriFactor->descr, HIPSPARSE_FILL_MODE_LOWER);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_diag_type(loTriFactor->descr, HIPSPARSE_DIAG_TYPE_UNIT);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_index_base(loTriFactor->descr, rocsparse_index_base_zero);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_type(loTriFactor->descr, rocsparse_matrix_type_general);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_fill_mode(loTriFactor->descr, rocsparse_fill_mode_lower);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_diag_type(loTriFactor->descr, rocsparse_diag_type_unit);CHKERRHIPSPARSE(stat);
 
         /* set the operation */
-        loTriFactor->solveOp = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+        loTriFactor->solveOp = rocsparse_operation_none;
 
         /* set the matrix */
         loTriFactor->csrMat = new CsrMatrix;
@@ -382,8 +383,8 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILULowerTriMatrix(Mat A)
 
         /* Create the solve analysis information */
         ierr = PetscLogEventBegin(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
-        stat = hipsparse_create_analysis_info(&loTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
-        stat = hipsparse_get_svbuffsize(hipsparseTriFactors->handle, loTriFactor->solveOp,
+        stat = prsparse_create_analysis_info(&loTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
+        stat = prsparse_get_svbuffsize(hipsparseTriFactors->handle, loTriFactor->solveOp,
                                        loTriFactor->csrMat->num_rows, loTriFactor->csrMat->num_entries, loTriFactor->descr,
                                        loTriFactor->csrMat->values->data().get(), loTriFactor->csrMat->row_offsets->data().get(),
                                        loTriFactor->csrMat->column_indices->data().get(), loTriFactor->solveInfo,
@@ -391,7 +392,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILULowerTriMatrix(Mat A)
         cerr = hipMalloc(&loTriFactor->solveBuffer,loTriFactor->solveBufferSize);CHKERRHIP(cerr);
 
         /* perform the solve analysis */
-        stat = hipsparse_analysis(hipsparseTriFactors->handle, loTriFactor->solveOp,
+        stat = prsparse_analysis(hipsparseTriFactors->handle, loTriFactor->solveOp,
                                  loTriFactor->csrMat->num_rows, loTriFactor->csrMat->num_entries, loTriFactor->descr,
                                  loTriFactor->csrMat->values->data().get(), loTriFactor->csrMat->row_offsets->data().get(),
                                  loTriFactor->csrMat->column_indices->data().get(), loTriFactor->solveInfo
@@ -439,7 +440,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILUUpperTriMatrix(Mat A)
   PetscInt                          n = A->rmap->n;
   Mat_SeqAIJHIPSPARSETriFactors      *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *upTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtr;
-  rocsparseStatus_t                  stat;
+  rocsparse_status                  stat;
   const PetscInt                    *aj = a->j,*adiag = a->diag,*vi;
   const MatScalar                   *aa = a->a,*v;
   PetscInt                          *AiUp, *AjUp;
@@ -487,17 +488,17 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILUUpperTriMatrix(Mat A)
 
         /* allocate space for the triangular factor information */
         ierr = PetscNew(&upTriFactor);CHKERRQ(ierr);
-        upTriFactor->solvePolicy = HIPSPARSE_SOLVE_POLICY_USE_LEVEL;
+        upTriFactor->solvePolicy = rocsparse_solve_policy_auto;
 
         /* Create the matrix description */
         stat = rocsparse_create_mat_descr(&upTriFactor->descr);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_index_base(upTriFactor->descr, HIPSPARSE_INDEX_BASE_ZERO);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_type(upTriFactor->descr, HIPSPARSE_MATRIX_TYPE_GENERAL);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_fill_mode(upTriFactor->descr, HIPSPARSE_FILL_MODE_UPPER);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_diag_type(upTriFactor->descr, HIPSPARSE_DIAG_TYPE_NON_UNIT);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_index_base(upTriFactor->descr, rocsparse_index_base_zero);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_type(upTriFactor->descr, rocsparse_matrix_type_general);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_fill_mode(upTriFactor->descr, rocsparse_fill_mode_upper);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_diag_type(upTriFactor->descr, rocsparse_diag_type_non_unit);CHKERRHIPSPARSE(stat);
 
         /* set the operation */
-        upTriFactor->solveOp = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+        upTriFactor->solveOp = rocsparse_operation_none;
 
         /* set the matrix */
         upTriFactor->csrMat = new CsrMatrix;
@@ -516,8 +517,8 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILUUpperTriMatrix(Mat A)
 
         /* Create the solve analysis information */
         ierr = PetscLogEventBegin(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
-        stat = hipsparse_create_analysis_info(&upTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
-        stat = hipsparse_get_svbuffsize(hipsparseTriFactors->handle, upTriFactor->solveOp,
+        stat = prsparse_create_analysis_info(&upTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
+        stat = prsparse_get_svbuffsize(hipsparseTriFactors->handle, upTriFactor->solveOp,
                                      upTriFactor->csrMat->num_rows, upTriFactor->csrMat->num_entries, upTriFactor->descr,
                                      upTriFactor->csrMat->values->data().get(), upTriFactor->csrMat->row_offsets->data().get(),
                                      upTriFactor->csrMat->column_indices->data().get(), upTriFactor->solveInfo,
@@ -525,7 +526,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildILUUpperTriMatrix(Mat A)
         cerr = hipMalloc(&upTriFactor->solveBuffer,upTriFactor->solveBufferSize);CHKERRHIP(cerr);
 
         /* perform the solve analysis */
-        stat = hipsparse_analysis(hipsparseTriFactors->handle, upTriFactor->solveOp,
+        stat = prsparse_analysis(hipsparseTriFactors->handle, upTriFactor->solveOp,
                                  upTriFactor->csrMat->num_rows, upTriFactor->csrMat->num_entries, upTriFactor->descr,
                                  upTriFactor->csrMat->values->data().get(), upTriFactor->csrMat->row_offsets->data().get(),
                                  upTriFactor->csrMat->column_indices->data().get(), upTriFactor->solveInfo
@@ -619,7 +620,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
   Mat_SeqAIJHIPSPARSETriFactors      *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *loTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->loTriFactorPtr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *upTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtr;
-  rocsparseStatus_t                  stat;
+  rocsparse_status                  stat;
   PetscErrorCode                    ierr;
   hipError_t                       cerr;
   PetscInt                          *AiUp, *AjUp;
@@ -671,14 +672,14 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
 
         /* allocate space for the triangular factor information */
         ierr = PetscNew(&upTriFactor);CHKERRQ(ierr);
-        upTriFactor->solvePolicy = HIPSPARSE_SOLVE_POLICY_USE_LEVEL;
+        upTriFactor->solvePolicy = rocsparse_solve_policy_auto;
 
         /* Create the matrix description */
         stat = rocsparse_create_mat_descr(&upTriFactor->descr);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_index_base(upTriFactor->descr, HIPSPARSE_INDEX_BASE_ZERO);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_type(upTriFactor->descr, HIPSPARSE_MATRIX_TYPE_GENERAL);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_fill_mode(upTriFactor->descr, HIPSPARSE_FILL_MODE_UPPER);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_diag_type(upTriFactor->descr, HIPSPARSE_DIAG_TYPE_UNIT);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_index_base(upTriFactor->descr, rocsparse_index_base_zero);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_type(upTriFactor->descr, rocsparse_matrix_type_general);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_fill_mode(upTriFactor->descr, rocsparse_fill_mode_upper);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_diag_type(upTriFactor->descr, rocsparse_diag_type_unit);CHKERRHIPSPARSE(stat);
 
         /* set the matrix */
         upTriFactor->csrMat = new CsrMatrix;
@@ -696,12 +697,12 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
         upTriFactor->csrMat->values->assign(AAUp, AAUp+a->nz);
 
         /* set the operation */
-        upTriFactor->solveOp = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+        upTriFactor->solveOp = rocsparse_operation_none;
 
         /* Create the solve analysis information */
         ierr = PetscLogEventBegin(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
-        stat = hipsparse_create_analysis_info(&upTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
-        stat = hipsparse_get_svbuffsize(hipsparseTriFactors->handle, upTriFactor->solveOp,
+        stat = prsparse_create_analysis_info(&upTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
+        stat = prsparse_get_svbuffsize(hipsparseTriFactors->handle, upTriFactor->solveOp,
                                        upTriFactor->csrMat->num_rows, upTriFactor->csrMat->num_entries, upTriFactor->descr,
                                        upTriFactor->csrMat->values->data().get(), upTriFactor->csrMat->row_offsets->data().get(),
                                        upTriFactor->csrMat->column_indices->data().get(), upTriFactor->solveInfo,
@@ -709,7 +710,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
         cerr = hipMalloc(&upTriFactor->solveBuffer,upTriFactor->solveBufferSize);CHKERRHIP(cerr);
 
         /* perform the solve analysis */
-        stat = hipsparse_analysis(hipsparseTriFactors->handle, upTriFactor->solveOp,
+        stat = prsparse_analysis(hipsparseTriFactors->handle, upTriFactor->solveOp,
                                  upTriFactor->csrMat->num_rows, upTriFactor->csrMat->num_entries, upTriFactor->descr,
                                  upTriFactor->csrMat->values->data().get(), upTriFactor->csrMat->row_offsets->data().get(),
                                  upTriFactor->csrMat->column_indices->data().get(), upTriFactor->solveInfo
@@ -723,17 +724,17 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
 
         /* allocate space for the triangular factor information */
         ierr = PetscNew(&loTriFactor);CHKERRQ(ierr);
-        loTriFactor->solvePolicy = HIPSPARSE_SOLVE_POLICY_USE_LEVEL;
+        loTriFactor->solvePolicy = rocsparse_solve_policy_auto;
 
         /* Create the matrix description */
         stat = rocsparse_create_mat_descr(&loTriFactor->descr);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_index_base(loTriFactor->descr, HIPSPARSE_INDEX_BASE_ZERO);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_type(loTriFactor->descr, HIPSPARSE_MATRIX_TYPE_GENERAL);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_fill_mode(loTriFactor->descr, HIPSPARSE_FILL_MODE_UPPER);CHKERRHIPSPARSE(stat);
-        stat = rocsparse_set_mat_diag_type(loTriFactor->descr, HIPSPARSE_DIAG_TYPE_NON_UNIT);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_index_base(loTriFactor->descr, rocsparse_index_base_zero);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_type(loTriFactor->descr, rocsparse_matrix_type_general);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_fill_mode(loTriFactor->descr, rocsparse_fill_mode_upper);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_diag_type(loTriFactor->descr, rocsparse_diag_type_non_unit);CHKERRHIPSPARSE(stat);
 
         /* set the operation */
-        loTriFactor->solveOp = HIPSPARSE_OPERATION_TRANSPOSE;
+        loTriFactor->solveOp = rocsparse_operation_transpose;
 
         /* set the matrix */
         loTriFactor->csrMat = new CsrMatrix;
@@ -752,8 +753,8 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
 
         /* Create the solve analysis information */
         ierr = PetscLogEventBegin(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
-        stat = hipsparse_create_analysis_info(&loTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
-        stat = hipsparse_get_svbuffsize(hipsparseTriFactors->handle, loTriFactor->solveOp,
+        stat = prsparse_create_analysis_info(&loTriFactor->solveInfo);CHKERRHIPSPARSE(stat);
+        stat = prsparse_get_svbuffsize(hipsparseTriFactors->handle, loTriFactor->solveOp,
                                        loTriFactor->csrMat->num_rows, loTriFactor->csrMat->num_entries, loTriFactor->descr,
                                        loTriFactor->csrMat->values->data().get(), loTriFactor->csrMat->row_offsets->data().get(),
                                        loTriFactor->csrMat->column_indices->data().get(), loTriFactor->solveInfo,
@@ -761,11 +762,12 @@ static PetscErrorCode MatSeqAIJHIPSPARSEBuildICCTriMatrices(Mat A)
         cerr = hipMalloc(&loTriFactor->solveBuffer,loTriFactor->solveBufferSize);CHKERRHIP(cerr);
 
         /* perform the solve analysis */
-        stat = hipsparse_analysis(hipsparseTriFactors->handle, loTriFactor->solveOp,
+        /* TODO:  rocsparse_analysis has a reuse policy */
+        stat = prsparse_analysis(hipsparseTriFactors->handle, loTriFactor->solveOp,
                                  loTriFactor->csrMat->num_rows, loTriFactor->csrMat->num_entries, loTriFactor->descr,
                                  loTriFactor->csrMat->values->data().get(), loTriFactor->csrMat->row_offsets->data().get(),
                                  loTriFactor->csrMat->column_indices->data().get(), loTriFactor->solveInfo
-                                 ,loTriFactor->solvePolicy, loTriFactor->solveBuffer
+                                 rocsparse_analysis_policy_auto, loTriFactor->solvePolicy, loTriFactor->solveBuffer
 );CHKERRHIPSPARSE(stat);
         cerr = WaitForHIP();CHKERRHIP(cerr);
         ierr = PetscLogEventEnd(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
@@ -919,12 +921,12 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   Mat_SeqAIJHIPSPARSETriFactorStruct *upTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *loTriFactorT;
   Mat_SeqAIJHIPSPARSETriFactorStruct *upTriFactorT;
-  rocsparseStatus_t                  stat;
-  hipsparseIndexBase_t               indexBase;
-  hipsparseMatrixType_t              matrixType;
-  hipsparseFillMode_t                fillMode;
-  hipsparseDiagType_t                diagType;
-  hipError_t                       cerr;
+  rocsparse_status                  stat;
+  rocsparse_index_base               indexBase;
+  rocsparse_matrix_type              matrixType;
+  rocsparse_fill_mode                fillMode;
+  rocsparse_diag_type                diagType;
+  hipError_t                        cerr;
   PetscErrorCode                    ierr;
 
   PetscFunctionBegin;
@@ -933,11 +935,11 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   loTriFactorT->solvePolicy = HIPSPARSE_SOLVE_POLICY_USE_LEVEL;
 
   /* set the matrix descriptors of the lower triangular factor */
-  matrixType = hipsparseGetMatType(loTriFactor->descr);
-  indexBase = hipsparseGetMatIndexBase(loTriFactor->descr);
-  fillMode = hipsparseGetMatFillMode(loTriFactor->descr)==HIPSPARSE_FILL_MODE_UPPER ?
-    HIPSPARSE_FILL_MODE_LOWER : HIPSPARSE_FILL_MODE_UPPER;
-  diagType = hipsparseGetMatDiagType(loTriFactor->descr);
+  matrixType = rocsparse_get_mat_type(loTriFactor->descr);
+  indexBase = rocsparse_get_mat_index_base(loTriFactor->descr);
+  fillMode = rocsparse_get_mat_fill_mode(loTriFactor->descr)==rocsparse_fill_mode_upper ?
+    rocsparse_fill_mode_lower : rocsparse_fill_mode_upper;
+  diagType = rocsparse_get_mat_diag_type(loTriFactor->descr);
 
   /* Create the matrix description */
   stat = rocsparse_create_mat_descr(&loTriFactorT->descr);CHKERRHIPSPARSE(stat);
@@ -947,7 +949,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   stat = rocsparse_set_mat_diag_type(loTriFactorT->descr, diagType);CHKERRHIPSPARSE(stat);
 
   /* set the operation */
-  loTriFactorT->solveOp = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+  loTriFactorT->solveOp = rocsparse_operation_none;
 
   /* allocate GPU space for the CSC of the lower triangular factor*/
   loTriFactorT->csrMat = new CsrMatrix;
@@ -961,22 +963,22 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   /* compute the transpose of the lower triangular factor, i.e. the CSC */
 
   ierr = PetscLogEventBegin(MAT_HIPSPARSEGenerateTranspose,A,0,0,0);CHKERRQ(ierr);
-  stat = hipsparse_csr2csc(hipsparseTriFactors->handle, loTriFactor->csrMat->num_rows,
+  stat = prsparse_csr2csc(hipsparseTriFactors->handle, loTriFactor->csrMat->num_rows,
                           loTriFactor->csrMat->num_cols, loTriFactor->csrMat->num_entries,
                           loTriFactor->csrMat->values->data().get(),
                           loTriFactor->csrMat->row_offsets->data().get(),
                           loTriFactor->csrMat->column_indices->data().get(),
                           loTriFactorT->csrMat->values->data().get(),
                           loTriFactorT->csrMat->column_indices->data().get(), loTriFactorT->csrMat->row_offsets->data().get(),
-                          HIPSPARSE_ACTION_NUMERIC, indexBase
+                          rocsparse_action_numeric, indexBase
 );CHKERRHIPSPARSE(stat);
   cerr = WaitForHIP();CHKERRHIP(cerr);
   ierr = PetscLogEventBegin(MAT_HIPSPARSEGenerateTranspose,A,0,0,0);CHKERRQ(ierr);
 
   /* Create the solve analysis information */
   ierr = PetscLogEventBegin(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
-  stat = hipsparse_create_analysis_info(&loTriFactorT->solveInfo);CHKERRHIPSPARSE(stat);
-  stat = hipsparse_get_svbuffsize(hipsparseTriFactors->handle, loTriFactorT->solveOp,
+  stat = prsparse_create_analysis_info(&loTriFactorT->solveInfo);CHKERRHIPSPARSE(stat);
+  stat = prsparse_get_svbuffsize(hipsparseTriFactors->handle, loTriFactorT->solveOp,
                                 loTriFactorT->csrMat->num_rows, loTriFactorT->csrMat->num_entries, loTriFactorT->descr,
                                 loTriFactorT->csrMat->values->data().get(), loTriFactorT->csrMat->row_offsets->data().get(),
                                 loTriFactorT->csrMat->column_indices->data().get(), loTriFactorT->solveInfo,
@@ -984,7 +986,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   cerr = hipMalloc(&loTriFactorT->solveBuffer,loTriFactorT->solveBufferSize);CHKERRHIP(cerr);
 
   /* perform the solve analysis */
-  stat = hipsparse_analysis(hipsparseTriFactors->handle, loTriFactorT->solveOp,
+  stat = prsparse_analysis(hipsparseTriFactors->handle, loTriFactorT->solveOp,
                            loTriFactorT->csrMat->num_rows, loTriFactorT->csrMat->num_entries, loTriFactorT->descr,
                            loTriFactorT->csrMat->values->data().get(), loTriFactorT->csrMat->row_offsets->data().get(),
                            loTriFactorT->csrMat->column_indices->data().get(), loTriFactorT->solveInfo
@@ -1002,14 +1004,14 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
 
   /* allocate space for the transpose of the upper triangular factor */
   ierr = PetscNew(&upTriFactorT);CHKERRQ(ierr);
-  upTriFactorT->solvePolicy = HIPSPARSE_SOLVE_POLICY_USE_LEVEL;
+  upTriFactorT->solvePolicy = rocsparse_solve_policy_auto;
 
   /* set the matrix descriptors of the upper triangular factor */
-  matrixType = hipsparseGetMatType(upTriFactor->descr);
-  indexBase = hipsparseGetMatIndexBase(upTriFactor->descr);
-  fillMode = hipsparseGetMatFillMode(upTriFactor->descr)==HIPSPARSE_FILL_MODE_UPPER ?
-    HIPSPARSE_FILL_MODE_LOWER : HIPSPARSE_FILL_MODE_UPPER;
-  diagType = hipsparseGetMatDiagType(upTriFactor->descr);
+  matrixType = rocsparse_get_mat_type(upTriFactor->descr);
+  indexBase = rocsparse_get_mat_index(upTriFactor->descr);
+  fillMode = rocsparse_get_mat_index(upTriFactor->descr)==rocsparse_fill_mode_upper ?
+    rocsparse_fill_mode_lower : rocsparse_fill_mode_upper;
+  diagType = roc_sparse_get_mat_diag_type(upTriFactor->descr);
 
   /* Create the matrix description */
   stat = rocsparse_create_mat_descr(&upTriFactorT->descr);CHKERRHIPSPARSE(stat);
@@ -1019,7 +1021,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   stat = rocsparse_set_mat_diag_type(upTriFactorT->descr, diagType);CHKERRHIPSPARSE(stat);
 
   /* set the operation */
-  upTriFactorT->solveOp = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+  upTriFactorT->solveOp = rocsparse_operation_none;
 
   /* allocate GPU space for the CSC of the upper triangular factor*/
   upTriFactorT->csrMat = new CsrMatrix;
@@ -1032,22 +1034,22 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
 
   /* compute the transpose of the upper triangular factor, i.e. the CSC */
   ierr = PetscLogEventBegin(MAT_HIPSPARSEGenerateTranspose,A,0,0,0);CHKERRQ(ierr);
-  stat = hipsparse_csr2csc(hipsparseTriFactors->handle, upTriFactor->csrMat->num_rows,
+  stat = prsparse_csr2csc(hipsparseTriFactors->handle, upTriFactor->csrMat->num_rows,
                           upTriFactor->csrMat->num_cols, upTriFactor->csrMat->num_entries,
                           upTriFactor->csrMat->values->data().get(),
                           upTriFactor->csrMat->row_offsets->data().get(),
                           upTriFactor->csrMat->column_indices->data().get(),
                           upTriFactorT->csrMat->values->data().get(),
                           upTriFactorT->csrMat->column_indices->data().get(), upTriFactorT->csrMat->row_offsets->data().get(),
-                          HIPSPARSE_ACTION_NUMERIC, indexBase
+                          rocsparse_action_numeric, indexBase
 );CHKERRHIPSPARSE(stat);
   cerr = WaitForHIP();CHKERRHIP(cerr);
   ierr = PetscLogEventBegin(MAT_HIPSPARSEGenerateTranspose,A,0,0,0);CHKERRQ(ierr);
 
   /* Create the solve analysis information */
   ierr = PetscLogEventBegin(MAT_HIPSPARSESolveAnalysis,A,0,0,0);CHKERRQ(ierr);
-  stat = hipsparse_create_analysis_info(&upTriFactorT->solveInfo);CHKERRHIPSPARSE(stat);
-  stat = hipsparse_get_svbuffsize(hipsparseTriFactors->handle, upTriFactorT->solveOp,
+  stat = prsparse_create_analysis_info(&upTriFactorT->solveInfo);CHKERRHIPSPARSE(stat);
+  stat = prsparse_get_svbuffsize(hipsparseTriFactors->handle, upTriFactorT->solveOp,
                                  upTriFactorT->csrMat->num_rows, upTriFactorT->csrMat->num_entries, upTriFactorT->descr,
                                  upTriFactorT->csrMat->values->data().get(), upTriFactorT->csrMat->row_offsets->data().get(),
                                  upTriFactorT->csrMat->column_indices->data().get(), upTriFactorT->solveInfo,
@@ -1055,7 +1057,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEAnalyzeTransposeForSolve(Mat A)
   cerr = hipMalloc(&upTriFactorT->solveBuffer,upTriFactorT->solveBufferSize);CHKERRHIP(cerr);
 
   /* perform the solve analysis */
-  stat = hipsparse_analysis(hipsparseTriFactors->handle, upTriFactorT->solveOp,
+  stat = prsparse_analysis(hipsparseTriFactors->handle, upTriFactorT->solveOp,
                            upTriFactorT->csrMat->num_rows, upTriFactorT->csrMat->num_entries, upTriFactorT->descr,
                            upTriFactorT->csrMat->values->data().get(), upTriFactorT->csrMat->row_offsets->data().get(),
                            upTriFactorT->csrMat->column_indices->data().get(), upTriFactorT->solveInfo
@@ -1083,7 +1085,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEGenerateTransposeForMult(Mat A)
   Mat_SeqAIJHIPSPARSE           *hipsparsestruct = (Mat_SeqAIJHIPSPARSE*)A->spptr;
   Mat_SeqAIJHIPSPARSEMultStruct *matstruct, *matstructT;
   Mat_SeqAIJ                   *a = (Mat_SeqAIJ*)A->data;
-  rocsparseStatus_t             stat;
+  rocsparse_status             stat;
   hipsparseIndexBase_t          indexBase;
   hipError_t                  err;
   PetscErrorCode               ierr;
@@ -1103,9 +1105,9 @@ static PetscErrorCode MatSeqAIJHIPSPARSEGenerateTransposeForMult(Mat A)
   if (!hipsparsestruct->matTranspose) { /* create hipsparse matrix */
     matstructT = new Mat_SeqAIJHIPSPARSEMultStruct;
     stat = rocsparse_create_mat_descr(&matstructT->descr);CHKERRHIPSPARSE(stat);
-    indexBase = hipsparseGetMatIndexBase(matstruct->descr);
-    stat = hipsparseSetMatIndexBase(matstructT->descr, indexBase);CHKERRHIPSPARSE(stat);
-    stat = hipsparseSetMatType(matstructT->descr, HIPSPARSE_MATRIX_TYPE_GENERAL);CHKERRHIPSPARSE(stat);
+    indexBase = rocsparse_get_mat_index_base(matstruct->descr);
+    stat = rocsparse_set_mat_index_base(matstructT->descr, indexBase);CHKERRHIPSPARSE(stat);
+    stat = rocsparse_set_mat_index_type(matstructT->descr, hipsparse_matrix_type_general);CHKERRHIPSPARSE(stat);
 
     /* set alpha and beta */
     err = hipMalloc((void **)&(matstructT->alpha_one),sizeof(PetscScalar));CHKERRHIP(err);
@@ -1139,11 +1141,11 @@ static PetscErrorCode MatSeqAIJHIPSPARSEGenerateTransposeForMult(Mat A)
       temp->column_indices = new THRUSTINTARRAY32(a->nz);
       temp->values = new THRUSTARRAY(a->nz);
 
-      stat = hipsparse_hyb2csr(hipsparsestruct->handle,
-                              matstruct->descr, (hipsparseHybMat_t)matstruct->mat,
-                              temp->values->data().get(),
-                              temp->row_offsets->data().get(),
-                              temp->column_indices->data().get());CHKERRHIPSPARSE(stat);
+      stat = prsparse_hyb2csr(hipsparsestruct->handle,
+                             matstruct->descr, (hipsparseHybMat_t)matstruct->mat,
+                             temp->values->data().get(),
+                             temp->row_offsets->data().get(),
+                             temp->column_indices->data().get());CHKERRHIPSPARSE(stat);
 
       /* Next, convert CSR to CSC (i.e. the matrix transpose) */
       tempT->num_rows = A->rmap->n;
@@ -1153,22 +1155,22 @@ static PetscErrorCode MatSeqAIJHIPSPARSEGenerateTransposeForMult(Mat A)
       tempT->column_indices = new THRUSTINTARRAY32(a->nz);
       tempT->values = new THRUSTARRAY(a->nz);
 
-      stat = hipsparse_csr2csc(hipsparsestruct->handle, temp->num_rows,
-                              temp->num_cols, temp->num_entries,
-                              temp->values->data().get(),
-                              temp->row_offsets->data().get(),
-                              temp->column_indices->data().get(),
-                              tempT->values->data().get(),
-                              tempT->column_indices->data().get(),
-                              tempT->row_offsets->data().get(),
-                              HIPSPARSE_ACTION_NUMERIC, indexBase);CHKERRHIPSPARSE(stat);
+      stat = prsparse_csr2csc(hipsparsestruct->handle, temp->num_rows,
+                             temp->num_cols, temp->num_entries,
+                             temp->values->data().get(),
+                             temp->row_offsets->data().get(),
+                             temp->column_indices->data().get(),
+                             tempT->values->data().get(),
+                             tempT->column_indices->data().get(),
+                             tempT->row_offsets->data().get(),
+                             rocsparse_action_numeric, indexBase);CHKERRHIPSPARSE(stat);
 
       /* Last, convert CSC to HYB */
       hipsparseHybMat_t hybMat;
-      stat = hipsparseCreateHybMat(&hybMat);CHKERRHIPSPARSE(stat);
-      hipsparseHybPartition_t partition = hipsparsestruct->format==MAT_HIPSPARSE_ELL ?
-        HIPSPARSE_HYB_PARTITION_MAX : HIPSPARSE_HYB_PARTITION_AUTO;
-      stat = hipsparse_csr2hyb(hipsparsestruct->handle, A->rmap->n, A->cmap->n,
+      stat = rocsparse_create_hyb_mat(&hybMat);CHKERRHIPSPARSE(stat);
+      rocsparse_hyb_partition partition = hipsparsestruct->format==MAT_HIPSPARSE_ELL ?
+        rocsparse_hyb_partition_max : rocsparse_hyb_partition_auto;
+      stat = prsparse_csr2hyb(hipsparsestruct->handle, A->rmap->n, A->cmap->n,
                               matstructT->descr, tempT->values->data().get(),
                               tempT->row_offsets->data().get(),
                               tempT->column_indices->data().get(),
@@ -1212,14 +1214,14 @@ static PetscErrorCode MatSeqAIJHIPSPARSEGenerateTransposeForMult(Mat A)
       THRUSTARRAY csr2csc_a(matrix->num_entries);
       PetscStackCallThrust(thrust::sequence(thrust::device, csr2csc_a.begin(), csr2csc_a.end(), 0.0));
 
-      indexBase = hipsparseGetMatIndexBase(matstruct->descr);
+      indexBase = rocsparse_get_mat_index_base(matstruct->descr);
 
-      stat = hipsparse_csr2csc(hipsparsestruct->handle,
-                              A->rmap->n,A->cmap->n,matrix->num_entries,
-                              csr2csc_a.data().get(),hipsparsestruct->rowoffsets_gpu->data().get(),matrix->column_indices->data().get(),
-                              matrixT->values->data().get(),
-                              matrixT->column_indices->data().get(), matrixT->row_offsets->data().get(),
-                              HIPSPARSE_ACTION_NUMERIC, indexBase
+      stat = prsparse_csr2csc(hipsparsestruct->handle,
+                             A->rmap->n,A->cmap->n,matrix->num_entries,
+                             csr2csc_a.data().get(),hipsparsestruct->rowoffsets_gpu->data().get(),matrix->column_indices->data().get(),
+                             matrixT->values->data().get(),
+                             matrixT->column_indices->data().get(), matrixT->row_offsets->data().get(),
+                             rocsparse_action_numeric, indexBase
 );CHKERRHIPSPARSE(stat);
       hipsparsestruct->csr2csc_i = new THRUSTINTARRAY(matrix->num_entries);
       PetscStackCallThrust(thrust::transform(thrust::device,matrixT->values->begin(),matrixT->values->end(),hipsparsestruct->csr2csc_i->begin(),PetscScalarToPetscInt()));
@@ -1245,7 +1247,7 @@ static PetscErrorCode MatSolveTranspose_SeqAIJHIPSPARSE(Mat A,Vec bb,Vec xx)
   PetscScalar                           *xarray;
   thrust::device_ptr<const PetscScalar> bGPU;
   thrust::device_ptr<PetscScalar>       xGPU;
-  rocsparseStatus_t                      stat;
+  rocsparse_status                      stat;
   Mat_SeqAIJHIPSPARSETriFactors          *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct     *loTriFactorT = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->loTriFactorPtrTranspose;
   Mat_SeqAIJHIPSPARSETriFactorStruct     *upTriFactorT = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtrTranspose;
@@ -1274,7 +1276,7 @@ static PetscErrorCode MatSolveTranspose_SeqAIJHIPSPARSE(Mat A,Vec bb,Vec xx)
                xGPU);
 
   /* First, solve U */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, upTriFactorT->solveOp,
+  stat = prsparse_solve(hipsparseTriFactors->handle, upTriFactorT->solveOp,
                         upTriFactorT->csrMat->num_rows,
                         upTriFactorT->csrMat->num_entries,
                         &PETSC_HIPSPARSE_ONE, upTriFactorT->descr,
@@ -1287,7 +1289,7 @@ static PetscErrorCode MatSolveTranspose_SeqAIJHIPSPARSE(Mat A,Vec bb,Vec xx)
 );CHKERRHIPSPARSE(stat);
 
   /* Then, solve L */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, loTriFactorT->solveOp,
+  stat = prsparse_solve(hipsparseTriFactors->handle, loTriFactorT->solveOp,
                         loTriFactorT->csrMat->num_rows,
                         loTriFactorT->csrMat->num_entries,
                         &PETSC_HIPSPARSE_ONE, loTriFactorT->descr,
@@ -1320,7 +1322,7 @@ static PetscErrorCode MatSolveTranspose_SeqAIJHIPSPARSE_NaturalOrdering(Mat A,Ve
 {
   const PetscScalar                 *barray;
   PetscScalar                       *xarray;
-  rocsparseStatus_t                  stat;
+  rocsparse_status                  stat;
   Mat_SeqAIJHIPSPARSETriFactors      *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *loTriFactorT = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->loTriFactorPtrTranspose;
   Mat_SeqAIJHIPSPARSETriFactorStruct *upTriFactorT = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtrTranspose;
@@ -1342,29 +1344,29 @@ static PetscErrorCode MatSolveTranspose_SeqAIJHIPSPARSE_NaturalOrdering(Mat A,Ve
 
   ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
   /* First, solve U */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, upTriFactorT->solveOp,
-                        upTriFactorT->csrMat->num_rows,
-                        upTriFactorT->csrMat->num_entries,
-                        &PETSC_HIPSPARSE_ONE, upTriFactorT->descr,
-                        upTriFactorT->csrMat->values->data().get(),
-                        upTriFactorT->csrMat->row_offsets->data().get(),
-                        upTriFactorT->csrMat->column_indices->data().get(),
-                        upTriFactorT->solveInfo,
-                        barray, tempGPU->data().get()
-                        ,upTriFactorT->solvePolicy, upTriFactorT->solveBuffer
+  stat = prsparse_solve(hipsparseTriFactors->handle, upTriFactorT->solveOp,
+                       upTriFactorT->csrMat->num_rows,
+                       upTriFactorT->csrMat->num_entries,
+                       &PETSC_HIPSPARSE_ONE, upTriFactorT->descr,
+                       upTriFactorT->csrMat->values->data().get(),
+                       upTriFactorT->csrMat->row_offsets->data().get(),
+                       upTriFactorT->csrMat->column_indices->data().get(),
+                       upTriFactorT->solveInfo,
+                       barray, tempGPU->data().get()
+                       ,upTriFactorT->solvePolicy, upTriFactorT->solveBuffer
 );CHKERRHIPSPARSE(stat);
 
   /* Then, solve L */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, loTriFactorT->solveOp,
-                        loTriFactorT->csrMat->num_rows,
-                        loTriFactorT->csrMat->num_entries,
-                        &PETSC_HIPSPARSE_ONE, loTriFactorT->descr,
-                        loTriFactorT->csrMat->values->data().get(),
-                        loTriFactorT->csrMat->row_offsets->data().get(),
-                        loTriFactorT->csrMat->column_indices->data().get(),
-                        loTriFactorT->solveInfo,
-                        tempGPU->data().get(), xarray
-                        ,loTriFactorT->solvePolicy, loTriFactorT->solveBuffer
+  stat = prsparse_solve(hipsparseTriFactors->handle, loTriFactorT->solveOp,
+                       loTriFactorT->csrMat->num_rows,
+                       loTriFactorT->csrMat->num_entries,
+                       &PETSC_HIPSPARSE_ONE, loTriFactorT->descr,
+                       loTriFactorT->csrMat->values->data().get(),
+                       loTriFactorT->csrMat->row_offsets->data().get(),
+                       loTriFactorT->csrMat->column_indices->data().get(),
+                       loTriFactorT->solveInfo,
+                       tempGPU->data().get(), xarray
+                       ,loTriFactorT->solvePolicy, loTriFactorT->solveBuffer
 );CHKERRHIPSPARSE(stat);
 
   /* restore */
@@ -1382,7 +1384,7 @@ static PetscErrorCode MatSolve_SeqAIJHIPSPARSE(Mat A,Vec bb,Vec xx)
   PetscScalar                           *xarray;
   thrust::device_ptr<const PetscScalar> bGPU;
   thrust::device_ptr<PetscScalar>       xGPU;
-  rocsparseStatus_t                      stat;
+  rocsparse_status                      stat;
   Mat_SeqAIJHIPSPARSETriFactors          *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct     *loTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->loTriFactorPtr;
   Mat_SeqAIJHIPSPARSETriFactorStruct     *upTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtr;
@@ -1405,29 +1407,29 @@ static PetscErrorCode MatSolve_SeqAIJHIPSPARSE(Mat A,Vec bb,Vec xx)
                tempGPU->begin());
 
   /* Next, solve L */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, loTriFactor->solveOp,
-                        loTriFactor->csrMat->num_rows,
-                        loTriFactor->csrMat->num_entries,
-                        &PETSC_HIPSPARSE_ONE, loTriFactor->descr,
-                        loTriFactor->csrMat->values->data().get(),
-                        loTriFactor->csrMat->row_offsets->data().get(),
-                        loTriFactor->csrMat->column_indices->data().get(),
-                        loTriFactor->solveInfo,
-                        tempGPU->data().get(), xarray
-                        ,loTriFactor->solvePolicy, loTriFactor->solveBuffer
+  stat = prsparse_solve(hipsparseTriFactors->handle, loTriFactor->solveOp,
+                       loTriFactor->csrMat->num_rows,
+                       loTriFactor->csrMat->num_entries,
+                       &PETSC_HIPSPARSE_ONE, loTriFactor->descr,
+                       loTriFactor->csrMat->values->data().get(),
+                       loTriFactor->csrMat->row_offsets->data().get(),
+                       loTriFactor->csrMat->column_indices->data().get(),
+                       loTriFactor->solveInfo,
+                       tempGPU->data().get(), xarray
+                       ,loTriFactor->solvePolicy, loTriFactor->solveBuffer
 );CHKERRHIPSPARSE(stat);
 
   /* Then, solve U */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, upTriFactor->solveOp,
-                        upTriFactor->csrMat->num_rows,
-                        upTriFactor->csrMat->num_entries,
-                        &PETSC_HIPSPARSE_ONE, upTriFactor->descr,
-                        upTriFactor->csrMat->values->data().get(),
-                        upTriFactor->csrMat->row_offsets->data().get(),
-                        upTriFactor->csrMat->column_indices->data().get(),
-                        upTriFactor->solveInfo,
-                        xarray, tempGPU->data().get()
-                        ,upTriFactor->solvePolicy, upTriFactor->solveBuffer
+  stat = prsparse_solve(hipsparseTriFactors->handle, upTriFactor->solveOp,
+                       upTriFactor->csrMat->num_rows,
+                       upTriFactor->csrMat->num_entries,
+                       &PETSC_HIPSPARSE_ONE, upTriFactor->descr,
+                       upTriFactor->csrMat->values->data().get(),
+                       upTriFactor->csrMat->row_offsets->data().get(),
+                       upTriFactor->csrMat->column_indices->data().get(),
+                       upTriFactor->solveInfo,
+                       xarray, tempGPU->data().get()
+                       ,upTriFactor->solvePolicy, upTriFactor->solveBuffer
 );CHKERRHIPSPARSE(stat);
 
   /* Last, reorder with the column permutation */
@@ -1447,7 +1449,7 @@ static PetscErrorCode MatSolve_SeqAIJHIPSPARSE_NaturalOrdering(Mat A,Vec bb,Vec 
 {
   const PetscScalar                 *barray;
   PetscScalar                       *xarray;
-  rocsparseStatus_t                  stat;
+  rocsparse_status                  stat;
   Mat_SeqAIJHIPSPARSETriFactors      *hipsparseTriFactors = (Mat_SeqAIJHIPSPARSETriFactors*)A->spptr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *loTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->loTriFactorPtr;
   Mat_SeqAIJHIPSPARSETriFactorStruct *upTriFactor = (Mat_SeqAIJHIPSPARSETriFactorStruct*)hipsparseTriFactors->upTriFactorPtr;
@@ -1462,29 +1464,29 @@ static PetscErrorCode MatSolve_SeqAIJHIPSPARSE_NaturalOrdering(Mat A,Vec bb,Vec 
 
   ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
   /* First, solve L */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, loTriFactor->solveOp,
-                        loTriFactor->csrMat->num_rows,
-                        loTriFactor->csrMat->num_entries,
-                        &PETSC_HIPSPARSE_ONE, loTriFactor->descr,
-                        loTriFactor->csrMat->values->data().get(),
-                        loTriFactor->csrMat->row_offsets->data().get(),
-                        loTriFactor->csrMat->column_indices->data().get(),
-                        loTriFactor->solveInfo,
-                        barray, tempGPU->data().get(),
-                        loTriFactor->solvePolicy, loTriFactor->solveBuffer
+  stat = prsparse_solve(hipsparseTriFactors->handle, loTriFactor->solveOp,
+                       loTriFactor->csrMat->num_rows,
+                       loTriFactor->csrMat->num_entries,
+                       &PETSC_HIPSPARSE_ONE, loTriFactor->descr,
+                       loTriFactor->csrMat->values->data().get(),
+                       loTriFactor->csrMat->row_offsets->data().get(),
+                       loTriFactor->csrMat->column_indices->data().get(),
+                       loTriFactor->solveInfo,
+                       barray, tempGPU->data().get(),
+                       loTriFactor->solvePolicy, loTriFactor->solveBuffer
 );CHKERRHIPSPARSE(stat);
 
   /* Next, solve U */
-  stat = hipsparse_solve(hipsparseTriFactors->handle, upTriFactor->solveOp,
-                        upTriFactor->csrMat->num_rows,
-                        upTriFactor->csrMat->num_entries,
-                        &PETSC_HIPSPARSE_ONE, upTriFactor->descr,
-                        upTriFactor->csrMat->values->data().get(),
-                        upTriFactor->csrMat->row_offsets->data().get(),
-                        upTriFactor->csrMat->column_indices->data().get(),
-                        upTriFactor->solveInfo,
-                        tempGPU->data().get(), xarray,
-                        upTriFactor->solvePolicy, upTriFactor->solveBuffer
+  stat = prsparse_solve(hipsparseTriFactors->handle, upTriFactor->solveOp,
+                       upTriFactor->csrMat->num_rows,
+                       upTriFactor->csrMat->num_entries,
+                       &PETSC_HIPSPARSE_ONE, upTriFactor->descr,
+                       upTriFactor->csrMat->values->data().get(),
+                       upTriFactor->csrMat->row_offsets->data().get(),
+                       upTriFactor->csrMat->column_indices->data().get(),
+                       upTriFactor->solveInfo,
+                       tempGPU->data().get(), xarray,
+                       upTriFactor->solvePolicy, upTriFactor->solveBuffer
 );CHKERRHIPSPARSE(stat);
 
   ierr = VecHIPRestoreArrayRead(bb,&barray);CHKERRQ(ierr);
@@ -1535,7 +1537,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSECopyToGPU(Mat A)
   Mat_SeqAIJ                   *a = (Mat_SeqAIJ*)A->data;
   PetscInt                     m = A->rmap->n,*ii,*ridx,tmp;
   PetscErrorCode               ierr;
-  rocsparseStatus_t             stat;
+  rocsparse_status             stat;
   PetscBool                    both = PETSC_TRUE;
   hipError_t                  err;
 
@@ -1580,9 +1582,9 @@ static PetscErrorCode MatSeqAIJHIPSPARSECopyToGPU(Mat A)
         /* create hipsparse matrix */
         hipsparsestruct->nrows = m;
         matstruct = new Mat_SeqAIJHIPSPARSEMultStruct;
-        stat = hipsparseCreateMatDescr(&matstruct->descr);CHKERRHIPSPARSE(stat);
-        stat = hipsparseSetMatIndexBase(matstruct->descr, HIPSPARSE_INDEX_BASE_ZERO);CHKERRHIPSPARSE(stat);
-        stat = hipsparseSetMatType(matstruct->descr, HIPSPARSE_MATRIX_TYPE_GENERAL);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_create_mat_descr(&matstruct->descr);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_index_base(matstruct->descr, rocsparse_index_base_zero);CHKERRHIPSPARSE(stat);
+        stat = rocsparse_set_mat_type(matstruct->descr, rocsparse_matrix_type_general);CHKERRHIPSPARSE(stat);
 
         err = hipMalloc((void **)&(matstruct->alpha_one),sizeof(PetscScalar));CHKERRHIP(err);
         err = hipMalloc((void **)&(matstruct->beta_zero),sizeof(PetscScalar));CHKERRHIP(err);
@@ -1627,8 +1629,8 @@ static PetscErrorCode MatSeqAIJHIPSPARSECopyToGPU(Mat A)
           hipsparseHybMat_t hybMat;
           stat = hipsparseCreateHybMat(&hybMat);CHKERRHIPSPARSE(stat);
           hipsparseHybPartition_t partition = hipsparsestruct->format==MAT_HIPSPARSE_ELL ?
-            HIPSPARSE_HYB_PARTITION_MAX : HIPSPARSE_HYB_PARTITION_AUTO;
-          stat = hipsparse_csr2hyb(hipsparsestruct->handle, mat->num_rows, mat->num_cols,
+            rocsparse_hyb_partition_max : rocsparse_hyb_partition_auto;
+          stat = prsparse_csr2hyb(hipsparsestruct->handle, mat->num_rows, mat->num_cols,
               matstruct->descr, mat->values->data().get(),
               mat->row_offsets->data().get(),
               mat->column_indices->data().get(),
@@ -1733,7 +1735,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJHIPSPARSE_SeqDENSEHIP(Mat C)
   PetscInt                     m,n,blda,clda;
   PetscBool                    flg,biship;
   Mat_SeqAIJHIPSPARSE           *hipsp;
-  rocsparseStatus_t             stat;
+  rocsparse_status             stat;
   hipsparseOperation_t          opA;
   const PetscScalar            *barray;
   PetscScalar                  *carray;
@@ -1760,7 +1762,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJHIPSPARSE_SeqDENSEHIP(Mat C)
   case MATPRODUCT_AB:
   case MATPRODUCT_PtAP:
     mat = hipsp->mat;
-    opA = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+    opA = rocsparse_operation_none;
     m   = A->rmap->n;
     n   = B->cmap->n;
     break;
@@ -1771,7 +1773,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJHIPSPARSE_SeqDENSEHIP(Mat C)
     } else {
       ierr = MatSeqAIJHIPSPARSEGenerateTransposeForMult(A);CHKERRQ(ierr);
       mat  = hipsp->matTranspose;
-      opA  = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+      opA  = rocsparse_operation_none;
     }
     m = A->cmap->n;
     n = B->cmap->n;
@@ -1779,7 +1781,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJHIPSPARSE_SeqDENSEHIP(Mat C)
   case MATPRODUCT_ABt:
   case MATPRODUCT_RARt:
     mat = hipsp->mat;
-    opA = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+    opA = rocsparse_operation_none;
     m   = A->rmap->n;
     n   = B->rmap->n;
     break;
@@ -1929,7 +1931,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJHIPSPARSE_SeqAIJHIPSPARSE(Mat C)
   CsrMatrix                    *Acsr,*Bcsr,*Ccsr;
   PetscBool                    flg;
   PetscErrorCode               ierr;
-  rocsparseStatus_t             stat;
+  rocsparse_status             stat;
   hipError_t                  cerr;
   MatProductType               ptype;
   MatMathipsparse               *mmdata;
@@ -1998,7 +2000,7 @@ static PetscErrorCode MatProductNumeric_SeqAIJHIPSPARSE_SeqAIJHIPSPARSE(Mat C)
   if (!Bcsr) SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Missing B CSR struct");
   if (!Ccsr) SETERRQ(PetscObjectComm((PetscObject)C),PETSC_ERR_PLIB,"Missing C CSR struct");
   ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
-  stat = hipsparse_csr_spgemm(Chipsp->handle, HIPSPARSE_OPERATION_NON_TRANSPOSE, HIPSPARSE_OPERATION_NON_TRANSPOSE,
+  stat = hipsparse_csr_spgemm(Chipsp->handle, rocsparse_operation_none, rocsparse_operation_none,
                              Acsr->num_rows, Bcsr->num_cols, Acsr->num_cols,
                              Amat->descr, Acsr->num_entries, Acsr->values->data().get(), Acsr->row_offsets->data().get(), Acsr->column_indices->data().get(),
                              Bmat->descr, Bcsr->num_entries, Bcsr->values->data().get(), Bcsr->row_offsets->data().get(), Bcsr->column_indices->data().get(),
@@ -2031,7 +2033,7 @@ static PetscErrorCode MatProductSymbolic_SeqAIJHIPSPARSE_SeqAIJHIPSPARSE(Mat C)
   PetscInt                     i,j,m,n,k;
   PetscBool                    flg;
   PetscErrorCode               ierr;
-  rocsparseStatus_t             stat;
+  rocsparse_status             stat;
   hipError_t                  cerr;
   MatProductType               ptype;
   MatMathipsparse               *mmdata;
@@ -2371,8 +2373,8 @@ static PetscErrorCode MatMultAddKernel_SeqAIJHIPSPARSE(Mat A,Vec xx,Vec yy,Vec z
   PetscScalar                  *xarray,*zarray,*dptr,*beta,*xptr;
   PetscErrorCode               ierr;
   hipError_t                  cerr;
-  rocsparseStatus_t             stat;
-  hipsparseOperation_t          opA = HIPSPARSE_OPERATION_NON_TRANSPOSE;
+  rocsparse_status             stat;
+  hipsparseOperation_t          opA = rocsparse_operation_none;
   PetscBool                    compressed;
 
   PetscFunctionBegin;
@@ -2405,7 +2407,7 @@ static PetscErrorCode MatMultAddKernel_SeqAIJHIPSPARSE(Mat A,Vec xx,Vec yy,Vec z
     else {ierr = VecHIPGetArrayWrite(zz,&zarray);CHKERRQ(ierr);} /* write zz, so no need to init zarray on GPU */
 
     ierr = PetscLogGpuTimeBegin();CHKERRQ(ierr);
-    if (opA == HIPSPARSE_OPERATION_NON_TRANSPOSE) {
+    if (opA == rocsparse_operation_none) {
       /* z = A x + beta y.
          If A is compressed (with less rows), then Ax is shorter than the full z, so we need a work vector to store Ax.
          When A is non-compressed, and z = y, we can set beta=1 to compute y = Ax + y in one call.
@@ -2449,7 +2451,7 @@ static PetscErrorCode MatMultAddKernel_SeqAIJHIPSPARSE(Mat A,Vec xx,Vec yy,Vec z
     cerr = WaitForHIP();CHKERRHIP(cerr);
     ierr = PetscLogGpuTimeEnd();CHKERRQ(ierr);
 
-    if (opA == HIPSPARSE_OPERATION_NON_TRANSPOSE) {
+    if (opA == rocsparse_operation_none) {
       if (yy) { /* MatMultAdd: zz = A*xx + yy */
         if (compressed) { /* A is compressed. We first copy yy to zz, then ScatterAdd the work vector to zz */
           ierr = VecCopy_SeqHIP(yy,zz);CHKERRQ(ierr); /* zz = yy */
@@ -2661,7 +2663,7 @@ static PetscErrorCode MatAXPY_SeqAIJHIPSPARSE(Mat Y,PetscScalar a,Mat X,MatStruc
   if (Y->cmap->n == 1 && str != SAME_NONZERO_PATTERN) str = DIFFERENT_NONZERO_PATTERN;
 
   if (str == SUBSET_NONZERO_PATTERN) {
-    rocsparseStatus_t stat;
+    rocsparse_status stat;
     PetscScalar      b = 1.0;
 
     ierr = MatSeqAIJHIPSPARSEGetArrayRead(X,&ax);CHKERRQ(ierr);
@@ -2814,7 +2816,7 @@ static PetscErrorCode MatBindToCPU_SeqAIJHIPSPARSE(Mat A,PetscBool flg)
 PETSC_INTERN PetscErrorCode MatConvert_SeqAIJ_SeqAIJHIPSPARSE(Mat A, MatType mtype, MatReuse reuse, Mat* newmat)
 {
   PetscErrorCode   ierr;
-  rocsparseStatus_t stat;
+  rocsparse_status stat;
   Mat              B;
 
   PetscFunctionBegin;
@@ -2907,7 +2909,7 @@ PETSC_EXTERN PetscErrorCode MatSolverTypeRegister_HIPSPARSE(void)
 static PetscErrorCode MatSeqAIJHIPSPARSE_Destroy(Mat_SeqAIJHIPSPARSE **hipsparsestruct)
 {
   PetscErrorCode   ierr;
-  rocsparseStatus_t stat;
+  rocsparse_status stat;
 
   PetscFunctionBegin;
   if (*hipsparsestruct) {
@@ -2939,7 +2941,7 @@ static PetscErrorCode CsrMatrix_Destroy(CsrMatrix **mat)
 
 static PetscErrorCode MatSeqAIJHIPSPARSEMultStruct_Destroy(Mat_SeqAIJHIPSPARSETriFactorStruct **trifactor)
 {
-  rocsparseStatus_t stat;
+  rocsparse_status stat;
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
@@ -2957,7 +2959,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSEMultStruct_Destroy(Mat_SeqAIJHIPSPARSETr
 static PetscErrorCode MatSeqAIJHIPSPARSEMultStruct_Destroy(Mat_SeqAIJHIPSPARSEMultStruct **matstruct,MatHIPSPARSEStorageFormat format)
 {
   CsrMatrix        *mat;
-  rocsparseStatus_t stat;
+  rocsparse_status stat;
   hipError_t      err;
 
   PetscFunctionBegin;
@@ -3007,7 +3009,7 @@ static PetscErrorCode MatSeqAIJHIPSPARSETriFactors_Destroy(Mat_SeqAIJHIPSPARSETr
 {
   PetscErrorCode   ierr;
   rocsparse_handle handle;
-  rocsparseStatus_t stat;
+  rocsparse_status stat;
 
   PetscFunctionBegin;
   if (*trifactors) {
@@ -3385,7 +3387,7 @@ PetscErrorCode MatSeqAIJHIPSPARSEMergeMats(Mat A,Mat B,MatReuse reuse,Mat* C)
   Mat_SeqAIJHIPSPARSEMultStruct *Cmat;
   CsrMatrix                    *Acsr,*Bcsr,*Ccsr;
   PetscInt                     Annz,Bnnz;
-  rocsparseStatus_t             stat;
+  rocsparse_status             stat;
   PetscInt                     i,m,n,zero = 0;
   hipError_t                  cerr;
 

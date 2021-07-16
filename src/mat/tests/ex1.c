@@ -313,7 +313,7 @@ int main(int argc,char **argv)
      requires: hip
      output_file: output/ex1_2.out
      suffix: seqdensehip_seqaijhipsparse
-     !TODO: Check -qr 0
+     #TODO: Check -qr 0
      args: -mat_type seqaijcusparse -rhs_mat_type seqdensehip 
 
    test:
