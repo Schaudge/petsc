@@ -4,9 +4,9 @@ FFLAGS          =
 CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/ts/tutorials/multirate/dgnet/
-EXAMPLESC       = dgnet.c
+EXAMPLESC       = dgnet.c dgfunctions.c
 EXAMPLESF       =
-EXAMPLESCH      = fvnet.h
+EXAMPLESCH      = dgnet.h
 MANSEC          = TS
 
 include ${PETSC_DIR}/lib/petsc/conf/variables

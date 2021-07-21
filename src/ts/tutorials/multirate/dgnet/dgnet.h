@@ -160,7 +160,6 @@ struct _p_DGNetworkMonitorList
   PetscInt    element,field,vsize;
   DGNetworkMonitorList next;
 };
-
 typedef struct _p_DGNetworkMonitor *DGNetworkMonitor;
 struct _p_DGNetworkMonitor
 {
@@ -168,8 +167,24 @@ struct _p_DGNetworkMonitor
   DGNetwork            dgnet;
   DGNetworkMonitorList firstnode;
 };
-
-
+typedef struct _p_DGNetworkMonitorList_Glvis *DGNetworkMonitorList_Glvis;
+struct _p_DGNetworkMonitorList_Glvis
+{
+  PetscViewer viewer;
+  DGNetwork   dgnet;      
+  Vec         v,*v_work;
+  DM          viewdm;
+  PetscInt    element,nfields,*dim;
+  char        **fec_type;
+  DGNetworkMonitorList_Glvis next;
+};
+typedef struct _p_DGNetworkMonitor_Glvis *DGNetworkMonitor_Glvis;
+struct _p_DGNetworkMonitor_Glvis
+{
+  MPI_Comm             comm;
+  DGNetwork            dgnet;
+  DGNetworkMonitorList_Glvis firstnode;
+};
 /* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions.
    Allocate the work array data for FVNetwork */
 extern PetscErrorCode DGNetworkCreate(DGNetwork,PetscInt,PetscInt);
@@ -217,5 +232,16 @@ extern PetscErrorCode DGNetworkMonitorDestroy(DGNetworkMonitor*);
 extern PetscErrorCode DGNetworkMonitorAdd(DGNetworkMonitor,PetscInt,PetscReal,PetscReal,PetscReal,PetscReal,PetscBool);
 extern PetscErrorCode DGNetworkMonitorView(DGNetworkMonitor,Vec);
 extern PetscErrorCode DGNetworkAddMonitortoEdges(DGNetwork,DGNetworkMonitor);
+
+
+extern PetscErrorCode DGNetworkMonitorCreate_Glvis(DGNetwork,DGNetworkMonitor_Glvis*);
+extern PetscErrorCode DGNetworkMonitorPop_Glvis(DGNetworkMonitor_Glvis);
+extern PetscErrorCode DGNetworkMonitorDestroy_Glvis(DGNetworkMonitor_Glvis*);
+extern PetscErrorCode DGNetworkMonitorAdd_Glvis(DGNetworkMonitor_Glvis,PetscInt,const char[],PetscViewerGLVisType);
+extern PetscErrorCode DGNetworkMonitorView_Glvis(DGNetworkMonitor_Glvis,Vec);
+extern PetscErrorCode DGNetworkAddMonitortoEdges_Glvis(DGNetwork,DGNetworkMonitor_Glvis,PetscViewerGLVisType);
+
+extern PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis,PetscInt,const char[],PetscViewerGLVisType);
+extern PetscErrorCode DGNetworkAddMonitortoEdges_Glvis_3D(DGNetwork,DGNetworkMonitor_Glvis,PetscViewerGLVisType);
 
 extern PetscErrorCode DGNetworkNormL2(DGNetwork,Vec,PetscReal*);

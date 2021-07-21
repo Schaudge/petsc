@@ -46,11 +46,14 @@ OBJECTS_FVNET = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 SOURCES_FVNET   = $(wildcard ./fvnet/*.c)
 OBJECTS_FVNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 <<<<<<< HEAD
+<<<<<<< HEAD
 CLEANFILES      = ${OBJECTS_FVNET}
 >>>>>>> Modified make file to improve dependency on fvnet.h WIP
 =======
 SOURCES_DGNET   = $(wildcard ./dgnet/*.c)
 OBJECTS_DGNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
+=======
+>>>>>>> WIP
 CLEANFILES      = ${OBJECTS_FVNET} ${OBJECTS_DGNET}
 >>>>>>> WIP
 

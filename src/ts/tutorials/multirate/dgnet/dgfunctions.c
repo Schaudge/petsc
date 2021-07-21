@@ -16,7 +16,6 @@ PetscErrorCode RiemannListAdd_Net(PetscFunctionList *flist,const char *name,Riem
   ierr = PetscFunctionListAdd(flist,name,rsolve);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
 PetscErrorCode RiemannListFind_Net(PetscFunctionList flist,const char *name,RiemannFunction *rsolve)
 {
   PetscErrorCode ierr;
@@ -83,6 +82,7 @@ PetscReal evalquadDer_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint,
   }
   return eval; 
 }
+
 PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr; 
@@ -377,7 +377,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
     ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
     /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
-    ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+    ierr = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
     ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
     ierr = PetscMalloc1(dof,&cellint);CHKERRQ(ierr);
     /* Iterate through the cells of the edge mesh */

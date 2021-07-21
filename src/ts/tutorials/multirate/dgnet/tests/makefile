@@ -8,13 +8,15 @@ EXAMPLESC       = ex1.c
 EXAMPLESF       =
 EXAMPLESCH      = 
 MANSEC          = TS
+SOURCES_DGNET   = $(wildcard ../*.c)
+OBJECTS_DGNET   = $(patsubst %.c,%.o,$(SOURCES_DGNET))
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-ex1 : ../dgnet.c ../dgfunctions.c
-ex2 : ../dgnet.c ../dgfunctions.c
-ex3 : ../dgnet.c ../dgfunctions.c
-ex4 : ../dgnet.c ../dgfunctions.c
-ex5 : ../dgnet.c ../dgfunctions.c
+ex1 : $(OBJECTS_DGNET)
+ex2 : $(OBJECTS_DGNET)
+ex3 : $(OBJECTS_DGNET)
+ex4 : $(OBJECTS_DGNET)
+ex5 : $(OBJECTS_DGNET)

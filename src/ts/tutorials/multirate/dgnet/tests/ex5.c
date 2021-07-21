@@ -259,7 +259,6 @@ static PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
   fvnet->physics.user           = user;
   fvnet->physics.dof            = 1;
-  fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
   fvnet->physics.vfluxassign    = PhysicsAssignVertexFlux_Traffic;
   fvnet->physics.vfluxdestroy   = PhysicsDestroyVertexFlux;
   fvnet->physics.flux           = TrafficFlux2;
@@ -281,7 +280,6 @@ static PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   fvnet->physics.riemann = r;
   PetscFunctionReturn(0);
 }
-
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
   PetscErrorCode     ierr;
@@ -290,6 +288,16 @@ PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor)context;
   ierr = DGNetworkMonitorView(monitor,x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
+{
+  PetscErrorCode     ierr;
+  DGNetworkMonitor_Glvis   monitor;
+
+  PetscFunctionBegin;
+  monitor = (DGNetworkMonitor_Glvis)context;
+  ierr = DGNetworkMonitorView_Glvis(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
  static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
@@ -310,7 +318,9 @@ int main(int argc,char *argv[])
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   DGNetworkMonitor  monitor=NULL;
+  DGNetworkMonitor_Glvis monitor_gl=NULL; 
   Vec               Xtrue; 
+  PetscBool         glvismode=PETSC_FALSE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE; 
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -337,14 +347,17 @@ int main(int argc,char *argv[])
   dgnet->ndaughters     = 2;
   dgnet->linearcoupling = PETSC_FALSE;
   dgnet->length         = 3.0;
-  dgnet->view           = PETSC_TRUE;
+  dgnet->view           = PETSC_FALSE;
 
   /* Command Line Options */
   ierr = PetscOptionsBegin(comm,NULL,"Finite Volume solver options","");CHKERRQ(ierr);
-  ierr = PetscOptionsReal("-cfl","CFL number to time step at","",dgnet->cfl,&dgnet->cfl,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-Mx","Smallest number of cells for an edge","",dgnet->Mx,&dgnet->Mx,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-convergence", "Test convergence on meshes 2^3 - 2^n","",convergencelevel,&convergencelevel,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-cfl","CFL number to time step at","",dgnet->cfl,&dgnet->cfl,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsInt("-convergence", "Test convergence on meshes 2^3 - 2^n","",convergencelevel,&convergencelevel,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-view","View the DG solution","",dgnet->view,&dgnet->view,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-view_dump","Dump the Glvis view or socket","",glvismode,&glvismode,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   {
@@ -381,14 +394,26 @@ int main(int argc,char *argv[])
     /* Create DMNetwork */
     ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr);
     if (size == 1 && dgnet->view) {
-      ierr = DGNetworkMonitorCreate(dgnet,&monitor);CHKERRQ(ierr);
+      if (viewglvis) {
+        ierr = DGNetworkMonitorCreate_Glvis(dgnet,&monitor_gl);CHKERRQ(ierr);
+      } else {
+        ierr = DGNetworkMonitorCreate(dgnet,&monitor);CHKERRQ(ierr);
+      }
     }
     /* Set Network Data into the DMNetwork (on proc[0]) */
     ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
     /* Delete unneeded data in dgnet */
     ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
     ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
-    ierr = DGNetworkAddMonitortoEdges(dgnet,monitor);CHKERRQ(ierr);
+    if (viewglvis) {
+      if(view3d) {
+        ierr = DGNetworkAddMonitortoEdges_Glvis_3D(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+      } else {
+        ierr = DGNetworkAddMonitortoEdges_Glvis(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+      }
+    } else {
+      ierr = DGNetworkAddMonitortoEdges(dgnet,monitor);CHKERRQ(ierr);
+    }
     /* Create Vectors */
     ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);
     /* Set up component dynamic data structures */
@@ -407,7 +432,13 @@ int main(int argc,char *argv[])
     ierr = DGNetRHS(ts,0,dgnet->X,dgnet->Ftmp,dgnet);CHKERRQ(ierr);
     ierr = TSSetTimeStep(ts,dgnet->cfl/PetscPowReal(2.0,n)/(2*maxorder+1));
     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
-    if (size == 1 && dgnet->view) ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+    if (size == 1 && dgnet->view) {
+      if (viewglvis) {
+        ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
+      } else {
+        ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+      }
+    }
     /* Evolve the PDE network in time */
     ierr = TSSolve(ts,dgnet->X);CHKERRQ(ierr);
     /* Compute true solution and compute norm of the difference with computed solution*/
@@ -418,7 +449,13 @@ int main(int argc,char *argv[])
     ierr = VecDestroy(&Xtrue);CHKERRQ(ierr);
 
         /* Clean up */
-    if(dgnet->view && size==1) ierr = DGNetworkMonitorDestroy(&monitor);
+    if(dgnet->view && size==1){
+      if(viewglvis) {
+        ierr = DGNetworkMonitorDestroy_Glvis(&monitor_gl);
+      } else {
+        ierr = DGNetworkMonitorDestroy(&monitor);
+      }
+    }
     ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
     ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
     ierr = TSDestroy(&ts);CHKERRQ(ierr);
