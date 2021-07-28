@@ -1624,3 +1624,62 @@ PetscErrorCode FVNetRHS_SingleCoupleEval(TS ts,PetscReal time,Vec X,Vec F,void *
   ierr = DMLocalToGlobalEnd(fvnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+
+/* L2 Projection Function */ 
+
+PetscErrorCode FVNetworkProject(DGNetwork fvnet,Vec X0,PetscReal t) 
+{
+  PetscErrorCode ierr;
+  PetscInt       i,j,k,vfrom,vto,type,offset,e,eStart,eEnd,dof = fvnet->physics.dof,numnodes = 4;
+  const PetscInt *cone;
+  PetscScalar    *xarr,*u,*utmp;
+  Junction       junction;
+  FVEdge         fvedge;
+  Vec            localX = fvnet->localX;
+  PetscReal      h,xfrom,xto,xend,xstart,*xnodes,*w;
+  
+  PetscFunctionBegin;
+  
+  ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(fvnet->network,&eStart,&eEnd);CHKERRQ(ierr);
+  ierr = PetscMalloc3(numnodes,&xnodes,numnodes,&w,numnodes*dof,&utmp);CHKERRQ(ierr);
+  for (e=eStart; e<eEnd; e++) {
+    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,&type,(void**)&fvedge,NULL);CHKERRQ(ierr);
+    ierr  = DMNetworkGetLocalVecOffset(fvnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+    h     = fvedge->h;
+    ierr  = DMNetworkGetConnectedVertices(fvnet->network,e,&cone);CHKERRQ(ierr);
+    vfrom = cone[0];
+    vto   = cone[1];
+    ierr  = DMNetworkGetComponent(fvnet->network,vto,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
+    xto   = junction->x;
+    ierr  = DMNetworkGetComponent(fvnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
+    xfrom = junction->x;
+      for (i=0; i<fvedge->nnodes; i++) {
+      if (xto>xfrom) {
+        xstart = xfrom+i*h;
+        xend   = xstart+h;
+      } else {
+        xstart = xfrom-(i+1)*h;
+        xend   = xstart+h;
+      }
+      ierr = PetscDTGaussQuadrature(numnodes,xstart,xend,xnodes,w);CHKERRQ(ierr);
+      u = xarr+offset+i*dof;
+      for(j=0;j<numnodes;j++) {
+        fvnet->physics.samplenetwork((void*)&fvnet->physics.user,fvnet->initial,t,xnodes[j],utmp+dof*j,fvedge->id);
+      }
+      for(j=0;j<dof;j++) {
+          u[j] = 0;
+        for(k=0;k<numnodes;k++) {
+          u[j] += w[k]*utmp[dof*k+j]/h; /* Gaussian Quadrature*/
+        }
+      }
+    }   
+  }
+  ierr = PetscFree3(xnodes,w,utmp);CHKERRQ(ierr);
+  ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
+  /* Can use insert as each edge belongs to a single processor and vertex data is only for temporary computation and holds no 'real' data. */
+  ierr = DMLocalToGlobalBegin(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(fvnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr); 
+  PetscFunctionReturn(0);
+}
