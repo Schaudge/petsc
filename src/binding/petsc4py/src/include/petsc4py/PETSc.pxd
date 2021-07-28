@@ -91,6 +91,10 @@ cdef extern from "petsc.h":
 
     struct _p_TSAdapt
     ctypedef _p_TSAdapt* PetscTSAdapt "TSAdapt"
+
+    struct _p_MLRegressor
+    ctypedef _p_MLRegressor* PetscMLRegressor "MLRegressor"
+
 # --------------------------------------------------------------------
 
 ctypedef public api class Comm [
@@ -250,6 +254,13 @@ ctypedef public api class DMLabel(Object) [
     object PyPetscDMLabelObject,
     ]:
     cdef PetscDMLabel dmlabel
+
+ctypedef public api class MLRegressor(Object) [
+    type   PyPetscMLRegressor_Type,
+    object PyPetscMLRegressorObject,
+    ]:
+    cdef PetscMLRegressor mlregressor
+
 # --------------------------------------------------------------------
 
 cdef MPI_Comm GetComm(object, MPI_Comm) except *
