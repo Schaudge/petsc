@@ -273,13 +273,6 @@ PetscErrorCode TaoEstimateActiveBounds(Vec X, Vec XL, Vec XU, Vec G, Vec S, Vec 
     ierr = VecRestoreArrayRead(G, &g);CHKERRQ(ierr);
   }
 
-  /* Clear all index sets */
-  ierr = ISDestroy(active_lower);CHKERRQ(ierr);
-  ierr = ISDestroy(active_upper);CHKERRQ(ierr);
-  ierr = ISDestroy(active_fixed);CHKERRQ(ierr);
-  ierr = ISDestroy(active);CHKERRQ(ierr);
-  ierr = ISDestroy(inactive);CHKERRQ(ierr);
-
   /* Collect global sizes */
   ierr = MPIU_Allreduce(&n_isl, &N_isl, 1, MPIU_INT, MPI_SUM, comm);CHKERRQ(ierr);
   ierr = MPIU_Allreduce(&n_isu, &N_isu, 1, MPIU_INT, MPI_SUM, comm);CHKERRQ(ierr);
@@ -288,31 +281,36 @@ PetscErrorCode TaoEstimateActiveBounds(Vec X, Vec XL, Vec XU, Vec G, Vec S, Vec 
   ierr = MPIU_Allreduce(&n_isi, &N_isi, 1, MPIU_INT, MPI_SUM, comm);CHKERRQ(ierr);
 
   /* Create index set for lower bounded variables */
-  if (N_isl > 0) {
+  if (N_isl > 0 && active_lower) {
+    ierr = ISDestroy(active_lower);CHKERRQ(ierr);
     ierr = ISCreateGeneral(comm, n_isl, isl, PETSC_OWN_POINTER, active_lower);CHKERRQ(ierr);
   } else {
     ierr = PetscFree(isl);CHKERRQ(ierr);
   }
   /* Create index set for upper bounded variables */
-  if (N_isu > 0) {
+  if (N_isu > 0 && active_upper) {
+    ierr = ISDestroy(active_upper);CHKERRQ(ierr);
     ierr = ISCreateGeneral(comm, n_isu, isu, PETSC_OWN_POINTER, active_upper);CHKERRQ(ierr);
   } else {
     ierr = PetscFree(isu);CHKERRQ(ierr);
   }
   /* Create index set for fixed variables */
-  if (N_isf > 0) {
+  if (N_isf > 0 && active_fixed) {
+    ierr = ISDestroy(active_fixed);CHKERRQ(ierr);
     ierr = ISCreateGeneral(comm, n_isf, isf, PETSC_OWN_POINTER, active_fixed);CHKERRQ(ierr);
   } else {
     ierr = PetscFree(isf);CHKERRQ(ierr);
   }
   /* Create index set for all actively bounded variables */
-  if (N_isa > 0) {
+  if (N_isa > 0 && active) {
+    ierr = ISDestroy(active);CHKERRQ(ierr);
     ierr = ISCreateGeneral(comm, n_isa, isa, PETSC_OWN_POINTER, active);CHKERRQ(ierr);
   } else {
     ierr = PetscFree(isa);CHKERRQ(ierr);
   }
   /* Create index set for all inactive variables */
-  if (N_isi > 0) {
+  if (N_isi > 0 && inactive) {
+    ierr = ISDestroy(inactive);CHKERRQ(ierr);
     ierr = ISCreateGeneral(comm, n_isi, isi, PETSC_OWN_POINTER, inactive);CHKERRQ(ierr);
   } else {
     ierr = PetscFree(isi);CHKERRQ(ierr);
@@ -342,44 +340,62 @@ PetscErrorCode TaoEstimateActiveBounds(Vec X, Vec XL, Vec XU, Vec G, Vec S, Vec 
 @*/
 PetscErrorCode TaoBoundStep(Vec X, Vec XL, Vec XU, IS active_lower, IS active_upper, IS active_fixed, PetscReal scale, Vec S)
 {
-  PetscErrorCode               ierr;
-
+  PetscInt n;
   Vec                          step_lower, step_upper, step_fixed;
   Vec                          x_lower, x_upper;
   Vec                          bound_lower, bound_upper;
+  PetscErrorCode               ierr;
 
   PetscFunctionBegin;
   /* Adjust step for variables at the estimated lower bound */
   if (active_lower) {
-    ierr = VecGetSubVector(S, active_lower, &step_lower);CHKERRQ(ierr);
-    ierr = VecGetSubVector(X, active_lower, &x_lower);CHKERRQ(ierr);
-    ierr = VecGetSubVector(XL, active_lower, &bound_lower);CHKERRQ(ierr);
-    ierr = VecCopy(bound_lower, step_lower);CHKERRQ(ierr);
-    ierr = VecAXPY(step_lower, -1.0, x_lower);CHKERRQ(ierr);
-    ierr = VecScale(step_lower, scale);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(S, active_lower, &step_lower);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(X, active_lower, &x_lower);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(XL, active_lower, &bound_lower);CHKERRQ(ierr);
+    ierr = ISGetSize(active_lower, &n);CHKERRQ(ierr);
+    if (n > 0) {
+      ierr = VecGetSubVector(S, active_lower, &step_lower);CHKERRQ(ierr);
+      if (scale == 0.0) {
+        ierr = VecSet(step_lower, 0.0);CHKERRQ(ierr);
+      } else {
+        ierr = VecGetSubVector(X, active_lower, &x_lower);CHKERRQ(ierr);
+        ierr = VecGetSubVector(XL, active_lower, &bound_lower);CHKERRQ(ierr);
+        ierr = VecCopy(bound_lower, step_lower);CHKERRQ(ierr);
+        ierr = VecAXPY(step_lower, -1.0, x_lower);CHKERRQ(ierr);
+        ierr = VecScale(step_lower, scale);CHKERRQ(ierr);
+        ierr = VecRestoreSubVector(X, active_lower, &x_lower);CHKERRQ(ierr);
+        ierr = VecRestoreSubVector(XL, active_lower, &bound_lower);CHKERRQ(ierr);
+      }
+      ierr = VecRestoreSubVector(S, active_lower, &step_lower);CHKERRQ(ierr);
+      
+    }
   }
 
   /* Adjust step for the variables at the estimated upper bound */
   if (active_upper) {
-    ierr = VecGetSubVector(S, active_upper, &step_upper);CHKERRQ(ierr);
-    ierr = VecGetSubVector(X, active_upper, &x_upper);CHKERRQ(ierr);
-    ierr = VecGetSubVector(XU, active_upper, &bound_upper);CHKERRQ(ierr);
-    ierr = VecCopy(bound_upper, step_upper);CHKERRQ(ierr);
-    ierr = VecAXPY(step_upper, -1.0, x_upper);CHKERRQ(ierr);
-    ierr = VecScale(step_upper, scale);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(S, active_upper, &step_upper);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(X, active_upper, &x_upper);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(XU, active_upper, &bound_upper);CHKERRQ(ierr);
+    ierr = ISGetSize(active_upper, &n);CHKERRQ(ierr);
+    if (n > 0) {
+      ierr = VecGetSubVector(S, active_upper, &step_upper);CHKERRQ(ierr);
+      if (scale == 0.0) {
+        ierr = VecSet(step_upper, 0.0);CHKERRQ(ierr);
+      } else {
+        ierr = VecGetSubVector(X, active_upper, &x_upper);CHKERRQ(ierr);
+        ierr = VecGetSubVector(XU, active_upper, &bound_upper);CHKERRQ(ierr);
+        ierr = VecCopy(bound_upper, step_upper);CHKERRQ(ierr);
+        ierr = VecAXPY(step_upper, -1.0, x_upper);CHKERRQ(ierr);
+        ierr = VecScale(step_upper, scale);CHKERRQ(ierr);
+        ierr = VecRestoreSubVector(X, active_upper, &x_upper);CHKERRQ(ierr);
+        ierr = VecRestoreSubVector(XU, active_upper, &bound_upper);CHKERRQ(ierr);
+      }
+      ierr = VecRestoreSubVector(S, active_upper, &step_upper);CHKERRQ(ierr);
+    }
   }
 
   /* Zero out step for fixed variables */
   if (active_fixed) {
-    ierr = VecGetSubVector(S, active_fixed, &step_fixed);CHKERRQ(ierr);
-    ierr = VecSet(step_fixed, 0.0);CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(S, active_fixed, &step_fixed);CHKERRQ(ierr);
+    ierr = ISGetSize(active_fixed, &n);CHKERRQ(ierr);
+    if (n > 0) {
+      ierr = VecGetSubVector(S, active_fixed, &step_fixed);CHKERRQ(ierr);
+      ierr = VecSet(step_fixed, 0.0);CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(S, active_fixed, &step_fixed);CHKERRQ(ierr);
+    }
   }
   PetscFunctionReturn(0);
 }

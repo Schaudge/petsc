@@ -214,12 +214,8 @@ PetscErrorCode FullSpaceVecDestroy(FullSpaceVec *Q)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = VecDestroy(&Q->F);CHKERRQ(ierr);
   ierr = VecDestroy(&Q->R);CHKERRQ(ierr);
-  ierr = VecDestroy(&Q->P);CHKERRQ(ierr);
-  ierr = VecDestroy(&Q->S);CHKERRQ(ierr);
-  ierr = VecDestroy(&Q->Y);CHKERRQ(ierr);
-  ierr = VecDestroy(&Q->Ys);CHKERRQ(ierr);
+  ierr = VecDestroy(&Q->F);CHKERRQ(ierr);
   ierr = PetscFree(Q);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -258,10 +254,12 @@ PetscErrorCode ReducedSpaceVecDuplicate(ReducedSpaceVec *source, ReducedSpaceVec
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  target->nR = source->nR;
   ierr = VecDuplicate(source->R, &target->R);CHKERRQ(ierr);
   ierr = VecSetOptionsPrefix(target->R, "mad_r_");CHKERRQ(ierr);
   ierr = VecNestGetSubVecs(target->R, &target->nR, &vb);CHKERRQ(ierr);
   target->X = vb[i++];
+  ierr = VecSetOptionsPrefix(target->X, "mad_x_");CHKERRQ(ierr);
   if (source->Yi) {
     target->Yi = vb[i++];
     ierr = VecSetOptionsPrefix(target->Yi, "mad_yi_");CHKERRQ(ierr);

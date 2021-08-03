@@ -11,7 +11,8 @@ typedef struct {
   PetscInt    restart_it;       /* number of iterations the restart conditions persist before restart */
   PetscViewer monitor;          /* debugging output for NGMRES */
   PetscInt    restart_periodic; /* number of iterations to restart after */
-
+  PetscBool   user_restart;     /* one-time restart based on user trigger */
+  
   SNESNGMRESRestartType restart_type;
   SNESNGMRESSelectType  select_type;
 

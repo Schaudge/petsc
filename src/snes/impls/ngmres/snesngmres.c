@@ -286,6 +286,12 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
         restart_count = ngmres->restart_it;
       }
     }
+    
+    if (ngmres->user_restart) {
+      if (ngmres->monitor) ierr = PetscViewerASCIIPrintf(ngmres->monitor,"user-triggered restart\n");CHKERRQ(ierr);
+      restart_count = ngmres->restart_it;
+      ngmres->user_restart = PETSC_FALSE;
+    }
 
     ivec = k_restart % ngmres->msize; /* replace the last used part of the subspace */
 
@@ -475,6 +481,25 @@ PetscErrorCode SNESNGMRESSetRestartType_NGMRES(SNES snes,SNESNGMRESRestartType r
   PetscFunctionReturn(0);
 }
 
+/*@
+    SNESNGMRESManualRestart - Force a one-time restart on the next NGMRES iteration
+
+    Logically Collective on SNES
+
+    Input Parameters:
+.   snes - the iterative context
+
+    Level: developer
+@*/
+PetscErrorCode SNESNGMRESManualRestart(SNES snes)
+{
+  SNES_NGMRES *ngmres = (SNES_NGMRES*)snes->data;
+
+  PetscFunctionBegin;
+  ngmres->user_restart = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
 /*MC
   SNESNGMRES - The Nonlinear Generalized Minimum Residual method.
 
@@ -558,6 +583,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_NGMRES(SNES snes)
   ngmres->epsilonB            = 0.1;
   ngmres->restart_fm_rise     = PETSC_FALSE;
 
+  ngmres->user_restart = PETSC_FALSE;
   ngmres->restart_type = SNES_NGMRES_RESTART_DIFFERENCE;
   ngmres->select_type  = SNES_NGMRES_SELECT_DIFFERENCE;
 

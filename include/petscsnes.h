@@ -762,6 +762,7 @@ typedef enum {
   SNES_NGMRES_SELECT_LINESEARCH = 2} SNESNGMRESSelectType;
 PETSC_EXTERN const char *const SNESNGMRESSelectTypes[];
 
+PETSC_EXTERN PetscErrorCode SNESNGMRESManualRestart(SNES);
 PETSC_EXTERN PetscErrorCode SNESNGMRESSetRestartType(SNES, SNESNGMRESRestartType);
 PETSC_EXTERN PetscErrorCode SNESNGMRESSetSelectType(SNES, SNESNGMRESSelectType);
 PETSC_EXTERN PetscErrorCode SNESNGMRESSetRestartFmRise(SNES, PetscBool);
