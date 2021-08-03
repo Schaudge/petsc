@@ -143,7 +143,7 @@ static PetscErrorCode TaoMADSNESLineSearchApply(SNESLineSearch linesearch, void*
       if (mad->alpha != 0.0) {
         /* gradient descent worked, reset MAD history */
         success = PETSC_TRUE;
-        ierr = SNESNGMRESManualRestart(mad->snes);CHKERRQ(ierr);
+        ierr = SNESNGMRESSetRestartOnNextIteration(mad->snes, PETSC_TRUE);CHKERRQ(ierr);
       }
     } else success = PETSC_TRUE;
   } else {
@@ -167,7 +167,7 @@ static PetscErrorCode TaoMADSNESLineSearchApply(SNESLineSearch linesearch, void*
       if (reason != TAOLINESEARCH_SUCCESS) {
         /* gradient descent worked, reset MAD history */
         success = PETSC_TRUE;
-        ierr = SNESNGMRESManualRestart(mad->snes);CHKERRQ(ierr);
+        ierr = SNESNGMRESSetRestartOnNextIteration(mad->snes, PETSC_TRUE);CHKERRQ(ierr);
       }
     } else success = PETSC_TRUE;
   }
@@ -512,6 +512,8 @@ static PetscErrorCode TaoSetUp_MAD(Tao tao)
   ierr = VecDuplicate(mad->G->R, &mad->Gsnes);CHKERRQ(ierr);
 
   /* use offload the constructed reduced KKT problem to SNESNGMRES */
+  ierr = SNESNGMRESSetSingularValueCutoff(mad->snes, mad->rcond);CHKERRQ(ierr);
+  ierr = SNESNGMRESSetStorageSize(mad->snes, mad->msize);CHKERRQ(ierr);
   ierr = SNESGetDM(mad->snes, &dm);CHKERRQ(ierr);
   ierr = DMShellSetGlobalVector(dm, mad->Rsnes);CHKERRQ(ierr);
   ierr = SNESSetApplicationContext(mad->snes, (void*)tao);CHKERRQ(ierr);
@@ -599,6 +601,8 @@ static PetscErrorCode TaoSetFromOptions_MAD(PetscOptionItems *PetscOptionsObject
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead(PetscOptionsObject,"Multisecant Accelerated Descent for solving noisy nonlinear optimization problems with general constraints.");CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-tao_mad_storage_size","number of stored iterates and gradients","",mad->msize,&mad->msize,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-tao_mad_rcond","relative tolerance for detecting zero singular values","",mad->rcond,&mad->rcond,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_mad_max_scale","maximum scaling factor for primal gradient and dual variables","",mad->scale_max,&mad->scale_max,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-tao_mad_use_ipm","uses an interior-point formulation for the KKT conditions (disables linesearch)","",mad->use_ipm,&mad->use_ipm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-tao_mad_use_filter","disables the linesearch and uses a filter instead","",mad->use_ipm,&mad->use_ipm,NULL);CHKERRQ(ierr);
@@ -702,6 +706,8 @@ PETSC_EXTERN PetscErrorCode TaoCreate_MAD(Tao tao)
   tao->crtol = 0.0;
 
   tao->data           = (void*)mad;
+  mad->msize          = 25;
+  mad->rcond          = 1.e-5;
   mad->mu             = 100.0;
   mad->mu_r           = 0.95;
   mad->mu_g           = 0.1;

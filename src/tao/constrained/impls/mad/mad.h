@@ -81,7 +81,8 @@ typedef struct {
 
   /* SNES subsolver for NGMRES/ANDERSON */
   SNES             snes;
-  PetscInt         restarts;
+  PetscReal        rcond;
+  PetscInt         restarts, msize;
 } TAO_MAD;
 
 PETSC_INTERN PetscErrorCode LagrangianCopy(Lagrangian*,Lagrangian*);

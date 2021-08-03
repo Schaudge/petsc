@@ -105,14 +105,14 @@ PetscErrorCode SNESSetFromOptions_NGMRES(PetscOptionItems *PetscOptionsObject,SN
                           (PetscEnum)ngmres->restart_type,(PetscEnum*)&ngmres->restart_type,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_ngmres_candidate", "Use candidate storage",              "SNES",ngmres->candidate,&ngmres->candidate,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_ngmres_approxfunc","Linearly approximate the function", "SNES",ngmres->approxfunc,&ngmres->approxfunc,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-snes_ngmres_m",          "Number of directions",               "SNES",ngmres->msize,&ngmres->msize,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-snes_ngmres_m",          "Number of directions",               "SNESSetStorageSize",ngmres->msize,&ngmres->msize,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-snes_ngmres_restart",    "Iterations before forced restart",   "SNES",ngmres->restart_periodic,&ngmres->restart_periodic,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-snes_ngmres_restart_it", "Tolerance iterations before restart","SNES",ngmres->restart_it,&ngmres->restart_it,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_ngmres_monitor",   "Monitor actions of NGMRES",          "SNES",ngmres->monitor ? PETSC_TRUE : PETSC_FALSE,&debug,NULL);CHKERRQ(ierr);
   if (debug) {
     ngmres->monitor = PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)snes));CHKERRQ(ierr);
   }
-  ierr = PetscOptionsReal("-snes_ngmres_rcond",     "Relative tolerance for zero singular values","SNES",ngmres->rcond,&ngmres->rcond,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-snes_ngmres_rcond",     "Relative tolerance for zero singular values","SNESNGMRESSetSingularValueCutoff",ngmres->rcond,&ngmres->rcond,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_gammaA",    "Residual selection constant",   "SNES",ngmres->gammaA,&ngmres->gammaA,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_gammaC",    "Residual restart constant",     "SNES",ngmres->gammaC,&ngmres->gammaC,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_epsilonB",  "Difference selection constant", "SNES",ngmres->epsilonB,&ngmres->epsilonB,NULL);CHKERRQ(ierr);
@@ -483,21 +483,68 @@ PetscErrorCode SNESNGMRESSetRestartType_NGMRES(SNES snes,SNESNGMRESRestartType r
 }
 
 /*@
-    SNESNGMRESManualRestart - Force a one-time restart on the next NGMRES iteration
+    SNESNGMRESSetRestartOnNextIteration - Force a one-time restart on the next NGMRES iteration
 
     Logically Collective on SNES
 
     Input Parameters:
-.   snes - the iterative context
++   snes - the iterative context
+-   restart - boolean for deciding whether the next iteration restarts storage
 
     Level: developer
 @*/
-PetscErrorCode SNESNGMRESManualRestart(SNES snes)
+PetscErrorCode SNESNGMRESSetRestartOnNextIteration(SNES snes, PetscBool restart)
 {
   SNES_NGMRES *ngmres = (SNES_NGMRES*)snes->data;
 
   PetscFunctionBegin;
-  ngmres->user_restart = PETSC_TRUE;
+  ngmres->user_restart = restart;
+  PetscFunctionReturn(0);
+}
+
+/*@
+    SNESNGMRESSetSingularValueCutoff - Determine the tolerance below which singular values will be treated as zero
+
+    Logically Collective on SNES
+
+    Input Parameters:
++   snes - the iterative context
+-   rcond - relative tolerance for zero singular values
+
+    Options Database:
+.   -snes_ngmres_rcond
+
+    Level: developer
+@*/
+PetscErrorCode SNESNGMRESSetSingularValueCutoff(SNES snes, PetscReal rcond)
+{
+  SNES_NGMRES *ngmres = (SNES_NGMRES*)snes->data;
+
+  PetscFunctionBegin;
+  ngmres->rcond = rcond;
+  PetscFunctionReturn(0);
+}
+
+/*@
+    SNESNGMRESSetStorageSize - Set the number of stored previous solutions and residuals
+
+    Logically Collective on SNES
+
+    Input Parameters:
++   snes - the iterative context
+-   msize - number of stored previous solutions and residuals
+
+    Options Database:
+.   -snes_ngmres_m
+
+    Level: developer
+@*/
+PetscErrorCode SNESNGMRESSetStorageSize(SNES snes, PetscInt msize)
+{
+  SNES_NGMRES *ngmres = (SNES_NGMRES*)snes->data;
+
+  PetscFunctionBegin;
+  ngmres->msize = msize;
   PetscFunctionReturn(0);
 }
 
