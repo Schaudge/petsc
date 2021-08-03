@@ -112,6 +112,7 @@ PetscErrorCode SNESSetFromOptions_NGMRES(PetscOptionItems *PetscOptionsObject,SN
   if (debug) {
     ngmres->monitor = PETSC_VIEWER_STDOUT_(PetscObjectComm((PetscObject)snes));CHKERRQ(ierr);
   }
+  ierr = PetscOptionsReal("-snes_ngmres_rcond",     "Relative tolerance for zero singular values","SNES",ngmres->rcond,&ngmres->rcond,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_gammaA",    "Residual selection constant",   "SNES",ngmres->gammaA,&ngmres->gammaA,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_gammaC",    "Residual restart constant",     "SNES",ngmres->gammaC,&ngmres->gammaC,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-snes_ngmres_epsilonB",  "Difference selection constant", "SNES",ngmres->epsilonB,&ngmres->epsilonB,NULL);CHKERRQ(ierr);
@@ -510,6 +511,7 @@ PetscErrorCode SNESNGMRESManualRestart(SNES snes)
 .  -snes_ngmres_restart_type<difference,none,periodic> - choose the restart conditions
 .  -snes_ngmres_candidate        - Use NGMRES variant which combines candidate solutions instead of actual solutions
 .  -snes_ngmres_m                - Number of stored previous solutions and residuals
+.  -snes_ngmres_rcond            - Relative tolerance for detecting zero singular values
 .  -snes_ngmres_restart_it       - Number of iterations the restart conditions hold before restart
 .  -snes_ngmres_gammaA           - Residual tolerance for solution select between the candidate and combination
 .  -snes_ngmres_gammaC           - Residual tolerance for restart
@@ -581,6 +583,7 @@ PETSC_EXTERN PetscErrorCode SNESCreate_NGMRES(SNES snes)
   ngmres->gammaC              = 2.0;
   ngmres->deltaB              = 0.9;
   ngmres->epsilonB            = 0.1;
+  ngmres->rcond               = -1.;
   ngmres->restart_fm_rise     = PETSC_FALSE;
 
   ngmres->user_restart = PETSC_FALSE;

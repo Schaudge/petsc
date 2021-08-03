@@ -64,7 +64,6 @@ PetscErrorCode SNESNGMRESFormCombinedSolution_Private(SNES snes,PetscInt ivec,Pe
     ierr          = PetscBLASIntCast(l,&ngmres->m);CHKERRQ(ierr);
     ierr          = PetscBLASIntCast(l,&ngmres->n);CHKERRQ(ierr);
     ngmres->info  = 0;
-    ngmres->rcond = -1.;
     ierr          = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
 #if defined(PETSC_USE_COMPLEX)
     PetscStackCallBLAS("LAPACKgelss",LAPACKgelss_(&ngmres->m,&ngmres->n,&ngmres->nrhs,ngmres->h,&ngmres->lda,ngmres->beta,&ngmres->ldb,ngmres->s,&ngmres->rcond,&ngmres->rank,ngmres->work,&ngmres->lwork,ngmres->rwork,&ngmres->info));
