@@ -245,3 +245,6 @@ extern PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis,PetscI
 extern PetscErrorCode DGNetworkAddMonitortoEdges_Glvis_3D(DGNetwork,DGNetworkMonitor_Glvis,PetscViewerGLVisType);
 
 extern PetscErrorCode DGNetworkNormL2(DGNetwork,Vec,PetscReal*);
+
+extern PetscErrorCode DMPlexAdd_Disconnected(DM*,PetscInt,DM*,PetscSection*);
+extern PetscErrorCode DGNetworkCreateNetworkDMPlex(DGNetwork,const PetscInt[],PetscInt,DM *,PetscSection*);

@@ -1,4 +1,4 @@
-static const char help[] = "Geometric Mesh Viewer Test";
+static const char help[] = "Test of DMPlexAdd_Disconnected";
 /*
 
   TODO ADD EXAMPLE RUNS HERE 
@@ -33,6 +33,8 @@ int main(int argc,char *argv[])
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   PetscViewer       viewer; 
+  DM                dmsum;
+  PetscSection      stratumoff; 
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -49,9 +51,8 @@ int main(int argc,char *argv[])
    TODO Create DGNetwork commandline options (same as any other petsc object)
   
    */
+  dgnet->ndaughters = 2;
   ierr = PetscOptionsBegin(comm,NULL,"DGNetwork options","");CHKERRQ(ierr);
-    ierr = PetscOptionsInt("-deg","Degree for tabulation","",maxdegree,&maxdegree,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsInt("-fields","Number of Fields to Generate Tabulations for","",dof,&dof,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-network","Select from preselected graphs to build the network (0-6)","",networktype,&networktype,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-dx","Number of elements on each edge","",dx,&dx,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
@@ -60,15 +61,21 @@ int main(int argc,char *argv[])
   MakeOrder(dof,order,maxdegree);
   ierr = Physics_CreateDummy(dgnet,dof,order);CHKERRQ(ierr);
   viewer = PETSC_VIEWER_STDOUT_(comm);
-  ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr); /* dgnet creation needs to be reworked as this is silly */
+  ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr); 
+  /* dgnet creation needs to be reworked as this is silly */
   ierr = DGNetworkCreate(dgnet,networktype,dx);CHKERRQ(ierr);
   ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
   ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
-  ierr = DGNetworkViewEdgeGeometricInfo(dgnet,viewer);CHKERRQ(ierr);
+  ierr = DGNetworkViewEdgeDMs(dgnet,viewer);CHKERRQ(ierr);
+  ierr = DGNetworkCreateNetworkDMPlex(dgnet,NULL,0,&dmsum,&stratumoff);CHKERRQ(ierr);
+  ierr = PetscSectionView(stratumoff,viewer);CHKERRQ(ierr);
+  ierr = DMView(dmsum,viewer);CHKERRQ(ierr);
 
   /* Clean up */
   ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr);
   ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
+  ierr = DMDestroy(&dmsum);
+  ierr = PetscSectionDestroy(&stratumoff);CHKERRQ(ierr);
   ierr = PetscFree(dgnet);CHKERRQ(ierr);
   ierr = PetscFree(order);CHKERRQ(ierr);
   ierr = PetscFinalize();

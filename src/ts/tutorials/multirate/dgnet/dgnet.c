@@ -58,7 +58,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
         }
         /* Edge */ 
         fvedges[0].nnodes = Mx; 
-        fvedges[1].nnodes = fvnet->hratio*Mx; 
+        fvedges[1].nnodes = Mx; 
         fvedges[2].nnodes = Mx; 
 
         for (i=0; i<numEdges;i++) {
@@ -1217,5 +1217,224 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis monitor,Petsc
   monitor->firstnode = node;
 
   ierr = PetscViewerGLVisSetFields(node->viewer,dof,(const char**)node->fec_type,node->dim,DGNetworkMonitor_3D_g2l_internal,(PetscObject*)node->v_work,(void*)node,DGNetworkMonitor_destroyctx_internal);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* Experimental work on "adding" dmplex objects together */
+
+
+/* Convience create from DAG function that only creates the topology, leaving the geometry dm and section uncreated */
+
+PetscErrorCode DMPlexCreateFromDAG_Topological(DM dm, PetscInt depth, const PetscInt numPoints[], const PetscInt coneSize[], const PetscInt cones[], const PetscInt coneOrientations[])
+{
+  PetscInt       firstVertex = -1, pStart = 0, pEnd = 0, p, dim, dimEmbed, d, off;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDim(dm, &dimEmbed);CHKERRQ(ierr);
+  if (dimEmbed < dim) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Embedding dimension %D cannot be less than intrinsic dimension %d",dimEmbed,dim);
+  for (d = 0; d <= depth; ++d) pEnd += numPoints[d];
+  ierr = DMPlexSetChart(dm, pStart, pEnd);CHKERRQ(ierr);
+  for (p = pStart; p < pEnd; ++p) {
+    ierr = DMPlexSetConeSize(dm, p, coneSize[p-pStart]);CHKERRQ(ierr);
+    if (firstVertex < 0 && !coneSize[p - pStart]) {
+      firstVertex = p - pStart;
+    }
+  }
+  if (firstVertex < 0 && numPoints[0]) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Expected %D vertices but could not find any", numPoints[0]);
+  ierr = DMSetUp(dm);CHKERRQ(ierr); /* Allocate space for cones */
+  for (p = pStart, off = 0; p < pEnd; off += coneSize[p-pStart], ++p) {
+    ierr = DMPlexSetCone(dm, p, &cones[off]);CHKERRQ(ierr);
+    ierr = DMPlexSetConeOrientation(dm, p, &coneOrientations[off]);CHKERRQ(ierr);
+  }
+  ierr = DMPlexSymmetrize(dm);CHKERRQ(ierr);
+  ierr = DMPlexStratify(dm);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+/* The overall goal for code like this would be to provide high level toplogy manipulation support for dmplex, 
+to add dmplex objects together by "indentifying" a set of depth 0 cells for example or more general operations. 
+Hopefully allowing for topological "stitching" operations. What this would look like in general I'm not sure. I'll
+just add what I need as I go and maybe generalize once I understand what the generalization should look like. 
+I guess the overall vision is that dmplex support a representation of cell complexs, and any operation that makes sense 
+on cell complexs should have a corresponding high level command in petsc. So algebraic topology in petsc :). Need to 
+learn algebraic toplogy first though */ 
+
+
+/* Here we have a command to add a set of dm objects disconnectedly. So we simply have a set of N dm objects 
+"added" to produce a global number of all N meshes, but without changing any topological information. The purpose 
+of this is to add the dmplex objects in each edge of the dgnetwork to form a global dmplex object, so I can 
+make use of standard dmplex output format techniques, in particular I can visualize a dgnetwork object 
+using glvis as a single network object. Currently limited to visuzalizing each edge dmplex object seperately (along )
+with field information on each dmplex object */
+
+/* 
+  TODO - This code is sequential for now only. Then will be extended to parallel with the assumption that 
+  each dm "added" lives entirely on single processor. Finally the full version will be added later (though 
+  is not needed for my purposes so definitely less motivation)
+*/ 
+
+/* 
+  This is actually pretty tricky to "correctly". I think these operations should actually be low-level 
+  kernel-esque operations. Manual manipulation of the internals of dmplex. For example building up 
+  the mapping from the summands to sum dm, (giving offset) is fairly tricky, and with how I'm doing it will 
+  only work for depth 0 cells and codepth 0 cells (vertices), as I use DMPlexCreateFromCellListParallelPetsc
+  to create the sum dmplex object, and have no direct control over the numbering for the other 
+  cw-plex entities and so cannot (easily) generate a mapping. The logic for using DMPlexCreateFromCellListParallelPetsc
+  is that it can build a dmplex from parallel input, directly with PETSc api, which I currently 
+  don't know how to do manually myself (have to manipulate the petscsf object in the dmplx, which I don't 
+  know how to do.
+
+  tldr: This function is a hack that needs to be rewritten with help from petsc dmplex people. Especially if 
+  I want to generalize "indentifying" cw-plex entities from the summand cw-plexs. 
+*/
+
+/*
+  Serial ONLY !!!
+*/
+
+/* Note that here we may reorder the standard dmplex storage order of Elements, Vertices, other stratutm 
+and instead just order depth down. Shouldn't matter... we shall see if it breaks anything */
+
+PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist,PetscInt numdm, DM *dmsum, PetscSection *stratumoffsets) {
+  PetscErrorCode ierr; 
+  PetscInt       p,i,j,k,depth,depth_temp,dim,dim_prev,dim_top,dim_top_temp,pStart,pEnd,chartsize,stratum,totalconesize;
+  PetscInt       *numpoints_g, *coneSize_g, *cones_g, *coneOrientations_g,coneSize,off,prevtotal;
+  const PetscInt *cone,*coneOrientation;
+  DMType         dmtype;
+  MPI_Comm       comm = PetscObjectComm((PetscObject)dmlist[0]);
+  PetscSection   offsets; 
+  char           fieldname[64]; /* Should be long enough unless we get crazy deep complexs */
+  DM             dm_sum;
+  PetscBool      flag; 
+
+  PetscFunctionBegin; 
+
+  /* input checks */
+  if (numdm <= 0) PetscFunctionReturn(0);
+  ierr = DMGetCoordinateDim(dmlist[0],&dim_prev);CHKERRQ(ierr);
+  for (i=0; i<numdm; i++) {
+    ierr = DMGetType(dmlist[i],&dmtype);CHKERRQ(ierr); 
+    ierr = PetscStrncmp(dmtype,DMPLEX,64,&flag);CHKERRQ(ierr);
+    if (!flag) SETERRQ(PetscObjectComm((PetscObject)dmlist[i]),PETSC_ERR_ARG_WRONG,"Wrong DM Object can only be DMPlex"); 
+    ierr = DMGetCoordinateDim(dmlist[i],&dim);CHKERRQ(ierr);
+    if (dim_prev != dim) SETERRQ(PetscObjectComm((PetscObject)dmlist[i]),PETSC_ERR_ARG_WRONG,"All Input DM objects must have the same Geometric Dimension");
+  }
+
+  /* Acquire maximum depth size across all dms and maximum topologial dimension chartsize */ 
+  depth = 0; 
+  dim_top = 0; 
+  chartsize = 0; 
+  for(i=0; i<numdm; i++){
+    ierr = DMPlexGetDepth(dmlist[i],&depth_temp);CHKERRQ(ierr);
+    if (depth < depth_temp) depth = depth_temp; 
+    ierr = DMGetDimension(dmlist[i],&dim_top_temp);CHKERRQ(ierr);
+    if (dim_top < dim_top_temp) dim_top = dim_top_temp;
+    ierr = DMPlexGetChart(dmlist[i],&pStart,&pEnd);CHKERRQ(ierr);
+    chartsize += (pEnd-pStart);
+  }
+  
+  ierr = PetscMalloc1(chartsize,&coneSize_g);CHKERRQ(ierr);
+  ierr = PetscCalloc1(depth+1,&numpoints_g);CHKERRQ(ierr);
+  /* set up the stratum offset section */
+  ierr = PetscSectionCreate(comm,&offsets);CHKERRQ(ierr);
+  ierr = PetscSectionSetNumFields(offsets, depth+1);CHKERRQ(ierr); /* one field per stratum */
+  ierr = PetscSectionSetChart(offsets,0,numdm);CHKERRQ(ierr);
+  for (j=0; j<=depth; j++) {
+    ierr = PetscSectionSetFieldComponents(offsets, j, 1);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(fieldname,64,"Stratum Depth %D",j);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldName(offsets,j,fieldname);CHKERRQ(ierr);
+  }
+  /* Iterate through the meshes and compute the number of points at each stratum */
+
+  for (i=0; i<numdm; i++) {
+    ierr = DMPlexGetDepth(dmlist[i],&depth_temp);CHKERRQ(ierr);
+    ierr = PetscSectionSetDof(offsets,i,depth_temp+1);CHKERRQ(ierr);
+    for(stratum=0;stratum <= depth_temp; stratum++) {
+      ierr = PetscSectionSetFieldDof(offsets,i,stratum,1);CHKERRQ(ierr);
+      ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
+      /* manually specify the section offset information, as the domain chart is not the same 
+         as the range chart, and is not an onto mapbrping */
+      ierr = PetscSectionSetFieldOffset(offsets,i,stratum,numpoints_g[stratum]-pStart); 
+      numpoints_g[stratum] += (pEnd-pStart);
+    }
+  }
+  /* Now we have the offset information for the input dm stratum into the new dm stratum */
+  
+  /* Create the cone size information */
+  totalconesize = 0;
+  for (i=0; i<numdm; i++) {
+    ierr = DMPlexGetDepth(dmlist[i],&depth_temp);CHKERRQ(ierr);
+    for(stratum=0;stratum <= depth_temp; stratum++) {
+      ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
+      prevtotal=0;
+      for(j=0; j<stratum; j++) prevtotal += numpoints_g[j]; 
+      ierr = PetscSectionGetFieldOffset(offsets,i,stratum,&off);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldOffset(offsets,i,stratum,off+prevtotal);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldOffset(offsets,i,stratum,&off);CHKERRQ(ierr);
+      for(p=pStart; p<pEnd; p++) {
+        ierr = DMPlexGetConeSize(dmlist[i],p,&coneSize);CHKERRQ(ierr);
+        coneSize_g[p+off] = coneSize;
+        totalconesize += coneSize;
+      }
+    }
+  }
+  /* create the cone and cone orientations */
+  k=0;
+  ierr = PetscMalloc2(totalconesize,&cones_g,totalconesize,&coneOrientations_g);CHKERRQ(ierr);
+  for(i=0; i<numdm; i++){
+    ierr = DMPlexGetDepth(dmlist[i],&depth_temp);CHKERRQ(ierr);
+    for(stratum=0;stratum <= depth_temp; stratum++) {
+      ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
+      if (stratum > 0) { /* stratum = 0 doesn't matter as the cones for stratum = 0 are empty */
+        ierr = PetscSectionGetFieldOffset(offsets,i,stratum-1,&off);CHKERRQ(ierr);
+      } 
+      for(p=pStart; p<pEnd; p++) {
+        ierr = DMPlexGetCone(dmlist[i],p,&cone);CHKERRQ(ierr);
+        ierr = DMPlexGetConeOrientation(dmlist[i],p,&coneOrientation);CHKERRQ(ierr);
+        ierr = DMPlexGetConeSize(dmlist[i],p,&coneSize);CHKERRQ(ierr);
+        for(j=0; j<coneSize; j++) {
+          coneOrientations_g[k] = coneOrientation[j];
+          cones_g[k++] = cone[j]+off; /* account for the offset in the cone stratum (stratum -1) */
+        }
+      }
+    }
+  }
+  /* In theory we have everything ready to create the new global dm */
+  ierr = DMPlexCreate(comm,&dm_sum);CHKERRQ(ierr);
+  ierr = DMSetDimension(dm_sum,dim_top);CHKERRQ(ierr);
+  ierr = DMSetCoordinateDim(dm_sum,dim);CHKERRQ(ierr);
+  ierr = DMPlexCreateFromDAG_Topological(dm_sum,depth,numpoints_g,coneSize_g,cones_g,coneOrientations_g);CHKERRQ(ierr);
+  ierr = PetscFree(numpoints_g);CHKERRQ(ierr);
+  ierr = PetscFree(coneSize_g);CHKERRQ(ierr);
+  ierr = PetscFree2(cones_g,coneOrientations_g);CHKERRQ(ierr);
+  
+  *dmsum = dm_sum;
+  *stratumoffsets = offsets;
+  PetscFunctionReturn(0);  
+}
+
+PetscErrorCode DGNetworkCreateNetworkDMPlex(DGNetwork dgnet,const PetscInt edgelist[],PetscInt edgelistsize,DM *dmsum,PetscSection *stratumoffset) {
+  PetscErrorCode ierr; 
+  PetscInt       i=0,e,eStart,eEnd;
+  DM             *dmlist, network = dgnet->network;
+  EdgeFE         edgefe;
+
+  PetscFunctionBegin; 
+
+  if (edgelist == NULL) { /* Assume the entire network is used */
+    ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(eEnd-eStart,&dmlist);CHKERRQ(ierr);
+    for (e=eStart; e<eEnd; e++) {
+      ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+      dmlist[i++] = edgefe->dm; 
+    }
+    ierr = DMPlexAdd_Disconnected(dmlist,i,dmsum,stratumoffset);CHKERRQ(ierr);
+    ierr = PetscFree(dmlist);CHKERRQ(ierr);
+  } else {
+      /* TODO */
+  }
   PetscFunctionReturn(0);
 }

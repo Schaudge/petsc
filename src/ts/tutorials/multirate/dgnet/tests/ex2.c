@@ -11,14 +11,6 @@ static const char help[] = "EdgeFE mesh Test";
 #include <petscdmnetwork.h>
 #include "../dgnet.h"
 
-static PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFree(vctx);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
 static PetscErrorCode Physics_CreateDummy(DGNetwork dgnet,PetscInt dof, PetscInt *order)
 {
   PetscFunctionBeginUser;
