@@ -300,6 +300,16 @@ PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x
   ierr = DGNetworkMonitorView_Glvis(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+PetscErrorCode TSDGNetworkMonitor_GLVis_NET(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
+{
+  PetscErrorCode     ierr;
+  DGNetworkMonitor_Glvis   monitor;
+
+  PetscFunctionBegin;
+  monitor = (DGNetworkMonitor_Glvis)context;
+  ierr = DGNetworkMonitorView_Glvis_NET(monitor,x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
  static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
 {
   PetscInt  i; 
@@ -320,7 +330,7 @@ int main(int argc,char *argv[])
   DGNetworkMonitor  monitor=NULL;
   DGNetworkMonitor_Glvis monitor_gl=NULL; 
   Vec               Xtrue; 
-  PetscBool         glvismode=PETSC_FALSE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE; 
+  PetscBool         glvismode=PETSC_FALSE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,viewfullnet = PETSC_FALSE;  
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -358,6 +368,7 @@ int main(int argc,char *argv[])
     ierr = PetscOptionsBool("-view_dump","Dump the Glvis view or socket","",glvismode,&glvismode,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-view_full_net","View GLVis of Entire Network","",viewfullnet,&viewfullnet,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   {
@@ -406,10 +417,14 @@ int main(int argc,char *argv[])
     ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
     ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
     if (viewglvis) {
-      if(view3d) {
-        ierr = DGNetworkAddMonitortoEdges_Glvis_3D(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+      if (viewfullnet) { 
+        ierr =  DGNetworkMonitorAdd_Glvis_3D_NET(monitor_gl,"localhost",glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
       } else {
-        ierr = DGNetworkAddMonitortoEdges_Glvis(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+        if(view3d) {
+          ierr = DGNetworkAddMonitortoEdges_Glvis_3D(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+        } else {
+          ierr = DGNetworkAddMonitortoEdges_Glvis(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+        }
       }
     } else {
       ierr = DGNetworkAddMonitortoEdges(dgnet,monitor);CHKERRQ(ierr);
@@ -434,7 +449,11 @@ int main(int argc,char *argv[])
     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
     if (size == 1 && dgnet->view) {
       if (viewglvis) {
-        ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
+        if(viewfullnet) {
+          ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis_NET, monitor_gl, NULL);CHKERRQ(ierr);
+        } else {
+          ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
+        } 
       } else {
         ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
       }

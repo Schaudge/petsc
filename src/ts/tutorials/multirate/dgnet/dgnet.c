@@ -405,7 +405,7 @@ PetscErrorCode DGNetworkAddMonitortoEdges_Glvis(DGNetwork dgnet, DGNetworkMonito
    ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
   if(monitor) {
     for (e = eStart; e<eEnd; e++){
-      ierr = DGNetworkMonitorAdd_Glvis(monitor,e,"Aidans-MacBook-Air.local",type);CHKERRQ(ierr);
+      ierr = DGNetworkMonitorAdd_Glvis(monitor,e,"localhost",type);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -418,7 +418,7 @@ PetscErrorCode DGNetworkAddMonitortoEdges_Glvis_3D(DGNetwork dgnet, DGNetworkMon
    ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
   if(monitor) {
     for (e = eStart; e<eEnd; e++){
-      ierr = DGNetworkMonitorAdd_Glvis_3D(monitor,e,"Aidans-MacBook-Air.local",type);CHKERRQ(ierr);
+      ierr = DGNetworkMonitorAdd_Glvis_3D(monitor,e,"localhost",type);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
@@ -1101,6 +1101,18 @@ PetscErrorCode DGNetworkMonitorView_Glvis(DGNetworkMonitor_Glvis monitor,Vec x)
   PetscFunctionReturn(0);
 }
 /* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
+static void f0_circle_l(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
+
+  xp[1] = yy*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
+  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(yy,2)/2.); 
+  xp[0] = x[0]; 
+}
+/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
 static void f0_circle(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                      const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                      const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -1108,9 +1120,33 @@ static void f0_circle(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
 
-  xp[1] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.); 
-  xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.); 
+  xp[1] = yy*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
+  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(yy,2)/2.); 
   xp[0] = x[0]; 
+}
+/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
+static void f0_circle_r(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
+
+  xp[1] = yy*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
+  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(yy,2)/2.); 
+  xp[0] = -x[0]; 
+}
+/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
+static void f0_circle_t(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  const PetscReal xx  = 2*x[0]-1,zz = 2*x[2]-1; 
+
+  xp[0] = xx*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
+  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(xx,2)/2.); 
+  xp[1] = x[1]; 
 }
 static PetscErrorCode DGNetworkCreateViewDM(DM dm)
 {
@@ -1128,10 +1164,31 @@ static PetscErrorCode DGNetworkCreateViewDM(DM dm)
   ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
   ierr = DMPlexGetCellType(dm, cStart, &ct);CHKERRQ(ierr);
   simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
-  ierr = PetscFECreateDefault(PETSC_COMM_SELF, dim, dE, simplex, "geom_", 3, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe);CHKERRQ(ierr);
   ierr = DMProjectCoordinates(dm, fe);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   ierr = DMPlexRemapGeometry(dm, 0.0, f0_circle);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+static PetscErrorCode DGNetworkCreateViewDM2(DM dm)
+{
+  DM             cdm;
+  PetscFE        fe;
+  DMPolytopeType ct;
+  PetscInt       dim, dE, cStart;
+  PetscBool      simplex;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDim(dm, &dE);CHKERRQ(ierr);
+  ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
+  ierr = DMPlexGetCellType(dm, cStart, &ct);CHKERRQ(ierr);
+  simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
+  ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe);CHKERRQ(ierr);
+  ierr = DMProjectCoordinates(dm, fe);CHKERRQ(ierr);
+  ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 PetscErrorCode DGNetworkMonitor_3D_g2l_internal(PetscObject V,PetscInt nfields,PetscObject Vfield[],void *ctx)
@@ -1303,6 +1360,7 @@ PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist,PetscInt numdm, DM *dmsum, Pets
   PetscInt       p,i,j,k,depth,depth_temp,dim,dim_prev,dim_top,dim_top_temp,pStart,pEnd,chartsize,stratum,totalconesize;
   PetscInt       *numpoints_g, *coneSize_g, *cones_g, *coneOrientations_g,coneSize,off,prevtotal;
   const PetscInt *cone,*coneOrientation;
+  const PetscScalar *vertexcoords; 
   DMType         dmtype;
   MPI_Comm       comm = PetscObjectComm((PetscObject)dmlist[0]);
   PetscSection   offsets; 
@@ -1382,35 +1440,46 @@ PetscErrorCode DMPlexAdd_Disconnected(DM *dmlist,PetscInt numdm, DM *dmsum, Pets
     }
   }
   /* create the cone and cone orientations */
-  k=0;
+  
   ierr = PetscMalloc2(totalconesize,&cones_g,totalconesize,&coneOrientations_g);CHKERRQ(ierr);
-  for(i=0; i<numdm; i++){
-    ierr = DMPlexGetDepth(dmlist[i],&depth_temp);CHKERRQ(ierr);
-    for(stratum=0;stratum <= depth_temp; stratum++) {
-      ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
-      if (stratum > 0) { /* stratum = 0 doesn't matter as the cones for stratum = 0 are empty */
-        ierr = PetscSectionGetFieldOffset(offsets,i,stratum-1,&off);CHKERRQ(ierr);
-      } 
-      for(p=pStart; p<pEnd; p++) {
-        ierr = DMPlexGetCone(dmlist[i],p,&cone);CHKERRQ(ierr);
-        ierr = DMPlexGetConeOrientation(dmlist[i],p,&coneOrientation);CHKERRQ(ierr);
-        ierr = DMPlexGetConeSize(dmlist[i],p,&coneSize);CHKERRQ(ierr);
-        for(j=0; j<coneSize; j++) {
-          coneOrientations_g[k] = coneOrientation[j];
-          cones_g[k++] = cone[j]+off; /* account for the offset in the cone stratum (stratum -1) */
+  k=0;
+  for(stratum=0;stratum <= depth; stratum++) {
+    for(i=0; i<numdm; i++){
+      ierr = DMPlexGetDepth(dmlist[i],&depth_temp);CHKERRQ(ierr);
+      if (stratum <= depth_temp) {
+        ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
+        if (stratum > 0) { /* stratum = 0 doesn't matter as the cones for stratum = 0 are empty */
+          ierr = PetscSectionGetFieldOffset(offsets,i,stratum-1,&off);CHKERRQ(ierr);
+        } 
+        for(p=pStart; p<pEnd; p++) {
+          ierr = DMPlexGetCone(dmlist[i],p,&cone);CHKERRQ(ierr);
+          ierr = DMPlexGetConeOrientation(dmlist[i],p,&coneOrientation);CHKERRQ(ierr);
+          ierr = DMPlexGetConeSize(dmlist[i],p,&coneSize);CHKERRQ(ierr);
+          for(j=0; j<coneSize; j++) {
+            coneOrientations_g[k] = coneOrientation[j];
+            cones_g[k++] = cone[j]+off; /* account for the offset in the cone stratum (stratum -1) */
+          }
         }
       }
     }
   }
+  /* Hack to make geometry work. I associate a a zero vector for the geometry field, in order the have all the 
+  sections and etc built automatically. To be redone when I am more skilled */
+
   /* In theory we have everything ready to create the new global dm */
   ierr = DMPlexCreate(comm,&dm_sum);CHKERRQ(ierr);
   ierr = DMSetDimension(dm_sum,dim_top);CHKERRQ(ierr);
   ierr = DMSetCoordinateDim(dm_sum,dim);CHKERRQ(ierr);
-  ierr = DMPlexCreateFromDAG_Topological(dm_sum,depth,numpoints_g,coneSize_g,cones_g,coneOrientations_g);CHKERRQ(ierr);
+
+  ierr = PetscCalloc1(numpoints_g[0]*dim,&vertexcoords);CHKERRQ(ierr);
+
+  ierr = DMPlexCreateFromDAG(dm_sum,depth,numpoints_g,coneSize_g,cones_g,coneOrientations_g,vertexcoords);CHKERRQ(ierr);
   ierr = PetscFree(numpoints_g);CHKERRQ(ierr);
   ierr = PetscFree(coneSize_g);CHKERRQ(ierr);
   ierr = PetscFree2(cones_g,coneOrientations_g);CHKERRQ(ierr);
   
+  /* Now we map the coordinates ... somehow */
+
   *dmsum = dm_sum;
   *stratumoffsets = offsets;
   PetscFunctionReturn(0);  
@@ -1435,6 +1504,182 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex(DGNetwork dgnet,const PetscInt edgel
     ierr = PetscFree(dmlist);CHKERRQ(ierr);
   } else {
       /* TODO */
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt edgelist[],PetscInt edgelistsize,DM *dmsum,PetscSection *stratumoffset,DM **dm_list,PetscInt *numdm) {
+  PetscErrorCode ierr; 
+  PetscInt       i=0,j,e,eStart,eEnd,cStart,cEnd,dim,dE,pStart,pEnd,dof,p,off,off_g,off_stratum,secStart,secEnd,depth,stratum;
+  DM             *dmlist, network = dgnet->network,cdm;
+  EdgeFE         edgefe;
+  PetscSection   coordsec,coordsec_g; 
+  PetscBool      simplex; 
+  PetscFE        fe;
+  DMPolytopeType ct;
+  Vec            Coord_g,Coord; 
+  PetscReal      *coord_g,*coord; 
+
+  PetscFunctionBegin; 
+
+  if (edgelist == NULL) { /* Assume the entire network is used */
+    ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(eEnd-eStart,&dmlist);CHKERRQ(ierr);
+    for (e=eStart; e<eEnd; e++) {
+      ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+      ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+      PetscInt faces[3]={cEnd-cStart,1,1}; 
+      ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 3, PETSC_FALSE, faces, NULL, NULL, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
+    }
+    *numdm = i; 
+    ierr = DMPlexAdd_Disconnected(dmlist,*numdm,dmsum,stratumoffset);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(*dmsum, &cdm);CHKERRQ(ierr);
+    ierr = DMGetDimension(*dmsum, &dim);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDim(*dmsum, &dE);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
+    ierr = DMPlexGetCellType(*dmsum, cStart, &ct);CHKERRQ(ierr);
+    simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
+    ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe);CHKERRQ(ierr);
+    ierr = DMProjectCoordinates(*dmsum, fe);CHKERRQ(ierr);
+    ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
+    ierr = DMGetCoordinateSection(*dmsum,&coordsec_g);CHKERRQ(ierr); 
+    ierr = DMGetCoordinatesLocal(*dmsum,&Coord_g);CHKERRQ(ierr);
+    ierr = VecGetArray(Coord_g,&coord_g);CHKERRQ(ierr);
+    /* Now map the coordinate data */
+    for(i=0; i<*numdm; i++) {
+      ierr = DMGetCoordinatesLocal(dmlist[i],&Coord);CHKERRQ(ierr);
+      ierr = VecGetArray(Coord,&coord);CHKERRQ(ierr);
+      ierr = DMGetCoordinateSection(dmlist[i],&coordsec);CHKERRQ(ierr);
+      
+      ierr = PetscSectionGetChart(coordsec,&secStart,&secEnd);CHKERRQ(ierr);
+      /* Iterate through the stratum */
+      ierr = DMPlexGetDepth(dmlist[i],&depth);CHKERRQ(ierr);
+      for (stratum = 0; stratum <= depth; stratum++){
+        ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
+        ierr = PetscSectionGetFieldOffset(*stratumoffset,i,stratum,&off_stratum);CHKERRQ(ierr);
+        /* there is a better way of doing this ... for later */
+        for (p=pStart;p<pEnd&&p<secEnd;p++) {
+          if( p >= secStart) {
+            ierr = PetscSectionGetFieldOffset(coordsec,p,0,&off);CHKERRQ(ierr); /* domain offset */
+            ierr = PetscSectionGetFieldDof(coordsec,p,0,&dof);CHKERRQ(ierr);
+            ierr = PetscSectionGetFieldOffset(coordsec_g,p+off_stratum,0,&off_g);CHKERRQ(ierr); /*range offset */
+            for (j=0; j<dof;j++){
+              coord_g[off_g+j] = coord[off+j];
+            }
+          }
+        }
+      }
+      ierr = VecRestoreArray(Coord,&coord);CHKERRQ(ierr);
+    }
+    ierr = VecRestoreArray(Coord_g,&coord_g);CHKERRQ(ierr);
+    ierr = DMSetCoordinatesLocal(*dmsum,Coord_g);CHKERRQ(ierr);
+    
+    /* in theory the coordinates are now mapped correctly ... we shall see */
+    *dm_list = dmlist; 
+  } else {
+      /* TODO */
+  }
+  PetscFunctionReturn(0);
+}
+
+
+/* More viewer stuff */ 
+
+/* Here we assume we are viewing the entire DGNetwork vector */
+PetscErrorCode DGNetworkMonitor_3D_NET_g2l_internal(PetscObject V,PetscInt nfields,PetscObject Vfield[],void *ctx)
+{
+  DGNetworkMonitorList_Glvis node    = (DGNetworkMonitorList_Glvis) ctx;
+  DGNetwork                  dgnet   = node->dgnet;
+  DM                         network = dgnet->network;
+  EdgeFE                     edgefe; 
+  PetscInt                   copy,c,cStart,cEnd,field,tab,dof=dgnet->physics.dof,i,fieldoff,deg,ndegree,e,eStart,eEnd,cCount,off_e; 
+  PetscErrorCode             ierr; 
+  PetscSection               section;
+  const PetscReal            *v; 
+  PetscReal                  *vwork; 
+  PetscInt                   Dim = 3; 
+  PetscFunctionBegin;
+  ierr = VecGetArrayRead((Vec)V,&v);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
+  cCount = 0;
+  for(e=eStart;e<eEnd;e++) {
+    ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(network,e,FVEDGE,&off_e);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+    ierr = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+    /* Deep copy the data from Field field from V to Vfield. Also changing basis to closed  uniform evaluation basis */
+    for(field=0; field<dof; field++) {
+      tab = dgnet->fieldtotab[field];
+      ndegree = dgnet->taborder[tab];
+      i = cCount * PetscPowInt(ndegree+1,Dim);
+      ierr = VecGetArray((Vec)Vfield[field],&vwork);CHKERRQ(ierr); 
+      for(c=cStart; c<cEnd; c++) {
+        ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
+        for(deg=0; deg<=ndegree; deg++) {
+          vwork[i] =  evalviewpt_internal(dgnet,field,deg, v+fieldoff+off_e);
+          for(copy=1; copy<(ndegree+1)*(ndegree+1); copy++) {
+            vwork[i+copy*(ndegree+1)] = vwork[i];
+          }
+          i++; 
+        }
+        i+=(ndegree+1)*((ndegree+1)*(ndegree+1)-1);
+      }
+      ierr = VecRestoreArray((Vec)Vfield[field],&vwork);CHKERRQ(ierr);
+    }
+    cCount += cEnd-cStart;
+  }
+
+  ierr = VecRestoreArrayRead((Vec)V,&v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+PetscErrorCode DGNetworkMonitorAdd_Glvis_3D_NET(DGNetworkMonitor_Glvis monitor,const char hostname[],PetscViewerGLVisType type)
+{
+  PetscErrorCode       ierr;
+  PetscMPIInt          rank, size;
+  DGNetworkMonitorList_Glvis node;
+  PetscInt             viewsize,field,cStart,cEnd,tab,Dim = 3;
+  DGNetwork            dgnet=monitor->dgnet;
+  PetscInt             dof=dgnet->physics.dof;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(monitor->comm, &rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(monitor->comm, &size);CHKERRMPI(ierr);
+
+  ierr = PetscMalloc1(1, &node);CHKERRQ(ierr);
+  ierr = PetscMalloc3(dof,&node->dim,dof,&node->v_work,dof,&node->fec_type);CHKERRQ(ierr);
+
+  ierr = PetscViewerGLVisOpen(monitor->comm,type,hostname,PETSC_DECIDE,&node->viewer);CHKERRQ(ierr);
+  ierr = DGNetworkCreateNetworkDMPlex_3D(dgnet,NULL,0,&node->viewdm,&node->stratumoffset,&node->dmlist,&node->numdm);CHKERRQ(ierr);
+  /* Create the network mesh */ 
+  ierr = DMPlexGetHeightStratum(node->viewdm,0,&cStart,&cEnd);CHKERRQ(ierr);
+  /* make the work vector for each field */
+  for(field=0; field<dof; field++) {
+    /* Setup vector storage for drawing. */
+    tab        = dgnet->fieldtotab[field];
+    viewsize   = (cEnd-cStart)*PetscPowInt((dgnet->taborder[tab]+1),Dim); /* number of variables for the given field */
+    ierr       = VecCreateSeq(PETSC_COMM_SELF, viewsize, &(node->v_work[field]));CHKERRQ(ierr);
+    ierr       = PetscObjectCompose((PetscObject)node->v_work[field],"__PETSc_dm",(PetscObject)node->viewdm);CHKERRQ(ierr); /* Hack to associate the viewing dm with each work vector for glvis visualization */
+    ierr       = PetscMalloc(64,&node->fec_type[field]);CHKERRQ(ierr);
+    ierr       = PetscSNPrintf(node->fec_type[field],64,"FiniteElementCollection: L2_T4_%iD_P%i",Dim,dgnet->taborder[tab]);CHKERRQ(ierr); 
+    node->dim[field] = Dim; 
+  }
+
+  node->next         = monitor->firstnode;
+  node->dgnet        = monitor->dgnet;
+  monitor->firstnode = node;
+
+  ierr = PetscViewerGLVisSetFields(node->viewer,dof,(const char**)node->fec_type,node->dim,DGNetworkMonitor_3D_NET_g2l_internal,(PetscObject*)node->v_work,(void*)node,DGNetworkMonitor_destroyctx_internal);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis monitor,Vec x)
+{
+  PetscErrorCode      ierr;
+  DGNetworkMonitorList_Glvis node;
+
+  PetscFunctionBegin;
+  for (node = monitor->firstnode; node; node = node->next) {
+    ierr = VecView(x, node->viewer);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

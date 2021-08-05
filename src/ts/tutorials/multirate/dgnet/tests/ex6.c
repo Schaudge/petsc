@@ -29,11 +29,11 @@ int main(int argc,char *argv[])
 {
   MPI_Comm          comm;
   DGNetwork         dgnet;
-  PetscInt          *order,dof=1,maxdegree = 2,networktype = 0,dx=10; 
+  PetscInt          *order,dof=1,maxdegree = 2,networktype = 0,dx=10,numdm; 
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   PetscViewer       viewer; 
-  DM                dmsum;
+  DM                dmsum,*dmlist; 
   PetscSection      stratumoff; 
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
@@ -67,11 +67,12 @@ int main(int argc,char *argv[])
   ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
   ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
   ierr = DGNetworkViewEdgeDMs(dgnet,viewer);CHKERRQ(ierr);
-  ierr = DGNetworkCreateNetworkDMPlex(dgnet,NULL,0,&dmsum,&stratumoff);CHKERRQ(ierr);
+  ierr = DGNetworkCreateNetworkDMPlex_3D(dgnet,NULL,0,&dmsum,&stratumoff,&dmlist,&numdm);CHKERRQ(ierr);
   ierr = PetscSectionView(stratumoff,viewer);CHKERRQ(ierr);
   ierr = DMView(dmsum,viewer);CHKERRQ(ierr);
 
   /* Clean up */
+  ierr = PetscFree(dmlist);
   ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr);
   ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
   ierr = DMDestroy(&dmsum);

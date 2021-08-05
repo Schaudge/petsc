@@ -170,12 +170,14 @@ struct _p_DGNetworkMonitor
 typedef struct _p_DGNetworkMonitorList_Glvis *DGNetworkMonitorList_Glvis;
 struct _p_DGNetworkMonitorList_Glvis
 {
-  PetscViewer viewer;
-  DGNetwork   dgnet;      
-  Vec         v,*v_work;
-  DM          viewdm;
-  PetscInt    element,nfields,*dim;
-  char        **fec_type;
+  PetscViewer  viewer;
+  DGNetwork    dgnet;      
+  Vec          v,*v_work;
+  DM           viewdm;
+  DM           *dmlist; 
+  PetscSection stratumoffset;
+  PetscInt     element,nfields,*dim,numdm;
+  char         **fec_type;
   DGNetworkMonitorList_Glvis next;
 };
 typedef struct _p_DGNetworkMonitor_Glvis *DGNetworkMonitor_Glvis;
@@ -248,3 +250,7 @@ extern PetscErrorCode DGNetworkNormL2(DGNetwork,Vec,PetscReal*);
 
 extern PetscErrorCode DMPlexAdd_Disconnected(DM*,PetscInt,DM*,PetscSection*);
 extern PetscErrorCode DGNetworkCreateNetworkDMPlex(DGNetwork,const PetscInt[],PetscInt,DM *,PetscSection*);
+extern PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork,const PetscInt[],PetscInt,DM *,PetscSection*,DM**,PetscInt*);
+
+extern PetscErrorCode DGNetworkMonitorAdd_Glvis_3D_NET(DGNetworkMonitor_Glvis,const char[],PetscViewerGLVisType);
+extern PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis,Vec);
