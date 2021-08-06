@@ -35,6 +35,7 @@ make_log_*
 test_log_*
 src/python/*
 *.o
+*.mod
 *.pyc
 *~
 *.orig
@@ -136,6 +137,7 @@ src/tao/bound/tutorials/jbearing2f
 src/tao/pde_constrained/tutorials/elliptic
 src/tao/pde_constrained/tutorials/parabolic
 src/tao/pde_constrained/tutorials/hyperbolic
+src/tao/constrained/tutorials/test_mad_vec
 src/tao/complementarity/tutorials/minsurf1
 src/tao/complementarity/tutorials/blackscholes
 src/tao/leastsquares/tutorials/chwirut1
