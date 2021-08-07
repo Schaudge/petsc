@@ -242,10 +242,8 @@ PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         *coeff -= f[edgefe->offset_vto+field+offsetf]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
       }
     }
-
     /* 2) Then iterate through the flux updates */
     /* we iterate through the 1 codim cells (faces) skipping the first and last to compute the numerical fluxes and update the resulting cells coefficients */
-
     ierr  = DMPlexGetHeightStratum(edgefe->dm,1,&fStart,&fEnd);CHKERRQ(ierr);
     for(face=fStart+1; face<fEnd-1; face++) {
       /* WE ASSUME 1D HERE WITH SUPPORT SIZE OF 2 !!!! */

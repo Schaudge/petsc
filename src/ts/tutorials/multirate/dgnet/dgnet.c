@@ -1108,9 +1108,9 @@ static void f0_circle_l(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
 
-  xp[1] = yy*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
-  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(yy,2)/2.); 
-  xp[0] = x[0]; 
+  xp[1] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.; 
+  xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.; 
+  xp[0] = 2.*x[0]+0.1; 
 }
 /* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
 static void f0_circle(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -1120,8 +1120,8 @@ static void f0_circle(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
 
-  xp[1] = yy*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
-  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(yy,2)/2.); 
+  xp[1] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.); 
+  xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.); 
   xp[0] = x[0]; 
 }
 /* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
@@ -1132,9 +1132,9 @@ static void f0_circle_r(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
 
-  xp[1] = yy*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
-  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(yy,2)/2.); 
-  xp[0] = -x[0]; 
+  xp[1] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.0; 
+  xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.0; 
+  xp[0] = -x[0]*2.; 
 }
 /* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
 static void f0_circle_t(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -1142,20 +1142,22 @@ static void f0_circle_t(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                      const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                      PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
 {
-  const PetscReal xx  = 2*x[0]-1,zz = 2*x[2]-1; 
+  const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
 
-  xp[0] = xx*PetscSqrtReal(0.1-PetscPowReal(zz,2)/2.); 
-  xp[2] =  zz*PetscSqrtReal(0.1-PetscPowReal(xx,2)/2.); 
-  xp[1] = x[1]; 
+  xp[0] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.; 
+  xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.; 
+  xp[1] = 2.*x[0]+0.1; 
 }
 static PetscErrorCode DGNetworkCreateViewDM(DM dm)
 {
   DM             cdm;
   PetscFE        fe;
   DMPolytopeType ct;
-  PetscInt       dim, dE, cStart;
+  PetscInt       dim, dE, cStart,size;
   PetscBool      simplex;
   PetscErrorCode ierr;
+  PetscReal      *coord; 
+  Vec            Coord; 
 
   PetscFunctionBegin;
   ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
@@ -1166,8 +1168,16 @@ static PetscErrorCode DGNetworkCreateViewDM(DM dm)
   simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
   ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe);CHKERRQ(ierr);
   ierr = DMProjectCoordinates(dm, fe);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(dm,&Coord);CHKERRQ(ierr);
+  ierr = VecGetSize(Coord,&size);
+  ierr = VecGetArray(Coord,&coord);CHKERRQ(ierr);
+  ierr = VecRestoreArray(Coord,&coord);
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   ierr = DMPlexRemapGeometry(dm, 0.0, f0_circle);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(dm,&Coord);CHKERRQ(ierr);
+  ierr = VecGetSize(Coord,&size);
+  ierr = VecGetArray(Coord,&coord);CHKERRQ(ierr);
+  ierr = VecRestoreArray(Coord,&coord);
   PetscFunctionReturn(0);
 }
 static PetscErrorCode DGNetworkCreateViewDM2(DM dm)
@@ -1530,6 +1540,12 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt ed
       ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
       PetscInt faces[3]={cEnd-cStart,1,1}; 
       ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 3, PETSC_FALSE, faces, NULL, NULL, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
+      ierr = DGNetworkCreateViewDM2(dmlist[i]);CHKERRQ(ierr);
+      if (e ==eStart){
+        ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_l);CHKERRQ(ierr);
+      } else {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_t);CHKERRQ(ierr);
+      }
     }
     *numdm = i; 
     ierr = DMPlexAdd_Disconnected(dmlist,*numdm,dmsum,stratumoffset);CHKERRQ(ierr);
@@ -1543,11 +1559,11 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt ed
     ierr = DMProjectCoordinates(*dmsum, fe);CHKERRQ(ierr);
     ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
     ierr = DMGetCoordinateSection(*dmsum,&coordsec_g);CHKERRQ(ierr); 
-    ierr = DMGetCoordinatesLocal(*dmsum,&Coord_g);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(*dmsum,&Coord_g);CHKERRQ(ierr);
     ierr = VecGetArray(Coord_g,&coord_g);CHKERRQ(ierr);
     /* Now map the coordinate data */
     for(i=0; i<*numdm; i++) {
-      ierr = DMGetCoordinatesLocal(dmlist[i],&Coord);CHKERRQ(ierr);
+      ierr = DMGetCoordinates(dmlist[i],&Coord);CHKERRQ(ierr);
       ierr = VecGetArray(Coord,&coord);CHKERRQ(ierr);
       ierr = DMGetCoordinateSection(dmlist[i],&coordsec);CHKERRQ(ierr);
       
