@@ -57,15 +57,16 @@ static void _p_getInfo(/*IN */ p4est_t *p4est, p4est_quadrant_t *quad, p4est_top
 
 static void _p_getVecView(/*IN    */ const PetscScalar **vecViewRead, PetscInt nVecsRead,
                                      PetscScalar **vecViewReadWrite, PetscInt nVecsReadWrite,
+                                     size_t cellDof,
                           /*IN/OUT*/ DM_BF_Cell *cell)
 {
   PetscInt i;
 
   for (i=0; i<nVecsRead; i++) {
-    cell->vecViewRead[i] = &vecViewRead[i][cell->indexLocal];
+    cell->vecViewRead[i] = &vecViewRead[i][cell->indexLocal*cellDof];
   }
   for (i=0; i<nVecsReadWrite; i++) {
-    cell->vecViewReadWrite[i] = &vecViewReadWrite[i][cell->indexLocal];
+    cell->vecViewReadWrite[i] = &vecViewReadWrite[i][cell->indexLocal*cellDof];
   }
 }
 
@@ -683,6 +684,7 @@ typedef struct _p_DM_BF_CellIterCtx {
   DM                dm;
   DM_BF_Cell        *cells;
   size_t            cellSize;
+  size_t            cellDof;
   /* iterator-specific info */
   PetscErrorCode    (*iterCell)(DM,DM_BF_Cell*,void*);
   void              *userIterCtx;
@@ -701,7 +703,7 @@ static void _p_iterVolume(p4est_iter_volume_info_t *info, void *ctx)
   cell->vecViewRead      = iterCtx->cellVecViewRead;
   cell->vecViewReadWrite = iterCtx->cellVecViewReadWrite;
   /* get vector view */
-  _p_getVecView(iterCtx->vecViewRead,iterCtx->nVecsRead,iterCtx->vecViewReadWrite,iterCtx->nVecsReadWrite,cell);
+  _p_getVecView(iterCtx->vecViewRead,iterCtx->nVecsRead,iterCtx->vecViewReadWrite,iterCtx->nVecsReadWrite,iterCtx->cellDof,cell);
   /* call cell function */
   ierr = iterCtx->iterCell(iterCtx->dm,cell,iterCtx->userIterCtx);CHKERRV(ierr);
   /* remove vector view from cell */
@@ -714,7 +716,8 @@ PetscErrorCode DMBF_XD_IterateOverCellsVectors(DM dm, DM_BF_Cell *cells, size_t 
                                                Vec *vecRead, PetscInt nVecsRead, Vec *vecReadWrite, PetscInt nVecsReadWrite)
 {
   DM_BF_CellIterCtx iterCtx;
-  PetscInt          i;
+  PetscInt          blockSize[3] = {1, 1, 1};
+  PetscInt          dim, n, N, i;
   PetscErrorCode    ierr;
   p4est_t           *p4est;
   p4est_ghost_t     *ghost;
@@ -724,6 +727,13 @@ PetscErrorCode DMBF_XD_IterateOverCellsVectors(DM dm, DM_BF_Cell *cells, size_t 
   PetscValidFunction(iterCell,2);
   if (nVecsRead)      PetscValidPointer(vecRead,4);
   if (nVecsReadWrite) PetscValidPointer(vecReadWrite,6);
+  /* calculate number of entries per cell */
+  ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
+  ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
+  iterCtx.cellDof = 1;
+  for (i=0; i<dim; i++) {
+    iterCtx.cellDof *= (size_t)blockSize[i];
+  }
   /* set iterator context */
   iterCtx.dm             = dm;
   iterCtx.cells          = cells;
@@ -809,19 +819,43 @@ static void _p_iterFace(p4est_iter_face_info_t *info, void *ctx)
   if (isBoundary) {
     p4est_iter_face_side_t *side = p4est_iter_fside_array_index_int(&info->sides,0);
 
-    face->nCellsL = 1;
-    face->nCellsR = 0;
-    face->cellL[0] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
-                                   side->treeid,side->is.full.quadid,0/*!ghost*/);
+    face->boundary = (DM_BF_FaceBoundary) side->face;
+    face->dir      = (DM_BF_FaceDir)      side->face;
+    if (DM_BF_FACEBOUNDARY_XPOS == face->boundary ||
+        DM_BF_FACEBOUNDARY_YPOS == face->boundary ||
+        DM_BF_FACEBOUNDARY_ZPOS == face->boundary) {
+      face->nCellsL = 1;
+      face->nCellsR = 0;
+      face->cellL[0] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                     side->treeid,side->is.full.quadid,0/*!ghost*/);
+    } else if (DM_BF_FACEBOUNDARY_XNEG == face->boundary ||
+               DM_BF_FACEBOUNDARY_YNEG == face->boundary ||
+               DM_BF_FACEBOUNDARY_ZNEG == face->boundary) {
+      face->nCellsL = 0;
+      face->nCellsR = 1;
+      face->cellR[0] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
+                                     side->treeid,side->is.full.quadid,0/*!ghost*/);
+    }
+    else {
+      SETERRABORT(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Type of boundary face is unknown");
+    }
   } else { /* !isBoundary */
     p4est_iter_face_side_t *sideL = p4est_iter_fside_array_index_int(&info->sides,0);
     p4est_iter_face_side_t *sideR = p4est_iter_fside_array_index_int(&info->sides,1);
 
-    face->nCellsL = (sideL->is_hanging ? 2 : 1); //TODO only 2D
-    face->nCellsR = (sideR->is_hanging ? 2 : 1); //TODO only 2D
-    if ( !(1 <= face->nCellsL && 1 <= face->nCellsR && (face->nCellsL + face->nCellsR) <= 3) ) { //TODO only 2D
-      //TODO error
+    face->boundary = DM_BF_FACEBOUNDARY_NONE;
+    face->dir      = (DM_BF_FaceDir) sideL->face;
+    face->nCellsL  = (sideL->is_hanging ? P4EST_HALF : 1);
+    face->nCellsR  = (sideR->is_hanging ? P4EST_HALF : 1);
+    if ( !(DM_BF_FACEDIR_XPOS == face->dir ||
+           DM_BF_FACEDIR_YPOS == face->dir ||
+           DM_BF_FACEDIR_ZPOS == face->dir) ) {
+      SETERRABORT(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Face direction has to be positive for left side");
     }
+    if ( !(1 <= face->nCellsL && 1 <= face->nCellsR && (face->nCellsL + face->nCellsR) <= (P4EST_HALF + 1)) ) {
+      SETERRABORT(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Mismatch of number of left and right cells");
+    }
+    // set pointers to cells
     if (sideL->is_hanging) {
       for (i=0; i<face->nCellsL; i++) {
         face->cellL[i] = _p_getCellPtr(iterCtx->cells,iterCtx->cellSize,info->p4est,
@@ -928,6 +962,7 @@ static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
     p4est_iter_face_side_t *sideL = p4est_iter_fside_array_index_int(&info->sides,0);
     p4est_iter_face_side_t *sideR = p4est_iter_fside_array_index_int(&info->sides,1);
 
+    //TODO copy code from above
     face->nCellsL = (sideL->is_hanging ? 2 : 1); //TODO only 2D
     face->nCellsR = (sideR->is_hanging ? 2 : 1); //TODO only 2D
     if ( !(1 <= face->nCellsL && 1 <= face->nCellsR && (face->nCellsL + face->nCellsR) <= 3) ) { //TODO only 2D

@@ -49,9 +49,33 @@ typedef struct _p_DM_BF_Cell {
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCellsVectors(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
 PETSC_EXTERN PetscErrorCode DMBFIterateOverCells(DM,PetscErrorCode(*)(DM,DM_BF_Cell*,void*),void*);
 
+typedef enum {
+  DM_BF_FACEDIR_XNEG = 0, // face x-
+  DM_BF_FACEDIR_XPOS = 1, // face x+
+  DM_BF_FACEDIR_YNEG = 2, // face y-
+  DM_BF_FACEDIR_YPOS = 3, // face y+
+  DM_BF_FACEDIR_ZNEG = 4, // face z-
+  DM_BF_FACEDIR_ZPOS = 5  // face z+
+} DM_BF_FaceDir;
+
+typedef enum {
+  DM_BF_FACEBOUNDARY_NONE = -1,
+  DM_BF_FACEBOUNDARY_XNEG = DM_BF_FACEDIR_XNEG,
+  DM_BF_FACEBOUNDARY_XPOS = DM_BF_FACEDIR_XPOS,
+  DM_BF_FACEBOUNDARY_YNEG = DM_BF_FACEDIR_YNEG,
+  DM_BF_FACEBOUNDARY_YPOS = DM_BF_FACEDIR_YPOS,
+  DM_BF_FACEBOUNDARY_ZNEG = DM_BF_FACEDIR_ZNEG,
+  DM_BF_FACEBOUNDARY_ZPOS = DM_BF_FACEDIR_ZPOS
+} DM_BF_FaceBoundary;
+
 typedef struct _p_DM_BF_Face {
-  PetscInt    nCellsL, nCellsR;
-  DM_BF_Cell  *cellL[4], *cellR[4];
+  /* domain boundary */
+  DM_BF_FaceBoundary  boundary;
+  /* face direction/orientation */
+  DM_BF_FaceDir       dir;
+  /* cells on each side of the face */
+  PetscInt            nCellsL, nCellsR;
+  DM_BF_Cell          *cellL[4], *cellR[4];
 } DM_BF_Face;
 
 PETSC_EXTERN PetscErrorCode DMBFIterateOverFacesVectors(DM,PetscErrorCode(*)(DM,DM_BF_Face*,void*),void*,Vec*,PetscInt,Vec*,PetscInt);
