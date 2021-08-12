@@ -196,7 +196,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
       }
 
       for (i=0; i<numEdges;i++) {
-        fvedges[i].length = 1.0; 
+        fvedges[i].length = fvnet->length; 
       }
     }
     break;
@@ -1134,7 +1134,7 @@ static void f0_circle_r(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   xp[1] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.0; 
   xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.0; 
-  xp[0] = -x[0]*2.; 
+  xp[0] = x[0]*2. - 2.1; /*hack for presentation */
 }
 /* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
 static void f0_circle_t(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -1147,6 +1147,18 @@ static void f0_circle_t(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   xp[0] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.; 
   xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.; 
   xp[1] = 2.*x[0]+0.1; 
+}
+/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
+static void f0_circle_b(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  const PetscReal yy   = 2*x[1]-1,zz = 2*x[2]-1; 
+
+  xp[0] = yy*PetscSqrtReal(1-PetscPowReal(zz,2)/2.)/10.; 
+  xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.; 
+  xp[1] = -2.*x[0]-0.1; 
 }
 static PetscErrorCode DGNetworkCreateViewDM(DM dm)
 {
@@ -1542,9 +1554,13 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt ed
       ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 3, PETSC_FALSE, faces, NULL, NULL, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
       ierr = DGNetworkCreateViewDM2(dmlist[i]);CHKERRQ(ierr);
       if (e ==eStart){
-        ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_l);CHKERRQ(ierr);
-      } else {
+        ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_r);CHKERRQ(ierr);
+      } else if(e==eStart+1) {
           ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_t);CHKERRQ(ierr);
+      } else if(e==eStart+2) {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_l);CHKERRQ(ierr);
+      } else {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_b);CHKERRQ(ierr);
       }
     }
     *numdm = i; 

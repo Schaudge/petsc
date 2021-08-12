@@ -150,7 +150,7 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
       break;
     case 4: /* Sunny's Test Case*/
       if (edgeid == 0) { /* Not sure what the correct IC is here*/
-          u[0] = ((x>=-1 && x<=1)) ? 2.0-PetscSqr(x): 1.0; 
+          u[0] = ((x>=7 && x<=9)) ? 2.0-PetscSqr(x-8): 1.0; 
           u[1] = 0.0;
       } else {
           u[0] = 1.0; 
@@ -396,7 +396,21 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _dgnet,c
   *maxspeed = 0.0; /* Ignore the computation of the maxspeed */
   PetscFunctionReturn(0);
 }
+/* THESE DONT WORK BE WAY WAY MORE CAREFUL HERE */
+/* Okay the issue was a subtle instability due to floating point error (I think). Using differenet flux calculation functions 
+for the riemann solver and exact fluxes, so small errors accumulate and removes the balancing of fluxs causing a blow up from nonlinearities*/
+/* using the riemann solver for outflow instead of the exact flux fixes the issue */
 static PetscErrorCode PhysicsVertexFlux_Outflow_Simple(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct) {
+  PetscErrorCode  ierr;
+  const DGNetwork dgnet = (DGNetwork)_dgnet;
+  PetscInt        i,dof = dgnet->physics.dof;
+
+  PetscFunctionBeginUser;
+  *maxspeed = 0.0; 
+  ierr = dgnet->physics.riemann(dgnet->physics.user,dof,uV,uV,flux,maxspeed);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+static PetscErrorCode PhysicsVertexFlux_Outflow_Simple_In(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct) {
   PetscErrorCode  ierr;
   const DGNetwork dgnet = (DGNetwork)_dgnet;
 
@@ -427,7 +441,11 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _dgnet, Juncti
           }
         }
       } else if (junct->numedges == 1) {
-        junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
+         if (junct->dir[0] == EDGEIN) {
+            junct->couplingflux =   junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
+         } else {
+            junct->couplingflux =   junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
+         }
       } else {
         if(!fvnet->linearcoupling) {
           ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->rcouple);CHKERRQ(ierr);
@@ -750,6 +768,16 @@ PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x
   ierr = DGNetworkMonitorView_Glvis(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+PetscErrorCode TSDGNetworkMonitor_GLVis_NET(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
+{
+  PetscErrorCode     ierr;
+  DGNetworkMonitor_Glvis   monitor;
+
+  PetscFunctionBegin;
+  monitor = (DGNetworkMonitor_Glvis)context;
+  ierr = DGNetworkMonitorView_Glvis_NET(monitor,x);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
  static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
 {
   PetscInt  i; 
@@ -768,7 +796,7 @@ int main(int argc,char *argv[])
   PetscReal         maxtime;
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
-  PetscBool         singlecoupleeval,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,viewdump=PETSC_FALSE;
+  PetscBool         singlecoupleeval,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE;
   DGNetworkMonitor  monitor=NULL;
   DGNetworkMonitor_Glvis monitor_gl = NULL;
 
@@ -787,7 +815,7 @@ int main(int argc,char *argv[])
   fvnet->comm           = comm;
   fvnet->cfl            = 0.9;
   fvnet->networktype    = 6;
-  fvnet->hratio         = 2;
+  fvnet->hratio         = 1;
   maxtime               = 2.0;
   fvnet->Mx             = 10;
   fvnet->bufferwidth    = 0;
@@ -795,7 +823,7 @@ int main(int argc,char *argv[])
   fvnet->ymin           = 0;
   fvnet->ymax           = 2.0;
   fvnet->bufferwidth    = 4;
-  fvnet->ndaughters     = 2;
+  fvnet->ndaughters     = 3;
   fvnet->linearcoupling = PETSC_FALSE;
   singlecoupleeval      = PETSC_FALSE; 
   fvnet->length         = 3.0;
@@ -824,12 +852,12 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",fvnet->ndaughters,&fvnet->ndaughters,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-lincouplediff","Compare the results for linearcoupling and nonlinear","",fvnet->lincouplediff,&fvnet->lincouplediff,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-singlecoupleeval","Use the single couple eval rhs functions","",singlecoupleeval,&singlecoupleeval,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsInt("-convergence", "Test convergence on meshes 2^3 - 2^n","",convergencelevel,&convergencelevel,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-view","View the DG solution","",fvnet->view,&fvnet->view,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-view_dump","Dump the Glvis view or socket","",viewdump,&viewdump,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-view_dump","Dump the Glvis view or socket","",glvismode,&glvismode,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-view_full_net","View GLVis of Entire Network","",viewfullnet,&viewfullnet,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   /* Choose the physics from the list of registered models */
@@ -861,16 +889,19 @@ int main(int argc,char *argv[])
   /* Delete unneeded data in fvnet */
   ierr = DGNetworkCleanUp(fvnet);CHKERRQ(ierr);
   ierr = DGNetworkBuildTabulation(fvnet);CHKERRQ(ierr);
-  if (viewglvis) {
-    if(view3d) {
-      ierr = DGNetworkAddMonitortoEdges_Glvis_3D(fvnet,monitor_gl,viewdump ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+    if (viewglvis) {
+      if (viewfullnet) { 
+        ierr =  DGNetworkMonitorAdd_Glvis_3D_NET(monitor_gl,"localhost",glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+      } else {
+        if(view3d) {
+          ierr = DGNetworkAddMonitortoEdges_Glvis_3D(fvnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+        } else {
+          ierr = DGNetworkAddMonitortoEdges_Glvis(fvnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+        }
+      }
     } else {
-      ierr = DGNetworkAddMonitortoEdges_Glvis(fvnet,monitor_gl,viewdump ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
+      ierr = DGNetworkAddMonitortoEdges(fvnet,monitor);CHKERRQ(ierr);
     }
-  } else {
-    ierr = DGNetworkAddMonitortoEdges(fvnet,monitor);CHKERRQ(ierr);
-  }
-
   /* Create Vectors */
   ierr = DGNetworkCreateVectors(fvnet);CHKERRQ(ierr);
   /* Set up component dynamic data structures */
@@ -891,13 +922,17 @@ int main(int argc,char *argv[])
   ierr = DGNetworkProject(fvnet,fvnet->X,0.0);CHKERRQ(ierr);
   ierr = DGNetRHS(ts,0,fvnet->X,fvnet->Ftmp,fvnet);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
-  if (size == 1 && fvnet->view) {
-    if (viewglvis) {
-      ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
-    } else {
-      ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+   if (size == 1 && fvnet->view) {
+      if (viewglvis) {
+        if(viewfullnet) {
+          ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis_NET, monitor_gl, NULL);CHKERRQ(ierr);
+        } else {
+          ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
+        } 
+      } else {
+        ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+      }
     }
-  }
   /* Evolve the PDE network in time */
   ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
 
