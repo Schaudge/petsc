@@ -7,6 +7,8 @@ PetscBool         TSTrajectoryRegisterAllCalled = PETSC_FALSE;
 PetscClassId      TSTRAJECTORY_CLASSID;
 PetscLogEvent     TSTrajectory_Set, TSTrajectory_Get, TSTrajectory_GetVecs, TSTrajectory_SetUp;
 
+const char *const TSTrajectoryStorageViewerTypes[] = {"BINARY","HDF5","TSTrajectoryStorageViewerType","TJ_",NULL};
+
 /*@C
   TSTrajectoryRegister - Adds a way of storing trajectories to the TS package
 
@@ -431,6 +433,15 @@ PetscErrorCode  TSTrajectoryCreate(MPI_Comm comm,TSTrajectory *tj)
   t->setupcalled = PETSC_FALSE;
   ierr = TSHistoryCreate(comm,&t->tsh);CHKERRQ(ierr);
 
+  ierr = PetscViewerCreate(comm,&t->outputviewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(t->outputviewer,PETSCVIEWERBINARY);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(t->outputviewer,PETSC_VIEWER_NATIVE);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(t->outputviewer,FILE_MODE_WRITE);CHKERRQ(ierr);
+  ierr = PetscViewerCreate(comm,&t->inputviewer);CHKERRQ(ierr);
+  ierr = PetscViewerSetType(t->inputviewer,PETSCVIEWERBINARY);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(t->inputviewer,PETSC_VIEWER_NATIVE);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(t->inputviewer,FILE_MODE_READ);CHKERRQ(ierr);
+
   t->lag.order            = 1;
   t->lag.L                = NULL;
   t->lag.T                = NULL;
@@ -530,7 +541,7 @@ PETSC_EXTERN PetscErrorCode TSTrajectoryCreate_Memory(TSTrajectory,TS);
 PETSC_EXTERN PetscErrorCode TSTrajectoryCreate_Visualization(TSTrajectory,TS);
 
 /*@C
-  TSTrajectoryRegisterAll - Registers all of the trajectory storage schecmes in the TS package.
+  TSTrajectoryRegisterAll - Registers all of the trajectory storage schemes in the TS package.
 
   Not Collective
 
@@ -609,6 +620,8 @@ PetscErrorCode TSTrajectoryDestroy(TSTrajectory *tj)
   ierr = PetscFree5((*tj)->lag.L,(*tj)->lag.T,(*tj)->lag.WW,(*tj)->lag.TT,(*tj)->lag.TW);CHKERRQ(ierr);
   ierr = VecDestroy(&(*tj)->U);CHKERRQ(ierr);
   ierr = VecDestroy(&(*tj)->Udot);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&(*tj)->outputviewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&(*tj)->inputviewer);CHKERRQ(ierr);
 
   if ((*tj)->transformdestroy) {ierr = (*(*tj)->transformdestroy)((*tj)->transformctx);CHKERRQ(ierr);}
   if ((*tj)->ops->destroy) {ierr = (*(*tj)->ops->destroy)((*tj));CHKERRQ(ierr);}
@@ -825,6 +838,54 @@ PetscErrorCode TSTrajectorySetFiletemplate(TSTrajectory tj,const char filetempla
   PetscFunctionReturn(0);
 }
 
+/*@C
+   TSTrajectorySetStorageViewerType - Specify the viewer type for the trajectory files.
+
+   Collective on TSTrajectory
+
+   Input Arguments:
++  tj                - the TSTrajectory context
+-  storageviewertype - the viewer type for the trajectory files
+
+   Options Database Keys:
+.  -ts_trajectory_storage_viewer_type - set the viewer type for the trajectory files
+
+   Notes:
+     Currently binary and hdf5 are supported.
+
+   Level: developer
+
+.seealso: TSTrajectorySetUp()
+@*/
+PetscErrorCode TSTrajectorySetStorageViewerType(TSTrajectory tj,TSTrajectoryStorageViewerType storageviewertype)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  switch (storageviewertype) {
+  case TJ_BINARY:
+    ierr = PetscViewerSetType(tj->inputviewer,PETSCVIEWERBINARY);CHKERRQ(ierr);
+    ierr = PetscViewerSetType(tj->outputviewer,PETSCVIEWERBINARY);CHKERRQ(ierr);
+    ierr = TSTrajectorySetFiletemplate(tj,"TS-%06D.bin");CHKERRQ(ierr);
+    break;
+  case TJ_HDF5:
+#if defined(PETSC_HAVE_HDF5)
+    ierr = PetscViewerSetType(tj->inputviewer,PETSCVIEWERHDF5);CHKERRQ(ierr);
+    ierr = PetscViewerSetType(tj->outputviewer,PETSCVIEWERHDF5);CHKERRQ(ierr);
+    ierr = TSTrajectorySetFiletemplate(tj,"TS-%06D.h5");CHKERRQ(ierr);
+#else
+    SETERRQ(PetscObjectComm((PetscObject)tj),PETSC_ERR_SUP,"Please reconfigure with --download-hdf5.\n");
+#endif
+    break;
+  default:
+    SETERRQ1(PetscObjectComm((PetscObject)tj),PETSC_ERR_USER,"TSTrajectory storage viewer type %s not supported\n",storageviewertype);
+  }
+  tj->storageviewertype = storageviewertype;
+  ierr = PetscViewerFileSetMode(tj->inputviewer,FILE_MODE_READ);CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(tj->outputviewer,FILE_MODE_WRITE);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@
    TSTrajectorySetFromOptions - Sets various TSTrajectory parameters from user options.
 
@@ -848,9 +909,10 @@ PetscErrorCode TSTrajectorySetFiletemplate(TSTrajectory tj,const char filetempla
 @*/
 PetscErrorCode  TSTrajectorySetFromOptions(TSTrajectory tj,TS ts)
 {
-  PetscBool      set,flg;
-  char           dirname[PETSC_MAX_PATH_LEN],filetemplate[PETSC_MAX_PATH_LEN];
-  PetscErrorCode ierr;
+  PetscBool                     set,flg;
+  char                          dirname[PETSC_MAX_PATH_LEN],filetemplate[PETSC_MAX_PATH_LEN];
+  TSTrajectoryStorageViewerType storageviewertype = TJ_BINARY;
+  PetscErrorCode                ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(tj,TSTRAJECTORY_CLASSID,1);
@@ -877,6 +939,10 @@ PetscErrorCode  TSTrajectorySetFromOptions(TSTrajectory tj,TS ts)
     ierr = TSTrajectorySetFiletemplate(tj,filetemplate);CHKERRQ(ierr);
   }
 
+  ierr = PetscOptionsEnum("-ts_trajectory_storage_viewer_type","Set viewer type for trajectory files","TSTrajectorySetStorageViewerType",TSTrajectoryStorageViewerTypes,(PetscEnum)storageviewertype,(PetscEnum*)&storageviewertype,&set);CHKERRQ(ierr);
+  if (set) {
+    ierr = TSTrajectorySetStorageViewerType(tj,storageviewertype);CHKERRQ(ierr);
+  }
   /* Handle specific TSTrajectory options */
   if (tj->ops->setfromoptions) {
     ierr = (*tj->ops->setfromoptions)(PetscOptionsObject,tj);CHKERRQ(ierr);
