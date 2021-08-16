@@ -36,8 +36,8 @@ static PetscErrorCode MatView_GinkgoCSR(Mat A,PetscViewer viewer)
 
     } else if (format == PETSC_VIEWER_DEFAULT) {
       ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
-      /* TODO: SEK */
-      El::Print( *a->emat, "Ginkgo matrix (cyclic ordering)");
+      /* TODO: SEK
+      gko::Print( *a->emat, "Ginkgo matrix (cyclic ordering)");
       ierr = PetscViewerASCIIUseTabs(viewer,PETSC_TRUE);CHKERRQ(ierr);
       if (A->factortype == MAT_FACTOR_NONE) {
         Mat Adense;
@@ -45,7 +45,7 @@ static PetscErrorCode MatView_GinkgoCSR(Mat A,PetscViewer viewer)
         ierr = MatView(Adense,viewer);CHKERRQ(ierr);
         ierr = MatDestroy(&Adense);CHKERRQ(ierr);
       }
-    } else SETERRQ(PetscObjectComm((PetscObject)viewer),PETSC_ERR_SUP,"Format");
+    } else SETERRQ(PetscObjectComm((PetscObject)viewer),PETSC_ERR_SUP,"Format"); */
   } else {
     /* convert to dense format and call MatView() */
     Mat Adense;
