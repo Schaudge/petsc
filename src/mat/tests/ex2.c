@@ -194,6 +194,13 @@ int main(int argc,char **argv)
       filter: grep -v "Mat Object"
 
    test:
+      requires: ginkgo
+      suffix: aijginkgo
+      args: -mat_type ginkgocsr -rectA
+      filter: grep -v "Mat Object"
+      output_file: output/ex2_11_A_aijcusparse.out
+
+   test:
       suffix: 12_A
       args: -mat_type seqdense -rectA
       filter: grep -v type | grep -v "Mat Object"
@@ -334,13 +341,6 @@ int main(int argc,char **argv)
       output_file: output/ex2_4.out
       args: -mat_type mpidensecuda -rectA
       filter: grep -v type | grep -v "MPI processes"
-
-   test:
-      suffix: aijcusparse_1
-      args: -mat_type seqaijcusparse -rectA
-      filter: grep -v "Mat Object"
-      output_file: output/ex2_11_A_aijcusparse.out
-      requires: cuda
 
    test:
       suffix: aijcusparse_2
