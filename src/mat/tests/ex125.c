@@ -1,4 +1,4 @@
-static char help[] = "Tests MatSolve() and MatMatSolve() (interface to superlu_dist, mumps and mkl_pardiso).\n\
+static char help[] = "Tests MatSolve() and MatMatSolve() (interface to superlu_dist, mumps, cusparse and mkl_pardiso).\n\
 Example: mpiexec -n <np> ./ex125 -f <matrix binary file> -nrhs 4 \n\n";
 
 #include <petscmat.h>
