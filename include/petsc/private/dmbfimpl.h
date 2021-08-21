@@ -26,7 +26,7 @@ PETSC_EXTERN PetscErrorCode DMBFShapeGet(const DM_BF_Shape*,size_t**,size_t**,si
 PETSC_EXTERN PetscErrorCode DMBFShapeSetFromInt(DM_BF_Shape*,const PetscInt*);
 PETSC_EXTERN PetscErrorCode DMBFShapeGetToInt(const DM_BF_Shape*,PetscInt**,PetscInt*,PetscInt*);
 
-PETSC_STATIC_INLINE size_t _p_DMBFShapeOffset(const DM_BF_Shape *shape, size_t nmax)
+PETSC_STATIC_INLINE size_t _p_DMBFShapeOffset(const DM_BF_Shape *shape, PetscInt nmax)
 {
   const size_t  n = (0<=nmax && nmax<shape->n ? nmax : shape->n);
   size_t        i, j, s, size=0;

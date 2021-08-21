@@ -990,7 +990,7 @@ PetscErrorCode DMBFGetGhost(DM dm, void *ghost)
 static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
 {
   PetscInt       blockSize[3] = {1, 1, 1};
-  PetscInt       dim, n, ng;
+  PetscInt       dim, n, ng, i;
   PetscInt       locDof, cellDof = 1;
   PetscErrorCode ierr;
 
@@ -1000,7 +1000,7 @@ static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
   /* get number of entries */
   ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
-  for(PetscInt i = 0; i < dim; i++) {
+  for (i=0; i<dim; i++) {
     cellDof *= blockSize[i];
   }
   locDof    = cellDof*(n + ng);
@@ -1014,7 +1014,7 @@ static PetscErrorCode DMCreateLocalVector_BF(DM dm, Vec *vec)
 static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
 {
   PetscInt       blockSize[3] = {1, 1, 1};
-  PetscInt       dim, n, N;
+  PetscInt       dim, n, N, i;
   PetscInt       locDof, gloDof, cellDof = 1;
   PetscErrorCode ierr;
 
@@ -1024,7 +1024,7 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
   /* get number of entries */
   ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
-  for(PetscInt i = 0; i < dim; i++) {
+  for (i=0; i<dim; i++) {
     cellDof *= blockSize[i];
   }
   locDof = cellDof*n;
@@ -1045,7 +1045,7 @@ static PetscErrorCode DMCreateGlobalVector_BF(DM dm, Vec *vec)
 static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
 {
   PetscInt       blockSize[3] = {1, 1, 1};
-  PetscInt       dim, n, N;
+  PetscInt       dim, n, N, i;
   PetscInt       locDof, gloDof, cellDof = 1;
   MatType        mattype;
   PetscBool      match;
@@ -1057,7 +1057,7 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   /* get number of rows/cols */
   ierr = DMBFGetInfo(dm,&dim,&n,&N,PETSC_NULL);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
-  for(PetscInt i = 0; i < dim; i++) {
+  for (i=0; i<dim; i++) {
     cellDof *= blockSize[i];
   }
   locDof = cellDof*n;
@@ -1066,12 +1066,13 @@ static PetscErrorCode DMCreateMatrix_BF(DM dm, Mat *mat)
   ierr = MatCreate(_p_comm(dm),mat);CHKERRQ(ierr);
   ierr = MatSetSizes(*mat,locDof,locDof,gloDof,gloDof);CHKERRQ(ierr);
   ierr = MatSetBlockSize(*mat,1/*blocksize*/);CHKERRQ(ierr);
-  ierr = MatSetLocalToGlobalMapping(*mat,dm->ltogmap,dm->ltogmap);CHKERRQ(ierr);
-  ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
   /* set type */
   ierr = DMGetMatType(dm,&mattype);CHKERRQ(ierr);
   ierr = MatSetType(*mat,mattype);CHKERRQ(ierr);
+  /* set mapping */
+  ierr = MatSetLocalToGlobalMapping(*mat,dm->ltogmap,dm->ltogmap);CHKERRQ(ierr);
   /* set context */
+  ierr = MatSetDM(*mat,dm);CHKERRQ(ierr);
   PetscStrcmp(mattype,MATSHELL,&match);
   if (match) {
     void *appctx;
@@ -1654,15 +1655,14 @@ PetscErrorCode DMView_BF(DM dm, PetscViewer viewer)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-
-  if (!dm) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONG,"No DM provided to view");
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERVTK,   &isvtk);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
-  if(isvtk) {
+  PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERVTK,   &isvtk);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERHDF5,  &ishdf5);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERDRAW,  &isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERGLVIS, &isglvis);CHKERRQ(ierr);
+  if (isvtk) {
     ierr = DMBFVTKWriteAll((PetscObject)dm,viewer);CHKERRQ(ierr);
-  } else if(ishdf5 || isdraw || isglvis) {
+  } else if (ishdf5 || isdraw || isglvis) {
     SETERRQ(_p_comm(dm),PETSC_ERR_SUP,"non-VTK viewer currently not supported by BF");
   }
   PetscFunctionReturn(0);
