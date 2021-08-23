@@ -1045,7 +1045,7 @@ static void _p_iterFVMatAssembly(p4est_iter_face_info_t *info, void *ctx)
   }
   /* call face function */
   CHKERRV( iterCtx->iterFace(iterCtx->dm,face,iterCtx->cellCoeff,iterCtx->userIterCtx) );
-  CHKERRV( MatSetValuesLocal(iterCtx->M,len,iterCtx->rowIndices,len,iterCtx->colIndices,iterCtx->cellCoeff,ADD_VALUES) );
+  CHKERRV( MatSetValuesLocal(iterCtx->M,bs*len,iterCtx->rowIndices,bs*len,iterCtx->colIndices,iterCtx->cellCoeff,ADD_VALUES) );
 }
 
 PetscErrorCode DMBF_XD_IterateFVMatAssembly(DM dm, DM_BF_Cell *cells, size_t cellSize, Mat M,
