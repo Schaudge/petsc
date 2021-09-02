@@ -1,9 +1,11 @@
 #ifndef PETSCTRAITHELPERS_HPP
 #define PETSCTRAITHELPERS_HPP
 
-#include <petsc/private/petscimpl.h>
-
 #if defined(__cplusplus)
+
+#include <petscsys.h>
+#include <type_traits>
+#include <utility>
 
 // A useful template to serve as a function wrapper factory. Given a function "foo" which
 // you'd like to thinly wrap as "bar", simply doing:

@@ -51,6 +51,19 @@ PetscErrorCode nativeFunction(PetscInt *x)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode testGramSchmidt(MPI_Comm comm)
+{
+  Vec a,b;
+  CallGraph graph("gram-schmidt");
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  auto vca = graph.emplaceDirectFunctionOperator(VecCreate,comm,&a);
+  auto vcb = graph.emplaceDirectFunctionOperator(VecCreate,comm,&b);
+  auto vranda = graph.emplaceDirectFunctionOperator(VecSetRandom,a,NULL);
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char *argv[])
 {
   PetscErrorCode ierr;
@@ -67,7 +80,7 @@ int main(int argc, char *argv[])
   CallNode  node,node2 = CallNode();
 
   node2 = node;
-  ierr = graph2.setUserContext(&ctx);CHKERRQ(ierr);
+  ierr  = graph2.setUserContext(&ctx);CHKERRQ(ierr);
   auto smallGraphLeft    = graph2.emplaceFunctionOperator(testFuncOtherGraph);
   ierr = smallGraphLeft->setName("small graph left");CHKERRQ(ierr);
   auto smallGraphLeftDep = graph2.emplaceFunctionOperator([](ExecutionContext*) { CXXPRINT("running left dep\n"); return 0; });

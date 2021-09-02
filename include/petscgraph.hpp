@@ -23,7 +23,6 @@ PETSC_EXTERN PetscErrorCode PetscCallGraphAddNode(PetscCallGraph,PetscCallNode);
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
-#include <type_traits>
 #include <iostream>
 #include <functional>
 
@@ -154,9 +153,9 @@ public:
     : _functor(std::forward<T>(fn)), _params(std::move(args))
   {
     // so that the static_assert error message is intelligible
-    using functionSignatureMatchesArgumentList = conditional_t<is_wrapped::value,is_invocable<T,ExecutionContext*,Args...>,is_invocable<T,Args...>>;
+    //using functionSignatureMatchesArgumentList = conditional_t<is_wrapped::value,is_invocable<T,ExecutionContext*,Args...>,is_invocable<T,Args...>>;
 
-    static_assert(functionSignatureMatchesArgumentList::value,"Function does not appear to be invocable with the given argument list");
+    //static_assert(functionSignatureMatchesArgumentList::value,"Function does not appear to be invocable with the given argument list");
   }
 
   PETSC_NODISCARD PetscErrorCode operator()(ExecutionContext *ctx) const override final
