@@ -161,9 +161,19 @@ class Configure(config.package.Package):
     if hasattr(self,'systemNvcc'):
       self.nvccDir = os.path.dirname(self.systemNvcc)
       d = os.path.split(self.nvccDir)[0]
+      self.logPrint('Directory NVCC '+self.nvccDir+' contents:\n'+str(os.listdir(self.nvccDir)))
+      self.logPrint('Directory OLDCUDADIR '+d+' contents:\n'+str(os.listdir(d)))
+      d2 = os.path.join(d,'include'))
+      self.logPrint('Directory OLDCUDADIR/INC '+d2+' contents:\n'+str(os.listdir(d2)))
+      d2 = os.path.join(d,'..','cuda'):
+      self.logPrint('Directory D2 '+d2+' contents:\n'+str(os.listdir(d2)))
+      d2 = os.path.join(d,'..','cuda','include'):
+      self.logPrint('Directory D3 '+d2+' contents:\n'+str(os.listdir(d2)))
       if os.path.exists(os.path.join(d,'include','cuda.h')):
+        self.logPrint('FOUND AS BEFORE\n')
         self.cudaDir = d
       elif os.path.exists(os.path.join(d,'..','cuda','include','cuda.h')):
+        self.logPrint('FOUND NEW\n')
         self.cudaDir = os.path.join(d,'..','cuda')
         self.isnvhpc = True
     else:
