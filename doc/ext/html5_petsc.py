@@ -16,10 +16,11 @@ from sphinx.application import Sphinx
 if not hasattr(re,'Pattern'): re.Pattern = re._pattern_type
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> Dict:
     _check_version(app)
 
     app.connect('builder-inited', _setup_translators)
+    return {'parallel_read_safe': True}
 
 
 def _check_version(app: Sphinx) -> None:
