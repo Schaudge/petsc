@@ -65,7 +65,8 @@ typedef struct {
   PetscErrorCode                 (*destroy)(void*);
   void                           *user;
   PetscInt                       dof;
-  PetscInt                       *order; 
+  PetscInt                       *order;
+  PetscInt                       maxorder; 
   char                           *fieldname[16];
 } PhysicsCtx_Net;
 
@@ -121,13 +122,21 @@ struct _p_DGNetwork
   PetscInt        *taborder;  
   PetscInt        tabordersize; 
 
+  /* Work arrays for the limiter/characterstic basis */ 
+
+  PetscReal       *charcoeff; 
+  PetscBool       *limitactive; 
+  PetscReal       *cbdryeval_L, *cbdryeval_R, *cuAvg,*uavgs;  
+  PetscReal       jumptol;
+  PetscReal       *cjmpLR; 
+
 
   /* Local work arrays for numerical flux */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
   PetscScalar *uLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
-  PetscReal   *uPlus;           /* Solution at the left of the interfacce in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
+  PetscReal   *uPlus;           /* Solution at the left of the interface in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
   PetscReal   cfl;
   PetscInt    initial,networktype,ndaughters;
   PetscBool   simulation;
@@ -254,3 +263,7 @@ extern PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork,const PetscInt[]
 
 extern PetscErrorCode DGNetworkMonitorAdd_Glvis_3D_NET(DGNetworkMonitor_Glvis,const char[],PetscViewerGLVisType);
 extern PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis,Vec);
+
+extern PetscErrorCode TVDLimit_1D(DGNetwork,const PetscScalar*,const PetscScalar*,const PetscScalar*, PetscScalar*, PetscScalar*, PetscReal*, PetscSection, PetscInt);
+extern PetscErrorCode Limit_1D_onesided(DGNetwork,const PetscScalar*,const PetscScalar*, PetscReal*, PetscSection, PetscInt,PetscReal);
+extern PetscErrorCode DGNetRHS_limiter(TS,PetscReal,Vec,Vec,void*);

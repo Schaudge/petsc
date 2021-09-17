@@ -6,7 +6,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
   PetscErrorCode ierr;
   PetscInt       nfvedge;
   PetscMPIInt    rank;
-  PetscInt       i,numVertices,numEdges;
+  PetscInt       i,field,numVertices,numEdges; 
   PetscInt       *edgelist;
   Junction       junctions = NULL;
   EdgeFE         fvedges = NULL;
@@ -269,9 +269,30 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
   fvnet->edgelist = edgelist;
   fvnet->junction = junctions;
   fvnet->edgefe   = fvedges;
-  /* Allocate work space for the Finite Volume solver (so it doesn't have to be reallocated on each function evaluation) */
+
+  /* 
+    TODO : Make all this stuff its own class 
+
+    NOTE: Should I have tensor interface for petsc? Would be really useful for all the tabulation tensors an d
+    etc I'm using. Not to mention that effectively the DG solution is a tensor (3rd order )
+    element x basis x field
+
+    something to consider.... 
+  */
+
+  /* Allocate work space for the DG solver (so it doesn't have to be reallocated on each function evaluation) */
   ierr = PetscMalloc2(dof*dof,&fvnet->R,dof*dof,&fvnet->Rinv);CHKERRQ(ierr);
   ierr = PetscMalloc4(2*dof,&fvnet->uLR,dof,&fvnet->flux,dof,&fvnet->speeds,dof,&fvnet->uPlus);CHKERRQ(ierr);
+  /* allocate work space for the limiter suff */ 
+
+  /* this variable should be stored elsewhere */ 
+  fvnet->physics.maxorder =0; 
+  for(field=0; field<dof; field++){
+    if (fvnet->physics.order[field] > fvnet->physics.maxorder) fvnet->physics.maxorder = fvnet->physics.order[field];
+  }
+
+  ierr = PetscMalloc5(dof,&fvnet->limitactive,(fvnet->physics.maxorder+1)*dof,&fvnet->charcoeff,dof,&fvnet->cbdryeval_L,dof,&fvnet->cbdryeval_R,dof,&fvnet->cuAvg);CHKERRQ(ierr);
+  ierr = PetscMalloc2(3*dof,&fvnet->uavgs,2*dof,&fvnet->cjmpLR);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
@@ -765,6 +786,8 @@ PetscErrorCode DGNetworkDestroy(DGNetwork fvnet)
   }
   ierr = PetscFree2(fvnet->R,fvnet->Rinv);CHKERRQ(ierr);
   ierr = PetscFree4(fvnet->uLR,fvnet->flux,fvnet->speeds,fvnet->uPlus);CHKERRQ(ierr);
+  ierr = PetscFree5(fvnet->charcoeff,fvnet->limitactive,fvnet->cbdryeval_L,fvnet->cbdryeval_R,fvnet->cuAvg);CHKERRQ(ierr);
+  ierr = PetscFree2(fvnet->uavgs,fvnet->cjmpLR);CHKERRQ(ierr);
   ierr = DGNetworkDestroyTabulation(fvnet);CHKERRQ(ierr);
 
   ierr = SNESDestroy(&fvnet->snes);CHKERRQ(ierr);
