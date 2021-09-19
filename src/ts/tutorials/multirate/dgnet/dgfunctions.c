@@ -470,8 +470,12 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
     slope    = MinMod3(cjmpL[j],cjmpR[j], dgnet->cbdryeval_R[j]-dgnet->cuAvg[j]);
     uRtmp[j] = dgnet->cuAvg[j] + slope;
 
-    dgnet->limitactive[j] = ((uRtmp[j] - dgnet->cbdryeval_R[j]) < 1e-10 && (uLtmp[j] - dgnet->cbdryeval_L[j]) < 1e-10); 
-    if (dgnet->limitactive[j]) limiteractivated = PETSC_TRUE; 
+    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - dgnet->cbdryeval_R[j]) > 1e-10 || PetscAbs((uLtmp[j] - dgnet->cbdryeval_L[j])) > 1e-10); 
+    
+    if (dgnet->limitactive[j]) {
+      limiteractivated = PETSC_TRUE;
+      ierr = PetscPrintf(dgnet->comm,"Limiter Activated on cell %i on field %i \n",c,j);CHKERRQ(ierr);
+    }
   }
 
   if (limiteractivated) {
@@ -780,7 +784,6 @@ PetscErrorCode DGNetRHS_limiter(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
           *coeff -= dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
         }
       }
-
       for (field=0; field<dof; field++) {
         ierr = PetscSectionGetFieldOffset(section,supp[1],field,&fieldoff);CHKERRQ(ierr);
         tab = dgnet->fieldtotab[field];
@@ -791,7 +794,6 @@ PetscErrorCode DGNetRHS_limiter(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         }
       }
     }
-
     /* Normalization loop */
     for (c=cStart; c<cEnd; c++) {
       ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
