@@ -83,6 +83,64 @@ static PetscErrorCode KSPSetUp_CG(KSP ksp)
 #define VecXDot(x,y,a) (((cg->type) == (KSP_CG_HERMITIAN)) ? VecDot(x,y,a) : VecTDot(x,y,a))
 
 /*
+    Simple fused version of KSPSolve_CG for testing timings
+*/
+static PetscErrorCode KSPSolve_FUSED(KSP ksp)
+{
+  PetscErrorCode ierr;
+  PetscInt       i,stored_max_it,eigs;
+  PetscScalar    dpi = 0.0,a = 1.0,beta,betaold = 1.0,b = 0,dpiold;
+  PetscReal      dp  = 0.0;
+  Vec            X,B,Z,R,P,W;
+  KSP_CG         *cg;
+  Mat            Amat;
+  PetscBool      diagonalscale;
+
+  PetscFunctionBegin;
+  ierr = PCGetDiagonalScale(ksp->pc,&diagonalscale);CHKERRQ(ierr);
+  if (diagonalscale) SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"Krylov method %s does not support diagonal scaling",((PetscObject)ksp)->type_name);
+  ierr = PCGetOperators(ksp->pc,&Amat,NULL);CHKERRQ(ierr);
+
+  cg            = (KSP_CG*)ksp->data;
+  eigs          = ksp->calc_sings;
+  stored_max_it = ksp->max_it;
+  X             = ksp->vec_sol;
+  B             = ksp->vec_rhs;
+  R             = ksp->work[0];
+  Z             = ksp->work[1];
+  P             = ksp->work[2];
+  W             = Z;
+
+  KSP_MatMult(ksp,Amat,X,R);            /*    r <- b - Ax                       */
+  VecAYPX(R,-1.0,B);
+  KSP_PCApply(ksp,R,Z);               /*    z <- Br                           */
+  VecNorm(Z,NORM_2,&dp);              /*    dp <- z'*z = e'*A'*B'*B*A*e       */
+  VecXDot(Z,R,&beta);                  /*     beta <- z'*r                      */
+
+  for (i = 0; i<ksp->max_it; i++) {
+    if (!i) {
+      VecCopy(Z,P);                       /*     p <- z                           */
+      b    = 0.0;
+    } else {
+      b = beta/betaold;
+      VecAYPX(P,b,Z);                     /*     p <- z + b* p                    */
+    }
+    dpiold = dpi;
+    KSP_MatMult(ksp,Amat,P,W);            /*     w <- Ap                          */
+    VecXDot(P,W,&dpi);                    /*     dpi <- p'w                       */
+    betaold = beta;
+    a = beta/dpi;                           /*     a = beta/p'w                     */
+    VecAXPY(X,a,P);                       /*     x <- x + ap                      */
+    VecAXPY(R,-a,W);                      /*     r <- r - aw                      */
+    KSP_PCApply(ksp,R,Z);               /*     z <- Br                          */
+    VecNorm(Z,NORM_2,&dp);              /*     dp <- z'*z                       */
+    VecXDot(Z,R,&beta);                 /*     beta <- z'*r                     */
+  }
+  ksp->reason =  KSP_DIVERGED_ITS;
+  PetscFunctionReturn(0);
+}
+
+/*
      KSPSolve_CG - This routine actually applies the conjugate gradient method
 
      Note : this routine can be replaced with another one (see below) which implements
@@ -516,7 +574,7 @@ static PetscErrorCode  KSPCGUseSingleReduction_CG(KSP ksp,PetscBool flg)
   if (cg->singlereduction) {
     ksp->ops->solve = KSPSolve_CG_SingleReduction;
   } else {
-    ksp->ops->solve = KSPSolve_CG;
+    ksp->ops->solve = KSPSolve_FUSED;
   }
   PetscFunctionReturn(0);
 }
@@ -599,7 +657,7 @@ PETSC_EXTERN PetscErrorCode KSPCreate_CG(KSP ksp)
        (in C++ this is the same as defining virtual functions)
   */
   ksp->ops->setup          = KSPSetUp_CG;
-  ksp->ops->solve          = KSPSolve_CG;
+  ksp->ops->solve          = KSPSolve_FUSED;
   ksp->ops->destroy        = KSPDestroy_CG;
   ksp->ops->view           = KSPView_CG;
   ksp->ops->setfromoptions = KSPSetFromOptions_CG;
