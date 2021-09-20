@@ -40,11 +40,14 @@ int main(int argc,char **argv)
   DMDALocalInfo  info;
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
+
   /*
      Create distributed array to handle parallel distribution.
      The problem size will default to 8 by 7, but this can be
      changed using -da_grid_x M -da_grid_y N
   */
+  ierr = PetscLogStageRegister("Assembly", &stage);CHKERRQ(ierr);
+  ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
   ierr = DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,8,7,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL,&da);CHKERRQ(ierr);
   ierr = DMSetFromOptions(da);CHKERRQ(ierr);
   ierr = DMSetUp(da);CHKERRQ(ierr);
@@ -67,8 +70,6 @@ int main(int argc,char **argv)
       - Rows and columns are specified by the stencil
       - Entries are normalized for a domain [0,1]x[0,1]
    */
-  ierr = PetscLogStageRegister("Assembly", &stage);CHKERRQ(ierr);
-  ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
   ierr = DMDAGetLocalInfo(da,&info);CHKERRQ(ierr);
   for (j=info.ys; j<info.ys+info.ym; j++) {
     for (i=info.xs; i<info.xs+info.xm; i++) {
@@ -95,7 +96,6 @@ int main(int argc,char **argv)
   */
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*
      Create parallel vectors compatible with the DMDA.
@@ -151,6 +151,8 @@ int main(int argc,char **argv)
     routines.
   */
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                       Solve the linear system
@@ -165,6 +167,7 @@ int main(int argc,char **argv)
   /*
      Check the error
   */
+  ierr = PetscLogStagePush(stage);CHKERRQ(ierr);
   ierr = VecAXPY(x,-1.,u);CHKERRQ(ierr);
   ierr = VecNorm(x,NORM_2,&norm);CHKERRQ(ierr);
   ierr = KSPGetIterationNumber(ksp,&its);CHKERRQ(ierr);
@@ -186,6 +189,7 @@ int main(int argc,char **argv)
   ierr = VecDestroy(&b);CHKERRQ(ierr);
   ierr = MatDestroy(&A);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
+  ierr = PetscLogStagePop();CHKERRQ(ierr);
 
   /*
      Always call PetscFinalize() before exiting a program.  This routine
