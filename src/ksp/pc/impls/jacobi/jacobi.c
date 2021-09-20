@@ -254,7 +254,7 @@ static PetscErrorCode PCSetUp_Jacobi_Symmetric(PC pc)
 /* -------------------------------------------------------------------------- */
 /*
    PCSetUp_Jacobi_NonSymmetric - Allocates the vector needed to store the
-   inverse of the diagonal entries of the matrix.  This is used for left of
+   inverse of the diagonal entries of the matrix.  This is used for left or
    right application of the Jacobi preconditioner.
 
    Input Parameter:
@@ -664,5 +664,18 @@ PetscErrorCode  PCJacobiGetType(PC pc,PCJacobiType *type)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pc,PC_CLASSID,1);
   ierr = PetscUseMethod(pc,"PCJacobiGetType_C",(PC,PCJacobiType*),(pc,type));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PCJacobiGetDiagonal(PC pc,Vec *diag)
+{
+  PC_Jacobi      *jac = (PC_Jacobi*)pc->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (!jac->diag) {
+    ierr = PCSetUp_Jacobi_NonSymmetric(pc);CHKERRQ(ierr);
+  }
+  *diag     = jac->diag;
   PetscFunctionReturn(0);
 }

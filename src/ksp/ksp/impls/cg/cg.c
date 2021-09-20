@@ -82,24 +82,30 @@ static PetscErrorCode KSPSetUp_CG(KSP ksp)
 */
 #define VecXDot(x,y,a) (((cg->type) == (KSP_CG_HERMITIAN)) ? VecDot(x,y,a) : VecTDot(x,y,a))
 
+#include "petsc/private/vecimpl.h"
+extern PetscErrorCode PCJacobiGetDiagonal(PC,Vec*);
+
 /*
-    Simple fused version of KSPSolve_CG for testing timings
+    Simple unfused version of KSPSolve_CG for testing timings
 */
-static PetscErrorCode KSPSolve_FUSED(KSP ksp)
+static PetscErrorCode KSPSolve_UNFUSED(KSP ksp)
 {
-  PetscErrorCode ierr;
-  PetscInt       i,stored_max_it,eigs;
-  PetscScalar    dpi = 0.0,a = 1.0,beta,betaold = 1.0,b = 0,dpiold;
-  PetscReal      dp  = 0.0;
-  Vec            X,B,Z,R,P,W;
-  KSP_CG         *cg;
-  Mat            Amat;
-  PetscBool      diagonalscale;
+  PetscErrorCode    ierr;
+  PetscInt          i,stored_max_it,eigs,n,j;
+  PetscScalar       dpi = 0.0,a = 1.0,beta,betaold = 1.0,b = 0,dpiold,*rw,*zw;
+  const PetscScalar *z,*r,*p,*w,*d;
+  PetscReal         dp  = 0.0;
+  Vec               X,B,Z,R,P,W,diag;
+  KSP_CG            *cg;
+  Mat               Amat;
+  PetscBool         diagonalscale;
 
   PetscFunctionBegin;
   ierr = PCGetDiagonalScale(ksp->pc,&diagonalscale);CHKERRQ(ierr);
   if (diagonalscale) SETERRQ1(PetscObjectComm((PetscObject)ksp),PETSC_ERR_SUP,"Krylov method %s does not support diagonal scaling",((PetscObject)ksp)->type_name);
   ierr = PCGetOperators(ksp->pc,&Amat,NULL);CHKERRQ(ierr);
+  ierr = PCJacobiGetDiagonal(ksp->pc,&diag);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(diag,&d);CHKERRQ(ierr);
 
   cg            = (KSP_CG*)ksp->data;
   eigs          = ksp->calc_sings;
@@ -111,11 +117,25 @@ static PetscErrorCode KSPSolve_FUSED(KSP ksp)
   P             = ksp->work[2];
   W             = Z;
 
-  KSP_MatMult(ksp,Amat,X,R);            /*    r <- b - Ax                       */
-  VecAYPX(R,-1.0,B);
+  VecCopy(B,R);
   KSP_PCApply(ksp,R,Z);               /*    z <- Br                           */
-  VecNorm(Z,NORM_2,&dp);              /*    dp <- z'*z = e'*A'*B'*B*A*e       */
-  VecXDot(Z,R,&beta);                  /*     beta <- z'*r                      */
+
+  VecGetLocalSize(Z,&n);
+  VecGetArrayRead(Z,&z);
+  VecGetArrayRead(R,&r);
+  //VecNorm(Z,NORM_2,&dp);              /*    dp <- z'*z = e'*A'*B'*B*A*e       */
+  ierr = PetscLogEventBegin(VEC_Norm,0,0,0,0);CHKERRQ(ierr);
+  dp = 0;
+  for (j=0;j<n;j++) {dp += z[j]*z[j];}
+  ierr = PetscLogEventEnd(VEC_Norm,0,0,0,0);CHKERRQ(ierr);
+  KSPCheckNorm(ksp,dp);
+  //VecXDot(Z,R,&beta);                  /*     beta <- z'*r                      */
+  ierr = PetscLogEventBegin(VEC_Dot,0,0,0,0);CHKERRQ(ierr);
+  beta = 0;
+  for (j=0;j<n;j++) {beta += z[j]*r[j];}
+  ierr = PetscLogEventEnd(VEC_Dot,0,0,0,0);CHKERRQ(ierr);
+  VecRestoreArrayRead(Z,&z);
+  VecRestoreArrayRead(R,&r);
 
   for (i = 0; i<ksp->max_it; i++) {
     if (!i) {
@@ -127,16 +147,54 @@ static PetscErrorCode KSPSolve_FUSED(KSP ksp)
     }
     dpiold = dpi;
     KSP_MatMult(ksp,Amat,P,W);            /*     w <- Ap                          */
-    VecXDot(P,W,&dpi);                    /*     dpi <- p'w                       */
+    // VecXDot(P,W,&dpi);                    /*     dpi <- p'w                       */
+    VecGetArrayRead(P,&p);
+    VecGetArrayRead(W,&w);
+    ierr = PetscLogEventBegin(VEC_Dot,0,0,0,0);CHKERRQ(ierr);
+    dpi = 0;
+    for (j=0;j<n;j++) {dpi += p[j]*w[j];}
+    ierr = PetscLogEventEnd(VEC_Dot,0,0,0,0);CHKERRQ(ierr);
+    VecRestoreArrayRead(P,&p);
+    VecRestoreArrayRead(W,&w);
     betaold = beta;
     a = beta/dpi;                           /*     a = beta/p'w                     */
-    VecAXPY(X,a,P);                       /*     x <- x + ap                      */
-    VecAXPY(R,-a,W);                      /*     r <- r - aw                      */
-    KSP_PCApply(ksp,R,Z);               /*     z <- Br                          */
-    VecNorm(Z,NORM_2,&dp);              /*     dp <- z'*z                       */
-    VecXDot(Z,R,&beta);                 /*     beta <- z'*r                     */
+    VecAXPY(X,a,P);                         /*     x <- x + ap                      */
+    // VecAXPY(R,-a,W);                     /*     r <- r - aw                      */
+    VecGetArray(R,&rw);
+    VecGetArrayRead(W,&w);
+    ierr = PetscLogEventBegin(VEC_AXPY,0,0,0,0);CHKERRQ(ierr);
+    for (j=0;j<n;j++) {rw[j] += - a*w[j];}
+    ierr = PetscLogEventEnd(VEC_AXPY,0,0,0,0);CHKERRQ(ierr);
+    VecRestoreArray(R,&rw);
+    VecRestoreArrayRead(W,&w);
+
+    // KSP_PCApply(ksp,R,Z);               /*     z <- Br                          */
+    VecGetArrayWrite(Z,&zw);
+    VecGetArrayRead(R,&r);
+    ierr = PetscLogEventBegin(VEC_PointwiseMult,0,0,0,0);CHKERRQ(ierr);
+    for (j=0;j<n;j++) {zw[j] = d[j]*r[j];}
+    ierr = PetscLogEventEnd(VEC_PointwiseMult,0,0,0,0);CHKERRQ(ierr);
+    VecRestoreArrayWrite(Z,&zw);
+    VecRestoreArrayRead(R,&r);
+
+    VecGetArrayRead(Z,&z);
+    VecGetArrayRead(R,&r);
+    //VecNorm(Z,NORM_2,&dp);              /*    dp <- z'*z = e'*A'*B'*B*A*e       */
+    ierr = PetscLogEventBegin(VEC_Norm,0,0,0,0);CHKERRQ(ierr);
+    dp = 0;
+    for (j=0;j<n;j++) {dp += z[j]*z[j];}
+    ierr = PetscLogEventEnd(VEC_Norm,0,0,0,0);CHKERRQ(ierr);
+    KSPCheckNorm(ksp,dp);
+    //VecXDot(Z,R,&beta);                  /*     beta <- z'*r                      */
+    ierr = PetscLogEventBegin(VEC_Dot,0,0,0,0);CHKERRQ(ierr);
+    beta = 0;
+    for (j=0;j<n;j++) {beta += z[j]*r[j];}
+    ierr = PetscLogEventEnd(VEC_Dot,0,0,0,0);CHKERRQ(ierr);
+    VecRestoreArrayRead(Z,&z);
+    VecRestoreArrayRead(R,&r);
   }
   ksp->reason =  KSP_DIVERGED_ITS;
+  ierr = VecRestoreArrayRead(diag,&d);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -574,7 +632,7 @@ static PetscErrorCode  KSPCGUseSingleReduction_CG(KSP ksp,PetscBool flg)
   if (cg->singlereduction) {
     ksp->ops->solve = KSPSolve_CG_SingleReduction;
   } else {
-    ksp->ops->solve = KSPSolve_FUSED;
+    ksp->ops->solve = KSPSolve_CG;
   }
   PetscFunctionReturn(0);
 }
@@ -657,7 +715,7 @@ PETSC_EXTERN PetscErrorCode KSPCreate_CG(KSP ksp)
        (in C++ this is the same as defining virtual functions)
   */
   ksp->ops->setup          = KSPSetUp_CG;
-  ksp->ops->solve          = KSPSolve_FUSED;
+  ksp->ops->solve          = KSPSolve_UNFUSED;
   ksp->ops->destroy        = KSPDestroy_CG;
   ksp->ops->view           = KSPView_CG;
   ksp->ops->setfromoptions = KSPSetFromOptions_CG;
