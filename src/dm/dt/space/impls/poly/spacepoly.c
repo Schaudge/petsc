@@ -1,6 +1,6 @@
 #include <petsc/private/petscfeimpl.h> /*I "petscfe.h" I*/
 
-const char *const PetscSpacePolynomialTypes[] = {"P", "PMINUS_HDIV", "PMINUS_HCURL", "PetscSpacePolynomialType", "PETSCSPACE_POLYNOMIALTYPE_", NULL};
+const char *const PetscSpacePolynomialTypes[] = {"P", "PMINUS_HDIV", "PMINUS_HCURL", "WHEELER", "PetscSpacePolynomialType", "PETSCSPACE_POLYNOMIALTYPE_", NULL};
 
 static PetscErrorCode PetscSpaceSetFromOptions_Polynomial(PetscOptionItems *PetscOptionsObject,PetscSpace sp)
 {
@@ -89,7 +89,7 @@ static PetscErrorCode PetscSpaceGetDimension_Polynomial(PetscSpace sp, PetscInt 
   PetscReal        D    = 1.0;
 
   PetscFunctionBegin;
-  if ((poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HDIV) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HCURL)) --deg;
+  if ((poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HDIV) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HCURL) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_WHEELER)) --deg;
   if (poly->tensor) {
     N = 1;
     for (i = 0; i < n; ++i) N *= (deg+1);
@@ -99,7 +99,7 @@ static PetscErrorCode PetscSpaceGetDimension_Polynomial(PetscSpace sp, PetscInt 
     }
     N = (PetscInt) (D + 0.5);
   }
-  if ((poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HDIV) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HCURL)) {
+  if ((poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HDIV) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HCURL) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_WHEELER)) {
     N *= sp->Nc + 1;
   } else {
     N *= sp->Nc;
@@ -233,7 +233,7 @@ static PetscErrorCode PetscSpaceEvaluate_Polynomial(PetscSpace sp, PetscInt npoi
 
     /* B (npoints x pdim x Nc) */
     ierr = PetscArrayzero(B, npoints*pdim*Nc*Nc);CHKERRQ(ierr);
-    if ((poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HDIV) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HCURL)) topDegree--;
+    if ((poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HDIV) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_PMINUS_HCURL) || (poly->ptype == PETSCSPACE_POLYNOMIALTYPE_WHEELER)) topDegree--;
     /* Make complete space portion */
     if (poly->tensor) {
       if (poly->ptype != PETSCSPACE_POLYNOMIALTYPE_P) SETERRQ1(PetscObjectComm((PetscObject) sp), PETSC_ERR_SUP, "Tensor spaces not supported for P^- spaces (%s)", PetscSpacePolynomialTypes[poly->ptype]);
@@ -298,6 +298,41 @@ static PetscErrorCode PetscSpaceEvaluate_Polynomial(PetscSpace sp, PetscInt npoi
                 B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= sum;
                 break;
               }
+              case PETSCSPACE_POLYNOMIALTYPE_WHEELER:
+                if (dim  != 3) SETERRQ2(PetscObjectComm((PetscObject) sp), PETSC_ERR_SUP, "%s: Invalid dimension %D must be 3", PetscSpacePolynomialTypes[poly->ptype], dim);
+                if (Nc   != 3) SETERRQ2(PetscObjectComm((PetscObject) sp), PETSC_ERR_SUP, "%s: Invalid number of components %D must be 3", PetscSpacePolynomialTypes[poly->ptype], Nc);
+                if (pdim != 6) SETERRQ2(PetscObjectComm((PetscObject) sp), PETSC_ERR_SUP, "%s: Invalid dimension %D must be 3", PetscSpacePolynomialTypes[poly->ptype], dim);
+#if 1
+                switch (i) {
+                  case 0: // {2 y z, 0, 0}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? 2.*points[p]*LB[(1*dim + 2)*npoints + p] : 0.0;break;
+                  case 1: // {0, 2 x z, 0}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 1 ? 2.*LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 2)*npoints + p] : 0.0;break;
+                  case 2: // {0, 2 y z, -z^2}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 1 ? 2.*LB[(1*dim + 1)*npoints + p]*LB[(1*dim + 2)*npoints + p] : (c == 2 ? -LB[(2*dim + 2)*npoints + p] : 0.0);break;
+                  case 3: // {2 x z, 0, -z^2}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? 2.*LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 2)*npoints + p] : (c == 2 ? -LB[(2*dim + 2)*npoints + p] : 0.0);break;
+                  case 4: // {x^2, x y, -3 x z}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? LB[(2*dim + 0)*npoints + p] : (c == 1 ? LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 1)*npoints + p] : -3.*LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 1)*npoints + p]);break;
+                  case 5: // {x y, y^2, -3 y z}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 1)*npoints + p] : (c == 1 ? LB[(2*dim + 1)*npoints + p] : -3.*LB[(1*dim + 1)*npoints + p]*LB[(1*dim + 2)*npoints + p]);break;
+                }
+#else
+                switch (i) {
+                  case 0: // {2 y z, 0, 0}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? 2.*LB[(1*dim + 1)*npoints + p]*LB[(1*dim + 2)*npoints + p] : 0.0;break;
+                  case 1: // {0, 2 x z, 0}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 1 ? 2.*LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 2)*npoints + p] : 0.0;break;
+                  case 2: // {0, 2 y z, -z^2}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 1 ? 2.*LB[(1*dim + 1)*npoints + p]*LB[(1*dim + 2)*npoints + p] : (c == 2 ? -LB[(2*dim + 2)*npoints + p] : 0.0);break;
+                  case 3: // {2 x z, 0, -z^2}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? 2.*LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 2)*npoints + p] : (c == 2 ? -LB[(2*dim + 2)*npoints + p] : 0.0);break;
+                  case 4: // {x^2, x y, -3 x z}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? LB[(2*dim + 0)*npoints + p] : (c == 1 ? LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 1)*npoints + p] : -3.*LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 1)*npoints + p]);break;
+                  case 5: // {x y, y^2, -3 y z}
+                    B[(p*pdim*Nc + i*Nc + c)*Nc + c] *= c == 0 ? LB[(1*dim + 0)*npoints + p]*LB[(1*dim + 1)*npoints + p] : (c == 1 ? LB[(2*dim + 1)*npoints + p] : -3.*LB[(1*dim + 1)*npoints + p]*LB[(1*dim + 2)*npoints + p]);break;
+                }
+#endif
               default: SETERRQ1(PetscObjectComm((PetscObject) sp), PETSC_ERR_SUP, "Invalid polynomial type %s", PetscSpacePolynomialTypes[poly->ptype]);
               }
             }
