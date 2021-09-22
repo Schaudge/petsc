@@ -20,7 +20,6 @@ typedef struct {
   PetscReal   g;             /* Gravitational force per unit mass */
   PetscReal   u_0;           /* Inlet velocity */
   PetscReal   h_0;           /* Inlet radius */
-  PetscReal   length;        /* Drop length */
   PetscReal   cellsize;      /* Cellsize */
   PetscReal   fs;            /* Shear force (N/m^2) */
   PetscBool   Bool;          /* corrector step */
@@ -31,6 +30,7 @@ typedef struct {
   PetscBag  bag;    /* Holds problem parameters */
   PetscReal V_old;  /* Starting drop volume */
   PetscReal V_t;    /* Target drop volume */
+  PetscReal l;      /* Droplet length */
   PetscReal dl_dt;  /* Droplet length time derivative OR bottom velocity */
   PetscInt  bd_in;  /* BC number for inlet condition */
   PetscInt  bd_end; /* BC number for droplet bottom condition */
@@ -45,7 +45,7 @@ static PetscErrorCode Initial_h(PetscInt Dim, PetscReal time, const PetscReal x[
   ierr = PetscBagGetData(user->bag, (void **) &param);CHKERRQ(ierr);
 
   PetscScalar h_0 = param->h_0;
- 	PetscScalar l_0 = param->length;
+ 	PetscScalar l_0 = user->l;
   /* Make sure to change the initial volume and length according to the initial curvature */
 
   // u[0] = PetscCbrtReal(h_0*h_0*h_0 - x[0]*x[0]*x[0]); /* cubic curve */
@@ -68,7 +68,7 @@ static PetscErrorCode Initial_s(PetscInt Dim, PetscReal time, const PetscReal x[
   ierr = PetscBagGetData(user->bag, (void **) &param);CHKERRQ(ierr);
 
   PetscScalar h_0 = param->h_0;
- 	PetscScalar l_0 = param->length;
+ 	PetscScalar l_0 = user->l;
   // u[0] = -(x[0]*x[0])/(PetscCbrtReal((h_0*h_0*h_0 - x[0]*x[0]*x[0])*(h_0*h_0*h_0 - x[0]*x[0]*x[0]))); /* cubic curve derivative */
   u[0] = -h_0*x[0]/(l_0*PetscSqrtReal(l_0*l_0 - x[0]*x[0])); /* hemi ellipse curve derivative */
   return 0;
@@ -474,6 +474,23 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
+{
+  Vec            coordinates;
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = DMCreate(comm, dm);CHKERRQ(ierr);
+  ierr = DMSetType(*dm, DMPLEX);CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+
+  ierr = DMGetCoordinates(*dm, &coordinates);CHKERRQ(ierr);
+  ierr = VecMax(coordinates, NULL, &user->l);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode SetupParameters(PetscBag bag, AppCtx *user)
 {
   Parameter     *param;
@@ -482,36 +499,22 @@ static PetscErrorCode SetupParameters(PetscBag bag, AppCtx *user)
   PetscFunctionBeginUser;
   ierr = PetscBagGetData(bag, (void **) &param);CHKERRQ(ierr);
   ierr = PetscBagSetName(bag, "par", "Droplet parameters");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->nu,    1.0e-6,  "nu",    "Kinematic viscosity(m^2/sec)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->rho,   997.0,   "rho",   "Fluid density(kg/m^3)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->gamma, 0.0728,  "gamma", "Coefficient of surface tension(kg/sec^2)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->g,     9.81,    "g",     "Gravitational force per unit mass(m/sec^2)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->u_0,   1.0,          "u_0",   "Inlet velocity(m/s)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->h_0,   1.0,          "h_0",   "Inlet radius(m)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->length, param->h_0,  "length", "Length of a drop at time t");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->fs,    0.0,           "fs",   "Shear force per unit area");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->cellsize, 0.0,        "cellsize",   "Cell size");CHKERRQ(ierr);
-  ierr = PetscBagRegisterBool(bag, &param->Bool, PETSC_TRUE,     "Correction",   "Correction step");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->factor, 1.0,           "factor",   "New length to initial length ratio");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->nu,    1.0e-6,    "nu",         "Kinematic viscosity(m^2/sec)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->rho,   997.0,     "rho",        "Fluid density(kg/m^3)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->gamma, 0.0728,    "gamma",      "Coefficient of surface tension(kg/sec^2)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->g,     9.81,      "g",          "Gravitational force per unit mass(m/sec^2)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->u_0,   1.0,       "u_0",        "Inlet velocity(m/s)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->h_0,   user->l,   "h_0",        "Inlet radius(m)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->fs,    0.0,       "fs",         "Shear force per unit area");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->cellsize, 0.0,    "cellsize",   "Cell size");CHKERRQ(ierr);
+  ierr = PetscBagRegisterBool(bag, &param->Bool, PETSC_TRUE, "Correction", "Correction step");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->factor, 1.0,      "factor",     "New length to initial length ratio");CHKERRQ(ierr);
   // ierr = PetscBagRegisterReal(bag, &param->V_old, 4*PETSC_PI*PETSC_PI*(param->h_0)*(param->h_0)*(param->h_0)/(9*PetscSqrtReal(3)),    "V_old",   "Initial cubic drop volume");CHKERRQ(ierr);
   ierr = PetscBagSetFromOptions(bag);CHKERRQ(ierr);
 
+  if (user->l != param->h_0) SETERRQ(PetscObjectComm((PetscObject) bag), PETSC_ERR_SUP, "Only support hemispherical initial configurations");
   /* Assuming a hemisphere */
-  user->V_old = 0.5 * (4.*PETSC_PI/3.) * PetscSqr(param->h_0)*(param->length);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
-{
-  Parameter     *param;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscBagGetData(user->bag, (void **) &param);CHKERRQ(ierr);
-  ierr = DMPlexCreateBoxMesh(comm, 1, PETSC_FALSE, NULL, NULL, &param->length, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+  user->V_old = 0.5 * (4.*PETSC_PI/3.) * PetscSqr(param->h_0)*(user->l);
   PetscFunctionReturn(0);
 }
 
@@ -886,7 +889,7 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
 /* Check if new volume is close to the target volume. */
   if (PetscAbsReal(rerr) <= rtol) {
     *accept = PETSC_TRUE;
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "V_target = %g  V_new = %g  V_lost = %g%%  tip velocity = %2.10f  Predicted length = %2.10f\n\n", user->V_t, Vnew, rerr*100., user->dl_dt, param->length);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "V_target = %g  V_new = %g  V_lost = %g%%  tip velocity = %2.10f  Predicted length = %2.10f\n\n", user->V_t, Vnew, rerr*100., user->dl_dt, user->l);CHKERRQ(ierr);
   } else {
     *accept = PETSC_FALSE;
 
@@ -894,15 +897,14 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
     Vec              U, coordinates;
     PetscErrorCode (*feFuncs[3])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx);
     void            *fectxs[3];
-    //PetscPointFunc   funcs[3] = {id_v, id_r, id_s};
+    PetscPointFunc   funcs[3] = {id_v, id_r, id_s};
     PetscScalar      stretch; /* Factor by which we increase the length */
 
     /* Correct the length and boundary condition. Then scale and project again using corrected length */
-    stretch        = user->V_t / Vnew;
-    //stretch        = stretch > 1 ? 0.98*stretch : 1.02*stretch;
-    user->dl_dt    = (stretch - 1.0) * param->length / dt;
-    param->length *= stretch;
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "\nCORRECTION due to V_lost = %g%% (V_target = %g  V_new = %g)  update factor = %g  Corrected length = %2.10f\n\n", rerr*100., user->V_t, Vnew, stretch, param->length);CHKERRQ(ierr);
+    stretch      = user->V_t / Vnew;
+    user->dl_dt  = (stretch - 1.0) * user->l / dt;
+    user->l     *= stretch;
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\nCORRECTION due to V_lost = %g%% (V_target = %g  V_new = %g)  update factor = %g  Corrected length = %2.10f\n\n", rerr*100., user->V_t, Vnew, stretch, user->l);CHKERRQ(ierr);
 
     ierr = DMGetCoordinates(dm, &coordinates);CHKERRQ(ierr);
     ierr = DMClone(dm, &dmNew);CHKERRQ(ierr);
@@ -912,7 +914,7 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
     ierr = PetscObjectSetName((PetscObject) dmNew, "Stretched Mesh");CHKERRQ(ierr);
     ierr = DMCreateGlobalVector(dmNew, &U);CHKERRQ(ierr);
 
-#if 1
+#if 0
     feFuncs[0] = FieldFunction_u;
     feFuncs[1] = FieldFunction_h;
     feFuncs[2] = FieldFunction_s;
@@ -968,11 +970,11 @@ static PetscErrorCode PreStep(TS ts)
   ierr = VecRestoreArray(coordinates, &z);CHKERRQ(ierr);
 
   Flow_in = PETSC_PI*PetscSqr(param->h_0)*param->u_0*dt;
-  user->V_t      = user->V_old + Flow_in;
-  stretch        = user->V_t / user->V_old;
-  user->dl_dt    = (stretch - 1.0) * param->length / dt;
-  param->length *= stretch;
-  user->V_old    = user->V_t;
+  user->V_t   = user->V_old + Flow_in;
+  stretch     = user->V_t / user->V_old;
+  user->dl_dt = (stretch - 1.0) * user->l / dt;
+  user->l    *= stretch;
+  user->V_old = user->V_t;
   {
     const PetscScalar *Consts;
     PetscInt          NC;
@@ -980,7 +982,7 @@ static PetscErrorCode PreStep(TS ts)
     ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
     ierr = PetscDSGetConstants(prob, &NC, &Consts);CHKERRQ(ierr);
     PetscScalar       *c = (PetscScalar*) Consts;
-    param->cellsize = param->length/(N-1);
+    param->cellsize = user->l/(N-1);
     *(c+7) = param->cellsize;
     /*
     For low viscosity fluid, set the viscosity to higher value and gradually reduce it.
@@ -999,7 +1001,7 @@ static PetscErrorCode PreStep(TS ts)
     }
 
     ierr = PetscDSSetConstants(prob, NC, c);CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD, "N = %d \t nu = %g \t Inlet Velocity = %g \t update factor = %g \t Predicted length = %g \n", N, *(c+0), *(c+5), stretch, param->length);
+    PetscPrintf(PETSC_COMM_WORLD, "N = %d \t nu = %g \t Inlet Velocity = %g \t update factor = %g \t Predicted length = %g \n", N, *(c+0), *(c+5), stretch, user->l);
   }
 
   ierr = DMClone(dm, &dmNew);CHKERRQ(ierr);
@@ -1067,10 +1069,10 @@ int main(int argc, char **argv)
 
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
+  ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
   ierr = PetscBagCreate(PETSC_COMM_WORLD, sizeof(Parameter), &user.bag);CHKERRQ(ierr);
   ierr = SetupParameters(user.bag, &user);CHKERRQ(ierr);
   ierr = TSCreate(PETSC_COMM_WORLD, &ts);CHKERRQ(ierr);
-  ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
   ierr = TSSetDM(ts, dm);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &user);CHKERRQ(ierr);
   /* Setup problem */
@@ -1115,8 +1117,8 @@ int main(int argc, char **argv)
   # Paraffin wax
   test:
     suffix: paraffin_0
-    args: -h_0 0.0026 -u_0 0.005 -nu 0.000032 -rho 700 -gamma 0.03025 \
-          -dm_plex_box_faces 100 -dm_plex_separate_marker \
+    args: -u_0 0.005 -nu 0.000032 -rho 700 -gamma 0.03025 \
+          -dm_plex_dim 1 -dm_plex_box_faces 100 -dm_plex_box_upper 0.0026 -dm_plex_separate_marker \
           -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
           -ts_max_steps 10 -ts_dt 1e-4 -ts_type beuler -ts_max_reject 20 -ts_monitor \
             -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
