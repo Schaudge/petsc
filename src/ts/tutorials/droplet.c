@@ -914,7 +914,7 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
     ierr = PetscObjectSetName((PetscObject) dmNew, "Stretched Mesh");CHKERRQ(ierr);
     ierr = DMCreateGlobalVector(dmNew, &U);CHKERRQ(ierr);
 
-#if 0
+#if 1
     feFuncs[0] = FieldFunction_u;
     feFuncs[1] = FieldFunction_h;
     feFuncs[2] = FieldFunction_s;
