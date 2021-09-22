@@ -27,7 +27,6 @@ typedef struct {
   PetscReal   cellsize;      /* Cellsize */
   PetscReal   fs;            /* Shear force (N/m^2) */
   PetscBool   Bool;          /* corrector step */
-  PetscScalar update_factor; /* Factor by which we update the length */
   PetscScalar factor;        /* L_t to L_0 ratio */
 } Parameter;
 
@@ -181,6 +180,34 @@ static PetscReal curvature1_q(PetscReal s, PetscReal sx)
   PetscReal curve = (sx/(PetscSqrtReal(PetscPowReal(a,3))));
 
   return curve;
+}
+static void id_v(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
+  f0[0] = u[0];
+}
+static void id_r(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
+  f0[0] = u[1];
+}
+static void id_s(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                 PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
+  f0[0] = u[2];
+}
+static void volume(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                   const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                   const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                   PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
+  f0[0] = PETSC_PI * PetscSqr(u[1]);
 }
 /*
 Residual functions.
@@ -473,7 +500,6 @@ static PetscErrorCode SetupParameters(PetscBag bag, AppCtx *user)
   ierr = PetscBagRegisterReal(bag, &param->fs,    0.0,           "fs",   "Shear force per unit area");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->cellsize, 0.0,        "cellsize",   "Cell size");CHKERRQ(ierr);
   ierr = PetscBagRegisterBool(bag, &param->Bool, PETSC_TRUE,     "Correction",   "Correction step");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->update_factor, 0.0,    "update_factor",   "New length to previous length ratio");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->factor, 1.0,           "factor",   "New length to initial length ratio");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->V_old, 2*PETSC_PI*(param->h_0)*(param->h_0)*(param->length)/3,    "V_old",   "Initial elliptic drop volume");CHKERRQ(ierr);
   // ierr = PetscBagRegisterReal(bag, &param->V_old, 4*PETSC_PI*PETSC_PI*(param->h_0)*(param->h_0)*(param->h_0)/(9*PetscSqrtReal(3)),    "V_old",   "Initial cubic drop volume");CHKERRQ(ierr);
@@ -838,114 +864,79 @@ static PetscErrorCode FieldFunction_s(PetscInt dim, PetscReal time, const PetscR
 
 static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, PetscInt *next_sc, PetscReal *next_h, PetscBool *accept, PetscReal *wlte, PetscReal *wltea, PetscReal *wlter)
 {
-  DM                dm;
-  PetscReal         time, dt;
-  PetscScalar       V_new=0.0, V_lost, e=0.10;
-  AppCtx            *user;
-  Parameter         *param;
-  Vec               u;
-  PetscDS           prob;
-  DMLabel           label;
-  const PetscInt    id=2;
-  PetscErrorCode    ierr;
+  DM             dm;
+  AppCtx        *user;
+  Parameter     *param;
+  Vec            u;
+  PetscDS        ds;
+  DMLabel        label;
+  const PetscInt id = 2;
+  PetscReal      time, dt;
+  PetscScalar    integral[3], Vnew, rerr, rtol = 1.e-3;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-
   ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
   ierr = TSGetTime(ts, &time);CHKERRQ(ierr);
   ierr = TSGetTimeStep(ts, &dt);CHKERRQ(ierr);
   ierr = DMGetApplicationContext(dm, &user);CHKERRQ(ierr);
   ierr = PetscBagGetData(user->bag, (void **) &param);CHKERRQ(ierr);
   ierr = TSGetSolution(ts, &u);CHKERRQ(ierr);
-  /*** Calculate Volume ****/
-  {
-    Vec                locX;
-    PetscFE            fe;
-    PetscQuadrature    q;
-    PetscInt           cStart, cEnd, c, nq, feDim;
-    PetscScalar        *coeff=NULL;
-    const PetscReal    *points_w;
-    PetscDS            ds;
-    PetscErrorCode     ierr;
+  /* Calculate Volume */
+  ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
+  ierr = PetscDSSetObjective(ds, 1, volume);CHKERRQ(ierr);
+  ierr = DMPlexComputeIntegralFEM(dm, u, integral, user);CHKERRQ(ierr);
+  Vnew = integral[1];
 
-    ierr = DMCreateLocalVector(dm, &locX);CHKERRQ(ierr);
-    ierr = DMGlobalToLocal(dm, u, INSERT_VALUES, locX);CHKERRQ(ierr);
-    ierr = DMPlexInsertBoundaryValues(dm, PETSC_TRUE, locX, time, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
-    ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
-    ierr = PetscDSGetDiscretization(ds, 1, (PetscObject *) &fe);CHKERRQ(ierr);
-    ierr = PetscFEGetDimension(fe, &feDim);CHKERRQ(ierr);
-    ierr = PetscFEGetQuadrature(fe, &q);CHKERRQ(ierr);
-    ierr = PetscQuadratureGetData(q, NULL, NULL, &nq, NULL, &points_w);CHKERRQ(ierr);
-
-    for(c=cStart; c<cEnd; c++)
-    {
-      PetscInt    i, Ncl;
-      PetscReal   *detJ;
-      PetscScalar Vol=0.0;
-
-      ierr = PetscMalloc1(sizeof(PetscReal), &detJ);CHKERRQ(ierr);
-      ierr = DMPlexComputeCellGeometryFEM(dm, c, q, NULL, NULL, NULL, detJ);CHKERRQ(ierr);
-      ierr = DMPlexVecGetClosure(dm, NULL, locX, c, &Ncl, &coeff);CHKERRQ(ierr);
-      for(i=0; i<nq; i++){
-        Vol += points_w[i]*PETSC_PI*(coeff[(Ncl-(2*feDim)+1)+i]*coeff[(Ncl-(2*feDim)+1)+i]);
-      }
-      ierr = DMPlexVecRestoreClosure(dm, NULL, locX, c, &Ncl, &coeff);CHKERRQ(ierr);
-      V_new += Vol*(*detJ);
-      ierr = PetscFree(detJ);CHKERRQ(ierr);
-    }
-    ierr = VecDestroy(&locX);
-  }
-  /********************************************************/
-
-  V_lost = 100*(param->V_t - V_new)/param->V_t;
+  rerr = (param->V_t - Vnew)/param->V_t;
   ierr = DMGetLabel(dm, "marker", &label);CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
 
 /* Check if new volume is close to the tagret volume. */
-  if((PetscAbsReal(V_lost)<=e)) {
-    *accept  = PETSC_TRUE;
+  if (PetscAbsReal(rerr) <= rtol) {
+    *accept = PETSC_TRUE;
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "V_target = %g  V_new = %g  V_lost = %g%%  tip velocity = %2.10f  Predicted length = %2.10f\n\n", param->V_t, Vnew, rerr*100., param->dl_dt, param->length);CHKERRQ(ierr);
+  } else {
+    *accept = PETSC_FALSE;
 
-    ierr = PetscDSUpdateBoundary(prob, user->bd_end, DM_BC_ESSENTIAL, "Bottom velocity",  label, 1, &id, 0, 0, NULL, (void (*)(void)) Bottom_u, (void (*)(void)) Bottom_u_t, user);CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD, "V_target = %g \t V_new = %g \t Volume_lost = %g %% \t tip velocity = %2.10f  \t Predicted length = %2.10f\n \n", param->V_t, V_new, V_lost, param->dl_dt, param->length );
-  }
-  else {
-    *accept  = PETSC_FALSE;
+    DM               dmNew;
+    Vec              U, coordinates;
+    PetscErrorCode (*feFuncs[3])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx);
+    void            *fectxs[3];
+    PetscPointFunc   funcs[3] = {id_v, id_r, id_s};
+    PetscScalar      update_factor; /* Factor by which we increase the length */
 
-    DM                dmNew;
-    Vec               U, coordinates;
-    PetscErrorCode    (*feFuncs[3])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx);
-    void              *fectxs[3];
-
-
-  /* Correct the length and boundary condition. Then scale and project again using corrected length */
-    param->update_factor = (param->V_t/(V_new));
-    param->length = param->length*(param->update_factor);
-    param->dl_dt = (param->length - param->h_0)/(time + dt);
-    PetscPrintf(PETSC_COMM_WORLD, "\n CORRECTION because of Volume_lost = %g  %% (V_target = %g \t V_new = %g) \n update factor = %g \t Corrected length = %2.10f\n\n", V_lost, param->V_t, V_new, param->update_factor, param->length);
-
-    ierr = PetscDSUpdateBoundary(prob, user->bd_end, DM_BC_ESSENTIAL, "Bottom velocity",  label, 1, &id, 0, 0, NULL, (void (*)(void)) Bottom_u, (void (*)(void)) Bottom_u_t, user);CHKERRQ(ierr);
+    /* Correct the length and boundary condition. Then scale and project again using corrected length */
+    update_factor  = param->V_t / Vnew;
+    param->length *= update_factor;
+    /* TODO: This is a bad estimate of this derivative */
+    param->dl_dt   = (param->length - param->h_0)/(time + dt);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\nCORRECTION due to V_lost = %g%% (V_target = %g  V_new = %g)  update factor = %g  Corrected length = %2.10f\n\n", rerr*100., param->V_t, Vnew, update_factor, param->length);CHKERRQ(ierr);
 
     ierr = DMGetCoordinates(dm, &coordinates);CHKERRQ(ierr);
-
     ierr = DMClone(dm, &dmNew);CHKERRQ(ierr);
     ierr = DMCopyDisc(dm, dmNew);CHKERRQ(ierr);
-    ierr = VecScale(coordinates,param->update_factor);CHKERRQ(ierr);
+    ierr = VecScale(coordinates, update_factor);CHKERRQ(ierr);
     ierr = DMSetCoordinates(dmNew, coordinates);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) dmNew, "New Mesh");CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) dmNew, "Stretched Mesh");CHKERRQ(ierr);
+    ierr = DMCreateGlobalVector(dmNew, &U);CHKERRQ(ierr);
 
+#if 1
     feFuncs[0] = FieldFunction_u;
     feFuncs[1] = FieldFunction_h;
     feFuncs[2] = FieldFunction_s;
     fectxs[0]  = (void *) u;
     fectxs[1]  = (void *) u;
     fectxs[2]  = (void *) u;
-    ierr = DMCreateGlobalVector(dmNew, &U);CHKERRQ(ierr);
     ierr = DMProjectFunction(dmNew, time, feFuncs, fectxs, INSERT_ALL_VALUES, U);CHKERRQ(ierr);
-    ierr = DMDestroy(&dm);CHKERRQ(ierr);
+#else
+    // TODO the problem here is that it will fail the enclosing query, and we will need to point locate all the dual quad points
+    ierr = DMProjectFieldLocal(dmNew, time, u, funcs, INSERT_ALL_VALUES, U);CHKERRQ(ierr);
+#endif
 
     ierr = TSSetDM(ts, dmNew);CHKERRQ(ierr);
     ierr = TSSetSolution(ts, U);
+    ierr = VecDestroy(&U);CHKERRQ(ierr);
+    ierr = DMDestroy(&dm);CHKERRQ(ierr);
   }
 
   *next_h  = h;  /* Reuse the same time step */
@@ -966,6 +957,7 @@ static PetscErrorCode PreStep(TS ts)
   PetscInt       stepi, N;
   Vec            u, coordinates, U;
   PetscScalar   *z, endpoint;
+  PetscScalar    update_factor; /* Factor by which we update the length */
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -983,12 +975,12 @@ static PetscErrorCode PreStep(TS ts)
   endpoint = z[N-1];
   ierr = VecRestoreArray(coordinates, &z);CHKERRQ(ierr);
 
-  Flow_in = PETSC_PI*param->h_0*param->h_0*param->u_0*dt;
+  Flow_in = PETSC_PI*PetscSqr(param->h_0)*param->u_0*dt;
   param->V_t = param->V_old + Flow_in;
-  param->update_factor = (param->V_t/param->V_old);
-  param->length = param->length*(param->update_factor);
-  param->dl_dt = (param->length - param->h_0)/(time + dt);
-  param->V_old = param->V_t;
+  update_factor  = (param->V_t/param->V_old);
+  param->length *= update_factor;
+  param->dl_dt   = (param->length - param->h_0)/(time + dt);
+  param->V_old   = param->V_t;
   {
     const PetscScalar *Consts;
     PetscInt          NC;
@@ -1015,13 +1007,13 @@ static PetscErrorCode PreStep(TS ts)
     }
 
     ierr = PetscDSSetConstants(prob, NC, c);CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD, "N = %d \t nu = %g \t Inlet Velocity = %g \t update factor = %g \t Predicted length = %g \n", N, *(c+0), *(c+5), param->update_factor, param->length);
+    PetscPrintf(PETSC_COMM_WORLD, "N = %d \t nu = %g \t Inlet Velocity = %g \t update factor = %g \t Predicted length = %g \n", N, *(c+0), *(c+5), update_factor, param->length);
   }
 
   ierr = DMClone(dm, &dmNew);CHKERRQ(ierr);
   ierr = DMCopyDisc(dm, dmNew);CHKERRQ(ierr);
 
-  ierr = VecScale(coordinates,param->update_factor);CHKERRQ(ierr);
+  ierr = VecScale(coordinates, update_factor);CHKERRQ(ierr);
   ierr = DMSetCoordinates(dmNew, coordinates);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) dmNew, "New Mesh");CHKERRQ(ierr);
 
@@ -1085,7 +1077,7 @@ int main(int argc, char **argv)
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
   ierr = PetscBagCreate(PETSC_COMM_WORLD, sizeof(Parameter), &user.bag);CHKERRQ(ierr);
-  ierr = SetupParameters(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
+  ierr = SetupParameters(user.bag, &user);CHKERRQ(ierr);
   ierr = TSCreate(PETSC_COMM_WORLD, &ts);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
   ierr = TSSetDM(ts, dm);CHKERRQ(ierr);
@@ -1118,11 +1110,8 @@ int main(int argc, char **argv)
   ierr = TSSetSolution(ts, u);CHKERRQ(ierr);
   ierr = TSSolve(ts, NULL);CHKERRQ(ierr);
   ierr = DMTSCheckFromOptions(ts, u);CHKERRQ(ierr);
-  {
-    DM  Dm;
-    ierr = TSGetDM(ts, &Dm);CHKERRQ(ierr);
-    ierr = DMDestroy(&Dm);CHKERRQ(ierr);
-  }
+  ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
+  ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = PetscBagDestroy(&user.bag);CHKERRQ(ierr);
@@ -1130,15 +1119,16 @@ int main(int argc, char **argv)
   return ierr;
 }
 
-/* TEST
+/*TEST
 
-test1: Paraffin wax
-  args: -h_0 0.0026 -u_0 0.005 -nu 0.000032 -rho 700 -gamma 0.03025 \
-  -dm_plex_box_faces 100 -dm_plex_separate_marker \
-  -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
-  -ts_max_steps 10 -ts_dt 1e-4 \
-  -ts_type beuler -ts_monitor \
-  -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
-  -ksp_gmres_restart 500 -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual \
-  -pc_type lu
-*/
+  # Paraffin wax
+  test:
+    suffix: paraffin_0
+    args: -h_0 0.0026 -u_0 0.005 -nu 0.000032 -rho 700 -gamma 0.03025 \
+          -dm_plex_box_faces 100 -dm_plex_separate_marker \
+          -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
+          -ts_max_steps 10 -ts_dt 1e-4 -ts_type beuler -ts_monitor \
+            -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
+              -ksp_gmres_restart 500 -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual \
+              -pc_type lu
+TEST*/
