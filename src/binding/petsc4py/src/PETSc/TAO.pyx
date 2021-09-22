@@ -349,6 +349,12 @@ cdef class TAO(Object):
 
     #
 
+    def setMaximumIterations(self, maxits):
+        """
+        """
+        cdef PetscInt _maxits=asInt(maxits)
+        CHKERR( TaoSetMaximumIterations(self.tao, _maxits))
+
     def setTolerances(self, gatol=None, grtol=None, gttol=None):
         """
         """
