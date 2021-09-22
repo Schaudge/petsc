@@ -1466,13 +1466,16 @@ int main(int argc, char **argv)
   return ierr;
 }
 
-/* TEST
-
-test1: Water-Glycerol (25-75)
-  args: -h_0 0.0026 -u_0 0.01 -nu 0.00005 -rho 1205 -gamma 0.0675 -cells 50 -dm_plex_separate_marker -ts_max_steps 5 -ts_dt 1e-4 \
-  -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 -ts_fd_color  -dm_ds_jet_degree 2 \
-  -ts_type beuler -pc_type lu -snes_monitor -ts_monitor -ksp_gmres_restart 500 \
-  -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual -snes_converged_reason -snes_max_funcs 1000000
+/*TEST
+  # Water-Glycerol (25-75)
+  test:
+    suffix: water_glycerol_0
+    args: -h_0 0.0026 -u_0 0.01 -nu 0.00005 -rho 1205 -gamma 0.0675 -cells 50 -dm_plex_separate_marker -ts_max_steps 5 -ts_dt 1e-4 \
+      -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 -dm_ds_jet_degree 2 \
+      -ts_type beuler -ts_fd_color -ts_monitor \
+      -snes_converged_reason -snes_max_funcs 1000000 -snes_monitor \
+      -ksp_gmres_restart 500 -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual \
+      -pc_type lu
 
   ################ Properties to use ###############
   #### Water:
@@ -1487,5 +1490,4 @@ test1: Water-Glycerol (25-75)
   # rho = 1250
   # nu = 0.0005
   # gamma = 0.065
-
-*/
+TEST*/
