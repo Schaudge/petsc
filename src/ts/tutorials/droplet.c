@@ -863,7 +863,6 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
   Vec            u;
   PetscDS        ds;
   DMLabel        label;
-  const PetscInt id = 2;
   PetscReal      time, dt;
   PetscScalar    integral[3], Vnew, rerr, rtol = 1.e-3;
   PetscErrorCode ierr;
@@ -895,11 +894,12 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
     Vec              U, coordinates;
     PetscErrorCode (*feFuncs[3])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx);
     void            *fectxs[3];
-    PetscPointFunc   funcs[3] = {id_v, id_r, id_s};
+    //PetscPointFunc   funcs[3] = {id_v, id_r, id_s};
     PetscScalar      stretch; /* Factor by which we increase the length */
 
     /* Correct the length and boundary condition. Then scale and project again using corrected length */
     stretch        = user->V_t / Vnew;
+    //stretch        = stretch > 1 ? 0.98*stretch : 1.02*stretch;
     user->dl_dt    = (stretch - 1.0) * param->length / dt;
     param->length *= stretch;
     ierr = PetscPrintf(PETSC_COMM_WORLD, "\nCORRECTION due to V_lost = %g%% (V_target = %g  V_new = %g)  update factor = %g  Corrected length = %2.10f\n\n", rerr*100., user->V_t, Vnew, stretch, param->length);CHKERRQ(ierr);
@@ -1118,7 +1118,7 @@ int main(int argc, char **argv)
     args: -h_0 0.0026 -u_0 0.005 -nu 0.000032 -rho 700 -gamma 0.03025 \
           -dm_plex_box_faces 100 -dm_plex_separate_marker \
           -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
-          -ts_max_steps 10 -ts_dt 1e-4 -ts_type beuler -ts_monitor \
+          -ts_max_steps 10 -ts_dt 1e-4 -ts_type beuler -ts_max_reject 20 -ts_monitor \
             -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
               -ksp_gmres_restart 500 -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual \
               -pc_type lu
