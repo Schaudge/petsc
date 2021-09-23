@@ -22,19 +22,22 @@ class TAOtorch(torch.optim.Optimizer):
         eps (float, optional): RMS zero safeguard (default: 1e-8)
     """
 
-    def __init__(self, params, tao=None, adaptive='amsgrad', rho=0.9, eps=1e-8):
+    def __init__(self, params, tao=None, lr=1.0, adaptive='amsgrad', rho=0.9, eps=1e-8):
+        if not 0.0 < lr:
+            raise ValueError("Invalid initial learning rate: {} (need lr>0)".format(lr))
         if not 0.0 <= rho <= 1.0:
-            raise ValueError("Invalid step direction RMS decay rate: {}".format(rho))
+            raise ValueError("Invalid step direction RMS decay rate: {} (need 0<=rho<=1)".format(rho))
         if not 0.0 < eps:
-            raise ValueError("Invalid zero safeguard: {}".format(eps))
+            raise ValueError("Invalid zero safeguard: {} (need eps>0)".format(eps))
         if adaptive not in ['rmsgrad', 'amsgrad', 'norm', None]:
-            raise ValueError("Invalid adaptive LR method: {}".format(adaptive))
+            raise ValueError("Invalid adaptive LR method: {} (need 'rmsgrad', 'amsgrad', 'norm' or None)".format(adaptive))
         defaults = dict(
             paramvec=None,
             tao=None,
+            lr=lr,
+            adaptive=adaptive,
             rho=rho,
             eps=eps,
-            adaptive=adaptive,
             dir_sq_avg=None,
             dir_sq_avg_max=None)
         super(TAOtorch, self).__init__(params, defaults)
@@ -61,7 +64,6 @@ class TAOtorch(torch.optim.Optimizer):
     def _setParams(self, flatpar):
         begin = 0
         for group in self.param_groups:
-            lr = group['lr']
             for p in group['params']:
                 if p.requires_grad:
                     end = begin + len(p.view(-1))
@@ -88,13 +90,17 @@ class TAOtorch(torch.optim.Optimizer):
                     torch.maximum(dir_sq_avg_max, dir_sq_avg, out=dir_sq_avg_max)
                 else:
                     dir_sq_avg_max = dir_sq_avg
-            return 1.0/dir_sq_avg_max.add(eps).sqrt_()
+            return self.defaults['lr']/dir_sq_avg_max.add(eps).sqrt_()
         elif lr_type == 'norm':
-            return 1.0/ds.norm(2)
+            return self.defaults['lr']/ds.norm(2)
         else:
-            return 1.0
+            return self.defaults['lr']
 
-    def _evalObjGrad(self, tao, x, G):
+    def _evalObj(self, tao, x):
+        # line search is disabled so we don't need the loss function value
+        return 0.0
+
+    def _evalGrad(self, tao, x, G):
         # assume that loss.backward() has already been called before tao.step()
         # create a flattened parameter tensor that shares memory with the TAO gradient vector
         flatgrad = torch.utils.dlpack.from_dlpack(G.toDLPack())
@@ -103,7 +109,6 @@ class TAOtorch(torch.optim.Optimizer):
         # scale the gradient with RMSgrad/AMSGrad adaptive learning rate
         lr = self._computeAdaptiveLR(flatgrad)
         flatgrad.mul_(lr)
-        return flatgrad.norm(2)
 
     def _configureTAO(self, tao):
         if self.defaults['paramvec'] is not None:
@@ -111,7 +116,8 @@ class TAOtorch(torch.optim.Optimizer):
         else:
             self.defaults['paramvec'] = PETSc.Vec().createWithDLPack(torch.utils.dlpack.to_dlpack(self._getParams()))
             tao.setInitial(self.defaults['paramvec'])
-        tao.setObjectiveGradient(self._evalObjGrad)
+        tao.setObjective(self._evalObj)
+        tao.setGradient(self._evalGrad)
         tao.setMaximumIterations(1)
         tao.setTolerances(gatol=0.0, gttol=0.0, grtol=0.0)
         ls = tao.getLineSearch()
@@ -140,6 +146,7 @@ class TAOtorch(torch.optim.Optimizer):
         # trigger the tao solution (for 1 iteration) and then write it to NN parameters
         self.tao.solve()
         self._setParams(flatpar)
+        return closure
 
     def destroy(self):
         self.defaults['tao'].destroy()
