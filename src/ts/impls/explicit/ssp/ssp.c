@@ -10,7 +10,7 @@ typedef struct {
   PetscErrorCode (*onestep)(TS,PetscReal,PetscReal,Vec);
   char           *type_name;
   PetscInt       nstages;
-  Vec            *work;
+  Vec            *work,*Y; 
   PetscInt       nwork;
   PetscBool      workout;
 } TS_SSP;
@@ -58,7 +58,7 @@ M*/
 static PetscErrorCode TSSSPStep_RK_2(TS ts,PetscReal t0,PetscReal dt,Vec sol)
 {
   TS_SSP         *ssp = (TS_SSP*)ts->data;
-  Vec            *work,F;
+  Vec            *work,F,*Y=ssp->Y;
   PetscInt       i,s;
   PetscErrorCode ierr;
 
@@ -72,9 +72,12 @@ static PetscErrorCode TSSSPStep_RK_2(TS ts,PetscReal t0,PetscReal dt,Vec sol)
     ierr = TSPreStage(ts,stage_time);CHKERRQ(ierr);
     ierr = TSComputeRHSFunction(ts,stage_time,work[0],F);CHKERRQ(ierr);
     ierr = VecAXPY(work[0],dt/(s-1.),F);CHKERRQ(ierr);
+    Y[i] = work[0];
+    ierr = TSPostStage(ts,stage_time,i,Y);CHKERRQ(ierr);
   }
-  ierr = TSComputeRHSFunction(ts,t0+dt,work[0],F);CHKERRQ(ierr);
   ierr = VecAXPBYPCZ(sol,(s-1.)/s,dt/s,1./s,work[0],F);CHKERRQ(ierr);
+  Y[s-1] = sol;
+  ierr = TSPostStage(ts,t0+dt,s-1,Y);CHKERRQ(ierr);
   ierr = TSSSPRestoreWorkVectors(ts,2,&work);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -186,11 +189,13 @@ static PetscErrorCode TSSSPStep_RK_10_4(TS ts,PetscReal t0,PetscReal dt,Vec sol)
 static PetscErrorCode TSSetUp_SSP(TS ts)
 {
   PetscErrorCode ierr;
+  TS_SSP         *ssp = (TS_SSP*)ts->data;
 
   PetscFunctionBegin;
   ierr = TSCheckImplicitTerm(ts);CHKERRQ(ierr);
   ierr = TSGetAdapt(ts,&ts->adapt);CHKERRQ(ierr);
   ierr = TSAdaptCandidatesClear(ts->adapt);CHKERRQ(ierr);
+  ierr = PetscMalloc1(ssp->nstages,&ssp->Y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -204,7 +209,6 @@ static PetscErrorCode TSStep_SSP(TS ts)
 
   PetscFunctionBegin;
   ierr = (*ssp->onestep)(ts,ts->ptime,ts->time_step,sol);CHKERRQ(ierr);
-  ierr = TSPostStage(ts,ts->ptime,0,&sol);CHKERRQ(ierr);
   ierr = TSAdaptCheckStage(ts->adapt,ts,ts->ptime+ts->time_step,sol,&stageok);CHKERRQ(ierr);
   if (!stageok) {ts->reason = TS_DIVERGED_STEP_REJECTED; PetscFunctionReturn(0);}
 
@@ -236,6 +240,7 @@ static PetscErrorCode TSDestroy_SSP(TS ts)
 
   PetscFunctionBegin;
   ierr = TSReset_SSP(ts);CHKERRQ(ierr);
+  ierr = PetscFree(ssp->Y);CHKERRQ(ierr);
   ierr = PetscFree(ssp->type_name);CHKERRQ(ierr);
   ierr = PetscFree(ts->data);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)ts,"TSSSPGetType_C",NULL);CHKERRQ(ierr);

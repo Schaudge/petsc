@@ -19,7 +19,7 @@ static PetscErrorCode TSStep_Euler(TS ts)
   ierr = TSPreStage(ts,ts->ptime);CHKERRQ(ierr);
   ierr = TSComputeRHSFunction(ts,ts->ptime,solution,update);CHKERRQ(ierr);
   ierr = VecAYPX(update,ts->time_step,solution);CHKERRQ(ierr);
-  ierr = TSPostStage(ts,ts->ptime,0,&solution);CHKERRQ(ierr);
+  ierr = TSPostStage(ts,ts->ptime,0,&update);CHKERRQ(ierr);
   ierr = TSAdaptCheckStage(ts->adapt,ts,ts->ptime,solution,&stageok);CHKERRQ(ierr);
   if (!stageok) {ts->reason = TS_DIVERGED_STEP_REJECTED; PetscFunctionReturn(0);}
   ierr = TSFunctionDomainError(ts,ts->ptime+ts->time_step,update,&stageok);CHKERRQ(ierr);
