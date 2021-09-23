@@ -130,10 +130,9 @@ struct _p_DGNetwork
   PetscReal       jumptol;
   PetscReal       *cjmpLR; 
 
-
   /* Local work arrays for numerical flux */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
-  PetscScalar *uLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
+  PetscScalar *uLR,*cuLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
   PetscScalar *flux;            /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *uPlus;           /* Solution at the left of the interface in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
@@ -266,4 +265,5 @@ extern PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis,Vec)
 
 extern PetscErrorCode TVDLimit_1D(DGNetwork,const PetscScalar*,const PetscScalar*,const PetscScalar*, PetscScalar*, PetscScalar*, PetscReal*, PetscSection, PetscInt);
 extern PetscErrorCode Limit_1D_onesided(DGNetwork,const PetscScalar*,const PetscScalar*, PetscReal*, PetscSection, PetscInt,PetscReal);
-extern PetscErrorCode DGNetRHS_limiter(TS,PetscReal,Vec,Vec,void*);
+
+extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);

@@ -282,7 +282,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
 
   /* Allocate work space for the DG solver (so it doesn't have to be reallocated on each function evaluation) */
   ierr = PetscMalloc2(dof*dof,&fvnet->R,dof*dof,&fvnet->Rinv);CHKERRQ(ierr);
-  ierr = PetscMalloc4(2*dof,&fvnet->uLR,dof,&fvnet->flux,dof,&fvnet->speeds,dof,&fvnet->uPlus);CHKERRQ(ierr);
+  ierr = PetscMalloc5(2*dof,&fvnet->cuLR,2*dof,&fvnet->uLR,dof,&fvnet->flux,dof,&fvnet->speeds,dof,&fvnet->uPlus);CHKERRQ(ierr);
   /* allocate work space for the limiter suff */ 
 
   /* this variable should be stored elsewhere */ 
@@ -576,7 +576,7 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]);CHKERRQ(ierr);
     for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = (2.0*j +1.)/(2.); }
     /* Viewer evaluations to be migrated */
-    dgnet->numviewpts[i] = dgnet->taborder[i]+1; /* DO NOT CHANGE THIS WITHOUT CREATING A TABULATION FOR GLVIS VISUALIZATION */
+    dgnet->numviewpts[i] = 3*dgnet->taborder[i]+1; /* DO NOT CHANGE THIS WITHOUT CREATING A TABULATION FOR GLVIS VISUALIZATION */
     ierr = PetscMalloc1(dgnet->numviewpts[i],&viewnodes);CHKERRQ(ierr);
     for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]-1) - 1.;
     ierr = PetscMalloc1(dgnet->numviewpts[i]*(dgnet->taborder[i]+1),&dgnet->LegEval_equispaced[i]);CHKERRQ(ierr);
@@ -785,7 +785,7 @@ PetscErrorCode DGNetworkDestroy(DGNetwork fvnet)
     ierr = PetscFree(fvnet->physics.fieldname[i]);CHKERRQ(ierr);
   }
   ierr = PetscFree2(fvnet->R,fvnet->Rinv);CHKERRQ(ierr);
-  ierr = PetscFree4(fvnet->uLR,fvnet->flux,fvnet->speeds,fvnet->uPlus);CHKERRQ(ierr);
+  ierr = PetscFree5(fvnet->cuLR,fvnet->uLR,fvnet->flux,fvnet->speeds,fvnet->uPlus);CHKERRQ(ierr);
   ierr = PetscFree5(fvnet->charcoeff,fvnet->limitactive,fvnet->cbdryeval_L,fvnet->cbdryeval_R,fvnet->cuAvg);CHKERRQ(ierr);
   ierr = PetscFree2(fvnet->uavgs,fvnet->cjmpLR);CHKERRQ(ierr);
   ierr = DGNetworkDestroyTabulation(fvnet);CHKERRQ(ierr);

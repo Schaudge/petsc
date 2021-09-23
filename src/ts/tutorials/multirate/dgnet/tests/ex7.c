@@ -410,15 +410,6 @@ static PetscErrorCode PhysicsVertexFlux_Outflow_Simple(const void* _dgnet,const 
   ierr = dgnet->physics.riemann(dgnet->physics.user,dof,uV,uV,flux,maxspeed);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-static PetscErrorCode PhysicsVertexFlux_Outflow_Simple_In(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct) {
-  PetscErrorCode  ierr;
-  const DGNetwork dgnet = (DGNetwork)_dgnet;
-
-  PetscFunctionBeginUser;
-  *maxspeed = 0.0; 
-  ierr = ShallowFlux(dgnet->physics.user,uV,flux);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
 static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _dgnet, Junction junct)
 {
   PetscErrorCode  ierr;
@@ -791,7 +782,7 @@ int main(int argc,char *argv[])
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         fvnet;
-  PetscInt          draw = 0,convergencelevel= 0,maxorder=1,*order;
+  PetscInt          draw = 0,maxorder=1,*order;
   PetscBool         viewdm = PETSC_FALSE;
   PetscReal         maxtime;
   PetscErrorCode    ierr;
@@ -913,12 +904,7 @@ int main(int argc,char *argv[])
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts,fvnet->network);CHKERRQ(ierr);
   ierr = TSSetApplicationContext(ts,fvnet);CHKERRQ(ierr);
-  if (limit) {
-    ierr = TSSetRHSFunction(ts,NULL,DGNetRHS_limiter,fvnet);CHKERRQ(ierr);
-  } else {
-    ierr = TSSetRHSFunction(ts,NULL,DGNetRHS,fvnet);CHKERRQ(ierr);
-  }
-
+  ierr = TSSetRHSFunction(ts,NULL,DGNetRHS,fvnet);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSSSP);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
@@ -939,6 +925,13 @@ int main(int argc,char *argv[])
         ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
       }
     }
+  if (limit) {
+      /* Prelimit the initial data as I use post-stage to apply limiters instead of prestage (which doesn't have access to stage vectors 
+  for some reason ... no idea why prestage and post-stage callback functions have different forms) */  
+    ierr = DGNetlimiter(ts,0,0,&fvnet->X);CHKERRQ(ierr);
+    ierr = TSSetPostStage(ts,DGNetlimiter);CHKERRQ(ierr);
+  } 
+
   /* Evolve the PDE network in time */
   ierr = TSSolve(ts,fvnet->X);CHKERRQ(ierr);
 
