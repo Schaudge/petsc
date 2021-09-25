@@ -19,8 +19,8 @@ PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
   ierr = MatGetSize(mlregressor->training,&M,&N);CHKERRQ(ierr);
 
   if (linear->fit_intercept) {
-    /* TODO: If we are fitting the intercept, we probably need to make A a composite matrix using MATCENTERING. 
-     * Though there might be some cases we don't want to do this for, depending on what kind of matrix is passed in. 
+    /* If we are fitting the intercept, we need to make A a composite matrix using MATCENTERING to preserve sparsity.
+     * Though there might be some cases we don't want to do this for, depending on what kind of matrix is passed in. (Probably bad idea for dense?)
      * We will also need to ensure that the right-hand side passed to the KSP is also mean-centered, since we
      * intend to compute the intercept separately from regression coefficients (that is, we will not be adding a
      * column of all 1s to our design matrix). */
@@ -159,6 +159,12 @@ PetscErrorCode MLRegressorFit_Linear(MLRegressor mlregressor)
     /* We need the means of all columns of mlregressor->training, placed into a Vec compatible with linear->coefficients.
      * Note the potential scalability issue: MatGetColumnMeans() computes means of ALL colummns. */
     ierr = MatGetColumnMeans(mlregressor->training,column_means_global);CHKERRQ(ierr);
+    /* TODO: Calculation of the Vec and matrix column means should probably go into the SetUp phase, and also be placed
+     *       into a routine that is callable from outside of MLRegressorFit_Linear(), because we'll want to do the same
+     *       thing for other models, such as ridge and LASSO regression, and should avoid code duplication.
+     *       What we are calling 'target_mean' and 'column_means' should be stashed in the base linear regressor struct,
+     *       and perhaps renamed to make it clear they are offsets that should be applied (though the current naming
+     *       makes sense since it makes it clear where these come from.) */
     ierr = VecDuplicate(linear->coefficients,&column_means);CHKERRQ(ierr);
     ierr = VecGetLocalSize(column_means,&m);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(column_means,&istart,NULL);CHKERRQ(ierr);
