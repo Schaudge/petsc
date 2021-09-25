@@ -84,7 +84,7 @@ PetscErrorCode MLRegressorSetUp(MLRegressor mlregressor)
 }
 
 /* NOTE: I've decided to make this take X and y, like the Scikit-learn Fit routines do.
- * Am I overlooking some reason that X should be set in a seperate function call, a la KSPSetOperators()?. */
+ * Am I overlooking some reason that X should be set in a separate function call, a la KSPSetOperators()?. */
 PetscErrorCode MLRegressorFit(MLRegressor mlregressor, Mat X, Vec y)
 {
   PetscErrorCode ierr;

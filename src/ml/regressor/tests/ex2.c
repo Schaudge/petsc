@@ -10,13 +10,13 @@ int main(int argc,char **args)
   Mat X;
   Vec y,y_predicted,coefficients;
   PetscScalar intercept;
-  /* y_array[] and X_array[] are mean-centered; in ex2.c they are not! */
-  PetscScalar y_array[5] = {0.20000,-0.30000,-0.80000,-0.30000,1.20000};
-  PetscScalar X_array[10] = {-1.00000,  0.50000,
-                             -0.50000, -0.25000,
-                              0.00000, -0.50000,
-                              0.50000, -0.25000,
-                              1.00000,  0.50000};
+  /* y_array[] and X_array[] are NOT mean-centered; in ex1.c they are! */
+  PetscScalar y_array[5] = {1.0,0.5,0,0.5,2};
+  PetscScalar X_array[10] = {-1.00000,  1.00000,
+                             -0.50000,  0.25000,
+                              0.00000,  0.00000,
+                              0.50000,  0.25000,
+                              1.00000,  1.00000};
   PetscInt rows_ix[5] = {0, 1, 2, 3, 4};
   PetscInt cols_ix[2] = {0, 1};
 

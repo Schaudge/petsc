@@ -4,9 +4,8 @@ PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
 {
   //MPI_Comm comm;
   PetscErrorCode ierr;
+  PetscInt M,N;
   MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
-  Mat A;  /* The operator we will pass to the KSP; this could be something like a composite matrix using MATCENTERING. */
-  Mat AtA;
   KSP ksp;
 
   PetscFunctionBegin;
@@ -17,27 +16,38 @@ PetscErrorCode MLRegressorSetUp_Linear(MLRegressor mlregressor)
   }
   ksp = linear->ksp;
 
+  ierr = MatGetSize(mlregressor->training,&M,&N);CHKERRQ(ierr);
+
   if (linear->fit_intercept) {
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Linear MLRegressor intercept fitting is not yet implemented!");
     /* TODO: If we are fitting the intercept, we probably need to make A a composite matrix using MATCENTERING. 
      * Though there might be some cases we don't want to do this for, depending on what kind of matrix is passed in. 
      * We will also need to ensure that the right-hand side passed to the KSP is also mean-centered, since we
      * intend to compute the intercept separately from regression coefficients (that is, we will not be adding a
      * column of all 1s to our design matrix). */
+    ierr = MatCreateCentering(PetscObjectComm((PetscObject)mlregressor),PETSC_DECIDE,M,&linear->C);CHKERRQ(ierr);
+    ierr = MatCreate(PetscObjectComm((PetscObject)mlregressor),&linear->X);CHKERRQ(ierr);
+    ierr = MatSetSizes(linear->X,PETSC_DECIDE,PETSC_DECIDE,M,N);CHKERRQ(ierr);
+    ierr = MatSetType(linear->X,MATCOMPOSITE);CHKERRQ(ierr);
+    ierr = MatCompositeSetType(linear->X,MAT_COMPOSITE_MULTIPLICATIVE);CHKERRQ(ierr);
+    ierr = MatCompositeAddMat(linear->X,mlregressor->training);CHKERRQ(ierr);
+    ierr = MatCompositeAddMat(linear->X,linear->C);CHKERRQ(ierr);
+    ierr = VecDuplicate(mlregressor->target,&linear->rhs);CHKERRQ(ierr);
+    ierr = MatMult(linear->C,mlregressor->target,linear->rhs);CHKERRQ(ierr);
   } else {
     /* When not fitting intercept, we assume that the input data are already centered.
      * TODO: Perhaps revisit exactly what options should exist around this. */
-    A = mlregressor->training;
+    linear->X = mlregressor->training;
+    linear->rhs = mlregressor->target;
   }
 
   if (linear->coefficients) {ierr = VecDestroy(&linear->coefficients);CHKERRQ(ierr);}
-  ierr = MatCreateVecs(A,&linear->coefficients,NULL);CHKERRQ(ierr);
+  ierr = MatCreateVecs(linear->X,&linear->coefficients,NULL);CHKERRQ(ierr);
 
-  /* Set up the KSP to solve the least squares problem (without solving for intercept) using KSPLSQR.
+  /* Set up the KSP to solve the least squares problem (without solving for intercept, as this is done separately) using KSPLSQR.
    * TODO: Add options to use other methods. */
-  ierr = MatCreateNormal(A,&AtA);CHKERRQ(ierr);
+  ierr = MatCreateNormal(linear->X,&linear->XtX);CHKERRQ(ierr);
   ierr = KSPSetType(ksp,KSPLSQR);CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp,A,AtA);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,linear->X,linear->XtX);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);  // TODO: Does this have the right option prefixes set?
   PetscFunctionReturn(0);
 }
@@ -50,8 +60,11 @@ PetscErrorCode MLRegressorReset_Linear(MLRegressor mlregressor)
   PetscFunctionBegin;
   /* Destroy the PETSc objects associated with the linear regressor implementation. */
   ierr = MatDestroy(&linear->X);CHKERRQ(ierr);
+  ierr = MatDestroy(&linear->XtX);CHKERRQ(ierr);
+  ierr = MatDestroy(&linear->C);CHKERRQ(ierr);
   ierr = KSPDestroy(&linear->ksp);CHKERRQ(ierr);
   ierr = VecDestroy(&linear->coefficients);CHKERRQ(ierr);
+  ierr = VecDestroy(&linear->rhs);CHKERRQ(ierr);
 
   /* Reset options/parameters to the setupcalled = 0 state. */
   /* TODO: Add the reset code once the linear regressor is fleshed out enough to need resetting! */
@@ -111,27 +124,56 @@ PETSC_EXTERN PetscErrorCode MLRegressorLinearGetCoefficients(MLRegressor mlregre
   PetscFunctionReturn(0);
 }
 
+PETSC_EXTERN PetscErrorCode MLRegressorLinearGetIntercept(MLRegressor mlregressor, PetscScalar *intercept)
+{
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  PetscValidPointer(intercept,2);
+  *intercept = linear->intercept;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode MLRegressorFit_Linear(MLRegressor mlregressor)
 {
   PetscErrorCode ierr;
   MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
   KSP ksp;
+  PetscScalar target_mean,*column_means_global,*column_means_local,column_means_dot_coefficients;
+  Vec column_means;
+  PetscInt m,N,istart,i;
 
   PetscFunctionBegin;
   if (!linear->ksp) {ierr = MLRegressorLinearGetKSP(mlregressor,&linear->ksp);CHKERRQ(ierr);}
   ksp = linear->ksp;
 
-
   /* Solve the least-squares problem (previously set up in MLRegressorSetUp_Linear()) without finding the intercept. */
-  ierr = KSPSolve(ksp,mlregressor->target,linear->coefficients);CHKERRQ(ierr);
+  ierr = KSPSolve(ksp,linear->rhs,linear->coefficients);CHKERRQ(ierr);
 
   /* Calculate the intercept. */
   if (linear->fit_intercept) {
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Linear MLRegressor intercept fitting is not yet implemented!");
-    /* TODO: Write the code to calculate the intercept here! */
+    ierr = MatGetSize(mlregressor->training,NULL,&N);CHKERRQ(ierr);
+    ierr = PetscMalloc1(N,&column_means_global);CHKERRQ(ierr);
+    ierr = VecMean(mlregressor->target,&target_mean);CHKERRQ(ierr);
+    /* We need the means of all columns of mlregressor->training, placed into a Vec compatible with linear->coefficients.
+     * Note the potential scalability issue: MatGetColumnMeans() computes means of ALL colummns. */
+    ierr = MatGetColumnMeans(mlregressor->training,column_means_global);CHKERRQ(ierr);
+    ierr = VecDuplicate(linear->coefficients,&column_means);CHKERRQ(ierr);
+    ierr = VecGetLocalSize(column_means,&m);CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(column_means,&istart,NULL);CHKERRQ(ierr);
+    ierr = VecGetArrayWrite(column_means,&column_means_local);CHKERRQ(ierr);
+    for (i=0; i<m; i++) {
+      column_means_local[i] = column_means_global[istart+i];
+    }
+    ierr = VecRestoreArrayWrite(column_means,&column_means_local);CHKERRQ(ierr);
+    ierr = VecDot(column_means,linear->coefficients,&column_means_dot_coefficients);CHKERRQ(ierr);
+    ierr = VecDestroy(&column_means);CHKERRQ(ierr);
+    linear->intercept = target_mean - column_means_dot_coefficients;
   } else {
     linear->intercept = 0.0;
   }
+
   PetscFunctionReturn(0);
 }
 
@@ -164,6 +206,6 @@ PETSC_EXTERN PetscErrorCode MLRegressorCreate_Linear(MLRegressor mlregressor)
   mlregressor->ops->predict        = MLRegressorPredict_Linear;
 
   linear->intercept = 0.0;
-  linear->fit_intercept = PETSC_FALSE;  /* TODO: This should probably default to true; but using false for now so I can initially implement less! */
+  linear->fit_intercept = PETSC_TRUE;  /* Defaulting to calculating the intercept is probably sensible, but TODO: add option to turn this off! */
   PetscFunctionReturn(0);
 }
