@@ -16,7 +16,7 @@ typedef struct {
   Mat X;   /* Operator passed to the KSP; often the training data matrix, but might be a MATCOMPOSITE */
   Mat XtX; /* Normal matrix formed from X */
   Mat C;   /* Centering matrix */
-  Vec rhs; /* Right-hand side used with the KPS; often the target vector, but may be the mean-centered version */
+  Vec rhs; /* Right-hand side used with the KSP; often the target vector, but may be the mean-centered version */
 
   /* Various options */
   PetscBool fit_intercept;  /* Calculate intercept ("bias" or "offset") if true. Assume centered data if false. */
