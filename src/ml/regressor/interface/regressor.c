@@ -41,6 +41,39 @@ PetscErrorCode MLRegressorCreate(MPI_Comm comm,MLRegressor *newmlregressor)
 }
 
 /*@
+   MLRegressorSetFromOptions - Sets MLRegressor options from the options database.
+   This routine must be called before MLRegressorSetUp() (or MLRegressorFit(), which calls
+   the former) if the user is to be allowed to set the regressor type.
+@*/
+PetscErrorCode MLRegressorSetFromOptions(MLRegressor mlregressor)
+{
+  PetscErrorCode ierr;
+  PetscBool flg;
+  MLRegressorType default_type = MLREGRESSORLINEAR;
+  char type[256];
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mlregressor,MLREGRESSOR_CLASSID,1);
+  ierr = PetscObjectOptionsBegin((PetscObject)mlregressor);CHKERRQ(ierr);
+  if (((PetscObject)mlregressor)->type_name) {
+    default_type = ((PetscObject)mlregressor)->type_name;
+  }
+  /* Check for type from options */
+  ierr = PetscOptionsFList("-mlregressor_type","MLRegressor type","MLRegressorSetType",MLRegressorList,default_type,type,256,&flg);CHKERRQ(ierr);
+  if (flg) {
+    ierr = MLRegressorSetType(mlregressor,type);CHKERRQ(ierr);
+  } else if (!((PetscObject)mlregressor)->type_name) {
+    ierr = MLRegressorSetType(mlregressor,default_type);CHKERRQ(ierr);
+  }
+  /* TODO: Add code to handle other options that apply to all MLRegressor types. */
+  if (mlregressor->ops->setfromoptions) {
+    ierr = (*mlregressor->ops->setfromoptions)(PetscOptionsObject,mlregressor);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
    MLRegressorSetUp - Sets up the internal data structures for the later use
    of a regressor.
 

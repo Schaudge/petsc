@@ -82,9 +82,25 @@ PetscErrorCode MLRegressorDestroy_Linear(MLRegressor mlregressor)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode MLRegressorLinearSetFitIntercept(MLRegressor mlregressor, PetscBool flg)
+{
+  MLREGRESSOR_LINEAR *linear = (MLREGRESSOR_LINEAR*)mlregressor->data;
+
+  PetscFunctionBegin;
+  linear->fit_intercept = flg;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode MLRegressorSetFromOptions_Linear(PetscOptionItems *PetscOptionsObject, MLRegressor mlregressor)
 {
+  PetscBool          flg,set;
+  PetscErrorCode     ierr;
+
   PetscFunctionBegin;
+  ierr = PetscOptionsHead(PetscOptionsObject,"MLRegressor options for linear regressors");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-mlregressor_linear_fit_intercept","Calculate intercept for linear model","MLRegressorLinearSetFitIntercept",flg,&flg,&set);CHKERRQ(ierr);
+  if (set) {ierr = MLRegressorLinearSetFitIntercept(mlregressor,flg);CHKERRQ(ierr);}
+  ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

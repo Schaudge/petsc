@@ -33,6 +33,7 @@ PETSC_EXTERN PetscErrorCode MLRegressorSetTraining(MLRegressor,Mat,Vec);
 // TODO: Decide if MLRegressorFit() take only an MLRegressor, or the training data and label (as in Scikit-learn), below.
 PETSC_EXTERN PetscErrorCode MLRegressorFit(MLRegressor,Mat,Vec);
 PETSC_EXTERN PetscErrorCode MLRegressorPredict(MLRegressor,Mat,Vec);
+PETSC_EXTERN PetscErrorCode MLRegressorLinearSetFitIntercept(MLRegressor,PetscBool);
 PETSC_EXTERN PetscErrorCode MLRegressorLinearGetKSP(MLRegressor,KSP*);
 PETSC_EXTERN PetscErrorCode MLRegressorLinearGetCoefficients(MLRegressor,Vec*);
 PETSC_EXTERN PetscErrorCode MLRegressorLinearGetIntercept(MLRegressor,PetscScalar*);
