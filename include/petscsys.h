@@ -134,6 +134,16 @@ void assert_never_put_petsc_headers_inside_an_extern_c(int); void assert_never_p
 #  define PETSC_NODISCARD
 #endif
 
+/* replacing only the name of the function allows us to support the version that don't require
+ * a message argument as well */
+#if defined(__cplusplus) && defined(PETSC_HAVE_CXX_DIALECT_CXX11)
+#  define PetscStaticAssert static_assert
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */
+#  define PetscStaticAssert _Static_assert
+#else
+#  define PetscStaticAssert(condition,message)
+#endif
+
 #include <petscversion.h>
 #define PETSC_AUTHOR_INFO  "       The PETSc Team\n    petsc-maint@mcs.anl.gov\n https://petsc.org/\n"
 

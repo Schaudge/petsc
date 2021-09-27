@@ -663,10 +663,14 @@ char assert_aligned[(sizeof(struct mystruct)==16)*2-1];
 
   def configureUnreachable(self):
     """Checks if the compiler has __builtin_unreachable() or equivalent"""
+    unreachableSnippets = (
+      '__builtin_unreachable()', # GNUish
+      '__assume(0)'              # MSVC
+    )
     with self.Language(self.languages.clanguage):
-      for snippet in ('__builtin_unreachable()','__assume(0)'):
-        code = 'if (0) '+snippet+';'
-        if self.checkCompile('',code) and self.checkLink('',code):
+      for snippet in unreachableSnippets:
+        code = snippet+';'
+        if self.checkCompile(includes='',body=code) and self.checkLink(includes='',body=code):
           self.addDefine('BUILTIN_UNREACHABLE',snippet)
           break
     return
