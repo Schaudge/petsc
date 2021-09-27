@@ -576,9 +576,9 @@ PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
     ierr = PetscMalloc1(dgnet->taborder[i]+1,&dgnet->Leg_L2[i]);CHKERRQ(ierr);
     for(j=0; j<=dgnet->taborder[i]; j++) {dgnet->Leg_L2[i][j] = (2.0*j +1.)/(2.); }
     /* Viewer evaluations to be migrated */
-    dgnet->numviewpts[i] = 3*dgnet->taborder[i]+1; /* DO NOT CHANGE THIS WITHOUT CREATING A TABULATION FOR GLVIS VISUALIZATION */
+    dgnet->numviewpts[i] = (dgnet->taborder[i]+1); /* DO NOT CHANGE THIS WITHOUT CREATING A TABULATION FOR GLVIS VISUALIZATION */
     ierr = PetscMalloc1(dgnet->numviewpts[i],&viewnodes);CHKERRQ(ierr);
-    for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]-1) - 1.;
+    for(j=0; j<dgnet->numviewpts[i]; j++) viewnodes[j] = 2.*j/(dgnet->numviewpts[i]) - 1.;
     ierr = PetscMalloc1(dgnet->numviewpts[i]*(dgnet->taborder[i]+1),&dgnet->LegEval_equispaced[i]);CHKERRQ(ierr);
     ierr = PetscDTLegendreEval(dgnet->numviewpts[i],viewnodes,dgnet->taborder[i]+1,deg,dgnet->LegEval_equispaced[i],PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
     ierr = PetscFree(viewnodes);CHKERRQ(ierr);

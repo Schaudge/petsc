@@ -474,7 +474,6 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
     
     if (dgnet->limitactive[j]) {
       limiteractivated = PETSC_TRUE;
-      ierr = PetscPrintf(dgnet->comm,"Limiter Activated on cell %i on field %i \n",c,j);CHKERRQ(ierr);
     }
   }
 
@@ -501,7 +500,8 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
       if (dgnet->limitactive[j]) {
         ierr = PetscArrayzero(dgnet->charcoeff+j*(dgnet->physics.maxorder+1),dgnet->physics.maxorder+1);CHKERRQ(ierr);
         dgnet->charcoeff[j*(dgnet->physics.maxorder+1)] = dgnet->cuAvg[j]; 
-        if (dgnet->physics.maxorder >1) dgnet->charcoeff[j*(dgnet->physics.maxorder+1)+1] = (uRtmp[j]-uLtmp[j])/2.;
+        if (dgnet->physics.maxorder >=1) dgnet->charcoeff[j*(dgnet->physics.maxorder+1)+1] = (uRtmp[j]-uLtmp[j])/2.;
+        if (dgnet->physics.maxorder >=2) dgnet->charcoeff[j*(dgnet->physics.maxorder+1)+2] = (uRtmp[j]+uLtmp[j])/2. - dgnet->cuAvg[j];
       }
     } 
     /* Now put the coefficients back into conservative form. Note that 
@@ -521,6 +521,54 @@ PetscErrorCode TVDLimit_1D(DGNetwork dgnet,const PetscScalar *uL,const PetscScal
         }
       }
     }
+  } 
+  /* the uCoeff now contains the limited coefficients */
+  PetscFunctionReturn(0);
+}
+/*
+
+  input *uL *uM and *uR are the cell averages  of the left, center and right element DG solutions respectively 
+  ordered by field (requires copying of arrays)
+
+  input 
+  
+  */
+PetscErrorCode TVDLimit_1D_2(DGNetwork dgnet,const PetscScalar *uL,const PetscScalar *uM,const PetscScalar *uR, PetscScalar *ubdryL, PetscScalar *ubdryR, PetscReal *uCoeff, PetscSection sec, PetscInt c)
+{
+  PetscErrorCode ierr; 
+  PetscScalar    *cjmpL,*cjmpR,*uLtmp,*uRtmp,*cuLtmp,*cuRtmp; 
+  PetscInt       field,j,k,dof = dgnet->physics.dof,secdof;
+  PetscBool      limiteractivated = PETSC_FALSE;
+  PetscReal      slope; 
+  PetscInt       deg,fieldoff,fielddeg; 
+
+  PetscFunctionBegin;
+  /* Do limiter detection in the conservative variables */
+  uLtmp  = dgnet->cbdryeval_L; 
+  uRtmp  = dgnet->cbdryeval_R;
+  cuLtmp = dgnet->cuLR; 
+  cuRtmp = dgnet->cuLR+dof;
+  cjmpL = &dgnet->cjmpLR[0];
+  cjmpR = &dgnet->cjmpLR[dof];
+  /* Compute the conservative jumps */
+  for(j=0;j<dof;j++) {
+    cjmpL[j] = uM[j] - uL[j];
+    cjmpR[j] = uR[j] - uM[j];
+  }
+  /* we apply the limiter detecter */
+  for (j=0; j<dof; j++) {
+    slope    = MinMod3(cjmpL[j],cjmpR[j],uM[j]- ubdryL[j]);
+    uLtmp[j] = uM[j] - slope; 
+    //ierr = PetscPrintf(dgnet->comm,"uL -   jmpL: %e jmpR: %e bdryL: %e  minmod: %e uLtmp: %e diff: %e   \n",cjmpL[j],cjmpR[j],uM[j]-ubdryL[j], slope,uLtmp[j],uLtmp[j] - ubdryL[j]);CHKERRQ(ierr);
+    slope    = MinMod3(cjmpL[j],cjmpR[j], ubdryR[j]-uM[j]);
+    uRtmp[j] = uM[j] + slope;
+    dgnet->limitactive[j] = (PetscAbs(uRtmp[j] - ubdryR[j]) > 1e-12 || PetscAbs(uLtmp[j] - ubdryL[j]) > 1e-12); 
+    if (dgnet->limitactive[j]) {
+      limiteractivated = PETSC_TRUE;
+    }
+  }
+  if (limiteractivated) {
+    ierr = TVDLimit_1D(dgnet,uL,uM,uR,ubdryL,ubdryR,uCoeff,sec,c);CHKERRQ(ierr);
   } 
   /* the uCoeff now contains the limited coefficients */
   PetscFunctionReturn(0);
@@ -632,15 +680,15 @@ PetscErrorCode DGNetlimiter(TS ts, PetscReal stagetime, PetscInt stageindex, Vec
       /* make the cell avg arrays and bdry evaluations */
       for(field=0; field<dof; field++) {
         ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uLR[field] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
-        dgnet->uLR[field+dof] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
+        dgnet->uLR[field]         = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
+        dgnet->uLR[field+dof]     = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
         dgnet->uavgs[field+dof]   = xarr[offset+fieldoff]; 
         ierr = PetscSectionGetFieldOffset(section,c-1,field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uavgs[field]   = xarr[offset+fieldoff];
+        dgnet->uavgs[field]       = xarr[offset+fieldoff];
         ierr = PetscSectionGetFieldOffset(section,c+1,field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uavgs[field+2*dof]   = xarr[offset+fieldoff]; 
+        dgnet->uavgs[field+2*dof] = xarr[offset+fieldoff]; 
       }
-      ierr = TVDLimit_1D(dgnet,dgnet->uavgs, dgnet->uavgs+dof,dgnet->uavgs+2*dof,dgnet->uLR,dgnet->uLR+dof,xarr+offset,section,c);CHKERRQ(ierr);
+      ierr = TVDLimit_1D_2(dgnet,dgnet->uavgs, dgnet->uavgs+dof,dgnet->uavgs+2*dof,dgnet->uLR,dgnet->uLR+dof,xarr+offset,section,c);CHKERRQ(ierr);
       /* 
         TODO : Could print out the limited cells here 
       */ 
