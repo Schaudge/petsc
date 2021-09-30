@@ -35,6 +35,18 @@ configure_options = [
   '--download-pnetcdf=1',
   '--download-zlib=1',
   '--download-exodusii=1',
+  '--download-kokkos=1',
+  '--download-kokkos-kernels=1',
+  '--download-tchem=1',
+  '--download-revolve=1',
+  '--download-pragmatic=1',
+  '--download-parmmg=1',
+  '--download-parms=1',
+  '--download-muparser=1',
+  '--download-mstk=1',
+  '--download-moose=1',
+  '--download-mmg=1',
+  '--download-med=1',
   ]
 
 if __name__ == '__main__':
