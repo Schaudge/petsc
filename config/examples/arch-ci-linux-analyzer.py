@@ -9,6 +9,7 @@ configure_options = [
   '--with-fc=mpif90',
   '--with-cxx=mpicxx',
 
+  '--download-cmake=1',
   '--download-sprng=1',
   '--download-random123=1',
   '--download-saws=1',
@@ -47,6 +48,8 @@ configure_options = [
   '--download-moose=1',
   '--download-mmg=1',
   '--download-med=1',
+  '--download-eigen=1',
+  '--download-ptscotch=1',
   ]
 
 if __name__ == '__main__':
