@@ -8,6 +8,7 @@
 #include <petsc/private/petscfeimpl.h>
 #include <petsc/private/petscfvimpl.h>
 #include <petsc/private/dmswarmimpl.h>
+#include <petsc/private/riemannsolverimpl.h>
 
 static PetscBool DMPackageInitialized = PETSC_FALSE;
 /*@C
@@ -371,6 +372,73 @@ PetscErrorCode PetscDSInitializePackage(void)
   PetscFunctionReturn(0);
 }
 
+#include <petscriemannsolver.h>
+static PetscBool RiemannSolverPackageInitialized = PETSC_FALSE;
+/*@C
+  RiemannSolverFinalizePackage - This function destroys everything in the Petsc interface to RiemannSolver. It is
+  called from PetscFinalize().
+
+  Level: developer
+
+.seealso: PetscFinalize()
+@*/
+PetscErrorCode  RiemannSolverFinalizePackage(void)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFunctionListDestroy(&RiemannSolverList);CHKERRQ(ierr);
+  RiemannSolverPackageInitialized = PETSC_FALSE;
+  RiemannSolverRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  RiemannSolverInitializePackage - This function initializes everything in the RiemannSolver package. It is called
+  from PetscDLLibraryRegister_petscrs() when using dynamic libraries, and on the first call to RiemannSolverCreate()
+  when using shared or static libraries.
+
+  Level: developer
+
+.seealso: PetscInitialize()
+@*/
+
+PetscErrorCode  RiemannSolverInitializePackage(void)
+{
+  char           logList[256];
+  PetscBool      opt,pkg;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (RiemannSolverPackageInitialized) PetscFunctionReturn(0);
+  RiemannSolverPackageInitialized = PETSC_TRUE;
+  /* Inialize subpackages */
+    
+  /* Register Classes */
+  ierr = PetscClassIdRegister("RiemannSolver",&RIEMANNSOLVER_CLASSID);CHKERRQ(ierr);
+
+  /* Register Constructors */
+  ierr = RiemannSolverRegisterAll();CHKERRQ(ierr);
+  /* Register Events */
+ 
+  /* Process Info */
+  {
+    PetscClassId  classids[1];
+
+    classids[0] = RIEMANNSOLVER_CLASSID;
+    ierr = PetscInfoProcessClass("RiemannSolver", 1, classids);CHKERRQ(ierr);
+  }
+  /* Process summary exclusions */
+  ierr = PetscOptionsGetString(NULL,NULL,"-log_exclude",logList,sizeof(logList),&opt);CHKERRQ(ierr);
+  if (opt) {
+    ierr = PetscStrInList("riemannsolver",logList,',',&pkg);CHKERRQ(ierr);
+    if (pkg) {ierr = PetscLogEventExcludeClass(RIEMANNSOLVER_CLASSID);CHKERRQ(ierr);}
+  }
+  /* Register package finalizer */
+  ierr = PetscRegisterFinalize(RiemannSolverFinalizePackage);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 /*
   PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
@@ -390,6 +458,7 @@ PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void)
   ierr = PetscFEInitializePackage();CHKERRQ(ierr);
   ierr = PetscFVInitializePackage();CHKERRQ(ierr);
   ierr = DMFieldInitializePackage();CHKERRQ(ierr);
+  ierr = RiemannSolverInitializePackage();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -6,7 +6,7 @@ static PetscErrorCode PetscSpacePointView_Ascii(PetscSpace sp, PetscViewer viewe
   PetscSpace_Point *pt = (PetscSpace_Point *) sp->data;
   PetscViewerFormat format;
   PetscErrorCode    ierr;
-
+  
   PetscFunctionBegin;
   ierr = PetscViewerGetFormat(viewer, &format);CHKERRQ(ierr);
   if (format == PETSC_VIEWER_ASCII_INFO_DETAIL) {

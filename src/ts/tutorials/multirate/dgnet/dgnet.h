@@ -1,5 +1,6 @@
 #include <petscdmnetwork.h>
 #include <petscts.h>
+#include <petscriemannsolver.h>
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
 
@@ -68,6 +69,9 @@ typedef struct {
   PetscInt                       *order;
   PetscInt                       maxorder; 
   char                           *fieldname[16];
+  RiemannSolver                  rs;
+  PetscPointFlux                 flux2; 
+  PetscPointFluxEig              fluxeig;    
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
@@ -230,6 +234,7 @@ extern PetscErrorCode DGNetworkDestroyTabulation(DGNetwork);
 
 extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
+extern PetscErrorCode DGNetRHS_RSVERSION(TS,PetscReal,Vec,Vec,void*);
 
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
 extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
