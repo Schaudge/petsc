@@ -33,6 +33,11 @@ class Configure(config.package.Package):
       self.cython = 1
     except: pass
 
+    try:
+      output1,err1,ret1  = config.package.Package.executeShellCommand(self.pyexe + ' -c "import mpi4py"',timeout=60, log = self.log)
+      self.mpi4py = 1
+    except: pass
+
     have_numpy = self.argDB.get('have-numpy', None)
     if have_numpy is not None:
       self.numpy = int(have_numpy)
