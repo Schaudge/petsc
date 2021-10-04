@@ -125,7 +125,7 @@ PetscErrorCode DMBFShapeCheckValid(const DM_BF_Shape *shape)
 
 PetscErrorCode DMBFShapeCompare(const DM_BF_Shape *refShape, const DM_BF_Shape *chkShape, PetscBool *similar)
 {
-  PetscBool      refSetUp, chkSetUp, refValid, chkValid;
+  PetscBool      refSetUp, chkSetUp;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -134,10 +134,13 @@ PetscErrorCode DMBFShapeCompare(const DM_BF_Shape *refShape, const DM_BF_Shape *
   PetscValidBoolPointer(similar,3);
   ierr = DMBFShapeIsSetUp(refShape,&refSetUp);CHKERRQ(ierr);
   ierr = DMBFShapeIsSetUp(chkShape,&chkSetUp);CHKERRQ(ierr);
-  ierr = DMBFShapeIsValid(refShape,&refValid);CHKERRQ(ierr);
-  ierr = DMBFShapeIsValid(chkShape,&chkValid);CHKERRQ(ierr);
-  *similar = (refSetUp && chkSetUp && refValid && chkValid &&
-              refShape->n == chkShape->n && refShape->dim == chkShape->dim);
+  *similar = (refSetUp && chkSetUp && refShape->n == chkShape->n && refShape->dim == chkShape->dim);
+//{ //###DEV###
+//  PetscPrintf(PETSC_COMM_SELF,"DMBFShapeCompare: refSetUp=%i chkSetUp=%i refValid=%i chkValid=%i "
+//              "refShape->(n,dim)=(%i,%i) chkShape->(n,dim)=(%i,%i)\n",
+//              refSetUp,chkSetUp,refValid,chkValid,
+//              refShape->n,refShape->dim,chkShape->n,chkShape->dim);
+//}
   PetscFunctionReturn(0);
 }
 
@@ -147,7 +150,7 @@ PetscErrorCode DMBFShapeCopy(DM_BF_Shape *trgShape, const DM_BF_Shape *srcShape)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  /* check */
+  /* check input */
   PetscValidPointer(trgShape,1);
   PetscValidPointer(srcShape,2);
   ierr = DMBFShapeIsSetUp(srcShape,&isOK);CHKERRQ(ierr);
@@ -161,6 +164,10 @@ PetscErrorCode DMBFShapeCopy(DM_BF_Shape *trgShape, const DM_BF_Shape *srcShape)
   /* copy */
   ierr = PetscArraycpy(trgShape->list[0],srcShape->list[0],_p_DMBFShapeNElements(srcShape));CHKERRQ(ierr);
   ierr = PetscArraycpy(trgShape->pad,srcShape->pad,srcShape->n);CHKERRQ(ierr);
+  trgShape->size = srcShape->size;
+  /* check output */
+  ierr = DMBFShapeIsValid(trgShape,&isOK);CHKERRQ(ierr);
+  if (!isOK) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Target shape is invalid");
   PetscFunctionReturn(0);
 }
 
