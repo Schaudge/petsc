@@ -567,10 +567,6 @@ PETSC_EXTERN PetscErrorCode PetscSetHelpVersionFunctions(PetscErrorCode (*)(MPI_
 PETSC_EXTERN PetscErrorCode PetscCommDuplicate(MPI_Comm,MPI_Comm*,int*);
 PETSC_EXTERN PetscErrorCode PetscCommDestroy(MPI_Comm*);
 
-#if defined(PETSC_HAVE_KOKKOS)
-PETSC_EXTERN PetscErrorCode PetscKokkosInitializeCheck(void);  /* Initialize Kokkos if not yet. */
-#endif
-
 #if defined(PETSC_HAVE_NVSHMEM)
 PETSC_EXTERN PetscBool      PetscBeganNvshmem;
 PETSC_EXTERN PetscBool      PetscNvshmemInitialized;
