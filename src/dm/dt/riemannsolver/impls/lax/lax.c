@@ -16,25 +16,13 @@ PETSC_INTERN PetscErrorCode RiemannSolverEvaluate_Lax(RiemannSolver rs, const Pe
   RS_Lax         *lax = (RS_Lax*)rs->data;
   void           *ctx;
   PetscErrorCode ierr;
-  PetscScalar    *eig;
   PetscReal      *flux_eval = lax->flux_eval;
   PetscInt       i;
  
-
-
   PetscFunctionBeginUser;
   ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr); 
-  /* TODO: This is not the correct field point to compute the flux at but will work for now. Look up the 
-  correct place later */ 
-  ierr = RiemannSolverComputeEig(rs,uL,&eig);CHKERRQ(ierr);
-  /* Compute maximum eigenvalue in magnitude */
-  rs->maxspeed = 0; 
-  for(i=0;i<rs->numfields; i++) {
-      /* This only handles real eigenvalues, needs to generalized to handle complex eigenvalues */
-      /* Strictly speaking, a conservation law requires these eigenvalues to be real, but numerically 
-      there may be complex parts. */ 
-    rs->maxspeed = PetscMax(PetscAbs(eig[i]),rs->maxspeed); 
-  }
+  /* Compute the maximum wave speed for the riemann problem */
+  ierr = RiemannSolverComputeMaxSpeed(rs,uL,uR,&rs->maxspeed);CHKERRQ(ierr);
   ierr = PetscArrayzero(rs->flux_wrk,rs->numfields);CHKERRQ(ierr);
   /* left portion */ 
   rs->fluxfun(ctx,uL,flux_eval);

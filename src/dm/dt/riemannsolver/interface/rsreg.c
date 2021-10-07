@@ -54,9 +54,7 @@ PetscErrorCode  RiemannSolverSetType(RiemannSolver rs,RiemannSolverType type)
     ierr = (*(rs)->ops->destroy)(rs);CHKERRQ(ierr);
   }
   ierr = PetscMemzero(rs->ops,sizeof(*rs->ops));CHKERRQ(ierr);
-
   rs->setupcalled = PETSC_FALSE;
-
   ierr = PetscObjectChangeTypeName((PetscObject)rs, type);CHKERRQ(ierr);
   ierr = (*r)(rs);CHKERRQ(ierr);
   PetscFunctionReturn(0);

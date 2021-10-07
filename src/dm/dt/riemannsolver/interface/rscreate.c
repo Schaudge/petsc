@@ -32,6 +32,9 @@ PetscErrorCode  RiemannSolverCreate(MPI_Comm comm, RiemannSolver *rs)
   r->dim       = -1; 
   r->fluxfun   = PETSC_NULL;
   r->flux_wrk  = PETSC_NULL;
+  r->fluxfunconvex = PETSC_TRUE; /* For now we will assume the flux function is convex unless told otherwise. This is not a safe option 
+  but convenient for now. Should be adjusted as I add more riemann solvers / complicated tests. */
+  r->computeroemat = PETSC_NULL; /* Used in the logic to generate roe matrix data structures, do not edit */
   *rs = r;
   PetscFunctionReturn(0);
 }
