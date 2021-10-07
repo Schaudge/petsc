@@ -1,3 +1,7 @@
+
+#if !defined(__DGNET_H)
+#define __DGNET_H
+
 #include <petscdmnetwork.h>
 #include <petscts.h>
 #include <petscriemannsolver.h>
@@ -73,7 +77,7 @@ typedef struct {
   PetscPointFluxEig              fluxeig;    
   RiemannSolverRoeAvg            roeavg;
   RiemannSolverEigBasis          eigbasis; 
-  
+
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
@@ -274,3 +278,5 @@ extern PetscErrorCode TVDLimit_1D(DGNetwork,const PetscScalar*,const PetscScalar
 extern PetscErrorCode Limit_1D_onesided(DGNetwork,const PetscScalar*,const PetscScalar*, PetscReal*, PetscSection, PetscInt,PetscReal);
 
 extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
+
+#endif
