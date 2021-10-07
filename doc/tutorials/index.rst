@@ -2,6 +2,12 @@
 PETSc Tutorials
 ===============
 
+
+.. admonition:: Survey for live tutorials
+
+  Interested in a live PETSc tutorial? Please `fill out this survey <https://forms.gle/bXeckZ9XEqYvmiF88>`__.
+  You may also contact us for more information at petsc-maint@mcs.anl.gov .
+
 PETSc has many tutorial examples, found in ``tutorials/``
 directories throughout the ``src/`` tree. Since these do not have informative
 names and vary greatly in their complexity and level of internal documentation,
