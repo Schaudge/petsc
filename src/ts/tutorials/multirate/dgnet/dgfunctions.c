@@ -1,4 +1,6 @@
 #include "dgnet.h"
+#include <stdio.h>
+
 
 PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
 {
@@ -86,8 +88,8 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr; 
   DGNetwork      dgnet = (DGNetwork)ctx;    
-  PetscReal      maxspeed,detJ,J,invJ,*numflux; 
-  PetscScalar    *f,*xarr,*coeff;
+  PetscReal      maxspeed,detJ,J,invJ,*numflux,norm; 
+  PetscScalar    *f,*xarr,*coeff; 
   PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd;
   PetscInt       offsetf,offset,nedges,i,j,dof = dgnet->physics.dof,field,fieldoff;
   const PetscInt *cone,*edges,*supp;
@@ -96,6 +98,7 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   Junction       junction;
   PetscSection   section;
   const PetscReal *qweight;
+  RiemannSolver   rs = dgnet->physics.rs; 
 
   PetscFunctionBeginUser;
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
@@ -154,13 +157,54 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     /* Reconstruct all local edge data points */
     ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
     ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
-      /* compute the coupling flux */
+          /* compute the coupling flux */
     junction->couplingflux(dgnet,f+offsetf,junction->dir,junction->flux,&maxspeed,junction);
-    for (i=0; i<junction->numedges; i++) {
-      for (j=0; j<dof; j++) {
-          f[offsetf+i*dof+j] = junction->flux[i*dof+j];
+    /* Compute the first part of the fluctuation */
+    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
+    for (i=0; i<nedges; i++) {
+      e     = edges[i];
+      ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+      ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
+      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+      vfrom = cone[0];
+      vto   = cone[1];
+      if (v == vfrom) {
+        /* hack to see if coupling flux compute the star state or the the flux itself. I'll be 
+        making a coupling flux class itself, as generalization of the riemann solver class. At least maybe... 
+         */
+        if (nedges <=2) {
+          for(field = 0; field<dof; field++) {
+            f[offsetf+edgefe->offset_vfrom+field] = junction->flux[edgefe->offset_vfrom+field];
+          } 
+        } else {
+          /* Compute the jump */
+          for (field=0; field<dof; field++) {
+          dgnet->uLR[field] = f[offsetf+edgefe->offset_vfrom+field] - junction->flux[edgefe->offset_vfrom+field];
+          }
+          ierr = RiemannSolverComputeRoeAvg(rs,&f[offsetf+edgefe->offset_vfrom],&junction->flux[edgefe->offset_vfrom],dgnet->uPlus);CHKERRQ(ierr);
+          ierr = RiemannSolverCharNorm(rs,dgnet->uPlus,dgnet->uLR,1,&norm);CHKERRQ(ierr);
+          /* Place the coupling flux back in the global vector */
+          dgnet->physics.flux((void*)dgnet->physics.user,&junction->flux[edgefe->offset_vfrom],&f[offsetf+edgefe->offset_vfrom]);
+          junction->fluctuation[edgefe->offset_vfrom] = norm;
+        }
+      } else if (v == vto) {
+        if (nedges <=2) {
+          for(field = 0; field<dof; field++) {
+            f[offsetf+edgefe->offset_vto+field] = junction->flux[edgefe->offset_vto+field];
+          } 
+        } else {
+            /* Compute the jump */
+          for (field=0; field<dof; field++) {
+          dgnet->uLR[field] = f[offsetf+edgefe->offset_vto+field] - junction->flux[edgefe->offset_vto+field];
+          }
+          ierr = RiemannSolverComputeRoeAvg(rs,&f[offsetf+edgefe->offset_vto],&junction->flux[edgefe->offset_vto],dgnet->uPlus);CHKERRQ(ierr);
+          ierr = RiemannSolverCharNorm(rs,dgnet->uPlus,dgnet->uLR,1,&norm);CHKERRQ(ierr);
+          /* Place the coupling flux back in the global vector */
+          dgnet->physics.flux((void*)dgnet->physics.user,&junction->flux[edgefe->offset_vto],&f[offsetf+edgefe->offset_vto]);
+          junction->fluctuation[edgefe->offset_vto] = norm;
         }
       }
+    }
   }
   /* Now all the vertex flux data is available on each processor. */
   /* Iterate through the edges and update the cell data belonging to that edge. */
@@ -297,6 +341,43 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
+
+
+    /* Write the fluctuations to a file. This will refactored out with the creation of coupling condition class (or moving 
+  it to the riemann solver class. Still debating which) */ 
+
+   FILE *fp;
+   char filename[128];
+   PetscReal fluct; 
+     /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
+  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
+  for (v=vStart; v<vEnd; v++) {
+    /* Reconstruct all local edge data points (NOTE: This routine (and the others done elsewhere) need to be refactored) */
+    ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);
+    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
+    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
+    for (i=0; i<nedges; i++) {
+      e     = edges[i];
+      ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+      ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
+      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+      vfrom = cone[0];
+      vto   = cone[1];
+      ierr = PetscSNPrintf(filename,128,"./output/v%ie%i.txt",v,e);CHKERRQ(ierr); 
+      fp = fopen(filename, "a");
+
+      if (v == vfrom) {
+        /* Print fluctuation */
+        fluct = junction->fluctuation[edgefe->offset_vfrom];
+        ierr = PetscFPrintf(dgnet->comm,fp,"%e %e \n",time,fluct);CHKERRQ(ierr);
+      } else if (v == vto) {
+        /* print fluctuation*/
+        fluct = junction->fluctuation[edgefe->offset_vto];
+        ierr = PetscFPrintf(dgnet->comm,fp,"%e %e \n",time,fluct);CHKERRQ(ierr);
+      }
+      fclose(fp);
+    }
+  }
   PetscFunctionReturn(0);
 }
 

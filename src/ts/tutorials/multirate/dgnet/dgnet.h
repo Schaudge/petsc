@@ -15,11 +15,11 @@ struct _p_Junction{
   Mat           mat;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
-  PetscReal     x; 
+  PetscReal     x,fluct; 
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
   /* Coupling Context */
   VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
-  PetscScalar   *flux;        /* Local work array for vertex fluxes. len = dof*numedges */
+  PetscScalar   *flux,*fluctuation ;  /* Local work array for vertex fluxes. len = dof*numedges */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
 
@@ -34,7 +34,6 @@ struct _p_EdgeFE
   /* identification variables */
   PetscInt    offset_vto,offset_vfrom; /* offsets for placing the reconstruction data and setting flux data
                                           for the edge cells */
-
   /* solver objects */
   PetscReal   cfl_idt; /* Max allowable value of fvnet->cfl/Delta t on this edge*/
   /* Mesh object */
@@ -72,6 +71,9 @@ typedef struct {
   RiemannSolver                  rs;
   PetscPointFlux                 flux2; 
   PetscPointFluxEig              fluxeig;    
+  RiemannSolverRoeAvg            roeavg;
+  RiemannSolverEigBasis          eigbasis; 
+  
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
@@ -137,7 +139,7 @@ struct _p_DGNetwork
   /* Local work arrays for numerical flux */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
   PetscScalar *uLR,*cuLR;             /* Solution at left and right of a cell, conservative variables, len=2*dof */
-  PetscScalar *flux;            /* Flux across interface */
+  PetscScalar *flux;          /* Flux across interface */
   PetscReal   *speeds;          /* Speeds of each wave */
   PetscReal   *uPlus;           /* Solution at the left of the interface in conservative variables, len = dof  uPlus_|_uL___cell_i___uR_|_ */
   PetscReal   cfl;

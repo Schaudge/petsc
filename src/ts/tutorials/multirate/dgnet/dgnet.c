@@ -503,6 +503,8 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork fvnet)
     ierr = DMNetworkGetLocalVecOffset(fvnet->network,v,FLUX,&offset);CHKERRQ(ierr);
     ierr = PetscMalloc1(junction->numedges,&(junction->dir));CHKERRQ(ierr); /* Freed in the network destroy call */
     ierr = PetscMalloc1(dof*junction->numedges,&(junction->flux));CHKERRQ(ierr); /* Freed in the network destroy call */
+    ierr = PetscMalloc1(dof*junction->numedges,&(junction->fluctuation));CHKERRQ(ierr); /* Freed in the network destroy call, to be refactored out later */
+
     /* Fill in the local dir data */
     for (i=0; i<junction->numedges; i++) { 
       junction->dir[i] = xarr[offset+i*dof];
@@ -776,6 +778,7 @@ PetscErrorCode DGNetworkDestroy(DGNetwork fvnet)
     /* Free dynamic memory for the junction component */
     ierr = PetscFree(junction->dir);CHKERRQ(ierr); 
     ierr = PetscFree(junction->flux);CHKERRQ(ierr);
+    ierr = PetscFree(junction->fluctuation);CHKERRQ(ierr);
     ierr = VecDestroy(&junction->rcouple);CHKERRQ(ierr);
     ierr = VecDestroy(&junction->xcouple);CHKERRQ(ierr);
     ierr = MatDestroy(&junction->mat);CHKERRQ(ierr);
