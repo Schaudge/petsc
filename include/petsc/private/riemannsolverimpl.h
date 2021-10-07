@@ -46,10 +46,21 @@ struct _PetscRiemannOps {
     same class right? 
   */
   PetscErrorCode (*evaluate)(RiemannSolver,const PetscReal*, const PetscReal*); 
-  /*
-    I think that riemann solvers need (or at least should have the option to) to switch between at minimum 
-    conservative and characteristic variables. There should be an interface for this. 
-  */
+/*
+   Development Note: This might note be the correct way to do this. As I think further it seems sensible that 
+   particular implementations might have their own version for this function. I guess I'll write it as a RiemannSolver 
+   operation like evaulaute? 
+*/
+/* 
+   Function specificaiton for computing the maximum wave speed between two points in a riemann problem.
+   Default behavior in the convex fluxfun case will be given by 
+   maxspeed = max(max(abs(eig(Df(uL)))),max(abs(eig(Df(uR))))), 
+   which will always give the correct answer when f is convex. In the non-convex case I need to look up 
+   proper default behavior. 
+*/
+
+
+ RiemannSolverMaxWaveSpeed computemaxspeed; 
 };
 
 struct _p_RiemannSolver {
@@ -61,13 +72,27 @@ struct _p_RiemannSolver {
   PetscInt       numfields;
   PetscInt       dim;   /* dimension of the domain of the flux function ASSUMED 1 FOR NOW!!! */
   PetscReal      *flux_wrk; /* A work array holding the output flux of evaluation, numfield*dim entries*/ 
-  PetscReal      *eig_wrk;  /* A work array holding the output eigenvalues of F', numfield entries (FOR NOW ASSUMING 1D) */
+  PetscReal      *eig_wrk;  /* A work array holding the output eigenvalues of DF, numfield entries (FOR NOW ASSUMING 1D) */
   PetscReal      maxspeed; /* max wave speed computed */
-  Mat            mat;
+  Mat            mat,eigen; /* Matrix describing the eigen decomposition of DF at a given state point */ 
   SNES           snes;
-  KSP            ksp;
+  KSP            ksp,eigenksp; 
   PetscPointFlux fluxfun;
   PetscPointFluxDer fluxderfun; 
   PetscPointFluxEig fluxeigfun; 
+  PetscBool      fluxfunconvex; /* Is the flux function convex. This affects how maximum wave speeds can be computed */
+  
+
+  RiemannSolverEigBasis computeeigbasis;
+  Vec                   u,ueig;  
+  /* Not a huge fan of how these work but ehh.... */
+  /* Roe matrix structures. Not always needed so may refactor to be an optional additional struct. That
+  is a have a seperate roe matrix struct and the riemann solver only contains a pointer to one if roe 
+  matrices are enabled by the solver/user. */
+  RiemannSolverRoeMatrix computeroemat; 
+  Mat            roemat, roematinv; 
+  KSP            roeksp; 
+  Vec            roevec_conservative, roevec_characteristic; /* Vectors for usage with roe solvers */
+  RiemannSolverRoeAvg roeavg;
 };
 #endif

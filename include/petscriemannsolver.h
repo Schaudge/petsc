@@ -59,6 +59,14 @@ typedef void (*PetscPointFluxEig)(void*,const PetscReal*,PetscScalar*);
 S*/
 typedef struct _p_RiemannSolver* RiemannSolver; 
 
+/* Eigen Decomposition Support */ 
+/* Note: Should be a seperate class in itself I think. Maybe */
+typedef PetscErrorCode (*RiemannSolverEigBasis)(void*,const PetscReal*,Mat);
+
+typedef PetscErrorCode (*RiemannSolverMaxWaveSpeed)(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
+typedef PetscErrorCode (*RiemannSolverRoeMatrix)(void*,const PetscReal*,const PetscReal*, Mat*); 
+typedef PetscErrorCode (*RiemannSolverRoeMatrixInv)(void*,const PetscReal*,const PetscReal*, Mat*); 
+typedef PetscErrorCode (*RiemannSolverRoeAvg)(void*,const PetscReal*,const PetscReal*,PetscReal*); 
 
 /*J
     RiemannSolverType - String with the name of a PETSc RiemmanSolver
@@ -77,12 +85,9 @@ PETSC_EXTERN PetscClassId RIEMANNSOLVER_CLASSID;
 PETSC_EXTERN PetscErrorCode RiemannSolverInitializePackage(void);
 PETSC_EXTERN PetscErrorCode RiemannSolverFinalizePackage(void);
 
-
 PETSC_EXTERN PetscErrorCode RiemannSolverCreate(MPI_Comm,RiemannSolver*);
 PETSC_EXTERN PetscErrorCode RiemannSolverDestroy(RiemannSolver*);
 PETSC_EXTERN PetscErrorCode RiemannSolverReset(RiemannSolver);
-
-
 
 PETSC_EXTERN PetscFunctionList RiemannSolverList;
 PETSC_EXTERN PetscErrorCode RiemannSolverSetType(RiemannSolver,RiemannSolverType);
@@ -94,9 +99,26 @@ PETSC_EXTERN PetscErrorCode RiemannSolverSetUp(RiemannSolver);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverEvaluate(RiemannSolver,const PetscReal*,const PetscReal*, PetscReal**,PetscReal*);
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeEig(RiemannSolver,const PetscReal*,PetscScalar**);
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeMaxSpeed(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
+
+/* Callbacks and interface for Roe Matrices and related solvers. Currently a WIP, as I implement 
+more Roe Solvers and see what I need/ what is convenient */
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver,const PetscReal*,const PetscReal*,Mat*);
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeMatrixInv(RiemannSolver,const PetscReal*,const PetscReal*,Mat*);
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeEig(RiemannSolver,const PetscReal*,const PetscReal*,PetscScalar**);
+PETSC_EXTERN PetscErrorCode RiemannSolverSetRoeMatrixFunct(RiemannSolver,RiemannSolverRoeMatrix);
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
+PETSC_EXTERN PetscErrorCode RiemannSolverCharNorm(RiemannSolver, const PetscReal*, const PetscReal*, PetscInt,PetscReal*);
+PETSC_EXTERN PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver,RiemannSolverRoeAvg);
+
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver ,PetscPointFluxEig);
+PETSC_EXTERN PetscErrorCode RiemannSolverSetEigBasis(RiemannSolver,RiemannSolverEigBasis);
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeEigBasis(RiemannSolver,const PetscReal*,Mat*);
+PETSC_EXTERN PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver,const PetscReal*,PetscReal*);
+
 PETSC_EXTERN PetscErrorCode RiemannSolverSetFlux(RiemannSolver,PetscInt,PetscInt,PetscPointFlux);
+PETSC_EXTERN PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver ,RiemannSolverMaxWaveSpeed);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetApplicationContext(RiemannSolver,void*);
 PETSC_EXTERN PetscErrorCode RiemannSolverGetApplicationContext(RiemannSolver,void*);
