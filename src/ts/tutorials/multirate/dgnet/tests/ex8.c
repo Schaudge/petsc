@@ -242,6 +242,5 @@ int main(int argc,char *argv[])
   ierr = PetscFree(fvnet);CHKERRQ(ierr);
   ierr = PetscFree(order);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
-
   return ierr;
 }

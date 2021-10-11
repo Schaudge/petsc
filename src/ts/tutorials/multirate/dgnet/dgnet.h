@@ -77,7 +77,9 @@ typedef struct {
   PetscPointFluxEig              fluxeig;    
   RiemannSolverRoeAvg            roeavg;
   RiemannSolverEigBasis          eigbasis; 
-
+  PetscPointFluxDer              fluxder; 
+  PetscReal                      *lowbound; /* lower bound for the field variables allowed. For example SWE requires height to be positive */
+  PetscReal                      *upbound; /* upper bound for the field variables */
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
@@ -237,6 +239,8 @@ extern PetscErrorCode DGNetworkBuildTabulation(DGNetwork);
 /* Destroy allocated data */
 extern PetscErrorCode DGNetworkDestroy(DGNetwork);
 extern PetscErrorCode DGNetworkDestroyTabulation(DGNetwork);
+extern PetscErrorCode DGNetworkDestroyPhysics(DGNetwork);
+
 
 extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);

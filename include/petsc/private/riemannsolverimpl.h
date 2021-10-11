@@ -62,6 +62,11 @@ struct _PetscRiemannOps {
 
  RiemannSolverMaxWaveSpeed computemaxspeed; 
 };
+/*
+  Note: Consider creating a seperate class for storing functions and their derivatives 
+  would replace flux_wrk, and related function calls and Df and related function call. 
+  Roe average would be simplified as well 
+*/
 
 struct _p_RiemannSolver {
   PETSCHEADER(struct _PetscRiemannOps);
@@ -74,15 +79,15 @@ struct _p_RiemannSolver {
   PetscReal      *flux_wrk; /* A work array holding the output flux of evaluation, numfield*dim entries*/ 
   PetscReal      *eig_wrk;  /* A work array holding the output eigenvalues of DF, numfield entries (FOR NOW ASSUMING 1D) */
   PetscReal      maxspeed; /* max wave speed computed */
-  Mat            mat,eigen; /* Matrix describing the eigen decomposition of DF at a given state point */ 
+  Mat            mat,eigen;/* Matrix describing the eigen decomposition of DF at a given state point */ 
+  Mat            Df;       /* Matrix storing the flux jacobian at a point u */ 
   SNES           snes;
-  KSP            ksp,eigenksp; 
+  KSP            ksp,eigenksp,dfksp;
   PetscPointFlux fluxfun;
   PetscPointFluxDer fluxderfun; 
   PetscPointFluxEig fluxeigfun; 
   PetscBool      fluxfunconvex; /* Is the flux function convex. This affects how maximum wave speeds can be computed */
   
-
   RiemannSolverEigBasis computeeigbasis;
   Vec                   u,ueig;  
   /* Not a huge fan of how these work but ehh.... */

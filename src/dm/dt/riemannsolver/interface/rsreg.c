@@ -50,6 +50,7 @@ PetscErrorCode  RiemannSolverSetType(RiemannSolver rs,RiemannSolverType type)
 
   ierr = PetscFunctionListFind(RiemannSolverList,type,&r);CHKERRQ(ierr);
   if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown RiemannSolver type: %s", type);
+  ierr = RiemannSolverReset(rs);CHKERRQ(ierr);
   if (rs->ops->destroy) {
     ierr = (*(rs)->ops->destroy)(rs);CHKERRQ(ierr);
   }

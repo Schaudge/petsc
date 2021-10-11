@@ -16,3 +16,4 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
 ex1 : $(OBJECTS_DGNET)
+ex2 : $(OBJECTS_DGNET)

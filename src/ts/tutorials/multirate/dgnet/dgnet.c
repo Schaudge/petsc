@@ -758,10 +758,23 @@ PetscErrorCode DGNetworkDestroyTabulation(DGNetwork fvnet){
   ierr = PetscFree2(fvnet->LegEval_equispaced,fvnet->numviewpts);CHKERRQ(ierr);
   PetscFunctionReturn(0); 
 }
+PetscErrorCode DGNetworkDestroyPhysics(DGNetwork dgnet)
+{
+  PetscErrorCode ierr;
+  PetscInt       i;
+
+  PetscFunctionBegin; 
+    ierr = (*dgnet->physics.destroy)(dgnet->physics.user);CHKERRQ(ierr);
+  for (i=0; i<dgnet->physics.dof; i++) {
+    ierr = PetscFree(dgnet->physics.fieldname[i]);CHKERRQ(ierr);
+  }
+  if(dgnet->physics.lowbound) {ierr = PetscFree2(dgnet->physics.lowbound,dgnet->physics.upbound);CHKERRQ(ierr);}
+  PetscFunctionReturn(0);
+}
 PetscErrorCode DGNetworkDestroy(DGNetwork fvnet) 
 {
   PetscErrorCode ierr;
-  PetscInt       i,v,e,eStart,eEnd,vStart,vEnd;
+  PetscInt       v,e,eStart,eEnd,vStart,vEnd;
   Junction       junction;
   EdgeFE         edgefe;
 
@@ -783,16 +796,13 @@ PetscErrorCode DGNetworkDestroy(DGNetwork fvnet)
     ierr = VecDestroy(&junction->xcouple);CHKERRQ(ierr);
     ierr = MatDestroy(&junction->mat);CHKERRQ(ierr);
   }
-  ierr = (*fvnet->physics.destroy)(fvnet->physics.user);CHKERRQ(ierr);
-  for (i=0; i<fvnet->physics.dof; i++) {
-    ierr = PetscFree(fvnet->physics.fieldname[i]);CHKERRQ(ierr);
-  }
+
   ierr = PetscFree2(fvnet->R,fvnet->Rinv);CHKERRQ(ierr);
   ierr = PetscFree5(fvnet->cuLR,fvnet->uLR,fvnet->flux,fvnet->speeds,fvnet->uPlus);CHKERRQ(ierr);
   ierr = PetscFree5(fvnet->charcoeff,fvnet->limitactive,fvnet->cbdryeval_L,fvnet->cbdryeval_R,fvnet->cuAvg);CHKERRQ(ierr);
   ierr = PetscFree2(fvnet->uavgs,fvnet->cjmpLR);CHKERRQ(ierr);
   ierr = DGNetworkDestroyTabulation(fvnet);CHKERRQ(ierr);
-
+  ierr = DGNetworkDestroyPhysics(fvnet);CHKERRQ(ierr);
   ierr = SNESDestroy(&fvnet->snes);CHKERRQ(ierr);
   ierr = KSPDestroy(&fvnet->ksp);CHKERRQ(ierr); 
   ierr = VecDestroy(&fvnet->X);CHKERRQ(ierr);

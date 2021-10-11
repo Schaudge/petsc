@@ -135,6 +135,29 @@ static PetscErrorCode PhysicsCharacteristic_Shallow_Mat(void *vctx,const PetscSc
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx,const PetscReal *u,Mat jacobian)
+{
+  ShallowCtx     *phys = (ShallowCtx*)vctx;
+  PetscErrorCode ierr;
+  PetscInt       m = 2,n = 2,i; 
+  PetscReal      X[m][n];
+  PetscInt       idxm[m],idxn[n]; 
+  
+
+  PetscFunctionBeginUser;
+  for (i=0; i<m; i++) idxm[i] = i; 
+  for (i=0; i<n; i++) idxn[i] = i; 
+  /* Analytical formulation for Df at u */
+  X[0][0]  = 0.;
+  X[1][0]  = - PetscSqr(u[1])/PetscSqr(u[0]) + phys->gravity*u[0];
+  X[0][1]  = 1.;
+  X[1][1]  = 2.*u[1]/u[0];
+  ierr = MatSetValues(jacobian,m,idxm,n,idxn,(PetscReal *)X,INSERT_VALUES);CHKERRQ(ierr);
+  MatAssemblyBegin(jacobian,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(jacobian,MAT_FINAL_ASSEMBLY);
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx,const PetscReal *uL,const PetscReal *uR,PetscReal *uavg) 
 {
   PetscFunctionBeginUser;
@@ -446,10 +469,6 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _dgnet,c
   *maxspeed = 0.0; /* Ignore the computation of the maxspeed */
   PetscFunctionReturn(0);
 }
-/* THESE DONT WORK BE WAY WAY MORE CAREFUL HERE */
-/* Okay the issue was a subtle instability due to floating point error (I think). Using differenet flux calculation functions 
-for the riemann solver and exact fluxes, so small errors accumulate and removes the balancing of fluxs causing a blow up from nonlinearities*/
-/* using the riemann solver for outflow instead of the exact flux fixes the issue */
 static PetscErrorCode PhysicsVertexFlux_Outflow_Simple(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct) {
   PetscErrorCode  ierr;
   const DGNetwork dgnet = (DGNetwork)_dgnet;
@@ -532,7 +551,6 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   ShallowCtx        *user;
   PetscFunctionList rlist = 0;
   char              rname[256] = "rusanov";
-
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   fvnet->physics.samplenetwork   = PhysicsSample_ShallowNetwork;
@@ -548,10 +566,14 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   fvnet->physics.fluxeig         = ShallowEig;
   fvnet->physics.roeavg          = PhysicsRoeAvg_Shallow; 
   fvnet->physics.eigbasis        = PhysicsCharacteristic_Shallow_Mat;
+  fvnet->physics.fluxder         = PhysicsFluxDer_Shallow;
   ierr = PetscStrallocpy("height",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&fvnet->physics.fieldname[1]);CHKERRQ(ierr);
-
   user->gravity = 9.81;
+
+  ierr = PetscMalloc2(2,&fvnet->physics.lowbound,2,&fvnet->physics.upbound);CHKERRQ(ierr);
+  fvnet->physics.lowbound[0] = 0;   fvnet->physics.lowbound[1] = -100; 
+  fvnet->physics.upbound[0] = 100;   fvnet->physics.upbound[1] = 100; 
 
   ierr = RiemannListAdd_Net(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
   ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);

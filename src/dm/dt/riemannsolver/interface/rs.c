@@ -36,6 +36,65 @@ PetscErrorCode RiemannSolverConvexMaxSpeed_internal(RiemannSolver rs,const Petsc
   PetscFunctionReturn(0);
 }
 
+/*
+  Developer Note : Perhaps the RiemannSolver implementations should responsible for calling these internal set up 
+  routines. So if a RiemannSolver implementation requires access to roematrices, jacobian matrices or etc ... 
+  they activate it themselves, otherwise they don't bother. Would save some memory and marginal setup time. Though 
+  in the grand scheme this might not save much (relative to the other costs in a balance law simulation). 
+*/
+
+/*@\
+   RiemannSolverSetUpJacobian_internal - Internal Specification for how to setup the jacobian matrix and jacobian solver. 
+
+   Collective on RiemannSolver
+
+   Input Parameter:
+.  rs - the RiemannSolver context obtained from RiemanSolverCreate()
+
+   Level: developer
+
+.seealso: RiemannSolverSetUp()
+@*/
+PetscErrorCode RiemannSolverSetUpJacobian_internal(RiemannSolver rs) 
+{
+  PetscErrorCode ierr;
+  PC             pc;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&rs->Df);CHKERRQ(ierr);
+  /* Now set up the linear solver. */ 
+  ierr = KSPCreate(PETSC_COMM_SELF,&rs->dfksp);CHKERRQ(ierr);
+  ierr = KSPGetPC(rs->dfksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCLU);CHKERRQ(ierr);
+  ierr = KSPSetType(rs->dfksp,KSPPREONLY);CHKERRQ(ierr); /* Set to direct solver only */
+  ierr = KSPSetOperators(rs->dfksp,rs->Df,rs->Df);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*@
+   RiemannSolverResetJacobian_internal - Internal Specification for how to reset the Jacobian matrices.
+
+   Collective on RiemannSolver
+
+   Input Parameter:
+.  rs - the RiemannSolver context obtained from RiemanSolverCreate()
+
+   Level: developer
+
+.seealso: RiemannSolverSetUp(), RiemannSolverSetUpRoe_internal(), RiemannSolverReset()
+@*/
+PetscErrorCode RiemannSolverResetJacobian_internal(RiemannSolver rs) 
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+  ierr = MatDestroy(&rs->Df);CHKERRQ(ierr);
+  ierr = KSPDestroy(&rs->dfksp);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@
    RiemannSolverSetUpRoe_internal - Internal Specification for how to setup the Roe matrices and Roe matrix Linear Solvers. 
    Called in RiemannSolverSetUp(), seperated for convience of editing. 
@@ -206,6 +265,7 @@ PetscErrorCode  RiemannSolverSetUp(RiemannSolver rs)
   /* if we have a roe function allocate the structures to use it */
   if (rs->computeroemat) {ierr = RiemannSolverSetUpRoe_internal(rs);CHKERRQ(ierr);}
   if (rs->computeeigbasis){ierr = RiemannSolverSetUpEig_internal(rs);CHKERRQ(ierr);}
+  if (rs->fluxderfun){ierr = RiemannSolverSetUpJacobian_internal(rs);CHKERRQ(ierr);}
   if (rs->ops->setup) {
     ierr = (*rs->ops->setup)(rs);CHKERRQ(ierr);
   }
@@ -240,8 +300,10 @@ PetscErrorCode  RiemannSolverReset(RiemannSolver rs)
   if (rs->flux_wrk) {ierr = PetscFree2(rs->flux_wrk,rs->eig_wrk);CHKERRQ(ierr);} /* Not good code here */
   ierr = RiemannSolverResetRoe_internal(rs);CHKERRQ(ierr);
   ierr = RiemannSolverResetEig_internal(rs);CHKERRQ(ierr);
-  rs->dim = -1; 
-  rs->numfields = -1; 
+  ierr = RiemannSolverResetJacobian_internal(rs);CHKERRQ(ierr);
+  /* Don't reset the physics portions of the riemannsolver (user inputted functions and dim, numfields) 
+  as a user might want to swap the type of the riemann solver without having the reinput all of the physics of 
+  the riemannsolver */
   rs->setupcalled = PETSC_FALSE;
   PetscFunctionReturn(0);
 }
@@ -356,6 +418,35 @@ PetscErrorCode  RiemannSolverGetApplicationContext(RiemannSolver rs,void *usrP)
 }
 
 /*@
+    RiemannSolverSetFluxDim - Sets the dimensions of the Flux Function to be used. This is called internally by 
+    RiemannSolverSetFlux() and would not normally be called directly by users. It is convenient for testing purposes.  
+
+    Collective
+
+    Input Parameter:
+.   rs  - The RiemannSolver context obtained from RiemannSolverCreate()
+.   dim - The domain dimension of the flux function 
+.   numfields  - The number of fields for the flux function, i.e range dimension
+
+   Level: developer 
+
+.seealso: RiemannSolverSetFlux() 
+@*/
+PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver rs,PetscInt dim, PetscInt numfields)
+{
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   /* WIP : Only 1-dim Riemann Solvers are supported */ 
+   if (dim != 1) {SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension for flux functions are not supported. Only 1 dimensional flux function are supported. ",dim);}
+   if (dim < 1) {SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension not valid. Dimension must be non-negative ",dim);}
+   if (numfields < 1){SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i numfields not valid. numfields must be non-negative ",numfields);}
+
+   rs->dim = dim;
+   rs->numfields = numfields; 
+   PetscFunctionReturn(0);
+}
+
+/*@
     RiemannSolverSetFlux - Sets the flux function used to compute the numerical flux. 
 
     Collective
@@ -372,20 +463,36 @@ PetscErrorCode  RiemannSolverGetApplicationContext(RiemannSolver rs,void *usrP)
 @*/
 PetscErrorCode RiemannSolverSetFlux(RiemannSolver rs,PetscInt dim, PetscInt numfields,PetscPointFlux flux)
 {
+   PetscErrorCode ierr; 
+   
    PetscFunctionBegin;
    PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-
-   /* WIP : Only 1-dim Riemann Solvers are supported */ 
-   if (dim != 1) {SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension for flux functions are not supported. Only 1 dimensional flux function are supported. ",dim);}
- 
-   if (dim < 1) {SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i dimension not valid. Dimension must be non-negative ",dim);}
-   if (numfields < 1){SETERRQ1(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"%i numfields not valid. numfields must be non-negative ",numfields);}
-
-   rs->dim = dim;
-   rs->numfields = numfields; 
+   ierr = RiemannSolverSetFluxDim(rs,dim,numfields);CHKERRQ(ierr);
    rs->fluxfun = flux; 
    PetscFunctionReturn(0);
 }
+
+/*@
+    RiemannSolverSetJacobian - Sets the jacobian flux function.
+
+    Collective
+
+    Input Parameter:
+.   rs  - The RiemannSolver context obtained from RiemannSolverCreate()
+.   flux - The flux function
+
+   Level: beginner 
+
+.seealso: RiemannSolverSetApplicationContext(), RiemannSolverSetFlux()
+@*/
+PetscErrorCode RiemannSolverSetJacobian(RiemannSolver rs,PetscPointFluxDer jacobian)
+{
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   rs->fluxderfun = jacobian;
+   PetscFunctionReturn(0);
+}
+
 /*@
     RiemannSolverSetFluxEig -  User specified function to compute the maximum wave speed for a riemann problem. This 
     has standard default behavior (for convex flux functions) for any riemann solver implementation that is specified 
@@ -559,6 +666,8 @@ PetscErrorCode RiemannSolverSetFromOptions(RiemannSolver rs)
   */
   PetscFunctionReturn(0);
 }
+
+
 
 /*@C
     RiemannSolverView - Prints the RiemannSolver data structure.
@@ -781,5 +890,95 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs,RiemannSolverRoeAvg 
    PetscFunctionBegin;
    PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
    rs->roeavg = roeavgfunct; 
+   PetscFunctionReturn(0);
+}
+
+/*@
+    RiemannSolverTestEigDecomposition -  Tests whether the provided eigenbasis and eigenvalue functions are actually 
+    eigenvectors/eigenvalues of the provided fluxderivative function DF_u at the point u. Internally this simply 
+    checks if  DF_u(u) R(u) = R(u)\lambda(u), where R(u) is the matrix of eigenvectors and \lambda(u) is the diagonal 
+    matrix of eigenvalues. This is useful sanity check to test if user provided (or numerically computed) flux and
+    eigen functions are correct. 
+
+    Collective
+
+    Input Parameter:
+.   rs  -       The RiemannSolver context obtained from RiemannSolverCreate()
+.   numvalues - The number of values that are being tested 
+.   u   -       The array of values to test the eigendecomposition at
+.   tol -       The tolerance to compute equality to. Input PETSC_DECIDE to let petsc decide the tolerance. 
+    Output Parameter: 
+.   isequal -  isequal[i] is true if \| DF(u) R(u) - R(u)\lambda(u)\|_\infty for the u[i] value. Allocated by caller.
+.   norms (optional) - The \| DF(u) R(u) - R(u)\lambda(u)\|_\infty norms computed. Input null if not desired. Allocated
+    by caller. 
+
+   Level: intermediate
+
+.seealso: RiemannSolverSetFlux(), RiemannSolverComputeRoeMatrix()
+@*/
+
+/*
+ TODO : Implement viewer routines for RiemannSolver and allow a viewer to be passed into this 
+ function specify whether and how the matrices DF, R and \lambda are viewed. For now this is
+ simply a boolean check but should be integrated with the rest of the petscview infrastructure. 
+*/
+
+PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs,PetscInt numvalues,const PetscReal **u,PetscReal tol, PetscBool *isequal,PetscReal *norms)
+{
+   Mat            DF,R,Eig, DFR,EigR; 
+   Vec            Eig_vec; 
+   PetscScalar    *eig; 
+   PetscInt       i;
+   PetscErrorCode ierr; 
+   PetscReal      norm; 
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
+   if(tol == PETSC_DECIDE) tol = 1e-10; 
+   /* Preallocate diagonal eigenvalue matrix for all values */
+   ierr = MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&Eig);CHKERRQ(ierr);
+   ierr = MatZeroEntries(Eig);CHKERRQ(ierr);
+   ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,rs->numfields,NULL,&Eig_vec);CHKERRQ(ierr);
+   for(i=0;i<numvalues;i++) {
+      ierr = RiemannSolverComputeEig(rs,u[i],&eig);CHKERRQ(ierr); 
+      ierr = VecPlaceArray(Eig_vec,eig);CHKERRQ(ierr);
+      ierr = MatDiagonalSet(Eig,Eig_vec,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecResetArray(Eig_vec);CHKERRQ(ierr);
+      ierr = RiemannSolverComputeJacobian(rs,u[i],&DF);CHKERRQ(ierr);
+      ierr = RiemannSolverComputeEigBasis(rs,u[i],&R);CHKERRQ(ierr);
+      /* In the first loop allocate the product matrices, reuse them throughout */
+      if (i==0) {
+         ierr = MatMatMult(DF,R,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&DFR);CHKERRQ(ierr);
+         ierr = MatMatMult(R,Eig,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&EigR);CHKERRQ(ierr);
+      } else {
+         ierr = MatMatMult(DF,R,MAT_REUSE_MATRIX,PETSC_DEFAULT,&DFR);CHKERRQ(ierr);
+         ierr = MatMatMult(R,Eig,MAT_REUSE_MATRIX,PETSC_DEFAULT,&EigR);CHKERRQ(ierr);
+      }
+      ierr = MatAXPY(DFR,-1.,EigR,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatNorm(DFR,NORM_INFINITY,&norm);CHKERRQ(ierr);
+      isequal[i] = (norm < tol);
+      if (norms) {norms[i] = norm;}
+   }
+   ierr = MatDestroy(&DFR);CHKERRQ(ierr);
+   ierr = MatDestroy(&EigR);CHKERRQ(ierr);
+   ierr = MatDestroy(&Eig);CHKERRQ(ierr);
+   ierr = VecDestroy(&Eig_vec);CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs,const PetscReal *u,Mat *jacobian)
+{
+   PetscErrorCode ierr;
+   void           *ctx;
+
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
+   if (rs->fluxderfun) {
+      rs->fluxderfun(ctx,u,rs->Df); 
+      *jacobian = rs->Df;
+   } else { 
+      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Jacobian Function Specified");
+   }
    PetscFunctionReturn(0);
 }

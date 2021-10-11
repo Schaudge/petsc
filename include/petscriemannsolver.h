@@ -111,6 +111,8 @@ PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver,const Petsc
 PETSC_EXTERN PetscErrorCode RiemannSolverCharNorm(RiemannSolver, const PetscReal*, const PetscReal*, PetscInt,PetscReal*);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver,RiemannSolverRoeAvg);
 
+PETSC_EXTERN PetscErrorCode RiemannSolverSetJacobian(RiemannSolver,PetscPointFluxDer);
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver,const PetscReal*,Mat*);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetFluxEig(RiemannSolver ,PetscPointFluxEig);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetEigBasis(RiemannSolver,RiemannSolverEigBasis);
@@ -119,9 +121,13 @@ PETSC_EXTERN PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver,const Pe
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetFlux(RiemannSolver,PetscInt,PetscInt,PetscPointFlux);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetMaxSpeedFunct(RiemannSolver ,RiemannSolverMaxWaveSpeed);
+PETSC_EXTERN PetscErrorCode RiemannSolverSetFluxDim(RiemannSolver,PetscInt,PetscInt);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetApplicationContext(RiemannSolver,void*);
 PETSC_EXTERN PetscErrorCode RiemannSolverGetApplicationContext(RiemannSolver,void*);
+
+/* Diagnostic Functions */ 
+PETSC_EXTERN PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver,PetscInt,const PetscReal**,PetscReal,PetscBool*,PetscReal*);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverView(RiemannSolver,PetscViewer);
 #endif
