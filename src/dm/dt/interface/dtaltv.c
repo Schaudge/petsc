@@ -33,7 +33,7 @@
    The wedge product is implemented for either two inputs (f and g) in PetscDTAltVWedge, or for one (just f, giving a
    matrix to multiply against multiple choices of g) in PetscDTAltVWedgeMatrix.
 
-   If k > 0, a k-form w and a vector v can combine to make a (k-1)-formm through the interior product, (w int v),
+   If k > 0, a k-form w and a vector v can combine to make a (k-1)-form through the interior product, (w int v),
    defined by (w int v)(v_1,...,v_{k-1}) = w(v,v_1,...,v_{k-1}).
 
    The interior product is implemented for either two inputs (w and v) in PetscDTAltVInterior, for one (just v, giving a
@@ -42,7 +42,7 @@
 
    When there is a linear map L: V -> W from an N dimensional vector space to an M dimensional vector space,
    it induces the linear pullback map L^* : Alt^k W -> Alt^k V, defined by L^* w(v_1,...,v_k) = w(L v_1, ..., L v_k).
-   The pullback is implemented as PetscDTAltVPullback (acting on a known w) and PetscDTAltVPullbackMatrix (creating a matrix that computes the actin of L^*).
+   The pullback is implemented as PetscDTAltVPullback (acting on a known w) and PetscDTAltVPullbackMatrix (creating a matrix that computes the action of L^*).
 
    Alt^k V and Alt^(N-k) V have the same dimension, and the Hodge star operator maps between them.  We note that Alt^N V is a one dimensional space, and its
    basis vector is sometime called vol.  The Hodge star operator has the property that (f wedge (star g)) = (f,g) vol, where (f,g) is the simple inner product
