@@ -2489,7 +2489,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   DMPlexShape    shape = DM_SHAPE_BOX;
   DMPolytopeType cell  = DM_POLYTOPE_TRIANGLE;
   PetscInt       dim   = 2;
-  PetscBool      simplex = PETSC_TRUE, interpolate = PETSC_TRUE, adjCone = PETSC_FALSE, adjClosure = PETSC_TRUE, refDomain = PETSC_FALSE;
+  PetscBool      simplex = PETSC_TRUE, interpolate = PETSC_TRUE, orient = PETSC_FALSE, adjCone = PETSC_FALSE, adjClosure = PETSC_TRUE, refDomain = PETSC_FALSE;
   PetscBool      flg, flg2, fflg, bdfflg;
   MPI_Comm       comm;
   char           filename[PETSC_MAX_PATH_LEN], bdFilename[PETSC_MAX_PATH_LEN];
@@ -2506,7 +2506,8 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
   ierr = PetscOptionsBoundedInt("-dm_plex_dim", "Topological dimension of the mesh", "DMGetDimension", dim, &dim, &flg, 0);CHKERRQ(ierr);
   if ((dim < 0) || (dim > 3)) SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Dimension %D should be in [1, 3]", dim);
   ierr = PetscOptionsBool("-dm_plex_simplex", "Mesh cell shape", "", simplex,  &simplex, &flg);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-dm_plex_interpolate", "Flag to create edges and faces automatically", "", interpolate, &interpolate, &flg);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-dm_plex_interpolate", "Flag to create edges and faces automatically", "DMPlexInterpolate", interpolate, &interpolate, &flg);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-dm_plex_orient", "Orient the constructed mesh", "DMPlexOrient", orient,  &orient, &flg);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-dm_plex_adj_cone", "Set adjacency direction", "DMSetBasicAdjacency", adjCone,  &adjCone, &flg);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-dm_plex_adj_closure", "Set adjacency size", "DMSetBasicAdjacency", adjClosure,  &adjClosure, &flg2);CHKERRQ(ierr);
   if (flg || flg2) {ierr = DMSetBasicAdjacency(dm, adjCone, adjClosure);CHKERRQ(ierr);}
@@ -2634,6 +2635,7 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
     }
   }
   ierr = DMPlexSetRefinementUniform(dm, PETSC_TRUE);CHKERRQ(ierr);
+  if (orient) {ierr = DMPlexOrient(dm);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 
