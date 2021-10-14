@@ -11,7 +11,7 @@ PetscFunctionList SNESList              = NULL;
 /* Logging support */
 PetscClassId  SNES_CLASSID, DMSNES_CLASSID;
 PetscLogEvent SNES_Solve, SNES_Setup, SNES_FunctionEval, SNES_JacobianEval, SNES_NGSEval, SNES_NGSFuncEval, SNES_NPCSolve, SNES_ObjectiveEval;
-
+test
 /*@
    SNESSetErrorIfNotConverged - Causes SNESSolve() to generate an error if the solver has not converged.
 
