@@ -341,7 +341,7 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
   /* For each dimension 1,2,3, one coordinate */
 
   ierr = PetscFPrintf(PETSC_COMM_SELF,f, "        <DataArray type=\"%s\" Name=\"Position\""
-             " NumberOfComponents=\"3\" format=\"appended\" offset=\"%D\" />\n", precision, offset);CHKERRQ(ierr);
+             " NumberOfComponents=\"3\" format=\"appended\" offset=\"%d\" />\n", precision, (int)offset);CHKERRQ(ierr);
 
   offset += 4;                               /* sizeof(int) in bytes */
   offset += 3*sizeof(PetscVTUReal)*nPoints;
@@ -353,7 +353,7 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 
   ierr = PetscFPrintf(PETSC_COMM_SELF,f,
            "        <DataArray type=\"%s\" Name=\"connectivity\""
-           " format=\"%s\" offset=\"%D\" />\n", "Int32", "appended", offset);CHKERRQ(ierr);
+           " format=\"%s\" offset=\"%d\" />\n", "Int32", "appended", (int)offset);CHKERRQ(ierr);
 
   offset += 4;
   offset += sizeof(PetscVTKInt)*nPoints;
@@ -363,7 +363,7 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
    */
 
   fprintf (f, "        <DataArray type=\"%s\" Name=\"offsets\""
-             " format=\"%s\"  offset=\"%llD\" />\n", "Int32", "appended", (long long)offset);
+             " format=\"%s\"  offset=\"%d\" />\n", "Int32", "appended", (int)offset);
 
   offset += 4;
   offset += sizeof(PetscVTKInt)*nCells;
@@ -371,7 +371,7 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
   /* Cell types. Right now VTK_PIXEL (orthogonal quad, x, y aligned).*/
 
   PetscFPrintf(PETSC_COMM_SELF,f, "        <DataArray type=\"UInt8\" Name=\"types\""
-           " format=\"%s\" offset=\"%D\" />\n","appended", offset); // might need to change
+           " format=\"%s\" offset=\"%d\" />\n","appended", (int)offset); // might need to change
 
   offset += 4;
   offset += sizeof(PetscVTKType)*nCells;
@@ -384,21 +384,21 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 
   /* Cell MPIrank */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"Int32\" Name=\"Rank\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%D\" />\n",offset);CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"Int32\" Name=\"Rank\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%d\" />\n",(int)offset);CHKERRQ(ierr);
 
   offset += 4;
   offset += sizeof(PetscVTKInt)*nCells;
 
   /* Cell tree ID */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"Int32\" Name=\"TreeID\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%D\" />\n",offset);CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"Int32\" Name=\"TreeID\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%d\" />\n",(int)offset);CHKERRQ(ierr);
 
   offset += 4;
   offset += sizeof(PetscVTKInt)*nCells;
 
   /* Cell refinement level */
 
-  ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"Int32\" Name=\"Level\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%D\" />\n",offset);CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"Int32\" Name=\"Level\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%d\" />\n",(int)offset);CHKERRQ(ierr);
 
   offset += 4;
   offset += sizeof(PetscVTKInt)*nCells;
@@ -417,13 +417,13 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 
     if(link->ft == PETSC_VTK_CELL_FIELD) {
       /* TODO? does not handle complex case: see plexvtu.c */
-      ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%D\" />\n",precision,vecname,offset);CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%d\" />\n",precision,vecname,(int)offset);CHKERRQ(ierr);
 
       offset += 4;
       offset += sizeof(PetscVTUReal)*nCells;
 
     } else if(link->ft == PETSC_VTK_CELL_VECTOR_FIELD) {
-      ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"3\" format=\"appended\" offset=\"%D\" />\n",precision,vecname,offset);CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,f,"        <DataArray type=\"%s\" Name=\"%s\" NumberOfComponents=\"3\" format=\"appended\" offset=\"%d\" />\n",precision,vecname,(int)offset);CHKERRQ(ierr);
 
       offset += 4;
       offset += 3*sizeof(PetscVTUReal)*nCells;
