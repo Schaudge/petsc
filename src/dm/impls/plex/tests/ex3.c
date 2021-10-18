@@ -28,6 +28,7 @@ typedef struct {
   PetscBool testInjector;      /* Test finite element injection routines */
   PetscInt  treeCell;          /* Cell to refine in tree test */
   PetscReal constants[3];      /* Constant values for each dimension */
+  char      special[PETSC_MAX_PATH_LEN]; /* Name of special function */
 } AppCtx;
 
 /* u = 1 */
@@ -108,6 +109,61 @@ PetscErrorCode trigDer(PetscInt dim, PetscReal time, const PetscReal coords[], c
   return 0;
 }
 
+/* All terms in the quadrilateral BDM1 space */
+PetscErrorCode quadBDM(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nf, PetscScalar *u, void *ctx)
+{
+  PetscReal all,x=coords[0],y=coords[1];
+  all  = 1 + x + y + x*y;
+  u[0] = all + x*x;
+  u[1] = all + y*y;
+  return 0;
+}
+PetscErrorCode quadBDMDer(PetscInt dim, PetscReal time, const PetscReal coords[], const PetscReal n[], PetscInt Nf, PetscScalar *u, void *ctx)
+{
+  PetscReal x=coords[0],y=coords[1];
+  u[0] = 1 + y + 2*x;
+  u[1] = 1 + x + 2*y;
+  return 0;
+}
+
+/* All terms in the hexahedral WXY space */
+PetscErrorCode hexWXY(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nf, PetscScalar *u, void *ctx)
+{
+  PetscReal all,x=coords[0],y=coords[1],z=coords[2];
+  all  = 1 + x + y + z + x*y + x*z + y*z + x*y*z;
+  u[0] = all + x*x + x*x*z;
+  u[1] = all + y*y + y*y*x;
+  u[2] = all + z*z + z*z*y;
+  return 0;
+}
+PetscErrorCode hexWXYDer(PetscInt dim, PetscReal time, const PetscReal coords[], const PetscReal n[], PetscInt Nf, PetscScalar *u, void *ctx)
+{
+  PetscReal x=coords[0],y=coords[1],z=coords[2];
+  u[0] = n[0]*(1 + y + z + y*z + 2*x + 2*x*z);
+  u[1] = n[1]*(1 + x + z + x*z + 2*y + 2*y*x);
+  u[2] = n[2]*(1 + x + y + x*y + 2*z + 2*z*y);
+  return 0;
+}
+
+/* All terms in the prism WXY space */
+PetscErrorCode prismWXY(PetscInt dim, PetscReal time, const PetscReal coords[], PetscInt Nf, PetscScalar *u, void *ctx)
+{
+  PetscReal all,x=coords[0],y=coords[1],z=coords[2];
+  all  = 1 + x + y + z + y*z + x*z;
+  u[0] = all + x*y + x*x;
+  u[1] = all + x*y + y*y;
+  u[2] = all +     + z*z;
+  return 0;
+}
+PetscErrorCode prismWXYDer(PetscInt dim, PetscReal time, const PetscReal coords[], const PetscReal n[], PetscInt Nf, PetscScalar *u, void *ctx)
+{
+  PetscReal x=coords[0],y=coords[1],z=coords[2];
+  u[0] = n[0]*(1 + z + y + 2*x);
+  u[1] = n[1]*(1 + z + x + 2*y);
+  u[2] = n[2]*(1 + x + y + 2*z);
+  return 0;
+}
+
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscInt       n = 3;
@@ -131,6 +187,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->constants[0]    = 1.0;
   options->constants[1]    = 2.0;
   options->constants[2]    = 3.0;
+  options->special[0]      = '\0';
 
   ierr = PetscOptionsBegin(comm, "", "Projection Test Options", "DMPlex");CHKERRQ(ierr);
   ierr = PetscOptionsBool("-use_da", "Flag for DMDA mesh", "ex3.c", options->useDA, &options->useDA, NULL);CHKERRQ(ierr);
@@ -148,6 +205,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBool("-test_fv_grad", "Test finite volume gradient reconstruction", "ex3.c", options->testFVgrad, &options->testFVgrad, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-test_injector","Test finite element injection", "ex3.c", options->testInjector, &options->testInjector,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsRealArray("-constants","Set the constant values", "ex3.c", options->constants, &n,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsString("-special", "Name of special function, (one of) quadbdm, hexwxy, prismwxy", "ex3.c", options->special, options->special, sizeof(options->special), NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -671,13 +729,14 @@ static PetscErrorCode ComputeError(DM dm, PetscErrorCode (**exactFuncs)(PetscInt
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode CheckFunctions(DM dm, PetscInt order, AppCtx *user)
+static PetscErrorCode CheckFunctions(DM dm, PetscInt order, const char special[], AppCtx *user)
 {
   PetscErrorCode (*exactFuncs[1]) (PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
   PetscErrorCode (*exactFuncDers[1]) (PetscInt dim, PetscReal time, const PetscReal x[], const PetscReal n[], PetscInt Nf, PetscScalar *u, void *ctx);
   void            *exactCtxs[3];
   MPI_Comm         comm;
   PetscReal        error, errorDer, tol = PETSC_SMALL;
+  PetscInt         dim;
   PetscErrorCode   ierr;
 
   PetscFunctionBeginUser;
@@ -686,25 +745,50 @@ static PetscErrorCode CheckFunctions(DM dm, PetscInt order, AppCtx *user)
   exactCtxs[2]       = user;
   ierr = PetscObjectGetComm((PetscObject)dm, &comm);CHKERRQ(ierr);
   /* Setup functions to approximate */
-  switch (order) {
-  case 0:
-    exactFuncs[0]    = constant;
-    exactFuncDers[0] = constantDer;
-    break;
-  case 1:
-    exactFuncs[0]    = linear;
-    exactFuncDers[0] = linearDer;
-    break;
-  case 2:
-    exactFuncs[0]    = quadratic;
-    exactFuncDers[0] = quadraticDer;
-    break;
-  case 3:
-    exactFuncs[0]    = cubic;
-    exactFuncDers[0] = cubicDer;
-    break;
-  default:
-    SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Could not determine functions to test for order %d", order);
+  if (special[0]){
+    ierr = DMGetDimension(dm,&dim); CHKERRQ(ierr);
+    if (!strcmp(special,"quadbdm")) {
+      if (dim != 2) {
+        SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "The special %s is not compatible with dimension %d", special, dim);
+      }
+      exactFuncs[0]    = quadBDM;
+      exactFuncDers[0] = quadBDMDer;
+    } else if (!strcmp(special,"hexwxy")) {
+      if (dim != 3) {
+        SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "The special %s is not compatible with dimension %d", special, dim);
+      }
+      exactFuncs[0]    = hexWXY;
+      exactFuncDers[0] = hexWXYDer;
+    } else if (!strcmp(special,"prismwxy")) {
+      if (dim != 3) {
+        SETERRQ2(comm, PETSC_ERR_ARG_OUTOFRANGE, "The special %s is not compatible with dimension %d", special, dim);
+      }
+      exactFuncs[0]    = prismWXY;
+      exactFuncDers[0] = prismWXYDer;
+    } else {
+      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Could not determine functions to test for special %s", special);
+    }
+  }else{
+    switch (order) {
+    case 0:
+      exactFuncs[0]    = constant;
+      exactFuncDers[0] = constantDer;
+      break;
+    case 1:
+      exactFuncs[0]    = linear;
+      exactFuncDers[0] = linearDer;
+      break;
+    case 2:
+      exactFuncs[0]    = quadratic;
+      exactFuncDers[0] = quadraticDer;
+      break;
+    case 3:
+      exactFuncs[0]    = cubic;
+      exactFuncDers[0] = cubicDer;
+      break;
+    default:
+      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Could not determine functions to test for order %d", order);
+    }
   }
   ierr = ComputeError(dm, exactFuncs, exactFuncDers, exactCtxs, &error, &errorDer, user);CHKERRQ(ierr);
   /* Report result */
@@ -885,7 +969,7 @@ int main(int argc, char **argv)
   if (user.testFEjacobian) {ierr = TestFEJacobian(dm, &user);CHKERRQ(ierr);}
   if (user.testFVgrad) {ierr = TestFVGrad(dm, &user);CHKERRQ(ierr);}
   if (user.testInjector) {ierr = TestInjector(dm, &user);CHKERRQ(ierr);}
-  ierr = CheckFunctions(dm, user.porder, &user);CHKERRQ(ierr);
+  ierr = CheckFunctions(dm, user.porder, user.special, &user);CHKERRQ(ierr);
   {
     PetscDualSpace dsp;
     PetscInt       k;
