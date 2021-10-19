@@ -124,9 +124,13 @@ PetscErrorCode DMBF_XD_IterateSetUpCells(DM dm, DM_BF_Cell *cells, const DM_BF_S
   /* run iterator */
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetGhost(dm,&ghost);CHKERRQ(ierr);
-  if (cells && p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Unclear which cell data allocation should be used");
-  if (!cells && !p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cell data allocations do not exist");
-  if (!cells && p4est->data_size != cellMemoryShape->size) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"p4est data size mismatch: is %d, should be %d",(int)p4est->data_size,(int)cellMemoryShape->size);
+  if (p4est->local_num_quadrants) {
+    if ( cells &&  p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Unclear which cell data allocation should be used");
+    if (!cells && !p4est->user_data_pool) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cell data allocations do not exist");
+    if (!cells && cellMemoryShape->size != p4est->data_size) SETERRQ2(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_SIZ,"p4est data size mismatch: is %d, should be %d",(int)p4est->data_size,(int)cellMemoryShape->size);
+  } else {
+    if (cells) SETERRQ(PetscObjectComm((PetscObject)dm),PETSC_ERR_ARG_WRONGSTATE,"Cell data allocations exist but should not");
+  }
 #if defined(P4_TO_P8)
   PetscStackCallP4est(p4est_iterate,(p4est,ghost,&iterCtx,_p_iterSetUp,NULL,NULL,NULL));
 #else

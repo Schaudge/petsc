@@ -195,14 +195,16 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
-  PetscValidIntPointer(fromIdx,3);
-  PetscValidIntPointer(toIdx,4);
   /* get sizes */
   ierr   = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   bs     = blockSize[0]*blockSize[1]*blockSize[2];
   n      = p4est->local_num_quadrants;
   ng     = ghost->ghosts.elem_count;
   offset = p4est->global_first_quadrant[p4est->mpirank];
+  if (0 < (n+ng)) {
+    PetscValidIntPointer(fromIdx,3);
+    PetscValidIntPointer(toIdx,4);
+  }
   /* set indices of owned cells */
   for(i = 0; i < n*bs; i++) {
     fromIdx[i] = (PetscInt)i;
@@ -217,8 +219,8 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
     gid  = p4est->global_first_quadrant[rank] + lid;   /* translate local id to global id */
     switch(P4EST_DIM) {
       case 2:
-        for(k = 0; k < blockSize[1]; k++) {
-          for(j = 0; j < blockSize[0]; j++) {
+        for   (k = 0; k < blockSize[1]; k++) {
+          for (j = 0; j < blockSize[0]; j++) {
             idx = (PetscInt) n*bs + bs*i + blockSize[0]*k + j;
             fromIdx[idx] = idx;
             toIdx[idx]   = (PetscInt)bs*gid + blockSize[0]*k + j;
@@ -226,9 +228,9 @@ PetscErrorCode DMBF_XD_GetLocalToGlobalIndices(DM dm, DM_BF_XD_Cells *cells, Pet
         }
         break;
       case 3:
-        for(l = 0; l < blockSize[2]; l++) {
-          for(k = 0; k < blockSize[1]; k++) {
-            for(j = 0; j < blockSize[0]; j++) {
+        for     (l = 0; l < blockSize[2]; l++) {
+          for   (k = 0; k < blockSize[1]; k++) {
+            for (j = 0; j < blockSize[0]; j++) {
               idx = (PetscInt) bs*n + bs*i + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;
               fromIdx[idx] = idx;
               toIdx[idx]   = (PetscInt)bs*gid + blockSize[0]*blockSize[1]*l + blockSize[0]*k + j;

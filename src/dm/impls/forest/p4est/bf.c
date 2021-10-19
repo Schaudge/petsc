@@ -63,6 +63,14 @@ static PetscInt _p_dim(DM dm)
   return dim;
 }
 
+static PetscInt _p_nCells(DM dm)
+{
+  PetscInt dim, n;
+
+  CHKERRABORT(_p_comm(dm),DMBFGetInfo(dm,&dim,&n,PETSC_NULL,PETSC_NULL));
+  return n;
+}
+
 /******************************************************************************
  * PRIVATE FUNCTION DEFINITIONS
  *****************************************************************************/
@@ -103,9 +111,9 @@ static PetscErrorCode DMBFCheck(DM dm)
   if (!isCorrectDM) SETERRQ2(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Type of DM is %s, but has to be %s",((PetscObject)dm)->type_name,DMBF);
   /* check cells */
   bf = _p_getBF(dm);
-  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
-  if (!bf->ghostCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
+  if (!bf->cells && _p_nCells(dm))  SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled)   SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  if (!bf->ghostCellsSetUpCalled)   SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
   PetscFunctionReturn(0);
 }
 
@@ -236,14 +244,18 @@ static PetscErrorCode DMBF_CellsCreate(DM dm)
   bf = _p_getBF(dm);
   /* set cell memory shape */
   ierr = DMBF_CellMemoryShapeSetUp(dm);CHKERRQ(ierr);
-  /* get number of cells and their size */
-  ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
-  n_cells  = (size_t)n;
-  ng_cells = (size_t)ng;
-  cellSize = _p_cellSize(bf);
-  /* create DMBF cells */
-  ierr = PetscMalloc1((n_cells+ng_cells)*cellSize,&bf->cells);CHKERRQ(ierr);
-  ierr = PetscLogObjectMemory((PetscObject)dm,(n_cells+ng_cells)*cellSize);CHKERRQ(ierr);
+  if (_p_nCells(dm)) {
+    /* get number of cells and their size */
+    ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
+    n_cells  = (size_t)n;
+    ng_cells = (size_t)ng;
+    cellSize = _p_cellSize(bf);
+    /* create DMBF cells */
+    ierr = PetscMalloc1((n_cells+ng_cells)*cellSize,&bf->cells);CHKERRQ(ierr);
+    ierr = PetscLogObjectMemory((PetscObject)dm,(n_cells+ng_cells)*cellSize);CHKERRQ(ierr);
+  } else {
+    bf->cells = PETSC_NULL;
+  }
   PetscFunctionReturn(0);
 }
 
@@ -254,13 +266,14 @@ static PetscErrorCode DMBF_CellsDestroy(DM dm)
 
   PetscFunctionBegin;
   bf = _p_getBF(dm);
-  if (!bf->cells) {
-    PetscFunctionReturn(0);
+  /* destroy DMBF cells */
+  if (bf->cells) {
+    ierr = PetscFree(bf->cells);CHKERRQ(ierr);
   }
-  ierr = PetscFree(bf->cells);CHKERRQ(ierr);
-  //ierr = PetscLogObjectMemory((PetscObject)dm,-(n_cells+ng_cells)*cell_size);CHKERRQ(ierr); //TODO need to "unlog" memeory?
-  ierr = DMBFShapeClear(&bf->cellMemoryShape);CHKERRQ(ierr);
   bf->cells = PETSC_NULL;
+  //ierr = PetscLogObjectMemory((PetscObject)dm,-(n_cells+ng_cells)*cell_size);CHKERRQ(ierr); //TODO need to "unlog" memeory?
+  /* destroy cell memory shape */
+  ierr = DMBFShapeClear(&bf->cellMemoryShape);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -272,7 +285,8 @@ static PetscErrorCode DMBF_CellsSetUpOwned(DM dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
-  if (!bf->cells) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->cells && _p_nCells(dm))  SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  /* set data of all owned cells */
   switch (_p_dim(dm)) {
     case 2: ierr = DMBF_2D_IterateSetUpCells(dm,bf->cells,&bf->cellMemoryShape);CHKERRQ(ierr); break;
     case 3: ierr = DMBF_3D_IterateSetUpCells(dm,bf->cells,&bf->cellMemoryShape);CHKERRQ(ierr); break;
@@ -292,7 +306,7 @@ static PetscErrorCode DMBF_CellsSetUpGhost(DM dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
-  if (!bf->cells) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->cells && _p_nCells(dm))  SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
   /* set data pointers of all ghost cells */
   ierr = DMBFGetInfo(dm,&dim,&offset_cells,PETSC_NULL,&ng_cells);CHKERRQ(ierr);
   for (i=offset_cells; i<(offset_cells+ng_cells); i++) {
@@ -315,14 +329,19 @@ static PetscErrorCode DMBF_LocalToGlobalScatterCreate(DM dm, VecScatter *ltog)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  /* create local-to-global indices */
+  /* allocate local-to-global indices */
   bf = _p_getBF(dm);
   ierr = DMBFGetInfo(dm,&dim,&n,PETSC_NULL,&ng);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   bs   = blockSize[0]*blockSize[1]*blockSize[2];
   locDof = (n + ng)*bs;
-  ierr = PetscMalloc1(locDof,&fromIdx);CHKERRQ(ierr);
-  ierr = PetscMalloc1(locDof,&toIdx);CHKERRQ(ierr);
+  if (locDof) {
+    ierr = PetscMalloc1(locDof,&fromIdx);CHKERRQ(ierr);
+    ierr = PetscMalloc1(locDof,&toIdx);CHKERRQ(ierr);
+  } else {
+    fromIdx = PETSC_NULL;
+    toIdx   = PETSC_NULL;
+  }
   switch (dim) {
     case 2: ierr = DMBF_2D_GetLocalToGlobalIndices(dm,(DM_BF_2D_Cells*)bf->ftCells,fromIdx,toIdx);CHKERRQ(ierr); break;
     case 3: ierr = DMBF_3D_GetLocalToGlobalIndices(dm,(DM_BF_3D_Cells*)bf->ftCells,fromIdx,toIdx);CHKERRQ(ierr); break;
@@ -354,7 +373,9 @@ static PetscErrorCode DMBF_LocalToGlobalScatterDestroy(DM dm, VecScatter *ltog)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
-  ierr = VecScatterDestroy(ltog);CHKERRQ(ierr);
+  if (ltog) {
+    ierr = VecScatterDestroy(ltog);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
@@ -1178,7 +1199,7 @@ PetscErrorCode DMBFGetInfo(DM dm, PetscInt *dim, PetscInt *nLocal, PetscInt *nGl
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidIntPointer(dim,2);
   bf = _p_getBF(dm);
-  if (!bf->ftCells) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ftCells) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Forest-of-tree cells do not exist");
   ierr = DMGetDimension(dm,dim);CHKERRQ(ierr);
   switch (*dim) {
     case 2: ierr = DMBF_2D_GetSizes(dm,(DM_BF_2D_Cells*)bf->ftCells,&n,&N,&ng);CHKERRQ(ierr); break;
@@ -1281,7 +1302,7 @@ static PetscErrorCode DMCoarsen_BF(DM dm, MPI_Comm comm, DM *coarseDm)
   CHKERRQ( DMBFCheck(dm) );
   {
     PetscMPIInt mpiComparison;
-    MPI_Comm dmcomm = _p_comm(dm);
+    MPI_Comm    dmcomm = _p_comm(dm);
 
     ierr = MPI_Comm_compare(comm,dmcomm,&mpiComparison);CHKERRQ(ierr);
     if (mpiComparison != MPI_IDENT && mpiComparison != MPI_CONGRUENT) SETERRQ(dmcomm,PETSC_ERR_SUP,"No support for different communicators");
@@ -1319,7 +1340,7 @@ static PetscErrorCode DMRefine_BF(DM dm, MPI_Comm comm, DM *fineDm)
   CHKERRQ( DMBFCheck(dm) );
   {
     PetscMPIInt mpiComparison;
-    MPI_Comm dmcomm = _p_comm(dm);
+    MPI_Comm    dmcomm = _p_comm(dm);
 
     ierr = MPI_Comm_compare(comm,dmcomm,&mpiComparison);CHKERRQ(ierr);
     if (mpiComparison != MPI_IDENT && mpiComparison != MPI_CONGRUENT) SETERRQ(dmcomm,PETSC_ERR_SUP,"No support for different communicators");
@@ -1441,7 +1462,6 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM,
                                            Vec *vecRead, PetscInt nVecsRead, Vec *vecReadWrite, PetscInt nVecsReadWrite)
 {
   DM_BF          *bf;
-  PetscInt       dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -1450,10 +1470,10 @@ PetscErrorCode DMBFIterateOverCellsVectors(DM dm, PetscErrorCode (*iterCell)(DM,
   if (nVecsRead)      PetscValidPointer(vecRead,4);
   if (nVecsReadWrite) PetscValidPointer(vecReadWrite,6);
   bf = _p_getBF(dm);
-  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
-  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
-  switch (dim) {
+  if (!bf->cells && _p_nCells(dm))  SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled)   SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  /* iterate */
+  switch (_p_dim(dm)) {
     case 2: ierr = DMBF_2D_IterateOverCellsVectors(dm,bf->cells,_p_cellSize(bf),iterCell,userIterCtx,
                                                    vecRead,nVecsRead,vecReadWrite,nVecsReadWrite);CHKERRQ(ierr); break;
     case 3: ierr = DMBF_3D_IterateOverCellsVectors(dm,bf->cells,_p_cellSize(bf),iterCell,userIterCtx,
@@ -1473,18 +1493,17 @@ PetscErrorCode DMBFIterateOverCells(DM dm, PetscErrorCode (*iterCell)(DM,DM_BF_C
 PetscErrorCode DMBFIterateOverFaces(DM dm, PetscErrorCode (*iterFace)(DM,DM_BF_Face*,void*), void *userIterCtx)
 {
   DM_BF          *bf;
-  PetscInt       dim;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   PetscValidFunction(iterFace,2);
   bf = _p_getBF(dm);
-  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
-  if (!bf->ghostCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
-  ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
-  switch (dim) {
+  if (!bf->cells && _p_nCells(dm))  SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled)   SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  if (!bf->ghostCellsSetUpCalled)   SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Ghost cells not set up");
+  /* iterate */
+  switch (_p_dim(dm)) {
     case 2: ierr = DMBF_2D_IterateOverFaces(dm,bf->cells,_p_cellSize(bf),iterFace,userIterCtx);CHKERRQ(ierr); break;
     case 3: ierr = DMBF_3D_IterateOverFaces(dm,bf->cells,_p_cellSize(bf),iterFace,userIterCtx);CHKERRQ(ierr); break;
     default: _p_SETERRQ_UNREACHABLE(dm);
@@ -1589,12 +1608,15 @@ PetscErrorCode DMBFGetCellFields(DM dm, Vec *vecRead, Vec *vecReadWrite, PetscIn
   if (vecReadWrite && bf->nValsPerElemReadWrite) PetscValidPointer(vecReadWrite,3);
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {
-  case 2: ierr = DMBF_2D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
-                                            bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
-                                            vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;
-  case 3: ierr = DMBF_3D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
-                                            bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
-                                            vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr); break;   default: _p_SETERRQ_UNREACHABLE(dm);
+    case 2: ierr = DMBF_2D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr);
+            break;
+    case 3: ierr = DMBF_3D_IterateGetCellFields(dm,bf->cells,_p_cellSize(bf),_p_cellOffsetDataRead(bf),_p_cellOffsetDataReadWrite(bf),
+                                              bf->valsPerElemRead,bf->nValsPerElemRead,bf->valsPerElemReadWrite,bf->nValsPerElemReadWrite,
+                                              vecRead,vecReadWrite,nFieldsRead,fieldsRead,nFieldsReadWrite,fieldsReadWrite);CHKERRQ(ierr);
+            break;
+    default: _p_SETERRQ_UNREACHABLE(dm);
   }
   PetscFunctionReturn(0);
 }
@@ -1608,8 +1630,8 @@ PetscErrorCode DMBFCommunicateGhostCells(DM dm)
   PetscFunctionBegin;
   PetscValidHeaderSpecificType(dm,DM_CLASSID,1,DMBF);
   bf = _p_getBF(dm);
-  if (!bf->cells)                 SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
-  if (!bf->ownedCellsSetUpCalled) SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
+  if (!bf->cells && _p_nCells(dm))  SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Cells do not exist");
+  if (!bf->ownedCellsSetUpCalled)   SETERRQ(_p_comm(dm),PETSC_ERR_ARG_WRONGSTATE,"Owned cells not set up");
   /* run ghost exchange */
   ierr = DMGetDimension(dm,&dim);CHKERRQ(ierr);
   switch (dim) {

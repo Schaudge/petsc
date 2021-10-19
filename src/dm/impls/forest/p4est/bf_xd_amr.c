@@ -168,9 +168,9 @@ PetscErrorCode DMBF_XD_AmrAdaptData(p4est_t *orig_p4est, p4est_t *adap_p4est, DM
     if (adap_level < orig_level) { /* if this element was coarsened */
       for (i=0; i<P4EST_CHILDREN; i++) {
         PetscStackCallP4estReturn(orig_quad,p4est_mesh_quadrant_cumulative,(orig_p4est,orig_quadid+i,NULL,NULL));
-        orig_cell[i] = (DM_BF_Cell*) orig_quad->p.user_data;
+        orig_cell[i] = (DM_BF_Cell*)orig_quad->p.user_data;
       }
-      adap_cell[0] = (DM_BF_Cell*) adap_quad->p.user_data;
+      adap_cell[0] = (DM_BF_Cell*)adap_quad->p.user_data;
       ierr = amrOps->projectToCoarse(dm,orig_cell,P4EST_CHILDREN,adap_cell,1,amrOps->projectToCoarseCtx);CHKERRQ(ierr);
       /* skip the next 2^dim fine elements of the original mesh */
       orig_quadid += P4EST_CHILDREN;
@@ -178,10 +178,10 @@ PetscErrorCode DMBF_XD_AmrAdaptData(p4est_t *orig_p4est, p4est_t *adap_p4est, DM
       adap_quadid += 1;
     }
     else if (orig_level < adap_level) { /* if this element was refined */
-      orig_cell[0] = (DM_BF_Cell*) orig_quad->p.user_data;
+      orig_cell[0] = (DM_BF_Cell*)orig_quad->p.user_data;
       for (i=0; i<P4EST_CHILDREN; i++) {
         PetscStackCallP4estReturn(adap_quad,p4est_mesh_quadrant_cumulative,(adap_p4est,adap_quadid+i,NULL,NULL));
-        adap_cell[i] = (DM_BF_Cell*) adap_quad->p.user_data;
+        adap_cell[i] = (DM_BF_Cell*)adap_quad->p.user_data;
       }
       ierr = amrOps->projectToFine(dm,orig_cell,1,adap_cell,P4EST_CHILDREN,amrOps->projectToFineCtx);CHKERRQ(ierr);
       /* go to the next element of the original mesh */
@@ -190,8 +190,8 @@ PetscErrorCode DMBF_XD_AmrAdaptData(p4est_t *orig_p4est, p4est_t *adap_p4est, DM
       adap_quadid += P4EST_CHILDREN;
     }
     else { /* otherwise this element has not changed */
-      orig_cell[0] = (DM_BF_Cell*) orig_quad->p.user_data;
-      adap_cell[0] = (DM_BF_Cell*) adap_quad->p.user_data;
+      orig_cell[0] = (DM_BF_Cell*)orig_quad->p.user_data;
+      adap_cell[0] = (DM_BF_Cell*)adap_quad->p.user_data;
       ierr = PetscMemcpy(adap_cell[0],orig_cell[0],cellSize);CHKERRQ(ierr);
       /* go to next element */
       orig_quadid += 1;
