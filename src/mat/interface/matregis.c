@@ -73,6 +73,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_FFTW(Mat);
 #if defined(PETSC_HAVE_ELEMENTAL)
 PETSC_EXTERN PetscErrorCode MatCreate_Elemental(Mat);
 #endif
+#if defined(PETSC_HAVE_GINKGO)
+PETSC_EXTERN PetscErrorCode MatCreate_GinkgoCSR(Mat);
+#endif
 #if defined(PETSC_HAVE_SCALAPACK)
 PETSC_EXTERN PetscErrorCode MatCreate_ScaLAPACK(Mat);
 #endif
@@ -202,6 +205,9 @@ PetscErrorCode  MatRegisterAll(void)
 #endif
 #if defined(PETSC_HAVE_ELEMENTAL)
   ierr = MatRegister(MATELEMENTAL,      MatCreate_Elemental);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_GINKGO)
+  ierr = MatRegister(MATGINKGOCSR,      MatCreate_GinkgoCSR);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_SCALAPACK)
   ierr = MatRegister(MATSCALAPACK,      MatCreate_ScaLAPACK);CHKERRQ(ierr);

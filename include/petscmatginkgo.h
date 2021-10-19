@@ -9,7 +9,7 @@
 typedef std::complex<double> PetscGinkgoScalar;
 
 #else
-typedef std::double PetscGinkgoScalar;
+typedef double PetscGinkgoScalar;
 #endif
 #endif
 /*TODO Need to understand ginkgo's long int options */

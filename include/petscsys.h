@@ -640,6 +640,10 @@ PETSC_EXTERN PetscBool      PetscNvshmemInitialized;
 PETSC_EXTERN PetscErrorCode PetscNvshmemFinalize(void);
 #endif
 
+#if defined(PETSC_HAVE_GINKGO)
+PETSC_EXTERN PetscErrorCode PetscGinkgoInitializeCheck(void);
+#endif
+
 #if defined(PETSC_HAVE_ELEMENTAL)
 PETSC_EXTERN PetscErrorCode PetscElementalInitializePackage(void);
 PETSC_EXTERN PetscErrorCode PetscElementalInitialized(PetscBool*);

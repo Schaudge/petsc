@@ -404,6 +404,9 @@ PetscErrorCode  MatInitializePackage(void)
 #if defined(PETSC_HAVE_VIENNACL)
   ierr = MatSolverTypeRegister_ViennaCL();CHKERRQ(ierr);
 #endif
+#if defined(PETSC_HAVE_GINKGO)
+  ierr = MatSolverTypeRegister_Ginkgo();CHKERRQ(ierr);
+#endif
 #if defined(PETSC_HAVE_ELEMENTAL)
   ierr = MatSolverTypeRegister_Elemental();CHKERRQ(ierr);
 #endif
