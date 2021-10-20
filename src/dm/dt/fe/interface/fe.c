@@ -1916,6 +1916,299 @@ PetscErrorCode PetscFECreateDefault(MPI_Comm comm, PetscInt dim, PetscInt Nc, Pe
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt degree, PetscInt formDegree, PetscInt Ncomponents, PetscInt Ncopies, PetscBool tensor, PetscBool trimmed, PetscBool useMoments, PetscInt qOrder, PetscFE *fem)
+{
+  PetscQuadrature q, fq;
+  DM              K;
+  PetscSpace      P;
+  PetscDualSpace  Q;
+  PetscInt        quadPointsPerEdge;
+  char            name[64];
+  PetscInt        dim;
+  PetscInt        Nf;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  dim = DMPolytopeTypeGetDim(tope);
+  if (formDegree < -dim || formDegree > dim) SETERRQ4(comm, PETSC_ERR_ARG_OUTOFRANGE, "formDegree %D is not in range [%D, %D] for a %DD element\n", formDegree, -dim, dim, dim);
+  if (formDegree == 0) {
+    trimmed = PETSC_FALSE;
+  }
+  if (PetscAbsInt(formDegree) == dim) {
+    formDegree = dim;
+  }
+  if (formDegree == dim && trimmed) {
+    trimmed = PETSC_FALSE;
+    degree--;
+  }
+  if (dim < 2) {
+    tensor = PETSC_FALSE;
+  }
+  if (Ncomponents <= 0 && Ncopies <= 0) SETERRQ(comm, PETSC_ERR_ARG_INCOMP, "One of Ncopies and Ncomponents must be positive");
+  ierr = PetscDTBinomialInt(dim, PetscAbsInt(formDegree), &Nf);CHKERRQ(ierr);
+  if (Ncomponents > 0) {
+    if (Ncomponents % Nf) SETERRQ3(comm, PETSC_ERR_ARG_INCOMP, "Ncomponents %D is not a multiple of the number of %D-forms (%D)\n", Ncomponents, PetscAbsInt(formDegree), Nf);
+    if (Ncopies > 0) {
+      if (Ncopies * Nf != Ncomponents) SETERRQ3(comm, PETSC_ERR_ARG_INCOMP, "Ncomponents %D != Ncopies %D * Number of %D-forms (%D)\n", Ncomponents, Ncopies, Nf);
+    } else {
+      Ncopies = Ncomponents / Nf;
+    }
+  } else if (Ncopies > 0) {
+    Ncomponents = Nf * Ncopies;
+  }
+  switch (tope) {
+  case DM_POLYTOPE_POINT:
+  case DM_POLYTOPE_SEGMENT:
+    break;
+  case DM_POLYTOPE_TRIANGLE:
+  case DM_POLYTOPE_TETRAHEDRON:
+    if (tensor) SETERRQ(comm, PETSC_ERR_ARG_INCOMP, "No tensor product FEEC elements with tensor product structure");
+    break;
+  case DM_POLYTOPE_QUADRILATERAL:
+  case DM_POLYTOPE_HEXAHEDRON:
+  case DM_POLYTOPE_TRI_PRISM:
+    if (!tensor) SETERRQ(comm, PETSC_ERR_SUP, "Serendipity elements not implemented");
+    if (formDegree != 0 && formDegree != dim && !trimmed) SETERRQ(comm, PETSC_ERR_SUP, "Augmented serendipity elements not implemented");
+    break;
+  default:
+    SETERRQ1(comm, PETSC_ERR_SUP, "No FEEC elementst implemented for %s\n", DMPolytopeTypes[tope]);
+  }
+  /* Create space */
+  ierr = PetscSpaceCreate(comm, &P);CHKERRQ(ierr);
+  ierr = PetscSpaceSetNumVariables(P, dim);CHKERRQ(ierr);
+  ierr = PetscSpaceSetNumComponents(P, Ncomponents);CHKERRQ(ierr);
+  switch (tope) {
+  case DM_POLYTOPE_POINT:
+  case DM_POLYTOPE_SEGMENT:
+  case DM_POLYTOPE_TRIANGLE:
+  case DM_POLYTOPE_TETRAHEDRON:
+    if (trimmed) {
+      ierr = PetscSpaceSetType(P, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
+      ierr = PetscSpacePTrimmedSetFormDegree(P, formDegree);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(P, degree-1, degree);CHKERRQ(ierr);
+    } else {
+      ierr = PetscSpaceSetType(P, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(P, degree, degree);CHKERRQ(ierr);
+    }
+    break;
+  case DM_POLYTOPE_QUADRILATERAL:
+  case DM_POLYTOPE_HEXAHEDRON:
+    if (!trimmed) {
+      ierr = PetscSpaceSetType(P, PETSCSPACETENSOR);CHKERRQ(ierr);
+      ierr = PetscSpaceTensorSetNumSubspaces(P, dim);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(P, degree, PETSC_DETERMINE);CHKERRQ(ierr);
+    } else {
+      PetscSpace Psub, Psubtrimmed;
+      PetscInt   *f_atoms;
+
+      ierr = PetscSpaceCreate(comm, &Psub);CHKERRQ(ierr);
+      ierr = PetscSpaceSetType(Psub, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumVariables(Psub, 1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumComponents(Psub, 1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(Psub, degree, degree);CHKERRQ(ierr);
+      ierr = PetscSpaceSetUp(Psub);CHKERRQ(ierr);
+
+      ierr = PetscSpaceCreate(comm, &Psubtrimmed);CHKERRQ(ierr);
+      ierr = PetscSpaceSetType(Psubtrimmed, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumVariables(Psubtrimmed, 1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumComponents(Psubtrimmed, 1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(Psubtrimmed, degree-1, degree-1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetUp(Psubtrimmed);CHKERRQ(ierr);
+
+      ierr = PetscSpaceSetType(P, PETSCSPACESUM);CHKERRQ(ierr);
+      ierr = PetscSpaceSumSetConcatenate(P, PETSC_TRUE);CHKERRQ(ierr);
+      ierr = PetscSpaceSumSetNumSubspaces(P, Nf);CHKERRQ(ierr);
+      ierr = PetscMalloc1(dim, &f_atoms);CHKERRQ(ierr);
+      for (PetscInt s = 0; s < Nf; s++) {
+        PetscSpace tens;
+
+        ierr = PetscDTEnumSubset(dim, PetscAbsInt(formDegree), s, f_atoms);CHKERRQ(ierr);
+        ierr = PetscSpaceCreate(comm, &tens);CHKERRQ(ierr);
+        ierr = PetscSpaceSetType(tens, PETSCSPACETENSOR);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetNumSubspaces(tens, dim);CHKERRQ(ierr);
+        for (PetscInt d = 0; d < dim; d++) {
+          PetscInt i;
+          for (i = 0; i < PetscAbsInt(formDegree); i++) {
+            if (f_atoms[i] == d) {
+              ierr = PetscSpaceTensorSetSubspace(tens, d, Psubtrimmed);CHKERRQ(ierr);
+              break;
+            }
+          }
+          if (i == PetscAbsInt(formDegree)) {
+            ierr = PetscSpaceTensorSetSubspace(tens, d, Psub);CHKERRQ(ierr);
+          }
+        }
+        ierr = PetscSpaceSetUp(tens);CHKERRQ(ierr);
+        ierr = PetscSpaceSumSetSubspace(P, formDegree < 0 ? Nf - 1 - s : s, tens);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&tens);CHKERRQ(ierr);
+      }
+      ierr = PetscSpaceDestroy(&Psub);CHKERRQ(ierr);
+      ierr = PetscSpaceDestroy(&Psubtrimmed);CHKERRQ(ierr);
+      ierr = PetscFree(f_atoms);CHKERRQ(ierr);
+    }
+    break;
+  case DM_POLYTOPE_TRI_PRISM:
+    if (!trimmed) {
+      PetscSpace Ptri, Pedge;
+
+      ierr = PetscSpaceCreate(comm, &Ptri);CHKERRQ(ierr);
+      ierr = PetscSpaceSetType(Ptri, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumVariables(Ptri, 2);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumComponents(Ptri, 1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(Ptri, degree, degree);CHKERRQ(ierr);
+      ierr = PetscSpaceSetUp(Ptri);CHKERRQ(ierr);
+
+      ierr = PetscSpaceCreate(comm, &Pedge);CHKERRQ(ierr);
+      ierr = PetscSpaceSetType(Pedge, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumVariables(Pedge, 2);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumComponents(Pedge, 1);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(Pedge, degree, degree);CHKERRQ(ierr);
+      ierr = PetscSpaceSetUp(Pedge);CHKERRQ(ierr);
+
+      ierr = PetscSpaceSetType(P, PETSCSPACETENSOR);CHKERRQ(ierr);
+      ierr = PetscSpaceTensorSetNumSubspaces(P, 2);CHKERRQ(ierr);
+      ierr = PetscSpaceSetDegree(P, degree, PETSC_DETERMINE);CHKERRQ(ierr);
+      ierr = PetscSpaceTensorSetSubspace(P, 0, Ptri);CHKERRQ(ierr);
+      ierr = PetscSpaceTensorSetSubspace(P, 1, Pedge);CHKERRQ(ierr);
+      ierr = PetscSpaceDestroy(&Ptri);CHKERRQ(ierr);
+      ierr = PetscSpaceDestroy(&Pedge);CHKERRQ(ierr);
+    } else {
+      ierr = PetscSpaceSetType(P, PETSCSPACESUM);CHKERRQ(ierr);
+      ierr = PetscSpaceSumSetConcatenate(P, PETSC_TRUE);CHKERRQ(ierr);
+      ierr = PetscSpaceSumSetNumSubspaces(P, 2);CHKERRQ(ierr);
+
+      {
+        PetscSpace tens1, tri1, edge1;
+        PetscSpace tens2, tri2, edge2;
+
+        ierr = PetscSpaceCreate(comm, &tens1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(tens1, dim);CHKERRQ(ierr);
+        ierr = PetscSpaceSetType(tens1, PETSCSPACETENSOR);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetNumSubspaces(tens1, 2);CHKERRQ(ierr);
+
+        ierr = PetscSpaceCreate(comm, &tri1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(tri1, dim-1);CHKERRQ(ierr);
+        if (PetscAbsInt(formDegree) == dim - 1) {
+          ierr = PetscSpaceSetDegree(tri1, degree-1, degree-1);CHKERRQ(ierr);
+          ierr = PetscSpaceSetNumComponents(tri1, 1);CHKERRQ(ierr);
+          ierr = PetscSpaceSetType(tri1, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+        } else {
+          ierr = PetscSpaceSetDegree(tri1, degree-1, degree);CHKERRQ(ierr);
+          ierr = PetscSpaceSetNumComponents(tri1, Nf);CHKERRQ(ierr);
+          ierr = PetscSpaceSetType(tri1, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
+          ierr = PetscSpacePTrimmedSetFormDegree(tri1, formDegree);CHKERRQ(ierr);
+        }
+        ierr = PetscSpaceSetUp(tri1);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetSubspace(tens1, 0, tri1);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&tri1);CHKERRQ(ierr);
+        ierr = PetscSpaceCreate(comm, &edge1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(edge1, 1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(edge1, 1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetDegree(edge1, degree, degree);CHKERRQ(ierr);
+        ierr = PetscSpaceSetType(edge1, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+        ierr = PetscSpaceSetUp(edge1);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetSubspace(tens1, 1, edge1);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&edge1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetUp(tens1);CHKERRQ(ierr);
+
+        ierr = PetscSpaceSumSetSubspace(P, formDegree < 0 ? 1 : 0, tens1);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&tens1);CHKERRQ(ierr);
+
+        ierr = PetscSpaceCreate(comm, &tens2);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(tens2, dim);CHKERRQ(ierr);
+        ierr = PetscSpaceSetType(tens2, PETSCSPACETENSOR);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetNumSubspaces(tens2, 2);CHKERRQ(ierr);
+
+        ierr = PetscSpaceCreate(comm, &tri2);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(tri2, dim-1);CHKERRQ(ierr);
+        if (PetscAbsInt(formDegree) == 1) {
+          ierr = PetscSpaceSetDegree(tri2, degree, degree);CHKERRQ(ierr);
+          ierr = PetscSpaceSetNumComponents(tri2, 1);CHKERRQ(ierr);
+          ierr = PetscSpaceSetType(tri2, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+        } else {
+          ierr = PetscSpaceSetDegree(tri2, degree-1, degree);CHKERRQ(ierr);
+          ierr = PetscSpaceSetNumComponents(tri2, 1);CHKERRQ(ierr);
+          ierr = PetscSpaceSetType(tri2, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
+          ierr = PetscSpacePTrimmedSetFormDegree(tri2, formDegree < 0 ? -1 : 1);CHKERRQ(ierr);
+        }
+        ierr = PetscSpaceSetUp(tri2);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetSubspace(tens2, 0, tri2);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&tri2);CHKERRQ(ierr);
+        ierr = PetscSpaceCreate(comm, &edge2);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(edge2, 1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(edge2, 1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetDegree(edge2, degree-1, degree-1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetType(edge2, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
+        ierr = PetscSpaceSetUp(edge2);CHKERRQ(ierr);
+        ierr = PetscSpaceTensorSetSubspace(tens2, 1, edge2);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&edge2);CHKERRQ(ierr);
+        ierr = PetscSpaceSetUp(tens2);CHKERRQ(ierr);
+
+        ierr = PetscSpaceSumSetSubspace(P, formDegree < 0 ? 0 : 1, tens2);CHKERRQ(ierr);
+        ierr = PetscSpaceDestroy(&tens2);CHKERRQ(ierr);
+      }
+    }
+    break;
+  default:
+    break;
+  }
+  ierr = PetscSpaceSetUp(P);CHKERRQ(ierr);
+  /* Create dual space */
+  ierr = PetscDualSpaceCreate(comm, &Q);CHKERRQ(ierr);
+  ierr = PetscDualSpaceSetType(Q, PETSCDUALSPACELAGRANGE);CHKERRQ(ierr);
+  ierr = DMPlexCreateReferenceCell(comm, tope, &K);CHKERRQ(ierr);
+  ierr = PetscDualSpaceSetDM(Q, K);CHKERRQ(ierr);
+  ierr = DMDestroy(&K);CHKERRQ(ierr);
+  ierr = PetscDualSpaceSetNumComponents(Q, Ncomponents);CHKERRQ(ierr);
+  ierr = PetscDualSpaceSetOrder(Q, degree);CHKERRQ(ierr);
+  ierr = PetscDualSpaceLagrangeSetTensor(Q, tensor);CHKERRQ(ierr);
+  ierr = PetscDualSpaceLagrangeSetUseMoments(Q, useMoments);CHKERRQ(ierr);
+  ierr = PetscDualSpaceLagrangeSetMomentOrder(Q, PetscMax(degree, qOrder));CHKERRQ(ierr);
+  ierr = PetscDualSpaceLagrangeSetTrimmed(Q, trimmed);CHKERRQ(ierr);
+  ierr = PetscDualSpaceSetFormDegree(Q, formDegree);CHKERRQ(ierr);
+  ierr = PetscDualSpaceSetUp(Q);CHKERRQ(ierr);
+  /* Create finite element */
+  ierr = PetscFECreate(comm, fem);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(name, sizeof(name), "%s%s%D/\\%D(%s)", tensor ? "Q" : "P", trimmed ? "-" : "", degree, formDegree, DMPolytopeTypes[tope]);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *fem, name);CHKERRQ(ierr);
+  ierr = PetscFESetType(*fem, PETSCFEBASIC);CHKERRQ(ierr);
+  ierr = PetscFESetBasisSpace(*fem, P);CHKERRQ(ierr);
+  ierr = PetscFESetDualSpace(*fem, Q);CHKERRQ(ierr);
+  ierr = PetscFESetNumComponents(*fem, Ncomponents);CHKERRQ(ierr);
+  ierr = PetscFESetUp(*fem);CHKERRQ(ierr);
+  ierr = PetscSpaceDestroy(&P);CHKERRQ(ierr);
+  ierr = PetscDualSpaceDestroy(&Q);CHKERRQ(ierr);
+  /* Create quadrature (with specified order if given) */
+  qOrder = qOrder >= 0 ? qOrder : degree;
+  quadPointsPerEdge = PetscMax(qOrder + 1,1);
+  switch (tope) {
+  case DM_POLYTOPE_POINT:
+  case DM_POLYTOPE_SEGMENT:
+  case DM_POLYTOPE_QUADRILATERAL:
+  case DM_POLYTOPE_HEXAHEDRON:
+    ierr = PetscDTGaussTensorQuadrature(dim,   1, quadPointsPerEdge, -1.0, 1.0, &q);CHKERRQ(ierr);
+    ierr = PetscDTGaussTensorQuadrature(dim-1, 1, quadPointsPerEdge, -1.0, 1.0, &fq);CHKERRQ(ierr);
+    break;
+  case DM_POLYTOPE_TRIANGLE:
+  case DM_POLYTOPE_TETRAHEDRON:
+    ierr = PetscDTStroudConicalQuadrature(dim,   1, quadPointsPerEdge, -1.0, 1.0, &q);CHKERRQ(ierr);
+    ierr = PetscDTStroudConicalQuadrature(dim-1, 1, quadPointsPerEdge, -1.0, 1.0, &fq);CHKERRQ(ierr);
+    break;
+  case DM_POLYTOPE_TRI_PRISM:
+  default:
+    q = NULL;
+    fq = NULL;
+    break;
+  }
+  ierr = PetscFESetQuadrature(*fem, q);CHKERRQ(ierr);
+  ierr = PetscFESetFaceQuadrature(*fem, fq);CHKERRQ(ierr);
+  ierr = PetscQuadratureDestroy(&q);CHKERRQ(ierr);
+  ierr = PetscQuadratureDestroy(&fq);CHKERRQ(ierr);
+  /* Set finite element name */
+  ierr = PetscFESetName(*fem, name);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@
   PetscFECreateLagrange - Create a PetscFE for the basic Lagrange space of degree k
 
