@@ -47,9 +47,10 @@ struct _PetscRiemannOps {
   */
   PetscErrorCode (*evaluate)(RiemannSolver,const PetscReal*, const PetscReal*); 
 /*
-   Development Note: This might note be the correct way to do this. As I think further it seems sensible that 
+   Development Note: This might not be the correct way to do this. As I think further it seems sensible that 
    particular implementations might have their own version for this function. I guess I'll write it as a RiemannSolver 
-   operation like evaulaute? 
+   operation like evaulaute? Some implementations would prefer to have the option of outputting wave speeds and wave
+   decomposition, instead of directly outputting flux. 
 */
 /* 
    Function specificaiton for computing the maximum wave speed between two points in a riemann problem.
@@ -58,7 +59,6 @@ struct _PetscRiemannOps {
    which will always give the correct answer when f is convex. In the non-convex case I need to look up 
    proper default behavior. 
 */
-
 
  RiemannSolverMaxWaveSpeed computemaxspeed; 
 };
@@ -95,8 +95,9 @@ struct _p_RiemannSolver {
   is a have a seperate roe matrix struct and the riemann solver only contains a pointer to one if roe 
   matrices are enabled by the solver/user. */
   RiemannSolverRoeMatrix computeroemat; 
-  Mat            roemat, roematinv; 
-  KSP            roeksp; 
+  Mat            roemat, roeeigen;
+  KSP            roeksp;
+  Vec            u_roebasis; 
   Vec            roevec_conservative, roevec_characteristic; /* Vectors for usage with roe solvers */
   RiemannSolverRoeAvg roeavg;
 };

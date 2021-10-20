@@ -4,7 +4,7 @@ FFLAGS          =
 CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/ts/tutorials/multirate/dgnet/CouplingConditions
-EXAMPLESC       = ex1.c
+EXAMPLESC       = ex1.c ex2.c ex3.c
 EXAMPLESF       =
 EXAMPLESCH      = 
 MANSEC          = TS
@@ -17,3 +17,4 @@ include ${PETSC_DIR}/lib/petsc/conf/test
 
 ex1 : $(OBJECTS_DGNET)
 ex2 : $(OBJECTS_DGNET)
+ex3 : $(OBJECTS_DGNET)

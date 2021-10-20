@@ -76,6 +76,7 @@ typedef struct {
   PetscPointFlux                 flux2; 
   PetscPointFluxEig              fluxeig;    
   RiemannSolverRoeAvg            roeavg;
+  RiemannSolverRoeMatrix         roemat; 
   RiemannSolverEigBasis          eigbasis; 
   PetscPointFluxDer              fluxder; 
   PetscReal                      *lowbound; /* lower bound for the field variables allowed. For example SWE requires height to be positive */
@@ -97,8 +98,8 @@ struct _p_DGNetwork
                                           should be moved back to junct structure to reuse jacobian matrix? */
   KSP         ksp; 
   PetscInt    moni;
-  PetscBool   view,linearcoupling,lincouplediff,tabulated; 
-  PetscReal   ymin,ymax,length;
+  PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve;
+  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup; 
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
@@ -207,8 +208,35 @@ struct _p_DGNetworkMonitor_Glvis
   DGNetwork            dgnet;
   DGNetworkMonitorList_Glvis firstnode;
 };
-/* Set up the FVNetworkComponents and 'blank' network data to be read by the other functions.
-   Allocate the work array data for FVNetwork */
+/*
+  Interface for multiple DGNetworks simulations on the same network (and mesh) topology. 
+  just holds multiple DGNetwork objects, and uses vecnest to build a global vector to integrate 
+
+  Needs to be improved (and dgnetwork needs to be made a proper object instead of the nonsense 
+  it currently is). But works for now. 
+
+  This is used to various testing routines, to compare coupling condtions/riemann solvers/polynomial 
+  orders specifically. We assume the following are shared on all dgnetworks (but don't enforce for now)
+
+  . network topology
+  . mesh topology 
+  . physics 
+
+  Everything else is free to be altered as you see fit. 
+
+  NOTE: Look up DMComposite Maybe the right thing for this situation ...
+*/
+struct _p_DGNetwork_Nest
+{
+  PetscInt         numsimulations,numwrkvec,nummonitors; 
+  DGNetwork        *dgnets; 
+  DGNetworkMonitor *monitors; 
+  Vec              *wrk_vec; /* using for calculation in post-step functions as needed*/
+};
+typedef struct _p_DGNetwork_Nest *DGNetwork_Nest;
+
+/* Set up the DGNetworkComponents and 'blank' network data to be read by the other functions.
+   Allocate the work array data for DGNetwork */
 extern PetscErrorCode DGNetworkCreate(DGNetwork,PetscInt,PetscInt);
 /* set the components into the network and the number of variables
    each component requires. Also construct the local ordering for the
@@ -282,5 +310,9 @@ extern PetscErrorCode TVDLimit_1D(DGNetwork,const PetscScalar*,const PetscScalar
 extern PetscErrorCode Limit_1D_onesided(DGNetwork,const PetscScalar*,const PetscScalar*, PetscReal*, PetscSection, PetscInt,PetscReal);
 
 extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
+
+/* Nest stuff. For use with concurrent simulations. WIP */
+extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
+extern PetscErrorCode DGNetRHS_RSVERSION_Nested(TS,PetscReal,Vec,Vec,void*); 
 
 #endif

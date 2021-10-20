@@ -697,7 +697,7 @@ PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork dgnet, PetscViewer viewe
      This is done by a user provided function that maps the junction type (an integer) to 
      a user specified VertexFlux. A VertexFlux must be provided for all non-boundary types, that 
      is JUNCT junctions and any other user specified coupling junction types. */
-PetscErrorCode DGNetworkAssignCoupling(DGNetwork fvnet)
+PetscErrorCode  DGNetworkAssignCoupling(DGNetwork fvnet)
 {
   PetscErrorCode ierr;
   PetscInt       v,vStart,vEnd;

@@ -1,4 +1,4 @@
-static const char help[] = "Test the Characteristic Decomposition of physics provided to the RiemannSolver";
+static const char help[] = "Test the Roe Matrix provided to the RiemannSolver";
 
 /* 
    
@@ -16,7 +16,7 @@ int main(int argc,char *argv[])
     DGNetwork         dgnet; /* temporarily here as I set up my physics interfaces poorly */
     RiemannSolver     rs;
     PetscInt          numvalues = 10,field,i;
-    PetscReal         **u,tol=1e-10;
+    PetscReal         **uL,**uR,tol=1e-10;
     PetscRandom       *random;
     PetscViewer       viewer; 
 
@@ -27,7 +27,7 @@ int main(int argc,char *argv[])
     ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
 
     /* Command Line Options */
-    ierr = PetscOptionsBegin(comm,NULL,"Riemann Solver Ex3 Tests Options","");CHKERRQ(ierr);
+    ierr = PetscOptionsBegin(comm,NULL,"Riemann Solver Ex2 Tests Options","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-numpoints","Number of random points to check the decomposition at","",numvalues,&numvalues,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-tol","Tolerance for comparing the Eigenvectors","",tol,&tol,NULL);CHKERRQ(ierr);
@@ -49,6 +49,7 @@ int main(int argc,char *argv[])
     ierr = RiemannSolverSetFluxEig(rs,dgnet->physics.fluxeig);CHKERRQ(ierr);
     ierr = RiemannSolverSetJacobian(rs,dgnet->physics.fluxder);CHKERRQ(ierr);
     ierr = RiemannSolverSetEigBasis(rs,dgnet->physics.eigbasis);CHKERRQ(ierr);
+    ierr = RiemannSolverSetRoeMatrixFunct(rs,dgnet->physics.roemat);CHKERRQ(ierr);
     ierr = RiemannSolverSetFromOptions(rs);CHKERRQ(ierr);
     ierr = RiemannSolverSetUp(rs);CHKERRQ(ierr);
 
@@ -64,25 +65,29 @@ int main(int argc,char *argv[])
         ierr = PetscRandomSetFromOptions(random[field]);CHKERRQ(ierr);
     }
     /* make the points to test at */
-    ierr = PetscCalloc1(numvalues,&u);CHKERRQ(ierr);
+    ierr = PetscCalloc2(numvalues,&uL,numvalues,&uR);CHKERRQ(ierr);
     for (i=0; i<numvalues; i++){
-        ierr = PetscMalloc1(dgnet->physics.dof,&u[i]);CHKERRQ(ierr);
+        ierr = PetscCalloc2(dgnet->physics.dof,&uL[i],dgnet->physics.dof,&uR[i]);CHKERRQ(ierr);
         for (field=0; field<dgnet->physics.dof; field++) {
-            ierr = PetscRandomGetValueReal(random[field],&u[i][field]);CHKERRQ(ierr);
+            ierr = PetscRandomGetValueReal(random[field],&uL[i][field]);CHKERRQ(ierr);
+            ierr = PetscRandomGetValueReal(random[field],&uR[i][field]);CHKERRQ(ierr);
         }
     }
-    ierr = PetscViewerCreate(PETSC_COMM_SELF,&viewer);CHKERRQ(ierr);
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);CHKERRQ(ierr);
     ierr = PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);
     ierr = PetscViewerSetFromOptions(viewer);CHKERRQ(ierr);
-    ierr = RiemannSolverTestEigDecomposition(rs,numvalues,(const PetscReal **)u,tol,NULL,NULL,viewer);CHKERRQ(ierr);
+
+    ierr = RiemannSolverTestRoeMat(rs,numvalues,(const PetscReal**)uL,(const PetscReal**)uR,tol,NULL,NULL,viewer);CHKERRQ(ierr);
+    /* Print the Failures to the Screen */
+
     for (i=0; i<numvalues; i++) {
-        ierr = PetscFree(u[i]);CHKERRQ(ierr);
+        ierr = PetscFree2(uL[i],uR[i]);CHKERRQ(ierr);
     }
     for (field=0; field<dgnet->physics.dof; field++) {
         ierr = PetscRandomDestroy(&random[field]);CHKERRQ(ierr);
     }
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-    ierr = PetscFree(u);CHKERRQ(ierr);
+    ierr = PetscFree2(uL,uR);CHKERRQ(ierr);
     ierr = PetscFree(random);CHKERRQ(ierr);
     ierr = DGNetworkDestroyPhysics(dgnet);CHKERRQ(ierr);
     ierr = PetscFree(dgnet);CHKERRQ(ierr);

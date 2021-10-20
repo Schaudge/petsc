@@ -24,6 +24,14 @@
 */
 typedef void (*PetscPointFlux)(void*,const PetscReal*,PetscReal*);
 
+/* 
+    WIP: structure for holding nonlinear (or maybe linear) function calls. This intended to hold the "physics"
+    components of the Riemann Solver. Namely flux function point evaluations, point derivatives eigen expansions etc.
+    as well as memory alloation for storing all these outputs. This is a simple refactoring to move components associated 
+    with the RiemannSolver to this class instead, so it can be reused by other codes, namely DG kernels, this RS, 
+    Netowork RiemannSolvers (RSN) 
+
+    This is needed as we have a seperate class for Network Riemann Solvers 
 
 /* 
    Similarily I need to experiment with how to compute/store PointFlux derivative information. Honestly this may be 
@@ -31,7 +39,7 @@ typedef void (*PetscPointFlux)(void*,const PetscReal*,PetscReal*);
    it will be a patterned function call. 
 */
 
-typedef void (*PetscPointFluxDer)(void*,const PetscReal*,Mat);
+typedef PetscErrorCode (*PetscPointFluxDer)(void*,const PetscReal*,Mat);
 
 /* 
    And again riemann solvers need to be able to compute eigenvalues of the system, for usage in wave-speed estimates. 
@@ -64,8 +72,7 @@ typedef struct _p_RiemannSolver* RiemannSolver;
 typedef PetscErrorCode (*RiemannSolverEigBasis)(void*,const PetscReal*,Mat);
 
 typedef PetscErrorCode (*RiemannSolverMaxWaveSpeed)(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
-typedef PetscErrorCode (*RiemannSolverRoeMatrix)(void*,const PetscReal*,const PetscReal*, Mat*); 
-typedef PetscErrorCode (*RiemannSolverRoeMatrixInv)(void*,const PetscReal*,const PetscReal*, Mat*); 
+typedef PetscErrorCode (*RiemannSolverRoeMatrix)(void*,const PetscReal*,const PetscReal*, Mat); 
 typedef PetscErrorCode (*RiemannSolverRoeAvg)(void*,const PetscReal*,const PetscReal*,PetscReal*); 
 
 /*J
@@ -107,8 +114,13 @@ PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver,const Pe
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeMatrixInv(RiemannSolver,const PetscReal*,const PetscReal*,Mat*);
 PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeEig(RiemannSolver,const PetscReal*,const PetscReal*,PetscScalar**);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetRoeMatrixFunct(RiemannSolver,RiemannSolverRoeMatrix);
-PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
 PETSC_EXTERN PetscErrorCode RiemannSolverCharNorm(RiemannSolver, const PetscReal*, const PetscReal*, PetscInt,PetscReal*);
+
+/* Avoid using these, I think they are unnecessary and will be removed. If the roe matrix/decomposition can be computed 
+using an explicit roe average state (instead of roe matrix directly), they will know and can pass that formulation into 
+the RiemannSolver on their end. Not necessary for the Riemann Solver to know this. Will see as I add new implementations */
+
+PETSC_EXTERN PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
 PETSC_EXTERN PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver,RiemannSolverRoeAvg);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverSetJacobian(RiemannSolver,PetscPointFluxDer);
@@ -127,7 +139,8 @@ PETSC_EXTERN PetscErrorCode RiemannSolverSetApplicationContext(RiemannSolver,voi
 PETSC_EXTERN PetscErrorCode RiemannSolverGetApplicationContext(RiemannSolver,void*);
 
 /* Diagnostic Functions */ 
-PETSC_EXTERN PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver,PetscInt,const PetscReal**,PetscReal,PetscBool*,PetscReal*);
+PETSC_EXTERN PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver,PetscInt,const PetscReal**,PetscReal,PetscBool*,PetscReal*,PetscViewer);
+PETSC_EXTERN PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver,PetscInt,const PetscReal**,const PetscReal**,PetscReal,PetscBool*,PetscReal*,PetscViewer);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverView(RiemannSolver,PetscViewer);
 #endif

@@ -157,14 +157,25 @@ static PetscErrorCode PhysicsFluxDer_Shallow(void *vctx,const PetscReal *u,Mat j
   MatAssemblyEnd(jacobian,MAT_FINAL_ASSEMBLY);
   PetscFunctionReturn(0);
 }
-
 static PetscErrorCode PhysicsRoeAvg_Shallow(void *ctx,const PetscReal *uL,const PetscReal *uR,PetscReal *uavg) 
 {
   PetscFunctionBeginUser;
   uavg[0] = (uL[0]+uR[0])/2.0; 
-  uavg[1] = (PetscSqrtReal(uL[0])*uL[1]+PetscSqrtReal(uR[0])*uR[1])/(PetscSqrtReal(uL[0])+PetscSqrtReal(uR[0]));
+  uavg[1] = uavg[0]*(uL[1]/PetscSqrtReal(uL[0])+uR[1]/PetscSqrtReal(uR[0]))/(PetscSqrtReal(uL[0])+PetscSqrtReal(uR[0]));
   PetscFunctionReturn(0);
 }
+/* For the SWE the Roe matrix can be computed by the Flux jacobian evaluated at a roe average point */
+static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx,const PetscReal *uL,const PetscReal *uR,Mat roe) 
+{
+  PetscReal roeavg[2]; 
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PhysicsRoeAvg_Shallow(ctx,uL,uR,roeavg);CHKERRQ(ierr);
+  ierr = PhysicsFluxDer_Shallow(ctx,roeavg,roe);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 
 static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u,PetscInt edgeid)
 {
@@ -173,10 +184,10 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
   switch (initial) {
     case 0:
       if (edgeid == 0) {
-        u[0] = 50.0;
+        u[0] = 10.0;
         u[1] = 0.0;
       }  else {
-        u[0] = 1;
+        u[0] = 1.0;
         u[1] = 0.0;
       }
       break;
@@ -567,6 +578,7 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   fvnet->physics.roeavg          = PhysicsRoeAvg_Shallow; 
   fvnet->physics.eigbasis        = PhysicsCharacteristic_Shallow_Mat;
   fvnet->physics.fluxder         = PhysicsFluxDer_Shallow;
+  fvnet->physics.roemat          = PhysicsRoeMat_Shallow; 
   ierr = PetscStrallocpy("height",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&fvnet->physics.fieldname[1]);CHKERRQ(ierr);
   user->gravity = 9.81;

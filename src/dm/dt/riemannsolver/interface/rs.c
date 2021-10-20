@@ -122,10 +122,12 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
    /* does not share the same communicator as the RiemannSolver, does this affect diagnostic printout behavior?
       Need to be careful with this */
   ierr = MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&rs->roemat);CHKERRQ(ierr);
-  
-
+  /* Note that this eigenmatrix could potentially reuse the eigen matrix, as in many cases (SWE Euler, 
+  the roe avg is simply A(uL,uR)= Df(u_roe(uL,uR)) and will have the same eigen decomposition as Df */
+  ierr = MatDuplicate(rs->roemat,MAT_DO_NOT_COPY_VALUES,&rs->roeeigen);CHKERRQ(ierr);
+  ierr = MatCreateVecs(rs->roeeigen,NULL,&rs->u_roebasis);CHKERRQ(ierr);
   /*
-   TODO: Rewrite this as default behavior and expose the roeksp (and roemat) to the RiemannSolver user so 
+   TODO: Rewrite this as default behavior and expose the roeksp (and roemat, roe ksp) to the RiemannSolver user so 
    that they can configure them as they would any other Mat and KSP object. Definitely smart to have good default
    behavior for these solvers. 
    
@@ -142,7 +144,7 @@ PetscErrorCode RiemannSolverSetUpRoe_internal(RiemannSolver rs)
   ierr = KSPGetPC(rs->roeksp,&pc);CHKERRQ(ierr);
   ierr = PCSetType(pc,PCLU);CHKERRQ(ierr);
   ierr = KSPSetType(rs->roeksp,KSPPREONLY);CHKERRQ(ierr); /* Set to direct solver only */
-  ierr = KSPSetOperators(rs->roeksp,rs->roemat,rs->roemat);CHKERRQ(ierr);
+  ierr = KSPSetOperators(rs->roeksp,rs->roeeigen,rs->roeeigen);CHKERRQ(ierr); /* used to project onto roe eigenbasis */
 
   PetscFunctionReturn(0);
 }
@@ -167,8 +169,9 @@ PetscErrorCode RiemannSolverResetRoe_internal(RiemannSolver rs)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
   ierr = MatDestroy(&rs->roemat);CHKERRQ(ierr);
-  ierr = MatDestroy(&rs->roematinv);CHKERRQ(ierr);
+  ierr = MatDestroy(&rs->roeeigen);CHKERRQ(ierr);
   ierr = KSPDestroy(&rs->roeksp);CHKERRQ(ierr);
+  ierr = VecDestroy(&rs->u_roebasis);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -724,7 +727,7 @@ PetscErrorCode RiemannSolverComputeRoeMatrix(RiemannSolver rs,const PetscReal *u
    ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
    if(rs->computeroemat) 
    { 
-      ierr = rs->computeroemat(ctx,uR,uL,&rs->roemat);CHKERRQ(ierr);
+      ierr = rs->computeroemat(ctx,uR,uL,rs->roemat);CHKERRQ(ierr);
       *Roe  = rs->roemat;
    } else {
       SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Roe Matrix Specified. A function to construct a Roe Matrix must be specified by the User. ");
@@ -835,8 +838,8 @@ PetscErrorCode RiemannSolverComputeRoeAvg(RiemannSolver rs,const PetscReal *uL,c
 
    PetscFunctionReturn(0);
 }
-
-PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *uroe, const PetscReal *u, PetscInt sgn,PetscReal *norm)
+/* Compute the norm of the positive or negative eigenvector at u components of of a vector x */
+PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const PetscReal *x, PetscInt sgn,PetscReal *norm)
 {
    PetscErrorCode ierr;
    void           *ctx;
@@ -846,13 +849,13 @@ PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *uroe, co
    PetscFunctionBegin;
    PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
    ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
-   ierr = RiemannSolverComputeEigBasis(rs,uroe,&rs->eigen);CHKERRQ(ierr);
-   ierr = VecPlaceArray(rs->u,u);CHKERRQ(ierr);
+   ierr = RiemannSolverComputeEigBasis(rs,u,&rs->eigen);CHKERRQ(ierr);
+   ierr = VecPlaceArray(rs->u,x);CHKERRQ(ierr);
    ierr = KSPSolve(rs->eigenksp,rs->u,rs->ueig);CHKERRQ(ierr);
    ierr = VecResetArray(rs->u);CHKERRQ(ierr);
    ierr = VecGetArray(rs->ueig,&uchar);CHKERRQ(ierr);
    /* Projection on the positive or negative characteristic basis */
-   ierr = RiemannSolverComputeEig(rs,uroe,&eig);CHKERRQ(ierr);
+   ierr = RiemannSolverComputeEig(rs,u,&eig);CHKERRQ(ierr);
    if (sgn<0) 
    {
       for(field=0; field<rs->numfields; field++)
@@ -923,20 +926,24 @@ PetscErrorCode RiemannSolverSetRoeAvgFunct(RiemannSolver rs,RiemannSolverRoeAvg 
  simply a boolean check but should be integrated with the rest of the petscview infrastructure. 
 */
 
-PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs,PetscInt numvalues,const PetscReal **u,PetscReal tol, PetscBool *isequal,PetscReal *norms)
+PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs,PetscInt numvalues,const PetscReal **u,PetscReal tol, PetscBool *isequal,PetscReal *norms,PetscViewer viewer)
 {
-   Mat            DF,R,Eig, DFR,EigR; 
+   Mat            DF,R,Eig, DFR,EigR,Diff; 
    Vec            Eig_vec; 
    PetscScalar    *eig; 
    PetscInt       i;
    PetscErrorCode ierr; 
    PetscReal      norm; 
+   PetscBool      isascii; 
+
    PetscFunctionBegin;
    PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
    /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
    if(tol == PETSC_DECIDE) tol = 1e-10; 
    /* Preallocate diagonal eigenvalue matrix for all values */
    ierr = MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&Eig);CHKERRQ(ierr);
+   /* Preallocate result of DFR-EigR */
+   ierr = MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,PETSC_NULL,&Diff);CHKERRQ(ierr);
    ierr = MatZeroEntries(Eig);CHKERRQ(ierr);
    ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,rs->numfields,NULL,&Eig_vec);CHKERRQ(ierr);
    for(i=0;i<numvalues;i++) {
@@ -954,13 +961,63 @@ PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver rs,PetscInt numva
          ierr = MatMatMult(DF,R,MAT_REUSE_MATRIX,PETSC_DEFAULT,&DFR);CHKERRQ(ierr);
          ierr = MatMatMult(R,Eig,MAT_REUSE_MATRIX,PETSC_DEFAULT,&EigR);CHKERRQ(ierr);
       }
-      ierr = MatAXPY(DFR,-1.,EigR,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatNorm(DFR,NORM_INFINITY,&norm);CHKERRQ(ierr);
-      isequal[i] = (norm < tol);
+      ierr = MatCopy(DFR,Diff,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatAXPY(Diff,-1.,EigR,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatNorm(Diff,NORM_INFINITY,&norm);CHKERRQ(ierr);
       if (norms) {norms[i] = norm;}
+      if (isequal) {isequal[i] = (norm < tol);}
+      
+      if (norm > tol) {
+         if (viewer) {
+            ierr =  PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
+            if (isascii) {
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = PetscViewerASCIIPrintf(viewer," The EigenDecomposition Failed for the Following State: \n");CHKERRQ(ierr);
+               ierr = PetscScalarView(rs->numfields,u[i],viewer);CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPushTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"\n\nEigenBasis (R): \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(R,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"Jacobian (DF): \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(DF,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"Eigenvalues (E): \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(Eig,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"DF*R: \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(DFR,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"R*E: \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(EigR,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"R*E-DF*R: \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(Diff,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer," ||DF*R - R*E|| = %e\n\n\n",norm);CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPopTab(viewer);
+               ierr = PetscViewerASCIIPopTab(viewer);
+            }
+         }
+      }
    }
    ierr = MatDestroy(&DFR);CHKERRQ(ierr);
    ierr = MatDestroy(&EigR);CHKERRQ(ierr);
+   ierr = MatDestroy(&Diff);CHKERRQ(ierr);
    ierr = MatDestroy(&Eig);CHKERRQ(ierr);
    ierr = VecDestroy(&Eig_vec);CHKERRQ(ierr);
    PetscFunctionReturn(0);
@@ -980,5 +1037,146 @@ PetscErrorCode RiemannSolverComputeJacobian(RiemannSolver rs,const PetscReal *u,
    } else { 
       SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Jacobian Function Specified");
    }
+   PetscFunctionReturn(0);
+}
+
+/*@
+    RiemannSolverTestEigDecomposition -  Test whether the roe average satisfies its defining properties. Namely 
+
+    1. Hyperbolicity (NOT IMPLEMENTED CURRENTLY)
+    2. Consistency A_roe(U,U) = Df(U) 
+    3. Conservation A_roe(uR-uL) = f(uR) - f(uL) 
+    Collective
+
+    Input Parameter:
+.   rs  -        The RiemannSolver context obtained from RiemannSolverCreate()
+.   numvalues -  The number of values that are being tested 
+.   ul   -       The array of left values to test the roematrix at. Also check consistency at these points.
+.   ur   -       The array of right values to test the roematrix at.
+.   tol  -        The tolerance to compute equality to. Input PETSC_DECIDE to let petsc decide the tolerance.  
+    Output Parameter: 
+.   isequal -   numvalues*3 array allocated by caller. Each isequal[3*j+i] true if test i passes for point j. 
+.   norms   - numvalues*2 array with the norms computed for test 2 and 3. Set to NULL if not desired. 
+   Level: intermediate
+
+.seealso:  RiemannSolverComputeRoeMatrix()
+@*/
+
+/* NOTE : Viewer routines might not work in parallel, might have to restict to serial calls */
+PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver rs,PetscInt numvalues,const PetscReal **uL,const PetscReal **uR,PetscReal tol, PetscBool *isequal,PetscReal *norms,PetscViewer viewer)
+{
+   Mat            DF,ARoe,Diff; 
+   Vec            Au,F_diff;  
+   PetscScalar    *u_diff,*f_diff;  
+   PetscInt       i,j;
+   PetscErrorCode ierr; 
+   PetscReal      norm; 
+   PetscBool      isascii;
+   void           *ctx;
+
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
+   /* If tol is PETSC_DECIDE set default. More complicated defaults could be implemented here */
+   if(tol == PETSC_DECIDE) tol = 1e-10;
+   ierr = VecCreateSeq(PETSC_COMM_SELF,rs->numfields,&Au);CHKERRQ(ierr); 
+   ierr = VecCreateSeq(PETSC_COMM_SELF,rs->numfields,&F_diff);CHKERRQ(ierr); 
+   ierr = MatCreateSeqDense(PETSC_COMM_SELF,rs->numfields,rs->numfields,NULL,&Diff);CHKERRQ(ierr);
+   for(i=0;i<numvalues;i++) {
+      /* Check conservation */
+      ierr = RiemannSolverComputeRoeMatrix(rs,uL[i],uR[i],&ARoe);CHKERRQ(ierr);
+      ierr = VecGetArray(rs->u,&u_diff);CHKERRQ(ierr); /* use work vector */
+      for(j=0; j<rs->numfields; j++){ /* compute jump uR-uL */
+         u_diff[j] = uR[i][j] - uL[i][j];
+      }
+      ierr = VecRestoreArray(rs->u,&u_diff);CHKERRQ(ierr);
+      ierr = MatMult(ARoe,rs->u,Au);CHKERRQ(ierr);
+      ierr = VecGetArray(F_diff,&f_diff);CHKERRQ(ierr);
+      rs->fluxfun(ctx,uR[i],f_diff);CHKERRQ(ierr);
+      rs->fluxfun(ctx,uL[i],rs->flux_wrk);CHKERRQ(ierr);
+      for(j=0; j<rs->numfields; j++){ /* compute jump f(uR)-f(uL) */
+         f_diff[j] -= rs->flux_wrk[j];
+      }
+      ierr = VecRestoreArray(F_diff,&f_diff);CHKERRQ(ierr);
+      ierr = VecAXPY(F_diff,-1.,Au);CHKERRQ(ierr);
+      ierr = VecNorm(F_diff,NORM_INFINITY,&norm);CHKERRQ(ierr);
+      if(isequal) isequal[3*i+2] = (norm < tol);
+      if (norms)  {norms[2*i+1] = norm;}
+      /* View if there are failures */ 
+      if (norm > tol) {
+         if (viewer) {
+            ierr =  PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
+            if (isascii) {
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = PetscViewerASCIIPrintf(viewer,"The Roe Matrix Failed Conservation for the Following State: \n");CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = PetscViewerASCIIPrintf(viewer,"uL:");CHKERRQ(ierr);
+               ierr = PetscScalarView(rs->numfields,uL[i],viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPrintf(viewer,"uR:");CHKERRQ(ierr);
+               ierr = PetscScalarView(rs->numfields,uR[i],viewer);CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"The Roe Matrix: \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(ARoe,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"F(uR) - F(uL) - ARoe(uR-uL) \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = VecView(F_diff,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+
+               ierr = PetscViewerASCIIPrintf(viewer," ||F(uR) - F(uL) - ARoe(uR-uL)|| = %e\n \n \n",norm);CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPopTab(viewer);
+               ierr = PetscViewerASCIIPopTab(viewer);
+            }
+         }
+      }
+      /* Check consistency */
+      ierr = RiemannSolverComputeRoeMatrix(rs,uL[i],uL[i],&ARoe);CHKERRQ(ierr);
+      ierr = RiemannSolverComputeJacobian(rs,uL[i],&DF);CHKERRQ(ierr);
+      ierr = MatCopy(ARoe,Diff,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatAXPY(Diff,-1.,DF,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatNorm(Diff,NORM_INFINITY,&norm);CHKERRQ(ierr);
+      if(isequal) isequal[3*i+1] = (norm < tol);
+      if (norms) {norms[2*i] = norm;}
+      if (norm > tol) {
+         if (viewer) {
+            ierr =  PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
+            if (isascii) {
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = PetscViewerASCIIPrintf(viewer,"The Roe Matrix Failed Consistency for the Following State: \n");CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = PetscScalarView(rs->numfields,uL[i],viewer);CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"The Roe Matrix: \n\n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(ARoe,viewer);CHKERRQ(ierr); /* see if I can print only entries without the type and ranks */
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"The Jacobian Matrix: \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(DF,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer,"ARoe - DF: \n");CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPushTab(viewer);
+               ierr = MatView(Diff,viewer);CHKERRQ(ierr);
+               ierr = PetscViewerASCIIPopTab(viewer);
+
+               ierr = PetscViewerASCIIPrintf(viewer," ||DF(u) - ARoe(u)|| = %e\n\n\n",norm);CHKERRQ(ierr);
+
+               ierr = PetscViewerASCIIPopTab(viewer);
+               ierr = PetscViewerASCIIPopTab(viewer);
+            }
+         }
+      }
+   }
+   ierr = VecDestroy(&Au);CHKERRQ(ierr);
+   ierr = VecDestroy(&F_diff);CHKERRQ(ierr);
+   ierr = MatDestroy(&Diff);CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }

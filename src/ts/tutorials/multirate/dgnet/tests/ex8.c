@@ -89,7 +89,7 @@ int main(int argc,char *argv[])
   fvnet->linearcoupling = PETSC_FALSE;
   singlecoupleeval      = PETSC_FALSE; 
   fvnet->length         = 3.0;
-  fvnet->view           = PETSC_TRUE;
+  fvnet->view           = PETSC_FALSE;
   fvnet->jumptol        = 0.5; 
 
   /* Command Line Options */
@@ -125,8 +125,6 @@ int main(int argc,char *argv[])
   ierr = PetscOptionsReal("-jumptol","Set jump tolerance for lame one-sided limiter","",fvnet->jumptol,&fvnet->jumptol,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-useriemannsolver","use the riemann solver class","",useriemannsolver,&useriemannsolver,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-
-  fvnet->linearcoupling = singlecoupleeval;
   /* Choose the physics from the list of registered models */
   {
     PetscErrorCode (*r)(DGNetwork);
