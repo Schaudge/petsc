@@ -2063,14 +2063,14 @@ PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt de
 
       ierr = PetscSpaceCreate(comm, &Ptri);CHKERRQ(ierr);
       ierr = PetscSpaceSetType(Ptri, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
-      ierr = PetscSpaceSetNumVariables(Ptri, 2);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumVariables(Ptri, dim-1);CHKERRQ(ierr);
       ierr = PetscSpaceSetNumComponents(Ptri, 1);CHKERRQ(ierr);
       ierr = PetscSpaceSetDegree(Ptri, degree, degree);CHKERRQ(ierr);
       ierr = PetscSpaceSetUp(Ptri);CHKERRQ(ierr);
 
       ierr = PetscSpaceCreate(comm, &Pedge);CHKERRQ(ierr);
       ierr = PetscSpaceSetType(Pedge, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
-      ierr = PetscSpaceSetNumVariables(Pedge, 2);CHKERRQ(ierr);
+      ierr = PetscSpaceSetNumVariables(Pedge, 1);CHKERRQ(ierr);
       ierr = PetscSpaceSetNumComponents(Pedge, 1);CHKERRQ(ierr);
       ierr = PetscSpaceSetDegree(Pedge, degree, degree);CHKERRQ(ierr);
       ierr = PetscSpaceSetUp(Pedge);CHKERRQ(ierr);
@@ -2090,25 +2090,30 @@ PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt de
       {
         PetscSpace tens1, tri1, edge1;
         PetscSpace tens2, tri2, edge2;
+        PetscInt   Nftri, Nfm1tri;
+
+        ierr = PetscDTBinomialInt(dim-1, PetscAbsInt(formDegree), &Nftri);CHKERRQ(ierr);
+        ierr = PetscDTBinomialInt(dim-1, PetscAbsInt(formDegree)-1, &Nfm1tri);CHKERRQ(ierr);
 
         ierr = PetscSpaceCreate(comm, &tens1);CHKERRQ(ierr);
         ierr = PetscSpaceSetNumVariables(tens1, dim);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(tens1, Nftri);CHKERRQ(ierr);
         ierr = PetscSpaceSetType(tens1, PETSCSPACETENSOR);CHKERRQ(ierr);
         ierr = PetscSpaceTensorSetNumSubspaces(tens1, 2);CHKERRQ(ierr);
 
         ierr = PetscSpaceCreate(comm, &tri1);CHKERRQ(ierr);
         ierr = PetscSpaceSetNumVariables(tri1, dim-1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(tri1, Nftri);CHKERRQ(ierr);
         if (PetscAbsInt(formDegree) == dim - 1) {
           ierr = PetscSpaceSetDegree(tri1, degree-1, degree-1);CHKERRQ(ierr);
-          ierr = PetscSpaceSetNumComponents(tri1, 1);CHKERRQ(ierr);
           ierr = PetscSpaceSetType(tri1, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
         } else {
           ierr = PetscSpaceSetDegree(tri1, degree-1, degree);CHKERRQ(ierr);
-          ierr = PetscSpaceSetNumComponents(tri1, Nf);CHKERRQ(ierr);
           ierr = PetscSpaceSetType(tri1, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
           ierr = PetscSpacePTrimmedSetFormDegree(tri1, formDegree);CHKERRQ(ierr);
         }
         ierr = PetscSpaceSetUp(tri1);CHKERRQ(ierr);
+
         ierr = PetscSpaceTensorSetSubspace(tens1, 0, tri1);CHKERRQ(ierr);
         ierr = PetscSpaceDestroy(&tri1);CHKERRQ(ierr);
         ierr = PetscSpaceCreate(comm, &edge1);CHKERRQ(ierr);
@@ -2126,18 +2131,18 @@ PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt de
 
         ierr = PetscSpaceCreate(comm, &tens2);CHKERRQ(ierr);
         ierr = PetscSpaceSetNumVariables(tens2, dim);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(tens2, Nfm1tri);CHKERRQ(ierr);
         ierr = PetscSpaceSetType(tens2, PETSCSPACETENSOR);CHKERRQ(ierr);
         ierr = PetscSpaceTensorSetNumSubspaces(tens2, 2);CHKERRQ(ierr);
 
         ierr = PetscSpaceCreate(comm, &tri2);CHKERRQ(ierr);
         ierr = PetscSpaceSetNumVariables(tri2, dim-1);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(tri2, Nfm1tri);CHKERRQ(ierr);
         if (PetscAbsInt(formDegree) == 1) {
           ierr = PetscSpaceSetDegree(tri2, degree, degree);CHKERRQ(ierr);
-          ierr = PetscSpaceSetNumComponents(tri2, 1);CHKERRQ(ierr);
           ierr = PetscSpaceSetType(tri2, PETSCSPACEPOLYNOMIAL);CHKERRQ(ierr);
         } else {
           ierr = PetscSpaceSetDegree(tri2, degree-1, degree);CHKERRQ(ierr);
-          ierr = PetscSpaceSetNumComponents(tri2, 1);CHKERRQ(ierr);
           ierr = PetscSpaceSetType(tri2, PETSCSPACEPTRIMMED);CHKERRQ(ierr);
           ierr = PetscSpacePTrimmedSetFormDegree(tri2, formDegree < 0 ? -1 : 1);CHKERRQ(ierr);
         }
@@ -2210,8 +2215,12 @@ PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt de
     fq = NULL;
     break;
   }
-  ierr = PetscFESetQuadrature(*fem, q);CHKERRQ(ierr);
-  ierr = PetscFESetFaceQuadrature(*fem, fq);CHKERRQ(ierr);
+  if (q != NULL) {
+    ierr = PetscFESetQuadrature(*fem, q);CHKERRQ(ierr);
+  }
+  if (fq != NULL) {
+    ierr = PetscFESetFaceQuadrature(*fem, fq);CHKERRQ(ierr);
+  }
   ierr = PetscQuadratureDestroy(&q);CHKERRQ(ierr);
   ierr = PetscQuadratureDestroy(&fq);CHKERRQ(ierr);
   /* Set finite element name */
