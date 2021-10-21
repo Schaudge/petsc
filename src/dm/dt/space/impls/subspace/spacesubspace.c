@@ -80,7 +80,7 @@ static PetscErrorCode PetscSpaceView_Subspace(PetscSpace sp, PetscViewer viewer)
       }
     }
     if (subsp->Ju) {
-      ierr = PetscViewerASCIIPrintf(viewer,"Space-to-subsace domain transform:\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"Space-to-subspace range transform:\n");CHKERRQ(ierr);
       for (o = 0; o < origNc; o++) {
         ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
         for (s = 0; s < subNc; s++) {
@@ -561,4 +561,3 @@ PetscErrorCode PetscSpaceCreateSubspace(PetscSpace origSpace, PetscDualSpace dua
   ierr = PetscSpaceInitialize_Subspace(*subspace);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
