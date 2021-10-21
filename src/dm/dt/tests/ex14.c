@@ -25,7 +25,11 @@ static PetscErrorCode createFE(DMPolytopeType tope, PetscInt degree, PetscInt fo
     degree = 1;
     trimmed = PETSC_TRUE;
   }
-  ierr = PetscFECreateFEEC(PETSC_COMM_SELF, tope, degree, formDegree, PETSC_DETERMINE, 1, tensor, trimmed, useMoments, origDegree, fem);CHKERRQ(ierr);
+  ierr = PetscFECreateFEEC(PETSC_COMM_SELF, tope, degree, formDegree, PETSC_DETERMINE, 1, tensor, trimmed, useMoments, origDegree, fem);
+  if (ierr == PETSC_ERR_SUP) {
+    PetscFunctionReturn(ierr);
+  }
+  CHKERRQ(ierr);
   ierr = PetscFESetUp(*fem);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -53,7 +57,11 @@ static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDe
   ierr = PetscDTBinomialInt(dim + origDegree, dim, &Nb);CHKERRQ(ierr);
 
   // create the original finite element and project the polynomials into the space
-  ierr = createFE(tope, degree, formDegree, trimmed, useMoments, origDegree, &F);CHKERRQ(ierr);
+  ierr = createFE(tope, degree, formDegree, trimmed, useMoments, origDegree, &F);
+  if (ierr == PETSC_ERR_SUP) {
+    PetscFunctionReturn(ierr);
+  }
+  CHKERRQ(ierr);
   ierr = PetscFEGetDualSpace(F, &X);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetAllData(X, &q1, &P1);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(q1, NULL, NULL, &nPoints1, &points1, NULL);CHKERRQ(ierr);
@@ -211,6 +219,7 @@ int main(int argc, char **argv)
         for (PetscInt useMoments = 0; useMoments <= 1; useMoments++) {
           PetscReal error;
           PetscInt  origDegree = degree + 1;
+          PetscErrorCode ierr2;
           switch (tope) {
           case DM_POLYTOPE_QUADRILATERAL:
           case DM_POLYTOPE_TRI_PRISM:
@@ -223,8 +232,13 @@ int main(int argc, char **argv)
             break;
           }
 
-          ierr = test(tope, degree, formDegree, trimmed, useMoments, origDegree, &error);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, projection commutator error %g\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal", (double) error);CHKERRQ(ierr);
+          ierr = test(tope, degree, formDegree, trimmed, useMoments, origDegree, &error);
+          if (ierr == PETSC_ERR_SUP) {
+            ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, not implemented\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal");CHKERRQ(ierr);
+          } else {
+            CHKERRQ(ierr);
+            ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, projection commutator error %sok (%g)\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal", error < PETSC_SMALL ? "": "not ", (double) error);CHKERRQ(ierr);
+          }
         }
       }
     }

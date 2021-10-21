@@ -1967,8 +1967,16 @@ PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt de
   case DM_POLYTOPE_QUADRILATERAL:
   case DM_POLYTOPE_HEXAHEDRON:
   case DM_POLYTOPE_TRI_PRISM:
-    if (!tensor) SETERRQ(comm, PETSC_ERR_SUP, "Serendipity elements not implemented");
-    if (formDegree != 0 && formDegree != dim && !trimmed) SETERRQ(comm, PETSC_ERR_SUP, "Augmented serendipity elements not implemented");
+    if (!tensor) {
+      ierr = PetscInfo(NULL, "Serendipity elements not implemented");CHKERRQ(ierr);
+      *fem = NULL;
+      PetscFunctionReturn(PETSC_ERR_SUP);
+    }
+    if (formDegree != 0 && formDegree != dim && !trimmed) {
+      ierr = PetscInfo(NULL, "Augmented serendipity elements not implemented");CHKERRQ(ierr);
+      *fem = NULL;
+      PetscFunctionReturn(PETSC_ERR_SUP);
+    }
     break;
   default:
     SETERRQ1(comm, PETSC_ERR_SUP, "No FEEC elementst implemented for %s\n", DMPolytopeTypes[tope]);
@@ -2025,6 +2033,8 @@ PetscErrorCode PetscFECreateFEEC(MPI_Comm comm, DMPolytopeType tope, PetscInt de
         ierr = PetscDTEnumSubset(dim, PetscAbsInt(formDegree), s, f_atoms);CHKERRQ(ierr);
         ierr = PetscSpaceCreate(comm, &tens);CHKERRQ(ierr);
         ierr = PetscSpaceSetType(tens, PETSCSPACETENSOR);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumVariables(tens, dim);CHKERRQ(ierr);
+        ierr = PetscSpaceSetNumComponents(tens, 1);CHKERRQ(ierr);
         ierr = PetscSpaceTensorSetNumSubspaces(tens, dim);CHKERRQ(ierr);
         for (PetscInt d = 0; d < dim; d++) {
           PetscInt i;
