@@ -326,7 +326,7 @@ PetscErrorCode PetscDTAltVWedgePattern(PetscInt N, PetscInt j, PetscInt k, Petsc
 
         pattern[1][0] = 0;
         pattern[1][1] = 1;
-        pattern[1][2] = 1;
+        pattern[1][2] = 0;
       } else {
         if (j+k == 2) {
           pattern[0][0] = 1;
@@ -444,7 +444,8 @@ PetscErrorCode PetscDTAltVDifferentialPattern(PetscInt N, PetscInt j, PetscInt k
           pattern[i * ak + (ak - 1 - l)][2] = swap2;
         }
         for (PetscInt l = 0; l < ak; l++) {
-          if (l & 1) {
+          PetscInt m = pattern[i * ak + l][1];
+          if (m & 1) {
             PetscInt s = pattern[i * ak + l][2];
             pattern[i * ak + l][2] = -(s+1);
           }
