@@ -1,0 +1,152 @@
+segment, form degree 0, full, degree 1, origDegree 2, nodal, projection commutator error ok (0.)
+segment, form degree 0, full, degree 1, origDegree 2, modal, projection commutator error ok (2.0541e-16)
+segment, form degree 0, full, degree 2, origDegree 3, nodal, projection commutator error not ok (9.35414)
+segment, form degree 0, full, degree 2, origDegree 3, modal, projection commutator error ok (2.03762e-15)
+triangle, form degree -1, full, degree 1, origDegree 2, nodal, projection commutator error not ok (9.62672)
+triangle, form degree -1, full, degree 1, origDegree 2, modal, projection commutator error ok (8.77824e-15)
+triangle, form degree -1, trimmed, degree 1, origDegree 2, nodal, projection commutator error not ok (4.81336)
+triangle, form degree -1, trimmed, degree 1, origDegree 2, modal, projection commutator error ok (8.1431e-15)
+triangle, form degree 0, full, degree 1, origDegree 2, nodal, projection commutator error ok (0.)
+triangle, form degree 0, full, degree 1, origDegree 2, modal, projection commutator error ok (1.77636e-15)
+triangle, form degree 1, full, degree 1, origDegree 2, nodal, projection commutator error not ok (9.62672)
+triangle, form degree 1, full, degree 1, origDegree 2, modal, projection commutator error ok (8.77824e-15)
+triangle, form degree 1, trimmed, degree 1, origDegree 2, nodal, projection commutator error not ok (4.81336)
+triangle, form degree 1, trimmed, degree 1, origDegree 2, modal, projection commutator error ok (8.1431e-15)
+triangle, form degree -1, full, degree 2, origDegree 3, nodal, projection commutator error not ok (67.2493)
+triangle, form degree -1, full, degree 2, origDegree 3, modal, projection commutator error ok (8.5781e-15)
+triangle, form degree -1, trimmed, degree 2, origDegree 3, nodal, projection commutator error not ok (105.508)
+triangle, form degree -1, trimmed, degree 2, origDegree 3, modal, projection commutator error ok (8.89521e-15)
+triangle, form degree 0, full, degree 2, origDegree 3, nodal, projection commutator error not ok (31.7036)
+triangle, form degree 0, full, degree 2, origDegree 3, modal, projection commutator error ok (1.14967e-14)
+triangle, form degree 1, full, degree 2, origDegree 3, nodal, projection commutator error not ok (67.2493)
+triangle, form degree 1, full, degree 2, origDegree 3, modal, projection commutator error ok (8.5599e-15)
+triangle, form degree 1, trimmed, degree 2, origDegree 3, nodal, projection commutator error not ok (105.508)
+triangle, form degree 1, trimmed, degree 2, origDegree 3, modal, projection commutator error ok (9.59292e-15)
+quadrilateral, form degree -1, full, degree 1, origDegree 3, nodal, not implemented
+quadrilateral, form degree -1, full, degree 1, origDegree 3, modal, not implemented
+quadrilateral, form degree -1, trimmed, degree 1, origDegree 3, nodal, projection commutator error not ok (25.2059)
+quadrilateral, form degree -1, trimmed, degree 1, origDegree 3, modal, projection commutator error ok (9.20861e-14)
+quadrilateral, form degree 0, full, degree 1, origDegree 3, nodal, projection commutator error not ok (15.8518)
+quadrilateral, form degree 0, full, degree 1, origDegree 3, modal, projection commutator error ok (4.22016e-14)
+quadrilateral, form degree 1, full, degree 1, origDegree 3, nodal, not implemented
+quadrilateral, form degree 1, full, degree 1, origDegree 3, modal, not implemented
+quadrilateral, form degree 1, trimmed, degree 1, origDegree 3, nodal, projection commutator error not ok (25.2059)
+quadrilateral, form degree 1, trimmed, degree 1, origDegree 3, modal, projection commutator error ok (9.20861e-14)
+quadrilateral, form degree -1, full, degree 2, origDegree 5, nodal, not implemented
+quadrilateral, form degree -1, full, degree 2, origDegree 5, modal, not implemented
+quadrilateral, form degree -1, trimmed, degree 2, origDegree 5, nodal, projection commutator error not ok (21422.3)
+quadrilateral, form degree -1, trimmed, degree 2, origDegree 5, modal, projection commutator error ok (1.59184e-12)
+quadrilateral, form degree 0, full, degree 2, origDegree 5, nodal, not implemented
+quadrilateral, form degree 0, full, degree 2, origDegree 5, modal, not implemented
+quadrilateral, form degree 1, full, degree 2, origDegree 5, nodal, not implemented
+quadrilateral, form degree 1, full, degree 2, origDegree 5, modal, not implemented
+quadrilateral, form degree 1, trimmed, degree 2, origDegree 5, nodal, projection commutator error not ok (21422.3)
+quadrilateral, form degree 1, trimmed, degree 2, origDegree 5, modal, projection commutator error ok (1.6621e-12)
+tetrahedron, form degree -2, full, degree 1, origDegree 2, nodal, projection commutator error not ok (45.0409)
+tetrahedron, form degree -2, full, degree 1, origDegree 2, modal, projection commutator error ok (2.79855e-14)
+tetrahedron, form degree -2, trimmed, degree 1, origDegree 2, nodal, projection commutator error not ok (15.0136)
+tetrahedron, form degree -2, trimmed, degree 1, origDegree 2, modal, projection commutator error ok (3.27443e-14)
+tetrahedron, form degree -1, full, degree 1, origDegree 2, nodal, projection commutator error not ok (39.5162)
+tetrahedron, form degree -1, full, degree 1, origDegree 2, modal, projection commutator error ok (5.00181e-14)
+tetrahedron, form degree -1, trimmed, degree 1, origDegree 2, nodal, projection commutator error not ok (19.7581)
+tetrahedron, form degree -1, trimmed, degree 1, origDegree 2, modal, projection commutator error ok (3.55615e-14)
+tetrahedron, form degree 0, full, degree 1, origDegree 2, nodal, projection commutator error ok (4.9285e-15)
+tetrahedron, form degree 0, full, degree 1, origDegree 2, modal, projection commutator error ok (9.41291e-15)
+tetrahedron, form degree 1, full, degree 1, origDegree 2, nodal, projection commutator error not ok (39.5162)
+tetrahedron, form degree 1, full, degree 1, origDegree 2, modal, projection commutator error ok (5.00181e-14)
+tetrahedron, form degree 1, trimmed, degree 1, origDegree 2, nodal, projection commutator error not ok (19.7581)
+tetrahedron, form degree 1, trimmed, degree 1, origDegree 2, modal, projection commutator error ok (3.55615e-14)
+tetrahedron, form degree 2, full, degree 1, origDegree 2, nodal, projection commutator error not ok (45.0409)
+tetrahedron, form degree 2, full, degree 1, origDegree 2, modal, projection commutator error ok (2.6861e-14)
+tetrahedron, form degree 2, trimmed, degree 1, origDegree 2, nodal, projection commutator error not ok (15.0136)
+tetrahedron, form degree 2, trimmed, degree 1, origDegree 2, modal, projection commutator error ok (3.19893e-14)
+tetrahedron, form degree -2, full, degree 2, origDegree 3, nodal, projection commutator error not ok (279.089)
+tetrahedron, form degree -2, full, degree 2, origDegree 3, modal, projection commutator error ok (2.75537e-14)
+tetrahedron, form degree -2, trimmed, degree 2, origDegree 3, nodal, projection commutator error not ok (553.344)
+tetrahedron, form degree -2, trimmed, degree 2, origDegree 3, modal, projection commutator error ok (2.78544e-14)
+tetrahedron, form degree -1, full, degree 2, origDegree 3, nodal, projection commutator error not ok (309.275)
+tetrahedron, form degree -1, full, degree 2, origDegree 3, modal, projection commutator error ok (1.17572e-13)
+tetrahedron, form degree -1, trimmed, degree 2, origDegree 3, nodal, projection commutator error not ok (80.7672)
+tetrahedron, form degree -1, trimmed, degree 2, origDegree 3, modal, projection commutator error ok (1.4362e-13)
+tetrahedron, form degree 0, full, degree 2, origDegree 3, nodal, projection commutator error not ok (93.0944)
+tetrahedron, form degree 0, full, degree 2, origDegree 3, modal, projection commutator error ok (4.81507e-14)
+tetrahedron, form degree 1, full, degree 2, origDegree 3, nodal, projection commutator error not ok (309.275)
+tetrahedron, form degree 1, full, degree 2, origDegree 3, modal, projection commutator error ok (1.27193e-13)
+tetrahedron, form degree 1, trimmed, degree 2, origDegree 3, nodal, projection commutator error not ok (80.7672)
+tetrahedron, form degree 1, trimmed, degree 2, origDegree 3, modal, projection commutator error ok (1.38541e-13)
+tetrahedron, form degree 2, full, degree 2, origDegree 3, nodal, projection commutator error not ok (279.089)
+tetrahedron, form degree 2, full, degree 2, origDegree 3, modal, projection commutator error ok (2.94379e-14)
+tetrahedron, form degree 2, trimmed, degree 2, origDegree 3, nodal, projection commutator error not ok (553.344)
+tetrahedron, form degree 2, trimmed, degree 2, origDegree 3, modal, projection commutator error ok (2.81022e-14)
+hexahedron, form degree -2, full, degree 1, origDegree 4, nodal, not implemented
+hexahedron, form degree -2, full, degree 1, origDegree 4, modal, not implemented
+hexahedron, form degree -2, trimmed, degree 1, origDegree 4, nodal, projection commutator error not ok (1766.37)
+hexahedron, form degree -2, trimmed, degree 1, origDegree 4, modal, projection commutator error ok (4.86395e-11)
+hexahedron, form degree -1, full, degree 1, origDegree 4, nodal, not implemented
+hexahedron, form degree -1, full, degree 1, origDegree 4, modal, not implemented
+hexahedron, form degree -1, trimmed, degree 1, origDegree 4, nodal, projection commutator error not ok (1948.77)
+hexahedron, form degree -1, trimmed, degree 1, origDegree 4, modal, projection commutator error ok (1.7673e-11)
+hexahedron, form degree 0, full, degree 1, origDegree 4, nodal, projection commutator error not ok (1518.92)
+hexahedron, form degree 0, full, degree 1, origDegree 4, modal, projection commutator error ok (1.45356e-11)
+hexahedron, form degree 1, full, degree 1, origDegree 4, nodal, not implemented
+hexahedron, form degree 1, full, degree 1, origDegree 4, modal, not implemented
+hexahedron, form degree 1, trimmed, degree 1, origDegree 4, nodal, projection commutator error not ok (1948.77)
+hexahedron, form degree 1, trimmed, degree 1, origDegree 4, modal, projection commutator error ok (1.79004e-11)
+hexahedron, form degree 2, full, degree 1, origDegree 4, nodal, not implemented
+hexahedron, form degree 2, full, degree 1, origDegree 4, modal, not implemented
+hexahedron, form degree 2, trimmed, degree 1, origDegree 4, nodal, projection commutator error not ok (1766.37)
+hexahedron, form degree 2, trimmed, degree 1, origDegree 4, modal, projection commutator error ok (4.86395e-11)
+hexahedron, form degree -2, full, degree 2, origDegree 7, nodal, not implemented
+hexahedron, form degree -2, full, degree 2, origDegree 7, modal, not implemented
+hexahedron, form degree -2, trimmed, degree 2, origDegree 7, nodal, projection commutator error not ok (1.56377e+08)
+hexahedron, form degree -2, trimmed, degree 2, origDegree 7, modal, projection commutator error not ok (1.34869e-08)
+hexahedron, form degree -1, full, degree 2, origDegree 7, nodal, not implemented
+hexahedron, form degree -1, full, degree 2, origDegree 7, modal, not implemented
+hexahedron, form degree -1, trimmed, degree 2, origDegree 7, nodal, projection commutator error not ok (1.45622e+06)
+hexahedron, form degree -1, trimmed, degree 2, origDegree 7, modal, projection commutator error not ok (3.6206e-08)
+hexahedron, form degree 0, full, degree 2, origDegree 7, nodal, not implemented
+hexahedron, form degree 0, full, degree 2, origDegree 7, modal, not implemented
+hexahedron, form degree 1, full, degree 2, origDegree 7, nodal, not implemented
+hexahedron, form degree 1, full, degree 2, origDegree 7, modal, not implemented
+hexahedron, form degree 1, trimmed, degree 2, origDegree 7, nodal, projection commutator error not ok (1.45622e+06)
+hexahedron, form degree 1, trimmed, degree 2, origDegree 7, modal, projection commutator error not ok (3.62683e-08)
+hexahedron, form degree 2, full, degree 2, origDegree 7, nodal, not implemented
+hexahedron, form degree 2, full, degree 2, origDegree 7, modal, not implemented
+hexahedron, form degree 2, trimmed, degree 2, origDegree 7, nodal, projection commutator error not ok (1.56377e+08)
+hexahedron, form degree 2, trimmed, degree 2, origDegree 7, modal, projection commutator error not ok (1.30544e-08)
+triangular_prism, form degree -2, full, degree 1, origDegree 3, nodal, not implemented
+triangular_prism, form degree -2, full, degree 1, origDegree 3, modal, not implemented
+triangular_prism, form degree -2, trimmed, degree 1, origDegree 3, nodal, projection commutator error not ok (137.739)
+triangular_prism, form degree -2, trimmed, degree 1, origDegree 3, modal, projection commutator error ok (2.66662e-12)
+triangular_prism, form degree -1, full, degree 1, origDegree 3, nodal, not implemented
+triangular_prism, form degree -1, full, degree 1, origDegree 3, modal, not implemented
+triangular_prism, form degree -1, trimmed, degree 1, origDegree 3, nodal, projection commutator error not ok (167.362)
+triangular_prism, form degree -1, trimmed, degree 1, origDegree 3, modal, projection commutator error ok (3.74821e-12)
+triangular_prism, form degree 0, full, degree 1, origDegree 3, nodal, projection commutator error not ok (46.5472)
+triangular_prism, form degree 0, full, degree 1, origDegree 3, modal, projection commutator error ok (2.17808e-13)
+triangular_prism, form degree 1, full, degree 1, origDegree 3, nodal, not implemented
+triangular_prism, form degree 1, full, degree 1, origDegree 3, modal, not implemented
+triangular_prism, form degree 1, trimmed, degree 1, origDegree 3, nodal, projection commutator error not ok (167.362)
+triangular_prism, form degree 1, trimmed, degree 1, origDegree 3, modal, projection commutator error ok (3.74821e-12)
+triangular_prism, form degree 2, full, degree 1, origDegree 3, nodal, not implemented
+triangular_prism, form degree 2, full, degree 1, origDegree 3, modal, not implemented
+triangular_prism, form degree 2, trimmed, degree 1, origDegree 3, nodal, projection commutator error not ok (137.739)
+triangular_prism, form degree 2, trimmed, degree 1, origDegree 3, modal, projection commutator error ok (2.66662e-12)
+triangular_prism, form degree -2, full, degree 2, origDegree 5, nodal, not implemented
+triangular_prism, form degree -2, full, degree 2, origDegree 5, modal, not implemented
+triangular_prism, form degree -2, trimmed, degree 2, origDegree 5, nodal, projection commutator error not ok (127131.)
+triangular_prism, form degree -2, trimmed, degree 2, origDegree 5, modal, projection commutator error ok (3.45146e-11)
+triangular_prism, form degree -1, full, degree 2, origDegree 5, nodal, not implemented
+triangular_prism, form degree -1, full, degree 2, origDegree 5, modal, not implemented
+triangular_prism, form degree -1, trimmed, degree 2, origDegree 5, nodal, projection commutator error not ok (19804.1)
+triangular_prism, form degree -1, trimmed, degree 2, origDegree 5, modal, projection commutator error not ok (1.17128e-10)
+triangular_prism, form degree 0, full, degree 2, origDegree 5, nodal, not implemented
+triangular_prism, form degree 0, full, degree 2, origDegree 5, modal, not implemented
+triangular_prism, form degree 1, full, degree 2, origDegree 5, nodal, not implemented
+triangular_prism, form degree 1, full, degree 2, origDegree 5, modal, not implemented
+triangular_prism, form degree 1, trimmed, degree 2, origDegree 5, nodal, projection commutator error not ok (19804.1)
+triangular_prism, form degree 1, trimmed, degree 2, origDegree 5, modal, projection commutator error not ok (1.09762e-10)
+triangular_prism, form degree 2, full, degree 2, origDegree 5, nodal, not implemented
+triangular_prism, form degree 2, full, degree 2, origDegree 5, modal, not implemented
+triangular_prism, form degree 2, trimmed, degree 2, origDegree 5, nodal, projection commutator error not ok (127131.)
+triangular_prism, form degree 2, trimmed, degree 2, origDegree 5, modal, projection commutator error ok (3.42527e-11)

@@ -207,37 +207,37 @@ int main(int argc, char **argv)
 {
   DMPolytopeType topes[] = {DM_POLYTOPE_SEGMENT, DM_POLYTOPE_TRIANGLE, DM_POLYTOPE_QUADRILATERAL, DM_POLYTOPE_TETRAHEDRON, DM_POLYTOPE_HEXAHEDRON, DM_POLYTOPE_TRI_PRISM};
   PetscInt       ntopes = sizeof(topes) / sizeof (DMPolytopeType);
-  PetscInt       degree = 1;
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
   for (PetscInt t = 0; t < ntopes; t++) {
     DMPolytopeType tope = topes[t];
     PetscInt dim = DMPolytopeTypeGetDim(tope);
-    for (PetscInt formDegree = -dim+1; formDegree < dim; formDegree++) {
-      for (PetscInt trimmed = 0; trimmed <= (formDegree == 0 ? 0 : 1); trimmed++) {
-        for (PetscInt useMoments = 0; useMoments <= 1; useMoments++) {
-          PetscReal error;
-          PetscInt  origDegree = degree + 1;
-          PetscErrorCode ierr2;
-          switch (tope) {
-          case DM_POLYTOPE_QUADRILATERAL:
-          case DM_POLYTOPE_TRI_PRISM:
-            origDegree = 2*degree + 1;
-            break;
-          case DM_POLYTOPE_HEXAHEDRON:
-            origDegree = 3*degree + 1;
-            break;
-          default:
-            break;
-          }
+    for (PetscInt degree = 1; degree <= 2; degree++) {
+      for (PetscInt formDegree = -dim+1; formDegree < dim; formDegree++) {
+        for (PetscInt trimmed = 0; trimmed <= (formDegree == 0 ? 0 : 1); trimmed++) {
+          for (PetscInt useMoments = 0; useMoments <= 1; useMoments++) {
+            PetscReal error;
+            PetscInt  origDegree = degree + 1;
+            switch (tope) {
+            case DM_POLYTOPE_QUADRILATERAL:
+            case DM_POLYTOPE_TRI_PRISM:
+              origDegree = 2*degree + 1;
+              break;
+            case DM_POLYTOPE_HEXAHEDRON:
+              origDegree = 3*degree + 1;
+              break;
+            default:
+              break;
+            }
 
-          ierr = test(tope, degree, formDegree, trimmed, useMoments, origDegree, &error);
-          if (ierr == PETSC_ERR_SUP) {
-            ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, not implemented\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal");CHKERRQ(ierr);
-          } else {
-            CHKERRQ(ierr);
-            ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, projection commutator error %sok (%g)\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal", error < PETSC_SMALL ? "": "not ", (double) error);CHKERRQ(ierr);
+            ierr = test(tope, degree, formDegree, trimmed, useMoments, origDegree, &error);
+            if (ierr == PETSC_ERR_SUP) {
+              ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, not implemented\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal");CHKERRQ(ierr);
+            } else {
+              CHKERRQ(ierr);
+              ierr = PetscPrintf(PETSC_COMM_WORLD, "%s, form degree %D, %s, degree %D, origDegree %D, %s, projection commutator error %sok (%g)\n", DMPolytopeTypes[tope], formDegree, trimmed ? "trimmed" : "full", degree, origDegree, useMoments ? "modal" : "nodal", error < PETSC_SMALL ? "": "not ", (double) error);CHKERRQ(ierr);
+            }
           }
         }
       }
