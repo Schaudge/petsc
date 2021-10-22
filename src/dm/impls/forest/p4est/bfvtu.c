@@ -48,7 +48,7 @@ typedef PetscReal PetscVTUReal;
 
 #define P4EST_VTK_CELL_TYPE      8      /* VTK_PIXEL */
 
-PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, PetscInt nPoints) {
+PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal *point_data, PetscInt nPoints) {
 
   p4est_t              *p4est;
 
@@ -87,8 +87,6 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, Pet
   v = p4est->connectivity->vertices;
   tree_to_vertex = p4est->connectivity->tree_to_vertex;
 
-  ierr = PetscMalloc1(3*nPoints*sizeof(PetscVTUReal), point_data);CHKERRQ(ierr);
-
   for (jt = first_local_tree, quad_count = 0; jt <= last_local_tree; ++jt) {
     tree = p4est_tree_array_index (trees, jt);
     quadrants = &(tree->quadrants);
@@ -119,7 +117,7 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, Pet
                                              + eta_x  * v[3 * vt[1] + k])
                              + eta_y  * ((1. - eta_x) * v[3 * vt[2] + k]
                                              + eta_x  * v[3 * vt[3] + k]);
-               (*point_data)[3 * (P4EST_CHILDREN * quad_count + l) + k] = (PetscVTUReal) xyz[k];
+                point_data[3 * (P4EST_CHILDREN * quad_count + l) + k] = (PetscVTUReal) xyz[k];
               }
             l++;
             }
@@ -132,52 +130,46 @@ PetscErrorCode DMBFGetVTKVertexCoordinates(DM dm, PetscVTUReal **point_data, Pet
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKConnectivity(DM dm, PetscVTKInt **conn_data, PetscInt nPoints) {
+PetscErrorCode DMBFGetVTKConnectivity(DM dm, PetscVTKInt *conn_data, PetscInt nPoints) {
 
-  PetscErrorCode ierr;
   p4est_locidx_t il;
 
   PetscFunctionBegin;
-  ierr = PetscMalloc1(nPoints*sizeof(PetscVTKInt), conn_data);CHKERRQ(ierr);
 
   for (il = 0; il < nPoints; ++il) {
-    (*conn_data)[il] = (PetscVTKInt) il;
+    conn_data[il] = (PetscVTKInt) il;
   }
 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt **offset_data, PetscInt nCells) {
+PetscErrorCode DMBFGetVTKCellOffsets(DM dm, PetscVTKInt *offset_data, PetscInt nCells) {
 
-  //PetscErrorCode ierr;
   PetscInt       il;
 
   PetscFunctionBegin;
-  // ierr = PetscMalloc1(nCells*sizeof(PetscVTKInt), offset_data);CHKERRQ(ierr); /* if !offset_data? */
 
   for(il = 1; il <= nCells; ++il) {
-      (*offset_data)[il - 1] = (PetscVTKInt) P4EST_CHILDREN * il;  /* offsets */
+    offset_data[il - 1] = (PetscVTKInt) P4EST_CHILDREN * il;  /* offsets */
   }
 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKCellTypes(DM dm, PetscVTKType **type_data, PetscInt nCells) {
+PetscErrorCode DMBFGetVTKCellTypes(DM dm, PetscVTKType *type_data, PetscInt nCells) {
 
-  PetscErrorCode ierr;
   PetscInt       il;
 
   PetscFunctionBegin;
-  ierr = PetscMalloc1(nCells*sizeof(PetscVTKType), type_data);CHKERRQ(ierr); /* if !type_data? */
 
   for(il = 0; il < nCells; ++il) {
-      (*type_data)[il] = P4EST_VTK_CELL_TYPE;  /* offsets */
+    type_data[il] = P4EST_VTK_CELL_TYPE;  /* offsets */
   }
 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt **treeids, PetscInt nCells) {
+PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt *treeids, PetscInt nCells) {
 
   PetscErrorCode  ierr;
   PetscInt        il, num_quads, zz;
@@ -186,8 +178,6 @@ PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt **treeids, PetscInt nCells) 
   p4est_tree_t   *tree;
   sc_array_t     *trees;
   PetscInt       bs,bs0,bs1,bs2,blockSize[3] = {1,1,1};
-
-
 
   PetscFunctionBegin;
 
@@ -202,8 +192,6 @@ PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt **treeids, PetscInt nCells) 
   last_local_tree = p4est->last_local_tree;
   trees = p4est->trees;
 
-  // ierr = PetscMalloc1(nCells*sizeof(PetscVTKInt), treeids);CHKERRQ(ierr); /* if !type_data? */
-
   first_local_tree = p4est->first_local_tree;
   last_local_tree = p4est->last_local_tree;
 
@@ -211,14 +199,14 @@ PetscErrorCode DMBFGetVTKTreeIDs(DM dm, PetscVTKInt **treeids, PetscInt nCells) 
     tree = p4est_tree_array_index (trees, jt);
     num_quads = (PetscInt) tree->quadrants.elem_count;
     for(zz = 0; zz < num_quads*bs; ++zz, ++il) {
-      (*treeids)[il] = (PetscVTKInt) jt;
+      treeids[il] = (PetscVTKInt) jt;
     }
   }
 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt **mpirank, PetscInt nCells) {
+PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt *mpirank, PetscInt nCells) {
 
   PetscErrorCode ierr;
   PetscMPIInt    rank;
@@ -226,17 +214,15 @@ PetscErrorCode DMBFGetVTKMPIRank(DM dm, PetscVTKInt **mpirank, PetscInt nCells) 
 
   PetscFunctionBegin;
 
-  //ierr = PetscMalloc1(nCells*sizeof(PetscVTKInt), mpirank);CHKERRQ(ierr); /* if !type_data? */
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-
   for(il = 0; il < nCells; il++) {
-    (*mpirank)[il] = (PetscVTKInt)rank;
+    mpirank[il] = (PetscVTKInt)rank;
   }
 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt **quadlevel, PetscInt nCells) {
+PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt *quadlevel, PetscInt nCells) {
 
   PetscErrorCode    ierr;
   PetscInt          i, k, Q, q;
@@ -250,8 +236,6 @@ PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt **quadlevel, Pet
 
   PetscFunctionBegin;
 
-  ierr = PetscMalloc1(nCells*sizeof(PetscVTKInt), quadlevel);CHKERRQ(ierr); /* if !type_data? */
-
   ierr = DMBFGetP4est(dm,&p4est);CHKERRQ(ierr);
   ierr = DMBFGetBlockSize(dm,blockSize);CHKERRQ(ierr);
   bs0  = blockSize[0];
@@ -264,16 +248,17 @@ PetscErrorCode DMBFGetVTKQuadRefinementLevel(DM dm, PetscVTKInt **quadlevel, Pet
   trees = p4est->trees;
 
   for (tt = first_local_tree, k = 0; tt <= last_local_tree; ++tt) {
-    tree = p4est_tree_array_index(p4est->trees, tt);
+    tree = p4est_tree_array_index(trees, tt);
     tquadrants = &tree->quadrants;
     Q = (PetscInt) tquadrants->elem_count;
     for (q = 0; q < Q; ++q) {
        quad = p4est_quadrant_array_index(tquadrants, q);
        for(i = 0; i < bs; i++, k++) {
-         (*quadlevel)[k] = (PetscVTKInt) quad->level;
+         quadlevel[k] = (PetscVTKInt) quad->level;
        }
      }
   }
+
   PetscFunctionReturn(0);
 }
 
@@ -438,35 +423,40 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 
   PetscFPrintf(PETSC_COMM_SELF,f,"_");
 
-  ierr = DMBFGetVTKVertexCoordinates(dm, &float_data, nPoints);CHKERRQ(ierr);
+  // allocate workspace
+  ierr = PetscMalloc1(3*nPoints*sizeof(PetscVTUReal),&float_data);CHKERRQ(ierr);
+  ierr = PetscMalloc1(nPoints*sizeof(PetscVTKInt),&int_data);CHKERRQ(ierr);
+  ierr = PetscMalloc1(nCells*sizeof(PetscVTKType),&type_data);CHKERRQ(ierr);
+
+  ierr  = DMBFGetVTKVertexCoordinates(dm,float_data,nPoints);CHKERRQ(ierr);
   bytes = PetscVTKIntCast(3*sizeof(PetscVTUReal)*nPoints);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(float_data,sizeof(PetscVTUReal),3*nPoints,f);
 
-  ierr = DMBFGetVTKConnectivity(dm, &int_data, nPoints);CHKERRQ(ierr);
+  ierr  = DMBFGetVTKConnectivity(dm,int_data,nPoints);CHKERRQ(ierr);
   bytes = PetscVTKIntCast(sizeof(PetscVTKInt)*nPoints);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(int_data, sizeof(PetscVTKInt), nPoints, f);
 
-  ierr = DMBFGetVTKCellOffsets(dm, &int_data, nCells);CHKERRQ(ierr);
+  ierr = DMBFGetVTKCellOffsets(dm,int_data,nCells);CHKERRQ(ierr);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
-  ierr = DMBFGetVTKCellTypes(dm, &type_data, nCells);CHKERRQ(ierr);
+  ierr  = DMBFGetVTKCellTypes(dm,type_data,nCells);CHKERRQ(ierr);
   bytes = PetscVTKIntCast(sizeof(PetscVTKType)*nCells);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(type_data, sizeof(PetscVTKType), nCells, f);
 
-  ierr = DMBFGetVTKMPIRank(dm, &int_data, nCells);CHKERRQ(ierr);
+  ierr  = DMBFGetVTKMPIRank(dm,int_data,nCells);CHKERRQ(ierr);
   bytes = PetscVTKIntCast(sizeof(PetscVTKInt)*nCells);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(int_data,sizeof(PetscVTKInt),nCells,f);
 
-  ierr = DMBFGetVTKTreeIDs(dm, &int_data, nCells);CHKERRQ(ierr);
+  ierr = DMBFGetVTKTreeIDs(dm,int_data,nCells);CHKERRQ(ierr);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
-  ierr = DMBFGetVTKQuadRefinementLevel(dm, &int_data, nCells);CHKERRQ(ierr);
+  ierr = DMBFGetVTKQuadRefinementLevel(dm,int_data,nCells);CHKERRQ(ierr);
   fwrite(&bytes,sizeof(PetscVTKInt),1,f);
   fwrite(int_data, sizeof(PetscVTKInt), nCells, f);
 
@@ -536,6 +526,11 @@ PetscErrorCode DMBFVTKWritePiece_VTU(DM dm,PetscViewer viewer)
 
   ierr = PetscFPrintf(PETSC_COMM_SELF,f,"\n  </AppendedData>\n");CHKERRQ(ierr);
   ierr = PetscFPrintf(PETSC_COMM_SELF,f,"</VTKFile>\n");CHKERRQ(ierr);
+
+  // destroy workspace
+  ierr = PetscFree(float_data);
+  ierr = PetscFree(int_data);
+  ierr = PetscFree(type_data);
   PetscFunctionReturn(0);
 }
 
