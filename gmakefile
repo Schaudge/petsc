@@ -104,7 +104,7 @@ endef
 define SHARED_RECIPE_DEFAULT
   # save objects list so SLEPc can build entire library with them
   @$(RM) $@ objs.${PETSC_ARCH}
-  @echo $^ > objs.${PETSC_ARCH}
+  @echo $(patsubst %.o, ${PETSC_DIR}/%.o, $^) > objs.${PETSC_ARCH}
   $(call quiet,CLINKER) $(sl_linker_args) -o $@ $^ $(PETSC_EXTERNAL_LIB_BASIC)
 endef
 
