@@ -134,7 +134,7 @@ If the pipeline detect problems it is the **submitter’s**
 responsibility to fix the errors.
 
 Reviewers will comment on the MR, either in the overview or by clicking next to specific lines
-in the changes for a commit or the overall MR [#review_click_comment]_ [#review_on_line]_.
+in the changes for a commit or the overall MR [#review_on_line]_.
 Often, the submitter will need to update their branch in response to these comments.
 
 Gitlab MRs use "threads" to track these discussions.
@@ -183,7 +183,5 @@ You can run the pipelines on an MR in any workflow state.
 .. rubric:: Footnotes
 
 .. [#closing_patterns_release] Unfortunately, these closing patterns `only work for MRs to a single default branch <https://gitlab.com/gitlab-org/gitlab/-/issues/14289>`__ (``main``), so you must manually close related issues for MRs to ``release``.
-
-.. [#review_click_comment] When introducing a new topic (thread) in reviewing an MR, one should submit with "Start Review" and not "Comment".
 
 .. [#review_on_line] A particularly useful feature is the `"insert suggestion" <https://docs.gitlab.com/ee/user/project/merge_requests/reviews/suggestions.html>`__ button in the comment box, to suggest an exact replacement on a line.
