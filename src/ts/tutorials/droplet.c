@@ -1011,8 +1011,7 @@ static PetscErrorCode PreStep(TS ts)
   user->V_t   = user->V_old + Flow_in;
   stretch     = user->V_t / user->V_old;
   user->dl_dt = (stretch - 1.0) * user->l / dt;
-  // user->l    *= stretch;
-  user->l     += (user->dl_dt)*dt;
+  user->l    *= stretch;
   user->V_old = user->V_t;
   {
     const PetscScalar *Consts;
