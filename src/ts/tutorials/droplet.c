@@ -27,13 +27,14 @@ typedef struct {
 } Parameter;
 
 typedef struct {
-  PetscBag  bag;    /* Holds problem parameters */
-  PetscReal V_old;  /* Starting drop volume */
-  PetscReal V_t;    /* Target drop volume */
-  PetscReal l;      /* Droplet length */
-  PetscReal dl_dt;  /* Droplet length time derivative OR bottom velocity */
-  PetscInt  bd_in;  /* BC number for inlet condition */
-  PetscInt  bd_end; /* BC number for droplet bottom condition */
+  PetscBag  bag;      /* Holds problem parameters */
+  PetscReal V_old;    /* Starting drop volume */
+  PetscReal V_t;      /* Target drop volume */
+  PetscReal l;        /* Droplet length */
+  PetscReal dl_dt;    /* Droplet length time derivative OR bottom velocity */
+  PetscInt  bd_in;    /* BC number for inlet condition */
+  PetscInt  bd_end;   /* BC number for droplet bottom condition */
+  PetscInt  cells[1]; /* Initial mesh division */
 } AppCtx;
 
 /* Initial conditions */
@@ -466,28 +467,14 @@ static void g1_wh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
+  PetscInt       n=1;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   ierr = PetscOptionsBegin(comm, "", "1D Droplet Problem Options", "DMPLEX");CHKERRQ(ierr);
+  options->cells[0] = 50;
+  ierr = PetscOptionsIntArray("-cells", "The initial mesh division", "droplet.c", options->cells, &n, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
-{
-  Vec            coordinates;
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = DMCreate(comm, dm);CHKERRQ(ierr);
-  ierr = DMSetType(*dm, DMPLEX);CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
-
-  ierr = DMGetCoordinates(*dm, &coordinates);CHKERRQ(ierr);
-  ierr = VecMax(coordinates, NULL, &user->l);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -504,17 +491,29 @@ static PetscErrorCode SetupParameters(PetscBag bag, AppCtx *user)
   ierr = PetscBagRegisterReal(bag, &param->gamma, 0.0728,    "gamma",      "Coefficient of surface tension(kg/sec^2)");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->g,     9.81,      "g",          "Gravitational force per unit mass(m/sec^2)");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->u_0,   1.0,       "u_0",        "Inlet velocity(m/s)");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(bag, &param->h_0,   user->l,   "h_0",        "Inlet radius(m)");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(bag, &param->h_0,   0.0026,    "h_0",        "Inlet radius(m)");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->fs,    0.0,       "fs",         "Shear force per unit area");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->cellsize, 0.0,    "cellsize",   "Cell size");CHKERRQ(ierr);
   ierr = PetscBagRegisterBool(bag, &param->Bool, PETSC_TRUE, "Correction", "Correction step");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(bag, &param->factor, 1.0,      "factor",     "New length to initial length ratio");CHKERRQ(ierr);
   // ierr = PetscBagRegisterReal(bag, &param->V_old, 4*PETSC_PI*PETSC_PI*(param->h_0)*(param->h_0)*(param->h_0)/(9*PetscSqrtReal(3)),    "V_old",   "Initial cubic drop volume");CHKERRQ(ierr);
   ierr = PetscBagSetFromOptions(bag);CHKERRQ(ierr);
-
-  if (user->l != param->h_0) SETERRQ(PetscObjectComm((PetscObject) bag), PETSC_ERR_SUP, "Only support hemispherical initial configurations");
+  user->l = param->h_0;
   /* Assuming a hemisphere */
   user->V_old = 0.5 * (4.*PETSC_PI/3.) * PetscSqr(param->h_0)*(user->l);
+  if (user->l != param->h_0) SETERRQ(PetscObjectComm((PetscObject) bag), PETSC_ERR_SUP, "Only support hemispherical initial configurations");
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = DMPlexCreateBoxMesh(comm, 1, PETSC_FALSE, user->cells, NULL, &user->l, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -867,7 +866,7 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
   PetscDS        ds;
   DMLabel        label;
   PetscReal      time, dt;
-  PetscScalar    integral[3], Vnew, rerr, rtol = 1.e-4;
+  PetscScalar    integral[3], Vnew, rerr, rtol = 1.e-3;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -975,7 +974,7 @@ static PetscErrorCode PreStep(TS ts)
   if((user->l > 2*param->h_0) && param->Bool) {
     const PetscScalar *v;
     PetscScalar  *ptr=NULL;
-    PetscInt     n, pStart, pEnd, Nf, f;
+    PetscInt     n, pStart, pEnd, Nf;
     PetscSection s;
 
     ierr = DMGetLocalSection(dm, &s);CHKERRQ(ierr);
@@ -999,6 +998,9 @@ static PetscErrorCode PreStep(TS ts)
             SETERRQ( PETSC_COMM_SELF, PETSC_ERR_SUP, "The curvature is blowing up in the middle. Something is wrong.");
           }
           if(!param->Bool) ierr = PetscPrintf(PETSC_COMM_WORLD, "\n \n \n ##### \t\t The necking begins \t\t ###### \n \n \n");
+          if(ptr[d]<0.01*param->h_0){
+            ierr = PetscPrintf(PETSC_COMM_WORLD, "\n \n ##### \n \t\t The droplt pinched off. \n ###### \n \n");
+          }
         }
     }
     if((user->l > 2.5*param->h_0) && param->Bool) SETERRQ( PETSC_COMM_SELF, PETSC_ERR_SUP, "Necking did not happen. Something is wrong.");
@@ -1103,9 +1105,9 @@ int main(int argc, char **argv)
 
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
-  ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
   ierr = PetscBagCreate(PETSC_COMM_WORLD, sizeof(Parameter), &user.bag);CHKERRQ(ierr);
   ierr = SetupParameters(user.bag, &user);CHKERRQ(ierr);
+  ierr = CreateMesh(PETSC_COMM_WORLD, &user, &dm);CHKERRQ(ierr);
   ierr = TSCreate(PETSC_COMM_WORLD, &ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts, dm);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &user);CHKERRQ(ierr);
@@ -1152,7 +1154,7 @@ int main(int argc, char **argv)
   test:
     suffix: paraffin_0
     args: -u_0 0.005 -nu 0.000032 -rho 700 -gamma 0.03025 \
-          -dm_plex_dim 1 -dm_plex_box_faces 50 -dm_plex_box_upper 0.0026 -dm_plex_separate_marker \
+          -cells 100 -dm_plex_separate_marker \
           -vel_petscspace_degree 3 -rad_petscspace_degree 3 -slope_petscspace_degree 2 \
           -ts_max_steps 10000 -ts_dt 1e-4 -ts_type beuler -ts_max_reject 20 -ts_monitor \
             -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
