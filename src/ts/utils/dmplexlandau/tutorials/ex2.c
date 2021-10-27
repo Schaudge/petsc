@@ -728,7 +728,7 @@ int main(int argc, char **argv)
   }
   /* go */
   ierr = PetscLogStageRegister("Solve", &stage);CHKERRQ(ierr);
-  ierr = PetscLogStageRegister("Landau", &ctx->stage);CHKERRQ(ierr);
+  ctx->stage = 0; // lets not use this stage
 #if defined(PETSC_HAVE_THREADSAFETY)
   ctx->stage = 1; // not set with thread safty
 #endif
