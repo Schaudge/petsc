@@ -6,7 +6,6 @@
 #include <petscdmcomposite.h>
 #include <Kokkos_Core.hpp>
 
-
 typedef Kokkos::TeamPolicy<>::member_type team_member;
 
 #include <../src/mat/impls/aij/seq/aij.h>
