@@ -5,6 +5,36 @@ import os
 import contextlib
 from functools import reduce
 
+all_flags_args = {
+  "CFLAGS",
+  "LDFLAGS",
+  "CUDAFLAGS",
+  "HIPFLAGS",
+  "SYCLCXXFLAGS",
+  "CXXFLAGS",
+  "CXX_CXXFLAGS",
+  "FFLAGS",
+  "CPPFLAGS",
+  "FPPFLAGS",
+  "CUDAPPFLAGS",
+  "CXXPPFLAGS",
+  "HIPPPFLAGS",
+  "SYCLPPFLAGS",
+  "CC_LINKER_FLAGS",
+  "CXX_LINKER_FLAGS",
+  "FC_LINKER_FLAGS",
+  "CUDAC_LINKER_FLAGS",
+  "HIPC_LINKER_FLAGS",
+  "SYCLCXX_LINKER_FLAGS",
+  "sharedLibraryFlags",
+  "dynamicLibraryFlags",
+  "FAST_AR_FLAGS",
+  "AR_FLAGS",
+  "CSharedLinkerFlag",
+  "CxxSharedLinkerFlag",
+  "FCSharedLinkerFlag",
+}
+
 # not sure how to handle this with 'self' so its outside the class
 def noCheck(command, status, output, error):
   return
@@ -33,6 +63,19 @@ class Configure(config.base.Configure):
     self.usedMPICompilers = 0
     self.mainLanguage = 'C'
     return
+
+  def __setattr__(self,key,val):
+    try:
+      if key.lower().endswith(("flag","flags")):
+        if not isinstance(val,list):
+          import ipdb; ipdb.set_trace()
+        if key not in all_flags_args:
+          print(key,val)
+          import ipdb; ipdb.set_trace()
+    except Exception as e:
+      print(e)
+      import ipdb; ipdb.set_trace()
+    object.__setattr__(self,key,val)
 
   def __str__(self):
     self.compilerflags = self.framework.getChild('config.compilerFlags')
@@ -603,26 +646,29 @@ class Configure(config.base.Configure):
 
   def checkInitialFlags(self):
     '''Initialize the compiler and linker flags'''
+    def sanitizeFlags(flagarg,default=''):
+      return [f.strip() for f in self.argDB.get(flagarg,default=default).split(' ') if f]
+
     for language in ['C', 'CUDA', 'HIP', 'SYCL', 'Cxx', 'FC']:
-      self.pushLanguage(language)
-      for flagsArg in [config.base.Configure.getCompilerFlagsName(language), config.base.Configure.getCompilerFlagsName(language, 1), config.base.Configure.getLinkerFlagsName(language)]:
-        if flagsArg in self.argDB: setattr(self, flagsArg, self.argDB[flagsArg])
-        else: setattr(self, flagsArg, '')
-        self.logPrint('Initialized '+flagsArg+' to '+str(getattr(self, flagsArg)))
-      self.popLanguage()
+      with self.Language(language):
+        for flagsArg in [config.base.Configure.getCompilerFlagsName(language), config.base.Configure.getCompilerFlagsName(language, 1), config.base.Configure.getLinkerFlagsName(language)]:
+          setattr(self,flagsArg,sanitizeFlags(flagsArg))
+          self.logPrint(' '.join(['Initialized',flagsArg,'to',','.join(getattr(self,flagsArg))]))
     for flagsArg in ['CPPFLAGS', 'FPPFLAGS', 'CUDAPPFLAGS', 'CXXPPFLAGS', 'HIPPPFLAGS', 'SYCLPPFLAGS']:
-      if flagsArg in self.argDB: setattr(self, flagsArg, self.argDB[flagsArg])
-      else: setattr(self, flagsArg, '')
-      self.logPrint('Initialized '+flagsArg+' to '+str(getattr(self, flagsArg)))
+      setattr(self,flagsArg,sanitizeFlags(flagsArg))
+      self.logPrint(' '.join(['Initialized',flagsArg,'to',','.join(getattr(self,flagsArg))]))
     for flagsArg in ['CC_LINKER_FLAGS', 'CXX_LINKER_FLAGS', 'FC_LINKER_FLAGS', 'CUDAC_LINKER_FLAGS', 'HIPC_LINKER_FLAGS', 'SYCLCXX_LINKER_FLAGS', 'sharedLibraryFlags', 'dynamicLibraryFlags']:
-      if isinstance(self.argDB[flagsArg],str): val = [self.argDB[flagsArg]]
-      else: val = self.argDB[flagsArg]
-      setattr(self, flagsArg, val)
-      self.logPrint('Initialized '+flagsArg+' to '+str(getattr(self, flagsArg)))
+      if isinstance(self.argDB[flagsArg],str):
+        val = sanitizeFlags(flagsArg)
+      else:
+        val = self.argDB[flagsArg]
+      assert isinstance(val,list)
+      setattr(self,flagsArg,val)
+      self.logPrint(' '.join(['Initialized',flagsArg,'to',','.join(getattr(self,flagsArg))]))
     if 'LIBS' in self.argDB:
       self.LIBS = self.argDB['LIBS']
     else:
-      self.LIBS = ''
+      self.LIBS = '' # TODO
     return
 
   def checkCompiler(self, language, linkLanguage=None,includes = '', body = '', cleanup = 1, codeBegin = None, codeEnd = None):
@@ -1326,7 +1372,6 @@ class Configure(config.base.Configure):
         del self.FPP
     return
 
-
   def checkFortranComments(self):
     '''Make sure fortran comment "!" works'''
     self.pushLanguage('FC')
@@ -1350,14 +1395,36 @@ class Configure(config.base.Configure):
     outlo = output.lower()
     return any(sub.lower() in outlo for sub in substrings)
 
+  def addFlags(self, flagArg, flagList):
+    '''Append an arbitrary number of flags to a particular flag attribute. If the flag already exists in the list of flags then this routine will delete the existing instance. That is:
+
+    # given this
+    list_of_flags = ['-a','-b','-c']
+
+    self.addFlags(flagArg,['-a']) # list_of_flags now ['-b','-c','-a']
+    '''
+    if not isinstance(flagList,(list,tuple)):
+      flagList = tuple(flagList.split())
+    all_flags = getattr(self,flagArg,[])
+    all_flags.extend([f for f in flagList if f.strip()])
+    if not all_flags:
+      self.logPrint('Nothing to do appending seemingly empty flagList {}'.format(flagList))
+      import ipdb; ipdb.set_trace()
+      return
+    seen      = set()
+    seen_add  = seen.add
+    new_flags = [x for x in all_flags if not (x in seen or seen_add(x))]
+    setattr(self,flagArg,new_flags)
+    return
+
   def checkCompilerFlag(self, flag, includes = '', body = '', compilerOnly = 0):
     '''Determine whether the compiler accepts the given flag'''
     flagsArg = self.getCompilerFlagsArg(compilerOnly)
     oldFlags = getattr(self, flagsArg)
-    setattr(self, flagsArg, oldFlags+' '+flag)
+    self.addFlags(flagsArg,flag)
     (output, error, status) = self.outputCompile(includes, body)
-    output += error
-    self.logPrint('Output from compiling with '+oldFlags+' '+flag+'\n'+output)
+    output = '\n'+output+error
+    self.logPrint(' '.join(['Output from compiling with',' '.join(getattr(self,flagsArg))])+output)
     setattr(self, flagsArg, oldFlags)
     # Please comment each entry and provide an example line
     if status:
@@ -1370,10 +1437,23 @@ class Configure(config.base.Configure):
 
   def insertCompilerFlag(self, flag, compilerOnly):
     '''DANGEROUS: Put in the compiler flag without checking'''
-    if not flag: return
+    if not flag:
+      return
+    newFlags = [f.strip() for f in flag.split(' ')]
+    newFlagsSet = set(newFlags)
+    if len(newFlags) > 1:
+      print(newFlags)
+      import ipdb; ipdb.set_trace()
     flagsArg = self.getCompilerFlagsArg(compilerOnly)
-    setattr(self, flagsArg, getattr(self, flagsArg)+' '+flag)
-    self.log.write('Added '+self.language[-1]+' compiler flag '+flag+'\n')
+    currentFlags = getattr(self,flagsArg,[])
+    updated = [f for f in currentFlags if f not in newFlagsSet]
+    for f in newFlags:
+      print(f)
+      import ipdb; ipdb.set_trace()
+    setattr(self,flagsArg,getattr(self,flagsArg,[]).append(flag.strip()))
+    import ipdb; ipdb.set_trace()
+    #setattr(self, flagsArg, getattr(self, flagsArg)+' '+flag)
+    self.log.write(' '.join(['Added',self.language[-1],'compiler flag',flag])+'\n')
     return
 
   def addCompilerFlag(self, flag, includes = '', body = '', extraflags = '', compilerOnly = 0):
@@ -1425,24 +1505,26 @@ class Configure(config.base.Configure):
     if self.language[-1] == 'CUDA':
       yield '-Xcompiler -fPIC'
       return
-    if config.setCompilers.Configure.isGNU(self.getCompiler(), self.log):
+    compiler = self.getCompiler()
+    if config.setCompilers.Configure.isGNU(compiler, self.log):
       PICFlags = ['-fPIC']
-    elif config.setCompilers.Configure.isIBM(self.getCompiler(), self.log):
+    elif config.setCompilers.Configure.isIBM(compiler, self.log):
       PICFlags = ['-qPIC']
     else:
       PICFlags = ['-PIC','-qPIC','-KPIC','-fPIC','-fpic']
     try:
-      output = self.executeShellCommand(self.getCompiler() + ' -show', log = self.log)[0]
-    except:
+      output = self.executeShellCommand(compiler+' -show',log=self.log)[0].split()
+    except IndexError:
       self.logPrint('Skipping checking MPI compiler command for PIC flag since MPI compiler -show causes an exception so is likely not an MPI compiler')
-      output = ''
-    output = output + ' ' + getattr(self, self.getCompilerFlagsArg(1)) + ' '
-    # Try without specific PIC flag only if the MPI compiler or user compiler flag already provides a PIC option
-    for i in PICFlags:
-      if output.find(' '+i+' ') > -1:
-        self.logPrint('Trying no specific compiler flag for PIC code since MPI compiler or current flags seem to provide such a flag with '+i)
-        yield ''
-        break
+      output = []
+    commonFlags = set().union(*[
+      output,getattr(self,self.getCompilerFlagsArg(1))
+    ]).intersection(PICFlags)
+    # Try without specific PIC flag only if the MPI compiler or user compiler flag already
+    # provides a PIC option
+    if commonFlags:
+      self.logPrint('Trying no specific compiler flag for PIC code since MPI compiler or current flags seem to provide such a flag with '+','.join(commonFlags))
+      yield ''
     for i in PICFlags:
       yield i
     yield ''
@@ -1525,23 +1607,24 @@ class Configure(config.base.Configure):
 
   def getArchiverFlags(self, archiver):
     prog = os.path.basename(archiver).split(' ')[0]
-    flag = ''
     if 'AR_FLAGS' in self.argDB:
-      flag = self.argDB['AR_FLAGS']
+      flag = [f.strip() for f in self.argDB['AR_FLAGS'].split(' ') if f]
     elif prog.endswith('ar'):
-      flag = 'cr'
+      flag = ['cr']
     elif prog == 'win32fe':
       args = os.path.basename(archiver).split(' ')
       if 'lib' in args:
-        flag = '-a'
-      elif 'tlib' in args:
-        flag = '-a -P512'
+        flag = ['-a']
+        if 'tlib' in args:
+          flag.append('-P512')
+    else:
+      flag = []
     if prog.endswith('ar') and not (self.isSolarisAR(prog, self.log) or self.isAIXAR(prog, self.log)):
-      self.FAST_AR_FLAGS = 'Scq'
+      self.FAST_AR_FLAGS = ['Scq']
     else:
       self.FAST_AR_FLAGS = flag
-    self.framework.addMakeMacro('FAST_AR_FLAGS',self.FAST_AR_FLAGS )
-    return flag
+    self.framework.addMakeMacro('FAST_AR_FLAGS',' '.join(self.FAST_AR_FLAGS))
+    return ' '.join(flag)
 
   def generateArchiverGuesses(self):
     defaultAr = None
@@ -1658,7 +1741,7 @@ class Configure(config.base.Configure):
       self.LIBS = oldLibs
       self.popLanguage()
       raise RuntimeError('Could not find a suitable archiver.  Use --with-ar to specify an archiver.')
-    self.AR_FLAGS      = arflags
+    self.AR_FLAGS      = arflags.split(' ')
     self.AR_LIB_SUFFIX = arext
     self.framework.addMakeMacro('AR_FLAGS', self.AR_FLAGS)
     self.addMakeMacro('AR_LIB_SUFFIX', self.AR_LIB_SUFFIX)
@@ -1686,7 +1769,7 @@ class Configure(config.base.Configure):
       args.write(objName)
       args.close()
       archiveName = 'checkRecipeArgfile.'+self.AR_LIB_SUFFIX
-      (output, error, status) = config.base.Configure.executeShellCommand(self.AR+' '+self.AR_FLAGS+' '+archiveName+' @'+argsName,checkCommand = checkArchiverArgfile, log = self.log)
+      (output, error, status) = config.base.Configure.executeShellCommand(self.AR+' '+' '.join(self.AR_FLAGS)+' '+archiveName+' @'+argsName,checkCommand = checkArchiverArgfile, log = self.log)
       os.remove(objName)
       os.remove(argsName)
       os.remove(archiveName)
@@ -1801,7 +1884,7 @@ class Configure(config.base.Configure):
     '''Determine whether the linker accepts the given flag'''
     flagsArg = self.getLinkerFlagsArg()
     oldFlags = getattr(self, flagsArg)
-    setattr(self, flagsArg, oldFlags+' '+flag)
+    self.addFlags(flagsArg,flag)
     (output, status) = self.outputLink('', '')
     valid = 1
     if status:
@@ -1819,10 +1902,9 @@ class Configure(config.base.Configure):
   def addLinkerFlag(self, flag):
     '''Determine whether the linker accepts the given flag, and add it if valid, otherwise throw an exception'''
     if self.checkLinkerFlag(flag):
-      flagsArg = self.getLinkerFlagsArg()
-      setattr(self, flagsArg, getattr(self, flagsArg)+' '+flag)
+      self.addFlags(self.getLinkerFlagsArg(),flag)
       return
-    raise RuntimeError('Bad linker flag: '+flag)
+    raise RuntimeError('Bad linker flag: ',flag)
 
   def checkLinkerMac(self):
     '''Tests some Apple Mac specific linker flags'''

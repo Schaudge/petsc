@@ -93,7 +93,9 @@ class Processor(logger.Logger):
     # can't change _flags - as this broke triangle build
     if not hasattr(self, '_flags'):
       if hasattr(self, 'configCompilers'):
-        flags = ' '.join([getattr(self.configCompilers, name) for name in self.flagsName])
+        flags = ' '.join([v for n in self.flagsName for v in getattr(self.configCompilers,n)])
+        if flags:
+          import ipdb; ipdb.set_trace()
       else:
         flags = ' '.join([self.argDB[name] for name in self.flagsName])
       return flags

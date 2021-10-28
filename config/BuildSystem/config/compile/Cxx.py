@@ -74,7 +74,7 @@ class Linker(config.compile.processor.Processor):
       if self.name == self.compiler.name:
         flagsName.append(self.compiler.flagsName[0])
       if hasattr(self, 'configCompilers'):
-        flags = ' '.join([getattr(self.configCompilers, name) for name in flagsName])
+        flags = ' '.join([v for n in flagsName for v in getattr(self.configCompilers,n)])
       else:
         flags = ' '.join([self.argDB[name] for name in flagsName])
       return flags

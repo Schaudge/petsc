@@ -80,7 +80,7 @@ class Linker(config.compile.processor.Processor):
       if self.name == self.compiler.name:
         flagsName.extend(self.compiler.flagsName)
       if hasattr(self, 'configCompilers'):
-        flags = ' '.join([getattr(self.configCompilers, name) for name in flagsName])
+        flags = ' '.join([v for n in flagsName for v in getattr(self.configCompilers,n)])
       else:
         flags = ' '.join([self.argDB[name] for name in flagsName])
       return flags
@@ -136,9 +136,17 @@ class SharedLinker(config.compile.processor.Processor):
       if self.getProcessor() == self.compiler.getProcessor():
         flagsName.extend(self.compiler.flagsName)
       if hasattr(self, 'configCompilers'):
-        flags = [getattr(self.configCompilers, name) for name in flagsName]
+        out = []
+        for f in flagsName:
+          v = getattr(self.configCompilers,f)
+          # figure out why self.configCompilers.sharedLibraryFlags is a string
+          import ipdb; ipdb.set_trace()
+          out.append(v)
+        #flags = ' '.join(v if not isinstance(v,str) else [v] for n in flagsName for v in getattr(self.configCompilers,n))
+        #flags = [getattr(self.configCompilers, name) for name in flagsName]
       else:
         flags = [self.argDB[name] for name in flagsName]
+      import ipdb; ipdb.set_trace()
       return ' '.join(flags)
     return self._flags
   flags = property(getFlags, config.compile.processor.Processor.setFlags, doc = 'The flags for the executable')
