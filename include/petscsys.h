@@ -35,8 +35,6 @@
 #  endif
 #endif
 
-#include <petscsystypes.h>
-
 /* ========================================================================== */
 /*
    This facilitates using the C version of PETSc from C++ and the C++ version from C.
@@ -146,6 +144,7 @@ void assert_never_put_petsc_headers_inside_an_extern_c(int); void assert_never_p
 #  define PETSC_CONSTEXPR_17
 #endif
 
+#include <petscsystypes.h>
 #include <petscversion.h>
 #define PETSC_AUTHOR_INFO  "       The PETSc Team\n    petsc-maint@mcs.anl.gov\n https://petsc.org/\n"
 
@@ -2668,8 +2667,6 @@ PETSC_EXTERN PetscErrorCode PetscCommBuildTwoSidedGetType(MPI_Comm,PetscBuildTwo
 PETSC_EXTERN PetscErrorCode PetscSSEIsEnabled(MPI_Comm,PetscBool*,PetscBool*);
 
 PETSC_EXTERN MPI_Comm       PetscObjectComm(PetscObject);
-
-PETSC_EXTERN const char *const PetscSubcommTypes[];
 
 /* PetscSubcomm */
 PETSC_EXTERN PetscErrorCode PetscSubcommCreate(MPI_Comm,PetscSubcomm*);

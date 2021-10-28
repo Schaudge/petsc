@@ -657,7 +657,15 @@ $     PETSC_SUBCOMM_INTERLACED - the first communicator contains rank 0,3, the s
 
 S*/
 typedef struct _n_PetscSubcomm* PetscSubcomm;
-typedef enum {PETSC_SUBCOMM_GENERAL=0,PETSC_SUBCOMM_CONTIGUOUS=1,PETSC_SUBCOMM_INTERLACED=2} PetscSubcommType;
+typedef enum {
+  PETSC_SUBCOMM_GENERAL,
+  PETSC_SUBCOMM_CONTIGUOUS,
+  PETSC_SUBCOMM_INTERLACED
+} PetscSubcommType;
+#if !defined(PETSC_EXTERN)
+#  error "must include petscsys.h before this header"
+#endif
+PETSC_EXTERN const char *const PetscSubcommTypes[];
 
 /*S
      PetscHeap - A simple class for managing heaps
