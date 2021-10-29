@@ -12,7 +12,7 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 #include <../src/mat/impls/aij/seq/kokkos/aijkokkosimpl.hpp>
 
 #define PCKSPKOKKOS_SHARED_LEVEL 1
-#define PCKSPKOKKOS_VEC_SIZE 64
+#define PCKSPKOKKOS_VEC_SIZE 16
 #define PCKSPKOKKOS_TEAM_SIZE 16
 #define PCKSPKOKKOS_VERBOSE_LEVEL 1
 
@@ -219,6 +219,7 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
   Mat                 A = pc->pmat;
   Mat_SeqAIJKokkos    *aijkok;
   PetscMemType        mtype;
+
   PetscFunctionBegin;
   if (!jac->vec_diag || !A) SETERRQ2(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"Not setup???? %p %p",jac->vec_diag,A);
   if (!(aijkok = static_cast<Mat_SeqAIJKokkos*>(A->spptr))) SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"No aijkok");
@@ -384,12 +385,10 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
         ierr = PetscSectionGetNumFields(section, &Nf);CHKERRQ(ierr);
         jac->nBlocks += Nf;
 #if PCKSPKOKKOS_VERBOSE_LEVEL <= 1
-        if (ii==0) {
+        if (ii==0) { ierr = PetscInfo3(pc,"%D) %D blocks (%D total)\n",ii,Nf,jac->nBlocks); }
 #else
-        {
+        ierr = PetscInfo3(pc,"%D) %D blocks (%D total)\n",ii,Nf,jac->nBlocks);
 #endif
-          ierr = PetscInfo3(pc,"%D) %D blocks (%D total)\n",ii,Nf,jac->nBlocks);
-        }
         NfArray[ii] = Nf;
       }
       { // d_bid_eqOffset_k
@@ -405,12 +404,10 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
           for (PetscInt jj=0;jj<NfArray[ii];jj++, idx++) {
             h_block_offsets[idx+1] = h_block_offsets[idx] + nblk;
 #if PCKSPKOKKOS_VERBOSE_LEVEL <= 1
-            if (idx==0) {
+            if (idx==0) {ierr = PetscInfo3(pc,"\t%D) Add block with %D equations of %D\n",idx+1,nblk,jac->nBlocks);CHKERRQ(ierr);}
 #else
-            {
+            ierr = PetscInfo3(pc,"\t%D) Add block with %D equations of %D\n",idx+1,nblk,jac->nBlocks);CHKERRQ(ierr);
 #endif
-              ierr = PetscInfo3(pc,"\t%D) Add block with %D equations of %D\n",idx+1,nblk,jac->nBlocks);CHKERRQ(ierr);
-            }
             if (jac->const_block_size == -1) jac->const_block_size = nblk;
             else if (jac->const_block_size > 0 && jac->const_block_size != nblk) jac->const_block_size = 0;
           }
@@ -435,22 +432,11 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
               const PetscInt    rowa = ic[rowb], ai = d_ai[rowa], *aj = d_aj + ai; // grab original data
               const PetscScalar *aa  = d_aa + ai;
               const PetscInt    nrow = d_ai[rowa + 1] - ai;
-#if defined(PETSC_USE_DEBUG)
-              int found = 0;
-#endif
               Kokkos::parallel_for(Kokkos::ThreadVectorRange (team, nrow), [&] (const int& j) {
                   const PetscInt colb = r[aj[j]];
-                  if (colb==rowb) {
-                    d_idiag[rowb] = 1./aa[j];
-#if defined(PETSC_USE_DEBUG)
-                    found++;
-                    if (found>1) printf("ERROR A[%d,%d] twice\n",(int)rowa,(int)aj[j]);
-#endif
-                  }
+                  if (colb==rowb) d_idiag[rowb] = 1./aa[j];
                 });
-#if defined(PETSC_USE_DEBUG)
-              if (!found) printf("ERROR A[%d,%d] not found\n",(int)rowb,(int)rowb);
-#endif
+              //Kokkos::single (Kokkos::PerThread (team), [=] () {printf("A(%d,.)=%e \n",rowb,1./d_idiag[rowb]);});
             });
         });
     }
