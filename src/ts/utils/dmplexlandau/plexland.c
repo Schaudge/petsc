@@ -108,7 +108,7 @@ static PetscErrorCode LandauFormJacobian_Internal(Vec a_X, Mat JacP, const Petsc
   PetscContainer    container;
   P4estVertexMaps   *maps;
   PetscSection      section[LANDAU_MAX_GRIDS],globsection[LANDAU_MAX_GRIDS];
-  Mat               *subJ;
+  Mat               subJ[LANDAU_MAX_GRIDS*LANDAU_MAX_BATCH_SZ];
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(a_X,VEC_CLASSID,1);
@@ -2043,6 +2043,7 @@ PetscErrorCode LandauPrintNorms(Vec X, PetscInt stepi)
   if (!ctx) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "no context");
   /* print momentum and energy */
   ierr = DMCompositeGetNumberDM(pack,&nDMs);CHKERRQ(ierr);
+  if (nDMs != ctx->num_grids*ctx->batch_sz) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_PLIB, "#DM wrong %D %D",nDMs,ctx->num_grids*ctx->batch_sz);
   ierr = PetscMalloc(sizeof(*globXArray)*nDMs, &globXArray);CHKERRQ(ierr);
   ierr = DMCompositeGetAccessArray(pack, X, nDMs, NULL, globXArray);CHKERRQ(ierr);
   for (PetscInt grid = 0; grid < ctx->num_grids ; grid++) {

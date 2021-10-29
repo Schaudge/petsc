@@ -158,7 +158,7 @@ static PetscErrorCode testNone(TS ts, Vec X, PetscInt stepi, PetscReal time, Pet
 static PetscErrorCode testSpitzer(TS ts, Vec X, PetscInt stepi, PetscReal time, PetscBool islast, LandauCtx *ctx, REctx *rectx)
 {
   PetscErrorCode    ierr;
-  PetscInt          ii;
+  PetscInt          ii,nDMs;
   PetscDS           prob;
   static PetscReal  old_ratio = 1e10;
   TSConvergedReason reason;
@@ -166,13 +166,16 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, PetscInt stepi, PetscReal time, 
   PetscScalar       user[2] = {0.,ctx->charges[0]}, q[LANDAU_MAX_SPECIES],tt[LANDAU_MAX_SPECIES],vz;
   PetscReal         dt;
   DM                pack, plexe = ctx->plex[0], plexi = (ctx->num_grids==1) ? NULL : ctx->plex[1];
-  Vec               XsubArray[LANDAU_MAX_GRIDS*LANDAU_MAX_BATCH_SZ];
+  Vec               *XsubArray;
 
   PetscFunctionBeginUser;
   if (ctx->num_species!=2) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_PLIB, "ctx->num_species %D != 2",ctx->num_species);
   ierr = VecGetDM(X, &pack);CHKERRQ(ierr);
   if (!pack) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "no DM");
-  ierr = DMCompositeGetAccessArray(pack, X, ctx->num_grids*ctx->batch_sz, NULL, XsubArray);CHKERRQ(ierr); // read only
+  ierr = DMCompositeGetNumberDM(pack,&nDMs);CHKERRQ(ierr);
+  if (nDMs != ctx->num_grids*ctx->batch_sz)  SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_PLIB, "nDMs != ctx->num_grids*ctx->batch_sz %D != %D",nDMs,ctx->num_grids*ctx->batch_sz);
+  ierr = PetscMalloc(sizeof(*XsubArray)*nDMs, &XsubArray);CHKERRQ(ierr);
+  ierr = DMCompositeGetAccessArray(pack, X, nDMs, NULL, XsubArray);CHKERRQ(ierr); // read only
   ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
   /* get current for each grid */
   for (ii=0;ii<ctx->num_species;ii++) q[ii] = ctx->charges[ii];
@@ -223,7 +226,8 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, PetscInt stepi, PetscReal time, 
     ierr = DMPlexComputeIntegralFEM(plexe,XsubArray[LAND_PACK_IDX(ctx->batch_view_idx,0)],tt,NULL);CHKERRQ(ierr);
   } else tt[0] = 0;
   J_re = -ctx->n_0*ctx->v_0*PetscRealPart(tt[0]);
-  ierr = DMCompositeRestoreAccessArray(pack, X, ctx->num_grids*ctx->batch_sz, NULL, XsubArray);CHKERRQ(ierr); // read only
+  ierr = DMCompositeRestoreAccessArray(pack, X, nDMs, NULL, XsubArray);CHKERRQ(ierr); // read only
+  ierr = PetscFree(XsubArray);CHKERRQ(ierr);
 
   if (rectx->use_spitzer_eta) {
     E = ctx->Ez = spit_eta*(rectx->j-J_re);
@@ -673,7 +677,6 @@ int main(int argc, char **argv)
   /* Create a mesh */
   ierr = LandauCreateVelocitySpace(PETSC_COMM_WORLD, dim, "", &X, &J, &pack);CHKERRQ(ierr);
   ierr = DMCompositeGetNumberDM(pack,&nDMs);CHKERRQ(ierr);
-  if (nDMs != ctx->num_grids*ctx->batch_sz) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER, "#DM wrong %D %D",nDMs,ctx->num_grids*ctx->batch_sz);
   ierr = PetscMalloc(sizeof(*XsubArray)*nDMs, &XsubArray);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)J, "Jacobian");CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)X, "f");CHKERRQ(ierr);
