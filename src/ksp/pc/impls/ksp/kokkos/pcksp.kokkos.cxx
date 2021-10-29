@@ -56,7 +56,6 @@ static PetscErrorCode  PCKSPKOKKOSCreateKSP_KSPKOKKOS(PC pc)
 // y <-- Ax
 KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team,  const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc)
 {
-  team.team_barrier();
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team,start,end), [=] (const int rowb) {
       int rowa = ic[rowb];
       int n = glb_Aai[rowa+1] - glb_Aai[rowa];
@@ -68,7 +67,6 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team,  const Pet
         }, sum);
       y_loc[rowb-start] = sum;
     });
-  team.team_barrier();
   return 0;
 }
 
@@ -88,7 +86,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode MatMultTranspose(const team_member team, c
           Kokkos::atomic_fetch_add(&y_loc[r[aj[i]]-start], val);
         });
     });
-  team.team_barrier();
+
   return 0;
 }
 
@@ -104,7 +102,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
 {
   PetscInt          Nblk = end-start, i;
   PetscReal         dp, r0;
-  PetscScalar       *ptr = work_space, dpi, a=1.0, beta, betaold=1.0, b,ma;
+  PetscScalar       *ptr = work_space, dpi, a=1.0, beta, betaold=1.0, b, b2, ma, mac;
   const PetscScalar *Di = &glb_idiag[start];
   PetscScalar       *XX = ptr; ptr += stride;
   PetscScalar       *Rl = ptr; ptr += stride;
@@ -117,18 +115,16 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
   //ierr = VecCopy(B,Rr);CHKERRQ(ierr);           /*     r <- b (x is 0) */
   Kokkos::parallel_for(Kokkos::TeamVectorRange(team, start, end), [=] (int rowb) {
       int rowa = ic[rowb];
-      Rr[rowb-start] = glb_b[rowa];
+      //ierr = VecCopy(Rr,Rl);CHKERRQ(ierr);
+      Rl[rowb-start] = Rr[rowb-start] = glb_b[rowa];
       XX[rowb-start] = 0;
     });
-  //ierr = VecCopy(Rr,Rl);CHKERRQ(ierr);
-  Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Rl[idx] = Rr[idx];});
   //ierr = KSP_PCApply(ksp,Rr,Zr);CHKERRQ(ierr);     /*     z <- Br         */
-  Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zr[idx] = Di[idx]*Rr[idx];});
   //ierr = KSP_PCApplyHermitianTranspose(ksp,Rl,Zl);CHKERRQ(ierr);
-  Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zl[idx] = Di[idx]*Rl[idx];});
+  Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zr[idx] = Di[idx]*Rr[idx]; Zl[idx] = Di[idx]*Rl[idx]; });team.team_barrier();
   //ierr = VecNorm(Rr,NORM_2,&dp);CHKERRQ(ierr);  /*    dp <- r'*r       */
   dp = 0;
-  Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Rr[idx]*PetscConj(Rr[idx]);}, dpi);
+  Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Rr[idx]*PetscConj(Rr[idx]);}, dpi);team.team_barrier();
   r0 = dp = PetscSqrtReal(PetscRealPart(dpi));
 #if PCKSPKOKKOS_VERBOSE_LEVEL > 2
   printf("%7d PCKSP Residual norm %14.12e \n",0,(double)dp);
@@ -139,47 +135,43 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
   do {
     //ierr = VecDot(Zr,Rl,&beta);CHKERRQ(ierr);       /*     beta <- r'z     */
     beta = 0;
-    Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& dot) {dot += Zr[idx]*PetscConj(Rl[idx]);}, beta);
+    Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& dot) {dot += Zr[idx]*PetscConj(Rl[idx]);}, beta);team.team_barrier();
     if (!i) {
       if (beta == 0.0) {
         metad->reason = KSP_DIVERGED_BREAKDOWN_BICG;
         goto done;
       }
       //ierr = VecCopy(Zr,Pr);CHKERRQ(ierr);       /*     p <- z          */
-      Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = Zr[idx];});
       //ierr = VecCopy(Zl,Pl);CHKERRQ(ierr);
-      Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pl[idx] = Zl[idx];});
+      Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = Zr[idx]; Pl[idx] = Zl[idx];});team.team_barrier();
     } else {
       b    = beta/betaold;
       //ierr = VecAYPX(Pr,b,Zr);CHKERRQ(ierr);  /*     p <- z + b* p   */
-      Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = b*Pr[idx] + Zr[idx];});
-      b    = PetscConj(b);
-      //ierr = VecAYPX(Pl,b,Zl);CHKERRQ(ierr);
-      Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pl[idx] = b*Pl[idx] + Zl[idx];});
+      b2    = PetscConj(b);
+      //ierr = VecAYPX(Pl,b2,Zl);CHKERRQ(ierr);
+      Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = b*Pr[idx] + Zr[idx]; Pl[idx] = b2*Pl[idx] + Zl[idx];});team.team_barrier();
     }
     betaold = beta;
     //ierr    = KSP_MatMult(ksp,Amat,Pr,Zr);CHKERRQ(ierr); /*     z <- Kp         */
-    MatMult         (team,glb_Aai,glb_Aaj,glb_Aaa,r,ic,start,end,Pr,Zr);
     team.team_barrier();
+    MatMult         (team,glb_Aai,glb_Aaj,glb_Aaa,r,ic,start,end,Pr,Zr);team.team_barrier();
     //ierr    = KSP_MatMultHermitianTranspose(ksp,Amat,Pl,Zl);CHKERRQ(ierr);
-    MatMultTranspose(team,glb_Aai,glb_Aaj,glb_Aaa,r,ic,start,end,Pl,Zl);
+    MatMultTranspose(team,glb_Aai,glb_Aaj,glb_Aaa,r,ic,start,end,Pl,Zl);team.team_barrier();
     team.team_barrier();
     //ierr    = VecDot(Zr,Pl,&dpi);CHKERRQ(ierr);            /*     dpi <- z'p      */
     dpi = 0;
-    Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Zr[idx]*PetscConj(Pl[idx]);}, dpi);
+    Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Zr[idx]*PetscConj(Pl[idx]);}, dpi);team.team_barrier();
     //
     a       = beta/dpi;                           /*     a = beta/p'z    */
-    //ierr    = VecAXPY(X,a,Pr);CHKERRQ(ierr);    /*     x <- x + ap     */
-    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {XX[idx] = XX[idx] + a*Pr[idx];});
     ma      = -a;
+    mac      = PetscConj(ma);
+    //ierr    = VecAXPY(X,a,Pr);CHKERRQ(ierr);    /*     x <- x + ap     */
     //ierr    = VecAXPY(Rr,ma,Zr);CHKERRQ(ierr);
-    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Rr[idx] = Rr[idx] + ma*Zr[idx];});
-    ma      = PetscConj(ma);
-    //ierr    = VecAXPY(Rl,ma,Zl);CHKERRQ(ierr);
-    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Rl[idx] = Rl[idx] + ma*Zl[idx];});
+    //ierr    = VecAXPY(Rl,mac,Zl);CHKERRQ(ierr);
+    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {XX[idx] = XX[idx] + a*Pr[idx]; Rr[idx] = Rr[idx] + ma*Zr[idx]; Rl[idx] = Rl[idx] + mac*Zl[idx];});team.team_barrier();
     //ierr = VecNorm(Rr,NORM_2,&dp);CHKERRQ(ierr);  /*    dp <- r'*r       */
     dp = 0;
-    Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum +=  Rr[idx]*PetscConj(Rr[idx]);}, dpi);
+    Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum +=  Rr[idx]*PetscConj(Rr[idx]);}, dpi);team.team_barrier();
     dp = PetscSqrtReal(PetscRealPart(dpi));
 #if PCKSPKOKKOS_VERBOSE_LEVEL > 2
     printf("%7d PCKSP Residual norm %14.12e \n",i+1,(double)dp);
@@ -189,9 +181,8 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
     if (dp/r0 > 1.e5) {metad->reason = KSP_DIVERGED_DTOL; goto done;}
     if (i+1 == maxit) {metad->reason = KSP_DIVERGED_ITS; goto done;}
     //ierr = KSP_PCApply(ksp,Rr,Zr);CHKERRQ(ierr);  /* z <- Br  */
-    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zr[idx] = Di[idx]*Rr[idx];});
     //ierr = KSP_PCApplyHermitianTranspose(ksp,Rl,Zl);CHKERRQ(ierr);
-    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zl[idx] = Di[idx]*Rl[idx];});
+    Kokkos::parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zr[idx] = Di[idx]*Rr[idx]; Zl[idx] = Di[idx]*Rl[idx];});team.team_barrier();
     i++;
   } while (i<maxit);
  done:
