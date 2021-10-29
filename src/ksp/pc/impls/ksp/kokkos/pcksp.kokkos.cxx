@@ -12,7 +12,7 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 #include <../src/mat/impls/aij/seq/kokkos/aijkokkosimpl.hpp>
 
 #define PCKSPKOKKOS_SHARED_LEVEL 1
-#define PCKSPKOKKOS_VEC_SIZE 16
+#define PCKSPKOKKOS_VEC_SIZE 64
 #define PCKSPKOKKOS_TEAM_SIZE 16
 #define PCKSPKOKKOS_VERBOSE_LEVEL 1
 
@@ -56,6 +56,7 @@ static PetscErrorCode  PCKSPKOKKOSCreateKSP_KSPKOKKOS(PC pc)
 // y <-- Ax
 KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team,  const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc)
 {
+  team.team_barrier();
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team,start,end), [=] (const int rowb) {
       int rowa = ic[rowb];
       int n = glb_Aai[rowa+1] - glb_Aai[rowa];
@@ -67,6 +68,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team,  const Pet
         }, sum);
       y_loc[rowb-start] = sum;
     });
+  team.team_barrier();
   return 0;
 }
 
@@ -86,6 +88,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode MatMultTranspose(const team_member team, c
           Kokkos::atomic_fetch_add(&y_loc[r[aj[i]]-start], val);
         });
     });
+  team.team_barrier();
   return 0;
 }
 
@@ -201,7 +204,10 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
     int nnz = 0;
     Kokkos::parallel_reduce(Kokkos::TeamVectorRange (team, start, end), [=] (const int idx, int& lsum) {lsum += (glb_Aai[idx+1] - glb_Aai[idx]);}, nnz);
     metad->flops = 2*(metad->its*(10*Nblk + 2*nnz) + 5*Nblk);
-  } else metad->flops = 2*(metad->its*(10*Nblk + 2*50*Nblk) + 5*Nblk); // guess
+  } else {
+    metad->flops = 2*(metad->its*(10*Nblk + 2*50*Nblk) + 5*Nblk); // guess
+    team.team_barrier();
+  }
   return 0;
 }
 
