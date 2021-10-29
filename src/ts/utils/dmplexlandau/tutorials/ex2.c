@@ -641,9 +641,9 @@ static PetscErrorCode ProcessREOptions(REctx *rectx, const LandauCtx *ctx, DM dm
 int main(int argc, char **argv)
 {
   DM             pack;
-  Vec            X,XsubArray[LANDAU_MAX_GRIDS*LANDAU_MAX_BATCH_SZ];
+  Vec            X,*XsubArray;
   PetscErrorCode ierr;
-  PetscInt       dim = 2;
+  PetscInt       dim = 2, nDMs;
   TS             ts;
   Mat            J;
   PetscDS        prob;
@@ -672,6 +672,9 @@ int main(int argc, char **argv)
   ierr = PetscOptionsGetInt(NULL,NULL, "-dim", &dim, NULL);CHKERRQ(ierr);
   /* Create a mesh */
   ierr = LandauCreateVelocitySpace(PETSC_COMM_WORLD, dim, "", &X, &J, &pack);CHKERRQ(ierr);
+  ierr = DMCompositeGetNumberDM(pack,&nDMs);CHKERRQ(ierr);
+  if (nDMs != ctx->num_grids*ctx->batch_sz) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER, "#DM wrong %D %D",nDMs,ctx->num_grids*ctx->batch_sz);
+  ierr = PetscMalloc(sizeof(*XsubArray)*nDMs, &XsubArray);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)J, "Jacobian");CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)X, "f");CHKERRQ(ierr);
   ierr = LandauCreateMassMatrix(pack, NULL);CHKERRQ(ierr);
@@ -682,12 +685,13 @@ int main(int argc, char **argv)
   ctx->data = rectx;
   ierr = ProcessREOptions(rectx,ctx,pack,"");CHKERRQ(ierr);
   ierr = DMGetDS(pack, &prob);CHKERRQ(ierr);
-  ierr = DMCompositeGetAccessArray(pack, X, ctx->num_grids*ctx->batch_sz, NULL, XsubArray);CHKERRQ(ierr); // read only
+  ierr = DMCompositeGetAccessArray(pack, X, nDMs, NULL, XsubArray);CHKERRQ(ierr); // read only
   ierr = PetscObjectSetName((PetscObject) XsubArray[ LAND_PACK_IDX(ctx->batch_view_idx, rectx->grid_view_idx) ], rectx->grid_view_idx==0 ? "ue" : "ui");CHKERRQ(ierr);
   ierr = DMViewFromOptions(ctx->plex[rectx->grid_view_idx],NULL,"-dm_view");CHKERRQ(ierr);
   ierr = DMViewFromOptions(ctx->plex[rectx->grid_view_idx], NULL,"-dm_view_0");CHKERRQ(ierr);
   ierr = VecViewFromOptions(XsubArray[ LAND_PACK_IDX(ctx->batch_view_idx,rectx->grid_view_idx) ], NULL,"-vec_view_0");CHKERRQ(ierr); // initial condition (monitor plots after step)
-  ierr = DMCompositeRestoreAccessArray(pack, X, ctx->num_grids*ctx->batch_sz, NULL, XsubArray);CHKERRQ(ierr); // read only
+  ierr = DMCompositeRestoreAccessArray(pack, X, nDMs, NULL, XsubArray);CHKERRQ(ierr); // read only
+  ierr = PetscFree(XsubArray);CHKERRQ(ierr);
   ierr = VecViewFromOptions(X, NULL,"-vec_view_global");CHKERRQ(ierr); // initial condition (monitor plots after step)
   ierr = DMSetOutputSequenceNumber(pack, 0, 0.0);CHKERRQ(ierr);
   /* Create timestepping solver context */
