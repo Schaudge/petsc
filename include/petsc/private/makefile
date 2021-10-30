@@ -16,8 +16,12 @@ SOURCEH = bagimpl.h characteristicimpl.h dmdaimpl.h dmforestimpl.h      \
  viewerimpl.h viewerhdf5impl.h partitionerimpl.h
 =======
  viewerimpl.h viewerhdf5impl.h partitionerimpl.h                        \
+<<<<<<< HEAD
  petscriemannsolverimpl.h
 >>>>>>> Added RiemannSolver class to implement riemann solvers for the discretization of conservation/balance laws. This now allows for a physics independent method of specifying riemann solvers, allowing for resusablility and consistency. The simple local-lax fridrich solver was implemented and some basic tests were done. A WIP that will be moved to its own branch at some point
+=======
+ riemannsolverimpl.h netrsimpl.h
+>>>>>>> Added experimental class netrs for network riemann solver implemntations. This may be incorporated into the riemannsolver class by gneralizing riemann solver to include a dm specifying the structure of the riemann problems. But for now it works as a replacement for user specified coupling conditions. Tested by comparing to an existing physics specific implementation
 LIBBASE  = libpetscvec
 DIRS     =
 LOCDIR   = include/petsc/private/

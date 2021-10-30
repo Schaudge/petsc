@@ -11,6 +11,8 @@ PETSC_STATIC_INLINE PetscReal MaxAbs(PetscReal a,PetscReal b) { return (PetscAbs
 /* --------------------------------- Shallow Water ----------------------------------- */
 typedef struct {
   PetscReal gravity;
+  PetscReal parenth; 
+  PetscReal parentv; 
 } ShallowCtx;
 
 PETSC_STATIC_INLINE PetscErrorCode ShallowFlux(void *ctx,const PetscReal *u,PetscReal *f)
@@ -179,13 +181,14 @@ static PetscErrorCode PhysicsRoeMat_Shallow(void *ctx,const PetscReal *uL,const 
 
 static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,PetscReal t,PetscReal x,PetscReal *u,PetscInt edgeid)
 {
+  ShallowCtx     *phys = (ShallowCtx*)vctx;
   PetscFunctionBeginUser;
   if (t > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Exact solutions not implemented for t > 0");
   switch (initial) {
     case 0:
       if (edgeid == 0) {
-        u[0] = 10.0;
-        u[1] = 0.0;
+        u[0] = phys->parenth;
+        u[1] = phys->parentv;
       }  else {
         u[0] = 1.0;
         u[1] = 0.0;
@@ -493,7 +496,7 @@ static PetscErrorCode PhysicsVertexFlux_Outflow_Simple(const void* _dgnet,const 
 static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _dgnet, Junction junct)
 {
   PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_dgnet;
+  const DGNetwork dgnet = (DGNetwork)_dgnet;
   PetscInt        dof = 2;
 
   PetscFunctionBeginUser;
@@ -512,13 +515,9 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _dgnet, Juncti
           }
         }
       } else if (junct->numedges == 1) {
-         if (junct->dir[0] == EDGEIN) {
-            junct->couplingflux =   junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
-         } else {
-            junct->couplingflux =   junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
-         }
+        junct->couplingflux =   junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
       } else {
-        if(!fvnet->linearcoupling) {
+        if(!dgnet->linearcoupling) {
           ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->rcouple);CHKERRQ(ierr);
           ierr = VecDuplicate(junct->rcouple,&junct->xcouple);CHKERRQ(ierr);
           junct->couplingflux = PhysicsVertexFlux_Shallow_Full;
@@ -528,7 +527,7 @@ static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _dgnet, Juncti
           ierr = MatCreate(MPI_COMM_SELF,&junct->mat);CHKERRQ(ierr);
           ierr = MatSetSizes(junct->mat,PETSC_DECIDE,PETSC_DECIDE,junct->numedges+1,junct->numedges+1);CHKERRQ(ierr);
           ierr = MatSetFromOptions(junct->mat);CHKERRQ(ierr); 
-          ierr = MatSetUp(junct->mat);CHKERRQ(ierr); /* Could use a specific create seq mat here for improved performance */
+          ierr = MatSetUp(junct->mat);CHKERRQ(ierr);
           junct->couplingflux = PhysicsVertexFlux_Shallow_Full_Linear;
         }
       }
@@ -552,6 +551,7 @@ static PetscErrorCode PhysicsDestroyVertexFlux_Shallow(const void* _fvnet, Junct
           ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
           ierr = MatDestroy(&junct->mat);CHKERRQ(ierr);
         }
+        ierr = NetRSDestroy(&junct->netrs);CHKERRQ(ierr);
       }
   PetscFunctionReturn(0);
 }
@@ -582,6 +582,8 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   ierr = PetscStrallocpy("height",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&fvnet->physics.fieldname[1]);CHKERRQ(ierr);
   user->gravity = 9.81;
+  user->parenth = 2.0; 
+  user->parentv = 0.0; 
 
   ierr = PetscMalloc2(2,&fvnet->physics.lowbound,2,&fvnet->physics.upbound);CHKERRQ(ierr);
   fvnet->physics.lowbound[0] = 0;   fvnet->physics.lowbound[1] = -100; 
@@ -590,6 +592,8 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   ierr = RiemannListAdd_Net(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
   ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics_shallow_riemann","Riemann solver","",rlist,rname,rname,sizeof(rname),NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   ierr = RiemannListFind_Net(rlist,rname,&fvnet->physics.riemann);CHKERRQ(ierr);
   ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);

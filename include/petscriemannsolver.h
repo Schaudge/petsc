@@ -31,7 +31,24 @@ typedef void (*PetscPointFlux)(void*,const PetscReal*,PetscReal*);
     with the RiemannSolver to this class instead, so it can be reused by other codes, namely DG kernels, this RS, 
     Netowork RiemannSolvers (RSN) 
 
-    This is needed as we have a seperate class for Network Riemann Solvers 
+    This is needed as we have a seperate class for Network Riemann Solvers which also needs this physics data, so it 
+    doesn't make sense to associate this with the RS directly. Also makes generating physics for testing 
+    and etc much much easier. 
+*/
+
+typedef struct _p_FluxFunction* FluxFunction;
+
+
+/*J
+    FluxFunSolverType - String with the name of a PETSc FluxFunction
+
+   Level: beginner
+
+.seealso: TODO 
+J*/
+
+typedef const char* FluxFunType;
+#define FluxFun "default"
 
 /* 
    Similarily I need to experiment with how to compute/store PointFlux derivative information. Honestly this may be 
@@ -143,4 +160,8 @@ PETSC_EXTERN PetscErrorCode RiemannSolverTestEigDecomposition(RiemannSolver,Pets
 PETSC_EXTERN PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver,PetscInt,const PetscReal**,const PetscReal**,PetscReal,PetscBool*,PetscReal*,PetscViewer);
 
 PETSC_EXTERN PetscErrorCode RiemannSolverView(RiemannSolver,PetscViewer);
+
+/* Flux Function Stuff (to be made its own class) */
+
+
 #endif

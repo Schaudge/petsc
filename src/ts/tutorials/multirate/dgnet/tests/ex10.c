@@ -1,11 +1,10 @@
-static const char help[] = "Compare Different Coupling Conditions. Linear vs Nonlinear Coupling. ";
+static const char help[] = "Test for NetRS implementations of coupling conditions";
 
 #include <petscts.h>
 #include <petscdm.h>
 #include <petscdraw.h>
 #include <petscdmnetwork.h>
 #include "../dgnet.h"
-#include <petsc/private/kernels/blockinvert.h>
 #include <petscriemannsolver.h>
 #include "../physics.h"
 
@@ -142,12 +141,7 @@ int main(int argc,char *argv[])
     }
     ierr = PetscMalloc1(dgnet->physics.dof,&dgnet->physics.order);CHKERRQ(ierr); /* should be constructed by physics */
     ierr = MakeOrder(dgnet->physics.dof,dgnet->physics.order,maxorder);CHKERRQ(ierr);
-    
-    /*
-      SWAP BETWEEN COUPLING HERE 
-    */
-    
-    dgnet->linearcoupling = i>0 ?  PETSC_TRUE : PETSC_FALSE; 
+    dgnet->linearcoupling =  PETSC_TRUE; /* only test linear coupling version */
   
     /* Generate Network Data */
     ierr = DGNetworkCreate(dgnet,dgnet->networktype,dgnet->Mx);CHKERRQ(ierr);
@@ -180,8 +174,11 @@ int main(int argc,char *argv[])
     ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);
     /* Set up component dynamic data structures */
     ierr = DGNetworkBuildDynamic(dgnet);CHKERRQ(ierr);
+    /* Set up NetRS */
+    ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs);CHKERRQ(ierr);
     ierr = DGNetworkProject(dgnet,dgnet->X,0.0);CHKERRQ(ierr);
     Xcomp[i]= dgnet->X;
+
   }
   /* Create Nest Vectors */
   ierr = VecCreateNest(comm,numsim,NULL,Xcomp,&XNest);CHKERRQ(ierr);
@@ -192,7 +189,7 @@ int main(int argc,char *argv[])
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetApplicationContext(ts,dgnet_nest);CHKERRQ(ierr);
   
-  ierr = TSSetRHSFunction(ts,NULL,DGNetRHS_RSVERSION_Nested,dgnet_nest);CHKERRQ(ierr);
+  ierr = TSSetRHSFunction(ts,NULL,DGNetRHS_NETRSTEST_Nested,dgnet_nest);CHKERRQ(ierr);
 
   ierr = TSSetType(ts,TSSSP);CHKERRQ(ierr);
   ierr = TSSetMaxTime(ts,maxtime);CHKERRQ(ierr);
@@ -222,7 +219,7 @@ int main(int argc,char *argv[])
   /* Evolve the PDE network in time */
   ierr = TSSolve(ts,XNest);CHKERRQ(ierr);
 
-  /* Clean up */
+ /* Clean up */
   if(dgnet->view && size==1) {
     for (i=0; i<numsim+1; i++) {
       monitor = dgnet_nest->monitors[i]; 
@@ -233,6 +230,7 @@ int main(int argc,char *argv[])
     dgnet = dgnet_nest->dgnets[i];
     ierr = RiemannSolverDestroy(&dgnet->physics.rs);CHKERRQ(ierr);
     ierr = PetscFree(dgnet->physics.order);CHKERRQ(ierr);
+    ierr = DGNetworkDestroyNetRS(dgnet);CHKERRQ(ierr);
     ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr); /* Destroy all data within the network and within dgnet */
     ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
     ierr = PetscFree(dgnet);CHKERRQ(ierr);

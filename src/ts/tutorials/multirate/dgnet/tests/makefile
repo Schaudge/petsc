@@ -4,7 +4,7 @@ FFLAGS          =
 CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/ts/tutorials/multirate/dgnet/tests
-EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c ex9.c
+EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c ex9.c ex10.c
 EXAMPLESF       =
 EXAMPLESCH      = 
 MANSEC          = TS
@@ -24,3 +24,4 @@ ex6 : $(OBJECTS_DGNET)
 ex7 : $(OBJECTS_DGNET)
 ex8 : $(OBJECTS_DGNET)
 ex9 : $(OBJECTS_DGNET)
+ex10 : $(OBJECTS_DGNET)

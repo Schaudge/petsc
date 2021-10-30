@@ -9,6 +9,7 @@
 #include <petsc/private/petscfvimpl.h>
 #include <petsc/private/dmswarmimpl.h>
 #include <petsc/private/riemannsolverimpl.h>
+#include <petsc/private/netrsimpl.h>
 
 static PetscBool DMPackageInitialized = PETSC_FALSE;
 /*@C
@@ -438,7 +439,72 @@ PetscErrorCode  RiemannSolverInitializePackage(void)
   ierr = PetscRegisterFinalize(RiemannSolverFinalizePackage);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+#include <petscnetrs.h>
+static PetscBool NetRSPackageInitialized = PETSC_FALSE;
+/*@C
+  NetRSFinalizePackage - This function destroys everything in the Petsc interface to NetRS. It is
+  called from PetscFinalize().
 
+  Level: developer
+
+.seealso: PetscFinalize()
+@*/
+PetscErrorCode  NetRSFinalizePackage(void)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFunctionListDestroy(&NetRSList);CHKERRQ(ierr);
+  NetRSPackageInitialized = PETSC_FALSE;
+  NetRSRegisterAllCalled  = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+/*@C
+  NetRSInitializePackage - This function initializes everything in the NetRS package. It is called
+  from PetscDLLibraryRegister_petscrs() when using dynamic libraries, and on the first call to NetRSCreate()
+  when using shared or static libraries.
+
+  Level: developer
+
+.seealso: PetscInitialize()
+@*/
+
+PetscErrorCode  NetRSInitializePackage(void)
+{
+  char           logList[256];
+  PetscBool      opt,pkg;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (NetRSPackageInitialized) PetscFunctionReturn(0);
+  NetRSPackageInitialized = PETSC_TRUE;
+  /* Inialize subpackages */
+    
+  /* Register Classes */
+  ierr = PetscClassIdRegister("NetRS",&NETRS_CLASSID);CHKERRQ(ierr);
+
+  /* Register Constructors */
+  ierr = NetRSRegisterAll();CHKERRQ(ierr);
+  /* Register Events */
+ 
+  /* Process Info */
+  {
+    PetscClassId  classids[1];
+
+    classids[0] = NETRS_CLASSID;
+    ierr = PetscInfoProcessClass("NetRS", 1, classids);CHKERRQ(ierr);
+  }
+  /* Process summary exclusions */
+  ierr = PetscOptionsGetString(NULL,NULL,"-log_exclude",logList,sizeof(logList),&opt);CHKERRQ(ierr);
+  if (opt) {
+    ierr = PetscStrInList("netrs",logList,',',&pkg);CHKERRQ(ierr);
+    if (pkg) {ierr = PetscLogEventExcludeClass(NETRS_CLASSID);CHKERRQ(ierr);}
+  }
+  /* Register package finalizer */
+  ierr = PetscRegisterFinalize(NetRSFinalizePackage);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 #if defined(PETSC_HAVE_DYNAMIC_LIBRARIES)
 /*
   PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.
@@ -459,6 +525,7 @@ PETSC_EXTERN PetscErrorCode PetscDLLibraryRegister_petscdm(void)
   ierr = PetscFVInitializePackage();CHKERRQ(ierr);
   ierr = DMFieldInitializePackage();CHKERRQ(ierr);
   ierr = RiemannSolverInitializePackage();CHKERRQ(ierr);
+  ierr = NetRSInitializePackage();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

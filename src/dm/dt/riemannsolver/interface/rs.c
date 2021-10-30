@@ -370,7 +370,7 @@ PetscErrorCode  RiemannSolverEvaluate(RiemannSolver rs,const PetscReal *uL, cons
   ierr = RiemannSolverSetUp(rs);CHKERRQ(ierr);
   ierr = rs->ops->evaluate(rs,uL,uR);CHKERRQ(ierr);
   *flux = rs->flux_wrk;
-  *maxspeed = rs->maxspeed;
+  if(maxspeed) {*maxspeed = rs->maxspeed;}
   PetscFunctionReturn(0);
 }
 

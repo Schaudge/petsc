@@ -5,6 +5,7 @@
 #include <petscdmnetwork.h>
 #include <petscts.h>
 #include <petscriemannsolver.h>
+#include <petscnetrs.h>
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
 
@@ -24,6 +25,7 @@ struct _p_Junction{
   /* Coupling Context */
   VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
   PetscScalar   *flux,*fluctuation ;  /* Local work array for vertex fluxes. len = dof*numedges */
+  NetRS         netrs; /* experimental class for network coupling, will replace most of the coupling condition parts of junction */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_Junction *Junction;
 
@@ -98,7 +100,7 @@ struct _p_DGNetwork
                                           should be moved back to junct structure to reuse jacobian matrix? */
   KSP         ksp; 
   PetscInt    moni;
-  PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve;
+  PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup; 
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
@@ -315,4 +317,10 @@ extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
 extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
 extern PetscErrorCode DGNetRHS_RSVERSION_Nested(TS,PetscReal,Vec,Vec,void*); 
 
+
+/* NETRS Stuff WIP  */ 
+extern PetscErrorCode DGNetRHS_NETRSVERSION(TS,PetscReal,Vec,Vec,void*);
+extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver);
+extern PetscErrorCode DGNetRHS_NETRSTEST_Nested(TS,PetscReal,Vec,Vec,void*); 
+extern PetscErrorCode DGNetworkDestroyNetRS(DGNetwork);
 #endif

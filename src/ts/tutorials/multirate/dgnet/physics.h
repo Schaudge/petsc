@@ -9,6 +9,7 @@
 #include "dgnet.h"
 #include <petsc/private/kernels/blockinvert.h>
 #include <petscriemannsolver.h>
+#include <petscnetrs.h>
 
 /* 1D Shallow Water Equations (No Source) */
 

@@ -714,6 +714,52 @@ PetscErrorCode  DGNetworkAssignCoupling(DGNetwork fvnet)
   }
   PetscFunctionReturn(0);
 }
+/* WIP Dispatches a netrs for each vertex on the dmnetwork. I think i will rework netrs to internally 
+hold a dmnetwork, or maybe add itself as a component to an existing dmnetwork? I could try both ...*/
+PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs)
+{
+  PetscErrorCode ierr;
+  PetscInt       v,vStart,vEnd;
+  Junction       junct; 
+
+  PetscFunctionBegin; 
+  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);CHKERRQ(ierr);
+  for (v=vStart; v<vEnd; v++) {
+    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junct,NULL);CHKERRQ(ierr);
+    ierr = NetRSCreate(MPI_COMM_SELF,&junct->netrs);CHKERRQ(ierr);
+    ierr = NetRSSetRiemannSolver(junct->netrs,rs);CHKERRQ(ierr);
+    ierr = NetRSSetNumEdges(junct->netrs,junct->numedges);CHKERRQ(ierr);
+    ierr = NetRSSetApplicationContext(junct->netrs,dgnet->physics.user);
+    /* 
+      type dispatching depending on number of edges 
+    */
+    if(junct->numedges == 1) {
+      ierr = NetRSSetType(junct->netrs,NETRSOUTFLOW);CHKERRQ(ierr);
+    } else if(junct->numedges == 2) {
+      ierr = NetRSSetType(junct->netrs,NETRSRIEMANN);CHKERRQ(ierr);
+    } else {
+      ierr = NetRSSetType(junct->netrs,NETRSLINEAR);CHKERRQ(ierr);
+    }
+    ierr = NetRSSetUp(junct->netrs);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+/* Destroy the NetRS componenets of the juncttions of a network */
+PetscErrorCode DGNetworkDestroyNetRS(DGNetwork dgnet)
+{
+  PetscErrorCode ierr;
+  PetscInt       v,vStart,vEnd;
+  Junction       junct; 
+
+  PetscFunctionBegin; 
+  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);CHKERRQ(ierr);
+  for (v=vStart; v<vEnd; v++) {
+    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junct,NULL);CHKERRQ(ierr);
+    ierr = NetRSDestroy(&junct->netrs);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
 PetscErrorCode DGNetworkCleanUp(DGNetwork fvnet)
 {
   PetscErrorCode ierr;
@@ -1751,3 +1797,5 @@ PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis monitor,Vec
   }
   PetscFunctionReturn(0);
 }
+
+
