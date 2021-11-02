@@ -11,7 +11,6 @@ int main(int argc, char **argv)
   PetscMPIInt    rank, size;
   PetscSF        sf;
   PetscInt       nleaves, nroots, globalRows, globalCols;
-  PetscInt       *locIdx;
   const PetscInt *cols;
   PetscSFNode    *remIdx;
   Mat            adjMat, adjMatT;
@@ -83,8 +82,8 @@ enough room to send and receive from every other rank to a unique location */
 
   ierr = VecViewFromOptions(locVec,NULL,"-vec_view_pre");CHKERRQ(ierr);
   ierr = VecGetArray(locVec,&arr);CHKERRQ(ierr);
-  ierr = PetscSFBcastBegin(sf,MPIU_SCALAR,(const void*)arr,(void*)arr);CHKERRQ(ierr);
-  ierr = PetscSFBcastEnd(sf,MPIU_SCALAR,(const void*)arr,(void*)arr);CHKERRQ(ierr);
+  ierr = PetscSFBcastBegin(sf,MPIU_SCALAR,(const void*)arr,(void*)arr,MPI_REPLACE);CHKERRQ(ierr);
+  ierr = PetscSFBcastEnd(sf,MPIU_SCALAR,(const void*)arr,(void*)arr,MPI_REPLACE);CHKERRQ(ierr);
   ierr = VecRestoreArray(locVec,&arr);CHKERRQ(ierr);
   ierr = VecViewFromOptions(locVec,NULL,"-vec_view_post");CHKERRQ(ierr);
 
