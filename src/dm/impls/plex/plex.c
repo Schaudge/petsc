@@ -10025,8 +10025,8 @@ static PetscErrorCode DMPlexGetBinnedPointPerProcess(DM dm, PetscInt depth, Pets
   VecTaggerBox            *box;
   PetscInt                i, cstart, cend, numBins_;
   PetscInt                *binnedProcesses_;
-
   PetscScalar             *numPerProcess_;
+  PetscBool               done;
 
   PetscFunctionBegin;
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);
@@ -10053,7 +10053,7 @@ static PetscErrorCode DMPlexGetBinnedPointPerProcess(DM dm, PetscInt depth, Pets
     ierr = VecTaggerAbsoluteSetBox(tagger, box);CHKERRQ(ierr);
     ierr = PetscFree(box);CHKERRQ(ierr);
     ierr = VecTaggerSetUp(tagger);CHKERRQ(ierr);
-    ierr = VecTaggerComputeIS(tagger, vecPerProcess, &PerProcessTaggedIS);CHKERRQ(ierr);
+    ierr = VecTaggerComputeIS(tagger, vecPerProcess, &PerProcessTaggedIS,&done);CHKERRQ(ierr);
     ierr = ISGetSize(PerProcessTaggedIS, &binnedProcesses_[i]);CHKERRQ(ierr);
     ierr = ISDestroy(&PerProcessTaggedIS);CHKERRQ(ierr);
     ierr = VecTaggerDestroy(&tagger);CHKERRQ(ierr);

@@ -102,6 +102,7 @@ struct _VecOps {
   PetscErrorCode (*restorearrayandmemtype)(Vec,PetscScalar**);
   PetscErrorCode (*restorearrayreadandmemtype)(Vec,const PetscScalar**);
   PetscErrorCode (*concatenate)(PetscInt,const Vec[],Vec*,IS*[]);
+  PetscErrorCode (*sum)(Vec,PetscScalar*);
 
   /* The two conceal where the work scalars are allocated (cuda, nvshmem etc) */
   PetscErrorCode (*allocateworkscalars)(Vec);
