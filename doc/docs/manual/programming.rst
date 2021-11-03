@@ -14,3 +14,4 @@ Programming with PETSc/TAO
    high_level_mg
    dmplex
    fe
+   gpu

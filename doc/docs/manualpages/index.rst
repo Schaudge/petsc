@@ -1,3 +1,5 @@
+.. _doc_manual_pages:
+
 ============
 Manual Pages
 ============
