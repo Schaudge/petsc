@@ -62,6 +62,13 @@ static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDe
     PetscFunctionReturn(ierr);
   }
   CHKERRQ(ierr);
+  // create the differential finite element
+  ierr = createFE(tope, trimmed ? degree : degree - 1, PetscAbsInt(formDegree) + 1, trimmed, useMoments, origDegree, &dF);
+  if (ierr == PETSC_ERR_SUP) {
+    PetscErrorCode ierr2 = PetscFEDestroy(&F);CHKERRQ(ierr2);
+    PetscFunctionReturn(ierr);
+  }
+  CHKERRQ(ierr);
   ierr = PetscFEGetDualSpace(F, &X);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetAllData(X, &q1, &P1);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(q1, NULL, NULL, &nPoints1, &points1, NULL);CHKERRQ(ierr);
@@ -92,8 +99,6 @@ static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDe
   ierr = MatMatMult(P1, E1, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Proj1);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)Proj1, "F projection");CHKERRQ(ierr);
 
-  // create the differential finite element
-  ierr = createFE(tope, trimmed ? degree : degree - 1, PetscAbsInt(formDegree) + 1, trimmed, useMoments, origDegree, &dF);CHKERRQ(ierr);
   ierr = PetscFEGetDualSpace(dF, &dX);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetAllData(dX, &q2, &P2);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(q2, NULL, NULL, &nPoints2, &points2, NULL);CHKERRQ(ierr);
