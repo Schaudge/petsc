@@ -4,8 +4,10 @@
 GPU Support Roadmap
 *******************
 
-PETSc algebraic solvers run on GPU systems from NVIDIA using CUDA, and AMD and Intel using
-OpenCL/ViennaCL and HIP. Effective GPU implementations of low-level linear algebra
+PETSc algebraic solvers run on GPU systems from NVIDIA using CUDA, AMD and Intel using
+OpenCL/ViennaCL and HIP, Intel using SYCL and a portable
+back-end with Kokkos. All current back-ends use the CUDA programming model.
+Effective GPU implementations of low-level linear algebra
 operations provide a highly performant alternative solution strategy for users, and is
 therefore a high priority for PETSc developers.
 
@@ -26,7 +28,7 @@ other select operations) using each of:
    :widths: auto
    :header-rows: 1
 
-   * - Programming Model
+   * - Language
      - Supporting Package
      - ``Vec`` Status
      - ``Mat`` Status
