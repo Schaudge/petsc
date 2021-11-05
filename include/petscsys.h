@@ -95,6 +95,57 @@ M*/
 #  endif
 #endif
 
+/* initial PETSC_HAVE<VER> is set at configure time, but we double check here */
+#if defined(__cplusplus)
+#  if defined(PETSC_HAVE_CXX11)
+#    if (__cplusplus < 201103L)
+#      error "PETSC_HAVE_CXX11 is defined but __cplusplus < 201103L"
+#    endif
+#    define PETSC_USE_CXX11 PETSC_HAVE_CXX11
+#  endif
+#  if defined(PETSC_HAVE_CXX14)
+#    if (__cplusplus < 201402L)
+#      error "PETSC_HAVE_CXX14 is defined but __cplusplus < 201402L"
+#    endif
+#    define PETSC_USE_CXX14 PETSC_HAVE_CXX14
+#  endif
+#  if defined(PETSC_HAVE_CXX17)
+#    if (__cplusplus < 201703L)
+#      error "PETSC_HAVE_CXX17 is defined but __cplusplus < 201703L"
+#    endif
+#    define PETSC_USE_CXX17 PETSC_HAVE_CXX17
+#  endif
+#endif /* __cplusplus */
+
+/* C++11 features */
+#if defined(PETSC_USE_CXX11)
+#  define PETSC_NULLPTR             nullptr
+#  define PETSC_CONSTEXPR           constexpr
+#  define PETSC_NOEXCEPT            noexcept
+#  define PETSC_NOEXCEPT_ARG(cond_) noexcept(cond_)
+#else
+#  define PETSC_NULLPTR             NULL
+#  define PETSC_CONSTEXPR
+#  define PETSC_NOEXCEPT
+#  define PETSC_NOEXCEPT_ARG(cond_)
+#endif /* PETSC_USE_CXX11 */
+
+/* C++14 features */
+#if defined(PETSC_USE_CXX14)
+#  define PETSC_CONSTEXPR_14 PETSC_CONSTEXPR
+#else
+#  define PETSC_CONSTEXPR_14
+#endif /* PETSC_USE_CXX14 */
+
+/* C++17 features */
+#if defined(PETSC_USE_CXX17)
+#  define PETSC_NODISCARD    [[nodiscard]]
+#  define PETSC_CONSTEXPR_17 PETSC_CONSTEXPR
+#else
+#  define PETSC_NODISCARD
+#  define PETSC_CONSTEXPR_17
+#endif /* PETSC_USE_CXX17 */
+
 #include <petscsystypes.h>
 
 /* ========================================================================== */
@@ -175,48 +226,6 @@ void assert_never_put_petsc_headers_inside_an_extern_c(int); void assert_never_p
 #else
 #  define PETSC_SINGLE_LIBRARY_INTERN PETSC_EXTERN
 #endif
-
-/* initial PETSC_HAVE<VER> is set at configure time, but we double check here */
-#if defined(__cplusplus)
-#  if (__cplusplus < 201103L) && defined(PETSC_HAVE_CXX11)
-#    error "PETSC_HAVE_CXX11 is defined but __cplusplus < 201103L"
-#  endif
-#  if (__cplusplus < 201402L) && defined(PETSC_HAVE_CXX14)
-#    error "PETSC_HAVE_CXX14 is defined but __cplusplus < 201402L"
-#  endif
-#  if (__cplusplus < 201703L) && defined(PETSC_HAVE_CXX17)
-#    error "PETSC_HAVE_CXX17 is defined but __cplusplus < 201703L"
-#  endif
-#endif /* __cplusplus */
-
-/* C++11 features */
-#if defined(PETSC_HAVE_CXX11)
-#  define PETSC_NULLPTR             nullptr
-#  define PETSC_CONSTEXPR           constexpr
-#  define PETSC_NOEXCEPT            noexcept
-#  define PETSC_NOEXCEPT_ARG(cond_) noexcept(cond_)
-#else
-#  define PETSC_NULLPTR             NULL
-#  define PETSC_CONSTEXPR
-#  define PETSC_NOEXCEPT
-#  define PETSC_NOEXCEPT_ARG(cond_)
-#endif /* PETSC_HAVE_CXX11 */
-
-/* C++14 features */
-#if defined(PETSC_HAVE_CXX14)
-#  define PETSC_CONSTEXPR_14 PETSC_CONSTEXPR
-#else
-#  define PETSC_CONSTEXPR_14
-#endif /* PETSC_HAVE_CXX14 */
-
-/* C++17 features */
-#if defined(PETSC_HAVE_CXX17)
-#  define PETSC_NODISCARD    [[nodiscard]]
-#  define PETSC_CONSTEXPR_17 PETSC_CONSTEXPR
-#else
-#  define PETSC_NODISCARD
-#  define PETSC_CONSTEXPR_17
-#endif /* PETSC_HAVE_CXX17 */
 
 #include <petscversion.h>
 #define PETSC_AUTHOR_INFO  "       The PETSc Team\n    petsc-maint@mcs.anl.gov\n https://petsc.org/\n"
