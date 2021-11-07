@@ -17,37 +17,6 @@ to generate riemann solver objects, abstract riemann solver selection, internal 
 PETSC_EXTERN PetscBool RiemannSolverRegisterAllCalled;
 PETSC_EXTERN PetscErrorCode RiemannSolverRegisterAll(void);
 
-
-/* To be generalized as an abstract wrapper for function mappings, just a good interface for holding 
-relevant features of a function mapping between vector spaces. For now this assumes F: R^field -> R^field */
-
-
-typedef struct _FluxFunctionOps *FluxFunctionOps;
-struct _FluxFunctionOps {
-  PetscErrorCode (*setfromoptions)(PetscOptionItems*,RiemannSolver);
-  PetscErrorCode (*setup)(RiemannSolver);
-  PetscErrorCode (*view)(RiemannSolver,PetscViewer);
-  PetscErrorCode (*destroy)(RiemannSolver);
-  PetscErrorCode (*reset)(RiemannSolver);
-};
-/* TODO, implement this class (probably more general function class ) */
-struct _p_FluxFunction 
-{
-  PETSCHEADER(struct _FluxFunctionOps);
-  void              *data; /* implementation object (not used currently) */
-  void              *user; /* user context */
-  PetscPointFlux    fluxfun;
-  PetscPointFluxDer fluxderfun; 
-  PetscPointFluxEig fluxeigfun; 
-  PetscInt          numfields;
-  KSP               eigenksp,dfksp;
-  Mat               eigen;/* Matrix describing the eigen decomposition of DF at a given state point */ 
-  Mat               Df;   
-  RiemannSolverEigBasis computeeigbasis;
-  Vec                   u,ueig; 
-  PetscBool      setupcalled; 
-};
-
 typedef struct _PetscRiemannOps *PetscRiemannOps;
 struct _PetscRiemannOps {
   PetscErrorCode (*setfromoptions)(PetscOptionItems*,RiemannSolver);
@@ -116,6 +85,11 @@ struct _p_RiemannSolver {
   
   RiemannSolverEigBasis computeeigbasis;
   Vec                   u,ueig;  
+
+  /* Lax Curve Information (move this to flux function) */ 
+  LaxCurve evallaxcurve; 
+
+
   /* Not a huge fan of how these work but ehh.... */
   /* Roe matrix structures. Not always needed so may refactor to be an optional additional struct. That
   is a have a seperate roe matrix struct and the riemann solver only contains a pointer to one if roe 

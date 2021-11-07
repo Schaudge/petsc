@@ -1,7 +1,8 @@
 -include ../../../../petscdir.mk
 ALL: lib
 
-SOURCEH   = ../../../../include/petsc/private/netrsimpl.h ../../../../include/petscnetrs.h
+SOURCEC   = fluxfun.c
+SOURCEH   = ../../../../include/petsc/private/netrsimpl.h ../../../../include/petscnetrs.h fluxfun.h
 DIRS      = interface impls tests
 LOCDIR    = src/dm/dt/netrs
 MANSEC    = DM

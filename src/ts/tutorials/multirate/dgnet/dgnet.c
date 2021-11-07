@@ -716,7 +716,7 @@ PetscErrorCode  DGNetworkAssignCoupling(DGNetwork fvnet)
 }
 /* WIP Dispatches a netrs for each vertex on the dmnetwork. I think i will rework netrs to internally 
 hold a dmnetwork, or maybe add itself as a component to an existing dmnetwork? I could try both ...*/
-PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs)
+PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEstimator errorest)
 {
   PetscErrorCode ierr;
   PetscInt       v,vStart,vEnd;
@@ -730,6 +730,7 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs)
     ierr = NetRSSetRiemannSolver(junct->netrs,rs);CHKERRQ(ierr);
     ierr = NetRSSetNumEdges(junct->netrs,junct->numedges);CHKERRQ(ierr);
     ierr = NetRSSetApplicationContext(junct->netrs,dgnet->physics.user);
+    if(errorest) {ierr = NetRSSetErrorEstimate(junct->netrs,errorest);CHKERRQ(ierr);}
     /* 
       type dispatching depending on number of edges 
     */
@@ -738,7 +739,7 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs)
     } else if(junct->numedges == 2) {
       ierr = NetRSSetType(junct->netrs,NETRSRIEMANN);CHKERRQ(ierr);
     } else {
-      ierr = NetRSSetType(junct->netrs,NETRSLINEAR);CHKERRQ(ierr);
+      ierr = NetRSSetType(junct->netrs,NETRSEXACTSWE);CHKERRQ(ierr);
     }
     ierr = NetRSSetUp(junct->netrs);CHKERRQ(ierr);
   }

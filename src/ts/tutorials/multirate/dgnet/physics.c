@@ -336,7 +336,35 @@ static PetscReal ShallowRiemannEig_Right(const PetscScalar hr, const PetscScalar
   const PetscScalar g = 9.81;
   return vr + PetscSqrtScalar(g*hr);
 }
+/* Lax Curve evaluation function, for use in RiemannSolver */
+static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u,PetscReal hbar,PetscInt wavenumber,PetscReal *ubar)
+{
+  PetscErrorCode ierr; 
+  PetscReal      g,h,v;
+  ShallowCtx     ctx; 
 
+
+  ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
+  g    = ctx.gravity;
+  h    = u[0]; v = u[1]/h;
+  /* switch between the 1-wave and 2-wave curves */
+  switch (wavenumber)
+  {
+    case 1: 
+      ubar[1] = hbar<h ? v-2.0*(PetscSqrtScalar(g*hbar)-PetscSqrtScalar(g*h)) : v-(hbar-h)*PetscSqrtScalar(g*(hbar+h)/(2.0*hbar*h));
+      ubar[1] *= hbar; 
+      break;
+    case 2: 
+      ubar[1] = hbar<h ? v+2.0*(PetscSqrtScalar(g*hbar)-PetscSqrtScalar(g*h)) : v+(hbar-h)*PetscSqrtScalar(g*(hbar+h)/(2.0*hbar*h));
+      ubar[1] *= hbar; 
+      break;
+    default:
+      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Shallow Water Lax Curves have only 2 waves (1,2), requested wave number: %i \n",wavenumber);
+      break; 
+  }
+  ubar[0] = hbar;
+  PetscFunctionReturn(0);
+}
 static PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar vl)
 {
   const PetscScalar g = 9.81;
@@ -579,6 +607,7 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   fvnet->physics.eigbasis        = PhysicsCharacteristic_Shallow_Mat;
   fvnet->physics.fluxder         = PhysicsFluxDer_Shallow;
   fvnet->physics.roemat          = PhysicsRoeMat_Shallow; 
+  fvnet->physics.laxcurve        = LaxCurve_Shallow;
   ierr = PetscStrallocpy("height",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
   ierr = PetscStrallocpy("momentum",&fvnet->physics.fieldname[1]);CHKERRQ(ierr);
   user->gravity = 9.81;

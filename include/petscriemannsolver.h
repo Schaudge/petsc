@@ -36,19 +36,6 @@ typedef void (*PetscPointFlux)(void*,const PetscReal*,PetscReal*);
     and etc much much easier. 
 */
 
-typedef struct _p_FluxFunction* FluxFunction;
-
-
-/*J
-    FluxFunSolverType - String with the name of a PETSc FluxFunction
-
-   Level: beginner
-
-.seealso: TODO 
-J*/
-
-typedef const char* FluxFunType;
-#define FluxFun "default"
 
 /* 
    Similarily I need to experiment with how to compute/store PointFlux derivative information. Honestly this may be 
@@ -91,6 +78,29 @@ typedef PetscErrorCode (*RiemannSolverEigBasis)(void*,const PetscReal*,Mat);
 typedef PetscErrorCode (*RiemannSolverMaxWaveSpeed)(RiemannSolver,const PetscReal*,const PetscReal*,PetscReal*);
 typedef PetscErrorCode (*RiemannSolverRoeMatrix)(void*,const PetscReal*,const PetscReal*, Mat); 
 typedef PetscErrorCode (*RiemannSolverRoeAvg)(void*,const PetscReal*,const PetscReal*,PetscReal*); 
+
+/* Lax Curve Support (as with other flux function specific data, should be associated with the flux function not the riemann solver direclty) */ 
+
+/* This is to be redone as I have more knowledge of lax curve analytical formulation. */ 
+
+/* For now I'm making the naive assumption that the curve is paramaterized by the first conservative variable ( so in the SWE case 
+paramaterized by hbar) */ 
+
+/* my notation is that bar refers to points along the curve and star refers only to those specific points on the curve that solve the riemann 
+problem */ 
+
+/* 
+Inputs: 
+   rs - RiemannSolver (to be replaced wih flux function) 
+   u  - state variable generating the curve 
+   xi - paramaterization variable for the curve to evaluate at (note that in other portions of the code it will be assumed that this corresponds 
+         to the first conservative variables)
+   wavenumber - integer corresponding to the particular lax curve to compute (indexed starting from 1 as is standard in the literature)
+Outputs: 
+   ubar - state variable on the curve corresponding to the point xi (allocated by caller)
+*/ 
+
+typedef PetscErrorCode (*LaxCurve)(RiemannSolver,const PetscReal*,PetscReal,PetscInt,PetscReal*);
 
 /*J
     RiemannSolverType - String with the name of a PETSc RiemmanSolver
@@ -162,6 +172,10 @@ PETSC_EXTERN PetscErrorCode RiemannSolverTestRoeMat(RiemannSolver,PetscInt,const
 PETSC_EXTERN PetscErrorCode RiemannSolverView(RiemannSolver,PetscViewer);
 
 /* Flux Function Stuff (to be made its own class) */
+
+PETSC_EXTERN PetscErrorCode RiemannSolverSetLaxCurve(RiemannSolver,LaxCurve);
+PETSC_EXTERN PetscErrorCode RiemannSolverEvalLaxCurve(RiemannSolver,const PetscReal*,PetscReal,PetscInt,PetscReal*);
+
 
 
 #endif

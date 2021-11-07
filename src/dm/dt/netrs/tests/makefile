@@ -3,14 +3,14 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = 
+SOURCEC   = ex1.c
 SOURCEF   =
-SOURCEH   =
-DIRS      = linearized riemannsolver outflow exactswe
-LIBBASE   = 
+SOURCEH   = 
+DIRS      = 
+LIBBASE   = libpetscdm
 MANSEC    = DM
 SUBMANSEC = NRS
-LOCDIR    = src/dm/dt/netrs/impls
+LOCDIR    = src/dm/dt/netrs/tests
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

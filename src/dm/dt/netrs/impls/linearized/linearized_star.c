@@ -27,12 +27,12 @@ static PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar 
   return vl - PetscSqrtScalar(g*hl);
 }
 
-PETSC_INTERN PetscErrorCode NRSEvaluate_Linear(NetRS rs, const PetscReal *u, const EdgeDirection *dir,PetscReal *flux,PetscReal *error) 
+PETSC_INTERN PetscErrorCode NRSEvaluate_LinearStar(NetRS rs, const PetscReal *u, const EdgeDirection *dir,PetscReal *flux,PetscReal *error) 
 {
   NRS_Linear     *linear = (NRS_Linear*)rs->data;
   void           *ctx;
   PetscErrorCode ierr;
-  PetscInt       i,dof = rs->numfields;
+  PetscInt       i,dof = rs->numfields,field;
   PetscScalar    *x,*b,eig,h,v,hv;
 
   PetscFunctionBeginUser;
@@ -84,7 +84,9 @@ PETSC_INTERN PetscErrorCode NRSEvaluate_Linear(NetRS rs, const PetscReal *u, con
      REDO WITH PROPER FLux class later */
   
   for (i=0;i<rs->numedges;i++) {
-    rs->rs->fluxfun(ctx,linear->ustar+i*dof,flux+i*dof);CHKERRQ(ierr);
+    for (field=0;field<rs->numfields;field++) {
+        flux[i*dof+field] = linear->ustar[dof*i+field];
+    }
   }
   ierr = VecRestoreArray(linear->x,&x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -154,7 +156,7 @@ static PetscErrorCode NRSView_Linear(NetRS rs,PetscViewer viewer)
 }
 /* ------------------------------------------------------------ */
 
-PETSC_EXTERN PetscErrorCode NRSCreate_Linear(NetRS rs)
+PETSC_EXTERN PetscErrorCode NRSCreate_LinearStar(NetRS rs)
 {
   NRS_Linear     *linear;
   PetscErrorCode ierr;
@@ -172,6 +174,6 @@ PETSC_EXTERN PetscErrorCode NRSCreate_Linear(NetRS rs)
   rs->ops->destroy         = NRSDestroy_Linear;
   rs->ops->setfromoptions  = NRSSetFromOptions_Linear;
   rs->ops->view            = NRSView_Linear;
-  rs->ops->evaluate        = NRSEvaluate_Linear;
+  rs->ops->evaluate        = NRSEvaluate_LinearStar;
   PetscFunctionReturn(0);
 }

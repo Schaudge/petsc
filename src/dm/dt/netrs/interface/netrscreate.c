@@ -29,6 +29,12 @@ PetscErrorCode  NetRSCreate(MPI_Comm comm, NetRS *rs)
   r->numfields = -1; 
   r->numedges  = -1;
   r->rs        = PETSC_NULL;
+  r->finetype  = NETRSEXACTSWE;
+  r->finetol   = 1.0; 
+  r->estimate  = NetRSTaylorErrorEstimate; /* always available for any physics */
+  r->useestimator  = PETSC_TRUE; 
+  r->useadaptivity = PETSC_FALSE;  
+  r->fine = NULL; 
   *rs = r;
   PetscFunctionReturn(0);
 }

@@ -10,9 +10,8 @@
     Replace with a boundary condition class ?
 */
 
-static PetscErrorCode NRSEvaluate_Outflow(NetRS rs, const PetscReal *u, const PetscBool *dir,PetscReal *flux) 
+static PetscErrorCode NRSEvaluate_Outflow(NetRS rs, const PetscReal *u, const EdgeDirection *dir,PetscReal *flux,PetscReal *error) 
 {
-  void           *ctx;
   PetscErrorCode ierr;
   PetscInt       i;
   PetscScalar    *fluxrs;

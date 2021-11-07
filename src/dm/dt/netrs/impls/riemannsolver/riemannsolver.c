@@ -9,7 +9,7 @@
    the netrs as just standard rs. 
 */
 
-static PetscErrorCode NRSEvaluate_RS(NetRS rs, const PetscReal *u, const PetscBool *dir,PetscReal *flux) 
+static PetscErrorCode NRSEvaluate_RS(NetRS rs, const PetscReal *u, const EdgeDirection *dir,PetscReal *flux,PetscReal *error) 
 {
   PetscErrorCode ierr;
   PetscInt       i;

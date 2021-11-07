@@ -182,7 +182,7 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         /* hack to see if coupling flux compute the star state or the the flux itself. I'll be 
         making a coupling flux class itself, as generalization of the riemann solver class. At least maybe... 
          */
-        if (nedges <=2) {
+        if (nedges <= 2) {
           for(field = 0; field<dof; field++) {
             f[offsetf+edgefe->offset_vfrom+field] = junction->flux[edgefe->offset_vfrom+field];
           } 
@@ -195,7 +195,6 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
         junction->fluctuation[edgefe->offset_vfrom+1] = norm; 
           if (dgnet->laxcurve) {
           /* Lax Curve Version (only SWE for now) */
-
           PetscReal vlax,h,v,hstar,vstar;
           h = f[offsetf+edgefe->offset_vfrom];
           v = f[offsetf+edgefe->offset_vfrom+1]/h;
@@ -448,11 +447,8 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
-
-
     /* Write the fluctuations to a file. This will refactored out with the creation of coupling condition class (or moving 
   it to the riemann solver class. Still debating which) */ 
-
    FILE *fp;
    char filename[128];
    PetscReal *fluct; 
@@ -1198,7 +1194,7 @@ PetscErrorCode DGNetRHS_NETRSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr; 
   DGNetwork      dgnet = (DGNetwork)ctx;    
-  PetscReal      maxspeed,detJ,J,invJ,*numflux,*netflux; 
+  PetscReal      maxspeed,detJ,J,invJ,*numflux,*netflux,*errorest; 
   PetscScalar    *f,*xarr,*coeff; 
   PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd;
   PetscInt       offsetf,offset,nedges,i,j,dof = dgnet->physics.dof,field,fieldoff;
@@ -1209,6 +1205,8 @@ PetscErrorCode DGNetRHS_NETRSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscSection   section;
   const PetscReal *qweight;
   RiemannSolver   rs = dgnet->physics.rs; 
+  FILE           *file; /* remove */
+  char            filename[128];
 
   PetscFunctionBeginUser;
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
@@ -1262,7 +1260,17 @@ PetscErrorCode DGNetRHS_NETRSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
     ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     /* compute the coupling flux */
-    ierr = NetRSEvaluate(junction->netrs,f+offsetf,junction->dir,&netflux);CHKERRQ(ierr);
+    ierr = NetRSEvaluate(junction->netrs,f+offsetf,junction->dir,&netflux,&errorest);CHKERRQ(ierr);
+    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
+    /* move the following to a viewer routine for netrs */
+    for (i=0; i<nedges; i++) {
+      e     = edges[i];
+      ierr = PetscSNPrintf(filename,128,"./output/v%ie%i.txt",v,e);CHKERRQ(ierr); 
+      ierr = PetscFOpen(PETSC_COMM_SELF,filename,"a",&file);CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,file,"%e, %e \n",time,errorest[i]);CHKERRQ(ierr);
+      ierr = PetscFClose(PETSC_COMM_SELF,file);CHKERRQ(ierr);
+    }
+
     for (i=0; i<junction->numedges; i++) {
       for (j=0; j<dof; j++) {
           f[offsetf+i*dof+j] = netflux[i*dof+j];
@@ -1425,7 +1433,6 @@ Num Simulation: %i \n Num Vectors %i \n ",numsim,nestsize);}
     } else {
       ierr = DGNetRHS_NETRSVERSION(ts,time,Xsub,Fsub,dgnet_nest->dgnets[i]);CHKERRQ(ierr);
     }
-
   }
   PetscFunctionReturn(0);
 }

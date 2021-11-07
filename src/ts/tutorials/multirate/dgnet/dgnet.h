@@ -14,9 +14,8 @@ typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscB
 /* Component numbers used for accessing data in DMNetWork*/
 typedef enum {FVEDGE=0} EdgeCompNum;
 typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;
-typedef enum {EDGEIN=0,EDGEOUT=1} EdgeDirection;
 
-struct _p_Junction{
+struct _p_Junction {
   Mat           mat;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
@@ -58,7 +57,7 @@ typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,cons
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
 
 /* 
-  TODO : Change physics struct to extend PETSCDS 
+  TODO : Change phuysics struct to use fluxfunction class to be created. 
 */
 typedef struct {
   PetscErrorCode                 (*samplenetwork)(void*,PetscInt,PetscReal,PetscReal,PetscReal*,PetscInt);
@@ -83,6 +82,7 @@ typedef struct {
   PetscPointFluxDer              fluxder; 
   PetscReal                      *lowbound; /* lower bound for the field variables allowed. For example SWE requires height to be positive */
   PetscReal                      *upbound; /* upper bound for the field variables */
+  LaxCurve                       laxcurve; 
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
@@ -318,9 +318,9 @@ extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
 extern PetscErrorCode DGNetRHS_RSVERSION_Nested(TS,PetscReal,Vec,Vec,void*); 
 
 
-/* NETRS Stuff WIP  */ 
+/* NETRS Stuff WIP (should be moved to NetRS itself)  */ 
 extern PetscErrorCode DGNetRHS_NETRSVERSION(TS,PetscReal,Vec,Vec,void*);
-extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver);
+extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver,NRSErrorEstimator);
 extern PetscErrorCode DGNetRHS_NETRSTEST_Nested(TS,PetscReal,Vec,Vec,void*); 
 extern PetscErrorCode DGNetworkDestroyNetRS(DGNetwork);
 #endif

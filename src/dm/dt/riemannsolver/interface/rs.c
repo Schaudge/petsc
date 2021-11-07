@@ -758,7 +758,37 @@ PetscErrorCode RiemannSolverSetRoeMatrixFunct(RiemannSolver rs,RiemannSolverRoeM
    rs->computeroemat = roematfunct; 
    PetscFunctionReturn(0);
 }
+/* 
+   TODO : Finish Documentations
 
+   ALSO REDO ALL OF THIS STUFF. SO ugly 
+*/
+PetscErrorCode RiemannSolverSetLaxCurve(RiemannSolver rs,LaxCurve laxcurve)
+{
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   rs->evallaxcurve = laxcurve;
+   PetscFunctionReturn(0);
+}
+
+/* 
+   TODO        :  Finish Documentations
+   ALSO REDO ALL OF THIS STUFF. SO ugly 
+*/
+
+PetscErrorCode RiemannSolverEvalLaxCurve(RiemannSolver rs,const PetscReal *u,PetscReal xi,PetscInt wavenumber,PetscReal *ubar)
+{
+   PetscErrorCode ierr; 
+
+   PetscFunctionBegin;
+   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
+   if (rs->evallaxcurve) {
+      ierr =  rs->evallaxcurve(rs,u,xi,wavenumber,ubar);CHKERRQ(ierr);
+   } else {
+      SETERRQ(PetscObjectComm((PetscObject)rs),PETSC_ERR_SUP,"No Lax Curve Function Specified");
+   }
+   PetscFunctionReturn(0);
+}
 /* 
    TODO : Finish Documentations
 
@@ -791,22 +821,6 @@ PetscErrorCode RiemannSolverComputeEigBasis(RiemannSolver rs,const PetscReal *u,
 }
 
 PetscErrorCode RiemannSolverChangetoEigBasis(RiemannSolver rs, const PetscReal *u,PetscReal *ueig)
-{
-   PetscErrorCode ierr;
-   void           *ctx;
-
-   PetscFunctionBegin;
-   PetscValidHeaderSpecific(rs,RIEMANNSOLVER_CLASSID,1);
-   ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
-   ierr = VecPlaceArray(rs->u,u);CHKERRQ(ierr);
-   ierr = VecPlaceArray(rs->ueig,ueig);CHKERRQ(ierr);
-   ierr = KSPSolve(rs->eigenksp,rs->u,rs->ueig);CHKERRQ(ierr);
-   ierr = VecResetArray(rs->u);CHKERRQ(ierr);
-   ierr = VecResetArray(rs->ueig);CHKERRQ(ierr);
-   PetscFunctionReturn(0);
-}
-
-PetscErrorCode RiemannSolverChangetoRiemEigBasis(RiemannSolver rs, const PetscReal *u,PetscReal *ueig)
 {
    PetscErrorCode ierr;
    void           *ctx;

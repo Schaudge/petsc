@@ -7,6 +7,10 @@ PetscBool         NetRSRegisterAllCalled = PETSC_FALSE;
 PETSC_EXTERN PetscErrorCode NRSCreate_Linear(NetRS);
 PETSC_EXTERN PetscErrorCode NRSCreate_RS(NetRS);
 PETSC_EXTERN PetscErrorCode NRSCreate_Outflow(NetRS);
+PETSC_EXTERN PetscErrorCode NRSCreate_ExactSWE(NetRS);
+PETSC_EXTERN PetscErrorCode NRSCreate_ExactSWEStar(NetRS);
+PETSC_EXTERN PetscErrorCode NRSCreate_LinearStar(NetRS);
+
 
 /*@C
   NetRSRegisterAll - Registers all of the Network Riemann Solvers. 
@@ -27,11 +31,12 @@ PetscErrorCode  NetRSRegisterAll(void)
   PetscFunctionBegin;
   if (NetRSRegisterAllCalled) PetscFunctionReturn(0);
   NetRSRegisterAllCalled = PETSC_TRUE;
-
   ierr = NetRSRegister(NETRSLINEAR, NRSCreate_Linear);CHKERRQ(ierr);
   ierr = NetRSRegister(NETRSRIEMANN,NRSCreate_RS);CHKERRQ(ierr);
   ierr = NetRSRegister(NETRSOUTFLOW,NRSCreate_Outflow);CHKERRQ(ierr);
-
+  ierr = NetRSRegister(NETRSEXACTSWE,NRSCreate_ExactSWE);CHKERRQ(ierr);
+  ierr = NetRSRegister(NETRSEXACTSWESTAR,NRSCreate_ExactSWEStar);CHKERRQ(ierr);
+  ierr = NetRSRegister(NETRSLINEARSTAR,NRSCreate_LinearStar);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

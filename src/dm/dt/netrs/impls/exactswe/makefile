@@ -3,14 +3,14 @@ ALL: lib
 
 CFLAGS    =
 FFLAGS    =
-SOURCEC   = linearized.c linearized_star.c
+SOURCEC   = exactswe.c exactswe_star.c
 SOURCEF   =
 SOURCEH   =
-DIRS      = tests
+DIRS      = 
 LIBBASE   = libpetscdm
 MANSEC    = DM
 SUBMANSEC = NRS
-LOCDIR    = src/dm/dt/netrs/impls/linearized
+LOCDIR    = src/dm/dt/netrs/impls/exactswe
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
