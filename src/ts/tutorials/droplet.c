@@ -155,6 +155,14 @@ static PetscReal curvature1_q(PetscReal s, PetscReal sx)
 
   return curve;
 }
+static PetscReal curvature0_bd_q(PetscReal s, PetscReal sx)
+{
+  PetscReal a = 1 + s*s;
+
+  PetscReal curve = -(sx/(PetscSqrtReal(PetscPowReal(a,3))));
+  return curve;
+}
+
 static void id_v(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -230,9 +238,12 @@ static void f0_bd_q(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                  PetscReal t, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
-
   const PetscReal nu = PetscRealPart(constants[0]);
-  f0[0] = -3.0*nu*u_x[uOff_x[0]];
+  const PetscReal gamma = PetscRealPart(constants[2]);
+  const PetscReal rho = PetscRealPart(constants[1]);
+  PetscReal       dpdz_bd = curvature0_bd_q(u[uOff[2]], u_x[uOff_x[2]]);
+
+  f0[0] = -3.0*nu*u_x[uOff_x[0]] - gamma*dpdz_bd/rho;
 }
 
 static void f0_v(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -368,6 +379,27 @@ static void g3_qs(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   const PetscReal gamma = PetscRealPart(constants[2]);
 
   g3[0] = (gamma/rho)*(1.0)/(PetscSqrtReal(PetscPowReal((1+u[uOff[2]]*u[uOff[2]]),3)));
+}
+
+static void g0_bd_qs(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                 PetscReal t, PetscReal u_tShift, const PetscReal x[],const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+{
+  const PetscReal gamma = PetscRealPart(constants[2]);
+  const PetscReal rho = PetscRealPart(constants[1]);
+
+  g0[0] = (gamma/rho)*(3.0*u[uOff[2]]*u_x[uOff_x[2]])/(PetscSqrtReal(PetscPowReal((1+u[uOff[2]]*u[uOff[2]]),5)));
+}
+static void g1_bd_qs(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                 const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                 const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                 PetscReal t, PetscReal u_tShift, const PetscReal x[],const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
+{
+  const PetscReal gamma = PetscRealPart(constants[2]);
+  const PetscReal rho = PetscRealPart(constants[1]);
+
+  g1[0] = -(gamma/rho)*(1)/(PetscSqrtReal(PetscPowReal((1+u[uOff[2]]*u[uOff[2]]),3)));;
 }
 
 static void g0_vh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -539,6 +571,7 @@ static PetscErrorCode SetupProblem(DM dm, AppCtx *user)
   ierr = PetscDSSetJacobian(ds, 0, 0, g0_qu, g1_qu, NULL,  g3_qu);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(ds, 0, 1, g0_qh, g1_qh, NULL,  NULL);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(ds, 0, 2, g0_qs, g1_qs, g2_qs, g3_qs);CHKERRQ(ierr);
+  ierr = PetscDSSetBdJacobian(ds, 0, 2, g0_bd_qs, g1_bd_qs, NULL,  NULL);CHKERRQ(ierr);
 
   ierr = PetscDSSetJacobian(ds, 1, 0, g0_vu, g1_vu, g2_vu, g3_vu);CHKERRQ(ierr);
   ierr = PetscDSSetJacobian(ds, 1, 1, g0_vh, g1_vh, g2_vh, g3_vh);CHKERRQ(ierr);
@@ -901,14 +934,24 @@ static PetscErrorCode TSAdaptChoose_Volume(TSAdapt adapt, TS ts, PetscReal h, Pe
     PetscErrorCode (*feFuncs[3])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx);
     void            *fectxs[3];
     PetscPointFunc   funcs[3] = {id_v, id_r, id_s};
-    PetscScalar      stretch; /* Factor by which we increase the length */
+    PetscScalar      l_upper, l_lower, stretch; /* Factor by which we increase the length */
 
-    /* Correct the length and boundary condition. Then scale and project again using corrected length */
+    /* Correct the length and boundary condition using bisection. Then scale and project again using corrected length */
     stretch      = user->V_t / Vnew;
-    if (stretch<1.0) {user->dl_dt /= stretch; user->s_bottom *= stretch;}
-    else {user->dl_dt *= stretch; user->s_bottom /= stretch;}
-    user->l     *= stretch;
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "\nCORRECTION due to V_lost = %g%% (V_target = %g  V_new = %g) \t update factor = %g  \t  Corrected length = %2.10f\n\n", rerr*100., user->V_t, Vnew, stretch,  user->l);CHKERRQ(ierr);
+    if (stretch<1.0) {
+      l_upper = user->l;
+      l_lower = (user->l)*stretch;
+      user->dl_dt /= stretch;
+      user->s_bottom /= stretch;
+    }
+    else {
+      l_upper = (user->l)*stretch;
+      l_lower = user->l;
+      user->dl_dt *= stretch;
+      user->s_bottom *= stretch;
+    }
+    user->l = (l_lower + l_upper)/2.0;
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "\nCORRECTION due to V_lost = %g%% (V_target = %g  V_new = %g) \t update factor = %g  \t  Corrected length = %2.10f in [%g, %g]\n\n", rerr*100., user->V_t, Vnew, stretch,  user->l, l_lower, l_upper);CHKERRQ(ierr);
 
     ierr = DMGetCoordinates(dm, &coordinates);CHKERRQ(ierr);
     ierr = DMClone(dm, &dmNew);CHKERRQ(ierr);
@@ -972,7 +1015,8 @@ static PetscErrorCode PreStep(TS ts)
   ierr = DMGetDS(dm, &ds);CHKERRQ(ierr);
 
 /* Test for necking */
-  if((user->l > 2*param->h_0)) {
+  PetscScalar scale = 3.0;
+  if((user->l > scale*param->h_0)) {
     const PetscScalar *v;
     PetscScalar  *ptr=NULL;
     PetscInt     n, pStart, pEnd, Nf;
@@ -990,8 +1034,8 @@ static PetscErrorCode PreStep(TS ts)
         ierr = DMPlexPointGlobalFieldRead(dm, n, 1, v, &ptr);
         for (d = 0; d < dof-cdof; ++d) {
           if (!user->necking) {
-            PetscScalar h_neck = 0.9*param->h_0;
-            PetscScalar h_blow = 1.2*param->h_0;
+            PetscScalar h_neck = 0.8*param->h_0;
+            PetscScalar h_blow = 2.0*param->h_0;
             if (ptr[d]<h_neck){
               user->necking = PETSC_TRUE;
               ierr = PetscPrintf(PETSC_COMM_WORLD, "\n \n \n ##### \t\t The necking begins \t\t ###### \n \n \n");
@@ -1000,7 +1044,8 @@ static PetscErrorCode PreStep(TS ts)
               SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "The curvature is blowing up in the middle. Something is wrong.");
             }
           }
-          if(ptr[d]<(0.01)*param->h_0){
+          /* How close we want to get to the pinch-off? (Depends on the mesh) */
+          if(ptr[d]<(0.1)*param->h_0){
             const PetscScalar  *Consts, *z;
             PetscInt           NC;
 
@@ -1015,7 +1060,7 @@ static PetscErrorCode PreStep(TS ts)
           }
         }
     }
-    if((user->l > 3.0*param->h_0) && !user->necking) SETERRQ( PETSC_COMM_SELF, PETSC_ERR_SUP, "Necking did not happen. Something is wrong.");
+    if((user->l > (scale+1)*param->h_0) && !user->necking) SETERRQ( PETSC_COMM_SELF, PETSC_ERR_SUP, "Necking did not happen. Something is wrong.");
     ierr = VecRestoreArrayRead(u, &v);
   }
 
@@ -1045,7 +1090,7 @@ static PetscErrorCode PreStep(TS ts)
     ierr = PetscDSGetConstants(ds, &NC, &Consts);CHKERRQ(ierr);
     PetscScalar       *c = (PetscScalar*) Consts;
     param->cellsize = user->l/(N-1);
-    *(c+6) = 0.1*param->cellsize;
+    *(c+6) = 1.0*param->cellsize;
 
     /*
     For low viscosity fluid, set the viscosity to higher value and gradually reduce it.
@@ -1058,10 +1103,10 @@ static PetscErrorCode PreStep(TS ts)
       }
       else{
         *(c+0) = param->nu;
-        /* If reducing the timestep is required */
-        // if (user->Bool) {ierr = TSSetTimeStep(ts, 0.1*dt); user->Bool = PETSC_FALSE;}
       }
     }
+    /* If reducing the timestep is required */
+    // if (user->necking && user->Bool) {ierr = TSSetTimeStep(ts, 0.1*dt); user->Bool = PETSC_FALSE;}
 
     ierr = PetscDSSetConstants(ds, NC, c);CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD, "N = %d \t nu = %g \t Tip Velocity = %g \t update factor = %g \t Predicted length = %g \n", N, *(c+0), user->dl_dt, stretch, user->l);
@@ -1126,6 +1171,7 @@ int main(int argc, char **argv)
   Vec             u;    /* solution */
   AppCtx          user; /* user-defined work context */
   PetscReal       t;
+  PetscBool       monitor_off=PETSC_FALSE; /* Determine if we need monitor.*/
   PetscErrorCode  ierr;
 
   ierr = PetscInitialize(&argc, &argv, NULL,help);if (ierr) return ierr;
@@ -1142,72 +1188,72 @@ int main(int argc, char **argv)
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "Numerical Solution");CHKERRQ(ierr);
 
-      {
-        // DM         dm2;
-        Vec        c, d, d1, d2, e;
-        PetscReal  a=0;
-        PetscReal  b=1.2;
-        AppCtx     *ctx;
-        Parameter  *param;
+/* Rearrange the mesh coordinates to have a dense mesh. */
+  {
+    Vec        c, d, d1, d2, e;
+    PetscReal  a=0;/* Do not change */
+    PetscReal  b=1.1;
+    AppCtx     *ctx;
+    Parameter  *param;
 
-        ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
-        ierr = PetscBagGetData(ctx->bag, (void **) &param);CHKERRQ(ierr);
-        ierr = DMGetCoordinates(dm, &c);CHKERRQ(ierr);
-        ierr = VecDuplicate(c, &d);
-        ierr = VecDuplicate(c, &d1);
-        ierr = VecDuplicate(c, &d2);
-        ierr = VecDuplicate(c, &e);
-        ierr = VecCopy(c, d1);
-        ierr = VecCopy(c, d2);
-        ierr = VecSet(e, 1.0);
+    ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
+    ierr = PetscBagGetData(ctx->bag, (void **) &param);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(dm, &c);CHKERRQ(ierr);
+    ierr = VecDuplicate(c, &d);
+    ierr = VecDuplicate(c, &d1);
+    ierr = VecDuplicate(c, &d2);
+    ierr = VecDuplicate(c, &e);
+    ierr = VecCopy(c, d1);
+    ierr = VecCopy(c, d2);
+    ierr = VecSet(e, 1.0);
 
-    // Dense mesh at the top
-        ierr = VecScale(d1, (2*a+1)/(param->h_0));
-        ierr = VecScale(d2, -(2*a+1)/(param->h_0));
-        ierr = VecAXPY(d1, (b-2*a), e);
-        ierr = VecAXPY(d2, (b+2*a), e);
-        ierr = VecPointwiseDivide(d, d1, d2);
-        ierr = VecLog(d);
-        ierr = VecAXPBY(d, a, ((param->h_0 - a)/(PetscLogReal((b+1)/(b-1)))), e);
+// Dense mesh at the top
+    ierr = VecScale(d1, (2*a+1)/(param->h_0));
+    ierr = VecScale(d2, -(2*a+1)/(param->h_0));
+    ierr = VecAXPY(d1, (b-2*a), e);
+    ierr = VecAXPY(d2, (b+2*a), e);
+    ierr = VecPointwiseDivide(d, d1, d2);
+    ierr = VecLog(d);
+    ierr = VecAXPBY(d, a, ((param->h_0 - a)/(PetscLogReal((b+1)/(b-1)))), e);
 
-    // Dense in the middle
-        ierr = VecDestroy(&d1);CHKERRQ(ierr);
-        ierr = VecDestroy(&d2);CHKERRQ(ierr);
-        ierr = VecDuplicate(d, &d1);
-        ierr = VecDuplicate(d, &d2);
-        ierr = VecCopy(d, d1);
-        ierr = VecCopy(d, d2);
-        // b = 1.3;
+// Dense in the middle
+    ierr = VecDestroy(&d1);CHKERRQ(ierr);
+    ierr = VecDestroy(&d2);CHKERRQ(ierr);
+    ierr = VecDuplicate(d, &d1);
+    ierr = VecDuplicate(d, &d2);
+    ierr = VecCopy(d, d1);
+    ierr = VecCopy(d, d2);
 
-    // Dense mesh at the bottom
-        ierr = VecScale(d1, -1/(param->h_0));
-        ierr = VecScale(d2, 1/(param->h_0));
-        ierr = VecAXPY(d1, (b+1), e);
-        ierr = VecAXPY(d2, (b-1), e);
-        ierr = VecPointwiseDivide(d, d1, d2);
-        ierr = VecLog(d);
-        ierr = VecAXPBY(d, param->h_0, -((param->h_0)/(PetscLogReal((b+1)/(b-1)))), e);
+// Dense mesh at the bottom
+    ierr = VecScale(d1, -1/(param->h_0));
+    ierr = VecScale(d2, 1/(param->h_0));
+    ierr = VecAXPY(d1, (b+1), e);
+    ierr = VecAXPY(d2, (b-1), e);
+    ierr = VecPointwiseDivide(d, d1, d2);
+    ierr = VecLog(d);
+    ierr = VecAXPBY(d, param->h_0, -((param->h_0)/(PetscLogReal((b+1)/(b-1)))), e);
 
-        ierr = DMSetCoordinates(dm, d);CHKERRQ(ierr);
+    ierr = DMSetCoordinates(dm, d);CHKERRQ(ierr);
 
-        ierr = VecDestroy(&d1);CHKERRQ(ierr);
-        ierr = VecDestroy(&d2);CHKERRQ(ierr);
-        ierr = VecDestroy(&e);CHKERRQ(ierr);
-        ierr = VecDestroy(&d);CHKERRQ(ierr);
-      }
+    ierr = VecDestroy(&d1);CHKERRQ(ierr);
+    ierr = VecDestroy(&d2);CHKERRQ(ierr);
+    ierr = VecDestroy(&e);CHKERRQ(ierr);
+    ierr = VecDestroy(&d);CHKERRQ(ierr);
+  }
 
   ierr = DMTSSetBoundaryLocal(dm, DMPlexTSComputeBoundary, &user);CHKERRQ(ierr);
   ierr = DMTSSetIFunctionLocal(dm, DMPlexTSComputeIFunctionFEM , &user);CHKERRQ(ierr);
   ierr = DMTSSetIJacobianLocal(dm, DMPlexTSComputeIJacobianFEM, &user);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(NULL,NULL,"-monitor_off",&monitor_off);CHKERRQ(ierr);
 
   ierr = TSSetComputeInitialCondition(ts, SetInitialConditions);CHKERRQ(ierr); /* Must come after SetFromOptions() */
   ierr = SetInitialConditions(ts, u);CHKERRQ(ierr);
   ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
   ierr = DMSetOutputSequenceNumber(dm, 0, t);CHKERRQ(ierr);
   ierr = DMTSCheckFromOptions(ts, u);CHKERRQ(ierr);
-  ierr = TSMonitorSet(ts, MonitorSolAndCoords, &user, NULL);CHKERRQ(ierr);CHKERRQ(ierr);
+  if(!monitor_off) ierr = TSMonitorSet(ts, MonitorSolAndCoords, &user, NULL);CHKERRQ(ierr);CHKERRQ(ierr);
   ierr = TSSetPreStep(ts, PreStep);CHKERRQ(ierr);
   {
     TSAdapt   adapt;
@@ -1240,4 +1286,5 @@ int main(int argc, char **argv)
             -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
               -ksp_gmres_restart 500 -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual \
               -pc_type lu
+              -monitor_off
 TEST*/
