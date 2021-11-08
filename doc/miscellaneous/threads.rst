@@ -49,12 +49,7 @@ The thread safety in `segbuffer.c
 <../../src/sys/utils/segbuffer.c.html>`__  enables the use of seval
 ``DMPlex`` and ``DMSwarm`` methods, created with PETSC_COMM_SELF, in
 an OpenMP thread loop as demonstrated in
-``$PETSC_DIR/src/dm/impls/swarm/tests/ex7.c``. For example
-
-..
-.. literalinclude:: /../src/dm/impls/swarm/tests/ex7.c
-   :start-at: PetscErrorCode createSwarm(
-   :end-at: }
+``$PETSC_DIR/src/dm/impls/swarm/tests/ex7.c``.
 
 After the first assembly of an CPU ``Mat`` the ``MatSetValues()``
 method should be thread safe, however the user must insure that there
