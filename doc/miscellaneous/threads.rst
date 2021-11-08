@@ -5,11 +5,11 @@ Threads and PETSc
 =================
 
 Though the current and planned programming model for PETSc is pure
-MPI + GPUs (:`_doc_gpus`) we do provide some support for the
+MPI :cite:`KnepleyBrownMcInnesSmithRuppAdams2015` :cite:`Lee2006` + GPUs (:any:`doc_gpus`) we do provide some support for the
 use of a hybrid MPI-thread model. Hybrid approaches can be developed in many ways that
 affect usability and performance and this section discusses PETSc's
 support for threads, which amounts to OpenMP non-offload (refer to
-:`_doc_gpus` for any discussion of OpenMP offload).
+:any:`doc_gpus` for any discussion of OpenMP offload).
 
 
 The simple model of PETSc with threads: back-ends
@@ -98,8 +98,10 @@ could result in poor performance or a program crash.
 Additionally care should be taken in using threads as threaded codes
 are notoriously difficult to debug.
 
-.. seealso::
+.. raw:: html
 
-   The Problem with Threads, Edward A. Lee, Technical Report No. UCB/EECS-2006-1 January
-   10, 2006
+    <hr>
+
+.. bibliography:: /petsc.bib
+   :filter: docname in docnames
 
