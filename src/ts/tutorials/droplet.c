@@ -320,8 +320,10 @@ static void g0_qh(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   const PetscReal nu = PetscRealPart(constants[0]);
   const PetscReal rho = PetscRealPart(constants[1]);
   const PetscReal gamma = PetscRealPart(constants[2]);
+  const PetscReal fs = PetscRealPart(constants[7]);
 
   g0[0]  = (6*nu/(u[uOff[1]]*u[uOff[1]]))*u_x[uOff_x[0]]*u_x[uOff_x[1]];
+  if (fs) g0[0] += 2*fs/(rho*u[uOff[1]]*u[uOff[1]]);
   g0[0] += (gamma/rho)*(u[uOff[2]]*u_x[uOff_x[2]])/(u[uOff[1]]*u[uOff[1]]*PetscSqrtReal(PetscPowReal((1+u[uOff[2]]*u[uOff[2]]),3))); // from first term
   g0[0] += (gamma/rho)*(2.0*u[uOff[2]])/(u[uOff[1]]*u[uOff[1]]*u[uOff[1]]*PetscSqrtReal(1+u[uOff[2]]*u[uOff[2]])); // from second term
 }
