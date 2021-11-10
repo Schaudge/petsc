@@ -1287,6 +1287,6 @@ int main(int argc, char **argv)
           -ts_max_steps 10000 -ts_dt 1e-4 -ts_type beuler -ts_max_reject 20 -ts_monitor \
             -snes_converged_reason -snes_max_funcs 1000000  -snes_monitor \
               -ksp_gmres_restart 500 -ksp_error_if_not_converged -ksp_converged_reason -ksp_monitor_true_residual \
-              -pc_type lu
+              -pc_type lu \
               -monitor_off
 TEST*/
