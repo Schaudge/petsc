@@ -656,7 +656,7 @@ int main(int argc, char **argv)
   DM             pack;
   Vec            X,*XsubArray;
   PetscErrorCode ierr;
-  PetscInt       dim = 2, nDMs, n;
+  PetscInt       dim = 2, nDMs;
   TS             ts;
   Mat            J;
   PetscDS        prob;

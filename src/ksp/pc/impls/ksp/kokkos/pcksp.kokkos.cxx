@@ -14,7 +14,8 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 #define PCKSPKOKKOS_SHARED_LEVEL 1
 #define PCKSPKOKKOS_VEC_SIZE 16
 #define PCKSPKOKKOS_TEAM_SIZE 16
-#define PCKSPKOKKOS_VERBOSE_LEVEL 1
+#define PCKSPKOKKOS_VERBOSE_LEVEL 3
+//#define PCKSPKOKKOS_MONITOR
 
 typedef enum {BICG_IDX,NUM_KSP_IDX} KSPIndex;
 typedef struct {
@@ -132,7 +133,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
   dp = 0;
   parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Rr[idx]*PetscConj(Rr[idx]);}, dpi);
   r0 = dp = PetscSqrtReal(PetscRealPart(dpi));
-#if PCKSPKOKKOS_VERBOSE_LEVEL > 1
+#if defined(PCKSPKOKKOS_MONITOR)
   if (start==0) Kokkos::single (Kokkos::PerTeam (team), [=] () {printf("%7d PCKSP Residual norm %22.14e \n",0,(double)dp);});
 #endif
   if (dp < atol) {metad->reason = KSP_CONVERGED_ATOL_NORMAL; return 0;}
@@ -181,7 +182,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
     parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum +=  Rr[idx]*PetscConj(Rr[idx]);}, dpi);
     team.team_barrier();
     dp = PetscSqrtReal(PetscRealPart(dpi));
-#if PCKSPKOKKOS_VERBOSE_LEVEL > 1
+#if defined(PCKSPKOKKOS_MONITOR)
     if (start==0) Kokkos::single (Kokkos::PerTeam (team), [=] () {printf("%7d PCKSP Residual norm %22.14e \n",i+1,(double)dp);});
 #endif
     if (dp < atol) {metad->reason = KSP_CONVERGED_ATOL_NORMAL; goto done;}
@@ -299,29 +300,38 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
 #endif
       });
     Kokkos::fence();
-    if (1) {
-      auto h_metadata = Kokkos::create_mirror(Kokkos::HostSpace::memory_space(), d_metadata);
-      Kokkos::deep_copy (h_metadata, d_metadata);
-      for (int blkID=0;blkID<nBlk;blkID++) {
-#if PCKSPKOKKOS_VERBOSE_LEVEL <= 2
-        if (blkID==0) {PetscInfo3(pc,"%d) Solver reason %d, %d iterations\n",blkID, h_metadata[blkID].reason, h_metadata[blkID].its);}
+    auto h_metadata = Kokkos::create_mirror(Kokkos::HostSpace::memory_space(), d_metadata);
+    Kokkos::deep_copy (h_metadata, d_metadata);
+#if PCKSPKOKKOS_VERBOSE_LEVEL >= 3
+    // assume species major
+    for (int blkID=0 ; blkID<nBlk ; /* void */ ) {
+      PetscPrintf(PETSC_COMM_WORLD,"%d) ",blkID/batch_sz);
+      for (int bid=0 ; bid<batch_sz ; bid++,blkID++) {
+        PetscPrintf(PETSC_COMM_WORLD,"%2D ", h_metadata[blkID].its);
+      }
+      PetscPrintf(PETSC_COMM_WORLD,"\n");
+    }
 #else
-        PetscInfo3(pc,"%d) Solver reason %d, %d iterations\n",blkID, h_metadata[blkID].reason, h_metadata[blkID].its);
+    for (int blkID=0;blkID<nBlk;blkID++) {
+#if PCKSPKOKKOS_VERBOSE_LEVEL <= 2
+      if (blkID==0) {PetscInfo3(pc,"%d) Solver reason %d, %d iterations\n",blkID, h_metadata[blkID].reason, h_metadata[blkID].its);}
+#else
+      PetscInfo3(pc,"%d) Solver reason %d, %d iterations\n",blkID, h_metadata[blkID].reason, h_metadata[blkID].its);
 #endif
-        ierr = PetscLogGpuFlops((PetscLogDouble)h_metadata[blkID].flops);CHKERRQ(ierr);
+      ierr = PetscLogGpuFlops((PetscLogDouble)h_metadata[blkID].flops);CHKERRQ(ierr);
 #if PCKSPKOKKOS_VERBOSE_LEVEL > 2
-        printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
+      printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
 #elif  PCKSPKOKKOS_VERBOSE_LEVEL > 1
-        if (h_metadata[blkID].its > 100 || blkID%batch_sz==0) printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
+      if (h_metadata[blkID].its > 100 || blkID%batch_sz==0) printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
 #elif  PCKSPKOKKOS_VERBOSE_LEVEL > 1
-        if (h_metadata[blkID].its > 100) printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
+      if (h_metadata[blkID].its > 100) printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
 #endif
-        if (h_metadata[blkID].reason < 0) {
-          ierr = PetscPrintf(PETSC_COMM_SELF, "ERROR reason=%D, its=%D. species %D, batch %D, %D species\n",
-                             h_metadata[blkID].reason,h_metadata[blkID].its,blkID/batch_sz,blkID%batch_sz,num_species);CHKERRQ(ierr);
-        }
+      if (h_metadata[blkID].reason < 0) {
+        ierr = PetscPrintf(PETSC_COMM_SELF, "ERROR reason=%D, its=%D. species %D, batch %D, %D species\n",
+                           h_metadata[blkID].reason,h_metadata[blkID].its,blkID/batch_sz,blkID%batch_sz,num_species);CHKERRQ(ierr);
       }
     }
+#endif
     ierr = VecRestoreArrayAndMemType(x,&glb_xdata);CHKERRQ(ierr);
     ierr = VecRestoreArrayReadAndMemType(b,&glb_bdata);CHKERRQ(ierr);
     //
