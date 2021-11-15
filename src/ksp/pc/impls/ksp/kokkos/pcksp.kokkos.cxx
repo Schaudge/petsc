@@ -12,8 +12,8 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 #include <../src/mat/impls/aij/seq/kokkos/aijkokkosimpl.hpp>
 
 #define PCKSPKOKKOS_SHARED_LEVEL 1
-#define PCKSPKOKKOS_VEC_SIZE 16
-#define PCKSPKOKKOS_TEAM_SIZE 16
+#define PCKSPKOKKOS_VEC_SIZE 1
+#define PCKSPKOKKOS_TEAM_SIZE 1
 #define PCKSPKOKKOS_VERBOSE_LEVEL 3
 //#define PCKSPKOKKOS_MONITOR
 
@@ -380,6 +380,7 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
         ierr = MatGetOrdering(A,rtype,&isrow,&isicol);CHKERRQ(ierr);
         ierr = ISDestroy(&isrow);CHKERRQ(ierr);
         ierr = ISInvertPermutation(isicol,PETSC_DECIDE,&isrow);CHKERRQ(ierr);
+        ierr = ISView(isrow,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
         ierr = ISGetIndices(isrow,&rowindices);CHKERRQ(ierr);
         ierr = ISGetIndices(isicol,&icolindices);CHKERRQ(ierr);
         const Kokkos::View<PetscInt*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> > h_isrow_k((PetscInt*)rowindices,A->rmap->n);
@@ -482,6 +483,7 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
                       count++;
                     }}, found);
                if (found!=1) Kokkos::single (Kokkos::PerThread (team), [=] () {printf("ERRORrow %d) found = %d\n",rowb,found);});
+               if (blkID>1) printf("%c diag[%d]=%e\n",'A' + blkID, rowb, 1./d_idiag[rowb]);
              });
         });
     }
@@ -530,13 +532,10 @@ static PetscErrorCode PCView_KSPKOKKOS(PC pc,PetscViewer viewer)
   PetscFunctionBegin;
   if (!jac->ksp) {ierr = PCKSPKOKKOSCreateKSP_KSPKOKKOS(pc);CHKERRQ(ierr);}
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  SETERRQ1(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"????????????????????????? %D",iascii);
   if (iascii) {
-    ierr = PetscViewerASCIIPrintf(viewer,"  Portable linear solver: Krylov (KSP) method and preconditioner follow\n");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  ---------------------------------\n");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"nwork = %D, rtol = %e, max it =%D, type = %s\n",jac->nwork,jac->ksp->rtol, jac->ksp->max_it,
+    ierr = PetscViewerASCIIPrintf(viewer,"  Batched device linear solver: Krylov (KSP) method with Jacobi preconditioning\n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"\t\tnwork = %D, rtol = %e, max it =%D, type = %s\n",jac->nwork,jac->ksp->rtol, jac->ksp->max_it,
                                   ((PetscObject)jac->ksp)->type_name);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  ---------------------------------\n");CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
