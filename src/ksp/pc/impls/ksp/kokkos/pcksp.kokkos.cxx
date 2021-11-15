@@ -23,13 +23,15 @@ typedef struct {
   PetscInt                                         nBlocks; /* total number of blocks */
   PetscInt                                         n; // cache host version of d_bid_eqOffset_k[nBlocks]
   KSP                                              ksp; // Used just for options. Should have one for each block
-  Kokkos::View<PetscInt*, Kokkos::LayoutRight>    *d_bid_eqOffset_k;
-  Kokkos::View<PetscScalar*, Kokkos::LayoutRight> *d_idiag_k;
-  Kokkos::View<PetscInt*>    *d_isrow_k;
-  Kokkos::View<PetscInt*>    *d_isicol_k;
+  Kokkos::View<PetscInt*, Kokkos::LayoutRight>     *d_bid_eqOffset_k;
+  Kokkos::View<PetscScalar*, Kokkos::LayoutRight>  *d_idiag_k;
+  Kokkos::View<PetscInt*>                          *d_isrow_k;
+  Kokkos::View<PetscInt*>                          *d_isicol_k;
   KSPIndex                                         ksp_type_idx;
   PetscInt                                         nwork;
-  PetscInt                                         const_block_size;
+  PetscInt                                         const_block_size; // used to decide to use shared memory for work vectors
+  PetscInt                                         *dm_Nf;  // Number of fields in each DM
+  PetscInt                                         num_dms;
 } PC_KSPKOKKOS;
 
 static PetscErrorCode  PCKSPKOKKOSCreateKSP_KSPKOKKOS(PC pc)
@@ -265,7 +267,7 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
     if (nBlk%batch_sz) SETERRQ2(PetscObjectComm((PetscObject) pc),PETSC_ERR_ARG_WRONG,"batch_sz = %D, nBlk = %D",batch_sz,nBlk);
     d_bid_eqOffset = jac->d_bid_eqOffset_k->data();
     // solve each block independently
-    if (jac->const_block_size) {
+    if (jac->const_block_size) { // use shared memory for work vectors only if constant block size - todo: test efficiency loss
       scr_bytes_team = jac->const_block_size*nwork*sizeof(PetscScalar);
       stride = jac->const_block_size; // captured
       global_buff_size = 0;
@@ -304,12 +306,15 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
     Kokkos::deep_copy (h_metadata, d_metadata);
 #if PCKSPKOKKOS_VERBOSE_LEVEL >= 3
     // assume species major
-    for (int blkID=0 ; blkID<nBlk ; /* void */ ) {
-      PetscPrintf(PETSC_COMM_WORLD,"%d) ",blkID/batch_sz);
-      for (int bid=0 ; bid<batch_sz ; bid++,blkID++) {
-        PetscPrintf(PETSC_COMM_WORLD,"%2D ", h_metadata[blkID].its);
+    for (PetscInt grid=0, s=0, head=0 ; grid < jac->num_dms; grid += batch_sz) {
+      for (PetscInt f=0, idx=head ; f < jac->dm_Nf[grid] ; f++,s++,idx++) {
+        PetscPrintf(PETSC_COMM_WORLD,"%d.%d %d) ",grid/batch_sz,f,s);
+        for (int bid=0 ; bid<batch_sz ; bid++ ) {
+          PetscPrintf(PETSC_COMM_WORLD,"%2D ", h_metadata[idx + bid*jac->dm_Nf[grid]].its);
+        }
+        PetscPrintf(PETSC_COMM_WORLD,"\n");
       }
-      PetscPrintf(PETSC_COMM_WORLD,"\n");
+      head += batch_sz*jac->dm_Nf[grid];
     }
 #else
     for (int blkID=0;blkID<nBlk;blkID++) {
@@ -371,7 +376,7 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
     if (!jac->vec_diag) {
       Vec               *subX;
       DM                pack,*subDM;
-      PetscInt          nDMs,*NfArray, n;
+      PetscInt          nDMs, n;
       { // Permute the matrix to get a block diagonal system: d_isrow_k, d_isicol_k
         MatOrderingType   rtype = MATORDERINGRCM;
         IS                isrow,isicol;
@@ -380,7 +385,8 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
         ierr = MatGetOrdering(A,rtype,&isrow,&isicol);CHKERRQ(ierr);
         ierr = ISDestroy(&isrow);CHKERRQ(ierr);
         ierr = ISInvertPermutation(isicol,PETSC_DECIDE,&isrow);CHKERRQ(ierr);
-        ierr = ISView(isrow,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+        // ierr = ISView(isrow,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+        // ierr = ISView(isicol,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
         ierr = ISGetIndices(isrow,&rowindices);CHKERRQ(ierr);
         ierr = ISGetIndices(isicol,&icolindices);CHKERRQ(ierr);
         const Kokkos::View<PetscInt*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged> > h_isrow_k((PetscInt*)rowindices,A->rmap->n);
@@ -412,7 +418,8 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
       ierr = DMCompositeGetNumberDM(pack,&nDMs);CHKERRQ(ierr);
       ierr = PetscMalloc(sizeof(*subX)*nDMs, &subX);CHKERRQ(ierr);
       ierr = PetscMalloc(sizeof(*subDM)*nDMs, &subDM);CHKERRQ(ierr);
-      ierr = PetscMalloc(sizeof(*NfArray)*nDMs, &NfArray);CHKERRQ(ierr);
+      ierr = PetscMalloc(sizeof(*jac->dm_Nf)*nDMs, &jac->dm_Nf);CHKERRQ(ierr);
+      jac->num_dms = nDMs;
       ierr = PetscInfo4(pc, "Have %D DMs, n=%D rtol=%g type = %s\n", nDMs, n, jac->ksp->rtol, ((PetscObject)jac->ksp)->type_name);CHKERRQ(ierr);
       ierr = DMCompositeGetEntriesArray(pack,subDM);CHKERRQ(ierr);
       jac->nBlocks = 0;
@@ -428,7 +435,7 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
 #else
         ierr = PetscInfo3(pc,"%D) %D blocks (%D total)\n",ii,Nf,jac->nBlocks);
 #endif
-        NfArray[ii] = Nf;
+        jac->dm_Nf[ii] = Nf;
       }
       { // d_bid_eqOffset_k
         Kokkos::View<PetscInt*, Kokkos::LayoutRight, Kokkos::HostSpace> h_block_offsets("block_offsets", jac->nBlocks+1);
@@ -438,9 +445,9 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
         for (PetscInt ii=0, idx = 0;ii<nDMs;ii++) {
           PetscInt nloc,nblk;
           ierr = VecGetSize(subX[ii],&nloc);CHKERRQ(ierr);
-          nblk = nloc/NfArray[ii];
-          if (nloc%NfArray[ii]) SETERRQ2(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"nloc%NfArray[ii] DMs",nloc,NfArray[ii]);
-          for (PetscInt jj=0;jj<NfArray[ii];jj++, idx++) {
+          nblk = nloc/jac->dm_Nf[ii];
+          if (nloc%jac->dm_Nf[ii]) SETERRQ2(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"nloc%jac->dm_Nf[ii] DMs",nloc,jac->dm_Nf[ii]);
+          for (PetscInt jj=0;jj<jac->dm_Nf[ii];jj++, idx++) {
             h_block_offsets[idx+1] = h_block_offsets[idx] + nblk;
 #if PCKSPKOKKOS_VERBOSE_LEVEL <= 2
             if (idx==0) {ierr = PetscInfo3(pc,"\t%D) Add block with %D equations of %D\n",idx+1,nblk,jac->nBlocks);CHKERRQ(ierr);}
@@ -454,7 +461,6 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
         ierr = DMCompositeRestoreAccessArray(pack, jac->vec_diag, jac->nBlocks, NULL, subX);CHKERRQ(ierr);
         ierr = PetscFree(subX);CHKERRQ(ierr);
         ierr = PetscFree(subDM);CHKERRQ(ierr);
-        ierr = PetscFree(NfArray);CHKERRQ(ierr);
         jac->d_bid_eqOffset_k = new Kokkos::View<PetscInt*, Kokkos::LayoutRight>(Kokkos::create_mirror(Kokkos::DefaultExecutionSpace::memory_space(),h_block_offsets));
         Kokkos::deep_copy (*jac->d_bid_eqOffset_k, h_block_offsets);
       }
@@ -483,7 +489,6 @@ static PetscErrorCode PCSetUp_KSPKOKKOS(PC pc)
                       count++;
                     }}, found);
                if (found!=1) Kokkos::single (Kokkos::PerThread (team), [=] () {printf("ERRORrow %d) found = %d\n",rowb,found);});
-               if (blkID>1) printf("%c diag[%d]=%e\n",'A' + blkID, rowb, 1./d_idiag[rowb]);
              });
         });
     }
@@ -510,6 +515,8 @@ static PetscErrorCode PCReset_KSPKOKKOS(PC pc)
   jac->d_isicol_k = NULL;
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCKSPKOKKOSGetKSP_C",NULL);CHKERRQ(ierr); // not published now (causes configure errors)
   ierr = PetscObjectComposeFunction((PetscObject)pc,"PCKSPKOKKOSSetKSP_C",NULL);CHKERRQ(ierr);
+  ierr = PetscFree(jac->dm_Nf);CHKERRQ(ierr);
+  jac->dm_Nf = NULL;
   PetscFunctionReturn(0);
 }
 
