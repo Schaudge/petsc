@@ -182,7 +182,6 @@ static PetscErrorCode testSpitzer(TS ts, Vec X, PetscInt stepi, PetscReal time, 
   ierr = DMGetDS(plexe, &prob);CHKERRQ(ierr);
   ierr = PetscDSSetConstants(prob, 2, &q[0]);CHKERRQ(ierr);
   ierr = PetscDSSetObjective(prob, 0, &f0_jz_sum);CHKERRQ(ierr);
-  //ierr = DMPlexComputeIntegralFEM(plexe,XsubArray[ctx->batch_view_idx*ctx->num_grids],tt,NULL);CHKERRQ(ierr);
   ierr = DMPlexComputeIntegralFEM(plexe,XsubArray[ LAND_PACK_IDX(ctx->batch_view_idx,0) ],tt,NULL);CHKERRQ(ierr);
   J = -ctx->n_0*ctx->v_0*PetscRealPart(tt[0]);
   if (plexi) { // add first (only) ion
@@ -472,22 +471,30 @@ PetscErrorCode Monitor(TS ts, PetscInt stepi, PetscReal time, Vec X, void *actx)
     /* diagnostics + change E field with Sptizer (not just a monitor) - can we lag this? */
     ierr = rectx->test(ts,X,stepi,time,reason ? PETSC_TRUE : PETSC_FALSE, ctx, rectx);CHKERRQ(ierr);
   }
-  ierr = DMCompositeRestoreAccessArray(pack, X, ctx->num_grids*ctx->batch_sz, NULL, globXArray);CHKERRQ(ierr);
-  /* parallel check */
-  if (reason && ctx->verbose > 0) {
+  /* parallel check that only works of all batches are identical */
+  if (reason && ctx->verbose > 3) {
     PetscReal    val,rval;
     PetscMPIInt  rank;
     ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRMPI(ierr);
-    ierr = TSGetSolution(ts, &X);CHKERRQ(ierr);
-    ierr = VecNorm(X,NORM_2,&val);CHKERRQ(ierr);
-    ierr = MPIU_Allreduce(&val,&rval,1,MPIU_REAL,MPIU_MAX,PETSC_COMM_WORLD);CHKERRMPI(ierr);
-    if (rval != val) {
-      ierr = PetscPrintf(PETSC_COMM_SELF, " ***** [%D] ERROR max |x| = %22.15e, my |x| = %22.15e diff=%e\n",rank,rval,val,rval-val);CHKERRQ(ierr);
-    } else {
-      ierr = PetscPrintf(PETSC_COMM_WORLD, "[%D] parallel consistency check OK\n",rank);CHKERRQ(ierr);
+    for (PetscInt grid=0;grid<ctx->num_grids;grid++) {
+      PetscInt nerrors=0;
+      for (PetscInt i=0; i<ctx->batch_sz;i++) {
+        ierr = VecNorm(globXArray[ LAND_PACK_IDX(i,grid) ],NORM_2,&val);CHKERRQ(ierr);
+        if (i==0) rval = val;
+        else if ((val=PetscAbs(val-rval)/rval) > 1000*PETSC_MACHINE_EPSILON) {
+          PetscPrintf(PETSC_COMM_SELF, " [%D] Warning %D.%D) diff = %2.15e\n",rank,grid,i,val);CHKERRQ(ierr);
+          nerrors++;
+        }
+      }
+      if (nerrors) {
+        ierr = PetscPrintf(PETSC_COMM_SELF, " ***** [%D] ERROR max %D errors\n",rank,nerrors);CHKERRQ(ierr);
+      } else {
+        ierr = PetscPrintf(PETSC_COMM_WORLD, "[%D] %D) batch consistency check OK\n",rank,grid);CHKERRQ(ierr);
+      }
     }
   }
   rectx->idx = 0;
+  ierr = DMCompositeRestoreAccessArray(pack, X, ctx->num_grids*ctx->batch_sz, NULL, globXArray);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

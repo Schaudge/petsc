@@ -1560,6 +1560,7 @@ static PetscErrorCode ProcessOptions(LandauCtx *ctx, const char prefix[])
   ierr = PetscOptionsReal("-dm_landau_electron_shift","Shift in thermal velocity of electrons","none",ctx->electronShift,&ctx->electronShift, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dm_landau_verbose", "Level of verbosity output", "plexland.c", ctx->verbose, &ctx->verbose, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dm_landau_batch_size", "Number of 'vertices' to batch", "ex2.c", ctx->batch_sz, &ctx->batch_sz, NULL);CHKERRQ(ierr);
+  if (LANDAU_MAX_BATCH_SZ < ctx->batch_sz) SETERRQ2(ctx->comm,PETSC_ERR_ARG_WRONG,"LANDAU_MAX_BATCH_SZ %D < ctx->batch_sz %D",LANDAU_MAX_BATCH_SZ,ctx->batch_sz);
   ierr = PetscOptionsInt("-dm_landau_batch_view_idx", "Index of batch for diagnostics like plotting", "ex2.c", ctx->batch_view_idx, &ctx->batch_view_idx, NULL);CHKERRQ(ierr);
   if (ctx->batch_view_idx >= ctx->batch_sz) SETERRQ2(ctx->comm,PETSC_ERR_ARG_WRONG,"-ctx->batch_view_idx %D > ctx->batch_sz %D",ctx->batch_view_idx,ctx->batch_sz);
   ierr = PetscOptionsReal("-dm_landau_Ez","Initial parallel electric field in unites of Conner-Hastie critical field","plexland.c",ctx->Ez,&ctx->Ez, NULL);CHKERRQ(ierr);

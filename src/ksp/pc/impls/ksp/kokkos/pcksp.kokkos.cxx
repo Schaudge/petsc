@@ -12,8 +12,8 @@ typedef Kokkos::TeamPolicy<>::member_type team_member;
 #include <../src/mat/impls/aij/seq/kokkos/aijkokkosimpl.hpp>
 
 #define PCKSPKOKKOS_SHARED_LEVEL 1
-#define PCKSPKOKKOS_VEC_SIZE 1
-#define PCKSPKOKKOS_TEAM_SIZE 1
+#define PCKSPKOKKOS_VEC_SIZE 16
+#define PCKSPKOKKOS_TEAM_SIZE 16
 #define PCKSPKOKKOS_VERBOSE_LEVEL 3
 //#define PCKSPKOKKOS_MONITOR
 
@@ -59,7 +59,6 @@ static PetscErrorCode  PCKSPKOKKOSCreateKSP_KSPKOKKOS(PC pc)
 // y <-- Ax
 KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team,  const PetscInt *glb_Aai, const PetscInt *glb_Aaj, const PetscScalar *glb_Aaa, const PetscInt *r, const PetscInt *ic, const PetscInt start, const PetscInt end, const PetscScalar *x_loc, PetscScalar *y_loc)
 {
-  team.team_barrier();
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team,start,end), [=] (const int rowb) {
       int rowa = ic[rowb];
       int n = glb_Aai[rowa+1] - glb_Aai[rowa];
@@ -69,9 +68,9 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode MatMult(const team_member team,  const Pet
       Kokkos::parallel_reduce(Kokkos::ThreadVectorRange (team, n), [=] (const int i, PetscScalar& lsum) {
           lsum += aa[i] * x_loc[r[aj[i]]-start];
         }, sum);
-      Kokkos::single(Kokkos::PerThread (team),[=]() {y_loc[rowb-start] = sum;}); //needed???
+      Kokkos::single(Kokkos::PerThread (team),[=]() {y_loc[rowb-start] = sum;});
     });
-  team.team_barrier();
+
   return 0;
 }
 
@@ -126,11 +125,10 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
       Rl[rowb-start] = Rr[rowb-start] = glb_b[rowa];
       XX[rowb-start] = 0;
     });
-  team.team_barrier();
 
   //ierr = KSP_PCApply(ksp,Rr,Zr);CHKERRQ(ierr);     /*     z <- Br         */
   //ierr = KSP_PCApplyHermitianTranspose(ksp,Rl,Zl);CHKERRQ(ierr);
-  parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zr[idx] = Di[idx]*Rr[idx]; Zl[idx] = Di[idx]*Rl[idx]; });team.team_barrier();
+  parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Zr[idx] = Di[idx]*Rr[idx]; Zl[idx] = Di[idx]*Rl[idx]; });
   //ierr = VecNorm(Rr,NORM_2,&dp);CHKERRQ(ierr);  /*    dp <- r'*r       */
   dp = 0;
   parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Rr[idx]*PetscConj(Rr[idx]);}, dpi);
@@ -144,7 +142,7 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
   do {
     //ierr = VecDot(Zr,Rl,&beta);CHKERRQ(ierr);       /*     beta <- r'z     */
     beta = 0;
-    parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& dot) {dot += Zr[idx]*PetscConj(Rl[idx]);}, beta);team.team_barrier();
+    parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& dot) {dot += Zr[idx]*PetscConj(Rl[idx]);}, beta);
     team.team_barrier();
     if (!i) {
       if (beta == 0.0) {
@@ -153,24 +151,24 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
       }
       //ierr = VecCopy(Zr,Pr);CHKERRQ(ierr);       /*     p <- z          */
       //ierr = VecCopy(Zl,Pl);CHKERRQ(ierr);
-      parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = Zr[idx]; Pl[idx] = Zl[idx];});team.team_barrier();
+      parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = Zr[idx]; Pl[idx] = Zl[idx];});
     } else {
       b    = beta/betaold;
       //ierr = VecAYPX(Pr,b,Zr);CHKERRQ(ierr);  /*     p <- z + b* p   */
       b2    = PetscConj(b);
       //ierr = VecAYPX(Pl,b2,Zl);CHKERRQ(ierr);
-      parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = b*Pr[idx] + Zr[idx]; Pl[idx] = b2*Pl[idx] + Zl[idx];});team.team_barrier();
+      parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {Pr[idx] = b*Pr[idx] + Zr[idx]; Pl[idx] = b2*Pl[idx] + Zl[idx];});
     }
     betaold = beta;
     //ierr    = KSP_MatMult(ksp,Amat,Pr,Zr);CHKERRQ(ierr); /*     z <- Kp         */
+    team.team_barrier();
     MatMult         (team,glb_Aai,glb_Aaj,glb_Aaa,r,ic,start,end,Pr,Zr);
     //ierr    = KSP_MatMultHermitianTranspose(ksp,Amat,Pl,Zl);CHKERRQ(ierr);
     MatMultTranspose(team,glb_Aai,glb_Aaj,glb_Aaa,r,ic,start,end,Pl,Zl);
-    team.team_barrier();
     //ierr    = VecDot(Zr,Pl,&dpi);CHKERRQ(ierr);            /*     dpi <- z'p      */
     dpi = 0;
-    parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Zr[idx]*PetscConj(Pl[idx]);}, dpi);
     team.team_barrier();
+    parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum += Zr[idx]*PetscConj(Pl[idx]);}, dpi);
     //
     a       = beta/dpi;                           /*     a = beta/p'z    */
     ma      = -a;
@@ -181,8 +179,8 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
     parallel_for(Kokkos::TeamVectorRange(team,Nblk), [=] (int idx) {XX[idx] = XX[idx] + a*Pr[idx]; Rr[idx] = Rr[idx] + ma*Zr[idx]; Rl[idx] = Rl[idx] + mac*Zl[idx];});team.team_barrier();
     //ierr = VecNorm(Rr,NORM_2,&dp);CHKERRQ(ierr);  /*    dp <- r'*r       */
     dp = 0;
-    parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum +=  Rr[idx]*PetscConj(Rr[idx]);}, dpi);
     team.team_barrier();
+    parallel_reduce(Kokkos::TeamVectorRange (team, Nblk), [=] (const int idx, PetscScalar& lsum) {lsum +=  Rr[idx]*PetscConj(Rr[idx]);}, dpi);
     dp = PetscSqrtReal(PetscRealPart(dpi));
 #if defined(PCKSPKOKKOS_MONITOR)
     if (start==0) Kokkos::single (Kokkos::PerTeam (team), [=] () {printf("%7d PCKSP Residual norm %22.14e \n",i+1,(double)dp);});
@@ -214,7 +212,6 @@ KOKKOS_INLINE_FUNCTION PetscErrorCode PCKSPSolve_BICG(const team_member team, co
   } else {
     metad->flops = 2*(metad->its*(10*Nblk + 2*50*Nblk) + 5*Nblk); // guess
   }
-  team.team_barrier();
   return 0;
 }
 
@@ -301,18 +298,24 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
         if (d_metadata[blkID].reason<0) printf("Solver diverged %d\n",d_metadata[blkID].reason);
 #endif
       });
-    Kokkos::fence();
     auto h_metadata = Kokkos::create_mirror(Kokkos::HostSpace::memory_space(), d_metadata);
+    Kokkos::fence();
     Kokkos::deep_copy (h_metadata, d_metadata);
 #if PCKSPKOKKOS_VERBOSE_LEVEL >= 3
     // assume species major
+    PetscInt nits[10];
     for (PetscInt grid=0, s=0, head=0 ; grid < jac->num_dms; grid += batch_sz) {
       for (PetscInt f=0, idx=head ; f < jac->dm_Nf[grid] ; f++,s++,idx++) {
-        PetscPrintf(PETSC_COMM_WORLD,"%d.%d %d) ",grid/batch_sz,f,s);
+        PetscInt count=0;
         for (int bid=0 ; bid<batch_sz ; bid++ ) {
-          PetscPrintf(PETSC_COMM_WORLD,"%2D ", h_metadata[idx + bid*jac->dm_Nf[grid]].its);
+          //PetscPrintf(PETSC_COMM_WORLD,"%2D ", h_metadata[idx + bid*jac->dm_Nf[grid]].its);
+          if (bid==0) nits[s] = h_metadata[idx + bid*jac->dm_Nf[grid]].its;
+          else if (h_metadata[idx + bid*jac->dm_Nf[grid]].its != nits[s]) {
+            if (!count++) PetscPrintf(PETSC_COMM_WORLD,"%d.%d %d) ",grid/batch_sz,f,s);
+            PetscPrintf(PETSC_COMM_WORLD,"%2D != %D; ", h_metadata[idx + bid*jac->dm_Nf[grid]].its, nits[s]);
+          }
         }
-        PetscPrintf(PETSC_COMM_WORLD,"\n");
+        if (count) PetscPrintf(PETSC_COMM_WORLD,"\n");
       }
       head += batch_sz*jac->dm_Nf[grid];
     }
@@ -324,9 +327,9 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
       PetscInfo3(pc,"%d) Solver reason %d, %d iterations\n",blkID, h_metadata[blkID].reason, h_metadata[blkID].its);
 #endif
       ierr = PetscLogGpuFlops((PetscLogDouble)h_metadata[blkID].flops);CHKERRQ(ierr);
-#if PCKSPKOKKOS_VERBOSE_LEVEL > 2
+#if PCKSPKOKKOS_VERBOSE_LEVEL > 3
       printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
-#elif  PCKSPKOKKOS_VERBOSE_LEVEL > 1
+#elif  PCKSPKOKKOS_VERBOSE_LEVEL > 2
       if (h_metadata[blkID].its > 100 || blkID%batch_sz==0) printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
 #elif  PCKSPKOKKOS_VERBOSE_LEVEL > 1
       if (h_metadata[blkID].its > 100) printf("    Linear solve converged due to CONVERGED_RTOL iterations %d\n", h_metadata[blkID].its);
@@ -334,6 +337,7 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
       if (h_metadata[blkID].reason < 0) {
         ierr = PetscPrintf(PETSC_COMM_SELF, "ERROR reason=%D, its=%D. species %D, batch %D, %D species\n",
                            h_metadata[blkID].reason,h_metadata[blkID].its,blkID/batch_sz,blkID%batch_sz,num_species);CHKERRQ(ierr);
+        SETERRQ(PetscObjectComm((PetscObject)pc),PETSC_ERR_SUP,"");
       }
     }
 #endif
@@ -350,7 +354,7 @@ static PetscErrorCode PCApply_KSPKOKKOS(PC pc,Vec b,Vec x)
 #endif
     if (!errsum) pcreason = PC_NOERROR;
     else pcreason = PC_SUBPC_ERROR;
-#if defined(PETSC_USE_DEBUG)
+#if PCKSPKOKKOS_VERBOSE_LEVEL > 1
     if (pcreason) PetscInfo1(pc,"PCSetFailedReason %d\n",pcreason);
 #endif
     ierr = PCSetFailedReason(pc,pcreason);CHKERRQ(ierr);
@@ -541,7 +545,8 @@ static PetscErrorCode PCView_KSPKOKKOS(PC pc,PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"  Batched device linear solver: Krylov (KSP) method with Jacobi preconditioning\n");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"\t\tnwork = %D, rtol = %e, max it =%D, type = %s\n",jac->nwork,jac->ksp->rtol, jac->ksp->max_it,
+    ierr = PetscViewerASCIIPrintf(viewer,"\t\tnwork = %D, rel tol = %e, abs tol = %e, div tol = %e, max it =%D, type = %s\n",jac->nwork,jac->ksp->rtol,
+                                  jac->ksp->abstol, jac->ksp->divtol, jac->ksp->max_it,
                                   ((PetscObject)jac->ksp)->type_name);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
