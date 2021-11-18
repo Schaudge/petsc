@@ -353,7 +353,17 @@ static PetscErrorCode init_V(PetscInt dim, PetscReal time, const PetscReal x[], 
   return 0;
 }
 
-static void massE(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+static PetscErrorCode init_velocity_local(DM dm, Vec V)
+{
+  ProjectFunctionType  funcs[] = {init_V};
+  PetscErrorCode       ierr;
+
+  ierr = VecSet(V, 0.0);CHKERRQ(ierr);
+  ierr = DMProjectFunctionLocal(dm, 0.0, funcs, NULL, INSERT_ALL_VALUES, V);CHKERRQ(ierr);
+  return 0;
+}
+
+static void mass_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
   PetscInt i, j;
 
@@ -472,6 +482,11 @@ static void interfaceCondition0(PetscInt dim,PetscInt Nf,PetscInt NfAux,const Pe
   PetscInt  d;
 printf("printintg a: %f\n", a[0]);
   for (d=0; d<dim; ++d) f0[0] = x[d]*n[d];
+}
+
+static void mass_pp(PetscInt dim, PetscInt Nf, PetscInt NfAux, const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[], const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[], PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
+{
+  *f1 = 1.0;
 }
 
 static PetscErrorCode SetupPrimalProblemA(DM dm, AppCtx *user)
@@ -657,7 +672,7 @@ ierr = DMCreateMatrix(dmE, &A);CHKERRQ(ierr);
 DMCreateGlobalVector(dmE, &F);
 DMCreateGlobalVector(dmE, &UU);
 
-  ierr = CreateFiniteElementMatrix(dmE, 3, massE, NULL, NULL, NULL, "displacement_", &user, &MassE);CHKERRQ(ierr);
+  ierr = CreateFiniteElementMatrix(dmE, 3, mass_uu, NULL, NULL, NULL, "displacement_", &user, &MassE);CHKERRQ(ierr);
 
 
 ierr = MatDestroy(&MassE);CHKERRQ(ierr);
@@ -669,12 +684,7 @@ ierr = MatDestroy(&MassE);CHKERRQ(ierr);
 //  ierr = DMSNESCheckFromOptions(snesE,U);CHKERRQ(ierr);
 
     ierr = DMCreateLocalVector(dmE, &VE);CHKERRQ(ierr);
-    {
-      PetscErrorCode (*funcs[1])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx) = {init_V};
-
-      ierr = DMProjectFunctionLocal(dmE, 0.0, funcs, (void**)&user, INSERT_ALL_VALUES, VE);CHKERRQ(ierr);
-      ierr = DMProjectFunction(dmE, 0.0, funcs, (void**)&user, INSERT_ALL_VALUES, UU);CHKERRQ(ierr);
-    }
+    ierr = init_velocity_local(dmE, VE);CHKERRQ(ierr);
 ierr = SNESComputeFunction(snesE, UU, F);CHKERRQ(ierr);
 //VecView(F, NULL);
 VecSet(F, 0);
@@ -693,39 +703,33 @@ VecDestroy(&UU);
     ierr = VecRestoreArrayRead(VE, &VEArray);CHKERRQ(ierr);
     ierr = VecRestoreArray(auxVA, &auxVAArray);CHKERRQ(ierr);
     ierr = VecDestroy(&VE);CHKERRQ(ierr);
-    {
-      ProjectFunctionType  funcs[] = {init_V};
-
-      ierr = VecSet(auxVA, 0.0);CHKERRQ(ierr);
-      ierr = DMProjectFunctionLocal(auxdmA, 0.0, funcs, (void**)&user, INSERT_ALL_VALUES, auxVA);CHKERRQ(ierr);
-    }
-
-    ierr = DMCreateLocalVector(dmA, &VA);CHKERRQ(ierr);
-    {
-      ProjectFunctionType  funcs[] = {init_P};
-
-      ierr = DMProjectFunctionLocal(dmA, 0.0, funcs, (void**)&user, INSERT_ALL_VALUES, VA);CHKERRQ(ierr);
-    }
-    ierr = DMGetAuxiliaryVec(dmE, NULL, 0, &auxVE);CHKERRQ(ierr);
-    ierr = VecSet(auxVE, 0.0);CHKERRQ(ierr);
-    ierr = VecGetArrayRead(VA, &VAArray);CHKERRQ(ierr);
-    ierr = VecGetArray(auxVE, &auxVEArray);CHKERRQ(ierr);
-    ierr = PetscSFReduceBegin(dofSFAE, MPIU_SCALAR, VAArray, auxVEArray, MPI_REPLACE);CHKERRQ(ierr);
-    ierr = PetscSFReduceEnd(dofSFAE, MPIU_SCALAR, VAArray, auxVEArray, MPI_REPLACE);CHKERRQ(ierr);
-    ierr = VecRestoreArrayRead(VA, &VAArray);CHKERRQ(ierr);
-    ierr = VecRestoreArray(auxVE, &auxVEArray);CHKERRQ(ierr);
-    {
-      ProjectFunctionType  funcs[] = {init_P};
-
-      ierr = VecSet(auxVE, 0.0);CHKERRQ(ierr);
-      ierr = DMProjectFunctionLocal(auxdmE, 0.0, funcs, (void**)&user, INSERT_ALL_VALUES, auxVE);CHKERRQ(ierr);
-    }
-VecView(auxVE, NULL);
-    ierr = VecDestroy(&VA);CHKERRQ(ierr);
-
-
-
+    ierr = init_velocity_local(auxdmA, auxVA);CHKERRQ(ierr);
+VecView(auxVA, NULL);
     ierr = SNESDestroy(&snesE);CHKERRQ(ierr);
+  }
+  /* RK4 */
+  {
+    Mat  MassE, MassA;
+    Vec  F, UU;
+
+    ierr = CreateFiniteElementMatrix(dmE, 3, mass_uu, NULL, NULL, NULL, "displacement_", &user, &MassE);CHKERRQ(ierr);
+    ierr = CreateFiniteElementMatrix(dmA, 1, mass_pp, NULL, NULL, NULL, "pressure_", &user, &MassA);CHKERRQ(ierr);
+
+PetscScalar value;
+    DMCreateGlobalVector(dmA, &F);
+VecSet(F, 1.0);
+    DMCreateGlobalVector(dmA, &UU);
+    MatMult(MassA, F, UU);
+    VecDot(UU, F, &value);
+printf("value is %f\n", value);
+    VecDestroy(&F);
+    VecDestroy(&UU);
+
+    //ierr = ElastoAcousticRK4Update(dmE, dmA, u, v, p, q, kspE, kspA, Kee, snesEA, snesAE, Kaa, dofSFEA, dofSFAE, udot, vdot, pdot, qdot);CHKERRQ(ierr);
+
+
+    ierr = MatDestroy(&MassE);CHKERRQ(ierr);
+    ierr = MatDestroy(&MassA);CHKERRQ(ierr);
   }
   /* Finalize */
   ierr = PetscSFDestroy(&dofSFEA);CHKERRQ(ierr);
