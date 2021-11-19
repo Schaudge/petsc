@@ -2112,6 +2112,79 @@ static PetscErrorCode MatPermuteByNodeIdx(Mat A, PetscLagNodeIndices ni, Mat *Ap
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode MatSeqDenseInvert(Mat V, Mat *Vinv)
+{
+  Mat            Id;
+  PetscInt       Ns;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatLUFactor(V, NULL, NULL, NULL);CHKERRQ(ierr);
+  ierr = MatGetSize(V, &Ns, NULL);CHKERRQ(ierr);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF, Ns, Ns, NULL, &Id);CHKERRQ(ierr);
+  {
+    PetscScalar *id;
+
+    ierr = MatDenseGetArrayWrite(Id, &id);CHKERRQ(ierr);
+    for (PetscInt i = 0; i < Ns; i++) id[i*(Ns + 1)] = 1.;
+    ierr = MatDenseRestoreArrayWrite(Id, &id);CHKERRQ(ierr);
+  }
+  ierr = MatDuplicate(Id, MAT_DO_NOT_COPY_VALUES, Vinv);CHKERRQ(ierr);
+  ierr = MatMatSolve(V, Id, *Vinv);CHKERRQ(ierr);
+  ierr = MatDestroy(&Id);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode MatSeqDenseSqrt(Mat M)
+{
+  PetscScalar   *m_a;
+  PetscScalar   *U, *US, *work;
+  PetscReal     *S;
+  PetscScalar    one = 1.;
+  PetscScalar    zero = 0.;
+  PetscBLASInt   lwork, N, info;
+  PetscInt       Ns;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatGetSize(M, &Ns, NULL);CHKERRQ(ierr);
+  ierr = MatDenseGetArrayWrite(M, &m_a);CHKERRQ(ierr);
+  ierr = PetscMalloc4(Ns*Ns, &U, Ns*Ns, &US, Ns, &S, 5*Ns, &work);CHKERRQ(ierr);
+  ierr = PetscBLASIntCast(Ns, &N);CHKERRQ(ierr);
+  ierr = PetscBLASIntCast(5*Ns, &lwork);CHKERRQ(ierr);
+
+  ierr = PetscArraycpy(U,m_a,Ns*Ns);CHKERRQ(ierr);
+
+  ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+#if defined(PETSC_USE_COMPLEX)
+  {
+    PetscReal *rwork;
+
+    ierr = PetscMalloc1(3*Ns, &rwork);CHKERRQ(ierr);
+    PetscStackCallBLAS("LAPACKsyev",LAPACKsyev_("V","U",&N,U,&N,S,work,&lwork,rwork,&info));
+    ierr = PetscFree(rwork);CHKERRQ(ierr);
+  }
+#else
+  PetscStackCallBLAS("LAPACKsyev",LAPACKsyev_("V","U",&N,U,&N,S,work,&lwork,&info));
+#endif
+  if (info) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Error in LAPACK routine %d",(int)info);
+  ierr = PetscFPTrapPop();CHKERRQ(ierr);
+
+  ierr = PetscArraycpy(US,U,Ns*Ns);CHKERRQ(ierr);
+  for (PetscInt j = 0; j < Ns; j++) {
+    PetscScalar isqrt = 1./ PetscSqrtScalar(S[j]);CHKERRQ(ierr);
+    for (PetscInt i = 0; i < Ns; i++) {
+      US[i + j*Ns] *= isqrt;
+    }
+  }
+
+  PetscStackCallBLAS("BLASgemm",BLASgemm_("N", "T", &N, &N, &N, &one, US, &N, U, &N, &zero, m_a, &N));
+
+  ierr = PetscFree4(U,US,S,work);CHKERRQ(ierr);
+  ierr = MatDenseRestoreArrayWrite(M, &m_a);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /* Take nodal dofs and convert them into moment-with-polynomial dofs.
  *
  * We still want the dofs to have the appropriate symmetry, so
@@ -2127,7 +2200,7 @@ static PetscErrorCode PetscDualSpacePolynomialMoments(PetscInt dim, PetscInt deg
   const PetscReal *qpoints;
   PetscReal       *qpoints_copy;
   const PetscReal *weights;
-  Mat              V, Vm, P;
+  Mat              V, Vinv, M, Vm, P;
   PetscScalar     *V_array, *Vm_array;
   PetscQuadrature  mQ, newIntNodes;
   PetscErrorCode   ierr;
@@ -2142,11 +2215,16 @@ static PetscErrorCode PetscDualSpacePolynomialMoments(PetscInt dim, PetscInt deg
   ierr = MatDenseGetArrayWrite(V, &V_array);CHKERRQ(ierr);
   ierr = PetscDTPKDEvalJet(dim, npoints, points, deg, 0, V_array);CHKERRQ(ierr);
   ierr = MatDenseRestoreArrayWrite(V, &V_array);CHKERRQ(ierr);
-  // V maps (on the left) basis to evaluation at the points
-  ierr = MatTranspose(V, MAT_INPLACE_MATRIX, &V);CHKERRQ(ierr);
-  // V^{-1} maps (on the left) evaluation at the points to the basis
-  // V^{-T} maps (on the right) evaluation at the points to the basis
-  ierr = MatLUFactor(V, NULL, NULL, NULL);CHKERRQ(ierr);
+
+  ierr = MatSeqDenseInvert(V, &Vinv);CHKERRQ(ierr);
+  ierr = MatDestroy(&V);CHKERRQ(ierr);
+  // V^-T V^-1 is the mass matrix
+  ierr = MatTransposeMatMult(Vinv, Vinv, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &M);CHKERRQ(ierr);
+  ierr = MatSeqDenseSqrt(M);CHKERRQ(ierr);
+  // V^-1 M^{-1/2} is an orthonormal basis that retains the symmetry properties of the nodal basis
+  ierr = MatMatMult(Vinv, M, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &V);CHKERRQ(ierr);
+  ierr = MatDestroy(&M);CHKERRQ(ierr);
+  ierr = MatDestroy(&Vinv);CHKERRQ(ierr);
 
   ierr = PetscDTStroudConicalQuadrature(dim, 1, momentOrder + 1, -1., 1., &mQ);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(mQ, NULL, NULL, &mpoints, &qpoints, &weights);CHKERRQ(ierr);
@@ -2162,11 +2240,8 @@ static PetscErrorCode PetscDualSpacePolynomialMoments(PetscInt dim, PetscInt deg
   }
   // Vm maps (on the left) basis to evaluation at the quadrature points
   ierr = MatDenseRestoreArrayWrite(Vm, &Vm_array);CHKERRQ(ierr);
-  // Vm^T maps (on the right) basis to evaluation at the quadrature points
-  ierr = MatTranspose(Vm, MAT_INPLACE_MATRIX, &Vm);CHKERRQ(ierr);
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF, Ns, mpoints, NULL, &P);CHKERRQ(ierr);
-  // V^{-T} Vm^T maps (on the right) evaluation at the nodes to the basis to the quadrature points
-  ierr = MatMatSolve(V, Vm, P);CHKERRQ(ierr);
+  ierr = MatMatMult(Vm, V, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &P);CHKERRQ(ierr);
+  ierr = MatTranspose(P, MAT_INPLACE_MATRIX, &P);CHKERRQ(ierr);
   if (Nk > 1) {
     Mat Pv;
 

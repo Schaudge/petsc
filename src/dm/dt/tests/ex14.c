@@ -36,65 +36,75 @@ static PetscErrorCode createFE(DMPolytopeType tope, PetscInt degree, PetscInt fo
 
 static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDegree, PetscBool trimmed, PetscBool useMoments, PetscInt origDegree, PetscReal *error)
 {
-  PetscFE           F, dF;
+  PetscFE           origF, F, dF;
   PetscDualSpace    X, dX;
   Mat               E1, Proj1;
   Mat               D1, D2, D1P1; // differential matrix
   Mat               DP, PD;
-  PetscInt          Nb, Nform1, Nform2;
+  PetscInt          Nform1, Nform2;
   PetscReal        *pScalar1, *pScalar2;
   PetscQuadrature   q1, q2;
   Mat               P1, P2; // projectors
   PetscInt          nPoints1, nPoints2;
   PetscInt          dim;
-  PetscTabulation   T;
+  PetscTabulation   origT, T;
   const PetscReal  *points1, *points2;
-  PetscInt         Nb1;
-  PetscErrorCode   ierr;
+  PetscInt          origNb, Nb1;
+  PetscErrorCode    ierr;
 
   PetscFunctionBegin;
   dim = DMPolytopeTypeGetDim(tope);
-  ierr = PetscDTBinomialInt(dim + origDegree, dim, &Nb);CHKERRQ(ierr);
 
   // create the original finite element and project the polynomials into the space
+  ierr = createFE(tope, origDegree, formDegree, trimmed, useMoments, origDegree, &origF);
+  if (ierr == PETSC_ERR_SUP) {
+    PetscFunctionReturn(ierr);
+  }
+  CHKERRQ(ierr);
+  // create the subject finite element and project the polynomials into the space
   ierr = createFE(tope, degree, formDegree, trimmed, useMoments, origDegree, &F);
   if (ierr == PETSC_ERR_SUP) {
+    PetscErrorCode ierr2 = PetscFEDestroy(&origF);CHKERRQ(ierr2);
     PetscFunctionReturn(ierr);
   }
   CHKERRQ(ierr);
   // create the differential finite element
   ierr = createFE(tope, trimmed ? degree : degree - 1, PetscAbsInt(formDegree) + 1, trimmed, useMoments, origDegree, &dF);
   if (ierr == PETSC_ERR_SUP) {
-    PetscErrorCode ierr2 = PetscFEDestroy(&F);CHKERRQ(ierr2);
+    PetscErrorCode ierr2 = PetscFEDestroy(&origF);CHKERRQ(ierr2);
+    ierr2 = PetscFEDestroy(&F);CHKERRQ(ierr2);
     PetscFunctionReturn(ierr);
   }
   CHKERRQ(ierr);
   ierr = PetscFEGetDualSpace(F, &X);CHKERRQ(ierr);
   ierr = PetscDualSpaceGetAllData(X, &q1, &P1);CHKERRQ(ierr);
   ierr = PetscQuadratureGetData(q1, NULL, NULL, &nPoints1, &points1, NULL);CHKERRQ(ierr);
+  ierr = PetscFEGetDimension(origF, &origNb);CHKERRQ(ierr);
   ierr = PetscDTBinomialInt(dim, PetscAbsInt(formDegree), &Nform1);CHKERRQ(ierr);
-  ierr = PetscMalloc1(Nb * nPoints1, &pScalar1);CHKERRQ(ierr);
-  ierr = PetscDTPKDEvalJet(dim, nPoints1, points1, origDegree, 0, pScalar1);CHKERRQ(ierr);
+  ierr = PetscFECreateTabulation(origF, 1, nPoints1, points1, 0, &origT);CHKERRQ(ierr);
   // E1: basis evaluated at points1
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF, nPoints1 * Nform1, Nb * Nform1, NULL, &E1);CHKERRQ(ierr);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF, nPoints1 * Nform1, origNb, NULL, &E1);CHKERRQ(ierr);
   {
     PetscScalar *a;
-    PetscInt b_strl = Nform1 * nPoints1;
-    PetscInt f_strl = 1 + b_strl * Nb;
+    PetscInt b_strl  = Nform1 * nPoints1;
     PetscInt pt_strl = Nform1;
+    PetscInt f_strl  = 1;
+    PetscReal *B = origT->T[0];
 
-    PetscInt b_strr = nPoints1;
-    PetscInt pt_strr = 1;
+    PetscInt pt_strr = Nform1 * origNb;
+    PetscInt b_strr  = Nform1;
+    PetscInt f_strr  = 1;
     ierr = MatDenseGetArrayWrite(E1, &a);CHKERRQ(ierr);
-    for (PetscInt b = 0; b < Nb; b++) {
+    for (PetscInt b = 0; b < origNb; b++) {
       for (PetscInt f = 0; f < Nform1; f++) {
         for (PetscInt pt = 0; pt < nPoints1; pt++) {
-          a[b * b_strl + f * f_strl + pt * pt_strl] = pScalar1[b * b_strr + pt * pt_strr];
+          a[b*b_strl + f*f_strl + pt*pt_strl] = B[b*b_strr + f*f_strr + pt*pt_strr];
         }
       }
     }
     ierr = MatDenseRestoreArrayWrite(E1, &a);CHKERRQ(ierr);
   }
+  ierr = PetscTabulationDestroy(&origT);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)E1, "Evaluation");CHKERRQ(ierr);
   ierr = MatMatMult(P1, E1, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &Proj1);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)Proj1, "F projection");CHKERRQ(ierr);
@@ -152,21 +162,23 @@ static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDe
   ierr = PetscObjectSetName((PetscObject)DP, "DP");CHKERRQ(ierr);
 
   // D2: evaluate the differential of the basis points2
-  ierr = PetscMalloc1(Nb * (1 + dim) * nPoints2, &pScalar2);CHKERRQ(ierr);
-  ierr = PetscDTPKDEvalJet(dim, nPoints2, points2, origDegree, 1, pScalar2);CHKERRQ(ierr);
-  ierr = MatCreateSeqDense(PETSC_COMM_SELF, Nform2 * nPoints2, Nb * Nform1, NULL, &D2);CHKERRQ(ierr);
+  ierr = PetscFECreateTabulation(origF, 1, nPoints2, points2, 1, &origT);CHKERRQ(ierr);
+  ierr = MatCreateSeqDense(PETSC_COMM_SELF, Nform2 * nPoints2, origNb, NULL, &D2);CHKERRQ(ierr);
   {
     PetscScalar *a;
     PetscInt (*pattern)[3] = NULL;
     PetscInt nnz = Nform2 * (PetscAbsInt(formDegree) + 1);
-    PetscInt b_strl = Nform2 * nPoints2;
-    PetscInt fj_strl = b_strl * Nb;
-    PetscInt fi_strl = 1;
-    PetscInt pt_strl = Nform2;
 
-    PetscInt b_strr = nPoints2 * (1 + dim);
-    PetscInt jet_strr = nPoints2;
-    PetscInt pt_strr = 1;
+    PetscInt b_strl  = Nform2 * nPoints2;
+    PetscInt pt_strl = Nform2;
+    PetscInt fi_strl = 1;
+
+    PetscInt pt_strr  = dim * Nform1 * origNb;
+    PetscInt b_strr   = dim * Nform1;
+    PetscInt fj_strr  = dim;
+    PetscInt jet_strr = 1;
+
+    PetscReal *D = origT->T[1];
 
     ierr = PetscMalloc1(nnz, &pattern);CHKERRQ(ierr);
     ierr = PetscDTAltVDifferentialPattern(dim, formDegree, PetscAbsInt(formDegree) + 1, pattern);CHKERRQ(ierr);
@@ -180,15 +192,17 @@ static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDe
         scale = -1.;
         fi = -(fi+1);
       }
-      for (PetscInt b = 0; b < Nb; b++) {
+      for (PetscInt b = 0; b < origNb; b++) {
         for (PetscInt pt = 0; pt < nPoints2; pt++) {
-          a[b * b_strl + fi * fi_strl + fj * fj_strl + pt * pt_strl] += scale * pScalar2[b * b_strr + (1 + jetc) * jet_strr + pt * pt_strr];
+          a[b * b_strl + fi * fi_strl + pt * pt_strl] += scale * D[b * b_strr + jetc * jet_strr + fj * fj_strr + pt * pt_strr];
         }
       }
     }
     ierr = MatDenseRestoreArrayWrite(D2, &a);CHKERRQ(ierr);
     ierr = PetscFree(pattern);CHKERRQ(ierr);
   }
+  ierr = PetscTabulationDestroy(&origT);CHKERRQ(ierr);
+
   ierr = PetscObjectSetName((PetscObject)D2, "Differential evaluation");CHKERRQ(ierr);
   ierr = MatMatMult(P2, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &PD);CHKERRQ(ierr);
   ierr = MatAXPY(PD, -1.0, DP, SAME_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -205,6 +219,7 @@ static PetscErrorCode test(DMPolytopeType tope, PetscInt degree, PetscInt formDe
   ierr = PetscTabulationDestroy(&T);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&dF);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&F);CHKERRQ(ierr);
+  ierr = PetscFEDestroy(&origF);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -235,6 +250,7 @@ int main(int argc, char **argv)
             default:
               break;
             }
+            origDegree = degree + 2;
 
             ierr = test(tope, degree, formDegree, trimmed, useMoments, origDegree, &error);
             if (ierr == PETSC_ERR_SUP) {

@@ -969,6 +969,148 @@ const char       PKDCitation[] = "@article{Kirby2010,\n"
                                  "  year={2010},\n"
                                  "  publisher={ACM New York, NY, USA}\n}\n";
 
+PetscErrorCode PetscDTPKDWeightedEvalJet(PetscInt dim, const PetscReal vertex_weights[], PetscInt npoints, const PetscReal points[], PetscInt degree, PetscInt k, PetscReal p[])
+{
+  PetscInt        degidx, kidx, d, pt;
+  PetscInt        Nk, Ndeg;
+  PetscInt       *ktup, *degtup;
+  PetscReal      *scales, initscale, scaleexp;
+  PetscErrorCode  ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscCitationsRegister(PKDCitation, &PKDCite);CHKERRQ(ierr);
+  ierr = PetscDTBinomialInt(dim + k, k, &Nk);CHKERRQ(ierr);
+  ierr = PetscDTBinomialInt(degree + dim, degree, &Ndeg);CHKERRQ(ierr);
+  ierr = PetscMalloc2(dim, &degtup, dim, &ktup);CHKERRQ(ierr);
+  ierr = PetscMalloc1(Ndeg, &scales);CHKERRQ(ierr);
+  initscale = 1.;
+  if (dim > 1) {
+    ierr = PetscDTBinomial(dim,2,&scaleexp);CHKERRQ(ierr);
+    initscale = PetscPowReal(2.,scaleexp*0.5);
+  }
+  for (degidx = 0; degidx < Ndeg; degidx++) {
+    PetscInt e, i;
+    PetscInt m1idx = -1, m2idx = -1;
+    PetscInt n;
+    PetscInt degsum;
+    PetscReal alpha;
+    PetscReal cnm1, cnm1x, cnm2;
+    PetscReal left_weight, right_weight;
+    PetscReal norm;
+
+    ierr = PetscDTIndexToGradedOrder(dim, degidx, degtup);CHKERRQ(ierr);
+    for (d = dim - 1; d >= 0; d--) if (degtup[d]) break;
+    if (d < 0) { /* constant is 1 everywhere, all derivatives are zero */
+      scales[degidx] = initscale;
+      for (e = 0; e < dim; e++) {
+        ierr = PetscDTJacobiNorm(e,0.,0,&norm);CHKERRQ(ierr);
+        scales[degidx] /= norm;
+      }
+      for (i = 0; i < npoints; i++) p[degidx * Nk * npoints + i] = 1.;
+      for (i = 0; i < (Nk - 1) * npoints; i++) p[(degidx * Nk + 1) * npoints + i] = 0.;
+      continue;
+    }
+    n = degtup[d];
+    degtup[d]--;
+    ierr = PetscDTGradedOrderToIndex(dim, degtup, &m1idx);CHKERRQ(ierr);
+    if (degtup[d] > 0) {
+      degtup[d]--;
+      ierr = PetscDTGradedOrderToIndex(dim, degtup, &m2idx);CHKERRQ(ierr);
+      degtup[d]++;
+    }
+    degtup[d]++;
+    for (e = 0, degsum = 0; e < d; e++) degsum += degtup[e];
+    left_weight = (d == 0 && vertex_weights) ? vertex_weights[0] : 0.;
+    right_weight = vertex_weights ? vertex_weights[d+1] : 0.;
+    alpha = 2 * degsum + d + left_weight;
+    PetscDTJacobiRecurrence_Internal(n,alpha,right_weight,cnm1,cnm1x,cnm2);
+
+    scales[degidx] = initscale;
+    for (e = 0, degsum = 0; e < dim; e++) {
+      PetscInt  f;
+      PetscReal ealpha;
+      PetscReal enorm;
+
+      ealpha = 2 * degsum + e;
+      for (f = 0; f < degsum; f++) scales[degidx] *= 2.;
+      ierr = PetscDTJacobiNorm(ealpha+left_weight,right_weight,degtup[e],&enorm);CHKERRQ(ierr);
+      scales[degidx] /= enorm;
+      degsum += degtup[e];
+    }
+
+    for (pt = 0; pt < npoints; pt++) {
+      /* compute the multipliers */
+      PetscReal thetanm1, thetanm1x, thetanm2;
+
+      thetanm1x = dim - (d+1) + 2.*points[pt * dim + d];
+      for (e = d+1; e < dim; e++) thetanm1x += points[pt * dim + e];
+      thetanm1x *= 0.5;
+      thetanm1 = (2. - (dim-(d+1)));
+      for (e = d+1; e < dim; e++) thetanm1 -= points[pt * dim + e];
+      thetanm1 *= 0.5;
+      thetanm2 = thetanm1 * thetanm1;
+
+      for (kidx = 0; kidx < Nk; kidx++) {
+        PetscInt f;
+
+        ierr = PetscDTIndexToGradedOrder(dim, kidx, ktup);CHKERRQ(ierr);
+        /* first sum in the same derivative terms */
+        p[(degidx * Nk + kidx) * npoints + pt] = (cnm1 * thetanm1 + cnm1x * thetanm1x) * p[(m1idx * Nk + kidx) * npoints + pt];
+        if (m2idx >= 0) {
+          p[(degidx * Nk + kidx) * npoints + pt] -= cnm2 * thetanm2 * p[(m2idx * Nk + kidx) * npoints + pt];
+        }
+
+        for (f = d; f < dim; f++) {
+          PetscInt km1idx, mplty = ktup[f];
+
+          if (!mplty) continue;
+          ktup[f]--;
+          ierr = PetscDTGradedOrderToIndex(dim, ktup, &km1idx);CHKERRQ(ierr);
+
+          /* the derivative of  cnm1x * thetanm1x  wrt x variable f is 0.5 * cnm1x if f > d otherwise it is cnm1x */
+          /* the derivative of  cnm1  * thetanm1   wrt x variable f is 0 if f == d, otherwise it is -0.5 * cnm1 */
+          /* the derivative of -cnm2  * thetanm2   wrt x variable f is 0 if f == d, otherwise it is cnm2 * thetanm1 */
+          if (f > d) {
+            PetscInt f2;
+
+            p[(degidx * Nk + kidx) * npoints + pt] += mplty * 0.5 * (cnm1x - cnm1) * p[(m1idx * Nk + km1idx) * npoints + pt];
+            if (m2idx >= 0) {
+              p[(degidx * Nk + kidx) * npoints + pt] += mplty * cnm2 * thetanm1 * p[(m2idx * Nk + km1idx) * npoints + pt];
+              /* second derivatives of -cnm2  * thetanm2   wrt x variable f,f2 is like - 0.5 * cnm2 */
+              for (f2 = f; f2 < dim; f2++) {
+                PetscInt km2idx, mplty2 = ktup[f2];
+                PetscInt factor;
+
+                if (!mplty2) continue;
+                ktup[f2]--;
+                ierr = PetscDTGradedOrderToIndex(dim, ktup, &km2idx);CHKERRQ(ierr);
+
+                factor = mplty * mplty2;
+                if (f == f2) factor /= 2;
+                p[(degidx * Nk + kidx) * npoints + pt] -= 0.5 * factor * cnm2 * p[(m2idx * Nk + km2idx) * npoints + pt];
+                ktup[f2]++;
+              }
+            }
+          } else {
+            p[(degidx * Nk + kidx) * npoints + pt] += mplty * cnm1x * p[(m1idx * Nk + km1idx) * npoints + pt];
+          }
+          ktup[f]++;
+        }
+      }
+    }
+  }
+  for (degidx = 0; degidx < Ndeg; degidx++) {
+    PetscReal scale = scales[degidx];
+    PetscInt i;
+
+    for (i = 0; i < Nk * npoints; i++) p[degidx*Nk*npoints + i] *= scale;
+  }
+  ierr = PetscFree(scales);CHKERRQ(ierr);
+  ierr = PetscFree2(degtup, ktup);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
 /*@
   PetscDTPKDEvalJet - Evaluate the jet (function and derivatives) of the Proriol-Koornwinder-Dubiner (PKD) basis for
   the space of polynomials up to a given degree.  The PKD basis is L2-orthonormal on the biunit simplex (which is used
@@ -1904,6 +2046,50 @@ PetscErrorCode PetscDTGaussTensorQuadrature(PetscInt dim, PetscInt Nc, PetscInt 
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode PetscDTStroudConicalWeightedQuadrature(PetscInt dim, PetscInt Nc, PetscInt npoints, PetscReal a, PetscReal b, const PetscReal vertex_weights[], PetscQuadrature *q)
+{
+  PetscInt       totprev, totrem;
+  PetscInt       totpoints;
+  PetscReal     *p1, *w1;
+  PetscReal     *x, *w;
+  PetscInt       i, j, k, l, m, pt, c;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if ((a != -1.0) || (b != 1.0)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Must use default internal right now");
+  totpoints = 1;
+  for (i = 0, totpoints = 1; i < dim; i++) totpoints *= npoints;
+  ierr = PetscMalloc1(totpoints*dim, &x);CHKERRQ(ierr);
+  ierr = PetscMalloc1(totpoints*Nc, &w);CHKERRQ(ierr);
+  ierr = PetscMalloc2(npoints, &p1, npoints, &w1);CHKERRQ(ierr);
+  for (i = 0; i < totpoints*Nc; i++) w[i] = 1.;
+  for (i = 0, totprev = 1, totrem = totpoints / npoints; i < dim; i++) {
+    PetscReal mul;
+    PetscReal left_weight = (i == 0 && vertex_weights) ? vertex_weights[0] : 0.;
+    PetscReal right_weight = vertex_weights ? vertex_weights[i+1] : 0.;
+
+    mul = PetscPowReal(2.,-i);
+    ierr = PetscDTGaussJacobiQuadrature(npoints, -1., 1., i+left_weight, right_weight, p1, w1);CHKERRQ(ierr);
+    for (pt = 0, l = 0; l < totprev; l++) {
+      for (j = 0; j < npoints; j++) {
+        for (m = 0; m < totrem; m++, pt++) {
+          for (k = 0; k < i; k++) x[pt*dim+k] = (x[pt*dim+k]+1.)*(1.-p1[j])*0.5 - 1.;
+          x[pt * dim + i] = p1[j];
+          for (c = 0; c < Nc; c++) w[pt*Nc + c] *= mul * w1[j];
+        }
+      }
+    }
+    totprev *= npoints;
+    totrem /= npoints;
+  }
+  ierr = PetscFree2(p1, w1);CHKERRQ(ierr);
+  ierr = PetscQuadratureCreate(PETSC_COMM_SELF, q);CHKERRQ(ierr);
+  ierr = PetscQuadratureSetOrder(*q, 2*npoints-1);CHKERRQ(ierr);
+  ierr = PetscQuadratureSetData(*q, dim, Nc, totpoints, x, w);CHKERRQ(ierr);
+  ierr = PetscObjectChangeTypeName((PetscObject)*q,"StroudConicalWeighted");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*@
   PetscDTStroudConicalQuadrature - create Stroud conical quadrature for a simplex
 
@@ -1930,42 +2116,10 @@ PetscErrorCode PetscDTGaussTensorQuadrature(PetscInt dim, PetscInt Nc, PetscInt 
 @*/
 PetscErrorCode PetscDTStroudConicalQuadrature(PetscInt dim, PetscInt Nc, PetscInt npoints, PetscReal a, PetscReal b, PetscQuadrature *q)
 {
-  PetscInt       totprev, totrem;
-  PetscInt       totpoints;
-  PetscReal     *p1, *w1;
-  PetscReal     *x, *w;
-  PetscInt       i, j, k, l, m, pt, c;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if ((a != -1.0) || (b != 1.0)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Must use default internal right now");
-  totpoints = 1;
-  for (i = 0, totpoints = 1; i < dim; i++) totpoints *= npoints;
-  ierr = PetscMalloc1(totpoints*dim, &x);CHKERRQ(ierr);
-  ierr = PetscMalloc1(totpoints*Nc, &w);CHKERRQ(ierr);
-  ierr = PetscMalloc2(npoints, &p1, npoints, &w1);CHKERRQ(ierr);
-  for (i = 0; i < totpoints*Nc; i++) w[i] = 1.;
-  for (i = 0, totprev = 1, totrem = totpoints / npoints; i < dim; i++) {
-    PetscReal mul;
-
-    mul = PetscPowReal(2.,-i);
-    ierr = PetscDTGaussJacobiQuadrature(npoints, -1., 1., i, 0.0, p1, w1);CHKERRQ(ierr);
-    for (pt = 0, l = 0; l < totprev; l++) {
-      for (j = 0; j < npoints; j++) {
-        for (m = 0; m < totrem; m++, pt++) {
-          for (k = 0; k < i; k++) x[pt*dim+k] = (x[pt*dim+k]+1.)*(1.-p1[j])*0.5 - 1.;
-          x[pt * dim + i] = p1[j];
-          for (c = 0; c < Nc; c++) w[pt*Nc + c] *= mul * w1[j];
-        }
-      }
-    }
-    totprev *= npoints;
-    totrem /= npoints;
-  }
-  ierr = PetscFree2(p1, w1);CHKERRQ(ierr);
-  ierr = PetscQuadratureCreate(PETSC_COMM_SELF, q);CHKERRQ(ierr);
-  ierr = PetscQuadratureSetOrder(*q, 2*npoints-1);CHKERRQ(ierr);
-  ierr = PetscQuadratureSetData(*q, dim, Nc, totpoints, x, w);CHKERRQ(ierr);
+  ierr = PetscDTStroudConicalWeightedQuadrature(dim, Nc, npoints, a, b, NULL, q);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)*q,"StroudConical");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
