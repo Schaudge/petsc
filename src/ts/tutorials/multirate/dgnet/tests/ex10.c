@@ -189,7 +189,6 @@ int main(int argc,char *argv[])
     /* Delete unneeded data in dgnet */
     ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
     ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
-    ierr = DMSetUp(dgnet->network);CHKERRQ(ierr);
     ierr = DMNetworkDistribute(&dgnet->network,0);CHKERRQ(ierr);
     /* Create Vectors */
     ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);

@@ -131,15 +131,20 @@ int main(int argc,char *argv[])
     ierr = DGNetworkCreate(dgnet,dgnet->networktype,dgnet->Mx);CHKERRQ(ierr);
     /* Create DMNetwork */
     ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr);
-    
-    
     /* Set Network Data into the DMNetwork (on proc[0]) */
     ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
     /* Delete unneeded data in dgnet */
     ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
     ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
-    ierr = DMSetUp(dgnet->network);CHKERRQ(ierr);
-    ierr = DMNetworkDistribute(&dgnet->network,0);CHKERRQ(ierr);
+    if (1) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"\nOriginal networkdm, DMView:\n");CHKERRQ(ierr);
+    ierr = DMView(dgnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
+  ierr = DMNetworkDistribute(&dgnet->network,0);CHKERRQ(ierr);
+  if (1) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"\nAfter DMNetworkDistribute, DMView:\n");CHKERRQ(ierr);
+    ierr = DMView(dgnet->network,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
     /* Create Vectors */
     ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);
     /* Set up component dynamic data structures */
@@ -174,9 +179,6 @@ int main(int argc,char *argv[])
     ierr = RiemannSolverSetFlux(dgnet->physics.rs,1,dgnet->physics.dof,dgnet->physics.flux2);CHKERRQ(ierr);
     ierr = RiemannSolverSetLaxCurve(dgnet->physics.rs,dgnet->physics.laxcurve);CHKERRQ(ierr);
     ierr = RiemannSolverSetUp(dgnet->physics.rs);CHKERRQ(ierr);
-
-
-
     /* Set up NetRS */
     ierr = PetscFunctionListFind(errest,errorestimator,&errorest);CHKERRQ(ierr);
     ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,errorest,1);CHKERRQ(ierr);
