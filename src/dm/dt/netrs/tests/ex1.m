@@ -15,7 +15,8 @@ Lax = Roe;
 Taylor = Roe; 
 Exact  = Roe;
 WaveType = Roe;
-NegHeight = Roe; 
+NegHeight = Roe;
+FluxExact = Roe;
 
 for i = 1:length(heightp)
     for j = 1:length(heightd)
@@ -32,6 +33,7 @@ for i = 1:length(heightp)
         Exact(i,j) = p.ExactStar; 
         NegHeight(i,j) = p.NegHeight;
         WaveType(i,j) = p.WaveType;
+        FluxExact(i,j) = p.ExactFlux;
     end
 end
 
@@ -40,27 +42,39 @@ figure;
 contourf(heightp,heightd,Roe);
 colorbar
 
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+ylabel("Parent Height"); 
+xlabel("Daughter Height"); 
 title("Roe Error Estimate");
+saveas(gcf,'Roe_Ex1.jpg');
 
 figure; 
 contourf(heightp,heightd,Lax);
 colorbar
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+ylabel("Parent Height"); 
+xlabel("Daughter Height"); 
 title("Lax Error Estimates"); 
+saveas(gcf,'Lax_Ex1.jpg');
 
 figure; 
 contourf(heightp,heightd,Taylor);
 colorbar
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+ylabel("Parent Height"); 
+xlabel("Daughter Height"); 
 title("Taylor Error Estimates"); 
+saveas(gcf,'Taylor_Ex1.jpg');
 
 figure; 
 contourf(heightp,heightd,Exact);
 colorbar
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+ylabel("Parent Height"); 
+xlabel("Daughter Height"); 
 title("Star State Error For Linearized Solver");
+saveas(gcf,'ExactStar_Ex1.jpg');
+
+figure; 
+contourf(heightp,heightd,FluxExact);
+colorbar
+ylabel("Parent Height"); 
+xlabel("Daughter Height"); 
+title("Flux Error For Linearized Solver");
+saveas(gcf,'ExactFlux.jpg'); 

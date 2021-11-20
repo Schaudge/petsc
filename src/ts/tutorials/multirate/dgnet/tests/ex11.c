@@ -26,7 +26,7 @@ PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void
 }
 int main(int argc,char *argv[])
 {
-  char              physname[256] = "shallow", errorestimator[256] = "roe" ;
+  char              physname[256] = "shallow", errorestimator[256] = "lax" ;
   PetscFunctionList physics = 0,errest = 0; 
   MPI_Comm          comm;
   TS                ts;
@@ -71,6 +71,7 @@ int main(int argc,char *argv[])
     dgnet->diagnosticlow  = 0.5; 
     dgnet->diagnosticup   = 1e-4; 
     dgnet->adaptivecouple = PETSC_FALSE;
+    dgnet->linearcoupling = PETSC_TRUE;
     /* Command Line Options */
     ierr = PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
@@ -83,9 +84,12 @@ int main(int argc,char *argv[])
     ierr = PetscOptionsInt("-ndaughters","Number of daughter branches for network type 3","",dgnet->ndaughters,&dgnet->ndaughters,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view","View the DG solution","",dgnet->view,&dgnet->view,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-adaptivecouple","Use adaptive Coupling for Netrs","",dgnet->adaptivecouple,&dgnet->adaptivecouple,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-lax","Use lax curve diagnostic for coupling","",dgnet->laxcurve,&dgnet->laxcurve,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-jumptol","Set jump tolerance for lame one-sided limiter","",dgnet->jumptol,&dgnet->jumptol,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsBool("-lincouple","Use lax curve diagnostic for coupling","",dgnet->linearcoupling,&dgnet->linearcoupling,NULL);CHKERRQ(ierr);
+
     ierr = PetscOptionsEnd();CHKERRQ(ierr);
     /* Choose the physics from the list of registered models */
     {
@@ -97,7 +101,6 @@ int main(int argc,char *argv[])
     }
     ierr = PetscMalloc1(dgnet->physics.dof,&dgnet->physics.order);CHKERRQ(ierr); /* should be constructed by physics */
     ierr = MakeOrder(dgnet->physics.dof,dgnet->physics.order,maxorder);CHKERRQ(ierr);
-    dgnet->linearcoupling =  PETSC_TRUE; /* only test linear coupling version */
   
     /* Generate Network Data */
     ierr = DGNetworkCreate(dgnet,dgnet->networktype,dgnet->Mx);CHKERRQ(ierr);
@@ -134,7 +137,7 @@ int main(int argc,char *argv[])
     ierr = DGNetworkBuildDynamic(dgnet);CHKERRQ(ierr);
     /* Set up NetRS */
     ierr = PetscFunctionListFind(errest,errorestimator,&errorest);CHKERRQ(ierr);
-    ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,errorest);CHKERRQ(ierr);
+    ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,errorest,1);CHKERRQ(ierr);
     ierr = DGNetworkProject(dgnet,dgnet->X,0.0);CHKERRQ(ierr);
 
   /* Create a time-stepping object */

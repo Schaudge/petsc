@@ -60,7 +60,7 @@ PETSC_EXTERN PetscErrorCode NetRSSetUp(NetRS);
 PETSC_EXTERN PetscErrorCode NetRSSetRiemannSolver(NetRS,RiemannSolver);
 PETSC_EXTERN PetscErrorCode NetRSSetNumEdges(NetRS,PetscInt);
 
-PETSC_EXTERN PetscErrorCode NetRSEvaluate(NetRS,const PetscReal*,const EdgeDirection*,PetscReal**,PetscReal**);
+PETSC_EXTERN PetscErrorCode NetRSEvaluate(NetRS,const PetscReal*,const EdgeDirection*,PetscReal**,PetscReal**,PetscBool*);
 
 PETSC_EXTERN PetscErrorCode NetRSSetApplicationContext(NetRS,void*);
 PETSC_EXTERN PetscErrorCode NetRSGetApplicationContext(NetRS,void*);
@@ -68,12 +68,19 @@ PETSC_EXTERN PetscErrorCode NetRSGetApplicationContext(NetRS,void*);
 /* Error Estimator Support WIP */
 PETSC_EXTERN PetscErrorCode NetRSErrorEstimate(NetRS,PetscInt,const PetscReal*,const PetscReal*,PetscReal*);
 PETSC_EXTERN PetscErrorCode NetRSSetErrorEstimate(NetRS,NRSErrorEstimator);
+PETSC_EXTERN PetscErrorCode NetRSUseErrorEstimator(NetRS,PetscBool);
+PETSC_EXTERN PetscErrorCode NetRSIsUsingErrorEstimator(NetRS,PetscBool*);
+
 
 /* error estimator implementations (perhaps its own class at a later date) */ 
 PETSC_EXTERN PetscErrorCode NetRSLaxErrorEstimate(void*,NetRS,PetscInt,const PetscReal*,const PetscReal*,PetscReal*);
 PETSC_EXTERN PetscErrorCode NetRSRoeErrorEstimate(void*,NetRS,PetscInt,const PetscReal*,const PetscReal*,PetscReal*);
 PETSC_EXTERN PetscErrorCode NetRSTaylorErrorEstimate(void*,NetRS,PetscInt,const PetscReal*,const PetscReal*,PetscReal*);
 
+/* Adaptivity Support */ 
+PETSC_EXTERN PetscErrorCode NetRSUseAdaptivity(NetRS,PetscBool);
+PETSC_EXTERN PetscErrorCode NetRSIsUsingeAdaptivity(NetRS,PetscBool*);
+PETSC_EXTERN PetscErrorCode NetRSSetFineTol(NetRS,PetscReal);
 
 PETSC_EXTERN PetscErrorCode NetRSView(NetRS,PetscViewer);
 #endif

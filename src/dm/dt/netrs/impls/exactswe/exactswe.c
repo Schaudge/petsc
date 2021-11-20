@@ -50,7 +50,6 @@ static PetscErrorCode ExactSWE_LaxCurveFun(SNES snes,Vec x,Vec f, void *ctx)
     F[n-1] = ustar[n-1] - ubar[1];
   ierr = VecRestoreArrayRead(x,&ustar);CHKERRQ(ierr);
   ierr = VecRestoreArray(f,&F);CHKERRQ(ierr);
-  ierr = VecView(f,PETSC_VIEWER_STDERR_SELF);
   PetscFunctionReturn(0);
 }
 
@@ -171,16 +170,17 @@ static PetscErrorCode PhysicsVertexFlux_Shallow_Full(NetRS netrs,const PetscScal
   ierr = SNESSolve(exactswe->snes,NULL,exactswe->x);CHKERRQ(ierr);
   ierr = VecGetArray(exactswe->x,&x);CHKERRQ(ierr);
 
-  if(netrs->estimate) {
-    for (i=0;i<netrs->numedges;i++) {
-      ierr = NetRSErrorEstimate(netrs,dir[i],u+dof*i,x+dof*i,&error[i]);CHKERRQ(ierr); /* compute error esimate on star state */
-    }
-  }
   /* Compute flux from the star state */
   ierr = NetRSGetApplicationContext(netrs,&ctx);CHKERRQ(ierr); 
   /* Compute the Flux from the computed star values */
   for (i=0;i<netrs->numedges;i++) {
     x[i*dof+1] *= x[i*dof];
+  }
+
+  if(netrs->estimate) {
+    for (i=0;i<netrs->numedges;i++) {
+      ierr = NetRSErrorEstimate(netrs,dir[i],u+dof*i,x+dof*i,&error[i]);CHKERRQ(ierr); /* compute error esimate on star state */
+    }
   }
   for (i=0;i<netrs->numedges;i++) {
   netrs->rs->fluxfun(ctx,x+i*dof,flux+i*dof);CHKERRQ(ierr);
@@ -198,6 +198,7 @@ static PetscErrorCode NRSSetUp_ExactSWE(NetRS rs)
     ierr = VecCreateSeq(MPI_COMM_SELF,rs->numfields*rs->numedges,&exactswe->x);CHKERRQ(ierr); /* Specific to the SWE with equal height coupling. To be adjusted */
     ierr = VecDuplicate(exactswe->x,&exactswe->b);CHKERRQ(ierr);
     ierr = SNESCreate(PETSC_COMM_SELF,&exactswe->snes);CHKERRQ(ierr);
+    ierr = SNESSetFromOptions(exactswe->snes);CHKERRQ(ierr); /* add its own prefix later */
   PetscFunctionReturn(0);
 }
 
@@ -254,7 +255,7 @@ PETSC_EXTERN PetscErrorCode NRSCreate_ExactSWE(NetRS rs)
   rs->ops->destroy         = NRSDestroy_ExactSWE;
   rs->ops->setfromoptions  = NRSSetFromOptions_ExactSWE;
   rs->ops->view            = NRSView_ExactSWE;
-  rs->ops->evaluate        = PhysicsVertexFlux_Shallow_Full;
+  rs->ops->evaluate        = NRSEvaluate_ExactSWE;
   PetscFunctionReturn(0);
 }
 

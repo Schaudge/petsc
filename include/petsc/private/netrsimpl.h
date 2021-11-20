@@ -59,10 +59,7 @@ struct _p_NetRS {
   PetscReal coarsetol; /* tolerance to swtich to a coarser NetRS */ 
   PetscBool useadaptivity; 
   NetRSType finetype; /* used to set what type the fine type should be. By default the is the "exact lax curve solver" if available.
-                        FOR NOW AS EXACT SOLVERS ARE HACKED TOGETHER WILL ONLY WORK FOR SWE */ 
-
-
-
+                        FOR NOW AS EXACT SOLVERS ARE HACKED TOGETHER WILL ONLY WORK FOR SWE */
 };
 
 #endif

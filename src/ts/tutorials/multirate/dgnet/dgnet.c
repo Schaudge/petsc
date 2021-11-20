@@ -93,7 +93,8 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
         /* vertex */
 
         for (i=0; i<numVertices; i++) {
-          junctions[i].x = i*1.0*50.0; 
+          junctions[i].x = i*1.0*50.0;
+          junctions[i].y = 0.;
         }
         /* Edge */ 
         fvedges[0].nnodes = Mx;
@@ -136,6 +137,7 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
 
         for (i=0; i<numVertices; i++) {
           junctions[i].x = (3-i)*1.0/3.0*50.0; 
+          junctions[i].y = 0.; 
         }
         /* Edge */ 
         fvedges[0].nnodes = Mx; 
@@ -183,12 +185,21 @@ PetscErrorCode DGNetworkCreate(DGNetwork fvnet,PetscInt networktype,PetscInt Mx)
       ierr = PetscCalloc2(numVertices,&junctions,numEdges,&fvedges);CHKERRQ(ierr);
       /* vertex */
 
+      /* place them equispaced on the circle of radius length */
+      PetscReal theta; 
+      theta = 2.*PETSC_PI/(fvnet->ndaughters+1);
+      /*daughters */
       for (i=2; i<fvnet->ndaughters+2; ++i) {
-        junctions[i].x    = fvnet->length;
+        junctions[i].x = fvnet->length*PetscCosReal(theta*(i-1)+PETSC_PI); 
+        junctions[i].y = fvnet->length*(theta*(i-1)+PETSC_PI);
       }
+      /*parent */
+        junctions[0].x = -fvnet->length; 
+        junctions[0].y =0.0;
 
-      junctions[0].x = -fvnet->length; 
+      /*center */
       junctions[1].x = 0.0; 
+      junctions[1].y = 0.0; 
       /* Edge */ 
       fvedges[0].nnodes = fvnet->hratio*Mx; 
       for(i=1; i<fvnet->ndaughters+1; ++i) {
@@ -299,7 +310,7 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
   PetscErrorCode    ierr;  
   PetscInt          f,i,e,v,eStart,eEnd,vStart,vEnd,dof = fvnet->physics.dof;
   PetscInt          KeyEdge,KeyJunction,KeyFlux,vfrom,vto,nedges_tmp,nedges,nvertices; 
-  PetscInt          *edgelist = NULL,*numComp,*numDof,dim = 1,dmsize;
+  PetscInt          *edgelist = NULL,dim = 1,dmsize=0,numdof=0;
   EdgeFE            edgefe;
   Junction          junction;
   MPI_Comm          comm = fvnet->comm;
@@ -314,18 +325,10 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
   nedges      = fvnet->nedge;
   nvertices   = fvnet->nvertex; /* local num of vertices, excluding ghosts */
   edgelist    = fvnet->edgelist;
-  /* Construct the arrays for building the section for the plexs inside each edge 
-     from the user provided physics. HERE WE ARE ASSUMING DG FUNCTION SPACES FOR EVERY 
-     FIELD, ALONG WITH 1 COMPONENT PER FIELD (this can and will be altered later) */
-
-  ierr  = PetscMalloc2(dof,&numComp,dof*(dim+1),&numDof);CHKERRQ(ierr);
-  for (i = 0; i < dof*(dim+1); ++i) numDof[i] = 0;
-  for (i = 0; i < dof; ++i) numComp[i] = 1; 
-
-  /* all variables are stored at the cell level for DG (i.e edges in the 1d case here) */
-  for (f = 0; f < dof; ++f) {
-    numDof[f*(dim+1)+dim] = fvnet->physics.order[f]+1;
+  for(f=0; f<dof;f++) {
+    numdof += fvnet->physics.order[f]+1;
   }
+  
   /* Set up the network layout */
   ierr = DMNetworkSetNumSubNetworks(fvnet->network,PETSC_DECIDE,1);CHKERRQ(ierr);
   ierr = DMNetworkAddSubnetwork(fvnet->network,NULL,nvertices,nedges,edgelist,NULL);CHKERRQ(ierr);
@@ -343,32 +346,14 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork fvnet){
       TODO : Remove EdgeFE from DGNet, refactor how to construct the FE network. THis is definitely a hacky way to do it.  
     */
     edgefe = &fvnet->edgefe[e-eStart]; 
-    /* Construct a DMPlex on each edge to manage mesh information */
-    upper[0] = edgefe->length;
-
-    /* Anyway to turn off options for this? it will only work with dim 1 for the rest of the code */
-    ierr = DMPlexCreateBoxMesh(comm,1,PETSC_FALSE,&edgefe->nnodes,low,upper,NULL,PETSC_TRUE,&edgefe->dm);CHKERRQ(ierr);
-
-    /* Create Field section */ 
-    ierr = DMSetNumFields(edgefe->dm, dof);CHKERRQ(ierr);
-    ierr = DMPlexCreateSection(edgefe->dm, NULL, numComp, numDof, 0, NULL, NULL, NULL, NULL, &section);CHKERRQ(ierr);
-    /* 
-      NOTE: I do not assign names to the field variables as I don't want every edge storing copies of the same field names. 
-      These are instead stored in the user provided physics ctx. Anywhere a name is needed, look there, they will be stored in the same 
-      order as the field order in this section. 
-    */ 
-    ierr = DMSetLocalSection(edgefe->dm,section);CHKERRQ(ierr);
-    ierr = PetscSectionGetStorageSize(section,&dmsize);CHKERRQ(ierr);
-    ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
-    ierr = DMSetUp(edgefe->dm);CHKERRQ(ierr);
     /* 
       Add the data from the dmplex to the dmnetwork. We will create the global network vector from the dmnetwork and use the dmplex to manage the 
       data on an edge after getting the offset for set the edge. The dmnetwork creates the vectors and, but the dmplex inside an edge is used to actually 
       interact with the edge componenent of the network vector 
     */
+    dmsize = numdof*edgefe->nnodes;
     ierr = DMNetworkAddComponent(fvnet->network,e,KeyEdge,edgefe,dmsize);CHKERRQ(ierr);
   }
-  ierr = PetscFree2(numComp,numDof);CHKERRQ(ierr);
   /* Add Junction component to all local vertices. All data is currently assumed to be on proc[0]. Also add the flux component */
   for (v=vStart; v<vEnd; v++) {
     junction = &fvnet->junction[v-vStart];
@@ -450,12 +435,15 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork fvnet)
 {
   PetscErrorCode ierr; 
   PetscInt       e,v,i,nedges,dof = fvnet->physics.dof;
-  PetscInt       eStart,eEnd,vStart,vEnd,vfrom,vto,offset;
+  PetscInt       eStart,eEnd,vStart,vEnd,vfrom,vto,offset,*numComp,*numDof,dim = 1,f;
   const PetscInt *cone,*edges; 
-  EdgeFE         fvedge; 
+  EdgeFE         fvedge,edgefe;
   Junction       junction;
   Vec            localX = fvnet->localX; 
   PetscScalar    *xarr;
+  PetscReal         low[3] = {0, 0, 0},upper[3] = {1,1,1};
+  PetscSection      section;
+
 
   PetscFunctionBegin;
   ierr   = VecSet(fvnet->Ftmp,0.0);CHKERRQ(ierr);
@@ -512,6 +500,35 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork fvnet)
   }
   ierr = DGNetworkAssignCoupling(fvnet);CHKERRQ(ierr);
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
+  /* iterate through the edges and build the dmplex mesh for each edge */
+  ierr  = PetscMalloc2(dof,&numComp,dof*(dim+1),&numDof);CHKERRQ(ierr);
+  for (i = 0; i < dof*(dim+1); ++i) numDof[i] = 0;
+  for (i = 0; i < dof; ++i) numComp[i] = 1; 
+
+  /* all variables are stored at the cell level for DG (i.e edges in the 1d case here) */
+  for (f = 0; f < dof; ++f) {
+    numDof[f*(dim+1)+dim] = fvnet->physics.order[f]+1;
+  }
+  for(e=eStart;e<eEnd;e++){
+    ierr  = DMNetworkGetComponent(fvnet->network,e,FVEDGE,NULL,(void **)&edgefe,NULL);CHKERRQ(ierr);
+    upper[0] = edgefe->length;
+
+    /* Anyway to turn off options for this? it will only work with dim 1 for the rest of the code */
+    ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF,1,PETSC_FALSE,&edgefe->nnodes,low,upper,NULL,PETSC_TRUE,&edgefe->dm);CHKERRQ(ierr);
+
+    /* Create Field section */ 
+    ierr = DMSetNumFields(edgefe->dm, dof);CHKERRQ(ierr);
+    ierr = DMPlexCreateSection(edgefe->dm, NULL, numComp, numDof, 0, NULL, NULL, NULL, NULL, &section);CHKERRQ(ierr);
+    /* 
+      NOTE: I do not assign names to the field variables as I don't want every edge storing copies of the same field names. 
+      These are instead stored in the user provided physics ctx. Anywhere a name is needed, look there, they will be stored in the same 
+      order as the field order in this section. 
+    */ 
+    ierr = DMSetLocalSection(edgefe->dm,section);CHKERRQ(ierr);
+    ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
+    ierr = DMSetUp(edgefe->dm);CHKERRQ(ierr);
+  }
+  ierr = PetscFree2(numComp,numDof);CHKERRQ(ierr);
 
   PetscFunctionReturn(0); 
 }
@@ -716,7 +733,7 @@ PetscErrorCode  DGNetworkAssignCoupling(DGNetwork fvnet)
 }
 /* WIP Dispatches a netrs for each vertex on the dmnetwork. I think i will rework netrs to internally 
 hold a dmnetwork, or maybe add itself as a component to an existing dmnetwork? I could try both ...*/
-PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEstimator errorest)
+PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEstimator errorest,PetscReal adapttol)
 {
   PetscErrorCode ierr;
   PetscInt       v,vStart,vEnd;
@@ -730,6 +747,7 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEst
     ierr = NetRSSetRiemannSolver(junct->netrs,rs);CHKERRQ(ierr);
     ierr = NetRSSetNumEdges(junct->netrs,junct->numedges);CHKERRQ(ierr);
     ierr = NetRSSetApplicationContext(junct->netrs,dgnet->physics.user);
+    ierr = NetRSSetFromOptions(junct->netrs);CHKERRQ(ierr);
     if(errorest) {ierr = NetRSSetErrorEstimate(junct->netrs,errorest);CHKERRQ(ierr);}
     /* 
       type dispatching depending on number of edges 
@@ -739,7 +757,12 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEst
     } else if(junct->numedges == 2) {
       ierr = NetRSSetType(junct->netrs,NETRSRIEMANN);CHKERRQ(ierr);
     } else {
-      ierr = NetRSSetType(junct->netrs,NETRSEXACTSWE);CHKERRQ(ierr);
+      if(dgnet->linearcoupling){
+        ierr = NetRSSetType(junct->netrs,NETRSLINEAR);CHKERRQ(ierr);
+      } else {
+        ierr = NetRSSetType(junct->netrs,NETRSEXACTSWE);CHKERRQ(ierr);
+      }
+      ierr = NetRSSetFineTol(junct->netrs,adapttol);CHKERRQ(ierr);
     }
     ierr = NetRSSetUp(junct->netrs);CHKERRQ(ierr);
   }
@@ -864,7 +887,6 @@ PetscErrorCode DGNetworkDestroy(DGNetwork fvnet)
   PetscFunctionReturn(0); 
 }
 
-/*DGNetwork Viewing Functions, to be refactored and moved elsewhere */
 PetscReal evalviewpt_internal(DGNetwork dgnet, PetscInt field, PetscInt viewpt,const PetscReal *comp) {
   PetscInt deg,tab = dgnet->fieldtotab[field],ndegree = dgnet->taborder[tab];
   PetscReal eval = 0.0; 
@@ -1116,6 +1138,7 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis(DGNetworkMonitor_Glvis monitor,PetscInt
   node->element      = element;
   node->next         = monitor->firstnode;
   node->dgnet        = monitor->dgnet;
+  node->snapid       = 0;
   monitor->firstnode = node;
 
   ierr = PetscViewerGLVisSetFields(node->viewer,dof,(const char**)node->fec_type,node->dim,DGNetworkMonitor_g2l_internal,(PetscObject*)node->v_work,(void*)node,DGNetworkMonitor_destroyctx_internal);CHKERRQ(ierr);
@@ -1170,6 +1193,8 @@ PetscErrorCode DGNetworkMonitorView_Glvis(DGNetworkMonitor_Glvis monitor,Vec x)
   PetscFunctionBegin;
   ierr = VecGetArrayRead(x, &xx);CHKERRQ(ierr);
   for (node = monitor->firstnode; node; node = node->next) {
+    ierr = PetscViewerGLVisSetSnapId(node->viewer,node->snapid++);CHKERRQ(ierr);
+
     ierr = DMNetworkGetLocalVecOffset(network, node->element, FVEDGE, &edgeoff);CHKERRQ(ierr);
     ierr = DMNetworkGetComponent(dgnet->network,node->element,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
     ierr = VecGetArray(node->v, &vv);CHKERRQ(ierr);
@@ -1243,6 +1268,44 @@ static void f0_circle_b(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   xp[2] =  zz*PetscSqrtReal(1-PetscPowReal(yy,2)/2.)/10.; 
   xp[1] = -2.*x[0]-0.1; 
 }
+
+/* 2D transformations */ 
+
+static void f0_l_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  xp[0] = x[0]-10;
+  xp[1] = x[1];
+
+}
+static void f0_r_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  xp[0] =  x[0];
+  xp[1] =  x[1];
+}
+/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
+static void f0_t_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  xp[0] =  x[1];
+  xp[1] =  x[0]+0.5;
+}
+/* 3d visualization of a network element, transformation of unit cube to unit cylinder element. */
+static void f0_b_2d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar xp[])
+{
+  xp[0] = x[1];
+  xp[1] = x[0];
+}
 static PetscErrorCode DGNetworkCreateViewDM(DM dm)
 {
   DM             cdm;
@@ -1291,7 +1354,7 @@ static PetscErrorCode DGNetworkCreateViewDM2(DM dm)
   ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
   ierr = DMPlexGetCellType(dm, cStart, &ct);CHKERRQ(ierr);
   simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
-  ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe);CHKERRQ(ierr);
+  ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,1,PETSC_DECIDE, &fe);CHKERRQ(ierr);
   ierr = DMProjectCoordinates(dm, fe);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1377,6 +1440,7 @@ PetscErrorCode DGNetworkMonitorAdd_Glvis_3D(DGNetworkMonitor_Glvis monitor,Petsc
   node->next         = monitor->firstnode;
   node->dgnet        = monitor->dgnet;
   monitor->firstnode = node;
+  node->snapid       = 0;
 
   ierr = PetscViewerGLVisSetFields(node->viewer,dof,(const char**)node->fec_type,node->dim,DGNetworkMonitor_3D_g2l_internal,(PetscObject*)node->v_work,(void*)node,DGNetworkMonitor_destroyctx_internal);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1638,9 +1702,9 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt ed
       ierr = DGNetworkCreateViewDM2(dmlist[i]);CHKERRQ(ierr);
       if (e ==eStart){
         ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_r);CHKERRQ(ierr);
-      } else if(e==eStart+1) {
-          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_t);CHKERRQ(ierr);
       } else if(e==eStart+2) {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_t);CHKERRQ(ierr);
+      } else if(e==eStart+1) {
           ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_l);CHKERRQ(ierr);
       } else {
           ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_circle_b);CHKERRQ(ierr);
@@ -1654,7 +1718,7 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt ed
     ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
     ierr = DMPlexGetCellType(*dmsum, cStart, &ct);CHKERRQ(ierr);
     simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
-    ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,3,PETSC_DECIDE, &fe);CHKERRQ(ierr);
+    ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,1,PETSC_DECIDE, &fe);CHKERRQ(ierr);
     ierr = DMProjectCoordinates(*dmsum, fe);CHKERRQ(ierr);
     ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
     ierr = DMGetCoordinateSection(*dmsum,&coordsec_g);CHKERRQ(ierr); 
@@ -1696,8 +1760,6 @@ PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork dgnet,const PetscInt ed
   }
   PetscFunctionReturn(0);
 }
-
-
 /* More viewer stuff */ 
 
 /* Here we assume we are viewing the entire DGNetwork vector */
@@ -1794,9 +1856,209 @@ PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis monitor,Vec
 
   PetscFunctionBegin;
   for (node = monitor->firstnode; node; node = node->next) {
+    ierr = PetscViewerGLVisSetSnapId(node->viewer,node->snapid++);CHKERRQ(ierr);
     ierr = VecView(x, node->viewer);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
+/* 2D FULL NETWORK VIEWING HERE */
 
+/* Here we assume we are viewing the entire DGNetwork vector */
+PetscErrorCode DGNetworkMonitor_2D_NET_g2l_internal(PetscObject V,PetscInt nfields,PetscObject Vfield[],void *ctx)
+{
+  DGNetworkMonitorList_Glvis node    = (DGNetworkMonitorList_Glvis) ctx;
+  DGNetwork                  dgnet   = node->dgnet;
+  DM                         network = dgnet->network;
+  EdgeFE                     edgefe; 
+  PetscInt                   copy,c,cStart,cEnd,field,tab,dof=dgnet->physics.dof,i,fieldoff,deg,ndegree,e,eStart,eEnd,cCount,off_e; 
+  PetscErrorCode             ierr; 
+  PetscSection               section;
+  const PetscReal            *v; 
+  PetscReal                  *vwork; 
+  PetscInt                   Dim = 2; 
+  PetscFunctionBegin;
+  ierr = VecGetArrayRead((Vec)V,&v);CHKERRQ(ierr);
+  ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
+  cCount = 0;
+  for(e=eStart;e<eEnd;e++) {
+    ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+    ierr = DMNetworkGetLocalVecOffset(network,e,FVEDGE,&off_e);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+    ierr = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+    /* Deep copy the data from Field field from V to Vfield. Also changing basis to closed  uniform evaluation basis */
+    for(field=0; field<dof; field++) {
+      tab = dgnet->fieldtotab[field];
+      ndegree = dgnet->taborder[tab];
+      i = cCount * PetscPowInt(ndegree+1,Dim);
+      ierr = VecGetArray((Vec)Vfield[field],&vwork);CHKERRQ(ierr); 
+      for(c=cStart; c<cEnd; c++) {
+        ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
+        for(deg=0; deg<=ndegree; deg++) {
+          vwork[i] =  evalviewpt_internal(dgnet,field,deg, v+fieldoff+off_e);
+          for(copy=1; copy<(ndegree+1); copy++) {
+            vwork[i+copy*(ndegree+1)] = vwork[i];
+          }
+          i++; 
+        }
+        i+=(ndegree+1)*((ndegree+1)-1);
+      }
+      ierr = VecRestoreArray((Vec)Vfield[field],&vwork);CHKERRQ(ierr);
+    }
+    cCount += cEnd-cStart;
+  }
+
+  ierr = VecRestoreArrayRead((Vec)V,&v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork dgnet,const PetscInt edgelist[],PetscInt edgelistsize,DM *dmsum,PetscSection *stratumoffset,DM **dm_list,PetscInt *numdm) {
+  PetscErrorCode ierr; 
+  PetscInt       i=0,j,e,eStart,eEnd,cStart,cEnd,dim,dE,pStart,pEnd,dof,p,off,off_g,off_stratum,secStart,secEnd,depth,stratum;
+  const PetscInt *cone;
+  DM             *dmlist, network = dgnet->network,cdm;
+  EdgeFE         edgefe;
+  PetscSection   coordsec,coordsec_g; 
+  PetscBool      simplex; 
+  PetscFE        fe;
+  DMPolytopeType ct;
+  Vec            Coord_g,Coord; 
+  PetscReal      *coord_g,*coord,lower[2],upper[2], perp[2],para[2] ,norm; 
+  Junction       junct;
+
+  PetscFunctionBegin; 
+
+  if (edgelist == NULL) { /* Assume the entire network is used */
+    ierr = DMNetworkGetEdgeRange(network,&eStart,&eEnd);CHKERRQ(ierr);
+    ierr = PetscMalloc1(eEnd-eStart,&dmlist);CHKERRQ(ierr);
+    for (e=eStart; e<eEnd; e++) {
+      ierr = DMNetworkGetComponent(network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+      ierr = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+      PetscInt faces[2]={cEnd-cStart,1}; 
+      ierr = DMNetworkGetConnectedVertices(network,e,&cone);CHKERRQ(ierr);
+      ierr = DMNetworkGetComponent(network,cone[0],JUNCTION,NULL,(void**)&junct,NULL);CHKERRQ(ierr);
+      lower[0] = junct->x;
+      lower[1] = junct->y; 
+      ierr = DMNetworkGetComponent(network,cone[1],JUNCTION,NULL,(void**)&junct,NULL);CHKERRQ(ierr);
+      upper[0] = junct->x;
+      upper[1] = junct->y; 
+      /* expand the line between the vertices for the 2d mesh */
+      
+      /*  normalized vector connecting the vertices */
+      para[0] = upper[0] - lower[0]; 
+      para[1] = upper[1] - lower[1];
+      norm = PetscSqrtReal(PetscSqr(para[0])+PetscSqr(para[1])); 
+      para[0] /= norm; para[1] /= norm; 
+
+      /* orthogonal unit vector to para */
+      perp[0] = -para[1]; perp[1] = para[0];
+
+      upper[0] -= 0.5*perp[0];   upper[1] -= 0.5*perp[1];
+      lower[0] += 0.5*perp[0];   lower[1] += 0.5*perp[1];
+      lower[0] = 0; lower[1] = 0; 
+      upper[1] = 0.5; upper[0] = dgnet->length;
+
+      ierr = DMPlexCreateBoxMesh(PETSC_COMM_SELF, 2, PETSC_FALSE, faces, lower, upper, NULL, PETSC_TRUE, &dmlist[i]);CHKERRQ(ierr);
+      ierr = DGNetworkCreateViewDM2(dmlist[i]);CHKERRQ(ierr);
+      if (e ==eStart){
+        ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_l_2d);CHKERRQ(ierr);
+      } else if(e==eStart+2) {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_t_2d);CHKERRQ(ierr);
+      } else if(e==eStart+1) {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_r_2d);CHKERRQ(ierr);
+      } else {
+          ierr = DMPlexRemapGeometry(dmlist[i++],0,f0_b_2d);CHKERRQ(ierr);
+      }
+    }
+    *numdm = i; 
+    ierr = DMPlexAdd_Disconnected(dmlist,*numdm,dmsum,stratumoffset);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(*dmsum, &cdm);CHKERRQ(ierr);
+    ierr = DMGetDimension(*dmsum, &dim);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDim(*dmsum, &dE);CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(cdm, 0, &cStart, NULL);CHKERRQ(ierr);
+    ierr = DMPlexGetCellType(*dmsum, cStart, &ct);CHKERRQ(ierr);
+    simplex = DMPolytopeTypeGetNumVertices(ct) == DMPolytopeTypeGetDim(ct)+1 ? PETSC_TRUE : PETSC_FALSE;
+    ierr = PetscFECreateLagrange(PETSC_COMM_SELF, dim, dE, simplex,1,PETSC_DECIDE, &fe);CHKERRQ(ierr);
+    ierr = DMProjectCoordinates(*dmsum, fe);CHKERRQ(ierr);
+    ierr = PetscFEDestroy(&fe);CHKERRQ(ierr);
+    ierr = DMGetCoordinateSection(*dmsum,&coordsec_g);CHKERRQ(ierr); 
+    ierr = DMGetCoordinates(*dmsum,&Coord_g);CHKERRQ(ierr);
+    ierr = VecGetArray(Coord_g,&coord_g);CHKERRQ(ierr);
+    /* Now map the coordinate data */
+    for(i=0; i<*numdm; i++) {
+      ierr = DMGetCoordinates(dmlist[i],&Coord);CHKERRQ(ierr);
+      ierr = VecGetArray(Coord,&coord);CHKERRQ(ierr);
+      ierr = DMGetCoordinateSection(dmlist[i],&coordsec);CHKERRQ(ierr);
+      
+      ierr = PetscSectionGetChart(coordsec,&secStart,&secEnd);CHKERRQ(ierr);
+      /* Iterate through the stratum */
+      ierr = DMPlexGetDepth(dmlist[i],&depth);CHKERRQ(ierr);
+      for (stratum = 0; stratum <= depth; stratum++){
+        ierr = DMPlexGetDepthStratum(dmlist[i],stratum,&pStart,&pEnd);CHKERRQ(ierr);
+        ierr = PetscSectionGetFieldOffset(*stratumoffset,i,stratum,&off_stratum);CHKERRQ(ierr);
+        /* there is a better way of doing this ... for later */
+        for (p=pStart;p<pEnd&&p<secEnd;p++) {
+          if( p >= secStart) {
+            ierr = PetscSectionGetFieldOffset(coordsec,p,0,&off);CHKERRQ(ierr); /* domain offset */
+            ierr = PetscSectionGetFieldDof(coordsec,p,0,&dof);CHKERRQ(ierr);
+            ierr = PetscSectionGetFieldOffset(coordsec_g,p+off_stratum,0,&off_g);CHKERRQ(ierr); /*range offset */
+            for (j=0; j<dof;j++){
+              coord_g[off_g+j] = coord[off+j];
+            }
+          }
+        }
+      }
+      ierr = VecRestoreArray(Coord,&coord);CHKERRQ(ierr);
+    }
+    ierr = VecRestoreArray(Coord_g,&coord_g);CHKERRQ(ierr);
+    ierr = DMSetCoordinatesLocal(*dmsum,Coord_g);CHKERRQ(ierr);
+    
+    /* in theory the coordinates are now mapped correctly ... we shall see */
+    *dm_list = dmlist; 
+  } else {
+      /* TODO */
+  }
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DGNetworkMonitorAdd_Glvis_2D_NET(DGNetworkMonitor_Glvis monitor,const char hostname[],PetscViewerGLVisType type)
+{
+  PetscErrorCode       ierr;
+  PetscMPIInt          rank, size;
+  DGNetworkMonitorList_Glvis node;
+  PetscInt             viewsize,field,cStart,cEnd,tab,Dim = 2;
+  DGNetwork            dgnet=monitor->dgnet;
+  PetscInt             dof=dgnet->physics.dof;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(monitor->comm, &rank);CHKERRMPI(ierr);
+  ierr = MPI_Comm_size(monitor->comm, &size);CHKERRMPI(ierr);
+
+  ierr = PetscMalloc1(1, &node);CHKERRQ(ierr);
+  ierr = PetscMalloc3(dof,&node->dim,dof,&node->v_work,dof,&node->fec_type);CHKERRQ(ierr);
+
+  ierr = PetscViewerGLVisOpen(monitor->comm,type,hostname,PETSC_DECIDE,&node->viewer);CHKERRQ(ierr);
+  ierr = DGNetworkCreateNetworkDMPlex_2D(dgnet,NULL,0,&node->viewdm,&node->stratumoffset,&node->dmlist,&node->numdm);CHKERRQ(ierr);
+  /* Create the network mesh */ 
+  ierr = DMPlexGetHeightStratum(node->viewdm,0,&cStart,&cEnd);CHKERRQ(ierr);
+  /* make the work vector for each field */
+  for(field=0; field<dof; field++) {
+    /* Setup vector storage for drawing. */
+    tab        = dgnet->fieldtotab[field];
+    viewsize   = (cEnd-cStart)*PetscPowInt((dgnet->taborder[tab]+1),Dim); /* number of variables for the given field */
+    ierr       = VecCreateSeq(PETSC_COMM_SELF, viewsize, &(node->v_work[field]));CHKERRQ(ierr);
+    ierr       = PetscObjectSetName((PetscObject)node->v_work[field],dgnet->physics.fieldname[field]); /* set the name of the vector for file writing viewing */
+    ierr       = PetscObjectCompose((PetscObject)node->v_work[field],"__PETSc_dm",(PetscObject)node->viewdm);CHKERRQ(ierr); /* Hack to associate the viewing dm with each work vector for glvis visualization */
+    ierr       = PetscMalloc(64,&node->fec_type[field]);CHKERRQ(ierr);
+    ierr       = PetscSNPrintf(node->fec_type[field],64,"FiniteElementCollection: L2_T4_%iD_P%i",Dim,dgnet->taborder[tab]);CHKERRQ(ierr); 
+    node->dim[field] = Dim; 
+  }
+
+  node->next         = monitor->firstnode;
+  node->dgnet        = monitor->dgnet;
+  node->snapid       = 0;
+  monitor->firstnode = node;
+
+  ierr = PetscViewerGLVisSetFields(node->viewer,dof,(const char**)node->fec_type,node->dim,DGNetworkMonitor_2D_NET_g2l_internal,(PetscObject*)node->v_work,(void*)node,DGNetworkMonitor_destroyctx_internal);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}

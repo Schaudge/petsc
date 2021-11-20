@@ -875,11 +875,13 @@ PetscErrorCode RiemannSolverCharNorm(RiemannSolver rs, const PetscReal *u, const
       for(field=0; field<rs->numfields; field++)
       {
          if(eig[field]>0) {uchar[field] = 0.0;}
+         else {uchar[field]*=eig[field];}
       }
    } else {
       for(field=0; field<rs->numfields; field++)
       {
          if(eig[field]<0) {uchar[field] = 0.0;}
+         else{uchar[field]*=eig[field];}
       }
    }
    ierr = VecRestoreArray(rs->ueig,&uchar);CHKERRQ(ierr);

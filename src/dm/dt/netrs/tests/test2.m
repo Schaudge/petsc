@@ -40,27 +40,27 @@ figure;
 contourf(heightp,heightd,Roe);
 colorbar
 
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+xlabel("Parent Momentum"); 
+ylabel("Daughter Momentum"); 
 title("Roe Error Estimate");
 
 figure; 
 contourf(heightp,heightd,Lax);
 colorbar
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+xlabel("Parent Momentum"); 
+ylabel("Daughter Momentum"); 
 title("Lax Error Estimates"); 
 
 figure; 
 contourf(heightp,heightd,Taylor);
 colorbar
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+xlabel("Parent Momentum"); 
+ylabel("Daughter Momentum"); 
 title("Taylor Error Estimates"); 
 
 figure; 
 contourf(heightp,heightd,Exact);
 colorbar
-xlabel("Parent Height"); 
-ylabel("Daughter Height"); 
+xlabel("Parent Momentum"); 
+ylabel("Daughter Momentum"); 
 title("Star State Error For Linearized Solver");

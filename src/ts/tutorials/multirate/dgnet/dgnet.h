@@ -18,8 +18,8 @@ typedef enum {JUNCTION=0,FLUX=1} VertexCompNum;
 struct _p_Junction {
   Mat           mat;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
-  PetscBool     *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
-  PetscReal     x,fluct; 
+  EdgeDirection *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
+  PetscReal     x,y,fluct; 
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
   /* Coupling Context */
   VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
@@ -101,6 +101,7 @@ struct _p_DGNetwork
   KSP         ksp; 
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
+  PetscBool   viewglvis,viewfullnet;
   PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup; 
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
@@ -200,6 +201,7 @@ struct _p_DGNetworkMonitorList_Glvis
   DM           *dmlist; 
   PetscSection stratumoffset;
   PetscInt     element,nfields,*dim,numdm;
+  PetscInt     snapid; 
   char         **fec_type;
   DGNetworkMonitorList_Glvis next;
 };
@@ -234,6 +236,7 @@ struct _p_DGNetwork_Nest
   DGNetwork        *dgnets; 
   DGNetworkMonitor *monitors; 
   Vec              *wrk_vec; /* using for calculation in post-step functions as needed*/
+  DGNetworkMonitor_Glvis *monitors_glvis; 
 };
 typedef struct _p_DGNetwork_Nest *DGNetwork_Nest;
 
@@ -304,7 +307,9 @@ extern PetscErrorCode DGNetworkNormL2(DGNetwork,Vec,PetscReal*);
 extern PetscErrorCode DMPlexAdd_Disconnected(DM*,PetscInt,DM*,PetscSection*);
 extern PetscErrorCode DGNetworkCreateNetworkDMPlex(DGNetwork,const PetscInt[],PetscInt,DM *,PetscSection*);
 extern PetscErrorCode DGNetworkCreateNetworkDMPlex_3D(DGNetwork,const PetscInt[],PetscInt,DM *,PetscSection*,DM**,PetscInt*);
+extern PetscErrorCode DGNetworkCreateNetworkDMPlex_2D(DGNetwork,const PetscInt[],PetscInt,DM *,PetscSection*,DM**,PetscInt*);
 
+extern PetscErrorCode DGNetworkMonitorAdd_Glvis_2D_NET(DGNetworkMonitor_Glvis,const char[],PetscViewerGLVisType);
 extern PetscErrorCode DGNetworkMonitorAdd_Glvis_3D_NET(DGNetworkMonitor_Glvis,const char[],PetscViewerGLVisType);
 extern PetscErrorCode DGNetworkMonitorView_Glvis_NET(DGNetworkMonitor_Glvis,Vec);
 
@@ -320,7 +325,10 @@ extern PetscErrorCode DGNetRHS_RSVERSION_Nested(TS,PetscReal,Vec,Vec,void*);
 
 /* NETRS Stuff WIP (should be moved to NetRS itself)  */ 
 extern PetscErrorCode DGNetRHS_NETRSVERSION(TS,PetscReal,Vec,Vec,void*);
-extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver,NRSErrorEstimator);
+extern PetscErrorCode DGNetRHS_NETRSVERSION2(TS,PetscReal,Vec,Vec,void*);
+
+extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver,NRSErrorEstimator,PetscReal);
 extern PetscErrorCode DGNetRHS_NETRSTEST_Nested(TS,PetscReal,Vec,Vec,void*); 
+extern PetscErrorCode DGNetRHS_NETRS_Nested(TS,PetscReal,Vec,Vec,void*); 
 extern PetscErrorCode DGNetworkDestroyNetRS(DGNetwork);
 #endif

@@ -1182,7 +1182,7 @@ static PetscErrorCode DMPlexComputePointGeometry_Internal(DM dm, PetscInt e, Pet
   }
   PetscFunctionReturn(0);
 }
-
+/* BUG HERE - AIDAN */
 static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, PetscReal v0[], PetscReal J[], PetscReal invJ[], PetscReal *detJ)
 {
   PetscSection   coordSection;
@@ -1236,6 +1236,9 @@ static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, Pets
       *detJ = J[0];
       ierr = PetscLogFlops(2.0);CHKERRQ(ierr);
       if (invJ) {invJ[0] = 1.0/J[0]; ierr = PetscLogFlops(1.0);CHKERRQ(ierr);}
+    } else if(detJ)
+    {
+      *detJ =  0.5*(PetscRealPart(coords[1]) - PetscRealPart(coords[0])); /* hack addition for the case when detJ is requested but not J*/
     }
   } else SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "The number of coordinates for this segment is %D != 2", numCoords);
   ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, e, &numCoords, &coords);CHKERRQ(ierr);

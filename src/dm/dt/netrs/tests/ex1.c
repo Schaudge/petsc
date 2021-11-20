@@ -88,21 +88,21 @@ int main(int argc,char *argv[])
     ierr = NetRSSetUp(netrs);CHKERRQ(ierr);
 
     /* Roe Err Estimate */
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr);
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputp,"%e,",err[0]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd1,"%e,",err[1]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd2,"%e,",err[2]);CHKERRQ(ierr);
 
     /* Lax Err Estimate */
     ierr = NetRSSetErrorEstimate(netrs,NetRSLaxErrorEstimate);CHKERRQ(ierr);
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr);
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputp,"%e,",err[0]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd1,"%e,",err[1]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd2,"%e,",err[2]);CHKERRQ(ierr);
     
     /* Taylor Err Estimate */
     ierr = NetRSSetErrorEstimate(netrs,NetRSTaylorErrorEstimate);CHKERRQ(ierr);
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr);
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputp,"%e,",err[0]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd1,"%e,",err[1]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd2,"%e,",err[2]);CHKERRQ(ierr);
@@ -112,7 +112,7 @@ int main(int argc,char *argv[])
 
     ierr = NetRSSetType(netrs,NETRSEXACTSWE);CHKERRQ(ierr); 
     ierr = NetRSSetUp(netrs);
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr);
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr);
     /* L^2 flux error */
     for(i=0; i<numedges; i++) 
     {
@@ -131,14 +131,15 @@ int main(int argc,char *argv[])
     ierr = PetscMalloc1(6,&ustar_exact);CHKERRQ(ierr);
     ierr = NetRSSetType(netrs,NETRSEXACTSWESTAR);CHKERRQ(ierr); 
     ierr = NetRSSetUp(netrs);
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr); /* flux contains the star state instead of the flux */
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr); /* flux contains the star state instead of the flux */
+    
     for(i=0; i<6; i++)
     {
         ustar_exact[i] = flux[i];
     }
     ierr = NetRSSetType(netrs,NETRSLINEARSTAR);CHKERRQ(ierr); 
     ierr = NetRSSetUp(netrs);
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr); /* flux contains the star state instead of the flux */
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr); /* flux contains the star state instead of the flux */
     for(i=0; i<6; i++)
     {
         flux[i] -= ustar_exact[i];
@@ -154,7 +155,7 @@ int main(int argc,char *argv[])
     /* Rarefaction vs shock check */
     for(i=0;i<3; i++)
     {
-       err[i] = (ustar_exact[i*fluxfun->dof] < u[i*fluxfun->dof]) ? -1 : 1; /*  -1: Shock wave. 1: Rarefaction Wave*/ 
+       err[i] = (ustar_exact[i*fluxfun->dof] < u[i*fluxfun->dof]) ? 1 : -1; /*  -1: Shock wave. 1: Rarefaction Wave*/ 
     }
     ierr = PetscFPrintf(comm,outputp,"%e,",err[0]);CHKERRQ(ierr);
     ierr = PetscFPrintf(comm,outputd1,"%e,",err[1]);CHKERRQ(ierr);
@@ -171,7 +172,7 @@ int main(int argc,char *argv[])
     ierr = PetscFPrintf(comm,outputd2,"%e,",err[2]);CHKERRQ(ierr);
 
     /* Neg Height */
-    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err);CHKERRQ(ierr); /* flux contains the star state instead of the flux */
+    ierr = NetRSEvaluate(netrs,u,dir,&flux,&err,NULL);CHKERRQ(ierr); /* flux contains the star state instead of the flux */
     for(i=0;i<3; i++)
     {
         err[i] = (flux[i*fluxfun->dof] <=0) ? 1 : 0; 

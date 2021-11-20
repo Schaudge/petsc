@@ -341,11 +341,11 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u,Pets
 {
   PetscErrorCode ierr; 
   PetscReal      g,h,v;
-  ShallowCtx     ctx; 
+  ShallowCtx     *ctx;
 
-
+  PetscFunctionBegin;
   ierr = RiemannSolverGetApplicationContext(rs,&ctx);CHKERRQ(ierr);
-  g    = ctx.gravity;
+  g    = ctx->gravity;
   h    = u[0]; v = u[1]/h;
   /* switch between the 1-wave and 2-wave curves */
   switch (wavenumber)
