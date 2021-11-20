@@ -162,17 +162,12 @@ struct _p_DGNetwork
   Junction    junction;
   /* Edges */
   EdgeFE      edgefe;
-  /* FV Context */
   /* We assume for efficiency and simplicity that the network has
      a single discretization on all edges and the same physics.
      So that context information is stored here in the network object. The
      solvers and rhs functions in the edges will call this info when
      actually performing the cell updates */
   PhysicsCtx_Net physics;
-  /* Multirate Context */
-  /* All of these IS are on MPI_COMM_SELF*/
-  IS          slow_edges,fast_edges,buf_slow_vert,slow_vert,fast_vert;
-  PetscInt    bufferwidth;
 }PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
 typedef struct _p_DGNetwork *DGNetwork;
 
