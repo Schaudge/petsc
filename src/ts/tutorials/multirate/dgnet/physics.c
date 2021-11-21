@@ -588,13 +588,10 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
 {
   PetscErrorCode    ierr;
   ShallowCtx        *user;
-  PetscFunctionList rlist = 0;
-  char              rname[256] = "rusanov";
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   fvnet->physics.samplenetwork   = PhysicsSample_ShallowNetwork;
   fvnet->physics.destroy         = PhysicsDestroy_SimpleFree_Net;
-  fvnet->physics.riemann         = PhysicsRiemann_Shallow_Rusanov;
   fvnet->physics.characteristic  = PhysicsCharacteristic_Shallow;
   fvnet->physics.vfluxassign     = PhysicsAssignVertexFlux_Shallow;
   fvnet->physics.vfluxdestroy    = PhysicsDestroyVertexFlux_Shallow;
@@ -618,14 +615,10 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   fvnet->physics.lowbound[0] = 0;   fvnet->physics.lowbound[1] = -100; 
   fvnet->physics.upbound[0] = 100;   fvnet->physics.upbound[1] = 100; 
 
-  ierr = RiemannListAdd_Net(&rlist,"rusanov",PhysicsRiemann_Shallow_Rusanov);CHKERRQ(ierr);
   ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Shallow","");CHKERRQ(ierr);
-    ierr = PetscOptionsFList("-physics_shallow_riemann","Riemann solver","",rlist,rname,rname,sizeof(rname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-parh","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-parv","","",user->parenth,&user->parenth,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
-  ierr = RiemannListFind_Net(rlist,rname,&fvnet->physics.riemann);CHKERRQ(ierr);
-  ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -836,10 +829,7 @@ PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
 {
   PetscErrorCode    ierr;
   TrafficCtx        *user;
-  RiemannFunction   r;
-  PetscFunctionList rlist      = 0;
-  char              rname[256] = "exact";
-
+  
   PetscFunctionBeginUser;
   ierr = PetscNew(&user);CHKERRQ(ierr);
   fvnet->physics.samplenetwork  = PhysicsSample_TrafficNetwork;
@@ -857,17 +847,9 @@ PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
 
   ierr = PetscStrallocpy("density",&fvnet->physics.fieldname[0]);CHKERRQ(ierr);
   user->a = 0.5;
-  ierr = RiemannListAdd_Net(&rlist,"rusanov",PhysicsRiemann_Traffic_Rusanov);CHKERRQ(ierr);
-  ierr = RiemannListAdd_Net(&rlist,"exact",  PhysicsRiemann_Traffic_Exact);CHKERRQ(ierr);
-  ierr = RiemannListAdd_Net(&rlist,"roe",    PhysicsRiemann_Traffic_Roe);CHKERRQ(ierr);
   ierr = PetscOptionsBegin(fvnet->comm,fvnet->prefix,"Options for Traffic","");CHKERRQ(ierr);
     ierr = PetscOptionsReal("-physics_traffic_a","Flux = a*u*(1-u)","",user->a,&user->a,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsFList("-physics_traffic_riemann","Riemann solver","",rlist,rname,rname,sizeof(rname),NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
-  ierr = RiemannListFind_Net(rlist,rname,&r);CHKERRQ(ierr);
-  ierr = PetscFunctionListDestroy(&rlist);CHKERRQ(ierr);
-
-  fvnet->physics.riemann = r;
   PetscFunctionReturn(0);
 }

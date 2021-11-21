@@ -310,14 +310,13 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
   PetscErrorCode    ierr;  
   PetscInt          f,i,e,v,eStart,eEnd,vStart,vEnd,dof = dgnet->physics.dof;
   PetscInt          KeyEdge,KeyJunction,KeyFlux,vfrom,vto,nedges_tmp,nedges,nvertices; 
-  PetscInt          *edgelist = NULL,dim = 1,dmsize=0,numdof=0;
+  PetscInt          *edgelist = NULL,dmsize=0,numdof=0;
   EdgeFE            edgefe;
   Junction          junction;
   MPI_Comm          comm = dgnet->comm;
   PetscMPIInt       size,rank;
-  PetscReal         low[3] = {0, 0, 0},upper[3] = {1,1,1};
   const PetscInt    *cone,*edges;
-  PetscSection      section;
+
   
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
@@ -747,7 +746,6 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEst
     ierr = NetRSSetRiemannSolver(junct->netrs,rs);CHKERRQ(ierr);
     ierr = NetRSSetNumEdges(junct->netrs,junct->numedges);CHKERRQ(ierr);
     ierr = NetRSSetApplicationContext(junct->netrs,dgnet->physics.user);
-    ierr = NetRSSetFromOptions(junct->netrs);CHKERRQ(ierr);
     if(errorest) {ierr = NetRSSetErrorEstimate(junct->netrs,errorest);CHKERRQ(ierr);}
     /* 
       type dispatching depending on number of edges 
@@ -764,12 +762,13 @@ PetscErrorCode DGNetworkAssignNetRS(DGNetwork dgnet,RiemannSolver rs,NRSErrorEst
       }
       ierr = NetRSSetFineTol(junct->netrs,adapttol);CHKERRQ(ierr);
     }
+    ierr = NetRSSetFromOptions(junct->netrs);CHKERRQ(ierr);
     ierr = NetRSSetUp(junct->netrs);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-/* Destroy the NetRS componenets of the juncttions of a network */
+/* Destroy the NetRS componenets of the junctions of a network */
 PetscErrorCode DGNetworkDestroyNetRS(DGNetwork dgnet)
 {
   PetscErrorCode ierr;

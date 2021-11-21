@@ -1,16 +1,5 @@
 #include "dgnet.h"
 #include <stdio.h>
-static PetscReal ShallowRiemannExact_Left(const PetscScalar hl, const PetscScalar vl, PetscScalar h)
-{
-  const PetscScalar g = 9.81;
-  return h<hl ? vl-2.0*(PetscSqrtScalar(g*h)-PetscSqrtScalar(g*hl)) : vl- (h-hl)*PetscSqrtScalar(g*(h+hl)/(2.0*h*hl));
-}
-
-static PetscReal ShallowRiemannExact_Right(const PetscScalar hr, const PetscScalar vr, PetscScalar h)
-{
-  const PetscScalar g = 9.81;
-  return h<hr ? vr+2.0*(PetscSqrtScalar(g*h)-PetscSqrtScalar(g*hr)) : vr+(h-hr)*PetscSqrtScalar(g*(h+hr)/(2.0*h*hr));
-}
 
 PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
 {
@@ -20,54 +9,8 @@ PetscErrorCode PhysicsDestroy_SimpleFree_Net(void *vctx)
   ierr = PetscFree(vctx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-PetscErrorCode RiemannListAdd_Net(PetscFunctionList *flist,const char *name,RiemannFunction rsolve)
-{
-  PetscErrorCode ierr;
 
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListAdd(flist,name,rsolve);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-PetscErrorCode RiemannListFind_Net(PetscFunctionList flist,const char *name,RiemannFunction *rsolve)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListFind(flist,name,rsolve);CHKERRQ(ierr);
-  if (!*rsolve) SETERRQ1(PETSC_COMM_SELF,1,"Riemann solver \"%s\" could not be found",name);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode ReconstructListAdd_Net(PetscFunctionList *flist,const char *name,ReconstructFunction r)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListAdd(flist,name,r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode ReconstructListFind_Net(PetscFunctionList flist,const char *name,ReconstructFunction *r)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListFind(flist,name,r);CHKERRQ(ierr);
-  if (!*r) SETERRQ1(PETSC_COMM_SELF,1,"Reconstruction \"%s\" could not be found",name);
-  PetscFunctionReturn(0);
-}
-
-PetscReal innerprod_internal(PetscInt len,PetscReal *x  ,PetscReal *y) {
-  PetscInt i; 
-  PetscReal sum = 0.; 
-
-  for(i=0; i<len; i++) {
-    sum += x[i]*y[i];
-  }
-  return sum;
-}
-
-PetscReal evalboundary_internal(DGNetwork dgnet, PetscInt field,PetscInt qpoint, PetscReal *comp) {
+static PetscReal evalboundary_internal(DGNetwork dgnet, PetscInt field,PetscInt qpoint, PetscReal *comp) {
   PetscInt deg,tab = dgnet->fieldtotab[field],ndegree = dgnet->taborder[tab];
   PetscReal eval = 0.0; 
 
@@ -76,7 +19,7 @@ PetscReal evalboundary_internal(DGNetwork dgnet, PetscInt field,PetscInt qpoint,
   }
   return eval; 
 }
-PetscReal evalquad_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint, PetscReal *comp) {
+static PetscReal evalquad_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint, PetscReal *comp) {
   PetscInt deg,tab = dgnet->fieldtotab[field],ndegree = dgnet->taborder[tab];
   PetscReal eval = 0.0; 
 
@@ -85,7 +28,7 @@ PetscReal evalquad_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint, Pe
   }
   return eval; 
 }
-PetscReal evalquadDer_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint, PetscReal *comp) {
+static PetscReal evalquadDer_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint, PetscReal *comp) {
   PetscInt deg,tab = dgnet->fieldtotab[field],ndegree = dgnet->taborder[tab];
   PetscReal eval = 0.0; 
 
@@ -94,14 +37,15 @@ PetscReal evalquadDer_internal(DGNetwork dgnet, PetscInt field, PetscInt qpoint,
   }
   return eval; 
 }
-PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
+
+PetscErrorCode DGNetRHS_NETRSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
 {
   PetscErrorCode ierr; 
   DGNetwork      dgnet = (DGNetwork)ctx;    
-  PetscReal      maxspeed,detJ,J,invJ,*numflux,norm; 
+  PetscReal      maxspeed,detJ,J,invJ,*numflux,*netflux,*errorest; 
   PetscScalar    *f,*xarr,*coeff; 
   PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd;
-  PetscInt       offsetf,offset,nedges,i,dof = dgnet->physics.dof,field,fieldoff;
+  PetscInt       offsetf,offset,nedges,i,j,dof = dgnet->physics.dof,field,fieldoff;
   const PetscInt *cone,*edges,*supp;
   Vec            localX = dgnet->localX,localF = dgnet->localF,Ftmp = dgnet->Ftmp; 
   EdgeFE         edgefe; 
@@ -109,6 +53,9 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   PetscSection   section;
   const PetscReal *qweight;
   RiemannSolver   rs = dgnet->physics.rs; 
+  FILE           *file; /* remove */
+  char            filename[128];
+  PetscBool       adaption;
 
   PetscFunctionBeginUser;
   ierr = VecZeroEntries(localF);CHKERRQ(ierr);
@@ -125,30 +72,29 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);
     ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
     ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-      for (i=0; i<nedges; i++) {
-        e     = edges[i];
-        ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-        ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-        /* DMPlex stuff here, get cell chart */
-        ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
-        /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
-        ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
-        vfrom = cone[0];
-        vto   = cone[1];
-        if (v == vfrom) {
-          /* left eval */
-          for (field=0; field<dof; field++) {
-            ierr = PetscSectionGetFieldOffset(section,cStart,field,&fieldoff);CHKERRQ(ierr);
-            f[offsetf+edgefe->offset_vfrom+field] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
-          }
-        } else if (v == vto) {
-          for (field=0; field<dof; field++) {
-            ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
-            f[offsetf+edgefe->offset_vto+field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
-          }
+    for (i=0; i<nedges; i++) {
+      e     = edges[i];
+      ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
+      ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
+      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
+      /* DMPlex stuff here, get cell chart */
+      ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
+      ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
+      vfrom = cone[0];
+      vto   = cone[1];
+      if (v == vfrom) {
+        /* left eval */
+        for (field=0; field<dof; field++) {
+          ierr = PetscSectionGetFieldOffset(section,cStart,field,&fieldoff);CHKERRQ(ierr);
+          f[offsetf+edgefe->offset_vfrom+field] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
+        }
+      } else if (v == vto) {
+        for (field=0; field<dof; field++) {
+          ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
+          f[offsetf+edgefe->offset_vto+field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
         }
       }
+    }
   }
   /* Now communicate the flux/reconstruction data to all processors */
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
@@ -158,159 +104,25 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = DMGlobalToLocalEnd(dgnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr);
   ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
   /* Now ALL processors have the evaluation data to compute the coupling flux */
-
-  /*
-    TODO : Think about how to implement INFLOW/OUTFLOW Boundary conditions in this framework (or devise a better one 
-    Too tired to think of how to do boundary conditions with dg in an abstract way )
-  */
   for (v=vStart; v<vEnd; v++) {
     /* Reconstruct all local edge data points */
     ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
     ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
     /* compute the coupling flux */
-    junction->couplingflux(dgnet,f+offsetf,(PetscBool*)junction->dir,junction->flux,&maxspeed,junction);
-    /* Compute the first part of the fluctuation */
+    ierr = NetRSEvaluate(junction->netrs,f+offsetf,junction->dir,&netflux,&errorest,&adaption);CHKERRQ(ierr);
     ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
+    /* move the following to a viewer routine for netrs */
     for (i=0; i<nedges; i++) {
       e     = edges[i];
-      ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-      ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-      vfrom = cone[0];
-      vto   = cone[1];
-      if (v == vfrom) {
-        /* hack to see if coupling flux compute the star state or the the flux itself. I'll be 
-        making a coupling flux class itself, as generalization of the riemann solver class. At least maybe... 
-         */
-        if (nedges <= 2) {
-          for(field = 0; field<dof; field++) {
-            f[offsetf+edgefe->offset_vfrom+field] = junction->flux[edgefe->offset_vfrom+field];
-          } 
-        } else {
-                /* shock strength estimate */
-          norm =0.; 
-          for (field=0; field<dof; field++) {
-            norm += PetscAbs(f[offsetf+edgefe->offset_vfrom+field] - junction->flux[edgefe->offset_vfrom+field]);
-          }
-        junction->fluctuation[edgefe->offset_vfrom+1] = norm; 
-          if (dgnet->laxcurve) {
-          /* Lax Curve Version (only SWE for now) */
-          PetscReal vlax,h,v,hstar,vstar;
-          h = f[offsetf+edgefe->offset_vfrom];
-          v = f[offsetf+edgefe->offset_vfrom+1]/h;
-          hstar =  junction->flux[edgefe->offset_vfrom];
-          vstar =  junction->flux[edgefe->offset_vfrom+1]/hstar;
-          vlax = ShallowRiemannExact_Right(h,v,hstar);
-          norm = PetscAbs(vstar-vlax);CHKERRQ(ierr);
-          } else {
-          /* Compute the jump */
-          
-          for (field=0; field<dof; field++) {
-          dgnet->uLR[field] = f[offsetf+edgefe->offset_vfrom+field] - junction->flux[edgefe->offset_vfrom+field];
-          }
-          ierr = RiemannSolverComputeRoeAvg(rs,&f[offsetf+edgefe->offset_vfrom],&junction->flux[edgefe->offset_vfrom],dgnet->uPlus);CHKERRQ(ierr);
-          ierr = RiemannSolverCharNorm(rs,dgnet->uPlus,dgnet->uLR,-1,&norm);CHKERRQ(ierr);
-          }
-          /* Adaptivity Portion (HACKED) */ 
-          if(dgnet->adaptivecouple) {
-          if(dgnet->linearcoupling) { /* Then see if diagnostic is too large, if so switch to nonlinear */
-            if(norm>dgnet->diagnosticlow){
-              /* swap coupling condtion (stupid expensive call here to be replace)*/ 
-              ierr = dgnet->physics.vfluxdestroy(dgnet,junction);CHKERRQ(ierr);
-              dgnet->linearcoupling = PETSC_FALSE; 
-              dgnet->laxcurve = PETSC_FALSE;
-              ierr = dgnet->physics.vfluxassign(dgnet,junction);CHKERRQ(ierr);
-              junction->fluctuation[edgefe->offset_vfrom+1] = 1; 
-              /* compute the coupling flux */
-               junction->couplingflux(dgnet,f+offsetf,(PetscBool*)junction->dir,junction->flux,&maxspeed,junction);
+      ierr = PetscSNPrintf(filename,128,"./output/v%ie%i.txt",v,e);CHKERRQ(ierr); 
+      ierr = PetscFOpen(PETSC_COMM_SELF,filename,"a",&file);CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,file,"%e, %e ,%i \n",time,errorest[i],adaption);CHKERRQ(ierr);
+      ierr = PetscFClose(PETSC_COMM_SELF,file);CHKERRQ(ierr);
+    }
 
-            } else {
-              junction->fluctuation[edgefe->offset_vfrom+1] = -1; 
-            }
-          } else { /* Switch from nonlinear to linear coupling */
-            if(norm<dgnet->diagnosticup){
-              /* swap coupling condtion (stupid expensive call here to be replace)*/ 
-              ierr = dgnet->physics.vfluxdestroy(dgnet,junction);CHKERRQ(ierr);
-              dgnet->linearcoupling = PETSC_TRUE; 
-              dgnet->laxcurve = PETSC_TRUE;
-              ierr = dgnet->physics.vfluxassign(dgnet,junction);CHKERRQ(ierr);
-               junction->fluctuation[edgefe->offset_vfrom+1] = 1; 
-              /* compute the coupling flux */
-               junction->couplingflux(dgnet,f+offsetf,(PetscBool*)junction->dir,junction->flux,&maxspeed,junction);
-
-            } else {
-              junction->fluctuation[edgefe->offset_vfrom+1] = -1; 
-            }
-          }
-          }
-          /* Place the coupling flux back in the global vector */
-          dgnet->physics.flux((void*)dgnet->physics.user,&junction->flux[edgefe->offset_vfrom],&f[offsetf+edgefe->offset_vfrom]);
-          junction->fluctuation[edgefe->offset_vfrom] = norm;
-        }
-      } else if (v == vto) {
-        /* shock strength estimate */
-        norm =0.; 
-          for (field=0; field<dof; field++) {
-            norm += PetscAbs(f[offsetf+edgefe->offset_vto+field] - junction->flux[edgefe->offset_vto+field]);
-          }
-
-        junction->fluctuation[edgefe->offset_vto+1] = norm; 
-        if (nedges <=2) {
-          for(field = 0; field<dof; field++) {
-            f[offsetf+edgefe->offset_vto+field] = junction->flux[edgefe->offset_vto+field];
-          } 
-        } else {
-         if (dgnet->laxcurve) {
-          PetscReal vlax,h,v,hstar,vstar;
-          h = f[offsetf+edgefe->offset_vto];
-          v = f[offsetf+edgefe->offset_vto+1]/h;
-          hstar =  junction->flux[edgefe->offset_vto];
-          vstar =  junction->flux[edgefe->offset_vto+1]/hstar;
-          vlax  = ShallowRiemannExact_Left(h,v,hstar);
-          norm  = PetscAbs(vstar-vlax);CHKERRQ(ierr);
-
-         } else {
-            /* Compute the jump */
-          for (field=0; field<dof; field++) {
-            dgnet->uLR[field] = f[offsetf+edgefe->offset_vto+field] - junction->flux[edgefe->offset_vto+field];
-          }
-          ierr = RiemannSolverComputeRoeAvg(rs,&f[offsetf+edgefe->offset_vto],&junction->flux[edgefe->offset_vto],dgnet->uPlus);CHKERRQ(ierr);
-          ierr = RiemannSolverCharNorm(rs,dgnet->uPlus,dgnet->uLR,1,&norm);CHKERRQ(ierr);
-         }
-          if(dgnet->adaptivecouple) {
-              /* Adaptivity Portion (HACKED) */ 
-          if(dgnet->linearcoupling) { /* Then see if diagnostic is too large, if so switch to nonlinear */
-            if(norm>dgnet->diagnosticlow){
-              /* swap coupling condtion (stupid expensive call here to be replace)*/ 
-              ierr = dgnet->physics.vfluxdestroy(dgnet,junction);CHKERRQ(ierr);
-              dgnet->linearcoupling = PETSC_FALSE; 
-              dgnet->laxcurve = PETSC_FALSE;
-              ierr = dgnet->physics.vfluxassign(dgnet,junction);CHKERRQ(ierr);
-              junction->fluctuation[edgefe->offset_vto+1] = 1; 
-                /* compute the coupling flux */
-               junction->couplingflux(dgnet,f+offsetf,(PetscBool*)junction->dir,junction->flux,&maxspeed,junction);
-            } else {
-              junction->fluctuation[edgefe->offset_vto+1] = -1; 
-            }
-          } else { /* Switch from nonlinear to linear coupling */
-            if(norm<dgnet->diagnosticup){
-              /* swap coupling condtion (stupid expensive call here to be replace)*/ 
-              ierr = dgnet->physics.vfluxdestroy(dgnet,junction);CHKERRQ(ierr);
-              dgnet->linearcoupling = PETSC_TRUE; 
-              dgnet->laxcurve = PETSC_TRUE;
-              ierr = dgnet->physics.vfluxassign(dgnet,junction);CHKERRQ(ierr);
-              junction->fluctuation[edgefe->offset_vto+1] = 1; 
-                /* compute the coupling flux */
-               junction->couplingflux(dgnet,f+offsetf,(PetscBool*)junction->dir,junction->flux,&maxspeed,junction);
-            } else {
-              junction->fluctuation[edgefe->offset_vto+1] = -1; 
-            }
-          }
-          }
-          /* Place the coupling flux back in the global vector */
-          dgnet->physics.flux((void*)dgnet->physics.user,&junction->flux[edgefe->offset_vto],&f[offsetf+edgefe->offset_vto]);
-          junction->fluctuation[edgefe->offset_vto] = norm;
-        }
+    for (i=0; i<junction->numedges; i++) {
+      for (j=0; j<dof; j++) {
+          f[offsetf+i*dof+j] = netflux[i*dof+j];
       }
     }
   }
@@ -318,19 +130,12 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   /* Iterate through the edges and update the cell data belonging to that edge. */
   ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
   for (e=eStart; e<eEnd; e++) {
-    /* We do a DG Update here, the main kernel of the algorithm. Note that this can be written much better 
-    than is currently done, by seperating out the mesh level dg kernel from the iteration through the edges.
-    That is the should be a seperate function and should be an abstract function for the discretization (different implementations 
-    could each have their own? Maybe... It works for now though */
-
-    /* Also the update pattern is probably not ideal but I don't care for now */
     ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
     /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
     ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
     ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
-
     /* Iterate through the cells of the edge mesh */
     for(c=cStart; c<cEnd; c++) {
       /* Get Geometric Data */
@@ -338,7 +143,6 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
       ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
       /* Now we do the main integral \int_K flux(u)\phi_x \dx  on the reference element*/ 
       /* First we evaluate the flux(u) at the quadrature points */
-      
       for(q=0; q<quadsize; q++) {
         for(field = 0; field<dof; field++) {
           ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
@@ -362,11 +166,9 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
     }
     /* Flux Time !!! :) */ 
     /* update the boundary cells first, (cstart,cEnd) as their fluxes are coupling fluxes */
-
     ierr   = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
     vfrom  = cone[0];
     vto    = cone[1];
-    
     /*cStart cell */
     ierr   = DMNetworkGetComponent(dgnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
     ierr   = DMNetworkGetLocalVecOffset(dgnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
@@ -447,256 +249,8 @@ PetscErrorCode DGNetRHS_RSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
   ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
-    /* Write the fluctuations to a file. This will refactored out with the creation of coupling condition class (or moving 
-  it to the riemann solver class. Still debating which) */ 
-   FILE *fp;
-   char filename[128];
-   PetscReal *fluct; 
-     /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
-  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
-  for (v=vStart; v<vEnd; v++) {
-    /* Reconstruct all local edge data points (NOTE: This routine (and the others done elsewhere) need to be refactored) */
-    ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
-    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-    for (i=0; i<nedges; i++) {
-      e     = edges[i];
-      ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-      ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-      vfrom = cone[0];
-      vto   = cone[1];
-      ierr = PetscSNPrintf(filename,128,"./output/v%ie%i.txt",v,e);CHKERRQ(ierr); 
-      fp = fopen(filename, "a");
-
-      if (v == vfrom) {
-        /* Print fluctuation */
-        fluct = junction->fluctuation+edgefe->offset_vfrom;
-        ierr = PetscFPrintf(dgnet->comm,fp,"%e %e %e\n",time,fluct[0],fluct[1]);CHKERRQ(ierr);
-      } else if (v == vto) {
-        /* print fluctuation*/
-        fluct = junction->fluctuation+edgefe->offset_vto;
-        ierr = PetscFPrintf(dgnet->comm,fp,"%e %e %e \n",time,fluct[0],fluct[1]);CHKERRQ(ierr);
-      }
-      fclose(fp);
-    }
-  }
   PetscFunctionReturn(0);
 }
-
-PetscErrorCode DGNetRHS(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
-{
-  PetscErrorCode ierr; 
-  DGNetwork      dgnet = (DGNetwork)ctx;    
-  PetscReal      maxspeed,detJ,J,invJ;
-  PetscScalar    *f,*xarr,*coeff;
-  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd;
-  PetscInt       offsetf,offset,nedges,i,j,dof = dgnet->physics.dof,field,fieldoff;
-  const PetscInt *cone,*edges,*supp;
-  Vec            localX = dgnet->localX,localF = dgnet->localF,Ftmp = dgnet->Ftmp; 
-  EdgeFE         edgefe; 
-  Junction       junction;
-  PetscSection   section;
-  const PetscReal *qweight;
-
-  PetscFunctionBeginUser;
-  ierr = VecZeroEntries(localF);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
-  ierr = DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
-  ierr = VecZeroEntries(Ftmp);CHKERRQ(ierr);
-  /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
-  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
-  for (v=vStart; v<vEnd; v++) {
-    /* Reconstruct all local edge data points (NOTE: This routine (and the others done elsewhere) need to be refactored) */
-    ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
-    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-      for (i=0; i<nedges; i++) {
-        e     = edges[i];
-        ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-        ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-        ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-        /* DMPlex stuff here, get cell chart */
-        ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
-        /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
-        ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
-        vfrom = cone[0];
-        vto   = cone[1];
-        if (v == vfrom) {
-          /* left eval */
-          for (field=0; field<dof; field++) {
-            ierr = PetscSectionGetFieldOffset(section,cStart,field,&fieldoff);CHKERRQ(ierr);
-            f[offsetf+edgefe->offset_vfrom+field] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
-          }
-        } else if (v == vto) {
-          for (field=0; field<dof; field++) {
-            ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
-            f[offsetf+edgefe->offset_vto+field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
-          }
-        }
-      }
-  }
-  /* Now communicate the flux/reconstruction data to all processors */
-  ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dgnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(dgnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(dgnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr); 
-  ierr = DMGlobalToLocalEnd(dgnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
-  /* Now ALL processors have the evaluation data to compute the coupling flux */
-  for (v=vStart; v<vEnd; v++) {
-    /* Reconstruct all local edge data points */
-    ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
-      /* compute the coupling flux */
-    junction->couplingflux(dgnet,f+offsetf,(PetscBool*)junction->dir,junction->flux,&maxspeed,junction);
-    for (i=0; i<junction->numedges; i++) {
-      for (j=0; j<dof; j++) {
-          f[offsetf+i*dof+j] = junction->flux[i*dof+j];
-      }
-    }
-  }
-  /* Now all the vertex flux data is available on each processor. */
-  /* Iterate through the edges and update the cell data belonging to that edge. */
-  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
-  for (e=eStart; e<eEnd; e++) {
-    /* We do a DG Update here, the main kernel of the algorithm. Note that this can be written much better 
-    than is currently done, by seperating out the mesh level dg kernel from the iteration through the edges.
-    That is the should be a seperate function and should be an abstract function for the discretization (different implementations 
-    could each have their own? Maybe... It works for now though */
-
-    /* Also the update pattern is probably not ideal but I don't care for now */
-    ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-    ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-    ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
-    /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
-    ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
-    ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
-
-    /* Iterate through the cells of the edge mesh */
-    for(c=cStart; c<cEnd; c++) {
-      /* Get Geometric Data */
-      /* Assumes Affine coordinates for now (And 1D everything!!) (and I think assumes same embedding dimension as topological ) */
-      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
-      /* Now we do the main integral \int_K flux(u)\phi_x \dx  on the reference element*/ 
-      /* First we evaluate the flux(u) at the quadrature points */
-      
-      for(q=0; q<quadsize; q++) {
-        for(field = 0; field<dof; field++) {
-          ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-          coeff = xarr+offset+fieldoff;
-          dgnet->pteval[field] = evalquad_internal(dgnet,field,q,coeff);
-        }
-        dgnet->physics.flux((void*)dgnet->physics.user,dgnet->pteval,dgnet->fluxeval+q*dof);
-      }
-      /* Now we can compute quadrature for each integral for each field */
-      for(field = 0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff = f+offset+fieldoff+deg;
-          for (q = 0; q<quadsize; q++) {
-            *coeff += qweight[q]*dgnet->fluxeval[q*dof+field]*dgnet->LegEvalD[tab][ndeg*q+deg]; 
-          }
-        }
-      }
-    }
-    /* Flux Time !!! :) */ 
-    /* update the boundary cells first, (cstart,cEnd) as their fluxes are coupling fluxes */
-
-    ierr   = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-    vfrom  = cone[0];
-    vto    = cone[1];
-    
-    /*cStart cell */
-    ierr   = DMNetworkGetComponent(dgnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
-    ierr   = DMNetworkGetLocalVecOffset(dgnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
-    /* Update the vfrom vertex flux for this edge */
-    for (field=0; field<dof; field++) {
-      ierr = PetscSectionGetFieldOffset(section,cStart,field,&fieldoff);CHKERRQ(ierr);
-      tab = dgnet->fieldtotab[field];
-      ndeg = dgnet->taborder[tab]+1;
-      for (deg = 0; deg<ndeg; deg++) {
-        coeff = f+offset+fieldoff+deg;
-        *coeff += f[edgefe->offset_vfrom+field+offsetf]*dgnet->LegEvaL_bdry[tab][deg];
-      }
-    }
-    /* cEnd cell */
-    ierr   = DMNetworkGetComponent(dgnet->network,vto,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
-    ierr   = DMNetworkGetLocalVecOffset(dgnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
-    /* Update the vfrom vertex flux for this edge */
-    for (field=0; field<dof; field++) {
-      ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
-      tab = dgnet->fieldtotab[field];
-      ndeg = dgnet->taborder[tab]+1;
-      for (deg = 0; deg<ndeg; deg++) {
-        coeff = f+offset+fieldoff+deg;
-        *coeff -= f[edgefe->offset_vto+field+offsetf]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
-      }
-    }
-    /* 2) Then iterate through the flux updates */
-    /* we iterate through the 1 codim cells (faces) skipping the first and last to compute the numerical fluxes and update the resulting cells coefficients */
-    ierr  = DMPlexGetHeightStratum(edgefe->dm,1,&fStart,&fEnd);CHKERRQ(ierr);
-    for(face=fStart+1; face<fEnd-1; face++) {
-      /* WE ASSUME 1D HERE WITH SUPPORT SIZE OF 2 !!!! */
-      ierr = DMPlexGetSupport(edgefe->dm,face,&supp);CHKERRQ(ierr);
-      /* evaluate at the face */
-      for(field = 0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,supp[0],field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uLR[field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
-        ierr = PetscSectionGetFieldOffset(section,supp[1],field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uLR[field+dof] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
-      }
-      ierr = (*dgnet->physics.riemann)(dgnet->physics.user,dof,dgnet->uLR,dgnet->uLR+dof,dgnet->flux,&maxspeed);CHKERRQ(ierr);
-      /* Update coefficents with the numerical flux */
-      for (field=0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,supp[0],field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff = f+offset+fieldoff+deg;
-          *coeff -= dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
-        }
-      }
-
-      for (field=0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,supp[1],field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff = f+offset+fieldoff+deg;
-          *coeff += dgnet->flux[field]*dgnet->LegEvaL_bdry[tab][deg];
-        }
-      }
-    }
-
-    /* Normalization loop */
-    for (c=cStart; c<cEnd; c++) {
-      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
-      for(field=0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff  = f+offset+fieldoff+deg;
-          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
-          with arbitrary basis */
-        }
-      }
-    }
-  }
-  /* Data Cleanup */
-  ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 
 PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t) 
 {
@@ -746,7 +300,7 @@ PetscErrorCode DGNetworkProject(DGNetwork dgnet,Vec X0,PetscReal t)
   ierr = DMLocalToGlobalEnd(dgnet->network,localX,INSERT_VALUES,X0);CHKERRQ(ierr); 
   PetscFunctionReturn(0);
 }
-/* Compute the L1 Norm of the Vector X associated with the FVNetowork fvnet */
+/* Compute the L2 Norm of the Vector X associated with the DGNetwork dgnet */
 PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm) 
 {
   PetscErrorCode     ierr;
@@ -1125,40 +679,6 @@ PetscErrorCode DGNetlimiter(TS ts, PetscReal stagetime, PetscInt stageindex, Vec
   PetscFunctionReturn(0);
 }
 
-/* Nested version of DG kernel. WIP interface to allow for running multiple simulations alongside eachother, to 
-compare order/coupling conditions, riemann solvers etc... . Its a bit easier to do the comparison in PETSc directly 
-for now as i don't have a proper output format for DMNetwork data (particurlarly I need a MATLAB format for the 
-vector) */
-
-PetscErrorCode DGNetRHS_RSVERSION_Nested(TS ts,PetscReal time,Vec X,Vec F,void *ctx) 
-{
-  PetscErrorCode  ierr;
-  DGNetwork_Nest  dgnet_nest = (DGNetwork_Nest)ctx;
-  PetscInt        i,nestsize,numsim = dgnet_nest->numsimulations;
-  MPI_Comm        comm; 
-  Vec             Xsub,Fsub;  
-  PetscBool       isequal; 
-
-  PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)ts,&comm);CHKERRQ(ierr);
-  /* This routine only works if X,F are VecNest, sanity check here */
-  ierr = PetscObjectTypeCompare((PetscObject)X,VECNEST,&isequal);CHKERRQ(ierr);
-  if (!isequal) {SETERRQ(comm,PETSC_ERR_ARG_WRONG,"Vec X must be of type VecNest.");}
-  ierr = PetscObjectTypeCompare((PetscObject)F,VECNEST,&isequal);CHKERRQ(ierr);
-  if (!isequal) {SETERRQ(comm,PETSC_ERR_ARG_WRONG,"Vec F must be of type VecNest.");}
-  /* Small sanity check */
-  ierr = VecNestGetSize(X,&nestsize);CHKERRQ(ierr);
-  if (nestsize < numsim) {SETERRQ2(comm,PETSC_ERR_ARG_WRONG,"Vec X must have at least 1 vector per dgnet simulation.\n \
-Num Simulation: %i \n Num Vectors %i \n ",numsim,nestsize);}
-  /* For each dgnet simulation in dgnet_nest run the DG kernel */
-  for(i=0; i<numsim; i++) {
-    ierr = VecNestGetSubVec(X,i,&Xsub);CHKERRQ(ierr); /* Don't need to be returned */
-    ierr = VecNestGetSubVec(F,i,&Fsub);CHKERRQ(ierr);
-    ierr = DGNetRHS_RSVERSION(ts,time,Xsub,Fsub,dgnet_nest->dgnets[i]);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
 /* Nested Version of Limiters. WIP interface to allow multiple simulations to run alongside eachother */ 
 PetscErrorCode DGNetlimiter_Nested(TS ts, PetscReal stagetime, PetscInt stageindex, Vec* Y) {
   PetscErrorCode  ierr;
@@ -1184,254 +704,6 @@ PetscErrorCode DGNetlimiter_Nested(TS ts, PetscReal stagetime, PetscInt stageind
   for(i=0; i<numsim; i++) {
     ierr = VecNestGetSubVec(Y[stageindex],i,&Ysub);CHKERRQ(ierr); /* Doesn't need to be returned */
     ierr = DGNetlimiter_ctx(Ysub,dgnet_nest->dgnets[i]);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode DGNetRHS_NETRSVERSION(TS ts,PetscReal time,Vec X,Vec F,void *ctx)
-{
-  PetscErrorCode ierr; 
-  DGNetwork      dgnet = (DGNetwork)ctx;    
-  PetscReal      maxspeed,detJ,J,invJ,*numflux,*netflux,*errorest; 
-  PetscScalar    *f,*xarr,*coeff; 
-  PetscInt       v,e,c,vStart,vEnd,eStart,eEnd,vfrom,vto,cStart,cEnd,q,deg,ndeg,quadsize,tab,face,fStart,fEnd;
-  PetscInt       offsetf,offset,nedges,i,j,dof = dgnet->physics.dof,field,fieldoff;
-  const PetscInt *cone,*edges,*supp;
-  Vec            localX = dgnet->localX,localF = dgnet->localF,Ftmp = dgnet->Ftmp; 
-  EdgeFE         edgefe; 
-  Junction       junction;
-  PetscSection   section;
-  const PetscReal *qweight;
-  RiemannSolver   rs = dgnet->physics.rs; 
-  FILE           *file; /* remove */
-  char            filename[128];
-  PetscBool       adaption;
-
-  PetscFunctionBeginUser;
-  ierr = VecZeroEntries(localF);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(dgnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
-  ierr = DMGlobalToLocalEnd(dgnet->network,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = VecGetArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
-  ierr = VecZeroEntries(Ftmp);CHKERRQ(ierr);
-  /* Iterate through all vertices (including ghosts) and compute the flux/reconstruction data for the vertex.  */
-  ierr = DMNetworkGetVertexRange(dgnet->network,&vStart,&vEnd);
-  for (v=vStart; v<vEnd; v++) {
-    /* Reconstruct all local edge data points (NOTE: This routine (and the others done elsewhere) need to be refactored) */
-    ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);
-    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL); 
-    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-    for (i=0; i<nedges; i++) {
-      e     = edges[i];
-      ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-      ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-      /* DMPlex stuff here, get cell chart */
-      ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
-      ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
-      vfrom = cone[0];
-      vto   = cone[1];
-      if (v == vfrom) {
-        /* left eval */
-        for (field=0; field<dof; field++) {
-          ierr = PetscSectionGetFieldOffset(section,cStart,field,&fieldoff);CHKERRQ(ierr);
-          f[offsetf+edgefe->offset_vfrom+field] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
-        }
-      } else if (v == vto) {
-        for (field=0; field<dof; field++) {
-          ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
-          f[offsetf+edgefe->offset_vto+field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
-        }
-      }
-    }
-  }
-  /* Now communicate the flux/reconstruction data to all processors */
-  ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dgnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(dgnet->network,localF,ADD_VALUES,Ftmp);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(dgnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr); 
-  ierr = DMGlobalToLocalEnd(dgnet->network,Ftmp,INSERT_VALUES,localF);CHKERRQ(ierr);
-  ierr = VecGetArray(localF,&f);CHKERRQ(ierr);
-  /* Now ALL processors have the evaluation data to compute the coupling flux */
-  for (v=vStart; v<vEnd; v++) {
-    /* Reconstruct all local edge data points */
-    ierr = DMNetworkGetLocalVecOffset(dgnet->network,v,FLUX,&offsetf);CHKERRQ(ierr);
-    ierr = DMNetworkGetComponent(dgnet->network,v,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr);
-    /* compute the coupling flux */
-    ierr = NetRSEvaluate(junction->netrs,f+offsetf,junction->dir,&netflux,&errorest,&adaption);CHKERRQ(ierr);
-    ierr = DMNetworkGetSupportingEdges(dgnet->network,v,&nedges,&edges);CHKERRQ(ierr);
-    /* move the following to a viewer routine for netrs */
-    for (i=0; i<nedges; i++) {
-      e     = edges[i];
-      ierr = PetscSNPrintf(filename,128,"./output/v%ie%i.txt",v,e);CHKERRQ(ierr); 
-      ierr = PetscFOpen(PETSC_COMM_SELF,filename,"a",&file);CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,file,"%e, %e ,%i \n",time,errorest[i],adaption);CHKERRQ(ierr);
-      ierr = PetscFClose(PETSC_COMM_SELF,file);CHKERRQ(ierr);
-    }
-
-    for (i=0; i<junction->numedges; i++) {
-      for (j=0; j<dof; j++) {
-          f[offsetf+i*dof+j] = netflux[i*dof+j];
-      }
-    }
-  }
-  /* Now all the vertex flux data is available on each processor. */
-  /* Iterate through the edges and update the cell data belonging to that edge. */
-  ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr); 
-  for (e=eStart; e<eEnd; e++) {
-    ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
-    ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
-    ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
-    /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
-    ierr  = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
-    ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
-    /* Iterate through the cells of the edge mesh */
-    for(c=cStart; c<cEnd; c++) {
-      /* Get Geometric Data */
-      /* Assumes Affine coordinates for now (And 1D everything!!) (and I think assumes same embedding dimension as topological ) */
-      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
-      /* Now we do the main integral \int_K flux(u)\phi_x \dx  on the reference element*/ 
-      /* First we evaluate the flux(u) at the quadrature points */
-      for(q=0; q<quadsize; q++) {
-        for(field = 0; field<dof; field++) {
-          ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-          coeff = xarr+offset+fieldoff;
-          dgnet->pteval[field] = evalquad_internal(dgnet,field,q,coeff);
-        }
-        dgnet->physics.flux((void*)dgnet->physics.user,dgnet->pteval,dgnet->fluxeval+q*dof);
-      }
-      /* Now we can compute quadrature for each integral for each field */
-      for(field = 0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff = f+offset+fieldoff+deg;
-          for (q = 0; q<quadsize; q++) {
-            *coeff += qweight[q]*dgnet->fluxeval[q*dof+field]*dgnet->LegEvalD[tab][ndeg*q+deg]; 
-          }
-        }
-      }
-    }
-    /* Flux Time !!! :) */ 
-    /* update the boundary cells first, (cstart,cEnd) as their fluxes are coupling fluxes */
-    ierr   = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
-    vfrom  = cone[0];
-    vto    = cone[1];
-    /*cStart cell */
-    ierr   = DMNetworkGetComponent(dgnet->network,vfrom,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
-    ierr   = DMNetworkGetLocalVecOffset(dgnet->network,vfrom,FLUX,&offsetf);CHKERRQ(ierr);
-    /* Update the vfrom vertex flux for this edge */
-    for (field=0; field<dof; field++) {
-      ierr = PetscSectionGetFieldOffset(section,cStart,field,&fieldoff);CHKERRQ(ierr);
-      tab = dgnet->fieldtotab[field];
-      ndeg = dgnet->taborder[tab]+1;
-      for (deg = 0; deg<ndeg; deg++) {
-        coeff = f+offset+fieldoff+deg;
-        *coeff += f[edgefe->offset_vfrom+field+offsetf]*dgnet->LegEvaL_bdry[tab][deg];
-      }
-    }
-    /* cEnd cell */
-    ierr   = DMNetworkGetComponent(dgnet->network,vto,JUNCTION,NULL,(void**)&junction,NULL);CHKERRQ(ierr); 
-    ierr   = DMNetworkGetLocalVecOffset(dgnet->network,vto,FLUX,&offsetf);CHKERRQ(ierr);
-    /* Update the vfrom vertex flux for this edge */
-    for (field=0; field<dof; field++) {
-      ierr = PetscSectionGetFieldOffset(section,cEnd-1,field,&fieldoff);CHKERRQ(ierr);
-      tab = dgnet->fieldtotab[field];
-      ndeg = dgnet->taborder[tab]+1;
-      for (deg = 0; deg<ndeg; deg++) {
-        coeff = f+offset+fieldoff+deg;
-        *coeff -= f[edgefe->offset_vto+field+offsetf]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
-      }
-    }
-    /* 2) Then iterate through the flux updates */
-    /* we iterate through the 1 codim cells (faces) skipping the first and last to compute the numerical fluxes and update the resulting cells coefficients */
-    ierr  = DMPlexGetHeightStratum(edgefe->dm,1,&fStart,&fEnd);CHKERRQ(ierr);
-    for(face=fStart+1; face<fEnd-1; face++) {
-      /* WE ASSUME 1D HERE WITH SUPPORT SIZE OF 2 !!!! */
-      ierr = DMPlexGetSupport(edgefe->dm,face,&supp);CHKERRQ(ierr);
-      /* evaluate at the face */
-      for(field = 0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,supp[0],field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uLR[field] = evalboundary_internal(dgnet,field,1,xarr+offset+fieldoff);
-        ierr = PetscSectionGetFieldOffset(section,supp[1],field,&fieldoff);CHKERRQ(ierr);
-        dgnet->uLR[field+dof] = evalboundary_internal(dgnet,field,0,xarr+offset+fieldoff);
-      }
-      ierr = RiemannSolverEvaluate(rs,dgnet->uLR,dgnet->uLR+dof,&numflux,&maxspeed);CHKERRQ(ierr);
-      /* Update coefficents with the numerical flux */
-      for (field=0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,supp[0],field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff = f+offset+fieldoff+deg;
-          *coeff -= numflux[field]*dgnet->LegEvaL_bdry[tab][ndeg+deg];
-        }
-      }
-      for (field=0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,supp[1],field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff = f+offset+fieldoff+deg;
-          *coeff += numflux[field]*dgnet->LegEvaL_bdry[tab][deg];
-        }
-      }
-    }
-    /* Normalization loop */
-    for (c=cStart; c<cEnd; c++) {
-      ierr = DMPlexComputeCellGeometryAffineFEM(edgefe->dm,c,NULL,&J,&invJ,&detJ);CHKERRQ(ierr);
-      for(field=0; field<dof; field++) {
-        ierr = PetscSectionGetFieldOffset(section,c,field,&fieldoff);CHKERRQ(ierr);
-        tab = dgnet->fieldtotab[field];
-        ndeg = dgnet->taborder[tab]+1;
-        for (deg = 0; deg<ndeg; deg++) {
-          coeff  = f+offset+fieldoff+deg;
-          *coeff *= dgnet->Leg_L2[tab][deg]/detJ; /* Inverting the Mass matrix. To be refactored later 
-          with arbitrary basis */
-        }
-      }
-    }
-  }
-  /* Data Cleanup */
-  ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
-  ierr = VecRestoreArray(localF,&f);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(dgnet->network,localF,INSERT_VALUES,F);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/* for testing netrs */
-PetscErrorCode DGNetRHS_NETRSTEST_Nested(TS ts,PetscReal time,Vec X,Vec F,void *ctx) 
-{
-  PetscErrorCode  ierr;
-  DGNetwork_Nest  dgnet_nest = (DGNetwork_Nest)ctx;
-  PetscInt        i,nestsize,numsim = dgnet_nest->numsimulations;
-  MPI_Comm        comm; 
-  Vec             Xsub,Fsub;  
-  PetscBool       isequal; 
-
-  PetscFunctionBegin;
-  ierr = PetscObjectGetComm((PetscObject)ts,&comm);CHKERRQ(ierr);
-  /* This routine only works if X,F are VecNest, sanity check here */
-  ierr = PetscObjectTypeCompare((PetscObject)X,VECNEST,&isequal);CHKERRQ(ierr);
-  if (!isequal) {SETERRQ(comm,PETSC_ERR_ARG_WRONG,"Vec X must be of type VecNest.");}
-  ierr = PetscObjectTypeCompare((PetscObject)F,VECNEST,&isequal);CHKERRQ(ierr);
-  if (!isequal) {SETERRQ(comm,PETSC_ERR_ARG_WRONG,"Vec F must be of type VecNest.");}
-  /* Small sanity check */
-  ierr = VecNestGetSize(X,&nestsize);CHKERRQ(ierr);
-  if (nestsize < numsim) {SETERRQ2(comm,PETSC_ERR_ARG_WRONG,"Vec X must have at least 1 vector per dgnet simulation.\n \
-Num Simulation: %i \n Num Vectors %i \n ",numsim,nestsize);}
-  /* For each dgnet simulation in dgnet_nest run the DG kernel */
-  for(i=0; i<numsim; i++) {
-    ierr = VecNestGetSubVec(X,i,&Xsub);CHKERRQ(ierr); /* Don't need to be returned */
-    ierr = VecNestGetSubVec(F,i,&Fsub);CHKERRQ(ierr);
-    if(i>0) {
-      ierr = DGNetRHS_RSVERSION(ts,time,Xsub,Fsub,dgnet_nest->dgnets[i]);CHKERRQ(ierr);
-    } else {
-      ierr = DGNetRHS_NETRSVERSION(ts,time,Xsub,Fsub,dgnet_nest->dgnets[i]);CHKERRQ(ierr);
-    }
   }
   PetscFunctionReturn(0);
 }

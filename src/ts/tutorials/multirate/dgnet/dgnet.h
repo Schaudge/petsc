@@ -270,9 +270,7 @@ extern PetscErrorCode DGNetworkDestroyTabulation(DGNetwork);
 extern PetscErrorCode DGNetworkDestroyPhysics(DGNetwork);
 
 
-extern PetscErrorCode DGNetRHS(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode DGNetworkProject(DGNetwork,Vec,PetscReal);
-extern PetscErrorCode DGNetRHS_RSVERSION(TS,PetscReal,Vec,Vec,void*);
 
 extern PetscErrorCode PhysicsDestroy_SimpleFree_Net(void*);
 extern PetscErrorCode RiemannListAdd_Net(PetscFunctionList*,const char*,RiemannFunction);
@@ -315,15 +313,12 @@ extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
 
 /* Nest stuff. For use with concurrent simulations. WIP */
 extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
-extern PetscErrorCode DGNetRHS_RSVERSION_Nested(TS,PetscReal,Vec,Vec,void*); 
-
 
 /* NETRS Stuff WIP (should be moved to NetRS itself)  */ 
 extern PetscErrorCode DGNetRHS_NETRSVERSION(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode DGNetRHS_NETRSVERSION2(TS,PetscReal,Vec,Vec,void*);
 
 extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver,NRSErrorEstimator,PetscReal);
-extern PetscErrorCode DGNetRHS_NETRSTEST_Nested(TS,PetscReal,Vec,Vec,void*); 
 extern PetscErrorCode DGNetRHS_NETRS_Nested(TS,PetscReal,Vec,Vec,void*); 
 extern PetscErrorCode DGNetworkDestroyNetRS(DGNetwork);
 #endif
