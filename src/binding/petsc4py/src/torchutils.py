@@ -1,4 +1,4 @@
-from petsc4py import PETSc
+from . import PETSc
 import torch
 
 class TAOtorch(torch.optim.Optimizer):
