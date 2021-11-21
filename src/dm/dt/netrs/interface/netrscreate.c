@@ -32,7 +32,7 @@ PetscErrorCode  NetRSCreate(MPI_Comm comm, NetRS *rs)
   r->finetype  = NETRSEXACTSWE;
   r->finetol   = 1.0; 
   r->estimate  = NetRSTaylorErrorEstimate; /* always available for any physics */
-  r->useestimator  = PETSC_TRUE; 
+  r->useestimator  = PETSC_FALSE; 
   r->useadaptivity = PETSC_FALSE;  
   r->fine = NULL; 
   *rs = r;

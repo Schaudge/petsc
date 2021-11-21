@@ -17,13 +17,44 @@ static PetscErrorCode NRSEvaluate_RS(NetRS rs, const PetscReal *u, const EdgeDir
 
   PetscFunctionBeginUser;
   if(rs->numedges != 2) { SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"The Riemann Solver NETRS requires exactly two edges");}
-  ierr = RiemannSolverEvaluate(rs->rs,u,u+rs->numfields,&fluxrs,NULL);CHKERRQ(ierr);
-  /* adjust the computed flux to align with mesh discretization given by dir */
-  for(i=0; i<rs->numfields; i++) {
-    flux[i] = (dir[0] == EDGEIN ? 1 : -1)*fluxrs[i];
-  }
-  for(i=0; i<rs->numfields; i++) {
-    flux[i+rs->numfields] = (dir[1] == EDGEIN ? -1 : 1)*fluxrs[i];
+  if (dir[0] == EDGEIN && dir[1] == EDGEOUT ) {
+    ierr = RiemannSolverEvaluate(rs->rs,u,u+rs->numfields,&fluxrs,NULL);CHKERRQ(ierr);
+      /* adjust the computed flux to align with mesh discretization given by dir */
+    for(i=0; i<rs->numfields; i++) {
+      flux[i] = fluxrs[i];
+    }
+    for(i=0; i<rs->numfields; i++) {
+      flux[i+rs->numfields] = fluxrs[i];
+    }
+  } else  if (dir[0] == EDGEOUT && dir[1] == EDGEIN ) {
+    ierr = RiemannSolverEvaluate(rs->rs,u+rs->numfields,u,&fluxrs,NULL);CHKERRQ(ierr);
+      /* adjust the computed flux to align with mesh discretization given by dir */
+    for(i=0; i<rs->numfields; i++) {
+      flux[i] = fluxrs[i];
+    }
+    for(i=0; i<rs->numfields; i++) {
+      flux[i+rs->numfields] = fluxrs[i];
+    }
+  } else  if (dir[0] == EDGEIN && dir[1] == EDGEIN ) {
+    ierr = RiemannSolverEvaluate(rs->rs,u,u+rs->numfields,&fluxrs,NULL);CHKERRQ(ierr);
+      /* adjust the computed flux to align with mesh discretization given by dir */
+    for(i=0; i<rs->numfields; i++) {
+      flux[i] = fluxrs[i];
+    }
+    ierr = RiemannSolverEvaluate(rs->rs,u+rs->numfields,u,&fluxrs,NULL);CHKERRQ(ierr);
+    for(i=0; i<rs->numfields; i++) {
+      flux[i+rs->numfields] = fluxrs[i];
+    }
+  } else  if (dir[0] == EDGEOUT && dir[1] == EDGEOUT ) {
+     ierr = RiemannSolverEvaluate(rs->rs,u+rs->numfields,u,&fluxrs,NULL);CHKERRQ(ierr);
+      /* adjust the computed flux to align with mesh discretization given by dir */
+    for(i=0; i<rs->numfields; i++) {
+      flux[i] = fluxrs[i];
+    }
+    ierr = RiemannSolverEvaluate(rs->rs,u,u+rs->numfields,&fluxrs,NULL);CHKERRQ(ierr);
+    for(i=0; i<rs->numfields; i++) {
+      flux[i+rs->numfields] = fluxrs[i];
+    }
   }
   PetscFunctionReturn(0);
 }
