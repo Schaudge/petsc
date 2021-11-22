@@ -534,7 +534,7 @@ cdef class TAO(Object):
     def getBNCGType(self):
         """
         """
-        cdef PetscTAOBNCGType cg_type = TAO_BNCG_GD
+        cdef PetscTAOBNCGType cg_type = NULL
         CHKERR( TaoBNCGGetType(self.tao, &cg_type) )
         return cg_type
 
