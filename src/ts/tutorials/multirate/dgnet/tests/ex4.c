@@ -214,6 +214,8 @@ int main(int argc,char *argv[])
         ierr = DGNetworkMonitorDestroy(&monitor);
       }
     }
+    ierr = DGNetworkDestroyNetRS(dgnet);CHKERRQ(ierr);
+    ierr = RiemannSolverDestroy(&dgnet->physics.rs);CHKERRQ(ierr);
     ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr); /* Destroy all data within the network and within fvnet */
     ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
     ierr = TSDestroy(&ts);CHKERRQ(ierr);

@@ -5,9 +5,6 @@
 */
 
 #include "physics.h"
-
-PETSC_STATIC_INLINE PetscReal MaxAbs(PetscReal a,PetscReal b) { return (PetscAbs(a) > PetscAbs(b)) ? a : b; }
-
 /* --------------------------------- Shallow Water ----------------------------------- */
 typedef struct {
   PetscReal gravity;
@@ -28,46 +25,12 @@ PETSC_STATIC_INLINE void ShallowFluxVoid(void *ctx,const PetscReal *u,PetscReal 
   f[0] = u[1];
   f[1] = PetscSqr(u[1])/u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
 }
-
-PETSC_STATIC_INLINE void ShallowFlux2(ShallowCtx *phys,const PetscScalar *u,PetscScalar *f)
-{
-  f[0] = u[1]*u[0];
-  f[1] = PetscSqr(u[1])*u[0] + 0.5*phys->gravity*PetscSqr(u[0]);
-}
-
 PETSC_STATIC_INLINE void ShallowEig(void *ctx,const PetscReal *u,PetscReal *eig)
 {
     ShallowCtx *phys = (ShallowCtx*)ctx;
     eig[0] = u[1]/u[0] - PetscSqrtReal(phys->gravity*u[0]); /*left wave*/
     eig[1] = u[1]/u[0] + PetscSqrtReal(phys->gravity*u[0]); /*right wave*/
 }
-
-static PetscErrorCode PhysicsRiemann_Shallow_Rusanov(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
-{
-  ShallowCtx                *phys = (ShallowCtx*)vctx;
-  PetscScalar               g = phys->gravity,fL[2],fR[2],s;
-  struct {PetscScalar h,u;} L = {uL[0],uL[1]/uL[0]},R = {uR[0],uR[1]/uR[0]};
-  PetscReal                 tol = 1e-6;
-
-  PetscFunctionBeginUser;
-  /* Positivity preserving modification*/
-  if (L.h < tol) L.u = 0.0;
-  if (R.h < tol) R.u = 0.0;
-
-  /*simple positivity preserving limiter*/
-  if (L.h < 0) L.h = 0;
-  if (R.h < 0) R.h = 0;
-
-  ShallowFlux2(phys,(PetscScalar*)&L,fL);
-  ShallowFlux2(phys,(PetscScalar*)&R,fR);
-
-  s         = PetscMax(PetscAbs(L.u)+PetscSqrtScalar(g*L.h),PetscAbs(R.u)+PetscSqrtScalar(g*R.h));
-  flux[0]   = 0.5*(fL[0] + fR[0]) + 0.5*s*(L.h - R.h);
-  flux[1]   = 0.5*(fL[1] + fR[1]) + 0.5*s*(uL[1] - uR[1]);
-  *maxspeed = s;
-  PetscFunctionReturn(0);
-}
-
 static PetscErrorCode PhysicsCharacteristic_Conservative(void *vctx,PetscInt m,const PetscScalar *u,PetscScalar *X,PetscScalar *Xi,PetscReal *speeds)
 {
   PetscInt i,j;
@@ -79,7 +42,6 @@ static PetscErrorCode PhysicsCharacteristic_Conservative(void *vctx,PetscInt m,c
   }
   PetscFunctionReturn(0);
 }
-
 static PetscErrorCode PhysicsCharacteristic_Shallow(void *vctx,PetscInt m,const PetscScalar *u,PetscScalar *X,PetscScalar *Xi,PetscReal *speeds)
 {
   ShallowCtx     *phys = (ShallowCtx*)vctx;
@@ -284,58 +246,6 @@ static PetscErrorCode PhysicsSample_ShallowNetwork(void *vctx,PetscInt initial,P
   }
   PetscFunctionReturn(0);
 }
-
-/*2 edge vertex flux for edge 1 pointing in and edge 2 pointing out */
-static PetscErrorCode PhysicsVertexFlux_2Edge_InOut(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_dgnet;
-  PetscInt        i,dof = fvnet->physics.dof;
-
-  PetscFunctionBeginUser;
-  /* First edge interpreted as uL, 2nd as uR. Use the user inputted Riemann function. */
-  ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV,uV+dof,flux,maxspeed);CHKERRQ(ierr);
-  /* Copy the flux */
-  for (i = 0; i<dof; i++) {
-    flux[i+dof] = flux[i];
-  }
-  PetscFunctionReturn(0);
-}
-
-/*2 edge vertex flux for edge 1 pointing out and edge 2 pointing in  */
-static PetscErrorCode PhysicsVertexFlux_2Edge_OutIn(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_dgnet;
-  PetscInt        i,dof = fvnet->physics.dof;
-
-  PetscFunctionBeginUser;
-  /* First edge interpreted as uR, 2nd as uL. Use the user inputted Riemann function. */
-  ierr = fvnet->physics.riemann(fvnet->physics.user,dof,uV+dof,uV,flux,maxspeed);CHKERRQ(ierr);
-  /* Copy the flux */
-  for (i = 0; i<dof; i++) {
-    flux[i+dof] = flux[i];
-  }
-  PetscFunctionReturn(0);
-}
-
-static PetscReal ShallowRiemannExact_Left(const PetscScalar hl, const PetscScalar vl, PetscScalar h)
-{
-  const PetscScalar g = 9.81;
-  return h<hl ? vl-2.0*(PetscSqrtScalar(g*h)-PetscSqrtScalar(g*hl)) : vl- (h-hl)*PetscSqrtScalar(g*(h+hl)/(2.0*h*hl));
-}
-
-static PetscReal ShallowRiemannExact_Right(const PetscScalar hr, const PetscScalar vr, PetscScalar h)
-{
-  const PetscScalar g = 9.81;
-  return h<hr ? vr+2.0*(PetscSqrtScalar(g*h)-PetscSqrtScalar(g*hr)) : vr+(h-hr)*PetscSqrtScalar(g*(h+hr)/(2.0*h*hr));
-}
-
-static PetscReal ShallowRiemannEig_Right(const PetscScalar hr, const PetscScalar vr)
-{
-  const PetscScalar g = 9.81;
-  return vr + PetscSqrtScalar(g*hr);
-}
 /* Lax Curve evaluation function, for use in RiemannSolver */
 static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u,PetscReal hbar,PetscInt wavenumber,PetscReal *ubar)
 {
@@ -365,224 +275,6 @@ static PetscErrorCode LaxCurve_Shallow(RiemannSolver rs, const PetscReal *u,Pets
   ubar[0] = hbar;
   PetscFunctionReturn(0);
 }
-static PetscReal ShallowRiemannEig_Left(const PetscScalar hl, const PetscScalar vl)
-{
-  const PetscScalar g = 9.81;
-  return vl - PetscSqrtScalar(g*hl);
-}
-
-typedef struct {
-  Junction          junct;
-  const PetscScalar *uV;
-} Shallow_Couple_InputWrapper;
-
-static PetscErrorCode RiemannInvariant_Couple_Shallow(SNES snes,Vec x,Vec f, void *ctx)
-{
-  PetscErrorCode ierr;
-  PetscInt       i,n,dof=2;
-  Shallow_Couple_InputWrapper *wrapper= (Shallow_Couple_InputWrapper*) ctx;
-  const Junction  junct = wrapper->junct;
-  const PetscScalar *ustar,*uV = wrapper->uV;
-  PetscScalar *F;
-
-  ierr = VecGetSize(x,&n);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x,&ustar);CHKERRQ(ierr);
-  ierr = VecGetArray(f,&F);CHKERRQ(ierr);
-
-  F[n-2] = (junct->dir[junct->numedges-1] == EDGEIN) ?  ustar[n-1] : -ustar[n-1];
-
-  for (i=0; i<junct->numedges-1; i++)
-  {
-    F[dof*i] = ustar[dof*i] - ustar[dof*(i+1)];
-    F[n-2] += (junct->dir[i] == EDGEIN) ? ustar[dof*i+1] : -ustar[dof*i+1];
-    /* output for this edges vstar eqn */
-    if (junct->dir[i] == EDGEIN){
-      F[dof*i+1] = ustar[dof*i+1] - ShallowRiemannExact_Left(uV[dof*i],uV[dof*i+1]/uV[dof*i],ustar[dof*i]);
-    } else { /* junct->dir[i] == EDGEOUT */
-      F[dof*i+1] = ustar[dof*i+1] - ShallowRiemannExact_Right(uV[dof*i],uV[dof*i+1]/uV[dof*i],ustar[dof*i]);
-    }
-  }
-
-   if (junct->dir[junct->numedges-1] == EDGEIN){
-      F[n-1] = ustar[n-1] - ShallowRiemannExact_Left(uV[n-2],uV[n-1]/uV[n-2],ustar[n-2]);
-    } else { /* junct->dir[i] == EDGEOUT */
-      F[n-1] = ustar[n-1] - ShallowRiemannExact_Right(uV[n-2],uV[n-1]/uV[n-2],ustar[n-2]);
-    }
-
-  ierr = VecRestoreArrayRead(x,&ustar);CHKERRQ(ierr);
-  ierr = VecRestoreArray(f,&F);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsVertexFlux_Shallow_Full(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_dgnet;
-  const Junction  junct = (Junction) _junct;
-  Shallow_Couple_InputWrapper wrapper = {junct,uV};
-  PetscInt        i,n,dof = fvnet->physics.dof;
-  PetscScalar     *x;
-
-
-  PetscFunctionBeginUser;
-
-  ierr = SNESSetFunction(fvnet->snes,junct->rcouple,RiemannInvariant_Couple_Shallow,&wrapper);
-  /* Set initial condition as the reconstructed h,v values*/
-  ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
-  ierr = VecGetSize(junct->xcouple,&n);CHKERRQ(ierr);
-  for (i=0;i<junct->numedges;i++) {
-    x[i*dof]   = uV[i*dof];
-    x[i*dof+1] = uV[i*dof+1]/uV[i*dof];
-  }
-  ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  ierr = SNESSolve(fvnet->snes,NULL,junct->xcouple);CHKERRQ(ierr);
-  ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
-  /* Compute the Flux from the computed star values */
-  for (i=0;i<junct->numedges;i++) {
-    flux[i*dof] = x[i*dof];
-  }
-  /* Compute the Flux from the computed star values */
-  for (i=0;i<junct->numedges;i++) {
-    flux[i*dof+1] = x[i*dof+1]*x[i*dof];
-  }
-  ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  *maxspeed = 0.0; /* Ignore the computation of the maxspeed */
-  PetscFunctionReturn(0);
-}
-static PetscErrorCode PhysicsVertexFlux_Shallow_Full_Linear(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_dgnet;
-  const Junction  junct = (Junction) _junct;
-  PetscInt        i,dof = fvnet->physics.dof;
-  PetscScalar     *x,*r,eig,h,v,hv;
-  PetscBool       nonzeroinitial; 
-
-  PetscFunctionBeginUser;
-
-  ierr = VecGetArray(junct->rcouple,&r);CHKERRQ(ierr);
-  /* Build the system matrix and rhs vector */
-  for (i=1;i<junct->numedges;i++) {
-    h  = uV[i*dof];
-    hv = uV[i*dof+1];
-    v  = hv/h; 
-    eig = junct->dir[i] == EDGEIN ? 
-      ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v);
-    ierr = MatSetValue(junct->mat,i+1,i+1,-1 ,INSERT_VALUES);CHKERRQ(ierr); /* hv* term */
-    ierr = MatSetValue(junct->mat,i+1,0,eig,INSERT_VALUES);CHKERRQ(ierr);      /* h* term */
-    ierr = MatSetValue(junct->mat,1,i+1,junct->dir[i] == EDGEIN ? 1:-1,INSERT_VALUES);CHKERRQ(ierr);  
-    r[i+1] = eig*h-hv; /* riemann invariant at the boundary */
-  }
-  /* Form the matrix in this reordered form to have nonzeros along the diagonal */
-  h  = uV[0];
-  hv = uV[1];
-  v  = hv/h; 
-  eig = junct->dir[0] == EDGEIN ? 
-    ShallowRiemannEig_Left(h,v) : ShallowRiemannEig_Right(h,v);
-  ierr = MatSetValue(junct->mat,0,1,-1 ,INSERT_VALUES);CHKERRQ(ierr); /* hv* term */
-  ierr = MatSetValue(junct->mat,0,0,eig,INSERT_VALUES);CHKERRQ(ierr);      /* h* term */
-  ierr = MatSetValue(junct->mat,1,1,junct->dir[0] == EDGEIN ? 1:-1,INSERT_VALUES);CHKERRQ(ierr);  
-  r[0] = eig*h-hv; /* riemann invariant at the boundary */
-  r[1] = 0.0;   
-  ierr = VecRestoreArray(junct->rcouple,&r);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(junct->mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(junct->mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  ierr = KSPGetInitialGuessNonzero(fvnet->ksp,&nonzeroinitial);CHKERRQ(ierr);
-  if(nonzeroinitial) {
-    /* Set initial guess as the reconstructed h,v values */
-    ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
-    for (i=0;i<junct->numedges;i++) {
-      x[i+1] = uV[i*dof+1];
-    }
-    x[0] = uV[0];
-    ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  }
-
-  ierr = KSPSetOperators(fvnet->ksp,junct->mat,junct->mat);CHKERRQ(ierr);
-  ierr = KSPSolve(fvnet->ksp,junct->rcouple,junct->xcouple);CHKERRQ(ierr);
-  ierr = VecGetArray(junct->xcouple,&x);CHKERRQ(ierr);
-  /* Compute the Flux from the computed star values */
-  for (i=0;i<junct->numedges;i++) {
-    flux[i*dof+1] = x[i+1];
-    flux[i*dof]   = x[0];
-  }
-  ierr = VecRestoreArray(junct->xcouple,&x);CHKERRQ(ierr);
-  *maxspeed = 0.0; /* Ignore the computation of the maxspeed */
-  PetscFunctionReturn(0);
-}
-static PetscErrorCode PhysicsVertexFlux_Outflow_Simple(const void* _dgnet,const PetscScalar *uV,const PetscBool *dir,PetscScalar *flux,PetscScalar *maxspeed,const void* _junct) {
-  PetscErrorCode  ierr;
-  const DGNetwork dgnet = (DGNetwork)_dgnet;
-  PetscInt        dof = dgnet->physics.dof;
-
-  PetscFunctionBeginUser;
-  *maxspeed = 0.0; 
-  ierr = dgnet->physics.riemann(dgnet->physics.user,dof,uV,uV,flux,maxspeed);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-static PetscErrorCode PhysicsAssignVertexFlux_Shallow(const void* _dgnet, Junction junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork dgnet = (DGNetwork)_dgnet;
-  PetscInt        dof = 2;
-
-  PetscFunctionBeginUser;
-      if (junct->numedges == 2) {
-        if (junct->dir[0] == EDGEIN) {
-          if (junct->dir[1] == EDGEIN) {
-            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
-          } else { /* dir[1] == EDGEOUT */
-            junct->couplingflux = PhysicsVertexFlux_2Edge_InOut;
-          }
-        } else { /* dir[0] == EDGEOUT */
-          if (junct->dir[1] == EDGEIN) {
-            junct->couplingflux = PhysicsVertexFlux_2Edge_OutIn;
-          } else { /* dir[1] == EDGEOUT */
-            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
-          }
-        }
-      } else if (junct->numedges == 1) {
-        junct->couplingflux =   junct->couplingflux = PhysicsVertexFlux_Outflow_Simple;
-      } else {
-        if(!dgnet->linearcoupling) {
-          ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges*dof,&junct->rcouple);CHKERRQ(ierr);
-          ierr = VecDuplicate(junct->rcouple,&junct->xcouple);CHKERRQ(ierr);
-          junct->couplingflux = PhysicsVertexFlux_Shallow_Full;
-        } else {
-          ierr = VecCreateSeq(MPI_COMM_SELF,junct->numedges+1,&junct->rcouple);CHKERRQ(ierr);
-          ierr = VecDuplicate(junct->rcouple,&junct->xcouple);CHKERRQ(ierr);
-          ierr = MatCreate(MPI_COMM_SELF,&junct->mat);CHKERRQ(ierr);
-          ierr = MatSetSizes(junct->mat,PETSC_DECIDE,PETSC_DECIDE,junct->numedges+1,junct->numedges+1);CHKERRQ(ierr);
-          ierr = MatSetFromOptions(junct->mat);CHKERRQ(ierr); 
-          ierr = MatSetUp(junct->mat);CHKERRQ(ierr);
-          junct->couplingflux = PhysicsVertexFlux_Shallow_Full_Linear;
-        }
-      }
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsDestroyVertexFlux_Shallow(const void* _fvnet, Junction junct)
-{
-  PetscErrorCode  ierr;
-  const DGNetwork fvnet = (DGNetwork)_fvnet;
-
-  PetscFunctionBeginUser;
-      if (junct->numedges == 2) {
-        // Nothing to Destroy 
-      } else {
-        if(!fvnet->linearcoupling) {
-          ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
-          ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
-        } else {
-          ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
-          ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
-          ierr = MatDestroy(&junct->mat);CHKERRQ(ierr);
-        }
-        ierr = NetRSDestroy(&junct->netrs);CHKERRQ(ierr);
-      }
-  PetscFunctionReturn(0);
-}
 
 PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
 {
@@ -593,8 +285,6 @@ PetscErrorCode PhysicsCreate_Shallow(DGNetwork fvnet)
   fvnet->physics.samplenetwork   = PhysicsSample_ShallowNetwork;
   fvnet->physics.destroy         = PhysicsDestroy_SimpleFree_Net;
   fvnet->physics.characteristic  = PhysicsCharacteristic_Shallow;
-  fvnet->physics.vfluxassign     = PhysicsAssignVertexFlux_Shallow;
-  fvnet->physics.vfluxdestroy    = PhysicsDestroyVertexFlux_Shallow;
   fvnet->physics.flux            = ShallowFlux;
   fvnet->physics.user            = user;
   fvnet->physics.dof             = 2;
@@ -628,7 +318,6 @@ typedef struct {
   PetscReal a;
 } TrafficCtx;
 
-PETSC_STATIC_INLINE PetscScalar TrafficFlux(PetscScalar a,PetscScalar u) { return a*u*(1-u); }
 PETSC_STATIC_INLINE PetscScalar TrafficChar(PetscScalar a,PetscScalar u) { return a*(1-2*u); }
 PETSC_STATIC_INLINE PetscErrorCode TrafficFlux2(void *ctx,const PetscReal *u,PetscReal *f) {
   TrafficCtx *phys = (TrafficCtx*)ctx;
@@ -639,72 +328,12 @@ PETSC_STATIC_INLINE void TrafficFluxVoid(void *ctx,const PetscReal *u,PetscReal 
   TrafficCtx *phys = (TrafficCtx*)ctx;
   f[0] = phys->a * u[0]*(1. - u[0]);
 }
-static PetscErrorCode PhysicsRiemann_Traffic_Exact(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
-{
-  PetscReal a = ((TrafficCtx*)vctx)->a;
-
-  PetscFunctionBeginUser;
-  if (uL[0] < uR[0]) {
-    flux[0] = PetscMin(TrafficFlux(a,uL[0]),TrafficFlux(a,uR[0]));
-  } else {
-    flux[0] = (uR[0] < 0.5 && 0.5 < uL[0]) ? TrafficFlux(a,0.5) : PetscMax(TrafficFlux(a,uL[0]),TrafficFlux(a,uR[0]));
-  }
-  *maxspeed = a*MaxAbs(1-2*uL[0],1-2*uR[0]);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsRiemann_Traffic_Roe(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
-{
-  PetscReal a = ((TrafficCtx*)vctx)->a;
-  PetscReal speed;
-
-  PetscFunctionBeginUser;
-  speed = a*(1 - (uL[0] + uR[0]));
-  flux[0] = 0.5*(TrafficFlux(a,uL[0]) + TrafficFlux(a,uR[0])) - 0.5*PetscAbs(speed)*(uR[0]-uL[0]);
-  *maxspeed = speed;
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode PhysicsRiemann_Traffic_Rusanov(void *vctx,PetscInt m,const PetscScalar *uL,const PetscScalar *uR,PetscScalar *flux,PetscReal *maxspeed)
-{
-  PetscReal a = ((TrafficCtx*)vctx)->a;
-  PetscReal speed;
-
-  PetscFunctionBeginUser;
-  speed     = a*PetscMax(PetscAbs(1-2*uL[0]),PetscAbs(1-2*uR[0]));
-  flux[0]   = 0.5*(TrafficFlux(a,uL[0]) + TrafficFlux(a,uR[0])) - 0.5*speed*(uR[0]-uL[0]);
-  *maxspeed = speed;
-  PetscFunctionReturn(0);
-}
 
 static void TrafficEig(void *ctx,const PetscReal *u,PetscScalar *eig) 
 {
     PetscReal a = ((TrafficCtx*)ctx)->a;
 
     eig[0]      = TrafficChar(a,u[0]);
-}
-
-static PetscErrorCode PhysicsAssignVertexFlux_Traffic(const void* _fvnet, Junction junct)
-{  
-  PetscFunctionBeginUser;
-      if (junct->numedges == 2) {
-        if (junct->dir[0] == EDGEIN) {
-          if (junct->dir[1] == EDGEIN) {
-            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
-          } else { /* dir[1] == EDGEOUT */
-            junct->couplingflux = PhysicsVertexFlux_2Edge_InOut;
-          }
-        } else { /* dir[0] == EDGEOUT */
-          if (junct->dir[1] == EDGEIN) {
-            junct->couplingflux = PhysicsVertexFlux_2Edge_OutIn;
-          } else { /* dir[1] == EDGEOUT */
-            SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not a valid directed graph for the current discretization method");
-          }
-        }
-      } else {
-        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"General coupling conditions are not yet implemented for traffic models");
-      }
-  PetscFunctionReturn(0);
 }
 typedef struct {
   PetscReal a,x,t;
@@ -797,31 +426,17 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx,PetscInt initial,P
           ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
           ierr = VecSet(X,x);CHKERRQ(ierr);
           ierr = SNESSolve(snes,NULL,X);CHKERRQ(ierr);
-          ierr = PetscMalloc1(1,&s);CHKERRQ(ierr);
-          ierr = VecGetArray(X,&s);CHKERRQ(ierr);
-      
+          ierr = VecGetArray(X,&s);CHKERRQ(ierr);     
           u[0] = PetscSinReal(PETSC_PI*(s[0]/5.0))+2;
-         
           ierr = VecRestoreArray(X,&s);CHKERRQ(ierr);
           ierr = VecDestroy(&X);CHKERRQ(ierr);
           ierr = VecDestroy(&R);CHKERRQ(ierr);
           ierr = MatDestroy(&J);CHKERRQ(ierr);
           ierr = SNESDestroy(&snes);CHKERRQ(ierr);
-          ierr = PetscFree(s); 
       } 
       break;
     default: SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"unknown initial condition");
   }
-  PetscFunctionReturn(0);
-}
-static PetscErrorCode PhysicsDestroyVertexFlux(const void* _fvnet, Junction junct)
-{
-  PetscErrorCode  ierr;
-
-  PetscFunctionBeginUser;
-          ierr = VecDestroy(&junct->rcouple);CHKERRQ(ierr);
-          ierr = VecDestroy(&junct->xcouple);CHKERRQ(ierr);
-          ierr = MatDestroy(&junct->mat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -837,10 +452,6 @@ PetscErrorCode PhysicsCreate_Traffic(DGNetwork fvnet)
   fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
   fvnet->physics.user           = user;
   fvnet->physics.dof            = 1;
-  fvnet->physics.destroy        = PhysicsDestroy_SimpleFree_Net;
-  fvnet->physics.vfluxassign    = PhysicsAssignVertexFlux_Traffic;
-  fvnet->physics.vfluxdestroy   = PhysicsDestroyVertexFlux;
-  fvnet->physics.user           = user;
   fvnet->physics.flux           = TrafficFlux2;
   fvnet->physics.flux2          = TrafficFluxVoid;
   fvnet->physics.fluxeig        = TrafficEig;     
