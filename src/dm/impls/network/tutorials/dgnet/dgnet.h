@@ -263,6 +263,7 @@ extern PetscErrorCode DGNetworkViewEdgeDMs(DGNetwork,PetscViewer);
 extern PetscErrorCode DGNetworkViewEdgeGeometricInfo(DGNetwork,PetscViewer);
 
 extern PetscErrorCode DGNetworkBuildTabulation(DGNetwork);
+extern PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork);
 
 /* Destroy allocated data */
 extern PetscErrorCode DGNetworkDestroy(DGNetwork);

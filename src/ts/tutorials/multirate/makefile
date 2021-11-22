@@ -47,6 +47,7 @@ SOURCES_FVNET   = $(wildcard ./fvnet/*.c)
 OBJECTS_FVNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 CLEANFILES      = ${OBJECTS_FVNET}
 >>>>>>> Modified make file to improve dependency on fvnet.h WIP
 =======
@@ -56,6 +57,9 @@ OBJECTS_DGNET   = $(patsubst %.c,%.o,$(SOURCES_FVNET))
 >>>>>>> WIP
 CLEANFILES      = ${OBJECTS_FVNET} ${OBJECTS_DGNET}
 >>>>>>> WIP
+=======
+CLEANFILES      = ${OBJECTS_FVNET}
+>>>>>>> Added DGNetworkBuildEdgeDM as seperate function. Moved the dgnet as a network tutorial
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
@@ -80,9 +84,12 @@ ex9: ex9.o $(OBJECTS_FVNET)
 ex9.o:  ./fvnet/fvnet.h ./fvnet/limiters.h
 ex9: ex9.o $(OBJECTS_FVNET)
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Modified make file to improve dependency on fvnet.h WIP
 =======
 ex10: ex10.o $(OBJECTS_DGNET)
 >>>>>>> WIP
+=======
+>>>>>>> Added DGNetworkBuildEdgeDM as seperate function. Moved the dgnet as a network tutorial
 include ${PETSC_DIR}/lib/petsc/conf/test
 

@@ -1,4 +1,4 @@
-static const char help[] = "Geometric Mesh Viewer Test";
+static const char help[] = "EdgeFE mesh Test";
 /*
 
   TODO ADD EXAMPLE RUNS HERE 
@@ -64,7 +64,8 @@ int main(int argc,char *argv[])
   ierr = DGNetworkCreate(dgnet,networktype,dx);CHKERRQ(ierr);
   ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
   ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
-  ierr = DGNetworkViewEdgeGeometricInfo(dgnet,viewer);CHKERRQ(ierr);
+  ierr = DGNetworkBuildEdgeDM(dgnet);CHKERRQ(ierr); /* actually make the edge dmplex objects */
+  ierr = DGNetworkViewEdgeDMs(dgnet,viewer);CHKERRQ(ierr);
 
   /* Clean up */
   ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr);

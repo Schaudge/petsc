@@ -1,17 +1,17 @@
--include ../../../../petscdir.mk
+-include ../../../../../petscdir.mk
 ALL: lib
 
 CPPFLAGS =
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = networkcreate.c network.c networkmonitor.c
+SOURCEC  = 
 SOURCEF  =
 SOURCEH  =
-DIRS     = tutorials
+DIRS     = dgnet
 LIBBASE  = libpetscdm
 MANSEC   = DM
 SUBMANSEC= DMNetwork
-LOCDIR   = src/dm/impls/network/
+LOCDIR   = src/dm/impls/network/tutorials/
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules

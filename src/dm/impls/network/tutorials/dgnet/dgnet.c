@@ -434,15 +434,12 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
 {
   PetscErrorCode ierr; 
   PetscInt       e,v,i,nedges,dof = dgnet->physics.dof;
-  PetscInt       eStart,eEnd,vStart,vEnd,vfrom,vto,offset,*numComp,*numDof,dim = 1,f;
+  PetscInt       eStart,eEnd,vStart,vEnd,vfrom,vto,offset;
   const PetscInt *cone,*edges; 
-  EdgeFE         fvedge,edgefe;
+  EdgeFE         edgefe;
   Junction       junction;
   Vec            localX = dgnet->localX; 
   PetscScalar    *xarr;
-  PetscReal         low[3] = {0, 0, 0},upper[3] = {1,1,1};
-  PetscSection      section;
-
 
   PetscFunctionBegin;
   ierr   = VecSet(dgnet->Ftmp,0.0);CHKERRQ(ierr);
@@ -463,14 +460,14 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
        potentially conflicting our scatters.*/
     for (i=0; i<nedges; i++) { 
       e     = edges[i];  
-      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void **)&fvedge,NULL);CHKERRQ(ierr);
+      ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void **)&edgefe,NULL);CHKERRQ(ierr);
       ierr  = DMNetworkGetConnectedVertices(dgnet->network,e,&cone);CHKERRQ(ierr);
       vfrom = cone[0];
       vto   = cone[1]; 
       if (v==vto) {
-        xarr[offset+fvedge->offset_vto]   = EDGEIN;
+        xarr[offset+edgefe->offset_vto]   = EDGEIN;
       } else if (v==vfrom) {
-        xarr[offset+fvedge->offset_vfrom] = EDGEOUT;
+        xarr[offset+edgefe->offset_vfrom] = EDGEOUT;
       } else {
         SETERRQ2(PetscObjectComm((PetscObject)(dgnet->network)),PETSC_ERR_ARG_WRONG,"vertex %D != vfrom or vto from supporting edge %D",v,e);
       }
@@ -498,6 +495,20 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
     }
   }
   ierr = VecRestoreArray(localX,&xarr);CHKERRQ(ierr);
+  ierr = DGNetworkBuildEdgeDM(dgnet);CHKERRQ(ierr);
+  PetscFunctionReturn(0); 
+}
+PetscErrorCode DGNetworkBuildEdgeDM(DGNetwork dgnet)
+{
+  PetscErrorCode ierr; 
+  PetscInt       e,i,dof = dgnet->physics.dof;
+  PetscInt       eStart,eEnd,*numComp,*numDof,dim = 1,f;
+  EdgeFE         edgefe;
+  PetscReal      low[3] = {0, 0, 0},upper[3] = {1,1,1};
+  PetscSection   section;
+
+  PetscFunctionBegin;
+  ierr   = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);
   /* iterate through the edges and build the dmplex mesh for each edge */
   ierr  = PetscMalloc2(dof,&numComp,dof*(dim+1),&numDof);CHKERRQ(ierr);
   for (i = 0; i < dof*(dim+1); ++i) numDof[i] = 0;
@@ -525,9 +536,9 @@ PetscErrorCode DGNetworkBuildDynamic(DGNetwork dgnet)
     ierr = DMSetLocalSection(edgefe->dm,section);CHKERRQ(ierr);
     ierr = PetscSectionDestroy(&section);CHKERRQ(ierr);
     ierr = DMSetUp(edgefe->dm);CHKERRQ(ierr);
+    
   }
   ierr = PetscFree2(numComp,numDof);CHKERRQ(ierr);
-
   PetscFunctionReturn(0); 
 }
 PetscErrorCode DGNetworkBuildTabulation(DGNetwork dgnet) {
