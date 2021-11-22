@@ -6,7 +6,9 @@ function A = buildmatrix(ns,nn,np)
 %
 A = zeros(ns,ns);
 for i=1:ns-1
-  % s counts the number of additional connections needed for rank i to have ns total connections
+  % could select from a normal distributions the number of neighbors for the ith rank instead of always using nn
+  %
+  % s counts the number of additional connections needed for rank i to have nn total connections
   s = min(nn - sum(A(i,:) ~= 0),ns-i);
   if s > 0
     r = i + randperm(ns - i,s);
