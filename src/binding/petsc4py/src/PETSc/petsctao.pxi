@@ -32,6 +32,7 @@ cdef extern from * nogil:
     PetscTAOType TAOPDIPM
     PetscTAOType TAOSHELL
     PetscTAOType TAOADMM
+    PetscTAOType TAOALMM
 
     ctypedef enum PetscTAOConvergedReason "TaoConvergedReason":
         #iterating
@@ -50,32 +51,6 @@ cdef extern from * nogil:
         TAO_DIVERGED_LS_FAILURE
         TAO_DIVERGED_TR_REDUCTION
         TAO_DIVERGED_USER
-
-    ctypedef const char* PetscTAOLineSearchType "TaoLineSearchType"
-    PetscTAOLineSearchType TAOLINESEARCHUNIT
-    PetscTAOLineSearchType TAOLINESEARCHARMIJO
-    PetscTAOLineSearchType TAOLINESEARCHOWARMIJO
-    PetscTAOLineSearchType TAOLINESEARCHGPCG
-    PetscTAOLineSearchType TAOLINESEARCHMT
-    PetscTAOLineSearchType TAOLINESEARCHIPM
-
-    ctypedef enum PetscTAOLineSearchConvergedReason "TaoLineSearchConvergedReason":
-        # failed
-        TAOLINESEARCH_FAILED_INFORNAN
-        TAOLINESEARCH_FAILED_BADPARAMETER
-        TAOLINESEARCH_FAILED_ASCENT
-        # continue
-        TAOLINESEARCH_CONTINUE_ITERATING
-        # success
-        TAOLINESEARCH_SUCCESS
-        TAOLINESEARCH_SUCCESS_USER
-        # halted
-        TAOLINESEARCH_HALTED_OTHER
-        TAOLINESEARCH_HALTED_MAXFCN
-        TAOLINESEARCH_HALTED_UPPERBOUND
-        TAOLINESEARCH_HALTED_LOWERBOUND
-        TAOLINESEARCH_HALTED_RTOL
-        TAOLINESEARCH_HALTED_USER
 
     ctypedef enum PetscTAOBNCGType "TaoBNCGType":
         TAO_BNCG_GD
@@ -168,12 +143,18 @@ cdef extern from * nogil:
     ctypedef int TaoResidual(PetscTAO,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int TaoGradient(PetscTAO,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int TaoObjGrad(PetscTAO,PetscVec,PetscReal*,PetscVec,void*) except PETSC_ERR_PYTHON
+    ctypedef int TaoRegularizerObjGrad(PetscTAO,PetscVec,PetscReal*,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int TaoVarBounds(PetscTAO,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int TaoConstraints(PetscTAO,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int TaoHessian(PetscTAO,PetscVec,
                             PetscMat,PetscMat,
                             void*) except PETSC_ERR_PYTHON
+    ctypedef int TaoRegularizerHessian(PetscTAO,PetscVec,PetscMat,
+                                       void*) except PETSC_ERR_PYTHON
     ctypedef int TaoJacobian(PetscTAO,PetscVec,
+                             PetscMat,PetscMat,
+                             void*) except PETSC_ERR_PYTHON
+    ctypedef int TaoJacobianResidual(PetscTAO,PetscVec,
                              PetscMat,PetscMat,
                              void*) except PETSC_ERR_PYTHON
     ctypedef int TaoJacobianState(PetscTAO,PetscVec,
@@ -190,6 +171,7 @@ cdef extern from * nogil:
     int TaoSetConstraintsRoutine(PetscTAO,PetscVec,TaoConstraints*,void*)
     int TaoSetHessianRoutine(PetscTAO,PetscMat,PetscMat,TaoHessian*,void*)
     int TaoSetJacobianRoutine(PetscTAO,PetscMat,PetscMat,TaoJacobian*,void*)
+    int TaoSetJacobianResidualRoutine(PetscTAO,PetscMat,PetscMat,TaoJacobianResidual*,void*)
 
     int TaoSetStateDesignIS(PetscTAO,PetscIS,PetscIS)
     int TaoSetJacobianStateRoutine(PetscTAO,PetscMat,PetscMat,PetscMat,TaoJacobianState*,void*)
@@ -199,6 +181,42 @@ cdef extern from * nogil:
 
     int TaoGetKSP(PetscTAO,PetscKSP*)
     int TaoGetLineSearch(PetscTAO,PetscTAOLineSearch*)
+
+    int TaoBRGNGetSubsolver(PetscTAO,PetscTAO*)
+    int TaoBRGNSetRegularizerObjectiveAndGradientRoutine(PetscTAO,TaoRegularizerObjGrad*,void*)
+    int TaoBRGNSetRegularizerHessianRoutine(PetscTAO,PetscMat,TaoRegularizerHessian*,void*)
+    int TaoBRGNSetRegularizerWeight(PetscTAO,PetscReal)
+    int TaoBRGNSetL1SmoothEpsilon(PetscTAO,PetscReal)
+    int TaoBRGNSetDictionaryMatrix(PetscTAO,PetscMat)
+    int TaoBRGNGetDampingVector(PetscTAO,PetscVec*)
+
+# --------------------------------------------------------------------
+
+    ctypedef const char* PetscTAOLineSearchType "TaoLineSearchType"
+    PetscTAOLineSearchType TAOLINESEARCHUNIT
+    PetscTAOLineSearchType TAOLINESEARCHARMIJO
+    PetscTAOLineSearchType TAOLINESEARCHOWARMIJO
+    PetscTAOLineSearchType TAOLINESEARCHGPCG
+    PetscTAOLineSearchType TAOLINESEARCHMT
+    PetscTAOLineSearchType TAOLINESEARCHIPM
+
+    ctypedef enum PetscTAOLineSearchConvergedReason "TaoLineSearchConvergedReason":
+        # failed
+        TAOLINESEARCH_FAILED_INFORNAN
+        TAOLINESEARCH_FAILED_BADPARAMETER
+        TAOLINESEARCH_FAILED_ASCENT
+        # continue
+        TAOLINESEARCH_CONTINUE_ITERATING
+        # success
+        TAOLINESEARCH_SUCCESS
+        TAOLINESEARCH_SUCCESS_USER
+        # halted
+        TAOLINESEARCH_HALTED_OTHER
+        TAOLINESEARCH_HALTED_MAXFCN
+        TAOLINESEARCH_HALTED_UPPERBOUND
+        TAOLINESEARCH_HALTED_LOWERBOUND
+        TAOLINESEARCH_HALTED_RTOL
+        TAOLINESEARCH_HALTED_USER
 
     ctypedef int TaoLineSearchObjective(PetscTAOLineSearch,PetscVec,PetscReal*,void*) except PETSC_ERR_PYTHON
     ctypedef int TaoLineSearchGradient(PetscTAOLineSearch,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
@@ -236,7 +254,10 @@ cdef int TAO_Objective(PetscTAO _tao,
 
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec x   = ref_Vec(_x)
-    (objective, args, kargs) = tao.get_attr("__objective__")
+    context = tao.get_attr("__objective__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (objective, args, kargs) = context
     retv = objective(tao, x, *args, **kargs)
     _f[0] = asReal(retv)
     return 0
@@ -248,7 +269,10 @@ cdef int TAO_Residual(PetscTAO _tao,
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec x   = ref_Vec(_x)
     cdef Vec r   = ref_Vec(_r)
-    (residual, args, kargs) = tao.get_attr("__residual__")
+    context = tao.get_attr("__residual__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (residual, args, kargs) = context
     residual(tao, x, r, *args, **kargs)
     return 0
 
@@ -259,7 +283,10 @@ cdef int TAO_Gradient(PetscTAO _tao,
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec x   = ref_Vec(_x)
     cdef Vec g   = ref_Vec(_g)
-    (gradient, args, kargs) = tao.get_attr("__gradient__")
+    context = tao.get_attr("__gradient__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (gradient, args, kargs) = context
     gradient(tao, x, g, *args, **kargs)
     return 0
 
@@ -271,7 +298,25 @@ cdef int TAO_ObjGrad(PetscTAO _tao,
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec x   = ref_Vec(_x)
     cdef Vec g   = ref_Vec(_g)
-    (objgrad, args, kargs) = tao.get_attr("__objgrad__")
+    context = tao.get_attr("__objgrad__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (objgrad, args, kargs) = context
+    retv = objgrad(tao, x, g, *args, **kargs)
+    _f[0] = asReal(retv)
+    return 0
+
+cdef int TAO_BRGNRegObjGrad(PetscTAO _tao,
+                     PetscVec _x, PetscReal *_f, PetscVec _g,
+                     void *ctx) except PETSC_ERR_PYTHON with gil:
+
+    cdef TAO tao = ref_TAO(_tao)
+    cdef Vec x   = ref_Vec(_x)
+    cdef Vec g   = ref_Vec(_g)
+    context = tao.get_attr("__brgnregobjgrad__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (objgrad, args, kargs) = context
     retv = objgrad(tao, x, g, *args, **kargs)
     _f[0] = asReal(retv)
     return 0
@@ -283,7 +328,10 @@ cdef int TAO_Constraints(PetscTAO _tao,
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec x   = ref_Vec(_x)
     cdef Vec r   = ref_Vec(_r)
-    (constraints, args, kargs) = tao.get_attr("__constraints__")
+    context = tao.get_attr("__constraints__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (constraints, args, kargs) = context
     constraints(tao, x, r, *args, **kargs)
     return 0
 
@@ -294,7 +342,10 @@ cdef int TAO_VarBounds(PetscTAO _tao,
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec xl  = ref_Vec(_xl)
     cdef Vec xu  = ref_Vec(_xu)
-    (varbounds, args, kargs) = tao.get_attr("__varbounds__")
+    context = tao.get_attr("__varbounds__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (varbounds, args, kargs) = context
     varbounds(tao, xl, xu, *args, **kargs)
     return 0
 
@@ -307,8 +358,25 @@ cdef int TAO_Hessian(PetscTAO _tao,
     cdef Vec x   = ref_Vec(_x)
     cdef Mat H   = ref_Mat(_H)
     cdef Mat P   = ref_Mat(_P)
-    (hessian, args, kargs) = tao.get_attr("__hessian__")
+    context = tao.get_attr("__hessian__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (hessian, args, kargs) = context
     hessian(tao, x, H, P, *args, **kargs)
+    return 0
+
+cdef int TAO_BRGNRegHessian(PetscTAO _tao,
+                     PetscVec  _x,
+                     PetscMat  _H,
+                     void* ctx) except PETSC_ERR_PYTHON with gil:
+    cdef TAO tao = ref_TAO(_tao)
+    cdef Vec x   = ref_Vec(_x)
+    cdef Mat H   = ref_Mat(_H)
+    context = tao.get_attr("__brgnreghessian__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (hessian, args, kargs) = context
+    hessian(tao, x, H, *args, **kargs)
     return 0
 
 cdef int TAO_Jacobian(PetscTAO _tao,
@@ -320,7 +388,26 @@ cdef int TAO_Jacobian(PetscTAO _tao,
     cdef Vec x   = ref_Vec(_x)
     cdef Mat J   = ref_Mat(_J)
     cdef Mat P   = ref_Mat(_P)
-    (jacobian, args, kargs) = tao.get_attr("__jacobian__")
+    context = tao.get_attr("__jacobian__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (jacobian, args, kargs) = context
+    jacobian(tao, x, J, P, *args, **kargs)
+    return 0
+
+cdef int TAO_JacobianResidual(PetscTAO _tao,
+                      PetscVec  _x,
+                      PetscMat  _J,
+                      PetscMat  _P,
+                      void* ctx) except PETSC_ERR_PYTHON with gil:
+    cdef TAO tao = ref_TAO(_tao)
+    cdef Vec x   = ref_Vec(_x)
+    cdef Mat J   = ref_Mat(_J)
+    cdef Mat P   = ref_Mat(_P)
+    context = tao.get_attr("__jacobian_residual__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (jacobian, args, kargs) = context
     jacobian(tao, x, J, P, *args, **kargs)
     return 0
 
@@ -335,7 +422,10 @@ cdef int TAO_JacobianState(PetscTAO _tao,
     cdef Mat J   = ref_Mat(_J)
     cdef Mat P   = ref_Mat(_P)
     cdef Mat I   = ref_Mat(_I)
-    (jacobian, args, kargs) = tao.get_attr("__jacobian_state__")
+    context = tao.get_attr("__jacobian_state__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (jacobian, args, kargs) = context
     jacobian(tao, x, J, P, I, *args, **kargs)
     return 0
 
@@ -346,7 +436,10 @@ cdef int TAO_JacobianDesign(PetscTAO _tao,
     cdef TAO tao = ref_TAO(_tao)
     cdef Vec x   = ref_Vec(_x)
     cdef Mat J   = ref_Mat(_J)
-    (jacobian, args, kargs) = tao.get_attr("__jacobian_design__")
+    context = tao.get_attr("__jacobian_design__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (jacobian, args, kargs) = context
     jacobian(tao, x, J, *args, **kargs)
     return 0
 
@@ -425,3 +518,5 @@ cdef int TAOLS_ObjGrad(
     retv = objgrad(ls, x, g, *args, **kargs)
     _f[0] = asReal(retv)
     return 0
+
+# --------------------------------------------------------------------

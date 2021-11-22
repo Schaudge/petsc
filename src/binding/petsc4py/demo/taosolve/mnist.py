@@ -76,9 +76,7 @@ def main():
     # set torch precision to match petsc
     torchtype = None
     if PETSc.ScalarType == PETSc.RealType:
-        if PETSc.RealType == np.float16:
-            torchtype = torch.half
-        elif PETSc.RealType == np.float32:
+        if PETSc.RealType == np.float32:
             torchtype = torch.float
         elif PETSc.RealType == np.float64:
             torchtype = torch.double
@@ -86,7 +84,7 @@ def main():
     if torchtype is not None:
         torch.set_default_dtype(torchtype)
     else:
-        raise NotImplementedError("PETSc compiled with incompatible data type: must be half, single or double precision reals only!")
+        raise NotImplementedError("PETSc compiled with incompatible data type: must be single or double precision reals only!")
 
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
