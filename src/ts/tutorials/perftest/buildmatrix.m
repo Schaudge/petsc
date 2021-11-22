@@ -1,21 +1,19 @@
-function Ap = buildmatrix(ns,nn,np)
+function A = buildmatrix(ns,nn,np)
 %
-%  Build communication matrix for ns subdomains with a maximum of nn neighbors for each
+%  Build communication matrix for ns ranks with a maximum of nn neighbors for each
+%
+%  Note: some rows will have more than ns connections due to enforcing the symmetry
 %
 A = zeros(ns,ns);
 for i=1:ns-1
-  s = nn - sum(A(i,:) ~= 0);
-  r = randi([i+1 ns],[1 s]);
-  A(i,r) = randi([0 100],[1 s]);
-  A(r,i) = randi([0 100],[1 s]);
-end
-%
-%  Replace each node in the graph with np nodes each likely fully connected with various weights
-%
-Ap = zeros(ns*np,ns*np);
-for i=1:ns
-  for j=1:ns
-    Ap(np*(i-1)+(1:np),np*(j-1)+(1:np)) = round(rand(np)*A(i,j));
+  % s counts the number of additional connections needed for rank i to have ns total connections
+  s = min(nn - sum(A(i,:) ~= 0),ns-i);
+  if s > 0
+    r = i + randperm(ns - i,s);
+    % ensure the communication pattern has a symmetric non-zero structure
+    A(i,r) = randi([0 100],[1 s]);
+    A(r,i) = randi([0 100],[1 s]);
   end
 end
+
 
