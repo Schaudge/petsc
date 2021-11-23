@@ -4,9 +4,9 @@ ALL: lib
 CPPFLAGS =
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = physics.c dgnet.c dgfunctions.c
+SOURCEC  =
 SOURCEF  =
-SOURCEH  = dgnet.h physics.h 
+SOURCEH  = 
 DIRS     = tests CouplingConditions
 LIBBASE  = libpetscdm
 MANSEC   = DM

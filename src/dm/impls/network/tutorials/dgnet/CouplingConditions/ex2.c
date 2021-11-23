@@ -27,7 +27,7 @@ int main(int argc,char *argv[])
     ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
 
     /* Command Line Options */
-    ierr = PetscOptionsBegin(comm,NULL,"Riemann Solver Ex3 Tests Options","");CHKERRQ(ierr);
+    ierr = PetscOptionsBegin(comm,NULL,"Riemann Solver Ex2 Tests Options","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-numpoints","Number of random points to check the decomposition at","",numvalues,&numvalues,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-tol","Tolerance for comparing the Eigenvectors","",tol,&tol,NULL);CHKERRQ(ierr);
