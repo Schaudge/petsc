@@ -320,6 +320,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
   for (field=0;field<dof;field++) {
     norm[field] = 0.0; 
   }
+  ierr = PetscMalloc1(dof,&cellint);CHKERRQ(ierr);
   for (e=eStart; e<eEnd-1; e++) {
     ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
@@ -327,7 +328,6 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
     /* We will manually use the section for now to deal with indexing offsets etc.. to be redone */
     ierr = DMGetSection(edgefe->dm,&section);CHKERRQ(ierr);
     ierr = PetscQuadratureGetData(dgnet->quad,NULL,NULL,&quadsize,NULL,&qweight);CHKERRQ(ierr);
-    ierr = PetscMalloc1(dof,&cellint);CHKERRQ(ierr);
     /* Iterate through the cells of the edge mesh */
     for(c=cStart; c<cEnd; c++) {
       /* Get Geometric Data */
@@ -355,7 +355,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
   }
   ierr = PetscFree(cellint);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
-  MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,dgnet->comm);CHKERRMPI(ierr);
+  ierr = MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,dgnet->comm);CHKERRMPI(ierr);
   PetscFunctionReturn(0);
 }
 
