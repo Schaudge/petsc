@@ -7,7 +7,25 @@ static const char help[] = "DGNetwork Conservation Law Test Function. Just Runs 
 #include "../dgnet.h"
 #include <petscriemannsolver.h>
 #include "../physics.h"
+/*
+  This only has shallow water physics for now
+*/
 
+/*
+  Example : 
+  1.  Run default SWE and view on X 
+  mpiexec -np 1 ex8 -view 
+  2. requires: GLVis 
+  Run default SWE and view on GLVis 
+  mpiexec -np 1 ex8 -view -view_glvis -view_full_net -glvis_pause 1e-10
+  3. Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling 
+    mpiexec -np 1 ex8 -view -network 3 -order 4 
+  4. requires: GLVis
+  Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling View GLVis
+    mpiexec -np 1 ex8 -view -network 3 -view_glvis -view_full_net -glvis_pause 1e-10 -order 4
+
+
+*/
 
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
@@ -86,14 +104,12 @@ int main(int argc,char *argv[])
     dgnet->Mx             = 10;
     dgnet->initial        = 1;
     dgnet->ndaughters     = 2;
-    dgnet->length         = 3.0;
+    dgnet->length         = 10.0;
     dgnet->view           = PETSC_FALSE;
     dgnet->jumptol        = 0.5;
-    dgnet->laxcurve       = PETSC_FALSE;  
     dgnet->diagnosticlow  = 0.5; 
     dgnet->diagnosticup   = 1e-4; 
-    dgnet->adaptivecouple = PETSC_FALSE;
-    dgnet->linearcoupling = PETSC_TRUE;
+
     /* Command Line Options */
     ierr = PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
@@ -107,8 +123,6 @@ int main(int argc,char *argv[])
     ierr = PetscOptionsInt("-order", "Order of the DG Basis","",maxorder,&maxorder,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view","View the DG solution","",dgnet->view,&dgnet->view,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);    ierr = PetscOptionsBool("-uselimiter","Use a limiter for the DG solution","",limit,&limit,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-adaptivecouple","Use adaptive Coupling for Netrs","",dgnet->adaptivecouple,&dgnet->adaptivecouple,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-lax","Use lax curve diagnostic for coupling","",dgnet->laxcurve,&dgnet->laxcurve,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsReal("-jumptol","Set jump tolerance for lame one-sided limiter","",dgnet->jumptol,&dgnet->jumptol,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-lincouple","Use lax curve diagnostic for coupling","",dgnet->linearcoupling,&dgnet->linearcoupling,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_dump","Dump the Glvis view or socket","",glvismode,&glvismode,NULL);CHKERRQ(ierr);

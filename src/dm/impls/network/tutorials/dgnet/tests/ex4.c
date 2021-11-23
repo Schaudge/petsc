@@ -1,4 +1,5 @@
-static const char help[] = "Traffic Flow Convergence Test for the DGNetwork";
+static const char help[] = "Traffic Flow Convergence Test for the DGNetwork. \
+Uses Method of characteristics to generate a true solution";
 
 #include <petscts.h>
 #include <petscdm.h>
@@ -7,6 +8,15 @@ static const char help[] = "Traffic Flow Convergence Test for the DGNetwork";
 #include "../dgnet.h"
 #include "../physics.h"
 
+/*
+  Example : 
+  1.  4 levels of convergence with P^4 DG basis and X viewing: 
+    mpiexec -np 1 ex4 -convergence 4 -order 4 -view -ts_ssp_type rk104
+
+  2. requires: GLVis 
+  4 levels of convergence with P^4 DG basis and GLVis full network view : 
+    mpiexec -np 1 ex4 -convergence 4 -order 4 -view -ts_ssp_type rk104 -view_glvis -view_full_net -glvis_pause 1e-10
+*/
 
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
@@ -74,14 +84,12 @@ int main(int argc,char *argv[])
   dgnet->comm           = comm;
   dgnet->cfl            = 0.5;
   dgnet->networktype    = 6;
-  dgnet->hratio         = 2;
   maxtime               = 0.5;
   dgnet->Mx             = 10;
   dgnet->initial        = 1;
   dgnet->ymin           = 0;
   dgnet->ymax           = 2.0;
   dgnet->ndaughters     = 2;
-  dgnet->linearcoupling = PETSC_FALSE;
   dgnet->length         = 3.0;
   dgnet->view           = PETSC_FALSE;
 
@@ -238,6 +246,5 @@ int main(int argc,char *argv[])
   ierr = PetscFree(dgnet);CHKERRQ(ierr);
   ierr = PetscFree(order);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
-
   return ierr;
 }
