@@ -70,6 +70,7 @@ One can assembly an :any:`AIJ matrices <sec_matsparse>` based on the existing ``
 This method requires that the matrix be assembled on the CPU first.
 See ``Mat`` tutorial examples `ex5k.kokkos.cxx <../../src/mat/tutorials/ex5k.kokkos.cxx.html>`__
 and `ex5cu.cu <../../src/mat/tutorials/ex5cu.cu.html>`__ for examples using Kokkos and CUDA, respectively.
+Note, this GPU assembly does not communicate off-processor entries, thus, `MAT_IGNORE_OFF_PROC_ENTRIES` is implied.
 
 
 Matrix-free operators on the GPU
