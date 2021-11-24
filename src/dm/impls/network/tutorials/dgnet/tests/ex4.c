@@ -230,15 +230,16 @@ int main(int argc,char *argv[])
   }
 
   for (j=0;j<dgnet->physics.dof;j++) {
-    ierr = PetscPrintf(comm,
+    ierr = PetscPrintf(PETSC_COMM_SELF,"My Rank: %i \n",rank);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,
             "DGNET:  Convergence Table for Variable %i \n"
             "DGNET: |---h---||---Error---||---Order---| \n",j);CHKERRQ(ierr);
     for(i=0;i<convergencelevel;i++) {
-      ierr = PetscPrintf(comm,
+      ierr = PetscPrintf(PETSC_COMM_WORLD,
             "DGNET: |  %g  |  %g  |  %g  | \n",1.0/PetscPowReal(2.0,i),norm[dgnet->physics.dof*i+j],
             !i ? NAN : -PetscLog2Real(norm[dgnet->physics.dof*i+j]/norm[dgnet->physics.dof*(i-1)+j]));CHKERRQ(ierr);
     }
-    ierr = PetscPrintf(comm,"\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   }
 
   ierr = PetscFree(norm);CHKERRQ(ierr);

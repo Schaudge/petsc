@@ -309,7 +309,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
   EdgeFE             edgefe;
   Vec                localX = dgnet->localX;
   PetscSection       section;
-  PetscReal          J,invJ,detJ,qeval,*cellint;
+  PetscReal          J,invJ,detJ,qeval,*cellint,*norm_wrk;
   const PetscReal    *qweight;
   
   PetscFunctionBegin;
@@ -320,7 +320,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
   for (field=0;field<dof;field++) {
     norm[field] = 0.0; 
   }
-  ierr = PetscMalloc1(dof,&cellint);CHKERRQ(ierr);
+  ierr = PetscMalloc2(dof,&cellint,dof,&norm_wrk);CHKERRQ(ierr);
   for (e=eStart; e<eEnd-1; e++) {
     ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
@@ -349,13 +349,13 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
         norm[field] += detJ*cellint[field];
       }
     }
-    for(field = 0; field<dof; field++) {
-      norm[field] = PetscSqrtReal(norm[field]);
-    }
   }
-  ierr = PetscFree(cellint);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(localX,&xarr);CHKERRQ(ierr);
-  ierr = MPI_Allreduce(&norm,&norm,dof,MPIU_REAL,MPIU_SUM,dgnet->comm);CHKERRMPI(ierr);
+  ierr = MPI_Allreduce(norm,norm_wrk,dof,MPIU_REAL,MPIU_SUM,dgnet->comm);CHKERRMPI(ierr);
+  for(field = 0; field<dof; field++) {
+      norm[field] = PetscSqrtReal(norm_wrk[field]);
+  }
+  ierr = PetscFree2(cellint,norm_wrk);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
