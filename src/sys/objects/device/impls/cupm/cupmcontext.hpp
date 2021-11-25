@@ -50,7 +50,10 @@ public:
     cupmSolverHandle_t solver;
 
     PETSC_NODISCARD cupmBlasHandle_t   handle(HandleTag<cupmBlasHandle_t>)   { return blas;   }
+/* rocsolver uses the same handle as rocblas, so need something special */
+#if !defined(PETSC_HAVE_HIP)
     PETSC_NODISCARD cupmSolverHandle_t handle(HandleTag<cupmSolverHandle_t>) { return solver; }
+#endif
   };
 
 private:

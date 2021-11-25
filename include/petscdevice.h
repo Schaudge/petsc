@@ -129,18 +129,15 @@ PETSC_EXTERN PetscErrorCode PetscCUSOLVERDnGetHandle(cusolverDnHandle_t*);
 
 #if PetscDefined(HAVE_HIP)
 #include <hip/hip_runtime.h>
-#include <hipblas.h>
-#if defined(__HIP_PLATFORM_NVCC__)
-#include <cusolverDn.h>
-#else /* __HIP_PLATFORM_HCC__ */
+#include <rocblas.h>
 #include <rocsolver.h>
-#endif /* __HIP_PLATFORM_NVCC__ */
+#include <rocsparse.h>
 
 /* REMOVE ME */
 #define WaitForHIP() hipDeviceSynchronize()
 
 /* hipBLAS does not have hipblasGetErrorName(). We create one on our own. */
-PETSC_EXTERN const char* PetscHIPBLASGetErrorName(hipblasStatus_t); /* PETSC_EXTERN since it is exposed by the CHKERRHIPBLAS macro */
+PETSC_EXTERN const char* PetscHIPBLASGetErrorName(rocblas_status); /* PETSC_EXTERN since it is exposed by the CHKERRHIPBLAS macro */
 
 #define CHKERRHIP(cerr)     do {                                        \
     const hipError_t _p_hip_err__ = cerr;                               \
@@ -153,8 +150,8 @@ PETSC_EXTERN const char* PetscHIPBLASGetErrorName(hipblasStatus_t); /* PETSC_EXT
   } while (0)
 
 #define CHKERRHIPBLAS(stat) do {                                        \
-    const hipblasStatus_t _p_hipblas_stat__ = stat;                     \
-    if (PetscUnlikely(_p_hipblas_stat__ != HIPBLAS_STATUS_SUCCESS)) {   \
+    const rocblas_status _p_hipblas_stat__ = stat;                     \
+    if (PetscUnlikely(_p_hipblas_stat__ != rocblas_status_success)) {   \
       const char *name = PetscHIPBLASGetErrorName(_p_hipblas_stat__);   \
       SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_GPU,"hipBLAS error %d (%s)",   \
                (PetscErrorCode)_p_hipblas_stat__,name);                 \
@@ -163,8 +160,8 @@ PETSC_EXTERN const char* PetscHIPBLASGetErrorName(hipblasStatus_t); /* PETSC_EXT
 
 /* TODO: SEK:  Need to figure out the hipsolver issues */
 #define CHKERRHIPSOLVER(stat) do {                                      \
-    const hipsolverStatus_t _p_hipsolver_stat__ = stat;                 \
-    if (PetscUnlikely(_p_hipsolver_stat__ /* != HIPSOLVER_STATUS_SUCCESS */)) { \
+    const rocblas_status _p_hipsolver_stat__ = stat;                 \
+    if (PetscUnlikely(_p_hipsolver_stat__  != rocblas_status_success )) { \
       SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_GPU,"HIPSOLVER error %d",      \
                (PetscErrorCode)_p_hipsolver_stat__);                    \
     }                                                                   \
@@ -230,8 +227,8 @@ PETSC_STATIC_INLINE hipsolverStatus_t hipsolverSetStream(hipsolverHandle_t handl
 #endif /* __HIP_PLATFORM_NVCC__ */
 PETSC_EXTERN hipStream_t    PetscDefaultHipStream; /* The default stream used by PETSc */
 
-PETSC_EXTERN PetscErrorCode PetscHIPBLASGetHandle(hipblasHandle_t*);
-PETSC_EXTERN PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t*);
+PETSC_EXTERN PetscErrorCode PetscHIPBLASGetHandle(rocblas_handle*);
+PETSC_EXTERN PetscErrorCode PetscHIPSOLVERGetHandle(rocblas_handle*);
 #endif /* PetscDefined(HAVE_HIP) */
 
 /* Cannot use the device context api without C++11 */

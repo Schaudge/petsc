@@ -148,10 +148,8 @@ struct CsrMatrix {
 /* This is struct holding the relevant data needed to a MatSolve */
 struct Mat_SeqAIJHIPSPARSETriFactorStruct {
   /* Data needed for triangular solve */
-  /* rocsparseMatDescr_t */
   rocsparse_mat_descr          descr;
   rocsparse_operation          solveOp;
-  /* rocsparseOperation_t */
   CsrMatrix                   *csrMat;
   rocsparse_mat_info          solveInfo;
   rocsparse_solve_policy      solvePolicy;     /* whether level information is generated and used */
@@ -173,6 +171,10 @@ struct Mat_SeqAIJHIPSPARSETriFactors {
   THRUSTARRAY                       *workVector;
   rocsparse_handle                  handle;   /* a handle to the rocsparse library */
   PetscInt                          nnz;      /* number of nonzeros ... need this for accurate logging between ICC and ILU */
+  PetscScalar                       *a_band_d; /* GPU data for banded CSR LU factorization matrix diag(L)=1 */
+  int                               *i_band_d; /* this could be optimized away */
+  cudaDeviceProp                    dev_prop;
+  PetscBool                         init_dev_prop;
 };
 
 struct Mat_rocsparseSpMV {
@@ -202,12 +204,10 @@ struct Mat_SeqAIJHIPSPARSE {
   hipStream_t                  stream;          /* a stream for the parallel SpMV ... this is not owned and should not be deleted */
   rocsparse_handle             handle;          /* a handle to the rocsparse library ... this may not be owned (if we're working in parallel i.e. multiGPUs) */
   PetscObjectState             nonzerostate;    /* track nonzero state to possibly recreate the GPU matrix */
-  PetscBool                    transgen;        /* whether or not to generate explicit transpose for MatMultTranspose operations */
-  PetscBool                    transupdated;    /* whether or not the explicitly generated transpose is up-to-date */
   THRUSTINTARRAY               *csr2csc_i;
-  PetscSplitCSRDataStructure   *deviceMat;       /* Matrix on device for, eg, assembly */
-  THRUSTINTARRAY               *cooPerm;
-  THRUSTINTARRAY               *cooPerm_a;
+  PetscSplitCSRDataStructure   deviceMat;       /* Matrix on device for, eg, assembly */
+  THRUSTINTARRAY               *cooPerm;        /* permutation array that sorts the input coo entris by row and col */
+  THRUSTINTARRAY               *cooPerm_a;      /* ordered array that indicate i-th nonzero (after sorting) is the j-th unique nonzero */
 };
 
 PETSC_INTERN PetscErrorCode MatHIPSPARSECopyToGPU(Mat);
@@ -216,13 +216,8 @@ PETSC_INTERN PetscErrorCode MatHIPSPARSESetHandle(Mat, const rocsparse_handle ha
 PETSC_INTERN PetscErrorCode MatHIPSPARSEClearHandle(Mat);
 PETSC_INTERN PetscErrorCode MatSetPreallocationCOO_SeqAIJHIPSPARSE(Mat,PetscInt,const PetscInt[],const PetscInt[]);
 PETSC_INTERN PetscErrorCode MatSetValuesCOO_SeqAIJHIPSPARSE(Mat,const PetscScalar[],InsertMode);
-PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSEGetArrayRead(Mat,const PetscScalar**);
-PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSERestoreArrayRead(Mat,const PetscScalar**);
-PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSEGetArrayWrite(Mat,PetscScalar**);
-PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSERestoreArrayWrite(Mat,PetscScalar**);
-PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSEGetArray(Mat,PetscScalar**);
-PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSERestoreArray(Mat,PetscScalar**);
 PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSEMergeMats(Mat,Mat,MatReuse,Mat*);
+PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSETriFactors_Reset(Mat_SeqAIJHIPSPARSETriFactors_p*);
 
 PETSC_STATIC_INLINE bool isHipMem(const void *data)
 {
@@ -230,7 +225,7 @@ PETSC_STATIC_INLINE bool isHipMem(const void *data)
   struct hipPointerAttribute_t attr;
   enum hipMemoryType          mtype;
   cerr = hipPointerGetAttributes(&attr,data);
-  hipGetLastError(); /* Reset the last error */
+  /* This gives warning:  hipGetLastError(); /* Reset the last error */ 
   mtype = attr.memoryType;
   if (cerr == hipSuccess && mtype == hipMemoryTypeDevice) return true;
   else return false;

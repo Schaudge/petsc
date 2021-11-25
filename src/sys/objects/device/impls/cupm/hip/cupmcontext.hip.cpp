@@ -14,15 +14,13 @@ PetscErrorCode PetscDeviceContextCreate_HIP(PetscDeviceContext dctx)
 }
 
 /*
- Management of HIPBLAS and HIPSOLVER handles
+ Management of ROCBLAS and ROCSOLVER handles
 
- Unlike CUDA, hipSOLVER is just for dense matrices so there is
- no distinguishing being dense and sparse.  Also, hipSOLVER is
- very immature so we often have to do the mapping between roc and
- cuda manually.
+ Unlike CUDA, rocsolver is just for dense matrices so there is
+ no distinguishing being dense and sparse.  
  */
 
-PetscErrorCode PetscHIPBLASGetHandle(hipblasHandle_t *handle)
+PetscErrorCode PetscHIPBLASGetHandle(rocblas_handle *handle)
 {
   PetscDeviceContext dctx;
   PetscErrorCode     ierr;
@@ -34,7 +32,9 @@ PetscErrorCode PetscHIPBLASGetHandle(hipblasHandle_t *handle)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t *handle)
+/* Because signatures are the same, have to deprecate to enable the function
+ * overloading 
+PetscErrorCode PetscHIPSOLVERGetHandle(rocblas_handle *handle)
 {
   PetscDeviceContext dctx;
   PetscErrorCode     ierr;
@@ -45,3 +45,4 @@ PetscErrorCode PetscHIPSOLVERGetHandle(hipsolverHandle_t *handle)
   ierr = PetscDeviceContextGetSOLVERHandle_Internal(dctx,handle);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+ * */

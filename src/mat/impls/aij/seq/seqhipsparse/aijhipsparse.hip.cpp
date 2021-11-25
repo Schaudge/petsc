@@ -43,11 +43,10 @@ static PetscErrorCode MatMultAddKernel_SeqAIJHIPSPARSE(Mat,Vec,Vec,Vec,PetscBool
 static PetscErrorCode CsrMatrix_Destroy(CsrMatrix**);
 static PetscErrorCode MatSeqAIJHIPSPARSEMultStruct_Destroy(Mat_SeqAIJHIPSPARSETriFactorStruct**);
 static PetscErrorCode MatSeqAIJHIPSPARSEMultStruct_Destroy(Mat_SeqAIJHIPSPARSEMultStruct**,MatHIPSPARSEStorageFormat);
-static PetscErrorCode MatSeqAIJHIPSPARSETriFactors_Reset(Mat_SeqAIJHIPSPARSETriFactors**);
 static PetscErrorCode MatSeqAIJHIPSPARSETriFactors_Destroy(Mat_SeqAIJHIPSPARSETriFactors**);
 static PetscErrorCode MatSeqAIJHIPSPARSE_Destroy(Mat_SeqAIJHIPSPARSE**);
 
-static PetscErrorCode MatSeqAIJHIPSPARSECopyToGPU(Mat);
+PETSC_INTERN PetscErrorCode MatSeqAIJHIPSPARSECopyToGPU(Mat);
 static PetscErrorCode MatSeqAIJHIPSPARSECopyFromGPU(Mat);
 static PetscErrorCode MatSeqAIJHIPSPARSEInvalidateTranspose(Mat,PetscBool);
 

@@ -150,8 +150,8 @@ PetscErrorCode VecAYPX_SeqHIP(Vec yin,PetscScalar alpha,Vec xin)
   PetscErrorCode    ierr;
   PetscBLASInt      one = 1,bn = 0;
   PetscScalar       sone = 1.0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   hberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    hberr;
   hipError_t        err;
 
   PetscFunctionBegin;
@@ -183,8 +183,8 @@ PetscErrorCode VecAXPY_SeqHIP(Vec yin,PetscScalar alpha,Vec xin)
   PetscScalar       *yarray;
   PetscErrorCode    ierr;
   PetscBLASInt      one = 1,bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   hberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    hberr;
   PetscBool         xiship;
 
   PetscFunctionBegin;
@@ -252,8 +252,8 @@ PetscErrorCode VecWAXPY_SeqHIP(Vec win,PetscScalar alpha,Vec xin, Vec yin)
   PetscScalar       *warray=NULL;
   PetscErrorCode    ierr;
   PetscBLASInt      one = 1,bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   hberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    hberr;
   hipError_t        err;
 
   PetscFunctionBegin;
@@ -285,8 +285,8 @@ PetscErrorCode VecMAXPY_SeqHIP(Vec xin, PetscInt nv,const PetscScalar *alpha,Vec
   PetscScalar       *xarray;
   const PetscScalar *yarray;
   PetscBLASInt      one = 1,bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   cberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    cberr;
 
   PetscFunctionBegin;
   ierr = PetscLogGpuFlops(nv*2.0*n);CHKERRQ(ierr);
@@ -310,8 +310,8 @@ PetscErrorCode VecDot_SeqHIP(Vec xin,Vec yin,PetscScalar *z)
   const PetscScalar *xarray,*yarray;
   PetscErrorCode    ierr;
   PetscBLASInt      one = 1,bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   cerr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    cerr;
 
   PetscFunctionBegin;
   ierr = PetscHIPBLASGetHandle(&hipblasv2handle);CHKERRQ(ierr);
@@ -546,8 +546,8 @@ PetscErrorCode VecMDot_SeqHIP(Vec xin,PetscInt nv,const Vec yin[],PetscScalar *z
   hipError_t        hip_ierr;
 #endif
   PetscBLASInt      one = 1,bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   hberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    hberr;
 
   PetscFunctionBegin;
   ierr = PetscHIPBLASGetHandle(&hipblasv2handle);CHKERRQ(ierr);
@@ -762,8 +762,8 @@ PetscErrorCode VecScale_SeqHIP(Vec xin,PetscScalar alpha)
   PetscScalar     *xarray;
   PetscErrorCode  ierr;
   PetscBLASInt    one = 1,bn = 0;
-  hipblasHandle_t hipblasv2handle;
-  hipblasStatus_t hberr;
+  rocblas_handle  hipblasv2handle;
+  rocblas_status  hberr;
 
   PetscFunctionBegin;
   if (alpha == (PetscScalar)0.0) {
@@ -787,8 +787,8 @@ PetscErrorCode VecTDot_SeqHIP(Vec xin,Vec yin,PetscScalar *z)
   const PetscScalar *xarray,*yarray;
   PetscErrorCode    ierr;
   PetscBLASInt      one = 1,bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   cerr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    cerr;
 
   PetscFunctionBegin;
   ierr = PetscHIPBLASGetHandle(&hipblasv2handle);CHKERRQ(ierr);
@@ -879,8 +879,8 @@ PetscErrorCode VecSwap_SeqHIP(Vec xin,Vec yin)
   PetscErrorCode  ierr;
   PetscBLASInt    one = 1,bn;
   PetscScalar     *xarray,*yarray;
-  hipblasHandle_t hipblasv2handle;
-  hipblasStatus_t hberr;
+  rocblas_handle  hipblasv2handle;
+  rocblas_status  hberr;
 
   PetscFunctionBegin;
   ierr = PetscHIPBLASGetHandle(&hipblasv2handle);CHKERRQ(ierr);
@@ -904,8 +904,8 @@ PetscErrorCode VecAXPBY_SeqHIP(Vec yin,PetscScalar alpha,PetscScalar beta,Vec xi
   const PetscScalar *xarray;
   PetscScalar       *yarray;
   PetscBLASInt      one = 1, bn = 0;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   hberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    hberr;
   hipError_t        err;
 
   PetscFunctionBegin;
@@ -1010,8 +1010,8 @@ PetscErrorCode VecNorm_SeqHIP(Vec xin,NormType type,PetscReal *z)
   PetscInt          n = xin->map->n;
   PetscBLASInt      one = 1, bn = 0;
   const PetscScalar *xarray;
-  hipblasHandle_t   hipblasv2handle;
-  hipblasStatus_t   hberr;
+  rocblas_handle    hipblasv2handle;
+  rocblas_status    hberr;
   hipError_t        err;
 
   PetscFunctionBegin;

@@ -221,6 +221,7 @@ struct CUPMInterface<CUPMDeviceType::CUDA>
 #endif // PetscDefined(HAVE_CUDA)
 
 #if PetscDefined(HAVE_HIP)
+
 template <>
 struct CUPMInterface<CUPMDeviceType::HIP>
 {
@@ -233,11 +234,11 @@ struct CUPMInterface<CUPMDeviceType::HIP>
   using cupmError_t        = hipError_t;
   using cupmEvent_t        = hipEvent_t;
   using cupmStream_t       = hipStream_t;
-  using cupmBlasHandle_t   = hipblasHandle_t;
-  using cupmBlasError_t    = hipblasStatus_t;
-  using cupmSolverHandle_t = hipsolverHandle_t;
-  using cupmSolverError_t  = hipsolverStatus_t;
   using cupmDeviceProp_t   = hipDeviceProp_t;
+  using cupmBlasHandle_t   = rocblas_handle;
+  using cupmBlasError_t    = rocblas_status;
+  using cupmSolverHandle_t = rocblas_handle;
+  using cupmSolverError_t  = rocblas_status;
 
   // values
   PETSC_CUPM_ALIAS_INTEGRAL_VALUE(hip,Success);
@@ -286,16 +287,21 @@ struct CUPMInterface<CUPMDeviceType::HIP>
   PETSC_NODISCARD static PetscErrorCode InitializeHandle(cupmBlasHandle_t &handle) noexcept
   {
     PetscFunctionBegin;
-    if (!handle) {cupmBlasError_t cberr = hipblasCreate(&handle);CHKERRHIPBLAS(cberr);}
+    /* TODO: cuda has more checks to see if it is initialized.  Need to add */
+    if (!handle) {cupmBlasError_t cberr = rocblas_create_handle(&handle);CHKERRHIPBLAS(cberr);}
     PetscFunctionReturn(0);
   }
 
+  /* rocsolver_handle is now deprecated in favor of rocblas_handle so this
+   * causes problems with the function overloading.  Assume that since the types
+   * are the same, we can use the same functions to create handles
   PETSC_NODISCARD static PetscErrorCode InitializeHandle(cupmSolverHandle_t &handle) noexcept
   {
     PetscFunctionBegin;
-    if (!handle) {cupmSolverError_t cerr = hipsolverCreate(&handle);CHKERRHIPSOLVER(cerr);}
+    if (!handle) {cupmSolverError_t cerr = rocsolver_create_handle(&handle);CHKERRHIPSOLVER(cerr);}
     PetscFunctionReturn(0);
   }
+  */
 
   PETSC_NODISCARD static PetscErrorCode SetHandleStream(cupmBlasHandle_t &handle, cupmStream_t &stream) noexcept
   {
@@ -303,21 +309,23 @@ struct CUPMInterface<CUPMDeviceType::HIP>
     cupmBlasError_t cberr;
 
     PetscFunctionBegin;
-    cberr = hipblasGetStream(handle,&cupmStream);CHKERRHIPBLAS(cberr);
-    if (cupmStream != stream) {cberr = hipblasSetStream(handle,stream);CHKERRHIPBLAS(cberr);}
+    cberr = rocblas_get_stream(handle,&cupmStream);CHKERRHIPBLAS(cberr);
+    if (cupmStream != stream) {cberr = rocblas_set_stream(handle,stream);CHKERRHIPBLAS(cberr);}
     PetscFunctionReturn(0);
   }
 
+  /* See comment above about function overloading 
   PETSC_NODISCARD static PetscErrorCode SetHandleStream(cupmSolverHandle_t &handle, cupmStream_t &stream) noexcept
   {
     cupmStream_t      cupmStream;
     cupmSolverError_t cerr;
 
     PetscFunctionBegin;
-    cerr = hipsolverGetStream(handle,&cupmStream);CHKERRHIPSOLVER(cerr);
-    if (cupmStream != stream) {cerr = hipsolverSetStream(handle,stream);CHKERRHIPSOLVER(cerr);}
+    cerr = rocsolver_get_stream(handle,&cupmStream);CHKERRHIPSOLVER(cerr);
+    if (cupmStream != stream) {cerr = rocsolver_set_stream(handle,stream);CHKERRHIPSOLVER(cerr);}
     PetscFunctionReturn(0);
   }
+  */
 
   PETSC_NODISCARD static PetscErrorCode DestroyHandle(cupmBlasHandle_t &handle) noexcept
   {
@@ -325,23 +333,25 @@ struct CUPMInterface<CUPMDeviceType::HIP>
     if (handle) {
       cupmBlasError_t cberr;
 
-      cberr  = hipblasDestroy(handle);CHKERRHIPBLAS(cberr);
+      cberr  = rocblas_destroy_handle(handle);CHKERRHIPBLAS(cberr);
       handle = nullptr;
     }
     PetscFunctionReturn(0);
   }
 
+  /* See comment above about function overloading 
   PETSC_NODISCARD static PetscErrorCode DestroyHandle(cupmSolverHandle_t &handle) noexcept
   {
     PetscFunctionBegin;
     if (handle) {
       cupmSolverError_t cerr;
 
-      cerr   = hipsolverDestroy(handle);CHKERRHIPSOLVER(cerr);
+      cerr   = rocsolver_handledestroy_handle(handle);CHKERRHIPSOLVER(cerr);
       handle = nullptr;
     }
     PetscFunctionReturn(0);
   }
+  */
 };
 #endif // PetscDefined(HAVE_HIP)
 
