@@ -90,7 +90,7 @@ int main(int argc,char *argv[])
   dgnet->ymin           = 0;
   dgnet->ymax           = 2.0;
   dgnet->ndaughters     = 2;
-  dgnet->length         = 3.0;
+  dgnet->length         = 5.0;
   dgnet->view           = PETSC_FALSE;
 
   /* Command Line Options */
@@ -230,7 +230,6 @@ int main(int argc,char *argv[])
   }
 
   for (j=0;j<dgnet->physics.dof;j++) {
-    ierr = PetscPrintf(PETSC_COMM_SELF,"My Rank: %i \n",rank);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,
             "DGNET:  Convergence Table for Variable %i \n"
             "DGNET: |---h---||---Error---||---Order---| \n",j);CHKERRQ(ierr);

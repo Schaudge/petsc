@@ -321,7 +321,7 @@ PetscErrorCode DGNetworkNormL2(DGNetwork dgnet, Vec X,PetscReal *norm)
     norm[field] = 0.0; 
   }
   ierr = PetscMalloc2(dof,&cellint,dof,&norm_wrk);CHKERRQ(ierr);
-  for (e=eStart; e<eEnd-1; e++) {
+  for (e=eStart; e<eEnd; e++) {
     ierr  = DMNetworkGetComponent(dgnet->network,e,FVEDGE,NULL,(void**)&edgefe,NULL);CHKERRQ(ierr);
     ierr  = DMNetworkGetLocalVecOffset(dgnet->network,e,FVEDGE,&offset);CHKERRQ(ierr);
     ierr  = DMPlexGetHeightStratum(edgefe->dm,0,&cStart,&cEnd);CHKERRQ(ierr);
