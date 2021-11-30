@@ -1,5 +1,5 @@
-static const char help[] = "Traffic Flow Convergence Test for the DGNetwork. \
-Uses Method of characteristics to generate a true solution";
+static const char help[] = "Traffic Flow Convergence Test for the DGNetwork. \n\
+Uses Method of characteristics to generate a true solution.\n\n";
 
 #include <petscts.h>
 #include <petscdm.h>
@@ -9,51 +9,57 @@ Uses Method of characteristics to generate a true solution";
 #include "../physics.h"
 
 /*
-  Example : 
-  1.  4 levels of convergence with P^4 DG basis and X viewing: 
-    mpiexec -np 1 ex4 -convergence 4 -order 4 -view -ts_ssp_type rk104
+  Example:
+  1. 4 levels of convergence with P^4 DG basis and X viewing:
+    mpiexec -n 1 ./ex4 -convergence 4 -order 4 -view -ts_ssp_type rk104
 
-  2. requires: GLVis 
-  4 levels of convergence with P^4 DG basis and GLVis full network view : 
-    mpiexec -np 1 ex4 -convergence 4 -order 4 -view -ts_ssp_type rk104 -view_glvis -view_full_net -glvis_pause 1e-10
+  2. requires: GLVis
+     4 levels of convergence with P^4 DG basis and GLVis full network view:
+    mpiexec -n 1 ./ex4 -convergence 4 -order 4 -view -ts_ssp_type rk104 -view_glvis -view_full_net -glvis_pause 1e-10
 */
 
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DGNetworkMonitor   monitor;
+  PetscErrorCode    ierr;
+  DGNetworkMonitor  monitor;
 
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor)context;
   ierr = DGNetworkMonitorView(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DGNetworkMonitor_Glvis   monitor;
+  PetscErrorCode         ierr;
+  DGNetworkMonitor_Glvis monitor;
 
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor_Glvis)context;
   ierr = DGNetworkMonitorView_Glvis(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 PetscErrorCode TSDGNetworkMonitor_GLVis_NET(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DGNetworkMonitor_Glvis   monitor;
+  PetscErrorCode         ierr;
+  DGNetworkMonitor_Glvis monitor;
 
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor_Glvis)context;
   ierr = DGNetworkMonitorView_Glvis_NET(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
- static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
+
+static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
 {
-  PetscInt  i; 
-  for(i=0; i<dof; i++) order[i] = maxdegree;
+  PetscInt  i;
+
+  PetscFunctionBegin;
+  for (i=0; i<dof; i++) order[i] = maxdegree;
   PetscFunctionReturn(0);
 }
+
 int main(int argc,char *argv[])
 {
   char              physname[256] = "traffic";
@@ -66,9 +72,9 @@ int main(int argc,char *argv[])
   PetscErrorCode    ierr;
   PetscMPIInt       size,rank;
   DGNetworkMonitor  monitor=NULL;
-  DGNetworkMonitor_Glvis monitor_gl=NULL; 
-  Vec               Xtrue; 
-  PetscBool         glvismode=PETSC_FALSE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,viewfullnet = PETSC_FALSE;  
+  DGNetworkMonitor_Glvis monitor_gl=NULL;
+  Vec               Xtrue;
+  PetscBool         glvismode=PETSC_FALSE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,viewfullnet = PETSC_FALSE;
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
   comm = PETSC_COMM_WORLD;
@@ -124,7 +130,7 @@ int main(int argc,char *argv[])
     ierr = PetscFree(dgnet->physics.fieldname[i]);CHKERRQ(ierr);
   }
   for (n = 0; n<convergencelevel; ++n) {
-    dgnet->Mx = PetscPowInt(2,n); 
+    dgnet->Mx = PetscPowInt(2,n);
     {
       PetscErrorCode (*r)(DGNetwork);
       ierr = PetscFunctionListFind(physics,physname,&r);CHKERRQ(ierr);
@@ -132,9 +138,9 @@ int main(int argc,char *argv[])
       /* Create the physics, will set the number of fields and their names */
       ierr = (*r)(dgnet);CHKERRQ(ierr);
     }
-  
+
     dgnet->physics.order = order;
-      /* Generate Network Data */
+    /* Generate Network Data */
     ierr = DGNetworkCreate(dgnet,dgnet->networktype,dgnet->Mx);CHKERRQ(ierr);
     /* Create DMNetwork */
     ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr);
@@ -151,16 +157,16 @@ int main(int argc,char *argv[])
     ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
     ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
     ierr = DMNetworkDistribute(&dgnet->network,0);CHKERRQ(ierr);
-      /* Create Vectors */
+    /* Create Vectors */
     ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);
     /* Set up component dynamic data structures */
     ierr = DGNetworkBuildDynamic(dgnet);CHKERRQ(ierr);
 
     if (viewglvis) {
-      if (viewfullnet) { 
+      if (viewfullnet) {
         ierr =  DGNetworkMonitorAdd_Glvis_2D_NET(monitor_gl,"localhost",glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
       } else {
-        if(view3d) {
+        if (view3d) {
           ierr = DGNetworkAddMonitortoEdges_Glvis_3D(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
         } else {
           ierr = DGNetworkAddMonitortoEdges_Glvis(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
@@ -169,8 +175,8 @@ int main(int argc,char *argv[])
     } else {
       ierr = DGNetworkAddMonitortoEdges(dgnet,monitor);CHKERRQ(ierr);
     }
-  
-    /* Set up Riemann Solver (need a proper riemann physics struct with convienance routine to 
+
+    /* Set up Riemann Solver (need a proper riemann physics struct with convienance routine to
        set all the physics parts at once) */
     ierr = RiemannSolverCreate(dgnet->comm,&dgnet->physics.rs);CHKERRQ(ierr);
     ierr = RiemannSolverSetApplicationContext(dgnet->physics.rs,dgnet->physics.user);CHKERRQ(ierr);
@@ -178,9 +184,9 @@ int main(int argc,char *argv[])
     ierr = RiemannSolverSetFluxEig(dgnet->physics.rs,dgnet->physics.fluxeig);CHKERRQ(ierr);
     ierr = RiemannSolverSetFlux(dgnet->physics.rs,1,dgnet->physics.dof,dgnet->physics.flux2);CHKERRQ(ierr);
     ierr = RiemannSolverSetUp(dgnet->physics.rs);CHKERRQ(ierr);
-    
+
     ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,NULL,-1);CHKERRQ(ierr); /* No Error Estimation or adapativity */
-  
+
     /* Create a time-stepping object */
     ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
     ierr = TSSetDM(ts,dgnet->network);CHKERRQ(ierr);
@@ -196,11 +202,11 @@ int main(int argc,char *argv[])
     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
     if (size == 1 && dgnet->view) {
       if (viewglvis) {
-        if(viewfullnet) {
+        if (viewfullnet) {
           ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis_NET, monitor_gl, NULL);CHKERRQ(ierr);
         } else {
           ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
-        } 
+        }
       } else {
         ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
       }
@@ -215,8 +221,8 @@ int main(int argc,char *argv[])
     ierr = VecDestroy(&Xtrue);CHKERRQ(ierr);
 
         /* Clean up */
-    if(dgnet->view && size==1){
-      if(viewglvis) {
+    if (dgnet->view && size==1) {
+      if (viewglvis) {
         ierr = DGNetworkMonitorDestroy_Glvis(&monitor_gl);
       } else {
         ierr = DGNetworkMonitorDestroy(&monitor);
@@ -233,7 +239,7 @@ int main(int argc,char *argv[])
     ierr = PetscPrintf(PETSC_COMM_WORLD,
             "DGNET:  Convergence Table for Variable %i \n"
             "DGNET: |---h---||---Error---||---Order---| \n",j);CHKERRQ(ierr);
-    for(i=0;i<convergencelevel;i++) {
+    for (i=0;i<convergencelevel;i++) {
       ierr = PetscPrintf(PETSC_COMM_WORLD,
             "DGNET: |  %g  |  %g  |  %g  | \n",1.0/PetscPowReal(2.0,i),norm[dgnet->physics.dof*i+j],
             !i ? NAN : -PetscLog2Real(norm[dgnet->physics.dof*i+j]/norm[dgnet->physics.dof*(i-1)+j]));CHKERRQ(ierr);
