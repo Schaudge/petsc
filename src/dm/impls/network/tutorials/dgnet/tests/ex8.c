@@ -1,4 +1,5 @@
-static const char help[] = "DGNetwork Conservation Law Test Function. Just Runs an Simulation with the specified Setup. ";
+static const char help[] = "DGNetwork Conservation Law Test Function. \n\
+Just Runs an Simulation with the specified Setup. \n\n";
 
 #include <petscts.h>
 #include <petscdm.h>
@@ -7,66 +8,70 @@ static const char help[] = "DGNetwork Conservation Law Test Function. Just Runs 
 #include "../dgnet.h"
 #include <petscriemannsolver.h>
 #include "../physics.h"
+
 /*
   This only has shallow water physics for now
 */
 
 /*
-  Example : 
-  1.  Run default SWE and view on X 
-  mpiexec -np 1 ex8 -view 
-  2. requires: GLVis 
-  Run default SWE and view on GLVis 
-  mpiexec -np 1 ex8 -view -view_glvis -view_full_net -glvis_pause 1e-10
-  3. Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling 
-    mpiexec -np 1 ex8 -view -network 3 -order 4 
-  4. requires: GLVis
-  Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling View GLVis
-    mpiexec -np 1 ex8 -view -network 3 -view_glvis -view_full_net -glvis_pause 1e-10 -order 4
-
-
+  Example:
+  1. Run default SWE and view on X
+     mpiexec -n 1 ./ex8 -view
+  2. Requires: GLVis
+     Run default SWE and view on GLVis
+     mpiexec -n 1 ./ex8 -view -view_glvis -view_full_net -glvis_pause 1e-10
+  3. Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling
+     mpiexec -n 1 ./ex8 -view -network 3 -order 4
+  4. Requires: GLVis
+     Run on Parent-Daughter Network with P^4 DG Basis and linearized coupling View GLVis
+     mpiexec -n 1 ./ex8 -view -network 3 -view_glvis -view_full_net -glvis_pause 1e-10 -order 4
 */
 
 PetscErrorCode TSDGNetworkMonitor(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DGNetworkMonitor   monitor;
+  PetscErrorCode   ierr;
+  DGNetworkMonitor monitor;
 
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor)context;
   ierr = DGNetworkMonitorView(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 PetscErrorCode TSDGNetworkMonitor_GLVis(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DGNetworkMonitor_Glvis   monitor;
+  PetscErrorCode         ierr;
+  DGNetworkMonitor_Glvis monitor;
 
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor_Glvis)context;
   ierr = DGNetworkMonitorView_Glvis(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 PetscErrorCode TSDGNetworkMonitor_GLVis_NET(TS ts, PetscInt step, PetscReal t, Vec x, void *context)
 {
-  PetscErrorCode     ierr;
-  DGNetworkMonitor_Glvis   monitor;
+  PetscErrorCode         ierr;
+  DGNetworkMonitor_Glvis monitor;
 
   PetscFunctionBegin;
   monitor = (DGNetworkMonitor_Glvis)context;
   ierr = DGNetworkMonitorView_Glvis_NET(monitor,x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
- static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
+
+static PetscErrorCode MakeOrder(PetscInt dof, PetscInt *order,PetscInt maxdegree)
 {
-  PetscInt  i; 
+  PetscInt  i;
+
   for(i=0; i<dof; i++) order[i] = maxdegree;
   PetscFunctionReturn(0);
 }
+
 int main(int argc,char *argv[])
 {
   char              physname[256] = "shallow", errorestimator[256] = "lax" ;
-  PetscFunctionList physics = 0,errest = 0; 
+  PetscFunctionList physics = 0,errest = 0;
   MPI_Comm          comm;
   TS                ts;
   DGNetwork         dgnet;
@@ -76,7 +81,7 @@ int main(int argc,char *argv[])
   PetscMPIInt       size,rank;
   PetscBool         limit=PETSC_TRUE,view3d=PETSC_FALSE,viewglvis=PETSC_FALSE,glvismode=PETSC_FALSE,viewfullnet=PETSC_FALSE;
   DGNetworkMonitor  monitor=NULL;
-  NRSErrorEstimator errorest; 
+  NRSErrorEstimator errorest;
   DGNetworkMonitor_Glvis monitor_gl;
 
   ierr = PetscInitialize(&argc,&argv,0,help); if (ierr) return ierr;
@@ -87,31 +92,29 @@ int main(int argc,char *argv[])
   /* Register physical models to be available on the command line */
   ierr = PetscFunctionListAdd(&physics,"shallow"         ,PhysicsCreate_Shallow);CHKERRQ(ierr);
 
+  /* register error estimator functions */
+  ierr = PetscFunctionListAdd(&errest,"roe"         ,NetRSRoeErrorEstimate);CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(&errest,"lax"         ,NetRSLaxErrorEstimate);CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(&errest,"taylor"      ,NetRSTaylorErrorEstimate);CHKERRQ(ierr);
 
+  ierr = PetscCalloc1(1,&dgnet);CHKERRQ(ierr); /* Replace with proper dgnet creation function */
+  /* Set default values */
+  dgnet->comm           = comm;
+  dgnet->cfl            = 0.9;
+  dgnet->networktype    = 6;
+  dgnet->hratio         = 1;
+  maxtime               = 2.0;
+  dgnet->Mx             = 10;
+  dgnet->initial        = 1;
+  dgnet->ndaughters     = 2;
+  dgnet->length         = 10.0;
+  dgnet->view           = PETSC_FALSE;
+  dgnet->jumptol        = 0.5;
+  dgnet->diagnosticlow  = 0.5;
+  dgnet->diagnosticup   = 1e-4;
 
-    /* register error estimator functions */
-    ierr = PetscFunctionListAdd(&errest,"roe"         ,NetRSRoeErrorEstimate);CHKERRQ(ierr);
-    ierr = PetscFunctionListAdd(&errest,"lax"         ,NetRSLaxErrorEstimate);CHKERRQ(ierr);
-    ierr = PetscFunctionListAdd(&errest,"taylor"      ,NetRSTaylorErrorEstimate);CHKERRQ(ierr);
-
-    ierr = PetscCalloc1(1,&dgnet);CHKERRQ(ierr); /* Replace with proper dgnet creation function */
-    /* Set default values */
-    dgnet->comm           = comm;
-    dgnet->cfl            = 0.9;
-    dgnet->networktype    = 6;
-    dgnet->hratio         = 1;
-    maxtime               = 2.0;
-    dgnet->Mx             = 10;
-    dgnet->initial        = 1;
-    dgnet->ndaughters     = 2;
-    dgnet->length         = 10.0;
-    dgnet->view           = PETSC_FALSE;
-    dgnet->jumptol        = 0.5;
-    dgnet->diagnosticlow  = 0.5; 
-    dgnet->diagnosticup   = 1e-4; 
-
-    /* Command Line Options */
-    ierr = PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");CHKERRQ(ierr);
+  /* Command Line Options */
+  ierr = PetscOptionsBegin(comm,NULL,"DGNetwork solver options","");CHKERRQ(ierr);
     ierr = PetscOptionsFList("-physics","Name of physics model to use","",physics,physname,physname,sizeof(physname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsFList("-errest","","",errest,errorestimator,errorestimator,sizeof(physname),NULL);CHKERRQ(ierr);
     ierr = PetscOptionsInt("-initial","Initial Condition (depends on the physics)","",dgnet->initial,&dgnet->initial,NULL);CHKERRQ(ierr);
@@ -129,40 +132,40 @@ int main(int argc,char *argv[])
     ierr = PetscOptionsBool("-view_3d","View a 3d version of edge","",view3d,&view3d,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_glvis","View GLVis of Edge","",viewglvis,&viewglvis,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-view_full_net","View GLVis of Entire Network","",viewfullnet,&viewfullnet,NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsEnd();CHKERRQ(ierr);
-    /* Choose the physics from the list of registered models */
-    {
-      PetscErrorCode (*r)(DGNetwork);
-      ierr = PetscFunctionListFind(physics,physname,&r);CHKERRQ(ierr);
-      if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
-      /* Create the physics, will set the number of fields and their names */
-      ierr = (*r)(dgnet);CHKERRQ(ierr);
-    }
-    ierr = PetscMalloc1(dgnet->physics.dof,&dgnet->physics.order);CHKERRQ(ierr); /* should be constructed by physics */
-    ierr = MakeOrder(dgnet->physics.dof,dgnet->physics.order,maxorder);CHKERRQ(ierr);
-  
-    /* Generate Network Data */
-    ierr = DGNetworkCreate(dgnet,dgnet->networktype,dgnet->Mx);CHKERRQ(ierr);
-    /* Create DMNetwork */
-    ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr);
-    /* Set Network Data into the DMNetwork (on proc[0]) */
-    ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
-    /* Delete unneeded data in dgnet */
-    ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
-    ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
-    ierr = DMNetworkDistribute(&dgnet->network,0);CHKERRQ(ierr);
- 
-    /* Create Vectors */
-    ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);
-    /* Set up component dynamic data structures */
-    ierr = DGNetworkBuildDynamic(dgnet);CHKERRQ(ierr);
-    if (size == 1 && dgnet->view) {
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+  /* Choose the physics from the list of registered models */
+  {
+    PetscErrorCode (*r)(DGNetwork);
+    ierr = PetscFunctionListFind(physics,physname,&r);CHKERRQ(ierr);
+    if (!r) SETERRQ1(PETSC_COMM_SELF,1,"Physics '%s' not found",physname);
+    /* Create the physics, will set the number of fields and their names */
+    ierr = (*r)(dgnet);CHKERRQ(ierr);
+  }
+  ierr = PetscMalloc1(dgnet->physics.dof,&dgnet->physics.order);CHKERRQ(ierr); /* should be constructed by physics */
+  ierr = MakeOrder(dgnet->physics.dof,dgnet->physics.order,maxorder);CHKERRQ(ierr);
+
+  /* Generate Network Data */
+  ierr = DGNetworkCreate(dgnet,dgnet->networktype,dgnet->Mx);CHKERRQ(ierr);
+  /* Create DMNetwork */
+  ierr = DMNetworkCreate(PETSC_COMM_WORLD,&dgnet->network);CHKERRQ(ierr);
+  /* Set Network Data into the DMNetwork (on proc[0]) */
+  ierr = DGNetworkSetComponents(dgnet);CHKERRQ(ierr);
+  /* Delete unneeded data in dgnet */
+  ierr = DGNetworkCleanUp(dgnet);CHKERRQ(ierr);
+  ierr = DGNetworkBuildTabulation(dgnet);CHKERRQ(ierr);
+  ierr = DMNetworkDistribute(&dgnet->network,0);CHKERRQ(ierr);
+
+  /* Create Vectors */
+  ierr = DGNetworkCreateVectors(dgnet);CHKERRQ(ierr);
+  /* Set up component dynamic data structures */
+  ierr = DGNetworkBuildDynamic(dgnet);CHKERRQ(ierr);
+  if (size == 1 && dgnet->view) {
     if (viewglvis) {
       ierr = DGNetworkMonitorCreate_Glvis(dgnet,&monitor_gl);CHKERRQ(ierr);
-      if (viewfullnet) { 
+      if (viewfullnet) {
         ierr =  DGNetworkMonitorAdd_Glvis_2D_NET(monitor_gl,"localhost",glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
       } else {
-        if(view3d) {
+        if (view3d) {
           ierr = DGNetworkAddMonitortoEdges_Glvis_3D(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
         } else {
           ierr = DGNetworkAddMonitortoEdges_Glvis(dgnet,monitor_gl,glvismode ? PETSC_VIEWER_GLVIS_DUMP : PETSC_VIEWER_GLVIS_SOCKET);CHKERRQ(ierr);
@@ -173,28 +176,29 @@ int main(int argc,char *argv[])
       ierr = DGNetworkAddMonitortoEdges(dgnet,monitor);CHKERRQ(ierr);
     }
   }
-    /* Set up Riemann Solver (need a proper riemann physics struct with convienance routine to 
-       set all the physics parts at once) */
+  /* Set up Riemann Solver (need a proper riemann physics struct with convienance routine to
+   set all the physics parts at once) */
 
-    ierr = RiemannSolverCreate(dgnet->comm,&dgnet->physics.rs);CHKERRQ(ierr);
-    ierr = RiemannSolverSetApplicationContext(dgnet->physics.rs,dgnet->physics.user);CHKERRQ(ierr);
-    ierr = RiemannSolverSetFromOptions(dgnet->physics.rs);CHKERRQ(ierr);
-    ierr = RiemannSolverSetFluxEig(dgnet->physics.rs,dgnet->physics.fluxeig);CHKERRQ(ierr);
-    ierr = RiemannSolverSetRoeAvgFunct(dgnet->physics.rs,dgnet->physics.roeavg);CHKERRQ(ierr);
-    ierr = RiemannSolverSetRoeMatrixFunct(dgnet->physics.rs,dgnet->physics.roemat);CHKERRQ(ierr);
-    ierr = RiemannSolverSetEigBasis(dgnet->physics.rs,dgnet->physics.eigbasis);CHKERRQ(ierr);
-    ierr = RiemannSolverSetFlux(dgnet->physics.rs,1,dgnet->physics.dof,dgnet->physics.flux2);CHKERRQ(ierr);
-    ierr = RiemannSolverSetLaxCurve(dgnet->physics.rs,dgnet->physics.laxcurve);CHKERRQ(ierr);
-    ierr = RiemannSolverSetUp(dgnet->physics.rs);CHKERRQ(ierr);
-    /* Set up NetRS */
-    ierr = PetscFunctionListFind(errest,errorestimator,&errorest);CHKERRQ(ierr);
-    ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,errorest,1);CHKERRQ(ierr);
-    ierr = DGNetworkProject(dgnet,dgnet->X,0.0);CHKERRQ(ierr);
+  ierr = RiemannSolverCreate(dgnet->comm,&dgnet->physics.rs);CHKERRQ(ierr);
+  ierr = RiemannSolverSetApplicationContext(dgnet->physics.rs,dgnet->physics.user);CHKERRQ(ierr);
+  ierr = RiemannSolverSetFromOptions(dgnet->physics.rs);CHKERRQ(ierr);
+  ierr = RiemannSolverSetFluxEig(dgnet->physics.rs,dgnet->physics.fluxeig);CHKERRQ(ierr);
+  ierr = RiemannSolverSetRoeAvgFunct(dgnet->physics.rs,dgnet->physics.roeavg);CHKERRQ(ierr);
+  ierr = RiemannSolverSetRoeMatrixFunct(dgnet->physics.rs,dgnet->physics.roemat);CHKERRQ(ierr);
+  ierr = RiemannSolverSetEigBasis(dgnet->physics.rs,dgnet->physics.eigbasis);CHKERRQ(ierr);
+  ierr = RiemannSolverSetFlux(dgnet->physics.rs,1,dgnet->physics.dof,dgnet->physics.flux2);CHKERRQ(ierr);
+  ierr = RiemannSolverSetLaxCurve(dgnet->physics.rs,dgnet->physics.laxcurve);CHKERRQ(ierr);
+  ierr = RiemannSolverSetUp(dgnet->physics.rs);CHKERRQ(ierr);
+
+  /* Set up NetRS */
+  ierr = PetscFunctionListFind(errest,errorestimator,&errorest);CHKERRQ(ierr);
+  ierr = DGNetworkAssignNetRS(dgnet,dgnet->physics.rs,errorest,1);CHKERRQ(ierr);
+  ierr = DGNetworkProject(dgnet,dgnet->X,0.0);CHKERRQ(ierr);
 
   /* Create a time-stepping object */
   ierr = TSCreate(comm,&ts);CHKERRQ(ierr);
   ierr = TSSetApplicationContext(ts,dgnet);CHKERRQ(ierr);
-  
+
   ierr = TSSetRHSFunction(ts,NULL,DGNetRHS_NETRSVERSION2,dgnet);CHKERRQ(ierr);
 
   ierr = TSSetType(ts,TSSSP);CHKERRQ(ierr);
@@ -202,40 +206,40 @@ int main(int argc,char *argv[])
   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);CHKERRQ(ierr);
   ierr = TSSetTimeStep(ts,dgnet->cfl/dgnet->Mx/(2*maxorder+1));CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);  /* Take runtime options */
-if (size == 1 && dgnet->view) {
-      if (viewglvis) {
-        if(viewfullnet) {
-          ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis_NET, monitor_gl, NULL);CHKERRQ(ierr);
-        } else {
-          ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
-        } 
+  if (size == 1 && dgnet->view) {
+    if (viewglvis) {
+      if (viewfullnet) {
+        ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis_NET, monitor_gl, NULL);CHKERRQ(ierr);
       } else {
-        ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
+        ierr = TSMonitorSet(ts, TSDGNetworkMonitor_GLVis, monitor_gl, NULL);CHKERRQ(ierr);
       }
+    } else {
+      ierr = TSMonitorSet(ts, TSDGNetworkMonitor, monitor, NULL);CHKERRQ(ierr);
     }
+  }
   if (limit) {
-      /* Prelimit the initial data as I use post-stage to apply limiters instead of prestage (which doesn't have access to stage vectors 
-      for some reason ... no idea why prestage and post-stage callback functions have different forms) */  
+      /* Prelimit the initial data as I use post-stage to apply limiters instead of prestage (which doesn't have access to stage vectors
+      for some reason ... no idea why prestage and post-stage callback functions have different forms) */
     ierr = DGNetlimiter(ts,0,0,&dgnet->X);CHKERRQ(ierr);
     ierr = TSSetPostStage(ts,DGNetlimiter);CHKERRQ(ierr);
-  } 
+  }
 
   ierr = TSSolve(ts,dgnet->X);CHKERRQ(ierr);
 
- /* Clean up */
-  if(dgnet->view && size==1){
-    if(viewglvis) {
+  /* Clean up */
+  if (dgnet->view && size==1) {
+    if (viewglvis) {
       ierr = DGNetworkMonitorDestroy_Glvis(&monitor_gl);
     } else {
       ierr = DGNetworkMonitorDestroy(&monitor);
     }
-  } 
-    ierr = RiemannSolverDestroy(&dgnet->physics.rs);CHKERRQ(ierr);
-    ierr = PetscFree(dgnet->physics.order);CHKERRQ(ierr);
-    ierr = DGNetworkDestroyNetRS(dgnet);CHKERRQ(ierr);
-    ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr); /* Destroy all data within the network and within dgnet */
-    ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
-    ierr = PetscFree(dgnet);CHKERRQ(ierr);
+  }
+  ierr = RiemannSolverDestroy(&dgnet->physics.rs);CHKERRQ(ierr);
+  ierr = PetscFree(dgnet->physics.order);CHKERRQ(ierr);
+  ierr = DGNetworkDestroyNetRS(dgnet);CHKERRQ(ierr);
+  ierr = DGNetworkDestroy(dgnet);CHKERRQ(ierr); /* Destroy all data within the network and within dgnet */
+  ierr = DMDestroy(&dgnet->network);CHKERRQ(ierr);
+  ierr = PetscFree(dgnet);CHKERRQ(ierr);
 
   ierr = PetscFunctionListDestroy(&physics);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
