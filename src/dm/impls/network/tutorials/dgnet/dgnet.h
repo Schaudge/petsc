@@ -6,6 +6,7 @@
 #include <petscts.h>
 #include <petscriemannsolver.h>
 #include <petscnetrs.h>
+
 /* Function Specification for coupling flux calculations at the vertex */
 typedef PetscErrorCode (*VertexFlux)(const void*,const PetscScalar*,const PetscBool*,PetscScalar*,PetscScalar*,const void*);
 
@@ -19,7 +20,7 @@ struct _p_Junction {
   Mat           mat;
   Vec           xcouple,rcouple;  /* Information for nonlinear solver for coupling flux */
   EdgeDirection *dir;     /* In the local ordering whether index i point into or out of the vertex. PetscTrue points out. */
-  PetscReal     x,y,fluct; 
+  PetscReal     x,y,fluct;
   PetscInt      numedges; /* Number of edges connected to this vertex (globally) */
   /* Coupling Context */
   VertexFlux    couplingflux; /* Vertex flux function for coupling junctions (two or more incident edges)*/
@@ -32,7 +33,7 @@ struct _p_MultirateCtx
 {
   PetscInt  tobufferlvl,frombufferlvl; /* Level of the buffer on the to and from ends of the edge. lvl 0 refers to no buffer at all */
 } PETSC_ATTRIBUTEALIGNED(sizeof(PetscScalar));
-typedef struct _p_MultirateCtx *MultirateCtx; 
+typedef struct _p_MultirateCtx *MultirateCtx;
 
 struct _p_EdgeFE
 {
@@ -56,8 +57,8 @@ typedef PetscErrorCode (*VertexFluxDestroy)(const void*,Junction);
 typedef PetscErrorCode (*RiemannFunction)(void*,PetscInt,const PetscScalar*,const PetscScalar*,PetscScalar*,PetscReal*);
 typedef PetscErrorCode (*ReconstructFunction)(void*,PetscInt,const PetscScalar*,PetscScalar*,PetscScalar*,PetscReal*);
 
-/* 
-  TODO : Change phuysics struct to use fluxfunction class to be created. 
+/*
+  TODO : Change phuysics struct to use fluxfunction class to be created.
 */
 typedef struct {
   PetscErrorCode                 (*samplenetwork)(void*,PetscInt,PetscReal,PetscReal,PetscReal*,PetscInt);
@@ -71,18 +72,18 @@ typedef struct {
   void                           *user;
   PetscInt                       dof;
   PetscInt                       *order;
-  PetscInt                       maxorder; 
+  PetscInt                       maxorder;
   char                           *fieldname[16];
   RiemannSolver                  rs;
-  PetscPointFlux                 flux2; 
-  PetscPointFluxEig              fluxeig;    
+  PetscPointFlux                 flux2;
+  PetscPointFluxEig              fluxeig;
   RiemannSolverRoeAvg            roeavg;
-  RiemannSolverRoeMatrix         roemat; 
-  RiemannSolverEigBasis          eigbasis; 
-  PetscPointFluxDer              fluxder; 
+  RiemannSolverRoeMatrix         roemat;
+  RiemannSolverEigBasis          eigbasis;
+  PetscPointFluxDer              fluxder;
   PetscReal                      *lowbound; /* lower bound for the field variables allowed. For example SWE requires height to be positive */
   PetscReal                      *upbound; /* upper bound for the field variables */
-  LaxCurve                       laxcurve; 
+  LaxCurve                       laxcurve;
 } PhysicsCtx_Net;
 
 /* Global DG information on the entire network. Needs a creation function .... */
@@ -98,53 +99,52 @@ struct _p_DGNetwork
   DM          network;
   SNES        snes;                    /* Temporary hack to hold a nonlinear solver. Used for the nonlinear riemann invariant solver.
                                           should be moved back to junct structure to reuse jacobian matrix? */
-  KSP         ksp; 
+  KSP         ksp;
   PetscInt    moni;
   PetscBool   view,linearcoupling,lincouplediff,tabulated,laxcurve,adaptivecouple;
   PetscBool   viewglvis,viewfullnet;
-  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup; 
+  PetscReal   ymin,ymax,length, diagnosticlow, diagnosticup;
   char        prefix[256];
   void        (*limit)(const PetscScalar*,const PetscScalar*,PetscScalar*,PetscInt);
   PetscErrorCode (*gettimestep)(TS ts, PetscReal *dt);
 
   /* DG Basis Evaluations and Quadrature */
-  /* These are arrays with LegEval[fieldtotab[f]] giving the legendre evaluations for the given field 
-     We only construct a single set of tabulations/quadrature for single dg order. Different fields can have 
-     different dg order polynomials, but if field 1 and field 2 share the same order, then they will share the same 
-     tabulation. 
+  /* These are arrays with LegEval[fieldtotab[f]] giving the legendre evaluations for the given field
+     We only construct a single set of tabulations/quadrature for single dg order. Different fields can have
+     different dg order polynomials, but if field 1 and field 2 share the same order, then they will share the same
+     tabulation.
     */
 
-  PetscQuadrature quad; 
-  PetscReal **LegEval;
-  PetscReal **LegEvalD;
-  PetscReal **LegEvaL_bdry;
-  PetscReal **Leg_L2;
+  PetscQuadrature quad;
+  PetscReal       **LegEval;
+  PetscReal       **LegEvalD;
+  PetscReal       **LegEvaL_bdry;
+  PetscReal       **Leg_L2;
 
   /* Viewer Object (probably refactor as a viewer for dgnet)*/
   PetscInt  *numviewpts;
   PetscReal **LegEval_equispaced; /* tabulation for viewing */
-  
+
   /* DG WorkSpace Stuff */
-  PetscReal **comp; 
+  PetscReal **comp;
   PetscReal *pteval;
   PetscReal *fluxeval; /*refactor this to be a single contiguous array of data */
-  /* 
-    TODO : the above evaluations should be replaced by PETSCTabulation objects. However the petsctabulation object needs 
+  /*
+    TODO : the above evaluations should be replaced by PETSCTabulation objects. However the petsctabulation object needs
     some additional features to make it complete, including viewers and proper general interfaces. Wrapper functions for Legendre evaluations
-    and etc. That way you don't have to think about things. Also maybe should be stored internally as Mat objects? 
+    and etc. That way you don't have to think about things. Also maybe should be stored internally as Mat objects?
   */
 
   PetscInt        *fieldtotab; /* size is dof */
-  PetscInt        *taborder;  
-  PetscInt        tabordersize; 
+  PetscInt        *taborder;
+  PetscInt        tabordersize;
 
-  /* Work arrays for the limiter/characterstic basis */ 
-
-  PetscReal       *charcoeff; 
-  PetscBool       *limitactive; 
-  PetscReal       *cbdryeval_L, *cbdryeval_R, *cuAvg,*uavgs;  
+  /* Work arrays for the limiter/characterstic basis */
+  PetscReal       *charcoeff;
+  PetscBool       *limitactive;
+  PetscReal       *cbdryeval_L, *cbdryeval_R, *cuAvg,*uavgs;
   PetscReal       jumptol;
-  PetscReal       *cjmpLR; 
+  PetscReal       *cjmpLR;
 
   /* Local work arrays for numerical flux */
   PetscScalar *R,*Rinv;         /* Characteristic basis, and it's inverse.  COLUMN-MAJOR */
@@ -158,10 +158,13 @@ struct _p_DGNetwork
   PetscBool   exact;
   PetscInt    hratio;
   PetscInt    Mx;               /* Variable used to specify smallest number of cells for an edge in a problem */
+
   /* Junction */
   Junction    junction;
+
   /* Edges */
   EdgeFE      edgefe;
+
   /* We assume for efficiency and simplicity that the network has
      a single discretization on all edges and the same physics.
      So that context information is stored here in the network object. The
@@ -179,6 +182,7 @@ struct _p_DGNetworkMonitorList
   PetscInt    element,field,vsize;
   DGNetworkMonitorList next;
 };
+
 typedef struct _p_DGNetworkMonitor *DGNetworkMonitor;
 struct _p_DGNetworkMonitor
 {
@@ -186,20 +190,22 @@ struct _p_DGNetworkMonitor
   DGNetwork            dgnet;
   DGNetworkMonitorList firstnode;
 };
+
 typedef struct _p_DGNetworkMonitorList_Glvis *DGNetworkMonitorList_Glvis;
 struct _p_DGNetworkMonitorList_Glvis
 {
   PetscViewer  viewer;
-  DGNetwork    dgnet;      
+  DGNetwork    dgnet;
   Vec          v,*v_work;
   DM           viewdm;
-  DM           *dmlist; 
+  DM           *dmlist;
   PetscSection stratumoffset;
   PetscInt     element,nfields,*dim,numdm;
-  PetscInt     snapid; 
+  PetscInt     snapid;
   char         **fec_type;
   DGNetworkMonitorList_Glvis next;
 };
+
 typedef struct _p_DGNetworkMonitor_Glvis *DGNetworkMonitor_Glvis;
 struct _p_DGNetworkMonitor_Glvis
 {
@@ -207,31 +213,32 @@ struct _p_DGNetworkMonitor_Glvis
   DGNetwork            dgnet;
   DGNetworkMonitorList_Glvis firstnode;
 };
+
 /*
-  Interface for multiple DGNetworks simulations on the same network (and mesh) topology. 
-  just holds multiple DGNetwork objects, and uses vecnest to build a global vector to integrate 
+  Interface for multiple DGNetworks simulations on the same network (and mesh) topology.
+  just holds multiple DGNetwork objects, and uses vecnest to build a global vector to integrate
 
-  Needs to be improved (and dgnetwork needs to be made a proper object instead of the nonsense 
-  it currently is). But works for now. 
+  Needs to be improved (and dgnetwork needs to be made a proper object instead of the nonsense
+  it currently is). But works for now.
 
-  This is used to various testing routines, to compare coupling condtions/riemann solvers/polynomial 
+  This is used to various testing routines, to compare coupling condtions/riemann solvers/polynomial
   orders specifically. We assume the following are shared on all dgnetworks (but don't enforce for now)
 
   . network topology
-  . mesh topology 
-  . physics 
+  . mesh topology
+  . physics
 
-  Everything else is free to be altered as you see fit. 
+  Everything else is free to be altered as you see fit.
 
   NOTE: Look up DMComposite Maybe the right thing for this situation ...
 */
 struct _p_DGNetwork_Nest
 {
-  PetscInt         numsimulations,numwrkvec,nummonitors; 
-  DGNetwork        *dgnets; 
-  DGNetworkMonitor *monitors; 
+  PetscInt         numsimulations,numwrkvec,nummonitors;
+  DGNetwork        *dgnets;
+  DGNetworkMonitor *monitors;
   Vec              *wrk_vec; /* using for calculation in post-step functions as needed*/
-  DGNetworkMonitor_Glvis *monitors_glvis; 
+  DGNetworkMonitor_Glvis *monitors_glvis;
 };
 typedef struct _p_DGNetwork_Nest *DGNetwork_Nest;
 
@@ -251,7 +258,7 @@ extern PetscErrorCode DGNetworkCleanUp(DGNetwork);
    the vertex data structures needed for evaluating the edge data they
    'steal' */
 extern PetscErrorCode DGNetworkCreateVectors(DGNetwork);
-/* Assign the coupling condition functions to the vertices of the network based 
+/* Assign the coupling condition functions to the vertices of the network based
    user provided vfluxassign function */
 extern PetscErrorCode DGNetworkAssignCoupling(DGNetwork);
 /* Add dynamic data to the distributed network. */
@@ -315,11 +322,11 @@ extern PetscErrorCode DGNetlimiter(TS, PetscReal, PetscInt, Vec*);
 /* Nest stuff. For use with concurrent simulations. WIP */
 extern PetscErrorCode DGNetlimiter_Nested(TS, PetscReal,PetscInt,Vec*);
 
-/* NETRS Stuff WIP (should be moved to NetRS itself)  */ 
+/* NETRS Stuff WIP (should be moved to NetRS itself)  */
 extern PetscErrorCode DGNetRHS_NETRSVERSION(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode DGNetRHS_NETRSVERSION2(TS,PetscReal,Vec,Vec,void*);
 
 extern PetscErrorCode DGNetworkAssignNetRS(DGNetwork,RiemannSolver,NRSErrorEstimator,PetscReal);
-extern PetscErrorCode DGNetRHS_NETRS_Nested(TS,PetscReal,Vec,Vec,void*); 
+extern PetscErrorCode DGNetRHS_NETRS_Nested(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode DGNetworkDestroyNetRS(DGNetwork);
 #endif
