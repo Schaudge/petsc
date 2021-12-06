@@ -61,6 +61,40 @@ const char *TaoConvergedReasons_Shifted[] = {
     "CONVERGED_USER" };
 const char **TaoConvergedReasons = TaoConvergedReasons_Shifted - TAO_DIVERGED_USER;
 
+
+const char *TAOLMVM="lmvm";
+const char *TAONLS     ="nls";
+const char *TAONTR     ="ntr";
+const char *TAONTL     ="ntl";
+const char *TAOCG      ="cg";
+const char *TAOTRON    ="tron";
+const char *TAOOWLQN   ="owlqn";
+const char *TAOBMRM    ="bmrm";
+const char *TAOBLMVM   ="blmvm";
+const char *TAOBQNLS   ="bqnls";
+const char *TAOBNCG    ="bncg";
+const char *TAOBNLS    ="bnls";
+const char *TAOBNTR    ="bntr";
+const char *TAOBNTL    ="bntl";
+const char *TAOBQNKLS  ="bqnkls";
+const char *TAOBQNKTR  ="bqnktr";
+const char *TAOBQNKTL  ="bqnktl";
+const char *TAOBQPIP   ="bqpip";
+const char *TAOGPCG    ="gpcg";
+const char *TAONM      ="nm";
+const char *TAOPOUNDERS="pounders";
+const char *TAOBRGN    ="brgn";
+const char *TAOLCL     ="lcl";
+const char *TAOSSILS   ="ssils";
+const char *TAOSSFLS   ="ssfls";
+const char *TAOASILS   ="asils";
+const char *TAOASFLS   ="asfls";
+const char *TAOIPM     ="ipm";
+const char *TAOPDIPM   ="pdipm";
+const char *TAOSHELL   ="shell";
+const char *TAOADMM    ="admm";
+const char *TAOALMM    ="almm";
+
 /*@C
   TaoRegisterAll - Registers all of the minimization methods in the TAO
   package.

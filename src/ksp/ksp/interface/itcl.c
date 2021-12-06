@@ -266,6 +266,7 @@ PetscErrorCode KSPMonitorSetFromOptions(KSP ksp, const char opt[], const char na
   ierr = PetscViewerGetType(viewer, &vtype);CHKERRQ(ierr);
   ierr = KSPMonitorMakeKey_Internal(name, vtype, format, key);CHKERRQ(ierr);
   ierr = PetscFunctionListFind(KSPMonitorList, key, &mfunc);CHKERRQ(ierr);
+  if (!mfunc) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Unable to find monitor %s",key);
   ierr = PetscFunctionListFind(KSPMonitorCreateList, key, &cfunc);CHKERRQ(ierr);
   ierr = PetscFunctionListFind(KSPMonitorDestroyList, key, &dfunc);CHKERRQ(ierr);
   if (!cfunc) cfunc = PetscViewerAndFormatCreate_Internal;

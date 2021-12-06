@@ -83,6 +83,7 @@ PETSC_EXTERN PetscErrorCode PetscMallocAlign(size_t mem,PetscBool clear,int line
 PETSC_EXTERN PetscErrorCode PetscFreeAlign(void *ptr,int line,const char func[],const char file[])
 {
   if (!ptr) return 0;
+  if (PetscReadOnly(ptr)) return 0;
 #if defined(PETSC_HAVE_MEMKIND)
   memkind_free(0,ptr); /* specify the kind to 0 so that memkind will look up for the right type */
 #else

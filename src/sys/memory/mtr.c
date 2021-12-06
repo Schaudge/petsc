@@ -276,6 +276,7 @@ PetscErrorCode  PetscTrFreeDefault(void *aa,int lineno,const char function[],con
   PetscFunctionBegin;
   /* Do not try to handle empty blocks */
   if (!a) PetscFunctionReturn(0);
+  if (PetscReadOnly(aa)) PetscFunctionReturn(0);
 
   ierr = PetscMallocValidate(lineno,function,filename);CHKERRQ(ierr);
 

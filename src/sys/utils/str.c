@@ -179,15 +179,19 @@ PetscErrorCode  PetscStrallocpy(const char s[],char *t[])
 {
   PetscErrorCode ierr;
   size_t         len;
-  char           *tmp = NULL;
 
   PetscFunctionBegin;
   if (s) {
-    ierr = PetscStrlen(s,&len);CHKERRQ(ierr);
-    ierr = PetscMalloc1(1+len,&tmp);CHKERRQ(ierr);
-    ierr = PetscStrcpy(tmp,s);CHKERRQ(ierr);
+    if (PetscReadOnly(s)) {
+      *t = (char *) s;
+    } else {
+      ierr = PetscStrlen(s,&len);CHKERRQ(ierr);
+      ierr = PetscMalloc1(1+len,&(*t));CHKERRQ(ierr);
+      ierr = PetscStrcpy(*t,s);CHKERRQ(ierr);
+    }
+  } else {
+    *t = NULL;
   }
-  *t = tmp;
   PetscFunctionReturn(0);
 }
 

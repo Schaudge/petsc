@@ -17,6 +17,9 @@
 #include <petscconf_poison.h>
 #include <petscfix.h>
 
+#define PETSC_ADDR_READ_ONLY ((PetscInt64) 0x0000000207a58ca7)
+#define PetscReadOnly(name) (((PetscInt64) name) < PETSC_ADDR_READ_ONLY)
+
 /*MC
   PetscHasAttribute - determine whether a particular __attribute__ is supported by the compiler
 

@@ -124,38 +124,38 @@ typedef struct _p_Tao*   Tao;
 
 J*/
 typedef const char *TaoType;
-#define TAOLMVM     "lmvm"
-#define TAONLS      "nls"
-#define TAONTR      "ntr"
-#define TAONTL      "ntl"
-#define TAOCG       "cg"
-#define TAOTRON     "tron"
-#define TAOOWLQN    "owlqn"
-#define TAOBMRM     "bmrm"
-#define TAOBLMVM    "blmvm"
-#define TAOBQNLS    "bqnls"
-#define TAOBNCG     "bncg"
-#define TAOBNLS     "bnls"
-#define TAOBNTR     "bntr"
-#define TAOBNTL     "bntl"
-#define TAOBQNKLS   "bqnkls"
-#define TAOBQNKTR   "bqnktr"
-#define TAOBQNKTL   "bqnktl"
-#define TAOBQPIP    "bqpip"
-#define TAOGPCG     "gpcg"
-#define TAONM       "nm"
-#define TAOPOUNDERS "pounders"
-#define TAOBRGN     "brgn"
-#define TAOLCL      "lcl"
-#define TAOSSILS    "ssils"
-#define TAOSSFLS    "ssfls"
-#define TAOASILS    "asils"
-#define TAOASFLS    "asfls"
-#define TAOIPM      "ipm"
-#define TAOPDIPM    "pdipm"
-#define TAOSHELL    "shell"
-#define TAOADMM     "admm"
-#define TAOALMM     "almm"
+PETSC_EXTERN const char *TAOLMVM;
+PETSC_EXTERN const char* TAONLS;
+PETSC_EXTERN const char* TAONTR;
+PETSC_EXTERN const char* TAONTL;
+PETSC_EXTERN const char* TAOCG;
+PETSC_EXTERN const char* TAOTRON;
+PETSC_EXTERN const char* TAOOWLQN;
+PETSC_EXTERN const char* TAOBMRM;
+PETSC_EXTERN const char* TAOBLMVM;
+PETSC_EXTERN const char* TAOBQNLS;
+PETSC_EXTERN const char* TAOBNCG;
+PETSC_EXTERN const char* TAOBNLS;
+PETSC_EXTERN const char* TAOBNTR;
+PETSC_EXTERN const char* TAOBNTL;
+PETSC_EXTERN const char* TAOBQNKLS;
+PETSC_EXTERN const char* TAOBQNKTR;
+PETSC_EXTERN const char* TAOBQNKTL;
+PETSC_EXTERN const char* TAOBQPIP;
+PETSC_EXTERN const char* TAOGPCG;
+PETSC_EXTERN const char* TAONM;
+PETSC_EXTERN const char* TAOPOUNDERS;
+PETSC_EXTERN const char* TAOBRGN;
+PETSC_EXTERN const char* TAOLCL;
+PETSC_EXTERN const char* TAOSSILS;
+PETSC_EXTERN const char* TAOSSFLS;
+PETSC_EXTERN const char* TAOASILS;
+PETSC_EXTERN const char* TAOASFLS;
+PETSC_EXTERN const char* TAOIPM;
+PETSC_EXTERN const char* TAOPDIPM;
+PETSC_EXTERN const char* TAOSHELL;
+PETSC_EXTERN const char* TAOADMM;
+PETSC_EXTERN const char* TAOALMM;
 
 PETSC_EXTERN PetscClassId TAO_CLASSID;
 PETSC_EXTERN PetscFunctionList TaoList;

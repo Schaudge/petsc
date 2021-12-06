@@ -230,7 +230,7 @@ PETSC_EXTERN PetscErrorCode PetscFunctionListAdd_Private(PetscFunctionList *fl,c
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
-  if (((PetscInt64) name) > ((PetscInt64) 0x0000000207a58ca7)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"name must be an actual string");
+  if (!PetscReadOnly(name)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"name must be an actual string");
   if (!*fl) {
     ierr           = PetscNew(&entry);CHKERRQ(ierr);
     entry->name    = name;
@@ -359,7 +359,7 @@ PETSC_EXTERN PetscErrorCode PetscFunctionListFind_Private(PetscFunctionList fl,c
   if (!name) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Trying to find routine with null name");
 
   *r = NULL;
-  if (((PetscInt64) name) > ((PetscInt64) 0x0000000207a58ca7)){
+  if (!PetscReadOnly(name)) {
     PetscBool      found;
     PetscErrorCode ierr;
 
