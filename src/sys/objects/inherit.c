@@ -20,8 +20,6 @@ PetscBool   PetscObjectsLog    = PETSC_FALSE;
 PETSC_EXTERN PetscErrorCode PetscObjectGetComm_Petsc(PetscObject,MPI_Comm*);
 PETSC_EXTERN PetscErrorCode PetscObjectCompose_Petsc(PetscObject,const char[],PetscObject);
 PETSC_EXTERN PetscErrorCode PetscObjectQuery_Petsc(PetscObject,const char[],PetscObject*);
-PETSC_EXTERN PetscErrorCode PetscObjectComposeFunction_Petsc(PetscObject,const char[],void (*)(void));
-PETSC_EXTERN PetscErrorCode PetscObjectQueryFunction_Petsc(PetscObject,const char[],void (**)(void));
 
 /*
    PetscHeaderCreate_Private - Creates a base PETSc object header and fills
@@ -57,8 +55,6 @@ PetscErrorCode  PetscHeaderCreate_Private(PetscObject h,PetscClassId classid,con
   h->bops->getcomm         = PetscObjectGetComm_Petsc;
   h->bops->compose         = PetscObjectCompose_Petsc;
   h->bops->query           = PetscObjectQuery_Petsc;
-  h->bops->composefunction = PetscObjectComposeFunction_Petsc;
-  h->bops->queryfunction   = PetscObjectQueryFunction_Petsc;
 
   ierr = PetscCommDuplicate(comm,&h->comm,&h->tag);CHKERRQ(ierr);
 
@@ -663,7 +659,36 @@ PetscErrorCode PetscObjectQuery_Petsc(PetscObject obj,const char name[],PetscObj
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscObjectComposeFunction_Petsc(PetscObject obj,const char name[],void (*ptr)(void))
+/*MC
+   PetscObjectComposeFunction - Associates a function with a given PETSc object.
+
+    Synopsis:
+    #include <petscsys.h>
+    PetscErrorCode PetscObjectComposeFunction(PetscObject obj,const char name[],void (*fptr)(void))
+
+   Logically Collective on PetscObject
+
+   Input Parameters:
++  obj - the PETSc object; this must be cast with a (PetscObject), for example,
+         PetscObjectCompose((PetscObject)mat,...);
+.  name - name associated with the function, this must be an actual static string, it cannot be a variable
+-  fptr - function pointer
+
+   Level: advanced
+
+   Notes:
+   To remove a registered function, pass in NULL for fptr().
+
+   PetscObjectComposeFunction() can be used with any PETSc object (such as
+   Mat, Vec, KSP, SNES, etc.) or any user-provided object.
+
+   Developer Notes:
+     This operations depends on the compiler/linker matching all identical compiler time strings into a single string
+
+.seealso: PetscObjectQueryFunction(), PetscContainerCreate() PetscObjectCompose(), PetscObjectQuery()
+M*/
+
+PetscErrorCode PetscObjectComposeFunction_Private(PetscObject obj,const char name[],void (*ptr)(void))
 {
   PetscErrorCode ierr;
 
@@ -673,7 +698,29 @@ PetscErrorCode PetscObjectComposeFunction_Petsc(PetscObject obj,const char name[
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PetscObjectQueryFunction_Petsc(PetscObject obj,const char name[],void (**ptr)(void))
+/*MC
+   PetscObjectQueryFunction - Gets a function associated with a given object.
+
+    Synopsis:
+    #include <petscsys.h>
+    PetscErrorCode PetscObjectQueryFunction(PetscObject obj,const char name[],void (**fptr)(void))
+
+   Logically Collective on PetscObject
+
+   Input Parameters:
++  obj - the PETSc object; this must be cast with (PetscObject), for example,
+         PetscObjectQueryFunction((PetscObject)ksp,...);
+-  name - name associated with the function, this must be an actual static string, it cannot be a variable
+
+   Output Parameter:
+.  fptr - function pointer
+
+   Level: advanced
+
+.seealso: PetscObjectComposeFunction(), PetscFunctionListFind(), PetscObjectCompose(), PetscObjectQuery()
+M*/
+
+PetscErrorCode PetscObjectQueryFunction_Private(PetscObject obj,const char name[],void (**ptr)(void))
 {
   PetscErrorCode ierr;
 
@@ -754,76 +801,6 @@ PetscErrorCode  PetscObjectQuery(PetscObject obj,const char name[],PetscObject *
   PetscValidCharPointer(name,2);
   PetscValidPointer(ptr,3);
   ierr = (*obj->bops->query)(obj,name,ptr);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*MC
-   PetscObjectComposeFunction - Associates a function with a given PETSc object.
-
-    Synopsis:
-    #include <petscsys.h>
-    PetscErrorCode PetscObjectComposeFunction(PetscObject obj,const char name[],void (*fptr)(void))
-
-   Logically Collective on PetscObject
-
-   Input Parameters:
-+  obj - the PETSc object; this must be cast with a (PetscObject), for example,
-         PetscObjectCompose((PetscObject)mat,...);
-.  name - name associated with the child function
-.  fname - name of the function
--  fptr - function pointer
-
-   Level: advanced
-
-   Notes:
-   To remove a registered routine, pass in NULL for fptr().
-
-   PetscObjectComposeFunction() can be used with any PETSc object (such as
-   Mat, Vec, KSP, SNES, etc.) or any user-provided object.
-
-.seealso: PetscObjectQueryFunction(), PetscContainerCreate() PetscObjectCompose(), PetscObjectQuery()
-M*/
-
-PetscErrorCode  PetscObjectComposeFunction_Private(PetscObject obj,const char name[],void (*fptr)(void))
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeader(obj,1);
-  PetscValidCharPointer(name,2);
-  ierr = (*obj->bops->composefunction)(obj,name,fptr);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*MC
-   PetscObjectQueryFunction - Gets a function associated with a given object.
-
-    Synopsis:
-    #include <petscsys.h>
-    PetscErrorCode PetscObjectQueryFunction(PetscObject obj,const char name[],void (**fptr)(void))
-
-   Logically Collective on PetscObject
-
-   Input Parameters:
-+  obj - the PETSc object; this must be cast with (PetscObject), for example,
-         PetscObjectQueryFunction((PetscObject)ksp,...);
--  name - name associated with the child function
-
-   Output Parameter:
-.  fptr - function pointer
-
-   Level: advanced
-
-.seealso: PetscObjectComposeFunction(), PetscFunctionListFind(), PetscObjectCompose(), PetscObjectQuery()
-M*/
-PETSC_EXTERN PetscErrorCode PetscObjectQueryFunction_Private(PetscObject obj,const char name[],void (**ptr)(void))
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeader(obj,1);
-  PetscValidCharPointer(name,2);
-  ierr = (*obj->bops->queryfunction)(obj,name,ptr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

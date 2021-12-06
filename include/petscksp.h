@@ -111,7 +111,7 @@ PETSC_EXTERN PetscFunctionList KSPMonitorList;
 PETSC_EXTERN PetscFunctionList KSPMonitorCreateList;
 PETSC_EXTERN PetscFunctionList KSPMonitorDestroyList;
 PETSC_EXTERN PetscErrorCode KSPRegister(const char[],PetscErrorCode (*)(KSP));
-PETSC_EXTERN PetscErrorCode KSPMonitorRegister(const char[], PetscViewerType, PetscViewerFormat, PetscErrorCode (*)(KSP, PetscInt, PetscReal, PetscViewerAndFormat *), PetscErrorCode (*)(PetscViewer, PetscViewerFormat, void *, PetscViewerAndFormat **), PetscErrorCode (*)(PetscViewerAndFormat **));
+PETSC_EXTERN PetscErrorCode KSPMonitorRegister(const char[], PetscErrorCode (*)(KSP, PetscInt, PetscReal, PetscViewerAndFormat *), PetscErrorCode (*)(PetscViewer, PetscViewerFormat, void *, PetscViewerAndFormat **), PetscErrorCode (*)(PetscViewerAndFormat **));
 
 PETSC_EXTERN PetscErrorCode KSPSetPCSide(KSP,PCSide);
 PETSC_EXTERN PetscErrorCode KSPGetPCSide(KSP,PCSide*);

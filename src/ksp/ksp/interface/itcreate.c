@@ -919,17 +919,15 @@ $     -ksp_monitor_my_monitor
 
 .seealso: KSPMonitorRegisterAll()
 @*/
-PetscErrorCode KSPMonitorRegister(const char name[], PetscViewerType vtype, PetscViewerFormat format,
+PetscErrorCode KSPMonitorRegister(const char key[],
                                   PetscErrorCode (*monitor)(KSP, PetscInt, PetscReal, PetscViewerAndFormat *),
                                   PetscErrorCode (*create)(PetscViewer, PetscViewerFormat, void *, PetscViewerAndFormat **),
                                   PetscErrorCode (*destroy)(PetscViewerAndFormat **))
 {
-  char           key[PETSC_MAX_PATH_LEN];
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = KSPInitializePackage();CHKERRQ(ierr);
-  ierr = KSPMonitorMakeKey_Internal(name, vtype, format, key);CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(&KSPMonitorList, key, monitor);CHKERRQ(ierr);
   if (create)  {ierr = PetscFunctionListAdd(&KSPMonitorCreateList,  key, create);CHKERRQ(ierr);}
   if (destroy) {ierr = PetscFunctionListAdd(&KSPMonitorDestroyList, key, destroy);CHKERRQ(ierr);}

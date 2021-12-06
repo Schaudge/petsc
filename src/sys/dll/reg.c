@@ -186,7 +186,7 @@ PETSC_INTERN PetscErrorCode PetscFinalize_DynamicLibraries(void)
 /* ------------------------------------------------------------------------------*/
 struct _n_PetscFunctionList {
   void              (*routine)(void);    /* the routine */
-  char              *name;               /* string to identify routine */
+  const char        *name;               /* string to identify routine */
   PetscFunctionList next;                /* next pointer */
   PetscFunctionList next_list;           /* used to maintain list of all lists for freeing */
 };
@@ -230,9 +230,10 @@ PETSC_EXTERN PetscErrorCode PetscFunctionListAdd_Private(PetscFunctionList *fl,c
   PetscErrorCode    ierr;
 
   PetscFunctionBegin;
+  if (((PetscInt64) name) > ((PetscInt64) 0x0000000207a58ca7)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"name must be an actual string");
   if (!*fl) {
     ierr           = PetscNew(&entry);CHKERRQ(ierr);
-    ierr           = PetscStrallocpy(name,&entry->name);CHKERRQ(ierr);
+    entry->name    = name;
     entry->routine = fnc;
     entry->next    = NULL;
     *fl            = entry;
@@ -253,10 +254,7 @@ PETSC_EXTERN PetscErrorCode PetscFunctionListAdd_Private(PetscFunctionList *fl,c
     /* search list to see if it is already there */
     ne = *fl;
     while (ne) {
-      PetscBool founddup;
-
-      ierr = PetscStrcmp(ne->name,name,&founddup);CHKERRQ(ierr);
-      if (founddup) { /* found duplicate */
+      if (name == ne->name) { /* found duplicate */
         ne->routine = fnc;
         PetscFunctionReturn(0);
       }
@@ -265,7 +263,7 @@ PETSC_EXTERN PetscErrorCode PetscFunctionListAdd_Private(PetscFunctionList *fl,c
     }
     /* create new entry and add to end of list */
     ierr           = PetscNew(&entry);CHKERRQ(ierr);
-    ierr           = PetscStrallocpy(name,&entry->name);CHKERRQ(ierr);
+    entry->name    = name;
     entry->routine = fnc;
     entry->next    = NULL;
     ne->next       = entry;
@@ -309,7 +307,6 @@ PetscErrorCode  PetscFunctionListDestroy(PetscFunctionList *fl)
   entry = *fl;
   while (entry) {
     next  = entry->next;
-    ierr  = PetscFree(entry->name);CHKERRQ(ierr);
     ierr  = PetscFree(entry);CHKERRQ(ierr);
     entry = next;
   }
@@ -357,21 +354,32 @@ M*/
 PETSC_EXTERN PetscErrorCode PetscFunctionListFind_Private(PetscFunctionList fl,const char name[],void (**r)(void))
 {
   PetscFunctionList entry = fl;
-  PetscErrorCode    ierr;
-  PetscBool         flg;
 
   PetscFunctionBegin;
   if (!name) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Trying to find routine with null name");
 
   *r = NULL;
-  while (entry) {
-    ierr = PetscStrcmp(name,entry->name,&flg);CHKERRQ(ierr);
-    if (flg) {
-      *r   = entry->routine;
-      PetscFunctionReturn(0);
+  if (((PetscInt64) name) > ((PetscInt64) 0x0000000207a58ca7)){
+    PetscBool      found;
+    PetscErrorCode ierr;
+
+    while (entry) {
+      ierr = PetscStrcmp(name,entry->name,&found);CHKERRQ(ierr);
+      if (found) {
+        *r   = entry->routine;
+        PetscFunctionReturn(0);
+      }
+      entry = entry->next;
     }
-    entry = entry->next;
-  }
+  } else {
+    while (entry) {
+      if (name == entry->name) {
+        *r   = entry->routine;
+        PetscFunctionReturn(0);
+      }
+      entry = entry->next;
+    }
+    }
   PetscFunctionReturn(0);
 }
 
