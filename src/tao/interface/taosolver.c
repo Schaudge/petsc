@@ -2061,10 +2061,10 @@ PetscErrorCode TaoAppendOptionsPrefix(Tao tao, const char p[])
   PetscFunctionBegin;
   ierr = PetscObjectAppendOptionsPrefix((PetscObject)tao,p);CHKERRQ(ierr);
   if (tao->linesearch) {
-    ierr = TaoLineSearchSetOptionsPrefix(tao->linesearch,p);CHKERRQ(ierr);
+    ierr = PetscObjectAppendOptionsPrefix((PetscObject)tao->linesearch,p);CHKERRQ(ierr);
   }
   if (tao->ksp) {
-    ierr = KSPSetOptionsPrefix(tao->ksp,p);CHKERRQ(ierr);
+    ierr = KSPAppendOptionsPrefix(tao->ksp,p);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
