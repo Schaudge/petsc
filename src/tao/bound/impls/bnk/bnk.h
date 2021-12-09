@@ -190,6 +190,7 @@ typedef struct {
   PetscInt grad;                /*  Gradient directions attempted */
 
   PetscInt as_type;             /*  Active set estimation method */
+  PetscBool as_use_gradient_step; /* Always use gradient step if TRUE */
   PetscInt bfgs_scale_type;     /*  Scaling matrix to used for the bfgs preconditioner */
   PetscInt init_type;           /*  Trust-region initialization method */
   PetscInt update_type;         /*  Trust-region update method */

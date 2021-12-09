@@ -341,7 +341,7 @@ PetscErrorCode TaoBNKEstimateActiveSet(Tao tao, PetscInt asType)
       if (hessComputed) {
         ierr = MatHasOperation(tao->hessian, MATOP_GET_DIAGONAL, &diagExists);CHKERRQ(ierr);
       }
-      if (diagExists) {
+      if(0) { /* TOTAL KLUDGE FOR TESTING ONLY! */ //if (diagExists && !bnk->as_use_gradient_step) {
         /* BFGS preconditioner doesn't exist so let's invert the absolute diagonal of the Hessian instead onto the gradient */
         ierr = MatGetDiagonal(tao->hessian, bnk->Xwork);CHKERRQ(ierr);
         ierr = VecAbs(bnk->Xwork);CHKERRQ(ierr);
@@ -1210,6 +1210,7 @@ PetscErrorCode TaoSetFromOptions_BNK(PetscOptionItems *PetscOptionsObject,Tao ta
   ierr = PetscOptionsReal("-tao_bnk_epsilon", "(developer) tolerance used when computing actual and predicted reduction", "", bnk->epsilon, &bnk->epsilon,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_bnk_as_tol", "(developer) initial tolerance used when estimating actively bounded variables", "", bnk->as_tol, &bnk->as_tol,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-tao_bnk_as_step", "(developer) step length used when estimating actively bounded variables", "", bnk->as_step, &bnk->as_step,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-tao_bnk_as_use_gradient_step", "(developer) always use the gradient step inside the Bertsekas active set estimation", "", bnk->as_use_gradient_step,&bnk->as_use_gradient_step,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-tao_bnk_max_cg_its", "number of BNCG iterations to take for each Newton step", "", bnk->max_cg_its, &bnk->max_cg_its,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   ierr = TaoSetFromOptions(bnk->bncg);CHKERRQ(ierr);
