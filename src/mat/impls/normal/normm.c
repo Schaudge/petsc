@@ -518,6 +518,7 @@ PetscErrorCode  MatCreateNormal(Mat A,Mat *N)
   Na->scale  = 1.0;
 
   ierr = MatCreateVecs(A,NULL,&Na->w);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(Na->w);CHKERRQ(ierr);
 
   (*N)->ops->destroy           = MatDestroy_Normal;
   (*N)->ops->mult              = MatMult_Normal;
