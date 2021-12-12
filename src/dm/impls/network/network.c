@@ -130,7 +130,7 @@ $            [first vertex of first edge, second vertex of first edge, first ver
   There is no copy involved in this operation, only the pointer is referenced. The edgelist should
   not be destroyed before the call to DMNetworkLayoutSetUp()
 
-  An edge can have the same vertex at each end. Multiple edges can connect the same two edges.
+  An edge can have the same vertex at each end. Multiple edges can connect the same two vertices.
 
   A network can comprise of a single subnetwork OR multiple subnetworks. For a single subnetwork, the subnetwork can be read either in serial or parallel. For a multiple subnetworks,
   each subnetwork topology needs to be set on a unique rank and the communicator size needs to be at least equal to the number of subnetworks.
