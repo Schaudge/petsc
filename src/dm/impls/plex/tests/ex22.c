@@ -186,10 +186,10 @@ int main(int argc, char **argv)
             for (p = pStart; p < pEnd; p++) {
               PetscInt nDof;
 
-              ierr = PetscSectionGetDof(sec,p,&nDof);CHKERRQ(ierr);
+              ierr = PetscSectionGetCount(sec,p,&nDof);CHKERRQ(ierr);
               if (nDof % dim) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Coordinate section point %D has %D dofs != 0 mod %D",p,nDof,dim);
-              ierr = PetscSectionSetDof(newSec,p,(nDof/dim)*dimC);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(newSec,p,0,(nDof/dim)*dimC);CHKERRQ(ierr);
+              ierr = PetscSectionSetCount(newSec,p,(nDof/dim)*dimC);CHKERRQ(ierr);
+              ierr = PetscSectionSetFieldCount(newSec,p,0,(nDof/dim)*dimC);CHKERRQ(ierr);
             }
             ierr = PetscSectionSetUp(newSec);CHKERRQ(ierr);
             ierr = PetscSectionGetStorageSize(newSec,&newN);CHKERRQ(ierr);

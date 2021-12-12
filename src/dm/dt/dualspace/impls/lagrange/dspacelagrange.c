@@ -1508,7 +1508,7 @@ static PetscErrorCode PetscDualSpaceLagrangeCreateAllNodeIdx(PetscDualSpace sp)
   ierr = PetscMalloc1(nodeIdxDim * nDofs, &(ni->nodeIdx));CHKERRQ(ierr);
   ierr = PetscMalloc1(Nk * nDofs, &(ni->nodeVec));CHKERRQ(ierr);
   ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
-  ierr = PetscSectionGetDof(section, 0, &spintdim);CHKERRQ(ierr);
+  ierr = PetscSectionGetCount(section, 0, &spintdim);CHKERRQ(ierr);
   if (spintdim) {
     ierr = PetscArraycpy(ni->nodeIdx, lag->intNodeIndices->nodeIdx, spintdim * nodeIdxDim);CHKERRQ(ierr);
     ierr = PetscArraycpy(ni->nodeVec, lag->intNodeIndices->nodeVec, spintdim * Nk);CHKERRQ(ierr);
@@ -1518,7 +1518,7 @@ static PetscErrorCode PetscDualSpaceLagrangeCreateAllNodeIdx(PetscDualSpace sp)
     PetscDualSpace_Lag *plag;
     PetscInt dof, off;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     if (!dof) continue;
     plag = (PetscDualSpace_Lag *) psp->data;
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
@@ -1646,7 +1646,7 @@ static PetscErrorCode PetscDualSpaceCreateAllDataFromInteriorData(PetscDualSpace
       PetscInt nrows;
       PetscInt off;
 
-      ierr = PetscSectionGetDof(section, p, &nrows);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, p, &nrows);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
       for (j = 0; j < nrows; j++) {
         PetscInt ncols;
@@ -2237,7 +2237,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
       PetscInt pspdim;
       if (!sp->pointSpaces[p]) continue;
       ierr = PetscDualSpaceGetInteriorDimension(sp->pointSpaces[p], &pspdim);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, p, pspdim);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, p, pspdim);CHKERRQ(ierr);
     }
   }
 
@@ -2266,7 +2266,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
     ierr = PetscLagNodeIndicesReference(scalarlag->allNodeIndices);CHKERRQ(ierr);
     lag->allNodeIndices = scalarlag->allNodeIndices;
     ierr = PetscDualSpaceDestroy(&scalarsp);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(section, 0, sp->spintdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(section, 0, sp->spintdim);CHKERRQ(ierr);
     ierr = PetscDualSpaceSectionSetUp_Internal(sp, section);CHKERRQ(ierr);
     ierr = PetscDualSpaceComputeFunctionalsFromAllData(sp);CHKERRQ(ierr);
     ierr = PetscFree2(pStratStart, pStratEnd);CHKERRQ(ierr);
@@ -2289,7 +2289,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
     ierr = PetscDualSpaceSetUp(spcont);CHKERRQ(ierr);
     ierr = PetscDualSpaceGetDimension(spcont, &spdim);CHKERRQ(ierr);
     sp->spdim = sp->spintdim = spdim;
-    ierr = PetscSectionSetDof(section, 0, spdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(section, 0, spdim);CHKERRQ(ierr);
     ierr = PetscDualSpaceSectionSetUp_Internal(sp, section);CHKERRQ(ierr);
     ierr = PetscMalloc1(spdim, &(sp->functional));CHKERRQ(ierr);
     for (f = 0; f < spdim; f++) {
@@ -2332,7 +2332,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
 
         ierr = PetscDualSpaceLagrangeCreateSimplexNodeMat(nodeFamily, dim, sum, Nk, numNodeSkip, &sp->intNodes, &sp->intMat, &(lag->intNodeIndices));CHKERRQ(ierr);
         ierr = MatGetSize(sp->intMat, &nDofs, NULL);CHKERRQ(ierr);
-        ierr = PetscSectionSetDof(section, 0, nDofs);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(section, 0, nDofs);CHKERRQ(ierr);
       }
       ierr = PetscDualSpaceSectionSetUp_Internal(sp, section);CHKERRQ(ierr);
       ierr = PetscDualSpaceCreateAllDataFromInteriorData(sp);CHKERRQ(ierr);
@@ -2346,7 +2346,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
 
         ierr = PetscDualSpaceLagrangeCreateSimplexNodeMat(nodeFamily, dim, sum, Nk, numNodeSkip, &sp->intNodes, &sp->intMat, &(lag->intNodeIndices));CHKERRQ(ierr);
         ierr = MatGetSize(sp->intMat, &nDofs, NULL);CHKERRQ(ierr);
-        ierr = PetscSectionSetDof(section, 0, nDofs);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(section, 0, nDofs);CHKERRQ(ierr);
         ierr = PetscDualSpaceSectionSetUp_Internal(sp, section);CHKERRQ(ierr);
         ierr = PetscObjectReference((PetscObject)(sp->intNodes));CHKERRQ(ierr);
         sp->allNodes = sp->intNodes;
@@ -2436,7 +2436,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
           sp->intMat = intMat;
           ierr = MatGetSize(sp->intMat, &nDofs, NULL);CHKERRQ(ierr);
           ierr = PetscDualSpaceDestroy(&trimmedsp);CHKERRQ(ierr);
-          ierr = PetscSectionSetDof(section, 0, nDofs);CHKERRQ(ierr);
+          ierr = PetscSectionSetCount(section, 0, nDofs);CHKERRQ(ierr);
         }
         ierr = PetscDualSpaceSectionSetUp_Internal(sp, section);CHKERRQ(ierr);
         ierr = PetscDualSpaceCreateAllDataFromInteriorData(sp);CHKERRQ(ierr);
@@ -2558,7 +2558,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Lagrange(PetscDualSpace sp)
       if (intMat) {
         ierr = MatGetSize(intMat, &nDofs, NULL);CHKERRQ(ierr);
       }
-      ierr = PetscSectionSetDof(section, 0, nDofs);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 0, nDofs);CHKERRQ(ierr);
     }
     ierr = PetscDualSpaceSectionSetUp_Internal(sp, section);CHKERRQ(ierr);
     if (continuous) {

@@ -286,8 +286,8 @@ PetscErrorCode DMPlexCreateCGNS(MPI_Comm comm, PetscInt cgid, PetscBool interpol
   ierr = PetscSectionSetFieldComponents(coordSection, 0, coordDim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, numCells, numCells + numVertices);CHKERRQ(ierr);
   for (v = numCells; v < numCells+numVertices; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, dim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, coordDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, coordDim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
 

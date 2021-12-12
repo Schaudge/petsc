@@ -268,10 +268,10 @@ program ex62f90
                     ! find the depth of p
                     do d = 1,sdim+1
                         if ((closure(p) >= pStartDepth(d)) .and. (closure(p) < pEndDepth(d))) then
-                            call PetscSectionSetDof(section, closure(p), dofU(d)+dofA(d)+dofS(d),ierr);CHKERRA(ierr)
-                            call PetscSectionSetFieldDof(section, closure(p), fieldU, dofU(d),ierr);CHKERRA(ierr)
-                            call PetscSectionSetFieldDof(section, closure(p), fieldA, dofA(d),ierr);CHKERRA(ierr)
-                            call PetscSectionSetFieldDof(section, closure(p), fieldS, dofS(d),ierr);CHKERRA(ierr)
+                            call PetscSectionSetCount(section, closure(p), dofU(d)+dofA(d)+dofS(d),ierr);CHKERRA(ierr)
+                            call PetscSectionSetFieldCount(section, closure(p), fieldU, dofU(d),ierr);CHKERRA(ierr)
+                            call PetscSectionSetFieldCount(section, closure(p), fieldA, dofA(d),ierr);CHKERRA(ierr)
+                            call PetscSectionSetFieldCount(section, closure(p), fieldS, dofS(d),ierr);CHKERRA(ierr)
                         end if ! closure(p)
                     end do ! d
                 end do ! p
@@ -324,7 +324,7 @@ program ex62f90
     call DMPlexGetChart(dmUA, pStart, pEnd,ierr);CHKERRA(ierr)
 
     do p = pStart,pEnd-1
-        call PetscSectionGetDof(sectionUA, p, dofUA,ierr);CHKERRA(ierr)
+        call PetscSectionGetCount(sectionUA, p, dofUA,ierr);CHKERRA(ierr)
         if (dofUA > 0) then
             call PetscSectionGetOffset(sectionUA, p, offUA,ierr);CHKERRA(ierr)
             call DMPlexVecGetClosure(dmUA, coordSection, coord, p, xyz,ierr);CHKERRA(ierr)

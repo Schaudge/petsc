@@ -1112,8 +1112,8 @@ PetscErrorCode DMGetLocalToGlobalMapping(DM dm,ISLocalToGlobalMapping *ltog)
         PetscInt bdof, cdof, dof, off, c, cind = 0;
 
         /* Should probably use constrained dofs */
-        ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(section, p, &cdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(section, p, &cdof);CHKERRQ(ierr);
         ierr = PetscSectionGetConstraintIndices(section, p, &cdofs);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(sectionGlobal, p, &off);CHKERRQ(ierr);
         /* If you have dofs, and constraints, and they are unequal, we set the blocksize to 1 */
@@ -1794,13 +1794,13 @@ PetscErrorCode DMCreateFieldIS(DM dm, PetscInt *numFields, char ***fieldNames, I
     for (p = pStart; p < pEnd; ++p) {
       PetscInt gdof;
 
-      ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
       if (gdof > 0) {
         for (f = 0; f < nF; ++f) {
           PetscInt fdof, fcdof, fpdof;
 
-          ierr  = PetscSectionGetFieldDof(section, p, f, &fdof);CHKERRQ(ierr);
-          ierr  = PetscSectionGetFieldConstraintDof(section, p, f, &fcdof);CHKERRQ(ierr);
+          ierr  = PetscSectionGetFieldCount(section, p, f, &fdof);CHKERRQ(ierr);
+          ierr  = PetscSectionGetFieldConstraintCount(section, p, f, &fcdof);CHKERRQ(ierr);
           fpdof = fdof-fcdof;
           if (fpdof && fpdof != fieldNc[f]) {
             /* Layout does not admit a pointwise block size */
@@ -1817,14 +1817,14 @@ PetscErrorCode DMCreateFieldIS(DM dm, PetscInt *numFields, char ***fieldNames, I
     for (p = pStart; p < pEnd; ++p) {
       PetscInt gdof, goff;
 
-      ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
       if (gdof > 0) {
         ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
         for (f = 0; f < nF; ++f) {
           PetscInt fdof, fcdof, fc;
 
-          ierr = PetscSectionGetFieldDof(section, p, f, &fdof);CHKERRQ(ierr);
-          ierr = PetscSectionGetFieldConstraintDof(section, p, f, &fcdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetFieldCount(section, p, f, &fdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetFieldConstraintCount(section, p, f, &fcdof);CHKERRQ(ierr);
           for (fc = 0; fc < fdof-fcdof; ++fc, ++fieldSizes[f]) {
             fieldIndices[f][fieldSizes[f]] = goff++;
           }
@@ -2486,10 +2486,10 @@ PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
     /* We could start to label fields by their transformation properties */
     if (Nc != cdim) continue;
     for (p = pStart; p < pEnd; ++p) {
-      ierr = PetscSectionGetFieldDof(s, p, f, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, p, f, &dof);CHKERRQ(ierr);
       if (!dof) continue;
-      ierr = PetscSectionSetFieldDof(ts, p, f, PetscSqr(cdim));CHKERRQ(ierr);
-      ierr = PetscSectionAddDof(ts, p, PetscSqr(cdim));CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(ts, p, f, PetscSqr(cdim));CHKERRQ(ierr);
+      ierr = PetscSectionAddCount(ts, p, PetscSqr(cdim));CHKERRQ(ierr);
     }
   }
   ierr = PetscSectionSetUp(ts);CHKERRQ(ierr);
@@ -2497,7 +2497,7 @@ PetscErrorCode DMConstructBasisTransform_Internal(DM dm)
   ierr = VecGetArray(dm->transform, &ta);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; ++p) {
     for (f = 0; f < Nf; ++f) {
-      ierr = PetscSectionGetFieldDof(ts, p, f, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(ts, p, f, &dof);CHKERRQ(ierr);
       if (dof) {
         PetscReal          x[3] = {0.0, 0.0, 0.0};
         PetscScalar       *tva;
@@ -2597,7 +2597,7 @@ static PetscErrorCode DMGlobalToLocalHook_Constraints(DM dm, Vec g, InsertMode m
     ierr = MatMult(cMat,l,cVec);CHKERRQ(ierr);
     ierr = PetscSectionGetChart(cSec,&pStart,&pEnd);CHKERRQ(ierr);
     for (p = pStart; p < pEnd; p++) {
-      ierr = PetscSectionGetDof(cSec,p,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(cSec,p,&dof);CHKERRQ(ierr);
       if (dof) {
         PetscScalar *vals;
         ierr = VecGetValuesSection(cVec,cSec,p,&vals);CHKERRQ(ierr);
@@ -2807,7 +2807,7 @@ static PetscErrorCode DMLocalToGlobalHook_Constraints(DM dm, Vec l, InsertMode m
     ierr = MatCreateVecs(cMat,NULL,&cVec);CHKERRQ(ierr);
     ierr = PetscSectionGetChart(cSec,&pStart,&pEnd);CHKERRQ(ierr);
     for (p = pStart; p < pEnd; p++) {
-      ierr = PetscSectionGetDof(cSec,p,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(cSec,p,&dof);CHKERRQ(ierr);
       if (dof) {
         PetscInt d;
         PetscScalar *vals;
@@ -2942,10 +2942,10 @@ PetscErrorCode  DMLocalToGlobalBegin(DM dm,Vec l,InsertMode mode,Vec g)
       for (p = pStart; p < pEnd; ++p) {
         PetscInt dof, gdof, cdof, gcdof, off, goff, d, e;
 
-        ierr = PetscSectionGetDof(s, p, &dof);CHKERRQ(ierr);
-        ierr = PetscSectionGetDof(gs, p, &gdof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(gs, p, &gcdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(s, p, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(gs, p, &gdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(s, p, &cdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(gs, p, &gcdof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(s, p, &off);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(gs, p, &goff);CHKERRQ(ierr);
         /* Ignore off-process data and points with no global data */
@@ -4486,11 +4486,11 @@ static PetscErrorCode DMDefaultSectionCheckConsistency_Internal(DM dm, PetscSect
   for (p = pStart; p < pEnd; ++p) {
     PetscInt       dof, cdof, off, gdof, gcdof, goff, gsize, d;
 
-    ierr = PetscSectionGetDof(localSection, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(localSection, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(localSection, p, &off);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(localSection, p, &cdof);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(globalSection, p, &gdof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(globalSection, p, &gcdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(localSection, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(globalSection, p, &gdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(globalSection, p, &gcdof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(globalSection, p, &goff);CHKERRQ(ierr);
     if (!gdof) continue; /* Censored point */
     if ((gdof < 0 ? -(gdof+1) : gdof) != dof) {ierr = PetscSynchronizedPrintf(comm, "[%d]Global dof %d for point %d not equal to local dof %d\n", rank, gdof, p, dof);CHKERRQ(ierr); valid = PETSC_FALSE;}
@@ -6684,7 +6684,7 @@ PetscErrorCode DMSetCoordinateSection(DM dm, PetscInt dim, PetscSection section)
     pStart = PetscMax(vStart, pStart);
     pEnd   = PetscMin(vEnd, pEnd);
     for (v = pStart; v < pEnd; ++v) {
-      ierr = PetscSectionGetDof(section, v, &dd);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, v, &dd);CHKERRQ(ierr);
       if (dd) {d = dd; break;}
     }
     if (d >= 0) {ierr = DMSetCoordinateDim(dm, d);CHKERRQ(ierr);}
@@ -7026,7 +7026,7 @@ PetscErrorCode DMGetCoordinatesLocalizedLocal(DM dm,PetscBool *areLocalized)
   alreadyLocalized = PETSC_FALSE;
   for (c = cStart; c < cEnd; ++c) {
     if (c < sStart || c >= sEnd) continue;
-    ierr = PetscSectionGetDof(coordSection, c, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, c, &dof);CHKERRQ(ierr);
     if (dof) { alreadyLocalized = PETSC_TRUE; break; }
   }
   *areLocalized = alreadyLocalized;
@@ -7147,11 +7147,11 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
         if (c >= sStart && c < sEnd) {
           PetscInt cdof;
 
-          ierr = PetscSectionGetDof(coordSection, c, &cdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetCount(coordSection, c, &cdof);CHKERRQ(ierr);
           if (cdof != dof) alreadyLocalized = PETSC_FALSE;
         }
-        ierr = PetscSectionSetDof(cSection, c, dof);CHKERRQ(ierr);
-        ierr = PetscSectionSetFieldDof(cSection, c, 0, dof);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(cSection, c, dof);CHKERRQ(ierr);
+        ierr = PetscSectionSetFieldCount(cSection, c, 0, dof);CHKERRQ(ierr);
       }
       ierr = DMPlexVecRestoreClosure(cdm, coordSection, coordinates, c, &dof, &cellCoords);CHKERRQ(ierr);
     }
@@ -7164,9 +7164,9 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
     PetscFunctionReturn(0);
   }
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionGetDof(coordSection, v, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(cSection, v, dof);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(cSection, v, 0, dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(cSection, v, dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(cSection, v, 0, dof);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(cSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(cSection, &coordSize);CHKERRQ(ierr);
@@ -7178,7 +7178,7 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
   ierr = VecGetArrayRead(coordinates, (const PetscScalar**)&coords);CHKERRQ(ierr);
   ierr = VecGetArray(cVec, &coords2);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionGetDof(coordSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, v, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(coordSection, v, &off);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(cSection,     v, &off2);CHKERRQ(ierr);
     for (d = 0; d < dof; ++d) coords2[off2+d] = coords[off+d];
@@ -7190,7 +7190,7 @@ PetscErrorCode DMLocalizeCoordinates(DM dm)
       PetscScalar *cellCoords = NULL;
       PetscInt     b, cdof;
 
-      ierr = PetscSectionGetDof(cSection,c,&cdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(cSection,c,&cdof);CHKERRQ(ierr);
       if (!cdof) continue;
       ierr = DMPlexVecGetClosure(cdm, coordSection, coordinates, c, &dof, &cellCoords);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(cSection, c, &off2);CHKERRQ(ierr);

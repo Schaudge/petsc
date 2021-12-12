@@ -472,7 +472,7 @@ static PetscErrorCode DMPlexBasisTransformField_Internal(DM dm, DM tdm, Vec tv, 
 
   PetscFunctionBeginHot;
   ierr = DMGetLocalSection(tdm, &ts);CHKERRQ(ierr);
-  ierr = PetscSectionGetFieldDof(ts, p, f, &dof);CHKERRQ(ierr);
+  ierr = PetscSectionGetFieldCount(ts, p, f, &dof);CHKERRQ(ierr);
   ierr = VecGetArrayRead(tv, &ta);CHKERRQ(ierr);
   ierr = DMPlexPointLocalFieldRead(tdm, p, f, ta, &tva);CHKERRQ(ierr);
   if (l2g) {
@@ -500,10 +500,10 @@ static PetscErrorCode DMPlexBasisTransformFieldTensor_Internal(DM dm, DM tdm, Ve
   PetscFunctionBeginHot;
   ierr = DMGetLocalSection(dm, &s);CHKERRQ(ierr);
   ierr = DMGetLocalSection(tdm, &ts);CHKERRQ(ierr);
-  ierr = PetscSectionGetFieldDof(s, pf, f, &fpdof);CHKERRQ(ierr);
-  ierr = PetscSectionGetFieldDof(s, pg, g, &gpdof);CHKERRQ(ierr);
-  ierr = PetscSectionGetFieldDof(ts, pf, f, &fdof);CHKERRQ(ierr);
-  ierr = PetscSectionGetFieldDof(ts, pg, g, &gdof);CHKERRQ(ierr);
+  ierr = PetscSectionGetFieldCount(s, pf, f, &fpdof);CHKERRQ(ierr);
+  ierr = PetscSectionGetFieldCount(s, pg, g, &gpdof);CHKERRQ(ierr);
+  ierr = PetscSectionGetFieldCount(ts, pf, f, &fdof);CHKERRQ(ierr);
+  ierr = PetscSectionGetFieldCount(ts, pg, g, &gdof);CHKERRQ(ierr);
   ierr = VecGetArrayRead(tv, &ta);CHKERRQ(ierr);
   ierr = DMPlexPointLocalFieldRead(tdm, pf, f, ta, &tvaf);CHKERRQ(ierr);
   ierr = DMPlexPointLocalFieldRead(tdm, pg, g, ta, &tvag);CHKERRQ(ierr);
@@ -546,7 +546,7 @@ PetscErrorCode DMPlexBasisTransformPoint_Internal(DM dm, DM tdm, Vec tv, PetscIn
   ierr = DMPlexGetCompressedClosure(dm, s, p, &Np, &points, &clSection, &clPoints, &clp);CHKERRQ(ierr);
   for (f = 0; f < Nf; ++f) {
     for (cp = 0; cp < Np*2; cp += 2) {
-      ierr = PetscSectionGetFieldDof(s, points[cp], f, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, points[cp], f, &dof);CHKERRQ(ierr);
       if (!dof) continue;
       if (fieldActive[f]) {ierr = DMPlexBasisTransformField_Internal(dm, tdm, tv, points[cp], f, l2g, &a[d]);CHKERRQ(ierr);}
       d += dof;
@@ -572,10 +572,10 @@ PetscErrorCode DMPlexBasisTransformPointTensor_Internal(DM dm, DM tdm, Vec tv, P
   ierr = DMPlexGetCompressedClosure(dm, s, p, &Np, &points, &clSection, &clPoints, &clp);CHKERRQ(ierr);
   for (f = 0, r = 0; f < Nf; ++f) {
     for (cpf = 0; cpf < Np*2; cpf += 2) {
-      ierr = PetscSectionGetFieldDof(s, points[cpf], f, &fdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, points[cpf], f, &fdof);CHKERRQ(ierr);
       for (g = 0, c = 0; g < Nf; ++g) {
         for (cpg = 0; cpg < Np*2; cpg += 2) {
-          ierr = PetscSectionGetFieldDof(s, points[cpg], g, &gdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetFieldCount(s, points[cpg], g, &gdof);CHKERRQ(ierr);
           ierr = DMPlexBasisTransformFieldTensor_Internal(dm, tdm, tv, points[cpf], f, points[cpg], g, l2g, lda, &a[r*lda+c]);CHKERRQ(ierr);
           c += gdof;
         }
@@ -2147,7 +2147,7 @@ PetscErrorCode DMPlexComputeCellwiseIntegralFEM(DM dm, Vec X, Vec F, void *user)
     PetscInt       dof, off;
 
     if (mesh->printFEM > 1) {ierr = DMPrintCellVector(cell, "Cell Integral", Nf, &cintegral[c*Nf]);CHKERRQ(ierr);}
-    ierr = PetscSectionGetDof(sectionF, cell, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(sectionF, cell, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(sectionF, cell, &off);CHKERRQ(ierr);
     if (dof != Nf) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_SIZ, "The number of cell dofs %D != %D", dof, Nf);
     for (f = 0; f < Nf; ++f) af[off+f] = cintegral[c*Nf+f];
@@ -4837,7 +4837,7 @@ PetscErrorCode DMPlexComputeResidual_Internal(DM dm, PetscFormKey key, IS cellIS
     ierr = VecDuplicate(locF,&locFbc);CHKERRQ(ierr);
     ierr = VecCopy(locF,locFbc);CHKERRQ(ierr);
     ierr = PetscSectionGetChart(section,&pStart,&pEnd);CHKERRQ(ierr);
-    ierr = PetscSectionGetMaxDof(section,&maxDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetMaxCount(section,&maxDof);CHKERRQ(ierr);
     ierr = PetscCalloc1(maxDof,&zeroes);CHKERRQ(ierr);
     for (p = pStart; p < pEnd; p++) {
       ierr = VecSetValuesSection(locFbc,section,p,zeroes,INSERT_BC_VALUES);CHKERRQ(ierr);

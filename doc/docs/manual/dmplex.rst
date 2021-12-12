@@ -161,11 +161,11 @@ a continuous Galerkin :math:`P_3` finite element method,
    DMPlexGetHeightStratum(dm, 2, &vStart, &vEnd);   /* vertices, equivalent to DMPlexGetDepthStratum(dm, 0, &vStart, &vEnd); */
    PetscSectionSetChart(s, pStart, pEnd);
    for(c = cStart; c < cEnd; ++c)
-       PetscSectionSetDof(s, c, 1);
+       PetscSectionSetCount(s, c, 1);
    for(v = vStart; v < vEnd; ++v)
-       PetscSectionSetDof(s, v, 1);
+       PetscSectionSetCount(s, v, 1);
    for(e = eStart; e < eEnd; ++e)
-       PetscSectionSetDof(s, e, 2);
+       PetscSectionSetCount(s, e, 2);
    PetscSectionSetUp(s);
 
 ``DMPlexGetHeightStratum()`` returns all the points of the requested height
@@ -201,7 +201,7 @@ provides global vectors,
 
 A global vector is missing both the shared dofs which are not owned by this process, as well as *constrained* dofs. These constraints are meant to mimic essential boundary conditions, or Dirichlet constraints. They are dofs that have a given fixed value, so they are present in local vectors for assembly purposes, but absent from global vectors since they are never solved for.
 
-We can indicate constraints in a local section using ``PetscSectionSetConstraintDof()``, to set the number of constrained dofs for a given point, and ``PetscSectionSetConstraintIndices()`` which indicates which dofs on the given point are constrained. Once we have this information, a global section can be created using ``PetscSectionCreateGlobalSection()``, and this is done automatically by the ``DM``. A global section returns :math:`-(dof+1)` for the number of dofs on an unowned point, and :math:`-(off+1)` for its offset on the owning process. This can be used to create global vectors, just as the local section is used to create local vectors.
+We can indicate constraints in a local section using ``PetscSectionSetConstraintCount()``, to set the number of constrained dofs for a given point, and ``PetscSectionSetConstraintIndices()`` which indicates which dofs on the given point are constrained. Once we have this information, a global section can be created using ``PetscSectionCreateGlobalSection()``, and this is done automatically by the ``DM``. A global section returns :math:`-(dof+1)` for the number of dofs on an unowned point, and :math:`-(off+1)` for its offset on the owning process. This can be used to create global vectors, just as the local section is used to create local vectors.
 
 Data Layout using PetscFE
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -305,7 +305,7 @@ Then we can retrieve the data using ``PetscSection`` methods,
    for (p = 0; p <= numPoints*2; p += 2) {
      PetscInt dof, off, d;
 
-     PetscSectionGetDof(section, points[p], &dof);
+     PetscSectionGetCount(section, points[p], &dof);
      PetscSectionGetOffset(section, points[p], &off);
      for (d = 0; d <= dof; ++d) {
        myfunc(a[off+d]);
@@ -344,8 +344,8 @@ where we want the data from neighboring cells for each face:
    VecGetArray(u,  &a);
    DMPlexGetTransitiveClosure(dm, cell, PETSC_FALSE, &numPoints, &points);
    assert(numPoints == 2);
-   PetscSectionGetDof(section, points[0*2], &dofA);
-   PetscSectionGetDof(section, points[1*2], &dofB);
+   PetscSectionGetCount(section, points[0*2], &dofA);
+   PetscSectionGetCount(section, points[1*2], &dofB);
    assert(dofA == dofB);
    PetscSectionGetOffset(section, points[0*2], &offA);
    PetscSectionGetOffset(section, points[1*2], &offB);

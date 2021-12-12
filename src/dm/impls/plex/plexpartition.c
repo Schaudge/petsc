@@ -222,7 +222,7 @@ static PetscErrorCode DMPlexCreatePartitionerGraph_Native(DM dm, PetscInt height
         const PetscInt point = cone[c];
         if (remoteCells[point] >= 0 && remoteCells[point] != gp) {
           PetscInt *PETSC_RESTRICT pBuf;
-          ierr = PetscSectionAddDof(section, p, 1);CHKERRQ(ierr);
+          ierr = PetscSectionAddCount(section, p, 1);CHKERRQ(ierr);
           ierr = PetscSegBufferGetInts(adjBuffer, 1, &pBuf);CHKERRQ(ierr);
           *pBuf = remoteCells[point];
         }
@@ -232,7 +232,7 @@ static PetscErrorCode DMPlexCreatePartitionerGraph_Native(DM dm, PetscInt height
           const PetscInt child = children[i];
           if (remoteCells[child] >= 0 && remoteCells[child] != gp) {
             PetscInt *PETSC_RESTRICT pBuf;
-            ierr = PetscSectionAddDof(section, p, 1);CHKERRQ(ierr);
+            ierr = PetscSectionAddCount(section, p, 1);CHKERRQ(ierr);
             ierr = PetscSegBufferGetInts(adjBuffer, 1, &pBuf);CHKERRQ(ierr);
             *pBuf = remoteCells[child];
           }
@@ -246,7 +246,7 @@ static PetscErrorCode DMPlexCreatePartitionerGraph_Native(DM dm, PetscInt height
       const PetscInt point = adj[a];
       if (point != p && pStart <= point && point < pEnd) {
         PetscInt *PETSC_RESTRICT pBuf;
-        ierr = PetscSectionAddDof(section, p, 1);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(section, p, 1);CHKERRQ(ierr);
         ierr = PetscSegBufferGetInts(adjBuffer, 1, &pBuf);CHKERRQ(ierr);
         *pBuf = DMPlex_GlobalID(cellNum[point]);
       }
@@ -276,7 +276,7 @@ static PetscErrorCode DMPlexCreatePartitionerGraph_Native(DM dm, PetscInt height
       PetscInt start = vOffsets[p], end = vOffsets[p+1];
       PetscInt numEdges = end-start, *PETSC_RESTRICT edges;
       ierr = PetscSortRemoveDupsInt(&numEdges, &graph[start]);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, p, numEdges);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, p, numEdges);CHKERRQ(ierr);
       ierr = PetscSegBufferGetInts(adjBuffer, numEdges, &edges);CHKERRQ(ierr);
       ierr = PetscArraycpy(edges, &graph[start], numEdges);CHKERRQ(ierr);
     }
@@ -759,7 +759,7 @@ PetscErrorCode PetscPartitionerDMPlexPartition(PetscPartitioner part, DM dm, Pet
     ierr = DMPlexGetHeightStratum(dm, part->height, &cStart, &cEnd);CHKERRQ(ierr);
     ierr = PetscSectionReset(partSection);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(partSection, 0, size);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(partSection, 0, cEnd-cStart);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(partSection, 0, cEnd-cStart);CHKERRQ(ierr);
     ierr = PetscSectionSetUp(partSection);CHKERRQ(ierr);
     ierr = PetscMalloc1(cEnd-cStart, &points);CHKERRQ(ierr);
     for (c = cStart; c < cEnd; ++c) points[c] = c;
@@ -816,17 +816,17 @@ PetscErrorCode PetscPartitionerDMPlexPartition(PetscPartitioner part, DM dm, Pet
           PetscInt cl, clSize, clOff;
 
           dof  = 0;
-          ierr = PetscSectionGetDof(clSection, p, &clSize);CHKERRQ(ierr);
+          ierr = PetscSectionGetCount(clSection, p, &clSize);CHKERRQ(ierr);
           ierr = PetscSectionGetOffset(clSection, p, &clOff);CHKERRQ(ierr);
           for (cl = 0; cl < clSize; cl+=2) {
             PetscInt clDof, clPoint = clIdx[clOff + cl]; /* odd indices are reserved for orientations */
 
-            ierr = PetscSectionGetDof(section, clPoint, &clDof);CHKERRQ(ierr);
+            ierr = PetscSectionGetCount(section, clPoint, &clDof);CHKERRQ(ierr);
             dof += clDof;
           }
         }
         if (!dof) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Number of dofs for point %D in the local section should be positive",p);
-        ierr = PetscSectionSetDof(vertSection, v, dof);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(vertSection, v, dof);CHKERRQ(ierr);
         v++;
       }
       if (globalNumbering) {
@@ -1276,7 +1276,7 @@ PetscErrorCode DMPlexPartitionLabelInvert(DM dm, DMLabel rootLabel, PetscSF proc
   ierr = ISGetIndices(valueIS, &neighbors);CHKERRQ(ierr);
   for (n = 0; n < numNeighbors; ++n) {
     ierr = DMLabelGetStratumSize(rootLabel, neighbors[n], &numPoints);CHKERRQ(ierr);
-    ierr = PetscSectionAddDof(rootSection, neighbors[n], numPoints);CHKERRQ(ierr);
+    ierr = PetscSectionAddCount(rootSection, neighbors[n], numPoints);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(rootSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(rootSection, &rootSize);CHKERRQ(ierr);
@@ -1308,7 +1308,7 @@ PetscErrorCode DMPlexPartitionLabelInvert(DM dm, DMLabel rootLabel, PetscSF proc
 
     ierr = PetscCalloc4(size, &scounts, size, &sdispls, size, &rcounts, size, &rdispls);CHKERRQ(ierr);
     for (n = 0; n < numNeighbors; ++n) {
-      ierr = PetscSectionGetDof(rootSection, neighbors[n], &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(rootSection, neighbors[n], &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(rootSection, neighbors[n], &off);CHKERRQ(ierr);
 #if defined(PETSC_USE_64BIT_INDICES)
       if (dof > PETSC_MPI_INT_MAX) {locOverflow = PETSC_TRUE; break;}

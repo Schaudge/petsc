@@ -385,7 +385,7 @@ PetscErrorCode DMDASetVertexCoordinates(DM dm, PetscReal xl, PetscReal xu, Petsc
   ierr = PetscSectionSetFieldComponents(section, 0, dim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(section, vStart, vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionSetDof(section, v, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(section, v, dim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(section, &size);CHKERRQ(ierr);

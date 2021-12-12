@@ -285,7 +285,7 @@ static PetscErrorCode DMPlexGetPointMFEMVertexIDs_Internal(DM dm, PetscInt p, Pe
     ierr = PetscSectionGetOffset(csec,vStart,&off);CHKERRQ(ierr);
     off  = off/sdim;
     if (p >= sStart && p < sEnd) {
-      ierr = PetscSectionGetDof(csec,p,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(csec,p,&dof);CHKERRQ(ierr);
     }
   }
   if (!dof) {
@@ -296,7 +296,7 @@ static PetscErrorCode DMPlexGetPointMFEMVertexIDs_Internal(DM dm, PetscInt p, Pe
     ierr = DMPlexRestoreTransitiveClosure(dm,p,PETSC_TRUE,&numPoints,&points);CHKERRQ(ierr);
   } else {
     ierr = PetscSectionGetOffset(csec,p,&off);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(csec,p,&dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(csec,p,&dof);CHKERRQ(ierr);
     for (q=0;q<dof/sdim;q++) vids[q] = off/sdim + q;
   }
   *nv = q;
@@ -721,7 +721,7 @@ static PetscErrorCode DMPlexView_GLVis_ASCII(DM dm, PetscViewer viewer)
         PetscInt       dof;
 
         ierr = DMPlexGetCellType(dm,p,&cellType);CHKERRQ(ierr);
-        ierr = PetscSectionGetDof(coordSection,p,&dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(coordSection,p,&dof);CHKERRQ(ierr);
         if (dof) {
           PetscInt    uvpc, v,csize,cellClosureSize,*cellClosure = NULL,*vidxs = NULL;
           PetscScalar *vals = NULL;

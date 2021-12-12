@@ -107,8 +107,8 @@ static PetscErrorCode SNESTSFormFunction_Mimex(SNES snes, Vec x, Vec y, TS ts)
         PetscScalar *a, *axs;
         PetscInt     fdof, fcdof, d;
 
-        ierr = PetscSectionGetFieldDof(s, p, f, &fdof);CHKERRQ(ierr);
-        ierr = PetscSectionGetFieldConstraintDof(s, p, f, &fcdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetFieldCount(s, p, f, &fdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetFieldConstraintCount(s, p, f, &fcdof);CHKERRQ(ierr);
         ierr = DMPlexPointGlobalFieldRead(dm, p, f, ax, &a);CHKERRQ(ierr);
         ierr = DMPlexPointGlobalFieldRef(dm, p, f, axstar, &axs);CHKERRQ(ierr);
         for (d = 0; d < fdof-fcdof; ++d) axs[d] = a[d];
@@ -181,8 +181,8 @@ static PetscErrorCode TSStep_Mimex_Split(TS ts)
       PetscScalar *au, *as;
       PetscInt     fdof, fcdof, d;
 
-      ierr = PetscSectionGetFieldDof(s, p, f, &fdof);CHKERRQ(ierr);
-      ierr = PetscSectionGetFieldConstraintDof(s, p, f, &fcdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, p, f, &fdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldConstraintCount(s, p, f, &fcdof);CHKERRQ(ierr);
       ierr = DMPlexPointGlobalFieldRead(dm, p, f, aupdate, &au);CHKERRQ(ierr);
       ierr = DMPlexPointGlobalFieldRef(dm, p, f, asol, &as);CHKERRQ(ierr);
       for (d = 0; d < fdof-fcdof; ++d) as[d] = au[d];
@@ -203,8 +203,8 @@ static PetscErrorCode TSStep_Mimex_Split(TS ts)
       PetscScalar *au, *as;
       PetscInt     fdof, fcdof, d;
 
-      ierr = PetscSectionGetFieldDof(s, p, f, &fdof);CHKERRQ(ierr);
-      ierr = PetscSectionGetFieldConstraintDof(s, p, f, &fcdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, p, f, &fdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldConstraintCount(s, p, f, &fcdof);CHKERRQ(ierr);
       ierr = DMPlexPointGlobalFieldRead(dm, p, f, aupdate, &au);CHKERRQ(ierr);
       ierr = DMPlexPointGlobalFieldRef(dm, p, f, asol, &as);CHKERRQ(ierr);
       for (d = 0; d < fdof-fcdof; ++d) as[d] += dt*au[d];

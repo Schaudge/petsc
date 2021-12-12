@@ -159,7 +159,7 @@ static PetscErrorCode PetscPartitionerPartition_Chaco(PetscPartitioner part, Pet
 #endif
   /* Convert to PetscSection+IS */
   for (v = 0; v < nvtxs; ++v) {
-    ierr = PetscSectionAddDof(partSection, assignment[v], 1);CHKERRQ(ierr);
+    ierr = PetscSectionAddCount(partSection, assignment[v], 1);CHKERRQ(ierr);
   }
   ierr = PetscMalloc1(nvtxs, &points);CHKERRQ(ierr);
   for (p = 0, i = 0; p < nparts; ++p) {

@@ -53,7 +53,7 @@ static PetscErrorCode PetscFESetUp_Composite(PetscFE fem)
       PetscInt point = closure[2*j];
       PetscInt dof, off, k;
 
-      ierr = PetscSectionGetDof(section, point, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, point, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(section, point, &off);CHKERRQ(ierr);
       for (k = 0; k < dof; k++) cmp->embedding[s*spdim+sd++] = off + k;
     }

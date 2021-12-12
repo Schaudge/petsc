@@ -14,8 +14,8 @@ PetscErrorCode DMCreateGlobalVector_Section_Private(DM dm,Vec *vec)
   for (p = pStart; p < pEnd; ++p) {
     PetscInt dof, cdof;
 
-    ierr = PetscSectionGetDof(gSection, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(gSection, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(gSection, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(gSection, p, &cdof);CHKERRQ(ierr);
 
     if (dof > 0) {
       if (blockSize < 0 && dof-cdof > 0) {
@@ -65,7 +65,7 @@ PetscErrorCode DMCreateLocalVector_Section_Private(DM dm,Vec *vec)
   for (p = pStart; p < pEnd; ++p) {
     PetscInt dof;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     if ((blockSize < 0) && (dof > 0)) blockSize = dof;
     if ((dof > 0) && (dof != blockSize)) {
       blockSize = 1;
@@ -130,13 +130,13 @@ PetscErrorCode DMCreateSectionSubDM(DM dm, PetscInt numFields, const PetscInt fi
     for (p = pStart; p < pEnd; ++p) {
       PetscInt gdof, pSubSize  = 0;
 
-      ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
       if (gdof > 0) {
         for (f = 0; f < numFields; ++f) {
           PetscInt fdof, fcdof;
 
-          ierr     = PetscSectionGetFieldDof(section, p, fields[f], &fdof);CHKERRQ(ierr);
-          ierr     = PetscSectionGetFieldConstraintDof(section, p, fields[f], &fcdof);CHKERRQ(ierr);
+          ierr     = PetscSectionGetFieldCount(section, p, fields[f], &fdof);CHKERRQ(ierr);
+          ierr     = PetscSectionGetFieldConstraintCount(section, p, fields[f], &fcdof);CHKERRQ(ierr);
           pSubSize += fdof-fcdof;
         }
         subSize += pSubSize;
@@ -155,7 +155,7 @@ PetscErrorCode DMCreateSectionSubDM(DM dm, PetscInt numFields, const PetscInt fi
     for (p = pStart; p < pEnd; ++p) {
       PetscInt gdof, goff;
 
-      ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
       if (gdof > 0) {
         ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
         for (f = 0; f < numFields; ++f) {
@@ -163,12 +163,12 @@ PetscErrorCode DMCreateSectionSubDM(DM dm, PetscInt numFields, const PetscInt fi
 
           /* Can get rid of this loop by storing field information in the global section */
           for (f2 = 0; f2 < fields[f]; ++f2) {
-            ierr  = PetscSectionGetFieldDof(section, p, f2, &fdof);CHKERRQ(ierr);
-            ierr  = PetscSectionGetFieldConstraintDof(section, p, f2, &fcdof);CHKERRQ(ierr);
+            ierr  = PetscSectionGetFieldCount(section, p, f2, &fdof);CHKERRQ(ierr);
+            ierr  = PetscSectionGetFieldConstraintCount(section, p, f2, &fcdof);CHKERRQ(ierr);
             poff += fdof-fcdof;
           }
-          ierr = PetscSectionGetFieldDof(section, p, fields[f], &fdof);CHKERRQ(ierr);
-          ierr = PetscSectionGetFieldConstraintDof(section, p, fields[f], &fcdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetFieldCount(section, p, fields[f], &fdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetFieldConstraintCount(section, p, fields[f], &fcdof);CHKERRQ(ierr);
           for (fc = 0; fc < fdof-fcdof; ++fc, ++subOff) {
             subIndices[subOff] = goff+poff+fc;
           }
@@ -350,8 +350,8 @@ PetscErrorCode DMCreateSectionSuperDM(DM dms[], PetscInt len, IS **is, DM *super
       for (p = pStart, subOff = 0; p < pEnd; ++p) {
         PetscInt gdof, gcdof, gtdof, d;
 
-        ierr = PetscSectionGetDof(sectionGlobals[i], p, &gdof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(sections[i], p, &gcdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(sectionGlobals[i], p, &gdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(sections[i], p, &gcdof);CHKERRQ(ierr);
         gtdof = gdof - gcdof;
         if (gdof > 0 && gtdof) {
           if (bs < 0)           {bs = gtdof;}

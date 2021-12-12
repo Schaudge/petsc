@@ -330,8 +330,8 @@ static PetscErrorCode DMPlexCreateBoxSurfaceMesh_Tensor_1D_Internal(DM dm, const
   ierr = PetscSectionSetChart(coordSection, 0, numVertices);CHKERRQ(ierr);
   ierr = PetscSectionSetFieldComponents(coordSection, 0, cdim);CHKERRQ(ierr);
   for (v = 0; v < numVertices; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, cdim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, cdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, cdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, cdim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -443,8 +443,8 @@ static PetscErrorCode DMPlexCreateBoxSurfaceMesh_Tensor_2D_Internal(DM dm, const
   ierr = PetscSectionSetChart(coordSection, numEdges, numEdges + numVertices);CHKERRQ(ierr);
   ierr = PetscSectionSetFieldComponents(coordSection, 0, 2);CHKERRQ(ierr);
   for (v = numEdges; v < numEdges+numVertices; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, 2);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, 2);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, 2);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, 2);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -595,8 +595,8 @@ static PetscErrorCode DMPlexCreateBoxSurfaceMesh_Tensor_3D_Internal(DM dm, const
   ierr = PetscSectionSetChart(coordSection, numFaces, numFaces + numVertices);CHKERRQ(ierr);
   ierr = PetscSectionSetFieldComponents(coordSection, 0, 3);CHKERRQ(ierr);
   for (v = numFaces; v < numFaces+numVertices; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, 3);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, 3);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, 3);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, 3);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -1120,8 +1120,8 @@ static PetscErrorCode DMPlexCreateCubeMesh_Internal(DM dm, const PetscReal lower
     ierr = PetscSectionSetFieldComponents(coordSection, 0, dim);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(coordSection, firstVertex, firstVertex+numVertices);CHKERRQ(ierr);
     for (v = firstVertex; v < firstVertex+numVertices; ++v) {
-      ierr = PetscSectionSetDof(coordSection, v, dim);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(coordSection, v, 0, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(coordSection, v, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(coordSection, v, 0, dim);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -1534,8 +1534,8 @@ static PetscErrorCode DMPlexCreateHexCylinderMesh_Internal(DM dm, DMBoundaryType
     ierr = PetscSectionSetFieldComponents(coordSection, 0, dim);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(coordSection, numCells, numCells+numVertices);CHKERRQ(ierr);
     for (v = numCells; v < numCells+numVertices; ++v) {
-      ierr = PetscSectionSetDof(coordSection, v, dim);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(coordSection, v, 0, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(coordSection, v, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(coordSection, v, 0, dim);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -1717,8 +1717,8 @@ static PetscErrorCode DMPlexCreateWedgeCylinderMesh_Internal(DM dm, PetscInt n, 
     ierr = PetscSectionSetFieldComponents(coordSection, 0, dim);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(coordSection, numCells, numCells+numVertices);CHKERRQ(ierr);
     for (v = numCells; v < numCells+numVertices; ++v) {
-      ierr = PetscSectionSetDof(coordSection, v, dim);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(coordSection, v, 0, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(coordSection, v, dim);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(coordSection, v, 0, dim);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -2151,8 +2151,8 @@ static PetscErrorCode DMPlexCreateSphereMesh_Internal(DM dm, PetscInt dim, Petsc
   ierr = PetscSectionSetFieldComponents(coordSection, 0, embedDim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, firstVertex, firstVertex+numVerts);CHKERRQ(ierr);
   for (v = firstVertex; v < firstVertex+numVerts; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, embedDim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, embedDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, embedDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, embedDim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -3381,8 +3381,8 @@ PetscErrorCode DMPlexBuildCoordinatesFromCellListParallel(DM dm, PetscInt spaceD
   ierr = PetscSectionSetFieldComponents(coordSection, 0, spaceDim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, vStart, vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, spaceDim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, spaceDim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -3625,8 +3625,8 @@ PetscErrorCode DMPlexBuildCoordinatesFromCellList(DM dm, PetscInt spaceDim, cons
   ierr = PetscSectionSetFieldComponents(coordSection, 0, spaceDim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, vStart, vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, spaceDim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, spaceDim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
 
@@ -3818,8 +3818,8 @@ PetscErrorCode DMPlexCreateFromDAG(DM dm, PetscInt depth, const PetscInt numPoin
   ierr = PetscSectionSetFieldComponents(coordSection, 0, dimEmbed);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, firstVertex, firstVertex+numPoints[0]);CHKERRQ(ierr);
   for (v = firstVertex; v < firstVertex+numPoints[0]; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, dimEmbed);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, dimEmbed);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, dimEmbed);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, dimEmbed);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);
@@ -3935,8 +3935,8 @@ PetscErrorCode DMPlexCreateCellVertexFromFile(MPI_Comm comm, const char filename
   ierr = PetscSectionSetFieldComponents(coordSection, 0, cdim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, Nc, Nc + Nv);CHKERRQ(ierr);
   for (v = Nc; v < Nc+Nv; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, cdim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, cdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, cdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, cdim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);

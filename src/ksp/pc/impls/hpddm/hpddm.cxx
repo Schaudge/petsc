@@ -997,7 +997,7 @@ static PetscErrorCode PCSetUp_HPDDM(PC pc)
       ev = data->levels[0]->P->getVectors();
       if (ev) {
         initial.reserve(*addr);
-        ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, data->levels[0]->P->getDof(), ev[0], &xin);CHKERRQ(ierr);
+        ierr = VecCreateSeqWithArray(PETSC_COMM_SELF, 1, data->levels[0]->P->getCount(), ev[0], &xin);CHKERRQ(ierr);
         for (n = 0; n < *addr; ++n) {
           ierr = VecDuplicate(xin, &v);CHKERRQ(ierr);
           ierr = VecPlaceArray(xin, ev[n]);CHKERRQ(ierr);

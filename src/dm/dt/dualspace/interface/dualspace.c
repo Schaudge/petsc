@@ -829,7 +829,7 @@ PetscErrorCode PetscDualSpaceGetNumDof(PetscDualSpace sp, const PetscInt **numDo
 
       ierr = DMPlexGetDepthStratum(dm, d, &dStart, &dEnd);CHKERRQ(ierr);
       if (dEnd <= dStart) continue;
-      ierr = PetscSectionGetDof(section, dStart, &(sp->numDof[d]));CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, dStart, &(sp->numDof[d]));CHKERRQ(ierr);
 
     }
   }
@@ -911,8 +911,8 @@ PetscErrorCode PetscDualSpaceSectionSetUp_Internal(PetscDualSpace sp, PetscSecti
     if (bval == 1) {
       PetscInt dof;
 
-      ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetConstraintDof(section, p, dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetConstraintCount(section, p, dof);CHKERRQ(ierr);
     }
   }
   ierr = DMLabelDestroy(&boundary);CHKERRQ(ierr);
@@ -953,7 +953,7 @@ PetscErrorCode PetscDualSpaceGetSection(PetscDualSpace sp, PetscSection *section
         PetscInt dof;
 
         ierr = PetscDualSpaceGetInteriorDimension(psp, &dof);CHKERRQ(ierr);
-        ierr = PetscSectionSetDof(sp->pointSection,p,dof);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(sp->pointSection,p,dof);CHKERRQ(ierr);
       }
     }
     ierr = PetscDualSpaceSectionSetUp_Internal(sp,sp->pointSection);CHKERRQ(ierr);
@@ -987,7 +987,7 @@ PetscErrorCode PetscDualSpacePushForwardSubspaces_Internal(PetscDualSpace sp, Pe
 
     ierr = PetscDualSpaceGetPointSubspace(sp, s, &ssp);CHKERRQ(ierr);
     if (!ssp) continue;
-    ierr = PetscSectionGetDof(section, s, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, s, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, s, &off);CHKERRQ(ierr);
     /* get the first vertex of the reference cell */
     ierr = PetscDualSpaceGetDM(ssp, &sdm);CHKERRQ(ierr);
@@ -1469,8 +1469,8 @@ PetscErrorCode PetscDualSpaceCreateInteriorDataDefault(PetscDualSpace sp, PetscQ
   for (p = pStart, f = 0, numPoints = 0; p < pEnd; p++) {
     PetscInt dof, cdof, off, d;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(section, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(section, p, &cdof);CHKERRQ(ierr);
     if (!(dof - cdof)) continue;
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     for (d = 0; d < dof; d++, off++, f++) {
@@ -1488,8 +1488,8 @@ PetscErrorCode PetscDualSpaceCreateInteriorDataDefault(PetscDualSpace sp, PetscQ
   for (p = pStart, f = 0, offset = 0, matoffset = 0; p < pEnd; p++) {
     PetscInt dof, cdof, off, d;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(section, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(section, p, &cdof);CHKERRQ(ierr);
     if (!(dof - cdof)) continue;
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     for (d = 0; d < dof; d++, off++, f++) {

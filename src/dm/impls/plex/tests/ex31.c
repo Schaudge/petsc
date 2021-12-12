@@ -91,8 +91,8 @@ int main(int argc, char **argv)
     ierr = DMPlexGetDepthStratum(dm, user.entityDepth, &pStart, &pEnd);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(s, pStart, pEnd);CHKERRQ(ierr);
     for (p = pStart; p < pEnd; ++p) {
-      ierr = PetscSectionSetDof(s, p, 1);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(s, p, 0, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(s, p, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(s, p, 0, 1);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(s);CHKERRQ(ierr);
     ierr = DMGetPointSF(dm, &sf);CHKERRQ(ierr);

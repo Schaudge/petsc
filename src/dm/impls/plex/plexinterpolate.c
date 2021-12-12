@@ -935,7 +935,7 @@ static PetscErrorCode DMPlexAddSharedFace_Private(DM dm, PetscSection candidateS
         if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]    Scheduling shared face %D\n", rank, face);CHKERRQ(ierr);}
         ierr = DMPlexGetConeSize(dm, face, &coneSize);CHKERRQ(ierr);
         ierr = PetscHMapIJSet(faceHash, key, p);CHKERRQ(ierr);
-        ierr = PetscSectionAddDof(candidateSection, p, coneSize+1);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(candidateSection, p, coneSize+1);CHKERRQ(ierr);
       }
     }
   }
@@ -1083,7 +1083,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
       for (deg = 0; deg < rootdegree[r]; ++deg, ++idx) {
         PetscInt offset, dof, d;
 
-        ierr = PetscSectionGetDof(candidateRemoteSection, idx, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(candidateRemoteSection, idx, &dof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(candidateRemoteSection, idx, &offset);CHKERRQ(ierr);
         /* dof may include many faces from the remote process */
         for (d = 0; d < dof; ++d) {
@@ -1150,7 +1150,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
       for (deg = 0; deg < rootdegree[r]; ++deg, ++idx2) {
         PetscInt offset, dof, d;
 
-        ierr = PetscSectionGetDof(candidateRemoteSection, idx2, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(candidateRemoteSection, idx2, &dof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(candidateRemoteSection, idx2, &offset);CHKERRQ(ierr);
         /* dof may include many faces from the remote process */
         for (d = 0; d < dof; ++d) {
@@ -1213,7 +1213,7 @@ PetscErrorCode DMPlexInterpolatePointSF(DM dm, PetscSF pointSF)
       PetscInt dof, off, d;
 
       if (debug) {ierr = PetscSynchronizedPrintf(comm, "[%d]  Checking root for claims %D\n", rank, r);CHKERRQ(ierr);}
-      ierr = PetscSectionGetDof(candidateSection, r, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(candidateSection, r, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(candidateSection, r, &off);CHKERRQ(ierr);
       for (d = 0; d < dof;) {
         if (claims[off+d].rank >= 0) {
@@ -1468,8 +1468,8 @@ PetscErrorCode DMPlexCopyCoordinates(DM dmA, DM dmB)
   }
   ierr = PetscSectionSetChart(coordSectionB, cS, cE);CHKERRQ(ierr);
   for (v = vStartB; v < vEndB; ++v) {
-    ierr = PetscSectionSetDof(coordSectionB, v, spaceDim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSectionB, v, 0, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSectionB, v, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSectionB, v, 0, spaceDim);CHKERRQ(ierr);
   }
   if (lc) { /* localized coordinates */
     PetscInt c;
@@ -1477,9 +1477,9 @@ PetscErrorCode DMPlexCopyCoordinates(DM dmA, DM dmB)
     for (c = cS-cStartB; c < cEndB-cStartB; c++) {
       PetscInt dof;
 
-      ierr = PetscSectionGetDof(coordSectionA, c + cStartA, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(coordSectionB, c + cStartB, dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(coordSectionB, c + cStartB, 0, dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSectionA, c + cStartA, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(coordSectionB, c + cStartB, dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(coordSectionB, c + cStartB, 0, dof);CHKERRQ(ierr);
     }
   }
   ierr = PetscSectionSetUp(coordSectionB);CHKERRQ(ierr);
@@ -1511,7 +1511,7 @@ PetscErrorCode DMPlexCopyCoordinates(DM dmA, DM dmB)
 
       ierr = PetscSectionGetOffset(coordSectionA, c + cStartA, &offA);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordSectionB, c + cStartB, &offB);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(coordSectionA, c + cStartA, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSectionA, c + cStartA, &dof);CHKERRQ(ierr);
       ierr = PetscArraycpy(coordsB + offB,coordsA + offA,dof);CHKERRQ(ierr);
     }
   }

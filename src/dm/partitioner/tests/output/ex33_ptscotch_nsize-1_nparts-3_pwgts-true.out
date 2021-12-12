@@ -9,9 +9,9 @@ Graph Partitioner: 1 MPI Process
 PetscSection Object: NULL SECTION 1 MPI processes
   type not yet set
 Process 0:
-  (   0) dim  0 offset   0
-  (   1) dim  0 offset   0
-  (   2) dim  0 offset   0
+  (   0) count  0 offset   0
+  (   1) count  0 offset   0
+  (   2) count  0 offset   0
 IS Object: NULL PARTITION 1 MPI processes
   type: general
 Number of indices in set 0
@@ -30,9 +30,9 @@ Graph Partitioner: 1 MPI Process
 PetscSection Object: SEQ SECTION 1 MPI processes
   type not yet set
 Process 0:
-  (   0) dim  1 offset   0
-  (   1) dim  2 offset   1
-  (   2) dim  1 offset   3
+  (   0) count  1 offset   0
+  (   1) count  2 offset   1
+  (   2) count  1 offset   3
 IS Object: SEQ PARTITION 1 MPI processes
   type: general
 Number of indices in set 4
@@ -55,9 +55,9 @@ Graph Partitioner: 1 MPI Process
 PetscSection Object: PARVOID SECTION 1 MPI processes
   type not yet set
 Process 0:
-  (   0) dim  1 offset   0
-  (   1) dim  2 offset   1
-  (   2) dim  1 offset   3
+  (   0) count  1 offset   0
+  (   1) count  2 offset   1
+  (   2) count  1 offset   3
 IS Object: PARVOID PARTITION 1 MPI processes
   type: general
 Number of indices in set 4

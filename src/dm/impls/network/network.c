@@ -589,7 +589,7 @@ static PetscErrorCode DMNetworkLayoutSetUp_Coupling(DM dm)
       network->header[e].ndata           = 0;
       network->header[e].offset[0]       = 0;
       network->header[e].offsetvarrel[0] = 0;
-      ierr = PetscSectionAddDof(network->DataSection,e,network->header[e].hsize);CHKERRQ(ierr);
+      ierr = PetscSectionAddCount(network->DataSection,e,network->header[e].hsize);CHKERRQ(ierr);
 
       /* connected vertices */
       ierr = DMPlexGetCone(network->plex,e,&cone);CHKERRQ(ierr);
@@ -620,7 +620,7 @@ static PetscErrorCode DMNetworkLayoutSetUp_Coupling(DM dm)
     network->header[v].ndata           = 0;
     network->header[v].offset[0]       = 0;
     network->header[v].offsetvarrel[0] = 0;
-    ierr = PetscSectionAddDof(network->DataSection,v,network->header[v].hsize);CHKERRQ(ierr);
+    ierr = PetscSectionAddCount(network->DataSection,v,network->header[v].hsize);CHKERRQ(ierr);
 
     /* shared vertex */
     ierr = PetscTableFind(network->svtable,network->header[v].index+1,&i);CHKERRQ(ierr);
@@ -756,7 +756,7 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
       network->header[e].ndata           = 0;
       network->header[e].offset[0]       = 0;
       network->header[e].offsetvarrel[0] = 0;
-      ierr = PetscSectionAddDof(network->DataSection,e,network->header[e].hsize);CHKERRQ(ierr);
+      ierr = PetscSectionAddCount(network->DataSection,e,network->header[e].hsize);CHKERRQ(ierr);
 
       /* connected vertices */
       ierr = DMPlexGetCone(network->plex,e,&cone);CHKERRQ(ierr);
@@ -793,7 +793,7 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
     network->header[v].ndata           = 0;
     network->header[v].offset[0]       = 0;
     network->header[v].offsetvarrel[0] = 0;
-    ierr = PetscSectionAddDof(network->DataSection,v,network->header[e].hsize);CHKERRQ(ierr);
+    ierr = PetscSectionAddCount(network->DataSection,v,network->header[e].hsize);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1276,7 +1276,7 @@ PetscErrorCode DMNetworkAddComponent(DM dm,PetscInt p,PetscInt componentkey,void
   void*                    *compdata;
 
   PetscFunctionBegin;
-  ierr = PetscSectionAddDof(network->DofSection,p,nvar);CHKERRQ(ierr);
+  ierr = PetscSectionAddCount(network->DofSection,p,nvar);CHKERRQ(ierr);
   if (!compvalue) PetscFunctionReturn(0);
 
   ierr = DMNetworkIsSharedVertex(dm,p,&sharedv);CHKERRQ(ierr);
@@ -1329,7 +1329,7 @@ PetscErrorCode DMNetworkAddComponent(DM dm,PetscInt p,PetscInt componentkey,void
     /* Update DataSection Dofs */
     /* The dofs for datasection point p equals sizeof the header (i.e. header->hsize) + sizes of the components added at point p. With the resizing of the header, we need to update the dofs for point p. Hence, we add the extra size added for the header */
     additional_size = (5*(header->maxcomps - header->ndata)*sizeof(PetscInt))/sizeof(DMNetworkComponentGenericDataType);
-    ierr = PetscSectionAddDof(network->DataSection,p,additional_size);CHKERRQ(ierr);
+    ierr = PetscSectionAddCount(network->DataSection,p,additional_size);CHKERRQ(ierr);
   }
   header = &network->header[p];
   cvalue = &network->cvalue[p];
@@ -1337,7 +1337,7 @@ PetscErrorCode DMNetworkAddComponent(DM dm,PetscInt p,PetscInt componentkey,void
   compnum = header->ndata;
 
   header->size[compnum] = component->size;
-  ierr = PetscSectionAddDof(network->DataSection,p,component->size);CHKERRQ(ierr);
+  ierr = PetscSectionAddCount(network->DataSection,p,component->size);CHKERRQ(ierr);
   header->key[compnum] = componentkey;
   if (compnum != 0) header->offset[compnum] = header->offset[compnum-1] + header->size[compnum-1];
   cvalue->data[compnum] = (void*)compvalue;
@@ -1378,7 +1378,7 @@ PetscErrorCode DMNetworkGetComponent(DM dm,PetscInt p,PetscInt compnum,PetscInt 
 
   PetscFunctionBegin;
   if (compnum == ALL_COMPONENTS) {
-    ierr = PetscSectionGetDof(network->DofSection,p,nvar);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(network->DofSection,p,nvar);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
 
@@ -1480,7 +1480,7 @@ static PetscErrorCode DMNetworkVariablesSetUp(DM dm)
       p = svtx[i];
       ierr = DMNetworkIsGhostVertex(dm,p,&ghost);CHKERRQ(ierr);
       if (!ghost) continue;
-      ierr = PetscSectionGetDof(network->DofSection,p,&local_nvar[p]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(network->DofSection,p,&local_nvar[p]);CHKERRQ(ierr);
       /* printf("[%d] Before SFReduce: leaf local_nvar[%d] = %d\n",rank,p,local_nvar[p]); */
     }
 
@@ -1495,8 +1495,8 @@ static PetscErrorCode DMNetworkVariablesSetUp(DM dm)
       ierr = DMNetworkIsGhostVertex(dm,p,&ghost);CHKERRQ(ierr);
       if (ghost) continue;
 
-      ierr = PetscSectionAddDof(network->DofSection,p,remote_nvar[p]);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(network->DofSection,p,&local_nvar[p]);CHKERRQ(ierr);
+      ierr = PetscSectionAddCount(network->DofSection,p,remote_nvar[p]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(network->DofSection,p,&local_nvar[p]);CHKERRQ(ierr);
       /* printf("[%d]  After SFReduce: root local_nvar[%d] = %d\n",rank,p,local_nvar[p]); */
     }
 
@@ -1511,7 +1511,7 @@ static PetscErrorCode DMNetworkVariablesSetUp(DM dm)
       p = svtx[i];
       /* printf("[%d] leaf reset nvar %d at p= %d \n",rank,remote_nvar[p],p); */
       /* DMNetworkSetNumVariables(dm,p,remote_nvar[p]) */
-      ierr = PetscSectionSetDof(network->DofSection,p,remote_nvar[p]);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(network->DofSection,p,remote_nvar[p]);CHKERRQ(ierr);
     }
 
     ierr = PetscFree2(local_nvar,remote_nvar);CHKERRQ(ierr);
@@ -1531,8 +1531,8 @@ static PetscErrorCode DMNetworkGetSubSection_private(PetscSection main,PetscInt 
   ierr = PetscSectionCreate(PetscObjectComm((PetscObject)main), subsection);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(*subsection, 0, pend - pstart);CHKERRQ(ierr);
   for (i = pstart; i < pend; i++) {
-    ierr = PetscSectionGetDof(main,i,&nvar);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(*subsection, i - pstart, nvar);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(main,i,&nvar);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(*subsection, i - pstart, nvar);CHKERRQ(ierr);
   }
 
   ierr = PetscSectionSetUp(*subsection);CHKERRQ(ierr);
@@ -2448,14 +2448,14 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
   for (e=eStart; e<eEnd; e++) {
     /* Get row indices */
     ierr = DMNetworkGetGlobalVecOffset(dm,e,ALL_COMPONENTS,&rstart);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(network->DofSection,e,&nrows);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(network->DofSection,e,&nrows);CHKERRQ(ierr);
     if (nrows) {
       for (j=0; j<nrows; j++) rows[j] = j + rstart;
 
       /* Set preallocation for connected vertices */
       ierr = DMNetworkGetConnectedVertices(dm,e,&cone);CHKERRQ(ierr);
       for (v=0; v<2; v++) {
-        ierr = PetscSectionGetDof(network->DofSection,cone[v],&ncols);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(network->DofSection,cone[v],&ncols);CHKERRQ(ierr);
 
         if (network->Je) {
           Juser = network->Je[3*e+1+v]; /* Jacobian(e,v) */
@@ -2481,7 +2481,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
   for (v=vStart; v<vEnd; v++) {
     /* Get row indices */
     ierr = DMNetworkGetGlobalVecOffset(dm,v,ALL_COMPONENTS,&rstart);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(network->DofSection,v,&nrows);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(network->DofSection,v,&nrows);CHKERRQ(ierr);
     if (!nrows) continue;
 
     ierr = DMNetworkIsGhostVertex(dm,v,&ghost);CHKERRQ(ierr);
@@ -2499,7 +2499,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
     for (e=0; e<nedges; e++) {
       /* Supporting edges */
       ierr = DMNetworkGetGlobalVecOffset(dm,edges[e],ALL_COMPONENTS,&cstart);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(network->DofSection,edges[e],&ncols);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(network->DofSection,edges[e],&ncols);CHKERRQ(ierr);
 
       if (network->Jv) {
         Juser = network->Jv[vptr[v-vStart]+2*e+1]; /* Jacobian(v,e) */
@@ -2511,7 +2511,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
       vc = (v == cone[0]) ? cone[1]:cone[0];
       ierr = DMNetworkIsGhostVertex(dm,vc,&ghost_vc);CHKERRQ(ierr);
 
-      ierr = PetscSectionGetDof(network->DofSection,vc,&ncols);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(network->DofSection,vc,&ncols);CHKERRQ(ierr);
 
       if (network->Jv) {
         Juser = network->Jv[vptr[v-vStart]+2*e+2]; /* Jacobian(v,vc) */
@@ -2568,7 +2568,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
   for (e=eStart; e<eEnd; e++) {
     /* Get row indices */
     ierr = DMNetworkGetGlobalVecOffset(dm,e,ALL_COMPONENTS,&rstart);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(network->DofSection,e,&nrows);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(network->DofSection,e,&nrows);CHKERRQ(ierr);
     if (nrows) {
       for (j=0; j<nrows; j++) rows[j] = j + rstart;
 
@@ -2576,7 +2576,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
       ierr = DMNetworkGetConnectedVertices(dm,e,&cone);CHKERRQ(ierr);
       for (v=0; v<2; v++) {
         ierr = DMNetworkGetGlobalVecOffset(dm,cone[v],ALL_COMPONENTS,&cstart);CHKERRQ(ierr);
-        ierr = PetscSectionGetDof(network->DofSection,cone[v],&ncols);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(network->DofSection,cone[v],&ncols);CHKERRQ(ierr);
 
         if (network->Je) {
           Juser = network->Je[3*e+1+v]; /* Jacobian(e,v) */
@@ -2598,7 +2598,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
   for (v=vStart; v<vEnd; v++) {
     /* Get row indices */
     ierr = DMNetworkGetGlobalVecOffset(dm,v,ALL_COMPONENTS,&rstart);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(network->DofSection,v,&nrows);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(network->DofSection,v,&nrows);CHKERRQ(ierr);
     if (!nrows) continue;
 
     ierr = DMNetworkIsGhostVertex(dm,v,&ghost);CHKERRQ(ierr);
@@ -2615,7 +2615,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
     for (e=0; e<nedges; e++) {
       /* Supporting edges */
       ierr = DMNetworkGetGlobalVecOffset(dm,edges[e],ALL_COMPONENTS,&cstart);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(network->DofSection,edges[e],&ncols);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(network->DofSection,edges[e],&ncols);CHKERRQ(ierr);
 
       if (network->Jv) {
         Juser = network->Jv[vptr[v-vStart]+2*e+1]; /* Jacobian(v,e) */
@@ -2627,7 +2627,7 @@ PetscErrorCode DMCreateMatrix_Network(DM dm,Mat *J)
       vc = (v == cone[0]) ? cone[1]:cone[0];
 
       ierr = DMNetworkGetGlobalVecOffset(dm,vc,ALL_COMPONENTS,&cstart);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(network->DofSection,vc,&ncols);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(network->DofSection,vc,&ncols);CHKERRQ(ierr);
 
       if (network->Jv) {
         Juser = network->Jv[vptr[v-vStart]+2*e+2]; /* Jacobian(v,vc) */

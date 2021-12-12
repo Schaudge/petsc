@@ -319,7 +319,7 @@ static PetscErrorCode DMPlexVTKWriteSection_ASCII(DM dm, PetscSection section, P
         if (value != 1) continue;
       }
     }
-    ierr = PetscSectionGetDof(section, p, &numDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &numDof);CHKERRQ(ierr);
     if (numDof) break;
   }
   ierr = MPIU_Allreduce(&numDof, &maxDof, 1, MPIU_INT, MPI_MAX, comm);CHKERRMPI(ierr);
@@ -346,7 +346,7 @@ static PetscErrorCode DMPlexVTKWriteSection_ASCII(DM dm, PetscSection section, P
           if (value != 1) continue;
         }
       }
-      ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(globalSection, p, &goff);CHKERRQ(ierr);
       if (dof && goff >= 0) {
@@ -408,7 +408,7 @@ static PetscErrorCode DMPlexVTKWriteSection_ASCII(DM dm, PetscSection section, P
           if (value != 1) continue;
         }
       }
-      ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(globalSection, p, &goff);CHKERRQ(ierr);
       if (goff >= 0) {
@@ -436,7 +436,7 @@ static PetscErrorCode DMPlexVTKWriteField_ASCII(DM dm, PetscSection section, Pet
   ierr = PetscObjectGetComm((PetscObject)dm,&comm);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(section, &pStart, &pEnd);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; ++p) {
-    ierr = PetscSectionGetDof(section, p, &numDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &numDof);CHKERRQ(ierr);
     if (numDof) break;
   }
   numDof = PetscMax(numDof, enforceDof);
@@ -553,11 +553,11 @@ static PetscErrorCode DMPlexVTKWriteAll_ASCII(DM dm, PetscViewer viewer)
             for (q = qStart; q < qEnd; ++q) {
               PetscInt dof, off, p;
 
-              ierr = PetscSectionGetDof(section, q, &dof);CHKERRQ(ierr);
+              ierr = PetscSectionGetCount(section, q, &dof);CHKERRQ(ierr);
               if (dof) {
                 ierr = PetscFindInt(q, n, ind, &p);CHKERRQ(ierr);
                 if (p >= pStart) {
-                  ierr = PetscSectionSetDof(newSection, p, dof);CHKERRQ(ierr);
+                  ierr = PetscSectionSetCount(newSection, p, dof);CHKERRQ(ierr);
                   ierr = PetscSectionGetOffset(section, q, &off);CHKERRQ(ierr);
                   ierr = PetscSectionSetOffset(newSection, p, off);CHKERRQ(ierr);
                 }

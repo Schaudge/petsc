@@ -240,10 +240,10 @@ int main(int argc, char **argv) {
           /* Find depth of p */
           for (d = 0; d <= sdim; ++d) {
             if ((closure[2*p] >= pStartDepth[d]) && (closure[2*p] < pEndDepth[d])) {
-              ierr = PetscSectionSetDof(section, closure[2*p], dofU[d]+dofA[d]+dofS[d]);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(section, closure[2*p], fieldU, dofU[d]);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(section, closure[2*p], fieldA, dofA[d]);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(section, closure[2*p], fieldS, dofS[d]);CHKERRQ(ierr);
+              ierr = PetscSectionSetCount(section, closure[2*p], dofU[d]+dofA[d]+dofS[d]);CHKERRQ(ierr);
+              ierr = PetscSectionSetFieldCount(section, closure[2*p], fieldU, dofU[d]);CHKERRQ(ierr);
+              ierr = PetscSectionSetFieldCount(section, closure[2*p], fieldA, dofA[d]);CHKERRQ(ierr);
+              ierr = PetscSectionSetFieldCount(section, closure[2*p], fieldS, dofS[d]);CHKERRQ(ierr);
             }
           }
         }
@@ -329,7 +329,7 @@ int main(int argc, char **argv) {
     for (p = pStart; p < pEnd; ++p) {
       PetscInt dofUA, offUA;
 
-      ierr = PetscSectionGetDof(sectionUA, p, &dofUA);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionUA, p, &dofUA);CHKERRQ(ierr);
       if (dofUA > 0) {
         xyz=NULL;
         ierr = PetscSectionGetOffset(sectionUA, p, &offUA);CHKERRQ(ierr);

@@ -82,42 +82,42 @@ PetscSection Object: 1 MPI processes
 2 fields
   field 0 with 2 components
 Process 0:
-  (   0) dim  0 offset   0
-  (   1) dim  0 offset   0
-  (   2) dim  0 offset   0
-  (   3) dim  2 offset   0
-  (   4) dim  2 offset   2
-  (   5) dim  2 offset   4
-  (   6) dim  2 offset   6
-  (   7) dim  2 offset   8
-  (   8) dim  2 offset  10
-  (   9) dim  0 offset  12
-  (  10) dim  0 offset  12
-  (  11) dim  0 offset  12
-  (  12) dim  0 offset  12
-  (  13) dim  0 offset  12
-  (  14) dim  0 offset  12
-  (  15) dim  0 offset  12
-  (  16) dim  0 offset  14
+  (   0) count  0 offset   0
+  (   1) count  0 offset   0
+  (   2) count  0 offset   0
+  (   3) count  2 offset   0
+  (   4) count  2 offset   2
+  (   5) count  2 offset   4
+  (   6) count  2 offset   6
+  (   7) count  2 offset   8
+  (   8) count  2 offset  10
+  (   9) count  0 offset  12
+  (  10) count  0 offset  12
+  (  11) count  0 offset  12
+  (  12) count  0 offset  12
+  (  13) count  0 offset  12
+  (  14) count  0 offset  12
+  (  15) count  0 offset  12
+  (  16) count  0 offset  14
   field 1 with 2 components
 Process 0:
-  (   0) dim  0 offset   0
-  (   1) dim  0 offset   0
-  (   2) dim  0 offset   0
-  (   3) dim  0 offset   2
-  (   4) dim  0 offset   4
-  (   5) dim  0 offset   6
-  (   6) dim  0 offset   8
-  (   7) dim  0 offset  10
-  (   8) dim  0 offset  12
-  (   9) dim  0 offset  12
-  (  10) dim  0 offset  12
-  (  11) dim  0 offset  12
-  (  12) dim  0 offset  12
-  (  13) dim  0 offset  12
-  (  14) dim  0 offset  12
-  (  15) dim  2 offset  12
-  (  16) dim  2 offset  14
+  (   0) count  0 offset   0
+  (   1) count  0 offset   0
+  (   2) count  0 offset   0
+  (   3) count  0 offset   2
+  (   4) count  0 offset   4
+  (   5) count  0 offset   6
+  (   6) count  0 offset   8
+  (   7) count  0 offset  10
+  (   8) count  0 offset  12
+  (   9) count  0 offset  12
+  (  10) count  0 offset  12
+  (  11) count  0 offset  12
+  (  12) count  0 offset  12
+  (  13) count  0 offset  12
+  (  14) count  0 offset  12
+  (  15) count  2 offset  12
+  (  16) count  2 offset  14
 Vec Object: Local Solution 1 MPI processes
   type: seq
 -0.5

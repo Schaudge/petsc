@@ -14,7 +14,7 @@ static PetscErrorCode PetscDualSpaceSetUp_Simple(PetscDualSpace sp)
   ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
   ierr = PetscSectionCreate(PETSC_COMM_SELF, &section);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(section, pStart, pEnd);CHKERRQ(ierr);
-  ierr = PetscSectionSetDof(section, pStart, s->dim);CHKERRQ(ierr);
+  ierr = PetscSectionSetCount(section, pStart, s->dim);CHKERRQ(ierr);
   ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
   sp->pointSection = section;
   PetscFunctionReturn(0);

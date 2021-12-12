@@ -1573,7 +1573,7 @@ static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity
 
           if (cellVert < vStart || cellVert >= vEnd) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Non-standard closure: vertices");
           if (cellVert == v) {
-            ierr = PetscSectionAddDof(ctt,v,1);CHKERRQ(ierr);
+            ierr = PetscSectionAddCount(ctt,v,1);CHKERRQ(ierr);
           }
         }
         ierr = DMPlexRestoreTransitiveClosure(dm,p,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
@@ -1606,7 +1606,7 @@ static PetscErrorCode DMPlexCreateConnectivity_pforest(DM dm, p4est_connectivity
 
           if (cellEdge < eStart || cellEdge >= eEnd) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Non-standard closure: edges");
           if (cellEdge == e) {
-            ierr = PetscSectionAddDof(ett,e,1);CHKERRQ(ierr);
+            ierr = PetscSectionAddCount(ett,e,1);CHKERRQ(ierr);
           }
         }
         ierr = DMPlexRestoreTransitiveClosure(dm,p,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
@@ -2324,7 +2324,7 @@ static PetscErrorCode DMPforestGetCellCoveringSF(MPI_Comm comm,p4est_t *p4estC, 
   ierr = PetscSectionSetChart(section,startC,endC);CHKERRQ(ierr);
   for (p = startC; p < endC; p++) {
     PetscInt numCells = recv[2*(p-startC)+1];
-    ierr = PetscSectionSetDof(section,p,numCells);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(section,p,numCells);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(section,&nLeaves);CHKERRQ(ierr);
@@ -3045,7 +3045,7 @@ static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const 
 
       ierr = DMPlexGetSimplexOrBoxCells(plexC,P4EST_DIM-d,&startC,&endC);CHKERRQ(ierr);
       for (e = startC; e < endC; e++) {
-        ierr = PetscSectionSetDof(rootSection,e,dofPerDim[d]);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(rootSection,e,dofPerDim[d]);CHKERRQ(ierr);
       }
     }
 
@@ -3054,7 +3054,7 @@ static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const 
 
       ierr = DMPlexGetSimplexOrBoxCells(plexF,P4EST_DIM-d,&startF,&endF);CHKERRQ(ierr);
       for (e = startF; e < endF; e++) {
-        ierr = PetscSectionSetDof(leafSection,e,dofPerDim[d]);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(leafSection,e,dofPerDim[d]);CHKERRQ(ierr);
       }
     }
 
@@ -3079,7 +3079,7 @@ static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const 
         PetscInt leaf = leaves ? leaves[i] : i;
         PetscInt dof;
 
-        ierr     = PetscSectionGetDof(leafSection,leaf,&dof);CHKERRQ(ierr);
+        ierr     = PetscSectionGetCount(leafSection,leaf,&dof);CHKERRQ(ierr);
         nleaves += dof;
       }
       ierr    = PetscMalloc1(nleaves,&mine);CHKERRQ(ierr);
@@ -3090,7 +3090,7 @@ static PetscErrorCode DMPforestGetTransferSF_Internal(DM coarse, DM fine, const 
         PetscInt dof;
         PetscInt off, j;
 
-        ierr = PetscSectionGetDof(leafSection,leaf,&dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(leafSection,leaf,&dof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(leafSection,leaf,&off);CHKERRQ(ierr);
         for (j = 0; j < dof; j++) {
           remote[nleaves].rank  = iremote[i].rank;
@@ -3732,7 +3732,7 @@ static PetscErrorCode DMPforestMapCoordinates_Cell(DM plex, p4est_geometry_t *ge
     if (point >= coordStart && point < coordEnd) {
       PetscInt dof, off;
       PetscInt nCoords, i;
-      ierr = PetscSectionGetDof(coordSec,point,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSec,point,&dof);CHKERRQ(ierr);
       if (dof % coordDim) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Did not understand coordinate layout");
       nCoords = dof / coordDim;
       ierr    = PetscSectionGetOffset(coordSec,point,&off);CHKERRQ(ierr);
@@ -3867,7 +3867,7 @@ static PetscErrorCode DMPforestMapCoordinates(DM dm, DM plex)
       PetscInt *star = NULL, starSize;
       PetscInt dof, off, cell = -1, coarsePoint = -1;
       PetscInt nCoords, i;
-      ierr = PetscSectionGetDof(coordSec,p,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSec,p,&dof);CHKERRQ(ierr);
       if (dof % coordDim) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Did not understand coordinate layout");
       nCoords = dof / coordDim;
       ierr    = PetscSectionGetOffset(coordSec,p,&off);CHKERRQ(ierr);
@@ -4002,9 +4002,9 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
   if (base) { ierr = DMGetCoordinateSection(base, &baseSection);CHKERRQ(ierr); }
   ierr = DMPlexGetDepthStratum(plex,0,&vStart,&vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionGetDof(oldSection, v, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(newSection, v, dof);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(newSection, v, 0, dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(oldSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(newSection, v, dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(newSection, v, 0, dof);CHKERRQ(ierr);
     if (overlap) localize[v] = dof;
   }
 
@@ -4029,9 +4029,9 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
       p4est_quadrant_t *quad = &ghosts[count];
       coarsePoint = quad->p.which_tree;
 
-      if (baseSection) { ierr = PetscSectionGetFieldDof(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
-      ierr = PetscSectionSetDof(newSection, count, cdof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(newSection, count, 0, cdof);CHKERRQ(ierr);
+      if (baseSection) { ierr = PetscSectionGetFieldCount(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
+      ierr = PetscSectionSetCount(newSection, count, cdof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(newSection, count, 0, cdof);CHKERRQ(ierr);
       coarsePoints[cp++] = cdof ? coarsePoint : -1;
       if (overlap) localize[count] = cdof;
     }
@@ -4044,12 +4044,12 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
 
     if (!numQuads) continue;
     coarsePoint = t;
-    if (baseSection) { ierr = PetscSectionGetFieldDof(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
+    if (baseSection) { ierr = PetscSectionGetFieldCount(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
     for (i = 0; i < numQuads; i++) {
       PetscInt newCell = i + offset;
 
-      ierr = PetscSectionSetDof(newSection, newCell, cdof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(newSection, newCell, 0, cdof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(newSection, newCell, cdof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(newSection, newCell, 0, cdof);CHKERRQ(ierr);
       coarsePoints[cp++] = cdof ? coarsePoint : -1;
       if (overlap) localize[newCell] = cdof;
     }
@@ -4064,9 +4064,9 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
       coarsePoint = quad->p.which_tree;
       PetscInt newCell = count + cLocalEnd;
 
-      if (baseSection) { ierr = PetscSectionGetFieldDof(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
-      ierr = PetscSectionSetDof(newSection, newCell, cdof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(newSection, newCell, 0, cdof);CHKERRQ(ierr);
+      if (baseSection) { ierr = PetscSectionGetFieldCount(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
+      ierr = PetscSectionSetCount(newSection, newCell, cdof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(newSection, newCell, 0, cdof);CHKERRQ(ierr);
       coarsePoints[cp++] = cdof ? coarsePoint : -1;
       if (overlap) localize[newCell] = cdof;
     }
@@ -4082,7 +4082,7 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
     for (p = cStart; p < cEnd; p++) {
       coarsePoint = coarsePoints[p-cStart];
       if (coarsePoint < 0) continue;
-      if (baseSection) { ierr = PetscSectionGetFieldDof(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
+      if (baseSection) { ierr = PetscSectionGetFieldCount(baseSection, coarsePoint, 0, &cdof);CHKERRQ(ierr); }
       ierr = DMPlexGetTransitiveClosure(base,coarsePoint,PETSC_TRUE,&closureSize,&closure);CHKERRQ(ierr);
       for (c = 0; c < closureSize; c++) {
         PetscInt *star = NULL, starSize;
@@ -4104,8 +4104,8 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
             for (i = 0; i < numQuads; i++) {
               PetscInt newCell = i + offset;
 
-              ierr = PetscSectionSetDof(newSection, newCell, cdof);CHKERRQ(ierr);
-              ierr = PetscSectionSetFieldDof(newSection, newCell, 0, cdof);CHKERRQ(ierr);
+              ierr = PetscSectionSetCount(newSection, newCell, cdof);CHKERRQ(ierr);
+              ierr = PetscSectionSetFieldCount(newSection, newCell, 0, cdof);CHKERRQ(ierr);
               if (overlap) localize[newCell] = cdof;
             }
           }
@@ -4128,8 +4128,8 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
     ierr = PetscSFBcastBegin(sf,MPIU_INT,localize,localizeGlobal,MPI_REPLACE);CHKERRQ(ierr);
     ierr = PetscSFBcastEnd(sf,MPIU_INT,localize,localizeGlobal,MPI_REPLACE);CHKERRQ(ierr);
     for (v = newStart; v < newEnd; v++) {
-      ierr = PetscSectionSetDof(newSection, v, localizeGlobal[v-newStart]);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(newSection, v, 0, localizeGlobal[v-newStart]);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(newSection, v, localizeGlobal[v-newStart]);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(newSection, v, 0, localizeGlobal[v-newStart]);CHKERRQ(ierr);
     }
     ierr = PetscFree(localizeGlobal);CHKERRQ(ierr);
   }
@@ -4153,7 +4153,7 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
   for (v = vStart; v < vEnd; ++v) {
     PetscInt d, off,off2;
 
-    ierr = PetscSectionGetDof(oldSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(oldSection, v, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(oldSection, v, &off);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(newSection, v, &off2);CHKERRQ(ierr);
     for (d = 0; d < dof; ++d) coords2[off2+d] = coords[off+d];
@@ -4187,7 +4187,7 @@ static PetscErrorCode DMPforestLocalizeCoordinates(DM dm, DM plex)
       PetscInt          off2;
       PetscInt          newCell = i + offset;
 
-      ierr = PetscSectionGetFieldDof(newSection, newCell, 0, &cdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(newSection, newCell, 0, &cdof);CHKERRQ(ierr);
       if (!cdof) continue;
 
       h2   = .5 * intsize * P4EST_QUADRANT_LEN (quad->level);
@@ -4349,7 +4349,7 @@ static PetscErrorCode DMConvert_pforest_plex(DM dm, DMType newtype, DM *plex)
     for (zz = 0; zz < count; zz++) {
       PetscInt child = *((PetscInt*) sc_array_index(children,zz));
 
-      ierr = PetscSectionSetDof(parentSection,child,1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(parentSection,child,1);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(parentSection);CHKERRQ(ierr);
     ierr = DMPlexSetTree(newPlex,parentSection,(PetscInt*)parents->array,(PetscInt*)childids->array);CHKERRQ(ierr);

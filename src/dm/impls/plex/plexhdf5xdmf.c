@@ -44,7 +44,7 @@ static PetscErrorCode DMPlexInvertCells_XDMF_Private(DM dm)
   for (p=cStart; p<cEnd; p++) {
     PetscInt numCorners, o;
 
-    ierr = PetscSectionGetDof(cs, p, &numCorners);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(cs, p, &numCorners);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(cs, p, &o);CHKERRQ(ierr);
     switch (numCorners) {
       case 4: ierr = DMPlexInvertCell(DM_POLYTOPE_TETRAHEDRON,&cones[o]);CHKERRQ(ierr); break;

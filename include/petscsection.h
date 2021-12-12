@@ -27,26 +27,26 @@ PETSC_EXTERN PetscErrorCode PetscSectionGetPointMajor(PetscSection, PetscBool *)
 PETSC_EXTERN PetscErrorCode PetscSectionSetPointMajor(PetscSection, PetscBool);
 PETSC_EXTERN PetscErrorCode PetscSectionGetIncludesConstraints(PetscSection, PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscSectionSetIncludesConstraints(PetscSection, PetscBool);
-PETSC_EXTERN PetscErrorCode PetscSectionGetDof(PetscSection, PetscInt, PetscInt*);
-PETSC_EXTERN PetscErrorCode PetscSectionSetDof(PetscSection, PetscInt, PetscInt);
-PETSC_EXTERN PetscErrorCode PetscSectionAddDof(PetscSection, PetscInt, PetscInt);
-PETSC_EXTERN PetscErrorCode PetscSectionGetFieldDof(PetscSection, PetscInt, PetscInt, PetscInt*);
-PETSC_EXTERN PetscErrorCode PetscSectionSetFieldDof(PetscSection, PetscInt, PetscInt, PetscInt);
-PETSC_EXTERN PetscErrorCode PetscSectionAddFieldDof(PetscSection, PetscInt, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionGetCount(PetscSection, PetscInt, PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscSectionSetCount(PetscSection, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionAddCount(PetscSection, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionGetFieldCount(PetscSection, PetscInt, PetscInt, PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscSectionSetFieldCount(PetscSection, PetscInt, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionAddFieldCount(PetscSection, PetscInt, PetscInt, PetscInt);
 PETSC_EXTERN PetscErrorCode PetscSectionHasConstraints(PetscSection, PetscBool *);
-PETSC_EXTERN PetscErrorCode PetscSectionGetConstraintDof(PetscSection, PetscInt, PetscInt*);
-PETSC_EXTERN PetscErrorCode PetscSectionSetConstraintDof(PetscSection, PetscInt, PetscInt);
-PETSC_EXTERN PetscErrorCode PetscSectionAddConstraintDof(PetscSection, PetscInt, PetscInt);
-PETSC_EXTERN PetscErrorCode PetscSectionGetFieldConstraintDof(PetscSection, PetscInt, PetscInt, PetscInt*);
-PETSC_EXTERN PetscErrorCode PetscSectionSetFieldConstraintDof(PetscSection, PetscInt, PetscInt, PetscInt);
-PETSC_EXTERN PetscErrorCode PetscSectionAddFieldConstraintDof(PetscSection, PetscInt, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionGetConstraintCount(PetscSection, PetscInt, PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscSectionSetConstraintCount(PetscSection, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionAddConstraintCount(PetscSection, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionGetFieldConstraintCount(PetscSection, PetscInt, PetscInt, PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscSectionSetFieldConstraintCount(PetscSection, PetscInt, PetscInt, PetscInt);
+PETSC_EXTERN PetscErrorCode PetscSectionAddFieldConstraintCount(PetscSection, PetscInt, PetscInt, PetscInt);
 PETSC_EXTERN PetscErrorCode PetscSectionGetConstraintIndices(PetscSection, PetscInt, const PetscInt**);
 PETSC_EXTERN PetscErrorCode PetscSectionSetConstraintIndices(PetscSection, PetscInt, const PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscSectionGetFieldConstraintIndices(PetscSection, PetscInt, PetscInt, const PetscInt**);
 PETSC_EXTERN PetscErrorCode PetscSectionSetFieldConstraintIndices(PetscSection, PetscInt, PetscInt, const PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscSectionSetUpBC(PetscSection);
 PETSC_EXTERN PetscErrorCode PetscSectionSetUp(PetscSection);
-PETSC_EXTERN PetscErrorCode PetscSectionGetMaxDof(PetscSection, PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscSectionGetMaxCount(PetscSection, PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscSectionGetStorageSize(PetscSection, PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscSectionGetConstrainedStorageSize(PetscSection, PetscInt*);
 PETSC_EXTERN PetscErrorCode PetscSectionGetOffset(PetscSection, PetscInt, PetscInt*);
@@ -72,6 +72,20 @@ PETSC_EXTERN PetscErrorCode PetscSectionGetField(PetscSection, PetscInt, PetscSe
 PETSC_EXTERN PetscErrorCode PetscSectionSetUseFieldOffsets(PetscSection, PetscBool);
 PETSC_EXTERN PetscErrorCode PetscSectionGetUseFieldOffsets(PetscSection, PetscBool *);
 PETSC_EXTERN PetscErrorCode PetscSectionExtractDofsFromArray(PetscSection, MPI_Datatype, const void *, IS, PetscSection *, void *[]);
+
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionSetCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionSetDof(PetscSection s, PetscInt pt, PetscInt ct) {return PetscSectionSetCount(s,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionGetCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionGetDof(PetscSection s, PetscInt pt, PetscInt *ct) {return PetscSectionGetCount(s,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionAddCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionAddDof(PetscSection s, PetscInt pt, PetscInt ct) {return PetscSectionAddCount(s,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionSetFieldCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionSetFieldDof(PetscSection s, PetscInt f,PetscInt pt, PetscInt ct) {return PetscSectionSetFieldCount(s,f,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionGetFieldCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionGetFieldDof(PetscSection s, PetscInt f,PetscInt pt, PetscInt *ct) {return PetscSectionGetFieldCount(s,f,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionAddFieldCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionAddFieldDof(PetscSection s, PetscInt f,PetscInt pt, PetscInt ct) {return PetscSectionAddFieldCount(s,f, pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionSetConstraintCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionSetConstraintDof(PetscSection s, PetscInt pt, PetscInt ct) {return PetscSectionSetConstraintCount(s,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionGetConstraintCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionGetConstraintDof(PetscSection s, PetscInt pt, PetscInt *ct) {return PetscSectionGetConstraintCount(s,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionAddConstraintCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionAddConstraintDof(PetscSection s, PetscInt pt, PetscInt ct) {return PetscSectionAddConstraintCount(s,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionSetFieldConstraintCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionSetFieldConstraintDof(PetscSection s, PetscInt f,PetscInt pt, PetscInt ct) {return PetscSectionSetFieldConstraintCount(s,f,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionGetFieldConstraintCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionGetFieldConstraintDof(PetscSection s, PetscInt f,PetscInt pt, PetscInt *ct) {return PetscSectionGetFieldConstraintCount(s,f,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionAddFieldConstraintCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionAddFieldConstraintDof(PetscSection s, PetscInt f,PetscInt pt, PetscInt ct) {return PetscSectionAddFieldConstraintCount(s,f,pt,ct);}
+PETSC_DEPRECATED_FUNCTION("Use PetscSectionGetMaxCount (since v3.16)") PETSC_STATIC_INLINE PetscErrorCode PetscSectionGetMaxDof(PetscSection s, PetscInt *ct) {return PetscSectionGetMaxCount(s,ct);}
 
 PETSC_EXTERN PetscErrorCode PetscSectionSetClosureIndex(PetscSection, PetscObject, PetscSection, IS);
 PETSC_EXTERN PetscErrorCode PetscSectionGetClosureIndex(PetscSection, PetscObject, PetscSection *, IS *);

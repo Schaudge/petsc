@@ -20,10 +20,10 @@ static PetscErrorCode PetscSectionView_HDF5_SingleField(PetscSection s, PetscVie
   hasConstraints = (s->bc) ? PETSC_TRUE : PETSC_FALSE;
   ierr = MPIU_Allreduce(MPI_IN_PLACE, &hasConstraints, 1, MPIU_BOOL, MPI_LOR, comm);CHKERRMPI(ierr);
   for (p = pStart, n = 0, m = 0; p < pEnd; ++p) {
-    ierr = PetscSectionGetDof(s, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(s, p, &dof);CHKERRQ(ierr);
     if (dof >= 0) {
       if (hasConstraints) {
-        ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(s, p, &cdof);CHKERRQ(ierr);
         m += cdof;
       }
       n++;
@@ -37,14 +37,14 @@ static PetscErrorCode PetscSectionView_HDF5_SingleField(PetscSection s, PetscVie
     ierr = PetscMalloc1(m, &cinds);CHKERRQ(ierr);
   }
   for (p = pStart, n = 0, m = 0; p < pEnd; ++p) {
-    ierr = PetscSectionGetDof(s, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(s, p, &dof);CHKERRQ(ierr);
     if (dof >= 0) {
       dofs[n] = dof;
       ierr = PetscSectionGetOffset(s, p, &offs[n]);CHKERRQ(ierr);
       if (hasConstraints) {
         const PetscInt *cpinds;
 
-        ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(s, p, &cdof);CHKERRQ(ierr);
         ierr = PetscSectionGetConstraintIndices(s, p, &cpinds);CHKERRQ(ierr);
         cdofs[n] = cdof;
         coffs[n] = m;
@@ -146,7 +146,7 @@ static PetscErrorCode PetscSectionLoad_HDF5_SingleField_SetConstraintIndices(Pet
   ierr = PetscMalloc1(m, &coffsets);CHKERRQ(ierr);
   ierr = ISGetIndices(coffIS, &coffs);CHKERRQ(ierr);
   for (p = pStart, m = 0; p < pEnd; ++p) {
-    ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(s, p, &cdof);CHKERRQ(ierr);
     for (i = 0; i < cdof; ++i) coffsets[m++] = coffs[p-pStart] + i;
   }
   ierr = ISRestoreIndices(coffIS, &coffs);CHKERRQ(ierr);
@@ -167,7 +167,7 @@ static PetscErrorCode PetscSectionLoad_HDF5_SingleField_SetConstraintIndices(Pet
   ierr = PetscSFDestroy(&sf);CHKERRQ(ierr);
   ierr = PetscSectionSetUpBC(s);CHKERRQ(ierr);
   for (p = pStart, m = 0; p < pEnd; ++p) {
-    ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(s, p, &cdof);CHKERRQ(ierr);
     ierr = PetscSectionSetConstraintIndices(s, p, &cinds[m]);CHKERRQ(ierr);
     m += cdof;
   }
@@ -220,7 +220,7 @@ static PetscErrorCode PetscSectionLoad_HDF5_SingleField(PetscSection s, PetscVie
   ierr = ISGetIndices(dofIS, &dofs);CHKERRQ(ierr);
   ierr = ISGetIndices(offIS, &offs);CHKERRQ(ierr);
   for (p = pStart, n = 0; p < pEnd; ++p, ++n) {
-    ierr = PetscSectionSetDof(s, p, dofs[n]);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(s, p, dofs[n]);CHKERRQ(ierr);
     ierr = PetscSectionSetOffset(s, p, offs[n]);CHKERRQ(ierr);
   }
   ierr = ISRestoreIndices(dofIS, &dofs);CHKERRQ(ierr);
@@ -242,7 +242,7 @@ static PetscErrorCode PetscSectionLoad_HDF5_SingleField(PetscSection s, PetscVie
     ierr = ISLoad(cdofIS, viewer);CHKERRQ(ierr);
     ierr = ISGetIndices(cdofIS, &cdofs);CHKERRQ(ierr);
     for (p = pStart, n = 0; p < pEnd; ++p, ++n) {
-      ierr = PetscSectionSetConstraintDof(s, p, cdofs[n]);CHKERRQ(ierr);
+      ierr = PetscSectionSetConstraintCount(s, p, cdofs[n]);CHKERRQ(ierr);
     }
     ierr = ISRestoreIndices(cdofIS, &cdofs);CHKERRQ(ierr);
     ierr = ISDestroy(&cdofIS);CHKERRQ(ierr);

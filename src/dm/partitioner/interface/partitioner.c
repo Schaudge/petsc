@@ -296,7 +296,7 @@ PetscErrorCode PetscPartitionerDestroy(PetscPartitioner *part)
 
   Level: developer
 
-.seealso PetscPartitionerCreate(), PetscSectionCreate(), PetscSectionSetChart(), PetscSectionSetDof()
+.seealso PetscPartitionerCreate(), PetscSectionCreate(), PetscSectionSetChart(), PetscSectionSetCount()
 @*/
 PetscErrorCode PetscPartitionerPartition(PetscPartitioner part, PetscInt nparts, PetscInt numVertices, PetscInt start[], PetscInt adjacency[], PetscSection vertexSection, PetscSection targetSection, PetscSection partSection, IS *partition)
 {
@@ -332,7 +332,7 @@ PetscErrorCode PetscPartitionerPartition(PetscPartitioner part, PetscInt nparts,
   ierr = PetscSectionReset(partSection);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(partSection, 0, nparts);CHKERRQ(ierr);
   if (nparts == 1) { /* quick */
-    ierr = PetscSectionSetDof(partSection, 0, numVertices);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(partSection, 0, numVertices);CHKERRQ(ierr);
     ierr = ISCreateStride(PetscObjectComm((PetscObject)part),numVertices,0,1,partition);CHKERRQ(ierr);
   } else {
     if (!part->ops->partition) SETERRQ1(PetscObjectComm((PetscObject) part), PETSC_ERR_SUP, "PetscPartitioner %s has no partitioning method", ((PetscObject)part)->type_name);

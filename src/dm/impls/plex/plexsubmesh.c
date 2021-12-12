@@ -550,14 +550,14 @@ static PetscErrorCode DMPlexShiftCoordinates_Internal(DM dm, PetscInt depthShift
     for (c = cStart; c < cEnd; ++c) {
       PetscInt cNew = DMPlexShiftPoint_Internal(c, depth, depthShift), dof;
 
-      ierr = PetscSectionGetDof(coordSection, c, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(newCoordSection, cNew, dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(newCoordSection, cNew, 0, dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, c, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(newCoordSection, cNew, dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(newCoordSection, cNew, 0, dof);CHKERRQ(ierr);
     }
   }
   for (v = vStartNew; v < vEndNew; ++v) {
-    ierr = PetscSectionSetDof(newCoordSection, v, dim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(newCoordSection, v, 0, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(newCoordSection, v, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(newCoordSection, v, 0, dim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(newCoordSection);CHKERRQ(ierr);
   ierr = DMSetCoordinateSection(dmNew, PETSC_DETERMINE, newCoordSection);CHKERRQ(ierr);
@@ -575,7 +575,7 @@ static PetscErrorCode DMPlexShiftCoordinates_Internal(DM dm, PetscInt depthShift
     for (c = cStart; c < cEnd; ++c) {
       PetscInt cNew = DMPlexShiftPoint_Internal(c, depth, depthShift), dof, off, noff, d;
 
-      ierr = PetscSectionGetDof(coordSection, c, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, c, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordSection, c, &off);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(newCoordSection, cNew, &noff);CHKERRQ(ierr);
       for (d = 0; d < dof; ++d) newCoords[noff+d] = coords[off+d];
@@ -584,7 +584,7 @@ static PetscErrorCode DMPlexShiftCoordinates_Internal(DM dm, PetscInt depthShift
   for (v = vStart; v < vEnd; ++v) {
     PetscInt dof, off, noff, d;
 
-    ierr = PetscSectionGetDof(coordSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, v, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(coordSection, v, &off);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(newCoordSection, DMPlexShiftPoint_Internal(v, depth, depthShift), &noff);CHKERRQ(ierr);
     for (d = 0; d < dof; ++d) newCoords[noff+d] = coords[off+d];
@@ -774,21 +774,21 @@ static PetscErrorCode DMPlexShiftTree_Internal(DM dm, PetscInt depthShift[], DM 
     ierr = PetscSectionSetChart(pSecShifted,pStartShifted,pEndShifted);CHKERRQ(ierr);
     for (p = pStartShifted; p < pEndShifted; p++) {
       /* start off assuming no children */
-      ierr = PetscSectionSetDof(pSecShifted,p,0);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(pSecShifted,p,0);CHKERRQ(ierr);
     }
     for (p = pStart; p < pEnd; p++) {
       PetscInt dof;
       PetscInt pNew = DMPlexShiftPoint_Internal(p,depth,depthShift);
 
-      ierr = PetscSectionGetDof(pSec,p,&dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(pSecShifted,pNew,dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(pSec,p,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(pSecShifted,pNew,dof);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(pSecShifted);CHKERRQ(ierr);
     for (p = pStart; p < pEnd; p++) {
       PetscInt dof;
       PetscInt pNew = DMPlexShiftPoint_Internal(p,depth,depthShift);
 
-      ierr = PetscSectionGetDof(pSec,p,&dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(pSec,p,&dof);CHKERRQ(ierr);
       if (dof) {
         PetscInt off, offNew;
 
@@ -1573,7 +1573,7 @@ static PetscErrorCode DMPlexConstructCohesiveCells_Internal(DM dm, DMLabel label
     const PetscInt splitp = pMaxNew[0] + v;
     PetscInt       dof, off, soff, d;
 
-    ierr = PetscSectionGetDof(coordSection, newp, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, newp, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(coordSection, newp, &off);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(coordSection, splitp, &soff);CHKERRQ(ierr);
     for (d = 0; d < dof; ++d) coords[soff+d] = coords[off+d];
@@ -2843,7 +2843,7 @@ static PetscErrorCode DMPlexInsertFace_Internal(DM dm, DM subdm, PetscInt numFac
     for (f = firstFace; f < *newFacePoint; ++f) {
       PetscInt dof, off, d;
 
-      ierr = PetscSectionGetDof(submesh->coneSection, f, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(submesh->coneSection, f, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(submesh->coneSection, f, &off);CHKERRQ(ierr);
       /* Yes, I know this is quadratic, but I expect the sizes to be <5 */
       for (d = 0; d < dof; ++d) {
@@ -2991,9 +2991,9 @@ static PetscErrorCode DMPlexCreateSubmesh_Uninterpolated(DM dm, DMLabel vertexLa
       const PetscInt subvertex = firstSubVertex+v;
       PetscInt       dof;
 
-      ierr = PetscSectionGetDof(coordSection, vertex, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(subCoordSection, subvertex, dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(subCoordSection, subvertex, 0, dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, vertex, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(subCoordSection, subvertex, dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(subCoordSection, subvertex, 0, dof);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(subCoordSection);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(subCoordSection, &coordSize);CHKERRQ(ierr);
@@ -3010,9 +3010,9 @@ static PetscErrorCode DMPlexCreateSubmesh_Uninterpolated(DM dm, DMLabel vertexLa
         const PetscInt subvertex = firstSubVertex+v;
         PetscInt       dof, off, sdof, soff, d;
 
-        ierr = PetscSectionGetDof(coordSection, vertex, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(coordSection, vertex, &dof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(coordSection, vertex, &off);CHKERRQ(ierr);
-        ierr = PetscSectionGetDof(subCoordSection, subvertex, &sdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(subCoordSection, subvertex, &sdof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(subCoordSection, subvertex, &soff);CHKERRQ(ierr);
         if (dof != sdof) SETERRQ4(comm, PETSC_ERR_PLIB, "Coordinate dimension %d on subvertex %d, vertex %d should be %d", sdof, subvertex, vertex, dof);
         for (d = 0; d < dof; ++d) subCoords[soff+d] = coords[off+d];
@@ -3211,9 +3211,9 @@ static PetscErrorCode DMPlexCreateSubmeshGeneric_Interpolated(DM dm, DMLabel lab
       const PetscInt subvertex = firstSubPoint[0]+v;
       PetscInt       dof;
 
-      ierr = PetscSectionGetDof(coordSection, vertex, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(subCoordSection, subvertex, dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(subCoordSection, subvertex, 0, dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, vertex, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(subCoordSection, subvertex, dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(subCoordSection, subvertex, 0, dof);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(subCoordSection);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(subCoordSection, &coordSize);CHKERRQ(ierr);
@@ -3230,9 +3230,9 @@ static PetscErrorCode DMPlexCreateSubmeshGeneric_Interpolated(DM dm, DMLabel lab
       const PetscInt subvertex = firstSubPoint[0]+v;
       PetscInt dof, off, sdof, soff, d;
 
-      ierr = PetscSectionGetDof(coordSection, vertex, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, vertex, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordSection, vertex, &off);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(subCoordSection, subvertex, &sdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(subCoordSection, subvertex, &sdof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(subCoordSection, subvertex, &soff);CHKERRQ(ierr);
       if (dof != sdof) SETERRQ4(comm, PETSC_ERR_PLIB, "Coordinate dimension %d on subvertex %d, vertex %d should be %d", sdof, subvertex, vertex, dof);
       for (d = 0; d < dof; ++d) subCoords[soff+d] = coords[off+d];
@@ -3478,9 +3478,9 @@ static PetscErrorCode DMPlexCreateCohesiveSubmesh_Uninterpolated(DM dm, PetscBoo
       const PetscInt subvertex = firstSubVertex+v;
       PetscInt       dof;
 
-      ierr = PetscSectionGetDof(coordSection, vertex, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(subCoordSection, subvertex, dof);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(subCoordSection, subvertex, 0, dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, vertex, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(subCoordSection, subvertex, dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(subCoordSection, subvertex, 0, dof);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(subCoordSection);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(subCoordSection, &coordSize);CHKERRQ(ierr);
@@ -3497,9 +3497,9 @@ static PetscErrorCode DMPlexCreateCohesiveSubmesh_Uninterpolated(DM dm, PetscBoo
       const PetscInt subvertex = firstSubVertex+v;
       PetscInt       dof, off, sdof, soff, d;
 
-      ierr = PetscSectionGetDof(coordSection, vertex, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, vertex, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordSection, vertex, &off);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(subCoordSection, subvertex, &sdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(subCoordSection, subvertex, &sdof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(subCoordSection, subvertex, &soff);CHKERRQ(ierr);
       if (dof != sdof) SETERRQ4(comm, PETSC_ERR_PLIB, "Coordinate dimension %d on subvertex %d, vertex %d should be %d", sdof, subvertex, vertex, dof);
       for (d = 0; d < dof; ++d) subCoords[soff+d] = coords[off+d];

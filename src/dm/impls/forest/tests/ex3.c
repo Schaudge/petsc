@@ -84,8 +84,8 @@ int main (int argc, char **argv)
     ierr = PetscSectionSetNumFields(s, 1);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(s, vStart, vEnd);CHKERRQ(ierr);
     for (v = vStart; v < vEnd; ++v) {
-      ierr = PetscSectionSetDof(s, v, 1);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(s, v, 0, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(s, v, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(s, v, 0, 1);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(s);CHKERRQ(ierr);
     ierr = DMSetLocalSection(forest, s);CHKERRQ(ierr);

@@ -95,7 +95,7 @@ static PetscErrorCode PetscPartitionerPartition_Simple_Grid(PetscPartitioner par
     pcells[i] = cells[i] / (nodes[i]*procs[i]);
   }
   /* Compute sizes */
-  for (np = 0; np < nparts; ++np) {ierr = PetscSectionSetDof(partSection, np, numVertices/nparts);CHKERRQ(ierr);}
+  for (np = 0; np < nparts; ++np) {ierr = PetscSectionSetCount(partSection, np, numVertices/nparts);CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(partSection);CHKERRQ(ierr);
   ierr = PetscCalloc1(nparts, &offsets);CHKERRQ(ierr);
   for (np = 0; np < nparts; ++np) {ierr = PetscSectionGetOffset(partSection, np, &offsets[np]);CHKERRQ(ierr);}
@@ -154,7 +154,7 @@ static PetscErrorCode PetscPartitionerPartition_Simple(PetscPartitioner part, Pe
     ierr = MPIU_Allreduce(&numVertices, &numVerticesGlobal, 1, MPIU_INT, MPI_SUM, comm);CHKERRMPI(ierr);
     ierr = PetscCalloc1(nparts,&tpwgts);CHKERRQ(ierr);
     for (np = 0; np < nparts; ++np) {
-      ierr = PetscSectionGetDof(targetSection,np,&tpwgts[np]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(targetSection,np,&tpwgts[np]);CHKERRQ(ierr);
       sumw += tpwgts[np];
     }
     if (sumw) {
@@ -173,11 +173,11 @@ static PetscErrorCode PetscPartitionerPartition_Simple(PetscPartitioner part, Pe
   if (size == 1) {
     if (tpwgts) {
       for (np = 0; np < nparts; ++np) {
-        ierr = PetscSectionSetDof(partSection, np, tpwgts[np]);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(partSection, np, tpwgts[np]);CHKERRQ(ierr);
       }
     } else {
       for (np = 0; np < nparts; ++np) {
-        ierr = PetscSectionSetDof(partSection, np, numVertices/nparts + ((numVertices % nparts) > np));CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(partSection, np, numVertices/nparts + ((numVertices % nparts) > np));CHKERRQ(ierr);
       }
     }
   } else {
@@ -203,7 +203,7 @@ static PetscErrorCode PetscPartitionerPartition_Simple(PetscPartitioner part, Pe
       ierr = VecAssemblyEnd(v);CHKERRQ(ierr);
       ierr = VecGetArray(v,&array);CHKERRQ(ierr);
       for (j = 0; j < numVertices; ++j) {
-        ierr = PetscSectionAddDof(partSection,PetscRealPart(array[j]),1);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(partSection,PetscRealPart(array[j]),1);CHKERRQ(ierr);
       }
       ierr = VecRestoreArray(v,&array);CHKERRQ(ierr);
       ierr = VecDestroy(&v);CHKERRQ(ierr);
@@ -254,7 +254,7 @@ static PetscErrorCode PetscPartitionerPartition_Simple(PetscPartitioner part, Pe
 
           PartStart = PetscMax(PartStart,myFirst);
           PartEnd   = PetscMin(PartEnd,myLast+1);
-          ierr = PetscSectionSetDof(partSection,np,PartEnd-PartStart);CHKERRQ(ierr);
+          ierr = PetscSectionSetCount(partSection,np,PartEnd-PartStart);CHKERRQ(ierr);
         }
       }
     }

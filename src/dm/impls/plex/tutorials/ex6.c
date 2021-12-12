@@ -113,7 +113,7 @@ static PetscErrorCode CheckPoint(DM dm, Vec u, PetscInt point, AppCtx *user)
   ierr = DMGetLocalSection(dm, &s);CHKERRQ(ierr);
   ierr = VecGetArrayRead(u, &array);CHKERRQ(ierr);
   ierr = DMPlexPointLocalRead(dm, point, array, &a);CHKERRQ(ierr);
-  ierr = PetscSectionGetDof(s, point, &dof);CHKERRQ(ierr);
+  ierr = PetscSectionGetCount(s, point, &dof);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_SELF, "Point %D: ", point);CHKERRQ(ierr);
   for (d = 0; d < dof; ++d) {
     if (d > 0) {ierr = PetscPrintf(PETSC_COMM_SELF, ", ");CHKERRQ(ierr);}

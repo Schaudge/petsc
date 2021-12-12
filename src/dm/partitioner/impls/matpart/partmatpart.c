@@ -131,7 +131,7 @@ static PetscErrorCode PetscPartitionerPartition_MatPartitioning(PetscPartitioner
     for (p = 0; p < nparts; ++p) {
       PetscInt tpd;
 
-      ierr = PetscSectionGetDof(targetSection,p,&tpd);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(targetSection,p,&tpd);CHKERRQ(ierr);
       sumt += tpd;
       tpwgts[p] = tpd;
     }
@@ -155,7 +155,7 @@ static PetscErrorCode PetscPartitionerPartition_MatPartitioning(PetscPartitioner
 
     ierr = PetscMalloc1(numVertices,&vwgt);CHKERRQ(ierr);
     for (v = 0; v < numVertices; ++v) {
-      ierr = PetscSectionGetDof(vertSection, v, &vwgt[v]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(vertSection, v, &vwgt[v]);CHKERRQ(ierr);
     }
   }
   ierr = MatPartitioningSetVertexWeights(p->mp, vwgt);CHKERRQ(ierr);
@@ -169,7 +169,7 @@ static PetscErrorCode PetscPartitionerPartition_MatPartitioning(PetscPartitioner
     const PetscInt *assignment_arr;
 
     ierr = ISGetIndices(is1, &assignment_arr);CHKERRQ(ierr);
-    for (v = 0; v < numVertices; ++v) {ierr = PetscSectionAddDof(partSection, assignment_arr[v], 1);CHKERRQ(ierr);}
+    for (v = 0; v < numVertices; ++v) {ierr = PetscSectionAddCount(partSection, assignment_arr[v], 1);CHKERRQ(ierr);}
     ierr = ISRestoreIndices(is1, &assignment_arr);CHKERRQ(ierr);
   }
 

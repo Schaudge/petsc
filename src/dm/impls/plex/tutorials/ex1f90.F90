@@ -15,8 +15,8 @@
       DMLabel, pointer :: nolabel(:) => NULL()
       PetscInt, target, dimension(3) ::  numComp
       PetscInt, pointer :: pNumComp(:)
-      PetscInt, target, dimension(12) ::  numDof
-      PetscInt, pointer :: pNumDof(:)
+      PetscInt, target, dimension(12) ::  numCount
+      PetscInt, pointer :: pNumCount(:)
       PetscInt, target, dimension(1) ::  bcField
       PetscInt, pointer :: pBcField(:)
       PetscInt, parameter :: zero = 0, one = 1, two = 2, eight = 8
@@ -43,15 +43,15 @@
       numComp(3) = dim-1
       pNumComp => numComp
       do i = 1, numFields*(dim+1)
-         numDof(i) = 0
+         numCount(i) = 0
       end do
 !     Let u be defined on vertices
-      numDof(0*(dim+1)+1)     = 1
+      numCount(0*(dim+1)+1)     = 1
 !     Let v be defined on cells
-      numDof(1*(dim+1)+dim+1) = dim
+      numCount(1*(dim+1)+dim+1) = dim
 !     Let v be defined on faces
-      numDof(2*(dim+1)+dim)   = dim-1
-      pNumDof => numDof
+      numCount(2*(dim+1)+dim)   = dim-1
+      pNumCount => numCount
 !     Setup boundary conditions
       numBC = 1
 !     Test label retrieval
@@ -74,7 +74,7 @@
       pBcPointIS => bcPointIS
 !     Create a PetscSection with this data layout
       call DMSetNumFields(dm, numFields,ierr);CHKERRA(ierr)
-      call DMPlexCreateSection(dm,nolabel,pNumComp,pNumDof,numBC,pBcField,pBcCompIS,pBcPointIS,PETSC_NULL_IS,section,ierr)
+      call DMPlexCreateSection(dm,nolabel,pNumComp,pNumCount,numBC,pBcField,pBcCompIS,pBcPointIS,PETSC_NULL_IS,section,ierr)
       CHKERRA(ierr)
       call ISDestroy(bcCompIS(1), ierr);CHKERRA(ierr)
       call ISDestroy(bcPointIS(1), ierr);CHKERRA(ierr)

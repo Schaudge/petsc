@@ -97,8 +97,8 @@ PetscErrorCode PetscSFSetGraphSection(PetscSF sf, PetscSection localSection, Pet
   for (p = pStart; p < pEnd; ++p) {
     PetscInt gdof, gcdof;
 
-    ierr = PetscSectionGetDof(globalSection, p, &gdof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(globalSection, p, &gcdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(globalSection, p, &gdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(globalSection, p, &gcdof);CHKERRQ(ierr);
     if (gcdof > (gdof < 0 ? -(gdof+1) : gdof)) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Point %" PetscInt_FMT " has %" PetscInt_FMT " constraints > %" PetscInt_FMT " dof", p, gcdof, (gdof < 0 ? -(gdof+1) : gdof));
     nleaves += gdof < 0 ? -(gdof+1)-gcdof : gdof-gcdof;
   }
@@ -108,12 +108,12 @@ PetscErrorCode PetscSFSetGraphSection(PetscSF sf, PetscSection localSection, Pet
     const PetscInt *cind;
     PetscInt       dof, cdof, off, gdof, gcdof, goff, gsize, d, c;
 
-    ierr = PetscSectionGetDof(localSection, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(localSection, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(localSection, p, &off);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(localSection, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(localSection, p, &cdof);CHKERRQ(ierr);
     ierr = PetscSectionGetConstraintIndices(localSection, p, &cind);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(globalSection, p, &gdof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(globalSection, p, &gcdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(globalSection, p, &gdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(globalSection, p, &gcdof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(globalSection, p, &goff);CHKERRQ(ierr);
     if (!gdof) continue; /* Censored point */
     gsize = gdof < 0 ? -(gdof+1)-gcdof : gdof-gcdof;
@@ -399,7 +399,7 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
     PetscInt dof;
 
     if ((localPoint >= lpStart) && (localPoint < lpEnd)) {
-      ierr = PetscSectionGetDof(leafSection, localPoint, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(leafSection, localPoint, &dof);CHKERRQ(ierr);
       numIndices += dof;
     }
   }
@@ -415,7 +415,7 @@ PetscErrorCode PetscSFCreateSectionSF(PetscSF sf, PetscSection rootSection, Pets
       PetscInt loff, dof, d;
 
       ierr = PetscSectionGetOffset(leafSection, localPoint, &loff);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(leafSection, localPoint, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(leafSection, localPoint, &dof);CHKERRQ(ierr);
       for (d = 0; d < dof; ++d, ++ind) {
         localIndices[ind]        = loff+d;
         remoteIndices[ind].rank  = rank;

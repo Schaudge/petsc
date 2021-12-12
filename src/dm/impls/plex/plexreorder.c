@@ -218,7 +218,7 @@ PetscErrorCode DMPlexPermute(DM dm, IS perm, DM *pdm)
     for (p = pStart; p < pEnd; ++p) {
       PetscInt dof, off, offNew, d;
 
-      ierr = PetscSectionGetDof(plexNew->coneSection, pperm[p], &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(plexNew->coneSection, pperm[p], &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(plex->coneSection, p, &off);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(plexNew->coneSection, pperm[p], &offNew);CHKERRQ(ierr);
       for (d = 0; d < dof; ++d) {
@@ -234,7 +234,7 @@ PetscErrorCode DMPlexPermute(DM dm, IS perm, DM *pdm)
     for (p = pStart; p < pEnd; ++p) {
       PetscInt dof, off, offNew, d;
 
-      ierr = PetscSectionGetDof(plexNew->supportSection, pperm[p], &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(plexNew->supportSection, pperm[p], &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(plex->supportSection, p, &off);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(plexNew->supportSection, pperm[p], &offNew);CHKERRQ(ierr);
       for (d = 0; d < dof; ++d) {
@@ -267,7 +267,7 @@ PetscErrorCode DMPlexPermute(DM dm, IS perm, DM *pdm)
     for (p = pStart; p < pEnd; ++p) {
       PetscInt dof, off, offNew, d;
 
-      ierr = PetscSectionGetDof(csectionNew, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(csectionNew, p, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(csection, p, &off);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(csectionNew, pperm[p], &offNew);CHKERRQ(ierr);
       for (d = 0; d < dof; ++d) coordsNew[offNew+d] = coords[off+d];

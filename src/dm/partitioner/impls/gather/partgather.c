@@ -39,8 +39,8 @@ static PetscErrorCode PetscPartitionerPartition_Gather(PetscPartitioner part, Pe
 
   PetscFunctionBegin;
   ierr = ISCreateStride(PETSC_COMM_SELF, numVertices, 0, 1, partition);CHKERRQ(ierr);
-  ierr = PetscSectionSetDof(partSection,0,numVertices);CHKERRQ(ierr);
-  for (np = 1; np < nparts; ++np) {ierr = PetscSectionSetDof(partSection, np, 0);CHKERRQ(ierr);}
+  ierr = PetscSectionSetCount(partSection,0,numVertices);CHKERRQ(ierr);
+  for (np = 1; np < nparts; ++np) {ierr = PetscSectionSetCount(partSection, np, 0);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
 

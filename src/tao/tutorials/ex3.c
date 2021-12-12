@@ -251,12 +251,12 @@ PetscErrorCode CreateCtx(DM dm, AppCtx* user)
   ierr = ISGetIndices(is, &points);CHKERRQ(ierr);
   user->num_bc_dofs = 0;
   for (p = 0; p < n; ++p) {
-    ierr = PetscSectionGetDof(section, points[p], &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, points[p], &dof);CHKERRQ(ierr);
     user->num_bc_dofs += dof;
   }
   ierr = PetscMalloc1(user->num_bc_dofs, &user->bc_indices);CHKERRQ(ierr);
   for (p = 0, k = 0; p < n; ++p) {
-    ierr = PetscSectionGetDof(section, points[p], &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, points[p], &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, points[p], &off);CHKERRQ(ierr);
     for (d = 0; d < dof; ++d) user->bc_indices[k++] = off+d;
   }

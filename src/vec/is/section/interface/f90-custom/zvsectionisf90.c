@@ -17,7 +17,7 @@ PETSC_EXTERN void petscsectiongetconstraintindicesf90_(PetscSection *s, PetscInt
   PetscInt        n;
 
   *ierr = PetscSectionGetConstraintIndices(*s, *point, &idx); if (*ierr) return;
-  *ierr = PetscSectionGetConstraintDof(*s, *point, &n); if (*ierr) return;
+  *ierr = PetscSectionGetConstraintCount(*s, *point, &n); if (*ierr) return;
   *ierr = F90Array1dCreate((void *) idx, MPIU_INT, 1, n, indices PETSC_F90_2PTR_PARAM(ptrd));
 }
 

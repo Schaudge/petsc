@@ -195,7 +195,7 @@ PetscErrorCode DMPlexGetAdjacency_Internal(DM dm, PetscInt p, PetscBool useCone,
   if (useAnchors) {
     ierr = DMPlexGetAnchors(dm,&aSec,&aIS);CHKERRQ(ierr);
     if (aSec) {
-      ierr = PetscSectionGetMaxDof(aSec,&maxAnchors);CHKERRQ(ierr);
+      ierr = PetscSectionGetMaxCount(aSec,&maxAnchors);CHKERRQ(ierr);
       maxAnchors = PetscMax(1,maxAnchors);
       ierr = PetscSectionGetChart(aSec,&aStart,&aEnd);CHKERRQ(ierr);
       ierr = ISGetIndices(aIS,&anchors);CHKERRQ(ierr);
@@ -237,7 +237,7 @@ PetscErrorCode DMPlexGetAdjacency_Internal(DM dm, PetscInt p, PetscBool useCone,
       PetscInt aDof = 0;
 
       if (p >= aStart && p < aEnd) {
-        ierr = PetscSectionGetDof(aSec,p,&aDof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(aSec,p,&aDof);CHKERRQ(ierr);
       }
       if (aDof) {
         PetscInt aOff;
@@ -350,7 +350,7 @@ PetscErrorCode DMPlexCreateTwoSidedProcessSF(DM dm, PetscSF sfPoint, PetscSectio
   for (p = pStart; p < pEnd; ++p) {
     PetscInt ndof, noff, n;
 
-    ierr = PetscSectionGetDof(rootRankSection, p, &ndof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(rootRankSection, p, &ndof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(rootRankSection, p, &noff);CHKERRQ(ierr);
     for (n = 0; n < ndof; ++n) {ierr = PetscBTSet(neighbors, nranks[noff+n]);CHKERRQ(ierr);}
   }
@@ -361,7 +361,7 @@ PetscErrorCode DMPlexCreateTwoSidedProcessSF(DM dm, PetscSF sfPoint, PetscSectio
   for (p = pStart; p < pEnd; ++p) {
     PetscInt ndof, noff, n;
 
-    ierr = PetscSectionGetDof(leafRankSection, p, &ndof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(leafRankSection, p, &ndof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(leafRankSection, p, &noff);CHKERRQ(ierr);
     for (n = 0; n < ndof; ++n) {ierr = PetscBTSet(neighbors, nranks[noff+n]);CHKERRQ(ierr);}
   }
@@ -433,7 +433,7 @@ PetscErrorCode DMPlexDistributeOwnership(DM dm, PetscSection rootSection, IS *ro
   ierr = PetscSectionSetChart(rootSection, pStart, pEnd);CHKERRQ(ierr);
   ierr = PetscSFComputeDegreeBegin(sfPoint, &rootdegree);CHKERRQ(ierr);
   ierr = PetscSFComputeDegreeEnd(sfPoint, &rootdegree);CHKERRQ(ierr);
-  for (p = pStart; p < pEnd; ++p) {ierr = PetscSectionSetDof(rootSection, p, rootdegree[p-pStart]);CHKERRQ(ierr);}
+  for (p = pStart; p < pEnd; ++p) {ierr = PetscSectionSetCount(rootSection, p, rootdegree[p-pStart]);CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(rootSection);CHKERRQ(ierr);
   /* Gather rank of each leaf to root */
   ierr = PetscSectionGetStorageSize(rootSection, &nedges);CHKERRQ(ierr);
@@ -516,7 +516,7 @@ PetscErrorCode DMPlexCreateOverlapLabel(DM dm, PetscInt levels, PetscSection roo
 
     if ((p >= sStart) && (p < sEnd)) {
       /* Some leaves share a root with other leaves on different processes */
-      ierr = PetscSectionGetDof(leafSection, p, &neighbors);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(leafSection, p, &neighbors);CHKERRQ(ierr);
       if (neighbors) {
         ierr = PetscSectionGetOffset(leafSection, p, &noff);CHKERRQ(ierr);
         ierr = DMPlexGetAdjacency(dm, p, &adjSize, &adj);CHKERRQ(ierr);
@@ -529,7 +529,7 @@ PetscErrorCode DMPlexCreateOverlapLabel(DM dm, PetscInt levels, PetscSection roo
       }
     }
     /* Roots are shared with leaves */
-    ierr = PetscSectionGetDof(rootSection, p, &neighbors);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(rootSection, p, &neighbors);CHKERRQ(ierr);
     if (!neighbors) continue;
     ierr = PetscSectionGetOffset(rootSection, p, &noff);CHKERRQ(ierr);
     ierr = DMPlexGetAdjacency(dm, p, &adjSize, &adj);CHKERRQ(ierr);
@@ -962,7 +962,7 @@ static PetscErrorCode DMPlexDistributeCones(DM dm, PetscSF migrationSF, ISLocalT
     ierr = PetscSectionGetChart(newConeSection, &pStart, &pEnd);CHKERRQ(ierr);
     for (p = pStart; p < pEnd; ++p) {
       PetscInt coneSize;
-      ierr               = PetscSectionGetDof(newConeSection, p, &coneSize);CHKERRQ(ierr);
+      ierr               = PetscSectionGetCount(newConeSection, p, &coneSize);CHKERRQ(ierr);
       pmesh->maxConeSize = PetscMax(pmesh->maxConeSize, coneSize);
     }
   }
@@ -1642,7 +1642,7 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
     ierr = PetscHSetICreate(&ht);CHKERRQ(ierr);
     ierr = PetscSectionGetChart(cellPartSection, &pStart, &pEnd);CHKERRQ(ierr);
     for (proc = pStart; proc < pEnd; proc++) {
-      ierr = PetscSectionGetDof(cellPartSection, proc, &npoints);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(cellPartSection, proc, &npoints);CHKERRQ(ierr);
       if (npoints) {ierr = PetscHSetIAdd(ht, proc);CHKERRQ(ierr);}
     }
     ierr = PetscHSetIGetSize(ht, &nranks);CHKERRQ(ierr);
@@ -1655,7 +1655,7 @@ PetscErrorCode DMPlexDistribute(DM dm, PetscInt overlap, PetscSF *sf, DM *dmPara
     ierr = ISGetIndices(cellPart, &points);CHKERRQ(ierr);
     ierr = PetscSectionGetChart(cellPartSection, &pStart, &pEnd);CHKERRQ(ierr);
     for (proc = pStart; proc < pEnd; proc++) {
-      ierr = PetscSectionGetDof(cellPartSection, proc, &npoints);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(cellPartSection, proc, &npoints);CHKERRQ(ierr);
       if (!npoints) continue;
       ierr = PetscSectionGetOffset(cellPartSection, proc, &poff);CHKERRQ(ierr);
       ierr = DMPlexClosurePoints_Private(dm, npoints, points+poff, &is);CHKERRQ(ierr);

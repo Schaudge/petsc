@@ -129,7 +129,7 @@ static PetscErrorCode PetscPartitionerPartition_ParMetis(PetscPartitioner part, 
     for (p = 0; p < nparts; ++p) {
       PetscInt tpd;
 
-      ierr = PetscSectionGetDof(targetSection,p,&tpd);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(targetSection,p,&tpd);CHKERRQ(ierr);
       sumt += tpd;
       tpwgts[p] = tpd;
     }
@@ -151,7 +151,7 @@ static PetscErrorCode PetscPartitionerPartition_ParMetis(PetscPartitioner part, 
   if (vertSection) {
     ierr = PetscMalloc1(nvtxs,&vwgt);CHKERRQ(ierr);
     for (v = 0; v < nvtxs; ++v) {
-      ierr = PetscSectionGetDof(vertSection, v, &vwgt[v]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(vertSection, v, &vwgt[v]);CHKERRQ(ierr);
     }
     wgtflag |= 2; /* have weights on graph vertices */
   }
@@ -214,7 +214,7 @@ static PetscErrorCode PetscPartitionerPartition_ParMetis(PetscPartitioner part, 
   }
 
   /* Convert to PetscSection+IS */
-  for (v = 0; v < nvtxs; ++v) {ierr = PetscSectionAddDof(partSection, assignment[v], 1);CHKERRQ(ierr);}
+  for (v = 0; v < nvtxs; ++v) {ierr = PetscSectionAddCount(partSection, assignment[v], 1);CHKERRQ(ierr);}
   ierr = PetscMalloc1(nvtxs, &points);CHKERRQ(ierr);
   for (p = 0, i = 0; p < nparts; ++p) {
     for (v = 0; v < nvtxs; ++v) {

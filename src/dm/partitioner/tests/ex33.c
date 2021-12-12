@@ -36,14 +36,14 @@ int main(int argc, char **argv)
   if (vwgts) { /* create vertex weights section */
     ierr = PetscSectionCreate(PETSC_COMM_WORLD,&vertexSection);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(vertexSection,0,nv);CHKERRQ(ierr);
-    for (i = 0; i< nv; i++) {ierr = PetscSectionSetDof(vertexSection,i,1);CHKERRQ(ierr);}
+    for (i = 0; i< nv; i++) {ierr = PetscSectionSetCount(vertexSection,i,1);CHKERRQ(ierr);}
     ierr = PetscSectionSetUp(vertexSection);CHKERRQ(ierr);
   }
 
   if (pwgts) { /* create partition weights section */
     ierr = PetscSectionCreate(PETSC_COMM_WORLD,&targetSection);CHKERRQ(ierr);
     ierr = PetscSectionSetChart(targetSection,0,nparts);CHKERRQ(ierr);
-    for (i = 0; i< nparts; i++) {ierr = PetscSectionSetDof(targetSection,i,1);CHKERRQ(ierr);}
+    for (i = 0; i< nparts; i++) {ierr = PetscSectionSetCount(targetSection,i,1);CHKERRQ(ierr);}
     ierr = PetscSectionSetUp(targetSection);CHKERRQ(ierr);
   }
 

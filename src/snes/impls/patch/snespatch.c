@@ -96,7 +96,7 @@ static PetscErrorCode PCSetUp_PATCH_Nonlinear(PC pc)
       ierr = PetscLogObjectParent((PetscObject) pc, (PetscObject) snes);CHKERRQ(ierr);
       patch->solver[i] = (PetscObject) snes;
 
-      ierr = PetscSectionGetDof(patch->gtolCountsWithAll, i+pStart, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(patch->gtolCountsWithAll, i+pStart, &dof);CHKERRQ(ierr);
       maxDof = PetscMax(maxDof, dof);
     }
     ierr = VecDuplicate(patch->localUpdate, &patch->localState);CHKERRQ(ierr);

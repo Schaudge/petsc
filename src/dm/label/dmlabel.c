@@ -1657,8 +1657,8 @@ PetscErrorCode DMLabelDistribute_Internal(DMLabel label, PetscSF sf, PetscSectio
 
       ierr = ISGetIndices(label->points[s], &points);CHKERRQ(ierr);
       for (l = 0; l < label->stratumSizes[s]; l++) {
-        ierr = PetscSectionGetDof(rootSection, points[l], &dof);CHKERRQ(ierr);
-        ierr = PetscSectionSetDof(rootSection, points[l], dof+1);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(rootSection, points[l], &dof);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(rootSection, points[l], dof+1);CHKERRQ(ierr);
       }
       ierr = ISRestoreIndices(label->points[s], &points);CHKERRQ(ierr);
     }
@@ -1779,7 +1779,7 @@ PetscErrorCode DMLabelDistribute(DMLabel label, PetscSF sf, DMLabel *labelNew)
   ierr = PetscCalloc1((*labelNew)->numStrata,&(*labelNew)->stratumSizes);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(leafSection, &pStart, &pEnd);CHKERRQ(ierr);
   for (p=pStart; p<pEnd; p++) {
-    ierr = PetscSectionGetDof(leafSection, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(leafSection, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(leafSection, p, &offset);CHKERRQ(ierr);
     for (s=0; s<dof; s++) {
       (*labelNew)->stratumSizes[leafStrata[offset+s]]++;
@@ -1796,7 +1796,7 @@ PetscErrorCode DMLabelDistribute(DMLabel label, PetscSF sf, DMLabel *labelNew)
   ierr = PetscCalloc1((*labelNew)->numStrata, &strataIdx);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(leafSection, &pStart, &pEnd);CHKERRQ(ierr);
   for (p=pStart; p<pEnd; p++) {
-    ierr = PetscSectionGetDof(leafSection, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(leafSection, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(leafSection, p, &offset);CHKERRQ(ierr);
     for (s=0; s<dof; s++) {
       stratum = leafStrata[offset+s];
@@ -1892,7 +1892,7 @@ PetscErrorCode DMLabelGather(DMLabel label, PetscSF sf, DMLabel *labelNew)
   /* Rebuild the point strata on the receiver */
   for (p = 0, idx = 0; p < nroots; p++) {
     for (d = 0; d < rootDegree[p]; d++) {
-      ierr = PetscSectionGetDof(rootSection, idx+d, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(rootSection, idx+d, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(rootSection, idx+d, &offset);CHKERRQ(ierr);
       for (s = 0; s < dof; s++) {ierr = DMLabelSetValue(*labelNew, p, rootStrata[offset+s]);CHKERRQ(ierr);}
     }
@@ -1945,7 +1945,7 @@ PetscErrorCode DMLabelConvertToSection(DMLabel label, PetscSection *section, IS 
     PetscInt n;
 
     ierr = DMLabelGetStratumSize(label, values[v], &n);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(*section, values[v], n);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(*section, values[v], n);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(*section);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(*section, &N);CHKERRQ(ierr);
@@ -1955,7 +1955,7 @@ PetscErrorCode DMLabelConvertToSection(DMLabel label, PetscSection *section, IS 
     const PetscInt *spoints;
     PetscInt        dof, off, p;
 
-    ierr = PetscSectionGetDof(*section, values[v], &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(*section, values[v], &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(*section, values[v], &off);CHKERRQ(ierr);
     ierr = DMLabelGetStratumIS(label, values[v], &is);CHKERRQ(ierr);
     ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
@@ -2020,10 +2020,10 @@ PetscErrorCode PetscSectionCreateGlobalSectionLabel(PetscSection s, PetscSF sf, 
 
     ierr = DMLabelGetValue(label, p, &value);CHKERRQ(ierr);
     if (value != labelValue) continue;
-    ierr = PetscSectionGetDof(s, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(*gsection, p, dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(s, p, &cdof);CHKERRQ(ierr);
-    if (!includeConstraints && cdof > 0) {ierr = PetscSectionSetConstraintDof(*gsection, p, cdof);CHKERRQ(ierr);}
+    ierr = PetscSectionGetCount(s, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(*gsection, p, dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(s, p, &cdof);CHKERRQ(ierr);
+    if (!includeConstraints && cdof > 0) {ierr = PetscSectionSetConstraintCount(*gsection, p, cdof);CHKERRQ(ierr);}
     if (neg) neg[p] = -(dof+1);
   }
   ierr = PetscSectionSetUpBC(*gsection);CHKERRQ(ierr);

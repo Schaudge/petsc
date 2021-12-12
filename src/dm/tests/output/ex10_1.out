@@ -13,17 +13,17 @@ DM Object: 2 MPI processes
 PetscSection Object: 2 MPI processes
   type not yet set
 Process 0:
-  (   0) dim  1 offset   0
-  (   1) dim  1 offset   1
-  (   2) dim  2 offset   2
-  (   3) dim  2 offset   4
-  (   4) dim  2 offset   6
+  (   0) count  1 offset   0
+  (   1) count  1 offset   1
+  (   2) count  2 offset   2
+  (   3) count  2 offset   4
+  (   4) count  2 offset   6
 Process 1:
-  (   0) dim  1 offset   0
-  (   1) dim  1 offset   1
-  (   2) dim  2 offset   2
-  (   3) dim  2 offset   4
-  (   4) dim  2 offset   6
+  (   0) count  1 offset   0
+  (   1) count  1 offset   1
+  (   2) count  2 offset   2
+  (   3) count  2 offset   4
+  (   4) count  2 offset   6
 Network after DMNetworkDistribute:
 DM Object: 2 MPI processes
   type: network
@@ -39,14 +39,14 @@ DM Object: 2 MPI processes
 PetscSection Object: 2 MPI processes
   type not yet set
 Process 0:
-  (   0) dim  1 offset   0
-  (   1) dim  1 offset   1
-  (   2) dim  2 offset   2
-  (   3) dim  2 offset   4
-  (   4) dim  2 offset   6
+  (   0) count  1 offset   0
+  (   1) count  1 offset   1
+  (   2) count  2 offset   2
+  (   3) count  2 offset   4
+  (   4) count  2 offset   6
 Process 1:
-  (   0) dim  1 offset   0
-  (   1) dim  1 offset   1
-  (   2) dim  2 offset   2
-  (   3) dim  2 offset   4
-  (   4) dim  2 offset   6
+  (   0) count  1 offset   0
+  (   1) count  1 offset   1
+  (   2) count  2 offset   2
+  (   3) count  2 offset   4
+  (   4) count  2 offset   6

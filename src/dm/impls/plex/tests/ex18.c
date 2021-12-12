@@ -951,7 +951,7 @@ static PetscErrorCode DMPlexExpandedConesToFaces_Private(DM dm, IS is, PetscSect
   ierr = ISGetIndices(is, &arr);CHKERRQ(ierr);
   ierr = PetscMalloc1(end-start, &newarr);CHKERRQ(ierr);
   for (q=start; q<end; q++) {
-    ierr = PetscSectionGetDof(section, q, &ncone);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, q, &ncone);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, q, &o);CHKERRQ(ierr);
     cone = &arr[o];
     if (ncone == 1) {
@@ -1050,14 +1050,14 @@ static PetscErrorCode PetscSectionReplicate_Private(MPI_Comm comm, PetscMPIInt r
   ierr = PetscMalloc1(chart[1]-chart[0], &dofarr);CHKERRQ(ierr);
   if (rank == rootrank) {
     for (p = chart[0]; p < chart[1]; p++) {
-      ierr = PetscSectionGetDof(sec0, p, &dofarr[p-chart[0]]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sec0, p, &dofarr[p-chart[0]]);CHKERRQ(ierr);
     }
   }
   ierr = MPI_Bcast(dofarr, chart[1]-chart[0], MPIU_INT, rootrank, comm);CHKERRMPI(ierr);
   ierr = PetscSectionCreate(comm, &sec);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sec, chart[0], chart[1]);CHKERRQ(ierr);
   for (p = chart[0]; p < chart[1]; p++) {
-    ierr = PetscSectionSetDof(sec, p, dofarr[p-chart[0]]);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(sec, p, dofarr[p-chart[0]]);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(sec);CHKERRQ(ierr);
   ierr = PetscFree(dofarr);CHKERRQ(ierr);
@@ -1386,7 +1386,7 @@ static PetscErrorCode ViewPointsWithType_Internal(DM dm, IS pointsIS, PetscViewe
       PetscReal       coords[3];
       char            coordstr[128];
 
-      ierr = PetscSectionGetDof(coordsSection, p, &n);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordsSection, p, &n);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordsSection, p, &o);CHKERRQ(ierr);
       for (c=0; c<n; c++) coords[c] = PetscRealPart(coordsScalar[o+c]);
       ierr = coord2str(coordstr, sizeof(coordstr), n, coords, 1.0);CHKERRQ(ierr);

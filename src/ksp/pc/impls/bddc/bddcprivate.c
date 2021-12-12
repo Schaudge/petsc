@@ -2244,7 +2244,7 @@ PetscErrorCode PCBDDCDetectDisconnectedComponents(PC pc, PetscBool filter, Petsc
         const PetscInt point = adj[a];
         if (pStart <= point && point < pEnd) {
           PetscInt *PETSC_RESTRICT pBuf;
-          ierr = PetscSectionAddDof(section, p, 1);CHKERRQ(ierr);
+          ierr = PetscSectionAddCount(section, p, 1);CHKERRQ(ierr);
           ierr = PetscSegBufferGetInts(adjBuffer, 1, &pBuf);CHKERRQ(ierr);
           *pBuf = point;
         }
@@ -2385,9 +2385,9 @@ PetscErrorCode PCBDDCDetectDisconnectedComponents(PC pc, PetscBool filter, Petsc
           for (k = 0; k < 2*size; k += 2) {
             PetscInt s, pp, p = closure[k], off, dof, cdof;
 
-            ierr = PetscSectionGetConstraintDof(subSection,p,&cdof);CHKERRQ(ierr);
+            ierr = PetscSectionGetConstraintCount(subSection,p,&cdof);CHKERRQ(ierr);
             ierr = PetscSectionGetOffset(subSection,p,&off);CHKERRQ(ierr);
-            ierr = PetscSectionGetDof(subSection,p,&dof);CHKERRQ(ierr);
+            ierr = PetscSectionGetCount(subSection,p,&dof);CHKERRQ(ierr);
             for (s = 0; s < dof-cdof; s++) {
               if (PetscBTLookupSet(btvt,off+s)) continue;
               if (!PetscBTLookup(btv,off+s)) {
@@ -2398,9 +2398,9 @@ PetscErrorCode PCBDDCDetectDisconnectedComponents(PC pc, PetscBool filter, Petsc
             }
             ierr = DMPlexGetTreeParent(dm,p,&pp,NULL);CHKERRQ(ierr);
             if (pp != p) {
-              ierr = PetscSectionGetConstraintDof(subSection,pp,&cdof);CHKERRQ(ierr);
+              ierr = PetscSectionGetConstraintCount(subSection,pp,&cdof);CHKERRQ(ierr);
               ierr = PetscSectionGetOffset(subSection,pp,&off);CHKERRQ(ierr);
-              ierr = PetscSectionGetDof(subSection,pp,&dof);CHKERRQ(ierr);
+              ierr = PetscSectionGetCount(subSection,pp,&dof);CHKERRQ(ierr);
               for (s = 0; s < dof-cdof; s++) {
                 if (PetscBTLookupSet(btvt,off+s)) continue;
                 if (!PetscBTLookup(btv,off+s)) {

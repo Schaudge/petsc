@@ -1824,14 +1824,14 @@ PetscErrorCode DMPlexCreateGmsh(MPI_Comm comm, PetscViewer viewer, PetscBool int
         if (PetscUnlikely(PetscBTLookup(periodicCells, cell))) {
           GmshElement *elem = mesh->elements + cell;
           PetscInt dof = elem->numVerts * coordDim;
-          ierr = PetscSectionSetDof(coordSection, cell, dof);CHKERRQ(ierr);
-          ierr = PetscSectionSetFieldDof(coordSection, cell, 0, dof);CHKERRQ(ierr);
+          ierr = PetscSectionSetCount(coordSection, cell, dof);CHKERRQ(ierr);
+          ierr = PetscSectionSetFieldCount(coordSection, cell, 0, dof);CHKERRQ(ierr);
         }
       }
     }
     for (v = numCells; v < numCells+numVerts; ++v) {
-      ierr = PetscSectionSetDof(coordSection, v, coordDim);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(coordSection, v, 0, coordDim);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(coordSection, v, coordDim);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(coordSection, v, 0, coordDim);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
 

@@ -116,8 +116,8 @@ static PetscErrorCode ChangeCoordinates(DM dm, PetscInt spaceDim, PetscScalar ve
   ierr = PetscSectionSetFieldComponents(coordSection, 0, spaceDim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, vStart, vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, spaceDim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, spaceDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, spaceDim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);

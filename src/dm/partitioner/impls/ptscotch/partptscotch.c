@@ -236,7 +236,7 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
   if (vertSection) {
     ierr = PetscMalloc1(nvtxs,&vwgt);CHKERRQ(ierr);
     for (v = 0; v < nvtxs; ++v) {
-      ierr = PetscSectionGetDof(vertSection, v, &vwgt[v]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(vertSection, v, &vwgt[v]);CHKERRQ(ierr);
     }
   }
 
@@ -246,7 +246,7 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
 
     ierr = PetscCalloc1(nparts,&tpwgts);CHKERRQ(ierr);
     for (p = 0, sumw = 0; p < nparts; ++p) {
-      ierr = PetscSectionGetDof(targetSection,p,&tpwgts[p]);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(targetSection,p,&tpwgts[p]);CHKERRQ(ierr);
       sumw += tpwgts[p];
     }
     if (!sumw) {ierr = PetscFree(tpwgts);CHKERRQ(ierr);}
@@ -288,7 +288,7 @@ static PetscErrorCode PetscPartitionerPartition_PTScotch(PetscPartitioner part, 
   ierr = PetscFree(tpwgts);CHKERRQ(ierr);
 
   /* Convert to PetscSection+IS */
-  for (v = 0; v < nvtxs; ++v) {ierr = PetscSectionAddDof(partSection, assignment[v], 1);CHKERRQ(ierr);}
+  for (v = 0; v < nvtxs; ++v) {ierr = PetscSectionAddCount(partSection, assignment[v], 1);CHKERRQ(ierr);}
   ierr = PetscMalloc1(nvtxs, &points);CHKERRQ(ierr);
   for (p = 0, i = 0; p < nparts; ++p) {
     for (v = 0; v < nvtxs; ++v) {

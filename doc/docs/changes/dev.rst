@@ -64,6 +64,7 @@ Changes: Development
 -  For CUDA and ViennaCL and HIP GPU vectors, ``VecCreate()`` no longer allocates the array on CPU eagerly, it is only allocated if it is needed
 
 .. rubric:: PetscSection:
+-  Change routine names ``PetscSectionXXXDof()`` to ``PetscSectionXXXCount()``
 
 .. rubric:: PetscPartitioner:
 

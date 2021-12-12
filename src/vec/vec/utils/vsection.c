@@ -176,7 +176,7 @@ PetscErrorCode VecSetValuesSection(Vec v, PetscSection s, PetscInt point, PetscS
   PetscFunctionBegin;
   PetscValidHeaderSpecific(v, VEC_CLASSID, 1);
   PetscValidHeaderSpecific(s, PETSC_SECTION_CLASSID, 2);
-  ierr  = PetscSectionGetConstraintDof(s, point, &cDim);CHKERRQ(ierr);
+  ierr  = PetscSectionGetConstraintCount(s, point, &cDim);CHKERRQ(ierr);
   ierr  = VecGetArray(v, &baseArray);CHKERRQ(ierr);
   array = &baseArray[s->atlasOff[p]];
   if (!cDim && doInterior) {
@@ -194,7 +194,7 @@ PetscErrorCode VecSetValuesSection(Vec v, PetscSection s, PetscInt point, PetscS
       PetscInt j      = -1, field, i;
 
       for (field = 0; field < s->numFields; ++field) {
-        const PetscInt dim = s->field[field]->atlasDof[p]; /* PetscSectionGetFieldDof() */
+        const PetscInt dim = s->field[field]->atlasDof[p]; /* PetscSectionGetFieldCount() */
 
         for (i = dim-1; i >= 0; --i) array[++j] = values[i+offset];
         offset += dim;
@@ -235,8 +235,8 @@ PetscErrorCode VecSetValuesSection(Vec v, PetscSection s, PetscInt point, PetscS
 
       ierr = PetscSectionGetConstraintIndices(s, point, &cDof);CHKERRQ(ierr);
       for (field = 0; field < s->numFields; ++field) {
-        const PetscInt dim  = s->field[field]->atlasDof[p];     /* PetscSectionGetFieldDof() */
-        const PetscInt tDim = s->field[field]->bc->atlasDof[p]; /* PetscSectionGetFieldConstraintDof() */
+        const PetscInt dim  = s->field[field]->atlasDof[p];     /* PetscSectionGetFieldCount() */
+        const PetscInt tDim = s->field[field]->bc->atlasDof[p]; /* PetscSectionGetFieldConstraintCount() */
         const PetscInt sDim = dim - tDim;
         PetscInt       cInd = 0, i ,k;
 
@@ -264,25 +264,25 @@ PetscErrorCode PetscSectionGetField_Internal(PetscSection section, PetscSection 
   for (p = pStart; p < pEnd; ++p) {
     PetscInt gdof, fdof = 0;
 
-    ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
-    if (gdof > 0) {ierr = PetscSectionGetFieldDof(section, p, field, &fdof);CHKERRQ(ierr);}
+    ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+    if (gdof > 0) {ierr = PetscSectionGetFieldCount(section, p, field, &fdof);CHKERRQ(ierr);}
     subSize += fdof;
   }
   ierr = PetscMalloc1(subSize, &subIndices);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; ++p) {
     PetscInt gdof, goff;
 
-    ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
     if (gdof > 0) {
       PetscInt fdof, fc, f2, poff = 0;
 
       ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
       /* Can get rid of this loop by storing field information in the global section */
       for (f2 = 0; f2 < field; ++f2) {
-        ierr  = PetscSectionGetFieldDof(section, p, f2, &fdof);CHKERRQ(ierr);
+        ierr  = PetscSectionGetFieldCount(section, p, f2, &fdof);CHKERRQ(ierr);
         poff += fdof;
       }
-      ierr = PetscSectionGetFieldDof(section, p, field, &fdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(section, p, field, &fdof);CHKERRQ(ierr);
       for (fc = 0; fc < fdof; ++fc, ++subOff) subIndices[subOff] = goff+poff+fc;
     }
   }

@@ -153,7 +153,7 @@ PetscErrorCode DMPlexCreateGlobalToNaturalSF(DM dm, PetscSection section, PetscS
     for (p = pStart, ssize = 0; p < pEnd; ++p) {
       PetscInt dof, off;
 
-      ierr = PetscSectionGetDof(gSection, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(gSection, p, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(gSection, p, &off);CHKERRQ(ierr);
       if ((dof > 0) && (off >= 0)) ++ssize;
     }
@@ -161,7 +161,7 @@ PetscErrorCode DMPlexCreateGlobalToNaturalSF(DM dm, PetscSection section, PetscS
     for (p = pStart, ssize = 0; p < pEnd; ++p) {
       PetscInt dof, off;
 
-      ierr = PetscSectionGetDof(gSection, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(gSection, p, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(gSection, p, &off);CHKERRQ(ierr);
       if ((dof > 0) && (off >= 0)) spoints[ssize++] = p;
     }

@@ -1151,7 +1151,7 @@ PetscErrorCode SNESMonitorFields(SNES snes, PetscInt its, PetscReal fgnorm, Pets
     for (f = 0; f < numFields; ++f) {
       PetscInt fdof, foff, d;
 
-      ierr = PetscSectionGetFieldDof(s, p, f, &fdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, p, f, &fdof);CHKERRQ(ierr);
       ierr = PetscSectionGetFieldOffset(s, p, f, &foff);CHKERRQ(ierr);
       for (d = 0; d < fdof; ++d) lnorms[f] += PetscRealPart(PetscSqr(r[foff+d]));
     }

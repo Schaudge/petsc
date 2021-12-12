@@ -836,8 +836,8 @@ PetscErrorCode SplitFaces(DM *dmSplit, const char labelName[], User user)
   ierr = PetscSectionSetFieldComponents(newCoordSection, 0, dim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(newCoordSection, vStart, vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionSetDof(newCoordSection, v, dim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(newCoordSection, v, 0, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(newCoordSection, v, dim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(newCoordSection, v, 0, dim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(newCoordSection);CHKERRQ(ierr);
   ierr = DMSetCoordinateSection(sdm, PETSC_DETERMINE, newCoordSection);CHKERRQ(ierr);
@@ -933,7 +933,7 @@ PetscErrorCode CreatePartitionVec(DM dm, DM *dmCell, Vec *partition)
   ierr = DMPlexGetHeightStratum(*dmCell, 0, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sectionCell, cStart, cEnd);CHKERRQ(ierr);
   for (c = cStart; c < cEnd; ++c) {
-    ierr = PetscSectionSetDof(sectionCell, c, 1);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(sectionCell, c, 1);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(sectionCell);CHKERRQ(ierr);
   ierr = DMSetLocalSection(*dmCell, sectionCell);CHKERRQ(ierr);
@@ -976,7 +976,7 @@ PetscErrorCode CreateMassMatrix(DM dm, Vec *massMatrix, User user)
     PetscInt numFaces;
 
     ierr = DMPlexGetSupportSize(dmMass, v, &numFaces);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(sectionMass, v, numFaces*numFaces);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(sectionMass, v, numFaces*numFaces);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(sectionMass);CHKERRQ(ierr);
   ierr = DMSetLocalSection(dmMass, sectionMass);CHKERRQ(ierr);
@@ -1048,12 +1048,12 @@ PetscErrorCode SetUpLocalSpace(DM dm, User user)
   ierr = PetscSectionSetChart(stateSection, cStart, cEnd);CHKERRQ(ierr);
   for (c = cStart; c < cEnd; ++c) {
     for (i=0; i<phys->nfields; i++) {
-      ierr = PetscSectionSetFieldDof(stateSection,c,i,phys->field_desc[i].dof);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(stateSection,c,i,phys->field_desc[i].dof);CHKERRQ(ierr);
     }
-    ierr = PetscSectionSetDof(stateSection, c, dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(stateSection, c, dof);CHKERRQ(ierr);
   }
   for (c = cEndInterior; c < cEnd; ++c) {
-    ierr = PetscSectionSetConstraintDof(stateSection, c, dof);CHKERRQ(ierr);
+    ierr = PetscSectionSetConstraintCount(stateSection, c, dof);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(stateSection);CHKERRQ(ierr);
   ierr = PetscMalloc1(dof, &cind);CHKERRQ(ierr);

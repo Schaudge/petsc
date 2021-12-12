@@ -8,7 +8,7 @@
   contiguous sets of integers. These ranges are frequently interpreted as domains of other array-like objects,
   especially other PetscSections, Vecs, and ISs. The domain is set with PetscSectionSetChart() and does not need to
   start at 0. For each point in the domain of a PetscSection, the output set is represented through an offset and a
-  count, which are set using PetscSectionSetOffset() and PetscSectionSetDof() respectively. Lookup is typically using
+  count, which are set using PetscSectionSetOffset() and PetscSectionSetCount() respectively. Lookup is typically using
   accessors or routines like VecGetValuesSection().
 
   Level: beginner

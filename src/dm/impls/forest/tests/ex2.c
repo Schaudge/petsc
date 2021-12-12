@@ -97,7 +97,7 @@ static PetscErrorCode IdentifyBadPoints (DM dm, Vec vec, PetscReal tol)
   ierr = DMPlexGetChart(dmplex, &pStart, &pEnd);CHKERRQ(ierr);
   ierr = DMPlexGetDepthLabel(dmplex, &depthLabel);CHKERRQ(ierr);
   ierr = DMGetLocalSection(dmplex, &section);CHKERRQ(ierr);
-  ierr = PetscSectionGetMaxDof(section, &maxDof);CHKERRQ(ierr);
+  ierr = PetscSectionGetMaxCount(section, &maxDof);CHKERRQ(ierr);
   for (p = pStart; p < pEnd; p++) {
     PetscInt     s, c, cSize, parent, childID, numChildren;
     PetscInt     cl, closureSize, *closure = NULL;
@@ -105,7 +105,7 @@ static PetscErrorCode IdentifyBadPoints (DM dm, Vec vec, PetscReal tol)
     PetscBool    bad = PETSC_FALSE;
 
     ierr = VecGetValuesSection(vecLocal, section, p, &values);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(section, p, &cSize);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &cSize);CHKERRQ(ierr);
     for (c = 0; c < cSize; c++) {
       PetscReal absDiff = PetscAbsScalar(values[c]);
       if (absDiff > tol) {bad = PETSC_TRUE; break;}

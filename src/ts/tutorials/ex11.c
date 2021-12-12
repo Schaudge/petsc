@@ -913,7 +913,7 @@ PetscErrorCode CreatePartitionVec(DM dm, DM *dmCell, Vec *partition)
   ierr = DMPlexGetHeightStratum(*dmCell, 0, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sectionCell, cStart, cEnd);CHKERRQ(ierr);
   for (c = cStart; c < cEnd; ++c) {
-    ierr = PetscSectionSetDof(sectionCell, c, 1);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(sectionCell, c, 1);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(sectionCell);CHKERRQ(ierr);
   ierr = DMSetLocalSection(*dmCell, sectionCell);CHKERRQ(ierr);
@@ -956,7 +956,7 @@ PetscErrorCode CreateMassMatrix(DM dm, Vec *massMatrix, User user)
     PetscInt numFaces;
 
     ierr = DMPlexGetSupportSize(dmMass, v, &numFaces);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(sectionMass, v, numFaces*numFaces);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(sectionMass, v, numFaces*numFaces);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(sectionMass);CHKERRQ(ierr);
   ierr = DMSetLocalSection(dmMass, sectionMass);CHKERRQ(ierr);

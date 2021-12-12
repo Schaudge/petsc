@@ -259,8 +259,8 @@ PetscErrorCode VecView_Plex_Local_HDF5_Internal(Vec v, PetscViewer viewer)
         for (p = pStart; p < pEnd; ++p) {
           PetscInt gdof, fdof = 0, val;
 
-          ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
-          if (gdof > 0) {ierr = PetscSectionGetFieldDof(section, p, f, &fdof);CHKERRQ(ierr);}
+          ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+          if (gdof > 0) {ierr = PetscSectionGetFieldCount(section, p, f, &fdof);CHKERRQ(ierr);}
           subSize += fdof;
           ierr = DMLabelGetValue(cutVertexLabel, p, &val);CHKERRQ(ierr);
           if (val == 1) extSize += fdof;
@@ -275,17 +275,17 @@ PetscErrorCode VecView_Plex_Local_HDF5_Internal(Vec v, PetscViewer viewer)
         for (p = pStart; p < pEnd; ++p) {
           PetscInt gdof, goff, val;
 
-          ierr = PetscSectionGetDof(sectionGlobal, p, &gdof);CHKERRQ(ierr);
+          ierr = PetscSectionGetCount(sectionGlobal, p, &gdof);CHKERRQ(ierr);
           if (gdof > 0) {
             PetscInt fdof, fc, f2, poff = 0;
 
             ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
             /* Can get rid of this loop by storing field information in the global section */
             for (f2 = 0; f2 < f; ++f2) {
-              ierr  = PetscSectionGetFieldDof(section, p, f2, &fdof);CHKERRQ(ierr);
+              ierr  = PetscSectionGetFieldCount(section, p, f2, &fdof);CHKERRQ(ierr);
               poff += fdof;
             }
-            ierr = PetscSectionGetFieldDof(section, p, f, &fdof);CHKERRQ(ierr);
+            ierr = PetscSectionGetFieldCount(section, p, f, &fdof);CHKERRQ(ierr);
             for (fc = 0; fc < fdof; ++fc, ++subOff) suba[subOff] = ga[goff+poff+fc - gstart];
             ierr = DMLabelGetValue(cutVertexLabel, p, &val);CHKERRQ(ierr);
             if (val == 1) {
@@ -770,7 +770,7 @@ static PetscErrorCode DMPlexWriteCoordinates_Vertices_HDF5_Static(DM dm, PetscVi
 
   ierr = DMPlexCreateCutVertexLabel_Private(dm, cutLabel, &cutVertexLabel);CHKERRQ(ierr);
   ierr = VecCreate(PetscObjectComm((PetscObject) dm), &newcoords);CHKERRQ(ierr);
-  ierr = PetscSectionGetDof(cSection, vStart, &dof);CHKERRQ(ierr);
+  ierr = PetscSectionGetCount(cSection, vStart, &dof);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_SELF, "DOF: %D\n", dof);CHKERRQ(ierr);
   embedded  = (PetscBool) (L && dof == 2 && !cutLabel);
   if (cutVertexLabel) {
@@ -778,7 +778,7 @@ static PetscErrorCode DMPlexWriteCoordinates_Vertices_HDF5_Static(DM dm, PetscVi
     N   += dof*v;
   }
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionGetDof(cGlobalSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(cGlobalSection, v, &dof);CHKERRQ(ierr);
     if (dof < 0) continue;
     if (embedded) N += dof+1;
     else          N += dof;
@@ -791,7 +791,7 @@ static PetscErrorCode DMPlexWriteCoordinates_Vertices_HDF5_Static(DM dm, PetscVi
   ierr = VecGetArray(newcoords,        &ncoords);CHKERRQ(ierr);
   coordSize = 0;
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionGetDof(cGlobalSection, v, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(cGlobalSection, v, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(cSection, v, &off);CHKERRQ(ierr);
     if (dof < 0) continue;
     if (embedded) {
@@ -847,7 +847,7 @@ static PetscErrorCode DMPlexWriteCoordinates_Vertices_HDF5_Static(DM dm, PetscVi
       ierr = ISGetIndices(vertices, &verts);CHKERRQ(ierr);
       ierr = ISGetLocalSize(vertices, &n);CHKERRQ(ierr);
       for (v = 0; v < n; ++v) {
-        ierr = PetscSectionGetDof(cSection, verts[v], &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(cSection, verts[v], &dof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(cSection, verts[v], &off);CHKERRQ(ierr);
         for (d = 0; d < dof; ++d) ncoords[coordSize++] = coords[off+d] + ((bd[d] == DM_BOUNDARY_PERIODIC) ? L[d] : 0.0);
       }
@@ -1390,8 +1390,8 @@ static PetscErrorCode DMPlexCoordinatesLoad_HDF5_V0_Private(DM dm, PetscViewer v
   ierr = PetscSectionSetFieldComponents(coordSection, 0, spatialDim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, vStart, vEnd);CHKERRQ(ierr);
   for (v = vStart; v < vEnd; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, spatialDim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, spatialDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, spatialDim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, spatialDim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = DMSetCoordinates(dm, coordinates);CHKERRQ(ierr);
@@ -1490,11 +1490,11 @@ static PetscErrorCode DMPlexSectionLoad_HDF5_Internal_CreateDataSF(PetscSection 
     PetscInt        dof, cdof, i, j, off, goff;
     const PetscInt *cinds;
 
-    ierr = PetscSectionGetDof(leafSection, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(leafSection, p, &dof);CHKERRQ(ierr);
     if (dof < 0) continue;
     goff = globalOffsets[p-pStart];
     ierr = PetscSectionGetOffset(leafSection, p, &off);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(leafSection, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(leafSection, p, &cdof);CHKERRQ(ierr);
     ierr = PetscSectionGetConstraintIndices(leafSection, p, &cinds);CHKERRQ(ierr);
     for (i = 0, j = 0; i < dof; ++i) {
       PetscBool constrained = (PetscBool) (j < cdof && i == cinds[j]);

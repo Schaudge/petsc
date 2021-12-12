@@ -574,7 +574,7 @@ PetscErrorCode DMView_PlexExodusII(DM dm, PetscViewer viewer)
       for (d = 0; d < depth; ++d) {
         ierr = DMPlexGetDepthStratum(dm, d, &pStart, &pEnd);CHKERRQ(ierr);
         for (p = pStart; p < pEnd; ++p) {
-          ierr = PetscSectionSetDof(coordSection, p, nodes[0][d] > 0);CHKERRQ(ierr);
+          ierr = PetscSectionSetCount(coordSection, p, nodes[0][d] > 0);CHKERRQ(ierr);
         }
       }
     }
@@ -587,7 +587,7 @@ PetscErrorCode DMView_PlexExodusII(DM dm, PetscViewer viewer)
       ierr = ISGetIndices(stratumIS, &cells);CHKERRQ(ierr);
       ierr = ISGetSize(stratumIS, &csSize);CHKERRQ(ierr);
       for (c = 0; c < csSize; ++c) {
-        ierr = PetscSectionSetDof(coordSection, cells[c], nodes[cs][3] > 0);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(coordSection, cells[c], nodes[cs][3] > 0);CHKERRQ(ierr);
       }
       ierr = ISRestoreIndices(stratumIS, &cells);CHKERRQ(ierr);
       ierr = ISDestroy(&stratumIS);CHKERRQ(ierr);
@@ -609,7 +609,7 @@ PetscErrorCode DMView_PlexExodusII(DM dm, PetscViewer viewer)
       ierr = DMGetCoordinatesLocalNoncollective(dm, &coord);CHKERRQ(ierr);
       ierr = DMPlexGetChart(dm, &pStart, &pEnd);CHKERRQ(ierr);
       for (p = pStart; p < pEnd; ++p) {
-        ierr = PetscSectionGetDof(coordSection, p, &hasDof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(coordSection, p, &hasDof);CHKERRQ(ierr);
         if (hasDof) {
           PetscInt closureSize = 24, j;
 
@@ -1570,8 +1570,8 @@ PetscErrorCode DMPlexCreateExodus(MPI_Comm comm, PetscInt exoid, PetscBool inter
   ierr = PetscSectionSetFieldComponents(coordSection, 0, dimEmbed);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, numCells, numCells + numVertices);CHKERRQ(ierr);
   for (v = numCells; v < numCells+numVertices; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, dimEmbed);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, dimEmbed);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, dimEmbed);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, dimEmbed);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);

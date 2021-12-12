@@ -172,7 +172,7 @@ static PetscErrorCode TransformCoordinates(DM dm, AppCtx *user)
       PetscInt  dof, off;
       PetscReal p = 4.0, r;
 
-      ierr = PetscSectionGetDof(coordSection, v, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, v, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordSection, v, &off);CHKERRQ(ierr);
       switch (dof) {
       case 2:
@@ -200,7 +200,7 @@ static PetscErrorCode TransformCoordinates(DM dm, AppCtx *user)
       PetscInt  dof, off;
       PetscReal m = 1.0;
 
-      ierr = PetscSectionGetDof(coordSection, v, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, v, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(coordSection, v, &off);CHKERRQ(ierr);
       switch (dof) {
       case 2:
@@ -358,11 +358,11 @@ static PetscErrorCode SetupSection(DM dm, AppCtx *user)
     ierr = PetscMalloc1(numConst,&anchors);CHKERRQ(ierr);
     offset = 0;
     for (v = vStart + edgesx; v < vEnd; v+= vertsx) {
-      ierr = PetscSectionSetDof(aSec,v,1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(aSec,v,1);CHKERRQ(ierr);
       anchors[offset++] = v - edgesx;
     }
     for (f = fStart + edgesx * vertsy + edgesx * edgesy; f < fEnd; f++) {
-      ierr = PetscSectionSetDof(aSec,f,1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(aSec,f,1);CHKERRQ(ierr);
       anchors[offset++] = f - edgesx * edgesy;
     }
     ierr = PetscSectionSetUp(aSec);CHKERRQ(ierr);
@@ -400,7 +400,7 @@ static PetscErrorCode SetupSection(DM dm, AppCtx *user)
         PetscInt cDof;
 
         /* is this point constrained? (does it have an anchor?) */
-        ierr = PetscSectionGetDof(aSec,c,&cDof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(aSec,c,&cDof);CHKERRQ(ierr);
         if (cDof) {
           PetscInt cOff, a, aDof, aOff, j;
           if (cDof != 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Found %d anchor points: should be just one",cDof);
@@ -410,11 +410,11 @@ static PetscErrorCode SetupSection(DM dm, AppCtx *user)
           a    = anchors[cOff];
 
           /* find the constrained dofs (row in constraint matrix) */
-          ierr = PetscSectionGetDof(cSec,c,&cDof);CHKERRQ(ierr);
+          ierr = PetscSectionGetCount(cSec,c,&cDof);CHKERRQ(ierr);
           ierr = PetscSectionGetOffset(cSec,c,&cOff);CHKERRQ(ierr);
 
           /* find the anchor dofs (column in constraint matrix) */
-          ierr = PetscSectionGetDof(section,a,&aDof);CHKERRQ(ierr);
+          ierr = PetscSectionGetCount(section,a,&aDof);CHKERRQ(ierr);
           ierr = PetscSectionGetOffset(section,a,&aOff);CHKERRQ(ierr);
 
           if (cDof != aDof) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Point and anchor have different number of dofs: %d, %d\n",cDof,aDof);

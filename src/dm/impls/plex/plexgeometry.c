@@ -53,7 +53,7 @@ PetscErrorCode DMPlexFindVertices(DM dm, PetscInt npoints, const PetscReal coord
 
     ierr = DMGetCoordinateSection(dm, &cs);CHKERRQ(ierr);
     for (p = vStart; p < vEnd; p++) {
-      ierr = PetscSectionGetDof(cs, p, &ndof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(cs, p, &ndof);CHKERRQ(ierr);
       if (PetscUnlikely(ndof != cdim)) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_PLIB, "point %D: ndof = %D != %D = cdim", p, ndof, cdim);
     }
   }
@@ -869,7 +869,7 @@ PetscErrorCode DMLocatePoints_Plex(DM dm, Vec v, DMPointLocationType ltype, Pets
       if (found_box) {
         if (debug) {ierr = PetscPrintf(PETSC_COMM_SELF, "  Found point in box %D (%D, %D, %D)\n", bin, dbin[0], dbin[1], dbin[2]);CHKERRQ(ierr);}
         /* TODO Lay an interface over this so we can switch between Section (dense) and Label (sparse) */
-        ierr = PetscSectionGetDof(mesh->lbox->cellSection, bin, &numCells);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(mesh->lbox->cellSection, bin, &numCells);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(mesh->lbox->cellSection, bin, &cellOffset);CHKERRQ(ierr);
         for (c = cellOffset; c < cellOffset + numCells; ++c) {
           if (debug) {ierr = PetscPrintf(PETSC_COMM_SELF, "    Checking for point in cell %D\n", boxCells[c]);CHKERRQ(ierr);}
@@ -906,7 +906,7 @@ PetscErrorCode DMLocatePoints_Plex(DM dm, Vec v, DMPointLocationType ltype, Pets
 
       if (cells[p].index < 0) {
         ierr = PetscGridHashGetEnclosingBox(mesh->lbox, 1, point, dbin, &bin);CHKERRQ(ierr);
-        ierr = PetscSectionGetDof(mesh->lbox->cellSection, bin, &numCells);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(mesh->lbox->cellSection, bin, &numCells);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(mesh->lbox->cellSection, bin, &cellOffset);CHKERRQ(ierr);
         for (c = cellOffset; c < cellOffset + numCells; ++c) {
           ierr = DMPlexClosestPoint_Internal(dm, dim, point, boxCells[c], cpoint);CHKERRQ(ierr);
@@ -1165,7 +1165,7 @@ static PetscErrorCode DMPlexComputePointGeometry_Internal(DM dm, PetscInt e, Pet
   PetscFunctionBegin;
   ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
   ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
-  ierr = PetscSectionGetDof(coordSection,e,&dim);CHKERRQ(ierr);
+  ierr = PetscSectionGetCount(coordSection,e,&dim);CHKERRQ(ierr);
   if (!dim) PetscFunctionReturn(0);
   ierr = PetscSectionGetOffset(coordSection,e,&off);CHKERRQ(ierr);
   ierr = VecGetArrayRead(coordinates,&coords);CHKERRQ(ierr);
@@ -1195,7 +1195,7 @@ static PetscErrorCode DMPlexComputeLineGeometry_Internal(DM dm, PetscInt e, Pets
   ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
   ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(coordSection,&pStart,&pEnd);CHKERRQ(ierr);
-  if (e >= pStart && e < pEnd) {ierr = PetscSectionGetDof(coordSection,e,&numSelfCoords);CHKERRQ(ierr);}
+  if (e >= pStart && e < pEnd) {ierr = PetscSectionGetCount(coordSection,e,&numSelfCoords);CHKERRQ(ierr);}
   ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, e, &numCoords, &coords);CHKERRQ(ierr);
   numCoords = numSelfCoords ? numSelfCoords : numCoords;
   if (invJ && !J) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "In order to compute invJ, J must not be NULL");
@@ -1254,7 +1254,7 @@ static PetscErrorCode DMPlexComputeTriangleGeometry_Internal(DM dm, PetscInt e, 
   ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
   ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(coordSection,&pStart,&pEnd);CHKERRQ(ierr);
-  if (e >= pStart && e < pEnd) {ierr = PetscSectionGetDof(coordSection,e,&numSelfCoords);CHKERRQ(ierr);}
+  if (e >= pStart && e < pEnd) {ierr = PetscSectionGetCount(coordSection,e,&numSelfCoords);CHKERRQ(ierr);}
   ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, e, &numCoords, &coords);CHKERRQ(ierr);
   numCoords = numSelfCoords ? numSelfCoords : numCoords;
   *detJ = 0.0;
@@ -1316,7 +1316,7 @@ static PetscErrorCode DMPlexComputeRectangleGeometry_Internal(DM dm, PetscInt e,
   ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
   ierr = DMGetCoordinateSection(dm, &coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetChart(coordSection,&pStart,&pEnd);CHKERRQ(ierr);
-  if (e >= pStart && e < pEnd) {ierr = PetscSectionGetDof(coordSection,e,&numSelfCoords);CHKERRQ(ierr);}
+  if (e >= pStart && e < pEnd) {ierr = PetscSectionGetCount(coordSection,e,&numSelfCoords);CHKERRQ(ierr);}
   ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, e, &numCoords, &coords);CHKERRQ(ierr);
   numCoords = numSelfCoords ? numSelfCoords : numCoords;
   if (!Nq) {
@@ -1903,7 +1903,7 @@ static PetscErrorCode DMPlexComputeGeometryFVM_0D_Internal(DM dm, PetscInt dim, 
 
   /* for a point the centroid is just the coord */
   if (centroid) {
-    ierr = PetscSectionGetDof(coordSection, cell, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, cell, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(coordSection, cell, &off);CHKERRQ(ierr);
     for (d = 0; d < dof; d++){
       centroid[d] = PetscRealPart(coords[off + d]);
@@ -1920,7 +1920,7 @@ static PetscErrorCode DMPlexComputeGeometryFVM_0D_Internal(DM dm, PetscInt dim, 
     ierr = DMPlexComputeCellGeometryFVM(dm, support[0], NULL, normal, NULL);CHKERRQ(ierr);
 
     /* Take the normal from the centroid of the support to the vertex*/
-    ierr = PetscSectionGetDof(coordSection, cell, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(coordSection, cell, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(coordSection, cell, &off);CHKERRQ(ierr);
     for (d = 0; d < dof; d++){
       normal[d] -= PetscRealPart(coords[off + d]);
@@ -2239,7 +2239,7 @@ PetscErrorCode DMPlexComputeGeometryFEM(DM dm, Vec *cellgeom)
   ierr = DMPlexGetSimplexOrBoxCells(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sectionCell, cStart, cEnd);CHKERRQ(ierr);
   /* TODO This needs to be multiplied by Nq for non-affine */
-  for (c = cStart; c < cEnd; ++c) {ierr = PetscSectionSetDof(sectionCell, c, (PetscInt) PetscCeilReal(((PetscReal) sizeof(PetscFEGeom))/sizeof(PetscScalar)));CHKERRQ(ierr);}
+  for (c = cStart; c < cEnd; ++c) {ierr = PetscSectionSetCount(sectionCell, c, (PetscInt) PetscCeilReal(((PetscReal) sizeof(PetscFEGeom))/sizeof(PetscScalar)));CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(sectionCell);CHKERRQ(ierr);
   ierr = DMSetLocalSection(dmCell, sectionCell);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&sectionCell);CHKERRQ(ierr);
@@ -2294,7 +2294,7 @@ PetscErrorCode DMPlexComputeGeometryFVM(DM dm, Vec *cellgeom, Vec *facegeom)
   ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = DMPlexGetGhostCellStratum(dm, &cEndInterior, NULL);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sectionCell, cStart, cEnd);CHKERRQ(ierr);
-  for (c = cStart; c < cEnd; ++c) {ierr = PetscSectionSetDof(sectionCell, c, (PetscInt) PetscCeilReal(((PetscReal) sizeof(PetscFVCellGeom))/sizeof(PetscScalar)));CHKERRQ(ierr);}
+  for (c = cStart; c < cEnd; ++c) {ierr = PetscSectionSetCount(sectionCell, c, (PetscInt) PetscCeilReal(((PetscReal) sizeof(PetscFVCellGeom))/sizeof(PetscScalar)));CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(sectionCell);CHKERRQ(ierr);
   ierr = DMSetLocalSection(dmCell, sectionCell);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&sectionCell);CHKERRQ(ierr);
@@ -2313,7 +2313,7 @@ PetscErrorCode DMPlexComputeGeometryFVM(DM dm, Vec *cellgeom, Vec *facegeom)
   ierr = PetscSectionCreate(PetscObjectComm((PetscObject) dm), &sectionFace);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sectionFace, fStart, fEnd);CHKERRQ(ierr);
-  for (f = fStart; f < fEnd; ++f) {ierr = PetscSectionSetDof(sectionFace, f, (PetscInt) PetscCeilReal(((PetscReal) sizeof(PetscFVFaceGeom))/sizeof(PetscScalar)));CHKERRQ(ierr);}
+  for (f = fStart; f < fEnd; ++f) {ierr = PetscSectionSetCount(sectionFace, f, (PetscInt) PetscCeilReal(((PetscReal) sizeof(PetscFVFaceGeom))/sizeof(PetscScalar)));CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(sectionFace);CHKERRQ(ierr);
   ierr = DMSetLocalSection(dmFace, sectionFace);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&sectionFace);CHKERRQ(ierr);
@@ -2549,13 +2549,13 @@ static PetscErrorCode BuildGradientReconstruction_Internal_Tree(DM dm, PetscFV f
         PetscInt cell = fcells[c];
 
         if (cell >= cStart && cell < cEndInterior) {
-          ierr = PetscSectionAddDof(neighSec,cell,1);CHKERRQ(ierr);
+          ierr = PetscSectionAddCount(neighSec,cell,1);CHKERRQ(ierr);
         }
       }
     }
   }
   ierr = PetscSectionSetUp(neighSec);CHKERRQ(ierr);
-  ierr = PetscSectionGetMaxDof(neighSec,&maxNumFaces);CHKERRQ(ierr);
+  ierr = PetscSectionGetMaxCount(neighSec,&maxNumFaces);CHKERRQ(ierr);
   ierr = PetscFVLeastSquaresSetMaxFaces(fvm, maxNumFaces);CHKERRQ(ierr);
   nStart = 0;
   ierr = PetscSectionGetStorageSize(neighSec,&nEnd);CHKERRQ(ierr);
@@ -2593,7 +2593,7 @@ static PetscErrorCode BuildGradientReconstruction_Internal_Tree(DM dm, PetscFV f
     PetscFVCellGeom        *cg;
 
     ierr = DMPlexPointLocalRead(dmCell, c, cgeom, &cg);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(neighSec, c, &numFaces);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(neighSec, c, &numFaces);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(neighSec, c, &off);CHKERRQ(ierr);
     if (ghostLabel) {ierr = DMLabelGetValue(ghostLabel, c, &ghost);CHKERRQ(ierr);}
     if (ghost < 0 && numFaces < dim) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Cell %D has only %D faces, not enough for gradient reconstruction", c, numFaces);
@@ -2674,7 +2674,7 @@ PetscErrorCode DMPlexComputeGradientFVM(DM dm, PetscFV fvm, Vec faceGeometry, Ve
   ierr = DMClone(dm, dmGrad);CHKERRQ(ierr);
   ierr = PetscSectionCreate(PetscObjectComm((PetscObject) dm), &sectionGrad);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sectionGrad, cStart, cEnd);CHKERRQ(ierr);
-  for (c = cStart; c < cEnd; ++c) {ierr = PetscSectionSetDof(sectionGrad, c, pdim*dim);CHKERRQ(ierr);}
+  for (c = cStart; c < cEnd; ++c) {ierr = PetscSectionSetCount(sectionGrad, c, pdim*dim);CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(sectionGrad);CHKERRQ(ierr);
   ierr = DMSetLocalSection(*dmGrad, sectionGrad);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&sectionGrad);CHKERRQ(ierr);

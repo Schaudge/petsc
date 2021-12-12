@@ -34,7 +34,7 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
     for (p = 0; p < aSize; p++) {
       PetscInt a = anchors[p];
 
-      ierr = PetscSectionAddDof(inverseSec,a,1);CHKERRQ(ierr);
+      ierr = PetscSectionAddCount(inverseSec,a,1);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(inverseSec);CHKERRQ(ierr);
     ierr = PetscSectionGetStorageSize(inverseSec,&iSize);CHKERRQ(ierr);
@@ -44,7 +44,7 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
     for (p = aStart; p < aEnd; p++) {
       PetscInt dof, off;
 
-      ierr = PetscSectionGetDof(aSec, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(aSec, p, &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(aSec, p, &off);CHKERRQ(ierr);
 
       for (q = 0; q < dof; q++) {
@@ -78,7 +78,7 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
     for (p = pStart; p < pEnd; p++) {
       PetscInt iDof, iOff, i, r, s, numAdjP = PETSC_DETERMINE;
 
-      ierr = PetscSectionGetDof(inverseSec,p,&iDof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(inverseSec,p,&iDof);CHKERRQ(ierr);
       if (!iDof) continue;
       ierr = PetscSectionGetOffset(inverseSec,p,&iOff);CHKERRQ(ierr);
       ierr = DMPlexGetAdjacency_Internal(dm,p,useCone,useClosure,PETSC_TRUE,&numAdjP,&tmpAdjP);CHKERRQ(ierr);
@@ -94,11 +94,11 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
             if (qAdj == tmpAdjP[s]) break;
           }
           if (s < numAdjP) continue;
-          ierr  = PetscSectionGetDof(section,qAdj,&qAdjDof);CHKERRQ(ierr);
-          ierr  = PetscSectionGetConstraintDof(section,qAdj,&qAdjCDof);CHKERRQ(ierr);
+          ierr  = PetscSectionGetCount(section,qAdj,&qAdjDof);CHKERRQ(ierr);
+          ierr  = PetscSectionGetConstraintCount(section,qAdj,&qAdjCDof);CHKERRQ(ierr);
           iNew += qAdjDof - qAdjCDof;
         }
-        ierr = PetscSectionAddDof(adjSec,p,iNew);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(adjSec,p,iNew);CHKERRQ(ierr);
       }
     }
 
@@ -109,11 +109,11 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
     for (p = pStart; p < pEnd; p++) {
       PetscInt iDof, iOff, i, r, s, aOff, aOffOrig, aDof, numAdjP = PETSC_DETERMINE;
 
-      ierr = PetscSectionGetDof(inverseSec,p,&iDof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(inverseSec,p,&iDof);CHKERRQ(ierr);
       if (!iDof) continue;
       ierr = PetscSectionGetOffset(inverseSec,p,&iOff);CHKERRQ(ierr);
       ierr = DMPlexGetAdjacency_Internal(dm,p,useCone,useClosure,PETSC_TRUE,&numAdjP,&tmpAdjP);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(adjSec,p,&aDof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(adjSec,p,&aDof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(adjSec,p,&aOff);CHKERRQ(ierr);
       aOffOrig = aOff;
       for (i = 0; i < iDof; i++) {
@@ -128,8 +128,8 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
             if (qAdj == tmpAdjP[s]) break;
           }
           if (s < numAdjP) continue;
-          ierr  = PetscSectionGetDof(section,qAdj,&qAdjDof);CHKERRQ(ierr);
-          ierr  = PetscSectionGetConstraintDof(section,qAdj,&qAdjCDof);CHKERRQ(ierr);
+          ierr  = PetscSectionGetCount(section,qAdj,&qAdjDof);CHKERRQ(ierr);
+          ierr  = PetscSectionGetConstraintCount(section,qAdj,&qAdjCDof);CHKERRQ(ierr);
           ierr  = PetscSectionGetOffset(sectionGlobal,qAdj,&qAdjOff);CHKERRQ(ierr);
           for (nd = 0; nd < qAdjDof-qAdjCDof; ++nd) {
             adj[aOff++] = (qAdjOff < 0 ? -(qAdjOff+1) : qAdjOff) + nd;
@@ -137,7 +137,7 @@ static PetscErrorCode DMPlexComputeAnchorAdjacencies(DM dm, PetscBool useCone, P
         }
       }
       ierr = PetscSortRemoveDupsInt(&aDof,&adj[aOffOrig]);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(adjSec,p,aDof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(adjSec,p,aDof);CHKERRQ(ierr);
     }
     *anchorAdj = adj;
 
@@ -223,7 +223,7 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscInt p = leaves[l], numAdj = PETSC_DETERMINE;
 
     if ((p < pStart) || (p >= pEnd)) continue;
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     ierr = DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj);CHKERRQ(ierr);
     for (q = 0; q < numAdj; ++q) {
@@ -231,16 +231,16 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
       PetscInt ndof, ncdof;
 
       if ((padj < pStart) || (padj >= pEnd)) continue;
-      ierr = PetscSectionGetDof(section, padj, &ndof);CHKERRQ(ierr);
-      ierr = PetscSectionGetConstraintDof(section, padj, &ncdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, padj, &ndof);CHKERRQ(ierr);
+      ierr = PetscSectionGetConstraintCount(section, padj, &ncdof);CHKERRQ(ierr);
       for (d = off; d < off+dof; ++d) {
-        ierr = PetscSectionAddDof(leafSectionAdj, d, ndof-ncdof);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(leafSectionAdj, d, ndof-ncdof);CHKERRQ(ierr);
       }
     }
-    ierr = PetscSectionGetDof(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
     if (anDof) {
       for (d = off; d < off+dof; ++d) {
-        ierr = PetscSectionAddDof(leafSectionAdj, d, anDof);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(leafSectionAdj, d, anDof);CHKERRQ(ierr);
       }
     }
   }
@@ -262,10 +262,10 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
   for (p = pStart; p < pEnd; ++p) {
     PetscInt numAdj = PETSC_DETERMINE, adof, dof, off, d, q, anDof;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     if (!dof) continue;
-    ierr = PetscSectionGetDof(rootSectionAdj, off, &adof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(rootSectionAdj, off, &adof);CHKERRQ(ierr);
     if (adof <= 0) continue;
     ierr = DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj);CHKERRQ(ierr);
     for (q = 0; q < numAdj; ++q) {
@@ -273,16 +273,16 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
       PetscInt ndof, ncdof;
 
       if ((padj < pStart) || (padj >= pEnd)) continue;
-      ierr = PetscSectionGetDof(section, padj, &ndof);CHKERRQ(ierr);
-      ierr = PetscSectionGetConstraintDof(section, padj, &ncdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, padj, &ndof);CHKERRQ(ierr);
+      ierr = PetscSectionGetConstraintCount(section, padj, &ncdof);CHKERRQ(ierr);
       for (d = off; d < off+dof; ++d) {
-        ierr = PetscSectionAddDof(rootSectionAdj, d, ndof-ncdof);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(rootSectionAdj, d, ndof-ncdof);CHKERRQ(ierr);
       }
     }
-    ierr = PetscSectionGetDof(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
     if (anDof) {
       for (d = off; d < off+dof; ++d) {
-        ierr = PetscSectionAddDof(rootSectionAdj, d, anDof);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(rootSectionAdj, d, anDof);CHKERRQ(ierr);
       }
     }
   }
@@ -308,10 +308,10 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscInt p = leaves[l], numAdj = PETSC_DETERMINE;
 
     if ((p < pStart) || (p >= pEnd)) continue;
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     ierr = DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(anchorSectionAdj, p, &anOff);CHKERRQ(ierr);
     for (d = off; d < off+dof; ++d) {
       PetscInt aoff, i = 0;
@@ -322,8 +322,8 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
         PetscInt ndof, ncdof, ngoff, nd;
 
         if ((padj < pStart) || (padj >= pEnd)) continue;
-        ierr = PetscSectionGetDof(section, padj, &ndof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(section, padj, &ncdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(section, padj, &ndof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(section, padj, &ncdof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(sectionGlobal, padj, &ngoff);CHKERRQ(ierr);
         for (nd = 0; nd < ndof-ncdof; ++nd) {
           adj[aoff+i] = (ngoff < 0 ? -(ngoff+1) : ngoff) + nd;
@@ -380,18 +380,18 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
   for (p = pStart; p < pEnd; ++p) {
     PetscInt numAdj = PETSC_DETERMINE, adof, dof, off, d, q, anDof, anOff;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     if (!dof) continue;
-    ierr = PetscSectionGetDof(rootSectionAdj, off, &adof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(rootSectionAdj, off, &adof);CHKERRQ(ierr);
     if (adof <= 0) continue;
     ierr = DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(anchorSectionAdj, p, &anOff);CHKERRQ(ierr);
     for (d = off; d < off+dof; ++d) {
       PetscInt adof, aoff, i;
 
-      ierr = PetscSectionGetDof(rootSectionAdj, d, &adof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(rootSectionAdj, d, &adof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(rootSectionAdj, d, &aoff);CHKERRQ(ierr);
       i    = adof-1;
       for (q = 0; q < anDof; q++) {
@@ -403,8 +403,8 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
         PetscInt ndof, ncdof, ngoff, nd;
 
         if ((padj < pStart) || (padj >= pEnd)) continue;
-        ierr = PetscSectionGetDof(section, padj, &ndof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(section, padj, &ncdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(section, padj, &ndof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(section, padj, &ncdof);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(sectionGlobal, padj, &ngoff);CHKERRQ(ierr);
         for (nd = 0; nd < ndof-ncdof; ++nd) {
           rootAdj[aoff+i] = ngoff < 0 ? -(ngoff+1)+nd : ngoff+nd;
@@ -427,17 +427,17 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscInt dof, cdof, off, d;
     PetscInt adof, aoff;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(section, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(section, p, &cdof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     if (!dof) continue;
-    ierr = PetscSectionGetDof(rootSectionAdj, off, &adof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(rootSectionAdj, off, &adof);CHKERRQ(ierr);
     if (adof <= 0) continue;
     for (d = off; d < off+dof-cdof; ++d) {
-      ierr = PetscSectionGetDof(rootSectionAdj, d, &adof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(rootSectionAdj, d, &adof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(rootSectionAdj, d, &aoff);CHKERRQ(ierr);
       ierr = PetscSortRemoveDupsInt(&adof, &rootAdj[aoff]);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(rootSectionAdj, d, adof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(rootSectionAdj, d, adof);CHKERRQ(ierr);
     }
   }
   /* Debugging */
@@ -458,25 +458,25 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscInt  numAdj = PETSC_DETERMINE, dof, cdof, off, goff, d, q, anDof;
     PetscBool found  = PETSC_TRUE;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(section, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(section, p, &cdof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
     for (d = 0; d < dof-cdof; ++d) {
       PetscInt ldof, rdof;
 
-      ierr = PetscSectionGetDof(leafSectionAdj, off+d, &ldof);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(rootSectionAdj, off+d, &rdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(leafSectionAdj, off+d, &ldof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(rootSectionAdj, off+d, &rdof);CHKERRQ(ierr);
       if (ldof > 0) {
         /* We do not own this point */
       } else if (rdof > 0) {
-        ierr = PetscSectionSetDof(sectionAdj, goff+d, rdof);CHKERRQ(ierr);
+        ierr = PetscSectionSetCount(sectionAdj, goff+d, rdof);CHKERRQ(ierr);
       } else {
         found = PETSC_FALSE;
       }
     }
     if (found) continue;
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
     ierr = DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj);CHKERRQ(ierr);
     for (q = 0; q < numAdj; ++q) {
@@ -484,17 +484,17 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
       PetscInt ndof, ncdof, noff;
 
       if ((padj < pStart) || (padj >= pEnd)) continue;
-      ierr = PetscSectionGetDof(section, padj, &ndof);CHKERRQ(ierr);
-      ierr = PetscSectionGetConstraintDof(section, padj, &ncdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(section, padj, &ndof);CHKERRQ(ierr);
+      ierr = PetscSectionGetConstraintCount(section, padj, &ncdof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(section, padj, &noff);CHKERRQ(ierr);
       for (d = goff; d < goff+dof-cdof; ++d) {
-        ierr = PetscSectionAddDof(sectionAdj, d, ndof-ncdof);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(sectionAdj, d, ndof-ncdof);CHKERRQ(ierr);
       }
     }
-    ierr = PetscSectionGetDof(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
     if (anDof) {
       for (d = goff; d < goff+dof-cdof; ++d) {
-        ierr = PetscSectionAddDof(sectionAdj, d, anDof);CHKERRQ(ierr);
+        ierr = PetscSectionAddCount(sectionAdj, d, anDof);CHKERRQ(ierr);
       }
     }
   }
@@ -510,15 +510,15 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     PetscInt  numAdj = PETSC_DETERMINE, dof, cdof, off, goff, d, q, anDof, anOff;
     PetscBool found  = PETSC_TRUE;
 
-    ierr = PetscSectionGetDof(section, p, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(section, p, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(section, p, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(section, p, &cdof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(section, p, &off);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(sectionGlobal, p, &goff);CHKERRQ(ierr);
     for (d = 0; d < dof-cdof; ++d) {
       PetscInt ldof, rdof;
 
-      ierr = PetscSectionGetDof(leafSectionAdj, off+d, &ldof);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(rootSectionAdj, off+d, &rdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(leafSectionAdj, off+d, &ldof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(rootSectionAdj, off+d, &rdof);CHKERRQ(ierr);
       if (ldof > 0) {
         /* We do not own this point */
       } else if (rdof > 0) {
@@ -533,12 +533,12 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
     }
     if (found) continue;
     ierr = DMPlexGetAdjacency_Internal(dm, p, useCone, useClosure, useAnchors, &numAdj, &tmpAdj);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(anchorSectionAdj, p, &anDof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(anchorSectionAdj, p, &anOff);CHKERRQ(ierr);
     for (d = goff; d < goff+dof-cdof; ++d) {
       PetscInt adof, aoff, i = 0;
 
-      ierr = PetscSectionGetDof(sectionAdj, d, &adof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionAdj, d, &adof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(sectionAdj, d, &aoff);CHKERRQ(ierr);
       for (q = 0; q < numAdj; ++q) {
         const PetscInt  padj = tmpAdj[q];
@@ -547,8 +547,8 @@ static PetscErrorCode DMPlexCreateAdjacencySection_Static(DM dm, PetscInt bs, Pe
 
         /* Adjacent points may not be in the section chart */
         if ((padj < pStart) || (padj >= pEnd)) continue;
-        ierr = PetscSectionGetDof(section, padj, &ndof);CHKERRQ(ierr);
-        ierr = PetscSectionGetConstraintDof(section, padj, &ncdof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(section, padj, &ndof);CHKERRQ(ierr);
+        ierr = PetscSectionGetConstraintCount(section, padj, &ncdof);CHKERRQ(ierr);
         ierr = PetscSectionGetConstraintIndices(section, padj, &ncind);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(sectionGlobal, padj, &ngoff);CHKERRQ(ierr);
         for (nd = 0; nd < ndof-ncdof; ++nd, ++i) {
@@ -601,7 +601,7 @@ static PetscErrorCode DMPlexUpdateAllocation_Static(DM dm, PetscLayout rLayout, 
       for (r = rS; r < rE; ++r) {
         PetscInt numCols, cStart, c;
 
-        ierr = PetscSectionGetDof(sectionAdj, r, &numCols);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(sectionAdj, r, &numCols);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(sectionAdj, r, &cStart);CHKERRQ(ierr);
         for (c = cStart; c < cStart+numCols; ++c) {
           if ((cols[c] >= rStart) && (cols[c] < rEnd)) {
@@ -620,7 +620,7 @@ static PetscErrorCode DMPlexUpdateAllocation_Static(DM dm, PetscLayout rLayout, 
       const PetscInt row = r*bs;
       PetscInt       numCols, cStart, c;
 
-      ierr = PetscSectionGetDof(sectionAdj, row, &numCols);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionAdj, row, &numCols);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(sectionAdj, row, &cStart);CHKERRQ(ierr);
       for (c = cStart; c < cStart+numCols; ++c) {
         if ((cols[c] >= rStart) && (cols[c] < rEnd)) {
@@ -652,7 +652,7 @@ static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscI
   PetscFunctionBegin;
   ierr = PetscLayoutGetRange(rLayout, &rStart, &rEnd);CHKERRQ(ierr);
   for (r = rStart; r < rEnd; ++r) {
-    ierr      = PetscSectionGetDof(sectionAdj, r, &len);CHKERRQ(ierr);
+    ierr      = PetscSectionGetCount(sectionAdj, r, &len);CHKERRQ(ierr);
     maxRowLen = PetscMax(maxRowLen, len);
   }
   ierr = PetscCalloc1(maxRowLen, &values);CHKERRQ(ierr);
@@ -666,7 +666,7 @@ static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscI
       for (r = rS; r < rE; ++r) {
         PetscInt numCols, cStart;
 
-        ierr = PetscSectionGetDof(sectionAdj, r, &numCols);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(sectionAdj, r, &numCols);CHKERRQ(ierr);
         ierr = PetscSectionGetOffset(sectionAdj, r, &cStart);CHKERRQ(ierr);
         ierr = MatSetValues(A, 1, &r, numCols, &cols[cStart], values, INSERT_VALUES);CHKERRQ(ierr);
       }
@@ -675,7 +675,7 @@ static PetscErrorCode DMPlexFillMatrix_Static(DM dm, PetscLayout rLayout, PetscI
     for (r = rStart; r < rEnd; ++r) {
       PetscInt numCols, cStart;
 
-      ierr = PetscSectionGetDof(sectionAdj, r, &numCols);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(sectionAdj, r, &numCols);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(sectionAdj, r, &cStart);CHKERRQ(ierr);
       ierr = MatSetValues(A, 1, &r, numCols, &cols[cStart], values, INSERT_VALUES);CHKERRQ(ierr);
     }

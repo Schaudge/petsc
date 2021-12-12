@@ -141,8 +141,8 @@ PetscErrorCode DMPlexCreatePLYFromFile(MPI_Comm comm, const char filename[], Pet
   ierr = PetscSectionSetFieldComponents(coordSection, 0, cdim);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(coordSection, Nc, Nc + Nv);CHKERRQ(ierr);
   for (v = Nc; v < Nc+Nv; ++v) {
-    ierr = PetscSectionSetDof(coordSection, v, cdim);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSection, v, 0, cdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSection, v, cdim);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSection, v, 0, cdim);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(coordSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(coordSection, &coordSize);CHKERRQ(ierr);

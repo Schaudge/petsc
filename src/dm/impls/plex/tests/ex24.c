@@ -93,10 +93,10 @@ int main(int argc, char **argv)
     ierr = PetscSectionSetChart(tpws, 0, size);CHKERRQ(ierr);
     for (i=0;i<size;i++) {
       PetscInt tdof = i%2 ? 2*i -1 : i+2;
-      ierr = PetscSectionSetDof(tpws, i, tdof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(tpws, i, tdof);CHKERRQ(ierr);
     }
     if (size > 1) { /* test zero tpw entry */
-      ierr = PetscSectionSetDof(tpws, 0, 0);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(tpws, 0, 0);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(tpws);CHKERRQ(ierr);
   }
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
     ierr = PetscSectionSetChart(tpws, 0, size);CHKERRQ(ierr);
     for (i=0;i<size;i++) {
       PetscInt tdof = i%2 ? i+1 : size - i;
-      ierr = PetscSectionSetDof(tpws, i, tdof);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(tpws, i, tdof);CHKERRQ(ierr);
     }
     ierr = PetscSectionSetUp(tpws);CHKERRQ(ierr);
   }

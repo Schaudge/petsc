@@ -38,12 +38,12 @@ PetscErrorCode DMPlexCreateClosureIndex(DM dm, PetscSection section)
     ierr = DMPlexGetTransitiveClosure(dm, point, PETSC_TRUE, &numPoints, &points);CHKERRQ(ierr);
     for (p = 0; p < numPoints*2; p += 2) {
       if ((points[p] >= sStart) && (points[p] < sEnd)) {
-        ierr = PetscSectionGetDof(section, points[p], &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(section, points[p], &dof);CHKERRQ(ierr);
         if (dof) cldof += 2;
       }
     }
     ierr = DMPlexRestoreTransitiveClosure(dm, point, PETSC_TRUE, &numPoints, &points);CHKERRQ(ierr);
-    ierr = PetscSectionSetDof(closureSection, point, cldof);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(closureSection, point, cldof);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(closureSection);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(closureSection, &clSize);CHKERRQ(ierr);
@@ -51,12 +51,12 @@ PetscErrorCode DMPlexCreateClosureIndex(DM dm, PetscSection section)
   for (point = pStart; point < pEnd; ++point) {
     PetscInt *points = NULL, numPoints, p, q, dof, cldof, cloff;
 
-    ierr = PetscSectionGetDof(closureSection, point, &cldof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(closureSection, point, &cldof);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(closureSection, point, &cloff);CHKERRQ(ierr);
     ierr = DMPlexGetTransitiveClosure(dm, point, PETSC_TRUE, &numPoints, &points);CHKERRQ(ierr);
     for (p = 0, q = 0; p < numPoints*2; p += 2) {
       if ((points[p] >= sStart) && (points[p] < sEnd)) {
-        ierr = PetscSectionGetDof(section, points[p], &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(section, points[p], &dof);CHKERRQ(ierr);
         if (dof) {
           clPoints[cloff+q*2]   = points[p];
           clPoints[cloff+q*2+1] = points[p+1];

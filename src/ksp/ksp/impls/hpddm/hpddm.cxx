@@ -289,7 +289,7 @@ static PetscErrorCode KSPSolve_HPDDM(KSP ksp)
     ierr = MatKAIJGetAIJ(A, &B);CHKERRQ(ierr);
     ierr = MatGetBlockSize(A, &n);CHKERRQ(ierr);
     ierr = MatGetLocalSize(B, &i, NULL);CHKERRQ(ierr);
-    j = data->op->getDof();
+    j = data->op->getCount();
     if (!flg) i *= n; /* S and T are not scaled identities, cannot use block methods */
     if (i != j) { /* switching between block and standard methods */
       delete data->op;

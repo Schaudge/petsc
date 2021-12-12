@@ -395,7 +395,7 @@ PETSC_STATIC_INLINE PetscErrorCode DMGetLocalOffset_Private(DM dm, PetscInt poin
     *start = *end = 0; /* Silence overzealous compiler warning */
     if (!dm->localSection) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "DM must have a local section, see DMSetLocalSection()");
     ierr = PetscSectionGetOffset(dm->localSection, point, start);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(dm->localSection, point, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(dm->localSection, point, &dof);CHKERRQ(ierr);
     *end = *start + dof;
   }
 #else
@@ -418,7 +418,7 @@ PETSC_STATIC_INLINE PetscErrorCode DMGetLocalFieldOffset_Private(DM dm, PetscInt
     *start = *end = 0; /* Silence overzealous compiler warning */
     if (!dm->localSection) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "DM must have a local section, see DMSetLocalSection()");
     ierr = PetscSectionGetFieldOffset(dm->localSection, point, field, start);CHKERRQ(ierr);
-    ierr = PetscSectionGetFieldDof(dm->localSection, point, field, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetFieldCount(dm->localSection, point, field, &dof);CHKERRQ(ierr);
     *end = *start + dof;
   }
 #else
@@ -442,8 +442,8 @@ PETSC_STATIC_INLINE PetscErrorCode DMGetGlobalOffset_Private(DM dm, PetscInt poi
     if (!dm->localSection) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "DM must have a local section, see DMSetLocalSection()");
     if (!dm->globalSection) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_ARG_WRONG, "DM must have a global section. It will be created automatically by DMGetGlobalSection()");
     ierr = PetscSectionGetOffset(dm->globalSection, point, start);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(dm->globalSection, point, &dof);CHKERRQ(ierr);
-    ierr = PetscSectionGetConstraintDof(dm->globalSection, point, &cdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetCount(dm->globalSection, point, &dof);CHKERRQ(ierr);
+    ierr = PetscSectionGetConstraintCount(dm->globalSection, point, &cdof);CHKERRQ(ierr);
     *end = *start + dof - cdof + (dof < 0 ? 1 : 0);
   }
 #else
@@ -471,11 +471,11 @@ PETSC_STATIC_INLINE PetscErrorCode DMGetGlobalFieldOffset_Private(DM dm, PetscIn
     ierr = PetscSectionGetOffset(dm->globalSection, point, start);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(dm->localSection, point, &loff);CHKERRQ(ierr);
     ierr = PetscSectionGetFieldOffset(dm->localSection, point, field, &lfoff);CHKERRQ(ierr);
-    ierr = PetscSectionGetFieldDof(dm->localSection, point, field, &fdof);CHKERRQ(ierr);
-    ierr = PetscSectionGetFieldConstraintDof(dm->localSection, point, field, &fcdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetFieldCount(dm->localSection, point, field, &fdof);CHKERRQ(ierr);
+    ierr = PetscSectionGetFieldConstraintCount(dm->localSection, point, field, &fcdof);CHKERRQ(ierr);
     *start = *start < 0 ? *start - (lfoff-loff) : *start + lfoff-loff;
     for (f = 0; f < field; ++f) {
-      ierr = PetscSectionGetFieldConstraintDof(dm->localSection, point, f, &ffcdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldConstraintCount(dm->localSection, point, f, &ffcdof);CHKERRQ(ierr);
       *start = *start < 0 ? *start + ffcdof : *start - ffcdof;
     }
     *end   = *start < 0 ? *start - (fdof-fcdof) : *start + fdof-fcdof;

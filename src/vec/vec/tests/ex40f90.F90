@@ -18,7 +18,7 @@
       pEnd   = 5
       call PetscSectionSetChart(section, pStart, pEnd, ierr);CHKERRA(ierr)
       do p=pStart,pEnd-1
-         call PetscSectionSetDof(section, p, three, ierr);CHKERRA(ierr)
+         call PetscSectionSetCount(section, p, three, ierr);CHKERRA(ierr)
       end do
       call PetscSectionSetUp(section, ierr);CHKERRA(ierr)
       call PetscSectionView(section, PETSC_VIEWER_STDOUT_WORLD, ierr);CHKERRA(ierr)

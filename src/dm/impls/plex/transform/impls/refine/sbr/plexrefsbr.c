@@ -309,7 +309,7 @@ static PetscErrorCode DMPlexTransformSetUp_SBR(DMPlexTransform tr)
   ierr = PetscSectionCreate(PETSC_COMM_SELF, &sbr->secEdgeLen);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(sbr->secEdgeLen, eStart, eEnd);CHKERRQ(ierr);
   for (e = eStart; e < eEnd; ++e) {
-    ierr = PetscSectionSetDof(sbr->secEdgeLen, e, 1);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(sbr->secEdgeLen, e, 1);CHKERRQ(ierr);
   }
   ierr = PetscSectionSetUp(sbr->secEdgeLen);CHKERRQ(ierr);
   ierr = PetscSectionGetStorageSize(sbr->secEdgeLen, &edgeLenSize);CHKERRQ(ierr);

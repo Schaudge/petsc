@@ -918,8 +918,8 @@ static PetscErrorCode MonitorFunctionals(TS ts, PetscInt stepnum, PetscReal time
     for (f = 0; f < Nf; ++f) {
       PetscInt dof, cdof, d;
 
-      ierr = PetscSectionGetFieldDof(s, p, f, &dof);CHKERRQ(ierr);
-      ierr = PetscSectionGetFieldConstraintDof(s, p, f, &cdof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldCount(s, p, f, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetFieldConstraintCount(s, p, f, &cdof);CHKERRQ(ierr);
       ierr = DMPlexPointGlobalFieldRead(dm, p, f, x, &a);CHKERRQ(ierr);
       /* TODO Use constrained indices here */
       for (d = 0; d < dof-cdof; ++d) xnorms[f*2+0]  = PetscMax(xnorms[f*2+0], PetscAbsScalar(a[d]));

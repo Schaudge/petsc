@@ -1643,7 +1643,7 @@ static PetscErrorCode DMPlexTransformCreateSF(DMPlexTransform tr, DM rdm)
     ierr = DMPlexGetCellType(dm, p, &ct);CHKERRQ(ierr);
     ierr = DMPlexTransformCellTransform(tr, ct, p, NULL, &Nct, &rct, &rsize, &rcone, &rornt);CHKERRQ(ierr);
     for (n = 0; n < Nct; ++n) {
-      ierr = PetscSectionAddDof(s, p, rsize[n]);CHKERRQ(ierr);
+      ierr = PetscSectionAddCount(s, p, rsize[n]);CHKERRQ(ierr);
     }
   }
   ierr = PetscSectionSetUp(s);CHKERRQ(ierr);
@@ -1812,15 +1812,15 @@ static PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform tr, DM rdm)
   /*   Stefano calculates parent cells for each new cell for localization */
   /*   Localized cells need coordinates of closure */
   for (v = vStartNew; v < vEndNew; ++v) {
-    ierr = PetscSectionSetDof(coordSectionNew, v, dE);CHKERRQ(ierr);
-    ierr = PetscSectionSetFieldDof(coordSectionNew, v, 0, dE);CHKERRQ(ierr);
+    ierr = PetscSectionSetCount(coordSectionNew, v, dE);CHKERRQ(ierr);
+    ierr = PetscSectionSetFieldCount(coordSectionNew, v, 0, dE);CHKERRQ(ierr);
   }
   if (localizeCells) {
     ierr = DMPlexGetHeightStratum(dm, 0, &cStart, &cEnd);CHKERRQ(ierr);
     for (c = cStart; c < cEnd; ++c) {
       PetscInt dof;
 
-      ierr = PetscSectionGetDof(coordSection, c, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, c, &dof);CHKERRQ(ierr);
       if (dof) {
         DMPolytopeType  ct;
         DMPolytopeType *rct;
@@ -1841,8 +1841,8 @@ static PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform tr, DM rdm)
             ierr = DMPlexGetTransitiveClosure(rdm, cNew, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
             for (cl = 0; cl < clSize*2; cl += 2) {if ((closure[cl] >= vStartNew) && (closure[cl] < vEndNew)) ++Nv;}
             ierr = DMPlexRestoreTransitiveClosure(rdm, cNew, PETSC_TRUE, &clSize, &closure);CHKERRQ(ierr);
-            ierr = PetscSectionSetDof(coordSectionNew, cNew, Nv * dE);CHKERRQ(ierr);
-            ierr = PetscSectionSetFieldDof(coordSectionNew, cNew, 0, Nv * dE);CHKERRQ(ierr);
+            ierr = PetscSectionSetCount(coordSectionNew, cNew, Nv * dE);CHKERRQ(ierr);
+            ierr = PetscSectionSetFieldCount(coordSectionNew, cNew, 0, Nv * dE);CHKERRQ(ierr);
           }
         }
       }
@@ -1886,7 +1886,7 @@ static PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform tr, DM rdm)
     }
     if (localizeVertices && ct != DM_POLYTOPE_POINT && (p >= ocStart) && (p < ocEnd)) {
       PetscInt dof;
-      ierr = PetscSectionGetDof(coordSection, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, p, &dof);CHKERRQ(ierr);
       if (dof) isLocalized = PETSC_TRUE;
     }
     if (hasVertex) {
@@ -1938,7 +1938,7 @@ static PetscErrorCode DMPlexTransformSetCoordinates(DMPlexTransform tr, DM rdm)
     ierr = DMPlexTransformCellTransform(tr, ct, p, NULL, &Nct, &rct, &rsize, &rcone, &rornt);CHKERRQ(ierr);
     if (localizeCells && ct != DM_POLYTOPE_POINT && (p >= ocStart) && (p < ocEnd)) {
       PetscInt dof;
-      ierr = PetscSectionGetDof(coordSection, p, &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetCount(coordSection, p, &dof);CHKERRQ(ierr);
       if (dof) isLocalized = PETSC_TRUE;
     }
     if (isLocalized) {

@@ -87,77 +87,77 @@ cdef class Section(Object):
     def setPermutation(self, IS perm):
         CHKERR( PetscSectionSetPermutation(self.sec, perm.iset))
 
-    def getDof(self,point):
+    def getCount(self,point):
         cdef PetscInt cpoint = asInt(point), cnumDof = 0
-        CHKERR( PetscSectionGetDof(self.sec,cpoint,&cnumDof) )
+        CHKERR( PetscSectionGetCount(self.sec,cpoint,&cnumDof) )
         return toInt(cnumDof)
 
-    def setDof(self,point,numDof):
+    def setCount(self,point,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionSetDof(self.sec,cpoint,cnumDof) )
+        CHKERR( PetscSectionSetCount(self.sec,cpoint,cnumDof) )
 
-    def addDof(self,point,numDof):
+    def addCount(self,point,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionAddDof(self.sec,cpoint,cnumDof) )
+        CHKERR( PetscSectionAddCount(self.sec,cpoint,cnumDof) )
 
-    def getFieldDof(self,point,field):
+    def getFieldCount(self,point,field):
         cdef PetscInt cpoint = asInt(point), cnumDof = 0
         cdef PetscInt cfield = asInt(field)
-        CHKERR( PetscSectionGetFieldDof(self.sec,cpoint,cfield,&cnumDof) )
+        CHKERR( PetscSectionGetFieldCount(self.sec,cpoint,cfield,&cnumDof) )
         return toInt(cnumDof)
 
-    def setFieldDof(self,point,field,numDof):
+    def setFieldCount(self,point,field,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cfield = asInt(field)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionSetFieldDof(self.sec,cpoint,cfield,cnumDof) )
+        CHKERR( PetscSectionSetFieldCount(self.sec,cpoint,cfield,cnumDof) )
 
-    def addFieldDof(self,point,field,numDof):
+    def addFieldCount(self,point,field,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cfield = asInt(field)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionAddFieldDof(self.sec,cpoint,cfield,cnumDof) )
+        CHKERR( PetscSectionAddFieldCount(self.sec,cpoint,cfield,cnumDof) )
 
-    def getConstraintDof(self,point):
+    def getConstraintCount(self,point):
         cdef PetscInt cpoint = asInt(point), cnumDof = 0
-        CHKERR( PetscSectionGetConstraintDof(self.sec,cpoint,&cnumDof) )
+        CHKERR( PetscSectionGetConstraintCount(self.sec,cpoint,&cnumDof) )
         return toInt(cnumDof)
 
-    def setConstraintDof(self,point,numDof):
+    def setConstraintCount(self,point,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionSetConstraintDof(self.sec,cpoint,cnumDof) )
+        CHKERR( PetscSectionSetConstraintCount(self.sec,cpoint,cnumDof) )
 
-    def addConstraintDof(self,point,numDof):
+    def addConstraintCount(self,point,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionAddConstraintDof(self.sec,cpoint,cnumDof) )
+        CHKERR( PetscSectionAddConstraintCount(self.sec,cpoint,cnumDof) )
 
-    def getFieldConstraintDof(self,point,field):
+    def getFieldConstraintCount(self,point,field):
         cdef PetscInt cpoint = asInt(point), cnumDof = 0
         cdef PetscInt cfield = asInt(field)
-        CHKERR( PetscSectionGetFieldConstraintDof(self.sec,cpoint,cfield,&cnumDof) )
+        CHKERR( PetscSectionGetFieldConstraintCount(self.sec,cpoint,cfield,&cnumDof) )
         return toInt(cnumDof)
 
-    def setFieldConstraintDof(self,point,field,numDof):
+    def setFieldConstraintCount(self,point,field,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cfield = asInt(field)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionSetFieldConstraintDof(self.sec,cpoint,cfield,cnumDof) )
+        CHKERR( PetscSectionSetFieldConstraintCount(self.sec,cpoint,cfield,cnumDof) )
 
-    def addFieldConstraintDof(self,point,field,numDof):
+    def addFieldConstraintCount(self,point,field,numDof):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt cfield = asInt(field)
         cdef PetscInt cnumDof = asInt(numDof)
-        CHKERR( PetscSectionAddFieldConstraintDof(self.sec,cpoint,cfield,cnumDof) )
+        CHKERR( PetscSectionAddFieldConstraintCount(self.sec,cpoint,cfield,cnumDof) )
 
     def getConstraintIndices(self,point):
         cdef PetscInt cpoint = asInt(point)
         cdef PetscInt nindex = 0
         cdef const PetscInt *indices = NULL
-        CHKERR( PetscSectionGetConstraintDof(self.sec, cpoint, &nindex) )
+        CHKERR( PetscSectionGetConstraintCount(self.sec, cpoint, &nindex) )
         CHKERR( PetscSectionGetConstraintIndices(self.sec, cpoint, &indices) )
         return array_i(nindex, indices)
 
@@ -166,7 +166,7 @@ cdef class Section(Object):
         cdef PetscInt nindex = 0
         cdef PetscInt *cindices = NULL
         indices = iarray_i(indices, &nindex, &cindices)
-        CHKERR( PetscSectionSetConstraintDof(self.sec,cpoint,nindex) )
+        CHKERR( PetscSectionSetConstraintCount(self.sec,cpoint,nindex) )
         CHKERR( PetscSectionSetConstraintIndices(self.sec,cpoint,cindices) )
 
     def getFieldConstraintIndices(self,point,field):
@@ -174,7 +174,7 @@ cdef class Section(Object):
         cdef PetscInt cfield = asInt(field)
         cdef PetscInt nindex = 0
         cdef const PetscInt *indices = NULL
-        CHKERR( PetscSectionGetFieldConstraintDof(self.sec,cpoint,cfield,&nindex) )
+        CHKERR( PetscSectionGetFieldConstraintCount(self.sec,cpoint,cfield,&nindex) )
         CHKERR( PetscSectionGetFieldConstraintIndices(self.sec,cpoint,cfield,&indices) )
         return array_i(nindex, indices)
 
@@ -184,12 +184,12 @@ cdef class Section(Object):
         cdef PetscInt nindex = 0
         cdef PetscInt *cindices = NULL
         indices = iarray_i(indices, &nindex, &cindices)
-        CHKERR( PetscSectionSetFieldConstraintDof(self.sec,cpoint,cfield,nindex) )
+        CHKERR( PetscSectionSetFieldConstraintCount(self.sec,cpoint,cfield,nindex) )
         CHKERR( PetscSectionSetFieldConstraintIndices(self.sec,cpoint,cfield,cindices) )
 
-    def getMaxDof(self):
+    def getMaxCount(self):
         cdef PetscInt maxDof = 0
-        CHKERR( PetscSectionGetMaxDof(self.sec,&maxDof) )
+        CHKERR( PetscSectionGetMaxCount(self.sec,&maxDof) )
         return toInt(maxDof)
 
     def getStorageSize(self):

@@ -232,7 +232,7 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
       /* Migrate facet connectivity data */
       ierr = PetscSectionCreate(comm, &facetSection);CHKERRQ(ierr);
       ierr = PetscSectionSetChart(facetSection, 0, numFacetsLocal);CHKERRQ(ierr);
-      for (f = 0; f < numFacetsLocal; f++) {ierr = PetscSectionSetDof(facetSection, f, numFacetCorners);CHKERRQ(ierr);}
+      for (f = 0; f < numFacetsLocal; f++) {ierr = PetscSectionSetCount(facetSection, f, numFacetCorners);CHKERRQ(ierr);}
       ierr = PetscSectionSetUp(facetSection);CHKERRQ(ierr);
       ierr = PetscSectionCreate(comm, &facetSectionRendezvous);CHKERRQ(ierr);
       ierr = DMPlexDistributeData(*dm, sfFacetMigration, facetSection, MPIU_INT, facetList, facetSectionRendezvous, (void**) &facetListRendezvous);CHKERRQ(ierr);
@@ -263,8 +263,8 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
       for (f = 0; f < numFacetsRendezvous*numFacetCorners; f++) {
         const PetscInt vertex = facetListRendezvous[f];
         if (vrange[rank] <= vertex && vertex < vrange[rank+1]) {
-          ierr = PetscSectionAddDof(facetSectionIDs, vertex-vrange[rank], 1);CHKERRQ(ierr);
-          ierr = PetscSectionAddDof(facetSectionVertices, vertex-vrange[rank], numFacetCorners);CHKERRQ(ierr);
+          ierr = PetscSectionAddCount(facetSectionIDs, vertex-vrange[rank], 1);CHKERRQ(ierr);
+          ierr = PetscSectionAddCount(facetSectionVertices, vertex-vrange[rank], numFacetCorners);CHKERRQ(ierr);
         }
       }
       ierr = PetscSectionSetUp(facetSectionVertices);CHKERRQ(ierr);
@@ -317,7 +317,7 @@ PetscErrorCode DMPlexCreateMedFromFile(MPI_Comm comm, const char filename[], Pet
       ierr = DMLabelSetDefaultValue(lblFaceSets, -666666666);CHKERRQ(ierr);
       for (v = 0; v < numVerticesLocal; v++) {
         ierr = PetscSectionGetOffset(facetSectionRemote, v, &offset);CHKERRQ(ierr);
-        ierr = PetscSectionGetDof(facetSectionRemote, v, &dof);CHKERRQ(ierr);
+        ierr = PetscSectionGetCount(facetSectionRemote, v, &dof);CHKERRQ(ierr);
         for (f = 0; f < dof; f += numFacetCorners) {
           for (verticesLocal = PETSC_TRUE, c = 0; c < numFacetCorners; ++c) {
             if (facetListRemote[offset+f+c] < 0) {verticesLocal = PETSC_FALSE; break;}

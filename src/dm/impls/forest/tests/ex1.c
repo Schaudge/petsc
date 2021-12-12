@@ -37,7 +37,7 @@ int main (int argc, char **argv)
   ierr = DMDestroy(&plex);CHKERRQ(ierr);
   ierr = PetscSectionCreate(PetscObjectComm((PetscObject) forest), &s);CHKERRQ(ierr);
   ierr = PetscSectionSetChart(s, vStart, vEnd);CHKERRQ(ierr);
-  for (v = vStart; v < vEnd; ++v) {ierr = PetscSectionSetDof(s, v, 1);CHKERRQ(ierr);}
+  for (v = vStart; v < vEnd; ++v) {ierr = PetscSectionSetCount(s, v, 1);CHKERRQ(ierr);}
   ierr = PetscSectionSetUp(s);CHKERRQ(ierr);
   ierr = DMSetLocalSection(forest, s);CHKERRQ(ierr);
   ierr = PetscSectionDestroy(&s);CHKERRQ(ierr);

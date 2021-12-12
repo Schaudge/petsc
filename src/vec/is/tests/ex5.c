@@ -136,27 +136,27 @@ int main(int argc, char **argv)
     switch (rank) {
     case 0:
       ierr = PetscSectionSetChart(section, 0, 4);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 0, 3);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 1, 3);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 2, 5);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 3, 7);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 0, 0, 2);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 1, 0, 3);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 2, 0, 5);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 3, 0, 7);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 0, 1, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 0, 3);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 1, 3);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 2, 5);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 3, 7);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 0, 0, 2);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 1, 0, 3);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 2, 0, 5);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 3, 0, 7);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 0, 1, 1);CHKERRQ(ierr);
       break;
     case 1:
       ierr = PetscSectionSetChart(section, 0, 3);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 0, 7);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 1, 5);CHKERRQ(ierr);
-      ierr = PetscSectionSetDof(section, 2, 13);CHKERRQ(ierr);
-      ierr = PetscSectionSetConstraintDof(section, 2, 1);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 0, 0, 7);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 1, 0, 5);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 2, 0, 11);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldDof(section, 2, 1, 2);CHKERRQ(ierr);
-      ierr = PetscSectionSetFieldConstraintDof(section, 2, 0, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 0, 7);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 1, 5);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(section, 2, 13);CHKERRQ(ierr);
+      ierr = PetscSectionSetConstraintCount(section, 2, 1);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 0, 0, 7);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 1, 0, 5);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 2, 0, 11);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldCount(section, 2, 1, 2);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldConstraintCount(section, 2, 0, 1);CHKERRQ(ierr);
       break;
     }
     ierr = PetscSectionSetUp(section);CHKERRQ(ierr);

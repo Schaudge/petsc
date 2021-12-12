@@ -185,7 +185,7 @@ PetscErrorCode PetscPartitionerShellSetPartition(PetscPartitioner part, PetscInt
   ierr = PetscSectionSetChart(p->section, 0, size);CHKERRQ(ierr);
   if (sizes) {
     for (proc = 0; proc < size; ++proc) {
-      ierr = PetscSectionSetDof(p->section, proc, sizes[proc]);CHKERRQ(ierr);
+      ierr = PetscSectionSetCount(p->section, proc, sizes[proc]);CHKERRQ(ierr);
     }
   }
   ierr = PetscSectionSetUp(p->section);CHKERRQ(ierr);

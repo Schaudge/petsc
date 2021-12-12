@@ -96,7 +96,7 @@ class BaseTestPlex(object):
         vec = self.plex.createLocalVec()
         pStart, pEnd = self.plex.getChart()
         for p in range(pStart, pEnd):
-            for i in range(section.getDof(p)):
+            for i in range(section.getCount(p)):
                 off = section.getOffset(p)
                 vec.setValue(off+i, p)
 
