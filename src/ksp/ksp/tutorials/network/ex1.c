@@ -280,6 +280,11 @@ int main(int argc,char ** argv)
 
   /* Network partitioning and distribution of data */
   ierr = DMSetUp(dmnetwork);CHKERRQ(ierr);
+    ierr = DMCreateMatrix(dmnetwork,&A);CHKERRQ(ierr);
+  DMView(dmnetwork,PETSC_VIEWER_STDOUT_WORLD);
+  MatView(A,PETSC_VIEWER_STDOUT_WORLD);
+  MatDestroy(&A);
+
   ierr = DMNetworkDistribute(&dmnetwork,0);CHKERRQ(ierr);
 
   /* We do not use these data structures anymore since they have been copied to dmnetwork */
@@ -292,6 +297,8 @@ int main(int argc,char ** argv)
   ierr = DMCreateGlobalVector(dmnetwork,&x);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&b);CHKERRQ(ierr);
   ierr = DMCreateMatrix(dmnetwork,&A);CHKERRQ(ierr);
+  DMView(dmnetwork,PETSC_VIEWER_STDOUT_WORLD);
+  MatView(A,PETSC_VIEWER_STDOUT_WORLD);
 
   /* Assembly system of equations */
   ierr = FormOperator(dmnetwork,A,b);CHKERRQ(ierr);

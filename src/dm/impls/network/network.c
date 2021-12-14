@@ -1701,6 +1701,10 @@ PetscErrorCode DMNetworkDistribute(DM *dm,PetscInt overlap)
   ierr = PetscSectionCreate(comm,&newDMnetwork->DofSection);CHKERRQ(ierr);
   ierr = PetscSectionSetPermutation(newDMnetwork->DofSection, plex->vecghostperm);CHKERRQ(ierr);
   ierr = PetscSFDistributeSection(pointsf,oldDMnetwork->DofSection,NULL,newDMnetwork->DofSection);CHKERRQ(ierr);
+  PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD,"Original section\n");
+  PetscSectionView(oldDMnetwork->DofSection,PETSC_VIEWER_STDOUT_WORLD);
+  PetscViewerASCIIPrintf(PETSC_VIEWER_STDOUT_WORLD,"Distributed section\n");
+  PetscSectionView(newDMnetwork->DofSection,PETSC_VIEWER_STDOUT_WORLD);
 
   /* Distribute data and associated section */
   ierr = PetscSectionCreate(comm,&newDMnetwork->DataSection);CHKERRQ(ierr);
