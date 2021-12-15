@@ -331,7 +331,7 @@ PetscErrorCode DGNetworkSetComponents(DGNetwork dgnet){
 
   /* Set up the network layout */
   ierr = DMNetworkSetNumSubNetworks(dgnet->network,PETSC_DECIDE,1);CHKERRQ(ierr);
-  ierr = DMNetworkAddSubnetwork(dgnet->network,NULL,nvertices,nedges,edgelist,NULL);CHKERRQ(ierr);
+  ierr = DMNetworkAddSubnetwork(dgnet->network,NULL,nedges,edgelist,NULL);CHKERRQ(ierr);
 
   ierr = DMNetworkLayoutSetUp(dgnet->network);CHKERRQ(ierr);
   ierr = DMNetworkGetEdgeRange(dgnet->network,&eStart,&eEnd);CHKERRQ(ierr);

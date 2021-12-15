@@ -554,12 +554,7 @@ static PetscErrorCode DMPlexView_GLVis_ASCII(DM dm, PetscViewer viewer)
   }
   /* return if this process is disabled */
   if (!enabled) {
-<<<<<<< HEAD
     ierr = PetscViewerASCIIPrintf(viewer,"MFEM mesh %s\n",enable_ncmesh ? "v1.1" : "v1.0");CHKERRQ(ierr);
-=======
-    ierr = PetscViewerASCIIPrintf(viewer,"solution\n");CHKERRQ(ierr); /*needed if viewing a solution i want it so its here */
-    ierr = PetscViewerASCIIPrintf(viewer,"MFEM mesh v1.1\n");CHKERRQ(ierr);
->>>>>>> Improved netrs implementation to depend on the physics of riemannsolver. Fixed small bug in plexgeometry (to be added to its own merge request).
     ierr = PetscViewerASCIIPrintf(viewer,"\ndimension\n");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"%D\n",dim);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"\nelements\n");CHKERRQ(ierr);

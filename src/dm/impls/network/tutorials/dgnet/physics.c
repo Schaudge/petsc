@@ -422,13 +422,9 @@ static PetscErrorCode PhysicsSample_TrafficNetwork(void *vctx,PetscInt initial,P
       } else {
           /* Method of characteristics to solve for exact solution */
           ctx.t =t; ctx.a = 0.5;
-<<<<<<< HEAD
           /* this is a hack that assumes we are using network 6 the periodic network with discretizations of 
           x = [0,5] for both of them */
           ctx.x = !edgeid ? x : x+5; 
-=======
-          ctx.x = !edgeid ? x : -x;
->>>>>>> trivial cleanup, e.g., remove white spaces etc
           ierr = VecCreate(PETSC_COMM_SELF,&X);CHKERRQ(ierr);
           ierr = VecSetSizes(X,PETSC_DECIDE,1);CHKERRQ(ierr);
           ierr = VecSetFromOptions(X);CHKERRQ(ierr);

@@ -483,78 +483,9 @@ PetscErrorCode RiemannListFind_2WaySplit(PetscFunctionList flist,const char *nam
 
   PetscFunctionBeginUser;
   ierr = PetscFunctionListFind(flist,name,rsolve);CHKERRQ(ierr);
-<<<<<<< HEAD
   if (!*rsolve) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE,"Riemann solver \"%s\" could not be found",name);
   PetscFunctionReturn(0);
 }
-=======
-  if (!*rsolve) SETERRQ1(PETSC_COMM_SELF,1,"Riemann solver \"%s\" could not be found",name);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode ReconstructListAdd_2WaySplit(PetscFunctionList *flist,const char *name,ReconstructFunction_2WaySplit r)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListAdd(flist,name,r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode ReconstructListFind_2WaySplit(PetscFunctionList flist,const char *name,ReconstructFunction_2WaySplit *r)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListFind(flist,name,r);CHKERRQ(ierr);
-  if (!*r) SETERRQ1(PETSC_COMM_SELF,1,"Reconstruction \"%s\" could not be found",name);
-  PetscFunctionReturn(0);
-}
-
-<<<<<<< HEAD
-=======
-PetscErrorCode RiemannListAdd_2WaySplit(PetscFunctionList *flist,const char *name,RiemannFunction_2WaySplit rsolve)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListAdd(flist,name,rsolve);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode RiemannListFind_2WaySplit(PetscFunctionList flist,const char *name,RiemannFunction_2WaySplit *rsolve)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListFind(flist,name,rsolve);CHKERRQ(ierr);
-  if (!*rsolve) SETERRQ1(PETSC_COMM_SELF,1,"Riemann solver \"%s\" could not be found",name);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode ReconstructListAdd_2WaySplit(PetscFunctionList *flist,const char *name,ReconstructFunction_2WaySplit r)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListAdd(flist,name,r);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode ReconstructListFind_2WaySplit(PetscFunctionList flist,const char *name,ReconstructFunction_2WaySplit *r)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = PetscFunctionListFind(flist,name,r);CHKERRQ(ierr);
-  if (!*r) SETERRQ1(PETSC_COMM_SELF,1,"Reconstruction \"%s\" could not be found",name);
-  PetscFunctionReturn(0);
-}
-
->>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
-
-/* --------------------------------- Physics ----------------------------------- */
->>>>>>> Modified .gitignore to include .vscode, added default hratio to ex6 (allows for an actual default run). Changed ex4 to be based on ex6.c (same problem with added slow buffer for better performance and slightly different mesh scaling, but both are of the form __slow__|___fast___|__slow__ ). Added initial support for shallow water equations (sourceless) to example 4. Still requires testing to verify  correctness.
 
 PetscErrorCode ReconstructListAdd_2WaySplit(PetscFunctionList *flist,const char *name,ReconstructFunction_2WaySplit r)
 {
