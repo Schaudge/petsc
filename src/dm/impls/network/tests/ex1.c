@@ -59,7 +59,7 @@ int main(int argc,char **argv)
   ierr = DMView(networkdm,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = DMNetworkGetPlex(networkdm,&plex);CHKERRQ(ierr);
   ierr = DMView(plex,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-<  ierr = DMGetSectionSF(plex,&sf);CHKERRQ(ierr);
+  ierr = DMGetSectionSF(plex,&sf);CHKERRQ(ierr);
   ierr = PetscSFView(sf,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   /* Re-distribute networkdm to multiple processes for better job balance */
