@@ -798,6 +798,16 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode DMNetworkGetGlobalVertex(DM dm,PetscInt p,PetscInt *gVtx)
+{
+  DM_Network *network = (DM_Network*)dm->data;
+
+  PetscFunctionBegin;
+  //if (netnum >= network->Nsubnet) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Subnet index %D exceeds the num of subnets %D",netnum,network->Nsubnet);
+  *gVtx     =  network->header[p].index;
+  PetscFunctionReturn(0);
+}
+
 /*@C
   DMNetworkGetSubnetwork - Returns the information about a requested subnetwork
 
