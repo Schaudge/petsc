@@ -727,6 +727,8 @@ PetscErrorCode DMNetworkLayoutSetUp(DM dm)
 
     The local vertices returned on each rank are determined by DMNetwork. The user does not have any control over what vertices are local.
 
+    You can call DMNetworkGetOriginalVertexNumber() on the vtx[] entries to determine their original global number location
+
   Level: intermediate
 
 .seealso: DMNetworkCreate(), DMNetworkAddSubnetwork(), DMNetworkLayoutSetUp()
@@ -949,6 +951,35 @@ static PetscErrorCode DMNetworkGetIndex(DM dm,PetscInt p,PetscInt *index)
   ierr = PetscSectionGetOffset(network->DataSection,p,&offsetp);CHKERRQ(ierr);
   header = (DMNetworkComponentHeader)(network->componentdataarray+offsetp);
   *index = header->index;
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMNetworkGetOriginalVertexNumber - Gets the original vertex number for a local vertex point that was passed to DMNetworkAddSubnetwork()
+    in the edge list
+
+  Not Collective
+
+  Input Parameters:
++ dm - DMNetwork object
+- p - vertex point (obtained with DMNetworkGetSubnetwork()
+
+  Output Parameters:
+. index - the original global numbering for the vertex
+
+  Notes:
+    Must be called after DMNetworkLayoutSetup()
+
+  Level: intermediate
+
+.seealso: DMNetworkGetGlobalVertexIndex()
+@*/
+PetscErrorCode DMNetworkGetOriginalVertexNumber(DM dm,PetscInt v,PetscInt *index)
+{
+  DM_Network *network = (DM_Network*)dm->data;
+
+  PetscFunctionBegin;
+  *index = network->header[v].index;
   PetscFunctionReturn(0);
 }
 
