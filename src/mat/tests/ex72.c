@@ -39,15 +39,15 @@ int main(int argc,char **argv)
 
   PetscInitialize(&argc,&argv,(char *)0,help);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRMPI(ierr);
-  PetscCheckFalse(size != 1,PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"This is a uniprocessor example only!");
+  PetscCheck(size == 1,PETSC_COMM_WORLD,PETSC_ERR_WRONG_MPI_SIZE,"This is a uniprocessor example only!");
 
-  ierr = PetscOptionsGetString(NULL,NULL,"-fin",filein,sizeof(filein),&flag);CHKERRQ(ierr);
-  PetscCheckFalse(!flag,PETSC_COMM_SELF,PETSC_ERR_USER_INPUT,"Please use -fin <filename> to specify the input file name!");
-  ierr = PetscOptionsGetString(NULL,NULL,"-fout",fileout,sizeof(fileout),&flag);CHKERRQ(ierr);
-  PetscCheckFalse(!flag,PETSC_COMM_SELF,PETSC_ERR_USER_INPUT,"Please use -fout <filename> to specify the output file name!");
-  ierr = PetscOptionsGetBool(NULL,NULL,"-aij_only",&aijonly,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"Poisson example options","");CHKERRQ(ierr);
+  ierr = PetscOptionsBegin(PETSC_COMM_WORLD,NULL,"Matrix Market example options","");CHKERRQ(ierr);
   {
+    ierr = PetscOptionsString("-fin","Input Matrix Market file","",filein,filein,sizeof(filein),&flag);CHKERRQ(ierr);
+    PetscCheck(flag,PETSC_COMM_SELF,PETSC_ERR_USER_INPUT,"Please use -fin <filename> to specify the input file name!");
+    ierr = PetscOptionsString("-fout","Output file in petsc sparse binary format","",fileout,fileout,sizeof(fileout),&flag);CHKERRQ(ierr);
+    PetscCheck(flag,PETSC_COMM_SELF,PETSC_ERR_USER_INPUT,"Please use -fout <filename> to specify the output file name!");
+    ierr = PetscOptionsBool("-aij_only","Use MATAIJ for all cases","",aijonly,&aijonly,NULL);CHKERRQ(ierr);
     ierr = PetscOptionsFList("-permute","Permute matrix and vector to solving in new ordering","",MatOrderingList,ordering,ordering,sizeof(ordering),&permute);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
@@ -55,14 +55,11 @@ int main(int argc,char **argv)
   /* Read in matrix */
   ierr = PetscFOpen(PETSC_COMM_SELF,filein,"r",&file);CHKERRQ(ierr);
 
-  if (mm_read_banner(file, &matcode) != 0)
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Could not process Matrix Market banner.");
+  PetscCheck(mm_read_banner(file, &matcode) == 0,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Could not process Matrix Market banner.");
 
   /*  This is how one can screen matrix types if their application */
   /*  only supports a subset of the Matrix Market data types.      */
-  if (!mm_is_matrix(matcode) || !mm_is_sparse(matcode)) {
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Input must be a sparse matrix. Market Market type: [%s]", mm_typecode_to_str(matcode));
-  }
+  PetscCheck(mm_is_matrix(matcode) && mm_is_sparse(matcode),PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Input must be a sparse matrix. Market Market type: [%s]", mm_typecode_to_str(matcode));
 
   if (mm_is_symmetric(matcode)) symmetric = PETSC_TRUE;
   if (mm_is_skew(matcode)) skew = PETSC_TRUE;
@@ -70,8 +67,7 @@ int main(int argc,char **argv)
   if (mm_is_pattern(matcode)) pattern = PETSC_TRUE;
 
   /* Find out size of sparse matrix .... */
-  if (mm_read_mtx_crd_size(file, &M, &N, &nz))
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Size of sparse matrix is wrong.");
+  PetscCheck(mm_read_mtx_crd_size(file, &M, &N, &nz) != 0,PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Size of sparse matrix is wrong.");
 
   ierr = mm_write_banner(stdout, matcode);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_SELF,"M: %d, N: %d, nnz: %d\n",M,N,nz);CHKERRQ(ierr);
@@ -157,7 +153,6 @@ int main(int argc,char **argv)
     ierr = MatDestroy(&A);CHKERRQ(ierr);
     A    = Aperm;               /* Replace original operator with permuted version */
   }
-  
 
   /* Write out matrix */
   ierr = PetscPrintf(PETSC_COMM_SELF,"Writing matrix to binary file %s using PETSc %s format ...\n",fileout,(symmetric && !aijonly)?"SBAIJ":"AIJ");CHKERRQ(ierr);
@@ -168,7 +163,8 @@ int main(int argc,char **argv)
 
   ierr = PetscFree4(ia,ja,val,rownz);CHKERRQ(ierr);
   ierr = MatDestroy(&A);CHKERRQ(ierr);
-  ierr = ISDestroy(&rowperm);CHKERRQ(ierr);  ierr = ISDestroy(&colperm);CHKERRQ(ierr);
+  ierr = ISDestroy(&rowperm);CHKERRQ(ierr);
+  ierr = ISDestroy(&colperm);CHKERRQ(ierr);
   ierr = PetscFinalize();CHKERRQ(ierr);
   return 0;
 }
