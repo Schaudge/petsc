@@ -33,7 +33,7 @@ int main(int argc,char **argv)
   d_gIdx = (PetscInt (*)[SZ][SZ]) d_gidx_k->data();
 
   const int scr_bytes_fdf = real1D_scr_t::shmem_size(n,m);
-  Kokkos::parallel_for("test", Kokkos::TeamPolicy<>(k, 16, 16).set_scratch_size(1, Kokkos::PerTeam(scr_bytes_fdf)), KOKKOS_LAMBDA (const team_member team) {
+  Kokkos::parallel_for("test", Kokkos::TeamPolicy<>(k, Kokkos::DefaultExecutionSpace().concurrency() > 1000 ? 16 : 1, 16).set_scratch_size(1, Kokkos::PerTeam(scr_bytes_fdf)), KOKKOS_LAMBDA (const team_member team) {
       const PetscInt loc_elem = team.league_rank();
       real1D_scr_t   coef_buff(team.team_scratch(1),n,m);
       Kokkos::parallel_for(Kokkos::TeamThreadRange(team,0,n), [=] (int f) {
