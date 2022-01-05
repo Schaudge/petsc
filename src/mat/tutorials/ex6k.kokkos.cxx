@@ -51,3 +51,16 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return ierr;
 }
+
+/*TEST
+
+   build:
+     requires: kokkos
+
+   test:
+     suffix: 0
+     requires: kokkos
+     args: -n 2 -m 3 -k 4
+     nsize:  1
+
+TEST*/
