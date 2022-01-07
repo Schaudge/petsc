@@ -180,55 +180,21 @@ PetscErrorCode DMPlexCreateCoordinateSpace(DM dm, PetscInt degree, PetscPointFun
   PetscFunctionReturn(0);
 }
 
-/*@
-  DMPlexCreateDoublet - Creates a mesh of two cells of the specified type, optionally with later refinement.
-
-  Collective
-
-  Input Parameters:
-+ comm - The communicator for the DM object
-. dim - The spatial dimension
-. simplex - Flag for simplicial cells, otherwise they are tensor product cells
-. interpolate - Flag to create intermediate mesh pieces (edges, faces)
-- refinementLimit - A nonzero number indicates the largest admissible volume for a refined cell
-
-  Output Parameter:
-. dm - The DM object
-
-  Level: beginner
-
-.seealso: DMSetType(), DMCreate()
-@*/
-PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simplex, PetscBool interpolate, PetscReal refinementLimit, DM *newdm)
+PetscErrorCode DMPlexCreateDoublet_Internal(DM dm, DMPolytopeType ct)
 {
-  DM             dm;
   PetscMPIInt    rank;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = DMCreate(comm, &dm);CHKERRQ(ierr);
-  ierr = DMSetType(dm, DMPLEX);CHKERRQ(ierr);
-  ierr = DMSetDimension(dm, dim);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm, &rank);CHKERRMPI(ierr);
-  switch (dim) {
-  case 2:
-    if (simplex) {ierr = PetscObjectSetName((PetscObject) dm, "triangular");CHKERRQ(ierr);}
-    else         {ierr = PetscObjectSetName((PetscObject) dm, "quadrilateral");CHKERRQ(ierr);}
-    break;
-  case 3:
-    if (simplex) {ierr = PetscObjectSetName((PetscObject) dm, "tetrahedral");CHKERRQ(ierr);}
-    else         {ierr = PetscObjectSetName((PetscObject) dm, "hexahedral");CHKERRQ(ierr);}
-    break;
-  default:
-    SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Cannot make meshes for dimension %D", dim);
-  }
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject) dm), &rank);CHKERRMPI(ierr);
+  ierr = DMSetDimension(dm, DMPolytopeTypeGetDim(ct));CHKERRQ(ierr);
   if (rank) {
     PetscInt numPoints[2] = {0, 0};
     ierr = DMPlexCreateFromDAG(dm, 1, numPoints, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
   } else {
-    switch (dim) {
-    case 2:
-      if (simplex) {
+    switch (ct) {
+    case DM_POLYTOPE_TRIANGLE:
+      {
         PetscInt    numPoints[2]        = {4, 2};
         PetscInt    coneSize[6]         = {3, 3, 0, 0, 0, 0};
         PetscInt    cones[6]            = {2, 3, 4,  5, 4, 3};
@@ -236,7 +202,11 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
         PetscScalar vertexCoords[8]     = {-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 0.5, 0.5};
 
         ierr = DMPlexCreateFromDAG(dm, 1, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      } else {
+        ierr = PetscObjectSetName((PetscObject) dm, "triangular");CHKERRQ(ierr);
+      }
+      break;
+    case DM_POLYTOPE_QUADRILATERAL:
+      {
         PetscInt    numPoints[2]        = {6, 2};
         PetscInt    coneSize[8]         = {4, 4, 0, 0, 0, 0, 0, 0};
         PetscInt    cones[8]            = {2, 3, 4, 5,  3, 6, 7, 4};
@@ -244,10 +214,11 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
         PetscScalar vertexCoords[12]    = {-1.0, -0.5,  0.0, -0.5,  0.0, 0.5,  -1.0, 0.5,  1.0, -0.5,  1.0, 0.5};
 
         ierr = DMPlexCreateFromDAG(dm, 1, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
+        ierr = PetscObjectSetName((PetscObject) dm, "quadrilateral");CHKERRQ(ierr);
       }
       break;
-    case 3:
-      if (simplex) {
+    case DM_POLYTOPE_TETRAHEDRON:
+      {
         PetscInt    numPoints[2]        = {5, 2};
         PetscInt    coneSize[7]         = {4, 4, 0, 0, 0, 0, 0};
         PetscInt    cones[8]            = {4, 3, 5, 2,  5, 3, 4, 6};
@@ -255,7 +226,11 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
         PetscScalar vertexCoords[15]    = {-1.0, 0.0, 0.0,  0.0, -1.0, 0.0,  0.0, 0.0, 1.0,  0.0, 1.0, 0.0,  1.0, 0.0, 0.0};
 
         ierr = DMPlexCreateFromDAG(dm, 1, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
-      } else {
+        ierr = PetscObjectSetName((PetscObject) dm, "tetrahedral");CHKERRQ(ierr);
+      }
+      break;
+    case DM_POLYTOPE_HEXAHEDRON:
+      {
         PetscInt    numPoints[2]         = {12, 2};
         PetscInt    coneSize[14]         = {8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         PetscInt    cones[16]            = {2, 3, 4, 5, 6, 7, 8, 9,  5, 4, 10, 11, 7, 12, 13, 8};
@@ -265,32 +240,42 @@ PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, PetscInt dim, PetscBool simple
                                              1.0,  0.5, -0.5,   1.0, -0.5, -0.5,  1.0, -0.5,  0.5,   1.0,  0.5,  0.5};
 
         ierr = DMPlexCreateFromDAG(dm, 1, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
+        ierr = PetscObjectSetName((PetscObject) dm, "hexahedral");CHKERRQ(ierr);
       }
       break;
-    default:
-      SETERRQ1(comm, PETSC_ERR_ARG_OUTOFRANGE, "Cannot make meshes for dimension %D", dim);
+    default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot make doublet for celltype %s", DMPolytopeTypes[PetscMin(DM_POLYTOPE_UNKNOWN, ct)]);
     }
   }
+  PetscFunctionReturn(0);
+}
+
+/*@
+  DMPlexCreateDoublet - Creates a mesh of two cells of the specified type, optionally with later refinement.
+
+  Collective
+
+  Input Parameters:
++ comm - The communicator for the DM object
+- ct   - The cell type
+
+  Output Parameter:
+. dm - The DM object
+
+  Level: beginner
+
+.seealso: DMSetType(), DMCreate()
+@*/
+PetscErrorCode DMPlexCreateDoublet(MPI_Comm comm, DMPolytopeType ct, DM *newdm)
+{
+  DM             dm;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMCreate(comm, &dm);CHKERRQ(ierr);
+  ierr = DMSetType(dm, DMPLEX);CHKERRQ(ierr);
+  ierr = DMSetDimension(dm, DMPolytopeTypeGetDim(ct));CHKERRQ(ierr);
+  ierr = DMPlexCreateDoublet_Internal(dm, ct);CHKERRQ(ierr);
   *newdm = dm;
-  if (refinementLimit > 0.0) {
-    DM rdm;
-    const char *name;
-
-    ierr = DMPlexSetRefinementUniform(*newdm, PETSC_FALSE);CHKERRQ(ierr);
-    ierr = DMPlexSetRefinementLimit(*newdm, refinementLimit);CHKERRQ(ierr);
-    ierr = DMRefine(*newdm, comm, &rdm);CHKERRQ(ierr);
-    ierr = PetscObjectGetName((PetscObject) *newdm, &name);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject)    rdm,  name);CHKERRQ(ierr);
-    ierr = DMDestroy(newdm);CHKERRQ(ierr);
-    *newdm = rdm;
-  }
-  if (interpolate) {
-    DM idm;
-
-    ierr = DMPlexInterpolate(*newdm, &idm);CHKERRQ(ierr);
-    ierr = DMDestroy(newdm);CHKERRQ(ierr);
-    *newdm = idm;
-  }
   PetscFunctionReturn(0);
 }
 
@@ -2482,7 +2467,7 @@ static PetscErrorCode DMPlexCreateBoundaryLabel_Private(DM dm, const char name[]
   PetscFunctionReturn(0);
 }
 
-const char * const DMPlexShapes[] = {"box", "box_surface", "ball", "sphere", "cylinder", "unknown", "DMPlexShape", "DM_SHAPE_", NULL};
+const char * const DMPlexShapes[] = {"box", "box_surface", "ball", "sphere", "cylinder", "doublet", "unknown", "DMPlexShape", "DM_SHAPE_", NULL};
 
 static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOptionsObject, PetscBool *useCoordSpace, DM dm)
 {
@@ -2633,6 +2618,10 @@ static PetscErrorCode DMPlexCreateFromOptions_Internal(PetscOptionItems *PetscOp
         }
       }
       break;
+      case DM_SHAPE_DOUBLET:
+        ierr = DMPlexCreateDoublet_Internal(dm, cell);CHKERRQ(ierr);
+        if (interpolate) {ierr = DMPlexInterpolateInPlace_Internal(dm);CHKERRQ(ierr);}
+        break;
       default: SETERRQ1(comm, PETSC_ERR_SUP, "Domain shape %s is unsupported", DMPlexShapes[shape]);
     }
   }

@@ -160,6 +160,7 @@ Changes: Development
 - Change ``DMTransformAdaptLabel`` so that it takes an additional argument for cell tags
 - Change ``DMGenerateRegister`` so that it registers routines that take an additional argument for cell tags
 - Change ``DMPlexFindVertices()`` to take ``Vec`` and ``IS`` arguments instead of arrays
+- Change ``DMPlexCreateDoublet()`` to mirror the other new mesh creation interfaces, and add a doublet shape for demonstration
 
 .. rubric:: FE/FV:
 

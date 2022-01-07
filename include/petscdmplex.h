@@ -146,7 +146,7 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateCoordinateSpace(DM, PetscInt, void (*)(P
                                                         const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[],
                                                         const PetscInt[], const PetscInt[], const PetscScalar[], const PetscScalar[], const PetscScalar[],
                                                         PetscReal, const PetscReal[], PetscInt, const PetscScalar[], PetscScalar[]));
-PETSC_EXTERN PetscErrorCode DMPlexCreateDoublet(MPI_Comm, PetscInt, PetscBool, PetscBool, PetscReal, DM *);
+PETSC_EXTERN PetscErrorCode DMPlexCreateDoublet(MPI_Comm, DMPolytopeType, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm, PetscInt, PetscBool, const PetscInt[], const PetscReal[], const PetscReal[], const DMBoundaryType[], PetscBool, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateBoxSurfaceMesh(MPI_Comm, PetscInt, const PetscInt[], const PetscReal[], const PetscReal[], PetscBool, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateSphereMesh(MPI_Comm, PetscInt, PetscBool, PetscReal, DM *);
