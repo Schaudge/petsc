@@ -7,14 +7,14 @@ class Configure(config.package.CMakePackage):
     self.minversion       = '1.3.0'  # Unclear
     self.version          = '1.4.0'
     self.versionname      = 'GINKGO_MAJOR_VERSION.GINKGO_MINOR_VERSION.GINKGO_PATCH_VERSION'
-    self.gitcommit        = 'origin/release/'+self.version
-    # In 1.4.0 they switched from tags to release branches.  If you want an
-    # older release, use this:
-    #self.gitcommit        = 'v'+self.version
-    self.download         = ['git://https://github.com/ginkgo-project/ginkgo','https://github.com/xiaoyeli/ginkgo-project/archive/'+self.gitcommit+'.tar.gz']
+    self.gitcommit        = 'f811917c1def4d0fcd8db3fe5c948ce13409e28e'  # v1.4.0
+
+    self.download         = ['git://https://github.com/ginkgo-project/ginkgo','https://github.com/ginkgo-project/archive/'+self.gitcommit+'.tar.gz']
     self.functionsCxx     = [1,'auto execCPU = gko::OmpExecutor::create();','']
     self.includes         = ['ginkgo.hpp']
     self.includedir       = os.path.join('include','ginkgo')
+    self.buildLanguages    = ['Cxx']
+    self.minCxxVersion     = 'c++11'
     self.liblist          = [['libginkgo.a']]
     self.downloadonWindows= 1
     self.hastests         = 1
@@ -26,13 +26,16 @@ class Configure(config.package.CMakePackage):
 
   def setupDependencies(self, framework):
     config.package.CMakePackage.setupDependencies(self, framework)
+    self.cxxlibs        = framework.require('config.packages.cxxlibs',self)
     self.blasLapack     = framework.require('config.packages.BlasLapack',self)
+    self.mathlib        = framework.require('config.packages.mathlib',self)
     self.mpi            = framework.require('config.packages.MPI',self)
     self.cuda           = framework.require('config.packages.cuda',self)
     self.hip            = framework.require('config.packages.hip',self)
+    self.compilerFlags  = framework.require('config.compilerFlags', self)
     self.openmp         = framework.require('config.packages.openmp',self)
-    self.odeps          = [self.cuda,self.openmp]
-    self.deps           = [self.mpi,self.blasLapack]
+    self.odeps          = [self.cuda,self.hip,self.openmp]
+    self.deps           = [self.mpi,self.blasLapack,self.cxxlibs,self.mathlib]
     return
 
   def formCMakeConfigureArgs(self):
@@ -66,9 +69,6 @@ class Configure(config.package.CMakePackage):
 
   def configureLibrary(self):
     config.package.Package.configureLibrary(self)
-    self.pushLanguage('C')
-    oldFlags = self.compilers.CPPFLAGS # Disgusting save and restore
-    self.compilers.CPPFLAGS += ' '+self.headers.toString(self.include)
     #if self.defaultIndexSize == 64:
     #  if not self.checkCompile('#include "ginkgo.h"','#if !defined(_LONGINT)\n#error "No longint"\n#endif\n'):
     #    raise RuntimeError('PETSc is being configured using --with-64-bit-indices but ginkgo library is built for 32 bit integers.\n\
@@ -77,5 +77,3 @@ class Configure(config.package.CMakePackage):
     #  if not self.checkCompile('#include "ginkgo.h"','#if defined(_LONGINT)\n#error "longint is defined"\n#endif\n'):
     #    raise RuntimeError('PETSc is being configured without using --with-64-bit-indices but ginkgo library is built for 64 bit integers.\n\
     #Suggest using --download-ginkgo')
-    self.compilers.CPPFLAGS = oldFlags
-    self.popLanguage()
