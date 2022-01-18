@@ -89,6 +89,7 @@ class Configure(config.package.CMakePackage):
       args.append('-DCMAKE_CXX_COMPILER='+self.kokkos.systemSyclc)
 
     # These options will be taken from Kokkos configuration
+    args = self.rmArgsStartsWith(args,'-DCMAKE_EXE_LINKER_FLAGS')
     args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_STANDARD=')
     args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_FLAGS')
     args = self.rmArgsStartsWith(args,'-DCMAKE_C_COMPILER=')

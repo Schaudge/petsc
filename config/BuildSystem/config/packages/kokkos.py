@@ -164,6 +164,8 @@ class Configure(config.package.CMakePackage):
         raise RuntimeError('SYCL error: could not find path of the sycl compiler')
       args = self.rmArgsStartsWith(args,'-DCMAKE_CXX_COMPILER=')
       args.append('-DCMAKE_CXX_COMPILER='+self.systemSyclc)
+      args = self.rmArgsStartsWith(args, '-DCMAKE_EXE_LINKER_FLAGS')
+      args = self.rmArgsStartsWith(args, '-DCMAKE_CXX_FLAGS')
       args.append('-DCMAKE_CXX_EXTENSIONS=OFF')
       args.append('-DKokkos_ENABLE_DEPRECATED_CODE_3=OFF')
       if hasattr(self.sycl,'syclArch') and self.sycl.syclArch != 'x86_64':
