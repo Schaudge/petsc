@@ -562,7 +562,7 @@ class Configure(config.base.Configure):
     if withLangDialect in ('','0','NONE'):
       self.logPrint('checkCxxDialect: user has requested NO cxx dialect, we\'ll check but not add the flag')
       withLangDialect = 'NONE'
-      useFlag         = False # we still do the checks, just not add the flag in the end
+      # useFlag         = False # we still do the checks, just not add the flag in the end
     self.logPrint('checkCxxDialect: configure option after sanitization: --{opt}={val}'.format(opt=configureArg,val=withLangDialect))
 
     # check the configure argument
@@ -818,6 +818,9 @@ class Configure(config.base.Configure):
             if useFlag:
               # needs compilerOnly = True as we need to keep the flag out of the linker flags
               self.setCompilers.addCompilerFlag(flag,includes=dlct.includes,body=dlct.body,compilerOnly=True)
+              ppFlagName = self.getPreprocessorFlagsArg()
+              setattr(self.setCompilers,ppFlagName,getattr(self.setCompilers,ppFlagName)+' '+flag)
+              self.log.write('Added '+self.language[-1]+' preprocessor flag '+flag+'\n')
             elif not self.setCompilers.checkCompile(includes=dlct.includes,body=dlct.body):
               raise RuntimeError # to mimic addCompilerFlag
           except RuntimeError:
