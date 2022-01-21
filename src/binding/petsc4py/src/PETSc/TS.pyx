@@ -759,6 +759,11 @@ cdef class TS(Object):
     def setSaveTrajectory(self):
         CHKERR(TSSetSaveTrajectory(self.ts))
 
+    def destroyTrajectoryFromTS(self):
+        cdef PetscTSTrajectory tj = NULL
+        CHKERR(TSGetTrajectory(self.ts, &tj))
+        CHKERR(TSTrajectoryDestroy(&tj))
+
     def getCostIntegral(self):
         cdef Vec cost = Vec()
         CHKERR( TSGetCostIntegral(self.ts, &cost.vec) )
